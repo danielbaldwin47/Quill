@@ -7,10 +7,11 @@ const r = await p.evaluate(() => {
   for (const fam of ['iA Writer Duo','iA Writer Quattro','iA Writer Mono']) {
     for (const [w,s] of [[400,'normal'],[400,'italic'],[700,'normal'],[700,'italic']]) {
       const d = document.createElement('div');
-      d.style.cssText = `position:absolute;font-family:"${fam}";font-weight:${w};font-style:${s};font-size:100px;line-height:normal;white-space:pre`;
-      d.textContent = 'Hxg';
+      d.style.cssText = `position:absolute;top:0;left:0;font-family:"${fam}";font-weight:${w};font-style:${s};font-size:1000px;line-height:normal;white-space:pre`;
+      d.innerHTML = 'Hxg<span style="display:inline-block;width:0;height:0;vertical-align:baseline"></span>';
       document.body.appendChild(d);
-      out.push([fam,w,s,d.getBoundingClientRect().height]);
+      const dr = d.getBoundingClientRect(), sr = d.querySelector('span').getBoundingClientRect();
+      out.push([fam, w, s, 'H='+dr.height, 'ascent='+(sr.top-dr.top), 'descent='+(dr.bottom-sr.top)]);
       d.remove();
     }
   }

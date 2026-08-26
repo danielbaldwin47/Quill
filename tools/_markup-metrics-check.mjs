@@ -11,7 +11,7 @@ for (const font of ['duo','quattro','mono']) {
     // a plain, span-free clone of each line, laid out in the same box
     const mirror = document.getElementById('mirror');
     const probe = document.createElement('div');
-    probe.style.cssText = 'position:absolute;left:0;top:0;width:100%;visibility:hidden';
+    probe.style.cssText = 'position:absolute;left:0;top:0;width:100%;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word';
     probe.className = mirror.className;
     mirror.parentNode.appendChild(probe);
     const bad = [];

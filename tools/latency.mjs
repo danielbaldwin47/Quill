@@ -353,7 +353,21 @@ if (args.attach) {
   result = { ...cold, ...(await measure(browser, page0)) };
   if (args.seed) {                                   // leave the benchmark document in this profile
     await page0.evaluate((t) => { Writer.setText(t, { caret: t.length }); }, doc);
-    await page0.waitForTimeout(1200);
+    await page0.waitForTimeout(900);
+    await page0.reload({ waitUntil: 'load' });        // beforeunload flushes the document to storage
+    await page0.waitForTimeout(300);
+    result.seeded_chars = await page0.evaluate(() => Writer.getText().length);
+    // A graceful browser shutdown, not a signal: local storage is committed to disk on exit, and
+    // the next launch is only a real cold start if the document is actually there to be opened.
+    try {
+      const bs = await browser.newBrowserCDPSession();
+      await bs.send('Browser.close').catch(() => {});
+    } catch (e) {}
+    for (let i = 0; i < 100; i++) {                   // wait for the endpoint to go away
+      const ok = await fetch(`http://127.0.0.1:${args.attach}/json/version`).then(() => true).catch(() => false);
+      if (!ok) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
   }
 } else {
   browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true });
