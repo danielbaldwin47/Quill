@@ -2,6 +2,7 @@
 // node tools/shoot.mjs --out shots/x.png [--w 1440 --h 900 --dpr 2] [--theme light|dark|auto] [--font duo|quattro|mono]
 //   [--size 18] [--focus off|sentence|paragraph] [--typewriter] [--chrome on|off] [--text file.md] [--caret N|end|"needle"]
 //   [--mouse] (move mouse so chrome shows) [--nocaret] [--select a,b] [--url http://localhost:4173/] [--wait ms] [--full]
+//   [--state seed.json]  merge {localStorageKey: value} into localStorage before load (e.g. a demo Library)
 import { chromium } from 'playwright-core'; import fs from 'node:fs'; import path from 'node:path';
 const args = {}; for (let i = 2; i < process.argv.length; i++) { const a = process.argv[i]; if (a.startsWith('--')) { const k = a.slice(2); const v = process.argv[i + 1]; if (v === undefined || v.startsWith('--')) args[k] = true; else { args[k] = v; i++; } } }
 const W = +(args.w || 1440), H = +(args.h || 900), dpr = +(args.dpr || 2);
@@ -12,7 +13,8 @@ const text = args.text ? fs.readFileSync(args.text, 'utf8') : null;
 const b = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true, args: ['--font-render-hinting=none', '--disable-lcd-text', '--hide-scrollbars'] });
 const ctx = await b.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: dpr, colorScheme: settings.theme === 'dark' ? 'dark' : 'light', reducedMotion: 'no-preference' });
 const p = await ctx.newPage();
-await p.addInitScript((s) => { localStorage.setItem('quill.settings', JSON.stringify(s)); localStorage.removeItem('quill.doc'); localStorage.removeItem('quill.doc.sel'); }, settings);
+const seed = args.state ? JSON.parse(fs.readFileSync(args.state, 'utf8')) : null;   // [files piece] --state seeds localStorage
+await p.addInitScript(([s, seed]) => { localStorage.setItem('quill.settings', JSON.stringify(s)); localStorage.removeItem('quill.doc'); localStorage.removeItem('quill.doc.sel'); if (seed) for (const k in seed) localStorage.setItem(k, typeof seed[k] === 'string' ? seed[k] : JSON.stringify(seed[k])); }, [settings, seed]);
 await p.goto(url, { waitUntil: 'load' });
 await p.evaluate(async () => { await document.fonts.ready; });
 if (text !== null) {

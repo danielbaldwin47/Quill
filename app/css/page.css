@@ -1,14 +1,64 @@
-/* The page: layout of scroller, measure, margins. Owner: page piece. */
+/* The page: paper, margins, measure, vertical placement, scroll feel. Owner: page piece.
+ *
+ * Measured from ref/ia/shots/ianet-mac-light-window-focus-syntax-italic.webp (3150x2066, 2x):
+ *   window inner box            x 113..3036  (1462 logical wide)
+ *   editor area (below titlebar) y 152..1916 ( 882 logical tall)
+ *   body text column            x 806..2342  ( 768 logical  = 38.4em at 20px type)
+ *   left margin = right margin  = 347 logical (23.7% of the window each side)
+ *   a full line holds exactly 64 characters  -> the 64-char limit iA publishes
+ *   first ink (heading) sits 85 logical px below the top of the editor area
+ *   line pitch 73.3px @2x, blank line = exactly one pitch (no extra paragraph margin)
+ * So: the column is a hard 64-character measure, centred, and the text starts high —
+ * roughly two and a half lines down — not floating in the middle of the window.
+ */
+
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: hidden; }
 #app { height: 100%; display: flex; flex-direction: column; }
-#scroller { flex: 1; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--rule) transparent; }
+
+:root {
+  /* Measure: --measure comes from type.css (64ch = iA's published default
+     line-length limit; 1ch is one cell in all three faces, so the column keeps
+     the same shape when you switch typeface and scales with the text size).
+     The page's job is to hold it and centre it. */
+  /* Side margin, used only once the window is too narrow to hold the measure. */
+  --page-gutter: clamp(24px, 6vw, 96px);
+  /* Where the first line sits: exactly two line pitches down, so the document
+     opens with its first sentence right under your eyes and the text keeps the
+     same rhythm from the very top edge. Tracks type.css's liquid leading.
+     (Measured on the iA window: first ink 85px below the top of the editor;
+     two pitches puts ours at 82px.) */
+  --page-top: calc(2 * var(--line-pitch, calc(var(--line-height) * 1em)));
+  /* Room to scroll past the last line, so the line you are writing never has
+     to sit on the bottom edge of the window. */
+  --page-bottom: 30vh;
+}
+/* Typewriter mode needs every line — including the first and the last — to be
+   able to reach the middle of the window. */
+:root[data-typewriter="on"] { --page-top: 52vh; --page-bottom: 62vh; }
+
+#scroller {
+  flex: 1;
+  overflow-y: auto; overflow-x: hidden;
+  overscroll-behavior: contain;
+  /* Reserve the scrollbar on both sides so the text column never shifts
+     sideways when a document grows past one screenful. */
+  scrollbar-gutter: stable both-edges;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule) transparent;
+  /* Keep context above the caret and a third of the window below it, so writing
+     drifts up the page instead of crawling along the bottom edge. */
+  scroll-padding: 10vh 0 28vh;
+}
+
 #page {
   position: relative;
-  width: min(var(--measure), calc(100% - 2 * clamp(24px, 6vw, 96px)));
+  width: min(var(--measure), calc(100% - 2 * var(--page-gutter)));
+  max-width: 100%;
   margin: 0 auto;
-  padding: 40vh 0 60vh;   /* room so any line can rest at the typewriter line */
+  padding: var(--page-top) 0 var(--page-bottom);
 }
+
 #mirror, #input {
   display: block;
   width: 100%;
@@ -17,15 +67,27 @@ html, body { margin: 0; height: 100%; overflow: hidden; }
   overflow-wrap: break-word;
   word-break: normal;
   hyphens: none;
+  text-align: left;
 }
-#mirror { color: var(--fg); pointer-events: none; }
-#mirror .line { min-height: calc(var(--line-height) * 1em); }
+#mirror { position: relative; color: var(--fg); pointer-events: none; }
+#mirror .line { min-height: var(--line-pitch, calc(var(--line-height) * 1em)); }
 #input {
-  position: absolute; top: 40vh; left: 0;
+  position: absolute; top: var(--page-top); left: 0;
   color: transparent;
   caret-color: transparent;   /* caret.js draws its own */
   resize: none; overflow: hidden;
   -webkit-text-fill-color: transparent;
 }
 #input::selection { background: var(--selection); color: transparent; }
-#input::placeholder { color: var(--mark); -webkit-text-fill-color: var(--mark); }
+
+/* Empty page. One whisper on the first line, exactly where the first glyph will
+   land, so the eye and the caret start in the same place. It is gone the moment
+   there is a character in the document (a single empty line renders as <br>). */
+#mirror:has(> .line:only-child > br:only-child)::after {
+  content: "Start writing…";
+  position: absolute; top: 0; left: 0;
+  color: var(--fg-dim, var(--mark));
+  pointer-events: none;
+  user-select: none;
+}
+#input::placeholder { color: var(--fg-dim, var(--mark)); -webkit-text-fill-color: currentColor; }

@@ -1,5 +1,63 @@
-/* Focus mode dimming. Owner: focus piece. */
-#mirror .dim { color: var(--fg-dim); transition: color .25s ease; }
-#mirror .dim.md-mark { color: var(--fg-dim); }
-#mirror .dim.md-link-text { color: var(--fg-dim); }
-#mirror span { transition: color .25s ease; }
+/* Focus mode dimming. Owner: focus piece.
+ *
+ * The dimmed grey itself is theme.css's `--fg-dim` — iA's measured #cccccc on paper and
+ * #707070 on the dark ground — so focus mode follows the theme, including its
+ * prefers-contrast and print palettes. This file adds the second, quieter thing:
+ *
+ *   bright  the active sentence (or paragraph)   var(--fg)
+ *   near    the sentence either side of it       one step up from --fg-dim
+ *   dim     everything else                      var(--fg-dim)
+ *
+ * iA drops the sentence you just finished to the same grey as text three paragraphs away.
+ * `near` is a single quiet step back toward the ink: enough to read the thought you are
+ * continuing, not enough to compete with the line you are writing. The step is larger on
+ * the dark ground than on paper, because dark grounds crush low-contrast detail — the same
+ * asymmetry that makes iA's own dim grey relatively brighter at night.
+ */
+:root {
+  --focus-near-lift: 15%;   /* how far `near` climbs from --fg-dim toward --fg */
+  --focus-fade: 130ms;      /* cross-fade when the focus moves */
+}
+:root[data-theme="dark"] { --focus-near-lift: 26%; }
+@media (prefers-color-scheme: dark) { :root[data-theme="auto"] { --focus-near-lift: 26%; } }
+@media (prefers-reduced-motion: reduce) { :root { --focus-fade: 1ms; } }
+
+#mirror {
+  --ink-dim: var(--fg-dim);
+  --ink-near: var(--fg-dim);   /* fallback if color-mix is unavailable: near collapses to dim */
+  --ink-near: color-mix(in srgb, var(--fg) var(--focus-near-lift), var(--fg-dim));
+}
+
+/* Out of focus, everything flattens to the one grey — markers, links, code, struck text.
+   That is the whole point: nothing off the active line should have a voice of its own. */
+#mirror .dim { color: var(--ink-dim); }
+#mirror .dim.md-mark,
+#mirror .dim.md-link-text,
+#mirror .dim.md-url,
+#mirror .dim.md-quote,
+#mirror .dim.md-done,
+#mirror .dim.md-code,
+#mirror .dim.md-codeblock { color: var(--ink-dim); }
+#mirror .dim.md-url { text-decoration-color: transparent; }
+#mirror .dim.md-code,
+#mirror .dim.md-codeblock { background: transparent; }
+
+#mirror .near { color: var(--ink-near); }
+#mirror .near.md-mark,
+#mirror .near.md-link-text,
+#mirror .near.md-url,
+#mirror .near.md-quote,
+#mirror .near.md-done,
+#mirror .near.md-code,
+#mirror .near.md-codeblock { color: var(--ink-near); }
+#mirror .near.md-code,
+#mirror .near.md-codeblock { background: transparent; }
+
+/* Cross-fade the lines whose tier changed. focus.js adds one of these after re-filling a
+   line; core's fillLine() rewrites className on that line's next render, so they are
+   one-shot and cost nothing while you type inside the active sentence. */
+@keyframes focus-in { from { color: var(--ink-dim); } }
+@keyframes focus-out { from { color: var(--fg); } }
+#mirror .line.fx-in { animation: focus-in var(--focus-fade) ease-out; }
+#mirror .line.fx-out .dim,
+#mirror .line.fx-out .near { animation: focus-out var(--focus-fade) ease-out; }
