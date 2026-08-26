@@ -1,0 +1,77 @@
+# Focus Mode Windows
+
+ [IMG:https://static.ia.net/2023/05/win-fm-sentence.webp] 
+
+ Focus mode for Windows emphasizes the active sentence or paragraph while eliminating distractions, so you can concentrate on the current task.
+
+According to user feedback, this feature really shines when used in full-screen, dark mode. We suggest that you test both dark letters on a white background and light colors on a dark background to determine which option works for you.
+
+## How To Enable Focus Mode
+
+You can enable/disable Focus Mode from:
+
+the Menu Focus → Paragraph or Sentence
+
+the keyboard shortcut CtrlShiftD (sentence mode)
+
+ [IMG:https://static.ia.net/2025/01/win_focus_mode_enable.webp] 
+
+Focus Mode has 2 different settings and a scrolling option.
+
+### Sentence
+
+The active sentence—where your cursor is placed—is highlighted while the surrounding text is dimmed.
+
+ [IMG:https://static.ia.net/2023/05/win-fm-sentence.webp] 
+
+### Paragraph
+
+The active paragraph is highlighted while the surrounding text is dimmed.
+
+Moving the cursor to a different paragraph makes it the active paragraph.
+
+ [IMG:https://static.ia.net/2023/05/win-fm-paragraph.webp] 
+
+### Typewriter Scrolling
+
+Unlike the two previous options, the text is not be highlighted or dimmed in this mode.
+
+The cursor remains vertically centered in the Editor when typing or moving up or down in your document. The experience is similar to what you would have with a mechanical typewriter.
+
+Typewriter Scrolling can be enabled independently of other Focus Mode or Syntax Control options.
+
+ [IMG:https://static.ia.net/2023/05/win-fm-typewriter.webp] 
+
+## Jumpy Screen When Editing?
+
+Focus Mode is meant to be used during the writing/ creation phase and for the best experience we recommend toggling it off during any editing phases.
+
+A conflict between the area you will select to edit and Focus Mode’s attempt to vertically center the cursor might result in the screen jumping vertically.
+
+### Helping You Focus
+
+Focus Mode is just one aspect in Writer that helps keep your mind on your text. Learn about more in these related blog posts:
+
+An ADHD-friendly Writing App
+
+After all, everyone is distracted once in a while
+
+## 
+ [IMG:https://static.ia.net/platform-icons/bicon-tools.png] 
+ Focus Mode 
+
+ [IMG:https://static.ia.net/2023/05/focus2.webp] 
+
+### Focus Mode Mac
+
+ [IMG:https://static.ia.net/2023/05/iOS-fm-sentence.webp] 
+
+### Focus Mode iPhone
+
+ [IMG:https://static.ia.net/2023/07/FocusSentIpad.webp] 
+
+### Focus Mode iPad
+
+ [IMG:https://static.ia.net/2023/08/FocusAndro3.webp] 
+
+### Focus Mode Android

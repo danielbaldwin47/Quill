@@ -1,17 +1,66 @@
 {
   "name": "Quill",
   "startedAt": "2026-08-26T18:30:00+02:00",
-  "bar": { "startup_ms": null, "keystroke_ms": null, "note": "iA Writer publishes no latency numbers; bar is being established from third-party editor measurements (see ref/ia/REFERENCE.md)." },
+  "bar": {
+    "startup_ms": null,
+    "keystroke_ms": 32.5,
+    "note": "iA publishes no latency numbers (only 'boots in a whizz\u2026 snappy as jazz'). Bar = best native editors: Sublime 32.5 ms / TextEdit 33.4 ms keyboard-to-photon (Tristan Hume, macOS); internal input\u2192paint \u22645 ms (Typometer, Notepad++ 4.3 ms). Sources in ref/ia/REFERENCE.md."
+  },
   "pieces": [
-    { "id": "page", "title": "The page", "what": "Paper, margins, measure, scrolling, the empty state" },
-    { "id": "type", "title": "The type", "what": "Duo / Quattro / Mono, size, line height, rhythm" },
-    { "id": "caret", "title": "Cursor & caret", "what": "Shape, color, blink, motion, selection" },
-    { "id": "focus", "title": "Focus & typewriter", "what": "Sentence/paragraph dimming, typewriter line" },
-    { "id": "theme", "title": "Dark & light", "what": "Both palettes, contrast, switching" },
-    { "id": "markup", "title": "Markup rendering", "what": "Headings, emphasis, lists, quotes, code, links in the editor" },
-    { "id": "chrome", "title": "Chrome & menus", "what": "Bars, counters, palette, what hides while typing" },
-    { "id": "files", "title": "File handling", "what": "Open/save, autosave, library, drag & drop" },
-    { "id": "latency", "title": "Latency", "what": "Keystroke-to-paint and startup, measured" }
+    {
+      "id": "page",
+      "title": "The page",
+      "what": "Paper, margins, measure, scrolling, the empty state"
+    },
+    {
+      "id": "type",
+      "title": "The type",
+      "what": "Duo / Quattro / Mono, size, line height, rhythm"
+    },
+    {
+      "id": "caret",
+      "title": "Cursor & caret",
+      "what": "Shape, color, blink, motion, selection"
+    },
+    {
+      "id": "focus",
+      "title": "Focus & typewriter",
+      "what": "Sentence/paragraph dimming, typewriter line"
+    },
+    {
+      "id": "theme",
+      "title": "Dark & light",
+      "what": "Both palettes, contrast, switching"
+    },
+    {
+      "id": "markup",
+      "title": "Markup rendering",
+      "what": "Headings, emphasis, lists, quotes, code, links in the editor"
+    },
+    {
+      "id": "chrome",
+      "title": "Chrome & menus",
+      "what": "Bars, counters, palette, what hides while typing"
+    },
+    {
+      "id": "files",
+      "title": "File handling",
+      "what": "Open/save, autosave, library, drag & drop"
+    },
+    {
+      "id": "latency",
+      "title": "Latency",
+      "what": "Keystroke-to-paint and startup, measured"
+    }
   ],
-  "log": [ { "at": "2026-08-26T18:30:00+02:00", "msg": "Harness up: headless Chromium screenshots, latency bench, blind A/B pairing. Core editor engine written (textarea + mirror, incremental line render, custom caret, focus/typewriter, markdown tokenizer)." } ]
+  "log": [
+    {
+      "at": "2026-08-26T18:30:00+02:00",
+      "msg": "Harness up: headless Chromium screenshots, latency bench, blind A/B pairing. Core editor engine written (textarea + mirror, incremental line render, custom caret, focus/typewriter, markdown tokenizer)."
+    },
+    {
+      "at": "2026-08-26T22:52:00+02:00",
+      "msg": "Reference package in: 49 real iA Writer screenshots (App Store, MS Store, ia.net) with verbatim transcriptions, Duo/Quattro/Mono fonts (OFL) with parsed metrics, measured spec sheet (paper #f9f9f9 / #1a1a1a, ink #1c1c1c / #cccccc, caret #00b5ff \u22480.15 em wide, line pitch \u22481.7\u00d7, 64-char measure, hanging # markers), latency bar from third-party measurements."
+    }
+  ]
 }

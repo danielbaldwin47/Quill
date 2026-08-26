@@ -1,0 +1,273 @@
+# Settings
+
+ [IMG:https://static.ia.net/2023/12/SetLibra.webp] 
+
+ iA Writer for Mac is a minimalist app with streamlined settings that create a focused experience.
+
+While keeping to a minimum, there is still some flexibility to adjust certain features for an improved user experience.
+
+You can access Settings from:
+
+The Menu iA Writer → Settings
+
+The keyboard shortcut ⌘, [IMG:https://static.ia.net/2024/01/SettingsMac1.webp] 
+
+GeneralAccountsFilesLibraryEditorAuthorsTemplatesMarkdown
+
+## General
+
+ [IMG:https://static.ia.net/2023/12/SetGen.webp] 
+
+##### Appearance
+
+Choose between Light and Dark themes for iA Writer.
+
+##### Dock icon
+
+Choose whether to show the Light or Dark icon in the dock while running iA Writer.
+
+##### File extensions
+
+Show or hide the extension of your files in the Library.
+
+##### Window
+
+Various ways to set up the main window of Writer.
+
+##### Titlebar
+
+Choose if you always see the Title bar or if it fades in/out.
+
+##### Toolbar
+
+Choose if you always/never see the Toolbar or if it fades in/out.
+
+##### Automation
+
+Turn on support for URL Commands.
+
+## Accounts
+
+ [IMG:https://static.ia.net/2023/12/SetAcc.webp] 
+
+The + / - will add or remove blogging accounts.
+
+The Options... let you choose whether drafts for the selected account are posted in HTML or Markdown.
+
+## Files
+
+ [IMG:https://static.ia.net/2023/12/SetFiles.webp] 
+
+##### Default extension
+
+New files will be saved with the extension provided here.
+
+Common extensions are .txt, .text or .md for Markdown.
+
+##### Preferred action
+
+Determines the behavior of ⌘N; either create files in the currently shown folder of the Library or prompt for a save location upon ⌘S.
+
+##### Open files
+
+Enable or disable for “Ask to keep changes” when closing. If “Close when quitting” is enabled, open files will not be restored.
+
+## Library
+
+ [IMG:https://static.ia.net/2023/12/SetLibra.webp] 
+
+##### Organizer
+
+Choose which sections to display in the Organizer.
+
+##### Files
+
+Toggle these options to keep folders at the top of the library list, show text excerpts for each file and show or hide the Sort and Filter bars.
+
+##### Sort by
+
+Choose to sort documents in the library by modification date, name, or kind.
+
+## Editor
+
+ [IMG:https://static.ia.net/2023/12/SetEdit.webp] 
+
+##### Text size
+
+Adjust slider to desired text size.
+
+##### Typeface
+
+Select the font between iA Mono, Duo or Quattro.
+
+##### Typography
+
+Select language corresponding to the typography (for CJK optimization).
+
+##### Line length limit
+
+Select maximum characters per line (64, 72 or 80).
+
+##### Advanced
+
+Adjust indentation, tab key behavior, tab width, and treatment for wrapped line/whitespace.
+
+##### Highlight color
+
+Choose the color for the highlight function between yellow, orange, pink, purple, blue and green.
+
+##### Completed tasks
+
+Determines the appearance of a task when complete, either strikethrough, faded or both.
+
+##### Focus scope
+
+Determines the Focus Mode, between Sentence/Paragraph/Typewriter.
+
+##### Syntax
+
+Select parts of speech to be highlighted when Syntax Control is enabled.
+
+##### Style Check
+
+Select parts of speech to be crossed out when Style Check is enabled and add Custom Patterns to compliment built-in lists.
+
+##### Authors
+
+Select which type of Authors are identified when Authorship is enabled in a document.
+
+##### Spelling and grammar
+
+Decide how iA Writer checks your spelling and grammar, if at all.
+
+##### Smart substitutions
+
+COPY/PASTE: Automatically removes word-bordering whitespace.
+
+QUOTES: Replace straight quotes with curly quotes
+
+DASHES: Two hyphens in a row are converted to an emdash
+
+TEXT REPLACEMENT: Toggles replacements from  → System Settings → Keyboard → Text Input.
+
+You can learn more about Smart substitutions and automations on this dedicated page.
+
+##### Completions
+
+If you choose “Insert and type-over matching brackets,” pressing the [ key will add opening and closing brackets, with the cursor positioned between them as [|]
+
+If you select “Wrap selection in typed brackets,” pressing the [ key will add an opening and closing bracket around the selected text.
+
+## Authors
+
+ [IMG:https://static.ia.net/2023/12/SetAuth.webp] 
+
+Add or remove authors from global list. Select an author’s name to edit name, identifier and kind of author.
+
+More about the Authorship feature here.
+
+## Templates
+
+ [IMG:https://static.ia.net/2023/12/SetTemp.webp] 
+
+##### Default Templates
+
+CENTER HEADINGS: Toggle to center or left-justify headings (H1, H2, etc.)
+
+NUMBER HEADINGS: Automatically number headings in Preview
+
+INDENT PARAGRAPHS: Indicate new paragraphs with indentation instead of vertical space
+
+##### Web Preview
+
+Invert Colors: uses Night Mode when the Editor is in Day Mode and vice-versa.
+
+##### Printing & PDF Export
+
+Choose whether to include a Title page, headers and footers in your printed documents and exported PDFs.
+
+##### Custom templates
+
+Add or remove additional templates or custom ones by using the +/- buttons or dragging them into the field.
+
+## Markdown
+
+ [IMG:https://static.ia.net/2023/12/SetMD.webp] 
+
+##### Metadata
+
+To determine Global metadata, which has the lowest priority.
+
+##### Library Paths & Links
+
+You can configure how paths for Wikilinks and Content Blocks will appear in the Editor here.
+
+“Shortest” will use the smallest path possible in any situation, often simply the file name: Alice in Wonderland.
+
+“Relative” will use a relative path, using ../ to indicate folders above: ../Classics/Alice in Wonderland
+
+“Absolute” will use the full explicit path to the document: /Books/Classics/Alice in Wonderland
+
+##### Wikilinks, Hashtags, Autolinks
+
+Output & rendering settings for wikilinks, hashtags and autolinks. You can configure HTML, Other (copying, exporting and publishing), and Preview behavior all independently.
+
+##### Wikilinks
+
+Depending on the output (HTML, Other or Preview), you can choose to show Wikilinks as the source text appearing in the Editor, text using the filename or optional title, e.g., [[Alice in Wonderland|My Optional Title]], or as a <span> element or as a link.
+
+##### Hashtags
+
+Hashtags can be shown as the source text as it appears in the Editor, as a <span> element, as a link, or removed entirely from the output.
+
+##### Autolinks
+
+Autolinks can be shown as the source text as it appears in the Editor or as a link.
+
+### Metadata
+
+Add or configure existing custom Metadata that is global for all files. “Author” is the only default metadata iA Writer uses and it will be included on Title Pages in Preview and PDF export if present.
+
+##### Processing
+
+APPLY SMART PUNCTUATION: When turned on, straight quotes in the Editor will automatically be converted to curly quotes in Preview. Likewise, two hypens immediately following each other will be shown as an emdash in Preview.*
+
+SINGLE RETURN: Traditional Markdown requires two returns to complete a paragraph. i.e., one empty line between paragraphs or any other element. This setting lets you use a single return instead, if you prefer.
+
+*N.B. This is distinct from the Editor setting for Smart Quotes and Smart Dashes. Those will modify the characters themselves in the Editor, while this function only changes the appearance in Preview and PDF export.
+
+You can learn more about Smart substitutions and automations on this dedicated page.
+
+## 
+ [IMG:https://static.ia.net/platform-icons/bicon-basics.png] 
+ Basics 
+
+ [IMG:https://static.ia.net/2023/05/markdown.webp] 
+
+### Markdown Guide
+
+ How to apply basic formatting in iA Writer simply by adding a few punctuation characters.
+
+ [IMG:https://static.ia.net/2024/05/features.webp] 
+
+### Features
+
+ An overview of iA Writer’s features on Mac, iPhone, iPad and Windows.
+
+ [IMG:https://static.ia.net/2023/06/key-mac.webp] 
+
+### Shortcuts
+
+ Learn a few iA Writer shortcuts to save time and keep you in the creative flow.
+
+ [IMG:https://static.ia.net/2023/06/Frame-893.webp] 
+
+### Languages
+
+ Learn which languages iA Writer supports across its platforms, including spellcheck, Syntax Highlight and Style Check.
+
+ [IMG:https://static.ia.net/2024/03/apple-shortcuts.webp] 
+
+### Apple Shortcuts
+
+ Shortcuts are a powerful automation tool that saves time and helps you focus on writing by avoiding repetitive busywork.

@@ -1,0 +1,70 @@
+December 11, 2024 
+
+# iA Writer for Windows 2.0
+
+ In public beta, coming soon 
+
+ ‹ Previous
+  6 MIN READ 
+  Next ›     
+
+ [IMG:https://static.ia.net/2024/11/iaw-win-24-5.webp] 
+
+ One done, three to go. The next Winterfest 2024 gift is here: A freshly squeezed iA Writer for Windows 2.0, now in public beta.
+
+Rebuilt from the ground up in the Windows 11 design: A full 2.0 with a new foundation, a complete UI overhaul, the same dynamic type engine as our apps on Apple platforms with liquid font weight, width and line spacing adjustments, a much-needed performance boost, and a big Santa sock full of careful improvements.
+
+## Listen to it purr
+
+We put a lot of thought into the new foundation. Our main goal was to improve iA Writer’s general responsiveness. It now boots in a whizz, and it is snappy as jazz when you type.
+
+How did we do that? If you really need to know, we split the code base into two.1 The first part is a minimal, fast-loading core module that starts immediately, followed by a group of secondary components that load in the background.2
+
+Why was this so difficult? Clearly there was some code wizardry involved that not everyone may care too much about.3 But chances are high that you will like the result. Look how much faster 2.0 (left) loads, compared to version 1:
+
+We deferred loading non-essential modules, which led to faster startup times without any noticeable effect on feature availability.4 The same approach worked for in-app operations too.
+
+For time-consuming tasks, we split processes into two stages: The first sends immediate feedback, while the second handles heavier workloads. We also rewrote several subsystems. They perform faster, which becomes noticeable, especially when you work on complex documents.
+
+This is how Writer for Windows has become much faster, snappier, responsive, and fun to work with. Above everything else, we care about how Writer feels when you type. Speed, snap, and response make writing feel seamless.5
+
+## So, no new features?
+
+We’re T2 monsters in the land of liquid typography, but we have a heart. In 2024, we will bring Apple and Windows platform closer, and closer, and closer. And, hey, it’s Christmas, so we brought you some new treats, already. We finally have Full Width Preview. This has been our most popular request for years, and it’s finally here and here to stay.
+
+ [IMG:https://static.ia.net/2024/12/iaw-win-pre.webp] 
+Fullscreen Preview: See your rendered document in full bloom.
+
+Writer for Windows 2.0 also comes with improved support for comments and notes:
+
+It’s easy to ignore stats—but they’re a great way to motivate yourself and measure your progress. Writer for Windows 2.0 improved the design of the stats indicator and now lets you see how far you’ve come at a glance:
+
+ [IMG:https://static.ia.net/2024/12/iawwin2-no.webp] 
+Vital stats at hand: Selected stats discreetly sit at the bottom corner of the Editor. Hover to show and hide, or elect to show them.
+
+ [IMG:https://static.ia.net/2024/12/iawwin2-yes.webp] 
+See the bigger picture: Expand Stats for more details on your writing progress.
+
+The Snippets tool (exclusive to Writer for Windows) now supports multi-line expansions. With Snippets, you can quickly add pre-written text with custom-typed shortcuts. They make it easier to push out recurring text blocks—like salutations, sign-offs, or, indeed, any text you reuse a lot.
+
+The presents are being opened early, but we’re not done giving. For all additions and improvements, check out the full Writer for Windows 2.0 changelog. And since we’re talking about what to expect in your stocking… We have one more surprise coming that will fit Writer 2.0 for Windows like an Parisian glove, crafted in Tokyo, so smooth and elegant, that some might think Claude Garamond6 had a say when we boxed it in Zurich. So, see you again, next and over next week, as the Winterfest 2024 continues.
+
+## Can’t wait to try it? Apply for the beta
+
+Writer for Windows 2.0 is in beta. Feel free to apply for the beta and make use of it over the holidays. Existing license holders will have priority in the queue, but everyone is welcome to apply.
+
+Oh, and we have two additional surprises coming in iA Winterfest 2024 so head over there to sign for the beta waitlist and get hints of what else is waiting under the tree.
+
+ Enter your email to get a two-week free iA Writer for Windows trial, product updates, announcements, and inside stories at iA.
+
+Writer for Windows consists of various modules, each with a specific role in the application (Editor, Spell Checker, Library, Preview, etc.). In version 1, modules were loaded in parallel as monolithic components, which meant the whole process had to finish before you got down to the serious business of typing. ↩︎
+
+For example, the Library component’s first part quickly loads the current file, while the second part processes other files in the same directory and generates additional details, such as excerpts and sort order. ↩︎
+
+While Microsoft’s app can use system libraries that are already loaded, third-party apps like ours have to load everything from scratch. To meet our customization needs, we created our private system, which uses fewer system modules than Microsoft apps. This is why on Windows, it used to take more time to load at startup. This made our app slower initially, but we found a way around that big initial hurdle. ↩︎
+
+Features like Spell Check, Syntax Control, and Style Check now begin analyzing text a few seconds after the application launches. ↩︎
+
+99 features might look helpful at first, but in the end, you need time and patience to find the right words, and the app should not never you back when you found them. Features can distract and get in the way. If they slow down the app they will slow down your thoughts, and eventually, they’ll bring your writing to a screeching halt. ↩︎
+
+There are a lot of italics in this article. Except for this last one, inspired by Claude Garamond himself, they are inspired by Steve Balmer’s famous Windows 1.0 Pitch, highlighting all the new exciting things. Did we already mention that Writer 2.0 will be a free update? ↩︎

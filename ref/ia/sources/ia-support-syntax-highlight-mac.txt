@@ -1,0 +1,119 @@
+# Syntax Highlight
+
+ [IMG:https://static.ia.net/2025/09/Writer-Mac-Syntax-Highlight-Display.webp] 
+
+ Syntax Highlight on Mac offers an organized perspective of your document and can help refine your writing style.
+
+Inspired by syntax highlighting in programming, this feature applies different colors to various parts of speech to make them stand out:
+
+Adjectives in brown
+
+Nouns in red
+
+Adverbs in purple
+
+Verbs in blue
+
+Conjunctions in green
+
+You can then easily identify instances of repetition or awkward phrasing.
+
+Syntax Highlight does not modify your content in any way, and the highlighted parts of speech will not be visible in Preview, exported or printed documents. This feature is visible in the Editor only.
+
+## What For
+
+Foreign language teachers love it, and so do writers who understand the power of parts of speech. Syntax Highlight is a pro tool that helps you refine your style by drawing attention to:
+
+Adjectives and adverbs: Spot overuse and cut back for sharper writing. Kill the monsters.
+
+Repetitive nouns: Too much repetition makes text feel dull. Repeat nouns consciously.
+
+Conjunctions: Expose weak links and ensure they follow clear logic. Conjunctions seem harmless but they can ruin your text.
+
+Weak verbs: Phrases like “to be” often signal passive voice or nominal style. “To Be or Not to Be” is not the question: Pump up the Jam!
+
+We’ve written a full article on the parts of speech you can spot with Syntax Highlight. It is packed with advice from great authors, practical examples, and tips for applying this feature to your own work. Take 5 minutes to read and improve your style: Using Parts of Speech to Improve Your Writing.
+
+## Enable Syntax Highlight
+
+You can enable Syntax Highlight in four ways:
+
+ Settings pane
+ Editor → Syntax 
+
+ Focus Menu
+ Show Syntax
+
+ Editor’s Title Bar
+ Select the Focus dropdown
+
+ Keyboard shortcut
+ ⇧ ⌘ D
+
+ [IMG:https://static.ia.net/2025/09/Writer-Mac-Syntax-Highlight-Menu.webp] 
+
+### Parts of Speech
+
+You can specify which parts of speech are highlighted by selecting/deselecting options found in Preferences, Menu, and Focus dropdowns.
+
+In the example below, only adjectives and adverbs have been enabled from the Focus dropdown. This will help you spot clutter or repetitions.
+
+ [IMG:https://static.ia.net/2025/09/Writer-Mac-Syntax-Highlight-Quick-Menu-Selection-2.webp] 
+
+### Languages
+
+Syntax Highlight is available for documents/text in the following languages:
+
+En De Fr Es It Ru
+
+## Working With Syntax Highlight
+
+There is no right or wrong way to work with this feature, but from the user’s feedback, it seems that enabling Syntax Highlight during the editing phase is the most common. Of course, you can keep it ON at any time in your writing process.
+
+Syntax Highlight pairs effectively with Focus Mode, helping you grasp the structure down to the sentence level:
+
+ [IMG:https://static.ia.net/2025/09/Writer-Mac-Syntax-Highlight-Focus-Mode-On.webp] 
+
+A similar feature to Syntax Highlight that can be activated concurrently is Style Check, pointing out fillers, clichés, and redundancies.
+
+For further tips on how to write, you can check those various blog posts from our website, grouped in our Writer How To.
+
+## 
+ [IMG:https://static.ia.net/platform-icons/bicon-editor.png] 
+ Editor 
+
+ [IMG:https://static.ia.net/2023/12/authorship.webp] 
+
+### Authorship
+
+ Highlight the text you craft yourself and keep track of your sources, artificial or natural.
+
+ [IMG:https://static.ia.net/2023/06/focus.webp] 
+
+### Focus Mode
+
+ Shut down distractions. Focus on the sentence or paragraph you're currently working on.
+
+ [IMG:https://static.ia.net/2020/07/iA-Writer-Style-Check-Before-and-After.webp] 
+
+### Style Check
+
+ A personal editor-in-chief on your device, carefully reviewing your text for redundancies, clichés, and filler words.
+
+ [IMG:https://static.ia.net/2023/06/stats.webp] 
+
+### Stats
+
+ From word count to estimated reading time, document stats help you stay on top of things.
+
+ [IMG:https://static.ia.net/2023/06/metadata-mac-1.webp] 
+
+### Metadata
+
+ A simple key-value format for storing additional information about a document, only visible in the Editor.
+
+ [IMG:https://static.ia.net/2023/11/SmartPunctua2.webp] 
+
+### Smart Automation
+
+ Auto text completion and transformation: focus on your writing, without getting bogged down by minor details.

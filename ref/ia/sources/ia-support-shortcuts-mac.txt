@@ -1,0 +1,379 @@
+# Shortcuts
+
+ [IMG:https://static.ia.net/2023/05/key-shortcuts-dark.webp] 
+
+ iA Writer for Mac provides a wide range of keyboard shortcuts to help you keep your hands on the keyboard and stay focused.
+
+The majority of the available shortcuts are visible in the main menu.
+
+ [IMG:https://static.ia.net/2024/01/ShortcutsMac.webp] 
+
+iA Writer for macOS follows the standard macOS system shortcuts and we may update shortcuts from time to time to ensure alignment with Apple’s conventions.
+
+If you are used to Windows shortcuts or shortcuts from apps following Microsoft conventions (MS Word, IntelliJ, VS Code, Outlook…) this article will be useful to help you become faster at using Writer.
+
+FilesQuick SearchNavigationInterfaceEditingExportCustom Keyboard Shortcuts
+
+## Files
+
+File creation and management options.
+
+ ⌘N | 
+ New in Library in current window | 
+
+ ⌥⌘N | 
+ New | 
+
+ ⇧⌘N | 
+ New in Library | 
+
+ ⌘S | 
+ Save active file | 
+
+ ⇧⌘S | 
+ Duplicate active file | 
+
+ ⌥⇧⌘S | 
+ Save active file as | 
+
+“New in Library” files are automatically created in the currently visible folder.
+
+“New” files will ask whether you want to save them when closed. This is the standard document saving behavior in macOS. You can make this the default action of ⌘N in Settings → Files → Preferred action.
+
+## Quick Search
+
+Global Library search for documents, Wikilinks and tags. Allows you to quickly navigate to a document by searching for specific terms.
+
+ ⇧⌘O | 
+ Quick Search | 
+
+ ⏎ | 
+ Open file in current window | 
+
+ ⇧⏎ | 
+ Open file in new window | 
+
+## Navigation
+
+Shortcuts to quickly navigate between panes, Locations, linked and previously opened documents, and more.
+
+### App
+
+ ⌃tab | 
+ Cycle focus: Organizer → File List → Editor | 
+
+ ⌘, | 
+ Settings… | 
+
+### Library Navigation
+
+ ⇧⌘I | 
+ Show iCloud in Library | 
+
+ ⌃1–9 | 
+ Open a Favorite file or show a Favorite folder in Library | 
+
+ ⌃⌥1–9 | 
+ Show Smart Folder in Library | 
+
+Keyboard shortcuts for Favorites and Smart Folders are shown in the Go menu.
+
+### Links
+
+ ⌘⏎ | 
+ Open a link in Editor | 
+
+ ⌘-click | 
+ Open a link in Editor | 
+
+ click | 
+ Open a link in Preview | 
+
+#### When You Open a Link
+
+ Wikilinks | 
+ Open a document or create a new one, ready to type | 
+
+ Text content blocks | 
+ Open a document or create a new one, ready to type | 
+
+ Hashtags | 
+ Shown in Quick Search | 
+
+ Links | 
+ Open in default browser | 
+
+ Emails | 
+ New draft in default mail client | 
+
+ URL commands | 
+ Run if allowed | 
+
+### Document History
+
+ ⌃⌘← | 
+ Go to previous document | 
+
+ ⌃⌘→ | 
+ Go to next document | 
+
+## Interface
+
+ ⌃⌘N | 
+ Dark or light appearance | 
+
+ ⌃⌘S | 
+ Show or hide Library | 
+
+ ⌘R | 
+ Show or hide Preview | 
+
+ ⌃⌘F | 
+ Enter or exit full screen | 
+
+ ⌘W | 
+ Close active window | 
+
+ ⌥⌘W | 
+ Close all windows | 
+
+## Editing
+
+Document structure, text formatting, caret manipulation, Focus modes, and more.
+
+### Structure
+
+ ⌘1–6 | 
+ Heading 1–6 | 
+
+ ⌥⌘L | 
+ Task list | 
+
+ ⇧⌘L | 
+ Ordered list | 
+
+ ⌥⇧⌘L | 
+ Ordered task list | 
+
+ ⌥⌘X | 
+ Mark task as completed | 
+
+ ⇥ | 
+ Indent | 
+
+ ⇧⇥ | 
+ Outdent | 
+
+ ⌥⌘↑ | 
+ Move selected line up | 
+
+ ⌥⌘↓ | 
+ Move selected line down | 
+
+### Formatting
+
+ ⌘B | 
+ Bold | 
+
+ ⌘I | 
+ Italic | 
+
+ ⌥⌘U | 
+ Strikethrough | 
+
+ ⇧⌘U | 
+ Highlight | 
+
+ ⌘K | 
+ Link | 
+
+ ⌥⌘K | 
+ Image link | 
+
+ ⇧⌘K | 
+ Wikilink | 
+
+ ⌃⌘K | 
+ Footnote | 
+
+ ⌘J | 
+ Code | 
+
+ ⇧⌘J | 
+ Code block | 
+
+### Focus
+
+ ⌘D | 
+ Enable or disable Focus Mode | 
+
+ ⇧⌘D | 
+ Enable or disable Syntax Highlight | 
+
+ ⌥⇧⌘D | 
+ Enable or disable Style Checking | 
+
+### Copy and Paste
+
+ ⌘C | 
+ Copy selected text | 
+
+ ⌥⌘C | 
+ Copy formatted selected text | 
+
+ ⇧⌘C | 
+ Copy selected text as HTML | 
+
+ ⌃⌘C | 
+ Copy selected text as Markdown (includes Content Blocks) | 
+
+ ⌘V | 
+ Paste | 
+
+### Find
+
+ ⌘F | 
+ Find | 
+
+ ⌥⌘F | 
+ Find and replace | 
+
+ ⌘E | 
+ Use selection for find | 
+
+ ⌘G | 
+ Find next | 
+
+ ⇧⌘G | 
+ Find previous | 
+
+### Move Caret To
+
+ ← | 
+ Previous character | 
+
+ → | 
+ Next character | 
+
+ ↑ | 
+ Previous line | 
+
+ ↓ | 
+ Next line | 
+
+ ⌘← | 
+ Start of line | 
+
+ ⌘→ | 
+ End of line | 
+
+ ⌘↑ | 
+ Start of document | 
+
+ ⌘↓ | 
+ End of document | 
+
+ ⌥← | 
+ One word left | 
+
+ ⌥→ | 
+ One word right | 
+
+ ⌥↑ | 
+ Start of this or previous line | 
+
+ ⌥↓ | 
+ End of this or next line | 
+
+Hold ⇧ while using shortcuts above to select text.
+
+ ⌥⌘← | 
+ Start of this or previous sentence | 
+
+ ⌥⌘→ | 
+ End of this or next sentence | 
+
+### Text Size
+
+ ⌘+ | 
+ Make text larger | 
+
+ ⌘- | 
+ Make text smaller | 
+
+ ⌘0 | 
+ Default text size | 
+
+## Export
+
+Export and printing options.
+
+ ⇧⌘E | 
+ Export | 
+
+ ⌘P | 
+ Print | 
+
+ ⌥⌘P | 
+ Print plain text | 
+
+ ⇧⌘P | 
+ Page setup for printing and PDF export | 
+
+## Custom Keyboard Shortcuts
+
+macOS allows you to map menu items to non-reserved keyboard shortcuts.
+
+For example, say you frequently use the Show in Library option found in the File menu. Mapping this to a keyboard shortcut would save you from having to move from the keyboard to the mouse/trackpad to select the option.
+
+Let’s map Show in Libary to ⌃ S
+
+ → Settings/System Preferences → Keyboard → Shortcuts → App Shortcuts
+
+Select the ＋ button and select iA Writer from the list of apps
+
+In Menu Title: box enter the menu item exactly as it appears in iA Writer’s menu
+
+Click Add
+
+ [IMG:https://static.ia.net/2025/03/CustomShortcutMacOS.webp] 
+
+When successful you’ll see the shortcut added next to the menu item in iA Writer and you’ll be able to trigger the action with your shortcut.
+
+ [IMG:https://static.ia.net/2025/03/ShortcutAddedMacOS.webp] 
+
+Note that some key combinations will not work due to being mapped to system functions or other restrictions. If this happens, please repeat the steps above to re-map the menu item to a new key combination.
+
+## 
+ [IMG:https://static.ia.net/platform-icons/bicon-basics.png] 
+ Basics 
+
+ [IMG:https://static.ia.net/2023/05/markdown.webp] 
+
+### Markdown Guide
+
+ How to apply basic formatting in iA Writer simply by adding a few punctuation characters.
+
+ [IMG:https://static.ia.net/2024/05/features.webp] 
+
+### Features
+
+ An overview of iA Writer’s features on Mac, iPhone, iPad and Windows.
+
+ [IMG:https://static.ia.net/2023/06/general.webp] 
+
+### Settings
+
+ Learn how to tweak iA Writer’s settings to suit your needs.
+
+ [IMG:https://static.ia.net/2023/06/Frame-893.webp] 
+
+### Languages
+
+ Learn which languages iA Writer supports across its platforms, including spellcheck, Syntax Highlight and Style Check.
+
+ [IMG:https://static.ia.net/2024/03/apple-shortcuts.webp] 
+
+### Apple Shortcuts
+
+ Shortcuts are a powerful automation tool that saves time and helps you focus on writing by avoiding repetitive busywork.

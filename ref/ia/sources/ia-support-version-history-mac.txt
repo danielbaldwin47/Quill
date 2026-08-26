@@ -1,0 +1,871 @@
+# Version History
+
+ [IMG:https://static.ia.net/2023/04/Mac.webp] 
+
+ Find below the Version History of iA Writer for Mac.
+
+ Version
+ Notes
+
+ 7
+ Authorship
+
+ 6
+ Wikilinks
+
+ 5
+ Style Check
+
+ 4
+ Content Blocks
+
+ 3
+ Publish to blogging platforms
+
+## 7.3
+
+### AI in Technicolor
+
+Whether you proofread with Apple Intelligence, or paste from Claude, Gemini, or ChatGPT, the generated text now bursts onto the page with a colorful gradient. It looks as artificial as its origins. Think of it as a game: you got help, now make it your own.
+
+We also made it easy to tell different human contributors apart. They appear in subtle tones. And you can choose a preferred color for saved authors in settings.
+
+Reference material stays dimmed. Use this to see the changes you made to a downloaded contract, to track the progress since your first draft, or when you’re not sure how a text was created.
+
+If you like the updates, please leave us a rating on the Mac App Store. It helps a lot.
+
+Rate or review iA Writer 
+
+## 7.2
+
+### Library Improvements
+
+This update makes it easier to organize your work
+
+Tap a folder to expand its contents without leaving your current location
+
+Use contextual menu to create files and folders in expanded subfolders
+
+Use contextual menu to open a folder (just like before)
+
+Drag and drop to move files
+
+Added new folder button to toolbar
+
+### Style Check Improvements
+
+Now supports Spanish
+
+Major upgrade to French
+
+## 7.0
+
+The new iA Writer shows you which words you typed, and which you pasted from ChatGPT or from a friend. It highlights the text you craft yourself and it keeps track of contributors, artificial and natural, so that your voice is what comes through on the page.
+
+For over a decade, iA Writer has helped millions of authors find their voice. With iA Writer 7, we’re making sure you keep it.
+
+### Authorship
+
+Edits made by AI and other artificial tools are dimmed
+
+Edits made by another human are underlined
+
+Paste menu detects conversations copied from ChatGPT, and offers to automatically mark authorship for your questions and ChatGPT’s answers
+
+Mark As menu makes it easy to mark authorship of selected text
+
+Paste As menu pastes text and marks authorship at the same time
+
+Paste Edits From menu automatically detects changes between the selected text and the pasted text, and attributes the changes to the author you choose
+
+Authorship annotations are saved at the end of files. Hidden when editing in iA Writer, and visible in other apps
+
+## 6.0
+
+### Wikilinks
+
+Wikilinks make it easy to connect, browse, and rediscover your writing
+
+A wikilink is a link from one text file to another
+
+To make a wikilink, just type [[ and the name of the file you would like to link
+
+Autocomplete suggests files from your Library
+
+Open the linked file with ⌘-click or ⌘⏎
+
+If the file doesn’t exist, it’ll be automatically created and ready to type
+
+### Navigation History
+
+Navigation history keeps track of the files you recently opened using wikilinks, Library, or Quick Search
+
+To go back and forward, hold ⌘ and swipe right or left anywhere in the document
+
+Click the history buttons in the title bar
+
+Or use ⌃⌘← and ⌃⌘→
+
+### Hashtag Improvements
+
+Hashtags can be now added anywhere in text
+
+Autocomplete suggests hashtags as you type
+
+Consistent styling for hashtags and other links
+
+Show a hashtag in Quick Search with ⌘-click or ⌘⏎
+
+### Autolinks
+
+All web links and email addresses are automatically detected
+
+Open a link in browser or compose a new email with ⌘-click or ⌘⏎
+
+Control how autolinks, hashtags, and wikilinks are exported in Markdown preferences
+
+### Content Block Improvements
+
+To add a content block, type / at the beginning of a line and the name of the file you would like to include
+
+Autocomplete suggests files from your Library
+
+A path to a file is no longer required. Filename-only content blocks automatically find the nearest matching file
+
+Open a text content block with ⌘-click or ⌘⏎
+
+If the content block file doesn’t exist, it’ll be automatically created and ready to type
+
+### Metadata
+
+All-new metadata engine enables powerful new features
+
+Provide variables to text content blocks, width and height attributes to image content blocks
+
+Supports Markdown in metadata variables
+
+Define global metadata in Markdown preferences
+
+### Look and Feel
+
+Completed tasks are faded and crossed-out
+
+All-new highlight colors
+
+Choose your favorite highlight color and configure completed task appearance in Editor preferences
+
+### Editor Improvements
+
+Editor automatically inserts closing brackets
+
+Select text and type an opening bracket to wrap selection in matching brackets
+
+Added indent width preference
+
+Changed strikethrough shortcut to ⌥⌘U
+
+Changed highlight shortcut to ⇧⌘U
+
+Changed code shortcut to ⌘J
+
+Added code block command with shortcut ⇧⌘J
+
+Disabled spell checking, autocorrection, autocapitalization, and smart punctuation in code
+
+Set up ⌘E shortcut to use selection for find
+
+Changed shortcut to mark task as completed to ⌥⌘X
+
+### Other Improvements
+
+Changed Library shortcut to ⌃⌘S
+
+Task list items are searchable with Smart Folders and Quick Search using [ ] and [x]
+
+Text stats include content blocks and take metadata variables into account
+
+Added ability to show and sort by date created in Library
+
+Added fuzzy Library Path matching to Quick Search
+
+Added an option to always show the title bar
+
+Replaced Delete in Library with Move to Trash, hold ⌥ to delete immediately
+
+Stopped asking to keep document changes by default, configurable in Files preferences
+
+## 5.6
+
+### Style Check
+
+Improve your writing by getting rid of fillers, clichés, and redundancies
+
+They’re automatically dimmed and crossed-out as you type
+
+Easy to delete: double-tap to select the whole phrase
+
+Private: all processing is done on your device
+
+Fast: optimized to work in real-time
+
+Enable in aA menu or with option+shift+command+D (⌥⇧⌘D)
+
+Built-in support for English, French, German
+
+Add your own patterns in Editor settings
+
+Tap the ? button when editing custom patterns to learn how to make them better by providing context, exceptions, and using regular expressions
+
+### Other Improvements
+
+Markdown files open up to 350 times faster
+
+More responsive when editing large files
+
+Editor correctly handles inline code that contains backticks
+
+## 5.5
+
+### PDF Preview
+
+PDF preview makes it easy to prepare files for printing and export
+
+Automatically refreshes as you edit the text
+
+Choose to fit page or fit width from contextual menu
+
+### Publishing Improvements
+
+Publish directly to self-hosted WordPress.org sites
+
+WordPress accounts can be configured to upload Markdown
+
+Micropub support for Micro.blog and other IndieWeb tools
+
+Add multiple accounts from each service
+
+Reorder and rename accounts
+
+### Other Improvements
+
+Hold Option when in Library contextual menu to delete folders and files without a confirmation
+
+Improved support for increase contrast accessibility option
+
+KaTeX \\gdef now works as expected
+
+## 5.4
+
+### Export Improvements
+
+Share, export, publish, print, and copy directly from context menu in Library
+
+Added Copy Markdown action (includes Content Blocks)
+
+Share any file to other apps
+
+Word export keeps headings on the same page as the following paragraph
+
+### Other Improvements
+
+Added icons for preferences panes
+
+Fixed an issue where key commands for window switching were not working with some keyboard layouts
+
+Fixed an issue where new windows caused existing partially offscreen windows to move
+
+Excluded node_modules from indexing
+
+Fixed an issue where some Smart Folders with multiple search rules did not work
+
+## 5.3
+
+iA Writer 5.3 for Mac is a companion release to our big update for iOS 13 and iPadOS 13.
+
+### Updated File Keyboard Shortcuts
+
+Simpler and consistent with iOS and iPadOS
+
+⌘N creates a new file in current window
+
+⇧⌘N creates a new file in a new window
+
+⏎ opens a Quick Search result in current window
+
+⇧⏎ opens a Quick Search result in a new window
+
+### Content Blocks with Relative Paths
+
+../Note.txt will include a file from the parent folder
+
+### Handoff Improvements
+
+Handoff now works when both devices have a Library Location with the same name
+
+Files are handed off using Library paths: /Locations/GitHub/Readme.md
+
+Requires iA Writer 5.3 on both devices
+
+### Other Improvements
+
+Links to local images are now converted as file URLs
+
+Fixed link import from Word
+
+Fixed gif export to Word
+
+Changed write URL command with mode=append to create a file if it doesn’t exist
+
+App activates for new documents created using Dock menu
+
+Double-click Smart Folders in Organizer to edit rules (as in Mail)
+
+## 5.2
+
+### Deep Typography Refresh
+
+New typeface in three flavors
+
+Mono: Single character width, the classic
+
+Duo: Two widths, freeing M and W
+
+Quattro: Four widths, for a cleaner text image
+
+Over 1,000 optical variations seamlessly adapt to provide the best writing experience in any environment
+
+12 text sizes in Editor and Preview
+
+Many Chinese, Japanese, and Korean typography improvements, including emphasis dots
+
+Bold, italic, and strikethrough commands are much more reliable and work inside words
+
+High quality math equation typesetting in Preview using KaTeX
+
+### Library Locations
+
+Now support Desktop & Documents in iCloud
+
+Can be added from anywhere in iCloud Drive
+
+### Fully-Featured Export to Microsoft Word
+
+Rebuilt from the ground up
+
+Compatible with Microsoft Word 2007 or later, Apple Pages, and Google Docs
+
+Supports local images, footnotes, citations, page breaks, tables, math, headings, unordered lists, ordered lists, task lists, definition lists, block quotes, bold, italic, CJK emphasis, strikethrough, superscript, subscript, links, horizontal rules, code
+
+### Other Improvements
+
+Added visible filename when switching between tabs with hidden title bar
+
+Copy URL command to open files from menu in Library
+
+Command-Click links in Editor
+
+Use to exclude words from searches: -microsoft word
+
+Inline code command
+
+Typing suggestions can be enabled in Touch Bar
+
+Korean and Russian localizations
+
+Added help articles
+
+Better hashtag detection
+
+## 5.1
+
+### Hashtags (like Instagram and Twitter)
+
+Write #tags to group documents
+
+Use in Quick Search and Smart Folders rules
+
+Hashtags are shown in Organizer and Go menu
+
+Hide hashtags from Preview and formatted exports in Templates preferences
+
+### Smart Folders
+
+Filter your documents using a variety of rules including text searches, file extensions, hashtags, parent and ancestor paths, absolute and relative dates
+
+Use a custom sort order
+
+Automatically sync across your devices
+
+Get automatic keyboard shortcuts in Go menu
+
+### URL Commands
+
+Updated commands to create and open documents
+
+Added authenticated x-callback-url commands to read and write files
+
+Manage URL commands in General preferences
+
+### Dark Appearance
+
+Renamed night mode to dark appearance to conform with a future update of macOS
+
+System light and dark appearance state is matched by default with a future update of macOS
+
+### Free Candy
+
+Added navigation controls to Library in full screen windows
+
+Assign custom display names to Library Locations in Organizer
+
+Rename Favorites in Organizer
+
+Duplicate items in Library
+
+Go → Enclosing Folder menu
+
+Fixed an issue where images couldn’t be dragged to Editor from Safari, Photos, and other apps
+
+Added STIX 2.0 fonts for math expressions in Preview
+
+HTML tags are dimmed in Editor
+
+Hide Favorites, Smart Folders, or Hashtags sections from Organizer and Go menu in Library preferences
+
+### Fixes
+
+Improved library performance and reduced memory usage
+
+SVG images are always displayed as pictures when used as Content Blocks
+
+Code blocks are excluded from text stats
+
+## 5.0.2
+
+Fixed an issue with autosaves failing in some contexts
+
+Fixed crashes
+
+## 4.0.3
+
+Defined CSS files as to be processed as code
+
+Fixed an issue where preview scroll bar could be invisible with some templates
+
+Fixed Strikethough menu item functionality
+
+Switched to system popup menu indicators
+
+Improved performance and stability
+
+## 4.0.1
+
+Added Touch Bar support in Editor
+
+Added CSV delimiter detection
+
+Added caption support for source code Content Blocks
+
+Enabled SVG image Content Blocks
+
+Set up Markdown export to use default extension
+
+Switched to fixed width numbers in tables in standard templates
+
+## 4.0
+
+### Embed Local Images
+
+Include images from Library in your documents (.png, .gif, .jpg)
+
+Images are uploaded to Medium and WordPress when sharing a draft
+
+### Embed Tables
+
+Include comma separated value files as tables in your documents (.csv)
+
+Create advanced tables using MultiMarkdown
+
+### Embed other text files
+
+Build a manuscript from several chapters
+
+Embedded source code files are added as code blocks
+
+Nest text files into each other
+
+Note: Embedding only works for files in the same folder (or subfolders) as the master file. You can’t embed files in a parallel or higher directory.
+
+### Other Improvements
+
+Modified Preview and Library pane behavior so both can be shown
+
+Swipes on the left toggle Library
+
+Swipes on the right toggle Preview
+
+Added toggle button for Focus Mode in title bar
+
+Focus Mode now dismisses Preview and Library panes
+
+UI improvements to Library
+
+Added file info popover in Library
+
+Switched right-click in Library menu item from “New Folder with Selection” to “New Folder” (hold option for “New Folder with Selection”)
+
+Added Project Archive export for sharing all embedded files together (.zip)
+
+Changed Chinese font in editor to Ping Fang
+
+Improved external file change handling
+
+Caret position is now restored when returning from full-width Preview
+
+Performance optimizations and improvements
+
+## 3.2.2
+
+### Added WordPress Site Picker
+
+WordPress users with more than one site can now choose where to share.
+
+### Choose Sort Order in Library
+
+Newest or Oldest on Top for Date Modified
+
+A–Z or Z-A for file Name and Kind
+
+Access in View > Sort Files By, Right Click in Library > Sort By
+
+## 3.2
+
+### Custom Templates
+
+Preview, create PDFs, and print documents in your own style
+
+Templates are web pages. Use HTML, CSS, and JavaScript to lay out your documents
+
+Add templates in Preferences
+
+Download more templates from iA Writer’s Web Site
+
+Learn more about templates in Help
+
+### Page Breaks
+
+Add page breaks to printed documents and PDFs
+
+Insert with ++on an empty line
+
+Format > Add Page Break
+
+### Title Pages
+
+Print and export PDFs with a title page
+
+Default templates show document name and author on the title page
+
+Set the author in Preferences
+
+### Other Improvements
+
+Added option to change default file extension in Preferences
+
+Fixed an issue where attempts to change file file extension via title bar popover could fail
+
+Fixed an issue where tables were not inserted in new documents
+
+Updated to MultiMarkdown 5.3
+
+Adjusted drag and drop in Library to follow system conventions
+
+ Drag to move
+
+ Drag while holding Option to copy
+
+## 3.1.4
+
+### Share to WordPress
+
+Add your account in Preferences
+
+Create drafts on your WordPress site with File > Share > New Draft on WordPress
+
+### Other Improvements
+
+Added a preference for default document action: New or New in Library
+
+Added a toggle for last used Syntax Control
+
+Excluded links from reading time and text statistics
+
+Improved automatic name generation
+
+Updated to MultiMarkdown 5.2
+
+## 3.1.3
+
+### Focus Mode for Paragraphs
+
+Focus Mode can be expanded to the bounds of full paragraphs
+
+Accessed via Preferences > Editor > Focus Mode
+
+### Your Table is Ready
+
+Click the Table button in the toolbar and set the desired number of rows and columns
+
+The required Markdown for the table is created for you instantly
+
+### Other Improvements and Fixes
+
+Fixed an issue where documents did not refresh when changed by some text editors and third-party sync services
+
+Added an option to hide text snippets in Library
+
+Stopped showing non-text files in iCloud Library
+
+Improved H6 alignment at the beginning of a page
+
+Fixed an issue which prevented Smart Delete from working
+
+Fixed an issue where toolbar could remain visible when typing
+
+Smart Quotes no longer convert primes to curly quotes in code blocks
+
+## 3.1.2
+
+### Support for MultiMarkdown’s Table of Contents
+
+Add {{TОC}} to your documents to have a table of contents generated in Preview
+
+TOC button in the Format Toolbar adds this for you
+
+An entry is made for each heading in the document
+
+Click a TOC entry to jump to that section of the document
+
+### Added File → Open Quickly ⇧⌘O
+
+Blazing-fast, it searches through your Library
+
+Use arrow keys to navigate results
+
+return to open document in a new window
+
+⇧return to open document in the current window
+
+⌘return to show in Finder
+
+### Search supports advanced syntax
+
+Search for specific terms by quoting “search query”
+
+Match the first word of name or text using ^word
+
+Use set operators AND, OR, and NOT
+
+Search for names or texts that contain a specific word with name:notes or text:”book”
+
+See the full description and examples in Help
+
+### Changed default shortcuts for structure actions
+
+Old shortcuts are still available for compatibility with other text editors
+
+Shift Right tab
+
+Shift Left ⇧tab
+
+Move Line Down ⌘⌥↓
+
+Move Line Up ⌘⌥↑
+
+### Improved URL scheme support
+
+iawriter://new and iawriter://new-in-library
+
+Both support an optional text parameter iawriter://new?text=
+
+### Other Improvements
+
+Search results are now sorted by relevancy
+
+Added commands to insert a table of contents tag into the document
+
+Improved code block detection
+
+Added “Replace All” to Find bar
+
+Added “New” action to Dock
+
+Improved heading appearance in Japanese
+
+### Fixes
+
+Set up new windows to use last visible state of library and preview
+
+Fixed a delay when opening a new window
+
+Improved text editing performance
+
+Improved stability
+
+## 3.1.1
+
+### Improvements
+
+[x] Click tasks to mark as completed
+
+Improved search in Japanese
+
+Added text actions in “Format” → “Structure”
+
+ Shift Left ⌘[
+
+ Shift Right ⌘]
+
+ Move Line Up ⌥⌘[
+
+ Move Line Down ⌥⌘]
+
+Improved transition to full size preview
+
+Improved automatic name generation
+
+Added text size to Editor preferences.
+
+Preview toolbar uses matching colors
+
+Added Show in Library action in Search
+
+Added options to print header and footer separately
+
+Added proper title capitalization in Edit > Transformations
+
+Added progress indicator for background export and sharing operations
+
+Upgraded to MultiMarkdown 5.0.1
+
+Prevented spell checking in code
+
+Return preserves the amount of leading whitespace
+
+### Fixes
+
+Fixed an issue where search was not working for non-Latin scripts
+
+Improved performance and stability
+
+Various smaller bug fixes
+
+## 3.1
+
+### Improvements
+
+Any folder can be added as a location in the Library
+
+Export drafts to Medium.com
+
+Localization for Japanese and German
+
+Templates:
+
+ Choose indentation or vertical spacing for paragraphs
+
+ Choose centered or left-justified headings
+
+Header and footer are optional on print/PDF export
+
+Preferences dialog (⌘,)
+
+New windows use last size
+
+Preview uses last width
+
+Default extension uses last extension change
+
+### Fixes
+
+Fixed crashes
+
+## 3.0
+
+### Document Library
+
+Swipe left or Command+E to show/hide
+
+View → Sort by to arrange documents in browser
+
+Dropbox Sync (link through storage button at bottom-left)
+
+Click file/folder names to rename
+
+Swipe left to go back a folder level (or use title menu)
+
+Move documents with click and drag
+
+Show/Hide file extensions
+
+### The Editor
+
+Typewriter Mode (⌘T)
+
+Toolbar can switch between Format, Syntax, and Stats
+
+Smart Paste eliminates doubled list markers when pasting
+
+### Integrated Preview
+
+Swipe right or Command+R to show/hide
+
+Multiple typographical options for preview, PDF export, and print
+
+Synchronous Preview scrolling
+
+## 
+ [IMG:https://static.ia.net/platform-icons/bicon-help.png] 
+ Help 
+
+ [IMG:https://static.ia.net/2024/05/faq.webp] 
+
+### FAQ
+
+ Below are answers to common questions. Everyone is special, but most questions that we get overlap.
+
+ [IMG:https://static.ia.net/2024/05/trouble.webp] 
+
+### Troubleshooting
+
+ Here are some things you can do if iA Writer acts in unexpected ways.
+
+ [IMG:https://static.ia.net/2024/03/RevertToBrowseMac.webp] 
+
+### Backups and Recovery
+
+ Lost progress in a document? Regret deleting that paragraph? No problem!
+
+ [IMG:https://static.ia.net/2023/05/icloudt.webp] 
+
+### iCloud
+
+ iA Writer is file storage provider agnostic but we recommend iCloud for the best experience across most devices:
+
+ [IMG:https://static.ia.net/2024/07/Writer-Classic-Legacy-App.webp] 
+
+### Legacy Apps
+
+ Whenever possible, troubleshooting steps are listed here for iA Writer Classic on macOS & iOS and Writer 1.5.2 for Android.
+
+ [IMG:https://static.ia.net/2024/05/accessibilty.webp] 
+
+### Accessibility
+
+ We want our products to be enjoyed by the widest possible audience.
+
+ [IMG:https://static.ia.net/2023/06/Frame-871.webp] 
+
+### URL Commands
+
+ Open iA Writer from other applications on both macOS and iOS, and perform specific actions on opening.

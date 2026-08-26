@@ -1,0 +1,97 @@
+# Focus Mode
+
+ [IMG:https://static.ia.net/2023/05/focus2.webp] 
+
+ Focus mode for Mac emphasizes the active sentence or paragraph while eliminating distractions, so you can concentrate on the current task.
+
+According to user feedback, this feature shines at best when used in full-screen, dark mode. We suggest that you test both dark letters on a white background and light colors on a dark background to determine which option works for you.
+
+## How To Enable Focus Mode
+
+You can enable/ disable Focus Mode from:
+
+the Menu Focus → Enable Focus Mode
+
+the keyboard shortcut ⌘D
+
+the Title Bar button 🔽
+
+ [IMG:https://static.ia.net/2023/07/EnableFocus.webp] 
+
+Then, you will have to choose among 3 different settings: Sentence, Paragraph, and Typewriter.
+
+### Sentence
+
+The active sentence –where your cursor is placed– is highlighted while the surrounding text is dimmed.
+
+ [IMG:https://static.ia.net/2023/05/macOS-fm-sentence.webp] 
+
+### Paragraph
+
+The whole active paragraph is highlighted while the surrounding text is dimmed.
+
+Moving the cursor to a different paragraph will make it an active paragraph.
+
+ [IMG:https://static.ia.net/2023/05/macOS-fm-paragraphs.webp] 
+
+### Typewriter
+
+Unlike the two previous options, the text will not be highlighted or dimmed in this mode.
+
+The cursor remains vertically centered in the Editor when typing or moving up or down in your document. The experience is similar to what you would have with a mechanical typewriter.
+
+ [IMG:https://static.ia.net/2023/05/macOS-fm-typewriter.webp] 
+
+## Jumping Screen When Editing?
+
+Focus Mode is meant to be used during the writing/ creation phase and for the best experience we recommend toggling it off during any editing phases.
+
+A conflict between the area you will select to edit and Focus Mode’s attempt to vertically center the cursor might result in the screen jumping vertically.
+
+### Helping You Focus More
+
+There is more than just Focus Mode in iA Writer to help you keep your mind on your text. Learn more with those related blog posts:
+
+An ADHD-friendly Writing App
+
+After all, everyone is distracted once in a while
+
+## 
+ [IMG:https://static.ia.net/platform-icons/bicon-editor.png] 
+ Editor 
+
+ [IMG:https://static.ia.net/2023/12/authorship.webp] 
+
+### Authorship
+
+ Highlight the text you craft yourself and keep track of your sources, artificial or natural.
+
+ [IMG:https://static.ia.net/2020/07/iA-Writer-Style-Check-Before-and-After.webp] 
+
+### Style Check
+
+ A personal editor-in-chief on your device, carefully reviewing your text for redundancies, clichés, and filler words.
+
+ [IMG:https://static.ia.net/2025/09/Writer-Mac-Syntax-Highlight-Display.webp] 
+
+### Syntax Highlight
+
+ A more structured view of your document will help you improve your writing style.
+
+ [IMG:https://static.ia.net/2023/06/stats.webp] 
+
+### Stats
+
+ From word count to estimated reading time, document stats help you stay on top of things.
+
+ [IMG:https://static.ia.net/2023/06/metadata-mac-1.webp] 
+
+### Metadata
+
+ A simple key-value format for storing additional information about a document, only visible in the Editor.
+
+ [IMG:https://static.ia.net/2023/11/SmartPunctua2.webp] 
+
+### Smart Automation
+
+ Auto text completion and transformation: focus on your writing, without getting bogged down by minor details.

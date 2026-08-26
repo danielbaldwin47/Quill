@@ -1,0 +1,185 @@
+# Settings Windows
+
+ [IMG:https://static.ia.net/2025/01/windows_settings.webp] 
+
+ iA Writer for Windows is a minimalist app with streamlined settings that create a focused experience.
+
+While keeping to a minimum, there is still some flexibility to adjust certain features for an improved user experience.
+
+You can access Settings by:
+
+The ⚙️ at the top of the Library
+
+From the Menu File → Settings [IMG:https://static.ia.net/2025/01/win_file_settings.webp] 
+
+LibraryEditorTemplatesAdvancedStyle Check
+
+## Library
+
+ [IMG:https://static.ia.net/2025/01/win_settings_library.webp] 
+
+##### Sort By
+
+Choose whether to sort files by Name or Date.
+
+##### Sort Order
+
+Choose ascending or descending order for files.
+
+##### Folders on Top
+
+Check this box to keep folders pinned to the top of the File list instead of sorted among regular files.
+
+##### Show Extensions
+
+Check this box to display file extensions in the Library list.
+
+##### Show Excerpts
+
+Check this box to display an outline of your file in the Library list.
+
+## Editor
+
+ [IMG:https://static.ia.net/2025/01/win_settings_editor.webp] 
+
+##### Font
+
+Choose between iA Writer Mono, Duo, or Quattro fonts.
+
+##### Text
+
+Size Increase or decrease font size in the Editor (this won’t affect Preview).
+
+##### Line Length
+
+The default width allows for 64 characters on a single line before it wraps.
+
+##### Spellcheck
+
+Choose the language to be used for the spellcheck. Additional dictionaries can be added too.
+
+##### Synchronize
+
+Scroll Toggle to keep Preview and Editor aligned or scroll them independently.
+
+##### Show Hidden
+
+Characters Toggle to show invisible characters in the Editor, like spaces or tabs.
+
+##### Live Tables Reformat
+
+Toggle for automatic reformatting (spacing) of Markdown tables.
+
+## Templates
+
+ [IMG:https://static.ia.net/2025/01/win_settings_templates.webp] 
+
+##### Page Size
+
+Choose between A4 or Letter for PDF export.
+
+##### Title Page
+
+Choose to include a title page for your exported PDF.
+
+##### Header
+
+Toggle to include headers in your exported PDF.
+
+##### Footer
+
+Toggle to include footers in your exported PDF.
+
+##### Center Headings
+
+Centers all headings instead of positioning them flush left.
+
+##### Number Headings
+
+Numbers headings beginning with H2.
+
+##### Indent Paragraphs
+
+Use indentation to indicate new paragraphs instead of vertical space.
+
+##### Invert Colors
+
+Preview will show as Day Mode while the Editor is in Night Mode and vice-versa.
+
+##### Quotes Style
+
+Straight quotes will be automatically converted to whichever style is selected for formatted output.
+
+##### Hide Hashtags
+
+Hashtags written in the Editor will not appear in the Preview/Export.
+
+## Advanced
+
+ [IMG:https://static.ia.net/2025/01/win_settings_advanced.webp] 
+
+##### Default Extension
+
+iA Writer will create new files using this file extension.
+
+##### Reopen Last File
+
+If ON, when relaunching iA Writer, this will reopen the last used document; if OFF, an empty file is presented.
+
+##### Process Metadata
+
+YAML metadata at the top of a file will be processed and hidden from the Preview/Export.
+
+##### Hide Taskbar on Maximize
+
+Check this option to get the true full-screen experience.
+
+##### Use Swipe Gestures
+
+A trackpad or mouse wheel with a tilt function can be used to swipe in/out the Library and the Preview.
+
+##### Invert Swipe Gestures
+
+If the swipe gesture feels unnatural to you, it can be inverted to the other direction.
+
+##### Disable GPU Rendering
+
+Some graphics cards and HiDPI monitors can cause issues with refresh rates or dialog visibility—use this function to render everything through software.
+
+##### Scroll Speed
+
+You can adapt the speed of scrolling in iA Writer to your needs.
+
+##### XSS Filtering
+
+To protect your file against Cross-site scripting attacks.
+
+##### Auto Hide TitleBar
+
+Toggle to control TitleBar’s persistence. When enabled TitleBar hides when you start typing or scrolling within a document.
+
+## Style Check
+
+ [IMG:https://static.ia.net/2025/01/win_settings_style_check.webp] 
+
+##### Custom Style
+
+Check Rules You can add custom patterns to Style Check from here. For more about, check our Style Check section.
+
+## 
+ [IMG:https://static.ia.net/platform-icons/bicon-tools.png] 
+ Settings 
+
+ [IMG:https://static.ia.net/2023/12/SetLibra.webp] 
+
+### Settings Mac
+
+ [IMG:https://static.ia.net/2023/06/settingios.webp] 
+
+### Settings iPhone
+
+ [IMG:https://static.ia.net/2023/06/settingsipad.webp] 
+
+### Settings iPad
+
+### Settings Android

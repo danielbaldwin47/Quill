@@ -1,0 +1,384 @@
+# Version History Windows
+
+ [IMG:https://static.ia.net/2023/04/Windows.webp] 
+
+ Find below the Version History of iA Writer for Windows.
+
+ Version
+ Notes
+
+ 2.0
+ UI redesign and performance improvements
+
+ 1.4
+ Style Check comes to Windows!
+
+ 1.3
+ —
+
+ 1.2
+ —
+
+ 1.1
+ —
+
+ 1.0
+ —
+
+## New in 2.0.9172.15906 (2025.2.10)
+
+Fixed: Incorrect display of the Taskbar icon
+
+Fixed: Blank PDF export when using the Fountain template
+
+Fixed: Incorrect AutoMarkdown behavior for highlights in the editor
+
+Updated installer to to ensure required system components are present
+
+## New in 2.0.9151.26886 (2025.1.20)
+
+## New
+
+Redesigned UI to match Windows 11 aesthetics.
+
+Modular internal architecture for enhanced performance.
+
+New typographic engine.
+
+Updated PDF export engine with support for preserving external links.
+
+Full-width Preview mode.
+
+Support for line comments.
+
+Rendering single CSV files as tables.
+
+Option to directly install spellcheck dictionaries from .zip or .oxt files, with privilege elevation when required.
+
+Added the Preview button.
+
+Strikethrough command in the Format menu.
+
+New option to disable automatic table reformatting.
+
+CSV delimiter automatic detection
+
+Settings tab labels localization
+
+Support for ordered task items
+
+## Improved
+
+Expanded character support in Snippet replaceable sections.
+
+Improved blockquotes indentation with line wrapping.
+
+Redesigned the Settings interface.
+
+Library layout with enhanced ellipsis for long filenames
+
+System shortcuts support in fullscreen mode (Win+D, Alt+Tab)
+
+Localizations across multiple languages
+
+Word export dialog user experience
+
+Default filename creation for new files
+
+## Changed
+
+The Title Bar now transitions in and out with a fade effect.
+
+Moved the Stats menu to the bottom.
+
+Requires Windows 10 or above
+
+## Fixed
+
+Snippets with multiple dates now render correctly.
+
+Fixed issues with multi-line Snippets.
+
+Resolved errors when handling metadata containing colons (:).
+
+Addressed inability to load referenced assets when files are opened externally.
+
+Corrected the color of non-visible characters in dark mode.
+
+## New in 1.4.8748.18429 (2023.12.14)
+
+### Added
+
+Icon in Library to show files containing Authorship Annotations
+
+Support for hiding Authorship Annotations in Preview
+
+Support for iA Writer’s new Fountain Template
+
+### Under the hood
+
+Improved: Rendering of non-Markdown files in Preview
+
+## New in 1.4.8566.25825 (2023.06.15)
+
+### Added
+
+Option to keep the menu bar always visible
+
+Natural sort when sorting file names in Library
+
+Unique TOC styling
+
+### Under the hood
+
+Improved: Loading time of NLP system
+
+Improved: Tokenization for spell checking
+
+Improved: Settings management
+
+Improved: Loading of library
+
+Improved: Compatibility of Content Blocks syntax with iA Writer 6 for Mac
+
+Improved: Management of images with upper case extensions
+
+Improved: Support for inline Math and Math blocks
+
+Improved: Word Exporter
+
+Improved: Html comments removal when exporting to Word
+
+Improved: Layout of Library
+
+Improved: Hashtags appearance in dark mode
+
+Improved: Single quotes for spell checking
+
+Fixed: Math equations when exporting to Word
+
+Fixed: Bug when moving current line at the end of the document
+
+Fixed: Bug in copy as Html
+
+Fixed: Crash when restoring caret position if document was modified externally
+
+Updated: Help
+
+## New in 1.4
+
+### Added
+
+Style Check for English, French and German
+
+### Under the hood
+
+Improved startup time
+
+Improved menus and window borders
+
+## New in 1.3
+
+### Added
+
+Syntax Control
+
+Individual Scroll
+
+Snippets
+
+Smart Tables
+
+Backups and Autosave
+
+### Under the hood
+
+Updated WebKit by upgrading Chromium to version 79
+
+Adopted the new Paddle SDK for Windows
+
+Improved AutoMarkdown in the Editor
+
+File List scrolling optimization
+
+KaTeX update to support copy-tex and mchem modules
+
+XSS filtering
+
+and much more
+
+## New in 1.2
+
+### Integrated Preview
+
+Preview now lives side-by-side with the Editor
+
+Rendering is now performed with WebKit, to get the same quality as on Mac/iOS
+
+### New PDF export
+
+Headers, footers are now available
+
+Based of the regular iA templates
+
+Ability to modify their properties
+
+Multiple page size support
+
+### PDF Preview
+
+A new toggle in the Preview shows a fully rendered PDF with page breaks, headers, footer and title page
+
+### New typography options
+
+Mono and Quattro in addition of Duo
+
+Tables are always in Mono in the editor
+
+### Preferences
+
+Brand new Preferences panel for customizations like quote types and other advanced options
+
+### New Library interactions
+
+Button to toggle visibility
+
+Swipe gesture support
+
+Drag and drop of files in the File List
+
+### Touch support
+
+For scrolling and selection
+
+In Library, Editor and Preview
+
+### Other improvements
+
+KaTeX support for Math in Preview, PDF and Word export
+
+Images in Library can show a tooltip preview and be dragged and dropped into the Editor like other Content Blocks
+
+Rename in place in the Library
+
+Focus mode improvements
+
+ Added Chinese full stop to Focus Mode
+
+ Fixed discoloration of current line in Night Mode with Focus Mode
+
+Add manual Page breaks with +++ syntax
+
+Option to hide hashtags from preview
+
+Added a count of hits in Find
+
+Proper indent of wrapped list items and block quotes
+
+Emphasis and Strong Emphasis enhancements
+
+Added Open Url context menu item on links
+
+Last used file type is now recalled in Open dialog
+
+Added a setting to turn off synchronous scroll with preview
+
+Fixed selection including a colon registering as zero words in Word Count
+
+Aligned Reading Time Calculation with Mac/iOS
+
+Full content block specification support
+
+Auto Markdown for code and code blocks
+
+Deleted files and folders are now moved to trash
+
+Fixed false positives in spell-checker
+
+## New in 1.1
+
+### Integrated Library
+
+Add any folder from your PC to the Library
+
+Files you use frequently can be Favorited so they are always at hand
+
+Right click on files or folders to Favorite, rename, show in Explorer, delete or change the sort order of the Library file list
+
+Show or hide the Library from the View menu using Ctrl+E
+
+### Document Outlines
+
+When you select a file in the Library, its headings are shown as an outline
+
+Click any heading in the outline to jump to that section of the document in the Editor
+
+### MS Word Export
+
+Now you can export your Markdown documents in .docx format
+
+Images, tables, footnotes and other esoteric formatting is all supported
+
+### Typographic Improvements
+
+Refined typeface adjusts to different screen resolutions
+
+### Other Improvements
+
+Improved scrolling
+
+Find/Replace no longer requires the use of a mouse; tab through to each button you need
+
+Word Goal default is no longer reset on relaunch
+
+Scrollbar is now hidden in Typewriter Mode
+
+Fixed text margin calculation issue
+
+First underscore in filenames now appear in title bar
+
+Added keyboard shortcut for Save As
+
+Added accessiblity mode available through user_settings.json in AppData/Roaming/iA Writer
+
+Added option to force software rendering in user_settings.json (useful with some graphics cards)
+
+## New in 1.0
+
+Save dialog now recalls last used extension
+
+Added KS Premium Backer list to About
+
+Improved menu layouts
+
+Removed Start Menu Folder from Install
+
+Fixed a bug where Ctrl+L kept list marker highlighted
+
+Fixed toggle of Focus Mode using keyboard shortcut
+
+Fixed incorrect insets when going full screen
+
+Fixed crashes
+
+Fixed various smaller bugs
+
+## 
+ [IMG:https://static.ia.net/platform-icons/bicon-tools.png] 
+ Version History 
+
+ [IMG:https://static.ia.net/2023/04/Mac.webp] 
+
+### Version History Mac
+
+ [IMG:https://static.ia.net/2023/04/iPhone.webp] 
+
+### Version History iPhone
+
+ [IMG:https://static.ia.net/2023/04/iPad.webp] 
+
+### Version History iPad
+
+ [IMG:https://static.ia.net/2023/04/Android-1.webp] 
+
+### Version History Android

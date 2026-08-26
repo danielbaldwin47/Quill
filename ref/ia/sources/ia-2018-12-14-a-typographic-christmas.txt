@@ -1,0 +1,71 @@
+December 14, 2018 
+
+# A Typographic Christmas
+
+ iA Writer now offers three custom designed writing fonts 
+
+ ‹ Previous
+  2 MIN READ 
+  Next ›     
+
+ [IMG:https://static.ia.net/2018/12/Typographic-christmas.webp] 
+
+ iA Writer started off with one font. The classic Nitti, designed by Bold Monday. Last year we added iA Writer Duo, a two-spaced typeface that gives a bit more room to W’s and M’s, based on IBM Plex. This year, we add a third font with four character sizes, called iA Writer Quattro and unify the designs.
+
+## Three Variable fonts
+
+Quattro shares similarities with a proportional typeface. At the same time, it retains a lot of the technical virtues of the classic typewriter fonts using wider gaps between the words and giving each letter more room than a classic, fully proportional face.
+
+ [IMG:https://static.ia.net/2018/12/iA-Writer-Mono-Duo-Quattro-Differences-1.webp] 
+
+We kept large word spacing and monospaced punctuation. Quattro saves space on small screens. And it looks beautiful offering a cleaner, more regular text image. Changing the width of a few letters makes a huge change:
+
+ [IMG:https://static.ia.net/2018/12/iA-Writer-Mono-Duo-Quattro-Comparison.webp] 
+
+The fonts have all been redesigned. iA Writer Mono, Duo and Quattro were built upon IBM Plex. In the latest iteration, we have eliminated the IBM brand-typical features and made look more characteristic. Using square dots instead of round ones, adjusting the swirls and curves on a, j, f, l, t, y, Q, and lots of non-latin characters, we unified mono, Duo, and Quattro under a common look. This was a lot of work.
+
+You can get the new iA Writer fonts on GitHub. Don’t recreate iA Writer or iA Writer Themes. Use them creatively.
+
+### Read More About
+
+ PLAN "Design" 
+
+  "iA Writer" 
+
+### Recent Writer Articles
+
+ [IMG:https://static.ia.net/2026/06/liquid-outline2-rijjbx.webp] 
+
+### Search to Navigate
+
+ iA Writer 8 combines search and outline into a faster way to move through your documents
+
+ [IMG:https://static.ia.net/2026/05/authorship-ia-writer-windows-2026-bkgiic.webp] 
+
+### Authorship Arrives on Windows
+
+ Stay on top of changes and sources.
+
+ [IMG:https://static.ia.net/2026/05/fam-duo-jrzgwf.webp] 
+
+### Buy Direct, Sign In Easy
+
+ Get iA Writer directly from us with iA Account.
+
+ [IMG:https://static.ia.net/2026/05/stephen-fry-on-ia-writer-throwing-flowers-lvybcn.webp] 
+
+### Tell Us Your Story
+
+ How has iA Writer changed your life?
+
+ [IMG:https://static.ia.net/2026/03/ia-writer-for-windows-with-authorship-8srime.webp] 
+
+### Who wrote this?
+
+ Authorship comes to iA Writer for Windows
+
+ [IMG:https://static.ia.net/2025/04/break-out-of-word-ui.webp] 
+
+### Separate Writing and Formatting
+
+ How to get focused
