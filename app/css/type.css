@@ -1,23 +1,44 @@
 /* Fonts: iA Writer Duo / Quattro / Mono (SIL OFL 1.1, github.com/iaolo/iA-Fonts) */
-@font-face { font-family: "iA Writer Duo"; font-style: normal; font-weight: 400; font-display: block; src: url("../fonts/Duo/iAWriterDuoS-Regular.woff2") format("woff2"); }
-@font-face { font-family: "iA Writer Duo"; font-style: italic; font-weight: 400; font-display: block; src: url("../fonts/Duo/iAWriterDuoS-Italic.woff2") format("woff2"); }
-@font-face { font-family: "iA Writer Duo"; font-style: normal; font-weight: 700; font-display: block; src: url("../fonts/Duo/iAWriterDuoS-Bold.woff2") format("woff2"); }
-@font-face { font-family: "iA Writer Duo"; font-style: italic; font-weight: 700; font-display: block; src: url("../fonts/Duo/iAWriterDuoS-BoldItalic.woff2") format("woff2"); }
-@font-face { font-family: "iA Writer Quattro"; font-style: normal; font-weight: 400; font-display: block; src: url("../fonts/Quattro/iAWriterQuattroS-Regular.woff2") format("woff2"); }
-@font-face { font-family: "iA Writer Quattro"; font-style: italic; font-weight: 400; font-display: block; src: url("../fonts/Quattro/iAWriterQuattroS-Italic.woff2") format("woff2"); }
-@font-face { font-family: "iA Writer Quattro"; font-style: normal; font-weight: 700; font-display: block; src: url("../fonts/Quattro/iAWriterQuattroS-Bold.woff2") format("woff2"); }
-@font-face { font-family: "iA Writer Quattro"; font-style: italic; font-weight: 700; font-display: block; src: url("../fonts/Quattro/iAWriterQuattroS-BoldItalic.woff2") format("woff2"); }
-@font-face { font-family: "iA Writer Mono"; font-style: normal; font-weight: 400; font-display: block; src: url("../fonts/Mono/iAWriterMonoS-Regular.woff2") format("woff2"); }
-@font-face { font-family: "iA Writer Mono"; font-style: italic; font-weight: 400; font-display: block; src: url("../fonts/Mono/iAWriterMonoS-Italic.woff2") format("woff2"); }
-@font-face { font-family: "iA Writer Mono"; font-style: normal; font-weight: 700; font-display: block; src: url("../fonts/Mono/iAWriterMonoS-Bold.woff2") format("woff2"); }
-@font-face { font-family: "iA Writer Mono"; font-style: italic; font-weight: 700; font-display: block; src: url("../fonts/Mono/iAWriterMonoS-BoldItalic.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Duo"; font-style: normal; font-weight: 100 900; font-display: block; src: url("../fonts/Duo/iAWriterDuoV.woff2") format("woff2-variations"), url("../fonts/Duo/iAWriterDuoV.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Duo"; font-style: italic; font-weight: 100 900; font-display: block; src: url("../fonts/Duo/iAWriterDuoV-Italic.woff2") format("woff2-variations"), url("../fonts/Duo/iAWriterDuoV-Italic.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Quattro"; font-style: normal; font-weight: 100 900; font-display: block; src: url("../fonts/Quattro/iAWriterQuattroV.woff2") format("woff2-variations"), url("../fonts/Quattro/iAWriterQuattroV.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Quattro"; font-style: italic; font-weight: 100 900; font-display: block; src: url("../fonts/Quattro/iAWriterQuattroV-Italic.woff2") format("woff2-variations"), url("../fonts/Quattro/iAWriterQuattroV-Italic.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Mono"; font-style: normal; font-weight: 100 900; font-display: block; src: url("../fonts/Mono/iAWriterMonoV.woff2") format("woff2-variations"), url("../fonts/Mono/iAWriterMonoV.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Mono"; font-style: italic; font-weight: 100 900; font-display: block; src: url("../fonts/Mono/iAWriterMonoV-Italic.woff2") format("woff2-variations"), url("../fonts/Mono/iAWriterMonoV-Italic.woff2") format("woff2"); }
 
-/* Typography: font faces, size, line-height, measure. Owner: type piece.
- * Fonts live in app/fonts/<family>/ (iA Writer Duo / Quattro / Mono, SIL OFL). */
+/* Typography: font faces, size, leading, measure. Owner: type piece.
+ * Fonts live in app/fonts/<family>/ (iA Writer Duo / Quattro / Mono, SIL OFL).
+ *
+ * The grid: every glyph sits on a fixed cell (0.6 em in Duo/Mono; Duo widens
+ * m/M/w/W to 0.9 em, Quattro also narrows i/l and the word space). Nothing here
+ * may disturb that — no letter-spacing, no kerning, no ligatures, no per-token
+ * size — because #input and #mirror have to lay out identically, glyph for glyph.
+ */
 :root {
-  --font-size: 18px;
-  --line-height: 1.6;
-  --measure: 66ch;           /* characters per line at the chosen size */
+  --font-size: 20px;
+
+  /* Leading is liquid, not a fixed ratio.
+     Measured pitch/size from iA captures (2x Retina, halved to CSS px):
+        20.00px -> 36.5   (ianet-mac-dark-typewriter-support)      1.83x
+        24.17px -> 40.0   (appstore-mac-09)                        1.66x
+        27.65px -> 46.25  (appstore-mac-01 / -08, the pair shots)  1.67x
+        28.25px -> 47.1   (ianet-mac-light-focus-paragraph-alice)  1.67x
+     A straight ratio cannot fit that: iA adds a roughly constant slab of air on
+     top of a proportional part ("liquid line spacing" in their Windows 2.0 post).
+     pitch = 1.30 * size + 10.4px fits three of the four to within 0.3px, and it
+     is what a reader wants: small type gets relatively more air, big type less.
+     Clamped so extreme steps of Mod +/- never go airless or spacey. */
+  --line-pitch: clamp(
+      calc(var(--font-size) * 1.52),
+      calc(var(--font-size) * 1.30 + 10.4px),
+      calc(var(--font-size) * 2)
+    );
+  /* Unitless floor kept for page.css's `min-height: calc(var(--line-height)*1em)`.
+     It must stay BELOW the real ratio at every size (min in range is 1.56 at 40px)
+     so an empty line is never taller than a full one. Use --line-pitch for real work. */
+  --line-height: 1.5;
+
+  --measure: 64ch;           /* iA's default line-length limit; 1ch = 0.6 em in all three faces */
   --font-duo: "iA Writer Duo", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --font-quattro: "iA Writer Quattro", -apple-system, "Segoe UI", system-ui, sans-serif;
   --font-mono: "iA Writer Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -26,15 +47,37 @@
 }
 :root[data-font="quattro"] { --font: var(--font-quattro); }
 :root[data-font="mono"] { --font: var(--font-mono); }
+
 #page, #mirror, #input {
   font-family: var(--font);
   font-size: var(--font-size);
-  line-height: var(--line-height);
-  font-kerning: normal;
+  line-height: var(--line-pitch);
+  font-weight: 430;
+  font-style: normal;
+  /* Hold the cell grid. Kerning and contextual alternates would move glyphs by
+     different amounts inside a <span> than across the plain run in the textarea,
+     which is exactly how mirror and input drift apart. */
+  font-kerning: none;
   font-variant-ligatures: none;
+  font-variant-numeric: normal;
+  font-feature-settings: "kern" 0, "liga" 0, "clig" 0, "calt" 0;
+  font-optical-sizing: auto;
   letter-spacing: 0;
   word-spacing: 0;
   tab-size: 4;
+  /* geometricPrecision keeps advances fractional instead of rounding each glyph
+     to whole pixels, so a 27.65px column stays exactly on the cell grid. */
+  text-rendering: geometricPrecision;
   -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+/* Dark paper makes light strokes bloom. Stem-darkening is right for ink on
+   paper and wrong for paper on ink, so light-on-dark gets the thinner pass. */
+:root[data-theme="dark"] #page,
+:root[data-theme="dark"] #mirror,
+:root[data-theme="dark"] #input { -webkit-font-smoothing: antialiased; }
+
+/* Italic and bold are the same widths as regular in all three faces, so they are
+   the only two things that may change inside a line. Never a size, never a family
+   (except Mono for code, which is metric-identical to Duo at 0.6 em). */

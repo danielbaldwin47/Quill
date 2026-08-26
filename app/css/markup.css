@@ -1,14 +1,146 @@
-/* Markdown rendering in the editor. Owner: markup piece.
- * RULE: never change glyph advance widths. iA Writer fonts keep the same widths across weights,
- * so bold/italic are safe; font-size changes are NOT. */
-.md-mark { color: var(--mark); }
-.md-h { font-weight: 700; }
-.md-strong { font-weight: 700; }
-.md-em { font-style: italic; }
-.md-strike { text-decoration: line-through; }
-.md-code, .md-codeblock { font-family: var(--font-mono); background: var(--code-bg); border-radius: 3px; }
-.md-url { color: var(--mark); text-decoration: underline; text-decoration-color: var(--rule); }
-.md-link-text { color: var(--accent); }
-.md-quote { color: var(--fg); font-style: italic; }
-.md-done { color: var(--mark); text-decoration: line-through; }
-.line.l-hr { color: var(--mark); }
+/* How Markdown looks while you are writing it. Owner: markup piece.
+ *
+ * HARD RULE: nothing here may change a glyph's advance width or a line's height —
+ * the transparent <textarea> and the visible mirror have to stay glyph-for-glyph
+ * aligned. So: no font-family swap (Duo/Quattro/Mono are NOT metric-compatible with
+ * each other), no font-size, no letter-spacing, no padding/margin/border inside a line.
+ * Weight and italic are safe (the iA faces keep the same widths across all four styles);
+ * colour, background, box-shadow, absolutely-positioned pseudo-elements and text
+ * decoration are safe because they never take part in layout.
+ *
+ * The idea: prose is ink, structure is weight, syntax is grey. Markers stay legible —
+ * you can always see and edit the exact characters — but they sit a step back so the
+ * sentence, not the punctuation, is what the eye lands on. iA Writer hangs "# " in the
+ * left margin, which needs a per-line horizontal shift the textarea cannot follow;
+ * greying the marks buys the same calm text image without breaking the caret, the
+ * selection or click-to-position (see NOTES.md).
+ */
+
+#mirror {
+  /* one grey ladder, mixed against the paper so it holds up on both grounds */
+  --md-mark-quiet: color-mix(in srgb, var(--mark) 72%, var(--bg));
+  --md-mark-faint: color-mix(in srgb, var(--mark) 45%, var(--bg));
+  --md-hair: color-mix(in srgb, var(--mark) 34%, var(--bg));
+  --md-link: var(--link, var(--accent));
+  --md-hl: color-mix(in srgb, #ffd400 30%, transparent);
+}
+
+/* ------------------------------------------------------------------ marks */
+#mirror .md-mark { color: var(--mark); font-weight: 400; font-style: normal; }
+/* Inline punctuation (* _ ` ~ [ ] ( )) is the noisiest and the least informative,
+   so it sits one step further back than the structural marks at the line head. */
+#mirror .md-mark-inline { color: var(--md-mark-quiet); }
+/* …and comes back to full strength on the line the caret is in, so what you are
+   editing is never ambiguous. Class toggle only — no reflow, no re-tokenising. */
+#mirror .line.md-here .md-mark-inline:not(.dim) { color: var(--mark); }
+
+/* --------------------------------------------------------------- headings */
+/* iA Writer: same size, same colour as the body, bold. Level reads from the marks. */
+#mirror .md-h { font-weight: 700; }
+#mirror .md-hmark { color: var(--md-mark-quiet); font-weight: 400; }
+#mirror .line.md-here .md-hmark:not(.dim) { color: var(--mark); }
+
+/* --------------------------------------------------------------- emphasis */
+#mirror .md-strong { font-weight: 700; }
+#mirror .md-em { font-style: italic; }
+#mirror .md-strike { color: var(--mark); text-decoration: line-through; text-decoration-thickness: 1px; }
+#mirror .md-hl { background: var(--md-hl); }
+
+/* ------------------------------------------------------------------ lists */
+#mirror .md-bullet { color: var(--mark); }
+#mirror .md-task { color: var(--mark); }
+#mirror .md-task-done { color: var(--md-link); }
+#mirror .md-done { color: var(--md-mark-quiet); text-decoration: line-through; text-decoration-color: var(--md-mark-faint); text-decoration-thickness: 1px; }
+
+/* ------------------------------------------------------------ block quote */
+/* iA hangs the ">" in the margin and indents the quote; a per-line indent would
+   desynchronise the textarea, so the quote gets a quiet rule in the margin instead —
+   it survives soft wrapping, which a hanging ">" alone does not. */
+#mirror .line.l-quote { position: relative; }
+#mirror .line.l-quote::before {
+  content: ""; position: absolute;
+  left: -.95em; top: 0; bottom: 0; width: 2px;
+  background: var(--md-hair);
+}
+#mirror .line.l-quote2::after,
+#mirror .line.l-quote3::after {
+  content: ""; position: absolute;
+  left: -.55em; top: 0; bottom: 0; width: 2px;
+  background: var(--md-hair);
+}
+#mirror .md-quote-mark { color: var(--md-mark-quiet); }
+#mirror .md-quote { color: var(--fg); }
+
+/* ------------------------------------------------------------------- code */
+/* Same face as the prose — the three iA faces are not metric-compatible with each
+   other, and iA Writer itself sets code in the document face. Code reads as code
+   from its ground, not from a different alphabet. */
+#mirror .md-code, #mirror .md-code-mark { background: var(--code-bg); }
+#mirror .md-code, #mirror .md-code-mark { border-radius: 2px; }
+#mirror .md-code-mark { color: var(--md-mark-quiet); box-shadow: -.2em 0 0 var(--code-bg), .2em 0 0 var(--code-bg); }
+#mirror .md-code { color: var(--fg); }
+
+#mirror .line.l-code { background: var(--code-bg); box-shadow: -.7em 0 0 var(--code-bg), .7em 0 0 var(--code-bg); }
+#mirror .line.l-code-start { border-radius: 4px 4px 0 0; }
+#mirror .line.l-code-end { border-radius: 0 0 4px 4px; }
+#mirror .line.l-code-indent { border-radius: 4px; }
+#mirror .md-codeblock { color: var(--fg); }
+#mirror .md-fence { color: var(--md-mark-quiet); }
+#mirror .md-fence-info { color: var(--mark); }
+
+/* ------------------------------------------------------------------ links */
+#mirror .md-url, #mirror .md-url-title, #mirror .md-def { color: var(--md-mark-quiet); text-decoration: none; }
+#mirror .line.md-here .md-url:not(.dim) { color: var(--mark); }
+#mirror .md-link-text, #mirror .md-autolink {
+  color: var(--md-link);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--md-link) 35%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: .18em;
+}
+#mirror .md-tag { color: color-mix(in srgb, var(--md-link) 76%, var(--bg)); }
+#mirror .md-html { color: var(--md-mark-quiet); }
+
+/* -------------------------------------------------------- thematic break */
+/* The three dashes you typed stay where you typed them and simply carry on as a
+   hairline to the end of the measure: a section break you can see at a glance
+   without a single extra character in the file. */
+#mirror .line.l-hr { position: relative; color: var(--md-hair); }
+#mirror .line.l-hr::before {
+  content: ""; position: absolute;
+  left: 0; right: 0;
+  /* Sit exactly on the dashes, at their own weight, so the three characters you
+     typed simply carry on to the end of the measure. Half-leading is
+     (pitch - 1.30em)/2, the baseline another 1.025em below that, and the hyphen's
+     centre 0.35em above the baseline (measured). Holds at any leading. */
+  top: calc(50% - .65em + 1.025em - .35em - .04em);
+  height: .08em;
+  background: var(--md-hair);
+}
+#mirror .line.l-hr .md-hr { color: var(--md-hair); }
+/* on the caret's line the dashes come back so you can see what you typed */
+#mirror .line.l-hr.md-here .md-hr:not(.dim) { color: var(--mark); }
+
+/* ------------------------------------------------------------ front matter */
+#mirror .md-front-rule { color: var(--md-mark-quiet); }
+#mirror .md-meta-key { color: var(--mark); }
+#mirror .md-meta-val { color: var(--fg); }
+
+/* ----------------------------------------------------------------- tables */
+#mirror .md-pipe, #mirror .md-table-sep { color: var(--md-mark-quiet); }
+#mirror .line.md-here .md-pipe:not(.dim) { color: var(--mark); }
+
+/* ---------------------------------------------------------- content block */
+/* A lone file reference is a thing, not a sentence: iA draws it as a chip. The
+   padding is faked with box-shadow rings so no glyph moves. */
+#mirror .md-chip {
+  color: var(--fg);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--bg), var(--fg) 4%);
+  box-shadow:
+    0 0 0 .28em color-mix(in srgb, var(--bg), var(--fg) 4%),
+    0 0 0 calc(.28em + 1px) var(--rule);
+}
+
+/* Focus mode owns dimming; never let a markup colour outrank it. */
+#mirror .dim, #mirror .dim.md-mark, #mirror .dim.md-code, #mirror .dim.md-codeblock { color: var(--fg-dim); }

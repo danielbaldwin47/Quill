@@ -117,7 +117,7 @@
   }
 
   // Recompute per-line context from line `from` forward; returns first index where ctx unchanged & stable (or lines.length)
-  function recomputeCtx(from) {
+  function recomputeCtx(from, force) {
     let ctx = from > 0 ? lineCtx[from - 1] : null;
     let i = from;
     for (; i < lines.length; i++) {
@@ -127,7 +127,7 @@
       const changed = !sameCtx(lineCtx[i], entering);
       lineCtx[i] = entering;
       ctx = next;
-      if (!changed && i >= from + 1) { /* stable from here if the following ctx is unchanged too */
+      if (!force && !changed && i >= from + 1) { /* stable from here if the following ctx is unchanged too */
         if (sameCtx(lineCtx[i + 1], ctx)) return i + 1;
       }
     }
@@ -143,13 +143,20 @@
     return true;
   }
 
-  let renderScheduled = false;
+  let lastHeight = -1;
+  function syncHeight(h) { if (h !== lastHeight) { lastHeight = h; input.style.height = h + 'px'; } }
+  Writer.syncHeight = () => syncHeight(mirror.offsetHeight);
+
+  // 'render' is where listeners measure the page (the caret asks for its rect). Emitting it while
+  // other listeners still have DOM writes ahead of them costs one extra layout per keystroke, so the
+  // input path defers it until every writer has run. Everyone else gets it synchronously as before.
+  let deferRenderEvent = false, pendingRenderEvent = false;
+
   Writer.render = function render(full) {
-    renderScheduled = false;
     const text = input.value;
     const newLines = text.split('\n');
     if (full || !lineEls.length) {
-      lines = newLines; lineCtx = []; recomputeCtx(0);
+      lines = newLines; lineCtx = []; recomputeCtx(0, true);
       mirror.textContent = '';
       const frag = document.createDocumentFragment();
       lineEls = newLines.map((t, i) => { const el = buildLine(i, t); frag.appendChild(el); return el; });
@@ -171,17 +178,27 @@
       for (let i = 0; i < oldMid; i++) lineEls[a + i].remove();
       if (after.length) mirror.insertBefore(frag, after[0]); else mirror.appendChild(frag);
       lineEls = before.concat(mid, after);
-      // renumber & fix contexts forward
+      // renumber & fix contexts forward.
+      // Renumbering touches every line after the edit, so only do it when the line count moved
+      // (typing inside a line leaves every index below it correct) and only write attributes
+      // whose value actually changes — a same-value setAttribute still costs a style invalidation.
       const stableAt = recomputeCtx(a);
+      const renumber = newN !== oldN;
       for (let i = a + newMid; i < lineEls.length; i++) {
-        lineEls[i].dataset.i = i;
+        if (renumber) { const s = String(i); if (lineEls[i].dataset.i !== s) lineEls[i].dataset.i = s; }
         if (i < stableAt) fillLine(lineEls[i], i, lines[i]);
       }
       // A line's tokenization may depend on ctx computed from previous lines; mid lines were built before ctx was updated
       for (let i = a; i < a + newMid; i++) fillLine(lineEls[i], i, lines[i]);
     }
-    input.style.height = mirror.offsetHeight + 'px';
-    Writer.emit('render');
+    // The textarea is sized to the mirror. Reading mirror.offsetHeight here forces a synchronous
+    // layout of the whole document inside the keystroke, and writing input.style.height afterwards
+    // dirties it again — two full layouts per keypress on a long document. A ResizeObserver on the
+    // mirror does the same job from the frame's own layout pass (see boot), so the keystroke path
+    // does no measuring at all. Full renders (boot, setText, font change) still sync immediately,
+    // because callers may measure right away.
+    if (full) syncHeight(mirror.offsetHeight);
+    if (deferRenderEvent) pendingRenderEvent = true; else Writer.emit('render');
   };
   Writer.rerenderLines = function (indices) {
     for (const i of indices) if (lineEls[i]) fillLine(lineEls[i], i, lines[i]);
@@ -198,10 +215,21 @@
     else input.setSelectionRange(0, 0);
     Writer.render(true);
     Writer.emit('change', { source: opts.source || 'set' });
-    Writer.emit('selection');
+    emitSelection(true);
   };
   Writer.selection = () => ({ start: input.selectionStart, end: input.selectionEnd, dir: input.selectionDirection });
-  Writer.setSelection = (s, e = s) => { input.setSelectionRange(s, e); Writer.emit('selection'); };
+  Writer.setSelection = (s, e = s) => { input.setSelectionRange(s, e); emitSelection(true); };
+  // One keystroke raises three selection notifications in Chrome (input, selectionchange, keyup) and
+  // every listener on it measures layout. Fire once per real change instead: same events, a third of
+  // the work. `force` is for text changes, where the offsets can be identical but the line is not.
+  let selS = -1, selE = -1, selD = '';
+  function emitSelection(force) {
+    const s = input.selectionStart, e = input.selectionEnd, d = input.selectionDirection;
+    if (!force && s === selS && e === selE && d === selD) return;
+    selS = s; selE = e; selD = d;
+    Writer.emit('selection');
+  }
+  Writer.emitSelection = emitSelection;
   // offset -> {line, col}
   Writer.offsetToPos = (off) => {
     let i = 0, acc = 0;
@@ -237,7 +265,8 @@
 
   // ---------- commands & keys ----------
   const commands = new Map();
-  Writer.registerCommand = (id, cmd) => { commands.set(id, { id, ...cmd }); return cmd; };
+  let keymap = null;   // normalised key string -> command, built lazily (keydown is a hot path)
+  Writer.registerCommand = (id, cmd) => { commands.set(id, { id, ...cmd }); keymap = null; return cmd; };
   Writer.commands = () => [...commands.values()];
   Writer.run = (id, ...a) => { const c = commands.get(id); if (c) return c.run(...a); };
   const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
@@ -252,12 +281,20 @@
   Writer.normKeys = (keys) => keys.split('+').map(p => p === 'Mod' ? (isMac ? 'Meta' : 'Ctrl') : p).sort((a, b) => order(a) - order(b)).join('+');
   const ORDER = { Ctrl: 0, Meta: 1, Alt: 2, Shift: 3 };
   function order(p) { return p in ORDER ? ORDER[p] : 9; }
-  function onKeydown(e) {
-    const ks = keyString(e);
+  function buildKeymap() {
+    keymap = new Map();
     for (const c of commands.values()) {
       if (!c.keys) continue;
       const list = Array.isArray(c.keys) ? c.keys : [c.keys];
-      for (const k of list) if (Writer.normKeys(k) === ks) { e.preventDefault(); c.run(e); return; }
+      for (const k of list) if (!keymap.has(Writer.normKeys(k))) keymap.set(Writer.normKeys(k), c);
+    }
+  }
+  function onKeydown(e) {
+    // Plain typing must not pay for the shortcut table: no modifier, single character -> nothing to look up.
+    if (e.ctrlKey || e.metaKey || e.altKey || e.key.length > 1) {
+      if (!keymap) buildKeymap();
+      const c = keymap.get(keyString(e));
+      if (c) { e.preventDefault(); c.run(e); return; }
     }
     Writer.emit('keydown', e);
   }
@@ -271,17 +308,33 @@
     caretLayer = document.getElementById('caret-layer');
     Object.assign(Writer.el, { scroller, page, mirror, input, caretLayer });
     applySettings();
-    input.addEventListener('input', () => { Writer.render(false); Writer.emit('change', { source: 'input' }); Writer.emit('selection'); });
-    document.addEventListener('selectionchange', () => { if (document.activeElement === input) Writer.emit('selection'); });
+    // The keystroke path, in one pass: mirror writes -> 'change' -> 'selection' (focus writes) ->
+    // 'render' (caret measures). Writes first, reads last, so the frame lays out exactly once.
+    input.addEventListener('input', () => {
+      deferRenderEvent = true;
+      Writer.render(false);
+      deferRenderEvent = false;
+      Writer.emit('change', { source: 'input' });
+      emitSelection(true);
+      if (pendingRenderEvent) { pendingRenderEvent = false; Writer.emit('render'); }
+    });
+    document.addEventListener('selectionchange', () => { if (document.activeElement === input) emitSelection(false); });
     input.addEventListener('keydown', onKeydown);
-    input.addEventListener('keyup', () => Writer.emit('selection'));
-    input.addEventListener('mouseup', () => Writer.emit('selection'));
+    input.addEventListener('keyup', () => emitSelection(false));
+    input.addEventListener('mouseup', () => emitSelection(false));
     input.addEventListener('focus', () => Writer.emit('focus'));
     input.addEventListener('blur', () => Writer.emit('blur'));
     scroller.addEventListener('scroll', () => Writer.emit('scroll'), { passive: true });
-    window.addEventListener('resize', () => { input.style.height = mirror.offsetHeight + 'px'; Writer.emit('resize'); });
+    window.addEventListener('resize', () => { syncHeight(mirror.offsetHeight); Writer.emit('resize'); });
     // Fonts may load after first layout; re-sync heights when they do.
-    if (document.fonts) document.fonts.addEventListener('loadingdone', () => { input.style.height = mirror.offsetHeight + 'px'; Writer.emit('resize'); });
+    if (document.fonts) document.fonts.addEventListener('loadingdone', () => { syncHeight(mirror.offsetHeight); Writer.emit('resize'); });
+    // Keep the textarea as tall as the mirror without ever measuring from a keystroke: the observer
+    // is served out of the frame's own layout, and only fires when the height really changed.
+    if (window.ResizeObserver) new ResizeObserver((entries) => {
+      const e = entries[entries.length - 1];
+      const box = e.borderBoxSize && e.borderBoxSize[0];
+      syncHeight(box ? box.blockSize : e.contentRect.height);
+    }).observe(mirror);
     Writer.emit('boot');
     if (!input.value.length) {
       // files.js restores the last document on boot; if nothing was restored, start empty.
