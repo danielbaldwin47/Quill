@@ -3,7 +3,7 @@
 // node tools/blind.mjs reveal <piece>                          -> prints which of A/B is ours
 import fs from 'node:fs'; import path from 'node:path'; import crypto from 'node:crypto';
 const [cmd, piece, ours, theirs] = process.argv.slice(2);
-const keyDir = process.env.BLIND_KEY_DIR || path.join(process.env.CLAUDE_JOB_DIR || '/tmp', 'blind-keys');
+const keyDir = process.env.BLIND_KEY_DIR || '/home/diggle/.claude/jobs/e9d93e91/tmp/blind-keys';
 fs.mkdirSync(keyDir, { recursive: true });
 const dir = path.join('shots/blind', piece); fs.mkdirSync(dir, { recursive: true });
 if (cmd === 'pair') {
