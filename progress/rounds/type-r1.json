@@ -1,0 +1,20 @@
+{
+  "piece": "type",
+  "round": 1,
+  "winner": "ours",
+  "margin": "clear",
+  "gap": "The caret is 8px wide with square-cut ends and sits 3px lower than A's (blue bar y=372\u2013463 vs 369\u2013460, i.e. ~30px below the line-3 baseline vs ~27px); A's is 9px with rounded caps and hangs less into the interline gap. That is a sub-pixel-class complaint next to A's marker problem, and it is the only thing B loses on.",
+  "gapTheirs": "Syntax markers are undimmed: both asterisks around *never* measure #1c1c1c \u2014 pixel-identical to the body ink (#1c1c1c on #f9f9f9) \u2014 so they read as two black glyphs sitting in the sentence rather than as markup. B renders the same asterisks at #7a7a7a, roughly 2.5x lighter against the page, so the italic carries the emphasis and the syntax recedes. This is the one typographic decision that separates the two images, and A gets it backwards.",
+  "verdict": "These two are the same page \u2014 same face, same 92px line pitch (~1.6 ratio), same #1c1c1c ink on #f9f9f9, same measure at 47 characters, same true cursive italic rather than a slanted roman \u2014 except for one thing, and it is the thing that decides whether markdown is bearable to write in. A prints the emphasis asterisks at full body weight, so the eye trips over them twice per emphasised word and the line's grey texture is punctured; B drops them to #7a7a7a and the sentence reads as prose while the italic still announces itself. A's caret is marginally better shaped (9px, rounded, 3px higher), which buys it nothing. Neither shows a blank line, so paragraph spacing is untested in both \u2014 fix that in the next sample.",
+  "oursShot": "shots/type/r1-ours.png",
+  "theirsShot": "shots/type/r1-theirs.png",
+  "refSource": "ref/ia/shots/appstore-mac-01-light-editor-hero.png, crop box x=406 y=749 w=1930 h=700 (node tools/crop.mjs, 2x, origin chosen so the text block registers exactly on ours). Dark counterpart saved beside it: ref/ia/shots/appstore-mac-08-dark-markdown-heading.png crop 188 775 1930 700 vs shots/type/r1-ours-dark.png.",
+  "builderNote": "Re-measured iA's type by advance-fitting the Duo cell across four captures (REFERENCE.md's x-height ems are ~2% low): leading is liquid, pitch = 1.30 x size + 10.4px, now computed in --line-pitch and rounded to whole pixels once so page.css and caret.js read the same number the text is set on \u2014 that mismatch had been walking #mirror off #input 0.4px per line. Default size 18 -> 20px (iA's own window capture), measure 64ch, kerning/ligatures/calt off, per-theme optical weight (415 on paper, 400 on dark) which brings our measured ink per line to within 1% of iA on both themes. Swapped to the variable iA faces (two files per family; the upright covers bold, so bold no longer fetches a font mid-keystroke), warmed the italic cut at boot, and patched iA's Quattro Italic word space (600 -> 450 units, gvar frozen) back onto the grid \u2014 it was sliding every italic run a character out from under the caret. Hanging markers deliberately skipped: not metric-safe over a textarea.",
+  "secondary": [
+    "Both images are 1930x700, same viewport, and diff to zero outside the *never* run and a 3px caret offset.",
+    "B's marker grey #7a7a7a on #f9f9f9 is only about 4:1 contrast \u2014 legible, but it is the ceiling of how far this approach can dim before the markers become unfindable when editing; consider dimming further only on unfocused lines.",
+    "Line pitch 92px against a cap height of roughly 39px gives about 1.6 leading in both \u2014 defensible for a 47-character measure, but neither image proves it holds across a paragraph break.",
+    "Caret is a full-line-box 92px bar in both, i.e. it spans ascender to descender rather than the type's own extent; A's rounded caps soften this slightly, B's square ends make the overshoot more obvious."
+  ],
+  "at": "2026-08-26T19:37:27-04:00"
+}
