@@ -1,11 +1,85 @@
-/* Custom caret. Owner: caret piece. */
-#caret-layer { position: absolute; inset: 0; pointer-events: none; }
-#caret-layer .caret {
+/* Caret & selection. Owner: caret piece.
+ *
+ * Three layers inside #page, in paint order:
+ *   #sel-layer   selection fills   — under the ink, so selected words keep
+ *                                    their exact colour (the native textarea
+ *                                    selection paints over #mirror and tints it)
+ *   #mirror / #input               — the glyphs
+ *   #caret-layer  caret + the two bars that bracket a selection
+ *
+ * Sizes and offsets are set from caret.js, which measures the baseline and
+ * snaps every edge to a device pixel: a caret with a soft edge looks like a
+ * smudge, and this one is on screen more than any other mark in the app.
+ */
+
+:root {
+  --caret-color: var(--accent, #00b5ff);   /* iA's blue, measured #00b5ff */
+}
+
+/* The native selection is drawn by us instead; keep the browser's off in both
+ * states (theme.css sets an idle colour at higher specificity, so match it). */
+#input::selection,
+#input:not(:focus)::selection { background: transparent; }
+#input::-moz-selection { background: transparent; }
+
+#sel-layer,
+#caret-layer {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  contain: layout style;
+}
+/* First child of #page, so it paints beneath #mirror's ink. */
+#sel-layer { z-index: 0; }
+
+#sel-layer .sel {
   position: absolute; top: 0; left: 0;
-  width: 2px; background: var(--accent); border-radius: 1px;
+  background: var(--selection, rgba(0, 181, 255, .22));
   will-change: transform;
 }
-#caret-layer .caret.hidden { display: none; }
-#caret-layer .caret.blink { animation: caret-blink 1.1s steps(1) infinite; }
-@keyframes caret-blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { #caret-layer .caret.blink { animation: none; } }
+/* Window not focused: the highlight stays, but stops shouting. */
+#sel-layer.idle .sel { background: var(--selection-idle, rgba(128, 128, 128, .18)); }
+
+#caret-layer .caret,
+#caret-layer .sel-edge {
+  position: absolute; top: 0; left: 0;
+  background: var(--caret-color);
+  transform: translate3d(0, 0, 0);
+}
+#caret-layer .caret {
+  will-change: transform;
+  /* Duration is set per move in caret.js: 0 for jumps and fast typing, ~60 ms
+     along a line, ~90 ms between lines. Short enough that the caret arrives
+     with the letter, long enough that the eye follows it instead of hunting. */
+  transition-property: transform;
+  transition-duration: 0s;
+  transition-timing-function: cubic-bezier(.22, .61, .36, 1);
+}
+
+/* Blink: on for ~470 ms, a 85 ms fade down, off for ~445 ms, a 55 ms fade back.
+ * Faster in than out, so it reads as breathing rather than flashing. The class
+ * is removed on every keystroke and caret move and restored after 480 ms of
+ * quiet, so nothing flickers while you are actually writing. */
+#caret-layer .caret.blink { animation: caret-blink 1.06s linear infinite; }
+@keyframes caret-blink {
+  0%, 44%   { opacity: 1; }
+  52%, 94%  { opacity: 0; }
+  100%      { opacity: 1; }
+}
+
+/* Unfocused: iA and macOS drop the caret entirely. Keeping a quiet ghost of it
+ * means you come back from another window and your place is still there. */
+#caret-layer.idle .caret { opacity: .32; animation: none; }
+#caret-layer.idle .sel-edge { opacity: .3; }
+
+/* Hidden strut used once per font/size change to find the baseline. */
+#caret-layer .caret-probe {
+  position: absolute; top: 0; left: 0;
+  visibility: hidden;
+  white-space: pre;
+}
+#caret-layer .caret-probe span { display: inline-block; width: 0; height: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  #caret-layer .caret { transition: none; }
+  #caret-layer .caret.blink { animation-timing-function: steps(1, end); }
+}

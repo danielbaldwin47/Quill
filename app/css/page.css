@@ -9,7 +9,9 @@
  *   first ink (heading) sits 85 logical px below the top of the editor area
  *   line pitch 73.3px @2x, blank line = exactly one pitch (no extra paragraph margin)
  * So: the column is a hard 64-character measure, centred, and the text starts high —
- * roughly two and a half lines down — not floating in the middle of the window.
+ * two line pitches down — not floating in the middle of the window. Everything
+ * else here is about the feel of the scroll: the column never shifts sideways,
+ * and the line you are writing is never pinned to the bottom edge.
  */
 
 * { box-sizing: border-box; }
@@ -17,11 +19,11 @@ html, body { margin: 0; height: 100%; overflow: hidden; }
 #app { height: 100%; display: flex; flex-direction: column; }
 
 :root {
-  /* Measure: --measure comes from type.css (64ch = iA's published default
+  /* Measure: --measure is declared in type.css (64ch = iA's published default
      line-length limit; 1ch is one cell in all three faces, so the column keeps
-     the same shape when you switch typeface and scales with the text size).
-     The page's job is to hold it and centre it. */
-  /* Side margin, used only once the window is too narrow to hold the measure. */
+     its shape when you switch typeface and scales with the text size).
+     The page's job is to hold that measure and centre it in the window.
+     Side margin below is used only once the window is too narrow for it. */
   --page-gutter: clamp(24px, 6vw, 96px);
   /* Where the first line sits: exactly two line pitches down, so the document
      opens with its first sentence right under your eyes and the text keeps the

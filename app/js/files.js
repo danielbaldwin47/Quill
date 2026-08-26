@@ -30,6 +30,9 @@
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   const words = (t) => (t.match(/[\p{L}\p{N}'’]+/gu) || []).length;
+  // Counting every document's words on every autosave is the one place this
+  // file could get expensive; the count is cached against the exact string.
+  function wordsOf(d) { if (d._wt !== d.text) { d._wt = d.text; d._w = words(d.text || ''); } return d._w; }
   const nfmt = (n) => n.toLocaleString();
 
   function deriveTitle(text) {
@@ -116,7 +119,7 @@
   const docs = () => (state.loc === 'folder' ? state.files : state.device);
   const current = () => docs().find((d) => d.id === state.openId) || null;
 
-  function sortKey(d) { return state.sort === 'name' ? dispName(d).toLowerCase() : state.sort === 'words' ? -words(d.text || '') : -(d.mtime || 0); }
+  function sortKey(d) { return state.sort === 'name' ? dispName(d).toLowerCase() : state.sort === 'words' ? -wordsOf(d) : -(d.mtime || 0); }
   function cmp(a, b) { const x = sortKey(a), y = sortKey(b); return x < y ? -1 : x > y ? 1 : 0; }
 
   function entries() {
@@ -239,7 +242,7 @@
     els.aside.dataset.loc = state.loc;
     $('.nm', els.sortb).textContent = state.sort === 'name' ? 'Sort by Name' : state.sort === 'words' ? 'Sort by Length' : 'Sort by Date';
     const list = docs();
-    const tw = list.reduce((a, d) => a + words(d.text || ''), 0);
+    const tw = list.reduce((a, d) => a + wordsOf(d), 0);
     els.count.textContent = list.length ? `${list.length} ${list.length === 1 ? 'document' : 'documents'} · ${nfmt(tw)} words` : '';
     els.where.textContent = state.loc === 'folder' ? (state.perm === 'granted' ? 'On disk' : 'Reconnect') : 'In this browser';
     els.where.className = 'lib-where' + (state.loc === 'folder' && state.perm !== 'granted' ? ' warn' : '');
@@ -248,7 +251,7 @@
   function rowHTML(d, indent, snip) {
     const nm = dispName(d);
     const sel = d.id === state.openId;
-    const meta = state.sort === 'words' ? nfmt(words(d.text || '')) + ' w' : fmtDate(d.mtime);
+    const meta = state.sort === 'words' ? nfmt(wordsOf(d)) + ' w' : fmtDate(d.mtime);
     let ex;
     if (snip) {
       const a = esc(snip.text.slice(0, snip.at)), b = esc(snip.text.slice(snip.at, snip.at + snip.len)), c = esc(snip.text.slice(snip.at + snip.len));
@@ -290,7 +293,7 @@
     if (!row) { renderList(); return; }
     const nm = dispName(d);
     const n = $('.nm', row); if (n.textContent !== nm) { n.textContent = nm; n.title = nm; }
-    const dt = $('.dt', row); const meta = state.sort === 'words' ? nfmt(words(d.text || '')) + ' w' : fmtDate(d.mtime);
+    const dt = $('.dt', row); const meta = state.sort === 'words' ? nfmt(wordsOf(d)) + ' w' : fmtDate(d.mtime);
     if (dt.textContent !== meta) dt.textContent = meta;
     const ex = $('.ex', row); const t = excerpt(d.text);
     if (ex) { ex.textContent = t || 'Empty document'; ex.className = 'ex' + (t ? '' : ' empty'); }
@@ -321,7 +324,7 @@
   }
 
   // ---------- menus ----------
-  function menu(x, y, items, opts) {
+  function menu(x, y, items) {
     closeMenu();
     const m = document.createElement('div');
     m.className = 'lib-menu'; m.setAttribute('role', 'menu');
@@ -330,14 +333,27 @@
     document.getElementById('overlays').appendChild(m);
     const w = m.offsetWidth, h = m.offsetHeight;
     m.style.left = Math.max(8, Math.min(x, innerWidth - w - 8)) + 'px';
-    m.style.top = (y + h > innerHeight - 8 ? Math.max(8, y - h - (opts && opts.flipGap || 0)) : y) + 'px';
-    const btns = [...m.querySelectorAll('button')];
-    let k = 0;
-    btns.forEach((b, idx) => { const it = items.filter((i) => !i.sep)[idx]; b.addEventListener('click', () => { closeMenu(); it.run && it.run(); }); });
-    setTimeout(() => document.addEventListener('mousedown', closeMenu, { once: true }), 0);
+    m.style.top = (y + h > innerHeight - 8 ? Math.max(8, y - h) : y) + 'px';
+    const real = items.filter((i) => !i.sep);
+    [...m.querySelectorAll('button')].forEach((b, idx) => {
+      b.addEventListener('mousedown', (e) => e.preventDefault());
+      b.addEventListener('click', () => { const it = real[idx]; closeMenu(); if (it && it.run) it.run(); });
+    });
+    // Close on any press outside the menu — but the press that lands ON an item
+    // must survive long enough to become a click, or nothing would ever run.
+    const onDown = (e) => { if (!m.contains(e.target)) closeMenu(); };
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); closeMenu(); W.el.input.focus(); } };
+    setTimeout(() => {
+      document.addEventListener('mousedown', onDown, true);
+      document.addEventListener('keydown', onKey, true);
+      menu.cleanup = () => { document.removeEventListener('mousedown', onDown, true); document.removeEventListener('keydown', onKey, true); };
+    }, 0);
     menu.el = m;
   }
-  function closeMenu() { if (menu.el) { menu.el.remove(); menu.el = null; } }
+  function closeMenu() {
+    if (menu.cleanup) { menu.cleanup(); menu.cleanup = null; }
+    if (menu.el) { menu.el.remove(); menu.el = null; }
+  }
 
   function locMenu() {
     const r = els.loc.getBoundingClientRect();
@@ -685,17 +701,20 @@
   }
 
   // ---------- document references (lines that name another document) ----------
-  let refNames = new Map();
+  let refNames = new Map(), refSig = '';
   function refreshRefs() {
     const m = new Map();
+    let sig = '';
     for (const d of docs()) {
       if (d.id === state.openId) continue;
       const n = dispName(d);
       m.set(n.toLowerCase(), d.id); m.set(baseName(n).toLowerCase(), d.id);
+      sig += n + '\n';
     }
-    const changed = m.size !== refNames.size;
     refNames = m;
-    if (state.open || changed) W.render(true);
+    // A full re-render is the only way to restyle those lines, so it happens
+    // only when the names themselves changed — never on the keystroke path.
+    if (sig !== refSig) { refSig = sig; W.render(true); }
   }
   function refIdFor(line) {
     const t = line.trim(); if (!t || t.length > 120 || /\s{2,}/.test(t)) return null;
@@ -741,14 +760,14 @@
 
     // mark lines that name another document
     W.addDecorator((i, text) => (refNames.size && refIdFor(text)) ? [{ from: 0, to: text.length, cls: 'docref' }] : null);
-    W.el.input.addEventListener('mousedown', (e) => {
+    // The textarea sits on top of the mirror, so the line under the pointer is
+    // read from the mirror element the click passed through.
+    W.el.input.addEventListener('click', (e) => {
       if (!(e.metaKey || e.ctrlKey)) return;
-      const off = W.el.input.selectionStart;
-      setTimeout(() => {
-        const pos = W.offsetToPos(W.el.input.selectionStart);
-        const id = refIdFor(W.lines()[pos.line] || '');
-        if (id) openDoc(id, true);
-      }, 0);
+      const line = document.elementsFromPoint(e.clientX, e.clientY).find((el) => el.classList && el.classList.contains('line'));
+      if (!line) return;
+      const id = refIdFor(W.lines()[+line.dataset.i] || '');
+      if (id) { e.preventDefault(); openDoc(id, true); }
     });
 
     W.registerCommand('library.toggle', { title: 'Show / Hide Library', keys: ['Mod+Shift+L', 'Ctrl+Meta+S'], run: () => toggle() });

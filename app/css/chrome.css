@@ -89,8 +89,12 @@
   background: var(--rule); opacity: 0;
   transition: opacity .2s ease;
 }
-:root[data-scrolled="under"] #chrome-bottom::before { opacity: 1; }
-:root[data-scrolled="over"] #chrome-top { box-shadow: 0 .5px 0 var(--rule); }
+:root[data-scrolled~="under"] #chrome-bottom::before { opacity: 1; }
+:root[data-scrolled~="over"] #chrome-top::after {
+  content: ""; position: absolute; inset: auto 0 0 0; height: 1px;
+  transform: scaleY(.5); transform-origin: bottom;
+  background: var(--rule);
+}
 
 /* ------------------------------------------------------------- title bar */
 
@@ -105,13 +109,15 @@
   cursor: default;
 }
 .doc-title .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Unsaved work: a dot, not a word. */
-.doc-title .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0; flex: none; margin-left: 1px; }
-.doc-title[data-dirty="1"] .dot { opacity: .45; }
 .doc-title .caretdown { opacity: 0; transition: opacity .15s ease; flex: none; }
 .doc-title:hover { background: var(--hit); }
 .doc-title:hover .caretdown, .doc-title[aria-expanded="true"] .caretdown { opacity: .55; }
 .doc-title[aria-expanded="true"] { background: var(--hit); }
+
+/* files.js appends its library toggle as the first child of the top bar; it is
+   pinned left so the title stays centred in the window whether it is there or not. */
+#chrome-top .bar > #lib-toggle { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); padding: 4px 6px; border-radius: 5px; }
+#chrome-top .bar > #lib-toggle:hover { background: var(--hit); }
 
 .chrome .side { position: absolute; top: 0; height: 100%; display: flex; align-items: center; gap: 2px; }
 .chrome .side.right { right: 10px; }
@@ -150,6 +156,7 @@
 :root[data-typing="on"] #chrome-bottom { opacity: .38; }
 :root[data-quiet="on"] #chrome-top { opacity: 0; }
 :root[data-chrome="off"] .chrome { display: none; }
+:root[data-stats="off"] #chrome-bottom { display: none; }
 :root[data-menu="on"] #chrome-top,
 :root[data-menu="on"] #chrome-bottom { opacity: 1; }
 
