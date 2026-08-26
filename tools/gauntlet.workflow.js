@@ -4,7 +4,7 @@ export const meta = {
   phases: [
     { title: 'Build', detail: 'one builder per open piece, fed the last critic gap' },
     { title: 'Judge', detail: 'fresh critic, unlabeled A/B at the same viewport' },
-    { title: 'Record', detail: 'reveal + write progress/rounds/<piece>-r<N>.json', model: 'opus' },
+    { title: 'Record', detail: 'reveal + write progress/rounds/<piece>-r<N>.json', model: 'haiku' },
   ],
 }
 const ROOT = '/home/diggle/Work/wisprflowcopy'
@@ -82,7 +82,7 @@ for (let round = START_ROUND; round < START_ROUND + MAX_ROUNDS; round++) {
     },
     async (r, p) => {
       if (!r) return null
-      const rec = await agent(recorderPrompt(p, round, r.build, r.judge), { label: `record:${p.id} r${round}`, phase: 'Record', schema: RECORD_SCHEMA, model: 'opus', effort: 'low' })
+      const rec = await agent(recorderPrompt(p, round, r.build, r.judge), { label: `record:${p.id} r${round}`, phase: 'Record', schema: RECORD_SCHEMA, model: 'haiku', effort: 'low' })
       return rec ? { piece: p.id, round, ...rec, judge: r.judge, build: r.build } : null
     })
   for (const r of results.filter(Boolean)) {
