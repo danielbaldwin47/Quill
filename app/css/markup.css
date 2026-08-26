@@ -136,10 +136,10 @@
 #mirror .md-chip {
   color: var(--fg);
   border-radius: 3px;
-  background: color-mix(in srgb, var(--bg), var(--fg) 4%);
+  background: var(--bg);
   box-shadow:
-    0 0 0 .28em color-mix(in srgb, var(--bg), var(--fg) 4%),
-    0 0 0 calc(.28em + 1px) var(--rule);
+    0 0 0 .26em var(--bg),
+    0 0 0 calc(.26em + 1px) var(--rule);
 }
 
 /* Focus mode owns dimming; never let a markup colour outrank it. */

@@ -1,10 +1,10 @@
 /* Fonts: iA Writer Duo / Quattro / Mono (SIL OFL 1.1, github.com/iaolo/iA-Fonts) */
-@font-face { font-family: "iA Writer Duo"; font-style: normal; font-weight: 100 900; font-display: block; src: url("../fonts/Duo/iAWriterDuoV.woff2") format("woff2-variations"), url("../fonts/Duo/iAWriterDuoV.woff2") format("woff2"); }
-@font-face { font-family: "iA Writer Duo"; font-style: italic; font-weight: 100 900; font-display: block; src: url("../fonts/Duo/iAWriterDuoV-Italic.woff2") format("woff2-variations"), url("../fonts/Duo/iAWriterDuoV-Italic.woff2") format("woff2"); }
-@font-face { font-family: "iA Writer Quattro"; font-style: normal; font-weight: 100 900; font-display: block; src: url("../fonts/Quattro/iAWriterQuattroV.woff2") format("woff2-variations"), url("../fonts/Quattro/iAWriterQuattroV.woff2") format("woff2"); }
-@font-face { font-family: "iA Writer Quattro"; font-style: italic; font-weight: 100 900; font-display: block; src: url("../fonts/Quattro/iAWriterQuattroV-Italic.woff2") format("woff2-variations"), url("../fonts/Quattro/iAWriterQuattroV-Italic.woff2") format("woff2"); }
-@font-face { font-family: "iA Writer Mono"; font-style: normal; font-weight: 100 900; font-display: block; src: url("../fonts/Mono/iAWriterMonoV.woff2") format("woff2-variations"), url("../fonts/Mono/iAWriterMonoV.woff2") format("woff2"); }
-@font-face { font-family: "iA Writer Mono"; font-style: italic; font-weight: 100 900; font-display: block; src: url("../fonts/Mono/iAWriterMonoV-Italic.woff2") format("woff2-variations"), url("../fonts/Mono/iAWriterMonoV-Italic.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Duo"; font-style: normal; font-weight: 100 900; font-display: block; src: url("../fonts/Duo/iAWriterDuoV.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Duo"; font-style: italic; font-weight: 100 900; font-display: block; src: url("../fonts/Duo/iAWriterDuoV-Italic.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Quattro"; font-style: normal; font-weight: 100 900; font-display: block; src: url("../fonts/Quattro/iAWriterQuattroV.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Quattro"; font-style: italic; font-weight: 100 900; font-display: block; src: url("../fonts/Quattro/iAWriterQuattroV-Italic.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Mono"; font-style: normal; font-weight: 100 900; font-display: block; src: url("../fonts/Mono/iAWriterMonoV.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Mono"; font-style: italic; font-weight: 100 900; font-display: block; src: url("../fonts/Mono/iAWriterMonoV-Italic.woff2") format("woff2"); }
 
 /* Typography: font faces, size, leading, measure. Owner: type piece.
  * Fonts live in app/fonts/<family>/ (iA Writer Duo / Quattro / Mono, SIL OFL).
@@ -52,7 +52,13 @@
   font-family: var(--font);
   font-size: var(--font-size);
   line-height: var(--line-pitch);
-  font-weight: 430;
+  /* Whole-pixel leading: browsers snap baselines to device pixels, so a
+     fractional pitch makes the gaps alternate 36/37px on a 1x screen and the
+     rhythm goes visibly uneven. Rounding once, here, keeps every row on the
+     pixel grid and stops any drift between #mirror and #input in a long file.
+     (Plain var() above is the fallback where round() is unsupported.) */
+  line-height: round(var(--line-pitch), 1px);
+  font-weight: 400;
   font-style: normal;
   /* Hold the cell grid. Kerning and contextual alternates would move glyphs by
      different amounts inside a <span> than across the plain run in the textarea,

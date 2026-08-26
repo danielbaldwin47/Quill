@@ -173,6 +173,7 @@ async function typingRun(page, cdp, opts) {
     } catch (e) {}
   });
 
+  const inEditor = await page.evaluate(() => ({ chars: Writer.getText().length, lines: Writer.lineCount() }));
   const trace = await startTrace(cdp);
   const t0 = Date.now();
   const sample = 'the quick brown fox jumps over the lazy dog while alice considers the pleasure of making a daisy chain ';
@@ -234,6 +235,7 @@ async function typingRun(page, cdp, opts) {
   return {
     regime: opts.name,
     where, focus: focus || 'off', pace_ms: pace, wall_ms: wall,
+    document_in_editor: inEditor,
     keys_pressed: pressed,
     keys_seen_by_page: ip.length,
     keys_seen_in_trace: kd.length,
@@ -308,6 +310,7 @@ async function measure(browser, page0) {
   await page.evaluate(() => document.fonts.ready);
   const cdp = await ctx.newCDPSession(page);
 
+  if (KEYS === 0) { if (!args.attach) await ctx.close(); return out; }
   const regimes = args.quick ? [{ name: 'paced', where: 'end', pace: PACE, focus: 'off' }] : [
     { name: 'paced_end_of_draft', where: 'end', pace: PACE, focus: 'off' },
     { name: 'paced_middle_of_draft', where: 'middle', pace: PACE, focus: 'off' },
@@ -329,24 +332,29 @@ if (args.attach) {
   const ctx = browser.contexts()[0];
   page0 = ctx.pages().find((p) => p.url().startsWith('http')) || (await ctx.waitForEvent('page'));
   await page0.waitForLoadState('load');
-  result = await measure(browser, page0);
   // cold start of the app itself: process exec -> pixels, using the wall clock handed over by bin/quill
+  const cold = {};
   if (args.t0) {
-    const m = await page0.evaluate(() => {
-      const nav = performance.getEntriesByType('navigation')[0] || {};
-      const fcp = performance.getEntriesByType('paint').find((e) => e.name === 'first-contentful-paint');
-      return { origin: performance.timeOrigin, fcp: fcp ? fcp.startTime : null, ready: window.__quillReady, nav: nav.startTime };
-    });
+    const m = await readStartup(page0);                       // waits for the paint entry to exist
+    m.origin = await page0.evaluate(() => performance.timeOrigin);
     const t0 = +args.t0;
-    result.cold_start = {
+    cold.cold_start = {
       note: 'bin/quill: shell exec of the launcher -> the named milestone, wall clock. Includes chromium process spawn, profile init, window creation, navigation and the full render of the document.',
-      launcher_to_first_contentful_paint_ms: r2(m.origin + m.fcp - t0),
-      launcher_to_editor_ready_ms: r2(m.origin + m.ready - t0),
+      launcher_to_first_contentful_paint_ms: m.fcp == null ? null : r2(m.origin + m.fcp - t0),
+      launcher_to_editor_ready_ms: m.ready == null ? null : r2(m.origin + m.ready - t0),
       launcher_to_navigation_start_ms: r2(m.origin - t0),
+      navigation_to_first_contentful_paint_ms: r2(m.fcp),
+      navigation_to_editor_ready_ms: r2(m.ready),
+      navigation_to_dom_content_loaded_ms: r2(m.dcl),
       profile: args.profile || null,
+      document_in_editor: await page0.evaluate(() => ({ chars: Writer.getText().length, lines: Writer.lineCount(), words: (Writer.getText().match(/[\p{L}\p{N}'’]+/gu) || []).length })),
     };
   }
-  if (args.close) await browser.close(); else await browser.close({ reason: 'detach' }).catch(() => {});
+  result = { ...cold, ...(await measure(browser, page0)) };
+  if (args.seed) {                                   // leave the benchmark document in this profile
+    await page0.evaluate((t) => { Writer.setText(t, { caret: t.length }); }, doc);
+    await page0.waitForTimeout(1200);
+  }
 } else {
   browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true });
   result = await measure(browser);
@@ -356,3 +364,4 @@ if (args.attach) {
 const json = JSON.stringify(result, null, 2);
 if (args.json) { fs.mkdirSync(path.dirname(args.json), { recursive: true }); fs.writeFileSync(args.json, json); }
 if (!args.quiet) console.log(json);
+if (args.attach) process.exit(0);      // the CDP connection would otherwise keep the launcher waiting

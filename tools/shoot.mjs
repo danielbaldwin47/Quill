@@ -1,7 +1,7 @@
 // Screenshot the app in a given state.
 // node tools/shoot.mjs --out shots/x.png [--w 1440 --h 900 --dpr 2] [--theme light|dark|auto] [--font duo|quattro|mono]
 //   [--size 18] [--focus off|sentence|paragraph] [--typewriter] [--chrome on|off] [--text file.md] [--caret N|end|"needle"]
-//   [--mouse] (move mouse so chrome shows) [--nocaret] [--select a,b] [--url http://localhost:4173/] [--wait ms] [--full]
+//   [--scroll px|"needle"] [--mouse] (move mouse so chrome shows) [--nocaret] [--select a,b] [--url http://localhost:4173/] [--wait ms] [--full]
 //   [--state seed.json]  merge {localStorageKey: value} into localStorage before load (e.g. a demo Library)
 import { chromium } from 'playwright-core'; import fs from 'node:fs'; import path from 'node:path';
 const args = {}; for (let i = 2; i < process.argv.length; i++) { const a = process.argv[i]; if (a.startsWith('--')) { const k = a.slice(2); const v = process.argv[i + 1]; if (v === undefined || v.startsWith('--')) args[k] = true; else { args[k] = v; i++; } } }
@@ -21,6 +21,18 @@ if (text !== null) {
   let caret = text.length;
   if (args.caret && args.caret !== 'end') { if (/^\d+$/.test(args.caret)) caret = +args.caret; else { const i = text.indexOf(args.caret); caret = i >= 0 ? i + args.caret.length : text.length; } }
   await p.evaluate(([t, c]) => { Writer.setText(t, { caret: c }); Writer.el.input.focus(); }, [text, caret]);
+}
+// --scroll <px|needle>: put the document where the reference shot has it. A number is a
+// scrollTop; a string scrolls the line that contains it to the top of the viewport. [chrome piece]
+if (args.scroll !== undefined && args.scroll !== true) {
+  await p.evaluate((v) => {
+    const sc = Writer.el.scroller;
+    if (/^-?\d+(\.\d+)?$/.test(v)) { sc.scrollTop = +v; return; }
+    const i = Writer.getText().indexOf(v);
+    if (i < 0) return;
+    const r = Writer.offsetRect(i); if (!r) return;
+    sc.scrollTop += r.top - sc.getBoundingClientRect().top;
+  }, String(args.scroll));
 }
 if (args.select) { const [a, c] = args.select.split(',').map(Number); await p.evaluate(([a, c]) => Writer.setSelection(a, c), [a, c]); }
 if (args.mouse) { await p.mouse.move(W / 2, 20); await p.evaluate(() => { document.documentElement.dataset.typing = 'off'; }); }

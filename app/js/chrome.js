@@ -66,22 +66,21 @@
     let words = 0;
     const m = text.match(WORD);
     if (m) for (const t of m) if (HASLETTER.test(t)) words++;
-    let sentences = 0;
+    let sentences = 0, lastEnd = 0, r;
     SENT.lastIndex = 0;
-    while (SENT.exec(text)) sentences++;
-    // a last, unpunctuated sentence still counts if there is anything in it
-    const tail = text.slice(text.search(/[^\s]*$/));
-    if (words && !/[.!?…]['"”’)\]]*\s*$/.test(text.trimEnd())) sentences++;
+    while ((r = SENT.exec(text))) { sentences++; lastEnd = SENT.lastIndex; }
+    // a final, unpunctuated sentence still counts
+    if (HASLETTER.test(text.slice(lastEnd))) sentences++;
     let paras = 0, inP = false;
     for (const line of text.split('\n')) {
       if (line.trim()) { if (!inP) { paras++; inP = true; } } else inP = false;
     }
     const nospace = text.replace(/\s/g, '').length;
-    return { words, chars: text.length, nospace, sentences, paras, seconds: Math.round(words / WPM * 60), tail };
+    return { words, chars: text.length, nospace, sentences, paras, seconds: Math.round(words / WPM * 60) };
   }
   const n = (v) => v.toLocaleString();
   function readTime(seconds) {
-    if (seconds < 45) return 'under a minute';
+    if (seconds < 45) return '< 1 min';
     const mins = Math.round(seconds / 60);
     if (mins < 60) return mins + ' min';
     const h = Math.floor(mins / 60), m = mins % 60;
@@ -181,7 +180,7 @@
     top.innerHTML =
       `<div class="bar">` +
         `<button class="doc-title" id="doc-title-btn" aria-haspopup="menu" aria-expanded="false" title="Document">` +
-          `<span class="name" id="doc-title">Untitled</span><span class="dot"></span><span class="caretdown">${CHEV}</span>` +
+          `<span class="name" id="doc-title">Untitled</span><span class="caretdown">${CHEV}</span>` +
         `</button>` +
         `<span class="side right"><button class="view" id="view-btn" aria-haspopup="menu" aria-expanded="false" title="View"></button></span>` +
       `</div>`;
@@ -237,7 +236,13 @@
       }
     }
     W.on('change', () => { typingNow(); recount(); });
-    W.on('selection', () => { if (root.dataset.typing !== 'on') paint(); });
+    let selSig = '';
+    W.on('selection', () => {
+      const s2 = W.selection(), sig = s2.end > s2.start ? s2.start + ':' + s2.end : '';
+      if (sig === selSig) return;
+      selSig = sig;
+      if (root.dataset.typing !== 'on') paint();
+    });
     W.on('settings', (k) => {
       if (k === 'focus' || k === 'typewriter') viewBtn.innerHTML = rowsIcon(W.settings.focus) + `<span class="chev">${CHEV}</span>`;
       if (k === 'stats' || k === 'statsBar') { root.dataset.stats = W.settings.statsBar === false ? 'off' : 'on'; paint(); }
@@ -253,8 +258,7 @@
       const sc = W.el.scroller;
       const over = sc.scrollTop > 2;
       const under = sc.scrollTop + sc.clientHeight < sc.scrollHeight - 2;
-      root.dataset.scrolled = over && under ? 'both' : over ? 'over' : under ? 'under' : 'none';
-      if (over && under) root.dataset.scrolled = 'under';   // both rules on
+      root.dataset.scrolled = (over ? 'over ' : '') + (under ? 'under' : '') || 'none';
     }
     W.on('scroll', () => { if (!rafS) rafS = requestAnimationFrame(scrolled); });
     W.on('render', () => { if (!rafS) rafS = requestAnimationFrame(scrolled); });
@@ -301,7 +305,7 @@
         },
       }));
       items.push({ sep: true }, { label: 'Hide Statistics', flush: true, run: () => W.setSetting('statsBar', false) });
-      menu(items, { key: 'stats', x, y, align: 'right', place: 'above' });
+      menu(items, { key: 'stats', x, y, align: 'left', place: 'above' });
     }
     function isDark() {
       const t = W.settings.theme;
@@ -310,8 +314,9 @@
 
     titleBtn.addEventListener('click', (e) => { e.stopPropagation(); docMenu(); });
     viewBtn.addEventListener('click', (e) => { e.stopPropagation(); viewMenu(); });
-    statsBar.addEventListener('click', (e) => { e.stopPropagation(); statsMenu(Math.min(e.clientX + 90, innerWidth - 8), bottom.getBoundingClientRect().top - 4); });
-    statsBar.addEventListener('contextmenu', (e) => { e.preventDefault(); e.stopPropagation(); statsMenu(Math.min(e.clientX + 90, innerWidth - 8), bottom.getBoundingClientRect().top - 4); });
+    const atPointer = (e) => statsMenu(e.clientX, bottom.getBoundingClientRect().top - 3);
+    statsBar.addEventListener('click', (e) => { e.stopPropagation(); atPointer(e); });
+    statsBar.addEventListener('contextmenu', (e) => { e.preventDefault(); e.stopPropagation(); atPointer(e); });
     addEventListener('pointerdown', (e) => { if (openPanel && !openPanel.el.contains(e.target)) closePanel(); });
     addEventListener('resize', () => closePanel(false));
     addEventListener('keydown', (e) => { if (openPanel && menuKeys(e)) { e.preventDefault(); e.stopPropagation(); } }, true);
@@ -404,7 +409,7 @@
       if (want === 'view') viewMenu();
       else if (want === 'document') docMenu();
       else if (want === 'palette') palette();
-      else if (want === 'stats') { const r = bottom.getBoundingClientRect(); statsMenu(Math.min(innerWidth - 40, r.width * 0.86), r.top - 4); }
+      else if (want === 'stats') statsMenu(Math.round(innerWidth * 0.709), bottom.getBoundingClientRect().top - 3);
     }, 60);
   });
 })();
