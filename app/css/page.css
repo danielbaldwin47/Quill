@@ -1,0 +1,31 @@
+/* The page: layout of scroller, measure, margins. Owner: page piece. */
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+#app { height: 100%; display: flex; flex-direction: column; }
+#scroller { flex: 1; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--rule) transparent; }
+#page {
+  position: relative;
+  width: min(var(--measure), calc(100% - 2 * clamp(24px, 6vw, 96px)));
+  margin: 0 auto;
+  padding: 40vh 0 60vh;   /* room so any line can rest at the typewriter line */
+}
+#mirror, #input {
+  display: block;
+  width: 100%;
+  margin: 0; padding: 0; border: 0; outline: 0; background: transparent;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: none;
+}
+#mirror { color: var(--fg); pointer-events: none; }
+#mirror .line { min-height: calc(var(--line-height) * 1em); }
+#input {
+  position: absolute; top: 40vh; left: 0;
+  color: transparent;
+  caret-color: transparent;   /* caret.js draws its own */
+  resize: none; overflow: hidden;
+  -webkit-text-fill-color: transparent;
+}
+#input::selection { background: var(--selection); color: transparent; }
+#input::placeholder { color: var(--mark); -webkit-text-fill-color: var(--mark); }

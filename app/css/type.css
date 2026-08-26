@@ -1,0 +1,26 @@
+/* Typography: font faces, size, line-height, measure. Owner: type piece.
+ * Fonts live in app/fonts/<family>/ (iA Writer Duo / Quattro / Mono, SIL OFL). */
+:root {
+  --font-size: 18px;
+  --line-height: 1.6;
+  --measure: 66ch;           /* characters per line at the chosen size */
+  --font-duo: "iA Writer Duo", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-quattro: "iA Writer Quattro", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "iA Writer Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font: var(--font-duo);
+  --font-ui: -apple-system, "Segoe UI", system-ui, sans-serif;
+}
+:root[data-font="quattro"] { --font: var(--font-quattro); }
+:root[data-font="mono"] { --font: var(--font-mono); }
+#page, #mirror, #input {
+  font-family: var(--font);
+  font-size: var(--font-size);
+  line-height: var(--line-height);
+  font-kerning: normal;
+  font-variant-ligatures: none;
+  letter-spacing: 0;
+  word-spacing: 0;
+  tab-size: 4;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}

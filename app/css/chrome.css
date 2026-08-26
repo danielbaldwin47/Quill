@@ -1,0 +1,17 @@
+/* Chrome: bars, palette. Owner: chrome piece. */
+.chrome { position: relative; z-index: 2; font-family: var(--font-ui); font-size: 12px; color: var(--chrome-fg); background: var(--chrome-bg); backdrop-filter: blur(12px); user-select: none; transition: opacity .3s ease; }
+.chrome .bar { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 16px; }
+.chrome .spacer { flex: 1; }
+.chrome .title { font-weight: 500; }
+.chrome button.icon { border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; padding: 4px 6px; border-radius: 4px; }
+.chrome button.icon:hover { background: var(--code-bg); }
+.chrome button.icon:focus-visible { outline: 2px solid var(--accent); }
+#chrome-bottom .bar { height: 28px; font-variant-numeric: tabular-nums; }
+:root[data-typing="on"] .chrome { opacity: 0; }
+:root[data-chrome="off"] .chrome { display: none; }
+.palette { position: fixed; top: 12vh; left: 50%; transform: translateX(-50%); width: min(520px, 90vw); background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 10px; box-shadow: 0 20px 60px rgba(0,0,0,.25); font-family: var(--font-ui); font-size: 14px; z-index: 10; overflow: hidden; }
+.palette-input { width: 100%; border: 0; outline: 0; padding: 14px 16px; font: inherit; background: transparent; color: inherit; border-bottom: 1px solid var(--rule); }
+.palette-list { list-style: none; margin: 0; padding: 6px; max-height: 50vh; overflow: auto; }
+.palette-list li { display: flex; justify-content: space-between; padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+.palette-list li.sel, .palette-list li:hover { background: var(--code-bg); }
+.palette-list kbd { font: inherit; color: var(--chrome-fg); }

@@ -1,0 +1,14 @@
+/* Markdown rendering in the editor. Owner: markup piece.
+ * RULE: never change glyph advance widths. iA Writer fonts keep the same widths across weights,
+ * so bold/italic are safe; font-size changes are NOT. */
+.md-mark { color: var(--mark); }
+.md-h { font-weight: 700; }
+.md-strong { font-weight: 700; }
+.md-em { font-style: italic; }
+.md-strike { text-decoration: line-through; }
+.md-code, .md-codeblock { font-family: var(--font-mono); background: var(--code-bg); border-radius: 3px; }
+.md-url { color: var(--mark); text-decoration: underline; text-decoration-color: var(--rule); }
+.md-link-text { color: var(--accent); }
+.md-quote { color: var(--fg); font-style: italic; }
+.md-done { color: var(--mark); text-decoration: line-through; }
+.line.l-hr { color: var(--mark); }

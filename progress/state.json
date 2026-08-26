@@ -1,0 +1,17 @@
+{
+  "name": "Quill",
+  "startedAt": "2026-08-26T18:30:00+02:00",
+  "bar": { "startup_ms": null, "keystroke_ms": null, "note": "iA Writer publishes no latency numbers; bar is being established from third-party editor measurements (see ref/ia/REFERENCE.md)." },
+  "pieces": [
+    { "id": "page", "title": "The page", "what": "Paper, margins, measure, scrolling, the empty state" },
+    { "id": "type", "title": "The type", "what": "Duo / Quattro / Mono, size, line height, rhythm" },
+    { "id": "caret", "title": "Cursor & caret", "what": "Shape, color, blink, motion, selection" },
+    { "id": "focus", "title": "Focus & typewriter", "what": "Sentence/paragraph dimming, typewriter line" },
+    { "id": "theme", "title": "Dark & light", "what": "Both palettes, contrast, switching" },
+    { "id": "markup", "title": "Markup rendering", "what": "Headings, emphasis, lists, quotes, code, links in the editor" },
+    { "id": "chrome", "title": "Chrome & menus", "what": "Bars, counters, palette, what hides while typing" },
+    { "id": "files", "title": "File handling", "what": "Open/save, autosave, library, drag & drop" },
+    { "id": "latency", "title": "Latency", "what": "Keystroke-to-paint and startup, measured" }
+  ],
+  "log": [ { "at": "2026-08-26T18:30:00+02:00", "msg": "Harness up: headless Chromium screenshots, latency bench, blind A/B pairing. Core editor engine written (textarea + mirror, incremental line render, custom caret, focus/typewriter, markdown tokenizer)." } ]
+}
