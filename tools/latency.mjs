@@ -136,9 +136,28 @@ async function startTrace(cdp) {
   return { events, stop: async () => { await cdp.send('Tracing.end'); await complete; return events; } };
 }
 
+// A real display ticks whether or not anything is animating, and a keystroke waits for the next
+// tick. A headless Chromium only ticks when something asks it to: with nothing animating it
+// produces a frame on demand, which makes every latency look ~5 ms better than any 60 Hz panel can
+// ever be. This 1 px composited animation keeps the clock running, so headless models the panel.
+// `--clock off` turns it off, which measures the application's own cost with no display cadence
+// at all — the right mode for A/B-ing code changes, the wrong mode for quoting user-facing latency.
+const CLOCK_CSS = `@keyframes __quill_clock { from { opacity: .999 } to { opacity: 1 } }
+#__quill_clock { position: fixed; left: 0; bottom: 0; width: 1px; height: 1px; opacity: .999;
+  background: transparent; pointer-events: none; will-change: opacity;
+  animation: __quill_clock 1s linear infinite; }`;
+async function installClock(page) {
+  await page.evaluate((css) => {
+    if (document.getElementById('__quill_clock')) return;
+    const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
+    const el = document.createElement('div'); el.id = '__quill_clock'; document.body.appendChild(el);
+  }, CLOCK_CSS);
+}
+
 // ---------- typing ----------
 async function typingRun(page, cdp, opts) {
   const { keys, pace, where, focus } = opts;
+  if (opts.clock !== 'off') await installClock(page);
   await page.evaluate(async ([where, focus]) => {
     if (focus && Writer.settings.focus !== focus) Writer.setSetting('focus', focus);
     const i = Writer.el.input;
@@ -259,6 +278,7 @@ async function typingRun(page, cdp, opts) {
   return {
     regime: opts.name,
     where, focus: focus || 'off', pace_ms: pace, wall_ms: wall,
+    display_clock: opts.clock === 'off' ? 'off (frames produced on demand — application cost only, faster than any real display)' : '60 Hz (a 1 px composited animation keeps the frame clock running, as a real panel does)',
     document_in_editor: inEditor,
     warmup_keys: warmup,
     keys_pressed: pressed,
@@ -345,7 +365,7 @@ async function measure(browser, page0) {
     { name: 'saturation_stress', where: 'end', pace: 0, focus: 'off' },             // keys injected back to back, not human
   ];
   for (const r of regimes) {
-    out.typing.push(await typingRun(page, cdp, { keys: KEYS, ...r }));
+    out.typing.push(await typingRun(page, cdp, { keys: KEYS, clock: args.clock || 'on', ...r }));
     await page.evaluate(() => { const i = Writer.el.input; }); // keep the doc growing; no reset (worst case)
   }
   if (!args.attach) await ctx.close();
