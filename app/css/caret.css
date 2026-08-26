@@ -34,7 +34,6 @@
 #sel-layer .sel {
   position: absolute; top: 0; left: 0;
   background: var(--selection, rgba(0, 181, 255, .22));
-  will-change: transform;
 }
 /* Window not focused: the highlight stays, but stops shouting. */
 #sel-layer.idle .sel { background: var(--selection-idle, rgba(128, 128, 128, .18)); }
@@ -43,10 +42,14 @@
 #caret-layer .sel-edge {
   position: absolute; top: 0; left: 0;
   background: var(--caret-color);
-  transform: translate3d(0, 0, 0);
+  transform: translate(0, 0);
 }
 #caret-layer .caret {
-  will-change: transform;
+  /* No will-change / translate3d here on purpose. A promoted layer is
+     rasterised from the element's pre-transform origin, and #page's left edge
+     is not on a whole device pixel (centred column + reserved scrollbar
+     gutter), so the stem came out a pixel wide with two grey edges. Painted in
+     place it lands exactly where caret.js snapped it. */
   /* Duration is set per move in caret.js: 0 for jumps and fast typing, ~60 ms
      along a line, ~90 ms between lines. Short enough that the caret arrives
      with the letter, long enough that the eye follows it instead of hunting. */

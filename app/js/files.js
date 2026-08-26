@@ -42,7 +42,13 @@
       .replace(/[*_`~\[\]]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);
   }
   function safeName(s) { return s.replace(/[\\/:*?"<>|\n\r\t]/g, '').replace(/^\.+/, '').trim() || 'Untitled'; }
-  function dispName(d) { return d.name || (safeName(deriveTitle(d.text) || 'Untitled') + DEFAULT_EXT); }
+  function dispName(d) {
+    if (d.name) return d.name;
+    // iA: "When you create a new file, Writer uses the first line of your text to
+    // name it." A first line that is already a file name keeps its extension.
+    const t = safeName(deriveTitle(d.text) || 'Untitled');
+    return EXT.test(t) ? t : t + DEFAULT_EXT;
+  }
   function baseName(n) { return n.replace(EXT, ''); }
   function excerpt(text, n) {
     return (text || '').replace(/^\s*#{1,6}\s+/gm, '').replace(/[*_`~]/g, '')
@@ -216,7 +222,8 @@
     els.q.addEventListener('input', () => { state.q = els.q.value; renderList(); persist(); });
     els.q.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') { e.stopPropagation(); if (state.q) { els.q.value = ''; state.q = ''; renderList(); } else W.el.input.focus(); }
-      else if (e.key === 'Enter' || e.key === 'ArrowDown') { e.preventDefault(); const f = els.list.querySelector('.lib-row.file'); if (f) openDoc(f.dataset.id, true); }
+      else if (e.key === 'Enter') { e.preventDefault(); const f = els.list.querySelector('.lib-row.file'); if (f) openDoc(f.dataset.id, true); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); const f = els.list.querySelector('.lib-row.file'); if (f) { els.list.focus(); openDoc(f.dataset.id, false); } }
     });
     els.list.addEventListener('click', onListClick);
     els.list.addEventListener('dblclick', (e) => { const r = e.target.closest('.lib-row.file'); if (r) startRename(r); });
@@ -398,8 +405,13 @@
     W.setText(d.text || '', { caret: d.caret || 0, source: 'open' });
     loading = false;
     setStatus('saved');
-    persist(); mirrorDoc(); renderList(); refreshRefs();
+    persist(); mirrorDoc(); renderList(); refreshRefs(); revealRow();
     if (focusEditor) W.el.input.focus();
+  }
+  function revealRow() {
+    if (!state.open) return;
+    const r = els.list.querySelector('.lib-row.file.sel');
+    if (r) r.scrollIntoView({ block: 'nearest' });
   }
   function newDoc(folder) {
     flushAll();
@@ -478,9 +490,13 @@
   }
 
   // ---------- saving ----------
-  function setStatus(s) { status = s; if (s === 'saved') lastSave = Date.now(); renderStatus(); }
+  function setStatus(s) {
+    if (status === s && s !== 'saved') return;   // nothing to repaint on the keystroke path
+    status = s; if (s === 'saved') lastSave = Date.now();
+    renderStatus();
+  }
   function renderStatus() {
-    if (!els.status) return;
+    if (!els.status || !state.open) return;
     const t = $('.txt', els.status);
     let msg = '';
     if (undoDel) { els.status.dataset.k = 'undo'; t.innerHTML = `Deleted <b>${esc(dispName(undoDel.doc))}</b> · <button class="lib-link" id="lib-undo">Undo</button>`; const u = $('#lib-undo', els.status); if (u) u.onclick = undelete; return; }

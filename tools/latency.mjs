@@ -140,8 +140,11 @@ async function typingRun(page, cdp, opts) {
     await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
   }, [where, focus]);
 
-  // in-page probe: every keydown is recorded; the frame that carries it resolves the whole batch
+  // in-page probe: every keydown is recorded; the frame that carries it resolves the whole batch.
+  // Installed once per page — a second listener would count every keystroke twice.
   await page.evaluate(() => {
+    if (window.__latInstalled) { window.__lat.keys.length = 0; window.__lat.rafs = 0; window.__lat.batches = 0; window.__evt.length = 0; return; }
+    window.__latInstalled = true;
     window.__lat = { keys: [], rafs: 0, batches: 0 };
     const K = window.__lat.keys;
     let batch = [], scheduled = false, rafTs = 0;
@@ -174,9 +177,15 @@ async function typingRun(page, cdp, opts) {
   });
 
   const inEditor = await page.evaluate(() => ({ chars: Writer.getText().length, lines: Writer.lineCount() }));
+  // Warm-up, outside the measurement: the first keystrokes into a freshly loaded page pay for
+  // lazy compilation and first-touch of the editing machinery, and no writer types only 200 keys.
+  const sample = 'the quick brown fox jumps over the lazy dog while alice considers the pleasure of making a daisy chain ';
+  const warmup = opts.warmup === undefined ? 25 : opts.warmup;
+  for (let i = 0; i < warmup; i++) { await page.keyboard.press(sample[i % sample.length] === ' ' ? 'Space' : sample[i % sample.length]); if (pace) await page.waitForTimeout(pace); }
+  await page.waitForTimeout(300);
+  await page.evaluate(() => { window.__lat.keys.length = 0; window.__lat.rafs = 0; window.__evt.length = 0; });
   const trace = await startTrace(cdp);
   const t0 = Date.now();
-  const sample = 'the quick brown fox jumps over the lazy dog while alice considers the pleasure of making a daisy chain ';
   let pressed = 0;
   for (let i = 0; i < keys; i++) {
     const c = sample[i % sample.length];
@@ -236,7 +245,9 @@ async function typingRun(page, cdp, opts) {
     regime: opts.name,
     where, focus: focus || 'off', pace_ms: pace, wall_ms: wall,
     document_in_editor: inEditor,
+    warmup_keys: warmup,
     keys_pressed: pressed,
+    every_keystroke_accounted_for: pressed === kd.length && pressed === ip.length && ip.every((k) => k.commit != null),
     keys_seen_by_page: ip.length,
     keys_seen_in_trace: kd.length,
     keys_unresolved_in_page_probe: ip.filter((k) => k.commit == null).length,
@@ -312,10 +323,11 @@ async function measure(browser, page0) {
 
   if (KEYS === 0) { if (!args.attach) await ctx.close(); return out; }
   const regimes = args.quick ? [{ name: 'paced', where: 'end', pace: PACE, focus: 'off' }] : [
-    { name: 'paced_end_of_draft', where: 'end', pace: PACE, focus: 'off' },
-    { name: 'paced_middle_of_draft', where: 'middle', pace: PACE, focus: 'off' },
-    { name: 'paced_focus_mode', where: 'middle', pace: PACE, focus: 'sentence' },
-    { name: 'burst_no_pause', where: 'end', pace: 0, focus: 'off' },
+    { name: 'paced_end_of_draft', where: 'end', pace: PACE, focus: 'off' },        // 133 wpm at the end of a 10k-word draft
+    { name: 'paced_middle_of_draft', where: 'middle', pace: PACE, focus: 'off' },   // same, but with 5k words below the caret
+    { name: 'paced_focus_mode', where: 'middle', pace: PACE, focus: 'sentence' },   // iA's signature mode, all dimming live
+    { name: 'fast_typist', where: 'middle', pace: 45, focus: 'off' },               // ~266 wpm, faster than any human sustains
+    { name: 'saturation_stress', where: 'end', pace: 0, focus: 'off' },             // keys injected back to back, not human
   ];
   for (const r of regimes) {
     out.typing.push(await typingRun(page, cdp, { keys: KEYS, ...r }));

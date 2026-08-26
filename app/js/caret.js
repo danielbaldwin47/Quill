@@ -45,6 +45,10 @@
   let idleTimer = 0, prev = null, prevAt = 0, hasSel = false, scrollRaf = 0;
 
   // ---------------------------------------------------------------- metrics
+  // Snapping has to happen in *viewport* coordinates: #page's own left edge is
+  // rarely on a whole device pixel (centred column, reserved scrollbar gutter),
+  // so rounding the offset alone still lands the caret on a half pixel and the
+  // stem comes out one column wider with a grey edge.
   function snap(v) { return Math.round(v * M.dpr) / M.dpr; }
 
   function measure() {
@@ -78,8 +82,8 @@
     if (!el) return;
     const b = bandTop(el, r);
     const pr = page.getBoundingClientRect();
-    const x = snap(r.left - pr.left + M.em * NUDGE_X);
-    const y = snap(b.top - pr.top + M.base - ABOVE * M.pitch);
+    const x = snap(r.left + M.em * NUDGE_X) - pr.left;
+    const y = snap(b.top + M.base - ABOVE * M.pitch) - pr.top;
     const h = snap(M.pitch);
 
     const now = performance.now();
@@ -93,7 +97,7 @@
       }
     }
     caret.style.transitionDuration = dur ? dur + 'ms' : '0s';
-    caret.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
+    caret.style.transform = 'translate(' + x + 'px,' + y + 'px)';
     if (caret._h !== h) { caret.style.height = h + 'px'; caret._h = h; }
     if (caret._w !== M.w) { caret.style.width = M.w.toFixed(2) + 'px'; caret._w = M.w; }
     prev = { x, y }; prevAt = now;
@@ -176,13 +180,13 @@
         if (n >= MAX_ROWS) break;
         const m = rows.get(k);
         const d = takeRect(n++);
-        const x = snap(m.l - pr.left), y = snap(lr.top + k * M.pitch - pr.top + dy);
-        d.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
-        d.style.width = Math.max(0, snap(m.r - m.l)) + 'px';
+        const x = snap(m.l) - pr.left, y = snap(lr.top + k * M.pitch + dy) - pr.top;
+        d.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+        d.style.width = Math.max(0, snap(m.r) - snap(m.l)) + 'px';
         d.style.height = snap(M.pitch) + 'px';
         d.style.display = '';
         if (li === a.line && k === keys[0]) firstEdge = { x: x, y: y };
-        if (li === b.line) lastEdge = { x: snap(m.r - pr.left), y: y };
+        if (li === b.line) lastEdge = { x: snap(m.r) - pr.left, y: y };
       }
     }
     for (let i = n; i < pool.length; i++) pool[i].style.display = 'none';
@@ -198,7 +202,7 @@
     el.style.display = '';
     el.style.width = M.w.toFixed(2) + 'px';
     el.style.height = snap(M.pitch) + 'px';
-    el.style.transform = 'translate3d(' + snap(p.x + dx) + 'px,' + p.y + 'px,0)';
+    el.style.transform = 'translate(' + (p.x + dx) + 'px,' + p.y + 'px)';
   }
 
   function clearSelection() {

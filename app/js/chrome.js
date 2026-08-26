@@ -168,6 +168,9 @@
     if (e.key === 'ArrowDown') { move(1); return true; }
     if (e.key === 'ArrowUp') { move(-1); return true; }
     if (e.key === 'Enter' || e.key === ' ') { const r = rows[p.sel]; if (r) r.click(); else closePanel(); return true; }
+    // Anything else is the writer going back to writing: get out of the way and
+    // let the key through to the text.
+    if (e.key.length === 1 || e.key === 'Backspace') { closePanel(); return false; }
     return false;
   }
 
@@ -235,13 +238,17 @@
         recount();
       }
     }
-    W.on('change', () => { typingNow(); recount(); });
-    let selSig = '';
+    // Only real keystrokes count as typing: loading or switching a document must
+    // not make the chrome duck out of the way.
+    W.on('change', (e) => { if (!e || e.source === 'input') typingNow(); recount(!e || e.source !== 'input'); });
+    // Selecting a phrase turns the bar into a count of that phrase. Coalesced to one
+    // paint per frame so dragging a selection across a long document stays free.
+    let selSig = '', selRaf = 0;
     W.on('selection', () => {
       const s2 = W.selection(), sig = s2.end > s2.start ? s2.start + ':' + s2.end : '';
-      if (sig === selSig) return;
+      if (sig === selSig || root.dataset.typing === 'on') return;
       selSig = sig;
-      if (root.dataset.typing !== 'on') paint();
+      if (!selRaf) selRaf = requestAnimationFrame(() => { selRaf = 0; paint(); });
     });
     W.on('settings', (k) => {
       if (k === 'focus' || k === 'typewriter') viewBtn.innerHTML = rowsIcon(W.settings.focus) + `<span class="chev">${CHEV}</span>`;
@@ -289,7 +296,7 @@
         { sep: true },
         { label: 'Dark Mode', keys: 'Mod+Shift+L', checked: isDark(), run: () => W.run('theme.toggle') },
         { label: 'Statistics', checked: W.settings.statsBar !== false, run: () => W.setSetting('statsBar', W.settings.statsBar === false) },
-        { label: 'Hide Both Bars', keys: 'Mod+Shift+H', flush: true, run: () => W.setSetting('showChrome', false) },
+        { label: 'Hide Bars', keys: 'Mod+Shift+H', flush: true, run: () => W.setSetting('showChrome', false) },
         { label: 'All Commands…', keys: 'Mod+K', flush: true, run: () => W.run('palette.open') },
       ], { key: 'view', anchor: viewBtn, x: r.right, y: r.bottom + 4, align: 'right' });
     }
@@ -351,21 +358,43 @@
       }
       const esc = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
+      // With nothing typed the palette is a map of the app, in the order a writer
+      // meets it. Typing turns it into one ranked list.
+      const SECTIONS = [
+        ['Write', ['focus.toggle', 'focus.sentence', 'focus.paragraph', 'typewriter.toggle']],
+        ['Text', ['font.duo', 'font.quattro', 'font.mono', 'font.bigger', 'font.smaller', 'font.reset']],
+        ['View', ['theme.toggle', 'theme.light', 'theme.dark', 'theme.auto', 'chrome.stats', 'chrome.toggle', 'library.toggle', 'library.search']],
+        ['Document', ['file.new', 'file.open', 'file.openFolder', 'file.save', 'file.saveAs', 'file.rename', 'file.duplicate', 'file.export', 'file.next', 'file.prev', 'file.follow', 'file.delete']],
+      ];
+      function row(it, i) {
+        return `<li class="${i === sel ? 'on' : ''}" data-i="${i}"><span class="label">${mark(it.c.title, it.hit)}</span>` +
+          (it.c.keys ? `<span class="keys">${keyLabel(it.c.keys)}</span>` : '') + `</li>`;
+      }
       function render() {
         const q = inp.value.trim().toLowerCase();
+        const all = W.commands().filter((c) => c.title && !c.hidden);
         items = [];
-        for (const c of W.commands()) {
-          if (!c.title) continue;
-          const m = score(c.title, q);
-          if (!m) continue;
-          items.push({ c, s: m.s, hit: m.hit });
+        let html = '';
+        if (!q) {
+          const seen = new Set();
+          for (const [head, ids] of SECTIONS) {
+            const got = ids.map((id) => all.find((c) => c.id === id)).filter(Boolean);
+            if (!got.length) continue;
+            html += `<li class="pgroup">${head}</li>`;
+            for (const c of got) { seen.add(c.id); items.push({ c, hit: null }); html += row(items[items.length - 1], items.length - 1); }
+          }
+          const rest = all.filter((c) => !seen.has(c.id));
+          if (rest.length) {
+            html += `<li class="pgroup">More</li>`;
+            for (const c of rest.sort((a, b) => a.title.localeCompare(b.title))) { items.push({ c, hit: null }); html += row(items[items.length - 1], items.length - 1); }
+          }
+        } else {
+          for (const c of all) { const m = score(c.title, q); if (m) items.push({ c, s: m.s, hit: m.hit }); }
+          items.sort((a, b) => a.s - b.s || a.c.title.localeCompare(b.c.title));
+          html = items.map(row).join('');
         }
-        items.sort((a, b) => a.s - b.s || a.c.title.localeCompare(b.c.title));
         if (sel >= items.length) sel = Math.max(0, items.length - 1);
-        list.innerHTML = items.length ? items.map((it, i) =>
-          `<li class="${i === sel ? 'on' : ''}" data-i="${i}"><span class="label">${mark(it.c.title, it.hit)}</span>` +
-          (it.c.keys ? `<span class="keys">${keyLabel(it.c.keys)}</span>` : '') + `</li>`).join('')
-          : `<li class="palette-empty">Nothing matches “${esc(inp.value.trim())}”</li>`;
+        list.innerHTML = items.length ? html : `<li class="palette-empty">Nothing matches “${esc(inp.value.trim())}”</li>`;
         const on = list.querySelector('li.on'); if (on) on.scrollIntoView({ block: 'nearest' });
       }
       function run(i) { const it = items[i]; closePanel(); if (it) W.run(it.c.id); }
@@ -384,11 +413,11 @@
     }
 
     // ------------------------------------------------------------- commands
-    W.registerCommand('palette.open', { title: 'All Commands…', keys: ['Mod+K', 'Mod+Shift+P'], run: palette });
+    W.registerCommand('palette.open', { title: 'All Commands…', keys: ['Mod+K', 'Mod+Shift+P'], hidden: true, run: palette });
     W.registerCommand('chrome.toggle', { title: 'Show / Hide Bars', keys: 'Mod+Shift+H', run: () => W.setSetting('showChrome', !W.settings.showChrome) });
     W.registerCommand('chrome.stats', { title: 'Show / Hide Statistics', run: () => W.setSetting('statsBar', W.settings.statsBar === false) });
-    W.registerCommand('chrome.view', { title: 'View Menu', run: viewMenu });
-    W.registerCommand('chrome.doc', { title: 'Document Menu', run: docMenu });
+    W.registerCommand('chrome.view', { title: 'View Menu', hidden: true, run: viewMenu });
+    W.registerCommand('chrome.doc', { title: 'Document Menu', hidden: true, run: docMenu });
     W.registerCommand('font.duo', { title: 'Typeface: Duo', run: () => W.setSetting('font', 'duo') });
     W.registerCommand('font.quattro', { title: 'Typeface: Quattro', run: () => W.setSetting('font', 'quattro') });
     W.registerCommand('font.mono', { title: 'Typeface: Mono', run: () => W.setSetting('font', 'mono') });
