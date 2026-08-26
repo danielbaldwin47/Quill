@@ -1,3 +1,17 @@
+/* Fonts: iA Writer Duo / Quattro / Mono (SIL OFL 1.1, github.com/iaolo/iA-Fonts) */
+@font-face { font-family: "iA Writer Duo"; font-style: normal; font-weight: 400; font-display: block; src: url("../fonts/Duo/iAWriterDuoS-Regular.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Duo"; font-style: italic; font-weight: 400; font-display: block; src: url("../fonts/Duo/iAWriterDuoS-Italic.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Duo"; font-style: normal; font-weight: 700; font-display: block; src: url("../fonts/Duo/iAWriterDuoS-Bold.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Duo"; font-style: italic; font-weight: 700; font-display: block; src: url("../fonts/Duo/iAWriterDuoS-BoldItalic.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Quattro"; font-style: normal; font-weight: 400; font-display: block; src: url("../fonts/Quattro/iAWriterQuattroS-Regular.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Quattro"; font-style: italic; font-weight: 400; font-display: block; src: url("../fonts/Quattro/iAWriterQuattroS-Italic.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Quattro"; font-style: normal; font-weight: 700; font-display: block; src: url("../fonts/Quattro/iAWriterQuattroS-Bold.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Quattro"; font-style: italic; font-weight: 700; font-display: block; src: url("../fonts/Quattro/iAWriterQuattroS-BoldItalic.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Mono"; font-style: normal; font-weight: 400; font-display: block; src: url("../fonts/Mono/iAWriterMonoS-Regular.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Mono"; font-style: italic; font-weight: 400; font-display: block; src: url("../fonts/Mono/iAWriterMonoS-Italic.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Mono"; font-style: normal; font-weight: 700; font-display: block; src: url("../fonts/Mono/iAWriterMonoS-Bold.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Mono"; font-style: italic; font-weight: 700; font-display: block; src: url("../fonts/Mono/iAWriterMonoS-BoldItalic.woff2") format("woff2"); }
+
 /* Typography: font faces, size, line-height, measure. Owner: type piece.
  * Fonts live in app/fonts/<family>/ (iA Writer Duo / Quattro / Mono, SIL OFL). */
 :root {

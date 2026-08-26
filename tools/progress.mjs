@@ -121,7 +121,7 @@ figure.picked figcaption{color:var(--accent)}
   </header>
   <div class="grid">${pieces.map(card).join('')}</div>
   ${lat}
-  <section class="log"><h2>Log</h2><ol>${[...state.log].reverse().map(l => `<li><time>${fmtT(l.at)}</time><span>${esc(l.msg)}</span></li>`).join('')}</ol></section>
+  <section class="log"><h2>Log</h2><ol>${[...state.log, ...rounds.map(r => ({ at: r.at, msg: `${r.piece} · round ${r.round}: critic picked ${r.winner === 'ours' ? 'OURS' : r.winner === 'theirs' ? 'iA Writer' : 'neither'} — ${r.gap}` }))].sort((a, b) => a.at.localeCompare(b.at)).reverse().map(l => `<li><time>${fmtT(l.at)}</time><span>${esc(l.msg)}</span></li>`).join('')}</ol></section>
   <p class="foot">Updated ${fmtT(now)} · Screenshots at 1440×900@2x unless noted · iA Writer reference images from ia.net</p>
 </div>`;
 fs.writeFileSync('progress/index.html', html);
