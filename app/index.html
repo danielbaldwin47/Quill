@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Quill</title>
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/type.css">
+<link rel="stylesheet" href="css/page.css">
+<link rel="stylesheet" href="css/markup.css">
+<link rel="stylesheet" href="css/caret.css">
+<link rel="stylesheet" href="css/focus.css">
+<link rel="stylesheet" href="css/chrome.css">
+<link rel="stylesheet" href="css/files.css">
+<script>
+// Theme bootstrap: apply stored theme before first paint (no flash).
+(function(){try{var s=JSON.parse(localStorage.getItem('quill.settings')||'{}');var t=s.theme||'auto';document.documentElement.dataset.theme=t;}catch(e){document.documentElement.dataset.theme='auto';}})();
+</script>
+</head>
+<body>
+<div id="app">
+  <header id="chrome-top" class="chrome"></header>
+  <main id="scroller">
+    <div id="page">
+      <div id="mirror" aria-hidden="true"></div>
+      <textarea id="input" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="Document"></textarea>
+      <div id="caret-layer" aria-hidden="true"></div>
+    </div>
+  </main>
+  <footer id="chrome-bottom" class="chrome"></footer>
+  <div id="overlays"></div>
+</div>
+<script src="js/core.js"></script>
+<script src="js/markup.js"></script>
+<script src="js/caret.js"></script>
+<script src="js/focus.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/chrome.js"></script>
+<script src="js/files.js"></script>
+<script>Writer.boot();</script>
+</body>
+</html>

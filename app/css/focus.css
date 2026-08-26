@@ -1,0 +1,5 @@
+/* Focus mode dimming. Owner: focus piece. */
+#mirror .dim { color: var(--fg-dim); transition: color .25s ease; }
+#mirror .dim.md-mark { color: var(--fg-dim); }
+#mirror .dim.md-link-text { color: var(--fg-dim); }
+#mirror span { transition: color .25s ease; }

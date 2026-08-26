@@ -1,0 +1,11 @@
+/* Custom caret. Owner: caret piece. */
+#caret-layer { position: absolute; inset: 0; pointer-events: none; }
+#caret-layer .caret {
+  position: absolute; top: 0; left: 0;
+  width: 2px; background: var(--accent); border-radius: 1px;
+  will-change: transform;
+}
+#caret-layer .caret.hidden { display: none; }
+#caret-layer .caret.blink { animation: caret-blink 1.1s steps(1) infinite; }
+@keyframes caret-blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #caret-layer .caret.blink { animation: none; } }

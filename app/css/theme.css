@@ -1,0 +1,29 @@
+/* Light / dark tokens. Owner: theme piece. Everything colors through these tokens. */
+:root {
+  --bg: #fcfcfc;            /* paper */
+  --fg: #1f1f1f;            /* ink */
+  --fg-dim: rgba(31,31,31,.22);  /* focus-mode dimmed text */
+  --mark: #9a9a9a;          /* markdown syntax markers */
+  --accent: #1e90ff;        /* caret, links, selection */
+  --selection: rgba(30,144,255,.22);
+  --chrome-bg: rgba(252,252,252,.85);
+  --chrome-fg: #8a8a8a;
+  --code-bg: rgba(0,0,0,.04);
+  --rule: rgba(0,0,0,.08);
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #1a1a1a; --fg: #d4d4d4; --fg-dim: rgba(212,212,212,.22); --mark: #6f6f6f;
+  --accent: #3aa0ff; --selection: rgba(58,160,255,.28);
+  --chrome-bg: rgba(26,26,26,.85); --chrome-fg: #777; --code-bg: rgba(255,255,255,.05); --rule: rgba(255,255,255,.09);
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] {
+    --bg: #1a1a1a; --fg: #d4d4d4; --fg-dim: rgba(212,212,212,.22); --mark: #6f6f6f;
+    --accent: #3aa0ff; --selection: rgba(58,160,255,.28);
+    --chrome-bg: rgba(26,26,26,.85); --chrome-fg: #777; --code-bg: rgba(255,255,255,.05); --rule: rgba(255,255,255,.09);
+    color-scheme: dark;
+  }
+}
+html, body { background: var(--bg); color: var(--fg); }
