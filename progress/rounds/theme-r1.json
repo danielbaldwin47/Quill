@@ -1,0 +1,21 @@
+{
+  "piece": "theme",
+  "round": 1,
+  "winner": "ours",
+  "margin": "clear",
+  "gap": "Glyph edges are soft: in the word \"Down,\" A's edge pixels run 0.62 per core pixel across 205 distinct grey levels vs B's 0.55 across 23 \u2014 A's stems carry a visible halo where B's are cut clean, and it shows on the light ground at body size.",
+  "gapTheirs": "No dimmed tier at all: B paints the `*` markers at full body ink (#1c1c1c on paper, #cccccc on the dark ground \u2014 identical to the prose, 0 px of grey in the marker box), while A drops them to #7a7a7a / #808080; and B's dark mode leaks a ghost heading at #1c1c1c on #1a1a1a \u2014 1.01:1, neither hidden nor readable \u2014 that its light mode does not show.",
+  "verdict": "Both grounds are the same paper and the same ink (#f9f9f9/#1c1c1c, #1a1a1a/#cccccc), so this comes down entirely to the third tier \u2014 the grey between prose and background \u2014 and only A has one. In B the asterisks around *never* are exactly as black as the sentence they wrap, so every emphasis you type punches two extra full-weight glyphs into the line; A pushes them back to a mid grey (4.0:1 on paper, 4.6:1 on the dark ground) and the prose stays the loudest thing on the page. Worse, B's dark side draws a heading at #1c1c1c on #1a1a1a \u2014 a smudge you can see on an OLED at night and cannot read anywhere, and which light mode does not produce: that is a palette arrived at by inverting values, not by choosing them. A's own dark side is not designed either \u2014 the dim grey sits at the same 57% alpha in both themes and the caret is the same raw #00b5ff on white as on black, which on paper is the brightest object in the frame \u2014 but a slightly soft stem is a smaller tax than markdown syntax shouting in your face for the whole draft.",
+  "oursShot": "shots/theme/r1-ours.png",
+  "theirsShot": "shots/theme/r1-theirs.png",
+  "refSource": "Two-panel stack (light above, dark below), both sides built identically. Light: ref/ia/shots/appstore-mac-01-light-editor-hero.png crop box x=404 y=743 w=1970 h=760. Dark: ref/ia/shots/appstore-mac-08-dark-markdown-heading.png crop box x=186 y=769 w=1970 h=760. Ours rendered at --w 985 --h 380 --dpr 2 --size 28.25 --font duo --chrome off --focus off --caret earth, which reproduces iA's wrap and its 34.1px cell; crops offset so both text blocks start at the same pixel.",
+  "builderNote": "Replaced guessed tokens with iA's measured palettes (light #f9f9f9/#1c1c1c, dark #1a1a1a/#cccccc, caret #00b5ff on both, dim #cccccc/#707070, hairlines #e1e1e1/#313131, selection composited to iA's #003e4c) and kept the two grounds deliberately asymmetric rather than inverted. Added a --link token (accent blue is too pale for link text on paper), transparent chrome ground to match iA's panel-less toolbar, a quiet unfocused selection, a 160ms cross-fade armed only around a switch, live system-follow, prefers-contrast/print palettes, and iA's own appearance shortcut (Ctrl-Cmd-N / Ctrl+Alt+N). Verified no first-paint flash and correct ground for every stored/OS combination.",
+  "secondary": [
+    "Neither shows any chrome \u2014 no counter, no bar, no scroll indicator, in either theme \u2014 so 'how the chrome sits on each ground' is untestable from these two frames.",
+    "Both use the identical accent #00b5ff for the caret in light and dark with no per-theme adjustment; on #f9f9f9 it is the highest-chroma element on the page.",
+    "Caret geometry: A 8x94 px with hard edges, B 9x94 px with antialiased sides \u2014 a wash.",
+    "Dark ink is 10.4:1 on both, against 15.2:1 in light: both dark themes are a third flatter than their light counterparts, neither compensates.",
+    "Line pitch is effectively identical (A ~94-96 px, B ~92-96 px); B's measure runs ~35 px narrower on the same viewport."
+  ],
+  "at": "2026-08-26T19:19:51-04:00"
+}
