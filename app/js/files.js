@@ -83,7 +83,7 @@
   function load() {
     let s = {};
     try { s = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
-    for (const k of ['open', 'loc', 'sort', 'width', 'openId', 'dirName']) if (s[k] !== undefined) state[k] = s[k];
+    for (const k of ['open', 'loc', 'sort', 'width', 'openId', 'dirName', 'q']) if (s[k] !== undefined) state[k] = s[k];
     state.collapsed = s.collapsed || {};
     state.device = Array.isArray(s.device) ? s.device : [];
     if (state.loc === 'folder' && !s.dirName) state.loc = 'device';
@@ -91,7 +91,7 @@
   function persist() {
     try {
       localStorage.setItem(KEY, JSON.stringify({
-        open: state.open, loc: state.loc, sort: state.sort, width: state.width,
+        open: state.open, loc: state.loc, sort: state.sort, width: state.width, q: state.q,
         openId: state.openId, collapsed: state.collapsed, dirName: state.dirName,
         device: state.device,
       }));
@@ -213,7 +213,7 @@
     $('#lib-new', aside).addEventListener('click', () => newDoc());
     els.loc.addEventListener('click', locMenu);
     els.sortb.addEventListener('click', sortMenu);
-    els.q.addEventListener('input', () => { state.q = els.q.value; renderList(); });
+    els.q.addEventListener('input', () => { state.q = els.q.value; renderList(); persist(); });
     els.q.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') { e.stopPropagation(); if (state.q) { els.q.value = ''; state.q = ''; renderList(); } else W.el.input.focus(); }
       else if (e.key === 'Enter' || e.key === 'ArrowDown') { e.preventDefault(); const f = els.list.querySelector('.lib-row.file'); if (f) openDoc(f.dataset.id, true); }
@@ -233,7 +233,7 @@
     persist();
   }
 
-  function renderAll() { renderHead(); renderList(); renderStatus(); }
+  function renderAll() { if (els.q.value !== state.q) els.q.value = state.q; renderHead(); renderList(); renderStatus(); }
 
   function renderHead() {
     const nm = state.loc === 'folder' ? (state.dirName || 'Folder') : 'Library';
@@ -760,13 +760,12 @@
 
     // mark lines that name another document
     W.addDecorator((i, text) => (refNames.size && refIdFor(text)) ? [{ from: 0, to: text.length, cls: 'docref' }] : null);
-    // The textarea sits on top of the mirror, so the line under the pointer is
-    // read from the mirror element the click passed through.
+    // The mirror is pointer-transparent, so the line under the pointer comes from
+    // the caret the click just set in the textarea.
     W.el.input.addEventListener('click', (e) => {
-      if (!(e.metaKey || e.ctrlKey)) return;
-      const line = document.elementsFromPoint(e.clientX, e.clientY).find((el) => el.classList && el.classList.contains('line'));
-      if (!line) return;
-      const id = refIdFor(W.lines()[+line.dataset.i] || '');
+      if (!(e.metaKey || e.ctrlKey) || !refNames.size) return;
+      const pos = W.offsetToPos(W.el.input.selectionStart);
+      const id = refIdFor(W.lines()[pos.line] || '');
       if (id) { e.preventDefault(); openDoc(id, true); }
     });
 

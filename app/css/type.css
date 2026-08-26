@@ -1,8 +1,8 @@
 /* Fonts: iA Writer Duo / Quattro / Mono (SIL OFL 1.1, github.com/iaolo/iA-Fonts) */
 @font-face { font-family: "iA Writer Duo"; font-style: normal; font-weight: 100 900; font-display: block; src: url("../fonts/Duo/iAWriterDuoV.woff2") format("woff2"); }
-@font-face { font-family: "iA Writer Duo"; font-style: italic; font-weight: 100 900; font-display: block; src: url("../fonts/Duo/iAWriterDuoV-Italic.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Duo"; font-style: italic; font-weight: 100 900; font-display: block; src: url("../fonts/Duo/iAWriterDuoV-Italic.woff2") format("woff2"); ascent-override: 102.5%; descent-override: 27.5%; line-gap-override: 0%; }
 @font-face { font-family: "iA Writer Quattro"; font-style: normal; font-weight: 100 900; font-display: block; src: url("../fonts/Quattro/iAWriterQuattroV.woff2") format("woff2"); }
-@font-face { font-family: "iA Writer Quattro"; font-style: italic; font-weight: 100 900; font-display: block; src: url("../fonts/Quattro/iAWriterQuattroV-Italic.woff2") format("woff2"); }
+@font-face { font-family: "iA Writer Quattro"; font-style: italic; font-weight: 100 900; font-display: block; src: url("../fonts/Quattro/iAWriterQuattroV-Italic.woff2") format("woff2"); ascent-override: 102.5%; descent-override: 27.5%; line-gap-override: 0%; }
 @font-face { font-family: "iA Writer Mono"; font-style: normal; font-weight: 100 900; font-display: block; src: url("../fonts/Mono/iAWriterMonoV.woff2") format("woff2"); }
 @font-face { font-family: "iA Writer Mono"; font-style: italic; font-weight: 100 900; font-display: block; src: url("../fonts/Mono/iAWriterMonoV-Italic.woff2") format("woff2"); }
 

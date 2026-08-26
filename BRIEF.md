@@ -41,3 +41,8 @@ Many ia.net / App Store images are marketing composites (headline + partial wind
 2. Render ours at exactly the crop's pixel size (`--w` = crop width / dpr, `--h` = crop height / dpr, `--dpr 2` for Mac shots, 1 for Windows) showing the same passage, same theme, same mode, caret in the same place.
 3. Pair with `node tools/blind.mjs pair <piece> <ours.png> <crop.png>`.
 Prefer the clean full-window screenshots (ianet-mac-*-support.webp, msstore-win-*.png) over composites when they show your piece.
+
+## Headed windows (real browser, not headless)
+Never open test windows on Hyprland workspace 1 — the user works there. Launch through Hyprland's exec rules so the window lands elsewhere silently, e.g.
+`hyprctl dispatch exec "[workspace 2 silent] chromium --app=http://localhost:4173/ --class=quill-test"`
+(if `hyprctl` is unavailable, do not open headed windows at all — use headless).
