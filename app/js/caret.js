@@ -122,6 +122,10 @@
         dur = dy > 0.5 ? GLIDE_Y : GLIDE_X;
       }
     }
+    // The same position arrives twice per keystroke ('render' then 'selection').
+    // Re-issuing it would cancel a glide already in flight and, worse, make the
+    // second call look like "fast typing" and snap every move.
+    if (prev && prev.x === x && prev.y === y && caret._h === h && caret._w === M.w) return;
     if (caret._h !== h) { caret.style.height = h + 'px'; caret._h = h; }
     if (caret._w !== M.w) { caret.style.width = M.w + 'px'; caret._w = M.w; }
     moveTo(x, y, dur);

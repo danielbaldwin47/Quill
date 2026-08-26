@@ -64,13 +64,13 @@ function appFingerprint() {
   try {
     const files = [];
     const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const f = path.join(d, e.name); if (e.isDirectory()) { if (e.name !== 'fonts') walk(f); } else if (/\.(js|css|html)$/.test(e.name)) files.push(f); } };
-    walk('app');
+    walk(args.snapshot ? path.join(args.snapshot, 'app') : 'app');
     files.sort();
     const h = crypto.createHash('sha256');
     for (const f of files) h.update(f + ':' + crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex') + '\n');
     let git = null;
     try { git = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch (e) {}
-    return { files: files.length, sha256: h.digest('hex').slice(0, 16), git_head: git };
+    return { files: files.length, sha256: h.digest('hex').slice(0, 16), git_head: git, served_from: args.snapshot || 'app/' };
   } catch (e) { return null; }
 }
 function env(browser, headless) {

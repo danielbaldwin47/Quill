@@ -42,14 +42,12 @@
 #caret-layer .sel-edge {
   position: absolute; top: 0; left: 0;
   background: var(--caret-color);
-  transform: translate(0, 0);
 }
 #caret-layer .caret {
-  /* No will-change / translate3d here on purpose. A promoted layer is
-     rasterised from the element's pre-transform origin, and #page's left edge
-     is not on a whole device pixel (centred column + reserved scrollbar
-     gutter), so the stem came out a pixel wide with two grey edges. Painted in
-     place it lands exactly where caret.js snapped it. */
+  /* The caret rests on left/top and only ever uses transform for the delta of
+     a move (see caret.js): a box parked on a transform is rasterised in its
+     layer's space, which is half a device pixel off here, and the stem picks up
+     a grey column on each edge. */
   /* Duration is set per move in caret.js: 0 for jumps and fast typing, ~60 ms
      along a line, ~90 ms between lines. Short enough that the caret arrives
      with the letter, long enough that the eye follows it instead of hunting. */
@@ -71,8 +69,10 @@
 
 /* Unfocused: iA and macOS drop the caret entirely. Keeping a quiet ghost of it
  * means you come back from another window and your place is still there. */
-#caret-layer.idle .caret { opacity: .32; animation: none; }
-#caret-layer.idle .sel-edge { opacity: .3; }
+#caret-layer.idle .caret { opacity: .3; animation: none; }
+/* The fill has already gone neutral; blue ends beside a grey block read as a
+   half-woken window, so the brackets go quiet with it. */
+#caret-layer.idle .sel-edge { background: currentColor; opacity: .22; }
 
 /* Hidden strut used once per font/size change to find the baseline. */
 #caret-layer .caret-probe {
@@ -81,6 +81,9 @@
   white-space: pre;
 }
 #caret-layer .caret-probe span { display: inline-block; width: 0; height: 0; }
+
+/* theme.css already drops #caret-layer for print; the highlight has to go too. */
+@media print { #sel-layer { display: none !important; } }
 
 @media (prefers-reduced-motion: reduce) {
   #caret-layer .caret { transition: none; }

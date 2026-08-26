@@ -44,11 +44,18 @@
      fits three of the four inside a third of a pixel, and it is what the eye
      wants — small type needs relatively more air, large type less. The clamp
      keeps the far ends of Mod +/- from going airless or gappy. */
-  --line-pitch: clamp(
+  --line-air: clamp(
       calc(var(--font-size) * 1.52),
       calc(var(--font-size) * 1.30 + 10.4px),
       calc(var(--font-size) * 2)
     );
+  /* Rounded to whole pixels, and rounded HERE rather than at the line-height so
+     that everything reading --line-pitch (page.css's top margin and blank-line
+     min-height, caret.js's band) gets the same number the text is actually set
+     on. A pitch that disagrees with the line box by a third of a pixel walks
+     #mirror off #input one line at a time. Whole pixels also keep the rhythm
+     even on a 1x screen, where browsers snap baselines to the pixel grid. */
+  --line-pitch: round(var(--line-air), 1px);
   /* Unitless floor, kept because page.css computes an empty line's min-height as
      calc(var(--line-height) * 1em). It must stay below the real ratio at every
      size in range (the minimum is 1.56, at 40px) so a blank line is never taller
@@ -72,6 +79,9 @@
 }
 :root[data-font="quattro"] { --font: var(--font-quattro); }
 :root[data-font="mono"] { --font: var(--font-mono); }
+/* Where round() is unsupported, fall back to the unrounded pitch rather than to
+   nothing at all. */
+@supports not (width: round(1px, 1px)) { :root { --line-pitch: var(--line-air); } }
 :root[data-theme="dark"] { --ink-weight: 400; }
 @media (prefers-color-scheme: dark) { :root[data-theme="auto"] { --ink-weight: 400; } }
 
@@ -79,12 +89,6 @@
   font-family: var(--font);
   font-size: var(--font-size);
   line-height: var(--line-pitch);
-  /* Whole-pixel leading. Browsers snap baselines to device pixels, so a
-     fractional pitch makes the gaps alternate (36/37px at 1x) and the rhythm
-     goes visibly uneven; rounding once here also stops #mirror's stack of line
-     boxes drifting a fraction away from #input's over a long document. The
-     plain var() above is the fallback where round() is unsupported. */
-  line-height: round(var(--line-pitch), 1px);
   font-weight: var(--ink-weight);
   font-style: normal;
   /* Hold the cell grid. Kerning and contextual alternates shift glyphs by
@@ -114,3 +118,17 @@
  * hanging hash would move the mirror's heading text a cell and a half away from
  * the caret. Same for hanging punctuation. Noted in NOTES.md.
  */
+
+/* Warm the italic cut. Font files are fetched on first use, so the first time you
+   wrap a word in asterisks the face arrives mid-keystroke: the word blinks (the
+   faces are font-display: block) and, while the fallback stands in, that line is a
+   pixel taller than its neighbours. One clipped, invisible glyph at boot pays that
+   cost before anyone is typing. The upright file already covers bold, so the
+   italic file is the only one left to fetch. */
+html::after {
+  content: "a";
+  position: fixed; top: 0; left: 0;
+  width: 0; height: 0; overflow: hidden;
+  font-family: var(--font); font-style: italic; font-weight: 700;
+  opacity: 0; pointer-events: none; user-select: none;
+}
