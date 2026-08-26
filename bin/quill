@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# Quill — open the editor in its own window, with no browser chrome around it.
+# Owner: latency piece.
+#
+#   bin/quill                        open Quill (starts the local server if it is not running)
+#   bin/quill --fresh                open it with a brand new browser profile (a true cold start)
+#   bin/quill --measure              open it, print cold-start numbers as JSON, close it again
+#   bin/quill --measure --keys 300   also run the keystroke bench in that window, on the real display
+#   bin/quill --measure --seed       ... and leave the benchmark document in the profile
+#
+# Cold start is timed from the moment this script is about to exec the browser (the server is
+# already up by then) to the first frame that actually shows the document. It therefore includes
+# the browser process spawn, profile initialisation, window creation, navigation, font loading
+# and the full render of whatever document was open.
+set -euo pipefail
+
+ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+PORT=${QUILL_PORT:-4173}
+CHROME=${QUILL_CHROME:-/usr/bin/chromium}
+PROFILE=${QUILL_PROFILE:-$HOME/.cache/quill/browser}
+SIZE=${QUILL_SIZE:-1440,900}
+URL=""
+measure=0; fresh=0; keys=0; seed=0; doc=""; out=""
+
+usage() { sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; }
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --measure) measure=1 ;;
+    --fresh)   fresh=1 ;;
+    --seed)    seed=1 ;;          # leave the benchmark document in this profile for the next launch
+    --keys)    keys="$2"; shift ;;
+    --doc)     doc="$2"; shift ;;
+    --json)    out="$2"; shift ;;
+    --port)    PORT="$2"; shift ;;
+    --profile) PROFILE="$2"; shift ;;
+    --size)    SIZE="$2"; shift ;;
+    --url)     URL="$2"; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "quill: unknown option $1" >&2; exit 2 ;;
+  esac
+  shift
+done
+[ -n "$URL" ] || URL="http://localhost:$PORT/"
+
+# --- the document server -----------------------------------------------------
+if ! curl -sf -o /dev/null "http://localhost:$PORT/"; then
+  node "$ROOT/tools/serve.mjs" "$PORT" >/dev/null 2>&1 &
+  for _ in $(seq 1 100); do curl -sf -o /dev/null "http://localhost:$PORT/" && break; sleep 0.05; done
+fi
+
+# --- profile -----------------------------------------------------------------
+case "$PROFILE" in *quill*) : ;; *) echo "quill: refusing to use a profile dir without 'quill' in its path" >&2; exit 2 ;; esac
+if [ "$fresh" = 1 ] && [ -d "$PROFILE" ]; then rm -rf -- "$PROFILE"; fi
+mkdir -p "$PROFILE"
+
+FLAGS=(
+  --app="$URL"
+  --user-data-dir="$PROFILE"
+  --class=Quill --name=quill
+  --window-size="$SIZE"
+  --no-first-run --no-default-browser-check --disable-component-update
+  --disable-background-networking --disable-sync --disable-features=Translate,MediaRouter
+  --ozone-platform-hint=auto
+)
+
+if [ "$measure" = 0 ]; then
+  exec "$CHROME" "${FLAGS[@]}"
+fi
+
+# --- measured launch ---------------------------------------------------------
+# A measured window is a test window. It must never land on the workspace the user is working on
+# (BRIEF.md, "Headed windows"), so it is launched through the compositor's exec rule. If the
+# compositor cannot place it — this Hyprland build rejects `dispatch exec [rules]`, and chromium's
+# Wayland app_id is derived from the URL rather than --class, so a class rule would not match it
+# either — no window is opened at all unless the caller explicitly allows it.
+DBG=$((9300 + RANDOM % 400))
+WS=${QUILL_WS:-2}
+cmd="$CHROME"
+for f in "${FLAGS[@]}" --remote-debugging-port="$DBG"; do cmd="$cmd $f"; done
+placed=0
+if command -v hyprctl >/dev/null 2>&1; then
+  t0=$(date +%s%3N)                                 # wall clock, milliseconds, right before exec
+  out=$(hyprctl dispatch exec "[workspace $WS silent] $cmd" 2>&1 || true)
+  case "$out" in *error*|*Error*) placed=0 ;; *) placed=1 ;; esac
+fi
+pid=""
+if [ "$placed" = 0 ]; then
+  if [ "${QUILL_HEADED_OK:-0}" != "1" ]; then
+    echo "quill: this compositor will not place a test window off the active workspace." >&2
+    echo "       Refusing to open one on top of the user's session. Use headless" >&2
+    echo "       (node tools/latency.mjs), or re-run with QUILL_HEADED_OK=1." >&2
+    exit 3
+  fi
+  t0=$(date +%s%3N)
+  "$CHROME" "${FLAGS[@]}" --remote-debugging-port="$DBG" >/dev/null 2>&1 &
+  pid=$!
+fi
+for _ in $(seq 1 400); do curl -sf -o /dev/null "http://127.0.0.1:$DBG/json/version" && break; sleep 0.05; done
+
+argv=( --attach "$DBG" --t0 "$t0" --profile "$PROFILE" )
+[ "$keys" != 0 ] && argv+=( --keys "$keys" ) || argv+=( --keys 0 )
+[ -n "$doc" ] && argv+=( --doc "$doc" )
+[ "$seed" = 1 ] && argv+=( --seed )
+[ -n "$out" ] && argv+=( --json "$out" )
+node "$ROOT/tools/latency.mjs" "${argv[@]}" || true
+
+if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true
+else pkill -f -- "--user-data-dir=$PROFILE" 2>/dev/null || true; fi

@@ -247,215 +247,115 @@ or they render 10 % small. Nothing changed for this; flagging it.
 ## latency
 
 Round 1. Files owned: `tools/latency.mjs`, `app/js/core.js` (perf only), `bin/quill`.
-New files added: `tools/mkdoc.mjs` (builds the benchmark corpus), `shots/latency/doc*.md`,
+New files: `tools/mkdoc.mjs` (builds the benchmark corpus), `shots/latency/doc*.md`,
 `progress/latency.json`, `progress/latency-report.md`.
 
-**Numbers first** (headless Chromium 151, 13600K, 10,062-word Markdown document, 300 keystrokes
-per regime, every keystroke accounted for): keystroke → frame presented **p50 9.8 ms, p95 18.4,
-p99 19.1**; keystroke → frame committed p50 8.3; 89 % of keystrokes are on screen within one
-60 Hz frame, 100 % within two. Startup: first frame showing the whole document **104 ms**
-(editor ready at 77 ms). Full method, the real-display run and the caveats are in
-`progress/latency-report.md`; raw runs in `shots/latency/r1-*.json`.
+**Numbers** (Chromium 151, 13600K, real 10,062-word Markdown document, 300 keystrokes per regime,
+every keystroke accounted for, headless with a 60 Hz frame clock — see below): keystroke → frame
+presented **p50 10.8 ms, p95 18.5, p99 19.1**, worst 20.2; on a real 60 Hz panel (earlier build)
+13.8 / 29.1. Application cost with the display clock removed: **4.2 ms p50**, 2.9 ms to committed
+frame, **4.9 ms of main thread per keystroke** — inside the ≤ 5 ms bar, and only 0.85 ms of it is
+Quill's own code (the biggest single cost is Chrome inserting the character into a 53 KB textarea).
+Startup: first frame showing the whole document **100 ms**, editor ready 71 ms. Estimated
+keyboard-to-photon ≈ 32 ms, i.e. the Sublime/TextEdit bracket. Method, all regimes, document-size
+scaling (2 k → 55 k words) and the caveats: `progress/latency-report.md`; raw runs in
+`shots/latency/r1-*.json` and `shots/latency/size-doc*.json`.
+
+### The one thing everyone touching this app should know
+
+**Anything that animates while the writer types puts every keystroke on the display's clock.**
+With no animation running, the compositor produces a frame on demand; with one running, a
+keystroke waits for the next tick. Measured on this build, same page, same keys, the only
+difference being a CSS rule that keeps the caret blinking during typing:
+
+| caret while typing | present p50 | p90 | p99 | commit p50 |
+|---|---|---|---|---|
+| blink suppressed (what the app does) | 3.28 | 4.15 | 11.68 | 2.57 |
+| blink left running | 9.40 | 16.48 | 18.22 | 8.90 |
+
+On a real 60 Hz panel that tick is unavoidable, so this is not free latency — but it is exactly why
+a headless benchmark with nothing animating reports ~6 ms less than any panel can deliver.
+`tools/latency.mjs` therefore keeps a 1 px composited animation running by default (`--clock on`)
+so headless models a panel, and `--clock off` measures the application's own cost. Both are
+reported and never quoted as each other. caret.js's existing behaviour (blink off on each
+keystroke, back after 480 ms of quiet) is right on both counts, visual and physical — please keep it.
 
 ### Changes in `app/js/core.js` (perf only, backward compatible)
 
 1. **The textarea is sized by a `ResizeObserver`, not by a measurement inside the keystroke.**
-   `render()` used to run `input.style.height = mirror.offsetHeight + 'px'` on every input event.
-   That read forces a synchronous layout of the whole document in the middle of the keystroke,
-   and the write that follows dirties it again. The observer does the same job out of the frame's
-   own layout pass and only fires when the height really changed. Full renders (boot, `setText`,
-   font change) still sync synchronously, so anything that measures straight after still sees the
-   right height. `Writer.syncHeight()` is exposed if a piece ever needs to force it.
-   *Verified*: `#input.offsetHeight === #mirror.offsetHeight` after boot, after typing new lines
-   and after a font-size change, in all three faces and both grounds.
+   `render()` used to run `input.style.height = mirror.offsetHeight + 'px'` on every input event:
+   that read forces a synchronous layout of the whole document mid-keystroke and the write after it
+   dirties layout again. The observer does the same job out of the frame's own layout pass and only
+   fires when the height really changed. Full renders (boot, `setText`, font change) still sync
+   synchronously, so anything that measures immediately afterwards still sees the right height;
+   `Writer.syncHeight()` forces it if a piece ever needs to. *Verified*: `#input.offsetHeight ===
+   #mirror.offsetHeight` after boot, after typing new lines and after a font-size change, in all
+   three faces and both grounds.
 2. **`selection` is emitted once per real change, not three times per keystroke.** Chrome raises
-   `input`, `selectionchange` and `keyup` for a single keypress and core forwarded all three;
-   every listener on that event measures layout (caret rect, typewriter). Measured on the live
-   app: **3.02 → 1.02 `selection` events per keystroke, and 12.07 → 6.08 layout-reading DOM calls
-   per keystroke** (`Element.getBoundingClientRect` + `Range.getClientRects`, counted by patching
-   both). Text changes still force an emit, because the offsets can be unchanged while the line
-   is not. New: `Writer.emitSelection(force)` — use it instead of `Writer.emit('selection')` if
-   you change the selection yourself; `Writer.setSelection` already does.
-3. **Writes before reads.** During an `input` event the `render` event is now emitted *after*
-   `change` and `selection`, so the pieces that write DOM (focus dimming) all run before the
-   piece that measures it (the caret). One layout flush per keystroke instead of two. Every other
-   caller of `Writer.render()` still gets `render` synchronously, in the same place as before.
-4. **Line renumbering only when the line count changed**, and only for indices whose value
-   actually differs — `el.dataset.i = i` on every line below the caret is a same-value
-   `setAttribute` storm, and the shortcut table is no longer rebuilt and re-sorted per keydown
-   (a plain character with no modifier now looks at nothing).
+   `input`, `selectionchange` and `keyup` for a single keypress and core forwarded all three; every
+   listener on that event measures layout (caret rect, typewriter). Measured on the live app:
+   **3.02 → 1.02 `selection` events per keystroke and 12.07 → 6.08 layout-reading DOM calls**
+   (`Element.getBoundingClientRect` + `Range.getClientRects`, counted by patching both). Text
+   changes still force an emit, because the offsets can be unchanged while the line is not.
+   New: **`Writer.emitSelection(force)`** — use it instead of `Writer.emit('selection')` when you
+   move the selection yourself; `Writer.setSelection` already does.
+3. **Writes before reads.** During an `input` event the `render` event is now emitted after
+   `change` and `selection`, so the pieces that write DOM (focus dimming) run before the piece that
+   measures it (the caret): one layout flush per keystroke instead of two. Every other caller of
+   `Writer.render()` still gets `render` synchronously, exactly as before.
+4. **No attribute storm.** `el.dataset.i` is rewritten only when the line count actually changed
+   and only where the value differs (a same-value `setAttribute` still costs a style
+   invalidation), and the shortcut table is no longer rebuilt and re-sorted on every keydown — a
+   plain character with no modifier now looks at nothing.
 
-A/B of *only* those four changes, same everything else, two snapshot servers, 200 keys each:
-main-thread work per keystroke 6.05 → 5.35 ms, style+layout+paint 2439 → 2171 µs, present p50
-10.12 → 9.46 ms, p90 17.25 → 16.52, keystrokes on screen within one frame 88.5 % → 91.5 %.
+A/B of *only* those four changes, identical in every other file, two snapshot servers, 250 keys
+each, display clock off so the frame cadence does not hide the difference: main-thread work per
+keystroke **4.84 → 4.17 ms**, style+layout+paint 2000 → 1859 µs, present p99 **9.01 → 5.93 ms**,
+p90 4.27 → 3.97, on screen within one frame 99.6 → 100 %.
 
-### Findings for other pieces (nothing was changed in your files except the one noted)
+### Findings for other pieces (no files of yours were changed)
 
-* **`app/js/chrome.js`** — mid-round I moved the word count off the keystroke path
-  (`requestIdleCallback`, 400 ms timeout): scanning 53 KB with `/[\p{L}\p{N}'’]+/gu` cost
-  **~0.53 ms per keystroke**, and the bars are hidden while you type, so it was invisible work.
-  The chrome rewrite that landed later does the same thing with its own `recount(now)`/`idle()`
-  and a 500 ms catch-up — that is kept, and it is the right shape. Please keep any future
-  document-wide scan (readability, style check, outline) on that side of the line.
-* **Focus mode costs about 1.2 ms of main thread per keystroke** (event processing 2.27 → 3.41 ms
-  p50, style+layout+paint 2418 → 3022 µs). It does not change the presented latency at 133 wpm
-  (present p50 9.82 → 9.80 ms) because there is frame budget to spare, but it is the single most
-  expensive listener in the app. Most of it is `update()` running on every selection: the
-  `JSON.stringify` signature and the re-scan of the line's sentences.
-* **The caret is placed twice per keystroke** — once on `selection`, once on `render` — costing
-  roughly 100 µs and one extra `getClientRects`. Coalescing the two into one `queueMicrotask`
-  inside `caret.js` would remove it; it is your file, so it is left alone.
-* **`page.css`'s `#mirror:has(> .line:only-child > br:only-child)` placeholder** was measured for
-  a `:has()` invalidation cost on the keystroke path and there is none worth reporting (present
-  p50 within run-to-run noise, as the page piece also measured).
-* **Nothing in the app may scan the whole document synchronously on `change`.** At 10k words a
-  full-text pass is ~0.4–0.6 ms; three of them and the keystroke misses its frame.
+* **chrome.js** — mid-round I moved the word count off the keystroke path with
+  `requestIdleCallback`; scanning 53 KB with `/[\p{L}\p{N}'’]+/gu` cost **~0.53 ms per keystroke**
+  and the bars are hidden while you type, so it was invisible work. The chrome rewrite that landed
+  later does the same thing with its own `recount(now)`/`idle()` and a 500 ms catch-up — kept, and
+  it is the right shape. Please keep any future document-wide scan (style check, outline,
+  readability) on that side of the line.
+* **Focus mode costs ~0.5 ms of main thread per keystroke** (4.89 → 5.43 ms busy; event processing
+  2.3 → 3.4 ms p50). It does not change presented latency at 133 wpm — the frame budget absorbs it —
+  but it is the most expensive listener in the app, and most of it is `update()` running on every
+  selection (the `JSON.stringify` signature and the per-line sentence re-scan).
+* **The caret is placed twice per keystroke** — once on `selection`, once on `render` — about
+  100 µs and one extra `getClientRects`. Coalescing them into one `queueMicrotask` in caret.js
+  would remove it; it is your file, so it is left alone.
+* **page.css's `:has()` placeholder** was checked for an invalidation cost on the keystroke path;
+  there is none outside run-to-run noise.
+* **Nothing may scan the whole document synchronously on `change`.** At 10k words a full-text pass
+  is ~0.4–0.6 ms; three of them and the keystroke misses its frame. At 55k words the whole
+  keystroke already costs 12.9 ms of a 16.7 ms frame.
 
 ### `bin/quill`
 
-`chromium --app` launcher: starts `tools/serve.mjs` if the port is dead, uses its own profile
-(`~/.cache/quill/browser`), and `--measure` times *shell exec → first frame with the document*
-over CDP. Two things to know:
+`chromium --app` launcher: starts `tools/serve.mjs` if the port is dead, own profile under
+`~/.cache/quill/browser`, `--fresh` for a true first run, `--measure` times *shell exec → first
+frame with the document* over CDP (155 ms of that is the chromium process spawn; 395 and 511 ms to
+pixels in two runs with the 10k-word document).
 
-* **It refuses to open a measured window** unless the compositor can place it off the active
-  workspace (BRIEF.md "Headed windows"). This Hyprland build rejects both
-  `hyprctl dispatch exec "[workspace 2 silent] …"` and `hyprctl keyword windowrule …`
-  ("keyword can't work with non-legacy parsers"), and chromium's Wayland `app_id` is derived
-  from the URL (`chrome-localhost__-Default`), not from `--class`, so a class rule would not
-  match it either. Override with `QUILL_HEADED_OK=1` only if the user's workspace is free.
-  The one real-display dataset in the report was taken before that rule was published; the
-  window has been closed and none has been opened since.
-* Cold start on the real display, warm profile, 10,062-word document open:
-  **395 ms and 511 ms** from `exec` to pixels, of which ~155 ms is the chromium process spawn.
+**It refuses to open a measured window** unless the compositor can place it off the active
+workspace (BRIEF.md "Headed windows"). This Hyprland build rejects both
+`hyprctl dispatch exec "[workspace 2 silent] …"` and `hyprctl keyword windowrule …`
+("keyword can't work with non-legacy parsers"), and chromium's Wayland `app_id` comes from the URL
+(`chrome-localhost__-Default`) rather than `--class`, so a class rule cannot match it either.
+Override with `QUILL_HEADED_OK=1` only when the user's workspace is free. The single real-display
+dataset in the report was taken before that rule was published; that window was closed and none has
+been opened since.
 
 ### Re-running
 
-`node tools/latency.mjs` (defaults: `shots/latency/doc10k.md`, 12 startup runs, 300 keys × 5
-regimes, 90 ms pacing) writes the full JSON. `--doc`, `--keys`, `--pace`, `--runs`, `--quick`,
-`--url` (point it at a snapshot server for an A/B), `--json out.json`. `tools/mkdoc.mjs` rebuilds
-the corpus from a Project Gutenberg text file.
-
-## type
-
-Round 1. Owner files: `app/css/type.css`, `app/fonts/**`, plus `tools/fontgrid.py` (new, see below).
-
-**What the numbers came from.** Everything below is measured off the reference shots with
-advance-fitting (fit the Duo cell width across a whole line, then read the pitch off the ink
-bands), not read off REFERENCE.md, because REFERENCE.md's em estimates come from x-height and
-are ~2% low. Fitted results (2x captures, halved to CSS px):
-
-| capture | em | pitch | ratio |
-|---|---|---|---|
-| ianet-mac-dark-typewriter-support | 20.00 | 36.5 | 1.83 |
-| appstore-mac-09 | 24.17 | 40.0 | 1.66 |
-| appstore-mac-01 / -08 (the pair shots) | 27.65 | 46.25 | 1.67 |
-| ianet-mac-light-focus-paragraph-alice | 28.25 | 47.1 | 1.67 |
-
-So iA's leading is liquid, as they say it is: `pitch = 1.30 x size + 10.4px` fits three of the
-four inside a third of a pixel. That is what `--line-pitch` computes now (rounded to whole px,
-clamped 1.52-2.0 em at the extremes of Mod +/-). Default size moved 18 -> 20px, the size their
-own window capture is set at.
-
-**Changes outside my files (minimal, backward compatible):**
-- `app/js/core.js`: `DEFAULTS.fontSize` 18 -> 20. One line, no behaviour change.
-
-**For other pieces:**
-- `--line-pitch` is now the *exact used line-height* in px (already rounded), so anything that
-  needs the pitch should read it — page.css already does. `--line-height` is kept only as a
-  unitless floor for `min-height: calc(var(--line-height) * 1em)`; it is deliberately lower
-  (1.5) than the real ratio at every size in range so a blank line can never come out taller
-  than a written one. Do not use it as the pitch.
-  This mattered: while I was working, `#mirror .line { min-height: var(--line-pitch) }` was
-  reading the *unrounded* pitch while `line-height` used the rounded one, which made every
-  line 0.4px too tall and walked #mirror off #input. Rounding now happens once, in
-  `--line-pitch` itself.
-- Ink weight is `--ink-weight` (415 on paper, 400 on dark). Measured ink per line against iA at
-  27.65px: their glyphs carry ~4% more ink than a flat 400 on light (macOS darkens stems on a
-  light ground) and land within 1% of 400 on dark. Advances are bit-identical at 400 and 415 in
-  all three faces, so this is metric-safe. After the change ours is within 1% of iA on both
-  themes.
-- `--measure` is declared in both type.css and page.css at `64ch`; page.css loads later and
-  wins. Fine as long as both stay 64ch — that is iA's published default line-length limit.
-
-**Fonts: switched to the variable cuts, and one of them is patched.**
-- `app/fonts/*/iAWriter*V.woff2` + `-V-Italic.woff2` replace the four static faces per family.
-  Two files instead of four, ~100KB instead of ~173KB, and the upright file covers 400 *and*
-  700 — so bold no longer costs a second font fetch mid-keystroke.
-- `iAWriterQuattroV-Italic-grid.woff2` is a MODIFIED copy. iA's Quattro Italic gives the word
-  space 600 units where the Roman gives it 450; every italic word therefore slid the rest of
-  the line 0.15 em out from under the textarea (~1 character after six words). `tools/fontgrid.py`
-  resets that one advance to 450 and empties the space glyph's (contourless) gvar entry so it
-  stays 450 at every weight. Nothing else is touched, and the true italic is preserved.
-  **OFL note:** a public build must ship this under a family name that does not contain the
-  reserved name "iA Writer".
-- Remaining known advance divergences, all bold/bold-italic only and all left alone because
-  fixing them would either collide ink or freeze the glyph's weight axis: Quattro `f`/`t`
-  +150 units in Bold Italic; `!` +8 in Bold Italic (Duo and Quattro); Mono `j` +19 in Bold;
-  Mono `%` is 667 in Regular and 600 in every other style (it is off the monospace grid in iA's
-  own font). `node tools/mirror-metrics.mjs` reports 0 drift on ordinary prose in all three faces.
-- The italic face is warmed at boot by one clipped invisible glyph (`html::after`). Without it
-  `document.fonts.check('italic ...')` is false after boot, so the first `*word*` you type
-  fetches a font mid-keystroke: the word blinks (faces are `font-display: block`) and, while the
-  fallback stands in, that line lays out a pixel taller than its neighbours.
-
-**Deliberately not done:**
-- *Hanging markers / hanging punctuation.* iA hangs `# ` and `> ` in the left margin. That needs
-  a per-line horizontal shift, and a textarea cannot indent one line differently from the next,
-  so the mirror's heading text would sit a cell and a half away from the caret. Not metric-safe
-  in this architecture; markup.css reaches the same conclusion and buys the calm text image with
-  contrast instead.
-- *Liquid weight* (iA varies weight with size as well as leading). The variable fonts support it
-  and it is the obvious next step, but `--font-size` reaches CSS as a length, and `font-weight`
-  needs a number — `calc(10px / 1px)` is not a thing. It wants a numeric `--font-size-n` from
-  core.js; not worth a core change this round.
-
-**For the markup piece (not a request, just an observation from the pair):** iA renders the
-`*` around an emphasised word in full body ink, not grey. In the blind pair that is the single
-most visible difference between our light shot and theirs. Ours reads calmer; theirs reads more
-"the characters are really there". Worth a deliberate decision rather than a default.
-
-**Pair:** `shots/type/r1-ours.png` (965x350 @2x, light, Duo, 27.65px, caret after "earth") vs
-`shots/type/r1-theirs.png` = `crop.mjs appstore-mac-01-light-editor-hero.png 406 749 1930 700`.
-Crop origin chosen so the text block registers exactly on ours, i.e. the two images differ only
-in typography, not in page margins (those belong to the page piece; the reference window is
-wider than any viewport we could match). Dark equivalent saved beside it:
-`r1-ours-dark.png` vs `crop.mjs appstore-mac-08-dark-markdown-heading.png 188 775 1930 700`.
-Reproduce the passage with `shots/type/passage.md`; `shots/type/specimen.md` is the
-bold/italic/blank-line specimen used for the metric checks.
-
-## caret
-
-Round 1. Files touched: `app/js/caret.js`, `app/css/caret.css` (both owned). No
-edits to `core.js`, `index.html` or any other piece's file. Three things reach
-outside the caret's own elements, all from `app/css/caret.css`:
-
-1. **`#input::selection` is forced transparent.** The native textarea selection
-   paints *above* `#mirror`, so it veils the glyphs — measured on the old build:
-   selected ink went from `#1c1c1c` to `#153d4d`. We draw the highlight
-   ourselves instead, underneath the ink, where iA puts it. The rule is written
-   as `#input::selection, #input:not(:focus)::selection` so it matches the
-   specificity of theme.css's idle-selection rule and wins on load order
-   (caret.css is linked after theme.css — please keep it that way).
-   `--selection` / `--selection-idle` are still the source of truth for the
-   colour; theme.css just no longer reaches the editor through `::selection`.
-
-2. **`#sel-layer` is inserted by caret.js as the first child of `#page`.** It is
-   `position:absolute; inset:0; z-index:0`, so it paints below `#mirror` (first
-   in tree order among the positioned children) and above nothing else. Nothing
-   in `#page` needed changing; if the page piece ever gives `#mirror` a negative
-   z-index or makes `#page` a stacking context with a background, ping caret.
-
-3. **`@media print { #sel-layer { display: none } }`** — theme.css already drops
-   `#caret-layer` for print and the highlight has to go with it.
-
-For the theme piece, not urgent: dark `--selection` is
-`rgba(0,181,255,.23)`, which lands on `#143e4f` over `#1a1a1a`. iA's measured
-value is `#003e4c` — same green and blue, but with the red channel pulled to 0,
-which an alpha tint over a grey ground cannot do. Now that the highlight paints
-*under* the ink, an opaque dark-theme value is safe if you want the exact match.
-
-For the page piece, tiny: the empty-document placeholder starts in the first
-cell, so the caret's stem sits on the `S` of "Start writing…". iA has no
-placeholder there. Starting it one cell in, or dropping it to 12 % opacity,
-would keep the two out of each other's way.
-
+`node tools/latency.mjs` (defaults: `shots/latency/doc10k.md`, 12 startup runs, 5 regimes × 300
+keys, 90 ms pacing, 60 Hz clock). Flags: `--clock off`, `--doc`, `--keys`, `--pace`, `--runs`,
+`--quick`, `--url` (point at a snapshot server for an A/B), `--snapshot <dir>` (fingerprint that
+tree instead of `app/`), `--json out.json`. `tools/mkdoc.mjs` rebuilds the corpus from a Project
+Gutenberg text file. Note that the app is fingerprinted into every result file: other builders
+edit the same tree while a run is in flight, so a number without a fingerprint is a number about
+nothing in particular.

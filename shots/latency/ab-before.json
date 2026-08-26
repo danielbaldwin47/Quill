@@ -1,0 +1,294 @@
+{
+  "env": {
+    "at": "2026-08-26T23:34:20.064Z",
+    "chromium": "151.0.7922.173",
+    "headless": true,
+    "node": "v26.7.0",
+    "os": "Linux 7.1.9-arch1-2",
+    "cpu": "13th Gen Intel(R) Core(TM) i5-13600K (20 threads)",
+    "load1": 1.05,
+    "mem_gb": 31,
+    "display": null,
+    "viewport": "1440x900",
+    "app": {
+      "files": 16,
+      "sha256": "552486c3b745c120",
+      "git_head": "55d440b",
+      "served_from": "/tmp/qb-b2"
+    },
+    "document": {
+      "path": "shots/latency/doc10k.md",
+      "words": 10062,
+      "chars": 53031,
+      "lines": 432
+    }
+  },
+  "startup": {
+    "with_10k_doc": {
+      "runs": 4,
+      "note": "10062 words restored from local storage and fully rendered before the first frame",
+      "chars_rendered": 53031,
+      "lines_rendered": 432,
+      "nav_to_first_contentful_paint": {
+        "n": 4,
+        "min": 96,
+        "p50": 100,
+        "p90": 116,
+        "p95": 116,
+        "p99": 116,
+        "max": 116,
+        "mean": 105,
+        "sd": 7.68
+      },
+      "nav_to_editor_ready": {
+        "n": 4,
+        "min": 69.3,
+        "p50": 71.7,
+        "p90": 86.9,
+        "p95": 86.9,
+        "p99": 86.9,
+        "max": 86.9,
+        "mean": 75.7,
+        "sd": 6.76
+      },
+      "nav_to_largest_contentful_paint": {
+        "n": 4,
+        "min": 96,
+        "p50": 100,
+        "p90": 116,
+        "p95": 116,
+        "p99": 116,
+        "max": 116,
+        "mean": 105,
+        "sd": 7.68
+      },
+      "nav_to_dom_content_loaded": {
+        "n": 4,
+        "min": 90.8,
+        "p50": 93.2,
+        "p90": 110.8,
+        "p95": 110.8,
+        "p99": 110.8,
+        "max": 110.8,
+        "mean": 97.63,
+        "sd": 7.8
+      }
+    },
+    "empty_document": {
+      "runs": 4,
+      "note": "empty editor",
+      "chars_rendered": 0,
+      "lines_rendered": 1,
+      "nav_to_first_contentful_paint": {
+        "n": 4,
+        "min": 48,
+        "p50": 48,
+        "p90": 56,
+        "p95": 56,
+        "p99": 56,
+        "max": 56,
+        "mean": 51,
+        "sd": 3.32
+      },
+      "nav_to_editor_ready": {
+        "n": 4,
+        "min": 34.7,
+        "p50": 40.5,
+        "p90": 40.8,
+        "p95": 40.8,
+        "p99": 40.8,
+        "max": 40.8,
+        "mean": 39.18,
+        "sd": 2.59
+      },
+      "nav_to_largest_contentful_paint": {
+        "n": 4,
+        "min": 52,
+        "p50": 56,
+        "p90": 68,
+        "p95": 68,
+        "p99": 68,
+        "max": 68,
+        "mean": 60,
+        "sd": 6.32
+      },
+      "nav_to_dom_content_loaded": {
+        "n": 4,
+        "min": 37.4,
+        "p50": 42.7,
+        "p90": 43.3,
+        "p95": 43.3,
+        "p99": 43.3,
+        "max": 43.3,
+        "mean": 41.53,
+        "sd": 2.39
+      }
+    }
+  },
+  "typing": [
+    {
+      "regime": "paced",
+      "where": "end",
+      "focus": "off",
+      "pace_ms": 90,
+      "wall_ms": 23530,
+      "document_in_editor": {
+        "chars": 53031,
+        "lines": 432
+      },
+      "warmup_keys": 25,
+      "keys_pressed": 250,
+      "every_keystroke_accounted_for": true,
+      "keys_seen_by_page": 250,
+      "keys_seen_in_trace": 250,
+      "keys_unresolved_in_page_probe": 0,
+      "keys_missing_commit_time": 0,
+      "keys_missing_present_time": 0,
+      "keys_sharing_a_frame": 0,
+      "frames": {
+        "STATE_NO_UPDATE_DESIRED": 488,
+        "STATE_DROPPED_affecting_smoothness": 262,
+        "STATE_PRESENTED_ALL": 278,
+        "STATE_DROPPED": 26
+      },
+      "presented_within_one_60hz_frame_pct": 99.6,
+      "presented_within_two_60hz_frames_pct": 100,
+      "ms": {
+        "to_present": {
+          "n": 250,
+          "min": 3.01,
+          "p50": 3.58,
+          "p90": 4.27,
+          "p95": 4.74,
+          "p99": 9.01,
+          "max": 18.95,
+          "mean": 3.78,
+          "sd": 1.2
+        },
+        "to_commit": {
+          "n": 250,
+          "min": 2.38,
+          "p50": 2.67,
+          "p90": 2.93,
+          "p95": 3.83,
+          "p99": 6.86,
+          "max": 16.82,
+          "mean": 2.83,
+          "sd": 1.01
+        },
+        "input_delay": {
+          "n": 250,
+          "min": 0.09,
+          "p50": 0.16,
+          "p90": 0.21,
+          "p95": 0.23,
+          "p99": 0.28,
+          "max": 4.42,
+          "mean": 0.18,
+          "sd": 0.27
+        },
+        "js_per_key": {
+          "n": 250,
+          "min": 2.23,
+          "p50": 2.5,
+          "p90": 2.73,
+          "p95": 3.36,
+          "p99": 3.8,
+          "max": 4.26,
+          "mean": 2.57,
+          "sd": 0.3
+        },
+        "inpage_keydown_to_frame_task": {
+          "n": 250,
+          "min": 2.9,
+          "p50": 9.7,
+          "p90": 16.1,
+          "p95": 16.8,
+          "p99": 17.8,
+          "max": 18,
+          "mean": 9.78,
+          "sd": 4.65
+        },
+        "inpage_keydown_to_raf": {
+          "n": 250,
+          "min": -14.95,
+          "p50": -6.76,
+          "p90": -0.46,
+          "p95": 0.8,
+          "p99": 2.13,
+          "max": 15.84,
+          "mean": -6.64,
+          "sd": 5.03
+        },
+        "browser_event_timing_ge16ms_only": {
+          "n": 1,
+          "min": 16,
+          "p50": 16,
+          "p90": 16,
+          "p95": 16,
+          "p99": 16,
+          "max": 16,
+          "mean": 16,
+          "sd": 0
+        }
+      },
+      "main_thread": {
+        "busy_ms_per_key": 4.84,
+        "busy_percent_of_wall": 5.14,
+        "chrome_text_insertion_us_per_key": 1557,
+        "quill_input_handler_us_per_key": 828,
+        "style_layout_paint_us_per_key": 2000,
+        "top": [
+          {
+            "what": "FunctionCall",
+            "us_per_key": 2224
+          },
+          {
+            "what": "WidgetBaseInputHandler::OnHandleInputEvent",
+            "us_per_key": 1797
+          },
+          {
+            "what": "LatencyInfo.Flow",
+            "us_per_key": 1797
+          },
+          {
+            "what": "ProxyMain::BeginMainFrame",
+            "us_per_key": 1682
+          },
+          {
+            "what": "EventDispatch:keypress",
+            "us_per_key": 1567
+          },
+          {
+            "what": "EventDispatch:textInput",
+            "us_per_key": 1557
+          },
+          {
+            "what": "FireIdleCallback",
+            "us_per_key": 1074
+          },
+          {
+            "what": "EventDispatch:input",
+            "us_per_key": 828
+          },
+          {
+            "what": "LocalFrameView::layout",
+            "us_per_key": 731
+          },
+          {
+            "what": "Layout",
+            "us_per_key": 724
+          },
+          {
+            "what": "LocalFrameView::performLayout",
+            "us_per_key": 571
+          },
+          {
+            "what": "Paint",
+            "us_per_key": 570
+          }
+        ]
+      }
+    }
+  ]
+}

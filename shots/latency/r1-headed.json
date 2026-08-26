@@ -1,0 +1,701 @@
+{
+  "cold_start": {
+    "note": "bin/quill: shell exec of the launcher -> the named milestone, wall clock. Includes chromium process spawn, profile init, window creation, navigation and the full render of the document.",
+    "launcher_to_first_contentful_paint_ms": 510.7,
+    "launcher_to_editor_ready_ms": 299.9,
+    "launcher_to_navigation_start_ms": 154.7,
+    "navigation_to_first_contentful_paint_ms": 356,
+    "navigation_to_editor_ready_ms": 145.2,
+    "navigation_to_dom_content_loaded_ms": 149.1,
+    "profile": "/home/diggle/.cache/quill/browser",
+    "document_in_editor": {
+      "chars": 53031,
+      "lines": 432,
+      "words": 10062
+    }
+  },
+  "env": {
+    "at": "2026-08-26T23:16:24.502Z",
+    "chromium": "151.0.7922.173",
+    "headless": false,
+    "node": "v26.7.0",
+    "os": "Linux 7.1.9-arch1-2",
+    "cpu": "13th Gen Intel(R) Core(TM) i5-13600K (20 threads)",
+    "load1": 1.6,
+    "mem_gb": 31,
+    "display": {
+      "server": "wayland/hyprland",
+      "model": "Dell Inc. DELL U2720Q G49JV13",
+      "mode": "3840x2160",
+      "refresh_hz": 60,
+      "scale": 1.5,
+      "vrr": false
+    },
+    "viewport": "1440x900",
+    "document": {
+      "path": "shots/latency/doc10k.md",
+      "words": 10062,
+      "chars": 53031,
+      "lines": 432
+    }
+  },
+  "startup": {},
+  "typing": [
+    {
+      "regime": "paced_end_of_draft",
+      "where": "end",
+      "focus": "off",
+      "pace_ms": 90,
+      "wall_ms": 18729,
+      "document_in_editor": {
+        "chars": 53031,
+        "lines": 432
+      },
+      "keys_pressed": 200,
+      "keys_seen_by_page": 204,
+      "keys_seen_in_trace": 204,
+      "keys_unresolved_in_page_probe": 0,
+      "keys_missing_commit_time": 0,
+      "keys_missing_present_time": 0,
+      "keys_sharing_a_frame": 2,
+      "frames": {
+        "STATE_DROPPED": 83,
+        "STATE_NO_UPDATE_DESIRED": 277,
+        "STATE_PRESENTED_ALL": 1109,
+        "STATE_DROPPED_affecting_smoothness": 257,
+        "STATE_PRESENTED_PARTIAL_affecting_smoothness": 67,
+        "STATE_PRESENTED_PARTIAL": 154
+      },
+      "presented_within_one_60hz_frame_pct": 46.57,
+      "presented_within_two_60hz_frames_pct": 81.37,
+      "ms": {
+        "to_present": {
+          "n": 204,
+          "min": 3.06,
+          "p50": 18.07,
+          "p90": 38.46,
+          "p95": 43.05,
+          "p99": 48.51,
+          "max": 49.74,
+          "mean": 19.9,
+          "sd": 12.25
+        },
+        "to_commit": {
+          "n": 204,
+          "min": 0.18,
+          "p50": 8.84,
+          "p90": 15.9,
+          "p95": 17.15,
+          "p99": 17.67,
+          "max": 18.68,
+          "mean": 8.87,
+          "sd": 4.83
+        },
+        "input_delay": {
+          "n": 204,
+          "min": 0.08,
+          "p50": 0.13,
+          "p90": 0.19,
+          "p95": 0.22,
+          "p99": 0.3,
+          "max": 0.46,
+          "mean": 0.14,
+          "sd": 0.05
+        },
+        "js_per_key": {
+          "n": 204,
+          "min": 0.05,
+          "p50": 2.37,
+          "p90": 3.53,
+          "p95": 3.83,
+          "p99": 4.31,
+          "max": 4.57,
+          "mean": 2.56,
+          "sd": 0.63
+        },
+        "inpage_keydown_to_frame_task": {
+          "n": 204,
+          "min": 1.5,
+          "p50": 11.6,
+          "p90": 18.6,
+          "p95": 19.1,
+          "p99": 20.5,
+          "max": 21.2,
+          "mean": 12.09,
+          "sd": 4.9
+        },
+        "inpage_keydown_to_raf": {
+          "n": 204,
+          "min": -9.2,
+          "p50": 7.8,
+          "p90": 15.19,
+          "p95": 16,
+          "p99": 16.5,
+          "max": 16.9,
+          "mean": 7.56,
+          "sd": 5.37
+        },
+        "browser_event_timing_ge16ms_only": {
+          "n": 137,
+          "min": 16,
+          "p50": 24,
+          "p90": 40,
+          "p95": 48,
+          "p99": 48,
+          "max": 48,
+          "mean": 25.87,
+          "sd": 10.06
+        }
+      },
+      "main_thread": {
+        "busy_ms_per_key": 6.08,
+        "busy_percent_of_wall": 6.62,
+        "chrome_text_insertion_us_per_key": 1572,
+        "quill_input_handler_us_per_key": 875,
+        "style_layout_paint_us_per_key": 2588,
+        "top": [
+          {
+            "what": "ProxyMain::BeginMainFrame",
+            "us_per_key": 2969
+          },
+          {
+            "what": "FunctionCall",
+            "us_per_key": 2177
+          },
+          {
+            "what": "LatencyInfo.Flow",
+            "us_per_key": 1749
+          },
+          {
+            "what": "WidgetBaseInputHandler::OnHandleInputEvent",
+            "us_per_key": 1747
+          },
+          {
+            "what": "EventDispatch:keypress",
+            "us_per_key": 1584
+          },
+          {
+            "what": "EventDispatch:textInput",
+            "us_per_key": 1572
+          },
+          {
+            "what": "FireIdleCallback",
+            "us_per_key": 1121
+          },
+          {
+            "what": "EventDispatch:input",
+            "us_per_key": 875
+          },
+          {
+            "what": "LocalFrameView::RunPaintLifecyclePhase",
+            "us_per_key": 847
+          },
+          {
+            "what": "UpdateLayoutTree",
+            "us_per_key": 702
+          },
+          {
+            "what": "LocalFrameView::layout",
+            "us_per_key": 694
+          },
+          {
+            "what": "Layout",
+            "us_per_key": 689
+          }
+        ]
+      }
+    },
+    {
+      "regime": "paced_middle_of_draft",
+      "where": "middle",
+      "focus": "off",
+      "pace_ms": 90,
+      "wall_ms": 18718,
+      "document_in_editor": {
+        "chars": 53231,
+        "lines": 432
+      },
+      "keys_pressed": 200,
+      "keys_seen_by_page": 200,
+      "keys_seen_in_trace": 200,
+      "keys_unresolved_in_page_probe": 0,
+      "keys_missing_commit_time": 0,
+      "keys_missing_present_time": 0,
+      "keys_sharing_a_frame": -200,
+      "frames": {
+        "STATE_NO_UPDATE_DESIRED": 285,
+        "STATE_DROPPED_affecting_smoothness": 332,
+        "STATE_PRESENTED_ALL": 1064,
+        "STATE_PRESENTED_PARTIAL_affecting_smoothness": 88,
+        "STATE_PRESENTED_PARTIAL": 196,
+        "STATE_DROPPED": 99
+      },
+      "presented_within_one_60hz_frame_pct": 61.5,
+      "presented_within_two_60hz_frames_pct": 99.5,
+      "ms": {
+        "to_present": {
+          "n": 200,
+          "min": 3.51,
+          "p50": 13.83,
+          "p90": 24.74,
+          "p95": 26.21,
+          "p99": 29.13,
+          "max": 33.67,
+          "mean": 13.98,
+          "sd": 7.19
+        },
+        "to_commit": {
+          "n": 200,
+          "min": 0.16,
+          "p50": 8.8,
+          "p90": 16.3,
+          "p95": 17.03,
+          "p99": 17.57,
+          "max": 18.54,
+          "mean": 8.92,
+          "sd": 4.87
+        },
+        "input_delay": {
+          "n": 200,
+          "min": 0.08,
+          "p50": 0.13,
+          "p90": 0.21,
+          "p95": 0.24,
+          "p99": 0.29,
+          "max": 0.3,
+          "mean": 0.14,
+          "sd": 0.04
+        },
+        "js_per_key": {
+          "n": 200,
+          "min": 2.27,
+          "p50": 2.42,
+          "p90": 2.78,
+          "p95": 3.15,
+          "p99": 3.71,
+          "max": 4.24,
+          "mean": 2.53,
+          "sd": 0.32
+        },
+        "inpage_keydown_to_frame_task": {
+          "n": 200,
+          "min": 3.2,
+          "p50": 11.8,
+          "p90": 18.4,
+          "p95": 19.4,
+          "p99": 20.3,
+          "max": 21.3,
+          "mean": 12.29,
+          "sd": 4.79
+        },
+        "inpage_keydown_to_raf": {
+          "n": 200,
+          "min": -10.5,
+          "p50": 7.6,
+          "p90": 15.17,
+          "p95": 15.9,
+          "p99": 16.4,
+          "max": 17.1,
+          "mean": 7.41,
+          "sd": 5.66
+        },
+        "browser_event_timing_ge16ms_only": {
+          "n": 230,
+          "min": 16,
+          "p50": 16,
+          "p90": 24,
+          "p95": 24,
+          "p99": 32,
+          "max": 32,
+          "mean": 18.64,
+          "sd": 4.31
+        }
+      },
+      "main_thread": {
+        "busy_ms_per_key": 6.01,
+        "busy_percent_of_wall": 6.42,
+        "chrome_text_insertion_us_per_key": 1565,
+        "quill_input_handler_us_per_key": 858,
+        "style_layout_paint_us_per_key": 2727,
+        "top": [
+          {
+            "what": "ProxyMain::BeginMainFrame",
+            "us_per_key": 2931
+          },
+          {
+            "what": "FunctionCall",
+            "us_per_key": 2106
+          },
+          {
+            "what": "LatencyInfo.Flow",
+            "us_per_key": 1723
+          },
+          {
+            "what": "WidgetBaseInputHandler::OnHandleInputEvent",
+            "us_per_key": 1721
+          },
+          {
+            "what": "EventDispatch:keypress",
+            "us_per_key": 1575
+          },
+          {
+            "what": "EventDispatch:textInput",
+            "us_per_key": 1565
+          },
+          {
+            "what": "FireIdleCallback",
+            "us_per_key": 1088
+          },
+          {
+            "what": "LocalFrameView::RunPaintLifecyclePhase",
+            "us_per_key": 893
+          },
+          {
+            "what": "EventDispatch:input",
+            "us_per_key": 858
+          },
+          {
+            "what": "Paint",
+            "us_per_key": 758
+          },
+          {
+            "what": "LocalFrameView::layout",
+            "us_per_key": 743
+          },
+          {
+            "what": "Layout",
+            "us_per_key": 738
+          }
+        ]
+      }
+    },
+    {
+      "regime": "paced_focus_mode",
+      "where": "middle",
+      "focus": "sentence",
+      "pace_ms": 90,
+      "wall_ms": 18850,
+      "document_in_editor": {
+        "chars": 53431,
+        "lines": 432
+      },
+      "keys_pressed": 200,
+      "keys_seen_by_page": 200,
+      "keys_seen_in_trace": 200,
+      "keys_unresolved_in_page_probe": 0,
+      "keys_missing_commit_time": 0,
+      "keys_missing_present_time": 0,
+      "keys_sharing_a_frame": -400,
+      "frames": {
+        "STATE_PRESENTED_ALL": 1056,
+        "STATE_PRESENTED_PARTIAL": 178,
+        "STATE_DROPPED_affecting_smoothness": 384,
+        "STATE_NO_UPDATE_DESIRED": 309,
+        "STATE_PRESENTED_PARTIAL_affecting_smoothness": 85,
+        "STATE_DROPPED": 106
+      },
+      "presented_within_one_60hz_frame_pct": 59,
+      "presented_within_two_60hz_frames_pct": 99,
+      "ms": {
+        "to_present": {
+          "n": 200,
+          "min": 3.97,
+          "p50": 13.82,
+          "p90": 24.54,
+          "p95": 25.51,
+          "p99": 32.01,
+          "max": 33.45,
+          "mean": 14.41,
+          "sd": 6.83
+        },
+        "to_commit": {
+          "n": 200,
+          "min": 0.14,
+          "p50": 9.28,
+          "p90": 16.72,
+          "p95": 17.43,
+          "p99": 18.62,
+          "max": 19.3,
+          "mean": 9.9,
+          "sd": 4.77
+        },
+        "input_delay": {
+          "n": 200,
+          "min": 0.09,
+          "p50": 0.13,
+          "p90": 0.2,
+          "p95": 0.22,
+          "p99": 0.27,
+          "max": 0.31,
+          "mean": 0.14,
+          "sd": 0.04
+        },
+        "js_per_key": {
+          "n": 200,
+          "min": 3.21,
+          "p50": 3.53,
+          "p90": 5.07,
+          "p95": 5.26,
+          "p99": 5.64,
+          "max": 7,
+          "mean": 3.79,
+          "sd": 0.66
+        },
+        "inpage_keydown_to_frame_task": {
+          "n": 200,
+          "min": 3.9,
+          "p50": 12.1,
+          "p90": 19.2,
+          "p95": 20.2,
+          "p99": 21.4,
+          "max": 22.8,
+          "mean": 12.76,
+          "sd": 4.87
+        },
+        "inpage_keydown_to_raf": {
+          "n": 200,
+          "min": -10.3,
+          "p50": 8,
+          "p90": 15.4,
+          "p95": 16.1,
+          "p99": 17.1,
+          "max": 17.9,
+          "mean": 8.17,
+          "sd": 5.43
+        },
+        "browser_event_timing_ge16ms_only": {
+          "n": 357,
+          "min": 16,
+          "p50": 16,
+          "p90": 24,
+          "p95": 24,
+          "p99": 32,
+          "max": 32,
+          "mean": 18.96,
+          "sd": 4.5
+        }
+      },
+      "main_thread": {
+        "busy_ms_per_key": 6.96,
+        "busy_percent_of_wall": 7.39,
+        "chrome_text_insertion_us_per_key": 2230,
+        "quill_input_handler_us_per_key": 1446,
+        "style_layout_paint_us_per_key": 3373,
+        "top": [
+          {
+            "what": "ProxyMain::BeginMainFrame",
+            "us_per_key": 3166
+          },
+          {
+            "what": "FunctionCall",
+            "us_per_key": 2721
+          },
+          {
+            "what": "LatencyInfo.Flow",
+            "us_per_key": 2402
+          },
+          {
+            "what": "WidgetBaseInputHandler::OnHandleInputEvent",
+            "us_per_key": 2399
+          },
+          {
+            "what": "EventDispatch:keypress",
+            "us_per_key": 2240
+          },
+          {
+            "what": "EventDispatch:textInput",
+            "us_per_key": 2230
+          },
+          {
+            "what": "EventDispatch:input",
+            "us_per_key": 1446
+          },
+          {
+            "what": "FireIdleCallback",
+            "us_per_key": 1095
+          },
+          {
+            "what": "LocalFrameView::layout",
+            "us_per_key": 1092
+          },
+          {
+            "what": "Layout",
+            "us_per_key": 1085
+          },
+          {
+            "what": "LocalFrameView::RunPaintLifecyclePhase",
+            "us_per_key": 974
+          },
+          {
+            "what": "LocalFrameView::performLayout",
+            "us_per_key": 917
+          }
+        ]
+      }
+    },
+    {
+      "regime": "burst_no_pause",
+      "where": "end",
+      "focus": "off",
+      "pace_ms": 0,
+      "wall_ms": 443,
+      "document_in_editor": {
+        "chars": 53631,
+        "lines": 432
+      },
+      "keys_pressed": 200,
+      "keys_seen_by_page": 200,
+      "keys_seen_in_trace": 200,
+      "keys_unresolved_in_page_probe": 0,
+      "keys_missing_commit_time": 0,
+      "keys_missing_present_time": 0,
+      "keys_sharing_a_frame": 96,
+      "frames": {
+        "STATE_PRESENTED_ALL": 29,
+        "STATE_DROPPED_affecting_smoothness": 14,
+        "STATE_PRESENTED_PARTIAL_affecting_smoothness": 1,
+        "STATE_PRESENTED_PARTIAL": 25,
+        "STATE_DROPPED": 1,
+        "STATE_NO_UPDATE_DESIRED": 11
+      },
+      "presented_within_one_60hz_frame_pct": 4,
+      "presented_within_two_60hz_frames_pct": 93.5,
+      "ms": {
+        "to_present": {
+          "n": 200,
+          "min": 3.71,
+          "p50": 25.63,
+          "p90": 32.35,
+          "p95": 33.5,
+          "p99": 35.27,
+          "max": 35.33,
+          "mean": 25.41,
+          "sd": 5.83
+        },
+        "to_commit": {
+          "n": 200,
+          "min": 2.1,
+          "p50": 9.6,
+          "p90": 16,
+          "p95": 17.29,
+          "p99": 19.61,
+          "max": 21.44,
+          "mean": 9.79,
+          "sd": 4.78
+        },
+        "input_delay": {
+          "n": 200,
+          "min": 0.03,
+          "p50": 0.07,
+          "p90": 0.12,
+          "p95": 0.18,
+          "p99": 1.59,
+          "max": 1.75,
+          "mean": 0.11,
+          "sd": 0.22
+        },
+        "js_per_key": {
+          "n": 200,
+          "min": 1.5,
+          "p50": 1.78,
+          "p90": 3.02,
+          "p95": 3.45,
+          "p99": 4.42,
+          "max": 7.94,
+          "mean": 2.12,
+          "sd": 0.77
+        },
+        "inpage_keydown_to_frame_task": {
+          "n": 200,
+          "min": 5.5,
+          "p50": 239.2,
+          "p90": 383.6,
+          "p95": 400.2,
+          "p99": 411.7,
+          "max": 415,
+          "mean": 229.48,
+          "sd": 122.9
+        },
+        "inpage_keydown_to_raf": {
+          "n": 200,
+          "min": -0.03,
+          "p50": 7.57,
+          "p90": 14.37,
+          "p95": 15.3,
+          "p99": 17.5,
+          "max": 17.7,
+          "mean": 7.83,
+          "sd": 4.72
+        },
+        "browser_event_timing_ge16ms_only": {
+          "n": 776,
+          "min": 16,
+          "p50": 24,
+          "p90": 32,
+          "p95": 32,
+          "p99": 32,
+          "max": 32,
+          "mean": 25.9,
+          "sd": 5.36
+        }
+      },
+      "main_thread": {
+        "busy_ms_per_key": 1.64,
+        "busy_percent_of_wall": 73.94,
+        "chrome_text_insertion_us_per_key": 1299,
+        "quill_input_handler_us_per_key": 740,
+        "style_layout_paint_us_per_key": 793,
+        "top": [
+          {
+            "what": "LatencyInfo.Flow",
+            "us_per_key": 1419
+          },
+          {
+            "what": "WidgetBaseInputHandler::OnHandleInputEvent",
+            "us_per_key": 1416
+          },
+          {
+            "what": "EventDispatch:keypress",
+            "us_per_key": 1312
+          },
+          {
+            "what": "EventDispatch:textInput",
+            "us_per_key": 1299
+          },
+          {
+            "what": "FunctionCall",
+            "us_per_key": 810
+          },
+          {
+            "what": "EventDispatch:input",
+            "us_per_key": 740
+          },
+          {
+            "what": "LocalFrameView::layout",
+            "us_per_key": 473
+          },
+          {
+            "what": "Layout",
+            "us_per_key": 470
+          },
+          {
+            "what": "LocalFrameView::performLayout",
+            "us_per_key": 417
+          },
+          {
+            "what": "UpdateLayoutTree",
+            "us_per_key": 195
+          },
+          {
+            "what": "ProxyMain::BeginMainFrame",
+            "us_per_key": 186
+          },
+          {
+            "what": "Paint",
+            "us_per_key": 72
+          }
+        ]
+      }
+    }
+  ]
+}
