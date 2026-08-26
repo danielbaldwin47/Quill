@@ -23,7 +23,7 @@
   const DEFAULTS = {
     theme: 'auto',          // auto | light | dark
     font: 'duo',            // duo | quattro | mono
-    fontSize: 18,           // px
+    fontSize: 20,           // px — measured iA default (see app/css/type.css)
     focus: 'off',           // off | sentence | paragraph
     typewriter: false,
     typewriterLine: 0.5,    // 0..1 fraction of viewport height where the caret line rests

@@ -21,6 +21,7 @@
   --md-mark-quiet: color-mix(in srgb, var(--mark) 72%, var(--bg));
   --md-mark-faint: color-mix(in srgb, var(--mark) 45%, var(--bg));
   --md-hair: color-mix(in srgb, var(--mark) 34%, var(--bg));
+  --md-rule: color-mix(in srgb, var(--mark) 46%, var(--bg));
   --md-link: var(--link, var(--accent));
   --md-hl: color-mix(in srgb, #ffd400 30%, transparent);
 }
@@ -59,14 +60,14 @@
 #mirror .line.l-quote { position: relative; }
 #mirror .line.l-quote::before {
   content: ""; position: absolute;
-  left: -.95em; top: 0; bottom: 0; width: 2px;
-  background: var(--md-hair);
+  left: -.7em; top: 0; bottom: 0; width: 2px;
+  background: var(--md-rule);
 }
 #mirror .line.l-quote2::after,
 #mirror .line.l-quote3::after {
   content: ""; position: absolute;
-  left: -.55em; top: 0; bottom: 0; width: 2px;
-  background: var(--md-hair);
+  left: -.3em; top: 0; bottom: 0; width: 2px;
+  background: var(--md-rule);
 }
 #mirror .md-quote-mark { color: var(--md-mark-quiet); }
 #mirror .md-quote { color: var(--fg); }

@@ -134,3 +134,34 @@ Pair for the critic: shots/page/r1-ours.png vs shots/page/r1-theirs.png
 h=1764 — the editor area of the window, title bar excluded; ours rendered at
 1461x882 @2x, light, Duo, 20px, Focus: Sentence, chrome off, caret after
 "garden.", passage in shots/page/passage.md).
+
+## chrome
+
+Round 1. Files owned: `app/js/chrome.js`, `app/css/chrome.css`.
+
+Changes outside my files (minimal, backward compatible):
+
+* **`tools/shoot.mjs` — added `--scroll <px|"needle">`.** Reference captures are of
+  scrolled documents (the iA stats-bar shot is cut mid-line at the top); without a
+  scroll control no piece can reproduce that state. A number sets `scrollTop`; a
+  string scrolls the line containing it to the top of the viewport. Absent, nothing
+  changes. Used as `--scroll 120` for the chrome pair.
+
+Contracts I depend on / preserved for other pieces:
+
+* `#doc-title` is still a plain text element — `files.js` writes the document name
+  into its `textContent`. It now lives inside a `<button class="doc-title">` that
+  opens the Document menu, so writing text into `#doc-title` keeps working.
+* `files.js` inserts `#lib-toggle` as the first child of `#chrome-top .bar`.
+  chrome.css pins that first child at `left: 8px` (absolute) so the title stays
+  centred in the window whether the library button is there or not.
+* The stats scan stays off the keystroke path (the `requestIdleCallback` the
+  latency piece added is kept, plus a 500 ms "you stopped typing" catch-up).
+  Selection stats repaint at most once per frame.
+* New settings keys (free-form, persisted by core): `stats` (comma list of visible
+  stat ids) and `statsBar` (false hides the bottom bar). Neither is in core's
+  DEFAULTS; chrome.js reads them defensively.
+* `?open=view|document|stats|palette` opens that panel on load. It is how the
+  menu/palette states get screenshot without a `--click` flag in shoot.mjs.
+* Commands registered with `hidden: true` are kept out of the palette list
+  (`palette.open`, `chrome.view`, `chrome.doc`). Any piece may use the flag.

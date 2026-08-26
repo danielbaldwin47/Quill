@@ -1,5 +1,11 @@
+// Mirror/textarea metric check: every line of a document must lay out identically
+// with markup spans (the mirror) and as plain text (what the textarea does), in all
+// three faces. Any drift here means the caret, the selection or click-to-position
+// would disagree with what you see. Owner: markup piece.
+//   node tools/mirror-metrics.mjs [file.md ...]
 import { chromium } from 'playwright-core'; import fs from 'node:fs';
-const text = fs.readFileSync('shots/markup/kitchen.md','utf8') + '\n' + fs.readFileSync('shots/markup/writing.md','utf8');
+const files = process.argv.slice(2).length ? process.argv.slice(2) : ['shots/markup/kitchen.md','shots/markup/writing.md'];
+const text = files.map(f => fs.readFileSync(f,'utf8')).join('\n');
 const b = await chromium.launch({ executablePath:'/usr/bin/chromium', headless:true, args:['--font-render-hinting=none','--disable-lcd-text'] });
 for (const font of ['duo','quattro','mono']) {
   const ctx = await b.newContext({ viewport:{width:1200,height:900}, deviceScaleFactor:2 });
@@ -7,6 +13,8 @@ for (const font of ['duo','quattro','mono']) {
   await p.addInitScript((f)=>localStorage.setItem('quill.settings', JSON.stringify({theme:'light',font:f,fontSize:20,focus:'off',showChrome:false})), font);
   await p.goto('http://localhost:4173/'); await p.evaluate(async()=>{await document.fonts.ready;});
   await p.evaluate((t)=>Writer.setText(t,{caret:0}), text);
+  await p.evaluate(async()=>{ await document.fonts.load('italic 20px "'+getComputedStyle(document.getElementById('mirror')).fontFamily.split(',')[0].replace(/"/g,'')+'"'); await document.fonts.ready; });
+  await p.waitForTimeout(300);
   const res = await p.evaluate(() => {
     // a plain, span-free clone of each line, laid out in the same box
     const mirror = document.getElementById('mirror');
@@ -30,9 +38,14 @@ for (const font of ['duo','quattro','mono']) {
       if (a && c && (Math.abs(a.x-c.x) > 0.5 || Math.abs(a.y-c.y) > 0.5)) bad.push({i, why:'lastchar', a, b:c, text:lines[i].slice(0,40)});
     }
     probe.remove();
-    return {n:lines.length, bad};
+    const input = document.getElementById('input');
+    const prev = input.style.height; input.style.height = 'auto';
+    const inputH = input.scrollHeight; input.style.height = prev;
+    return {n:lines.length, bad, mirrorH: mirror.offsetHeight, inputH};
   });
-  console.log(font, 'lines', res.n, 'drift', res.bad.length, JSON.stringify(res.bad.slice(0,6)));
+  const dh = Math.abs(res.mirrorH - res.inputH);
+  console.log(font, 'lines', res.n, '| per-line drift', res.bad.length, JSON.stringify(res.bad.slice(0,4)),
+              '| mirror', res.mirrorH, 'textarea', res.inputH, dh > res.n * 0.5 + 2 ? 'MISMATCH' : 'ok (sub-pixel line rounding)');
   await ctx.close();
 }
 await b.close();
