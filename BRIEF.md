@@ -34,3 +34,10 @@ If you truly need a change in core.js or index.html, make it minimal, backward c
 - Match the iA reference's viewport for comparisons (same pixel size as the reference image; use --w/--h/--dpr to hit it). Render the same passage the reference shows (transcribed in REFERENCE.md) so the critic compares design, not content.
 - Everything must work in both themes and all three fonts. Never break typing latency: no per-keystroke full re-render, no layout thrash, no heavy DOM.
 - Keep the app instant: no network fonts (fonts are local woff2/ttf in app/fonts), no frameworks, no build step.
+
+## Fair comparison protocol
+Many ia.net / App Store images are marketing composites (headline + partial window). Before pairing:
+1. Crop the reference to just the app/editor region: `node tools/crop.mjs <ref> <out.png> x y w h [scale]`.
+2. Render ours at exactly the crop's pixel size (`--w` = crop width / dpr, `--h` = crop height / dpr, `--dpr 2` for Mac shots, 1 for Windows) showing the same passage, same theme, same mode, caret in the same place.
+3. Pair with `node tools/blind.mjs pair <piece> <ours.png> <crop.png>`.
+Prefer the clean full-window screenshots (ianet-mac-*-support.webp, msstore-win-*.png) over composites when they show your piece.
