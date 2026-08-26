@@ -16,7 +16,7 @@
 // presentation feedback of the frame that contained the update. An independent in-page probe
 // (keydown -> requestAnimationFrame -> MessageChannel task) is recorded alongside as a cross-check.
 import { chromium } from 'playwright-core';
-import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path';
+import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'; import crypto from 'node:crypto';
 import { execSync } from 'node:child_process';
 
 // ---------- args ----------
@@ -59,6 +59,20 @@ function displayInfo() {
     return { server: 'wayland/hyprland', model: f.description, mode: `${f.width}x${f.height}`, refresh_hz: r2(f.refreshRate), scale: f.scale, vrr: f.vrr };
   } catch (e) { return null; }
 }
+// Exactly which build of the app these numbers belong to.
+function appFingerprint() {
+  try {
+    const files = [];
+    const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const f = path.join(d, e.name); if (e.isDirectory()) { if (e.name !== 'fonts') walk(f); } else if (/\.(js|css|html)$/.test(e.name)) files.push(f); } };
+    walk('app');
+    files.sort();
+    const h = crypto.createHash('sha256');
+    for (const f of files) h.update(f + ':' + crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex') + '\n');
+    let git = null;
+    try { git = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch (e) {}
+    return { files: files.length, sha256: h.digest('hex').slice(0, 16), git_head: git };
+  } catch (e) { return null; }
+}
 function env(browser, headless) {
   const c = os.cpus();
   return {
@@ -72,6 +86,7 @@ function env(browser, headless) {
     mem_gb: Math.round(os.totalmem() / 2 ** 30),
     display: headless ? null : displayInfo(),
     viewport: `${VIEW.width}x${VIEW.height}`,
+    app: appFingerprint(),
     document: { path: DOC, words: words(doc), chars: doc.length, lines: doc.split('\n').length },
   };
 }

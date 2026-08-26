@@ -1,0 +1,76 @@
+{
+ "quill.lib": {
+  "open": true,
+  "loc": "device",
+  "sort": "mtime",
+  "width": 368,
+  "openId": "d1",
+  "collapsed": {},
+  "dirName": "",
+  "device": [
+   {
+    "id": "d1",
+    "name": "0 Alice in Wonderland.txt",
+    "folder": "Alice in Wonderland",
+    "mtime": 1787785651146,
+    "text": "1.1 Down the rabbit hole.txt\n\n1.2 The white rabbit.txt\n\n1.3 Down down down.txt\n\n2.1 Pool of tears.txt\n\n2.2 Little mouse.txt\n\n3.1 Caucus-Race.txt\n"
+   },
+   {
+    "id": "d2",
+    "name": "Alice — working notes.txt",
+    "folder": "Alice in Wonderland",
+    "mtime": 1787699311146,
+    "text": "Twelve chapters, three of them still only an outline. Keep the chapter files small enough that a whole one fits on a screen: it is the only way to hear the rhythm of a scene while you are still inside it.\n\nThe rabbit is the engine of the first act. Do not explain him."
+   },
+   {
+    "id": "d3",
+    "name": "95% Web Design is Typography.txt",
+    "folder": null,
+    "mtime": 1787612911146,
+    "text": "95% of the information on the web is written language. It is only logical to say that a web designer should get good training in the main discipline of shaping written information, in other words: Typography."
+   },
+   {
+    "id": "d4",
+    "name": "1.1 Down the rabbit hole.txt",
+    "folder": "1 - Down the Rabbit Hole",
+    "mtime": 1787353711146,
+    "text": "# Down the Rabbit-Hole\n\nAlice, growing increasingly weary of sitting beside her sister on the bank, and of having nothing to do, peeped into the book her sister was reading: but it had no pictures or conversations in it."
+   },
+   {
+    "id": "d5",
+    "name": "1.2 The white rabbit.txt",
+    "folder": "1 - Down the Rabbit Hole",
+    "mtime": 1787008111146,
+    "text": "Alice was not a bit hurt, and she jumped up on to her feet in a moment: she looked up, but it was all dark overhead; before her was another long passage, and the White Rabbit was still in sight, hurrying down it."
+   },
+   {
+    "id": "d6",
+    "name": "1.3 Down down down.txt",
+    "folder": "1 - Down the Rabbit Hole",
+    "mtime": 1785798511146,
+    "text": "And so it was indeed: she was now only ten inches high, and her face brightened up at the thought that she was now the right size for going through the little door into that lovely garden."
+   },
+   {
+    "id": "d7",
+    "name": "2.1 Pool of tears.txt",
+    "folder": "2 - The Pool of Tears",
+    "mtime": 1784329711146,
+    "text": "\"Curiouser and curiouser!\" cried Alice (she was so much surprised, that for the moment she quite forgot how to speak good English)."
+   },
+   {
+    "id": "d8",
+    "name": "2.2 Little mouse.txt",
+    "folder": "2 - The Pool of Tears",
+    "mtime": 1783293001311,
+    "text": "So she called softly after it, \"Mouse dear! Do come back again, and we won't talk about cats or dogs either, if you don't like them!\""
+   },
+   {
+    "id": "d9",
+    "name": "3.1 Caucus-Race.txt",
+    "folder": "3 - A Caucus-Race",
+    "mtime": 1782515401311,
+    "text": "They were indeed a queer-looking party that assembled on the bank — the birds with draggled feathers, the animals with their fur clinging close to them, and all dripping wet, cross, and uncomfortable."
+   }
+  ]
+ }
+}

@@ -190,12 +190,13 @@
   background: var(--lib-hover); border: 1px solid var(--lib-line); border-radius: 6px;
   padding: 5px 11px;
 }
-#library .lib-cta:hover { border-color: var(--accent); color: var(--accent); }
+#library .lib-cta:hover { border-color: var(--accent); color: var(--link, var(--accent)); }
 #library .lib-link {
-  font: inherit; font-size: inherit; color: var(--accent); background: none;
+  font: inherit; font-size: inherit; color: var(--link, var(--accent)); background: none;
   border: 0; padding: 0; cursor: pointer; text-decoration: underline;
-  text-underline-offset: 2px; text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  text-underline-offset: 2px; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
 }
+#library .lib-link:hover { text-decoration-color: currentColor; }
 
 /* ----------------------------------------------------------------- foot */
 .lib-foot {
@@ -251,8 +252,13 @@
 .lib-menu button kbd { font: inherit; font-size: 12px; color: var(--lib-2); }
 .lib-menu button:hover { background: var(--accent); color: #fff; }
 .lib-menu button:hover kbd { color: rgba(255, 255, 255, .8); }
-.lib-menu button.on::after { content: "✓"; color: var(--accent); font-size: 12px; }
-.lib-menu button.on:hover::after { color: #fff; }
+/* Drawn, not typed: a ✓ glyph is not in every face this list may fall back to. */
+.lib-menu button.on::after {
+  content: ""; width: 5px; height: 9px; flex: none; margin-right: 3px;
+  border: solid var(--accent); border-width: 0 1.6px 1.6px 0;
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+.lib-menu button.on:hover::after { border-color: #fff; }
 .lib-menu button[data-danger]:hover { background: #d64545; }
 .lib-menu hr { border: 0; border-top: 1px solid var(--lib-line); margin: 5px 7px; }
 

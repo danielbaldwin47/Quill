@@ -43,6 +43,7 @@
   const pool = [];           // .sel fill rectangles
   const M = { em: 16, pitch: 26, base: 20, w: 2.5, dpr: 1 };
   let idleTimer = 0, prev = null, prevAt = 0, hasSel = false, scrollRaf = 0;
+  let baseX = 0, baseY = 0, settleTimer = 0, moving = false;
 
   // ---------------------------------------------------------------- metrics
   // Snapping has to happen in *viewport* coordinates: #page's own left edge is
@@ -56,9 +57,11 @@
     M.em = parseFloat(cs.fontSize) || 16;
     M.pitch = parseFloat(cs.lineHeight) || M.em * 1.6;
     M.dpr = window.devicePixelRatio || 1;
-    // Snap the stem to whole device pixels: a caret with a 40 %-covered edge
-    // column reads as a smudge, and this mark is on screen more than any other.
-    M.w = Math.max(1, Math.round(M.em * WIDTH * M.dpr)) / M.dpr;
+    // Whole CSS pixels. Chrome pixel-snaps a painted box's left and right edge
+    // in layout units, so a 4.5px stem is rasterised 5px wide however hard you
+    // snap it; asking for the integer keeps the stem the width we chose and
+    // both its edges hard, at any zoom or device ratio.
+    M.w = Math.max(2, Math.round(M.em * WIDTH));
     // Baseline position inside a line box, measured rather than derived: the
     // three families round their ascent differently and a wrong guess shows.
     const pr = probe.getBoundingClientRect();
@@ -74,6 +77,29 @@
   }
 
   // ------------------------------------------------------------------ caret
+  // Rest on left/top, travel on transform. A transformed box is rasterised in
+  // its layer's own space, and #page's left edge is not on a whole device pixel
+  // (centred column + reserved scrollbar gutter), so a caret parked on a
+  // transform picks up a grey column on each edge. left/top paints it exactly
+  // where we put it; the transform is only ever a delta that ends back at zero.
+  function setBase(x, y) {
+    if (baseX !== x) { caret.style.left = x + 'px'; baseX = x; }
+    if (baseY !== y) { caret.style.top = y + 'px'; baseY = y; }
+  }
+  function settle(x, y) {
+    caret.style.transitionDuration = '0s';
+    if (moving) { caret.style.transform = 'none'; moving = false; }
+    setBase(x, y);
+  }
+  function moveTo(x, y, dur) {
+    clearTimeout(settleTimer);
+    if (!dur) { settle(x, y); return; }
+    caret.style.transitionDuration = dur + 'ms';
+    caret.style.transform = 'translate(' + (x - baseX) + 'px,' + (y - baseY) + 'px)';
+    moving = true;
+    settleTimer = setTimeout(() => settle(x, y), dur + 24);
+  }
+
   function placeCaret(off) {
     const r = W.offsetRect(off, true);
     if (!r) return;
@@ -96,10 +122,9 @@
         dur = dy > 0.5 ? GLIDE_Y : GLIDE_X;
       }
     }
-    caret.style.transitionDuration = dur ? dur + 'ms' : '0s';
-    caret.style.transform = 'translate(' + x + 'px,' + y + 'px)';
     if (caret._h !== h) { caret.style.height = h + 'px'; caret._h = h; }
-    if (caret._w !== M.w) { caret.style.width = M.w.toFixed(2) + 'px'; caret._w = M.w; }
+    if (caret._w !== M.w) { caret.style.width = M.w + 'px'; caret._w = M.w; }
+    moveTo(x, y, dur);
     prev = { x, y }; prevAt = now;
   }
 
@@ -181,7 +206,7 @@
         const m = rows.get(k);
         const d = takeRect(n++);
         const x = snap(m.l) - pr.left, y = snap(lr.top + k * M.pitch + dy) - pr.top;
-        d.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+        d.style.left = x + 'px'; d.style.top = y + 'px';
         d.style.width = Math.max(0, snap(m.r) - snap(m.l)) + 'px';
         d.style.height = snap(M.pitch) + 'px';
         d.style.display = '';
@@ -202,7 +227,7 @@
     el.style.display = '';
     el.style.width = M.w.toFixed(2) + 'px';
     el.style.height = snap(M.pitch) + 'px';
-    el.style.transform = 'translate(' + (p.x + dx) + 'px,' + p.y + 'px)';
+    el.style.left = (p.x + dx) + 'px'; el.style.top = p.y + 'px';
   }
 
   function clearSelection() {

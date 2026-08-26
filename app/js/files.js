@@ -22,7 +22,7 @@
     device: [], files: [], openId: null, collapsed: {}, q: '',
     dirName: '', perm: 'prompt', dir: null, scanning: false,
   };
-  let els = {}, loading = false, saveT = 0, diskT = 0, listT = 0, tickT = 0;
+  let els = {}, shown = 0, loading = false, saveT = 0, diskT = 0, listT = 0, tickT = 0;
   let status = 'saved', lastSave = 0, undoDel = null, undoT = 0;
 
   // ---------- tiny helpers ----------
@@ -54,6 +54,9 @@
     return (text || '').replace(/^\s*#{1,6}\s+/gm, '').replace(/[*_`~]/g, '')
       .replace(/\s+/g, ' ').trim().slice(0, n || 180);
   }
+  // The same flattened, marker-free text the row shows — searched, so a hit is
+  // always something you can actually see in the excerpt.
+  function flatText(d) { if (d._ft !== d.text) { d._ft = d.text; d._flat = excerpt(d.text, 1e6); } return d._flat; }
   function fmtDate(t) {
     if (!t) return '';
     const d = new Date(t), now = new Date();
@@ -134,12 +137,11 @@
     if (q) {
       const hits = [];
       for (const d of all) {
-        const name = dispName(d).toLowerCase();
-        const ni = name.indexOf(q);
-        const text = d.text || '';
-        const ti = text.toLowerCase().indexOf(q);
+        const ni = dispName(d).toLowerCase().indexOf(q);
+        const flat = flatText(d);
+        const ti = flat.toLowerCase().indexOf(q);
         if (ni < 0 && ti < 0) continue;
-        hits.push({ type: 'file', doc: d, rank: ni >= 0 ? ni : 1000 + ti, snip: ti >= 0 ? snippet(text, ti, q.length) : null });
+        hits.push({ type: 'file', doc: d, rank: ni >= 0 ? ni : 1000 + ti, snip: ti >= 0 ? snippet(flat, ti, q.length) : null });
       }
       hits.sort((a, b) => a.rank - b.rank || cmp(a.doc, b.doc));
       return hits;
@@ -158,12 +160,10 @@
     return out;
   }
   function gkey(list) { let best = null; for (const d of list) { const k = sortKey(d); if (best === null || k < best) best = k; } return best; }
-  function snippet(text, i, len) {
-    const flat = text.replace(/\s+/g, ' ');
-    let j = 0, k = 0;   // map index in text -> index in flat
-    for (; j < i && k < flat.length; j++) { if (/\s/.test(text[j]) && /\s/.test(text[j + 1] || '')) continue; k++; }
-    const from = Math.max(0, k - 40);
-    return { text: flat.slice(from, from + 150), at: k - from, len };
+  function snippet(flat, i, len) {
+    let from = Math.max(0, i - 42);
+    if (from > 0) { const sp = flat.indexOf(' ', from); if (sp >= 0 && sp < i) from = sp + 1; }
+    return { pre: from > 0 ? '…' : '', text: flat.slice(from, from + 160), at: i - from, len };
   }
 
   // ---------- library DOM ----------
@@ -249,8 +249,12 @@
     els.aside.dataset.loc = state.loc;
     $('.nm', els.sortb).textContent = state.sort === 'name' ? 'Sort by Name' : state.sort === 'words' ? 'Sort by Length' : 'Sort by Date';
     const list = docs();
-    const tw = list.reduce((a, d) => a + wordsOf(d), 0);
-    els.count.textContent = list.length ? `${list.length} ${list.length === 1 ? 'document' : 'documents'} · ${nfmt(tw)} words` : '';
+    if (state.q.trim()) {
+      els.count.textContent = `${shown} of ${list.length} documents`;
+    } else {
+      const tw = list.reduce((a, d) => a + wordsOf(d), 0);
+      els.count.textContent = list.length ? `${list.length} ${list.length === 1 ? 'document' : 'documents'} · ${nfmt(tw)} words` : '';
+    }
     els.where.textContent = state.loc === 'folder' ? (state.perm === 'granted' ? 'On disk' : 'Reconnect') : 'In this browser';
     els.where.className = 'lib-where' + (state.loc === 'folder' && state.perm !== 'granted' ? ' warn' : '');
   }
@@ -262,7 +266,7 @@
     let ex;
     if (snip) {
       const a = esc(snip.text.slice(0, snip.at)), b = esc(snip.text.slice(snip.at, snip.at + snip.len)), c = esc(snip.text.slice(snip.at + snip.len));
-      ex = a + '<mark>' + b + '</mark>' + c;
+      ex = esc(snip.pre) + a + '<mark>' + b + '</mark>' + c;
     } else ex = esc(excerpt(d.text));
     return `<div class="lib-row file${sel ? ' sel' : ''}${indent ? ' in' : ''}" data-id="${esc(d.id)}" role="option" aria-selected="${sel}" tabindex="-1">`
       + `<span class="ic">${I.doc}</span><span class="nm" title="${esc(nm)}">${esc(nm)}</span><span class="dt">${esc(meta)}</span>`
@@ -271,6 +275,7 @@
 
   function renderList() {
     const es = entries();
+    shown = es.reduce((n, e) => n + (e.type === 'file' ? 1 : e.docs.length), 0);
     let html = '';
     for (const e of es) {
       if (e.type === 'file') html += rowHTML(e.doc, false, e.snip);
