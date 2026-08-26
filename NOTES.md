@@ -165,3 +165,81 @@ Contracts I depend on / preserved for other pieces:
   menu/palette states get screenshot without a `--click` flag in shoot.mjs.
 * Commands registered with `hidden: true` are kept out of the palette list
   (`palette.open`, `chrome.view`, `chrome.doc`). Any piece may use the flag.
+
+## files
+
+Round 1 built the Library (`app/js/files.js` + `app/css/files.css`). Things it
+touches outside its own two files — all additive, all guarded:
+
+* **`app/index.html` — untouched.** The Library injects itself: `files.js`
+  appends `<aside id="library">` to `#app` on boot, and `files.css` gives
+  `#app` a `padding-left: var(--lib-w)` only under `:root[data-library="open"]`.
+  The page keeps its own centring; it is simply handed a narrower window.
+  **The Library is closed by default**, so no other piece's screenshots change
+  unless they ask for it (`Writer.run('library.toggle')`, ⇧⌘L, or a seeded state).
+* **`#chrome-top` (chrome piece):** files.js adds one button, `#lib-toggle`, to
+  the top bar — into `.side.left` if that exists, otherwise as the bar's first
+  child positioned absolutely at the left so the centred title stays centred.
+  It stands down entirely if the bar already contains
+  `[data-cmd="library.toggle"]`, so chrome can take the button over at any time
+  and nothing needs to change here.
+* **`#doc-title` (chrome piece):** files.js writes the open document's name into
+  it (`querySelector('#doc-title .name, #doc-title, .doc-title .name')`), as
+  chrome.js's own comment expects.
+* **`#mirror .line` (core/markup):** a decorator marks any line whose whole text
+  is the name of another document in the Library with class `docref`, and
+  files.css gives it a background + `box-shadow` ring — **no padding, no font
+  change**, so glyph advances are untouched and mirror/textarea stay aligned.
+  ⌘/Ctrl-click (or ⌘⏎) on such a line opens that document. The full re-render
+  this needs runs only when the set of document names changes, never on the
+  keystroke path.
+* **`tools/shoot.mjs`:** added `--state seed.json`, which merges
+  `{localStorageKey: value}` into localStorage in the same init script that
+  already sets `quill.settings`. Needed to screenshot a populated Library;
+  useful to anyone who wants to shoot a stored state. Default behaviour is
+  unchanged when the flag is absent.
+* **Storage keys:** `quill.lib` (library state + the documents kept in this
+  browser) and `quill.doc` / `.sel` / `.id`, still written as a crash-safety
+  mirror of the open document so core's boot comment stays true. A directory
+  handle picked with the File System Access API lives in IndexedDB `quill/kv`.
+
+## markup
+
+**core.js — fence/front-matter state never reached the tokenizer (1-line fix).**
+`recomputeCtx(from)` bailed out as soon as two consecutive lines had an "unchanged"
+context, and on a *full* render `lineCtx` is empty, so every line looked unchanged and
+the walk stopped at line 1. Result: every line after the first two was tokenised with
+`ctx = null`, so a fenced code block's body was never seen as code. Added an optional
+`force` argument, passed only from the full-render branch:
+`function recomputeCtx(from, force)` · `if (!force && !changed && …)` ·
+`lineCtx = []; recomputeCtx(0, true);`. Incremental renders are untouched.
+
+**Why heading/quote markers do not hang in the margin (iA Writer hangs "# " 2 cells,
+"## " 3, "> " 2).** Hanging needs a per-line horizontal shift of the mirror line, and
+the textarea underneath cannot be shifted per line. Shifting only the mirror would
+leave the native selection paint and click-to-position 2–3 cells off on exactly the
+lines people click most (headings), which the BRIEF forbids ("never break glyph
+alignment between #input and #mirror"). markup buys the same calm text image with
+contrast instead of position: marks in a quiet grey, heading text bold at full ink,
+and a margin rule for block quotes / a full-width hairline for `---`, both drawn with
+absolutely positioned pseudo-elements that take no part in layout.
+
+**Mono is NOT metric-compatible with Duo/Quattro** (type.css's comment above the
+italic/bold note says it is). Duo and Quattro widen m/M/w/W to 1.5 cells; Mono keeps
+every glyph at 0.6 em, so a `font-family` swap for code spans would move every glyph
+after the first `m` on the line. markup.css therefore never changes family — code is
+distinguished by ground, not by alphabet. (Weight and italic *are* safe: measured
+ascent/descent/advances are identical across all four styles of each family.)
+
+**tools/mirror-metrics.mjs** (new): proves the rule. For every line of a document it
+lays the same text out twice — once with markup spans (the real mirror line), once as
+plain text — in all three faces, and reports any line whose height or last-glyph
+position differs. Run it after touching anything that styles the mirror:
+`node tools/mirror-metrics.mjs [file.md …]`. Currently 0 drift in duo/quattro/mono.
+(The mirror-vs-textarea total height differs by ~0.3 px per line in *all* documents,
+markup or not — sub-pixel rounding of the fractional line pitch, not a markup issue.)
+
+**core.js `DEFAULTS.fontSize: 18` overrides type.css's `--font-size: 20px`** for every
+fresh profile (`applySettings` always writes the inline custom property). Until the
+type/latency owners reconcile the two, comparison shots need an explicit `--size 20`
+or they render 10 % small. Nothing changed for this; flagging it.

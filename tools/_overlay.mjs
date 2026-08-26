@@ -1,6 +1,6 @@
 import { chromium } from 'playwright-core'; import fs from 'node:fs';
 const b = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true, args:['--font-render-hinting=none','--disable-lcd-text','--hide-scrollbars'] });
-const text = fs.readFileSync('shots/type/specimen.md','utf8') + '\n\n' + fs.readFileSync('shots/type/passage.md','utf8');
+const text = fs.readFileSync(process.argv[5]||'shots/type/specimen.md','utf8');
 const font=process.argv[2]||'duo', size=+(process.argv[3]||20), out=process.argv[4]||'/tmp/ov.png';
 const ctx = await b.newContext({ viewport:{width:1200,height:900}, deviceScaleFactor:2 });
 const p = await ctx.newPage();

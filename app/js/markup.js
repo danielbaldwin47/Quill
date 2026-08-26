@@ -240,9 +240,9 @@
     if (!W.selection) return;
     const li = W.offsetToPos(W.selection().start).line;
     const el = W.lineEl(li) || null;
-    if (el === activeEl && li === activeLine) return;
     if (activeEl && activeEl !== el) activeEl.classList.remove('md-here');
     activeEl = el; activeLine = li;
+    // idempotent: a line rebuilt by another plugin loses the class, so always re-add
     if (el) el.classList.add('md-here');
   }
   function schedule() { if (!queued) { queued = true; requestAnimationFrame(paintActive); } }
