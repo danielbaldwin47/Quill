@@ -64,13 +64,12 @@
   Writer.tokenizeLine = (text) => [{ text, cls: '' }];   // replaced by markup.js
   Writer.lineContext = (prevCtx, text) => prevCtx;        // replaced by markup.js (returns ctx for NEXT line)
 
-  function buildLine(i, text) {
-    const el = document.createElement('div');
-    el.className = 'line';
-    el.dataset.i = i;
-    fillLine(el, i, text);
-    return el;
-  }
+  // A line element carries no index attribute. Nothing reads one (checked across app/ and
+  // tools/), and keeping it truthful means rewriting every element below an inserted line on
+  // every Enter — 1.14 ms of attribute writes and style invalidations in a 3,285-line document.
+  // Use Writer.lineIndexOf(el) if you ever need to go the other way.
+  function newLineEl() { const el = document.createElement('div'); el.className = 'line'; return el; }
+  function buildLine(i, text) { const el = newLineEl(); fillLine(el, i, text); return el; }
   function fillLine(el, i, text) {
     el.textContent = '';
     const ctx = lineCtx[i] || null;
@@ -79,7 +78,6 @@
     let decos = [];
     for (const d of decorators) { const r = d(i, text); if (r && r.length) decos = decos.concat(r); }
     if (decos.length) tokens = applyDecorations(tokens, decos);
-    if (el.dataset.lc !== undefined) delete el.dataset.lc;
     if (ctx && ctx.lineClass) el.className = 'line ' + ctx.lineClass; else el.className = 'line';
     if (tokens.lineClass) el.className += ' ' + tokens.lineClass;
     if (!text.length) { el.appendChild(document.createElement('br')); return; }
@@ -143,6 +141,35 @@
     return true;
   }
 
+  // ---------- bounded re-tokenising ----------
+  // How far below an edit the mirror is brought up to date inside the keystroke: more than a
+  // screenful at any font size, so nothing the reader can see is ever stale. The remainder is
+  // filled in animation frames, or at once if anyone asks (Writer.flushPending()).
+  const AHEAD = 64, CHUNK = 400;
+  let pendFrom = -1, pendTo = -1, pendRaf = 0;
+  function addPending(from, to) {
+    if (pendFrom < 0) { pendFrom = from; pendTo = to; }
+    else { if (from < pendFrom) pendFrom = from; if (to > pendTo) pendTo = to; }
+  }
+  function schedulePending() {
+    if (pendFrom < 0 || pendRaf) return;
+    pendRaf = requestAnimationFrame(function step() {
+      pendRaf = 0;
+      const end = Math.min(pendTo, pendFrom + CHUNK, lineEls.length);
+      for (let i = pendFrom; i < end; i++) if (lineEls[i]) fillLine(lineEls[i], i, lines[i]);
+      pendFrom = end;
+      if (pendFrom < pendTo) pendRaf = requestAnimationFrame(step); else pendFrom = pendTo = -1;
+    });
+  }
+  function flushPending() {
+    if (pendFrom < 0) return;
+    if (pendRaf) { cancelAnimationFrame(pendRaf); pendRaf = 0; }
+    const end = Math.min(pendTo, lineEls.length);
+    for (let i = pendFrom; i < end; i++) if (lineEls[i]) fillLine(lineEls[i], i, lines[i]);
+    pendFrom = pendTo = -1;
+  }
+  Writer.flushPending = flushPending;
+
   let lastHeight = -1;
   function syncHeight(h) { if (h !== lastHeight) { lastHeight = h; input.style.height = h + 'px'; } }
   Writer.syncHeight = () => syncHeight(mirror.offsetHeight);
@@ -156,6 +183,7 @@
     const text = input.value;
     const newLines = text.split('\n');
     if (full || !lineEls.length) {
+      pendFrom = pendTo = -1; if (pendRaf) { cancelAnimationFrame(pendRaf); pendRaf = 0; }
       lines = newLines; lineCtx = []; recomputeCtx(0, true);
       mirror.textContent = '';
       const frag = document.createDocumentFragment();
@@ -170,26 +198,31 @@
       while (b < min - a && lines[oldN - 1 - b] === newLines[newN - 1 - b]) b++;
       const oldMid = oldN - a - b, newMid = newN - a - b;
       lines = newLines;
-      // replace middle
-      const before = lineEls.slice(0, a), after = lineEls.slice(oldN - b);
+      // Replace the middle. The new elements go in empty: a line's tokens depend on the context
+      // computed from the lines above it, which is only correct after recomputeCtx below, so
+      // filling them here would mean tokenising and rebuilding every edited line twice per
+      // keystroke — which is exactly what this used to do.
+      const anchor = lineEls[oldN - b] || null;
       const frag = document.createDocumentFragment();
       const mid = [];
-      for (let i = a; i < a + newMid; i++) { const el = buildLine(i, newLines[i]); mid.push(el); frag.appendChild(el); }
+      for (let i = 0; i < newMid; i++) { const el = newLineEl(); mid.push(el); frag.appendChild(el); }
       for (let i = 0; i < oldMid; i++) lineEls[a + i].remove();
-      if (after.length) mirror.insertBefore(frag, after[0]); else mirror.appendChild(frag);
-      lineEls = before.concat(mid, after);
-      // renumber & fix contexts forward.
-      // Renumbering touches every line after the edit, so only do it when the line count moved
-      // (typing inside a line leaves every index below it correct) and only write attributes
-      // whose value actually changes — a same-value setAttribute still costs a style invalidation.
-      const stableAt = recomputeCtx(a);
-      const renumber = newN !== oldN;
-      for (let i = a + newMid; i < lineEls.length; i++) {
-        if (renumber) { const s = String(i); if (lineEls[i].dataset.i !== s) lineEls[i].dataset.i = s; }
-        if (i < stableAt) fillLine(lineEls[i], i, lines[i]);
-      }
-      // A line's tokenization may depend on ctx computed from previous lines; mid lines were built before ctx was updated
+      if (anchor) mirror.insertBefore(frag, anchor); else mirror.appendChild(frag);
+      if (newMid === oldMid) { for (let k = 0; k < newMid; k++) lineEls[a + k] = mid[k]; }
+      else if (newMid < 8000) lineEls.splice(a, oldMid, ...mid);      // spread has an argument limit
+      else lineEls = lineEls.slice(0, a).concat(mid, lineEls.slice(a + oldMid));
+      // Move any catch-up still in flight by the number of lines this edit added or removed.
+      if (pendFrom >= 0) { const d = newN - oldN; if (pendFrom >= a) pendFrom += d; if (pendTo >= a) pendTo += d; }
+      const stableAt = Math.min(recomputeCtx(a), lineEls.length);
       for (let i = a; i < a + newMid; i++) fillLine(lineEls[i], i, lines[i]);
+      // Lines below the edit only need re-tokenising when the context entering them changed —
+      // usually nothing at all, but typing ``` opens a fenced block and changes every line to the
+      // end of the document (26 ms of re-tokenising in a 55k-word manuscript: three frames). Do
+      // what the reader can see now, hand the rest to animation frames.
+      const near = Math.min(stableAt, a + newMid + AHEAD);
+      for (let i = a + newMid; i < near; i++) fillLine(lineEls[i], i, lines[i]);
+      if (stableAt > near) addPending(near, stableAt);
+      schedulePending();
     }
     // The textarea is sized to the mirror. Reading mirror.offsetHeight here forces a synchronous
     // layout of the whole document inside the keystroke, and writing input.style.height afterwards
@@ -203,6 +236,8 @@
   Writer.rerenderLines = function (indices) {
     for (const i of indices) if (lineEls[i]) fillLine(lineEls[i], i, lines[i]);
   };
+  // el -> index, for anything that used to read the line's data-i attribute.
+  Writer.lineIndexOf = (el) => lineEls.indexOf(el);
   Writer.lines = () => lines;
   Writer.lineEl = (i) => lineEls[i];
   Writer.lineCount = () => lines.length;
