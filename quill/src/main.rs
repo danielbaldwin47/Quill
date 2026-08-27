@@ -14,8 +14,8 @@ mod editor;
 mod window;
 
 use gtk::gio::ApplicationFlags;
+use gtk::glib;
 use gtk::prelude::*;
-use gtk::{gio, glib};
 
 /// The application id, also the `.desktop` file's and the icon's name.
 const APP_ID: &str = "io.github.danielbaldwin47.Quill";
@@ -33,16 +33,4 @@ fn main() -> glib::ExitCode {
     app.connect_open(|app, files, _hint| window::present_files(app, files));
 
     app.run()
-}
-
-/// Where a failure to open a file goes until there is a writer-facing place for
-/// it. The Library spec decides what a writer sees; until then the window still
-/// opens, empty, and the reason is on stderr rather than swallowed.
-fn report(context: &str, err: &dyn std::error::Error) {
-    eprintln!("quill: {context}: {err}");
-}
-
-/// The `gio::File`s an open request carried, as paths.
-fn paths(files: &[gio::File]) -> Vec<std::path::PathBuf> {
-    files.iter().filter_map(gio::File::path).collect()
 }
