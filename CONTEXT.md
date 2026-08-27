@@ -32,6 +32,10 @@ The rendered (HTML-like) view of a Document, opened beside or in place of the Ed
 **Export**:
 Writing a Document out in another format (PDF, HTML, Markdown copy).
 
+**Face**:
+One of Quill's three shipped typefaces — Duo, Quattro, Mono — each a Roman file and an Italic file, derived from the iA Writer fonts.
+_Avoid_: font family (that is the fontconfig name), font (ambiguous with the size setting)
+
 **Template**:
 A named typographic design (faces, sizes, rhythm, light and dark palettes) that Preview and Export apply to a rendered Document, independent of the Editor's face and size.
 _Avoid_: theme (that is the Editor's dark/light), style, look, skin
