@@ -115,8 +115,16 @@
   }
 
   // Recompute per-line context from line `from` forward; returns first index where ctx unchanged & stable (or lines.length)
+  //
+  // `lineCtx[i]` is the context ENTERING line i, so the walk has to start from the context
+  // LEAVING line from-1 — that is `lineContext(lineCtx[from-1], lines[from-1])`, not `lineCtx[from-1]`.
+  // Seeding with the latter skipped the effect of the line just above the edit, so an edit whose
+  // first changed line is the one AFTER a fence opener (press Enter at the end of ```js, the most
+  // ordinary thing there is) left every line below tokenised as prose, for good. Found by
+  // shots/latency/probes/correctness.mjs; round 2's version of that probe searched for its own
+  // fence with findIndex() and matched the document's existing one, so it never saw this.
   function recomputeCtx(from, force) {
-    let ctx = from > 0 ? lineCtx[from - 1] : null;
+    let ctx = from > 0 ? Writer.lineContext(lineCtx[from - 1] || null, lines[from - 1], from - 1) : null;
     let i = from;
     for (; i < lines.length; i++) {
       const next = Writer.lineContext(ctx, lines[i], i);
@@ -142,10 +150,25 @@
   }
 
   // ---------- bounded re-tokenising ----------
-  // How far below an edit the mirror is brought up to date inside the keystroke: more than a
-  // screenful at any font size, so nothing the reader can see is ever stale. The remainder is
-  // filled in animation frames, or at once if anyone asks (Writer.flushPending()).
-  const AHEAD = 64, CHUNK = 400;
+  // How far below an edit the mirror is brought up to date inside the keystroke. Round 2 asserted
+  // "64 lines is more than a screenful at any font size"; it is not, at the small end of the size
+  // range in a tall window. So measure it instead: a screenful is the scroller's height divided by
+  // the shortest a line can be (its min-height is exactly one line pitch), plus a margin. Nothing
+  // the reader can see is ever stale — and if they scroll into the catch-up range before it has
+  // run, the scroll handler fills what came into view before the frame is painted.
+  // The remainder is filled in animation frames under a time budget (never a fixed line count, so
+  // one catch-up frame cannot blow past a frame's worth of work), or at once (Writer.flushPending).
+  let AHEAD = 64;
+  const CHUNK_BUDGET_MS = 4, CHUNK_MIN = 32;
+  function computeAhead() {
+    try {
+      const probe = lineEls[0] || mirror.firstElementChild;
+      const pitch = probe ? parseFloat(getComputedStyle(probe).minHeight) : 0;
+      const h = (scroller && scroller.clientHeight) || window.innerHeight || 900;
+      AHEAD = pitch > 4 ? Math.max(24, Math.ceil(h / pitch) + 8) : 64;
+    } catch (e) { AHEAD = 64; }
+  }
+  Writer.aheadLines = () => AHEAD;
   let pendFrom = -1, pendTo = -1, pendRaf = 0;
   function addPending(from, to) {
     if (pendFrom < 0) { pendFrom = from; pendTo = to; }
@@ -155,12 +178,54 @@
     if (pendFrom < 0 || pendRaf) return;
     pendRaf = requestAnimationFrame(function step() {
       pendRaf = 0;
-      const end = Math.min(pendTo, pendFrom + CHUNK, lineEls.length);
-      for (let i = pendFrom; i < end; i++) if (lineEls[i]) fillLine(lineEls[i], i, lines[i]);
-      pendFrom = end;
+      // Whatever the reader is actually looking at, first — the AHEAD window follows the edit,
+      // and the eye need not be there (undo, a command, a paste, or simply having scrolled away).
+      // An animation frame runs BEFORE the frame's style/layout/paint, so this still lands in the
+      // first frame after the keystroke: nothing stale is ever painted, and the keystroke itself
+      // pays nothing for it.
+      flushVisible();
+      if (pendFrom < 0) return;
+      const stop = Math.min(pendTo, lineEls.length);
+      const t0 = performance.now();
+      let i = pendFrom;
+      for (; i < stop; i++) {
+        if (lineEls[i]) fillLine(lineEls[i], i, lines[i]);
+        if (i - pendFrom >= CHUNK_MIN && (i - pendFrom) % 32 === 0 && performance.now() - t0 >= CHUNK_BUDGET_MS) { i++; break; }
+      }
+      pendFrom = i;
       if (pendFrom < pendTo) pendRaf = requestAnimationFrame(step); else pendFrom = pendTo = -1;
     });
   }
+  // The lines on screen right now, by binary search on offsetTop (12 reads on a 3,000-line
+  // document, and only ever from a scroll or a flush — never from a keystroke).
+  function visibleRange() {
+    if (!lineEls.length) return [0, -1];
+    const mTop = mirror.getBoundingClientRect().top;
+    const vh = window.innerHeight || 900;
+    const firstAtOrAfter = (y) => {                 // first line whose bottom edge is at or below y
+      let lo = 0, hi = lineEls.length - 1, ans = lineEls.length - 1;
+      while (lo <= hi) {
+        const m = (lo + hi) >> 1, el = lineEls[m];
+        if (!el) { lo = m + 1; continue; }
+        if (mTop + el.offsetTop + el.offsetHeight >= y) { ans = m; hi = m - 1; } else lo = m + 1;
+      }
+      return ans;
+    };
+    return [firstAtOrAfter(0), firstAtOrAfter(vh)];
+  }
+  Writer.visibleRange = visibleRange;
+  // Catch up whatever scrolled into view while a catch-up was still in flight. Idempotent: the
+  // contiguous pending range is left alone, so the lines are simply filled with the right tokens
+  // sooner. Bounded by the viewport, so it can never be more than a screenful of work.
+  function flushVisible() {
+    if (pendFrom < 0) return;
+    const [v0, v1] = visibleRange();
+    const a = Math.max(v0, pendFrom), b = Math.min(v1, pendTo - 1, lineEls.length - 1);
+    for (let i = a; i <= b; i++) if (lineEls[i]) fillLine(lineEls[i], i, lines[i]);
+    if (a <= pendFrom && b >= pendFrom) pendFrom = Math.min(b + 1, pendTo);
+    if (pendFrom >= pendTo) { pendFrom = pendTo = -1; if (pendRaf) { cancelAnimationFrame(pendRaf); pendRaf = 0; } }
+  }
+  Writer.flushVisible = flushVisible;
   function flushPending() {
     if (pendFrom < 0) return;
     if (pendRaf) { cancelAnimationFrame(pendRaf); pendRaf = 0; }
@@ -169,6 +234,7 @@
     pendFrom = pendTo = -1;
   }
   Writer.flushPending = flushPending;
+  Writer.pendingLines = () => (pendFrom < 0 ? 0 : Math.max(0, pendTo - pendFrom));
 
   let lastHeight = -1;
   function syncHeight(h) { if (h !== lastHeight) { lastHeight = h; input.style.height = h + 'px'; } }
@@ -211,6 +277,16 @@
       if (newMid === oldMid) { for (let k = 0; k < newMid; k++) lineEls[a + k] = mid[k]; }
       else if (newMid < 8000) lineEls.splice(a, oldMid, ...mid);      // spread has an argument limit
       else lineEls = lineEls.slice(0, a).concat(mid, lineEls.slice(a + oldMid));
+      // lineCtx is indexed by line, and recomputeCtx decides where to stop by comparing the
+      // context it computes for line i against lineCtx[i]. If the line count changed and lineCtx
+      // was not moved with it, those comparisons are against the wrong lines: the walk can stop
+      // early on a false match and leave lineCtx short at the tail, so the last line of the
+      // document keeps a null context. Move it exactly as lineEls moves.
+      if (newMid !== oldMid) {
+        const blanks = new Array(newMid);
+        if (newMid < 8000) lineCtx.splice(a, oldMid, ...blanks);
+        else lineCtx = lineCtx.slice(0, a).concat(blanks, lineCtx.slice(a + oldMid));
+      }
       // Move any catch-up still in flight by the number of lines this edit added or removed.
       if (pendFrom >= 0) { const d = newN - oldN; if (pendFrom >= a) pendFrom += d; if (pendTo >= a) pendTo += d; }
       const stableAt = Math.min(recomputeCtx(a), lineEls.length);
@@ -359,8 +435,9 @@
     input.addEventListener('mouseup', () => emitSelection(false));
     input.addEventListener('focus', () => Writer.emit('focus'));
     input.addEventListener('blur', () => Writer.emit('blur'));
-    scroller.addEventListener('scroll', () => Writer.emit('scroll'), { passive: true });
-    window.addEventListener('resize', () => { syncHeight(mirror.offsetHeight); Writer.emit('resize'); });
+    scroller.addEventListener('scroll', () => { if (pendFrom >= 0) flushVisible(); Writer.emit('scroll'); }, { passive: true });
+    window.addEventListener('resize', () => { computeAhead(); syncHeight(mirror.offsetHeight); Writer.emit('resize'); });
+    Writer.on('settings', computeAhead);
     // Fonts may load after first layout; re-sync heights when they do.
     if (document.fonts) document.fonts.addEventListener('loadingdone', () => { syncHeight(mirror.offsetHeight); Writer.emit('resize'); });
     // Keep the textarea as tall as the mirror without ever measuring from a keystroke: the observer
@@ -375,6 +452,7 @@
       // files.js restores the last document on boot; if nothing was restored, start empty.
     }
     Writer.render(true);
+    computeAhead();
     input.focus();
     window.__quillReady = performance.now();
     Writer.emit('ready');
