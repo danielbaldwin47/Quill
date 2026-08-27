@@ -1,0 +1,3 @@
+# Rewrite Quill as a native Rust application
+
+The first Quill is a `<textarea>`-over-mirror web app run in Chromium app mode from a Node static server; it won every Piece blind against iA Writer but depends on Chromium and Node and cannot become a real Linux desktop app. We are rewriting it as a native application in Rust: a native window, no browser engine, the existing app kept as the Parity oracle until the rewrite wins all nine Pieces. Rust over C for memory safety, `cargo` as the one build command for packaging, and first-class Wayland/GTK4 bindings. The toolkit and text engine are decided separately by prototype.
