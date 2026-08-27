@@ -1,370 +1,807 @@
 {
-  "keystroke_p50": 10.82,
-  "keystroke_p99": 19.09,
-  "startup_ready": 100,
-  "startup_note": "navigation → the first frame that shows the whole 10,062-word document, median of 12 cold loads (editor ready at 71 ms). An empty document paints at 56 ms. Launching the whole app with bin/quill on the real display — chromium process spawn, window, fonts, full render — was 395 and 511 ms to pixels.",
+  "keystroke_p50": 27.6,
+  "keystroke_p99": 41.7,
+  "startup_ready": 322,
+  "startup_note": "bin/quill from a shell to an editor you can type into, with the 10,062-word document in the profile: chromium process spawn (165 ms of it), profile, window, navigation, fonts and the full render. Median of 4 cold processes, 307-332 ms; the first frame that shows the document is 375 ms. A brand-new profile (no code cache, no storage, empty document - a true first run) is 303 ms to ready, 380 ms to first frame. Inside an already-running browser a page load is 81 ms to ready and 108 ms to the first frame with the document (median of 12).",
   "bar_keystroke": 32.5,
-  "bar_note": "iA Writer publishes no latency numbers at all. Bar from third-party measurements of native editors: Sublime Text 32.5 ± 4.0 ms keyboard-to-photon (Hume, photodiode, 60 Hz), TextEdit 33.4, Atom 45.6, VS Code 47.6; app-internal input→paint ≤5 ms (Fatin's Typometer). Quill's estimated keyboard-to-photon is ≈32 ms: 13.8 ms measured on a real 60 Hz panel + 14 ms keyboard + 4 ms pixel response (the last two Fatin's published budget, cited not measured). App-internal work per keystroke: 2.94 ms to committed frame, 4.89 ms of main-thread busy time — inside the ≤5 ms bar.",
-  "method": "Per keystroke, from Chrome's own EventTiming trace records (devtools.timeline, unrounded, µs): event hardware timestamp → presentation feedback of the frame carrying it. 300 keystrokes per regime, five regimes, 90 ms pacing (~133 wpm), into a real 10,062-word Markdown document with the caret scrolled on screen; 25 warm-up keys discarded; every keystroke accounted for (keys pressed = keydowns in the trace = keys resolved by an independent in-page rAF probe). Headless Chromium 151.0.7922.173, i5-13600K, with a 1 px composited animation keeping the frame clock running so headless models a 60 Hz panel instead of producing frames on demand (that alone is worth ~6 ms and is how most browser latency numbers flatter themselves). Headline is the hardest paced regime (caret in the middle of the draft); at the end of the draft it is 9.17 / 18.5 ms. With the display clock removed — the application's own cost, comparable to Typometer — 4.23 ms p50 / 6.14 p99. Measured on a real 60 Hz panel (Dell U2720Q, Wayland), an earlier build measured 13.83 / 29.13 ms including the scanout hop; that is quoted as the upper bound in the report. Full method and caveats: progress/latency-report.md.",
-  "at": "2026-08-26T23:37:49.083Z",
+  "bar_note": "iA Writer publishes no latency numbers at all. Bar from third-party measurements of native editors: Sublime Text 32.5 +/- 4.0 ms keyboard-to-photon (Hume, photodiode, 60 Hz panel; TextEdit 33.4, Atom 45.6, VS Code 47.6), and <=5 ms mean / <=16 ms worst app-internal input-to-paint (REFERENCE 5.3, Fatin's Typometer class). The 27.6 / 41.7 ms beside it is built to be comparable to Hume's: 23.64 ms p50 and 37.70 p99 MEASURED on the user's own Hyprland compositor at 60 Hz (3 sessions x 300 keystrokes, worst paced regime - plain writing at the end of the draft), plus 4 ms of panel pixel response CITED from Fatin (the refresh wait is already inside the measurement; Hume's 'keyboard' is a 1 kHz USB emulator, so no keyboard term belongs here). That is the Sublime bracket at the median and the VS Code bracket in the tail, and the tail is the compositor, not the app: Chromium had the frame committed 9.3 ms after the key. On the app-internal bar - the part a builder controls - Quill measures 5.7 ms p50 / 15.0 p99 to a produced frame and 4.8 ms to a committed one, with 99.7% of keystrokes inside one 60 Hz frame. Caveat kept in view: the compositor hop may be one refresh interval smaller on a physical panel (round 1 measured +5.0 ms over commit there, against +17.3 here), which would put the photon figure near 18 ms; no physical panel could be used this round because the user's workspace was in use. Full arithmetic: progress/latency-report.md, section 13.",
+  "method": "Per keystroke, from Chrome's own EventTiming trace records (devtools.timeline, unrounded, microseconds): hardware event timestamp to the presentation feedback of the frame carrying that event. Twelve regimes x 300 keystrokes x 3 sessions headless, 7 regimes x 300 x 3 on a real compositor, 10,062-word Markdown document, caret scrolled on screen, 25 warm-up keys discarded. The typist presses real prose: capitals, punctuation, quotes, Enter, Backspace, undo, Ctrl+V paste, select-and-replace and Markdown syntax including opening and closing fenced code blocks - each keystroke labelled by kind and reported separately. Every regime asserts keydowns expected == keydowns in the trace == keydowns seen by an independent in-page rAF/MessageChannel probe, and that all of them have commit and presentation times: true for all 36 headless and all 21 compositor runs. A fresh page per regime makes round 1's double-probe bug unrepresentable. Application cost is measured under prefers-reduced-motion (the app's own caret glide is an animation, and an animation is a frame clock); the headless 60 Hz figure keeps a 1 px composited animation running so headless models a panel. Also measured: CPU throttled 2x/4x, four document sizes up to 55k words, a 2,500-keystroke session with autosave and GC accounting, an idle frame-production control, and true cold starts that spawn a browser process per run. Chromium 151.0.7922.173, i5-13600K, app fingerprint 19b86f97e10b203d, frozen snapshot server. Full method, caveats and raw runs: progress/latency-report.md.",
+  "at": "2026-08-27T01:32:15.409092Z",
   "detail": {
+    "environment": {
+      "cpu": "13th Gen Intel(R) Core(TM) i5-13600K (20 threads)",
+      "os": "Linux 7.1.9-arch1-2",
+      "chromium": "151.0.7922.173",
+      "app_sha256": "19b86f97e10b203d",
+      "viewport": "1440x900",
+      "load1_at_run": {
+        "headless": 1.02,
+        "appcost": 1.48,
+        "compositor": 0.55
+      },
+      "compositor_output": "virtual Hyprland headless output, 1920x1080 @ 60 Hz, created and removed by bin/quill; nothing shown on the physical screen"
+    },
     "document": {
       "words": 10062,
       "chars": 53031,
       "lines": 432,
-      "source": "Alice's Adventures in Wonderland (Project Gutenberg #11), one paragraph per line, original italics as Markdown emphasis — shots/latency/doc10k.md"
+      "source": "Alice's Adventures in Wonderland (Project Gutenberg #11), one paragraph per line, italics as Markdown emphasis, an editor's note with a task list, a link, inline code and a fenced code block - shots/latency/doc10k.md"
     },
-    "keystroke_to_presented_frame_ms": {
-      "headless_60hz_clock": {
-        "paced_end_of_draft": {
-          "n": 300,
-          "min": 3.16,
-          "p50": 9.17,
-          "p90": 16.42,
-          "p95": 17.49,
-          "p99": 18.5,
-          "max": 19.87,
-          "mean": 9.91,
-          "sd": 4.67
-        },
-        "paced_middle_of_draft": {
-          "n": 300,
-          "min": 3.9,
-          "p50": 10.82,
-          "p90": 17.54,
-          "p95": 18.47,
-          "p99": 19.09,
-          "max": 20.23,
-          "mean": 10.91,
-          "sd": 4.72
-        },
-        "paced_focus_mode": {
-          "n": 300,
-          "min": 4.62,
-          "p50": 9.17,
-          "p90": 17.99,
-          "p95": 18.87,
-          "p99": 19.31,
-          "max": 20.87,
-          "mean": 10.72,
-          "sd": 4.61
-        },
-        "fast_typist": {
-          "n": 300,
-          "min": 3.77,
-          "p50": 9.9,
-          "p90": 17.28,
-          "p95": 18.07,
-          "p99": 19.19,
-          "max": 20.49,
-          "mean": 10.35,
-          "sd": 4.83
-        },
-        "saturation_stress": {
-          "n": 300,
-          "min": 2.8,
-          "p50": 10.02,
-          "p90": 16.49,
-          "p95": 17.78,
-          "p99": 19.4,
-          "max": 20.31,
-          "mean": 10.2,
-          "sd": 4.53
-        }
+    "application_cost_reduced_motion_ms": {
+      "prose_end_of_draft": {
+        "p50": 5.67,
+        "p90": 12.75,
+        "p99": 14.99,
+        "max": 17.34
       },
-      "application_cost_no_display_clock": {
-        "paced_end_of_draft": {
-          "n": 300,
-          "min": 2.97,
-          "p50": 3.62,
-          "p90": 4.92,
-          "p95": 5.18,
-          "p99": 6.77,
-          "max": 9.76,
-          "mean": 3.88,
-          "sd": 0.82
-        },
-        "paced_middle_of_draft": {
-          "n": 300,
-          "min": 3.53,
-          "p50": 4.23,
-          "p90": 5.16,
-          "p95": 5.57,
-          "p99": 6.14,
-          "max": 6.81,
-          "mean": 4.44,
-          "sd": 0.55
-        },
-        "paced_focus_mode": {
-          "n": 300,
-          "min": 4.4,
-          "p50": 4.87,
-          "p90": 5.86,
-          "p95": 6.11,
-          "p99": 6.99,
-          "max": 8.03,
-          "mean": 5.1,
-          "sd": 0.56
-        },
-        "fast_typist": {
-          "n": 300,
-          "min": 3.72,
-          "p50": 4.82,
-          "p90": 15.95,
-          "p95": 17.83,
-          "p99": 19.03,
-          "max": 19.61,
-          "mean": 7.63,
-          "sd": 4.77
-        },
-        "saturation_stress": {
-          "n": 300,
-          "min": 2.71,
-          "p50": 10.66,
-          "p90": 17.08,
-          "p95": 18.3,
-          "p99": 20.09,
-          "max": 22.25,
-          "mean": 10.76,
-          "sd": 4.64
-        }
+      "prose_middle_of_draft": {
+        "p50": 5.49,
+        "p90": 12.61,
+        "p99": 14.01,
+        "max": 15.01
       },
-      "real_60hz_panel_earlier_build": {
-        "paced_end_of_draft": {
-          "n": 204,
-          "min": 3.06,
-          "p50": 18.07,
-          "p90": 38.46,
-          "p95": 43.05,
-          "p99": 48.51,
-          "max": 49.74,
-          "mean": 19.9,
-          "sd": 12.25
-        },
-        "paced_middle_of_draft": {
-          "n": 200,
-          "min": 3.51,
-          "p50": 13.83,
-          "p90": 24.74,
-          "p95": 26.21,
-          "p99": 29.13,
-          "max": 33.67,
-          "mean": 13.98,
-          "sd": 7.19
-        },
-        "paced_focus_mode": {
-          "n": 200,
-          "min": 3.97,
-          "p50": 13.82,
-          "p90": 24.54,
-          "p95": 25.51,
-          "p99": 32.01,
-          "max": 33.45,
-          "mean": 14.41,
-          "sd": 6.83
-        },
-        "burst_no_pause": {
-          "n": 200,
-          "min": 3.71,
-          "p50": 25.63,
-          "p90": 32.35,
-          "p95": 33.5,
-          "p99": 35.27,
-          "max": 35.33,
-          "mean": 25.41,
-          "sd": 5.83
-        }
+      "prose_focus_sentence": {
+        "p50": 6.17,
+        "p90": 13.05,
+        "p99": 16.27,
+        "max": 17.68
+      },
+      "paragraph_breaks": {
+        "p50": 5.21,
+        "p90": 12.54,
+        "p99": 15.12,
+        "max": 16.9
+      },
+      "revision": {
+        "p50": 6.26,
+        "p90": 13.01,
+        "p99": 15.67,
+        "max": 17.23
+      },
+      "markdown_syntax": {
+        "p50": 5.35,
+        "p90": 12.09,
+        "p99": 14.46,
+        "max": 16.87
+      },
+      "fence_flip": {
+        "p50": 5.47,
+        "p90": 12.39,
+        "p99": 13.75,
+        "max": 15.61
+      },
+      "paste_blocks": {
+        "p50": 5.13,
+        "p90": 11.93,
+        "p99": 15.39,
+        "max": 19.11
+      },
+      "letters_only_r1": {
+        "p50": 5.38,
+        "p90": 12.37,
+        "p99": 14.13,
+        "max": 15.51
+      },
+      "bursts_and_pauses": {
+        "p50": 5.2,
+        "p90": 12.15,
+        "p99": 16.45,
+        "max": 18.78
+      },
+      "fast_typist": {
+        "p50": 4.88,
+        "p90": 15.41,
+        "p99": 19.53,
+        "max": 20.11
+      },
+      "saturation_stress": {
+        "p50": 9.9,
+        "p90": 16.34,
+        "p99": 19.09,
+        "max": 19.76
       }
     },
-    "keystroke_to_committed_frame_ms": {
-      "headless_60hz_clock": {
-        "n": 300,
-        "min": 2.78,
-        "p50": 9.87,
-        "p90": 16.54,
-        "p95": 17.3,
-        "p99": 18.02,
-        "max": 18.55,
-        "mean": 9.74,
-        "sd": 4.73
-      },
-      "application_cost_no_display_clock": {
-        "n": 300,
-        "min": 2.61,
-        "p50": 2.94,
-        "p90": 3.51,
-        "p95": 3.98,
-        "p99": 4.38,
-        "max": 4.46,
-        "mean": 3.06,
-        "sd": 0.36
-      },
-      "real_60hz_panel_earlier_build": {
-        "n": 200,
-        "min": 0.16,
-        "p50": 8.8,
-        "p90": 16.3,
-        "p95": 17.03,
-        "p99": 17.57,
-        "max": 18.54,
-        "mean": 8.92,
-        "sd": 4.87
-      }
-    },
-    "input_delay_ms": {
+    "application_commit_ms_prose_end": {
       "n": 300,
-      "min": 0.14,
-      "p50": 0.24,
-      "p90": 0.31,
-      "p95": 0.33,
-      "p99": 0.35,
-      "max": 0.44,
-      "mean": 0.25,
-      "sd": 0.04
+      "min": 2.12,
+      "p50": 4.76,
+      "p90": 11.84,
+      "p95": 12.82,
+      "p99": 13.75,
+      "max": 16.52,
+      "mean": 6.12,
+      "sd": 3.68
     },
-    "on_screen_within_one_60hz_frame_pct": 85.67,
-    "on_screen_within_two_60hz_frames_pct": 100,
-    "every_keystroke_accounted_for": true,
-    "main_thread_us_per_keystroke": {
-      "chrome_inserting_the_character_into_the_textarea": 1598,
-      "quill_input_handler": 848,
-      "style_layout_paint": 2412,
-      "total_busy_ms": 4.89,
-      "with_focus_mode_total_busy_ms": 5.43
+    "headless_60hz_clock_ms": {
+      "prose_end_of_draft": {
+        "p50": 9.38,
+        "p99": 18.51,
+        "p99_ci95": {
+          "lo95": 18.32,
+          "hi95": 18.7
+        },
+        "n": 900,
+        "per_session_p99": [
+          18.6,
+          18.39,
+          18.47
+        ]
+      },
+      "prose_middle_of_draft": {
+        "p50": 10.31,
+        "p99": 19.26,
+        "p99_ci95": {
+          "lo95": 18.93,
+          "hi95": 19.71
+        },
+        "n": 900,
+        "per_session_p99": [
+          18.89,
+          19.71,
+          19.05
+        ]
+      },
+      "prose_focus_sentence": {
+        "p50": 9.84,
+        "p99": 20.09,
+        "p99_ci95": {
+          "lo95": 19.2,
+          "hi95": 20.59
+        },
+        "n": 900,
+        "per_session_p99": [
+          18.8,
+          20.59,
+          19.82
+        ]
+      },
+      "paragraph_breaks": {
+        "p50": 9.99,
+        "p99": 19.11,
+        "p99_ci95": {
+          "lo95": 18.51,
+          "hi95": 19.43
+        },
+        "n": 900,
+        "per_session_p99": [
+          18.69,
+          19.11,
+          18.81
+        ]
+      },
+      "revision": {
+        "p50": 9.98,
+        "p99": 19.43,
+        "p99_ci95": {
+          "lo95": 18.86,
+          "hi95": 20.15
+        },
+        "n": 618,
+        "per_session_p99": [
+          20.15,
+          18.86,
+          19.19
+        ]
+      },
+      "markdown_syntax": {
+        "p50": 9.65,
+        "p99": 19.58,
+        "p99_ci95": {
+          "lo95": 18.8,
+          "hi95": 21.38
+        },
+        "n": 900,
+        "per_session_p99": [
+          19.58,
+          18.55,
+          19.96
+        ]
+      },
+      "fence_flip": {
+        "p50": 9.58,
+        "p99": 18.94,
+        "p99_ci95": {
+          "lo95": 18.59,
+          "hi95": 19.31
+        },
+        "n": 900,
+        "per_session_p99": [
+          18.95,
+          18.59,
+          19.28
+        ]
+      },
+      "paste_blocks": {
+        "p50": 9.55,
+        "p99": 19.6,
+        "p99_ci95": {
+          "lo95": 19.09,
+          "hi95": 20.09
+        },
+        "n": 900,
+        "per_session_p99": [
+          19.72,
+          19.09,
+          19.79
+        ]
+      },
+      "letters_only_r1": {
+        "p50": 10.13,
+        "p99": 20.03,
+        "p99_ci95": {
+          "lo95": 19,
+          "hi95": 20.32
+        },
+        "n": 900,
+        "per_session_p99": [
+          19,
+          20.32,
+          19.23
+        ]
+      },
+      "bursts_and_pauses": {
+        "p50": 9.63,
+        "p99": 18.91,
+        "p99_ci95": {
+          "lo95": 18.73,
+          "hi95": 19.18
+        },
+        "n": 900,
+        "per_session_p99": [
+          19.11,
+          18.75,
+          18.91
+        ]
+      },
+      "fast_typist": {
+        "p50": 10.49,
+        "p99": 19,
+        "p99_ci95": {
+          "lo95": 18.84,
+          "hi95": 19.22
+        },
+        "n": 900,
+        "per_session_p99": [
+          19,
+          18.93,
+          18.96
+        ]
+      },
+      "saturation_stress": {
+        "p50": 10.02,
+        "p99": 19.25,
+        "p99_ci95": {
+          "lo95": 18.77,
+          "hi95": 19.51
+        },
+        "n": 900,
+        "per_session_p99": [
+          19.48,
+          18.55,
+          18.82
+        ]
+      }
     },
-    "startup_ms": {
-      "with_10k_doc": {
-        "nav_to_first_contentful_paint": {
-          "n": 12,
-          "min": 88,
-          "p50": 100,
-          "p90": 112,
-          "p95": 112,
-          "p99": 112,
-          "max": 112,
-          "mean": 102,
-          "sd": 7.39
+    "compositor_ms": {
+      "prose_end_of_draft": {
+        "p50": 23.64,
+        "p99": 37.7,
+        "p99_ci95": {
+          "lo95": 36.49,
+          "hi95": 39.41
         },
-        "nav_to_editor_ready": {
-          "n": 12,
-          "min": 67.6,
-          "p50": 71,
-          "p90": 82.3,
-          "p95": 83.3,
-          "p99": 83.3,
-          "max": 83.3,
-          "mean": 73.45,
-          "sd": 5.1
+        "n": 900,
+        "per_session_p50": [
+          24.03,
+          24.79,
+          22.32
+        ]
+      },
+      "prose_middle_of_draft": {
+        "p50": 23.14,
+        "p99": 37.06,
+        "p99_ci95": {
+          "lo95": 36.63,
+          "hi95": 38.28
         },
-        "nav_to_dom_content_loaded": {
-          "n": 12,
-          "min": 89.2,
-          "p50": 93,
-          "p90": 104.9,
-          "p95": 105.5,
-          "p99": 105.5,
-          "max": 105.5,
-          "mean": 95.6,
-          "sd": 5.16
+        "n": 900,
+        "per_session_p50": [
+          24.59,
+          22.03,
+          22.81
+        ]
+      },
+      "prose_focus_sentence": {
+        "p50": 22.97,
+        "p99": 36.9,
+        "p99_ci95": {
+          "lo95": 36.23,
+          "hi95": 37.59
+        },
+        "n": 900,
+        "per_session_p50": [
+          23.35,
+          22.74,
+          23.31
+        ]
+      },
+      "paragraph_breaks": {
+        "p50": 23,
+        "p99": 36.75,
+        "p99_ci95": {
+          "lo95": 36.47,
+          "hi95": 36.96
+        },
+        "n": 900,
+        "per_session_p50": [
+          23.44,
+          22.12,
+          22.54
+        ]
+      },
+      "fence_flip": {
+        "p50": 23.05,
+        "p99": 36.61,
+        "p99_ci95": {
+          "lo95": 36.19,
+          "hi95": 36.91
+        },
+        "n": 900,
+        "per_session_p50": [
+          23.09,
+          21.56,
+          23.92
+        ]
+      },
+      "fast_typist": {
+        "p50": 18.54,
+        "p99": 37.28,
+        "p99_ci95": {
+          "lo95": 36.69,
+          "hi95": 37.6
+        },
+        "n": 900,
+        "per_session_p50": [
+          19.29,
+          16.84,
+          19.63
+        ]
+      },
+      "saturation_stress": {
+        "p50": 24.72,
+        "p99": 36.44,
+        "p99_ci95": {
+          "lo95": 35.89,
+          "hi95": 37.05
+        },
+        "n": 900,
+        "per_session_p50": [
+          25.05,
+          20.22,
+          26.96
+        ]
+      }
+    },
+    "compositor_commit_to_present_ms": {
+      "n": 300,
+      "min": 0.84,
+      "p50": 17.33,
+      "p90": 19.3,
+      "p95": 19.5,
+      "p99": 34.13,
+      "max": 36.23,
+      "mean": 12.5,
+      "sd": 8.45
+    },
+    "main_thread_per_keystroke": {
+      "busy_ms_per_key": 5.47,
+      "busy_percent_of_wall": 5.86,
+      "gc_us_per_key": 77,
+      "chrome_text_insertion_us_per_key": 1414,
+      "quill_input_handler_us_per_key": 814,
+      "style_layout_paint_us_per_key": 2510,
+      "top": [
+        {
+          "what": "ProxyMain::BeginMainFrame",
+          "us_per_key": 2440
+        },
+        {
+          "what": "FunctionCall",
+          "us_per_key": 2146
+        },
+        {
+          "what": "LatencyInfo.Flow",
+          "us_per_key": 1624
+        },
+        {
+          "what": "WidgetBaseInputHandler::OnHandleInputEvent",
+          "us_per_key": 1622
+        },
+        {
+          "what": "EventDispatch:keypress",
+          "us_per_key": 1423
+        },
+        {
+          "what": "EventDispatch:textInput",
+          "us_per_key": 1414
+        },
+        {
+          "what": "FireIdleCallback",
+          "us_per_key": 1125
+        },
+        {
+          "what": "LocalFrameView::layout",
+          "us_per_key": 856
+        },
+        {
+          "what": "Layout",
+          "us_per_key": 848
+        },
+        {
+          "what": "LocalFrameView::RunPaintLifecyclePhase",
+          "us_per_key": 839
+        },
+        {
+          "what": "EventDispatch:input",
+          "us_per_key": 814
+        },
+        {
+          "what": "Paint",
+          "us_per_key": 808
+        }
+      ]
+    },
+    "by_key_type_ms": {
+      "paragraph_breaks": {
+        "capital": {
+          "n": 4,
+          "p50": 8.58,
+          "p99": 16.89,
+          "max": 16.89
+        },
+        "letter": {
+          "n": 202,
+          "p50": 9.82,
+          "p99": 18.49,
+          "max": 19.37
+        },
+        "space": {
+          "n": 43,
+          "p50": 8.88,
+          "p99": 18.16,
+          "max": 18.16
+        },
+        "enter": {
+          "n": 38,
+          "p50": 11.53,
+          "p99": 20.76,
+          "max": 20.76
+        },
+        "punct": {
+          "n": 13,
+          "p50": 10.94,
+          "p99": 15.91,
+          "max": 15.91
         }
       },
-      "empty_document": {
-        "nav_to_first_contentful_paint": {
-          "n": 12,
-          "min": 44,
-          "p50": 56,
-          "p90": 60,
-          "p95": 60,
-          "p99": 60,
-          "max": 60,
-          "mean": 54.33,
-          "sd": 5.02
+      "fence_flip": {
+        "markdown": {
+          "n": 150,
+          "p50": 9.73,
+          "p99": 18.78,
+          "max": 19.08
         },
-        "nav_to_editor_ready": {
-          "n": 12,
-          "min": 35.4,
-          "p50": 40.2,
-          "p90": 43.9,
-          "p95": 45.7,
-          "p99": 45.7,
-          "max": 45.7,
-          "mean": 39.8,
-          "sd": 3.22
+        "backspace": {
+          "n": 150,
+          "p50": 9.39,
+          "p99": 19.34,
+          "max": 20.34
+        }
+      },
+      "paste_blocks": {
+        "capital": {
+          "n": 5,
+          "p50": 16.52,
+          "p99": 22.23,
+          "max": 22.23
         },
-        "nav_to_dom_content_loaded": {
-          "n": 12,
-          "min": 38.3,
-          "p50": 42.7,
-          "p90": 46.2,
-          "p95": 48.5,
-          "p99": 48.5,
-          "max": 48.5,
-          "mean": 42.43,
-          "sd": 3.18
+        "letter": {
+          "n": 223,
+          "p50": 8.93,
+          "p99": 18.93,
+          "max": 19.54
+        },
+        "space": {
+          "n": 47,
+          "p50": 11.07,
+          "p99": 19.72,
+          "max": 19.72
+        },
+        "modifier": {
+          "n": 11,
+          "p50": 11.59,
+          "p99": 17.83,
+          "max": 17.83
+        },
+        "paste": {
+          "n": 11,
+          "p50": 14.27,
+          "p99": 20.35,
+          "max": 20.35
+        },
+        "punct": {
+          "n": 14,
+          "p50": 8.83,
+          "p99": 14.45,
+          "max": 14.45
+        }
+      },
+      "revision": {
+        "letter": {
+          "n": 188,
+          "p50": 10.21,
+          "p99": 20.52,
+          "max": 21.01
+        },
+        "modifier": {
+          "n": 96,
+          "p50": 9.31,
+          "p99": 18.58,
+          "max": 18.58
+        },
+        "nav": {
+          "n": 94,
+          "p50": 9.77,
+          "p99": 18.87,
+          "max": 18.87
+        },
+        "space": {
+          "n": 16,
+          "p50": 8.96,
+          "p99": 18.45,
+          "max": 18.45
+        },
+        "undo": {
+          "n": 2,
+          "p50": 14.98,
+          "p99": 16.66,
+          "max": 16.66
         }
       }
     },
-    "cold_start_real_display_ms": {
-      "launcher_to_first_contentful_paint_ms": 510.7,
-      "launcher_to_editor_ready_ms": 299.9,
-      "launcher_to_navigation_start_ms": 154.7,
-      "navigation_to_first_contentful_paint_ms": 356,
-      "navigation_to_editor_ready_ms": 145.2,
-      "navigation_to_dom_content_loaded_ms": 149.1,
-      "profile": "/home/diggle/.cache/quill/browser",
-      "document_in_editor": {
-        "chars": 53031,
-        "lines": 432,
-        "words": 10062
+    "cpu_throttled": {
+      "2x": {
+        "prose_end_of_draft": {
+          "p50": 11.4,
+          "p99": 19.63
+        },
+        "prose_middle_of_draft": {
+          "p50": 11.63,
+          "p99": 19.99
+        },
+        "paragraph_breaks": {
+          "p50": 11.75,
+          "p99": 20.14
+        }
+      },
+      "4x": {
+        "prose_end_of_draft": {
+          "p50": 12.6,
+          "p99": 22.16
+        },
+        "prose_middle_of_draft": {
+          "p50": 20.26,
+          "p99": 26.07
+        },
+        "paragraph_breaks": {
+          "p50": 17.75,
+          "p99": 26.25
+        }
       }
     },
-    "document_size_scaling_app_cost": {
-      "10062_words": {
-        "startup_first_frame_ms": 100,
-        "present_p50_ms": 3.48,
-        "present_p99_ms": 6.96,
-        "main_thread_ms_per_key": 4.22
+    "document_sizes": {
+      "2k": {
+        "words": 2112,
+        "app_cost_p50": 4.69,
+        "app_cost_p99": 14.61,
+        "main_thread_ms_per_key": 2.89
       },
-      "26841_words": {
-        "startup_first_frame_ms": 136,
-        "present_p50_ms": 5.64,
-        "present_p99_ms": 9.84,
-        "main_thread_ms_per_key": 7.62
+      "10k": {
+        "words": 10062,
+        "app_cost_p50": 4.85,
+        "app_cost_p99": 19.38,
+        "main_thread_ms_per_key": 4.85
       },
-      "2112_words": {
-        "startup_first_frame_ms": 76,
-        "present_p50_ms": 2.53,
-        "present_p99_ms": 7.46,
-        "main_thread_ms_per_key": 2.62
+      "26k": {
+        "words": 26841,
+        "app_cost_p50": 6.69,
+        "app_cost_p99": 16.81,
+        "main_thread_ms_per_key": 9.88
       },
-      "53684_words": {
-        "startup_first_frame_ms": 184,
-        "present_p50_ms": 9.11,
-        "present_p99_ms": 15.19,
-        "main_thread_ms_per_key": 12.87
+      "52k": {
+        "words": 53684,
+        "app_cost_p50": 8.54,
+        "app_cost_p99": 21.67,
+        "main_thread_ms_per_key": 16.88
       }
     },
-    "round1_change": "core.js: removed the per-keystroke forced layout (textarea sized by a ResizeObserver), collapsed three selection notifications per keystroke into one, ordered DOM writes before layout reads, stopped renumbering every line below the caret. A/B on two snapshot servers, display clock off: main-thread busy per keystroke 4.84 → 4.17 ms, present p99 9.01 → 5.93 ms, layout-reading DOM calls per keystroke 12.07 → 6.08, selection dispatches 3.02 → 1.02.",
-    "app": {
-      "files": 16,
-      "sha256": "c7a261bd4b979b78",
-      "git_head": "4c611b4",
-      "served_from": "/tmp/qb-final"
-    },
-    "environment": {
-      "chromium": "151.0.7922.173",
-      "node": "v26.7.0",
-      "os": "Linux 7.1.9-arch1-2",
-      "cpu": "13th Gen Intel(R) Core(TM) i5-13600K (20 threads)",
-      "viewport": "1440x900",
-      "display": {
-        "server": "wayland/hyprland",
-        "model": "Dell Inc. DELL U2720Q G49JV13",
-        "mode": "3840x2160",
-        "refresh_hz": 60,
-        "scale": 1.5,
-        "vrr": false
+    "startup": {
+      "page_load_in_a_warm_browser": {
+        "nav_to_editor_ready_p50": 80.8,
+        "nav_to_first_frame_p50": 108,
+        "empty_document_first_frame_p50": 60,
+        "runs": 12
+      },
+      "cold_process_headless_with_document": {
+        "n": 10,
+        "min": 266.6,
+        "p50": 277.8,
+        "p90": 287.8,
+        "p95": 301.6,
+        "p99": 301.6,
+        "max": 301.6,
+        "mean": 279.29,
+        "sd": 10.56
+      },
+      "cold_process_headless_fresh_profile": {
+        "n": 8,
+        "min": 225,
+        "p50": 229.1,
+        "p90": 243.3,
+        "p95": 243.3,
+        "p99": 243.3,
+        "max": 243.3,
+        "mean": 230.58,
+        "sd": 5.35
+      },
+      "launcher_on_the_compositor_with_document": {
+        "exec_to_first_frame_ms": [
+          377.2,
+          351.4,
+          360.6,
+          374.7
+        ],
+        "exec_to_editor_ready_ms": [
+          321.5,
+          306.8,
+          310.2,
+          331.5
+        ],
+        "process_spawn_ms": [
+          165.2,
+          159.4,
+          156.6,
+          166.7
+        ]
+      },
+      "launcher_fresh_profile_first_run": {
+        "exec_to_first_frame_ms": [
+          422.9,
+          373.9,
+          380.1
+        ],
+        "exec_to_editor_ready_ms": [
+          303.2,
+          286.8,
+          308.8
+        ]
       }
-    }
+    },
+    "long_session": {
+      "keystrokes": 2500,
+      "minutes": 4.4,
+      "quartile_p50": [
+        10.16,
+        9.61,
+        9.78,
+        9.76
+      ],
+      "quartile_p99": [
+        19.12,
+        18.74,
+        18.66,
+        18.41
+      ],
+      "autosave": {
+        "note": "files.js flushes the whole document to localStorage 400 ms after the last change; a run that never pauses never triggers it.",
+        "writes": 172,
+        "bytes_written": 6985131,
+        "ms": {
+          "n": 172,
+          "min": 0,
+          "p50": 0,
+          "p90": 0.4,
+          "p95": 0.4,
+          "p99": 0.5,
+          "max": 0.6,
+          "mean": 0.13,
+          "sd": 0.15
+        },
+        "total_ms": 22
+      },
+      "js_heap_kb": 2048,
+      "gc_us_per_key": 46
+    },
+    "frames": {
+      "idle_with_clock": {
+        "what": "idle page, no keystrokes at all, display clock on",
+        "seconds": 4.01,
+        "frames": {
+          "STATE_DROPPED": 2,
+          "STATE_NO_UPDATE_DESIRED": 198,
+          "STATE_PRESENTED_ALL": 49
+        },
+        "frames_per_second": 62.11,
+        "dropped_frames_per_second": 0.5
+      },
+      "idle_without_clock": {
+        "what": "idle page, no keystrokes at all, display clock off",
+        "seconds": 4.02,
+        "frames": {
+          "STATE_DROPPED": 3,
+          "STATE_NO_UPDATE_DESIRED": 188,
+          "STATE_PRESENTED_ALL": 49
+        },
+        "frames_per_second": 59.73,
+        "dropped_frames_per_second": 0.75
+      },
+      "typing_133wpm_dropped_per_keystroke": 0.07,
+      "typing_266wpm_dropped_per_keystroke": 1.04
+    },
+    "caret_glide_ms": {
+      "what": "keydown to the caret's box having stopped moving (shots/latency/probes/caret-glide.mjs); caret.js glides 62 ms whenever two keystrokes are more than 60 ms apart, which at any ordinary writing speed is every keystroke",
+      "at_133wpm_p50": 57.7,
+      "at_266wpm_p50": 7.7
+    },
+    "render_cost_before_after_ms": {
+      "what": "Writer.render(false) alone, 55k-word document, shots/latency/probes/micro2.mjs",
+      "character_in_a_paragraph": [
+        1.95,
+        1.89
+      ],
+      "enter": [
+        2.7,
+        1.93
+      ],
+      "open_a_fenced_block": [
+        26.16,
+        3.33
+      ]
+    },
+    "every_keystroke_accounted_for": {
+      "headless_runs": 36,
+      "compositor_runs": 21,
+      "withheld": 1,
+      "note": "one reduced-motion compositor run recorded 302 keydowns for 300 presses; the assertion failed and its labelled statistics were withheld from every table (shots/latency/r2-headed-rm-1.json)"
+    },
+    "files": [
+      "r2-appcost.json",
+      "r2-cold-fresh.json",
+      "r2-cold-warmprofile.json",
+      "r2-coldheaded-1.json",
+      "r2-coldheaded-2.json",
+      "r2-coldheaded-3.json",
+      "r2-coldheaded-4.json",
+      "r2-coldheaded-fresh-1.json",
+      "r2-coldheaded-fresh-2.json",
+      "r2-coldheaded-fresh-3.json",
+      "r2-headed-1.json",
+      "r2-headed-2.json",
+      "r2-headed-3.json",
+      "r2-headed-rm-1.json",
+      "r2-headless.json",
+      "r2-long.json",
+      "r2-size-10k.json",
+      "r2-size-26k.json",
+      "r2-size-2k.json",
+      "r2-size-52k.json",
+      "r2-sizerm-10k.json",
+      "r2-sizerm-26k.json",
+      "r2-sizerm-2k.json",
+      "r2-sizerm-52k.json",
+      "r2-throttle2.json",
+      "r2-throttle4.json"
+    ],
+    "report": "progress/latency-report.md"
   }
 }

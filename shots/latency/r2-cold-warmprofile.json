@@ -1,0 +1,140 @@
+{
+  "env": {
+    "at": "2026-08-27T01:05:03.936Z",
+    "chromium": null,
+    "headless": true,
+    "cpu_throttle_x": 1,
+    "reduced_motion": "no-preference",
+    "node": "v26.7.0",
+    "os": "Linux 7.1.9-arch1-2",
+    "cpu": "13th Gen Intel(R) Core(TM) i5-13600K (20 threads)",
+    "load1": 0.75,
+    "busiest_processes": [
+      "118 node-MainThread",
+      "41.5 helium",
+      "3.6 helium",
+      "2.8 localsearch-3",
+      "2.7 helium"
+    ],
+    "mem_gb": 31,
+    "display": null,
+    "viewport": "1440x900",
+    "app": {
+      "files": 16,
+      "sha256": "19b86f97e10b203d",
+      "git_head": "33b4e48",
+      "served_from": "/tmp/qsnap-r2"
+    },
+    "document": {
+      "path": "shots/latency/doc10k.md",
+      "words": 10062,
+      "chars": 53031,
+      "lines": 432
+    }
+  },
+  "cold_start": {
+    "what": "warm profile holding the 10k-word document, but a cold browser PROCESS, headless: shell exec of chromium -> the named milestone, wall clock, one new process per run",
+    "runs": 10,
+    "document_in_editor": {
+      "chars": 53031,
+      "lines": 432
+    },
+    "exec_to_first_contentful_paint_ms": {
+      "n": 10,
+      "min": 266.6,
+      "p50": 277.8,
+      "p90": 287.8,
+      "p95": 301.6,
+      "p99": 301.6,
+      "max": 301.6,
+      "mean": 279.29,
+      "sd": 10.56
+    },
+    "exec_to_editor_ready_ms": {
+      "n": 10,
+      "min": 232.9,
+      "p50": 243.6,
+      "p90": 257.2,
+      "p95": 271.9,
+      "p99": 271.9,
+      "max": 271.9,
+      "mean": 247.52,
+      "sd": 11.58
+    },
+    "exec_to_navigation_start_ms": {
+      "n": 10,
+      "min": 98.6,
+      "p50": 107.9,
+      "p90": 115.8,
+      "p95": 119.2,
+      "p99": 119.2,
+      "max": 119.2,
+      "mean": 108.49,
+      "sd": 6.47
+    },
+    "navigation_to_first_contentful_paint_ms": {
+      "n": 10,
+      "min": 160,
+      "p50": 168,
+      "p90": 176,
+      "p95": 188,
+      "p99": 188,
+      "max": 188,
+      "mean": 170.8,
+      "sd": 7.17
+    },
+    "navigation_to_editor_ready_ms": {
+      "n": 10,
+      "min": 130.1,
+      "p50": 136.4,
+      "p90": 144.8,
+      "p95": 158.3,
+      "p99": 158.3,
+      "max": 158.3,
+      "mean": 139.03,
+      "sd": 7.53
+    },
+    "each_ms": [
+      {
+        "fcp": 268.2,
+        "ready": 238.3
+      },
+      {
+        "fcp": 287.8,
+        "ready": 257.2
+      },
+      {
+        "fcp": 301.6,
+        "ready": 271.9
+      },
+      {
+        "fcp": 271.9,
+        "ready": 243.6
+      },
+      {
+        "fcp": 287.2,
+        "ready": 255.9
+      },
+      {
+        "fcp": 268.7,
+        "ready": 232.9
+      },
+      {
+        "fcp": 278.5,
+        "ready": 251.3
+      },
+      {
+        "fcp": 284.6,
+        "ready": 250.9
+      },
+      {
+        "fcp": 266.6,
+        "ready": 235
+      },
+      {
+        "fcp": 277.8,
+        "ready": 238.2
+      }
+    ]
+  }
+}

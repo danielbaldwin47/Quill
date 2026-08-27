@@ -246,116 +246,87 @@ or they render 10 % small. Nothing changed for this; flagging it.
 
 ## latency
 
-Round 1. Files owned: `tools/latency.mjs`, `app/js/core.js` (perf only), `bin/quill`.
-New files: `tools/mkdoc.mjs` (builds the benchmark corpus), `shots/latency/doc*.md`,
-`progress/latency.json`, `progress/latency-report.md`.
+Round 2. Files owned: `tools/latency.mjs`, `app/js/core.js` (perf only), `bin/quill`.
+Probes and raw runs in `shots/latency/` (`probes/*.mjs` are small single-purpose measurements;
+`r2-*.json` are the runs quoted in `progress/latency-report.md`).
 
-**Numbers** (Chromium 151, 13600K, real 10,062-word Markdown document, 300 keystrokes per regime,
-every keystroke accounted for, headless with a 60 Hz frame clock — see below): keystroke → frame
-presented **p50 10.8 ms, p95 18.5, p99 19.1**, worst 20.2; on a real 60 Hz panel (earlier build)
-13.8 / 29.1. Application cost with the display clock removed: **4.2 ms p50**, 2.9 ms to committed
-frame, **4.9 ms of main thread per keystroke** — inside the ≤ 5 ms bar, and only 0.85 ms of it is
-Quill's own code (the biggest single cost is Chrome inserting the character into a 53 KB textarea).
-Startup: first frame showing the whole document **100 ms**, editor ready 71 ms. Estimated
-keyboard-to-photon ≈ 32 ms, i.e. the Sublime/TextEdit bracket. Method, all regimes, document-size
-scaling (2 k → 55 k words) and the caveats: `progress/latency-report.md`; raw runs in
-`shots/latency/r1-*.json` and `shots/latency/size-doc*.json`.
+**Numbers** (Chromium 151, 13600K, real 10,062-word document, app fingerprint `19b86f97e10b203d`,
+every keystroke accounted for in all 36 headless and all 21 compositor runs). The application's own
+work, nothing animating: **5.7 ms p50 / 15.0 p99** to a produced frame, 4.8 ms to a committed one,
+5.5 ms of main thread per keystroke of which **814 µs is Quill's own code** — inside the ≤5 ms /
+≤16 ms bar, 99.7 % of keystrokes within one 60 Hz frame. On the user's own Hyprland compositor at
+60 Hz: **23.6 / 37.7 ms**, of which 9.3 ms is Chromium and the rest is the wait for the display.
+Startup from a shell with the document in the profile: **375 ms** to the first frame, 322 ms to a
+usable editor. A 4× slower CPU: p50 12.6–20.3 ms. A 55k-word manuscript costs 16.9 ms of main
+thread per keystroke — over one frame, and the report says so.
 
-### The one thing everyone touching this app should know
+### What round 2 changed in `app/js/core.js` (perf only, backward compatible)
 
-**Anything that animates while the writer types puts every keystroke on the display's clock.**
-With no animation running, the compositor produces a frame on demand; with one running, a
-keystroke waits for the next tick. Measured on this build, same page, same keys, the only
-difference being a CSS rule that keeps the caret blinking during typing:
-
-| caret while typing | present p50 | p90 | p99 | commit p50 |
-|---|---|---|---|---|
-| blink suppressed (what the app does) | 3.28 | 4.15 | 11.68 | 2.57 |
-| blink left running | 9.40 | 16.48 | 18.22 | 8.90 |
-
-On a real 60 Hz panel that tick is unavoidable, so this is not free latency — but it is exactly why
-a headless benchmark with nothing animating reports ~6 ms less than any panel can deliver.
-`tools/latency.mjs` therefore keeps a 1 px composited animation running by default (`--clock on`)
-so headless models a panel, and `--clock off` measures the application's own cost. Both are
-reported and never quoted as each other. caret.js's existing behaviour (blink off on each
-keystroke, back after 480 ms of quiet) is right on both counts, visual and physical — please keep it.
-
-### Changes in `app/js/core.js` (perf only, backward compatible)
-
-1. **The textarea is sized by a `ResizeObserver`, not by a measurement inside the keystroke.**
-   `render()` used to run `input.style.height = mirror.offsetHeight + 'px'` on every input event:
-   that read forces a synchronous layout of the whole document mid-keystroke and the write after it
-   dirties layout again. The observer does the same job out of the frame's own layout pass and only
-   fires when the height really changed. Full renders (boot, `setText`, font change) still sync
-   synchronously, so anything that measures immediately afterwards still sees the right height;
-   `Writer.syncHeight()` forces it if a piece ever needs to. *Verified*: `#input.offsetHeight ===
-   #mirror.offsetHeight` after boot, after typing new lines and after a font-size change, in all
-   three faces and both grounds.
-2. **`selection` is emitted once per real change, not three times per keystroke.** Chrome raises
-   `input`, `selectionchange` and `keyup` for a single keypress and core forwarded all three; every
-   listener on that event measures layout (caret rect, typewriter). Measured on the live app:
-   **3.02 → 1.02 `selection` events per keystroke and 12.07 → 6.08 layout-reading DOM calls**
-   (`Element.getBoundingClientRect` + `Range.getClientRects`, counted by patching both). Text
-   changes still force an emit, because the offsets can be unchanged while the line is not.
-   New: **`Writer.emitSelection(force)`** — use it instead of `Writer.emit('selection')` when you
-   move the selection yourself; `Writer.setSelection` already does.
-3. **Writes before reads.** During an `input` event the `render` event is now emitted after
-   `change` and `selection`, so the pieces that write DOM (focus dimming) run before the piece that
-   measures it (the caret): one layout flush per keystroke instead of two. Every other caller of
-   `Writer.render()` still gets `render` synchronously, exactly as before.
-4. **No attribute storm.** `el.dataset.i` is rewritten only when the line count actually changed
-   and only where the value differs (a same-value `setAttribute` still costs a style
-   invalidation), and the shortcut table is no longer rebuilt and re-sorted on every keydown — a
-   plain character with no modifier now looks at nothing.
-
-A/B of *only* those four changes, identical in every other file, two snapshot servers, 250 keys
-each, display clock off so the frame cadence does not hide the difference: main-thread work per
-keystroke **4.84 → 4.17 ms**, style+layout+paint 2000 → 1859 µs, present p99 **9.01 → 5.93 ms**,
-p90 4.27 → 3.97, on screen within one frame 99.6 → 100 %.
+1. **Line elements no longer carry `data-i`.** Keeping the index attribute truthful meant
+   rewriting every element below an inserted line on every Enter — 1.14 ms of attribute writes
+   and style invalidations in a 3,285-line document, on the one keystroke that is already the
+   most expensive. Nothing read the attribute (checked across `app/` and `tools/`);
+   **`Writer.lineIndexOf(el)`** is there if a piece ever needs element → index.
+2. **A changed line is tokenised once per keystroke, not twice.** The incremental branch used to
+   `buildLine()` (which fills) and then `fillLine()` the same elements again after the contexts
+   were recomputed. New elements now go in empty and are filled once, after `recomputeCtx`.
+3. **The re-tokenising below an edit is bounded by what is on screen.** When the context entering
+   the lines below an edit changes — typing ``` opens a fenced block and changes every line to the
+   end of the document — the old code re-filled all of them inside the keystroke: **26 ms** in a
+   55k-word manuscript, three 60 Hz frames, from one keypress. Now `AHEAD = 64` lines (more than a
+   screenful at any font size) are filled inside the keystroke and the rest is caught up in
+   animation frames, 400 lines at a time. **`Writer.flushPending()`** forces it. Measured with
+   `shots/latency/probes/micro2.mjs`, `Writer.render(false)` alone, 55k-word document:
+   opening a fence **26.16 → 3.33 ms**; Enter **2.70 → 1.93 ms**; a plain character 1.95 → 1.89 ms.
+   Nothing visible is ever stale: the catch-up only ever covers lines below the fold, and the
+   mirror's text still equals the textarea's, line for line, at every point
+   (`shots/latency/probes/correctness.mjs`).
+4. `dataset.lc`, which nothing wrote or read, is no longer touched on every fill.
 
 ### Findings for other pieces (no files of yours were changed)
 
-* **chrome.js** — mid-round I moved the word count off the keystroke path with
-  `requestIdleCallback`; scanning 53 KB with `/[\p{L}\p{N}'’]+/gu` cost **~0.53 ms per keystroke**
-  and the bars are hidden while you type, so it was invisible work. The chrome rewrite that landed
-  later does the same thing with its own `recount(now)`/`idle()` and a 500 ms catch-up — kept, and
-  it is the right shape. Please keep any future document-wide scan (style check, outline,
-  readability) on that side of the line.
-* **Focus mode costs ~0.5 ms of main thread per keystroke** (4.89 → 5.43 ms busy; event processing
-  2.3 → 3.4 ms p50). It does not change presented latency at 133 wpm — the frame budget absorbs it —
-  but it is the most expensive listener in the app, and most of it is `update()` running on every
-  selection (the `JSON.stringify` signature and the per-line sentence re-scan).
-* **The caret is placed twice per keystroke** — once on `selection`, once on `render` — about
-  100 µs and one extra `getClientRects`. Coalescing them into one `queueMicrotask` in caret.js
-  would remove it; it is your file, so it is left alone.
-* **page.css's `:has()` placeholder** was checked for an invalidation cost on the keystroke path;
-  there is none outside run-to-run noise.
-* **Nothing may scan the whole document synchronously on `change`.** At 10k words a full-text pass
-  is ~0.4–0.6 ms; three of them and the keystroke misses its frame. At 55k words the whole
-  keystroke already costs 12.9 ms of a 16.7 ms frame.
+* **caret.js — the caret glides 62 ms behind the letter at normal writing speed, and the glide is
+  an animation that runs while you type.** `GLIDE_X = 62`, `SNAP_MS = 60`: two keystrokes more
+  than 60 ms apart glide, and 133 wpm is 90 ms apart, so at any ordinary writing speed *every*
+  keystroke glides. Measured (`shots/latency/probes/caret-glide.mjs`, keydown → the caret's box
+  has stopped moving): **57.7 ms p50 at 90 ms pacing**, 7.7 ms at 45 ms pacing (there it snaps, as
+  designed). The glyph itself is on screen in ~5–10 ms. Two consequences:
+  1. What a writer watches — the caret — is the slowest thing on the screen while they type.
+     A 30–40 ms glide would still read as "the same caret moving" and would halve that.
+  2. **An animation is a frame clock.** `document.getAnimations()` while typing shows
+     `transform on caret` running in **343 of 446 samples** (plus the chrome bars' opacity
+     fades at the edges of a burst). With something animating, a keystroke's update is scheduled
+     at the next BeginFrame instead of producing a frame on demand — which is why one frame per
+     keystroke is marked "dropped, affecting smoothness" (see the report, §9) and why the
+     application's own cost can only be measured with `prefers-reduced-motion: reduce`
+     (`node tools/latency.mjs --reduced-motion`). caret.css and chrome.css both honour reduced
+     motion — thank you, that is what makes the honest measurement possible.
+* **chrome.js — the word count is ~4.9 ms of main-thread work per keystroke at 55k words**
+  (`FireIdleCallback` in the trace). It is idle-scheduled, which is right, and it is invisible at
+  10k words; at 55k it is the second-largest main-thread item in the run and it lands between
+  keystrokes at 133 wpm. An incremental count (adjust by the words in the edited line) would
+  remove it entirely.
+* **files.js autosave is cheap and correctly debounced.** Instrumented `Storage.setItem` over a
+  2,500-keystroke session with pauses: see `autosave` in `shots/latency/r2-long.json`. It fires
+  400 ms after you stop, never during a burst.
+* **Nothing may scan the whole document synchronously on `change`.** Unchanged from round 1.
 
-### `bin/quill`
+### Round-1 changes, still in place
 
-`chromium --app` launcher: starts `tools/serve.mjs` if the port is dead, own profile under
-`~/.cache/quill/browser`, `--fresh` for a true first run, `--measure` times *shell exec → first
-frame with the document* over CDP (155 ms of that is the chromium process spawn; 395 and 511 ms to
-pixels in two runs with the 10k-word document).
+ResizeObserver instead of a layout read inside the keystroke; one `selection` event per keystroke
+instead of three; writes before reads; no attribute storm on keydown. See the round-1 notes below
+in the report (§8) for the A/B.
 
-**It refuses to open a measured window** unless the compositor can place it off the active
-workspace (BRIEF.md "Headed windows"). This Hyprland build rejects both
-`hyprctl dispatch exec "[workspace 2 silent] …"` and `hyprctl keyword windowrule …`
-("keyword can't work with non-legacy parsers"), and chromium's Wayland `app_id` comes from the URL
-(`chrome-localhost__-Default`) rather than `--class`, so a class rule cannot match it either.
-Override with `QUILL_HEADED_OK=1` only when the user's workspace is free. The single real-display
-dataset in the report was taken before that rule was published; that window was closed and none has
-been opened since.
+### The bench
 
-### Re-running
+`node tools/latency.mjs` — every regime types **real prose**: capitals, punctuation, quotes,
+Enter, Backspace, undo, paste, select-and-replace and Markdown syntax, each keystroke labelled by
+kind so Enter and a fence-opening backtick are reported separately instead of averaged away.
+Twelve regimes, three sessions, bootstrap intervals on p50/p99, CPU throttling (`--throttle 4`),
+a long session (`--long 2500`), true cold start with a new browser process (`--coldstart 10
+[--fresh]`), and an idle frame-production control. A fresh page per regime, so the round-1
+double-probe bug is now impossible. `bin/quill --measure` opens the app on a **virtual Hyprland
+output** (`hyprctl output create headless`) so a real compositor really presents the frames while
+nothing appears on the user's screen — Hyprland 0.56 needs the new Lua dispatcher for placement:
+`hyprctl repl 'return hl.dispatch(hl.dsp.exec_cmd("[workspace N silent] …"))'`.
 
-`node tools/latency.mjs` (defaults: `shots/latency/doc10k.md`, 12 startup runs, 5 regimes × 300
-keys, 90 ms pacing, 60 Hz clock). Flags: `--clock off`, `--doc`, `--keys`, `--pace`, `--runs`,
-`--quick`, `--url` (point at a snapshot server for an A/B), `--snapshot <dir>` (fingerprint that
-tree instead of `app/`), `--json out.json`. `tools/mkdoc.mjs` rebuilds the corpus from a Project
-Gutenberg text file. Note that the app is fingerprinted into every result file: other builders
-edit the same tree while a run is in flight, so a number without a fingerprint is a number about
-nothing in particular.

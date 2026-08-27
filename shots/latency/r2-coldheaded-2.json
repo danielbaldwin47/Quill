@@ -1,0 +1,70 @@
+{
+  "env": {
+    "at": "2026-08-27T01:24:52.014Z",
+    "chromium": "151.0.7922.173",
+    "headless": false,
+    "cpu_throttle_x": 1,
+    "reduced_motion": "no-preference",
+    "node": "v26.7.0",
+    "os": "Linux 7.1.9-arch1-2",
+    "cpu": "13th Gen Intel(R) Core(TM) i5-13600K (20 threads)",
+    "load1": 0.34,
+    "busiest_processes": [
+      "120 node-MainThread",
+      "96.2 chromium",
+      "89.1 chromium",
+      "73.9 chromium",
+      "68.1 chromium"
+    ],
+    "mem_gb": 31,
+    "display": [
+      {
+        "name": "DP-3",
+        "model": "Dell Inc. DELL U2720Q G49JV13",
+        "mode": "3840x2160",
+        "refresh_hz": 60,
+        "scale": 1.5,
+        "vrr": false,
+        "focused": true
+      },
+      {
+        "name": "HEADLESS-8",
+        "model": "",
+        "mode": "1920x1080",
+        "refresh_hz": 60,
+        "scale": 2,
+        "vrr": false,
+        "focused": false
+      }
+    ],
+    "viewport": "1440x900",
+    "app": {
+      "files": 16,
+      "sha256": "19b86f97e10b203d",
+      "git_head": "33b4e48",
+      "served_from": "/tmp/qsnap-r2"
+    },
+    "document": {
+      "path": "shots/latency/doc10k.md",
+      "words": 10062,
+      "chars": 53031,
+      "lines": 432
+    }
+  },
+  "where": "HEADLESS-8",
+  "cold_start": {
+    "what": "bin/quill: shell exec of the launcher -> the named milestone, wall clock. Includes the chromium process spawn, profile init, window creation, navigation and the full render of the document.",
+    "profile": "/home/diggle/.cache/quill/browser",
+    "exec_to_first_contentful_paint_ms": 351.4,
+    "exec_to_editor_ready_ms": 306.8,
+    "exec_to_navigation_start_ms": 159.4,
+    "navigation_to_first_contentful_paint_ms": 192,
+    "navigation_to_editor_ready_ms": 147.4,
+    "document_in_editor": {
+      "chars": 53031,
+      "lines": 432
+    }
+  },
+  "typing": [],
+  "sessions": null
+}
