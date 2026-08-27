@@ -21,8 +21,9 @@ maps exactly onto iA's five colours. Use `harper-brill` alone, not the whole Har
 implements iA's cliché/filler/redundancy check, and iA's own feature is literal phrase matching, not
 grammar analysis. Seed the lists from permissively licensed sources and own them as Quill data.
 
-**Reject `nlprule`** (18.3 MiB of English binaries, no release since 2021-04-24, and it is a
-grammar-error engine, not a style checker) and **reject every ML approach** (hundreds of MB of
+**Reject `nlprule`** (18.3 MiB of English binaries, ~350 ms to deserialize, no release since
+2021-04-24 with the author on record that he is not returning, and it is a grammar-error engine,
+not a style checker) and **reject every ML approach** (hundreds of MB of
 runtime and per-sentence latency in the tens of milliseconds, against a per-keystroke budget of
 single-digit milliseconds).
 
@@ -31,10 +32,10 @@ single-digit milliseconds).
 | Option | POS tags | Style lists | On-disk | License | Maintained | Verdict |
 |---|---|---|---|---|---|---|
 | `harper-brill` 2.8.0 | UPOS, Brill tagger | no | 644 KB model | Apache-2.0 | yes (2026-08-13) | **adopt for Syntax highlight** |
-| `nlprule` 0.6.4 | Penn Treebank, dictionary + disambiguation rules | no | 18.3 MiB (EN) | MIT/Apache-2.0 code, LGPL-2.1 data | no (2021-04-24) | reject |
+| `nlprule` 0.6.4 | Penn Treebank, dictionary + disambiguation rules | no | 18.3 MiB (EN), ~350 ms load | MIT/Apache-2.0 code, LGPL-2.1 data | no (2021-04-24) | reject |
 | Own lexicon in an `fst::Map` | most-frequent-tag only | no | ~0.3–1 MB | depends on word list | n/a | fallback only |
 | `harper-core` lints | via `harper-brill` | 2 filler words, 5 boring words | ~1.4 MB + crate | Apache-2.0 | yes | wrong shape (grammar checker) |
-| `rust-bert` / `candle` / `ort` | state of the art | no | ~600 MB (libtorch + weights) | Apache-2.0 / MIT | yes | reject (weight and latency) |
+| `rust-bert` / `candle` / `ort` | state of the art | no | ~860 MB unpacked; 25–36 ms/sentence | Apache-2.0 / MIT | `rust-bert` stale | reject (weight and latency) |
 | Quill phrase lists + `aho-corasick` | n/a | **yes, ours** | ~50–200 KB | ours (GPL-3) | n/a | **adopt for Style check** |
 
 ## What the feature actually has to do
@@ -48,7 +49,7 @@ colour per word — not a parse tree, not a grammar judgement.
 Style check (<https://ia.net/writer/support/editor/style-check>) crosses out three categories, and
 iA's own examples give the game away:
 
-- Fillers: "basically, pretty much, sort of"
+- Fillers: "basically, pretty much, sort of" — and iA notes "There are hundreds of filler words"
 - Redundancies: "basic fundamentals, combine together, fall down"
 - Clichés: "against all odds, brass tacks, long and short of it"
 
@@ -102,9 +103,17 @@ ship as the primary path.
 
 <https://github.com/bminixhofer/nlprule>, <https://crates.io/crates/nlprule>.
 
-**Maintenance — disqualifying.** Latest release 0.6.4, published 2021-04-24 (crates.io API). Last
-push to the repository 2023-05-23; 670 stars, 27 open issues, not archived. Five years without a
-release, against a 2021-era Rust ecosystem, for a crate that would sit on Quill's hot path.
+**Maintenance — disqualifying, and stated by the author.** Latest release 0.6.4, published
+2021-04-24 (crates.io API). Last commit on `main` 2022-02-04; 670 stars, 27 open issues, not
+archived. Asked "project dead?" in issue
+[#88](https://github.com/bminixhofer/nlprule/issues/88) (2024-02-28), the author replied in full:
+
+> Hi, unfortunately yes, I am not working on this at the moment and don't plan to return soon. I am
+> maintaining this project (fixing bugs) but not more.
+
+No commit has landed since, so treat even the bugfix promise as lapsed. It does still compile —
+crates depending on `nlprule ^0.6` were published as recently as 2026-08 and build on docs.rs — but
+this is a frozen 2021-era dependency for a crate that would sit on Quill's hot path.
 
 **Size — MEASURED.** Downloaded the 0.6.4 release assets and decompressed them:
 
@@ -118,23 +127,58 @@ Both are `bincode`-serialized and are deserialized whole by `Tokenizer::new` / `
 uncompressed figure is roughly the resident cost, plus allocator overhead. 18 MiB of resident
 dictionary for a typography-first editor is a poor trade when 1.4 MB does the job.
 
-**Rule counts and speed.** The README's benchmark table gives English: 843 disambiguation rules
-(100% of LanguageTool's) and 3,725 grammar rules (~85%), against LanguageTool v5.2, with nlprule at
-relative time 1 versus LanguageTool's 1.7–2.0. The numbers are relative, not absolute, so they do
-not answer the per-keystroke question directly.
+**Load time — the real killer, and it was investigated and never fixed.** `Tokenizer::new` and
+`Rules::new` are whole-blob `bincode::deserialize_from` calls with no lazy or mmap path. Criterion
+measurements posted in [PR #70](https://github.com/bminixhofer/nlprule/pull/70) (English, Ryzen 7
+3700X) give **`load tokenizer` 350.94 ms** and **`load rules` 32.82 ms** — roughly 330 ms combined
+after the further ~12% improvement that landed in 0.6.4. The cost is not regex compilation (regexes
+are lazy) but rebuilding the tagger's bimaps from an FST. Issue
+[#56](https://github.com/bminixhofer/nlprule/issues/56) opens "The biggest issue using this library
+currently is the fact, that on each startup a _lot_ of regular expressions are compiled"; the fix
+discussed there (zero-copy via rkyv or capnproto) was judged "clearly out of scope" and never done.
+
+**Per-sentence cost — actually fine.** Issue [#6](https://github.com/bminixhofer/nlprule/issues/6)
+benchmarks 10,000 Tatoeba sentences at 12.542 s, i.e. **~1.25 ms per sentence** including PyO3
+binding overhead. The README's table gives English 843 disambiguation rules (100% of
+LanguageTool's) and 3,725 grammar rules (~85%), at relative time 1 against LanguageTool's 1.7–2.0.
+So nlprule's steady-state speed is not the objection — its 18 MiB and its ~350 ms cold load are.
 
 **Tagging model.** Dictionary lookup from LanguageTool's morfologik English dictionary plus 843
 disambiguation rules; the Penn Treebank tagset is confirmed by inspecting the binary (MEASURED:
 `strings en_tokenizer.bin` yields NN, NNP, JJ, NNS, VB, VBN, VBD, VBG, VBP, RB, CD, VBZ, NNPS, IN,
-MD, JJR, UH, DT, CC, RBR). This is a real disambiguating tagger, not a bare lexicon, so accuracy
-would be respectable. It is simply the wrong package: 18 MiB and unmaintained.
+MD, JJR, UH, DT, CC, RBR, plus LanguageTool's own `NN:U`, `NN:UN`, `PCT`, `ORD`, `RB_SENT`). This
+is a real disambiguating tagger, not a bare lexicon, so accuracy would be respectable.
+
+Three properties would still hurt Syntax highlight, and they are worth recording because they apply
+to any LanguageTool-derived tagger:
+
+- **It returns a tag *set*, not a tag.** `Word::tags()` is documented as "Multiple pairs of (lemma,
+  part-of-speech) associated with this token. Order is in general not significant" — so `tags()[0]`
+  is not a "best" tag, and Quill would have to collapse the set to one colour itself.
+- **`IN` conflates preposition with subordinating conjunction**, so *if / as / since / because*
+  cannot be cleanly separated from *of / to / with*. Conjunction-green would be systematically wrong
+  one way or the other. `harper-brill`'s UPOS keeps `ADP` and `SCONJ` apart, which is exactly the
+  distinction iA's green needs.
+- **Out-of-dictionary words are tagged literally `UNKNOWN`** with no statistical fallback.
 
 **License — actually fine, and this is worth recording.** The README states: "nlprule is licensed
 under the MIT license or Apache-2.0 license, at your option" and "The nlprule binaries (*.bin) are
 derived from LanguageTool v5.2 and licensed under the LGPLv2.1 license." The FSF's license list
 (<https://www.gnu.org/licenses/license-list.html>) says of LGPLv2.1: "It is compatible with GPLv2
-and GPLv3." So the LGPL-2.1 rule data could ship inside a GPL-3 Quill. nlprule is rejected on weight
-and maintenance, not on license.
+and GPLv3." Independently, LGPL-2.1 §3 lets a copy be converted to the ordinary GPL — "(If a newer
+version than version 2 of the ordinary GNU General Public License has appeared, then you can specify
+that version instead if you wish.)" — which reaches GPLv3 directly. Either route works, and Quill
+being copyleft sidesteps the unresolved argument in issue
+[#81](https://github.com/bminixhofer/nlprule/issues/81) about whether `include_bytes!` of LGPL data
+binds a *proprietary* downstream binary. **nlprule is rejected on weight and maintenance, not on
+license.**
+
+**One packaging trap worth remembering regardless.** `nlprule-build`'s `BinaryBuilder` performs a
+**blocking HTTP GET to GitHub Releases from `build.rs`** to fetch the `.bin` files. That breaks
+offline, sandboxed and reproducible builds — precisely the conditions of a PKGBUILD and a Flatpak
+manifest (open issue [#84](https://github.com/bminixhofer/nlprule/issues/84), "Be more responsible
+about network requests"). Any future dependency that downloads model data at build time should be
+rejected on this ground alone; vendored, committed data is the only shape that packages cleanly.
 
 ## Harper — the recommendation for Syntax highlight
 
@@ -185,9 +229,12 @@ non-comment entries (MEASURED) in a hunspell-style affix-flagged format, expande
 Quill's five categories are first-class in the data model.
 
 **Total footprint for the tagger path: ~1.4 MB** of embedded data (644 KB model + 769 KB
-dictionary), against nlprule's 18.3 MiB. Harper's README claims it "take[s] milliseconds to lint a
-document, take[s] less than 1/50th of LanguageTool's memory footprint" and is "even small enough to
-load via WebAssembly."
+dictionary), against nlprule's 18.3 MiB — and for scale, the entire `harper-ls` binary for
+x86_64-linux-gnu, grammar rules and all, is 9.8 MiB. Harper's README claims it "take[s] milliseconds
+to lint a document, take[s] less than 1/50th of LanguageTool's memory footprint" and is "even small
+enough to load via WebAssembly"; `demo.md` claims "For most documents, Harper can serve up
+suggestions in under 10 ms, faster that Grammarly." Harper's whole premise — local, small, fast,
+private — is Quill's premise.
 
 ## Lexicon-based tagging — the fallback, and the sizing
 
@@ -211,18 +258,36 @@ Rejected on arithmetic, before any accuracy argument. Quill's whole premise is a
 packaged for Arch and later Flatpak; the JS oracle's per-keystroke budget is what the native app
 must beat.
 
-- **Runtime — MEASURED.** `rust-bert` needs libtorch. The official CPU Linux build
-  `libtorch-cxx11-abi-shared-with-deps-2.4.0+cpu.zip` is 189,478,225 B (**180.7 MiB compressed**,
-  more once unpacked), per an HTTP HEAD against download.pytorch.org.
-- **Weights — MEASURED.** A representative English POS model,
-  `vblagoje/bert-english-uncased-finetuned-pos`, ships `model.safetensors` at **417.7 MB**
-  (HuggingFace API).
-- **Total: ~600 MB against `harper-brill`'s 1.4 MB — a factor of ~430**, for the ~2 accuracy points
-  between a Brill tagger and BERT, on a task where J&M reports that "HMMs, CRFs, BERT perform
-  similarly" at 97%.
-- CPU inference for a transformer runs in the tens of milliseconds per sentence. A 60 fps frame is
-  16.7 ms and Quill's typing path must fit inside one. Even Harper's own tiny BiLSTM chunker is
-  described in its source as "extremely expensive" and is memoized behind a 10,000-entry cache.
+- **Runtime — MEASURED.** `rust-bert` needs libtorch, and its README pins the version exactly
+  ("This package requires `v2.4`"). `libtorch-cxx11-abi-shared-with-deps-2.4.0+cpu.zip` is
+  189,478,225 B (180.7 MiB) to download and **762 MiB unpacked**, of which `libtorch_cpu.so` alone
+  is **472 MiB**. ONNX Runtime is far lighter — `libonnxruntime.so` is 27.2 MiB — but the weights
+  dominate either way.
+- **Weights — MEASURED.** `rust-bert`'s own default POS model
+  (`mrm8488/mobilebert-finetuned-pos`) is **98.8 MB**, downloaded at first run. A BERT-base POS
+  model (`vblagoje/bert-english-uncased-finetuned-pos`) is **438 MB**; DistilBERT token
+  classification ~266 MB.
+- **Total: ~860 MB unpacked for the lightest `rust-bert` path, against `harper-brill`'s 1.4 MB.**
+  That is for the ~2 accuracy points between a Brill tagger and BERT, on a task where J&M reports
+  that "HMMs, CRFs, BERT perform similarly" at 97%.
+- **`rust-bert` is also stale**: 0.23.0, released 2024-09-29, and its optional ONNX path pins
+  `ort` 1.16.3 while `ort` is at 2.0.0-rc.13.
+- **`candle`** (MIT OR Apache-2.0) is the one genuinely embeddable runtime — pure Rust on CPU — but
+  it ships **no POS or token-classification example**, so Quill would port the classification head
+  itself and still carry hundreds of MB of weights.
+- **Latency is the decisive number.** HuggingFace's own CPU benchmark
+  (<https://huggingface.co/blog/infinity-cpu-performance>) puts *vanilla* DistilBERT — the small
+  model — at 49 requests/sec at sequence length 8 and 28/sec at 64, i.e. **20 ms at 8 tokens and
+  36 ms at 64 tokens**, batch size 1, on a server-class Ice Lake Xeon. A typical sentence is 20–40
+  tokens, so **25–36 ms per sentence**: 1.5–2× over a 16.7 ms 60 fps frame and 3–4× over an 8 ms
+  target, before Quill does anything else. BERT-base is roughly 2× slower again, and a laptop is
+  slower than that Xeon.
+- Harper's own 806 KB BiLSTM chunker is described in its source as "extremely expensive" and is
+  memoized behind a 10,000-entry LRU cache. If that is expensive, a 438 MB transformer is not in
+  the conversation.
+- **iA does not use ML for this either.** From <https://ia.net/writer/how-to/edit-and-polish>:
+  "Style Check only runs on your device—Writer doesn't send your text to any servers or cloud. It
+  doesn't use AI either." The product Quill is judged against solves this with lists and a tagger.
 - `rust-bert` is Apache-2.0 and `candle` MIT/Apache — both GPL-3 compatible per the FSF list
   ("Apache License, Version 2.0 […] This is a free software license, compatible with version 3 of
   the GNU GPL"). License is not the obstacle; weight and latency are.
@@ -232,7 +297,11 @@ buys nothing here that a Brill tagger cannot nearly match at 1/200th the size.
 
 ## Style check — ship Quill's own lists
 
-**No crate does this.** Harper is the closest thing in the Rust ecosystem and it does not:
+**No crate does this, and the Rust ecosystem is genuinely thin here.** There is no Rust port of
+proselint. A crates.io sweep for prose/style/cliché/readability turns up `writing-analysis` (301
+downloads), `textstat` (135, readability formulas only), `text-statistics` (41) and `Rust_Grammar`
+(254) — all toys. `languagetool-rust` (52,729 downloads) is an HTTP client to a LanguageTool server,
+which the ticket rules out. Harper is the closest real thing and it does not do this either:
 `harper-core/src/linting/filler_words.rs` defines its filler set as `WordSet::new(&["uh", "um"])` —
 two disfluencies — and `boring_words.rs` as `very, interesting, several, most, many`. Harper's 335
 lint modules are overwhelmingly grammar and usage corrections (`despite_of.rs`, `an_a.rs`,
@@ -256,16 +325,43 @@ built in (`MatchKind::LeftmostLongest` plus an `ascii_case_insensitive` builder 
 matters. Prior art to draw on, all with permissive licenses, checked against the FSF list — the
 Expat/MIT license and the Modified BSD license are both listed as "compatible with the GNU GPL":
 
-- **`proselint`** (amperser/proselint, BSD-3-Clause, 4,568 stars, last push 2026-08-26) is the
-  strongest seed and its lists are already plain text, one phrase per line — MEASURED:
-  `checks/cliches/write-good` 697 phrases, `checks/cliches/garner` 79, `checks/redundancy/after-the-deadline`
-  361, `checks/redundancy/garner` 88. That is **1,225 curated phrases** available under a
-  GPL-compatible license before writing a single entry.
-- `write-good` (btford/write-good, MIT) — weasel words, `too-wordy`, adverbs.
-- The `retext-*` plugins (`retext-simplify`, `retext-intensify`, `retext-passive`, MIT).
-- Wikipedia's list of English clichés is CC BY-SA 4.0, which Creative Commons declared **one-way
-  compatible with GPLv3** in 2015 (<https://creativecommons.org/2015/10/08/cc-by-sa-4-0-now-one-way-compatible-with-gplv3/>):
-  content may move into a GPLv3 project but not back. Usable, with attribution.
+**Prefer the MIT npm word lists.** They are the same corpora proselint ships, with cleaner
+provenance, and MIT is "compatible with the GNU GPL" per the FSF. Entry counts MEASURED:
+
+| List | Entries | Package | License |
+|---|---|---|---|
+| Clichés | **698** | `no-cliches` | MIT |
+| Wordiness | **236** | `too-wordy` | MIT |
+| Simplification | **327** | `retext-simplify` | MIT |
+| Passive participles | **175** | `passive-voice` | MIT |
+| Hedges | **162** | `hedges` | MIT |
+| Weasels | **116** | `weasels` | MIT |
+| Fillers | **83** | `fillers` | MIT |
+
+`proselint` (BSD-3-Clause) is worth raiding for **redundancies**, which the MIT set lacks:
+`checks/redundancy/after-the-deadline` 361 pairs and `checks/redundancy/garner` 88, stored as
+`bad phrase,replacement` CSV. Its cliché list is *the same list* — proselint's
+`checks/cliches/write-good` (697 entries) and npm `no-cliches` (698) overlap on 696 — so take that
+one from npm under MIT and avoid proselint's mixed provenance: its `diction` sub-list derives from
+GNU diction (GPL, fine here but not neutral) and its `garner` lists are phrase selections from a
+copyrighted usage manual.
+
+**Do not use Wikipedia or Wiktionary for this.** Two reasons, and the second is the one that
+matters:
+
+1. The list does not exist. There is no "List of English-language clichés" article; `List of
+   clichés` is a redirect to the prose article, and `Category:Clichés` does not exist on English
+   Wikipedia.
+2. **CC BY-SA 4.0 would break ADR 0003.** Creative Commons made BY-SA 4.0 one-way compatible with
+   GPLv3 in 2015, but the FSF's license list spells out the catch verbatim: "Because Creative
+   Commons lists only version 3 of the GNU GPL on its compatible licenses list, it means that you
+   can not license your adapted CC BY-SA works under the terms of 'GNU GPL version 3, or (at your
+   option) any later version.'" Quill is **GPL-3.0-or-later**. Ingesting CC BY-SA text would pin
+   Quill to GPL-3.0-**only** — a licence change, not a footnote. Wikimedia text is dual CC BY-SA 4.0
+   and GFDL, so this applies to Wiktionary's idiom categories too.
+
+This same trap applies to any future corpus, so it is worth stating as a rule: **no CC BY-SA data in
+Quill unless the project first decides to drop "or-later".**
 
 Curate rather than concatenate. iA's lists are small, opinionated and tuned for false-negative
 tolerance — a wrong strike-through in the middle of a sentence is far more damaging in a
@@ -331,6 +427,11 @@ approaches fit that shape and both are paragraph-local:
 - Universal POS tags — <https://universaldependencies.org/u/pos/index.html>
 - UD_English-EWT / UD_English-GUM READMEs — <https://github.com/UniversalDependencies/UD_English-EWT>, <https://github.com/UniversalDependencies/UD_English-GUM>
 - proselint — <https://github.com/amperser/proselint>
+- write-good and the MIT word lists — <https://github.com/btford/write-good>, <https://github.com/words>
+- iA Writer, Introducing Style Check — <https://ia.net/topics/introducing-style-check>
+- iA Writer, Edit and polish — <https://ia.net/writer/how-to/edit-and-polish>
+- HuggingFace CPU latency benchmark — <https://huggingface.co/blog/infinity-cpu-performance>
+- rust-bert — <https://github.com/guillaume-be/rust-bert>
 - libtorch CPU builds — <https://pytorch.org/get-started/locally/>
 - fst / transducers writeup — <https://burntsushi.net/transducers/>
 - aho-corasick — <https://docs.rs/aho-corasick/>
