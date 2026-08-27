@@ -1,7 +1,7 @@
 # Maintainer: Daniel Baldwin <danielbaldwin47@gmail.com>
 # Build from this checkout:  makepkg -f   (then: sudo pacman -U quill-*.pkg.tar.zst)
 pkgname=quill
-pkgver=1.0.0.r37.g31409ef
+pkgver=1.0.0.r39.g836e374
 pkgrel=1
 pkgdesc="A long-form writing environment: textarea+mirror editor, iA Writer Duo/Quattro/Mono, focus and typewriter modes"
 arch=('any')
