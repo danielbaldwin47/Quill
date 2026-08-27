@@ -401,3 +401,81 @@ correctness probe (`shots/latency/probes/correctness.mjs`), and they are **visib
   the end-to-end latency does not move (10k: 5.27 → 5.34 ms mean to paint; 55k: 9.01/9.21 →
   9.10), because the dominant term is the wait for the next BeginFrame, not the paint. Measured,
   twice, and left out.
+
+### Round 4 — the caret, and what it was costing everything else
+
+**`app/js/caret.js` and `app/css/caret.css` are the caret piece's files. This round changed four
+constants and eight lines in caret.js, and one comment in caret.css.** It is written down here in
+full, and the caret owner should feel free to re-tune the two glide constants — the one thing that
+must not come back is a glide on a caret move caused by an *edit*.
+
+Why the latency piece touched them: it is the biggest single latency in the product, it had been
+reported here for two rounds, and the round-3 critic's verdict on this piece was, in as many words,
+"fix it before spending another round chasing a ±12 ms panel measurement".
+
+What was wrong. `GLIDE_X = 62 ms` / `SNAP_MS = 60 ms` meant: glide unless the previous keystroke was
+less than 60 ms ago. 133 wpm is 90 ms between keys, so **at any ordinary writing speed every
+keystroke glided**. Measured black box, by reading the caret's client rect every animation frame
+(`shots/latency/probes/caret-settle.mjs`, `shots/latency/r4-caret-before.json`):
+
+| at 90 / 150 / 250 ms between keys | before | after |
+|---|---|---|
+| keydown → the caret has stopped moving | **57.3 ms** | **8.1 ms** |
+| keystrokes with the caret in the glyph's own frame | **1–3 %** | **97.5 %** |
+| how far behind the letter the caret is in that frame | **1 cell** | **0** |
+
+What changed:
+
+* `EDIT_SNAP_MS = 150` — a caret move less than 150 ms after a `change` event never glides. Typing,
+  Enter, Backspace, paste and undo therefore snap, always, at every speed.
+* Glides are kept for *navigation* (a click, a word jump, an arrow between lines) and shortened:
+  `GLIDE_X 62 → 34`, `GLIDE_Y 92 → 46`. A new `GLIDE_MIN = 3` em means a hop of a cell or two snaps
+  too; there is nothing for the eye to follow over 2 mm.
+* `W.caretGlide` exposes the constants and `moving()` for benches.
+
+**And it was not only the caret.** The glide is an animation, and an animation is a frame clock: with
+one running, a keystroke's update waits for the next tick instead of producing a frame on demand.
+`document.getAnimations()` while typing at 133 wpm found `transform on caret` running in **343 of
+446 samples before, 0 after**. The application's own keystroke cost, same document, same script,
+same machine, `--reduced-motion --clock off`, 120 keys (`/tmp` A/B, reproduced in
+`progress/latency-report.md` §6):
+
+| | before | after |
+|---|---|---|
+| keystroke → committed frame, mean | 5.29 ms | **2.55 ms** |
+| of which: waiting to be scheduled at all | 3.67 ms | **0.64 ms** |
+| of which: the app's own JS + its frame's work | 1.62 ms | 1.91 ms |
+
+The app's own work did not change. The 2.7 ms was the caret keeping Chromium's frame source alive —
+and note this was true even under `prefers-reduced-motion: reduce`, where caret.css cancels the CSS
+transition: `moveTo()` still wrote a `transform` and a `transition-duration` onto the element on
+every keystroke and scheduled a `settle()` timer 86 ms later, so there was a second style change and
+a second frame per key regardless of the media query. Round 3's "the keystroke is scheduler-bound,
+adding 2 ms of busy-wait changes nothing" was measuring the caret's own frame clock without knowing
+it. **The ≤ 5 ms average in REFERENCE §5.3 is now cleared, and the caret is why.**
+
+### Round 4 — other files
+
+* **`tools/latency.mjs`** (owned): five milestones became seven. `scheduler_wait` (nothing is
+  running; the app is waiting to be scheduled) is now separated from `frame_work` (the frame's own
+  style/layout/pre-paint/paint/commit), so `app_cost_no_cadence = to_js_done + frame_work` is the
+  quantity Fatin's Typometer reports and can be quoted against his means without arguing.
+  New per-run blocks: `frame_cadence_ms` and `display_cadence_ms` (are the frames on a 16.67 ms
+  grid? — evidence for or against "this run had a display cadence"), and
+  `caret_placed_in_the_keystrokes_own_task`, a zero-cost in-page check (three inline-style *strings*,
+  no layout) that the caret's final position is written in the keystroke's own task with nothing
+  animating it. It is asserted in every regime of every run.
+* **`bin/quill`** (owned): passes `--url` through to `tools/latency.mjs`. Without it the per-regime
+  reload went to port 4173 — the live app — instead of to the frozen snapshot the launcher opened.
+  Round 3's compositor numbers were measured on whatever `app/` contained at that moment.
+* **`app/css/caret.css`**: one comment, which described the old durations.
+
+### Findings for other pieces (round 4)
+
+* **`chrome.js` `count()`** is still a whole-document scan per keystroke (idle-scheduled): ~1.0 ms
+  per key at 10k words, ~5.0 ms at 55k. Now that the keystroke's slack is real (0.6 ms of scheduler
+  wait, not 3.7), idle work is the next thing that will start landing inside keystrokes on a slow
+  machine or a large document. Adjusting the count by the words in the edited line would remove it.
+* **Anything that animates while the writer types costs every keystroke a frame.** The chrome bars'
+  opacity fades are now the only ones left (37 of 446 samples, at the edges of a burst, never during
+  one). Please keep it that way; `shots/latency/probes/animations.mjs` prints the list in one second.

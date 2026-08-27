@@ -245,6 +245,13 @@ function labelsOf(steps) {                    // one label per keydown, in order
   return out;
 }
 const TEXT_LABELS = new Set(['letter', 'capital', 'space', 'punct', 'markdown', 'enter', 'backspace', 'undo', 'paste']);
+// A real keyboard has no "A" key: it has Shift and "a", and Chromium sees TWO keydowns for one
+// character. CDP's Input.dispatchKeyEvent does not — it sets the modifier on the one event. So a
+// uinput run has its own keydown accounting, and this is the same US-layout shift table that
+// tools/uinput-keys.py types from (kb_layout = us on this machine).
+const SHIFTED_CHARS = new Set('!@#$%^&*()_+{}:"~|<>?'.split(''));
+const needsShift = (ch) => /[A-Z]/.test(ch) || SHIFTED_CHARS.has(ch);
+const pressChar = (st) => (st.press === 'Space' ? ' ' : st.press === 'Enter' ? '\n' : st.press === 'Backspace' ? '\b' : st.press);
 
 // ---------- page helpers ----------
 const seedDoc = (t) => {                     // put the document in place before the app boots
@@ -342,6 +349,17 @@ function reduceTrace(events) {
     if (last && r.a <= last.b + 1000) { if (r.b > last.b) last.b = r.b; } else groups.push({ a: r.a, b: r.b });
   }
   const groupAfter = (us) => { for (const g of groups) if (g.b >= us) return g; return null; };
+  // Top-level main-thread tasks, so a frame's own work can be told apart from the wait for it.
+  // Every rendering step of one frame (rAF callbacks, style, layout, pre-paint, paint, layerize)
+  // runs inside ONE top-level task; its start is when Chromium actually began that frame on the
+  // main thread. Everything before it is scheduling, which no web application can shorten.
+  const topAll = events.filter((e) => e.ph === 'X' && e.dur > 0 && e.cat && e.cat.includes('devtools.timeline'))
+    .sort((a, b) => a.ts - b.ts || b.dur - a.dur);
+  const tops = []; let tend = -1;
+  for (const e of topAll) { if (e.ts >= tend) { tops.push({ a: e.ts, b: e.ts + e.dur }); tend = e.ts + e.dur; } }
+  const taskAround = (us) => { let lo = 0, hi = tops.length - 1, best = null;
+    while (lo <= hi) { const m = (lo + hi) >> 1; if (tops[m].a <= us) { best = tops[m]; lo = m + 1; } else hi = m - 1; }
+    return best && best.b >= us ? best : null; };
   // family = every input event between this keydown and the next one (keypress, input, keyup),
   // found with a two-pointer walk rather than a filter per key (O(n), not O(n^2)).
   const per = []; let j = 0;
@@ -357,6 +375,8 @@ function reduceTrace(events) {
       fam++; k++;
     }
     const g = groupAfter(jsDoneUs);
+    const task = g ? taskAround(g.a) : null;
+    const fs = task ? task.a : (g ? g.a : null);
     per.push({
       t: e.timeStamp,
       ts_us: e.ts,                            // Chromium TimeTicks = CLOCK_MONOTONIC on Linux
@@ -374,6 +394,16 @@ function reduceTrace(events) {
       to_commit: e.commitFinishTime ? e.commitFinishTime - e.timeStamp : null,
       to_present: e.duration || null,
       keys_in_family: fam,
+      // Split `frame_wait` into the two things it is made of. `frame_start` is the beginning of the
+      // top-level task that ran this frame's rendering steps.
+      sched_wait: fs ? Math.max(0, (fs - jsDoneUs) / 1000) : null,           // nothing is running: waiting to be scheduled
+      frame_work: fs && e.commitFinishTime ? (e.ts + e.commitFinishTime * 1000 - e.timeStamp * 1000 - fs) / 1000 : null,
+      // The application's own cost with the frame CADENCE removed and nothing else removed:
+      // its JavaScript, plus the whole of the frame it caused (style, layout, pre-paint, paint,
+      // commit). This is the quantity Fatin's Typometer reports; see the report, section 6.
+      app_cost: fs && e.commitFinishTime ? (jsDoneUs - e.ts) / 1000 + (e.ts + (e.commitFinishTime - e.timeStamp) * 1000 - fs) / 1000 : null,
+      frame_start_us: fs,
+      present_us: e.duration ? e.ts + e.duration * 1000 : null,
     });
   }
   // main-thread busy time, top-level events only (no double counting)
@@ -413,6 +443,10 @@ async function regimePage(ctx, reuse) {
     page.__quillInit = true;
     await page.addInitScript(storageProbe);
     if (doc) await page.addInitScript(seedDoc, doc);
+    // Settings for the profile this run uses, merged into localStorage before the app boots.
+    // (Used to ask, for instance, what a keystroke costs with the chrome bars turned off.)
+    if (args.settings && args.settings !== true)
+      await page.addInitScript((j) => { try { const cur = JSON.parse(localStorage.getItem('quill.settings') || '{}'); localStorage.setItem('quill.settings', JSON.stringify({ ...cur, ...JSON.parse(j) })); } catch (e) {} }, String(args.settings));
   }
   await page.goto(URL_, { waitUntil: 'load' });
   return page;
@@ -474,6 +508,28 @@ async function typingRun(ctx, opts) {
         ch.port2.postMessage({ idx, raf: ts });
       });
     }, { capture: true });
+    // The caret is the one moving thing a typist's eye is on, and until round 4 it GLIDED to its
+    // new column over 62 ms — four frames behind the letter. This listener runs after the app's
+    // own (it is registered later), reads three strings off the caret's inline style, and never
+    // touches layout, so it costs nothing measurable: it proves, per keystroke, that the caret's
+    // final position is written in the keystroke's own task and that nothing is animating it.
+    // The black-box confirmation (its client rect, frame by frame) is shots/latency/probes/caret-settle.mjs.
+    window.__caret = { n: 0, static_and_placed: 0, moved: 0, animating: 0 };
+    (function () {
+      const c = document.querySelector('#caret-layer .caret');
+      if (!c) return;
+      let last = '';
+      // Bubble phase on window: this runs AFTER the textarea's own listener, i.e. after the app
+      // has placed the caret for this keystroke. (Capture phase would read the previous one.)
+      window.addEventListener('input', () => {
+        const st = window.__caret; st.n++;
+        const tr = c.style.transform || 'none', dur = c.style.transitionDuration || '0s';
+        const at = c.style.left + '|' + c.style.top;
+        if (at !== last) { st.moved++; last = at; }
+        if (tr !== 'none' || (dur !== '0s' && dur !== '')) st.animating++;
+        else st.static_and_placed++;
+      }, false);
+    })();
     // The browser's own view of the same thing (8 ms granularity), as a sanity check on the trace.
     window.__evt = [];
     try {
@@ -496,7 +552,9 @@ async function typingRun(ctx, opts) {
   await page.evaluate(() => { window.__lat.keys.length = 0; window.__lat.rafs = 0; window.__evt.length = 0; window.__store.length = 0; });
 
   const steps = script(mix, keys, hash32(opts.name));
-  const labels = labelsOf(steps);
+  const labels = opts.uinput
+    ? steps.flatMap((st) => (needsShift(pressChar(st)) ? ['modifier', st.label] : [st.label]))
+    : labelsOf(steps);
   const trace = await startTrace(cdp);
   const t0 = Date.now();
   let pressed = 0, expected = 0, injected = null;
@@ -504,21 +562,57 @@ async function typingRun(ctx, opts) {
     // Real keys go to whatever the compositor thinks is focused. If that is not this window they
     // go into somebody's editor, so this refuses to inject unless the page itself says it has
     // keyboard focus and the caret is in the textarea.
-    const focused = await page.evaluate(() => ({ has: document.hasFocus(), active: document.activeElement && document.activeElement.id, vis: document.visibilityState }));
+    const checkFocus = () => page.evaluate(() => ({ has: document.hasFocus(), active: document.activeElement && document.activeElement.id, vis: document.visibilityState }));
+    const focused = await checkFocus();
     if (!focused.has || focused.active !== 'input' || focused.vis !== 'visible')
       throw new Error('uinput: refusing to type — window focus is ' + JSON.stringify(focused));
     // Real keys, through /dev/uinput -> libinput -> Hyprland -> Wayland -> Chromium, with
     // CLOCK_MONOTONIC recorded immediately before each write(2). Nothing here goes through CDP.
-    const text = steps.map((st) => (st.press === 'Space' ? ' ' : st.press === 'Enter' ? '\n' : st.press === 'Backspace' ? '\b' : st.press)).join('');
+    const text = steps.map(pressChar).join('');
     if (!/^[\x08\x0a\x20-\x7e]+$/.test(text)) throw new Error('uinput: regime ' + opts.name + ' presses a key this injector cannot express');
-    injected = await new Promise((res, rej) => {
+    // Typed in chunks, with the page's own view of keyboard focus re-checked between every one of
+    // them: real keys go wherever the compositor thinks focus is, and this machine has terminals
+    // on it. One 300-key write could not be stopped half way; this can, and does.
+    const CHUNK = 25;
+    injected = await (async () => {
       const ch = spawn('python3', [path.join(path.dirname(new URL(import.meta.url).pathname), 'uinput-keys.py')], { stdio: ['pipe', 'pipe', 'inherit'] });
-      let buf = '';
-      ch.stdout.on('data', (d) => { buf += d; });
-      ch.on('close', (code) => { try { res(JSON.parse(buf)); } catch (e) { rej(new Error('uinput injector failed (' + code + '): ' + buf.slice(0, 200))); } });
-      ch.stdin.end(JSON.stringify({ text, pace_ms: pace || 8, hold_ms: 12, settle_ms: 1500 }));
-    });
-    pressed = steps.length; expected = steps.reduce((a, st) => a + st.keydowns, 0);
+      let buf = '', lines = [], waiter = null;
+      ch.stdout.on('data', (d) => {
+        buf += d;
+        let i;
+        while ((i = buf.indexOf('\n')) >= 0) { lines.push(buf.slice(0, i)); buf = buf.slice(i + 1); }
+        if (waiter) { const w = waiter; waiter = null; w(); }
+      });
+      const closed = new Promise((res) => ch.on('close', res));
+      const nextLine = async () => {
+        while (!lines.length) { await new Promise((res) => { waiter = res; setTimeout(res, 50); }); if (ch.exitCode != null && !lines.length) return null; }
+        return lines.shift();
+      };
+      ch.stdin.write(JSON.stringify({ text, pace_ms: pace || 8, hold_ms: 12, settle_ms: 1500, chunk: CHUNK }) + '\n');
+      const ready = JSON.parse(await nextLine());
+      let done = 0, stoppedBecause = null;
+      while (done < ready.keys) {
+        const f = await checkFocus();
+        if (!f.has || f.active !== 'input' || f.vis !== 'visible') { stoppedBecause = f; break; }
+        ch.stdin.write('go\n');
+        const l = await nextLine();
+        if (!l) break;
+        done += JSON.parse(l).typed;
+      }
+      ch.stdin.write('end\n'); ch.stdin.end();
+      await closed;
+      const tail = buf + lines.join('');
+      let res;
+      try { res = JSON.parse(tail.slice(tail.lastIndexOf('{"ok"'))); } catch (e) { throw new Error('uinput injector failed: ' + tail.slice(0, 200)); }
+      res.chunk_size = CHUNK;
+      res.focus_rechecks = Math.ceil(ready.keys / CHUNK);
+      res.stopped_because_focus_was_lost = stoppedBecause;
+      return res;
+    })();
+    if (injected.n !== injected.requested)
+      throw new Error('uinput: stopped after ' + injected.n + ' of ' + injected.requested + ' keys (focus check: ' + JSON.stringify(injected.stopped_because_focus_was_lost) + ')');
+    pressed = steps.length;
+    expected = steps.reduce((a, st) => a + (needsShift(pressChar(st)) ? 2 : 1), 0);
   } else {
   for (let i = 0; i < steps.length; i++) {
     await page.keyboard.press(steps[i].press);
@@ -530,7 +624,7 @@ async function typingRun(ctx, opts) {
   const wall = Date.now() - t0;
   await page.waitForTimeout(700);                       // let the last frames present, and any autosave land
   const events = await trace.stop();
-  const inpage = await page.evaluate(() => ({ keys: window.__lat.keys, rafs: window.__lat.rafs, evt: window.__evt, store: window.__store,
+  const inpage = await page.evaluate(() => ({ keys: window.__lat.keys, rafs: window.__lat.rafs, evt: window.__evt, store: window.__store, caret: window.__caret,
     mem: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1024) : null,
     chars: Writer.getText().length, lines: Writer.lineCount() }));
 
@@ -550,6 +644,9 @@ async function typingRun(ctx, opts) {
   const headlinePaint = textIdx.map((i) => per[i].to_paint);
   const headlineJs = textIdx.map((i) => per[i].to_js_done);
   const headlineWait = textIdx.map((i) => per[i].frame_wait);
+  const headlineSched = textIdx.map((i) => per[i].sched_wait);
+  const headlineFrameWork = textIdx.map((i) => per[i].frame_work);
+  const headlineAppCost = textIdx.map((i) => per[i].app_cost);
   // A "p99" of four samples is the maximum wearing a hat. Anything under 20 samples gets its n,
   // its mean and its worst and nothing else.
   const thin = (v) => { const st = stat(v); if (!st) return null; if (st.n >= 20) return st;
@@ -560,12 +657,20 @@ async function typingRun(ctx, opts) {
   for (const k of ip) probeKeys[k.key] = (probeKeys[k.key] || 0) + 1;
 
   // The hop CDP cannot see: kernel write -> the timestamp Chromium gives the event.
-  let delivery = null, fromKernel = null;
+  let delivery = null, fromKernel = null, deliveryAligned = false;
   if (injected && injected.ok) {
     const ev = injected.events;
-    if (ev.length === per.length) {
-      delivery = per.map((k, i) => (k.ts_us - ev[i].t_ns / 1000) / 1000);
-      fromKernel = textIdx.map((i) => (per[i].to_present == null ? null : per[i].to_present + delivery[i]));
+    // One injected write == one character; the Shift half of a shifted character is written in the
+    // same packet at the same timestamp, and Chromium reports it as a keydown of its own. So the
+    // i-th injected write is the i-th NON-modifier keydown in the trace.
+    const charIdx = aligned ? per.map((_, i) => i).filter((i) => labels[i] !== 'modifier') : [];
+    if (aligned && charIdx.length === ev.length) {
+      deliveryAligned = true;
+      delivery = new Array(per.length).fill(null);
+      for (let n = 0; n < charIdx.length; n++) delivery[charIdx[n]] = (per[charIdx[n]].ts_us - ev[n].t_ns / 1000) / 1000;
+      // the Shift keydown of a shifted character was written at the same instant as the character
+      for (let i = 1; i < per.length; i++) if (delivery[i] == null && delivery[i + 1] != null) delivery[i] = (per[i].ts_us - ev[charIdx.indexOf(i + 1)].t_ns / 1000) / 1000;
+      fromKernel = textIdx.map((i) => (per[i].to_present == null || delivery[i] == null ? null : per[i].to_present + delivery[i]));
     }
   }
   const out = {
@@ -607,10 +712,48 @@ async function typingRun(ctx, opts) {
         also_p50_p99: [c.p50, c.p99],
       };
     })(),
+    // Is the wait for a frame a DISPLAY CADENCE or is it slack? Gaps between the starts of
+    // consecutive frames, over the whole run: a grid at ~16.7 ms means Chromium is running a
+    // 60 Hz BeginFrame source and every keystroke is waiting for a tick of it, whatever this
+    // bench's own clock animation is doing.
+    frame_cadence_ms: (() => {
+      const fs = [...new Set(per.map((k) => k.frame_start_us).filter((x) => x != null))].sort((a, b) => a - b);
+      const gaps = []; for (let i = 1; i < fs.length; i++) { const d = (fs[i] - fs[i - 1]) / 1000; if (d < 200) gaps.push(d); }
+      const near = (x, m) => Math.abs(x / m - Math.round(x / m)) * m < 2 && x > 8;
+      return { frames_that_carried_a_keystroke: fs.length, gaps: stat(gaps),
+        gaps_that_are_a_multiple_of_16_67ms_pct: r2(100 * gaps.filter((x) => near(x, 16.667)).length / Math.max(1, gaps.length)) };
+    })(),
+    // Does the thing presenting these frames really tick at 60 Hz? Gaps between the presentation
+    // timestamps of consecutive frames that carried a keystroke: on a display (physical or virtual)
+    // they are whole multiples of the refresh interval, because a frame can only be scanned out at
+    // a vblank. If they are not, the "display" in this run is not a display.
+    display_cadence_ms: (() => {
+      const ps = [...new Set(per.map((k) => k.present_us).filter((x) => x != null))].sort((a, b) => a - b);
+      const gaps = []; for (let i = 1; i < ps.length; i++) { const d = (ps[i] - ps[i - 1]) / 1000; if (d < 200) gaps.push(d); }
+      const near = (x, m) => Math.abs(x / m - Math.round(x / m)) * m < 2 && x > 8;
+      return { frames_presented_carrying_a_keystroke: ps.length, gaps: stat(gaps),
+        gaps_that_are_a_multiple_of_16_67ms_pct: r2(100 * gaps.filter((x) => near(x, 16.667)).length / Math.max(1, gaps.length)),
+        phase_sd_ms_against_a_16_67ms_grid: (() => {                 // 0 = a perfect vblank grid
+          if (ps.length < 8) return null;
+          const ph = ps.map((x) => ((x / 1000) % 16.667) / 16.667 * 2 * Math.PI);
+          const C = ph.reduce((a, t) => a + Math.cos(t), 0) / ph.length, S = ph.reduce((a, t) => a + Math.sin(t), 0) / ph.length;
+          const R = Math.hypot(C, S);                                 // 1 = every frame on the same phase
+          return { circular_concentration_0_to_1: r2(R), n: ps.length };
+        })() };
+    })(),
+    // The caret, per keystroke, from inside the page: was its new position written in the
+    // keystroke's own task, with nothing animating it? (round 4; see report section 5)
+    caret_placed_in_the_keystrokes_own_task: inpage.caret
+      ? { ...inpage.caret, all_static: inpage.caret.n > 0 && inpage.caret.animating === 0,
+          note: 'n = input events seen; `moved` = the caret\'s inline left/top changed in that same task; `animating` = a transform or a transition duration was still set on it' }
+      : null,
     input_injection: opts.uinput
       ? { how: 'real keys through /dev/uinput -> libinput -> Hyprland -> Wayland -> Chromium (tools/uinput-keys.py)',
-          device: injected && injected.device, keys_written: injected && injected.n,
-          aligned_with_trace: !!delivery,
+          device: injected && injected.device,
+          aligned_with_trace: deliveryAligned,
+          chunk_size: injected && injected.chunk_size,
+          focus_rechecks_during_the_run: injected && injected.focus_rechecks,
+          keys_written: injected && injected.n,
           kernel_write_to_chromium_event_ms: stat(delivery || []),
           kernel_write_to_presented_ms: stat(fromKernel || []),
           samples_kernel_to_presented_ms: (fromKernel || []).map((x) => r2(x)) }
@@ -623,6 +766,12 @@ async function typingRun(ctx, opts) {
       // The ladder inside one keystroke: app JS done -> wait for a BeginFrame -> frame painted.
       to_js_done: stat(headlineJs),
       frame_wait: stat(headlineWait),
+      // frame_wait, split: time in which NOTHING was running (waiting to be scheduled) and the
+      // frame's own work once it started.
+      scheduler_wait: stat(headlineSched),
+      frame_work: stat(headlineFrameWork),
+      app_cost_no_cadence: stat(headlineAppCost),
+      app_cost_no_cadence_mean_ci95: ciMean(headlineAppCost.filter((x) => x != null)),
       to_paint: stat(headlinePaint),
       to_present_every_keydown: stat(per.map((k) => k.to_present)),
       input_delay: stat(per.map((k) => k.input_delay)),
@@ -655,11 +804,15 @@ async function typingRun(ctx, opts) {
     samples_to_present_ms: headline.map((x) => r2(x)),    // raw, so anyone can recompute the percentiles
     samples_to_commit_ms: headlineCommit.map((x) => r2(x)),
     samples_to_paint_ms: headlinePaint.map((x) => r2(x)),
+    samples_kernel_to_presented_ms_headline: (fromKernel || []).map((x) => r2(x)),
     samples_to_js_done_ms: headlineJs.map((x) => r2(x)),
+    samples_app_cost_no_cadence_ms: headlineAppCost.map((x) => r2(x)),
+    samples_scheduler_wait_ms: headlineSched.map((x) => r2(x)),
     // How long the frame waits between Chromium finishing its commit and the compositor reporting
     // it presented: on a panel this is the wait for the next scan-out, and it is the one hop a
     // headless run cannot have.
     ms_commit_to_present: stat(textIdx.map((i) => (per[i].to_present != null && per[i].to_commit != null) ? per[i].to_present - per[i].to_commit : null)),
+    samples_commit_to_present_ms: textIdx.map((i) => ((per[i].to_present != null && per[i].to_commit != null) ? r2(per[i].to_present - per[i].to_commit) : null)),
   };
   if (opts.quarters) {                                    // long runs: is the end like the beginning?
     const q = Math.floor(headline.length / 4);
@@ -744,6 +897,8 @@ function acrossSessions(sessions) {
     const pooledCommit = runs.flatMap((r) => r.samples_to_commit_ms || []).filter((x) => x != null);
     const pooledPaint = runs.flatMap((r) => r.samples_to_paint_ms || []).filter((x) => x != null);
     const pooledJs = runs.flatMap((r) => r.samples_to_js_done_ms || []).filter((x) => x != null);
+    const pooledApp = runs.flatMap((r) => r.samples_app_cost_no_cadence_ms || []).filter((x) => x != null);
+    const pooledSched = runs.flatMap((r) => r.samples_scheduler_wait_ms || []).filter((x) => x != null);
     out[name] = {
       sessions: runs.length,
       keys_per_session: runs[0].ms.to_present ? runs[0].ms.to_present.n : null,
@@ -760,6 +915,10 @@ function acrossSessions(sessions) {
       pooled_to_commit_mean_ci95: ciMean(pooledCommit),
       pooled_to_paint: stat(pooledPaint),
       pooled_to_js_done: stat(pooledJs),
+      pooled_app_cost_no_cadence: stat(pooledApp),
+      pooled_app_cost_no_cadence_mean_ci95: ciMean(pooledApp),
+      pooled_scheduler_wait: stat(pooledSched),
+      caret_static_in_every_keystroke: runs.every((r) => r.caret_placed_in_the_keystrokes_own_task && r.caret_placed_in_the_keystrokes_own_task.all_static),
       main_thread_ms_per_key: runs.map((r) => r.main_thread.busy_ms_per_key),
     };
   }
