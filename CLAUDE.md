@@ -1,6 +1,22 @@
 # Quill
 
-A long-form writing environment. `README.md` is the overview and results; `BRIEF.md` is the architecture, file ownership and tooling; `NOTES.md` records cross-piece changes.
+A long-form writing environment: a transparent `<textarea>` over a `<div id="mirror">` that renders the same text with markup styling in identical font metrics. No framework, no build step. `README.md` has the results and how to run; `BRIEF.md` the architecture, per-piece file ownership and tool flags; `NOTES.md` the log of cross-piece changes.
+
+## Repo map
+
+- `app/` — the editor as served. `index.html` loads `css/` and `js/` in fixed order; `js/core.js` is the engine every other module plugs into (`Writer.*`), and `js/{markup,caret,focus,theme,chrome,files}.js` each own one piece with a matching stylesheet in `css/`. `fonts/` holds iA Writer Duo/Quattro/Mono (OFL).
+- `bin/quill` — launcher: starts `tools/serve.mjs` if the port isn't already serving Quill, opens Chromium in app mode; `--measure` runs the latency bench.
+- `tools/` — `serve.mjs` (static server), `shoot.mjs`/`crop.mjs`/`blind.mjs`/`thumb.mjs` (screenshots and blind A/B pairs), `latency.mjs` (keystroke and cold-start bench), `smoke.mjs` (integration check), `progress.mjs` (builds `progress/index.html`), `gauntlet.workflow.js` (builder/critic loop per piece).
+- `ref/ia/` — the iA Writer screenshots, fonts and templates every comparison is judged against; `ref/sample.md` is the shared test passage.
+- `shots/` and `progress/` — judging evidence: per-piece screenshots, blind pairs, round verdicts, latency JSON and the report.
+- `PKGBUILD` + `packaging/` — Arch package; `makepkg -f` then `pacman -U`.
+- `docs/agents/` — issue tracker, triage labels and domain-doc rules for the engineering skills (below).
+
+Hard rule in `app/`: no per-token style may change glyph advance width, or the mirror and textarea drift apart (bold/italic are safe; iA fonts share widths across weights).
+
+## Agent docs
+
+Edit `CLAUDE.md`, `CONTEXT.md`, `docs/agents/*.md`, ADRs and any other document an agent reads through `/writing-for-agents`.
 
 ## Agent skills
 
