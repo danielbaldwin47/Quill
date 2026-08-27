@@ -32,6 +32,10 @@ The rendered (HTML-like) view of a Document, opened beside or in place of the Ed
 **Export**:
 Writing a Document out in another format (PDF, HTML, Markdown copy).
 
+**Template**:
+A named typographic design (faces, sizes, rhythm, light and dark palettes) that Preview and Export apply to a rendered Document, independent of the Editor's face and size.
+_Avoid_: theme (that is the Editor's dark/light), style, look, skin
+
 **Syntax highlight**:
 Coloring words by part of speech (noun, verb, adjective, adverb, conjunction) to show sentence texture.
 _Avoid_: code highlighting, grammar coloring
