@@ -14,6 +14,10 @@ A long-form writing environment: a transparent `<textarea>` over a `<div id="mir
 
 Hard rule in `app/`: no per-token style may change glyph advance width, or the mirror and textarea drift apart (bold/italic are safe; iA fonts share widths across weights).
 
+## Gate
+
+Before landing native work, closing a ticket, or closing a feature: `docs/agents/gate.md` names the tier, its commands, the latency budget, the blind-judging opponent and the Hand test checklists.
+
 ## Agent docs
 
 Edit `CLAUDE.md`, `CONTEXT.md`, `docs/agents/*.md`, ADRs and any other document an agent reads through `/writing-for-agents`.
