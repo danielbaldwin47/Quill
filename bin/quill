@@ -69,13 +69,21 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
-[ -n "$URL" ] || URL="http://localhost:$PORT/"
 
 # --- the document server -----------------------------------------------------
-if ! curl -sf -o /dev/null "http://localhost:$PORT/"; then
+# Something answering on the port is not proof that it is Quill: a server left over from a
+# checkout that has since moved answers 404 to everything, and the old check ("is anything
+# there?") reused it. Ask for a file only Quill serves; if the port is taken by anything else,
+# move to the next one.
+is_quill() { curl -sf "http://localhost:$1/js/core.js" 2>/dev/null | head -c 64 | grep -q 'Quill core'; }
+port_busy() { curl -s -o /dev/null "http://localhost:$1/" 2>/dev/null; }
+if ! is_quill "$PORT"; then
+  while port_busy "$PORT"; do echo "quill: port $PORT is in use by something else, trying $((PORT+1))" >&2; PORT=$((PORT+1)); done
   node "$ROOT/tools/serve.mjs" "$PORT" >/dev/null 2>&1 &
-  for _ in $(seq 1 100); do curl -sf -o /dev/null "http://localhost:$PORT/" && break; sleep 0.05; done
+  for _ in $(seq 1 100); do is_quill "$PORT" && break; sleep 0.05; done
+  is_quill "$PORT" || { echo "quill: could not start the document server on port $PORT" >&2; exit 1; }
 fi
+[ -n "$URL" ] || URL="http://localhost:$PORT/"
 
 # --- profile -----------------------------------------------------------------
 case "$PROFILE" in *quill*) : ;; *) echo "quill: refusing to use a profile dir without 'quill' in its path" >&2; exit 2 ;; esac
