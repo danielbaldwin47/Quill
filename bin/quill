@@ -30,7 +30,7 @@
 # output is removed again when the run finishes.
 set -euo pipefail
 
-ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+ROOT=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)   # readlink: /usr/bin/quill is a symlink
 PORT=${QUILL_PORT:-4173}
 CHROME=${QUILL_CHROME:-/usr/bin/chromium}
 PROFILE=${QUILL_PROFILE:-$HOME/.cache/quill/browser}

@@ -1,3 +1,6 @@
 node_modules/
 shots/_*
 .claude/
+*.pkg.tar.zst
+src/
+pkg/
