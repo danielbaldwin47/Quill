@@ -58,6 +58,22 @@ Word count, character count and reading time for the Document or the selection.
 The outline of a Document's headings, used to jump between sections.
 _Avoid_: table of contents (that is a Preview/Export feature)
 
+**Chrome**:
+The two bars around the Editor: the title bar (Library toggle, Document title and menu, View menu) and the stats bar. Both step back while the writer types.
+_Avoid_: toolbar, header bar, UI
+
+**Command**:
+One named thing Quill can do (`focus.toggle`, `file.save`); its id is how the menus, the Palette, the shortcut table and the writer's rebindings all refer to it.
+_Avoid_: action (GTK's term), function
+
+**Palette**:
+The searchable list of every Command, opened from the View menu; the way to a Command that has no shortcut.
+_Avoid_: command palette, launcher, quick open
+
+**Shortcut**:
+A key chord bound to a Command; every Command's is rebindable by the writer.
+_Avoid_: accelerator (GTK's term), hotkey, keybinding
+
 **Annotator**:
 Anything that marks spans of a Document's prose for the Editor to style: Markup, Syntax highlight, Style check and Spell check are the four. An Annotator sees the prose stream, never the Markup characters.
 _Avoid_: highlighter, linter, decorator
