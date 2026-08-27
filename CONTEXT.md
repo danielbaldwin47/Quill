@@ -59,7 +59,12 @@ One of the nine judged facets of the app: page, type, cursor and caret, focus an
 The original JavaScript app, kept in `legacy/` until the native app wins every Piece against it blind.
 
 **Gate**:
-What must be true before a change lands: clippy clean, engine unit tests green, latency bench within budget, blind judging per Piece, and a hand test from the installed package.
+What must be true before native work lands, in three tiers: every commit (format, clippy, tests), every ticket (latency within budget and Blind judging for each Piece it names), every feature (the owner's Hand test).
+_Avoid_: CI, checks, definition of done
+
+**Hand test**:
+The owner's numbered "do X, see Y" walk through a feature from the installed package; its pass comment closes the feature ticket.
+_Avoid_: QA, acceptance test, manual test
 
 **Blind judging**:
 A critic with fresh context picks between two unlabelled screenshots (ours vs the reference) for a Piece and names the biggest gap of each.
