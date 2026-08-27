@@ -1,0 +1,54 @@
+{
+  "_about": "The judged states of the nine Pieces, decided in issue #24. tools/gate judge <piece> shoots ours and the Parity oracle at every state listed for the Piece and freezes the oracle's shot at shots/oracle/<piece>/<state>.png. Offsets are UTF-8 bytes from the start of the passage (the native --caret and --select form); the tool converts them to legacy/tools/shoot.mjs's character offsets. Every key in `defaults` is a flag from docs/architecture.md and is overridden per state.",
+  "defaults": {
+    "text": "ref/sample.md",
+    "w": 1440, "h": 900, "scale": 2,
+    "theme": "light", "font": "duo", "size": 20,
+    "focus": "off", "typewriter": false, "chrome": "on",
+    "caret": 403, "select": null, "scroll": 0, "nocaret": false,
+    "active": true
+  },
+  "reference": "When legacy/ is gone, and for any Piece with no oracle state, the opponent is the iA reference crop recorded as refSource in progress/rounds/<piece>-r1.json; those crop recipes and their odd sizes are the reference states and are not repeated here.",
+  "pieces": {
+    "type": {
+      "duo": { "chrome": "off" },
+      "quattro": { "chrome": "off", "font": "quattro" },
+      "mono": { "chrome": "off", "font": "mono" }
+    },
+    "page": {
+      "light": {},
+      "empty": { "text": null, "caret": 0 },
+      "narrow": { "w": 960 }
+    },
+    "markup": {
+      "light": { "text": "shots/oracle/markup.md", "caret": 131, "chrome": "off" },
+      "dark": { "text": "shots/oracle/markup.md", "caret": 131, "chrome": "off", "theme": "dark" }
+    },
+    "caret": {
+      "caret": {},
+      "selection": { "select": [153, 171], "caret": 171 },
+      "unfocused": { "active": false }
+    },
+    "theme": {
+      "light": {},
+      "dark": { "theme": "dark" }
+    },
+    "focus": {
+      "sentence": { "focus": "sentence", "chrome": "off" },
+      "paragraph": { "focus": "paragraph", "chrome": "off" },
+      "dark-sentence-typewriter": { "focus": "sentence", "typewriter": true, "theme": "dark", "chrome": "off" }
+    },
+    "chrome": {
+      "bars": {},
+      "typing": { "typing": true },
+      "view-menu": { "menu": "view" },
+      "palette": { "menu": "palette" }
+    },
+    "files": {
+      "library": { "library": "shots/oracle/library", "sidebar": true },
+      "search": { "library": "shots/oracle/library", "sidebar": true, "search": "sea" }
+    },
+    "latency": {}
+  },
+  "_pending": "The chrome and files states use flags (typing, menu, sidebar, search, library) and a fixture folder that the Chrome & menus spec (after #33) and the File handling spec (after #25) define; they are listed now so the state ids are stable."
+}

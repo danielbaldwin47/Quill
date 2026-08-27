@@ -78,5 +78,9 @@ _Avoid_: CI, checks, definition of done
 The owner's numbered "do X, see Y" walk through a feature from the installed package; its pass comment closes the feature ticket.
 _Avoid_: QA, acceptance test, manual test
 
+**Judged state**:
+One named configuration (passage, theme, Face, size, Focus, caret, chrome) at which a Piece is shot on both sides for Blind judging; each Piece has a fixed list of them.
+_Avoid_: scenario, screenshot, fixture
+
 **Blind judging**:
 A critic with fresh context picks between two unlabelled screenshots (ours vs the reference) for a Piece and names the biggest gap of each.
