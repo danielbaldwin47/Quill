@@ -14,6 +14,8 @@ A long-form writing environment: a transparent `<textarea>` over a `<div id="mir
 
 Hard rule in `app/`: no per-token style may change glyph advance width, or the mirror and textarea drift apart (bold/italic are safe; iA fonts share widths across weights).
 
+The native Rust rewrite is specified in `docs/architecture.md`; read it before any Rust, packaging or repo-migration work. Its Gate is `docs/agents/gate.md`.
+
 ## Gate
 
 Before landing native work, closing a ticket, or closing a feature: `docs/agents/gate.md` names the tier, its commands, the latency budget, the blind-judging opponent and the Hand test checklists.
