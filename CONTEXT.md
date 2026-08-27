@@ -58,6 +58,10 @@ Word count, character count and reading time for the Document or the selection.
 The outline of a Document's headings, used to jump between sections.
 _Avoid_: table of contents (that is a Preview/Export feature)
 
+**Annotator**:
+Anything that marks spans of a Document's prose for the Editor to style: Markup, Syntax highlight, Style check and Spell check are the four. An Annotator sees the prose stream, never the Markup characters.
+_Avoid_: highlighter, linter, decorator
+
 ## Quality
 
 **Piece**:
