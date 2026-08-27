@@ -1,6 +1,6 @@
 //! The Editor: the text surface a Document is written on.
 //!
-//! One `GtkTextView` subclass ([ADR 0004](../docs/adr/0004-gtktextview-editor.md)).
+//! One `GtkTextView` subclass (ADR 0004, `docs/adr/0004-gtktextview-editor.md`).
 //! There is no mirror: the widget lays the text out once, so the web app's rule
 //! that no per-token style may change glyph advance width stops being an
 //! invariant to hold and becomes a property of the Faces. The `GtkTextBuffer`
