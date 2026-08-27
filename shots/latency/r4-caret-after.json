@@ -1,0 +1,231 @@
+{
+  "url": "http://localhost:4191/",
+  "mix": "prose",
+  "keys": 80,
+  "by_pace": {
+    "45": {
+      "pace_ms": 45,
+      "wpm": 226,
+      "keystrokes_measured": 79,
+      "keydown_to_caret_settled_ms": {
+        "n": 79,
+        "mean": 8.63,
+        "p50": 8.5,
+        "p90": 15.5,
+        "p99": 16.7,
+        "max": 16.7
+      },
+      "frames_the_caret_is_behind_the_glyph": {
+        "n": 79,
+        "mean": 0.03,
+        "p50": 0,
+        "p90": 0,
+        "p99": 1,
+        "max": 1
+      },
+      "settled_in_the_glyphs_own_frame_pct": 97.47,
+      "lag_on_the_glyph_frame_px": {
+        "n": 79,
+        "mean": 0.3,
+        "p50": 0,
+        "p90": 0,
+        "p99": 12,
+        "max": 12
+      },
+      "lag_on_the_glyph_frame_cells": {
+        "n": 79,
+        "mean": 0.03,
+        "p50": 0,
+        "p90": 0,
+        "p99": 1,
+        "max": 1
+      },
+      "by_key_frames_behind": {
+        "letter": {
+          "n": 66,
+          "mean": 0.03,
+          "p50": 0,
+          "p90": 0,
+          "p99": 1,
+          "max": 1
+        },
+        "space": {
+          "n": 13,
+          "mean": 0,
+          "p50": 0,
+          "p90": 0,
+          "p99": 0,
+          "max": 0
+        }
+      }
+    },
+    "90": {
+      "pace_ms": 90,
+      "wpm": 122,
+      "keystrokes_measured": 79,
+      "keydown_to_caret_settled_ms": {
+        "n": 79,
+        "mean": 8.09,
+        "p50": 7.8,
+        "p90": 14.8,
+        "p99": 16.7,
+        "max": 16.7
+      },
+      "frames_the_caret_is_behind_the_glyph": {
+        "n": 79,
+        "mean": 0.03,
+        "p50": 0,
+        "p90": 0,
+        "p99": 1,
+        "max": 1
+      },
+      "settled_in_the_glyphs_own_frame_pct": 97.47,
+      "lag_on_the_glyph_frame_px": {
+        "n": 79,
+        "mean": 528.06,
+        "p50": 0,
+        "p90": 0,
+        "p99": 41705,
+        "max": 41705
+      },
+      "lag_on_the_glyph_frame_cells": {
+        "n": 79,
+        "mean": 44.01,
+        "p50": 0,
+        "p90": 0,
+        "p99": 3475.42,
+        "max": 3475.42
+      },
+      "by_key_frames_behind": {
+        "letter": {
+          "n": 66,
+          "mean": 0.03,
+          "p50": 0,
+          "p90": 0,
+          "p99": 1,
+          "max": 1
+        },
+        "space": {
+          "n": 13,
+          "mean": 0,
+          "p50": 0,
+          "p90": 0,
+          "p99": 0,
+          "max": 0
+        }
+      }
+    },
+    "150": {
+      "pace_ms": 150,
+      "wpm": 76,
+      "keystrokes_measured": 79,
+      "keydown_to_caret_settled_ms": {
+        "n": 79,
+        "mean": 8.31,
+        "p50": 8.1,
+        "p90": 14.3,
+        "p99": 16.7,
+        "max": 16.7
+      },
+      "frames_the_caret_is_behind_the_glyph": {
+        "n": 79,
+        "mean": 0.03,
+        "p50": 0,
+        "p90": 0,
+        "p99": 1,
+        "max": 1
+      },
+      "settled_in_the_glyphs_own_frame_pct": 97.47,
+      "lag_on_the_glyph_frame_px": {
+        "n": 79,
+        "mean": 528.06,
+        "p50": 0,
+        "p90": 0,
+        "p99": 41705,
+        "max": 41705
+      },
+      "lag_on_the_glyph_frame_cells": {
+        "n": 79,
+        "mean": 44.01,
+        "p50": 0,
+        "p90": 0,
+        "p99": 3475.42,
+        "max": 3475.42
+      },
+      "by_key_frames_behind": {
+        "letter": {
+          "n": 66,
+          "mean": 0.03,
+          "p50": 0,
+          "p90": 0,
+          "p99": 1,
+          "max": 1
+        },
+        "space": {
+          "n": 13,
+          "mean": 0,
+          "p50": 0,
+          "p90": 0,
+          "p99": 0,
+          "max": 0
+        }
+      }
+    },
+    "250": {
+      "pace_ms": 250,
+      "wpm": 47,
+      "keystrokes_measured": 79,
+      "keydown_to_caret_settled_ms": {
+        "n": 79,
+        "mean": 8.46,
+        "p50": 8.4,
+        "p90": 15.8,
+        "p99": 16.9,
+        "max": 16.9
+      },
+      "frames_the_caret_is_behind_the_glyph": {
+        "n": 79,
+        "mean": 0.03,
+        "p50": 0,
+        "p90": 0,
+        "p99": 1,
+        "max": 1
+      },
+      "settled_in_the_glyphs_own_frame_pct": 97.47,
+      "lag_on_the_glyph_frame_px": {
+        "n": 79,
+        "mean": 0.3,
+        "p50": 0,
+        "p90": 0,
+        "p99": 12,
+        "max": 12
+      },
+      "lag_on_the_glyph_frame_cells": {
+        "n": 79,
+        "mean": 0.03,
+        "p50": 0,
+        "p90": 0,
+        "p99": 1,
+        "max": 1
+      },
+      "by_key_frames_behind": {
+        "letter": {
+          "n": 66,
+          "mean": 0.03,
+          "p50": 0,
+          "p90": 0,
+          "p99": 1,
+          "max": 1
+        },
+        "space": {
+          "n": 13,
+          "mean": 0,
+          "p50": 0,
+          "p90": 0,
+          "p99": 0,
+          "max": 0
+        }
+      }
+    }
+  }
+}

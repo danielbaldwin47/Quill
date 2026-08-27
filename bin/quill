@@ -196,22 +196,51 @@ for run in $(seq 1 "$runs"); do
     pid=$!
   fi
   for _ in $(seq 1 600); do curl -sf -o /dev/null "http://127.0.0.1:$DBG/json/version" && break; sleep 0.02; done
-  # Real keys go to the focused window, so on the panel the window has to actually have focus.
-  if [ "$place" = "panel" ]; then
-    sleep 0.4; hyprctl dispatch focuswindow class:Quill >/dev/null 2>&1 || true; sleep 0.3
-    if [ "$uinput" = 1 ]; then
-      aw=$(hyprctl activewindow -j | python3 -c "import json,sys
-try: print(json.load(sys.stdin).get('class',''))
+  # Real keys go wherever the COMPOSITOR thinks focus is. Before injecting any, the Quill window
+  # has to hold keyboard focus — on the panel, and just as much on a virtual output, where the
+  # alternative is somebody's terminal. Hyprland 0.56's Lua dispatcher has no string form, so this
+  # tries the forms that exist, then READS BACK the active window and refuses unless it is Quill.
+  # tools/latency.mjs then refuses a second time unless the page itself reports document.hasFocus()
+  # with the caret in the textarea. Two independent guards, and the second one is the authority:
+  # a Wayland client only reports focus if the compositor sent it keyboard enter.
+  # Chromium's --app windows take their Wayland app_id from the URL, not from --class, so the
+  # window cannot be found by class. It is the one on the workspace this run created, and on a
+  # virtual output it is the only thing there.
+  focus_quill() {
+    local addr act
+    addr=$(QW="$TARGET_WS" python3 -c "import json,os,subprocess,sys
+cs=json.loads(subprocess.check_output(['hyprctl','clients','-j']))
+ws=int(os.environ['QW'])
+m=[c for c in cs if c['workspace']['id']==ws]
+print(m[0]['address'] if m else '')")
+    [ -n "$addr" ] || return 1
+    act=$(python3 -c "import json,subprocess
+try: print(json.loads(subprocess.check_output(['hyprctl','activewindow','-j'])).get('address',''))
 except Exception: print('')")
-      if [ "$aw" != "Quill" ]; then
-        echo "quill: real keys would go to '$aw', not to Quill — refusing to inject" >&2
+    if [ "$act" != "$addr" ]; then
+      hyprctl repl "return hl.dispatch(hl.dsp.focus{monitor=hl.get_monitor(\"${VIRTUAL_OUT:-}\")})" >/dev/null 2>&1 || true
+      sleep 0.35
+      act=$(python3 -c "import json,subprocess
+try: print(json.loads(subprocess.check_output(['hyprctl','activewindow','-j'])).get('address',''))
+except Exception: print('')")
+    fi
+    [ "$act" = "$addr" ]
+  }
+  if [ "$place" = "panel" ] || [ "$uinput" = 1 ]; then
+    sleep 0.4
+    if ! focus_quill; then
+      if [ "$uinput" = 1 ]; then
+        echo "quill: could not give the Quill window keyboard focus — refusing to inject real keys," >&2
+        echo "       they would go to whatever is focused instead. Nothing was typed." >&2
         pkill -f -- "--remote-debugging-port=$DBG" 2>/dev/null || true
         exit 5
       fi
     fi
   fi
 
-  argv=( --attach "$DBG" --t0 "$t0" --profile "$PROFILE" --where "${VIRTUAL_OUT:-workspace $TARGET_WS}" )
+  # --url matters: latency.mjs RELOADS the window for each regime, and without it the reload goes
+  # to the default port instead of to whatever this launcher opened (a frozen snapshot, usually).
+  argv=( --attach "$DBG" --t0 "$t0" --url "$URL" --profile "$PROFILE" --where "${VIRTUAL_OUT:-workspace $TARGET_WS}" )
   if [ -n "$snapshot" ]; then argv+=( --snapshot "$snapshot" ); fi
   if [ "$rmotion" = 1 ]; then argv+=( --reduced-motion ); fi
   if [ -n "$clock" ]; then argv+=( --clock "$clock" ); fi

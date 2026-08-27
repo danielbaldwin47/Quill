@@ -33,8 +33,10 @@
   const WIDTH   = 0.155;   // em
   const IDLE_MS = 480;     // quiet before the caret starts blinking again
   const SNAP_MS = 60;      // moves closer together than this snap, never lag
-  const GLIDE_X = 62;      // ms, along a line
-  const GLIDE_Y = 92;      // ms, between lines
+  const GLIDE_X = 34;      // ms, along a line   (a jump, never a keystroke — see EDIT_SNAP_MS)
+  const GLIDE_Y = 46;      // ms, between lines  (idem)
+  const EDIT_SNAP_MS = 150; // ms: a caret move that follows an edit NEVER glides
+  const GLIDE_MIN = 3;     // em: hops shorter than this snap — there is nothing to track
   const NL_TAIL = 0.5;     // em of highlight standing in for a selected newline
   const MAX_ROWS = 400;    // hard cap on selection rectangles per paint
 
@@ -43,6 +45,7 @@
   const pool = [];           // .sel fill rectangles
   const M = { em: 16, pitch: 26, base: 20, w: 2.5, dpr: 1 };
   let idleTimer = 0, prev = null, prevAt = 0, hasSel = false, scrollRaf = 0;
+  let editAt = -1e9;         // performance.now() of the last text change (see placeCaret)
   let baseX = 0, baseY = 0, settleTimer = 0, moving = false;
 
   // ---------------------------------------------------------------- metrics
@@ -114,11 +117,21 @@
 
     const now = performance.now();
     let dur = 0;
-    if (prev) {
+    // A caret move that FOLLOWS AN EDIT is not a move to be tracked: the glyph you
+    // just typed is on the glass in ~6 ms and the caret has to be beside it, in the
+    // same frame. Gliding there put the one mark a typist's eye is fixated on 58 ms
+    // behind the letter at any ordinary writing speed — 4 whole frames, ~28x Dan
+    // Luu's 2 ms threshold, and the largest perceptible latency in the product.
+    // (Measured before/after: shots/latency/r4-caret-*.json, progress/latency-report.md §5.)
+    // So: typing, Enter, Backspace, paste and undo snap, always.
+    if (prev && now - editAt >= EDIT_SNAP_MS) {
       const dx = Math.abs(x - prev.x), dy = Math.abs(y - prev.y);
-      // Glide only where a glide reads as the same caret moving. Long jumps and
-      // fast typing snap, so the caret is never behind the letter you just hit.
-      if (dy <= M.pitch * 1.2 && dx <= M.em * 14 && now - prevAt >= SNAP_MS) {
+      // What is left is navigation — a click, a word jump, an arrow between lines —
+      // and a glide there reads as the same caret moving rather than a new one
+      // appearing. Long jumps and repeat-rate navigation still snap, and so does
+      // anything shorter than a few cells: there is nothing to follow over 2 mm.
+      const worth = dy > 0.5 || dx >= M.em * GLIDE_MIN;
+      if (worth && dy <= M.pitch * 1.2 && dx <= M.em * 14 && now - prevAt >= SNAP_MS) {
         dur = dy > 0.5 ? GLIDE_Y : GLIDE_X;
       }
     }
@@ -298,7 +311,7 @@
     measure();
     W.on('selection', place);
     W.on('render', place);
-    W.on('change', poke);
+    W.on('change', () => { editAt = performance.now(); poke(); });
     W.on('resize', remeasure);
     W.on('settings', remeasure);
     W.on('focus', () => { prev = null; place(); });
@@ -308,5 +321,6 @@
   });
 
   W.placeCaret = place;
+  W.caretGlide = { GLIDE_X, GLIDE_Y, EDIT_SNAP_MS, SNAP_MS, GLIDE_MIN, moving: () => moving };
   W.caretMetrics = M;
 })();

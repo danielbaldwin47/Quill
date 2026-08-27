@@ -1,0 +1,46 @@
+card0-DP-4: disconnected
+card0-HDMI-A-2: disconnected
+card0-HDMI-A-3: disconnected
+card1-DP-1: disconnected
+card1-DP-2: disconnected
+card1-DP-3: disconnected
+card1-HDMI-A-1: disconnected
+card2-Virtual-1: disconnected
+card3-Virtual-2: unknown
+card4-Virtual-3: unknown
+card5-Virtual-4: unknown
+card6-Virtual-5: unknown
+--- hyprland ---
+Monitor FALLBACK (ID 0):
+	1920x1080@60.00000 at 0x0
+	description: 
+	make: 
+	model: 
+	physical size (mm): 0x0
+	serial: 
+	active workspace: 1 (1)
+	special workspace: 0 ()
+	reserved: 0 26 0 0
+	scale: 1
+	transform: 0
+	focused: yes
+	dpmsStatus: 1
+	vrr: false
+	solitary: 0
+	solitaryBlockedBy: windowed mode,missing candidate
+	activelyTearing: false
+	tearingBlockedBy: next frame is not torn,user settings,not supported by monitor,missing candidate
+	directScanoutTo: 0
+	directScanoutBlockedBy: software renders/cursors,missing candidate
+	disabled: false
+	currentFormat: XRGB8888
+	mirrorOf: none
+	availableModes: 1920x1080@60.00Hz 
+	colorManagementPreset: srgb
+	sdrBrightness: 1
+	sdrSaturation: 1
+	sdrMinLuminance: 0.2
+	sdrMaxLuminance: 80
+	hardwareCursorsInUse: true
+
+

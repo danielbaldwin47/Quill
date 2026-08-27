@@ -48,9 +48,12 @@
      a move (see caret.js): a box parked on a transform is rasterised in its
      layer's space, which is half a device pixel off here, and the stem picks up
      a grey column on each edge. */
-  /* Duration is set per move in caret.js: 0 for jumps and fast typing, ~60 ms
-     along a line, ~90 ms between lines. Short enough that the caret arrives
-     with the letter, long enough that the eye follows it instead of hunting. */
+  /* Duration is set per move in caret.js, and it is 0 for every move an EDIT
+     causes: the caret has to be beside the letter in the letter's own frame
+     (measured: 8.1 ms from the key, 97.5 % of keystrokes in the glyph's frame —
+     it used to be 57 ms and 2.5 %). A short glide, 34 ms along a line and 46 ms
+     between lines, is kept for navigation of a few cells or more, where it reads
+     as the same caret moving rather than a new one appearing. */
   transition-property: transform;
   transition-duration: 0s;
   transition-timing-function: cubic-bezier(.22, .61, .36, 1);
