@@ -20,11 +20,11 @@ _Avoid_: text view, canvas
 The Markdown syntax characters themselves (`#`, `*`, `[`), styled dimmer than prose so they read as structure, not content.
 
 **Focus**:
-Mode that dims everything except the current sentence or paragraph.
+Mode that dims everything except the current sentence or paragraph; its scope is Sentence or Paragraph. Independent of Typewriter.
 _Avoid_: zen mode, distraction-free
 
 **Typewriter**:
-Mode that keeps the caret's line at a fixed vertical position by scrolling the Editor.
+Mode that keeps the caret's line at a fixed vertical position by scrolling the Editor. Independent of Focus, never a Focus scope.
 
 **Preview**:
 The rendered (HTML-like) view of a Document, opened beside or in place of the Editor.
