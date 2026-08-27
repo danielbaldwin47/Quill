@@ -33,7 +33,7 @@ single-digit milliseconds).
 |---|---|---|---|---|---|---|
 | `harper-brill` 2.8.0 | UPOS, Brill tagger | no | 644 KB model | Apache-2.0 | yes (2026-08-13) | **adopt for Syntax highlight** |
 | `nlprule` 0.6.4 | Penn Treebank, dictionary + disambiguation rules | no | 18.3 MiB (EN), ~350 ms load | MIT/Apache-2.0 code, LGPL-2.1 data | no (2021-04-24) | reject |
-| Own lexicon in an `fst::Map` | most-frequent-tag only | no | ~0.3–1 MB | depends on word list | n/a | fallback only |
+| Own lexicon in an `fst::Map` | most-frequent-tag only, **77–81% measured** | no | ~0.3–1 MB | depends on word list | n/a | fallback only |
 | `harper-core` lints | via `harper-brill` | 2 filler words, 5 boring words | ~1.4 MB + crate | Apache-2.0 | yes | wrong shape (grammar checker) |
 | `rust-bert` / `candle` / `ort` | state of the art | no | ~860 MB unpacked; 25–36 ms/sentence | Apache-2.0 / MIT | `rust-bert` stale | reject (weight and latency) |
 | Quill phrase lists + `aho-corasick` | n/a | **yes, ours** | ~50–200 KB | ours (GPL-3) | n/a | **adopt for Style check** |
@@ -96,8 +96,13 @@ wrong.
 92% vs 97% is not an abstraction in this feature: every wrong tag is a visibly wrong colour, on
 screen, while the user types. At 92%, roughly one word in twelve is miscoloured — about four errors
 in a 50-word paragraph, which a reader will notice. At 97% it is roughly one in thirty. Any approach
-that resolves ambiguity from context is worth real cost here; a bare lexicon is not good enough to
-ship as the primary path.
+that resolves ambiguity from context is worth real cost here.
+
+And note the footnote attached to the 92% figure: "In English, on the WSJ corpus, tested on sections
+22-24." It is an *in-domain* number. Measured on modern web prose a lexicon does substantially
+worse — see the fallback section below, where the measured figure is 77–81%. The independent
+reproduction there also confirms J&M's ambiguity envelope on a different corpus and decade: on
+UD_English-EWT, 87.3% of UPOS types are unambiguous while **62.8% of tokens are ambiguous**.
 
 ## nlprule
 
@@ -247,10 +252,80 @@ larger 3.5M-term Gutenberg vocabulary of 41 MB builds to 22 MB. ESTIMATE for Qui
 English word→tag-bitmask map lands in the 300 KB–1 MB range, and lookup is O(length of key),
 independent of dictionary size.
 
-So the fallback is cheap in space and time. What it cannot do is beat 92%, per J&M above. Suffix
-heuristics (`-ly` → ADV, `-tion`/`-ness` → NOUN, `-ing`/`-ed` → VERB, `-ous`/`-ive` → ADJ) only help
-with *unknown* words; they do nothing for the ambiguous known words that are the actual problem, and
-they misfire on `only`, `family`, `during`. Treat this as the degraded path, not the plan.
+So the fallback is cheap in space and time. **The problem is that it is far worse than 92%, and
+this was measured rather than assumed.**
+
+A pipeline of Moby POS + punctuation/number rules + suffix rules + a hand-written closed-class
+override table was built and evaluated against **UD_English-EWT dev (25,148 tokens)** — weblogs,
+newsgroups, email and reviews, i.e. prose closer to what Quill users write than WSJ newswire:
+
+| Configuration | UPOS accuracy |
+|---|---|
+| Moby primary tag only, OOV → NOUN/PROPN | 54.3% |
+| + punctuation/number rules + suffix rules for OOV | 68.8% |
+| + a hand-written 185-word closed-class override table | 77.3% |
+| + collapsed tagset (AUX→VERB, SCONJ→CCONJ, PROPN→NOUN) | **80.8%** |
+
+Controls on the same data: a most-frequent-tag lexicon derived from EWT *train* scores 88.0% UPOS /
+85.7% PTB, and NLTK's averaged-perceptron weights score 85.6%.
+
+Three conclusions, and they are the reason the fallback stays a fallback:
+
+1. **The textbook 92.3% does not transfer.** J&M's footnote says it plainly — "In English, on the
+   WSJ corpus, tested on sections 22-24" — i.e. a WSJ-derived frequency-ranked lexicon tested
+   in-domain with ~2.9% OOV. On out-of-domain prose the *same algorithm with a proper corpus
+   lexicon* falls to 85.7–88.0%.
+2. **A dictionary costs another 7–10 points on top of that.** Moby has no frequency counts, only a
+   priority ordering, and its 13 tag codes cannot express PROPN, AUX, PART, SCONJ, PUNCT or NUM —
+   32.1% of EWT tokens fall in classes it structurally cannot represent.
+3. **Expect 77–81% on prose, not 92%.** On cleaner edited prose 82–85% is plausible. At 80%, one
+   word in five is the wrong colour — roughly ten errors in a 50-word paragraph. That is not a
+   degraded feature, it is a broken one.
+
+The residual errors are almost entirely genuine context-dependent ambiguity — `to` PART/ADP, `that`
+PRON/SCONJ/DET, `have`/`do` VERB/AUX, `'s` PART/AUX. No lexicon resolves these without context,
+which is precisely what a Brill tagger's patch rules add and why `harper-brill` is the
+recommendation. The single highest-leverage piece of a lexicon approach is a hand-written
+closed-class table: 185 words bought 8.5 points, more than any amount of suffix tuning.
+
+Suffix heuristics only help with *unknown* words and misfire badly. The `pos-tagger` crate's own
+README is candid about it:
+
+> Any word ending in `ly` becomes an adverb, so `Italy`, `apply`, `family`, and `supply` tag as
+> `RB`. Nouns ending in `ing` tag as gerunds, so `string` and `king` tag as `VBG`.
+
+**Two ready-made shortcuts, both with a licence catch.** `wiktionary-part-of-speech-extract` ships a
+precompiled 1.76 MB FST with exactly the right API (`ENGLISH_TAG_LOOKUP.get("harbor")` → a `TagSet`
+bitmask), but its data is English Wiktionary — **CC BY-SA 3.0 / GFDL**, which the crate never
+addresses and which Quill cannot take (see the licence rule under Style check; BY-SA 3.0 has no
+GPL compatibility at all). The NLTK averaged-perceptron weights (~5.7 MB JSON, 85.6%) are the best
+pure-Rust accuracy available without libtorch, but they are trained on the Penn Treebank, which is
+LDC-licensed and not free — and `misaki-rs`, which embeds them, ships no LICENSE file.
+
+If a lexicon is ever needed, the clean data path in order of licence safety is: **Moby POS** (true
+public domain, Project Gutenberg etext #3203, 233,356 lines / 3.09 MB, "Public Domain material by
+grant from the author"), then **WordNet**'s single-word table (294 KB gzipped, OSI-approved, but no
+closed-class words at all), then LanguageTool's `english-tagger.txt` (388,213 plain-text entries,
+LGPL-2.1, avoiding the CFSA2 binary format for which no Rust reader exists).
+
+### Every other Rust POS crate, for the record
+
+The search was exhaustive; nothing else is viable. No crate is both maintained and accurate.
+
+| Crate | Latest | License | Why not |
+|---|---|---|---|
+| `postagger` | 0.0.3 (2024-01) | Apache-2.0 | NLTK perceptron port, but `exclude = ["tagger"]` — **the published crate ships no model** and cannot run |
+| `pos-tagger` | 0.2.0 (2026-07) | GPL-3.0-or-later | Brill + 92,662-entry lexicon; usable licence-wise, 0 stars, 229 downloads |
+| `english-pos-tagger` | 0.2.0 (2026-07) | MIT | WordNet-derived data shipped with no Princeton notice — a compliance gap |
+| `verbora-tagger` | 0.3.0 (2026-08) | MIT | Cleanest design (Brill engine, bring-your-own-lexicon) but ships no dictionary; 0.1/0.2 were **yanked** over redistributable-dictionary problems |
+| `wiktionary-part-of-speech-extract` | 0.1.2 (2021-08) | MIT/Apache-2.0 declared | 1.76 MB precompiled FST, right API — but CC BY-SA 3.0 Wiktionary data, unaddressed |
+| `viterbi_pos_tagger`, `crftag` | 0.1.x | GPL-3.0 / MIT | Single release, no model, ~1 star |
+| `natural` (was `rs-natural`) | 0.5.0 (2020-02) | MIT | **No POS tagging** — classifier, distance, ngram, phonetics, tf_idf, tokenize only |
+| `rust_tokenizers`, `whatlang`, `lindera`, `vibrato` | — | — | Subword tokenization, language ID, and Japanese/Korean morphology. Not English POS. |
+| `languagetool-rust` | — | — | HTTP client to a LanguageTool server — the dependency the ticket rules out |
+
+This is the context that makes `harper-brill` the answer: it is the only actively maintained Rust
+crate that ships a working English POS model with a licence Quill can accept.
 
 ## ML approaches — rejected
 
@@ -391,7 +466,11 @@ approaches fit that shape and both are paragraph-local:
 1. **Harper's tagger accuracy is unpublished.** No figure exists for `BrillTagger` on prose. Before
    committing, tag `ref/sample.md` and the passages transcribed in `ref/ia/REFERENCE.md` and compare
    the colours against iA's own screenshots — Quill already has iA's ground truth for the TRIM and
-   Alice passages, which is a better test set for this app than a treebank.
+   Alice passages, which is a better test set for this app than a treebank. **Acceptance threshold:
+   it must beat ~86%**, which is what a corpus-derived lexicon (88.0% UPOS) and NLTK's perceptron
+   (85.6%) achieve on out-of-domain prose; below that, `harper-brill` is not buying anything over
+   far simpler options. A Brill tagger scored 96.6% on WSJ in Brill's own 1995 paper, so there is
+   ample headroom — but in-domain, which is exactly the caveat this document keeps hitting.
 2. **Training-data provenance.** Harper's models are trained on UD treebanks — the chunker article
    names "GUM + EWT + LINES". UD_English-EWT is CC BY-SA 4.0 (one-way GPLv3-compatible), but
    **UD_English-GUM is CC BY-NC-SA 4.0** — a non-commercial license, which is not free and not
@@ -433,6 +512,11 @@ approaches fit that shape and both are paragraph-local:
 - HuggingFace CPU latency benchmark — <https://huggingface.co/blog/infinity-cpu-performance>
 - rust-bert — <https://github.com/guillaume-be/rust-bert>
 - libtorch CPU builds — <https://pytorch.org/get-started/locally/>
+- Moby Part-of-Speech II — <https://www.gutenberg.org/ebooks/3203>
+- WordNet license — <https://wordnetcode.princeton.edu/3.0/LICENSE>
+- Brill 1995, Transformation-Based Tagging — <https://aclanthology.org/J95-4004.pdf>
+- Abney, Schapire & Singer 1999 (the 92.3% figure) — <https://aclanthology.org/W99-0606.pdf>
+- Brants 2000, TnT — <https://aclanthology.org/A00-1031.pdf>
 - fst / transducers writeup — <https://burntsushi.net/transducers/>
 - aho-corasick — <https://docs.rs/aho-corasick/>
 - FSF license list — <https://www.gnu.org/licenses/license-list.html>
