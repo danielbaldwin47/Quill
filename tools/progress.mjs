@@ -8,7 +8,7 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 const fmtT = iso => { try { return new Date(iso).toLocaleString('en-GB', { timeZone: 'Europe/Stockholm', hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }); } catch { return iso; } };
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true });
 const thumbCache = new Map();
-async function th(file) { if (!file || !fs.existsSync(file)) return null; if (!thumbCache.has(file)) thumbCache.set(file, await thumb(file, 640, browser)); return thumbCache.get(file); }
+async function th(file) { if (!file || !fs.existsSync(file) || !/\.(png|jpe?g|webp)$/i.test(file)) return null; try { if (!thumbCache.has(file)) thumbCache.set(file, await thumb(file, 640, browser)); return thumbCache.get(file); } catch (e) { console.error('thumb failed', file, e.message); return null; } }
 const pieces = [];
 for (const p of state.pieces) {
   const rs = rounds.filter(r => r.piece === p.id);
