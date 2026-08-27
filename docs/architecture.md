@@ -118,7 +118,11 @@ Config: `theme` (auto, light, dark), `face` (duo, quattro, mono), `size` (pixels
 `typewriter_anchor` (0–1, default 0.5), `chrome` (shown/hidden), `spell_check` (on/off, default on)
 and `spell_language`, `syntax_highlight` (master) and its five category toggles, `style_check`
 (master) and one toggle per list, `template` (the current Template's name), `preview_layout`
-(split, full), `library` (the Library path).
+(split, full), `library` (the Library path), and a `[shortcuts]` table of Command id → chords that
+replaces the defaults in [`shortcuts.md`](shortcuts.md) ([ADR 0011](adr/0011-shortcut-precedence-on-linux.md)).
+
+The settings file is watched with `notify` like a Document: a saved edit applies without a restart,
+and a line that cannot be applied is logged once and skipped, never fatal.
 
 State: window size and position, the last Document per window, caret position per recent Document,
 the recents list, and the Gate's blind keys under `blind-keys/`.
