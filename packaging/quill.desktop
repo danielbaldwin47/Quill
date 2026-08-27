@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Quill
+Comment=A quiet place to write long-form prose
+Exec=quill
+Terminal=false
+Categories=Office;WordProcessor;TextEditor;
+Keywords=writing;markdown;prose;editor;
+StartupWMClass=localhost
