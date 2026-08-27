@@ -330,3 +330,74 @@ output** (`hyprctl output create headless`) so a real compositor really presents
 nothing appears on the user's screen — Hyprland 0.56 needs the new Lua dispatcher for placement:
 `hyprctl repl 'return hl.dispatch(hl.dsp.exec_cmd("[workspace N silent] …"))'`.
 
+### Round 3 — what changed in `app/js/core.js`
+
+Two of these are correctness fixes, not perf. They were found by rebuilding the deferred-render
+correctness probe (`shots/latency/probes/correctness.mjs`), and they are **visible to markup**:
+
+1. **`recomputeCtx(from)` seeded the walk from the wrong line.** `lineCtx[i]` is the context
+   *entering* line i, so a walk starting at `from` must begin from the context *leaving* line
+   `from-1` — `Writer.lineContext(lineCtx[from-1], lines[from-1], from-1)`, not `lineCtx[from-1]`.
+   With the old seed the line just above the edit was skipped, so **pressing Enter at the end of
+   a ` ```js ` line left every line below it tokenised as prose, permanently.** One line changed.
+2. **`lineCtx` is now spliced with `lineEls`** when a keystroke changes the line count. It is
+   indexed by line, and `recomputeCtx` decides where to stop by comparing what it computes for
+   line *i* against `lineCtx[i]`; if the array is not moved with the lines, those comparisons are
+   against the wrong lines. It stopped early on a false match and left the array short at the
+   tail, so the last line of the document kept a null context.
+   (Round 2's correctness probe found its fence with `lines().findIndex(l => l.startsWith('```js'))`
+   — which matches the *document's own* fenced block near the top — so it never checked a single
+   deferred line and saw neither bug.)
+3. **`AHEAD` is measured, not asserted.** Round 2 hard-coded 64 lines and called it "more than a
+   screenful at any font size". It is not, in a tall window at a small size. `computeAhead()` now
+   divides the scroller's height by a line's `min-height` (exactly one line pitch — the shortest a
+   line can be) and adds a margin, at boot, on resize and on a settings change. 32 lines at
+   1440×900 / 20 px; ~58 on the user's 4K panel at 14 px. `Writer.aheadLines()` reports it.
+4. **The catch-up serves the viewport first, and is bounded by time, not by a line count.** The
+   AHEAD window follows the *edit*; the reader's eye need not be there (undo, a command, a paste,
+   or simply having scrolled away). The catch-up frame now fills the visible ∩ pending range
+   first — an animation frame runs *before* that frame's style/layout/paint, so it still lands in
+   the first frame after the keystroke — and the remainder runs under a **4 ms** budget instead of
+   400 lines. Scrolling into a not-yet-caught-up range also fills what came into view, on the
+   scroll event. New: `Writer.visibleRange()`, `Writer.flushVisible()`, `Writer.pendingLines()`.
+   Measured: 1,608 lines deferred by one keystroke in a 55k-word manuscript are caught up in **one
+   frame**, and nothing stale is ever painted (all 17 assertions in `correctness.mjs` pass).
+
+### Round 3 — new tools
+
+* **`tools/uinput-keys.py`** (new). Types through a real virtual keyboard on `/dev/uinput`, so keys
+  travel evdev → libinput → Hyprland → Wayland → Chromium exactly as the user's own keyboard does,
+  and records `CLOCK_MONOTONIC` immediately before each `write(2)`. Chromium's TimeTicks *are*
+  CLOCK_MONOTONIC on Linux (verified against `clock_gettime` — see the report §3.5), so the
+  kernel → browser delivery hop is now **measured** instead of excluded. `bin/quill --uinput`.
+* **`tools/idle-check.py`** (new). Watches every real keyboard/pointer evdev node and exits
+  non-zero if anybody touches the machine. `bin/quill --panel N` refuses to take the screen
+  without it, and puts the workspace that was up back afterwards.
+* **`bin/quill --panel N`** (new). The one measurement a virtual output cannot give: commit →
+  scan-out on the **physical** panel. A Wayland surface on a workspace nobody is looking at gets no
+  frame callbacks, so the window has to really be on screen; the idle guard above is what makes
+  that acceptable.
+* **`tools/latency.mjs`**: every keystroke now carries five milestones, not two — JS done, the wait
+  for a BeginFrame, painted, committed, presented — and the app-internal bar is answered in the
+  **mean and the worst case**, which is how REFERENCE §5.3 states it. Statistics over fewer than
+  20 samples print n/mean/max and no percentiles.
+
+### Findings for other pieces (round 3; no files of yours were changed)
+
+* **caret.js — unchanged from round 2 and still the largest perceptible latency in the product.**
+  `GLIDE_X = 62`, `SNAP_MS = 60`: at any ordinary writing speed every keystroke glides, and the
+  caret settles ~58 ms after the glyph is already on screen. Against Dan Luu's 2 ms perception
+  threshold that is the one number a writer's eye can actually see. A 30 ms glide would still read
+  as the same caret moving.
+* **chrome.js — `count()` is still a whole-document scan.** ~0.9 ms of main thread per keystroke at
+  10k words and ~4.9 ms at 55k, idle-scheduled (so off the critical path, which is right) but the
+  second-largest main-thread item in a large document. Adjusting the count by the words in the
+  edited line would remove it.
+* **page.css — the `#mirror:has(> .line:only-child > br:only-child)::after` placeholder costs
+  nothing measurable.** Re-checked this round by deleting the rule at run time: 5.06 vs 5.27 ms
+  mean keydown→paint, inside the run-to-run spread. Keep it.
+* **`contain: layout style` on `#mirror .line` is not worth it.** It does what it says — PrePaint
+  406→327 µs and Paint 669→455 µs per keystroke at 10k words, 1741→1441 and 1917→1442 at 55k — but
+  the end-to-end latency does not move (10k: 5.27 → 5.34 ms mean to paint; 55k: 9.01/9.21 →
+  9.10), because the dominant term is the wait for the next BeginFrame, not the paint. Measured,
+  twice, and left out.

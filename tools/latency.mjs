@@ -85,6 +85,16 @@ function ci(arr, p, resamples = 2000) {
   out.sort((x, y) => x - y);
   return { lo95: r2(pct(out, .025)), hi95: r2(pct(out, .975)) };
 }
+// The same bootstrap for the mean, because the bar this piece is judged against is a mean.
+function ciMean(arr, resamples = 2000) {
+  const a = arr.filter((x) => typeof x === 'number' && !Number.isNaN(x));
+  if (a.length < 20) return null;
+  const rnd = mulberry32(0x3EA11);
+  const out = [];
+  for (let r = 0; r < resamples; r++) { let s = 0; for (let i = 0; i < a.length; i++) s += a[(rnd() * a.length) | 0]; out.push(s / a.length); }
+  out.sort((x, y) => x - y);
+  return { lo95: r2(pct(out, .025)), hi95: r2(pct(out, .975)) };
+}
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function hash32(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 
@@ -318,8 +328,20 @@ async function installClock(page) {
 // ---------- trace reduction ----------
 function reduceTrace(events) {
   const et = events.filter((e) => e.name === 'EventTiming' && e.ph === 'b' && e.args && e.args.data)
-    .map((e) => e.args.data).sort((a, b) => a.timeStamp - b.timeStamp);
+    .map((e) => ({ ...e.args.data, ts: e.ts }))   // ts = Chromium TimeTicks, microseconds; on Linux
+    .sort((a, b) => a.timeStamp - b.timeStamp);   // that is CLOCK_MONOTONIC (verified, see report 3.4)
   const kd = et.filter((e) => e.type === 'keydown');
+  // Main-thread paint groups, so a keystroke can be timed to the end of the frame update it
+  // caused and not only to the compositor's commit. One group = the Paint/Layerize runs of one
+  // BeginMainFrame (they are contiguous; a gap of more than 1 ms starts a new frame).
+  const paintRuns = events.filter((e) => e.ph === 'X' && e.dur >= 0 && (e.name === 'Paint' || e.name === 'Layerize'))
+    .map((e) => ({ a: e.ts, b: e.ts + e.dur })).sort((x, y) => x.a - y.a);
+  const groups = [];
+  for (const r of paintRuns) {
+    const last = groups[groups.length - 1];
+    if (last && r.a <= last.b + 1000) { if (r.b > last.b) last.b = r.b; } else groups.push({ a: r.a, b: r.b });
+  }
+  const groupAfter = (us) => { for (const g of groups) if (g.b >= us) return g; return null; };
   // family = every input event between this keydown and the next one (keypress, input, keyup),
   // found with a two-pointer walk rather than a filter per key (O(n), not O(n^2)).
   const per = []; let j = 0;
@@ -327,11 +349,28 @@ function reduceTrace(events) {
     const e = kd[i], next = kd[i + 1] ? kd[i + 1].timeStamp : Infinity;
     while (j < et.length && et[j].timeStamp < e.timeStamp) j++;
     let js = 0, fam = 0, k = j;
-    while (k < et.length && et[k].timeStamp < next) { js += Math.max(0, et[k].processingEnd - et[k].processingStart); fam++; k++; }
+    let jsDoneUs = e.ts + (e.processingEnd - e.timeStamp) * 1000;
+    while (k < et.length && et[k].timeStamp < next) {
+      js += Math.max(0, et[k].processingEnd - et[k].processingStart);
+      const doneUs = et[k].ts + (et[k].processingEnd - et[k].timeStamp) * 1000;
+      if (et[k].type !== 'keyup' && doneUs > jsDoneUs) jsDoneUs = doneUs;
+      fam++; k++;
+    }
+    const g = groupAfter(jsDoneUs);
     per.push({
       t: e.timeStamp,
+      ts_us: e.ts,                            // Chromium TimeTicks = CLOCK_MONOTONIC on Linux
       input_delay: e.processingStart - e.timeStamp,
       js,
+      // The application's own JavaScript is finished (last non-keyup handler for this key returns).
+      to_js_done: (jsDoneUs - e.ts) / 1000,
+      // ... then, before the frame's first paint op: the wait for Chromium's next BeginFrame
+      // PLUS that frame's style, layout and pre-paint (paint groups start at the first Paint or
+      // Layerize event, and style/layout/pre-paint run before it). The scheduling part of this is
+      // not the app's: the app cannot start a frame, it can only ask for one.
+      frame_wait: g ? Math.max(0, (g.a - jsDoneUs) / 1000) : null,
+      // ... and the frame's own style/layout/paint ends here.
+      to_paint: g ? (g.b - e.ts) / 1000 : null,
       to_commit: e.commitFinishTime ? e.commitFinishTime - e.timeStamp : null,
       to_present: e.duration || null,
       keys_in_family: fam,
@@ -460,12 +499,33 @@ async function typingRun(ctx, opts) {
   const labels = labelsOf(steps);
   const trace = await startTrace(cdp);
   const t0 = Date.now();
-  let pressed = 0, expected = 0;
+  let pressed = 0, expected = 0, injected = null;
+  if (opts.uinput) {
+    // Real keys go to whatever the compositor thinks is focused. If that is not this window they
+    // go into somebody's editor, so this refuses to inject unless the page itself says it has
+    // keyboard focus and the caret is in the textarea.
+    const focused = await page.evaluate(() => ({ has: document.hasFocus(), active: document.activeElement && document.activeElement.id, vis: document.visibilityState }));
+    if (!focused.has || focused.active !== 'input' || focused.vis !== 'visible')
+      throw new Error('uinput: refusing to type — window focus is ' + JSON.stringify(focused));
+    // Real keys, through /dev/uinput -> libinput -> Hyprland -> Wayland -> Chromium, with
+    // CLOCK_MONOTONIC recorded immediately before each write(2). Nothing here goes through CDP.
+    const text = steps.map((st) => (st.press === 'Space' ? ' ' : st.press === 'Enter' ? '\n' : st.press === 'Backspace' ? '\b' : st.press)).join('');
+    if (!/^[\x08\x0a\x20-\x7e]+$/.test(text)) throw new Error('uinput: regime ' + opts.name + ' presses a key this injector cannot express');
+    injected = await new Promise((res, rej) => {
+      const ch = spawn('python3', [path.join(path.dirname(new URL(import.meta.url).pathname), 'uinput-keys.py')], { stdio: ['pipe', 'pipe', 'inherit'] });
+      let buf = '';
+      ch.stdout.on('data', (d) => { buf += d; });
+      ch.on('close', (code) => { try { res(JSON.parse(buf)); } catch (e) { rej(new Error('uinput injector failed (' + code + '): ' + buf.slice(0, 200))); } });
+      ch.stdin.end(JSON.stringify({ text, pace_ms: pace || 8, hold_ms: 12, settle_ms: 1500 }));
+    });
+    pressed = steps.length; expected = steps.reduce((a, st) => a + st.keydowns, 0);
+  } else {
   for (let i = 0; i < steps.length; i++) {
     await page.keyboard.press(steps[i].press);
     pressed++; expected += steps[i].keydowns;
     if (opts.pauseEvery && (i + 1) % opts.pauseEvery === 0) await page.waitForTimeout(opts.pauseMs || 1200);
     else if (pace) await page.waitForTimeout(pace);
+  }
   }
   const wall = Date.now() - t0;
   await page.waitForTimeout(700);                       // let the last frames present, and any autosave land
@@ -487,11 +547,27 @@ async function typingRun(ctx, opts) {
   const textIdx = per.map((_, i) => i).filter((i) => TEXT_LABELS.has(labelFor(i)));
   const headline = textIdx.map((i) => per[i].to_present);
   const headlineCommit = textIdx.map((i) => per[i].to_commit);
+  const headlinePaint = textIdx.map((i) => per[i].to_paint);
+  const headlineJs = textIdx.map((i) => per[i].to_js_done);
+  const headlineWait = textIdx.map((i) => per[i].frame_wait);
+  // A "p99" of four samples is the maximum wearing a hat. Anything under 20 samples gets its n,
+  // its mean and its worst and nothing else.
+  const thin = (v) => { const st = stat(v); if (!st) return null; if (st.n >= 20) return st;
+    return { n: st.n, mean: st.mean, max: st.max, too_few_for_percentiles: true }; };
   const keyTypes = {};
-  for (const [k, v] of Object.entries(byLabel)) keyTypes[k] = stat(v);
+  for (const [k, v] of Object.entries(byLabel)) keyTypes[k] = thin(v);
   const probeKeys = {};
   for (const k of ip) probeKeys[k.key] = (probeKeys[k.key] || 0) + 1;
 
+  // The hop CDP cannot see: kernel write -> the timestamp Chromium gives the event.
+  let delivery = null, fromKernel = null;
+  if (injected && injected.ok) {
+    const ev = injected.events;
+    if (ev.length === per.length) {
+      delivery = per.map((k, i) => (k.ts_us - ev[i].t_ns / 1000) / 1000);
+      fromKernel = textIdx.map((i) => (per[i].to_present == null ? null : per[i].to_present + delivery[i]));
+    }
+  }
   const out = {
     regime: opts.name,
     mix, where, focus: focus || 'off', pace_ms: pace, pause_every_keys: opts.pauseEvery || null, wall_ms: wall,
@@ -518,10 +594,36 @@ async function typingRun(ctx, opts) {
     dropped_frames_per_second: r2(1000 * ((states.STATE_DROPPED || 0) + (states.STATE_DROPPED_affecting_smoothness || 0)) / Math.max(1, wall)),
     presented_within_one_60hz_frame_pct: r2(100 * headline.filter((x) => x != null && x <= 16.67).length / Math.max(1, headline.length)),
     presented_within_two_60hz_frames_pct: r2(100 * headline.filter((x) => x != null && x <= 33.34).length / Math.max(1, headline.length)),
+    // REFERENCE 5.3 states the app-internal bar as "keystroke -> committed frame: <= 5 ms AVERAGE,
+    // <= 16 ms WORST CASE" — Fatin's Typometer figures are means, not medians. So the bar is
+    // answered in the mean and the max of `to_commit`, in that vocabulary, pass or fail, here.
+    bar_app_internal: (() => {
+      const c = stat(headlineCommit); if (!c) return null;
+      return {
+        definition: 'keystroke hardware timestamp -> commitFinishTime of the frame carrying it (Chrome EventTiming), text-affecting keystrokes only',
+        bar: '<= 5 ms average, <= 16 ms worst case (REFERENCE 5.3; Fatin Typometer means: Notepad++ 4.3, Emacs 5.3, Sublime 8.2)',
+        mean_ms: c.mean, sd_ms: c.sd, max_ms: c.max, n: c.n,
+        clears_mean_bar: c.mean <= 5, clears_worst_bar: c.max <= 16,
+        also_p50_p99: [c.p50, c.p99],
+      };
+    })(),
+    input_injection: opts.uinput
+      ? { how: 'real keys through /dev/uinput -> libinput -> Hyprland -> Wayland -> Chromium (tools/uinput-keys.py)',
+          device: injected && injected.device, keys_written: injected && injected.n,
+          aligned_with_trace: !!delivery,
+          kernel_write_to_chromium_event_ms: stat(delivery || []),
+          kernel_write_to_presented_ms: stat(fromKernel || []),
+          samples_kernel_to_presented_ms: (fromKernel || []).map((x) => r2(x)) }
+      : { how: 'CDP Input.dispatchKeyEvent — the clock starts inside the browser process, so the kernel/libinput/compositor delivery hop is NOT included' },
     ms: {
       to_present: stat(headline),                       // headline: text-affecting keystrokes only
       to_present_ci95: { p50: ci(headline, .5), p99: ci(headline, .99) },
       to_commit: stat(headlineCommit),
+      to_commit_ci95: { mean: ciMean(headlineCommit), p99: ci(headlineCommit, .99) },
+      // The ladder inside one keystroke: app JS done -> wait for a BeginFrame -> frame painted.
+      to_js_done: stat(headlineJs),
+      frame_wait: stat(headlineWait),
+      to_paint: stat(headlinePaint),
       to_present_every_keydown: stat(per.map((k) => k.to_present)),
       input_delay: stat(per.map((k) => k.input_delay)),
       js_per_key: stat(per.map((k) => k.js)),
@@ -552,6 +654,8 @@ async function typingRun(ctx, opts) {
     },
     samples_to_present_ms: headline.map((x) => r2(x)),    // raw, so anyone can recompute the percentiles
     samples_to_commit_ms: headlineCommit.map((x) => r2(x)),
+    samples_to_paint_ms: headlinePaint.map((x) => r2(x)),
+    samples_to_js_done_ms: headlineJs.map((x) => r2(x)),
     // How long the frame waits between Chromium finishing its commit and the compositor reporting
     // it presented: on a panel this is the wait for the next scan-out, and it is the one hop a
     // headless run cannot have.
@@ -625,7 +729,7 @@ function regimeList() {
 async function typingSession(browser, ctx0, reuse) {
   const ctx = ctx0 || await browser.newContext(CTXOPTS);
   const out = [];
-  for (const r of regimeList()) out.push(await typingRun(ctx, { keys: KEYS, clock: args.clock || 'on', reuse, ...r }));
+  for (const r of regimeList()) out.push(await typingRun(ctx, { keys: KEYS, clock: args.clock || 'on', uinput: !!args.uinput, reuse, ...r }));
   if (!ctx0) await ctx.close();
   return out;
 }
@@ -637,16 +741,25 @@ function acrossSessions(sessions) {
   const out = {};
   for (const [name, runs] of Object.entries(byRegime)) {
     const pooled = runs.flatMap((r) => r.samples_to_present_ms).filter((x) => x != null);
+    const pooledCommit = runs.flatMap((r) => r.samples_to_commit_ms || []).filter((x) => x != null);
+    const pooledPaint = runs.flatMap((r) => r.samples_to_paint_ms || []).filter((x) => x != null);
+    const pooledJs = runs.flatMap((r) => r.samples_to_js_done_ms || []).filter((x) => x != null);
     out[name] = {
       sessions: runs.length,
       keys_per_session: runs[0].ms.to_present ? runs[0].ms.to_present.n : null,
       every_keystroke_accounted_for: runs.every((r) => r.every_keystroke_accounted_for),
+      per_session_mean: runs.map((r) => r.ms.to_present && r.ms.to_present.mean),
       per_session_p50: runs.map((r) => r.ms.to_present && r.ms.to_present.p50),
       per_session_p99: runs.map((r) => r.ms.to_present && r.ms.to_present.p99),
       per_session_max: runs.map((r) => r.ms.to_present && r.ms.to_present.max),
       pooled: stat(pooled),
+      pooled_mean_ci95: ciMean(pooled),
       pooled_p50_ci95: ci(pooled, .5),
       pooled_p99_ci95: ci(pooled, .99),
+      pooled_to_commit: stat(pooledCommit),
+      pooled_to_commit_mean_ci95: ciMean(pooledCommit),
+      pooled_to_paint: stat(pooledPaint),
+      pooled_to_js_done: stat(pooledJs),
       main_thread_ms_per_key: runs.map((r) => r.main_thread.busy_ms_per_key),
     };
   }

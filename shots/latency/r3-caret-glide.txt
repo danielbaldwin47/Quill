@@ -1,0 +1,1 @@
+{"url":"http://localhost:4179/","pace_ms":90,"keystrokes_measured":59,"keydown_to_caret_stationary_ms":{"p50":57,"p90":63.9,"p99":66.7,"max":66.7}}

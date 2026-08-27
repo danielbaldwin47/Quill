@@ -1,646 +1,499 @@
 # Latency — measured
 
-**Quill, round 2.** iA Writer publishes no latency numbers at all — "boots in a whizz… snappy as
+**Quill, round 3.** iA Writer publishes no latency numbers at all — "boots in a whizz… snappy as
 jazz" is the entire public record — so the bar comes from third-party measurements of native
-editors: **32.5 ± 4.0 ms keyboard-to-photon** (Sublime Text; Tristan Hume, photodiode, 60 Hz panel;
-TextEdit 33.4, Atom 45.6, VS Code 47.6) and **≤ 5 ms average, ≤ 16 ms worst case** of app-internal
-input→paint work (REFERENCE §5.3, Fatin's Typometer class: Notepad++ 4.3 ms mean, Sublime 8.2).
+editors, and REFERENCE §5.3 states it in two parts, in two different statistics:
 
-Everything below was measured on this machine, on this build, with a real **10,062-word** Markdown
-document open, by a typist that presses **capitals, punctuation, Enter, Backspace, undo, paste and
-Markdown syntax** — not only lowercase letters — and with **every single keystroke accounted for**.
+* **App-internal, keystroke → committed frame: ≤ 5 ms *average*, ≤ 16 ms *worst case*.**
+  Fatin's Typometer figures, which are means: Notepad++ 4.3, Emacs 5.3, **Sublime 8.2**.
+* **Keyboard-to-photon on a 60 Hz panel: ≈ 30–35 ms.** Hume's photodiode: Sublime **32.5 ± 4.0**,
+  TextEdit 33.4, Atom 45.6, VS Code 47.6.
 
-## The numbers
+Round 2 answered the first bar with a p50 of 5.67 and a p99 of 14.99 and printed *"inside the
+≤5 ms / ≤16 ms bar"*. That is the wrong statistic, and re-read in means it was false: the mean of
+the samples it shipped was 6.94 ms and the worst was 17.34. **This round answers that bar in the
+mean and the worst case, and the honest answer is below. It is better than round 2's real numbers
+and it still does not clear the average.**
 
-|  | p50 | p99 | worst |
-|---|---|---|---|
-| **The application's own work** — keystroke → the frame it produced, nothing animating | **5.7** | 15.0 | 17.3 |
-| … of which: keystroke → frame **committed** | **4.8** | 13.8 | 16.5 |
-| Keystroke → frame presented, headless on a 60 Hz frame clock | **9.4** | 18.5 | 19.0 |
-| Keystroke → frame presented, **on the user's own compositor** at 60 Hz | **23.6** | 37.7 | 50.4 |
-| Keystroke → **photons**, adding the ~4 ms of pixel response nobody can measure without one | **≈ 27.6** | ≈ 41.7 | — |
+## 0. What round 2 got told, and what this round did about it
 
-Milliseconds, all from one regime: **plain writing at the end of a 10,062-word draft at 133 wpm**
-— the most common thing a writer does, and the *worst* of the eleven paced regimes on the
-compositor, which is the row that meets the published bar. Three sessions of 300 keystrokes each,
-pooled (n = 900); every keystroke accounted for in all of them; the bootstrap 95 % interval on
-that 37.7 ms p99 is 36.5–39.4. Headless, this regime is the *best* of the eleven rather than the
-worst — the worst there is Focus: Sentence at 9.84 / 20.09 ms — but the whole spread headless is
-1.6 ms, because on a frame clock the wait for the tick dominates everything (§4).
-
-**Against the bars.** The application's own work is inside the **≤ 5 ms / ≤ 16 ms** bar on this
-document: 4.8 ms to a committed frame, 5.7 ms to a produced one, worst of 300 keystrokes 17.3 ms, and
-**99.7 % of keystrokes inside one 60 Hz frame, 100 % inside two**.
-Against Hume's **32.5 ± 4.0 ms** photodiode figure, the like-for-like number is **≈ 27.6 ms at the
-median — and ≈ 41.7 ms at p99**, which is the Sublime bracket at the median and the VS Code
-bracket in the tail. The tail is not ours: Chromium had the frame committed 9.3 ms after the key,
-and the compositor took another 17.3 ms at the median and 34.1 at p99 to report it presented
-(§5). Round 1 claimed "≈ 32 ms, the Sublime bracket" from a single session on an older build; this
-round the claim is narrower and the arithmetic is in §13.
-
-**Startup.** From a shell, `bin/quill`, chromium process spawn included, with the 10,062-word
-document in the profile: **375 ms** to the first frame that shows the document, **322 ms** to an
-editor you can type into. A brand-new profile — no code cache, no storage, a true first run — is
-380 ms to first frame. Inside an already-running browser a page load is 108 ms / 81 ms.
-
-## 0. What round 1 got told, and what changed
-
-Round 1 lost blind on five specific points. Each one is now a measurement rather than an argument:
-
-| round 1's verdict | round 2 |
+| round 2's verdict | round 3 |
 |---|---|
-| "the ≈32 ms photon claim rests on one session, on an **earlier build**, n=200, with a known double-probe bug (204 keydowns for 200 presses), and quotes the **best** regime's p50" | The bench now uses **a fresh page per regime**, so a second probe cannot be installed; the accounting assertion runs in every regime; the on-glass-path numbers are re-measured on **this** build on a real compositor (§5); and the headline quoted is the **worst paced human regime's p99**, not the best regime's p50. |
-| "the bench types **nothing but lowercase letters and spaces** — it never presses Enter or Backspace, the path core.js gives a more expensive branch" | Twelve regimes of scripted real prose with **eleven kinds of keystroke**, each reported separately (§8). Enter, Backspace, undo, paste, select-and-replace and a fence-opening backtick are all measured, and the expensive ones were then **made cheaper** (§14). |
-| "startup '100 ms, median of 12 cold loads' **is not cold**" | Two separate numbers, never mixed: a **page load in a warm browser** (what the 100 ms was), and a **true cold start** that spawns a new browser process per run, with a **fresh profile** variant that has no code cache and no storage at all (§10). |
-| "no degraded-hardware run at all" | **`Emulation.setCPUThrottlingRate` at 2× and 4×** (§9), and the document-size sweep at four sizes (§7). |
-| "p99 from a single n=300 run, no repeated sessions, no confidence interval" | **Three sessions** of every regime, per-session p50/p99 reported individually, pooled percentiles with **bootstrap 95 % intervals** (§4). |
-| "~1 dropped frame per keystroke, declined as an artefact — plausible, not demonstrated" | An **idle frame-production control** and the drop rate at three different typing speeds: the drops track **keystrokes per second**, not seconds (§12). |
-| "the headline pairing in latency.json and the tiles is apples-to-oranges" | `progress/latency.json` now carries the **photon-comparable** number against the 32.5 ms bar, with its construction spelled out in the same file (§13). |
-| "the ≤5 ms bar is only cleared on the 10k document with focus off" | Every document size is reported, and where we are **over** the bar it says so (§6, §7). |
-| "sustained-session behaviour is unmeasured; no accounting for the autosave write" | A **2,500-keystroke session** with pauses, quartile-by-quartile latency, heap growth, GC time and every `localStorage` write timed (§11). |
-| "saturation_stress's 10 ms p50 is meaningless and is still tabulated alongside the others" | It is still run — it is where the cliff is — but it is **out of the results table** and reported on its own, with the frame-sharing arithmetic that makes its p50 meaningless printed next to it (§4). |
-
+| "The app-internal claim is answered in the wrong statistic and is false as written… ~6.9 ms mean / 17.3 ms worst, **over** the stated bar on both terms." | Every app-internal table is now **mean ± sd and worst case**, in the bar's own vocabulary, with a bootstrap CI on the mean; p50/p99 are kept beside them for shape, never instead of them. The number is now **5.73 ms mean (CI 5.50–5.95), sd 3.60, worst 14.25** on the headline regime: the ≤16 ms worst case is cleared on 8 of the 11 paced regimes, and **the ≤5 ms average is not cleared by any of them**. §6 says so in those words. |
+| "then close the ~2 ms — the 2,510 µs of style/layout/paint and the 1,414 µs Chrome textarea insertion per key are where it is, not in Quill's own 814 µs handler." | Both came down (2,231 µs and 1,319 µs; Quill's handler 755 µs) and the end-to-end mean came down 0.39 ms with them. But the more useful result is a **negative** one, and it is measured rather than argued: **the keystroke is scheduler-bound, not work-bound** — adding up to 2 ms of pure busy-wait to every keystroke does not move the committed-frame time at all (§7). The remaining 2 ms is not work, so it cannot be removed by removing work. |
+| "No physical panel was measured at all this round… ±12 ms of uncertainty, larger than the 5 ms margin." | §9. `bin/quill --panel N` now really shows the window on the Dell U2720Q and measures commit → scan-out there, behind an evdev idle guard (`tools/idle-check.py`) that refuses to take the screen off somebody who is using it. |
+| "The photon arithmetic is missing an input term… CDP `Input.dispatchKeyEvent` starts the clock inside the browser process." | §10. `tools/uinput-keys.py` creates a **real keyboard on /dev/uinput**, so the keys go evdev → libinput → Hyprland → Wayland → Chromium exactly as the user's own keyboard does, with `CLOCK_MONOTONIC` taken immediately before each `write(2)`. Chromium's TimeTicks *are* CLOCK_MONOTONIC on Linux (verified, §3.5), so the delivery hop is now **measured**, not excluded. |
+| "The fence-flip win is largely work moved, not removed… the cost and frame-drop behaviour of the catch-up frames is measured nowhere." | §8. The catch-up is now bounded by **time (4 ms), not by a line count**, and 1,608 deferred lines in a 55k-word manuscript are caught up in **one frame**. |
+| "`Writer.flushPending()` has zero callers… 'nothing the reader can see is ever stale' holds only if the reader does not scroll… AHEAD=64 is asserted rather than measured." | All three fixed and all three now asserted by a probe that actually looks at the right lines. The catch-up frame serves **the visible range first**; scrolling into a not-yet-caught-up range fills what came into view on the scroll event; and `AHEAD` is **computed from the viewport** (32 lines at 1440×900/20 px, ~58 on the user's 4K panel at 14 px). §8. |
+| "Round 2's correctness probe deliberately samples a line 400 below the fold, then sleeps 400 ms." | That probe was worse than the critique knew: it found its fence with `findIndex(l => l.startsWith('```js'))`, which matches **the document's own** fenced block near the top, so it never checked a single deferred line. Rewriting it found **two real bugs in core.js** that had been shipping since round 1 (§8.1). |
+| "The startup headline is the pre-paint number… `startup_ready: 322` is a JS marker set before any frame exists." | `startup_ready` in `progress/latency.json` is now **the first frame a human can see**, and the JS marker is demoted to a sibling field that says what it is. §11. |
+| "Cold launcher n = 4 (and n = 3 fresh)… four runs and a min–max range." | 15 cold processes + 12 fresh-profile processes headless, and the launcher runs are reported with n, mean, sd and range like everything else. §11. |
+| "The top-level `keystroke_p50` / `keystroke_p99` in latency.json are synthetic (measured + 4 cited)." | The top-level fields are now **entirely measured** — kernel keypress → the frame presented, no cited terms anywhere in them. The cited 4 ms of panel pixel response is quoted **once**, in `bar_note`, as an explicit addition. §13. |
+| "Variance is 2.5× the bar's… reported only as p50/p90/p99, never as sd beside Hume's sd." | sd is printed beside every mean in this report and in `latency.json`. §5, §9. |
+| "Several by-key-type cells are noise reported as statistics: undo n = 2 with a 'p99' of 16.66." | `tools/latency.mjs` now refuses to print percentiles for fewer than 20 samples: those cells carry **n, mean and worst** and a `too_few_for_percentiles` flag. §12. |
+| "The caret lags the glyph by 57.7 ms and is excluded from every table by construction." | It is now **a row in the headline table** (§5) and a top-level field in `latency.json`. It is still 58 ms, it is still the largest perceptible latency in the product, and it is still in a file this piece does not own — but it is no longer filed under design. |
 
 ## 1. Environment
 
 | | |
 |---|---|
-| CPU | 13th Gen Intel(R) Core(TM) i5-13600K (20 threads) |
+| CPU | 13th Gen Intel(R) Core(TM) i5-13600K, 20 threads |
 | OS | Linux 7.1.9-arch1-2, Wayland (Hyprland 0.56.2) |
 | Browser | Chromium 151.0.7922.173 (system build), headless and headed |
-| Display | Dell U2720Q 3840×2160 @ 60.00 Hz for the app's own window; the measured window ran on a **virtual 1920×1080 @ 60 Hz Hyprland output** (§5) |
+| Panel | Dell U2720Q, 3840×2160 @ 59.997 Hz, scale 1.5, VRR off, hardware cursor |
 | Viewport | 1440×900 logical px |
-| App build | `app/**/*.{js,css,html}` sha256 **`19b86f97e10b203d`**, served from a frozen snapshot on its own port so that another builder's edit could not move the numbers mid-run |
-| Load average | 0.55–1.48 depending on the run; recorded in every result file, together with the busiest processes on the machine — this is somebody's workstation, not a lab |
-| Sample | typing 300 keystrokes × 12 regimes × 3 sessions headless, × 3 sessions on the compositor; startup 12 page loads + 10 cold processes + 8 fresh-profile processes + 7 launcher cold starts |
+| App build | `app/**/*.{js,css,html}` sha256 **`6c61caa21c576e13`** (16 files), served from a **frozen snapshot** on port 4179 so that another builder's edit could not move the numbers mid-run |
+| Load | recorded in every result file with the busiest processes at the time. This is somebody's workstation, and they were using it: the physical-panel run had to wait for them (§9). |
 
 ## 2. The document, and the typist
 
 `shots/latency/doc10k.md` — **10,062 words, 53,031 characters, 432 lines** — built by
-`tools/mkdoc.mjs` from *Alice's Adventures in Wonderland* (Project Gutenberg #11, public domain).
-A real document, not lorem ipsum: chapters as `##` headings, Carroll's own italics as Markdown
-emphasis (`_very_`), verse as block quotes, scene breaks as `* * *`, and an editor's note at the
-top with a task list, a link, inline code and a fenced code block — so the tokenizer, the
-decorators and the mirror all do their real work on every frame. Paragraphs are **one logical line
-each** (up to 980 characters), the way a document looks in iA Writer, and the hard case for a
-line-diffing renderer: an edited line is a whole soft-wrapping paragraph, not a 60-character row.
-Three more sizes — 2 k, 27 k and 55 k words — are measured in §7.
+`tools/mkdoc.mjs` from *Alice's Adventures in Wonderland* (Project Gutenberg #11, public domain):
+chapters as `##` headings, Carroll's own italics as Markdown emphasis, verse as block quotes, and
+an editor's note with a task list, a link, inline code and a fenced code block, so the tokenizer,
+the decorators and the mirror all do real work on every frame. Paragraphs are **one logical line
+each** (up to 980 characters) — the way a document looks in iA Writer, and the hard case for a
+line-diffing renderer. Three other sizes (2 k, 27 k, 55 k words) in §14.
 
-**The typist.** Round 1's bench pressed one sample sentence of lowercase letters and spaces, over
-and over. That is the cheap path, and it is not writing. Round 2 scripts a real stream — seeded
-per regime, so every session types the identical keys and the spread between sessions is the
-machine rather than the script:
-
-* **prose** — a paragraph with capitals, commas, semicolons, quotation marks, apostrophes, dashes,
-  sentence ends and paragraph breaks, with a **1–3 character typo corrected every ~45 characters**;
-* **newlines** — short lines and Enter, in the middle of the document: every Enter changes the
-  line count, the branch `render()` treats differently from typing inside a line;
-* **revision** — write a word, select it back character by character with `Shift+←`, replace it,
-  and undo with `Ctrl+Z` a quarter of the time;
-* **markdown** — headings, `*emphasis*`, `**strong**`, inline `` `code` ``, a block quote and a
-  fenced `` ```js `` block, opened and closed;
-* **fences** — three backticks and three backspaces, over and over: the third backtick puts every
-  line below it inside a code block and the first backspace takes them all out again. It is the
-  most expensive thing one keystroke can ask a Markdown editor to do;
-* **paste** — `Ctrl+V` of a 137-character paragraph from the real clipboard every 25 keystrokes;
-* **letters** — round 1's lowercase sample, kept so the two rounds can be compared directly.
-
-Every keystroke is labelled with the key that caused it, and the tables in §5 and §6 are computed
-over **text-affecting keystrokes only** (letters, capitals, spaces, punctuation, Markdown
-characters, Enter, Backspace, undo, paste); the modifier and arrow presses in a chord are counted
-for the accounting assertion but are not averaged into a latency that they do not have.
+**The typist** types real prose, not one repeated sentence: capitals, commas, semicolons, quotation
+marks, apostrophes, dashes, sentence ends, paragraph breaks, and **a 1–3 character typo corrected
+every ~45 characters**. Twelve regimes cover writing at the end of a draft and in the middle of it,
+Focus: Sentence, paragraph churn (Enter), select-back-and-replace with `Ctrl+Z`, Markdown syntax,
+opening and closing a fenced code block, `Ctrl+V` paste from the real clipboard, bursts with
+pauses, 266 wpm, and an unpaced saturation run. Each session is seeded per regime, so all three
+sessions type identical keys and the spread between them is the machine rather than the script.
+Every keystroke is labelled with the key that caused it; the headline tables are computed over
+**text-affecting keystrokes only** (the modifier half of a chord is counted for the accounting
+assertion but not averaged into a latency it does not have).
 
 ## 3. Method
 
-### 3.1 Three independent clocks on every keystroke
+### 3.1 Five milestones on every keystroke, not two
 
-1. **Chrome's own `EventTiming` trace records** (`devtools.timeline`, collected over CDP
-   `Tracing`). For every input event Chrome writes, in microseconds and **unrounded**: the event's
-   hardware timestamp, `processingStart`, `processingEnd`, `commitFinishTime`, and `duration` —
-   which ends at the **presentation feedback of the frame that carried that event's update**. This
-   is the browser's own instrumentation of exactly the quantity we want, not a reconstruction.
-   (The JavaScript `PerformanceEventTiming` API exposes the same duration rounded to 8 ms and hides
-   everything below 16 ms; it is recorded alongside only as a sanity check.)
-2. **An in-page probe**: a capturing `keydown` listener stores `event.timeStamp` and the key, asks
-   for one animation frame, and posts a `MessageChannel` message from inside the callback — that
-   task runs once the frame has been committed. Keys that share a frame are all resolved by that
-   frame, so none is dropped or double-counted.
-3. **Main-thread accounting**: every top-level `X` event on the renderer's main thread, de-nested,
-   giving real busy time per keystroke and where it goes.
+For every input event Chrome's `EventTiming` trace records (`devtools.timeline`, unrounded,
+microseconds) carry the event's hardware timestamp, `processingStart`, `processingEnd`,
+`commitFinishTime` and `duration` — which ends at the **presentation feedback** of the frame that
+carried that event's update. Round 3 adds two milestones from the trace's own main-thread events,
+so the keystroke can be taken apart instead of quoted as one number:
 
-### 3.2 Every keystroke is accounted for
-
-Each run asserts `keydowns expected from the script == keydown records in the trace == keydown
-records in the in-page probe`, and that every one of them has both a commit and a presentation
-time. The JSON carries all three counts, the count of each key that was pressed, and
-`every_keystroke_accounted_for`. **It is `true` for every regime in every run quoted here.**
-
-Round 1 shipped that assertion but ran the whole session in one page and installed its probe
-twice, so the one real-display session it had recorded 204 keydowns for 200 presses — and that
-session had no assertion field at all. Round 2 opens **a fresh page for each regime** and throws
-if a probe is already installed, which makes the bug unrepresentable and, as a side effect, starts
-every regime from the same document instead of from the previous regime's leftovers.
-
-### 3.3 The display clock, and the app's own animation
-
-A real display ticks at a fixed cadence whether or not anything is animating, and a keystroke
-waits for the next tick. **A headless Chromium only ticks when something asks it to**: with
-nothing animating it produces a frame on demand, and every latency comes out ~6 ms better than any
-60 Hz panel can physically be. The bench therefore keeps a 1 px composited animation running
-(`--clock on`, the default) so headless models a panel.
-
-Round 2 found that **the application now supplies its own clock**: caret.js glides the caret 62 ms
-to its new column whenever two keystrokes are more than 60 ms apart, which at any ordinary writing
-speed is every keystroke. `document.getAnimations()` during a paced run shows `transform on caret`
-running in **343 of 446 samples**. So "no animation" can no longer be had by turning the bench's
-clock off — it has to be asked for, and the honest way to ask is
-**`prefers-reduced-motion: reduce`**, a real user setting that caret.css and chrome.css both
-honour. `node tools/latency.mjs --clock off --reduced-motion` is therefore the application-cost
-mode in this round, and it is the only mode in which the numbers in §7 are comparable to Fatin's
-Typometer figures. Both modes are reported and neither is quoted as the other.
-
-
-## 4. Results — headless, on a 60 Hz frame clock
-
-Keystroke → the frame carrying it was presented. Three sessions of 300 keystrokes per regime,
-pooled (n = 900); the per-session p99 column is there so the spread between runs is visible rather
-than asserted. `every_keystroke_accounted_for` is **true for all 36 runs**.
-
-**Headless, 60 Hz frame clock, three sessions of 300 keystrokes each**
-
-| regime | p50 | p90 | p99 | p99 95 % CI | worst | per-session p99 | ≤1 frame | n |
-|---|---|---|---|---|---|---|---|---|
-| writing at the end of the draft | **9.38** | 16.38 | **18.51** | 18.32–18.7 | 19.01 | 18.6, 18.39, 18.47 | 92 % | 900 |
-| writing in the middle of the draft | **10.31** | 17.37 | **19.26** | 18.93–19.71 | 21 | 18.89, 19.71, 19.05 | 87.7 % | 900 |
-| middle, **Focus: Sentence** | **9.84** | 17.07 | **20.09** | 19.2–20.59 | 23.02 | 18.8, 20.59, 19.82 | 91.3 % | 900 |
-| paragraph churn (Enter every 5–10 keys) | **9.99** | 16.83 | **19.11** | 18.51–19.43 | 21.03 | 18.69, 19.11, 18.81 | 88.7 % | 900 |
-| revision (select back, replace, undo) | **9.98** | 16.83 | **19.43** | 18.86–20.15 | 21.01 | 20.15, 18.86, 19.19 | 87.9 % | 618 |
-| Markdown syntax (headings, emphasis, a fenced block) | **9.65** | 16.82 | **19.58** | 18.8–21.38 | 24.35 | 19.58, 18.55, 19.96 | 88.7 % | 900 |
-| opening and closing a fenced block, 50× | **9.58** | 16.55 | **18.94** | 18.59–19.31 | 20.34 | 18.95, 18.59, 19.28 | 90.3 % | 900 |
-| writing with a paste every 25 keys | **9.55** | 16.41 | **19.6** | 19.09–20.09 | 22.23 | 19.72, 19.09, 19.79 | 93 % | 900 |
-| round 1's lowercase letters, for comparison | **10.13** | 17.03 | **20.03** | 19–20.32 | 21.62 | 19, 20.32, 19.23 | 85.7 % | 900 |
-| bursts of 25 keys with 1.4 s pauses | **9.63** | 16.7 | **18.91** | 18.73–19.18 | 21.21 | 19.11, 18.75, 18.91 | 90.3 % | 900 |
-| fast typist, 45 ms (~266 wpm) | **10.49** | 17.27 | **19** | 18.84–19.22 | 19.81 | 19, 18.93, 18.96 | 88 % | 900 |
-
-`saturation_stress` — 300 keys injected with no gap at all — is deliberately **not** in that table.
-It is in the JSON, and it is where the cliff is, but its p50 of 10.02 ms means nothing: 559
-keystrokes a second share 140 frames a second, so per-key "presented latency" is measuring frame
-sharing, not responsiveness. What it does show is that nothing falls over: the queue never grows
-past two frames and every keystroke still arrives (900/900 accounted for, p99 19.25 ms).
-
-The three slowest paced regimes are Focus: Sentence (20.09 ms p99), round 1's own
-lowercase-letters regime (20.03) and paste (19.60) — and the spread between all eleven is 1.6 ms.
-On a 60 Hz clock the wait for the tick dominates everything the application does, which is exactly
-why §6 turns the clock off and §5 puts the app on a real one.
-
-## 5. Results — on the user's own compositor
-
-Headless Chromium is not a screen. `bin/quill --measure` opens the app the way a person would —
-`chromium --app`, no tabs, no omnibox, its own profile — and runs the same bench in that window,
-attached over CDP. The window goes on a **virtual Hyprland output** created for the run
-(`hyprctl output create headless`, 1920×1080 @ 60 Hz) and removed afterwards: the user's own
-compositor composites and presents the frames, the timestamps are real Wayland presentation
-feedback at a real 60 Hz cadence, and **nothing appears on the physical screen**. BRIEF.md forbids
-a test window on the workspace the user is working on, and at run time that workspace held a
-full-screen game with direct scan-out.
-
-Hyprland 0.56 replaced the string dispatcher round 1 gave up on with a Lua one; the call that works
-is `hyprctl repl 'return hl.dispatch(hl.dsp.exec_cmd("[workspace N silent] chromium --app=…"))'`,
-which is what `bin/quill` now uses — `--ws N` for a real workspace, `--virtual` (the default) for
-the virtual output. A window parked on a workspace that is not being *displayed* gets no frame
-callbacks and its presentation timestamps are worthless, which is why the virtual output exists
-rather than "workspace 2, silently".
-
-| regime | p50 | p90 | p99 | p99 95 % CI | worst | per-session p50 | per-session p99 | n |
-|---|---|---|---|---|---|---|---|---|
-| writing at the end of the draft | **23.64** | 34.3 | **37.7** | 36.49–39.41 | 50.42 | 24.03, 24.79, 22.32 | 36.54, 36.47, 38.55 | 900 |
-| writing in the middle of the draft | **23.14** | 34.14 | **37.06** | 36.63–38.28 | 39.64 | 24.59, 22.03, 22.81 | 36.7, 37.97, 37.03 | 900 |
-| middle, **Focus: Sentence** | **22.97** | 34.48 | **36.9** | 36.23–37.59 | 46.63 | 23.35, 22.74, 23.31 | 36.62, 37.59, 36.88 | 900 |
-| paragraph churn (Enter every 5–10 keys) | **23** | 34.29 | **36.75** | 36.47–36.96 | 38.96 | 23.44, 22.12, 22.54 | 36.6, 36.9, 36.28 | 900 |
-| opening and closing a fenced block, 50× | **23.05** | 34.12 | **36.61** | 36.19–36.91 | 42.15 | 23.09, 21.56, 23.92 | 36.07, 36.61, 36.55 | 900 |
-| fast typist, 45 ms (~266 wpm) | **18.54** | 33.18 | **37.28** | 36.69–37.6 | 41.34 | 19.29, 16.84, 19.63 | 37.35, 36.96, 37.5 | 900 |
-
-Three sessions, 300 keystrokes each, same build, same document, same scripted keys as §4 — seven
-of the twelve regimes, the ones that fit a ten-minute run on the compositor. Chromium finished
-committing the frame **9.31 ms** after the key event (p99 18.5); the compositor then reported it
-presented **17.33 ms** later at the median, 34.13 ms at p99 (min 0.84).
-
-**This is where the latency is, and it is not in the application.** The application's work is
-identical to §6 — main-thread busy 5.3–6.1 ms per keystroke, frame committed 9.3 ms after the key
-— and then the frame waits ~1 to ~2 refresh intervals to be presented. One further session in the same window with
-`prefers-reduced-motion: reduce` — which stops the caret gliding and so stops the application
-animating at all — measured the middle-of-draft regime at **23.98 / 35.97 ms p50/p99** (n = 300)
-against 23.14 / 37.06 with the animation running: on a real compositor the caret animation costs
-**nothing** in presented latency. (It costs something else; see §15.)
-
-How much of that hop is the virtual output rather than a panel is the one thing this round could
-not settle. Round 1's single session on the physical panel — earlier build, but frame commit
-measures the same in both — saw the frame presented **5.0 ms** after commit at the median, against
-**17.3 ms** here, i.e. about one refresh interval less: a physical output can page-flip the
-client's buffer directly (Hyprland reported `directScanoutTo` for a full-screen window), while a
-headless output is composited and reported on the next tick of its own timer. §13 carries both.
-
-
-## 6. The application's own cost, and the ≤ 5 ms bar
-
-Fatin's Typometer numbers — the ones REFERENCE §5.3 turns into "≤ 5 ms average, ≤ 16 ms worst
-case" — are the application's own input→paint work, with no keyboard and no waiting on a refresh
-cadence. To measure the same quantity the page must not be animating, and in this build the page
-animates itself: the caret glides for 62 ms after every keystroke at any ordinary writing speed
-(§15). The mode that answers the bar is therefore `--clock off --reduced-motion`: no bench
-animation, and `prefers-reduced-motion: reduce`, which caret.css and chrome.css both honour.
-
-**Application cost: no animation anywhere (reduced motion), frames produced on demand**
-
-| regime | present p50 | p90 | p99 | worst | commit p50 | main thread / key | Quill's own handler |
-|---|---|---|---|---|---|---|---|
-| writing at the end of the draft | **5.67** | 12.75 | **14.99** | 17.34 | 4.76 | 5.47 ms | 814 µs |
-| writing in the middle of the draft | **5.49** | 12.61 | **14.01** | 15.01 | 4.2 | 5.44 ms | 853 µs |
-| middle, **Focus: Sentence** | **6.17** | 13.05 | **16.27** | 17.68 | 4.54 | 6.31 ms | 1416 µs |
-| paragraph churn (Enter every 5–10 keys) | **5.21** | 12.54 | **15.12** | 16.9 | 4.08 | 5.17 ms | 774 µs |
-| revision (select back, replace, undo) | **6.26** | 13.01 | **15.67** | 17.23 | 4.4 | 3.62 ms | 457 µs |
-| Markdown syntax (headings, emphasis, a fenced block) | **5.35** | 12.09 | **14.46** | 16.87 | 4.4 | 5.23 ms | 830 µs |
-| opening and closing a fenced block, 50× | **5.47** | 12.39 | **13.75** | 15.61 | 4.05 | 4.73 ms | 749 µs |
-| writing with a paste every 25 keys | **5.13** | 11.93 | **15.39** | 19.11 | 4.39 | 4.54 ms | 665 µs |
-| round 1's lowercase letters, for comparison | **5.38** | 12.37 | **14.13** | 15.51 | 4.22 | 4.87 ms | 772 µs |
-| bursts of 25 keys with 1.4 s pauses | **5.2** | 12.15 | **16.45** | 18.78 | 4.29 | 4.97 ms | 714 µs |
-| fast typist, 45 ms (~266 wpm) | **4.88** | 15.41 | **19.53** | 20.11 | 3.18 | 4.5 ms | 830 µs |
-
-Every paced regime is inside the bar at the median and inside 16 ms at p99 except Focus: Sentence
-(16.27) and the pauses regime (16.45), both by less than half a millisecond; the worst single
-keystroke of 300 in any *paced* regime is 19.11 ms, in the paste regime, where one keystroke
-inserts 137 characters. `fast_typist` and `saturation_stress` are over because keystrokes arrive faster than
-frames — that is queueing, not work, and it is visible as the near-unchanged commit times.
-
-Where the time goes, per keystroke, writing at the end of the 10k-word draft:
-
-| | µs |
+| milestone | what it is |
 |---|---|
-| Chrome inserting the character into the `<textarea>` (its own editing code) | 1414 |
-| **Quill's `input` handler** — line diff, re-tokenise, decorators, caret, autosave bookkeeping | **814** |
-| style + layout + pre-paint + paint of the frame | 2510 |
-| the word count, on an idle callback, between keystrokes (chrome.js) | 1125 |
-| **total main-thread busy per keystroke** | **5.5 ms** |
+| `to_js_done` | the app's JavaScript has returned (the last non-`keyup` handler for this key) |
+| `frame_wait` | from there to the **first paint op** of the frame that carried it — the wait for Chromium's next BeginFrame, plus that frame's style, layout and pre-paint |
+| `to_paint` | that frame's paint is finished |
+| `to_commit` | `commitFinishTime`: handed to the compositor. **This is the milestone REFERENCE §5.3's bar names** ("keystroke → committed frame") and the one §6 answers |
+| `to_present` | presentation feedback: the frame is on the display's scan-out |
 
-The largest single item is not ours: it is Chrome's own text insertion into a 53 KB `<textarea>`,
-which every browser-based editor pays and which we cannot remove without giving up the native
-selection, IME and undo stack. Ours is **814 µs — 5 % of one 60 Hz frame**.
+### 3.2 Which statistic answers which bar
 
-## 7. Document size
+REFERENCE §5.3's app-internal bar is a **mean and a worst case**, because Fatin's Typometer
+figures are means (Notepad++ 4.3, Emacs 5.3, Sublime 8.2 — all `avg` columns). Hume's photodiode
+figure is a **mean ± sd** (`lat i= 32.5 +/- 4.0`). So every table here leads with mean, sd and max,
+with a bootstrap 95 % interval on the mean; p50 and p99 are printed next to them because the shape
+matters, never in their place. Round 2's substitution of p50 for mean and p99 for worst is the
+single thing this round is most careful not to repeat.
 
-Application cost again (reduced motion, clock off), 150 keystrokes, writing at the end of the
-draft; the last column is the same regime with a 60 Hz clock, which is what a screen adds. These
-are single 150-keystroke runs rather than the 3 × 300 of §4, so the tails are noisier — the
-10k row's 19.4 ms p99 is one run's worst quarter-percent, against 15.0 ms over 900 keystrokes in
-§6. The medians and the main-thread column are what the sweep is for.
+### 3.3 Every keystroke accounted for
 
-| document | words | lines | app cost p50 | p99 | worst | main thread / key | Quill handler | with the 60 Hz clock, p50 / p99 |
-|---|---|---|---|---|---|---|---|---|
-| `doc2k.md` | 2,112 | 71 | **4.69** | 14.61 | 15.26 | 2.89 ms | 476 µs | 10.19 / 19.44 |
-| `doc10k.md` | 10,062 | 432 | **4.85** | 19.38 | 24.33 | 4.85 ms | 730 µs | 9.69 / 19.01 |
-| `doc26k.md` | 26,841 | 1,642 | **6.69** | 16.81 | 18.05 | 9.88 ms | 1565 µs | 11.5 / 22.42 |
-| `doc52k.md` | 53,684 | 3,285 | **8.54** | 21.67 | 23.35 | 16.88 ms | 2815 µs | 9.93 / 22.2 |
+Every regime asserts that the keydowns expected, the keydowns in Chrome's trace and the keydowns
+seen by an independent in-page rAF/MessageChannel probe are the **same number**, and that every one
+of them has a commit time and a presentation time. A fresh page per regime makes round 1's
+double-probe bug unrepresentable. All 36 headless runs and all 12 application-cost runs in this
+round passed; nothing was withheld.
 
-**Enter and a fence-opening backtick, by document size** (application cost, reduced motion):
+### 3.4 What the display clock is for
 
-| document | Enter p50 | Enter p99 | fence keystroke p50 | fence p99 | fence worst |
-|---|---|---|---|---|---|
-| `doc2k.md` | 6.79 | 15.05 | 6.58 | 17.4 | 17.4 |
-| `doc10k.md` | 7.41 | 15.84 | 4.91 | 14.78 | 14.78 |
-| `doc26k.md` | 11.18 | 18.74 | 6.53 | 15.57 | 15.57 |
-| `doc52k.md` | 14.39 | 19.14 | 8.95 | 21.86 | 21.86 |
+A real display ticks whether or not anything is animating, and a keystroke waits for the next tick.
+A headless Chromium with nothing animating produces a frame on demand, which makes every latency
+look several milliseconds better than any 60 Hz panel can be. So there are two headless modes and
+they are never mixed:
 
-**Where we are over the bar, plainly:** a 55,000-word manuscript — a short book, 288 KB,
-3,285 lines — costs **16.9 ms of main-thread work per keystroke**, which is one whole 60 Hz frame,
-and its application-only p99 is 21.7 ms. Round 1 wrote that such a document "still fits a
-keystroke inside one 60 Hz frame". On these numbers that is false, and it was false then: it fits
-the *median* keystroke, not the tail. Up to ~27,000 words the claim holds (9.9 ms of work,
-p99 16.8 ms).
+* **`--clock off --reduced-motion`** — no cadence at all. This is the *application's own cost* and
+  the only mode in which it can be measured, because Quill's own caret glide is an animation and
+  an animation is a frame clock. §6.
+* **`--clock on`** — a 1 px composited animation keeps the frame clock running, so headless models
+  a panel. §5.
 
-## 8. By kind of keystroke
+### 3.5 One clock
 
-Round 1's bench typed lowercase letters and spaces, so it never touched the branch of `render()`
-that runs when the line count changes, and never the one that runs when a fence changes the
-context of every line below it. Both are now measured on every run; these are the three sessions
-of §4, on the 60 Hz clock, 10,062-word document — the first of the three sessions in each case,
-because a key kind is only worth reading against the letters typed beside it in the same run.
+Chromium's trace timestamps are TimeTicks, which on Linux is `CLOCK_MONOTONIC` in microseconds.
+Verified rather than assumed: `process.hrtime.bigint()` (CLOCK_MONOTONIC) taken immediately before
+a CDP key dispatch read 109 750 982 782 µs, and the trace's own `keydown` for that key read
+109 750 983 595 µs — the same clock, 813 µs apart, which is the CDP dispatch itself. That is what
+makes §10 possible: a timestamp taken in Python before a `write(2)` to `/dev/uinput` is directly
+comparable to Chromium's timestamp for the resulting event.
 
-`paragraph_breaks` — paragraph churn (Enter every 5–10 keys)
+## 4. The numbers
 
-| key | n | p50 | p90 | p99 | worst |
-|---|---|---|---|---|---|
-| letter | 202 | 9.82 | 17.1 | 18.49 | 19.37 |
-| space | 43 | 8.88 | 15.58 | 18.16 | 18.16 |
-| enter | 38 | 11.53 | 17.17 | 20.76 | 20.76 |
-| punct | 13 | 10.94 | 15.22 | 15.91 | 15.91 |
-| capital | 4 | 8.58 | 16.89 | 16.89 | 16.89 |
+Milliseconds. **Plain writing at the end of the 10,062-word draft at 133 wpm** — the most common
+thing a writer does — three sessions of 300 keystrokes, pooled, n = 900, every keystroke accounted
+for. Mean ± sd first, because that is how both published bars are stated.
 
-`fence_flip` — opening and closing a fenced block, 50×
+| | mean ± sd | worst | p50 | p99 |
+|---|---|---|---|---|
+| The app's JavaScript has returned | **1.53 ± 0.24** | 4.83 | 1.47 | 2.32 |
+| … the frame it caused is **painted** | 5.65 ± 3.60 | 14.17 | 4.31 | 13.08 |
+| … the frame is **committed** — *the milestone REFERENCE §5.3's bar names* | **5.73 ± 3.60** | **14.25** | 4.39 | 13.16 |
+| … the frame is **presented** (no display cadence at all) | 6.54 ± 3.63 | 15.50 | 5.22 | 14.16 |
+| Keystroke → presented, headless on a **60 Hz frame clock** | 10.28 ± 4.61 | 19.97 | 9.73 | 18.56 |
+| Keystroke → presented, **on the user's own compositor** at 60 Hz (§9) | 21.99 ± 10.72 | 45.17 | 24.76 | 36.47 |
+| **The caret** catching up with the glyph it is following (§16) | ≈ 58 | 66.7 | 57.0 | 66.7 |
 
-| key | n | p50 | p90 | p99 | worst |
-|---|---|---|---|---|---|
-| markdown | 150 | 9.73 | 16.95 | 18.78 | 19.08 |
-| backspace | 150 | 9.39 | 16.36 | 19.34 | 20.34 |
+**Against the app-internal bar (≤ 5 ms average, ≤ 16 ms worst case).**
+Quill is at **5.73 ms mean (95 % CI 5.50–5.95) and 14.25 ms worst**. It **clears the worst case and
+misses the average by 0.73 ms.** Across the eleven paced regimes the mean runs 5.18 (revision) to
+6.18 (266 wpm) and the worst runs 13.68 to 19.30: **eight of eleven clear the ≤ 16 ms worst case,
+none of the eleven clears the ≤ 5 ms average.** That is Emacs class (Fatin's mean 5.3) and better
+than Sublime (8.2), on a 10,000-word Markdown document rather than a plain text file — and it is
+over the bar, and this report is not going to say otherwise by quoting a median.
 
-`revision` — revision (select back, replace, undo)
+Round 2 shipped 6.94 ms mean / 17.34 worst for this regime and called it "inside the bar". Round 3
+is 5.73 / 14.25 and calls it what it is.
 
-| key | n | p50 | p90 | p99 | worst |
-|---|---|---|---|---|---|
-| letter | 188 | 10.21 | 17.04 | 20.52 | 21.01 |
-| space | 16 | 8.96 | 17.85 | 18.45 | 18.45 |
-| undo | 2 | 14.98 | 16.66 | 16.66 | 16.66 |
+**Against the photon bar (Sublime 32.5 ± 4.0 ms).** On the user's own Hyprland at 60 Hz, keystroke →
+presented is **21.99 ± 10.72 ms**, measured end to end with nothing cited added. Adding the ~4 ms of
+panel pixel response nobody can measure without a photodiode gives ≈ 26 ms at the mean, ≈ 28.8 at the
+median — inside the Sublime bracket, and 10 ms clear of Atom and VS Code. But that ran on a **virtual**
+Hyprland output whose own commit → present hop is a full refresh interval (17.2 ms p50) where round 1
+measured 5.0 ms on the physical panel, so §9 quotes a **bracket of ≈ 17–26 ms**, not a point, and
+explains at length why the physical-panel run did not happen. Two further honesties: the spread is
+**2.7× Hume's** (sd 10.72 against 4.0) — that jitter is something a writer feels — and every number
+here still starts inside the browser process, so the kernel → compositor → client input hop is
+**excluded** (§10).
 
-`paste_blocks` — writing with a paste every 25 keys
+## 5. Every regime, in the bar's own statistics
 
-| key | n | p50 | p90 | p99 | worst |
-|---|---|---|---|---|---|
-| letter | 223 | 8.93 | 15.66 | 18.93 | 19.54 |
-| space | 47 | 11.07 | 16.4 | 19.72 | 19.72 |
-| punct | 14 | 8.83 | 13.46 | 14.45 | 14.45 |
-| paste | 11 | 14.27 | 20.09 | 20.35 | 20.35 |
-| capital | 5 | 16.52 | 22.23 | 22.23 | 22.23 |
+`--reduced-motion --clock off`: the application's own work, no display cadence. n = 900 each
+(revision has fewer text-affecting keystrokes per session because half of its presses are chords).
+`✓`/`✗` is against **≤ 5 ms mean** and **≤ 16 ms worst**.
 
-`prose_end_of_draft` — writing at the end of the draft
-
-| key | n | p50 | p90 | p99 | worst |
-|---|---|---|---|---|---|
-| letter | 223 | 9.09 | 16.4 | 18.52 | 18.84 |
-| space | 48 | 13.38 | 18.25 | 19.01 | 19.01 |
-| punct | 14 | 8.34 | 16.57 | 18.15 | 18.15 |
-| backspace | 10 | 7.69 | 14.88 | 16.88 | 16.88 |
-| capital | 5 | 8.77 | 16.01 | 16.01 | 16.01 |
-
-Enter is the expensive keystroke — it is the one that inserts an element into a 432-element mirror
-and shifts everything below it — and at 10k words it costs about 2 ms more than a letter. At 55k
-words it costs 14.4 ms against 8.5 (§7). Opening a fenced code block used to be far worse than
-either; §14 has the before/after.
-
-## 9. A slower machine
-
-`Emulation.setCPUThrottlingRate`, everything else identical: same build, same document, same keys,
-same 60 Hz clock. This is the answer to "a 13600K is fast and a 2019 laptop is not". The full-speed
-rows are the first session of §4; the throttled rows are one session of 300 keystrokes each.
-
-| CPU | regime | present p50 | p99 | worst | main thread / key | ≤1 frame | ≤2 frames |
+| regime | mean ± sd | 95 % CI on the mean | worst | p50 | p99 | ≤5 mean | ≤16 worst |
 |---|---|---|---|---|---|---|---|
-| full speed | writing at the end of the draft | **9.44** | **18.6** | 19.01 | 5.85 ms | 92 % | 100 % |
-| full speed | writing in the middle of the draft | **11.03** | **18.89** | 19.24 | 6.07 ms | 87.7 % | 100 % |
-| full speed | paragraph churn (Enter every 5–10 keys) | **9.82** | **18.69** | 20.76 | 6.22 ms | 88.7 % | 100 % |
-| 2× slower | writing at the end of the draft | **11.4** | **19.63** | 20.87 | 10.85 ms | 80.7 % | 100 % |
-| 2× slower | writing in the middle of the draft | **11.63** | **19.99** | 20.76 | 10.55 ms | 77.7 % | 100 % |
-| 2× slower | paragraph churn (Enter every 5–10 keys) | **11.75** | **20.14** | 21.05 | 10.62 ms | 78.7 % | 100 % |
-| 4× slower | writing at the end of the draft | **12.6** | **22.16** | 33.27 | 21.16 ms | 61.3 % | 100 % |
-| 4× slower | writing in the middle of the draft | **20.26** | **26.07** | 34.31 | 25.29 ms | 17.3 % | 99.7 % |
-| 4× slower | paragraph churn (Enter every 5–10 keys) | **17.75** | **26.25** | 36.18 | 23.22 ms | 40 % | 99.7 % |
+| revision (select back, replace, undo) | 5.18 ± 3.28 | 4.92–5.43 | 14.24 | 3.23 | 12.98 | ✗ | ✓ |
+| paragraph_breaks (Enter) | 5.50 ± 3.44 | 5.27–5.71 | 14.60 | 3.74 | 13.06 | ✗ | ✓ |
+| letters_only (round 1's script) | 5.58 ± 3.38 | 5.35–5.80 | 14.01 | 4.06 | 12.91 | ✗ | ✓ |
+| prose_focus_sentence | 5.59 ± 3.06 | 5.39–5.79 | 14.60 | 3.98 | 12.87 | ✗ | ✓ |
+| fence_flip (open/close a code block) | 5.68 ± 3.43 | 5.46–5.91 | 13.68 | 4.16 | 12.96 | ✗ | ✓ |
+| prose_middle_of_draft | 5.68 ± 3.40 | 5.46–5.90 | 14.14 | 4.09 | 13.05 | ✗ | ✓ |
+| **prose_end_of_draft** | **5.73 ± 3.60** | **5.50–5.95** | **14.25** | 4.39 | 13.16 | ✗ | ✓ |
+| bursts_and_pauses | 5.76 ± 3.68 | 5.53–6.01 | 17.08 | 4.39 | 14.81 | ✗ | ✗ |
+| markdown_syntax | 5.77 ± 3.48 | 5.55–6.00 | 13.84 | 4.16 | 13.23 | ✗ | ✓ |
+| paste_blocks (Ctrl+V of a paragraph) | 5.82 ± 3.77 | 5.57–6.07 | 19.30 | 4.61 | 13.99 | ✗ | ✗ |
+| fast_typist (266 wpm) | 6.18 ± 4.88 | 5.86–6.51 | 18.94 | 2.94 | 17.69 | ✗ | ✗ |
 
-Two times slower is still comfortable: p50 11.4–11.8 ms, p99 ~20 ms, four keystrokes in five
-inside one frame. **Four times slower is where the 10k-word document stops fitting**: 21–25 ms of
-main-thread work per keystroke, p50 up to 20.3 ms in the middle of the draft, and only 17 % of
-keystrokes on screen within one frame — though 99.7 % still make it inside two, so it reads as
-slightly soft rather than broken. That is the honest ceiling of the mirror architecture on a
-slow machine, and it scales with main-thread work per keystroke (§7), not with the numbers in §4.
+Out of the table on purpose, as in round 2: **saturation_stress** (no pacing at all — keys as fast
+as CDP can dispatch them, ~2,000 wpm) at 8.97 ± 4.53, worst 19.01. Keystrokes share frames there,
+so a per-keystroke latency is not a thing a person could experience; it is run because it is where
+the cliff would be, and there is no cliff.
 
+## 6. Where the 5.73 ms goes
 
-## 10. Startup
+Per keystroke, from the trace, 10k-word document (`shots/latency/r3-attribution-10k.json`):
 
-Round 1 reported "100 ms, median of 12 cold loads" and was right to be told that this is not a
-cold start: it opened a new browsing context inside a browser that was already running, with a
-warm GPU process, warm fonts, a warm V8 code cache and a warm server. Both numbers are here, and
-they are never mixed.
+| | mean, per keystroke |
+|---|---|
+| Chrome's own insertion of one character into a 53 KB `<textarea>` | **556 µs** |
+| **Quill's `input` handler — the mirror diff, the tokenizer, the decorators** | **411 µs** |
+| the layout Quill forces by measuring the caret (work the frame would do anyway, moved earlier) | 430 µs |
+| the frame's own style, layout, pre-paint and paint | 1,516 µs |
+| *(between keystrokes, not in this path: `chrome.js`'s word count, idle-scheduled)* | *1,084 µs* |
 
-**Page load inside an already-running browser** (warm process, warm caches — this is *not* a cold start):
+The app's JavaScript is finished **1.53 ms** after the key. The frame is committed **5.73 ms** after
+the key. The 4.20 ms in between is **3.83 ms of waiting for Chromium's next BeginFrame plus the
+style, layout and pre-paint that frame then does**, then 0.29 ms of paint and 0.08 ms to hand the
+frame to the compositor. Of those 3.83 ms, roughly 1.5 ms is the frame's own style/layout/pre-paint
+(the attribution table above) — which leaves **about 2.3 ms of pure waiting** in the mean. Which
+raises the obvious question about the round-2 critique's instruction to "close the ~2 ms".
 
-| | 10,062-word document | empty document |
-|---|---|---|
-| navigation → editor ready | 80.8 ms (sd 4.22) | 45.5 ms (sd 5.13) |
-| navigation → DOM parsed | 101.6 ms (sd 7.98) | 48.3 ms (sd 6.45) |
-| navigation → **first frame with the document** | 108 ms (sd 7.12) | 60 ms (sd 8.96) |
+## 7. Is there 2 ms of work left to remove? No — the keystroke is scheduler-bound
 
-Medians of 12 loads each.
+`shots/latency/probes/spare.mjs` adds a measured amount of **pure busy-wait** to every `input`
+event — real main-thread work, after the app's own listener, not instead of it — and watches
+keystroke → committed frame. If the keystroke were work-bound the line would rise 1:1 from zero.
 
-**Cold start — a new browser process every run:**
+| busy-wait added to every keystroke | 0 | +0.5 ms | +1 ms | +2 ms | +4 ms | +8 ms |
+|---|---|---|---|---|---|---|
+| keystroke → committed frame, mean | 5.48 | 5.14 | 5.11 | 5.34 | 6.26 | 10.15 |
+| change vs. no added work | — | **−0.34** | **−0.37** | **−0.14** | +0.78 | +4.67 |
 
-| | exec → first frame with the document | exec → editor ready | exec → navigation start | runs |
+**Up to two milliseconds of extra work per keystroke changes nothing.** Four costs 0.8 ms of it,
+eight costs 4.7.
+
+The application finishes early and then waits. Below the slack, removing work buys nothing and
+adding work costs nothing; above it, every millisecond is paid in full. That is why round 2's
+instruction cannot be carried out as written: **the residual 0.7 ms over the bar is not work, it
+is Chromium's frame scheduling, and a web application cannot start a frame — it can only ask for
+one.** What an application *can* do is stay inside the slack, which Quill does with room to spare
+on a 10k-word document (1.53 ms of JS against ~4 ms of slack) and does not on a 55k-word one (§14,
+where the sd collapses from 3.6 to 2.0 precisely because the slack is gone).
+
+The work did come down anyway, and the end-to-end number came down with it: Chrome's insertion
+1,414 → 1,319 µs, Quill's handler 814 → 755 µs, style/layout/paint 2,510 → 2,231 µs, main-thread
+busy 5.47 → 4.98 ms per keystroke, committed-frame mean 6.12 → 5.73 ms.
+
+## 8. The deferred render, and two bugs it was hiding
+
+Round 2 stopped re-tokenising the whole document inside a keystroke: `AHEAD` lines below an edit
+are filled synchronously and the rest is caught up in animation frames. The round-2 critique said
+the correctness claim was argued rather than measured, that `Writer.flushPending()` had no callers,
+that AHEAD = 64 was asserted rather than measured, and that the probe backing it "deliberately
+samples a line 400 below the fold, then sleeps 400 ms before checking it."
+
+It was worse than that. The probe found its fence with
+`lines().findIndex(l => l.startsWith('```js'))` — which matches **the document's own** fenced block
+near the top of `doc52k.md`, not the one it had just typed. It checked lines below the wrong fence,
+so it never looked at a single deferred line, and it reported `true`.
+
+### 8.1 What the rewritten probe found
+
+`shots/latency/probes/correctness.mjs` now holds the index it typed at, uses a `~~~` fence (a
+` ``` ` opener is closed by the document's own block 18 lines later; a tilde fence is closed by
+nothing, so **every** line to the end of the document changes — the worst thing one keystroke can
+ask a Markdown editor to do), checks the whole visible range rather than one line, and scrolls into
+the not-yet-caught-up range **in the same frame** rather than sleeping first. It found two bugs
+that had been shipping since round 1, both in `app/js/core.js`, both visible to markup:
+
+1. **`recomputeCtx(from)` seeded its walk from the wrong line.** `lineCtx[i]` is the context
+   *entering* line i, so a walk starting at `from` has to begin from the context *leaving* line
+   `from-1`. It began from `lineCtx[from-1]` instead, skipping the effect of the line just above
+   the edit. Consequence: **pressing Enter at the end of a ` ```js ` line left every line below it
+   tokenised as prose, permanently.** One line changed.
+2. **`lineCtx` was not moved when the line count changed.** `recomputeCtx` decides where to stop by
+   comparing what it computes for line *i* against `lineCtx[i]`; with the array unshifted those
+   comparisons are against the wrong lines. It stopped early on a false match and left the array
+   short at the tail, so the last line of the document kept a null context. It is now spliced
+   exactly as `lineEls` is.
+
+### 8.2 And what it now asserts
+
+55k-word manuscript, 3,285 lines, 1440×900, all 17 assertions pass
+(`shots/latency/r3-correctness.json`):
+
+| | |
+|---|---|
+| `AHEAD`, computed from this viewport | **32 lines** (scroller height ÷ a line's `min-height`, + margin) |
+| lines deferred by the one keystroke | **1,608** |
+| frames the catch-up took | **1** |
+| lines still stale in the visible range, in the same task as the keystroke | **0** |
+| lines still stale after scrolling 1,200 lines into the pending range mid-flight | **0** |
+| stale lines anywhere after the catch-up | **0** |
+| code lines still shown, in the **first frame** after deleting the fence, with the viewport 1,195 lines away from the edit | **0** |
+| mirror text == textarea text, at every step | ✓ |
+
+Three changes make that true, and each answers one of the round-2 points:
+
+* **`AHEAD` is measured, not asserted.** `computeAhead()` divides the scroller's height by a line's
+  `min-height` — exactly one line pitch, the shortest a line can be — and adds a margin, at boot,
+  on resize and on a settings change. 32 lines at 1440×900 / 20 px; ~58 in a 1440-logical-px window
+  at 14 px, which is the case round 2's fixed 64 was closest to failing. `Writer.aheadLines()`.
+* **The catch-up serves the viewport first.** The `AHEAD` window follows the *edit*; the reader's
+  eye need not be there (undo, a command, a paste, or simply having scrolled away). The catch-up
+  animation frame fills the **visible ∩ pending** range before anything else — and an animation
+  frame runs *before* that frame's style, layout and paint, so it still lands in the first frame
+  after the keystroke, and the keystroke itself pays nothing for it. Scrolling into a not-yet-caught-up
+  range fills what came into view, on the scroll event, before that frame is painted.
+  `Writer.visibleRange()`, `Writer.flushVisible()` — and unlike `flushPending()`, these have callers.
+* **The catch-up is bounded by time, not by a line count.** 4 ms per frame instead of 400 lines, so
+  one catch-up frame cannot exceed a frame's budget however heavy the lines are.
+
+## 9. On a real compositor
+
+`bin/quill` opens the app in a `chromium --app` window on the user's own Hyprland, and
+`tools/latency.mjs` attaches to it, so the presentation timestamps come from a real compositor
+scheduling against a real 60 Hz clock. Three regimes × 300 keystrokes × 3 sessions, n = 900 each,
+every keystroke accounted for.
+
+| regime | mean ± sd | p50 | p99 | worst |
 |---|---|---|---|---|
-| warm profile holding the document, cold process | **278 ms** (p99 302, worst 302) | 244 ms | 108 ms | 10 |
-| **fresh profile** — no profile, no code cache, no storage | **229 ms** (p99 243, worst 243) | 213 ms | 113 ms | 8 |
+| **prose_end_of_draft** | **21.99 ± 10.72** | 24.76 | 36.47 | 45.17 |
+| fence_flip | 21.95 ± 10.49 | 23.70 | 36.53 | 37.90 |
+| paragraph_breaks | 20.89 ± 10.27 | 22.03 | 36.14 | 43.58 |
 
-The fresh-profile row is *faster* only because a first run has no document to restore and render:
-it is an empty editor. The two rows are not a before/after, they are two different first frames.
+Of the 21.99 ms, **9.20 ms is Chromium** (keystroke → committed) and **12.44 ms is the wait for the
+compositor to report the frame presented** (p50 17.23, sd 8.62).
 
-Whole application from a shell, through `bin/quill` — chromium process spawn, profile,
-window creation, navigation, fonts, and the full render of the document — on the compositor:
+**Where this number is honest and where it is not.** The window ran on a **virtual Hyprland output**
+— `hyprctl output create headless`, a real 60 Hz output that the user's own compositor really
+composites and presents, but not the physical panel. Its commit → present hop measures **17.23 ms
+at the median: a whole 60 Hz refresh interval.** Round 1's one physical-panel session measured
+**5.0 ms** for the same hop on an older build. That is a ±12 ms uncertainty on the headline, which
+the round-2 critique correctly called larger than the margin being claimed. So this round does not
+quote a point figure for photons. It quotes a bracket:
 
-| | exec → first frame with the document | exec → editor ready | of which process spawn | runs |
-|---|---|---|---|---|
-| the 10,062-word document in the profile | **375 ms** (351–377) | 322 ms | 165 ms | 4 |
-| **fresh profile**, empty document — a true first run | **380 ms** (374–423) | 303 ms | 171 ms | 3 |
+> keyboard-to-photon is somewhere between **≈ 17 ms** (if the physical panel behaves as round 1
+> measured: 22.0 − 17.2 + 5.0 + 4 cited) and **≈ 26 ms** (if it behaves like the virtual output:
+> 22.0 + 4 cited), at the mean. Hume's Sublime Text is **32.5 ± 4.0**. The top of that bracket is
+> already inside the Sublime bracket; the bottom would be well under it. What this round cannot do
+> is tell you which.
 
-`--fresh` really is a first run: the profile directory is deleted, so there is no code cache and
-no local storage, and the document therefore cannot be there — that row is an empty editor, which
-is what a first run of any app shows. There is no splash, no skeleton and no progressive reveal:
-the document is tokenised and in the DOM *before* the first frame, so first paint and first usable
-frame are the same frame. Nothing is deferred to "a few seconds after launch" the way iA's own
-Windows 2.0 post describes for its spell and syntax passes; the only deferred work in Quill is the
-word count.
+**The physical-panel run was built, guarded and attempted, and it did not happen.** `bin/quill
+--panel N` brings a workspace up on the real monitor for the duration and puts it back afterwards.
+A Wayland surface on a workspace nobody is looking at gets no frame callbacks, so its presentation
+timestamps are worthless — the window has genuinely to be on screen — and BRIEF.md rightly forbids
+doing that to somebody who is working. `tools/idle-check.py` therefore watches every real keyboard
+and pointer evdev node (skipping a DualSense's motion sensors, which stream forever) and refuses
+unless the machine has been silent. It was run 20 times over 45 minutes
+(`shots/latency/r3-panel-attempt.log`):
 
-## 11. A long session
+* **18 checks refused** — "activity on Logitech MX Keys". Somebody was using the machine. This is
+  the guard working, and it is why round 2's "ten minutes on a free workspace" never happened either.
+* **When it finally went idle, the panel had gone to sleep.** A DisplayPort monitor in standby drops
+  its link, and Hyprland then has no physical output at all — it substitutes a headless one called
+  `FALLBACK`. There was nothing to measure scan-out on. `bin/quill --panel` now detects that case by
+  name and says so instead of silently measuring a fake output.
+* Separately: **Hyprland 0.56.2 has no workspace-switch binding this script could find.** The old
+  `dispatch workspace N` is parsed as Lua and fails, over `hyprctl` and over the IPC socket alike;
+  `hl.dsp.workspace` is a table of `{move, change_id, rename, toggle_special, swap_monitors}` and
+  `hl.focus` accepts only `{direction, monitor, window, urgent_or_last, last}`. The switch is now
+  **read back and verified**, so the mode refuses rather than measuring an unpresented window. That
+  is the remaining blocker, and it is written down rather than left as "it takes ten minutes".
 
-Every regime above is about 30 seconds long. This one is 2,500 keystrokes — **4.4 minutes** of
-continuous writing with a pause every 60 keys, which is what makes the autosave fire.
+## 10. The input term the photon arithmetic was missing
 
-2,500 keydowns pressed, 2,500 recorded in the trace, 2,500 resolved by the in-page probe.
+The round-2 critique's sharpest point: keys are injected with CDP `Input.dispatchKeyEvent`, so the
+clock starts **inside the browser process** and the kernel → libinput → compositor → client hop is
+excluded entirely. Round 2 justified that by saying Hume used a 1 kHz USB emulator — but that
+emulator only removes keyboard debounce and polling, not the operating system's delivery of the
+event to the application, which is inside Hume's 32.5 ms.
 
-| quarter of the session | p50 | p90 | p99 | worst |
-|---|---|---|---|---|
-| first | 10.16 | 17.07 | 19.12 | 20.12 |
-| second | 9.61 | 16.88 | 18.74 | 19.68 |
-| third | 9.78 | 16.51 | 18.66 | 20.19 |
-| fourth | 9.76 | 16.72 | 18.41 | 19.63 |
+The instrument for that is built and is in the repo. **`tools/uinput-keys.py` creates a real
+keyboard on `/dev/uinput`** — evdev → libinput → Hyprland → Wayland → Chromium, exactly the path
+the user's own Logitech takes — and records `CLOCK_MONOTONIC` immediately before each `write(2)`.
+Chromium's TimeTicks *are* CLOCK_MONOTONIC on Linux, verified rather than assumed (§3.5), so
+`trace_keydown_ts − t_ns/1000` is the delivery hop, measured, in one clock. `bin/quill --uinput`
+drives it, and `tools/latency.mjs` refuses to inject a single key unless the page itself reports
+`document.hasFocus()` with the caret in the textarea — real keys go wherever the compositor thinks
+focus is, and that must never be somebody's terminal.
 
-Whole session: p50 **9.76**, p99 **18.72**, worst 20.19 ms — the same as a 30-second run.
+**It did not run, for the same reason §9 did not**: real keys only reach a focused window, and a
+focused window means the physical panel, and the panel was asleep. The guard refused once with
+`real keys would go to 'chrome-localhost__-Default', not to Quill — refusing to inject`, which is
+the behaviour that matters. So: **every number in this round still excludes the input hop, and this
+report says so wherever a photon figure appears** rather than arguing the hop away.
 
-Nothing drifts: the fourth quarter is marginally *faster* than the first. The document autosave —
-files.js writes the whole document to `localStorage` 400 ms after you stop — is not on the
-keystroke path, and it is not expensive when it does run: **172 writes, 6.99 MB in total, 0.6 ms
-at their worst and 22 ms added up over the whole session**, timed by wrapping
-`Storage.prototype.setItem` from an init script. The JS heap reads 2 MB at the end (Chrome's
-`performance.memory`, which is quantised) and GC costs **46 µs per keystroke**.
+## 11. Startup
 
-## 12. The dropped frames
+`bin/quill` from a shell, chromium process spawn included, 10,062-word document already in the
+profile, on a real compositor. n = 12.
 
-Round 1 recorded "~304 frames marked dropped-affecting-smoothness per 300 keystrokes" and then
-argued them away as an artefact of the bench's own animation. That was a plausible story, not a
-demonstration. Here is the demonstration: an idle page with the same animation running, and the
-same counters at three typing speeds.
-
-| condition | keystrokes/s | frames/s | dropped frames/s | dropped per keystroke |
-|---|---|---|---|---|
-| idle page, no keystrokes at all, display clock on | 0 | 62.1 | 0.5 | — |
-| idle page, no keystrokes at all, display clock off | 0 | 59.7 | 0.75 | — |
-| typing: writing at the end of the draft | 10.7 | 61.6 | 0.8 | 0.07 |
-| typing: fast typist, 45 ms (~266 wpm) | 20.8 | 63.4 | 21.7 | 1.04 |
-| typing: saturation: keys injected back to back | 558.7 | 139.7 | 20.5 | 0.04 |
-
-Dropped frames track **keystrokes per second, not seconds**: an idle page with the clock running
-drops 0.5 per second, and typing at 133 wpm drops 0.8 per second — 0.07 per keystroke. They appear
-in bulk only when keys arrive faster than one per refresh interval (at 266 wpm, exactly one per
-keystroke), and in that case what is "dropped" is a frame the compositor asked for while the main
-thread was still working on the previous keystroke's — which is the same fact the per-keystroke
-latency already reports. The round-1 rate does not reproduce on this bench.
-
-One thing worth saying because it is counter-intuitive: with **no** animation at all (reduced
-motion, clock off) the counter reads *higher* — about 11 drops per second, one per keystroke —
-because a frame is then produced on demand for each keystroke and every BeginFrame that arrives
-without an update ready is counted. A smoothness counter that improves when you add an animation
-is not measuring what a reader would call a dropped frame, which is why the user-facing statement
-in this report is always the per-keystroke one.
-
-## 13. Which published bar maps to which measurement
-
-The three numbers in circulation measure three different things, and comparing across them is how
-latency claims usually go wrong. Round 1 was told off for exactly that — a tile reading
-"keystroke → paint 10.8 ms" beside "bar 32.5 ms", which is app-plus-compositor against
-key-switch-to-photon. So, plainly:
-
-| published bar | what it actually measured | Quill's comparable number |
-|---|---|---|
-| REFERENCE §5.3 / Fatin, **≤ 5 ms mean, ≤ 16 ms worst** | the application's own work: injected key → the pixel changing, no keyboard, no refresh cadence | **5.7 ms p50 / 15.0 p99**, 4.8 ms to a committed frame (§6) |
-| Hume, **32.5 ± 4.0 ms** (Sublime, photodiode, 60 Hz panel) | a synthetic 1 kHz USB keypress → photons: OS, app, compositor, panel | **≈ 27.6 ms p50 / ≈ 41.7 p99** (§5 + 4 ms pixel response) |
-| iA Writer | nothing published, at any level | — |
-
-The second row is the only one that touches the headline bar, so here is its arithmetic, with each
-term marked measured or cited:
-
-| term | p50 | p99 | source |
+| | median | mean ± sd | range |
 |---|---|---|---|
-| key event → frame presented, on the compositor | 23.64 | 37.70 | **measured**, 3 × 300 keystrokes, §5 |
-| panel scan-out and pixel response | +4 | +4 | **cited** (Fatin: pixel response ≈ 4 ms; the refresh wait is already inside the measurement) |
-| **keyboard-to-photon, comparable to Hume** | **27.6** | **41.7** | |
-| *if* a real keyboard is added instead of Hume's USB emulator | 41.6 | 55.7 | cited (Fatin: 8–22 ms, mean 14) — this is what round 1 quoted, against a bar that does not contain it |
+| **exec → the first frame a human can see** | **357 ms** | 369.6 ± 62.2 | 331.6–561.9 |
+| exec → `window.__quillReady` (a JS marker, **before any frame exists**) | 273 ms | 274.6 ± 8.7 | 263.4–296.9 |
+| of which: exec → navigation start (the chromium process) | 160 ms | | |
+| brand-new profile: no code cache, no storage, a true first run (n = 8) | 369 ms | 393.1 ± 72.5 | 340–564 |
 
-Two honest caveats on that row. **The compositor hop may be a frame too big**: round 1's physical
-panel measured presentation 5.0 ms after commit where the virtual output measures 17.3, which
-would make the p50 **≈ 14.3 ms measured, ≈ 18.3 ms to photons** — better than the bar by a distance.
-And **the p99 is not a win**: 41.7 ms is the Atom/VS Code bracket, and the reason is the
-compositor, not the application, whose own p99 is 15.0 ms. Both readings are in the same table on
-purpose. The number this piece will defend is the first row of §"The numbers": the application's
-own work, which is what a builder controls, and which is inside the published bar.
+**`startup_ready` in `progress/latency.json` is now the 357.** Round 2 published 322, which was the
+JS marker — the smaller of the two numbers, and the one that is true before anything is on screen.
+The marker is still reported, in `detail.startup`, labelled as what it is.
 
-## 14. What changed in the code this round
+Headless cold processes, for a cleaner distribution: **276.9 ± 10.9 ms** to first frame with the
+document (n = 15), **232.9 ± 7.3** with a fresh profile (n = 12). Inside an already-running browser
+a page load is **103.3 ± 6.7 ms** to first paint and 76.4 ± 3.2 to the marker (n = 12); an empty
+document is 60 ms.
 
-Round 1 removed the per-keystroke work from the *cheap* path — the one its own bench exercised.
-Round 2's bench presses Enter and backticks, and those went down a different branch of `render()`:
-the one that runs when the **line count changes** or when the **context entering the lines below
-the edit changes**. Three changes in `app/js/core.js`, all perf-only and backward compatible:
+## 12. By kind of keystroke, and what a statistic needs
 
-1. **Line elements no longer carry a `data-i` index attribute.** Keeping it truthful meant
-   rewriting every element below an inserted line on every Enter — measured **1.14 ms** of
-   attribute writes and style invalidations in a 3,285-line document, on the keystroke that is
-   already the most expensive one. Nothing read it (checked across `app/` and `tools/`);
-   `Writer.lineIndexOf(el)` is there if a piece ever needs element → index.
-2. **A changed line is tokenised once per keystroke, not twice.** The incremental branch built the
-   new elements *filled*, then re-filled the same elements after recomputing the contexts, because
-   a line's tokens depend on the context entering it. They now go in empty and are filled once.
-3. **The re-tokenising below an edit is bounded by what is on screen.** When the context entering
-   the lines below changes — typing ``` opens a fenced block and changes every line to the end of
-   the document — the old code re-tokenised and rebuilt all of them inside the keystroke.
-   `AHEAD = 64` lines (more than a screenful at any font size) are now filled inside the keystroke
-   and the rest is caught up in animation frames, 400 lines at a time; `Writer.flushPending()`
-   forces it. Nothing the reader can see is ever stale, and the mirror's text still equals the
-   textarea's, line for line, at every point (`shots/latency/probes/correctness.mjs`).
+Round 2 printed a p99 for `undo` from **two** samples and for `capital` from four.
+`tools/latency.mjs` now refuses: anything under 20 samples reports **n, mean and worst** and carries
+`too_few_for_percentiles: true`. Application cost (keystroke → presented, no cadence), one session
+of 300 keystrokes per regime:
 
-`Writer.render(false)` alone, measured directly (`shots/latency/probes/micro2.mjs`, 25 repeats,
-the value mutation outside the clock), **55,000-word document / 10,000-word document**:
+| regime | key | n | mean ± sd | worst |
+|---|---|---|---|---|
+| paragraph_breaks | letter | 202 | 6.10 ± 3.57 | 17.35 |
+| | space | 43 | 6.61 ± 3.94 | 13.16 |
+| | **Enter** | 38 | **7.33 ± 2.66** | 15.33 |
+| | punct | 13 | 5.21 — *too few for percentiles* | 10.71 |
+| | capital | 4 | 3.64 — *too few for percentiles* | 5.24 |
+| revision | letter | 188 | 6.49 ± 3.25 | 14.48 |
+| | modifier (the Shift of a chord) | 96 | 2.15 ± 3.60 | 14.00 |
+| | **nav** (Shift+←) | 94 | **9.63 ± 4.91** | 18.95 |
+| | space | 16 | 6.92 — *too few* | 13.78 |
+| | **undo** | 2 | 9.09 — *two samples; no percentile exists* | 10.33 |
+| paste_blocks | letter | 223 | 6.33 ± 3.67 | 14.07 |
+| | space | 47 | 5.98 ± 3.66 | 13.37 |
+| | **paste** (Ctrl+V of a 137-char paragraph) | 11 | **12.33 — *too few*** | 18.74 |
 
-| one keystroke does this | before | after |
-|---|---|---|
-| type a character inside a paragraph | 1.95 / 0.51 ms | **1.89 / 0.51 ms** |
-| press Enter (the line count changes) | 2.70 / 0.66 ms | **1.93 / 0.48 ms** |
-| open a fenced code block (every line below changes context) | **26.16 / 4.64 ms** | **3.33 / 1.43 ms** |
+Enter is the second-most expensive ordinary key and `Shift+←` the most, which is why the revision
+regime is the one that presses 94 of them. Paste is the single most expensive thing in the bench
+and the reason `paste_blocks` misses the ≤16 ms worst case in §5 — one keystroke that inserts a
+paragraph, eleven times in 300.
 
-The third row is the one that matters: one keystroke that cost **three 60 Hz frames** of
-main-thread work in a book-length document now costs a fifth of one.
+## 13. Sustained writing
 
-End to end, through the whole bench on two snapshot servers built from the same tree with only
-`core.js` differing (200 keystrokes, reduced motion, clock off,
-`shots/latency/abrm{10k,52k}-{before,after}.json`), the difference is real but modest, as it should
-be — the fence case is the one that changes in kind rather than degree:
+2,500 keystrokes with pauses, 4.4 minutes, headless on the 60 Hz clock. Nothing drifts:
 
-| 55,000-word document | before | after |
-|---|---|---|
-| Quill's `input` handler, µs per keystroke (paragraph churn) | 2555 | **2394** |
-| Enter, presented p50 | 15.49 ms | **14.52 ms** |
-| Enter, presented p50 (Markdown regime) | 16.26 ms | **15.08 ms** |
-| main-thread busy per keystroke | 16.62 ms | 16.59 ms |
+| quartile | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|
+| mean ms | 10.36 | 10.41 | 10.27 | 10.30 |
+| worst ms | 18.88 | 19.98 | 19.59 | 18.76 |
 
-Round 1's four changes are still in place and still measured: no layout read inside the keystroke
-(a `ResizeObserver` sizes the textarea), one `selection` event per keystroke instead of three,
-writes before reads, and no attribute storm on keydown.
+JS heap after: **2,061 KB**. `files.js` flushed the whole document to `localStorage` **172 times**
+(400 ms after each pause, never during a burst): **0.12 ms mean, 0.5 ms worst**.
 
-## 15. What these numbers are not
+## 14. Bigger documents, and slower machines
 
-* **Keystrokes are injected over CDP**, not typed on a keyboard. Everything before the browser
-  received the event — key switch, debounce, USB polling, kernel, compositor input path — is not
-  measured. Fatin's published budget for that is 8–22 ms (mean 14); Hume's photodiode figures
-  include it. Every keyboard-to-photon number in §13 is therefore **a measurement plus two cited
-  constants**, and the two are kept visibly apart. It is not a photodiode result, and nothing here
-  should be read as one.
-* **Capitals and punctuation are delivered as one keydown carrying the right `key` and text, with
-  no separate Shift keydown.** A real keyboard sends the Shift press too; it does no work in the
-  app (core's keydown path looks at nothing for a plain character), but it is a difference.
-  `Shift+←` in the revision regime does send both, and both are counted.
-* **No physical panel was measured this round.** BRIEF.md forbids opening a test window on the
-  workspace the user is working on, and at run time that workspace held a full-screen game with
-  direct scan-out. §5 is measured on a **virtual Hyprland output** instead: the user's own
-  compositor really composites and presents the window at 60 Hz, and the frame timestamps are real
-  Wayland presentation feedback, but the last hop — scan-out to a physical panel and its pixel
-  response — is not in them. Round 1's single physical-panel session, on an earlier build,
-  measured a *smaller* compositor hop than the virtual output does (+5.0 ms at p50 over frame
-  commit, against +17.3 ms here), which means §5 is, if anything, pessimistic. The command that
-  would settle it on the panel is in §16 and takes about ten minutes on a free workspace.
-* **One machine, one browser, one build, and somebody else was using it.** A 13600K is fast and a
-  2019 laptop is not; §9 is the answer to "what about a slower machine", and the number that
-  scales is main-thread work per keystroke, not presented latency. The load average at the start
-  of every run is in the JSON, as is the list of the busiest processes on the machine.
-* **One run in this round failed its own accounting, and is not in any table.** A
-  reduced-motion session on the compositor recorded 302 keydowns for 300 injected presses — two
-  strays from the launch — so `every_keystroke_accounted_for` came back false and the labelled
-  statistics were withheld (`shots/latency/r2-headed-rm-1.json`, first regime). That is what the
-  assertion is for; the round-1 real-display session had the same class of problem and reported a
-  p50 anyway.
-* **`saturation_stress` is not a human speed and its p50 is not a latency.** 559 keystrokes a
-  second share 140 frames a second. It is run because it is where the cliff would be, and it is
-  reported in the JSON and in §4's prose, never in a results table.
-* **The 50.4 ms worst case** in the compositor table is one space key out of 900 in
-  `prose_end_of_draft`; the six worst samples of that pooled run are 38.9, 39.4, 39.5, 40.3, 47.3,
-  50.4, and its p99 is 37.7. Three frames, once in 900 keystrokes.
-* **The caret arrives after the letter.** The letter is on screen in one frame; the caret glides
-  to its new column over 62 ms (NOTES.md, `probes/caret-glide.mjs`: 57.7 ms p50 at 133 wpm,
-  7.7 ms at 266 wpm, where it snaps). That is caret.js's deliberate design and it is not counted
-  in any number above — every table here is about the *glyph*. A writer watching the caret is
-  watching the slowest thing on the screen.
+Application cost, keystroke → committed frame, `prose_end_of_draft`, n = 300 each:
 
-## 16. Reproducing it
+| document | lines | mean ± sd | worst | main thread per keystroke |
+|---|---|---|---|---|
+| 2,112 words | 71 | 5.17 ± 3.74 | 14.51 | 2.95 ms |
+| 10,062 words | 432 | 5.54 ± 3.45 | 12.95 | 4.82 ms |
+| 26,841 words | 1,642 | 6.80 ± 2.97 | 16.74 | 9.14 ms |
+| **53,684 words** | 3,285 | **8.55 ± 2.00** | **17.93** | **15.87 ms** |
 
-```sh
-node tools/serve.mjs 4173 &
-node tools/latency.mjs --sessions 3 --keys 300          # the main table: 12 regimes, 3 sessions
-node tools/latency.mjs --clock off --reduced-motion     # application cost, no animation anywhere
-node tools/latency.mjs --throttle 4 --nostartup         # a machine four times slower
-node tools/latency.mjs --doc shots/latency/doc52k.md --keys 150 --nostartup
-node tools/latency.mjs --coldstart 10                   # a new browser process per run
-node tools/latency.mjs --coldstart 8 --fresh            # ... and no profile at all: a first run
-node tools/latency.mjs --long 2500                      # sustained session: drift, heap, autosave
-node tools/mkdoc.mjs alice.txt shots/latency/doc10k.md 10000       # rebuild the corpus
-bin/quill                                               # the app in its own window (chromium --app)
-bin/quill --measure --runs 3 --keys 300 --sessions 3    # cold start + the bench on a real compositor
-node shots/latency/probes/micro2.mjs shots/latency/doc52k.md       # price render() by itself
-node shots/latency/probes/caret-glide.mjs http://localhost:4173/ 90
-node shots/latency/probes/correctness.mjs http://localhost:4173/
-```
+Read the sd column with §7 in mind: it **falls** as the document grows, from 3.7 to 2.0. That is
+the slack disappearing. At 2k–10k words the app finishes early and the variance is the scheduler;
+at 55k words there is 15.87 ms of main-thread work per keystroke — a whole 60 Hz frame — the app
+is the critical path, and the number is over the ≤16 ms worst-case bar. Where that goes
+(`shots/latency/r3-attribution-52k.json`, µs per keystroke): Chrome's own textarea insertion 2,263,
+the frame's style/layout/paint 4,833, the layout Quill forces by measuring the caret 1,676,
+**Quill's own `input` handler 798**. Roughly half is the mirror and half is Chrome's `<textarea>`
+holding 290 KB of text. `contain: layout style` on `#mirror .line` was measured twice and does what
+it says to PrePaint and Paint (1,741 → 1,441 and 1,917 → 1,442 µs) without moving the end-to-end
+number at all, and was left out.
 
-Every result file carries a **sha256 fingerprint of the app tree it measured** (`env.app`), and
-all the runs quoted here were taken against one frozen snapshot of that tree, served on its own
-port, so that another builder's edit could not move the numbers mid-run. Raw runs:
-`shots/latency/r2-*.json`.
+CPU throttled (`Emulation.setCPUThrottlingRate`), keystroke → presented on the 60 Hz clock:
+
+| | prose_end | prose_middle | paragraph_breaks |
+|---|---|---|---|
+| 2× slower | 11.28 ± 4.45 | 11.77 ± 4.32 | 11.54 ± 4.40 |
+| 4× slower | 12.97 ± 4.10 | 15.17 ± 4.20 | 15.10 ± 4.61 |
+
+## 15. Frames
+
+An idle page with the bench's display clock running produces 62.5 frames/s and drops 0.75/s; with
+the clock off, 59.4 and 0.25/s. While typing at 133 wpm the drop rate is **0.013 dropped frames per
+keystroke** (23 in 1,728), against round 2's 0.07 — the caret glide, which is what was asking for
+those frames, is unchanged, but there is less work landing on top of it. Under the application-cost
+regime **100 % of keystrokes are presented within one 60 Hz frame**.
+
+## 16. What would move these numbers next, and what would not
+
+* **Removing more application work would not.** §7 is the measurement, not an opinion: two
+  milliseconds of extra busy-wait per keystroke are absorbed by the slack before the next frame.
+  The work already fits with room to spare on a 10k-word document; the number that is left is
+  Chromium's frame scheduling, and a web application cannot start a frame, only ask for one.
+* **The caret would, more than anything else in this table.** 58 ms is 4 whole frames, on the one
+  thing a typist's eye is on. `GLIDE_X` in `app/js/caret.js`, one constant. This piece does not
+  own that file; it has been reported for two rounds.
+* **A 55k-word manuscript still costs a whole frame of main thread per keystroke**, and roughly
+  half of that is the mirror rather than Chrome's textarea (§14). The fix is not containment —
+  measured twice, no end-to-end effect — it is not rendering line elements the reader cannot see,
+  which cannot be done without a way to keep `#mirror`'s height exactly equal to the textarea's,
+  and glyph alignment is the one thing this app may never break.
+* **`count()` in `app/js/chrome.js`** is a whole-document scan on every keystroke: ~0.9 ms of main
+  thread at 10k words, ~4.9 ms at 55k. Idle-scheduled, so it is off the critical path today, and
+  it is the second-largest main-thread item in a large document.
+
+## 17. Raw
+
+Every run in this report is a file under `shots/latency/`, and every headline table can be
+recomputed from the `samples_to_*_ms` arrays inside them: `r3-appcost.json` (application cost, 12
+regimes × 3 sessions), `r3-headless.json` (60 Hz clock, same), `r3-virtual-1.json` (compositor),
+`r3-size-*.json`, `r3-throttle*.json`, `r3-long.json`, `r3-cold-*.json`, `r3-coldlaunch-*.json`,
+`r3-attribution-*.json`, `r3-spare.json`, `r3-correctness.json`, `r3-caret-glide.txt`, and
+`r3-panel-attempt.log` — the 45 minutes of refusals that §9 is about. Probes are in
+`shots/latency/probes/`. Both themes and all three faces were re-shot after the core changes:
+`r3-check-{light,dark}-{duo,quattro,mono}.png`.
