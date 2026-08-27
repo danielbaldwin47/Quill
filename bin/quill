@@ -10,6 +10,8 @@
 #   bin/quill --measure --sessions 3   ... three times over, for a run-to-run interval
 #   bin/quill --measure --virtual      put the window on a virtual Hyprland output (the default)
 #   bin/quill --measure --ws 4         put it on workspace 4 of the real monitor instead
+#   bin/quill --measure --panel 3      ... AND show workspace 3 on the physical panel while it runs
+#   bin/quill --measure --uinput       type with real keys through /dev/uinput, not through CDP
 #
 # Cold start is timed from the moment this script is about to exec the browser (the server is
 # already up by then) to the first frame that actually shows the document. It therefore includes
@@ -34,7 +36,7 @@ CHROME=${QUILL_CHROME:-/usr/bin/chromium}
 PROFILE=${QUILL_PROFILE:-$HOME/.cache/quill/browser}
 SIZE=${QUILL_SIZE:-1440,900}
 URL=""
-measure=0; fresh=0; keys=0; seed=0; doc=""; out=""; runs=1; sessions=1; place="virtual"; ws=""; regimes=""; throttle=""; snapshot=""; rmotion=0; clock=""
+measure=0; fresh=0; keys=0; seed=0; doc=""; out=""; runs=1; sessions=1; place="virtual"; ws=""; regimes=""; throttle=""; snapshot=""; rmotion=0; clock=""; uinput=0; idle_window=8
 
 usage() { sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; }
 while [ $# -gt 0 ]; do
@@ -58,6 +60,9 @@ while [ $# -gt 0 ]; do
     --clock)   clock="$2"; shift ;;
     --virtual) place="virtual" ;;
     --ws)      place="workspace"; ws="$2"; shift ;;
+    --panel)   place="panel"; ws="$2"; shift ;;
+    --uinput)  uinput=1 ;;
+    --idle-window) idle_window="$2"; shift ;;
     --here)    place="here" ;;
     -h|--help) usage; exit 0 ;;
     *) echo "quill: unknown option $1" >&2; exit 2 ;;
@@ -130,6 +135,46 @@ case "$place" in
     TARGET_WS="$ws"
     active=$(hyprctl activeworkspace -j | python3 -c "import json,sys;print(json.load(sys.stdin)['id'])")
     if [ "$TARGET_WS" = "$active" ]; then echo "quill: workspace $ws is the one in use — refusing" >&2; exit 3; fi ;;
+  panel)
+    # The one measurement a virtual output cannot give: commit -> scan-out on the real panel.
+    # A surface on a workspace nobody is looking at gets no frame callbacks, so the window has to
+    # be genuinely on screen. BRIEF.md forbids doing that to somebody who is working, so this
+    # refuses unless every real keyboard and pointer on the machine has been silent, and it puts
+    # the workspace that was up back when it is done.
+    [ "$have_hypr" = 1 ] || { echo "quill: --panel needs hyprctl" >&2; exit 3; }
+    # Is there a physical panel at all? When every real output is asleep (a DisplayPort monitor in
+    # standby drops the link) Hyprland substitutes a headless output called FALLBACK, and measuring
+    # scan-out on that is exactly the thing this mode exists to avoid.
+    real=$(hyprctl monitors -j | python3 -c "import json,sys;print(sum(1 for m in json.load(sys.stdin) if not m['name'].startswith(('HEADLESS','FALLBACK'))))")
+    [ "$real" -ge 1 ] || { echo "quill: no physical output is connected (Hyprland is on FALLBACK — the panel is asleep). Nothing to measure scan-out on." >&2; exit 7; }
+    TARGET_WS="$ws"
+    ORIG_WS=$(hyprctl activeworkspace -j | python3 -c "import json,sys;print(json.load(sys.stdin)['id'])")
+    [ "$TARGET_WS" != "$ORIG_WS" ] || { echo "quill: workspace $ws is the one in use — refusing" >&2; exit 3; }
+    [ "$TARGET_WS" != "1" ] || { echo "quill: workspace 1 is the user's — refusing" >&2; exit 3; }
+    if ! python3 "$ROOT/tools/idle-check.py" "$idle_window"; then
+      echo "quill: somebody is using this machine — not taking the screen. Try again when it is idle," >&2
+      echo "       or measure on a virtual output with --virtual (no panel scan-out in that number)." >&2
+      exit 4
+    fi
+    # Hyprland 0.56 dropped the old string dispatcher: `hyprctl dispatch workspace N` now returns
+    # a Lua parse error (exit 7) and changes nothing, which would leave the window on a workspace
+    # nobody is looking at — i.e. exactly the unpresented surface this mode exists to avoid. The
+    # Lua form is hl.dispatch(hl.dsp.focus{workspace=N}), and the switch is read back to prove it.
+    goto_ws() { hyprctl repl "return hl.dispatch(hl.dsp.focus{workspace=$1})" >/dev/null 2>&1 || true; }
+    read_ws() { hyprctl activeworkspace -j | python3 -c "import json,sys;print(json.load(sys.stdin)['id'])"; }
+    restore_ws() { goto_ws "$ORIG_WS"; }
+    trap 'restore_ws; drop_virtual_output' EXIT INT TERM
+    goto_ws "$TARGET_WS"; sleep 0.4
+    if [ "$(read_ws)" != "$TARGET_WS" ]; then
+      echo "quill: could not bring workspace $TARGET_WS up on the panel — refusing to measure a window nobody is looking at." >&2
+      echo "       Hyprland 0.56.2's Lua dispatcher has no workspace-switch binding this script could find:" >&2
+      echo "       hl.dsp.workspace is a table of {move, change_id, rename, toggle_special, swap_monitors} and" >&2
+      echo "       hl.focus accepts only {direction, monitor, window, urgent_or_last, last}. The old text form" >&2
+      echo "       'dispatch workspace N' is gone (it is parsed as Lua and fails), over hyprctl and over the" >&2
+      echo "       IPC socket alike. Until that is solved, use --virtual and read the caveat in the report." >&2
+      exit 6
+    fi
+    echo "quill: measuring on the PHYSICAL panel, workspace $TARGET_WS (was $ORIG_WS); it goes back afterwards" >&2 ;;
   here)
     [ "${QUILL_HEADED_OK:-0}" = "1" ] || { echo "quill: --here opens a window on the active workspace; set QUILL_HEADED_OK=1 if that is really wanted" >&2; exit 3; } ;;
 esac
@@ -151,11 +196,26 @@ for run in $(seq 1 "$runs"); do
     pid=$!
   fi
   for _ in $(seq 1 600); do curl -sf -o /dev/null "http://127.0.0.1:$DBG/json/version" && break; sleep 0.02; done
+  # Real keys go to the focused window, so on the panel the window has to actually have focus.
+  if [ "$place" = "panel" ]; then
+    sleep 0.4; hyprctl dispatch focuswindow class:Quill >/dev/null 2>&1 || true; sleep 0.3
+    if [ "$uinput" = 1 ]; then
+      aw=$(hyprctl activewindow -j | python3 -c "import json,sys
+try: print(json.load(sys.stdin).get('class',''))
+except Exception: print('')")
+      if [ "$aw" != "Quill" ]; then
+        echo "quill: real keys would go to '$aw', not to Quill — refusing to inject" >&2
+        pkill -f -- "--remote-debugging-port=$DBG" 2>/dev/null || true
+        exit 5
+      fi
+    fi
+  fi
 
   argv=( --attach "$DBG" --t0 "$t0" --profile "$PROFILE" --where "${VIRTUAL_OUT:-workspace $TARGET_WS}" )
   if [ -n "$snapshot" ]; then argv+=( --snapshot "$snapshot" ); fi
   if [ "$rmotion" = 1 ]; then argv+=( --reduced-motion ); fi
   if [ -n "$clock" ]; then argv+=( --clock "$clock" ); fi
+  if [ "$uinput" = 1 ]; then argv+=( --uinput ); fi
   if [ "$run" = "$runs" ] && [ "$keys" != 0 ]; then
     argv+=( --keys "$keys" --sessions "$sessions" )
     if [ -n "$regimes" ]; then argv+=( --regimes "$regimes" ); fi
