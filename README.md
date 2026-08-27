@@ -57,6 +57,8 @@ iA Writer publishes no latency numbers. The bar is the best native editors: ≤ 
   caveat stands: this rig has no physical panel attached, so two of the three photon terms are modelled, not measured.
 * **Caret settles 8.1 ms after the key** (was 57 ms: a caret glide animation that also stole 2.7 ms of frame-clock
   from every keystroke — removing it is what took the mean from 5.73 to 2.43 ms).
+* Independent re-run at close-out (`shots/latency/final-check.json`, default 60 Hz frame clock, 12 regimes × 300 keys):
+  app cost 1.6–2.7 ms mean per regime, worst 4.8 ms; navigation → typeable editor 76 ms with the 10k-word document, 44 ms empty.
 * **Cold launch `bin/quill` → first frame showing the document: 370 ms median** (n = 12); page load inside a running
   browser ≈ 80 ms to a typeable editor.
 
