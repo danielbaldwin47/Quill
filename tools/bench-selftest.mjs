@@ -21,6 +21,7 @@ import {
   BUDGET, KEYCODE_OFFSET, against, align, allSummary, clears, latencyMs, latencyVerdict, measure,
   regimeLine, summary, verdict, writeGaps,
 } from './bench-join.mjs';
+import { PANEL_WORKSPACE, panelRefusal, physicalMonitors } from './harness.mjs';
 import { DEFAULT_KEYS, hash32, regimes, script, uinputPlan } from './regimes.mjs';
 
 let cases = 0;
@@ -418,6 +419,110 @@ ok('write gaps say the pace, and count the pauses without averaging them away', 
   assert.equal(two.n, 2, 'gaps are taken within a session only');
   assert.equal(two.max, 90, 'so the launch gap never reaches the numbers');
   assert.equal(writeGaps([[]]), null, 'a session that typed nothing has no gaps');
+});
+
+// ---------- the physical panel ----------
+//
+// #66's mode is the one part of the bench that puts a window in front of a person, and the machine
+// it has to be right on is one that cannot be arranged on demand: a panel asleep, an owner sitting
+// on the workspace the run wants. So the refusals are a pure function of monitors and a workspace
+// id, and those machines are handed to it here.
+
+// Monitors as `hyprctl monitors -j` gives them, cut down to the fields the refusal reads. Each
+// carries its own `activeWorkspace`, which is the field that matters: the refusal asks the panel
+// what it is showing rather than asking the compositor which workspace has focus.
+const on = (m, id) => ({ ...m, activeWorkspace: { id, name: String(id) } });
+const DP3 = on({ name: 'DP-3', width: 3840, height: 2160, scale: 1.5, x: 0, y: 0 }, 1);
+const HEADLESS = on({ name: 'HEADLESS-67', width: 3200, height: 2000, scale: 2, x: 3840, y: 0 }, 9);
+const ASLEEP = on({ name: 'FALLBACK', width: 1920, height: 1080, scale: 1, x: 0, y: 0 }, 1);
+
+ok('a panel is a monitor somebody could be looking at, and neither of the other two is', () => {
+  assert.deepEqual(physicalMonitors([DP3, HEADLESS, ASLEEP]), [DP3]);
+  assert.deepEqual(physicalMonitors([HEADLESS, ASLEEP]), [], 'nothing here scans out to anything');
+  assert.deepEqual(physicalMonitors([]), []);
+});
+
+ok('the panel is refused with the panel asleep, on workspace 1, and on the one in use', () => {
+  const asleep = panelRefusal({ monitors: [ASLEEP], workspace: PANEL_WORKSPACE });
+  assert.match(asleep, /FALLBACK/, 'the owner is told which state the compositor is in');
+  assert.match(asleep, /no physical output is connected/);
+
+  const stage = panelRefusal({ monitors: [DP3, HEADLESS], workspace: PANEL_WORKSPACE });
+  assert.equal(stage, null, "the Gate's own headless output does not make a panel run impossible");
+
+  assert.match(
+    panelRefusal({ monitors: [DP3], workspace: 1 }),
+    /workspace 1 is the owner's/,
+    'workspace 1 is refused even when the panel is showing something else',
+  );
+  assert.match(
+    panelRefusal({ monitors: [on(DP3, PANEL_WORKSPACE)], workspace: PANEL_WORKSPACE }),
+    /workspace 5 is the one in use on DP-3/,
+  );
+  assert.equal(panelRefusal({ monitors: [DP3], workspace: PANEL_WORKSPACE }), null);
+
+  // The one the global `hyprctl activeworkspace` would get wrong: the panel is showing workspace 5
+  // and a leftover headless output holds focus on something else. Asking the compositor at large
+  // would clear the run to take a workspace that is on screen, and put it on the output that is not.
+  assert.match(
+    panelRefusal({
+      monitors: [on(DP3, PANEL_WORKSPACE), on(HEADLESS, 9)], workspace: PANEL_WORKSPACE,
+    }),
+    /workspace 5 is the one in use on DP-3/,
+    'the panel is asked what it is showing, not whichever monitor has focus',
+  );
+});
+
+// The panel's numbers are not the budget's, and the line has to be unmistakable about it — a reader
+// who takes one for a Gate result has been misled by this file, not by their own carelessness.
+const PANEL = { output: 'DP-3', mode: '3840x2160', scale: 1.5, workspace: 5, idle_window_s: 8 };
+
+ok('a panel run says informational, never pass or fail, and says where it was measured', () => {
+  const decided = measure(written(QUILL), captured(QUILL));
+  const reported = {
+    accounting: decided.accounting,
+    verdict: verdict(decided.uinput_write_to_presented_ms, 120),
+    stage_first_client: 118.4,
+    panel: PANEL,
+  };
+  const lines = summary('prose_end_of_draft', reported);
+  for (const line of lines) {
+    assert.match(line, /^gate bench prose_end_of_draft --panel: /, line);
+    assert.ok(!line.includes('\n'), line);
+    assert.ok(!line.includes('null') && !line.includes('undefined'), line);
+  }
+  const last = lines.at(-1);
+  assert.match(last, /: informational — mean /);
+  assert.ok(!/: (pass|fail)\b/.test(last), `a panel line has no verdict to give: ${last}`);
+  assert.ok(!last.includes('budget'), 'and no budget to be read against');
+  assert.match(last, /on DP-3 at 3840x2160 scale 1\.5/, 'two panel runs compare only if these match');
+  assert.match(last, /never a Gate condition/);
+
+  // The same regime, off the headless stage, is still judged the way it always was.
+  const gated = summary('prose_end_of_draft', { ...reported, panel: null });
+  assert.match(gated.at(-1), /^gate bench prose_end_of_draft: pass /);
+  assert.match(gated.at(-1), /budget mean <= 5/);
+});
+
+ok('a panel run of several counts what it measured rather than what cleared', () => {
+  const decided = measure(written(QUILL), captured(QUILL));
+  const line = regimeLine('fence_flip', {
+    accounting: decided.accounting,
+    verdict: verdict(decided.uinput_write_to_presented_ms, 120),
+    panel: PANEL,
+  });
+  assert.match(line, /^gate bench fence_flip --panel: informational — mean /);
+
+  const rows = [row('prose_end_of_draft', 2, 8, 120), row('revision', 6.1, 19, 130, false)];
+  const run = allSummary('--all', rows, PANEL);
+  assert.match(run, /^gate bench --all --panel: informational — 2 regimes measured/);
+  assert.ok(!/\b(pass|fail)\b/.test(run), `nothing here passed or failed: ${run}`);
+  assert.ok(!run.includes('clear the budget'), 'the budget is not what this run was against');
+  assert.match(run, /on DP-3 at 3840x2160 scale 1\.5/);
+
+  // A regime over the budget changes nothing about a panel run's own line, which is the whole
+  // point: it is a number, not a verdict, and `revision` above is well over.
+  assert.match(allSummary('--all', [row('revision', 6.1, 19, 130, false)], PANEL), /informational/);
 });
 
 if (failures === 0) {
