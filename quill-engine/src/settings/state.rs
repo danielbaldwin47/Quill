@@ -19,6 +19,7 @@
 
 use std::collections::BTreeMap;
 use std::io;
+use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 
 use super::reading::Reading;
@@ -45,6 +46,16 @@ const HEIGHT: u32 = 760;
 /// that says a window was two million pixels wide.
 const SMALLEST: u32 = 100;
 const LARGEST: u32 = 32768;
+
+/// The sizes a window may open at.
+///
+/// A range rather than two constants, because two places hold this line and
+/// they must hold the same one: a remembered size in the state file, and the
+/// `--w` and `--h` flags a judged shot is taken at.
+#[must_use]
+pub fn window_sizes() -> RangeInclusive<u32> {
+    SMALLEST..=LARGEST
+}
 
 /// One window as it was left.
 #[derive(Clone, Debug, PartialEq)]
@@ -82,8 +93,8 @@ impl WindowState {
     fn read(table: toml::Table, notes: &mut Vec<String>) -> Self {
         let defaults = Self::default();
         let mut reading = Reading::new(table, "window.", notes);
-        let width = reading.whole("width", defaults.width, &(SMALLEST..=LARGEST));
-        let height = reading.whole("height", defaults.height, &(SMALLEST..=LARGEST));
+        let width = reading.whole("width", defaults.width, &window_sizes());
+        let height = reading.whole("height", defaults.height, &window_sizes());
         let maximized = reading.boolean("maximized", defaults.maximized);
         let fullscreen = reading.boolean("fullscreen", defaults.fullscreen);
         let document = reading.path("document");

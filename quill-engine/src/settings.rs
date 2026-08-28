@@ -26,9 +26,10 @@ mod writing;
 mod xdg;
 
 use std::io;
+use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 
-pub use state::{STATE_FILE, State, WindowState};
+pub use state::{STATE_FILE, State, WindowState, window_sizes};
 
 use reading::Reading;
 use writing::Writing;
@@ -41,6 +42,17 @@ pub const SETTINGS_FILE: &str = "settings.toml";
 const SIZE: u32 = 20;
 const SMALLEST: u32 = 6;
 const LARGEST: u32 = 200;
+
+/// The type sizes a writer may ask for.
+///
+/// A range rather than two constants, because two places hold this line and
+/// they must hold the same one: `size` in the file, and `--size` on the
+/// command line ([`crate::settings`] is where a setting is decided, and a flag
+/// only overrides one).
+#[must_use]
+pub fn type_sizes() -> RangeInclusive<u32> {
+    SMALLEST..=LARGEST
+}
 
 /// Where the caret sits down the window when Typewriter is on: the middle.
 const ANCHOR: f64 = 0.5;
@@ -452,7 +464,7 @@ impl Settings {
         let mut reading = Reading::new(table, "", notes);
         let theme = reading.choice("theme");
         let face = reading.choice("face");
-        let size = reading.whole("size", defaults.size, &(SMALLEST..=LARGEST));
+        let size = reading.whole("size", defaults.size, &type_sizes());
         let focus = reading.boolean("focus", defaults.focus);
         let focus_scope = reading.choice("focus_scope");
         let typewriter = reading.boolean("typewriter", defaults.typewriter);
