@@ -25,16 +25,22 @@
 
 use std::ops::Range;
 
-use pulldown_cmark::{Event, HeadingLevel, Tag};
+use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Tag};
 
 use crate::markdown;
 
 /// What an Annotator says a range of bytes is.
 ///
-/// Every mark but [`Mark::Markup`] covers a whole construct, markers and all;
-/// the markers are then spanned over the top of it, so the two are read in that
-/// order and the marker wins. The tickets after #87 add the block constructs —
-/// quotes, lists, fences, rules — to the same enum.
+/// A construct's mark covers the whole of it, markers and all; the markers are
+/// then spanned over the top, so the two are read in that order and the marker
+/// wins. The block constructs — quotes, lists, fences, rules, front matter —
+/// join the inline ones here rather than in a vocabulary of their own, because
+/// the app resolves all of them through the one [`resolve`] and the one tag
+/// table.
+///
+/// A few marks are the markers themselves rather than a construct, and they are
+/// the ones whose *width* the app needs: a list marker is hung by its own cells,
+/// so it has to arrive as a span the app can measure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Mark {
     /// Delimiter bytes: a heading's `#`s and the space after them, the
@@ -68,6 +74,51 @@ pub enum Mark {
     Url,
     /// Inline or block HTML: not prose, so it stays in the marker grey.
     Html,
+    /// A block quote, from its first `>` to the end of its last line. It draws
+    /// nothing itself — the oracle sets quoted text in full ink
+    /// (`.md-quote { color: var(--fg) }`) — and exists so that the subtraction
+    /// has a construct to take the writer's words out of, leaving the `>`s.
+    /// #37 asks only that the markers go quiet, so there is no margin rule: the
+    /// oracle draws one with a CSS pseudo-element because a `<textarea>` cannot
+    /// indent a line, and the Editor is under no such constraint.
+    Quote,
+    /// The `>` of a quoted line, and the space after it. One per line, however
+    /// deep the nesting: `> > ` is two quotes' markers, not one.
+    QuoteMarker,
+    /// A bullet list item's marker: the `-`, `*` or `+`, the whitespace before
+    /// it and the whitespace after it, so that its width is the whole distance
+    /// from the line's start to the item's first word. That width is what the
+    /// app hangs the line by, which is why the indentation is inside the span.
+    BulletMarker,
+    /// An ordered list item's marker — `1. `, `2) ` — measured the same way and
+    /// for the same reason. It is a mark of its own rather than a width on
+    /// [`Mark::BulletMarker`] because the two are different punctuation, and a
+    /// later ticket may well draw them differently.
+    OrderedMarker,
+    /// A task list's `[ ]` or `[x]`, without the space after it.
+    TaskBox,
+    /// A fenced or indented code block, fences and all, so that its ground runs
+    /// under them. The text keeps the prose's ink — the oracle's
+    /// `.md-codeblock { color: var(--fg) }` — and the ground is a paragraph
+    /// background the app puts on the block's lines, not a run property, which
+    /// is what lets it run past both edges of the measure.
+    CodeBlock,
+    /// The backticks or tildes of an opening or closing fence.
+    Fence,
+    /// The info string after an opening fence: the `rust` of ```` ```rust ````.
+    InfoString,
+    /// A thematic break: the `---`, `***` or `___` on a line of its own.
+    ThematicBreak,
+    /// A front-matter block, its `---` delimiters and the metadata between
+    /// them. Quiet whole: it is the file's plumbing rather than its prose, and
+    /// it never reaches the prose stream at all ([`crate::markdown::prose`]).
+    FrontMatter,
+    /// The label of a link-reference or footnote definition — the `[ref]:` of
+    /// `[ref]: https://example.org`, the `[^1]:` of a footnote. Read
+    /// **lexically**, from the shape of the line: whether the label resolves to
+    /// anything is a whole-document question that belongs to an idle pass, and
+    /// dimming punctuation must never wait on one.
+    DefinitionLabel,
 }
 
 /// The colour a run's text is drawn in, named by the role it plays.
@@ -136,7 +187,7 @@ pub struct Look {
 }
 
 impl Look {
-    /// Fully opaque, which everything #87 draws is.
+    /// Fully opaque, which everything the Markup Annotator draws is.
     pub const OPAQUE: u8 = u8::MAX;
 
     /// Plain prose: what a run is before any mark is resolved into it.
@@ -196,6 +247,7 @@ pub fn markup(text: &str) -> Vec<Span> {
         markers(text, index, &constructs, &content, &mut spans);
     }
     escapes(text, &content, &mut spans);
+    definitions(text, &constructs, &mut spans);
     spans.sort_by(|a, b| a.at.start.cmp(&b.at.start).then(b.at.end.cmp(&a.at.end)));
     spans.dedup();
     spans
@@ -253,10 +305,32 @@ pub fn flatten(spans: &[Span]) -> Vec<Run> {
 /// var(--mark); font-weight: 400; font-style: normal }`.
 fn resolve(mark: Mark, under: Look) -> Look {
     match mark {
-        Mark::Markup => Look {
+        // Every marker, inline or block, is the same three properties set the
+        // same way. The ground is not among them: a fence's backticks sit on
+        // the code ground like the rest of the block.
+        Mark::Markup
+        | Mark::QuoteMarker
+        | Mark::BulletMarker
+        | Mark::OrderedMarker
+        | Mark::TaskBox
+        | Mark::Fence
+        | Mark::InfoString
+        | Mark::ThematicBreak
+        | Mark::FrontMatter
+        | Mark::DefinitionLabel => Look {
             ink: Ink::Marker,
             weight: Weight::Regular,
             slant: Slant::Upright,
+            ..under
+        },
+        // A quote draws nothing: its words are the writer's, in the writer's
+        // ink, and only its `>`s go quiet.
+        Mark::Quote => under,
+        // Code block text is prose ink on the page — the ground is a paragraph
+        // background the app applies from the mark, so that it can run past the
+        // measure, which a run property could never do.
+        Mark::CodeBlock => Look {
+            ink: Ink::Prose,
             ..under
         },
         Mark::Heading(_) | Mark::Strong => Look {
@@ -314,18 +388,48 @@ fn read(text: &str) -> Reading {
     let mut content = Vec::new();
     for (event, at) in markdown::events(text) {
         match &event {
+            // A list item draws nothing of its own: its marker does, and the
+            // marker is not the item's range — the parser starts an item at its
+            // bullet and leaves the indentation that nests it outside. So the
+            // marker is measured off the line instead.
+            Event::Start(Tag::Item) => {
+                if let Some((marker, mark)) = list_marker(text, &at) {
+                    constructs.push((marker.clone(), mark));
+                    content.push(marker);
+                }
+            }
             Event::Start(tag) => {
                 let Some(mark) = tag_mark(tag, text, &at) else {
                     continue;
                 };
                 constructs.push((at.clone(), mark));
-                if let Some(url) = destination(text, &at) {
+                // A fence is punctuation inside the block rather than around
+                // it, so it is read off the text the way a destination is.
+                if let Tag::CodeBlock(CodeBlockKind::Fenced(_)) = tag {
+                    for (fence, mark) in fences(text, &at) {
+                        constructs.push((fence.clone(), mark));
+                        content.push(fence);
+                    }
+                }
+                // Only a link has one. Asking every construct would find the
+                // parentheses of a link *inside* a quote and claim them twice.
+                if matches!(mark, Mark::Link | Mark::Image)
+                    && let Some(url) = destination(text, &at)
+                {
                     // Both lists: a destination carries a mark of its own, and
                     // it is not markup, so the link's markers come out as the
                     // brackets and parentheses around it and nothing else.
                     constructs.push((url.clone(), Mark::Url));
                     content.push(url);
                 }
+            }
+            Event::Rule => {
+                constructs.push((at.clone(), Mark::ThematicBreak));
+                content.push(at);
+            }
+            Event::TaskListMarker(_) => {
+                constructs.push((at.clone(), Mark::TaskBox));
+                content.push(at);
             }
             // A code span's event covers its backticks, and its ground has to
             // as well, so the construct is the whole of it and the content is
@@ -351,14 +455,17 @@ fn read(text: &str) -> Reading {
 
 /// What one pass over the events found.
 struct Reading {
-    /// Every construct #87 draws: its range, and the mark it carries.
+    /// Every construct the Markup Annotator draws: its range, and its mark.
     constructs: Vec<(Range<usize>, Mark)>,
-    /// The ranges inside them that hold the writer's words rather than the
-    /// punctuation that shapes them.
+    /// The ranges an enclosing construct must not claim: the writer's words,
+    /// and the punctuation that already carries a mark of its own. A link's
+    /// destination is in here for the second reason, and so is every block
+    /// marker, which is what stops a quote from claiming the bullet of a list
+    /// inside it.
     content: Vec<Range<usize>>,
 }
 
-/// The mark `tag` carries, or `None` for a construct #87 does not draw.
+/// The mark `tag` carries, or `None` for a tag the Editor draws nothing for.
 fn tag_mark(tag: &Tag<'_>, text: &str, at: &Range<usize>) -> Option<Mark> {
     match tag {
         Tag::Heading { level, .. } => is_atx(text, at).then(|| Mark::Heading(level_number(*level))),
@@ -367,8 +474,151 @@ fn tag_mark(tag: &Tag<'_>, text: &str, at: &Range<usize>) -> Option<Mark> {
         Tag::Strikethrough => Some(Mark::Strikethrough),
         Tag::Link { .. } => Some(Mark::Link),
         Tag::Image { .. } => Some(Mark::Image),
+        Tag::BlockQuote(_) => Some(Mark::Quote),
+        Tag::CodeBlock(_) => Some(Mark::CodeBlock),
+        Tag::MetadataBlock(_) => Some(Mark::FrontMatter),
         _ => None,
     }
+}
+
+/// The mark the delimiter bytes of a construct marked `mark` carry.
+///
+/// Almost always [`Mark::Markup`], because almost every delimiter is drawn the
+/// one way. A quote is the exception the app needs named: its `>`s are the only
+/// markers that repeat down a construct rather than closing it, and a later
+/// ticket dims them by tier.
+const fn marker_mark(mark: Mark) -> Mark {
+    match mark {
+        Mark::Quote => Mark::QuoteMarker,
+        _ => Mark::Markup,
+    }
+}
+
+/// The marker of the list item at `at`, and which kind of list it is.
+///
+/// The span reaches back to the start of the line whenever only whitespace
+/// stands between, because its width is what the app hangs the line by and a
+/// nested item hangs by its indentation too. When something else stands there —
+/// `> - quoted`, where the `>` belongs to the quote — the span starts at the
+/// item, so that the two markers are not claimed by one of them.
+///
+/// Ordered or bullet is read from the first byte, exactly as the oracle's
+/// `RE_LIST` reads it: a digit opens `1.` or `2)`, anything else is `-`, `*`
+/// or `+`.
+fn list_marker(text: &str, at: &Range<usize>) -> Option<(Range<usize>, Mark)> {
+    let item = text.get(at.clone())?;
+    let digits = item.bytes().take_while(u8::is_ascii_digit).count();
+    let (punctuation, mark) = if digits == 0 {
+        (1, Mark::BulletMarker)
+    } else {
+        // The digits and the `.` or `)` that closes them.
+        (digits + 1, Mark::OrderedMarker)
+    };
+    let after = item.get(punctuation..)?;
+    let spaces = after.len() - after.trim_start_matches([' ', '\t']).len();
+    let line = text[..at.start]
+        .rfind('\n')
+        .map_or(0, |newline| newline + 1);
+    let start = if text[line..at.start]
+        .bytes()
+        .all(|byte| byte == b' ' || byte == b'\t')
+    {
+        line
+    } else {
+        at.start
+    };
+    Some((start..at.start + punctuation + spaces, mark))
+}
+
+/// The fences of the fenced code block at `at`, and its info string.
+///
+/// The parser's range runs from the first backtick to the last, so both fences
+/// are inside it and the ground runs under them. The opening run's length is
+/// counted rather than assumed: CommonMark allows any number from three up, and
+/// tildes as well as backticks.
+fn fences(text: &str, at: &Range<usize>) -> Vec<(Range<usize>, Mark)> {
+    let block = &text[at.clone()];
+    let Some(fence) = block
+        .bytes()
+        .next()
+        .filter(|byte| matches!(byte, b'`' | b'~'))
+    else {
+        return Vec::new();
+    };
+    let open = block.bytes().take_while(|byte| *byte == fence).count();
+    let mut found = vec![(at.start..at.start + open, Mark::Fence)];
+    let line = block[open..]
+        .find('\n')
+        .map_or(block.len(), |newline| open + newline);
+    let rest = &block[open..line];
+    let info = rest.trim();
+    if !info.is_empty() {
+        let start = at.start + open + (rest.len() - rest.trim_start().len());
+        found.push((start..start + info.len(), Mark::InfoString));
+    }
+    // A fence the writer has not closed yet ends in its own text, not in
+    // backticks, and there is nothing to mark at the bottom.
+    let close = block
+        .bytes()
+        .rev()
+        .take_while(|byte| *byte == fence)
+        .count();
+    if close > 0 && at.end - close > at.start + open {
+        found.push((at.end - close..at.end, Mark::Fence));
+    }
+    found
+}
+
+/// Adds a marker span for every link-reference and footnote definition label.
+///
+/// Lexical, and it has to be: the parser resolves link-reference definitions
+/// and reports no event at all for them, so reading the line is the only way
+/// they can be drawn. That is not a compromise. Whether `[ref]` *resolves* is a
+/// whole-document question and belongs to the idle pass Preview (#26) brings;
+/// whether it is punctuation is visible in the line by itself, and a marker
+/// must never wait on a pass to go quiet.
+///
+/// The rule is the oracle's `RE_DEF`: up to three spaces, `[`, an optional `^`,
+/// a label that neither is empty nor opens with whitespace, then `]:`. Lines a
+/// verbatim construct already owns are left alone, which is what keeps a
+/// definition written *as an example* inside a fence from going quiet.
+fn definitions(text: &str, constructs: &[(Range<usize>, Mark)], spans: &mut Vec<Span>) {
+    let verbatim: Vec<Range<usize>> = constructs
+        .iter()
+        .filter(|(_, mark)| matches!(mark, Mark::CodeBlock | Mark::FrontMatter))
+        .map(|(at, _)| at.clone())
+        .collect();
+    let mut at = 0usize;
+    for line in text.split_inclusive('\n') {
+        if let Some(label) = definition_label(line)
+            && !covers(&verbatim, at)
+        {
+            spans.push(Span::new(
+                at + label.start..at + label.end,
+                Mark::DefinitionLabel,
+            ));
+        }
+        at += line.len();
+    }
+}
+
+/// The `[ref]:` or `[^1]:` that opens `line`, if one does.
+fn definition_label(line: &str) -> Option<Range<usize>> {
+    let indent = line.len() - line.trim_start_matches(' ').len();
+    if indent > 3 {
+        return None;
+    }
+    let rest = line.get(indent..)?;
+    if !rest.starts_with('[') {
+        return None;
+    }
+    let label = usize::from(rest.as_bytes().get(1) == Some(&b'^')) + 1;
+    let first = rest.get(label..)?.chars().next()?;
+    if first == ']' || first.is_whitespace() {
+        return None;
+    }
+    let close = label + rest.get(label..)?.find(']')?;
+    (rest.as_bytes().get(close + 1) == Some(&b':')).then(|| indent..indent + close + 2)
 }
 
 /// Whether the heading at `at` is written with `#`s rather than underlined.
@@ -450,7 +700,8 @@ fn markers(
     content: &[Range<usize>],
     spans: &mut Vec<Span>,
 ) {
-    let at = &constructs[index].0;
+    let (at, mark) = &constructs[index];
+    let marker = marker_mark(*mark);
     // Both lists are in the order they start in, so what can be inside this
     // construct is a window of each rather than the whole of either. Found by
     // binary search, because a Document's constructs would otherwise cost the
@@ -474,11 +725,11 @@ fn markers(
     let mut cursor = at.start;
     for run in covered {
         if run.start > cursor {
-            push_span(text, cursor..run.start, Mark::Markup, spans);
+            push_span(text, cursor..run.start, marker, spans);
         }
         cursor = cursor.max(run.end).min(at.end);
     }
-    push_span(text, cursor..at.end, Mark::Markup, spans);
+    push_span(text, cursor..at.end, marker, spans);
 }
 
 /// Adds a marker span for every backslash that escapes the byte after it.
@@ -496,19 +747,24 @@ fn escapes(text: &str, content: &[Range<usize>], spans: &mut Vec<Span>) {
         // A backslash the writer escaped is content of the run before this
         // one, not the marker of this one: `\\*` is a backslash and a star,
         // and greying the second backslash would grey one of their words.
-        if text.as_bytes()[before] == b'\\' && !is_content(content, before) {
+        if text.as_bytes()[before] == b'\\' && !covers(content, before) {
             spans.push(Span::new(before..run.start, Mark::Markup));
         }
     }
 }
 
-/// Whether `byte` is inside one of the content ranges.
+/// Whether `byte` is inside one of `ranges`.
 ///
-/// They are in order and do not overlap, so the one that could hold it is the
-/// first whose end is past it.
-fn is_content(content: &[Range<usize>], byte: usize) -> bool {
-    let at = content.partition_point(|run| run.end <= byte);
-    content.get(at).is_some_and(|run| run.start <= byte)
+/// `ranges` must be in order and not overlap — every caller's is, because the
+/// parser reports in source order — and that is what makes the one range which
+/// could hold `byte` the first whose end is past it, rather than a search.
+fn covers(ranges: &[Range<usize>], byte: usize) -> bool {
+    debug_assert!(
+        ranges.windows(2).all(|pair| pair[0].end <= pair[1].start),
+        "covers reads ranges in order and not overlapping, and was handed {ranges:?}"
+    );
+    let at = ranges.partition_point(|run| run.end <= byte);
+    ranges.get(at).is_some_and(|run| run.start <= byte)
 }
 
 /// Adds `at` as a span of `mark`, once the line ending is off the end of it.
@@ -518,10 +774,16 @@ fn is_content(content: &[Range<usize>], byte: usize) -> bool {
 /// the app apply a tag to nothing. The line ending goes for the reason it
 /// always did — a mark that swallowed it would run to the end of the line on
 /// screen.
+///
+/// Both ends, because a construct that spans lines leaves gaps that *open* with
+/// one: the bytes between two lines of a quote are `\n> `, and only the `> ` is
+/// the marker.
 fn push_span(text: &str, at: Range<usize>, mark: Mark, spans: &mut Vec<Span>) {
-    let end = text[at.clone()].trim_end_matches(['\n', '\r']).len() + at.start;
-    if end > at.start {
-        spans.push(Span::new(at.start..end, mark));
+    let run = &text[at.clone()];
+    let start = at.start + (run.len() - run.trim_start_matches(['\n', '\r']).len());
+    let end = at.start + run.trim_end_matches(['\n', '\r']).len();
+    if end > start {
+        spans.push(Span::new(start..end, mark));
     }
 }
 
@@ -836,10 +1098,13 @@ mod tests {
                 ("][", Mark::Markup),
                 ("r", Mark::Url),
                 ("]", Mark::Markup),
+                ("[r]:", Mark::DefinitionLabel),
             ],
             "`[short]` has no definition, so the parser says it is not a link \
              at all; a shortcut that had one would carry no destination here \
-             either, and its brackets alone would be marked"
+             either, and its brackets alone would be marked. The definition \
+             the link resolves against is drawn from the line's own shape, \
+             which is why it is marked without the parser reporting it"
         );
     }
 
@@ -893,6 +1158,184 @@ mod tests {
     }
 
     #[test]
+    fn a_block_quotes_marker_goes_quiet_and_its_words_keep_the_writers_ink() {
+        let text = "> There are things the sea keeps.\n";
+        assert_eq!(
+            marked(text),
+            [
+                ("> There are things the sea keeps.", Mark::Quote),
+                ("> ", Mark::QuoteMarker),
+            ]
+        );
+        assert_eq!(
+            drawn(text),
+            [
+                ("> ", MARKER),
+                ("There are things the sea keeps.", Look::PROSE),
+            ],
+            "#37 asks for a quiet marker and no margin rule, so the words are untouched"
+        );
+    }
+
+    #[test]
+    fn each_line_of_a_quote_carries_its_own_marker_and_never_the_line_ending() {
+        let text = "> one\n> two\n";
+        assert_eq!(
+            marked(text),
+            [
+                ("> one\n> two", Mark::Quote),
+                ("> ", Mark::QuoteMarker),
+                ("> ", Mark::QuoteMarker),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_bullet_marker_is_the_dash_and_the_space_after_it() {
+        assert_eq!(
+            marked("- the good knife\n"),
+            [("- ", Mark::BulletMarker)],
+            "the item's words are prose; only its bullet is punctuation"
+        );
+    }
+
+    #[test]
+    fn an_ordered_marker_is_the_number_the_dot_and_the_space() {
+        assert_eq!(
+            marked("1. Untie the skiff.\n"),
+            [("1. ", Mark::OrderedMarker)],
+            "three cells against the bullet's two, which is why they hang by different tags"
+        );
+    }
+
+    #[test]
+    fn a_nested_markers_span_carries_the_indentation_that_nests_it() {
+        assert_eq!(
+            marked("- beta\n  - nested\n"),
+            [("- ", Mark::BulletMarker), ("  - ", Mark::BulletMarker)],
+            "the span reaches back to the line's start, so its width is the whole hang"
+        );
+    }
+
+    #[test]
+    fn a_quoted_items_marker_stops_at_the_quote_marker_rather_than_swallowing_it() {
+        let text = "> - quoted item\n";
+        let marks = marked(text);
+        assert!(
+            marks.contains(&("- ", Mark::BulletMarker)),
+            "the bullet is two cells, not four: the `> ` before it is the quote's, {marks:?}"
+        );
+        assert!(marks.contains(&("> ", Mark::QuoteMarker)), "{marks:?}");
+    }
+
+    #[test]
+    fn a_task_box_is_marked_beside_the_bullet_that_carries_it() {
+        assert_eq!(
+            marked("- [ ] todo\n- [x] done\n"),
+            [
+                ("- ", Mark::BulletMarker),
+                ("[ ]", Mark::TaskBox),
+                ("- ", Mark::BulletMarker),
+                ("[x]", Mark::TaskBox),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_fenced_block_is_ground_from_its_opening_fence_to_its_closing_one() {
+        let text = "```\n21:40  lamp lit\n```\n";
+        assert_eq!(
+            marked(text),
+            [
+                ("```\n21:40  lamp lit\n```", Mark::CodeBlock),
+                ("```", Mark::Fence),
+                ("```", Mark::Fence),
+            ],
+            "the fences are inside the block, so its ground runs under them"
+        );
+        assert_eq!(
+            drawn(text),
+            [
+                ("```", MARKER),
+                ("\n21:40  lamp lit\n", Look::PROSE),
+                ("```", MARKER),
+            ],
+            "the code keeps the prose's ink; the ground is a paragraph tag, not a run"
+        );
+    }
+
+    #[test]
+    fn a_fences_info_string_is_marked_apart_from_the_backticks() {
+        assert_eq!(
+            marked("```rust\nlet x = 1;\n```\n"),
+            [
+                ("```rust\nlet x = 1;\n```", Mark::CodeBlock),
+                ("```", Mark::Fence),
+                ("rust", Mark::InfoString),
+                ("```", Mark::Fence),
+            ]
+        );
+    }
+
+    #[test]
+    fn an_indented_code_block_is_ground_with_no_fence_to_mark() {
+        assert_eq!(
+            marked("    21:40  lamp lit\n"),
+            [("21:40  lamp lit", Mark::CodeBlock)],
+            "the parser leaves the four spaces outside the block, and so does the mark"
+        );
+    }
+
+    #[test]
+    fn a_thematic_break_is_quiet() {
+        let text = "***\n";
+        assert_eq!(marked(text), [("***", Mark::ThematicBreak)]);
+        assert_eq!(drawn(text), [("***", MARKER)]);
+    }
+
+    #[test]
+    fn front_matter_is_quiet_whole_delimiters_and_metadata_alike() {
+        let text = "---\ntitle: The Lighthouse\n---\n\nThe lamp was lit.\n";
+        let marks = marked(text);
+        assert!(
+            marks.contains(&("---\ntitle: The Lighthouse\n---", Mark::FrontMatter)),
+            "{marks:?}"
+        );
+        assert_eq!(
+            drawn(text),
+            [("---\ntitle: The Lighthouse\n---", MARKER)],
+            "the whole block is plumbing, and the prose below it is left alone"
+        );
+    }
+
+    #[test]
+    fn a_link_reference_definitions_label_is_marked_with_no_resolution_pass() {
+        let marks = marked("[ref]: https://example.org\n");
+        assert!(
+            marks.contains(&("[ref]:", Mark::DefinitionLabel)),
+            "the parser reports no event at all for a definition, so this is lexical: {marks:?}"
+        );
+    }
+
+    #[test]
+    fn a_footnote_definitions_label_is_marked_the_same_lexical_way() {
+        let marks = marked("[^1]: a footnote\n");
+        assert!(
+            marks.contains(&("[^1]:", Mark::DefinitionLabel)),
+            "{marks:?}"
+        );
+    }
+
+    #[test]
+    fn a_definition_written_inside_a_fenced_block_is_code_and_not_a_definition() {
+        let marks = marked("```\n[ref]: https://example.org\n```\n");
+        assert!(
+            !marks.iter().any(|(_, mark)| *mark == Mark::DefinitionLabel),
+            "the lexical pass must not reach inside a code block: {marks:?}"
+        );
+    }
+
+    #[test]
     fn every_inline_construct_of_the_oracles_passage_is_spanned() {
         let text = oracle();
         let marks = marked(&text);
@@ -910,6 +1353,15 @@ mod tests {
             ("[", Mark::Markup),
             ("](", Mark::Markup),
             (")", Mark::Markup),
+            ("> ", Mark::QuoteMarker),
+            ("- ", Mark::BulletMarker),
+            ("1. ", Mark::OrderedMarker),
+            ("2. ", Mark::OrderedMarker),
+            ("```", Mark::Fence),
+            (
+                "```\n21:40  lamp lit\n22:35  boat sighted, no oars\n```",
+                Mark::CodeBlock,
+            ),
         ] {
             assert!(
                 marks.contains(&wanted),

@@ -76,6 +76,10 @@ _Avoid_: accelerator (GTK's term), hotkey, keybinding
 
 **Annotator**:
 Anything that marks spans of a Document's prose for the Editor to style: Markup, Syntax highlight, Style check and Spell check are the four. An Annotator sees the prose stream, never the Markup characters.
+
+**Well**:
+The ground a code block is drawn on, run past both edges of the measure so the block reads as sunk into the page rather than as a stripe the width of the prose. A code span has the same ground without being a Well: it is padded, not sunk.
+_Avoid_: code background, block highlight
 _Avoid_: highlighter, linter, decorator
 
 ## Quality
