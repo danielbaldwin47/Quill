@@ -63,9 +63,9 @@ fn main() -> glib::ExitCode {
 
     // And before any window: what the writer chose, what the last session
     // left, and what this command line says instead. All read here and nowhere
-    // else.
-    let harness = flags.any();
+    // else, and the session is what everything below asks.
     let session = Session::open(flags);
+    let harness = session.is_harness();
 
     let app = gtk::Application::builder()
         .application_id(APP_ID)
@@ -88,6 +88,11 @@ fn main() -> glib::ExitCode {
     app.connect_startup(move |_| {
         if starting.flags().deterministic {
             harness::determine();
+        }
+        // Before the window rather than with it: the file a bench was promised
+        // is there even if nothing opens.
+        if let Some(out) = starting.flags().measure.as_deref() {
+            harness::capture(out);
         }
         editor::install_face(starting.settings().face);
     });

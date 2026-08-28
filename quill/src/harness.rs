@@ -9,10 +9,15 @@
 //! [`determine`] pins everything about a frame that a desktop would otherwise
 //! decide: animation, the caret's blink, and the whole of font rendering, which
 //! is the one thing that would make two machines disagree about a glyph.
-//! [`measure`] answers the Gate's cold-start question — `exec` to the first
-//! complete frame the compositor says it presented — and creates the file the
-//! per-key capture is written into
-//! ([#41](https://github.com/danielbaldwin47/Quill/issues/41) fills it).
+//!
+//! `--measure` is two things, and they are two functions because they answer to
+//! different moments. [`capture`] creates the file the per-key capture is
+//! written into ([#41](https://github.com/danielbaldwin47/Quill/issues/41)
+//! fills it), at startup, so that a bench can count on the file whatever the
+//! launch goes on to do — a Document that cannot be read must not take the file
+//! with it. [`cold_start`] answers the Gate's cold-start question, `exec` to
+//! the first complete frame the compositor says it presented, and needs a
+//! window to hang off.
 
 use std::fs;
 use std::path::Path;
@@ -56,29 +61,33 @@ pub fn determine() {
     settings.set_gtk_hint_font_metrics(true);
 }
 
-/// Starts the measurement `--measure <out.jsonl>` asks for.
+/// Creates the file `--measure <out.jsonl>` names, empty.
 ///
-/// Two things, both the Gate's. The file is created now, so that a bench can
-/// count on it whatever the run does afterwards; the per-key capture that fills
-/// it is the latency ticket's. And the cold start is printed at the first frame
-/// the compositor says it presented, in milliseconds from `$QUILL_T0_NS`.
-///
-/// A launch with no `$QUILL_T0_NS` set has nothing to measure from and says so
-/// once: `--measure` is still worth giving for the capture alone.
-pub fn measure(window: &impl IsA<gtk::Widget>, out: &Path) {
+/// Called from `startup`, before any window and before any Document is read, so
+/// that the file a bench was promised is there even when the launch that was
+/// asked for turns out to be a launch that cannot open anything.
+pub fn capture(out: &Path) {
     if let Err(err) = fs::write(out, "") {
         eprintln!(
             "quill: --measure: {}: cannot be written ({err})",
             out.display()
         );
     }
+}
+
+/// Prints the cold start at the first frame the compositor says it presented,
+/// in milliseconds from `$QUILL_T0_NS`.
+///
+/// A launch with no `$QUILL_T0_NS` set has nothing to measure from and says so
+/// once: `--measure` is still worth giving for the capture alone.
+pub fn cold_start(window: &impl IsA<gtk::Widget>) {
     let Some(t0) = t0() else {
         return;
     };
     let clocks = Clocks::now();
     window.add_tick_callback(move |_, clock| match presented(clock) {
         Some(at) => {
-            println!("{}", cold_start(clocks.milliseconds(t0, at)));
+            println!("{}", cold_start_line(clocks.milliseconds(t0, at)));
             glib::ControlFlow::Break
         }
         None => glib::ControlFlow::Continue,
@@ -86,7 +95,7 @@ pub fn measure(window: &impl IsA<gtk::Widget>, out: &Path) {
 }
 
 /// The line `--measure` prints, once, at the first presented frame.
-fn cold_start(milliseconds: f64) -> String {
+fn cold_start_line(milliseconds: f64) -> String {
     format!("cold start: {milliseconds:.3} ms")
 }
 
@@ -187,7 +196,7 @@ mod tests {
 
     #[test]
     fn the_cold_start_line_is_one_line_of_milliseconds() {
-        assert_eq!(cold_start(187.5), "cold start: 187.500 ms");
-        assert!(!cold_start(0.0).contains('\n'));
+        assert_eq!(cold_start_line(187.5), "cold start: 187.500 ms");
+        assert!(!cold_start_line(0.0).contains('\n'));
     }
 }

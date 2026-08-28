@@ -8,8 +8,8 @@
 //! nothing here fails: a file that cannot be read or written is one line on
 //! stderr and a Quill that opens anyway.
 //!
-//! A launch of the harness's ([`Flags::any`]) is the same session with two
-//! files' worth of the writer's own removed. It reads their `settings.toml`,
+//! A launch of the harness's ([`Flags::is_harness`]) is the same session with
+//! two files' worth of the writer's own removed. It reads their `settings.toml`,
 //! because a flag overrides a setting rather than replacing every setting, but
 //! it writes nothing to it; and it neither reads nor writes `state.toml`, so it
 //! opens at the shape its flags name rather than at the window a writer left,
@@ -27,6 +27,9 @@ use crate::flags::Flags;
 pub struct Session {
     /// What this launch was asked for.
     flags: Flags,
+    /// Whether this launch is the harness's, asked once of the flags and
+    /// answered from here afterwards.
+    harness: bool,
     /// What the writer chose, with the flags over the top.
     settings: Settings,
     /// The shape the next window opens at: what the last session left, at the
@@ -44,7 +47,7 @@ impl Session {
     /// harness's writes nothing at all.
     #[must_use]
     pub fn open(flags: Flags) -> Rc<Self> {
-        let harness = flags.any();
+        let harness = flags.is_harness();
         let (settings, notes) = if harness {
             Settings::read_from(&Settings::path())
         } else {
@@ -70,6 +73,7 @@ impl Session {
             opening: flags.shape(opening),
             settings: flags.over(settings),
             flags,
+            harness,
             leaving: RefCell::new(state),
         })
     }
@@ -77,6 +81,11 @@ impl Session {
     /// What this launch was asked for.
     pub fn flags(&self) -> &Flags {
         &self.flags
+    }
+
+    /// Whether this launch is the harness's rather than a writer's.
+    pub fn is_harness(&self) -> bool {
+        self.harness
     }
 
     /// What the writer chose, as this launch is running it.
@@ -96,7 +105,7 @@ impl Session {
 
     /// Writes the state file. Called once, when the application shuts down.
     pub fn store(&self) {
-        if self.flags.any() {
+        if self.harness {
             // A launch of the harness's read no state and leaves none: the
             // window a writer left is theirs, and a bench at 1440×900 is not
             // a writer resizing it.
