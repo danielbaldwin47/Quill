@@ -33,6 +33,9 @@ import { execSync, spawn } from 'node:child_process';
 // tools/uinput-keys.py. `--plan <regime>` below prints what they produce.
 import { DEFAULT_KEYS, DEFAULT_PACE, PASTE_TEXT, TEXT_LABELS, WARMUP_KEYS, formatPlan, hash32,
          labelsOf, mulberry32, needsShift, pressChar, regimes, script, uinputPlan } from '../../tools/regimes.mjs';
+// Which build these numbers are of, hashed the one way, so tools/gate oracle's frozen shots and
+// this bench name the same build with the same string.
+import { hashApp } from '../../tools/fingerprint.mjs';
 
 // ---------- args ----------
 const args = {};
@@ -109,18 +112,14 @@ function displayInfo() {
     return m.map((f) => ({ name: f.name, model: f.description, mode: `${f.width}x${f.height}`, refresh_hz: r2(f.refreshRate), scale: f.scale, vrr: f.vrr, focused: f.focused }));
   } catch (e) { return null; }
 }
-// Exactly which build of the app these numbers belong to.
+// Exactly which build of the app these numbers belong to — the same hash tools/gate oracle stamps
+// its frozen shots with, so a shot and a number can be told to be of the same build.
 function appFingerprint() {
   try {
-    const files = [];
-    const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const f = path.join(d, e.name); if (e.isDirectory()) { if (e.name !== 'fonts') walk(f); } else if (/\.(js|css|html)$/.test(e.name)) files.push(f); } };
-    walk(args.snapshot ? path.join(args.snapshot, 'app') : 'legacy/app');
-    files.sort();
-    const h = crypto.createHash('sha256');
-    for (const f of files) h.update(f + ':' + crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex') + '\n');
+    const app = hashApp('.', args.snapshot ? path.join(args.snapshot, 'app') : 'legacy/app');
     let git = null;
     try { git = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch (e) {}
-    return { files: files.length, sha256: h.digest('hex').slice(0, 16), git_head: git, served_from: args.snapshot || 'legacy/app/' };
+    return { ...app, git_head: git, served_from: args.snapshot || 'legacy/app/' };
   } catch (e) { return null; }
 }
 // This is somebody's workstation. Say what else was running while the numbers were taken.

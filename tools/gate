@@ -4,6 +4,7 @@
 #
 #   tools/gate check              the Commit tier, on the repo root
 #   tools/gate check <dir>        ... on another directory
+#   tools/gate oracle <piece>     freeze the Parity oracle's shots for one Piece
 #   tools/gate --help             the commands there are, and what each runs
 #
 # The owner does not read Rust, so every command here ends in one line the owner
@@ -35,6 +36,15 @@ usage: tools/gate <command> [arguments]
                 given — which is how tools/gate-fixture/selftest points it at a
                 crate whose defects it must go red on. Ends in `gate check:
                 pass` or `gate check: fail (<step>)`.
+
+  oracle <piece> [--force]
+                Freezes the Parity oracle for one Piece: the app in legacy/ shot
+                at every state shots/oracle/states.json lists for it, into
+                shots/oracle/<piece>/<state>.png with the fingerprint of what
+                produced them beside. Shoots nothing when those shots are
+                already the ones it would take; --force shoots them anyway.
+                Ends in `gate oracle <piece>: froze N states (<why>)`,
+                `... unchanged`, or `... fail (...)`.
 
 The tiers these commands serve are docs/agents/gate.md.
 EOF
@@ -127,6 +137,10 @@ check() {
 
 case "${1-}" in
     check) shift; check "$@" ;;
+    # The oracle reads a JSON state file, converts offsets and drives a browser
+    # through legacy/tools/shoot.mjs, so it is Node; the line it ends in is its
+    # own, in the shape the header above asks of every command here.
+    oracle) shift; exec node "$ROOT/tools/oracle.mjs" "$@" ;;
     -h | --help | help) usage ;;
     "") usage >&2; exit 2 ;;
     *) echo "gate: ${1}: not a command this Gate has yet" >&2; usage >&2; exit 2 ;;
