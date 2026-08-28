@@ -91,11 +91,16 @@ fn marker_cells(level: u8) -> f64 {
 /// The deepest list marker that is given a tag of its own.
 ///
 /// `- ` is two cells and `1. ` three, and every level of nesting adds its
-/// indentation, so the count is open-ended in a way a heading's never was. A
-/// marker past this hangs by this instead of by its own width: twelve cells is
-/// three levels of nesting deep, and a list nested deeper than that has bigger
-/// troubles than half a cell of misalignment.
+/// indentation, so the count is open-ended in a way a heading's never was.
+/// Twelve is six levels of bullets or four of numbers; a marker past it hangs
+/// by twelve instead of by its own width, so its text lands right of the prose
+/// rather than on it. A list nested deeper than that has bigger troubles than a
+/// cell of misalignment, and [`hung`] would have run out of margin to hang in
+/// long before.
 const LIST_CELLS: u8 = 12;
+
+/// How far a tab advances a marker, in cells: CommonMark's tab stop.
+const TAB_CELLS: usize = 4;
 
 /// How far the code ground runs past each edge of the measure, at `size`.
 ///
@@ -105,12 +110,22 @@ const LIST_CELLS: u8 = 12;
 /// because that is what the oracle measured it in and the two are not the same
 /// thing: a cell is 0.6em on these Faces.
 fn well(size: u32) -> i32 {
+    pixels(0.7 * f64::from(size))
+}
+
+/// `length` as whole pixels.
+///
+/// Every horizontal length this module sets — a hang, a well — is rounded here
+/// and only here, so that two of them counted off the same measure cannot land
+/// half a pixel apart.
+fn pixels(length: f64) -> i32 {
     #[expect(
         clippy::cast_possible_truncation,
-        reason = "seven tenths of a type size; the hang is rounded the same way"
+        reason = "a marker is a handful of cells and a well a fraction of a type size; \
+                  the measure itself is rounded the same way"
     )]
-    let edge = (0.7 * f64::from(size)).round() as i32;
-    edge
+    let whole = length.round() as i32;
+    whole
 }
 
 /// The pixels a marker of `cells` cells hangs by, in `face` at `size`.
@@ -120,12 +135,7 @@ fn well(size: u32) -> i32 {
 /// measure from. Rounded once, here, so the hang and the measure are counted
 /// off the same number and a heading cannot land half a pixel from the prose.
 fn hang(face: Face, size: u32, cells: f64) -> i32 {
-    #[expect(
-        clippy::cast_possible_truncation,
-        reason = "a marker is a handful of cells; the measure itself is rounded the same way"
-    )]
-    let width = (typography::cell(face, size) * cells).round() as i32;
-    width
+    pixels(typography::cell(face, size) * cells)
 }
 
 /// The tag named `name`, made by `build` if this is the first ask for it.
@@ -307,9 +317,19 @@ pub fn hang_markers(buffer: &gtk::TextBuffer, face: Face, size: u32, side: i32) 
     // outside the measure is to give the block a box wider than one: its
     // margins go a well past the prose on both sides, and the indent puts the
     // code itself back on the prose's edge. Every line of a fenced block is a
-    // paragraph of its own, so every line is a first row and takes that indent;
-    // only the wrapped tail of an over-long line sits a well to the left, still
-    // on the ground and still inside the well it belongs to.
+    // paragraph of its own, so every line is a first row and takes that indent.
+    //
+    // Two things follow, and neither is free. A wrapped tail of an over-long
+    // code line sits a well to the left, because Pango's indent moves the first
+    // row alone. And the box being wider is the box the code wraps in, so a
+    // code line wraps a well later than prose would — Pango has no indent for
+    // the right side. Both are the price of a ground that clears the measure at
+    // all: the oracle pays none of it because a box-shadow is not layout, and a
+    // `<textarea>` gave it no paragraph to paint. A well is under one cell and
+    // a fifth, so the two rarely differ by a character.
+    //
+    // Deliberately not `min(side)`-ed away to nothing: a window too narrow to
+    // give the well its margin is one the prose has no gutter in either.
     let edge = well(size).min(side);
     let ground = code_ground(buffer);
     ground.set_left_margin(side - edge);
@@ -360,7 +380,7 @@ pub fn apply(buffer: &gtk::TextBuffer, document: &Document, face: Face, spans: &
             // The marker's own width is the hang, and the engine measured it
             // from the line's start precisely so that it could be read here.
             Mark::BulletMarker | Mark::OrderedMarker => {
-                let cells = marker_width(document, span);
+                let cells = marker_width(&document.text()[span.at.clone()]);
                 paragraph(buffer, document, span, &list(buffer, cells));
             }
             Mark::CodeBlock => paragraph(buffer, document, span, &code_ground(buffer)),
@@ -380,8 +400,18 @@ pub fn apply(buffer: &gtk::TextBuffer, document: &Document, face: Face, spans: &
 /// grid; a marker is ASCII either way, but the count is what the tag is keyed
 /// by and counting the wrong thing would key it wrong. Clamped to the widths
 /// [`hang_markers`] made a tag for.
-fn marker_width(document: &Document, span: &Span) -> u8 {
-    let cells = document.text()[span.at.clone()].chars().count();
+fn marker_width(marker: &str) -> u8 {
+    let mut cells = 0usize;
+    for character in marker.chars() {
+        // A tab is not one cell: CommonMark advances it to the next stop, and
+        // the engine lets a writer indent a nested item with one. Counting it
+        // as a character would hang a tabbed item short of its own text.
+        cells = if character == '\t' {
+            (cells / TAB_CELLS + 1) * TAB_CELLS
+        } else {
+            cells + 1
+        };
+    }
     u8::try_from(cells)
         .unwrap_or(LIST_CELLS)
         .clamp(1, LIST_CELLS)
@@ -566,6 +596,21 @@ mod tests {
             (side - edge) + edge,
             side,
             "and the indent has to put the code itself back on the prose's edge"
+        );
+    }
+
+    #[test]
+    fn a_tab_indented_item_hangs_by_the_stop_it_reaches_not_by_one_cell() {
+        assert_eq!(
+            marker_width("-\t"),
+            4,
+            "`-` then a tab reaches the stop at four, which is where the word starts"
+        );
+        assert_eq!(marker_width("- "), 2, "and a space is still one cell");
+        assert_eq!(
+            marker_width("\t- "),
+            6,
+            "a tab-nested item hangs by the stop plus its own bullet"
         );
     }
 

@@ -591,7 +591,7 @@ fn definitions(text: &str, constructs: &[(Range<usize>, Mark)], spans: &mut Vec<
     let mut at = 0usize;
     for line in text.split_inclusive('\n') {
         if let Some(label) = definition_label(line)
-            && !is_content(&verbatim, at)
+            && !covers(&verbatim, at)
         {
             spans.push(Span::new(
                 at + label.start..at + label.end,
@@ -747,19 +747,24 @@ fn escapes(text: &str, content: &[Range<usize>], spans: &mut Vec<Span>) {
         // A backslash the writer escaped is content of the run before this
         // one, not the marker of this one: `\\*` is a backslash and a star,
         // and greying the second backslash would grey one of their words.
-        if text.as_bytes()[before] == b'\\' && !is_content(content, before) {
+        if text.as_bytes()[before] == b'\\' && !covers(content, before) {
             spans.push(Span::new(before..run.start, Mark::Markup));
         }
     }
 }
 
-/// Whether `byte` is inside one of the content ranges.
+/// Whether `byte` is inside one of `ranges`.
 ///
-/// They are in order and do not overlap, so the one that could hold it is the
-/// first whose end is past it.
-fn is_content(content: &[Range<usize>], byte: usize) -> bool {
-    let at = content.partition_point(|run| run.end <= byte);
-    content.get(at).is_some_and(|run| run.start <= byte)
+/// `ranges` must be in order and not overlap — every caller's is, because the
+/// parser reports in source order — and that is what makes the one range which
+/// could hold `byte` the first whose end is past it, rather than a search.
+fn covers(ranges: &[Range<usize>], byte: usize) -> bool {
+    debug_assert!(
+        ranges.windows(2).all(|pair| pair[0].end <= pair[1].start),
+        "covers reads ranges in order and not overlapping, and was handed {ranges:?}"
+    );
+    let at = ranges.partition_point(|run| run.end <= byte);
+    ranges.get(at).is_some_and(|run| run.start <= byte)
 }
 
 /// Adds `at` as a span of `mark`, once the line ending is off the end of it.
