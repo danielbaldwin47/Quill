@@ -6,11 +6,13 @@
 //! Stats belong to a window; the Library and settings belong to the
 //! application.
 //!
-//! Nothing here styles anything yet: no Faces, no theme, no settings, no
-//! command-line flags. Those are the next three Scaffold tickets, and each has
-//! a place to land because this one put the window and the Editor in.
+//! The Faces are in: a Document is set in Quill Duo from the first launch. The
+//! settings, the command-line flags and the theme are the next Scaffold
+//! tickets, and each has a place to land because the window and the Editor are
+//! already here.
 
 mod editor;
+mod fonts;
 mod window;
 
 use gtk::gio::ApplicationFlags;
@@ -21,12 +23,24 @@ use gtk::prelude::*;
 const APP_ID: &str = "io.github.danielbaldwin47.Quill";
 
 fn main() -> glib::ExitCode {
+    // Before anything GTK: Pango builds its font map from the current
+    // fontconfig the first time it lays text out, and the Faces have to be in
+    // it by then. A writer whose Faces are missing gets a line on stderr and a
+    // working editor in whatever fontconfig does have, not a dead launch.
+    if let Err(err) = fonts::load_private(&quill_engine::data::fonts()) {
+        eprintln!("quill: {err}");
+    }
+
     let app = gtk::Application::builder()
         .application_id(APP_ID)
         // HANDLES_OPEN: the primary instance is handed the files, and the
         // second process exits. One Document per window, any number of windows.
         .flags(ApplicationFlags::HANDLES_OPEN)
         .build();
+
+    // Startup runs once, after GTK has a display and before any window: the
+    // place for the stylesheet every Editor reads.
+    app.connect_startup(|_| editor::install_face());
 
     // Launched with no file: an empty Editor, a Document with nothing in it.
     app.connect_activate(window::present_untitled);

@@ -8,11 +8,13 @@
 //!
 //! Most modules below are still stubs: they name the concept and the shape the
 //! feature tickets fill in, so a later agent adds to a place that already
-//! exists rather than inventing one.
+//! exists rather than inventing one. [`data`] is not one of them: every other
+//! module reads the files Quill ships through it.
 
 #![warn(missing_docs)]
 
 pub mod annotate;
+pub mod data;
 pub mod document;
 pub mod library;
 pub mod markdown;
