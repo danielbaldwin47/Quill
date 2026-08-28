@@ -1,4 +1,4 @@
-// Crop a region out of a reference image (PNG/WebP/JPG) to PNG. node tools/crop.mjs in.img out.png x y w h [scale=1]
+// Crop a region out of a reference image (PNG/WebP/JPG) to PNG. node legacy/tools/crop.mjs in.img out.png x y w h [scale=1]
 import { chromium } from 'playwright-core'; import fs from 'node:fs';
 const [inp, out, x, y, w, h, scale = '1'] = process.argv.slice(2);
 const mime = inp.endsWith('.webp') ? 'image/webp' : inp.endsWith('.jpg') || inp.endsWith('.jpeg') ? 'image/jpeg' : 'image/png';

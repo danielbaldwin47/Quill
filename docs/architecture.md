@@ -197,14 +197,18 @@ ships in Quill, because it is compatible with GPL-3.0 only and breaks "or-later"
 
 ## Repo migration
 
-One commit at the start of the build effort, before any Rust lands:
+One commit, once the Cargo workspace is standing beside the JavaScript app. The owner agreed at
+[#52](https://github.com/danielbaldwin47/Quill/issues/52)'s creation that the workspace lands first,
+so the move finds Rust already at the root rather than clearing the ground for it:
 
 - `app/`, `tools/{serve,shoot,crop,latency,smoke}.mjs`, `bin/quill`, `package.json` and the Node
   lockfile move under `legacy/` unchanged; `legacy/bin/quill` still launches the JavaScript app from
   the checkout. `tools/blind.mjs`, `tools/thumb.mjs`, `tools/progress.mjs`, `tools/uinput-keys.py`
   and `tools/idle-check.py` stay at the root: the Gate uses them for the native app.
-- `Cargo.toml` (workspace), `quill-engine/`, `quill/`, `tools/gate`, `tools/fontbuild.py` and
-  `fonts/` arrive at the root.
+- `Cargo.toml` (workspace), `quill-engine/`, `quill/`, `tools/fontbuild.py` and `fonts/` are at the
+  root by then; `tools/gate` joins them with the Gate tooling.
+- `legacy/LICENSE` is ISC, the licence the Node manifest always named; the root `LICENSE` stays
+  GPL-3.0-or-later, and the two halves of the tree are licensed apart.
 - `PKGBUILD` switches to the native binary in the same commit. The Feature tier hand-tests from the
   installed package, and the legacy app needs no installation to serve as the Parity oracle.
 - `README.md` and `CLAUDE.md` are rewritten for the new layout; `BRIEF.md` and `NOTES.md` move to

@@ -2,16 +2,16 @@
 # Quill — open the editor in its own window, with no browser chrome around it.
 # Owner: latency piece.
 #
-#   bin/quill                          open Quill (starts the local server if it is not running)
-#   bin/quill --fresh                  open it with a brand new browser profile (a true first run)
-#   bin/quill --measure                open it, print cold-start numbers as JSON, close it again
-#   bin/quill --measure --runs 5       repeat the cold start five times and report all of them
-#   bin/quill --measure --keys 300     also run the keystroke bench in that window, on the compositor
-#   bin/quill --measure --sessions 3   ... three times over, for a run-to-run interval
-#   bin/quill --measure --virtual      put the window on a virtual Hyprland output (the default)
-#   bin/quill --measure --ws 4         put it on workspace 4 of the real monitor instead
-#   bin/quill --measure --panel 3      ... AND show workspace 3 on the physical panel while it runs
-#   bin/quill --measure --uinput       type with real keys through /dev/uinput, not through CDP
+#   legacy/bin/quill                          open Quill (starts the local server if it is not running)
+#   legacy/bin/quill --fresh                  open it with a brand new browser profile (a true first run)
+#   legacy/bin/quill --measure                open it, print cold-start numbers as JSON, close it again
+#   legacy/bin/quill --measure --runs 5       repeat the cold start five times and report all of them
+#   legacy/bin/quill --measure --keys 300     also run the keystroke bench in that window, on the compositor
+#   legacy/bin/quill --measure --sessions 3   ... three times over, for a run-to-run interval
+#   legacy/bin/quill --measure --virtual      put the window on a virtual Hyprland output (the default)
+#   legacy/bin/quill --measure --ws 4         put it on workspace 4 of the real monitor instead
+#   legacy/bin/quill --measure --panel 3      ... AND show workspace 3 on the physical panel while it runs
+#   legacy/bin/quill --measure --uinput       type with real keys through /dev/uinput, not through CDP
 #
 # Cold start is timed from the moment this script is about to exec the browser (the server is
 # already up by then) to the first frame that actually shows the document. It therefore includes
@@ -30,7 +30,8 @@
 # output is removed again when the run finishes.
 set -euo pipefail
 
-ROOT=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)   # readlink: /usr/bin/quill is a symlink
+ROOT=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)   # legacy/: the JavaScript app and its own tools
+REPO=$(cd "$ROOT/.." && pwd)                                            # the repo root, where the Gate's helpers stay
 PORT=${QUILL_PORT:-4173}
 CHROME=${QUILL_CHROME:-/usr/bin/chromium}
 PROFILE=${QUILL_PROFILE:-$HOME/.cache/quill/browser}
@@ -135,7 +136,7 @@ case "$place" in
     else
       echo "quill: could not create a virtual output; refusing to open a window on the user's screen." >&2
       echo "       Use --ws N for a free workspace, --here with QUILL_HEADED_OK=1, or measure headless" >&2
-      echo "       with: node tools/latency.mjs" >&2
+      echo "       with: node legacy/tools/latency.mjs" >&2
       exit 3
     fi ;;
   workspace)
@@ -159,7 +160,7 @@ case "$place" in
     ORIG_WS=$(hyprctl activeworkspace -j | python3 -c "import json,sys;print(json.load(sys.stdin)['id'])")
     [ "$TARGET_WS" != "$ORIG_WS" ] || { echo "quill: workspace $ws is the one in use — refusing" >&2; exit 3; }
     [ "$TARGET_WS" != "1" ] || { echo "quill: workspace 1 is the user's — refusing" >&2; exit 3; }
-    if ! python3 "$ROOT/tools/idle-check.py" "$idle_window"; then
+    if ! python3 "$REPO/tools/idle-check.py" "$idle_window"; then
       echo "quill: somebody is using this machine — not taking the screen. Try again when it is idle," >&2
       echo "       or measure on a virtual output with --virtual (no panel scan-out in that number)." >&2
       exit 4
@@ -208,7 +209,7 @@ for run in $(seq 1 "$runs"); do
   # has to hold keyboard focus — on the panel, and just as much on a virtual output, where the
   # alternative is somebody's terminal. Hyprland 0.56's Lua dispatcher has no string form, so this
   # tries the forms that exist, then READS BACK the active window and refuses unless it is Quill.
-  # tools/latency.mjs then refuses a second time unless the page itself reports document.hasFocus()
+  # legacy/tools/latency.mjs then refuses a second time unless the page itself reports document.hasFocus()
   # with the caret in the textarea. Two independent guards, and the second one is the authority:
   # a Wayland client only reports focus if the compositor sent it keyboard enter.
   # Chromium's --app windows take their Wayland app_id from the URL, not from --class, so the
