@@ -57,6 +57,23 @@ export function stat(arr) {
   };
 }
 
+/// The milliseconds between one `write(2)` to `/dev/uinput` and the next.
+///
+/// A regime's pace and its pauses are declared in the result's `definition`, and a declaration is
+/// not evidence: what the injector *did* is in the timestamps it recorded. `p50` is what separates
+/// the 8, 45 and 90 ms regimes, and `max` with `over_a_second` is where `bursts_and_pauses` shows
+/// the 1.4 s it waits every 25 keys.
+///
+/// Taken within a session and never across two: the interval between the last key of one launch
+/// and the first of the next is a teardown and a launch, not a pace.
+export function writeGaps(sessions) {
+  const gaps = sessions.flatMap(
+    (sent) => sent.slice(1).map((key, i) => (key.t_ns - sent[i].t_ns) / 1e6),
+  );
+  if (!gaps.length) return null;
+  return { ...stat(gaps), over_a_second: gaps.filter((g) => g >= 1000).length };
+}
+
 // A p99 without an interval is a rumour. Percentile bootstrap, 2000 resamples, fixed seed so that
 // the interval is a property of the samples rather than of the run that computed it.
 export function ci(arr, p, resamples = 2000) {
@@ -232,6 +249,16 @@ export function verdict(stats, cold) {
 // `NaN`: a line the owner reads should say "not measured" in a way that reads as English.
 const say = (x) => (x == null ? '—' : String(x));
 
+/// The five numbers a bench line says, in the one order they are ever said in.
+///
+/// One regime's line and a whole run's line are read against each other — a `--all` run is twelve
+/// of the second under the first — so the shape they share is written once here. What follows the
+/// numbers is what differs: a single run names the bars, a regime in a run of twelve leaves them
+/// to `allSummary`.
+const numbers = (regime, said) => `gate bench ${regime}: ${said.pass ? 'pass' : 'fail'}`
+  + ` — mean ${say(said.mean_ms)} ms, worst ${say(said.worst_ms)} ms`
+  + `, p50 ${say(said.p50_ms)} ms, p99 ${say(said.p99_ms)} ms, cold ${say(said.cold_ms)} ms`;
+
 /// The whole of what `tools/gate bench` prints, as an array of lines.
 ///
 /// Three, in the order they are read: what the run consisted of, what it measured, and whether that
@@ -256,11 +283,135 @@ export function summary(regime, decided) {
       + `${say(r2(decided.stage_first_client))} ms and is not measured — ours is the launch after it`);
   }
   lines.push(
-    `gate bench ${regime}: ${said.pass ? 'pass' : 'fail'} — mean ${say(said.mean_ms)} ms`
-    + `, worst ${say(said.worst_ms)} ms, p50 ${say(said.p50_ms)} ms, p99 ${say(said.p99_ms)} ms`
-    + `, cold ${say(said.cold_ms)} ms`
+    numbers(regime, said)
     + ` (budget mean <= ${BUDGET.mean_ms}, worst <= ${BUDGET.worst_ms}, cold <= ${BUDGET.cold_ms} ms;`
     + ` oracle ${ORACLE.uinput_to_presented_ms}, ${ORACLE.worst_ms}, ${ORACLE.cold_ms} ms)`,
   );
   return lines;
+}
+
+/// One regime's line in a run of several.
+///
+/// A run of twelve is read down the left-hand edge, so each regime says the same five numbers in
+/// the same order and nothing else: the budget and the oracle are said once, at the end, by
+/// `allSummary`. The accounting is not repeated either — a regime whose keys do not add up never
+/// reaches this line, because the bench refuses it — except that a run kept for the record says so
+/// where it would otherwise read as a clean fail.
+export function regimeLine(regime, decided) {
+  const said = decided.verdict;
+  return numbers(regime, said)
+    + (decided.accounting.every_keystroke_accounted_for ? '' : ' — not every keystroke is accounted for');
+}
+
+/// The last line of a run of several: pass only when every regime in it cleared the budget.
+///
+/// `ran` is what was asked for — `--all`, or `--regimes a,b` — because a run of two that passed
+/// and a run of twelve that passed are not the same evidence, and the line the owner reads should
+/// not need the command scrolled back to to tell them apart.
+export function allSummary(ran, rows) {
+  const failed = rows.filter((r) => !r.pass).map((r) => r.regime);
+  return `gate bench ${ran}: ${failed.length ? 'fail' : 'pass'} — `
+    + `${rows.length - failed.length} of ${rows.length} regimes clear the budget`
+    + (failed.length ? `, not ${failed.join(', ')}` : '')
+    + ` (mean <= ${BUDGET.mean_ms}, worst <= ${BUDGET.worst_ms}, cold <= ${BUDGET.cold_ms} ms;`
+    + ` oracle ${ORACLE.uinput_to_presented_ms}, ${ORACLE.worst_ms}, ${ORACLE.cold_ms} ms)`;
+}
+
+// ---------- the latency Piece's verdict ----------
+//
+// The other eight Pieces are won by a critic looking at two pictures. This one is won by
+// subtraction, so the rule is written out here, next to the two sets of numbers it is a rule about,
+// and `tools/gate judge latency` does the file-reading and the ledger-writing around it.
+
+/// Every bar one regime is held to, furthest from its bar first.
+///
+/// Three for every regime — the Gate's hard budget — and two more for the headline regime, which is
+/// the one the Piece is won on: the oracle's own keystroke and cold-start numbers, which are what
+/// beating the Parity oracle means. A number that was never measured is not a number that passed,
+/// so it is placed further from its bar than any measured number can be.
+export function against(row, headline) {
+  const bars = [
+    { what: 'mean', ours: row.mean_ms, bar: BUDGET.mean_ms, whose: 'the budget' },
+    { what: 'worst', ours: row.worst_ms, bar: BUDGET.worst_ms, whose: 'the budget' },
+    { what: 'cold start', ours: row.cold_ms, bar: BUDGET.cold_ms, whose: 'the budget' },
+  ];
+  if (headline) {
+    bars.push({ what: 'mean', ours: row.mean_ms, bar: ORACLE.uinput_to_presented_ms, whose: 'the oracle', strict: true });
+    bars.push({ what: 'cold start', ours: row.cold_ms, bar: ORACLE.cold_ms, whose: 'the oracle', strict: true });
+  }
+  return bars
+    .map((b) => ({ ...b, regime: row.regime, ratio: b.ours == null ? Infinity : b.ours / b.bar }))
+    .sort((a, b) => b.ratio - a.ratio);
+}
+
+/// Whether one bar is cleared, and the two rules are not the same rule.
+///
+/// The budget is written with a `≤` — `docs/agents/gate.md` says "≤ 5 ms mean, ≤ 16 ms worst" — so
+/// a number exactly on it has cleared it. Beating the oracle is written as *under*: #41's rule is
+/// "the headline regime's mean under the oracle's 12.17 ms uinput → presented and cold start under
+/// 370 ms". A tie is therefore theirs, because drawing with the app we are trying to beat is not
+/// beating it. The distinction only ever decides an exact tie, which is why it is said here once
+/// rather than left to each reader of a ratio.
+export const clears = (bar) => (bar.strict ? bar.ratio < 1 : bar.ratio <= 1);
+
+// The ledger's two words for how far a verdict was from the bar. This one is arithmetic rather than
+// a critic's impression, so it is a distance: within a quarter of the bar either side of it is
+// narrow, and anything further out is clear.
+const marginOf = (ratio) => (ratio > 0.75 && ratio <= 1.25 ? 'narrow' : 'clear');
+
+const asPercent = (ratio) => (Number.isFinite(ratio) ? `${Math.round(ratio * 100)}% of it` : 'no number at all');
+
+/// The latency Piece's verdict over a whole `bench --all` summary.
+///
+/// Ours when every regime clears the budget and the headline regime is under the oracle's own
+/// keystroke and cold-start numbers — which is the rule as `docs/agents/gate.md` states it, with
+/// the budget as the floor and the oracle as what winning is measured against. One state per
+/// regime, because that is what a round has room to record and what a reader would want to see.
+export function latencyVerdict(summary) {
+  const rows = summary.regimes || [];
+  const headline = rows.find((r) => r.regime === summary.headline) || null;
+
+  const states = rows.map((row) => {
+    const bars = against(row, row.regime === summary.headline);
+    const tight = bars[0];
+    return {
+      name: row.regime,
+      result: row.file,
+      winner: bars.every(clears) ? 'ours' : 'theirs',
+      mean_ms: row.mean_ms,
+      worst_ms: row.worst_ms,
+      p50_ms: row.p50_ms,
+      p99_ms: row.p99_ms,
+      cold_ms: row.cold_ms,
+      closest_bar: `${tight.what} ${say(tight.ours)} ms against ${tight.whose}'s ${tight.bar} ms`,
+      at: asPercent(tight.ratio),
+    };
+  });
+
+  const tightest = rows
+    .flatMap((row) => against(row, row.regime === summary.headline))
+    .sort((a, b) => b.ratio - a.ratio)[0] || null;
+
+  const gap = tightest === null
+    ? 'The run measured no regimes, so there is nothing to hold to a bar.'
+    : `${tightest.regime} is ${clears(tightest) ? 'the closest to a bar' : 'past a bar'}: `
+      + `${tightest.what} ${say(tightest.ours)} ms against ${tightest.whose}'s ${tightest.bar} ms, `
+      + `${asPercent(tightest.ratio)}.`;
+
+  const gapTheirs = headline === null
+    ? `The run has no ${summary.headline} in it, so there is nothing to put beside the Parity `
+      + `oracle's ${ORACLE.uinput_to_presented_ms} ms uinput → presented and ${ORACLE.cold_ms} ms cold.`
+    : `The Parity oracle is ${ORACLE.uinput_to_presented_ms} ms uinput → presented and `
+      + `${ORACLE.cold_ms} ms cold; ours at ${summary.headline} is ${say(headline.mean_ms)} ms and `
+      + `${say(headline.cold_ms)} ms.`;
+
+  return {
+    winner: states.length && states.every((s) => s.winner === 'ours') ? 'ours' : 'theirs',
+    margin: tightest === null ? 'clear' : marginOf(tightest.ratio),
+    gap,
+    gapTheirs,
+    verdict: (summary.lines || []).join('\n'),
+    states,
+    tightest,
+  };
 }

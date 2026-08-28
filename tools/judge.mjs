@@ -47,10 +47,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { BUDGET, ORACLE, latencyVerdict } from './bench-join.mjs';
 import { pair, pairDir, reveal } from './blind.mjs';
 import { gitHead, sha256 } from './fingerprint.mjs';
 import { APP_ID, compositorAvailable, openStage, quillArgv } from './harness.mjs';
 import { fingerprint, freezeReason, readStates, resolveStates, unservable } from './oracle.mjs';
+import { regimes } from './regimes.mjs';
 import { nextRound, opponentName, round, rounds, wonBefore } from './rounds.mjs';
 
 // The opponent this command judges against while `legacy/` exists, and the word the round records
@@ -176,10 +178,14 @@ function run(command, argv, { cwd, timeout }) {
 // ---------- the command ----------
 
 function usage(where = process.stderr) {
-  where.write(`usage: tools/gate judge <piece> [--note <text>]
+  where.write(`usage: tools/gate judge <piece> [--note <text>] [--summary <file>]
 
   The Pieces with judged states are the keys of "pieces" in
   shots/oracle/states.json. What the command does: tools/gate --help
+
+  latency is judged on numbers rather than by a critic: it reads the newest
+  shots/latency/summary-*.json that tools/gate bench --all wrote, or the one
+  --summary names, and answers with arithmetic.
 `);
 }
 
@@ -234,11 +240,15 @@ async function main(argv) {
 
   let piece = null;
   let note = '';
+  let summaryFile = null;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--note') {
       note = argv[++i];
       if (note === undefined) { process.stderr.write('gate judge: --note takes the text to record\n'); usage(); return 3; }
+    } else if (a === '--summary') {
+      summaryFile = argv[++i];
+      if (summaryFile === undefined) { process.stderr.write('gate judge: --summary takes the bench summary to read\n'); usage(); return 3; }
     } else if (a === '-h' || a === '--help') { usage(process.stdout); return 0; }
     else if (a.startsWith('-')) { process.stderr.write(`gate judge: ${a}: not a flag this command has\n`); usage(); return 3; }
     else if (piece === null) piece = a;
@@ -247,14 +257,128 @@ async function main(argv) {
   if (piece === null) { usage(); return 3; }
   openLog(root, piece);
 
-  try { return await judge(root, piece, note); }
+  try { return await judge(root, piece, note, summaryFile); }
   catch (e) {
     say(`gate judge ${piece}: ${e.message}`);
     return refuse(piece, 'the run broke before a verdict');
   }
 }
 
-async function judge(root, piece, note) {
+// Where `tools/gate bench --all` leaves what this reads, and the oracle's own report beside it.
+const SUMMARIES = 'shots/latency';
+const ORACLE_REPORT = 'progress/latency-report.md';
+
+// The newest summary a bench run wrote, by the stamp in its name — which sorts by time because it
+// is `YYYYMMDDTHHMMSS`, and is the run's own idea of when it happened rather than the file
+// system's, so a checkout does not reorder them.
+function newestSummary(root) {
+  const dir = path.join(root, SUMMARIES);
+  if (!fs.existsSync(dir)) return null;
+  const found = fs.readdirSync(dir).filter((f) => /^summary-.*\.json$/.test(f)).sort();
+  return found.length ? path.join(SUMMARIES, found[found.length - 1]) : null;
+}
+
+/// The latency Piece's round: arithmetic over a bench run, recorded in the ledger's own shape.
+///
+/// No window, no critic and no build. What decides it is `latencyVerdict` in `tools/bench-join.mjs`
+/// — the budget as the floor and the Parity oracle's own numbers as what winning means — and what
+/// this does is find the run, refuse the ones that are not evidence, and write the round.
+async function judgeLatency(root, note, named) {
+  const file = named ? path.relative(root, path.resolve(root, named)) : newestSummary(root);
+  if (!file || !fs.existsSync(path.join(root, file))) {
+    say(`gate judge latency: no bench summary ${named ? `at ${named}` : `under ${SUMMARIES}/`}`);
+    return refuse('latency', named
+      ? `${named} is not a file to read`
+      : 'there is no bench run to judge; tools/gate bench --all writes one');
+  }
+
+  let summary;
+  try { summary = JSON.parse(fs.readFileSync(path.join(root, file), 'utf8')); }
+  catch (e) {
+    say(`gate judge latency: ${file}: ${e.message}`);
+    return refuse('latency', `${file} is not a bench summary`);
+  }
+
+  // A subset run is a real measurement and not a verdict on the Piece: the rule is every regime
+  // within budget, so a round written from two of them would be recording a win nobody had.
+  //
+  // Asked of the regimes the summary actually holds, never of `ran`: that is the line the run
+  // printed for a human to read, and a verdict that turned on its exact wording would be one
+  // rewording away from judging a subset as though it were the whole twelve.
+  const held = new Set((summary.regimes || []).map((row) => row.regime));
+  const short = (summary.regimes_not_run || []).concat(
+    regimes().map((r) => r.name).filter((name) => !held.has(name)),
+  );
+  if (short.length) {
+    say(`gate judge latency: ${file} ran ${summary.ran}, and the Piece is judged on all twelve`);
+    return refuse('latency', `${file} is not a whole run — ${short.join(', ')} missing`);
+  }
+  if ((summary.regimes_unaccounted_for || []).length) {
+    return refuse('latency', `${file} could not account for every keystroke in `
+      + `${summary.regimes_unaccounted_for.join(', ')}`);
+  }
+
+  const said = latencyVerdict(summary);
+  const recorded = rounds(root, 'latency');
+  const number = nextRound(recorded);
+  const oracle = `${ORACLE_REPORT} — the Parity oracle's own numbers, measured by `
+    + `legacy/tools/latency.mjs on the JavaScript app as it won its gauntlet: ${ORACLE.mean_ms} ms mean, `
+    + `${ORACLE.worst_ms} ms worst, ${ORACLE.uinput_to_presented_ms} ms uinput → presented, `
+    + `${ORACLE.cold_ms} ms cold. Not a screenshot piece — the pair is a run against a report.`;
+
+  const written = round({
+    piece: 'latency',
+    number,
+    judged: said.states,
+    opponent: OPPONENT,
+    // The commit is not the build when the tree was dirty, and a round that quotes only the commit
+    // invites a later reader to check out `5f1311a` and wonder why the numbers will not come back.
+    // Taken from the fingerprint, which is where the fact is recorded, rather than from the
+    // summary's `build`, which is the short form for a human reading the run.
+    build: { ...summary.build, dirty: summary.fingerprint?.app?.tree_was_dirty ?? null },
+    oracle,
+    note,
+    at: new Date().toISOString(),
+    // The pair this round names is the whole run against the oracle's report, which is not
+    // something any one regime says — see `round` in tools/rounds.mjs.
+    headline: {
+      margin: said.margin,
+      gap: said.gap,
+      gapTheirs: said.gapTheirs,
+      verdict: said.verdict,
+      ours: file,
+      theirs: ORACLE_REPORT,
+      secondary: [
+        `budget: mean <= ${BUDGET.mean_ms} ms, worst <= ${BUDGET.worst_ms} ms, cold <= ${BUDGET.cold_ms} ms`,
+        `won by beating the oracle at ${summary.headline}, not by clearing the budget`,
+        `bench run: ${summary.ran} at ${summary.at}`,
+      ],
+    },
+  });
+
+  const out = path.join(root, 'progress/rounds', `latency-r${number}.json`);
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  fs.writeFileSync(out, `${JSON.stringify(written, null, 2)}\n`);
+  say(`gate judge latency: wrote ${path.relative(root, out)}`);
+
+  if (written.winner === 'ours') { verdict('latency', 'ours', number); return 0; }
+
+  const won = wonBefore(recorded);
+  if (won) {
+    console.log(`gate judge latency: this Piece was won in round ${won.round} against the ${opponentName(won)} and is lost now (docs/agents/gate.md: a Piece once won is never lost)`);
+    verdict('latency', 'theirs', number);
+    return 2;
+  }
+  verdict('latency', 'theirs', number);
+  return 1;
+}
+
+async function judge(root, piece, note, summaryFile) {
+  // The latency Piece is not shot and not paired: its opponent is a set of numbers, so its round is
+  // arithmetic over what `tools/gate bench --all` already measured. Answered before anything below
+  // opens a window or builds a binary, because none of that is needed to read two files.
+  if (piece === 'latency') return judgeLatency(root, note, summaryFile);
+
   const states = readStates(root);
   let resolved;
   try { resolved = resolveStates(states, piece); }
@@ -264,9 +388,7 @@ async function judge(root, piece, note) {
   }
 
   if (resolved.length === 0) {
-    return refuse(piece, piece === 'latency'
-      ? 'the latency Piece is benched, not judged — tools/gate bench'
-      : 'this Piece has no judged states');
+    return refuse(piece, 'this Piece has no judged states');
   }
 
   // Every refusal, for every state, before a window opens. The order is cheapest first and each one

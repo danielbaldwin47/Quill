@@ -34,11 +34,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { BUDGET, measure, summary, verdict } from './bench-join.mjs';
+import {
+  BUDGET, ORACLE, allSummary, measure, regimeLine, summary, verdict, writeGaps,
+} from './bench-join.mjs';
 import { gitHead } from './fingerprint.mjs';
 import { APP_ID, compositorAvailable, openStage } from './harness.mjs';
 import {
-  DEFAULT_KEYS, WARMUP_KEYS, hash32, regimes, script, uinputPlan,
+  DEFAULT_KEYS, PASTE_TEXT, WARMUP_KEYS, hash32, regimes, script, uinputPlan,
 } from './regimes.mjs';
 
 // The binary a bench is of. Release rather than debug, for the reason a judged shot is: the Gate
@@ -101,11 +103,17 @@ function refuse(why) {
 }
 
 function usage(to = process.stderr) {
-  to.write(`usage: tools/gate bench [regime] [--keys N] [--sessions N]
+  to.write(`usage: tools/gate bench [regime] [--all] [--regimes a,b] [--keys N] [--sessions N]
 
   regime       which of the twelve to type; ${HEADLINE} by default
+  --all        every one of the twelve, one line each and one line for the run
+  --regimes    just these, by name, separated by commas
   --keys N     keys measured per session (${DEFAULT_KEYS} by default, the oracle's count)
   --sessions N launch and type this many times, for a run-to-run interval (1 by default)
+
+A regime name, --all and --regimes each say which regimes to run, so only one of them may be given.
+A run of several writes ${RESULTS}/summary-<stamp>.json beside the per-regime results, which is what
+tools/gate judge latency reads.
 `);
 }
 
@@ -248,15 +256,54 @@ function capture(file) {
   return keys;
 }
 
-// The command line every launch of a bench uses, warm-up and measured alike: the judged states'
-// window size, the 10k-word document, and the caret at the end of it because that is where the
-// headline regime types. Only the capture file differs, which is why it is the one argument.
-function launchArgv(root, out) {
+/// Where the regime says the writer is, in the flag the app takes.
+///
+/// `end` is the flag's own word. `middle` is the first line break past half the document — the
+/// same rule `legacy/tools/latency.mjs` applies, so that the two benches type into the same
+/// paragraph — except that the app counts UTF-8 bytes where the browser counted characters, so the
+/// search is done on the bytes and the offset is a byte offset.
+// Read once. It is a fact about a file that does not change under a run, and a run asks for it
+// twice per launch — once for the command line, once for the result's `definition`.
+let middleOfDoc = null;
+
+function caretFor(root, where) {
+  if (where !== 'middle') return 'end';
+  if (middleOfDoc === null) {
+    const doc = fs.readFileSync(path.join(root, DOC));
+    const half = Math.floor(doc.length / 2);
+    const at = doc.indexOf(0x0a, half);
+    middleOfDoc = String(at < 0 ? half : at);
+  }
+  return middleOfDoc;
+}
+
+// The command line one regime's launches use, warm-up and measured alike: the judged states'
+// window size, the 10k-word document, and the caret and Focus the regime asks for, because where
+// the writer is and how much of the draft is dimmed are two of the things a regime varies.
+function launchArgv(root, out, regime) {
   return [
     '--deterministic', '--measure', out,
-    '--text', path.join(root, DOC), '--caret', 'end',
+    '--text', path.join(root, DOC), '--caret', caretFor(root, regime.where),
+    '--focus', regime.focus || 'off',
     '--w', String(WINDOW.w), '--h', String(WINDOW.h),
   ];
+}
+
+/// Puts the regime's passage on the clipboard, for the regimes that paste.
+///
+/// `Control+v` pastes whatever the compositor is holding, so without this a paste regime measures
+/// whatever the owner last copied — or, on a machine where nothing has been copied, a keystroke
+/// that changes no text and so produces no frame, which the accounting would then refuse. The text
+/// goes in over stdin rather than as an argument because `wl-copy` adds a newline to an argument
+/// and the passage's own trailing blank line is part of what is being pasted.
+///
+/// Both of its output streams are discarded rather than captured, and that is not tidiness. The
+/// parent `wl-copy` exits at once, but the server it forks to hold the selection lives until
+/// something replaces it — and it inherits whatever it was given, so a captured pipe is one this
+/// call then waits on for an end-of-file that only arrives when the clipboard changes hands. That
+/// is a bench that types eleven regimes and then hangs for ever on the twelfth.
+function loadClipboard(text) {
+  execFileSync('wl-copy', ['--type', 'text/plain'], { input: text, stdio: ['pipe', 'ignore', 'ignore'] });
 }
 
 /// Opens and closes one window on the stage, and answers with the cold start it saw.
@@ -267,8 +314,8 @@ function launchArgv(root, out) {
 /// and charging it to the app would be measuring the harness. So the stage is warmed exactly as the
 /// app is warmed before the measured keys, and this launch's own number is kept in the result
 /// beside the measured ones rather than thrown away, so that the difference is on the record.
-async function warmStage(root, stage) {
-  const first = await stage.launch(path.join(root, BINARY), launchArgv(root, path.join(stage.tmp, 'capture-warmup.jsonl')));
+async function warmStage(root, stage, regime) {
+  const first = await stage.launch(path.join(root, BINARY), launchArgv(root, path.join(stage.tmp, 'capture-warmup.jsonl'), regime));
   await sleep(SETTLE_MS);
   const cold = /^cold start: ([\d.]+) ms$/m.exec(first.said());
   stage.kill(first.child);
@@ -284,7 +331,7 @@ async function runSession(root, stage, { regime, keys, index }) {
 
   // `$QUILL_T0_NS` is stamped inside `launch`, immediately before the exec — see there for why it
   // cannot be stamped from here.
-  const ours = await stage.launch(path.join(root, BINARY), launchArgv(root, out));
+  const ours = await stage.launch(path.join(root, BINARY), launchArgv(root, out, regime));
 
   try {
     if (!(await stage.focused(ours.address))) {
@@ -298,10 +345,11 @@ async function runSession(root, stage, { regime, keys, index }) {
     await sleep(SETTLE_MS);
     const before = capture(out).length;
 
-    const planned = uinputPlan(script(regime.mix, keys, hash32(regime.name)), regime.pace);
+    const planned = uinputPlan(script(regime.mix, keys, hash32(regime.name)), regime.pace,
+      { pauseEvery: regime.pauseEvery, pauseMs: regime.pauseMs });
     if (planned.first_unexpressible) {
       throw new Error(`${regime.name} reaches ${planned.first_unexpressible.press} at step `
-        + `${planned.first_unexpressible.at}, which the injector cannot type yet (#65)`);
+        + `${planned.first_unexpressible.at}, which the injector cannot type`);
     }
     say(`gate bench: typing ${planned.keys} keys at ${planned.plan.pace_ms} ms`);
     const wrote = await typeKeys(root, planned.plan, () => stage.holds(ours.address));
@@ -326,40 +374,21 @@ async function runSession(root, stage, { regime, keys, index }) {
 
 // ---------- the run ----------
 
-async function bench(root, { regime, keys, sessions }) {
-  if (!compositorAvailable()) {
-    say('gate bench: no Hyprland to open a window on; real keys need the compositor '
-      + '(docs/research/native-harness.md)');
-    return refuse('there is no compositor to type on');
-  }
+/// One regime, measured: its sessions, pooled, and written to its own result file.
+///
+/// The stage is the caller's, because opening one costs a compositor output and the twelve regimes
+/// of a release run share it. The launch is not shared: every regime gets its own, so the caret it
+/// types at, the Focus it runs under and the cold start it reports are its own and not the last
+/// regime's.
+async function benchOne(root, stage, { regime, keys, sessions, warmup }) {
+  // Loaded before the first launch rather than once for the whole run, so that a regime which
+  // pastes is pasting its own passage even when the owner used the clipboard between regimes.
+  if (regime.mix === 'paste') loadClipboard(PASTE_TEXT);
 
-  say(`gate bench: building ${BINARY}`);
-  try {
-    execFileSync('cargo', ['build', '--release'], {
-      cwd: root, stdio: ['ignore', 'ignore', 'pipe'], maxBuffer: BUILD_OUTPUT_MAX,
-    });
-  } catch (e) {
-    const said = String(e.stderr || '').trim();
-    if (said) say(said);
-    return refuse('the binary would not build');
-  }
-
-  const stage = await openStage({ root });
   const runs = [];
-  let warmup = null;
-  try {
-    stage.rules({ w: WINDOW.w, h: WINDOW.h, initialFocus: true });
-    warmup = await warmStage(root, stage);
-    say(`gate bench: the stage's first client cold-started in ${warmup} ms, and is not measured`);
-    for (let index = 0; index < sessions; index += 1) {
-      say(`gate bench: session ${index + 1} of ${sessions}`);
-      runs.push(await runSession(root, stage, { regime, keys, index }));
-    }
-  } catch (e) {
-    say(String(e.stack || e.message));
-    return refuse(e.message.split('\n')[0]);
-  } finally {
-    stage.close();
+  for (let index = 0; index < sessions; index += 1) {
+    say(`gate bench: ${regime.name}, session ${index + 1} of ${sessions}`);
+    runs.push(await runSession(root, stage, { regime, keys, index }));
   }
 
   // Pooled across sessions: the budget is a property of the app, not of one launch of it.
@@ -376,6 +405,8 @@ async function bench(root, { regime, keys, sessions }) {
     regime: regime.name,
     definition: {
       mix: regime.mix, where: regime.where, pace_ms: regime.pace, focus: regime.focus,
+      caret: caretFor(root, regime.where),
+      pause_every_keys: regime.pauseEvery ?? null, pause_ms: regime.pauseEvery ? (regime.pauseMs || 1200) : null,
       keys_per_session: keys, sessions, warmup_keys: WARMUP_KEYS,
     },
     budget: BUDGET,
@@ -395,32 +426,145 @@ async function bench(root, { regime, keys, sessions }) {
       stage_first_client: warmup,
     },
     sessions_mean_ms: runs.map((r) => measure(r.sent, r.seen).uinput_write_to_presented_ms?.mean ?? null),
+    // What the injector did between keys, against what `definition` said it would.
+    write_gaps_ms: writeGaps(runs.map((r) => r.sent)),
     fingerprint: fingerprint(root, stage),
   };
 
-  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..*/, '');
-  const file = path.join(RESULTS, `bench-${regime.name}-${stamp}.json`);
+  const file = path.join(RESULTS, `bench-${regime.name}-${stamp()}.json`);
   fs.mkdirSync(path.join(root, RESULTS), { recursive: true });
   fs.writeFileSync(path.join(root, file), `${JSON.stringify(result, null, 2)}\n`);
   say(`gate bench: wrote ${file}`);
 
-  // A run whose keys cannot all be accounted for has not measured slowly, it has measured something
-  // else. Refused rather than reported, so a mean over whichever keys survived never reaches a
-  // ticket as evidence.
-  if (!decided.accounting.every_keystroke_accounted_for) {
-    say(JSON.stringify(decided.accounting, null, 2));
-    const lost = runs.some((r) => r.stopped_because_focus_was_lost);
-    return refuse(lost
-      ? `focus was taken away mid-run; ${file} records where it stopped`
-      : `not every keystroke is accounted for; the numbers are in ${file}`);
+  return {
+    regime: regime.name,
+    file,
+    result,
+    said,
+    // The one shape both `summary` and `regimeLine` read, built once here so that the lines a run
+    // of one prints and the lines a run of twelve prints cannot be assembled two different ways.
+    reported: { accounting: decided.accounting, verdict: said, stage_first_client: warmup },
+    lost: runs.some((r) => r.stopped_because_focus_was_lost),
+  };
+}
+
+// The stamp a result file is named by: one second's resolution, which is finer than a regime runs.
+const stamp = () => new Date().toISOString().replace(/[-:]/g, '').replace(/\..*/, '');
+
+async function bench(root, { ran, chosen, keys, sessions }) {
+  if (!compositorAvailable()) {
+    say('gate bench: no Hyprland to open a window on; real keys need the compositor '
+      + '(docs/research/native-harness.md)');
+    return refuse('there is no compositor to type on');
   }
 
-  for (const line of summary(regime.name, {
-    accounting: decided.accounting, verdict: said, stage_first_client: warmup,
-  })) {
-    console.log(line);
+  say(`gate bench: building ${BINARY}`);
+  try {
+    execFileSync('cargo', ['build', '--release'], {
+      cwd: root, stdio: ['ignore', 'ignore', 'pipe'], maxBuffer: BUILD_OUTPUT_MAX,
+    });
+  } catch (e) {
+    const said = String(e.stderr || '').trim();
+    if (said) say(said);
+    return refuse('the binary would not build');
   }
-  return said.pass ? 0 : 1;
+
+  const stage = await openStage({ root });
+  const done = [];
+  let warmup = null;
+  try {
+    stage.rules({ w: WINDOW.w, h: WINDOW.h, initialFocus: true });
+    warmup = await warmStage(root, stage, chosen[0]);
+    say(`gate bench: the stage's first client cold-started in ${warmup} ms, and is not measured`);
+    for (const regime of chosen) {
+      const one = await benchOne(root, stage, { regime, keys, sessions, warmup });
+      done.push(one);
+      // Focus going somewhere else is the one thing that stops the rest of the run: the keys after
+      // it would be typed into whatever took the focus, and no later regime's number would be of
+      // this app. Every other kind of short run is said and carried on from.
+      if (one.lost) break;
+    }
+  } catch (e) {
+    say(String(e.stack || e.message));
+    return refuse(e.message.split('\n')[0]);
+  } finally {
+    stage.close();
+  }
+
+  // What was asked for decides how it is said: a bare `gate bench [regime]` is one regime and the
+  // three lines #64 settled, and `--all` or `--regimes` is a run, however many regimes are in it.
+  return ran === null ? oneSaid(done[0]) : manySaid(root, { ran, chosen, done, warmup });
+}
+
+/// What one regime's run prints, and the code it exits with.
+///
+/// A run whose keys cannot all be accounted for has not measured slowly, it has measured something
+/// else. Refused rather than reported, so that a mean over whichever keys survived never reaches a
+/// ticket as evidence.
+function oneSaid(one) {
+  if (!one.reported.accounting.every_keystroke_accounted_for) {
+    say(JSON.stringify(one.reported.accounting, null, 2));
+    return refuse(one.lost
+      ? `focus was taken away mid-run; ${one.file} records where it stopped`
+      : `not every keystroke is accounted for; the numbers are in ${one.file}`);
+  }
+  for (const line of summary(one.regime, one.reported)) console.log(line);
+  return one.said.pass ? 0 : 1;
+}
+
+/// What a run of several regimes prints, and the code it exits with.
+///
+/// One line per regime and then one line for the run, and a summary file beside the per-regime
+/// results holding what those lines say — because the release check and `tools/gate judge latency`
+/// both ask the same question of a whole run, and neither should have to reopen twelve files and
+/// decide for itself which twelve they were.
+function manySaid(root, { ran, chosen, done, warmup }) {
+  const rows = done.map((one) => ({
+    regime: one.regime,
+    file: one.file,
+    ...one.said,
+    every_keystroke_accounted_for: one.reported.accounting.every_keystroke_accounted_for,
+  }));
+  // A regime that never ran is not a regime that passed. The run is short, and the summary says so
+  // by name rather than by a count the reader has to do themselves.
+  const missing = chosen.slice(done.length).map((r) => r.name);
+  const unaccounted = rows.filter((r) => !r.every_keystroke_accounted_for).map((r) => r.regime);
+
+  // Written before anything is printed, and holding the printed lines themselves, because the file
+  // is the run's own record of what it said: `tools/gate judge latency` reads it rather than
+  // re-deriving a verdict from twelve result files and hoping it phrases it the same way.
+  const whole = !missing.length && !unaccounted.length;
+  const lines = done.map((one) => regimeLine(one.regime, one.reported));
+  if (whole) lines.push(allSummary(ran, rows));
+
+  const file = path.join(RESULTS, `summary-${stamp()}.json`);
+  fs.writeFileSync(path.join(root, file), `${JSON.stringify({
+    ran,
+    at: new Date().toISOString(),
+    budget: BUDGET,
+    oracle: ORACLE,
+    headline: HEADLINE,
+    regimes: rows,
+    regimes_not_run: missing,
+    regimes_unaccounted_for: unaccounted,
+    stage_first_client_ms: warmup,
+    pass: whole && rows.every((r) => r.pass),
+    lines,
+    build: {
+      git: done[0]?.result.fingerprint.app.git_head ?? null,
+      binary: done[0]?.result.fingerprint.app.sha256 ?? null,
+    },
+    fingerprint: done[0]?.result.fingerprint ?? null,
+  }, null, 2)}\n`);
+  say(`gate bench: wrote ${file}`);
+
+  for (const line of lines) console.log(line);
+  if (!whole) {
+    return refuse(missing.length
+      ? `${missing.join(', ')} never ran; ${file} records how far the run got`
+      : `not every keystroke is accounted for in ${unaccounted.join(', ')}; the numbers are in ${file}`);
+  }
+  return rows.every((r) => r.pass) ? 0 : 1;
 }
 
 async function main(argv) {
@@ -428,6 +572,8 @@ async function main(argv) {
   process.chdir(root);
 
   let name = null;
+  let all = false;
+  let subset = null;
   let keys = DEFAULT_KEYS;
   let sessions = 1;
   for (let i = 0; i < argv.length; i += 1) {
@@ -440,6 +586,13 @@ async function main(argv) {
         return 3;
       }
       if (a === '--keys') keys = n; else sessions = n;
+    } else if (a === '--all') { all = true; } else if (a === '--regimes') {
+      subset = String(argv[i += 1] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+      if (!subset.length) {
+        process.stderr.write('gate bench: --regimes takes regime names separated by commas\n');
+        usage();
+        return 3;
+      }
     } else if (a === '-h' || a === '--help') { usage(process.stdout); return 0; } else if (a.startsWith('-')) {
       process.stderr.write(`gate bench: ${a}: not a flag this command has\n`);
       usage();
@@ -451,17 +604,47 @@ async function main(argv) {
     }
   }
 
-  const regime = regimes().find((r) => r.name === (name ?? HEADLINE));
-  if (!regime) {
-    process.stderr.write(`gate bench: ${name}: not one of the twelve regimes `
-      + `(${regimes().map((r) => r.name).join(', ')})\n`);
+  const known = regimes();
+  const asked = [name, all ? '--all' : null, subset ? '--regimes' : null].filter(Boolean);
+  if (asked.length > 1) {
+    process.stderr.write(`gate bench: ${asked.join(' and ')} both say which regimes to run; pick one\n`);
     usage();
     return 3;
   }
 
+  // `ran` is null for a bare `gate bench [regime]` and the flag itself otherwise, because it is
+  // both what decides the shape of the output and what the summary file records as the run.
+  let ran = null;
+  let chosen = [];
+  if (all) {
+    ran = '--all';
+    chosen = known;
+  } else if (subset) {
+    ran = `--regimes ${subset.join(',')}`;
+    for (const want of subset) {
+      const found = known.find((r) => r.name === want);
+      if (!found) {
+        process.stderr.write(`gate bench: ${want}: not one of the twelve regimes `
+          + `(${known.map((r) => r.name).join(', ')})\n`);
+        usage();
+        return 3;
+      }
+      chosen.push(found);
+    }
+  } else {
+    const regime = known.find((r) => r.name === (name ?? HEADLINE));
+    if (!regime) {
+      process.stderr.write(`gate bench: ${name}: not one of the twelve regimes `
+        + `(${known.map((r) => r.name).join(', ')})\n`);
+      usage();
+      return 3;
+    }
+    chosen = [regime];
+  }
+
   openLog(root);
   try {
-    return await bench(root, { regime, keys, sessions });
+    return await bench(root, { ran, chosen, keys, sessions });
   } catch (e) {
     say(String(e.stack || e.message));
     return refuse(e.message.split('\n')[0]);

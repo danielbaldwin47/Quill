@@ -1,0 +1,171 @@
+{
+  "piece": "latency",
+  "round": 5,
+  "winner": "theirs",
+  "margin": "clear",
+  "gap": "saturation_stress is past a bar: mean 24.43 ms against the budget's 5 ms, 489% of it.",
+  "gapTheirs": "The Parity oracle is 12.17 ms uinput → presented and 370 ms cold; ours at prose_end_of_draft is 2.47 ms and 139.31 ms.",
+  "verdict": "gate bench prose_end_of_draft: pass — mean 2.47 ms, worst 8.03 ms, p50 1.98 ms, p99 7.56 ms, cold 139.31 ms\ngate bench prose_middle_of_draft: pass — mean 2.41 ms, worst 8.09 ms, p50 2.18 ms, p99 7.41 ms, cold 177.74 ms\ngate bench prose_focus_sentence: pass — mean 2.66 ms, worst 9.21 ms, p50 2.26 ms, p99 7.86 ms, cold 148.64 ms\ngate bench paragraph_breaks: pass — mean 2.92 ms, worst 11.97 ms, p50 2.23 ms, p99 10.69 ms, cold 162.4 ms\ngate bench revision: pass — mean 2.96 ms, worst 9.17 ms, p50 2.5 ms, p99 9.05 ms, cold 138.56 ms\ngate bench markdown_syntax: fail — mean 2.4 ms, worst 10.93 ms, p50 1.91 ms, p99 7.86 ms, cold 283.34 ms\ngate bench fence_flip: pass — mean 2.74 ms, worst 8.77 ms, p50 2.19 ms, p99 8.32 ms, cold 151.4 ms\ngate bench paste_blocks: pass — mean 2.27 ms, worst 12.68 ms, p50 1.79 ms, p99 9.5 ms, cold 143.93 ms\ngate bench letters_only_r1: pass — mean 2.57 ms, worst 8.59 ms, p50 2.13 ms, p99 7.33 ms, cold 139.15 ms\ngate bench bursts_and_pauses: fail — mean 2.25 ms, worst 11.05 ms, p50 1.88 ms, p99 7.07 ms, cold 311.08 ms\ngate bench fast_typist: pass — mean 2.66 ms, worst 11.04 ms, p50 2.03 ms, p99 8.43 ms, cold 140.99 ms\ngate bench saturation_stress: fail — mean 24.43 ms, worst 33.44 ms, p50 24.62 ms, p99 33.26 ms, cold 133.81 ms\ngate bench --all: fail — 9 of 12 regimes clear the budget, not markdown_syntax, bursts_and_pauses, saturation_stress (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)",
+  "oursShot": "shots/latency/summary-20260828T163529.json",
+  "theirsShot": "progress/latency-report.md",
+  "refSource": "progress/latency-report.md — the Parity oracle's own numbers, measured by legacy/tools/latency.mjs on the JavaScript app as it won its gauntlet: 2.43 ms mean, 15.61 ms worst, 12.17 ms uinput → presented, 370 ms cold. Not a screenshot piece — the pair is a run against a report.",
+  "builderNote": "",
+  "secondary": [
+    "budget: mean <= 5 ms, worst <= 16 ms, cold <= 250 ms",
+    "won by beating the oracle at prose_end_of_draft, not by clearing the budget",
+    "bench run: --all at 2026-08-28T16:35:29.677Z"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "5f1311a",
+    "binary": "454ec469f4a1d3c4",
+    "dirty": true
+  },
+  "states": [
+    {
+      "name": "prose_end_of_draft",
+      "result": "shots/latency/bench-prose_end_of_draft-20260828T162915.json",
+      "winner": "ours",
+      "mean_ms": 2.47,
+      "worst_ms": 8.03,
+      "p50_ms": 1.98,
+      "p99_ms": 7.56,
+      "cold_ms": 139.31,
+      "closest_bar": "cold start 139.31 ms against the budget's 250 ms",
+      "at": "56% of it"
+    },
+    {
+      "name": "prose_middle_of_draft",
+      "result": "shots/latency/bench-prose_middle_of_draft-20260828T162951.json",
+      "winner": "ours",
+      "mean_ms": 2.41,
+      "worst_ms": 8.09,
+      "p50_ms": 2.18,
+      "p99_ms": 7.41,
+      "cold_ms": 177.74,
+      "closest_bar": "cold start 177.74 ms against the budget's 250 ms",
+      "at": "71% of it"
+    },
+    {
+      "name": "prose_focus_sentence",
+      "result": "shots/latency/bench-prose_focus_sentence-20260828T163027.json",
+      "winner": "ours",
+      "mean_ms": 2.66,
+      "worst_ms": 9.21,
+      "p50_ms": 2.26,
+      "p99_ms": 7.86,
+      "cold_ms": 148.64,
+      "closest_bar": "cold start 148.64 ms against the budget's 250 ms",
+      "at": "59% of it"
+    },
+    {
+      "name": "paragraph_breaks",
+      "result": "shots/latency/bench-paragraph_breaks-20260828T163104.json",
+      "winner": "ours",
+      "mean_ms": 2.92,
+      "worst_ms": 11.97,
+      "p50_ms": 2.23,
+      "p99_ms": 10.69,
+      "cold_ms": 162.4,
+      "closest_bar": "worst 11.97 ms against the budget's 16 ms",
+      "at": "75% of it"
+    },
+    {
+      "name": "revision",
+      "result": "shots/latency/bench-revision-20260828T163140.json",
+      "winner": "ours",
+      "mean_ms": 2.96,
+      "worst_ms": 9.17,
+      "p50_ms": 2.5,
+      "p99_ms": 9.05,
+      "cold_ms": 138.56,
+      "closest_bar": "mean 2.96 ms against the budget's 5 ms",
+      "at": "59% of it"
+    },
+    {
+      "name": "markdown_syntax",
+      "result": "shots/latency/bench-markdown_syntax-20260828T163216.json",
+      "winner": "theirs",
+      "mean_ms": 2.4,
+      "worst_ms": 10.93,
+      "p50_ms": 1.91,
+      "p99_ms": 7.86,
+      "cold_ms": 283.34,
+      "closest_bar": "cold start 283.34 ms against the budget's 250 ms",
+      "at": "113% of it"
+    },
+    {
+      "name": "fence_flip",
+      "result": "shots/latency/bench-fence_flip-20260828T163252.json",
+      "winner": "ours",
+      "mean_ms": 2.74,
+      "worst_ms": 8.77,
+      "p50_ms": 2.19,
+      "p99_ms": 8.32,
+      "cold_ms": 151.4,
+      "closest_bar": "cold start 151.4 ms against the budget's 250 ms",
+      "at": "61% of it"
+    },
+    {
+      "name": "paste_blocks",
+      "result": "shots/latency/bench-paste_blocks-20260828T163329.json",
+      "winner": "ours",
+      "mean_ms": 2.27,
+      "worst_ms": 12.68,
+      "p50_ms": 1.79,
+      "p99_ms": 9.5,
+      "cold_ms": 143.93,
+      "closest_bar": "worst 12.68 ms against the budget's 16 ms",
+      "at": "79% of it"
+    },
+    {
+      "name": "letters_only_r1",
+      "result": "shots/latency/bench-letters_only_r1-20260828T163405.json",
+      "winner": "ours",
+      "mean_ms": 2.57,
+      "worst_ms": 8.59,
+      "p50_ms": 2.13,
+      "p99_ms": 7.33,
+      "cold_ms": 139.15,
+      "closest_bar": "cold start 139.15 ms against the budget's 250 ms",
+      "at": "56% of it"
+    },
+    {
+      "name": "bursts_and_pauses",
+      "result": "shots/latency/bench-bursts_and_pauses-20260828T163457.json",
+      "winner": "theirs",
+      "mean_ms": 2.25,
+      "worst_ms": 11.05,
+      "p50_ms": 1.88,
+      "p99_ms": 7.07,
+      "cold_ms": 311.08,
+      "closest_bar": "cold start 311.08 ms against the budget's 250 ms",
+      "at": "124% of it"
+    },
+    {
+      "name": "fast_typist",
+      "result": "shots/latency/bench-fast_typist-20260828T163518.json",
+      "winner": "ours",
+      "mean_ms": 2.66,
+      "worst_ms": 11.04,
+      "p50_ms": 2.03,
+      "p99_ms": 8.43,
+      "cold_ms": 140.99,
+      "closest_bar": "worst 11.04 ms against the budget's 16 ms",
+      "at": "69% of it"
+    },
+    {
+      "name": "saturation_stress",
+      "result": "shots/latency/bench-saturation_stress-20260828T163529.json",
+      "winner": "theirs",
+      "mean_ms": 24.43,
+      "worst_ms": 33.44,
+      "p50_ms": 24.62,
+      "p99_ms": 33.26,
+      "cold_ms": 133.81,
+      "closest_bar": "mean 24.43 ms against the budget's 5 ms",
+      "at": "489% of it"
+    }
+  ],
+  "at": "2026-08-28T16:45:26.246Z"
+}

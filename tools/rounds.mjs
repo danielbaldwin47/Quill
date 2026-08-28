@@ -67,8 +67,13 @@ export function decisive(judged) {
 // The round file, in the shape every round since the gauntlet has been written in, plus the three
 // keys a native round needs that a gauntlet round did not: who the opponent was, which build of
 // ours it was, and what happened at each judged state.
-export function round({ piece, number, judged, opponent, build, oracle, note, at }) {
-  const head = decisive(judged);
+//
+// `headline` fills the single-pair keys itself, for a run whose answer is not any one of its
+// judged states'. A blind round's is: one state lost, and that state's verdict is the round's.
+// `tools/gate judge latency` is twelve regimes and one bench summary, and the pair the round names
+// is that summary against the oracle's report — which is not a thing any single regime says.
+export function round({ piece, number, judged, opponent, build, oracle, note, at, headline }) {
+  const head = headline || decisive(judged);
   return {
     piece,
     round: number,
