@@ -8,6 +8,7 @@
 //   node tools/latency.mjs --coldstart 10        spawn a browser PROCESS per run: exec -> pixels
 //   node tools/latency.mjs --coldstart 8 --fresh    ... with a wiped profile: a true first run
 //   node tools/latency.mjs --attach 9333 --t0 <epoch_ms>   measure a window started by bin/quill
+//   node tools/latency.mjs --plan <regime>       print what that regime types, and exit
 //
 // What is measured, per keystroke (nothing averaged over frames, nothing dropped):
 //   input_delay      hardware event timestamp -> first JS handler        (queueing)
@@ -27,6 +28,11 @@
 import { chromium } from 'playwright-core';
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'; import crypto from 'node:crypto';
 import { execSync, spawn } from 'node:child_process';
+// The regimes and the typist are the Gate's, shared with tools/gate bench so both benches type the
+// same keys in the same order; this file reaches up for them exactly as it reaches up for
+// tools/uinput-keys.py. `--plan <regime>` below prints what they produce.
+import { DEFAULT_KEYS, DEFAULT_PACE, PASTE_TEXT, TEXT_LABELS, WARMUP_KEYS, formatPlan, hash32,
+         labelsOf, mulberry32, needsShift, pressChar, regimes, script, uinputPlan } from '../../tools/regimes.mjs';
 
 // ---------- args ----------
 const args = {};
@@ -38,9 +44,9 @@ for (let i = 2; i < process.argv.length; i++) {
 }
 const URL_ = args.url || 'http://localhost:4173/';
 const DOC = args.doc || args.text || 'shots/latency/doc10k.md';
-const KEYS = +(args.keys || 300);
+const KEYS = +(args.keys || DEFAULT_KEYS);
 const RUNS = +(args.runs || 12);
-const PACE = args.pace === undefined ? 90 : +args.pace;      // ms between keystrokes (90 ms ~= 133 wpm)
+const PACE = args.pace === undefined ? DEFAULT_PACE : +args.pace;   // ms between keystrokes (90 ms ~= 133 wpm)
 const SESSIONS = +(args.sessions || 1);
 const THROTTLE = +(args.throttle || 1);
 const VIEW = { width: +(args.w || 1440), height: +(args.h || 900) };
@@ -95,8 +101,6 @@ function ciMean(arr, resamples = 2000) {
   out.sort((x, y) => x - y);
   return { lo95: r2(pct(out, .025)), hi95: r2(pct(out, .975)) };
 }
-function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-function hash32(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 
 // ---------- environment ----------
 function displayInfo() {
@@ -146,112 +150,6 @@ function env(browser, headless) {
     document: { path: DOC, words: words(doc), chars: doc.length, lines: doc.split('\n').length },
   };
 }
-
-// ---------- the typist ----------
-// Real writing, not one repeated sentence: capitals, commas, quotes, apostrophes, dashes,
-// sentence ends, paragraph breaks, and the corrections everybody makes while drafting.
-const PROSE = `The letter arrived on a Tuesday, unsigned, folded twice, and pushed under the door before anyone was awake. Marguerite read it standing up, still holding the kettle. "Not today," she said, to nobody in particular; the room, which had heard worse, said nothing back. She counted the reasons to go — there were four, and two of them were the same reason wearing a different coat — and then she put the kettle down and went anyway.
-`;
-const MARKDOWN = `## A note on measurement
-
-The *fastest* editor is the one that **never** makes you wait for a character, and the only way to know is to count them. Read the frame back at presentation:
-
-\`\`\`js
-const t0 = event.timeStamp;
-requestAnimationFrame(() => report(performance.now() - t0));
-\`\`\`
-
-> A number without a keystroke count is a number about nothing.
-
-`;
-const LETTERS = 'the quick brown fox jumps over the lazy dog while alice considers the pleasure of making a daisy chain ';
-const PASTE_TEXT = 'There is no such thing as a small delay in a text editor: the eye notices a tenth of a frame, and the hand notices before the eye does.\n\n';
-
-const PUNCT = `.,;:'"!?-()`;
-function charStep(ch, mdMode) {
-  if (ch === '\n') return { press: 'Enter', label: 'enter', keydowns: 1 };
-  if (ch === ' ') return { press: 'Space', label: 'space', keydowns: 1 };
-  if (/[a-z]/.test(ch)) return { press: ch, label: 'letter', keydowns: 1 };
-  if (/[A-Z]/.test(ch)) return { press: ch, label: 'capital', keydowns: 1 };
-  if (/[*_#`>\[\]]/.test(ch)) return { press: ch, label: 'markdown', keydowns: 1 };
-  if (ch === '—') return { press: '-', label: 'punct', keydowns: 1 };          // no em-dash key on a US layout
-  if (PUNCT.includes(ch)) return { press: ch, label: 'punct', keydowns: 1 };
-  return { press: ch, label: mdMode ? 'markdown' : 'punct', keydowns: 1 };
-}
-const BACKSPACE = { press: 'Backspace', label: 'backspace', keydowns: 1 };
-const UNDO = { press: 'Control+z', label: 'undo', keydowns: 2, labels: ['modifier', 'undo'] };
-const PASTE = { press: 'Control+v', label: 'paste', keydowns: 2, labels: ['modifier', 'paste'] };
-const SELLEFT = { press: 'Shift+ArrowLeft', label: 'nav', keydowns: 2, labels: ['modifier', 'nav'] };
-
-// Each generator returns exactly `n` steps (a step is one key press; a chord is one step with two
-// keydowns). Seeded per regime name, so every session types an identical stream and the spread
-// between sessions is the machine, not the script.
-function script(mix, n, seed) {
-  const rnd = mulberry32(seed);
-  const out = [];
-  const push = (s) => { if (out.length < n) out.push(s); };
-  if (mix === 'letters') {
-    for (let i = 0; out.length < n; i++) push(charStep(LETTERS[i % LETTERS.length]));
-  } else if (mix === 'prose' || mix === 'paste') {
-    let i = 0, since = 0, sincePaste = 0;
-    while (out.length < n) {
-      push(charStep(PROSE[i++ % PROSE.length]));
-      since++; sincePaste++;
-      if (mix === 'paste' && sincePaste > 24) { push(PASTE); sincePaste = 0; since = 0; continue; }
-      if (since > 34 + Math.floor(rnd() * 26)) {                 // a typo, noticed and fixed
-        const k = 1 + Math.floor(rnd() * 3);
-        for (let j = 0; j < k; j++) push(BACKSPACE);
-        since = 0;
-      }
-    }
-  } else if (mix === 'newlines') {
-    // Paragraph churn: short lines and Enter, in the middle of the document. Every Enter changes
-    // the line count, which is the branch render() treats differently from typing inside a line.
-    let i = 0;
-    while (out.length < n) {
-      const len = 4 + Math.floor(rnd() * 6);
-      for (let j = 0; j < len; j++) push(charStep(PROSE[i++ % PROSE.length]));
-      push(charStep('\n'));
-    }
-  } else if (mix === 'revision') {
-    // Write a word, select it back, replace it; undo now and then. Selection-heavy editing.
-    let i = 0;
-    while (out.length < n) {
-      const len = 4 + Math.floor(rnd() * 5);
-      for (let j = 0; j < len; j++) { const c = PROSE[i++ % PROSE.length]; push(charStep(/[a-zA-Z]/.test(c) ? c.toLowerCase() : 'e')); }
-      for (let j = 0; j < len; j++) push(SELLEFT);
-      for (let j = 0; j < len; j++) push(charStep('abcdefgh'[j % 8]));
-      push(charStep(' '));
-      if (rnd() < 0.25) push(UNDO);
-    }
-  } else if (mix === 'fences') {
-    // Open a fenced code block in the middle of the document and close it again, over and over.
-    // The third backtick changes the context of every line below it to the end of the document;
-    // the first backspace changes them all back. It is the most expensive thing a single
-    // keystroke can ask a Markdown editor to do, and it is one key.
-    while (out.length < n) {
-      for (let j = 0; j < 3; j++) push(charStep('`'));
-      for (let j = 0; j < 3; j++) push(BACKSPACE);
-    }
-  } else if (mix === 'markdown') {
-    let i = 0;
-    while (out.length < n) push(charStep(MARKDOWN[i++ % MARKDOWN.length], true));
-  } else throw new Error('unknown mix ' + mix);
-  return out.slice(0, n);
-}
-function labelsOf(steps) {                    // one label per keydown, in order
-  const out = [];
-  for (const s of steps) { if (s.labels) out.push(...s.labels); else out.push(s.label); }
-  return out;
-}
-const TEXT_LABELS = new Set(['letter', 'capital', 'space', 'punct', 'markdown', 'enter', 'backspace', 'undo', 'paste']);
-// A real keyboard has no "A" key: it has Shift and "a", and Chromium sees TWO keydowns for one
-// character. CDP's Input.dispatchKeyEvent does not — it sets the modifier on the one event. So a
-// uinput run has its own keydown accounting, and this is the same US-layout shift table that
-// tools/uinput-keys.py types from (kb_layout = us on this machine).
-const SHIFTED_CHARS = new Set('!@#$%^&*()_+{}:"~|<>?'.split(''));
-const needsShift = (ch) => /[A-Z]/.test(ch) || SHIFTED_CHARS.has(ch);
-const pressChar = (st) => (st.press === 'Space' ? ' ' : st.press === 'Enter' ? '\n' : st.press === 'Backspace' ? '\b' : st.press);
 
 // ---------- page helpers ----------
 const seedDoc = (t) => {                     // put the document in place before the app boots
@@ -546,7 +444,7 @@ async function typingRun(ctx, opts) {
 
   // Warm-up, outside the measurement: the first keystrokes into a freshly loaded page pay for
   // lazy compilation and first touch of the editing machinery, and no writer types only 300 keys.
-  const warm = script('letters', opts.warmup === undefined ? 25 : opts.warmup, 1);
+  const warm = script('letters', opts.warmup === undefined ? WARMUP_KEYS : opts.warmup, 1);
   for (const s of warm) { await page.keyboard.press(s.press); if (pace) await page.waitForTimeout(pace); }
   await page.waitForTimeout(300);
   await page.evaluate(() => { window.__lat.keys.length = 0; window.__lat.rafs = 0; window.__evt.length = 0; window.__store.length = 0; });
@@ -568,12 +466,12 @@ async function typingRun(ctx, opts) {
       throw new Error('uinput: refusing to type — window focus is ' + JSON.stringify(focused));
     // Real keys, through /dev/uinput -> libinput -> Hyprland -> Wayland -> Chromium, with
     // CLOCK_MONOTONIC recorded immediately before each write(2). Nothing here goes through CDP.
-    const text = steps.map(pressChar).join('');
-    if (!/^[\x08\x0a\x20-\x7e]+$/.test(text)) throw new Error('uinput: regime ' + opts.name + ' presses a key this injector cannot express');
+    const { plan, first_unexpressible: chord } = uinputPlan(steps, pace);
+    if (chord) throw new Error(`uinput: regime ${opts.name} presses ${chord.press} at step ${chord.at}, a key this injector cannot express`);
     // Typed in chunks, with the page's own view of keyboard focus re-checked between every one of
     // them: real keys go wherever the compositor thinks focus is, and this machine has terminals
     // on it. One 300-key write could not be stopped half way; this can, and does.
-    const CHUNK = 25;
+    const CHUNK = plan.chunk;
     injected = await (async () => {
       const ch = spawn('python3', [path.join(path.dirname(new URL(import.meta.url).pathname), '..', '..', 'tools', 'uinput-keys.py')], { stdio: ['pipe', 'pipe', 'inherit'] });
       let buf = '', lines = [], waiter = null;
@@ -588,7 +486,7 @@ async function typingRun(ctx, opts) {
         while (!lines.length) { await new Promise((res) => { waiter = res; setTimeout(res, 50); }); if (ch.exitCode != null && !lines.length) return null; }
         return lines.shift();
       };
-      ch.stdin.write(JSON.stringify({ text, pace_ms: pace || 8, hold_ms: 12, settle_ms: 1500, chunk: CHUNK }) + '\n');
+      ch.stdin.write(JSON.stringify(plan) + '\n');
       const ready = JSON.parse(await nextLine());
       let done = 0, stoppedBecause = null;
       while (done < ready.keys) {
@@ -853,21 +751,7 @@ async function frameControl(ctx, clock, seconds = 4, reuse) {
 }
 
 // ---------- regimes ----------
-const ALL_REGIMES = [
-  // Plain writing at the end of a draft — the most common case there is, and the one quoted.
-  { name: 'prose_end_of_draft',    mix: 'prose',    where: 'end',    pace: PACE, focus: 'off' },
-  { name: 'prose_middle_of_draft', mix: 'prose',    where: 'middle', pace: PACE, focus: 'off' },
-  { name: 'prose_focus_sentence',  mix: 'prose',    where: 'middle', pace: PACE, focus: 'sentence' },
-  { name: 'paragraph_breaks',      mix: 'newlines', where: 'middle', pace: PACE, focus: 'off' },
-  { name: 'revision',              mix: 'revision', where: 'middle', pace: PACE, focus: 'off' },
-  { name: 'markdown_syntax',       mix: 'markdown', where: 'middle', pace: PACE, focus: 'off' },
-  { name: 'fence_flip',            mix: 'fences',   where: 'middle', pace: PACE, focus: 'off' },
-  { name: 'paste_blocks',          mix: 'paste',    where: 'end',    pace: PACE, focus: 'off' },
-  { name: 'letters_only_r1',       mix: 'letters',  where: 'middle', pace: PACE, focus: 'off' },
-  { name: 'bursts_and_pauses',     mix: 'prose',    where: 'end',    pace: PACE, focus: 'off', pauseEvery: 25, pauseMs: 1400 },
-  { name: 'fast_typist',           mix: 'prose',    where: 'middle', pace: 45,   focus: 'off' },
-  { name: 'saturation_stress',     mix: 'prose',    where: 'end',    pace: 0,    focus: 'off' },
-];
+const ALL_REGIMES = regimes(PACE);
 function regimeList() {
   if (args.regimes && args.regimes !== true) {
     const want = String(args.regimes).split(',');
@@ -876,6 +760,16 @@ function regimeList() {
   if (args.quick) return [ALL_REGIMES[0]];
   if (THROTTLE > 1) return ALL_REGIMES.filter((r) => ['prose_end_of_draft', 'prose_middle_of_draft', 'paragraph_breaks'].includes(r.name));
   return ALL_REGIMES;
+}
+
+// `--plan <regime>` prints exactly what a regime would type, and exits: no browser, no server. It
+// is tools/regimes.mjs doing the printing, so identical output before and after that module was
+// split out of this file is what proves the split changed nothing.
+if (args.plan) {
+  const r = args.plan === true ? null : ALL_REGIMES.find((x) => x.name === args.plan);
+  if (!r) { console.error(`--plan takes one regime: ${ALL_REGIMES.map((x) => x.name).join(', ')}`); process.exit(2); }
+  console.log(formatPlan(r, KEYS));
+  process.exit(0);
 }
 
 // ---------- a session ----------
