@@ -12,8 +12,8 @@ numbers printed here, so a later question about the spec costs a range rather th
 Writes ticket N, its comments, and the spec it names under `## Parent` (`Child of #<M>`), in
 that order, to $CLAUDE_JOB_DIR/tmp/ticket-<N>.md when that directory exists, else to
 target/ticket-<N>.md. Prints that path, the ticket's body, and one `<line>: <heading>` per
-Markdown heading in the spec's part of the file — the ticket's own headings when it has no
-parent. Nothing else; a second run overwrites the file.
+Markdown heading in the whole file: the ticket's, then its comments' — where the agent brief
+lives — then the spec's. Nothing else; a second run overwrites the file.
 """
 import json
 import os
@@ -90,7 +90,8 @@ def headings(lines, offset):
     """Every Markdown heading outside a fenced block, as (line number in the file, text).
 
     `offset` is how many lines of the file come before `lines`, so the numbers printed are the
-    ones `sed -n` wants.
+    ones `sed -n` wants. One rendered issue is scanned at a time, because a fence left open in
+    the ticket would otherwise hide every heading after it, the spec's among them.
     """
     found = []
     fenced = False
@@ -126,17 +127,18 @@ def main(argv):
 
     ticket = render(n, issue)
     lines = list(ticket)
-    # The headings printed are the spec's when there is one, the ticket's own when there is not.
-    heading_part, offset = ticket, 0
+    # Every heading in the file is printed, the ticket's own first; `parts` pairs each rendered
+    # issue with the lines of the file before it, so each is scanned for fences on its own.
+    parts = [(ticket, 0)]
 
     spec_n = parent_of(issue["body"])
     if spec_n is not None:
         spec, reason = fetch(spec_n)
         if spec is None:
             die(n, f"parent #{spec_n}: {reason}")
-        offset = len(lines) + 1
-        heading_part = render(spec_n, spec)
-        lines += [""] + heading_part
+        spec_part = render(spec_n, spec)
+        parts.append((spec_part, len(lines) + 1))
+        lines += [""] + spec_part
 
     path = out_path(n)
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -147,8 +149,9 @@ def main(argv):
     print()
     print("\n".join(body_lines(issue["body"])))
     print()
-    for line_no, text in headings(heading_part, offset):
-        print(f"{line_no}: {text}")
+    for part, offset in parts:
+        for line_no, text in headings(part, offset):
+            print(f"{line_no}: {text}")
     return 0
 
 
