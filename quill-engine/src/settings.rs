@@ -14,10 +14,12 @@
 //! half-written**: every write goes through a temporary file and a rename
 //! ([`file`]).
 //!
-//! Quill writes `settings.toml` only when there is none. A file it could not
-//! read is left exactly as the writer left it, because the way to fix a file
-//! Quill misunderstands is to open it, and a Quill that overwrote it first
-//! would have taken that away.
+//! Quill writes `settings.toml` when there is none, and when the writer has
+//! changed one of these settings from inside the app rather than by editing
+//! the file — stepping the type size is the first that can. A file it could
+//! not read is left exactly as the writer left it, because the way to fix a
+//! file Quill misunderstands is to open it, and a Quill that overwrote it
+//! first would have taken that away.
 
 mod file;
 mod reading;
@@ -38,20 +40,30 @@ use writing::Writing;
 pub const SETTINGS_FILE: &str = "settings.toml";
 
 /// The Editor's type size in pixels, and the range outside which a number is a
-/// typo rather than a preference.
+/// typo rather than a preference. 10 to 40 px is the span the page keeps its
+/// rhythm across: below it the leading is more air than type, above it a line
+/// of 64 characters no longer fits a window.
 const SIZE: u32 = 20;
-const SMALLEST: u32 = 6;
-const LARGEST: u32 = 200;
+const SMALLEST: u32 = 10;
+const LARGEST: u32 = 40;
 
 /// The type sizes a writer may ask for.
 ///
-/// A range rather than two constants, because two places hold this line and
-/// they must hold the same one: `size` in the file, and `--size` on the
-/// command line ([`crate::settings`] is where a setting is decided, and a flag
-/// only overrides one).
+/// A range rather than two constants, because three places hold this line and
+/// they must hold the same one: `size` in the file, `--size` on the command
+/// line, and Bigger Text and Smaller Text, which step inside it
+/// ([`crate::settings`] is where a setting is decided, and a flag or a
+/// Command only moves one).
 #[must_use]
 pub fn type_sizes() -> RangeInclusive<u32> {
     SMALLEST..=LARGEST
+}
+
+/// The type size a writer who has chosen none is reading at, and the one
+/// Default Text Size goes back to.
+#[must_use]
+pub fn default_size() -> u32 {
+    SIZE
 }
 
 /// Where the caret sits down the window when Typewriter is on: the middle.

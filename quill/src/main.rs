@@ -94,8 +94,18 @@ fn main() -> glib::ExitCode {
         if let Some(out) = starting.flags().measure.as_deref() {
             harness::capture(out);
         }
-        editor::install_face(starting.settings().face);
+        editor::install_type(starting.settings().face, starting.size());
     });
+
+    // The accelerators the Commands answer to, from the Appearance rows of
+    // `docs/shortcuts.md`. On the application because that is where GTK keeps
+    // them, naming window Commands, because that is where `shortcuts.md` puts
+    // them: `font.bigger` is `win.font.bigger`. `Ctrl++` is Bigger Text's
+    // alias, the chord a writer reaches for on a keyboard whose `+` is not a
+    // shifted `=`, and is never labelled.
+    app.set_accels_for_action("win.font.bigger", &["<Ctrl>equal", "<Ctrl>plus"]);
+    app.set_accels_for_action("win.font.smaller", &["<Ctrl>minus"]);
+    app.set_accels_for_action("win.font.reset", &["<Ctrl>0"]);
 
     // Launched with no file: an empty Editor, a Document with nothing in it.
     let activated = Rc::clone(&session);

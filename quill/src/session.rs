@@ -15,7 +15,7 @@
 //! opens at the shape its flags name rather than at the window a writer left,
 //! and the window a writer left is still there after a bench has run.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::path::Path;
 use std::rc::Rc;
 
@@ -30,8 +30,13 @@ pub struct Session {
     /// Whether this launch is the harness's, asked once of the flags and
     /// answered from here afterwards.
     harness: bool,
-    /// What the writer chose, with the flags over the top.
+    /// What the writer chose, with the flags over the top, as it was read.
     settings: Settings,
+    /// The type size this launch is running at: the setting until the writer
+    /// steps it, and then whatever they stepped it to. Held apart from
+    /// [`Session::settings`] so that what was read stays readable, which is
+    /// how [`Session::store`] knows whether there is anything to write.
+    size: Cell<u32>,
     /// The shape the next window opens at: what the last session left, at the
     /// size the flags name.
     opening: WindowState,
@@ -69,9 +74,11 @@ impl Session {
             (state, opening)
         };
 
+        let settings = flags.over(settings);
         Rc::new(Self {
             opening: flags.shape(opening),
-            settings: flags.over(settings),
+            size: Cell::new(settings.size),
+            settings,
             flags,
             harness,
             leaving: RefCell::new(state),
@@ -93,6 +100,16 @@ impl Session {
         &self.settings
     }
 
+    /// The type size this launch is reading at.
+    pub fn size(&self) -> u32 {
+        self.size.get()
+    }
+
+    /// Steps the type size, for this launch and — for a writer's — the next.
+    pub fn set_size(&self, size: u32) {
+        self.size.set(size);
+    }
+
     /// The shape a new window opens at.
     pub fn opening(&self) -> &WindowState {
         &self.opening
@@ -111,6 +128,7 @@ impl Session {
             // a writer resizing it.
             return;
         }
+        self.store_settings();
         let mut state = self.leaving.borrow().clone();
         if state.windows.is_empty() {
             // A run that never opened a window, or one whose windows were
@@ -122,6 +140,27 @@ impl Session {
             eprintln!(
                 "quill: {}: cannot be written ({err})",
                 State::path().display()
+            );
+        }
+    }
+
+    /// Writes `settings.toml` when this launch changed something in it.
+    ///
+    /// Only the size can move so far, and only a writer's launch can move it:
+    /// the flags a launch of the harness's carries are this launch's alone and
+    /// have no business in the writer's file, which is why a harness launch
+    /// has already returned before this is reached. A file that cannot be
+    /// written is one line on stderr, like every other file here.
+    fn store_settings(&self) {
+        if self.size.get() == self.settings.size {
+            return;
+        }
+        let mut settings = self.settings.clone();
+        settings.size = self.size.get();
+        if let Err(err) = settings.write_to(&Settings::path()) {
+            eprintln!(
+                "quill: {}: cannot be written ({err})",
+                Settings::path().display()
             );
         }
     }

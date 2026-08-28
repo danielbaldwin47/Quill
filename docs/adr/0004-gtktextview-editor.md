@@ -34,10 +34,14 @@ which is also the OFL §3 rename a public build owes.
 **Font sizes are set in pixels, explicitly.** `FontDescription::from_string("family 20")` reads 20 as
 points; every metric downstream is silently coarse until `set_absolute_size` is used.
 
-**The leading is split three ways.** `pixels-above-lines` is leading above a *paragraph*, and prose
-wraps: `pixels-inside-wrap` carries the same leading between the rows of one paragraph, and
-`pixels-below-lines` takes half of it, because GTK puts all the leading above a row where CSS splits
-it.
+**The leading is split three ways.** GTK puts all of `pixels-above-lines` above a row where CSS
+splits a line box's leading half above the ink and half below — and it puts it above a *paragraph*,
+not above a row, because prose wraps and a wrapped row is not a paragraph. So the air a row leaves
+over is split by which of the two gaps GTK draws is doing the separating: `pixels-inside-wrap`
+carries all of it, since it alone separates two rows of one paragraph, while `pixels-above-lines`
+and `pixels-below-lines` take half each, since only their sum separates two paragraphs. The three do
+not sum to the air, and any split that made them sum to it would put one of the two gaps wrong. The
+spike measured the result at a flat 36 px pitch across every row at 20 px.
 
 **Markup × Focus is flattened before it reaches the buffer.** Overlapping `GtkTextTag`s resolve colour
 by priority override rather than by blending, so the tiers are computed into non-overlapping runs
