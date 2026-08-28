@@ -14,6 +14,10 @@ const fmtT = iso => { try { return new Date(iso).toLocaleString('en-GB', { timeZ
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true });
 const thumbCache = new Map();
 async function th(file) { if (!file || !fs.existsSync(file) || !/\.(png|jpe?g|webp)$/i.test(file)) return null; try { if (!thumbCache.has(file)) thumbCache.set(file, await thumb(file, 640, browser)); return thumbCache.get(file); } catch (e) { console.error('thumb failed', file, e.message); return null; } }
+// A round whose pair is not screenshots was measured rather than judged: the latency Piece is
+// decided by arithmetic against the oracle's numbers, so the card names the numbers rather than
+// crediting a critic that never looked at anything.
+const measured = r => !!r && !/\.(png|jpe?g|webp)$/i.test(r.oursShot || '');
 const pieces = [];
 for (const p of state.pieces) {
   const rs = rounds.filter(r => r.piece === p.id);
@@ -33,14 +37,14 @@ const card = p => `
       <p class="what">${esc(p.what)}</p>
     </div>
     <div class="status">
-      <span class="pill">${p.won ? 'Picked blind' : p.last ? 'Still loses' : 'Not judged yet'}</span>
+      <span class="pill">${p.won ? (measured(p.last) ? 'Beats the oracle' : 'Picked blind') : p.last ? 'Still loses' : 'Not judged yet'}</span>
       <span class="rounds" title="one dot per round: filled = ours picked">${p.rounds.map(r => `<i class="${r.winner === 'ours' ? 'w' : r.winner === 'tie' ? 't' : 'l'}" title="round ${r.round}: ${r.winner}"></i>`).join('')}${p.rounds.length ? `<b>${p.rounds.length}</b>` : ''}</span>
     </div>
   </header>
   ${p.last ? `
   <div class="pair">
-    <figure class="${p.last.winner === 'ours' ? 'picked' : ''}"><div class="img">${p.ours ? `<img src="${p.ours}" alt="ours">` : '<div class="noimg">no screenshot</div>'}</div><figcaption>Ours${p.last.winner === 'ours' ? ' · critic picked this' : ''}</figcaption></figure>
-    <figure class="${p.last.winner === 'theirs' ? 'picked' : ''}"><div class="img">${p.theirs ? `<img src="${p.theirs}" alt="${esc(opponentOf(p.last))}">` : '<div class="noimg">no reference</div>'}</div><figcaption>${esc(opponentOf(p.last))}${p.last.winner === 'theirs' ? ' · critic picked this' : ''}</figcaption></figure>
+    <figure class="${p.last.winner === 'ours' ? 'picked' : ''}"><div class="img">${p.ours ? `<img src="${p.ours}" alt="ours">` : `<div class="noimg">${measured(p.last) ? 'the numbers this run wrote' : 'no screenshot'}</div>`}</div><figcaption>Ours${p.last.winner === 'ours' ? (measured(p.last) ? ' · ahead on every number' : ' · critic picked this') : ''}</figcaption></figure>
+    <figure class="${p.last.winner === 'theirs' ? 'picked' : ''}"><div class="img">${p.theirs ? `<img src="${p.theirs}" alt="${esc(opponentOf(p.last))}">` : `<div class="noimg">${measured(p.last) ? 'the numbers it was measured at' : 'no reference'}</div>`}</div><figcaption>${esc(opponentOf(p.last))}${p.last.winner === 'theirs' ? (measured(p.last) ? ' · ahead on every number' : ' · critic picked this') : ''}</figcaption></figure>
   </div>
   <div class="verdict">
     <p class="gap"><span class="lbl">Biggest gap</span>${esc(p.last.gap)}</p>
@@ -100,7 +104,7 @@ figure.picked figcaption{color:var(--accent)}
 .verdict{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:12px}
 .verdict p{margin:0}
 .gap{font-weight:500}
-.quote{font-family:var(--serif);font-size:16px;line-height:1.4;color:var(--ink-2)}
+.quote{font-family:var(--serif);font-size:16px;line-height:1.4;color:var(--ink-2);white-space:pre-line}
 .note{font-size:13px;color:var(--ink-2)}
 .meta{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
 .waiting{color:var(--ink-3);margin:0}

@@ -1,29 +1,39 @@
 #!/usr/bin/env python3
 """Type through the kernel, and say exactly when each key was pressed.
 
-Owner: latency piece. Used by legacy/tools/latency.mjs --uinput.
+Owner: latency piece. Used by tools/bench.mjs and legacy/tools/latency.mjs --uinput.
 
 Chromium's CDP `Input.dispatchKeyEvent` starts the clock *inside the browser process*: the whole
 kernel -> libinput -> compositor -> client hop is excluded, so a keyboard-to-photon number built
 on it is optimistic by an unknown few milliseconds. This creates a real virtual keyboard on
-/dev/uinput, so the keys travel evdev -> libinput -> Hyprland -> Wayland -> Chromium exactly as
+/dev/uinput, so the keys travel evdev -> libinput -> Hyprland -> Wayland -> the client exactly as
 the user's own keyboard does, and records CLOCK_MONOTONIC immediately before each write(2).
 
 Chromium's TimeTicks are CLOCK_MONOTONIC on Linux, and its trace timestamps are in the same
-microseconds, so `trace_keydown_ts - t_ns/1000` is the delivery hop, measured, in one clock.
+microseconds, so `trace_keydown_ts - t_ns/1000` is the delivery hop, measured, in one clock. GTK's
+event times and `GdkFrameTimings` are that clock again, which is what tools/bench.mjs joins on.
 
 stdin  : line 1, the plan:
          {"pace_ms":90,"hold_ms":12,"settle_ms":1500,"chunk":25,"text":"...",
-          "keys":[{"code":30,"shift":0},...]}
-         (`text` is a convenience: it is converted with the US layout table below.)
-         then one line per chunk: "go" types the next `chunk` keys, "end" stops.
-stdout : line 1 {"ready":true,...}; one {"chunk":i,"events":[...]} per "go"; then the summary
-         {"ok":true,"n":300,"clock":"CLOCK_MONOTONIC","events":[...]}.
+          "keys":[{"press":"a"},{"press":"Control+z"},{"press":"Shift+ArrowLeft"},
+                  {"press":"e","pause_ms":1400}]}
+         `text` is a convenience: one key per character, converted with the US layout table below.
+         `keys` wins when both are given, and is the only form that can spell a chord or ask for a
+         longer wait after one key. `pause_ms` replaces that key's `pace_ms`, it is not added to it.
+         Then one line per chunk: "go" types the next `chunk` keys, "end" stops.
+stdout : line 1 {"ready":true,...}; one {"chunk":i,"typed":n} per "go"; then the summary
+         {"ok":true,"n":300,"clock":"CLOCK_MONOTONIC","events":[{"i","code","shift","t_ns"},...]}.
 
 WHY IT IS CHUNKED. Real keys go wherever the compositor thinks focus is, and this machine has
-terminals on it. The caller re-verifies, between every chunk, that the page still reports keyboard
+terminals on it. The caller re-verifies, between every chunk, that the window still reports keyboard
 focus; if it does not it sends "end" and nothing more is typed. A single write of 300 keys could
 not be stopped half way.
+
+WHY A CHORD IS ONE KEY. `Control+z` is two keydowns and the app sees both, but it is one thing the
+writer did and one thing to be timed. The modifier goes down in the same packet as the key, the
+write(2) is stamped once, and one event is recorded — so the i-th event is the i-th non-modifier
+keydown, and the modifier is a keydown nobody wrote. That is the accounting the legacy bench's
+uinput mode kept for the Shift of a capital letter, and a chord is the same shape.
 """
 import ctypes, fcntl, json, os, struct, sys, time
 
@@ -43,7 +53,14 @@ LETTERS.update(dict(zip('zxcvbnm', range(44, 51))))
 SHIFTED = {'!': '1', '@': '2', '#': '3', '$': '4', '%': '5', '^': '6', '&': '7', '*': '8',
            '(': '9', ')': '0', '_': '-', '+': '=', '{': '[', '}': ']', ':': ';', '"': "'",
            '~': '`', '|': '\\', '<': ',', '>': '.', '?': '/'}
-KEY_ENTER, KEY_BACKSPACE, KEY_LEFTSHIFT = 28, 14, 42
+KEY_ENTER, KEY_BACKSPACE, KEY_LEFTSHIFT, KEY_LEFTCTRL = 28, 14, 42, 29
+# The keys a press can name instead of spelling as a character. The regimes reach for ArrowLeft
+# only; the rest of the block is here because a keyboard with one arrow key has all four.
+NAMED = {'Enter': KEY_ENTER, 'Backspace': KEY_BACKSPACE, 'Space': 57, 'Tab': 15,
+         'ArrowLeft': 105, 'ArrowRight': 106, 'ArrowUp': 103, 'ArrowDown': 108,
+         'Home': 102, 'End': 107}
+# The modifiers a chord may hold. Left-hand keys, because that is the half a keyboard has one of.
+MODIFIERS = {'Shift': KEY_LEFTSHIFT, 'Control': KEY_LEFTCTRL}
 
 def code_for(ch):
     if ch == '\n': return (KEY_ENTER, 0)
@@ -54,15 +71,45 @@ def code_for(ch):
     if ch in SHIFTED: return (ROW[SHIFTED[ch]], 1)
     return None
 
+def press_for(press):
+    """One press spelling -> (code, [modifier codes]), or None when this keyboard cannot say it.
+
+    A one-character spelling is that character, checked first so that a literal '+' is a key and
+    not an empty chord. Anything longer is `Modifier+...+Key`, where the key is either a character
+    or one of NAMED. A capital or a shifted character brings its own Shift, so `Control+A` holds
+    both, which is what a hand does.
+    """
+    if len(press) == 1:
+        c = code_for(press)
+        return None if c is None else (c[0], [KEY_LEFTSHIFT] if c[1] else [])
+    parts = press.split('+')
+    if len(parts) < 2: return None
+    mods = []
+    for name in parts[:-1]:
+        if name not in MODIFIERS: return None
+        mods.append(MODIFIERS[name])
+    tail = parts[-1]
+    if tail in NAMED: return (NAMED[tail], list(dict.fromkeys(mods)))
+    if len(tail) != 1: return None
+    c = code_for(tail)
+    if c is None: return None
+    if c[1]: mods.append(KEY_LEFTSHIFT)
+    return (c[0], list(dict.fromkeys(mods)))
+
 def main():
     plan = json.loads(sys.stdin.readline())   # ONE line: stdin stays open for the chunk commands
-    keys = plan.get('keys')
-    if keys is None:
-        keys = []
-        for ch in plan.get('text', ''):
-            c = code_for(ch)
-            if c is None: json.dump({'ok': False, 'error': 'no key for %r' % ch}, sys.stdout); return 2
-            keys.append({'code': c[0], 'shift': c[1]})
+    asked = plan.get('keys')
+    if asked is None:
+        asked = [{'press': ch} for ch in plan.get('text', '')]
+    keys = []
+    for k in asked:
+        if 'press' in k:
+            r = press_for(k['press'])
+            if r is None: json.dump({'ok': False, 'error': 'no key for %r' % k['press']}, sys.stdout); return 2
+            code, mods = r
+        else:                                 # the older form: a resolved code and a Shift flag
+            code, mods = k['code'], ([KEY_LEFTSHIFT] if k.get('shift') else [])
+        keys.append({'code': code, 'mods': mods, 'pause_ms': k.get('pause_ms')})
     pace = plan.get('pace_ms', 90) / 1000.0
     hold = plan.get('hold_ms', 12) / 1000.0
     settle = plan.get('settle_ms', 1500) / 1000.0
@@ -70,7 +117,9 @@ def main():
 
     fd = os.open(UINPUT, os.O_WRONLY | os.O_NONBLOCK)
     for bit in (EV_KEY, EV_SYN): fcntl.ioctl(fd, UI_SET_EVBIT, bit)
-    wanted = sorted({k['code'] for k in keys} | {KEY_LEFTSHIFT})
+    # Every code the plan will press, its modifiers among them: a key the device never declared is
+    # a key the kernel drops, and a chord whose Control was never declared types a bare letter.
+    wanted = sorted({k['code'] for k in keys} | {m for k in keys for m in k['mods']} | {KEY_LEFTSHIFT})
     for c in wanted: fcntl.ioctl(fd, UI_SET_KEYBIT, c)
     # struct uinput_user_dev: char name[80]; struct input_id id; __u32 ff_effects_max; 4 x __s32[64]
     dev = struct.pack('=80sHHHHi' + '64i' * 4, b'quill-latency-bench',
@@ -102,16 +151,20 @@ def main():
             for _ in range(min(chunk, len(keys) - i)):
                 k = keys[i]
                 pkt = b''
-                if k['shift']: pkt += ev(EV_KEY, KEY_LEFTSHIFT, 1)
+                for m in k['mods']: pkt += ev(EV_KEY, m, 1)
                 pkt += ev(EV_KEY, k['code'], 1) + ev(EV_SYN, SYN_REPORT, 0)
                 t = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
                 os.write(fd, pkt)
-                out.append({'i': i, 'code': k['code'], 'shift': k['shift'], 't_ns': t})
+                out.append({'i': i, 'code': k['code'], 'shift': int(KEY_LEFTSHIFT in k['mods']), 't_ns': t})
                 time.sleep(hold)
                 up = ev(EV_KEY, k['code'], 0)
-                if k['shift']: up += ev(EV_KEY, KEY_LEFTSHIFT, 0)
+                for m in reversed(k['mods']): up += ev(EV_KEY, m, 0)
                 os.write(fd, up + ev(EV_SYN, SYN_REPORT, 0))
-                rest = pace - hold
+                # A regime with pauses waits here instead of at the pace: a burst is 25 keys and
+                # then the writer thinking, and the first key after the thinking is the one the
+                # regime exists to time.
+                wait = k['pause_ms'] / 1000.0 if k['pause_ms'] is not None else pace
+                rest = wait - hold
                 if rest > 0: time.sleep(rest)
                 i += 1
             print(json.dumps({'chunk': first, 'typed': i - first}), flush=True)

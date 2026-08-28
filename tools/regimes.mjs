@@ -177,20 +177,41 @@ export function formatPlan(r, keys) {
 }
 
 // ---------- the plan tools/uinput-keys.py reads ----------
-// One JSON line, one key press per character of `text`, typed through /dev/uinput. A chord is not
-// a character: `Control+z` and `Shift+ArrowLeft` have no spelling the injector can type today, so
-// a plan stops at the first one and says which it was. Chords arrive with `tools/gate bench --all`
-// (#65); until then the chord regimes are CDP-only.
+// One JSON line, one key press per step, typed through /dev/uinput. A chord is a press like any
+// other: `Control+z` and `Shift+ArrowLeft` go over as they are spelled here and the injector holds
+// the modifier down inside the same packet, so a chord is one `write(2)`, one stamp and one timed
+// key — and the modifier's own keydown reaches the app as a key nobody wrote.
 export const UINPUT_PLAN = { hold_ms: 12, settle_ms: 1500, chunk: 25 };
-// The injector's US layout covers printable ASCII, plus Enter and Backspace.
-export const expressible = (st) => { const c = pressChar(st); return c.length === 1 && /[\x08\x0a\x20-\x7e]/.test(c); };
-export function uinputPlan(steps, pace) {
+// What the injector's US layout can say. The tables themselves live in `tools/uinput-keys.py`,
+// which is the one that has to press them; this is the same shape asked as a question, so a regime
+// reaching for a key that has no spelling is caught before a window is ever opened.
+const MODIFIERS = new Set(['Shift', 'Control']);
+const NAMED = new Set(['Enter', 'Backspace', 'Space', 'Tab',
+  'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']);
+const typeable = (c) => c.length === 1 && /[\x08\x0a\x20-\x7e]/.test(c);
+export const expressible = (st) => {
+  const c = pressChar(st);
+  if (typeable(c)) return true;                 // checked first, so a literal '+' is a key
+  const parts = c.split('+');
+  return parts.length > 1
+    && parts.slice(0, -1).every((m) => MODIFIERS.has(m))
+    && (NAMED.has(parts[parts.length - 1]) || typeable(parts[parts.length - 1]));
+};
+export function uinputPlan(steps, pace, { pauseEvery = 0, pauseMs = 0 } = {}) {
   const at = steps.findIndex((st) => !expressible(st));
   const usable = at < 0 ? steps : steps.slice(0, at);
+  const keys = usable.map((st, i) => {
+    const key = { press: pressChar(st) };
+    // The pause replaces the pace after every `pauseEvery`-th key rather than being added to it,
+    // which is what the bench's CDP path does: a burst is 25 keys and then the writer thinking,
+    // and the key after the thinking is the one `bursts_and_pauses` exists to time.
+    if (pauseEvery && (i + 1) % pauseEvery === 0) key.pause_ms = pauseMs || 1200;
+    return key;
+  });
   return {
     // A real keyboard cannot type with no gap at all, so the saturation regime's pace of 0 becomes
     // the injector's floor of 8 ms — the same substitution the legacy bench makes.
-    plan: { pace_ms: pace || 8, ...UINPUT_PLAN, text: usable.map(pressChar).join('') },
+    plan: { pace_ms: pace || 8, ...UINPUT_PLAN, keys },
     keys: usable.length,
     first_unexpressible: at < 0 ? null : { at, press: steps[at].press, label: steps[at].label },
   };
