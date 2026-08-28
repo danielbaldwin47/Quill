@@ -54,7 +54,7 @@ usage: tools/gate <command> [arguments]
                 Ends in `gate oracle <piece>: froze N states (<why>)`,
                 `... unchanged`, or `... fail (...)`.
 
-  bench [regime] [--keys N] [--sessions N]
+  bench [regime] [--all] [--regimes a,b] [--keys N] [--sessions N]
                 The Ticket tier's latency Piece, measured rather than judged:
                 ours built and launched on the 10k-word document with the caret
                 at the end of it, on a headless output of the Gate's own, and
@@ -71,8 +71,16 @@ usage: tools/gate <command> [arguments]
                 1 for a budget miss, 3 when nothing was measured. Those three
                 lines are the whole of stdout; everything said on the way there
                 is target/gate/bench.log, printed when the run refuses.
+                --all runs every one of the twelve and --regimes just the named
+                ones, each with its own launch, its own caret and Focus, and its
+                own result file; a run of several says one line per regime and
+                then one line for the run, which is pass only when every regime
+                in it cleared the budget, and writes what those lines say to
+                shots/latency/summary-<stamp>.json. A regime name, --all and
+                --regimes each say which regimes to run, so only one may be
+                given.
 
-  judge <piece> [--note <text>]
+  judge <piece> [--note <text>] [--summary <file>]
                 The Ticket tier's blind judging for one Piece: ours built and
                 shot at every judged state on a headless output of the Gate's
                 own, each shot paired with the frozen Parity oracle under
@@ -88,6 +96,12 @@ usage: tools/gate <command> [arguments]
                 lost, is the whole of stdout: everything said on the way there is
                 target/gate/judge-<piece>.log, printed when the run refuses, and
                 a round that reached a verdict has its detail in the JSON.
+                latency is the one Piece with no picture to look at, so it is
+                judged by arithmetic instead: it reads the newest whole run
+                under shots/latency/, or the one --summary names, and is ours
+                when every regime cleared the budget and prose_end_of_draft beat
+                the oracle's own keystroke and cold-start numbers. Same round
+                file, same line, same four exit codes.
 
 The tiers these commands serve are docs/agents/gate.md.
 EOF

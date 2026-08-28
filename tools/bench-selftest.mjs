@@ -13,10 +13,15 @@
 // ever carried.
 
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
-  BUDGET, KEYCODE_OFFSET, align, latencyMs, measure, summary, verdict,
+  BUDGET, KEYCODE_OFFSET, against, align, allSummary, latencyMs, latencyVerdict, measure,
+  regimeLine, summary, verdict,
 } from './bench-join.mjs';
+import { DEFAULT_KEYS, hash32, regimes, script, uinputPlan } from './regimes.mjs';
 
 let cases = 0;
 let failures = 0;
@@ -238,6 +243,152 @@ ok('every line starts with `gate bench` and is one line', () => {
     assert.ok(!line.includes('undefined'), line);
   }
   assert.match(lines.at(-1), /^gate bench prose_end_of_draft: pass /);
+});
+
+// ---------- a run of several ----------
+
+// One regime's row as `bench --all` records it in its summary file.
+const row = (regime, mean, worst, cold, pass = true) => ({
+  regime,
+  file: `shots/latency/bench-${regime}-20260828T000000.json`,
+  mean_ms: mean,
+  worst_ms: worst,
+  p50_ms: mean,
+  p99_ms: worst,
+  cold_ms: cold,
+  pass,
+  every_keystroke_accounted_for: true,
+});
+
+const runOf = (rows, extra = {}) => ({
+  ran: '--all',
+  at: '2026-08-28T00:00:00.000Z',
+  headline: 'prose_end_of_draft',
+  regimes: rows,
+  regimes_not_run: [],
+  regimes_unaccounted_for: [],
+  lines: rows.map((r) => `gate bench ${r.regime}: pass`).concat('gate bench --all: pass'),
+  ...extra,
+});
+
+ok("a regime's line is one line of numbers, and the run's line says how many cleared", () => {
+  const decided = measure(written(QUILL), captured(QUILL));
+  const line = regimeLine('fence_flip', {
+    accounting: decided.accounting,
+    verdict: verdict(decided.uinput_write_to_presented_ms, 120),
+  });
+  assert.match(line, /^gate bench fence_flip: pass — mean /);
+  assert.ok(!line.includes('\n'), line);
+  assert.ok(!line.includes('budget'), 'the budget is said once, by the run, not twelve times');
+
+  const rows = [row('prose_end_of_draft', 2, 8, 120), row('revision', 2.4, 9, 130)];
+  assert.match(allSummary('--all', rows), /^gate bench --all: pass — 2 of 2 regimes clear the budget/);
+});
+
+ok('a run whose regime missed the budget fails and is named', () => {
+  const rows = [row('prose_end_of_draft', 2, 8, 120), row('revision', 6.1, 19, 130, false)];
+  const line = allSummary('--all', rows);
+  assert.match(line, /^gate bench --all: fail — 1 of 2 regimes clear the budget, not revision/);
+  assert.ok(!line.includes('\n'), line);
+});
+
+ok('--regimes says which subset it was, so two runs are not confused', () => {
+  const line = allSummary('--regimes revision,paste_blocks', [row('revision', 2, 8, 120), row('paste_blocks', 2, 8, 120)]);
+  assert.match(line, /^gate bench --regimes revision,paste_blocks: pass — 2 of 2 /);
+});
+
+// ---------- the latency Piece's verdict ----------
+
+ok('the headline regime is held to the oracle as well as the budget, and the rest to the budget', () => {
+  assert.equal(against(row('prose_end_of_draft', 2, 8, 120), true).length, 5);
+  assert.equal(against(row('revision', 2, 8, 120), false).length, 3);
+  // The budget is the stricter of the two on both numbers ours is judged on — 5 ms against the
+  // oracle's 12.17, and 250 ms against its 370 — so a run that clears the budget has beaten the
+  // oracle already. Both are checked anyway, because the rule is the rule and the budget could move.
+  const bars = against(row('prose_end_of_draft', 2, 8, 120), true);
+  assert.equal(bars[0].whose, 'the budget', 'the tightest bar on a passing run is the budget’s');
+});
+
+ok('ours when every regime clears its bars', () => {
+  const said = latencyVerdict(runOf([row('prose_end_of_draft', 2, 8, 120), row('revision', 2.4, 9, 130)]));
+  assert.equal(said.winner, 'ours');
+  assert.equal(said.states.length, 2);
+  assert.match(said.gap, /is the closest to a bar/);
+  assert.match(said.gapTheirs, /Parity oracle is 12\.17 ms uinput → presented/);
+  assert.match(said.verdict, /gate bench --all: pass/);
+});
+
+ok('theirs when one regime is past a bar, and that regime is the one the gap names', () => {
+  const said = latencyVerdict(runOf([row('prose_end_of_draft', 2, 8, 120), row('revision', 6.1, 19, 130, false)]));
+  assert.equal(said.winner, 'theirs');
+  assert.equal(said.states.find((s) => s.name === 'revision').winner, 'theirs');
+  assert.match(said.gap, /^revision is past a bar/);
+});
+
+ok('a number that was never measured is not a number that passed', () => {
+  const said = latencyVerdict(runOf([row('prose_end_of_draft', 2, 8, null)]));
+  assert.equal(said.winner, 'theirs');
+  assert.match(said.gap, /no number at all/);
+});
+
+ok('a run with no regimes in it wins nothing', () => {
+  assert.equal(latencyVerdict(runOf([])).winner, 'theirs');
+});
+
+// ---------- the plan, and the keyboard that has to type it ----------
+
+ok('every one of the twelve is a plan the injector can be handed', () => {
+  for (const r of regimes()) {
+    const plan = uinputPlan(script(r.mix, DEFAULT_KEYS, hash32(r.name)), r.pace,
+      { pauseEvery: r.pauseEvery, pauseMs: r.pauseMs });
+    assert.equal(plan.first_unexpressible, null, `${r.name}: ${JSON.stringify(plan.first_unexpressible)}`);
+    assert.equal(plan.keys, DEFAULT_KEYS, r.name);
+    assert.ok(plan.plan.pace_ms >= 8, `${r.name}: a real keyboard cannot type with no gap at all`);
+  }
+});
+
+ok('the chord regimes press chords, and bursts_and_pauses pauses every 25 keys', () => {
+  const planOf = (name) => {
+    const r = regimes().find((x) => x.name === name);
+    return uinputPlan(script(r.mix, DEFAULT_KEYS, hash32(r.name)), r.pace,
+      { pauseEvery: r.pauseEvery, pauseMs: r.pauseMs }).plan;
+  };
+  const presses = (name) => new Set(planOf(name).keys.map((k) => k.press));
+  assert.ok(presses('revision').has('Shift+ArrowLeft'), 'revision selects back over what it wrote');
+  assert.ok(presses('revision').has('Control+z'), 'revision undoes');
+  assert.ok(presses('paste_blocks').has('Control+v'), 'paste_blocks pastes');
+
+  const bursts = planOf('bursts_and_pauses');
+  const paused = bursts.keys.map((k, i) => (k.pause_ms == null ? null : i)).filter((i) => i != null);
+  assert.deepEqual(paused, [24, 49, 74, 99, 124, 149, 174, 199, 224, 249, 274, 299]);
+  assert.ok(bursts.keys.every((k) => k.pause_ms == null || k.pause_ms === 1400));
+
+  assert.equal(planOf('fast_typist').pace_ms, 45);
+  assert.equal(planOf('saturation_stress').pace_ms, 8, 'the injector floor stands in for a pace of 0');
+});
+
+ok('the injector can say every press the twelve ask for', () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const wanted = new Set();
+  for (const r of regimes()) {
+    for (const k of uinputPlan(script(r.mix, DEFAULT_KEYS, hash32(r.name)), r.pace).plan.keys) wanted.add(k.press);
+  }
+  // Asked of `tools/uinput-keys.py` itself rather than of a table copied over here: the two are in
+  // different languages and the only thing that makes them one keyboard is that this asks the one
+  // that does the pressing. A spelling it answers None to is a regime that would stop the bench
+  // half way through a run, three minutes and a compositor later.
+  const said = execFileSync('python3', [
+    // -B, because importing the injector to ask it a question should not leave a __pycache__ in
+    // tools/ for `git status` to find afterwards.
+    '-B',
+    '-c',
+    'import importlib.util,json,sys\n'
+    + "s=importlib.util.spec_from_file_location('uk',sys.argv[1])\n"
+    + 'm=importlib.util.module_from_spec(s); s.loader.exec_module(m)\n'
+    + 'print(json.dumps([p for p in json.load(sys.stdin) if m.press_for(p) is None]))',
+    path.join(root, 'tools/uinput-keys.py'),
+  ], { input: JSON.stringify([...wanted]), encoding: 'utf8' });
+  assert.deepEqual(JSON.parse(said), [], 'presses the injector has no key for');
 });
 
 if (failures === 0) {
