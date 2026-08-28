@@ -2,8 +2,11 @@
 Type=Application
 Name=Quill
 Comment=A quiet place to write long-form prose
-Exec=quill
+Exec=quill %F
+Icon=io.github.danielbaldwin47.Quill
 Terminal=false
 Categories=Office;WordProcessor;TextEditor;
 Keywords=writing;markdown;prose;editor;
-StartupWMClass=localhost
+MimeType=text/markdown;text/x-markdown;
+StartupNotify=true
+StartupWMClass=io.github.danielbaldwin47.Quill

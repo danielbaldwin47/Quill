@@ -110,13 +110,13 @@ function appFingerprint() {
   try {
     const files = [];
     const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const f = path.join(d, e.name); if (e.isDirectory()) { if (e.name !== 'fonts') walk(f); } else if (/\.(js|css|html)$/.test(e.name)) files.push(f); } };
-    walk(args.snapshot ? path.join(args.snapshot, 'app') : 'app');
+    walk(args.snapshot ? path.join(args.snapshot, 'app') : 'legacy/app');
     files.sort();
     const h = crypto.createHash('sha256');
     for (const f of files) h.update(f + ':' + crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex') + '\n');
     let git = null;
     try { git = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch (e) {}
-    return { files: files.length, sha256: h.digest('hex').slice(0, 16), git_head: git, served_from: args.snapshot || 'app/' };
+    return { files: files.length, sha256: h.digest('hex').slice(0, 16), git_head: git, served_from: args.snapshot || 'legacy/app/' };
   } catch (e) { return null; }
 }
 // This is somebody's workstation. Say what else was running while the numbers were taken.
@@ -575,7 +575,7 @@ async function typingRun(ctx, opts) {
     // on it. One 300-key write could not be stopped half way; this can, and does.
     const CHUNK = 25;
     injected = await (async () => {
-      const ch = spawn('python3', [path.join(path.dirname(new URL(import.meta.url).pathname), 'uinput-keys.py')], { stdio: ['pipe', 'pipe', 'inherit'] });
+      const ch = spawn('python3', [path.join(path.dirname(new URL(import.meta.url).pathname), '..', '..', 'tools', 'uinput-keys.py')], { stdio: ['pipe', 'pipe', 'inherit'] });
       let buf = '', lines = [], waiter = null;
       ch.stdout.on('data', (d) => {
         buf += d;

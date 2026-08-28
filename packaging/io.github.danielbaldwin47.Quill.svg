@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Quill's icon: a page of prose with the caret waiting at the end of the
+     last line. Quill's own palette (legacy/app/css/theme.css): paper #f9f9f9, ink
+     #1c1c1c, caret #00b5ff. Four shapes and no gradients, so it stays legible
+     at 16 px and needs no per-size artwork. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <title>Quill</title>
+  <rect x="25" y="13" width="78" height="102" rx="10"
+        fill="#f9f9f9" stroke="#1c1c1c" stroke-width="7"/>
+  <g fill="#1c1c1c">
+    <rect x="41" y="40" width="46" height="7" rx="3.5"/>
+    <rect x="41" y="60" width="46" height="7" rx="3.5"/>
+    <rect x="41" y="80" width="25" height="7" rx="3.5"/>
+  </g>
+  <rect x="72" y="72" width="7" height="23" rx="3.5" fill="#00b5ff"/>
+</svg>

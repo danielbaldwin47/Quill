@@ -1,7 +1,7 @@
 # Quill — builder & critic brief
 
 Quill is a long-form writing environment meant to beat iA Writer. Web app, no framework, no build step:
-`app/index.html` + `app/css/*.css` + `app/js/*.js`. Serve with `node tools/serve.mjs 4173` (usually already running at http://localhost:4173/).
+`app/index.html` + `app/css/*.css` + `app/js/*.js`. Serve with `node legacy/tools/serve.mjs 4173` (usually already running at http://localhost:4173/).
 
 ## Architecture (read app/js/core.js first)
 - `<textarea id="input">` holds the text and native selection (transparent glyphs, on top).
@@ -25,8 +25,8 @@ Quill is a long-form writing environment meant to beat iA Writer. Web app, no fr
 If you truly need a change in core.js or index.html, make it minimal, backward compatible, and record it in NOTES.md under your piece.
 
 ## Tools
-- Screenshot: `node tools/shoot.mjs --out shots/<piece>/x.png --w 1440 --h 900 --dpr 2 --theme light|dark --font duo|quattro|mono --size 18 --focus off|sentence|paragraph [--typewriter] --chrome on|off --text <file.md> --caret "<needle>"|N|end [--mouse] [--typing] [--select a,b] [--nocaret]`
-- Latency: `node tools/latency.mjs --runs 10 --keys 300 --text <file.md> --json out.json`
+- Screenshot: `node legacy/tools/shoot.mjs --out shots/<piece>/x.png --w 1440 --h 900 --dpr 2 --theme light|dark --font duo|quattro|mono --size 18 --focus off|sentence|paragraph [--typewriter] --chrome on|off --text <file.md> --caret "<needle>"|N|end [--mouse] [--typing] [--select a,b] [--nocaret]`
+- Latency: `node legacy/tools/latency.mjs --runs 10 --keys 300 --text <file.md> --json out.json`
 - Blind pair: `node tools/blind.mjs pair <piece> <ours.png> <theirs.png>` → shots/blind/<piece>/A.png,B.png. `node tools/blind.mjs reveal <piece>` prints which is ours. Critics NEVER run reveal and NEVER read shots outside shots/blind/<piece>/.
 - Reference: `ref/ia/REFERENCE.md` (spec sheet, quotes, screenshot table with transcribed text), `ref/ia/shots/`, `ref/ia/fonts/`, `ref/ia/templates/`.
 
@@ -37,13 +37,13 @@ If you truly need a change in core.js or index.html, make it minimal, backward c
 
 ## Fair comparison protocol
 Many ia.net / App Store images are marketing composites (headline + partial window). Before pairing:
-1. Crop the reference to just the app/editor region: `node tools/crop.mjs <ref> <out.png> x y w h [scale]`.
+1. Crop the reference to just the app/editor region: `node legacy/tools/crop.mjs <ref> <out.png> x y w h [scale]`.
 2. Render ours at exactly the crop's pixel size (`--w` = crop width / dpr, `--h` = crop height / dpr, `--dpr 2` for Mac shots, 1 for Windows) showing the same passage, same theme, same mode, caret in the same place.
 3. Pair with `node tools/blind.mjs pair <piece> <ours.png> <crop.png>`.
 Prefer the clean full-window screenshots (ianet-mac-*-support.webp, msstore-win-*.png) over composites when they show your piece.
 
 ## Headed windows (real browser or GTK, not headless)
-Workspace 1 is the user's; a test window goes to a virtual output or to workspace 5. Hyprland 0.56 parses dispatches as Lua, so the old `hyprctl dispatch exec "[rules] cmd"` string form fails; `bin/quill` carries the working forms:
+Workspace 1 is the user's; a test window goes to a virtual output or to workspace 5. Hyprland 0.56 parses dispatches as Lua, so the old `hyprctl dispatch exec "[rules] cmd"` string form fails; `legacy/bin/quill` carries the working forms:
 - Virtual output (default, nothing appears on the physical panel, the window still gets frame callbacks at 60 Hz): `hyprctl output create headless`, read the new monitor's `activeWorkspace.id` from `hyprctl monitors -j`, launch on it, `hyprctl output remove <name>` when done.
 - Workspace 5 of the real monitor: `hyprctl repl 'return hl.dispatch(hl.dsp.exec_cmd("[workspace 5 silent] chromium --app=http://localhost:4173/ --class=quill-test"))'`. A window on a workspace that is not being displayed gets no frame callbacks, so its presentation timestamps are worthless — measure on the virtual output.
 Without `hyprctl`, run headless.

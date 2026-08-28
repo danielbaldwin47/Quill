@@ -1,31 +1,62 @@
 # Maintainer: Daniel Baldwin <danielbaldwin47@gmail.com>
-# Build from this checkout:  makepkg -f   (then: sudo pacman -U quill-*.pkg.tar.zst)
+# Build from this checkout:  makepkg -f   (then: sudo pacman -U quill-[0-9]*.pkg.tar.zst)
+#
+# The Rust workspace is built straight from the working tree: nothing is
+# downloaded except in prepare(), so `makepkg -f` needs the network once and
+# build() runs offline (docs/architecture.md, "Packaging").
 pkgname=quill
-pkgver=1.0.0.r42.g839bdff
+_appid=io.github.danielbaldwin47.Quill
+pkgver=0.1.0.r80.g105c39f
 pkgrel=1
-pkgdesc="A long-form writing environment: textarea+mirror editor, iA Writer Duo/Quattro/Mono, focus and typewriter modes"
-arch=('any')
+pkgdesc="A long-form writing environment for Linux: plain Markdown, typography first"
+arch=('x86_64')
 url="https://github.com/danielbaldwin47/Quill"
-license=('ISC' 'OFL-1.1')
-depends=('bash' 'nodejs' 'chromium' 'curl')
-optdepends=('hyprland: place the measured window on a virtual output (bin/quill --measure)'
-            'python: helpers used by --measure')
-# Built straight from the working tree; no download.
+license=('GPL-3.0-or-later' 'OFL-1.1')
+depends=('gtk4' 'enchant' 'hicolor-icon-theme')
+makedepends=('cargo')
+optdepends=('hunspell-en_us: English spell checking')
 source=()
 
+# The version the workspace names, plus the commit count: 0.1.0.rN.gHASH.
+# Read out of `[workspace.package]` by name rather than off the first `version`
+# line, so a `version` added to another table cannot quietly rename the package.
 pkgver() {
   cd "$startdir"
-  printf '1.0.0.r%s.g%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+  local version
+  version=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)
+  printf '%s.r%s.g%s' "$version" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+prepare() {
+  cd "$startdir"
+  cargo fetch --locked
+}
+
+build() {
+  cd "$startdir"
+  # Compiled in by `quill-engine`'s `data` module: an installed Quill finds its
+  # Faces, Templates and OFL.txt under /usr/share/quill with no variable set.
+  QUILL_DATA_DIR="/usr/share/$pkgname" cargo build --release --locked --offline
 }
 
 package() {
-  local share="$pkgdir/usr/share/$pkgname"
-  install -dm755 "$share/tools" "$share/bin" "$pkgdir/usr/bin"
-  cp -r "$startdir/app" "$share/app"
-  install -m644 "$startdir/tools/serve.mjs" "$share/tools/serve.mjs"
-  install -m755 "$startdir/bin/quill" "$share/bin/quill"
-  ln -s "/usr/share/$pkgname/bin/quill" "$pkgdir/usr/bin/quill"
-  install -Dm644 "$startdir/packaging/quill.desktop" "$pkgdir/usr/share/applications/quill.desktop"
-  install -Dm644 "$startdir/README.md" "$pkgdir/usr/share/doc/$pkgname/README.md"
-  install -Dm644 "$startdir/app/fonts/Duo/LICENSE.md" "$pkgdir/usr/share/licenses/$pkgname/LICENSE-iA-Fonts.md"
+  local share="$pkgdir/usr/share"
+  local data="$share/$pkgname"
+
+  install -Dm755 "$startdir/target/release/$pkgname" "$pkgdir/usr/bin/$pkgname"
+
+  # The data directory: the Faces today, Templates and the Style check lists as
+  # their Pieces land. One directory, so an installed build and a development
+  # build differ in one path rather than in every lookup.
+  install -dm755 "$data/fonts" "$data/templates" "$data/data"
+  install -m644 "$startdir"/fonts/*.ttf "$data/fonts/"
+  install -m644 "$startdir/fonts/OFL.txt" "$data/fonts/OFL.txt"
+
+  install -Dm644 "$startdir/packaging/$_appid.desktop" "$share/applications/$_appid.desktop"
+  install -Dm644 "$startdir/packaging/$_appid.svg" \
+    "$share/icons/hicolor/scalable/apps/$_appid.svg"
+
+  install -Dm644 "$startdir/LICENSE" "$share/licenses/$pkgname/LICENSE"
+  install -Dm644 "$startdir/fonts/OFL.txt" "$share/licenses/$pkgname/OFL.txt"
+  install -Dm644 "$startdir/README.md" "$share/doc/$pkgname/README.md"
 }
