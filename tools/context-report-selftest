@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+"""Keep tools/context-report honest against a transcript it can't misread.
+
+    python3 tools/context-report-selftest
+
+The report's input is this machine's Claude Code transcripts, which nobody can
+re-run and which say nothing about what the right answer was. So this writes a
+handful of records whose right answer is arithmetic — three sessions under a
+throwaway projects directory — and asserts the exact line the report prints for
+each. The four things a transcript does that the report must survive are all in
+here: a session resumed into a second file that replays the first one's records,
+a session that starts on the previous ticket's branch before its `/implement`
+command arrives, a session named only by its branch, and a project directory
+that isn't this repo's.
+"""
+import importlib.machinery, importlib.util, json, os, subprocess, sys, tempfile
+
+TOOLS = os.path.dirname(os.path.abspath(__file__))
+REPORT = os.path.join(TOOLS, "context-report")
+
+
+def load_report():
+    """The report as a module — it has no .py to import by name."""
+    sys.dont_write_bytecode = True  # no __pycache__ in tools/
+    loader = importlib.machinery.SourceFileLoader("context_report", REPORT)
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+# The fixture's directories are named the way Claude Code would name this
+# checkout's, so the default --dirs glob is what the cases run through.
+PROJECT = load_report().project_dirs().rstrip("*")
+
+IMPLEMENT = (
+    "<command-message>implement is running…</command-message>\n"
+    "<command-name>/mattpocock-skills:implement</command-name>\n"
+    "<command-args>%s</command-args>"
+)
+
+
+DAY = "2026-08-28"
+
+
+def user(uuid, ts, branch, text):
+    return dict(type="user", uuid=uuid, timestamp=DAY + ts, gitBranch=branch,
+                message=dict(role="user", content=text))
+
+
+def assistant(uuid, ts, branch, rid, ctx, tools):
+    """One assistant record: `ctx` split across the three usage fields."""
+    blocks = [dict(type="text", text="working")]
+    blocks += [dict(type="tool_use", id="t%s%d" % (uuid, i), name="Bash", input={})
+               for i in range(tools)]
+    usage = dict(input_tokens=ctx - 5900, cache_read_input_tokens=5000,
+                 cache_creation_input_tokens=900, output_tokens=200)
+    return dict(type="assistant", uuid=uuid, timestamp=DAY + ts, gitBranch=branch,
+                requestId=rid, message=dict(role="assistant", content=blocks, usage=usage))
+
+
+def write(path, records):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        for r in records:
+            f.write(json.dumps(r) + "\n")
+
+
+def fixture(root):
+    quill = os.path.join(root, PROJECT)
+    tree = os.path.join(root, PROJECT + "--claude-worktrees-fixture")
+    a = "aaaaaaaa-0000-0000-0000-000000000001"
+    b = "bbbbbbbb-0000-0000-0000-000000000002"
+    c = "cccccccc-0000-0000-0000-000000000003"
+
+    # Session A: eleven records on #102's branch before `/implement 101` arrives,
+    # then #101 — including a second record on request r2, which is one call.
+    leg = [
+        user("u1", "T01:00:00Z", "native-102-thing", "carrying on"),
+        assistant("u2", "T01:00:01Z", "native-102-thing", "r1", 6000, 1),
+        user("u3", "T01:00:02Z", "native-102-thing", IMPLEMENT % "101"),
+        assistant("u4", "T01:00:03Z", "native-101-flags", "r2", 30000, 2),
+        assistant("u5", "T01:00:04Z", "native-101-flags", "r2", 30000, 1),
+        assistant("u6", "T01:00:10Z", "native-101-flags", "r3", 45000, 1),
+    ]
+    write(os.path.join(tree, a + ".jsonl"), leg)
+    # Session B: A resumed. Same uuids, same requests, one call further.
+    write(os.path.join(tree, b + ".jsonl"),
+          leg + [assistant("u7", "T01:00:20Z", "native-101-flags", "r4", 52000, 1)])
+
+    # Subagents belong to whichever ticket was current when they started, which
+    # for agent-four is after the last call #101 made — the one that launched it.
+    for sid, name, ts, ctx in ((a, "agent-one", "T01:00:05Z", 12000),
+                               (b, "agent-two", "T01:00:15Z", 20000),
+                               (b, "agent-four", "T01:00:25Z", 30000),
+                               (a, "agent-three", "T01:00:01Z", 7000)):
+        write(os.path.join(tree, sid, "subagents", name + ".jsonl"),
+              [user("s1" + name, ts, None, "go"),
+               assistant("s2" + name, ts, None, "sr" + name, ctx, 1)])
+
+    # Session C: no `/implement` record at all — only the branch names it.
+    write(os.path.join(quill, c + ".jsonl"), [
+        user("u10", "T02:00:00Z", "worktree-scaffold-103-thing", "do the thing"),
+        assistant("u11", "T02:00:01Z", "worktree-scaffold-103-thing", "r10", 8000, 2),
+        assistant("u12", "T02:00:02Z", "worktree-scaffold-103-thing", "r11", 9000, 1),
+    ])
+
+    # A project directory that is not this repo's, holding a decoy #101 session.
+    write(os.path.join(root, "-tmp-quill-critic-Xy7Qla", "dddddddd.jsonl"), [
+        user("u20", "T03:00:00Z", "main", IMPLEMENT % "101"),
+        assistant("u21", "T03:00:01Z", "main", "r20", 900000, 9),
+    ])
+
+
+def run(root, *args):
+    p = subprocess.run([sys.executable, REPORT, "--projects", root] + list(args),
+                       capture_output=True, text=True)
+    return p.returncode, p.stdout.strip(), p.stderr.strip()
+
+
+CASES = [
+    # #101: peak from the resumed file's last call, and the five tool_use blocks
+    # of its three calls — the replayed records counted once.
+    ("101", 0, "context: peak 52k tokens, 5 tool calls, 3 subagents (peaks 30k, 20k, 12k)"),
+    # #102: the one call session A made before its `/implement` record, named by
+    # the branch it was still on, with the subagent that started under it.
+    ("102", 0, "context: peak 6k tokens, 1 tool call, 1 subagent (peak 7k)"),
+    # #103: a session no `/implement` record names.
+    ("103", 0, "context: peak 9k tokens, 3 tool calls, 0 subagents"),
+    ("999", 1, "context: no session found for #999"),
+]
+
+
+def main():
+    if not os.access(REPORT, os.X_OK):
+        print("selftest: %s is not executable" % REPORT, file=sys.stderr)
+        return 1
+    bad = 0
+    with tempfile.TemporaryDirectory(prefix="context-report-selftest.") as root:
+        fixture(root)
+        for ticket, code, want in CASES:
+            got_code, got, err = run(root, ticket)
+            if (got_code != 0) != (code != 0) or got != want:
+                bad += 1
+                print("FAIL #%s\n  want (exit %d) %s\n  got  (exit %d) %s%s"
+                      % (ticket, code, want, got_code, got,
+                         "\n  stderr " + err if err else ""), file=sys.stderr)
+            else:
+                print("ok   #%s  %s" % (ticket, got))
+    print("selftest: %s" % ("pass" if not bad else "%d case(s) failed" % bad),
+          file=sys.stderr if bad else sys.stdout)
+    return 1 if bad else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
