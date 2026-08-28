@@ -6,8 +6,9 @@
 # Each case copies this fixture to a temporary directory, copies one of
 # `defects/*.rs` over `src/defect.rs`, and runs `tools/gate check` there. The
 # assertions are only what the owner would read: the exit code, the last line,
-# and which step lines appear — nothing about how the script works inside.
-# Nothing is written inside the repo, and the real tree is never checked here.
+# which step lines appear, and whether anything else was printed at all —
+# nothing about how the script works inside. Nothing is written inside the repo,
+# and the real tree is never checked here.
 #
 # No `-e`: every case here runs a command that is *meant* to fail, and reads its
 # exit code afterwards.
@@ -47,6 +48,18 @@ run() {
     if [ "$last" != "$want_last" ]; then said+=("last line \"$last\", wanted \"$want_last\""); fi
     if [ -n "$want_says" ] && ! printf '%s\n' "$out" | grep -Eq "$want_says"; then
         said+=("nothing matching /$want_says/ in the output")
+    fi
+
+    # What a run is allowed to print. Green: its step lines and its last line,
+    # and nothing of what the steps themselves said — that waits in the logs.
+    # Red: the failing step's own output, above the line the owner reads.
+    local stray
+    stray=$(printf '%s\n' "$out" | grep -vE '^gate check: ' | grep -v '^$')
+    if [ "$want_code" -eq 0 ] && [ -n "$stray" ]; then
+        said+=("printed what belongs in a log: $(printf '%s\n' "$stray" | head -1)")
+    fi
+    if [ "$want_code" -ne 0 ] && [ -z "$stray" ]; then
+        said+=("printed nothing of what the failing step said")
     fi
 
     # The steps after a failing one do not run.
