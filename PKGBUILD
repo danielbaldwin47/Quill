@@ -1,5 +1,5 @@
 # Maintainer: Daniel Baldwin <danielbaldwin47@gmail.com>
-# Build from this checkout:  makepkg -f   (then: sudo pacman -U quill-[0-9]*.pkg.tar.zst)
+# Build from this checkout: README.md § Build, install and run.
 #
 # The Rust workspace is built straight from the working tree: nothing is
 # downloaded except in prepare(), so `makepkg -f` needs the network once and
