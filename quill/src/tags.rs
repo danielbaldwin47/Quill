@@ -23,10 +23,12 @@
 //! so only a paragraph's can run past both edges of the measure and read as a
 //! well.
 
+use std::ops::Range;
+
 use gtk::gdk;
 use gtk::pango;
 use gtk::prelude::*;
-use quill_engine::annotate::{self, Ground, Ink, Look, Mark, Slant, Span, Weight};
+use quill_engine::annotate::{Ground, Ink, Look, Mark, Slant, Span, Weight};
 use quill_engine::document::Document;
 use quill_engine::settings::Face;
 use quill_engine::typography;
@@ -337,22 +339,53 @@ pub fn hang_markers(buffer: &gtk::TextBuffer, face: Face, size: u32, side: i32) 
     ground.set_indent(edge);
 }
 
-/// Draws `spans` on `buffer`, which must hold `document`'s text.
+/// Draws the whole of `document` on `buffer`, which must hold its text.
 ///
-/// The whole Document at once, which is where it stays for now: the
-/// architecture parses whole on open as a cold-start cost inside the 250 ms
-/// budget, and the ticket that lands the keystroke path retags only the lines
-/// whose runs changed.
+/// The whole Document at once is what opening one costs: the architecture
+/// parses and draws whole on open as a cold-start cost inside the 250 ms
+/// budget. A keystroke goes through [`retag`] instead.
+pub fn apply(buffer: &gtk::TextBuffer, document: &Document, face: Face) {
+    buffer.remove_all_tags(&buffer.start_iter(), &buffer.end_iter());
+    draw(buffer, document, face, &(0..document.text().len()));
+}
+
+/// Draws `lines` again, and leaves every other line of `buffer` alone.
+///
+/// The lines an [`Edit`] names, and no others. Every line below an edit
+/// carries tags that are still right: GTK moves a tag with the text it is on,
+/// so a run that only slid down the Document needs nothing done to it, and the
+/// engine hands back only the lines whose runs came out looking different.
+///
+/// [`Edit`]: quill_engine::document::Edit
+pub fn retag(buffer: &gtk::TextBuffer, document: &Document, face: Face, lines: &Range<usize>) {
+    if lines.is_empty() {
+        return;
+    }
+    let at = document.line_bytes(lines.start).start..document.line_bytes(lines.end - 1).end;
+    let from = iter_at(buffer, document, at.start);
+    let to = iter_at(buffer, document, at.end);
+    buffer.remove_all_tags(&from, &to);
+    draw(buffer, document, face, &at);
+}
+
+/// Puts every tag the bytes `at` ask for on to `buffer`.
+///
 /// Several tags land on the same bytes, which is safe here for one reason and
 /// only one: no two of them set the same property. The colour, the cut, the
 /// ground and the two decorations are five disjoint sets, so priority never
 /// has to decide between them — and priority is what the flattening exists to
 /// keep out of the colour, where they *would* collide.
-pub fn apply(buffer: &gtk::TextBuffer, document: &Document, face: Face, spans: &[Span]) {
-    buffer.remove_all_tags(&buffer.start_iter(), &buffer.end_iter());
-    for run in annotate::flatten(spans) {
-        let from = iter_at(buffer, document, run.at.start);
-        let to = iter_at(buffer, document, run.at.end);
+///
+/// A run is clipped to `at` and a paragraph tag is not, because the two are
+/// different kinds of thing: a run draws the bytes it covers, and the caller
+/// has taken the tags off exactly those bytes; a paragraph property is read
+/// off the whole line and belongs to every line its span touches, including
+/// the ones outside `at` that still have it. Applying a tag they already carry
+/// is what leaves them as they were.
+fn draw(buffer: &gtk::TextBuffer, document: &Document, face: Face, at: &Range<usize>) {
+    for run in document.runs_in(at) {
+        let from = iter_at(buffer, document, run.at.start.max(at.start));
+        let to = iter_at(buffer, document, run.at.end.min(at.end));
         let Look {
             ink,
             alpha,
@@ -372,7 +405,10 @@ pub fn apply(buffer: &gtk::TextBuffer, document: &Document, face: Face, spans: &
             buffer.apply_tag(&underline(buffer), &from, &to);
         }
     }
-    for span in spans {
+    for span in document.spans_in(at) {
+        if span.at.end <= at.start {
+            continue;
+        }
         match span.mark {
             Mark::Heading(level) => {
                 paragraph(buffer, document, span, &heading(buffer, level));
