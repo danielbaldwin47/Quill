@@ -9,6 +9,7 @@
 // the shots, which are committed.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -119,6 +120,28 @@ ok('a freeze is stale when the app, the shooter, the passage or the states move 
   assert.match(freezeReason(was, { ...same, passages: { 'ref/sample.md': 'ffff' } }, ['duo']), /passage/);
   assert.match(freezeReason(was, { ...same, states: { duo: { font: 'mono' } } }, ['duo']), /judged states/);
   assert.match(freezeReason(was, same, []), /shot is missing/);
+});
+
+// ---------- the frozen shots are reproducible ----------
+// Shooting one state twice has to give byte-identical files, and the committed shots say whether
+// it still does without shooting anything: `caret`'s caret, `page`'s light and `theme`'s light are
+// three Pieces asking for the same flags, so they are the same state shot three times, in three
+// runs, minutes apart. The moment the shooter stops settling before the shutter they drift.
+ok('states with the same flags were shot into the same bytes', () => {
+  const bytes = new Map();
+  const flags = new Map();
+  for (const piece of fs.readdirSync(path.join(ROOT, 'shots/oracle'), { withFileTypes: true }).filter((e) => e.isDirectory())) {
+    for (const s of resolveStates(states, piece.name)) {
+      const png = path.join(ROOT, 'shots/oracle', piece.name, `${s.name}.png`);
+      if (!fs.existsSync(png)) continue;
+      const key = JSON.stringify(s.flags);
+      const digest = crypto.createHash('sha256').update(fs.readFileSync(png)).digest('hex');
+      const where = `${piece.name}/${s.name}`;
+      if (bytes.has(key)) assert.equal(digest, bytes.get(key), `${where} and ${flags.get(key)} are the same judged state but not the same bytes`);
+      else { bytes.set(key, digest); flags.set(key, where); }
+    }
+  }
+  assert.ok(bytes.size < 16, 'no two frozen states share their flags — this check is proving nothing');
 });
 
 // ---------- the two answers that need no browser ----------

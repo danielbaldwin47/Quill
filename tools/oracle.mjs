@@ -33,6 +33,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+// The one hash of a legacy/ build, shared with the bench that stamps its numbers with it.
+import { appFiles, hashApp } from './fingerprint.mjs';
+
+// The port legacy/bin/quill opens the app on, and the same way of moving it.
 const PORT = +(process.env.QUILL_PORT || 4173);
 
 // ---------- the judged states ----------
@@ -87,29 +91,7 @@ export function shootArgv(root, flags, out, url) {
 }
 
 // ---------- what produced the shots ----------
-// legacy/app's js, css and html, hashed as legacy/tools/latency.mjs hashes them for a bench run,
-// so the two fingerprints of one build agree.
-function appFiles(root) {
-  const files = [];
-  const walk = (d) => {
-    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
-      const f = path.join(d, e.name);
-      if (e.isDirectory()) { if (e.name !== 'fonts') walk(f); }
-      else if (/\.(js|css|html)$/.test(e.name)) files.push(f);
-    }
-  };
-  walk(path.join(root, 'legacy/app'));
-  return files.sort().map((f) => path.relative(root, f));
-}
-
 function sha(bytes) { return crypto.createHash('sha256').update(bytes).digest('hex'); }
-
-function hashApp(root) {
-  const files = appFiles(root);
-  const h = crypto.createHash('sha256');
-  for (const f of files) h.update(`${f}:${sha(fs.readFileSync(path.join(root, f)))}\n`);
-  return { files: files.length, sha256: h.digest('hex').slice(0, 16) };
-}
 
 export function fingerprint(root, resolved) {
   let git = null;
@@ -187,13 +169,13 @@ async function documentServer(root, appSha) {
 }
 
 // ---------- the command ----------
+// What the command is stays in tools/gate's own usage, which calls itself the one copy of that;
+// this says the shape and where the description lives.
 function usage(where = process.stderr) {
   where.write(`usage: tools/gate oracle <piece> [--force]
 
-  Freezes the Parity oracle for <piece>: legacy/ shot at every state
-  shots/oracle/states.json lists for it, into shots/oracle/<piece>/<state>.png.
-  Shoots nothing when the shots on disk already match what would be taken;
-  --force shoots them again anyway.
+  The Pieces with judged states are the keys of "pieces" in
+  shots/oracle/states.json. What the command does: tools/gate --help
 `);
 }
 
@@ -224,12 +206,14 @@ async function main(argv) {
 }
 
 async function freeze(root, piece, force) {
-  let states;
+  // A Piece nobody has judged states for is a mistyped command, not a failed freeze, so it answers
+  // as tools/gate answers a command it does not have: the name, the usage, and 2. A states.json
+  // that will not parse is the other thing entirely — that is the freeze failing, and it ends in
+  // the line the owner reads, through the catch in main().
+  const states = readStates(root);
   let resolved;
-  try {
-    states = readStates(root);
-    resolved = resolveStates(states, piece);
-  } catch (e) { process.stderr.write(`gate oracle: ${e.message}\n`); return 2; }
+  try { resolved = resolveStates(states, piece); }
+  catch (e) { process.stderr.write(`gate oracle: ${e.message}\n`); return 2; }
 
   if (resolved.length === 0) {
     console.log(`gate oracle ${piece}: no judged states (${piece === 'latency' ? 'the latency Piece is benched, not judged' : 'nothing to freeze'})`);
@@ -263,6 +247,14 @@ async function freeze(root, piece, force) {
     return 1;
   }
 
+  // legacy/ has its own manifest, and the root `npm i` does not fill it. Said here, where it is
+  // one line, rather than as shoot.mjs's module-not-found under a failed shot.
+  if (!fs.existsSync(path.join(root, 'legacy/node_modules/playwright-core'))) {
+    process.stderr.write('gate oracle: legacy/ has no playwright-core to shoot with; run `npm i` inside legacy/ (its manifest is its own, and the root one is not enough)\n');
+    console.log(`gate oracle ${piece}: fail (legacy/ is not installed)`);
+    return 1;
+  }
+
   const now = fingerprint(root, resolved);
   const fpFile = path.join(dir, 'fingerprint.json');
   const was = fs.existsSync(fpFile) ? JSON.parse(fs.readFileSync(fpFile, 'utf8')) : null;
@@ -286,12 +278,14 @@ async function freeze(root, piece, force) {
       // when it fails is on stderr, above that line, for the agent who has to fix it.
       execFileSync('node', [path.join(root, 'legacy/tools/shoot.mjs'), ...shootArgv(root, s.flags, shot(s), server.url)], { cwd: root, stdio: ['ignore', 'ignore', 'inherit'] });
     }
-    // A state that has been renamed or dropped leaves its shot behind, and a judging session
-    // would pick up an opponent no judged state asks for any more.
-    for (const f of fs.readdirSync(dir)) {
-      if (f.endsWith('.png') && !resolved.some((s) => `${s.name}.png` === f)) {
-        process.stderr.write(`gate oracle ${piece}: ${f} is no longer a judged state, removing it\n`);
-        fs.rmSync(path.join(dir, f));
+    // A state that has been renamed or dropped leaves its shot behind, and a judging session would
+    // pick up an opponent no judged state asks for any more. Only a shot this command took itself
+    // — one the last fingerprint names — is cleared up; anything else in the directory is somebody
+    // else's and is left where it is.
+    for (const name of Object.keys(was?.states || {})) {
+      if (!resolved.some((s) => s.name === name) && fs.existsSync(path.join(dir, `${name}.png`))) {
+        process.stderr.write(`gate oracle ${piece}: ${name} is no longer a judged state, removing its shot\n`);
+        fs.rmSync(path.join(dir, `${name}.png`));
       }
     }
     fs.writeFileSync(fpFile, `${JSON.stringify(now, null, 2)}\n`);
