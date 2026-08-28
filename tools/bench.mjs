@@ -128,9 +128,10 @@ function usage(to = process.stderr) {
 
 A regime name, --all and --regimes each say which regimes to run, so only one of them may be given.
 A run of several writes ${RESULTS}/summary-<stamp>.json beside the per-regime results, which is what
-tools/gate judge latency reads. A --panel run writes ${RESULTS}/panel-summary-<stamp>.json instead,
-which judge does not read and never will: the panel is a fractional-scale output, its numbers are
-not the ones the budget is set on, and nothing about it decides a Piece.
+tools/gate judge latency reads. A --panel run of several writes ${RESULTS}/panel-summary-<stamp>.json
+instead, which judge does not read and never will: the panel is a fractional-scale output, its
+numbers are not the ones the budget is set on, and nothing about it decides a Piece. Every --panel
+result file, one regime or twelve, is marked informational inside and named bench-panel-<regime>-.
 `);
 }
 
@@ -503,15 +504,9 @@ async function bench(root, { ran, chosen, keys, sessions, wantsPanel, idle }) {
     return refuse('the binary would not build');
   }
 
-  let stage;
-  try {
-    stage = wantsPanel
-      ? await openPanelStage({ root, workspace: PANEL_WORKSPACE, idle })
-      : await openStage({ root });
-  } catch (e) {
-    say(String(e.stack || e.message));
-    return refuse(e.message.split('\n')[0]);
-  }
+  const stage = wantsPanel
+    ? await openPanelStage({ root, workspace: PANEL_WORKSPACE, idle })
+    : await openStage({ root });
 
   // What the panel run is of, taken from the stage rather than from the flag, so that a line saying
   // "on DP-3 at 3840x2160 scale 1.5" is saying what the compositor actually gave it.
@@ -648,6 +643,7 @@ async function main(argv) {
   let sessions = 1;
   let wantsPanel = false;
   let idle = PANEL_IDLE_S;
+  let idleGiven = false;
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--keys' || a === '--sessions') {
@@ -661,8 +657,9 @@ async function main(argv) {
     } else if (a === '--idle-window') {
       // Seconds, and not necessarily whole ones: `tools/idle-check.py` takes a float, and the
       // fraction is worth keeping for a run being tried repeatedly on a machine somebody is about
-      // to leave. Zero is allowed and means "do not wait", which is the only way to measure the
-      // panel on a machine whose input devices cannot be read at all.
+      // to leave. Zero is allowed and means "ask once and do not wait" — still a check, because
+      // `idle-check.py` refuses a machine it cannot read the input devices of whatever the window.
+      idleGiven = true;
       const n = Number(argv[i += 1]);
       if (!Number.isFinite(n) || n < 0) {
         process.stderr.write('gate bench: --idle-window takes seconds, 0 or more\n');
@@ -693,7 +690,7 @@ async function main(argv) {
   // Refused rather than ignored. The flag's whole job is to move a threshold that only --panel
   // consults, so a run given it without --panel is a run whose author believes something about it
   // that is not true.
-  if (idle !== PANEL_IDLE_S && !wantsPanel) {
+  if (idleGiven && !wantsPanel) {
     process.stderr.write('gate bench: --idle-window is how long --panel waits for the machine to go '
       + 'quiet, and this run is not a --panel run\n');
     usage();

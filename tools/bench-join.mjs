@@ -253,14 +253,16 @@ const say = (x) => (x == null ? '—' : String(x));
 /// `--panel` on it when the numbers came off the physical display.
 const labelled = (what, panel) => (panel ? `${what} --panel` : what);
 
-/// The clause every panel line ends in, and the reason there is a `--panel` in the label at all.
+/// The clause a panel run's verdict line ends in, and the reason there is a `--panel` in the label.
 ///
-/// Said in full on every line rather than once at the end of the run, because a panel number read
-/// without it is a number somebody will hold against the budget — and it cannot be: the panel is
-/// fractional-scale, so the window's buffer is not the one the budget was set on. The output, its
-/// mode and its scale are in the line for the same reason they are in the fingerprint: two panel
-/// runs are only comparable with each other, and only when those three agree.
-const informational = (panel) => ` (on ${panel.output} at ${panel.mode} scale ${panel.scale};`
+/// On the line that carries the verdict — the last line of a single run, and the last line of a run
+/// of several — because a panel number read without it is a number somebody will hold against the
+/// budget, and it cannot be: the panel is fractional-scale, so the window's buffer is not the one
+/// the budget was set on. Not on each regime's row in a run of twelve, which would say it twelve
+/// times; the `--panel` in every one of those labels is what carries it there. The output, its mode
+/// and its scale are in the line for the same reason they are in the fingerprint: two panel runs are
+/// only comparable with each other, and only when those three agree.
+const caveat = (panel) => ` (on ${panel.output} at ${panel.mode} scale ${panel.scale};`
   + ' the physical panel is informational and never a Gate condition,'
   + " and these are not the headless output's numbers)";
 
@@ -301,7 +303,7 @@ export function summary(regime, decided) {
       + `${say(r2(decided.stage_first_client))} ms and is not measured — ours is the launch after it`);
   }
   lines.push(panel
-    ? numbers(regime, said, panel) + informational(panel)
+    ? numbers(regime, said, panel) + caveat(panel)
     : numbers(regime, said)
       + ` (budget mean <= ${BUDGET.mean_ms}, worst <= ${BUDGET.worst_ms}, cold <= ${BUDGET.cold_ms} ms;`
       + ` oracle ${ORACLE.uinput_to_presented_ms}, ${ORACLE.worst_ms}, ${ORACLE.cold_ms} ms)`);
@@ -332,7 +334,7 @@ export function allSummary(ran, rows, panel = null) {
   // somewhere else. It says how many it measured, and where.
   if (panel) {
     return `gate bench ${labelled(ran, panel)}: informational — `
-      + `${rows.length} regime${rows.length === 1 ? '' : 's'} measured${informational(panel)}`;
+      + `${rows.length} regime${rows.length === 1 ? '' : 's'} measured${caveat(panel)}`;
   }
   const failed = rows.filter((r) => !r.pass).map((r) => r.regime);
   return `gate bench ${ran}: ${failed.length ? 'fail' : 'pass'} — `
