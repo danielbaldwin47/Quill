@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Quill's icon: a page of prose with the caret waiting at the end of the
-     last line. Quill's own palette (app/css/theme.css): paper #f9f9f9, ink
+     last line. Quill's own palette (legacy/app/css/theme.css): paper #f9f9f9, ink
      #1c1c1c, caret #00b5ff. Four shapes and no gradients, so it stays legible
      at 16 px and needs no per-size artwork. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
