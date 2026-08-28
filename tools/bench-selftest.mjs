@@ -428,10 +428,13 @@ ok('write gaps say the pace, and count the pauses without averaging them away', 
 // on the workspace the run wants. So the refusals are a pure function of monitors and a workspace
 // id, and those machines are handed to it here.
 
-// Monitors as `hyprctl monitors -j` gives them, cut down to the fields the refusal reads.
-const DP3 = { name: 'DP-3', width: 3840, height: 2160, scale: 1.5, x: 0, y: 0 };
-const HEADLESS = { name: 'HEADLESS-67', width: 3200, height: 2000, scale: 2, x: 3840, y: 0 };
-const ASLEEP = { name: 'FALLBACK', width: 1920, height: 1080, scale: 1, x: 0, y: 0 };
+// Monitors as `hyprctl monitors -j` gives them, cut down to the fields the refusal reads. Each
+// carries its own `activeWorkspace`, which is the field that matters: the refusal asks the panel
+// what it is showing rather than asking the compositor which workspace has focus.
+const on = (m, id) => ({ ...m, activeWorkspace: { id, name: String(id) } });
+const DP3 = on({ name: 'DP-3', width: 3840, height: 2160, scale: 1.5, x: 0, y: 0 }, 1);
+const HEADLESS = on({ name: 'HEADLESS-67', width: 3200, height: 2000, scale: 2, x: 3840, y: 0 }, 9);
+const ASLEEP = on({ name: 'FALLBACK', width: 1920, height: 1080, scale: 1, x: 0, y: 0 }, 1);
 
 ok('a panel is a monitor somebody could be looking at, and neither of the other two is', () => {
   assert.deepEqual(physicalMonitors([DP3, HEADLESS, ASLEEP]), [DP3]);
@@ -440,23 +443,34 @@ ok('a panel is a monitor somebody could be looking at, and neither of the other 
 });
 
 ok('the panel is refused with the panel asleep, on workspace 1, and on the one in use', () => {
-  const asleep = panelRefusal({ monitors: [ASLEEP], active: 1, workspace: PANEL_WORKSPACE });
+  const asleep = panelRefusal({ monitors: [ASLEEP], workspace: PANEL_WORKSPACE });
   assert.match(asleep, /FALLBACK/, 'the owner is told which state the compositor is in');
   assert.match(asleep, /no physical output is connected/);
 
-  const stage = panelRefusal({ monitors: [DP3, HEADLESS], active: 1, workspace: PANEL_WORKSPACE });
+  const stage = panelRefusal({ monitors: [DP3, HEADLESS], workspace: PANEL_WORKSPACE });
   assert.equal(stage, null, "the Gate's own headless output does not make a panel run impossible");
 
   assert.match(
-    panelRefusal({ monitors: [DP3], active: 2, workspace: 1 }),
+    panelRefusal({ monitors: [DP3], workspace: 1 }),
     /workspace 1 is the owner's/,
-    'workspace 1 is refused even when the owner is somewhere else',
+    'workspace 1 is refused even when the panel is showing something else',
   );
   assert.match(
-    panelRefusal({ monitors: [DP3], active: PANEL_WORKSPACE, workspace: PANEL_WORKSPACE }),
-    /workspace 5 is the one in use/,
+    panelRefusal({ monitors: [on(DP3, PANEL_WORKSPACE)], workspace: PANEL_WORKSPACE }),
+    /workspace 5 is the one in use on DP-3/,
   );
-  assert.equal(panelRefusal({ monitors: [DP3], active: 1, workspace: PANEL_WORKSPACE }), null);
+  assert.equal(panelRefusal({ monitors: [DP3], workspace: PANEL_WORKSPACE }), null);
+
+  // The one the global `hyprctl activeworkspace` would get wrong: the panel is showing workspace 5
+  // and a leftover headless output holds focus on something else. Asking the compositor at large
+  // would clear the run to take a workspace that is on screen, and put it on the output that is not.
+  assert.match(
+    panelRefusal({
+      monitors: [on(DP3, PANEL_WORKSPACE), on(HEADLESS, 9)], workspace: PANEL_WORKSPACE,
+    }),
+    /workspace 5 is the one in use on DP-3/,
+    'the panel is asked what it is showing, not whichever monitor has focus',
+  );
 });
 
 // The panel's numbers are not the budget's, and the line has to be unmistakable about it — a reader

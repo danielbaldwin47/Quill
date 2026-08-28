@@ -98,9 +98,11 @@ usage: tools/gate <command> [arguments]
                 the one in use. The result is informational and never a Gate
                 condition: the panel is fractional-scale, so its numbers are not
                 the headless output's and are not held against the budget. Every
-                line says so and names the output, mode and scale; the run
-                writes shots/latency/panel-summary-<stamp>.json, which `judge
-                latency` does not read and refuses if it is handed one.
+                line says so and names the output, mode and scale; results
+                are bench-panel-<regime>-<stamp>.json, marked informational
+                inside, and a run of several also writes
+                shots/latency/panel-summary-<stamp>.json, which `judge latency`
+                does not read and refuses if it is handed one.
 
   judge <piece> [--note <text>] [--summary <file>]
                 The Ticket tier's blind judging for one Piece: ours built and
