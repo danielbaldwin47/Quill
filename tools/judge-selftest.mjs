@@ -301,10 +301,29 @@ function gate(...argv) {
 }
 const lastLine = (r) => r.out.trim().split('\n').pop();
 
-ok('the latency Piece is benched, not judged, and says so by name', () => {
-  const r = gate('judge', 'latency');
-  assert.equal(r.code, 3, r.out);
-  assert.match(lastLine(r), /^gate judge latency: refused \(the latency Piece is benched, not judged/);
+// The latency Piece is judged by arithmetic over a bench run, and the arithmetic itself is
+// `tools/bench-selftest.mjs`'s to check. What is checked here is the half that is this command's:
+// which runs it will not take a verdict from. A run it *would* take one from is not exercised,
+// because writing a round into the ledger is not something a test may do.
+ok('the latency Piece is judged on a whole bench run, and refuses anything less', () => {
+  const missing = gate('judge', 'latency', '--summary', 'shots/latency/summary-nosuchrun.json');
+  assert.equal(missing.code, 3, missing.out);
+  assert.match(lastLine(missing), /^gate judge latency: refused \(shots\/latency\/summary-nosuchrun\.json is not a file to read\)/);
+
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'quill-judge-latency-'));
+  const subset = path.join(tmp, 'summary-20260828T000000.json');
+  fs.writeFileSync(subset, JSON.stringify({
+    ran: '--regimes revision,paste_blocks',
+    headline: 'prose_end_of_draft',
+    regimes: [{ regime: 'revision', mean_ms: 2, worst_ms: 8, cold_ms: 120, pass: true }],
+    regimes_not_run: [],
+    lines: ['gate bench --regimes revision,paste_blocks: pass'],
+  }));
+  const short = gate('judge', 'latency', '--summary', subset);
+  fs.rmSync(tmp, { recursive: true, force: true });
+  assert.equal(short.code, 3, short.out);
+  assert.match(lastLine(short), /^gate judge latency: refused \(.* is not a whole run/,
+    'two regimes are a measurement, not a verdict on the Piece');
 });
 
 ok('a Piece whose states need flags the app has not got names them and judges nothing', () => {
