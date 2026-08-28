@@ -38,7 +38,9 @@ impl Session {
         report(&State::path(), &notes);
 
         // The windows the last session left are this session's opening shape,
-        // and the list is cleared for the windows this one leaves.
+        // and the list is cleared for the windows this one leaves. Nothing is
+        // lost with them: a window opens in that shape and carries it, keys
+        // this Quill does not know included, back into the file on the way out.
         let opening = state.window();
         state.windows.clear();
         Rc::new(Self {

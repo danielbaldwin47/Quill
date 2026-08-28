@@ -120,13 +120,16 @@ impl Window {
     /// `default_size` rather than the allocation: it is the size a window would
     /// go back to from maximized or full screen, which is the one worth
     /// remembering, and GTK keeps it up to date as the writer drags an edge.
-    fn shape(&self) -> WindowState {
+    ///
+    /// It starts from the shape the window was opened in rather than from
+    /// nothing, so that a state file written by a newer Quill keeps the keys
+    /// this one does not know: the window is that remembered window, opened
+    /// again, and what was said about it is still said about it.
+    fn shape(&self, opened_in: &WindowState) -> WindowState {
         let (width, height) = self.default_size();
-        let unknown = WindowState::default();
-        let mut shape = WindowState::sized(
-            u32::try_from(width).unwrap_or(unknown.width),
-            u32::try_from(height).unwrap_or(unknown.height),
-        );
+        let mut shape = opened_in.clone();
+        shape.width = u32::try_from(width).unwrap_or(shape.width);
+        shape.height = u32::try_from(height).unwrap_or(shape.height);
         shape.maximized = self.is_maximized();
         shape.fullscreen = self.is_fullscreen();
         shape
@@ -134,8 +137,11 @@ impl Window {
 
     /// Takes this window's shape down for the next launch.
     fn remember(&self) {
+        // Set the moment the window is built, so this is every window; the
+        // `Option` is there because a `GObject` is constructed before anyone
+        // can hand it anything.
         if let Some(session) = self.imp().session.borrow().as_ref() {
-            session.remember(self.shape());
+            session.remember(self.shape(session.opening()));
         }
     }
 

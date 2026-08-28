@@ -43,7 +43,10 @@ fn opening_a_document_writes_nothing_beside_it_and_nothing_under_the_library() {
     // those directories.
     assert!(Settings::path().starts_with(scratch.join("config")));
     assert!(State::path().starts_with(scratch.join("state")));
-    assert!(Settings::path().is_file(), "the first launch writes settings");
+    assert!(
+        Settings::path().is_file(),
+        "the first launch writes settings"
+    );
     assert!(State::path().is_file(), "quitting writes state");
     assert_eq!(Settings::read_from(&Settings::path()).0, settings);
 
