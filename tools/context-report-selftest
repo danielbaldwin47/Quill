@@ -98,11 +98,18 @@ def fixture(root):
               [user("s1" + name, ts, None, "go"),
                assistant("s2" + name, ts, None, "sr" + name, ctx, 1)])
 
-    # Session C: no `/implement` record at all — only the branch names it.
+    # Session C: no `/implement` record at all — only the branch names it, and it
+    # names two tickets, both of which the session answers to.
     write(os.path.join(quill, c + ".jsonl"), [
-        user("u10", "T02:00:00Z", "worktree-scaffold-103-thing", "do the thing"),
-        assistant("u11", "T02:00:01Z", "worktree-scaffold-103-thing", "r10", 8000, 2),
-        assistant("u12", "T02:00:02Z", "worktree-scaffold-103-thing", "r11", 9000, 1),
+        user("u10", "T02:00:00Z", "scaffold-103-and-105-thing", "do the thing"),
+        assistant("u11", "T02:00:01Z", "scaffold-103-and-105-thing", "r10", 8000, 2),
+        assistant("u12", "T02:00:02Z", "scaffold-103-and-105-thing", "r11", 9000, 1),
+    ])
+
+    # Session D: asked for with a `#`, which is also how the report may be asked.
+    write(os.path.join(quill, "dddd0000-0000-0000-0000-000000000004.jsonl"), [
+        user("u20", "T04:00:00Z", "main", IMPLEMENT % "#104"),
+        assistant("u21", "T04:00:01Z", "main", "r20", 11000, 2),
     ])
 
     # A project directory that is not this repo's, holding a decoy #101 session.
@@ -125,8 +132,12 @@ CASES = [
     # #102: the one call session A made before its `/implement` record, named by
     # the branch it was still on, with the subagent that started under it.
     ("102", 0, "context: peak 6k tokens, 1 tool call, 1 subagent (peak 7k)"),
-    # #103: a session no `/implement` record names.
+    # #103 and #105: a session no `/implement` record names, whose branch names two.
     ("103", 0, "context: peak 9k tokens, 3 tool calls, 0 subagents"),
+    ("105", 0, "context: peak 9k tokens, 3 tool calls, 0 subagents"),
+    # #104: a `#` on either end of the comparison, or both, is the same ticket.
+    ("104", 0, "context: peak 11k tokens, 2 tool calls, 0 subagents"),
+    ("#104", 0, "context: peak 11k tokens, 2 tool calls, 0 subagents"),
     ("999", 1, "context: no session found for #999"),
 ]
 
@@ -146,7 +157,7 @@ def main():
                       % (ticket, code, want, got_code, got,
                          "\n  stderr " + err if err else ""), file=sys.stderr)
             else:
-                print("ok   #%s  %s" % (ticket, got))
+                print("ok   #%s  %s" % (ticket.lstrip("#"), got))
     print("selftest: %s" % ("pass" if not bad else "%d case(s) failed" % bad),
           file=sys.stderr if bad else sys.stdout)
     return 1 if bad else 0
