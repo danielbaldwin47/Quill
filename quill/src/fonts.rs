@@ -27,12 +27,6 @@ use std::ptr::null_mut;
 
 use quill_engine::data;
 
-/// The Face a Document is set in until the type settings say otherwise.
-///
-/// The six family names themselves live beside the file names they belong to,
-/// in [`data::FACES`].
-pub const DEFAULT: &str = data::FACES[0].0;
-
 /// Why the Faces are not available.
 ///
 /// Neither case stops Quill: a writer with the wrong typeface can still open

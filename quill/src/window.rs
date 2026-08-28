@@ -9,19 +9,26 @@
 //! Windows belong to the application, so a file opened while Quill is running
 //! joins the running instance instead of starting a second one, and closing one
 //! window leaves the others alone.
+//!
+//! A window also opens in the shape the last session left and takes its own
+//! shape down on the way out, which is the whole of what state is for so far.
+//! Its position is not part of that: GTK4 gives a client no way to ask where
+//! its window is or to put it back, so where a window opens is the
+//! compositor's, on Wayland and on X11 alike.
+
+use std::rc::Rc;
 
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{gio, glib};
 use quill_engine::document::Document;
+use quill_engine::settings::WindowState;
 
-/// Until settings remember a size, every window opens at the shape the spike
-/// was judged at.
-const DEFAULT_WIDTH: i32 = 1100;
-const DEFAULT_HEIGHT: i32 = 760;
+use crate::session::Session;
 
 mod imp {
     use std::cell::RefCell;
+    use std::rc::Rc;
 
     use gtk::prelude::*;
     use gtk::subclass::prelude::*;
@@ -29,11 +36,15 @@ mod imp {
     use quill_engine::document::Document;
 
     use crate::editor::Editor;
+    use crate::session::Session;
 
     #[derive(Default)]
     pub struct Window {
         /// The one Document this window shows.
         pub document: RefCell<Document>,
+        /// The settings and state this window was opened from and will be
+        /// remembered in.
+        pub session: RefCell<Option<Rc<Session>>>,
         pub editor: Editor,
     }
 
@@ -48,7 +59,6 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
             let window = self.obj();
-            window.set_default_size(super::DEFAULT_WIDTH, super::DEFAULT_HEIGHT);
             let scroller = ScrolledWindow::builder()
                 .hexpand(true)
                 .vexpand(true)
@@ -74,12 +84,59 @@ glib::wrapper! {
 }
 
 impl Window {
-    /// A window of `app` showing `document`.
-    fn new(app: &gtk::Application, document: Document) -> Self {
+    /// A window of `app` showing `document`, in the shape `session` remembers.
+    fn new(app: &gtk::Application, document: Document, session: &Rc<Session>) -> Self {
         let window: Self = glib::Object::builder().property("application", app).build();
+        window.imp().session.replace(Some(Rc::clone(session)));
+        window.open_at(session.opening());
         window.set_document(document);
         window.imp().editor.grab_focus();
+        // A window is remembered as it closes rather than at shutdown, so that
+        // the last window a writer sized is the first one the next launch
+        // reads, whichever of its windows they closed first.
+        window.connect_close_request(|window| {
+            window.remember();
+            glib::Propagation::Proceed
+        });
         window
+    }
+
+    /// Opens in the shape a session left.
+    fn open_at(&self, shape: &WindowState) {
+        self.set_default_size(
+            i32::try_from(shape.width).unwrap_or(i32::MAX),
+            i32::try_from(shape.height).unwrap_or(i32::MAX),
+        );
+        if shape.maximized {
+            self.maximize();
+        }
+        if shape.fullscreen {
+            self.fullscreen();
+        }
+    }
+
+    /// The shape this window is in now.
+    ///
+    /// `default_size` rather than the allocation: it is the size a window would
+    /// go back to from maximized or full screen, which is the one worth
+    /// remembering, and GTK keeps it up to date as the writer drags an edge.
+    fn shape(&self) -> WindowState {
+        let (width, height) = self.default_size();
+        let unknown = WindowState::default();
+        let mut shape = WindowState::sized(
+            u32::try_from(width).unwrap_or(unknown.width),
+            u32::try_from(height).unwrap_or(unknown.height),
+        );
+        shape.maximized = self.is_maximized();
+        shape.fullscreen = self.is_fullscreen();
+        shape
+    }
+
+    /// Takes this window's shape down for the next launch.
+    fn remember(&self) {
+        if let Some(session) = self.imp().session.borrow().as_ref() {
+            session.remember(self.shape());
+        }
     }
 
     /// Takes `document` as this window's own and shows it.
@@ -92,8 +149,8 @@ impl Window {
 }
 
 /// Opens a window on a Document that is not on disk yet.
-pub fn present_untitled(app: &gtk::Application) {
-    Window::new(app, Document::untitled()).present();
+pub fn present_untitled(app: &gtk::Application, session: &Rc<Session>) {
+    Window::new(app, Document::untitled(), session).present();
 }
 
 /// Opens one window per file of an open request.
@@ -101,7 +158,7 @@ pub fn present_untitled(app: &gtk::Application) {
 /// A file that cannot be read is reported and skipped, so the other files still
 /// get their windows. Reporting is stderr until the Library spec decides what a
 /// writer sees; the point today is that nothing fails silently.
-pub fn present_files(app: &gtk::Application, files: &[gio::File]) {
+pub fn present_files(app: &gtk::Application, files: &[gio::File], session: &Rc<Session>) {
     for file in files {
         let Some(path) = file.path() else {
             // A `gio::File` with no local path: a URI Quill cannot read as a
@@ -110,8 +167,22 @@ pub fn present_files(app: &gtk::Application, files: &[gio::File]) {
             continue;
         };
         match Document::open(&path) {
-            Ok(document) => Window::new(app, document).present(),
+            Ok(document) => Window::new(app, document, session).present(),
             Err(err) => eprintln!("quill: cannot open {}: {err}", path.display()),
+        }
+    }
+}
+
+/// Takes down the shape of every window still open.
+///
+/// Quitting outright — `Ctrl+Q`, or the desktop closing the session — destroys
+/// windows without asking them to close, so shutdown asks the ones that are
+/// left. A window that closed on its own is already gone from this list and is
+/// remembered once.
+pub fn remember_open(app: &gtk::Application) {
+    for window in app.windows() {
+        if let Ok(window) = window.downcast::<Window>() {
+            window.remember();
         }
     }
 }
