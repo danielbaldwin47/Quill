@@ -12,3 +12,11 @@ publish.workspace = true
 [dependencies]
 gtk.workspace = true
 quill-engine.workspace = true
+
+# Pango's Cairo font map, which is the one way to lay text out with no display
+# attached — GTK's own contexts all come off a `GdkDisplay`. Tests only: it is
+# how the advance-width invariant the Markup rests on is measured, in the Faces
+# themselves rather than in a description of them. The C library is one gtk4
+# links already.
+[dev-dependencies]
+pangocairo.workspace = true
