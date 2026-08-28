@@ -1,0 +1,101 @@
+{
+  "piece": "page",
+  "round": 2,
+  "winner": "ours",
+  "margin": "clear",
+  "gap": "No page floor: A's last line's ink ends at y=1778 of 1800 (~11 CSS px of air below it) and the first line's ink starts at y=166 (~83 CSS px from the top edge) — the text field bleeds to the raw window edges with no bottom padding and no fade, so lines will scroll off a hard cut. B reserves a ~40 CSS px top zone and a ~50 CSS px bottom zone, and gives 114 px above the heading.",
+  "gapTheirs": "The status bar guillotines the text: a 0.5 CSS px #DFDFDF hairline at y=1748 slices '- the rope, coiled and salt-stiff' down to an 8 px (2x) sliver of glyph-tops — no fade mask, no scroll padding. B's ~100 CSS px of chrome buys nothing but a permanent '188 words / 961 characters / 1 min read' counter, and on an identical 2880x1800 viewport it shows two fewer full lines of the document (stops at 'name does not.' where A reaches '- the good knife').",
+  "verdict": "Paper is the same #F9F9F9, the column starts at x=672 in both, line pitch is 72 px (2x) in both, paragraph gap is exactly two lines in both — so this is decided entirely by how the field is bounded, and B bounds it badly. B spends a hundred pixels of vertical page on a filename you already know and a word count you did not ask for, then repays you by cutting a line of your own prose in half against a hairline. A's field is unframed and its last line sits eleven pixels off the sill, which is careless, but carelessness at the edge beats a running tally in your peripheral vision and a decapitated list item at every scroll position. Only one of these two pages lets you forget the application exists.",
+  "oursShot": "shots/page/r2-light-ours.png",
+  "theirsShot": "shots/oracle/page/light.png",
+  "refSource": "shots/oracle/page/ — the Parity oracle frozen by tools/gate oracle page from legacy/app 738f48c969965ac3 with legacy/tools/shoot.mjs adf473b575198cc3",
+  "builderNote": "the page Piece's first native round: the 64-character measure centred with the oracle's gutter, two pitches above the column and 30% of the view below, and an empty Document as a caret on paper",
+  "secondary": [
+    "Paper identical: srgb(249,249,249) in both, corner and gutter",
+    "Measure near-identical: column left edge x=672 (A) / 673 (B); B fits ~1 extra character per line (max ink width 1533 vs 1522 @2x)",
+    "Side margins ~336 CSS px each, column centred in both — no gap here",
+    "Vertical rhythm identical: 36 CSS px line pitch, 72 CSS px paragraph gap, 71.5 CSS px heading-to-body in both",
+    "A's window has zero chrome: no title bar, no rule, no footer — the whole 2880x1800 is paper",
+    "B's title bar has no bottom rule and pushes its icons to x=34 and x=2790, ~340 px outside the text column on each side",
+    "Caret (adjacent, not page): A 4x54 px @2x black; B 6x72 px @2x cyan srgb(0,181,255) spanning the full line box",
+    "Markers (adjacent): A renders '#', '##' and '**bottle**' in the same 28,28,28 as body text; B greys the markers and renders the heading bold and the emphasis italic"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "62b6663",
+    "binary": "c23b3931070b2e6e"
+  },
+  "states": [
+    {
+      "name": "light",
+      "ours": "shots/page/r2-light-ours.png",
+      "theirs": "shots/oracle/page/light.png",
+      "blind": "shots/blind/page/light",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "No page floor: A's last line's ink ends at y=1778 of 1800 (~11 CSS px of air below it) and the first line's ink starts at y=166 (~83 CSS px from the top edge) — the text field bleeds to the raw window edges with no bottom padding and no fade, so lines will scroll off a hard cut. B reserves a ~40 CSS px top zone and a ~50 CSS px bottom zone, and gives 114 px above the heading.",
+      "gapTheirs": "The status bar guillotines the text: a 0.5 CSS px #DFDFDF hairline at y=1748 slices '- the rope, coiled and salt-stiff' down to an 8 px (2x) sliver of glyph-tops — no fade mask, no scroll padding. B's ~100 CSS px of chrome buys nothing but a permanent '188 words / 961 characters / 1 min read' counter, and on an identical 2880x1800 viewport it shows two fewer full lines of the document (stops at 'name does not.' where A reaches '- the good knife').",
+      "verdict": "Paper is the same #F9F9F9, the column starts at x=672 in both, line pitch is 72 px (2x) in both, paragraph gap is exactly two lines in both — so this is decided entirely by how the field is bounded, and B bounds it badly. B spends a hundred pixels of vertical page on a filename you already know and a word count you did not ask for, then repays you by cutting a line of your own prose in half against a hairline. A's field is unframed and its last line sits eleven pixels off the sill, which is careless, but carelessness at the edge beats a running tally in your peripheral vision and a decapitated list item at every scroll position. Only one of these two pages lets you forget the application exists.",
+      "secondary": [
+        "Paper identical: srgb(249,249,249) in both, corner and gutter",
+        "Measure near-identical: column left edge x=672 (A) / 673 (B); B fits ~1 extra character per line (max ink width 1533 vs 1522 @2x)",
+        "Side margins ~336 CSS px each, column centred in both — no gap here",
+        "Vertical rhythm identical: 36 CSS px line pitch, 72 CSS px paragraph gap, 71.5 CSS px heading-to-body in both",
+        "A's window has zero chrome: no title bar, no rule, no footer — the whole 2880x1800 is paper",
+        "B's title bar has no bottom rule and pushes its icons to x=34 and x=2790, ~340 px outside the text column on each side",
+        "Caret (adjacent, not page): A 4x54 px @2x black; B 6x72 px @2x cyan srgb(0,181,255) spanning the full line box",
+        "Markers (adjacent): A renders '#', '##' and '**bottle**' in the same 28,28,28 as body text; B greys the markers and renders the heading bold and the emphasis italic"
+      ]
+    },
+    {
+      "name": "empty",
+      "ours": "shots/page/r2-empty-ours.png",
+      "theirs": "shots/oracle/page/empty.png",
+      "blind": "shots/blind/page/empty",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "No vertical framing or landing cue: first-line ink starts 76 CSS px from a hard window edge with nothing above it, versus B's 105 CSS px, and the caret is a 2×27 CSS px #1C1C1C hairline — 33% narrower and 25% shorter than B's — as the only mark in a 1440×900 field, so the writer hunts for their own insertion point. Its implied line box (27 px) is ~25% tighter than B's (36 px), i.e. roughly 1.5 leading vs 2.0 on ~18–19 px type.",
+      "gapTheirs": "The page is taxed at both edges by chrome A doesn't have: a title strip with ink at y 8–21.5 CSS px and a status strip ('0 words 0 characters < 1 min read') whose ink sits 882–890 CSS px down — only 10 CSS px of bottom padding, tighter than anything else in either frame — so the sheet is bracketed by counters before a single word exists.",
+      "verdict": "The margins, measure and paper are the same sheet in both, so this comes down to noise, and B loses it twice over: a 6×72 device-px chip of 100%-saturation #00B5FF is the loudest thing in a composition that otherwise never leaves the #F9F9F9–#D1D1D1 band, and it lands directly on top of the placeholder's 'S', slicing the glyph's left stem. Then it pins a word count 10 px off the bottom edge to tell you you've written nothing. A is the barer page and it is also the calmer one, but its 2 px near-black caret is a genuinely small target in that much void, and its 27 px line box means this passage will set denser than B's. Pick A and enlarge the caret; do not pick the page that starts by counting your zero.",
+      "secondary": [
+        "Paper identical in both: #F9F9F9 flat, no gradient, no page edge or shadow in either",
+        "Left inset differs by 3 CSS px (335 vs 338) — below noticing threshold; measure not verifiable with no wrapped text",
+        "A shows no placeholder at all; B's placeholder is #D1D1D1 monospace, ink 19 CSS px cap-to-descender",
+        "B's caret x-range 676–681 device px collides with the placeholder glyph origin — a layout bug, not a style choice",
+        "B mixes a proportional sans in chrome against monospace body; A shows no second family because it shows no chrome",
+        "Neither shot gives any scroll affordance or bottom terminus; B's status strip at least implies a floor"
+      ]
+    },
+    {
+      "name": "narrow",
+      "ours": "shots/page/r2-narrow-ours.png",
+      "theirs": "shots/oracle/page/narrow.png",
+      "blind": "shots/blind/page/narrow",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "No gutter at either end: the column starts 165px down with nothing above it and the last line's ink stops 15px from the window edge (1785 of 1800), so the page has no top or bottom framing and reads as a raw text buffer rather than a sheet — and nothing on screen tells you which file you are in.",
+      "gapTheirs": "112px of the 1800px window (≈6%) is spent on fixed chrome — a ~60px title bar and a 52px status strip closed by a #DFDFDF hairline at y=1748 — which guillotines the last list line to an 8px sliver of ink and drops the visible body from 18 lines to 16, with a live '188 words / 961 characters' counter parked permanently under the prose.",
+      "verdict": "These are the same page: paper #F9F9F9 in both, left ink at x=193 in both, the identical line rendering 193→1682 at ~24.4px advance, 72px line pitch and 144px paragraph gap in both — so the whole argument happens at the edges. A sells 112px of writing surface for a filename and a word counter, and you can see the invoice: a line of your own list sliced to an 8px stump by a hairline rule, two fewer lines per screen. B gives you nothing back — no gutter, no orientation, text simply falling off the bottom cut — but it also never puts a divider through the middle of a sentence or twitches a character count under the paragraph you are trying to finish. The margin is thin because the typography is identical; the tiebreak is that A's page is interrupted and B's is not.",
+      "secondary": [
+        "paper identical: srgb(249,249,249) at every sampled point in both",
+        "vertical rhythm identical: 72px line pitch, 144px between paragraphs, 37px ink band per line",
+        "measure effectively identical: A's widest line ends at x=1725, B's at 1712 — about half a character",
+        "caret: A is 6px x 72px cyan #00B5FF spanning the full line box; B is 4px x 54px ink #1C1C1C",
+        "A renders markup (grey # / ** , real bold and italic); B shows every marker in body colour at body weight",
+        "the #DFDFDF rule at y=1748 in A is the only drawn line in either image",
+        "no scrollbar visible in either, so scroll position is unreadable in both",
+        "first heading sits at y=228 in A vs y=165 in B"
+      ]
+    }
+  ],
+  "at": "2026-08-28T18:57:17.033Z"
+}
