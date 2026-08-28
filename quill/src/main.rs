@@ -6,14 +6,22 @@
 //! Stats belong to a window; the Library and settings belong to the
 //! application.
 //!
-//! The settings are in: the writer's `settings.toml` is read once before the
-//! first window and the state file is written once as the last one goes, so a
-//! window comes back the size it was left and the Face a writer chose is the
-//! Face they get. The command-line flags that override both for one launch are
-//! the next Scaffold ticket's.
+//! Three things happen before the first window, in this order and for the same
+//! reason — none of them can be changed once a frame has been drawn. The
+//! command line is read ([`flags`]), so that a launch knows what it is. The
+//! Faces are given to fontconfig ([`fonts`]). And the writer's `settings.toml`
+//! and `state.toml` are read ([`session`]), with the flags over the top for
+//! this launch alone.
+//!
+//! A launch carrying a flag is the harness's rather than a writer's, and is
+//! served by the process that was launched: it runs non-unique, so a judged
+//! shot or a bench never lands in a window of the Quill a writer already has
+//! open, and it leaves both files exactly as it found them.
 
 mod editor;
+mod flags;
 mod fonts;
+mod harness;
 mod session;
 mod window;
 
@@ -23,12 +31,28 @@ use gtk::gio::ApplicationFlags;
 use gtk::glib;
 use gtk::prelude::*;
 
+use flags::Flags;
 use session::Session;
 
 /// The application id, also the `.desktop` file's and the icon's name.
 const APP_ID: &str = "io.github.danielbaldwin47.Quill";
 
 fn main() -> glib::ExitCode {
+    // The command line first, because everything below reads it. A flag Quill
+    // does not know is one line and no window: a harness that misspelled a
+    // flag would otherwise shoot the default state and call it a state.
+    let flags = match Flags::parse(std::env::args_os().skip(1)) {
+        Ok(flags) => flags,
+        Err(err) => {
+            eprintln!("quill: {err}");
+            return glib::ExitCode::FAILURE;
+        }
+    };
+    if flags.help {
+        println!("{}", flags::USAGE);
+        return glib::ExitCode::SUCCESS;
+    }
+
     // Before anything GTK: Pango builds its font map from the current
     // fontconfig the first time it lays text out, and the Faces have to be in
     // it by then. A writer whose Faces are missing gets a line on stderr and a
@@ -37,26 +61,40 @@ fn main() -> glib::ExitCode {
         eprintln!("quill: {err}");
     }
 
-    // And before any window: what the writer chose, and what the last session
-    // left. Both files are read here and nowhere else.
-    let session = Session::open();
+    // And before any window: what the writer chose, what the last session
+    // left, and what this command line says instead. All read here and nowhere
+    // else.
+    let harness = flags.any();
+    let session = Session::open(flags);
 
     let app = gtk::Application::builder()
         .application_id(APP_ID)
         // HANDLES_OPEN: the primary instance is handed the files, and the
-        // second process exits. One Document per window, any number of windows.
-        .flags(ApplicationFlags::HANDLES_OPEN)
+        // second process exits. One Document per window, any number of
+        // windows. NON_UNIQUE for a launch of the harness's: there is no
+        // primary instance to hand anything to, so the shot lands here.
+        .flags(if harness {
+            ApplicationFlags::HANDLES_OPEN | ApplicationFlags::NON_UNIQUE
+        } else {
+            ApplicationFlags::HANDLES_OPEN
+        })
         .build();
 
     // Startup runs once, after GTK has a display and before any window: the
-    // place for the stylesheet every Editor reads.
-    let face = session.settings().face;
-    app.connect_startup(move |_| editor::install_face(face));
+    // place for the Gate's determinism settings and for the stylesheet every
+    // Editor reads. Each handler outlives this scope, so each holds the
+    // session it uses.
+    let starting = Rc::clone(&session);
+    app.connect_startup(move |_| {
+        if starting.flags().deterministic {
+            harness::determine();
+        }
+        editor::install_face(starting.settings().face);
+    });
 
     // Launched with no file: an empty Editor, a Document with nothing in it.
-    // Each handler outlives this scope, so each holds the session it uses.
-    let untitled = Rc::clone(&session);
-    app.connect_activate(move |app| window::present_untitled(app, &untitled));
+    let activated = Rc::clone(&session);
+    app.connect_activate(move |app| window::present_launch(app, &activated));
     let opened = Rc::clone(&session);
     app.connect_open(move |app, files, _hint| window::present_files(app, files, &opened));
 
@@ -66,5 +104,12 @@ fn main() -> glib::ExitCode {
         session.store();
     });
 
-    app.run()
+    if harness {
+        // The flags have been read already, and GTK would refuse most of them.
+        // Only the program's own name is handed on, so the application opens
+        // what the flags name rather than what the command line looks like.
+        app.run_with_args(&["quill"])
+    } else {
+        app.run()
+    }
 }

@@ -10,11 +10,11 @@
 //! joins the running instance instead of starting a second one, and closing one
 //! window leaves the others alone.
 //!
-//! A window also opens in the shape the last session left and takes its own
-//! shape down on the way out, which is the whole of what state is for so far.
-//! Its position is not part of that: GTK4 gives a client no way to ask where
-//! its window is or to put it back, so where a window opens is the
-//! compositor's, on Wayland and on X11 alike.
+//! A window also opens in the shape the last session left — or the shape the
+//! flags name — and takes its own shape down on the way out, which is the whole
+//! of what state is for so far. Its position is not part of that: GTK4 gives a
+//! client no way to ask where its window is or to put it back, so where a
+//! window opens is the compositor's, on Wayland and on X11 alike.
 
 use std::rc::Rc;
 
@@ -24,6 +24,7 @@ use gtk::{gio, glib};
 use quill_engine::document::Document;
 use quill_engine::settings::WindowState;
 
+use crate::harness;
 use crate::session::Session;
 
 mod imp {
@@ -89,6 +90,13 @@ impl Window {
         let window: Self = glib::Object::builder().property("application", app).build();
         window.imp().session.replace(Some(Rc::clone(session)));
         window.open_at(session.opening());
+        if session.flags().deterministic {
+            // No client-side decorations, which the Gate asks for and a judged
+            // shot needs twice over: the window is exactly the size `--w` and
+            // `--h` name, and nothing of the desktop's title bar is in the
+            // frame to be compared against the opponent's.
+            window.set_decorated(false);
+        }
         window.set_document(document);
         window.imp().editor.grab_focus();
         // A window is remembered as it closes rather than at shutdown, so that
@@ -154,9 +162,38 @@ impl Window {
     }
 }
 
-/// Opens a window on a Document that is not on disk yet.
-pub fn present_untitled(app: &gtk::Application, session: &Rc<Session>) {
-    Window::new(app, Document::untitled(), session).present();
+/// Opens the windows this launch asks for.
+///
+/// The Documents its flags name, or one untitled Document when they name none.
+/// `--measure` hangs its cold start on the first of them, because the first
+/// window to be presented is the one whose first frame is the launch's.
+pub fn present_launch(app: &gtk::Application, session: &Rc<Session>) {
+    let documents = session.flags().documents();
+    let mut first = None;
+    if documents.is_empty() {
+        first = Some(present(app, Document::untitled(), session));
+    }
+    for path in documents {
+        match Document::open(path) {
+            Ok(document) => {
+                let window = present(app, document, session);
+                if first.is_none() {
+                    first = Some(window);
+                }
+            }
+            Err(err) => eprintln!("quill: cannot open {}: {err}", path.display()),
+        }
+    }
+    if let (Some(window), Some(out)) = (first, session.flags().measure.as_deref()) {
+        harness::measure(&window, out);
+    }
+}
+
+/// Opens one window on `document`, and hands it back.
+fn present(app: &gtk::Application, document: Document, session: &Rc<Session>) -> Window {
+    let window = Window::new(app, document, session);
+    window.present();
+    window
 }
 
 /// Opens one window per file of an open request.
@@ -173,7 +210,9 @@ pub fn present_files(app: &gtk::Application, files: &[gio::File], session: &Rc<S
             continue;
         };
         match Document::open(&path) {
-            Ok(document) => Window::new(app, document, session).present(),
+            Ok(document) => {
+                present(app, document, session);
+            }
             Err(err) => eprintln!("quill: cannot open {}: {err}", path.display()),
         }
     }
