@@ -37,18 +37,18 @@ decide how this counts:
   records. Files whose record uuids overlap are one session: calls are unioned by
   request, tool blocks by record uuid, so nothing is counted twice.
 
-  tools/context-report <N> [--projects DIR] [--dirs GLOB] [--sessions]
+  tools/context-report <N> [--projects DIR] [--sessions]
 
-`--projects` and `--dirs` are what tools/context-report-selftest points at a
-written-out transcript; `--sessions` names the files counted, on stderr, for when
-a number wants explaining.
+`--projects` is what tools/context-report-selftest points at a written-out
+transcript; `--sessions` names the files counted, on stderr, for when a number
+wants explaining.
 """
 import argparse, glob, json, os, re, sys
 
 PROJECTS = "~/.claude/projects"
-USAGE = ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")
+CONTEXT_FIELDS = ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")
 COMMAND = re.compile(r"<command-name>([^<]*)</command-name>.*?<command-args>([^<]*)</command-args>", re.S)
-BRANCH = re.compile(r"(?:^|-)(\d+)(?:-|$)")
+BRANCH = re.compile(r"(?:^|-)(\d+)(?=-|$)")
 
 
 def project_dirs():
@@ -65,19 +65,30 @@ def project_dirs():
     return re.sub(r"[^A-Za-z0-9]", "-", root) + "*"
 
 
+def ticket_number(text):
+    """A ticket as the one string everything compares: `#74`, `74 --flag` -> `74`.
+
+    The skill is asked for a ticket several ways and the report is asked for it a
+    fourth, so both ends of the comparison come through here.
+    """
+    return (text or "").strip().lstrip("#").split()[0] if (text or "").strip() else ""
+
+
 def implement_ticket(text):
     """The ticket a `/implement` record asks for, or None. Last one in the record wins."""
     found = None
     for m in COMMAND.finditer(text):
         if m.group(1).strip().lstrip("/").split(":")[-1] == "implement":
-            found = m.group(2).strip()
+            found = ticket_number(m.group(2))
     return found
 
 
-def branch_ticket(branch):
-    """The ticket a branch name carries: gate-60-check -> 60, main -> None."""
-    m = BRANCH.search(branch or "")
-    return m.group(1) if m else None
+def branch_tickets(branch):
+    """Every ticket a branch name carries: gate-60-check -> {60}, main -> {}.
+
+    A set, not the first number: a branch is free to name two.
+    """
+    return frozenset(BRANCH.findall(branch or ""))
 
 
 def user_text(record):
@@ -121,17 +132,17 @@ def read_session(path):
         rid = r.get("requestId") or message.get("id")
         if not rid:
             continue
-        owner = ticket or branch_ticket(r.get("gitBranch"))
+        owners = frozenset([ticket]) if ticket else branch_tickets(r.get("gitBranch"))
         if rid not in calls:
             usage = message.get("usage") or {}
-            calls[rid] = dict(ticket=owner, ts=r.get("timestamp", ""),
-                              ctx=sum(usage.get(k, 0) or 0 for k in USAGE))
+            calls[rid] = dict(owners=owners, ts=r.get("timestamp", ""),
+                              ctx=sum(usage.get(k, 0) or 0 for k in CONTEXT_FIELDS))
         content = message.get("content")
         blocks = sum(1 for b in content or []
                      if isinstance(b, dict) and b.get("type") == "tool_use") \
             if isinstance(content, list) else 0
         if uuid and uuid not in tools:
-            tools[uuid] = (owner, blocks)
+            tools[uuid] = (owners, blocks)
     return dict(paths=[path], uuids=uuids, calls=calls, tools=tools)
 
 
@@ -164,7 +175,7 @@ def group_resumed(sessions):
     return grouped
 
 
-def stretch(session, ticket):
+def ticket_stretch(session, ticket):
     """When this ticket held the session: from its first call to the next ticket's.
 
     A subagent transcript carries no ticket of its own, so it is placed by when it
@@ -172,17 +183,17 @@ def stretch(session, ticket):
     last call this ticket made. So the stretch runs on to whatever the session did
     next, and to the end of the session when the ticket is what it did last.
     """
-    stamps = sorted((c["ts"], c["ticket"]) for c in session["calls"].values())
-    mine = [ts for ts, owner in stamps if owner == ticket]
+    stamps = sorted((c["ts"], ticket in c["owners"]) for c in session["calls"].values())
+    mine = [ts for ts, is_mine in stamps if is_mine]
     if not mine:
         return None
-    after = [ts for ts, owner in stamps if owner != ticket and ts > mine[-1]]
+    after = [ts for ts, is_mine in stamps if not is_mine and ts > mine[-1]]
     return mine[0], after[0] if after else "9"  # sorts after any ISO timestamp
 
 
 def subagent_peaks(session, ticket):
     """Each subagent that ran inside this ticket's stretch of the session, by its peak."""
-    span = stretch(session, ticket)
+    span = ticket_stretch(session, ticket)
     if span is None:
         return []
     first, last = span
@@ -203,12 +214,12 @@ def report(sessions, ticket):
     peak = tool_calls = 0
     peaks, found = [], False
     for session in sessions:
-        contexts = [c["ctx"] for c in session["calls"].values() if c["ticket"] == ticket]
+        contexts = [c["ctx"] for c in session["calls"].values() if ticket in c["owners"]]
         if not contexts:
             continue
         found = True
         peak = max(peak, max(contexts))
-        tool_calls += sum(n for owner, n in session["tools"].values() if owner == ticket)
+        tool_calls += sum(n for owners, n in session["tools"].values() if ticket in owners)
         peaks += subagent_peaks(session, ticket)
     if not found:
         return None
@@ -231,19 +242,17 @@ def main(argv):
         description="A landed ticket's peak context and call count, for its closing comment.")
     ap.add_argument("ticket", help="the ticket number, as /implement was given it")
     ap.add_argument("--projects", default=PROJECTS, help="Claude Code transcripts (default %s)" % PROJECTS)
-    ap.add_argument("--dirs", default=project_dirs(),
-                    help="project directories to read (default %s)" % project_dirs())
     ap.add_argument("--sessions", action="store_true", help="name the files counted, on stderr")
     args = ap.parse_args(argv)
 
-    ticket = args.ticket.lstrip("#")
+    ticket = ticket_number(args.ticket)
     root = os.path.expanduser(args.projects)
-    paths = sorted(glob.glob(os.path.join(root, args.dirs, "*.jsonl")))
+    paths = sorted(glob.glob(os.path.join(root, project_dirs(), "*.jsonl")))
     sessions = group_resumed([read_session(p) for p in paths])
 
     if args.sessions:
         for session in sessions:
-            if any(c["ticket"] == ticket for c in session["calls"].values()):
+            if any(ticket in c["owners"] for c in session["calls"].values()):
                 print("session: %s" % " + ".join(os.path.basename(p) for p in session["paths"]),
                       file=sys.stderr)
 
