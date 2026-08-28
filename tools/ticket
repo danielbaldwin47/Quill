@@ -58,7 +58,7 @@ def render(n, issue):
     for comment in issue.get("comments") or []:
         who = (comment.get("author") or {}).get("login") or "unknown"
         when = (comment.get("createdAt") or "")[:10]
-        lines += ["", f"## Comment by {who}, {when}", ""] + body_lines(comment["body"])
+        lines += ["", f"## Comment by {who}, {when}", ""] + body_lines(comment.get("body"))
     return lines
 
 
@@ -67,7 +67,9 @@ def parent_of(body):
 
     The contract is the shape `/to-tickets` writes: a `## Parent` heading, then a first
     non-empty line beginning `Child of #<M>`. Anything else in that place — a heading, prose
-    naming no issue — is a ticket with no parent rather than an error.
+    naming no issue — is a ticket with no parent rather than an error. The number is an issue's:
+    docs/agents/issue-tracker.md warns a bare `#N` may be a pull request, and #73 puts pull
+    requests out of scope, so one that is not an issue fails by name rather than being followed.
     """
     lines = body_lines(body)
     for i, line in enumerate(lines):
@@ -102,23 +104,21 @@ def headings(lines, offset):
 
 
 def out_path(n):
-    """The job's tmp directory when a session has one, else the repo's target/."""
+    """Where the file goes: the job's tmp directory when a session has one, else the repo's target/."""
     job = os.environ.get("CLAUDE_JOB_DIR")
     if job:
         tmp = os.path.join(job, "tmp")
         if os.path.isdir(tmp):
             return os.path.join(tmp, f"ticket-{n}.md")
     root = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    target = os.path.join(root, "target")
-    os.makedirs(target, exist_ok=True)
-    return os.path.join(target, f"ticket-{n}.md")
+    return os.path.join(root, "target", f"ticket-{n}.md")
 
 
 def main(argv):
-    if len(argv) != 1 or not argv[0].lstrip("#").isdigit():
+    if len(argv) != 1 or not argv[0].isdigit():
         sys.stderr.write("usage: tools/ticket <N>\n")
         return 2
-    n = int(argv[0].lstrip("#"))
+    n = int(argv[0])
 
     issue, reason = fetch(n)
     if issue is None:
@@ -126,7 +126,8 @@ def main(argv):
 
     ticket = render(n, issue)
     lines = list(ticket)
-    scanned, offset = ticket, 0
+    # The headings printed are the spec's when there is one, the ticket's own when there is not.
+    heading_part, offset = ticket, 0
 
     spec_n = parent_of(issue["body"])
     if spec_n is not None:
@@ -134,10 +135,11 @@ def main(argv):
         if spec is None:
             die(n, f"parent #{spec_n}: {reason}")
         offset = len(lines) + 1
-        scanned = render(spec_n, spec)
-        lines += [""] + scanned
+        heading_part = render(spec_n, spec)
+        lines += [""] + heading_part
 
     path = out_path(n)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
 
@@ -145,7 +147,7 @@ def main(argv):
     print()
     print("\n".join(body_lines(issue["body"])))
     print()
-    for line_no, text in headings(scanned, offset):
+    for line_no, text in headings(heading_part, offset):
         print(f"{line_no}: {text}")
     return 0
 
