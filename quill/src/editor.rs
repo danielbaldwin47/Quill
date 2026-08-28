@@ -16,12 +16,12 @@
 //! type in the tickets that follow.
 
 use std::cell::{Cell, RefCell};
+use std::ops::Range;
 
 use gtk::glib;
 use gtk::pango;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
-use quill_engine::annotate;
 use quill_engine::document::Document;
 use quill_engine::settings::Face;
 use quill_engine::typography;
@@ -79,6 +79,12 @@ mod imp {
         /// allocation, so an allocation that does not move the page must not
         /// set it again.
         pub laid_out: Cell<Option<super::Page>>,
+        /// True while the buffer is being filled with a Document rather than
+        /// written in. The fill is a delete and an insert like any other, and
+        /// the engine's copy is already what they would produce, so the
+        /// handlers watching for a keystroke have to be able to tell them
+        /// apart from one.
+        pub loading: Cell<bool>,
     }
 
     #[glib::object_subclass]
@@ -223,16 +229,33 @@ impl Editor {
     /// a frame showing the prose before its structure is a flash of the wrong
     /// page. Whole-Document on open is the architecture's cold-start cost; the
     /// keystroke path retags by the block.
+    ///
+    /// Filling the buffer is itself an edit as far as GTK is concerned, and
+    /// the Document being shown is already the Document those edits would
+    /// produce, so [`Editor::loading`] is true across it and the handlers on
+    /// the buffer stand down.
     pub fn show_document(&self, document: &Document) {
         let buffer = self.buffer();
+        self.imp().loading.set(true);
         buffer.set_text(document.text());
-        tags::apply(
-            &buffer,
-            document,
-            self.imp().face.get(),
-            &annotate::markup(document.text()),
-        );
+        self.imp().loading.set(false);
+        tags::apply(&buffer, document, self.imp().face.get());
         buffer.place_cursor(&buffer.start_iter());
+    }
+
+    /// Whether the buffer is being filled rather than written in.
+    pub(crate) fn loading(&self) -> bool {
+        self.imp().loading.get()
+    }
+
+    /// Draws the lines an edit changed, and no others.
+    ///
+    /// Called from the buffer's `changed`, after the text has moved and after
+    /// the engine's copy has been spliced to match it, because a tag is put on
+    /// by the line and the byte index within it and both of those have to be
+    /// the ones the writer can now see.
+    pub fn retag(&self, document: &Document, lines: &Range<usize>) {
+        tags::retag(&self.buffer(), document, self.imp().face.get(), lines);
     }
 
     /// Puts the caret where `--caret` asked for it, and shows where it went.
