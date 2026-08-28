@@ -103,14 +103,6 @@ impl Document {
         }
     }
 
-    /// How many lines the Document has: one more than its line endings, so a
-    /// text ending in a newline has a last, empty line, exactly as the buffer
-    /// does.
-    #[must_use]
-    pub fn line_count(&self) -> usize {
-        self.lines.len()
-    }
-
     /// The name to show for this Document: its file name, or [`UNTITLED`].
     #[must_use]
     pub fn title(&self) -> Cow<'_, str> {
@@ -179,7 +171,6 @@ mod tests {
     #[test]
     fn an_untitled_document_has_one_empty_line() {
         let doc = Document::untitled();
-        assert_eq!(doc.line_count(), 1);
         assert_eq!(doc.place(0), Place { line: 0, index: 0 });
     }
 
@@ -187,11 +178,6 @@ mod tests {
     fn every_byte_of_a_short_document_lands_on_the_line_it_is_written_on() {
         let path = write_temp("places", "# One\ntwo\n\nfour\n");
         let doc = Document::open(&path).expect("reads the file just written");
-        assert_eq!(
-            doc.line_count(),
-            5,
-            "a trailing newline opens a last, empty line"
-        );
         for (offset, line, index) in [
             (0, 0, 0),
             (2, 0, 2),

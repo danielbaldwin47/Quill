@@ -7,8 +7,6 @@
 //! Annotators consume, which is the `Text` events with Markup, code spans,
 //! fenced code, URLs and front matter removed.
 
-use std::ops::Range;
-
 use pulldown_cmark::{Event, OffsetIter, Options, Parser};
 
 /// The one option set Quill reads Markdown with.
@@ -48,28 +46,11 @@ pub fn events(text: &str) -> OffsetIter<'_> {
 /// delimiters on their own. So Quill derives them by subtraction, and this is
 /// the predicate the subtraction is done against: text, code and raw HTML are
 /// the three events whose bytes the writer typed as themselves.
-#[must_use]
-pub fn is_content(event: &Event<'_>) -> bool {
+pub(crate) fn is_content(event: &Event<'_>) -> bool {
     matches!(
         event,
         Event::Text(_) | Event::Code(_) | Event::InlineHtml(_) | Event::Html(_)
     )
-}
-
-/// The content ranges inside `within`, in order and without touching the ends.
-///
-/// Used by the Annotators to subtract content from a construct's range. Only
-/// ranges wholly inside `within` count: a construct's own range is reported by
-/// the same iterator and would otherwise swallow itself.
-pub(crate) fn content_within<'a>(
-    events: impl IntoIterator<Item = (Event<'a>, Range<usize>)>,
-    within: &Range<usize>,
-) -> Vec<Range<usize>> {
-    events
-        .into_iter()
-        .filter(|(event, at)| is_content(event) && at.start >= within.start && at.end <= within.end)
-        .map(|(_, at)| at)
-        .collect()
 }
 
 #[cfg(test)]

@@ -20,9 +20,11 @@ cairo-rs = "0.22"
 notify = "8"
 pango = "0.22"
 # `default-features = false` drops `getopts`, which serves the crate's own
-# binary, and `html`, its HTML renderer: Quill styles from the byte ranges
-# `into_offset_iter()` reports and draws Preview and Export with Pango, so
-# neither is ever reached.
+# binary and nothing here, and `html`, its renderer: the Editor styles from the
+# byte ranges `into_offset_iter()` reports and never builds a document. HTML
+# export does — `docs/architecture.md` § Preview and Export is "the parser's
+# HTML plus the CSS the Template generates" — so the ticket that lands Export
+# turns `html` back on. It is off until something reads it.
 pulldown-cmark = { version = "0.13", default-features = false }
 serde = { version = "1", features = ["derive"] }
 # `preserve_order`: a settings file is written in the order
