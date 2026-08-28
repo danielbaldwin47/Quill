@@ -1,12 +1,11 @@
 // Build progress/index.html from progress/state.json + progress/rounds/*.json (+ progress/latency.json)
 // Round file: { piece, round, winner: 'ours'|'theirs'|'tie', gap, verdict, oursShot, theirsShot, builderNote, at, latency? }
 import fs from 'node:fs'; import path from 'node:path'; import { chromium } from 'playwright-core'; import { thumb } from './thumb.mjs';
-import { OPPONENTS } from './judge.mjs';
-// Who a round was judged against. A round with no `opponent` is one of the JavaScript app's, from
-// the gauntlet against iA Writer; a native round says who it faced, and while legacy/ exists that
-// is the Parity oracle. Read from the round rather than assumed, so a page showing both eras
-// captions each one correctly.
-const opponentOf = r => (r && r.opponent ? (OPPONENTS[r.opponent] || r.opponent) : 'iA Writer');
+// Who a round was judged against, read from the round rather than assumed, so a page showing both
+// eras captions each one correctly. What a round is lives in tools/rounds.mjs, which tools/gate
+// judge writes them through — the page and the judge cannot disagree about it, and the page does
+// not have to import the judging command to ask.
+import { opponentName as opponentOf } from './rounds.mjs';
 const state = JSON.parse(fs.readFileSync('progress/state.json', 'utf8'));
 const rounds = fs.readdirSync('progress/rounds').filter(f => f.endsWith('.json')).map(f => JSON.parse(fs.readFileSync('progress/rounds/' + f, 'utf8'))).sort((a, b) => (a.piece.localeCompare(b.piece)) || a.round - b.round);
 const latency = fs.existsSync('progress/latency.json') ? JSON.parse(fs.readFileSync('progress/latency.json', 'utf8')) : null;

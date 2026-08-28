@@ -57,7 +57,8 @@ usage: tools/gate <command> [arguments]
                 --note records what changed this round. The Piece is ours only
                 when every state is. Ends in `gate judge <piece>: ours|theirs,
                 round <N>`: 0 for ours, 1 for theirs, 2 for theirs after this
-                Piece had been won, 3 when nothing was judged.
+                Piece had been won, 3 when nothing was judged — a command line
+                it could not read included, since 2 is spoken for.
 
 The tiers these commands serve are docs/agents/gate.md.
 EOF

@@ -4,7 +4,7 @@
   "bar": {
     "startup_ms": null,
     "keystroke_ms": 32.5,
-    "note": "iA publishes no latency numbers (only 'boots in a whizz… snappy as jazz'). Bar = best native editors: Sublime 32.5 ms / TextEdit 33.4 ms keyboard-to-photon (Tristan Hume, macOS); internal input→paint ≤5 ms (Typometer, Notepad++ 4.3 ms). Sources in ref/ia/REFERENCE.md."
+    "note": "iA publishes no latency numbers (only 'boots in a whizz\u2026 snappy as jazz'). Bar = best native editors: Sublime 32.5 ms / TextEdit 33.4 ms keyboard-to-photon (Tristan Hume, macOS); internal input\u2192paint \u22645 ms (Typometer, Notepad++ 4.3 ms). Sources in ref/ia/REFERENCE.md."
   },
   "pieces": [
     {
@@ -41,7 +41,7 @@
       "id": "markup",
       "title": "Markup rendering",
       "what": "Headings, emphasis, lists, quotes, code, links in the editor",
-      "judge": "how Markdown is shown while writing: heading markers, emphasis, lists, blockquotes, code, links — are markers quiet, does the text stay readable, do headings and structure read at a glance without the text jumping"
+      "judge": "how Markdown is shown while writing: heading markers, emphasis, lists, blockquotes, code, links \u2014 are markers quiet, does the text stay readable, do headings and structure read at a glance without the text jumping"
     },
     {
       "id": "chrome",
@@ -68,11 +68,11 @@
     },
     {
       "at": "2026-08-26T22:52:00+02:00",
-      "msg": "Reference package in: 49 real iA Writer screenshots (App Store, MS Store, ia.net) with verbatim transcriptions, Duo/Quattro/Mono fonts (OFL) with parsed metrics, measured spec sheet (paper #f9f9f9 / #1a1a1a, ink #1c1c1c / #cccccc, caret #00b5ff ≈0.15 em wide, line pitch ≈1.7×, 64-char measure, hanging # markers), latency bar from third-party measurements."
+      "msg": "Reference package in: 49 real iA Writer screenshots (App Store, MS Store, ia.net) with verbatim transcriptions, Duo/Quattro/Mono fonts (OFL) with parsed metrics, measured spec sheet (paper #f9f9f9 / #1a1a1a, ink #1c1c1c / #cccccc, caret #00b5ff \u22480.15 em wide, line pitch \u22481.7\u00d7, 64-char measure, hanging # markers), latency bar from third-party measurements."
     },
     {
       "at": "2026-08-27T07:45:00+02:00",
-      "msg": "All nine pieces picked blind. Latency won on round 4: app-internal 2.43 ms mean / 15.61 ms worst (bar ≤5/≤16), real keys via /dev/uinput → presented frame 12.17 ms, caret settles 8.1 ms after the key (was 57 ms), cold launch to first document frame 370 ms. Final integration smoke passed in all three fonts and both themes."
+      "msg": "All nine pieces picked blind. Latency won on round 4: app-internal 2.43 ms mean / 15.61 ms worst (bar \u22645/\u226416), real keys via /dev/uinput \u2192 presented frame 12.17 ms, caret settles 8.1 ms after the key (was 57 ms), cold launch to first document frame 370 ms. Final integration smoke passed in all three fonts and both themes."
     }
   ]
 }

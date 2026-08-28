@@ -20,8 +20,9 @@ import { fileURLToPath } from 'node:url';
 
 import { pair, pairDir, reveal } from './blind.mjs';
 import { APP_ID, appeared, classPattern, launchEnv, parseToplevels, pngSize, quillArgv, rulesLua } from './harness.mjs';
-import { OPPONENTS, criticAnswer, criticPrompt, decisive, nextRound, round, wonBefore } from './judge.mjs';
+import { criticAnswer, criticPrompt } from './judge.mjs';
 import { readStates, resolveStates } from './oracle.mjs';
+import { OPPONENTS, decisive, nextRound, opponentName, round, wonBefore } from './rounds.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const GATE = path.join(ROOT, 'tools', 'gate');
@@ -276,12 +277,14 @@ ok('a Piece once won is never lost — but only a Piece that was won against a n
 });
 
 ok('every recorded round names an opponent the progress page can caption', () => {
+  // No `opponent` is the gauntlet's own rounds, which the page captions "iA Writer"; anything else
+  // has to be a name `tools/rounds.mjs` has words for, or the page prints the key.
+  assert.equal(opponentName({ round: 1, winner: 'ours' }), 'iA Writer');
+  assert.equal(opponentName({ opponent: 'oracle' }), 'Parity oracle');
   const dir = path.join(ROOT, 'progress/rounds');
   for (const file of fs.readdirSync(dir).filter((f) => f.endsWith('.json'))) {
     const r = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'));
-    // No `opponent` is the gauntlet's own rounds, which the page captions "iA Writer"; anything
-    // else has to be a name `tools/progress.mjs` has words for, or the page prints the key.
-    if (r.opponent) assert.ok(OPPONENTS[r.opponent], `${file} was judged against "${r.opponent}", which tools/judge.mjs has no caption for`);
+    if (r.opponent) assert.ok(OPPONENTS[r.opponent], `${file} was judged against "${r.opponent}", which tools/rounds.mjs has no caption for`);
   }
 });
 
@@ -322,10 +325,14 @@ ok('a Piece nobody has judged states for is not a Piece', () => {
   assert.match(lastLine(r), /^gate judge nosuch: refused/);
 });
 
-ok('the command with no Piece is a usage error rather than a verdict', () => {
-  const r = gate('judge');
-  assert.equal(r.code, 2, r.err);
-  assert.match(r.err, /usage: tools\/gate judge/);
+ok('a command line this cannot read is not a verdict, and never 2', () => {
+  // 2 is "this Piece has been lost", the loudest thing the command says. A typo must not be able to
+  // wear it: an agent branching on the code could not tell them apart.
+  for (const argv of [['judge'], ['judge', 'type', '--nosuch'], ['judge', 'type', '--note'], ['judge', 'type', 'page']]) {
+    const r = gate(...argv);
+    assert.equal(r.code, 3, `tools/gate ${argv.join(' ')} exited ${r.code}\n${r.err}`);
+    assert.match(r.err, /usage: tools\/gate judge/);
+  }
 });
 
 if (failures === 0) {
