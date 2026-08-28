@@ -15,7 +15,7 @@
 //! Markup × Focus runs, the hand-drawn caret and the dark palette land on this
 //! type in the tickets that follow.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 
 use gtk::glib;
 use gtk::pango;
@@ -54,6 +54,9 @@ const INK_WEIGHT: u32 = 415;
 /// Ligatures, contextual alternates and kerning all make the text narrower
 /// than the cell grid it is counted on, and the measure is counted in cells.
 const FEATURES: &str = "\"liga\" 0, \"clig\" 0, \"calt\" 0, \"kern\" 0";
+
+/// How many frames `--scroll` holds the view where it was asked for.
+const SCROLL_FRAMES: u32 = 8;
 
 mod imp {
     use std::cell::Cell;
@@ -194,18 +197,56 @@ impl Editor {
     ///
     /// The harness names an offset in UTF-8 bytes, because that is what a
     /// Document is measured in everywhere else; a `GtkTextBuffer` counts in
-    /// characters, so the two are converted here rather than at the flag. The
-    /// view is scrolled to the caret because a caret the harness cannot see is
-    /// not the state it asked for: a bench typing at the end of a draft has to
-    /// be looking at the end of the draft.
-    pub fn place_caret(&self, caret: Caret) {
+    /// characters, so the two are converted here rather than at the flag.
+    ///
+    /// `reveal` scrolls the view to the caret, because a caret the harness
+    /// cannot see is not the state it asked for: a bench typing at the end of
+    /// a draft has to be looking at the end of the draft. It is false when
+    /// `--scroll` has said where the view goes, since a state that names both
+    /// means both, and a judged shot of a passage the opponent is not showing
+    /// is not a comparison.
+    pub fn place_caret(&self, caret: Caret, reveal: bool) {
         let buffer = self.buffer();
         let at = match caret {
             Caret::End => buffer.end_iter(),
             Caret::At(offset) => buffer.iter_at_offset(character_offset(&buffer, offset)),
         };
         buffer.place_cursor(&at);
-        self.scroll_to_mark(&buffer.get_insert(), 0.0, true, 0.0, CARET_LINE);
+        if reveal {
+            self.scroll_to_mark(&buffer.get_insert(), 0.0, true, 0.0, CARET_LINE);
+        }
+    }
+
+    /// Scrolls the Document to `fraction` of its length, 0 at the top.
+    ///
+    /// The fraction is a fraction of the scroll, not of the text: at 0 the
+    /// view is at the top of the page, showing the air above the first row,
+    /// which is where the oracle puts it and is not where the first row is.
+    ///
+    /// Held for [`SCROLL_FRAMES`] rather than set once. A view GTK has not
+    /// laid out yet cannot say how far it can go, and GTK makes a scroll of
+    /// its own on the way there — the one that keeps the caret on screen when
+    /// the Editor takes focus, resolved while the layout is validated and so
+    /// after this is read. Holding the view for a few frames outlasts it, and
+    /// is over long before the harness, which waits for a still window, takes
+    /// its shot.
+    pub fn scroll_to(&self, fraction: f64) {
+        let Some(adjustment) = self.vadjustment() else {
+            // Not in a scroller: there is nowhere to scroll to.
+            return;
+        };
+        let fraction = fraction.clamp(0.0, 1.0);
+        let left = Cell::new(SCROLL_FRAMES);
+        self.add_tick_callback(move |_, _| {
+            let room = adjustment.upper() - adjustment.lower() - adjustment.page_size();
+            adjustment.set_value(adjustment.lower() + room.max(0.0) * fraction);
+            left.set(left.get().saturating_sub(1));
+            if left.get() == 0 {
+                glib::ControlFlow::Break
+            } else {
+                glib::ControlFlow::Continue
+            }
+        });
     }
 }
 
@@ -288,18 +329,24 @@ pub fn install_type(face: Face, size: u32) {
 }
 
 /// The stylesheet [`install_type`] loads.
+///
+/// The ink is named on the widget and on its text node both. A `GtkTextView`
+/// draws untagged text in the colour of one of the two depending on how it
+/// came by its attributes, and a page whose ink is the desktop theme's is not
+/// this page at all: on a dark desktop it is white on the oracle's paper, and
+/// there is nothing to read.
 fn stylesheet(face: Face, size: u32) -> String {
     format!(
         "window {{ background-color: {PAPER}; }}\n\
-         textview.{FACE_CLASS} {{\n\
+         textview.{FACE_CLASS}, textview.{FACE_CLASS} text {{\n\
          \x20 background-color: {PAPER};\n\
+         \x20 color: {INK};\n\
          \x20 font-family: \"{family}\";\n\
          \x20 font-size: {size}px;\n\
          \x20 font-style: normal;\n\
          \x20 font-weight: {INK_WEIGHT};\n\
          \x20 font-feature-settings: {FEATURES};\n\
-         }}\n\
-         textview.{FACE_CLASS} text {{ background-color: {PAPER}; color: {INK}; }}\n",
+         }}\n",
         family = face.family()
     )
 }
