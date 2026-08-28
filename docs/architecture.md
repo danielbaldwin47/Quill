@@ -225,7 +225,7 @@ ticket deletes `legacy/` and switches `tools/gate judge`'s opponent to the iA re
 
 Ticket zero of the build effort is the Gate tooling ([#19](https://github.com/danielbaldwin47/Quill/issues/19));
 no Piece can close without it. Then, each Piece a feature ticket closed by its Hand test in
-`docs/agents/gate.md`:
+`docs/agents/hand-tests.md`:
 
 1. The type
 2. The page

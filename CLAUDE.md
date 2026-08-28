@@ -12,7 +12,7 @@ A long-form writing environment for Linux: a native GTK4 app in Rust, ported Pie
 - `ref/ia/` — the iA Writer screenshots, fonts and templates every comparison is judged against; `ref/sample.md` is the shared test passage.
 - `shots/` and `progress/` — judging evidence: per-Piece screenshots, round verdicts, latency JSON and the report. Blind pairs are not among it: `shots/blind/` is two copies of shots already committed on either side, so it is written for the critic and ignored by git. `shots/oracle/` holds the judged states (`states.json`) and the Parity oracle frozen at them by `tools/gate oracle <piece>`: one committed shot per state, beside the fingerprint of the `legacy/` build and the shooter that produced it, re-shot only when that fingerprint or the states move.
 - `PKGBUILD` + `packaging/` — Arch package of the native binary: `makepkg -f` then `sudo pacman -U quill-[0-9]*.pkg.tar.zst` (the glob keeps the `-debug` split package out). The `.desktop` file and the icon are named for the application id, `io.github.danielbaldwin47.Quill`.
-- `docs/` — `architecture.md` (the native spec), `shortcuts.md` (the one shortcut table every menu, the Palette and the shortcuts window read), `adr/` (decisions), `agents/` (the Gate, issue tracker, triage labels and domain-doc rules for the skills below).
+- `docs/` — `architecture.md` (the native spec), `shortcuts.md` (the one shortcut table every menu, the Palette and the shortcuts window read), `adr/` (decisions), `agents/` (the Gate, the ported Pieces' Hand test checklists, issue tracker, triage labels and domain-doc rules for the skills below).
 
 Licences: GPL-3.0-or-later at the root (`LICENSE`), ISC in `legacy/`, OFL-1.1 for `fonts/`, and iA's own terms for `ref/ia/`.
 
@@ -22,9 +22,19 @@ Hard rule for any test window (GTK, browser, bench): it opens on a virtual outpu
 
 ## Gate
 
-Before landing native work, closing a ticket, or closing a feature: `docs/agents/gate.md` names the tier, its commands, the latency budget, the blind-judging opponent and the Hand test checklists.
+Before landing native work, closing a ticket, or closing a feature: `docs/agents/gate.md` names the tier, its commands, the latency budget, the blind-judging opponent and the Feature tier's Hand test; `docs/agents/hand-tests.md` holds the ported Pieces' checklists.
 
 An `/implement` session whose ticket has no Hand test (Ticket tier only) lands its own work: once the Gate is green and `/code-review` is done, it merges its PR (`gh pr merge --merge`) and closes the ticket. Only a Hand test hands the close to the owner.
+
+## Context in an `/implement` session
+
+The smart zone is about 120k tokens. A session is near 60k once this file, the ticket and the docs it names are in context, and every tool call then adds its result plus about 0.4k of reasoning that stays for the rest of the session, so the zone is held by making fewer, smaller calls (the first eight landed tickets made 120–230 and ran 190k–280k).
+
+- **Orientation is delegated.** Before the first edit, an Explore agent maps the area and returns `file:line` ranges; this context reads those ranges. Where-is-what questions go to the module map — every module opens with a `//!` line, so `grep -rn -m1 '^//!' --include='*.rs' quill quill-engine` is both crates on one screen — or to rust-analyzer through the LSP tool (definition, references, hover), which answers in lines where a `cat` costs the file.
+- **The Gate is one call.** `tools/gate check` is the whole Commit tier in one result. While iterating: `cargo check -q --message-format=short`, `cargo test <name>`, and listings through `head` or `grep`. `tools/gate judge` and `bench` are read for their summary lines; the shots are the critic's to look at.
+- **The ticket is fetched once**, with its parent spec, to a file under the job's tmp directory (`tools/ticket <N>` once [#73](https://github.com/danielbaldwin47/Quill/issues/73) lands), and later questions are answered from that file by `sed -n` range.
+- **Docs by section.** This file is already in context. `docs/agents/gate.md` for the tier the ticket names, `docs/architecture.md` for the sections the ticket cites, ADRs by number; `docs/agents/hand-tests.md` is `/to-spec`'s reading.
+- **One tool per file.** A file the harness has seen through Read, Write or Edit and then changed through Bash — `sed -i`, a heredoc, `cargo fmt` — comes back into context as a diff snippet (one session paid 60 KB this way). Files opened with Bash stay with Bash; files touched with Write or Edit change through Edit, written in rustfmt's shape so `cargo fmt` changes nothing.
 
 ## Agent docs
 
@@ -38,7 +48,18 @@ Issues and specs live in this repo's GitHub Issues (`danielbaldwin47/Quill`, pri
 
 ### Specs
 
-A `/to-spec` issue carries the `spec` label. Size it when it is created: a spec that fits one `/implement` session (the smart zone, about 120k tokens, including tests, `/code-review` and the Gate) keeps `ready-for-agent` and opens with one line saying so ("One-session spec: …" and the reason); one too large for a session loses `ready-for-agent` and is split by `/to-tickets` in a fresh session, its child tickets carrying the label and naming the spec under Parent. Either way the spec closes on the owner's `hand test: pass`. The agent's last comment on a spec ends with a **Hand test** section: the install command, then the numbered "do X, see Y" steps written out in full (the `docs/agents/gate.md` checklist merged with the spec's additions), so the owner tests from that comment alone. The owner's `hand test: pass` with the `pacman -Q quill` output closes the spec; a failed step is commented on the spec and returns it to the agent.
+A `/to-spec` issue carries the `spec` label. Size it when it is created: a spec that fits one `/implement` session (the smart zone, about 120k tokens, including tests, `/code-review` and the Gate) keeps `ready-for-agent` and opens with one line saying so ("One-session spec: …" and the reason); one too large for a session loses `ready-for-agent` and is split by `/to-tickets` in a fresh session, its child tickets carrying the label and naming the spec under Parent. Either way the spec closes on the owner's `hand test: pass`. The agent's last comment on a spec ends with a **Hand test** section: the install command, then the numbered "do X, see Y" steps written out in full (the `docs/agents/hand-tests.md` checklist merged with the spec's additions), so the owner tests from that comment alone. The owner's `hand test: pass` with the `pacman -Q quill` output closes the spec; a failed step is commented on the spec and returns it to the agent.
+
+### Tickets
+
+`/to-tickets` sizes every ticket for one `/implement` session inside the smart zone (§ Context in an `/implement` session): about 70 tool calls, where the first eight landed tickets ran 120–230. Each ticket carries a **Size** line estimating that from what drives calls, and a **Reading** line naming the spec sections and ADRs the session needs by heading and what it can skip (the parent spec whole, `legacy/`):
+
+- Modules touched: one to three, by the module map; more is two tickets, or a prefactor ticket first.
+- Source read to do the work: about 30 KB; a ticket that needs a crate read whole is two tickets.
+- Source written: about 30 KB in total.
+- Pieces named: at most one. A judge or bench run costs 15–20k of context; "Pieces: none" tickets are the cheap ones.
+
+A landed ticket's closing comment carries the `tools/context-report <N>` line (peak context and call count; [#74](https://github.com/danielbaldwin47/Quill/issues/74) lands it), and `/to-tickets` reads the last few before sizing, so the numbers above are checked against tickets rather than remembered.
 
 ### Triage labels
 
