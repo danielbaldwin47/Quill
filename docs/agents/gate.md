@@ -24,7 +24,7 @@ Done when: every named Piece has a committed verdict or bench result from this t
 
 ## Feature tier: before a feature ticket closes
 
-The owner hand-tests the feature from the installed package, built and installed by the commands in `README.md` § Build, install and run — written out in full in the Hand test, because the owner runs it from that comment alone — then the feature's Hand test checklist. The checklist lives in the feature spec, in this shape:
+The owner hand-tests the feature from the installed package, built and installed by the commands in `README.md` § Build, install and run the native app — written out in full in the Hand test, because the owner runs it from that comment alone — then the feature's Hand test checklist. The checklist lives in the feature spec, in this shape:
 
 - Numbered "do X, see Y" steps, at most ten, each naming its concept with `CONTEXT.md` vocabulary.
 - Every step observable in the running app; nothing that needs a terminal or a log.
