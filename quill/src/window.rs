@@ -23,7 +23,6 @@ use gtk::subclass::prelude::*;
 use gtk::{gio, glib};
 use quill_engine::document::Document;
 use quill_engine::settings::WindowState;
-use quill_engine::typography;
 
 use crate::harness;
 use crate::session::Session;
@@ -181,14 +180,16 @@ impl Window {
 
     /// Steps the type size one pixel, or back to the default one.
     ///
-    /// The step stops at the ends of [`typography::size_steps`] rather than
-    /// wrapping or refusing: a writer holding the key down means "as big as it
-    /// goes", and the page keeps its rhythm at either end.
+    /// The step stops at the ends of [`quill_engine::settings::type_sizes`]
+    /// rather than wrapping or refusing: a writer holding the key down means
+    /// "as big as it goes", and it is the same range `size` in the file and
+    /// `--size` on the command line are held to, because it is the same
+    /// question asked three ways.
     fn step_size(&self, step: Step) {
         let Some(session) = self.imp().session.borrow().clone() else {
             return;
         };
-        let steps = typography::size_steps();
+        let steps = quill_engine::settings::type_sizes();
         let wanted = match step {
             Step::Bigger => session.size().saturating_add(1),
             Step::Smaller => session.size().saturating_sub(1),

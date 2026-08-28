@@ -75,9 +75,14 @@ layered over the runs: one `underline: error` tag for Spell check, one per Style
 selection-independent things such as the Focus dim of a heading marker. Underline and colour are
 different properties, so those overlaps are safe.
 
-**Leading.** Line pitch is `round(1.30 × size + 10.4)` pixels, split three ways as ADR 0004 requires:
-`pixels-above-lines`, the same value as `pixels-inside-wrap`, and half of it as `pixels-below-lines`.
-Font sizes are absolute pixels (`set_absolute_size`), never points.
+**Leading.** Line pitch is `round(clamp(1.52 × size, 1.30 × size + 10.4, 2 × size))` pixels — iA's
+liquid leading, clamped before it is rounded because rounding a clamp is not the number clamping a
+round gives, and the clamp is what stops small type drowning in air. The air a row leaves over,
+`pitch − row`, is split three ways as ADR 0004 requires, and the split is fixed by the two gaps GTK
+actually draws: `pixels-inside-wrap` carries all of it, because it alone separates two rows of one
+paragraph, and `pixels-above-lines` and `pixels-below-lines` take half each, because only their sum
+separates two paragraphs. The three therefore do not sum to the air. Font sizes are absolute pixels
+(`set_absolute_size`), never points.
 
 ## Documents and files
 
@@ -117,7 +122,7 @@ defaults; unknown keys and unknown tables are kept, so an older Quill never dest
 Every write to either file goes through a temporary file beside it and a rename, so a write that
 fails leaves the file it was replacing whole.
 
-Config: `theme` (auto, light, dark), `face` (duo, quattro, mono), `size` (pixels, default 20),
+Config: `theme` (auto, light, dark), `face` (duo, quattro, mono), `size` (pixels, 10–40, default 20),
 `focus` (on/off) and `focus_scope` (sentence, paragraph), `typewriter` (on/off) and
 `typewriter_anchor` (0–1, default 0.5), `chrome` (shown/hidden), `spell_check` (on/off, default on)
 and `spell_language`, `[syntax_highlight]` (a table: `enabled` is the master, and the five category

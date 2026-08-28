@@ -53,7 +53,9 @@ const INK_WEIGHT: u32 = 415;
 ///
 /// Ligatures, contextual alternates and kerning all make the text narrower
 /// than the cell grid it is counted on, and the measure is counted in cells.
-const FEATURES: &str = "\"liga\" 0, \"clig\" 0, \"calt\" 0, \"kern\" 0";
+/// One list, because Pango and GTK's stylesheet spell a feature differently
+/// and a page measured with kerning and drawn without it is measured wrong.
+const FEATURES: [&str; 4] = ["liga", "clig", "calt", "kern"];
 
 /// How many frames `--scroll` holds the view where it was asked for.
 const SCROLL_FRAMES: u32 = 8;
@@ -71,10 +73,10 @@ mod imp {
         pub face: Cell<Face>,
         /// The type size, in pixels.
         pub size: Cell<u32>,
-        /// The side margin and the air below the column, as they were last
-        /// set. Setting a margin queues another allocation, so an allocation
-        /// that does not move them must not set them again.
-        pub laid_out: Cell<Option<(i32, i32)>>,
+        /// The page as it was last laid out. Setting a margin queues another
+        /// allocation, so an allocation that does not move the page must not
+        /// set it again.
+        pub laid_out: Cell<Option<super::Page>>,
     }
 
     #[glib::object_subclass]
@@ -142,10 +144,10 @@ impl Editor {
     fn restyle(&self) {
         let pitch = typography::pitch(self.imp().size.get());
         let leading = typography::leading(pitch, self.row_height());
-        self.set_pixels_above_lines(pixels(leading.above));
-        self.set_pixels_inside_wrap(pixels(leading.inside_wrap));
-        self.set_pixels_below_lines(pixels(leading.below));
-        self.set_top_margin(pixels(typography::page_top(pitch)));
+        self.set_pixels_above_lines(signed(leading.above));
+        self.set_pixels_inside_wrap(signed(leading.inside_wrap));
+        self.set_pixels_below_lines(signed(leading.below));
+        self.set_top_margin(signed(typography::page_top(pitch)));
         self.lay_out(self.width(), self.height());
     }
 
@@ -159,31 +161,40 @@ impl Editor {
             return;
         }
         let measure = typography::measure(self.imp().face.get(), self.imp().size.get());
-        let column = typography::column(view(width), measure);
-        let side = pixels(column.side);
-        let bottom = pixels(typography::page_bottom(view(height)));
-        if self.imp().laid_out.get() == Some((side, bottom)) {
+        let page = Page {
+            side: signed(typography::column(unsigned(width), measure).side),
+            bottom: signed(typography::page_bottom(unsigned(height))),
+        };
+        if self.imp().laid_out.get() == Some(page) {
             return;
         }
-        self.imp().laid_out.set(Some((side, bottom)));
-        self.set_left_margin(side);
-        self.set_right_margin(side);
-        self.set_bottom_margin(bottom);
+        self.imp().laid_out.set(Some(page));
+        self.set_left_margin(page.side);
+        self.set_right_margin(page.side);
+        self.set_bottom_margin(page.bottom);
     }
 
     /// How tall one row of ink is, in the Face and size now set.
     ///
-    /// Measured through Pango on a description built here rather than read off
-    /// the widget, because the stylesheet that carries the same description to
-    /// the screen is applied when GTK next recomputes style and this is asked
-    /// before then. The two agree by construction: one function builds it.
+    /// Laid out on a description built here rather than read off the widget:
+    /// the stylesheet that will draw this same text is applied when GTK next
+    /// recomputes style, which is after this is asked, so a layout that took
+    /// the widget's word for it would be measuring the desktop theme's font.
+    /// The description and the stylesheet are two spellings of one type —
+    /// Pango and GTK's CSS name a feature and a weight differently — and both
+    /// are spelled from [`FEATURES`] and [`INK_WEIGHT`], because a row
+    /// measured with kerning and drawn without it is the wrong row, and the
+    /// leading is built on this number.
     fn row_height(&self) -> u32 {
         let layout = self.create_pango_layout(Some("Ag"));
         layout.set_font_description(Some(&body_font(
             self.imp().face.get(),
             self.imp().size.get(),
         )));
-        view(layout.pixel_size().1)
+        let features = pango::AttrList::new();
+        features.insert(pango::AttrFontFeatures::new(&pango_features()));
+        layout.set_attributes(Some(&features));
+        unsigned(layout.pixel_size().1)
     }
 
     /// Shows `document`, with the caret at its start.
@@ -266,15 +277,37 @@ fn character_offset(buffer: &gtk::TextBuffer, bytes: u64) -> i32 {
     i32::try_from(characters).unwrap_or(i32::MAX)
 }
 
+/// The margins a page was laid out with, in the pixels GTK takes.
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub struct Page {
+    /// `left-margin` and `right-margin`, which are the same: the column is
+    /// centred.
+    side: i32,
+    /// `bottom-margin`: the air below the last row of the Document.
+    bottom: i32,
+}
+
 /// A count of pixels as a GTK widget takes it.
-fn pixels(count: u32) -> i32 {
+fn signed(count: u32) -> i32 {
     i32::try_from(count).unwrap_or(i32::MAX)
 }
 
 /// A GTK widget's own measurement, as the typography takes it. A negative
 /// dimension is a widget with no size, which is no room at all.
-fn view(pixels: i32) -> u32 {
+fn unsigned(pixels: i32) -> u32 {
     u32::try_from(pixels).unwrap_or(0)
+}
+
+/// The features as CSS names them, for the stylesheet.
+fn css_features() -> String {
+    FEATURES
+        .map(|feature| format!("\"{feature}\" 0"))
+        .join(", ")
+}
+
+/// The features as Pango names them, for a layout being measured.
+fn pango_features() -> String {
+    FEATURES.map(|feature| format!("{feature}=0")).join(",")
 }
 
 /// The description body text is laid out with.
@@ -345,9 +378,10 @@ fn stylesheet(face: Face, size: u32) -> String {
          \x20 font-size: {size}px;\n\
          \x20 font-style: normal;\n\
          \x20 font-weight: {INK_WEIGHT};\n\
-         \x20 font-feature-settings: {FEATURES};\n\
+         \x20 font-feature-settings: {features};\n\
          }}\n",
-        family = face.family()
+        family = face.family(),
+        features = css_features()
     )
 }
 
