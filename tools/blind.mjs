@@ -24,16 +24,16 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-/// Where a key is kept. `BLIND_KEY_DIR` is for a test that must not write into the owner's state,
-/// and for nothing else.
+// Where a key is kept. `BLIND_KEY_DIR` is for a test that must not write into the owner's state,
+// and for nothing else.
 export function keyDir() {
   if (process.env.BLIND_KEY_DIR) return process.env.BLIND_KEY_DIR;
   const state = process.env.XDG_STATE_HOME || path.join(os.homedir(), '.local', 'state');
   return path.join(state, 'quill', 'blind-keys');
 }
 
-/// Where a Piece's state is paired. One directory per judged state, because one Piece is several
-/// pairs and a critic is shown one of them.
+// Where a Piece's state is paired. One directory per judged state, because one Piece is several
+// pairs and a critic is shown one of them.
 export function pairDir(piece, state) {
   return path.join('shots/blind', piece, state);
 }
@@ -42,11 +42,11 @@ function keyFile(piece, state) {
   return path.join(keyDir(), `${piece}-${state}.json`);
 }
 
-/// Writes the pair and the key, and answers with the two paths and which letter is ours.
-///
-/// The directory is emptied rather than overwritten: a pair left by an earlier round with a state
-/// that has since been renamed would otherwise sit beside this one, and a critic told to read
-/// `A.png` and `B.png` would be reading them out of a directory that has four files in it.
+// Writes the pair and the key, and answers with the two paths and which letter is ours.
+//
+// The directory is emptied rather than overwritten: a pair left by an earlier round with a state
+// that has since been renamed would otherwise sit beside this one, and a critic told to read
+// `A.png` and `B.png` would be reading them out of a directory that has four files in it.
 export function pair(piece, state, ours, theirs) {
   const dir = pairDir(piece, state);
   fs.rmSync(dir, { recursive: true, force: true });
@@ -63,8 +63,8 @@ export function pair(piece, state, ours, theirs) {
   return { dir, A: path.join(dir, 'A.png'), B: path.join(dir, 'B.png'), ours: key.ours };
 }
 
-/// Reads the key back. A pair with no key is not a pair that can be scored, and saying which file
-/// is missing is the only useful thing to say about it.
+// Reads the key back. A pair with no key is not a pair that can be scored, and saying which file
+// is missing is the only useful thing to say about it.
 export function reveal(piece, state) {
   const file = keyFile(piece, state);
   if (!fs.existsSync(file)) throw new Error(`no key for ${piece}/${state} at ${file}`);

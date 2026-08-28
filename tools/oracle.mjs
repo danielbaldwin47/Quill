@@ -33,8 +33,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-// The one hash of a legacy/ build, shared with the bench that stamps its numbers with it.
-import { appFiles, hashApp } from './fingerprint.mjs';
+// The one hash of a legacy/ build, shared with the bench that stamps its numbers with it, and the
+// two smaller stamps that live beside it.
+import { appFiles, gitHead, hashApp, sha256 } from './fingerprint.mjs';
 
 // The port legacy/bin/quill opens the app on, and the same way of moving it.
 const PORT = +(process.env.QUILL_PORT || 4173);
@@ -91,18 +92,15 @@ export function shootArgv(root, flags, out, url) {
 }
 
 // ---------- what produced the shots ----------
-function sha(bytes) { return crypto.createHash('sha256').update(bytes).digest('hex'); }
-
 export function fingerprint(root, resolved) {
-  let git = null;
-  try { git = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { /* not a checkout */ }
+  const git = gitHead(root);
   return {
     _about: 'What produced the shots beside this file. `tools/gate oracle <piece>` re-shoots when any of it moves; git_head only says where it was taken and is not compared.',
     app: hashApp(root),
-    shoot: sha(fs.readFileSync(path.join(root, 'legacy/tools/shoot.mjs'))).slice(0, 16),
+    shoot: sha256(fs.readFileSync(path.join(root, 'legacy/tools/shoot.mjs'))).slice(0, 16),
     git_head: git,
     passages: Object.fromEntries([...new Set(resolved.map((s) => s.flags.text).filter(Boolean))].sort()
-      .map((p) => [p, sha(fs.readFileSync(path.join(root, p))).slice(0, 16)])),
+      .map((p) => [p, sha256(fs.readFileSync(path.join(root, p))).slice(0, 16)])),
     states: Object.fromEntries(resolved.map((s) => [s.name, s.flags])),
   };
 }
@@ -132,7 +130,7 @@ async function servesThisApp(port, root, want) {
     for (const f of appFiles(root)) {
       const r = await fetch(`http://localhost:${port}/${f.replace(/^legacy\/app\//, '')}`, { signal: AbortSignal.timeout(1000) });
       if (!r.ok) return false;
-      h.update(`${f}:${sha(Buffer.from(await r.arrayBuffer()))}\n`);
+      h.update(`${f}:${sha256(Buffer.from(await r.arrayBuffer()))}\n`);
     }
     return h.digest('hex').slice(0, 16) === want;
   } catch { return false; }

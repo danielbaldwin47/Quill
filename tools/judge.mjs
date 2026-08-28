@@ -15,12 +15,14 @@
 //   1  theirs — at least one was not
 //   2  theirs, and this Piece had been won against this opponent before ("a Piece once won is never
 //      lost", docs/agents/gate.md); the line above the verdict says which round won it
-//   3  nothing was judged — a Piece with no judged states, a state naming a flag the app has not
-//      got, an opponent that is not frozen, or a run that broke before a verdict
+//   3  nothing was judged — a command line this could not read, a Piece with no judged states, a
+//      state naming a flag the app has not got, an opponent that is not frozen, or a run that broke
+//      before a verdict
 //
-// The 0/1/2 are the verdict and are this command's own; `check` and `oracle` use their codes for
-// pass and fail, which is why everything that is *not* a verdict here is gathered under one code
-// rather than borrowing theirs.
+// The 0/1/2 are the verdict and are this command's own, which is why everything that is *not* a
+// verdict is gathered under 3 — a mistyped flag included, where `check` and `oracle` would say 2.
+// Sharing 2 between "this Piece has been lost" and "you typed the command wrong" would make the
+// loudest thing this command can say indistinguishable from a typo.
 //
 // A PIECE IS JUDGED WHOLE. The Piece is ours only when every one of its states is. Every refusal is
 // therefore checked for every state before the first window opens: a run that shoots two of three
@@ -40,80 +42,47 @@
 // app that won its gauntlet is a loss, and that is the point of having the pipeline before the
 // Pieces rather than after.
 import { execFileSync, spawn } from 'node:child_process';
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { pair, pairDir, reveal } from './blind.mjs';
+import { gitHead, sha256 } from './fingerprint.mjs';
 import { APP_ID, compositorAvailable, openStage, quillArgv } from './harness.mjs';
 import { fingerprint, freezeReason, readStates, resolveStates, unservable } from './oracle.mjs';
+import { nextRound, opponentName, round, rounds, wonBefore } from './rounds.mjs';
 
-/// The opponent this command judges against while `legacy/` exists, and the word the round records
-/// it under. The switch to the iA reference belongs to the retirement ticket
-/// (`docs/architecture.md`, "Repo migration"), not here.
+// The opponent this command judges against while `legacy/` exists, and the word the round records
+// it under. The switch to the iA reference belongs to the retirement ticket
+// (`docs/architecture.md`, "Repo migration"), not here.
 const OPPONENT = 'oracle';
 
-/// What the opponent is called in prose — on the progress page, and in the line that says a won
-/// Piece has been lost. One string, so the page and the command cannot disagree.
-export const OPPONENTS = { oracle: 'Parity oracle' };
-
-/// The binary a judged shot is of. Release rather than debug: the Gate judges what the owner would
-/// install, and a debug build's frame timings and font rasterisation are not the shipped ones.
+// The binary a judged shot is of. Release rather than debug: the Gate judges what the owner would
+// install, and a debug build's frame timings and font rasterisation are not the shipped ones.
 const BINARY = 'target/release/quill';
 
-/// How long a critic is given. A critic reads two 2880x1800 images at least twice each and crops
-/// into them; ten minutes is far past what that has taken and short enough that a session which has
-/// stopped answering does not hold a Piece open all night.
+// How long a critic is given. A critic reads two 2880x1800 images at least twice each and crops
+// into them; ten minutes is far past what that has taken and short enough that a session which has
+// stopped answering does not hold a Piece open all night.
 const CRITIC_TIMEOUT_MS = 10 * 60 * 1000;
 
 // ---------- what produced the shots ----------
 
-function sha(bytes) { return crypto.createHash('sha256').update(bytes).digest('hex'); }
-
-/// Which build of ours a round is of: the commit it was taken at, and the binary itself, because a
-/// checkout can be dirty and a commit is then only half the answer.
+// Which build of ours a round is of: the commit it was taken at, and the binary itself, because a
+// checkout can be dirty and a commit is then only half the answer. Both stamps come from
+// `fingerprint.mjs`, which is where "which build is this?" is answered for the shots on the other
+// side of the pair too.
 export function build(root) {
-  let git = null;
-  try { git = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { /* not a checkout */ }
-  return { git, binary: sha(fs.readFileSync(path.join(root, BINARY))).slice(0, 16) };
-}
-
-// ---------- the rounds already recorded ----------
-
-/// Every round recorded for a Piece, oldest first.
-export function rounds(root, piece) {
-  const dir = path.join(root, 'progress/rounds');
-  if (!fs.existsSync(dir)) return [];
-  return fs.readdirSync(dir)
-    .filter((f) => f.startsWith(`${piece}-r`) && f.endsWith('.json'))
-    .map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')))
-    .filter((r) => r.piece === piece)
-    .sort((a, b) => a.round - b.round);
-}
-
-/// The round this run is: one past the highest already recorded, whoever recorded it.
-export function nextRound(recorded) {
-  return recorded.reduce((n, r) => Math.max(n, Number(r.round) || 0), 0) + 1;
-}
-
-/// The round that won this Piece against a native opponent, or null.
-///
-/// "A Piece once won is never lost" reads only rounds that carry `opponent`. The rounds already in
-/// `progress/rounds/` are the JavaScript app's gauntlet against iA Writer — the reference era, the
-/// thing the native app is being built to match — and a native Piece that has never been judged has
-/// not been won, however many r1 verdicts sit beside it saying "ours".
-export function wonBefore(recorded) {
-  return recorded.filter((r) => r.opponent && r.winner === 'ours').pop() || null;
+  return { git: gitHead(root), binary: sha256(fs.readFileSync(path.join(root, BINARY))).slice(0, 16) };
 }
 
 // ---------- the critic ----------
 
-/// The prompt for one pair: `tools/critic.md` below its `---`, with its fields filled.
-///
-/// Everything above the `---` is written for whoever reads the file and is never sent, which is why
-/// that half can explain itself at length without spending a critic's context on it.
+// The prompt for one pair: `tools/critic.md` below its `---`, with its fields filled.
+//
+// Everything above the `---` is written for whoever reads the file and is never sent, which is why
+// that half can explain itself at length without spending a critic's context on it.
 export function criticPrompt(template, { title, judge }) {
   const body = template.split(/\n---\n/).slice(1).join('\n---\n').trim();
   if (!body) throw new Error('tools/critic.md has no prompt under its --- line');
@@ -125,12 +94,12 @@ export function criticPrompt(template, { title, judge }) {
   return filled;
 }
 
-/// The critic's answer, out of whatever it said on the way to it.
-///
-/// The last fenced JSON object wins: a critic that reasons in prose and then answers has written
-/// the answer last, and a critic that quotes the schema back before filling it in has written the
-/// example first. Every key the round needs is checked here rather than where it is read, so a
-/// malformed answer names itself instead of becoming an empty string in a round file.
+// The critic's answer, out of whatever it said on the way to it.
+//
+// The last fenced JSON object wins: a critic that reasons in prose and then answers has written
+// the answer last, and a critic that quotes the schema back before filling it in has written the
+// example first. Every key the round needs is checked here rather than where it is read, so a
+// malformed answer names itself instead of becoming an empty string in a round file.
 export function criticAnswer(text) {
   const blocks = [...String(text).matchAll(/```json\s*([\s\S]*?)```/g)].map((m) => m[1]);
   const raw = blocks.length ? blocks[blocks.length - 1] : text;
@@ -151,14 +120,14 @@ export function criticAnswer(text) {
   };
 }
 
-/// Runs one critic on one pair and answers with what it said.
-///
-/// The session's working directory is a scratch directory outside the checkout holding copies of
-/// `A.png` and `B.png` and nothing else, and the two tools it is allowed are the two the prompt asks
-/// it to use. `--safe-mode` is the load-bearing one: it turns off this repository's own
-/// instructions, and a critic that has read `CLAUDE.md` knows there is a JavaScript app in
-/// `legacy/` it is probably being asked about, which is not a blind critic. The header above says
-/// where that stops being enforcement and starts being instruction.
+// Runs one critic on one pair and answers with what it said.
+//
+// The session's working directory is a scratch directory outside the checkout holding copies of
+// `A.png` and `B.png` and nothing else, and the two tools it is allowed are the two the prompt asks
+// it to use. `--safe-mode` is the load-bearing one: it turns off this repository's own
+// instructions, and a critic that has read `CLAUDE.md` knows there is a JavaScript app in
+// `legacy/` it is probably being asked about, which is not a blind critic. The header above says
+// where that stops being enforcement and starts being instruction.
 async function runCritic(prompt, A, B) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'quill-critic-'));
   try {
@@ -182,7 +151,7 @@ async function runCritic(prompt, A, B) {
   }
 }
 
-/// A child process's stdout, or its stderr as the reason it has none.
+// A child process's stdout, or its stderr as the reason it has none.
 function run(command, argv, { cwd, timeout }) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, argv, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -200,44 +169,6 @@ function run(command, argv, { cwd, timeout }) {
   });
 }
 
-// ---------- the round ----------
-
-/// The state whose verdict the round's single-pair keys are filled from: the first one lost, and the
-/// first one of all if none was.
-///
-/// The round file's shape is the gauntlet's, and the gauntlet judged one pair per Piece. Keeping it
-/// is what lets `tools/progress.mjs` go on reading every round ever written; filling it from the
-/// decisive state is what stops a Piece that lost on its third state showing the first state's
-/// comfortable verdict on the progress page.
-export function decisive(judged) {
-  return judged.find((s) => s.winner === 'theirs') || judged[0];
-}
-
-/// The round file, in the shape every round since the gauntlet has been written in, plus the three
-/// keys a native round needs that a gauntlet round did not: who the opponent was, which build of
-/// ours it was, and what happened at each judged state.
-export function round({ piece, number, judged, opponent, build: made, oracle, note, at }) {
-  const head = decisive(judged);
-  return {
-    piece,
-    round: number,
-    winner: judged.every((s) => s.winner === 'ours') ? 'ours' : 'theirs',
-    margin: head.margin,
-    gap: head.gap,
-    gapTheirs: head.gapTheirs,
-    verdict: head.verdict,
-    oursShot: head.ours,
-    theirsShot: head.theirs,
-    refSource: oracle,
-    builderNote: note || '',
-    secondary: head.secondary,
-    opponent,
-    build: made,
-    states: judged,
-    at,
-  };
-}
-
 // ---------- the command ----------
 
 function usage(where = process.stderr) {
@@ -248,16 +179,16 @@ function usage(where = process.stderr) {
 `);
 }
 
-/// Says something on the way to the verdict. Everything here is stderr: the owner reads the last
-/// line on stdout, and the agent who has to fix something reads this above it.
+// Says something on the way to the verdict. Everything here is stderr: the owner reads the last
+// line on stdout, and the agent who has to fix something reads this above it.
 function say(line) { process.stderr.write(`${line}\n`); }
 
-/// The line the owner reads, and the code that agrees with it.
+// The line the owner reads, and the code that agrees with it.
 function verdict(piece, winner, number) {
   console.log(`gate judge ${piece}: ${winner}, round ${number}`);
 }
 
-/// Nothing was judged, and why. One code for all of them, because none of them is a verdict.
+// Nothing was judged, and why. One code for all of them, because none of them is a verdict.
 function refuse(piece, why) {
   console.log(`gate judge ${piece}: refused (${why})`);
   return 3;
@@ -273,13 +204,13 @@ async function main(argv) {
     const a = argv[i];
     if (a === '--note') {
       note = argv[++i];
-      if (note === undefined) { process.stderr.write('gate judge: --note takes the text to record\n'); usage(); return 2; }
+      if (note === undefined) { process.stderr.write('gate judge: --note takes the text to record\n'); usage(); return 3; }
     } else if (a === '-h' || a === '--help') { usage(process.stdout); return 0; }
-    else if (a.startsWith('-')) { process.stderr.write(`gate judge: ${a}: not a flag this command has\n`); usage(); return 2; }
+    else if (a.startsWith('-')) { process.stderr.write(`gate judge: ${a}: not a flag this command has\n`); usage(); return 3; }
     else if (piece === null) piece = a;
-    else { process.stderr.write('gate judge: one Piece at a time\n'); usage(); return 2; }
+    else { process.stderr.write('gate judge: one Piece at a time\n'); usage(); return 3; }
   }
-  if (piece === null) { usage(); return 2; }
+  if (piece === null) { usage(); return 3; }
 
   try { return await judge(root, piece, note); }
   catch (e) {
@@ -348,7 +279,7 @@ async function judge(root, piece, note) {
 
   const recorded = rounds(root, piece);
   const number = nextRound(recorded);
-  const made = build(root);
+  const ours = build(root);
   const template = fs.readFileSync(path.join(root, 'tools/critic.md'), 'utf8');
   const brief = JSON.parse(fs.readFileSync(path.join(root, 'progress/state.json'), 'utf8')).pieces.find((p) => p.id === piece);
   if (!brief?.judge) {
@@ -357,7 +288,7 @@ async function judge(root, piece, note) {
   }
 
   const judged = [];
-  const stage = openStage({ root, appId: APP_ID });
+  const stage = await openStage({ root, appId: APP_ID });
   try {
     for (const s of resolved) {
       const ours = path.join('shots', piece, `r${number}-${s.name}-ours.png`);
@@ -401,7 +332,7 @@ async function judge(root, piece, note) {
   }
 
   const oracle = `shots/oracle/${piece}/ — the Parity oracle frozen by tools/gate oracle ${piece} from legacy/app ${frozen.app?.sha256} with legacy/tools/shoot.mjs ${frozen.shoot}`;
-  const written = round({ piece, number, judged, opponent: OPPONENT, build: made, oracle, note, at: new Date().toISOString() });
+  const written = round({ piece, number, judged, opponent: OPPONENT, build: ours, oracle, note, at: new Date().toISOString() });
   const file = path.join(root, 'progress/rounds', `${piece}-r${number}.json`);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, `${JSON.stringify(written, null, 2)}\n`);
@@ -411,7 +342,7 @@ async function judge(root, piece, note) {
 
   const won = wonBefore(recorded);
   if (won) {
-    console.log(`gate judge ${piece}: this Piece was won in round ${won.round} against the ${OPPONENTS[won.opponent] || won.opponent} and is lost now (docs/agents/gate.md: a Piece once won is never lost)`);
+    console.log(`gate judge ${piece}: this Piece was won in round ${won.round} against the ${opponentName(won)} and is lost now (docs/agents/gate.md: a Piece once won is never lost)`);
     verdict(piece, 'theirs', number);
     return 2;
   }

@@ -44,9 +44,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-/// The `GtkApplication` application-id, which is the xdg-toplevel `app_id`, which is what Hyprland
-/// reports as a window's `class` and what `ext_foreign_toplevel_handle_v1` reports as its `app_id`.
-/// One string, three names for it; `quill/src/main.rs` holds the original.
+// The `GtkApplication` application-id, which is the xdg-toplevel `app_id`, which is what Hyprland
+// reports as a window's `class` and what `ext_foreign_toplevel_handle_v1` reports as its `app_id`.
+// One string, three names for it; `quill/src/main.rs` holds the original.
 export const APP_ID = 'io.github.danielbaldwin47.Quill';
 
 // The stage's own numbers. The mode is the widest judged state (1440 logical) plus margin, at the
@@ -61,6 +61,11 @@ const MARGIN = { x: 80, y: 50 };
 // measured a *Python* GTK app at 200 ms) and short enough that a binary which never maps a window
 // fails while an agent is still watching.
 const MAP_TIMEOUT_MS = 10_000;
+
+// How long a created output has to turn up in `hyprctl monitors` before the stage gives up on
+// naming it. See where it is used: an output nobody named is the one thing here that can be left
+// behind.
+const CREATE_TIMEOUT_MS = 1_000;
 const POLL_MS = 50;
 
 // What a window is given between mapping and the shutter. GTK maps, then paints, then the
@@ -76,14 +81,14 @@ const STEADY_TRIES = 5;
 
 // ---------- the command line a judged state opens ours with ----------
 
-/// The native app's arguments for one resolved judged state.
-///
-/// Offsets need no conversion here: `--caret` and `--select` take UTF-8 bytes from the start of the
-/// Document, which is the form `shots/oracle/states.json` writes them in. (`tools/gate oracle` has
-/// to convert, because the browser shooter counts characters.)
-///
-/// `scale` and `active` are not here and never will be: the first is the output's, and the second
-/// is keyboard focus, which is the compositor's to give and not a flag the app could honour.
+// The native app's arguments for one resolved judged state.
+//
+// Offsets need no conversion here: `--caret` and `--select` take UTF-8 bytes from the start of the
+// Document, which is the form `shots/oracle/states.json` writes them in. (`tools/gate oracle` has
+// to convert, because the browser shooter counts characters.)
+//
+// `scale` and `active` are not here and never will be: the first is the output's, and the second
+// is keyboard focus, which is the compositor's to give and not a flag the app could honour.
 export function quillArgv(root, flags) {
   const argv = ['--deterministic', '--w', String(flags.w), '--h', String(flags.h)];
   argv.push('--theme', flags.theme, '--font', flags.font, '--size', String(flags.size));
@@ -100,23 +105,23 @@ export function quillArgv(root, flags) {
   return argv;
 }
 
-/// The environment a judged launch is made in.
-///
-/// `GDK_SCALE` is exported globally by Omarchy and would force a 2x buffer the compositor then
-/// rescales; the output's own scale is the one that should decide. The renderer is pinned because
-/// `cairo` differs from `gl` by 8,633 pixels on the same window (`gl`, `ngl` and `vulkan` are
-/// byte-identical to each other). The backend is pinned so an `XDG_SESSION_TYPE` surprise cannot
-/// put the window on XWayland, where `grim -T` would be capturing a different toplevel entirely.
-/// Accessibility is off because an at-spi bus that is not there costs a launch two seconds.
-///
-/// No `FONTCONFIG_FILE`. The research's checklist asks for one listing only the repo's fonts, and
-/// [ADR 0007](../docs/adr/0007-quill-faces-renamed-and-private.md) has since retired exactly that:
-/// the Faces are added to the running fontconfig with `FcConfigAppFontAddDir` before GTK
-/// initialises, from `<repo>/fonts` in a development build, so a judged shot is already set in the
-/// repository's own files. Setting the variable would replace the user's whole fontconfig for the
-/// process and every child, which is the thing that ADR rejected. What is left — a system font
-/// drawing a glyph the Faces do not have — is what `--deterministic`'s pinned rendering and the
-/// judged passages between them keep out.
+// The environment a judged launch is made in.
+//
+// `GDK_SCALE` is exported globally by Omarchy and would force a 2x buffer the compositor then
+// rescales; the output's own scale is the one that should decide. The renderer is pinned because
+// `cairo` differs from `gl` by 8,633 pixels on the same window (`gl`, `ngl` and `vulkan` are
+// byte-identical to each other). The backend is pinned so an `XDG_SESSION_TYPE` surprise cannot
+// put the window on XWayland, where `grim -T` would be capturing a different toplevel entirely.
+// Accessibility is off because an at-spi bus that is not there costs a launch two seconds.
+//
+// No `FONTCONFIG_FILE`. The research's checklist asks for one listing only the repo's fonts, and
+// [ADR 0007](../docs/adr/0007-quill-faces-renamed-and-private.md) has since retired exactly that:
+// the Faces are added to the running fontconfig with `FcConfigAppFontAddDir` before GTK
+// initialises, from `<repo>/fonts` in a development build, so a judged shot is already set in the
+// repository's own files. Setting the variable would replace the user's whole fontconfig for the
+// process and every child, which is the thing that ADR rejected. What is left — a system font
+// drawing a glyph the Faces do not have — is what `--deterministic`'s pinned rendering and the
+// judged passages between them keep out.
 export function launchEnv(env = process.env) {
   const out = { ...env, GSK_RENDERER: 'gl', GDK_BACKEND: 'wayland', GTK_A11Y: 'none' };
   delete out.GDK_SCALE;
@@ -125,31 +130,31 @@ export function launchEnv(env = process.env) {
 
 // ---------- the window rules ----------
 
-/// `appId` as the anchored Lua pattern `hl.window_rule`'s `class` match wants.
-///
-/// The dots are the point: `class` is a regex, so an unescaped `io.github...` would also match an
-/// `ioXgithub...` nobody has — and, less amusingly, the escaping has to survive being written into
-/// Lua source, where `\\.` is what a single backslash before a dot is spelt.
+// `appId` as the anchored Lua pattern `hl.window_rule`'s `class` match wants.
+//
+// The dots are the point: `class` is a regex, so an unescaped `io.github...` would also match an
+// `ioXgithub...` nobody has — and, less amusingly, the escaping has to survive being written into
+// Lua source, where `\\.` is what a single backslash before a dot is spelt.
 export function classPattern(appId) {
   return `^${appId.replace(/\./g, '\\\\.')}$`;
 }
 
-/// The Lua that pins ours to the stage, as the text of a file `hyprctl repl` is told to `dofile`.
-///
-/// Every rule is scoped to the application id, so nothing the owner has open is touched, and every
-/// handle is kept in one compositor-global table, because a rule outlives the process that added it
-/// and [`RULES_OFF`] is the only thing that can take it away again.
-///
-/// `size` and `move` are here rather than set once for the stage because the judged states are not
-/// all one size — `page/narrow` is 960 wide — and a rule applies at the moment a window maps.
-///
-/// The last two lines are Omarchy's, undone: it tags every window `default-opacity` and composites
-/// it at 98.5%, so a shot taken through the compositor is a shot of a slightly transparent app.
-/// `grim -T` reads the client's own buffer and so is already past that, but a rule set that only
-/// works because of how it happens to be captured is a trap for whoever changes the capture.
-///
-/// `no_initial_focus` is added only for a state shot without keyboard focus: it stops ours taking
-/// focus as it maps, so the parking window put there first keeps it.
+// The Lua that pins ours to the stage, as the text of a file `hyprctl repl` is told to `dofile`.
+//
+// Every rule is scoped to the application id, so nothing the owner has open is touched, and every
+// handle is kept in one compositor-global table, because a rule outlives the process that added it
+// and [`RULES_OFF`] is the only thing that can take it away again.
+//
+// `size` and `move` are here rather than set once for the stage because the judged states are not
+// all one size — `page/narrow` is 960 wide — and a rule applies at the moment a window maps.
+//
+// The last two lines are Omarchy's, undone: it tags every window `default-opacity` and composites
+// it at 98.5%, so a shot taken through the compositor is a shot of a slightly transparent app.
+// `grim -T` reads the client's own buffer and so is already past that, but a rule set that only
+// works because of how it happens to be captured is a trap for whoever changes the capture.
+//
+// `no_initial_focus` is added only for a state shot without keyboard focus: it stops ours taking
+// focus as it maps, so the parking window put there first keeps it.
 export function rulesLua(appId, { workspace, w, h, x = MARGIN.x, y = MARGIN.y, initialFocus = true }) {
   const lines = [
     'QUILL_GATE_RULES = QUILL_GATE_RULES or {}',
@@ -166,10 +171,10 @@ export function rulesLua(appId, { workspace, w, h, x = MARGIN.x, y = MARGIN.y, i
   return `${lines.join('\n')}\n`;
 }
 
-/// The Lua that takes every rule this harness added back off again, and says how many it took.
-///
-/// Safe to run when there are none, which is what makes it safe to run from a signal handler that
-/// does not know how far the stage got.
+// The Lua that takes every rule this harness added back off again, and says how many it took.
+//
+// Safe to run when there are none, which is what makes it safe to run from a signal handler that
+// does not know how far the stage got.
 export const RULES_OFF =
   'local t = QUILL_GATE_RULES or {} local n = #t'
   + ' for _, r in ipairs(t) do r:set_enabled(false) end'
@@ -177,14 +182,14 @@ export const RULES_OFF =
 
 // ---------- the toplevel list ----------
 
-/// The toplevels the compositor is showing, parsed out of a `WAYLAND_DEBUG=1` trace.
-///
-/// Not an interface, and the research says so: it is `grim` narrating its own protocol traffic. It
-/// is used because `ext_foreign_toplevel_handle_v1.identifier` is the only name `grim -T` answers
-/// to and no tool on the machine prints it. The parse is deliberately shallow — object id, event
-/// name, one string argument — so that a change in grim's colouring or timestamps cannot break it;
-/// if the interface itself moves, the fallback named in the research is a small
-/// `ext_foreign_toplevel_list_v1` client of our own.
+// The toplevels the compositor is showing, parsed out of a `WAYLAND_DEBUG=1` trace.
+//
+// Not an interface, and the research says so: it is `grim` narrating its own protocol traffic. It
+// is used because `ext_foreign_toplevel_handle_v1.identifier` is the only name `grim -T` answers
+// to and no tool on the machine prints it. The parse is deliberately shallow — object id, event
+// name, one string argument — so that a change in grim's colouring or timestamps cannot break it;
+// if the interface itself moves, the fallback named in the research is a small
+// `ext_foreign_toplevel_list_v1` client of our own.
 export function parseToplevels(trace) {
   const plain = trace.replace(/\[[0-9;]*m/g, '');
   const event = /ext_foreign_toplevel_handle_v1#(\d+)\.(identifier|app_id|title)\("((?:[^"\\]|\\.)*)"\)/;
@@ -201,11 +206,11 @@ export function parseToplevels(trace) {
     .map((h) => ({ id: h.identifier, appId: h.appId ?? null, title: h.title ?? null }));
 }
 
-/// The one toplevel of `appId` that is in `after` and was not in `before`.
-///
-/// Which window is ours cannot be asked of the toplevel list — it carries no pid — so it is
-/// answered by watching one appear. That also answers it when the owner already has Quill open, and
-/// when the stage's own parking window is up: both were there before.
+// The one toplevel of `appId` that is in `after` and was not in `before`.
+//
+// Which window is ours cannot be asked of the toplevel list — it carries no pid — so it is
+// answered by watching one appear. That also answers it when the owner already has Quill open, and
+// when the stage's own parking window is up: both were there before.
 export function appeared(before, after, appId) {
   const was = new Set(before.filter((t) => t.appId === appId).map((t) => t.id));
   const now = after.filter((t) => t.appId === appId && !was.has(t.id));
@@ -216,9 +221,9 @@ export function appeared(before, after, appId) {
 
 // ---------- the PNG ----------
 
-/// The pixel size in a PNG's header, which is the one thing about a shot that can be checked
-/// without judging it: a judged state is `w`x`h` logical at scale 2, and anything else is a window
-/// the rules did not pin.
+// The pixel size in a PNG's header, which is the one thing about a shot that can be checked
+// without judging it: a judged state is `w`x`h` logical at scale 2, and anything else is a window
+// the rules did not pin.
 export function pngSize(buf) {
   if (buf.length < 24 || buf.readUInt32BE(0) !== 0x89504e47) throw new Error('not a PNG');
   if (buf.toString('latin1', 12, 16) !== 'IHDR') throw new Error('a PNG whose first chunk is not IHDR');
@@ -239,8 +244,8 @@ function lua(source) {
   return hyprctl(['repl', source]);
 }
 
-/// Whether there is a Hyprland to put a stage on at all. A judging session on a machine without one
-/// should say so in a line rather than in a stack trace from the first `hyprctl`.
+// Whether there is a Hyprland to put a stage on at all. A judging session on a machine without one
+// should say so in a line rather than in a stack trace from the first `hyprctl`.
 export function compositorAvailable() {
   try {
     hyprctl(['monitors', '-j'], { json: true });
@@ -272,7 +277,7 @@ function movePointer({ x, y }) {
   lua(`hl.dispatch(hl.dsp.cursor.move(${Math.round(x)}, ${Math.round(y)})) return "moved"`);
 }
 
-/// Every toplevel the compositor is showing, now.
+// Every toplevel the compositor is showing, now.
 function toplevels() {
   // grim exits non-zero because `__none__` is not a toplevel, which is the point: the enumeration
   // happens on the way to finding that out, and the trace is on stderr either way.
@@ -290,12 +295,16 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---------- the stage ----------
 
-/// Opens the stage: a headless output at the judged scale, on a workspace of its own, with the
-/// owner's focus, workspace and pointer recorded so that [`Stage.close`] can put them back.
-///
-/// The teardown is registered before the output is created, not after, so that a failure inside
-/// this function is still torn down; `close` is idempotent and says nothing the second time.
-export function openStage({ root, appId = APP_ID, mode = MODE, scale = SCALE } = {}) {
+// Opens the stage: a headless output at the judged scale, on a workspace of its own, with the
+// owner's focus, workspace and pointer recorded so that [`Stage.close`] can put them back.
+//
+// The teardown is registered before the output is created, not after, so that a failure inside
+// this function is still torn down; `close` is idempotent and says nothing the second time.
+//
+// The mode and the scale are not arguments. They are the judged states' own — 3200x2000 at integer
+// scale 2 is what `w`x`h`x2 is asserted against in [`Stage.shoot`] — so a caller that could pass a
+// different scale could only pass one that every capture then refuses.
+export async function openStage({ root, appId = APP_ID } = {}) {
   const owner = { window: activeWindowAddress(), cursor: cursorPosition() };
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'quill-gate-'));
 
@@ -333,20 +342,31 @@ export function openStage({ root, appId = APP_ID, mode = MODE, scale = SCALE } =
 
   const before = monitors().map((m) => m.name);
   hyprctl(['output', 'create', 'headless']);
-  const output = monitors().map((m) => m.name).find((n) => !before.includes(n));
-  if (!output) { close(); throw new Error('asked Hyprland for a headless output and no new monitor appeared'); }
+  // Named by watching one appear, and watched for rather than looked for once. `output create`
+  // answers before the monitor is in `hyprctl monitors`, and an output this function did not manage
+  // to name is an output `close` cannot remove — the one way this stage can leak something onto the
+  // owner's machine. A second of asking is far past the millisecond it actually takes.
+  let output = null;
+  for (let waited = 0; waited < CREATE_TIMEOUT_MS && !output; waited += POLL_MS) {
+    output = monitors().map((m) => m.name).find((n) => !before.includes(n)) || null;
+    if (!output) await sleep(POLL_MS);
+  }
+  if (!output) {
+    close();
+    throw new Error('asked Hyprland for a headless output and no new monitor appeared; if one appears now, remove it with `hyprctl output remove <name>`');
+  }
   state.output = output;
 
-  lua(`hl.monitor({output="${output}", mode="${mode}", position="auto", scale=${scale}}) return "set"`);
+  lua(`hl.monitor({output="${output}", mode="${MODE}", position="auto", scale=${SCALE}}) return "set"`);
   const monitor = monitors().find((m) => m.name === output);
   if (!monitor) { close(); throw new Error(`${output} disappeared while it was being configured`); }
-  if (monitor.scale !== scale) { close(); throw new Error(`${output} came up at scale ${monitor.scale}, not ${scale}: a judged shot at a fractional scale is not the judged state`); }
+  if (monitor.scale !== SCALE) { close(); throw new Error(`${output} came up at scale ${monitor.scale}, not ${SCALE}: a judged shot at a fractional scale is not the judged state`); }
   state.workspace = monitor.activeWorkspace.id;
 
   // Somewhere on the stage that no judged window covers: the pointer is parked here so that
   // `follow_mouse` cannot hand focus to whatever happens to be under it. The window is at MARGIN and
   // is at most the mode's logical size less that, so the far corner is always clear of it.
-  const logical = { w: Math.round(monitor.width / scale), h: Math.round(monitor.height / scale) };
+  const logical = { w: Math.round(monitor.width / SCALE), h: Math.round(monitor.height / SCALE) };
   const corner = { x: monitor.x + logical.w - 4, y: monitor.y + logical.h - 4 };
 
   return new Stage({ root, appId, tmp, state, monitor, corner, close });
@@ -486,12 +506,17 @@ class Stage {
   }
 }
 
-/// The parking window's state: a Quill of its own, as small as the sizes the app takes allow, whose
-/// only job is to be the thing keyboard focus is on while an unfocused state is shot. It is a Quill
-/// because a Quill is the one window this repo can be sure exists on the machine; the stage's rules
-/// put it on the stage's workspace like any other, and `grim -T` reads a toplevel's own buffer, so
-/// its sitting on top of ours costs the shot nothing.
+// The parking window's state: an empty Quill whose only job is to be the thing keyboard focus is on
+// while an unfocused state is shot. It is a Quill because a Quill is the one window this repository
+// can be sure exists on the machine.
+//
+// Its own `w` and `h` decide nothing — the stage's rules are scoped to the class, so this window
+// maps at the judged state's size and position, exactly on top of ours. That costs the shot
+// nothing: `grim -T` reads a toplevel's own buffer rather than the composited output, so what is in
+// front of ours is not in the capture. The two numbers are here because `quillArgv` takes a whole
+// state and a state has a size; they are the judged default so that nothing surprising happens if a
+// rule ever fails to apply.
 const PARKING = {
-  w: 400, h: 300, theme: 'light', font: 'duo', size: 20, focus: 'off', chrome: 'on',
+  w: 1440, h: 900, theme: 'light', font: 'duo', size: 20, focus: 'off', chrome: 'on',
   typewriter: false, nocaret: false, text: null, caret: null, select: null, scroll: 0,
 };
