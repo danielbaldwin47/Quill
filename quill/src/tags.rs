@@ -24,6 +24,8 @@
 //! so only a paragraph's can run past both edges of the measure and read as a
 //! well.
 
+use std::collections::HashSet;
+
 use gtk::gdk;
 use gtk::pango;
 use gtk::prelude::*;
@@ -40,12 +42,18 @@ use crate::editor::{INK, INK_WEIGHT};
 /// they are constants: there is one theme until the Dark & light ticket moves
 /// all three into the palette table.
 ///
-/// Every marker holds it, which is a step short of the oracle: `markup.css`
-/// keeps line-head marks at the full grey and quiets inline punctuation to
-/// `--md-mark-quiet`, 72% of it, lifting the caret's own line back to the full
-/// grey. That ladder is what "the caret's line" means, so it belongs to #40
-/// (Focus & typewriter) with the rest of it; `Look` already carries the alpha
-/// key it will be spelled in.
+/// Every marker holds it, which is a step short of the oracle, and short of it
+/// in a wider way than this comment used to say. `markup.css` quiets more than
+/// inline punctuation: a heading's `#`s (`.md-hmark`), a quote's `>`
+/// (`.md-quote-mark`), fences, code marks and URLs all take `--md-quiet`,
+/// resting at `--md-mark-quiet` — 72% of the grey over the page, `#9e9e9e` —
+/// while bullets, task boxes and a fence's info string keep the full grey and a
+/// thematic break drops again to `--md-hair`, 34% of it. Only the lift of the
+/// caret's own line back to the full grey is #40's (`markup.css:39`,
+/// `.line.md-here { --md-quiet: var(--mark) }`). The resting ladder is this
+/// Piece's, and it wants its own ticket rather than a line here: it is three
+/// greys across a dozen marks, and the blind critic reads the oracle's own
+/// two-tone as inconsistency as often as it reads ours as too loud.
 const MARK: &str = "#7a7a7a";
 
 /// The link colour: `--link` of `legacy/app/css/theme.css`, 4.6:1 on paper.
@@ -306,10 +314,11 @@ pub fn hang_markers(buffer: &gtk::TextBuffer, face: Face, size: u32, side: i32) 
     for level in 1..=6u8 {
         hang(&heading(buffer, level), marker_cells(level));
     }
-    // The same pair, by width instead of by level. A list marker's width is not
-    // its level: `1. ` is a cell wider than `- ` at the same depth, and a
-    // nested item is wider again by its indentation, which is why the tag is
-    // keyed by the count and not by the kind.
+    // The same pair, by width instead of by level, for every other marker a
+    // line can open with. A marker's width is not its level or its kind: `1. `
+    // is a cell wider than `- ` at the same depth, `> - ` is a quote's marker
+    // and a bullet's together, and a nested item is wider again by its
+    // indentation, which is why the tag is keyed by the count.
     for cells in 1..=LIST_CELLS {
         hang(&list(buffer, cells), f64::from(cells));
     }
@@ -400,32 +409,54 @@ pub fn apply(buffer: &gtk::TextBuffer, document: &Document, face: Face, spans: &
 /// order the bytes appear, so that last marker is the one that ends the run.
 ///
 /// A heading keeps its own tag row: its span covers the whole heading rather
-/// than its `#`s, so its hang is read off the level instead, in [`apply`].
+/// than its `#`s, so its hang is read off the level instead, in [`apply`]. Its
+/// line is left alone here, and that is what keeps [`apply`]'s one safety
+/// true — a `> # Title` hung twice would be two tags setting the same two
+/// properties on one line, with tag priority left to decide between them. The
+/// price is that such a line hangs by its `#` alone and its words sit a quote
+/// marker right of the prose; hanging a heading by the run in front of it wants
+/// the two rows folded into one, which is more than a judged round should take.
 fn hang_lines(buffer: &gtk::TextBuffer, document: &Document, spans: &[Span]) {
-    let mut run: Option<&Span> = None;
-    for span in spans {
-        if !matches!(
-            span.mark,
-            Mark::QuoteMarker | Mark::BulletMarker | Mark::OrderedMarker
-        ) {
-            continue;
-        }
-        if let Some(last) = run
-            && document.place(last.at.end).line != document.place(span.at.end).line
-        {
-            hang_line(buffer, document, last);
-        }
-        run = Some(span);
-    }
-    if let Some(last) = run {
-        hang_line(buffer, document, last);
+    for (_, marker) in hangs(document, spans) {
+        let cells = marker_width(head(document, marker.at.end));
+        paragraph(buffer, document, marker, &list(buffer, cells));
     }
 }
 
-/// Hangs the line `marker` is on by the width of the run `marker` ends.
-fn hang_line(buffer: &gtk::TextBuffer, document: &Document, marker: &Span) {
-    let cells = marker_width(head(document, marker.at.end));
-    paragraph(buffer, document, marker, &list(buffer, cells));
+/// Which line takes a hang, and the marker whose end measures it.
+///
+/// The choice, with no buffer in it, because the choice is the whole of what
+/// [`hang_lines`] decides: one hang per line, the marker that ends the line's
+/// run is the one that measures it, and a heading's line is not here at all.
+fn hangs<'a>(document: &Document, spans: &'a [Span]) -> Vec<(usize, &'a Span)> {
+    let headings: HashSet<usize> = spans
+        .iter()
+        .filter(|span| matches!(span.mark, Mark::Heading(_)))
+        .map(|span| document.place(span.at.start).line)
+        .collect();
+    let mut hangs: Vec<(usize, &Span)> = Vec::new();
+    for span in spans.iter().filter(|span| line_head(span.mark)) {
+        let line = document.place(span.at.end).line;
+        if headings.contains(&line) {
+            continue;
+        }
+        // The spans arrive in the order the bytes appear, so a marker on the
+        // line already taken is a later one on it, and the run is what it ends.
+        if let Some(last) = hangs.last_mut().filter(|(taken, _)| *taken == line) {
+            last.1 = span;
+        } else {
+            hangs.push((line, span));
+        }
+    }
+    hangs
+}
+
+/// Whether `mark` is a marker a line can open with.
+fn line_head(mark: Mark) -> bool {
+    matches!(
+        mark,
+        Mark::QuoteMarker | Mark::BulletMarker | Mark::OrderedMarker
+    )
 }
 
 /// The run of line-head markers that ends `end` bytes into `document`.
@@ -433,6 +464,10 @@ fn hang_line(buffer: &gtk::TextBuffer, document: &Document, marker: &Span) {
 /// From the line's first byte rather than from the marker's own start, so that
 /// the markers a line opens with add up: the run a quoted item's bullet ends is
 /// `> - `, and four cells is what puts its words on the prose's edge.
+///
+/// `end` is a span's end and so a byte the engine named: inside the text and on
+/// a character boundary. [`Document::place`] would forgive neither, but a span
+/// that was outside the text it came from is a bug worth the panic.
 fn head(document: &Document, end: usize) -> &str {
     &document.text()[end - document.place(end).index..end]
 }
@@ -573,7 +608,7 @@ mod tests {
         // first line started two cells right of its own wrapped rows.
         let document = passage("quoted", "> There are things the sea keeps.\n");
         assert_eq!(
-            hangs(&document),
+            widths(&document),
             vec![2],
             "the quote's `> ` is two cells, and its words belong on the prose's edge"
         );
@@ -582,36 +617,64 @@ mod tests {
     #[test]
     fn a_lines_hang_is_every_marker_it_opens_with_and_not_the_last_one_alone() {
         // `> - ` is a quote's marker and a bullet's. Hanging by the bullet
-        // alone would leave the item's words two cells right of the prose.
+        // alone would leave the item's words two cells right of the prose, and
+        // hanging the line twice would leave tag priority to choose.
         let document = passage("quoted_item", "> quoted\n\n> - quoted item\n");
         assert_eq!(
-            hangs(&document),
-            vec![2, 2, 4],
+            widths(&document),
+            vec![2, 4],
             "the bullet inside a quote hangs by both markers, not by its own"
         );
     }
 
+    #[test]
+    fn a_quoted_heading_is_hung_once_and_by_its_heading_tag() {
+        // Two paragraph tags on one line would both set the left margin and
+        // the indent, and tag priority rather than the code would pick the
+        // hang. The heading's own row wins the line, so the quote's marker
+        // asks for nothing on it.
+        let document = passage("quoted_heading", "> ### Title\n");
+        assert_eq!(
+            lines(&document),
+            Vec::<usize>::new(),
+            "a heading's line is hung in `apply`, not here"
+        );
+        let document = passage("plain_heading", "### Title\n\n> quoted\n");
+        assert_eq!(
+            lines(&document),
+            vec![2],
+            "and a quote that is not on a heading's line still hangs"
+        );
+    }
+
+    /// The lines [`hangs`] gives a hang to, in order.
+    fn lines(document: &Document) -> Vec<usize> {
+        hangs(document, &annotate::markup(document.text()))
+            .into_iter()
+            .map(|(line, _)| line)
+            .collect()
+    }
+
     /// A Document holding `text`, the only way to build one outside the engine.
+    ///
+    /// Named for the process as well as the passage: this repo is worked in
+    /// several worktrees at once, and two of them testing together would
+    /// otherwise write and read one file.
     fn passage(stem: &str, text: &str) -> Document {
-        let path = std::env::temp_dir().join(format!("quill-tags-{stem}.md"));
+        let path =
+            std::env::temp_dir().join(format!("quill-tags-{stem}-{}.md", std::process::id()));
         std::fs::write(&path, text).expect("writes to the temp directory");
         Document::open(&path).expect("reads the passage just written")
     }
 
-    /// The hang, in cells, each line-head marker of `document` asks for.
+    /// The hang, in cells, each hung line of `document` takes.
     ///
-    /// What [`hang_lines`] reads off the spans before it picks one tag per
-    /// line; the tag itself needs a buffer, and a buffer needs a display.
-    fn hangs(document: &Document) -> Vec<u8> {
-        annotate::markup(document.text())
-            .iter()
-            .filter(|span| {
-                matches!(
-                    span.mark,
-                    Mark::QuoteMarker | Mark::BulletMarker | Mark::OrderedMarker
-                )
-            })
-            .map(|span| marker_width(head(document, span.at.end)))
+    /// What [`hang_lines`] reads off [`hangs`] before it asks for the tag; the
+    /// tag itself needs a buffer, and a buffer needs a display.
+    fn widths(document: &Document) -> Vec<u8> {
+        hangs(document, &annotate::markup(document.text()))
+            .into_iter()
+            .map(|(_, marker)| marker_width(head(document, marker.at.end)))
             .collect()
     }
 
