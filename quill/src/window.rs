@@ -264,11 +264,16 @@ pub fn present_launch(app: &gtk::Application, session: &Rc<Session>) {
     }
     // After the Document is shown rather than with it: the offset `--caret`
     // names is an offset into that Document, and there is nothing to count
-    // until it is in the buffer.
-    if let Some(window) = &first
-        && let Some(caret) = session.flags().caret
-    {
-        window.imp().editor.place_caret(caret);
+    // until it is in the buffer. `--scroll` comes second and wins, because a
+    // state that names where the view is means it however the caret got there.
+    if let Some(window) = &first {
+        let scroll = session.flags().scroll;
+        if let Some(caret) = session.flags().caret {
+            window.imp().editor.place_caret(caret, scroll.is_none());
+        }
+        if let Some(scroll) = scroll {
+            window.imp().editor.scroll_to(scroll);
+        }
     }
     if let Some(window) = first
         && session.flags().measure.is_some()
