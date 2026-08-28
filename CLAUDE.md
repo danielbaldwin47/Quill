@@ -20,6 +20,10 @@ Hard rule in `legacy/app/`: no per-token style may change glyph advance width, o
 
 Hard rule for any test window (GTK, browser, bench): it opens on a virtual output — `hyprctl output create headless`, what `legacy/bin/quill --measure` does by default — or, when it must be on the real monitor, on workspace 5 with `[workspace 5 silent]`. Workspace 1 is the user's live workspace. The Hyprland 0.56 commands are in `legacy/BRIEF.md` § Headed windows; without `hyprctl`, run headless.
 
+## Rust
+
+The `rust-analyzer-lsp` plugin is installed, so for any Rust in either crate the LSP tool answers definition, references, hover, symbols and call hierarchy. Reach for it before a `grep` for a symbol or a `cat` of a file to find one.
+
 ## Gate
 
 Before landing native work, closing a ticket, or closing a feature: `docs/agents/gate.md` names the tier, its commands, the latency budget, the blind-judging opponent and the Feature tier's Hand test; `docs/agents/hand-tests.md` holds the ported Pieces' checklists.
@@ -30,11 +34,12 @@ An `/implement` session whose ticket has no Hand test (Ticket tier only) lands i
 
 The smart zone is about 120k tokens. A session is near 60k once this file, the ticket and the docs it names are in context, and every tool call then adds its result plus about 0.4k of reasoning that stays for the rest of the session, so the zone is held by making fewer, smaller calls (the first eight landed tickets made 120–230 and ran 190k–280k).
 
-- **Orientation is delegated.** Before the first edit, an Explore agent maps the area and returns `file:line` ranges; this context reads those ranges. Where-is-what questions go to the module map — every module opens with a `//!` line, so `grep -rn -m1 '^//!' --include='*.rs' quill quill-engine` is both crates on one screen — or to rust-analyzer through the LSP tool (definition, references, hover), which answers in lines where a `cat` costs the file.
+- **Orientation is delegated.** Before the first edit, an Explore agent maps the area and returns `file:line` ranges; this context reads those ranges. Where-is-what questions go to the module map — every module opens with a `//!` line, so `grep -rn -m1 '^//!' --include='*.rs' quill quill-engine` is both crates on one screen — or to the LSP tool (§ Rust), which answers in lines where a `cat` costs the file.
 - **The Gate is one call.** `tools/gate check` is the whole Commit tier in one result. While iterating: `cargo check -q --message-format=short`, `cargo test <name>`, and listings through `head` or `grep`. `tools/gate judge` and `bench` are read for their summary lines; the shots are the critic's to look at.
 - **The ticket is fetched once**, with its parent spec, to a file under the job's tmp directory by `tools/ticket <N>`, and later questions are answered from that file by `sed -n` range.
 - **Docs by section.** This file is already in context. `docs/agents/gate.md` for the tier the ticket names, `docs/architecture.md` for the sections the ticket cites, ADRs by number; `docs/agents/hand-tests.md` is `/to-spec`'s reading.
 - **One tool per file.** A file the harness has seen through Read, Write or Edit and then changed through Bash — `sed -i`, a heredoc, `cargo fmt` — comes back into context as a diff snippet (one session paid 60 KB this way). Files opened with Bash stay with Bash; files touched with Write or Edit change through Edit, written in rustfmt's shape so `cargo fmt` changes nothing.
+- **In a worktree, Bash is one plain command per call.** Once the session has entered `.claude/worktrees/`, the isolation check reads a command's shape rather than its targets and refuses heredocs, `;`-chains and `for` loops, even ones that touch only `gh` or the job's tmp directory. Files are created with Write and changed with Edit from the first edit, whatever the permission mode says about preferring Bash; a sweep that needs a loop runs in a subagent before `EnterWorktree`.
 
 ## Agent docs
 
