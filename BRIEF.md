@@ -42,7 +42,8 @@ Many ia.net / App Store images are marketing composites (headline + partial wind
 3. Pair with `node tools/blind.mjs pair <piece> <ours.png> <crop.png>`.
 Prefer the clean full-window screenshots (ianet-mac-*-support.webp, msstore-win-*.png) over composites when they show your piece.
 
-## Headed windows (real browser, not headless)
-Never open test windows on Hyprland workspace 1 — the user works there. Launch through Hyprland's exec rules so the window lands elsewhere silently, e.g.
-`hyprctl dispatch exec "[workspace 2 silent] chromium --app=http://localhost:4173/ --class=quill-test"`
-(if `hyprctl` is unavailable, do not open headed windows at all — use headless).
+## Headed windows (real browser or GTK, not headless)
+Workspace 1 is the user's; a test window goes to a virtual output or to workspace 5. Hyprland 0.56 parses dispatches as Lua, so the old `hyprctl dispatch exec "[rules] cmd"` string form fails; `bin/quill` carries the working forms:
+- Virtual output (default, nothing appears on the physical panel, the window still gets frame callbacks at 60 Hz): `hyprctl output create headless`, read the new monitor's `activeWorkspace.id` from `hyprctl monitors -j`, launch on it, `hyprctl output remove <name>` when done.
+- Workspace 5 of the real monitor: `hyprctl repl 'return hl.dispatch(hl.dsp.exec_cmd("[workspace 5 silent] chromium --app=http://localhost:4173/ --class=quill-test"))'`. A window on a workspace that is not being displayed gets no frame callbacks, so its presentation timestamps are worthless — measure on the virtual output.
+Without `hyprctl`, run headless.
