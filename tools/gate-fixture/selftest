@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Does `tools/gate check` actually go red? — the Commit tier's own test.
+# Does `tools/gate check` still go red? — the Commit tier's own test.
 #
 #   tools/gate-fixture/selftest
 #
@@ -8,6 +8,9 @@
 # assertions are only what the owner would read: the exit code, the last line,
 # and which step lines appear — nothing about how the script works inside.
 # Nothing is written inside the repo, and the real tree is never checked here.
+#
+# No `-e`: every case here runs a command that is *meant* to fail, and reads its
+# exit code afterwards.
 set -uo pipefail
 
 ROOT=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../.." && pwd)
@@ -15,19 +18,26 @@ FIXTURE=$ROOT/tools/gate-fixture
 GATE=$ROOT/tools/gate
 STEPS=(fmt allow clippy test)
 
+cases=0
 failures=0
+WORK=""
+cleanup() { [ -n "$WORK" ] && rm -rf "$WORK"; :; }
+trap cleanup EXIT INT TERM
 
-# run <case> <expected exit: 0 or 1> <expected last line> [defect] [regex the output must contain]
+# run <case> <defect file, or "" for the fixture as committed>
+#     <the step that must fail, or "" if the case must pass> [regex the output must contain]
 run() {
-    local name=$1 want_code=$2 want_last=$3 defect=${4:-} want_says=${5:-}
-    local work out code last
-    work=$(mktemp -d)
-    # shellcheck disable=SC2064  # $work is wanted now, not at trap time.
-    trap "rm -rf '$work'" RETURN
-    cp -r "$FIXTURE/Cargo.toml" "$FIXTURE/src" "$FIXTURE/defects" "$work/"
-    [ -n "$defect" ] && cp "$FIXTURE/defects/$defect.rs" "$work/src/defect.rs"
+    local name=$1 defect=$2 wants=$3 want_says=${4:-}
+    local want_last="gate check: pass" want_code=0
+    [ -n "$wants" ] && { want_last="gate check: fail ($wants)"; want_code=1; }
+    cases=$((cases + 1))
 
-    out=$("$GATE" check "$work" 2>&1)
+    WORK=$(mktemp -d)
+    cp -r "$FIXTURE/Cargo.toml" "$FIXTURE/src" "$WORK/"
+    [ -n "$defect" ] && cp "$FIXTURE/defects/$defect.rs" "$WORK/src/defect.rs"
+
+    local out code last
+    out=$("$GATE" check "$WORK" 2>&1)
     code=$?
     last=$(printf '%s\n' "$out" | tail -1)
 
@@ -40,13 +50,13 @@ run() {
     fi
 
     # The steps after a failing one do not run.
-    if [ -n "$defect" ] && [ "$defect" != test ]; then
+    if [ -n "$wants" ]; then
         local seen=0 step
         for step in "${STEPS[@]}"; do
             if [ "$seen" = 1 ] && printf '%s\n' "$out" | grep -q "^gate check: $step "; then
-                said+=("$step ran after $defect failed")
+                said+=("$step ran after $wants failed")
             fi
-            [ "$step" = "$defect" ] && seen=1
+            [ "$step" = "$wants" ] && seen=1
         done
     fi
 
@@ -58,17 +68,21 @@ run() {
         printf '    %s\n' "${said[@]}"
         printf '%s\n' "$out" | sed 's/^/    | /'
     fi
+
+    rm -rf "$WORK"
+    WORK=""
 }
 
-run "clean fixture"    0 "gate check: pass"
-run "formatting error" 1 "gate check: fail (fmt)"    fmt
-run "bare #[allow]"    1 "gate check: fail (allow)"  allow "^src/defect\.rs:[0-9]+:"
-run "clippy warning"   1 "gate check: fail (clippy)" clippy
-run "failing test"     1 "gate check: fail (test)"   test
+run "the fixture as committed" ""         ""
+run "formatting error"         fmt        fmt
+run "bare #[allow]"            allow      allow "^src/defect\.rs:[0-9]+:"
+run "#[allow] with a reason"   reasoned   ""
+run "clippy warning"           clippy     clippy
+run "failing test"             test       test
 
 if [ "$failures" -eq 0 ]; then
     echo "gate selftest: pass"
 else
-    echo "gate selftest: fail ($failures of 5)"
+    echo "gate selftest: fail ($failures of $cases)"
     exit 1
 fi

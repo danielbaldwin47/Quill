@@ -31,9 +31,9 @@ tools/gate check                          # what every commit must pass: format,
 ```
 
 `tools/gate check` is the Gate's Commit tier (`docs/agents/gate.md`): formatting, the rule that every
-`#[allow(...)]` carries its reason on its own line, clippy on `-D warnings`, then the whole suite with
-`DISPLAY` and `WAYLAND_DISPLAY` unset — stopping at the first failure, and ending in one line the owner can
-read, `gate check: pass` or `gate check: fail (<step>)`.
+`#[allow(...)]` carries its reason on the same line, clippy on `-D warnings`, then the whole suite with no
+display in its environment — stopping at the first failure, and ending in one line the owner can read,
+`gate check: pass` or `gate check: fail (<step>)`.
 
 Data files — the six Quill Faces, Templates, `OFL.txt` — resolve from one directory: `$QUILL_DATA_DIR`
 if it is set, else the path the package build compiled in (`/usr/share/quill`), else this checkout.
