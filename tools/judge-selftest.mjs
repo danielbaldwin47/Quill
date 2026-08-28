@@ -22,6 +22,7 @@ import { pair, pairDir, reveal } from './blind.mjs';
 import { APP_ID, appeared, classPattern, launchEnv, parseToplevels, pngSize, quillArgv, rulesLua } from './harness.mjs';
 import { criticAnswer, criticPrompt } from './judge.mjs';
 import { readStates, resolveStates } from './oracle.mjs';
+import { regimes } from './regimes.mjs';
 import { OPPONENTS, decisive, nextRound, opponentName, round, wonBefore } from './rounds.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -324,6 +325,42 @@ ok('the latency Piece is judged on a whole bench run, and refuses anything less'
   assert.equal(short.code, 3, short.out);
   assert.match(lastLine(short), /^gate judge latency: refused \(.* is not a whole run/,
     'two regimes are a measurement, not a verdict on the Piece');
+});
+
+// #66's panel mode measures on the physical display, which is fractional-scale and so is not the
+// output the budget or the oracle's numbers belong to. It writes `panel-summary-*.json`, which the
+// newest-summary search does not match, so the accident this guards against is the deliberate one:
+// a panel run named to `--summary` by hand.
+ok('a --panel run is informational, and the latency Piece is never judged from one', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'quill-judge-panel-'));
+  // Whole, accounted for, and well inside every bar — so the only thing that can refuse it is that
+  // it was taken on the panel.
+  const rows = regimes().map((r) => ({
+    regime: r.name, mean_ms: 2, worst_ms: 8, p50_ms: 2, p99_ms: 7, cold_ms: 120, pass: true,
+  }));
+  const body = {
+    ran: '--all',
+    headline: 'prose_end_of_draft',
+    regimes: rows,
+    regimes_not_run: [],
+    regimes_unaccounted_for: [],
+    pass: null,
+    informational: 'the physical panel is never a Gate condition',
+    panel: { output: 'DP-3', mode: '3840x2160', scale: 1.5 },
+    lines: ['gate bench --all --panel: informational'],
+  };
+  const named = path.join(tmp, 'panel-summary-20260828T000000.json');
+  fs.writeFileSync(named, JSON.stringify(body));
+  const r = gate('judge', 'latency', '--summary', named);
+  fs.rmSync(tmp, { recursive: true, force: true });
+  assert.equal(r.code, 3, r.out);
+  assert.match(lastLine(r), /^gate judge latency: refused \(.* is informational/,
+    'a whole run of twelve inside every bar is still not evidence when it came off the panel');
+
+  // The same body without the mark is deliberately not run here. It is whole, accounted for and
+  // inside every bar, so judge would take a verdict from it and write a round — and writing a round
+  // into the ledger is not something a test may do. That it would is the point: the mark is the
+  // only thing standing between a panel run and the latency Piece.
 });
 
 ok('a Piece whose states need flags the app has not got names them and judges nothing', () => {
