@@ -1,0 +1,154 @@
+#!/usr/bin/env python3
+"""The ticket and its parent spec, fetched once, to one file.
+
+Owner: an `/implement` session. Every landed leg re-fetched its parent spec — 9-11 KB of
+context each time, one session paying it four times — because `gh issue view` is the only way
+to see it. CLAUDE.md § Context in an `/implement` session says the ticket is fetched once; this
+is that one command. The file it writes is read afterwards by `sed -n '<a>,<b>p'` over the line
+numbers printed here, so a later question about the spec costs a range rather than a fetch.
+
+  tools/ticket <N>
+
+Writes ticket N, its comments, and the spec it names under `## Parent` (`Child of #<M>`), in
+that order, to $CLAUDE_JOB_DIR/tmp/ticket-<N>.md when that directory exists, else to
+target/ticket-<N>.md. Prints that path, the ticket's body, and one `<line>: <heading>` per
+Markdown heading in the spec's part of the file — the ticket's own headings when it has no
+parent. Nothing else; a second run overwrites the file.
+"""
+import json
+import os
+import re
+import subprocess
+import sys
+
+HEADING = re.compile(r"^#{1,6} \S")
+ISSUE_REF = re.compile(r"#(\d+)")
+
+
+def die(n, reason):
+    """The one failure shape: `ticket <N>: <reason>` on stderr, non-zero out."""
+    sys.stderr.write(f"ticket {n}: {reason}\n")
+    sys.exit(1)
+
+
+def fetch(n):
+    """Issue N as `gh` gives it, or (None, reason) — a missing issue looks like any gh failure."""
+    run = subprocess.run(
+        ["gh", "issue", "view", str(n), "--json", "title,body,comments"],
+        capture_output=True,
+        text=True,
+    )
+    if run.returncode != 0:
+        err = run.stderr.strip().splitlines()
+        return None, err[-1] if err else f"gh exited {run.returncode}"
+    try:
+        return json.loads(run.stdout), None
+    except json.JSONDecodeError as exc:
+        return None, f"gh returned no readable JSON ({exc})"
+
+
+def body_lines(text):
+    """A GitHub body as file lines: CRLF gone, trailing blanks gone."""
+    return (text or "").replace("\r\n", "\n").rstrip().split("\n")
+
+
+def render(n, issue):
+    """One issue as the file sees it: a title heading, the body, then a section per comment."""
+    lines = [f"# #{n} — {issue['title']}", ""] + body_lines(issue["body"])
+    for comment in issue.get("comments") or []:
+        who = (comment.get("author") or {}).get("login") or "unknown"
+        when = (comment.get("createdAt") or "")[:10]
+        lines += ["", f"## Comment by {who}, {when}", ""] + body_lines(comment["body"])
+    return lines
+
+
+def parent_of(body):
+    """The issue number the `## Parent` section names, or None.
+
+    The contract is the shape `/to-tickets` writes: a `## Parent` heading, then a first
+    non-empty line beginning `Child of #<M>`. Anything else in that place — a heading, prose
+    naming no issue — is a ticket with no parent rather than an error.
+    """
+    lines = body_lines(body)
+    for i, line in enumerate(lines):
+        if line.strip().lower() != "## parent":
+            continue
+        for rest in lines[i + 1:]:
+            if not rest.strip():
+                continue
+            if rest.startswith("#"):
+                return None
+            hit = ISSUE_REF.search(rest)
+            return int(hit.group(1)) if hit else None
+        return None
+    return None
+
+
+def headings(lines, offset):
+    """Every Markdown heading outside a fenced block, as (line number in the file, text).
+
+    `offset` is how many lines of the file come before `lines`, so the numbers printed are the
+    ones `sed -n` wants.
+    """
+    found = []
+    fenced = False
+    for i, line in enumerate(lines):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if not fenced and HEADING.match(line):
+            found.append((offset + i + 1, line.strip()))
+    return found
+
+
+def out_path(n):
+    """The job's tmp directory when a session has one, else the repo's target/."""
+    job = os.environ.get("CLAUDE_JOB_DIR")
+    if job:
+        tmp = os.path.join(job, "tmp")
+        if os.path.isdir(tmp):
+            return os.path.join(tmp, f"ticket-{n}.md")
+    root = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    target = os.path.join(root, "target")
+    os.makedirs(target, exist_ok=True)
+    return os.path.join(target, f"ticket-{n}.md")
+
+
+def main(argv):
+    if len(argv) != 1 or not argv[0].lstrip("#").isdigit():
+        sys.stderr.write("usage: tools/ticket <N>\n")
+        return 2
+    n = int(argv[0].lstrip("#"))
+
+    issue, reason = fetch(n)
+    if issue is None:
+        die(n, reason)
+
+    ticket = render(n, issue)
+    lines = list(ticket)
+    scanned, offset = ticket, 0
+
+    spec_n = parent_of(issue["body"])
+    if spec_n is not None:
+        spec, reason = fetch(spec_n)
+        if spec is None:
+            die(n, f"parent #{spec_n}: {reason}")
+        offset = len(lines) + 1
+        scanned = render(spec_n, spec)
+        lines += [""] + scanned
+
+    path = out_path(n)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+
+    print(path)
+    print()
+    print("\n".join(body_lines(issue["body"])))
+    print()
+    for line_no, text in headings(scanned, offset):
+        print(f"{line_no}: {text}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
