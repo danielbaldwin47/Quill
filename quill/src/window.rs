@@ -98,6 +98,11 @@ impl Window {
             window.set_decorated(false);
         }
         window.set_document(document);
+        window
+            .imp()
+            .editor
+            .set_type(session.settings().face, session.size());
+        window.install_size_steps();
         window.imp().editor.grab_focus();
         // A window is remembered as it closes rather than at shutdown, so that
         // the last window a writer sized is the first one the next launch
@@ -153,12 +158,81 @@ impl Window {
         }
     }
 
+    /// Installs Bigger Text, Smaller Text and Default Text Size.
+    ///
+    /// On the window rather than on the application because that is what
+    /// `docs/shortcuts.md` names them: `font.bigger` with `win.` in front. The
+    /// size they move is the session's, though, so stepping it in one window
+    /// steps it in every window — a writer has one pair of eyes.
+    fn install_size_steps(&self) {
+        self.add_action_entries([
+            gio::ActionEntry::builder("font.bigger")
+                .activate(|window: &Self, _, _| window.step_size(Step::Bigger))
+                .build(),
+            gio::ActionEntry::builder("font.smaller")
+                .activate(|window: &Self, _, _| window.step_size(Step::Smaller))
+                .build(),
+            gio::ActionEntry::builder("font.reset")
+                .activate(|window: &Self, _, _| window.step_size(Step::Default))
+                .build(),
+        ]);
+    }
+
+    /// Steps the type size one pixel, or back to the default one.
+    ///
+    /// The step stops at the ends of [`quill_engine::settings::type_sizes`]
+    /// rather than wrapping or refusing: a writer holding the key down means
+    /// "as big as it goes", and it is the same range `size` in the file and
+    /// `--size` on the command line are held to, because it is the same
+    /// question asked three ways.
+    fn step_size(&self, step: Step) {
+        let Some(session) = self.imp().session.borrow().clone() else {
+            return;
+        };
+        let steps = quill_engine::settings::type_sizes();
+        let wanted = match step {
+            Step::Bigger => session.size().saturating_add(1),
+            Step::Smaller => session.size().saturating_sub(1),
+            Step::Default => quill_engine::settings::default_size(),
+        };
+        let size = wanted.clamp(*steps.start(), *steps.end());
+        if size == session.size() {
+            return;
+        }
+        session.set_size(size);
+        if let Some(app) = self.application() {
+            reset_type(&app, session.settings().face, size);
+        }
+    }
+
     /// Takes `document` as this window's own and shows it.
     fn set_document(&self, document: Document) {
         self.imp().document.replace(document);
         let document = self.imp().document.borrow();
         self.set_title(Some(&document.title()));
         self.imp().editor.show_document(&document);
+    }
+}
+
+/// Which way Bigger Text, Smaller Text and Default Text Size move.
+#[derive(Clone, Copy)]
+enum Step {
+    Bigger,
+    Smaller,
+    Default,
+}
+
+/// Sets every open window's Editor in `face` at `size`.
+///
+/// The stylesheet first and once, because it belongs to the display rather
+/// than to a window; then each Editor, because the leading and the measure are
+/// laid out per widget.
+fn reset_type(app: &gtk::Application, face: quill_engine::settings::Face, size: u32) {
+    crate::editor::install_type(face, size);
+    for window in app.windows() {
+        if let Ok(window) = window.downcast::<Window>() {
+            window.imp().editor.set_type(face, size);
+        }
     }
 }
 
@@ -191,11 +265,16 @@ pub fn present_launch(app: &gtk::Application, session: &Rc<Session>) {
     }
     // After the Document is shown rather than with it: the offset `--caret`
     // names is an offset into that Document, and there is nothing to count
-    // until it is in the buffer.
-    if let Some(window) = &first
-        && let Some(caret) = session.flags().caret
-    {
-        window.imp().editor.place_caret(caret);
+    // until it is in the buffer. `--scroll` comes second and wins, because a
+    // state that names where the view is means it however the caret got there.
+    if let Some(window) = &first {
+        let scroll = session.flags().scroll;
+        if let Some(caret) = session.flags().caret {
+            window.imp().editor.place_caret(caret, scroll.is_none());
+        }
+        if let Some(scroll) = scroll {
+            window.imp().editor.scroll_to(scroll);
+        }
     }
     if let Some(window) = first
         && session.flags().measure.is_some()

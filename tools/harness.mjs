@@ -127,7 +127,10 @@ export function quillArgv(root, flags) {
     if (flags.caret !== null && flags.caret !== undefined) argv.push('--caret', String(flags.caret));
     if (flags.select) argv.push('--select', flags.select.join(','));
   }
-  if (flags.scroll) argv.push('--scroll', String(flags.scroll));
+  // Named whenever the state names it, 0 included: a state whose view is at the top of the
+  // page says so with `--scroll 0`, and a falsy check would drop exactly that state and
+  // shoot the app wherever it happened to have scrolled itself instead.
+  if (flags.scroll !== null && flags.scroll !== undefined) argv.push('--scroll', String(flags.scroll));
   return argv;
 }
 
