@@ -20,4 +20,7 @@ cairo-rs = "0.22"
 notify = "8"
 pango = "0.22"
 serde = { version = "1", features = ["derive"] }
-toml = "0.9"
+# `preserve_order`: a settings file is written in the order
+# `docs/architecture.md` names its keys, and a key a newer Quill added keeps
+# its place, rather than everything landing in alphabetical order.
+toml = { version = "0.9", features = ["preserve_order"] }

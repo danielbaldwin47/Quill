@@ -111,21 +111,27 @@ theme `auto` follows the settings portal's colour scheme.
 
 One TOML file at `$XDG_CONFIG_HOME/quill/settings.toml` for what the writer chose; `$XDG_STATE_HOME/quill/`
 for what the app observed ([ADR 0010](adr/0010-settings-in-toml-under-xdg.md)). Missing keys take
-defaults; unknown keys are kept, so an older Quill never destroys a newer file.
+defaults; unknown keys and unknown tables are kept, so an older Quill never destroys a newer file.
+Every write to either file goes through a temporary file beside it and a rename, so a write that
+fails leaves the file it was replacing whole.
 
 Config: `theme` (auto, light, dark), `face` (duo, quattro, mono), `size` (pixels, default 20),
 `focus` (on/off) and `focus_scope` (sentence, paragraph), `typewriter` (on/off) and
 `typewriter_anchor` (0–1, default 0.5), `chrome` (shown/hidden), `spell_check` (on/off, default on)
-and `spell_language`, `syntax_highlight` (master) and its five category toggles, `style_check`
-(master) and one toggle per list, `template` (the current Template's name), `preview_layout`
-(split, full), `library` (the Library path), and a `[shortcuts]` table of Command id → chords that
+and `spell_language`, `[syntax_highlight]` (a table: `enabled` is the master, and the five category
+toggles sit beside it), `[style_check]` (the same shape, one toggle per list beside `enabled`),
+`template` (the current Template's name), `preview_layout` (split, full), `library` (the Library
+path), and a `[shortcuts]` table of Command id → chords that
 replaces the defaults in [`shortcuts.md`](shortcuts.md) ([ADR 0011](adr/0011-shortcut-precedence-on-linux.md)).
 
 The settings file is watched with `notify` like a Document: a saved edit applies without a restart,
 and a line that cannot be applied is logged once and skipped, never fatal.
 
-State: window size and position, the last Document per window, caret position per recent Document,
-the recents list, and the Gate's blind keys under `blind-keys/`.
+State, in `state.toml`: the size of each window and whether it was maximized or full screen, the last
+Document per window, caret position per recent Document, the recents list, and the Gate's blind keys
+under `blind-keys/` beside it. Not window position: GTK4 gives a client no way to ask where its
+window is or to put it back, on Wayland or on X11, so placement is the compositor's and Quill
+remembers nothing it could not act on.
 
 ## Preview and Export
 
