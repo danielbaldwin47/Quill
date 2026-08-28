@@ -1,4 +1,4 @@
-// Minimal static server for app/. Usage: node tools/serve.mjs [port]
+// Minimal static server for legacy/app/. Usage: node legacy/tools/serve.mjs [port]
 import http from 'node:http'; import fs from 'node:fs'; import path from 'node:path';
 const root = path.resolve(new URL('../app', import.meta.url).pathname);
 const port = +(process.argv[2] || process.env.PORT || 4173);

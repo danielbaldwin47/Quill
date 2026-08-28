@@ -1,5 +1,5 @@
 // Screenshot the app in a given state.
-// node tools/shoot.mjs --out shots/x.png [--w 1440 --h 900 --dpr 2] [--theme light|dark|auto] [--font duo|quattro|mono]
+// node legacy/tools/shoot.mjs --out shots/x.png [--w 1440 --h 900 --dpr 2] [--theme light|dark|auto] [--font duo|quattro|mono]
 //   [--size 18] [--focus off|sentence|paragraph] [--typewriter] [--chrome on|off] [--text file.md] [--caret N|end|"needle"]
 //   [--scroll px|"needle"] [--mouse] (move mouse so chrome shows) [--nocaret] [--select a,b] [--url http://localhost:4173/] [--wait ms] [--full]
 //   [--state seed.json]  merge {localStorageKey: value} into localStorage before load (e.g. a demo Library)

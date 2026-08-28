@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Has anybody touched this machine in the last N seconds?
 
-Owner: latency piece. Used by bin/quill --panel, which needs the measured window to be VISIBLE on
+Owner: latency piece. Used by legacy/bin/quill --panel, which needs the measured window to be VISIBLE on
 the physical panel (a Wayland surface on a workspace that is not being displayed gets no frame
-callbacks, so its presentation timestamps mean nothing) — and BRIEF.md says test windows must not
+callbacks, so its presentation timestamps mean nothing) — and legacy/BRIEF.md says test windows must not
 land in front of somebody who is working. So: watch every real keyboard/mouse evdev node, and
 exit non-zero the moment one of them says a human is there.
 
