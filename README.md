@@ -12,11 +12,23 @@ and every Piece is judged blind against the oracle before it lands (`docs/agents
 
 ```
 makepkg -f                                # builds the Rust workspace from this checkout
-sudo pacman -U quill-[0-9]*.pkg.tar.zst
+sudo pacman -U "$(makepkg --packagelist | grep -v '/quill-debug-')"
+git restore PKGBUILD                      # makepkg rewrote pkgver; put it back
 
 quill                                     # an empty Document
 quill ref/sample.md                       # a Document open
 ```
+
+`--packagelist` names the package *this* checkout builds, so an older build left in the directory
+cannot be installed in its place — a glob matches every build ever made here, and pacman refuses two
+files of one package with `duplicate target`. The filter drops the `quill-debug` split package. And
+`makepkg -f` rewrites the tracked `pkgver=` line: `--packagelist` reads that line, which is why the
+restore comes last, and left in place it sits in the working tree as a local change that blocks the
+next `git pull`.
+
+The package's name carries the commit it was built from — `quill-0.1.0.r126.g92d3c1e` is `92d3c1e` —
+so `pacman -Q quill` says which build is installed. Build from the checkout you mean to test: a
+branch's work is not in a package built from `main`.
 
 `makepkg` needs the network only to fetch crates; the build itself runs offline. Runtime needs `gtk4`
 and `enchant`, plus `hunspell-en_us` for spell checking. The application menu launches it too: the
