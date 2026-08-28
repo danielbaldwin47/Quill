@@ -1,6 +1,11 @@
 // Build progress/index.html from progress/state.json + progress/rounds/*.json (+ progress/latency.json)
 // Round file: { piece, round, winner: 'ours'|'theirs'|'tie', gap, verdict, oursShot, theirsShot, builderNote, at, latency? }
 import fs from 'node:fs'; import path from 'node:path'; import { chromium } from 'playwright-core'; import { thumb } from './thumb.mjs';
+// Who a round was judged against, read from the round rather than assumed, so a page showing both
+// eras captions each one correctly. What a round is lives in tools/rounds.mjs, which tools/gate
+// judge writes them through — the page and the judge cannot disagree about it, and the page does
+// not have to import the judging command to ask.
+import { opponentName as opponentOf } from './rounds.mjs';
 const state = JSON.parse(fs.readFileSync('progress/state.json', 'utf8'));
 const rounds = fs.readdirSync('progress/rounds').filter(f => f.endsWith('.json')).map(f => JSON.parse(fs.readFileSync('progress/rounds/' + f, 'utf8'))).sort((a, b) => (a.piece.localeCompare(b.piece)) || a.round - b.round);
 const latency = fs.existsSync('progress/latency.json') ? JSON.parse(fs.readFileSync('progress/latency.json', 'utf8')) : null;
@@ -35,7 +40,7 @@ const card = p => `
   ${p.last ? `
   <div class="pair">
     <figure class="${p.last.winner === 'ours' ? 'picked' : ''}"><div class="img">${p.ours ? `<img src="${p.ours}" alt="ours">` : '<div class="noimg">no screenshot</div>'}</div><figcaption>Ours${p.last.winner === 'ours' ? ' · critic picked this' : ''}</figcaption></figure>
-    <figure class="${p.last.winner === 'theirs' ? 'picked' : ''}"><div class="img">${p.theirs ? `<img src="${p.theirs}" alt="iA Writer">` : '<div class="noimg">no reference</div>'}</div><figcaption>iA Writer${p.last.winner === 'theirs' ? ' · critic picked this' : ''}</figcaption></figure>
+    <figure class="${p.last.winner === 'theirs' ? 'picked' : ''}"><div class="img">${p.theirs ? `<img src="${p.theirs}" alt="${esc(opponentOf(p.last))}">` : '<div class="noimg">no reference</div>'}</div><figcaption>${esc(opponentOf(p.last))}${p.last.winner === 'theirs' ? ' · critic picked this' : ''}</figcaption></figure>
   </div>
   <div class="verdict">
     <p class="gap"><span class="lbl">Biggest gap</span>${esc(p.last.gap)}</p>
@@ -121,7 +126,7 @@ figure.picked figcaption{color:var(--accent)}
   </header>
   <div class="grid">${pieces.map(card).join('')}</div>
   ${lat}
-  <section class="log"><h2>Log</h2><ol>${[...state.log, ...rounds.map(r => ({ at: r.at, msg: `${r.piece} · round ${r.round}: critic picked ${r.winner === 'ours' ? 'OURS' : r.winner === 'theirs' ? 'iA Writer' : 'neither'} — ${r.gap}` }))].sort((a, b) => a.at.localeCompare(b.at)).reverse().map(l => `<li><time>${fmtT(l.at)}</time><span>${esc(l.msg)}</span></li>`).join('')}</ol></section>
+  <section class="log"><h2>Log</h2><ol>${[...state.log, ...rounds.map(r => ({ at: r.at, msg: `${r.piece} · round ${r.round}: critic picked ${r.winner === 'ours' ? 'OURS' : r.winner === 'theirs' ? opponentOf(r) : 'neither'} — ${r.gap}` }))].sort((a, b) => a.at.localeCompare(b.at)).reverse().map(l => `<li><time>${fmtT(l.at)}</time><span>${esc(l.msg)}</span></li>`).join('')}</ol></section>
   <p class="foot">Updated ${fmtT(now)} · Screenshots at 1440×900@2x unless noted · iA Writer reference images from ia.net</p>
 </div>`;
 fs.writeFileSync('progress/index.html', html);
