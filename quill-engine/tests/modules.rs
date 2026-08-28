@@ -2,16 +2,18 @@
 //!
 //! The scaffold's promise is that a later agent fills a module in rather than
 //! deciding where it goes. That only holds if the modules stay declared and
-//! stay documented, so this test names all twelve and fails if one loses its
+//! stay documented, so this test names every one and fails if one loses its
 //! `//!` comment.
 
 use std::fs;
 use std::path::PathBuf;
 
-/// The engine's concepts, in `docs/architecture.md`'s order.
-const MODULES: [&str; 12] = [
+/// The engine's concepts, in `docs/architecture.md`'s order: its twelve
+/// modules, then `data`, which the "Fonts and data files" section adds and
+/// every other module reads its files through.
+const MODULES: [&str; 13] = [
     "document", "markdown", "annotate", "library", "settings", "template", "render", "stats",
-    "outline", "spell", "pos", "style",
+    "outline", "spell", "pos", "style", "data",
 ];
 
 #[test]
