@@ -5,6 +5,7 @@
 #   tools/gate check              the Commit tier, on the repo root
 #   tools/gate check <dir>        ... on another directory
 #   tools/gate oracle <piece>     freeze the Parity oracle's shots for one Piece
+#   tools/gate bench [regime]     type a regime with real keys and time it against the budget
 #   tools/gate judge <piece>      shoot ours, pair it blind, judge it, record the round
 #   tools/gate --help             the commands there are, and what each runs
 #
@@ -34,9 +35,10 @@ usage() {
 usage: tools/gate <command> [arguments]
 
   check [dir]   The Commit tier in one command: cargo fmt --check, the #[allow]
-                reason rule, cargo clippy --all-targets -- -D warnings, and
-                cargo test with no display attached, in that order, stopping at
-                the first failure. Each step's output goes to
+                reason rule, cargo clippy --all-targets -- -D warnings, cargo
+                test with no display attached, and — on the repo root only —
+                the bench join's own tests, in that order, stopping at the first
+                failure. Each step's output goes to
                 target/gate/<step>.log and is printed only if that step is the
                 one that fails. Runs on the repo root, or on <dir> if one is
                 given — which is how tools/gate-fixture/selftest points it at a
@@ -51,6 +53,24 @@ usage: tools/gate <command> [arguments]
                 already the ones it would take; --force shoots them anyway.
                 Ends in `gate oracle <piece>: froze N states (<why>)`,
                 `... unchanged`, or `... fail (...)`.
+
+  bench [regime] [--keys N] [--sessions N]
+                The Ticket tier's latency Piece, measured rather than judged:
+                ours built and launched on the 10k-word document with the caret
+                at the end of it, on a headless output of the Gate's own, and
+                the regime typed into it with real keys through /dev/uinput —
+                prose_end_of_draft at 133 wpm unless another of the twelve is
+                named. Focus is read back from the compositor before the first
+                key and between every chunk of 25, and a run that cannot prove
+                the keys will land on ours types none of them. The measurement
+                is the uinput write(2) to the presentation time GdkFrameTimings
+                gives for the frame carrying that key. The result, with its
+                accounting and the fingerprint of what produced it, is written
+                to shots/latency/bench-<regime>-<stamp>.json. Ends in `gate
+                bench <regime>: pass|fail (budget ...; oracle ...)`: 0 for pass,
+                1 for a budget miss, 3 when nothing was measured. Those three
+                lines are the whole of stdout; everything said on the way there
+                is target/gate/bench.log, printed when the run refuses.
 
   judge <piece> [--note <text>]
                 The Ticket tier's blind judging for one Piece: ours built and
@@ -163,6 +183,17 @@ check() {
         cargo clippy --all-targets -- -D warnings
     run_step test "cargo test, with no display attached" \
         env -u DISPLAY -u WAYLAND_DISPLAY -u WAYLAND_SOCKET cargo test
+    # Last, and only when the directory being checked is this repository: the
+    # bench's join is the one part of the Gate's own tooling that decides what a
+    # number means, and it is a pure function of two files, so it is checked on
+    # every commit alongside the Rust. Skipped for a `check <dir>` elsewhere,
+    # because a step that can only go red for a reason outside <dir> would make
+    # `gate check <dir>` mean something other than "this directory is sound" —
+    # which is exactly what tools/gate-fixture/selftest points it at.
+    if [ "$PWD" = "$ROOT" ]; then
+        run_step bench "node tools/bench-selftest.mjs" \
+            node "$ROOT/tools/bench-selftest.mjs"
+    fi
 
     echo "gate check: pass"
 }
@@ -173,6 +204,10 @@ case "${1-}" in
     # through legacy/tools/shoot.mjs, so it is Node; the line it ends in is its
     # own, in the shape the header above asks of every command here.
     oracle) shift; exec node "$ROOT/tools/oracle.mjs" "$@" ;;
+    # The bench drives the compositor, a binary and /dev/uinput, and reads the
+    # twelve regimes out of tools/regimes.mjs; it is Node for the same reason
+    # the oracle is, and ends in its own line in the same shape.
+    bench) shift; exec node "$ROOT/tools/bench.mjs" "$@" ;;
     # Judging drives the compositor, a binary and a critic session, and its exit
     # code is the verdict rather than pass or fail; it is Node for the same
     # reason the oracle is, and ends in its own line in the same shape.

@@ -6,7 +6,7 @@ The Gate has three tiers, keyed to what is landing. Every ticket names the Piece
 
 ## Commit tier: every commit
 
-`tools/gate check` is green: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` on the default lint set, and `cargo test` with no display attached. A test that needs a window is harness, not test; it belongs under `tools/gate judge` or `bench`. An `#[allow(...)]` carries a one-line reason on the same line; clippy's `pedantic` group stays off. There is no coverage number: each spec's Testing Decisions names the seams its tests hold. A green run is its four step lines and that last line and nothing else: each step's own output waits in `target/gate/<step>.log` under the directory being checked, and is printed only for the step that fails, above the line the owner reads.
+`tools/gate check` is green: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` on the default lint set, `cargo test` with no display attached, and — checking this repository rather than a directory handed to it — `tools/bench-selftest.mjs`, which holds the join `bench` turns two files into a number with. A test that needs a window is harness, not test; it belongs under `tools/gate judge` or `bench`. An `#[allow(...)]` carries a one-line reason on the same line; clippy's `pedantic` group stays off. There is no coverage number: each spec's Testing Decisions names the seams its tests hold. A green run is its step lines and that last line and nothing else: each step's own output waits in `target/gate/<step>.log` under the directory being checked, and is printed only for the step that fails, above the line the owner reads.
 
 Done when: `tools/gate check` prints its final `pass` line.
 
