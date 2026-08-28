@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# Does `tools/gate check` still go red? — the Commit tier's own test.
+#
+#   tools/gate-fixture/selftest
+#
+# Each case copies this fixture to a temporary directory, copies one of
+# `defects/*.rs` over `src/defect.rs`, and runs `tools/gate check` there. The
+# assertions are only what the owner would read: the exit code, the last line,
+# and which step lines appear — nothing about how the script works inside.
+# Nothing is written inside the repo, and the real tree is never checked here.
+#
+# No `-e`: every case here runs a command that is *meant* to fail, and reads its
+# exit code afterwards.
+set -uo pipefail
+
+ROOT=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../.." && pwd)
+FIXTURE=$ROOT/tools/gate-fixture
+GATE=$ROOT/tools/gate
+STEPS=(fmt allow clippy test)
+
+cases=0
+failures=0
+WORK=""
+cleanup() { [ -n "$WORK" ] && rm -rf "$WORK"; :; }
+trap cleanup EXIT INT TERM
+
+# run <case> <defect file, or "" for the fixture as committed>
+#     <the step that must fail, or "" if the case must pass> [regex the output must contain]
+run() {
+    local name=$1 defect=$2 wants=$3 want_says=${4:-}
+    local want_last="gate check: pass" want_code=0
+    [ -n "$wants" ] && { want_last="gate check: fail ($wants)"; want_code=1; }
+    cases=$((cases + 1))
+
+    WORK=$(mktemp -d)
+    cp -r "$FIXTURE/Cargo.toml" "$FIXTURE/src" "$WORK/"
+    [ -n "$defect" ] && cp "$FIXTURE/defects/$defect.rs" "$WORK/src/defect.rs"
+
+    local out code last
+    out=$("$GATE" check "$WORK" 2>&1)
+    code=$?
+    last=$(printf '%s\n' "$out" | tail -1)
+
+    local said=()
+    if [ "$code" -eq 0 ] && [ "$want_code" -ne 0 ]; then said+=("exit 0, wanted non-zero"); fi
+    if [ "$code" -ne 0 ] && [ "$want_code" -eq 0 ]; then said+=("exit $code, wanted 0"); fi
+    if [ "$last" != "$want_last" ]; then said+=("last line \"$last\", wanted \"$want_last\""); fi
+    if [ -n "$want_says" ] && ! printf '%s\n' "$out" | grep -Eq "$want_says"; then
+        said+=("nothing matching /$want_says/ in the output")
+    fi
+
+    # The steps after a failing one do not run.
+    if [ -n "$wants" ]; then
+        local seen=0 step
+        for step in "${STEPS[@]}"; do
+            if [ "$seen" = 1 ] && printf '%s\n' "$out" | grep -q "^gate check: $step "; then
+                said+=("$step ran after $wants failed")
+            fi
+            [ "$step" = "$wants" ] && seen=1
+        done
+    fi
+
+    if [ ${#said[@]} -eq 0 ]; then
+        printf 'gate selftest: %s ok\n' "$name"
+    else
+        failures=$((failures + 1))
+        printf 'gate selftest: %s FAILED\n' "$name"
+        printf '    %s\n' "${said[@]}"
+        printf '%s\n' "$out" | sed 's/^/    | /'
+    fi
+
+    rm -rf "$WORK"
+    WORK=""
+}
+
+run "the fixture as committed" ""         ""
+run "formatting error"         fmt        fmt
+run "bare #[allow]"            allow      allow "^src/defect\.rs:[0-9]+:"
+run "#[allow] with a reason"   reasoned   ""
+run "clippy warning"           clippy     clippy
+run "failing test"             test       test
+
+if [ "$failures" -eq 0 ]; then
+    echo "gate selftest: pass"
+else
+    echo "gate selftest: fail ($failures of $cases)"
+    exit 1
+fi

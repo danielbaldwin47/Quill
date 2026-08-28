@@ -1,0 +1,14 @@
+# The fixture `tools/gate check` is pointed at to prove it goes red. It is a
+# crate outside the workspace: the empty `[workspace]` table below is what stops
+# cargo from attaching it to the root workspace, so a defect switched on here
+# can never fail the real tree's `cargo test`.
+#
+# `selftest` beside it copies this directory to a temporary one, copies one of
+# `defects/*.rs` over `src/defect.rs`, and runs `tools/gate check` there.
+[workspace]
+
+[package]
+name = "gate-fixture"
+version = "0.0.0"
+edition = "2024"
+publish = false

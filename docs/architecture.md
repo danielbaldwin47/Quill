@@ -207,8 +207,7 @@ so the move finds Rust already at the root rather than clearing the ground for i
   and `tools/idle-check.py` stay at the root: the Gate uses them for the native app.
 - `Cargo.toml` (workspace), `quill-engine/`, `quill/`, `tools/fontbuild.py` and `fonts/` are at the
   root by then. `tools/gate` is not: it arrives with the Gate tooling
-  ([#19](https://github.com/danielbaldwin47/Quill/issues/19)), and until it does, the Commit tier is
-  its three commands run by hand.
+  ([#19](https://github.com/danielbaldwin47/Quill/issues/19)).
 - `legacy/LICENSE` is ISC, the licence the Node manifest always named; the root `LICENSE` stays
   GPL-3.0-or-later, and the two halves of the tree are licensed apart.
 - `PKGBUILD` switches to the native binary in the same commit. The Feature tier hand-tests from the

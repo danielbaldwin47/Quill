@@ -27,7 +27,13 @@ From the checkout, without installing:
 ```
 cargo run -p quill -- ref/sample.md       # the Faces resolve from fonts/ in this tree
 cargo test                                # the whole suite, no display attached
+tools/gate check                          # what every commit must pass: format, lints, that suite
 ```
+
+`tools/gate check` is the Gate's Commit tier (`docs/agents/gate.md`): formatting, the rule that every
+`#[allow(...)]` carries its reason on the same line, clippy on `-D warnings`, then the whole suite with no
+display in its environment — stopping at the first failure, and ending in one line the owner can read,
+`gate check: pass` or `gate check: fail (<step>)`.
 
 Data files — the six Quill Faces, Templates, `OFL.txt` — resolve from one directory: `$QUILL_DATA_DIR`
 if it is set, else the path the package build compiled in (`/usr/share/quill`), else this checkout.
@@ -104,8 +110,8 @@ Those are the numbers the native app has to beat: `docs/agents/gate.md` holds it
 quill/          the app crate: GtkApplication, window, editor, flags, harness
 quill-engine/   the display-free half: text model, Markdown, Annotators, Library, settings, rendering
 fonts/          the six Quill Faces (private, loaded at startup) + OFL.txt
-tools/          the Gate's helpers: blind pairs, progress page, uinput keys, idle check, font build
-                (`npm i` at the root once, for the three that drive a browser)
+tools/          the Gate: `gate check`, and its helpers — blind pairs, progress page, uinput keys,
+                idle check, font build (`npm i` at the root once, for the three that drive a browser)
 legacy/         the JavaScript app as it won, and the Parity oracle (bin/quill, app/, tools/, BRIEF.md, NOTES.md)
 ref/ia/         iA Writer reference: screenshots, fonts, spec sheet, sources;  ref/sample.md  the test passage
 progress/       state, per-round verdicts, latency report, generated live page
