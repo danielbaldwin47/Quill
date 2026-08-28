@@ -167,15 +167,23 @@ async function documentServer(root, appSha) {
     process.stderr.write(`gate oracle: port ${port} is in use by something that is not this checkout's app, trying ${port + 1}\n`);
     port++;
   }
-  // legacy/tools/serve.mjs serves the app beside it, so this one is this checkout's by
-  // construction; the wait is only for it to start answering.
+  // Losing the race for the port is the case worth catching: between the scan above and the bind
+  // below, somebody else's server can take it, and then the port answers, this child is dead, and
+  // the shots would come from a stranger. So the child is watched, and what finally answers is
+  // put through the same check as a server that was already there.
   const child = spawn('node', [path.join(root, 'legacy/tools/serve.mjs'), String(port)], { cwd: root, stdio: 'ignore' });
-  for (let i = 0; i < 100; i++) {
-    if (await portBusy(port)) return { url: `http://localhost:${port}/`, stop() { child.kill(); } };
+  let died = null;
+  child.on('error', (e) => { died = e.message; });
+  child.on('exit', (code, signal) => { died = `it exited (${signal || `code ${code}`})`; });
+  for (let i = 0; i < 100 && died === null; i++) {
+    if (await portBusy(port)) {
+      if (await servesThisApp(port, root, appSha)) return { url: `http://localhost:${port}/`, stop() { child.kill(); } };
+      break;
+    }
     await new Promise((r) => setTimeout(r, 50));
   }
   child.kill();
-  throw new Error(`could not start the document server on port ${port}`);
+  throw new Error(`could not start the document server on port ${port}${died ? `: ${died}` : ''}`);
 }
 
 // ---------- the command ----------
@@ -189,6 +197,9 @@ function usage(where = process.stderr) {
 `);
 }
 
+// Everything that can go wrong once a Piece has been named ends in the one line tools/gate
+// promises for every command it has: a stack trace where that line should be is the command
+// breaking that promise, whatever went wrong underneath it.
 async function main(argv) {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   process.chdir(root);                       // states.json's paths are the repo's, and so is shoot.mjs's --text
@@ -204,10 +215,21 @@ async function main(argv) {
   }
   if (piece === null) { usage(); return 2; }
 
-  const states = readStates(root);
+  try { return await freeze(root, piece, force); }
+  catch (e) {
+    process.stderr.write(`gate oracle ${piece}: ${e.message}\n`);
+    console.log(`gate oracle ${piece}: fail (the Piece could not be frozen)`);
+    return 1;
+  }
+}
+
+async function freeze(root, piece, force) {
+  let states;
   let resolved;
-  try { resolved = resolveStates(states, piece); }
-  catch (e) { process.stderr.write(`gate oracle: ${e.message}\n`); return 2; }
+  try {
+    states = readStates(root);
+    resolved = resolveStates(states, piece);
+  } catch (e) { process.stderr.write(`gate oracle: ${e.message}\n`); return 2; }
 
   if (resolved.length === 0) {
     console.log(`gate oracle ${piece}: no judged states (${piece === 'latency' ? 'the latency Piece is benched, not judged' : 'nothing to freeze'})`);
@@ -254,11 +276,23 @@ async function main(argv) {
   const server = await documentServer(root, now.app.sha256);
   try {
     fs.mkdirSync(dir, { recursive: true });
+    // The fingerprint goes before the shots do, not after: a run that dies half way through
+    // leaves a directory of new shots and old ones, and a fingerprint still sitting there would
+    // call that mixture unchanged. Without one, the next run says nothing is frozen and shoots.
+    fs.rmSync(fpFile, { force: true });
     for (const s of resolved) {
       process.stderr.write(`gate oracle ${piece}: shooting ${s.name}\n`);
       // shoot.mjs's own "wrote ..." line would drown the one line the owner reads; what it says
       // when it fails is on stderr, above that line, for the agent who has to fix it.
       execFileSync('node', [path.join(root, 'legacy/tools/shoot.mjs'), ...shootArgv(root, s.flags, shot(s), server.url)], { cwd: root, stdio: ['ignore', 'ignore', 'inherit'] });
+    }
+    // A state that has been renamed or dropped leaves its shot behind, and a judging session
+    // would pick up an opponent no judged state asks for any more.
+    for (const f of fs.readdirSync(dir)) {
+      if (f.endsWith('.png') && !resolved.some((s) => `${s.name}.png` === f)) {
+        process.stderr.write(`gate oracle ${piece}: ${f} is no longer a judged state, removing it\n`);
+        fs.rmSync(path.join(dir, f));
+      }
     }
     fs.writeFileSync(fpFile, `${JSON.stringify(now, null, 2)}\n`);
   } catch (e) {

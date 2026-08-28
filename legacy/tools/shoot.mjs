@@ -49,10 +49,6 @@ if (args.typing) await p.evaluate(() => { document.documentElement.dataset.typin
 await p.evaluate(([hide, idle]) => { const c = document.querySelector('#caret-layer .caret'); if (c) { c.classList.remove('blink'); c.style.opacity = hide ? '0' : (idle ? '' : '1'); } }, [!!args.nocaret, !active]);
 // A shot has to be of the app at rest, or it is not the same shot twice: the hairline over the
 // bottom bar fades in over .2s, and two frames after setText it is caught at whatever opacity it
-// had got to — a different pixel row in every run. Wait for every animation that ends, with a
-// ceiling so one that never does (the caret blink) cannot hang a shot.
-// A shot has to be of the app at rest, or it is not the same shot twice: the hairline over the
-// bottom bar fades in over .2s, and two frames after setText it is caught at whatever opacity it
 // had reached — a different pixel row in every run. One wait is not enough, because the attribute
 // that starts that transition is itself set in a rAF after the render, so a frame with nothing
 // running can still be followed by one that starts something. Settle until a whole frame passes
