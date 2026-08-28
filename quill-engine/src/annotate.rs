@@ -68,32 +68,61 @@ impl Span {
 pub fn markup(text: &str) -> Vec<Span> {
     let events: Vec<_> = markdown::events(text).collect();
     let mut spans = Vec::new();
-    for (event, at) in &events {
-        if let Event::Start(Tag::Heading { level, .. }) = event {
-            heading(text, &events, at, level_number(*level), &mut spans);
+    let mut at_event = 0;
+    while at_event < events.len() {
+        let (event, at) = &events[at_event];
+        at_event += 1;
+        let Event::Start(Tag::Heading { level, .. }) = event else {
+            continue;
+        };
+        // One forward pass, not one pass per heading: the events inside a
+        // construct are the ones that follow it until its own end, so the
+        // subtraction costs the Document once however many headings it has.
+        let mut content = Vec::new();
+        while at_event < events.len() && events[at_event].1.end <= at.end {
+            let (inner, inner_at) = &events[at_event];
+            if markdown::is_content(inner) && inner_at.start >= at.start {
+                content.push(inner_at.clone());
+            }
+            at_event += 1;
+        }
+        if is_atx(text, at) {
+            heading(text, at, level_number(*level), &content, &mut spans);
         }
     }
-    spans.sort_by_key(|span| span.at.start);
     spans
+}
+
+/// Whether the heading at `at` is written with `#`s rather than underlined.
+///
+/// CommonMark has two heading syntaxes and pulldown-cmark reports one event for
+/// both. Only the ATX heading has markers, so only it has anything to hang: a
+/// setext title underlined with `===` sits at the prose margin already, and
+/// hanging it would push it a marker's width out into the margin with nothing
+/// there to fill it. #86 derives the ATX heading and leaves the other to the
+/// ticket that draws its underline.
+/// A heading's range begins at its first `#`, and never at the up-to-three
+/// spaces CommonMark allows in front of one, so the first byte decides.
+fn is_atx(text: &str, at: &Range<usize>) -> bool {
+    text[at.clone()].starts_with('#')
 }
 
 /// Splits one heading's range into its markers and its text.
 ///
 /// The parser reports the heading's whole range — markers, text, and the
-/// newline that ends the line — and a range per run of content inside it. The
-/// bytes in between are the markers, which is the subtraction this module is
-/// built on. The trailing newline is not markup and is trimmed off, or the
-/// marker grey would run to the end of the line.
+/// newline that ends the line — and `content` holds a range per run of content
+/// inside it. The bytes in between are the markers, which is the subtraction
+/// this module is built on. The trailing newline is not markup and is trimmed
+/// off, or the marker grey would run to the end of the line.
 fn heading(
     text: &str,
-    events: &[(Event<'_>, Range<usize>)],
     at: &Range<usize>,
     level: u8,
+    content: &[Range<usize>],
     spans: &mut Vec<Span>,
 ) {
-    let content = markdown::content_within(events.iter().cloned(), at);
     let mut cursor = at.start;
-    for run in &content {
+    for run in content {
         push_markup(text, cursor..run.start, spans);
         spans.push(Span::new(run.clone(), Mark::Heading(level)));
         cursor = run.end;
@@ -251,6 +280,31 @@ mod tests {
             marked("Before.\n\n# The Lighthouse\n\nAfter.\n"),
             [("# ", Mark::Markup), ("The Lighthouse", Mark::Heading(1))],
             "#86 draws headings and nothing else"
+        );
+    }
+
+    #[test]
+    fn a_setext_heading_is_left_alone_because_it_has_no_marker_to_hang() {
+        assert_eq!(
+            marked("Title\n=====\n\nprose\n"),
+            [],
+            "an underlined title already sits on the prose margin: hanging it \
+             would push it out into the margin with nothing to fill it"
+        );
+    }
+
+    #[test]
+    fn an_indented_atx_heading_is_marked_from_its_hash_not_from_its_indent() {
+        let text = "   # Tucked\n";
+        assert_eq!(
+            marked(text),
+            [("# ", Mark::Markup), ("Tucked", Mark::Heading(1))],
+            "the three spaces CommonMark allows in front of a `#` are not markup"
+        );
+        assert_eq!(
+            markup(text)[0].at.start,
+            3,
+            "the marker span starts at the hash the writer typed"
         );
     }
 

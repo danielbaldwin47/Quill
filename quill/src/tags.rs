@@ -74,13 +74,21 @@ fn tag(buffer: &gtk::TextBuffer, name: &str, build: impl FnOnce(&gtk::TextTag)) 
 }
 
 /// The tag that draws text in `colour`.
+///
+/// `docs/architecture.md` § Annotators keys this row by `(colour, alpha)`.
+/// Every mark #86 draws is opaque, so the alpha half of the key has one value
+/// and the name says which; the Focus ticket brings the dimmed rows, and each
+/// gets its own tag rather than blending with this one.
 fn colour(buffer: &gtk::TextBuffer, colour: &str) -> gtk::TextTag {
-    tag(buffer, &format!("colour-{colour}"), |tag| {
+    tag(buffer, &format!("colour-{colour}-opaque"), |tag| {
         tag.set_foreground(Some(colour));
     })
 }
 
 /// The tag that sets text at `weight`, upright.
+///
+/// The other half of that section's second key is slant, which has one value
+/// until emphasis lands and is named here for the same reason.
 fn weight(buffer: &gtk::TextBuffer, weight: i32) -> gtk::TextTag {
     tag(buffer, &format!("weight-{weight}-upright"), |tag| {
         tag.set_weight(weight);
@@ -88,8 +96,23 @@ fn weight(buffer: &gtk::TextBuffer, weight: i32) -> gtk::TextTag {
 }
 
 /// The paragraph tag for a heading of `level`.
+///
+/// Made with nothing set on it, and hung by [`hang_headings`] instead: a
+/// `GtkTextTag` applies only the properties whose `-set` flag is on, so a tag
+/// that has not been hung yet changes no margin, and one that has is hung for
+/// every line already carrying it.
 fn heading(buffer: &gtk::TextBuffer, level: u8) -> gtk::TextTag {
     tag(buffer, &format!("heading-{level}"), |_| {})
+}
+
+/// The `(left margin, indent)` that hangs a heading of `level` against `side`.
+///
+/// The pair is the whole trick, so it is one function rather than two lines
+/// inside a loop: the first row starts at the margin, and the indent gives the
+/// marker back to every row under it, which must land on `side` exactly.
+fn hung(face: Face, size: u32, level: u8, side: i32) -> (i32, i32) {
+    let width = hang(face, size, level).min(side);
+    (side - width, -width)
 }
 
 /// Hangs the heading markers, given the margin the prose is set against.
@@ -109,10 +132,10 @@ fn heading(buffer: &gtk::TextBuffer, level: u8) -> gtk::TextTag {
 /// worth less than a heading pushed off the left edge of the view.
 pub fn hang_headings(buffer: &gtk::TextBuffer, face: Face, size: u32, side: i32) {
     for level in 1..=6u8 {
-        let width = hang(face, size, level);
+        let (margin, indent) = hung(face, size, level, side);
         let tag = heading(buffer, level);
-        tag.set_left_margin((side - width).max(0));
-        tag.set_indent(-width.min(side));
+        tag.set_left_margin(margin);
+        tag.set_indent(indent);
     }
 }
 
@@ -159,17 +182,17 @@ pub fn apply(buffer: &gtk::TextBuffer, document: &Document, spans: &[Span]) {
 pub fn iter_at(buffer: &gtk::TextBuffer, document: &Document, offset: usize) -> gtk::TextIter {
     let place = document.place(offset);
     let mut iter = buffer.start_iter();
-    iter.set_line(clamped(place.line));
-    iter.set_line_index(clamped(place.index));
+    iter.set_line(gtk_index(place.line));
+    iter.set_line_index(gtk_index(place.index));
     iter
 }
 
-/// `count` as the `i32` GTK counts lines and indices in.
+/// `count` as the `i32` GTK counts lines and byte indices in.
 ///
 /// A Document long enough to overflow this is 2 GB of prose; saturating rather
 /// than wrapping means the worst an impossible Document does is style its last
 /// line twice.
-fn clamped(count: usize) -> i32 {
+fn gtk_index(count: usize) -> i32 {
     i32::try_from(count).unwrap_or(i32::MAX)
 }
 
@@ -218,15 +241,18 @@ mod tests {
 
     #[test]
     fn the_first_row_hangs_by_exactly_what_the_wrapped_rows_get_back() {
-        // The pair `hang_headings` sets: left margin `side - width`, indent
-        // `-width`. Pango puts the first row at the margin and every row after
-        // it at margin + width, which must be the prose's own margin.
+        // Pango puts the first row at the tag's own left margin and every row
+        // after it at margin + |indent|, which must be the prose's margin.
         let side = 240;
         for level in 1..=6u8 {
-            let width = hang(Face::Duo, 20, level);
-            let margin = (side - width).max(0);
+            let (margin, indent) = hung(Face::Duo, 20, level, side);
             assert_eq!(
-                margin + width,
+                margin,
+                side - hang(Face::Duo, 20, level),
+                "a level {level} heading starts one marker left of the prose"
+            );
+            assert_eq!(
+                margin - indent,
                 side,
                 "a wrapped row of a level {level} heading must land on the prose margin"
             );
@@ -236,20 +262,16 @@ mod tests {
     #[test]
     fn a_window_too_narrow_to_hang_the_marker_keeps_its_gutter() {
         let side = 4;
-        let width = hang(Face::Duo, 20, 6);
         assert!(
-            width > side,
+            hang(Face::Duo, 20, 6) > side,
             "this is the narrow case, or it proves nothing"
         );
+        let (margin, indent) = hung(Face::Duo, 20, 6, side);
+        assert_eq!(margin, 0, "the left margin of a tag cannot go below zero");
         assert_eq!(
-            (side - width).max(0),
-            0,
-            "the left margin of a tag cannot go below zero"
-        );
-        assert_eq!(
-            -width.min(side),
-            -side,
-            "the indent is clamped with it, so the rows still agree"
+            margin - indent,
+            side,
+            "the rows still agree: what the first row gives up, the rest get back"
         );
     }
 }
