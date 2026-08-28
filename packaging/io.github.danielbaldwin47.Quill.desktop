@@ -7,6 +7,6 @@ Icon=io.github.danielbaldwin47.Quill
 Terminal=false
 Categories=Office;WordProcessor;TextEditor;
 Keywords=writing;markdown;prose;editor;
-MimeType=text/markdown;text/x-markdown;text/plain;
+MimeType=text/markdown;text/x-markdown;
 StartupNotify=true
 StartupWMClass=io.github.danielbaldwin47.Quill

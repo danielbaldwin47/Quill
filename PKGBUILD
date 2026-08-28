@@ -1,12 +1,12 @@
 # Maintainer: Daniel Baldwin <danielbaldwin47@gmail.com>
-# Build from this checkout:  makepkg -f   (then: sudo pacman -U quill-*.pkg.tar.zst)
+# Build from this checkout:  makepkg -f   (then: sudo pacman -U quill-[0-9]*.pkg.tar.zst)
 #
 # The Rust workspace is built straight from the working tree: nothing is
 # downloaded except in prepare(), so `makepkg -f` needs the network once and
 # build() runs offline (docs/architecture.md, "Packaging").
 pkgname=quill
 _appid=io.github.danielbaldwin47.Quill
-pkgver=0.1.0.r79.ge611510
+pkgver=0.1.0.r80.g105c39f
 pkgrel=1
 pkgdesc="A long-form writing environment for Linux: plain Markdown, typography first"
 arch=('x86_64')
@@ -18,10 +18,12 @@ optdepends=('hunspell-en_us: English spell checking')
 source=()
 
 # The version the workspace names, plus the commit count: 0.1.0.rN.gHASH.
+# Read out of `[workspace.package]` by name rather than off the first `version`
+# line, so a `version` added to another table cannot quietly rename the package.
 pkgver() {
   cd "$startdir"
   local version
-  version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)
+  version=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)
   printf '%s.r%s.g%s' "$version" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
 }
 
