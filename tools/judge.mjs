@@ -52,6 +52,7 @@ import { pair, pairDir, reveal } from './blind.mjs';
 import { gitHead, sha256 } from './fingerprint.mjs';
 import { APP_ID, compositorAvailable, openStage, quillArgv } from './harness.mjs';
 import { fingerprint, freezeReason, readStates, resolveStates, unservable } from './oracle.mjs';
+import { regimes } from './regimes.mjs';
 import { nextRound, opponentName, round, rounds, wonBefore } from './rounds.mjs';
 
 // The opponent this command judges against while `legacy/` exists, and the word the round records
@@ -300,8 +301,13 @@ async function judgeLatency(root, note, named) {
 
   // A subset run is a real measurement and not a verdict on the Piece: the rule is every regime
   // within budget, so a round written from two of them would be recording a win nobody had.
+  //
+  // Asked of the regimes the summary actually holds, never of `ran`: that is the line the run
+  // printed for a human to read, and a verdict that turned on its exact wording would be one
+  // rewording away from judging a subset as though it were the whole twelve.
+  const held = new Set((summary.regimes || []).map((row) => row.regime));
   const short = (summary.regimes_not_run || []).concat(
-    summary.ran === '--all' ? [] : ['the regimes --all would have run'],
+    regimes().map((r) => r.name).filter((name) => !held.has(name)),
   );
   if (short.length) {
     say(`gate judge latency: ${file} ran ${summary.ran}, and the Piece is judged on all twelve`);
@@ -325,7 +331,11 @@ async function judgeLatency(root, note, named) {
     number,
     judged: said.states,
     opponent: OPPONENT,
-    build: summary.build,
+    // The commit is not the build when the tree was dirty, and a round that quotes only the commit
+    // invites a later reader to check out `5f1311a` and wonder why the numbers will not come back.
+    // Taken from the fingerprint, which is where the fact is recorded, rather than from the
+    // summary's `build`, which is the short form for a human reading the run.
+    build: { ...summary.build, dirty: summary.fingerprint?.app?.tree_was_dirty ?? null },
     oracle,
     note,
     at: new Date().toISOString(),

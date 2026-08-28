@@ -35,7 +35,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
-  BUDGET, ORACLE, allSummary, measure, regimeLine, summary, verdict,
+  BUDGET, ORACLE, allSummary, measure, regimeLine, summary, verdict, writeGaps,
 } from './bench-join.mjs';
 import { gitHead } from './fingerprint.mjs';
 import { APP_ID, compositorAvailable, openStage } from './harness.mjs';
@@ -262,12 +262,19 @@ function capture(file) {
 /// same rule `legacy/tools/latency.mjs` applies, so that the two benches type into the same
 /// paragraph — except that the app counts UTF-8 bytes where the browser counted characters, so the
 /// search is done on the bytes and the offset is a byte offset.
+// Read once. It is a fact about a file that does not change under a run, and a run asks for it
+// twice per launch — once for the command line, once for the result's `definition`.
+let middleOfDoc = null;
+
 function caretFor(root, where) {
   if (where !== 'middle') return 'end';
-  const doc = fs.readFileSync(path.join(root, DOC));
-  const half = Math.floor(doc.length / 2);
-  const at = doc.indexOf(0x0a, half);
-  return String(at < 0 ? half : at);
+  if (middleOfDoc === null) {
+    const doc = fs.readFileSync(path.join(root, DOC));
+    const half = Math.floor(doc.length / 2);
+    const at = doc.indexOf(0x0a, half);
+    middleOfDoc = String(at < 0 ? half : at);
+  }
+  return middleOfDoc;
 }
 
 // The command line one regime's launches use, warm-up and measured alike: the judged states'
@@ -419,6 +426,8 @@ async function benchOne(root, stage, { regime, keys, sessions, warmup }) {
       stage_first_client: warmup,
     },
     sessions_mean_ms: runs.map((r) => measure(r.sent, r.seen).uinput_write_to_presented_ms?.mean ?? null),
+    // What the injector did between keys, against what `definition` said it would.
+    write_gaps_ms: writeGaps(runs.map((r) => r.sent)),
     fingerprint: fingerprint(root, stage),
   };
 

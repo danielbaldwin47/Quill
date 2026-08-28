@@ -18,8 +18,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  BUDGET, KEYCODE_OFFSET, against, align, allSummary, latencyMs, latencyVerdict, measure,
-  regimeLine, summary, verdict,
+  BUDGET, KEYCODE_OFFSET, against, align, allSummary, clears, latencyMs, latencyVerdict, measure,
+  regimeLine, summary, verdict, writeGaps,
 } from './bench-join.mjs';
 import { DEFAULT_KEYS, hash32, regimes, script, uinputPlan } from './regimes.mjs';
 
@@ -389,6 +389,35 @@ ok('the injector can say every press the twelve ask for', () => {
     path.join(root, 'tools/uinput-keys.py'),
   ], { input: JSON.stringify([...wanted]), encoding: 'utf8' });
   assert.deepEqual(JSON.parse(said), [], 'presses the injector has no key for');
+});
+
+// The budget is written `≤` and beating the oracle is written *under*, so a tie goes opposite ways
+// on the two bars. Only an exact tie tells them apart, which is exactly why it is worth a case.
+ok('a number exactly on the budget clears it, and one exactly on the oracle does not', () => {
+  assert.equal(clears({ ratio: 1 }), true, 'exactly on the budget');
+  assert.equal(clears({ ratio: 1, strict: true }), false, 'exactly on the oracle');
+  assert.equal(clears({ ratio: 0.999, strict: true }), true, 'under the oracle');
+  assert.equal(clears({ ratio: Infinity }), false, 'never measured');
+});
+
+// #65 asks for a regime's pace and its pauses to be visible in the result rather than only
+// declared, so the gaps have to survive as numbers a reader can check the declaration against.
+ok('write gaps say the pace, and count the pauses without averaging them away', () => {
+  const at = (...ms) => ms.map((t) => ({ t_ns: t * 1e6 }));
+  const paced = writeGaps([at(0, 90, 180, 270)]);
+  assert.equal(paced.p50, 90, 'the pace is the median gap');
+  assert.equal(paced.n, 3, 'one gap fewer than there are keys');
+  assert.equal(paced.over_a_second, 0, 'nothing paused');
+
+  const bursty = writeGaps([at(0, 8, 16, 1416, 1424)]);
+  assert.equal(bursty.max, 1400, 'the pause is the widest gap');
+  assert.equal(bursty.over_a_second, 1, 'and it is counted, not smoothed');
+
+  // Two sessions, not one run: the teardown and relaunch between them is not a pace.
+  const two = writeGaps([at(0, 90), at(60_000, 60_090)]);
+  assert.equal(two.n, 2, 'gaps are taken within a session only');
+  assert.equal(two.max, 90, 'so the launch gap never reaches the numbers');
+  assert.equal(writeGaps([[]]), null, 'a session that typed nothing has no gaps');
 });
 
 if (failures === 0) {
