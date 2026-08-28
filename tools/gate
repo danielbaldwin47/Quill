@@ -19,8 +19,11 @@
 # belongs to a later sub-command. DISPLAY, WAYLAND_DISPLAY and WAYLAND_SOCKET
 # are the three ways a client finds a display.
 #
-# The step output is not captured — cargo says where the failure is, and the
-# agent that has to fix it reads that, above the line the owner reads.
+# Every step's output is captured to `target/gate/<step>.log`, under whichever
+# directory is being checked, and printed only for the step that fails — above
+# the line the owner reads, so the agent that has to fix it still gets cargo's
+# own words. A green run is its step lines and its last line and nothing else:
+# the test list grows with every Piece, and an agent pays for all of it.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)
@@ -33,7 +36,9 @@ usage: tools/gate <command> [arguments]
   check [dir]   The Commit tier in one command: cargo fmt --check, the #[allow]
                 reason rule, cargo clippy --all-targets -- -D warnings, and
                 cargo test with no display attached, in that order, stopping at
-                the first failure. Runs on the repo root, or on <dir> if one is
+                the first failure. Each step's output goes to
+                target/gate/<step>.log and is printed only if that step is the
+                one that fails. Runs on the repo root, or on <dir> if one is
                 given — which is how tools/gate-fixture/selftest points it at a
                 crate whose defects it must go red on. Ends in `gate check:
                 pass` or `gate check: fail (<step>)`.
@@ -58,7 +63,11 @@ usage: tools/gate <command> [arguments]
                 when every state is. Ends in `gate judge <piece>: ours|theirs,
                 round <N>`: 0 for ours, 1 for theirs, 2 for theirs after this
                 Piece had been won, 3 when nothing was judged — a command line
-                it could not read included, since 2 is spoken for.
+                it could not read included, since 2 is spoken for. That line,
+                with the one above it that names the round which won a Piece now
+                lost, is the whole of stdout: everything said on the way there is
+                target/gate/judge-<piece>.log, printed when the run refuses, and
+                a round that reached a verdict has its detail in the JSON.
 
 The tiers these commands serve are docs/agents/gate.md.
 EOF
@@ -69,6 +78,18 @@ step() { printf 'gate check: %s (%s)\n' "$1" "$2"; }
 
 # The last line, and the exit code that agrees with it.
 fail() { printf 'gate check: fail (%s)\n' "$1"; exit 1; }
+
+# One step: its line, then its command with every word of its output — cargo's
+# and this script's alike — held in the step's log. A green step is its line and
+# nothing more; a red one hands the log over before the line the owner reads.
+# The log sits where the build output does, under the directory being checked,
+# so a check on the fixture leaves nothing behind in the repo.
+run_step() {
+    local name=$1 what=$2 log=$PWD/target/gate/$1.log; shift 2
+    step "$name" "$what"
+    mkdir -p "$(dirname "$log")"
+    "$@" > "$log" 2>&1 || { cat "$log"; fail "$name"; }
+}
 
 # Every Rust file cargo compiles in the workspace being checked, from cargo's
 # own idea of it. The directories come from the packages' targets rather than
@@ -134,17 +155,14 @@ check() {
     fi
     cd "$dir"
 
-    step fmt "cargo fmt --check"
-    cargo fmt --check || fail fmt
-
-    step allow "#[allow(...)] carries its reason on the same line"
-    allow_reasons || fail allow
-
-    step clippy "cargo clippy --all-targets -- -D warnings"
-    cargo clippy --all-targets -- -D warnings || fail clippy
-
-    step test "cargo test, with no display attached"
-    env -u DISPLAY -u WAYLAND_DISPLAY -u WAYLAND_SOCKET cargo test || fail test
+    run_step fmt "cargo fmt --check" \
+        cargo fmt --check
+    run_step allow "#[allow(...)] carries its reason on the same line" \
+        allow_reasons
+    run_step clippy "cargo clippy --all-targets -- -D warnings" \
+        cargo clippy --all-targets -- -D warnings
+    run_step test "cargo test, with no display attached" \
+        env -u DISPLAY -u WAYLAND_DISPLAY -u WAYLAND_SOCKET cargo test
 
     echo "gate check: pass"
 }
