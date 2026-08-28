@@ -1,0 +1,75 @@
+{
+  "piece": "markup",
+  "round": 2,
+  "winner": "ours",
+  "margin": "clear",
+  "gap": "Caret is #1C1C1C — the exact hex of body text — 4px (2 CSS px) wide and only 54px tall, and it lands 1px off the terminal of the 'r' in 'water', so it reads as a stray stem on the letterform; B's is #00B5FF, 6px (3 CSS px), 72px full-leading. A also ships no blockquote rule at all where B draws a 4px #BFBFBF bar at x=644, and A breaks its own hanging system on the quote: the '>' sits inline at 676 so the quote's first line starts at 722 while the wrap snaps back to 673.",
+  "gapTheirs": "Markers are not hung: body sits at x=673 but h1 text starts at 722, h2 text at 746, bullet text at 728, ordered text at 731 — five left edges instead of one. Typing '## ' shoves the whole line 73px right; A holds every content edge at 673 and hangs the marker into the gutter (601–630), right-aligned to the column.",
+  "verdict": "A gives you a prose column that never moves — '#', '##', '-', '1.' all hang out in the margin and every line of actual writing starts on the same 673px edge, so the headings read as a straight spine down the page. B indents every marked line by its own marker width, which means the left edge frays across five positions and the text physically jumps sideways the moment you promote a line to H2. B wins the caret outright — A's is text-black, 2 CSS px, and glued to the previous glyph, which is a genuine lose-your-place defect in a writing app — and B's quote rule is the only thing on either screen that makes the blockquote read as a block. But that's two fixable details against a structural flaw B commits on every marked line, and A's own quote handling is the one place it forgets its rule.",
+  "oursShot": "shots/markup/r2-light-ours.png",
+  "theirsShot": "shots/oracle/markup/light.png",
+  "refSource": "shots/oracle/markup/ — the Parity oracle frozen by tools/gate oracle markup from legacy/app 738f48c969965ac3 with legacy/tools/shoot.mjs adf473b575198cc3",
+  "builderNote": "",
+  "secondary": [
+    "Neither scales headings: h1, h2 and body all render at the same 37px ink height, weight is the only hierarchy",
+    "B is internally inconsistent on marker grey — '#'/'##'/'>' at #9E9E9E but '-'/'1.' at #7A7A7A, so a bullet is darker than a chapter heading",
+    "A's ordered-list content starts at 675 vs body 673 — a 1 CSS px misalignment against its own column",
+    "Both mishandle the blockquote wrap identically: first line indented to 722, continuation at 673",
+    "A's measure is slightly narrower — line 2 wraps before 'was' (ends 2096) where B fits it (ends 2204), despite identical line-1 wraps at 2162",
+    "Inline emphasis is pixel-identical in both: '*'/'**' dimmed, span italic/bold, no jump",
+    "Inline code chip and the code-fence slab (left edge 644 in both) are indistinguishable; in B that 644 also matches the quote rule, in A it aligns to nothing"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "b585191",
+    "binary": "081febeb04580bd9"
+  },
+  "states": [
+    {
+      "name": "light",
+      "ours": "shots/markup/r2-light-ours.png",
+      "theirs": "shots/oracle/markup/light.png",
+      "blind": "shots/blind/markup/light",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "Caret is #1C1C1C — the exact hex of body text — 4px (2 CSS px) wide and only 54px tall, and it lands 1px off the terminal of the 'r' in 'water', so it reads as a stray stem on the letterform; B's is #00B5FF, 6px (3 CSS px), 72px full-leading. A also ships no blockquote rule at all where B draws a 4px #BFBFBF bar at x=644, and A breaks its own hanging system on the quote: the '>' sits inline at 676 so the quote's first line starts at 722 while the wrap snaps back to 673.",
+      "gapTheirs": "Markers are not hung: body sits at x=673 but h1 text starts at 722, h2 text at 746, bullet text at 728, ordered text at 731 — five left edges instead of one. Typing '## ' shoves the whole line 73px right; A holds every content edge at 673 and hangs the marker into the gutter (601–630), right-aligned to the column.",
+      "verdict": "A gives you a prose column that never moves — '#', '##', '-', '1.' all hang out in the margin and every line of actual writing starts on the same 673px edge, so the headings read as a straight spine down the page. B indents every marked line by its own marker width, which means the left edge frays across five positions and the text physically jumps sideways the moment you promote a line to H2. B wins the caret outright — A's is text-black, 2 CSS px, and glued to the previous glyph, which is a genuine lose-your-place defect in a writing app — and B's quote rule is the only thing on either screen that makes the blockquote read as a block. But that's two fixable details against a structural flaw B commits on every marked line, and A's own quote handling is the one place it forgets its rule.",
+      "secondary": [
+        "Neither scales headings: h1, h2 and body all render at the same 37px ink height, weight is the only hierarchy",
+        "B is internally inconsistent on marker grey — '#'/'##'/'>' at #9E9E9E but '-'/'1.' at #7A7A7A, so a bullet is darker than a chapter heading",
+        "A's ordered-list content starts at 675 vs body 673 — a 1 CSS px misalignment against its own column",
+        "Both mishandle the blockquote wrap identically: first line indented to 722, continuation at 673",
+        "A's measure is slightly narrower — line 2 wraps before 'was' (ends 2096) where B fits it (ends 2204), despite identical line-1 wraps at 2162",
+        "Inline emphasis is pixel-identical in both: '*'/'**' dimmed, span italic/bold, no jump",
+        "Inline code chip and the code-fence slab (left edge 644 in both) are indistinguishable; in B that 644 also matches the quote rule, in A it aligns to nothing"
+      ]
+    },
+    {
+      "name": "dark",
+      "ours": "shots/markup/r2-dark-ours.png",
+      "theirs": "shots/oracle/markup/dark.png",
+      "blind": "shots/blind/markup/dark",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "The blockquote gets no rendering at all beyond the literal '>': no rule, no indent, no tint — quote text sits at x=675 against body at 673, a 2px difference. A draws a 3px #494949 vertical rule at x=645 running the full height of the quote block, so it reads as a block from across the room; in B a two-line quote is a paragraph that happens to start with a bracket.",
+      "gapTheirs": "Markers sit inline, not hung: the '#' starts at x=673 (same column as body text) so 'The Lighthouse' begins at 721, '## What the sea keeps' begins at 745, bullet text at 726, numbered text at 747 — four different left edges against a body column that is flush at 673. Typing '# ' shoves the whole line 48px (2 char cells) right; typing '1. ' shoves it 72px. B hangs every one of those markers into the margin (# at 625, ## at 601, - at 630, 1. at 603) so all text lands on a single 673 edge and nothing moves.",
+      "verdict": "B is the only one of the two where the left edge of your prose is a single line. A's markers push text: heading text sits two characters right of body, ordered-list text three, so the page has a ragged staircase down the left and every line jumps sideways the instant you type the marker — the exact thing you'd notice on the fiftieth heading, not the first. A buys back some ground with the quote rule and a code chip that's actually visible (1.40:1 against the page vs B's 1.10:1), and its heading hashes are quieter (2.9:1 vs B's 4.1:1) — but it can't decide on a marker grey, running #636363 on '#'/'##' and #808080 on '-'/'1.'. Neither app scales headings: '# The Lighthouse' and '## What the sea keeps' are set at the identical 24px advance and identical weight as body, so H1 and H2 are distinguishable only by counting hashes, which is not reading at a glance.",
+      "secondary": [
+        "Vertical rhythm is identical in both: 72px baseline-to-baseline (~1.8), 128px above headings — no advantage either way",
+        "B's caret is 2.5px wide in #1C1C1C, the exact body text colour, and only 54px tall in a 72px line box; A's is 6px of #00B5FF spanning the full line box — B's is easy to lose in a monospace wall",
+        "B's blockquote is its one un-hung block: '>' sits at 675 inside the text column while '#', '-' and '1.' all hang — an internal inconsistency",
+        "A's code-block background is #272727 on a #1A1A1A page (Δ13); B's is #EEEEEE on #F9F9F9 (Δ11). Both are near-invisible as blocks",
+        "Both dim emphasis markers without dimming the emphasised words: italic and bold runs stay at full text colour (204 / 28)",
+        "No link appears anywhere in the visible passage, so link markup is untested in both"
+      ]
+    }
+  ],
+  "at": "2026-08-28T21:48:51.493Z"
+}
