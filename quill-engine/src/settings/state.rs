@@ -1,0 +1,353 @@
+//! What the app observed: the shape of the last session.
+//!
+//! One file, `$XDG_STATE_HOME/quill/state.toml`, written on quit and read on
+//! launch. Nothing here is a preference and nothing here is a Document: it is
+//! what Quill noticed while the writer worked, so that a relaunch puts back the
+//! window they left rather than a window the defaults chose
+//! ([ADR 0010](../../../docs/adr/0010-settings-in-toml-under-xdg.md)). It may
+//! be deleted at any time; the next launch is simply a first launch.
+//!
+//! Four things live here, and this ticket fills the first: the size of each
+//! window, the last Document in each, where the caret was in each Document the
+//! writer visited, and the recents list. The Library ticket fills the other
+//! three. Beside the file sits `blind-keys/`, which is the Gate's.
+//!
+//! **Position is not here.** GTK4 gives a client no way to ask where its window
+//! is or to put it back, on Wayland or on X11: placement belongs to the
+//! compositor, which restores it by its own rules. A pair of `x` and `y` keys
+//! would be two numbers nothing could ever read.
+
+use std::collections::BTreeMap;
+use std::io;
+use std::path::{Path, PathBuf};
+
+use super::reading::Reading;
+use super::writing::Writing;
+use super::{file, xdg};
+
+/// The file Quill writes for its next launch, under [`xdg::state_dir`].
+pub const STATE_FILE: &str = "state.toml";
+
+/// The directory the Gate keeps its blind keys in, beside the state file.
+const BLIND_KEYS: &str = "blind-keys";
+
+/// What a note about a state file Quill could not read ends with. State is
+/// what quitting leaves, so there is nothing to lose by starting again.
+const INSTEAD: &str = "starting fresh";
+
+/// The shape a window opens at when nothing has been remembered yet: what the
+/// spike was judged at.
+const WIDTH: u32 = 1100;
+const HEIGHT: u32 = 760;
+
+/// The range outside which a remembered size is not a window: no compositor
+/// gives out a window narrower than this, and nothing survives a state file
+/// that says a window was two million pixels wide.
+const SMALLEST: u32 = 100;
+const LARGEST: u32 = 32768;
+
+/// One window as it was left.
+#[derive(Clone, Debug, PartialEq)]
+pub struct WindowState {
+    /// Its width in pixels.
+    pub width: u32,
+    /// Its height in pixels.
+    pub height: u32,
+    /// Whether it was maximized, in which case the size is what it would go
+    /// back to.
+    pub maximized: bool,
+    /// Whether it was full screen.
+    pub fullscreen: bool,
+    /// The Document it was showing, or `None` for an untitled one.
+    pub document: Option<PathBuf>,
+    /// Anything else in the table, carried through a write.
+    rest: toml::Table,
+}
+
+impl Default for WindowState {
+    fn default() -> Self {
+        Self {
+            width: WIDTH,
+            height: HEIGHT,
+            maximized: false,
+            fullscreen: false,
+            document: None,
+            rest: toml::Table::new(),
+        }
+    }
+}
+
+impl WindowState {
+    /// Reads one `[[window]]` table.
+    fn read(table: toml::Table, notes: &mut Vec<String>) -> Self {
+        let defaults = Self::default();
+        let mut reading = Reading::new(table, "window.", notes);
+        let width = reading.whole("width", defaults.width, &(SMALLEST..=LARGEST));
+        let height = reading.whole("height", defaults.height, &(SMALLEST..=LARGEST));
+        let maximized = reading.boolean("maximized", defaults.maximized);
+        let fullscreen = reading.boolean("fullscreen", defaults.fullscreen);
+        let document = reading.path("document");
+        Self {
+            width,
+            height,
+            maximized,
+            fullscreen,
+            document,
+            rest: reading.rest(),
+        }
+    }
+
+    /// One `[[window]]` table as it is written.
+    fn to_table(&self) -> toml::Table {
+        let mut writing = Writing::new();
+        writing.whole("width", self.width);
+        writing.whole("height", self.height);
+        writing.boolean("maximized", self.maximized);
+        writing.boolean("fullscreen", self.fullscreen);
+        writing.path("document", self.document.as_deref());
+        writing.rest(self.rest.clone());
+        writing.finish()
+    }
+}
+
+/// Everything the app observed.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct State {
+    /// The windows of the last session, the one left last first.
+    pub windows: Vec<WindowState>,
+    /// The Documents the writer opened, most recent first.
+    pub recents: Vec<PathBuf>,
+    /// Where the caret was in each Document, as a byte offset.
+    pub carets: BTreeMap<PathBuf, u64>,
+    /// Every key and table this Quill did not know, kept for the next write.
+    rest: toml::Table,
+}
+
+impl State {
+    /// The directory the state file and the Gate's blind keys sit in.
+    #[must_use]
+    pub fn dir() -> PathBuf {
+        xdg::state_dir()
+    }
+
+    /// The file Quill writes on quit.
+    #[must_use]
+    pub fn path() -> PathBuf {
+        Self::dir().join(STATE_FILE)
+    }
+
+    /// The directory the Gate keeps its blind keys in.
+    #[must_use]
+    pub fn blind_keys() -> PathBuf {
+        Self::dir().join(BLIND_KEYS)
+    }
+
+    /// The last session's state, and one note per thing worth telling the
+    /// writer.
+    ///
+    /// No file is a first launch and not a failure. Unlike `settings.toml`,
+    /// nothing is written here on the way in: state is what quitting leaves.
+    #[must_use]
+    pub fn open() -> (Self, Vec<String>) {
+        Self::read_from(&Self::path())
+    }
+
+    /// Writes the state to its file, atomically.
+    ///
+    /// # Errors
+    ///
+    /// Returns the underlying [`io::Error`] when the file cannot be written.
+    pub fn store(&self) -> io::Result<()> {
+        self.write_to(&Self::path())
+    }
+
+    /// Reads `path`, falling back to an empty state for anything it cannot.
+    #[must_use]
+    pub fn read_from(path: &Path) -> (Self, Vec<String>) {
+        let (table, mut notes) = file::read_table(path, INSTEAD);
+        let state = table.map_or_else(Self::default, |table| Self::read(table, &mut notes));
+        (state, notes)
+    }
+
+    /// Writes the state to `path`, atomically.
+    ///
+    /// # Errors
+    ///
+    /// Returns the underlying [`io::Error`] when the file cannot be written.
+    pub fn write_to(&self, path: &Path) -> io::Result<()> {
+        file::write(path, &self.to_toml())
+    }
+
+    /// Reads state out of the text of a file. Never fails.
+    #[must_use]
+    pub fn parse(text: &str) -> (Self, Vec<String>) {
+        let (table, mut notes) = file::parse(text, INSTEAD);
+        let state = table.map_or_else(Self::default, |table| Self::read(table, &mut notes));
+        (state, notes)
+    }
+
+    /// Reads a parsed table.
+    fn read(table: toml::Table, notes: &mut Vec<String>) -> Self {
+        let mut reading = Reading::new(table, "", notes);
+        let recents = reading.paths("recents");
+        // The windows are taken here and read below, once the reading of the
+        // top level is done with the notes it is writing into.
+        let windows = reading.tables("window");
+        let carets = reading.table("caret");
+        let rest = reading.rest();
+        Self {
+            windows: windows
+                .into_iter()
+                .map(|window| WindowState::read(window, notes))
+                .collect(),
+            recents,
+            carets: read_carets(&carets),
+            rest,
+        }
+    }
+
+    /// The state as the file's text.
+    #[must_use]
+    pub fn to_toml(&self) -> String {
+        let mut writing = Writing::new();
+        writing.paths("recents", &self.recents);
+        writing.rest(self.rest.clone());
+        writing.tables(
+            "window",
+            self.windows.iter().map(WindowState::to_table).collect(),
+        );
+        writing.table("caret", write_carets(&self.carets));
+        writing.into_toml()
+    }
+
+    /// The shape a window opens at: the one left last, or the default.
+    #[must_use]
+    pub fn window(&self) -> WindowState {
+        self.windows.first().cloned().unwrap_or_default()
+    }
+}
+
+/// The `[caret]` table as a map. An entry that is not a byte offset is Quill's
+/// own bug or a corrupted file, not a writer's typo, so it goes quietly.
+fn read_carets(table: &toml::Table) -> BTreeMap<PathBuf, u64> {
+    table
+        .iter()
+        .filter_map(|(path, offset)| {
+            let offset = u64::try_from(offset.as_integer()?).ok()?;
+            Some((PathBuf::from(path), offset))
+        })
+        .collect()
+}
+
+/// The map as the `[caret]` table, skipping any path that is not UTF-8.
+fn write_carets(carets: &BTreeMap<PathBuf, u64>) -> toml::Table {
+    carets
+        .iter()
+        .filter_map(|(path, offset)| {
+            let offset = i64::try_from(*offset).ok()?;
+            Some((path.to_str()?.to_string(), toml::Value::Integer(offset)))
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::file::scratch;
+    use super::*;
+
+    #[test]
+    fn no_file_is_a_first_launch_with_a_window_of_the_default_shape() {
+        let path = scratch("no_file").join(STATE_FILE);
+        let (state, notes) = State::read_from(&path);
+        assert_eq!(state, State::default());
+        assert!(notes.is_empty(), "{notes:?}");
+        assert_eq!(state.window(), WindowState::default());
+        assert_eq!(state.window().width, 1100);
+        assert!(!path.exists(), "reading state writes nothing");
+    }
+
+    #[test]
+    fn the_size_a_window_was_left_at_is_the_size_it_comes_back_at() {
+        let path = scratch("geometry").join(STATE_FILE);
+        let left = State {
+            windows: vec![WindowState {
+                width: 1440,
+                height: 900,
+                maximized: true,
+                ..WindowState::default()
+            }],
+            ..State::default()
+        };
+        left.write_to(&path).expect("writes the state file");
+        let (back, notes) = State::read_from(&path);
+        assert!(notes.is_empty(), "{notes:?}");
+        assert_eq!(back, left);
+        assert_eq!(back.window().width, 1440);
+        assert_eq!(back.window().height, 900);
+        assert!(back.window().maximized);
+    }
+
+    #[test]
+    fn every_key_the_later_tickets_fill_is_in_the_file_already() {
+        let text = State::default().to_toml();
+        let written: toml::Table = text.parse().expect("what is written is TOML");
+        for key in ["recents", "window", "caret"] {
+            assert!(written.contains_key(key), "no `{key}` in:\n{text}");
+        }
+    }
+
+    #[test]
+    fn what_is_written_reads_back_as_itself() {
+        let state = State {
+            windows: vec![
+                WindowState {
+                    width: 1440,
+                    document: Some(PathBuf::from("/home/writer/one.md")),
+                    ..WindowState::default()
+                },
+                WindowState::default(),
+            ],
+            recents: vec![
+                PathBuf::from("/home/writer/one.md"),
+                PathBuf::from("/home/writer/two.md"),
+            ],
+            carets: [(PathBuf::from("/home/writer/one.md"), 1234)]
+                .into_iter()
+                .collect(),
+            rest: toml::Table::new(),
+        };
+        let text = state.to_toml();
+        let (read, notes) = State::parse(&text);
+        assert!(notes.is_empty(), "{notes:?}");
+        assert_eq!(read, state, "{text}");
+        assert_eq!(read.to_toml(), text);
+    }
+
+    #[test]
+    fn a_size_that_is_not_a_window_is_ignored_rather_than_obeyed() {
+        let (state, notes) = State::parse("[[window]]\nwidth = 0\nheight = 900\n");
+        assert_eq!(state.window().width, WIDTH, "a zero-wide window is not one");
+        assert_eq!(state.window().height, 900, "and the height still counts");
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].starts_with("window.width:"), "{notes:?}");
+    }
+
+    #[test]
+    fn a_state_file_from_a_newer_quill_keeps_what_this_one_does_not_know() {
+        let (state, notes) = State::parse(
+            "recents = []\nsession = \"night\"\n\n[[window]]\nwidth = 1440\nzoom = 2\n",
+        );
+        assert!(notes.is_empty(), "{notes:?}");
+        let written: toml::Table = state.to_toml().parse().expect("writes TOML");
+        assert_eq!(written["session"].as_str(), Some("night"));
+        assert_eq!(written["window"][0]["zoom"].as_integer(), Some(2));
+    }
+
+    #[test]
+    fn state_is_a_directory_of_its_own_with_the_gates_blind_keys_in_it() {
+        assert_eq!(State::path().parent(), Some(State::dir().as_path()));
+        assert_eq!(State::blind_keys().parent(), Some(State::dir().as_path()));
+        assert_ne!(State::dir(), crate::settings::Settings::path());
+        assert!(!State::dir().starts_with(xdg::config_dir()));
+    }
+}
