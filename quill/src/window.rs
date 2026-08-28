@@ -270,7 +270,11 @@ pub fn present_launch(app: &gtk::Application, session: &Rc<Session>) {
     if let Some(window) = &first {
         let scroll = session.flags().scroll;
         if let Some(caret) = session.flags().caret {
-            window.imp().editor.place_caret(caret, scroll.is_none());
+            window.imp().editor.place_caret(
+                &window.imp().document.borrow(),
+                caret,
+                scroll.is_none(),
+            );
         }
         if let Some(scroll) = scroll {
             window.imp().editor.scroll_to(scroll);
