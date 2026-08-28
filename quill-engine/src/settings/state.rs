@@ -31,6 +31,10 @@ pub const STATE_FILE: &str = "state.toml";
 /// The directory the Gate keeps its blind keys in, beside the state file.
 const BLIND_KEYS: &str = "blind-keys";
 
+/// What a note about a state file Quill could not read ends with. State is
+/// what quitting leaves, so there is nothing to lose by starting again.
+const INSTEAD: &str = "starting fresh";
+
 /// The shape a window opens at when nothing has been remembered yet: what the
 /// spike was judged at.
 const WIDTH: u32 = 1100;
@@ -74,31 +78,22 @@ impl Default for WindowState {
 }
 
 impl WindowState {
-    /// A window of this size, in none of the states a window can also be in.
-    #[must_use]
-    pub fn sized(width: u32, height: u32) -> Self {
-        Self {
-            width,
-            height,
-            ..Self::default()
-        }
-    }
-
     /// Reads one `[[window]]` table.
     fn read(table: toml::Table, notes: &mut Vec<String>) -> Self {
         let defaults = Self::default();
         let mut reading = Reading::new(table, "window.", notes);
-        let read = Self {
-            width: reading.whole("width", defaults.width, &(SMALLEST..=LARGEST)),
-            height: reading.whole("height", defaults.height, &(SMALLEST..=LARGEST)),
-            maximized: reading.boolean("maximized", defaults.maximized),
-            fullscreen: reading.boolean("fullscreen", defaults.fullscreen),
-            document: reading.path("document"),
-            rest: toml::Table::new(),
-        };
+        let width = reading.whole("width", defaults.width, &(SMALLEST..=LARGEST));
+        let height = reading.whole("height", defaults.height, &(SMALLEST..=LARGEST));
+        let maximized = reading.boolean("maximized", defaults.maximized);
+        let fullscreen = reading.boolean("fullscreen", defaults.fullscreen);
+        let document = reading.path("document");
         Self {
+            width,
+            height,
+            maximized,
+            fullscreen,
+            document,
             rest: reading.rest(),
-            ..read
         }
     }
 
@@ -169,14 +164,9 @@ impl State {
     /// Reads `path`, falling back to an empty state for anything it cannot.
     #[must_use]
     pub fn read_from(path: &Path) -> (Self, Vec<String>) {
-        match file::read(path) {
-            Ok(None) => (Self::default(), Vec::new()),
-            Ok(Some(text)) => Self::parse(&text),
-            Err(err) => (
-                Self::default(),
-                vec![format!("cannot be read ({err}); starting fresh")],
-            ),
-        }
+        let (table, mut notes) = file::read_table(path, INSTEAD);
+        let state = table.map_or_else(Self::default, |table| Self::read(table, &mut notes));
+        (state, notes)
     }
 
     /// Writes the state to `path`, atomically.
@@ -191,34 +181,29 @@ impl State {
     /// Reads state out of the text of a file. Never fails.
     #[must_use]
     pub fn parse(text: &str) -> (Self, Vec<String>) {
-        let table: toml::Table = match text.parse() {
-            Ok(table) => table,
-            Err(err) => {
-                return (
-                    Self::default(),
-                    vec![format!(
-                        "is not TOML ({}); starting fresh",
-                        super::one_line(&err)
-                    )],
-                );
-            }
-        };
-        let mut notes = Vec::new();
-        let mut reading = Reading::new(table, "", &mut notes);
+        let (table, mut notes) = file::parse(text, INSTEAD);
+        let state = table.map_or_else(Self::default, |table| Self::read(table, &mut notes));
+        (state, notes)
+    }
+
+    /// Reads a parsed table.
+    fn read(table: toml::Table, notes: &mut Vec<String>) -> Self {
+        let mut reading = Reading::new(table, "", notes);
         let recents = reading.paths("recents");
+        // The windows are taken here and read below, once the reading of the
+        // top level is done with the notes it is writing into.
         let windows = reading.tables("window");
         let carets = reading.table("caret");
         let rest = reading.rest();
-        let state = Self {
+        Self {
             windows: windows
                 .into_iter()
-                .map(|window| WindowState::read(window, &mut notes))
+                .map(|window| WindowState::read(window, notes))
                 .collect(),
             recents,
             carets: read_carets(&carets),
             rest,
-        };
-        (state, notes)
+        }
     }
 
     /// The state as the file's text.
@@ -267,6 +252,7 @@ fn write_carets(carets: &BTreeMap<PathBuf, u64>) -> toml::Table {
 
 #[cfg(test)]
 mod tests {
+    use super::file::scratch;
     use super::*;
 
     #[test]
@@ -363,14 +349,5 @@ mod tests {
         assert_eq!(State::blind_keys().parent(), Some(State::dir().as_path()));
         assert_ne!(State::dir(), crate::settings::Settings::path());
         assert!(!State::dir().starts_with(xdg::config_dir()));
-    }
-
-    /// An empty directory of this test's own.
-    fn scratch(name: &str) -> PathBuf {
-        let directory =
-            std::env::temp_dir().join(format!("quill-state-{name}-{}", std::process::id()));
-        std::fs::remove_dir_all(&directory).ok();
-        std::fs::create_dir_all(&directory).expect("makes its own scratch directory");
-        directory
     }
 }

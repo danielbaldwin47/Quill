@@ -25,11 +25,10 @@ mod state;
 mod writing;
 mod xdg;
 
-use std::fmt::Display;
 use std::io;
 use std::path::{Path, PathBuf};
 
-pub use state::{State, WindowState};
+pub use state::{STATE_FILE, State, WindowState};
 
 use reading::Reading;
 use writing::Writing;
@@ -48,6 +47,10 @@ const ANCHOR: f64 = 0.5;
 
 /// The Template Preview and Export start from.
 const TEMPLATE: &str = "default";
+
+/// What a note about a settings file Quill could not read ends with: a writer
+/// wants to know what became of their preferences, not only what went wrong.
+const INSTEAD: &str = "using the defaults, and leaving the file alone";
 
 /// One setting that takes one of a few named values.
 ///
@@ -231,18 +234,20 @@ impl SyntaxHighlight {
     fn read(table: toml::Table, notes: &mut Vec<String>) -> Self {
         let defaults = Self::default();
         let mut reading = Reading::new(table, "syntax_highlight.", notes);
-        let read = Self {
-            enabled: reading.boolean("enabled", defaults.enabled),
-            nouns: reading.boolean("nouns", defaults.nouns),
-            verbs: reading.boolean("verbs", defaults.verbs),
-            adjectives: reading.boolean("adjectives", defaults.adjectives),
-            adverbs: reading.boolean("adverbs", defaults.adverbs),
-            conjunctions: reading.boolean("conjunctions", defaults.conjunctions),
-            rest: toml::Table::new(),
-        };
+        let enabled = reading.boolean("enabled", defaults.enabled);
+        let nouns = reading.boolean("nouns", defaults.nouns);
+        let verbs = reading.boolean("verbs", defaults.verbs);
+        let adjectives = reading.boolean("adjectives", defaults.adjectives);
+        let adverbs = reading.boolean("adverbs", defaults.adverbs);
+        let conjunctions = reading.boolean("conjunctions", defaults.conjunctions);
         Self {
+            enabled,
+            nouns,
+            verbs,
+            adjectives,
+            adverbs,
+            conjunctions,
             rest: reading.rest(),
-            ..read
         }
     }
 
@@ -297,7 +302,9 @@ impl StyleCheck {
 /// Everything the writer chose.
 ///
 /// One field per key in `docs/architecture.md`'s Settings section, in that
-/// order, which is the order they are written in.
+/// order. The file follows it too, as far as TOML allows: the tables come last
+/// however they are written, because a plain key after a header would belong to
+/// that header (see [`writing`]).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Settings {
     /// Light, dark, or the desktop's.
@@ -390,14 +397,9 @@ impl Settings {
     /// Reads `path`, falling back to the defaults for anything it cannot.
     #[must_use]
     pub fn read_from(path: &Path) -> (Self, Vec<String>) {
-        match file::read(path) {
-            Ok(None) => (Self::default(), Vec::new()),
-            Ok(Some(text)) => Self::parse(&text),
-            Err(err) => (
-                Self::default(),
-                vec![format!("cannot be read ({err}); using the defaults")],
-            ),
-        }
+        let (table, mut notes) = file::read_table(path, INSTEAD);
+        let settings = table.map_or_else(Self::default, |table| Self::read(table, &mut notes));
+        (settings, notes)
     }
 
     /// Writes the settings to `path`, atomically.
@@ -415,20 +417,8 @@ impl Settings {
     /// defaults; a key that cannot be applied is one note and its default.
     #[must_use]
     pub fn parse(text: &str) -> (Self, Vec<String>) {
-        let table: toml::Table = match text.parse() {
-            Ok(table) => table,
-            Err(err) => {
-                return (
-                    Self::default(),
-                    vec![format!(
-                        "is not TOML ({}); using the defaults and leaving the file alone",
-                        one_line(&err)
-                    )],
-                );
-            }
-        };
-        let mut notes = Vec::new();
-        let settings = Self::read(table, &mut notes);
+        let (table, mut notes) = file::parse(text, INSTEAD);
+        let settings = table.map_or_else(Self::default, |table| Self::read(table, &mut notes));
         (settings, notes)
     }
 
@@ -501,16 +491,9 @@ impl Settings {
     }
 }
 
-/// The first line of an error, which is the sentence worth logging: a TOML
-/// parse error carries the offending line beneath it, and a log line that
-/// wraps three times reads as a crash.
-fn one_line(err: &impl Display) -> String {
-    let text = err.to_string();
-    text.lines().next().unwrap_or_default().to_string()
-}
-
 #[cfg(test)]
 mod tests {
+    use super::file::scratch;
     use super::*;
 
     /// Every key `docs/architecture.md`'s Settings section names.
@@ -723,14 +706,5 @@ margin = 3
         let after = std::fs::read_to_string(&path).expect("the file is still whole");
         assert_eq!(before, after);
         assert_eq!(Settings::parse(&after).0.size, SIZE);
-    }
-
-    /// An empty directory of this test's own.
-    fn scratch(name: &str) -> PathBuf {
-        let directory =
-            std::env::temp_dir().join(format!("quill-settings-{name}-{}", std::process::id()));
-        std::fs::remove_dir_all(&directory).ok();
-        std::fs::create_dir_all(&directory).expect("makes its own scratch directory");
-        directory
     }
 }

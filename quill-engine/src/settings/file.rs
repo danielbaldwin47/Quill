@@ -33,6 +33,34 @@ pub fn read(path: &Path) -> io::Result<Option<String>> {
     }
 }
 
+/// The table in `text`, or `None` and one note when it is not TOML at all.
+///
+/// `instead` finishes that note by saying what Quill is doing about it, which
+/// is the only thing the two files differ in: the writer's settings fall back
+/// to the defaults, and state starts fresh.
+pub fn parse(text: &str, instead: &str) -> (Option<toml::Table>, Vec<String>) {
+    match text.parse() {
+        Ok(table) => (Some(table), Vec::new()),
+        // Only the first line: a TOML error carries the offending line beneath
+        // it, and a log line that wraps three times reads as a crash.
+        Err(err) => {
+            let err = err.to_string();
+            let first = err.lines().next().unwrap_or_default();
+            (None, vec![format!("is not TOML ({first}); {instead}")])
+        }
+    }
+}
+
+/// The table `path` holds: `None` for a file that is not there, cannot be read,
+/// or is not TOML, with one note for each of the last two.
+pub fn read_table(path: &Path, instead: &str) -> (Option<toml::Table>, Vec<String>) {
+    match read(path) {
+        Ok(None) => (None, Vec::new()),
+        Ok(Some(text)) => parse(&text, instead),
+        Err(err) => (None, vec![format!("cannot be read ({err}); {instead}")]),
+    }
+}
+
 /// Writes `contents` to `path` without ever leaving a partial file there.
 ///
 /// Creates the directory the file lives in, writes a temporary file beside it,
@@ -77,6 +105,36 @@ fn write_and_flush(path: &Path, contents: &str) -> io::Result<()> {
     let mut file = fs::File::create(path)?;
     file.write_all(contents.as_bytes())?;
     file.sync_all()
+}
+
+/// An empty directory of one test's own, named for it.
+///
+/// Every test here writes real files, because the thing under test is what
+/// happens to real files. They each get a directory of their own so that they
+/// still run in any order and all at once.
+#[cfg(test)]
+pub fn scratch(name: &str) -> PathBuf {
+    let directory = std::env::temp_dir().join(format!("quill-{name}-{}", std::process::id()));
+    fs::remove_dir_all(&directory).ok();
+    fs::create_dir_all(&directory).expect("makes its own scratch directory");
+    directory
+}
+
+/// What is in `directory`, sorted, so that anything left behind shows up.
+#[cfg(test)]
+pub fn names_in(directory: &Path) -> Vec<String> {
+    let mut names: Vec<String> = fs::read_dir(directory)
+        .expect("reads a directory a test made")
+        .map(|entry| {
+            entry
+                .expect("reads an entry")
+                .file_name()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect();
+    names.sort();
+    names
 }
 
 #[cfg(test)]
@@ -124,36 +182,29 @@ mod tests {
     }
 
     #[test]
+    fn a_file_that_is_not_toml_is_no_table_and_one_line_about_it() {
+        let (table, notes) = parse("theme = = = dark\n", "using the defaults");
+        assert!(table.is_none());
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].starts_with("is not TOML"), "{notes:?}");
+        assert!(notes[0].ends_with("using the defaults"), "{notes:?}");
+        assert!(!notes[0].contains('\n'), "one line, not a stack: {notes:?}");
+    }
+
+    #[test]
+    fn a_missing_file_is_no_table_and_nothing_to_say() {
+        let path = scratch("read_table_missing").join("state.toml");
+        let (table, notes) = read_table(&path, "starting fresh");
+        assert!(table.is_none());
+        assert!(notes.is_empty(), "a first launch is not news: {notes:?}");
+    }
+
+    #[test]
     fn the_temporary_sits_beside_its_destination() {
         // The rename is atomic only within one filesystem, so the temporary
         // has to be in the destination's own directory.
         let path = Path::new("/home/writer/.config/quill/settings.toml");
         assert_eq!(temporary(path).parent(), path.parent());
         assert_ne!(temporary(path), path.to_path_buf());
-    }
-
-    /// An empty directory of this test's own.
-    fn scratch(name: &str) -> PathBuf {
-        let directory =
-            std::env::temp_dir().join(format!("quill-file-{name}-{}", std::process::id()));
-        fs::remove_dir_all(&directory).ok();
-        fs::create_dir_all(&directory).expect("makes its own scratch directory");
-        directory
-    }
-
-    /// What is in `directory`, sorted, so that a leftover temporary shows up.
-    fn names_in(directory: &Path) -> Vec<String> {
-        let mut names: Vec<String> = fs::read_dir(directory)
-            .expect("reads its own scratch directory")
-            .map(|entry| {
-                entry
-                    .expect("reads an entry")
-                    .file_name()
-                    .to_string_lossy()
-                    .into_owned()
-            })
-            .collect();
-        names.sort();
-        names
     }
 }
