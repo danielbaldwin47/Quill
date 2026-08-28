@@ -23,6 +23,7 @@ mod flags;
 mod fonts;
 mod harness;
 mod session;
+mod tags;
 mod window;
 
 use std::rc::Rc;
