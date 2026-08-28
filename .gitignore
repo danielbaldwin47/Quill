@@ -12,3 +12,5 @@ shots/blind/
 /src/
 /pkg/
 target/
+# Exploratory scratch crates, kept out of the repo.
+/spike/
