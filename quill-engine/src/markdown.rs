@@ -124,13 +124,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_option_set_is_the_four_gfm_constructs_and_never_smart_punctuation() {
+    fn the_option_set_is_the_gfm_constructs_and_front_matter_never_smart_punctuation() {
         let options = options();
         for (name, wanted) in [
             ("tables", Options::ENABLE_TABLES),
             ("footnotes", Options::ENABLE_FOOTNOTES),
             ("strikethrough", Options::ENABLE_STRIKETHROUGH),
             ("task lists", Options::ENABLE_TASKLISTS),
+            // The fifth, and the one #37's list did not name: front matter is
+            // not a thematic break and not prose, and every reader of this
+            // module has to agree about that or the Editor would style a
+            // writer's metadata as text and Preview would render it.
+            ("front matter", Options::ENABLE_YAML_STYLE_METADATA_BLOCKS),
         ] {
             assert!(options.contains(wanted), "{name} is not enabled");
         }
@@ -246,6 +251,10 @@ mod tests {
                 "the prose stream carries a {markup:?}, which an Annotator must never see"
             );
         }
+        assert!(
+            !words.contains("1."),
+            "the prose stream carries an ordered marker, which is structure and not a word"
+        );
         assert!(
             !words.contains("https"),
             "the prose stream carries a URL, which Spell check would call a misspelling"
