@@ -1,22 +1,24 @@
 # Quill
 
-A long-form writing environment: a transparent `<textarea>` over a `<div id="mirror">` that renders the same text with markup styling in identical font metrics. No framework, no build step. `README.md` has the results and how to run; `BRIEF.md` the architecture, per-piece file ownership and tool flags; `NOTES.md` the log of cross-piece changes.
+A long-form writing environment for Linux: a native GTK4 app in Rust, ported Piece by Piece from the JavaScript app that won its blind gauntlet against iA Writer. That app is now `legacy/`, kept as the **Parity oracle** every native Piece is judged against until the last one is won. `docs/architecture.md` specifies the native app: read it before any Rust, packaging or repo work. Its Gate is `docs/agents/gate.md`, and `CONTEXT.md` holds the vocabulary both use.
 
 ## Repo map
 
-- `app/` — the editor as served. `index.html` loads `css/` and `js/` in fixed order; `js/core.js` is the engine every other module plugs into (`Writer.*`), and `js/{markup,caret,focus,theme,chrome,files}.js` each own one piece with a matching stylesheet in `css/`. `fonts/` holds iA Writer Duo/Quattro/Mono (OFL).
-- `bin/quill` — launcher: starts `tools/serve.mjs` if the port isn't already serving Quill, opens Chromium in app mode; `--measure` runs the latency bench.
-- `tools/` — `serve.mjs` (static server), `shoot.mjs`/`crop.mjs`/`blind.mjs`/`thumb.mjs` (screenshots and blind A/B pairs), `latency.mjs` (keystroke and cold-start bench), `smoke.mjs` (integration check), `progress.mjs` (builds `progress/index.html`), `gauntlet.workflow.js` (builder/critic loop per piece).
+- `quill/` — the app crate, the only crate that may see `gtk` ([ADR 0008](docs/adr/0008-engine-crate-without-gtk.md)). `main.rs` reads the command line, loads the Faces and opens the settings before any window, because every flag is applied before the first frame.
+- `quill-engine/` — the display-free half: text model, Markdown, Annotators, Library, settings, Templates, rendering. It builds and tests with no display attached, and `tests/boundary.rs` fails `cargo test` if `gtk` slips in.
+- `fonts/` — the six Quill Faces and `OFL.txt` (SIL OFL 1.1), loaded privately at startup; `tools/fontbuild.py` builds them from the iA originals.
+- `tools/` — what the Gate runs: `blind.mjs`/`thumb.mjs` (blind A/B pairs), `progress.mjs` (builds `progress/index.html`), `uinput-keys.py` (real keys through `/dev/uinput`), `idle-check.py` (is anybody at this machine), `fontbuild.py`/`fontgrid.py` (the Faces), `mkdoc.mjs` (builds the 10k-word bench corpus). Two here are the legacy app's rather than the Gate's: `gauntlet.workflow.js` (its builder/critic loop) and `mirror-metrics.mjs` (its mirror/textarea drift check). `npm i` at the root once, for the three that drive a browser.
+- `legacy/` — the JavaScript app as it won, and the Parity oracle: `legacy/bin/quill` opens it from the checkout, `legacy/tools/` shoots and benches it (`npm i` inside `legacy/` too), `legacy/BRIEF.md` and `legacy/NOTES.md` describe it. It is ISC, under its own `legacy/LICENSE`.
 - `ref/ia/` — the iA Writer screenshots, fonts and templates every comparison is judged against; `ref/sample.md` is the shared test passage.
-- `shots/` and `progress/` — judging evidence: per-piece screenshots, blind pairs, round verdicts, latency JSON and the report.
-- `PKGBUILD` + `packaging/` — Arch package; `makepkg -f` then `pacman -U`.
-- `docs/agents/` — issue tracker, triage labels and domain-doc rules for the engineering skills (below).
+- `shots/` and `progress/` — judging evidence: per-Piece screenshots, blind pairs, round verdicts, latency JSON and the report. `shots/oracle/` holds the judged states the Parity oracle is shot at; the frozen shots themselves land there with the Gate tooling ([#19](https://github.com/danielbaldwin47/Quill/issues/19)) and are regenerated only when `legacy/` changes.
+- `PKGBUILD` + `packaging/` — Arch package of the native binary: `makepkg -f` then `sudo pacman -U quill-[0-9]*.pkg.tar.zst` (the glob keeps the `-debug` split package out). The `.desktop` file and the icon are named for the application id, `io.github.danielbaldwin47.Quill`.
+- `docs/` — `architecture.md` (the native spec), `shortcuts.md` (the one shortcut table every menu, the Palette and the shortcuts window read), `adr/` (decisions), `agents/` (the Gate, issue tracker, triage labels and domain-doc rules for the skills below).
 
-Hard rule in `app/`: no per-token style may change glyph advance width, or the mirror and textarea drift apart (bold/italic are safe; iA fonts share widths across weights).
+Licences: GPL-3.0-or-later at the root (`LICENSE`), ISC in `legacy/`, OFL-1.1 for `fonts/`, and iA's own terms for `ref/ia/`.
 
-Hard rule for any test window (browser, GTK, bench): it opens on a virtual output — `hyprctl output create headless`, what `bin/quill --measure` does by default — or, when it must be on the real monitor, on workspace 5 with `[workspace 5 silent]`. Workspace 1 is the user's live workspace. The Hyprland 0.56 commands are in `BRIEF.md` § Headed windows; without `hyprctl`, run headless.
+Hard rule in `legacy/app/`: no per-token style may change glyph advance width, or the mirror and textarea drift apart (bold/italic are safe; iA fonts share widths across weights).
 
-The native Rust rewrite is specified in `docs/architecture.md`; read it before any Rust, packaging or repo-migration work. Its Gate is `docs/agents/gate.md`.
+Hard rule for any test window (GTK, browser, bench): it opens on a virtual output — `hyprctl output create headless`, what `legacy/bin/quill --measure` does by default — or, when it must be on the real monitor, on workspace 5 with `[workspace 5 silent]`. Workspace 1 is the user's live workspace. The Hyprland 0.56 commands are in `legacy/BRIEF.md` § Headed windows; without `hyprctl`, run headless.
 
 ## Gate
 

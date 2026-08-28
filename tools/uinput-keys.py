@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Type through the kernel, and say exactly when each key was pressed.
 
-Owner: latency piece. Used by tools/latency.mjs --uinput.
+Owner: latency piece. Used by legacy/tools/latency.mjs --uinput.
 
 Chromium's CDP `Input.dispatchKeyEvent` starts the clock *inside the browser process*: the whole
 kernel -> libinput -> compositor -> client hop is excluded, so a keyboard-to-photon number built
