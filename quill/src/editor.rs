@@ -21,11 +21,13 @@ use gtk::glib;
 use gtk::pango;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
+use quill_engine::annotate;
 use quill_engine::document::Document;
 use quill_engine::settings::Face;
 use quill_engine::typography;
 
 use crate::flags::Caret;
+use crate::tags;
 
 /// The CSS class the Editor's type is named on.
 const FACE_CLASS: &str = "quill-editor";
@@ -148,6 +150,11 @@ impl Editor {
         self.set_pixels_inside_wrap(signed(leading.inside_wrap));
         self.set_pixels_below_lines(signed(leading.below));
         self.set_top_margin(signed(typography::page_top(pitch)));
+        // The cell a heading's markers hang by moves with the size, so the
+        // page is laid out from scratch rather than compared with the last
+        // one: the column can be the same width at two sizes, and the hang
+        // never is.
+        self.imp().laid_out.set(None);
         self.lay_out(self.width(), self.height());
     }
 
@@ -172,6 +179,15 @@ impl Editor {
         self.set_left_margin(page.side);
         self.set_right_margin(page.side);
         self.set_bottom_margin(page.bottom);
+        // The heading markers hang off this margin, so they are re-hung with
+        // it: both halves of the pair move, `side` with the window and the
+        // marker's width with the type.
+        tags::hang_headings(
+            &self.buffer(),
+            self.imp().face.get(),
+            self.imp().size.get(),
+            page.side,
+        );
     }
 
     /// How tall one row of ink is, in the Face and size now set.
@@ -197,18 +213,25 @@ impl Editor {
         unsigned(layout.pixel_size().1)
     }
 
-    /// Shows `document`, with the caret at its start.
+    /// Shows `document`, marked up, with the caret at its start.
+    ///
+    /// The Markup is derived and drawn in the same breath as the text, because
+    /// a frame showing the prose before its structure is a flash of the wrong
+    /// page. Whole-Document on open is the architecture's cold-start cost; the
+    /// keystroke path retags by the block.
     pub fn show_document(&self, document: &Document) {
         let buffer = self.buffer();
         buffer.set_text(document.text());
+        tags::apply(&buffer, document, &annotate::markup(document.text()));
         buffer.place_cursor(&buffer.start_iter());
     }
 
     /// Puts the caret where `--caret` asked for it, and shows where it went.
     ///
     /// The harness names an offset in UTF-8 bytes, because that is what a
-    /// Document is measured in everywhere else; a `GtkTextBuffer` counts in
-    /// characters, so the two are converted here rather than at the flag.
+    /// Document is measured in everywhere else, and it is reached through the
+    /// Document's own line table by [`tags::iter_at`] — the one byte-to-iter
+    /// mapping the app has.
     ///
     /// `reveal` scrolls the view to the caret, because a caret the harness
     /// cannot see is not the state it asked for: a bench typing at the end of
@@ -216,11 +239,15 @@ impl Editor {
     /// `--scroll` has said where the view goes, since a state that names both
     /// means both, and a judged shot of a passage the opponent is not showing
     /// is not a comparison.
-    pub fn place_caret(&self, caret: Caret, reveal: bool) {
+    pub fn place_caret(&self, document: &Document, caret: Caret, reveal: bool) {
         let buffer = self.buffer();
         let at = match caret {
             Caret::End => buffer.end_iter(),
-            Caret::At(offset) => buffer.iter_at_offset(character_offset(&buffer, offset)),
+            Caret::At(offset) => tags::iter_at(
+                &buffer,
+                document,
+                usize::try_from(offset).unwrap_or(usize::MAX),
+            ),
         };
         buffer.place_cursor(&at);
         if reveal {
@@ -259,22 +286,6 @@ impl Editor {
             }
         });
     }
-}
-
-/// Where `bytes` UTF-8 bytes into `buffer` is, counted in the characters a
-/// `GtkTextBuffer` addresses by.
-///
-/// An offset past the end lands at the end, and an offset inside a character
-/// lands after that character: the flag names a place in a Document the harness
-/// chose, and neither is worth refusing a launch over.
-fn character_offset(buffer: &gtk::TextBuffer, bytes: u64) -> i32 {
-    let bytes = usize::try_from(bytes).unwrap_or(usize::MAX);
-    let text = buffer.text(&buffer.start_iter(), &buffer.end_iter(), true);
-    let characters = text
-        .char_indices()
-        .take_while(|(at, _)| *at < bytes)
-        .count();
-    i32::try_from(characters).unwrap_or(i32::MAX)
 }
 
 /// The margins a page was laid out with, in the pixels GTK takes.

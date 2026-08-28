@@ -19,6 +19,11 @@ gtk = { package = "gtk4", version = "0.11", features = ["v4_22"] }
 cairo-rs = "0.22"
 notify = "8"
 pango = "0.22"
+# `default-features = false` drops `getopts`, which serves the crate's own
+# binary, and `html`, its HTML renderer: Quill styles from the byte ranges
+# `into_offset_iter()` reports and draws Preview and Export with Pango, so
+# neither is ever reached.
+pulldown-cmark = { version = "0.13", default-features = false }
 serde = { version = "1", features = ["derive"] }
 # `preserve_order`: a settings file is written in the order
 # `docs/architecture.md` names its keys, and a key a newer Quill added keeps
