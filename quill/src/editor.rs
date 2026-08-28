@@ -7,12 +7,19 @@
 //! owns the text the writer edits, which is where undo, IME preedit, clipboard,
 //! selection and accessibility come from.
 //!
-//! Today it shows a Document and nothing more. The tag table, the flattened
-//! Markup × Focus runs and the hand-drawn caret land on this type.
+//! Today it shows a Document in the default Face and nothing more. The size,
+//! the leading and the measure belong to the type and page tickets; the tag
+//! table, the flattened Markup × Focus runs and the hand-drawn caret land on
+//! this type.
 
 use gtk::glib;
 use gtk::prelude::*;
 use quill_engine::document::Document;
+
+use crate::fonts;
+
+/// The CSS class the Editor's Face is named on.
+const FACE_CLASS: &str = "quill-editor";
 
 mod imp {
     use gtk::glib;
@@ -48,6 +55,7 @@ impl Editor {
         // Prose wraps; the Editor never scrolls sideways. The measure, the
         // margins and the leading are the page and type tickets' work.
         editor.set_wrap_mode(gtk::WrapMode::WordChar);
+        editor.add_css_class(FACE_CLASS);
         editor
     }
 
@@ -63,4 +71,27 @@ impl Default for Editor {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Names the Editor's Face on the display, once, before the first window.
+///
+/// A Face is asked for by family name and never by file: fontconfig already
+/// holds the six that [`crate::fonts::load_private`] gave it, and the same line
+/// still means something when they are missing. One `font-family` and nothing
+/// else — the size and the leading are the type ticket's.
+pub fn install_face() {
+    let Some(display) = gtk::gdk::Display::default() else {
+        // No display: nothing to style, and nothing that will draw text.
+        return;
+    };
+    let provider = gtk::CssProvider::new();
+    provider.load_from_string(&format!(
+        "textview.{FACE_CLASS} {{ font-family: \"{}\"; }}",
+        fonts::DEFAULT
+    ));
+    gtk::style_context_add_provider_for_display(
+        &display,
+        &provider,
+        gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+    );
 }
