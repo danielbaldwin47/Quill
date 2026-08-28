@@ -102,7 +102,8 @@ it, scans `.md` files live. The Library is shared by all windows.
 ## Windows
 
 `GtkApplication` with the id `io.github.danielbaldwin47.Quill`, single instance, `HANDLES_OPEN`: a
-file opened from a file manager or the shell reaches the running instance. One Document per window,
+file opened from a file manager or the shell reaches the running instance. Single instance is a
+writer's launch; a launch carrying a flag is not (see Command-line flags). One Document per window,
 any number of windows; the Editor, Preview and Stats belong to a window, the Library and settings to
 the application. Plain GTK4 without libadwaita ([ADR 0009](adr/0009-plain-gtk4-without-libadwaita.md));
 theme `auto` follows the settings portal's colour scheme.
@@ -169,6 +170,13 @@ and the determinism settings, this document names the flags:
   cold start against `QUILL_T0_NS`).
 
 Every flag has a matching setting or a harness-only effect; none creates state a writer cannot reach.
+
+A launch carrying any of them is the harness's rather than a writer's, and that decides three things
+about it. It runs non-unique, so a judged shot or a bench is served by the process that was launched
+even when a writer's Quill is already open. It overrides the settings for that launch alone and
+writes nothing back to `settings.toml`. And it neither reads nor writes `state.toml`, so it opens at
+the shape its flags name rather than at the window a writer left, the same command line is the same
+window twice, and a bench at 1440×900 is not a writer resizing anything.
 
 ## Packaging
 

@@ -16,13 +16,18 @@
 //!
 //! Three rules the rest of the app rests on. **Nothing is written back**: a
 //! flag overrides the writer's settings for this launch and never reaches
-//! `settings.toml`. **A harness launch leaves no trace**: [`Flags::any`] is
-//! true the moment one of these flags is given, and a session that answers
+//! `settings.toml`. **A harness launch leaves no trace**: [`Flags::is_harness`]
+//! is true the moment one of these flags is given, and a session that answers
 //! true to it reads no state file and writes none, so two launches of the same
 //! command line are the same window twice and a bench never resizes the window
 //! a writer left. **The process that was launched serves it**: such a launch
 //! runs non-unique, so a judged shot cannot land in a window of the Quill the
 //! writer already has open.
+//!
+//! `--help` is here for one reason: reading the command line is what took it
+//! away. `GApplication` answered `--help` while every argument still went to
+//! it, and a Quill that now called `--help` a flag it did not know would have
+//! lost something a writer had.
 
 use std::ffi::OsString;
 use std::fmt;
@@ -30,15 +35,14 @@ use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 
 use quill_engine::settings::{
-    Chrome, Face, FocusScope, Settings, Theme, WindowState, type_sizes, window_sizes,
+    Choice, Chrome, Face, FocusScope, Settings, Theme, WindowState, type_sizes, window_sizes,
 };
 
 /// What `--help` prints: every flag, in the architecture's order.
 pub const USAGE: &str = "\
 Usage: quill [flags] [file...]
 
-Judged state — what the Gate shoots and benches, and what a writer may
-override for one launch:
+Judged state — the states the Gate shoots and benches at:
   --text <file>          Open <file>.
   --theme light|dark     Set the theme.
   --font duo|quattro|mono
@@ -63,20 +67,14 @@ Harness:
 
   --help                 Print this.
 
-A flag overrides the writer's settings for this launch alone and is never
-written back to settings.toml.";
+A launch carrying any flag above is the harness's rather than a writer's: it
+opens in a process of its own rather than reaching a Quill already running, it
+overrides the writer's settings for that launch alone, and it writes neither
+settings.toml nor state.toml.";
 
 /// What `--theme` takes: the two the Gate judges. `auto` is the desktop's
 /// answer rather than an answer, so it is a setting and not a judged state.
 const THEMES: [(&str, Theme); 2] = [("light", Theme::Light), ("dark", Theme::Dark)];
-
-/// What `--font` takes: the three Faces, under the names the file uses. The
-/// test below holds this list to [`Face::VALUES`].
-const FONTS: [(&str, Face); 3] = [
-    ("duo", Face::Duo),
-    ("quattro", Face::Quattro),
-    ("mono", Face::Mono),
-];
 
 /// What `--chrome` takes. On the command line the chrome is on or off, which
 /// is how every other switch here reads; in the file it is shown or hidden,
@@ -131,8 +129,10 @@ pub struct Flags {
     pub text: Option<PathBuf>,
     /// The theme `--theme` names.
     pub theme: Option<Theme>,
-    /// The Face `--font` names.
-    pub font: Option<Face>,
+    /// The Face `--font` names. A Face and not a font: the flag is spelled
+    /// the way `docs/architecture.md` spells it, and the word stops there
+    /// (`CONTEXT.md`).
+    pub face: Option<Face>,
     /// The type size `--size` names, in pixels.
     pub size: Option<u32>,
     /// What `--focus` asks of Focus.
@@ -187,7 +187,7 @@ impl Flags {
             match flag {
                 "--text" => flags.text = Some(file(&mut args, flag)?),
                 "--theme" => flags.theme = Some(one_of(flag, &text(&mut args, flag)?, &THEMES)?),
-                "--font" => flags.font = Some(one_of(flag, &text(&mut args, flag)?, &FONTS)?),
+                "--font" => flags.face = Some(choice(flag, &text(&mut args, flag)?)?),
                 "--size" => flags.size = Some(whole(flag, &text(&mut args, flag)?, &type_sizes())?),
                 "--focus" => flags.focus = Some(one_of(flag, &text(&mut args, flag)?, &FOCUSES)?),
                 "--typewriter" => flags.typewriter = true,
@@ -214,12 +214,18 @@ impl Flags {
 
     /// Whether this launch is the harness's rather than a writer's.
     ///
-    /// True the moment any judged-state or harness flag was given. Asked
-    /// rather than listed, so that a flag added to the struct cannot be
-    /// forgotten here: everything but `--help`, which prints and stops, and
-    /// the files, which are a writer opening a Document.
+    /// True the moment any judged-state or harness flag was given, which is
+    /// what makes the launch its own process, leaves the state file unread and
+    /// unwritten, and keeps a judged shot out of a writer's window.
+    ///
+    /// Asked of the whole struct rather than of a list of fields, so that a
+    /// flag added above cannot be forgotten here. That is safe in one
+    /// direction only: every flag in `docs/architecture.md` is the harness's,
+    /// and anything added that is *not* — as `--help` and the files are not —
+    /// belongs in the two exceptions below or every launch becomes the
+    /// harness's.
     #[must_use]
-    pub fn any(&self) -> bool {
+    pub fn is_harness(&self) -> bool {
         Self {
             help: false,
             files: Vec::new(),
@@ -234,7 +240,7 @@ impl Flags {
         if let Some(theme) = self.theme {
             settings.theme = theme;
         }
-        if let Some(face) = self.font {
+        if let Some(face) = self.face {
             settings.face = face;
         }
         if let Some(size) = self.size {
@@ -312,6 +318,16 @@ fn not(flag: &str, found: &str, wanted: &str) -> Error {
     Error(format!("{flag}: \"{found}\" is not {wanted}"))
 }
 
+/// One of the values a setting takes, under the name the file writes it as.
+///
+/// The three flags below this one have domains of their own — `--theme` leaves
+/// out `auto`, `--chrome` says on and off where the file says shown and hidden,
+/// `--focus` is one flag over two settings — but a Face is a Face, and the
+/// engine already knows how to read one.
+fn choice<C: Choice>(flag: &str, written: &str) -> Result<C, Error> {
+    C::parse(written).ok_or_else(|| not(flag, written, &format!("one of {}", C::VALUES.join(", "))))
+}
+
 /// One of the values a flag takes, by the name it is written under.
 fn one_of<T: Copy>(flag: &str, written: &str, values: &[(&str, T)]) -> Result<T, Error> {
     values
@@ -371,8 +387,6 @@ fn select(flag: &str, written: &str) -> Result<(u64, u64), Error> {
 
 #[cfg(test)]
 mod tests {
-    use quill_engine::settings::Choice;
-
     use super::*;
 
     /// Every flag `docs/architecture.md` names, with a value it takes and —
@@ -406,7 +420,7 @@ mod tests {
         for (flag, good, bad) in FLAGS {
             let line = format!("{flag} {good}");
             let flags = parse(&line).unwrap_or_else(|err| panic!("`{line}`: {err}"));
-            assert!(flags.any(), "`{line}` is a launch of the harness's");
+            assert!(flags.is_harness(), "`{line}` is a launch of the harness's");
             assert!(
                 flags.files.is_empty(),
                 "`{line}` left an argument over: {flags:?}"
@@ -435,7 +449,7 @@ mod tests {
         .expect("every flag at once");
         assert_eq!(flags.text.as_deref(), Some(Path::new("ref/sample.md")));
         assert_eq!(flags.theme, Some(Theme::Dark));
-        assert_eq!(flags.font, Some(Face::Mono));
+        assert_eq!(flags.face, Some(Face::Mono));
         assert_eq!(flags.size, Some(24));
         assert_eq!(flags.focus, Some(Focus::Paragraph));
         assert!(flags.typewriter);
@@ -487,7 +501,7 @@ mod tests {
     fn an_empty_command_line_carries_nothing() {
         let flags = parse("").expect("an empty command line");
         assert_eq!(flags, Flags::default());
-        assert!(!flags.any(), "nothing was asked for");
+        assert!(!flags.is_harness(), "nothing was asked for");
         assert!(flags.documents().is_empty());
     }
 
@@ -499,7 +513,7 @@ mod tests {
             [Path::new("one.md"), Path::new("two.md")]
         );
         assert!(
-            !flags.any(),
+            !flags.is_harness(),
             "opening a Document reaches the Quill already running"
         );
     }
@@ -511,14 +525,14 @@ mod tests {
             flags.documents(),
             [Path::new("ref/sample.md"), Path::new("other.md")]
         );
-        assert!(flags.any());
+        assert!(flags.is_harness());
     }
 
     #[test]
     fn help_prints_and_stops_rather_than_launching_the_harness() {
         let flags = parse("--help").expect("--help is a flag");
         assert!(flags.help);
-        assert!(!flags.any(), "there is nothing to serve");
+        assert!(!flags.is_harness(), "there is nothing to serve");
     }
 
     #[test]
@@ -533,9 +547,11 @@ mod tests {
     }
 
     #[test]
-    fn the_font_values_are_the_faces_own_names() {
-        let names: Vec<&str> = FONTS.iter().map(|&(name, _)| name).collect();
-        assert_eq!(names, Face::VALUES, "the flag and the file name the Faces");
+    fn the_font_flag_takes_every_face_the_file_takes() {
+        for value in Face::VALUES {
+            let flags = parse(&format!("--font {value}")).expect("a Face the file names");
+            assert_eq!(flags.face.map(Face::as_str), Some(*value));
+        }
     }
 
     #[test]

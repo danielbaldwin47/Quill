@@ -166,7 +166,9 @@ impl Window {
 ///
 /// The Documents its flags name, or one untitled Document when they name none.
 /// `--measure` hangs its cold start on the first of them, because the first
-/// window to be presented is the one whose first frame is the launch's.
+/// window to be presented is the one whose first frame is the launch's. This is
+/// the only path a launch of the harness's takes: such a launch is handed no
+/// files by GTK, so [`present_files`] below is a writer's alone.
 pub fn present_launch(app: &gtk::Application, session: &Rc<Session>) {
     let documents = session.flags().documents();
     let mut first = None;
@@ -184,8 +186,10 @@ pub fn present_launch(app: &gtk::Application, session: &Rc<Session>) {
             Err(err) => eprintln!("quill: cannot open {}: {err}", path.display()),
         }
     }
-    if let (Some(window), Some(out)) = (first, session.flags().measure.as_deref()) {
-        harness::measure(&window, out);
+    if let Some(window) = first
+        && session.flags().measure.is_some()
+    {
+        harness::cold_start(&window);
     }
 }
 
