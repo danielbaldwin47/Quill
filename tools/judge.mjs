@@ -67,6 +67,10 @@ const BINARY = 'target/release/quill';
 // stopped answering does not hold a Piece open all night.
 const CRITIC_TIMEOUT_MS = 10 * 60 * 1000;
 
+// How much of a failing build's output is kept. Node's own default is 1 MB, which a workspace-wide
+// error set can pass; the whole of it is what the agent needs, so this is set well past that.
+const BUILD_OUTPUT_MAX = 32 * 1024 * 1024;
+
 // ---------- what produced the shots ----------
 
 // Which build of ours a round is of: the commit it was taken at, and the binary itself, because a
@@ -179,17 +183,47 @@ function usage(where = process.stderr) {
 `);
 }
 
-// Says something on the way to the verdict. Everything here is stderr: the owner reads the last
-// line on stdout, and the agent who has to fix something reads this above it.
-function say(line) { process.stderr.write(`${line}\n`); }
+// Says something on the way to the verdict. None of it is printed as it is said: the owner reads one
+// line on stdout and an agent pays for every other one, so the trail goes to
+// target/gate/judge-<piece>.log and is handed over only when the run ends in no verdict at all. A
+// run that reached a verdict has its detail in the round it wrote.
+const trail = [];
+let logFile = null;
+function say(line) {
+  trail.push(line);
+  if (!logFile) return;
+  // The log is a convenience and never the thing that decides a run: a target/ that cannot be
+  // written to must not turn a verdict into a stack trace. Given up on at the first refusal, so a
+  // full disk is not one failed write per line; the trail itself is kept either way.
+  try { fs.appendFileSync(logFile, `${line}\n`); } catch { logFile = null; }
+}
+
+// The trail, for the agent who has to fix what stopped this.
+function spill() {
+  if (trail.length) process.stderr.write(`${trail.join('\n')}\n`);
+}
+
+// The file the trail is written to as it is said, so a run that is still going, or one killed
+// part-way, can be read from another terminal. Silent when it cannot be opened, for the reason
+// say() is.
+function openLog(root, piece) {
+  const file = path.join(root, 'target/gate', `judge-${piece}.log`);
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, `gate judge ${piece} — ${new Date().toISOString()}\n`);
+    logFile = file;
+  } catch { logFile = null; }
+}
 
 // The line the owner reads, and the code that agrees with it.
 function verdict(piece, winner, number) {
   console.log(`gate judge ${piece}: ${winner}, round ${number}`);
 }
 
-// Nothing was judged, and why. One code for all of them, because none of them is a verdict.
+// Nothing was judged, and why. One code for all of them, because none of them is a verdict. The
+// trail comes out here and nowhere else: this is the only ending an agent has to fix.
 function refuse(piece, why) {
+  spill();
   console.log(`gate judge ${piece}: refused (${why})`);
   return 3;
 }
@@ -211,6 +245,7 @@ async function main(argv) {
     else { process.stderr.write('gate judge: one Piece at a time\n'); usage(); return 3; }
   }
   if (piece === null) { usage(); return 3; }
+  openLog(root, piece);
 
   try { return await judge(root, piece, note); }
   catch (e) {
@@ -274,8 +309,14 @@ async function judge(root, piece, note) {
   }
 
   say(`gate judge ${piece}: building ${BINARY}`);
-  try { execFileSync('cargo', ['build', '--release'], { cwd: root, stdio: ['ignore', 'ignore', 'inherit'] }); }
-  catch { return refuse(piece, 'the binary would not build'); }
+  // cargo's own words go into the trail rather than past it: a build that will not build is the one
+  // ending where an agent needs every line, and it gets them all together at the bottom.
+  try { execFileSync('cargo', ['build', '--release'], { cwd: root, stdio: ['ignore', 'ignore', 'pipe'], maxBuffer: BUILD_OUTPUT_MAX }); }
+  catch (e) {
+    const said = String(e.stderr || '').trim();
+    if (said) say(said);
+    return refuse(piece, 'the binary would not build');
+  }
 
   const recorded = rounds(root, piece);
   const number = nextRound(recorded);

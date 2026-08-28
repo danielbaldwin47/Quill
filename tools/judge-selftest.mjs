@@ -289,8 +289,9 @@ ok('every recorded round names an opponent the progress page can caption', () =>
 });
 
 // ---------- the answers that need no compositor ----------
-// The owner's line is the last one on stdout; everything the agent reads on the way to it is on
-// stderr, so the two are kept apart here rather than interleaved.
+// The owner's line is the whole of stdout; everything said on the way to it is held back, and comes
+// out on stderr only when the run ends in no verdict at all, so the two are kept apart here rather
+// than interleaved.
 function gate(...argv) {
   try {
     return { code: 0, out: execFileSync(GATE, argv, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }), err: '' };
@@ -316,6 +317,15 @@ ok('a Piece whose states need flags the app has not got names them and judges no
   const files = gate('judge', 'files');
   assert.equal(files.code, 3, files.err);
   assert.match(files.err, /state library names library, sidebar/);
+});
+
+ok('a refused run is one line on stdout, and what it said is on stderr and in its log', () => {
+  const log = path.join(ROOT, 'target/gate/judge-chrome.log');
+  fs.rmSync(log, { force: true });
+  const r = gate('judge', 'chrome');
+  assert.deepEqual(r.out.trim().split('\n').length, 1, `stdout was more than the owner's line:\n${r.out}`);
+  assert.match(r.err, /state typing names typing/);
+  assert.match(fs.readFileSync(log, 'utf8'), /state typing names typing/);
 });
 
 ok('a Piece nobody has judged states for is not a Piece', () => {
