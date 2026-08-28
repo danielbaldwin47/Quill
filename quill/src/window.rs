@@ -165,10 +165,13 @@ impl Window {
 /// Opens the windows this launch asks for.
 ///
 /// The Documents its flags name, or one untitled Document when they name none.
-/// `--measure` hangs its cold start on the first of them, because the first
-/// window to be presented is the one whose first frame is the launch's. This is
-/// the only path a launch of the harness's takes: such a launch is handed no
-/// files by GTK, so [`present_files`] below is a writer's alone.
+/// `--measure` hangs its cold start and its per-key capture on the first of
+/// them, because the first window to be presented is the one whose first frame
+/// is the launch's and the one a bench will type into. `--caret` moves the
+/// caret after the Document is shown, since the offset it names is an offset
+/// into that Document. This is the only path a launch of the harness's takes:
+/// such a launch is handed no files by GTK, so [`present_files`] below is a
+/// writer's alone.
 pub fn present_launch(app: &gtk::Application, session: &Rc<Session>) {
     let documents = session.flags().documents();
     let mut first = None;
@@ -186,10 +189,19 @@ pub fn present_launch(app: &gtk::Application, session: &Rc<Session>) {
             Err(err) => eprintln!("quill: cannot open {}: {err}", path.display()),
         }
     }
+    // After the Document is shown rather than with it: the offset `--caret`
+    // names is an offset into that Document, and there is nothing to count
+    // until it is in the buffer.
+    if let Some(window) = &first
+        && let Some(caret) = session.flags().caret
+    {
+        window.imp().editor.place_caret(caret);
+    }
     if let Some(window) = first
         && session.flags().measure.is_some()
     {
         harness::cold_start(&window);
+        harness::watch(&window);
     }
 }
 

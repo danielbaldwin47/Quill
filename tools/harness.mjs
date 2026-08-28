@@ -53,6 +53,9 @@ export const APP_ID = 'io.github.danielbaldwin47.Quill';
 // integer scale every judged shot is taken at; the window sits at `MARGIN` from the top left so
 // that no edge of it is an edge of the output.
 const MODE = '3200x2000@60';
+// The mode's size alone, which is what `hyprctl monitors` answers with and so what it is checked
+// against once the compositor has applied it.
+const MODE_SIZE = MODE.split('@')[0];
 const SCALE = 2;
 const MARGIN = { x: 80, y: 50 };
 
@@ -78,6 +81,16 @@ const SETTLE_MS = 400;
 // captures that have to be the same bytes; a window that cannot manage that in five attempts is
 // animating something, and the shot would be a coin toss rather than a judged state.
 const STEADY_TRIES = 5;
+
+// How many times focus is dispatched and read back before the window is called unfocusable. A bench
+// refuses to type at that point, so this is deliberately more than a shot needs: the cost of one
+// more try is a `hyprctl` call, and the cost of giving up too early is a run that did not happen.
+const FOCUS_TRIES = 10;
+
+// How much of a launch's stdout is kept. The one line anything reads from it is the cold start,
+// printed at the first frame; this is far past that and small enough that a chatty binary cannot
+// grow a long run's memory.
+const SAID_MAX = 64 * 1024;
 
 // ---------- the command line a judged state opens ours with ----------
 
@@ -259,7 +272,19 @@ function monitors() { return hyprctl(['monitors', '-j'], { json: true }); }
 function clients() { return hyprctl(['clients', '-j'], { json: true }); }
 
 function activeWindowAddress() {
-  try { return hyprctl(['activewindow', '-j'], { json: true }).address || null; } catch { return null; }
+  return activeWindow().address;
+}
+
+// The focused window's address and class, which is what a bench has to be sure of before it writes
+// a key to `/dev/uinput`: nothing an application can ask for, and the only honest answer to "where
+// will this key land". Exported because refusing to type is the bench's decision, not the stage's.
+export function activeWindow() {
+  try {
+    const active = hyprctl(['activewindow', '-j'], { json: true });
+    return { address: active.address || null, class: active.class || null };
+  } catch {
+    return { address: null, class: null };
+  }
 }
 
 function cursorPosition() {
@@ -292,6 +317,13 @@ function toplevels() {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// The wall clock in nanoseconds, which is what the app reads `$QUILL_T0_NS` as: `date +%s%N`'s
+// scale. `Date.now()` alone would quantise the cold start to the millisecond, so the origin and the
+// sub-millisecond offset are added instead.
+function nowRealtimeNs() {
+  return String(BigInt(Math.round((performance.timeOrigin + performance.now()) * 1e6)));
+}
 
 // ---------- the stage ----------
 
@@ -358,8 +390,19 @@ export async function openStage({ root, appId = APP_ID } = {}) {
   state.output = output;
 
   lua(`hl.monitor({output="${output}", mode="${MODE}", position="auto", scale=${SCALE}}) return "set"`);
-  const monitor = monitors().find((m) => m.name === output);
+  // Read back rather than read once. `hl.monitor` answers before Hyprland has applied the mode, and
+  // a headless output is created at 1920x1080 before it is told otherwise — so the obvious single
+  // read returns the size the output had a moment ago. That was wrong twice: it put a mode into
+  // every bench's fingerprint that the run was not taken at, and it computed `corner` from the
+  // wrong logical size, parking the pointer on top of the window instead of clear of it.
+  let monitor = null;
+  for (let waited = 0; waited < CREATE_TIMEOUT_MS; waited += POLL_MS) {
+    monitor = monitors().find((m) => m.name === output) || null;
+    if (monitor && `${monitor.width}x${monitor.height}` === MODE_SIZE && monitor.scale === SCALE) break;
+    await sleep(POLL_MS);
+  }
   if (!monitor) { close(); throw new Error(`${output} disappeared while it was being configured`); }
+  if (`${monitor.width}x${monitor.height}` !== MODE_SIZE) { close(); throw new Error(`${output} came up at ${monitor.width}x${monitor.height}, not the ${MODE_SIZE} every judged shot and every bench is taken at`); }
   if (monitor.scale !== SCALE) { close(); throw new Error(`${output} came up at scale ${monitor.scale}, not ${SCALE}: a judged shot at a fractional scale is not the judged state`); }
   state.workspace = monitor.activeWorkspace.id;
 
@@ -407,10 +450,23 @@ class Stage {
   /// lands on the stage's workspace at the pinned geometry with the owner's focus untouched.
   async launch(bin, argv) {
     const before = toplevels();
-    const child = spawn(bin, argv, { cwd: this.root, env: launchEnv(), stdio: ['ignore', 'ignore', 'pipe'] });
+    // Stamped here and nowhere else, because "immediately before the exec" is the whole meaning of
+    // the number: enumerating the toplevels above costs a process and a Wayland round trip, and a
+    // t0 taken before that would put both of them inside the app's cold start. Every launch carries
+    // it; only a launch under `--measure` reads it.
+    const env = { ...launchEnv(), QUILL_T0_NS: nowRealtimeNs() };
+    const child = spawn(bin, argv, { cwd: this.root, env, stdio: ['ignore', 'pipe', 'pipe'] });
     this.state.children.add(child);
     let stderr = '';
     child.stderr.on('data', (b) => { stderr += b; });
+    // Kept rather than ignored because `--measure` says its cold start on stdout, and a bench that
+    // could not read it would have to time the launch from outside and measure the wrong thing.
+    // A listener from here rather than from the caller: the line is printed at the first frame,
+    // which is before this function has a window to hand back. Capped, because every launch is
+    // listened to and a long-running one that found something to say every frame would otherwise
+    // grow this without limit; the lines worth reading are the first ones.
+    let stdout = '';
+    child.stdout.on('data', (b) => { if (stdout.length < SAID_MAX) stdout += b; });
     let died = null;
     child.on('error', (e) => { died = e.message; });
     child.on('exit', (code, signal) => { died = signal ? `it was killed (${signal})` : `it exited with ${code}`; });
@@ -423,7 +479,10 @@ class Stage {
         if (!toplevel) continue;
         const window = clients().find((c) => c.pid === child.pid);
         if (!window) continue;           // Hyprland has the toplevel but not yet the window
-        return { child, toplevel, address: window.address, geometry: { at: window.at, size: window.size } };
+        return {
+          child, toplevel, address: window.address, geometry: { at: window.at, size: window.size },
+          said: () => stdout,
+        };
       }
     } catch (e) {
       // Two windows appearing at once, or a compositor that stopped answering. The child is this
@@ -440,6 +499,33 @@ class Stage {
     if (!child) return;
     this.state.children.delete(child);
     try { child.kill('SIGTERM'); } catch { /* already gone */ }
+  }
+
+  /// Puts keyboard focus on `address`, and answers with whether it took.
+  ///
+  /// The pointer comes over first: focus follows the mouse on this desktop, and a pointer still on
+  /// the owner's panel takes focus straight back off whatever was focused here. Read back rather
+  /// than assumed, and tried more than once, because the compositor answers the dispatch before it
+  /// has finished acting on it — and because the whole point of asking is that a bench about to
+  /// write real keys to `/dev/uinput` must not take the owner's word for where they will land.
+  async focused(address) {
+    movePointer(this.corner);
+    for (let tries = 0; tries < FOCUS_TRIES; tries += 1) {
+      focusWindow(address);
+      if (this.holds(address)) return true;
+      await sleep(POLL_MS);
+    }
+    return false;
+  }
+
+  /// Whether keyboard focus is still on `address`, and on a window of ours.
+  ///
+  /// The one question a bench asks between chunks, so it is one `hyprctl` call and no dispatch. The
+  /// class is checked as well as the address because the address alone would be satisfied by an
+  /// address the compositor has since given to something else.
+  holds(address) {
+    const active = activeWindow();
+    return active.address === address && active.class === this.appId;
   }
 
   /// Captures one toplevel twice and answers with the bytes, once two consecutive captures agree.

@@ -10,18 +10,38 @@
 //! decide: animation, the caret's blink, and the whole of font rendering, which
 //! is the one thing that would make two machines disagree about a glyph.
 //!
-//! `--measure` is two things, and they are two functions because they answer to
-//! different moments. [`capture`] creates the file the per-key capture is
-//! written into ([#41](https://github.com/danielbaldwin47/Quill/issues/41)
-//! fills it), at startup, so that a bench can count on the file whatever the
-//! launch goes on to do — a Document that cannot be read must not take the file
-//! with it. [`cold_start`] answers the Gate's cold-start question, `exec` to
-//! the first complete frame the compositor says it presented, and needs a
-//! window to hang off.
+//! `--measure` is three things, and they are three functions because they
+//! answer to different moments. [`capture`] opens the file the per-key capture
+//! is written into, at startup, so that a bench can count on the file whatever
+//! the launch goes on to do — a Document that cannot be read must not take the
+//! file with it. [`watch`] stamps every key and writes one line per key once
+//! the compositor has said when the frame carrying it was presented.
+//! [`cold_start`] answers the Gate's cold-start question, `exec` to the first
+//! complete frame the compositor says it presented, and needs a window to hang
+//! off.
+//!
+//! The per-key capture is the left-hand side of `tools/gate bench`'s join: the
+//! bench knows when it wrote each key to `/dev/uinput`, this knows when the
+//! frame carrying it turned into light, and `presentation_time` is on the same
+//! `CLOCK_MONOTONIC` scale as both. Three things about the frame clock decide
+//! the shape here, and all three were paid for in
+//! `docs/research/native-harness.md` §4:
+//!
+//! - A key controller in the bubble phase never fires, because the Editor is a
+//!   [`gtk::TextView`] and it eats the key. Only the capture phase sees them.
+//! - A [`gdk::FrameTimings`] is complete only once a *later* frame has run, so
+//!   a key cannot be written on the keystroke that made it. Stamps are held and
+//!   drained on later frames, on a timer, and when the app is told to quit.
+//! - An idle window runs no later frame, so the last key of a run would wait
+//!   for ever. A stamp still waiting after [`TAIL`] asks for a frame itself:
+//!   long after the pace a bench types at, so it costs nothing during a run and
+//!   closes the file's tail once typing stops.
 
-use std::fs;
-use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::cell::RefCell;
+use std::fs::File;
+use std::io::Write as _;
+use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use gtk::gdk;
 use gtk::glib;
@@ -36,6 +56,14 @@ const DPI: i32 = 96 * 1024;
 
 /// On, in the tri-state (`-1` for "ask the desktop") the Xft settings use.
 const ON: i32 = 1;
+
+/// How often the stamps waiting on a frame are looked at again.
+const DRAIN_EVERY: Duration = Duration::from_millis(100);
+
+/// How long a stamp waits for its frame to complete before a frame is asked
+/// for, in monotonic microseconds. Well past the 90 ms the headline regime
+/// types at, so a run never pays for it and a run's last key never hangs.
+const TAIL: i64 = 250_000;
 
 /// Pins everything about a frame that the desktop would otherwise decide.
 ///
@@ -61,18 +89,92 @@ pub fn determine() {
     settings.set_gtk_hint_font_metrics(true);
 }
 
-/// Creates the file `--measure <out.jsonl>` names, empty.
+thread_local! {
+    /// The capture this launch is writing, if `--measure` named one. GTK is
+    /// one thread, so the key handler, the frame clock and `shutdown` all
+    /// reach it here rather than by being handed it through every window.
+    static CAPTURE: RefCell<Option<Capture>> = const { RefCell::new(None) };
+}
+
+/// Opens the file `--measure <out.jsonl>` names, empty.
 ///
 /// Called from `startup`, before any window and before any Document is read, so
 /// that the file a bench was promised is there even when the launch that was
-/// asked for turns out to be a launch that cannot open anything.
+/// asked for turns out to be a launch that cannot open anything. The handle is
+/// kept for the rest of the process: a JSONL file truncated from the outside
+/// while its writer holds it open comes back NUL-padded.
 pub fn capture(out: &Path) {
-    if let Err(err) = fs::write(out, "") {
-        eprintln!(
+    match File::create(out) {
+        Ok(file) => CAPTURE.with_borrow_mut(|held| {
+            *held = Some(Capture {
+                out: out.to_path_buf(),
+                file: Some(file),
+                pending: Vec::new(),
+            });
+        }),
+        Err(err) => eprintln!(
             "quill: --measure: {}: cannot be written ({err})",
             out.display()
-        );
+        ),
     }
+}
+
+/// Stamps every key `window` sees, and writes one line per key.
+///
+/// The controller is in the capture phase because the Editor consumes keys, and
+/// the drain is hung on the first frame because a widget has a frame clock only
+/// once it is realized.
+pub fn watch(window: &impl IsA<gtk::Widget>) {
+    let widget: gtk::Widget = window.as_ref().clone();
+
+    let keys = gtk::EventControllerKey::new();
+    keys.set_propagation_phase(gtk::PropagationPhase::Capture);
+    keys.connect_key_pressed(|controller, _key, keycode, _state| {
+        stamp(keycode, controller.current_event_time());
+        // The Editor still gets the key: this watches, it does not handle.
+        glib::Propagation::Proceed
+    });
+    widget.add_controller(keys);
+
+    widget.add_tick_callback(|widget, clock| {
+        let painted = widget.downgrade();
+        clock.connect_after_paint(move |clock| {
+            // Every key stamped since the last paint was carried by this frame.
+            mark(clock.frame_counter());
+            if let Some(widget) = painted.upgrade() {
+                drain(clock, &widget);
+            }
+        });
+
+        let ticking = widget.downgrade();
+        let clock = clock.clone();
+        glib::timeout_add_local(DRAIN_EVERY, move || match ticking.upgrade() {
+            Some(widget) => {
+                drain(&clock, &widget);
+                glib::ControlFlow::Continue
+            }
+            None => glib::ControlFlow::Break,
+        });
+
+        // The clock is the same one for the life of the window, so once is all
+        // this has to run.
+        glib::ControlFlow::Break
+    });
+}
+
+/// Writes what is left and lets go of the file.
+///
+/// Called from `shutdown`, which is the last moment a key can still be written.
+/// A stamp still waiting on its frame here is written with no presentation time
+/// rather than dropped: the bench's accounting is only honest if every key the
+/// app saw is in the file.
+///
+/// This is not what makes the file whole when a bench kills the app — a killed
+/// process runs no `shutdown`. Every drain writes through, so the file is whole
+/// as of the last one; [`DRAIN_EVERY`] and [`TAIL`] are what a bench relies on, and
+/// they are both far inside the settle it waits out before it kills anything.
+pub fn flush() {
+    with_capture(Capture::close);
 }
 
 /// Prints the cold start at the first frame the compositor says it presented,
@@ -127,6 +229,165 @@ fn presented(clock: &gdk::FrameClock) -> Option<i64> {
         .filter(gdk::FrameTimings::is_complete)
         .map(|timings| timings.presentation_time())
         .find(|time| *time != 0)
+}
+
+/// Does something to the capture, if this launch has one.
+///
+/// Every one of the three moments below reaches it the same way, and a launch
+/// without `--measure` has nothing for any of them to do.
+fn with_capture<T: Default>(what: impl FnOnce(&mut Capture) -> T) -> T {
+    CAPTURE.with_borrow_mut(|held| held.as_mut().map(what).unwrap_or_default())
+}
+
+/// Holds one key until the frame that carried it has been presented.
+fn stamp(keycode: u32, evdev_ms: u32) {
+    with_capture(|capture| capture.stamp(keycode, evdev_ms));
+}
+
+/// Gives every key stamped since the last paint the frame that has just been
+/// painted.
+fn mark(frame: i64) {
+    with_capture(|capture| capture.mark(frame));
+}
+
+/// Writes every key whose frame is now complete, and asks for a frame when one
+/// has been waiting longer than [`TAIL`] — an idle window runs no later frame,
+/// and a frame is complete only once a later one has run.
+fn drain(clock: &gdk::FrameClock, widget: &gtk::Widget) {
+    if with_capture(|capture| capture.drain(clock, glib::monotonic_time())) {
+        widget.queue_draw();
+    }
+}
+
+/// One key, from the moment it was seen to the moment its frame was presented.
+#[derive(Clone, Copy, Debug)]
+struct Stamp {
+    /// The GDK keycode, which is the evdev code the bench wrote plus 8.
+    keycode: u32,
+    /// The event's own time, from libinput, in milliseconds. GDK quantises it
+    /// to the millisecond, so it is a cross-check on the join rather than the
+    /// measurement.
+    evdev_ms: u32,
+    /// Monotonic microseconds when the first handler saw the key.
+    handler_us: i64,
+    /// The frame that carried it, once one has been painted.
+    frame: Option<i64>,
+}
+
+/// The file `--measure` writes, and the keys not yet in it.
+struct Capture {
+    /// What the file is called, for the one message a write failure earns.
+    out: PathBuf,
+    /// The open file, until a write to it fails.
+    file: Option<File>,
+    /// Keys stamped but not yet written, oldest first.
+    pending: Vec<Stamp>,
+}
+
+impl Capture {
+    /// Takes one key down, to be written once its frame has been presented.
+    fn stamp(&mut self, keycode: u32, evdev_ms: u32) {
+        self.pending.push(Stamp {
+            keycode,
+            evdev_ms,
+            handler_us: glib::monotonic_time(),
+            frame: None,
+        });
+    }
+
+    /// Gives every key not yet on a frame the frame just painted. Keys that
+    /// share a frame share its presentation time, which is what a burst faster
+    /// than the refresh interval is and is recorded as such.
+    fn mark(&mut self, frame: i64) {
+        for stamp in self.pending.iter_mut().filter(|s| s.frame.is_none()) {
+            stamp.frame = Some(frame);
+        }
+    }
+
+    /// Writes every key whose frame has completed, and says whether a key is
+    /// still waiting on a frame that only a later frame will complete.
+    fn drain(&mut self, clock: &gdk::FrameClock, now: i64) -> bool {
+        let mut lines = String::new();
+        let mut stale = false;
+        let history = clock.history_start();
+        self.pending.retain(|stamp| {
+            let Some(frame) = stamp.frame else {
+                // Stamped between two paints: the next one is its frame.
+                return true;
+            };
+            match clock.timings(frame) {
+                Some(timings) if timings.is_complete() => {
+                    let presented = (timings.presentation_time() != 0)
+                        .then(|| (timings.presentation_time(), timings.refresh_interval()));
+                    lines.push_str(&line(stamp, presented));
+                    lines.push('\n');
+                    false
+                }
+                // Fallen out of the clock's history: it will never complete
+                // now, and holding it would hold the whole buffer.
+                None if frame < history => {
+                    lines.push_str(&line(stamp, None));
+                    lines.push('\n');
+                    false
+                }
+                _ => {
+                    stale |= now - stamp.handler_us > TAIL;
+                    true
+                }
+            }
+        });
+        self.write(&lines);
+        stale
+    }
+
+    /// Writes what is still waiting, with no presentation time, and closes.
+    fn close(&mut self) {
+        let mut lines = String::new();
+        for stamp in &self.pending {
+            lines.push_str(&line(stamp, None));
+            lines.push('\n');
+        }
+        self.pending.clear();
+        self.write(&lines);
+        self.file = None;
+    }
+
+    /// Appends `lines`, and says so once if it cannot.
+    fn write(&mut self, lines: &str) {
+        if lines.is_empty() {
+            return;
+        }
+        let Some(file) = self.file.as_mut() else {
+            return;
+        };
+        if let Err(err) = file.write_all(lines.as_bytes()).and_then(|()| file.flush()) {
+            eprintln!(
+                "quill: --measure: {}: cannot be written ({err})",
+                self.out.display()
+            );
+            self.file = None;
+        }
+    }
+}
+
+/// One key as the capture file records it: one JSON object on one line.
+///
+/// A key with no presentation time is written with `null` rather than left out,
+/// so that the bench's accounting can say how many keys it is short of and the
+/// owner can see which ones.
+fn line(stamp: &Stamp, presented: Option<(i64, i64)>) -> String {
+    let frame = stamp
+        .frame
+        .map_or_else(|| "null".to_owned(), |n| n.to_string());
+    let (present_us, refresh_us) = presented.map_or_else(
+        || ("null".to_owned(), "null".to_owned()),
+        |(present, refresh)| (present.to_string(), refresh.to_string()),
+    );
+    format!(
+        "{{\"keycode\":{},\"evdev_ms\":{},\"handler_us\":{},\"frame\":{frame},\
+         \"present_us\":{present_us},\"refresh_us\":{refresh_us}}}",
+        stamp.keycode, stamp.evdev_ms, stamp.handler_us
+    )
 }
 
 /// The two clocks a cold start is measured across.
@@ -198,5 +459,46 @@ mod tests {
     fn the_cold_start_line_is_one_line_of_milliseconds() {
         assert_eq!(cold_start_line(187.5), "cold start: 187.500 ms");
         assert!(!cold_start_line(0.0).contains('\n'));
+    }
+
+    /// A stamp with everything the join needs, as a presented key.
+    fn presented_key() -> Stamp {
+        Stamp {
+            keycode: 30,
+            evdev_ms: 169_983_352,
+            handler_us: 169_962_975_970,
+            frame: Some(412),
+        }
+    }
+
+    #[test]
+    fn a_presented_key_is_one_line_of_json_with_every_field_the_join_needs() {
+        assert_eq!(
+            line(&presented_key(), Some((169_962_979_465, 16_666))),
+            "{\"keycode\":30,\"evdev_ms\":169983352,\"handler_us\":169962975970,\
+             \"frame\":412,\"present_us\":169962979465,\"refresh_us\":16666}"
+        );
+    }
+
+    #[test]
+    fn a_key_the_compositor_never_presented_says_so_rather_than_saying_zero() {
+        let written = line(&presented_key(), None);
+        assert!(written.contains("\"present_us\":null"), "{written}");
+        assert!(written.contains("\"refresh_us\":null"), "{written}");
+        assert!(written.contains("\"frame\":412"), "{written}");
+    }
+
+    #[test]
+    fn a_key_no_frame_ever_carried_says_so_too() {
+        let mut stamp = presented_key();
+        stamp.frame = None;
+        let written = line(&stamp, None);
+        assert!(written.contains("\"frame\":null"), "{written}");
+    }
+
+    #[test]
+    fn every_key_is_one_line() {
+        assert!(!line(&presented_key(), Some((1, 2))).contains('\n'));
+        assert!(!line(&presented_key(), None).contains('\n'));
     }
 }
