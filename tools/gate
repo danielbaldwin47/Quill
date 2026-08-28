@@ -5,6 +5,7 @@
 #   tools/gate check              the Commit tier, on the repo root
 #   tools/gate check <dir>        ... on another directory
 #   tools/gate oracle <piece>     freeze the Parity oracle's shots for one Piece
+#   tools/gate judge <piece>      shoot ours, pair it blind, judge it, record the round
 #   tools/gate --help             the commands there are, and what each runs
 #
 # The owner does not read Rust, so every command here ends in one line the owner
@@ -45,6 +46,18 @@ usage: tools/gate <command> [arguments]
                 already the ones it would take; --force shoots them anyway.
                 Ends in `gate oracle <piece>: froze N states (<why>)`,
                 `... unchanged`, or `... fail (...)`.
+
+  judge <piece> [--note <text>]
+                The Ticket tier's blind judging for one Piece: ours built and
+                shot at every judged state on a headless output of the Gate's
+                own, each shot paired with the frozen Parity oracle under
+                shots/blind/<piece>/<state>/ (the key goes to
+                $XDG_STATE_HOME/quill/blind-keys/), one fresh critic per pair,
+                revealed, and written to progress/rounds/<piece>-r<N>.json.
+                --note records what changed this round. The Piece is ours only
+                when every state is. Ends in `gate judge <piece>: ours|theirs,
+                round <N>`: 0 for ours, 1 for theirs, 2 for theirs after this
+                Piece had been won, 3 when nothing was judged.
 
 The tiers these commands serve are docs/agents/gate.md.
 EOF
@@ -141,6 +154,10 @@ case "${1-}" in
     # through legacy/tools/shoot.mjs, so it is Node; the line it ends in is its
     # own, in the shape the header above asks of every command here.
     oracle) shift; exec node "$ROOT/tools/oracle.mjs" "$@" ;;
+    # Judging drives the compositor, a binary and a critic session, and its exit
+    # code is the verdict rather than pass or fail; it is Node for the same
+    # reason the oracle is, and ends in its own line in the same shape.
+    judge) shift; exec node "$ROOT/tools/judge.mjs" "$@" ;;
     -h | --help | help) usage ;;
     "") usage >&2; exit 2 ;;
     *) echo "gate: ${1}: not a command this Gate has yet" >&2; usage >&2; exit 2 ;;

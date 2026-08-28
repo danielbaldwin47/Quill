@@ -1,5 +1,10 @@
 node_modules/
 shots/_*
+# A blind pair is two copies of shots that are already committed — ours at
+# shots/<piece>/r<N>-<state>-ours.png and the opponent's under shots/oracle/ —
+# laid out under letters a critic is shown. The round says which letter was ours,
+# so the pair can be laid out again; committing it would only double the bytes.
+shots/blind/
 .claude/
 *.pkg.tar.zst
 # makepkg's build directories, at the root only: unanchored, `src/` would
