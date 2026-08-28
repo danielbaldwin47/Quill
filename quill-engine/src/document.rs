@@ -253,8 +253,15 @@ mod tests {
             Place { line: 0, index: 0 },
             "the first heading's marker starts the file"
         );
-        let second = doc.place(spans[2].at.start).line;
-        assert_eq!(second, 4, "`## What the sea keeps` is the fifth line");
+        let second = spans
+            .iter()
+            .find(|span| span.mark == crate::annotate::Mark::Heading(2))
+            .expect("the passage's second heading");
+        assert_eq!(
+            doc.place(second.at.start).line,
+            4,
+            "`## What the sea keeps` is the fifth line"
+        );
     }
 
     fn write_temp(stem: &str, text: &str) -> PathBuf {

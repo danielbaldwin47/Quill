@@ -19,6 +19,7 @@ gtk = { package = "gtk4", version = "0.11", features = ["v4_22"] }
 cairo-rs = "0.22"
 notify = "8"
 pango = "0.22"
+pangocairo = "0.22"
 # `default-features = false` drops `getopts`, which serves the crate's own
 # binary and nothing here, and `html`, its renderer: the Editor styles from the
 # byte ranges `into_offset_iter()` reports and never builds a document. HTML

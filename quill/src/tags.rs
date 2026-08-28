@@ -15,11 +15,15 @@
 //! same calm with contrast instead of position. ADR 0004 removed the mirror and
 //! with it the constraint.
 
+use gtk::gdk;
+use gtk::pango;
 use gtk::prelude::*;
-use quill_engine::annotate::{Mark, Span};
+use quill_engine::annotate::{self, Ground, Ink, Look, Mark, Slant, Span, Weight};
 use quill_engine::document::Document;
 use quill_engine::settings::Face;
 use quill_engine::typography;
+
+use crate::editor::{INK, INK_WEIGHT};
 
 /// The marker grey: `--mark` of `legacy/app/css/theme.css`, 4.0:1 on paper.
 ///
@@ -28,13 +32,36 @@ use quill_engine::typography;
 /// all three into the palette table.
 const MARK: &str = "#7a7a7a";
 
-/// The weight a heading is set at: `.md-h { font-weight: 700 }` of
-/// `legacy/app/css/markup.css`.
+/// The link colour: `--link` of `legacy/app/css/theme.css`, 4.6:1 on paper.
+const LINK: &str = "#0b7cba";
+
+/// The code ground: `--code-bg` of `legacy/app/css/theme.css`, which is 4.5%
+/// black over the paper and lands on `#eeeeee`.
+///
+/// Flat rather than translucent because it is a ground, not a wash: nothing is
+/// ever drawn under it.
+const CODE_GROUND: &str = "#eeeeee";
+
+/// How opaque a link's underline is: `color-mix(… var(--md-link) 35%,
+/// transparent)` of `legacy/app/css/markup.css`.
+///
+/// A hairline the eye reads as belonging to the words above it rather than as a
+/// second mark competing with them.
+const UNDERLINE_ALPHA: u8 = 89;
+
+/// The weight a heading or a strong is set at: `.md-h`, `.md-strong { font-
+/// weight: 700 }` of `legacy/app/css/markup.css`.
 ///
 /// Bold at body size, in the same Face and the same ink as the prose. The
 /// level reads from the markers, so nothing about the text image jumps when a
 /// `#` is typed or deleted — which is why no heading is ever set larger.
-const HEADING_WEIGHT: i32 = 700;
+const BOLD: i32 = 700;
+
+/// The weight the prose is set at, as GTK counts weights.
+///
+/// The Editor sets it in CSS on the whole widget; a run that is not bold has to
+/// say so all the same, because the run before it may have been.
+const REGULAR: i32 = INK_WEIGHT.cast_signed();
 
 /// How many cells of margin a heading of `level` hangs by.
 ///
@@ -73,25 +100,89 @@ fn tag(buffer: &gtk::TextBuffer, name: &str, build: impl FnOnce(&gtk::TextTag)) 
     tag
 }
 
-/// The tag that draws text in `colour`.
+/// The tag that draws text in `colour` at `alpha`.
 ///
-/// `docs/architecture.md` § Annotators keys this row by `(colour, alpha)`.
-/// Every mark #86 draws is opaque, so the alpha half of the key has one value
-/// and the name says which; the Focus ticket brings the dimmed rows, and each
-/// gets its own tag rather than blending with this one.
-fn colour(buffer: &gtk::TextBuffer, colour: &str) -> gtk::TextTag {
-    tag(buffer, &format!("colour-{colour}-opaque"), |tag| {
-        tag.set_foreground(Some(colour));
+/// `docs/architecture.md` § Annotators keys this row by `(colour, alpha)`, and
+/// both halves are in the name: everything #87 draws is opaque, and #40 dims
+/// what is out of focus by asking for the same colour at another alpha, which
+/// is another tag rather than a blend with this one.
+fn colour(buffer: &gtk::TextBuffer, colour: &str, alpha: u8) -> gtk::TextTag {
+    tag(buffer, &format!("colour-{colour}-{alpha}"), |tag| {
+        tag.set_foreground_rgba(Some(&shaded(colour, alpha)));
     })
 }
 
-/// The tag that sets text at `weight`, upright.
+/// `colour` at `alpha`, as GTK takes a colour.
 ///
-/// The other half of that section's second key is slant, which has one value
-/// until emphasis lands and is named here for the same reason.
-fn weight(buffer: &gtk::TextBuffer, weight: i32) -> gtk::TextTag {
-    tag(buffer, &format!("weight-{weight}-upright"), |tag| {
-        tag.set_weight(weight);
+/// A colour that will not parse comes out black, which is at least legible:
+/// the three that reach here are constants of this module, so it cannot happen
+/// without an edit to them.
+fn shaded(colour: &str, alpha: u8) -> gdk::RGBA {
+    let parsed = gdk::RGBA::parse(colour).unwrap_or(gdk::RGBA::BLACK);
+    gdk::RGBA::new(
+        parsed.red(),
+        parsed.green(),
+        parsed.blue(),
+        f32::from(alpha) / f32::from(u8::MAX),
+    )
+}
+
+/// The tag that sets text at `weight` and `slant`, in `face`.
+///
+/// The second key of that section. The slant is a family rather than a style:
+/// each Italic is a Face of its own and its file declares itself roman
+/// (ADR 0007), so asking for the Roman in an italic style would get a slanted
+/// Roman — the wrong cut, and the one Face whose advances are not the Roman's.
+fn cut(buffer: &gtk::TextBuffer, face: Face, weight: Weight, slant: Slant) -> gtk::TextTag {
+    let weight = match weight {
+        Weight::Regular => REGULAR,
+        Weight::Bold => BOLD,
+    };
+    match slant {
+        Slant::Upright => tag(buffer, &format!("weight-{weight}-upright"), |tag| {
+            tag.set_weight(weight);
+        }),
+        Slant::Italic => {
+            let italic = tag(buffer, &format!("weight-{weight}-italic"), |tag| {
+                tag.set_weight(weight);
+            });
+            // Set every time rather than only on the first ask: the Face moves
+            // under the tag when the writer changes it, and a tag that kept
+            // the old family would set this Face's italics in the last one's.
+            italic.set_family(Some(face.italic_family()));
+            italic
+        }
+    }
+}
+
+/// The tag that draws the code ground, and nothing else.
+///
+/// The oracle pads an inline code span with a box-shadow rather than with
+/// padding, precisely so that no glyph moves; a background is the same bargain
+/// in Pango, and the ground reaching under the backticks is what makes it look
+/// padded at all.
+fn ground(buffer: &gtk::TextBuffer) -> gtk::TextTag {
+    tag(buffer, "ground-code", |tag| {
+        tag.set_background(Some(CODE_GROUND));
+    })
+}
+
+/// The tag that underlines a link's words.
+///
+/// A decoration, layered over the runs rather than resolved into them:
+/// underline and colour are different properties, so the overlap is safe
+/// (`docs/architecture.md` § Annotators).
+fn underline(buffer: &gtk::TextBuffer) -> gtk::TextTag {
+    tag(buffer, "decoration-underline", |tag| {
+        tag.set_underline(pango::Underline::Single);
+        tag.set_underline_rgba(Some(&shaded(LINK, UNDERLINE_ALPHA)));
+    })
+}
+
+/// The tag that strikes struck text through.
+fn struck(buffer: &gtk::TextBuffer) -> gtk::TextTag {
+    tag(buffer, "decoration-strike", |tag| {
+        tag.set_strikethrough(true);
     })
 }
 
@@ -145,29 +236,79 @@ pub fn hang_headings(buffer: &gtk::TextBuffer, face: Face, size: u32, side: i32)
 /// architecture parses whole on open as a cold-start cost inside the 250 ms
 /// budget, and the ticket that lands the keystroke path retags only the lines
 /// whose runs changed.
-pub fn apply(buffer: &gtk::TextBuffer, document: &Document, spans: &[Span]) {
+pub fn apply(buffer: &gtk::TextBuffer, document: &Document, face: Face, spans: &[Span]) {
     buffer.remove_all_tags(&buffer.start_iter(), &buffer.end_iter());
-    for span in spans {
-        let from = iter_at(buffer, document, span.at.start);
-        let to = iter_at(buffer, document, span.at.end);
-        match span.mark {
-            Mark::Markup => buffer.apply_tag(&colour(buffer, MARK), &from, &to),
-            Mark::Heading(level) => {
-                buffer.apply_tag(&weight(buffer, HEADING_WEIGHT), &from, &to);
-                // The hang belongs to the line, not to the span: a paragraph
-                // property is read off the tags at the start of the paragraph,
-                // and the markers the heading hangs by are not inside the
-                // heading's text.
-                let line = from.line();
-                let mut start = buffer.start_iter();
-                start.set_line(line);
-                let mut end = start;
-                if !end.ends_line() {
-                    end.forward_to_line_end();
-                }
-                buffer.apply_tag(&heading(buffer, level), &start, &end);
-            }
+    for run in annotate::flatten(spans) {
+        let from = iter_at(buffer, document, run.at.start);
+        let to = iter_at(buffer, document, run.at.end);
+        let Look {
+            ink,
+            alpha,
+            weight,
+            slant,
+            ground: on,
+        } = run.look;
+        buffer.apply_tag(&colour(buffer, hex(ink), alpha), &from, &to);
+        buffer.apply_tag(&cut(buffer, face, weight, slant), &from, &to);
+        if on == Ground::Code {
+            buffer.apply_tag(&ground(buffer), &from, &to);
         }
+        // The one decoration that reads off the run rather than off a mark: a
+        // link's words are exactly the bytes that came out in the link colour,
+        // whether they were bracketed or written bare as an autolink.
+        if ink == Ink::Link {
+            buffer.apply_tag(&underline(buffer), &from, &to);
+        }
+    }
+    for span in spans {
+        match span.mark {
+            Mark::Heading(level) => hang_line(buffer, document, span, level),
+            Mark::Strikethrough => {
+                let from = iter_at(buffer, document, span.at.start);
+                let to = iter_at(buffer, document, span.at.end);
+                buffer.apply_tag(&struck(buffer), &from, &to);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Puts the paragraph tag of a heading of `level` on the line `span` is on.
+///
+/// The hang belongs to the line, not to the span: a paragraph property is read
+/// off the tags at the start of the paragraph, and a heading's markers are not
+/// inside its text.
+fn hang_line(buffer: &gtk::TextBuffer, document: &Document, span: &Span, level: u8) {
+    let mut start = buffer.start_iter();
+    start.set_line(iter_at(buffer, document, span.at.start).line());
+    let mut end = start;
+    if !end.ends_line() {
+        end.forward_to_line_end();
+    }
+    buffer.apply_tag(&heading(buffer, level), &start, &end);
+}
+
+/// The colour `ink` names.
+///
+/// The engine names a role because it cannot see a display; the three roles
+/// meet their colours here, and the Dark & light ticket changes what they meet
+/// without the engine hearing about it.
+fn hex(ink: Ink) -> &'static str {
+    match ink {
+        Ink::Prose => INK,
+        Ink::Marker => MARK,
+        Ink::Link => LINK,
+    }
+}
+
+/// Sets the Italic tags to `face`'s Italic, for text already tagged.
+///
+/// Called when the type changes, for the reason [`hang_headings`] is: the
+/// Editor does not re-derive its spans when the writer picks another Face, so
+/// the tags the buffer is already carrying have to be moved to it.
+pub fn set_face(buffer: &gtk::TextBuffer, face: Face) {
+    for weight in [Weight::Regular, Weight::Bold] {
+        cut(buffer, face, weight, Slant::Italic);
     }
 }
 
@@ -274,4 +415,114 @@ mod tests {
             "the rows still agree: what the first row gives up, the rest get back"
         );
     }
+
+    #[test]
+    fn a_colour_at_full_alpha_is_the_colour_itself() {
+        let opaque = shaded(MARK, Look::OPAQUE);
+        assert!(
+            (opaque.alpha() - 1.0).abs() < f32::EPSILON,
+            "the alpha half of the key has to reach the colour: {opaque:?}"
+        );
+        let dimmed = shaded(MARK, Look::OPAQUE / 2);
+        assert!(
+            dimmed.alpha() < opaque.alpha() && dimmed.red() == opaque.red(),
+            "a dimmed row is the same colour, less of it: {dimmed:?}"
+        );
+    }
+
+    #[test]
+    fn the_three_inks_are_the_three_constants_and_no_two_are_alike() {
+        assert_eq!(
+            [hex(Ink::Prose), hex(Ink::Marker), hex(Ink::Link)],
+            [INK, MARK, LINK]
+        );
+    }
+
+    // The invariant the whole Markup rests on: a closing marker restyles the
+    // text before it, and if any of that changed a glyph's advance the line
+    // would jolt under the writer's hands as they typed the last asterisk.
+    // Measured in the Faces themselves, at the two weights and the two cuts the
+    // tag table asks for, on the passage the Piece is judged on. Pango's own
+    // font map, because `cargo test` runs with no display and GTK's contexts
+    // all come off one.
+    #[test]
+    fn no_face_moves_a_glyph_across_the_weights_and_cuts_the_tags_ask_for() {
+        crate::fonts::load_private(&quill_engine::data::fonts())
+            .expect("the Faces are in the checkout");
+        let context = pangocairo::FontMap::default().create_context();
+        let passage = std::fs::read_to_string("../shots/oracle/markup.md")
+            .expect("the judged Markup passage is in the repo");
+        for face in [Face::Duo, Face::Quattro, Face::Mono] {
+            let prose = advance(&context, face, REGULAR, Slant::Upright, &passage);
+            assert!(prose > 0, "{face:?} measured nothing at all");
+            for (weight, slant) in [
+                (BOLD, Slant::Upright),
+                (REGULAR, Slant::Italic),
+                (BOLD, Slant::Italic),
+            ] {
+                if bold_italic_quattro(face, weight, slant) {
+                    continue;
+                }
+                assert_eq!(
+                    advance(&context, face, weight, slant, &passage),
+                    prose,
+                    "{face:?} at {weight} {slant:?} sets the passage to another width"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_quattro_italic_widens_its_narrow_glyphs_at_bold() {
+        // The one combination the Faces get wrong, recorded rather than
+        // asserted away: iA's Quattro Italic carries a `wght` advance delta on
+        // its narrow glyphs — `t` goes 450 units to 600 — where its Roman and
+        // the other two Italics carry none. So a Quattro run that goes bold
+        // italic, which is emphasis inside a heading, moves the glyphs after
+        // it. Issue #95 pins it in `tools/fontbuild.py`, beside the word space
+        // that Face already needed pinning; the day it does, this test fails
+        // and takes the carve-out above with it.
+        crate::fonts::load_private(&quill_engine::data::fonts())
+            .expect("the Faces are in the checkout");
+        let context = pangocairo::FontMap::default().create_context();
+        assert!(
+            advance(&context, Face::Quattro, BOLD, Slant::Italic, "t")
+                > advance(&context, Face::Quattro, REGULAR, Slant::Italic, "t"),
+            "#95 is fixed: drop this test and the carve-out that names it"
+        );
+    }
+
+    /// Whether this is the combination [`#95`](https://github.com/danielbaldwin47/Quill/issues/95)
+    /// is about.
+    fn bold_italic_quattro(face: Face, weight: i32, slant: Slant) -> bool {
+        face == Face::Quattro && weight == BOLD && slant == Slant::Italic
+    }
+
+    /// The width of `passage` set in `face` at `weight` and `slant`, in Pango
+    /// units, from the same description the Editor builds.
+    fn advance(
+        context: &pango::Context,
+        face: Face,
+        weight: i32,
+        slant: Slant,
+        passage: &str,
+    ) -> i32 {
+        let mut font = pango::FontDescription::new();
+        font.set_family(match slant {
+            Slant::Upright => face.family(),
+            Slant::Italic => face.italic_family(),
+        });
+        font.set_style(pango::Style::Normal);
+        font.set_weight(pango::Weight::Normal);
+        font.set_variations(Some(&format!("wght={weight}")));
+        font.set_absolute_size(f64::from(SIZE) * f64::from(pango::SCALE));
+        let layout = pango::Layout::new(context);
+        layout.set_font_description(Some(&font));
+        layout.set_text(passage);
+        layout.size().0
+    }
+
+    /// The size the measurements are taken at, which is the one the arithmetic
+    /// above is written for.
+    const SIZE: u32 = 20;
 }
