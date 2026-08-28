@@ -7,7 +7,9 @@
 //! Annotators consume, which is the `Text` events with Markup, code spans,
 //! fenced code, URLs and front matter removed.
 
-use pulldown_cmark::{OffsetIter, Options, Parser};
+use std::ops::Range;
+
+use pulldown_cmark::{Event, LinkType, OffsetIter, Options, Parser, Tag};
 
 /// The one option set Quill reads Markdown with.
 ///
@@ -24,6 +26,10 @@ pub fn options() -> Options {
     options.insert(Options::ENABLE_FOOTNOTES);
     options.insert(Options::ENABLE_STRIKETHROUGH);
     options.insert(Options::ENABLE_TASKLISTS);
+    // Front matter is not prose and not a thematic break. Without this a file
+    // opening with `---` is read as a rule and a heading, so the Editor would
+    // style a writer's metadata as text and Spell check would read it.
+    options.insert(Options::ENABLE_YAML_STYLE_METADATA_BLOCKS);
     options
 }
 
@@ -37,6 +43,78 @@ pub fn options() -> Options {
 #[must_use]
 pub fn events(text: &str) -> OffsetIter<'_> {
     Parser::new_ext(text, options()).into_offset_iter()
+}
+
+/// One stretch of the writer's words, and the bytes it was read from.
+///
+/// The text is the *source* slice rather than the event's own string, for the
+/// reason [`events`] gives: the two differ wherever the parser resolved an
+/// entity or dropped an escape, and an Annotator that reports a misspelling has
+/// to name bytes the Document actually holds.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Prose<'a> {
+    /// Absolute UTF-8 bytes from the start of the source.
+    pub at: Range<usize>,
+    /// The source bytes themselves.
+    pub text: &'a str,
+}
+
+/// The prose stream of `text`: the writer's words, with the Markup gone.
+///
+/// Syntax highlight, Style check and Spell check read this and never the
+/// Document, so that none of them has to know what a `#` is. What is left out
+/// is everything that is not the writer's prose: the delimiters (which are
+/// never a `Text` event to begin with), code spans and fenced or indented code
+/// (`Event::Code` and the text inside a code block), front matter, and URLs.
+///
+/// URLs need saying twice, because they arrive two ways. An inline link's
+/// destination is part of its tag and never a `Text` event, so it falls out for
+/// free; an **autolink**'s destination *is* its text, so it is suppressed here
+/// by name. Without that, `<https://example.org>` would reach Spell check as a
+/// word.
+///
+/// The words come out in fragments, split wherever a construct interrupted
+/// them, because that is what the parser reports and joining them would invent
+/// bytes that are not in the file. What to do at a fragment's edge is the
+/// consuming Annotator's judgement, not this function's.
+#[must_use]
+pub fn prose(text: &str) -> Vec<Prose<'_>> {
+    let mut runs = Vec::new();
+    // One flag per open tag, because `Event::End` does not carry enough to
+    // recognise an autolink again, and a `usize` alone could not be unwound.
+    let mut open: Vec<bool> = Vec::new();
+    let mut hidden = 0usize;
+    for (event, at) in events(text) {
+        match &event {
+            Event::Start(tag) => {
+                let hides = hides_prose(tag);
+                open.push(hides);
+                hidden += usize::from(hides);
+            }
+            Event::End(_) => {
+                hidden -= usize::from(open.pop().unwrap_or(false));
+            }
+            Event::Text(_) if hidden == 0 => runs.push(Prose {
+                text: &text[at.clone()],
+                at,
+            }),
+            _ => {}
+        }
+    }
+    runs
+}
+
+/// Whether the text inside `tag` is something other than the writer's prose.
+fn hides_prose(tag: &Tag<'_>) -> bool {
+    matches!(
+        tag,
+        Tag::CodeBlock(_)
+            | Tag::MetadataBlock(_)
+            | Tag::Link {
+                link_type: LinkType::Autolink | LinkType::Email,
+                ..
+            }
+    )
 }
 
 #[cfg(test)]
@@ -114,6 +192,92 @@ mod tests {
             run.len(),
             at.len()
         );
+    }
+
+    /// The passage the Markup Piece is judged on.
+    fn oracle() -> String {
+        std::fs::read_to_string("../shots/oracle/markup.md")
+            .expect("the judged Markup passage is in the repo")
+    }
+
+    /// The prose stream of `source` as the words alone, in order.
+    fn words(source: &str) -> Vec<&str> {
+        prose(source).into_iter().map(|run| run.text).collect()
+    }
+
+    #[test]
+    fn the_prose_stream_of_the_oracles_passage_is_the_writers_words_and_nothing_else() {
+        let source = oracle();
+        assert_eq!(
+            words(&source),
+            [
+                "The Lighthouse",
+                "The lamp had been lit for an hour before she noticed the boat. It was a ",
+                "small thing",
+                ", a dark stitch on the water, and it was ",
+                "not moving",
+                " the way boats move when someone is rowing them.",
+                "What the sea keeps",
+                "There are things the sea gives back and things it keeps, and no one has ever \
+                 found the rule that decides between them.",
+                "the rope, coiled and salt-stiff",
+                "the good knife",
+                "two oranges, for luck",
+                "Untie the skiff.",
+                "Push off before the tide turns.",
+                "She wrote the bearing on her sleeve, ",
+                ", and the log entry followed:",
+                "The rest is in ",
+                "the keeper's book",
+                ", and the boat that was not moving grew larger in the dark.",
+            ]
+        );
+    }
+
+    #[test]
+    fn no_markup_byte_survives_into_the_prose_stream() {
+        let source = oracle();
+        let words: String = words(&source).concat();
+        // A hyphen is not in the list: `salt-stiff` is the writer's word, and
+        // the bullet that opens its line never reaches a `Text` event at all.
+        for markup in ['#', '*', '`', '>', '[', ']', '(', ')'] {
+            assert!(
+                !words.contains(markup),
+                "the prose stream carries a {markup:?}, which an Annotator must never see"
+            );
+        }
+        assert!(
+            !words.contains("https"),
+            "the prose stream carries a URL, which Spell check would call a misspelling"
+        );
+        assert!(
+            !words.contains("21:40"),
+            "the prose stream carries the fenced block, which is not prose"
+        );
+    }
+
+    #[test]
+    fn every_prose_range_names_the_source_bytes_it_was_read_from() {
+        let source = oracle();
+        for run in prose(&source) {
+            assert_eq!(
+                &source[run.at.clone()],
+                run.text,
+                "a prose range must name its own source bytes"
+            );
+        }
+    }
+
+    #[test]
+    fn front_matter_is_not_prose() {
+        let source = "---\ntitle: The Lighthouse\n---\n\nThe lamp was lit.\n";
+        assert_eq!(words(source), ["The lamp was lit."]);
+    }
+
+    #[test]
+    fn an_autolinks_url_is_not_prose_even_though_it_is_the_links_text() {
+        let source = "Written up at <https://example.org/keepers-book> in full.\n";
+        assert_eq!(words(source), ["Written up at ", " in full."]);
     }
 
     #[test]

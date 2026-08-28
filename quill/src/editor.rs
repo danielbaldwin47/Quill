@@ -183,10 +183,10 @@ impl Editor {
         self.set_left_margin(page.side);
         self.set_right_margin(page.side);
         self.set_bottom_margin(page.bottom);
-        // The heading markers hang off this margin, so they are re-hung with
-        // it: both halves of the pair move, `side` with the window and the
-        // marker's width with the type.
-        tags::hang_headings(
+        // The heading and list markers hang off this margin, so they are
+        // re-hung with it: both halves of the pair move, `side` with the window
+        // and the marker's width with the type.
+        tags::hang_markers(
             &self.buffer(),
             self.imp().face.get(),
             self.imp().size.get(),
