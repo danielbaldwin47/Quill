@@ -46,6 +46,9 @@ Rules:
 ${p.id === 'latency' ? `\nLATENCY SPECIFICS: this piece is judged on numbers, not screenshots. Produce progress/latency.json and progress/latency-report.md (methods, environment: headless Chromium 151 on Linux, CPU, document size, N, how frames were detected, caveats). Also try a headed measurement through the legacy/bin/quill launcher if a display is available (check $WAYLAND_DISPLAY / $DISPLAY; if none, say so). For the pair, set oursShot to progress/latency.json and theirsShot to ref/ia/REFERENCE.md and skip blind pairing (paired:false). Do not delete previous shots.` : ''}
 Return JSON per the schema: oursShot, theirsShot (repo-relative paths), refSource (which ref image + crop box), note (what changed), paired (true if blind.mjs pair ran).`
 }
+// The prompt below is this workflow's record of how the JavaScript app was judged, and is not the
+// one any live command sends. `tools/critic.md` is: `tools/gate judge` reads it, and it is where a
+// change to what a critic is asked belongs. Kept here as it ran, along with the rest of this file.
 function criticPrompt(p, round) {
   return `You are a HARSH CRITIC: a professional novelist and essayist who has written three books in iA Writer, and a typographer who notices half-pixel misalignments. You are judging ONE piece of a writing environment: "${p.title}" — ${p.judge}.
 
