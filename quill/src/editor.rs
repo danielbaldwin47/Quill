@@ -17,8 +17,15 @@ use gtk::prelude::*;
 use quill_engine::document::Document;
 use quill_engine::settings::Face;
 
+use crate::flags::Caret;
+
 /// The CSS class the Editor's Face is named on.
 const FACE_CLASS: &str = "quill-editor";
+
+/// How far down the view `--caret` leaves the line the caret is on: the middle,
+/// which is where a typewriter-scrolled Editor keeps it and the one place that
+/// does not depend on how long the document is.
+const CARET_LINE: f64 = 0.5;
 
 mod imp {
     use gtk::glib;
@@ -64,6 +71,40 @@ impl Editor {
         buffer.set_text(document.text());
         buffer.place_cursor(&buffer.start_iter());
     }
+
+    /// Puts the caret where `--caret` asked for it, and shows where it went.
+    ///
+    /// The harness names an offset in UTF-8 bytes, because that is what a
+    /// Document is measured in everywhere else; a `GtkTextBuffer` counts in
+    /// characters, so the two are converted here rather than at the flag. The
+    /// view is scrolled to the caret because a caret the harness cannot see is
+    /// not the state it asked for: a bench typing at the end of a draft has to
+    /// be looking at the end of the draft.
+    pub fn place_caret(&self, caret: Caret) {
+        let buffer = self.buffer();
+        let at = match caret {
+            Caret::End => buffer.end_iter(),
+            Caret::At(offset) => buffer.iter_at_offset(character_offset(&buffer, offset)),
+        };
+        buffer.place_cursor(&at);
+        self.scroll_to_mark(&buffer.get_insert(), 0.0, true, 0.0, CARET_LINE);
+    }
+}
+
+/// Where `bytes` UTF-8 bytes into `buffer` is, counted in the characters a
+/// `GtkTextBuffer` addresses by.
+///
+/// An offset past the end lands at the end, and an offset inside a character
+/// lands after that character: the flag names a place in a Document the harness
+/// chose, and neither is worth refusing a launch over.
+fn character_offset(buffer: &gtk::TextBuffer, bytes: u64) -> i32 {
+    let bytes = usize::try_from(bytes).unwrap_or(usize::MAX);
+    let text = buffer.text(&buffer.start_iter(), &buffer.end_iter(), true);
+    let characters = text
+        .char_indices()
+        .take_while(|(at, _)| *at < bytes)
+        .count();
+    i32::try_from(characters).unwrap_or(i32::MAX)
 }
 
 impl Default for Editor {

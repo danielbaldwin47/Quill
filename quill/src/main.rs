@@ -104,7 +104,10 @@ fn main() -> glib::ExitCode {
     app.connect_open(move |app, files, _hint| window::present_files(app, files, &opened));
 
     // Shutdown runs once, after the last window: the place state is written.
+    // The capture goes first, because a bench is waiting on that file and
+    // nothing here can fail in a way that should cost it its last keys.
     app.connect_shutdown(move |app| {
+        harness::flush();
         window::remember_open(app);
         session.store();
     });
