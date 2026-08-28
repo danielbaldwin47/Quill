@@ -10,9 +10,10 @@
 //! Paragraph tags are the third row and the one this ticket exists for:
 //! `heading-1` to `heading-6` hang a heading's `#` markers out into the left
 //! margin so the first word sits on the prose's edge, and `list-1` to
-//! `list-12` do the same for a bullet or a number, keyed by the marker's width
-//! because that is what a hang is — `- ` is two cells, `1. ` is three and a
-//! nested item is wider again. That is a step past the Parity oracle, which
+//! `list-12` do the same for a bullet, a number or a quote's `>`, keyed by the
+//! width of the whole run of markers the line opens with because that is what a
+//! hang is — `- ` is two cells, `1. ` is three, `> - ` is four and a nested
+//! item is wider again. That is a step past the Parity oracle, which
 //! could not do it — `legacy/app/css/markup.css` says why: a `<textarea>` takes
 //! no per-line horizontal shift, so the web app bought the same calm with
 //! contrast instead of position. ADR 0004 removed the mirror and with it the
@@ -372,16 +373,11 @@ pub fn apply(buffer: &gtk::TextBuffer, document: &Document, face: Face, spans: &
             buffer.apply_tag(&underline(buffer), &from, &to);
         }
     }
+    hang_lines(buffer, document, spans);
     for span in spans {
         match span.mark {
             Mark::Heading(level) => {
                 paragraph(buffer, document, span, &heading(buffer, level));
-            }
-            // The marker's own width is the hang, and the engine measured it
-            // from the line's start precisely so that it could be read here.
-            Mark::BulletMarker | Mark::OrderedMarker => {
-                let cells = marker_width(&document.text()[span.at.clone()]);
-                paragraph(buffer, document, span, &list(buffer, cells));
             }
             Mark::CodeBlock => paragraph(buffer, document, span, &code_ground(buffer)),
             Mark::Strikethrough => {
@@ -394,7 +390,54 @@ pub fn apply(buffer: &gtk::TextBuffer, document: &Document, face: Face, spans: &
     }
 }
 
-/// How many cells wide the marker `span` covers is.
+/// Hangs every line that opens with markers, by the width of all of them.
+///
+/// One hang per line rather than one per marker, because a line can open with
+/// more than one: `> - item` is a quote's marker and a bullet's, and its words
+/// land on the prose's edge only when the line hangs by the pair. The width is
+/// therefore read from the line's first byte to the end of the last line-head
+/// marker on it, not from the marker's own span, and the spans arrive in the
+/// order the bytes appear, so that last marker is the one that ends the run.
+///
+/// A heading keeps its own tag row: its span covers the whole heading rather
+/// than its `#`s, so its hang is read off the level instead, in [`apply`].
+fn hang_lines(buffer: &gtk::TextBuffer, document: &Document, spans: &[Span]) {
+    let mut run: Option<&Span> = None;
+    for span in spans {
+        if !matches!(
+            span.mark,
+            Mark::QuoteMarker | Mark::BulletMarker | Mark::OrderedMarker
+        ) {
+            continue;
+        }
+        if let Some(last) = run
+            && document.place(last.at.end).line != document.place(span.at.end).line
+        {
+            hang_line(buffer, document, last);
+        }
+        run = Some(span);
+    }
+    if let Some(last) = run {
+        hang_line(buffer, document, last);
+    }
+}
+
+/// Hangs the line `marker` is on by the width of the run `marker` ends.
+fn hang_line(buffer: &gtk::TextBuffer, document: &Document, marker: &Span) {
+    let cells = marker_width(head(document, marker.at.end));
+    paragraph(buffer, document, marker, &list(buffer, cells));
+}
+
+/// The run of line-head markers that ends `end` bytes into `document`.
+///
+/// From the line's first byte rather than from the marker's own start, so that
+/// the markers a line opens with add up: the run a quoted item's bullet ends is
+/// `> - `, and four cells is what puts its words on the prose's edge.
+fn head(document: &Document, end: usize) -> &str {
+    &document.text()[end - document.place(end).index..end]
+}
+
+/// How many cells wide the marker run `marker` is.
 ///
 /// Characters rather than bytes, because a cell is a character on the Faces'
 /// grid; a marker is ASCII either way, but the count is what the tag is keyed
@@ -521,6 +564,55 @@ mod tests {
             hang(Face::Duo, 20, marker_cells(1)),
             "a bullet and a level-1 heading are both two cells, so they hang alike"
         );
+    }
+
+    #[test]
+    fn a_quotes_marker_hangs_like_every_other_line_head_marker() {
+        // The gap the blind critic named on both markup states: every other
+        // marker hung and the `>` did not, so a quote was the one block whose
+        // first line started two cells right of its own wrapped rows.
+        let document = passage("quoted", "> There are things the sea keeps.\n");
+        assert_eq!(
+            hangs(&document),
+            vec![2],
+            "the quote's `> ` is two cells, and its words belong on the prose's edge"
+        );
+    }
+
+    #[test]
+    fn a_lines_hang_is_every_marker_it_opens_with_and_not_the_last_one_alone() {
+        // `> - ` is a quote's marker and a bullet's. Hanging by the bullet
+        // alone would leave the item's words two cells right of the prose.
+        let document = passage("quoted_item", "> quoted\n\n> - quoted item\n");
+        assert_eq!(
+            hangs(&document),
+            vec![2, 2, 4],
+            "the bullet inside a quote hangs by both markers, not by its own"
+        );
+    }
+
+    /// A Document holding `text`, the only way to build one outside the engine.
+    fn passage(stem: &str, text: &str) -> Document {
+        let path = std::env::temp_dir().join(format!("quill-tags-{stem}.md"));
+        std::fs::write(&path, text).expect("writes to the temp directory");
+        Document::open(&path).expect("reads the passage just written")
+    }
+
+    /// The hang, in cells, each line-head marker of `document` asks for.
+    ///
+    /// What [`hang_lines`] reads off the spans before it picks one tag per
+    /// line; the tag itself needs a buffer, and a buffer needs a display.
+    fn hangs(document: &Document) -> Vec<u8> {
+        annotate::markup(document.text())
+            .iter()
+            .filter(|span| {
+                matches!(
+                    span.mark,
+                    Mark::QuoteMarker | Mark::BulletMarker | Mark::OrderedMarker
+                )
+            })
+            .map(|span| marker_width(head(document, span.at.end)))
+            .collect()
     }
 
     #[test]
