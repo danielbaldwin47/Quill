@@ -10,7 +10,7 @@ Either way the spec closes on the owner's `hand test: pass`, by `docs/agents/gat
 
 ## Tickets
 
-`/to-tickets` sizes every ticket for one `/implement` session: about 70 tool calls, half what the first landed tickets made. Each ticket carries a **Size** line estimating that from what drives calls, and a **Reading** line naming the spec sections and ADRs the session needs by heading and what it can skip (the parent spec whole, `legacy/`):
+`/to-tickets` sizes every ticket for one `/implement` session: about 70 tool calls (`CLAUDE.md` § Context in an `/implement` session has what the first landed tickets made). Each ticket carries a **Size** line estimating that from what drives calls, and a **Reading** line naming the spec sections and ADRs the session needs by heading and what it can skip (the parent spec whole, `legacy/`):
 
 - Modules touched: one to three, by the module map; more is two tickets, or a prefactor ticket first.
 - Source read to do the work: about 30 KB; a ticket that needs a crate read whole is two tickets.

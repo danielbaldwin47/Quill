@@ -12,11 +12,11 @@ A long-form writing environment for Linux: a native GTK4 app in Rust, ported Pie
 - `ref/ia/` — the iA Writer screenshots, fonts and templates every comparison is judged against; `ref/sample.md` is the shared test passage.
 - `shots/` and `progress/` — judging evidence: per-Piece screenshots, round verdicts, latency JSON and the report. `shots/oracle/` is the judged states (`states.json`) and the Parity oracle frozen at them; `shots/blind/` is the critic's copy of shots committed elsewhere, ignored by git.
 - `PKGBUILD` + `packaging/` — Arch package of the native binary; `README.md` § Build, install and run the native app has the build and install commands and the traps they avoid. The `.desktop` file and the icon are named for the application id, `io.github.danielbaldwin47.Quill`.
-- `docs/` — `architecture.md` (the native spec), `shortcuts.md` (the one shortcut table every menu, the Palette and the shortcuts window read), `adr/` (decisions), `agents/` (the docs § Gate and § Agent skills point at).
+- `docs/` — `architecture.md` (the native spec), `shortcuts.md` (the one shortcut table every menu, the Palette and the shortcuts window read), `adr/` (decisions), `agents/` (the docs that § Gate and § Agent skills point at).
 
 Licences: GPL-3.0-or-later at the root (`LICENSE`), ISC in `legacy/`, OFL-1.1 for `fonts/`, and iA's own terms for `ref/ia/`.
 
-Workspace 1 is the user's: a test window (GTK, browser, bench) goes to a virtual output or to workspace 5, by the commands in `legacy/BRIEF.md` § Headed windows. The same file carries the hard rule for any edit under `legacy/app/`.
+Workspace 1 is the user's: a test window (GTK, browser, bench) goes to a virtual output or to workspace 5, by the commands in `legacy/BRIEF.md` § Headed windows. The same file, § Architecture, carries the glyph-advance rule every edit under `legacy/app/` obeys.
 
 ## Rust
 
