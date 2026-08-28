@@ -216,6 +216,11 @@ pub fn flatten(spans: &[Span]) -> Vec<Run> {
     let mut open: Vec<(usize, Look)> = Vec::new();
     let mut cursor = 0;
     for span in nested {
+        debug_assert!(
+            open.last()
+                .is_none_or(|&(end, _)| span.at.start >= end || span.at.end <= end),
+            "{span:?} straddles the span it is inside, which flattening cannot resolve"
+        );
         while let Some(&(end, look)) = open.last() {
             if end > span.at.start {
                 break;
@@ -446,18 +451,23 @@ fn markers(
     spans: &mut Vec<Span>,
 ) {
     let at = &constructs[index].0;
-    let mut covered: Vec<Range<usize>> = content
+    // Both lists are in the order they start in, so what can be inside this
+    // construct is a window of each rather than the whole of either. Found by
+    // binary search, because a Document's constructs would otherwise cost the
+    // square of their number, and a Document is 55,000 words.
+    let first = content.partition_point(|run| run.end <= at.start);
+    let mut covered: Vec<Range<usize>> = content[first..]
         .iter()
-        .filter(|run| run.start < at.end && run.end > at.start)
+        .take_while(|run| run.start < at.end)
         .cloned()
         .collect();
+    let after = constructs.partition_point(|(run, _)| run.start < at.start);
     covered.extend(
-        constructs
+        constructs[after..]
             .iter()
             .enumerate()
-            .filter(|(other, (run, _))| {
-                *other != index && run.start >= at.start && run.end <= at.end
-            })
+            .take_while(|(_, (run, _))| run.start < at.end)
+            .filter(|(other, (run, _))| after + other != index && run.end <= at.end)
             .map(|(_, (run, _))| run.clone()),
     );
     covered.sort_by_key(|run| run.start);
@@ -483,10 +493,22 @@ fn escapes(text: &str, content: &[Range<usize>], spans: &mut Vec<Span>) {
         let Some(before) = run.start.checked_sub(1) else {
             continue;
         };
-        if text.as_bytes()[before] == b'\\' {
+        // A backslash the writer escaped is content of the run before this
+        // one, not the marker of this one: `\\*` is a backslash and a star,
+        // and greying the second backslash would grey one of their words.
+        if text.as_bytes()[before] == b'\\' && !is_content(content, before) {
             spans.push(Span::new(before..run.start, Mark::Markup));
         }
     }
+}
+
+/// Whether `byte` is inside one of the content ranges.
+///
+/// They are in order and do not overlap, so the one that could hold it is the
+/// first whose end is past it.
+fn is_content(content: &[Range<usize>], byte: usize) -> bool {
+    let at = content.partition_point(|run| run.end <= byte);
+    content.get(at).is_some_and(|run| run.start <= byte)
 }
 
 /// Adds `at` as a span of `mark`, once the line ending is off the end of it.
@@ -639,6 +661,16 @@ mod tests {
     }
 
     #[test]
+    fn an_escaped_backslash_is_the_writers_word_and_only_the_first_is_grey() {
+        assert_eq!(
+            drawn("A \\\\* star\n"),
+            [("\\", MARKER)],
+            "`\\\\*` is a backslash the writer typed and a star: one marker \
+             greys the escape, and the backslash it escaped stays ink"
+        );
+    }
+
+    #[test]
     fn an_entity_is_drawn_as_the_source_bytes_the_writer_typed() {
         assert_eq!(
             drawn("# Tom &amp; Jerry\n"),
@@ -740,12 +772,11 @@ mod tests {
             "the ground runs under the backticks so that no glyph has to move"
         );
         assert_eq!(
+            resolve(Mark::Code, Look::PROSE),
             ground,
-            Look {
-                ground: Ground::Code,
-                ..Look::PROSE
-            },
-            "the code text differs from prose in its ground and in nothing else"
+            "on prose the mark adds the ground and changes nothing else; the \
+             ink it names is the prose's own, which shows only inside a struck \
+             or linked run"
         );
     }
 

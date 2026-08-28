@@ -30,6 +30,13 @@ use crate::editor::{INK, INK_WEIGHT};
 /// A constant here beside the Editor's `PAPER` and `INK` for the same reason
 /// they are constants: there is one theme until the Dark & light ticket moves
 /// all three into the palette table.
+///
+/// Every marker holds it, which is a step short of the oracle: `markup.css`
+/// keeps line-head marks at the full grey and quiets inline punctuation to
+/// `--md-mark-quiet`, 72% of it, lifting the caret's own line back to the full
+/// grey. That ladder is what "the caret's line" means, so it belongs to #40
+/// (Focus & typewriter) with the rest of it; `Look` already carries the alpha
+/// key it will be spelled in.
 const MARK: &str = "#7a7a7a";
 
 /// The link colour: `--link` of `legacy/app/css/theme.css`, 4.6:1 on paper.
@@ -236,6 +243,11 @@ pub fn hang_headings(buffer: &gtk::TextBuffer, face: Face, size: u32, side: i32)
 /// architecture parses whole on open as a cold-start cost inside the 250 ms
 /// budget, and the ticket that lands the keystroke path retags only the lines
 /// whose runs changed.
+/// Several tags land on the same bytes, which is safe here for one reason and
+/// only one: no two of them set the same property. The colour, the cut, the
+/// ground and the two decorations are five disjoint sets, so priority never
+/// has to decide between them — and priority is what the flattening exists to
+/// keep out of the colour, where they *would* collide.
 pub fn apply(buffer: &gtk::TextBuffer, document: &Document, face: Face, spans: &[Span]) {
     buffer.remove_all_tags(&buffer.start_iter(), &buffer.end_iter());
     for run in annotate::flatten(spans) {
