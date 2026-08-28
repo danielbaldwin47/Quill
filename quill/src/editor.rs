@@ -43,13 +43,13 @@ const CARET_LINE: f64 = 0.5;
 /// Dark & light ticket, and a table with one row in it says something that is
 /// not true yet.
 const PAPER: &str = "#f9f9f9";
-const INK: &str = "#1c1c1c";
+pub(crate) const INK: &str = "#1c1c1c";
 
 /// The weight ink is set at on paper: `--ink-weight: 415` in
 /// `legacy/app/css/type.css`, a little heavier than Regular because a light
 /// ground eats stems. The Faces are variable, and none of the three moves a
 /// glyph's advance across the weight axis (`spike/gtk4-editor/RESULTS.txt`).
-const INK_WEIGHT: u32 = 415;
+pub(crate) const INK_WEIGHT: u32 = 415;
 
 /// The OpenType features prose is set without.
 ///
@@ -144,6 +144,10 @@ impl Editor {
 
     /// The leading, the air above the column, and then the column.
     fn restyle(&self) {
+        // The Italic is a Face of its own, so the tags that ask for it have to
+        // be moved to the new one; the rest of the type is CSS the widget
+        // picks up on its own.
+        tags::set_face(&self.buffer(), self.imp().face.get());
         let pitch = typography::pitch(self.imp().size.get());
         let leading = typography::leading(pitch, self.row_height());
         self.set_pixels_above_lines(signed(leading.above));
@@ -222,7 +226,12 @@ impl Editor {
     pub fn show_document(&self, document: &Document) {
         let buffer = self.buffer();
         buffer.set_text(document.text());
-        tags::apply(&buffer, document, &annotate::markup(document.text()));
+        tags::apply(
+            &buffer,
+            document,
+            self.imp().face.get(),
+            &annotate::markup(document.text()),
+        );
         buffer.place_cursor(&buffer.start_iter());
     }
 

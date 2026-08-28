@@ -7,7 +7,7 @@
 //! Annotators consume, which is the `Text` events with Markup, code spans,
 //! fenced code, URLs and front matter removed.
 
-use pulldown_cmark::{Event, OffsetIter, Options, Parser};
+use pulldown_cmark::{OffsetIter, Options, Parser};
 
 /// The one option set Quill reads Markdown with.
 ///
@@ -39,22 +39,10 @@ pub fn events(text: &str) -> OffsetIter<'_> {
     Parser::new_ext(text, options()).into_offset_iter()
 }
 
-/// Whether `event` covers source bytes that are content rather than markup.
-///
-/// The parsers report a span for a *construct*, which covers its delimiters,
-/// and separate spans for the content inside it; no parser reports the
-/// delimiters on their own. So Quill derives them by subtraction, and this is
-/// the predicate the subtraction is done against: text, code and raw HTML are
-/// the three events whose bytes the writer typed as themselves.
-pub(crate) fn is_content(event: &Event<'_>) -> bool {
-    matches!(
-        event,
-        Event::Text(_) | Event::Code(_) | Event::InlineHtml(_) | Event::Html(_)
-    )
-}
-
 #[cfg(test)]
 mod tests {
+    use pulldown_cmark::Event;
+
     use super::*;
 
     #[test]
