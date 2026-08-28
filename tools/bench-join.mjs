@@ -249,13 +249,31 @@ export function verdict(stats, cold) {
 // `NaN`: a line the owner reads should say "not measured" in a way that reads as English.
 const say = (x) => (x == null ? '—' : String(x));
 
+/// What a line calls the run it is about: the regime, or the flag that chose the regimes, with
+/// `--panel` on it when the numbers came off the physical display.
+const labelled = (what, panel) => (panel ? `${what} --panel` : what);
+
+/// The clause a panel run's verdict line ends in, and the reason there is a `--panel` in the label.
+///
+/// On the line that carries the verdict — the last line of a single run, and the last line of a run
+/// of several — because a panel number read without it is a number somebody will hold against the
+/// budget, and it cannot be: the panel is fractional-scale, so the window's buffer is not the one
+/// the budget was set on. Not on each regime's row in a run of twelve, which would say it twelve
+/// times; the `--panel` in every one of those labels is what carries it there. The output, its mode
+/// and its scale are in the line for the same reason they are in the fingerprint: two panel runs are
+/// only comparable with each other, and only when those three agree.
+const caveat = (panel) => ` (on ${panel.output} at ${panel.mode} scale ${panel.scale};`
+  + ' the physical panel is informational and never a Gate condition,'
+  + " and these are not the headless output's numbers)";
+
 /// The five numbers a bench line says, in the one order they are ever said in.
 ///
 /// One regime's line and a whole run's line are read against each other — a `--all` run is twelve
 /// of the second under the first — so the shape they share is written once here. What follows the
 /// numbers is what differs: a single run names the bars, a regime in a run of twelve leaves them
-/// to `allSummary`.
-const numbers = (regime, said) => `gate bench ${regime}: ${said.pass ? 'pass' : 'fail'}`
+/// to `allSummary`, and a panel run has no bars to name because it is not judged against any.
+const numbers = (regime, said, panel) => `gate bench ${labelled(regime, panel)}: `
+  + `${panel ? 'informational' : (said.pass ? 'pass' : 'fail')}`
   + ` — mean ${say(said.mean_ms)} ms, worst ${say(said.worst_ms)} ms`
   + `, p50 ${say(said.p50_ms)} ms, p99 ${say(said.p99_ms)} ms, cold ${say(said.cold_ms)} ms`;
 
@@ -267,8 +285,10 @@ const numbers = (regime, said) => `gate bench ${regime}: ${said.pass ? 'pass' : 
 export function summary(regime, decided) {
   const count = decided.accounting;
   const said = decided.verdict;
+  const panel = decided.panel ?? null;
+  const what = labelled(regime, panel);
   const lines = [
-    `gate bench ${regime}: ${count.keys_sent} keys sent`
+    `gate bench ${what}: ${count.keys_sent} keys sent`
     + (count.keys_sent === count.keys_planned ? '' : ` of ${count.keys_planned} planned`)
     + `, ${count.keys_seen_by_the_app} seen, ${count.keys_with_a_presentation_time} presented`
     + (count.keys_the_bench_never_sent
@@ -279,14 +299,14 @@ export function summary(regime, decided) {
   // launch the cold-start budget judges, and a decision that changes a pass into a fail belongs in
   // front of the owner rather than three levels into a result file.
   if (decided.stage_first_client != null) {
-    lines.push(`gate bench ${regime}: the stage's first client cold-started in `
+    lines.push(`gate bench ${what}: the stage's first client cold-started in `
       + `${say(r2(decided.stage_first_client))} ms and is not measured — ours is the launch after it`);
   }
-  lines.push(
-    numbers(regime, said)
-    + ` (budget mean <= ${BUDGET.mean_ms}, worst <= ${BUDGET.worst_ms}, cold <= ${BUDGET.cold_ms} ms;`
-    + ` oracle ${ORACLE.uinput_to_presented_ms}, ${ORACLE.worst_ms}, ${ORACLE.cold_ms} ms)`,
-  );
+  lines.push(panel
+    ? numbers(regime, said, panel) + caveat(panel)
+    : numbers(regime, said)
+      + ` (budget mean <= ${BUDGET.mean_ms}, worst <= ${BUDGET.worst_ms}, cold <= ${BUDGET.cold_ms} ms;`
+      + ` oracle ${ORACLE.uinput_to_presented_ms}, ${ORACLE.worst_ms}, ${ORACLE.cold_ms} ms)`);
   return lines;
 }
 
@@ -299,7 +319,7 @@ export function summary(regime, decided) {
 /// where it would otherwise read as a clean fail.
 export function regimeLine(regime, decided) {
   const said = decided.verdict;
-  return numbers(regime, said)
+  return numbers(regime, said, decided.panel ?? null)
     + (decided.accounting.every_keystroke_accounted_for ? '' : ' — not every keystroke is accounted for');
 }
 
@@ -308,7 +328,14 @@ export function regimeLine(regime, decided) {
 /// `ran` is what was asked for — `--all`, or `--regimes a,b` — because a run of two that passed
 /// and a run of twelve that passed are not the same evidence, and the line the owner reads should
 /// not need the command scrolled back to to tell them apart.
-export function allSummary(ran, rows) {
+export function allSummary(ran, rows, panel = null) {
+  // A panel run has nothing to pass or fail: the budget is set on the headless output, so counting
+  // how many of these regimes cleared it would be inventing a verdict out of numbers taken
+  // somewhere else. It says how many it measured, and where.
+  if (panel) {
+    return `gate bench ${labelled(ran, panel)}: informational — `
+      + `${rows.length} regime${rows.length === 1 ? '' : 's'} measured${caveat(panel)}`;
+  }
   const failed = rows.filter((r) => !r.pass).map((r) => r.regime);
   return `gate bench ${ran}: ${failed.length ? 'fail' : 'pass'} — `
     + `${rows.length - failed.length} of ${rows.length} regimes clear the budget`

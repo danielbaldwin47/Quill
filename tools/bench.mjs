@@ -38,7 +38,10 @@ import {
   BUDGET, ORACLE, allSummary, measure, regimeLine, summary, verdict, writeGaps,
 } from './bench-join.mjs';
 import { gitHead } from './fingerprint.mjs';
-import { APP_ID, compositorAvailable, openStage } from './harness.mjs';
+import {
+  APP_ID, PANEL_IDLE_S, PANEL_WORKSPACE, compositorAvailable, openPanelStage, openStage,
+  panelBlocked,
+} from './harness.mjs';
 import {
   DEFAULT_KEYS, PASTE_TEXT, WARMUP_KEYS, hash32, regimes, script, uinputPlan,
 } from './regimes.mjs';
@@ -58,6 +61,13 @@ const WINDOW = { w: 1440, h: 900 };
 // Where results land, and which regime `tools/gate bench` runs when told nothing else.
 const RESULTS = 'shots/latency';
 const HEADLINE = 'prose_end_of_draft';
+
+// What `informational` says inside a panel result. A sentence rather than `true`, because the field
+// exists for whoever opens the JSON a year from now, and `true` answers a question they have not
+// asked yet. Truthy either way, which is what `tools/gate judge latency` tests it for.
+const PANEL_IS_INFORMATIONAL = 'the physical panel is never a Gate condition: this run was taken on '
+  + 'a fractional-scale output rather than the headless stage the budget and the oracle numbers '
+  + 'belong to, so its numbers are comparable only with another panel run of the same output';
 
 // How long the app is given after the last key before its capture is read: past `harness.rs`'s own
 // 250 ms tail, which is what makes the frame carrying the last key complete.
@@ -104,16 +114,24 @@ function refuse(why) {
 
 function usage(to = process.stderr) {
   to.write(`usage: tools/gate bench [regime] [--all] [--regimes a,b] [--keys N] [--sessions N]
+                        [--panel] [--idle-window S]
 
-  regime       which of the twelve to type; ${HEADLINE} by default
-  --all        every one of the twelve, one line each and one line for the run
-  --regimes    just these, by name, separated by commas
-  --keys N     keys measured per session (${DEFAULT_KEYS} by default, the oracle's count)
-  --sessions N launch and type this many times, for a run-to-run interval (1 by default)
+  regime          which of the twelve to type; ${HEADLINE} by default
+  --all           every one of the twelve, one line each and one line for the run
+  --regimes       just these, by name, separated by commas
+  --keys N        keys measured per session (${DEFAULT_KEYS} by default, the oracle's count)
+  --sessions N    launch and type this many times, for a run-to-run interval (1 by default)
+  --panel         measure on the physical display, on workspace ${PANEL_WORKSPACE}, and only while
+                  nobody is at the machine; informational, never a Gate condition
+  --idle-window S how long everything has to have been quiet before --panel takes
+                  the screen (${PANEL_IDLE_S}s by default)
 
 A regime name, --all and --regimes each say which regimes to run, so only one of them may be given.
 A run of several writes ${RESULTS}/summary-<stamp>.json beside the per-regime results, which is what
-tools/gate judge latency reads.
+tools/gate judge latency reads. A --panel run of several writes ${RESULTS}/panel-summary-<stamp>.json
+instead, which judge does not read and never will: the panel is a fractional-scale output, its
+numbers are not the ones the budget is set on, and nothing about it decides a Piece. Every --panel
+result file, one regime or twelve, is marked informational inside and named bench-panel-<regime>-.
 `);
 }
 
@@ -380,7 +398,7 @@ async function runSession(root, stage, { regime, keys, index }) {
 /// of a release run share it. The launch is not shared: every regime gets its own, so the caret it
 /// types at, the Focus it runs under and the cold start it reports are its own and not the last
 /// regime's.
-async function benchOne(root, stage, { regime, keys, sessions, warmup }) {
+async function benchOne(root, stage, { regime, keys, sessions, warmup, panel }) {
   // Loaded before the first launch rather than once for the whole run, so that a regime which
   // pastes is pasting its own passage even when the owner used the clipboard between regimes.
   if (regime.mix === 'paste') loadClipboard(PASTE_TEXT);
@@ -402,6 +420,10 @@ async function benchOne(root, stage, { regime, keys, sessions, warmup }) {
   const said = verdict(decided.uinput_write_to_presented_ms, cold);
 
   const result = {
+    // First in the file, and in the file at all rather than only in the line the run printed,
+    // because a result outlives the terminal it was printed in: whoever opens this in six months
+    // meets "not a Gate condition" before they meet a mean.
+    ...(panel ? { informational: PANEL_IS_INFORMATIONAL, panel } : {}),
     regime: regime.name,
     definition: {
       mix: regime.mix, where: regime.where, pace_ms: regime.pace, focus: regime.focus,
@@ -431,7 +453,7 @@ async function benchOne(root, stage, { regime, keys, sessions, warmup }) {
     fingerprint: fingerprint(root, stage),
   };
 
-  const file = path.join(RESULTS, `bench-${regime.name}-${stamp()}.json`);
+  const file = path.join(RESULTS, `bench-${panel ? 'panel-' : ''}${regime.name}-${stamp()}.json`);
   fs.mkdirSync(path.join(root, RESULTS), { recursive: true });
   fs.writeFileSync(path.join(root, file), `${JSON.stringify(result, null, 2)}\n`);
   say(`gate bench: wrote ${file}`);
@@ -443,7 +465,9 @@ async function benchOne(root, stage, { regime, keys, sessions, warmup }) {
     said,
     // The one shape both `summary` and `regimeLine` read, built once here so that the lines a run
     // of one prints and the lines a run of twelve prints cannot be assembled two different ways.
-    reported: { accounting: decided.accounting, verdict: said, stage_first_client: warmup },
+    reported: {
+      accounting: decided.accounting, verdict: said, stage_first_client: warmup, panel,
+    },
     lost: runs.some((r) => r.stopped_because_focus_was_lost),
   };
 }
@@ -451,7 +475,18 @@ async function benchOne(root, stage, { regime, keys, sessions, warmup }) {
 // The stamp a result file is named by: one second's resolution, which is finer than a regime runs.
 const stamp = () => new Date().toISOString().replace(/[-:]/g, '').replace(/\..*/, '');
 
-async function bench(root, { ran, chosen, keys, sessions }) {
+async function bench(root, { ran, chosen, keys, sessions, wantsPanel, idle }) {
+  // Asked before the build, because a refusal the owner waits two minutes of `cargo build` for
+  // is a refusal that arrives after they have gone. The one check not made here is the idle one:
+  // that is a question about the last few seconds, and `openPanelStage` asks it immediately
+  // before it takes the screen.
+  if (wantsPanel) {
+    const blocked = panelBlocked({ workspace: PANEL_WORKSPACE });
+    if (blocked) {
+      say(`gate bench: ${blocked}`);
+      return refuse(blocked);
+    }
+  }
   if (!compositorAvailable()) {
     say('gate bench: no Hyprland to open a window on; real keys need the compositor '
       + '(docs/research/native-harness.md)');
@@ -469,7 +504,24 @@ async function bench(root, { ran, chosen, keys, sessions }) {
     return refuse('the binary would not build');
   }
 
-  const stage = await openStage({ root });
+  const stage = wantsPanel
+    ? await openPanelStage({ root, workspace: PANEL_WORKSPACE, idle })
+    : await openStage({ root });
+
+  // What the panel run is of, taken from the stage rather than from the flag, so that a line saying
+  // "on DP-3 at 3840x2160 scale 1.5" is saying what the compositor actually gave it.
+  const panel = wantsPanel ? {
+    output: stage.monitor.name,
+    mode: `${stage.monitor.width}x${stage.monitor.height}`,
+    scale: stage.monitor.scale,
+    workspace: stage.workspace,
+    idle_window_s: idle,
+  } : null;
+  if (panel) {
+    say(`gate bench: measuring on the PHYSICAL panel, ${panel.output} workspace ${panel.workspace}`
+      + '; the workspace goes back afterwards, and the numbers are informational');
+  }
+
   const done = [];
   let warmup = null;
   try {
@@ -477,7 +529,7 @@ async function bench(root, { ran, chosen, keys, sessions }) {
     warmup = await warmStage(root, stage, chosen[0]);
     say(`gate bench: the stage's first client cold-started in ${warmup} ms, and is not measured`);
     for (const regime of chosen) {
-      const one = await benchOne(root, stage, { regime, keys, sessions, warmup });
+      const one = await benchOne(root, stage, { regime, keys, sessions, warmup, panel });
       done.push(one);
       // Focus going somewhere else is the one thing that stops the rest of the run: the keys after
       // it would be typed into whatever took the focus, and no later regime's number would be of
@@ -493,7 +545,9 @@ async function bench(root, { ran, chosen, keys, sessions }) {
 
   // What was asked for decides how it is said: a bare `gate bench [regime]` is one regime and the
   // three lines #64 settled, and `--all` or `--regimes` is a run, however many regimes are in it.
-  return ran === null ? oneSaid(done[0]) : manySaid(root, { ran, chosen, done, warmup });
+  return ran === null
+    ? oneSaid(done[0])
+    : manySaid(root, { ran, chosen, done, warmup, panel });
 }
 
 /// What one regime's run prints, and the code it exits with.
@@ -509,7 +563,10 @@ function oneSaid(one) {
       : `not every keystroke is accounted for; the numbers are in ${one.file}`);
   }
   for (const line of summary(one.regime, one.reported)) console.log(line);
-  return one.said.pass ? 0 : 1;
+  // 1 is "this missed the budget", and the panel is not held to the budget. A panel run that
+  // measured every key it sent has done the whole of what it was asked, so it exits 0 whatever the
+  // numbers are; the only way it fails is the accounting above, which is not about speed.
+  return one.reported.panel || one.said.pass ? 0 : 1;
 }
 
 /// What a run of several regimes prints, and the code it exits with.
@@ -518,7 +575,7 @@ function oneSaid(one) {
 /// results holding what those lines say — because the release check and `tools/gate judge latency`
 /// both ask the same question of a whole run, and neither should have to reopen twelve files and
 /// decide for itself which twelve they were.
-function manySaid(root, { ran, chosen, done, warmup }) {
+function manySaid(root, { ran, chosen, done, warmup, panel }) {
   const rows = done.map((one) => ({
     regime: one.regime,
     file: one.file,
@@ -535,9 +592,13 @@ function manySaid(root, { ran, chosen, done, warmup }) {
   // re-deriving a verdict from twelve result files and hoping it phrases it the same way.
   const whole = !missing.length && !unaccounted.length;
   const lines = done.map((one) => regimeLine(one.regime, one.reported));
-  if (whole) lines.push(allSummary(ran, rows));
+  if (whole) lines.push(allSummary(ran, rows, panel));
 
-  const file = path.join(RESULTS, `summary-${stamp()}.json`);
+  // Named apart from a Gate run's summary rather than only flagged inside it. `tools/gate judge
+  // latency` takes the newest `summary-*.json` under this directory when it is not given one, and a
+  // panel run that could become the newest of those is a panel run that could be judged by
+  // accident. The flag inside is the second guard, for the summary that is named to judge by hand.
+  const file = path.join(RESULTS, `${panel ? 'panel-' : ''}summary-${stamp()}.json`);
   fs.writeFileSync(path.join(root, file), `${JSON.stringify({
     ran,
     at: new Date().toISOString(),
@@ -548,7 +609,10 @@ function manySaid(root, { ran, chosen, done, warmup }) {
     regimes_not_run: missing,
     regimes_unaccounted_for: unaccounted,
     stage_first_client_ms: warmup,
-    pass: whole && rows.every((r) => r.pass),
+    // Null rather than a boolean for a panel run: `pass` here means "cleared the Gate's budget",
+    // and these numbers were not taken where that budget applies. There is no answer to give.
+    pass: panel ? null : whole && rows.every((r) => r.pass),
+    ...(panel ? { informational: PANEL_IS_INFORMATIONAL, panel } : {}),
     lines,
     build: {
       git: done[0]?.result.fingerprint.app.git_head ?? null,
@@ -559,6 +623,7 @@ function manySaid(root, { ran, chosen, done, warmup }) {
   say(`gate bench: wrote ${file}`);
 
   for (const line of lines) console.log(line);
+  if (whole && panel) return 0;
   if (!whole) {
     return refuse(missing.length
       ? `${missing.join(', ')} never ran; ${file} records how far the run got`
@@ -576,6 +641,9 @@ async function main(argv) {
   let subset = null;
   let keys = DEFAULT_KEYS;
   let sessions = 1;
+  let wantsPanel = false;
+  let idle = PANEL_IDLE_S;
+  let idleGiven = false;
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--keys' || a === '--sessions') {
@@ -586,7 +654,22 @@ async function main(argv) {
         return 3;
       }
       if (a === '--keys') keys = n; else sessions = n;
-    } else if (a === '--all') { all = true; } else if (a === '--regimes') {
+    } else if (a === '--idle-window') {
+      // Seconds, and not necessarily whole ones: `tools/idle-check.py` takes a float, and the
+      // fraction is worth keeping for a run being tried repeatedly on a machine somebody is about
+      // to leave. Zero is allowed and means "ask once and do not wait" — still a check, because
+      // `idle-check.py` refuses a machine it cannot read the input devices of whatever the window.
+      idleGiven = true;
+      const n = Number(argv[i += 1]);
+      if (!Number.isFinite(n) || n < 0) {
+        process.stderr.write('gate bench: --idle-window takes seconds, 0 or more\n');
+        usage();
+        return 3;
+      }
+      idle = n;
+    } else if (a === '--panel') { wantsPanel = true; } else if (a === '--all') {
+      all = true;
+    } else if (a === '--regimes') {
       subset = String(argv[i += 1] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
       if (!subset.length) {
         process.stderr.write('gate bench: --regimes takes regime names separated by commas\n');
@@ -602,6 +685,16 @@ async function main(argv) {
       usage();
       return 3;
     }
+  }
+
+  // Refused rather than ignored. The flag's whole job is to move a threshold that only --panel
+  // consults, so a run given it without --panel is a run whose author believes something about it
+  // that is not true.
+  if (idleGiven && !wantsPanel) {
+    process.stderr.write('gate bench: --idle-window is how long --panel waits for the machine to go '
+      + 'quiet, and this run is not a --panel run\n');
+    usage();
+    return 3;
   }
 
   const known = regimes();
@@ -644,7 +737,7 @@ async function main(argv) {
 
   openLog(root);
   try {
-    return await bench(root, { ran, chosen, keys, sessions });
+    return await bench(root, { ran, chosen, keys, sessions, wantsPanel, idle });
   } catch (e) {
     say(String(e.stack || e.message));
     return refuse(e.message.split('\n')[0]);
