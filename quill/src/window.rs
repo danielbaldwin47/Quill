@@ -34,7 +34,7 @@ mod imp {
     use gtk::prelude::*;
     use gtk::subclass::prelude::*;
     use gtk::{ScrolledWindow, glib};
-    use quill_engine::document::Document;
+    use quill_engine::document::{Document, Edit};
 
     use crate::editor::Editor;
     use crate::session::Session;
@@ -47,6 +47,9 @@ mod imp {
         /// remembered in.
         pub session: RefCell<Option<Rc<Session>>>,
         pub editor: Editor,
+        /// What the edit now going through the buffer changed, left here by
+        /// the handler that spliced the Document for the one that retags.
+        pub pending: RefCell<Option<Edit>>,
     }
 
     #[glib::object_subclass]
@@ -97,6 +100,9 @@ impl Window {
             // frame to be compared against the opponent's.
             window.set_decorated(false);
         }
+        // Before the first Document is shown, so that there is no window whose
+        // buffer can be typed into without the engine hearing about it.
+        window.watch_edits();
         window.set_document(document);
         window
             .imp()
@@ -212,6 +218,82 @@ impl Window {
         self.set_title(Some(&document.title()));
         self.imp().editor.show_document(&document);
     }
+
+    /// Keeps the engine's copy of the text in step with the buffer, keystroke
+    /// by keystroke, and draws what that changed.
+    ///
+    /// Three handlers and the order between them is the keystroke path.
+    /// `insert-text` and `delete-range` are read **before** GTK's own handler,
+    /// because that is the last moment at which the buffer and the Document
+    /// still agree on what a byte offset means — the iterators name a place in
+    /// the text the Document still has. `changed` is read after, because a tag
+    /// is put on by line and byte index within the line, and both have to be
+    /// the ones the writer can now see.
+    ///
+    /// So the splice happens before any Annotator runs, as
+    /// `docs/architecture.md` § Text model requires, and the retag happens
+    /// after the text has moved. What the splice worked out is carried between
+    /// them in [`imp::Window::pending`].
+    fn watch_edits(&self) {
+        let buffer = self.imp().editor.buffer();
+
+        let watcher = self.downgrade();
+        buffer.connect_insert_text(move |_, at, text| {
+            let Some(window) = watcher.upgrade() else {
+                return;
+            };
+            if window.imp().editor.loading() {
+                return;
+            }
+            let mut document = window.imp().document.borrow_mut();
+            let offset = offset_of(&document, at);
+            let edit = document.insert(offset, text);
+            window.imp().pending.replace(Some(edit));
+        });
+
+        let watcher = self.downgrade();
+        buffer.connect_delete_range(move |_, from, to| {
+            let Some(window) = watcher.upgrade() else {
+                return;
+            };
+            if window.imp().editor.loading() {
+                return;
+            }
+            let mut document = window.imp().document.borrow_mut();
+            let at = offset_of(&document, from)..offset_of(&document, to);
+            let edit = document.delete(at);
+            window.imp().pending.replace(Some(edit));
+        });
+
+        let watcher = self.downgrade();
+        buffer.connect_changed(move |_| {
+            let Some(window) = watcher.upgrade() else {
+                return;
+            };
+            if window.imp().editor.loading() {
+                return;
+            }
+            // Nothing pending is a change the Document was not spliced for:
+            // filling the buffer with a Document it already holds.
+            let Some(edit) = window.imp().pending.take() else {
+                return;
+            };
+            let document = window.imp().document.borrow();
+            window.imp().editor.retag(&document, &edit.lines);
+        });
+    }
+}
+
+/// The byte `at` names, in the offsets the engine counts in.
+///
+/// `GtkTextIter` already counts bytes within a line, which is the half of the
+/// mapping GTK gives away for nothing; the Document's line table gives the
+/// other half. This is [`crate::tags::iter_at`] read backwards, and it must be
+/// called while the two still hold the same text.
+fn offset_of(document: &Document, at: &gtk::TextIter) -> usize {
+    let line = usize::try_from(at.line()).unwrap_or(0);
+    let index = usize::try_from(at.line_index()).unwrap_or(0);
+    document.line_bytes(line).start + index
 }
 
 /// Which way Bigger Text, Smaller Text and Default Text Size move.
