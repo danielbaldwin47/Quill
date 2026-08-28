@@ -15,8 +15,7 @@
 use gtk::glib;
 use gtk::prelude::*;
 use quill_engine::document::Document;
-
-use crate::fonts;
+use quill_engine::settings::Face;
 
 /// The CSS class the Editor's Face is named on.
 const FACE_CLASS: &str = "quill-editor";
@@ -78,8 +77,10 @@ impl Default for Editor {
 /// A Face is asked for by family name and never by file: fontconfig already
 /// holds the six that [`crate::fonts::load_private`] gave it, and the same line
 /// still means something when they are missing. One `font-family` and nothing
-/// else — the size and the leading are the type ticket's.
-pub fn install_face() {
+/// else — the size and the leading are the type ticket's, and are the reason
+/// the writer's `size` is read at launch but not yet applied: a size without
+/// the leading that belongs to it is half a decision.
+pub fn install_face(face: Face) {
     let Some(display) = gtk::gdk::Display::default() else {
         // No display: nothing to style, and nothing that will draw text.
         return;
@@ -87,7 +88,7 @@ pub fn install_face() {
     let provider = gtk::CssProvider::new();
     provider.load_from_string(&format!(
         "textview.{FACE_CLASS} {{ font-family: \"{}\"; }}",
-        fonts::DEFAULT
+        face.family()
     ));
     gtk::style_context_add_provider_for_display(
         &display,
