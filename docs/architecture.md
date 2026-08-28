@@ -23,8 +23,9 @@ Engine modules, one per concept: `document` (text and block index), `markdown` (
 shared `Options`), `annotate` (the Annotator trait, spans, run flattening), `library`, `settings`,
 `template`, `render` (Pango layout for Preview, PDF and HTML), `stats`, `outline`, `spell` (the
 `SpellChecker` trait and the enchant and `spellbook` implementations), `pos` (Syntax highlight),
-`style` (Style check). App modules mirror the Pieces and features: `editor`, `caret`, `focus`,
-`typewriter`, `theme`, `chrome`, `library`, `preview`, `export`, `flags`, `harness`.
+`style` (Style check), `typography` (the pitch, the measure and the page margins). App modules
+mirror the Pieces and features: `editor`, `caret`, `focus`, `typewriter`, `theme`, `chrome`,
+`library`, `preview`, `export`, `flags`, `harness`.
 
 ## Text model
 
