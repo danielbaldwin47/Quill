@@ -39,6 +39,7 @@ The smart zone is about 120k tokens. A session is near 60k once this file, the t
 - **The ticket is fetched once**, with its parent spec, to a file under the job's tmp directory by `tools/ticket <N>`, and later questions are answered from that file by `sed -n` range.
 - **Docs by section.** This file is already in context. `docs/agents/gate.md` for the tier the ticket names, `docs/architecture.md` for the sections the ticket cites, ADRs by number; `docs/agents/hand-tests.md` is `/to-spec`'s reading.
 - **One tool per file.** A file the harness has seen through Read, Write or Edit and then changed through Bash — `sed -i`, a heredoc, `cargo fmt` — comes back into context as a diff snippet (one session paid 60 KB this way). Files opened with Bash stay with Bash; files touched with Write or Edit change through Edit, written in rustfmt's shape so `cargo fmt` changes nothing.
+- **In a worktree, Bash is one plain command per call.** Once the session has entered `.claude/worktrees/`, the isolation check reads a command's shape rather than its targets and refuses heredocs, `;`-chains and `for` loops, even ones that touch only `gh` or the job's tmp directory. Files are created with Write and changed with Edit from the first edit, whatever the permission mode says about preferring Bash; a sweep that needs a loop runs in a subagent before `EnterWorktree`.
 
 ## Agent docs
 
