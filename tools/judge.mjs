@@ -191,23 +191,28 @@ const trail = [];
 let logFile = null;
 function say(line) {
   trail.push(line);
-  if (logFile) fs.appendFileSync(logFile, `${line}\n`);
+  if (!logFile) return;
+  // The log is a convenience and never the thing that decides a run: a target/ that cannot be
+  // written to must not turn a verdict into a stack trace. Given up on at the first refusal, so a
+  // full disk is not one failed write per line; the trail itself is kept either way.
+  try { fs.appendFileSync(logFile, `${line}\n`); } catch { logFile = null; }
 }
 
-// The trail, for the agent who has to fix what stopped this. Emptied as it goes, so a caller that
-// spills twice does not say everything twice.
+// The trail, for the agent who has to fix what stopped this.
 function spill() {
   if (trail.length) process.stderr.write(`${trail.join('\n')}\n`);
-  trail.length = 0;
 }
 
 // The file the trail is written to as it is said, so a run that is still going, or one killed
-// part-way, can be read from another terminal.
+// part-way, can be read from another terminal. Silent when it cannot be opened, for the reason
+// say() is.
 function openLog(root, piece) {
   const file = path.join(root, 'target/gate', `judge-${piece}.log`);
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, `gate judge ${piece} — ${new Date().toISOString()}\n`);
-  logFile = file;
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, `gate judge ${piece} — ${new Date().toISOString()}\n`);
+    logFile = file;
+  } catch { logFile = null; }
 }
 
 // The line the owner reads, and the code that agrees with it.

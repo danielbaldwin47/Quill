@@ -28,10 +28,6 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)
 
-# Where the running step's output waits. Set by `check`, once it knows the
-# directory it is checking.
-LOGS=
-
 # The one copy of what the commands are; the header above says why.
 usage() {
     cat <<'EOF'
@@ -67,8 +63,9 @@ usage: tools/gate <command> [arguments]
                 when every state is. Ends in `gate judge <piece>: ours|theirs,
                 round <N>`: 0 for ours, 1 for theirs, 2 for theirs after this
                 Piece had been won, 3 when nothing was judged — a command line
-                it could not read included, since 2 is spoken for. That line is
-                the whole of stdout: everything said on the way to it is
+                it could not read included, since 2 is spoken for. That line,
+                with the one above it that names the round which won a Piece now
+                lost, is the whole of stdout: everything said on the way there is
                 target/gate/judge-<piece>.log, printed when the run refuses, and
                 a round that reached a verdict has its detail in the JSON.
 
@@ -85,9 +82,12 @@ fail() { printf 'gate check: fail (%s)\n' "$1"; exit 1; }
 # One step: its line, then its command with every word of its output — cargo's
 # and this script's alike — held in the step's log. A green step is its line and
 # nothing more; a red one hands the log over before the line the owner reads.
+# The log sits where the build output does, under the directory being checked,
+# so a check on the fixture leaves nothing behind in the repo.
 run_step() {
-    local name=$1 what=$2 log=$LOGS/$1.log; shift 2
+    local name=$1 what=$2 log=$PWD/target/gate/$1.log; shift 2
     step "$name" "$what"
+    mkdir -p "$(dirname "$log")"
     "$@" > "$log" 2>&1 || { cat "$log"; fail "$name"; }
 }
 
@@ -154,11 +154,6 @@ check() {
         exit 2
     fi
     cd "$dir"
-
-    # The logs sit where the build output does, under the directory being
-    # checked, so a check on the fixture leaves nothing behind in the repo.
-    LOGS=$PWD/target/gate
-    mkdir -p "$LOGS"
 
     run_step fmt "cargo fmt --check" \
         cargo fmt --check
