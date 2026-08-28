@@ -8,8 +8,6 @@
 //! leading, the top of the page, later the caret's height and the Typewriter
 //! anchor — asks this module rather than doing the arithmetic again.
 
-use std::ops::RangeInclusive;
-
 use crate::settings::Face;
 
 /// The measure, in characters: iA's default line-length limit, `--measure:
@@ -32,22 +30,6 @@ const GUTTER_LARGEST: f64 = 96.0;
 
 /// The air below the last row of text: `--page-bottom: 30vh`.
 const PAGE_BOTTOM: f64 = 0.30;
-
-/// The type sizes the size steps move between.
-const SMALLEST_STEP: u32 = 10;
-const LARGEST_STEP: u32 = 40;
-
-/// The type sizes Bigger Text, Smaller Text and Default Text Size move
-/// between.
-///
-/// Narrower than [`crate::settings::type_sizes`], which is the range a number
-/// in `settings.toml` or on the command line is a preference rather than a
-/// typo in: these are the sizes a writer reaches by hand, one keystroke at a
-/// time, and 10 to 40 px is the span the page keeps its rhythm across.
-#[must_use]
-pub fn size_steps() -> RangeInclusive<u32> {
-    SMALLEST_STEP..=LARGEST_STEP
-}
 
 /// The line pitch at `size`, in whole pixels: iA's liquid leading.
 ///
@@ -166,7 +148,7 @@ pub fn page_bottom(view: u32) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::settings::Choice;
+    use crate::settings::{Choice, type_sizes};
 
     /// The oracle's `--line-air` and `--line-pitch`, written out as CSS writes
     /// them, so that this disagrees with the code the moment the code stops
@@ -179,7 +161,7 @@ mod tests {
 
     #[test]
     fn the_pitch_is_the_oracles_own_arithmetic_at_every_size_a_writer_can_reach() {
-        for size in size_steps() {
+        for size in type_sizes() {
             assert_eq!(
                 pitch(size),
                 oracle_pitch(size),
@@ -203,22 +185,28 @@ mod tests {
 
     #[test]
     fn a_wrapped_row_and_a_new_paragraph_both_sit_one_pitch_below_the_last_row() {
-        for size in size_steps() {
+        for size in type_sizes() {
             let pitch = pitch(size);
-            // A row of ink is about the size itself: the Faces measured 20 px
-            // of ink at 20 px (`spike/gtk4-editor/RESULTS.txt`).
-            let row = size;
-            let air = pitch - row;
-            let leading = leading(pitch, row);
-            assert_eq!(
-                leading.inside_wrap, air,
-                "at {size} px a wrapped row is not one pitch below the row above it"
-            );
-            assert_eq!(
-                leading.below + leading.above,
-                air,
-                "at {size} px a paragraph does not start one pitch below the one before it"
-            );
+            // Every row of ink a Face could give at this size, since the split
+            // has to hold whatever Pango measures: at 20 px the spike measured
+            // a 36 px pitch over a row of 26 (`spike/gtk4-editor/RESULTS.txt`,
+            // pitch 36 above 10 pixels of air), and a Face cut taller or
+            // shorter than that is still a Face.
+            for row in 1..=pitch {
+                let air = pitch - row;
+                let leading = leading(pitch, row);
+                assert_eq!(
+                    leading.inside_wrap, air,
+                    "at {size} px over a {row} px row, a wrapped row is not one pitch \
+                     below the row above it"
+                );
+                assert_eq!(
+                    leading.below + leading.above,
+                    air,
+                    "at {size} px over a {row} px row, a paragraph does not start one \
+                     pitch below the one before it"
+                );
+            }
         }
     }
 
