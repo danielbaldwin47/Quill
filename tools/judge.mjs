@@ -299,6 +299,19 @@ async function judgeLatency(root, note, named) {
     return refuse('latency', `${file} is not a bench summary`);
   }
 
+  // A panel run is a real measurement and not a measurement of this. It is taken on the physical
+  // display at fractional scale, which is not the output the budget or the oracle's numbers are of,
+  // and `tools/gate bench --panel` says so in every line it prints and in the file it writes.
+  //
+  // It cannot arrive here by itself — a panel run writes `panel-summary-*.json`, which
+  // `newestSummary` does not match — so this is the guard for the other way in: `--summary` with a
+  // panel run named on purpose, which is easy to do by tab-completion and impossible to spot in a
+  // round afterwards.
+  if (summary.informational) {
+    say(`gate judge latency: ${file} is a --panel run`);
+    return refuse('latency', `${file} is informational: ${summary.informational}`);
+  }
+
   // A subset run is a real measurement and not a verdict on the Piece: the rule is every regime
   // within budget, so a round written from two of them would be recording a win nobody had.
   //

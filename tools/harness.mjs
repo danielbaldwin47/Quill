@@ -92,6 +92,19 @@ const FOCUS_TRIES = 10;
 // grow a long run's memory.
 const SAID_MAX = 64 * 1024;
 
+// The workspace a window takes when it has to be on the real monitor rather than on a headless
+// output: CLAUDE.md's hard rule for every test window, and never workspace 1, which is the owner's
+// live one.
+export const PANEL_WORKSPACE = 5;
+
+// How long every real keyboard and pointer on the machine has to have been silent before the panel
+// may be taken. `tools/idle-check.py`'s own default, said again here because it is this harness that
+// decides when somebody is at the machine and the number belongs beside that decision.
+export const PANEL_IDLE_S = 8;
+
+// How long the panel's workspace switch is given to show up in `hyprctl activeworkspace`.
+const SWITCH_TIMEOUT_MS = 1_500;
+
 // ---------- the command line a judged state opens ours with ----------
 
 // The native app's arguments for one resolved judged state.
@@ -298,6 +311,57 @@ function focusWindow(address) {
   return lua(`for _, w in ipairs(hl.get_windows()) do if w.address == "${address}" then hl.dispatch(hl.dsp.focus{window=w}) return "focused" end end return "gone"`);
 }
 
+// The workspace the owner is looking at, by id.
+function activeWorkspace() {
+  return hyprctl(['activeworkspace', '-j'], { json: true }).id;
+}
+
+// Puts a workspace up on the panel, and answers with whatever Hyprland said.
+//
+// Hyprland 0.56 dropped the old string dispatcher: `hyprctl dispatch workspace N` is now parsed as
+// Lua, fails, and changes nothing — which would leave a window measuring on a workspace nobody is
+// looking at, the one thing the panel mode exists to avoid. `hl.dsp.focus{workspace=N}` is the form
+// that works (`legacy/bin/quill:168-185` records the search that found it), and every caller reads
+// the switch back rather than trusting this return.
+function gotoWorkspace(id) {
+  return lua(`return hl.dispatch(hl.dsp.focus{workspace=${id}})`);
+}
+
+/// The monitors of `list` that are a panel somebody could be looking at.
+///
+/// Hyprland substitutes a headless output called `FALLBACK` when every real output is asleep — a
+/// DisplayPort monitor in standby drops the link — and the Gate's own stage is a `HEADLESS-N`.
+/// Neither of them scans out to anything, which is the one thing the panel mode is for.
+export function physicalMonitors(list) {
+  return list.filter((m) => !/^(HEADLESS|FALLBACK)/.test(String(m.name ?? '')));
+}
+
+/// Why the panel cannot be taken for a run, or `null` when it can.
+///
+/// Pure, and asked of monitors and a workspace id rather than of the compositor, because these are
+/// the refusals that most need to be right and least can be rehearsed: this is the mode that puts a
+/// window in front of somebody. `tools/bench-selftest.mjs` checks them by handing this the machines
+/// that cannot be arranged on demand — one with its panel asleep, one with the owner on the
+/// workspace the run wants.
+///
+/// The idle check is not here. It is a question about the last eight seconds rather than about the
+/// machine's shape, so it is asked once, by [`openPanelStage`], immediately before the switch.
+export function panelRefusal({ monitors: list, active, workspace }) {
+  if (!physicalMonitors(list).length) {
+    return 'no physical output is connected (Hyprland is on FALLBACK — the panel is asleep), '
+      + 'and there is nothing to measure scan-out on';
+  }
+  if (workspace === 1) return 'workspace 1 is the owner\'s live workspace';
+  if (workspace === active) return `workspace ${workspace} is the one in use`;
+  return null;
+}
+
+/// The same question, asked of this machine.
+export function panelBlocked({ workspace = PANEL_WORKSPACE } = {}) {
+  if (!compositorAvailable()) return 'there is no compositor to put a window on';
+  return panelRefusal({ monitors: monitors(), active: activeWorkspace(), workspace });
+}
+
 function movePointer({ x, y }) {
   lua(`hl.dispatch(hl.dsp.cursor.move(${Math.round(x)}, ${Math.round(y)})) return "moved"`);
 }
@@ -327,8 +391,33 @@ function nowRealtimeNs() {
 
 // ---------- the stage ----------
 
+// The trap both stages are torn down by. `process.on('exit')` runs after an uncaught throw and after
+// a normal return, and only synchronous work survives it — which everything in a `close` is. The
+// signals are separate because Node does not run exit handlers for them by default: they end the
+// process outright, and a stage that ended that way is exactly the one that would leave an output
+// behind, or leave the owner looking at a workspace they did not choose.
+//
+// Answers with the way to take the handlers off again, so that a `close` which has just run is not
+// a process that still holds four listeners for the rest of the run.
+function armTeardown(close) {
+  const onExit = () => { try { close(); } catch { /* teardown is best effort by then */ } };
+  const onSignal = (sig) => { onExit(); process.exit(sig === 'SIGINT' ? 130 : 143); };
+  process.on('exit', onExit);
+  process.on('SIGINT', onSignal);
+  process.on('SIGTERM', onSignal);
+  process.on('SIGHUP', onSignal);
+  return () => {
+    process.removeListener('exit', onExit);
+    process.removeListener('SIGINT', onSignal);
+    process.removeListener('SIGTERM', onSignal);
+    process.removeListener('SIGHUP', onSignal);
+  };
+}
+
 // Opens the stage: a headless output at the judged scale, on a workspace of its own, with the
-// owner's focus, workspace and pointer recorded so that [`Stage.close`] can put them back.
+// owner's focus and pointer recorded so that [`Stage.close`] can put them back. The owner's
+// workspace is not among them because this stage never changes it — the window goes to the new
+// output's own workspace, which nothing is displaying. [`openPanelStage`] is the one that does.
 //
 // The teardown is registered before the output is created, not after, so that a failure inside
 // this function is still torn down; `close` is idempotent and says nothing the second time.
@@ -341,17 +430,7 @@ export async function openStage({ root, appId = APP_ID } = {}) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'quill-gate-'));
 
   const state = { output: null, workspace: null, closed: false, children: new Set() };
-
-  // The trap. `process.on('exit')` runs after an uncaught throw and after a normal return, and only
-  // synchronous work survives it — which everything in `close` is. The signals are separate
-  // because Node does not run exit handlers for them by default: they end the process outright, and
-  // a stage that ended that way is exactly the one that would leave an output behind.
-  const onExit = () => { try { close(); } catch { /* teardown is best effort by then */ } };
-  const onSignal = (sig) => { onExit(); process.exit(sig === 'SIGINT' ? 130 : 143); };
-  process.on('exit', onExit);
-  process.on('SIGINT', onSignal);
-  process.on('SIGTERM', onSignal);
-  process.on('SIGHUP', onSignal);
+  let disarm = () => {};
 
   function close() {
     if (state.closed) return;
@@ -366,11 +445,9 @@ export async function openStage({ root, appId = APP_ID } = {}) {
     if (owner.cursor) { try { movePointer(owner.cursor); } catch { /* ditto */ } }
     if (owner.window) { try { focusWindow(owner.window); } catch { /* ditto */ } }
     try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { /* ditto */ }
-    process.removeListener('exit', onExit);
-    process.removeListener('SIGINT', onSignal);
-    process.removeListener('SIGTERM', onSignal);
-    process.removeListener('SIGHUP', onSignal);
+    disarm();
   }
+  disarm = armTeardown(close);
 
   const before = monitors().map((m) => m.name);
   hyprctl(['output', 'create', 'headless']);
@@ -412,6 +489,86 @@ export async function openStage({ root, appId = APP_ID } = {}) {
   const logical = { w: Math.round(monitor.width / SCALE), h: Math.round(monitor.height / SCALE) };
   const corner = { x: monitor.x + logical.w - 4, y: monitor.y + logical.h - 4 };
 
+  return new Stage({ root, appId, tmp, state, monitor, corner, close });
+}
+
+/// Opens the stage on the physical panel: the one measurement a headless output cannot give.
+///
+/// A Wayland surface on a workspace nobody is displaying gets no frame callbacks, so a number about
+/// scan-out can only be taken with the window genuinely on screen — and `legacy/BRIEF.md` forbids
+/// doing that to somebody who is working. So this refuses on every count it can before it changes
+/// anything: no compositor, no panel awake, the owner's own workspace, the workspace they are on,
+/// and finally a machine whose keyboard and pointer have not been silent. Nothing is created, shown
+/// or typed until all five have passed.
+///
+/// The workspace that was up is restored by [`Stage.close`], which the trap runs on a normal return,
+/// on a throw and on a signal — so a run interrupted half way through gives the owner their screen
+/// back rather than leaving them on the bench's.
+///
+/// The result is not comparable with a headless one and is never a Gate condition: the panel is
+/// fractional-scale, so the window's buffer is not the judged stage's. `tools/gate bench` marks it
+/// informational, and the mode and scale it was taken at go into the result's fingerprint.
+export async function openPanelStage({
+  root, appId = APP_ID, workspace = PANEL_WORKSPACE, idle = PANEL_IDLE_S,
+} = {}) {
+  const blocked = panelBlocked({ workspace });
+  if (blocked) throw new Error(blocked);
+
+  // Asked here and not a moment earlier. An idle check with a `cargo build` or a compositor call
+  // after it is a check of a machine that was empty a minute ago, and the point of it is that the
+  // owner is not at the keyboard *now*.
+  try {
+    execFileSync('python3', [path.join(root, 'tools/idle-check.py'), String(idle)], {
+      stdio: ['ignore', 'ignore', 'pipe'],
+    });
+  } catch {
+    throw new Error('somebody is using this machine — not taking their screen; try again when the '
+      + `keyboard and pointer have been quiet for ${idle}s`);
+  }
+
+  const monitor = physicalMonitors(monitors())[0];
+  const owner = {
+    window: activeWindowAddress(), cursor: cursorPosition(), workspace: activeWorkspace(),
+  };
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'quill-gate-panel-'));
+  const state = { output: null, workspace, closed: false, children: new Set() };
+  let disarm = () => {};
+
+  function close() {
+    if (state.closed) return;
+    state.closed = true;
+    for (const child of state.children) { try { child.kill('SIGKILL'); } catch { /* already gone */ } }
+    state.children.clear();
+    try { lua(RULES_OFF); } catch { /* no compositor left to tell */ }
+    // The workspace goes back before the focus does. Focusing the owner's window is itself a
+    // workspace switch, so restoring in the other order would put them back on the bench's.
+    try { gotoWorkspace(owner.workspace); } catch { /* ditto */ }
+    if (owner.cursor) { try { movePointer(owner.cursor); } catch { /* ditto */ } }
+    if (owner.window) { try { focusWindow(owner.window); } catch { /* ditto */ } }
+    try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { /* ditto */ }
+    disarm();
+  }
+  disarm = armTeardown(close);
+
+  // Read back rather than trusted: `hl.dispatch` answers before Hyprland has acted, and a switch
+  // that silently did nothing is a run measuring a window nobody can see.
+  gotoWorkspace(workspace);
+  let up = null;
+  for (let waited = 0; waited < SWITCH_TIMEOUT_MS; waited += POLL_MS) {
+    up = activeWorkspace();
+    if (up === workspace) break;
+    await sleep(POLL_MS);
+  }
+  if (up !== workspace) {
+    close();
+    throw new Error(`workspace ${workspace} would not come up on ${monitor.name} (it is still on `
+      + `${up}); refusing to measure a window nobody is looking at`);
+  }
+
+  const logical = {
+    w: Math.round(monitor.width / monitor.scale), h: Math.round(monitor.height / monitor.scale),
+  };
+  const corner = { x: monitor.x + logical.w - 4, y: monitor.y + logical.h - 4 };
   return new Stage({ root, appId, tmp, state, monitor, corner, close });
 }
 
