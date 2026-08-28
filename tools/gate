@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+# The Gate, in commands — what must be true before native Quill work lands.
+# The tiers themselves are docs/agents/gate.md; this is how they are run.
+#
+#   tools/gate check              the Commit tier, on the repo root
+#   tools/gate check <dir>        ... on another directory
+#   tools/gate --help             the commands there are, and what each runs
+#
+# The owner does not read Rust, so every command here ends in one line the owner
+# can read without opening the code: `gate check: pass`, or `gate check: fail
+# (<step>)` naming the step that stopped it. The exit code agrees with the line.
+#
+# `check`'s steps run cheapest first, so a red line arrives as early as it can,
+# and it stops at the first one. The display is unset rather than merely absent
+# for the test step, so a test that needs a window fails here whatever session
+# runs it: that is what makes such a test harness rather than test, and it
+# belongs to a later sub-command. DISPLAY, WAYLAND_DISPLAY and WAYLAND_SOCKET
+# are the three ways a client finds a display.
+#
+# The step output is not captured — cargo says where the failure is, and the
+# agent that has to fix it reads that, above the line the owner reads.
+set -euo pipefail
+
+ROOT=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)
+
+# The one copy of what the commands are; the header above says why.
+usage() {
+    cat <<'EOF'
+usage: tools/gate <command> [arguments]
+
+  check [dir]   The Commit tier in one command: cargo fmt --check, the #[allow]
+                reason rule, cargo clippy --all-targets -- -D warnings, and
+                cargo test with no display attached, in that order, stopping at
+                the first failure. Runs on the repo root, or on <dir> if one is
+                given — which is how tools/gate-fixture/selftest points it at a
+                crate whose defects it must go red on. Ends in `gate check:
+                pass` or `gate check: fail (<step>)`.
+
+The tiers these commands serve are docs/agents/gate.md.
+EOF
+}
+
+# The step about to run, named, with the command it stands for.
+step() { printf 'gate check: %s (%s)\n' "$1" "$2"; }
+
+# The last line, and the exit code that agrees with it.
+fail() { printf 'gate check: fail (%s)\n' "$1"; exit 1; }
+
+# Every Rust file cargo compiles in the workspace being checked, from cargo's
+# own idea of it. The directories come from the packages' targets rather than
+# from a list of names kept here, so a crate that keeps its sources somewhere
+# unusual is still read — and a crate that keeps Rust which is *not* part of it
+# (the fixture keeps its defects that way) does not have that read as its own.
+sources() {
+    local metadata; local -a where=()
+    metadata=$(cargo metadata --no-deps --format-version 1)
+    mapfile -t where < <(printf '%s' "$metadata" | python3 -c '
+import json, os, sys
+
+where = []
+for package in json.load(sys.stdin)["packages"]:
+    root = os.path.dirname(package["manifest_path"])
+    for target in package["targets"]:
+        # A target at the top of the package (build.rs) is itself; anything
+        # deeper stands for the directory it lives in, modules and all.
+        source = target["src_path"]
+        where.append(source if os.path.dirname(source) == root else os.path.dirname(source))
+for path in sorted(set(where)):
+    print(path)')
+    [ ${#where[@]} -gt 0 ] || { echo "gate: cargo metadata named no sources to read" >&2; return 1; }
+    find "${where[@]}" -type f -name '*.rs' -not -path '*/target/*'
+}
+
+# docs/agents/gate.md: an #[allow(...)] carries a one-line reason on the same
+# line. Checked here rather than remembered, and named by file and line. A step
+# that read nothing is a failure, not a pass: silence has to mean silence.
+allow_reasons() {
+    local found status file lineno line; local -a files=() bare=()
+    mapfile -t files < <(sources)
+    [ ${#files[@]} -gt 0 ] || { echo "gate: no Rust to read" >&2; return 1; }
+
+    # grep says 1 for "nothing matched", which is the good news here; anything
+    # above that is grep failing, and a failure must not read as clean.
+    # `/dev/null` keeps the file name on the line when there is one file.
+    found=$(grep -nE '#!?\[allow\(' "${files[@]}" /dev/null) && status=0 || status=$?
+    [ "$status" -le 1 ] || { echo "gate: could not read the sources" >&2; return 1; }
+
+    while IFS= read -r line; do
+        [ -n "$line" ] || continue
+        file=${line%%:*}; line=${line#*:}
+        lineno=${line%%:*}; line=${line#*:}
+        # The reason is a comment with something in it, on the attribute's own
+        # line. A `///` or `//!` line quoting the attribute carries one by
+        # construction.
+        case "$line" in *'//'*[![:space:]]*) continue ;; esac
+        bare+=("${file#"$PWD"/}:$lineno:${line#"${line%%[![:space:]]*}"}")
+    done <<< "$found"
+
+    [ ${#bare[@]} -eq 0 ] && return 0
+    printf '%s\n' "${bare[@]}"
+    echo "an #[allow(...)] carries its reason as a comment on the same line (docs/agents/gate.md)"
+    return 1
+}
+
+check() {
+    local dir=${1:-$ROOT}
+    if [ ! -f "$dir/Cargo.toml" ]; then
+        echo "gate: $dir: no Cargo.toml to check" >&2
+        exit 2
+    fi
+    cd "$dir"
+
+    step fmt "cargo fmt --check"
+    cargo fmt --check || fail fmt
+
+    step allow "#[allow(...)] carries its reason on the same line"
+    allow_reasons || fail allow
+
+    step clippy "cargo clippy --all-targets -- -D warnings"
+    cargo clippy --all-targets -- -D warnings || fail clippy
+
+    step test "cargo test, with no display attached"
+    env -u DISPLAY -u WAYLAND_DISPLAY -u WAYLAND_SOCKET cargo test || fail test
+
+    echo "gate check: pass"
+}
+
+case "${1-}" in
+    check) shift; check "$@" ;;
+    -h | --help | help) usage ;;
+    "") usage >&2; exit 2 ;;
+    *) echo "gate: ${1}: not a command this Gate has yet" >&2; usage >&2; exit 2 ;;
+esac
