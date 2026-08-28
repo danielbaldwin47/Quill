@@ -54,6 +54,13 @@ pub fn type_sizes() -> RangeInclusive<u32> {
     SMALLEST..=LARGEST
 }
 
+/// The type size a writer who has chosen none is reading at, and the one
+/// Default Text Size goes back to.
+#[must_use]
+pub fn default_size() -> u32 {
+    SIZE
+}
+
 /// Where the caret sits down the window when Typewriter is on: the middle.
 const ANCHOR: f64 = 0.5;
 
