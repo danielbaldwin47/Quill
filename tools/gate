@@ -68,7 +68,9 @@ usage: tools/gate <command> [arguments]
                 accounting and the fingerprint of what produced it, is written
                 to shots/latency/bench-<regime>-<stamp>.json. Ends in `gate
                 bench <regime>: pass|fail (budget ...; oracle ...)`: 0 for pass,
-                1 for a budget miss, 3 when nothing was measured. Those three
+                1 for a budget miss, 3 when there is no verdict to give —
+                nothing measured, focus lost part-way, or a regime whose
+                keystrokes did not add up, however many others ran. Those three
                 lines are the whole of stdout; everything said on the way there
                 is target/gate/bench.log, printed when the run refuses.
                 --all runs every one of the twelve and --regimes just the named

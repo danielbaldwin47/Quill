@@ -18,7 +18,8 @@
   "opponent": "oracle",
   "build": {
     "git": "5f1311a",
-    "binary": "454ec469f4a1d3c4"
+    "binary": "454ec469f4a1d3c4",
+    "dirty": true
   },
   "states": [
     {
@@ -166,5 +167,5 @@
       "at": "489% of it"
     }
   ],
-  "at": "2026-08-28T16:36:06.711Z"
+  "at": "2026-08-28T16:45:26.246Z"
 }
