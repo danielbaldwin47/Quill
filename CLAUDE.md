@@ -14,6 +14,8 @@ A long-form writing environment: a transparent `<textarea>` over a `<div id="mir
 
 Hard rule in `app/`: no per-token style may change glyph advance width, or the mirror and textarea drift apart (bold/italic are safe; iA fonts share widths across weights).
 
+Hard rule for any test window (browser, GTK, bench): it opens on a virtual output — `hyprctl output create headless`, what `bin/quill --measure` does by default — or, when it must be on the real monitor, on workspace 5 with `[workspace 5 silent]`. Workspace 1 is the user's live workspace. The Hyprland 0.56 commands are in `BRIEF.md` § Headed windows; without `hyprctl`, run headless.
+
 The native Rust rewrite is specified in `docs/architecture.md`; read it before any Rust, packaging or repo-migration work. Its Gate is `docs/agents/gate.md`.
 
 ## Gate
