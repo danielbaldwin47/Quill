@@ -2,6 +2,7 @@
 // node legacy/tools/shoot.mjs --out shots/x.png [--w 1440 --h 900 --dpr 2] [--theme light|dark|auto] [--font duo|quattro|mono]
 //   [--size 18] [--focus off|sentence|paragraph] [--typewriter] [--chrome on|off] [--text file.md] [--caret N|end|"needle"]
 //   [--scroll px|"needle"] [--mouse] (move mouse so chrome shows) [--nocaret] [--select a,b] [--url http://localhost:4173/] [--wait ms] [--full]
+//   [--active on|off]  off blurs the input, so the caret and any selection are drawn in their unfocused state
 //   [--state seed.json]  merge {localStorageKey: value} into localStorage before load (e.g. a demo Library)
 import { chromium } from 'playwright-core'; import fs from 'node:fs'; import path from 'node:path';
 const args = {}; for (let i = 2; i < process.argv.length; i++) { const a = process.argv[i]; if (a.startsWith('--')) { const k = a.slice(2); const v = process.argv[i + 1]; if (v === undefined || v.startsWith('--')) args[k] = true; else { args[k] = v; i++; } } }
@@ -35,12 +36,35 @@ if (args.scroll !== undefined && args.scroll !== true) {
   }, String(args.scroll));
 }
 if (args.select) { const [a, c] = args.select.split(',').map(Number); await p.evaluate(([a, c]) => Writer.setSelection(a, c), [a, c]); }
+// --active off: this is the window the user has just clicked away from, so blur the input and let
+// caret.js draw its unfocused state (#caret-layer.idle). --active on focuses the input even when
+// there is no --text, so an empty Document is shot with a live caret on the paper. [caret piece]
+const active = (args.active || 'on') !== 'off';
+await p.evaluate((on) => { if (on) Writer.el.input.focus(); else Writer.el.input.blur(); }, active);
 if (args.mouse) { await p.mouse.move(W / 2, 20); await p.evaluate(() => { document.documentElement.dataset.typing = 'off'; }); }
 else await p.evaluate(() => { document.documentElement.dataset.typing = 'off'; });
 if (args.typing) await p.evaluate(() => { document.documentElement.dataset.typing = 'on'; });
-// freeze caret visible & un-blinking for deterministic shots
-await p.evaluate((hide) => { const c = document.querySelector('#caret-layer .caret'); if (c) { c.classList.remove('blink'); c.style.opacity = hide ? '0' : '1'; } }, !!args.nocaret);
-await p.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+// freeze caret visible & un-blinking for deterministic shots — but an unfocused caret is dimmed by
+// #caret-layer.idle, and an inline opacity here would paint over the very thing --active off shoots.
+await p.evaluate(([hide, idle]) => { const c = document.querySelector('#caret-layer .caret'); if (c) { c.classList.remove('blink'); c.style.opacity = hide ? '0' : (idle ? '' : '1'); } }, [!!args.nocaret, !active]);
+// A shot has to be of the app at rest, or it is not the same shot twice: the hairline over the
+// bottom bar fades in over .2s, and two frames after setText it is caught at whatever opacity it
+// had reached — a different pixel row in every run. One wait is not enough, because the attribute
+// that starts that transition is itself set in a rAF after the render, so a frame with nothing
+// running can still be followed by one that starts something. Settle until a whole frame passes
+// with no animation that ends still going, with a ceiling so one that never ends (the caret
+// blink) cannot hang a shot.
+await p.evaluate(async () => {
+  const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  const ending = () => document.getAnimations().filter(a => a.playState === 'running' && Number.isFinite(a.effect?.getComputedTiming?.().endTime));
+  const until = performance.now() + 3000;
+  for (;;) {
+    await frame();
+    const going = ending();
+    if (!going.length || performance.now() > until) break;
+    await Promise.race([Promise.all(going.map(a => a.finished.catch(() => {}))), new Promise(r => setTimeout(r, 500))]);
+  }
+});
 if (args.wait) await p.waitForTimeout(+args.wait);
 const out = args.out || 'shots/shot.png'; fs.mkdirSync(path.dirname(out), { recursive: true });
 await p.screenshot({ path: out, fullPage: !!args.full });

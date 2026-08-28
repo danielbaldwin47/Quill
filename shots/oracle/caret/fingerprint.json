@@ -1,0 +1,68 @@
+{
+  "_about": "What produced the shots beside this file. `tools/gate oracle <piece>` re-shoots when any of it moves; git_head only says where it was taken and is not compared.",
+  "app": {
+    "files": 16,
+    "sha256": "738f48c969965ac3"
+  },
+  "shoot": "adf473b575198cc3",
+  "git_head": "b68bb37",
+  "passages": {
+    "ref/sample.md": "8005e6c57d435cea"
+  },
+  "states": {
+    "caret": {
+      "text": "ref/sample.md",
+      "w": 1440,
+      "h": 900,
+      "scale": 2,
+      "theme": "light",
+      "font": "duo",
+      "size": 20,
+      "focus": "off",
+      "typewriter": false,
+      "chrome": "on",
+      "caret": 403,
+      "select": null,
+      "scroll": 0,
+      "nocaret": false,
+      "active": true
+    },
+    "selection": {
+      "text": "ref/sample.md",
+      "w": 1440,
+      "h": 900,
+      "scale": 2,
+      "theme": "light",
+      "font": "duo",
+      "size": 20,
+      "focus": "off",
+      "typewriter": false,
+      "chrome": "on",
+      "caret": 171,
+      "select": [
+        153,
+        171
+      ],
+      "scroll": 0,
+      "nocaret": false,
+      "active": true
+    },
+    "unfocused": {
+      "text": "ref/sample.md",
+      "w": 1440,
+      "h": 900,
+      "scale": 2,
+      "theme": "light",
+      "font": "duo",
+      "size": 20,
+      "focus": "off",
+      "typewriter": false,
+      "chrome": "on",
+      "caret": 403,
+      "select": null,
+      "scroll": 0,
+      "nocaret": false,
+      "active": false
+    }
+  }
+}
