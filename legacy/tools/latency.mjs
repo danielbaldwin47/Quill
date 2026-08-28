@@ -8,6 +8,7 @@
 //   node tools/latency.mjs --coldstart 10        spawn a browser PROCESS per run: exec -> pixels
 //   node tools/latency.mjs --coldstart 8 --fresh    ... with a wiped profile: a true first run
 //   node tools/latency.mjs --attach 9333 --t0 <epoch_ms>   measure a window started by bin/quill
+//   node tools/latency.mjs --plan <regime>       print what that regime types, and exit
 //
 // What is measured, per keystroke (nothing averaged over frames, nothing dropped):
 //   input_delay      hardware event timestamp -> first JS handler        (queueing)
@@ -876,6 +877,35 @@ function regimeList() {
   if (args.quick) return [ALL_REGIMES[0]];
   if (THROTTLE > 1) return ALL_REGIMES.filter((r) => ['prose_end_of_draft', 'prose_middle_of_draft', 'paragraph_breaks'].includes(r.name));
   return ALL_REGIMES;
+}
+
+// `--plan <regime>` prints exactly what a regime would type, and exits: no browser, no server. The
+// regimes and the typist above are about to move to tools/regimes.mjs, and identical output from
+// this switch before and after that move is what proves the move changed nothing.
+function formatPlan(r, keys) {
+  const steps = script(r.mix, keys, hash32(r.name));
+  const out = [];
+  out.push(`regime  ${r.name}`);
+  out.push(`  mix          ${r.mix}`);
+  out.push(`  caret        ${r.where === 'end' ? 'end of the document' : 'middle of the document, at the first line break past half way'}`);
+  out.push(`  pace         ${r.pace === 0 ? 'no wait between keystrokes (as fast as the driver types)' : r.pace + ' ms between keystrokes'}`);
+  out.push(`  focus        ${r.focus || 'off'}`);
+  out.push(`  pauses       ${r.pauseEvery ? `every ${r.pauseEvery} keys, ${r.pauseMs || 1200} ms` : 'none'}`);
+  out.push(`  seed         ${hash32(r.name)}`);
+  out.push(`  warm-up      25 letter keys, outside the measurement`);
+  out.push(`  keys         ${steps.length} steps, ${steps.reduce((a, s) => a + s.keydowns, 0)} keydowns`);
+  out.push('');
+  for (let i = 0; i < steps.length; i++) {
+    const s = steps[i];
+    out.push(`${String(i).padStart(6)}  ${s.press.padEnd(16)}${s.label}${s.labels ? '  [' + s.labels.join(' ') + ']' : ''}`);
+  }
+  return out.join('\n');
+}
+if (args.plan) {
+  const r = args.plan === true ? null : ALL_REGIMES.find((x) => x.name === args.plan);
+  if (!r) { console.error(`--plan takes one regime: ${ALL_REGIMES.map((x) => x.name).join(', ')}`); process.exit(2); }
+  console.log(formatPlan(r, KEYS));
+  process.exit(0);
 }
 
 // ---------- a session ----------
