@@ -725,11 +725,55 @@ fn markers(
     let mut cursor = at.start;
     for run in covered {
         if run.start > cursor {
-            push_span(text, cursor..run.start, marker, spans);
+            marker_spans(text, cursor..run.start, marker, spans);
         }
         cursor = cursor.max(run.end).min(at.end);
     }
-    push_span(text, cursor..at.end, marker, spans);
+    marker_spans(text, cursor..at.end, marker, spans);
+}
+
+/// Adds `at` as marker spans: one per line it crosses, and none of them prose.
+///
+/// A marker belongs to the line it opens, and the subtraction cannot see lines.
+/// Inside a quote the bytes no event covers run `" \n> "` — a space the writer
+/// left, the line ending, and the next line's marker — and [`push_span`] on its
+/// own keeps the three as one span, so two lines hang by one measurement and
+/// the writer's space is greyed with the punctuation (#102). The run is
+/// therefore cut at every line ending, and each piece asked where its own
+/// marker stops.
+fn marker_spans(text: &str, at: Range<usize>, mark: Mark, spans: &mut Vec<Span>) {
+    let mut start = at.start;
+    while start < at.end {
+        let end = text[start..at.end]
+            .find('\n')
+            .map_or(at.end, |offset| start + offset);
+        push_span(text, start..marker_end(text, start..end, mark), mark, spans);
+        start = end + 1;
+    }
+}
+
+/// Where the marker stops inside `at`, which is one line's worth of one.
+///
+/// Two things inside it are the writer's rather than the parser's. A quote's
+/// marker is `>` and at most one space or tab after it — CommonMark's
+/// definition, and the one the oracle's `RE_QUOTE`, `(?:>[ \t]?)+`, always
+/// tokenised by — so the padding of `>      Beans` is where the writer put
+/// their word: it keeps their ink, and the line hangs by two cells rather than
+/// swinging seven into the margin. And whitespace left at the end of a line is
+/// theirs too, so a piece that is nothing else is no marker at all (#102).
+fn marker_end(text: &str, at: Range<usize>, mark: Mark) -> usize {
+    let run = text[at.start..at.end].trim_end_matches('\r');
+    if let (Mark::QuoteMarker, Some(caret)) = (mark, run.rfind('>')) {
+        let after = at.start + caret + 1;
+        return after + usize::from(matches!(text.as_bytes().get(after), Some(b' ' | b'\t')));
+    }
+    let end = at.start + run.len();
+    let ends_line = text.as_bytes().get(end).is_none_or(u8::is_ascii_whitespace);
+    if ends_line && run.trim().is_empty() {
+        at.start
+    } else {
+        end
+    }
 }
 
 /// Adds a marker span for every backslash that escapes the byte after it.
@@ -1188,6 +1232,87 @@ mod tests {
                 ("> ", Mark::QuoteMarker),
             ]
         );
+    }
+
+    #[test]
+    fn a_space_at_the_end_of_a_quote_line_never_joins_it_to_the_next() {
+        let text = "> one \n> two\n";
+        assert_eq!(
+            marked(text),
+            [
+                ("> one \n> two", Mark::Quote),
+                ("> ", Mark::QuoteMarker),
+                ("> ", Mark::QuoteMarker),
+            ],
+            "#102: subtraction left the space, the line ending and the next \
+             `> ` in one span, so two lines hung by one measurement"
+        );
+    }
+
+    #[test]
+    fn a_quote_line_ending_in_a_space_is_marked_as_if_it_did_not() {
+        let text = "> Why hello there \n";
+        assert_eq!(
+            marked(text),
+            [
+                ("> Why hello there ", Mark::Quote),
+                ("> ", Mark::QuoteMarker),
+            ],
+            "#102: the trailing space was a marker of its own, greyed and \
+             measured, and the line hung by the whole of itself"
+        );
+        assert_eq!(
+            drawn(text),
+            [("> ", MARKER), ("Why hello there ", Look::PROSE)],
+            "what the writer left at the end of a line is their prose"
+        );
+    }
+
+    #[test]
+    fn a_quotes_marker_is_the_caret_and_at_most_one_space_after_it() {
+        // The owner's decision on #102: `>` plus one space or tab, as
+        // CommonMark defines it and as the oracle's `RE_QUOTE`, `(?:>[ \t]?)+`,
+        // has always tokenised it. Padding past that is where the writer put
+        // their word, so it stays in their ink and the line hangs by two.
+        let text = "> Why hello there \n> Beans\n> Beans\n>      Beans\n";
+        let markers: Vec<&str> = markup(text)
+            .iter()
+            .filter(|span| span.mark == Mark::QuoteMarker)
+            .map(|span| &text[span.at.clone()])
+            .collect();
+        assert_eq!(
+            markers,
+            ["> ", "> ", "> ", "> "],
+            "the four lines of #102's Reproduce passage carry one marker each"
+        );
+        let runs = drawn(text);
+        assert!(
+            !runs
+                .iter()
+                .any(|(run, look)| *look == MARKER && *run != "> "),
+            "and nothing else on the page is grey: the trailing space and the \
+             padding are the writer's ink, {runs:?}"
+        );
+    }
+
+    #[test]
+    fn no_marker_span_of_any_construct_covers_a_line_break() {
+        for passage in [
+            oracle(),
+            "> one \n> two\n".into(),
+            "# Heading \n\n- item \n- item\n\n1. one \n2. two\n\n> quoted \n> - item \n".into(),
+        ] {
+            for (run, mark) in marked(&passage) {
+                assert!(
+                    !matches!(
+                        mark,
+                        Mark::Markup | Mark::QuoteMarker | Mark::BulletMarker | Mark::OrderedMarker
+                    ) || !run.contains('\n'),
+                    "#102: a marker belongs to one line, and {run:?} of {mark:?} \
+                     covers the break between two"
+                );
+            }
+        }
     }
 
     #[test]
