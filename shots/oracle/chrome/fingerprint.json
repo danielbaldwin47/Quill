@@ -10,7 +10,7 @@
     "ref/sample.md": "8005e6c57d435cea"
   },
   "states": {
-    "duo": {
+    "bars": {
       "text": "ref/sample.md",
       "w": 1440,
       "h": 900,
@@ -20,7 +20,7 @@
       "size": 20,
       "focus": "off",
       "typewriter": false,
-      "chrome": "off",
+      "chrome": "on",
       "caret": 403,
       "select": null,
       "scroll": 0,
@@ -29,43 +29,62 @@
       "typing": false,
       "menu": null
     },
-    "quattro": {
+    "typing": {
       "text": "ref/sample.md",
       "w": 1440,
       "h": 900,
       "scale": 2,
       "theme": "light",
-      "font": "quattro",
+      "font": "duo",
       "size": 20,
       "focus": "off",
       "typewriter": false,
-      "chrome": "off",
+      "chrome": "on",
       "caret": 403,
       "select": null,
       "scroll": 0,
       "nocaret": false,
       "active": true,
-      "typing": false,
+      "typing": true,
       "menu": null
     },
-    "mono": {
+    "view-menu": {
       "text": "ref/sample.md",
       "w": 1440,
       "h": 900,
       "scale": 2,
       "theme": "light",
-      "font": "mono",
+      "font": "duo",
       "size": 20,
       "focus": "off",
       "typewriter": false,
-      "chrome": "off",
+      "chrome": "on",
       "caret": 403,
       "select": null,
       "scroll": 0,
       "nocaret": false,
       "active": true,
       "typing": false,
-      "menu": null
+      "menu": "view"
+    },
+    "palette": {
+      "text": "ref/sample.md",
+      "w": 1440,
+      "h": 900,
+      "scale": 2,
+      "theme": "light",
+      "font": "duo",
+      "size": 20,
+      "focus": "off",
+      "typewriter": false,
+      "chrome": "on",
+      "caret": 403,
+      "select": null,
+      "scroll": 0,
+      "nocaret": false,
+      "active": true,
+      "typing": false,
+      "menu": "palette"
     }
   }
 }

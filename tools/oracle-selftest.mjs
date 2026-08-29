@@ -53,14 +53,10 @@ ok('a Piece with no judged states resolves to none, and an unknown Piece is an e
 
 // ---------- the flags this tool cannot serve yet ----------
 ok('a state may only name flags the defaults name', () => {
-  const chrome = Object.fromEntries(resolveStates(states, 'chrome').map((s) => [s.name, unservable(states.defaults, s.flags)]));
-  assert.deepEqual(chrome.bars, []);
-  assert.deepEqual(chrome.typing, ['typing']);
-  assert.deepEqual(chrome['view-menu'], ['menu']);
   const files = Object.fromEntries(resolveStates(states, 'files').map((s) => [s.name, unservable(states.defaults, s.flags)]));
   assert.deepEqual(files.library, ['library', 'sidebar']);
   assert.deepEqual(files.search, ['library', 'search', 'sidebar']);
-  for (const piece of ['type', 'page', 'markup', 'caret', 'theme', 'focus']) {
+  for (const piece of ['type', 'page', 'markup', 'caret', 'theme', 'focus', 'chrome']) {
     for (const s of resolveStates(states, piece)) assert.deepEqual(unservable(states.defaults, s.flags), [], `${piece}/${s.name}`);
   }
 });
@@ -107,6 +103,17 @@ ok('a state becomes the shoot.mjs flags that state means', () => {
   assert.equal(dark[dark.indexOf('--theme') + 1], 'dark');
   assert.equal(dark[dark.indexOf('--focus') + 1], 'sentence');
   assert.equal(dark[dark.indexOf('--chrome') + 1], 'off');
+
+  // The two chrome flags: absent at rest, and named exactly once when the state names them.
+  const chrome = Object.fromEntries(resolveStates(states, 'chrome').map((s) => [s.name, s.flags]));
+  const bars = shootArgv(ROOT, chrome.bars, 'o.png', 'u');
+  assert.ok(!bars.includes('--typing'), 'the bars at rest are not the chrome stepped back');
+  assert.ok(!bars.includes('--menu'), 'and no popover is open over them');
+  assert.ok(shootArgv(ROOT, chrome.typing, 'o.png', 'u').includes('--typing'));
+  const view = shootArgv(ROOT, chrome['view-menu'], 'o.png', 'u');
+  assert.equal(view[view.indexOf('--menu') + 1], 'view');
+  const palette = shootArgv(ROOT, chrome.palette, 'o.png', 'u');
+  assert.equal(palette[palette.indexOf('--menu') + 1], 'palette');
 });
 
 // ---------- what makes a frozen Piece stale ----------
@@ -130,10 +137,12 @@ ok('a freeze is stale when the app, the shooter, the passage or the states move 
 ok('states with the same flags were shot into the same bytes', () => {
   const bytes = new Map();
   const flags = new Map();
+  let shot = 0;
   for (const piece of fs.readdirSync(path.join(ROOT, 'shots/oracle'), { withFileTypes: true }).filter((e) => e.isDirectory())) {
     for (const s of resolveStates(states, piece.name)) {
       const png = path.join(ROOT, 'shots/oracle', piece.name, `${s.name}.png`);
       if (!fs.existsSync(png)) continue;
+      shot++;
       const key = JSON.stringify(s.flags);
       const digest = crypto.createHash('sha256').update(fs.readFileSync(png)).digest('hex');
       const where = `${piece.name}/${s.name}`;
@@ -141,7 +150,12 @@ ok('states with the same flags were shot into the same bytes', () => {
       else { bytes.set(key, digest); flags.set(key, where); }
     }
   }
-  assert.ok(bytes.size < 16, 'no two frozen states share their flags — this check is proving nothing');
+  // Counted rather than written down: a Piece frozen later adds states to both sides, and a number
+  // kept here would only say what the last Piece to land happened to make it. Two assertions,
+  // because "nothing was frozen" and "nothing shares its flags" are two different ways for this
+  // check to be proving nothing, and one message cannot name both.
+  assert.ok(shot > 0, 'no frozen shot was read at all — this check is proving nothing');
+  assert.ok(bytes.size < shot, `no two of the ${shot} frozen states share their flags — this check is proving nothing`);
 });
 
 // ---------- the two answers that need no browser ----------
@@ -162,12 +176,12 @@ ok('the latency Piece says it has no judged states, and says it without failing'
 });
 
 ok('a Piece whose states need flags this tool cannot serve names them and fails, shooting nothing', () => {
-  const r = gate('oracle', 'chrome');
+  const r = gate('oracle', 'files');
   assert.equal(r.code, 1, r.err);
-  assert.match(r.err, /state typing names typing/);
-  assert.match(r.err, /state view-menu names menu/);
-  assert.match(r.out.trim().split('\n').pop(), /^gate oracle chrome: fail/);
-  assert.ok(!fs.existsSync(path.join(ROOT, 'shots/oracle/chrome')), 'a Piece is frozen whole or not at all');
+  assert.match(r.err, /state library names library, sidebar/);
+  assert.match(r.err, /state search names library, search, sidebar/);
+  assert.match(r.out.trim().split('\n').pop(), /^gate oracle files: fail/);
+  assert.ok(!fs.existsSync(path.join(ROOT, 'shots/oracle/files')), 'a Piece is frozen whole or not at all');
 });
 
 ok('a Piece nobody has judged states for is not a Piece', () => {
