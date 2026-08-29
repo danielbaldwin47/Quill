@@ -16,6 +16,7 @@
 pub mod annotate;
 pub mod data;
 pub mod document;
+pub mod focus;
 pub mod library;
 pub mod markdown;
 pub mod outline;
