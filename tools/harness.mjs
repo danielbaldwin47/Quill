@@ -121,6 +121,11 @@ export function quillArgv(root, flags) {
   argv.push('--focus', flags.focus, '--chrome', flags.chrome);
   if (flags.typewriter) argv.push('--typewriter');
   if (flags.nocaret) argv.push('--nocaret');
+  // The two chrome states the bars alone do not reach: `--typing` is the chrome stepped back, and
+  // `--menu` is one popover open with its first row selected. Both are states the app is put in
+  // before its first frame, so they are flags and not a script of keystrokes.
+  if (flags.typing) argv.push('--typing');
+  if (flags.menu) argv.push('--menu', flags.menu);
   // An empty Document has no passage, and so has no offset into one either.
   if (flags.text) {
     argv.push('--text', path.join(root, flags.text));
