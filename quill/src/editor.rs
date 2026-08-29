@@ -31,7 +31,7 @@ use quill_engine::theme::{Colours, Role, Scheme};
 use quill_engine::typography;
 
 use crate::caret;
-use crate::flags::Caret;
+use crate::flags;
 use crate::tags;
 
 /// The CSS class the Editor's type is named on.
@@ -104,6 +104,9 @@ mod imp {
         /// the top of the ink `iter_location` answers with. See
         /// [`Editor::bar`] for why it is the same half on every row.
         pub above: Cell<u32>,
+        /// The bar last handed to the machine, so that a relayout which moved
+        /// nothing can be told from one that moved the row.
+        pub bar: Cell<Option<caret::Bar>>,
         /// What last drove the widget, which is half of a move's kind.
         pub last: Cell<caret::Source>,
         /// The frame the buffer last changed in, on the frame clock's clock.
@@ -125,7 +128,19 @@ mod imp {
         type ParentType = gtk::TextView;
     }
 
-    impl ObjectImpl for Editor {}
+    impl ObjectImpl for Editor {
+        /// Takes the blink's one-shot off the main loop with the widget.
+        ///
+        /// It holds a weak reference, so left behind it would fire into
+        /// nothing rather than into a freed Editor — but a source with
+        /// nothing left to do does not belong on the loop, and an Editor is
+        /// disposed of whenever a window closes.
+        fn dispose(&self) {
+            if let Some(resume) = self.resume.take() {
+                resume.remove();
+            }
+        }
+    }
 
     impl WidgetImpl for Editor {
         /// The measure is centred in the room there turned out to be, and the
@@ -232,19 +247,15 @@ impl Editor {
         self.add_controller(keys);
 
         let buffer = self.buffer();
-        // Stamped where the change starts rather than where it ends, because
-        // the mark moves inside the change and GTK does not promise which of
-        // `mark-set` and `changed` a listener hears first. What the caret path
-        // needs is only that the stamp is down before the move arrives.
         buffer.connect_insert_text(glib::clone!(
             #[weak(rename_to = editor)]
             self,
-            move |_, _, _| editor.imp().edited.set(Some(editor.now())),
+            move |_, _, _| editor.caret_edit_began(),
         ));
         buffer.connect_delete_range(glib::clone!(
             #[weak(rename_to = editor)]
             self,
-            move |_, _, _| editor.imp().edited.set(Some(editor.now())),
+            move |_, _, _| editor.caret_edit_began(),
         ));
         buffer.connect_changed(glib::clone!(
             #[weak(rename_to = editor)]
@@ -285,9 +296,7 @@ impl Editor {
         // the keystroke path must not cost a row measured all over again.
         self.imp().pitch.set(pitch);
         self.imp().above.set(leading.above);
-        let mut caret = self.imp().caret.get();
-        caret.resize(f64::from(self.imp().size.get()) * self.scale());
-        self.imp().caret.set(caret);
+        self.tell_caret(|caret| caret.resize(self.em()));
         self.set_pixels_above_lines(signed(leading.above));
         self.set_pixels_inside_wrap(signed(leading.inside_wrap));
         self.set_pixels_below_lines(signed(leading.below));
@@ -404,6 +413,22 @@ impl Editor {
         self.frame_clock().map_or(0, |clock| clock.frame_time())
     }
 
+    /// Tells the caret's machine what happened, and keeps what it made of it.
+    ///
+    /// The machine is `Copy` and lives in a `Cell`, so every event is a read,
+    /// a change and a write back; this is that, once, so that the four places
+    /// that feed it say only what they are feeding it.
+    fn tell_caret(&self, said: impl FnOnce(&mut caret::Caret)) {
+        let mut caret = self.imp().caret.get();
+        said(&mut caret);
+        self.imp().caret.set(caret);
+    }
+
+    /// One em in the device pixels the machine measures its gates in.
+    fn em(&self) -> f64 {
+        f64::from(self.imp().size.get()) * self.scale()
+    }
+
     /// The surface's scale factor, which is the machine's unit.
     ///
     /// Everything in a [`caret::Bar`] is device pixels, because the snap that
@@ -422,12 +447,11 @@ impl Editor {
     /// The band is the pitch, not the glyph: `iter_location` gives the top of
     /// the ink, and the air belonging to the row is the same half above it on
     /// every row, wrapped or not. That is what the three-way leading split of
-    /// [ADR 0004](../../docs/adr/0004-editor-is-a-gtktextview-subclass.md)
-    /// buys — `pixels-inside-wrap` carries all the air between two rows of a
-    /// paragraph and `pixels-above-lines` plus `pixels-below-lines` carry all
-    /// of it between two paragraphs — so the ink sits centred in a band of one
-    /// pitch wherever it is, and the top of that band is always half the air
-    /// above the ink.
+    /// ADR 0004 buys — `pixels-inside-wrap` carries all the air between two
+    /// rows of a paragraph and `pixels-above-lines` plus `pixels-below-lines`
+    /// carry all of it between two paragraphs — so the ink sits centred in a
+    /// band of one pitch wherever it is, and the top of that band is always
+    /// half the air above the ink.
     ///
     /// `None` before the type has been set, when there is no band to speak of.
     fn bar(&self) -> Option<caret::Bar> {
@@ -447,11 +471,31 @@ impl Editor {
         })
     }
 
+    /// A change to the buffer is starting.
+    ///
+    /// Stamped where the change starts rather than where it ends, because the
+    /// mark moves inside the change and GTK does not promise which of
+    /// `mark-set` and `changed` a listener hears first. What the caret path
+    /// needs is only that the stamp is down before the move arrives.
+    ///
+    /// Filling the buffer with a Document is a delete and an insert like any
+    /// other and is not a writer's edit, so this stands down for it with the
+    /// rest of the handlers watching this buffer.
+    fn caret_edit_began(&self) {
+        if self.loading() {
+            return;
+        }
+        self.imp().edited.set(Some(self.now()));
+    }
+
     /// The insert mark moved: tell the machine where to, and draw it there.
     fn caret_moved(&self) {
+        let Some(bar) = self.bar() else {
+            return;
+        };
         let now = self.now();
         let kind = caret::kind(self.imp().last.get(), self.imp().edited.get() == Some(now));
-        self.place_bar(kind, now);
+        self.place_bar(bar, kind, now);
     }
 
     /// The bar is where it was, but the page under it moved.
@@ -461,17 +505,24 @@ impl Editor {
     /// put there, whatever the hand was last doing: a window resized just
     /// after a word jump must not glide the caret across the new column.
     fn caret_settled(&self) {
-        self.place_bar(caret::Move::FollowsEdit, self.now());
-    }
-
-    /// Hands the machine the bar the layout says is there now.
-    fn place_bar(&self, kind: caret::Move, now: i64) {
         let Some(bar) = self.bar() else {
             return;
         };
-        let mut caret = self.imp().caret.get();
-        caret.moved(bar, kind, now);
-        self.imp().caret.set(caret);
+        // A relayout that did not move the bar is not news. The machine drops
+        // a repeated position but holds the blink on for it either way, which
+        // is right for the keystroke that sends the same position twice and
+        // wrong here: a window being dragged is allocated on every frame, and
+        // the caret would never blink again while a hand was on its edge.
+        if self.imp().bar.get() == Some(bar) {
+            return;
+        }
+        self.place_bar(bar, caret::Move::FollowsEdit, self.now());
+    }
+
+    /// Hands the machine the bar the layout says is there now.
+    fn place_bar(&self, bar: caret::Bar, kind: caret::Move, now: i64) {
+        self.imp().bar.set(Some(bar));
+        self.tell_caret(|caret| caret.moved(bar, kind, now));
         self.queue_draw();
         self.ask_for_frames();
     }
@@ -479,19 +530,23 @@ impl Editor {
     /// The buffer changed: the blink is held, and the move the change makes
     /// arrives on its own.
     fn caret_edited(&self) {
-        let mut caret = self.imp().caret.get();
-        caret.edited(self.now());
-        self.imp().caret.set(caret);
+        if self.loading() {
+            return;
+        }
+        let now = self.now();
+        self.tell_caret(|caret| caret.edited(now));
         self.ask_for_frames();
     }
 
     /// Asks for frames while the machine wants them, and for the one frame
     /// that ends the quiet when it does not.
     ///
-    /// The first of the tick source's two call sites; the other is the
-    /// callback's own tail. Nothing but [`caret::Caret::wants_tick`] decides
-    /// whether it is attached, so a `--deterministic` window, whose caret is
-    /// frozen on, asks the frame clock for nothing at all while it is idle.
+    /// One of the two places [`caret::Caret::wants_tick`] is read and the tick
+    /// source stands or falls by it; the other is the callback's own tail in
+    /// [`Editor::start_tick`], which keeps the source while it stays true and
+    /// drops it when it does not. Nothing else decides, so a `--deterministic`
+    /// window, whose caret is frozen on, asks the frame clock for nothing at
+    /// all while it is idle.
     fn ask_for_frames(&self) {
         let caret = self.imp().caret.get();
         if caret.wants_tick() {
@@ -512,11 +567,9 @@ impl Editor {
             return;
         }
         self.add_tick_callback(|editor, clock| {
-            let now = clock.frame_time();
-            let mut caret = editor.imp().caret.get();
-            caret.tick(now);
-            editor.imp().caret.set(caret);
+            editor.tell_caret(|caret| caret.tick(clock.frame_time()));
             editor.queue_draw();
+            let caret = editor.imp().caret.get();
             if caret.wants_tick() {
                 return glib::ControlFlow::Continue;
             }
@@ -575,10 +628,10 @@ impl Editor {
         snapshot.append_color(
             &accent(alpha),
             &graphene::Rect::new(
-                (bar.x / scale) as f32,
-                (bar.y / scale) as f32,
-                (bar.w / scale) as f32,
-                (bar.h / scale) as f32,
+                logical(bar.x, scale),
+                logical(bar.y, scale),
+                logical(bar.w, scale),
+                logical(bar.h, scale),
             ),
         );
     }
@@ -589,9 +642,8 @@ impl Editor {
     /// this is read before the first frame and a machine that has been in
     /// another mode has been keeping the wrong kind of state.
     pub fn set_mode(&self, mode: caret::Mode) {
-        let mut caret = caret::Caret::new(mode);
-        caret.resize(f64::from(self.imp().size.get()) * self.scale());
-        self.imp().caret.set(caret);
+        self.imp().caret.set(caret::Caret::new(mode));
+        self.tell_caret(|caret| caret.resize(self.em()));
     }
 
     /// Selects `from` to `to`, in UTF-8 bytes, as `--select` asked.
@@ -620,11 +672,11 @@ impl Editor {
     /// `--scroll` has said where the view goes, since a state that names both
     /// means both, and a judged shot of a passage the opponent is not showing
     /// is not a comparison.
-    pub fn place_caret(&self, document: &Document, caret: Caret, reveal: bool) {
+    pub fn place_caret(&self, document: &Document, caret: flags::Caret, reveal: bool) {
         let buffer = self.buffer();
         let at = match caret {
-            Caret::End => buffer.end_iter(),
-            Caret::At(offset) => tags::iter_at(&buffer, document, byte_offset(offset)),
+            flags::Caret::End => buffer.end_iter(),
+            flags::Caret::At(offset) => tags::iter_at(&buffer, document, byte_offset(offset)),
         };
         buffer.place_cursor(&at);
         if reveal {
@@ -680,6 +732,22 @@ fn byte_offset(bytes: u64) -> usize {
     usize::try_from(bytes).unwrap_or(usize::MAX)
 }
 
+/// A length in device pixels, in the widget's own pixels, as `graphene` takes
+/// it.
+///
+/// The narrowing is the one place it belongs: a snapshot is drawn in `f32`,
+/// and a caret's four lengths are three digits at most, so nothing here is
+/// near what an `f32` stops counting exactly.
+fn logical(device: f64, scale: f64) -> f32 {
+    (device / scale) as f32
+}
+
+/// A channel of a `quill_engine::theme::Colour` as `gdk` takes it: 0 to 1
+/// either way, so the narrowing loses nothing a screen could show.
+fn channel(value: f64) -> f32 {
+    value as f32
+}
+
 /// The caret's blue at `alpha`.
 ///
 /// [`Role::Accent`], which the theme table gives as the same colour on both
@@ -688,10 +756,10 @@ fn byte_offset(bytes: u64) -> usize {
 fn accent(alpha: f64) -> gdk::RGBA {
     let ink = Colours::of(Scheme::Light).colour(Role::Accent);
     gdk::RGBA::new(
-        ink.red as f32,
-        ink.green as f32,
-        ink.blue as f32,
-        (ink.alpha * alpha) as f32,
+        channel(ink.red),
+        channel(ink.green),
+        channel(ink.blue),
+        channel(ink.alpha * alpha),
     )
 }
 
