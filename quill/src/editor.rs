@@ -107,10 +107,11 @@ mod imp {
         /// kept with the type: placing the bar on the keystroke path must not
         /// cost a row measured again.
         pub pitch: Cell<u32>,
-        /// Half the air, which is what stands between the top of the band and
-        /// the top of the ink `iter_location` answers with. See
-        /// [`Editor::bar`] for why it is the same half on every row.
-        pub above: Cell<u32>,
+        /// How far the baseline sits below the top of the box
+        /// `iter_location` answers with, which is what the bar's band is
+        /// anchored to. See [`Editor::bar`], and [`caret::band_top`] for why
+        /// the baseline and not the top of the box.
+        pub baseline: Cell<f64>,
         /// The bar last handed to the machine, so that a relayout which moved
         /// nothing can be told from one that moved the row.
         pub bar: Cell<Option<caret::Bar>>,
@@ -302,7 +303,7 @@ impl Editor {
         // The caret's band and its unit, kept with the type: a bar placed on
         // the keystroke path must not cost a row measured all over again.
         self.imp().pitch.set(pitch);
-        self.imp().above.set(leading.above);
+        self.imp().baseline.set(self.row_baseline());
         self.tell_caret(|caret| caret.resize(self.em()));
         self.set_pixels_above_lines(signed(leading.above));
         self.set_pixels_inside_wrap(signed(leading.inside_wrap));
@@ -363,6 +364,21 @@ impl Editor {
     /// measured with kerning and drawn without it is the wrong row, and the
     /// leading is built on this number.
     fn row_height(&self) -> u32 {
+        unsigned(self.body_layout().pixel_size().1)
+    }
+
+    /// How far the baseline sits below the top of one row of body type, in the
+    /// pixels the widget lays out in.
+    ///
+    /// The anchor [`caret::band_top`] takes, measured off the same layout the
+    /// row's height is, because a baseline measured on one layout and a row
+    /// measured on another are two rows.
+    fn row_baseline(&self) -> f64 {
+        f64::from(self.body_layout().baseline()) / f64::from(pango::SCALE)
+    }
+
+    /// One row of body type, laid out to be measured.
+    fn body_layout(&self) -> pango::Layout {
         let layout = self.create_pango_layout(Some("Ag"));
         layout.set_font_description(Some(&body_font(
             self.imp().face.get(),
@@ -371,7 +387,7 @@ impl Editor {
         let features = pango::AttrList::new();
         features.insert(pango::AttrFontFeatures::new(&pango_features()));
         layout.set_attributes(Some(&features));
-        unsigned(layout.pixel_size().1)
+        layout
     }
 
     /// Shows `document`, marked up, with the caret at its start.
@@ -451,14 +467,18 @@ impl Editor {
     /// coordinates the layer is snapshotted in, nudged off the advance
     /// boundary by [`caret::nudge`] before the machine snaps it.
     ///
-    /// The band is the pitch, not the glyph: `iter_location` gives the top of
-    /// the ink, and the air belonging to the row is the same half above it on
-    /// every row, wrapped or not. That is what the three-way leading split of
-    /// ADR 0004 buys — `pixels-inside-wrap` carries all the air between two
-    /// rows of a paragraph and `pixels-above-lines` plus `pixels-below-lines`
-    /// carry all of it between two paragraphs — so the ink sits centred in a
-    /// band of one pitch wherever it is, and the top of that band is always
-    /// half the air above the ink.
+    /// The band is the pitch, not the glyph, and it hangs from the row's
+    /// baseline: `iter_location` gives the top of the box, the baseline is the
+    /// same distance below it on every row, and [`caret::band_top`] carries
+    /// the share of the pitch that goes above it. Anchoring to the box instead
+    /// is what the oracle's own comment warns against — it leaves the bar
+    /// top-heavy, riding up toward the line above.
+    ///
+    /// The distance holds on every row, wrapped or not, because of the
+    /// three-way leading split of ADR 0004: `pixels-inside-wrap` carries all
+    /// the air between two rows of a paragraph and `pixels-above-lines` plus
+    /// `pixels-below-lines` carry all of it between two paragraphs, so no row
+    /// has more air inside its own box than any other.
     ///
     /// `None` before the type has been set, when there is no band to speak of.
     fn bar(&self) -> Option<caret::Bar> {
@@ -472,7 +492,10 @@ impl Editor {
         let scale = self.scale();
         Some(caret::Bar {
             x: (f64::from(row.x()) + caret::nudge(size)) * scale,
-            y: f64::from(row.y() - signed(self.imp().above.get())) * scale,
+            y: caret::band_top(
+                f64::from(row.y()) + self.imp().baseline.get(),
+                f64::from(pitch),
+            ) * scale,
             w: f64::from(caret::width(size)) * scale,
             h: f64::from(pitch) * scale,
         })
