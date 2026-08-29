@@ -439,9 +439,11 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, face: Face, at: &Range<us
 /// One hang per line rather than one per marker, because a line can open with
 /// more than one: `> - item` is a quote's marker and a bullet's, and its words
 /// land on the prose's edge only when the line hangs by the pair. The width is
-/// therefore read from the line's first byte to the end of the last line-head
-/// marker on it, not from the marker's own span, and the spans arrive in the
-/// order the bytes appear, so that last marker is the one that ends the run.
+/// therefore read from the line's first byte to the end of its *first*
+/// line-head marker — which takes in a nested item's indentation — and then
+/// each later marker on the line by its own width alone. What the writer set
+/// between two markers is their prose and hangs nothing, the same rule that
+/// leaves the padding of `>      Beans` where they typed it (#102).
 ///
 /// A heading keeps its own tag row: its span covers the whole heading rather
 /// than its `#`s, so its hang is read off the level instead, in [`draw`]. Its
@@ -456,41 +458,46 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, face: Face, at: &Range<us
 /// and its hang is already on that line: [`Document::spans_in`] reaches back to
 /// the block's first byte, so the skip is the same one [`draw`] makes.
 fn hang_lines(buffer: &gtk::TextBuffer, document: &Document, at: &Range<usize>) {
-    for (_, marker) in hangs(document, document.spans_in(at)) {
+    for (_, marker, cells) in hangs(document, document.spans_in(at)) {
         if marker.at.end <= at.start {
             continue;
         }
-        let cells = marker_width(head(document, marker.at.end));
         paragraph(buffer, document, marker, &list(buffer, cells));
     }
 }
 
-/// Which line takes a hang, and the marker whose end measures it.
+/// Which line takes a hang, the marker that places it, and how wide it is.
 ///
 /// The choice, with no buffer in it, because the choice is the whole of what
-/// [`hang_lines`] decides: one hang per line, the marker that ends the line's
-/// run is the one that measures it, and a heading's line is not here at all.
-fn hangs<'a>(document: &Document, spans: &'a [Span]) -> Vec<(usize, &'a Span)> {
+/// [`hang_lines`] decides: one hang per line, the run of markers the line opens
+/// with is what measures it, and a heading's line is not here at all.
+fn hangs<'a>(document: &Document, spans: &'a [Span]) -> Vec<(usize, &'a Span, u8)> {
     let headings: HashSet<usize> = spans
         .iter()
         .filter(|span| matches!(span.mark, Mark::Heading(_)))
         .map(|span| document.place(span.at.start).line)
         .collect();
-    let mut hangs: Vec<(usize, &Span)> = Vec::new();
+    let mut hangs: Vec<(usize, &Span, usize)> = Vec::new();
     for span in spans.iter().filter(|span| line_head(span.mark)) {
         let line = document.place(span.at.end).line;
         if headings.contains(&line) {
             continue;
         }
         // The spans arrive in the order the bytes appear, so a marker on the
-        // line already taken is a later one on it, and the run is what it ends.
-        if let Some(last) = hangs.last_mut().filter(|(taken, _)| *taken == line) {
+        // line already taken is a later one on it, and it adds its own width
+        // and only that: whatever stands before it that is not a marker is the
+        // writer's, and the first marker's reach already has the indentation.
+        if let Some(last) = hangs.last_mut().filter(|(taken, _, _)| *taken == line) {
             last.1 = span;
+            last.2 += cells_in(&document.text()[span.at.clone()]);
         } else {
-            hangs.push((line, span));
+            hangs.push((line, span, cells_in(head(document, span.at.end))));
         }
     }
     hangs
+        .into_iter()
+        .map(|(line, marker, cells)| (line, marker, marker_width(cells)))
+        .collect()
 }
 
 /// Whether `mark` is a marker a line can open with.
@@ -514,13 +521,13 @@ fn head(document: &Document, end: usize) -> &str {
     &document.text()[end - document.place(end).index..end]
 }
 
-/// How many cells wide the marker run `marker` is.
+/// How many cells the marker run `marker` advances.
 ///
 /// Characters rather than bytes, because a cell is a character on the Faces'
 /// grid; a marker is ASCII either way, but the count is what the tag is keyed
-/// by and counting the wrong thing would key it wrong. Clamped to the widths
-/// [`hang_markers`] made a tag for.
-fn marker_width(marker: &str) -> u8 {
+/// by and counting the wrong thing would key it wrong. Unclamped, because a
+/// line's hang is a sum of these and it is the sum a tag is made for.
+fn cells_in(marker: &str) -> usize {
     let mut cells = 0usize;
     for character in marker.chars() {
         // A tab is not one cell: CommonMark advances it to the next stop, and
@@ -532,6 +539,11 @@ fn marker_width(marker: &str) -> u8 {
             cells + 1
         };
     }
+    cells
+}
+
+/// A line's `cells` as one of the widths [`hang_markers`] made a tag for.
+fn marker_width(cells: usize) -> u8 {
     u8::try_from(cells)
         .unwrap_or(LIST_CELLS)
         .clamp(1, LIST_CELLS)
@@ -688,6 +700,21 @@ mod tests {
     }
 
     #[test]
+    fn a_space_the_writer_left_between_two_markers_hangs_nothing() {
+        // #102 one line further in. The markers are `> ` and `> `, four cells;
+        // the spaces at bytes 2 and 5 are the writer's, and are painted in
+        // their ink. Measuring from the line's first byte to the last marker's
+        // end hangs them too, and the line takes a cell it has no marker for.
+        let document = passage("spaced_markers", ">  >  Beans\n");
+        assert_eq!(
+            widths(&document),
+            vec![4],
+            "a line hangs by the markers it opens with and by the indentation \
+             before them, never by what the writer set between them"
+        );
+    }
+
+    #[test]
     fn a_quote_line_ending_in_a_space_hangs_exactly_as_one_that_does_not() {
         let spaced = passage("spaced_quote", "> one \n> two \n> three \n");
         let plain = passage("plain_quote", "> one\n> two\n> three\n");
@@ -728,7 +755,7 @@ mod tests {
     fn lines(document: &Document) -> Vec<usize> {
         hangs(document, document.spans_in(&(0..document.text().len())))
             .into_iter()
-            .map(|(line, _)| line)
+            .map(|(line, _, _)| line)
             .collect()
     }
 
@@ -751,7 +778,7 @@ mod tests {
     fn widths(document: &Document) -> Vec<u8> {
         hangs(document, document.spans_in(&(0..document.text().len())))
             .into_iter()
-            .map(|(_, marker)| marker_width(head(document, marker.at.end)))
+            .map(|(_, _, cells)| cells)
             .collect()
     }
 
@@ -834,13 +861,13 @@ mod tests {
     #[test]
     fn a_tab_indented_item_hangs_by_the_stop_it_reaches_not_by_one_cell() {
         assert_eq!(
-            marker_width("-\t"),
+            cells_in("-\t"),
             4,
             "`-` then a tab reaches the stop at four, which is where the word starts"
         );
-        assert_eq!(marker_width("- "), 2, "and a space is still one cell");
+        assert_eq!(cells_in("- "), 2, "and a space is still one cell");
         assert_eq!(
-            marker_width("\t- "),
+            cells_in("\t- "),
             6,
             "a tab-nested item hangs by the stop plus its own bullet"
         );

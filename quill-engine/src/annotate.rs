@@ -764,12 +764,15 @@ fn marker_spans(text: &str, at: Range<usize>, mark: Mark, spans: &mut Vec<Span>)
 fn marker_end(text: &str, at: Range<usize>, mark: Mark) -> usize {
     let run = text[at.start..at.end].trim_end_matches('\r');
     if let (Mark::QuoteMarker, Some(caret)) = (mark, run.rfind('>')) {
+        // Clamped, because the space may be the first byte of the content the
+        // subtraction stopped at rather than the marker's own.
         let after = at.start + caret + 1;
-        return after + usize::from(matches!(text.as_bytes().get(after), Some(b' ' | b'\t')));
+        let padded = matches!(text.as_bytes().get(after), Some(b' ' | b'\t'));
+        return (after + usize::from(padded)).min(at.end);
     }
     let end = at.start + run.len();
     let ends_line = text.as_bytes().get(end).is_none_or(u8::is_ascii_whitespace);
-    if ends_line && run.trim().is_empty() {
+    if ends_line && run.bytes().all(|byte| byte.is_ascii_whitespace()) {
         at.start
     } else {
         end
@@ -1297,6 +1300,12 @@ mod tests {
 
     #[test]
     fn no_marker_span_of_any_construct_covers_a_line_break() {
+        // The four marks the subtraction emits, which is every construct's
+        // punctuation. The other marks drawn in the marker grey are not
+        // punctuation and are left alone: `Mark::Url` is a link's destination,
+        // which CommonMark lets a writer break across lines, and greying only
+        // its first line would be the worse of the two wrongs. `FrontMatter`
+        // and `CodeBlock` are blocks rather than markers by construction.
         for passage in [
             oracle(),
             "> one \n> two\n".into(),
