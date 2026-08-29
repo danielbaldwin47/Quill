@@ -53,7 +53,10 @@ if (args.typing) await p.evaluate(() => { document.documentElement.dataset.typin
 // with nothing selected (openPanel.sel is -1), so one ArrowDown lights row 0 — the window's
 // capturing keydown listener eats it, so the caret does not move; the palette renders with its
 // first row already on. [chrome piece]
-if (args.menu && args.menu !== true) {
+// A bare `--menu` parses as true, and a state shot with the popover it asked for missing is a
+// state shot wrong, so an unnamed menu is as loud as an unknown one rather than quietly nothing.
+if (args.menu !== undefined) {
+  const want = args.menu === true ? '' : String(args.menu);
   const opened = await p.evaluate((name) => {
     if (name === 'view') Writer.run('chrome.view');
     else if (name === 'document') Writer.run('chrome.doc');
@@ -63,9 +66,9 @@ if (args.menu && args.menu !== true) {
     else if (name === 'stats') document.getElementById('stats-bar').dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: Math.round(innerWidth * 0.709) }));
     else return false;
     return document.documentElement.dataset.menu === 'on';
-  }, args.menu);
-  if (!opened) { console.error(`shoot: --menu ${args.menu} opened no popover (view|document|stats|palette)`); process.exit(2); }
-  if (args.menu !== 'palette') await p.keyboard.press('ArrowDown');
+  }, want);
+  if (!opened) { console.error(`shoot: --menu ${want || '(unnamed)'} opened no popover (view|document|stats|palette)`); process.exit(2); }
+  if (want !== 'palette') await p.keyboard.press('ArrowDown');
 }
 // freeze caret visible & un-blinking for deterministic shots — but an unfocused caret is dimmed by
 // #caret-layer.idle, and an inline opacity here would paint over the very thing --active off shoots.

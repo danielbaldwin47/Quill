@@ -94,6 +94,18 @@ export function oursArgv(root, flags, settingsFile) {
   return settingsFile ? [...argv, '--settings', settingsFile] : argv;
 }
 
+// The flag ours refused, read out of what it said when it would not start, or null when it stopped
+// for some other reason and the whole command line is the thing to report.
+//
+// There are two flag vocabularies here and they come apart on purpose. `shots/oracle/states.json`
+// learns a flag the moment a tool under legacy/ can serve it, so the opponent can be frozen at a
+// state; the app learns to parse it a whole spec later, when the feature lands. Between the two,
+// the state is servable and unshootable at once, and only ours can say so.
+export function refusedFlag(said) {
+  const m = /(--[a-z-]+): not a flag Quill knows/.exec(said);
+  return m ? m[1] : null;
+}
+
 // ---------- the critic ----------
 
 // The prompt for one pair: `tools/critic.md` below its `---`, with its fields filled.
@@ -436,7 +448,7 @@ async function judge(root, piece, note, summaryFile, settingsFile) {
   const blocked = resolved.map((s) => ({ ...s, cannot: unservable(states.defaults, s.flags) })).filter((s) => s.cannot.length);
   if (blocked.length) {
     for (const s of blocked) say(`gate judge ${piece}: state ${s.name} names ${s.cannot.join(', ')}`);
-    say('gate judge: the app has no such flag yet; those states wait for the Chrome and File handling specs (shots/oracle/states.json)');
+    say('gate judge: the app has no such flag yet; those states wait for the File handling spec (shots/oracle/states.json)');
     return refuse(piece, `${blocked.length} of ${resolved.length} states name flags the app has not got`);
   }
 
@@ -478,6 +490,28 @@ async function judge(root, piece, note, summaryFile, settingsFile) {
     const said = String(e.stderr || '').trim();
     if (said) say(said);
     return refuse(piece, 'the binary would not build');
+  }
+
+  // Whether ours can be opened at all at each state, asked of the binary rather than kept in a list
+  // here, so it cannot drift from what the app actually parses: `--help` makes it read the whole
+  // command line and print instead of opening a window. Asked here, after the build that is the
+  // only way to ask and before the first pair, because a round that learns this at its third state
+  // has already put a critic on the first two. Every state is named in one go, the way the refusals
+  // above name theirs.
+  const bin = path.join(root, BINARY);
+  const cannot = [];
+  for (const s of resolved) {
+    try {
+      execFileSync(bin, [...oursArgv(root, s.flags, settingsFile), '--help'], { stdio: ['ignore', 'ignore', 'pipe'] });
+    } catch (e) {
+      const flag = refusedFlag(String(e.stderr || ''));
+      say(`gate judge ${piece}: state ${s.name} opens ours with ${flag ?? 'a command line it would not take'}`);
+      cannot.push(s.name);
+    }
+  }
+  if (cannot.length) {
+    say(`gate judge: ours will not open at ${cannot.join(', ')}; those flags wait for the spec that teaches the app to parse them`);
+    return refuse(piece, `${cannot.length} of ${resolved.length} states name flags the app has not got`);
   }
 
   const recorded = rounds(root, piece);
