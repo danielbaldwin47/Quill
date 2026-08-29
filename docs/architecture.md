@@ -20,13 +20,14 @@ Every type both crates share is defined in the engine. `tools/gate check` runs `
 workspace; a test that needs a window is harness, not test.
 
 Engine modules, one per concept: `document` (text and block index), `markdown` (the parser, one
-shared `Options`), `annotate` (the Annotator trait, spans, run flattening), `library`, `settings`,
-`template`, `render` (Pango layout for Preview, PDF and HTML), `stats`, `outline`, `spell` (the
-`SpellChecker` trait and the enchant and `spellbook` implementations), `pos` (Syntax highlight),
-`style` (Style check), `typography` (the pitch, the measure and the page margins), `theme` (the two
-grounds' colour table and the rule that resolves one). App modules mirror the Pieces and features:
-`editor`, `caret`, `focus`, `typewriter`, `theme` (the portal listener and the CSS provider, painting
-the engine table's colours), `chrome`, `library`, `preview`, `export`, `flags`, `harness`.
+shared `Options`), `annotate` (the Annotator trait, spans, run flattening), `focus` (sentence
+segmentation, the bright and near tiers), `library`, `settings`, `template`, `render` (Pango layout
+for Preview, PDF and HTML), `stats`, `outline`, `spell` (the `SpellChecker` trait and the enchant
+and `spellbook` implementations), `pos` (Syntax highlight), `style` (Style check), `typography` (the
+pitch, the measure and the page margins), `theme` (the two grounds' colour table and the rule that
+resolves one). App modules mirror the Pieces and features: `editor`, `caret`, `focus`, `typewriter`,
+`theme` (the portal listener and the CSS provider, painting the engine table's colours), `chrome`,
+`library`, `preview`, `export`, `flags`, `harness`.
 
 ## Text model
 
