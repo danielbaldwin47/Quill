@@ -25,18 +25,18 @@ const KEYS: usize = 200;
 fn main() {
     println!("keystroke: the block re-parse, the flatten and the splice, per key");
     for words in [1_000, 55_000] {
-        let path = write(words);
+        let path = draft_of(words);
         // Two carets. At the end there is nothing under the edit to move, so
         // the number is the re-parse and the flatten alone. In the middle every
         // block, span and run below the caret is rebased by the byte delta —
         // an integer add rather than a parse, but one per entry, and half a
         // Document of them. Whether *that* is flat is the question a bench at
         // one caret cannot answer.
-        for (caret, at) in [("end", None), ("middle", Some(()))] {
+        for (caret, halfway) in [("end", false), ("middle", true)] {
             let mut doc = Document::open(&path).expect("the bench writes its own Document");
             let bytes = doc.text().len();
             let cursor = |doc: &Document| {
-                if at.is_some() {
+                if halfway {
                     doc.line_bytes(doc.place(doc.text().len() / 2).line).end - 1
                 } else {
                     doc.text().len()
@@ -71,11 +71,13 @@ fn main() {
     }
 }
 
-/// A Document of about `words` words, on disk, and where it landed.
+/// Writes a Document of about `words` words, and says where it landed.
 ///
 /// Prose in the shape the Editor is for: paragraphs with Markup in them, so
-/// that the re-parse has spans to find and the flatten has runs to make.
-fn write(words: usize) -> PathBuf {
+/// that the re-parse has spans to find and the flatten has runs to make. It
+/// goes to disk because [`Document::open`] is the only way in — the engine
+/// builds a Document from a file, never from a string a caller is holding.
+fn draft_of(words: usize) -> PathBuf {
     let para = "The lamp *was* lit at the head of the stair, and the keeper \
                 wrote **nothing** of it in the log that night.\n\n";
     let each = para.split_whitespace().count();

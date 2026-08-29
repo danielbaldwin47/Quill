@@ -101,7 +101,8 @@ pub enum Kind {
     /// A `[^1]: …` footnote definition.
     Footnote,
     /// A block this module has no rule of its own for. It re-parses like a
-    /// paragraph and takes the boundary fallback for nothing else.
+    /// paragraph, and widens only for what the walk out to a blank line
+    /// widens anything for.
     Other,
 }
 
@@ -433,7 +434,6 @@ impl Document {
         let Some(found) = self.block_at(at.start) else {
             return 0..self.text.len();
         };
-        let last = self.blocks.len() - 1;
         let block = &self.blocks[found];
         // A delete that runs off the end of its block crossed a boundary to
         // get there, so it widens for the same reason the four rules do.
@@ -441,30 +441,26 @@ impl Document {
         // The rule widens to the block's *neighbours*, not to the blank lines
         // beside it: a blank line is what a Gap is made of, so stepping only
         // that far would leave a rule that fired changing nothing.
-        let (mut lo, mut hi) = if widen {
+        let (mut lo, hi) = if widen {
             (self.before(found), self.after(found))
         } else {
             (found, found)
         };
-        // Out to a Gap on each side, and over the whole of it. Stopping where
-        // one begins would not do: which block the newline before a blank line
-        // belongs to is the parser's to say and an edit inside the block can
-        // move it — a list absorbs the line under it or leaves it to the Gap,
-        // depending on bytes an edit can write. Inside the region that is the
-        // re-parse's answer to give; on its edge it is a seam that slips.
         while lo > 0 && !self.blank(lo) {
             lo -= 1;
         }
-        // The second clause is the delete that ran off the end: whatever else
-        // the region is, it has to hold every byte the edit names, or the slice
-        // cannot be built from it.
-        while hi < last && (!self.blank(hi) || self.blocks[hi].at.end < at.end) {
-            hi += 1;
-        }
-        self.blocks[lo].at.start..self.blocks[hi].at.end
+        // `at.end` is the delete that ran off the end of its block: whatever
+        // else the region is, it has to hold every byte the edit names, or the
+        // slice cannot be built from it.
+        self.blocks[lo].at.start..self.out_to_a_gap(hi, at.end)
     }
 
     /// `region`'s bytes with the edit written into them.
+    ///
+    /// Built rather than borrowed, and built again on every pass of the scan
+    /// in [`Document::plan`], because the text has not moved yet: the region is
+    /// decided against the index the writer is editing, and the only place the
+    /// edited bytes exist until the splice is here.
     fn slice(&self, region: &Range<usize>, at: &Range<usize>, inserted: &str) -> String {
         let mut slice = String::with_capacity(region.len() + inserted.len());
         slice.push_str(&self.text[region.start..at.start]);
@@ -480,12 +476,12 @@ impl Document {
     /// the blank lines under it — so the last block of the slice's own index is
     /// a [`Kind::Gap`] unless the edit opened something that runs off the end
     /// of the region. That is the whole of detecting the flip.
-    fn left_open(&self, slice: &str, index: &[Block], region: &Range<usize>) -> Option<Fence> {
+    fn left_open(&self, slice: &str, index: &[Block], region: &Range<usize>) -> Option<Open> {
         let last = index.last()?;
         if region.end >= self.text.len() || !last.kind.opens() {
             return None;
         }
-        Fence::left_open(
+        Open::left_open(
             &slice[last.at.start - region.start..last.at.end - region.start],
             last.kind,
         )
@@ -499,24 +495,40 @@ impl Document {
     /// the new parse but not in the old index, and the splice replaces whole
     /// blocks, so the answer is carried out to an old block edge nothing is
     /// open at.
-    fn reconverges(&self, from: usize, fence: Fence) -> usize {
+    fn reconverges(&self, from: usize, open: Open) -> usize {
+        let Open::Fence(fence) = open else {
+            return self.text.len();
+        };
         let Some(closed) = fence.closes(&self.text[from..]).map(|end| from + end) else {
             return self.text.len();
         };
-        let last = self.blocks.len() - 1;
-        let Some(mut hi) = self.block_at(closed) else {
+        let Some(hi) = self.block_at(closed) else {
             return self.text.len();
         };
-        while hi < last && !self.blank(hi) {
-            hi += 1;
-        }
-        self.blocks[hi].at.end.max(closed)
+        self.out_to_a_gap(hi, closed).max(closed)
     }
 
     /// Whether the block at `found` is a Gap — blank lines, and so a byte
     /// nothing is open at.
     fn blank(&self, found: usize) -> bool {
         self.blocks[found].kind == Kind::Gap
+    }
+
+    /// The byte a region beginning at block `hi` ends at: the end of the first
+    /// Gap at or under it that also reaches `past`.
+    ///
+    /// Over the whole of the Gap, not up to where it begins. Which block the
+    /// newline before a blank line belongs to is the parser's to say, and an
+    /// edit can move it — a list absorbs the line under it or leaves it to the
+    /// Gap, depending on bytes a writer can type. Inside the region that is the
+    /// re-parse's answer to give; on the region's edge it is a seam that slips,
+    /// and the every-byte sweep over the judged passage is what says so.
+    fn out_to_a_gap(&self, mut hi: usize, past: usize) -> usize {
+        let last = self.blocks.len() - 1;
+        while hi < last && (!self.blank(hi) || self.blocks[hi].at.end < past) {
+            hi += 1;
+        }
+        self.blocks[hi].at.end
     }
 
     /// The block over `found` that is not a Gap, or the Document's first.
@@ -833,7 +845,21 @@ struct Fence {
     len: usize,
 }
 
-impl Fence {
+/// What a container left open past a region gives the scan to look for.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Open {
+    /// Read on for the line that closes this fence.
+    Fence(Fence),
+    /// Read on to the end of the Document, because nothing the scan can match
+    /// closes this one. An HTML block runs to a closing tag rather than to a
+    /// line of its own character, and which tags do it is a list CommonMark
+    /// keeps rather than a rule it states. Reading one this way costs a wider
+    /// re-parse on an edit inside raw HTML, which is not a keystroke this
+    /// Piece is about; reading it as closed would draw the wrong thing.
+    ToTheEnd,
+}
+
+impl Open {
     /// The container `text` opens and does not close again, if it leaves one
     /// open.
     ///
@@ -841,22 +867,18 @@ impl Fence {
     /// opening line by construction; all that is being asked is whether a line
     /// under it closes the thing.
     fn left_open(text: &str, kind: Kind) -> Option<Self> {
-        // An HTML block runs to a closing tag rather than to a line this can
-        // match, and which tags do it is a list CommonMark keeps rather than a
-        // rule it states. Reading one as open costs a wider re-parse on an edit
-        // inside raw HTML, which is not a keystroke this ticket is about;
-        // reading one as closed would draw the wrong thing.
         if kind == Kind::Html {
-            return Some(Self {
-                byte: 0,
-                len: usize::MAX,
-            });
+            return Some(Self::ToTheEnd);
         }
         let mut lines = text.split_inclusive('\n');
-        let fence = Self::of(lines.next()?)?;
-        lines.all(|line| !fence.closed_by(line)).then_some(fence)
+        let fence = Fence::of(lines.next()?)?;
+        lines
+            .all(|line| !fence.closed_by(line))
+            .then_some(Self::Fence(fence))
     }
+}
 
+impl Fence {
     /// The fence `line` is written in, if it is a fence line at all.
     fn of(line: &str) -> Option<Self> {
         let bare = line.trim_start_matches(' ');
