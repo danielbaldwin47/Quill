@@ -42,6 +42,13 @@ const FACE_CLASS: &str = "quill-editor";
 /// does not depend on how long the document is.
 const CARET_LINE: f64 = 0.5;
 
+/// The class the Editor carries while its window is not active.
+///
+/// One class rather than GTK's own `:backdrop`, because the ghost caret and
+/// the idle selection are one state and are driven from one place: the
+/// window's `is-active`, which is also what the caret's machine is told.
+const IDLE_CLASS: &str = "idle";
+
 /// Paper and ink: the light palette of `legacy/app/css/theme.css`.
 ///
 /// Two constants rather than a table, because there is one theme until the
@@ -100,10 +107,11 @@ mod imp {
         /// kept with the type: placing the bar on the keystroke path must not
         /// cost a row measured again.
         pub pitch: Cell<u32>,
-        /// Half the air, which is what stands between the top of the band and
-        /// the top of the ink `iter_location` answers with. See
-        /// [`Editor::bar`] for why it is the same half on every row.
-        pub above: Cell<u32>,
+        /// How far the baseline sits below the top of the box
+        /// `iter_location` answers with, which is what the bar's band is
+        /// anchored to. See [`Editor::bar`], and [`caret::band_top`] for why
+        /// the baseline and not the top of the box.
+        pub baseline: Cell<f64>,
         /// The bar last handed to the machine, so that a relayout which moved
         /// nothing can be told from one that moved the row.
         pub bar: Cell<Option<caret::Bar>>,
@@ -295,7 +303,7 @@ impl Editor {
         // The caret's band and its unit, kept with the type: a bar placed on
         // the keystroke path must not cost a row measured all over again.
         self.imp().pitch.set(pitch);
-        self.imp().above.set(leading.above);
+        self.imp().baseline.set(self.row_baseline());
         self.tell_caret(|caret| caret.resize(self.em()));
         self.set_pixels_above_lines(signed(leading.above));
         self.set_pixels_inside_wrap(signed(leading.inside_wrap));
@@ -356,6 +364,21 @@ impl Editor {
     /// measured with kerning and drawn without it is the wrong row, and the
     /// leading is built on this number.
     fn row_height(&self) -> u32 {
+        unsigned(self.body_layout().pixel_size().1)
+    }
+
+    /// How far the baseline sits below the top of one row of body type, in the
+    /// pixels the widget lays out in.
+    ///
+    /// The anchor [`caret::band_top`] takes, measured off the same layout the
+    /// row's height is, because a baseline measured on one layout and a row
+    /// measured on another are two rows.
+    fn row_baseline(&self) -> f64 {
+        f64::from(self.body_layout().baseline()) / f64::from(pango::SCALE)
+    }
+
+    /// One row of body type, laid out to be measured.
+    fn body_layout(&self) -> pango::Layout {
         let layout = self.create_pango_layout(Some("Ag"));
         layout.set_font_description(Some(&body_font(
             self.imp().face.get(),
@@ -364,7 +387,7 @@ impl Editor {
         let features = pango::AttrList::new();
         features.insert(pango::AttrFontFeatures::new(&pango_features()));
         layout.set_attributes(Some(&features));
-        unsigned(layout.pixel_size().1)
+        layout
     }
 
     /// Shows `document`, marked up, with the caret at its start.
@@ -444,14 +467,19 @@ impl Editor {
     /// coordinates the layer is snapshotted in, nudged off the advance
     /// boundary by [`caret::nudge`] before the machine snaps it.
     ///
-    /// The band is the pitch, not the glyph: `iter_location` gives the top of
-    /// the ink, and the air belonging to the row is the same half above it on
-    /// every row, wrapped or not. That is what the three-way leading split of
-    /// ADR 0004 buys — `pixels-inside-wrap` carries all the air between two
-    /// rows of a paragraph and `pixels-above-lines` plus `pixels-below-lines`
-    /// carry all of it between two paragraphs — so the ink sits centred in a
-    /// band of one pitch wherever it is, and the top of that band is always
-    /// half the air above the ink.
+    /// The band is the pitch, not the glyph, and it hangs from the row's
+    /// baseline: `iter_location` gives the top of the box, the baseline is the
+    /// same distance below it on every row, and [`caret::band_top`] carries
+    /// the share of the pitch that goes above it. Anchoring to the box instead
+    /// is what `caret.js`'s header warns against in as many words: a band on
+    /// the box is centred on the font's em box rather than on the ink, and
+    /// reads as top-heavy against the letters.
+    ///
+    /// The distance holds on every row, wrapped or not, because of the
+    /// three-way leading split of ADR 0004: `pixels-inside-wrap` carries all
+    /// the air between two rows of a paragraph and `pixels-above-lines` plus
+    /// `pixels-below-lines` carry all of it between two paragraphs, so no row
+    /// has more air inside its own box than any other.
     ///
     /// `None` before the type has been set, when there is no band to speak of.
     fn bar(&self) -> Option<caret::Bar> {
@@ -465,7 +493,10 @@ impl Editor {
         let scale = self.scale();
         Some(caret::Bar {
             x: (f64::from(row.x()) + caret::nudge(size)) * scale,
-            y: f64::from(row.y() - signed(self.imp().above.get())) * scale,
+            y: caret::band_top(
+                f64::from(row.y()) + self.imp().baseline.get(),
+                f64::from(pitch),
+            ) * scale,
             w: f64::from(caret::width(size)) * scale,
             h: f64::from(pitch) * scale,
         })
@@ -496,6 +527,47 @@ impl Editor {
         let now = self.now();
         let kind = caret::kind(self.imp().last.get(), self.imp().edited.get() == Some(now));
         self.place_bar(bar, kind, now);
+        self.keep_in_band(bar);
+    }
+
+    /// Keeps the caret's row inside the scroll band as the writer moves it:
+    /// `scroll-padding: 10vh 0 28vh` in `legacy/app/css/page.css`.
+    ///
+    /// Only for a move a key made, which is the oracle's own rule rather than
+    /// a narrowing of it. The band is `scroll-padding` on the scroller, and
+    /// `scroll-padding` is spent by the browser's caret-into-view — which runs
+    /// on typing and on cursor keys, and not on a click, whose target the hand
+    /// could already see. So a click low on the page does not jump it, and the
+    /// first key pressed afterwards brings the row into the band.
+    ///
+    /// [`caret::Source::App`] is out for a second reason: a launch flag, a
+    /// restored position or a Command is put where it was asked for rather
+    /// than travelled to. A judged state naming both `--caret` and `--scroll`
+    /// means both, and a view that chased the caret would shoot a different
+    /// passage from the one it was asked for.
+    ///
+    /// The row comes from the bar the machine was just handed rather than a
+    /// second `iter_location`, because this is on the keystroke path; the bar
+    /// is device pixels and the adjustment is not, so it comes back through
+    /// the scale. The target is not clamped by the engine, and does not need
+    /// to be: a `GtkAdjustment` holds itself inside its own ends.
+    fn keep_in_band(&self, bar: caret::Bar) {
+        if self.imp().last.get() != caret::Source::Key {
+            return;
+        }
+        let Some(adjustment) = self.vadjustment() else {
+            // Not in a scroller: there is nowhere for the band to move to.
+            return;
+        };
+        let scale = self.scale();
+        if let Some(target) = typography::band_target(
+            bar.y / scale,
+            bar.h / scale,
+            adjustment.value(),
+            adjustment.page_size(),
+        ) {
+            adjustment.set_value(target);
+        }
     }
 
     /// The bar is where it was, but the page under it moved.
@@ -646,6 +718,36 @@ impl Editor {
         self.tell_caret(|caret| caret.resize(self.em()));
     }
 
+    /// The window this Editor is in became active, or stopped being.
+    ///
+    /// The one place the ghost is decided. The caret's machine drops to its
+    /// ghost alpha with the blink stopped, and the selection swaps to the idle
+    /// colour with it, because a window that has lost focus should say where
+    /// the writer was without shouting it. Both return on focus.
+    pub fn set_active(&self, active: bool) {
+        let now = self.now();
+        self.tell_caret(|caret| caret.focus(active, now));
+        if active {
+            self.remove_css_class(IDLE_CLASS);
+        } else {
+            self.add_css_class(IDLE_CLASS);
+        }
+        self.queue_draw();
+        self.ask_for_frames();
+    }
+
+    /// The app is about to place the caret itself, with no hand behind it.
+    ///
+    /// [`caret::Source`] is sticky: a controller sets it and nothing clears
+    /// it, so once the writer has pressed a key every later placement would
+    /// read as the writer's own. The places that move the caret without a hand
+    /// — the launch flags, and later a restored position or a Command — say so
+    /// here, which is what lets [`Editor::keep_in_band`] trust the answer
+    /// rather than only being right until the first keystroke.
+    fn placing(&self) {
+        self.imp().last.set(caret::Source::App);
+    }
+
     /// Selects `from` to `to`, in UTF-8 bytes, as `--select` asked.
     ///
     /// The insert mark goes to `to` and the bound to `from`, which is where a
@@ -653,6 +755,7 @@ impl Editor {
     /// here, painted beneath the glyphs, and the caret is at the end the hand
     /// was moving.
     pub fn select(&self, document: &Document, from: u64, to: u64) {
+        self.placing();
         let buffer = self.buffer();
         let bound = tags::iter_at(&buffer, document, byte_offset(from));
         let insert = tags::iter_at(&buffer, document, byte_offset(to));
@@ -673,6 +776,7 @@ impl Editor {
     /// means both, and a judged shot of a passage the opponent is not showing
     /// is not a comparison.
     pub fn place_caret(&self, document: &Document, caret: flags::Caret, reveal: bool) {
+        self.placing();
         let buffer = self.buffer();
         let at = match caret {
             flags::Caret::End => buffer.end_iter(),
@@ -761,6 +865,17 @@ fn accent(alpha: f64) -> gdk::RGBA {
         channel(ink.blue),
         channel(ink.alpha * alpha),
     )
+}
+
+/// One role's colour on the light ground, spelled as CSS.
+///
+/// The selection and its idle twin are read from the engine's colour table
+/// rather than written out here beside [`PAPER`] and [`INK`], because the
+/// table already carries both, on both grounds, at exactly the values
+/// `legacy/app/css/theme.css` sets them to. A second copy of a number the
+/// critic reads is a second thing to keep true.
+fn light(role: Role) -> String {
+    Colours::of(Scheme::Light).colour(role).to_css()
 }
 
 /// A count of pixels as a GTK widget takes it.
@@ -855,14 +970,55 @@ fn stylesheet(face: Face, size: u32) -> String {
          \x20 font-style: normal;\n\
          \x20 font-weight: {INK_WEIGHT};\n\
          \x20 font-feature-settings: {features};\n\
+         }}\n\
+         textview.{FACE_CLASS} text selection {{\n\
+         \x20 background-color: {selection};\n\
+         \x20 color: {INK};\n\
+         }}\n\
+         textview.{FACE_CLASS}.{IDLE_CLASS} text selection {{\n\
+         \x20 background-color: {idle};\n\
          }}\n",
         family = face.family(),
-        features = css_features()
+        features = css_features(),
+        selection = light(Role::Selection),
+        idle = light(Role::SelectionIdle)
     )
 }
 
 impl Default for Editor {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Both selection colours are the oracle's, and the idle one is reached by
+    /// the class the window's `is-active` puts on the widget.
+    ///
+    /// Held here because no shot can hold it: `caret/unfocused` is shot with
+    /// no selection in it, so the one judged state that is not active is also
+    /// the one state with no band to be idle. The stylesheet is where the two
+    /// colours and the swap between them are decided, so it is where they are
+    /// checked.
+    #[test]
+    fn the_stylesheet_carries_both_selection_colours_and_the_swap() {
+        let css = stylesheet(Face::Duo, 20);
+        assert!(
+            css.contains("rgba(0, 181, 255, 0.22)"),
+            "the selection is not the oracle's --selection:\n{css}"
+        );
+        assert!(
+            css.contains("rgba(28, 28, 28, 0.1)"),
+            "the idle selection is not the oracle's --selection-idle:\n{css}"
+        );
+        assert!(
+            css.contains(&format!(
+                "textview.{FACE_CLASS}.{IDLE_CLASS} text selection"
+            )),
+            "nothing swaps the selection colour when the window goes idle:\n{css}"
+        );
     }
 }

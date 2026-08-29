@@ -1,4 +1,5 @@
-//! Typography: the pitch, the measure and the margins a page is laid out from.
+//! Typography: the pitch, the measure, the margins a page is laid out from and
+//! the band the caret's row is kept in.
 //!
 //! The numbers, and none of the widget that reads them. The Parity oracle
 //! keeps them in `legacy/app/css/type.css` and `legacy/app/css/page.css` as
@@ -30,6 +31,16 @@ const GUTTER_LARGEST: f64 = 96.0;
 
 /// The air below the last row of text: `--page-bottom: 30vh`.
 const PAGE_BOTTOM: f64 = 0.30;
+
+/// How much of the view is kept above the caret's row, and how much below:
+/// `scroll-padding: 10vh 0 28vh` in `legacy/app/css/page.css`.
+///
+/// The two are not equal because a writer reads up and writes down. The room
+/// that matters is the room the next line will need, so the band sits high in
+/// the view and the text drifts up the page instead of crawling along the
+/// bottom edge.
+const BAND_ABOVE: f64 = 0.10;
+const BAND_BELOW: f64 = 0.28;
 
 /// The line pitch at `size`, in whole pixels: iA's liquid leading.
 ///
@@ -145,6 +156,39 @@ pub fn page_bottom(view: u32) -> u32 {
     (PAGE_BOTTOM * f64::from(view)).round() as u32
 }
 
+/// Where the view has to go to keep the caret's row inside the band, or `None`
+/// when the row is already in it and nothing should move.
+///
+/// The band is the viewport less [`BAND_ABOVE`] at the top and [`BAND_BELOW`]
+/// at the foot. A row above the band is put at the top of it and a row below
+/// it at the foot, which is the oracle's `scroll-padding` under a
+/// `scrollIntoView` of `block: nearest`: the shorter of the two moves, so that
+/// a caret leaving the band by a line does not jump the page.
+///
+/// Everything is in the one coordinate the scroll is counted in — `scroll` is
+/// the top of the viewport, `row_top` the top of the row's band of one pitch —
+/// and the answer is in it too. It is not clamped to the document: a row near
+/// either end asks for a place the view cannot go, and the caller has the
+/// adjustment that knows where the ends are.
+///
+/// A row taller than the band takes the top rule, because a row whose start is
+/// off the screen cannot be read at all.
+#[must_use]
+pub fn band_target(row_top: f64, row_height: f64, scroll: f64, viewport: f64) -> Option<f64> {
+    if viewport <= 0.0 {
+        return None;
+    }
+    let head_room = viewport * BAND_ABOVE;
+    let foot = viewport * (1.0 - BAND_BELOW);
+    if row_top < scroll + head_room {
+        Some(row_top - head_room)
+    } else if row_top + row_height > scroll + foot {
+        Some(row_top + row_height - foot)
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -157,6 +201,25 @@ mod tests {
         let size = f64::from(size);
         let air = f64::max(size * 1.52, f64::min(size * 1.30 + 10.4, size * 2.0));
         air.round() as u32
+    }
+
+    /// A pitch at the judged size, so that the band's rows are the rows a
+    /// judged shot has.
+    const ROW: f64 = 36.0;
+
+    /// The view is a thousand pixels down every time, so that a band that
+    /// answered in the viewport's own coordinates rather than the scroll's
+    /// would be off by exactly that and could not pass by accident.
+    const SCROLL: f64 = 1000.0;
+
+    fn moves_to(row_top: f64, viewport: f64, want: f64, what: &str) {
+        let Some(got) = band_target(row_top, ROW, SCROLL, viewport) else {
+            panic!("{what}: the band asked for no move at all");
+        };
+        assert!(
+            (got - want).abs() < 1e-9,
+            "{what}: the band put the view at {got}, not {want}"
+        );
     }
 
     #[test]
@@ -290,6 +353,68 @@ mod tests {
             page_bottom(900),
             270,
             "a judged 900 px window leaves 30 % of itself below the last row"
+        );
+    }
+
+    #[test]
+    fn a_row_already_inside_the_band_is_left_where_it_is_at_every_viewport() {
+        for (viewport, row_top) in [(900.0, 1200.0), (600.0, 1200.0), (1200.0, 1300.0)] {
+            assert!(
+                band_target(row_top, ROW, SCROLL, viewport).is_none(),
+                "a row {row_top} in a {viewport} px view is inside the band and asked for a move"
+            );
+        }
+    }
+
+    #[test]
+    fn a_row_above_the_band_comes_down_to_a_tenth_of_the_view_and_no_further() {
+        moves_to(1000.0, 900.0, 910.0, "a 900 px view");
+        moves_to(1000.0, 600.0, 940.0, "a 600 px view");
+        moves_to(1000.0, 1200.0, 880.0, "a 1200 px view");
+    }
+
+    #[test]
+    fn a_row_below_the_band_comes_up_to_seventy_two_per_cent_of_the_view() {
+        moves_to(1700.0, 900.0, 1088.0, "a 900 px view");
+        moves_to(1500.0, 600.0, 1104.0, "a 600 px view");
+        moves_to(1900.0, 1200.0, 1072.0, "a 1200 px view");
+    }
+
+    #[test]
+    fn the_band_keeps_ten_per_cent_above_the_row_and_twenty_eight_below_it() {
+        // The row at the very top of the view, and the row whose foot is at
+        // the very bottom of it: the two moves are the two numbers of
+        // `scroll-padding: 10vh 0 28vh`, which is the whole of the rule.
+        moves_to(SCROLL, 900.0, SCROLL - 90.0, "a row at the top of the view");
+        moves_to(
+            SCROLL + 900.0 - ROW,
+            900.0,
+            SCROLL + 252.0,
+            "a row at the foot of the view",
+        );
+    }
+
+    #[test]
+    fn the_bands_edges_belong_to_the_band() {
+        assert!(
+            band_target(SCROLL + 90.0, ROW, SCROLL, 900.0).is_none(),
+            "a row starting exactly on the band's top edge was moved"
+        );
+        assert!(
+            band_target(SCROLL + 648.0 - ROW, ROW, SCROLL, 900.0).is_none(),
+            "a row ending exactly on the band's bottom edge was moved"
+        );
+        assert!(
+            band_target(SCROLL + 89.0, ROW, SCROLL, 900.0).is_some(),
+            "a row one pixel above the band's top edge was left there"
+        );
+    }
+
+    #[test]
+    fn a_view_with_no_height_yet_has_no_band_to_keep_anything_in() {
+        assert!(
+            band_target(1700.0, ROW, SCROLL, 0.0).is_none(),
+            "a view of no height asked for a scroll"
         );
     }
 }

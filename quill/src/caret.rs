@@ -108,6 +108,17 @@ const FADE_IN: i64 = 55 * MS;
 /// not worth seeing otherwise.
 const CYCLE: i64 = ON + FADE_OUT + OFF + FADE_IN;
 
+/// The share of the pitch the band carries above the baseline: 11/16, leaving
+/// 31.25 % below it.
+///
+/// `ABOVE` in `legacy/app/js/caret.js`, which is where this number is of
+/// record: its header takes the caret's geometry from `ref/ia/REFERENCE.md`
+/// § 4.1 plus a re-measurement of its own on `appstore-mac-01` and
+/// `msstore-win-01`, and the share is one of the numbers that re-measurement
+/// added — § 4.1 itself records only the width, the height and that the bar
+/// sits flush after the last glyph.
+const ABOVE_BASELINE: f64 = 0.6875;
+
 /// What is left of the caret when the window is not active.
 ///
 /// iA and macOS drop it entirely; the oracle keeps a ghost, so that coming
@@ -312,6 +323,7 @@ impl Caret {
         self.active_at = Some(t);
         let to = Bar {
             x: snap(to.x),
+            y: snap(to.y),
             ..to
         };
         if self.placed && to == self.to {
@@ -518,6 +530,26 @@ pub fn nudge(size: u32) -> f64 {
     f64::from(size) * NUDGE
 }
 
+/// Where the bar's top sits, given the row's baseline and the pitch, in the
+/// pixels the widget lays out in.
+///
+/// `snap(b.top + M.base - ABOVE * M.pitch)` in `caret.js`: the band is
+/// [`ABOVE_BASELINE`] of the pitch above the baseline and the rest below it.
+///
+/// The baseline, and not the top of the line box, is the anchor. A CSS line
+/// box puts its baseline at about 73 % of the pitch, which is lower than iA
+/// puts it: iA centres the band on the middle of the *ink*, cap height to
+/// descender, rather than on the middle of the font's em box, so the bar
+/// reads as balanced against the letters instead of riding up toward the line
+/// above. Anchoring to the baseline is also what makes the rule hold for any
+/// Face, size or leading the Type piece chooses, since every one of those
+/// moves the ink inside the box but none of them moves the baseline out from
+/// under it.
+#[must_use]
+pub fn band_top(baseline: f64, pitch: f64) -> f64 {
+    baseline - ABOVE_BASELINE * pitch
+}
+
 /// The bar's width at type size `size`, in whole device pixels.
 ///
 /// `Math.max(2, Math.round(M.em * WIDTH))` in `caret.js`, and whole pixels for
@@ -535,10 +567,13 @@ pub fn width(size: u32) -> u32 {
 
 /// The left edge, on a whole device pixel.
 ///
-/// The row's top and the pitch arrive whole from `quill_engine::typography`,
-/// so x is the only one of the four that needs this — and it does need it: a
-/// bar starting on a half pixel is rasterised a column wider than it was cut,
-/// with a grey edge standing in for the half.
+/// The pitch arrives whole from `quill_engine::typography`, but neither edge
+/// the bar is placed by does: x is nudged off the advance boundary and y hangs
+/// from a baseline at [`ABOVE_BASELINE`] of the pitch, and both land wherever
+/// that arithmetic leaves them. Both need this: a bar starting on a half pixel
+/// is rasterised a row or a column wider than it was cut, with a grey edge
+/// standing in for the half. `caret.js` snaps its top and its left for the
+/// same reason.
 ///
 /// Device pixels are the caller's: the widget applies the surface's scale
 /// factor on the way in, which is where the oracle's `Math.round(v * dpr) /
@@ -1056,5 +1091,24 @@ mod tests {
     fn the_bar_is_nudged_off_the_advance_boundary() {
         assert!((nudge(20) - 1.4).abs() < 1e-9, "1.4 px at 20 px type");
         assert!((nudge(40) - 2.8).abs() < 1e-9, "2.8 px at 40 px type");
+    }
+
+    /// The band hangs from the baseline at iA's own share, which is what keeps
+    /// it centred on the ink rather than on the font's em box.
+    #[test]
+    fn the_band_carries_eleven_sixteenths_of_the_pitch_above_the_baseline() {
+        // 0.6875 * 36 = 24.75 above the baseline at the judged size, leaving
+        // 11.25 below it.
+        assert!(
+            (band_top(100.0, 36.0) - 75.25).abs() < 1e-9,
+            "a 36 px pitch on a baseline at 100 does not start at 75.25"
+        );
+        for pitch in [26.0, 36.0, 52.0, 92.5] {
+            let above = 100.0 - band_top(100.0, pitch);
+            assert!(
+                (above / pitch - 0.6875).abs() < 1e-9,
+                "a {pitch} px pitch puts {above} px above the baseline, not 11/16 of itself"
+            );
+        }
     }
 }
