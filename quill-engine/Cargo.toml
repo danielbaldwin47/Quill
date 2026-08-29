@@ -17,3 +17,10 @@ pango.workspace = true
 pulldown-cmark.workspace = true
 serde.workspace = true
 toml.workspace = true
+
+# The keystroke bench: `cargo bench -p quill-engine`. Informational, so it
+# carries no dependency and no harness — `std::time::Instant` around the call
+# the keystroke path makes is the whole of it.
+[[bench]]
+name = "keystroke"
+harness = false

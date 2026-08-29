@@ -16,10 +16,22 @@
 //! after it shift by the edit's byte delta, an integer add rather than a parse.
 //!
 //! An edit that touches a **block boundary** — a blank line, a fence marker, a
-//! list marker, a setext underline — re-parses the whole Document instead. That
-//! is correct and not yet fast: the ticket after this one replaces the fallback
-//! with the widening rules and proves the keystroke budget. It is off the path
-//! of ordinary typing, and it never renders the wrong thing.
+//! list marker, a setext underline — **widens** the re-parse to the block's
+//! neighbours instead. Those four are the ways a boundary moves, and a block is
+//! the smallest thing that re-parses correctly alone: a paragraph continuation
+//! line, a lazy blockquote and a setext underline each change the meaning of
+//! the line above. Widening stops where nothing is open — at a blank line, or
+//! at the Document's edge — because a [`Kind::Gap`] is by definition outside
+//! every container, so a region bounded by one parses in isolation the way it
+//! parses in place.
+//!
+//! The one thing widening cannot bound is a **container context** the edit
+//! opens or closes: a fence at the top makes every block under it code until
+//! the closing fence, however far down that is. That is not a whole-Document
+//! parse either. The region is extended forward by a **scan over bytes** — read
+//! lines until the line that closes the container again — and the re-parse
+//! covers exactly what the context changed over. Nothing below where it
+//! re-converges is read at all.
 
 use std::borrow::Cow;
 use std::io;
@@ -89,7 +101,8 @@ pub enum Kind {
     /// A `[^1]: …` footnote definition.
     Footnote,
     /// A block this module has no rule of its own for. It re-parses like a
-    /// paragraph and takes the boundary fallback for nothing else.
+    /// paragraph, and widens only for what the walk out to a blank line
+    /// widens anything for.
     Other,
 }
 
@@ -97,14 +110,39 @@ impl Kind {
     /// Whether a block of this kind holds a container open past its own bytes.
     ///
     /// A fence, a metadata block and an HTML block all run until something
-    /// closes them, and what closes them can be anywhere below. A slice cannot
-    /// see that far, so an edit that makes one is the whole Document's
-    /// business — which is exactly the fence a writer opens at the top of a
-    /// long draft, restyling everything under it.
+    /// closes them, and what closes them can be anywhere below. One of these
+    /// ending a re-parsed region is the fence flip: the region is extended by
+    /// [`Fence::closes`] to the line that closes it again, which is exactly the
+    /// fence a writer opens at the top of a long draft, restyling everything
+    /// under it.
     const fn opens(self) -> bool {
         matches!(
             self,
             Self::Code { fenced: true } | Self::FrontMatter | Self::Html
+        )
+    }
+
+    /// Whether a block of this kind begins where it begins whatever is written
+    /// on the line above it.
+    ///
+    /// An ATX heading, a thematic break, an opening fence and a metadata block
+    /// each interrupt what was being written and cannot be a lazy continuation
+    /// of it. So the byte one starts at is a seam the parser reads the same way
+    /// in a slice as it does in place — the same thing a blank line gives,
+    /// without the blank line — and the walk in [`Document::widened`] can stop
+    /// there. Without it that walk runs to the edge of a Document written with
+    /// no blank lines in it at all, which is the fallback under another name.
+    ///
+    /// A list is not here, and that is the point of `xx- one` in the tests: a
+    /// list interrupts a paragraph only on what its own line says, so the seam
+    /// between them is one an edit can move.
+    const fn begins_a_block(self) -> bool {
+        matches!(
+            self,
+            Self::Heading { setext: false }
+                | Self::Rule
+                | Self::Code { fenced: true }
+                | Self::FrontMatter
         )
     }
 }
@@ -119,12 +157,18 @@ pub struct Block {
 }
 
 /// How much of a Document one edit was re-parsed over.
+///
+/// Both halves are evidence, and a test asserts on them rather than assuming
+/// the re-parse was small. The bytes are what the budget is about — they are
+/// what the parser was handed — and the blocks are where the fresh index
+/// landed, which is what says the splice put it in the right place.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Scope {
-    /// Those blocks alone, by their index in the block index *after* the edit.
-    Blocks(Range<usize>),
-    /// The whole Document, because the edit touched a block boundary.
-    Whole,
+pub struct Scope {
+    /// The blocks the re-parse produced, by their index in the block index
+    /// *after* the edit.
+    pub blocks: Range<usize>,
+    /// The bytes it re-parsed, as they are *after* the edit.
+    pub bytes: Range<usize>,
 }
 
 /// What one edit changed.
@@ -134,8 +178,7 @@ pub struct Edit {
     /// retags. Empty when the edit changed no line's Markup at all, which is
     /// what typing a letter into a plain paragraph does.
     pub lines: Range<usize>,
-    /// What had to be re-parsed to find them. A test asserts on this rather
-    /// than assuming the scope was small.
+    /// What had to be re-parsed to find them.
     pub scope: Scope,
 }
 
@@ -346,26 +389,17 @@ impl Document {
         );
         let delta = signed(inserted.len()) - signed(at.len());
         let plan = self.plan(&at, inserted);
-        let old = plan.as_ref().map_or(0..self.text.len(), |p| p.at.clone());
+        let old = plan.at.clone();
         let first = self.line_of(old.start);
         let before = self.prints(first, self.last_line_of(&old, first));
 
         self.text.replace_range(at.clone(), inserted);
         self.splice_lines(&at, inserted, delta);
 
-        let (count, new, blocks, spans) = match plan {
-            Some(plan) => {
-                let at = plan.at.start..shift(plan.at.end, delta);
-                let spans = rebase(annotate::markup(&plan.slice), plan.at.start);
-                (Some(plan.index.len()), at, plan.index, spans)
-            }
-            None => {
-                let at = 0..self.text.len();
-                (None, at, index(&self.text, 0), annotate::markup(&self.text))
-            }
-        };
+        let new = plan.at.start..shift(plan.at.end, delta);
+        let spans = rebase(annotate::markup(&plan.slice), plan.at.start);
         let runs = annotate::flatten(&spans);
-        let head = self.splice_index(&old, &new, delta, blocks);
+        let blocks = self.splice_index(&old, &new, delta, plan.index);
         self.splice_spans(&old, delta, spans, runs);
         // The net under the whole strategy, and the reason it can be trusted
         // on a writer's own files rather than only on the passages the tests
@@ -381,70 +415,186 @@ impl Document {
         let after = self.prints(first, self.last_line_of(&new, first));
         Edit {
             lines: changed(first, &before, &after),
-            scope: count.map_or(Scope::Whole, |count| Scope::Blocks(head..head + count)),
+            scope: Scope { blocks, bytes: new },
         }
     }
 
-    /// How the edit at `at` can be re-parsed, or `None` for the whole Document.
+    /// Which bytes the edit at `at` re-parses, and the index they give.
     ///
     /// Read against the text as it is, before the splice: the block index, the
     /// list markers and the setext underline it consults are all the ones the
     /// writer is editing, not the ones they are about to have.
-    fn plan(&self, at: &Range<usize>, inserted: &str) -> Option<Plan> {
-        let found = self.block_at(at.start)?;
-        let block = &self.blocks[found];
-        // A delete that runs off the end of its block is two blocks' business,
-        // and the second of them is a boundary it crossed to get there.
-        if at.end > block.at.end || self.at_a_boundary(at, inserted, block) || !self.apart(found) {
-            return None;
+    ///
+    /// The loop is the fence flip. A region is chosen to begin and end where
+    /// nothing is open, so the only way the slice can leave a container open is
+    /// that the edit opened one; the scan then carries the region on to where
+    /// the context re-converges, and the fresh region is read again in case
+    /// what it swallowed opened another.
+    fn plan(&self, at: &Range<usize>, inserted: &str) -> Plan {
+        let mut region = self.widened(at, inserted);
+        loop {
+            let slice = self.slice(&region, at, inserted);
+            let index = index(&slice, region.start);
+            let Some(fence) = self.left_open(&slice, &index, &region) else {
+                return Plan {
+                    at: region,
+                    index,
+                    slice,
+                };
+            };
+            region.end = self.reconverges(region.end, fence);
         }
-        let region = block.at.clone();
+    }
+
+    /// The bytes one edit re-parses, before any container scan widens them.
+    ///
+    /// The block the edit is in, widened to its neighbours when the edit
+    /// touched one of the four things that move a boundary, and then carried
+    /// out on both sides until nothing is open at either edge. A [`Kind::Gap`]
+    /// is blank lines and nothing else, so an edge at one — or at the
+    /// Document's own edge — is an edge the parser reads the same way in the
+    /// slice as it does in place.
+    fn widened(&self, at: &Range<usize>, inserted: &str) -> Range<usize> {
+        let Some(found) = self.block_at(at.start) else {
+            return 0..self.text.len();
+        };
+        let block = &self.blocks[found];
+        // A delete that runs off the end of its block crossed a boundary to
+        // get there, so it widens for the same reason the four rules do.
+        let widen = at.end > block.at.end || self.at_a_boundary(at, inserted, block);
+        // The rule widens to the block's *neighbours*, not to the blank lines
+        // beside it: a blank line is what a Gap is made of, so stepping only
+        // that far would leave a rule that fired changing nothing.
+        let (mut lo, hi) = if widen {
+            (self.before(found), self.after(found))
+        } else {
+            (found, found)
+        };
+        while lo > 0 && !self.settled(lo) {
+            lo -= 1;
+        }
+        // `at.end` is the delete that ran off the end of its block: whatever
+        // else the region is, it has to hold every byte the edit names, or the
+        // slice cannot be built from it.
+        self.blocks[lo].at.start..self.out_to_a_gap(hi, at.end)
+    }
+
+    /// `region`'s bytes with the edit written into them.
+    ///
+    /// Built rather than borrowed, and built again on every pass of the scan
+    /// in [`Document::plan`], because the text has not moved yet: the region is
+    /// decided against the index the writer is editing, and the only place the
+    /// edited bytes exist until the splice is here.
+    fn slice(&self, region: &Range<usize>, at: &Range<usize>, inserted: &str) -> String {
         let mut slice = String::with_capacity(region.len() + inserted.len());
         slice.push_str(&self.text[region.start..at.start]);
         slice.push_str(inserted);
         slice.push_str(&self.text[at.end..region.end]);
-        let index = index(&slice, region.start);
-        // The block has to still be the same kind of block. A paragraph the
-        // edit turned into a list item joins the list under it and a heading
-        // ends the paragraph over it, and either way a boundary has moved
-        // somewhere the slice cannot see. What the writer typed is drawn all
-        // the same — by the whole-Document parse, one keystroke later than the
-        // block would have drawn it.
-        if index.first().is_none_or(|first| first.kind != block.kind)
-            || index.iter().any(|block| block.kind.opens())
-        {
+        slice
+    }
+
+    /// The container a re-parsed slice leaves open past `region`, if it leaves
+    /// one and there is any Document left for it to reach.
+    ///
+    /// A blank line closes every container but a fence, and a fence swallows
+    /// the blank lines under it — so the last block of the slice's own index is
+    /// a [`Kind::Gap`] unless the edit opened something that runs off the end
+    /// of the region. That is the whole of detecting the flip.
+    fn left_open(&self, slice: &str, index: &[Block], region: &Range<usize>) -> Option<Open> {
+        let last = index.last()?;
+        if region.end >= self.text.len() || !last.kind.opens() {
             return None;
         }
-        Some(Plan {
-            at: region,
-            index,
-            slice,
-        })
+        Open::left_open(
+            &slice[last.at.start - region.start..last.at.end - region.start],
+            last.kind,
+        )
     }
 
-    /// Whether the block at `found` has a Gap, or the Document's edge, on both
-    /// sides of it.
+    /// Where the container `fence` re-converges past `from`.
     ///
-    /// Two blocks written hard against each other are two the parser decided
-    /// to keep apart, and it decided that by reading the lines at their seam.
-    /// An edit inside either one can move that decision, and a slice of one
-    /// block cannot see far enough to know. A blank line between them settles
-    /// it: nothing continues across one.
-    fn apart(&self, found: usize) -> bool {
-        let blank = |index: usize| {
-            self.blocks
-                .get(index)
-                .is_none_or(|block| block.kind == Kind::Gap)
+    /// The scan is over bytes rather than a parse, which is what makes a fence
+    /// opened at the top of a long draft cost the reading of its lines and not
+    /// the parsing of them. The line that closes the fence is a block edge in
+    /// the new parse but not in the old index, and the splice replaces whole
+    /// blocks, so the answer is carried out to an old block edge nothing is
+    /// open at.
+    fn reconverges(&self, from: usize, open: Open) -> usize {
+        let Open::Fence(fence) = open else {
+            return self.text.len();
         };
-        (found == 0 || blank(found - 1)) && blank(found + 1)
+        let Some(closed) = fence.closes(&self.text[from..]).map(|end| from + end) else {
+            return self.text.len();
+        };
+        let Some(hi) = self.block_at(closed) else {
+            return self.text.len();
+        };
+        self.out_to_a_gap(hi, closed).max(closed)
     }
 
-    /// Whether the edit at `at` touches something a block alone cannot answer.
+    /// Whether the block at `found` is a Gap — blank lines, and so a byte
+    /// nothing is open at.
+    fn blank(&self, found: usize) -> bool {
+        self.blocks[found].kind == Kind::Gap
+    }
+
+    /// The byte a region beginning at block `hi` ends at: the end of the first
+    /// Gap at or under it that also reaches `past`.
+    ///
+    /// Over the whole of the Gap, not up to where it begins. Which block the
+    /// newline before a blank line belongs to is the parser's to say, and an
+    /// edit can move it — a list absorbs the line under it or leaves it to the
+    /// Gap, depending on bytes a writer can type. Inside the region that is the
+    /// re-parse's answer to give; on the region's edge it is a seam that slips,
+    /// and the every-byte sweep over the judged passage is what says so.
+    fn out_to_a_gap(&self, mut hi: usize, past: usize) -> usize {
+        let last = self.blocks.len() - 1;
+        // The edge is `blocks[hi].at.end`, so what settles it is this block
+        // being a Gap — over the whole of it, per above — or the *next* one
+        // beginning wherever it begins. A Gap at `hi + 1` settles nothing: that
+        // is the edge at a Gap's start, which is the seam that slips.
+        while hi < last
+            && ((!self.blank(hi) && !self.blocks[hi + 1].kind.begins_a_block())
+                || self.blocks[hi].at.end < past)
+        {
+            hi += 1;
+        }
+        self.blocks[hi].at.end
+    }
+
+    /// Whether the block at `found` starts at a seam a slice can be cut at: it
+    /// is a Gap, or it begins wherever it begins.
+    fn settled(&self, found: usize) -> bool {
+        self.blank(found) || self.blocks[found].kind.begins_a_block()
+    }
+
+    /// The block over `found` that is not a Gap, or the Document's first.
+    fn before(&self, found: usize) -> usize {
+        (0..found).rev().find(|&at| !self.blank(at)).unwrap_or(0)
+    }
+
+    /// The block under `found` that is not a Gap, or the Document's last.
+    fn after(&self, found: usize) -> usize {
+        let last = self.blocks.len() - 1;
+        (found + 1..=last)
+            .find(|&at| !self.blank(at))
+            .unwrap_or(last)
+    }
+
+    /// Whether the edit at `at` touches something a block alone cannot answer,
+    /// and so widens the re-parse to the block's neighbours.
     ///
     /// The four ways a block boundary moves, as `docs/architecture.md`
     /// § Annotators and the keystroke path lists them, plus the one they all
     /// reduce to: a newline written or taken away splits or joins two blocks
     /// wherever it lands.
+    ///
+    /// Two blocks written hard against each other need no rule of their own.
+    /// The parser decided to keep them apart by reading the lines at their
+    /// seam, and an edit in either one can move that decision — but the walk in
+    /// [`Document::widened`] carries the region past a neighbour with no blank
+    /// line before it whether or not a rule fired, because that edge is not one
+    /// a slice can be cut at.
     fn at_a_boundary(&self, at: &Range<usize>, inserted: &str, block: &Block) -> bool {
         if inserted.contains('\n') || self.text[at.clone()].contains('\n') {
             return true;
@@ -500,22 +650,29 @@ impl Document {
 
     /// Puts `blocks` where the blocks over `old` were, and shifts the rest.
     ///
-    /// Returns the index the first of them landed at, which is what
-    /// [`Scope::Blocks`] names.
+    /// Returns where they landed, which is what [`Scope::blocks`] names. A heal
+    /// at the head merges the first of them into the block before it, so the
+    /// range it reports is one shorter and starts one earlier; a heal at the
+    /// tail merges the block after them into the last of them, and leaves the
+    /// range as it was.
     fn splice_index(
         &mut self,
         old: &Range<usize>,
         new: &Range<usize>,
         delta: isize,
         blocks: Vec<Block>,
-    ) -> usize {
+    ) -> Range<usize> {
         let grew = blocks.len();
-        let head = splice_by_start(&mut self.blocks, old, delta, blocks);
+        let mut head = splice_by_start(&mut self.blocks, old, delta, blocks);
+        let mut tail = head + grew;
         // A re-parsed slice reaches exactly as far as its own bytes, so where
         // it ends in a Gap and what follows begins in one, the two are one Gap
         // that a whole-Document parse would never have split.
-        self.heal(head + grew);
-        self.heal(head);
+        self.heal(tail);
+        if self.heal(head) {
+            head -= 1;
+            tail -= 1;
+        }
         debug_assert!(
             self.blocks.first().is_none_or(|block| block.at.start == 0)
                 && self
@@ -528,18 +685,21 @@ impl Document {
                     .all(|pair| pair[0].at.end == pair[1].at.start),
             "the block index stopped tiling the Document at {new:?}"
         );
-        head
+        head..tail
     }
 
-    /// Joins the two blocks meeting at `seam` when both are Gaps.
-    fn heal(&mut self, seam: usize) {
+    /// Joins the two blocks meeting at `seam` when both are Gaps, and says
+    /// whether it did.
+    fn heal(&mut self, seam: usize) -> bool {
         if seam == 0 || seam >= self.blocks.len() {
-            return;
+            return false;
         }
         if self.blocks[seam - 1].kind == Kind::Gap && self.blocks[seam].kind == Kind::Gap {
             self.blocks[seam - 1].at.end = self.blocks[seam].at.end;
             self.blocks.remove(seam);
+            return true;
         }
+        false
     }
 
     /// Puts `spans` and `runs` where the ones over `old` were, and shifts the
@@ -704,6 +864,95 @@ fn splice_by_start<T: Ranged>(
         *at = shift(at.start, delta)..shift(at.end, delta);
     }
     head
+}
+
+/// A container's opening line, in the two things that close it again: the
+/// character it is written in, and how many of it there are.
+///
+/// This is the fence flip's whole vocabulary. A fence is closed by a line of
+/// its own character, as many or more, and nothing after it — a rule the
+/// CommonMark spec states over lines rather than over a parse tree, which is
+/// why reading for it is a scan and not a second parser.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct Fence {
+    /// The byte the fence is written in: a backtick, a tilde, or the dash of a
+    /// metadata block.
+    byte: u8,
+    /// How many of it opened the container.
+    len: usize,
+}
+
+/// What a container left open past a region gives the scan to look for.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Open {
+    /// Read on for the line that closes this fence.
+    Fence(Fence),
+    /// Read on to the end of the Document, because nothing the scan can match
+    /// closes this one. An HTML block runs to a closing tag rather than to a
+    /// line of its own character, and which tags do it is a list CommonMark
+    /// keeps rather than a rule it states. Reading one this way costs a wider
+    /// re-parse on an edit inside raw HTML, which is not a keystroke this
+    /// Piece is about; reading it as closed would draw the wrong thing.
+    ToTheEnd,
+}
+
+impl Open {
+    /// The container `text` opens and does not close again, if it leaves one
+    /// open.
+    ///
+    /// `text` is one block of a slice's own parse, so its first line is the
+    /// opening line by construction; all that is being asked is whether a line
+    /// under it closes the thing.
+    fn left_open(text: &str, kind: Kind) -> Option<Self> {
+        if kind == Kind::Html {
+            return Some(Self::ToTheEnd);
+        }
+        let mut lines = text.split_inclusive('\n');
+        let fence = Fence::of(lines.next()?)?;
+        lines
+            .all(|line| !fence.closed_by(line))
+            .then_some(Self::Fence(fence))
+    }
+}
+
+impl Fence {
+    /// The fence `line` is written in, if it is a fence line at all.
+    fn of(line: &str) -> Option<Self> {
+        let bare = line.trim_start_matches(' ');
+        if line.len() - bare.len() > 3 {
+            return None;
+        }
+        let byte = *bare.as_bytes().first()?;
+        if !matches!(byte, b'`' | b'~' | b'-') {
+            return None;
+        }
+        let len = bare.bytes().take_while(|it| *it == byte).count();
+        (len >= 3).then_some(Self { byte, len })
+    }
+
+    /// Whether `line` closes this fence.
+    fn closed_by(self, line: &str) -> bool {
+        let Some(other) = Self::of(line) else {
+            return false;
+        };
+        // `len` counts bytes of one ASCII character, so it is a boundary.
+        other.byte == self.byte
+            && other.len >= self.len
+            && line.trim_start_matches(' ')[other.len..].trim().is_empty()
+    }
+
+    /// The byte just past the line that closes this fence in `text`, or `None`
+    /// when no line of it does.
+    fn closes(self, text: &str) -> Option<usize> {
+        let mut at = 0;
+        for line in text.split_inclusive('\n') {
+            at += line.len();
+            if self.closed_by(line) {
+                return Some(at);
+            }
+        }
+        None
+    }
 }
 
 /// One edit's block-scoped re-parse, worked out before the text moves.
@@ -905,6 +1154,29 @@ mod tests {
             .blocks
             .iter()
             .map(|block| (block.at.clone(), block.kind))
+            .collect()
+    }
+
+    /// `subject` with a paragraph and a heading over it and under it, and the
+    /// bytes a rule firing inside it widens over.
+    ///
+    /// A rule widens to the block's neighbours, so the two paragraphs are what
+    /// it reaches and the two headings are what it must not: a rule that
+    /// widened to the whole Document passes no byte assertion written from
+    /// this.
+    fn padded(subject: &str) -> (String, Range<usize>) {
+        let text = format!("# Top\n\nAlpha.\n\n{subject}\n\nBeta.\n\n## End\n");
+        let region = "# Top\n".len()..text.find("## End").expect("the padding under it");
+        (text, region)
+    }
+
+    /// What each span of `document` covers and what it marks, which is what a
+    /// widening test names when it says what the spans are afterwards.
+    fn marked(document: &Document) -> Vec<(&str, Mark)> {
+        document
+            .spans
+            .iter()
+            .map(|span| (&document.text[span.at.clone()], span.mark))
             .collect()
     }
 
@@ -1166,9 +1438,15 @@ mod tests {
         let mut doc = opened("# Title\n\nThe lamp *was* lit.\n\n## After\n");
         let edit = doc.insert(13, "old ");
         assert_eq!(
-            edit.scope,
-            Scope::Blocks(2..3),
-            "only the paragraph the writer is in re-parses"
+            edit.scope.blocks,
+            1..4,
+            "only the paragraph the writer is in re-parses, and the blank lines \
+             around it, which are what says where it ends"
+        );
+        assert_eq!(
+            edit.scope.bytes,
+            8..34,
+            "and the parser saw neither heading"
         );
         assert_eq!(
             doc.text(),
@@ -1182,9 +1460,9 @@ mod tests {
         let mut doc = opened("Alpha.\n\nThe lamp was lit.\n");
         let edit = doc.insert(8, "# ");
         assert_eq!(
-            edit.scope,
-            Scope::Whole,
-            "a paragraph that became a heading ends the block above it"
+            edit.scope.blocks,
+            1..3,
+            "a blank line over it means nothing above it can be ended"
         );
         assert_eq!(doc.blocks()[2].kind, Kind::Heading { setext: false });
         assert!(
@@ -1210,7 +1488,7 @@ mod tests {
             "an unclosed marker is not emphasis"
         );
         let edit = doc.insert(13, "*");
-        assert_eq!(edit.scope, Scope::Blocks(0..1));
+        assert_eq!(edit.scope.blocks, 0..1);
         assert!(
             doc.spans().iter().any(|span| span.mark == Mark::Emphasis),
             "the closing marker styles the run"
@@ -1223,8 +1501,8 @@ mod tests {
         let mut doc = opened("# Title\n\nThe lamp was lit.");
         let edit = doc.insert(doc.text().len(), " again.");
         assert_eq!(
-            edit.scope,
-            Scope::Blocks(2..3),
+            edit.scope.blocks,
+            1..3,
             "typing at the end of a draft types into its last block"
         );
         as_if_opened(&doc);
@@ -1267,85 +1545,178 @@ mod tests {
         }
     }
 
-    // The boundary fallback.
+    // The four widening rules. Each fixture is written with a block outside
+    // the widened region on both sides, so that a rule which widened to the
+    // whole Document would fail the byte assertion rather than pass it.
 
     #[test]
-    fn an_edit_on_a_blank_line_re_parses_the_whole_document() {
-        let mut doc = opened("Alpha.\n\nBeta.\n");
-        let edit = doc.insert(7, "x");
-        assert_eq!(edit.scope, Scope::Whole);
-        as_if_opened(&doc);
-    }
-
-    #[test]
-    fn an_edit_inside_a_fenced_block_re_parses_the_whole_document() {
-        let mut doc = opened("Alpha.\n\n```rust\nlet lamp = 1;\n```\n\nBeta.\n");
-        let edit = doc.insert(20, "very_");
-        assert_eq!(edit.scope, Scope::Whole);
-        as_if_opened(&doc);
-    }
-
-    #[test]
-    fn an_edit_on_a_list_marker_re_parses_the_whole_document_but_one_beside_it_does_not() {
-        let mut doc = opened("Alpha.\n\n- one\n- two\n");
-        let marker = doc.markers(8..20).next().expect("the list's first bullet");
-        assert_eq!(doc.insert(marker.start, "1").scope, Scope::Whole);
-
-        let mut doc = opened("Alpha.\n\n- one\n- two\n");
+    fn an_edit_on_a_blank_line_widens_to_the_blocks_on_either_side_of_it() {
+        // The blank line is where one block ends and the next begins, and a
+        // letter written on it joins the two: what was One, a blank and Two is
+        // one paragraph of three lines.
+        let (text, _) = padded("One.\n\nTwo.");
+        let mut doc = opened(&text);
+        let edit = doc.insert(text.find("Two.").expect("the block under it") - 1, "x");
         assert_eq!(
-            doc.insert(marker.end, "x").scope,
-            Scope::Blocks(2..3),
-            "what a writer types where the bullet ends is the item's text"
+            edit.scope.bytes,
+            text.find("One.").expect("the block over it") - 1
+                ..text.find("Beta.").expect("the padding under it") + 1,
+            "the two paragraphs and their own blank lines, and nothing past them"
+        );
+        assert_eq!(
+            &shape(&doc)[4..6],
+            [(15..27, Kind::Paragraph), (27..28, Kind::Gap)],
+            "the blank line is gone and the two are one block: {:?}",
+            shape(&doc)
+        );
+        assert_eq!(
+            marked(&doc),
+            [
+                ("# Top", Mark::Heading(1)),
+                ("# ", Mark::Markup),
+                ("## End", Mark::Heading(2)),
+                ("## ", Mark::Markup),
+            ],
+            "the joined prose carries no mark, and the padding kept its own"
         );
         as_if_opened(&doc);
     }
 
     #[test]
-    fn an_edit_on_a_setext_underline_re_parses_the_whole_document() {
-        let mut doc = opened("Alpha.\n\nTitle\n=====\n\nBeta.\n");
-        let underline = doc.text().find("=====").expect("the setext underline");
-        assert_eq!(doc.insert(underline, "=").scope, Scope::Whole);
-        as_if_opened(&doc);
-
-        let mut doc = opened("Alpha.\n\nTitle\n=====\n\nBeta.\n");
+    fn an_edit_on_a_fence_marker_widens_to_the_blocks_on_either_side_of_it() {
+        // Every line of a fenced block is a marker's business: a fence closed
+        // early or opened late restyles what is under it.
+        let (text, region) = padded("```rust\nlet lamp = 1;\n```");
+        let mut doc = opened(&text);
+        let edit = doc.insert(text.find("\nlet lamp").expect("the info string"), "y");
+        assert_eq!(edit.scope.blocks, 1..8);
         assert_eq!(
-            doc.insert(underline - 3, "x").scope,
-            Scope::Blocks(2..3),
-            "the heading's own words are the block's business"
+            edit.scope.bytes,
+            region.start..region.end + 1,
+            "the fence and the blocks beside it, and nothing past them"
+        );
+        assert_eq!(
+            marked(&doc),
+            [
+                ("# Top", Mark::Heading(1)),
+                ("# ", Mark::Markup),
+                ("```rusty\nlet lamp = 1;\n```", Mark::CodeBlock),
+                ("```", Mark::Fence),
+                ("rusty", Mark::InfoString),
+                ("```", Mark::Fence),
+                ("## End", Mark::Heading(2)),
+                ("## ", Mark::Markup),
+            ],
+            "the info string took the letter and the block is still closed"
         );
         as_if_opened(&doc);
     }
 
     #[test]
-    fn a_block_with_a_neighbour_against_it_re_parses_the_whole_document() {
+    fn an_edit_on_a_list_marker_widens_to_the_blocks_on_either_side_of_it() {
+        // `1` in front of the bullet is not a marker of any kind, so the item
+        // stops being one and the list under it interrupts the paragraph it
+        // became. That seam is what a slice of the list could not have seen.
+        let (text, region) = padded("- one\n- two");
+        let mut doc = opened(&text);
+        let marker = doc
+            .markers(region.clone())
+            .next()
+            .expect("the list's first bullet");
+        let edit = doc.insert(marker.start, "1");
+        assert_eq!(
+            edit.scope.bytes,
+            region.start..region.end + 1,
+            "the list and the blocks beside it, and nothing past them"
+        );
+        assert_eq!(
+            marked(&doc),
+            [
+                ("# Top", Mark::Heading(1)),
+                ("# ", Mark::Markup),
+                ("- ", Mark::BulletMarker),
+                ("## End", Mark::Heading(2)),
+                ("## ", Mark::Markup),
+            ],
+            "one bullet left, and it is the item the writer did not touch"
+        );
+        as_if_opened(&doc);
+    }
+
+    #[test]
+    fn an_edit_on_a_setext_underline_widens_to_the_blocks_on_either_side_of_it() {
+        // The underline is the whole of what makes the line over it a heading.
+        let (text, region) = padded("Title\n=====");
+        let mut doc = opened(&text);
+        let edit = doc.insert(text.find("=====").expect("the underline"), "=");
+        assert_eq!(
+            edit.scope.bytes,
+            region.start..region.end + 1,
+            "the heading and the blocks beside it, and nothing past them"
+        );
+        assert_eq!(
+            marked(&doc),
+            [
+                ("# Top", Mark::Heading(1)),
+                ("# ", Mark::Markup),
+                ("## End", Mark::Heading(2)),
+                ("## ", Mark::Markup),
+            ],
+            "a setext heading carries no span of its own — it has no marker to \
+             hang, which `annotate` decided and tests — so what this names is \
+             that the widening left the padding's spans exactly as they were"
+        );
+        assert_eq!(
+            doc.blocks()[4].kind,
+            Kind::Heading { setext: true },
+            "and the longer underline is the same heading it was: {:?}",
+            shape(&doc)
+        );
+        as_if_opened(&doc);
+    }
+
+    #[test]
+    fn a_block_with_a_neighbour_against_it_widens_to_take_the_neighbour_in() {
         // A list can interrupt a paragraph, so these two are written hard
         // against each other and the parser decided where they part by reading
         // the seam. An edit in the paragraph can move that decision — deleting
         // the `x` here makes the first line a list item and the two blocks one
         // list — and a slice of the paragraph cannot see far enough to know.
+        // No rule fires here: it is the walk out to a blank line that takes the
+        // neighbour in, because the seam between them is not an edge a slice
+        // can be cut at.
         let mut doc = opened("Alpha.\n\nxx- one\n- two\n");
         assert_eq!(
             shape(&doc)[2..],
             [(8..16, Kind::Paragraph), (16..22, Kind::List)],
             "the fixture must be two blocks with no blank line between them"
         );
+        let edit = doc.delete(8..9);
+        assert_eq!(edit.scope.blocks, 1..4);
         assert_eq!(
-            doc.delete(8..9).scope,
-            Scope::Whole,
-            "the paragraph is still a paragraph, so only its neighbour forces this"
+            edit.scope.bytes,
+            7..21,
+            "the paragraph and the list under it, and not the block above"
         );
         as_if_opened(&doc);
 
         // The same edit with a blank line under the paragraph is the block's
         // own business, because nothing continues across a blank line.
         let mut doc = opened("Alpha.\n\nxx- one\n\n- two\n");
-        assert_eq!(doc.delete(8..9).scope, Scope::Blocks(2..3));
+        let edit = doc.delete(8..9);
+        assert_eq!(edit.scope.blocks, 1..4);
+        assert_eq!(
+            edit.scope.bytes,
+            7..16,
+            "the paragraph and the blank lines around it, and not the list"
+        );
         as_if_opened(&doc);
 
         // And the seam really does move: one byte further off the front makes
         // the paragraph a list item, and the two blocks one list.
         let mut doc = opened("Alpha.\n\nx- one\n- two\n");
-        assert_eq!(doc.delete(8..9).scope, Scope::Whole);
+        let edit = doc.delete(8..9);
+        assert_eq!(edit.scope.blocks, 1..3);
         assert_eq!(
             shape(&doc)[2..],
             [(8..20, Kind::List)],
@@ -1389,13 +1760,10 @@ mod tests {
 
     #[test]
     fn a_fence_opened_at_the_top_restyles_everything_under_it() {
+        // The user story: an unclosed fence at the top makes every block below
+        // it code, in the keystroke that opened it.
         let mut doc = opened("Alpha.\n\nBeta.\n\nGamma.\n");
-        let edit = doc.insert(0, "```");
-        assert_eq!(
-            edit.scope,
-            Scope::Whole,
-            "a fence holds a container open past its own block"
-        );
+        let edit = doc.insert(0, "```\n");
         assert_eq!(
             doc.blocks()[0],
             Block {
@@ -1405,6 +1773,136 @@ mod tests {
             "the rest of the Document is inside the fence: {:?}",
             shape(&doc)
         );
+        assert_eq!(
+            edit.scope.blocks,
+            0..1,
+            "and it is one block now, however many it was"
+        );
+        as_if_opened(&doc);
+    }
+
+    #[test]
+    fn a_draft_with_no_blank_line_in_it_still_bounds_the_walk() {
+        // The walk out of `widened` stops where nothing is open, and a writer
+        // can hand it a Document with no blank line anywhere. An ATX heading
+        // begins wherever it begins, so it is the other thing that stops the
+        // walk; without it one keystroke here re-parses every byte, which is
+        // the fallback under another name.
+        let mut doc = opened(&"# One\n".repeat(5_000));
+        let edit = doc.insert(3, "x");
+        assert!(
+            edit.scope.bytes.len() < 64,
+            "one heading of 5,000 re-parsed {:?} of {} bytes",
+            edit.scope.bytes,
+            doc.text().len()
+        );
+        as_if_opened(&doc);
+    }
+
+    #[test]
+    fn an_unclosed_fence_at_the_top_is_the_one_flip_that_reads_the_whole_draft() {
+        // The scan finds no line to re-converge at, so the stretch that becomes
+        // code is the rest of the Document — and this ticket *parses* that
+        // stretch rather than deriving it. A fenced block's spans are
+        // derivable (a ground, its opening fence, its info string), so the
+        // parse is a cost the Piece could still pay off; it is an order of
+        // magnitude inside the Gate's <= 16 ms worst, and this test is here to
+        // say what it does rather than to bless it.
+        let para = "Alpha *one*.\n\nBeta **two**.\n\n";
+        let mut doc = opened(&format!("# Top\n\n{}", para.repeat(400)));
+        let edit = doc.insert(7, "```\n");
+        assert_eq!(
+            edit.scope.bytes.end,
+            doc.text().len(),
+            "the scan ran to the end because nothing closed the fence"
+        );
+        assert_eq!(
+            doc.blocks()[2],
+            Block {
+                at: 7..doc.text().len(),
+                kind: Kind::Code { fenced: true }
+            },
+            "and every block under it is one block of code: {:?}",
+            &shape(&doc)[..4]
+        );
+        as_if_opened(&doc);
+    }
+
+    #[test]
+    fn the_fence_flip_stops_where_the_context_re_converges() {
+        // A long Document with a fenced block partway down. A fence opened at
+        // the top pairs with that block's *closing* fence — a closer may carry
+        // no info string, so `\u{60}\u{60}\u{60}rust` is not one — and the scan
+        // stops there. Everything below it is prose before the keystroke and
+        // prose after it, and is never handed to the parser.
+        let para = "Alpha *one*.\n\nBeta **two**.\n\n";
+        let text = format!(
+            "# Top\n\n{}```rust\nlet lamp = 1;\n```\n\n{}",
+            para.repeat(100),
+            para.repeat(300)
+        );
+        let mut doc = opened(&text);
+        // The fenced block's own end is where the closing fence is: the opening
+        // one carries an info string and a closer may not, so that closing
+        // fence is the line the scan will stop at.
+        let fenced = doc
+            .blocks()
+            .iter()
+            .position(|block| block.kind == Kind::Code { fenced: true })
+            .expect("the fenced block partway down");
+        let close = doc.blocks()[fenced].at.end;
+        let under = doc.blocks()[fenced + 1].at.end;
+        let moved = "```\n".len();
+        let tail = shape(&doc)
+            .into_iter()
+            .filter(|(at, _)| at.start >= close)
+            .collect::<Vec<_>>();
+
+        let edit = doc.insert(7, "```\n");
+        assert_eq!(
+            edit.scope.bytes.end,
+            under + moved,
+            "the re-parse stopped at the blank line under the fence that closed \
+             the context again"
+        );
+        assert!(
+            edit.scope.bytes.len() * 2 < doc.text().len(),
+            "and that is under half the Document: {:?} of {}",
+            edit.scope.bytes,
+            doc.text().len()
+        );
+        assert_eq!(
+            doc.blocks()[2],
+            Block {
+                at: 7..close + moved,
+                kind: Kind::Code { fenced: true }
+            },
+            "everything from the new fence to the old one is code: {:?}",
+            &shape(&doc)[..4]
+        );
+        assert_eq!(
+            shape(&doc)
+                .into_iter()
+                .filter(|(at, _)| at.start >= close + moved)
+                .map(|(at, kind)| (at.start - moved..at.end - moved, kind))
+                .collect::<Vec<_>>(),
+            tail,
+            "and the prose past it is the blocks it always was, only moved"
+        );
+        as_if_opened(&doc);
+
+        // Taking the fence away again restores them, and is bounded the same
+        // way: the stretch that stops being code is what re-parses, and the
+        // prose below the old fence is still never read.
+        let edit = doc.delete(7..11);
+        assert!(
+            edit.scope.bytes.len() * 2 < doc.text().len(),
+            "unfencing read {:?} of {}",
+            edit.scope.bytes,
+            doc.text().len()
+        );
+        assert_eq!(doc.text(), text, "the text is back to what it was");
+        assert_eq!(shape(&doc), shape(&opened(&text)), "and so is every block");
         as_if_opened(&doc);
     }
 
@@ -1414,7 +1912,7 @@ mod tests {
     fn a_letter_typed_into_plain_prose_changes_no_line() {
         let mut doc = opened("Alpha.\n\nOne two three.\nFour five six.\n");
         let edit = doc.insert(12, "x");
-        assert_eq!(edit.scope, Scope::Blocks(2..3));
+        assert_eq!(edit.scope.blocks, 1..3);
         assert!(
             edit.lines.is_empty(),
             "plain prose carries no run, so no line has to be retagged: {:?}",
@@ -1437,15 +1935,16 @@ mod tests {
     }
 
     #[test]
-    fn a_whole_document_fallback_still_hands_back_only_the_lines_that_changed() {
+    fn a_widened_re_parse_still_hands_back_only_the_lines_that_changed() {
         let mut doc = opened("Alpha.\n\n*Gamma* and more.\n\nDelta.\n");
-        // A blank line, so the fallback runs; the emphasis below it only moves.
+        // A blank line, so the re-parse widens over the emphasis under it; that
+        // emphasis is re-parsed, but it comes out looking exactly as it did.
         let edit = doc.insert(7, "# New");
-        assert_eq!(edit.scope, Scope::Whole);
+        assert!(edit.scope.bytes.contains(&10), "{:?}", edit.scope);
         assert_eq!(
             edit.lines,
             1..2,
-            "a whole-Document parse is not a whole-Document retag"
+            "a re-parse over a line is not a retag of it"
         );
         assert!(
             doc.spans().iter().any(|span| span.mark == Mark::Heading(1)),
@@ -1505,22 +2004,30 @@ mod tests {
     }
 
     #[test]
-    fn typing_at_the_end_of_a_long_draft_stays_off_the_fallback() {
-        // The regime the Gate benches: a writer at the end of a 10,000-word
-        // draft, typing prose. Every key of it has to be one block's work, or
-        // the fallback is not off the path of ordinary typing at all.
-        let mut doc = Document::open(Path::new("../shots/latency/doc10k.md"))
-            .expect("the bench's document is in the repo");
-        let last = doc.blocks().len() - 1;
-        for written in ["T", "h", "e", " ", "l", "a", "m", "p"] {
-            let edit = doc.insert(doc.text().len(), written);
-            assert_eq!(
-                edit.scope,
-                Scope::Blocks(last..last + 1),
-                "typing `{written}` at the end of the draft left its block"
-            );
+    fn typing_at_the_end_of_a_long_draft_is_one_block_whatever_the_draft_costs() {
+        // The regime the Gate benches: a writer at the end of a draft, typing
+        // prose. Every key of it has to be one block's work at either size, or
+        // a keystroke in a long Document does not cost what one in a short
+        // Document costs — which is the whole of what this Piece owes.
+        for name in ["doc10k.md", "doc52k.md"] {
+            let mut doc = Document::open(&Path::new("../shots/latency").join(name))
+                .expect("the bench's documents are in the repo");
+            let last = doc.blocks().len() - 1;
+            for written in ["T", "h", "e", " ", "l", "a", "m", "p"] {
+                let edit = doc.insert(doc.text().len(), written);
+                assert_eq!(
+                    edit.scope.blocks,
+                    last - 1..last + 1,
+                    "{name}: typing `{written}` at the end of the draft left its block"
+                );
+                assert!(
+                    edit.scope.bytes.len() < 1024,
+                    "{name}: typing `{written}` handed the parser {} bytes",
+                    edit.scope.bytes.len()
+                );
+            }
+            assert!(doc.text().ends_with("The lamp"), "{name}");
         }
-        assert!(doc.text().ends_with("The lamp"));
     }
 
     fn write_temp(stem: &str, text: &str) -> PathBuf {
