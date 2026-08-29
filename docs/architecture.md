@@ -23,9 +23,10 @@ Engine modules, one per concept: `document` (text and block index), `markdown` (
 shared `Options`), `annotate` (the Annotator trait, spans, run flattening), `library`, `settings`,
 `template`, `render` (Pango layout for Preview, PDF and HTML), `stats`, `outline`, `spell` (the
 `SpellChecker` trait and the enchant and `spellbook` implementations), `pos` (Syntax highlight),
-`style` (Style check), `typography` (the pitch, the measure and the page margins). App modules
-mirror the Pieces and features: `editor`, `caret`, `focus`, `typewriter`, `theme`, `chrome`,
-`library`, `preview`, `export`, `flags`, `harness`.
+`style` (Style check), `typography` (the pitch, the measure and the page margins), `theme` (the two
+grounds' colour table and the rule that resolves one). App modules mirror the Pieces and features:
+`editor`, `caret`, `focus`, `typewriter`, `theme` (the portal listener and the CSS provider, painting
+the engine table's colours), `chrome`, `library`, `preview`, `export`, `flags`, `harness`.
 
 ## Text model
 
@@ -135,8 +136,9 @@ The settings file is watched with `notify` like a Document: a saved edit applies
 and a line that cannot be applied is logged once and skipped, never fatal.
 
 State, in `state.toml`: the size of each window and whether it was maximized or full screen, the last
-Document per window, caret position per recent Document, the recents list, and the Gate's blind keys
-under `blind-keys/` beside it. Not window position: GTK4 gives a client no way to ask where its
+Document per window, caret position per recent Document, the recents list, `last_scheme` (the ground
+the last session ended on, which an `auto` launch paints while the portal is being asked), and the
+Gate's blind keys under `blind-keys/` beside it. Not window position: GTK4 gives a client no way to ask where its
 window is or to put it back, on Wayland or on X11, so placement is the compositor's and Quill
 remembers nothing it could not act on.
 

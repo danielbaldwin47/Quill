@@ -10,7 +10,9 @@
 //! Four things live here, and this ticket fills the first: the size of each
 //! window, the last Document in each, where the caret was in each Document the
 //! writer visited, and the recents list. The Library ticket fills the other
-//! three. Beside the file sits `blind-keys/`, which is the Gate's.
+//! three. The Dark and light Piece adds a fifth, `last_scheme`: the ground the
+//! last session ended on, which an `auto` launch paints while the desktop is
+//! still being asked. Beside the file sits `blind-keys/`, which is the Gate's.
 //!
 //! **Position is not here.** GTK4 gives a client no way to ask where its window
 //! is or to put it back, on Wayland or on X11: placement belongs to the
@@ -25,6 +27,7 @@ use std::path::{Path, PathBuf};
 use super::reading::Reading;
 use super::writing::Writing;
 use super::{file, xdg};
+use crate::theme::Scheme;
 
 /// The file Quill writes for its next launch, under [`xdg::state_dir`].
 pub const STATE_FILE: &str = "state.toml";
@@ -130,6 +133,12 @@ pub struct State {
     pub recents: Vec<PathBuf>,
     /// Where the caret was in each Document, as a byte offset.
     pub carets: BTreeMap<PathBuf, u64>,
+    /// The ground the last session ended on.
+    ///
+    /// What the next `auto` launch paints while the desktop is still being
+    /// asked which colour scheme it is in, so that a dark desktop never sees a
+    /// white first frame.
+    pub last_scheme: Scheme,
     /// Every key and table this Quill did not know, kept for the next write.
     rest: toml::Table,
 }
@@ -201,6 +210,7 @@ impl State {
     fn read(table: toml::Table, notes: &mut Vec<String>) -> Self {
         let mut reading = Reading::new(table, "", notes);
         let recents = reading.paths("recents");
+        let last_scheme = reading.choice("last_scheme");
         // The windows are taken here and read below, once the reading of the
         // top level is done with the notes it is writing into.
         let windows = reading.tables("window");
@@ -213,6 +223,7 @@ impl State {
                 .collect(),
             recents,
             carets: read_carets(&carets),
+            last_scheme,
             rest,
         }
     }
@@ -222,6 +233,7 @@ impl State {
     pub fn to_toml(&self) -> String {
         let mut writing = Writing::new();
         writing.paths("recents", &self.recents);
+        writing.choice("last_scheme", self.last_scheme);
         writing.rest(self.rest.clone());
         writing.tables(
             "window",
@@ -299,10 +311,36 @@ mod tests {
     }
 
     #[test]
+    fn the_ground_the_last_session_ended_on_comes_back_with_it() {
+        let path = scratch("last_scheme").join(STATE_FILE);
+        let left = State {
+            last_scheme: Scheme::Dark,
+            ..State::default()
+        };
+        left.write_to(&path).expect("writes the state file");
+        let (back, notes) = State::read_from(&path);
+        assert!(notes.is_empty(), "{notes:?}");
+        assert_eq!(back.last_scheme, Scheme::Dark);
+        assert_eq!(
+            State::default().last_scheme,
+            Scheme::Light,
+            "a first launch has nothing to remember and paints the light ground"
+        );
+
+        let (auto, notes) = State::parse("last_scheme = \"auto\"\n");
+        assert_eq!(
+            auto.last_scheme,
+            Scheme::Light,
+            "`auto` is a setting, never a ground a session ended on"
+        );
+        assert_eq!(notes.len(), 1, "{notes:?}");
+    }
+
+    #[test]
     fn every_key_the_later_tickets_fill_is_in_the_file_already() {
         let text = State::default().to_toml();
         let written: toml::Table = text.parse().expect("what is written is TOML");
-        for key in ["recents", "window", "caret"] {
+        for key in ["recents", "last_scheme", "window", "caret"] {
             assert!(written.contains_key(key), "no `{key}` in:\n{text}");
         }
     }
@@ -325,6 +363,7 @@ mod tests {
             carets: [(PathBuf::from("/home/writer/one.md"), 1234)]
                 .into_iter()
                 .collect(),
+            last_scheme: Scheme::Dark,
             rest: toml::Table::new(),
         };
         let text = state.to_toml();
