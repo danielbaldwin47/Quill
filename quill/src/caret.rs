@@ -84,6 +84,14 @@ const GLIDE_DROP: f64 = 1.2;
 /// column, which is what makes it read as between two letters.
 const NUDGE: f64 = 0.07;
 
+/// How far past the last glyph a selected newline is drawn, in ems: `NL_TAIL`.
+///
+/// A newline has no advance to highlight and is a real selected character all
+/// the same, so every editor draws a stub past the end of the row to stand for
+/// it. Half an em is the oracle's, and near enough iA's own, which is what the
+/// `selection` state is judged against.
+const NL_TAIL: f64 = 0.5;
+
 /// The bar full on, at the top of the blink's cycle.
 const ON: i64 = 470 * MS;
 
@@ -252,6 +260,13 @@ pub struct Caret {
     /// is the safe half of the gate rather than the wrong one.
     em: f64,
     focused: bool,
+    /// Whether the buffer holds a selection.
+    ///
+    /// While it does there is no caret at all: the two bars at the selection's
+    /// ends are the instrument, and a third bar blinking somewhere inside the
+    /// held cells would read as a second cursor. `place()` in
+    /// `legacy/app/js/caret.js` hides it outright for the same reason.
+    selected: bool,
     /// Where the bar is going, or already is; its x is snapped.
     to: Bar,
     /// Whether the bar has been put anywhere yet. The first placement never
@@ -279,6 +294,7 @@ impl Caret {
             mode,
             em: 0.0,
             focused: true,
+            selected: false,
             to: Bar {
                 x: 0.0,
                 y: 0.0,
@@ -373,6 +389,27 @@ impl Caret {
         }
     }
 
+    /// The buffer holds a selection at `t`, or has stopped holding one.
+    ///
+    /// The caret is not drawn while it does, and asks for no frames: the
+    /// selection's own two bars do not blink, so there is nothing left to
+    /// animate. Coming back to a collapsed selection is a placement like any
+    /// other — the move that collapses it arrives through [`Caret::moved`] and
+    /// carries its own kind — so this holds no state beyond the flag.
+    pub fn selected(&mut self, yes: bool, t: i64) {
+        self.now = t;
+        self.selected = yes;
+    }
+
+    /// Whether the window this caret is in is active.
+    ///
+    /// The selection's two end bars go ink when it is not, where the caret
+    /// goes to a blue ghost, so the paint has to ask.
+    #[must_use]
+    pub fn focused(&self) -> bool {
+        self.focused
+    }
+
     /// A frame at `t`.
     ///
     /// Bookkeeping only: [`Caret::rect`] and [`Caret::alpha`] are functions of
@@ -414,12 +451,18 @@ impl Caret {
 
     /// How opaque the bar is at `t`, from 0 to 1.
     ///
-    /// The three that are not the blink come first, in the order they beat
-    /// each other: nothing drawn at all, then the ghost the unfocused shot
-    /// judges, then the frozen bar `--deterministic` asks for.
+    /// The four that are not the blink come first, in the order they beat each
+    /// other: nothing drawn at all, then the selection that replaces the caret
+    /// with its own two bars, then the ghost the unfocused shot judges, then
+    /// the frozen bar `--deterministic` asks for. The selection beats the
+    /// ghost because an unfocused selection is drawn as a held block with ink
+    /// ends, and a blue ghost floating in it would be a third mark.
     #[must_use]
     pub fn alpha(&self, t: i64) -> f64 {
         if self.mode == Mode::Nocaret {
+            return 0.0;
+        }
+        if self.selected {
             return 0.0;
         }
         if !self.focused {
@@ -442,7 +485,7 @@ impl Caret {
     /// rests on that (#41 § Frame clock).
     #[must_use]
     pub fn wants_tick(&self) -> bool {
-        if self.mode != Mode::Live || !self.focused {
+        if self.mode != Mode::Live || !self.focused || self.selected {
             return false;
         }
         self.glide.is_some_and(|g| self.now < g.at + g.len)
@@ -461,7 +504,7 @@ impl Caret {
     /// blink coming at all.
     #[must_use]
     pub fn resumes_at(&self) -> Option<i64> {
-        if self.mode != Mode::Live || !self.focused || self.wants_tick() {
+        if self.mode != Mode::Live || !self.focused || self.selected || self.wants_tick() {
             return None;
         }
         self.active_at
@@ -530,6 +573,16 @@ pub fn nudge(size: u32) -> f64 {
     f64::from(size) * NUDGE
 }
 
+/// How far past the last glyph of a row a selected newline reaches at type
+/// size `size`, in the pixels the widget lays out in.
+///
+/// `M.em * NL_TAIL` in `drawSelection`. Logical pixels, for the reason
+/// [`nudge`] gives.
+#[must_use]
+pub fn tail(size: u32) -> f64 {
+    f64::from(size) * NL_TAIL
+}
+
 /// Where the bar's top sits, given the row's baseline and the pitch, in the
 /// pixels the widget lays out in.
 ///
@@ -579,7 +632,8 @@ pub fn width(size: u32) -> u32 {
 /// factor on the way in, which is where the oracle's `Math.round(v * dpr) /
 /// dpr` went. Handing this logical pixels on a scale-2 output would snap to
 /// every second device pixel and leave the fault it exists to prevent.
-fn snap(x: f64) -> f64 {
+#[must_use]
+pub fn snap(x: f64) -> f64 {
     x.round()
 }
 
@@ -863,6 +917,30 @@ mod tests {
         c.tick(IDLE + 3 * CYCLE);
         assert!(!c.wants_tick(), "an unfocused caret is a still ghost");
         assert_eq!(c.alpha(IDLE + 3 * CYCLE), GHOST);
+    }
+
+    /// A selection takes the caret away entirely, and the frames with it.
+    #[test]
+    fn a_selection_puts_the_caret_out() {
+        let mut c = live();
+        c.moved(bar(60.0, 0.0), Move::Key, 0);
+        assert_eq!(c.alpha(0), 1.0);
+
+        c.selected(true, 0);
+        assert_eq!(c.alpha(0), 0.0, "the two end bars are the instrument now");
+        c.tick(IDLE + CYCLE);
+        assert_eq!(c.alpha(IDLE + CYCLE), 0.0, "and it does not blink back");
+        assert!(!c.wants_tick(), "nothing left to animate");
+        assert_eq!(c.resumes_at(), None, "nor a blink to come back for");
+
+        // Unfocused, it is still out: a ghost floating inside the held cells
+        // would read as a second cursor beside the ends.
+        c.focus(false, IDLE + CYCLE);
+        assert_eq!(c.alpha(IDLE + CYCLE), 0.0);
+
+        c.focus(true, 2 * CYCLE);
+        c.selected(false, 2 * CYCLE);
+        assert_eq!(c.alpha(2 * CYCLE), 1.0, "and comes back when it collapses");
     }
 
     /// `--deterministic` freezes the blink on and takes the glide away, so two
