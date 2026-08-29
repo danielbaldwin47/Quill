@@ -18,6 +18,7 @@
 //! shot or a bench never lands in a window of the Quill a writer already has
 //! open, and it leaves both files exactly as it found them.
 
+mod caret;
 mod editor;
 mod flags;
 mod fonts;
