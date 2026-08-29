@@ -4,8 +4,8 @@
     "files": 16,
     "sha256": "738f48c969965ac3"
   },
-  "shoot": "adf473b575198cc3",
-  "git_head": "b68bb37",
+  "shoot": "b2362316db135d06",
+  "git_head": "f902d83",
   "passages": {
     "shots/oracle/markup.md": "4a0dfea224a6c6fb"
   },
@@ -25,7 +25,9 @@
       "select": null,
       "scroll": 0,
       "nocaret": false,
-      "active": true
+      "active": true,
+      "typing": false,
+      "menu": null
     },
     "dark": {
       "text": "shots/oracle/markup.md",
@@ -42,7 +44,9 @@
       "select": null,
       "scroll": 0,
       "nocaret": false,
-      "active": true
+      "active": true,
+      "typing": false,
+      "menu": null
     }
   }
 }
