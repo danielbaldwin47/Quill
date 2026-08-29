@@ -1,0 +1,73 @@
+{
+  "piece": "markup",
+  "round": 7,
+  "winner": "ours",
+  "margin": "clear",
+  "gap": "B deletes block-level structure to get that clean edge: A draws a 4px (2 CSS px) #bfbfbf rule down the full 128px height of the blockquote; B has none — the quote is signalled only by one hung '>' glyph at #7a7a7a, so past line 1 the block has no visible boundary. B's caret is also weaker: #1c1c1c, 4px wide (2 CSS px) and 54px tall, abutting the preceding 'r' with no gap, vs A's #00b5ff caret at 6px (3 CSS px) spanning the full 72px line box.",
+  "gapTheirs": "A has no single prose column: markers sit inline and shove text right, so the left ink edge of prose lands at 673 (body), 721 (H1 text, quote text, list text), 744 (H2 text) and 747 (ordered-list text) — a 74px / 37 CSS px stagger at 2x. Worst case is inside one paragraph: the blockquote's first line of text starts at x=721 but its wrapped second line returns to x=676, so line 2 sits 45px (≈23 CSS px) LEFT of line 1, directly under the '>' marker. B holds every prose line — H1, H2, body, quote, quote-wrap, bullets, numbers — at 672–675, a 3px (1.5 CSS px) spread, with markers hung right-aligned into a gutter ending ~x647.",
+  "verdict": "A is the version where typing '## ' visibly kicks the line 71px to the right, and where a quote that wraps loses its left edge entirely — line two of that blockquote starts further left than line one, which is the kind of thing you stop seeing after an hour and then can't unsee. B pays for its clean spine by throwing away the quote rule, so a long quotation dissolves after its first line, and its 2px text-coloured caret is genuinely hard to find in a wall of monospace. But a stable left edge is the whole argument for editing in Markdown source at all: B gives you one column of prose with the syntax parked in the margin, A gives you five different left edges and inline-code chips that double-paint their own backgrounds (228 seams inside a 238 fill). B, clearly.",
+  "oursShot": "shots/markup/r7-light-ours.png",
+  "theirsShot": "shots/oracle/markup/light.png",
+  "refSource": "shots/oracle/markup/ — the Parity oracle frozen by tools/gate oracle markup from legacy/app 738f48c969965ac3 with legacy/tools/shoot.mjs adf473b575198cc3",
+  "builderNote": "",
+  "secondary": [
+    "Neither scales headings: 'The Lighthouse' advances 23.8px/char against body's ~24.4px in both — H1 is body-size bold only, so H1 vs H2 is distinguished purely by marker count.",
+    "A's marker greys are internally inconsistent: #9e9e9e (158) for #, ##, > but #7a7a7a (122) for -, 1. and **; B is uniform at 122 across all six.",
+    "A's inline-code chip double-paints where backtick spans overlap the code span: fill 238 with darker 228 bands at x1596-1598 and x1756-1763; B's chip is one flat 238 from 1572-1787.",
+    "A's code chip is 231px wide vs B's 215px for the same `NNE 22°` — A adds ~8px extra padding that pushes the surrounding words apart.",
+    "Line-height, background and body ink are identical: 72px row pitch (36 CSS px), bg #f9f9f9, text #1c1c1c.",
+    "B right-aligns markers to a common gutter edge (~x638-647) so ## reaches further left than #; A left-aligns them all at ~x675, which is why its text edge moves instead."
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "30a6dce",
+    "binary": "c574773f784a12ab"
+  },
+  "states": [
+    {
+      "name": "light",
+      "ours": "shots/markup/r7-light-ours.png",
+      "theirs": "shots/oracle/markup/light.png",
+      "blind": "shots/blind/markup/light",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "B deletes block-level structure to get that clean edge: A draws a 4px (2 CSS px) #bfbfbf rule down the full 128px height of the blockquote; B has none — the quote is signalled only by one hung '>' glyph at #7a7a7a, so past line 1 the block has no visible boundary. B's caret is also weaker: #1c1c1c, 4px wide (2 CSS px) and 54px tall, abutting the preceding 'r' with no gap, vs A's #00b5ff caret at 6px (3 CSS px) spanning the full 72px line box.",
+      "gapTheirs": "A has no single prose column: markers sit inline and shove text right, so the left ink edge of prose lands at 673 (body), 721 (H1 text, quote text, list text), 744 (H2 text) and 747 (ordered-list text) — a 74px / 37 CSS px stagger at 2x. Worst case is inside one paragraph: the blockquote's first line of text starts at x=721 but its wrapped second line returns to x=676, so line 2 sits 45px (≈23 CSS px) LEFT of line 1, directly under the '>' marker. B holds every prose line — H1, H2, body, quote, quote-wrap, bullets, numbers — at 672–675, a 3px (1.5 CSS px) spread, with markers hung right-aligned into a gutter ending ~x647.",
+      "verdict": "A is the version where typing '## ' visibly kicks the line 71px to the right, and where a quote that wraps loses its left edge entirely — line two of that blockquote starts further left than line one, which is the kind of thing you stop seeing after an hour and then can't unsee. B pays for its clean spine by throwing away the quote rule, so a long quotation dissolves after its first line, and its 2px text-coloured caret is genuinely hard to find in a wall of monospace. But a stable left edge is the whole argument for editing in Markdown source at all: B gives you one column of prose with the syntax parked in the margin, A gives you five different left edges and inline-code chips that double-paint their own backgrounds (228 seams inside a 238 fill). B, clearly.",
+      "secondary": [
+        "Neither scales headings: 'The Lighthouse' advances 23.8px/char against body's ~24.4px in both — H1 is body-size bold only, so H1 vs H2 is distinguished purely by marker count.",
+        "A's marker greys are internally inconsistent: #9e9e9e (158) for #, ##, > but #7a7a7a (122) for -, 1. and **; B is uniform at 122 across all six.",
+        "A's inline-code chip double-paints where backtick spans overlap the code span: fill 238 with darker 228 bands at x1596-1598 and x1756-1763; B's chip is one flat 238 from 1572-1787.",
+        "A's code chip is 231px wide vs B's 215px for the same `NNE 22°` — A adds ~8px extra padding that pushes the surrounding words apart.",
+        "Line-height, background and body ink are identical: 72px row pitch (36 CSS px), bg #f9f9f9, text #1c1c1c.",
+        "B right-aligns markers to a common gutter edge (~x638-647) so ## reaches further left than #; A left-aligns them all at ~x675, which is why its text edge moves instead."
+      ]
+    },
+    {
+      "name": "dark",
+      "ours": "shots/markup/r7-dark-ours.png",
+      "theirs": "shots/oracle/markup/dark.png",
+      "blind": "shots/blind/markup/dark",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "The caret is #1C1C1C — pixel-identical to the body text colour — and 4 device px (2 CSS px) wide, so it is indistinguishable from a monospace 'l' or 'i' stem until it blinks. A's caret is #00B5FF at 6 device px (3 CSS px), findable in one saccade. B also ships no blockquote rule at all: the whole quote is signalled by a dim '>' at 4.1:1 and a 23px indent, where A draws a 4px #494949 vertical rule down the block.",
+      "gapTheirs": "No hanging markers: the prose column moves with the block type. Body text starts at x=673 (device px, 2x), H1 prose at 721, H2 prose at 744, bullet text at 722, ordered-list text at 747 — four different left edges, a swing of 74px (37 CSS px). Worse, inside the single blockquote the first line's prose starts at 721 while its wrapped line starts at 675: a 46px (23 CSS px) misalignment within one quote. B holds every prose glyph on one line at 673-675 (±2px) across all six block types and hangs the markers into the margin.",
+      "verdict": "A is raw source with soft wrap, and it shows: your reading edge lurches 37px right the moment you type '## ' and lurches back on the next paragraph, and A's own blockquote can't keep its first line and its wrap on the same edge. B does the thing every serious Markdown editor eventually learns — hang the markers in the margin, never move the text — and it uses one marker grey (#7A7A7A) for #, ##, -, 1. and >, where A can't decide between #636363 and #808080. B pays for it with a caret the same hex as the prose and a blockquote with no rule, which is a real cost when you're scanning for where you left off. Still: a caret you hunt for once per return costs less than a text column that jumps on every structural line you write.",
+      "secondary": [
+        "Neither app steps heading size: '# The Lighthouse' is the same body size in both, distinguished by weight alone — H1 and H2 are indistinguishable from each other except by marker count",
+        "Line-height identical in both: baselines 72 device px apart (36 CSS px) on ~21px text, ~1.7",
+        "Emphasis handling is a wash: both dim the asterisks and apply true italic/bold to the span",
+        "A's inline code and code fence get rounded corners; B's fence is square-cornered — both panels sit ~12 grey levels off the page ground, equally quiet",
+        "B renders 'the waterthe |' at the caret — a duplicated 'the ' fragment at the insertion point, which reads as an input/state sync bug rather than authored text",
+        "B's blockquote indents the '>' only 46px into the margin while the ordered list hangs 70px; A's list markers sit at 4.4:1 vs its heading markers at 2.9:1"
+      ]
+    }
+  ],
+  "at": "2026-08-29T02:06:04.253Z"
+}
