@@ -30,7 +30,7 @@ An `/implement` session whose ticket has no Hand test (Ticket tier only) lands i
 
 ## Context in an `/implement` session
 
-The smart zone is about 120k tokens. A session is near 60k once this file, the ticket and the docs it names are in context, and every tool call then adds its result plus about 0.4k of reasoning that stays for the rest of the session, so the zone is held by making fewer, smaller calls (the first eight landed tickets made 120–230 and ran 190k–280k).
+The smart zone is about 120k tokens. A session is near 60k once this file, the ticket and the docs it names are in context, and every tool call then adds its result plus about 0.4k of reasoning that stays for the rest of the session, so the zone is held by making fewer, smaller calls (one of the twelve landed tickets stayed inside it, on 57 calls; the rest made 122–290 and ran 165k–302k).
 
 - **Orientation is delegated.** Before the first edit, an Explore agent maps the area and returns `file:line` ranges; this context reads those ranges. Where-is-what questions go to the module map — every module opens with a `//!` line, so `grep -rn -m1 '^//!' --include='*.rs' quill quill-engine` is both crates on one screen — or to the LSP tool (§ Rust), which answers in lines where a `cat` costs the file.
 - **The Gate is one call.** `tools/gate check` is the whole Commit tier in one result. While iterating: `cargo check -q --message-format=short`, `cargo test <name>`, and listings through `head` or `grep`. `tools/gate judge` and `bench` are read for their summary lines; the shots are the critic's to look at.
