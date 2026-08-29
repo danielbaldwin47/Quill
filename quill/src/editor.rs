@@ -471,8 +471,9 @@ impl Editor {
     /// baseline: `iter_location` gives the top of the box, the baseline is the
     /// same distance below it on every row, and [`caret::band_top`] carries
     /// the share of the pitch that goes above it. Anchoring to the box instead
-    /// is what the oracle's own comment warns against — it leaves the bar
-    /// top-heavy, riding up toward the line above.
+    /// is what `caret.js`'s header warns against in as many words: a band on
+    /// the box is centred on the font's em box rather than on the ink, and
+    /// reads as top-heavy against the letters.
     ///
     /// The distance holds on every row, wrapped or not, because of the
     /// three-way leading split of ADR 0004: `pixels-inside-wrap` carries all
@@ -735,6 +736,18 @@ impl Editor {
         self.ask_for_frames();
     }
 
+    /// The app is about to place the caret itself, with no hand behind it.
+    ///
+    /// [`caret::Source`] is sticky: a controller sets it and nothing clears
+    /// it, so once the writer has pressed a key every later placement would
+    /// read as the writer's own. The places that move the caret without a hand
+    /// — the launch flags, and later a restored position or a Command — say so
+    /// here, which is what lets [`Editor::keep_in_band`] trust the answer
+    /// rather than only being right until the first keystroke.
+    fn placing(&self) {
+        self.imp().last.set(caret::Source::App);
+    }
+
     /// Selects `from` to `to`, in UTF-8 bytes, as `--select` asked.
     ///
     /// The insert mark goes to `to` and the bound to `from`, which is where a
@@ -742,6 +755,7 @@ impl Editor {
     /// here, painted beneath the glyphs, and the caret is at the end the hand
     /// was moving.
     pub fn select(&self, document: &Document, from: u64, to: u64) {
+        self.placing();
         let buffer = self.buffer();
         let bound = tags::iter_at(&buffer, document, byte_offset(from));
         let insert = tags::iter_at(&buffer, document, byte_offset(to));
@@ -762,6 +776,7 @@ impl Editor {
     /// means both, and a judged shot of a passage the opponent is not showing
     /// is not a comparison.
     pub fn place_caret(&self, document: &Document, caret: flags::Caret, reveal: bool) {
+        self.placing();
         let buffer = self.buffer();
         let at = match caret {
             flags::Caret::End => buffer.end_iter(),
@@ -973,5 +988,37 @@ fn stylesheet(face: Face, size: u32) -> String {
 impl Default for Editor {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Both selection colours are the oracle's, and the idle one is reached by
+    /// the class the window's `is-active` puts on the widget.
+    ///
+    /// Held here because no shot can hold it: `caret/unfocused` is shot with
+    /// no selection in it, so the one judged state that is not active is also
+    /// the one state with no band to be idle. The stylesheet is where the two
+    /// colours and the swap between them are decided, so it is where they are
+    /// checked.
+    #[test]
+    fn the_stylesheet_carries_both_selection_colours_and_the_swap() {
+        let css = stylesheet(Face::Duo, 20);
+        assert!(
+            css.contains("rgba(0, 181, 255, 0.22)"),
+            "the selection is not the oracle's --selection:\n{css}"
+        );
+        assert!(
+            css.contains("rgba(28, 28, 28, 0.1)"),
+            "the idle selection is not the oracle's --selection-idle:\n{css}"
+        );
+        assert!(
+            css.contains(&format!(
+                "textview.{FACE_CLASS}.{IDLE_CLASS} text selection"
+            )),
+            "nothing swaps the selection colour when the window goes idle:\n{css}"
+        );
     }
 }

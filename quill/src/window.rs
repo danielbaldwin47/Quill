@@ -89,24 +89,6 @@ glib::wrapper! {
 }
 
 impl Window {
-    /// Tells the Editor whether this window has the keyboard, now and after.
-    ///
-    /// `is-active` is the property GTK keeps the answer in, so it is the one
-    /// thing watched: the caret's ghost and the selection's idle colour are
-    /// the same state, and a state read from two places is a state that can
-    /// disagree with itself.
-    ///
-    /// Told once here as well as on every change, because a window that is
-    /// never given the keyboard never notifies: the `unfocused` judged state
-    /// is shot with another surface focused, and its caret has to be a ghost
-    /// from the first frame rather than after a change that never comes.
-    fn watch_active(&self) {
-        self.imp().editor.set_active(self.is_active());
-        self.connect_is_active_notify(|window| {
-            window.imp().editor.set_active(window.is_active());
-        });
-    }
-
     /// A window of `app` showing `document`, in the shape `session` remembers.
     fn new(app: &gtk::Application, document: Document, session: &Rc<Session>) -> Self {
         let window: Self = glib::Object::builder().property("application", app).build();
@@ -261,6 +243,24 @@ impl Window {
     /// `docs/architecture.md` § Text model requires, and the retag happens
     /// after the text has moved. What the splice worked out is carried between
     /// them in [`imp::Window::pending`].
+    /// Tells the Editor whether this window has the keyboard, now and after.
+    ///
+    /// `is-active` is the property GTK keeps the answer in, so it is the one
+    /// thing watched: the caret's ghost and the selection's idle colour are
+    /// the same state, and a state read from two places is a state that can
+    /// disagree with itself.
+    ///
+    /// Told once here as well as on every change, because a window that is
+    /// never given the keyboard never notifies: the `unfocused` judged state
+    /// is shot with another surface focused, and its caret has to be a ghost
+    /// from the first frame rather than after a change that never comes.
+    fn watch_active(&self) {
+        self.imp().editor.set_active(self.is_active());
+        self.connect_is_active_notify(|window| {
+            window.imp().editor.set_active(window.is_active());
+        });
+    }
+
     fn watch_edits(&self) {
         let buffer = self.imp().editor.buffer();
 

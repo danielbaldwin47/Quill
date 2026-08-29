@@ -111,9 +111,12 @@ const CYCLE: i64 = ON + FADE_OUT + OFF + FADE_IN;
 /// The share of the pitch the band carries above the baseline: 11/16, leaving
 /// 31.25 % below it.
 ///
-/// `ABOVE` in `caret.js`, measured off iA Writer's own captures rather than
-/// derived — `ref/ia/REFERENCE.md` § 4.1, re-measured there on
-/// `appstore-mac-01` and `msstore-win-01`.
+/// `ABOVE` in `legacy/app/js/caret.js`, which is where this number is of
+/// record: its header takes the caret's geometry from `ref/ia/REFERENCE.md`
+/// § 4.1 plus a re-measurement of its own on `appstore-mac-01` and
+/// `msstore-win-01`, and the share is one of the numbers that re-measurement
+/// added — § 4.1 itself records only the width, the height and that the bar
+/// sits flush after the last glyph.
 const ABOVE_BASELINE: f64 = 0.6875;
 
 /// What is left of the caret when the window is not active.
@@ -530,10 +533,8 @@ pub fn nudge(size: u32) -> f64 {
 /// Where the bar's top sits, given the row's baseline and the pitch, in the
 /// pixels the widget lays out in.
 ///
-/// `snap(b.top + M.base - ABOVE * M.pitch)` in `caret.js`, and the third of
-/// the numbers measured off iA's own captures in `ref/ia/REFERENCE.md` § 4.1:
-/// the band is [`ABOVE_BASELINE`] of the pitch above the baseline and the rest
-/// below it.
+/// `snap(b.top + M.base - ABOVE * M.pitch)` in `caret.js`: the band is
+/// [`ABOVE_BASELINE`] of the pitch above the baseline and the rest below it.
 ///
 /// The baseline, and not the top of the line box, is the anchor. A CSS line
 /// box puts its baseline at about 73 % of the pitch, which is lower than iA
