@@ -121,6 +121,30 @@ impl Kind {
             Self::Code { fenced: true } | Self::FrontMatter | Self::Html
         )
     }
+
+    /// Whether a block of this kind begins where it begins whatever is written
+    /// on the line above it.
+    ///
+    /// An ATX heading, a thematic break, an opening fence and a metadata block
+    /// each interrupt what was being written and cannot be a lazy continuation
+    /// of it. So the byte one starts at is a seam the parser reads the same way
+    /// in a slice as it does in place — the same thing a blank line gives,
+    /// without the blank line — and the walk in [`Document::widened`] can stop
+    /// there. Without it that walk runs to the edge of a Document written with
+    /// no blank lines in it at all, which is the fallback under another name.
+    ///
+    /// A list is not here, and that is the point of `xx- one` in the tests: a
+    /// list interrupts a paragraph only on what its own line says, so the seam
+    /// between them is one an edit can move.
+    const fn begins_a_block(self) -> bool {
+        matches!(
+            self,
+            Self::Heading { setext: false }
+                | Self::Rule
+                | Self::Code { fenced: true }
+                | Self::FrontMatter
+        )
+    }
 }
 
 /// One top-level block: the bytes it covers and what it is.
@@ -446,7 +470,7 @@ impl Document {
         } else {
             (found, found)
         };
-        while lo > 0 && !self.blank(lo) {
+        while lo > 0 && !self.settled(lo) {
             lo -= 1;
         }
         // `at.end` is the delete that ran off the end of its block: whatever
@@ -525,10 +549,23 @@ impl Document {
     /// and the every-byte sweep over the judged passage is what says so.
     fn out_to_a_gap(&self, mut hi: usize, past: usize) -> usize {
         let last = self.blocks.len() - 1;
-        while hi < last && (!self.blank(hi) || self.blocks[hi].at.end < past) {
+        // The edge is `blocks[hi].at.end`, so what settles it is this block
+        // being a Gap — over the whole of it, per above — or the *next* one
+        // beginning wherever it begins. A Gap at `hi + 1` settles nothing: that
+        // is the edge at a Gap's start, which is the seam that slips.
+        while hi < last
+            && ((!self.blank(hi) && !self.blocks[hi + 1].kind.begins_a_block())
+                || self.blocks[hi].at.end < past)
+        {
             hi += 1;
         }
         self.blocks[hi].at.end
+    }
+
+    /// Whether the block at `found` starts at a seam a slice can be cut at: it
+    /// is a Gap, or it begins wherever it begins.
+    fn settled(&self, found: usize) -> bool {
+        self.blank(found) || self.blocks[found].kind.begins_a_block()
     }
 
     /// The block over `found` that is not a Gap, or the Document's first.
@@ -1552,6 +1589,7 @@ mod tests {
         let (text, region) = padded("```rust\nlet lamp = 1;\n```");
         let mut doc = opened(&text);
         let edit = doc.insert(text.find("\nlet lamp").expect("the info string"), "y");
+        assert_eq!(edit.scope.blocks, 1..8);
         assert_eq!(
             edit.scope.bytes,
             region.start..region.end + 1,
@@ -1739,6 +1777,53 @@ mod tests {
             edit.scope.blocks,
             0..1,
             "and it is one block now, however many it was"
+        );
+        as_if_opened(&doc);
+    }
+
+    #[test]
+    fn a_draft_with_no_blank_line_in_it_still_bounds_the_walk() {
+        // The walk out of `widened` stops where nothing is open, and a writer
+        // can hand it a Document with no blank line anywhere. An ATX heading
+        // begins wherever it begins, so it is the other thing that stops the
+        // walk; without it one keystroke here re-parses every byte, which is
+        // the fallback under another name.
+        let mut doc = opened(&"# One\n".repeat(5_000));
+        let edit = doc.insert(3, "x");
+        assert!(
+            edit.scope.bytes.len() < 64,
+            "one heading of 5,000 re-parsed {:?} of {} bytes",
+            edit.scope.bytes,
+            doc.text().len()
+        );
+        as_if_opened(&doc);
+    }
+
+    #[test]
+    fn an_unclosed_fence_at_the_top_is_the_one_flip_that_reads_the_whole_draft() {
+        // The scan finds no line to re-converge at, so the stretch that becomes
+        // code is the rest of the Document — and this ticket *parses* that
+        // stretch rather than deriving it. A fenced block's spans are
+        // derivable (a ground, its opening fence, its info string), so the
+        // parse is a cost the Piece could still pay off; it is an order of
+        // magnitude inside the Gate's <= 16 ms worst, and this test is here to
+        // say what it does rather than to bless it.
+        let para = "Alpha *one*.\n\nBeta **two**.\n\n";
+        let mut doc = opened(&format!("# Top\n\n{}", para.repeat(400)));
+        let edit = doc.insert(7, "```\n");
+        assert_eq!(
+            edit.scope.bytes.end,
+            doc.text().len(),
+            "the scan ran to the end because nothing closed the fence"
+        );
+        assert_eq!(
+            doc.blocks()[2],
+            Block {
+                at: 7..doc.text().len(),
+                kind: Kind::Code { fenced: true }
+            },
+            "and every block under it is one block of code: {:?}",
+            &shape(&doc)[..4]
         );
         as_if_opened(&doc);
     }
