@@ -24,6 +24,8 @@
 
 #![allow(dead_code)] // The Editor reads all of this in #107; nothing calls it yet.
 
+use crate::flags::Flags;
+
 /// A millisecond, in the microseconds every time in this module is counted in.
 const MS: i64 = 1_000;
 
@@ -50,6 +52,13 @@ const GLIDE_ALONG: i64 = 34 * MS;
 /// The glide between rows, longer because the way is: `GLIDE_Y`.
 const GLIDE_ACROSS: i64 = 46 * MS;
 
+/// Moves closer together than this snap: `SNAP_MS`.
+///
+/// A held arrow repeats faster than a glide lasts, so without this every
+/// repeat would start another and the caret would be towed along behind the
+/// key rather than moving with it.
+const SNAP: i64 = 60 * MS;
+
 /// The bar full on, at the top of the blink's cycle.
 const ON: i64 = 470 * MS;
 
@@ -63,7 +72,15 @@ const OFF: i64 = 445 * MS;
 /// The fade back up.
 const FADE_IN: i64 = 55 * MS;
 
-/// One turn of `@keyframes caret-blink`.
+/// One turn of the blink.
+///
+/// The four above are the ones `caret.css` names in the comment over its
+/// keyframes, and the ones #106 § Decided details decided, so they are the
+/// ones built here. The keyframes themselves run `1.06s` at `0%,44% {1}
+/// 52%,94% {0} 100% {1}`, which works out at 466.4, 84.8, 445.2 and 63.6 for a
+/// 1060 ms round: the same blink to within 9 ms, all of it in the fade back
+/// up. Worth knowing if the two are ever put side by side frame by frame, and
+/// not worth seeing otherwise.
 const CYCLE: i64 = ON + FADE_OUT + OFF + FADE_IN;
 
 /// What is left of the caret when the window is not active.
@@ -120,15 +137,15 @@ pub enum Mode {
 }
 
 impl Mode {
-    /// The mode the flags asked for.
+    /// The mode this launch's flags asked for.
     ///
     /// `--nocaret` wins over `--deterministic`: a caret that is not drawn has
     /// nothing left to freeze.
     #[must_use]
-    pub fn from_flags(deterministic: bool, nocaret: bool) -> Self {
-        if nocaret {
+    pub fn from_flags(flags: &Flags) -> Self {
+        if flags.nocaret {
             Self::Nocaret
-        } else if deterministic {
+        } else if flags.deterministic {
             Self::Deterministic
         } else {
             Self::Live
@@ -163,6 +180,9 @@ pub struct Caret {
     glide: Option<Glide>,
     /// The last move or edit: the blink is held for [`IDLE`] after it.
     active_at: Option<i64>,
+    /// The last move that went anywhere: another within [`SNAP`] of it is a
+    /// key repeating rather than a hand, and snaps.
+    moved_at: Option<i64>,
     /// The last edit: a move within [`EDIT_SNAP`] of it snaps.
     edited_at: Option<i64>,
     /// The last time the machine was told about, which is the one
@@ -186,6 +206,7 @@ impl Caret {
             placed: false,
             glide: None,
             active_at: None,
+            moved_at: None,
             edited_at: None,
             now: 0,
         }
@@ -193,26 +214,40 @@ impl Caret {
 
     /// The caret is at `to`, moved by `kind`, at frame time `t`.
     ///
-    /// The bar travels there if this is navigation — a click or a cursor key
-    /// with no edit behind it — and is simply put there otherwise. A glide
-    /// already in flight is left from where it had got to, not from where it
-    /// began, so a second move mid-travel reads as one caret changing course.
+    /// The bar travels there if this is navigation — a click or a cursor key,
+    /// with no edit behind it and not at a key's repeat rate — and is simply
+    /// put there otherwise. A glide already in flight is left from where it
+    /// had got to, not from where it began, so a second move mid-travel reads
+    /// as one caret changing course.
+    ///
+    /// The same position arrives twice per keystroke in the oracle, once for
+    /// the render and once for the selection, and it will here too. The second
+    /// is dropped rather than reissued: reissuing it would cancel a glide
+    /// already in flight and, worse, make the pair look like a hand moving
+    /// fast enough to snap. It still holds the blink, which is the one thing
+    /// the oracle does either way.
     pub fn moved(&mut self, to: Bar, kind: Move, t: i64) {
         self.now = t;
+        self.active_at = Some(t);
         let to = Bar {
             x: snap(to.x),
             ..to
         };
+        if self.placed && to == self.to {
+            return;
+        }
         let at = self.rect(t);
         self.glide = if self.glides(kind, t) && (at.x != to.x || at.y != to.y) {
             Some(Glide {
                 from_x: at.x,
                 from_y: at.y,
                 at: t,
-                len: if at.y == to.y {
-                    GLIDE_ALONG
-                } else {
+                // `dy > 0.5` in the oracle rather than a row's height: taken
+                // mid-glide the row below is a fraction away, not a pitch.
+                len: if (at.y - to.y).abs() > 0.5 {
                     GLIDE_ACROSS
+                } else {
+                    GLIDE_ALONG
                 },
             })
         } else {
@@ -220,7 +255,7 @@ impl Caret {
         };
         self.to = to;
         self.placed = true;
-        self.active_at = Some(t);
+        self.moved_at = Some(t);
     }
 
     /// The buffer changed at `t`.
@@ -322,8 +357,20 @@ impl Caret {
     }
 
     /// Whether a move of this kind at `t` is one to be tracked by eye.
+    ///
+    /// The oracle's gate is five conditions in `placeCaret`, and these are the
+    /// ones that survive being handed device pixels: `EDIT_SNAP_MS`, which
+    /// #106 names, and `SNAP_MS`, which keeps a repeat rate from towing the
+    /// caret. The two left out are `GLIDE_MIN` — hops under 3 em snap, there
+    /// being nothing to follow over 2 mm — and the 14 em and 1.2 pitch caps
+    /// that snap a jump too long to track. Both are measured in ems, and the
+    /// machine is given a rectangle rather than a type size; #107 hands the
+    /// widget both, and is where they can arrive.
     fn glides(&self, kind: Move, t: i64) -> bool {
         if !self.placed || kind == Move::FollowsEdit || self.mode != Mode::Live {
+            return false;
+        }
+        if self.moved_at.is_some_and(|m| t - m < SNAP) {
             return false;
         }
         self.edited_at.is_none_or(|e| t - e >= EDIT_SNAP)
@@ -337,6 +384,9 @@ impl Caret {
 /// two edges on its own, so a 4.5 px stem comes out 5 px wide with a grey
 /// column down one side however hard its position is snapped. Asking for the
 /// integer keeps both edges hard at any scale. 3 px at 20 px, 5 px at 31 px.
+///
+/// The sibling of `quill_engine::typography::pitch`, and read with it: the
+/// Editor builds a [`Bar`] from the two, one across the row and one down it.
 #[must_use]
 pub fn width(size: u32) -> u32 {
     ((f64::from(size) * WIDTH).round() as u32).max(MIN_WIDTH)
@@ -348,6 +398,11 @@ pub fn width(size: u32) -> u32 {
 /// so x is the only one of the four that needs this — and it does need it: a
 /// bar starting on a half pixel is rasterised a column wider than it was cut,
 /// with a grey edge standing in for the half.
+///
+/// Device pixels are the caller's: the widget applies the surface's scale
+/// factor on the way in, which is where the oracle's `Math.round(v * dpr) /
+/// dpr` went. Handing this logical pixels on a scale-2 output would snap to
+/// every second device pixel and leave the fault it exists to prevent.
 fn snap(x: f64) -> f64 {
     x.round()
 }
@@ -668,6 +723,62 @@ mod tests {
         n.tick(4 * CYCLE);
         assert_eq!(n.alpha(4 * CYCLE), 0.0);
         assert!(!n.wants_tick());
+    }
+
+    /// The same position arrives twice per keystroke, once for the render and
+    /// once for the selection. The second must not restart the first's glide.
+    #[test]
+    fn the_second_of_a_pair_is_dropped() {
+        let mut c = live();
+        c.moved(bar(0.0, 0.0), Move::Key, 0);
+
+        let jump = 1000 * MS;
+        c.moved(bar(200.0, 0.0), Move::Key, jump);
+        let mid = jump + GLIDE_ALONG / 2;
+        let travelled = c.rect(mid).x;
+        assert!(travelled < 200.0, "still on its way at {travelled}");
+
+        c.moved(bar(200.0, 0.0), Move::Key, mid);
+        assert_eq!(c.rect(mid).x, travelled, "it carried on from where it was");
+        assert_eq!(
+            c.rect(jump + GLIDE_ALONG).x,
+            200.0,
+            "and lands when it would have"
+        );
+        assert_eq!(c.alpha(mid), 1.0, "and the blink is held either way");
+    }
+
+    /// A held arrow repeats faster than a glide lasts, so the repeats snap:
+    /// `SNAP_MS`, or the caret is towed along behind the key.
+    #[test]
+    fn a_key_at_its_repeat_rate_snaps() {
+        let mut c = live();
+        c.moved(bar(0.0, 0.0), Move::Key, 0);
+
+        let first = 1000 * MS;
+        c.moved(bar(12.0, 0.0), Move::Key, first);
+        assert!(c.wants_tick(), "the first of a run travels");
+
+        let repeat = first + 33 * MS;
+        c.moved(bar(24.0, 0.0), Move::Key, repeat);
+        assert_eq!(
+            c.rect(repeat).x,
+            24.0,
+            "the next is a repeat, and is put there"
+        );
+        assert!(!c.wants_tick());
+    }
+
+    /// `--nocaret` wins over `--deterministic`: a caret that is not drawn has
+    /// nothing left to freeze.
+    #[test]
+    fn the_flags_pick_the_mode() {
+        let mut f = Flags::default();
+        assert_eq!(Mode::from_flags(&f), Mode::Live);
+        f.deterministic = true;
+        assert_eq!(Mode::from_flags(&f), Mode::Deterministic);
+        f.nocaret = true;
+        assert_eq!(Mode::from_flags(&f), Mode::Nocaret);
     }
 
     /// The glide is the oracle's curve rather than a straight line: fast away,
