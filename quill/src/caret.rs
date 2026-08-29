@@ -393,11 +393,19 @@ impl Caret {
     ///
     /// The caret is not drawn while it does, and asks for no frames: the
     /// selection's own two bars do not blink, so there is nothing left to
-    /// animate. Coming back to a collapsed selection is a placement like any
-    /// other — the move that collapses it arrives through [`Caret::moved`] and
-    /// carries its own kind — so this holds no state beyond the flag.
+    /// animate.
+    ///
+    /// Releasing one holds the blink on, the way a move or an edit does. A
+    /// selection usually collapses by the insert mark moving, which would hold
+    /// it through [`Caret::moved`] anyway — but it can collapse by the other
+    /// end moving onto the insert mark instead, which is a shift-arrow back to
+    /// the anchor, and a caret that came back mid-cycle would flash on the
+    /// keystroke that released it.
     pub fn selected(&mut self, yes: bool, t: i64) {
         self.now = t;
+        if self.selected && !yes {
+            self.active_at = Some(t);
+        }
         self.selected = yes;
     }
 

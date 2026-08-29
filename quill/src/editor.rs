@@ -64,24 +64,26 @@ const CARET_LINE: f64 = 0.5;
 const BASELINE_DRIFT: f64 = 0.5;
 
 /// What the selection's two end bars are worth when the window is not active,
-/// as a share of the ink.
-///
-/// Ink at .22 rather than the accent, which is `#caret-layer.idle .sel-edge`
-/// in `legacy/app/css/caret.css` and the one place the ends part company with
-/// the free caret: that keeps its blue and goes to a ghost, because a blue
-/// mark alone on the page reads as the place the writer left. Two blue ends on
-/// a grey block do not — the comment beside the rule says they read as a
-/// half-woken window — so the ends go to the colour of the ink they hold.
+/// as a share of the ink: `#caret-layer.idle .sel-edge` in
+/// `legacy/app/css/caret.css`. Why ink and not the accent is
+/// [`selection_paint`].
 const IDLE_ENDS: f64 = 0.22;
 
 /// The most rows of selection painted in one frame: `MAX_ROWS` in
 /// `legacy/app/js/caret.js`.
 ///
-/// A select-all on a long document is a rectangle per display row, and every
-/// one of them is walked before it is drawn. The oracle's cap is here for the
-/// same reason it is there: past a screenful the rows below are not on the
-/// glass, and the Latency Piece is paid for in the ones never built.
+/// A backstop and not the thing that keeps the paint bounded — the viewport
+/// clip in [`Editor::selection`] does that, as it does in the oracle, which
+/// clips before it counts. What is left for a cap is a window tall enough, or
+/// a pitch small enough, that a screenful is still hundreds of rows.
 const MAX_ROWS: usize = 400;
+
+/// How far past the viewport the selection's rows are still built, in rows.
+///
+/// `M.pitch * 6` either side of the scroller in `drawSelection`. The slack is
+/// what keeps a scroll from showing the seam: the rows a frame is about to
+/// need are already drawn when it arrives.
+const SELECTION_SLACK: f64 = 6.0;
 
 /// Paper and ink: the light palette of `legacy/app/css/theme.css`.
 ///
@@ -239,7 +241,10 @@ struct Selection {
     /// The bars bracketing the two ends: the same instrument as the caret, at
     /// the same width and on the same band, so the eye can see exactly which
     /// cells are held (`setEdge` in `legacy/app/js/caret.js`).
-    ends: [caret::Bar; 2],
+    ///
+    /// Two of them, unless an end is scrolled out of the band the rows are
+    /// built for, which is the one case that has none to draw.
+    ends: Vec<caret::Bar>,
 }
 
 impl Editor {
@@ -606,16 +611,56 @@ impl Editor {
     /// that one offset is both the end of one row and the start of the next,
     /// and which of the two `iter_location` answers for is not ours to decide.
     /// A character's own box is on one row and only one.
+    ///
+    /// Only what can be seen is built. `drawSelection` clips to the viewport
+    /// with six rows of slack either side and counts nothing outside it toward
+    /// its cap, and this does the same at both ends: the walk begins at the
+    /// first row inside the band rather than at the selection's own start, and
+    /// stops at the first row past it. A select-all is then a screenful of
+    /// work wherever the view is sitting, instead of a rectangle for every row
+    /// of the document — and it is drawn, which a walk that spent its cap
+    /// above the fold would not be.
+    ///
+    /// An end whose row was clipped away has no bar. That is the oracle's rule
+    /// too (`firstEdge` and `lastEdge` are set only on the selection's own
+    /// first and last lines, and stay null otherwise), and it is the safe
+    /// answer rather than the tidy one: a bar at the end of whatever row the
+    /// walk stopped on is a mark in a place the selection does not end.
     fn selection(&self) -> Option<Selection> {
         let (start, end) = self.buffer().selection_bounds()?;
-        if self.imp().pitch.get() == 0 {
+        let pitch = f64::from(self.imp().pitch.get());
+        if pitch == 0.0 {
             return None;
         }
         let size = self.imp().size.get();
         let scale = self.scale();
+        let view = self.visible_rect();
+        let top = f64::from(view.y()) - pitch * SELECTION_SLACK;
+        let bottom = f64::from(view.y() + view.height()) + pitch * SELECTION_SLACK;
         let mut rows: Vec<caret::Bar> = Vec::new();
+        let mut head = None;
+        let mut tail = None;
         let mut at = start;
-        while at < end && rows.len() < MAX_ROWS {
+        if let Some(seen) = self.iter_at_location(0, top.max(0.0) as i32)
+            && seen > at
+        {
+            at = seen;
+        }
+        if at >= end {
+            // The whole of it is above the band. Nothing to build, and no end
+            // to bracket: the walk below would read the row `end` sits on as
+            // the selection's last and bar it, which is a mark on a row the
+            // writer is not looking at.
+            return None;
+        }
+        // `at <= end`, not `<`: a selection that ends where a row begins ends
+        // *on* that row, and its closing bar belongs at that row's left edge
+        // rather than out at the end of the row above. Selecting through a
+        // line's newline and no further is exactly this, and it is what the
+        // oracle draws — `rows.set(0, { l: lr.left, r: lr.left })` when a line
+        // contributes no rectangles, with `lastEdge` taken from it. The row is
+        // empty, so it costs a zero-width fill that [`draw_box`] drops.
+        while at <= end && rows.len() < MAX_ROWS {
             let mut stop = at;
             if !self.forward_display_line_end(&mut stop) {
                 // Already at the row's end, which an empty line always is and
@@ -625,8 +670,11 @@ impl Editor {
                 stop = at;
             }
             stop = stop.min(end);
-            let head = self.iter_location(&at);
-            let left = f64::from(head.x());
+            let box_of_first = self.iter_location(&at);
+            if f64::from(box_of_first.y()) > bottom {
+                break;
+            }
+            let left = f64::from(box_of_first.x());
             let mut right = left;
             if stop > at {
                 let mut last = stop;
@@ -640,14 +688,21 @@ impl Editor {
             if stop < end && stop.ends_line() {
                 right += caret::tail(size);
             }
-            let (y, h) = self.band(f64::from(head.y()));
+            let (y, h) = self.band(f64::from(box_of_first.y()));
             let x = caret::snap(left * scale);
-            rows.push(caret::Bar {
+            let row = caret::Bar {
                 x,
                 y,
                 w: (caret::snap(right * scale) - x).max(0.0),
                 h,
-            });
+            };
+            if at == start {
+                head = Some(row);
+            }
+            if stop >= end {
+                tail = Some(row);
+            }
+            rows.push(row);
             if stop >= end {
                 break;
             }
@@ -657,8 +712,9 @@ impl Editor {
             }
             at = next;
         }
-        let first = *rows.first()?;
-        let last = *rows.last()?;
+        if rows.is_empty() {
+            return None;
+        }
         // Outside the fill at both ends, which is `setEdge(edgeA, firstEdge,
         // -M.w)` in `caret.js` and the oracle's own shot: the left bar ends
         // where the fill begins and the right bar begins where it ends.
@@ -674,21 +730,22 @@ impl Editor {
         // the bar stands in the gap before the cell, which is where the free
         // caret stands too.
         let w = f64::from(caret::width(size)) * scale;
-        Some(Selection {
-            ends: [
-                caret::Bar {
-                    x: first.x - w,
-                    w,
-                    ..first
-                },
-                caret::Bar {
-                    x: last.x + last.w,
-                    w,
-                    ..last
-                },
-            ],
-            rows,
-        })
+        let mut ends = Vec::with_capacity(2);
+        if let Some(first) = head {
+            ends.push(caret::Bar {
+                x: first.x - w,
+                w,
+                ..first
+            });
+        }
+        if let Some(last) = tail {
+            ends.push(caret::Bar {
+                x: last.x + last.w,
+                w,
+                ..last
+            });
+        }
+        Some(Selection { rows, ends })
     }
 
     /// A change to the buffer is starting.
@@ -916,7 +973,12 @@ impl Editor {
         if alpha <= 0.0 {
             return;
         }
-        painted(snapshot, &accent(alpha), caret.rect(now), self.scale());
+        draw_box(
+            snapshot,
+            &paint(Role::Accent, alpha),
+            caret.rect(now),
+            self.scale(),
+        );
     }
 
     /// Paints the selection: the fills, then the two bars at its ends.
@@ -935,16 +997,12 @@ impl Editor {
             return;
         };
         let scale = self.scale();
-        let (fill, ends) = if self.imp().caret.get().focused() {
-            (paint(Role::Selection, 1.0), accent(1.0))
-        } else {
-            (paint(Role::SelectionIdle, 1.0), paint(Role::Ink, IDLE_ENDS))
-        };
+        let (fill, ends) = selection_paint(self.imp().caret.get().focused());
         for row in &selection.rows {
-            painted(snapshot, &fill, *row, scale);
+            draw_box(snapshot, &fill, *row, scale);
         }
-        for bar in selection.ends {
-            painted(snapshot, &ends, bar, scale);
+        for bar in &selection.ends {
+            draw_box(snapshot, &ends, *bar, scale);
         }
     }
 
@@ -1092,13 +1150,24 @@ fn channel(value: f64) -> f32 {
     value as f32
 }
 
-/// The caret's blue at `alpha`.
+/// The two colours the selection is painted in: the fill, and the bars at its
+/// ends.
 ///
-/// [`Role::Accent`], which the theme table gives as the same colour on both
-/// grounds — it is the one instrument the writer watches, and it does not
-/// change when the ground does — so which scheme it is read at cannot matter.
-fn accent(alpha: f64) -> gdk::RGBA {
-    paint(Role::Accent, alpha)
+/// The ends are the one place the selection parts company with the free caret.
+/// That keeps its blue when the window goes, at [`caret::GHOST`] of it, because
+/// a blue mark alone on a page reads as the place the writer left. Two blue
+/// ends on a grey block do not — `caret.css`'s comment says they read as a
+/// half-woken window — so they go to the colour of the ink they hold.
+///
+/// A function of the one flag so that it can be checked without a window:
+/// `unfocused` is shot with nothing selected, so no judged state carries the
+/// idle band and the swap is only ever true here.
+fn selection_paint(focused: bool) -> (gdk::RGBA, gdk::RGBA) {
+    if focused {
+        (paint(Role::Selection, 1.0), paint(Role::Accent, 1.0))
+    } else {
+        (paint(Role::SelectionIdle, 1.0), paint(Role::Ink, IDLE_ENDS))
+    }
 }
 
 /// One role's colour on the light ground, at `alpha` of the alpha the table
@@ -1125,12 +1194,12 @@ fn paint(role: Role, alpha: f64) -> gdk::RGBA {
     )
 }
 
-/// One box of the caret's layer, back in the widget's own pixels.
+/// Draws one box of the caret's layer, back in the widget's own pixels.
 ///
 /// A box with no area is not drawn: an empty row of a selection is a real
 /// place in the text — the end of a line whose newline is not held — and it
 /// has nothing to paint.
-fn painted(snapshot: &gtk::Snapshot, colour: &gdk::RGBA, bar: caret::Bar, scale: f64) {
+fn draw_box(snapshot: &gtk::Snapshot, colour: &gdk::RGBA, bar: caret::Bar, scale: f64) {
     if bar.w <= 0.0 || bar.h <= 0.0 {
         return;
     }
@@ -1294,6 +1363,35 @@ mod tests {
             css.matches("selection").count(),
             1,
             "the idle swap is the fill's now, not the stylesheet's:\n{css}"
+        );
+    }
+
+    /// The band and its two ends both swap when the window goes.
+    ///
+    /// Held here because no shot can hold it, which is why the stylesheet used
+    /// to hold it: `caret/unfocused` is shot with `select: null`, so the one
+    /// judged state that is not active is also the one state with no band to
+    /// be idle. The swap moved from the stylesheet to the paint when the
+    /// selection became ours, and the check moves with it.
+    #[test]
+    fn the_selection_and_its_ends_go_idle_with_the_window() {
+        let (fill, ends) = selection_paint(true);
+        let (idle_fill, idle_ends) = selection_paint(false);
+        assert_eq!(
+            (fill, ends),
+            (paint(Role::Selection, 1.0), paint(Role::Accent, 1.0)),
+            "an active window is the oracle's --selection under the caret's own blue"
+        );
+        assert_ne!(fill, idle_fill, "the band did not go idle");
+        assert_ne!(ends, idle_ends, "the ends did not go idle");
+        // Ink, and not a paler accent: this is the one place the ends leave
+        // the caret's blue behind, where the free caret keeps it and only
+        // drops to its ghost.
+        assert_eq!(idle_ends, paint(Role::Ink, IDLE_ENDS));
+        assert_ne!(
+            idle_ends.red(),
+            paint(Role::Accent, 1.0).red(),
+            "the ends stayed on the accent"
         );
     }
 }
