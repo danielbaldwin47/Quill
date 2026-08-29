@@ -3,6 +3,8 @@
 //   [--size 18] [--focus off|sentence|paragraph] [--typewriter] [--chrome on|off] [--text file.md] [--caret N|end|"needle"]
 //   [--scroll px|"needle"] [--mouse] (move mouse so chrome shows) [--nocaret] [--select a,b] [--url http://localhost:4173/] [--wait ms] [--full]
 //   [--active on|off]  off blurs the input, so the caret and any selection are drawn in their unfocused state
+//   [--typing]  the chrome stepped back, the way it is while the writer is typing
+//   [--menu view|document|stats|palette]  that popover open, its first row selected
 //   [--state seed.json]  merge {localStorageKey: value} into localStorage before load (e.g. a demo Library)
 import { chromium } from 'playwright-core'; import fs from 'node:fs'; import path from 'node:path';
 const args = {}; for (let i = 2; i < process.argv.length; i++) { const a = process.argv[i]; if (a.startsWith('--')) { const k = a.slice(2); const v = process.argv[i + 1]; if (v === undefined || v.startsWith('--')) args[k] = true; else { args[k] = v; i++; } } }
@@ -44,6 +46,27 @@ await p.evaluate((on) => { if (on) Writer.el.input.focus(); else Writer.el.input
 if (args.mouse) { await p.mouse.move(W / 2, 20); await p.evaluate(() => { document.documentElement.dataset.typing = 'off'; }); }
 else await p.evaluate(() => { document.documentElement.dataset.typing = 'off'; });
 if (args.typing) await p.evaluate(() => { document.documentElement.dataset.typing = 'on'; });
+// --menu view|document|stats|palette: that popover open, at rest, with its first row selected.
+// chrome.js has the same four names behind its ?open= hook, but that one fires on a timer 60 ms
+// into the load, which is the same moment --active and --text are settling focus; opening from
+// here instead puts the popover after them, so what is shot is not a race. The three menus open
+// with nothing selected (openPanel.sel is -1), so one ArrowDown lights row 0 — the window's
+// capturing keydown listener eats it, so the caret does not move; the palette renders with its
+// first row already on. [chrome piece]
+if (args.menu && args.menu !== true) {
+  const opened = await p.evaluate((name) => {
+    if (name === 'view') Writer.run('chrome.view');
+    else if (name === 'document') Writer.run('chrome.doc');
+    else if (name === 'palette') Writer.run('palette.open');
+    // The stats menu is anchored to the pointer and has no command to run, so it is opened by the
+    // click its bar listens for, at the x chrome.js's own hook picks.
+    else if (name === 'stats') document.getElementById('stats-bar').dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: Math.round(innerWidth * 0.709) }));
+    else return false;
+    return document.documentElement.dataset.menu === 'on';
+  }, args.menu);
+  if (!opened) { console.error(`shoot: --menu ${args.menu} opened no popover (view|document|stats|palette)`); process.exit(2); }
+  if (args.menu !== 'palette') await p.keyboard.press('ArrowDown');
+}
 // freeze caret visible & un-blinking for deterministic shots — but an unfocused caret is dimmed by
 // #caret-layer.idle, and an inline opacity here would paint over the very thing --active off shoots.
 await p.evaluate(([hide, idle]) => { const c = document.querySelector('#caret-layer .caret'); if (c) { c.classList.remove('blink'); c.style.opacity = hide ? '0' : (idle ? '' : '1'); } }, [!!args.nocaret, !active]);
