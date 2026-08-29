@@ -83,6 +83,17 @@ export function build(root) {
   return { git: gitHead(root), binary: sha256(fs.readFileSync(path.join(root, BINARY))).slice(0, 16) };
 }
 
+// ---------- the command line ours is opened with ----------
+
+// One judged state as ours' arguments, plus the settings file the round was asked for. That file is
+// the one thing in a round that reaches ours and not the opponent: the opponent's side of every
+// pair was frozen by `tools/gate oracle` before this round began, and the Parity oracle keeps its
+// settings in localStorage rather than a file, so there is no command line to hand it one on.
+export function oursArgv(root, flags, settingsFile) {
+  const argv = quillArgv(root, flags);
+  return settingsFile ? [...argv, '--settings', settingsFile] : argv;
+}
+
 // ---------- the critic ----------
 
 // The prompt for one pair: `tools/critic.md` below its `---`, with its fields filled.
@@ -178,10 +189,14 @@ function run(command, argv, { cwd, timeout }) {
 // ---------- the command ----------
 
 function usage(where = process.stderr) {
-  where.write(`usage: tools/gate judge <piece> [--note <text>] [--summary <file>]
+  where.write(`usage: tools/gate judge <piece> [--note <text>] [--summary <file>] [--settings <path>]
 
   The Pieces with judged states are the keys of "pieces" in
   shots/oracle/states.json. What the command does: tools/gate --help
+
+  --settings is ours' settings file for the run, and goes to ours only: the
+  Parity oracle has no such file, and its shots are frozen before the round
+  starts. The round records the path under "build".
 
   latency is judged on numbers rather than by a critic: it reads the newest
   shots/latency/summary-*.json that tools/gate bench --all wrote, or the one
@@ -241,6 +256,7 @@ async function main(argv) {
   let piece = null;
   let note = '';
   let summaryFile = null;
+  let settingsFile = null;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--note') {
@@ -249,6 +265,9 @@ async function main(argv) {
     } else if (a === '--summary') {
       summaryFile = argv[++i];
       if (summaryFile === undefined) { process.stderr.write('gate judge: --summary takes the bench summary to read\n'); usage(); return 3; }
+    } else if (a === '--settings') {
+      settingsFile = argv[++i];
+      if (settingsFile === undefined) { process.stderr.write('gate judge: --settings takes the settings file to open ours with\n'); usage(); return 3; }
     } else if (a === '-h' || a === '--help') { usage(process.stdout); return 0; }
     else if (a.startsWith('-')) { process.stderr.write(`gate judge: ${a}: not a flag this command has\n`); usage(); return 3; }
     else if (piece === null) piece = a;
@@ -257,7 +276,7 @@ async function main(argv) {
   if (piece === null) { usage(); return 3; }
   openLog(root, piece);
 
-  try { return await judge(root, piece, note, summaryFile); }
+  try { return await judge(root, piece, note, summaryFile, settingsFile); }
   catch (e) {
     say(`gate judge ${piece}: ${e.message}`);
     return refuse(piece, 'the run broke before a verdict');
@@ -386,11 +405,19 @@ async function judgeLatency(root, note, named) {
   return 1;
 }
 
-async function judge(root, piece, note, summaryFile) {
+async function judge(root, piece, note, summaryFile, settingsFile) {
   // The latency Piece is not shot and not paired: its opponent is a set of numbers, so its round is
   // arithmetic over what `tools/gate bench --all` already measured. Answered before anything below
   // opens a window or builds a binary, because none of that is needed to read two files.
-  if (piece === 'latency') return judgeLatency(root, note, summaryFile);
+  // --settings is a flag ours is opened with, and latency opens nothing here: taking it and doing
+  // nothing with it would put a settings file in the round's build that never touched the numbers.
+  if (piece === 'latency') {
+    if (settingsFile) {
+      say('gate judge latency: --settings is ours\' settings file for a shot, and the latency Piece shoots nothing');
+      return refuse(piece, '--settings is not a flag the latency Piece has');
+    }
+    return judgeLatency(root, note, summaryFile);
+  }
 
   const states = readStates(root);
   let resolved;
@@ -455,7 +482,11 @@ async function judge(root, piece, note, summaryFile) {
 
   const recorded = rounds(root, piece);
   const number = nextRound(recorded);
-  const ours = build(root);
+  // What ours was: the commit, the binary, and the settings file it was opened with. The last one
+  // is null in almost every round, and saying so is the point — a round that shot ours against a
+  // rebinding fixture reads differently from one that shot it with its own defaults, and the shots
+  // do not say which it was.
+  const ours = { ...build(root), settings: settingsFile ?? null };
   const template = fs.readFileSync(path.join(root, 'tools/critic.md'), 'utf8');
   const brief = JSON.parse(fs.readFileSync(path.join(root, 'progress/state.json'), 'utf8')).pieces.find((p) => p.id === piece);
   if (!brief?.judge) {
@@ -472,7 +503,7 @@ async function judge(root, piece, note, summaryFile) {
       say(`gate judge ${piece}: shooting ${s.name}`);
       await stage.shoot({
         bin: path.join(root, BINARY),
-        argv: quillArgv(root, s.flags),
+        argv: oursArgv(root, s.flags, settingsFile),
         w: s.flags.w,
         h: s.flags.h,
         out: path.join(root, ours),

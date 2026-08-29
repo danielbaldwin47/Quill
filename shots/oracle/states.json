@@ -6,7 +6,7 @@
     "theme": "light", "font": "duo", "size": 20,
     "focus": "off", "typewriter": false, "chrome": "on",
     "caret": 403, "select": null, "scroll": 0, "nocaret": false,
-    "active": true
+    "active": true, "typing": false, "menu": null
   },
   "reference": "When legacy/ is gone, and for any Piece with no oracle state, the opponent is the iA reference crop recorded as refSource in progress/rounds/<piece>-r1.json; those crop recipes and their odd sizes are the reference states and are not repeated here.",
   "pieces": {
@@ -50,5 +50,5 @@
     },
     "latency": {}
   },
-  "_pending": "The chrome and files states use flags (typing, menu, sidebar, search, library) and a fixture folder that the Chrome & menus spec (after #33) and the File handling spec (after #25) define; they are listed now so the state ids are stable."
+  "_pending": "The files states use flags (library, sidebar, search) and a fixture folder that the File handling spec (after #25) defines; they are listed now so the state ids are stable."
 }

@@ -17,12 +17,11 @@
 // passage as it read last month is no longer the judged state once the state says 960 or the
 // passage gains a line, and neither of those is visible in the app.
 //
-// A PIECE IS FROZEN WHOLE OR NOT AT ALL. `chrome`'s `typing` and `menu` and `files`' `library`,
-// `sidebar` and `search` are flags no tool under legacy/ serves yet; they wait for the Chrome and
-// File handling specs, as states.json says. A Piece with such a state is reported by name and
-// fails — that Piece only — before a browser is launched, so a half-frozen opponent never sits on
-// disk waiting to be judged as if it were whole. The rule needs no list kept here: a state may
-// name only flags the defaults name.
+// A PIECE IS FROZEN WHOLE OR NOT AT ALL. `files`' `library`, `sidebar` and `search` are flags no
+// tool under legacy/ serves yet; they wait for the File handling spec, as states.json says. A
+// Piece with such a state is reported by name and fails — that Piece only — before a browser is
+// launched, so a half-frozen opponent never sits on disk waiting to be judged as if it were whole.
+// The rule needs no list kept here: a state may name only flags the defaults name.
 //
 // Offsets in states.json are UTF-8 bytes from the start of the passage, which is the form the
 // native app's --caret and --select take. shoot.mjs counts characters, so they are converted here
@@ -81,6 +80,8 @@ export function shootArgv(root, flags, out, url) {
   argv.push('--focus', flags.focus, '--chrome', flags.chrome, '--active', flags.active ? 'on' : 'off');
   if (flags.typewriter) argv.push('--typewriter');
   if (flags.nocaret) argv.push('--nocaret');
+  if (flags.typing) argv.push('--typing');
+  if (flags.menu) argv.push('--menu', flags.menu);
   if (flags.text) {
     const passage = fs.readFileSync(path.join(root, flags.text), 'utf8');
     argv.push('--text', flags.text);
@@ -228,7 +229,7 @@ async function freeze(root, piece, force) {
       const fixtures = s.cannot.map((f) => s.flags[f]).filter((v) => typeof v === 'string' && v.includes('/'));
       process.stderr.write(`gate oracle ${piece}: state ${s.name} names ${s.cannot.join(', ')}${fixtures.length ? `, and the fixture ${fixtures.join(', ')}` : ''}\n`);
     }
-    process.stderr.write('gate oracle: no tool under legacy/ serves those yet; they wait for the Chrome and File handling specs (shots/oracle/states.json)\n');
+    process.stderr.write('gate oracle: no tool under legacy/ serves those yet; they wait for the File handling spec (shots/oracle/states.json)\n');
     console.log(`gate oracle ${piece}: fail (${blocked.length} of ${resolved.length} states name flags this tool cannot serve yet)`);
     return 1;
   }

@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 import { pair, pairDir, reveal } from './blind.mjs';
 import { APP_ID, appeared, classPattern, launchEnv, parseToplevels, pngSize, quillArgv, rulesLua } from './harness.mjs';
-import { criticAnswer, criticPrompt } from './judge.mjs';
+import { criticAnswer, criticPrompt, oursArgv } from './judge.mjs';
 import { readStates, resolveStates } from './oracle.mjs';
 import { regimes } from './regimes.mjs';
 import { OPPONENTS, decisive, nextRound, opponentName, round, wonBefore } from './rounds.mjs';
@@ -79,6 +79,18 @@ ok('a state becomes the native flags that state means', () => {
   assert.equal(tw[tw.indexOf('--focus') + 1], 'sentence');
 
   assert.equal(quillArgv(ROOT, flagsOf('page').narrow)[quillArgv(ROOT, flagsOf('page').narrow).indexOf('--w') + 1], '960');
+
+  // The two chrome states the bars alone do not reach. `bars` is the same Piece with neither flag,
+  // so the flags are the state's and not the Piece's.
+  const chrome = flagsOf('chrome');
+  const bars = quillArgv(ROOT, chrome.bars);
+  assert.ok(!bars.includes('--typing') && !bars.includes('--menu'), 'the bars at rest name neither');
+  assert.ok(quillArgv(ROOT, chrome.typing).includes('--typing'));
+  const view = quillArgv(ROOT, chrome['view-menu']);
+  assert.equal(view[view.indexOf('--menu') + 1], 'view');
+  assert.ok(!view.includes('--typing'), 'an open menu is not the chrome stepped back');
+  const palette = quillArgv(ROOT, chrome.palette);
+  assert.equal(palette[palette.indexOf('--menu') + 1], 'palette');
 });
 
 ok('the launch environment is the one the research pinned', () => {
@@ -363,25 +375,54 @@ ok('a --panel run is informational, and the latency Piece is never judged from o
   // only thing standing between a panel run and the latency Piece.
 });
 
+// The chrome states were the other half of this case until the tools learnt `typing` and `menu`;
+// `files` is what is left waiting on a spec, and the states.json defaults are the whole of the rule.
 ok('a Piece whose states need flags the app has not got names them and judges nothing', () => {
-  const r = gate('judge', 'chrome');
+  const r = gate('judge', 'files');
   assert.equal(r.code, 3, r.err);
-  assert.match(r.err, /state typing names typing/);
-  assert.match(r.err, /state view-menu names menu/);
-  assert.match(lastLine(r), /^gate judge chrome: refused \(3 of 4 states name flags the app has not got\)/);
-
-  const files = gate('judge', 'files');
-  assert.equal(files.code, 3, files.err);
-  assert.match(files.err, /state library names library, sidebar/);
+  assert.match(r.err, /state library names library, sidebar/);
+  assert.match(r.err, /state search names library, search, sidebar/);
+  assert.match(lastLine(r), /^gate judge files: refused \(2 of 2 states name flags the app has not got\)/);
 });
 
 ok('a refused run is one line on stdout, and what it said is on stderr and in its log', () => {
-  const log = path.join(ROOT, 'target/gate/judge-chrome.log');
+  const log = path.join(ROOT, 'target/gate/judge-files.log');
   fs.rmSync(log, { force: true });
-  const r = gate('judge', 'chrome');
+  const r = gate('judge', 'files');
   assert.deepEqual(r.out.trim().split('\n').length, 1, `stdout was more than the owner's line:\n${r.out}`);
-  assert.match(r.err, /state typing names typing/);
-  assert.match(fs.readFileSync(log, 'utf8'), /state typing names typing/);
+  assert.match(r.err, /state library names library, sidebar/);
+  assert.match(fs.readFileSync(log, 'utf8'), /state library names library, sidebar/);
+});
+
+// ---------- the settings file a round opens ours with ----------
+ok('--settings reaches ours and nothing else, and the round says which file it was', () => {
+  const flags = flagsOf('chrome').bars;
+  const plain = oursArgv(ROOT, flags, null);
+  assert.deepEqual(plain, quillArgv(ROOT, flags), 'with no file named, ours opens the way every round opens it');
+
+  const fixture = 'shots/oracle/rebind.toml';
+  const withIt = oursArgv(ROOT, flags, fixture);
+  assert.deepEqual(withIt.slice(0, plain.length), plain, 'the judged state is still the judged state');
+  assert.deepEqual(withIt.slice(plain.length), ['--settings', fixture], 'and the fixture is all that was added');
+
+  // The opponent's side of the pair is a png frozen before the round began, so there is no command
+  // line to hand it the same file on. What keeps that honest is the round saying which file ours had.
+  const rec = round({
+    piece: 'chrome', number: 1, judged: [], opponent: OPPONENTS[0], oracle: null, note: '', at: 'now',
+    build: { git: 'abc1234', binary: 'def5678', settings: fixture },
+    headline: { margin: 0, gap: '', gapTheirs: '', verdict: '', ours: '', theirs: '', secondary: '' },
+  });
+  assert.equal(rec.build.settings, fixture);
+});
+
+ok('--settings needs a path, and the Piece that shoots nothing will not take one', () => {
+  const bare = gate('judge', 'chrome', '--settings');
+  assert.equal(bare.code, 3, bare.err);
+  assert.match(bare.err, /--settings takes the settings file/);
+
+  const latency = gate('judge', 'latency', '--settings', 'shots/oracle/rebind.toml');
+  assert.equal(latency.code, 3, latency.err);
+  assert.match(lastLine(latency), /^gate judge latency: refused \(--settings is not a flag the latency Piece has\)/);
 });
 
 ok('a Piece nobody has judged states for is not a Piece', () => {

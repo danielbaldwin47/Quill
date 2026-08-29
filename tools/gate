@@ -104,7 +104,7 @@ usage: tools/gate <command> [arguments]
                 shots/latency/panel-summary-<stamp>.json, which `judge latency`
                 does not read and refuses if it is handed one.
 
-  judge <piece> [--note <text>] [--summary <file>]
+  judge <piece> [--note <text>] [--summary <file>] [--settings <path>]
                 The Ticket tier's blind judging for one Piece: ours built and
                 shot at every judged state on a headless output of the Gate's
                 own, each shot paired with the frozen Parity oracle under
@@ -126,6 +126,12 @@ usage: tools/gate <command> [arguments]
                 when every regime cleared the budget and prose_end_of_draft beat
                 the oracle's own keystroke and cold-start numbers. Same round
                 file, same line, same four exit codes.
+                --settings opens ours with that settings file and reaches ours
+                alone: the Parity oracle has no such file, and its shots were
+                frozen before the round began. The round's build names the
+                path, so a round shot against a rebinding fixture says so.
+                latency shoots nothing, and refuses the flag rather than take
+                it and record a file that never touched the numbers.
 
 The tiers these commands serve are docs/agents/gate.md.
 EOF

@@ -4,8 +4,8 @@
     "files": 16,
     "sha256": "738f48c969965ac3"
   },
-  "shoot": "adf473b575198cc3",
-  "git_head": "b68bb37",
+  "shoot": "fe2829206aaa23f2",
+  "git_head": "dec6a8d",
   "passages": {
     "ref/sample.md": "8005e6c57d435cea"
   },
@@ -25,7 +25,9 @@
       "select": null,
       "scroll": 0,
       "nocaret": false,
-      "active": true
+      "active": true,
+      "typing": false,
+      "menu": null
     },
     "empty": {
       "text": null,
@@ -42,7 +44,9 @@
       "select": null,
       "scroll": 0,
       "nocaret": false,
-      "active": true
+      "active": true,
+      "typing": false,
+      "menu": null
     },
     "narrow": {
       "text": "ref/sample.md",
@@ -59,7 +63,9 @@
       "select": null,
       "scroll": 0,
       "nocaret": false,
-      "active": true
+      "active": true,
+      "typing": false,
+      "menu": null
     }
   }
 }
