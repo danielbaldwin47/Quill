@@ -1,4 +1,5 @@
-//! Typography: the pitch, the measure and the margins a page is laid out from.
+//! Typography: the pitch, the measure, the margins a page is laid out from and
+//! the band the caret's row is kept in.
 //!
 //! The numbers, and none of the widget that reads them. The Parity oracle
 //! keeps them in `legacy/app/css/type.css` and `legacy/app/css/page.css` as
@@ -177,12 +178,12 @@ pub fn band_target(row_top: f64, row_height: f64, scroll: f64, viewport: f64) ->
     if viewport <= 0.0 {
         return None;
     }
-    let above = viewport * BAND_ABOVE;
-    let below = viewport * (1.0 - BAND_BELOW);
-    if row_top < scroll + above {
-        Some(row_top - above)
-    } else if row_top + row_height > scroll + below {
-        Some(row_top + row_height - below)
+    let head_room = viewport * BAND_ABOVE;
+    let foot = viewport * (1.0 - BAND_BELOW);
+    if row_top < scroll + head_room {
+        Some(row_top - head_room)
+    } else if row_top + row_height > scroll + foot {
+        Some(row_top + row_height - foot)
     } else {
         None
     }
