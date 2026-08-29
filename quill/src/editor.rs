@@ -265,11 +265,21 @@ impl Editor {
             self,
             move |_, _, _| editor.caret_edit_began(),
         ));
-        buffer.connect_changed(glib::clone!(
-            #[weak(rename_to = editor)]
-            self,
-            move |_| editor.caret_edited(),
-        ));
+        // After, and it is the only handler here that waits for another. The
+        // window's own `changed` splices the Document and retags the lines the
+        // edit touched, and a retag can put a run in another Face — so a
+        // column read before it is a column measured on advances the writer
+        // never sees. The rest of these read the text alone and do not care.
+        let watcher = self.downgrade();
+        buffer.connect_closure(
+            "changed",
+            true,
+            glib::closure_local!(move |_: gtk::TextBuffer| {
+                if let Some(editor) = watcher.upgrade() {
+                    editor.caret_edited();
+                }
+            }),
+        );
         buffer.connect_mark_set(glib::clone!(
             #[weak(rename_to = editor)]
             self,
@@ -599,15 +609,29 @@ impl Editor {
         self.ask_for_frames();
     }
 
-    /// The buffer changed: the blink is held, and the move the change makes
-    /// arrives on its own.
+    /// The buffer changed: the blink is held, and the bar goes to the column
+    /// the edit left the caret at.
+    ///
+    /// The move is taken from here rather than left to `mark-set`, which is
+    /// emitted for a mark something *moved* — a click, a cursor key,
+    /// `place_cursor` — and not for the insert mark being carried along by an
+    /// insertion at its own position. Typing is the second kind and nothing
+    /// else is, so a caret that waited for `mark-set` sat wherever it had last
+    /// been put while the words went out from under it. The blink was held,
+    /// the machine was told, and the bar did not move: the one path the judged
+    /// states could not show, because every one of them is a still.
+    ///
+    /// [`caret::Caret::edited`] comes first because it is what puts the move
+    /// about to be made inside the edit-snap window, so the bar is put at the
+    /// new column rather than travelling to it, and because the frames the
+    /// placement asks for are asked for on what the machine knows by then.
     fn caret_edited(&self) {
         if self.loading() {
             return;
         }
         let now = self.now();
         self.tell_caret(|caret| caret.edited(now));
-        self.ask_for_frames();
+        self.caret_moved();
     }
 
     /// Asks for frames while the machine wants them, and for the one frame
