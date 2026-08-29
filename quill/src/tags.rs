@@ -670,6 +670,41 @@ mod tests {
     }
 
     #[test]
+    fn a_line_hangs_by_its_own_marker_however_the_writer_padded_it() {
+        // #102's Reproduce passage. Its first line hung by twelve cells and
+        // its last swung the `>` seven into the margin, because a marker span
+        // had run past the marker. The owner's decision on the padding: `>`
+        // and one space is the whole of a quote's marker, and `>      Beans`
+        // is a word the writer set five cells in, not a wider hang.
+        let document = passage(
+            "padded_quote",
+            "> Why hello there \n> Beans\n> Beans\n>      Beans\n",
+        );
+        assert_eq!(
+            widths(&document),
+            vec![2, 2, 2, 2],
+            "no line hangs by more than the run of markers it opens with"
+        );
+    }
+
+    #[test]
+    fn a_quote_line_ending_in_a_space_hangs_exactly_as_one_that_does_not() {
+        let spaced = passage("spaced_quote", "> one \n> two \n> three \n");
+        let plain = passage("plain_quote", "> one\n> two\n> three\n");
+        assert_eq!(
+            widths(&spaced),
+            widths(&plain),
+            "#102: the space joined its line to the next, and the next took \
+             the first one's measurement"
+        );
+        assert_eq!(
+            lines(&spaced),
+            lines(&plain),
+            "and every line of the quote hangs, not every other one"
+        );
+    }
+
+    #[test]
     fn a_quoted_heading_is_hung_once_and_by_its_heading_tag() {
         // Two paragraph tags on one line would both set the left margin and
         // the indent, and tag priority rather than the code would pick the
