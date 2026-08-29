@@ -17,16 +17,21 @@
 
 use std::cell::{Cell, RefCell};
 use std::ops::Range;
+use std::time::Duration;
 
+use gtk::gdk;
 use gtk::glib;
+use gtk::graphene;
 use gtk::pango;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use quill_engine::document::Document;
 use quill_engine::settings::Face;
+use quill_engine::theme::{Colours, Role, Scheme};
 use quill_engine::typography;
 
-use crate::flags::Caret;
+use crate::caret;
+use crate::flags;
 use crate::tags;
 
 /// The CSS class the Editor's type is named on.
@@ -63,11 +68,13 @@ const FEATURES: [&str; 4] = ["liga", "clig", "calt", "kern"];
 const SCROLL_FRAMES: u32 = 8;
 
 mod imp {
-    use std::cell::Cell;
+    use std::cell::{Cell, RefCell};
 
     use gtk::glib;
     use gtk::subclass::prelude::*;
     use quill_engine::settings::Face;
+
+    use crate::caret;
 
     #[derive(Default)]
     pub struct Editor {
@@ -85,6 +92,33 @@ mod imp {
         /// handlers watching for a keystroke have to be able to tell them
         /// apart from one.
         pub loading: Cell<bool>,
+        /// The blink and the glide. The widget feeds it what happened and
+        /// asks it where the bar is and how opaque; it decides neither.
+        pub caret: Cell<caret::Caret>,
+        /// The row band the bar spans, and the air the leading leaves over
+        /// the ink inside it. Both are functions of the type, so both are
+        /// kept with the type: placing the bar on the keystroke path must not
+        /// cost a row measured again.
+        pub pitch: Cell<u32>,
+        /// Half the air, which is what stands between the top of the band and
+        /// the top of the ink `iter_location` answers with. See
+        /// [`Editor::bar`] for why it is the same half on every row.
+        pub above: Cell<u32>,
+        /// The bar last handed to the machine, so that a relayout which moved
+        /// nothing can be told from one that moved the row.
+        pub bar: Cell<Option<caret::Bar>>,
+        /// What last drove the widget, which is half of a move's kind.
+        pub last: Cell<caret::Source>,
+        /// The frame the buffer last changed in, on the frame clock's clock.
+        /// A caret move in that same frame is the move that change made.
+        pub edited: Cell<Option<i64>>,
+        /// Whether the frame-clock callback is attached.
+        pub ticking: Cell<bool>,
+        /// The one-shot that brings the blink back when the quiet after a
+        /// move or an edit runs out: no frame is asked for inside it, so
+        /// something outside the frame clock has to ask for the one that ends
+        /// it.
+        pub resume: RefCell<Option<glib::SourceId>>,
     }
 
     #[glib::object_subclass]
@@ -94,7 +128,19 @@ mod imp {
         type ParentType = gtk::TextView;
     }
 
-    impl ObjectImpl for Editor {}
+    impl ObjectImpl for Editor {
+        /// Takes the blink's one-shot off the main loop with the widget.
+        ///
+        /// It holds a weak reference, so left behind it would fire into
+        /// nothing rather than into a freed Editor — but a source with
+        /// nothing left to do does not belong on the loop, and an Editor is
+        /// disposed of whenever a window closes.
+        fn dispose(&self) {
+            if let Some(resume) = self.resume.take() {
+                resume.remove();
+            }
+        }
+    }
 
     impl WidgetImpl for Editor {
         /// The measure is centred in the room there turned out to be, and the
@@ -103,10 +149,34 @@ mod imp {
         fn size_allocate(&self, width: i32, height: i32, baseline: i32) {
             self.parent_size_allocate(width, height, baseline);
             self.obj().lay_out(width, height);
+            // The bar's row is the row the text wrapped to, and where the text
+            // wrapped is not known until there is a width to wrap it in. A
+            // caret placed before that — by `--caret`, or by the Document
+            // being shown — was placed on a layout GTK had not laid out yet,
+            // so it is placed again here, on the one it has. The machine drops
+            // a placement that moves nothing, so the allocations that do not
+            // move the page cost nothing either.
+            self.obj().caret_settled();
         }
     }
 
-    impl TextViewImpl for Editor {}
+    impl TextViewImpl for Editor {
+        /// The caret, and nothing else, below the text.
+        ///
+        /// Below rather than above because the bar belongs under the glyphs
+        /// the way iA's does — a caret drawn over a letter is a caret that
+        /// hides one — and because the layer above the text is where a future
+        /// Annotator's marks will want to be. GTK's own caret is not here to
+        /// be drawn over: `cursor-visible` is false for the widget's life.
+        ///
+        /// The layer is snapshotted in buffer coordinates, which is what
+        /// `iter_location` answers in, so nothing is translated on the way.
+        fn snapshot_layer(&self, layer: gtk::TextViewLayer, snapshot: gtk::Snapshot) {
+            if layer == gtk::TextViewLayer::BelowText {
+                self.obj().draw_caret(&snapshot);
+            }
+        }
+    }
 }
 
 glib::wrapper! {
@@ -130,11 +200,77 @@ impl Editor {
         // breaks the column breaks the page.
         editor.set_wrap_mode(gtk::WrapMode::WordChar);
         editor.add_css_class(FACE_CLASS);
+        // GTK's caret is a one-pixel line at the font's height on a system
+        // timer, and ours is the whole point of the Piece. It is switched off
+        // here, once and for the widget's life, rather than per launch: there
+        // is no state in which both are wanted, and `--nocaret` asks for
+        // neither.
+        editor.set_cursor_visible(false);
         editor
             .imp()
             .size
             .set(quill_engine::settings::default_size());
+        editor.watch_caret();
         editor
+    }
+
+    /// Puts the four things the caret's machine is fed onto the widget.
+    ///
+    /// GTK says that the insert mark moved but never what moved it, so the
+    /// two controllers are here to answer that and nothing else. Neither
+    /// binds a chord and neither claims an event: they run in the capture
+    /// phase, before GTK's own handling turns the press into a caret move, and
+    /// then let it through. They are the exception named by #119's rule that
+    /// only `quill::chrome` binds keys.
+    fn watch_caret(&self) {
+        let clicks = gtk::GestureClick::new();
+        clicks.set_propagation_phase(gtk::PropagationPhase::Capture);
+        clicks.connect_pressed(glib::clone!(
+            #[weak(rename_to = editor)]
+            self,
+            move |_, _, _, _| editor.imp().last.set(caret::Source::Pointer),
+        ));
+        self.add_controller(clicks);
+
+        let keys = gtk::EventControllerKey::new();
+        keys.set_propagation_phase(gtk::PropagationPhase::Capture);
+        keys.connect_key_pressed(glib::clone!(
+            #[weak(rename_to = editor)]
+            self,
+            #[upgrade_or]
+            glib::Propagation::Proceed,
+            move |_, _, _, _| {
+                editor.imp().last.set(caret::Source::Key);
+                glib::Propagation::Proceed
+            },
+        ));
+        self.add_controller(keys);
+
+        let buffer = self.buffer();
+        buffer.connect_insert_text(glib::clone!(
+            #[weak(rename_to = editor)]
+            self,
+            move |_, _, _| editor.caret_edit_began(),
+        ));
+        buffer.connect_delete_range(glib::clone!(
+            #[weak(rename_to = editor)]
+            self,
+            move |_, _, _| editor.caret_edit_began(),
+        ));
+        buffer.connect_changed(glib::clone!(
+            #[weak(rename_to = editor)]
+            self,
+            move |_| editor.caret_edited(),
+        ));
+        buffer.connect_mark_set(glib::clone!(
+            #[weak(rename_to = editor)]
+            self,
+            move |buffer, _, mark| {
+                if mark == &buffer.get_insert() {
+                    editor.caret_moved();
+                }
+            },
+        ));
     }
 
     /// Sets the Editor in `face` at `size` and lays the page out again.
@@ -156,6 +292,11 @@ impl Editor {
         tags::set_face(&self.buffer(), self.imp().face.get());
         let pitch = typography::pitch(self.imp().size.get());
         let leading = typography::leading(pitch, self.row_height());
+        // The caret's band and its unit, kept with the type: a bar placed on
+        // the keystroke path must not cost a row measured all over again.
+        self.imp().pitch.set(pitch);
+        self.imp().above.set(leading.above);
+        self.tell_caret(|caret| caret.resize(self.em()));
         self.set_pixels_above_lines(signed(leading.above));
         self.set_pixels_inside_wrap(signed(leading.inside_wrap));
         self.set_pixels_below_lines(signed(leading.below));
@@ -166,6 +307,9 @@ impl Editor {
         // never is.
         self.imp().laid_out.set(None);
         self.lay_out(self.width(), self.height());
+        // The bar is as wide and as tall as the type, so it is cut again with
+        // it rather than left at the last size until the caret next moves.
+        self.caret_settled();
     }
 
     /// Centres the measure in a view this wide and leaves the page its air.
@@ -258,6 +402,263 @@ impl Editor {
         tags::retag(&self.buffer(), document, self.imp().face.get(), lines);
     }
 
+    /// The frame the widget is in, in the microseconds the machine counts.
+    ///
+    /// The frame clock's own time and never a system clock, so that the blink
+    /// and the glide are functions of the frame they will be seen in. A widget
+    /// with no surface yet has no clock; before the first frame everything
+    /// happens at zero, which is one instant, which is what "before the first
+    /// frame" means to the machine.
+    fn now(&self) -> i64 {
+        self.frame_clock().map_or(0, |clock| clock.frame_time())
+    }
+
+    /// Tells the caret's machine what happened, and keeps what it made of it.
+    ///
+    /// The machine is `Copy` and lives in a `Cell`, so every event is a read,
+    /// a change and a write back; this is that, once, so that the four places
+    /// that feed it say only what they are feeding it.
+    fn tell_caret(&self, said: impl FnOnce(&mut caret::Caret)) {
+        let mut caret = self.imp().caret.get();
+        said(&mut caret);
+        self.imp().caret.set(caret);
+    }
+
+    /// One em in the device pixels the machine measures its gates in.
+    fn em(&self) -> f64 {
+        f64::from(self.imp().size.get()) * self.scale()
+    }
+
+    /// The surface's scale factor, which is the machine's unit.
+    ///
+    /// Everything in a [`caret::Bar`] is device pixels, because the snap that
+    /// keeps the bar's edges hard is a snap onto one of those. Never zero: a
+    /// widget with no surface yet is told it is at scale 1.
+    fn scale(&self) -> f64 {
+        f64::from(self.scale_factor().max(1))
+    }
+
+    /// The bar at the caret now, in device pixels.
+    ///
+    /// The column comes from `iter_location`, which answers in the buffer
+    /// coordinates the layer is snapshotted in, nudged off the advance
+    /// boundary by [`caret::nudge`] before the machine snaps it.
+    ///
+    /// The band is the pitch, not the glyph: `iter_location` gives the top of
+    /// the ink, and the air belonging to the row is the same half above it on
+    /// every row, wrapped or not. That is what the three-way leading split of
+    /// ADR 0004 buys — `pixels-inside-wrap` carries all the air between two
+    /// rows of a paragraph and `pixels-above-lines` plus `pixels-below-lines`
+    /// carry all of it between two paragraphs — so the ink sits centred in a
+    /// band of one pitch wherever it is, and the top of that band is always
+    /// half the air above the ink.
+    ///
+    /// `None` before the type has been set, when there is no band to speak of.
+    fn bar(&self) -> Option<caret::Bar> {
+        let pitch = self.imp().pitch.get();
+        if pitch == 0 {
+            return None;
+        }
+        let buffer = self.buffer();
+        let row = self.iter_location(&buffer.iter_at_mark(&buffer.get_insert()));
+        let size = self.imp().size.get();
+        let scale = self.scale();
+        Some(caret::Bar {
+            x: (f64::from(row.x()) + caret::nudge(size)) * scale,
+            y: f64::from(row.y() - signed(self.imp().above.get())) * scale,
+            w: f64::from(caret::width(size)) * scale,
+            h: f64::from(pitch) * scale,
+        })
+    }
+
+    /// A change to the buffer is starting.
+    ///
+    /// Stamped where the change starts rather than where it ends, because the
+    /// mark moves inside the change and GTK does not promise which of
+    /// `mark-set` and `changed` a listener hears first. What the caret path
+    /// needs is only that the stamp is down before the move arrives.
+    ///
+    /// Filling the buffer with a Document is a delete and an insert like any
+    /// other and is not a writer's edit, so this stands down for it with the
+    /// rest of the handlers watching this buffer.
+    fn caret_edit_began(&self) {
+        if self.loading() {
+            return;
+        }
+        self.imp().edited.set(Some(self.now()));
+    }
+
+    /// The insert mark moved: tell the machine where to, and draw it there.
+    fn caret_moved(&self) {
+        let Some(bar) = self.bar() else {
+            return;
+        };
+        let now = self.now();
+        let kind = caret::kind(self.imp().last.get(), self.imp().edited.get() == Some(now));
+        self.place_bar(bar, kind, now);
+    }
+
+    /// The bar is where it was, but the page under it moved.
+    ///
+    /// A relayout or a change of type puts the same caret at a new place on
+    /// the glass, and nothing travelled to get there — the row did. So it is
+    /// put there, whatever the hand was last doing: a window resized just
+    /// after a word jump must not glide the caret across the new column.
+    fn caret_settled(&self) {
+        let Some(bar) = self.bar() else {
+            return;
+        };
+        // A relayout that did not move the bar is not news. The machine drops
+        // a repeated position but holds the blink on for it either way, which
+        // is right for the keystroke that sends the same position twice and
+        // wrong here: a window being dragged is allocated on every frame, and
+        // the caret would never blink again while a hand was on its edge.
+        if self.imp().bar.get() == Some(bar) {
+            return;
+        }
+        self.place_bar(bar, caret::Move::FollowsEdit, self.now());
+    }
+
+    /// Hands the machine the bar the layout says is there now.
+    fn place_bar(&self, bar: caret::Bar, kind: caret::Move, now: i64) {
+        self.imp().bar.set(Some(bar));
+        self.tell_caret(|caret| caret.moved(bar, kind, now));
+        self.queue_draw();
+        self.ask_for_frames();
+    }
+
+    /// The buffer changed: the blink is held, and the move the change makes
+    /// arrives on its own.
+    fn caret_edited(&self) {
+        if self.loading() {
+            return;
+        }
+        let now = self.now();
+        self.tell_caret(|caret| caret.edited(now));
+        self.ask_for_frames();
+    }
+
+    /// Asks for frames while the machine wants them, and for the one frame
+    /// that ends the quiet when it does not.
+    ///
+    /// One of the two places [`caret::Caret::wants_tick`] is read and the tick
+    /// source stands or falls by it; the other is the callback's own tail in
+    /// [`Editor::start_tick`], which keeps the source while it stays true and
+    /// drops it when it does not. Nothing else decides, so a `--deterministic`
+    /// window, whose caret is frozen on, asks the frame clock for nothing at
+    /// all while it is idle.
+    fn ask_for_frames(&self) {
+        let caret = self.imp().caret.get();
+        if caret.wants_tick() {
+            self.start_tick();
+        } else if let Some(when) = caret.resumes_at() {
+            self.wake_at(when);
+        }
+    }
+
+    /// Attaches the frame-clock callback, if it is not already attached.
+    ///
+    /// Every frame it is attached for is a frame in which the blink or the
+    /// glide has moved, which is why it may redraw on all of them — and why
+    /// it is not attached at all while a hand is typing, when the caret is
+    /// simply put where the glyph is and held on.
+    fn start_tick(&self) {
+        if self.imp().ticking.replace(true) {
+            return;
+        }
+        self.add_tick_callback(|editor, clock| {
+            editor.tell_caret(|caret| caret.tick(clock.frame_time()));
+            editor.queue_draw();
+            let caret = editor.imp().caret.get();
+            if caret.wants_tick() {
+                return glib::ControlFlow::Continue;
+            }
+            editor.imp().ticking.set(false);
+            if let Some(when) = caret.resumes_at() {
+                editor.wake_at(when);
+            }
+            glib::ControlFlow::Break
+        });
+    }
+
+    /// Asks for one frame at `when`, on the frame clock's clock.
+    ///
+    /// The quiet after a move or an edit is the one stretch in which the
+    /// caret has something coming and wants no frames until it comes, so it
+    /// is the one place a timer belongs — as it does in the oracle, whose
+    /// `setTimeout` covers the same 480 ms. All this one does is put the tick
+    /// source back; whether the quiet is really over is settled by the frame
+    /// times the callback is then handed, so a timer that fires early costs a
+    /// frame rather than a wrong blink, and a window with no frames at all
+    /// cannot be woken into a loop.
+    fn wake_at(&self, when: i64) {
+        if self.imp().resume.borrow().is_some() {
+            return;
+        }
+        let left = u64::try_from(when - self.now()).unwrap_or(0);
+        let id = glib::timeout_add_local_once(
+            Duration::from_micros(left),
+            glib::clone!(
+                #[weak(rename_to = editor)]
+                self,
+                move || {
+                    editor.imp().resume.take();
+                    editor.start_tick();
+                },
+            ),
+        );
+        self.imp().resume.replace(Some(id));
+    }
+
+    /// Paints the bar the machine says is there, and nothing else.
+    ///
+    /// Back into the widget's own pixels on the way out. The x the machine
+    /// hands back is on a whole device pixel, which on a scale-2 output is
+    /// every half of a logical one — which is the point of having snapped it
+    /// there rather than here.
+    fn draw_caret(&self, snapshot: &gtk::Snapshot) {
+        let now = self.now();
+        let caret = self.imp().caret.get();
+        let alpha = caret.alpha(now);
+        let bar = caret.rect(now);
+        if alpha <= 0.0 || bar.w <= 0.0 || bar.h <= 0.0 {
+            return;
+        }
+        let scale = self.scale();
+        snapshot.append_color(
+            &accent(alpha),
+            &graphene::Rect::new(
+                logical(bar.x, scale),
+                logical(bar.y, scale),
+                logical(bar.w, scale),
+                logical(bar.h, scale),
+            ),
+        );
+    }
+
+    /// The mode `--deterministic` and `--nocaret` asked for.
+    ///
+    /// A whole machine rather than a mode set on the one there is, because
+    /// this is read before the first frame and a machine that has been in
+    /// another mode has been keeping the wrong kind of state.
+    pub fn set_mode(&self, mode: caret::Mode) {
+        self.imp().caret.set(caret::Caret::new(mode));
+        self.tell_caret(|caret| caret.resize(self.em()));
+    }
+
+    /// Selects `from` to `to`, in UTF-8 bytes, as `--select` asked.
+    ///
+    /// The insert mark goes to `to` and the bound to `from`, which is where a
+    /// drag or a Shift+arrow leaves them: the selection is GTK's own from
+    /// here, painted beneath the glyphs, and the caret is at the end the hand
+    /// was moving.
+    pub fn select(&self, document: &Document, from: u64, to: u64) {
+        let buffer = self.buffer();
+        let bound = tags::iter_at(&buffer, document, byte_offset(from));
+        let insert = tags::iter_at(&buffer, document, byte_offset(to));
+        buffer.select_range(&insert, &bound);
+    }
+
     /// Puts the caret where `--caret` asked for it, and shows where it went.
     ///
     /// The harness names an offset in UTF-8 bytes, because that is what a
@@ -271,15 +672,11 @@ impl Editor {
     /// `--scroll` has said where the view goes, since a state that names both
     /// means both, and a judged shot of a passage the opponent is not showing
     /// is not a comparison.
-    pub fn place_caret(&self, document: &Document, caret: Caret, reveal: bool) {
+    pub fn place_caret(&self, document: &Document, caret: flags::Caret, reveal: bool) {
         let buffer = self.buffer();
         let at = match caret {
-            Caret::End => buffer.end_iter(),
-            Caret::At(offset) => tags::iter_at(
-                &buffer,
-                document,
-                usize::try_from(offset).unwrap_or(usize::MAX),
-            ),
+            flags::Caret::End => buffer.end_iter(),
+            flags::Caret::At(offset) => tags::iter_at(&buffer, document, byte_offset(offset)),
         };
         buffer.place_cursor(&at);
         if reveal {
@@ -328,6 +725,42 @@ pub struct Page {
     side: i32,
     /// `bottom-margin`: the air below the last row of the Document.
     bottom: i32,
+}
+
+/// A byte offset a flag named, as the Document counts them.
+fn byte_offset(bytes: u64) -> usize {
+    usize::try_from(bytes).unwrap_or(usize::MAX)
+}
+
+/// A length in device pixels, in the widget's own pixels, as `graphene` takes
+/// it.
+///
+/// The narrowing is the one place it belongs: a snapshot is drawn in `f32`,
+/// and a caret's four lengths are three digits at most, so nothing here is
+/// near what an `f32` stops counting exactly.
+fn logical(device: f64, scale: f64) -> f32 {
+    (device / scale) as f32
+}
+
+/// A channel of a `quill_engine::theme::Colour` as `gdk` takes it: 0 to 1
+/// either way, so the narrowing loses nothing a screen could show.
+fn channel(value: f64) -> f32 {
+    value as f32
+}
+
+/// The caret's blue at `alpha`.
+///
+/// [`Role::Accent`], which the theme table gives as the same colour on both
+/// grounds — it is the one instrument the writer watches, and it does not
+/// change when the ground does — so which scheme it is read at cannot matter.
+fn accent(alpha: f64) -> gdk::RGBA {
+    let ink = Colours::of(Scheme::Light).colour(Role::Accent);
+    gdk::RGBA::new(
+        channel(ink.red),
+        channel(ink.green),
+        channel(ink.blue),
+        channel(ink.alpha * alpha),
+    )
 }
 
 /// A count of pixels as a GTK widget takes it.
