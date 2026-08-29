@@ -24,6 +24,7 @@ use gtk::{gio, glib};
 use quill_engine::document::Document;
 use quill_engine::settings::WindowState;
 
+use crate::caret;
 use crate::harness;
 use crate::session::Session;
 
@@ -103,6 +104,13 @@ impl Window {
         // Before the first Document is shown, so that there is no window whose
         // buffer can be typed into without the engine hearing about it.
         window.watch_edits();
+        // And before the type, since setting the type places the bar: a
+        // machine in the wrong mode would have blinked once before the flags
+        // that said not to were read.
+        window
+            .imp()
+            .editor
+            .set_mode(caret::Mode::from_flags(session.flags()));
         window.set_document(document);
         window
             .imp()
@@ -357,6 +365,15 @@ pub fn present_launch(app: &gtk::Application, session: &Rc<Session>) {
                 caret,
                 scroll.is_none(),
             );
+        }
+        // After `--caret`, because placing the cursor collapses a selection to
+        // it: a state naming both means the selection, with the caret at the
+        // end `--select` leaves the insert mark on.
+        if let Some((from, to)) = session.flags().select {
+            window
+                .imp()
+                .editor
+                .select(&window.imp().document.borrow(), from, to);
         }
         if let Some(scroll) = scroll {
             window.imp().editor.scroll_to(scroll);
