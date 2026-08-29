@@ -42,6 +42,13 @@ const FACE_CLASS: &str = "quill-editor";
 /// does not depend on how long the document is.
 const CARET_LINE: f64 = 0.5;
 
+/// The class the Editor carries while its window is not active.
+///
+/// One class rather than GTK's own `:backdrop`, because the ghost caret and
+/// the idle selection are one state and are driven from one place: the
+/// window's `is-active`, which is also what the caret's machine is told.
+const IDLE_CLASS: &str = "idle";
+
 /// Paper and ink: the light palette of `legacy/app/css/theme.css`.
 ///
 /// Two constants rather than a table, because there is one theme until the
@@ -496,6 +503,47 @@ impl Editor {
         let now = self.now();
         let kind = caret::kind(self.imp().last.get(), self.imp().edited.get() == Some(now));
         self.place_bar(bar, kind, now);
+        self.keep_in_band(bar);
+    }
+
+    /// Keeps the caret's row inside the scroll band as the writer moves it:
+    /// `scroll-padding: 10vh 0 28vh` in `legacy/app/css/page.css`.
+    ///
+    /// Only for a move a key made, which is the oracle's own rule rather than
+    /// a narrowing of it. The band is `scroll-padding` on the scroller, and
+    /// `scroll-padding` is spent by the browser's caret-into-view — which runs
+    /// on typing and on cursor keys, and not on a click, whose target the hand
+    /// could already see. So a click low on the page does not jump it, and the
+    /// first key pressed afterwards brings the row into the band.
+    ///
+    /// [`caret::Source::App`] is out for a second reason: a launch flag, a
+    /// restored position or a Command is put where it was asked for rather
+    /// than travelled to. A judged state naming both `--caret` and `--scroll`
+    /// means both, and a view that chased the caret would shoot a different
+    /// passage from the one it was asked for.
+    ///
+    /// The row comes from the bar the machine was just handed rather than a
+    /// second `iter_location`, because this is on the keystroke path; the bar
+    /// is device pixels and the adjustment is not, so it comes back through
+    /// the scale. The target is not clamped by the engine, and does not need
+    /// to be: a `GtkAdjustment` holds itself inside its own ends.
+    fn keep_in_band(&self, bar: caret::Bar) {
+        if self.imp().last.get() != caret::Source::Key {
+            return;
+        }
+        let Some(adjustment) = self.vadjustment() else {
+            // Not in a scroller: there is nowhere for the band to move to.
+            return;
+        };
+        let scale = self.scale();
+        if let Some(target) = typography::band_target(
+            bar.y / scale,
+            bar.h / scale,
+            adjustment.value(),
+            adjustment.page_size(),
+        ) {
+            adjustment.set_value(target);
+        }
     }
 
     /// The bar is where it was, but the page under it moved.
@@ -646,6 +694,24 @@ impl Editor {
         self.tell_caret(|caret| caret.resize(self.em()));
     }
 
+    /// The window this Editor is in became active, or stopped being.
+    ///
+    /// The one place the ghost is decided. The caret's machine drops to its
+    /// ghost alpha with the blink stopped, and the selection swaps to the idle
+    /// colour with it, because a window that has lost focus should say where
+    /// the writer was without shouting it. Both return on focus.
+    pub fn set_active(&self, active: bool) {
+        let now = self.now();
+        self.tell_caret(|caret| caret.focus(active, now));
+        if active {
+            self.remove_css_class(IDLE_CLASS);
+        } else {
+            self.add_css_class(IDLE_CLASS);
+        }
+        self.queue_draw();
+        self.ask_for_frames();
+    }
+
     /// Selects `from` to `to`, in UTF-8 bytes, as `--select` asked.
     ///
     /// The insert mark goes to `to` and the bound to `from`, which is where a
@@ -763,6 +829,17 @@ fn accent(alpha: f64) -> gdk::RGBA {
     )
 }
 
+/// One role's colour on the light ground, spelled as CSS.
+///
+/// The selection and its idle twin are read from the engine's colour table
+/// rather than written out here beside [`PAPER`] and [`INK`], because the
+/// table already carries both, on both grounds, at exactly the values
+/// `legacy/app/css/theme.css` sets them to. A second copy of a number the
+/// critic reads is a second thing to keep true.
+fn light(role: Role) -> String {
+    Colours::of(Scheme::Light).colour(role).to_css()
+}
+
 /// A count of pixels as a GTK widget takes it.
 fn signed(count: u32) -> i32 {
     i32::try_from(count).unwrap_or(i32::MAX)
@@ -855,9 +932,18 @@ fn stylesheet(face: Face, size: u32) -> String {
          \x20 font-style: normal;\n\
          \x20 font-weight: {INK_WEIGHT};\n\
          \x20 font-feature-settings: {features};\n\
+         }}\n\
+         textview.{FACE_CLASS} text selection {{\n\
+         \x20 background-color: {selection};\n\
+         \x20 color: {INK};\n\
+         }}\n\
+         textview.{FACE_CLASS}.{IDLE_CLASS} text selection {{\n\
+         \x20 background-color: {idle};\n\
          }}\n",
         family = face.family(),
-        features = css_features()
+        features = css_features(),
+        selection = light(Role::Selection),
+        idle = light(Role::SelectionIdle)
     )
 }
 
