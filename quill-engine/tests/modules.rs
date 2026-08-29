@@ -8,10 +8,9 @@
 use std::fs;
 use std::path::PathBuf;
 
-/// The engine's concepts, in `docs/architecture.md`'s order: its thirteen
+/// The engine's concepts, in `docs/architecture.md`'s order: its fourteen
 /// modules, then `data`, which the "Fonts and data files" section adds and
-/// every other module reads its files through, and `theme`, the colour table
-/// the Dark and light Piece puts beside them.
+/// every other module reads its files through.
 const MODULES: [&str; 15] = [
     "document",
     "markdown",
@@ -26,8 +25,8 @@ const MODULES: [&str; 15] = [
     "pos",
     "style",
     "typography",
-    "data",
     "theme",
+    "data",
 ];
 
 #[test]

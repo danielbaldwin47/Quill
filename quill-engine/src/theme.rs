@@ -5,7 +5,9 @@
 //! but two designs: light ink sits 16.2:1 over paper and dark ink only 10.8:1,
 //! because pure white on black glares and blooms at night, and the dimmed grey
 //! is *relatively brighter* on the dark ground because dark grounds crush
-//! low-contrast detail.
+//! low-contrast detail. (`theme.css`'s header gives that first pair as 15.9:1
+//! and 11.6:1; recomputed from its own values by WCAG 2.1 they are the two
+//! above. What it argues is the gap between them, which is there either way.)
 //!
 //! Nothing here paints. The engine cannot see a display
 //! ([ADR 0008](../../../docs/adr/0008-engine-crate-without-gtk.md)), so a role
@@ -67,8 +69,11 @@ impl Colour {
     /// # Panics
     ///
     /// Panics when `hex` is not a `#` and six hex digits. Every call is a
-    /// literal in the table below, so a mistyped colour is a build failure
-    /// rather than something a writer discovers.
+    /// literal in the table below, evaluated where it is written, so a mistyped
+    /// colour is a build failure rather than something a writer discovers. A
+    /// colour that arrives out of a file — a Template's own, when ADR 0005
+    /// gives Templates a palette — wants a reader that can fail instead, and
+    /// there is none yet because nothing reads one.
     #[must_use]
     pub const fn from_hex(hex: &str) -> Self {
         let digits = hex.as_bytes();
@@ -90,6 +95,10 @@ impl Colour {
     /// out, which is how a role is flattened onto the page: `theme.css` gives
     /// `--code-bg` as `#eeeeee` and `--selection` as `#c2eafa` over light paper
     /// this way, and the resting marker grey is the marker at 72 % of itself.
+    ///
+    /// `bg` is a ground and not a second translucent role — every caller lays a
+    /// role on the page — so its opacity passes through rather than being
+    /// composited with `fg`'s.
     #[must_use]
     pub const fn over(fg: Self, bg: Self, amount: f64) -> Self {
         Self {
@@ -106,6 +115,12 @@ impl Colour {
     /// one function. Focus's near tier is the ground's dimmed grey lifted
     /// [`near_lift`] of the way back toward its ink, so the tier is computed
     /// from the two greys rather than being a third grey to keep in step.
+    ///
+    /// It is the same three mixes as [`Colour::over`] and stays a second
+    /// function because the two answer different questions: `over` puts an
+    /// opacity on a role and reads the ground's back, while this carries both
+    /// ends' opacity through, being a step along a line rather than a
+    /// compositing.
     #[must_use]
     pub const fn lift(from: Self, toward: Self, amount: f64) -> Self {
         Self {
@@ -195,6 +210,12 @@ pub enum Role {
 
 impl Role {
     /// Every role, in the order `theme.css` declares them.
+    ///
+    /// A role added to [`Role`] belongs here too. [`Colours`] does not build
+    /// without a field for it and [`Colours::colour`] does not build without an
+    /// arm, so the table stays total either way; this list is the one place
+    /// kept by hand, and what a role missing from it costs is the tests below
+    /// quietly stopping short of it.
     pub const ALL: [Self; 13] = [
         Self::Paper,
         Self::Ink,

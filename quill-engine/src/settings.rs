@@ -99,9 +99,10 @@ pub trait Choice: Copy + Default {
 /// Declares one [`Choice`]: an enum, the string each value is written as, and
 /// the `#[default]` one.
 ///
-/// Five settings have this exact shape and no behaviour of their own, so the
-/// alternative is five copies of the same twenty lines, each of which could
-/// disagree with the file format in its own way.
+/// Five settings and one state key ([`crate::theme::Scheme`]) have this exact
+/// shape and no behaviour of their own, so the alternative is six copies of the
+/// same twenty lines, each of which could disagree with the file format in its
+/// own way.
 macro_rules! choice {
     (
         $(#[$about:meta])*
