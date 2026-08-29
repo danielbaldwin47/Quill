@@ -22,8 +22,6 @@
 //!
 //! Nothing here is a widget, and nothing here is `gtk`.
 
-#![allow(dead_code)] // The Editor reads all of this in #107; nothing calls it yet.
-
 use crate::flags::Flags;
 
 /// A millisecond, in the microseconds every time in this module is counted in.
@@ -58,6 +56,33 @@ const GLIDE_ACROSS: i64 = 46 * MS;
 /// repeat would start another and the caret would be towed along behind the
 /// key rather than moving with it.
 const SNAP: i64 = 60 * MS;
+
+/// The shortest hop worth following, in ems: `GLIDE_MIN`.
+///
+/// Under three cells there is nothing to track — about two millimetres on a
+/// desktop — and a glide over it reads as the bar smearing rather than as the
+/// bar travelling. The gate is skipped when the hop changed rows, because a
+/// row is worth following however little the column moved.
+const GLIDE_MIN: f64 = 3.0;
+
+/// The longest hop worth following along a row, in ems.
+///
+/// `dx <= M.em * 14` in `placeCaret`. Past fourteen cells the eye has lost the
+/// bar before it arrives, so the glide only delays the answer to where it went.
+const GLIDE_FAR: f64 = 14.0;
+
+/// The furthest a hop may fall and still be followed, in pitches.
+///
+/// `dy <= M.pitch * 1.2`: the next row, and no further. A jump of a screen is
+/// a new place rather than the same caret moving to it.
+const GLIDE_DROP: f64 = 1.2;
+
+/// How far past the advance boundary the bar sits, in ems: `NUDGE_X`.
+///
+/// The oracle measured it at 0.060–0.073 em of iA's own captures and draws at
+/// 0.07. The bar stands in the gap after the glyph rather than on its last
+/// column, which is what makes it read as between two letters.
+const NUDGE: f64 = 0.07;
 
 /// The bar full on, at the top of the blink's cycle.
 const ON: i64 = 470 * MS;
@@ -123,6 +148,44 @@ pub enum Move {
     FollowsEdit,
 }
 
+/// What last drove the widget, which is half of what a move's kind is.
+///
+/// GTK says only that the insert mark moved, never what moved it, so the
+/// Editor keeps the answer: a `GtkGestureClick` press sets [`Source::Pointer`]
+/// and a `GtkEventControllerKey` press sets [`Source::Key`], each before GTK's
+/// own handling turns it into a caret move.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum Source {
+    /// A click or a drag reached the widget last.
+    Pointer,
+    /// A key press reached the widget last.
+    Key,
+    /// Neither has: the app moved the caret itself.
+    #[default]
+    App,
+}
+
+/// The kind of a move, from what drove the widget and whether the buffer
+/// changed in this frame.
+///
+/// The whole of the classification, as a function of the two, so that it can
+/// be checked without a widget to drive. A change in the same frame wins over
+/// either controller: the key that inserted the glyph is also the key that
+/// moved the caret, and the caret has to be beside the glyph in that frame.
+///
+/// A move with no controller behind it is the app's own — a launch flag, a
+/// restored position, a Command — and it is put there rather than travelled
+/// to, so it takes the kind that never glides.
+#[must_use]
+pub fn kind(last: Source, edited: bool) -> Move {
+    match last {
+        _ if edited => Move::FollowsEdit,
+        Source::Pointer => Move::Pointer,
+        Source::Key => Move::Key,
+        Source::App => Move::FollowsEdit,
+    }
+}
+
 /// What the launch asked the caret to be.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Mode {
@@ -170,6 +233,13 @@ struct Glide {
 #[derive(Clone, Copy, Debug)]
 pub struct Caret {
     mode: Mode,
+    /// One em in device pixels, which is the unit both glide gates are
+    /// measured in.
+    ///
+    /// Set with the type by [`Caret::resize`], and zero until it is: a caret
+    /// with no size to measure a hop against never glides along a row, which
+    /// is the safe half of the gate rather than the wrong one.
+    em: f64,
     focused: bool,
     /// Where the bar is going, or already is; its x is snapped.
     to: Bar,
@@ -196,6 +266,7 @@ impl Caret {
     pub fn new(mode: Mode) -> Self {
         Self {
             mode,
+            em: 0.0,
             focused: true,
             to: Bar {
                 x: 0.0,
@@ -210,6 +281,16 @@ impl Caret {
             edited_at: None,
             now: 0,
         }
+    }
+
+    /// The type is now `em` device pixels to the em.
+    ///
+    /// The size the widget is set in, times the surface's scale factor, since
+    /// every length this machine holds is in device pixels. Both glide gates
+    /// are measured against it, so a caret whose type changed under it would
+    /// otherwise judge a hop by the old size.
+    pub fn resize(&mut self, em: f64) {
+        self.em = em;
     }
 
     /// The caret is at `to`, moved by `kind`, at frame time `t`.
@@ -237,7 +318,7 @@ impl Caret {
             return;
         }
         let at = self.rect(t);
-        self.glide = if self.glides(kind, t) && (at.x != to.x || at.y != to.y) {
+        self.glide = if self.glides(at, to, kind, t) {
             Some(Glide {
                 from_x: at.x,
                 from_y: at.y,
@@ -356,25 +437,85 @@ impl Caret {
             || self.active_at.is_some_and(|a| self.now >= a + IDLE)
     }
 
-    /// Whether a move of this kind at `t` is one to be tracked by eye.
+    /// When the Editor has to come back, if not on the very next frame.
     ///
-    /// The oracle's gate is five conditions in `placeCaret`, and these are the
-    /// ones that survive being handed device pixels: `EDIT_SNAP_MS`, which
-    /// #106 names, and `SNAP_MS`, which keeps a repeat rate from towing the
-    /// caret. The two left out are `GLIDE_MIN` — hops under 3 em snap, there
-    /// being nothing to follow over 2 mm — and the 14 em and 1.2 pitch caps
-    /// that snap a jump too long to track. Both are measured in ems, and the
-    /// machine is given a rectangle rather than a type size; #107 hands the
-    /// widget both, and is where they can arrive.
-    fn glides(&self, kind: Move, t: i64) -> bool {
+    /// [`Caret::wants_tick`] is false through the [`IDLE`] quiet a move or an
+    /// edit buys, because there is nothing to animate inside it and the
+    /// Latency Piece is paid for in the frames that are never asked for. The
+    /// blink does come back at the end of it, though, and a widget that let
+    /// its tick source go there would have nothing left to ask for the frame
+    /// that resumes it. This is that instant, on the caller's own clock. It is
+    /// `None` whenever `wants_tick` is already true, and whenever there is no
+    /// blink coming at all.
+    #[must_use]
+    pub fn resumes_at(&self) -> Option<i64> {
+        if self.mode != Mode::Live || !self.focused || self.wants_tick() {
+            return None;
+        }
+        self.active_at
+            .map(|a| a + IDLE)
+            .filter(|&when| self.now < when)
+    }
+
+    /// Whether the move from `at` to `to`, of this kind at `t`, is one to be
+    /// tracked by eye.
+    ///
+    /// The oracle's gate is five conditions in `placeCaret`, and all five are
+    /// here now that the widget hands the machine a type size as well as a
+    /// rectangle. Two are about when the move came: `EDIT_SNAP_MS`, so that
+    /// nothing following an edit ever travels, and `SNAP_MS`, so that a held
+    /// arrow's repeat rate does not tow the caret along behind the key. Three
+    /// are about how far it went — a hop shorter than [`GLIDE_MIN`] ems along
+    /// a row has nothing in it to follow, and one further than [`GLIDE_FAR`]
+    /// ems or [`GLIDE_DROP`] pitches has lost the eye before the bar could
+    /// arrive — and a hop that changed rows is worth following however little
+    /// the column moved.
+    fn glides(&self, at: Bar, to: Bar, kind: Move, t: i64) -> bool {
         if !self.placed || kind == Move::FollowsEdit || self.mode != Mode::Live {
             return false;
         }
         if self.moved_at.is_some_and(|m| t - m < SNAP) {
             return false;
         }
-        self.edited_at.is_none_or(|e| t - e >= EDIT_SNAP)
+        if self.edited_at.is_some_and(|e| t - e < EDIT_SNAP) {
+            return false;
+        }
+        let dx = (to.x - at.x).abs();
+        let dy = (to.y - at.y).abs();
+        if dx == 0.0 && dy == 0.0 {
+            // Nowhere to travel. A glide of no length would still cancel one
+            // in flight, and there is nothing for the eye in either.
+            return false;
+        }
+        // `dy > 0.5` rather than a row's height, as in [`Caret::moved`]: taken
+        // mid-glide the row below is a fraction of a pitch away, not a pitch.
+        let across = dy > 0.5;
+        if !across && dx < self.em * GLIDE_MIN {
+            return false;
+        }
+        dy <= to.h * GLIDE_DROP && dx <= self.em * GLIDE_FAR
     }
+}
+
+impl Default for Caret {
+    /// A writer's caret, which is what a widget built before its launch's
+    /// flags have been read has to be until [`Mode::from_flags`] answers.
+    fn default() -> Self {
+        Self::new(Mode::Live)
+    }
+}
+
+/// How far past the glyph's advance boundary the bar's left edge sits at type
+/// size `size`, in the pixels the widget lays out in.
+///
+/// `M.em * NUDGE_X` in `placeCaret`, added before the snap rather than after
+/// it, so that the nudge decides which whole pixel the bar lands on rather
+/// than pushing it off one. Logical pixels, because the advance the Editor
+/// reads out of the layout is in logical pixels; the scale factor is applied
+/// to their sum, on the way into [`Bar`].
+#[must_use]
+pub fn nudge(size: u32) -> f64 {
+    f64::from(size) * NUDGE
 }
 
 /// The bar's width at type size `size`, in whole device pixels.
@@ -492,9 +633,12 @@ mod tests {
         }
     }
 
-    /// A caret in a window that has just become active.
+    /// A caret in a window that has just become active, set at the 20 px type
+    /// [`bar`] measures: one em is 20 device pixels, so a hop glides between
+    /// 60 and 280 of them along a row.
     fn live() -> Caret {
         let mut c = Caret::new(Mode::Live);
+        c.resize(20.0);
         c.focus(true, 0);
         c
     }
@@ -536,18 +680,20 @@ mod tests {
         );
         assert_eq!(c.alpha(IDLE + CYCLE), 1.0, "and round again");
 
-        // A jump: no edit for two cycles, so the caret travels there.
+        // A jump: no edit for two cycles, so the caret travels there. Thirteen
+        // ems of it, inside both the [`GLIDE_MIN`] floor and the [`GLIDE_FAR`]
+        // cap, which is a hop the eye can follow.
         let jump = IDLE + 2 * CYCLE;
-        c.moved(bar(400.0, 0.0), Move::Pointer, jump);
+        c.moved(bar(360.0, 0.0), Move::Pointer, jump);
         assert_eq!(c.alpha(jump), 1.0, "a move holds the blink on");
         assert_eq!(c.rect(jump).x, 100.0, "it leaves from where it was");
-        assert_eq!(c.rect(jump + GLIDE_ALONG), bar(400.0, 0.0));
+        assert_eq!(c.rect(jump + GLIDE_ALONG), bar(360.0, 0.0));
 
         // An edit and the move it makes: the bar is there in the same frame.
         let edit = jump + CYCLE;
         c.edited(edit);
-        c.moved(bar(412.0, 0.0), Move::FollowsEdit, edit);
-        assert_eq!(c.rect(edit), bar(412.0, 0.0));
+        c.moved(bar(372.0, 0.0), Move::FollowsEdit, edit);
+        assert_eq!(c.rect(edit), bar(372.0, 0.0));
         assert_eq!(c.alpha(edit), 1.0);
     }
 
@@ -755,15 +901,17 @@ mod tests {
         let mut c = live();
         c.moved(bar(0.0, 0.0), Move::Key, 0);
 
+        // Four ems a hop, so that what is being tested is the repeat rate and
+        // not [`GLIDE_MIN`]: a word jump rather than a single cell.
         let first = 1000 * MS;
-        c.moved(bar(12.0, 0.0), Move::Key, first);
+        c.moved(bar(80.0, 0.0), Move::Key, first);
         assert!(c.wants_tick(), "the first of a run travels");
 
         let repeat = first + 33 * MS;
-        c.moved(bar(24.0, 0.0), Move::Key, repeat);
+        c.moved(bar(160.0, 0.0), Move::Key, repeat);
         assert_eq!(
             c.rect(repeat).x,
-            24.0,
+            160.0,
             "the next is a repeat, and is put there"
         );
         assert!(!c.wants_tick());
@@ -802,5 +950,111 @@ mod tests {
             half > 0.8 && half < 0.95,
             "most of the way at half the time, at {half}"
         );
+    }
+
+    /// The whole of the classification, with no widget to drive: what last
+    /// reached the Editor, and whether the buffer changed in this frame.
+    #[test]
+    fn the_kind_is_the_controller_and_the_frame() {
+        // A change in this frame is the whole answer, whichever key or button
+        // made it: the glyph is on the glass and the bar has to be beside it.
+        for last in [Source::Pointer, Source::Key, Source::App] {
+            assert_eq!(kind(last, true), Move::FollowsEdit, "{last:?} and an edit");
+        }
+        assert_eq!(kind(Source::Pointer, false), Move::Pointer);
+        assert_eq!(kind(Source::Key, false), Move::Key);
+        // Nothing drove it: the app placed the caret itself — a launch flag, a
+        // restored position — and it is put there rather than travelled to.
+        assert_eq!(kind(Source::App, false), Move::FollowsEdit);
+        assert_eq!(
+            Source::default(),
+            Source::App,
+            "and that is where it starts"
+        );
+    }
+
+    /// A typed character: the bar is beside the glyph in the same frame, and
+    /// there is nothing left to animate.
+    #[test]
+    fn a_typed_character_snaps_beside_the_glyph() {
+        let mut c = live();
+        c.moved(bar(100.0, 0.0), Move::Pointer, 0);
+
+        let typed = 1000 * MS;
+        c.edited(typed);
+        c.moved(bar(112.0, 0.0), kind(Source::Key, true), typed);
+        assert_eq!(c.rect(typed), bar(112.0, 0.0), "beside it, this frame");
+        assert!(!c.wants_tick(), "and no frame is asked for to get it there");
+    }
+
+    /// The three gates the type size buys, at the 20 px [`bar`] measures: one
+    /// em is 20 device pixels and one pitch is 36 of them.
+    #[test]
+    fn a_hop_glides_only_when_it_can_be_followed() {
+        // A caret that has been still for a second, so that neither the
+        // repeat rate nor an edit is what is being measured.
+        let hop = |to: Bar| {
+            let mut c = live();
+            c.moved(bar(400.0, 0.0), Move::Pointer, 0);
+            c.moved(to, Move::Pointer, 1000 * MS);
+            c.wants_tick()
+        };
+
+        assert!(!hop(bar(459.0, 0.0)), "59 px is under three ems");
+        assert!(hop(bar(460.0, 0.0)), "60 px is three ems exactly");
+        assert!(hop(bar(680.0, 0.0)), "280 px is fourteen ems exactly");
+        assert!(!hop(bar(681.0, 0.0)), "281 px is a jump, not a move");
+
+        // Down the page a row is worth following however little the column
+        // moved, and more than 1.2 pitches is a new place rather than a move.
+        assert!(hop(bar(401.0, 36.0)), "the next row, one pixel across");
+        assert!(hop(bar(400.0, 43.0)), "43 px is inside 1.2 pitches");
+        assert!(!hop(bar(400.0, 44.0)), "44 px is past them");
+
+        // A caret that has not been told its size cannot measure a hop along
+        // a row, and does not guess.
+        let mut unsized_caret = Caret::new(Mode::Live);
+        unsized_caret.focus(true, 0);
+        unsized_caret.moved(bar(400.0, 0.0), Move::Pointer, 0);
+        unsized_caret.moved(bar(460.0, 0.0), Move::Pointer, 1000 * MS);
+        assert!(!unsized_caret.wants_tick());
+    }
+
+    /// The quiet asks for no frames, and for exactly one at the end of it.
+    ///
+    /// The two together are what the Editor's tick source is added and
+    /// dropped on: a caret with neither costs the frame clock nothing.
+    #[test]
+    fn the_quiet_asks_for_one_frame_at_its_end() {
+        let mut c = live();
+        c.edited(0);
+        c.moved(bar(100.0, 0.0), Move::FollowsEdit, 0);
+        assert!(!c.wants_tick(), "nothing to animate inside the quiet");
+        assert_eq!(c.resumes_at(), Some(IDLE), "and the blink comes back here");
+
+        c.tick(479 * MS);
+        assert_eq!(c.resumes_at(), Some(IDLE), "still, a millisecond short");
+
+        c.tick(IDLE);
+        assert!(c.wants_tick(), "the blink is running now");
+        assert_eq!(c.resumes_at(), None, "so there is nothing to come back for");
+
+        // A frozen caret and an undrawn one have neither: `--deterministic`
+        // and `--nocaret` idle without asking the frame clock for anything.
+        for mode in [Mode::Deterministic, Mode::Nocaret] {
+            let mut still = Caret::new(mode);
+            still.edited(0);
+            still.moved(bar(100.0, 0.0), Move::FollowsEdit, 0);
+            assert!(!still.wants_tick(), "{mode:?} wants no frame");
+            assert_eq!(still.resumes_at(), None, "{mode:?} wants none later");
+        }
+    }
+
+    /// The bar stands in the gap after the glyph rather than on its last
+    /// column, which is what makes it read as being between two letters.
+    #[test]
+    fn the_bar_is_nudged_off_the_advance_boundary() {
+        assert!((nudge(20) - 1.4).abs() < 1e-9, "1.4 px at 20 px type");
+        assert!((nudge(40) - 2.8).abs() < 1e-9, "2.8 px at 40 px type");
     }
 }
