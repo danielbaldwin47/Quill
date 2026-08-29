@@ -151,8 +151,11 @@ ok('states with the same flags were shot into the same bytes', () => {
     }
   }
   // Counted rather than written down: a Piece frozen later adds states to both sides, and a number
-  // kept here would only say what the last Piece to land happened to make it.
-  assert.ok(shot > 0 && bytes.size < shot, 'no two frozen states share their flags — this check is proving nothing');
+  // kept here would only say what the last Piece to land happened to make it. Two assertions,
+  // because "nothing was frozen" and "nothing shares its flags" are two different ways for this
+  // check to be proving nothing, and one message cannot name both.
+  assert.ok(shot > 0, 'no frozen shot was read at all — this check is proving nothing');
+  assert.ok(bytes.size < shot, `no two of the ${shot} frozen states share their flags — this check is proving nothing`);
 });
 
 // ---------- the two answers that need no browser ----------

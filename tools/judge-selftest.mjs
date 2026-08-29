@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 import { pair, pairDir, reveal } from './blind.mjs';
 import { APP_ID, appeared, classPattern, launchEnv, parseToplevels, pngSize, quillArgv, rulesLua } from './harness.mjs';
-import { criticAnswer, criticPrompt, oursArgv } from './judge.mjs';
+import { criticAnswer, criticPrompt, oursArgv, refusedFlag } from './judge.mjs';
 import { readStates, resolveStates } from './oracle.mjs';
 import { regimes } from './regimes.mjs';
 import { OPPONENTS, decisive, nextRound, opponentName, round, wonBefore } from './rounds.mjs';
@@ -394,13 +394,28 @@ ok('a refused run is one line on stdout, and what it said is on stderr and in it
   assert.match(fs.readFileSync(log, 'utf8'), /state library names library, sidebar/);
 });
 
+// ---------- the flags ours has not got yet ----------
+// A judged state can be servable and unshootable at once: states.json learns a flag when a tool
+// under legacy/ can serve it, and the app learns to parse it a spec later. The judge asks the built
+// binary which it is, so only the reading of the answer is pinned here.
+ok('the flag ours refused is read out of what ours said, and nothing else is', () => {
+  assert.equal(refusedFlag('quill: --typing: not a flag Quill knows\n'), '--typing');
+  assert.equal(refusedFlag('quill: --menu: not a flag Quill knows'), '--menu');
+  // A refusal for any other reason is not a missing flag, and saying it was would send the agent
+  // to the wrong spec.
+  assert.equal(refusedFlag('quill: --caret 9999: past the end of the Document'), null);
+  assert.equal(refusedFlag(''), null);
+});
+
 // ---------- the settings file a round opens ours with ----------
 ok('--settings reaches ours and nothing else, and the round says which file it was', () => {
   const flags = flagsOf('chrome').bars;
   const plain = oursArgv(ROOT, flags, null);
   assert.deepEqual(plain, quillArgv(ROOT, flags), 'with no file named, ours opens the way every round opens it');
 
-  const fixture = 'shots/oracle/rebind.toml';
+  // Never opened here, by this or by oursArgv: the path is carried to ours' command line verbatim
+  // and it is the app that reads it, so what this asserts is the carrying and not the file.
+  const fixture = 'a-settings-file-this-test-never-opens.toml';
   const withIt = oursArgv(ROOT, flags, fixture);
   assert.deepEqual(withIt.slice(0, plain.length), plain, 'the judged state is still the judged state');
   assert.deepEqual(withIt.slice(plain.length), ['--settings', fixture], 'and the fixture is all that was added');
@@ -420,7 +435,7 @@ ok('--settings needs a path, and the Piece that shoots nothing will not take one
   assert.equal(bare.code, 3, bare.err);
   assert.match(bare.err, /--settings takes the settings file/);
 
-  const latency = gate('judge', 'latency', '--settings', 'shots/oracle/rebind.toml');
+  const latency = gate('judge', 'latency', '--settings', 'a-settings-file-this-test-never-opens.toml');
   assert.equal(latency.code, 3, latency.err);
   assert.match(lastLine(latency), /^gate judge latency: refused \(--settings is not a flag the latency Piece has\)/);
 });
