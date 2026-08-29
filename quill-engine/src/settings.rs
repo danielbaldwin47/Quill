@@ -99,9 +99,10 @@ pub trait Choice: Copy + Default {
 /// Declares one [`Choice`]: an enum, the string each value is written as, and
 /// the `#[default]` one.
 ///
-/// Five settings have this exact shape and no behaviour of their own, so the
-/// alternative is five copies of the same twenty lines, each of which could
-/// disagree with the file format in its own way.
+/// Five settings and one state key ([`crate::theme::Scheme`]) have this exact
+/// shape and no behaviour of their own, so the alternative is six copies of the
+/// same twenty lines, each of which could disagree with the file format in its
+/// own way.
 macro_rules! choice {
     (
         $(#[$about:meta])*
@@ -129,6 +130,10 @@ macro_rules! choice {
         }
     };
 }
+
+// So that [`crate::theme::Scheme`], which is written into `state.toml` and so
+// has the same file format to keep, is declared by the same twenty lines.
+pub(crate) use choice;
 
 choice! {
     /// Light or dark, or whichever the desktop is in.
