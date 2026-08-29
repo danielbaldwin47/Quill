@@ -22,6 +22,8 @@ Workspace 1 is the user's: a test window (GTK, browser, bench) goes to a virtual
 
 The `rust-analyzer-lsp` plugin is installed, so for any Rust in either crate the LSP tool answers definition, references, hover, symbols and call hierarchy. It arrives deferred: load its schema with `ToolSearch` at the session's start. Reach for it before a `grep` for a symbol or a `cat` of a file to find one.
 
+Every question about a Rust symbol — where it is defined, who calls it, what its type is, what a module exports — goes to the LSP tool first; `grep` and `cat` are for what it cannot answer: string literals, comments, and files that are not Rust.
+
 ## Gate
 
 Before landing native work, closing a ticket, or closing a feature: `docs/agents/gate.md` names the tier, its commands, the latency budget, the blind-judging opponent and the Feature tier's Hand test; `docs/agents/hand-tests.md` holds the ported Pieces' checklists.
