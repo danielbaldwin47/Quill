@@ -20,7 +20,7 @@ Workspace 1 is the user's: a test window (GTK, browser, bench) goes to a virtual
 
 ## Rust
 
-The `rust-analyzer-lsp` plugin is installed, so for any Rust in either crate the LSP tool answers definition, references, hover, symbols and call hierarchy. Reach for it before a `grep` for a symbol or a `cat` of a file to find one.
+The `rust-analyzer-lsp` plugin is installed, so for any Rust in either crate the LSP tool answers definition, references, hover, symbols and call hierarchy. It arrives deferred: load its schema with `ToolSearch` at the session's start. Reach for it before a `grep` for a symbol or a `cat` of a file to find one.
 
 ## Gate
 
