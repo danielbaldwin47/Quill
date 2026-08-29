@@ -236,8 +236,8 @@ glib::wrapper! {
 struct Selection {
     /// One fill per display row the selection covers, top to bottom.
     rows: Vec<caret::Bar>,
-    /// The bars at the two ends: the same instrument as the caret, at the
-    /// same width and on the same band, so the eye can see exactly which
+    /// The bars bracketing the two ends: the same instrument as the caret, at
+    /// the same width and on the same band, so the eye can see exactly which
     /// cells are held (`setEdge` in `legacy/app/js/caret.js`).
     ends: [caret::Bar; 2],
 }
@@ -659,20 +659,30 @@ impl Editor {
         }
         let first = *rows.first()?;
         let last = *rows.last()?;
-        // Inset, both of them: iA's own captures put the two bars inside the
-        // fill's span, the left one starting where the fill starts and the
-        // right one ending where it ends. The oracle brackets from outside
-        // instead, which is the one place this Piece is knowingly not it.
+        // Outside the fill at both ends, which is `setEdge(edgeA, firstEdge,
+        // -M.w)` in `caret.js` and the oracle's own shot: the left bar ends
+        // where the fill begins and the right bar begins where it ends.
+        //
+        // iA's captures inset them instead, and this began that way, because
+        // that is what `msstore-win-04` shows: its two bars and its fill share
+        // a column span exactly. What that capture does not survive is our
+        // type. A bar is [`caret::width`] of the em and a glyph's left side
+        // bearing is less than that at 20 px, so an inset bar covers the
+        // bearing whole and lands on the stem of the letter it is meant to
+        // hold — round 4's critic read the two as one blue-black smear, with
+        // no clearance either end against the oracle's 2 px and 3 px. Outside,
+        // the bar stands in the gap before the cell, which is where the free
+        // caret stands too.
         let w = f64::from(caret::width(size)) * scale;
         Some(Selection {
             ends: [
                 caret::Bar {
-                    x: first.x,
+                    x: first.x - w,
                     w,
                     ..first
                 },
                 caret::Bar {
-                    x: (last.x + last.w - w).max(last.x),
+                    x: last.x + last.w,
                     w,
                     ..last
                 },
@@ -911,11 +921,10 @@ impl Editor {
 
     /// Paints the selection: the fills, then the two bars at its ends.
     ///
-    /// The fills go down first and the bars over them, because a bar inset at
-    /// the fill's own edge shares those columns with it and the bar is the
-    /// thing to see. Both go under the glyphs, which is the layer this is
-    /// drawn in: the ink of a held word is the ink of any other word, and a
-    /// fill painted over it would tint it.
+    /// The fills go down first and the bars after, so that a row whose fill
+    /// reaches its neighbour's bar cannot paint over it. Both go under the
+    /// glyphs, which is the layer this is drawn in: the ink of a held word is
+    /// the ink of any other word, and a fill painted over it would tint it.
     ///
     /// The two ends are not the caret and do not blink. They are drawn at full
     /// strength for as long as the selection stands, which is `place()` in
