@@ -30,7 +30,7 @@
 //!
 //! Focus is on the keystroke path (#41), so the cost has to be flat in the size
 //! of the Document. [`tiers`] reads the caret's block and, for the blank-line
-//! rule, the two lines above it — [`window`] is that range, and nothing outside
+//! rule, the two lines above it — [`reach`] is that range, and nothing outside
 //! it is looked at.
 
 use std::collections::BTreeMap;
@@ -92,10 +92,10 @@ pub fn tiers(doc: &Document, at: &Range<usize>, focus: Focus) -> Tiers {
     };
     let text = doc.text();
     let caret = at.start.min(text.len());
-    let Some(block) = doc.block_at(caret).map(|at| doc.blocks()[at].at.clone()) else {
+    let Some(block) = block_of(doc, caret) else {
         return Tiers::default();
     };
-    let read = window(doc, at, focus);
+    let read = reach(doc, at, focus);
     let body = trimmed(
         text,
         &(block.start.max(read.start)..block.end.min(read.end)),
@@ -208,18 +208,18 @@ pub fn tiers_by_line(doc: &Document, tiers: &Tiers) -> Vec<LineTiers> {
 
 /// The bytes [`tiers`] reads to answer for `at`, and the only ones it looks at.
 ///
-/// The caret's block, widened to whole lines, and — when the caret is on a blank
-/// line, where the rule reaches behind it — the two lines above. Two blocks at
-/// the worst, whatever the Document weighs, which is what keeps Focus off the
-/// keystroke budget (#41). A selection is its own window: the writer asked for
+/// The caret's block, widened to whole lines, and — when the caret is parked on
+/// a blank line — the lines [`behind_lines`] names above it. Two blocks at the
+/// worst, whatever the Document weighs, which is what keeps Focus off the
+/// keystroke budget (#41). A selection is its own reach: the writer asked for
 /// those bytes to be lit, so they are what there is to read.
-fn window(doc: &Document, at: &Range<usize>, focus: Focus) -> Range<usize> {
+fn reach(doc: &Document, at: &Range<usize>, focus: Focus) -> Range<usize> {
     let Focus::On(scope) = focus else {
         return 0..0;
     };
     let text = doc.text();
     let caret = at.start.min(text.len());
-    let Some(block) = doc.block_at(caret).map(|at| doc.blocks()[at].at.clone()) else {
+    let Some(block) = block_of(doc, caret) else {
         return 0..0;
     };
     if scope == FocusScope::Sentence && at.end > at.start {
@@ -229,31 +229,43 @@ fn window(doc: &Document, at: &Range<usize>, focus: Focus) -> Range<usize> {
     if scope == FocusScope::Sentence {
         let line = doc.place(caret).line;
         if text[content(doc, line)].trim().is_empty() {
-            // What [`behind`] reads, and no more: the line above, and the line
-            // above that one only when the first was blank too.
-            let above = content(doc, line.saturating_sub(1));
-            let reach = if text[above.clone()].trim().is_empty() {
-                content(doc, line.saturating_sub(2)).start
-            } else {
-                above.start
-            };
-            read.start = read.start.min(reach);
+            for above in behind_lines(doc, line) {
+                read.start = read.start.min(content(doc, above).start);
+            }
         }
     }
     read
 }
 
-/// The last sentence of the block above a caret parked on a blank line.
+/// The block `caret` is in, as the bytes it covers.
+fn block_of(doc: &Document, caret: usize) -> Option<Range<usize>> {
+    doc.block_at(caret)
+        .map(|block| doc.blocks()[block].at.clone())
+}
+
+/// The lines the blank-line rule may look at, above a caret parked on `line`.
 ///
-/// The oracle steps over one blank line and no more (`focus.js:136-140`): two
-/// blank lines behind you and the thought they separate is far enough back to
-/// go dim with everything else.
+/// The line above, and the one above that only when the first is blank too: the
+/// oracle steps over one blank line and no more (`focus.js:136-140`). Two blank
+/// lines behind you and the thought they separate is far enough back to go dim
+/// with everything else. [`behind`] reads these and [`reach`] bounds itself by
+/// them, so the rule lives in one place.
+fn behind_lines(doc: &Document, line: usize) -> Vec<usize> {
+    let mut lines = Vec::new();
+    let Some(above) = line.checked_sub(1) else {
+        return lines;
+    };
+    lines.push(above);
+    if doc.text()[content(doc, above)].trim().is_empty() {
+        lines.extend(line.checked_sub(2));
+    }
+    lines
+}
+
+/// The last sentence of the block above a caret parked on a blank line.
 fn behind(doc: &Document, line: usize) -> Vec<Range<usize>> {
     let text = doc.text();
-    for step in 1..=2 {
-        let Some(above) = line.checked_sub(step) else {
-            break;
-        };
+    for above in behind_lines(doc, line) {
         let at = content(doc, above);
         if text[at.clone()].trim().is_empty() {
             continue;
@@ -286,8 +298,8 @@ fn sentences(text: &str) -> Vec<Range<usize>> {
             scan += here.len_utf8();
             continue;
         }
-        let stop = run(text, scan, &TERMINATORS);
-        let before = run(text, stop, &CLOSERS);
+        let stop = skip(text, scan, &TERMINATORS);
+        let before = skip(text, stop, &CLOSERS);
         let after = before + text[before..].len() - text[before..].trim_start().len();
         if after == before && after < text.len() {
             // The punctuation is inside a word — "3.5", or a URL — not after one.
@@ -309,8 +321,8 @@ fn sentences(text: &str) -> Vec<Range<usize>> {
     spans
 }
 
-/// The end of the run of `of` characters that starts at `from`.
-fn run(text: &str, from: usize, of: &[char]) -> usize {
+/// Where the run of `of` characters starting at `from` ends.
+fn skip(text: &str, from: usize, of: &[char]) -> usize {
     let mut end = from;
     while let Some(c) = text[end..].chars().next() {
         if !of.contains(&c) {
@@ -425,13 +437,17 @@ fn whole_lines(doc: &Document, at: &Range<usize>) -> Range<usize> {
     start..end.max(start)
 }
 
-/// `at` without the blank at its end: a block's range runs to the newline that
-/// closes it, and there is nothing to light in a newline.
+/// `at` without the line terminator that closes it: a block's range runs to the
+/// newline, and there is nothing to light in a newline.
+///
+/// Only the terminator goes. The oracle lights a line to its last byte
+/// (`focus.js:127`), so the two trailing spaces of a Markdown hard break stay in
+/// the tier the rest of their line is in.
 fn trimmed(text: &str, at: &Range<usize>) -> Range<usize> {
     if at.start >= at.end {
         return at.start..at.start;
     }
-    at.start..at.start + text[at.clone()].trim_end().len()
+    at.start..at.start + text[at.clone()].trim_end_matches(['\n', '\r']).len()
 }
 
 /// One range as the list a tier holds.
@@ -749,6 +765,22 @@ mod tests {
     }
 
     #[test]
+    fn a_hard_breaks_two_spaces_stay_in_the_tier_their_line_is_in() {
+        let doc = document("A first line here.  \nA second line here.\n");
+        let tiers = tiers(&doc, &(5..5), Focus::On(FocusScope::Paragraph));
+        let text = doc.text();
+        assert_eq!(
+            tiers_by_line(&doc, &tiers)
+                .iter()
+                .map(|on| &text[on.tiers.bright[0].clone()])
+                .collect::<Vec<_>>(),
+            ["A first line here.  ", "A second line here."],
+            "the oracle lights a line to its last byte (`focus.js:127`), so only \
+             the terminator is trimmed away"
+        );
+    }
+
+    #[test]
     fn tiers_by_line_keeps_both_tiers_of_a_line_apart() {
         let doc = document("One thought. And then another one. And a third.\n");
         let tiers = tiers(&doc, &(15..15), Focus::On(FocusScope::Sentence));
@@ -813,7 +845,7 @@ mod tests {
         let focus = Focus::On(FocusScope::Sentence);
         let mut widest = 0;
         for caret in (0..doc.text().len()).step_by(97) {
-            let read = window(&doc, &(caret..caret), focus);
+            let read = reach(&doc, &(caret..caret), focus);
             let block = doc.block_at(caret).expect("the block index tiles the text");
             let here = doc.blocks()[block].at.clone();
             // The block above is the nearest one with prose in it: the blank
