@@ -26,4 +26,5 @@ pub mod spell;
 pub mod stats;
 pub mod style;
 pub mod template;
+pub mod theme;
 pub mod typography;

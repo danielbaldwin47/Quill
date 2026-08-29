@@ -130,6 +130,10 @@ macro_rules! choice {
     };
 }
 
+// So that [`crate::theme::Scheme`], which is written into `state.toml` and so
+// has the same file format to keep, is declared by the same twenty lines.
+pub(crate) use choice;
+
 choice! {
     /// Light or dark, or whichever the desktop is in.
     Theme {
