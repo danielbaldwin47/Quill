@@ -11,6 +11,8 @@ lays the text out once, so the hard rule that no per-token style may change glyp
 being an invariant to hold and becomes a property of the fonts. And GTK draws selection beneath the
 glyphs already, so the hand-drawn selection rectangles go away. The custom caret survives as the one
 genuinely custom piece, painted in `snapshot_layer` and driven from a frame-clock tick callback.
+*Superseded on the selection by [ADR 0012](0012-editor-draws-its-own-selection.md): the Editor draws
+it, and the caret is cut from the same band.*
 
 ## Considered options
 
