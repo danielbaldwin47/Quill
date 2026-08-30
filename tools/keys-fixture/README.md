@@ -12,7 +12,9 @@ moved right. Before `45d1434` the bar was placed from `mark-set`, which GTK does
 insert mark carried along by an insertion, so both shots had the bar at **x=0**; every judged state
 was a still, so the Piece won three states with that defect in it (#108, #138).
 
-These are the **green fixture** for `tools/gate keys` and its selftest.
+These are the **green fixture** for `tools/gate keys` and its selftest. They were taken before the
+condition existed, at a glyph advance of 38.4 device pixels — a larger setting than the script now
+opens — which is why there is a matched pair below as well.
 
 ## The red fixture
 
@@ -23,10 +25,26 @@ Taken by #138 with `tools/gate keys caret --shots`, on the app as `dba7b74` left
 tip of main when the condition landed, changes nothing under `quill/` — #141 added this folder and
 nothing else). The bar is at **x=675..680 in both of them**, which is the defect entire: 16
 characters of ink end at x=1053 and 38 end at x=1581, and the bar has not moved between the two.
-`tools/gate check` runs `tools/keys-selftest.mjs` over all four of these shots on every commit, and
-it is red on this pair.
 
-The two builds are not the same size on the glass, and that is worth knowing before reading the
-numbers side by side: the green shots were taken at a glyph advance of 38.4 device pixels and the
-red ones at the judged default size 20, which draws 24.0. So the assertion derives one advance from
-each shot rather than carrying a measured constant — see `glyphAdvance` in `tools/keys-assert.mjs`.
+## The matched pair
+
+- `fixed-size20-typing-16.png`, `fixed-size20-typing-38.png` — the build *with* `45d1434`, at the
+  judged default size 20 the script actually opens.
+
+Taken the same way, in the same run of the same command, so that the red pair and this one differ in
+the build and in nothing else. Side by side they are the whole ticket in four numbers:
+
+| | ink | bar after 16 | bar after 38 |
+|---|---|---|---|
+| with `45d1434` | 674..1053, 674..1581 | 1059 | 1587 |
+| without it | 674..1053, 674..1581 | 675 | 675 |
+
+Same ink, same derived advance (25.3 and 24.5 device pixels); the bar is the only thing that moves,
+and on the broken build it does not move at all.
+
+`tools/gate check` runs `tools/keys-selftest.mjs` over all six shots on every commit: green on both
+fixed pairs, red on the broken one.
+
+Sizes differ between the first pair and the other two, which is why the assertion derives one glyph
+advance from each shot rather than carrying a measured constant — see `glyphAdvance` in
+`tools/keys-assert.mjs`.

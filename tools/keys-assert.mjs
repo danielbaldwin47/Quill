@@ -1,7 +1,12 @@
-// What a typed shot is judged on: decode the PNG, find the caret's bar and the ink beside it, and
-// say whether the bar stands where the writing left it — `tools/gate keys`'s pure half.
+// Everything `tools/gate keys` can decide without a window: the script a Piece is typed by, and
+// the pixels it is judged on — decode the PNG, find the caret's bar and the ink beside it, and say
+// whether the bar stands where the writing left it.
 //
-//   import { decodePng, readBar, judgeBurst, judgeMove } from './keys-assert.mjs'
+//   import { decodePng, readBar, judgeBurst, judgeMove, resolveScript } from './keys-assert.mjs'
+//
+// The split is `tools/bench-selftest.mjs` and `tools/bench-join.mjs`'s: the half with the compositor
+// in it is `keys.mjs`, and nothing here reaches for one, so `tools/gate check` runs the selftest
+// over this file on every commit with no display attached.
 //
 // WHY THE PIXELS AND NOT THE APP
 //
@@ -30,16 +35,21 @@ import zlib from 'node:zlib';
 
 // ---------- the colours a judged page is drawn in ----------
 
-/// `Role::Accent` in `quill-engine/src/theme.rs`: `#00b5ff`, the same blue on both grounds.
-export const ACCENT = { r: 0, g: 181, b: 255 };
-
 /// The light scheme's ink and paper, `#1c1c1c` on `#f9f9f9`, which is what the caret Piece's keys
-/// script opens. Both are parameters because a dark script would hand the other pair.
+/// script opens. Both are parameters because a dark script hands the other pair — `#cccccc` on
+/// `#1a1a1a` — and the ink test is the one thing that has to know which way round they are.
 export const INK = { r: 28, g: 28, b: 28 };
 export const PAPER = { r: 249, g: 249, b: 249 };
 
-// How far a pixel's blue must run ahead of its red before it is the bar rather than a grey. Every
-// grey on the page has `b - r === 0`; the bar is 114 over paper and 113 over ink in the green
+/// The dark scheme's pair, for a script that opens `--theme dark`.
+export const INK_DARK = { r: 204, g: 204, b: 204 };
+export const PAPER_DARK = { r: 26, g: 26, b: 26 };
+
+// How far a pixel's blue must run ahead of its red before it is the bar rather than a grey.
+//
+// `Role::Accent` is `#00b5ff` and is not a parameter, because `theme.rs` draws it on both grounds:
+// the caret is the one instrument the writer watches, so it is the same blue either way. Every grey
+// on the page has `b - r === 0`; the bar comes out 114 over paper and 113 over ink in the green
 // fixture, so 40 sits far from both answers and needs no revisiting if the alpha is ever retuned.
 const CHROMA = 40;
 
@@ -145,27 +155,33 @@ export function decodePng(buf) {
 
 const lum = ({ r, g, b }) => (r + g + b) / 3;
 
+// One pixel, in the two terms both scans below ask it for. `chroma` leans one way only, because
+// the accent leans one way only: `Role::Accent` is a single colour in `theme.rs` — the same blue on
+// paper and on the dark ground — so there is no second direction to carry.
+function pixel(png, x, y) {
+  const i = (y * png.w + x) * png.ch;
+  const r = png.data[i];
+  const g = png.data[i + 1];
+  const b = png.data[i + 2];
+  return { g, b, chroma: b - r, lum: (r + g + b) / 3 };
+}
+
 /// Where the caret's bar is, and where the ink on its rows ends.
 ///
 /// `null` for `bar` when nothing on the page leans blue — which is not the same as a bar in the
 /// wrong place, and is reported as its own thing so a shot caught in the blink's dark half is
 /// never read as a defect.
-export function readBar(png, { accent = ACCENT, ink = INK, paper = PAPER } = {}) {
-  const leansBlue = accent.b > accent.r;
+export function readBar(png, { ink = INK, paper = PAPER } = {}) {
   const edge = lum(ink) + (lum(paper) - lum(ink)) * INK_SHARE;
   const inkIsDarker = lum(paper) > lum(ink);
+  const isBar = (p) => p.chroma >= CHROMA && p.b > p.g;
 
   const cols = new Set();
   const rows = new Set();
   let n = 0;
   for (let y = 0; y < png.h; y += 1) {
     for (let x = 0; x < png.w; x += 1) {
-      const i = (y * png.w + x) * png.ch;
-      const r = png.data[i];
-      const g = png.data[i + 1];
-      const b = png.data[i + 2];
-      const chroma = leansBlue ? b - r : r - b;
-      if (chroma >= CHROMA && (leansBlue ? b > g : r > g)) {
+      if (isBar(pixel(png, x, y))) {
         cols.add(x);
         rows.add(y);
         n += 1;
@@ -185,14 +201,9 @@ export function readBar(png, { accent = ACCENT, ink = INK, paper = PAPER } = {})
   let inkRight = null;
   for (let y = bar.top; y <= bar.bottom; y += 1) {
     for (let x = 0; x < png.w; x += 1) {
-      const i = (y * png.w + x) * png.ch;
-      const r = png.data[i];
-      const g = png.data[i + 1];
-      const b = png.data[i + 2];
-      const chroma = leansBlue ? b - r : r - b;
-      if (chroma >= CHROMA) continue;
-      const l = (r + g + b) / 3;
-      if (inkIsDarker ? l < edge : l > edge) {
+      const p = pixel(png, x, y);
+      if (isBar(p)) continue;
+      if (inkIsDarker ? p.lum < edge : p.lum > edge) {
         if (inkLeft === null || x < inkLeft) inkLeft = x;
         if (inkRight === null || x > inkRight) inkRight = x;
       }
@@ -255,4 +266,59 @@ export function judgeMove(before, after) {
     pass,
     said: `bar.left ${before.bar.left} then ${after.bar.left}; expected the second to be greater`,
   };
+}
+
+// ---------- the script a Piece is typed by ----------
+//
+// The assertions a script may name, by the phrase the failing line prints. They live beside the
+// functions they name so that adding one is an edit to this file and to the script in states.json,
+// and to nothing else.
+
+export const AFTER_BURST = { 'bar-after-ink': judgeBurst };
+export const BETWEEN_BURSTS = { 'bar-moved-right': judgeMove };
+
+/// Where the scripts are, said once so the command and its error messages agree.
+export const STATES = 'shots/oracle/states.json';
+
+/// The bursts and assertions listed for a Piece, with the judged defaults filled in around the
+/// state it opens.
+///
+/// Pure, and here rather than in `keys.mjs`, so that the selftest can hold the scripts to their
+/// shape without importing the half that opens a window.
+export function resolveScript(states, piece) {
+  const scripts = states.keys || {};
+  // `_about` and its kind are prose for whoever opens the file, not Pieces.
+  const named = Object.keys(scripts).filter((k) => !k.startsWith('_'));
+  if (!named.includes(piece)) {
+    throw new Error(`no keys script for ${piece}`
+      + `${named.length ? ` (${STATES} names ${named.join(', ')})` : ''}`);
+  }
+  const script = scripts[piece];
+  const bursts = script.bursts || [];
+  if (!bursts.length) throw new Error(`no keys script for ${piece}`);
+
+  // `chars` is how many characters stand on the line once the burst has been typed, and the
+  // advance the assertions measure against is derived from it. It is written down rather than
+  // counted so that the day a script presses Enter or Backspace, the number that stops being the
+  // running total says so here instead of quietly shifting the tolerance.
+  let running = 0;
+  for (const burst of bursts) {
+    running += [...burst.text].length;
+    if (burst.chars !== running) {
+      throw new Error(`${piece}: burst ${burst.name} says chars ${burst.chars}, but ${running} `
+        + 'characters have been typed by the end of it');
+    }
+  }
+  for (const [table, names, what] of [
+    [AFTER_BURST, bursts.flatMap((b) => b.assert || []), 'assertion'],
+    [BETWEEN_BURSTS, script.between || [], 'between-bursts assertion'],
+  ]) {
+    for (const name of names) {
+      if (!table[name]) {
+        throw new Error(`${piece}: no ${what} called ${name} `
+          + `(this command knows ${Object.keys(table).join(', ')})`);
+      }
+    }
+  }
+  return { ...script, bursts, flags: { ...states.defaults, ...(script.state || {}) } };
 }

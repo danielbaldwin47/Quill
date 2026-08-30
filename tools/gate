@@ -8,6 +8,7 @@
 #   tools/gate bench [regime]     type a regime with real keys and time it against the budget
 #   tools/gate bench --panel      ... on the physical display, informational, only while idle
 #   tools/gate judge <piece>      shoot ours, pair it blind, judge it, record the round
+#   tools/gate keys <piece>       type real keys into ours, then read the assertions off the pixels
 #   tools/gate --help             the commands there are, and what each runs
 #
 # The owner does not read Rust, so every command here ends in one line the owner
@@ -38,8 +39,8 @@ usage: tools/gate <command> [arguments]
   check [dir]   The Commit tier in one command: cargo fmt --check, the #[allow]
                 reason rule, cargo clippy --all-targets -- -D warnings, cargo
                 test with no display attached, and — on the repo root only —
-                the bench join's own tests, in that order, stopping at the first
-                failure. Each step's output goes to
+                the bench join's own tests and the typed condition's, in that
+                order, stopping at the first failure. Each step's output goes to
                 target/gate/<step>.log and is printed only if that step is the
                 one that fails. Runs on the repo root, or on <dir> if one is
                 given — which is how tools/gate-fixture/selftest points it at a

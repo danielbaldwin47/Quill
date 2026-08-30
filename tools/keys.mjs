@@ -30,10 +30,11 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { typeKeys } from './bench.mjs';
 import { compositorAvailable, openStage, quillArgv } from './harness.mjs';
-import { decodePng, judgeBurst, judgeMove, readBar } from './keys-assert.mjs';
+import {
+  AFTER_BURST, BETWEEN_BURSTS, INK_DARK, PAPER_DARK, STATES, decodePng, readBar, resolveScript,
+} from './keys-assert.mjs';
 
 const BINARY = 'target/release/quill';
-const STATES = 'shots/oracle/states.json';
 const BUILD_OUTPUT_MAX = 8 * 1024 * 1024;
 
 // The typist's plan. The pace is brisker than a writer's because nothing here is timed — what
@@ -59,10 +60,6 @@ const SETTLE_MS = 1200;
 // several turns of that cycle, which makes a run that never sees a bar a fact about the build
 // rather than about the moment it was caught in.
 const BLINK_TRIES = 8;
-
-// The assertions a script may name, by the phrase the failing line prints.
-const AFTER_BURST = { 'bar-after-ink': judgeBurst };
-const BETWEEN_BURSTS = { 'bar-moved-right': judgeMove };
 
 // ---------- the trail ----------
 //
@@ -103,50 +100,6 @@ function usage(to = process.stderr) {
 Ends in \`gate keys <piece>: pass\` or \`gate keys <piece>: fail (...)\`, and in
 \`gate keys <piece>: refused (...)\` when nothing was typed or nothing could be read.
 `);
-}
-
-// ---------- the script a Piece is typed by ----------
-
-/// The bursts and assertions listed for a Piece, with the judged defaults filled in around the
-/// state it opens.
-export function resolveScript(states, piece) {
-  const scripts = states.keys || {};
-  // `_about` and its kind are prose for whoever opens the file, not Pieces.
-  const named = Object.keys(scripts).filter((k) => !k.startsWith('_'));
-  if (!named.includes(piece)) {
-    throw new Error(`no keys script for ${piece}`
-      + `${named.length ? ` (${STATES} names ${named.join(', ')})` : ''}`);
-  }
-  const script = scripts[piece];
-  const bursts = script.bursts || [];
-  if (!bursts.length) throw new Error(`no keys script for ${piece}`);
-  // `chars` is how many characters stand on the line once the burst has been typed, and the
-  // advance the assertions measure against is derived from it. It is written down rather than
-  // counted so that the day a script presses Enter or Backspace, the number that stops being the
-  // running total says so here instead of quietly shifting the tolerance.
-  let running = 0;
-  for (const burst of bursts) {
-    running += [...burst.text].length;
-    if (burst.chars !== running) {
-      throw new Error(`${piece}: burst ${burst.name} says chars ${burst.chars}, but ${running} `
-        + 'characters have been typed by the end of it');
-    }
-  }
-  for (const burst of bursts) {
-    for (const name of burst.assert || []) {
-      if (!AFTER_BURST[name]) {
-        throw new Error(`${piece}: no assertion called ${name} `
-          + `(this command knows ${Object.keys(AFTER_BURST).join(', ')})`);
-      }
-    }
-  }
-  for (const name of script.between || []) {
-    if (!BETWEEN_BURSTS[name]) {
-      throw new Error(`${piece}: no between-bursts assertion called ${name} `
-        + `(this command knows ${Object.keys(BETWEEN_BURSTS).join(', ')})`);
-    }
-  }
-  return { ...script, bursts, flags: { ...states.defaults, ...(script.state || {}) } };
 }
 
 // ---------- the shot a burst is judged on ----------
@@ -205,7 +158,10 @@ async function run(root, piece, { shotsDir }) {
   }
 
   const { flags } = script;
-  const colours = script.colours;
+  // Which pair the ink test is looking for, taken from the theme the script opens rather than
+  // asked for separately: a script that says `--theme dark` has already said which way round its
+  // page is.
+  const colours = flags.theme === 'dark' ? { ink: INK_DARK, paper: PAPER_DARK } : undefined;
   const stage = await openStage({ root });
   let ours = null;
   try {
@@ -224,18 +180,28 @@ async function run(root, piece, { shotsDir }) {
       const plan = {
         pace_ms: PACE_MS, hold_ms: HOLD_MS, settle_ms: SETTLE_MS, chunk: CHUNK, text: burst.text,
       };
-      say(`gate keys: burst ${burst.name}: ${burst.text.length} keys`);
+      // Code points, as the typist counts them: `uinput-keys.py` writes one key per character of
+      // `text`, and `resolveScript` totals the same way.
+      const wanted = [...burst.text].length;
+      say(`gate keys: burst ${burst.name}: ${wanted} keys`);
       const wrote = await typeKeys(root, plan, () => stage.holds(ours.address));
       if (wrote.lost) {
         return refuse(piece, `focus was taken away during ${burst.name}, so typing stopped there`);
       }
-      if (wrote.events.length !== burst.text.length) {
-        return refuse(piece, `${burst.name} asked for ${burst.text.length} keys and the typist `
+      if (wrote.events.length !== wanted) {
+        return refuse(piece, `${burst.name} asked for ${wanted} keys and the typist `
           + `wrote ${wrote.events.length}`);
       }
 
       const shot = await captureBar(stage, ours.toplevel.id, colours);
       if (!shot) return refuse(piece, `no capture of ${burst.name} ever settled`);
+      // A shot with no bar in it is nothing read, not a bar in the wrong place, so it refuses
+      // rather than condemning the build: after `BLINK_TRIES` turns of a 1,055 ms cycle the honest
+      // thing to say is that the caret was never caught lit, and 3 is the code for that.
+      if (!shot.read.bar) {
+        return refuse(piece, `the caret was never caught lit after ${burst.name}, so there was `
+          + 'no bar to measure');
+      }
       if (shotsDir) {
         fs.mkdirSync(shotsDir, { recursive: true });
         fs.writeFileSync(path.join(shotsDir, `${burst.name}.png`), shot.buf);
