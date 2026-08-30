@@ -25,9 +25,9 @@
       "dark": { "text": "shots/oracle/markup.md", "caret": 131, "chrome": "off", "theme": "dark" }
     },
     "caret": {
-      "caret": {},
-      "selection": { "select": [153, 171], "caret": 171 },
-      "unfocused": { "active": false }
+      "caret": { "chrome": "off" },
+      "selection": { "select": [153, 171], "caret": 171, "chrome": "off" },
+      "unfocused": { "active": false, "chrome": "off" }
     },
     "theme": {
       "light": {},
