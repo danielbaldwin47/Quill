@@ -38,5 +38,9 @@ try {
 } finally {
   stage.close();
 }
-fs.writeFileSync(path.join(root, 'shots/caret/ia/shots.json'), `${JSON.stringify(done, null, 1)}\n`);
+// Beside the shots, not beside this file: a second run shooting a second
+// ADR's evidence into a second directory would otherwise overwrite the first
+// ADR's manifest with a list of files that are not in it.
+const manifest = path.join(root, path.dirname(done[0].out), 'shots.json');
+fs.writeFileSync(manifest, `${JSON.stringify(done, null, 1)}\n`);
 console.log(`shoot: ${done.length} shots`);

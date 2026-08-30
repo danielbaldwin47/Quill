@@ -59,6 +59,13 @@ ours, and both are their own decision.
 
 ## What ours does now
 
+*As of ADR 0013, which is what this directory measures. The two shots holding a selection —
+`ours-selection.png` and `ours-jump-select.png` — were then superseded by
+[ADR 0014](../../../docs/adr/0014-a-selection-is-a-fill-and-nothing-else.md), which took the bars
+off both of a selection's ends: `shots/caret/mac/` is what those states look like now. They are kept
+here as 0013 shot them, because they are its evidence. The free caret is unchanged — `ours-caret.png`
+re-shot after 0014 is byte-identical.*
+
 Device pixels at scale 2, from `measure.py`'s repo-side twin in `shots/caret/147/measure147.py`.
 `Δcell` is the bar's left edge minus its cell boundary; `solid` is how many of the bar's six columns
 are the caret's blue all the way down the band, and `cut` the deepest bite any column takes out of

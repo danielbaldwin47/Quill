@@ -1,5 +1,9 @@
 # The caret stands on the advance boundary
 
+*Narrowed by [ADR 0014](0014-a-selection-is-a-fill-and-nothing-else.md): the selection's two end
+bars are gone, so what stands on the boundary is the free caret alone. Everything below about where
+the bar goes, what it is painted over, and how the Windows app was measured stands.*
+
 The bar — the free caret and both of the selection's end bars — stands on the advance boundary
 between two cells, offset from it by nothing, and is painted over the ink rather than under it. The
 free caret at an offset and the selection's opening bar at that same offset are therefore the same

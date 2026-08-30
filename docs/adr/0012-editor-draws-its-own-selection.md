@@ -1,5 +1,10 @@
 # The Editor draws its own selection
 
+*Superseded on the end bars by [ADR 0014](0014-a-selection-is-a-fill-and-nothing-else.md): a
+selection is its fill and nothing else. The bar at each end goes, and with it § Consequences' "Bars
+at both ends are iA's" — that paragraph's macOS evidence is a marketing frame showing touch
+grab-handles. The Editor still draws the selection, which is the rest of this ADR.*
+
 The Editor paints the selection itself — the fill, a bar at each end, and the caret — in the same
 `snapshot_layer` pass beneath the glyphs, the caret, the two ends and every fill row cut from one
 function (`Editor::band`) so that their rows are the same rows. GTK's `selection` sub-node keeps one stylesheet rule, which clears
