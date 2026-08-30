@@ -37,12 +37,17 @@ const STATES = 'shots/oracle/states.json';
 const BUILD_OUTPUT_MAX = 8 * 1024 * 1024;
 
 // The typist's plan. The pace is brisker than a writer's because nothing here is timed — what
-// matters is only that every key lands — and the chunk is the bench's, so focus is asked the same
-// question every 25 keys. `settle_ms` is the wait *before* the first key, for the compositor to
-// pick the new virtual keyboard up.
+// matters is only that every key lands. `settle_ms` is the wait *before* the first key, for the
+// compositor to pick the new virtual keyboard up.
+//
+// The chunk is 8 where the bench's is 25, and the difference is the whole point of having one: a
+// burst here is sixteen or twenty-two keys, so at 25 the question "does ours still hold focus?"
+// would be asked once before the burst and never again inside it, which is the same defence the
+// `focused` proof already gives and no defence at all against focus going somewhere else halfway
+// through. At 8 every burst is asked two or three times over.
 const PACE_MS = 40;
 const HOLD_MS = 12;
-const CHUNK = 25;
+const CHUNK = 8;
 const SETTLE_MS = 1200;
 
 // How many times a burst's shot is taken before the run gives up looking for the bar.
