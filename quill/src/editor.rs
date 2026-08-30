@@ -207,17 +207,32 @@ mod imp {
     impl TextViewImpl for Editor {
         /// The selection and the caret, and nothing else, below the text.
         ///
-        /// Below rather than above because the bar belongs under the glyphs
-        /// the way iA's does — a caret drawn over a letter is a caret that
-        /// hides one — and because the layer above the text is where a future
-        /// Annotator's marks will want to be. GTK's own caret is not here to
-        /// be drawn over: `cursor-visible` is false for the widget's life.
+        /// The fill goes under the glyphs and the bars over them.
         ///
-        /// The layer is snapshotted in buffer coordinates, which is what
+        /// The fill has to be under: the ink of a held word is the ink of any
+        /// other word, and a fill painted over it would tint it. The bars have
+        /// to be over. A bar is [`caret::width`] of the em and a glyph's left
+        /// side bearing can be less than that, so a bar standing on a boundary
+        /// meets the ink of the letter after it; drawn under, the letter is
+        /// rasterised straight through the bar and the two read as one mark,
+        /// which is what #147 reported as the caret "sitting on" the glyph.
+        /// Both the Parity oracle and iA Writer paint theirs over the ink —
+        /// `legacy/app/css/caret.css` puts `#caret-layer` above `#mirror`.
+        ///
+        /// This costs the layer above the text, where a future Annotator's
+        /// marks were going to go; they will have to sort against the bars
+        /// rather than assume the layer to themselves. GTK's own caret is not
+        /// here to be drawn over either way: `cursor-visible` is false for the
+        /// widget's life.
+        ///
+        /// Both layers are snapshotted in buffer coordinates, which is what
         /// `iter_location` answers in, so nothing is translated on the way.
         fn snapshot_layer(&self, layer: gtk::TextViewLayer, snapshot: gtk::Snapshot) {
             if layer == gtk::TextViewLayer::BelowText {
-                self.obj().draw_selection(&snapshot);
+                self.obj().draw_selection_fill(&snapshot);
+            }
+            if layer == gtk::TextViewLayer::AboveText {
+                self.obj().draw_selection_ends(&snapshot);
                 self.obj().draw_caret(&snapshot);
             }
         }
@@ -533,8 +548,11 @@ impl Editor {
     /// The bar at the caret now, in device pixels.
     ///
     /// The column comes from `iter_location`, which answers in the buffer
-    /// coordinates the layer is snapshotted in, nudged off the advance
-    /// boundary by [`caret::nudge`] before the machine snaps it.
+    /// coordinates the layer is snapshotted in, and is the advance boundary
+    /// itself: the bar stands on the boundary between two cells and is offset
+    /// from it by nothing. See [ADR 0013](../../docs/adr/0013-caret-on-the-advance-boundary.md)
+    /// for the 0.07 em that used to be added here and what measuring iA Writer
+    /// itself said about it.
     ///
     /// The band is the pitch, not the glyph, and it hangs from the row's
     /// baseline: `iter_location` gives the top of the box, the baseline is the
@@ -562,7 +580,7 @@ impl Editor {
         let scale = self.scale();
         let (y, h) = self.band(f64::from(row.y()));
         Some(caret::Bar {
-            x: (f64::from(row.x()) + caret::nudge(size)) * scale,
+            x: f64::from(row.x()) * scale,
             y,
             w: f64::from(caret::width(size)) * scale,
             h,
@@ -728,25 +746,28 @@ impl Editor {
         if rows.is_empty() {
             return None;
         }
-        // Outside the fill at both ends, which is `setEdge(edgeA, firstEdge,
-        // -M.w)` in `caret.js` and the oracle's own shot: the left bar ends
-        // where the fill begins and the right bar begins where it ends.
+        // On the boundary at both ends, which is where the free caret stands
+        // at those same two offsets — so opening a selection where the caret
+        // is leaves the mark in the writer's eye exactly where it was. That
+        // equality is the whole of it, and it is what iA Writer does: driven
+        // by hand, its bar holds its column when a selection opens under it
+        // (ADR 0013).
         //
-        // iA's captures inset them instead, and this began that way, because
-        // that is what `msstore-win-04` shows: its two bars and its fill share
-        // a column span exactly. What that capture does not survive is our
-        // type. A bar is [`caret::width`] of the em and a glyph's left side
-        // bearing is less than that at 20 px, so an inset bar covers the
-        // bearing whole and lands on the stem of the letter it is meant to
-        // hold — round 4's critic read the two as one blue-black smear, with
-        // no clearance either end against the oracle's 2 px and 3 px. Outside,
-        // the bar stands in the gap before the cell, which is where the free
-        // caret stands too.
+        // The two ends are not symmetric about their fill, and that is not an
+        // oversight: a boundary has the fill on one side of it and paper on
+        // the other, so the opening bar covers the fill's first pixels and the
+        // closing bar stands clear past its last. iA's own ends read the same
+        // way round.
+        //
+        // `caret.js`'s `setEdge(edgeA, firstEdge, -M.w)` pulls the opening bar
+        // a whole bar-width further out than this, and the oracle's shot shows
+        // it there. That is the one place ours now leaves the Parity oracle on
+        // purpose; ADR 0013 carries the measurements and the round it cost.
         let w = f64::from(caret::width(size)) * scale;
         let mut ends = Vec::with_capacity(2);
         if let Some(first) = head {
             ends.push(caret::Bar {
-                x: first.x - w,
+                x: first.x,
                 w,
                 ..first
             });
@@ -994,26 +1015,34 @@ impl Editor {
         );
     }
 
-    /// Paints the selection: the fills, then the two bars at its ends.
+    /// Paints the selection's fills, under the glyphs.
     ///
-    /// The fills go down first and the bars after, so that a row whose fill
-    /// reaches its neighbour's bar cannot paint over it. Both go under the
-    /// glyphs, which is the layer this is drawn in: the ink of a held word is
-    /// the ink of any other word, and a fill painted over it would tint it.
-    ///
-    /// The two ends are not the caret and do not blink. They are drawn at full
-    /// strength for as long as the selection stands, which is `place()` in
-    /// `legacy/app/js/caret.js` clearing the blink class and its timer the
-    /// moment a selection opens.
-    fn draw_selection(&self, snapshot: &gtk::Snapshot) {
+    /// A row whose fill reaches its neighbour's bar can no longer paint over
+    /// it, because the bars are not on this layer at all any more —
+    /// [`Editor::draw_selection_ends`] puts them above the ink.
+    fn draw_selection_fill(&self, snapshot: &gtk::Snapshot) {
         let Some(selection) = self.selection() else {
             return;
         };
         let scale = self.scale();
-        let (fill, ends) = selection_paint(self.imp().caret.get().focused());
+        let (fill, _) = selection_paint(self.imp().caret.get().focused());
         for row in &selection.rows {
             draw_box(snapshot, &fill, *row, scale);
         }
+    }
+
+    /// Paints the two bars at the selection's ends, over the glyphs.
+    ///
+    /// They are not the caret and do not blink. They are drawn at full
+    /// strength for as long as the selection stands, which is `place()` in
+    /// `legacy/app/js/caret.js` clearing the blink class and its timer the
+    /// moment a selection opens.
+    fn draw_selection_ends(&self, snapshot: &gtk::Snapshot) {
+        let Some(selection) = self.selection() else {
+            return;
+        };
+        let scale = self.scale();
+        let (_, ends) = selection_paint(self.imp().caret.get().focused());
         for bar in &selection.ends {
             draw_box(snapshot, &ends, *bar, scale);
         }
