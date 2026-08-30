@@ -17,8 +17,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { decodePng, glyphAdvance, judgeBurst, judgeMove, readBar } from './keys-assert.mjs';
-import { resolveScript } from './keys.mjs';
+import {
+  INK_DARK, PAPER_DARK, decodePng, glyphAdvance, judgeBurst, judgeMove, readBar, resolveScript,
+} from './keys-assert.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FIXTURE = path.join(ROOT, 'tools/keys-fixture');
@@ -120,6 +121,33 @@ ok('the broken build never moves the bar, and that is its own failure', () => {
   assert.match(v.said, /675 then 675/);
 });
 
+// ---------- the two builds, matched ----------
+//
+// The pair above was shot at a glyph advance of 38.4 device pixels and the red pair at the judged
+// size 20's 24.0, so a reader comparing them has two differences to hold at once. `fixed-size20-*`
+// is the same script on the fixed build at the judged size: same ink, same advance, and the bar the
+// only thing that moves. That is the A/B the condition exists to make.
+
+ok('matched to the red pair, the fixed build differs in the bar and nothing else', () => {
+  for (const [chars, ink] of [[16, 1053], [38, 1581]]) {
+    const fixed = judgeBurst(shot(`fixed-size20-typing-${chars}`), { chars });
+    const broken = judgeBurst(shot(`broken-typing-${chars}`), { chars });
+    assert.equal(fixed.read.inkLeft, broken.read.inkLeft, `${chars}: the same ink starts both`);
+    assert.equal(fixed.read.inkRight, ink, `${chars}: the same ink ends both`);
+    assert.equal(broken.read.inkRight, ink);
+    assert.equal(fixed.advance, broken.advance, `${chars}: one advance covers both`);
+    assert.equal(fixed.pass, true, fixed.said);
+    assert.equal(broken.pass, false, broken.said);
+  }
+});
+
+ok('matched, the fixed build moves the bar and the broken one does not', () => {
+  const fixed = judgeMove(readBar(shot('fixed-size20-typing-16')), readBar(shot('fixed-size20-typing-38')));
+  assert.equal(fixed.pass, true, fixed.said);
+  const broken = judgeMove(readBar(shot('broken-typing-16')), readBar(shot('broken-typing-38')));
+  assert.equal(broken.pass, false, broken.said);
+});
+
 // ---------- what is not a defect ----------
 
 ok("a shot caught in the blink's dark half is reported as no bar, not as a bar in the wrong place", () => {
@@ -140,6 +168,29 @@ ok('two runs of the accent are refused rather than measured across', () => {
   const v = judgeBurst(two, { chars: 16 });
   assert.equal(v.pass, false);
   assert.match(v.said, /not one run/);
+});
+
+ok('a dark page is read the other way round, and the bar is the same blue on it', () => {
+  // `Role::Accent` is one colour on both grounds, so only the ink test changes hands. Ink #cccccc
+  // on paper #1a1a1a, which is what a script saying `--theme dark` would put on the glass.
+  const dark = { w: 200, h: 60, ch: 3, data: Buffer.alloc(200 * 60 * 3, 0x1a) };
+  const put = (x0, x1, [r, g, b]) => {
+    for (let y = 20; y <= 30; y += 1) {
+      for (let x = x0; x <= x1; x += 1) {
+        const i = (y * 200 + x) * 3;
+        dark.data[i] = r;
+        dark.data[i + 1] = g;
+        dark.data[i + 2] = b;
+      }
+    }
+  };
+  put(20, 100, [0xcc, 0xcc, 0xcc]);
+  put(104, 107, BAR_PX);
+  const colours = { ink: INK_DARK, paper: PAPER_DARK };
+  const v = judgeBurst(dark, { chars: 16, colours });
+  assert.equal(v.read.inkRight, 100, 'the pale glyphs are the ink here, not the dark ground');
+  assert.equal(v.gap, 4);
+  assert.equal(v.pass, true, v.said);
 });
 
 ok('a bar with no ink on its rows says so rather than measuring against nothing', () => {
