@@ -17,7 +17,7 @@ Either way the spec closes on the owner's `hand test: pass`, by `docs/agents/gat
 What drives calls, and the bounds a ticket inside the zone has kept:
 
 - Modules touched: one or two, by the module map; three is the ceiling, and more is two tickets, or a prefactor ticket first.
-- Source read to do the work: about 30 KB, large files by the Explore agent's ranges; a ticket that needs a 50 KB module read whole is two tickets, the engine-only half first.
+- Source read to do the work: about 30 KB, large files by the orientation fork's ranges; a ticket that needs a 50 KB module read whole is two tickets, the engine-only half first.
 - Source written: about 30 KB in total.
 - Pieces named: at most one, and the judge or bench run is most of what the ticket does — pair it with small changes only. A judge run costs 15–20k of context and a Piece takes two or three rounds; a bench series is one launch per regime per attempt. "Pieces: none" tickets are the cheap ones. A ticket that touches the keystroke path without naming latency still runs the headline regime once, as a measurement, and says so.
 - Tests: `cargo test` runs with no display (`docs/agents/gate.md` § Commit tier), so an acceptance criterion asserts a pure function, a model or a file, and reads the widget from a `--deterministic` shot; a criterion that needs a window and no keystroke is a Hand test step; one that needs a keystroke is a keys assertion (`docs/agents/gate.md` § Ticket tier), because a still cannot show what only happens under a hand.
