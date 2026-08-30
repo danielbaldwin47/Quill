@@ -1,0 +1,22 @@
+[
+ {
+  "out": "shots/caret/ia/ours-caret.png",
+  "sha": "206f1de03d1900e0f1f1be95ff53e2020b0e743685e1a286f260e0fd70f4e62a"
+ },
+ {
+  "out": "shots/caret/ia/ours-selection.png",
+  "sha": "be71aa5cbe460785f03593c48afa5162110181483a6c8e1b99d69d5af8415d9c"
+ },
+ {
+  "out": "shots/caret/ia/ours-unfocused.png",
+  "sha": "52eaade66173ca7f0b5b1e72383d7f2c812ef9bd9403577943e43eb285fafa62"
+ },
+ {
+  "out": "shots/caret/ia/ours-jump-caret.png",
+  "sha": "791a2b3c22ca8376a9e5ad2ee880c1af1cbfff6e6b47e638f5dbf3c0f0d6bad7"
+ },
+ {
+  "out": "shots/caret/ia/ours-jump-select.png",
+  "sha": "45065b7a940f7461b995b3d03580f86391e7b0546d401a8a338fe31398c50467"
+ }
+]

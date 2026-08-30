@@ -63,12 +63,6 @@ const CARET_LINE: f64 = 0.5;
 /// `caret` state is what says whether it is still true.
 const BASELINE_DRIFT: f64 = 0.5;
 
-/// What the selection's two end bars are worth when the window is not active,
-/// as a share of the ink: `#caret-layer.idle .sel-edge` in
-/// `legacy/app/css/caret.css`. Why ink and not the accent is
-/// [`selection_paint`].
-const IDLE_ENDS: f64 = 0.22;
-
 /// The most rows of selection painted in one frame: `MAX_ROWS` in
 /// `legacy/app/js/caret.js`.
 ///
@@ -205,19 +199,36 @@ mod imp {
     }
 
     impl TextViewImpl for Editor {
-        /// The selection and the caret, and nothing else, below the text.
+        /// The selection and the caret, and nothing else, around the text.
         ///
-        /// Below rather than above because the bar belongs under the glyphs
-        /// the way iA's does — a caret drawn over a letter is a caret that
-        /// hides one — and because the layer above the text is where a future
-        /// Annotator's marks will want to be. GTK's own caret is not here to
-        /// be drawn over: `cursor-visible` is false for the widget's life.
+        /// The fill goes under the glyphs and the caret over them. Never both
+        /// at once: the caret is out for as long as a selection stands
+        /// ([ADR 0014](../../docs/adr/0014-a-selection-is-a-fill-and-nothing-else.md)),
+        /// so each layer is the other's idle frame.
         ///
-        /// The layer is snapshotted in buffer coordinates, which is what
+        /// The fill has to be under: the ink of a held word is the ink of any
+        /// other word, and a fill painted over it would tint it. The caret has
+        /// to be over. A bar is [`caret::width`] of the em and a glyph's left
+        /// side bearing can be less than that, so a bar standing on a boundary
+        /// meets the ink of the letter after it; drawn under, the letter is
+        /// rasterised straight through the bar and the two read as one mark,
+        /// which is what #147 reported as the caret "sitting on" the glyph.
+        /// Both the Parity oracle and iA Writer paint theirs over the ink —
+        /// `legacy/app/css/caret.css` puts `#caret-layer` above `#mirror`.
+        ///
+        /// This costs the layer above the text, where a future Annotator's
+        /// marks were going to go; they will have to sort against the caret
+        /// rather than assume the layer to themselves. GTK's own caret is not
+        /// here to be drawn over either way: `cursor-visible` is false for the
+        /// widget's life.
+        ///
+        /// Both layers are snapshotted in buffer coordinates, which is what
         /// `iter_location` answers in, so nothing is translated on the way.
         fn snapshot_layer(&self, layer: gtk::TextViewLayer, snapshot: gtk::Snapshot) {
             if layer == gtk::TextViewLayer::BelowText {
-                self.obj().draw_selection(&snapshot);
+                self.obj().draw_selection_fill(&snapshot);
+            }
+            if layer == gtk::TextViewLayer::AboveText {
                 self.obj().draw_caret(&snapshot);
             }
         }
@@ -237,14 +248,10 @@ glib::wrapper! {
 /// device pixels like everything else the caret's layer holds.
 struct Selection {
     /// One fill per display row the selection covers, top to bottom.
-    rows: Vec<caret::Bar>,
-    /// The bars bracketing the two ends: the same instrument as the caret, at
-    /// the same width and on the same band, so the eye can see exactly which
-    /// cells are held (`setEdge` in `legacy/app/js/caret.js`).
     ///
-    /// Two of them, unless an end is scrolled out of the band the rows are
-    /// built for, which is the one case that has none to draw.
-    ends: Vec<caret::Bar>,
+    /// The whole of it. A selection carries no bars at either end and no
+    /// caret: see [ADR 0014](../../docs/adr/0014-a-selection-is-a-fill-and-nothing-else.md).
+    rows: Vec<caret::Bar>,
 }
 
 impl Editor {
@@ -533,8 +540,11 @@ impl Editor {
     /// The bar at the caret now, in device pixels.
     ///
     /// The column comes from `iter_location`, which answers in the buffer
-    /// coordinates the layer is snapshotted in, nudged off the advance
-    /// boundary by [`caret::nudge`] before the machine snaps it.
+    /// coordinates the layer is snapshotted in, and is the advance boundary
+    /// itself: the bar stands on the boundary between two cells and is offset
+    /// from it by nothing. See [ADR 0013](../../docs/adr/0013-caret-on-the-advance-boundary.md)
+    /// for the 0.07 em that used to be added here and what measuring iA Writer
+    /// itself said about it.
     ///
     /// The band is the pitch, not the glyph, and it hangs from the row's
     /// baseline: `iter_location` gives the top of the box, the baseline is the
@@ -562,7 +572,7 @@ impl Editor {
         let scale = self.scale();
         let (y, h) = self.band(f64::from(row.y()));
         Some(caret::Bar {
-            x: (f64::from(row.x()) + caret::nudge(size)) * scale,
+            x: f64::from(row.x()) * scale,
             y,
             w: f64::from(caret::width(size)) * scale,
             h,
@@ -573,18 +583,17 @@ impl Editor {
     /// every mark on that row takes, and the height they all take.
     ///
     /// One function because the registration is the whole of the answer. The
-    /// caret, the selection's fill and the two bars at its ends are four boxes
-    /// that have to agree to the pixel — the `selection` state is judged on
-    /// exactly that — and four sites computing one band from the same three
-    /// numbers is four chances to disagree. `caret.js` has the same rule and
-    /// keeps it the same way: one `dy` at `:185`, read by the fill, both edges
-    /// and the caret alike.
+    /// caret and the selection's fill rows are boxes that have to agree to the
+    /// pixel — the `selection` state is judged on exactly that — and two sites
+    /// computing one band from the same three numbers are two chances to
+    /// disagree. `caret.js` has the same rule and keeps it the same way: one
+    /// `dy` at `:185`, read by the fill and the caret alike.
     ///
     /// The caller has already checked the pitch: a zero pitch here is a band
     /// of no height, which draws nothing rather than wrongly.
     /// The top is snapped here rather than left to the machine, which snaps
-    /// the caret's own on the way in ([`caret::Caret::moved`]). The fill and
-    /// the two ends never go through the machine, and a band left on a
+    /// the caret's own on the way in ([`caret::Caret::moved`]). The fill rows
+    /// never go through the machine, and a band left on a
     /// fraction of a device pixel is rasterised a row taller than it was cut,
     /// with a pale row standing in for the fraction — which is exactly the
     /// disagreement this function exists to prevent, one end of the band at a
@@ -621,11 +630,10 @@ impl Editor {
     /// of the document — and it is drawn, which a walk that spent its cap
     /// above the fold would not be.
     ///
-    /// An end whose row was clipped away has no bar. That is the oracle's rule
-    /// too (`firstEdge` and `lastEdge` are set only on the selection's own
-    /// first and last lines, and stay null otherwise), and it is the safe
-    /// answer rather than the tidy one: a bar at the end of whatever row the
-    /// walk stopped on is a mark in a place the selection does not end.
+    /// Rows are the whole of what is built: neither end is bracketed by a bar
+    /// and the caret is out while the selection stands (ADR 0014). So a
+    /// selection clipped at one end draws exactly what a selection clipped at
+    /// neither does, and the walk owes nothing to where it stopped.
     fn selection(&self) -> Option<Selection> {
         let (start, end) = self.buffer().selection_bounds()?;
         let pitch = f64::from(self.imp().pitch.get());
@@ -638,8 +646,6 @@ impl Editor {
         let top = f64::from(view.y()) - pitch * SELECTION_SLACK;
         let bottom = f64::from(view.y() + view.height()) + pitch * SELECTION_SLACK;
         let mut rows: Vec<caret::Bar> = Vec::new();
-        let mut head = None;
-        let mut tail = None;
         let mut at = start;
         if let Some(seen) = self.iter_at_location(0, top.max(0.0) as i32)
             && seen > at
@@ -703,12 +709,6 @@ impl Editor {
                 w: (caret::snap(right * scale) - x).max(0.0),
                 h,
             };
-            if at == start {
-                head = Some(row);
-            }
-            if stop >= end {
-                tail = Some(row);
-            }
             rows.push(row);
             if stop >= end {
                 break;
@@ -728,37 +728,12 @@ impl Editor {
         if rows.is_empty() {
             return None;
         }
-        // Outside the fill at both ends, which is `setEdge(edgeA, firstEdge,
-        // -M.w)` in `caret.js` and the oracle's own shot: the left bar ends
-        // where the fill begins and the right bar begins where it ends.
-        //
-        // iA's captures inset them instead, and this began that way, because
-        // that is what `msstore-win-04` shows: its two bars and its fill share
-        // a column span exactly. What that capture does not survive is our
-        // type. A bar is [`caret::width`] of the em and a glyph's left side
-        // bearing is less than that at 20 px, so an inset bar covers the
-        // bearing whole and lands on the stem of the letter it is meant to
-        // hold — round 4's critic read the two as one blue-black smear, with
-        // no clearance either end against the oracle's 2 px and 3 px. Outside,
-        // the bar stands in the gap before the cell, which is where the free
-        // caret stands too.
-        let w = f64::from(caret::width(size)) * scale;
-        let mut ends = Vec::with_capacity(2);
-        if let Some(first) = head {
-            ends.push(caret::Bar {
-                x: first.x - w,
-                w,
-                ..first
-            });
-        }
-        if let Some(last) = tail {
-            ends.push(caret::Bar {
-                x: last.x + last.w,
-                w,
-                ..last
-            });
-        }
-        Some(Selection { rows, ends })
+        // The fill and nothing else. Where the oracle sets a bar at each end
+        // (`setEdge` in `legacy/app/js/caret.js`) and the port inherited both,
+        // iA Writer for Mac — measured off the owner's captures of the running
+        // app — draws no bar at either end of a selection and no caret while
+        // one stands. ADR 0014 carries the measurements and what they cost.
+        Some(Selection { rows })
     }
 
     /// A change to the buffer is starting.
@@ -994,28 +969,20 @@ impl Editor {
         );
     }
 
-    /// Paints the selection: the fills, then the two bars at its ends.
+    /// Paints the selection, under the glyphs: the fill, which is all of it.
     ///
-    /// The fills go down first and the bars after, so that a row whose fill
-    /// reaches its neighbour's bar cannot paint over it. Both go under the
-    /// glyphs, which is the layer this is drawn in: the ink of a held word is
-    /// the ink of any other word, and a fill painted over it would tint it.
-    ///
-    /// The two ends are not the caret and do not blink. They are drawn at full
-    /// strength for as long as the selection stands, which is `place()` in
-    /// `legacy/app/js/caret.js` clearing the blink class and its timer the
-    /// moment a selection opens.
-    fn draw_selection(&self, snapshot: &gtk::Snapshot) {
+    /// One [`Editor::selection`] walk per frame, on the one layer. The walk is
+    /// bounded by the visible band and `MAX_ROWS`, and with no selection open
+    /// it is a `selection_bounds()?` and a return — which is every frame the
+    /// writer is only typing.
+    fn draw_selection_fill(&self, snapshot: &gtk::Snapshot) {
         let Some(selection) = self.selection() else {
             return;
         };
         let scale = self.scale();
-        let (fill, ends) = selection_paint(self.imp().caret.get().focused());
+        let fill = selection_fill(self.imp().caret.get().focused());
         for row in &selection.rows {
             draw_box(snapshot, &fill, *row, scale);
-        }
-        for bar in &selection.ends {
-            draw_box(snapshot, &ends, *bar, scale);
         }
     }
 
@@ -1032,8 +999,8 @@ impl Editor {
     /// The window this Editor is in became active, or stopped being.
     ///
     /// The one place the ghost is decided. The caret's machine drops to its
-    /// ghost alpha with the blink stopped, and the selection swaps to the idle
-    /// colour and ink ends with it, because a window that has lost focus should
+    /// ghost alpha with the blink stopped, and the selection's fill swaps to
+    /// the idle band, because a window that has lost focus should
     /// say where the writer was without shouting it. Both return on focus.
     ///
     /// The machine's own flag is the whole of the state: the selection is
@@ -1163,23 +1130,22 @@ fn channel(value: f64) -> f32 {
     value as f32
 }
 
-/// The two colours the selection is painted in: the fill, and the bars at its
-/// ends.
+/// The colour the selection's fill is painted in, which is the whole of the
+/// selection's paint since ADR 0014 took the end bars off it.
 ///
-/// The ends are the one place the selection parts company with the free caret.
-/// That keeps its blue when the window goes, at [`caret::GHOST`] of it, because
-/// a blue mark alone on a page reads as the place the writer left. Two blue
-/// ends on a grey block do not — `caret.css`'s comment says they read as a
-/// half-woken window — so they go to the colour of the ink they hold.
+/// A window that is not active keeps saying what is held, in the paler of the
+/// two bands `legacy/app/css/theme.css` sets — the fill is the only mark left
+/// to say it with, now that the free caret is out for as long as a selection
+/// stands and no bar brackets either end.
 ///
 /// A function of the one flag so that it can be checked without a window:
 /// `unfocused` is shot with nothing selected, so no judged state carries the
 /// idle band and the swap is only ever true here.
-fn selection_paint(focused: bool) -> (gdk::RGBA, gdk::RGBA) {
+fn selection_fill(focused: bool) -> gdk::RGBA {
     if focused {
-        (paint(Role::Selection, 1.0), paint(Role::Accent, 1.0))
+        paint(Role::Selection, 1.0)
     } else {
-        (paint(Role::SelectionIdle, 1.0), paint(Role::Ink, IDLE_ENDS))
+        paint(Role::SelectionIdle, 1.0)
     }
 }
 
@@ -1310,9 +1276,9 @@ pub fn install_type(face: Face, size: u32) {
 /// there is nothing to read.
 ///
 /// The selection rule is here to take GTK's ground away and nothing else. The
-/// band belongs to [`Editor::selection`], which draws it off the same band as
-/// the bar so the fill and the two ends register exactly; a ground painted
-/// here as well would be a second, differently rounded rectangle under it. The
+/// band belongs to [`Editor::selection`], which cuts it off the same band the
+/// caret is cut from so the two register exactly; a ground painted here as
+/// well would be a second, differently rounded rectangle under it. The
 /// `color` stays, for the same reason the ink is named twice above: clearing
 /// the ground alone leaves the selected glyphs to the desktop theme.
 fn stylesheet(face: Face, size: u32) -> String {
@@ -1379,7 +1345,7 @@ mod tests {
         );
     }
 
-    /// The band and its two ends both swap when the window goes.
+    /// The band swaps when the window goes.
     ///
     /// Held here because no shot can hold it, which is why the stylesheet used
     /// to hold it: `caret/unfocused` is shot with `select: null`, so the one
@@ -1387,24 +1353,15 @@ mod tests {
     /// be idle. The swap moved from the stylesheet to the paint when the
     /// selection became ours, and the check moves with it.
     #[test]
-    fn the_selection_and_its_ends_go_idle_with_the_window() {
-        let (fill, ends) = selection_paint(true);
-        let (idle_fill, idle_ends) = selection_paint(false);
+    fn the_selection_goes_idle_with_the_window() {
+        let fill = selection_fill(true);
+        let idle = selection_fill(false);
         assert_eq!(
-            (fill, ends),
-            (paint(Role::Selection, 1.0), paint(Role::Accent, 1.0)),
-            "an active window is the oracle's --selection under the caret's own blue"
+            fill,
+            paint(Role::Selection, 1.0),
+            "an active window is the oracle's --selection"
         );
-        assert_ne!(fill, idle_fill, "the band did not go idle");
-        assert_ne!(ends, idle_ends, "the ends did not go idle");
-        // Ink, and not a paler accent: this is the one place the ends leave
-        // the caret's blue behind, where the free caret keeps it and only
-        // drops to its ghost.
-        assert_eq!(idle_ends, paint(Role::Ink, IDLE_ENDS));
-        assert_ne!(
-            idle_ends.red(),
-            paint(Role::Accent, 1.0).red(),
-            "the ends stayed on the accent"
-        );
+        assert_ne!(fill, idle, "the band did not go idle");
+        assert_eq!(idle, paint(Role::SelectionIdle, 1.0));
     }
 }
