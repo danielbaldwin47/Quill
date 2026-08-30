@@ -6,7 +6,7 @@ Each ported Piece is its own feature ticket, closed by the owner's `hand test: p
 
 **Type**: 1. Read a paragraph in Duo at the default size; lines are crisp and the leading reads about 1.7×. 2. Switch to Quattro, then Mono; each renders in its own face, none oblique. 3. Step the size up and down; the leading scales with it. 4. A bold and an italic word sit on the same baseline as their neighbours.
 
-**Cursor and caret**: 1. Click into text; the caret is a single blue bar the full line height. 2. Type; the bar moves with the text, and the blink pauses while typing and resumes after. 3. Select a word by drag and by Shift+arrows; the selection is one continuous band beneath the glyphs with a bar at each end, the same height as the band, and the caret is hidden while the selection stands. 4. Click another window; the caret shows its unfocused state.
+**Cursor and caret**: 1. Click into text; the caret is a single blue bar the full line height. 2. Type; the bar moves with the text, and the blink pauses while typing and resumes after. 3. Select a word by drag and by Shift+arrows; the selection is one continuous band beneath the glyphs, with no bar at either end and no caret anywhere while it stands (ADR 0014). 4. Click another window; the caret shows its unfocused state.
 
 **Focus and typewriter**: 1. Turn Focus on; everything outside the current sentence dims, the caret sentence stays full ink. 2. Type past a full stop; the dim moves with the sentence. 3. Switch scope to paragraph; the whole paragraph is lit. 4. Turn Typewriter on and type a screen of text; the caret line holds its vertical position.
 
