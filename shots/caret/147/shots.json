@@ -1,0 +1,122 @@
+[
+ {
+  "out": "shots/caret/147/s1base-caret.png",
+  "sha": "3725256cefed452b55aebc7bc3c991aff8ec6493cf57b35353e9be3179b0578a"
+ },
+ {
+  "out": "shots/caret/147/s1base-selection.png",
+  "sha": "d545668e116dfefa51235a71b0289d719ab0f811b3d2ef9aeabbc55147e1fc69"
+ },
+ {
+  "out": "shots/caret/147/s1base-unfocused.png",
+  "sha": "f45a8df5650fb77eac4e6001199ada384c7171b0391b332c2861f4d886687952"
+ },
+ {
+  "out": "shots/caret/147/s1base-jump-caret.png",
+  "sha": "f1309f974e853c8fdad597f2e1baa442eeb405655989b65c959ff272f709d47d"
+ },
+ {
+  "out": "shots/caret/147/s1base-jump-select.png",
+  "sha": "8a231757392ca6c93a2b95c21a7b07b1c242d05b06360674fedfc92272893748"
+ },
+ {
+  "out": "shots/caret/147/s1-caret.png",
+  "sha": "3725256cefed452b55aebc7bc3c991aff8ec6493cf57b35353e9be3179b0578a"
+ },
+ {
+  "out": "shots/caret/147/s1-selection.png",
+  "sha": "d545668e116dfefa51235a71b0289d719ab0f811b3d2ef9aeabbc55147e1fc69"
+ },
+ {
+  "out": "shots/caret/147/s1-unfocused.png",
+  "sha": "f45a8df5650fb77eac4e6001199ada384c7171b0391b332c2861f4d886687952"
+ },
+ {
+  "out": "shots/caret/147/s1-jump-caret.png",
+  "sha": "f1309f974e853c8fdad597f2e1baa442eeb405655989b65c959ff272f709d47d"
+ },
+ {
+  "out": "shots/caret/147/s1-jump-select.png",
+  "sha": "8a231757392ca6c93a2b95c21a7b07b1c242d05b06360674fedfc92272893748"
+ },
+ {
+  "out": "shots/caret/147/s2-caret.png",
+  "sha": "206f1de03d1900e0f1f1be95ff53e2020b0e743685e1a286f260e0fd70f4e62a"
+ },
+ {
+  "out": "shots/caret/147/s2-selection.png",
+  "sha": "d545668e116dfefa51235a71b0289d719ab0f811b3d2ef9aeabbc55147e1fc69"
+ },
+ {
+  "out": "shots/caret/147/s2-unfocused.png",
+  "sha": "52eaade66173ca7f0b5b1e72383d7f2c812ef9bd9403577943e43eb285fafa62"
+ },
+ {
+  "out": "shots/caret/147/s2-jump-caret.png",
+  "sha": "9dffa7740d5d18dc3afe0ee9789754428d22074e9e3838c9b995387858318da7"
+ },
+ {
+  "out": "shots/caret/147/s2-jump-select.png",
+  "sha": "8a231757392ca6c93a2b95c21a7b07b1c242d05b06360674fedfc92272893748"
+ },
+ {
+  "out": "shots/caret/147/s3-caret.png",
+  "sha": "3725256cefed452b55aebc7bc3c991aff8ec6493cf57b35353e9be3179b0578a"
+ },
+ {
+  "out": "shots/caret/147/s3-selection.png",
+  "sha": "8dde06faf73d9d3d614d885e2b857144ace9fadcbbcb81a001a9a2356e7fff1c"
+ },
+ {
+  "out": "shots/caret/147/s3-unfocused.png",
+  "sha": "f45a8df5650fb77eac4e6001199ada384c7171b0391b332c2861f4d886687952"
+ },
+ {
+  "out": "shots/caret/147/s3-jump-caret.png",
+  "sha": "f1309f974e853c8fdad597f2e1baa442eeb405655989b65c959ff272f709d47d"
+ },
+ {
+  "out": "shots/caret/147/s3-jump-select.png",
+  "sha": "e2227788cf018064f98442b814ef6f308d4dd0a261079290cfab7c506fe14340"
+ },
+ {
+  "out": "shots/caret/147/s4-caret.png",
+  "sha": "206f1de03d1900e0f1f1be95ff53e2020b0e743685e1a286f260e0fd70f4e62a"
+ },
+ {
+  "out": "shots/caret/147/s4-selection.png",
+  "sha": "57f46735ba4915b5653f24a793dd9e48ea5c0d0f630ba91bae5d725bf938b8df"
+ },
+ {
+  "out": "shots/caret/147/s4-unfocused.png",
+  "sha": "52eaade66173ca7f0b5b1e72383d7f2c812ef9bd9403577943e43eb285fafa62"
+ },
+ {
+  "out": "shots/caret/147/s4-jump-caret.png",
+  "sha": "9dffa7740d5d18dc3afe0ee9789754428d22074e9e3838c9b995387858318da7"
+ },
+ {
+  "out": "shots/caret/147/s4-jump-select.png",
+  "sha": "8b3cf243fb23185af812216652968f66b4b5f022f106a5a9c39feff0ae3c0c4d"
+ },
+ {
+  "out": "shots/caret/147/s5-caret.png",
+  "sha": "3725256cefed452b55aebc7bc3c991aff8ec6493cf57b35353e9be3179b0578a"
+ },
+ {
+  "out": "shots/caret/147/s5-selection.png",
+  "sha": "d545668e116dfefa51235a71b0289d719ab0f811b3d2ef9aeabbc55147e1fc69"
+ },
+ {
+  "out": "shots/caret/147/s5-unfocused.png",
+  "sha": "f45a8df5650fb77eac4e6001199ada384c7171b0391b332c2861f4d886687952"
+ },
+ {
+  "out": "shots/caret/147/s5-jump-caret.png",
+  "sha": "102982de88d37f400e6c220c0d0b5cbd7fd32ffa48c76881f0c898c42fccb76d"
+ },
+ {
+  "out": "shots/caret/147/s5-jump-select.png",
+  "sha": "8a231757392ca6c93a2b95c21a7b07b1c242d05b06360674fedfc92272893748"
+ }
+]

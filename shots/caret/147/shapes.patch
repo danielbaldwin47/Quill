@@ -1,0 +1,164 @@
+diff --git i/quill/src/editor.rs w/quill/src/editor.rs
+index e4822d2..92de43d 100644
+--- i/quill/src/editor.rs
++++ w/quill/src/editor.rs
+@@ -34,6 +34,32 @@ use crate::caret;
+ use crate::flags;
+ use crate::tags;
+ 
++// THROWAWAY (#147). The four shapes of the caret's column, chosen by
++// `QUILL_CARET_SHAPE` so one build can be shot at all of them: 1 as-is
++// (the default, and byte-identical to the unpatched build), 2 the free
++// caret without `caret::NUDGE`, 3 the selection's end bars placed where
++// the free caret would stand at that end's offset, 4 both. This never
++// lands — the branch reverts it before it is committed.
++fn shape_147() -> u8 {
++    std::env::var("QUILL_CARET_SHAPE")
++        .ok()
++        .and_then(|s| s.parse().ok())
++        .unwrap_or(1)
++}
++
++// The nudge the free caret carries under the shape being shot: none under 2
++// and 4, `caret::NUDGE` under 1 and 3. Shape 3's end bars stand where the free
++// caret would stand at their offset, so they read this too — which is what
++// makes 4 coherent: drop the nudge for the caret and the bars drop it with it,
++// and the mark still does not move when a selection starts.
++fn caret_nudge_147(size: u32) -> f64 {
++    if matches!(shape_147(), 2 | 4) {
++        0.0
++    } else {
++        caret::nudge(size)
++    }
++}
++
+ /// The CSS class the Editor's type is named on.
+ const FACE_CLASS: &str = "quill-editor";
+ 
+@@ -216,8 +242,17 @@ mod imp {
+         /// The layer is snapshotted in buffer coordinates, which is what
+         /// `iter_location` answers in, so nothing is translated on the way.
+         fn snapshot_layer(&self, layer: gtk::TextViewLayer, snapshot: gtk::Snapshot) {
++            // THROWAWAY (#147): shape 5 is the oracle's paint order — the
++            // fill below the ink, the caret and the end bars above it.
++            let above = super::shape_147() == 5;
+             if layer == gtk::TextViewLayer::BelowText {
+-                self.obj().draw_selection(&snapshot);
++                self.obj().draw_selection_147(&snapshot, true, !above);
++                if !above {
++                    self.obj().draw_caret(&snapshot);
++                }
++            }
++            if above && layer == gtk::TextViewLayer::AboveText {
++                self.obj().draw_selection_147(&snapshot, false, true);
+                 self.obj().draw_caret(&snapshot);
+             }
+         }
+@@ -551,6 +586,9 @@ impl Editor {
+     /// has more air inside its own box than any other.
+     ///
+     /// `None` before the type has been set, when there is no band to speak of.
++    // THROWAWAY (#147): picks the caret-column shape the evidence sheets are
++    // shot at. 1 as-is, 2 free caret without the nudge, 3 end bars nudged,
++    // 4 both. Never landed — reverted before this branch is committed.
+     fn bar(&self) -> Option<caret::Bar> {
+         let pitch = self.imp().pitch.get();
+         if pitch == 0 {
+@@ -562,7 +600,7 @@ impl Editor {
+         let scale = self.scale();
+         let (y, h) = self.band(f64::from(row.y()));
+         Some(caret::Bar {
+-            x: (f64::from(row.x()) + caret::nudge(size)) * scale,
++            x: (f64::from(row.x()) + caret_nudge_147(size)) * scale,
+             y,
+             w: f64::from(caret::width(size)) * scale,
+             h,
+@@ -640,6 +678,8 @@ impl Editor {
+         let mut rows: Vec<caret::Bar> = Vec::new();
+         let mut head = None;
+         let mut tail = None;
++        let mut head_left = 0.0_f64;
++        let mut tail_right = 0.0_f64;
+         let mut at = start;
+         if let Some(seen) = self.iter_at_location(0, top.max(0.0) as i32)
+             && seen > at
+@@ -705,9 +745,11 @@ impl Editor {
+             };
+             if at == start {
+                 head = Some(row);
++                head_left = left;
+             }
+             if stop >= end {
+                 tail = Some(row);
++                tail_right = right;
+             }
+             rows.push(row);
+             if stop >= end {
+@@ -743,20 +785,23 @@ impl Editor {
+         // the bar stands in the gap before the cell, which is where the free
+         // caret stands too.
+         let w = f64::from(caret::width(size)) * scale;
++        let nudged_ends = matches!(shape_147(), 3 | 4);
+         let mut ends = Vec::with_capacity(2);
+         if let Some(first) = head {
+-            ends.push(caret::Bar {
+-                x: first.x - w,
+-                w,
+-                ..first
+-            });
++            let x = if nudged_ends {
++                caret::snap((head_left + caret_nudge_147(size)) * scale)
++            } else {
++                first.x - w
++            };
++            ends.push(caret::Bar { x, w, ..first });
+         }
+         if let Some(last) = tail {
+-            ends.push(caret::Bar {
+-                x: last.x + last.w,
+-                w,
+-                ..last
+-            });
++            let x = if nudged_ends {
++                caret::snap((tail_right + caret_nudge_147(size)) * scale)
++            } else {
++                last.x + last.w
++            };
++            ends.push(caret::Bar { x, w, ..last });
+         }
+         Some(Selection { rows, ends })
+     }
+@@ -1006,16 +1051,29 @@ impl Editor {
+     /// `legacy/app/js/caret.js` clearing the blink class and its timer the
+     /// moment a selection opens.
+     fn draw_selection(&self, snapshot: &gtk::Snapshot) {
++        self.draw_selection_147(snapshot, true, true);
++    }
++
++    // THROWAWAY (#147). Shape 5 paints the caret and the two end bars over the
++    // ink and leaves the fill under it, which is the oracle's own order —
++    // `caret.css` names three layers, `#sel-layer` beneath `#mirror` and
++    // `#caret-layer` above it. Ours puts all three below, so a glyph is drawn
++    // over our bar and the oracle's bar is drawn over the glyph.
++    fn draw_selection_147(&self, snapshot: &gtk::Snapshot, fills: bool, bars: bool) {
+         let Some(selection) = self.selection() else {
+             return;
+         };
+         let scale = self.scale();
+         let (fill, ends) = selection_paint(self.imp().caret.get().focused());
+-        for row in &selection.rows {
+-            draw_box(snapshot, &fill, *row, scale);
++        if fills {
++            for row in &selection.rows {
++                draw_box(snapshot, &fill, *row, scale);
++            }
+         }
+-        for bar in &selection.ends {
+-            draw_box(snapshot, &ends, *bar, scale);
++        if bars {
++            for bar in &selection.ends {
++                draw_box(snapshot, &ends, *bar, scale);
++            }
+         }
+     }
+ 
