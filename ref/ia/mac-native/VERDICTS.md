@@ -15,6 +15,10 @@ One row per claim in `ref/ia/REFERENCE.md` §§ 3.5, 4.1 and 4.2 and in
 "Still unknown" is used two ways and they are marked apart: a claim these states **cannot** decide
 (a quotation's provenance), and a claim they simply **did not cover** (the syntax palette).
 
+A short **§ 4.3** block follows § 4.2. It is beyond the sections #154 asks for, and it is here
+because three Preview frames were added after the fifteen states at the owner's ask and they bear on
+that section.
+
 ---
 
 ## REFERENCE.md § 3.5 — Caret
@@ -71,6 +75,20 @@ One row per claim in `ref/ia/REFERENCE.md` §§ 3.5, 4.1 and 4.2 and in
 | 4.2.13 | Wikilink brackets, link, content-block chip, autocomplete popup, library list | **still unknown** — not covered by these states | — | — |
 | 4.2.14 | Syntax colours (verbs, adjectives, adverbs, conjunctions, nouns) | **still unknown** — not covered; Syntax was off for every state by the ticket's Method | — | — |
 | 4.2.15 | Authorship author colours | **still unknown** — not covered; Authors were hidden for every state | — | — |
+
+## REFERENCE.md § 4.3 — Preview template
+
+Beyond the sections #154 asks for. Three Preview frames were added after the fifteen states, at the
+owner's ask, and they touch this section, so what they settle is listed rather than left loose.
+
+| # | Claim | Verdict | Measured | Capture |
+|---|---|---|---|---|
+| 4.3.1 | The built-in Modern / Classic / Academic template CSS ships only inside the bundle and is not public (GAP) | **still unknown** — the captures render the template, they do not open it | — | 16-preview-full |
+| 4.3.2 | `Example.iatemplate`'s public `style.css` is 0 bytes; `GitHub.iatemplate` carries the real values | **still unknown** — not covered; nothing here reads the public template repo | — | — |
+| 4.3.3 | Preview classes `night-mode`, `mac`, `content-size-*` | **still unknown** — not covered; the DOM was not opened | — | — |
+| — | *(no claim)* the Web preview's paper | **now measured** | **#101010**, a distinctly darker ground than the editor's `#1a1a1a` | 16-preview-full |
+| — | *(no claim)* rendered heading alignment | **now measured** | **centred** — ink centre 1627.0 against a window centre of 1624.0, where the editor left-aligns a heading on the body column | 16-preview-full |
+| — | *(no claim)* PDF preview against Dark Mode | **now measured** | the **whole window goes light** with Dark Mode still on — toolbar `#ffffff`, surround `#f7f7f7` — where the Web preview stays dark | 16-preview-pdf-full |
 
 ## ADR 0012 — The Editor draws its own selection
 
@@ -134,3 +152,6 @@ listed so the triage can see them, not because anything asks for them.
 | Typewriter mode holds the caret line at the **vertical centre** of the window | mid-point 948.0 of 1898 = 49.9 % | 15-dark |
 | **Typewriter is a value of the Focus scope popup**, alongside Sentence and Paragraph — not a separate mode | Settings → Editor | Settings |
 | Past text-size step 7 the 78-cell container exceeds a 1512 pt window, so the column is window-limited rather than 64-cell limited | 78 × cell > 3024 px | 11-08 … 11-13 |
+| Split view divides the window **evenly**, and the two panes carry **different papers** — the editor's `#1a1a1a` beside the preview's `#101010` | divider x 1621 = 49.9 % | 16-preview-split |
+| In the rendered preview the Markdown markers are gone entirely — no `#`, no `**`, and the `-` list becomes real bullets — so the hanging-marker gutter has no counterpart there | — | 16-preview-full, 16-preview-split |
+| The PDF preview paginates: the page is centred, 1323 px wide, with a page number at its foot (its height is clipped by the viewport and cannot be read) | page x 962 … 2284, centre 1623.0 | 16-preview-pdf-full |

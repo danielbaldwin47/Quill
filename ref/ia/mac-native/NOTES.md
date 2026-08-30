@@ -370,6 +370,69 @@ y 912 … 984, **mid-point y = 948.0 of a 1898 px window — 49.9 %**.
 
 **The caret line is held at the vertical centre of the window.**
 
+## State 16 — Preview: the rendered Markdown, and the split
+
+`mac-native-16-dark-preview-full.png`, `mac-native-16-dark-preview-split.png`,
+`mac-native-16-dark-preview-pdf-full.png`
+
+Not one of the ticket's fifteen states. The owner asked for them afterwards, as reference for what
+the app makes of the Markdown it has been showing as source all through the states above. All three
+are **the owner's own captures** — the window plus macOS's drop shadow, at the same 2× scale, so the
+window content sits at x 111 … 3136, y 75 … 1987 (3026 × 1913) and its centre is x 1624.0. The
+document is the same sample passage; the template is the app's own **Modern (Sans)**; Dark Mode is
+**on** for all three.
+
+### Web preview, Full
+
+| | measured |
+|---|---|
+| preview paper | **#101010** |
+| toolbar | #181818 |
+| footer | #101010 |
+| heading `The Lighthouse` ink | x 1452 … 1802, centre **1627.0** against a window centre of **1624.0** |
+
+Two things the editor does not do:
+
+- **The preview's paper is `#101010`, not the editor's `#1a1a1a`.** The rendered page is a distinctly
+  darker ground than the pane the source is typed into.
+- **Headings are centred.** In the editor a heading is left-aligned on the body column with its
+  marker hanging into the gutter; rendered, it is centred in the measure — 3 px off the window's own
+  centre, which is the glyph rounding.
+
+The markers themselves are gone: `#`, `##`, `**` and `*` do not appear, the emphasis is carried by
+weight and slope, and the `-` list becomes real bullets. The face is proportional, not Mono.
+
+### Web preview, Split
+
+| | measured |
+|---|---|
+| divider | x **1621** — **49.9 %** across the window, an even split |
+| left (editor) pane ground | **#1a1a1a** |
+| right (preview) pane ground | **#101010** |
+| editor pane ink span | x 145 … 1501 (w 1357) |
+| preview pane ink span | x 1769 … 2977 (w 1209) |
+
+The split is the clearest single frame in this whole set for what the editor is and is not: the same
+paragraph in Mono with its markers showing on the left, proportional and rendered on the right, and
+**the two panes carry different papers** — `#1a1a1a` against `#101010` — side by side in one window.
+
+### PDF preview, Full
+
+| | measured |
+|---|---|
+| toolbar | **#ffffff** |
+| surround | **#f7f7f7** |
+| page | white, x 962 … 2284, **width 1323**, centre **1623.0** |
+
+**The whole window goes light, with Dark Mode still on.** Web preview honours the dark appearance
+and PDF preview does not: it renders paper as paper, and takes the toolbar, the surround and the
+footer with it. The page is centred in the window and paginated — the page number `1` sits at its
+foot.
+
+The page's *height* cannot be read from this capture: its top edge is flush against the toolbar, so
+the sheet is clipped by the viewport and no paper size can be fitted to it. Only its width and its
+centring are measured here.
+
 ## Window chrome
 
 From `mac-native-00-dark-window-chrome.png`, the whole window with its alpha kept: all four corners
