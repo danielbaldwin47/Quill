@@ -1,16 +1,18 @@
-# THROWAWAY (#147): measures the caret's column off a judged shot.
-#
-# The numbers the ticket asks for are all in one row band: where each
-# full-opacity bar starts and how wide it is, where the selection's fill
-# begins and ends, and how far the nearest glyph ink is either side. So this
-# asks ImageMagick for the bounding box of the caret blue, crops that band,
-# and classifies the band's pixels in Python — the images themselves are never
-# looked at, only the numbers that come out.
-#
-#   python3 tools/measure147.py <shot.png> [<shot.png> ...]
-#
-# Prints one block per shot, and a JSON summary on the last line for the sheet
-# builder to read.
+#!/usr/bin/env python3
+"""THROWAWAY (#147): measures the caret's column off a judged shot.
+
+The numbers the ticket asks for are all in one row band: where each
+full-opacity bar starts and how wide it is, where the selection's fill begins
+and ends, and how far the nearest glyph ink is either side. So this asks
+ImageMagick for the bounding box of the caret blue, crops that band, and
+classifies the band's pixels in Python — the images themselves are never
+looked at, only the numbers that come out.
+
+    python3 shots/caret/147/measure147.py <shot.png> [<shot.png> ...]
+
+Prints one block per shot, then a JSON line carrying the same numbers with
+nothing rounded away, for a reader who wants them un-formatted.
+"""
 import json
 import subprocess
 import sys

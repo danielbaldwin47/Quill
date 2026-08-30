@@ -6,6 +6,10 @@
 # a number: shape 1 against round 6 (must be 0 — the same build, the same
 # stage), shape 1 against the frozen oracle (the margin the Piece already
 # wins at), and every other shape against shape 1 (what that shape moves).
+#
+# Run from the repo root, after the shots are taken:
+#
+#   bash shots/caret/147/verify147.sh
 set -u
 D=shots/caret/147
 ae() { printf '%-52s %s\n' "$1" "$(compare -metric AE "$2" "$3" null: 2>&1 | cut -d' ' -f1)"; }

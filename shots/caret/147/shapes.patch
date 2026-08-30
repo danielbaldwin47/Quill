@@ -1,5 +1,5 @@
 diff --git i/quill/src/editor.rs w/quill/src/editor.rs
-index e4822d2..92de43d 100644
+index e4822d2..c962172 100644
 --- i/quill/src/editor.rs
 +++ w/quill/src/editor.rs
 @@ -34,6 +34,32 @@ use crate::caret;
@@ -54,17 +54,18 @@ index e4822d2..92de43d 100644
                  self.obj().draw_caret(&snapshot);
              }
          }
-@@ -551,6 +586,9 @@ impl Editor {
+@@ -551,6 +586,10 @@ impl Editor {
      /// has more air inside its own box than any other.
      ///
      /// `None` before the type has been set, when there is no band to speak of.
 +    // THROWAWAY (#147): picks the caret-column shape the evidence sheets are
 +    // shot at. 1 as-is, 2 free caret without the nudge, 3 end bars nudged,
-+    // 4 both. Never landed — reverted before this branch is committed.
++    // 4 both, 5 the oracle's paint order. Never landed — reverted before this
++    // branch is committed.
      fn bar(&self) -> Option<caret::Bar> {
          let pitch = self.imp().pitch.get();
          if pitch == 0 {
-@@ -562,7 +600,7 @@ impl Editor {
+@@ -562,7 +601,7 @@ impl Editor {
          let scale = self.scale();
          let (y, h) = self.band(f64::from(row.y()));
          Some(caret::Bar {
@@ -73,7 +74,7 @@ index e4822d2..92de43d 100644
              y,
              w: f64::from(caret::width(size)) * scale,
              h,
-@@ -640,6 +678,8 @@ impl Editor {
+@@ -640,6 +679,8 @@ impl Editor {
          let mut rows: Vec<caret::Bar> = Vec::new();
          let mut head = None;
          let mut tail = None;
@@ -82,7 +83,7 @@ index e4822d2..92de43d 100644
          let mut at = start;
          if let Some(seen) = self.iter_at_location(0, top.max(0.0) as i32)
              && seen > at
-@@ -705,9 +745,11 @@ impl Editor {
+@@ -705,9 +746,11 @@ impl Editor {
              };
              if at == start {
                  head = Some(row);
@@ -94,7 +95,7 @@ index e4822d2..92de43d 100644
              }
              rows.push(row);
              if stop >= end {
-@@ -743,20 +785,23 @@ impl Editor {
+@@ -743,20 +786,23 @@ impl Editor {
          // the bar stands in the gap before the cell, which is where the free
          // caret stands too.
          let w = f64::from(caret::width(size)) * scale;
@@ -128,7 +129,7 @@ index e4822d2..92de43d 100644
          }
          Some(Selection { rows, ends })
      }
-@@ -1006,16 +1051,29 @@ impl Editor {
+@@ -1006,16 +1052,29 @@ impl Editor {
      /// `legacy/app/js/caret.js` clearing the blink class and its timer the
      /// moment a selection opens.
      fn draw_selection(&self, snapshot: &gtk::Snapshot) {

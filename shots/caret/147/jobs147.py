@@ -1,18 +1,21 @@
-# THROWAWAY (#147): writes the shot list `tools/shoot147.mjs` reads.
-#
-# Four shapes of the caret's column x four shots: the two judged states the
-# Piece is won on, and the "jump" pair the ticket measured its 9 device px on.
-# Shape 1 is shot twice — once from the unpatched binary saved before the
-# geometry patch, once from the patched one with no shape asked for — so the
-# sheets can show that the switch itself moves no pixels.
-#
-#   python3 shots/caret/147/jobs147.py <jobs.json> [<unpatched binary>]
-#
-# The unpatched binary is the one built before `shapes.patch` was applied; it
-# is what shape 1 is shot from, so that the shots the sheets call "as-is" came
-# from code with none of the patch in it. Without one, shape 1 is shot from the
-# patched build with no shape asked for, which the verify script shows is the
-# same pixels either way.
+#!/usr/bin/env python3
+"""THROWAWAY (#147): writes the shot list `shoot147.mjs` reads.
+
+Five shapes of the caret's column across four states: the three the Piece is
+judged on (`caret`, `selection`, `unfocused`) and the "jump" pair the ticket
+measured its 9 device px on, which is two shots of one condition. Shape 1 is
+shot twice — once from the unpatched binary saved before the geometry patch,
+once from the patched one with no shape asked for — so the sheets can show that
+the switch itself moves no pixels.
+
+    python3 shots/caret/147/jobs147.py <jobs.json> [<unpatched binary>]
+
+The unpatched binary is the one built before `shapes.patch` was applied; it is
+what shape 1 is shot from, so that the shots the sheets call "as-is" came from
+code with none of the patch in it. Without one, shape 1 is shot from the
+patched build with no shape asked for, which `verify147.sh` shows is the same
+pixels either way.
+"""
 import json
 import os
 import sys

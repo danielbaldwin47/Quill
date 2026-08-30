@@ -9,10 +9,12 @@
 //
 //   node shots/caret/147/shoot147.mjs <jobs.json>
 //
-// Each job: { bin, out, flags, active }, where `flags` is a resolved state in
-// `shots/oracle/states.json`'s own vocabulary and `env` is merged into the
-// launch. One stage for the whole run: `openStage` is serial, and reopening it
-// per shot would cost the owner's focus once per job.
+// Each job: { bin, out, flags, active, env }, where `flags` is a resolved
+// state in `shots/oracle/states.json`'s own vocabulary and `env` is merged into
+// the launch — which is how the shape is chosen, `QUILL_CARET_SHAPE` being an
+// environment variable rather than a flag the app has got. One stage for the
+// whole run: `openStage` is serial, and reopening it per shot would cost the
+// owner's focus once per job.
 
 import fs from 'node:fs';
 import path from 'node:path';
