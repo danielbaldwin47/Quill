@@ -1,0 +1,103 @@
+{
+  "piece": "caret",
+  "round": 6,
+  "winner": "ours",
+  "margin": "slight",
+  "gap": "The caret splits the 29px word space 6px left / 18px right (3 CSS px from the 's' of 'steps', 9 CSS px before the 't' of 'the') — a 1:3 lopsided straddle of the insertion cell versus B's 7/16 (1:2.3), so it reads glued to the preceding word with a visible void after it.",
+  "gapTheirs": "B's body glyphs are rendered ~0.5px off the vertical pixel grid — baseline bleeds into an extra row (row 1057:257 → 1058:60 ink px, versus A's clean 1057:236 → 1058:3), and ascender tops start a row early — while the caret is a hard, unantialiased 6×72px bar, so the caret is the only crisp vertical in a line of half-pixel-soft stems; B also sets it 1px (0.5 CSS px) further right, 7px clear of the 's' instead of 6.",
+  "verdict": "This is a coin-flip decided by half a pixel, which is a damning thing to have to say about two carets. Both are the same 3×36 CSS px slab of #00B5FF with square ends and zero antialiasing — the same instrument, not two designs. A wins only because its stems and its caret land on the same pixel grid, so the caret's top edge and the ascenders agree; in B the glyphs sit a half-pixel low and slightly fogged at the baseline, so the hard blue bar looks pasted onto the line rather than standing in it. Neither shows a selection at all, so half of what was supposed to be judged here simply isn't on screen.",
+  "oursShot": "shots/caret/r6-caret-ours.png",
+  "theirsShot": "shots/oracle/caret/caret.png",
+  "refSource": "shots/oracle/caret/ — the Parity oracle frozen by tools/gate oracle caret from legacy/app 738f48c969965ac3 with legacy/tools/shoot.mjs b2362316db135d06",
+  "builderNote": "",
+  "secondary": [
+    "Both images 2880x1800; caret is identical #00B5FF in both, 6x72 device px = 3x36 CSS px at 2x",
+    "Caret spans the full 72px line box while the line's ink (ascender to descender) is only ~37px — ~19px of blue above the cap line and ~16px below the descenders in both; a bar, not a hairline",
+    "Neither caret has antialiased or rounded caps: hard 6px-wide fully-saturated column, top and bottom edges cut flat",
+    "No selection is present in either screenshot — selection colour is unjudgeable",
+    "No current-line highlight in either; the caret is the sole focus indicator on a flat #F9F9F9 field",
+    "Static PNGs: blink rate, blink curve and caret motion between positions cannot be assessed in either",
+    "#00B5FF against #F9F9F9 is a saturated cyan at roughly 3:1 — loud next to near-black monospace, identical in both, so it decides nothing",
+    "Character advance measures 24 device px (12 CSS px) in both; the true cell boundary after 's' falls at ~x1896, so A's caret at 1899 and B's at 1900 both sit 3–4px right of the insertion point rather than on it"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "5008e1d",
+    "binary": "0e100af1ae4c471e",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "caret",
+      "ours": "shots/caret/r6-caret-ours.png",
+      "theirs": "shots/oracle/caret/caret.png",
+      "blind": "shots/blind/caret/caret",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "The caret splits the 29px word space 6px left / 18px right (3 CSS px from the 's' of 'steps', 9 CSS px before the 't' of 'the') — a 1:3 lopsided straddle of the insertion cell versus B's 7/16 (1:2.3), so it reads glued to the preceding word with a visible void after it.",
+      "gapTheirs": "B's body glyphs are rendered ~0.5px off the vertical pixel grid — baseline bleeds into an extra row (row 1057:257 → 1058:60 ink px, versus A's clean 1057:236 → 1058:3), and ascender tops start a row early — while the caret is a hard, unantialiased 6×72px bar, so the caret is the only crisp vertical in a line of half-pixel-soft stems; B also sets it 1px (0.5 CSS px) further right, 7px clear of the 's' instead of 6.",
+      "verdict": "This is a coin-flip decided by half a pixel, which is a damning thing to have to say about two carets. Both are the same 3×36 CSS px slab of #00B5FF with square ends and zero antialiasing — the same instrument, not two designs. A wins only because its stems and its caret land on the same pixel grid, so the caret's top edge and the ascenders agree; in B the glyphs sit a half-pixel low and slightly fogged at the baseline, so the hard blue bar looks pasted onto the line rather than standing in it. Neither shows a selection at all, so half of what was supposed to be judged here simply isn't on screen.",
+      "secondary": [
+        "Both images 2880x1800; caret is identical #00B5FF in both, 6x72 device px = 3x36 CSS px at 2x",
+        "Caret spans the full 72px line box while the line's ink (ascender to descender) is only ~37px — ~19px of blue above the cap line and ~16px below the descenders in both; a bar, not a hairline",
+        "Neither caret has antialiased or rounded caps: hard 6px-wide fully-saturated column, top and bottom edges cut flat",
+        "No selection is present in either screenshot — selection colour is unjudgeable",
+        "No current-line highlight in either; the caret is the sole focus indicator on a flat #F9F9F9 field",
+        "Static PNGs: blink rate, blink curve and caret motion between positions cannot be assessed in either",
+        "#00B5FF against #F9F9F9 is a saturated cyan at roughly 3:1 — loud next to near-black monospace, identical in both, so it decides nothing",
+        "Character advance measures 24 device px (12 CSS px) in both; the true cell boundary after 's' falls at ~x1896, so A's caret at 1899 and B's at 1900 both sit 3–4px right of the insertion point rather than on it"
+      ]
+    },
+    {
+      "name": "selection",
+      "ours": "shots/caret/r6-selection-ours.png",
+      "theirs": "shots/oracle/caret/selection.png",
+      "blind": "shots/blind/caret/selection",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "B's caret line-start column is not stable: x=601 on '##' lines, 625 on '#', 630 on '- ', versus 673 on all body lines — up to 72 device px (36 CSS px) of lateral throw. Arrowing up from prose into a heading, or hitting Home on a list item, flings the caret out of the text column into the margin; A holds every one of its 18 line-starts within 673-678 (±5px).",
+      "gapTheirs": "A's caret has no single column to return to: markers sit inside the prose column at x=673, so heading and list-item glyphs start at x=721 while body glyphs start at 673 — a 48px (24 CSS px) ragged text edge. The caret's line-start position is constant only because it is parked on '#'/'##'/'- ' markup occupying the writing column; on any structural line the caret must cross 2-3 character cells (~51-77px at 25.7px/cell) of syntax that shares the column with prose, and the caret gives zero positional signal about what kind of line it is on.",
+      "verdict": "Neither of these carets is an instrument — they are the same 3px hard-edged sky-blue slab, unrounded, unantialiased, spanning the full 72px line box against 38px of glyph ink, which means roughly 47% of the bar is empty leading stabbing above the ascender and below the descender. Both also draw a full-opacity caret at BOTH ends of the selection (cols 942-947 and 1404-1409), a mobile drag-handle idiom; a writer looks for the one caret that marks where the next character lands and finds two candidates. B wins only because it keeps the prose column flush at 673 and hangs the markup at 601/625/630, so the caret's home for actual words never moves and its position on a structural line reads as structure; A buys caret-column stability by stuffing '#' and '- ' into the writing column, which leaves the text itself ragged by 48px. This is a tiebreak on placement, not on caret craft — on caret craft they are the same pixels, and both are mediocre.",
+      "secondary": [
+        "Caret geometry identical in both: cols 942-947 and 1404-1409, rows 434-505 = 6 device px wide (3 CSS px @2x DPR), 72px tall, 864 pixels each",
+        "Caret = 100% of the 72px line box vs 38px glyph ink: 18px overshoot above, 16px below — a full-leading bar, not a text-height caret",
+        "Caret colour #00b5ff in both: fully saturated sky blue, no alpha, no antialiasing on either vertical edge, no corner radius at 8x zoom",
+        "Selection #c2eafa in both, exactly 456x72, snapped to the line box with zero vertical padding — same pixels in A and B",
+        "Both render a solid caret bar at the selection anchor as well as the focus end; no visual distinction between the two, so 'which end will typing replace' is unanswerable from the still",
+        "Nothing in either image implies blink phase, caret easing, or motion — both are drawn at full opacity, so a smooth-caret vs hard-blink difference cannot be judged from these frames",
+        "Caret abuts the trailing 'e' with 0px optical gap in both; no sidebearing breathing room on either side",
+        "Whole-image diff is 37428 pixels (0.72%), confined entirely to text rows from marker hanging and one reflow at rows 596-634 — not one differing pixel in the caret or selection"
+      ]
+    },
+    {
+      "name": "unfocused",
+      "ours": "shots/caret/r6-unfocused-ours.png",
+      "theirs": "shots/oracle/caret/unfocused.png",
+      "blind": "shots/blind/caret/unfocused",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "A's caret origin is x=1899 device px — an odd offset, i.e. 949.5 CSS px at 2x DPR, a half-pixel off the CSS grid, where B's lands clean on 1900/950.0; its centre also sits 5.5px left of the 29px inter-word gap's midpoint (1907) vs B's 4.5px, so it is the more lopsided of the two inside the space.",
+      "gapTheirs": "B's caret stands 1px further from the glyph it trails: 8px of clearance from the 's' ink terminal at x=1892 vs A's 7px, putting it ~3.7px into the ~24.6px space cell where A sits ~2.7px in. The insertion point reads as drifting into the gap rather than docked to the character just typed — at 2x that is a visible half-CSS-pixel of ambiguity about whether you are before or after the space.",
+      "verdict": "These are the same caret with a one-pixel argument between them, and both lose on the thing that actually matters: at #AFE5FB on #F9F9F9 the contrast is roughly 1.29:1, so the caret is a wash of sky against paper — glance away mid-sentence and you will hunt for your place. Both draw it 72px tall against a 72px line pitch, overshooting the ascenders by 19px and the descenders by 16px, so it is a full leading-height slab, not a precise instrument; carets on adjacent lines would touch edge to edge. A takes it only because its bar sits 1px closer to the 's' it follows, which is the difference between a caret attached to your text and one floating in the whitespace. Neither image shows a selection, so the selection colour is simply unshipped in both — and a static frame proves nothing about blink or caret motion, which is exactly where an alive caret is won or lost.",
+      "secondary": [
+        "Caret geometry identical in both: x-width 6 device px (3 CSS px @2x), y 794-865 = 72px",
+        "Caret height is 100% of the 72px line pitch; ink band is only 813-849 (37px), so the caret is ~1.95x the ascender-to-descender height",
+        "Zero antialiasing on caret edges in both - hard-snapped to the device grid, so no subpixel caret positioning in either",
+        "Caret colour differs by 1/255 in red only: A #AFE5FB, B #AEE5FB - visually indistinguishable",
+        "No selection highlight, no current-line highlight, and no focus tint anywhere in either image: the only non-grey pixels in the entire 2880x1800 frame are the caret (57px in A, 38px in B at my sampling)",
+        "Blink cadence, caret easing on arrow-key movement, and caret-on-selection behaviour are all untestable from a single static frame",
+        "Both carets sit ~3px right of the estimated character-cell boundary rather than on it - a shared placement error, A's merely smaller"
+      ]
+    }
+  ],
+  "at": "2026-08-30T02:01:57.716Z"
+}
