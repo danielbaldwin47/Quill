@@ -1,10 +1,20 @@
-# THROWAWAY (#147): builds the comparison sheets the owner decides from.
-#
-# One sheet per view. Each is a row of enlarged crops at the insertion point,
-# 4x nearest-neighbour so a bar and a glyph's stem are separate objects on the
-# page, with the Parity oracle first and every shape after it. The reference
-# points the ticket asks for are columns of their own: round 6 is what stands
-# now and round 4 is the inset bar its critic read as a smear.
+#!/usr/bin/env python3
+"""THROWAWAY (#147): builds the comparison sheets the owner decides from.
+
+One sheet per view. Each is a row of enlarged crops at the insertion point,
+zoomed `Z` times with nearest-neighbour so a bar and a glyph's stem stay
+separate objects on the page, with the Parity oracle first and every shape
+after it. The reference point the ticket asks for is a column of its own:
+round 4's inset bar, the one its critic read as a smear.
+
+Run from the repo root, after the shots are taken:
+
+    python3 shots/caret/147/sheets147.py
+
+The crop windows are written out per view rather than read from
+`measure147.py`: a crop has to hold still across shapes so the sheets can be
+compared column to column, and a measured one would move with the bar.
+"""
 import subprocess
 
 DIR = "shots/caret/147"

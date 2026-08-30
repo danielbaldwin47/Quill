@@ -11,12 +11,16 @@ Every shot is taken on the Gate's own stage — `tools/harness.mjs`, a headless
 Hyprland output at 3200×2000, integer scale 2, captured with `grim -T` — so it
 is comparable to the frozen Parity oracle under `shots/oracle/caret/`.
 
-**Three views.** `caret` and `selection` are the judged states verbatim
-(`shots/oracle/states.json`, `pieces.caret`): duo at 20 px, `ref/sample.md`,
-chrome off. The **jump** pair is the ticket's own condition — mono at 20 px on
-`jump.md`, where one cell is 24 device px and offset 10 is the `t` of `test`,
-with the space before it in cell 9. The judged `unfocused` state was shot too,
-to say which shapes move it, but has no sheet of its own.
+**The three views the ticket asks for.** `caret` and `selection` are the judged
+states verbatim (`shots/oracle/states.json`, `pieces.caret`): duo at 20 px,
+`ref/sample.md`, chrome off. The **jump** pair is the ticket's own condition —
+mono at 20 px on `jump.md`, where one cell is 24 device px and offset 10 is the
+`t` of `test`, with the space before it in cell 9.
+
+The third judged state, `unfocused`, was shot at every shape as well. It gets
+no sheet, because the ticket's three views do not include it; it is here so
+that "which judged states would this shape move" can be answered for all three
+rather than two.
 
 The jump view has no frozen oracle shot, because it is not a judged state, so
 the oracle was shot at it into this directory (`oracle-jump-*.png`) rather than
@@ -46,9 +50,19 @@ pixels either way — see the rig proof below.
 |---|---|
 | shape 1 vs `r6-caret-ours` / `r6-selection-ours` / `r6-unfocused-ours` | **0 / 0 / 0** |
 | shape 1 vs the unpatched binary, all five shots | **0** |
+| shape 1 vs `shots/oracle/caret/caret` / `selection` / `unfocused` | 37392 / 37428 / 37350 |
 
 So shape 1 is, pixel for pixel, the round the Piece stands on today, and the
 shape switch moves nothing at its default.
+
+The last row is what "the selection is identical to the oracle's" does and does
+not mean. It is identical **in the mark**: both draw their bars at 942 and 1404
+and their fill from 948 for 456 px, which is what round 6's critic reported and
+what the tables below repeat. It is not identical **in the frame** — some 37,000
+pixels differ on every state, in the type, because a browser and Pango raster
+the same Face differently. That difference is the Piece's standing margin and
+has nothing to do with the caret; `verify147.sh` prints these rows so the claim
+is read as the one and not the other.
 
 ## The measurements
 
@@ -63,31 +77,39 @@ column, and one drawn under it has the glyph showing through.
 Offset 403 falls in a **word space**, which is why no critic has ever seen what
 #147 reports: there is no glyph for the bar to stand on.
 
-| | bar x | w | gap< | gap> | solid | cut |
-|---|---|---|---|---|---|---|
-| Parity oracle | 1900 | 6 | 7 | 16 | 6/6 | 0 |
-| 1 as-is | 1899 | 6 | 6 | 17 | 6/6 | 0 |
-| 2 no nudge | 1896 | 6 | 3 | 20 | 6/6 | 0 |
-| 3 nudged bars | 1899 | 6 | 6 | 17 | 6/6 | 0 |
-| 4 both | 1896 | 6 | 3 | 20 | 6/6 | 0 |
-| 5 oracle order | 1899 | 6 | 6 | 17 | 6/6 | 0 |
+The cell boundary is **1896**. `Δcell` is the bar's left edge minus it.
 
-The cell boundary is **1896**: dropping the nudge puts the bar on it, 3 px left
-of where it stands and 4 px from the oracle's.
+| | bar x | w | Δcell | gap< | gap> | solid | cut |
+|---|---|---|---|---|---|---|---|
+| Parity oracle | 1900 | 6 | +4 | 7 | 16 | 6/6 | 0 |
+| 1 as-is | 1899 | 6 | +3 | 6 | 17 | 6/6 | 0 |
+| 2 no nudge | 1896 | 6 | **0** | 3 | 20 | 6/6 | 0 |
+| 3 nudged bars | 1899 | 6 | +3 | 6 | 17 | 6/6 | 0 |
+| 4 both | 1896 | 6 | **0** | 3 | 20 | 6/6 | 0 |
+| 5 oracle order | 1899 | 6 | +3 | 6 | 17 | 6/6 | 0 |
+
+Dropping the nudge puts the bar on the boundary: 3 px left of where it stands,
+and 4 px from the oracle's.
 
 ### Judged `selection` state — duo 20 px, select 153–171
 
-The fill runs 948–1403. The cell boundary at the selection's start is **948**.
+The fill runs 948–1403; every bar is 6 px wide. The cell boundary at the
+selection's start is **948** and at its end **1404**, and `Δcell` is each bar's
+left edge minus its own end's boundary.
 
-| | opening bar | solid | cut | closing bar | solid | cut |
-|---|---|---|---|---|---|---|
-| Parity oracle | 942 | 6/6 | 0 | 1404 | 6/6 | 0 |
-| round 4 (**lost**) | 948 | 1/6 | 3 | 1398 | 2/6 | 14 |
-| 1 as-is | 942 | 6/6 | 0 | 1404 | 6/6 | 0 |
-| 2 no nudge | 942 | 6/6 | 0 | 1404 | 6/6 | 0 |
-| 3 nudged bars | **951** | **0/6** | **24** | 1407 | 6/6 | 0 |
-| 4 both | **948** | **1/6** | **3** | 1404 | 6/6 | 0 |
-| 5 oracle order | 942 | 6/6 | 0 | 1404 | 6/6 | 0 |
+| | opening bar | Δcell | gap< | gap> | solid | cut | closing bar | Δcell | solid | cut |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Parity oracle | 942 | −6 | 22 | 2 | 6/6 | 0 | 1404 | 0 | 6/6 | 0 |
+| round 4 (**lost**) | 948 | 0 | 28 | 0 | 1/6 | 3 | 1398 | −6 | 2/6 | 14 |
+| 1 as-is | 942 | −6 | 22 | 1 | 6/6 | 0 | 1404 | 0 | 6/6 | 0 |
+| 2 no nudge | 942 | −6 | 22 | 1 | 6/6 | 0 | 1404 | 0 | 6/6 | 0 |
+| 3 nudged bars | **951** | **+3** | **0** | **0** | **0/6** | **24** | 1407 | +3 | 6/6 | 0 |
+| 4 both | **948** | **0** | 28 | **0** | **1/6** | **3** | 1404 | 0 | 6/6 | 0 |
+| 5 oracle order | 942 | −6 | 22 | 1 | 6/6 | 0 | 1404 | 0 | 6/6 | 0 |
+
+A negative `Δcell` is a bar standing outside the fill, in the gap before the
+cell; zero is a bar on the boundary; positive is a bar inside the cell, on the
+glyph.
 
 Shape 4's opening bar is round 4's opening bar, to the pixel and to the count:
 x=948, solid 1/6, cut 3. Shape 3's is further in again.
@@ -97,14 +119,23 @@ x=948, solid 1/6, cut 3. Shape 3's is further in again.
 Cell 10 begins at **912**. The jump is the free caret's column minus the
 opening bar's, at the same offset.
 
-| | free caret | solid | cut | opening bar | **jump** |
-|---|---|---|---|---|---|
-| Parity oracle | 916 | 6/6 | 0 | 906 | **10 px** |
-| 1 as-is | 915 | 0/6 | 24 | 906 | **9 px** |
-| 2 no nudge | 912 | 1/6 | 3 | 906 | **6 px** |
-| 3 nudged bars | 915 | 0/6 | 24 | 915 | **0** |
-| 4 both | 912 | 1/6 | 3 | 912 | **0** |
-| 5 oracle order | 915 | 6/6 | 0 | 906 | **9 px** |
+Every bar is 6 px wide. The free caret and the opening bar are both measured
+against cell 10's boundary at 912.
+
+| | free caret | w | Δcell | gap< | gap> | solid | cut | opening bar | w | Δcell | **jump** |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Parity oracle | 916 | 6 | +4 | 0 | 0 | 6/6 | 0 | 906 | 6 | −6 | **10 px** |
+| 1 as-is | 915 | 6 | +3 | 0 | 0 | 0/6 | 24 | 906 | 6 | −6 | **9 px** |
+| 2 no nudge | 912 | 6 | **0** | 26 | 0 | 1/6 | 3 | 906 | 6 | −6 | **6 px** |
+| 3 nudged bars | 915 | 6 | +3 | 0 | 0 | 0/6 | 24 | 915 | 6 | **+3** | **0** |
+| 4 both | 912 | 6 | **0** | 26 | 0 | 1/6 | 3 | 912 | 6 | **0** | **0** |
+| 5 oracle order | 915 | 6 | +3 | 0 | 0 | 6/6 | 0 | 906 | 6 | −6 | **9 px** |
+
+`gap<` and `gap>` read 0 for every shape whose bar is inside the `t`'s cell,
+because the crossbar's ink runs to both sides of it. That is what `solid` and
+`cut` are for: the oracle's bar and shape 5's have the same zero clearance and
+are still solid blue all the way down, because they are drawn over the ink
+rather than under it.
 
 Two things the ticket could not have known:
 
@@ -118,6 +149,22 @@ Two things the ticket could not have known:
    through our bar. `legacy/app/css/caret.css` names the three layers and their
    order — `#sel-layer` beneath `#mirror`, `#caret-layer` above it — and ours
    puts all three in `snapshot_layer(BelowText)`.
+
+### The one written claim that disagrees
+
+`ref/ia/REFERENCE.md` § 4.1 says of the caret: *"Sits flush after the last
+glyph."* Every shot here says otherwise, and so does the oracle's.
+
+At the jump offset the preceding `a`'s ink ends at x=885 and the oracle's caret
+stands at 916–921 — **30 device px** past it, a whole 24 px cell plus the
+nudge, and inside the cell of the glyph that follows. On the judged `caret`
+state the oracle's bar has 7 px of clear paper behind it and 16 ahead. Flush
+after the last glyph is neither.
+
+The wording is not edited here: #147 puts it out of scope and asks only that
+the contradiction be written down. It is the reference's own claim about iA,
+measured against iA's port, and it is the claim that is wrong — the caret sits
+in the *following* cell, nudged `caret::NUDGE` past its boundary.
 
 ### Which judged states each shape moves
 
@@ -144,6 +191,12 @@ nothing a judged state can see.
 - `sheet-jump.png` — the free caret above, a selection opening at the same
   offset below, so the jump is the distance between the two rows.
 - `pair-*.png` — ours beside the oracle, whole frame, for context.
+
+The shots themselves are `s<shape>-<state>.png`, with `s1base-*` the same four
+states shot from the unpatched binary and `oracle-jump-*.png` the oracle at the
+jump pair. `shots.json` is what the shooter wrote: every shot's path and the
+SHA-256 of its bytes, which is where the byte-identical claims come from before
+`verify147.sh` re-checks them with `compare`.
 
 ## Reproducing it
 

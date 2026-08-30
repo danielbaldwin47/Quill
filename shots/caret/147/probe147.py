@@ -1,11 +1,18 @@
-# THROWAWAY (#147): per-column pixel counts across one band, so a claim about
-# a bar standing on a glyph can be checked against the pixels rather than
-# against a downscaled contact sheet.
-#
-#   python3 tools/probe147.py <shot.png> <y> <h> <x0> <x1>
-#
-# Prints one line per column: how many rows are the caret's blue, how many are
-# glyph ink, and what the darkest pixel in that column is.
+#!/usr/bin/env python3
+"""THROWAWAY (#147): per-column pixel counts across one band.
+
+So a claim about a bar standing on a glyph can be checked against the pixels
+rather than against a downscaled contact sheet — which is how `solid` and `cut`
+in `measure147.py` were confirmed, and how the first reading of them (counting
+columns, which called a `t`'s three-row crossbar a smear) was caught.
+
+    python3 shots/caret/147/probe147.py <shot.png> <y> <h> <x0> <x1>
+
+Prints one line per column: how many rows are the caret's blue, how many are
+glyph ink, and what the darkest pixel in that column is. The thresholds are
+`measure147.py`'s `is_bar` and `is_ink`, repeated rather than imported so this
+stays a file somebody can run on its own.
+"""
 import subprocess
 import sys
 
