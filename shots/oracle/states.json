@@ -50,5 +50,17 @@
     },
     "latency": {}
   },
+  "keys": {
+    "_about": "The scripts tools/gate keys <piece> types, beside the states tools/gate judge shoots, so a Piece is one entry to find. A Piece may carry none, and most do not. `state` overrides `defaults` exactly as a judged state does, but the app is opened Live rather than --deterministic: a still wants the blink frozen and the glide gone, and a typed condition wants the caret machine running, because that machine is what it is there to test. Each burst is typed in full, then shot, then its `assert` list is evaluated from the pixels; `between` is evaluated across consecutive bursts. The assertion names are tools/keys-assert.mjs's.",
+    "caret": {
+      "_about": "The two bursts of tools/keys-fixture, which is what #108's defect was found by hand with. The Document is empty so the first glyph starts at the left margin and the bar has nowhere to hide, and the chrome is off both because the caret Piece is judged bare (#139) and because the chrome's fade-on-typing is an animation, which is one more thing for `steady` to wait out inside the caret's 480 ms idle hold.",
+      "state": { "text": null, "caret": 0, "chrome": "off" },
+      "bursts": [
+        { "name": "typing-16", "text": "dfdfsdfsdfsdfsdf", "chars": 16, "assert": ["bar-after-ink"] },
+        { "name": "typing-38", "text": "fefefefefefsfesfesfesf", "chars": 38, "assert": ["bar-after-ink"] }
+      ],
+      "between": ["bar-moved-right"]
+    }
+  },
   "_pending": "The files states use flags (library, sidebar, search) and a fixture folder that the File handling spec (after #25) defines; they are listed now so the state ids are stable."
 }

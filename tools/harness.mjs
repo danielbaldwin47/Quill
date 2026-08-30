@@ -115,8 +115,15 @@ const SWITCH_TIMEOUT_MS = 1_500;
 //
 // `scale` and `active` are not here and never will be: the first is the output's, and the second
 // is keyboard focus, which is the compositor's to give and not a flag the app could honour.
-export function quillArgv(root, flags) {
-  const argv = ['--deterministic', '--w', String(flags.w), '--h', String(flags.h)];
+//
+// `live` drops `--deterministic`, and only `tools/gate keys` asks for it. A judged still wants the
+// blink frozen on and the glide taken out, so that two shots of one state are the same bytes; a
+// condition that types wants the caret machine running, because the machine is the thing it is
+// there to test. Everything else about the state is unchanged, so the two commands open the same
+// document at the same size in the same theme.
+export function quillArgv(root, flags, { live = false } = {}) {
+  const argv = live ? [] : ['--deterministic'];
+  argv.push('--w', String(flags.w), '--h', String(flags.h));
   argv.push('--theme', flags.theme, '--font', flags.font, '--size', String(flags.size));
   argv.push('--focus', flags.focus, '--chrome', flags.chrome);
   if (flags.typewriter) argv.push('--typewriter');
