@@ -1020,6 +1020,13 @@ impl Editor {
     /// A row whose fill reaches its neighbour's bar can no longer paint over
     /// it, because the bars are not on this layer at all any more —
     /// [`Editor::draw_selection_ends`] puts them above the ink.
+    ///
+    /// The split costs a second [`Editor::selection`] walk per frame: GTK calls
+    /// `snapshot_layer` once per layer and hands nothing between the two, so
+    /// each pass asks for itself. The walk is bounded by the visible band and
+    /// `MAX_ROWS`, and with no selection open it is a `selection_bounds()?`
+    /// and a return — which is every frame the writer is only typing. The
+    /// second walk is paid while a selection stands, and not otherwise.
     fn draw_selection_fill(&self, snapshot: &gtk::Snapshot) {
         let Some(selection) = self.selection() else {
             return;
