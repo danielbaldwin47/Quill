@@ -42,12 +42,48 @@ const FACE_CLASS: &str = "quill-editor";
 /// does not depend on how long the document is.
 const CARET_LINE: f64 = 0.5;
 
-/// The class the Editor carries while its window is not active.
+/// How far below the baseline Pango reports the ink's own baseline is drawn,
+/// in the pixels the widget lays out in.
 ///
-/// One class rather than GTK's own `:backdrop`, because the ghost caret and
-/// the idle selection are one state and are driven from one place: the
-/// window's `is-active`, which is also what the caret's machine is told.
-const IDLE_CLASS: &str = "idle";
+/// [`caret::band_top`] hangs the band from the baseline, and the share it
+/// hangs it by is the oracle's, measured in a browser. The two agree about the
+/// type — the `caret` state and the oracle's are the same Face at the same
+/// size, and the ink in both is 37 device pixels from ascender to descender —
+/// and disagree about where under it the baseline falls: measured off the
+/// judged shots at scale 2, the browser's is 15.25 logical pixels below the
+/// top of the ink and Pango's is 14.75. Half a pixel, and it is the whole of
+/// the difference between a band at 20 above the ascender and 15 below and the
+/// 19 and 16 iA draws.
+///
+/// A pixel of granularity rather than a number about the type, most likely:
+/// Pango hints the baseline onto a whole layout pixel and a browser at device
+/// ratio 2 onto a whole device pixel, which is half of one. So it is a length
+/// in pixels and not a share of the em — but it is *measured*, not derived,
+/// and if the Type Piece ever moves the body size it is measured again. The
+/// `caret` state is what says whether it is still true.
+const BASELINE_DRIFT: f64 = 0.5;
+
+/// What the selection's two end bars are worth when the window is not active,
+/// as a share of the ink: `#caret-layer.idle .sel-edge` in
+/// `legacy/app/css/caret.css`. Why ink and not the accent is
+/// [`selection_paint`].
+const IDLE_ENDS: f64 = 0.22;
+
+/// The most rows of selection painted in one frame: `MAX_ROWS` in
+/// `legacy/app/js/caret.js`.
+///
+/// A backstop and not the thing that keeps the paint bounded — the viewport
+/// clip in [`Editor::selection`] does that, as it does in the oracle, which
+/// clips before it counts. What is left for a cap is a window tall enough, or
+/// a pitch small enough, that a screenful is still hundreds of rows.
+const MAX_ROWS: usize = 400;
+
+/// How far past the viewport the selection's rows are still built, in rows.
+///
+/// `M.pitch * 6` either side of the scroller in `drawSelection`. The slack is
+/// what keeps a scroll from showing the seam: the rows a frame is about to
+/// need are already drawn when it arrives.
+const SELECTION_SLACK: f64 = 6.0;
 
 /// Paper and ink: the light palette of `legacy/app/css/theme.css`.
 ///
@@ -169,7 +205,7 @@ mod imp {
     }
 
     impl TextViewImpl for Editor {
-        /// The caret, and nothing else, below the text.
+        /// The selection and the caret, and nothing else, below the text.
         ///
         /// Below rather than above because the bar belongs under the glyphs
         /// the way iA's does — a caret drawn over a letter is a caret that
@@ -181,6 +217,7 @@ mod imp {
         /// `iter_location` answers in, so nothing is translated on the way.
         fn snapshot_layer(&self, layer: gtk::TextViewLayer, snapshot: gtk::Snapshot) {
             if layer == gtk::TextViewLayer::BelowText {
+                self.obj().draw_selection(&snapshot);
                 self.obj().draw_caret(&snapshot);
             }
         }
@@ -192,6 +229,22 @@ glib::wrapper! {
     pub struct Editor(ObjectSubclass<imp::Editor>)
         @extends gtk::TextView, gtk::Widget,
         @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget, gtk::Scrollable;
+}
+
+/// The selection, as the boxes that draw it.
+///
+/// Built by [`Editor::selection`] and drawn by [`Editor::draw_selection`], in
+/// device pixels like everything else the caret's layer holds.
+struct Selection {
+    /// One fill per display row the selection covers, top to bottom.
+    rows: Vec<caret::Bar>,
+    /// The bars bracketing the two ends: the same instrument as the caret, at
+    /// the same width and on the same band, so the eye can see exactly which
+    /// cells are held (`setEdge` in `legacy/app/js/caret.js`).
+    ///
+    /// Two of them, unless an end is scrolled out of the band the rows are
+    /// built for, which is the one case that has none to draw.
+    ends: Vec<caret::Bar>,
 }
 
 impl Editor {
@@ -265,17 +318,33 @@ impl Editor {
             self,
             move |_, _, _| editor.caret_edit_began(),
         ));
-        buffer.connect_changed(glib::clone!(
-            #[weak(rename_to = editor)]
-            self,
-            move |_| editor.caret_edited(),
-        ));
+        // After, and it is the only handler here that waits for another. The
+        // window's own `changed` splices the Document and retags the lines the
+        // edit touched, and a retag can put a run in another Face — so a
+        // column read before it is a column measured on advances the writer
+        // never sees. The rest of these read the text alone and do not care.
+        let watcher = self.downgrade();
+        buffer.connect_closure(
+            "changed",
+            true,
+            glib::closure_local!(move |_: gtk::TextBuffer| {
+                if let Some(editor) = watcher.upgrade() {
+                    editor.caret_edited();
+                }
+            }),
+        );
         buffer.connect_mark_set(glib::clone!(
             #[weak(rename_to = editor)]
             self,
             move |buffer, _, mark| {
-                if mark == &buffer.get_insert() {
+                let insert = mark == &buffer.get_insert();
+                if insert {
                     editor.caret_moved();
+                }
+                // The other end moves on its own through a shift-drag and a
+                // shift-arrow, and it is half of what there is to draw.
+                if insert || mark == &buffer.selection_bound() {
+                    editor.caret_selected();
                 }
             },
         ));
@@ -491,15 +560,192 @@ impl Editor {
         let row = self.iter_location(&buffer.iter_at_mark(&buffer.get_insert()));
         let size = self.imp().size.get();
         let scale = self.scale();
+        let (y, h) = self.band(f64::from(row.y()));
         Some(caret::Bar {
             x: (f64::from(row.x()) + caret::nudge(size)) * scale,
-            y: caret::band_top(
-                f64::from(row.y()) + self.imp().baseline.get(),
-                f64::from(pitch),
-            ) * scale,
+            y,
             w: f64::from(caret::width(size)) * scale,
-            h: f64::from(pitch) * scale,
+            h,
         })
+    }
+
+    /// The band of the row whose box starts at `top`, in device pixels: the y
+    /// every mark on that row takes, and the height they all take.
+    ///
+    /// One function because the registration is the whole of the answer. The
+    /// caret, the selection's fill and the two bars at its ends are four boxes
+    /// that have to agree to the pixel — the `selection` state is judged on
+    /// exactly that — and four sites computing one band from the same three
+    /// numbers is four chances to disagree. `caret.js` has the same rule and
+    /// keeps it the same way: one `dy` at `:185`, read by the fill, both edges
+    /// and the caret alike.
+    ///
+    /// The caller has already checked the pitch: a zero pitch here is a band
+    /// of no height, which draws nothing rather than wrongly.
+    /// The top is snapped here rather than left to the machine, which snaps
+    /// the caret's own on the way in ([`caret::Caret::moved`]). The fill and
+    /// the two ends never go through the machine, and a band left on a
+    /// fraction of a device pixel is rasterised a row taller than it was cut,
+    /// with a pale row standing in for the fraction — which is exactly the
+    /// disagreement this function exists to prevent, one end of the band at a
+    /// time.
+    fn band(&self, top: f64) -> (f64, f64) {
+        let pitch = f64::from(self.imp().pitch.get());
+        let scale = self.scale();
+        (
+            caret::snap(
+                caret::band_top(top + self.imp().baseline.get() + BASELINE_DRIFT, pitch) * scale,
+            ),
+            pitch * scale,
+        )
+    }
+
+    /// The selection as the boxes that draw it, in device pixels.
+    ///
+    /// `None` when there is nothing selected, or before the type has been set.
+    ///
+    /// The walk is display lines rather than logical ones, because a wrapped
+    /// paragraph is as many bands as it has rows on the glass. Each row is
+    /// measured from the box of the character it starts at and the box of the
+    /// character it ends at, and never from an iterator sitting on a wrap:
+    /// that one offset is both the end of one row and the start of the next,
+    /// and which of the two `iter_location` answers for is not ours to decide.
+    /// A character's own box is on one row and only one.
+    ///
+    /// Only what can be seen is built. `drawSelection` clips to the viewport
+    /// with six rows of slack either side and counts nothing outside it toward
+    /// its cap, and this does the same at both ends: the walk begins at the
+    /// first row inside the band rather than at the selection's own start, and
+    /// stops at the first row past it. A select-all is then a screenful of
+    /// work wherever the view is sitting, instead of a rectangle for every row
+    /// of the document — and it is drawn, which a walk that spent its cap
+    /// above the fold would not be.
+    ///
+    /// An end whose row was clipped away has no bar. That is the oracle's rule
+    /// too (`firstEdge` and `lastEdge` are set only on the selection's own
+    /// first and last lines, and stay null otherwise), and it is the safe
+    /// answer rather than the tidy one: a bar at the end of whatever row the
+    /// walk stopped on is a mark in a place the selection does not end.
+    fn selection(&self) -> Option<Selection> {
+        let (start, end) = self.buffer().selection_bounds()?;
+        let pitch = f64::from(self.imp().pitch.get());
+        if pitch == 0.0 {
+            return None;
+        }
+        let size = self.imp().size.get();
+        let scale = self.scale();
+        let view = self.visible_rect();
+        let top = f64::from(view.y()) - pitch * SELECTION_SLACK;
+        let bottom = f64::from(view.y() + view.height()) + pitch * SELECTION_SLACK;
+        let mut rows: Vec<caret::Bar> = Vec::new();
+        let mut head = None;
+        let mut tail = None;
+        let mut at = start;
+        if let Some(seen) = self.iter_at_location(0, top.max(0.0) as i32)
+            && seen > at
+        {
+            at = seen;
+        }
+        if at >= end {
+            // The whole of it is above the band. Nothing to build, and no end
+            // to bracket: the walk below would read the row `end` sits on as
+            // the selection's last and bar it, which is a mark on a row the
+            // writer is not looking at.
+            return None;
+        }
+        // `at <= end`, not `<`: a selection that ends where a row begins ends
+        // *on* that row, and its closing bar belongs at that row's left edge
+        // rather than out at the end of the row above. Selecting through a
+        // line's newline and no further is exactly this, and it is what the
+        // oracle draws — `rows.set(0, { l: lr.left, r: lr.left })` when a line
+        // contributes no rectangles, with `lastEdge` taken from it. The row is
+        // empty, so it costs a zero-width fill that [`draw_box`] drops.
+        while at <= end && rows.len() < MAX_ROWS {
+            let mut stop = at;
+            if !self.forward_display_line_end(&mut stop) {
+                // Already at the row's end, which an empty line always is and
+                // a selection that starts at the end of one is too. A row of
+                // no width, and still a row: the newline below is what gets
+                // drawn there.
+                stop = at;
+            }
+            stop = stop.min(end);
+            let box_of_first = self.iter_location(&at);
+            if f64::from(box_of_first.y()) > bottom {
+                break;
+            }
+            let left = f64::from(box_of_first.x());
+            let mut right = left;
+            if stop > at {
+                let mut last = stop;
+                last.backward_char();
+                let glyph = self.iter_location(&last);
+                right = f64::from(glyph.x() + glyph.width());
+            }
+            // A selected newline has no advance to fill, so it is drawn as a
+            // stub past the last glyph. `ends_line` is what tells it from a
+            // wrap: a wrap is inside one line and never ends it.
+            if stop < end && stop.ends_line() {
+                right += caret::tail(size);
+            }
+            let (y, h) = self.band(f64::from(box_of_first.y()));
+            let x = caret::snap(left * scale);
+            let row = caret::Bar {
+                x,
+                y,
+                w: (caret::snap(right * scale) - x).max(0.0),
+                h,
+            };
+            if at == start {
+                head = Some(row);
+            }
+            if stop >= end {
+                tail = Some(row);
+            }
+            rows.push(row);
+            if stop >= end {
+                break;
+            }
+            let mut next = at;
+            if !self.forward_display_line(&mut next) || next <= at {
+                break;
+            }
+            at = next;
+        }
+        if rows.is_empty() {
+            return None;
+        }
+        // Outside the fill at both ends, which is `setEdge(edgeA, firstEdge,
+        // -M.w)` in `caret.js` and the oracle's own shot: the left bar ends
+        // where the fill begins and the right bar begins where it ends.
+        //
+        // iA's captures inset them instead, and this began that way, because
+        // that is what `msstore-win-04` shows: its two bars and its fill share
+        // a column span exactly. What that capture does not survive is our
+        // type. A bar is [`caret::width`] of the em and a glyph's left side
+        // bearing is less than that at 20 px, so an inset bar covers the
+        // bearing whole and lands on the stem of the letter it is meant to
+        // hold — round 4's critic read the two as one blue-black smear, with
+        // no clearance either end against the oracle's 2 px and 3 px. Outside,
+        // the bar stands in the gap before the cell, which is where the free
+        // caret stands too.
+        let w = f64::from(caret::width(size)) * scale;
+        let mut ends = Vec::with_capacity(2);
+        if let Some(first) = head {
+            ends.push(caret::Bar {
+                x: first.x - w,
+                w,
+                ..first
+            });
+        }
+        if let Some(last) = tail {
+            ends.push(caret::Bar {
+                x: last.x + last.w,
+                w,
+                ..last
+            });
+        }
+        Some(Selection { rows, ends })
     }
 
     /// A change to the buffer is starting.
@@ -599,14 +845,46 @@ impl Editor {
         self.ask_for_frames();
     }
 
-    /// The buffer changed: the blink is held, and the move the change makes
-    /// arrives on its own.
+    /// The buffer changed: the blink is held, and the bar goes to the column
+    /// the edit left the caret at.
+    ///
+    /// The move is taken from here rather than left to `mark-set`, which is
+    /// emitted for a mark something *moved* — a click, a cursor key,
+    /// `place_cursor` — and not for the insert mark being carried along by an
+    /// insertion at its own position. Typing is the second kind and nothing
+    /// else is, so a caret that waited for `mark-set` sat wherever it had last
+    /// been put while the words went out from under it. The blink was held,
+    /// the machine was told, and the bar did not move: the one path the judged
+    /// states could not show, because every one of them is a still.
+    ///
+    /// [`caret::Caret::edited`] comes first because it is what puts the move
+    /// about to be made inside the edit-snap window, so the bar is put at the
+    /// new column rather than travelling to it, and because the frames the
+    /// placement asks for are asked for on what the machine knows by then.
     fn caret_edited(&self) {
         if self.loading() {
             return;
         }
         let now = self.now();
         self.tell_caret(|caret| caret.edited(now));
+        self.caret_moved();
+        // Typing over a selection replaces it, and the marks it collapses can
+        // land on the same offsets they were already on — which is a `changed`
+        // and no `mark-set` at all, the same gap the placement above closes.
+        self.caret_selected();
+    }
+
+    /// The buffer's selection opened, changed or collapsed.
+    ///
+    /// Whether there is one at all is the whole of what the machine is told:
+    /// the caret goes out while it stands, and the shape of what is held is
+    /// read from the buffer again at every frame it is drawn in, because a
+    /// reflow moves the bands without touching either mark.
+    fn caret_selected(&self) {
+        let now = self.now();
+        let held = self.buffer().has_selection();
+        self.tell_caret(|caret| caret.selected(held, now));
+        self.queue_draw();
         self.ask_for_frames();
     }
 
@@ -692,20 +970,40 @@ impl Editor {
         let now = self.now();
         let caret = self.imp().caret.get();
         let alpha = caret.alpha(now);
-        let bar = caret.rect(now);
-        if alpha <= 0.0 || bar.w <= 0.0 || bar.h <= 0.0 {
+        if alpha <= 0.0 {
             return;
         }
-        let scale = self.scale();
-        snapshot.append_color(
-            &accent(alpha),
-            &graphene::Rect::new(
-                logical(bar.x, scale),
-                logical(bar.y, scale),
-                logical(bar.w, scale),
-                logical(bar.h, scale),
-            ),
+        draw_box(
+            snapshot,
+            &paint(Role::Accent, alpha),
+            caret.rect(now),
+            self.scale(),
         );
+    }
+
+    /// Paints the selection: the fills, then the two bars at its ends.
+    ///
+    /// The fills go down first and the bars after, so that a row whose fill
+    /// reaches its neighbour's bar cannot paint over it. Both go under the
+    /// glyphs, which is the layer this is drawn in: the ink of a held word is
+    /// the ink of any other word, and a fill painted over it would tint it.
+    ///
+    /// The two ends are not the caret and do not blink. They are drawn at full
+    /// strength for as long as the selection stands, which is `place()` in
+    /// `legacy/app/js/caret.js` clearing the blink class and its timer the
+    /// moment a selection opens.
+    fn draw_selection(&self, snapshot: &gtk::Snapshot) {
+        let Some(selection) = self.selection() else {
+            return;
+        };
+        let scale = self.scale();
+        let (fill, ends) = selection_paint(self.imp().caret.get().focused());
+        for row in &selection.rows {
+            draw_box(snapshot, &fill, *row, scale);
+        }
+        for bar in &selection.ends {
+            draw_box(snapshot, &ends, *bar, scale);
+        }
     }
 
     /// The mode `--deterministic` and `--nocaret` asked for.
@@ -722,16 +1020,16 @@ impl Editor {
     ///
     /// The one place the ghost is decided. The caret's machine drops to its
     /// ghost alpha with the blink stopped, and the selection swaps to the idle
-    /// colour with it, because a window that has lost focus should say where
-    /// the writer was without shouting it. Both return on focus.
+    /// colour and ink ends with it, because a window that has lost focus should
+    /// say where the writer was without shouting it. Both return on focus.
+    ///
+    /// The machine's own flag is the whole of the state: the selection is
+    /// painted here rather than by GTK, so there is nothing left for a CSS
+    /// class to reach — [`Editor::draw_selection`] asks
+    /// [`caret::Caret::focused`] the same question the caret's alpha does.
     pub fn set_active(&self, active: bool) {
         let now = self.now();
         self.tell_caret(|caret| caret.focus(active, now));
-        if active {
-            self.remove_css_class(IDLE_CLASS);
-        } else {
-            self.add_css_class(IDLE_CLASS);
-        }
         self.queue_draw();
         self.ask_for_frames();
     }
@@ -852,30 +1150,68 @@ fn channel(value: f64) -> f32 {
     value as f32
 }
 
-/// The caret's blue at `alpha`.
+/// The two colours the selection is painted in: the fill, and the bars at its
+/// ends.
 ///
-/// [`Role::Accent`], which the theme table gives as the same colour on both
-/// grounds — it is the one instrument the writer watches, and it does not
-/// change when the ground does — so which scheme it is read at cannot matter.
-fn accent(alpha: f64) -> gdk::RGBA {
-    let ink = Colours::of(Scheme::Light).colour(Role::Accent);
+/// The ends are the one place the selection parts company with the free caret.
+/// That keeps its blue when the window goes, at [`caret::GHOST`] of it, because
+/// a blue mark alone on a page reads as the place the writer left. Two blue
+/// ends on a grey block do not — `caret.css`'s comment says they read as a
+/// half-woken window — so they go to the colour of the ink they hold.
+///
+/// A function of the one flag so that it can be checked without a window:
+/// `unfocused` is shot with nothing selected, so no judged state carries the
+/// idle band and the swap is only ever true here.
+fn selection_paint(focused: bool) -> (gdk::RGBA, gdk::RGBA) {
+    if focused {
+        (paint(Role::Selection, 1.0), paint(Role::Accent, 1.0))
+    } else {
+        (paint(Role::SelectionIdle, 1.0), paint(Role::Ink, IDLE_ENDS))
+    }
+}
+
+/// One role's colour on the light ground, at `alpha` of the alpha the table
+/// gives it.
+///
+/// Read from the engine's colour table rather than written out here beside
+/// [`PAPER`] and [`INK`], because the table already carries every one of them,
+/// on both grounds, at exactly the values `legacy/app/css/theme.css` sets them
+/// to. A second copy of a number the critic reads is a second thing to keep
+/// true.
+///
+/// The light ground is not a choice yet: there is one theme until the Dark &
+/// light ticket, and [`PAPER`] and [`INK`] are constants for the same reason.
+/// The two the selection needs — [`Role::Selection`] and
+/// [`Role::SelectionIdle`] — do differ between the grounds, unlike the accent,
+/// so this is one of the sites that ticket has to reach.
+fn paint(role: Role, alpha: f64) -> gdk::RGBA {
+    let colour = Colours::of(Scheme::Light).colour(role);
     gdk::RGBA::new(
-        channel(ink.red),
-        channel(ink.green),
-        channel(ink.blue),
-        channel(ink.alpha * alpha),
+        channel(colour.red),
+        channel(colour.green),
+        channel(colour.blue),
+        channel(colour.alpha * alpha),
     )
 }
 
-/// One role's colour on the light ground, spelled as CSS.
+/// Draws one box of the caret's layer, back in the widget's own pixels.
 ///
-/// The selection and its idle twin are read from the engine's colour table
-/// rather than written out here beside [`PAPER`] and [`INK`], because the
-/// table already carries both, on both grounds, at exactly the values
-/// `legacy/app/css/theme.css` sets them to. A second copy of a number the
-/// critic reads is a second thing to keep true.
-fn light(role: Role) -> String {
-    Colours::of(Scheme::Light).colour(role).to_css()
+/// A box with no area is not drawn: an empty row of a selection is a real
+/// place in the text — the end of a line whose newline is not held — and it
+/// has nothing to paint.
+fn draw_box(snapshot: &gtk::Snapshot, colour: &gdk::RGBA, bar: caret::Bar, scale: f64) {
+    if bar.w <= 0.0 || bar.h <= 0.0 {
+        return;
+    }
+    snapshot.append_color(
+        colour,
+        &graphene::Rect::new(
+            logical(bar.x, scale),
+            logical(bar.y, scale),
+            logical(bar.w, scale),
+            logical(bar.h, scale),
+        ),
+    );
 }
 
 /// A count of pixels as a GTK widget takes it.
@@ -959,6 +1295,13 @@ pub fn install_type(face: Face, size: u32) {
 /// came by its attributes, and a page whose ink is the desktop theme's is not
 /// this page at all: on a dark desktop it is white on the oracle's paper, and
 /// there is nothing to read.
+///
+/// The selection rule is here to take GTK's ground away and nothing else. The
+/// band belongs to [`Editor::selection`], which draws it off the same band as
+/// the bar so the fill and the two ends register exactly; a ground painted
+/// here as well would be a second, differently rounded rectangle under it. The
+/// `color` stays, for the same reason the ink is named twice above: clearing
+/// the ground alone leaves the selected glyphs to the desktop theme.
 fn stylesheet(face: Face, size: u32) -> String {
     format!(
         "window {{ background-color: {PAPER}; }}\n\
@@ -972,16 +1315,11 @@ fn stylesheet(face: Face, size: u32) -> String {
          \x20 font-feature-settings: {features};\n\
          }}\n\
          textview.{FACE_CLASS} text selection {{\n\
-         \x20 background-color: {selection};\n\
+         \x20 background-color: transparent;\n\
          \x20 color: {INK};\n\
-         }}\n\
-         textview.{FACE_CLASS}.{IDLE_CLASS} text selection {{\n\
-         \x20 background-color: {idle};\n\
          }}\n",
         family = face.family(),
-        features = css_features(),
-        selection = light(Role::Selection),
-        idle = light(Role::SelectionIdle)
+        features = css_features()
     )
 }
 
@@ -995,30 +1333,65 @@ impl Default for Editor {
 mod tests {
     use super::*;
 
-    /// Both selection colours are the oracle's, and the idle one is reached by
-    /// the class the window's `is-active` puts on the widget.
+    /// GTK paints no selection ground at all, and still paints the glyphs in
+    /// the page's own ink.
     ///
-    /// Held here because no shot can hold it: `caret/unfocused` is shot with
-    /// no selection in it, so the one judged state that is not active is also
-    /// the one state with no band to be idle. The stylesheet is where the two
-    /// colours and the swap between them are decided, so it is where they are
-    /// checked.
+    /// The band is ours now, drawn in the same pass and off the same band as
+    /// the bar (§ the snapshot), because that is the only way the fill, the
+    /// two end bars and the caret can be guaranteed to register. What is left
+    /// for the stylesheet is to get GTK out of the way without letting it take
+    /// the ink with it: a `selection` rule that only clears the ground would
+    /// leave `color` to the desktop theme's selected-text colour, which on a
+    /// dark desktop is white on our paper.
     #[test]
-    fn the_stylesheet_carries_both_selection_colours_and_the_swap() {
+    fn the_stylesheet_leaves_the_selection_ground_to_us_and_keeps_the_ink() {
         let css = stylesheet(Face::Duo, 20);
+        let rule = css
+            .split_once(&format!("textview.{FACE_CLASS} text selection"))
+            .expect("no selection rule at all")
+            .1;
+        let rule = rule.split_once('}').expect("unclosed selection rule").0;
         assert!(
-            css.contains("rgba(0, 181, 255, 0.22)"),
-            "the selection is not the oracle's --selection:\n{css}"
+            rule.contains("background-color: transparent"),
+            "GTK is still painting a selection ground under ours:\n{css}"
         );
         assert!(
-            css.contains("rgba(28, 28, 28, 0.1)"),
-            "the idle selection is not the oracle's --selection-idle:\n{css}"
+            rule.contains(&format!("color: {INK}")),
+            "selected glyphs are not in the page's ink:\n{css}"
         );
-        assert!(
-            css.contains(&format!(
-                "textview.{FACE_CLASS}.{IDLE_CLASS} text selection"
-            )),
-            "nothing swaps the selection colour when the window goes idle:\n{css}"
+        assert_eq!(
+            css.matches("selection").count(),
+            1,
+            "the idle swap is the fill's now, not the stylesheet's:\n{css}"
+        );
+    }
+
+    /// The band and its two ends both swap when the window goes.
+    ///
+    /// Held here because no shot can hold it, which is why the stylesheet used
+    /// to hold it: `caret/unfocused` is shot with `select: null`, so the one
+    /// judged state that is not active is also the one state with no band to
+    /// be idle. The swap moved from the stylesheet to the paint when the
+    /// selection became ours, and the check moves with it.
+    #[test]
+    fn the_selection_and_its_ends_go_idle_with_the_window() {
+        let (fill, ends) = selection_paint(true);
+        let (idle_fill, idle_ends) = selection_paint(false);
+        assert_eq!(
+            (fill, ends),
+            (paint(Role::Selection, 1.0), paint(Role::Accent, 1.0)),
+            "an active window is the oracle's --selection under the caret's own blue"
+        );
+        assert_ne!(fill, idle_fill, "the band did not go idle");
+        assert_ne!(ends, idle_ends, "the ends did not go idle");
+        // Ink, and not a paler accent: this is the one place the ends leave
+        // the caret's blue behind, where the free caret keeps it and only
+        // drops to its ghost.
+        assert_eq!(idle_ends, paint(Role::Ink, IDLE_ENDS));
+        assert_ne!(
+            idle_ends.red(),
+            paint(Role::Accent, 1.0).red(),
+            "the ends stayed on the accent"
         );
     }
 }
