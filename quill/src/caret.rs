@@ -77,13 +77,6 @@ const GLIDE_FAR: f64 = 14.0;
 /// a new place rather than the same caret moving to it.
 const GLIDE_DROP: f64 = 1.2;
 
-/// How far past the advance boundary the bar sits, in ems: `NUDGE_X`.
-///
-/// The oracle measured it at 0.060–0.073 em of iA's own captures and draws at
-/// 0.07. The bar stands in the gap after the glyph rather than on its last
-/// column, which is what makes it read as between two letters.
-const NUDGE: f64 = 0.07;
-
 /// How far past the last glyph a selected newline is drawn, in ems: `NL_TAIL`.
 ///
 /// A newline has no advance to highlight and is a real selected character all
@@ -566,19 +559,6 @@ impl Default for Caret {
     fn default() -> Self {
         Self::new(Mode::Live)
     }
-}
-
-/// How far past the glyph's advance boundary the bar's left edge sits at type
-/// size `size`, in the pixels the widget lays out in.
-///
-/// `M.em * NUDGE_X` in `placeCaret`, added before the snap rather than after
-/// it, so that the nudge decides which whole pixel the bar lands on rather
-/// than pushing it off one. Logical pixels, because the advance the Editor
-/// reads out of the layout is in logical pixels; the scale factor is applied
-/// to their sum, on the way into [`Bar`].
-#[must_use]
-pub fn nudge(size: u32) -> f64 {
-    f64::from(size) * NUDGE
 }
 
 /// How far past the last glyph of a row a selected newline reaches at type
@@ -1169,14 +1149,6 @@ mod tests {
             assert!(!still.wants_tick(), "{mode:?} wants no frame");
             assert_eq!(still.resumes_at(), None, "{mode:?} wants none later");
         }
-    }
-
-    /// The bar stands in the gap after the glyph rather than on its last
-    /// column, which is what makes it read as being between two letters.
-    #[test]
-    fn the_bar_is_nudged_off_the_advance_boundary() {
-        assert!((nudge(20) - 1.4).abs() < 1e-9, "1.4 px at 20 px type");
-        assert!((nudge(40) - 2.8).abs() < 1e-9, "2.8 px at 40 px type");
     }
 
     /// The band hangs from the baseline at iA's own share, which is what keeps

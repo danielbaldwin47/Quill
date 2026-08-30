@@ -87,6 +87,19 @@ Download notes / failures:
 * ia.net/writer/mac, /windows, /ios, /android are thin redirect-style pages (≈6.7 KB) with only award badges; all real product images live on ia.net/writer and the support pages.
 * ia.net/topics/duospace and /topics/ia-writer-mono-duo-quattro do not exist (404); the real posts are listed in §3.
 
+### 1.1 Captures of the app itself (`owner-mac-*`)
+
+Everything above is a marketing frame or a support-page image. These four are the owner's own screen captures of iA Writer **running natively on macOS**, taken 2026-08-30, dark theme, and they outrank a marketing frame wherever the two disagree — three claims elsewhere in this repo were read off marketing frames and all three were wrong (ADRs 0013 and 0014). [#154](https://github.com/danielbaldwin47/Quill/issues/154) collects the systematic set; these are the first four.
+
+| File | px | What it shows | Measured |
+|---|---|---|---|
+| owner-mac-01-dark-caret-midword.png | 1090×124 | caret between two letters of `test` | one bar `#00bfff`, 6 × 63 px, x 331–336 |
+| owner-mac-02-dark-caret-line-end.png | 1224×162 | caret past the last glyph of the line | one bar `#00bfff`, 6 × 63 px, x 1120–1125 |
+| owner-mac-03-dark-selection-inline.png | 1146×124 | `caret and selection` held, inside one row | fill `#113d52`, x 594–1071, band 60 px tall; **no `#00bfff` pixel in the frame** — no end bars and no caret |
+| owner-mac-04-dark-selection-multiline.png | 2140×328 | a selection running from mid-line through a heading and a quote block | one contiguous fill band, y 44–259; **no `#00bfff` pixel in the frame** |
+
+The two selection frames are what ADR 0014 rests on, and they are read the safe way round: a caret bar is the brightest thing in any frame that holds one, so a frame with no accent pixel in it holds neither a bar nor a caret. Note that `appstore-mac-04` above — the frame ADR 0012 read as the Mac app's selection — shows 44-px round touch grab-handles, an affordance macOS does not have.
+
 ---
 
 ## 2. Fonts (`fonts/`)
