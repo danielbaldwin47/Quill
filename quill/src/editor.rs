@@ -662,14 +662,21 @@ impl Editor {
         // empty, so it costs a zero-width fill that [`draw_box`] drops.
         while at <= end && rows.len() < MAX_ROWS {
             let mut stop = at;
-            if !self.forward_display_line_end(&mut stop) {
-                // Already at the row's end, which an empty line always is and
-                // a selection that starts at the end of one is too. A row of
-                // no width, and still a row: the newline below is what gets
-                // drawn there.
-                stop = at;
-            }
-            stop = stop.min(end);
+            // The iterator is the answer here, never the boolean. Neither of
+            // GTK's two display-line moves reports whether it moved: each
+            // reports whether the place it arrived at is something other than
+            // the buffer's end iterator, and the last row of a Document ends
+            // exactly there. Read as "it did not move", that false put `stop`
+            // back at the row's start, and the row then measured no width and
+            // never satisfied `stop >= end` — so the Document's last row drew
+            // no fill and the walk left no bar on it, whatever the selection
+            // really ended at. Every row but the last one was painted (#146).
+            //
+            // A move that has nowhere to go leaves the iterator alone, which
+            // is the empty row and the row a selection starts at the end of,
+            // and both of those want `stop == at` anyway.
+            self.forward_display_line_end(&mut stop);
+            stop = stop.max(at).min(end);
             let box_of_first = self.iter_location(&at);
             if f64::from(box_of_first.y()) > bottom {
                 break;
@@ -706,8 +713,14 @@ impl Editor {
             if stop >= end {
                 break;
             }
+            // The same false, for the same reason: stepping onto a last row
+            // that is empty — a Document ending in a newline — arrives at the
+            // end iterator and is reported as a failure to step. `next <= at`
+            // is the honest stop, and it is the one a move with nowhere to go
+            // leaves behind.
             let mut next = at;
-            if !self.forward_display_line(&mut next) || next <= at {
+            self.forward_display_line(&mut next);
+            if next <= at {
                 break;
             }
             at = next;
