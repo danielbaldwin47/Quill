@@ -1,8 +1,8 @@
 # The Editor draws its own selection
 
 The Editor paints the selection itself — the fill, a bar at each end, and the caret — in the same
-`snapshot_layer` pass beneath the glyphs, all four boxes cut from one function (`Editor::band`) so
-that their rows are the same rows. GTK's `selection` sub-node keeps one stylesheet rule, which clears
+`snapshot_layer` pass beneath the glyphs, the caret, the two ends and every fill row cut from one
+function (`Editor::band`) so that their rows are the same rows. GTK's `selection` sub-node keeps one stylesheet rule, which clears
 its `background-color` and holds `color` at the page's ink so the desktop theme cannot take the ink
 when it loses the ground. This supersedes one sentence of [ADR 0004](0004-gtktextview-editor.md):
 "GTK draws selection beneath the glyphs already, so the hand-drawn selection rectangles go away",
@@ -12,11 +12,9 @@ subclass, its considered options, its five consequences — stands. Decided in
 [#140](https://github.com/danielbaldwin47/Quill/issues/140).
 
 The owner asked for iA Writer's Windows look on the selection: a bar at each end, each matching the
-selection's height exactly. Neither is reachable while GTK paints the ground. Its selection is its
-own box on its own rows, and nothing lines it up with a band the Editor cuts, so a bar drawn beside
-it is a second geometry disagreeing with the first by a pixel somewhere. Drawing the fill too is
-what lets fill, bars and caret register: measured on the judged shot, the fill's rows and the bars'
-rows are the same rows.
+selection's height exactly. Neither is reachable while GTK paints the ground (§ Considered options).
+Drawing the fill too is what lets fill, bars and caret register: measured on the judged shot, the
+fill's rows and the bars' rows are the same rows.
 
 ## Considered options
 
@@ -33,17 +31,18 @@ the Parity oracle's own geometry (`setEdge(edgeA, firstEdge, -M.w)` in `legacy/a
 
 ## Consequences
 
-**The band is one device pixel lower than the constant alone gives.** Against ink that is 37 device
-pixels ascender-to-descender in both our shot and the oracle's, a browser puts the baseline
-15.25 logical pixels below the top of the ink and Pango puts it 14.75. `ABOVE_BASELINE` stays the
-oracle's 11/16 and the half pixel is named for what it is (`BASELINE_DRIFT`), so the band sits
-19 device pixels above the ascender and 16 below the descender, which is iA's and the oracle's.
+**The band carries a named half pixel.** It sits one device pixel lower than the constant alone
+gives: against ink that is 37 device pixels ascender-to-descender in both our shot and the oracle's,
+a browser puts the baseline 15.25 logical pixels below the top of the ink and Pango puts it 14.75.
+`ABOVE_BASELINE` stays the oracle's 11/16 and the half pixel is named for what it is
+(`BASELINE_DRIFT`, whose doc comment holds the measurement), so the band sits 19 device pixels
+above the ascender and 16 below the descender, which is iA's and the oracle's.
 
 **Bars at both ends are iA's, not a departure from it.** #38 § Problem Statement records that a
-gauntlet critic named the oracle's end bars as "its one gap", and the port dropped them on that
-sentence. Both of iA's own captures have two bars — `msstore-win-04` (Windows) and `appstore-mac-04`
-(macOS, with the knobs) — so whatever that critic meant, two bars is the reference, and the sentence
-is not grounds for dropping them again.
+gauntlet critic named the oracle's end bars as "its one gap", and the port dropped them partly on
+that sentence. Both of iA's own captures have two bars — `msstore-win-04` (Windows) and
+`appstore-mac-04` (macOS, with the knobs) — so whatever that critic meant, two bars is the
+reference, and a reader who meets that sentence again keeps them.
 
 **The caret is hidden while a selection stands.** The two ends are the instrument, and a third bar
 blinking inside the held cells reads as a second cursor; `place()` in `caret.js` hides its caret for
@@ -54,5 +53,5 @@ select-all scrolled deep into a Document draws a screenful of boxes, not the Doc
 
 **Selection colours are a paint of the focus flag**, `selection_paint(focused)`: the fill and the
 ends both swap when the window loses focus, the ends going to ink rather than a paler accent. The
-colours come from the colour table (`Role::Selection`, `Role::SelectionIdle`), which is why #110 has
-only the scheme switch left to do.
+colours come from the colour table (`Role::Selection`, `Role::SelectionIdle`), so a scheme switch
+reaches the band and its bars through the table, the same way it reaches the paper.
