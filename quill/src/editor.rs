@@ -586,7 +586,7 @@ impl Editor {
         Some(caret::Bar {
             x: f64::from(row.x()) * scale,
             y,
-            w: f64::from(caret::width(em_px(step))) * scale,
+            w: f64::from(caret::width(caret_em_px(step))) * scale,
             h,
         })
     }
@@ -652,7 +652,7 @@ impl Editor {
         if pitch == 0.0 {
             return None;
         }
-        let tail = caret::tail(em_px(self.imp().step.get()));
+        let tail = caret::tail(caret_em_px(self.imp().step.get()));
         let scale = self.scale();
         let view = self.visible_rect();
         let top = f64::from(view.y()) - pitch * SELECTION_SLACK;
@@ -1260,7 +1260,7 @@ fn body_font(face: Face, em: f64) -> pango::FontDescription {
 /// ([`typography::caret_width`]) and reading it there is
 /// [#169](https://github.com/danielbaldwin47/Quill/issues/169)'s, with the
 /// blink.
-fn em_px(step: u32) -> u32 {
+fn caret_em_px(step: u32) -> u32 {
     typography::em(step).round() as u32
 }
 
@@ -1342,16 +1342,6 @@ impl Default for Editor {
 mod tests {
     use super::*;
 
-    /// GTK paints no selection ground at all, and still paints the glyphs in
-    /// the page's own ink.
-    ///
-    /// The band is ours now, drawn in the same pass and off the same band as
-    /// the bar (§ the snapshot), because that is the only way the fill, the
-    /// two end bars and the caret can be guaranteed to register. What is left
-    /// for the stylesheet is to get GTK out of the way without letting it take
-    /// the ink with it: a `selection` rule that only clears the ground would
-    /// leave `color` to the desktop theme's selected-text colour, which on a
-    /// dark desktop is white on our paper.
     /// The ladder's ems are fractional, and the type is set at them.
     ///
     /// Both places the size is named — GTK's CSS and Pango's description —
@@ -1375,6 +1365,16 @@ mod tests {
         );
     }
 
+    /// GTK paints no selection ground at all, and still paints the glyphs in
+    /// the page's own ink.
+    ///
+    /// The band is ours now, drawn in the same pass and off the same band as
+    /// the bar (§ the snapshot), because that is the only way the fill, the
+    /// two end bars and the caret can be guaranteed to register. What is left
+    /// for the stylesheet is to get GTK out of the way without letting it take
+    /// the ink with it: a `selection` rule that only clears the ground would
+    /// leave `color` to the desktop theme's selected-text colour, which on a
+    /// dark desktop is white on our paper.
     #[test]
     fn the_stylesheet_leaves_the_selection_ground_to_us_and_keeps_the_ink() {
         let css = stylesheet(
