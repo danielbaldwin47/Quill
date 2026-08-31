@@ -23,6 +23,7 @@ use gtk::subclass::prelude::*;
 use gtk::{gio, glib};
 use quill_engine::document::Document;
 use quill_engine::settings::WindowState;
+use quill_engine::theme::Scheme;
 
 use crate::caret;
 use crate::harness;
@@ -111,12 +112,16 @@ impl Window {
             .imp()
             .editor
             .set_mode(caret::Mode::from_flags(session.flags()));
+        // And before the Document, because showing one draws every tag it
+        // carries and a tag is drawn in a colour: the ground has to be settled
+        // before the first thing painted on it.
+        window.imp().editor.open_on(session.scheme());
         window.set_document(document);
         window
             .imp()
             .editor
             .set_type(session.settings().face, session.step());
-        window.install_size_steps();
+        window.install_commands();
         window.imp().editor.grab_focus();
         window.watch_active();
         // A window is remembered as it closes rather than at shutdown, so that
@@ -173,13 +178,14 @@ impl Window {
         }
     }
 
-    /// Installs Bigger Text, Smaller Text and Default Text Size.
+    /// Installs Bigger Text, Smaller Text, Default Text Size and Dark Mode.
     ///
     /// On the window rather than on the application because that is what
-    /// `docs/shortcuts.md` names them: `font.bigger` with `win.` in front. The
-    /// size they move is the session's, though, so stepping it in one window
-    /// steps it in every window — a writer has one pair of eyes.
-    fn install_size_steps(&self) {
+    /// `docs/shortcuts.md` names them: `font.bigger` with `win.` in front. What
+    /// they move is the session's, though — the size and the ground both — so
+    /// moving either in one window moves it in every window: a writer has one
+    /// pair of eyes.
+    fn install_commands(&self) {
         self.add_action_entries([
             gio::ActionEntry::builder("font.bigger")
                 .activate(|window: &Self, _, _| window.step_size(Step::Bigger))
@@ -189,6 +195,9 @@ impl Window {
                 .build(),
             gio::ActionEntry::builder("font.reset")
                 .activate(|window: &Self, _, _| window.step_size(Step::Default))
+                .build(),
+            gio::ActionEntry::builder("theme.toggle")
+                .activate(|window: &Self, _, _| window.toggle_scheme())
                 .build(),
         ]);
     }
@@ -217,7 +226,24 @@ impl Window {
         }
         session.set_step(step);
         if let Some(app) = self.application() {
-            reset_type(&app, session.settings().face, step);
+            reset_type(&app, session.scheme(), session.settings().face, step);
+        }
+    }
+
+    /// Toggles the ground, for this launch and for the next.
+    ///
+    /// A working binding until #119 moves the Commands into the registry
+    /// `docs/shortcuts.md` describes; the accelerator is that table's
+    /// `theme.toggle` row, `Ctrl+Shift+L`. The session decides which ground
+    /// the toggle lands on — it is the one holding what `auto` resolved to —
+    /// and writes the setting on the way out.
+    fn toggle_scheme(&self) {
+        let Some(session) = self.imp().session.borrow().clone() else {
+            return;
+        };
+        let scheme = session.toggle_scheme();
+        if let Some(app) = self.application() {
+            reset_scheme(&app, &session, scheme);
         }
     }
 
@@ -337,11 +363,32 @@ enum Step {
 /// The stylesheet first and once, because it belongs to the display rather
 /// than to a window; then each Editor, because the leading and the measure are
 /// laid out per widget.
-fn reset_type(app: &gtk::Application, face: quill_engine::settings::Face, size: u32) {
-    crate::editor::install_type(face, size);
+fn reset_type(
+    app: &gtk::Application,
+    scheme: Scheme,
+    face: quill_engine::settings::Face,
+    size: u32,
+) {
+    crate::editor::install_type(scheme, face, size);
     for window in app.windows() {
         if let Ok(window) = window.downcast::<Window>() {
             window.imp().editor.set_type(face, size);
+        }
+    }
+}
+
+/// Moves every open window to `scheme`'s ground.
+///
+/// The same shape as [`reset_type`] and for the same reason: the paper is the
+/// stylesheet's and belongs to the display, so it is reloaded once, and
+/// everything else is per widget. A writer has one pair of eyes, so a toggle
+/// in one window is a toggle in all of them.
+fn reset_scheme(app: &gtk::Application, session: &Session, scheme: Scheme) {
+    crate::editor::install_type(scheme, session.settings().face, session.step());
+    for window in app.windows() {
+        if let Ok(window) = window.downcast::<Window>() {
+            let document = window.imp().document.borrow();
+            window.imp().editor.set_scheme(scheme, &document);
         }
     }
 }
