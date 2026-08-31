@@ -14,7 +14,14 @@
     "type": {
       "duo": { "chrome": "off" },
       "quattro": { "chrome": "off", "font": "quattro" },
-      "mono": { "chrome": "off", "font": "mono" }
+      "mono": {
+        "chrome": "off", "font": "mono", "theme": "dark", "nocaret": true,
+        "opponent": {
+          "capture": "mac-native-11-dark-text-size-05.png",
+          "crop": [630, 870, 1760, 520],
+          "ours": [560, 135, 1760, 520]
+        }
+      }
     },
     "page": {
       "light": {},
