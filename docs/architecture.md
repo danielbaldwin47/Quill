@@ -78,7 +78,9 @@ flattened: Markup tier × Focus tier × Syntax highlight resolve into non-overla
 precomputed colour and alpha each, and the tag table holds one tag per distinct `(colour, alpha)`
 and one per `(weight, slant)`, created lazily and never removed. Decorations are separate tags
 layered over the runs: one `underline: error` tag for Spell check, one per Style check list, one for
-selection-independent things such as the Focus dim of a heading marker. Underline and colour are
+selection-independent things such as the transparent underline a dim URL takes (`focus.css:41`).
+Focus's own dim is not among them: it is a colour, so it resolves into the run rather than layering
+over it (`quill_engine::annotate::paint`, #126). Underline and colour are
 different properties, so those overlaps are safe.
 
 **Leading.** Line pitch is the ladder's pitch per step (`ref/ia/mac-native/NOTES.md` § 11; 1.711 em

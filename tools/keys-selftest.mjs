@@ -7,10 +7,11 @@
 // Every other Gate subcommand has one of these beside it, and this one has more to prove than most.
 // `tools/gate keys` is the condition that exists because six critics and three judged states missed
 // #108, so the question "does it actually go red on that defect?" cannot be left to the day it
-// matters. The two builds are committed as pixels — `tools/keys-fixture/fixed-typing-{16,38}.png`
-// from the build with `45d1434`, `broken-typing-{16,38}.png` from the build without it — so the
-// whole assertion is exercised here with no window, no compositor and no keyboard, which is what
-// lets `tools/gate check` run it.
+// matters. The builds it is asked of are committed as pixels — `tools/keys-fixture/fixed-typing-
+// {16,38}.png` from the build with `45d1434` and `broken-typing-{16,38}.png` from the one without
+// it for #108's caret, `fixed-select-all.png` and `broken-select-all.png` for #146's selection —
+// so the whole assertion is exercised here with no window, no compositor and no keyboard, which is
+// what lets `tools/gate check` run it.
 
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -18,7 +19,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  INK_DARK, PAPER_DARK, decodePng, glyphAdvance, judgeBurst, judgeMove, readBar, resolveScript,
+  INK_DARK, PAPER_DARK, decodePng, glyphAdvance, judgeBurst, judgeMove, judgeSelectionRows,
+  readBar, readSelectionRows, resolveScript,
 } from './keys-assert.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -148,6 +150,73 @@ ok('matched, the fixed build moves the bar and the broken one does not', () => {
   assert.equal(broken.pass, false, broken.said);
 });
 
+// ---------- the selection reaching the foot of a Document: #146 ----------
+//
+// The pair here is one build against itself: `fixed-select-all.png` is `tools/gate keys caret
+// --shots` on the tip, `broken-select-all.png` is the same command in the same worktree with
+// `27f5a21` reverted and nothing else changed. So the three rows are typed the same, the type is
+// the same and the window is the same, and the bottom row is the only thing that differs.
+
+ok('the fixed build paints every row of a selection that reaches the foot', () => {
+  const v = judgeSelectionRows(shot('fixed-select-all'), { rows: 3 });
+  assert.equal(v.pass, true, v.said);
+  assert.deepEqual(v.read.bands, [
+    { top: 150, bottom: 223, left: 622, right: 1616 },
+    { top: 224, bottom: 297, left: 622, right: 744 },
+    { top: 298, bottom: 371, left: 622, right: 877 },
+  ]);
+});
+
+ok("the broken build leaves the bottom row bare, and the line names the count", () => {
+  const v = judgeSelectionRows(shot('broken-select-all'), { rows: 3 });
+  assert.equal(v.pass, false);
+  assert.equal(v.read.bands.length, 2);
+  assert.match(v.said, /2 row bands in the selection colour, expected 3/);
+});
+
+ok('matched, the two builds differ in the last row and in nothing else', () => {
+  const fixed = readSelectionRows(shot('fixed-select-all'));
+  const broken = readSelectionRows(shot('broken-select-all'));
+  assert.deepEqual(broken.bands, fixed.bands.slice(0, 2), 'every row above the last is the same');
+  assert.equal(fixed.bands.length - broken.bands.length, 1, 'the defect is one row, the bottom one');
+});
+
+ok('a row band is told from the next by where the fill ends, not by a gap between them', () => {
+  // What the shots show, said as the invariant it rests on: the bands touch — 223 then 224, 297
+  // then 298 — so nothing separates them but their right edges.
+  const { bands } = readSelectionRows(shot('fixed-select-all'));
+  for (let i = 1; i < bands.length; i += 1) {
+    assert.equal(bands[i].top, bands[i - 1].bottom + 1, `bands ${i - 1} and ${i} touch`);
+    assert.notEqual(bands[i].right, bands[i - 1].right, `bands ${i - 1} and ${i} end apart`);
+  }
+});
+
+ok('two rows filled to the same column are one band, which is why the script varies its rows', () => {
+  const same = page(200, 60, (fill) => {
+    fill(20, 10, 120, 29, BAR_PX);
+    fill(20, 30, 120, 49, BAR_PX);
+  });
+  assert.equal(readSelectionRows(same).bands.length, 1);
+  const varied = page(200, 60, (fill) => {
+    fill(20, 10, 120, 29, BAR_PX);
+    fill(20, 30, 90, 49, BAR_PX);
+  });
+  assert.equal(readSelectionRows(varied).bands.length, 2);
+});
+
+ok('a page with no selection colour on it says so rather than counting zero bands', () => {
+  const bare = page(200, 60, (fill) => fill(20, 20, 100, 30, INK_PX));
+  const v = judgeSelectionRows(bare, { rows: 3 });
+  assert.equal(v.pass, false);
+  assert.match(v.said, /nothing on the page is drawn in the selection colour/);
+});
+
+ok('a burst asserting selection-rows without saying how many rows is refused, not passed', () => {
+  const v = judgeSelectionRows(shot('fixed-select-all'), {});
+  assert.equal(v.pass, false);
+  assert.match(v.said, /has to say how many rows it selects/);
+});
+
 // ---------- what is not a defect ----------
 
 ok("a shot caught in the blink's dark half is reported as no bar, not as a bar in the wrong place", () => {
@@ -222,10 +291,19 @@ ok('too few characters to measure an advance from is said, not guessed at', () =
 
 const states = JSON.parse(fs.readFileSync(path.join(ROOT, 'shots/oracle/states.json'), 'utf8'));
 
-ok("the caret's script is the two bursts the fixture was taken with", () => {
+ok("the caret's script is the three bursts the fixtures were taken with", () => {
   const script = resolveScript(states, 'caret');
-  assert.deepEqual(script.bursts.map((b) => b.text), ['dfdfsdfsdfsdfsdf', 'fefefefefefsfesfesfesf']);
-  assert.deepEqual(script.bursts.map((b) => b.chars), [16, 38]);
+  assert.deepEqual(script.bursts.map((b) => b.text),
+    ['dfdfsdfsdfsdfsdf', 'fefefefefefsfesfesfesf', '\nffff\nssssssssss']);
+  assert.deepEqual(script.bursts.map((b) => b.chars), [16, 38, 54]);
+  // The rows the third burst selects, and the lengths that tell one band from the next: 38 from
+  // the first two bursts, then 4 and 10. No two neighbours end in the same column.
+  const rows = script.bursts[2].text.split('\n').slice(1);
+  assert.deepEqual(rows.map((r) => r.length), [4, 10]);
+  assert.equal(script.bursts[2].rows, 1 + rows.length);
+  // Only `keys` can spell a chord, and a chord is what puts the selection on the page.
+  assert.deepEqual(script.bursts[2].keys, [{ press: 'Control+a' }]);
+  assert.equal(script.bursts[2].settle, 'still');
   // Live, on an empty Document, with the chrome off: the defaults with the script's state over them.
   assert.equal(script.flags.text, null);
   assert.equal(script.flags.chrome, 'off');
@@ -250,6 +328,18 @@ ok('an assertion the command does not have is refused by name', () => {
   const wrong = { ...states, keys: { caret: { ...states.keys.caret } } };
   wrong.keys.caret.bursts = [{ name: 'a', text: 'abc', chars: 3, assert: ['bar-does-a-jig'] }];
   assert.throws(() => resolveScript(wrong, 'caret'), /no assertion called bar-does-a-jig/);
+});
+
+ok('a settle rule the command does not have is refused by name, before a window opens', () => {
+  const wrong = { ...states, keys: { caret: { ...states.keys.caret } } };
+  wrong.keys.caret.bursts = [{ name: 'a', text: 'abc', chars: 3, settle: 'eventually' }];
+  assert.throws(() => resolveScript(wrong, 'caret'), /settles eventually \(this command knows/);
+});
+
+ok('a burst that only presses a chord types no characters, and its chars say so', () => {
+  const wrong = { ...states, keys: { caret: { ...states.keys.caret } } };
+  wrong.keys.caret.bursts = [{ name: 'a', keys: [{ press: 'Control+a' }], chars: 0 }];
+  assert.deepEqual(resolveScript(wrong, 'caret').bursts[0].chars, 0);
 });
 
 if (failures === 0) {
