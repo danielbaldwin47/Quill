@@ -18,6 +18,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { ASSERTIONS, assertState, validate } from './assert-state.mjs';
 import { pair, pairDir, reveal } from './blind.mjs';
 import { CAPTURES, cropPng, encodePng, resolveOpponent } from './crop.mjs';
 import { APP_ID, appeared, classPattern, launchEnv, parseToplevels, pngSize, quillArgv, rulesLua } from './harness.mjs';
@@ -340,16 +341,140 @@ ok('a state that names an opponent carries no such flag, and is shot in Mono at 
 
 ok('a round names the opponent its states were judged against, and says so when they differ', () => {
   const design = { capture: CAPTURE, crop: [0, 0, 8, 8], ours: [0, 0, 8, 8] };
+  const ghost = { kind: 'ghost', alpha: 0.3 };
   assert.equal(opponentOf([{ opponent: null }, { opponent: null }]), 'oracle');
   assert.equal(opponentOf([{ opponent: design }, { opponent: design }]), 'mac-native');
   // A Piece part-way through: #165-#168 move one row at a time, so this is what the ledger says
   // for every round between the first row moving and the last.
   assert.equal(opponentOf([{ opponent: null }, { opponent: design }]), 'mixed');
+  // A Piece with no opponent at all, and one holding an asserted state beside a paired one — which
+  // is the caret from #147 on: a crop, a Parity pair and an assertion in the one round (ADR 0017).
+  assert.equal(opponentOf([{ assert: ghost }, { assert: ghost }]), 'asserted');
+  assert.equal(opponentOf([{ opponent: design }, { opponent: null }, { assert: ghost }]), 'mixed');
+  assert.equal(opponentOf([{ opponent: design }, { assert: ghost }]), 'mixed');
   // And every word one of them returns is one the progress page can caption.
-  for (const word of ['oracle', 'mac-native', 'mixed']) {
+  for (const word of ['oracle', 'mac-native', 'mixed', 'asserted']) {
     assert.ok(OPPONENTS[word], `a round recording ${word} would be captioned by its own key`);
     assert.equal(opponentName({ opponent: word }), OPPONENTS[word]);
   }
+});
+
+// A ground and a bar that are deliberately **not** the app's palette.
+//
+// The rule solves its alpha out of the two shots and never compares a colour against one written
+// down, so it must hold for any ground and any bar the bar-finder can see. Painting `theme.rs`'s
+// own hexes here would test one palette and go quietly stale the day it moves — which is how
+// `tools/keys-assert.mjs`'s constants came to disagree with the app. These two only have to satisfy
+// `readBar`: chroma at least 40, and more blue than green.
+const GROUND = [240, 238, 235];
+const BAR = [10, 100, 200];
+
+// A shot with nothing in it but ground and one bar: the two frames the ghost rule reads.
+function painted({ w = 80, h = 40, paper = GROUND, bar = BAR, at: [x0, y0, bw, bh] = [20, 10, 6, 20] } = {}) {
+  const data = Buffer.alloc(w * h * 3);
+  for (let i = 0; i < w * h; i += 1) for (let c = 0; c < 3; c += 1) data[i * 3 + c] = paper[c];
+  for (let y = y0; y < y0 + bh; y += 1) {
+    for (let x = x0; x < x0 + bw; x += 1) for (let c = 0; c < 3; c += 1) data[(y * w + x) * 3 + c] = bar[c];
+  }
+  return encodePng({ w, h, ch: 3, data });
+}
+
+// The bar as it is painted at `alpha` over the ground, which is what a ghost is.
+const over = (alpha, bar = BAR, paper = GROUND) => bar.map((v, c) => Math.round(v * alpha + paper[c] * (1 - alpha)));
+
+ok('the ghost is measured off ours own pixels, and the alpha is solved rather than looked up', () => {
+  const lit = painted();
+  const held = assertState({ kind: 'ghost', alpha: 0.3 }, { lit, dim: painted({ bar: over(0.3) }) });
+  assert.equal(held.ours, true, held.why);
+  // Solved, not asserted against a hex: the answer carries the alpha it read, and it is the one the
+  // state asked for. This repo has twice had a pinned colour outlive the palette it was copied from.
+  assert.ok(Math.abs(held.alpha - 0.3) <= 0.02, `solved ${held.alpha} for a ghost painted at 0.3`);
+
+  // A ghost at the wrong alpha fails, and the neighbouring rungs of the ladder cannot pass for 0.3.
+  for (const wrong of [0.2, 0.25, 0.35, 0.5]) {
+    const got = assertState({ kind: 'ghost', alpha: 0.3 }, { lit, dim: painted({ bar: over(wrong) }) });
+    assert.equal(got.ours, false, `a ghost at ${wrong} passed for 0.3: ${got.why}`);
+  }
+
+  // A bar that moves when the window deactivates is the defect this catches, whatever its alpha.
+  const moved = assertState({ kind: 'ghost', alpha: 0.3 }, { lit, dim: painted({ bar: over(0.3), at: [23, 10, 6, 20] }) });
+  assert.equal(moved.ours, false, moved.why);
+  assert.match(moved.why, /moves when the window deactivates/);
+
+  // No caret at all is its own answer and never a silent pass.
+  const gone = assertState({ kind: 'ghost', alpha: 0.3 }, { lit, dim: painted({ bar: [247, 247, 247] }) });
+  assert.equal(gone.ours, false, gone.why);
+  assert.match(gone.why, /no caret/);
+
+  // An assertion nobody wrote, and an alpha that is not one, are refused rather than guessed at —
+  // and by the same call `tools/gate judge` makes over every asserted state before it shoots.
+  assert.throws(() => assertState({ kind: 'shimmer' }, { lit, dim: lit }), /the assertion is "shimmer"/);
+  assert.throws(() => validate({ kind: 'shimmer' }), /the assertion is "shimmer"/);
+  for (const alpha of [3, 0, 1, '0.3', undefined]) {
+    assert.throws(() => validate({ kind: 'ghost', alpha }), /between 0 and 1/, `an alpha of ${alpha} was taken`);
+  }
+  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost']);
+});
+
+ok('the ghost refuses to read a bar it cannot see the ground beside, and never guesses one', () => {
+  const spec = { kind: 'ghost', alpha: 0.3 };
+
+  // A bar standing on ink has no clear run either side, and neither shot shows what is under it.
+  // Solving an alpha against the wrong ground would answer confidently and wrongly, so it does not.
+  // The ink goes on the row the ground is read at — the bar's middle, y 19 of a bar spanning 10..29.
+  const litInk = smudged(painted(), 17, 19);
+  const dimInk = smudged(painted({ bar: over(0.3) }), 17, 19);
+  const unclear = assertState(spec, { lit: litInk, dim: dimInk });
+  assert.equal(unclear.ours, false, unclear.why);
+  assert.match(unclear.why, /does not stand in clear ground/);
+
+  // A bar the ground barely separates from cannot carry an alpha on that channel, and a bar it
+  // separates from on no channel at all is refused rather than divided by nearly nothing.
+  const grey = [200, 200, 200];
+  const flat = assertState(spec, {
+    lit: painted({ paper: grey, bar: grey }),
+    dim: painted({ paper: grey, bar: grey }),
+  });
+  assert.equal(flat.ours, false, flat.why);
+  assert.match(flat.why, /no caret/, 'a bar the same colour as its ground is not a bar this can see');
+
+  // Two shots of different sizes are not two shots of one state.
+  const odd = assertState(spec, { lit: painted(), dim: painted({ w: 81 }) });
+  assert.equal(odd.ours, false, odd.why);
+  assert.match(odd.why, /80x40 and the ghosted one 81x40/);
+
+  // Two runs of colour is either a second caret or something this was never meant to measure.
+  const twice = painted();
+  const doubled = smudged(painted({ bar: over(0.3) }), 40, 20, over(0.3));
+  const two = assertState(spec, { lit: twice, dim: doubled });
+  assert.equal(two.ours, false, two.why);
+  assert.match(two.why, /not one run of colour/);
+});
+
+// One more mark painted into an encoded shot, at `x`, `y`: ink by default, which is what a caret
+// standing on a glyph looks like to the ground reader.
+function smudged(png, x, y, colour = [20, 20, 20]) {
+  const { w, h, ch, data } = decodePng(png);
+  for (let i = 0; i < 4; i += 1) {
+    for (let c = 0; c < 3; c += 1) data[((y * w) + x + i) * ch + c] = colour[c];
+  }
+  return encodePng({ w, h, ch, data });
+}
+
+ok('a state that names an assertion carries no such flag, and wants no frozen opponent', () => {
+  const made = {
+    defaults: { ...states.defaults, w: 200, h: 100, scale: 2 },
+    pieces: { synthetic: { lone: { active: false, assert: { kind: 'ghost', alpha: 0.3 } } } },
+  };
+  const [s] = resolveStates(made, 'synthetic');
+  // Like `opponent`, it says how the state is answered rather than what it is shot at, so it must
+  // never reach the flags — `unservable` would refuse the Piece before a window opened.
+  assert.deepEqual(unservable(made.defaults, s.flags), []);
+  assert.deepEqual(s.assert, { kind: 'ghost', alpha: 0.3 });
+  assert.equal(s.opponent, null);
+  // And unlike `opponent` it does not force Mono: there is no second app's grid to line up with.
+  assert.equal(s.flags.font, states.defaults.font);
+  assert.equal(s.flags.active, false);
 });
 
 ok('an opponent is resolved against the capture on disk, and the centre rule carries the container', () => {

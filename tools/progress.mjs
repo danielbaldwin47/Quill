@@ -14,10 +14,12 @@ const fmtT = iso => { try { return new Date(iso).toLocaleString('en-GB', { timeZ
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true });
 const thumbCache = new Map();
 async function th(file) { if (!file || !fs.existsSync(file) || !/\.(png|jpe?g|webp)$/i.test(file)) return null; try { if (!thumbCache.has(file)) thumbCache.set(file, await thumb(file, 640, browser)); return thumbCache.get(file); } catch (e) { console.error('thumb failed', file, e.message); return null; } }
-// A round whose pair is not screenshots was measured rather than judged: the latency Piece is
-// decided by arithmetic against the oracle's numbers, so the card names the numbers rather than
-// crediting a critic that never looked at anything.
-const measured = r => !!r && !/\.(png|jpe?g|webp)$/i.test(r.oursShot || '');
+// A round with no pair was measured rather than judged, and the card names what was measured
+// rather than crediting a critic that never looked at anything. Two kinds reach here: the latency
+// Piece, decided by arithmetic against the oracle's numbers, whose shots are not screenshots at
+// all; and a state carrying `assert`, which is a screenshot of ours and has no opponent beside it
+// because neither oracle holds the state (ADR 0017).
+const measured = r => !!r && (!r.theirsShot || !/\.(png|jpe?g|webp)$/i.test(r.oursShot || ''));
 const pieces = [];
 for (const p of state.pieces) {
   const rs = rounds.filter(r => r.piece === p.id);

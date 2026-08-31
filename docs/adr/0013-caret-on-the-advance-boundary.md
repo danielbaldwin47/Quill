@@ -21,6 +21,15 @@ paper and the capture it is measured from.*
 geometry, so a loss is not a regression. ADR 0015 gives the caret states a `mac-native` opponent
 (the Gate's per-state key is #161), so a round is winnable and a loss is a loss again.*
 
+*Narrowed on 2026-08-31 by [#147](https://github.com/danielbaldwin47/Quill/issues/147), which built
+the sharpening above: the bar is **centred** on the advance boundary rather than standing with its
+left edge on it. `caret::left` is the rule, `Editor::bar` calls it, and `docs/design.md` row Caret
+column is the decision. "Offset from it by nothing" below is what stood before that and is now the
+column's centre rather than its left edge; everything else here stands. `caret/caret` is judged
+against a `mac-native` crop from here on; `caret/unfocused` still shows a free caret and is still
+judged against the Parity oracle, whose column this change overrules, and it lost on that column in
+`progress/rounds/caret-r8.json`.*
+
 The bar — the free caret and both of the selection's end bars — stands on the advance boundary
 between two cells, offset from it by nothing, and is painted over the ink rather than under it. The
 free caret at an offset and the selection's opening bar at that same offset are therefore the same

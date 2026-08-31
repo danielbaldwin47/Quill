@@ -129,12 +129,18 @@ usage: tools/gate <command> [arguments]
                 which is shot in Mono at the defaults' type so the two grids
                 compare cell for cell (ADR 0015). The round names the capture
                 and both rectangles.
+                A state naming an assert instead is shown to nobody: neither
+                oracle holds what it is about, so tools/assert-state.mjs reads
+                the rule off ours' own pixels and the state is won or lost on
+                that (ADR 0017). The round records what it measured where a
+                critic's reasoning would be, and names no opponent for it.
                 --note records what changed this round. The Piece is ours only
                 when every state is. Ends in `gate judge <piece>: ours|theirs,
                 round <N>`: 0 for ours, 1 for theirs, 2 for theirs after this
                 Piece had been won, and 3 with `gate judge <piece>: refused
                 (...)` when nothing was judged — a command line it could not
-                read, or a crop that cannot be cut, included, since 2 is
+                read, a crop that cannot be cut, or an assert this build
+                cannot run, included, since 2 is
                 spoken for. That line,
                 with the one above it that names the round which won a Piece now
                 lost, is the whole of stdout: everything said on the way there is

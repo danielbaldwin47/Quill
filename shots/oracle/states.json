@@ -9,6 +9,7 @@
     "caret": 403, "select": null, "scroll": 0, "nocaret": false,
     "active": true, "typing": false, "menu": null
   },
+  "assert": "A state that names `assert` instead is judged against nobody: neither oracle holds what it is about, so it is measured off ours' own pixels by tools/assert-state.mjs and the Piece takes that answer the way it takes a critic's (ADR 0017). { kind, ... } — the rule's name, and whatever that rule reads. `ghost` shoots the state a second time with the window active and holds the bar to the same column, width and band lit or ghosted, and to `alpha` of the lit bar over the paper; the alpha is solved out of the two shots rather than compared against a hex, and the state names it because docs/design.md is where it is decided. Like `opponent` it never reaches a command line, and tools/gate oracle passes such a state over.",
   "reference": "A state that names no `opponent` is judged against the Parity oracle while legacy/ stands. When legacy/ is gone the opponent for every state is a mac-native crop, named the way `opponent` above says; the gauntlet's own crop recipes, recorded as refSource in progress/rounds/<piece>-r1.json, were read off marketing frames and are history rather than an opponent (ADR 0015).",
   "pieces": {
     "type": {
@@ -55,9 +56,19 @@
       }
     },
     "caret": {
-      "caret": { "chrome": "off" },
+      "caret": {
+        "chrome": "off", "caret": 23,
+        "opponent": {
+          "capture": "mac-native-01-light-caret-midword.png",
+          "crop": [459, 187, 720, 260],
+          "ours": [392, 205, 720, 260]
+        }
+      },
       "selection": { "select": [153, 171], "caret": 171, "chrome": "off" },
-      "unfocused": { "active": false, "chrome": "off" }
+      "unfocused": {
+        "active": false, "chrome": "off",
+        "assert": { "kind": "ghost", "alpha": 0.3 }
+      }
     },
     "theme": {
       "light": {},
