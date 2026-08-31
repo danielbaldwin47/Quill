@@ -22,7 +22,11 @@ fontconfig reads it as roman whatever we call it, and the Editor asks for the
 Face it wants by family name.
 
 Output is a pure function of the input: running this twice produces identical
-bytes, which is what lets a Gate check regenerate `fonts/` and diff it.
+bytes. It is not a passthrough of the tables it leaves alone, though — fontTools
+recompiles every table this script loads, so a Face with nothing to pin still
+comes out a little smaller than iA compiled it, `gvar` packed tighter. Nothing
+checks the committed `fonts/` against a fresh build; a change here is rebuilt by
+hand and the diff read.
 """
 
 import sys
@@ -94,7 +98,7 @@ SPACE_GLYPH = "space"
 # run point by point and end with four phantom points — left side bearing,
 # advance, top side bearing, advance height — so the advance is the second
 # from the end of the four, and the third from the end of the tuple.
-ADVANCE_PHANTOM = -3
+ADVANCE_PHANTOM_INDEX = -3
 
 # `fonts/OFL.txt` is this preamble followed by iA's LICENSE.md verbatim.
 LICENCE_PREAMBLE = """\
@@ -117,9 +121,9 @@ What was modified:
   * the digital signature (`DSIG`) dropped, no longer being valid;
   * the typographic family and subfamily names (`name` IDs 16 and 17) dropped.
 
-Outlines, kerning, hinting and the variation axes are iA's, unchanged apart
-from the two advance edits named above. The
-originals are in this repository under `ref/ia/fonts`.
+Outlines, kerning, hinting and the variation axes are iA's, unchanged apart from
+the two advance edits named above. The originals are in this repository under
+`ref/ia/fonts`.
 
 The licence below is iA's own, copied verbatim from `ref/ia/fonts/*/LICENSE.md`.
 
@@ -199,16 +203,18 @@ def pin_advance(font):
     advance; zeroing it on every tuple that varies on `wght` leaves the outline
     deltas alone and holds the advance at the default instance's value, which
     is what `hmtx` already carries. The other axis, `SPCG`, is the one that is
-    meant to vary an advance, and keeps its deltas.
+    meant to vary an advance, and keeps its deltas — which holds for these six
+    files, where every tuple that varies an advance varies on `wght` alone. A
+    tuple varying on both would lose its `SPCG` advance too; none does.
     """
     pinned = 0
     for variations in font["gvar"].variations.values():
         for variation in variations:
             if "wght" not in variation.axes:
                 continue
-            if variation.coordinates[ADVANCE_PHANTOM] in (None, (0, 0)):
+            if variation.coordinates[ADVANCE_PHANTOM_INDEX] in (None, (0, 0)):
                 continue
-            variation.coordinates[ADVANCE_PHANTOM] = (0, 0)
+            variation.coordinates[ADVANCE_PHANTOM_INDEX] = (0, 0)
             pinned += 1
     return pinned
 

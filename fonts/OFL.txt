@@ -17,9 +17,9 @@ What was modified:
   * the digital signature (`DSIG`) dropped, no longer being valid;
   * the typographic family and subfamily names (`name` IDs 16 and 17) dropped.
 
-Outlines, kerning, hinting and the variation axes are iA's, unchanged apart
-from the two advance edits named above. The
-originals are in this repository under `ref/ia/fonts`.
+Outlines, kerning, hinting and the variation axes are iA's, unchanged apart from
+the two advance edits named above. The originals are in this repository under
+`ref/ia/fonts`.
 
 The licence below is iA's own, copied verbatim from `ref/ia/fonts/*/LICENSE.md`.
 
