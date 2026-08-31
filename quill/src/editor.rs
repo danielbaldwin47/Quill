@@ -680,10 +680,12 @@ impl Editor {
     ///
     /// The column comes from `iter_location`, which answers in the buffer
     /// coordinates the layer is snapshotted in, and is the advance boundary
-    /// itself: the bar stands on the boundary between two cells and is offset
-    /// from it by nothing. See [ADR 0013](../../docs/adr/0013-caret-on-the-advance-boundary.md)
+    /// between two cells. The bar is centred on it, half its width each side,
+    /// by [`caret::left`]. See [ADR 0013](../../docs/adr/0013-caret-on-the-advance-boundary.md)
     /// for the 0.07 em that used to be added here and what measuring iA Writer
-    /// itself said about it.
+    /// itself said about it, and `docs/design.md` row Caret column for the
+    /// centring, which sharpens that ADR: its bar put this edge *on* the
+    /// boundary, and the Design oracle's is 3 px before it.
     ///
     /// The band is the pitch, not the glyph, and it hangs from the row's
     /// baseline: `iter_location` gives the top of the box, the baseline is the
@@ -710,10 +712,11 @@ impl Editor {
         let step = self.imp().step.get();
         let scale = self.scale();
         let (y, h) = self.band(f64::from(row.y()));
+        let w = f64::from(caret::width(caret_em_px(step))) * scale;
         Some(caret::Bar {
-            x: f64::from(row.x()) * scale,
+            x: caret::left(f64::from(row.x()) * scale, w),
             y,
-            w: f64::from(caret::width(caret_em_px(step))) * scale,
+            w,
             h,
         })
     }

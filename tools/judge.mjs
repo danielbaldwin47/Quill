@@ -54,6 +54,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { assertState, validate } from './assert-state.mjs';
 import { BUDGET, ORACLE, latencyVerdict } from './bench-join.mjs';
 import { pair, pairDir, reveal } from './blind.mjs';
 import { CAPTURES, cropPng, resolveOpponent } from './crop.mjs';
@@ -78,7 +79,12 @@ const OPPONENT = 'oracle';
 // carrying any `opponent` was won, so a Piece won over `legacy/` is still held to that win when its
 // first row moves to a crop. That is the rule as `docs/agents/gate.md` states it, and narrowing it
 // to the opponent would weaken the guard exactly as the re-judges begin (#165–#168).
+// A state carrying `assert` is judged against nobody at all (ADR 0017), so it is read first: a
+// Piece whose every state is asserted has no opponent to name, and one that holds an asserted
+// state beside a paired one is as mixed as a Piece can be.
 export function opponentOf(resolved) {
+  if (resolved.every((s) => s.assert)) return 'asserted';
+  if (resolved.some((s) => s.assert)) return 'mixed';
   if (resolved.every((s) => s.opponent)) return 'mac-native';
   if (resolved.some((s) => s.opponent)) return 'mixed';
   return OPPONENT;
@@ -480,8 +486,35 @@ async function judge(root, piece, note, summaryFile, settingsFile) {
   // under `ref/ia/shots/mac-native/` rather than frozen by `tools/gate oracle` — so the Parity
   // oracle is asked about the other states only, and a Piece with none of those wants no frozen
   // shot and no fingerprint at all (ADR 0015).
-  const parity = resolved.filter((s) => !s.opponent);
+  // A state carrying `assert` has no opponent of either kind: it is answered by arithmetic off
+  // ours' own pixels, because neither oracle holds the thing it is about (ADR 0017).
+  const parity = resolved.filter((s) => !s.opponent && !s.assert);
   const crops = resolved.filter((s) => s.opponent);
+  const asserted = resolved.filter((s) => s.assert);
+
+  // The assertions, checked for a name this build has before the first window opens, for the same
+  // reason the crops are: a state naming a rule nobody wrote is a state that cannot be judged, and
+  // finding that out at the third state has already spent two critics.
+  const unreadable = [];
+  for (const s of asserted) {
+    // A state is answered one way or the other and never both. Carrying an opponent as well is a
+    // state that says it is paired and says it is measured, and there is no honest order to read
+    // those in — so it is refused rather than resolved by whichever branch happens to run first.
+    if (s.opponent) {
+      say(`gate judge ${piece}: ${s.name} names both an opponent and an assertion, and a state is answered one way`);
+      unreadable.push(s.name);
+      continue;
+    }
+    try {
+      validate(s.assert);
+    } catch (e) {
+      say(`gate judge ${piece}: ${s.name}'s assertion cannot be read: ${e.message}`);
+      unreadable.push(s.name);
+    }
+  }
+  if (unreadable.length) {
+    return refuse(piece, `${unreadable.length} of ${resolved.length} states name an assertion this build cannot run`);
+  }
 
   // The crops, resolved against the captures on disk before the first window opens, for the reason
   // every other refusal is checked here: a capture that is not there, or a rectangle that runs off
@@ -591,6 +624,46 @@ async function judge(root, piece, note, summaryFile, settingsFile) {
         active: s.flags.active !== false,
       });
 
+      // An asserted state is answered here and never paired: it is shot a second time with the
+      // window active, and the rule is read off the two shots (ADR 0017). Both are kept, because
+      // the measurement is only checkable by someone who has the pixels it was taken from.
+      if (s.assert) {
+        const lit = path.join('shots', piece, `r${number}-${s.name}-ours-lit.png`);
+        await stage.shoot({
+          bin: path.join(root, BINARY),
+          argv: oursArgv(root, s.flags, settingsFile),
+          w: s.flags.w,
+          h: s.flags.h,
+          out: path.join(root, lit),
+          active: true,
+        });
+        const answer = assertState(s.assert, {
+          lit: fs.readFileSync(path.join(root, lit)),
+          dim: fs.readFileSync(path.join(root, shot)),
+        });
+        const winner = answer.ours ? 'ours' : 'theirs';
+        say(`gate judge ${piece}: ${s.name}: ${winner} (asserted: ${answer.why})`);
+        judged.push({
+          name: s.name,
+          ours: shot,
+          // No opponent shot, and `null` rather than the lit one: the second shot is ours as well,
+          // and a round that named it `theirs` would have the progress page caption our own window
+          // as somebody else's. It is kept under its own key, because the measurement is only
+          // checkable by someone holding both frames it was taken from.
+          theirs: null,
+          lit,
+          assert: { ...s.assert, held: answer.ours },
+          winner,
+          margin: 'asserted',
+          sameViewport: true,
+          gap: answer.why,
+          gapTheirs: 'no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)',
+          verdict: answer.why,
+          secondary: answer.secondary,
+        });
+        continue;
+      }
+
       // What the critic is shown. For a Parity oracle state that is the two whole windows, as it
       // has always been. For a Design oracle state it is the two rectangles, cut here: the windows
       // are 3024 x 1898 and 2880 x 1800, so whole against whole would put a critic on the two
@@ -642,6 +715,7 @@ async function judge(root, piece, note, summaryFile, settingsFile) {
   const sources = [];
   if (parity.length) sources.push(`shots/oracle/${piece}/ — the Parity oracle frozen by tools/gate oracle ${piece} from legacy/app ${frozen.app?.sha256} with legacy/tools/shoot.mjs ${frozen.shoot}`);
   if (crops.length) sources.push(`${CAPTURES}/ — the Design oracle, iA Writer for Mac as captured and measured in ref/ia/mac-native/ (ADR 0015), cropped per state: ${crops.map((s) => `${s.name} from ${path.basename(cropping.get(s.name).capture)}`).join(', ')}`);
+  if (asserted.length) sources.push(`no opponent for ${asserted.map((s) => `${s.name} (${s.assert.kind})`).join(', ')} — measured off ours' own pixels by tools/assert-state.mjs, because neither oracle holds the state (ADR 0017)`);
   const oracle = sources.join('; ');
   const written = round({ piece, number, judged, opponent: opponentOf(resolved), build: ours, oracle, note, at: new Date().toISOString() });
   const file = path.join(root, 'progress/rounds', `${piece}-r${number}.json`);

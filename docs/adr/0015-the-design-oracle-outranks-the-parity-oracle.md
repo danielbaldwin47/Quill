@@ -56,7 +56,10 @@ before the first re-judge.
 
 **Rows a hand shows are `keys` assertions or Hand-test steps**: blink cadence and typing
 suppression. The deactivated caret stays a still, because the ghost stays and the `unfocused` judged
-state already holds it.
+state already holds it. *(Narrowed on 2026-08-31 by
+[ADR 0017](0017-a-judged-state-neither-oracle-can-arbitrate.md): the state is still a still, but it
+is no longer a pair. Neither oracle holds a deactivated caret at the column the Caret column row
+decided, so it is measured off ours' own pixels instead of shown to a critic.)*
 
 **ADR 0006's near tier is superseded.** Its § Consequences paragraph "The two Quill refinements
 stay" loses its first refinement — "the neighbouring sentences sit one shade above the far dim (the

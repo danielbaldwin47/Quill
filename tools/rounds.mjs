@@ -19,9 +19,15 @@ import path from 'node:path';
 // A round with no `opponent` at all is one of the gauntlet's, judged against iA Writer — see
 // [`opponentName`], which is where that default lives.
 // `mac-native` is the Design oracle — iA Writer for Mac, captured in `ref/ia/shots/mac-native/` and
-// paired as a crop (ADR 0015) — and `mixed` is a Piece part-way through: some of its states are
-// judged against a `docs/design.md` row and the rest still against `legacy/`.
-export const OPPONENTS = { oracle: 'Parity oracle', 'mac-native': 'Design oracle', mixed: 'Parity and Design oracles' };
+// paired as a crop (ADR 0015) — `asserted` is a Piece with no opponent at all, every state of it
+// measured off ours' own pixels (ADR 0017), and `mixed` is a Piece part-way through, holding more
+// than one of the three.
+export const OPPONENTS = {
+  oracle: 'Parity oracle',
+  'mac-native': 'Design oracle',
+  asserted: 'assertions on ours',
+  mixed: 'more than one of the Parity oracle, the Design oracle and assertions on ours',
+};
 
 // Who a round was judged against, as words. A round from before this command carries no
 // `opponent`, and every one of those is the JavaScript app's gauntlet against iA Writer.
