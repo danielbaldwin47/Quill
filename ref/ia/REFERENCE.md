@@ -8,6 +8,9 @@ Directory layout:
 ref/ia/
   REFERENCE.md          this file
   shots/                49 real app screenshots (App Store, Microsoft Store, ia.net)
+  shots/mac-native/     76 captures of iA Writer for Mac running (§1.1)
+  mac-native/{NOTES,VERDICTS}.md   how those captures were taken, and every claim judged against them
+  mac-native/rig/       the driver that took them
   fonts/{Duo,Quattro,Mono}/   static TTF + WOFF2 + variable TTF, OFL license, readmes
   templates/            clone of github.com/iainc/iA-Writer-Templates (Example + GitHub templates)
   sources/              plain-text extracts of every ia.net page quoted here
@@ -87,9 +90,11 @@ Download notes / failures:
 * ia.net/writer/mac, /windows, /ios, /android are thin redirect-style pages (≈6.7 KB) with only award badges; all real product images live on ia.net/writer and the support pages.
 * ia.net/topics/duospace and /topics/ia-writer-mono-duo-quattro do not exist (404); the real posts are listed in §3.
 
-### 1.1 Captures of the app itself (`owner-mac-*`)
+### 1.1 Captures of the app itself (`owner-mac-*`, `mac-native-*`)
 
-Everything above is a marketing frame or a support-page image. These four are the owner's own screen captures of iA Writer **running natively on macOS**, taken 2026-08-30, dark theme, and they outrank a marketing frame wherever the two disagree — three claims elsewhere in this repo were read off marketing frames and all three were wrong (ADRs 0013 and 0014). [#154](https://github.com/danielbaldwin47/Quill/issues/154) collects the systematic set; these are the first four.
+Everything above is a marketing frame or a support-page image. What follows is iA Writer **running natively on macOS**, captured on the owner's own machine. These outrank a marketing frame wherever the two disagree — three claims elsewhere in this repo were read off marketing frames and all three were wrong (ADRs 0013 and 0014).
+
+**The first four (`owner-mac-*`)**, taken 2026-08-30, dark theme. [#154](https://github.com/danielbaldwin47/Quill/issues/154) collects the systematic set; these are the first four.
 
 | File | px | What it shows | Measured |
 |---|---|---|---|
@@ -99,6 +104,28 @@ Everything above is a marketing frame or a support-page image. These four are th
 | owner-mac-04-dark-selection-multiline.png | 2140×328 | a selection running from mid-line through a heading and a quote block | one contiguous fill band, y 44–259; **no `#00bfff` pixel in the frame** |
 
 The two selection frames are what ADR 0014 rests on, and they are read the safe way round: a caret bar is the brightest thing in any frame that holds one, so a frame with no accent pixel in it holds neither a bar nor a caret. Note that `appstore-mac-04` above — the frame ADR 0012 read as the Mac app's selection — shows 44-px round touch grab-handles, an affordance macOS does not have.
+
+**The systematic set (`mac-native-*`)** — 76 captures of the same app driven state by state for [#154](https://github.com/danielbaldwin47/Quill/issues/154), and the evidence every corrected number below is read from. They outrank every marketing frame the same way the four above do.
+
+| | |
+|---|---|
+| App | iA Writer **8.0.6** (build 80046, `pro.writer.mac`) |
+| OS | **macOS 27.0** (26A5406e) |
+| Backing scale | **2.0** (NOTES.md § The rig carries the verification) |
+| Window | logical `{0, 33, 1512, 982}` for every state — 3024 × 1898 device px |
+| Typeface | **Mono** throughout, so a cell pitch can be fitted (Duo is duospaced and no single advance fits it) |
+| Off for every state | Style Check, Syntax Highlight, Authors; Focus Mode too, except states 13 and 15 |
+
+**Every `mac-native` number quoted below is in device pixels at backing scale 2.0** — divide by two for logical points. Captures are cited below by the short names VERDICTS.md uses — `12-light`, `11-00 … 11-13`, `14-gutters`, `09-select-all` — which are abbreviations, not a prefix rule: NOTES.md names the file each one stands for, state by state.
+
+| Where | What |
+|---|---|
+| `ref/ia/shots/mac-native/` | the 76 PNG captures |
+| `ref/ia/mac-native/NOTES.md` | how each state was driven and what it measured, state by state |
+| `ref/ia/mac-native/VERDICTS.md` | every claim in §§3.5, 4.1, 4.2 and in ADRs 0012–0014, marked confirmed / contradicted / still unknown against the running app, each naming its capture |
+| `ref/ia/mac-native/rig/` | the driver that took them (`iarig.py`, `drv.sh`, the per-state scripts) |
+| `ref/ia/mac-native/blink-idle.tsv`, `blink-typing.tsv` | the ≈103 Hz blink samples behind §3.5's cadence |
+| `ref/ia/mac-native/passage-blocks.md`, `passage-markers.md` | the two passages `ref/sample.md` has not got |
 
 ---
 
@@ -171,7 +198,8 @@ Support page (https://ia.net/writer/support/editor/focus-mode):
 * Windows (https://ia.net/writer/support/editor/focus-mode/focus-mode-windows): shortcut "CtrlShiftD (sentence mode)"; "Typewriter Scrolling can be enabled independently of other Focus Mode or Syntax Control options."
 * How-to (https://ia.net/writer/how-to/write-with-focus): "With Focus Mode enabled, you'll find that text in the Editor goes gray. Only the sentence or paragraph where your cursor is located stays bright." / "The Typewriter option makes the Editor behave more like (yes, you guessed it) a mechanical typewriter by always vertically centering the Editor to wherever your cursor is."
 * History: Mac 3.0 "Typewriter Mode (⌘T)"; 3.1.3 "Focus Mode can be expanded to the bounds of full paragraphs"; later "Added toggle button for Focus Mode in title bar / Focus Mode now dismisses Preview and Library panes".
-* Dimming amount/colour: not published. MEASURED in §4 (dimmed text ≈ #cccccc on light #f9f9f9; ≈ #707070 on dark #1a1a1a).
+* Dimming amount/colour: not published. MEASURED against the running app: dimmed text **#c6c4c2** on light paper **#f7f7f7**, **#707070** on dark **#1a1a1a** (`13-light-sentence`, `13-dark-sentence`, `12-light`, `12-dark`). *The light pair was read as ≈ #cccccc on #f9f9f9 from App Store 06 and the App Store PNG; both are superseded readings (VERDICTS 4.2.1, 4.2.5).*
+* MEASURED: there is **one dim tier per theme**, not several — Sentence and Paragraph dim to the same colour and differ only in how much stays lit (`13-*`; VERDICTS 4.2.12). **Typewriter is a third value of the same "Focus scope" popup**, not an independent toggle (Settings → Editor), and it holds the caret's line at the window's vertical centre — mid-point 948.0 of 1898 = 49.9 % (`15-dark`).
 
 ### 3.4 Dark mode
 
@@ -185,21 +213,23 @@ Support page (https://ia.net/writer/support/editor/focus-mode):
 ### 3.5 Caret
 
 * No official spec published. Secondary quote surfaced by search (attributed to iA, source page not retrievable — UNVERIFIED): iA "invested significant energy into making a blue wider caret at a time when all text views had black hairline carets, which is why the app identifies so strongly with that blue caret." Design Takes Time (https://ia.net/topics/design-takes-time): "Currently, iA Writer uses the letters "iA" and a caret symbol as its basic elements. The caret represents the word "Writer"." and "We tested the idea using a gradient cursor in the app. In practice people found it to be mostly irritating."
-* Measured (§4): blue #00b5ff–#01c4ff, width ≈ 0.12–0.17 em, height = full line pitch, no visible rounding at these sizes. Blink behaviour not visible in stills (UNVERIFIED; standard platform blink presumed).
+* Measured against the running app (§4.1, §4.2): the caret is a single flat **#00bfff**, 220 flat px of it, identical in both themes (`01-dark`, `01-light`); its **height is the full line pitch at every one of the app's 14 text sizes**, within the 1 px two roundings can differ (`11-00 … 11-13`); its width **quantises to 5 / 6 / 8 / 10 px** and is therefore *not* a constant fraction of the em — 0.141 em at the default, 0.080–0.186 em across the range (`11-00 … 11-13`); no visible rounding — the end is square, with 1 px of corner antialiasing over the top and bottom two rows only (`01-dark`). *Was read as blue #00b5ff–#01c4ff, width ≈ 0.12–0.17 em from the App Store and ia.net stills: the blue is contradicted (VERDICTS 4.2.7, 4.2.8) and the width band holds near the default only (VERDICTS 3.5.5).*
+* Blink, measured (`04-f00 … f12` with `blink-idle.tsv`; `05-*` with `blink-typing.tsv`): a **1.000 s period, 0.516 s on / 0.484 s off** at full strength, with ≈ 0.09 s fade ramps between. The blink is **suppressed while typing** — solid on for 3.448 s of continuous typing — and resumes **0.633 s** after the last keystroke. *Was "not visible in stills (UNVERIFIED; standard platform blink presumed)".*
+* Measured: the caret is **removed entirely while a selection stands** (`07`–`10`, both themes, all four selection shapes) and **removed when the window deactivates** — 0 accent pixels across a 14-frame burst in both themes, with the editor's own ground filling the frame, so the window was visible and simply had no bar in it (`06-dark`, `06-light`).
 
 ### 3.6 Markup / syntax rendering in the editor
 
 iA publishes no styling spec; the following is OBSERVED in the screenshots above:
 * Headings `#…######`: same size and colour as body, **bold**; the hash marks plus the following space hang in the left margin so the heading text aligns with the body column (measured: `#` starts exactly 2 cells left of the body edge, `##` 3 cells, `####` 5 cells).
-* Blockquote `>`: the `>` hangs in the margin (1 cell + space), body text of the quote stays in the column (markdown.webp).
+* Blockquote `>`: MEASURED against the running app — the `>` does **not** hang: it sits on the body column (695 against the column's 691), and list `-` and ordered `1.` do not hang either (`14-blocks`; VERDICTS 4.1.13). *Was read from markdown.webp as hanging 1 cell + space.*
 * Emphasis `*…*`: the asterisks are kept, text rendered in the font's Italic; `**…**` bold (Markup examples: `*never*`, `*drowsy*`, `*Authorship*`).
 * Strikethrough (Style Check) and `~~…~~`: dimmed (#707070 on dark) with a line through.
-* Wikilinks `[[…]]`: brackets in dim grey (#707070 on dark), link text in the caret blue (#00b5ff) with underline.
+* Wikilinks `[[…]]`: brackets in dim grey (#707070 on dark), link text in the caret blue (**#00bfff**, VERDICTS 4.2.7) with underline. *The link colour was read as #00b5ff from a marketing still; the running app's accent is #00bfff, though wikilinks themselves were not among the `mac-native` states (VERDICTS 4.2.13).*
 * Content blocks (`/Images/x.png`, `alice.jpg`): rendered as a rounded "chip" — white (#ffffff) fill with a 1-px #e1e1e1 border on the light theme; on dark, a slightly lighter box with a blue outline while focused.
 * HTML comment `<!--more-->` and `//` comments: dimmed grey.
 * YAML front matter `---`: rendered as plain text in the editor, hidden in preview.
 * Syntax Highlight (parts of speech) — support page (https://ia.net/writer/support/editor/syntax-highlight): "Adjectives in brown / Nouns in red / Adverbs in purple / Verbs in blue / Conjunctions in green". Exact light-theme values measured from the lossless PNG: blue #3476b9, brown #a66500, purple #b24fa2, green #3f831e; red (nouns) ≈ #ca471a (from the App Store slide headline that reuses the palette — UNVERIFIED as the exact editor value). Dark-theme values (App Store 03, lossless): verbs #799fc2, adjectives #c1934e, adverbs ≈ #ba8eb2.
-* Authorship (dark): AI/other-author text dimmed to #707070; per-author colours observed ≈ #faa25d (orange), #fb8b65, #fc686f (red-pink), #d177ce / #de71b2 (purple), blue ≈ #00b5ff-family.
+* Authorship (dark): AI/other-author text dimmed to #707070; per-author colours observed ≈ #faa25d (orange), #fb8b65, #fc686f (red-pink), #d177ce / #de71b2 (purple), blue ≈ **#00bfff**-family (VERDICTS 4.2.7). *The blue was read as an #00b5ff family from a marketing still; author colours were not covered by the `mac-native` states, which hid Authors (VERDICTS 4.2.15).*
 * John Gruber, quoted on ia.net/writer: "the gold standard for Markdown syntax styling — great colors, real italic and bold styling for _italic_ and **bold** spans".
 
 ### 3.7 Minimal-chrome philosophy
@@ -233,47 +263,96 @@ iA publishes no styling spec; the following is OBSERVED in the screenshots above
 
 ## 4. Spec sheet (numbers)
 
-Legend: **P** = published by iA, **M** = measured from the named screenshot (method: ImageMagick projections / histograms; character advance fitted by least squares over several lines using Duo cell widths 1.0 / 1.5), **U** = unverified.
+Legend: **P** = published by iA, **M** = measured from the named screenshot, **U** = unverified. Two methods are behind **M**. Marketing stills were read with ImageMagick projections and histograms, the character advance fitted by least squares over several lines using Duo cell widths 1.0 / 1.5. The `mac-native` captures (§1.1) were read off the running app, and their cell advance comes from the difference between two selection fills of known cell counts, which needs no assumption about the face; where the two disagree the `mac-native` value is the app's.
 
 ### 4.1 Geometry
 
+Every row marked `mac-native` is measured off the running app (§1.1) and names its capture. Where a row corrects an earlier reading, the earlier reading is kept in the row as what it was and where it was read from, so the correction can be seen rather than inferred. Full verdicts: [VERDICTS.md § 4.1](mac-native/VERDICTS.md).
+
 | Item | Value | Basis |
 |---|---|---|
-| Line-length limit | 64 / 72 / 80 characters; **64 is the default** | P (Mac & Windows settings pages) |
-| Default text size | not published. Measured samples (2× Retina captures): 54.3 px (≈27 pt) in ianet-mac-light-focus-paragraph-alice; 41.3 px (≈20.6 pt) in ianet-mac-dark-typewriter-support; 49.5 px in appstore-mac-09 (marketing scale unknown) | M / U |
-| Line height | **1.71×** font size at 54 px (93 px pitch); **1.77×** at 41 px (73 px pitch); 1.62× in appstore-mac-09 (80 px pitch). iA states line spacing is "liquid" (varies with size). Font's own hhea line height is 1.30 em, so the app adds ≈ +0.3–0.5 em of leading. | M |
-| Paragraph spacing | blank Markdown line = exactly one empty line: paragraph gap measured 187 px = 2.01 × 93 px pitch (light) and 221 px = 3.03 × 73 px after `##` (dark, two blank lines in source). No extra paragraph margin. Heading lines sit on the same grid as body lines. | M |
-| Character advance (Duo) | 0.6 em (32.56 px at 54.3 px; 24.8 px at 41.3 px) | font tables + M |
-| Text column | 64 cells × 0.6 em = 38.4 em; measured widest line 2112 px on a 3234-px-wide capture (65 %); left text edge x=531 of 3234 (16.4 %); column is horizontally centred within the window (dark capture: window 2880 px wide, text column starts 577 px from the window's left edge, 64-cell column would end ≈ 716 px from the right — approximately centred, the difference being the hanging-marker gutter) | M |
-| Hanging markers | `#`+space = 2 cells left of column; `##` = 3 cells; `####` = 5; `>` = 2 | M |
-| Caret | width 9 px / height 93 px at 54.3 px font (0.17 em wide, = line pitch tall); 6 × 70 px at 41.3 px (0.15 em, ≈ line pitch); 7 × 80 px in appstore-mac-09; Windows 5 × 51 px at 1440×900. Sits flush after the last glyph. | M |
-| Heading style | bold, same size and colour as body | M |
-| Rounded window/editor corners | present in every capture | M |
+| Line-length limit | 64 / 72 / 80 characters; **64 is the default** | P (Mac & Windows settings pages), and confirmed in the running app: the Editor settings popup offers exactly those three with 64 checked |
+| Default text size | **em 42.67 px = 21.33 pt**. The app offers **14 sizes**, em 14.50 pt … 62.58 pt (ladder below); the default is step 5 | M `11-00 … 11-13`. *Was "not published", with three sampled stills at 54.3 px, 41.3 px and 49.5 px — those are the stills' own scales, and none of them is the app's default* |
+| Line height | **liquid, and a falling curve, not scatter**: `pitch / em` runs **1.732 → 1.374** monotonically from step 2 up, and is **1.711** at the default (73 px pitch on a 42.67 px em). The font's own hhea line height is 1.30 em, so the app's added leading is **+0.41 em at the default but +0.07 em at the largest size** — the "≈ +0.3–0.5 em" band describes the small end alone | M `11-00 … 11-13` + font tables. *Was 1.71× at 54 px, 1.77× at 41 px and 1.62× in appstore-mac-09, read as three unrelated samples* |
+| Paragraph spacing | blank Markdown line = exactly one empty line: the paragraph break is **145–146 px = 2 × the 73 px pitch**. No extra paragraph margin. Headings sit on the same grid as body lines — heading-to-heading pitch **74 px** against body's 73, the 1 px being the taller line box | M `14-gutters`. *Was 187 px and 221 px, measured on stills of unknown scale* |
+| Text container | the 64-cell measure **plus a 7-cell hanging-marker gutter on each side — 78 cells** — centred in the window: x 512 … 2511, centre **1512.0** of 3024. The 7 cells are exactly what the deepest heading needs: `###### ` hangs 6.95 cells, to x 513, the container's own left edge | M `09-select-all`, `14-gutters` |
+| Text column (the measure itself) | 64 cells = 38.4 em: x 691.0 … 2329.4 = **1638.4 px = 64 × 25.6** | M `08-cells-05/10/20/40`. *Was read off two marketing stills as "widest line 2112 px on a 3234-px-wide capture (65 %); left text edge x=531 of 3234 (16.4 %)", with the centring inferred from a 2880 px-wide dark capture whose column started 577 px in and would end ≈716 px from the right — "approximately centred, the difference being the hanging-marker gutter". The gutter is now measured, at 7 cells a side, and the centring is exact* |
+| Character advance | **Mono: 0.6 em exactly** — a 25.6 px cell on a 42.67 px em, matching the font's own 600/1000 | M `mac-native` grid section + font tables. *The old row measured **Duo** at 0.6 em (32.56 px at 54.3 px, 24.8 px at 41.3 px) from the font tables and two stills, and that reading is untouched: Duo is **not covered** by the `mac-native` states, every one of which was shot in Mono so that a cell pitch could be fitted (VERDICTS 4.1.7)* |
+| Hanging markers | `#`+space = 2 cells, `##` = 3, `###` = 4, `####` = 5, `#####` = 6, `######` = 7 — the ladder is **(level + 1)**, measured 1.95 / 2.97 / 4.96 / 6.95 cells. **`>` does not hang at all**: it sits on the body column, 695 against 691, and list `-` and ordered `1.` do not hang either | M `14-gutters`, `14-blocks`. *`>` "= 2 cells" was read from markdown.webp* |
+| Caret | **6 × 72 px at the default** (em 42.67 px against a 73 px pitch). Height is the line pitch at every size within 1 px; width **quantises to 5 / 6 / 8 / 10 px** across the 14 sizes — see the ladder | M `01-*`, `11-00 … 11-13`. *Was 9 × 93 px at 54.3 px, 6 × 70 at 41.3 px, 7 × 80 in appstore-mac-09 and 5 × 51 on Windows: the stills' own sizes, which this app's ladder does not name* |
+| Caret at a line end | **not flush after the last glyph**: at a hard line end the bar's centre is 1229.0 against an advance boundary of 1228.6, leaving **7 px of clear paper** between the bar and the last glyph's ink. The ink ends at 1218 and the glyph's right side bearing is 10.6 px, of which the bar covers only the last 2.6 | M `02-dark`, `02-light`. *Was "sits flush after the last glyph"* |
+| Caret against the boundary | the 6 px bar is **centred on the advance boundary, 3 px each side** — centres 691.0 / 819.0 / 1229.0 against boundaries 691.0 / 819.0 / 1228.6, an offset of 0.000 em. Consecutive offsets step by exactly one cell: 688 → 944 → 1200, steps of 256 px = 10 × 25.6 | M `01`, `02`, `03`, `01-caret-offset-00/10/20` |
+| Selection band | a lone held row is **70 px** against the 73 px pitch; stacked rows abut at the full pitch with **no gap** (292 px = 4 × 73 for four rows). The fill sits **under the ink** — glyphs interrupt the band at their own columns | M `08-dark`, `09-dark` |
+| Selection shape across rows | interior rows fill the **whole container** (512 … 2511); the first row runs from the anchor to the container's right edge (920 … 2511), the last from the container's left edge to the focus (512 … 921) | M `09-dark` |
+| A held hard newline | fills to the **container's right edge**, not a one-cell stub: x 1228 … 2511, w 1284 | M `10-newline-only` |
+| Selection ends | **nothing marks either end** — no bar, no handle, no caret, in either theme at any of the four shapes shot; the fill's own edge is all there is | M `07`–`10` |
+| Heading style | bold, same size and colour as body: heading ink `#cccccc` identical to body on dark, the line box 40 px against body's 38, the same for all six levels | M `14-gutters` |
+| Rounded window/editor corners | present: all four corners transparent, corner radius ≈ **35 px (17.5 pt)** | M `00-window-chrome` |
+| Typewriter | holds the caret's line at the **vertical centre** of the window — mid-point 948.0 of 1898 = 49.9 % — and is a **value of the Focus scope popup**, alongside Sentence and Paragraph, not a separate mode | M `15-dark`, Settings → Editor |
+
+**The 14 text sizes** (`11-00 … 11-13`; device px at backing scale 2.0). `em` is derived from the measured advance at Mono's own 0.6 em per cell, `pt` is `em / 2` at this scale, `band` is the selection band's height. This table replaces the three sampled stills the "default text size" and "line height" rows used to rest on.
+
+| step | cell px | em px | em pt | pitch px | pitch / em | band px | caret w | caret h | caret w / em |
+|---|---|---|---|---|---|---|---|---|---|
+| 0 | 17.4 | 29.00 | 14.50 | 49 | 1.690 | 46 | 5 | 49 | 0.172 |
+| 1 | 18.3 | 30.50 | 15.25 | 52 | 1.705 | 50 | 5 | 53 | 0.164 |
+| 2 | 19.4 | 32.33 | 16.17 | 56 | 1.732 | 54 | 6 | 56 | 0.186 |
+| 3 | 20.6 | 34.33 | 17.17 | 59 | 1.718 | 58 | 6 | 59 | 0.175 |
+| 4 | 23.1 | 38.50 | 19.25 | 66 | 1.714 | 64 | 6 | 67 | 0.156 |
+| **5 — Default** | **25.6** | **42.67** | **21.33** | **73** | **1.711** | **70** | **6** | **72** | **0.141** |
+| 6 | 30.7 | 51.17 | 25.58 | 86 | 1.681 | 84 | 8 | 86 | 0.156 |
+| 7 | 35.7 | 59.50 | 29.75 | 98 | 1.647 | 94 | 8 | 98 | 0.134 |
+| 8 | 40.7 | 67.83 | 33.92 | 109 | 1.607 | 108 | 8 | 109 | 0.118 |
+| 9 | 45.7 | 76.17 | 38.08 | 120 | 1.575 | 118 | 10 | 120 | 0.131 |
+| 10 | 53.1 | 88.50 | 44.25 | 135 | 1.525 | 134 | 10 | 135 | 0.113 |
+| 11 | 60.4 | 100.67 | 50.33 | 149 | 1.480 | 146 | 10 | 148 | 0.099 |
+| 12 | 67.8 | 113.00 | 56.50 | 161 | 1.425 | 158 | 10 | 161 | 0.088 |
+| 13 | 75.1 | 125.17 | 62.58 | 172 | 1.374 | 170 | 10 | 172 | 0.080 |
+
+The wobble across steps 0–3 is whole-pixel quantisation on a 29 px em. Caveat for the last six rows: 78 cells (64 plus two 7-cell gutters) needs 78 × cell px of window, which past step 7 exceeds this window's 3024 px — from step 8 up the column is limited by the window, not by the app's line-length setting. Pitch, advance and caret are unaffected; the measure's own width from step 8 up is not the app's.
 
 ### 4.2 Colours (hex)
 
+Every row marked `mac-native` is measured off the running app (§1.1) and names its capture; a superseded reading is kept as what it was and where it was read from. Full verdicts: [VERDICTS.md § 4.2](mac-native/VERDICTS.md).
+
 | Role | Light | Dark | Basis |
 |---|---|---|---|
-| Editor background | **#f9f9f9** (App Store, MS Store, stats.webp); #f7f7f7 in ia.net landing webp/png | **#1a1a1a** (App Store, support webp) / #1b1b1b (focus.webp) | M |
-| Body text | **#1c1c1c** (App Store PNG); #191919 (syntax PNG) | **#cccccc** | M |
-| Dimmed (Focus Mode / AI-author / strike-through) | **#cccccc** (App Store 06); ≈ #c6c4c3 (landing webp) | **#707070** | M |
-| Caret / accent | **#00b5ff** (App Store PNG), #01c4ff (webp), Windows #00b2ff | #00b5ff (App Store), #00c3ff (support webp) | M |
-| Selection (dark) | — | fill ≈ #003e4c (caret blue at low alpha over #1a1a1a), handles #00b5ff | M |
-| Wikilink brackets / link | — / — | #707070 / #00b5ff underlined | M |
-| Content-block chip (light) | fill #ffffff, border #e1e1e1 | — | M |
-| Autocomplete popup (dark) | — | #3a3a3a | M |
-| Library list (light) | bg #fdfdfd, secondary text #999999, selection bar #00c3ff | — | M |
-| Syntax: verbs / adjectives / adverbs / conjunctions / nouns | #3476b9 / #a66500 / #b24fa2 / #3f831e / ≈#ca471a (U) | #799fc2 / #c1934e / ≈#ba8eb2 / — / — | M (light exact from lossless PNG) |
-| Authorship author colours (dark) | — | #faa25d, #fb8b65, #fc686f, #d177ce, #de71b2, blue family | M |
+| Editor background | **#f7f7f7** | **#1a1a1a** | M `12-light` / `12-dark`. *Light was read as #f9f9f9 from the App Store, MS Store and stats.webp; the ia.net landing pages' #f7f7f7 is the app's value* |
+| Body text | **#191919** | **#cccccc** | M `01-light` / `01-dark`. *Light was read as #1c1c1c from the App Store PNG; the syntax PNG's #191919 is the app's value. Dark confirmed exactly* |
+| Heading text | #191919 | #cccccc — identical to body | M `12-*`, `14-gutters` |
+| Dimmed (Focus Mode / AI-author / strike-through) | **#c6c4c2** | **#707070** | M `13-light-sentence` / `13-dark-sentence`. *Light was read as #cccccc from App Store 06; the landing webp's ≈#c6c4c3 was within 1 of the app's value. Dark confirmed exactly* |
+| Number of dim tiers | **one per theme** — Sentence and Paragraph share it | **one per theme** | M `13-*`. *The tiers were assumed plural* |
+| Caret / accent | **#00bfff** | **#00bfff** — the same value, not a per-theme accent | M `01-light` / `01-dark`. *Was #00b5ff (App Store PNG), #01c4ff (webp) and #00b2ff (Windows) on light, #00b5ff / #00c3ff on dark: four still-readings of one flat colour the app does not name* |
+| Selection fill, window active | **#ccedf8** | **#113d52** | M `08-light` / `08-dark`. *Light had no recorded value; dark was read as ≈#003e4c, the caret blue at low alpha over #1a1a1a* |
+| Selection fill, window idle | **#dcdcdc** | **#464646** | M `07-light` / `07-dark`. *A neutral grey with no blue in it — not the "paler accent" ADR 0014 assumed. Only the colour moves; the band's geometry is identical* |
+| Selection end handles / bars | **none** | **none** | M `07`–`10`, both themes: no accent pixel at all in any frame holding a selection. *"handles #00b5ff" was read from `appstore-mac-04`, whose 44 px accent runs are round touch grab-handles* |
+| Web preview paper (dark) | — | **#101010** | M `16-preview-full` — a distinctly darker ground than the editor's #1a1a1a, and the two sit side by side in a split |
+| Wikilink brackets / link | — / — | #707070 / #00bfff underlined | M. *The link was read as #00b5ff from a marketing still and is corrected to the app's measured accent; wikilinks themselves were not covered by the `mac-native` states (VERDICTS 4.2.13)* |
+| Content-block chip (light) | fill #ffffff, border #e1e1e1 | — | M, marketing stills only — not covered by the `mac-native` states (VERDICTS 4.2.13) |
+| Autocomplete popup (dark) | — | #3a3a3a | M, marketing stills only — not covered (VERDICTS 4.2.13) |
+| Library list (light) | bg #fdfdfd, secondary text #999999, selection bar #00c3ff | — | M, marketing stills only — not covered (VERDICTS 4.2.13); the accent reading is a still's, and the app's accent is #00bfff |
+| Syntax: verbs / adjectives / adverbs / conjunctions / nouns | #3476b9 / #a66500 / #b24fa2 / #3f831e / ≈#ca471a (U) | #799fc2 / #c1934e / ≈#ba8eb2 / — / — | M (light exact from lossless PNG) — not covered by the `mac-native` states, which had Syntax off throughout (VERDICTS 4.2.14) |
+| Authorship author colours (dark) | — | #faa25d, #fb8b65, #fc686f, #d177ce, #de71b2, #00bfff family | M, marketing stills only — not covered by the `mac-native` states, which hid Authors (VERDICTS 4.2.15) |
 
 Third-party approximations (for cross-checking only, NOT iA's): acheronfail/ia-writer-sublime dark scheme uses background #1d1f20, text #c5c9c6, dimmed #707070, accent rgba(21,189,236) (≈#15bdec) — copied to templates/third-party-acheronfail-ia-writer-dark.sublime-color-scheme.json.
 
 ### 4.3 Preview template (from iainc/iA-Writer-Templates)
 
-* `Example.iatemplate/Contents/Resources/style.css` in the public repo is **empty (0 bytes)** — it is a scaffold. The built-in "Modern / Classic / Academic" template CSS ships only inside the app bundle and is not public (GAP).
+* `Example.iatemplate/Contents/Resources/style.css` in the public repo is **empty (0 bytes)** — it is a scaffold. The built-in "Modern / Classic / Academic" template CSS ships only inside the app bundle and is not public (GAP): the `mac-native` captures render the template, they do not open it (VERDICTS 4.3.1).
 * `GitHub.iatemplate/Contents/Resources/github.css` (real values): `@media screen { .markdown-body { margin: 0 auto; max-width: 830px; } }`; horizontal padding 15 px (≤420 px), 25 px (420–500), 35 px (500–550), 45 px (≥550), 75 px for print; uses GitHub's light/dark markdown CSS.
 * Info.plist example: `IATemplateHeaderHeight` / `IATemplateFooterHeight` = 90 (CSS points, ≤400).
-* Preview classes: `night-mode`, `ios`, `mac`, `content-size-xs … xxxl`, `content-size-accessibility-m … xxxl` (iOS Dynamic Type). Reload template: ⇧⌘R; Web Inspector: `defaults write pro.writer.mac WebKitDeveloperExtras -bool true`.
+* Preview classes: `night-mode`, `ios`, `mac`, `content-size-xs … xxxl`, `content-size-accessibility-m … xxxl` (iOS Dynamic Type). Reload template: ⇧⌘R; Web Inspector: `defaults write pro.writer.mac WebKitDeveloperExtras -bool true`. Not covered by the `mac-native` captures, which did not open the DOM (VERDICTS 4.3.3).
+
+MEASURED against the running app's Preview, three frames taken after the fifteen states:
+
+| Item | Value | Basis |
+|---|---|---|
+| Web preview paper (dark) | **#101010** — a distinctly darker ground than the editor's #1a1a1a | M `16-preview-full` |
+| Rendered heading alignment | **centred**: ink centre 1627.0 against a window centre of 1624.0, where the editor left-aligns a heading on the body column | M `16-preview-full` |
+| Markdown markers in the rendered preview | **gone entirely** — no `#`, no `**`, and a `-` list becomes real bullets, so the editor's hanging-marker gutter has no counterpart there | M `16-preview-full`, `16-preview-split` |
+| Split view | divides the window **evenly** (divider x 1621 = 49.9 %), and the two panes carry **different papers** — the editor's #1a1a1a beside the preview's #101010 | M `16-preview-split` |
+| PDF preview against Dark Mode | the **whole window goes light** with Dark Mode still on — toolbar #ffffff, surround #f7f7f7 — where the Web preview stays dark | M `16-preview-pdf-full` |
+| PDF pagination | the page is centred and 1323 px wide (x 962 … 2284, centre 1623.0), with a page number at its foot; its height is clipped by the viewport and cannot be read | M `16-preview-pdf-full` |
 
 ---
 
@@ -319,11 +398,11 @@ iA publishes **no keystroke-latency, frame-time or startup-time measurements**. 
 
 ## 6. Gaps / UNVERIFIED items
 
-1. Default text size in points, and the exact "liquid" weight/width/line-spacing curve — not published; only the three measured samples above.
-2. Official hex palette — not published; all colours are screenshot measurements (lossless PNG sources preferred; webp values may be ±1–3).
-3. Exact noun-red and dark-theme syntax colours; conjunction green on dark not captured.
-4. Caret blink rate / rounding — not visible in stills.
-5. Built-in preview template CSS (Modern/Classic/Academic) — only inside the app bundle; the public repo's Example style.css is empty.
+1. Official hex palette — not published. The editor's own paper, ink, dimmed tier, caret and selection are now measured off the running app (§1.1, §4.2); what is still read only off marketing stills is the **syntax palette**, the **authorship author colours**, and the **wikilink and content-block chip chrome** — the `mac-native` states had Syntax off, Authors hidden, and shot neither a wikilink nor a chip.
+2. Exact noun-red and dark-theme syntax colours; conjunction green on dark not captured.
+3. Whether the "liquid" typography also varies the face's **weight and width** with size — the 14-step ladder measures advance, pitch, band and caret only. The line-spacing half of the curve is measured (§4.1).
+4. **Duo's** cell behaviour in the running app — every `mac-native` state was shot in **Mono** so that a cell pitch could be fitted; Duo's 0.6 em comes from the font tables, not from the app.
+5. Built-in preview template CSS (Modern/Classic/Academic) — only inside the app bundle; the public repo's Example style.css is empty. The captures render the template, they do not open it.
 6. Whether the italic proportional-looking body in `write-ia-writer.webp` and `Writer-Mac-Syntax-Highlight-Display.webp` is Quattro Italic — inferred from glyph widths only.
 7. No iA latency/startup numbers exist; the bar is set from third-party measurements of other editors.
 8. The "blue wider caret" quote could not be traced to a live ia.net page.
