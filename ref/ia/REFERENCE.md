@@ -112,7 +112,7 @@ The two selection frames are what ADR 0014 rests on, and they are read the safe 
 | App | iA Writer **8.0.6** (build 80046, `pro.writer.mac`) |
 | OS | **macOS 27.0** (26A5406e) |
 | Backing scale | **2.0** (NOTES.md § The rig carries the verification) |
-| Window | logical `{0, 33, 1512, 982}` for every state — 3024 × 1898 device px |
+| Window | the same size for every state — **3024 × 1898 device px** (NOTES.md § The rig has the logical rect it was set from) |
 | Typeface | **Mono** throughout, so a cell pitch can be fitted (Duo is duospaced and no single advance fits it) |
 | Off for every state | Style Check, Syntax Highlight, Authors; Focus Mode too, except states 13 and 15 |
 
@@ -281,8 +281,8 @@ Every row marked `mac-native` is measured off the running app (§1.1) and names 
 | Hanging markers | `#`+space = 2 cells, `##` = 3, `###` = 4, `####` = 5, `#####` = 6, `######` = 7 — the ladder is **(level + 1)**, measured 1.95 / 2.97 / 4.96 / 6.95 cells. **`>` does not hang at all**: it sits on the body column, 695 against 691, and list `-` and ordered `1.` do not hang either | M `14-gutters`, `14-blocks`. *`>` "= 2 cells" was read from markdown.webp* |
 | Caret | **6 × 72 px at the default** (em 42.67 px against a 73 px pitch). Height is the line pitch at every size within 1 px; width **quantises to 5 / 6 / 8 / 10 px** across the 14 sizes — see the ladder | M `01-*`, `11-00 … 11-13`. *Was 9 × 93 px at 54.3 px, 6 × 70 at 41.3 px, 7 × 80 in appstore-mac-09 and 5 × 51 on Windows: the stills' own sizes, which this app's ladder does not name* |
 | Caret at a line end | **not flush after the last glyph**: at a hard line end the bar's centre is 1229.0 against an advance boundary of 1228.6, leaving **7 px of clear paper** between the bar and the last glyph's ink. The ink ends at 1218 and the glyph's right side bearing is 10.6 px, of which the bar covers only the last 2.6 | M `02-dark`, `02-light`. *Was "sits flush after the last glyph"* |
-| Caret against the boundary | the 6 px bar is **centred on the advance boundary, 3 px each side** — centres 691.0 / 819.0 / 1229.0 against boundaries 691.0 / 819.0 / 1228.6, an offset of 0.000 em. Consecutive offsets step by exactly one cell: 688 → 944 → 1200, steps of 256 px = 10 × 25.6 | M `01`, `02`, `03`, `01-caret-offset-00/10/20` |
-| Selection band | a lone held row is **70 px** against the 73 px pitch; stacked rows abut at the full pitch with **no gap** (292 px = 4 × 73 for four rows). The fill sits **under the ink** — glyphs interrupt the band at their own columns | M `08-dark`, `09-dark` |
+| Caret against the boundary | the 6 px bar is **centred on the advance boundary, 3 px each side** — centres 691.0 / 819.0 / 1229.0 against boundaries 691.0 / 819.0 / 1228.6, an offset of 0.000 em. It tracks the grid rather than landing on it once: the caret at offsets 0, 10 and 20 of one line has its centre at 691.0 / 947.0 / 1203.0, **strides of exactly 256 px = 10 × 25.6**, against a boundary of 691.0 + 25.6 n | M `01`, `02`, `03`, `01-caret-offset-00/10/20` |
+| Selection band | a lone held row is **70 px** against the 73 px pitch; stacked rows abut at the full pitch with **no gap** — sampled down the right gutter, where no glyph can interrupt it, the fill runs 292 px with no internal break, exactly four 73 px pitches. The fill sits **under the ink** — glyphs interrupt the band at their own columns | M `08-dark`, `09-dark` |
 | Selection shape across rows | interior rows fill the **whole container** (512 … 2511); the first row runs from the anchor to the container's right edge (920 … 2511), the last from the container's left edge to the focus (512 … 921) | M `09-dark` |
 | A held hard newline | fills to the **container's right edge**, not a one-cell stub: x 1228 … 2511, w 1284 | M `10-newline-only` |
 | Selection ends | **nothing marks either end** — no bar, no handle, no caret, in either theme at any of the four shapes shot; the fill's own edge is all there is | M `07`–`10` |
@@ -343,7 +343,7 @@ Third-party approximations (for cross-checking only, NOT iA's): acheronfail/ia-w
 * Info.plist example: `IATemplateHeaderHeight` / `IATemplateFooterHeight` = 90 (CSS points, ≤400).
 * Preview classes: `night-mode`, `ios`, `mac`, `content-size-xs … xxxl`, `content-size-accessibility-m … xxxl` (iOS Dynamic Type). Reload template: ⇧⌘R; Web Inspector: `defaults write pro.writer.mac WebKitDeveloperExtras -bool true`. Not covered by the `mac-native` captures, which did not open the DOM (VERDICTS 4.3.3).
 
-MEASURED against the running app's Preview, three frames taken after the fifteen states:
+MEASURED against the running app's Preview, three frames taken after the fifteen states. These three are shot with macOS's drop shadow around the window, so the window content sits at x 111 … 3136 and its centre is **1624.0** — not §4.1's 1512.0, which is the centre of the 3024 px frame the other fifteen states were captured to.
 
 | Item | Value | Basis |
 |---|---|---|
