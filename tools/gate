@@ -41,12 +41,12 @@ usage: tools/gate <command> [arguments]
                 session's to commit — the #[allow] reason rule, cargo clippy
                 --all-targets -- -D warnings, cargo test with no display
                 attached, and — on the repo root only — every
-                tools/*-selftest.mjs, none of which needs a window: the bench
-                join's, the typed condition's, the two the blind pair is
-                decided by (the oracle's and the judge's), and this help's own
-                (usage-selftest, which holds it to the subcommands dispatched
-                below and the endings their scripts print). In that order,
-                stopping at the first failure. Each step's output goes to
+                tools/*-selftest.mjs in name order, none of which needs a
+                window: the bench join's, the two the blind pair is decided
+                by (the judge's and the oracle's, with the typed condition's
+                between), and this help's own (usage-selftest, which holds it
+                to the subcommands dispatched below and the endings their
+                scripts print). In that order, stopping at the first failure. Each step's output goes to
                 target/gate/<step>.log and is printed only if that step is the
                 one that fails. Runs on the repo root, or on <dir> if one is
                 given — which is how tools/gate-fixture/selftest points it at a

@@ -4,7 +4,7 @@ What `/code-review` holds a diff to, beyond the smell baseline the skill carries
 
 ## Comments and docs
 
-- A doc comment sits on the item it describes: an item inserted above a documented one goes above that item's `///` block, and one inserted below it goes below the item. (dc60fb2, #175, #181; on `main`, `quill/src/window.rs:236–265` still has `watch_edits`'s paragraphs fused onto `watch_active`.)
+- A doc comment sits on the item it describes: an item inserted above a documented one goes above that item's `///` block, and one inserted below it goes below the item. (dc60fb2, #175, #181, and `watch_edits` in `quill/src/window.rs` until #190.)
 - A module's `//!` line and a struct's doc describe the module after the change; a doc that says "only when" or "never" is checked against the new path. (dc60fb2, 3d91cdb)
 - A citation — an ADR, a `REFERENCE.md` section, a ticket, "the oracle's comment" — says what the cited source says; the reviewer opens it and finds the claim. (dc60fb2, 513a9b6, 63deb6f, e439bb6)
 - A number the code implements lives in the code; a doc that mentions it names the function or file that holds it rather than restating the value. (3d91cdb, b78c425, ea8ef8f)

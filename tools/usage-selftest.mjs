@@ -78,6 +78,16 @@ ok('every subcommand dispatched is named in docs/agents/gate.md', () => {
   for (const c of commands) assert.match(gateMd, new RegExp(`\`tools/gate ${c}\\b`), `gate.md never says \`tools/gate ${c}\``);
 });
 
+ok('the help names every ending tools/gate prints for check', () => {
+  // check's endings are the script's own, below its help text — which also
+  // says `gate check:`, so the heredoc is cut off before the words are read.
+  const body = script.slice(script.indexOf('\nEOF\n}'));
+  const p = paragraph('check');
+  for (const m of body.matchAll(/gate check: ([a-z]+)/g)) {
+    assert.match(p, new RegExp(`: ${m[1]}\\b`), `\`gate check: ${m[1]}\` is printed but the help never says so`);
+  }
+});
+
 for (const c of commands.filter((c) => fs.existsSync(path.join(ROOT, `tools/${c}.mjs`)))) {
   ok(`the help names every ending tools/${c}.mjs prints`, () => {
     const p = paragraph(c);
