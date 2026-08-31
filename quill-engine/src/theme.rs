@@ -12,9 +12,8 @@
 //! Nothing here paints. The engine cannot see a display
 //! ([ADR 0008](../../../docs/adr/0008-engine-crate-without-gtk.md)), so a role
 //! resolves to a [`Colour`] and the app turns that into the widget stylesheet
-//! and the tag table. Colours that are a step off another colour — the resting
-//! marker grey, and every frame of a cross-fade between two of them — are
-//! computed here from [`Colour::over`] and [`Colour::lift`] rather than written
+//! and the tag table. A colour that is a step off another colour — the resting
+//! marker grey — is computed here from [`Colour::over`] rather than written
 //! down twice.
 
 use crate::settings::{Choice, Theme, choice};
@@ -107,28 +106,6 @@ impl Colour {
             green: mix(fg.green, bg.green, amount),
             blue: mix(fg.blue, bg.blue, amount),
             alpha: bg.alpha,
-        }
-    }
-
-    /// `from` moved `amount` of the way toward `toward`.
-    ///
-    /// The oracle's `color-mix(in srgb, …)` in one function. Focus's cross-fade
-    /// (#114) is a walk along this line: `amount` is how far through the 130 ms
-    /// a run's old colour has travelled toward its new one, so the interim
-    /// colours are computed rather than being a ladder to keep in step.
-    ///
-    /// It is the same three mixes as [`Colour::over`] and stays a second
-    /// function because the two answer different questions: `over` puts an
-    /// opacity on a role and reads the ground's back, while this carries both
-    /// ends' opacity through, being a step along a line rather than a
-    /// compositing.
-    #[must_use]
-    pub const fn lift(from: Self, toward: Self, amount: f64) -> Self {
-        Self {
-            red: mix(toward.red, from.red, amount),
-            green: mix(toward.green, from.green, amount),
-            blue: mix(toward.blue, from.blue, amount),
-            alpha: mix(toward.alpha, from.alpha, amount),
         }
     }
 
@@ -498,21 +475,6 @@ mod tests {
         let light = Colours::of(Scheme::Light);
         let resting = Colour::over(light.colour(Role::Mark), light.colour(Role::Paper), 0.72);
         assert_eq!(hex(resting), "#9e9e9e", "the resting marker grey");
-    }
-
-    /// What the cross-fade (#114) needs of [`Colour::lift`]: the two ends, and a
-    /// step between them that is really between them.
-    #[test]
-    fn a_lift_walks_from_one_colour_to_the_other() {
-        let light = Colours::of(Scheme::Light);
-        let (dim, ink) = (light.colour(Role::InkDim), light.colour(Role::Ink));
-        assert_eq!(Colour::lift(dim, ink, 0.0), dim, "no distance travelled");
-        assert_eq!(Colour::lift(dim, ink, 1.0), ink, "the whole distance");
-        assert_eq!(
-            hex(Colour::lift(dim, ink, 0.5)),
-            "#747474",
-            "halfway between #cccccc and #1c1c1c"
-        );
     }
 
     /// The flattenings `theme.css` states in its own comments, which is the
