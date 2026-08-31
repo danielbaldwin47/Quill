@@ -1,5 +1,9 @@
 # Focus and Typewriter are independent modes
 
+*Narrowed by [ADR 0015](0015-the-design-oracle-outranks-the-parity-oracle.md): the first of the
+"two Quill refinements" in § Consequences — the near tier — is withdrawn, and Focus has one dim tier
+per theme (`docs/design.md` § Dim tiers). The edge band and the independence stand.*
+
 Focus (dim everything but the current sentence or paragraph) and Typewriter (hold the caret's line at a
 fixed height by scrolling) are two settings the writer switches on and off separately, and both can be
 on at once. This is the model iA Writer ships on Windows and the one the JavaScript app already has.

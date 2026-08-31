@@ -38,9 +38,11 @@ name a `mac-native` crop as their opponent (ADR 0015).
 **`quill::tags`' list gutters go.** The `list-N` hanging tags and `LIST_CELLS` have no
 counterpart. The Design oracle draws no quote rule (`14-blocks`), so none is drawn.
 
-**`quill-engine::typography::column()` centres 78 cells, not 64 inside a clamp.** At text sizes
-where 78 cells exceed the window the column is window-limited, as the oracle's is past its step 7.
+**`quill-engine::typography::column()` centres 78 cells, not 64 inside a clamp.** Where 78 cells
+exceed the window the container is the window and the gutters hold at 7 cells while the measure
+shrinks, so `###### ` still hangs and a selection's edges stay the container's; the oracle is
+window-limited past its step 7, and which of its two gives was not measured (NOTES § 11).
 
 **The selection painter fills the container.** `caret::NL_TAIL` and the per-row ink extent are
-replaced by the container's edges. #150's keys burst to the foot still passes: it counts painted
-rows, not their widths.
+replaced by the container's edges. #150 runs as written: its burst counts painted rows, not their
+widths.

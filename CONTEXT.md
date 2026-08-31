@@ -92,7 +92,7 @@ The original JavaScript app, kept in `legacy/` until the native app wins every P
 _Avoid_: the reference
 
 **Design oracle**:
-iA Writer for Mac running natively, as captured and measured in `ref/ia/mac-native/`. Outranks every marketing frame under `ref/ia/shots/`, and outranks the Parity oracle wherever `docs/design.md` says so.
+iA Writer for Mac running natively, as captured under `ref/ia/shots/mac-native/` and measured in `ref/ia/mac-native/`. Outranks every marketing frame elsewhere under `ref/ia/shots/`, and outranks the Parity oracle wherever `docs/design.md` says so.
 _Avoid_: the reference, iA stills, the vision
 
 **Gate**:

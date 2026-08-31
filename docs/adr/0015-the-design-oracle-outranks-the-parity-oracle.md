@@ -12,7 +12,7 @@ open.
 
 `ref/ia/REFERENCE.md` was built from marketing frames, and three of its readings were wrong on the
 running app: a right side bearing read as a caret nudge, a style-check marker read as an inset
-selection bar, and iPad touch handles read as a Mac selection (ADRs 0013, 0014). #154 ran the app
+selection bar, and iOS-style touch grab-handles read as a Mac selection (ADRs 0013, 0014). #154 ran the app
 across fifteen states; `VERDICTS.md` contradicts further claims in every section it covers and
 measures what no frame could — the blink, the size ladder, the container. The port, meanwhile, had
 reached exactly the Pieces those rows touch, with children of #38–#40 open on premises the captures
@@ -64,8 +64,9 @@ stay" loses its first refinement — "the neighbouring sentences sit one shade a
 independence of Focus and Typewriter stand.
 
 **The open children of #38–#40 that touch a row are amended before they run**: #110, #113, #114,
-#115, #126, #129, #147. Amended means the triage adds a comment naming the row and the
-`VERDICTS.md` evidence the ticket now builds to, and its Reading line gains `docs/design.md`.
-#111, #148 and #150 touch no row and run as written.
+#115, #126, #129. Amended means the triage adds a comment naming the row and the `VERDICTS.md`
+evidence the ticket now builds to, and its Reading line gains `docs/design.md`. #147 is rewritten
+rather than amended — half its premise went with ADR 0014, and what remains is the Caret column
+row — and returns to `ready-for-agent`. #111, #148 and #150 touch no row and run as written.
 
 **`CONTEXT.md` names both oracles.** *Design oracle* and *Parity oracle* are the two terms.
