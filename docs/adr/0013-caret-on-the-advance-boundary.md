@@ -10,7 +10,11 @@ the bar goes, what it is painted over, and how the Windows app was measured stan
 em; the clear paper at a hard line end (7 px), the one-cell step between consecutive offsets and the
 bar that never overlaps ink are all confirmed. One row narrows: 0013.7's "iA has only one mark,
 which a selection moves to whichever end is active" holds for the Windows build its table measured
-and not for the Mac app, which removes the caret for as long as the selection stands.*
+and not for the Mac app, which removes the caret for as long as the selection stands. And one line
+is overtaken: § Consequences' "`ref/ia/REFERENCE.md` § 4.1 still says 'flush after the last glyph'"
+— correcting it was its own change, and that change is
+[#157](https://github.com/danielbaldwin47/Quill/issues/157), so § 4.1 now carries the 7 px of clear
+paper and the capture it is measured from.*
 
 The bar — the free caret and both of the selection's end bars — stands on the advance boundary
 between two cells, offset from it by nothing, and is painted over the ink rather than under it. The
