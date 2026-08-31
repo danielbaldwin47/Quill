@@ -96,7 +96,7 @@ ok('a state becomes the shoot.mjs flags that state means', () => {
   const unfocused = shootArgv(ROOT, caret.unfocused, 'o.png', 'u');
   assert.equal(unfocused[unfocused.indexOf('--active') + 1], 'off');
 
-  const empty = resolveStates(states, 'page').find((s) => s.name === 'empty').flags;
+  const empty = resolveStates(states, 'chrome').find((s) => s.name === 'empty').flags;
   const noText = shootArgv(ROOT, empty, 'o.png', 'u');
   assert.ok(!noText.includes('--text'), 'an empty Document is shot with no --text');
   assert.ok(!noText.includes('--caret'), 'and with no caret offset into a passage it does not have');
