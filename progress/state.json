@@ -17,7 +17,7 @@
       "id": "type",
       "title": "The type",
       "what": "Duo / Quattro / Mono, size, line height, rhythm",
-      "judge": "the typography only: typeface rendering, size, line height, rhythm, weight and colour of the ink, the spacing of blank lines, how italic/bold sit; would a writer rather read and type in this type. Text size and line pitch are set by a published fourteen-step ladder, one pitch per step (docs/design.md, rows Text sizes and Line pitch), so the gap to name is a pitch or a size that misses its own step, not a pitch you would have set differently. Where a state is a crop of the text column rather than a whole window, judge the type inside the crop: the paper and ink colours it sits on are the Dark & light Piece's, not this one's"
+      "judge": "the typography only: typeface rendering, size, line height, rhythm, weight and colour of the ink, the spacing of blank lines, how italic/bold sit; would a writer rather read and type in this type. Text size and line pitch are set by a published fourteen-step ladder, one pitch per step (docs/design.md, rows Text sizes and Line pitch), so the gap to name is a pitch or a size that misses its own step, not a pitch you would have set differently. Where a state is a crop of the text column rather than a whole window, judge the type inside the crop"
     },
     {
       "id": "caret",
