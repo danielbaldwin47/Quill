@@ -38,11 +38,25 @@
 // window, the active workspace and the pointer before it does anything, and puts all three back on
 // the way out — on exit, on error and on a signal, which is why the teardown is a trap and not the
 // last line of a function.
+//
+// WHY A SHOT PROVES ITS OWN CARET. Focus read back from the compositor answers for the compositor.
+// The app's side of it is a separate asynchronous chain — `wl_keyboard.enter`, GTK's `is-active`,
+// `set_active(true)`, a queued draw, the next frame callback — and `watch_active` seeds it inactive,
+// so the first committed frames carry the ghost caret. An unfocused caret asks for no ticks, so a
+// window still on that frame is perfectly still: `steady()`, `SETTLE_MS` and the read-back all pass
+// on it, and `grim -T` hands back the ghost. `theme-r2` lost `theme/dark` exactly there, on a caret
+// measured `#124b5e` — the accent at `GHOST` 0.3 over the dark ground — and the critic spent its
+// whole verdict calling the frame a design failure. So the glass is asked one more question
+// ([`carriesAccent`]): a judged shot is `--deterministic`, its blink frozen at alpha 1.0, and
+// `Role::Accent` is one flat colour on both grounds, so an active state that draws a caret must
+// hold at least one pixel of it and a ghosted frame never does.
 import { execFileSync, spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+
+import { decodePng } from './keys-assert.mjs';
 
 // The `GtkApplication` application-id, which is the xdg-toplevel `app_id`, which is what Hyprland
 // reports as a window's `class` and what `ext_foreign_toplevel_handle_v1` reports as its `app_id`.
@@ -86,6 +100,22 @@ const STEADY_TRIES = 5;
 // refuses to type at that point, so this is deliberately more than a shot needs: the cost of one
 // more try is a `hyprctl` call, and the cost of giving up too early is a run that did not happen.
 const FOCUS_TRIES = 10;
+
+// `Role::Accent` as `quill-engine/src/theme.rs` paints it, and the one colour a lit caret is made
+// of. It is written here rather than solved because there is nothing in a single shot to solve it
+// out of: the ghost and the bar are the same hue, and only their alpha differs. It is the same
+// value on both grounds — `docs/design.md` row Accent, measured off the Design oracle in VERDICTS
+// 4.2.7–4.2.8 — which is what lets one number stand for a shot in either theme. `tools/gate check`
+// holds it to `theme.rs`'s own two rows, because this repository has twice had a colour copied into
+// `tools/` outlive the palette it came from (`tools/keys-assert.mjs`, #197).
+export const ACCENT = { r: 0x00, g: 0xbf, b: 0xff };
+export const ACCENT_HEX = `#${[ACCENT.r, ACCENT.g, ACCENT.b].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+
+// How many times a shot whose caret came back ghosted is re-settled and re-captured before the
+// shot is refused. The repaint is one activation notify away, so a shot that has not lit by the
+// third pass — each of them a `SETTLE_MS` wait and two full captures — is not racing, and going
+// round again would only turn a refusal into a slower refusal.
+const LIT_TRIES = 3;
 
 // How much of a launch's stdout is kept. The one line anything reads from it is the cold start,
 // printed at the first frame; this is far past that and small enough that a chatty binary cannot
@@ -269,6 +299,56 @@ export function pngSize(buf) {
   if (buf.length < 24 || buf.readUInt32BE(0) !== 0x89504e47) throw new Error('not a PNG');
   if (buf.toString('latin1', 12, 16) !== 'IHDR') throw new Error('a PNG whose first chunk is not IHDR');
   return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+}
+
+/// How many pixels of `accent` a shot holds, exactly — no threshold and no neighbourhood.
+///
+/// Exact is the whole point. Every near-accent pixel in a judged shot is the accent under an alpha:
+/// the ghost caret at `GHOST` 0.3, a selection fill at .22, the antialiased column at either end of
+/// the bar. A tolerance wide enough to be kind would let the ghost in, which is the one thing this
+/// is asked to keep out. The bar's own core is flat — 444 px of it in every shot this was measured
+/// on — so exactness costs nothing.
+export function accentPixels(png) {
+  let held = 0;
+  for (let i = 0; i < png.w * png.h; i += 1) {
+    const at = i * png.ch;
+    if (png.data[at] === ACCENT.r && png.data[at + 1] === ACCENT.g && png.data[at + 2] === ACCENT.b) held += 1;
+  }
+  return held;
+}
+
+/// Whether a capture holds a caret painted at full alpha.
+///
+/// The one question `steady()` cannot answer, and the only one asked of a shot's pixels here: the
+/// harness judges nothing, it only refuses to hand a critic a frame ours had not finished waking
+/// up into. Measured on the four shots #197 came out of — the ghosted `theme/dark` capture holds
+/// 444 px of `#124b5e` and none of the accent, and the three clean ones hold 444 px of the accent.
+export function carriesAccent(buf) {
+  return accentPixels(decodePng(buf)) > 0;
+}
+
+/// Whether a shot of `argv` must show a lit caret.
+///
+/// Read off the command line rather than taken as a flag, because `shoot` is handed a command line
+/// and a state is only ever the flags in it. Ours paints no caret under `--nocaret`, and paints a
+/// selection's band instead of a bar under `--select` — `caret/selection` is 444 px short of an
+/// accent by design, and `mac-native` 03 and 04 have no accent pixel in the frame either. Every
+/// other active state draws the bar, an empty Document included: `page/empty` is the state #166
+/// lost to the ghost.
+///
+/// `--deterministic` is the fourth condition and not a detail of the other three: it is what freezes
+/// the blink on, and [`quillArgv`] drops it for a Live launch, where the caret is meant to be dark
+/// half the time. A Live shot has no lit frame to insist on, so it is shot the way it always was.
+///
+/// The list is the flags ours has today. `chrome/view-menu` and `chrome/palette` name `--menu`,
+/// which `quill/src/main.rs` has not grown yet, so `judge chrome` refuses on the flag long before
+/// it reaches here; the session that builds `--menu` decides whether a popover leaves the Editor
+/// drawing its bar, and adds the fourth way out here if it does not.
+export function wantsLitCaret(argv, { active = true } = {}) {
+  return active
+    && argv.includes('--deterministic')
+    && !argv.includes('--nocaret')
+    && !argv.includes('--select');
 }
 
 // ---------- the compositor ----------
@@ -763,6 +843,15 @@ class Stage {
   /// can give itself focus. It is true by holding focus on ours, and false by parking focus on a
   /// second window of our own on the same stage — never by handing it back to the owner, whose
   /// window is not a prop in a judged state.
+  ///
+  /// It refuses rather than writes when focus never took, when two captures never agreed, when the
+  /// window was captured at the wrong size, or when a determined state that draws a caret came back
+  /// with a ghosted one. `judge` is the only caller today; the last check is here rather than there
+  /// so that a caller which does not exist yet inherits it, because a frame ours had not woken into
+  /// is the wrong frame to measure as much as it is the wrong frame to judge.
+  ///
+  /// Every one of them refuses by throwing, which `judge`'s own `main` turns into `refused (...)`
+  /// and exit 3 — the ending `docs/agents/gate.md` § Blind judging gives a run that judged nothing.
   async shoot({ bin, argv, w, h, out, active = true }) {
     this.rules({ w, h, initialFocus: active });
     let parked = null;
@@ -795,9 +884,25 @@ class Stage {
       if (active && !(await this.focused(ours.address))) {
         throw new Error(`keyboard focus never took on ours (${ours.address}); the shot would be ghosted`);
       }
-      await sleep(SETTLE_MS);
-
-      const png = await this.steady(ours.toplevel.id);
+      // Settled, captured, and then asked whether the caret in it is lit — and settled and captured
+      // again while it is not. The read-back above closed the compositor's half of this race (#186)
+      // and could not close the app's: the activation repaint is frames behind the `wl_keyboard`
+      // enter, and the frame it is behind is a still one. Each pass is a fresh `SETTLE_MS` and a
+      // fresh pair of captures, so a repaint that landed between them is picked up here rather than
+      // waited for by a longer sleep.
+      const lit = wantsLitCaret(argv, { active });
+      let png = null;
+      for (let attempt = 0; attempt < LIT_TRIES; attempt += 1) {
+        await sleep(SETTLE_MS);
+        png = await this.steady(ours.toplevel.id);
+        if (!lit || carriesAccent(png)) break;
+        png = null;
+      }
+      if (png === null) {
+        throw new Error(`the caret came back ghosted in ${LIT_TRIES} settled captures: no pixel of the accent `
+          + `${ACCENT_HEX} is in the frame, so ours had not painted itself active by the shutter and the `
+          + 'shot would be judged on the ghost');
+      }
       const size = pngSize(png);
       const want = { w: w * SCALE, h: h * SCALE };
       if (size.w !== want.w || size.h !== want.h) {
