@@ -104,7 +104,7 @@ The owner's numbered "do X, see Y" walk through a feature from the installed pac
 _Avoid_: QA, acceptance test, manual test
 
 **Judged state**:
-One named configuration (passage, theme, Face, size, Focus, caret, chrome) at which a Piece is shot on both sides for Blind judging; each Piece has a fixed list of them.
+One named configuration (passage, theme, Face, size, Focus, caret, chrome) at which a Piece is shot on both sides for Blind judging, the other side being the Parity oracle's frozen shot or the Design oracle crop the state names; each Piece has a fixed list of them.
 _Avoid_: scenario, screenshot, fixture
 
 **Blind judging**:
