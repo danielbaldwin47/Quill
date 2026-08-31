@@ -614,12 +614,32 @@ pub fn width(size: u32) -> u32 {
     ((f64::from(size) * WIDTH).round() as u32).max(MIN_WIDTH)
 }
 
+/// The bar's left edge, from the advance boundary it stands on and its width.
+///
+/// The bar is **centred** on the boundary. iA Writer for Mac puts 3 px of its
+/// 6 px bar each side of it, at three offsets and in both themes
+/// (`ref/ia/mac-native/VERDICTS.md` 0013.1–0013.3), and `docs/design.md` row
+/// Caret column takes that over the Parity oracle, whose left edge sits on the
+/// boundary and whose bar therefore reads as standing on the glyph that
+/// follows — which is what
+/// [#147](https://github.com/danielbaldwin47/Quill/issues/147) reports.
+///
+/// A width that will not split evenly gives the extra pixel to the right of
+/// the boundary, so the boundary is always inside the bar and never its left
+/// edge. Device pixels, like everything else in a [`Bar`]: the caller has
+/// applied the scale factor already, and at scale 2 every width [`width`]
+/// returns is even.
+#[must_use]
+pub fn left(boundary: f64, w: f64) -> f64 {
+    boundary - (w / 2.0).floor()
+}
+
 /// The left edge, on a whole device pixel.
 ///
 /// The pitch arrives whole from `quill_engine::typography`, but neither edge
-/// the bar is placed by does: x is nudged off the advance boundary and y hangs
-/// from a baseline at [`ABOVE_BASELINE`] of the pitch, and both land wherever
-/// that arithmetic leaves them. Both need this: a bar starting on a half pixel
+/// the bar is placed by does: x is half a bar's width left of the advance
+/// boundary ([`left`]) and y hangs from a baseline at [`ABOVE_BASELINE`] of
+/// the pitch, and both land wherever that arithmetic leaves them. Both need this: a bar starting on a half pixel
 /// is rasterised a row or a column wider than it was cut, with a grey edge
 /// standing in for the half. `caret.js` snaps its top and its left for the
 /// same reason.
@@ -781,6 +801,48 @@ mod tests {
         c.moved(bar(372.0, 0.0), Move::FollowsEdit, edit);
         assert_eq!(c.rect(edit), bar(372.0, 0.0));
         assert_eq!(c.alpha(edit), 1.0);
+    }
+
+    /// The bar is centred on the advance boundary, which is what the Design
+    /// oracle measures and what `docs/design.md` row Caret column decides. The
+    /// Mac app's own numbers are the first case: a 6 px bar on the boundary at
+    /// 819.0 runs 816…821, so its left edge is 3 px before the boundary.
+    #[test]
+    fn the_bar_is_centred_on_the_advance_boundary() {
+        assert_eq!(
+            left(819.0, 6.0),
+            816.0,
+            "VERDICTS 0013.1, state 01 mid-word"
+        );
+        assert_eq!(left(691.0, 6.0), 688.0, "the offset-00 frame");
+        assert_eq!(left(947.0, 6.0), 944.0, "the offset-10 frame");
+        assert_eq!(left(1203.0, 6.0), 1200.0, "the offset-20 frame");
+    }
+
+    /// An odd width cannot split evenly, so the bar takes the fewer pixels on
+    /// the left and the extra one falls right of the boundary. This is the
+    /// scale-1 case: [`width`] is 3 px at 20 px type, and 3 px doubled is the
+    /// even 6 px every scale-2 shot is measured at.
+    #[test]
+    fn an_odd_bars_extra_pixel_falls_right_of_the_boundary() {
+        assert_eq!(left(100.0, 3.0), 99.0, "1 px left of the boundary");
+        for w in [3.0_f64, 5.0, 7.0] {
+            let x = left(100.0, w);
+            assert_eq!(100.0 - x, (w / 2.0).floor(), "{w} px: the left share");
+            assert_eq!(x + w - 100.0, (w / 2.0).ceil(), "{w} px: the right share");
+        }
+    }
+
+    /// Whatever the width, the bar covers the boundary itself rather than
+    /// starting past it — the whole of what #147 reports.
+    #[test]
+    fn the_boundary_is_always_inside_the_bar() {
+        for w in 2..=12 {
+            let w = f64::from(w);
+            let x = left(1896.0, w);
+            assert!(x < 1896.0, "{w} px starts at {x}, on or past the boundary");
+            assert!(x + w > 1896.0, "{w} px ends at {} px, short of it", x + w);
+        }
     }
 
     /// The width at every size the Type Piece offers, and the two iA measured
