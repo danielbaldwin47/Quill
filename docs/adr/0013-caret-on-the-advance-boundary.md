@@ -4,6 +4,14 @@
 bars are gone, so what stands on the boundary is the free caret alone. Everything below about where
 the bar goes, what it is painted over, and how the Windows app was measured stands.*
 
+*Sharpened, not disturbed, by iA Writer for Mac running —
+[`ref/ia/mac-native/VERDICTS.md`](../../ref/ia/mac-native/VERDICTS.md) § ADR 0013. The 6 px bar is
+**centred** on the advance boundary, 3 px each side, and the offset from the boundary measures 0.000
+em; the clear paper at a hard line end (7 px), the one-cell step between consecutive offsets and the
+bar that never overlaps ink are all confirmed. One row narrows: 0013.7's "iA has only one mark,
+which a selection moves to whichever end is active" holds for the Windows build its table measured
+and not for the Mac app, which removes the caret for as long as the selection stands.*
+
 The bar — the free caret and both of the selection's end bars — stands on the advance boundary
 between two cells, offset from it by nothing, and is painted over the ink rather than under it. The
 free caret at an offset and the selection's opening bar at that same offset are therefore the same
