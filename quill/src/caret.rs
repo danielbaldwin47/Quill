@@ -707,8 +707,9 @@ fn slope(a: f64, b: f64, u: f64) -> f64 {
 mod tests {
     use super::*;
 
-    /// A bar at 20 px type: `quill_engine::typography::pitch(20)` is 36, and
-    /// the width at that size is 3.
+    /// A bar at 20 px type, which is a size off the ladder rather than a step
+    /// of it: these are the geometry's own numbers, and the pitch and width
+    /// that go with them are 36 and 3.
     fn bar(x: f64, y: f64) -> Bar {
         Bar {
             x,

@@ -55,9 +55,11 @@ ok('a state becomes the native flags that state means', () => {
   assert.equal(flag('--h'), '900');
   assert.equal(flag('--theme'), 'light');
   assert.equal(flag('--font'), 'duo');
-  assert.equal(flag('--size'), '20');
+  assert.equal(flag('--step'), '5');
   assert.equal(flag('--focus'), 'off');
-  assert.equal(flag('--chrome'), 'on');
+  // The state's own rather than the defaults': the caret Piece is judged bare (#139), so this one
+  // says `off` where `defaults` says `on`.
+  assert.equal(flag('--chrome'), 'off');
   assert.equal(flag('--text'), path.join(ROOT, 'ref/sample.md'));
   // Bytes on the way in and bytes on the way out: the native flags take the form states.json
   // writes, which is what the oracle has to convert away from and this does not.

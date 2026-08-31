@@ -73,10 +73,26 @@ export function byteToChar(text, byte) {
   return head.toString('utf8').length;
 }
 
+// ---------- the ladder, on the oracle's side ----------
+// A judged state names a step of the type ladder. `legacy/tools/shoot.mjs` predates the ladder and
+// counts in pixels, so the oracle's command line is the one place left that turns a step back into
+// a size: the em in logical pixels, fractional, which is what the legacy app's `fontSize` takes.
+// The numbers are `LADDER` in `quill-engine/src/typography.rs`, and `tools/oracle-selftest.mjs`
+// reads that file to prove the two have not drifted apart.
+export const LADDER_EM = [14.50, 15.25, 16.17, 17.17, 19.25, 21.33, 25.58, 29.75, 33.92, 38.08, 44.25, 50.33, 56.50, 62.58];
+
+// The em at `step`, in logical pixels. A step off the ladder is said rather than clamped: an oracle
+// frozen at a size nobody asked for is worse than one that was never taken.
+export function emForStep(step) {
+  const em = LADDER_EM[step];
+  if (em === undefined) throw new Error(`step ${step} is not on the type ladder (0 to ${LADDER_EM.length - 1})`);
+  return em;
+}
+
 // ---------- the command line a state is shot with ----------
 export function shootArgv(root, flags, out, url) {
   const argv = ['--out', out, '--url', url, '--w', String(flags.w), '--h', String(flags.h), '--dpr', String(flags.scale)];
-  argv.push('--theme', flags.theme, '--font', flags.font, '--size', String(flags.size));
+  argv.push('--theme', flags.theme, '--font', flags.font, '--size', String(emForStep(flags.step)));
   argv.push('--focus', flags.focus, '--chrome', flags.chrome, '--active', flags.active ? 'on' : 'off');
   if (flags.typewriter) argv.push('--typewriter');
   if (flags.nocaret) argv.push('--nocaret');

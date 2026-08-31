@@ -368,7 +368,7 @@ pub fn band_target(row_top: f64, row_height: f64, scroll: f64, viewport: f64) ->
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::settings::{Choice, default_size, type_sizes};
+    use crate::settings::{Choice, default_step, type_steps};
 
     /// `ref/ia/mac-native/NOTES.md` § 11, written out again: step, em in
     /// logical pixels, and pitch and caret width in device pixels at scale 2.
@@ -416,7 +416,7 @@ mod tests {
     #[test]
     fn every_step_is_the_em_the_pitch_and_the_width_the_notes_measured() {
         assert_eq!(
-            type_sizes(),
+            type_steps(),
             steps(),
             "the steps a writer may ask for are not the ladder's own"
         );
@@ -504,7 +504,7 @@ mod tests {
 
     #[test]
     fn a_wrapped_row_and_a_new_paragraph_both_sit_one_pitch_below_the_last_row() {
-        for step in type_sizes() {
+        for step in type_steps() {
             let pitch = pitch(step, 2.0);
             // Every row of ink a Face could give at this step, since the split
             // has to hold whatever Pango measures: at 20 px the spike measured
@@ -553,11 +553,11 @@ mod tests {
                 );
             }
             assert!(
-                (cell(face, default_size()) - 12.798).abs() < 0.001,
+                (cell(face, default_step()) - 12.798).abs() < 0.001,
                 "{name} at the default step is not 0.6 of its 21.33 px em"
             );
             assert_eq!(
-                measure(face, default_size()),
+                measure(face, default_step()),
                 819,
                 "{name}'s 64-character measure at the default step is not 819 px"
             );
@@ -571,7 +571,7 @@ mod tests {
         // and the 960 px `narrow` state no longer does, so `narrow` is the
         // container itself with its gutters held and the measure giving up
         // the difference.
-        let cell = cell(Face::Duo, default_size());
+        let cell = cell(Face::Duo, default_step());
         assert_eq!(
             column(1440, cell),
             Column {
@@ -597,7 +597,7 @@ mod tests {
     #[test]
     fn a_window_too_narrow_for_the_container_holds_its_gutters_and_shrinks_the_measure() {
         assert_eq!(
-            column(600, cell(Face::Duo, default_size())),
+            column(600, cell(Face::Duo, default_step())),
             Column {
                 left: 0,
                 right: 600,
@@ -610,7 +610,7 @@ mod tests {
 
     #[test]
     fn the_deepest_heading_hangs_to_the_container_edge() {
-        let column = column(1440, cell(Face::Duo, default_size()));
+        let column = column(1440, cell(Face::Duo, default_step()));
         assert_eq!(
             column.hang(6),
             column.gutter(),
@@ -647,7 +647,7 @@ mod tests {
     #[test]
     fn the_page_starts_two_pitches_down_and_ends_well_clear_of_the_bottom() {
         assert_eq!(
-            page_top(pitch(default_size(), 1.0)),
+            page_top(pitch(default_step(), 1.0)),
             74,
             "the first row at the default step does not start two pitches down"
         );

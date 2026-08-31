@@ -39,20 +39,6 @@ use quill_engine::settings::{
 };
 use quill_engine::typography;
 
-/// The pixel sizes `--size` takes, outside which a number is a typo rather
-/// than a request.
-///
-/// The type is a ladder of fourteen steps now, and `--size` is one of the two
-/// flags still counted in pixels: the Gate's harness writes `--size 20` from
-/// `shots/oracle/states.json`, and every launch it shoots is that state. The
-/// pixels are read as they always were and land on the step nearest above
-/// them, so nothing that drives Quill has to know the ladder yet;
-/// [#164](https://github.com/danielbaldwin47/Quill/issues/164) replaces the
-/// flag with `--step` and the judged states with it.
-fn pixel_sizes() -> RangeInclusive<u32> {
-    10..=40
-}
-
 /// What `--help` prints: every flag, in the architecture's order.
 pub const USAGE: &str = "\
 Usage: quill [flags] [file...]
@@ -62,7 +48,7 @@ Judged state — the states the Gate shoots and benches at:
   --theme light|dark     Set the theme.
   --font duo|quattro|mono
                          Set the Face.
-  --size <px>            Set the type size, at the step at or above it.
+  --step <n>             Set the type to step <n> of the ladder, 0 to 13.
   --focus off|sentence|paragraph
                          Turn Focus off, or on at a scope.
   --typewriter           Turn Typewriter on.
@@ -148,7 +134,7 @@ pub struct Flags {
     /// the way `docs/architecture.md` spells it, and the word stops there
     /// (`CONTEXT.md`).
     pub face: Option<Face>,
-    /// The step of the type ladder the pixel size `--size` names lands on.
+    /// The step of the type ladder `--step` names.
     pub step: Option<u32>,
     /// What `--focus` asks of Focus.
     pub focus: Option<Focus>,
@@ -203,9 +189,17 @@ impl Flags {
                 "--text" => flags.text = Some(file(&mut args, flag)?),
                 "--theme" => flags.theme = Some(one_of(flag, &text(&mut args, flag)?, &THEMES)?),
                 "--font" => flags.face = Some(choice(flag, &text(&mut args, flag)?)?),
+                "--step" => {
+                    flags.step = Some(whole(flag, &text(&mut args, flag)?, &typography::steps())?);
+                }
+                // The type is a ladder of fourteen steps rather than a range
+                // of pixels, so a size in pixels no longer names a state the
+                // Gate can shoot. Refused by name rather than left to the arm
+                // below, which would say only that Quill does not know it.
                 "--size" => {
-                    let size = whole(flag, &text(&mut args, flag)?, &pixel_sizes())?;
-                    flags.step = Some(typography::step_for_size(size));
+                    return Err(Error(
+                        "--size: the type is a ladder now, so use --step <n>, 0 to 13".to_owned(),
+                    ));
                 }
                 "--focus" => flags.focus = Some(one_of(flag, &text(&mut args, flag)?, &FOCUSES)?),
                 "--typewriter" => flags.typewriter = true,
@@ -413,7 +407,7 @@ mod tests {
         ("--text", "ref/sample.md", None),
         ("--theme", "dark", Some("purple")),
         ("--font", "mono", Some("comic")),
-        ("--size", "24", Some("0")),
+        ("--step", "6", Some("14")),
         ("--focus", "paragraph", Some("all")),
         ("--typewriter", "", None),
         // The file says shown and hidden; the flag says on and off.
@@ -460,7 +454,7 @@ mod tests {
     #[test]
     fn the_whole_judged_state_and_the_harness_parse_together() {
         let flags = parse(
-            "--text ref/sample.md --theme dark --font mono --size 24 --focus paragraph \
+            "--text ref/sample.md --theme dark --font mono --step 6 --focus paragraph \
              --typewriter --chrome off --caret end --select 10,20 --scroll 0.25 --nocaret \
              --w 1440 --h 900 --deterministic --measure out.jsonl",
         )
@@ -468,7 +462,7 @@ mod tests {
         assert_eq!(flags.text.as_deref(), Some(Path::new("ref/sample.md")));
         assert_eq!(flags.theme, Some(Theme::Dark));
         assert_eq!(flags.face, Some(Face::Mono));
-        assert_eq!(flags.step, Some(6), "24 px is step 6, whose em is 25.58");
+        assert_eq!(flags.step, Some(6));
         assert_eq!(flags.focus, Some(Focus::Paragraph));
         assert!(flags.typewriter);
         assert_eq!(flags.chrome, Some(Chrome::Hidden));
@@ -483,12 +477,23 @@ mod tests {
     }
 
     #[test]
-    fn the_pixel_size_the_gates_harness_writes_is_the_ladders_default_step() {
-        // `shots/oracle/states.json` says `"size": 20`, and every judged state
-        // is launched with it. The flag is still counted in pixels for that
-        // reason, and 20 px is step 5.
-        let flags = parse("--size 20").expect("the harness's own size");
-        assert_eq!(flags.step, Some(quill_engine::settings::default_size()));
+    fn the_step_the_gates_harness_writes_is_the_ladders_default() {
+        // `shots/oracle/states.json` says `"step": 5`, and every judged state
+        // is launched with it.
+        let flags = parse("--step 5").expect("the harness's own step");
+        assert_eq!(flags.step, Some(quill_engine::settings::default_step()));
+    }
+
+    #[test]
+    fn a_size_in_pixels_is_refused_by_name_and_told_the_flag_that_replaced_it() {
+        // The ladder took the pixels away, so a command line still writing
+        // them is answered with the flag it wanted rather than with "not a
+        // flag Quill knows", which would send a reader looking for a typo.
+        let err = parse("--size 20").expect_err("the type is a ladder now");
+        assert_eq!(
+            err.to_string(),
+            "--size: the type is a ladder now, so use --step <n>, 0 to 13"
+        );
     }
 
     #[test]
@@ -499,7 +504,7 @@ mod tests {
 
     #[test]
     fn a_flag_with_nothing_after_it_says_what_is_missing() {
-        for flag in ["--text", "--theme", "--size", "--measure"] {
+        for flag in ["--text", "--theme", "--step", "--measure"] {
             let err = parse(flag).expect_err("nothing follows it");
             assert_eq!(err.to_string(), format!("{flag}: needs a value after it"));
         }
@@ -585,7 +590,7 @@ mod tests {
     fn a_flag_overrides_the_setting_it_matches_and_leaves_the_rest_alone() {
         let writers = Settings::default();
         let flags =
-            parse("--theme dark --font mono --size 24 --focus paragraph --typewriter --chrome off")
+            parse("--theme dark --font mono --step 6 --focus paragraph --typewriter --chrome off")
                 .expect("six settings overridden");
         let launched = flags.over(writers.clone());
         assert_eq!(launched.theme, Theme::Dark);

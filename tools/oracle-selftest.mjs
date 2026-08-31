@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { byteToChar, freezeReason, readStates, resolveStates, shootArgv, unservable } from './oracle.mjs';
+import { LADDER_EM, byteToChar, emForStep, freezeReason, readStates, resolveStates, shootArgv, unservable } from './oracle.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const GATE = path.join(ROOT, 'tools', 'gate');
@@ -86,6 +86,9 @@ ok('a state becomes the shoot.mjs flags that state means', () => {
   assert.equal(flag('--caret'), '171');
   assert.equal(flag('--select'), '153,171');
   assert.equal(flag('--active'), 'on');
+  // The state names step 5 and the shooter counts in pixels, so the one conversion this tool makes
+  // besides the offsets shows up here: the ladder's em, fractional, and not the 21 it rounds to.
+  assert.equal(flag('--size'), '21.33');
   assert.ok(!argv.includes('--typewriter'));
   assert.ok(!argv.includes('--nocaret'));
 
@@ -114,6 +117,16 @@ ok('a state becomes the shoot.mjs flags that state means', () => {
   assert.equal(view[view.indexOf('--menu') + 1], 'view');
   const palette = shootArgv(ROOT, chrome.palette, 'o.png', 'u');
   assert.equal(palette[palette.indexOf('--menu') + 1], 'palette');
+});
+
+// ---------- the ladder, on both sides of the port ----------
+ok('the ems a step is converted with are the ladder the engine holds', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'quill-engine/src/typography.rs'), 'utf8');
+  const ems = [...source.matchAll(/Rung \{ em: ([0-9.]+)/g)].map((m) => Number(m[1]));
+  assert.ok(ems.length > 0, 'no ladder in quill-engine/src/typography.rs to check against');
+  assert.deepEqual(ems, LADDER_EM, 'the ladder moved in the engine and the oracle was left behind');
+  assert.equal(emForStep(5), 21.33, "the default step's em is the size iA Writer opens at");
+  assert.throws(() => emForStep(LADDER_EM.length), /not on the type ladder/);
 });
 
 // ---------- what makes a frozen Piece stale ----------
