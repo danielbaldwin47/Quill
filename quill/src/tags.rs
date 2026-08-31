@@ -202,7 +202,7 @@ fn cut(buffer: &gtk::TextBuffer, face: Face, weight: Weight, slant: Slant) -> gt
 /// there is one of each.
 fn ground(buffer: &gtk::TextBuffer, scheme: Scheme) -> gtk::TextTag {
     let ground = tag(buffer, "ground-code", |_| {});
-    ground.set_background(Some(&code_ink(scheme)));
+    ground.set_background(Some(&code_well(scheme)));
     ground
 }
 
@@ -217,7 +217,7 @@ fn ground(buffer: &gtk::TextBuffer, scheme: Scheme) -> gtk::TextTag {
 /// because a `<textarea>` gives it no paragraph to paint.
 fn code_ground(buffer: &gtk::TextBuffer, scheme: Scheme) -> gtk::TextTag {
     let ground = tag(buffer, "ground-code-block", |_| {});
-    ground.set_paragraph_background(Some(&code_ink(scheme)));
+    ground.set_paragraph_background(Some(&code_well(scheme)));
     ground
 }
 
@@ -595,7 +595,7 @@ fn hex(scheme: Scheme, ink: Ink) -> String {
 /// wash: nothing is ever drawn under it. So it is composited here, once,
 /// rather than handed to GTK translucent to be blended against whatever the
 /// widget happens to have behind the line.
-fn code_ink(scheme: Scheme) -> String {
+fn code_well(scheme: Scheme) -> String {
     let colours = Colours::of(scheme);
     let wash = colours.colour(Role::CodeBg);
     Colour::over(wash, colours.colour(Role::Paper), wash.alpha).to_hex()
@@ -999,24 +999,28 @@ mod tests {
         );
     }
 
-    /// The code ground is opaque by the time GTK sees it, and it is a
-    /// different opaque colour on each ground.
+    /// The code well is opaque by the time GTK sees it, and it is a different
+    /// opaque colour on each ground.
     ///
     /// [`Role::CodeBg`] is a wash and a `GtkTextTag` background is not, so the
-    /// flattening in [`code_ink`] is the whole of the conversion: a colour
+    /// flattening in [`code_well`] is the whole of the conversion: a colour
     /// still carrying an alpha here would be a well GTK blends against
     /// whatever is behind the line rather than against the page.
+    ///
+    /// The two greys are the engine's to pin — `theme.rs`'s flattening test
+    /// states them, which is where a hand that edits the wash fails — so what
+    /// is asserted here is the part that is this module's: that a wash goes in
+    /// and something that is neither the wash nor the page comes out.
     #[test]
     fn the_code_well_is_flattened_onto_the_ground_it_is_drawn_on() {
         for scheme in [Scheme::Light, Scheme::Dark] {
-            let well = code_ink(scheme);
+            let well = code_well(scheme);
             let colours = Colours::of(scheme);
             let wash = colours.colour(Role::CodeBg);
             assert!(wash.alpha < 1.0, "{scheme:?} code ground is not a wash");
-            assert_eq!(
-                well,
-                Colour::over(wash, colours.colour(Role::Paper), wash.alpha).to_hex(),
-                "{scheme:?}"
+            assert!(
+                gdk::RGBA::parse(&well).is_ok_and(|parsed| parsed.alpha() == 1.0),
+                "{scheme:?} well reaches GTK still translucent: {well}"
             );
             assert_ne!(
                 well,
@@ -1024,7 +1028,7 @@ mod tests {
                 "{scheme:?} well is the page: nothing would read as code"
             );
         }
-        assert_ne!(code_ink(Scheme::Light), code_ink(Scheme::Dark));
+        assert_ne!(code_well(Scheme::Light), code_well(Scheme::Dark));
     }
 
     // The invariant the whole Markup rests on: a closing marker restyles the

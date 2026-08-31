@@ -23,7 +23,6 @@ use gtk::subclass::prelude::*;
 use gtk::{gio, glib};
 use quill_engine::document::Document;
 use quill_engine::settings::WindowState;
-use quill_engine::theme::Scheme;
 
 use crate::caret;
 use crate::harness;
@@ -225,8 +224,11 @@ impl Window {
             return;
         }
         session.set_step(step);
+        let face = session.settings().face;
         if let Some(app) = self.application() {
-            reset_type(&app, session.scheme(), session.settings().face, step);
+            reset(&app, &session, |window| {
+                window.imp().editor.set_type(face, step);
+            });
         }
     }
 
@@ -243,7 +245,10 @@ impl Window {
         };
         let scheme = session.toggle_scheme();
         if let Some(app) = self.application() {
-            reset_scheme(&app, &session, scheme);
+            reset(&app, &session, |window| {
+                let document = window.imp().document.borrow();
+                window.imp().editor.set_scheme(scheme, &document);
+            });
         }
     }
 
@@ -358,37 +363,24 @@ enum Step {
     Default,
 }
 
-/// Sets every open window's Editor in `face` at `size`.
+/// Puts what the session now says on to every open window, and `each` window
+/// on top of that.
 ///
 /// The stylesheet first and once, because it belongs to the display rather
-/// than to a window; then each Editor, because the leading and the measure are
-/// laid out per widget.
-fn reset_type(
-    app: &gtk::Application,
-    scheme: Scheme,
-    face: quill_engine::settings::Face,
-    size: u32,
-) {
-    crate::editor::install_type(scheme, face, size);
-    for window in app.windows() {
-        if let Ok(window) = window.downcast::<Window>() {
-            window.imp().editor.set_type(face, size);
-        }
-    }
-}
-
-/// Moves every open window to `scheme`'s ground.
+/// than to a window: the type and the ground are both named in it, so either
+/// moving reloads it, and reloading it names both whichever one moved. Then
+/// `each` window, because everything else — the leading, the measure, the tags
+/// — is laid out per widget.
 ///
-/// The same shape as [`reset_type`] and for the same reason: the paper is the
-/// stylesheet's and belongs to the display, so it is reloaded once, and
-/// everything else is per widget. A writer has one pair of eyes, so a toggle
-/// in one window is a toggle in all of them.
-fn reset_scheme(app: &gtk::Application, session: &Session, scheme: Scheme) {
-    crate::editor::install_type(scheme, session.settings().face, session.step());
+/// The session is asked rather than told, so that there is one answer to what
+/// this launch is running: the caller has already moved it, and a second copy
+/// passed alongside is a second thing that can be stale. A writer has one pair
+/// of eyes, so a change in one window is a change in all of them.
+fn reset(app: &gtk::Application, session: &Session, each: impl Fn(&Window)) {
+    crate::editor::install_type(session.scheme(), session.settings().face, session.step());
     for window in app.windows() {
         if let Ok(window) = window.downcast::<Window>() {
-            let document = window.imp().document.borrow();
-            window.imp().editor.set_scheme(scheme, &document);
+            each(&window);
         }
     }
 }
