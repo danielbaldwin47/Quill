@@ -16,6 +16,11 @@ is overtaken: § Consequences' "`ref/ia/REFERENCE.md` § 4.1 still says 'flush a
 [#157](https://github.com/danielbaldwin47/Quill/issues/157), so § 4.1 now carries the 7 px of clear
 paper and the capture it is measured from.*
 
+*Reopened on the round by [ADR 0015](0015-the-design-oracle-outranks-the-parity-oracle.md):
+§ Consequences records that a blind round against the Parity oracle can only be lost on this
+geometry, so a loss is not a regression. The caret states now name a `mac-native` crop as their
+opponent, so a round is winnable and a loss is a loss again.*
+
 The bar — the free caret and both of the selection's end bars — stands on the advance boundary
 between two cells, offset from it by nothing, and is painted over the ink rather than under it. The
 free caret at an offset and the selection's opening bar at that same offset are therefore the same

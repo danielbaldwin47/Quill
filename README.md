@@ -5,8 +5,9 @@ own screenshots until a harsh critic picked ours for every piece.
 
 The app that won those rounds is a plain web app, and it is still here, in `legacy/`. It is now the
 **Parity oracle**: a native GTK4 app in Rust is being ported Piece by Piece at the root of this repo,
-and every Piece is judged blind against the oracle before it lands (`docs/agents/gate.md`).
-`docs/architecture.md` is the native design; `CONTEXT.md` is the vocabulary.
+and every Piece is judged blind before it lands (`docs/agents/gate.md`) — against the Parity oracle,
+or where `docs/design.md` says so against the **Design oracle**, iA Writer for Mac as measured in
+`ref/ia/mac-native/`. `docs/architecture.md` is the native design; `CONTEXT.md` is the vocabulary.
 
 ## Build, install and run the native app
 
@@ -126,6 +127,7 @@ tools/          the Gate: `gate check`, and its helpers — blind pairs, progres
                 idle check, font build (`npm i` at the root once, for the three that drive a browser)
 legacy/         the JavaScript app as it won, and the Parity oracle (bin/quill, app/, tools/, BRIEF.md, NOTES.md)
 ref/ia/         iA Writer reference: screenshots, fonts, spec sheet, sources;  ref/sample.md  the test passage
+                mac-native/  the Design oracle as measured (VERDICTS.md, NOTES.md; shots in shots/mac-native/)
 progress/       state, per-round verdicts, latency report, generated live page
 shots/          every round's screenshots, blind pairs, and the states the oracle is shot at
 docs/           architecture.md, adr/, agents/ (the Gate, issue tracker, triage, domain docs)
@@ -141,4 +143,6 @@ Licences: the native app and everything at the root are GPL-3.0-or-later (`LICEN
 * Selection shows identical bars at both ends; anchor and focus aren't distinguished.
 * Documents live in the browser (IndexedDB/localStorage) unless you open a folder; the Library shows that honestly.
 
-Those three are the oracle's, and each is a native Piece's brief.
+Those three are the oracle's. The first and third are a native Piece's brief; the second was decided
+the other way — the native selection is a fill with no bar at either end (`docs/design.md`
+§ Selection, ADR 0014).
