@@ -19,7 +19,8 @@ use std::cell::{Cell, RefCell};
 use std::path::Path;
 use std::rc::Rc;
 
-use quill_engine::settings::{Settings, State, WindowState};
+use quill_engine::settings::{Settings, State, Theme, WindowState};
+use quill_engine::theme::{self, Scheme};
 
 use crate::flags::Flags;
 
@@ -38,6 +39,18 @@ pub struct Session {
     /// which is how [`Session::store`] knows whether there is anything to
     /// write.
     step: Cell<u32>,
+    /// What the writer's `theme` setting says now: what was read, until they
+    /// toggle it. Held apart from [`Session::settings`] for the reason
+    /// [`Session::step`] is — what was read has to stay readable for
+    /// [`Session::store_settings`] to know there is anything to write.
+    theme: Cell<Theme>,
+    /// The ground this launch is painting on, resolved once before the first
+    /// window: the flag, then the setting, then — once #111 wires it — the
+    /// desktop, then what the last session left.
+    ///
+    /// Resolved rather than read, because `auto` is not a ground. Every colour
+    /// the app paints is read off this scheme's row of the engine's table.
+    scheme: Cell<Scheme>,
     /// The shape the next window opens at: what the last session left, at the
     /// size the flags name.
     opening: WindowState,
@@ -75,10 +88,39 @@ impl Session {
             (state, opening)
         };
 
+        Self::launch(flags, settings, state, opening, harness)
+    }
+
+    /// The session those three make, with no file in sight.
+    ///
+    /// Split from [`Session::open`] because the two halves answer different
+    /// questions and only one of them can fail: reading and writing files is
+    /// [`Session::open`]'s and [`Session::store`]'s, and what this launch is
+    /// *running* — the ground above all, which nothing else resolves — is
+    /// decided here, out of three values, where it can be checked without a
+    /// writer's `settings.toml` under it.
+    fn launch(
+        flags: Flags,
+        settings: Settings,
+        mut state: State,
+        opening: WindowState,
+        harness: bool,
+    ) -> Rc<Self> {
         let settings = flags.over(settings);
+        // The ground, before anything can paint on it. The flag is passed as
+        // itself rather than read back off the setting it already overrode,
+        // because the two are different answers to a different question once
+        // the portal is asked: a setting of `auto` follows the desktop and a
+        // `--theme` never does. The portal is `None` until #111 asks it.
+        let scheme = theme::effective(flags.theme, settings.theme, None, state.last_scheme);
+        // What this session will leave for the next one to open on while the
+        // desktop is still being asked.
+        state.last_scheme = scheme;
         Rc::new(Self {
             opening: flags.shape(opening),
             step: Cell::new(settings.step),
+            theme: Cell::new(settings.theme),
+            scheme: Cell::new(scheme),
             settings,
             flags,
             harness,
@@ -109,6 +151,27 @@ impl Session {
     /// Steps the type size, for this launch and — for a writer's — the next.
     pub fn set_step(&self, step: u32) {
         self.step.set(step);
+    }
+
+    /// The ground this launch is painting on.
+    pub fn scheme(&self) -> Scheme {
+        self.scheme.get()
+    }
+
+    /// Moves to the other ground, the way `legacy/app/js/theme.js` does: the
+    /// setting becomes the ground that is not on screen now.
+    ///
+    /// From `auto` that is the opposite of whatever the desktop was answering,
+    /// which is what a writer means by the key: they are looking at a ground
+    /// they want changed, and `auto` is not a ground. So three presses from
+    /// `auto` leave the setting at the opposite of the ground this launch
+    /// opened on, and the file says so.
+    pub fn toggle_scheme(&self) -> Scheme {
+        let scheme = self.scheme.get().other();
+        self.scheme.set(scheme);
+        self.theme.set(scheme.setting());
+        self.leaving.borrow_mut().last_scheme = scheme;
+        scheme
     }
 
     /// The shape a new window opens at.
@@ -145,19 +208,39 @@ impl Session {
         }
     }
 
-    /// Writes `settings.toml` when this launch changed something in it.
+    /// The settings this launch would leave in the file, or `None` when it
+    /// would leave them exactly as it found them.
     ///
-    /// Only the size can move so far, and only a writer's launch can move it:
-    /// the flags a launch of the harness's carries are this launch's alone and
-    /// have no business in the writer's file, which is why a harness launch
-    /// has already returned before this is reached. A file that cannot be
-    /// written is one line on stderr, like every other file here.
-    fn store_settings(&self) {
-        if self.step.get() == self.settings.step {
-            return;
+    /// The decision, without the write: what has moved is a question about
+    /// three values in memory, and a test that asks it should not need a
+    /// writer's file on disk to be asked it.
+    fn stored(&self) -> Option<Settings> {
+        if self.step.get() == self.settings.step && self.theme.get() == self.settings.theme {
+            return None;
         }
         let mut settings = self.settings.clone();
         settings.step = self.step.get();
+        settings.theme = self.theme.get();
+        Some(settings)
+    }
+
+    /// Writes `settings.toml` when this launch changed something in it.
+    ///
+    /// The size and the ground are what can move so far, and only a writer's
+    /// launch can move either: the flags a launch of the harness's carries are
+    /// this launch's alone and have no business in the writer's file, which is
+    /// why a harness launch has already returned before this is reached. A
+    /// file that cannot be written is one line on stderr, like every other
+    /// file here.
+    ///
+    /// Both keys are compared against what was read rather than against a
+    /// default, so a writer who toggles the ground twice leaves the file
+    /// exactly as they found it — `auto` included, which no toggle can reach
+    /// and no write should quietly replace.
+    fn store_settings(&self) {
+        let Some(settings) = self.stored() else {
+            return;
+        };
         if let Err(err) = settings.write_to(&Settings::path()) {
             eprintln!(
                 "quill: {}: cannot be written ({err})",
@@ -171,5 +254,127 @@ impl Session {
 fn report(path: &Path, notes: &[String]) {
     for note in notes {
         eprintln!("quill: {}: {note}", path.display());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The state a session that ended on `last` left behind.
+    ///
+    /// Built from its default by hand rather than by struct-update syntax:
+    /// both files keep a private `rest` — every key this Quill did not know,
+    /// carried through a write — which `..Default::default()` cannot reach
+    /// from here.
+    fn left_on(last: Scheme) -> State {
+        let mut state = State::default();
+        state.last_scheme = last;
+        state
+    }
+
+    /// A writer's launch on `setting`, whose last session ended on `last`.
+    ///
+    /// Built from its default by hand for the reason [`left_on`] is.
+    fn launched(setting: Theme, last: Scheme) -> Rc<Session> {
+        let mut settings = Settings::default();
+        settings.theme = setting;
+        let state = left_on(last);
+        Session::launch(
+            Flags::default(),
+            settings,
+            state,
+            WindowState::default(),
+            false,
+        )
+    }
+
+    /// `auto` is not a ground, so the key that swaps grounds has to start from
+    /// the one on screen.
+    ///
+    /// Three presses rather than one, because one press cannot tell a toggle
+    /// that reads the setting from a toggle that reads the ground: both leave
+    /// `dark`. The third press is where they part — a toggle reading the
+    /// setting would be back at `auto`, or stuck. What a writer means by the
+    /// key is "not this ground", so the answer is the opposite of the ground
+    /// they opened on, however many times they press it an odd number of
+    /// times. `legacy/app/js/theme.js`, `set(resolve() === 'dark' ? …)`.
+    #[test]
+    fn three_presses_from_auto_leave_the_setting_at_the_other_ground() {
+        for opened in [Scheme::Light, Scheme::Dark] {
+            let session = launched(Theme::Auto, opened);
+            assert_eq!(session.scheme(), opened, "the ground it opened on");
+            for _ in 0..3 {
+                session.toggle_scheme();
+            }
+            assert_eq!(
+                session.scheme(),
+                opened.other(),
+                "three presses from {opened:?}"
+            );
+            let stored = session.stored().expect("three presses changed the file");
+            assert_eq!(
+                stored.theme,
+                opened.other().setting(),
+                "the file does not say what is on screen"
+            );
+        }
+    }
+
+    /// Two presses put the ground back and leave `auto` behind.
+    ///
+    /// The oracle's rule, and it is a choice rather than an oversight:
+    /// `theme.js`'s `set()` writes the setting on every press, so a writer who
+    /// has pressed the key has picked a ground, and Quill stops following the
+    /// desktop even when the ground they land back on is the one the desktop
+    /// was already giving them. `auto` is not reachable by the key — it is a
+    /// third thing, and the menu row that offers it is the Chrome ticket's.
+    #[test]
+    fn a_press_is_a_choice_and_stops_following_the_desktop() {
+        let session = launched(Theme::Auto, Scheme::Light);
+        session.toggle_scheme();
+        session.toggle_scheme();
+        assert_eq!(session.scheme(), Scheme::Light, "back where it started");
+        assert_eq!(
+            session.stored().expect("a press is written").theme,
+            Theme::Light,
+            "the ground the writer chose twice is still `auto` in the file"
+        );
+    }
+
+    /// A launch that touched nothing writes nothing.
+    #[test]
+    fn a_launch_that_changed_nothing_leaves_the_file_alone() {
+        assert!(launched(Theme::Auto, Scheme::Dark).stored().is_none());
+        assert!(launched(Theme::Dark, Scheme::Light).stored().is_none());
+    }
+
+    /// The flag pins the ground and never the writer's file.
+    ///
+    /// `--theme dark` is how `tools/gate judge theme` shoots the dark state on
+    /// a desktop that is not dark, so it has to reach the ground rather than
+    /// only the setting behind it — which is exactly what it failed to do
+    /// before this ticket, and why #89's `markup/dark` came back byte-identical
+    /// to its light shot.
+    #[test]
+    fn the_flag_names_the_ground_the_shot_is_taken_on() {
+        for scheme in [Scheme::Light, Scheme::Dark] {
+            let flags = Flags {
+                theme: Some(scheme),
+                ..Flags::default()
+            };
+            // The last session's ground is the other one, and once #111 asks
+            // the desktop it will be answering the other one too, so nothing
+            // but the flag can be what comes back.
+            let state = left_on(scheme.other());
+            let session = Session::launch(
+                flags,
+                Settings::default(),
+                state,
+                WindowState::default(),
+                true,
+            );
+            assert_eq!(session.scheme(), scheme, "--theme {scheme:?}");
+        }
     }
 }

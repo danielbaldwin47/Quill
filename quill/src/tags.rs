@@ -33,39 +33,10 @@ use gtk::prelude::*;
 use quill_engine::annotate::{Ground, Ink, Look, Mark, Slant, Span, Weight};
 use quill_engine::document::Document;
 use quill_engine::settings::Face;
+use quill_engine::theme::{Colour, Colours, Role, Scheme};
 use quill_engine::typography;
 
-use crate::editor::{INK, INK_WEIGHT};
-
-/// The marker grey: `--mark` of `legacy/app/css/theme.css`, 4.0:1 on paper.
-///
-/// A constant here beside the Editor's `PAPER` and `INK` for the same reason
-/// they are constants: there is one theme until the Dark & light ticket moves
-/// all three into the palette table.
-///
-/// Every marker holds it, which is a step short of the oracle, and short of it
-/// in a wider way than this comment used to say. `markup.css` quiets more than
-/// inline punctuation: a heading's `#`s (`.md-hmark`), a quote's `>`
-/// (`.md-quote-mark`), fences, code marks and URLs all take `--md-quiet`,
-/// resting at `--md-mark-quiet` — 72% of the grey over the page, `#9e9e9e` —
-/// while bullets, task boxes and a fence's info string keep the full grey and a
-/// thematic break drops again to `--md-hair`, 34% of it. Only the lift of the
-/// caret's own line back to the full grey is #40's (`markup.css:39`,
-/// `.line.md-here { --md-quiet: var(--mark) }`). The resting ladder is this
-/// Piece's, and it wants its own ticket rather than a line here: it is three
-/// greys across a dozen marks, and the blind critic reads the oracle's own
-/// two-tone as inconsistency as often as it reads ours as too loud.
-const MARK: &str = "#7a7a7a";
-
-/// The link colour: `--link` of `legacy/app/css/theme.css`, 4.6:1 on paper.
-const LINK: &str = "#0b7cba";
-
-/// The code ground: `--code-bg` of `legacy/app/css/theme.css`, which is 4.5%
-/// black over the paper and lands on `#eeeeee`.
-///
-/// Flat rather than translucent because it is a ground, not a wash: nothing is
-/// ever drawn under it.
-const CODE_GROUND: &str = "#eeeeee";
+use crate::editor::INK_WEIGHT;
 
 /// How opaque a link's underline is: `color-mix(… var(--md-link) 35%,
 /// transparent)` of `legacy/app/css/markup.css`.
@@ -223,10 +194,16 @@ fn cut(buffer: &gtk::TextBuffer, face: Face, weight: Weight, slant: Slant) -> gt
 /// padding, precisely so that no glyph moves; a background is the same bargain
 /// in Pango, and the ground reaching under the backticks is what makes it look
 /// padded at all.
-fn ground(buffer: &gtk::TextBuffer) -> gtk::TextTag {
-    tag(buffer, "ground-code", |tag| {
-        tag.set_background(Some(CODE_GROUND));
-    })
+/// Set every time rather than only on the first ask, for the reason [`cut`]
+/// re-sets the Italic family: the name is the tag's key, the ground moves under
+/// it when the scheme changes, and a tag that kept the old ground would paint
+/// the light well on the dark page. The colour-keyed tags [`colour`] makes need
+/// none of this — their ground is in their name — and these three do because
+/// there is one of each.
+fn ground(buffer: &gtk::TextBuffer, scheme: Scheme) -> gtk::TextTag {
+    let ground = tag(buffer, "ground-code", |_| {});
+    ground.set_background(Some(&code_well(scheme)));
+    ground
 }
 
 /// The tag that draws the ground under a whole code block.
@@ -238,10 +215,10 @@ fn ground(buffer: &gtk::TextBuffer) -> gtk::TextTag {
 /// how the ground runs past both edges of the measure and reads as a well —
 /// the same picture the oracle buys with a ±0.7em box-shadow on `.line.l-code`
 /// because a `<textarea>` gives it no paragraph to paint.
-fn code_ground(buffer: &gtk::TextBuffer) -> gtk::TextTag {
-    tag(buffer, "ground-code-block", |tag| {
-        tag.set_paragraph_background(Some(CODE_GROUND));
-    })
+fn code_ground(buffer: &gtk::TextBuffer, scheme: Scheme) -> gtk::TextTag {
+    let ground = tag(buffer, "ground-code-block", |_| {});
+    ground.set_paragraph_background(Some(&code_well(scheme)));
+    ground
 }
 
 /// The tag that underlines a link's words.
@@ -249,11 +226,12 @@ fn code_ground(buffer: &gtk::TextBuffer) -> gtk::TextTag {
 /// A decoration, layered over the runs rather than resolved into them:
 /// underline and colour are different properties, so the overlap is safe
 /// (`docs/architecture.md` § Annotators).
-fn underline(buffer: &gtk::TextBuffer) -> gtk::TextTag {
-    tag(buffer, "decoration-underline", |tag| {
+fn underline(buffer: &gtk::TextBuffer, scheme: Scheme) -> gtk::TextTag {
+    let underline = tag(buffer, "decoration-underline", |tag| {
         tag.set_underline(pango::Underline::Single);
-        tag.set_underline_rgba(Some(&shaded(LINK, UNDERLINE_ALPHA)));
-    })
+    });
+    underline.set_underline_rgba(Some(&shaded(&hex(scheme, Ink::Link), UNDERLINE_ALPHA)));
+    underline
 }
 
 /// The tag that strikes struck text through.
@@ -308,7 +286,7 @@ fn hung(face: Face, step: u32, cells: f64, side: i32) -> (i32, i32) {
 /// A window too narrow to give the marker its margin keeps what it has — the
 /// tag's left margin cannot go below zero, and a heading that cannot hang is
 /// worth less than a heading pushed off the left edge of the view.
-pub fn hang_markers(buffer: &gtk::TextBuffer, face: Face, step: u32, side: i32) {
+pub fn hang_markers(buffer: &gtk::TextBuffer, face: Face, step: u32, side: i32, scheme: Scheme) {
     let hang = |tag: &gtk::TextTag, cells: f64| {
         let (margin, indent) = hung(face, step, cells, side);
         tag.set_left_margin(margin);
@@ -344,7 +322,7 @@ pub fn hang_markers(buffer: &gtk::TextBuffer, face: Face, step: u32, side: i32) 
     // Deliberately not `min(side)`-ed away to nothing: a window too narrow to
     // give the well its margin is one the prose has no gutter in either.
     let edge = well(step).min(side);
-    let ground = code_ground(buffer);
+    let ground = code_ground(buffer, scheme);
     ground.set_left_margin(side - edge);
     ground.set_right_margin(side - edge);
     ground.set_indent(edge);
@@ -355,9 +333,9 @@ pub fn hang_markers(buffer: &gtk::TextBuffer, face: Face, step: u32, side: i32) 
 /// The whole Document at once is what opening one costs: the architecture
 /// parses and draws whole on open as a cold-start cost inside the 250 ms
 /// budget. A keystroke goes through [`retag`] instead.
-pub fn apply(buffer: &gtk::TextBuffer, document: &Document, face: Face) {
+pub fn apply(buffer: &gtk::TextBuffer, document: &Document, face: Face, scheme: Scheme) {
     buffer.remove_all_tags(&buffer.start_iter(), &buffer.end_iter());
-    draw(buffer, document, face, &(0..document.text().len()));
+    draw(buffer, document, face, scheme, &(0..document.text().len()));
 }
 
 /// Draws `lines` again, and leaves every other line of `buffer` alone.
@@ -368,7 +346,13 @@ pub fn apply(buffer: &gtk::TextBuffer, document: &Document, face: Face) {
 /// engine hands back only the lines whose runs came out looking different.
 ///
 /// [`Edit`]: quill_engine::document::Edit
-pub fn retag(buffer: &gtk::TextBuffer, document: &Document, face: Face, lines: &Range<usize>) {
+pub fn retag(
+    buffer: &gtk::TextBuffer,
+    document: &Document,
+    face: Face,
+    scheme: Scheme,
+    lines: &Range<usize>,
+) {
     if lines.is_empty() {
         return;
     }
@@ -376,7 +360,7 @@ pub fn retag(buffer: &gtk::TextBuffer, document: &Document, face: Face, lines: &
     let from = iter_at(buffer, document, at.start);
     let to = iter_at(buffer, document, at.end);
     buffer.remove_all_tags(&from, &to);
-    draw(buffer, document, face, &at);
+    draw(buffer, document, face, scheme, &at);
 }
 
 /// Puts every tag the bytes `at` ask for on to `buffer`.
@@ -393,7 +377,13 @@ pub fn retag(buffer: &gtk::TextBuffer, document: &Document, face: Face, lines: &
 /// off the whole line and belongs to every line its span touches, including
 /// the ones outside `at` that still have it. Applying a tag they already carry
 /// is what leaves them as they were.
-fn draw(buffer: &gtk::TextBuffer, document: &Document, face: Face, at: &Range<usize>) {
+fn draw(
+    buffer: &gtk::TextBuffer,
+    document: &Document,
+    face: Face,
+    scheme: Scheme,
+    at: &Range<usize>,
+) {
     for run in document.runs_in(at) {
         let from = iter_at(buffer, document, run.at.start.max(at.start));
         let to = iter_at(buffer, document, run.at.end.min(at.end));
@@ -404,16 +394,16 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, face: Face, at: &Range<us
             slant,
             ground: on,
         } = run.look;
-        buffer.apply_tag(&colour(buffer, hex(ink), alpha), &from, &to);
+        buffer.apply_tag(&colour(buffer, &hex(scheme, ink), alpha), &from, &to);
         buffer.apply_tag(&cut(buffer, face, weight, slant), &from, &to);
         if on == Ground::Code {
-            buffer.apply_tag(&ground(buffer), &from, &to);
+            buffer.apply_tag(&ground(buffer, scheme), &from, &to);
         }
         // The one decoration that reads off the run rather than off a mark: a
         // link's words are exactly the bytes that came out in the link colour,
         // whether they were bracketed or written bare as an autolink.
         if ink == Ink::Link {
-            buffer.apply_tag(&underline(buffer), &from, &to);
+            buffer.apply_tag(&underline(buffer, scheme), &from, &to);
         }
     }
     hang_lines(buffer, document, at);
@@ -425,7 +415,7 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, face: Face, at: &Range<us
             Mark::Heading(level) => {
                 paragraph(buffer, document, span, &heading(buffer, level));
             }
-            Mark::CodeBlock => paragraph(buffer, document, span, &code_ground(buffer)),
+            Mark::CodeBlock => paragraph(buffer, document, span, &code_ground(buffer, scheme)),
             Mark::Strikethrough => {
                 let from = iter_at(buffer, document, span.at.start);
                 let to = iter_at(buffer, document, span.at.end);
@@ -569,17 +559,46 @@ fn paragraph(buffer: &gtk::TextBuffer, document: &Document, span: &Span, tag: &g
     buffer.apply_tag(tag, &start, &end);
 }
 
-/// The colour `ink` names.
+/// The colour `ink` names on `scheme`, as GTK parses one.
 ///
 /// The engine names a role because it cannot see a display; the three roles
-/// meet their colours here, and the Dark & light ticket changes what they meet
-/// without the engine hearing about it.
-fn hex(ink: Ink) -> &'static str {
-    match ink {
-        Ink::Prose => INK,
-        Ink::Marker => MARK,
-        Ink::Link => LINK,
-    }
+/// meet their colours here, and that is the whole of what a ground is to
+/// marked-up text — the same three roles read off the other row of the table.
+/// Nothing here holds a colour of its own, which is why
+/// `grep -n '#[0-9a-f]\{6\}' quill/src` comes back empty.
+///
+/// Every marker holds the full grey, which is a step short of the oracle, and
+/// short of it in a wider way than a marker grey looks. `markup.css` quiets
+/// more than inline punctuation: a heading's `#`s (`.md-hmark`), a quote's `>`
+/// (`.md-quote-mark`), fences, code marks and URLs all take `--md-quiet`,
+/// resting at `--md-mark-quiet` — 72 % of the grey over the page — while
+/// bullets, task boxes and a fence's info string keep the full grey and a
+/// thematic break drops again to `--md-hair`, 34 % of it. Only the lift of the
+/// caret's own line back to the full grey is #40's (`markup.css:39`,
+/// `.line.md-here { --md-quiet: var(--mark) }`). The resting ladder is the
+/// markup Piece's, and it wants its own ticket rather than a line here: it is
+/// three greys across a dozen marks, and the blind critic reads the oracle's
+/// own two-tone as inconsistency as often as it reads ours as too loud.
+fn hex(scheme: Scheme, ink: Ink) -> String {
+    let role = match ink {
+        Ink::Prose => Role::Ink,
+        Ink::Marker => Role::Mark,
+        Ink::Link => Role::Link,
+    };
+    Colours::of(scheme).colour(role).to_hex()
+}
+
+/// The code ground on `scheme`, flattened onto that ground's paper.
+///
+/// [`Role::CodeBg`] is a wash — 4.5 % black over the light paper, 6 % white
+/// over the dark — and a `GtkTextTag` background is a ground rather than a
+/// wash: nothing is ever drawn under it. So it is composited here, once,
+/// rather than handed to GTK translucent to be blended against whatever the
+/// widget happens to have behind the line.
+fn code_well(scheme: Scheme) -> String {
+    let colours = Colours::of(scheme);
+    let wash = colours.colour(Role::CodeBg);
+    Colour::over(wash, colours.colour(Role::Paper), wash.alpha).to_hex()
 }
 
 /// Sets the Italic tags to `face`'s Italic, for text already tagged.
@@ -928,24 +947,88 @@ mod tests {
 
     #[test]
     fn a_colour_at_full_alpha_is_the_colour_itself() {
-        let opaque = shaded(MARK, Look::OPAQUE);
+        let mark = hex(Scheme::Light, Ink::Marker);
+        let opaque = shaded(&mark, Look::OPAQUE);
         assert!(
             (opaque.alpha() - 1.0).abs() < f32::EPSILON,
             "the alpha half of the key has to reach the colour: {opaque:?}"
         );
-        let dimmed = shaded(MARK, Look::OPAQUE / 2);
+        let dimmed = shaded(&mark, Look::OPAQUE / 2);
         assert!(
             dimmed.alpha() < opaque.alpha() && dimmed.red() == opaque.red(),
             "a dimmed row is the same colour, less of it: {dimmed:?}"
         );
     }
 
+    /// The three inks are three roles of the table, on whichever ground is
+    /// asked for, and no two of them are alike on either.
+    ///
+    /// Two grounds rather than one: an ink that came out the same on both
+    /// would be a role read off the wrong row, and a marker that came out as
+    /// the prose would be a Markup nobody can see. The values themselves are
+    /// the engine's to assert (`theme.rs` § `ORACLE`); what is checked here is
+    /// that this module reaches the right three and reads them off the ground
+    /// it was handed.
     #[test]
-    fn the_three_inks_are_the_three_constants_and_no_two_are_alike() {
-        assert_eq!(
-            [hex(Ink::Prose), hex(Ink::Marker), hex(Ink::Link)],
-            [INK, MARK, LINK]
+    fn the_three_inks_are_three_roles_of_the_ground_and_no_two_are_alike() {
+        for scheme in [Scheme::Light, Scheme::Dark] {
+            let colours = Colours::of(scheme);
+            assert_eq!(
+                [
+                    hex(scheme, Ink::Prose),
+                    hex(scheme, Ink::Marker),
+                    hex(scheme, Ink::Link)
+                ],
+                [
+                    colours.colour(Role::Ink).to_hex(),
+                    colours.colour(Role::Mark).to_hex(),
+                    colours.colour(Role::Link).to_hex()
+                ],
+                "{scheme:?}"
+            );
+        }
+        assert_ne!(
+            hex(Scheme::Light, Ink::Prose),
+            hex(Scheme::Dark, Ink::Prose),
+            "the two grounds are not the same ink"
         );
+        assert_ne!(
+            hex(Scheme::Dark, Ink::Prose),
+            hex(Scheme::Dark, Ink::Marker),
+            "a marker the colour of the prose is no marker"
+        );
+    }
+
+    /// The code well is opaque by the time GTK sees it, and it is a different
+    /// opaque colour on each ground.
+    ///
+    /// [`Role::CodeBg`] is a wash and a `GtkTextTag` background is not, so the
+    /// flattening in [`code_well`] is the whole of the conversion: a colour
+    /// still carrying an alpha here would be a well GTK blends against
+    /// whatever is behind the line rather than against the page.
+    ///
+    /// The two greys are the engine's to pin — `theme.rs`'s flattening test
+    /// states them, which is where a hand that edits the wash fails — so what
+    /// is asserted here is the part that is this module's: that a wash goes in
+    /// and something that is neither the wash nor the page comes out.
+    #[test]
+    fn the_code_well_is_flattened_onto_the_ground_it_is_drawn_on() {
+        for scheme in [Scheme::Light, Scheme::Dark] {
+            let well = code_well(scheme);
+            let colours = Colours::of(scheme);
+            let wash = colours.colour(Role::CodeBg);
+            assert!(wash.alpha < 1.0, "{scheme:?} code ground is not a wash");
+            assert!(
+                gdk::RGBA::parse(&well).is_ok_and(|parsed| parsed.alpha() == 1.0),
+                "{scheme:?} well reaches GTK still translucent: {well}"
+            );
+            assert_ne!(
+                well,
+                colours.colour(Role::Paper).to_hex(),
+                "{scheme:?} well is the page: nothing would read as code"
+            );
+        }
+        assert_ne!(code_well(Scheme::Light), code_well(Scheme::Dark));
     }
 
     // The invariant the whole Markup rests on: a closing marker restyles the

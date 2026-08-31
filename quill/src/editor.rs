@@ -88,14 +88,6 @@ const LAYOUT_SCALE: f64 = 1.0;
 /// need are already drawn when it arrives.
 const SELECTION_SLACK: f64 = 6.0;
 
-/// Paper and ink: the light palette of `legacy/app/css/theme.css`.
-///
-/// Two constants rather than a table, because there is one theme until the
-/// Dark & light ticket, and a table with one row in it says something that is
-/// not true yet.
-const PAPER: &str = "#f9f9f9";
-pub(crate) const INK: &str = "#1c1c1c";
-
 /// The weight ink is set at on paper: `--ink-weight: 415` in
 /// `legacy/app/css/type.css`, a little heavier than Regular because a light
 /// ground eats stems. The Faces are variable, and none of the three moves a
@@ -119,6 +111,7 @@ mod imp {
     use gtk::glib;
     use gtk::subclass::prelude::*;
     use quill_engine::settings::Face;
+    use quill_engine::theme::Scheme;
 
     use crate::caret;
 
@@ -128,6 +121,11 @@ mod imp {
         pub face: Cell<Face>,
         /// Which of the type ladder's fourteen steps the Editor is set at.
         pub step: Cell<u32>,
+        /// The ground this Editor is painting on, which every colour it draws
+        /// is read off. Held here rather than asked of the session per frame
+        /// because the caret asks for it on every frame it is visible, and a
+        /// `Cell<Scheme>` is a byte.
+        pub scheme: Cell<Scheme>,
         /// The page as it was last laid out. Setting a margin queues another
         /// allocation, so an allocation that does not move the page must not
         /// set it again.
@@ -380,6 +378,57 @@ impl Editor {
         self.restyle();
     }
 
+    /// The ground this Editor opens on.
+    ///
+    /// Set while the window is being built and before it is realised, so that
+    /// the first frame is already in the right colours: a dark desktop that
+    /// saw one light frame has seen a flash, and a flash is the one thing
+    /// #39's story 4 is about. Nothing is redrawn here because nothing has
+    /// been drawn — the switch afterwards is [`Editor::set_scheme`], which has
+    /// a Document to retag and a frame to invalidate.
+    pub fn open_on(&self, scheme: Scheme) {
+        self.imp().scheme.set(scheme);
+    }
+
+    /// Moves this Editor's own painting to `scheme`'s ground.
+    ///
+    /// Every colour on screen is read off the table at the moment it is drawn,
+    /// so the switch is nothing more than changing which row is read and then
+    /// making everything read it again: the tags, because a colour is baked
+    /// into the tag the buffer is carrying; and the caret and the selection,
+    /// because those are painted in the snapshot and a snapshot is only taken
+    /// when the widget is invalidated.
+    ///
+    /// **The paper is not here.** The window's ground and the ink under
+    /// untagged text are the stylesheet's, the stylesheet belongs to the
+    /// display rather than to a widget, and `window::reset` reloads it once
+    /// beside the call to this — so this method on its own leaves an Editor
+    /// retagged on the old paper, and is not the whole switch. The two
+    /// together are, and they are one pass because nothing is drawn between
+    /// them.
+    ///
+    /// A whole-Document retag rather than an incremental path, because there
+    /// is no incremental question to ask: every run on screen changes colour
+    /// at once. #39 § Implementation Decisions (Switch) has the spike's
+    /// measurement and the decision that followed from it; the same
+    /// whole-Document pass is what [`Editor::show_document`] already pays to
+    /// open a Document at all.
+    ///
+    /// Inside one `freeze_notify`, which batches the buffer's `notify::` and
+    /// nothing else — applying a tag emits no `changed`, so the handlers that
+    /// splice the engine's copy of the text are not listening for any of this
+    /// and the text has not moved for them to hear about.
+    pub fn set_scheme(&self, scheme: Scheme, document: &Document) {
+        self.imp().scheme.set(scheme);
+        let buffer = self.buffer();
+        let batch = buffer.freeze_notify();
+        tags::apply(&buffer, document, self.imp().face.get(), scheme);
+        drop(batch);
+        // The caret takes the new accent on its next frame, and the selection
+        // its new fill, because both are read inside `snapshot`.
+        self.queue_draw();
+    }
+
     /// The leading, the air above the column, and then the column.
     fn restyle(&self) {
         // The Italic is a Face of its own, so the tags that ask for it have to
@@ -437,6 +486,7 @@ impl Editor {
             self.imp().face.get(),
             self.imp().step.get(),
             page.side,
+            self.imp().scheme.get(),
         );
     }
 
@@ -494,7 +544,12 @@ impl Editor {
         self.imp().loading.set(true);
         buffer.set_text(document.text());
         self.imp().loading.set(false);
-        tags::apply(&buffer, document, self.imp().face.get());
+        tags::apply(
+            &buffer,
+            document,
+            self.imp().face.get(),
+            self.imp().scheme.get(),
+        );
         buffer.place_cursor(&buffer.start_iter());
     }
 
@@ -510,7 +565,13 @@ impl Editor {
     /// by the line and the byte index within it and both of those have to be
     /// the ones the writer can now see.
     pub fn retag(&self, document: &Document, lines: &Range<usize>) {
-        tags::retag(&self.buffer(), document, self.imp().face.get(), lines);
+        tags::retag(
+            &self.buffer(),
+            document,
+            self.imp().face.get(),
+            self.imp().scheme.get(),
+            lines,
+        );
     }
 
     /// The frame the widget is in, in the microseconds the machine counts.
@@ -975,7 +1036,7 @@ impl Editor {
         }
         draw_box(
             snapshot,
-            &paint(Role::Accent, alpha),
+            &paint(self.imp().scheme.get(), Role::Accent, alpha),
             caret.rect(now),
             self.scale(),
         );
@@ -992,7 +1053,7 @@ impl Editor {
             return;
         };
         let scale = self.scale();
-        let fill = selection_fill(self.imp().caret.get().focused());
+        let fill = selection_fill(self.imp().scheme.get(), self.imp().caret.get().focused());
         for row in &selection.rows {
             draw_box(snapshot, &fill, *row, scale);
         }
@@ -1150,33 +1211,27 @@ fn channel(value: f64) -> f32 {
 /// to say it with, now that the free caret is out for as long as a selection
 /// stands and no bar brackets either end.
 ///
-/// A function of the one flag so that it can be checked without a window:
-/// `unfocused` is shot with nothing selected, so no judged state carries the
-/// idle band and the swap is only ever true here.
-fn selection_fill(focused: bool) -> gdk::RGBA {
+/// A function of the scheme and the one flag so that it can be checked without
+/// a window: `unfocused` is shot with nothing selected, so no judged state
+/// carries the idle fill and the swap is only ever true here.
+fn selection_fill(scheme: Scheme, focused: bool) -> gdk::RGBA {
     if focused {
-        paint(Role::Selection, 1.0)
+        paint(scheme, Role::Selection, 1.0)
     } else {
-        paint(Role::SelectionIdle, 1.0)
+        paint(scheme, Role::SelectionIdle, 1.0)
     }
 }
 
-/// One role's colour on the light ground, at `alpha` of the alpha the table
+/// One role's colour on `scheme`'s ground, at `alpha` of the alpha the table
 /// gives it.
 ///
-/// Read from the engine's colour table rather than written out here beside
-/// [`PAPER`] and [`INK`], because the table already carries every one of them,
-/// on both grounds, at exactly the values `legacy/app/css/theme.css` sets them
-/// to. A second copy of a number the critic reads is a second thing to keep
-/// true.
-///
-/// The light ground is not a choice yet: there is one theme until the Dark &
-/// light ticket, and [`PAPER`] and [`INK`] are constants for the same reason.
-/// The two the selection needs — [`Role::Selection`] and
-/// [`Role::SelectionIdle`] — do differ between the grounds, unlike the accent,
-/// so this is one of the sites that ticket has to reach.
-fn paint(role: Role, alpha: f64) -> gdk::RGBA {
-    let colour = Colours::of(Scheme::Light).colour(role);
+/// Read from the engine's colour table rather than written out here, because
+/// the table carries every role on both grounds and a second copy of a number
+/// the critic reads is a second thing to keep true. The three roles that reach
+/// here are the three the layer above the glyphs paints: the accent the caret
+/// is cut from, and the selection's two fills.
+fn paint(scheme: Scheme, role: Role, alpha: f64) -> gdk::RGBA {
+    let colour = Colours::of(scheme).colour(role);
     gdk::RGBA::new(
         channel(colour.red),
         channel(colour.green),
@@ -1278,7 +1333,7 @@ thread_local! {
 /// as a written one — a page whose empty lines are a different height is not a
 /// page. It is installed once, before the first window, and reloaded whenever
 /// the writer steps the size.
-pub fn install_type(face: Face, step: u32) {
+pub fn install_type(scheme: Scheme, face: Face, step: u32) {
     let Some(display) = gtk::gdk::Display::default() else {
         // No display: nothing to style, and nothing that will draw text.
         return;
@@ -1293,7 +1348,7 @@ pub fn install_type(face: Face, step: u32) {
             );
             provider
         });
-        provider.load_from_string(&stylesheet(face, typography::em(step)));
+        provider.load_from_string(&stylesheet(scheme, face, typography::em(step)));
     });
 }
 
@@ -1311,12 +1366,15 @@ pub fn install_type(face: Face, step: u32) {
 /// well would be a second, differently rounded rectangle under it. The
 /// `color` stays, for the same reason the ink is named twice above: clearing
 /// the ground alone leaves the selected glyphs to the desktop theme.
-fn stylesheet(face: Face, em: f64) -> String {
+fn stylesheet(scheme: Scheme, face: Face, em: f64) -> String {
+    let colours = Colours::of(scheme);
+    let paper = colours.colour(Role::Paper).to_hex();
+    let ink = colours.colour(Role::Ink).to_hex();
     format!(
-        "window {{ background-color: {PAPER}; }}\n\
+        "window {{ background-color: {paper}; }}\n\
          textview.{FACE_CLASS}, textview.{FACE_CLASS} text {{\n\
-         \x20 background-color: {PAPER};\n\
-         \x20 color: {INK};\n\
+         \x20 background-color: {paper};\n\
+         \x20 color: {ink};\n\
          \x20 font-family: \"{family}\";\n\
          \x20 font-size: {em}px;\n\
          \x20 font-style: normal;\n\
@@ -1325,7 +1383,7 @@ fn stylesheet(face: Face, em: f64) -> String {
          }}\n\
          textview.{FACE_CLASS} text selection {{\n\
          \x20 background-color: transparent;\n\
-         \x20 color: {INK};\n\
+         \x20 color: {ink};\n\
          }}\n",
         family = face.family(),
         features = css_features()
@@ -1354,7 +1412,7 @@ mod tests {
         let em = typography::em(quill_engine::settings::default_step());
         assert!((em - 21.33).abs() < 0.001, "the default step's em is {em}");
         assert!(
-            stylesheet(Face::Duo, em).contains("font-size: 21.33px"),
+            stylesheet(Scheme::Light, Face::Duo, em).contains("font-size: 21.33px"),
             "the stylesheet named the type at a whole pixel"
         );
         let described = f64::from(body_font(Face::Duo, em).size());
@@ -1377,28 +1435,78 @@ mod tests {
     /// dark desktop is white on our paper.
     #[test]
     fn the_stylesheet_leaves_the_selection_ground_to_us_and_keeps_the_ink() {
-        let css = stylesheet(
+        for scheme in [Scheme::Light, Scheme::Dark] {
+            let css = sheet(scheme);
+            let rule = css
+                .split_once(&format!("textview.{FACE_CLASS} text selection"))
+                .expect("no selection rule at all")
+                .1;
+            let rule = rule.split_once('}').expect("unclosed selection rule").0;
+            assert!(
+                rule.contains("background-color: transparent"),
+                "{scheme:?}: GTK is still painting a selection ground under ours:\n{css}"
+            );
+            assert!(
+                rule.contains(&format!(
+                    "color: {}",
+                    Colours::of(scheme).colour(Role::Ink).to_hex()
+                )),
+                "{scheme:?}: selected glyphs are not in the page's ink:\n{css}"
+            );
+            assert_eq!(
+                css.matches("selection").count(),
+                1,
+                "{scheme:?}: the idle swap is the fill's now, not the stylesheet's:\n{css}"
+            );
+        }
+    }
+
+    /// Each ground's own paper and ink, and nothing of the other's.
+    ///
+    /// The window and the text view are named separately because they are two
+    /// surfaces: the paper is the one the writer sees past the measure, and a
+    /// stylesheet that dressed only one of them would put a light frame around
+    /// a dark page. Read off the text rather than off a screen, because that
+    /// is a pure function of the scheme and needs no display to check
+    /// ([#110](https://github.com/danielbaldwin47/Quill/issues/110)).
+    ///
+    /// The values themselves are the engine's to pin (`theme.rs` § `ORACLE`,
+    /// off `docs/design.md`'s Paper · ink · dim row) and are read from the
+    /// table here rather than written out again: after this ticket
+    /// `grep -n '#[0-9a-f]\{6\}' quill/src` finds nothing, and a second copy
+    /// of a number the critic reads is a second thing to keep true.
+    #[test]
+    fn each_ground_is_dressed_in_its_own_paper_and_its_own_ink() {
+        for scheme in [Scheme::Light, Scheme::Dark] {
+            let colours = Colours::of(scheme);
+            let paper = colours.colour(Role::Paper).to_hex();
+            let ink = colours.colour(Role::Ink).to_hex();
+            let other = Colours::of(scheme.other()).colour(Role::Paper).to_hex();
+            let css = sheet(scheme);
+            assert_eq!(
+                css.matches(&format!("background-color: {paper}")).count(),
+                2,
+                "{scheme:?}: the window and the text are not both on {paper}:\n{css}"
+            );
+            assert!(
+                css.contains(&format!("color: {ink}")),
+                "{scheme:?}: the ink is not {ink}:\n{css}"
+            );
+            assert!(
+                !css.contains(&other),
+                "{scheme:?}: the other ground's paper {other} is in this one:\n{css}"
+            );
+        }
+    }
+
+    /// The stylesheet for `scheme` at the default type, which is what every
+    /// judged state is shot at.
+    fn sheet(scheme: Scheme) -> String {
+        stylesheet(
+            scheme,
             Face::Duo,
             typography::em(quill_engine::settings::default_step()),
-        );
-        let rule = css
-            .split_once(&format!("textview.{FACE_CLASS} text selection"))
-            .expect("no selection rule at all")
-            .1;
-        let rule = rule.split_once('}').expect("unclosed selection rule").0;
-        assert!(
-            rule.contains("background-color: transparent"),
-            "GTK is still painting a selection ground under ours:\n{css}"
-        );
-        assert!(
-            rule.contains(&format!("color: {INK}")),
-            "selected glyphs are not in the page's ink:\n{css}"
-        );
-        assert_eq!(
-            css.matches("selection").count(),
-            1,
-            "the idle swap is the fill's now, not the stylesheet's:\n{css}"
-        );
+        )
     }
 
     /// The band swaps when the window goes.
@@ -1410,14 +1518,21 @@ mod tests {
     /// selection became ours, and the check moves with it.
     #[test]
     fn the_selection_goes_idle_with_the_window() {
-        let fill = selection_fill(true);
-        let idle = selection_fill(false);
-        assert_eq!(
-            fill,
-            paint(Role::Selection, 1.0),
-            "an active window is the oracle's --selection"
+        for scheme in [Scheme::Light, Scheme::Dark] {
+            let fill = selection_fill(scheme, true);
+            let idle = selection_fill(scheme, false);
+            assert_eq!(
+                fill,
+                paint(scheme, Role::Selection, 1.0),
+                "{scheme:?}: an active window is the oracle's active fill"
+            );
+            assert_ne!(fill, idle, "{scheme:?}: the fill did not go idle");
+            assert_eq!(idle, paint(scheme, Role::SelectionIdle, 1.0));
+        }
+        assert_ne!(
+            selection_fill(Scheme::Light, true),
+            selection_fill(Scheme::Dark, true),
+            "the two grounds were designed one fill each"
         );
-        assert_ne!(fill, idle, "the band did not go idle");
-        assert_eq!(idle, paint(Role::SelectionIdle, 1.0));
     }
 }
