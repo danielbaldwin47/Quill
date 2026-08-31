@@ -31,7 +31,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { typeKeys } from './bench.mjs';
 import { compositorAvailable, openStage, quillArgv } from './harness.mjs';
 import {
-  AFTER_BURST, BETWEEN_BURSTS, INK_DARK, PAPER_DARK, STATES, decodePng, readBar, resolveScript,
+  AFTER_BURST, BETWEEN_BURSTS, INK_DARK, PAPER_DARK, SETTLES, STATES, decodePng, readBar,
+  resolveScript,
 } from './keys-assert.mjs';
 
 const BINARY = 'target/release/quill';
@@ -127,6 +128,34 @@ async function captureBar(stage, toplevel, colours) {
   return last;
 }
 
+// A capture of a page with no caret on it: the still a burst that ends in a selection leaves.
+//
+// The retry above is not merely unnecessary here, it is the wrong question — a selection puts the
+// caret out entirely (ADR 0014), so a run looking for a lit bar would spend its eight tries on a
+// page that is exactly right and then refuse it. There is nothing to wait out either: the caret's
+// idle hold is the caret's, and this page has none, so `steady`'s two agreeing captures are the
+// whole rule and no millisecond of the blink is written down a second time here.
+// Every settle rule is called `(stage, toplevel, colours)`, and this one has no use for the third:
+// the colours say which way round the page's ink and paper are, which only the bar's reading needs.
+async function captureStill(stage, toplevel) {
+  try {
+    const buf = await stage.steady(toplevel);
+    return { buf, png: decodePng(buf), read: null };
+  } catch (e) {
+    say(`gate keys: the page never settled (${e.message})`);
+    return null;
+  }
+}
+
+// The settle rules by the name a burst says in `settle`. The names themselves are
+// `keys-assert.mjs`'s `SETTLES`, so that a script naming one is refused before a window opens; this
+// half holds the functions, and the check below is what keeps the two halves one list — a rule
+// added there and not here says so on the next run rather than at the burst that reaches for it.
+const CAPTURE = { caret: captureBar, still: captureStill };
+for (const name of SETTLES) {
+  if (!CAPTURE[name]) throw new Error(`gate keys: no capture for the settle rule ${name}`);
+}
+
 // ---------- the run ----------
 
 async function run(root, piece, { shotsDir }) {
@@ -177,12 +206,22 @@ async function run(root, piece, { shotsDir }) {
 
     const seen = [];
     for (const burst of script.bursts) {
+      // A burst's `text` is what a keyboard spells straight, and its `keys` is what `text` cannot
+      // spell: `Control+a` is one thing the writer did, and the typist's chord form is the only
+      // form that can say it. The typist takes one or the other — `keys` wins when both are given
+      // — so a burst carrying both is expanded here into the one array, one entry per code point
+      // of `text` as `uinput-keys.py` expands `text` itself, and the chords after it.
+      const keys = burst.keys
+        ? [...[...(burst.text || '')].map((press) => ({ press })), ...burst.keys]
+        : null;
       const plan = {
-        pace_ms: PACE_MS, hold_ms: HOLD_MS, settle_ms: SETTLE_MS, chunk: CHUNK, text: burst.text,
+        pace_ms: PACE_MS, hold_ms: HOLD_MS, settle_ms: SETTLE_MS, chunk: CHUNK,
+        ...(keys ? { keys } : { text: burst.text }),
       };
-      // Code points, as the typist counts them: `uinput-keys.py` writes one key per character of
-      // `text`, and `resolveScript` totals the same way.
-      const wanted = [...burst.text].length;
+      // Code points for a burst that only types, as the typist counts them; entries for one that
+      // spells its keys, because a chord is one key however many go down for it — one write(2),
+      // one stamp, one recorded event (`uinput-keys.py` § WHY A CHORD IS ONE KEY).
+      const wanted = keys ? keys.length : [...burst.text].length;
       say(`gate keys: burst ${burst.name}: ${wanted} keys`);
       const wrote = await typeKeys(root, plan, () => stage.holds(ours.address));
       if (wrote.lost) {
@@ -193,12 +232,14 @@ async function run(root, piece, { shotsDir }) {
           + `wrote ${wrote.events.length}`);
       }
 
-      const shot = await captureBar(stage, ours.toplevel.id, colours);
+      const settle = burst.settle || 'caret';
+      const shot = await CAPTURE[settle](stage, ours.toplevel.id, colours);
       if (!shot) return refuse(piece, `no capture of ${burst.name} ever settled`);
       // A shot with no bar in it is nothing read, not a bar in the wrong place, so it refuses
       // rather than condemning the build: after `BLINK_TRIES` turns of a 1,055 ms cycle the honest
-      // thing to say is that the caret was never caught lit, and 3 is the code for that.
-      if (!shot.read.bar) {
+      // thing to say is that the caret was never caught lit, and 3 is the code for that. Asked
+      // only of a burst that left a caret on the page: a `still` burst is a page with none.
+      if (settle === 'caret' && !shot.read.bar) {
         return refuse(piece, `the caret was never caught lit after ${burst.name}, so there was `
           + 'no bar to measure');
       }
@@ -207,7 +248,7 @@ async function run(root, piece, { shotsDir }) {
         fs.writeFileSync(path.join(shotsDir, `${burst.name}.png`), shot.buf);
         say(`gate keys: wrote ${path.join(shotsDir, `${burst.name}.png`)}`);
       }
-      seen.push({ burst, shot });
+      seen.push({ burst, shot, settle });
     }
 
     // Every assertion is evaluated, and the first that fails is the one the line names — a run that
@@ -215,15 +256,24 @@ async function run(root, piece, { shotsDir }) {
     const failures = [];
     for (const { burst, shot } of seen) {
       for (const name of burst.assert || []) {
-        const verdict = AFTER_BURST[name](shot.png, { chars: burst.chars, colours, read: shot.read });
+        const verdict = AFTER_BURST[name](shot.png, {
+          chars: burst.chars, rows: burst.rows, colours, read: shot.read,
+        });
         say(`gate keys: ${burst.name} ${name}: ${verdict.pass ? 'ok' : 'FAILED'} — ${verdict.said}`);
         if (!verdict.pass) failures.push(`${name} after ${burst.name}: ${verdict.said}`);
       }
     }
+    // Every between-bursts assertion there is compares two bars, and a burst that leaves no caret
+    // on the page has none to compare — so a pair with a `still` burst at either end is passed
+    // over rather than failed, and the log says which pair and why.
     for (const name of script.between || []) {
       for (let i = 1; i < seen.length; i += 1) {
-        const verdict = BETWEEN_BURSTS[name](seen[i - 1].shot.read, seen[i].shot.read);
         const where = `${seen[i - 1].burst.name} to ${seen[i].burst.name}`;
+        if (seen[i - 1].settle !== 'caret' || seen[i].settle !== 'caret') {
+          say(`gate keys: ${where} ${name}: not asked (a burst with no caret on the page)`);
+          continue;
+        }
+        const verdict = BETWEEN_BURSTS[name](seen[i - 1].shot.read, seen[i].shot.read);
         say(`gate keys: ${where} ${name}: ${verdict.pass ? 'ok' : 'FAILED'} — ${verdict.said}`);
         if (!verdict.pass) failures.push(`${name} from ${where}: ${verdict.said}`);
       }
