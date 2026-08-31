@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { pair, pairDir, reveal } from './blind.mjs';
 import { CAPTURES, cropPng, encodePng, resolveOpponent } from './crop.mjs';
 import { APP_ID, appeared, classPattern, launchEnv, parseToplevels, pngSize, quillArgv, rulesLua } from './harness.mjs';
-import { criticAnswer, criticPrompt, oursArgv, refusedFlag } from './judge.mjs';
+import { criticAnswer, criticPrompt, opponentOf, oursArgv, refusedFlag } from './judge.mjs';
 import { decodePng } from './keys-assert.mjs';
 import { readStates, resolveStates, unservable } from './oracle.mjs';
 import { regimes } from './regimes.mjs';
@@ -335,6 +335,20 @@ ok('a state that names an opponent carries no such flag, and is shot in Mono at 
   const plain = resolveStates(states, 'type').find((t) => t.name === 'quattro');
   assert.equal(plain.opponent, null);
   assert.equal(plain.flags.font, 'quattro');
+});
+
+ok('a round names the opponent its states were judged against, and says so when they differ', () => {
+  const design = { capture: CAPTURE, crop: [0, 0, 8, 8], ours: [0, 0, 8, 8] };
+  assert.equal(opponentOf([{ opponent: null }, { opponent: null }]), 'oracle');
+  assert.equal(opponentOf([{ opponent: design }, { opponent: design }]), 'mac-native');
+  // A Piece part-way through: #165-#168 move one row at a time, so this is what the ledger says
+  // for every round between the first row moving and the last.
+  assert.equal(opponentOf([{ opponent: null }, { opponent: design }]), 'mixed');
+  // And every word one of them returns is one the progress page can caption.
+  for (const word of ['oracle', 'mac-native', 'mixed']) {
+    assert.ok(OPPONENTS[word], `a round recording ${word} would be captioned by its own key`);
+    assert.equal(opponentName({ opponent: word }), OPPONENTS[word]);
+  }
 });
 
 ok('an opponent is resolved against the capture on disk, and the centre rule carries the container', () => {

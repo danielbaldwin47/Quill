@@ -70,10 +70,15 @@ const OPPONENT = 'oracle';
 
 // Who a round was judged against, read off the states rather than declared: a state carrying
 // `opponent` is paired with a crop of the Design oracle instead of the Parity oracle's frozen shot
-// (ADR 0015), and a Piece may hold both kinds while its rows are being taken one at a time. The
-// word goes in the round so that "a Piece once won is never lost" names the opponent it was won
-// against — a win over `legacy/` is not a win over iA Writer for Mac.
-function opponentOf(resolved) {
+// (ADR 0015), and a Piece may hold both kinds while its rows are moved one at a time.
+//
+// What the word does is caption the round — `opponentName` in `tools/rounds.mjs`, which is what
+// the progress page prints and what the line above a lost Piece says it was won against. What it
+// does *not* do is scope "a Piece once won is never lost": `wonBefore` asks only whether a round
+// carrying any `opponent` was won, so a Piece won over `legacy/` is still held to that win when its
+// first row moves to a crop. That is the rule as `docs/agents/gate.md` states it, and narrowing it
+// to the opponent would weaken the guard exactly as the re-judges begin (#165–#168).
+export function opponentOf(resolved) {
   if (resolved.every((s) => s.opponent)) return 'mac-native';
   if (resolved.some((s) => s.opponent)) return 'mixed';
   return OPPONENT;

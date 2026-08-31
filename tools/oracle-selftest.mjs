@@ -200,7 +200,13 @@ ok('a state judged against a mac-native crop is not this tool\'s to freeze', () 
   try {
     const r = gate('oracle', 'type', { QUILL_STATES: file });
     assert.equal(r.code, 0, `${r.out}${r.err}`);
-    assert.match(r.out.trim().split('\n').pop(), /^gate oracle type: nothing to freeze \(all 1 states name a mac-native crop\)/);
+    assert.match(r.out.trim().split('\n').pop(), /^gate oracle type: nothing to freeze \(its one state names a mac-native crop\)/);
+    // And it took nothing away from the Piece as it really stands: the sweep below reads the
+    // fingerprint, and this run must not have removed the three shots type is actually frozen at.
+    for (const name of ['duo', 'quattro', 'mono']) {
+      assert.ok(fs.existsSync(path.join(ROOT, 'shots/oracle/type', `${name}.png`)), `${name}.png went missing`);
+    }
+    assert.ok(fs.existsSync(path.join(ROOT, 'shots/oracle/type/fingerprint.json')));
   } finally {
     fs.rmSync(file, { force: true });
   }
