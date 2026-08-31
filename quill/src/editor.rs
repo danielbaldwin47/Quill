@@ -405,9 +405,9 @@ impl Editor {
         if width <= 0 || height <= 0 {
             return;
         }
-        let measure = typography::measure(self.imp().face.get(), self.imp().size.get());
+        let cell = typography::cell(self.imp().face.get(), self.imp().size.get());
         let page = Page {
-            side: signed(typography::column(unsigned(width), measure).side),
+            side: signed(typography::column(unsigned(width), cell).side),
             bottom: signed(typography::page_bottom(unsigned(height))),
         };
         if self.imp().laid_out.get() == Some(page) {
