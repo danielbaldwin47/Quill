@@ -714,7 +714,8 @@ class Stage {
   /// has finished acting on it — and because the whole point of asking is that a bench about to
   /// write real keys to `/dev/uinput` must not take the owner's word for where they will land. A
   /// shot asks for its own reason: an unfocused Quill paints the ghost caret, which is a judged
-  /// state of its own and so is never a shot that merely looks wrong.
+  /// state of its own and so is never a shot that merely looks wrong — and for its parking window,
+  /// because focus that never left the owner is the arrangement `shoot`'s contract forbids.
   async focused(address) {
     movePointer(this.corner);
     for (let tries = 0; tries < FOCUS_TRIES; tries += 1) {
@@ -773,9 +774,14 @@ class Stage {
 
       if (!active) {
         // Parked first, and focused, so that at no moment between the launch and the shutter does
-        // ours hold focus — `no_initial_focus` keeps it from taking any as it maps.
+        // ours hold focus — `no_initial_focus` keeps it from taking any as it maps. Read back, as
+        // ours is below: a dispatch the compositor loses leaves focus where it was, on the owner's
+        // window, which is the one arrangement the contract above forbids. The shot would very likely still be right — ours is unfocused either way — but
+        // "very likely" is not something the Gate can vouch for, so it refuses instead (#186).
         parked = await this.launch(bin, quillArgv(this.root, PARKING));
-        focusWindow(parked.address);
+        if (!(await this.focused(parked.address))) {
+          throw new Error(`keyboard focus never took on the parking window (${parked.address}); the shot would be taken with the owner's window still focused`);
+        }
       }
 
       ours = await this.launch(bin, argv);
