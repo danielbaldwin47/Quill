@@ -22,7 +22,11 @@ fontconfig reads it as roman whatever we call it, and the Editor asks for the
 Face it wants by family name.
 
 Output is a pure function of the input: running this twice produces identical
-bytes, which is what lets a Gate check regenerate `fonts/` and diff it.
+bytes. It is not a passthrough of the tables it leaves alone, though — fontTools
+recompiles every table this script loads, so a Face with nothing to pin still
+comes out a little smaller than iA compiled it, `gvar` packed tighter. Nothing
+checks the committed `fonts/` against a fresh build; a change here is rebuilt by
+hand and the diff read.
 """
 
 import sys
@@ -74,8 +78,9 @@ INSTANCE_NAMES_FROM = 600
 NOTICE = (
     "Copyright 2017 IBM Corp. All rights reserved.\n"
     "Copyright 2018 Information Architects Inc. All rights reserved.\n"
-    "Modified for Quill under SIL OFL 1.1 section 3: renamed, and the Quattro "
-    "Italic word space regularised. See OFL.txt."
+    "Modified for Quill under SIL OFL 1.1 section 3: renamed, the Quattro "
+    "Italic word space regularised, and every advance pinned across the weight "
+    "axis. See OFL.txt."
 )
 
 # The Quattro Italic word space is 600 units where its Roman's is 450, so a run
@@ -85,6 +90,15 @@ NOTICE = (
 # before and after they style it. The width is read from the Roman rather than
 # written down, because matching the Roman is the whole point.
 SPACE_GLYPH = "space"
+
+# Five of the six Faces vary some advance on `wght`, so that a run of text
+# changes width the moment it is set bold: Quattro Italic moves `t` and `f`,
+# which is every emphasis inside a heading, and the rest move only marks and
+# punctuation the judged passage happens not to use. A `gvar` tuple's deltas
+# run point by point and end with four phantom points — left side bearing,
+# advance, top side bearing, advance height — so the advance is the second
+# from the end of the four, and the third from the end of the tuple.
+ADVANCE_PHANTOM_INDEX = -3
 
 # `fonts/OFL.txt` is this preamble followed by iA's LICENSE.md verbatim.
 LICENCE_PREAMBLE = """\
@@ -101,11 +115,15 @@ What was modified:
     the `Quill` prefix, each Italic a family of its own;
   * the Quattro Italic word space narrowed from 600 to 450 units to match its
     Roman, with the glyph's `gvar` entry dropped so it holds at every weight;
+  * every glyph's advance frozen across the weight axis, by zeroing the
+    advance delta of each `gvar` tuple that varies on `wght`, so that a run of
+    text keeps its width when it is set bold;
   * the digital signature (`DSIG`) dropped, no longer being valid;
   * the typographic family and subfamily names (`name` IDs 16 and 17) dropped.
 
-Outlines, kerning, hinting and the variation axes are iA's, unchanged. The
-originals are in this repository under `ref/ia/fonts`.
+Outlines, kerning, hinting and the variation axes are iA's, unchanged apart from
+the two advance edits named above. The originals are in this repository under
+`ref/ia/fonts`.
 
 The licence below is iA's own, copied verbatim from `ref/ia/fonts/*/LICENSE.md`.
 
@@ -178,6 +196,29 @@ def regularise_space(font, roman):
     return advance
 
 
+def pin_advance(font):
+    """Freezes every advance in `font` across `wght`, and counts what moved.
+
+    A `gvar` tuple ends in the four phantom points, of which the second is the
+    advance; zeroing it on every tuple that varies on `wght` leaves the outline
+    deltas alone and holds the advance at the default instance's value, which
+    is what `hmtx` already carries. The other axis, `SPCG`, is the one that is
+    meant to vary an advance, and keeps its deltas — which holds for these six
+    files, where every tuple that varies an advance varies on `wght` alone. A
+    tuple varying on both would lose its `SPCG` advance too; none does.
+    """
+    pinned = 0
+    for variations in font["gvar"].variations.values():
+        for variation in variations:
+            if "wght" not in variation.axes:
+                continue
+            if variation.coordinates[ADVANCE_PHANTOM_INDEX] in (None, (0, 0)):
+                continue
+            variation.coordinates[ADVANCE_PHANTOM_INDEX] = (0, 0)
+            pinned += 1
+    return pinned
+
+
 def roman(face):
     """The upright source file of `face`, which its Italic is measured against."""
     for directory, filename, name, italic in FACES:
@@ -210,6 +251,7 @@ def build():
         note = ""
         if face == "Quattro" and italic:
             note = f"  word space {regularise_space(font, roman(face))}"
+        note += f"  {pin_advance(font)} advances pinned"
         # A signature over bytes we have just changed is worse than none.
         if "DSIG" in font:
             del font["DSIG"]

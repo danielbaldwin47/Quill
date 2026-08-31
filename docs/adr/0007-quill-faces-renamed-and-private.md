@@ -1,5 +1,10 @@
 # The Faces are renamed derivatives of the iA fonts, loaded privately
 
+*Extended on 2026-08-31 by [#95](https://github.com/danielbaldwin47/Quill/issues/95): the script
+freezes every glyph's advance across the `wght` axis as well, five of the six Faces having varied
+one, so that setting a run bold leaves it the width it was. The decision — renamed derivatives, built
+by one committed script, loaded privately — stands.*
+
 Quill ships six font files built from the iA Writer variable fonts in `ref/ia/fonts` by one committed
 script, renamed inside their `name` tables to **Quill Duo**, **Quill Quattro** and **Quill Mono**, each
 Italic a family of its own (**Quill Duo Italic** and so on), and loads them into the process's own
@@ -28,8 +33,12 @@ Italic file carries, and the Editor selects Faces from its own table by name any
 dependency only) reads the six `*V*.ttf` files from `ref/ia/fonts`, rewrites family, subfamily, full,
 PostScript and `fvar` instance names with the prefix `Quill` held in one constant, and applies the
 Quattro Italic patch that `tools/fontgrid.py` made for the web app: the space (glyph 1) advance 600 →
-450 units to match the Roman, with its `gvar` entry frozen. Outputs are committed under `fonts/` at the
-repo root; a commit-tier Gate check regenerates them and demands identical bytes.
+450 units to match the Roman, with its `gvar` entry frozen. It then freezes every glyph's advance
+across the `wght` axis, by zeroing the advance phantom point of each `gvar` tuple that varies on it,
+so that a run of text keeps its width when it is set bold ([#95](https://github.com/danielbaldwin47/Quill/issues/95)).
+Outputs are committed under `fonts/` at the repo root. The script stamps no build time, so two runs
+over the same sources agree byte for byte; nothing in the Gate holds the committed files to a fresh
+build, and a change here is rebuilt by hand and the diff read.
 
 **Fonts are private to the process.** Startup calls `FcConfigAppFontAddDir` on the current fontconfig
 with the font directory (`/usr/share/quill/fonts` from the package, `<repo>/fonts` in a development
