@@ -1,0 +1,119 @@
+{
+  "piece": "type",
+  "round": 5,
+  "winner": "ours",
+  "margin": "clear",
+  "gap": "Line pitch 74 device px (37 CSS) vs B's 76 (38 CSS) at an identical 30px cap height and identical face — same size step, two different pitches, and A takes the tighter one while actually setting 1.5% wider (advance 26.34 vs 25.95 device px/char), so its size/pitch pair is off the ladder in the wrong direction",
+  "gapTheirs": "Markers sit inside the text column instead of hanging in the margin, so the left edge is ragged four ways: body at x=622, '- the rope' text at 674, '# The Lighthouse' text at 673, '## What the sea keeps' text at 698 — a 76 device px (38 CSS) stagger, against A's single flush edge at 623 ±1",
+  "verdict": "B puts the hashes in the column and pushes the words off it, so h1 text lands 51px right of the body, h2 lands 76px right, and the list item 52px — the deeper the heading, the further right the words, which inverts the hierarchy and leaves the eye with no column to fall down. A hangs every #, ##, -, * and ** in the margin and drops body, headings and list items onto one vertical you can rule a line against. A pays for that with a pitch one step tight (74 vs 76 device px on the same 30px cap) and a caret at #AFE5FB, 1.3:1 against #F9F9F9 paper, that you will lose mid-sentence. One is a pitch you stop noticing by the second paragraph; the other is a ragged left edge you re-read past at every heading for the length of the book.",
+  "oursShot": "shots/type/r5-duo-ours.png",
+  "theirsShot": "shots/oracle/type/duo.png",
+  "refSource": "shots/oracle/type/ — the Parity oracle frozen by tools/gate oracle type from legacy/app 738f48c969965ac3 with legacy/tools/shoot.mjs b2362316db135d06; ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in ref/ia/mac-native/ (ADR 0015), cropped per state: mono from mac-native-11-dark-text-size-05.png",
+  "builderNote": "First round with type/mono against the Design oracle: mac-native-11-dark-text-size-05 cropped to the text column (ADR 0015, #165). duo and quattro stay against the re-frozen Parity oracle.",
+  "secondary": [
+    "Same typeface, same size, same weight in both: cap 30 device px, x-height 23-24, descender 32, body ink #1C1C1C on #F9F9F9 — the type itself is not the differentiator",
+    "Headings in both are body-size and differentiated by weight only; no size step is used at h1 or h2 in either",
+    "B uses two greys for one job: #9E9E9E for #, ##, * and ** (2.54:1) but #7A7A7A for the list dash (4.08:1). A is uniform at #7A7A7A across all five marker types",
+    "At 2.54:1 B's heading hashes are close to dissolving into the paper; A's 4.08:1 markers stay subordinate without vanishing",
+    "Caret in both is 6 device px (3 CSS) wide and exactly one pitch tall; the difference is ink — A #AFE5FB (1.29:1 on paper) vs B #00B5FF (2.20:1)",
+    "Blank-line spacing is exactly 2 pitches in both (A 148px, B 152px); heading-to-body is ~1.87 pitch in both — the vertical rhythm structure is identical, only the unit differs",
+    "True italic and true bold in both, not synthesised obliques; the italic 'Nothing out there is ever in' sits on the same baseline with no weight jump",
+    "A's looser tracking costs a word per line: A wraps after 'the way', B fits 'the way she' in the same column width"
+  ],
+  "opponent": "mixed",
+  "build": {
+    "git": "756439b",
+    "binary": "2403f21e267730c0",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "duo",
+      "ours": "shots/type/r5-duo-ours.png",
+      "theirs": "shots/oracle/type/duo.png",
+      "blind": "shots/blind/type/duo",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "Line pitch 74 device px (37 CSS) vs B's 76 (38 CSS) at an identical 30px cap height and identical face — same size step, two different pitches, and A takes the tighter one while actually setting 1.5% wider (advance 26.34 vs 25.95 device px/char), so its size/pitch pair is off the ladder in the wrong direction",
+      "gapTheirs": "Markers sit inside the text column instead of hanging in the margin, so the left edge is ragged four ways: body at x=622, '- the rope' text at 674, '# The Lighthouse' text at 673, '## What the sea keeps' text at 698 — a 76 device px (38 CSS) stagger, against A's single flush edge at 623 ±1",
+      "verdict": "B puts the hashes in the column and pushes the words off it, so h1 text lands 51px right of the body, h2 lands 76px right, and the list item 52px — the deeper the heading, the further right the words, which inverts the hierarchy and leaves the eye with no column to fall down. A hangs every #, ##, -, * and ** in the margin and drops body, headings and list items onto one vertical you can rule a line against. A pays for that with a pitch one step tight (74 vs 76 device px on the same 30px cap) and a caret at #AFE5FB, 1.3:1 against #F9F9F9 paper, that you will lose mid-sentence. One is a pitch you stop noticing by the second paragraph; the other is a ragged left edge you re-read past at every heading for the length of the book.",
+      "secondary": [
+        "Same typeface, same size, same weight in both: cap 30 device px, x-height 23-24, descender 32, body ink #1C1C1C on #F9F9F9 — the type itself is not the differentiator",
+        "Headings in both are body-size and differentiated by weight only; no size step is used at h1 or h2 in either",
+        "B uses two greys for one job: #9E9E9E for #, ##, * and ** (2.54:1) but #7A7A7A for the list dash (4.08:1). A is uniform at #7A7A7A across all five marker types",
+        "At 2.54:1 B's heading hashes are close to dissolving into the paper; A's 4.08:1 markers stay subordinate without vanishing",
+        "Caret in both is 6 device px (3 CSS) wide and exactly one pitch tall; the difference is ink — A #AFE5FB (1.29:1 on paper) vs B #00B5FF (2.20:1)",
+        "Blank-line spacing is exactly 2 pitches in both (A 148px, B 152px); heading-to-body is ~1.87 pitch in both — the vertical rhythm structure is identical, only the unit differs",
+        "True italic and true bold in both, not synthesised obliques; the italic 'Nothing out there is ever in' sits on the same baseline with no weight jump",
+        "A's looser tracking costs a word per line: A wraps after 'the way', B fits 'the way she' in the same column width"
+      ]
+    },
+    {
+      "name": "quattro",
+      "ours": "shots/type/r5-quattro-ours.png",
+      "theirs": "shots/oracle/type/quattro.png",
+      "blind": "shots/blind/type/quattro",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "Syntax marks are 36 grey levels darker than A's — every '#', '##', '*' and '**' is gray 122 (#7A7A7A, ~4.4:1 on the 249 paper) where A sets them at gray 158 (#9E9E9E, ~2.6:1) — so '**bottle**' reads as four hard dots flanking a word rather than a word.",
+      "gapTheirs": "Markers sit inside the text column instead of hanging, so the passage has four different left edges: body at x=622, H1 text at 667 (+23 css px), list text at 668 (+23 css px), H2 text at 691 (+35 css px). B holds every text edge within 6 device px (3 css px) of one spine and hangs '#' 26 css, '##' 38 css, '-' 23 css into the margin.",
+      "verdict": "A's markers are the column and the words are the indent — your eye lands on a different x for the heading, the body and the list, and you feel the wobble on every block change. B does the only thing that matters here: hangs the '#', '##' and '-' out into the margin so all fourteen lines of prose, both headings and all three list items return to one edge. A does buy a quieter marker grey (158 vs 122), and it wastes it by setting its own list dashes at 122 — two syntax greys in one document, which is worse than B's one loud one. B also runs a 37 css pitch to A's 38 at identical 15 css cap height, so A's paragraphs are the airier and more diffuse of the two.",
+      "secondary": [
+        "Type size effectively identical: cap height 30 dev / x-height 24 dev in both; advance 23.15 dev (A) vs 23.45 dev (B), a ~1.3% tracking difference, not a size step",
+        "Both lead loose for prose — A ~2.00x, B ~1.95x — neither is at an iA-Writer-ish 1.6-1.7",
+        "Caret is a wash: 3 css px wide, full line-box tall, #00B5FF in both",
+        "Both space headings symmetrically at exactly 2 pitches before and after, so a heading does not read as belonging to the text below it",
+        "Body ink 28 and paper 249 identical in both (Dark & light's territory, not this piece's)",
+        "Same typeface, true italic (single-storey italic 'a', not obliqued), and H1/H2 set at body size in bold rather than scaled up — identical in both",
+        "B's hanging indent lands ~5-7 dev (2.5-3.5 css px) left of the body spine on headings and list items rather than dead flush",
+        "B's hanging markers push the inked block ~22 css px left of the viewport centre; A's block is centred",
+        "Measure: A ~71 chars / 817 css px, B ~69 chars / 812 css px — both in range"
+      ]
+    },
+    {
+      "name": "mono",
+      "ours": "shots/type/r5-mono-ours-crop.png",
+      "theirs": "shots/type/r5-mono-theirs-crop.png",
+      "opponent": {
+        "capture": "ref/ia/shots/mac-native/mac-native-11-dark-text-size-05.png",
+        "crop": [
+          630,
+          870,
+          1760,
+          520
+        ],
+        "ours": [
+          560,
+          135,
+          1760,
+          520
+        ]
+      },
+      "oursWhole": "shots/type/r5-mono-ours.png",
+      "blind": "shots/blind/type/mono",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "Weaker heading authority: B's H1 has the same 24px x-height as its body text and leans entirely on a 7px stem (0.29 of x-height) with the '#' greyed out, so the heading row's leftmost mark is the faintest ink on the page; A's heading carries an 8px stem (0.35 of x-height) and reads harder on a fast scroll. B is also set ~1.6% larger in the same column (x-height 24px vs 23px, advance ~26.1px vs ~25.7px), so line 2 wraps 4 characters earlier (60 vs 64) and the paragraph runs longer.",
+      "gapTheirs": "No ink hierarchy for markdown marks: the '#' and both '*' fences peak at exactly #FFFFFF — pixel-identical to the heading and italic they mark (measured max=255 in both marker and text regions) — and the '#' is set at the heading's full bold stem (8px vs body's 6px). B drops both marks to #7A7A7A at regular weight against #1C1C1C text, roughly a 3.5x lightness step; A gives zero.",
+      "verdict": "A prints the scaffolding at the same volume as the prose: '# The Lighthouse' reads as a five-character bold sentence starting with a hash, and '*Nothing out there is ever in a hurry,*' is fenced in two full-brightness white asterisks that punch a hole in the middle of a line you are trying to read for rhythm. B greys those same marks to #7A7A7A and un-bolds them, so the eye lands on 'The Lighthouse' and on the italic clause, not on the punctuation that produced them. Everything else is a wash — pitch 73.5px vs 74.7px, x-height 23px vs 24px, paragraph gap 1.99x vs 1.98x pitch, identical typeface — which means the marker treatment is the whole decision. A writer would feel it within one paragraph of typing emphasis.",
+      "secondary": [
+        "Neither steps the H1 in size: heading x-height equals body x-height in both (A 23/23, B 24/24) — an H1 distinguished by weight alone",
+        "Line pitch effectively identical: A ~73.5px, B ~74.7px; leading ratio ~1.71 vs ~1.70",
+        "Blank-line spacing correct in both: heading baseline to first body baseline is 146px (A) / 148px (B) = 1.99 / 1.98 line pitches",
+        "A's white-on-dark ink blooms: body stems 6px at a 23px x-height (0.26) vs B's 5px at 24px (0.21) — A's ink runs ~24% fatter per unit size, and A's bold heading 'h' fills in (stem and shoulder merge into a 21px blob where B keeps 10px and 9px strokes with a visible counter)",
+        "Both still spend a full monospace advance (~26px) on each inline '*', so even B's italic clause is visibly fenced rather than flush",
+        "No caret visible in either crop, so caret weight could not be compared"
+      ]
+    }
+  ],
+  "at": "2026-08-31T04:30:17.898Z"
+}

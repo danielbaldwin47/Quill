@@ -5,7 +5,7 @@
     "sha256": "738f48c969965ac3"
   },
   "shoot": "b2362316db135d06",
-  "git_head": "101bd6e",
+  "git_head": "756439b",
   "passages": {
     "ref/sample.md": "8005e6c57d435cea"
   },
@@ -36,25 +36,6 @@
       "scale": 2,
       "theme": "light",
       "font": "quattro",
-      "step": 5,
-      "focus": "off",
-      "typewriter": false,
-      "chrome": "off",
-      "caret": 403,
-      "select": null,
-      "scroll": 0,
-      "nocaret": false,
-      "active": true,
-      "typing": false,
-      "menu": null
-    },
-    "mono": {
-      "text": "ref/sample.md",
-      "w": 1440,
-      "h": 900,
-      "scale": 2,
-      "theme": "light",
-      "font": "mono",
       "step": 5,
       "focus": "off",
       "typewriter": false,
