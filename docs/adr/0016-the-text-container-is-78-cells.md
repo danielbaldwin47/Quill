@@ -33,11 +33,10 @@ gutter, the selection and the centring, and it is the measured one.
 ## Consequences
 
 **Markup is re-judged.** The Piece's judged states that show a list or a quote change; those states
-name a `mac-native` crop as their opponent (ADR 0015), and a Gate tooling ticket precedes the
-re-judge.
+name a `mac-native` crop as their opponent (ADR 0015).
 
 **`quill::tags`' list gutters go.** The `list-N` hanging tags and `LIST_CELLS` have no
-counterpart; a quote's rule, if the Design oracle draws one, is measured before it is drawn.
+counterpart. The Design oracle draws no quote rule (`14-blocks`), so none is drawn.
 
 **`quill-engine::typography::column()` centres 78 cells, not 64 inside a clamp.** At text sizes
 where 78 cells exceed the window the column is window-limited, as the oracle's is past its step 7.
