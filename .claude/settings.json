@@ -1,0 +1,22 @@
+{
+  "enabledPlugins": {
+    "rust-analyzer-lsp@claude-plugins-official": true
+  },
+  "worktree": {
+    "symlinkDirectories": ["node_modules", "legacy/node_modules"]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/edited-files-guard.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
