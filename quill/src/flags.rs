@@ -197,9 +197,9 @@ impl Flags {
                 // Gate can shoot. Refused by name rather than left to the arm
                 // below, which would say only that Quill does not know it.
                 "--size" => {
-                    return Err(Error(
-                        "--size: the type is a ladder now, so use --step <n>, 0 to 13".to_owned(),
-                    ));
+                    return Err(Error(format!(
+                        "{flag}: the type is a ladder now, so use --step <n>, 0 to 13"
+                    )));
                 }
                 "--focus" => flags.focus = Some(one_of(flag, &text(&mut args, flag)?, &FOCUSES)?),
                 "--typewriter" => flags.typewriter = true,
