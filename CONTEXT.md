@@ -88,7 +88,12 @@ _Avoid_: highlighter, linter, decorator
 One of the nine judged facets of the app: page, type, cursor and caret, focus and typewriter, dark and light, markup rendering, chrome and menus, file handling, latency.
 
 **Parity oracle**:
-The original JavaScript app, kept in `legacy/` until the native app wins every Piece against it blind.
+The original JavaScript app, kept in `legacy/` until the native app wins every Piece against it blind. What the port ports; where it and the Design oracle disagree, `docs/design.md` says which Quill follows.
+_Avoid_: the reference
+
+**Design oracle**:
+iA Writer for Mac running natively, as captured under `ref/ia/shots/mac-native/` and measured in `ref/ia/mac-native/`. Outranks every marketing frame elsewhere under `ref/ia/shots/`, and outranks the Parity oracle wherever `docs/design.md` says so.
+_Avoid_: the reference, iA stills, the vision
 
 **Gate**:
 What must be true before native work lands, in three tiers: every commit (format, clippy, tests), every ticket (latency within budget and Blind judging for each Piece it names), every feature (the owner's Hand test).
@@ -99,8 +104,8 @@ The owner's numbered "do X, see Y" walk through a feature from the installed pac
 _Avoid_: QA, acceptance test, manual test
 
 **Judged state**:
-One named configuration (passage, theme, Face, size, Focus, caret, chrome) at which a Piece is shot on both sides for Blind judging; each Piece has a fixed list of them.
+One named configuration (passage, theme, Face, size, Focus, caret, chrome) at which a Piece is shot on both sides for Blind judging, the other side being the Parity oracle's frozen shot or the Design oracle crop the state names; each Piece has a fixed list of them.
 _Avoid_: scenario, screenshot, fixture
 
 **Blind judging**:
-A critic with fresh context picks between two unlabelled screenshots (ours vs the reference) for a Piece and names the biggest gap of each.
+A critic with fresh context picks between two unlabelled screenshots (ours vs the opponent's) for a Piece and names the biggest gap of each.
