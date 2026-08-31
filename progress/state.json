@@ -10,7 +10,7 @@
     {
       "id": "page",
       "title": "The page",
-      "what": "Paper, margins, measure, scrolling, the empty state",
+      "what": "Paper, margins, measure, scrolling",
       "judge": "the page itself: paper colour, margins, the measure (line length), vertical placement of text in the window, scrolling feel implied by spacing, how the empty space frames the text; overall calm"
     },
     {
@@ -46,7 +46,7 @@
     {
       "id": "chrome",
       "title": "Chrome & menus",
-      "what": "Bars, counters, palette, what hides while typing",
+      "what": "Bars, counters, palette, what hides while typing, the empty state",
       "judge": "the chrome: what UI is visible around the text, the stats/word-count bar, title, menus/palette, how it recedes while writing; is there exactly as much interface as a writer needs and no more"
     },
     {
