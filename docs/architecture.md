@@ -23,7 +23,8 @@ workspace; a test that needs a window is harness, not test.
 
 Engine modules, one per concept: `document` (text and block index), `markdown` (the parser, one
 shared `Options`), `annotate` (the Annotator trait, spans, run flattening), `focus` (sentence
-segmentation, the bright tier and the one dim tier — ADR 0015), `library`, `settings`, `template`,
+segmentation, the bright tier and the one dim tier —
+[ADR 0015](adr/0015-the-design-oracle-outranks-the-parity-oracle.md)), `library`, `settings`, `template`,
 `render` (Pango layout for Preview, PDF and HTML), `stats`, `outline`, `spell` (the `SpellChecker`
 trait and the enchant and `spellbook` implementations), `pos` (Syntax highlight), `style` (Style
 check), `typography` (the pitch, the measure, the 78-cell text container and its gutters —
@@ -236,7 +237,7 @@ ticket, opened when every Piece's latest verdict in `progress/rounds/` is ours a
 Pieces' Hand tests have passed; the owner's `hand test: pass` on that ticket is the declaration. That
 ticket deletes `legacy/` and gives every judged state a `mac-native` crop as its opponent
 ([ADR 0015](adr/0015-the-design-oracle-outranks-the-parity-oracle.md)); a state that follows a
-`docs/design.md` row names one already.
+`docs/design.md` row takes one as soon as the Gate has the per-state key (#161).
 
 ## Port order
 

@@ -1,6 +1,6 @@
 # Quill uses plain GTK4, not libadwaita
 
-*Narrowed by [ADR 0015](0015-the-design-oracle-outranks-the-parity-oracle.md): chrome is outside the
+*Reread under [ADR 0015](0015-the-design-oracle-outranks-the-parity-oracle.md): chrome is outside the
 Design oracle's reach, so "judged blind against iA Writer" below is the JavaScript app's history —
 the native chrome is judged against the Parity oracle. The decision stands.*
 

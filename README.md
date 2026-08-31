@@ -127,7 +127,7 @@ tools/          the Gate: `gate check`, and its helpers — blind pairs, progres
                 idle check, font build (`npm i` at the root once, for the three that drive a browser)
 legacy/         the JavaScript app as it won, and the Parity oracle (bin/quill, app/, tools/, BRIEF.md, NOTES.md)
 ref/ia/         iA Writer reference: screenshots, fonts, spec sheet, sources;  ref/sample.md  the test passage
-                mac-native/  the Design oracle as measured (VERDICTS.md, NOTES.md; shots in shots/mac-native/)
+                mac-native/  the Design oracle as measured; its captures are under ref/ia/shots/mac-native/
 progress/       state, per-round verdicts, latency report, generated live page
 shots/          every round's screenshots, blind pairs, and the states the oracle is shot at
 docs/           architecture.md, adr/, agents/ (the Gate, issue tracker, triage, domain docs)
@@ -140,9 +140,8 @@ Licences: the native app and everything at the root are GPL-3.0-or-later (`LICEN
 ## Known gaps the critic still named on winning rounds
 
 * `#` heading markers don't hang into the margin (the textarea cannot follow a per-line shift).
-* Selection shows identical bars at both ends; anchor and focus aren't distinguished.
+* Selection shows identical bars at both ends; anchor and focus aren't distinguished — and the native
+  selection drops both bars on purpose: a fill and nothing else (`docs/design.md` § Selection, ADR 0014).
 * Documents live in the browser (IndexedDB/localStorage) unless you open a folder; the Library shows that honestly.
 
-Those three are the oracle's. The first and third are a native Piece's brief; the second was decided
-the other way — the native selection is a fill with no bar at either end (`docs/design.md`
-§ Selection, ADR 0014).
+Those three are the oracle's; the first and third are a native Piece's brief.
