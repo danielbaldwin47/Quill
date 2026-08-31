@@ -5,7 +5,11 @@ shots/_*
 # laid out under letters a critic is shown. The round says which letter was ours,
 # so the pair can be laid out again; committing it would only double the bytes.
 shots/blind/
-.claude/
+# Claude Code's project settings and hooks are the repo's (a worktree needs the
+# hook script too); its worktrees and local overrides are not.
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
 *.pkg.tar.zst
 # makepkg's build directories, at the root only: unanchored, `src/` would
 # swallow `quill/src/` and `quill-engine/src/`.

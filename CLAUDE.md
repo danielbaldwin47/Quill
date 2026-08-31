@@ -20,7 +20,7 @@ Workspace 1 is the user's: a test window (GTK, browser, bench) goes to a virtual
 
 ## Rust
 
-The `rust-analyzer-lsp` plugin is installed, and its `LSP` tool arrives deferred, so it is loaded the moment Rust enters the session: the first `.rs` path in context — in the ticket, in a fork's report, in a `grep` result, in a listing — is followed by one call, `ToolSearch` with `select:LSP`, before any other tool touches the file. This holds in the main session as much as in a fork. Loaded, it answers definition, references, hover, symbols and call hierarchy for either crate.
+The `rust-analyzer-lsp` plugin is installed, and its `LSP` tool arrives deferred, so it is loaded the moment Rust enters the session: the first `.rs` path in context — in the ticket, in a fork's report, in a `grep` result, in a listing — is followed by one call, `ToolSearch` with `select:LSP`, before any other tool touches the file. Loaded, it answers definition, references, hover, symbols and call hierarchy for either crate.
 
 Every question about a Rust symbol — where it is defined, who calls it, what its type is, what a module exports — goes to the LSP tool first; `grep` and `cat` are for what it cannot answer: string literals, comments, and files that are not Rust.
 
@@ -28,7 +28,7 @@ Every question about a Rust symbol — where it is defined, who calls it, what i
 
 Before landing native work, closing a ticket, or closing a feature: `docs/agents/gate.md` names the tier, its commands, the latency budget, the blind-judging opponent and the Feature tier's Hand test; `docs/agents/hand-tests.md` holds the ported Pieces' checklists.
 
-An `/implement` session whose ticket has no Hand test (Ticket tier only) lands its own work: once the Gate is green and `/code-review` is done, it merges its PR (`gh pr merge --merge`) and closes the ticket. Only a Hand test hands the close to the owner.
+An `/implement` session whose ticket has no Hand test (Ticket tier only) lands its own work: once the Gate is green and `/code-review` is done, it merges its PR (`gh pr merge --merge`; the body's `Closes #N` closes the ticket) and posts the `tools/context-report` line with `gh issue comment`. Only a Hand test hands the close to the owner.
 
 ## Context in an `/implement` session
 
@@ -38,8 +38,8 @@ The smart zone is about 120k tokens. A session is near 60k once this file, the t
 - **The Gate is one call.** `tools/gate check` is the whole Commit tier in one result. While iterating: `cargo check -q --message-format=short`, `cargo test <name>`, and listings through `head` or `grep`. `tools/gate judge` and `bench` are read for their summary lines; the shots are the critic's to look at.
 - **The ticket is fetched once**, with its parent spec, to a file under the job's tmp directory by `tools/ticket <N>`, and later questions are answered from that file by `sed -n` range.
 - **Docs by section.** This file is already in context. `docs/agents/gate.md` for the tier the ticket names, `docs/architecture.md` for the sections the ticket cites, ADRs by number; `docs/agents/hand-tests.md` is `/to-spec`'s reading.
-- **One tool per file.** A file the harness has seen through Read, Write or Edit and then changed through Bash — `sed -i`, a heredoc, `cargo fmt` — comes back into context as a diff snippet (one session paid 60 KB this way). Files opened with Bash stay with Bash; files touched with Write or Edit change through Edit, written in rustfmt's shape so `cargo fmt` changes nothing. In a worktree, files are created with Write and changed with Edit from the first edit, whatever the permission mode says about preferring Bash.
-- **Worktree Bash is one plain command per call.** Once the session has entered `.claude/worktrees/`, the isolation check reads a command's shape rather than its targets and refuses heredocs, `;`-chains and `for` loops, even ones that touch only `gh` or the job's tmp directory; a sweep that needs a loop runs in a subagent before `EnterWorktree`.
+- **One tool per file.** A file the harness has seen through Read, Write or Edit and then changed through Bash — `sed -i`, a heredoc, `cargo fmt` — comes back into context as a diff snippet (one session paid 60 KB this way). Files opened with Bash stay with Bash; files touched with Read, Write or Edit change through Edit, written in rustfmt's shape so `cargo fmt` changes nothing — a `PreToolUse` hook (`.claude/hooks/edited-files-guard.sh`) refuses an in-place `sed` on such a file. In a worktree, files are created with Write and changed with Edit from the first edit, whatever the permission mode says about preferring Bash.
+- **Worktree Bash: a heredoc, a `sleep` and a `for` loop are refused.** Once the session has entered `.claude/worktrees/`, the isolation check reads a command's shape rather than its targets: `;` and `&&` chains of plain commands pass, and a chain ending in a heredoc, a foreground `sleep` or a `for` loop is refused, even one that touches only `gh` or the job's tmp directory. A commit message, PR body or comment is written to the job's tmp directory with Write and passed with `-F` or `--body-file`; a sweep that needs a loop runs as `bash <script>` or in a subagent before `EnterWorktree`.
 - **Background agents are waited on by ending the turn.** A review agent's report arrives as a task notification, and no call brings it sooner: the task list, a `sleep`, an idle loop all answer "still running" at the price of a turn each. Whatever is independent of the report — the commit, the push, the PR body — is done in the turn that launches the agents; that turn then names what it awaits in one line and ends, and every turn that opens before the notification is that one line and nothing else.
 
 ## Agent docs
