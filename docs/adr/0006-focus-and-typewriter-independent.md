@@ -4,6 +4,10 @@
 "two Quill refinements" in § Consequences — the near tier — is withdrawn, and Focus has one dim tier
 per theme (`docs/design.md` § Dim tiers). The edge band and the independence stand.*
 
+*Under the same ADR, a Focus and typewriter judged state that follows the Dim tiers row takes a
+`mac-native` crop as its opponent (the Gate's per-state key is #161), where § Considered options
+says the Piece is judged against the Parity oracle's frozen shots.*
+
 Focus (dim everything but the current sentence or paragraph) and Typewriter (hold the caret's line at a
 fixed height by scrolling) are two settings the writer switches on and off separately, and both can be
 on at once. This is the model iA Writer ships on Windows and the one the JavaScript app already has.
