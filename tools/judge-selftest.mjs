@@ -21,7 +21,10 @@ import { fileURLToPath } from 'node:url';
 import { ASSERTIONS, assertState, validate } from './assert-state.mjs';
 import { pair, pairDir, reveal } from './blind.mjs';
 import { CAPTURES, cropPng, encodePng, resolveOpponent } from './crop.mjs';
-import { APP_ID, appeared, classPattern, launchEnv, parseToplevels, pngSize, quillArgv, rulesLua } from './harness.mjs';
+import {
+  ACCENT, ACCENT_HEX, APP_ID, accentPixels, appeared, carriesAccent, classPattern, launchEnv, parseToplevels,
+  pngSize, quillArgv, rulesLua, wantsLitCaret,
+} from './harness.mjs';
 import { criticAnswer, criticPrompt, opponentOf, oursArgv, refusedFlag } from './judge.mjs';
 import { decodePng } from './keys-assert.mjs';
 import { readStates, resolveStates, unservable } from './oracle.mjs';
@@ -460,6 +463,83 @@ function smudged(png, x, y, colour = [20, 20, 20]) {
   }
   return encodePng({ w, h, ch, data });
 }
+
+// ---------- the caret a judged shot proves it took focus by ----------
+
+// One colour out of `quill-engine/src/theme.rs`'s own palette table.
+//
+// Every fixture below is painted in these rather than in a hex written here. The harness refuses a
+// shot for missing one exact colour, so the single failure that would refuse every shot on the
+// machine is the palette moving out from under it — which is exactly what happened to
+// `tools/keys-assert.mjs`, whose accent still reads `#00b5ff` against `theme.rs`'s `#00bfff`. Read
+// off the rows on every commit, that cannot happen quietly.
+const THEME = fs.readFileSync(path.join(ROOT, 'quill-engine', 'src', 'theme.rs'), 'utf8');
+function role(scheme, name) {
+  const row = new RegExp(`\\(Scheme::${scheme}, Role::${name}, "#([0-9a-f]{6})"\\)`).exec(THEME);
+  assert.ok(row, `theme.rs names no ${name} for ${scheme}`);
+  return [0, 2, 4].map((i) => parseInt(row[1].slice(i, i + 2), 16));
+}
+
+// `Caret::alpha`'s `GHOST`, taken from the judged state that is measured on it rather than typed
+// again here — the same number the ghost rule above is given.
+const GHOST = resolveStates(states, 'caret').find((s) => s.name === 'unfocused').assert.alpha;
+
+ok('the accent the harness looks for is the accent the app paints', () => {
+  for (const scheme of ['Light', 'Dark']) {
+    assert.deepEqual(role(scheme, 'Accent'), [ACCENT.r, ACCENT.g, ACCENT.b],
+      `tools/harness.mjs looks for ${ACCENT_HEX}, which is not what theme.rs paints on ${scheme}`);
+  }
+});
+
+ok('a shot proves its caret was lit by the accent in it, and a ghosted one carries none', () => {
+  for (const scheme of ['Light', 'Dark']) {
+    const paper = role(scheme, 'Paper');
+    const accent = role(scheme, 'Accent');
+
+    const lit = painted({ paper, bar: accent });
+    assert.equal(carriesAccent(lit), true, `a ${scheme} bar at full alpha is the accent, exactly`);
+    assert.equal(accentPixels(decodePng(lit)), 120, 'the whole bar counts, and nothing else does');
+
+    // The frame the race produces, and every rung between it and the bar. A composite is the
+    // accent's own hue under an alpha, so nothing short of full alpha may read as lit — the ghost
+    // least of all. `theme-r2`'s lost `theme/dark` measured 444 px of `#124b5e`, which is this at
+    // `GHOST` over the dark paper give or take the compositor's own rounding, and no accent at all;
+    // its `theme/light` and both of `theme-r3`'s measured 444 px of the accent.
+    for (const alpha of [GHOST, 0.1, 0.5, 0.9, 0.99]) {
+      const dim = painted({ paper, bar: over(alpha, accent, paper) });
+      assert.equal(carriesAccent(dim), false, `the ${scheme} accent at alpha ${alpha} read as lit`);
+    }
+
+    // A page with no bar on it at all is not lit either — the empty frame #166 lost `page/empty` to
+    // is caught by the same question, and never by a bar-finder that would report "no bar" and stop.
+    assert.equal(carriesAccent(painted({ paper, bar: paper })), false, `a bare ${scheme} page is not lit`);
+  }
+});
+
+ok('every judged state that draws a determined caret is held to one, and no other state is', () => {
+  const wants = {};
+  for (const piece of Object.keys(states.pieces)) {
+    for (const s of resolveStates(states, piece)) {
+      // `active` is read the way `tools/judge.mjs` reads it when it calls `shoot`, so the two
+      // cannot drift into disagreeing about which states this is asked of.
+      wants[`${piece}/${s.name}`] = wantsLitCaret(quillArgv(ROOT, s.flags), { active: s.flags.active !== false });
+    }
+  }
+  // The three ways out a judged state has, and nothing else: focus parked elsewhere, `--nocaret`,
+  // and a selection, which paints a band where the bar would be. Every other state draws the bar.
+  const exempt = Object.entries(wants).filter(([, held]) => !held).map(([name]) => name).sort();
+  assert.deepEqual(exempt, [
+    'caret/selection', 'caret/unfocused', 'markup/blocks', 'markup/gutters', 'type/mono',
+  ]);
+  assert.equal(wants['theme/dark'], true, 'the state #197 came out of is held to its caret');
+  assert.equal(wants['chrome/empty'], true, 'an empty Document still draws a caret, and #166 lost it');
+
+  // The fourth way out, which no judged state takes: a Live launch has no `--deterministic`, so its
+  // caret is meant to be dark half the time and there is no lit frame to insist on. `tools/gate
+  // keys` is the one caller that opens ours that way.
+  const live = quillArgv(ROOT, resolveStates(states, 'theme').find((s) => s.name === 'dark').flags, { live: true });
+  assert.equal(wantsLitCaret(live), false, 'a blinking caret cannot be held to a lit frame');
+});
 
 ok('a state that names an assertion carries no such flag, and wants no frozen opponent', () => {
   const made = {
