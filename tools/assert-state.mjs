@@ -46,12 +46,31 @@ export const ASSERTIONS = { ghost: ghost };
 // `spec` is the `assert` entry from `shots/oracle/states.json`. Throws when the state names an
 // assertion this file has not got, which `tools/gate judge` turns into a refusal before it shoots.
 export function assertState(spec, shots) {
+  validate(spec);
+  return ASSERTIONS[spec.kind](spec, shots);
+}
+
+// Everything about an `assert` entry that can be known without a window, thrown as one message.
+//
+// Split out from the run so `tools/gate judge` can call it over every asserted state before it
+// opens the first: a state naming a rule nobody wrote, or an alpha that is not one, is a state that
+// cannot be judged, and finding that out at the third state has already spent two critics.
+export function validate(spec) {
   const kind = spec?.kind;
   if (!Object.prototype.hasOwnProperty.call(ASSERTIONS, kind)) {
     throw new Error(`the assertion is ${JSON.stringify(kind)}, and this file has ${Object.keys(ASSERTIONS).join(', ')}`);
   }
-  return ASSERTIONS[kind](spec, shots);
+  CHECKS[kind](spec);
 }
+
+// What each rule needs of its own entry, beyond the name.
+const CHECKS = {
+  ghost({ alpha }) {
+    if (typeof alpha !== 'number' || !(alpha > 0) || !(alpha < 1)) {
+      throw new Error(`the ghost's alpha is ${JSON.stringify(alpha)}, and an alpha is between 0 and 1`);
+    }
+  },
+};
 
 // ---------- the ghost ----------
 
@@ -69,9 +88,6 @@ export function assertState(spec, shots) {
 // all read out of the two shots, because this repo has twice found a pinned hex outliving the
 // palette it was copied from.
 function ghost({ alpha: want }, { lit, dim }) {
-  if (typeof want !== 'number' || !(want > 0) || !(want < 1)) {
-    throw new Error(`the ghost's alpha is ${JSON.stringify(want)}, and an alpha is between 0 and 1`);
-  }
   const a = decodePng(lit);
   const b = decodePng(dim);
   if (a.w !== b.w || a.h !== b.h) {
@@ -89,36 +105,67 @@ function ghost({ alpha: want }, { lit, dim }) {
   const same = ['left', 'right', 'top', 'bottom'].every((k) => bright.bar[k] === faint.bar[k]);
   if (!same) return no(`the bar moves when the window deactivates: ${box(bright.bar)} lit, ${box(faint.bar)} ghosted`);
 
-  const got = alphaOf(a, b, bright.bar);
+  const y = Math.floor((bright.bar.top + bright.bar.bottom) / 2);
+  const paper = groundAt(a, b, bright.bar, y);
+  if (paper === null) {
+    return no(`the bar does not stand in clear ground at row ${y}, so what it is drawn over cannot be read`);
+  }
+  const got = alphaOf(a, b, bright.bar, y, paper);
   if (got === null) {
-    return no('no channel separates the lit bar from the paper enough to solve an alpha');
+    return no(`no channel separates the lit bar from the ground rgb(${paper}) enough to solve an alpha`);
   }
   const off = Math.abs(got - want);
   const why = `the ghost is the lit bar at alpha ${got.toFixed(3)} over the paper, against the ${want} docs/design.md row Caret on window deactivation names`;
   const where = `the bar is ${box(bright.bar)} lit and ghosted alike — deactivating the window moves it by nothing`;
   return {
     ours: off <= TOLERANCE,
+    alpha: got,
     why: off <= TOLERANCE ? `${why}; ${where}` : `${why}, which is ${off.toFixed(3)} out and past the ${TOLERANCE} this is measured to`,
     secondary: [where, `alpha solved per channel from the two shots, not from a hex written down here`],
   };
 }
 
-// The alpha the ghosted bar is the lit bar at, over the paper.
+// How many clear columns are wanted either side of the bar before its ground is called known.
+const CLEAR = 3;
+
+// The colour the bar is drawn over, or `null` if that cannot be read off these two shots.
 //
-// Read at the bar's middle row, from its middle column against the paper two columns clear of its
-// right edge — the middle so an antialiased edge column is never the sample, and the paper beside
-// it so the ground is the one the bar is actually composited over rather than the theme's nominal
-// one. `null` when no channel separates enough to divide by.
-function alphaOf(a, b, bar) {
-  const y = Math.floor((bar.top + bar.bottom) / 2);
+// Neither shot shows what is under the bar: the lit one covers it at full alpha and the ghosted one
+// mixes with it. So the ground is read from beside the bar instead, and the reading is only allowed
+// when the bar demonstrably stands in a clear run — [`CLEAR`] columns each side of it, all the same
+// colour, and that colour identical in both shots. That last is what keeps the bar's own
+// antialiased skirt out of the sample: a column the caret touched at all differs between lit and
+// ghosted, so it cannot pass. A run of paper either side is then the reason to believe the pixels
+// between them are paper too.
+//
+// A caret standing on ink has no clear run, and this returns `null` rather than solving an alpha
+// against the wrong ground — which is the honest answer, because a bar over a glyph genuinely
+// cannot be read this way and a state that moved onto one should say so rather than drift.
+function groundAt(a, b, bar, y) {
+  const cols = [];
+  for (let i = 1; i <= CLEAR; i += 1) cols.push(bar.left - i, bar.right + i);
+  let ground = null;
+  for (const x of cols) {
+    if (x < 0 || x >= a.w) return null;
+    const here = [0, 1, 2].map((c) => at(a, x, y, c));
+    if (here.some((v, c) => v !== at(b, x, y, c))) return null;
+    if (ground === null) ground = here;
+    else if (here.some((v, c) => v !== ground[c])) return null;
+  }
+  return ground;
+}
+
+// The alpha the ghosted bar is the lit bar at, over `paper`.
+//
+// Read at the bar's middle column so an antialiased edge column is never the sample. `null` when no
+// channel separates the lit bar from the ground enough to divide by.
+function alphaOf(a, b, bar, y, paper) {
   const x = Math.floor((bar.left + bar.right) / 2);
-  const ground = Math.min(bar.right + 2, a.w - 1);
   const shares = [];
   for (let c = 0; c < 3; c += 1) {
-    const paper = at(a, ground, y, c);
-    const spread = at(a, x, y, c) - paper;
+    const spread = at(a, x, y, c) - paper[c];
     if (Math.abs(spread) < SEPARATION) continue;
-    shares.push((at(b, x, y, c) - paper) / spread);
+    shares.push((at(b, x, y, c) - paper[c]) / spread);
   }
   if (!shares.length) return null;
   return shares.reduce((t, s) => t + s, 0) / shares.length;

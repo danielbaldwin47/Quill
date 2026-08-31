@@ -54,7 +54,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { ASSERTIONS, assertState } from './assert-state.mjs';
+import { assertState, validate } from './assert-state.mjs';
 import { BUDGET, ORACLE, latencyVerdict } from './bench-join.mjs';
 import { pair, pairDir, reveal } from './blind.mjs';
 import { CAPTURES, cropPng, resolveOpponent } from './crop.mjs';
@@ -495,10 +495,25 @@ async function judge(root, piece, note, summaryFile, settingsFile) {
   // The assertions, checked for a name this build has before the first window opens, for the same
   // reason the crops are: a state naming a rule nobody wrote is a state that cannot be judged, and
   // finding that out at the third state has already spent two critics.
-  const unknown = asserted.filter((s) => !Object.prototype.hasOwnProperty.call(ASSERTIONS, s.assert?.kind));
-  if (unknown.length) {
-    for (const s of unknown) say(`gate judge ${piece}: ${s.name} names the assertion ${JSON.stringify(s.assert?.kind)}, and tools/assert-state.mjs has ${Object.keys(ASSERTIONS).join(', ')}`);
-    return refuse(piece, `${unknown.length} of ${resolved.length} states name an assertion this build has not got`);
+  const unreadable = [];
+  for (const s of asserted) {
+    // A state is answered one way or the other and never both. Carrying an opponent as well is a
+    // state that says it is paired and says it is measured, and there is no honest order to read
+    // those in — so it is refused rather than resolved by whichever branch happens to run first.
+    if (s.opponent) {
+      say(`gate judge ${piece}: ${s.name} names both an opponent and an assertion, and a state is answered one way`);
+      unreadable.push(s.name);
+      continue;
+    }
+    try {
+      validate(s.assert);
+    } catch (e) {
+      say(`gate judge ${piece}: ${s.name}'s assertion cannot be read: ${e.message}`);
+      unreadable.push(s.name);
+    }
+  }
+  if (unreadable.length) {
+    return refuse(piece, `${unreadable.length} of ${resolved.length} states name an assertion this build cannot run`);
   }
 
   // The crops, resolved against the captures on disk before the first window opens, for the reason
@@ -631,7 +646,12 @@ async function judge(root, piece, note, summaryFile, settingsFile) {
         judged.push({
           name: s.name,
           ours: shot,
-          theirs: lit,
+          // No opponent shot, and `null` rather than the lit one: the second shot is ours as well,
+          // and a round that named it `theirs` would have the progress page caption our own window
+          // as somebody else's. It is kept under its own key, because the measurement is only
+          // checkable by someone holding both frames it was taken from.
+          theirs: null,
+          lit,
           assert: { ...s.assert, held: answer.ours },
           winner,
           margin: 'asserted',
