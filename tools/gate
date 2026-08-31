@@ -36,13 +36,17 @@ usage() {
     cat <<'EOF'
 usage: tools/gate <command> [arguments]
 
-  check [dir]   The Commit tier in one command: cargo fmt --check, the #[allow]
-                reason rule, cargo clippy --all-targets -- -D warnings, cargo
-                test with no display attached, and — on the repo root only —
-                the four selftests that need no window: the bench join's, the
-                typed condition's, and the two the blind pair is decided by,
-                the oracle's and the judge's. In that order, stopping at the
-                first failure. Each step's output goes to
+  check [dir]   The Commit tier in one command: cargo fmt, applied — the step
+                line names any file it changed, and the change is the
+                session's to commit — the #[allow] reason rule, cargo clippy
+                --all-targets -- -D warnings, cargo test with no display
+                attached, and — on the repo root only — every
+                tools/*-selftest.mjs in name order, none of which needs a
+                window: the bench join's, the two the blind pair is decided
+                by (the judge's and the oracle's, with the typed condition's
+                between), and this help's own (usage-selftest, which holds it
+                to the subcommands dispatched below and the endings their
+                scripts print). In that order, stopping at the first failure. Each step's output goes to
                 target/gate/<step>.log and is printed only if that step is the
                 one that fails. Runs on the repo root, or on <dir> if one is
                 given — which is how tools/gate-fixture/selftest points it at a
@@ -77,9 +81,10 @@ usage: tools/gate <command> [arguments]
                 accounting and the fingerprint of what produced it, is written
                 to shots/latency/bench-<regime>-<stamp>.json. Ends in `gate
                 bench <regime>: pass|fail (budget ...; oracle ...)`: 0 for pass,
-                1 for a budget miss, 3 when there is no verdict to give —
-                nothing measured, focus lost part-way, or a regime whose
-                keystrokes did not add up, however many others ran. Those three
+                1 for a budget miss, and 3 with `gate bench: refused (...)`
+                when there is no verdict to give — nothing measured, focus
+                lost part-way, or a regime whose keystrokes did not add up,
+                however many others ran. Those three
                 lines are the whole of stdout; everything said on the way there
                 is target/gate/bench.log, printed when the run refuses.
                 --all runs every one of the twelve and --regimes just the named
@@ -127,9 +132,10 @@ usage: tools/gate <command> [arguments]
                 --note records what changed this round. The Piece is ours only
                 when every state is. Ends in `gate judge <piece>: ours|theirs,
                 round <N>`: 0 for ours, 1 for theirs, 2 for theirs after this
-                Piece had been won, 3 when nothing was judged — a command line
-                it could not read, or a crop that cannot be cut, included,
-                since 2 is spoken for. That line,
+                Piece had been won, and 3 with `gate judge <piece>: refused
+                (...)` when nothing was judged — a command line it could not
+                read, or a crop that cannot be cut, included, since 2 is
+                spoken for. That line,
                 with the one above it that names the round which won a Piece now
                 lost, is the whole of stdout: everything said on the way there is
                 target/gate/judge-<piece>.log, printed when the run refuses, and
@@ -178,6 +184,21 @@ step() { printf 'gate check: %s (%s)\n' "$1" "$2"; }
 
 # The last line, and the exit code that agrees with it.
 fail() { printf 'gate check: fail (%s)\n' "$1"; exit 1; }
+
+# Formatting is applied, not checked: every session since #162 failed --check
+# only inside this command, a whole run each time, for a change rustfmt makes
+# itself. The step line names what it changed, so the owner still reads it and
+# the session commits it with the rest; rustfmt's own failure is a red step.
+fmt_step() {
+    local changed log=$PWD/target/gate/fmt.log
+    mkdir -p "$(dirname "$log")"
+    if changed=$(cargo fmt -- --check -l 2> "$log"); then
+        step fmt "cargo fmt: nothing to change"
+        return 0
+    fi
+    cargo fmt > "$log" 2>&1 || { cat "$log"; fail fmt; }
+    step fmt "cargo fmt applied: $(printf '%s\n' "$changed" | sed "s#^$PWD/##" | paste -sd, -)"
+}
 
 # One step: its line, then its command with every word of its output — cargo's
 # and this script's alike — held in the step's log. A green step is its line and
@@ -255,8 +276,7 @@ check() {
     fi
     cd "$dir"
 
-    run_step fmt "cargo fmt --check" \
-        cargo fmt --check
+    fmt_step
     run_step allow "#[allow(...)] carries its reason on the same line" \
         allow_reasons
     run_step clippy "cargo clippy --all-targets -- -D warnings" \
@@ -271,25 +291,18 @@ check() {
     # `gate check <dir>` mean something other than "this directory is sound" —
     # which is exactly what tools/gate-fixture/selftest points it at.
     if [ "$PWD" = "$ROOT" ]; then
-        run_step bench "node tools/bench-selftest.mjs" \
-            node "$ROOT/tools/bench-selftest.mjs"
-        # The typed condition's assertion, over the two builds committed as pixels under
-        # tools/keys-fixture: green on the build that follows the writing, red on the one that
-        # does not. It runs here, on every commit, for the same reason the bench's does — it is a
-        # pure function of a decoded PNG, it needs no window, and the defect it exists to catch is
-        # one that three judged states and six critics let through (#108, #138).
-        run_step keys "node tools/keys-selftest.mjs" \
-            node "$ROOT/tools/keys-selftest.mjs"
-        # The two halves of a blind pair: which states are shot and frozen, and
-        # which opponent each is paired with — the Parity oracle's frozen shot,
-        # or the crop of a mac-native capture the state names (ADR 0015). Both
-        # are pure functions of shots/oracle/states.json and files on disk, they
-        # need no window, no browser and no critic, and between them they hold
-        # the arithmetic that decides what a critic is shown.
-        run_step oracle "node tools/oracle-selftest.mjs" \
-            node "$ROOT/tools/oracle-selftest.mjs"
-        run_step judge "node tools/judge-selftest.mjs" \
-            node "$ROOT/tools/judge-selftest.mjs"
+        # Every selftest beside a subcommand, by glob rather than by a list kept
+        # here: judge's sat outside this loop for three tickets (#139–#161) and
+        # went stale unnoticed. Each is a pure function of files on disk — the
+        # bench's join, the typed condition's PNG assertion over the two builds
+        # under tools/keys-fixture, the two halves of a blind pair (which states
+        # are shot and frozen, and which opponent each is paired with), and the
+        # help text against what the scripts print — and none opens a window.
+        local selftest
+        for selftest in "$ROOT"/tools/*-selftest.mjs; do
+            run_step "$(basename "$selftest" -selftest.mjs)" "node tools/$(basename "$selftest")" \
+                node "$selftest"
+        done
     fi
 
     echo "gate check: pass"
