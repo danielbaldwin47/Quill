@@ -23,11 +23,18 @@ pub const MEASURE: u32 = 64;
 /// `spike/gtk4-editor/RESULTS.txt` measured out of Pango for all three.
 const CELL: f64 = 0.6;
 
-/// The gutter the measure is never allowed to cross: `--page-gutter:
-/// clamp(24px, 6vw, 96px)` in `legacy/app/css/page.css`.
-const GUTTER_SHARE: f64 = 0.06;
-const GUTTER_SMALLEST: f64 = 24.0;
-const GUTTER_LARGEST: f64 = 96.0;
+/// The gutter each side of the measure, in cells.
+///
+/// Seven cells is what `###### ` needs to hang out of the measure and reach
+/// the container's own edge, and it is what the Design oracle leaves there
+/// ([ADR 0016](../../docs/adr/0016-the-text-container-is-78-cells.md)). It
+/// does not scale with the window: a window too narrow for the container keeps
+/// the seven cells and gives up measure instead, so a heading hangs and a
+/// selection finds its edge at every size.
+pub const GUTTER: u32 = 7;
+
+/// The text container, in cells: the [`MEASURE`] plus a [`GUTTER`] each side.
+pub const CONTAINER: u32 = MEASURE + 2 * GUTTER;
 
 /// The air below the last row of text: `--page-bottom: 30vh`.
 const PAGE_BOTTOM: f64 = 0.30;
@@ -112,29 +119,83 @@ pub fn measure(face: Face, size: u32) -> u32 {
     (cell(face, size) * f64::from(MEASURE)).round() as u32
 }
 
-/// The column of text, and the margin on each side of it.
+/// The text container, and where the measure sits inside it.
+///
+/// The container is the whole of what the writing surface owns: the measure
+/// and the gutter each side of it. A heading hangs into the left gutter and a
+/// selection's rows fill the container edge to edge, so every painter that has
+/// to agree with either asks here rather than measuring ink.
+///
+/// Every edge is in pixels from the left of the view, and all of them are
+/// counted off the same two rounded lengths — the container and one gutter —
+/// rather than each being rounded off the cell on its own, so that two edges
+/// meant to agree cannot land a pixel apart. It is the rule
+/// `quill::tags`' own hanging keeps for the same reason.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Column {
-    /// The margin either side, in pixels: `left-margin` and `right-margin`.
+    /// The container's left edge.
+    pub left: u32,
+    /// The container's right edge.
+    pub right: u32,
+    /// The measure's left edge: [`left`](Self::left) plus one gutter. The app
+    /// sets it as both `left-margin` and `right-margin`, which centres the
+    /// measure to within whatever odd pixel the view's width leaves over.
     pub side: u32,
-    /// What is left for the text, in pixels.
+    /// What is left for the text, in pixels: the container less both gutters.
     pub width: u32,
 }
 
-/// Where a `measure`-wide column sits in a view `view` pixels wide.
+impl Column {
+    /// The gutter each side of the measure, in pixels: [`GUTTER`] cells.
+    #[must_use]
+    pub fn gutter(&self) -> u32 {
+        self.side - self.left
+    }
+
+    /// How far a heading of `level` — one to six — hangs left of the measure,
+    /// in pixels: its marker run, `level + 1` cells with the space after the
+    /// last `#`.
+    ///
+    /// `###### ` is seven cells, so the deepest heading hangs the whole gutter
+    /// and its first `#` lands on the container's left edge; every shallower
+    /// one starts further in, and all six `#` columns line up on the right
+    /// against the measure. This is the Design oracle's rule (`14-gutters`),
+    /// and it is why the gutter is seven cells wide.
+    ///
+    /// Counted off [`gutter`](Self::gutter) rather than off the cell a second
+    /// time, so that `hang(6)` reaches the container's edge exactly however
+    /// the cell rounded. The app keeps its own copy of the `level + 1` rule in
+    /// `quill::tags::marker_cells` until #167 hangs it off this container
+    /// instead.
+    #[must_use]
+    pub fn hang(&self, level: u8) -> u32 {
+        debug_assert!((1..=6).contains(&level), "a heading is level 1 to 6");
+        (f64::from(self.gutter()) * (f64::from(level) + 1.0) / f64::from(GUTTER)).round() as u32
+    }
+}
+
+/// Where the container sits in a view `view` pixels wide, on a `cell` this
+/// many pixels across.
 ///
-/// Centred while it fits and narrowed by the gutter when it does not: `width:
-/// min(var(--measure), calc(100% - 2 * var(--page-gutter)))` with `margin: 0
-/// auto` (`legacy/app/css/page.css`). A window too narrow for 64 characters
-/// gives the text the room it has, and the text never reaches an edge.
+/// [`CONTAINER`] cells centred while they fit. A window narrower than that is
+/// the container: the gutters hold at [`GUTTER`] cells each and the measure
+/// takes what they leave, so the text never reaches an edge and a heading
+/// never hangs off the window (ADR 0016). Where the window cannot even seat
+/// the two gutters the measure is nothing rather than negative, and the
+/// caller has a column it can still lay out.
 #[must_use]
-pub fn column(view: u32, measure: u32) -> Column {
+pub fn column(view: u32, cell: f64) -> Column {
     let view = f64::from(view);
-    let gutter = (GUTTER_SHARE * view).clamp(GUTTER_SMALLEST, GUTTER_LARGEST);
-    let width = f64::from(measure).min((view - 2.0 * gutter).max(0.0));
+    // The three lengths every edge below is counted off, rounded here and only
+    // here; each edge is then whole-pixel arithmetic on them.
+    let gutter = (cell * f64::from(GUTTER)).round().max(0.0);
+    let container = (cell * f64::from(CONTAINER)).clamp(0.0, view).round();
+    let left = ((view - container) / 2.0).round();
     Column {
-        side: ((view - width) / 2.0).round() as u32,
-        width: width.round() as u32,
+        left: left as u32,
+        right: (left + container) as u32,
+        side: (left + gutter) as u32,
+        width: (container - 2.0 * gutter).max(0.0) as u32,
     }
 }
 
@@ -303,43 +364,78 @@ mod tests {
     }
 
     #[test]
-    fn the_measure_is_centred_while_it_fits() {
-        let measure = measure(Face::Duo, 20);
+    fn the_container_is_centred_while_it_fits() {
+        // Both judged widths, and both `side` values are the ones the
+        // viewport-relative gutter gave before ADR 0016: the margin the app
+        // lays out with does not move, so no judged shot does either.
+        let cell = cell(Face::Duo, 20);
         assert_eq!(
-            column(1440, measure),
+            column(1440, cell),
             Column {
+                left: 252,
+                right: 1188,
                 side: 336,
                 width: 768
             },
-            "a judged 1440 px window does not centre the 64-character measure"
+            "a judged 1440 px window does not centre the 78-cell container with the measure a gutter inside it"
         );
         assert_eq!(
-            column(960, measure),
+            column(960, cell),
             Column {
+                left: 12,
+                right: 948,
                 side: 96,
                 width: 768
             },
-            "the `narrow` judged state is still wide enough for the whole measure"
+            "the `narrow` judged state is still wide enough for the whole container"
         );
     }
 
     #[test]
-    fn a_window_too_narrow_for_the_measure_keeps_its_gutter_instead() {
-        let measure = measure(Face::Duo, 20);
+    fn a_window_too_narrow_for_the_container_holds_its_gutters_and_shrinks_the_measure() {
         assert_eq!(
-            column(600, measure),
+            column(600, cell(Face::Duo, 20)),
             Column {
-                side: 36,
-                width: 528
+                left: 0,
+                right: 600,
+                side: 84,
+                width: 432
             },
-            "at 600 px the gutter is 6 % of the view and the column takes what is left"
+            "a window narrower than 78 cells is not the container itself, with its gutters held at 7 cells and the measure giving up the difference"
         );
-        let narrow = column(200, measure);
+    }
+
+    #[test]
+    fn the_deepest_heading_hangs_to_the_container_edge() {
+        let column = column(1440, cell(Face::Duo, 20));
         assert_eq!(
-            narrow.side, 24,
-            "the gutter never falls below 24 px, however narrow the window"
+            column.hang(6),
+            column.gutter(),
+            "`###### ` does not hang the whole gutter, out to the container's left edge"
         );
-        assert_eq!(narrow.width, 152, "and the text takes the rest of it");
+        assert_eq!(
+            column.hang(1),
+            24,
+            "`# ` does not hang its two cells of 20 px Duo"
+        );
+    }
+
+    #[test]
+    fn the_two_gutters_stay_equal_where_the_cell_is_fractional() {
+        // 18 px Duo is a 10.8 px cell, so every length here rounds. Counting
+        // them off one rounded gutter is what keeps the measure the same air
+        // on each side, and keeps the deepest heading on the container's edge.
+        let column = column(1440, cell(Face::Duo, 18));
+        assert_eq!(
+            column.right - column.side - column.width,
+            column.gutter(),
+            "the gutter right of the measure is not the one left of it"
+        );
+        assert_eq!(
+            column.hang(6),
+            column.gutter(),
+            "`###### ` misses the container's edge once the cell rounds"
+        );
     }
 
     #[test]
