@@ -582,14 +582,23 @@ async function judge(root, piece, note, summaryFile, settingsFile) {
     for (const s of resolved) {
       const shot = path.join('shots', piece, `r${number}-${s.name}-ours.png`);
       say(`gate judge ${piece}: shooting ${s.name}`);
-      await stage.shoot({
-        bin: path.join(root, BINARY),
-        argv: oursArgv(root, s.flags, settingsFile),
-        w: s.flags.w,
-        h: s.flags.h,
-        out: path.join(root, shot),
-        active: s.flags.active !== false,
-      });
+      // A shot the stage would not vouch for — focus that never took on ours or on the parking
+      // window, captures that never agreed, a window at the wrong size — is a run that broke, and
+      // so a refusal with its reason in the trail (#186), not a stack trace out of an unhandled
+      // rejection, which would have exited 1 and left the log without the reason.
+      try {
+        await stage.shoot({
+          bin: path.join(root, BINARY),
+          argv: oursArgv(root, s.flags, settingsFile),
+          w: s.flags.w,
+          h: s.flags.h,
+          out: path.join(root, shot),
+          active: s.flags.active !== false,
+        });
+      } catch (e) {
+        say(`gate judge ${piece}: ${s.name} was not shot: ${e.message}`);
+        return refuse(piece, `${s.name} could not be shot`);
+      }
 
       // What the critic is shown. For a Parity oracle state that is the two whole windows, as it
       // has always been. For a Design oracle state it is the two rectangles, cut here: the windows
