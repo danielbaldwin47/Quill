@@ -1,0 +1,93 @@
+{
+  "piece": "page",
+  "round": 4,
+  "winner": "theirs",
+  "margin": "slight",
+  "gap": "Top margin is 150px to the caret top on an 1800px canvas (8.3%) versus A's 218px (12.1%) — 45% less air above the first line — and there is no boundary anywhere else: 1576px of undifferentiated #F9F9F9 below the caret, no baseline, no frame, so the void never resolves into a margin.",
+  "gapTheirs": "The caret (6px wide, x=626–631) is drawn 3px inside the ink of the placeholder's 'S' (glyph ink starts x=623), so the blue bar strikes through the first letter — and the text origin the placeholder shows is not where the caret sits; below that, the '0 words 0 characters < 1 min read' band sits 19px off the window bottom (1781 of 1800), a cramped counter reporting nothing on an empty page.",
+  "verdict": "Both pages are the same paper (#F9F9F9, pixel-identical) with the same 622–626px left inset, so this is decided on vertical placement and framing, and B has neither. B gives you a 6×74 blue tick 150px from a raw window edge with 1576px of nothing under it — that is not calm, that is a window that failed to load; you cannot see the typeface, the measure, or where the line will break until you have already committed words. A at least composes the field: 174px of air between the header band and the first line, a text origin you can see before you type, and a bottom edge that stops the page falling out of the frame. A pays for it with two real defects — a caret that bisects the placeholder's 'S' and a word counter jammed 19px off the bottom telling you you have written zero — and those are exactly the two things a novelist would turn off first.",
+  "oursShot": "shots/page/r4-empty-ours.png",
+  "theirsShot": "shots/oracle/page/empty.png",
+  "refSource": "shots/oracle/page/ — the Parity oracle frozen by tools/gate oracle page from legacy/app 738f48c969965ac3 with legacy/tools/shoot.mjs b2362316db135d06",
+  "builderNote": "",
+  "secondary": [
+    "Paper colour identical in both: #F9F9F9 across centre, top-left and far right — no difference to judge there",
+    "Left inset 626px (A) vs 622px (B) of 2880 = 21.7% vs 21.6%; implied measure ~1636px, effectively the same column",
+    "Caret 6x76 (A) vs 6x74 (B) — 2px shorter line box in B, suggesting marginally tighter leading",
+    "A's top chrome ink occupies only y=16–44 (28px tall band), so it is a light frame, not a toolbar slab",
+    "Neither page shows any measure indicator, right-edge marker, or scroll affordance; scrolling feel is unjudgeable from either",
+    "A's placeholder is ~#CCCCCC on #F9F9F9 — near-invisible contrast, correct for a placeholder but it makes the caret collision the only thing the eye catches",
+    "B offers zero confirmation that focus is in the editor beyond the caret; no title, no filename, no state of any kind"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "756439b",
+    "binary": "5b9191c07d394151",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "light",
+      "ours": "shots/page/r4-light-ours.png",
+      "theirs": "shots/oracle/page/light.png",
+      "blind": "shots/blind/page/light",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "Tighter leading: line pitch 74.0px against A's 76.0px, and B's type is ~1.5% larger (advance 26.4px vs 25.8px), so normalised the leading is ~1.68 vs A's ~1.77 — roughly 4-5% less air between lines, a slightly denser grey over a full screen. B also gives the page no floor: text runs to a hard clip at y=1800 with the next line sliced through its x-height, versus A's 35px of clearance before its rule.",
+      "gapTheirs": "Three different left edges on one page: body prose starts at x=623px, but the H1's text starts at x=673 and the H2's at x=697 because the '#'/'##' sit inline instead of hanging — the prose spine jogs right by 50px and 74px (25 and 37 CSS px) at every heading, where B holds a single flush edge at x=624 with markers hung out at x=546-596. Compounding it, A spends 123px of the 1800px viewport (6.8%) on furniture: a 63px title bar carrying 'Untitled.md' plus two icons, and a hairline at y=1748 under a '188 words / 961 characters / 1 min read' strip.",
+      "verdict": "Same paper (#F9F9F9 corner to corner in both), same measure (623-2241px, ~62 characters), same paragraph rhythm (exactly 2x line pitch) — so the whole argument is what surrounds the text, and A loses it. A's headings shove their words 25 and 37 CSS px off the paragraph edge, which means the one thing a writer stares at all day, the left spine, wobbles every time the piece changes gear; B hangs the markers into the margin and the edge never moves. Then A charges you 63px at the top for a filename you already know and 60px at the bottom for a word count that will pull your eye down on every line you finish. B's leading is the tighter of the two by about 4%, and that is the only thing I would take back from it.",
+      "secondary": []
+    },
+    {
+      "name": "empty",
+      "ours": "shots/page/r4-empty-ours.png",
+      "theirs": "shots/oracle/page/empty.png",
+      "blind": "shots/blind/page/empty",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Top margin is 150px to the caret top on an 1800px canvas (8.3%) versus A's 218px (12.1%) — 45% less air above the first line — and there is no boundary anywhere else: 1576px of undifferentiated #F9F9F9 below the caret, no baseline, no frame, so the void never resolves into a margin.",
+      "gapTheirs": "The caret (6px wide, x=626–631) is drawn 3px inside the ink of the placeholder's 'S' (glyph ink starts x=623), so the blue bar strikes through the first letter — and the text origin the placeholder shows is not where the caret sits; below that, the '0 words 0 characters < 1 min read' band sits 19px off the window bottom (1781 of 1800), a cramped counter reporting nothing on an empty page.",
+      "verdict": "Both pages are the same paper (#F9F9F9, pixel-identical) with the same 622–626px left inset, so this is decided on vertical placement and framing, and B has neither. B gives you a 6×74 blue tick 150px from a raw window edge with 1576px of nothing under it — that is not calm, that is a window that failed to load; you cannot see the typeface, the measure, or where the line will break until you have already committed words. A at least composes the field: 174px of air between the header band and the first line, a text origin you can see before you type, and a bottom edge that stops the page falling out of the frame. A pays for it with two real defects — a caret that bisects the placeholder's 'S' and a word counter jammed 19px off the bottom telling you you have written zero — and those are exactly the two things a novelist would turn off first.",
+      "secondary": [
+        "Paper colour identical in both: #F9F9F9 across centre, top-left and far right — no difference to judge there",
+        "Left inset 626px (A) vs 622px (B) of 2880 = 21.7% vs 21.6%; implied measure ~1636px, effectively the same column",
+        "Caret 6x76 (A) vs 6x74 (B) — 2px shorter line box in B, suggesting marginally tighter leading",
+        "A's top chrome ink occupies only y=16–44 (28px tall band), so it is a light frame, not a toolbar slab",
+        "Neither page shows any measure indicator, right-edge marker, or scroll affordance; scrolling feel is unjudgeable from either",
+        "A's placeholder is ~#CCCCCC on #F9F9F9 — near-invisible contrast, correct for a placeholder but it makes the caret collision the only thing the eye catches",
+        "B offers zero confirmation that focus is in the editor beyond the caret; no title, no filename, no state of any kind"
+      ]
+    },
+    {
+      "name": "narrow",
+      "ours": "shots/page/r4-narrow-ours.png",
+      "theirs": "shots/oracle/page/narrow.png",
+      "blind": "shots/blind/page/narrow",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Zero bottom gutter: the second list line is guillotined mid-glyph at the 1800px viewport edge (ink runs to y=1753 and the next line's ascenders are sliced), whereas A leaves 35px of paper below its last line. Also tighter leading — 74px pitch vs A's 76px on a ~43.5px em, i.e. ~1.67 vs ~1.75.",
+      "gapTheirs": "108px of permanent furniture on the page: a 60px title bar (sidebar toggle, 'Untitled.md', format menu) plus a 172px bottom band with a #DFDFDF hairline and a live '188 words / 961 characters / 1 min read' counter — B shows 1920x1800 of nothing but paper and text. Compounding it, A's '#' sits inline at the body edge (x=143), so heading text starts at x=200 against body text at x=144: the left margin breaks by 56px (2 characters) at every heading, while B hangs '#' and '-' 54px into the gutter and holds one unbroken left rule at x=183.",
+      "verdict": "B is the page; A is an app with a page inside it. A gives you 2px more air per line and a quieter #9E9E9E for its markers, then spends that goodwill on a title bar you never read and a word counter parked permanently under your last sentence — the exact thing a novelist covers with a sticky note. B's hanging markers buy the one thing A can't fake: a single true left edge at x=183 that headings, body and bullets all obey, at a 58-character measure instead of A's 62. B still deserves the criticism that it forgot the bottom margin entirely — writing near the end of the document means typing with the window edge shaving your descenders — but one missing gutter is a smaller sin than two bands of chrome and a left margin that jumps two characters every time you write a heading.",
+      "secondary": [
+        "Paper identical: #F9F9F9 both, corner to corner",
+        "Ink identical: #1C1C1C body text both",
+        "Caret is a non-differentiator: 6px wide, #00B5FF, full line-box height in both (76px A / 74px B)",
+        "Measure: A container ~1632px @ 144px left margin ≈ 62-63 chars; B ~1554px @ 183px ≈ 58 chars",
+        "Line pitch: A 76px, B 74px; both hold paragraph spacing at exactly 2x the line pitch (A 152px, B 148px)",
+        "Marker grey: A #9E9E9E vs B #7A7A7A — A's syntax marks are lighter, but they sit inside the text block where they have to be lighter; B's darker marks are out in the gutter",
+        "B places the H1 at y=170 against A's y=240, so B's top gutter is 85 CSS px of clean paper rather than padding under a toolbar",
+        "A's footer hairline is #DFDFDF on #F9F9F9 — soft, but it is still a line drawn across the page"
+      ]
+    }
+  ],
+  "at": "2026-08-31T05:32:34.044Z"
+}
