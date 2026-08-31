@@ -1236,6 +1236,16 @@ fn pango_features() -> String {
 /// because a description that leaves either open is one a missing Face can be
 /// resolved into obliquely (ADR 0004, ADR 0007). Sizes are absolute pixels;
 /// points appear nowhere.
+fn body_font(face: Face, size: u32) -> pango::FontDescription {
+    let mut font = pango::FontDescription::new();
+    font.set_family(face.family());
+    font.set_style(pango::Style::Normal);
+    font.set_weight(pango::Weight::Normal);
+    font.set_variations(Some(&format!("wght={INK_WEIGHT}")));
+    font.set_absolute_size(f64::from(size) * f64::from(pango::SCALE));
+    font
+}
+
 /// The em at `step` of the type ladder, in the whole logical pixels the type
 /// is named in.
 ///
@@ -1246,16 +1256,6 @@ fn pango_features() -> String {
 /// judged states it moves.
 fn em_px(step: u32) -> u32 {
     typography::em(step).round() as u32
-}
-
-fn body_font(face: Face, size: u32) -> pango::FontDescription {
-    let mut font = pango::FontDescription::new();
-    font.set_family(face.family());
-    font.set_style(pango::Style::Normal);
-    font.set_weight(pango::Weight::Normal);
-    font.set_variations(Some(&format!("wght={INK_WEIGHT}")));
-    font.set_absolute_size(f64::from(size) * f64::from(pango::SCALE));
-    font
 }
 
 thread_local! {

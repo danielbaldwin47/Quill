@@ -601,6 +601,14 @@ pub fn band_top(baseline: f64, pitch: f64) -> f64 {
 ///
 /// The sibling of `quill_engine::typography::pitch`, and read with it: the
 /// Editor builds a [`Bar`] from the two, one across the row and one down it.
+///
+/// The Design oracle does not measure a fraction at all — it quantises to 5,
+/// 6, 8 and 10 device pixels over the fourteen steps, which is
+/// `quill_engine::typography::caret_width` and what `docs/design.md` § Caret
+/// width decides. That function has no caller yet: this one keeps the bar the
+/// width it has always been until
+/// [#169](https://github.com/danielbaldwin47/Quill/issues/169) takes the
+/// width from the ladder and retires this, with the blink it moves.
 #[must_use]
 pub fn width(size: u32) -> u32 {
     ((f64::from(size) * WIDTH).round() as u32).max(MIN_WIDTH)

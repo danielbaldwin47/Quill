@@ -62,7 +62,7 @@ Judged state — the states the Gate shoots and benches at:
   --theme light|dark     Set the theme.
   --font duo|quattro|mono
                          Set the Face.
-  --size <px>            Set the type size, at the nearest step of the ladder.
+  --size <px>            Set the type size, at the step at or above it.
   --focus off|sentence|paragraph
                          Turn Focus off, or on at a scope.
   --typewriter           Turn Typewriter on.
