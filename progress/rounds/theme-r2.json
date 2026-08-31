@@ -1,0 +1,79 @@
+{
+  "piece": "theme",
+  "round": 2,
+  "winner": "theirs",
+  "margin": "clear",
+  "gap": "Caret is #124B5E on #1A1A1A paper — 1.76:1 contrast, versus B's #00B5FF at 7.3:1. It is a dark teal accent built for white paper and shipped onto near-black unchanged: at 1.76:1 it is dimmer than A's own #808080 markers and dimmer than the #CCCCCC letters it sits between, so the insertion point disappears into the line.",
+  "gapTheirs": "Marker grey is #636363 (2.84:1) against A's #808080 (4.31:1) — B's syntax glyphs sit only 23% of the way from paper (#1A1A1A) to ink (#CCCCCC) versus A's 40%, so telling `*` from `**` at the start of an emphasis run is a squint rather than a glance.",
+  "verdict": "Same paper, same ink — #1A1A1A under #CCCCCC at 10.6:1 in both — so this comes down to two values, and A gets the important one catastrophically wrong. A dark-teal caret at 1.76:1 on a near-black ground is not a dark palette, it is a light palette with the background swapped: the one colour a writer's eye tracks continuously is the least visible thing on the page, fainter than the hash marks. B's markers are pushed too far down at #636363 and its caret is a raw clipped-blue system accent rather than a tuned one, but a marker you have to lean toward costs a second and a caret you cannot find costs the sentence.",
+  "oursShot": "shots/theme/r2-dark-ours.png",
+  "theirsShot": "shots/oracle/theme/dark.png",
+  "refSource": "shots/oracle/theme/ — the Parity oracle frozen by tools/gate oracle theme from legacy/app 738f48c969965ac3 with legacy/tools/shoot.mjs b2362316db135d06",
+  "builderNote": "",
+  "secondary": [
+    "Identical grounds and body ink in both: paper #1A1A1A, ink #CCCCCC, 10.6:1 — nothing but two greys separates these palettes",
+    "Neither gives headings their own ink: h1 and h2 are both #CCCCCC, same as body, distinguished by weight alone",
+    "Both use one flat marker grey for every syntax token (#, ##, *, **, -) — no tier between block markers and inline emphasis in either",
+    "Italic and bold text render at body #CCCCCC in both — no dimming or lift, so emphasis carries on shape only",
+    "Neither shows an active-line tint or selection colour, so there is no third grey between paper and marker in either palette",
+    "B's caret #00B5FF has the blue channel clipped at 255 and full saturation — visible, but a stock system accent, not a colour chosen for this ground",
+    "A's caret is 3px wide, B's is 3px wide — the failure is purely chromatic, not dimensional",
+    "Only the dark palette is visible in either frame; the light half of this piece cannot be judged from these two screenshots"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "aab1a22",
+    "binary": "a3ec35c252ce4592",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "light",
+      "ours": "shots/theme/r2-light-ours.png",
+      "theirs": "shots/oracle/theme/light.png",
+      "blind": "shots/blind/theme/light",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "One dim tier only, pitched dark: inline markers use the same #7A7A7A / 4.0:1 mid-grey as block markers, so the four asterisks around **bottle** sit at L*51 — visibly heavier specks in running prose than B's L*65 — with no quieter second tier for in-sentence syntax.",
+      "gapTheirs": "Dim grey is #9E9E9E = 2.55:1 on #F9F9F9 (vs A's #7A7A7A at 4.0:1) — 1.6x less contrast and under the 3:1 non-text floor; and markers are not hung, so the '#' sits at x=622 (the body's own left edge) and pushes heading ink to x=673, ~25.5 CSS px right of every body line.",
+      "verdict": "These are the same light theme two shades apart: 2 levels of paper, 3 levels of ink, a 16.4:1 vs 16.2:1 contrast difference nobody will ever perceive. The only real palette decision that differs is the dimmed grey, and B set it so faint (2.55:1) that on a glare-hit laptop screen an unclosed asterisk is a hunt, then compounded it by leaving the '#' inline so headings step 25 px right of the flush left edge. A's mid-grey markers are noisier inside a sentence than they should be — one grey doing two jobs — but structure stays scannable and the column edge stays a line. Neither has a dark ground to show, so the piece is being judged on half its brief.",
+      "secondary": [
+        "Neither image shows a dark palette at all — 'dark mode feels designed rather than inverted' is untestable from these two frames",
+        "Both papers are dead neutral (R=G=B): no warmth decision made on either side, no paper temperature",
+        "Both use exactly one dimmed tier — no separation between block syntax, inline syntax, and de-emphasised prose",
+        "Emphasised text runs at full ink strength in both (#191919 / #1C1C1C): italic and bold carry on face alone, colour contributes nothing",
+        "Carets nearly identical (6x74 vs 6x76 device px) and both ~2:1 against paper; A's is literally CSS DeepSkyBlue #00BFFF, an unchosen default on both sides",
+        "Measure and leading effectively tied: 1619 vs 1621 device px column, 74 vs 76 device px line-height (~1.72 vs ~1.77)",
+        "A hangs '#', '##' and list '-' 52 device px into the left margin; B does not"
+      ]
+    },
+    {
+      "name": "dark",
+      "ours": "shots/theme/r2-dark-ours.png",
+      "theirs": "shots/oracle/theme/dark.png",
+      "blind": "shots/blind/theme/dark",
+      "oursWas": "A",
+      "pick": "B",
+      "winner": "theirs",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "Caret is #124B5E on #1A1A1A paper — 1.76:1 contrast, versus B's #00B5FF at 7.3:1. It is a dark teal accent built for white paper and shipped onto near-black unchanged: at 1.76:1 it is dimmer than A's own #808080 markers and dimmer than the #CCCCCC letters it sits between, so the insertion point disappears into the line.",
+      "gapTheirs": "Marker grey is #636363 (2.84:1) against A's #808080 (4.31:1) — B's syntax glyphs sit only 23% of the way from paper (#1A1A1A) to ink (#CCCCCC) versus A's 40%, so telling `*` from `**` at the start of an emphasis run is a squint rather than a glance.",
+      "verdict": "Same paper, same ink — #1A1A1A under #CCCCCC at 10.6:1 in both — so this comes down to two values, and A gets the important one catastrophically wrong. A dark-teal caret at 1.76:1 on a near-black ground is not a dark palette, it is a light palette with the background swapped: the one colour a writer's eye tracks continuously is the least visible thing on the page, fainter than the hash marks. B's markers are pushed too far down at #636363 and its caret is a raw clipped-blue system accent rather than a tuned one, but a marker you have to lean toward costs a second and a caret you cannot find costs the sentence.",
+      "secondary": [
+        "Identical grounds and body ink in both: paper #1A1A1A, ink #CCCCCC, 10.6:1 — nothing but two greys separates these palettes",
+        "Neither gives headings their own ink: h1 and h2 are both #CCCCCC, same as body, distinguished by weight alone",
+        "Both use one flat marker grey for every syntax token (#, ##, *, **, -) — no tier between block markers and inline emphasis in either",
+        "Italic and bold text render at body #CCCCCC in both — no dimming or lift, so emphasis carries on shape only",
+        "Neither shows an active-line tint or selection colour, so there is no third grey between paper and marker in either palette",
+        "B's caret #00B5FF has the blue channel clipped at 255 and full saturation — visible, but a stock system accent, not a colour chosen for this ground",
+        "A's caret is 3px wide, B's is 3px wide — the failure is purely chromatic, not dimensional",
+        "Only the dark palette is visible in either frame; the light half of this piece cannot be judged from these two screenshots"
+      ]
+    }
+  ],
+  "at": "2026-08-31T16:09:40.108Z"
+}
