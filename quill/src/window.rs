@@ -196,20 +196,20 @@ impl Window {
     /// Steps the type size one rung of the ladder, or back to the default
     /// one.
     ///
-    /// The step stops at the ends of [`quill_engine::settings::type_sizes`]
+    /// The step stops at the ends of [`quill_engine::settings::type_steps`]
     /// rather than wrapping or refusing: a writer holding the key down means
     /// "as big as it goes", and it is the same range `step` in the file and
-    /// `--size` on the command line are held to, because it is the same
+    /// `--step` on the command line are held to, because it is the same
     /// question asked three ways.
     fn step_size(&self, direction: Step) {
         let Some(session) = self.imp().session.borrow().clone() else {
             return;
         };
-        let ladder = quill_engine::settings::type_sizes();
+        let ladder = quill_engine::settings::type_steps();
         let wanted = match direction {
             Step::Bigger => session.step().saturating_add(1),
             Step::Smaller => session.step().saturating_sub(1),
-            Step::Default => quill_engine::settings::default_size(),
+            Step::Default => quill_engine::settings::default_step(),
         };
         let step = wanted.clamp(*ladder.start(), *ladder.end());
         if step == session.step() {

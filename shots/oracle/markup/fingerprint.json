@@ -5,7 +5,7 @@
     "sha256": "738f48c969965ac3"
   },
   "shoot": "b2362316db135d06",
-  "git_head": "f902d83",
+  "git_head": "101bd6e",
   "passages": {
     "shots/oracle/markup.md": "4a0dfea224a6c6fb"
   },
@@ -17,7 +17,7 @@
       "scale": 2,
       "theme": "light",
       "font": "duo",
-      "size": 20,
+      "step": 5,
       "focus": "off",
       "typewriter": false,
       "chrome": "off",
@@ -36,7 +36,7 @@
       "scale": 2,
       "theme": "dark",
       "font": "duo",
-      "size": 20,
+      "step": 5,
       "focus": "off",
       "typewriter": false,
       "chrome": "off",

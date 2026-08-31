@@ -44,7 +44,7 @@ pub const SETTINGS_FILE: &str = "settings.toml";
 /// ([`crate::typography`], `ref/ia/mac-native/NOTES.md` § 11).
 const STEP: u32 = 5;
 
-/// The type sizes a writer may ask for: the fourteen steps of the ladder, 0 to
+/// The type steps a writer may ask for: the fourteen rungs of the ladder, 0 to
 /// 13.
 ///
 /// A range rather than two constants, because three places hold this line and
@@ -53,14 +53,14 @@ const STEP: u32 = 5;
 /// ([`crate::settings`] is where a setting is decided, and a flag or a
 /// Command only moves one).
 #[must_use]
-pub fn type_sizes() -> RangeInclusive<u32> {
+pub fn type_steps() -> RangeInclusive<u32> {
     crate::typography::steps()
 }
 
 /// The step a writer who has chosen none is reading at, and the one Default
 /// Text Size goes back to.
 #[must_use]
-pub fn default_size() -> u32 {
+pub fn default_step() -> u32 {
     STEP
 }
 
@@ -517,7 +517,7 @@ impl Settings {
         let mut reading = Reading::new(table, "", notes);
         let theme = reading.choice("theme");
         let face = reading.choice("face");
-        let step = reading.whole("step", carried.unwrap_or(defaults.step), &type_sizes());
+        let step = reading.whole("step", carried.unwrap_or(defaults.step), &type_steps());
         let focus = reading.boolean("focus", defaults.focus);
         let focus_scope = reading.choice("focus_scope");
         let typewriter = reading.boolean("typewriter", defaults.typewriter);
