@@ -74,12 +74,15 @@ pub const STEPS: u32 = 14;
 /// The ladder, step 0 to step 13.
 ///
 /// Two things a formula would have got wrong are in these numbers. The
-/// leading is *liquid*: `pitch / em` falls from 1.732 to 1.374 up the ladder,
-/// so the bigger the type the tighter the leading, proportionally — the
-/// linear clamp the Parity oracle fitted through three marketing stills is
-/// not this curve at either end. And the caret's width quantises to 5, 6, 8
-/// and 10 device pixels and stops there, so it is not a fraction of the em:
-/// `caret width / em` falls from 0.172 to 0.080 across the range.
+/// leading is *liquid*: `pitch / em` peaks at 1.732 on step 2 and falls from
+/// there to 1.374 at the top of the ladder, so the bigger the type the tighter
+/// the leading, proportionally — the linear clamp the Parity oracle fitted
+/// through three marketing stills is not this curve at either end. The
+/// wobble under the peak, 1.690 then 1.705, is whole-pixel quantisation on a
+/// 29 px em rather than a shape (NOTES § 11 says so). And the caret's width
+/// quantises to 5, 6, 8 and 10 device pixels and stops there, so it is not a
+/// fraction of the em at all: `caret width / em` runs from 0.172 at the foot
+/// of the ladder through 0.186 on step 2 to 0.080 at the top.
 // A table is read down its columns, and rustfmt would give each rung five
 // lines of its own.
 #[rustfmt::skip]
@@ -131,12 +134,17 @@ pub fn em(step: u32) -> f64 {
 }
 
 /// The line pitch at `step` on a display of `scale`, in device pixels.
+///
+/// Ask it at scale 1 for logical pixels, which is what anything GTK lays the
+/// page out from wants: GTK applies the surface's scale factor itself, and
+/// only the caret is placed in device pixels.
 #[must_use]
 pub fn pitch(step: u32, scale: f64) -> u32 {
     device(rung(step).pitch, scale)
 }
 
-/// The caret's width at `step` on a display of `scale`, in device pixels.
+/// The caret's width at `step` on a display of `scale`, in device pixels —
+/// logical pixels at scale 1, as [`pitch`] explains.
 ///
 /// An odd bar's extra pixel falls right of the advance boundary the bar is
 /// centred on; that is the painter's, and `docs/design.md` § Caret width says
@@ -395,6 +403,13 @@ mod tests {
         assert!((ratio(2) - 1.732).abs() < 0.001, "{}", ratio(2));
         assert!((ratio(5) - 1.711).abs() < 0.001, "{}", ratio(5));
         assert!((ratio(13) - 1.374).abs() < 0.001, "{}", ratio(13));
+        // From step 2, and not from step 0: the ratio *rises* over steps 0 to
+        // 2 — 1.690, 1.705, 1.732 — which NOTES § 11 reads as whole-pixel
+        // quantisation on a 29 px em rather than as part of the curve.
+        assert!(
+            ratio(0) < ratio(2) && ratio(1) < ratio(2),
+            "step 2 is the peak"
+        );
         for step in 2..STEPS - 1 {
             assert!(
                 ratio(step) > ratio(step + 1),
