@@ -59,8 +59,8 @@ usage: tools/gate <command> [arguments]
                 command's to freeze and is passed over, so a Piece whose every
                 state does that is finished before a browser starts.
                 Ends in `gate oracle <piece>: froze N states (<why>)`,
-                `... unchanged`, `... nothing to freeze (...)`, or
-                `... fail (...)`.
+                `... unchanged`, `... nothing to freeze (...)`,
+                `... no judged states (...)`, or `... fail (...)`.
 
   bench [regime] [--all] [--regimes a,b] [--keys N] [--sessions N]
         [--panel] [--idle-window S]

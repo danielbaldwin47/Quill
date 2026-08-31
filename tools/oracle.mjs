@@ -269,7 +269,13 @@ async function freeze(root, piece, force) {
     // who should say it goes.
     const stale = Object.keys(was?.states || {}).filter((name) => fs.existsSync(path.join(dir, `${name}.png`)));
     for (const name of stale) {
-      process.stderr.write(`gate oracle ${piece}: ${name} is judged against a mac-native crop now; shots/oracle/${piece}/${name}.png is the opponent it had, and nothing reads it any more\n`);
+      // Why it is stale, rather than that it is: a state still listed here has moved to a crop,
+      // and one that is gone from the Piece was renamed or dropped. The two want different things
+      // done about the file, so the line says which happened.
+      const why = resolved.some((s) => s.name === name)
+        ? 'is judged against a mac-native crop now'
+        : 'is no longer a judged state';
+      process.stderr.write(`gate oracle ${piece}: ${name} ${why}; shots/oracle/${piece}/${name}.png is the opponent it had, and nothing reads it any more\n`);
     }
     console.log(`gate oracle ${piece}: nothing to freeze (${resolved.length === 1 ? 'its one state names' : `all ${resolved.length} states name`} a mac-native crop)`);
     return 0;
