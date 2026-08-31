@@ -96,7 +96,7 @@ fn main() -> glib::ExitCode {
         if let Some(out) = starting.flags().measure.as_deref() {
             harness::capture(out);
         }
-        editor::install_type(starting.settings().face, starting.size());
+        editor::install_type(starting.settings().face, starting.step());
     });
 
     // The accelerators the Commands answer to, from the Appearance rows of

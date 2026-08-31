@@ -39,31 +39,66 @@ use writing::Writing;
 /// The file a writer edits, under [`xdg::config_dir`].
 pub const SETTINGS_FILE: &str = "settings.toml";
 
-/// The Editor's type size in pixels, and the range outside which a number is a
-/// typo rather than a preference. 10 to 40 px is the span the page keeps its
-/// rhythm across: below it the leading is more air than type, above it a line
-/// of 64 characters no longer fits a window.
-const SIZE: u32 = 20;
-const SMALLEST: u32 = 10;
-const LARGEST: u32 = 40;
+/// The Editor's step on the Design oracle's text-size ladder: step 5, whose em
+/// is 21.33 logical pixels, is the size iA Writer opens at
+/// ([`crate::typography`], `ref/ia/mac-native/NOTES.md` § 11).
+const STEP: u32 = 5;
 
-/// The type sizes a writer may ask for.
+/// The type sizes a writer may ask for: the fourteen steps of the ladder, 0 to
+/// 13.
 ///
 /// A range rather than two constants, because three places hold this line and
-/// they must hold the same one: `size` in the file, `--size` on the command
+/// they must hold the same one: `step` in the file, `--step` on the command
 /// line, and Bigger Text and Smaller Text, which step inside it
 /// ([`crate::settings`] is where a setting is decided, and a flag or a
 /// Command only moves one).
 #[must_use]
 pub fn type_sizes() -> RangeInclusive<u32> {
-    SMALLEST..=LARGEST
+    crate::typography::steps()
 }
 
-/// The type size a writer who has chosen none is reading at, and the one
-/// Default Text Size goes back to.
+/// The step a writer who has chosen none is reading at, and the one Default
+/// Text Size goes back to.
 #[must_use]
 pub fn default_size() -> u32 {
-    SIZE
+    STEP
+}
+
+/// Takes an old `size` in pixels out of `table` and hands back the step it
+/// becomes, with one line telling the writer what happened to it.
+///
+/// Before the Design oracle's ladder, the type size was a free integer from 10
+/// to 40 px; every `settings.toml` written then names a size that is not a
+/// rung. It is read once and rewritten, through the reading-notes path rather
+/// than a migration of its own: the writer gets a line saying which of the
+/// fourteen sizes theirs became, and the next write puts `step` in the file
+/// where `size` was.
+///
+/// `None` — with a note of its own — when there is nothing to carry: a file
+/// that already names a `step`, or a `size` that is not a number of pixels.
+fn size_in_steps(table: &mut toml::Table, notes: &mut Vec<String>) -> Option<u32> {
+    let value = table.remove("size")?;
+    if table.contains_key("step") {
+        notes.push(
+            "size: the type size is `step` on the fourteen-step ladder now, and this file \
+             already sets one; dropping `size`"
+                .to_string(),
+        );
+        return None;
+    }
+    let Some(size) = value.as_integer().and_then(|size| u32::try_from(size).ok()) else {
+        notes.push(format!(
+            "size: {} is not a number of pixels to carry to `step`; keeping {STEP}",
+            value.type_str()
+        ));
+        return None;
+    };
+    let step = crate::typography::step_for_size(size);
+    notes.push(format!(
+        "size: the type size is `step` on the fourteen-step ladder now; {size} px is step \
+         {step}, and the next write puts it in the file"
+    ));
+    Some(step)
 }
 
 /// Where the caret sits down the window when Typewriter is on: the middle.
@@ -340,8 +375,8 @@ pub struct Settings {
     pub theme: Theme,
     /// Which Face a Document is set in.
     pub face: Face,
-    /// The Editor's type size, in pixels.
-    pub size: u32,
+    /// Which of the ladder's fourteen text sizes the Editor is set at.
+    pub step: u32,
     /// Whether Focus is on.
     pub focus: bool,
     /// How much Focus leaves lit.
@@ -379,7 +414,7 @@ impl Default for Settings {
         Self {
             theme: Theme::default(),
             face: Face::default(),
-            size: SIZE,
+            step: STEP,
             focus: false,
             focus_scope: FocusScope::default(),
             typewriter: false,
@@ -457,7 +492,7 @@ impl Settings {
         let mut writing = Writing::new();
         writing.choice("theme", self.theme);
         writing.choice("face", self.face);
-        writing.whole("size", self.size);
+        writing.whole("step", self.step);
         writing.boolean("focus", self.focus);
         writing.choice("focus_scope", self.focus_scope);
         writing.boolean("typewriter", self.typewriter);
@@ -476,12 +511,13 @@ impl Settings {
     }
 
     /// Reads a parsed table, key by key.
-    fn read(table: toml::Table, notes: &mut Vec<String>) -> Self {
+    fn read(mut table: toml::Table, notes: &mut Vec<String>) -> Self {
         let defaults = Self::default();
+        let carried = size_in_steps(&mut table, notes);
         let mut reading = Reading::new(table, "", notes);
         let theme = reading.choice("theme");
         let face = reading.choice("face");
-        let size = reading.whole("size", defaults.size, &type_sizes());
+        let step = reading.whole("step", carried.unwrap_or(defaults.step), &type_sizes());
         let focus = reading.boolean("focus", defaults.focus);
         let focus_scope = reading.choice("focus_scope");
         let typewriter = reading.boolean("typewriter", defaults.typewriter);
@@ -501,7 +537,7 @@ impl Settings {
         Self {
             theme,
             face,
-            size,
+            step,
             focus,
             focus_scope,
             typewriter,
@@ -529,7 +565,7 @@ mod tests {
     const KEYS: [&str; 16] = [
         "theme",
         "face",
-        "size",
+        "step",
         "focus",
         "focus_scope",
         "typewriter",
@@ -562,7 +598,11 @@ mod tests {
         let settings = Settings::default();
         assert_eq!(settings.theme, Theme::Auto);
         assert_eq!(settings.face, Face::Duo);
-        assert_eq!(settings.size, 20);
+        assert_eq!(settings.step, 5, "the ladder's default is step 5");
+        assert!(
+            (crate::typography::em(settings.step) - 21.33).abs() < 0.005,
+            "and step 5's em is the 21.33 logical px iA Writer opens at"
+        );
         assert_eq!(settings.focus_scope, FocusScope::Sentence);
         assert!((settings.typewriter_anchor - 0.5).abs() < f64::EPSILON);
         assert_eq!(settings.chrome, Chrome::Shown);
@@ -598,7 +638,7 @@ mod tests {
     #[test]
     fn a_hand_added_key_and_a_hand_added_table_survive_a_write() {
         let hand_edited = "\
-size = 22
+step = 7
 wayfinder = \"fog\"
 
 [syntax_highlight]
@@ -618,7 +658,7 @@ margin = 3
 ";
         let (settings, notes) = Settings::parse(hand_edited);
         assert!(notes.is_empty(), "nothing here is a complaint: {notes:?}");
-        assert_eq!(settings.size, 22);
+        assert_eq!(settings.step, 7);
         assert!(settings.syntax_highlight.enabled && settings.style_check.enabled);
         assert_eq!(settings.style_check.lists.len(), 2, "the lists are carried");
         assert_eq!(settings.shortcuts.len(), 1, "the shortcuts are carried");
@@ -640,11 +680,11 @@ margin = 3
 
     #[test]
     fn a_file_missing_half_its_keys_keeps_the_half_it_has() {
-        let (settings, notes) = Settings::parse("face = \"mono\"\nfocus = true\nsize = 24\n");
+        let (settings, notes) = Settings::parse("face = \"mono\"\nfocus = true\nstep = 9\n");
         assert!(notes.is_empty(), "{notes:?}");
         assert_eq!(settings.face, Face::Mono);
         assert!(settings.focus);
-        assert_eq!(settings.size, 24);
+        assert_eq!(settings.step, 9);
         // And everything absent is the default.
         assert_eq!(settings.theme, Theme::Auto);
         assert!(settings.spell_check);
@@ -724,7 +764,7 @@ margin = 3
         let before = std::fs::read_to_string(&path).expect("reads what was written");
 
         let changed = Settings {
-            size: 24,
+            step: 9,
             ..Settings::default()
         };
         std::fs::create_dir(file::temporary(&path)).expect("stands in the way of the write");
@@ -734,6 +774,58 @@ margin = 3
 
         let after = std::fs::read_to_string(&path).expect("the file is still whole");
         assert_eq!(before, after);
-        assert_eq!(Settings::parse(&after).0.size, SIZE);
+        assert_eq!(Settings::parse(&after).0.step, STEP);
+    }
+
+    #[test]
+    fn a_file_that_still_names_a_size_in_pixels_is_read_as_a_step_and_says_so() {
+        let (settings, notes) = Settings::parse("size = 20\n");
+        assert_eq!(settings.step, 5, "20 px is the ladder's default step");
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].contains("20 px is step 5"), "{notes:?}");
+
+        // And the next write has `step` where `size` was, so the file is read
+        // in silence from then on.
+        let written = settings.to_toml();
+        assert!(
+            !written.contains("size ="),
+            "`size` is carried on:\n{written}"
+        );
+        let (again, notes) = Settings::parse(&written);
+        assert_eq!(again, settings);
+        assert!(notes.is_empty(), "a rewritten file is quiet: {notes:?}");
+    }
+
+    #[test]
+    fn every_old_size_lands_on_the_step_at_or_above_it() {
+        for (size, step) in [(10, 0), (20, 5), (40, 10)] {
+            let (settings, _) = Settings::parse(&format!("size = {size}\n"));
+            assert_eq!(settings.step, step, "{size} px is not step {step}");
+        }
+    }
+
+    #[test]
+    fn a_file_naming_both_keeps_the_step_and_drops_the_size() {
+        let (settings, notes) = Settings::parse("size = 40\nstep = 2\n");
+        assert_eq!(settings.step, 2, "the step a writer wrote is the step");
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].contains("dropping `size`"), "{notes:?}");
+        assert!(!settings.to_toml().contains("size ="));
+    }
+
+    #[test]
+    fn a_size_that_is_not_a_number_of_pixels_keeps_the_default_and_says_why() {
+        let (settings, notes) = Settings::parse("size = \"large\"\n");
+        assert_eq!(settings.step, STEP);
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].contains("not a number of pixels"), "{notes:?}");
+    }
+
+    #[test]
+    fn a_step_off_the_ladder_is_a_typo_not_a_preference() {
+        let (settings, notes) = Settings::parse("step = 14\n");
+        assert_eq!(settings.step, STEP);
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].contains("from 0 to 13"), "{notes:?}");
     }
 }
