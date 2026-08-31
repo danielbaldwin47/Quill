@@ -634,15 +634,15 @@ pub fn left(boundary: f64, w: f64) -> f64 {
     boundary - (w / 2.0).floor()
 }
 
-/// The left edge, on a whole device pixel.
+/// One edge of the bar, onto a whole device pixel.
 ///
 /// The pitch arrives whole from `quill_engine::typography`, but neither edge
 /// the bar is placed by does: x is half a bar's width left of the advance
 /// boundary ([`left`]) and y hangs from a baseline at [`ABOVE_BASELINE`] of
-/// the pitch, and both land wherever that arithmetic leaves them. Both need this: a bar starting on a half pixel
-/// is rasterised a row or a column wider than it was cut, with a grey edge
-/// standing in for the half. `caret.js` snaps its top and its left for the
-/// same reason.
+/// the pitch, and both land wherever that arithmetic leaves them. Both need
+/// this: a bar starting on a half pixel is rasterised a row or a column wider
+/// than it was cut, with a grey edge standing in for the half. `caret.js`
+/// snaps its top and its left for the same reason.
 ///
 /// Device pixels are the caller's: the widget applies the surface's scale
 /// factor on the way in, which is where the oracle's `Math.round(v * dpr) /
@@ -825,11 +825,13 @@ mod tests {
     /// even 6 px every scale-2 shot is measured at.
     #[test]
     fn an_odd_bars_extra_pixel_falls_right_of_the_boundary() {
-        assert_eq!(left(100.0, 3.0), 99.0, "1 px left of the boundary");
-        for w in [3.0_f64, 5.0, 7.0] {
-            let x = left(100.0, w);
-            assert_eq!(100.0 - x, (w / 2.0).floor(), "{w} px: the left share");
-            assert_eq!(x + w - 100.0, (w / 2.0).ceil(), "{w} px: the right share");
+        // The left edge a bar of each odd width takes on the boundary at 100,
+        // written out rather than worked out: 1, 2 and 3 px of the bar fall
+        // left of the boundary and 2, 3 and 4 px right of it.
+        const ODD: [(f64, f64); 3] = [(3.0, 99.0), (5.0, 98.0), (7.0, 97.0)];
+        for (w, x) in ODD {
+            assert_eq!(left(100.0, w), x, "the {w} px bar's left edge");
+            assert!(100.0 - x < w - (100.0 - x), "the {w} px bar leans right");
         }
     }
 

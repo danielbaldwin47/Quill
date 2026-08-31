@@ -217,3 +217,34 @@ git checkout -- quill/src/editor.rs
 `probe147.py` prints per-column blue and ink counts across a band, which is how
 `solid` and `cut` were checked against the pixels rather than against a
 downscaled sheet.
+
+## The shape that landed, and how its acceptance was measured
+
+Everything above is the evidence for the *decision*, shot in 2026-08-30 when
+this ticket still asked for one. What the rewritten ticket asked to be built —
+the bar **centred** on the advance boundary, `docs/design.md` row Caret column —
+is measured here, at the default step on the Gate's own stage.
+
+The boundary is not asserted, it is read. `Editor::selection` builds its fill
+rows from the same `iter_location` x values the caret is placed by, and this
+change does not touch it, so a fill from offset a to offset b spans exactly
+`boundary(a) .. boundary(b)` and is an independent ruler:
+
+```
+python3 shots/caret/147/boundary.py \
+  select=shots/caret/147/boundary-select-18-28.png \
+  a=shots/caret/147/boundary-caret-18.png \
+  b=shots/caret/147/boundary-caret-28.png
+```
+
+```
+fill              x 622..881  (boundary a = 622, boundary b = 882)
+bar at offset a   x 619..624  w 6  centre 622.0  boundary 622  delta +0.0
+bar at offset b   x 879..884  w 6  centre 882.0  boundary 882  delta +0.0
+```
+
+Mono at the default step, light, chrome off, 1440x900 at scale 2. The bar is
+6 device px wide with 3 px each side of the boundary, which is the Design
+oracle's own bar to the pixel (`ref/ia/mac-native/VERDICTS.md` 0013.1, and
+`NOTES.md` § The three offset frames: 688…693 on 691.0, 944…949 on 947.0,
+1200…1205 on 1203.0).
