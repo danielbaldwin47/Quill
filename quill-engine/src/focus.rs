@@ -64,7 +64,8 @@ pub enum Focus {
 /// page.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Hash)]
 pub enum Tier {
-    /// What the writer is in: drawn as it would be with Focus off.
+    /// What Focus lights: drawn as it would be with Focus off. Usually what the
+    /// writer is in, though on a blank line it is the thought behind them.
     #[default]
     Bright,
     /// Everything else, drawn in the ground's dimmed grey.
