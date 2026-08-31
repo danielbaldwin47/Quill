@@ -39,8 +39,10 @@ usage: tools/gate <command> [arguments]
   check [dir]   The Commit tier in one command: cargo fmt --check, the #[allow]
                 reason rule, cargo clippy --all-targets -- -D warnings, cargo
                 test with no display attached, and — on the repo root only —
-                the bench join's own tests and the typed condition's, in that
-                order, stopping at the first failure. Each step's output goes to
+                the four selftests that need no window: the bench join's, the
+                typed condition's, and the two the blind pair is decided by,
+                the oracle's and the judge's. In that order, stopping at the
+                first failure. Each step's output goes to
                 target/gate/<step>.log and is printed only if that step is the
                 one that fails. Runs on the repo root, or on <dir> if one is
                 given — which is how tools/gate-fixture/selftest points it at a
@@ -52,9 +54,13 @@ usage: tools/gate <command> [arguments]
                 at every state shots/oracle/states.json lists for it, into
                 shots/oracle/<piece>/<state>.png with the fingerprint of what
                 produced them beside. Shoots nothing when those shots are
-                already the ones it would take; --force shoots them anyway.
+                already the ones it would take; --force shoots them anyway. A
+                state naming a mac-native crop as its opponent is not this
+                command's to freeze and is passed over, so a Piece whose every
+                state does that is finished before a browser starts.
                 Ends in `gate oracle <piece>: froze N states (<why>)`,
-                `... unchanged`, or `... fail (...)`.
+                `... unchanged`, `... nothing to freeze (...)`, or
+                `... fail (...)`.
 
   bench [regime] [--all] [--regimes a,b] [--keys N] [--sessions N]
         [--panel] [--idle-window S]
@@ -112,11 +118,18 @@ usage: tools/gate <command> [arguments]
                 shots/blind/<piece>/<state>/ (the key goes to
                 $XDG_STATE_HOME/quill/blind-keys/), one fresh critic per pair,
                 revealed, and written to progress/rounds/<piece>-r<N>.json.
+                A state naming an opponent in states.json is paired against the
+                Design oracle instead: the rectangle it names in a capture under
+                ref/ia/shots/mac-native/ against the matching rectangle of ours,
+                which is shot in Mono at the defaults' type so the two grids
+                compare cell for cell (ADR 0015). The round names the capture
+                and both rectangles.
                 --note records what changed this round. The Piece is ours only
                 when every state is. Ends in `gate judge <piece>: ours|theirs,
                 round <N>`: 0 for ours, 1 for theirs, 2 for theirs after this
                 Piece had been won, 3 when nothing was judged — a command line
-                it could not read included, since 2 is spoken for. That line,
+                it could not read, or a crop that cannot be cut, included,
+                since 2 is spoken for. That line,
                 with the one above it that names the round which won a Piece now
                 lost, is the whole of stdout: everything said on the way there is
                 target/gate/judge-<piece>.log, printed when the run refuses, and

@@ -20,7 +20,10 @@
 //
 // THE PNG. The repo has no image dependency: `decodePng` in `tools/keys-assert.mjs` is its one
 // decoder, written for grim's 8-bit RGB and RGBA, and `screencapture` writes the same. Encoding
-// back is the filter-none form of the same thing, which is a deflate and three chunks.
+// back is the filter-none form of the same thing, which is a deflate and three chunks, and it
+// lives here rather than beside the decoder because moving the decoder would mean reaching into
+// what `tools/gate keys` imports; a `tools/png.mjs` holding both is the tidier home and the
+// ticket that next touches the keys tooling can make it.
 import zlib from 'node:zlib';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -46,8 +49,9 @@ function rect(where, value) {
   return [x, y, w, h];
 }
 
-// One pair of whole non-negative numbers out of a state, or the default when the state is silent.
-function twoOf(where, value, fallback) {
+// One width-and-height or one origin out of a state, as two whole non-negative device px, or the
+// default when the state is silent.
+function twoPx(where, value, fallback) {
   if (value === undefined) return fallback;
   if (!Array.isArray(value) || value.length !== 2 || value.some((n) => !Number.isInteger(n) || n < 0)) {
     throw new Error(`${where} is ${JSON.stringify(value)}, and this is two whole device px`);
@@ -55,8 +59,8 @@ function twoOf(where, value, fallback) {
   return value;
 }
 
-// Whether one rectangle is wholly inside a `w` x `h` image, said as the reason it is not.
-function inside(where, [x, y, w, h], size, what) {
+// Refuses a rectangle that is not wholly inside a `w` x `h` image, naming what it ran past.
+function mustFit(where, [x, y, w, h], size, what) {
   if (x + w > size.w || y + h > size.h) {
     throw new Error(`${where} runs to ${x + w} x ${y + h}, past ${what} (${size.w} x ${size.h})`);
   }
@@ -82,13 +86,13 @@ export function resolveOpponent(root, state, opponent, ours) {
   const size = pngSize(fs.readFileSync(file));
 
   const crop = rect(`${where}'s crop`, opponent.crop);
-  inside(`${where}'s crop`, crop, size, 'the capture');
+  mustFit(`${where}'s crop`, crop, size, 'the capture');
 
   // Where the capture sits in the Design oracle's window, for the states shot as a region rather
   // than whole: `window` is the window's device size and `at` the capture's origin in it. Only the
   // centre rule reads either, and a capture that is the whole window needs neither.
-  const [ww, wh] = twoOf(`${where}'s window`, opponent.window, [size.w, size.h]);
-  const [ax, ay] = twoOf(`${where}'s at`, opponent.at, [0, 0]);
+  const [ww, wh] = twoPx(`${where}'s window`, opponent.window, [size.w, size.h]);
+  const [ax, ay] = twoPx(`${where}'s at`, opponent.at, [0, 0]);
   if (ax + size.w > ww || ay + size.h > wh) {
     throw new Error(`${where} puts a ${size.w} x ${size.h} capture at ${ax}, ${ay} in a ${ww} x ${wh} window, which does not hold it`);
   }
@@ -96,7 +100,7 @@ export function resolveOpponent(root, state, opponent, ours) {
   const mine = opponent.ours === 'centre'
     ? centred(crop, [ax, ay, ww, wh], ours)
     : rect(`${where}'s ours`, opponent.ours);
-  inside(`${where}'s crop of ours`, mine, ours, 'ours');
+  mustFit(`${where}'s crop of ours`, mine, ours, 'ours');
   return { capture, crop, ours: mine };
 }
 
