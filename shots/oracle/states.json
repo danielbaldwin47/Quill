@@ -25,7 +25,8 @@
     },
     "page": {
       "light": {},
-      "narrow": { "w": 960 }
+      "narrow": { "w": 960 },
+      "short": { "text": "ref/short.md", "caret": 10, "scroll": null, "chrome": "off" }
     },
     "markup": {
       "light": { "text": "shots/oracle/markup.md", "caret": 131, "chrome": "off" },
