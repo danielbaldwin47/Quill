@@ -23,6 +23,12 @@
 // launched, so a half-frozen opponent never sits on disk waiting to be judged as if it were whole.
 // The rule needs no list kept here: a state may name only flags the defaults name.
 //
+// WHAT IS NOT FROZEN HERE. A state carrying `opponent` is judged against a crop of the Design
+// oracle — iA Writer for Mac, captured under `ref/ia/shots/mac-native/` (ADR 0015) — and `legacy/`
+// has nothing to say about it. Such a state is passed over: it is not shot, not fingerprinted, and
+// not counted in the line this command ends in, and a Piece with no other kind of state is
+// unchanged by definition.
+//
 // Offsets in states.json are UTF-8 bytes from the start of the passage, which is the form the
 // native app's --caret and --select take. shoot.mjs counts characters, so they are converted here
 // against the state's own passage.
@@ -40,18 +46,34 @@ import { appFiles, gitHead, hashApp, sha256 } from './fingerprint.mjs';
 const PORT = +(process.env.QUILL_PORT || 4173);
 
 // ---------- the judged states ----------
+// `QUILL_STATES` is for a selftest that has to put a state in front of a whole command without
+// editing the judged states of the nine Pieces, and for nothing else.
 export function readStates(root) {
-  return JSON.parse(fs.readFileSync(path.join(root, 'shots/oracle/states.json'), 'utf8'));
+  return JSON.parse(fs.readFileSync(process.env.QUILL_STATES || path.join(root, 'shots/oracle/states.json'), 'utf8'));
 }
 
 // The Piece's states, each one the defaults with its own overrides on top, in the order the file
 // lists them — which is the order they are shot and reported in.
+//
+// `opponent` is not one of the overrides: it says who the state is judged against rather than what
+// it is shot at, and it never reaches a command line. A state that carries one is shot in **Mono**
+// at the type the `defaults` name, whatever the state itself says, because the Design oracle's
+// captures are all in Mono and a crop of ours only compares cell for cell against them at the same
+// face and size (ADR 0015).
 export function resolveStates(states, piece) {
   const pieces = states.pieces || {};
   if (!Object.prototype.hasOwnProperty.call(pieces, piece)) {
     throw new Error(`${piece}: no Piece by that name has judged states (shots/oracle/states.json names ${Object.keys(pieces).join(', ')})`);
   }
-  return Object.entries(pieces[piece]).map(([name, overrides]) => ({ name, flags: { ...states.defaults, ...overrides } }));
+  return Object.entries(pieces[piece]).map(([name, overrides]) => {
+    const { opponent = null, ...rest } = overrides;
+    const flags = { ...states.defaults, ...rest };
+    if (opponent) {
+      flags.font = 'mono';
+      flags.size = states.defaults.size;
+    }
+    return { name, flags, opponent };
+  });
 }
 
 // The flags in this state that this tool cannot serve: the ones the defaults do not name. The
@@ -219,9 +241,19 @@ async function freeze(root, piece, force) {
     return 0;
   }
 
+  // A state judged against a Design oracle crop has its opponent committed under
+  // `ref/ia/shots/mac-native/` already, and no browser can take it: `legacy/` is not the app it is
+  // a capture of. So it is not frozen here, and a Piece whose states are all of that kind is
+  // finished before it starts rather than failing for an opponent it does not want (ADR 0015).
+  const parity = resolved.filter((s) => !s.opponent);
+  if (parity.length === 0) {
+    console.log(`gate oracle ${piece}: nothing to freeze (all ${resolved.length} states name a mac-native crop)`);
+    return 0;
+  }
+
   // Every state is read before any is shot, so a Piece that cannot be frozen whole is not
   // half-frozen: the flags no tool serves yet, then the offsets, then the passages.
-  const blocked = resolved.map((s) => ({ ...s, cannot: unservable(states.defaults, s.flags) })).filter((s) => s.cannot.length);
+  const blocked = parity.map((s) => ({ ...s, cannot: unservable(states.defaults, s.flags) })).filter((s) => s.cannot.length);
   if (blocked.length) {
     for (const s of blocked) {
       // A flag whose value is a path names a fixture nobody has built either; say so, since that
@@ -230,7 +262,7 @@ async function freeze(root, piece, force) {
       process.stderr.write(`gate oracle ${piece}: state ${s.name} names ${s.cannot.join(', ')}${fixtures.length ? `, and the fixture ${fixtures.join(', ')}` : ''}\n`);
     }
     process.stderr.write('gate oracle: no tool under legacy/ serves those yet; they wait for the File handling spec (shots/oracle/states.json)\n');
-    console.log(`gate oracle ${piece}: fail (${blocked.length} of ${resolved.length} states name flags this tool cannot serve yet)`);
+    console.log(`gate oracle ${piece}: fail (${blocked.length} of ${parity.length} states name flags this tool cannot serve yet)`);
     return 1;
   }
 
@@ -239,7 +271,7 @@ async function freeze(root, piece, force) {
   // Piece's four shots are already on disk.
   const dir = path.join(root, 'shots/oracle', piece);
   const shot = (s) => path.join('shots/oracle', piece, `${s.name}.png`);
-  try { for (const s of resolved) shootArgv(root, s.flags, shot(s), 'http://localhost/'); }
+  try { for (const s of parity) shootArgv(root, s.flags, shot(s), 'http://localhost/'); }
   catch (e) {
     process.stderr.write(`gate oracle ${piece}: ${e.message}\n`);
     console.log(`gate oracle ${piece}: fail (a judged state could not be read)`);
@@ -254,13 +286,13 @@ async function freeze(root, piece, force) {
     return 1;
   }
 
-  const now = fingerprint(root, resolved);
+  const now = fingerprint(root, parity);
   const fpFile = path.join(dir, 'fingerprint.json');
   const was = fs.existsSync(fpFile) ? JSON.parse(fs.readFileSync(fpFile, 'utf8')) : null;
-  const have = resolved.filter((s) => fs.existsSync(path.join(dir, `${s.name}.png`))).map((s) => s.name);
+  const have = parity.filter((s) => fs.existsSync(path.join(dir, `${s.name}.png`))).map((s) => s.name);
   const why = freezeReason(was, now, have);
   if (why === null && !force) {
-    console.log(`gate oracle ${piece}: unchanged (${resolved.length} states already frozen)`);
+    console.log(`gate oracle ${piece}: unchanged (${parity.length} states already frozen)`);
     return 0;
   }
 
@@ -271,7 +303,7 @@ async function freeze(root, piece, force) {
     // leaves a directory of new shots and old ones, and a fingerprint still sitting there would
     // call that mixture unchanged. Without one, the next run says nothing is frozen and shoots.
     fs.rmSync(fpFile, { force: true });
-    for (const s of resolved) {
+    for (const s of parity) {
       process.stderr.write(`gate oracle ${piece}: shooting ${s.name}\n`);
       // shoot.mjs's own "wrote ..." line would drown the one line the owner reads; what it says
       // when it fails is on stderr, above that line, for the agent who has to fix it.
@@ -282,7 +314,7 @@ async function freeze(root, piece, force) {
     // — one the last fingerprint names — is cleared up; anything else in the directory is somebody
     // else's and is left where it is.
     for (const name of Object.keys(was?.states || {})) {
-      if (!resolved.some((s) => s.name === name) && fs.existsSync(path.join(dir, `${name}.png`))) {
+      if (!parity.some((s) => s.name === name) && fs.existsSync(path.join(dir, `${name}.png`))) {
         process.stderr.write(`gate oracle ${piece}: ${name} is no longer a judged state, removing its shot\n`);
         fs.rmSync(path.join(dir, `${name}.png`));
       }
@@ -295,7 +327,7 @@ async function freeze(root, piece, force) {
   } finally {
     server.stop();
   }
-  console.log(`gate oracle ${piece}: froze ${resolved.length} states (${force && why === null ? '--force' : why})`);
+  console.log(`gate oracle ${piece}: froze ${parity.length} states (${force && why === null ? '--force' : why})`);
   return 0;
 }
 

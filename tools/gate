@@ -267,6 +267,16 @@ check() {
         # one that three judged states and six critics let through (#108, #138).
         run_step keys "node tools/keys-selftest.mjs" \
             node "$ROOT/tools/keys-selftest.mjs"
+        # The two halves of a blind pair: which states are shot and frozen, and
+        # which opponent each is paired with — the Parity oracle's frozen shot,
+        # or the crop of a mac-native capture the state names (ADR 0015). Both
+        # are pure functions of shots/oracle/states.json and files on disk, they
+        # need no window, no browser and no critic, and between them they hold
+        # the arithmetic that decides what a critic is shown.
+        run_step oracle "node tools/oracle-selftest.mjs" \
+            node "$ROOT/tools/oracle-selftest.mjs"
+        run_step judge "node tools/judge-selftest.mjs" \
+            node "$ROOT/tools/judge-selftest.mjs"
     fi
 
     echo "gate check: pass"
