@@ -11,8 +11,8 @@ round knobs on the Mac app's selection (0012.1), no bar at either end (0012.2) a
 (0012.3): a held selection is fill only, with zero accent pixels in any frame that holds one. 0012.6
 is moot for the same reason — there are no ends — and the idle fill it describes is a neutral grey,
 `#464646` on dark and `#dcdcdc` on light, not a paler accent. What this ADR decides about how
-**Quill** paints is untouched by that and stands until the decisions session
-[#154](https://github.com/danielbaldwin47/Quill/issues/154) opens says otherwise.*
+**Quill** paints is untouched by that and stands until
+[#154](https://github.com/danielbaldwin47/Quill/issues/154)'s decisions session says otherwise.*
 
 The Editor paints the selection itself — the fill, a bar at each end, and the caret — in the same
 `snapshot_layer` pass beneath the glyphs, the caret, the two ends and every fill row cut from one
