@@ -29,8 +29,30 @@
       "short": { "text": "ref/short.md", "caret": 10, "scroll": null, "chrome": "off" }
     },
     "markup": {
-      "light": { "text": "shots/oracle/markup.md", "caret": 131, "chrome": "off" },
-      "dark": { "text": "shots/oracle/markup.md", "caret": 131, "chrome": "off", "theme": "dark" }
+      "gutters": {
+        "text": "ref/ia/mac-native/passage-markers.md",
+        "caret": 0,
+        "nocaret": true,
+        "chrome": "off",
+        "theme": "dark",
+        "opponent": {
+          "capture": "mac-native-14-dark-markup-gutters.png",
+          "crop": [470, 1020, 780, 460],
+          "ours": [400, 288, 780, 460]
+        }
+      },
+      "blocks": {
+        "text": "ref/ia/mac-native/passage-markers.md",
+        "caret": 0,
+        "nocaret": true,
+        "chrome": "off",
+        "theme": "dark",
+        "opponent": {
+          "capture": "mac-native-14-dark-markup-blocks.png",
+          "crop": [470, 140, 780, 620],
+          "ours": [400, 656, 780, 620]
+        }
+      }
     },
     "caret": {
       "caret": { "chrome": "off" },

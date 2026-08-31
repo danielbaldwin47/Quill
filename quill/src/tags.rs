@@ -7,24 +7,28 @@
 //! never removed. The table is GTK's own, keyed by name, so the Editor keeps no
 //! second copy of it to fall out of step.
 //!
-//! Paragraph tags are the third row and the one this ticket exists for:
-//! `heading-1` to `heading-6` hang a heading's `#` markers out into the left
-//! margin so the first word sits on the prose's edge, and `list-1` to
-//! `list-12` do the same for a bullet, a number or a quote's `>`, keyed by the
-//! width of the whole run of markers the line opens with because that is what a
-//! hang is — `- ` is two cells, `1. ` is three, `> - ` is four and a nested
-//! item is wider again. That is a step past the Parity oracle, which
-//! could not do it — `legacy/app/css/markup.css` says why: a `<textarea>` takes
-//! no per-line horizontal shift, so the web app bought the same calm with
-//! contrast instead of position. ADR 0004 removed the mirror and with it the
-//! constraint.
+//! Paragraph tags are the third row: `heading-1` to `heading-6` hang a
+//! heading's `#` markers out into the left gutter, by exactly as far as the
+//! layout will advance them, so the first word sits on the prose's edge and
+//! `###### ` fills the seven-cell gutter [`typography::GUTTER`] was sized at.
+//! **Nothing else hangs.** A bullet, an ordinal and a quote's `>` sit on the
+//! body column and push their own words inward, and no rule is drawn beside a
+//! quote: that is what the Design oracle draws
+//! ([ADR 0016](../../docs/adr/0016-the-text-container-is-78-cells.md);
+//! `ref/ia/mac-native/` state 14, `14-gutters` and `14-blocks`).
+//!
+//! The Parity oracle could hang nothing at all — `legacy/app/css/markup.css`
+//! says why: a `<textarea>` takes no per-line horizontal shift, so the web app
+//! bought the same calm with contrast instead of position — and with no oracle
+//! for the rest, #102 read the marketing frames' `#` in the margin as a rule
+//! for every marker and hung them all. The app running on the owner's Mac
+//! hangs the heading and only the heading (#167).
 //!
 //! `ground-code-block` is the other paragraph tag, and it is one for the
 //! opposite reason: a run's background stops with the last glyph on the line,
 //! so only a paragraph's can run past both edges of the measure and read as a
 //! well.
 
-use std::collections::HashSet;
 use std::ops::Range;
 
 use gtk::gdk;
@@ -59,30 +63,6 @@ const BOLD: i32 = 700;
 /// say so all the same, because the run before it may have been.
 const REGULAR: i32 = INK_WEIGHT.cast_signed();
 
-/// How many cells of margin a heading of `level` hangs by.
-///
-/// Its `#`s and the one space after them: `# ` is two cells, `## ` is three.
-/// A writer who types more than one space after the marker is left slightly
-/// out; the cost of following the exact marker width is a paragraph tag per
-/// width rather than per level, and iA Writer hangs by the level too.
-fn marker_cells(level: u8) -> f64 {
-    f64::from(level) + 1.0
-}
-
-/// The deepest list marker that is given a tag of its own.
-///
-/// `- ` is two cells and `1. ` three, and every level of nesting adds its
-/// indentation, so the count is open-ended in a way a heading's never was.
-/// Twelve is six levels of bullets or four of numbers; a marker past it hangs
-/// by twelve instead of by its own width, so its text lands right of the prose
-/// rather than on it. A list nested deeper than that has bigger troubles than a
-/// cell of misalignment, and [`hung`] would have run out of margin to hang in
-/// long before.
-const LIST_CELLS: u8 = 12;
-
-/// How far a tab advances a marker, in cells: CommonMark's tab stop.
-const TAB_CELLS: usize = 4;
-
 /// How far the code ground runs past each edge of the measure, at `step` of
 /// the type ladder.
 ///
@@ -110,15 +90,13 @@ fn pixels(length: f64) -> i32 {
     whole
 }
 
-/// The pixels a marker of `cells` cells hangs by, in `face` at `step` of the
-/// type ladder.
+/// A length the container measured, as the `i32` GTK sets a margin in.
 ///
-/// The Faces are cut to one cell grid, so a marker's width is its cell count
-/// times the advance [`typography::cell`] already measures the 64-character
-/// measure from. Rounded once, here, so the hang and the measure are counted
-/// off the same number and a heading cannot land half a pixel from the prose.
-fn hang(face: Face, step: u32, cells: f64) -> i32 {
-    pixels(typography::cell(face, step) * cells)
+/// [`typography::Column`] counts every edge and every hang in whole pixels
+/// from the left of the view, and GTK takes a margin signed. A container wider
+/// than `i32::MAX` is not a window anyone has.
+fn margin(length: u32) -> i32 {
+    i32::try_from(length).unwrap_or(i32::MAX)
 }
 
 /// The tag named `name`, made by `build` if this is the first ask for it.
@@ -251,27 +229,19 @@ fn heading(buffer: &gtk::TextBuffer, level: u8) -> gtk::TextTag {
     tag(buffer, &format!("heading-{level}"), |_| {})
 }
 
-/// The paragraph tag for a list marker `cells` cells wide.
-///
-/// Keyed by the width rather than by the kind of list, because the width is the
-/// whole of what a hang is: `- ` and `1.` are both two cells and hang alike,
-/// while `- ` and `  - ` are the same bullet at two depths and must not.
-fn list(buffer: &gtk::TextBuffer, cells: u8) -> gtk::TextTag {
-    tag(buffer, &format!("list-{cells}"), |_| {})
-}
-
-/// The `(left margin, indent)` that hangs `cells` cells of marker against
+/// The `(left margin, indent)` that hangs a marker `width` pixels wide against
 /// `side`.
 ///
 /// The pair is the whole trick, so it is one function rather than two lines
 /// inside a loop: the first row starts at the margin, and the indent gives the
 /// marker back to every row under it, which must land on `side` exactly.
-fn hung(face: Face, step: u32, cells: f64, side: i32) -> (i32, i32) {
-    let width = hang(face, step, cells).min(side);
+fn hung(width: i32, side: i32) -> (i32, i32) {
+    let width = width.min(side);
     (side - width, -width)
 }
 
-/// Hangs the heading markers, given the margin the prose is set against.
+/// Hangs the heading markers into the gutter `column` gives them, by the
+/// `advances` the caller measured off the layout.
 ///
 /// Pango's `indent` only ever shifts to the right: a positive value moves the
 /// first row of a paragraph, a negative one moves every row *after* the first.
@@ -281,27 +251,37 @@ fn hung(face: Face, step: u32, cells: f64, side: i32) -> (i32, i32) {
 /// first row starts at `side - hang` with the `#` in the margin, and every row
 /// under it starts at `side`, flush with the prose.
 ///
+/// `advances[level - 1]` is how far that level's `#`s and their space actually
+/// advance — [`Editor::marker_advance`](crate::editor::Editor::marker_advance)
+/// says why it is measured rather than counted off the cell, and why counting
+/// it was what lost round 10. Hanging by exactly it is what lands all six
+/// levels' words on the one body column, which is the whole of what this pair
+/// is for. [`typography::Column::hang`] is the same rule in the ladder's own
+/// cell and is what sizes the gutter; it is not what the tag hangs by, because
+/// the gutter is designed once and the type is laid out per launch.
+///
+/// Headings are the only markers hung: a bullet, an ordinal and a quote's `>`
+/// take no tag here at all and so sit where the buffer puts them, on the body
+/// column (ADR 0016).
+///
 /// Called whenever the page is laid out, because both halves of the pair move:
-/// `side` with the width of the window, and the hang with the size of the type.
-/// A window too narrow to give the marker its margin keeps what it has — the
-/// tag's left margin cannot go below zero, and a heading that cannot hang is
-/// worth less than a heading pushed off the left edge of the view.
-pub fn hang_markers(buffer: &gtk::TextBuffer, face: Face, step: u32, side: i32, scheme: Scheme) {
-    let hang = |tag: &gtk::TextTag, cells: f64| {
-        let (margin, indent) = hung(face, step, cells, side);
-        tag.set_left_margin(margin);
+/// the container with the width of the window, and the marker run with the size
+/// of the type. A window too narrow to give the marker its margin keeps what it
+/// has — the tag's left margin cannot go below zero, and a heading that cannot
+/// hang is worth less than a heading pushed off the left edge of the view.
+pub fn hang_markers(
+    buffer: &gtk::TextBuffer,
+    step: u32,
+    column: typography::Column,
+    advances: [i32; 6],
+    scheme: Scheme,
+) {
+    let side = margin(column.side);
+    for (level, advance) in (1..=6u8).zip(advances) {
+        let (left, indent) = hung(advance, side);
+        let tag = heading(buffer, level);
+        tag.set_left_margin(left);
         tag.set_indent(indent);
-    };
-    for level in 1..=6u8 {
-        hang(&heading(buffer, level), marker_cells(level));
-    }
-    // The same pair, by width instead of by level, for every other marker a
-    // line can open with. A marker's width is not its level or its kind: `1. `
-    // is a cell wider than `- ` at the same depth, `> - ` is a quote's marker
-    // and a bullet's together, and a nested item is wider again by its
-    // indentation, which is why the tag is keyed by the count.
-    for cells in 1..=LIST_CELLS {
-        hang(&list(buffer, cells), f64::from(cells));
     }
     // The well is the same pair read the other way round. A paragraph
     // background fills the line's own box, so the only way to put ground
@@ -406,7 +386,6 @@ fn draw(
             buffer.apply_tag(&underline(buffer, scheme), &from, &to);
         }
     }
-    hang_lines(buffer, document, at);
     for span in document.spans_in(at) {
         if span.at.end <= at.start {
             continue;
@@ -426,128 +405,13 @@ fn draw(
     }
 }
 
-/// Hangs every line that opens with markers, by the width of all of them.
-///
-/// One hang per line rather than one per marker, because a line can open with
-/// more than one: `> - item` is a quote's marker and a bullet's, and its words
-/// land on the prose's edge only when the line hangs by the pair. The width is
-/// therefore read from the line's first byte to the end of its *first*
-/// line-head marker — which takes in a nested item's indentation — and then
-/// each later marker on the line by its own width alone. What the writer set
-/// between two markers is their prose and hangs nothing, the same rule that
-/// leaves the padding of `>      Beans` where they typed it (#102).
-///
-/// A heading keeps its own tag row: its span covers the whole heading rather
-/// than its `#`s, so its hang is read off the level instead, in [`draw`]. Its
-/// line is left alone here, and that is what keeps [`draw`]'s one safety
-/// true — a `> # Title` hung twice would be two tags setting the same two
-/// properties on one line, with tag priority left to decide between them. The
-/// price is that such a line hangs by its `#` alone and its words sit a quote
-/// marker right of the prose; hanging a heading by the run in front of it wants
-/// the two rows folded into one, which is more than a judged round should take.
-///
-/// A marker ending at or before `at` starts is on a line the caller left alone,
-/// and its hang is already on that line: [`Document::spans_in`] reaches back to
-/// the block's first byte, so the skip is the same one [`draw`] makes.
-fn hang_lines(buffer: &gtk::TextBuffer, document: &Document, at: &Range<usize>) {
-    for (_, marker, cells) in hangs(document, document.spans_in(at)) {
-        if marker.at.end <= at.start {
-            continue;
-        }
-        paragraph(buffer, document, marker, &list(buffer, cells));
-    }
-}
-
-/// Which line takes a hang, the marker that places it, and how wide it is.
-///
-/// The choice, with no buffer in it, because the choice is the whole of what
-/// [`hang_lines`] decides: one hang per line, the run of markers the line opens
-/// with is what measures it, and a heading's line is not here at all.
-fn hangs<'a>(document: &Document, spans: &'a [Span]) -> Vec<(usize, &'a Span, u8)> {
-    let headings: HashSet<usize> = spans
-        .iter()
-        .filter(|span| matches!(span.mark, Mark::Heading(_)))
-        .map(|span| document.place(span.at.start).line)
-        .collect();
-    let mut hangs: Vec<(usize, &Span, usize)> = Vec::new();
-    for span in spans.iter().filter(|span| line_head(span.mark)) {
-        let line = document.place(span.at.end).line;
-        if headings.contains(&line) {
-            continue;
-        }
-        // The spans arrive in the order the bytes appear, so a marker on the
-        // line already taken is a later one on it, and it adds its own width
-        // and only that: whatever stands before it that is not a marker is the
-        // writer's, and the first marker's reach already has the indentation.
-        if let Some(last) = hangs.last_mut().filter(|(taken, _, _)| *taken == line) {
-            last.1 = span;
-            last.2 += cells_in(&document.text()[span.at.clone()]);
-        } else {
-            hangs.push((line, span, cells_in(head(document, span.at.end))));
-        }
-    }
-    hangs
-        .into_iter()
-        .map(|(line, marker, cells)| (line, marker, marker_width(cells)))
-        .collect()
-}
-
-/// Whether `mark` is a marker a line can open with.
-fn line_head(mark: Mark) -> bool {
-    matches!(
-        mark,
-        Mark::QuoteMarker | Mark::BulletMarker | Mark::OrderedMarker
-    )
-}
-
-/// The run of line-head markers that ends `end` bytes into `document`.
-///
-/// From the line's first byte rather than from the marker's own start, so that
-/// the markers a line opens with add up: the run a quoted item's bullet ends is
-/// `> - `, and four cells is what puts its words on the prose's edge.
-///
-/// `end` is a span's end and so a byte the engine named: inside the text and on
-/// a character boundary. [`Document::place`] would forgive neither, but a span
-/// that was outside the text it came from is a bug worth the panic.
-fn head(document: &Document, end: usize) -> &str {
-    &document.text()[end - document.place(end).index..end]
-}
-
-/// How many cells the marker run `marker` advances.
-///
-/// Characters rather than bytes, because a cell is a character on the Faces'
-/// grid; a marker is ASCII either way, but the count is what the tag is keyed
-/// by and counting the wrong thing would key it wrong. Unclamped, because a
-/// line's hang is a sum of these and it is the sum a tag is made for.
-fn cells_in(marker: &str) -> usize {
-    let mut cells = 0usize;
-    for character in marker.chars() {
-        // A tab is not one cell: CommonMark advances it to the next stop, and
-        // the engine lets a writer indent a nested item with one. Counting it
-        // as a character would hang a tabbed item short of its own text.
-        cells = if character == '\t' {
-            (cells / TAB_CELLS + 1) * TAB_CELLS
-        } else {
-            cells + 1
-        };
-    }
-    cells
-}
-
-/// A line's `cells` as one of the widths [`hang_markers`] made a tag for.
-fn marker_width(cells: usize) -> u8 {
-    u8::try_from(cells)
-        .unwrap_or(LIST_CELLS)
-        .clamp(1, LIST_CELLS)
-}
-
 /// Puts a paragraph tag on every line `span` touches.
 ///
 /// The property belongs to the line, not to the span: a paragraph property is
-/// read off the tags at the start of the paragraph, and neither a heading's
-/// markers nor a list's bullet is inside the text it governs. A heading and a
-/// marker touch one line each; a fenced block touches all of its own, which is
-/// what puts its ground under every row rather than only the first.
+/// read off the tags at the start of the paragraph, and a heading's markers are
+/// not inside the text they govern. A heading touches one line; a fenced block
+/// touches all of its own, which is what puts its ground under every row rather
+/// than only the first.
 fn paragraph(buffer: &gtk::TextBuffer, document: &Document, span: &Span, tag: &gtk::TextTag) {
     let mut start = buffer.start_iter();
     start.set_line(iter_at(buffer, document, span.at.start).line());
@@ -649,227 +513,60 @@ mod tests {
     /// pixels and whose cell is therefore 12.798.
     const STEP: u32 = 5;
 
-    #[test]
-    fn a_heading_hangs_by_its_markers_and_the_space_after_them() {
-        // Every Face is on a 0.6 em cell (`typography` asserts it), so at the
-        // default step `# ` is two cells of 12.798 px and each further `#` is
-        // another one.
-        for (level, width) in [(1u8, 26), (2, 38), (3, 51), (4, 64), (5, 77), (6, 90)] {
-            assert_eq!(
-                hang(Face::Duo, STEP, marker_cells(level)),
-                width,
-                "a level {level} heading hangs by the wrong width"
-            );
-        }
+    /// The window the judged states are shot in, in logical pixels.
+    const VIEW: u32 = 1440;
+
+    /// The container `face` at `step` lays out in that window.
+    fn container(face: Face, step: u32) -> typography::Column {
+        typography::column(VIEW, typography::cell(face, step))
     }
 
-    #[test]
-    fn a_list_marker_hangs_by_its_own_width_and_not_by_its_depth() {
-        // The widths the engine measures off the line: `- ` is two cells,
-        // `1. ` is three, and `  - ` is a nested bullet at four.
-        for (cells, width) in [(2u8, 26), (3, 38), (4, 51)] {
-            assert_eq!(
-                hang(Face::Duo, STEP, f64::from(cells)),
-                width,
-                "a {cells}-cell marker hangs by the wrong width"
-            );
-        }
-        assert_eq!(
-            hang(Face::Duo, STEP, 2.0),
-            hang(Face::Duo, STEP, marker_cells(1)),
-            "a bullet and a level-1 heading are both two cells, so they hang alike"
-        );
-    }
-
-    #[test]
-    fn a_quotes_marker_hangs_like_every_other_line_head_marker() {
-        // The gap the blind critic named on both markup states: every other
-        // marker hung and the `>` did not, so a quote was the one block whose
-        // first line started two cells right of its own wrapped rows.
-        let document = passage("quoted", "> There are things the sea keeps.\n");
-        assert_eq!(
-            widths(&document),
-            vec![2],
-            "the quote's `> ` is two cells, and its words belong on the prose's edge"
-        );
-    }
-
-    #[test]
-    fn a_lines_hang_is_every_marker_it_opens_with_and_not_the_last_one_alone() {
-        // `> - ` is a quote's marker and a bullet's. Hanging by the bullet
-        // alone would leave the item's words two cells right of the prose, and
-        // hanging the line twice would leave tag priority to choose.
-        let document = passage("quoted_item", "> quoted\n\n> - quoted item\n");
-        assert_eq!(
-            widths(&document),
-            vec![2, 4],
-            "the bullet inside a quote hangs by both markers, not by its own"
-        );
-    }
-
-    #[test]
-    fn a_line_hangs_by_its_own_marker_however_the_writer_padded_it() {
-        // #102's Reproduce passage. Its first line hung by twelve cells and
-        // its last swung the `>` seven into the margin, because a marker span
-        // had run past the marker. The owner's decision on the padding: `>`
-        // and one space is the whole of a quote's marker, and `>      Beans`
-        // is a word the writer set five cells in, not a wider hang.
-        let document = passage(
-            "padded_quote",
-            "> Why hello there \n> Beans\n> Beans\n>      Beans\n",
-        );
-        assert_eq!(
-            widths(&document),
-            vec![2, 2, 2, 2],
-            "no line hangs by more than the run of markers it opens with"
-        );
-    }
-
-    #[test]
-    fn a_space_the_writer_left_between_two_markers_hangs_nothing() {
-        // #102 one line further in. The markers are `> ` and `> `, four cells;
-        // the spaces at bytes 2 and 5 are the writer's, and are painted in
-        // their ink. Measuring from the line's first byte to the last marker's
-        // end hangs them too, and the line takes a cell it has no marker for.
-        let document = passage("spaced_markers", ">  >  Beans\n");
-        assert_eq!(
-            widths(&document),
-            vec![4],
-            "a line hangs by the markers it opens with and by the indentation \
-             before them, never by what the writer set between them"
-        );
-    }
-
-    #[test]
-    fn a_quote_line_ending_in_a_space_hangs_exactly_as_one_that_does_not() {
-        let spaced = passage("spaced_quote", "> one \n> two \n> three \n");
-        let plain = passage("plain_quote", "> one\n> two\n> three\n");
-        assert_eq!(
-            widths(&spaced),
-            widths(&plain),
-            "#102: the space joined its line to the next, and the next took \
-             the first one's measurement"
-        );
-        assert_eq!(
-            lines(&spaced),
-            lines(&plain),
-            "and every line of the quote hangs, not every other one"
-        );
-    }
-
-    #[test]
-    fn a_quoted_heading_is_hung_once_and_by_its_heading_tag() {
-        // Two paragraph tags on one line would both set the left margin and
-        // the indent, and tag priority rather than the code would pick the
-        // hang. The heading's own row wins the line, so the quote's marker
-        // asks for nothing on it.
-        let document = passage("quoted_heading", "> ### Title\n");
-        assert_eq!(
-            lines(&document),
-            Vec::<usize>::new(),
-            "a heading's line is hung in `draw`, not here"
-        );
-        let document = passage("plain_heading", "### Title\n\n> quoted\n");
-        assert_eq!(
-            lines(&document),
-            vec![2],
-            "and a quote that is not on a heading's line still hangs"
-        );
-    }
-
-    /// The lines [`hangs`] gives a hang to, in order.
-    fn lines(document: &Document) -> Vec<usize> {
-        hangs(document, document.spans_in(&(0..document.text().len())))
-            .into_iter()
-            .map(|(line, _, _)| line)
-            .collect()
-    }
-
-    /// A Document holding `text`, the only way to build one outside the engine.
+    /// The marker runs a level 1 to 6 heading opens with, as the layout may
+    /// advance them: `hinted` to a whole cell each, or off the true cell.
     ///
-    /// Named for the process as well as the passage: this repo is worked in
-    /// several worktrees at once, and two of them testing together would
-    /// otherwise write and read one file.
-    fn passage(stem: &str, text: &str) -> Document {
-        let path =
-            std::env::temp_dir().join(format!("quill-tags-{stem}-{}.md", std::process::id()));
-        std::fs::write(&path, text).expect("writes to the temp directory");
-        Document::open(&path).expect("reads the passage just written")
-    }
-
-    /// The hang, in cells, each hung line of `document` takes.
-    ///
-    /// What [`hang_lines`] reads off [`hangs`] before it asks for the tag; the
-    /// tag itself needs a buffer, and a buffer needs a display.
-    fn widths(document: &Document) -> Vec<u8> {
-        hangs(document, document.spans_in(&(0..document.text().len())))
-            .into_iter()
-            .map(|(_, _, cells)| cells)
-            .collect()
-    }
-
-    #[test]
-    fn a_list_items_words_land_on_the_prose_margin_whatever_its_marker_is() {
-        let side = 240;
-        for cells in 1..=LIST_CELLS {
-            let (margin, indent) = hung(Face::Duo, STEP, f64::from(cells), side);
-            assert_eq!(
-                margin - indent,
-                side,
-                "a {cells}-cell item's text must start at the same x as the prose"
-            );
-            assert!(
-                margin < side,
-                "and its marker must sit left of that, out in the margin"
-            );
-        }
-    }
-
-    #[test]
-    fn the_hang_grows_with_the_type_it_is_set_in() {
-        // Every rung of the ladder, because the ladder is measurement rather
-        // than a multiple: the em from step to step grows by anything from
-        // 0.75 px to 6.17, and only the direction is a rule.
-        for step in quill_engine::settings::type_steps().skip(1) {
-            let small = hang(Face::Duo, step - 1, marker_cells(1));
-            let large = hang(Face::Duo, step, marker_cells(1));
-            assert!(
-                small < large,
-                "the marker is measured in cells, so it must move with the type: \
-                 step {} hangs by {small} and step {step} by {large}",
-                step - 1
-            );
-        }
-    }
-
-    #[test]
-    fn every_face_hangs_a_heading_by_the_same_width() {
-        for face in [Face::Duo, Face::Quattro, Face::Mono] {
-            assert_eq!(
-                hang(face, STEP, marker_cells(1)),
-                hang(Face::Duo, STEP, marker_cells(1)),
-                "{face:?} is cut to the same cell grid as the others"
-            );
-        }
+    /// Both are real, which is the reason [`hung`] is handed a width rather
+    /// than working one out. A `--deterministic` launch pins metric hinting on
+    /// and a writer's own launch takes the desktop's answer, so at the default
+    /// step the same six runs advance 13 px a cell in a judged shot and 12.798
+    /// in the app — and `Editor::marker_advance` measures which it is.
+    fn advances(hinted: bool) -> [i32; 6] {
+        let cell = typography::cell(Face::Duo, STEP);
+        std::array::from_fn(|level| {
+            let cells = level as f64 + 2.0;
+            pixels(if hinted {
+                cell.round() * cells
+            } else {
+                cell * cells
+            })
+        })
     }
 
     #[test]
     fn the_first_row_hangs_by_exactly_what_the_wrapped_rows_get_back() {
         // Pango puts the first row at the tag's own left margin and every row
-        // after it at margin + |indent|, which must be the prose's margin.
-        let side = 240;
-        for level in 1..=6u8 {
-            let (margin, indent) = hung(Face::Duo, STEP, marker_cells(level), side);
-            assert_eq!(
-                margin,
-                side - hang(Face::Duo, STEP, marker_cells(level)),
-                "a level {level} heading starts one marker left of the prose"
-            );
-            assert_eq!(
-                margin - indent,
-                side,
-                "a wrapped row of a level {level} heading must land on the prose margin"
-            );
+        // after it at margin + |indent|, which must be the prose's margin —
+        // and puts the first row's own words at margin + the advance, which
+        // must be the same. Round 10 was lost on the second of those: the
+        // hang was `level + 1` of a cell the glyphs were not being advanced
+        // by, so `# ` and `## ` started their words on one column and the
+        // deeper four on another, two device pixels over. Whatever the layout
+        // advances, the pair has to give back exactly what it took, so both
+        // ladders are held to it here.
+        let side = margin(container(Face::Duo, STEP).side);
+        for hinted in [true, false] {
+            for (level, advance) in (1..=6u8).zip(advances(hinted)) {
+                let (left, indent) = hung(advance, side);
+                assert_eq!(
+                    left + advance,
+                    side,
+                    "hinted {hinted}: a level {level} heading's words start off the body column"
+                );
+                assert_eq!(
+                    left - indent,
+                    side,
+                    "hinted {hinted}: a wrapped row of a level {level} heading must land on the prose margin"
+                );
+            }
         }
     }
 
@@ -888,21 +585,6 @@ mod tests {
             (side - edge) + edge,
             side,
             "and the indent has to put the code itself back on the prose's edge"
-        );
-    }
-
-    #[test]
-    fn a_tab_indented_item_hangs_by_the_stop_it_reaches_not_by_one_cell() {
-        assert_eq!(
-            cells_in("-\t"),
-            4,
-            "`-` then a tab reaches the stop at four, which is where the word starts"
-        );
-        assert_eq!(cells_in("- "), 2, "and a space is still one cell");
-        assert_eq!(
-            cells_in("\t- "),
-            6,
-            "a tab-nested item hangs by the stop plus its own bullet"
         );
     }
 
@@ -931,15 +613,23 @@ mod tests {
 
     #[test]
     fn a_window_too_narrow_to_hang_the_marker_keeps_its_gutter() {
+        // The container barely asks for this — [`typography::column`] holds
+        // the gutter at seven cells and gives up measure instead, so a marker
+        // run has the whole gutter to hang in. The clamp is the guard for the
+        // window that is narrower than the gutter itself, and it must leave
+        // the two rows agreeing even there. The heading's words go off the
+        // column when it bites, which is the right way round: a window that
+        // narrow has no column left to speak of.
         let side = 4;
+        let width = advances(true)[5];
         assert!(
-            hang(Face::Duo, STEP, marker_cells(6)) > side,
+            width > side,
             "this is the narrow case, or it proves nothing"
         );
-        let (margin, indent) = hung(Face::Duo, STEP, marker_cells(6), side);
-        assert_eq!(margin, 0, "the left margin of a tag cannot go below zero");
+        let (left, indent) = hung(width, side);
+        assert_eq!(left, 0, "the left margin of a tag cannot go below zero");
         assert_eq!(
-            margin - indent,
+            left - indent,
             side,
             "the rows still agree: what the first row gives up, the rest get back"
         );
