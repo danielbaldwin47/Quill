@@ -1,12 +1,13 @@
-//! Focus: which bytes are bright, which are near, and which are dim.
+//! Focus: which bytes are bright and which are dim.
 //!
-//! Focus dims everything the writer is not in. There are three tiers, not two:
-//! the **bright** tier is the sentence — or the paragraph — the caret is in, the
-//! **near** tier is the sentence either side of it, and everything else is
-//! **dim**. The near tier is the refinement [ADR 0006] keeps: iA drops the
-//! neighbouring sentences to the same grey as text three paragraphs away, and
-//! the one thing writers complain about is losing the sentence they were
-//! building on.
+//! Focus dims everything the writer is not in. There are two tiers: the
+//! **bright** tier is the sentence — or the paragraph — the caret is in, and
+//! everything else is **dim**. There is one dim tier per ground and both scopes
+//! share it (`docs/design.md` § Dim tiers). The near tier this module was
+//! written with — the sentence either side, a step above dim — is withdrawn by
+//! [ADR 0015]: it was invented for the JavaScript app, the Design oracle has
+//! nothing like it, and against `mac-native` it reads as blur rather than as a
+//! thought held open. [ADR 0006]'s status note carries the narrowing.
 //!
 //! This module is the whole of Focus that can be computed without a window
 //! (#112). From a Document, where the caret is and how much to light, it hands
@@ -23,10 +24,12 @@
 //!   starts a fresh paragraph at every list item and every quote line, so a list
 //!   is one paragraph per item there and one paragraph here. #113 judges the
 //!   shots that would show it.
-//! - **The near tier stops at the block's edges** — `focus.js:147-160` searches
-//!   inside `paragraphBounds` only, and this searches inside the block's lines.
-//!   The parent spec (#40) said otherwise; the oracle is right and this is the
-//!   correction.
+//! - **A caret on a blank line lights the sentence above it**, brightly. The
+//!   oracle held that sentence one tier down (`focus.js:135-141`), and with the
+//!   near tier gone the choice is between the writer's last thought and the
+//!   whole page going grey on every Enter. The rule was there to stop the page
+//!   blacking out behind a new thought, so it keeps the tier that still says
+//!   that.
 //!
 //! Focus is on the keystroke path (#41), so the cost has to be flat in the size
 //! of the Document. [`tiers`] reads the caret's block and, for the blank-line
@@ -54,16 +57,29 @@ pub enum Focus {
     On(FocusScope),
 }
 
-/// The bytes Focus lights, in the two tiers above dim.
+/// Which of the two tiers a stretch of bytes is in.
 ///
-/// Everything the two lists leave out is dim, which is why there is no third
-/// list: dim is the page, and these are the holes cut in it.
+/// The flattening resolves this against a Markup mark to reach one colour
+/// ([`crate::annotate::colour`]), which is the whole of what Focus does to the
+/// page.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Hash)]
+pub enum Tier {
+    /// What Focus lights: drawn as it would be with Focus off. Usually what the
+    /// writer is in, though on a blank line it is the thought behind them.
+    #[default]
+    Bright,
+    /// Everything else, drawn in the ground's dimmed grey.
+    Dim,
+}
+
+/// The bytes Focus lights.
+///
+/// Everything the list leaves out is dim, which is why there is no second list:
+/// dim is the page, and these are the holes cut in it.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Tiers {
     /// The bright ranges. Absolute UTF-8 bytes from the start of the Document.
     pub bright: Vec<Range<usize>>,
-    /// The near ranges. Absolute UTF-8 bytes from the start of the Document.
-    pub near: Vec<Range<usize>>,
 }
 
 /// One line's share of the [`Tiers`].
@@ -71,7 +87,7 @@ pub struct Tiers {
 pub struct LineTiers {
     /// The line, counted from 0.
     pub line: usize,
-    /// The bytes of that line in each tier, clipped to it.
+    /// The bytes of that line Focus lights, clipped to it.
     pub tiers: Tiers,
 }
 
@@ -82,9 +98,10 @@ pub struct LineTiers {
 /// span on its own (`focus.js:128-134`). While you are marking a phrase, the
 /// phrase is what you are working on.
 ///
-/// A caret on a blank line lights nothing and keeps the last sentence of the
-/// block above it near (`focus.js:135-141`), which is what the writer sees on
-/// every Enter with Focus on: the page does not black out behind a new thought.
+/// A caret on a blank line lights the last sentence of the block above it
+/// (`focus.js:135-141` holds it one tier down, which there is no longer), so
+/// that on every Enter with Focus on the page does not black out behind a new
+/// thought.
 #[must_use]
 pub fn tiers(doc: &Document, at: &Range<usize>, focus: Focus) -> Tiers {
     let Focus::On(scope) = focus else {
@@ -107,15 +124,11 @@ pub fn tiers(doc: &Document, at: &Range<usize>, focus: Focus) -> Tiers {
         } else {
             only(body)
         };
-        return Tiers {
-            bright,
-            near: Vec::new(),
-        };
+        return Tiers { bright };
     }
     if at.end > at.start {
         return Tiers {
             bright: only(caret..at.end.min(text.len())),
-            near: Vec::new(),
         };
     }
 
@@ -123,52 +136,16 @@ pub fn tiers(doc: &Document, at: &Range<usize>, focus: Focus) -> Tiers {
     let here = content(doc, line);
     if text[here.clone()].trim().is_empty() {
         return Tiers {
-            bright: Vec::new(),
-            near: behind(doc, line),
+            bright: behind(doc, line),
         };
     }
 
     let spans = sentences(&text[here.clone()]);
     let index = caret.saturating_sub(here.start).min(here.end - here.start);
     let this = sentence_at(&spans, index);
-    let bright = only(here.start + spans[this].start..here.start + spans[this].end);
-
-    // The near tier never leaves the block: the sentence before the first one of
-    // a paragraph is in another thought, not a neighbouring one.
-    let first = doc.place(body.start).line;
-    let last = doc.place(last_byte(&body)).line;
-    let mut near = Vec::new();
-    if this > 0 {
-        near.push(here.start + spans[this - 1].start..here.start + spans[this - 1].end);
-    } else {
-        for above in (first..line).rev() {
-            let at = content(doc, above);
-            if at.is_empty() {
-                continue;
-            }
-            let begins = sentences(&text[at.clone()])
-                .last()
-                .map_or(0, |span| span.start);
-            near.push(at.start + begins..at.end);
-            break;
-        }
+    Tiers {
+        bright: only(here.start + spans[this].start..here.start + spans[this].end),
     }
-    if this + 1 < spans.len() {
-        near.push(here.start + spans[this + 1].start..here.start + spans[this + 1].end);
-    } else {
-        for below in (line + 1)..=last {
-            let at = content(doc, below);
-            if at.is_empty() {
-                continue;
-            }
-            let ends = sentences(&text[at.clone()])
-                .first()
-                .map_or(0, |span| span.end);
-            near.push(at.start..at.start + ends);
-            break;
-        }
-    }
-    Tiers { bright, near }
 }
 
 /// [`Tiers`] split at the Document's line starts, ascending by line.
@@ -183,21 +160,14 @@ pub fn tiers(doc: &Document, at: &Range<usize>, focus: Focus) -> Tiers {
 #[must_use]
 pub fn tiers_by_line(doc: &Document, tiers: &Tiers) -> Vec<LineTiers> {
     let mut lines: BTreeMap<usize, Tiers> = BTreeMap::new();
-    for (ranges, bright) in [(&tiers.bright, true), (&tiers.near, false)] {
-        for at in ranges {
-            for line in doc.place(at.start).line..=doc.place(last_byte(at)).line {
-                let on = content(doc, line);
-                let clipped = at.start.max(on.start)..at.end.min(on.end);
-                if clipped.start >= clipped.end {
-                    continue;
-                }
-                let tiers = lines.entry(line).or_default();
-                if bright {
-                    tiers.bright.push(clipped);
-                } else {
-                    tiers.near.push(clipped);
-                }
+    for at in &tiers.bright {
+        for line in doc.place(at.start).line..=doc.place(last_byte(at)).line {
+            let on = content(doc, line);
+            let clipped = at.start.max(on.start)..at.end.min(on.end);
+            if clipped.start >= clipped.end {
+                continue;
             }
+            lines.entry(line).or_default().bright.push(clipped);
         }
     }
     lines
@@ -485,14 +455,15 @@ mod tests {
             .collect::<Vec<_>>()
     }
 
-    /// What a Document shows under `focus`, as `(bright, near)` source text.
-    fn lit(doc: &Document, at: Range<usize>, focus: Focus) -> (Vec<&str>, Vec<&str>) {
-        let tiers = tiers(doc, &at, focus);
+    /// What a Document lights under `focus`, as source text. Everything it
+    /// leaves out is dim.
+    fn lit(doc: &Document, at: Range<usize>, focus: Focus) -> Vec<&str> {
         let text = doc.text();
-        (
-            tiers.bright.iter().map(|at| &text[at.clone()]).collect(),
-            tiers.near.iter().map(|at| &text[at.clone()]).collect(),
-        )
+        tiers(doc, &at, focus)
+            .bright
+            .iter()
+            .map(|at| &text[at.clone()])
+            .collect()
     }
 
     /// The shared test passage, which the judged states are shot against.
@@ -618,34 +589,28 @@ mod tests {
     }
 
     #[test]
-    fn the_judged_caret_lights_its_sentence_and_the_one_after_it() {
+    fn the_judged_caret_lights_its_sentence_and_dims_the_one_after_it() {
         let doc = passage();
-        let (bright, near) = lit(&doc, 403..403, Focus::On(FocusScope::Sentence));
         assert_eq!(
-            bright,
+            lit(&doc, 403..403, Focus::On(FocusScope::Sentence)),
             [
                 "She went down the spiral stair, counting the steps the way she always did, and found the coat on its hook and the lantern beside it. "
             ],
-            "the caret is in the paragraph's first sentence"
-        );
-        assert_eq!(
-            near,
-            ["The door took both hands to open. "],
-            "the sentence before it is in another paragraph, so only the one after is near"
+            "the caret is in the paragraph's first sentence, and it is the only one lit"
         );
         assert_eq!(
             tiers(&doc, &(403..403), Focus::On(FocusScope::Sentence)),
             Tiers {
                 bright: only(353..486),
-                near: only(486..520),
-            }
+            },
+            "the sentence after it, 486..520, is dim with everything else"
         );
     }
 
     #[test]
-    fn the_judged_caret_lights_its_whole_paragraph_with_nothing_near() {
+    fn the_judged_caret_lights_its_whole_paragraph() {
         let doc = passage();
-        let (bright, near) = lit(&doc, 403..403, Focus::On(FocusScope::Paragraph));
+        let bright = lit(&doc, 403..403, Focus::On(FocusScope::Paragraph));
         assert_eq!(bright.len(), 1, "one paragraph is one bright range");
         assert!(
             bright[0].starts_with("She went down the spiral stair,")
@@ -653,64 +618,50 @@ mod tests {
             "the whole paragraph is lit, end to end: {:?}",
             bright[0]
         );
-        assert!(
-            near.is_empty(),
-            "Paragraph scope has no near tier, so the two scopes feel distinct"
-        );
         assert_eq!(
             tiers(&doc, &(403..403), Focus::On(FocusScope::Paragraph)),
             Tiers {
                 bright: only(353..568),
-                near: Vec::new(),
             }
         );
     }
 
+    /// The two shapes the withdrawn near tier used to tell apart: a neighbour in
+    /// another block and a neighbour in this one. One dim tier answers both the
+    /// same way, which is the whole of what [ADR 0015] narrowed.
     #[test]
-    fn the_near_tier_stops_at_the_blocks_edges() {
-        let doc = document("First thought here.\n\nSecond thought here.\n\nThird thought here.\n");
-        let (bright, near) = lit(&doc, 25..25, Focus::On(FocusScope::Sentence));
-        assert_eq!(bright, ["Second thought here."]);
-        assert!(
-            near.is_empty(),
-            "the sentences either side are in other paragraphs, which are dim: {near:?}"
-        );
-    }
-
-    #[test]
-    fn the_near_tier_reaches_the_line_above_inside_one_block() {
-        let doc = document("A first line here.\nA second line here.\n\nAnother block.\n");
-        let (bright, near) = lit(&doc, 25..25, Focus::On(FocusScope::Sentence));
-        assert_eq!(bright, ["A second line here."]);
+    fn only_the_carets_own_sentence_is_lit_wherever_its_neighbours_sit() {
+        let across =
+            document("First thought here.\n\nSecond thought here.\n\nThird thought here.\n");
         assert_eq!(
-            near,
-            ["A first line here."],
-            "the two lines are one paragraph, so the line above is a neighbouring sentence"
+            lit(&across, 25..25, Focus::On(FocusScope::Sentence)),
+            ["Second thought here."],
+            "the sentences either side are in other blocks, and dim"
+        );
+
+        let within = document("A first line here.\nA second line here.\n\nAnother block.\n");
+        assert_eq!(
+            lit(&within, 25..25, Focus::On(FocusScope::Sentence)),
+            ["A second line here."],
+            "the line above is in this block, and dim just the same"
         );
     }
 
     #[test]
     fn a_live_selection_is_the_bright_span() {
         let doc = passage();
-        let (bright, near) = lit(&doc, 353..372, Focus::On(FocusScope::Sentence));
         assert_eq!(
-            bright,
+            lit(&doc, 353..372, Focus::On(FocusScope::Sentence)),
             ["She went down the s"],
             "while you are marking a phrase, the phrase is what you are working on"
         );
-        assert!(near.is_empty(), "a selection has no neighbours: {near:?}");
     }
 
     #[test]
-    fn a_caret_on_a_blank_line_lights_nothing_and_keeps_the_sentence_above_near() {
+    fn a_caret_on_a_blank_line_lights_the_sentence_above_it() {
         let doc = document("One thought. And then another one.\n\nNext.\n");
-        let (bright, near) = lit(&doc, 35..35, Focus::On(FocusScope::Sentence));
-        assert!(
-            bright.is_empty(),
-            "nothing is active on a blank line: {bright:?}"
-        );
         assert_eq!(
-            near,
+            lit(&doc, 35..35, Focus::On(FocusScope::Sentence)),
             ["And then another one."],
             "the page does not black out behind a new thought"
         );
@@ -719,11 +670,9 @@ mod tests {
     #[test]
     fn a_caret_two_blank_lines_below_a_thought_leaves_it_dim() {
         let doc = document("One thought here.\n\n\n\nFar below.\n");
-        let (bright, near) = lit(&doc, 20..20, Focus::On(FocusScope::Sentence));
-        assert!(bright.is_empty(), "{bright:?}");
         assert!(
-            near.is_empty(),
-            "two blank lines back is far enough to go dim with everything else: {near:?}"
+            lit(&doc, 20..20, Focus::On(FocusScope::Sentence)).is_empty(),
+            "two blank lines back is far enough to go dim with everything else"
         );
     }
 
@@ -754,7 +703,7 @@ mod tests {
         );
         for on in &by_line {
             let line = content(&doc, on.line);
-            for at in on.tiers.bright.iter().chain(&on.tiers.near) {
+            for at in &on.tiers.bright {
                 assert!(
                     at.start >= line.start && at.end <= line.end,
                     "line {} has {at:?}, which leaves {line:?}",
@@ -781,7 +730,7 @@ mod tests {
     }
 
     #[test]
-    fn tiers_by_line_keeps_both_tiers_of_a_line_apart() {
+    fn tiers_by_line_lights_one_sentence_of_a_line_of_three() {
         let doc = document("One thought. And then another one. And a third.\n");
         let tiers = tiers(&doc, &(15..15), Focus::On(FocusScope::Sentence));
         let text = doc.text();
@@ -794,17 +743,8 @@ mod tests {
                 .iter()
                 .map(|at| &text[at.clone()])
                 .collect::<Vec<_>>(),
-            ["And then another one. "]
-        );
-        assert_eq!(
-            by_line[0]
-                .tiers
-                .near
-                .iter()
-                .map(|at| &text[at.clone()])
-                .collect::<Vec<_>>(),
-            ["One thought. ", "And a third."],
-            "the sentence either side of the caret's is near"
+            ["And then another one. "],
+            "the sentences either side of the caret's are dim, so the line has one hole in it"
         );
     }
 
@@ -861,7 +801,7 @@ mod tests {
                 "a caret at {caret} read {read:?}, which leaves the block {here:?} and the one before it"
             );
             let tiers = tiers(&doc, &(caret..caret), focus);
-            for at in tiers.bright.iter().chain(&tiers.near) {
+            for at in &tiers.bright {
                 assert!(
                     at.start >= read.start && at.end <= read.end,
                     "a caret at {caret} lit {at:?}, which it never read"
@@ -886,7 +826,7 @@ mod tests {
                     continue;
                 }
                 let tiers = tiers(&doc, &(caret..caret), Focus::On(scope));
-                for at in tiers.bright.iter().chain(&tiers.near) {
+                for at in &tiers.bright {
                     assert!(
                         at.start < at.end && at.end <= text.len(),
                         "a caret at {caret} in {scope:?} scope lit {at:?}"

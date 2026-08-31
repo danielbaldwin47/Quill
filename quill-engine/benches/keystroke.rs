@@ -14,10 +14,14 @@
 //! number that needs one.
 
 use std::hint::black_box;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
+use quill_engine::annotate::{markup, paint};
 use quill_engine::document::Document;
+use quill_engine::focus::{Focus, tiers, tiers_by_line};
+use quill_engine::settings::FocusScope;
+use quill_engine::theme::{Colours, Scheme};
 
 /// How many keystrokes each measurement is the middle of.
 const KEYS: usize = 200;
@@ -67,8 +71,64 @@ fn main() {
                 micros(each.iter().sum::<Duration>() / u32::try_from(each.len()).unwrap_or(1)),
             );
         }
+        focus_flatten(words, &path);
         std::fs::remove_file(&path).ok();
     }
+}
+
+/// What Focus costs on top: the tiers for a caret, and the flattening painted
+/// over them.
+///
+/// The second thing on the keystroke path that has to stay flat across Document
+/// size, and it runs on every caret move as well as every key, so #117 has a
+/// before number for it. [`tiers`] reads the caret's block alone and is flat by
+/// construction; [`paint`] here paints the **whole** Document, which is the
+/// pessimal shape and not the one the Editor will use — #113 paints the lines
+/// it is showing. The gap between the two sizes is therefore the number to
+/// read: it says what painting the whole page would cost if the Editor ever did.
+///
+/// [`tiers`]: quill_engine::focus::tiers
+/// [`paint`]: quill_engine::annotate::paint
+fn focus_flatten(words: usize, path: &Path) {
+    let doc = Document::open(path).expect("the bench writes its own Document");
+    let text = doc.text();
+    let (bytes, spans) = (text.len(), markup(text));
+    let colours = Colours::of(Scheme::Light);
+    let focus = Focus::On(FocusScope::Sentence);
+
+    // A caret that keeps moving, because a caret that sits still would measure
+    // one set of tiers over and over and the writer's never does.
+    let mut caret = bytes / 2;
+    let step = |caret: &mut usize| {
+        *caret = if *caret + 1 >= bytes {
+            bytes / 2
+        } else {
+            *caret + 1
+        };
+        *caret
+    };
+    for _ in 0..KEYS {
+        let at = step(&mut caret);
+        black_box(tiers_by_line(&doc, &tiers(&doc, &(at..at), focus)));
+    }
+
+    let mut each = Vec::with_capacity(KEYS);
+    for _ in 0..KEYS {
+        let at = step(&mut caret);
+        let started = Instant::now();
+        let by_line = tiers_by_line(&doc, &tiers(&doc, &(at..at), focus));
+        black_box(paint(&spans, bytes, &by_line, focus, &colours));
+        each.push(started.elapsed());
+    }
+    each.sort_unstable();
+
+    println!(
+        "  {words:>6} words ({bytes:>7} bytes), Focus sentence, whole page: \
+         median {:>7.1} µs, worst {:>7.1} µs, mean {:>7.1} µs",
+        micros(each[each.len() / 2]),
+        micros(each[each.len() - 1]),
+        micros(each.iter().sum::<Duration>() / u32::try_from(each.len()).unwrap_or(1)),
+    );
 }
 
 /// Writes a Document of about `words` words, and says where it landed.

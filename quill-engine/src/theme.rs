@@ -12,9 +12,9 @@
 //! Nothing here paints. The engine cannot see a display
 //! ([ADR 0008](../../../docs/adr/0008-engine-crate-without-gtk.md)), so a role
 //! resolves to a [`Colour`] and the app turns that into the widget stylesheet
-//! and the tag table. Colours that are a step off another colour — Focus's near
-//! tier, the resting marker grey — are computed here from [`Colour::lift`] and
-//! [`Colour::over`] rather than written down twice.
+//! and the tag table. A colour that is a step off another colour — the resting
+//! marker grey — is computed here from [`Colour::over`] rather than written
+//! down twice.
 
 use crate::settings::{Choice, Theme, choice};
 
@@ -106,28 +106,6 @@ impl Colour {
             green: mix(fg.green, bg.green, amount),
             blue: mix(fg.blue, bg.blue, amount),
             alpha: bg.alpha,
-        }
-    }
-
-    /// `from` moved `amount` of the way toward `toward`.
-    ///
-    /// The oracle's `color-mix(in srgb, …)` (`legacy/app/css/focus.css:28`) in
-    /// one function. Focus's near tier is the ground's dimmed grey lifted
-    /// [`near_lift`] of the way back toward its ink, so the tier is computed
-    /// from the two greys rather than being a third grey to keep in step.
-    ///
-    /// It is the same three mixes as [`Colour::over`] and stays a second
-    /// function because the two answer different questions: `over` puts an
-    /// opacity on a role and reads the ground's back, while this carries both
-    /// ends' opacity through, being a step along a line rather than a
-    /// compositing.
-    #[must_use]
-    pub const fn lift(from: Self, toward: Self, amount: f64) -> Self {
-        Self {
-            red: mix(toward.red, from.red, amount),
-            green: mix(toward.green, from.green, amount),
-            blue: mix(toward.blue, from.blue, amount),
-            alpha: mix(toward.alpha, from.alpha, amount),
         }
     }
 
@@ -323,20 +301,6 @@ impl Colours {
     }
 }
 
-/// How far Focus's near tier climbs from the ground's dimmed grey back toward
-/// its ink.
-///
-/// `legacy/app/css/focus.css:18` and `:21`. The dark ground needs the longer
-/// climb because a dark ground crushes low-contrast detail, so the same step
-/// reads as less of one.
-#[must_use]
-pub const fn near_lift(scheme: Scheme) -> f64 {
-    match scheme {
-        Scheme::Light => 0.15,
-        Scheme::Dark => 0.26,
-    }
-}
-
 /// The ground to paint.
 ///
 /// The flag wins, then the setting; `Auto` takes the desktop's answer, or, when
@@ -507,17 +471,7 @@ mod tests {
     }
 
     #[test]
-    fn the_near_tier_and_the_resting_marker_are_computed_rather_than_written() {
-        for (scheme, ink_near) in [(Scheme::Light, "#b2b2b2"), (Scheme::Dark, "#888888")] {
-            let colours = Colours::of(scheme);
-            let near = Colour::lift(
-                colours.colour(Role::InkDim),
-                colours.colour(Role::Ink),
-                near_lift(scheme),
-            );
-            assert_eq!(hex(near), ink_near, "{scheme:?} ink-near");
-        }
-
+    fn the_resting_marker_grey_is_computed_rather_than_written() {
         let light = Colours::of(Scheme::Light);
         let resting = Colour::over(light.colour(Role::Mark), light.colour(Role::Paper), 0.72);
         assert_eq!(hex(resting), "#9e9e9e", "the resting marker grey");

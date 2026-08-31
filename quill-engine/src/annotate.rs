@@ -16,9 +16,16 @@
 //! A span covers its whole construct — `**bold**` including both pairs of
 //! asterisks — and the markers are spanned over the top of it. Nesting is
 //! therefore ordinary: a span inside another span is resolved after it, and
-//! [`flatten`] hands the app runs that no longer overlap at all. #40 (Focus &
-//! typewriter) and #28 (Syntax highlight) each add a tier by adding an arm to
-//! [`resolve`]; nothing else about the shape moves.
+//! [`flatten`] hands the app runs that no longer overlap at all.
+//!
+//! Markup is one tier and Focus is the second. They compose in [`paint`]: the
+//! Markup runs are cut at Focus's tier boundaries and each piece's `(mark,
+//! tier)` is resolved to one colour by [`colour`]. Focus is the tier that ends
+//! the resolving — a role cannot say "dim", because dim is a colour of the
+//! ground's and not a part a mark plays — so [`paint`] hands back [`Painted`]
+//! runs where [`flatten`] hands back [`Run`]s. #28 (Syntax highlight) is the
+//! third tier and still adds an arm to [`resolve`]; nothing else about the
+//! shape moves.
 //!
 //! All offsets are UTF-8 bytes from the start of the Document, because that is
 //! what the parser emits.
@@ -27,7 +34,9 @@ use std::ops::Range;
 
 use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Tag};
 
+use crate::focus::{Focus, LineTiers, Tier};
 use crate::markdown;
+use crate::theme::{Colour, Colours, Role};
 
 /// What an Annotator says a range of bytes is.
 ///
@@ -137,6 +146,22 @@ pub enum Ink {
     Link,
 }
 
+impl Ink {
+    /// The palette role this ink is.
+    ///
+    /// The one place the flattening's three inks meet [`Colours`]. It is a
+    /// mapping and not a merge because the palette answers for the whole app —
+    /// chrome, rules, grounds — and the flattening only ever draws text.
+    #[must_use]
+    pub const fn role(self) -> Role {
+        match self {
+            Self::Prose => Role::Ink,
+            Self::Marker => Role::Mark,
+            Self::Link => Role::Link,
+        }
+    }
+}
+
 /// The weight a run is set at, on the Faces' variable axis.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum Weight {
@@ -174,9 +199,10 @@ pub enum Ground {
 pub struct Look {
     /// The colour of the text, as a role.
     pub ink: Ink,
-    /// How opaque that colour is, 0 to 255. One value until #40 dims what is
-    /// out of focus; the key is written for it now, so that the table does not
-    /// have to be re-keyed then.
+    /// How opaque that colour is, 0 to 255. One value: Focus turned out to dim
+    /// by moving to another colour of the palette rather than by thinning this
+    /// one ([`paint`]), so the key is spare rather than spoken for, and
+    /// [`paint`] folds it into the colour's own opacity.
     pub alpha: u8,
     /// The weight the run is set at.
     pub weight: Weight,
@@ -227,6 +253,63 @@ pub struct Run {
     pub at: Range<usize>,
     /// How those bytes are drawn.
     pub look: Look,
+}
+
+/// How a run is drawn, with nothing left to resolve.
+///
+/// [`Look`] names an ink as a role because Markup alone cannot know which
+/// ground it is on. Focus can: the dim tier is a colour of the palette's rather
+/// than a role of Markup's, and no role survives it — a dim marker, a dim link
+/// and dim prose are the one grey (`legacy/app/css/focus.css:31-40`). So the
+/// tiered flattening resolves the last of it and hands the app a colour, which
+/// is what `docs/architecture.md` § Annotators means by runs carrying "one
+/// precomputed colour and alpha each".
+///
+/// The four travel together — they are one tag's worth of drawing — so they are
+/// one value, and two runs are the same run when their [`Paint`]s are equal.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Paint {
+    /// The colour the text is drawn in, opacity and all.
+    pub colour: Colour,
+    /// The weight the run is set at.
+    pub weight: Weight,
+    /// Whether the run is slanted.
+    pub slant: Slant,
+    /// What the run is drawn on.
+    pub ground: Ground,
+}
+
+impl Paint {
+    /// What `look` draws as in `tier`, on the ground `colours` is.
+    fn of(look: Look, tier: Tier, colours: &Colours) -> Self {
+        let mut colour = colour(look.ink, tier, colours);
+        colour.alpha *= f64::from(look.alpha) / f64::from(Look::OPAQUE);
+        Self {
+            colour,
+            weight: look.weight,
+            slant: look.slant,
+            // Out of focus a code span keeps its glyphs and loses its box:
+            // `focus.css:42-43` sets the background transparent, so that the
+            // dim is one flat grey rather than a row of lit panels.
+            ground: match tier {
+                Tier::Bright => look.ground,
+                Tier::Dim => Ground::Page,
+            },
+        }
+    }
+}
+
+/// A stretch of a Document, and how it is drawn.
+///
+/// What [`flatten`] hands back once Focus has had its say: [`Run`] is a range
+/// and a [`Look`] with a role still in it, and this is a range and a [`Paint`]
+/// with nothing still in it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Painted {
+    /// Absolute UTF-8 bytes from the start of the Document.
+    pub at: Range<usize>,
+    /// How those bytes are drawn.
+    pub paint: Paint,
 }
 
 /// The Markup spans of `text`, in the order the bytes appear.
@@ -359,6 +442,138 @@ fn resolve(mark: Mark, under: Look) -> Look {
             ..under
         },
     }
+}
+
+/// The colour `ink` is drawn in, in `tier`, on the ground `colours` is.
+///
+/// The whole of what Focus does to the page, in one table:
+///
+/// | | bright | dim |
+/// |---|---|---|
+/// | prose | `ink` | `ink_dim` |
+/// | marker | `mark` | `ink_dim` |
+/// | link | `link` | `ink_dim` |
+///
+/// The bright column is the Markup colour untouched — Focus lights what the
+/// writer is in by leaving it alone — and the dim column is one grey, because
+/// out of focus nothing has a voice of its own: `focus.css:31-40` flattens
+/// markers, link text, URLs, quotes, code and struck text alike to
+/// `--ink-dim`. That the marker on the caret's own line holds the full `mark`
+/// (`legacy/app/css/markup.css:39`, which #37 left to this ticket) is this
+/// table's first row: the caret's line is bright, and bright is the Markup
+/// colour.
+#[must_use]
+pub fn colour(ink: Ink, tier: Tier, colours: &Colours) -> Colour {
+    match tier {
+        Tier::Bright => colours.colour(ink.role()),
+        Tier::Dim => colours.colour(Role::InkDim),
+    }
+}
+
+/// `spans` flattened over `tiers`, every run carrying the colour it is drawn in.
+///
+/// The tiered flattening: [`flatten`] resolves Markup into runs, and this cuts
+/// those runs at the tier boundaries and resolves each piece's ink and tier into
+/// one colour through [`colour`]. `len` is the Document's length in bytes, and
+/// `tiers` is [`crate::focus::tiers_by_line`]'s answer for where the caret is —
+/// already clipped to the lines, so no run here straddles a line start either.
+///
+/// With Focus off the runs are the untiered ones with their roles resolved:
+/// same bytes, same weights, same grounds, and the colour each role has always
+/// meant. With Focus on every byte of the Document is in a run, including the
+/// plain prose Markup had no reason to speak for, because the buffer's own ink
+/// is the wrong colour everywhere but the one lit sentence. Focus on also takes
+/// the code ground off what is dim (`focus.css:42-43`), which is why a dim code
+/// span does not sit in a lit box.
+#[must_use]
+pub fn paint(
+    spans: &[Span],
+    len: usize,
+    tiers: &[LineTiers],
+    focus: Focus,
+    colours: &Colours,
+) -> Vec<Painted> {
+    let runs = flatten(spans);
+    // With Focus on every byte is spoken for, because the buffer's own ink is
+    // the wrong colour for most of the page and the writer must not see it
+    // anywhere. With Focus off the buffer is right about plain prose, and
+    // saying so again would be a tag for nothing.
+    let covers = matches!(focus, Focus::On(_));
+    let mut out = Vec::new();
+    let mut next = 0;
+    for (segment, tier) in segments(len, tiers, focus) {
+        let plain = covers.then(|| Paint::of(Look::PROSE, tier, colours));
+        let mut cursor = segment.start;
+        while let Some(run) = runs.get(next).filter(|run| run.at.start < segment.end) {
+            let at = run.at.start.max(segment.start)..run.at.end.min(segment.end);
+            push_painted(&mut out, cursor..at.start, plain);
+            push_painted(
+                &mut out,
+                at.clone(),
+                Some(Paint::of(run.look, tier, colours)),
+            );
+            cursor = at.end;
+            if run.at.end > segment.end {
+                break;
+            }
+            next += 1;
+        }
+        push_painted(&mut out, cursor..segment.end, plain);
+    }
+    out
+}
+
+/// `len` bytes cut into tiers, ascending and with no gaps between them.
+///
+/// The dim tier is what the bright ranges leave over, which is why [`Tiers`]
+/// lists only one of the two: dim is the page, and bright are the holes cut in
+/// it. With Focus off there is one segment and it is bright — not because
+/// nothing is dim, but because nothing is anything, and the bright arm of
+/// [`colour`] is the untiered colour.
+///
+/// [`Tiers`]: crate::focus::Tiers
+fn segments(len: usize, tiers: &[LineTiers], focus: Focus) -> Vec<(Range<usize>, Tier)> {
+    if matches!(focus, Focus::Off) {
+        return vec![(0..len, Tier::Bright)];
+    }
+    let mut out = Vec::new();
+    let mut cursor = 0;
+    for at in tiers.iter().flat_map(|on| &on.tiers.bright) {
+        let bright = at.start.max(cursor)..at.end.max(cursor);
+        if bright.is_empty() {
+            continue;
+        }
+        if bright.start > cursor {
+            out.push((cursor..bright.start, Tier::Dim));
+        }
+        cursor = bright.end;
+        out.push((bright, Tier::Bright));
+    }
+    if cursor < len {
+        out.push((cursor..len, Tier::Dim));
+    }
+    out
+}
+
+/// Adds `at` as a painted run, or lengthens the last one if it draws alike.
+///
+/// `paint` is [`None`] where there is nothing to draw: plain prose with Focus
+/// off, which the buffer already draws in the right ink.
+fn push_painted(out: &mut Vec<Painted>, at: Range<usize>, paint: Option<Paint>) {
+    let Some(paint) = paint else {
+        return;
+    };
+    if at.is_empty() {
+        return;
+    }
+    if let Some(last) = out.last_mut()
+        && last.at.end == at.start
+        && last.paint == paint
+    {
+        last.at.end = at.end;
+        return;
+    }
+    out.push(Painted { at, paint });
 }
 
 /// Adds `at` as a run, or lengthens the last one if it is the same look.
@@ -848,7 +1063,13 @@ fn level_number(level: HeadingLevel) -> u8 {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use super::*;
+    use crate::document::Document;
+    use crate::focus;
+    use crate::settings::FocusScope;
+    use crate::theme::Scheme;
 
     /// The spans of `text` as `(source text, mark)`, which is what an owner
     /// would see if the marks were drawn on the page.
@@ -881,6 +1102,349 @@ mod tests {
         ink: Ink::Marker,
         ..Look::PROSE
     };
+
+    // The tiered flattening: Markup × Focus into one colour a run.
+
+    /// The passage the judged states are shot against, at the caret they are
+    /// shot at (`shots/oracle/states.json`).
+    fn sample() -> Document {
+        Document::open(Path::new("../ref/sample.md"))
+            .expect("the shared test passage is in the repo")
+    }
+
+    /// A Document holding `text`, for the shapes the passage does not have.
+    fn document(text: &str) -> Document {
+        let mut doc = Document::untitled();
+        doc.insert(0, text);
+        doc
+    }
+
+    /// The bright ranges `doc` has at `at` under `focus`, line by line.
+    fn tiers_of(doc: &Document, at: Range<usize>, focus: Focus) -> Vec<focus::LineTiers> {
+        focus::tiers_by_line(doc, &focus::tiers(doc, &at, focus))
+    }
+
+    /// What `doc` draws at `at` under `focus`. The one walk the tiered tests
+    /// share, so that none of them can be measuring a different page.
+    fn painted_runs(
+        doc: &Document,
+        at: Range<usize>,
+        focus: Focus,
+        colours: &Colours,
+    ) -> Vec<Painted> {
+        let text = doc.text();
+        let tiers = tiers_of(doc, at, focus);
+        paint(&markup(text), text.len(), &tiers, focus, colours)
+    }
+
+    /// [`painted_runs`] as `(source text, colour)`, which is what an owner would
+    /// see on the page.
+    fn painted<'a>(
+        doc: &'a Document,
+        at: Range<usize>,
+        focus: Focus,
+        colours: &Colours,
+    ) -> Vec<(&'a str, Colour)> {
+        let text = doc.text();
+        painted_runs(doc, at, focus, colours)
+            .into_iter()
+            .map(|run| (&text[run.at.clone()], run.paint.colour))
+            .collect()
+    }
+
+    /// The colour a byte of `doc` is drawn in, whichever run holds it.
+    fn colour_at(
+        doc: &Document,
+        at: Range<usize>,
+        byte: usize,
+        focus: Focus,
+        colours: &Colours,
+    ) -> Colour {
+        painted_runs(doc, at, focus, colours)
+            .into_iter()
+            .find(|run| run.at.contains(&byte))
+            .unwrap_or_else(|| panic!("byte {byte} is in no run"))
+            .paint
+            .colour
+    }
+
+    /// The caret of the judged `focus/sentence` and `focus/paragraph` states,
+    /// in both scopes and on both grounds: every run carries the colour
+    /// [`colour`] predicts for the `(mark, tier)` of every byte under it.
+    ///
+    /// Predicted from the two inputs rather than from a list of colours, so
+    /// that a bright/dim assignment which came out inverted would fail here
+    /// instead of passing on set membership.
+    #[test]
+    fn every_run_at_the_judged_caret_is_the_colour_the_table_predicts() {
+        let doc = sample();
+        let text = doc.text();
+        let marked = flatten(&markup(text));
+
+        for scheme in [Scheme::Light, Scheme::Dark] {
+            let colours = Colours::of(scheme);
+            for scope in [FocusScope::Sentence, FocusScope::Paragraph] {
+                let focus = Focus::On(scope);
+                let bright: Vec<_> = tiers_of(&doc, 403..403, focus)
+                    .into_iter()
+                    .flat_map(|on| on.tiers.bright)
+                    .collect();
+                let runs = painted_runs(&doc, 403..403, focus, &colours);
+                let mut lit = 0;
+
+                for run in &runs {
+                    for byte in run.at.clone() {
+                        let tier = if bright.iter().any(|at| at.contains(&byte)) {
+                            lit += 1;
+                            Tier::Bright
+                        } else {
+                            Tier::Dim
+                        };
+                        let ink = marked
+                            .iter()
+                            .find(|span| span.at.contains(&byte))
+                            .map_or(Ink::Prose, |span| span.look.ink);
+                        assert_eq!(
+                            run.paint.colour,
+                            colour(ink, tier, &colours),
+                            "{scheme:?} {scope:?}: byte {byte} of {:?} is {ink:?} in {tier:?}",
+                            &text[run.at.clone()]
+                        );
+                    }
+                }
+
+                // Neither tier is allowed to be empty, or the run above would
+                // be asserting one column of the table twice.
+                assert!(
+                    lit > 0 && lit < text.len(),
+                    "{scope:?} lit {lit} of {}",
+                    text.len()
+                );
+            }
+        }
+    }
+
+    /// Paragraph scope lights more of the page than Sentence scope and dims the
+    /// rest the same way, which is the whole of the difference between them
+    /// now that there is one dim tier (`docs/design.md` § Dim tiers).
+    #[test]
+    fn paragraph_scope_lights_its_whole_block_and_sentence_scope_one_sentence() {
+        let doc = sample();
+        let colours = Colours::of(Scheme::Light);
+        let ink = colours.colour(Role::Ink);
+        let lit = |focus| {
+            painted(&doc, 403..403, focus, &colours)
+                .into_iter()
+                .filter(|&(_, colour)| colour == ink)
+                .map(|(text, _)| text.len())
+                .sum::<usize>()
+        };
+        let sentence = lit(Focus::On(FocusScope::Sentence));
+        let paragraph = lit(Focus::On(FocusScope::Paragraph));
+        assert!(
+            paragraph > sentence && sentence > 0,
+            "the paragraph is the sentence and more: {sentence} then {paragraph}"
+        );
+    }
+
+    /// `legacy/app/css/focus.css:31-40`: out of focus nothing keeps a voice of
+    /// its own. On the caret's own line the marker is the full marker grey —
+    /// `markup.css:39`, which #37 left to this ticket — and bright is what says
+    /// so, because bright is the Markup colour untouched.
+    #[test]
+    fn a_marker_is_the_dimmed_grey_out_of_focus_and_the_marker_grey_on_the_carets_line() {
+        let doc = document("# A heading\n\nThe caret is *here*, in this sentence.\n");
+        let colours = Colours::of(Scheme::Light);
+        let caret = doc.text().find("here").expect("the passage says here");
+        let focus = Focus::On(FocusScope::Sentence);
+
+        let star = doc.text().find('*').expect("the emphasis is marked");
+        assert_eq!(
+            colour_at(&doc, caret..caret, star, focus, &colours),
+            colours.colour(Role::Mark),
+            "the caret's line is bright, so its markers hold the full marker grey"
+        );
+
+        let hash = doc.text().find('#').expect("the heading is marked");
+        assert_eq!(
+            colour_at(&doc, caret..caret, hash, focus, &colours),
+            colours.colour(Role::InkDim),
+            "a marker in the dim tier is the dimmed grey, not the marker grey"
+        );
+        assert_eq!(
+            colour_at(&doc, caret..caret, hash + 2, focus, &colours),
+            colours.colour(Role::InkDim),
+            "and so is the heading's own text: focus.css dims the heading whole"
+        );
+    }
+
+    /// A dim heading keeps its weight and loses only its colour, and a dim code
+    /// span loses its ground (`focus.css:42-43`). Focus dims; it does not
+    /// re-set the page.
+    #[test]
+    fn the_dim_tier_takes_the_colour_and_the_code_ground_and_leaves_the_weight() {
+        let doc = document("# A heading with `code` in it\n\nThe caret is here.\n");
+        let colours = Colours::of(Scheme::Light);
+        let text = doc.text();
+        let caret = text.find("caret").expect("the passage says caret");
+        let runs = painted_runs(
+            &doc,
+            caret..caret,
+            Focus::On(FocusScope::Sentence),
+            &colours,
+        );
+
+        let heading = runs
+            .iter()
+            .find(|run| text[run.at.clone()].contains("A heading"))
+            .expect("the heading is in a run");
+        assert_eq!(
+            heading.paint,
+            Paint {
+                colour: colours.colour(Role::InkDim),
+                weight: Weight::Bold,
+                slant: Slant::Upright,
+                ground: Ground::Page,
+            },
+            "a dim heading loses its colour and stays a heading"
+        );
+
+        let code = text.find("code").expect("the heading has a code span");
+        let run = runs
+            .iter()
+            .find(|run| run.at.contains(&code))
+            .expect("the code span is in a run");
+        assert_eq!(
+            run.paint,
+            Paint {
+                colour: colours.colour(Role::InkDim),
+                weight: Weight::Bold,
+                slant: Slant::Upright,
+                ground: Ground::Page,
+            },
+            "out of focus a code span keeps its glyphs and loses its box"
+        );
+    }
+
+    /// The engine's table and the app's `hex` are the same three colours. The
+    /// app resolves the roles itself until #113 moves it to [`colour`], and two
+    /// tables that disagree would be two Quills.
+    #[test]
+    fn the_bright_tier_is_the_colour_the_app_already_draws_each_role_in() {
+        let colours = Colours::of(Scheme::Light);
+        for (ink, role) in [
+            (Ink::Prose, Role::Ink),
+            (Ink::Marker, Role::Mark),
+            (Ink::Link, Role::Link),
+        ] {
+            assert_eq!(
+                colour(ink, Tier::Bright, &colours),
+                colours.colour(role),
+                "{ink:?} is {role:?} while Focus leaves it alone"
+            );
+            assert_eq!(
+                colour(ink, Tier::Dim, &colours),
+                colours.colour(Role::InkDim),
+                "{ink:?} has no voice of its own out of focus"
+            );
+        }
+    }
+
+    /// Focus off draws what the app has always drawn: the untiered runs, with
+    /// each role resolved to the colour it has always meant and nothing added.
+    ///
+    /// Every field, so that a weight or a slant dropped on the way through
+    /// [`paint`] fails here rather than in the Editor.
+    #[test]
+    fn focus_off_paints_the_untiered_runs_and_adds_nothing() {
+        let doc = sample();
+        let colours = Colours::of(Scheme::Light);
+        let text = doc.text();
+        let was: Vec<_> = flatten(&markup(text))
+            .into_iter()
+            .map(|run| Painted {
+                at: run.at,
+                paint: Paint {
+                    colour: colours.colour(run.look.ink.role()),
+                    weight: run.look.weight,
+                    slant: run.look.slant,
+                    ground: run.look.ground,
+                },
+            })
+            .collect();
+        assert_eq!(
+            paint(&markup(text), text.len(), &[], Focus::Off, &colours),
+            was,
+            "Focus off is the flattening with its roles resolved"
+        );
+    }
+
+    /// Every byte of the Document is drawn exactly once, and in order — the
+    /// property the app leans on when it retags a line.
+    #[test]
+    fn painted_runs_never_overlap_and_run_in_order() {
+        let doc = sample();
+        let colours = Colours::of(Scheme::Dark);
+        let text = doc.text();
+        let focus = Focus::On(FocusScope::Sentence);
+        let runs = painted_runs(&doc, 403..403, focus, &colours);
+        let mut end = 0;
+        for run in &runs {
+            assert_eq!(
+                run.at.start, end,
+                "with Focus on every byte is coloured, and {run:?} leaves a gap"
+            );
+            assert!(!run.at.is_empty(), "{run:?} is empty");
+            end = run.at.end;
+        }
+        assert_eq!(end, text.len(), "the last run ends at the end of the text");
+    }
+
+    /// Where the oracle passage's runs are written down, so that a change to
+    /// the flattening has to be seen and agreed rather than merely compiled.
+    const GOLDEN: &str = "tests/oracle-markup-runs.txt";
+
+    /// One run per line: the bytes, then every field of the [`Look`].
+    fn written(runs: &[Run]) -> String {
+        runs.iter()
+            .map(|run| {
+                let Look {
+                    ink,
+                    alpha,
+                    weight,
+                    slant,
+                    ground,
+                } = run.look;
+                format!(
+                    "{}..{} {ink:?} {alpha} {weight:?} {slant:?} {ground:?}\n",
+                    run.at.start, run.at.end
+                )
+            })
+            .collect()
+    }
+
+    /// The runs of the oracle passage, byte for byte, against what they were.
+    ///
+    /// Focus resolves a tier into a colour ([`paint`]) without touching
+    /// [`flatten`], so the untiered runs are the ones the app has always drawn.
+    /// This is the check that says so: run the tests with `QUILL_UPDATE_GOLDEN`
+    /// set to write the file, and read the diff before committing it.
+    ///
+    /// The file was written from the flattening as it stood before #126 and has
+    /// not moved since. What says the runs are unchanged rather than merely
+    /// self-consistent is that #126 edits no line of [`markup`], [`flatten`],
+    /// [`resolve`] or [`push_run`] — from here on, this file is what would
+    /// catch it if a later ticket did.
+    #[test]
+    fn the_oracle_passages_untiered_runs_are_what_they_were() {
+        let runs = written(&flatten(&markup(&oracle())));
+        if std::env::var_os("QUILL_UPDATE_GOLDEN").is_some() {
+            std::fs::write(GOLDEN, &runs).expect("the golden file is writable");
+            return;
+        }
+        let was = std::fs::read_to_string(GOLDEN).expect("the golden file is committed");
+        assert_eq!(runs, was, "the flattening moved the oracle passage's runs");
+    }
 
     /// The judged Markup passage, which the Piece is shot on.
     fn oracle() -> String {
