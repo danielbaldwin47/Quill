@@ -970,9 +970,6 @@ mod tests {
                 (REGULAR, Slant::Italic),
                 (BOLD, Slant::Italic),
             ] {
-                if bold_italic_quattro(face, weight, slant) {
-                    continue;
-                }
                 assert_eq!(
                     advance(&context, face, weight, slant, &passage),
                     prose,
@@ -982,31 +979,37 @@ mod tests {
         }
     }
 
+    // The passage above is prose, and prose is not where iA left the advance
+    // varying: five of the six Faces carried a `wght` delta on the advance of
+    // some glyph, and `tools/fontbuild.py` zeroes every one of them (#95). Only
+    // Quattro Italic's `t` and `f` are ordinary enough to reach the passage;
+    // the rest are punctuation and marks it happens not to use, so they are
+    // measured here instead. Across the weights only, one cut at a time: what
+    // an italic sets a glyph to is the Face's business, and the invariant is
+    // that setting a run bold leaves the run the width it was.
     #[test]
-    fn the_quattro_italic_widens_its_narrow_glyphs_at_bold() {
-        // The one combination the Faces get wrong, recorded rather than
-        // asserted away: iA's Quattro Italic carries a `wght` advance delta on
-        // its narrow glyphs — `t` goes 450 units to 600 — where its Roman and
-        // the other two Italics carry none. So a Quattro run that goes bold
-        // italic, which is emphasis inside a heading, moves the glyphs after
-        // it. Issue #95 pins it in `tools/fontbuild.py`, beside the word space
-        // that Face already needed pinning; the day it does, this test fails
-        // and takes the carve-out above with it.
+    fn no_face_moves_the_glyphs_ia_varied_on_the_weight_axis() {
         crate::fonts::load_private(&quill_engine::data::fonts())
             .expect("the Faces are in the checkout");
         let context = pangocairo::FontMap::default().create_context();
-        assert!(
-            advance(&context, Face::Quattro, BOLD, Slant::Italic, "t")
-                > advance(&context, Face::Quattro, REGULAR, Slant::Italic, "t"),
-            "#95 is fixed: drop this test and the carve-out that names it"
-        );
+        for face in [Face::Duo, Face::Quattro, Face::Mono] {
+            for slant in [Slant::Upright, Slant::Italic] {
+                let ink = advance(&context, face, REGULAR, slant, MOVERS);
+                assert!(ink > 0, "{face:?} {slant:?} measured nothing at all");
+                assert_eq!(
+                    advance(&context, face, BOLD, slant, MOVERS),
+                    ink,
+                    "{face:?} {slant:?} sets these glyphs wider at bold"
+                );
+            }
+        }
     }
 
-    /// Whether this is the combination [`#95`](https://github.com/danielbaldwin47/Quill/issues/95)
-    /// is about.
-    fn bold_italic_quattro(face: Face, weight: i32, slant: Slant) -> bool {
-        face == Face::Quattro && weight == BOLD && slant == Slant::Italic
-    }
+    /// One of every glyph iA varied on `wght`, in the Faces that varied it:
+    /// Quattro Italic's narrow letters, Mono's `j` and per-cent signs, the
+    /// ellipsis, the exclamation mark, the dieresis, and the two Cyrillic
+    /// letters Quattro and Mono move.
+    const MOVERS: &str = "jf t %‰©…!¨ юј ťțţ";
 
     /// The width of `passage` set in `face` at `weight` and `slant`, in Pango
     /// units, from the same description the Editor builds.
