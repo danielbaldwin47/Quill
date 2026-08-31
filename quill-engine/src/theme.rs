@@ -12,9 +12,10 @@
 //! Nothing here paints. The engine cannot see a display
 //! ([ADR 0008](../../../docs/adr/0008-engine-crate-without-gtk.md)), so a role
 //! resolves to a [`Colour`] and the app turns that into the widget stylesheet
-//! and the tag table. Colours that are a step off another colour — Focus's near
-//! tier, the resting marker grey — are computed here from [`Colour::lift`] and
-//! [`Colour::over`] rather than written down twice.
+//! and the tag table. Colours that are a step off another colour — the resting
+//! marker grey, and every frame of a cross-fade between two of them — are
+//! computed here from [`Colour::over`] and [`Colour::lift`] rather than written
+//! down twice.
 
 use crate::settings::{Choice, Theme, choice};
 
@@ -111,10 +112,10 @@ impl Colour {
 
     /// `from` moved `amount` of the way toward `toward`.
     ///
-    /// The oracle's `color-mix(in srgb, …)` (`legacy/app/css/focus.css:28`) in
-    /// one function. Focus's near tier is the ground's dimmed grey lifted
-    /// [`near_lift`] of the way back toward its ink, so the tier is computed
-    /// from the two greys rather than being a third grey to keep in step.
+    /// The oracle's `color-mix(in srgb, …)` in one function. Focus's cross-fade
+    /// (#114) is a walk along this line: `amount` is how far through the 130 ms
+    /// a run's old colour has travelled toward its new one, so the interim
+    /// colours are computed rather than being a ladder to keep in step.
     ///
     /// It is the same three mixes as [`Colour::over`] and stays a second
     /// function because the two answer different questions: `over` puts an
@@ -323,20 +324,6 @@ impl Colours {
     }
 }
 
-/// How far Focus's near tier climbs from the ground's dimmed grey back toward
-/// its ink.
-///
-/// `legacy/app/css/focus.css:18` and `:21`. The dark ground needs the longer
-/// climb because a dark ground crushes low-contrast detail, so the same step
-/// reads as less of one.
-#[must_use]
-pub const fn near_lift(scheme: Scheme) -> f64 {
-    match scheme {
-        Scheme::Light => 0.15,
-        Scheme::Dark => 0.26,
-    }
-}
-
 /// The ground to paint.
 ///
 /// The flag wins, then the setting; `Auto` takes the desktop's answer, or, when
@@ -507,20 +494,25 @@ mod tests {
     }
 
     #[test]
-    fn the_near_tier_and_the_resting_marker_are_computed_rather_than_written() {
-        for (scheme, ink_near) in [(Scheme::Light, "#b2b2b2"), (Scheme::Dark, "#888888")] {
-            let colours = Colours::of(scheme);
-            let near = Colour::lift(
-                colours.colour(Role::InkDim),
-                colours.colour(Role::Ink),
-                near_lift(scheme),
-            );
-            assert_eq!(hex(near), ink_near, "{scheme:?} ink-near");
-        }
-
+    fn the_resting_marker_grey_is_computed_rather_than_written() {
         let light = Colours::of(Scheme::Light);
         let resting = Colour::over(light.colour(Role::Mark), light.colour(Role::Paper), 0.72);
         assert_eq!(hex(resting), "#9e9e9e", "the resting marker grey");
+    }
+
+    /// What the cross-fade (#114) needs of [`Colour::lift`]: the two ends, and a
+    /// step between them that is really between them.
+    #[test]
+    fn a_lift_walks_from_one_colour_to_the_other() {
+        let light = Colours::of(Scheme::Light);
+        let (dim, ink) = (light.colour(Role::InkDim), light.colour(Role::Ink));
+        assert_eq!(Colour::lift(dim, ink, 0.0), dim, "no distance travelled");
+        assert_eq!(Colour::lift(dim, ink, 1.0), ink, "the whole distance");
+        assert_eq!(
+            hex(Colour::lift(dim, ink, 0.5)),
+            "#747474",
+            "halfway between #cccccc and #1c1c1c"
+        );
     }
 
     /// The flattenings `theme.css` states in its own comments, which is the
