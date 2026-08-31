@@ -11,11 +11,15 @@ What was modified:
     the `Quill` prefix, each Italic a family of its own;
   * the Quattro Italic word space narrowed from 600 to 450 units to match its
     Roman, with the glyph's `gvar` entry dropped so it holds at every weight;
+  * every glyph's advance frozen across the weight axis, by zeroing the
+    advance delta of each `gvar` tuple that varies on `wght`, so that a run of
+    text keeps its width when it is set bold;
   * the digital signature (`DSIG`) dropped, no longer being valid;
   * the typographic family and subfamily names (`name` IDs 16 and 17) dropped.
 
-Outlines, kerning, hinting and the variation axes are iA's, unchanged. The
-originals are in this repository under `ref/ia/fonts`.
+Outlines, kerning, hinting and the variation axes are iA's, unchanged apart from
+the two advance edits named above. The originals are in this repository under
+`ref/ia/fonts`.
 
 The licence below is iA's own, copied verbatim from `ref/ia/fonts/*/LICENSE.md`.
 
