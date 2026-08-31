@@ -1,0 +1,104 @@
+{
+  "piece": "page",
+  "round": 3,
+  "winner": "theirs",
+  "margin": "slight",
+  "gap": "The page has no frame and almost no ink: exactly 2 unique colours in 2880x1800, and its only mark — the caret — is #AFE5FB on #F9F9F9, 30/255 luminance below paper (1.32:1 vs B's 2.20:1). Nothing establishes a top or bottom edge, so the 75 logical px above the first line reads as unrendered void rather than a margin.",
+  "gapTheirs": "The darkest ink on the whole page is the footer word-count numeral at #4A4A4A (luminance 74) — literally 2x darker than anything in the writing area (min 148) — pinned at y=882-890 of a 900px window as a permanent '0 words  0 characters  < 1 min read' strip.",
+  "verdict": "These are the same page: identical #F9F9F9 paper edge to edge, text origin 311 vs 313 logical px from the left, caret 37 vs 38px tall, implied line-height ~1.7 in both — so the paper, measure and rhythm decide nothing. B wins on framing alone: a whisper-weight header and foot bracket the block with 88px of clearance below the header, which turns the surrounding emptiness into margin; A's emptiness is just emptiness, and at 1.32:1 you cannot find your own caret on it. But B bought that frame by nailing a live counter to the foot of every page and rendering '0' as the loudest mark in the window — a novelist staring down a blank page does not need the strongest ink on it to be the tally of what they haven't written. Calm, not blankness, and B is closer to it by a nose.",
+  "oursShot": "shots/page/r3-empty-ours.png",
+  "theirsShot": "shots/oracle/page/empty.png",
+  "refSource": "shots/oracle/page/ — the Parity oracle frozen by tools/gate oracle page from legacy/app 738f48c969965ac3 with legacy/tools/shoot.mjs b2362316db135d06",
+  "builderNote": "",
+  "secondary": [
+    "B's 6px caret at x=626 sits directly on the 'S' of 'Start writing...' (glyphs begin x~628), occluding its left stem — collision on the first frame the writer sees",
+    "Left inset 622 vs 626 physical px (311 vs 313 logical @2x): a 2px difference, functionally the same measure",
+    "Caret height 74 vs 76 px (1 logical px) — no meaningful line-rhythm difference between them",
+    "First line at 75 logical px from the raw window top in A vs 109 in B; A's is tight against a hard edge with nothing above it",
+    "B's header icons sit 16.5 logical px from the left edge while text starts at 313 — the page has two competing left margins",
+    "B's header carries no rule or fill; paper runs continuously top to bottom, which is the one thing its chrome gets right",
+    "Neither page shows a scroll indicator, typewriter line, or any bottom cushion cue",
+    "Both share exactly #F9F9F9 paper with no gradient, texture, or page shadow"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "756439b",
+    "binary": "5b9191c07d394151",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "light",
+      "ours": "shots/page/r3-light-ours.png",
+      "theirs": "shots/oracle/page/light.png",
+      "blind": "shots/blind/page/light",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "B has zero bottom margin: the last visible line is sheared by the window edge, leaving a 4px sliver of cap-tops at y=1796–1799 of 1800, with no closing white at all. Top padding is only 84 CSS px to the H1 cap. A ends its text with a clean ~25 CSS px band above its footer and shows no clipped glyphs. B's hanging markers also unbalance the frame: ink runs 547px from the left edge but stops 639px from the right, a 46 CSS px asymmetry that leans the whole block left of centre.",
+      "gapTheirs": "A has no hanging marker column, so the page has three different left edges instead of one: body text starts at x=622 (orig px), '# The Lighthouse' title text at x=673 (+25.5 CSS px), '## What the sea keeps' title text at x=697 (+37.5 CSS px). B hangs '#' at 571, '##' at 547 and '-' at 577 outside the measure, so every line of prose, every heading title and every list item sits on one edge at x=623±3. A also spends ~100 CSS px of the 900 CSS px window height on chrome (a 45px filename bar top, a 55px '188 words / 961 characters / 1 min read' bar bottom), costing one full line of page and pinning a live word counter under the text.",
+      "verdict": "Same paper (#F9F9F9 in both), same measure (62 characters, ~810 CSS px), near-identical leading (38 vs 37 CSS px, 1.78 vs 1.71) — so the page is decided entirely by the left edge and the frame, and A loses both. A's heading markers sit inside the measure, so every heading shoves its own title 1–3 characters right of the prose and you spend the whole draft looking at a staircase where a margin should be; then it brackets the paper with a filename bar and a permanent word count, which is the one number a first draft should never see. B is bare paper edge to edge with a single true left edge, and it pays for that with a bottom edge that guillotines the next line — 4px of cap-tops hanging in the frame, no closing margin, and the block leaning 46px left of centre. I'd take the sheared bottom over the staircase and the counter, but B's page ends the way a browser ends, not the way a page does.",
+      "secondary": [
+        "identical paper: srgb(249,249,249) at all four corners of both",
+        "measure identical at 62 characters; B's type runs ~1.5% larger (char advance 26.0 vs 25.6 orig px)",
+        "B fits 18 body lines vs A's 17 in the same 1800px window — A's two chrome bars eat a line",
+        "paragraph spacing identical in both: 28 CSS px added between paragraphs",
+        "heading rhythm is symmetric in both — ~76/74 CSS px above and below a heading, so H2 does not open a new section, it just floats",
+        "caret is the same 1.5 CSS px blue rule in both; not a differentiator",
+        "A's markers are grey against near-black text in both; both dim them correctly",
+        "neither offers typewriter-style bottom padding — the caret can never rest mid-window in either"
+      ]
+    },
+    {
+      "name": "empty",
+      "ours": "shots/page/r3-empty-ours.png",
+      "theirs": "shots/oracle/page/empty.png",
+      "blind": "shots/blind/page/empty",
+      "oursWas": "A",
+      "pick": "B",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "The page has no frame and almost no ink: exactly 2 unique colours in 2880x1800, and its only mark — the caret — is #AFE5FB on #F9F9F9, 30/255 luminance below paper (1.32:1 vs B's 2.20:1). Nothing establishes a top or bottom edge, so the 75 logical px above the first line reads as unrendered void rather than a margin.",
+      "gapTheirs": "The darkest ink on the whole page is the footer word-count numeral at #4A4A4A (luminance 74) — literally 2x darker than anything in the writing area (min 148) — pinned at y=882-890 of a 900px window as a permanent '0 words  0 characters  < 1 min read' strip.",
+      "verdict": "These are the same page: identical #F9F9F9 paper edge to edge, text origin 311 vs 313 logical px from the left, caret 37 vs 38px tall, implied line-height ~1.7 in both — so the paper, measure and rhythm decide nothing. B wins on framing alone: a whisper-weight header and foot bracket the block with 88px of clearance below the header, which turns the surrounding emptiness into margin; A's emptiness is just emptiness, and at 1.32:1 you cannot find your own caret on it. But B bought that frame by nailing a live counter to the foot of every page and rendering '0' as the loudest mark in the window — a novelist staring down a blank page does not need the strongest ink on it to be the tally of what they haven't written. Calm, not blankness, and B is closer to it by a nose.",
+      "secondary": [
+        "B's 6px caret at x=626 sits directly on the 'S' of 'Start writing...' (glyphs begin x~628), occluding its left stem — collision on the first frame the writer sees",
+        "Left inset 622 vs 626 physical px (311 vs 313 logical @2x): a 2px difference, functionally the same measure",
+        "Caret height 74 vs 76 px (1 logical px) — no meaningful line-rhythm difference between them",
+        "First line at 75 logical px from the raw window top in A vs 109 in B; A's is tight against a hard edge with nothing above it",
+        "B's header icons sit 16.5 logical px from the left edge while text starts at 313 — the page has two competing left margins",
+        "B's header carries no rule or fill; paper runs continuously top to bottom, which is the one thing its chrome gets right",
+        "Neither page shows a scroll indicator, typewriter line, or any bottom cushion cue",
+        "Both share exactly #F9F9F9 paper with no gradient, texture, or page shadow"
+      ]
+    },
+    {
+      "name": "narrow",
+      "ours": "shots/page/r3-narrow-ours.png",
+      "theirs": "shots/oracle/page/narrow.png",
+      "blind": "shots/blind/page/narrow",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "A's hung markers push the ink block off-centre: leftmost ink (##) sits at x=105 while the right edge of text is 1721, so left margin 105px vs right margin 199px — a ~1:1.9 imbalance that makes the whole page read left-heavy. Those gutter markers are also the darkest non-text thing on the page (#7A7A7A vs B's #9E9E9E, ~36 grey levels heavier) — a column of grey punctuation stacked down the margin the eye keeps re-reading.",
+      "gapTheirs": "B sets the markdown markers inline, so nothing lines up: body text left edge x=142, '# The Lighthouse' starts at x=193, '## What the sea keeps' at x=217 — a 75px staircase down the left margin, with every heading indented relative to its own prose. A also loses ~200px of the 1800px window to chrome (title bar pushing first text to y=235 vs A's y=168, plus a hairline rule at y≈1745 and a word-count strip), so despite a wider measure B shows two fewer lines of the passage.",
+      "verdict": "B's page has three different left edges and you feel it on every heading — the prose column starts at 142, the H1 word at 193, the H2 word at 217, so the text visibly steps right as the document gets structural. A hangs the markers in the gutter and keeps one hard column at x=181, which is the only reason the page stops fidgeting. B pays for its inline markers twice: once in alignment, once in the 200px of title bar and word-count furniture that boxes the text in and stops the page from running off the bottom edge the way A's does. A's own sin — a 105px left margin against a 199px right one, and gutter hashes at #7A7A7A that are far too present for margin furniture — is a tuning problem, not a structural one.",
+      "secondary": [
+        "paper identical in both: #F9F9F9 flat, no gradient, no vignette",
+        "measure: A ~1539px / ~59ch vs B ~1629px / ~64ch — B's return sweep is 90px longer per line",
+        "line-height: A 74px pitch, B 76px (~1.70 vs ~1.78 of em) — B marginally airier, the only metric where B leads",
+        "paragraph rhythm identical: both use a 2× line gap (A 148px, B 152px)",
+        "caret is a wash — ~4px cyan bar in both, same hue, A's a touch taller",
+        "A's bottom line is clipped mid-glyph at the window edge, implying continuous scroll; B's content is hard-stopped by a 1px rule at y≈1745",
+        "body ink is the same #1C1C1C in both — no contrast advantage either way",
+        "B's inline `*`/`**` markers are lighter (#9E) than A's (#7A), which is the right call; A should have taken that grey into its gutter"
+      ]
+    }
+  ],
+  "at": "2026-08-31T05:14:50.754Z"
+}
