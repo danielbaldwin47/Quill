@@ -5,6 +5,15 @@ selection is its fill and nothing else. The bar at each end goes, and with it §
 at both ends are iA's" — that paragraph's macOS evidence is a marketing frame showing touch
 grab-handles. The Editor still draws the selection, which is the rest of this ADR.*
 
+*Contradicted on **iA Writer** by the app itself, running —
+[`ref/ia/mac-native/VERDICTS.md`](../../ref/ia/mac-native/VERDICTS.md) § ADR 0012. There are no
+round knobs on the Mac app's selection (0012.1), no bar at either end (0012.2) and no inset bar
+(0012.3): a held selection is fill only, with zero accent pixels in any frame that holds one. 0012.6
+is moot for the same reason — there are no ends — and the idle fill it describes is a neutral grey,
+`#464646` on dark and `#dcdcdc` on light, not a paler accent. What this ADR decides about how
+**Quill** paints is untouched by that and stands until the decisions session
+[#154](https://github.com/danielbaldwin47/Quill/issues/154) opens says otherwise.*
+
 The Editor paints the selection itself — the fill, a bar at each end, and the caret — in the same
 `snapshot_layer` pass beneath the glyphs, the caret, the two ends and every fill row cut from one
 function (`Editor::band`) so that their rows are the same rows. GTK's `selection` sub-node keeps one stylesheet rule, which clears
