@@ -41,7 +41,7 @@
       "id": "markup",
       "title": "Markup rendering",
       "what": "Headings, emphasis, lists, quotes, code, links in the editor",
-      "judge": "how Markdown is shown while writing: heading markers, emphasis, lists, blockquotes, code, links \u2014 are markers quiet, does the text stay readable, do headings and structure read at a glance without the text jumping"
+      "judge": "how Markdown is shown while writing: heading markers, emphasis, lists, blockquotes, code, links \u2014 are markers quiet, does the text stay readable, do headings and structure read at a glance without the text jumping. Both states are the hanging-marker gutter and the body column: gutters is the six heading levels, whose `#` runs step out into the left gutter by level + 1 cells so their words all land on the body column and `###### ` reaches the container's own left edge; blocks is that deepest heading above a quote, a bullet and an ordinal, none of which hangs \u2014 `>`, `-` and `1.` sit on the body column and push their own words inward, and no rule is drawn beside a quote. Judge where each row starts and how the two columns read together. What the markers are coloured is not this Piece's row: marks keep the Parity oracle's greys until they are measured (docs/design.md \u00a7 The palette is a file), so a marker that is quieter on one side than the other is a decision already taken and not a gap"
     },
     {
       "id": "chrome",
