@@ -59,13 +59,18 @@
     "latency": {}
   },
   "keys": {
-    "_about": "The scripts tools/gate keys <piece> types, beside the states tools/gate judge shoots, so a Piece is one entry to find. A Piece may carry none, and most do not. `state` overrides `defaults` exactly as a judged state does, but the app is opened Live rather than --deterministic: a still wants the blink frozen and the glide gone, and a typed condition wants the caret machine running, because that machine is what it is there to test. Each burst is typed in full, then shot, then its `assert` list is evaluated from the pixels; `between` is evaluated across consecutive bursts. The assertion names are tools/keys-assert.mjs's.",
+    "_about": "The scripts tools/gate keys <piece> types, beside the states tools/gate judge shoots, so a Piece is one entry to find. A Piece may carry none, and most do not. `state` overrides `defaults` exactly as a judged state does, but the app is opened Live rather than --deterministic: a still wants the blink frozen and the glide gone, and a typed condition wants the caret machine running, because that machine is what it is there to test. Each burst is typed in full, then shot, then its `assert` list is evaluated from the pixels; `between` is evaluated across consecutive bursts, and skips a pair with a burst that left no caret on the page. A burst types its `text` and then its `keys`, which is the form that can spell a chord and the only one that can; `settle` says which still it is shot at (`caret`, the default, or `still` for a page a selection has taken the caret off), and `chars` and `rows` are what the assertions measure against. The assertion and settle names are tools/keys-assert.mjs's.",
     "caret": {
-      "_about": "The two bursts of tools/keys-fixture, which is what #108's defect was found by hand with. The Document is empty so the first glyph starts at the left margin and the bar has nowhere to hide, and the chrome is off both because the caret Piece is judged bare (#139) and because the chrome's fade-on-typing is an animation, which is one more thing for `steady` to wait out inside the caret's 480 ms idle hold.",
+      "_about": "Three bursts on a Document that starts empty. The first two are tools/keys-fixture's, which is what #108's defect was found by hand with: the Document is empty so the first glyph starts at the left margin and the bar has nowhere to hide. The third adds two more rows and selects the lot with Control+a, which is #146's defect — the last row of a Document left unpainted by the selection — and it needs the rows to be of different lengths, because that is what tells one row band from the next (`readSelectionRows` in tools/keys-assert.mjs). So by the end the Document is three rows of 38, 4 and 10 characters, all selected, and the caret is out. The chrome is off both because the caret Piece is judged bare (#139) and because the chrome's fade-on-typing is an animation, which is one more thing for `steady` to wait out inside the caret's idle hold.",
       "state": { "text": null, "caret": 0, "chrome": "off" },
       "bursts": [
         { "name": "typing-16", "text": "dfdfsdfsdfsdfsdf", "chars": 16, "assert": ["bar-after-ink"] },
-        { "name": "typing-38", "text": "fefefefefefsfesfesfesf", "chars": 38, "assert": ["bar-after-ink"] }
+        { "name": "typing-38", "text": "fefefefefefsfesfesfesf", "chars": 38, "assert": ["bar-after-ink"] },
+        {
+          "name": "select-all", "text": "\nffff\nssssssssss", "chars": 54,
+          "keys": [{ "press": "Control+a" }],
+          "settle": "still", "rows": 3, "assert": ["selection-rows"]
+        }
       ],
       "between": ["bar-moved-right"]
     }
