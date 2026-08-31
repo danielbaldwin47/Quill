@@ -773,9 +773,15 @@ class Stage {
 
       if (!active) {
         // Parked first, and focused, so that at no moment between the launch and the shutter does
-        // ours hold focus — `no_initial_focus` keeps it from taking any as it maps.
+        // ours hold focus — `no_initial_focus` keeps it from taking any as it maps. Read back for
+        // the same reason the other branch reads back: a dispatch the compositor loses leaves focus
+        // where it was, on the owner's window, which is the one arrangement the contract above
+        // forbids. The shot would very likely still be right — ours is unfocused either way — but
+        // "very likely" is not something the Gate can vouch for, so it refuses instead (#186).
         parked = await this.launch(bin, quillArgv(this.root, PARKING));
-        focusWindow(parked.address);
+        if (!(await this.focused(parked.address))) {
+          throw new Error(`keyboard focus never took on the parking window (${parked.address}); the shot would be taken with the owner's window still focused`);
+        }
       }
 
       ours = await this.launch(bin, argv);
