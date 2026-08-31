@@ -1,9 +1,11 @@
 # Native Quill: architecture
 
 The shape of the Rust rewrite, decided in [#11](https://github.com/danielbaldwin47/Quill/issues/11) on
-top of ADRs 0001–0010. Vocabulary is `CONTEXT.md`'s; quality rules are `docs/agents/gate.md`; the
-research each section rests on is under `docs/research/` on the `research/<name>` branches. Feature
-specs refine this document, never contradict it; a contradiction is an ADR conversation.
+top of ADRs 0001–0010. Vocabulary is `CONTEXT.md`'s; quality rules are `docs/agents/gate.md`; where
+the Design oracle and the Parity oracle disagree on the writing surface, `docs/design.md` decides
+([ADR 0015](adr/0015-the-design-oracle-outranks-the-parity-oracle.md)); the research each section
+rests on is under `docs/research/` on the `research/<name>` branches. Feature specs refine this
+document, never contradict it; a contradiction is an ADR conversation.
 
 ## Workspace
 
@@ -21,13 +23,14 @@ workspace; a test that needs a window is harness, not test.
 
 Engine modules, one per concept: `document` (text and block index), `markdown` (the parser, one
 shared `Options`), `annotate` (the Annotator trait, spans, run flattening), `focus` (sentence
-segmentation, the bright and near tiers), `library`, `settings`, `template`, `render` (Pango layout
-for Preview, PDF and HTML), `stats`, `outline`, `spell` (the `SpellChecker` trait and the enchant
-and `spellbook` implementations), `pos` (Syntax highlight), `style` (Style check), `typography` (the
-pitch, the measure and the page margins), `theme` (the two grounds' colour table and the rule that
-resolves one). App modules mirror the Pieces and features: `editor`, `caret`, `focus`, `typewriter`,
-`theme` (the portal listener and the CSS provider, painting the engine table's colours), `chrome`,
-`library`, `preview`, `export`, `flags`, `harness`.
+segmentation, the bright tier and the one dim tier — ADR 0015), `library`, `settings`, `template`,
+`render` (Pango layout for Preview, PDF and HTML), `stats`, `outline`, `spell` (the `SpellChecker`
+trait and the enchant and `spellbook` implementations), `pos` (Syntax highlight), `style` (Style
+check), `typography` (the pitch, the measure, the 78-cell text container and its gutters —
+[ADR 0016](adr/0016-the-text-container-is-78-cells.md) — and the page margins), `theme` (the two
+grounds' colour table and the rule that resolves one). App modules mirror the Pieces and features:
+`editor`, `caret`, `focus`, `typewriter`, `theme` (the portal listener and the CSS provider, painting
+the engine table's colours), `chrome`, `library`, `preview`, `export`, `flags`, `harness`.
 
 ## Text model
 
@@ -77,14 +80,15 @@ layered over the runs: one `underline: error` tag for Spell check, one per Style
 selection-independent things such as the Focus dim of a heading marker. Underline and colour are
 different properties, so those overlaps are safe.
 
-**Leading.** Line pitch is `round(clamp(1.52 × size, 1.30 × size + 10.4, 2 × size))` pixels — iA's
-liquid leading, clamped before it is rounded because rounding a clamp is not the number clamping a
-round gives, and the clamp is what stops small type drowning in air. The air a row leaves over,
-`pitch − row`, is split three ways as ADR 0004 requires, and the split is fixed by the two gaps GTK
-actually draws: `pixels-inside-wrap` carries all of it, because it alone separates two rows of one
-paragraph, and `pixels-above-lines` and `pixels-below-lines` take half each, because only their sum
-separates two paragraphs. The three therefore do not sum to the air. Font sizes are absolute pixels
-(`set_absolute_size`), never points.
+**Leading.** Line pitch is the ladder's pitch per step (`ref/ia/mac-native/NOTES.md` § 11; 1.711 em
+at the default), in device px at scale 2 and `round(value × scale / 2)` at any other: iA's liquid
+leading as measured on the Design oracle, not a fitted curve (`docs/design.md` § Line pitch). The air
+a row leaves over, `pitch − row`, is split three ways as ADR 0004 requires, and the split is fixed by
+the two gaps GTK actually draws: `pixels-inside-wrap` carries all of it, because it alone separates
+two rows of one paragraph, and `pixels-above-lines` and `pixels-below-lines` take half each, because
+only their sum separates two paragraphs. The three therefore do not sum to the air. Font sizes are
+absolute pixels (`set_absolute_size`), never points, and the em is the ladder's value in logical px
+— 21.33 at the default step — so it is no longer an integer (`docs/design.md` § Text sizes).
 
 ## Documents and files
 
@@ -124,7 +128,9 @@ defaults; unknown keys and unknown tables are kept, so an older Quill never dest
 Every write to either file goes through a temporary file beside it and a rename, so a write that
 fails leaves the file it was replacing whole.
 
-Config: `theme` (auto, light, dark), `face` (duo, quattro, mono), `size` (pixels, 10–40, default 20),
+Config: `theme` (auto, light, dark), `face` (duo, quattro, mono), `step` (the text-size ladder, 0–13,
+default 5 = 21.33 logical px; an old `size` in px becomes the nearest step at or above it once,
+`docs/design.md` § Text sizes),
 `focus` (on/off) and `focus_scope` (sentence, paragraph), `typewriter` (on/off) and
 `typewriter_anchor` (0–1, default 0.5), `chrome` (shown/hidden), `spell_check` (on/off, default on)
 and `spell_language`, `[syntax_highlight]` (a table: `enabled` is the master, and the five category
@@ -170,7 +176,7 @@ downloaded at build time.
 The harness drives the app through flags applied before the first frame; the Gate names the states
 and the determinism settings, this document names the flags:
 
-- Judged state: `--text <file>`, `--theme light|dark`, `--font duo|quattro|mono`, `--size <px>`,
+- Judged state: `--text <file>`, `--theme light|dark`, `--font duo|quattro|mono`, `--step <n>`,
   `--focus off|sentence|paragraph`, `--typewriter`, `--chrome on|off`, `--caret <offset>|end`,
   `--select <from>,<to>`, `--scroll <fraction>`, `--nocaret`, `--w <px> --h <px>`.
 - Harness: `--deterministic` (animations off, blink off, manual font rendering with pinned antialias,
@@ -228,7 +234,9 @@ so the move finds Rust already at the root rather than clearing the ground for i
 `legacy/tools/shoot.mjs` and regenerated only when `legacy/` changes. **Retirement** is its own
 ticket, opened when every Piece's latest verdict in `progress/rounds/` is ours and all nine ported
 Pieces' Hand tests have passed; the owner's `hand test: pass` on that ticket is the declaration. That
-ticket deletes `legacy/` and switches `tools/gate judge`'s opponent to the iA reference.
+ticket deletes `legacy/` and gives every judged state a `mac-native` crop as its opponent
+([ADR 0015](adr/0015-the-design-oracle-outranks-the-parity-oracle.md)); a state that follows a
+`docs/design.md` row names one already.
 
 ## Port order
 

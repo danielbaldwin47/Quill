@@ -10,7 +10,7 @@ Either way the spec closes on the owner's `hand test: pass`, by `docs/agents/gat
 
 ## Tickets
 
-`/to-tickets` sizes every ticket for one `/implement` session. Each ticket carries a **Size** line and a **Reading** line naming the spec sections and ADRs the session needs by heading and what it can skip (the parent spec whole, `legacy/`).
+`/to-tickets` sizes every ticket for one `/implement` session. Each ticket carries a **Size** line and a **Reading** line naming the spec sections and ADRs the session needs by heading — and, for a ticket touching the writing surface, the `docs/design.md` row it builds to — and what it can skip (the parent spec whole, `legacy/`).
 
 **The Size line quotes a landed shape, not a constant.** A ticket's estimate has run about 3× over: the Markup children sized at 50–65 tool calls landed at 122–247 calls and 165k–302k peak (#86–#91, #102); a judge-only ticket is a session by itself (#89: 138 calls, 179k); a ticket that must land a bench run is more than one (#65: 290 calls, #91: 247); and only tickets with two modules and no Gate run have landed inside the 120k zone (#72, #73, #79: 52–61 calls, 90–111k). So the line gives the rubric estimate, then the nearest landed ticket and its `context-report` numbers — "about 45 tool calls by the rubric; the landed shape is #102 (127 calls, 169k peak)" — and a ticket whose nearest shape is over 200 calls is two tickets.
 
