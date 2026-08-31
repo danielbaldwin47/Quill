@@ -5,9 +5,10 @@
     "sha256": "738f48c969965ac3"
   },
   "shoot": "b2362316db135d06",
-  "git_head": "d7f66f9",
+  "git_head": "7113df0",
   "passages": {
-    "ref/sample.md": "8005e6c57d435cea"
+    "ref/sample.md": "8005e6c57d435cea",
+    "ref/short.md": "2acef065165b4fa4"
   },
   "states": {
     "light": {
@@ -43,6 +44,25 @@
       "caret": 403,
       "select": null,
       "scroll": 0,
+      "nocaret": false,
+      "active": true,
+      "typing": false,
+      "menu": null
+    },
+    "short": {
+      "text": "ref/short.md",
+      "w": 1440,
+      "h": 900,
+      "scale": 2,
+      "theme": "light",
+      "font": "duo",
+      "step": 5,
+      "focus": "off",
+      "typewriter": false,
+      "chrome": "off",
+      "caret": 10,
+      "select": null,
+      "scroll": null,
       "nocaret": false,
       "active": true,
       "typing": false,
