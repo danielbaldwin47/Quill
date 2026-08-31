@@ -2,7 +2,7 @@
 
 Each ported Piece is its own feature ticket, closed by the owner's `hand test: pass` (`docs/agents/gate.md` § Feature tier); these are its checklists. `/to-spec` merges a Piece's checklist with the spec's additions into the spec's **Hand test** section, so the owner tests from that comment alone.
 
-**Page**: 1. Open `ref/sample.md`; the text sits in a measure of about 64 characters, centred, with calm margins. 2. Resize the window narrower and wider; the measure adapts and the text never touches an edge. 3. Open an empty Document; the caret waits on paper, no placeholder chrome.
+**Page**: 1. Open `ref/sample.md`; the text sits in a measure of about 64 characters, centred, with calm margins. 2. Resize the window narrower and wider; the measure adapts and the text never touches an edge.
 
 **Type**: 1. Read a paragraph in Duo at the default size; lines are crisp and the leading reads about 1.7×. 2. Switch to Quattro, then Mono; each renders in its own face, none oblique. 3. Step the size up and down; the leading scales with it. 4. A bold and an italic word sit on the same baseline as their neighbours.
 
@@ -14,7 +14,7 @@ Each ported Piece is its own feature ticket, closed by the owner's `hand test: p
 
 **Markup rendering**: 1. Type `# Heading`; the marker hangs into the margin and the heading is bold at body size. 2. Type `*emphasis*` and `**strong**`; markers dim, text styles, nothing shifts horizontally. 3. Type a list, a blockquote, a fenced code block and a link; each marker is quiet, the list and quote markers sit on the body column with no rule beside the quote (`docs/design.md` § What hangs), and the prose stays readable.
 
-**Chrome and menus**: 1. Start typing; the chrome fades. 2. Stop, move the mouse; the title and the stats return. 3. Open each menu; every in-scope feature is reachable with its shortcut shown.
+**Chrome and menus**: 1. Start typing; the chrome fades. 2. Stop, move the mouse; the title and the stats return. 3. Open each menu; every in-scope feature is reachable with its shortcut shown. 4. Open an empty Document; both bars stand, the stats bar reads zero words, and nothing in the frame is waiting on text to fill in.
 
 **File handling**: 1. Open a folder as the Library; its Documents list in the sidebar. 2. Create a new Document, type, wait; it is on disk as plain Markdown with nothing else written beside it. 3. Edit the file in another editor; Quill shows the change. 4. Rename and delete from the sidebar; the disk agrees.
 
