@@ -161,10 +161,12 @@ mod imp {
         pub edited: Cell<Option<i64>>,
         /// Whether the frame-clock callback is attached.
         pub ticking: Cell<bool>,
-        /// Whether `--caret` is still owed the scroll that shows where it
-        /// went. Set when the caret is placed and cleared by the first
-        /// allocation that can resolve it. See [`Editor::reveal_caret`].
-        pub reveal: Cell<bool>,
+        /// Whether the last placement is still owed the scroll that shows
+        /// where the caret went. Every placement sets it to what it asked
+        /// for, so a placement that wants no reveal calls off one still
+        /// waiting rather than leaving it to be paid against a page it was
+        /// never asked for. See [`Editor::reveal_caret`].
+        pub reveal_owed: Cell<bool>,
         /// The one-shot that brings the blink back when the quiet after a
         /// move or an edit runs out: no frame is asked for inside it, so
         /// something outside the frame clock has to ask for the one that ends
@@ -1080,8 +1082,8 @@ impl Editor {
             flags::Caret::At(offset) => tags::iter_at(&buffer, document, byte_offset(offset)),
         };
         buffer.place_cursor(&at);
+        self.imp().reveal_owed.set(reveal);
         if reveal {
-            self.imp().reveal.set(true);
             self.reveal_caret();
         }
     }
@@ -1093,10 +1095,13 @@ impl Editor {
     /// a pending scroll and flushed when the view is next validated. On a
     /// Document shorter than the viewport that flush never happens — the
     /// scroll it asks for is a scroll there is no room to make — and the
-    /// validation it is holding up is the one that draws the text, so the
-    /// window comes up as bare paper with neither glyph nor bar on it
-    /// (#148). A long Document was never hit by it because there the scroll
-    /// does move, which flushes the queue and lets the validation through.
+    /// validation it is holding up is the one that draws the text. What
+    /// reaches the glass is then anything from a sliver of one row to
+    /// nothing at all: #148's own shot has 92x29 of ink in it, the shot on
+    /// its triage comment none, and measured here the window is `#F9F9F9`
+    /// edge to edge. A long Document was never hit by it because there the
+    /// scroll does move, which flushes the queue and lets the validation
+    /// through.
     ///
     /// So the reveal waits for a size the way [`Editor::lay_out`] does, and
     /// `size_allocate` asks again the moment there is one. One request from
@@ -1106,10 +1111,10 @@ impl Editor {
     /// the same ink `--scroll 0` leaves it on, and `ref/sample.md` does not
     /// move.
     fn reveal_caret(&self) {
-        if !self.imp().reveal.get() || self.imp().laid_out.get().is_none() {
+        if !self.imp().reveal_owed.get() || self.imp().laid_out.get().is_none() {
             return;
         }
-        self.imp().reveal.set(false);
+        self.imp().reveal_owed.set(false);
         self.scroll_to_mark(&self.buffer().get_insert(), 0.0, true, 0.0, CARET_LINE);
     }
 
