@@ -14,3 +14,5 @@ shots/blind/
 target/
 # Exploratory scratch crates, kept out of the repo.
 /spike/
+# Python bytecode caches, wherever they land.
+__pycache__/
