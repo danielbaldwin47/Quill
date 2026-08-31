@@ -390,28 +390,34 @@ impl Editor {
         self.imp().scheme.set(scheme);
     }
 
-    /// Moves the whole Editor to `scheme`'s ground, in one pass.
+    /// Moves this Editor's own painting to `scheme`'s ground.
     ///
     /// Every colour on screen is read off the table at the moment it is drawn,
     /// so the switch is nothing more than changing which row is read and then
     /// making everything read it again: the tags, because a colour is baked
     /// into the tag the buffer is carrying; and the caret and the selection,
     /// because those are painted in the snapshot and a snapshot is only taken
-    /// when the widget is invalidated. The window's paper is the stylesheet's
-    /// and is reloaded by [`reset_scheme`], once for the display.
+    /// when the widget is invalidated.
+    ///
+    /// **The paper is not here.** The window's ground and the ink under
+    /// untagged text are the stylesheet's, the stylesheet belongs to the
+    /// display rather than to a widget, and `window::reset` reloads it once
+    /// beside the call to this — so this method on its own leaves an Editor
+    /// retagged on the old paper, and is not the whole switch. The two
+    /// together are, and they are one pass because nothing is drawn between
+    /// them.
     ///
     /// A whole-Document retag rather than an incremental path, because there
     /// is no incremental question to ask: every run on screen changes colour
-    /// at once. #39's spike measured the whole-Document pass at 0.082 ms on
-    /// the 10k-word document, which is a twentieth of a frame and happens on a
-    /// keystroke nobody is typing prose with.
+    /// at once. #39 § Implementation Decisions (Switch) has the spike's
+    /// measurement and the decision that followed from it; the same
+    /// whole-Document pass is what [`Editor::show_document`] already pays to
+    /// open a Document at all.
     ///
-    /// Inside one `freeze_notify`, so the buffer's `changed` and its property
-    /// notifications fire once at the end rather than per tag: the handlers
-    /// listening to them splice the engine's copy of the text, and the text
-    /// has not moved.
-    ///
-    /// [`reset_scheme`]: crate::window
+    /// Inside one `freeze_notify`, which batches the buffer's `notify::` and
+    /// nothing else — applying a tag emits no `changed`, so the handlers that
+    /// splice the engine's copy of the text are not listening for any of this
+    /// and the text has not moved for them to hear about.
     pub fn set_scheme(&self, scheme: Scheme, document: &Document) {
         self.imp().scheme.set(scheme);
         let buffer = self.buffer();
