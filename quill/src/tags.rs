@@ -8,12 +8,12 @@
 //! second copy of it to fall out of step.
 //!
 //! Paragraph tags are the third row: `heading-1` to `heading-6` hang a
-//! heading's `#` markers out into the left gutter, by the `level + 1` cells
-//! [`typography::Column::hang`] counts off the container, so the first word
-//! sits on the prose's edge and `###### ` reaches the container's own left
-//! edge. **Nothing else hangs.** A bullet, an ordinal and a quote's `>` sit on
-//! the body column and push their own words inward, and no rule is drawn
-//! beside a quote: that is what the Design oracle draws
+//! heading's `#` markers out into the left gutter, by exactly as far as the
+//! layout will advance them, so the first word sits on the prose's edge and
+//! `###### ` fills the seven-cell gutter [`typography::GUTTER`] was sized at.
+//! **Nothing else hangs.** A bullet, an ordinal and a quote's `>` sit on the
+//! body column and push their own words inward, and no rule is drawn beside a
+//! quote: that is what the Design oracle draws
 //! ([ADR 0016](../../docs/adr/0016-the-text-container-is-78-cells.md);
 //! `ref/ia/mac-native/` state 14, `14-gutters` and `14-blocks`).
 //!
@@ -240,7 +240,8 @@ fn hung(width: i32, side: i32) -> (i32, i32) {
     (side - width, -width)
 }
 
-/// Hangs the heading markers into the gutter `column` gives them.
+/// Hangs the heading markers into the gutter `column` gives them, by the
+/// `advances` the caller measured off the layout.
 ///
 /// Pango's `indent` only ever shifts to the right: a positive value moves the
 /// first row of a paragraph, a negative one moves every row *after* the first.
@@ -250,27 +251,34 @@ fn hung(width: i32, side: i32) -> (i32, i32) {
 /// first row starts at `side - hang` with the `#` in the margin, and every row
 /// under it starts at `side`, flush with the prose.
 ///
-/// The hang is [`typography::Column::hang`], counted off the container's own
-/// gutter rather than off the cell a second time, so that `###### ` lands on
-/// [`typography::Column::left`] exactly however the cell rounded (ADR 0016).
+/// `advances[level - 1]` is how far that level's `#`s and their space actually
+/// advance — [`Editor::marker_advance`](crate::editor::Editor::marker_advance)
+/// says why it is measured rather than counted off the cell, and why counting
+/// it was what lost round 10. Hanging by exactly it is what lands all six
+/// levels' words on the one body column, which is the whole of what this pair
+/// is for. [`typography::Column::hang`] is the same rule in the ladder's own
+/// cell and is what sizes the gutter; it is not what the tag hangs by, because
+/// the gutter is designed once and the type is laid out per launch.
+///
 /// Headings are the only markers hung: a bullet, an ordinal and a quote's `>`
 /// take no tag here at all and so sit where the buffer puts them, on the body
-/// column.
+/// column (ADR 0016).
 ///
 /// Called whenever the page is laid out, because both halves of the pair move:
-/// the container with the width of the window, and the hang with the size of
-/// the type. A window too narrow to give the marker its margin keeps what it
+/// the container with the width of the window, and the marker run with the size
+/// of the type. A window too narrow to give the marker its margin keeps what it
 /// has — the tag's left margin cannot go below zero, and a heading that cannot
 /// hang is worth less than a heading pushed off the left edge of the view.
 pub fn hang_markers(
     buffer: &gtk::TextBuffer,
     step: u32,
     column: typography::Column,
+    advances: [i32; 6],
     scheme: Scheme,
 ) {
     let side = margin(column.side);
-    for level in 1..=6u8 {
-        let (left, indent) = hung(margin(column.hang(level)), side);
+    for (level, advance) in (1..=6u8).zip(advances) {
+        let (left, indent) = hung(advance, side);
         let tag = heading(buffer, level);
         tag.set_left_margin(left);
         tag.set_indent(indent);
@@ -513,102 +521,52 @@ mod tests {
         typography::column(VIEW, typography::cell(face, step))
     }
 
-    #[test]
-    fn a_heading_hangs_by_its_markers_and_the_space_after_them() {
-        // Every Face is on a 0.6 em cell (`typography` asserts it), and the
-        // app hints font metrics, so at the default step a cell advances a
-        // whole 13 px and `# ` is two of them. A flat ladder of 13, not the
-        // 12.798 the container is measured in: it is what Pango will lay the
-        // `#`s out at, and matching it is what lands all six headings' words
-        // on the one body column.
-        let column = container(Face::Duo, STEP);
-        for (level, width) in [(1u8, 26), (2, 39), (3, 52), (4, 65), (5, 78), (6, 91)] {
-            assert_eq!(
-                column.hang(level),
-                width,
-                "a level {level} heading hangs by the wrong width"
-            );
-        }
-    }
-
-    #[test]
-    fn the_deepest_heading_reaches_the_containers_own_left_edge() {
-        // ADR 0016's whole reason for a seven-cell gutter: `###### ` hangs it
-        // entirely and its first `#` lands on the container's edge. Within a
-        // few pixels of it rather than exactly on it, and on either side of
-        // it, because the hang is seven whole hinted cells where the gutter is
-        // seven true ones rounded once — see `Column::hang`. Seven roundings
-        // against one cannot come to more than four pixels whichever way each
-        // of them went.
-        for step in quill_engine::settings::type_steps() {
-            let column = container(Face::Duo, step);
-            let (left, _) = hung(margin(column.hang(6)), margin(column.side));
-            let edge = margin(column.left);
-            assert!(
-                left.abs_diff(edge) <= 4,
-                "at step {step} the deepest heading starts at {left}, and the \
-                 container's left edge is {edge}"
-            );
-        }
-    }
-
-    #[test]
-    fn the_hang_grows_with_the_type_it_is_set_in() {
-        // Every rung of the ladder, because the ladder is measurement rather
-        // than a multiple: the em from step to step grows by anything from
-        // 0.75 px to 6.17, and only the direction is a rule. Never back down
-        // it, and plainly bigger across it — not strictly bigger at every
-        // rung, because the hang is a whole hinted cell and the ladder's two
-        // smallest ems, 14.50 and 15.25, give cells of 8.70 and 9.15 that
-        // round to the same 9.
-        let ladder = quill_engine::settings::type_steps();
-        for step in ladder.clone().skip(1) {
-            let small = container(Face::Duo, step - 1).hang(1);
-            let large = container(Face::Duo, step).hang(1);
-            assert!(
-                small <= large,
-                "the marker is measured in cells, so it must never shrink as the type grows: \
-                 step {} hangs by {small} and step {step} by {large}",
-                step - 1
-            );
-        }
-        assert!(
-            container(Face::Duo, *ladder.end()).hang(1)
-                > 4 * container(Face::Duo, *ladder.start()).hang(1),
-            "the ladder's top em is more than four times its bottom one"
-        );
-    }
-
-    #[test]
-    fn every_face_hangs_a_heading_by_the_same_width() {
-        for face in [Face::Duo, Face::Quattro, Face::Mono] {
-            assert_eq!(
-                container(face, STEP).hang(1),
-                container(Face::Duo, STEP).hang(1),
-                "{face:?} is cut to the same cell grid as the others"
-            );
-        }
+    /// The marker runs a level 1 to 6 heading opens with, as the layout may
+    /// advance them: `hinted` to a whole cell each, or off the true cell.
+    ///
+    /// Both are real, which is the reason [`hung`] is handed a width rather
+    /// than working one out. A `--deterministic` launch pins metric hinting on
+    /// and a writer's own launch takes the desktop's answer, so at the default
+    /// step the same six runs advance 13 px a cell in a judged shot and 12.798
+    /// in the app — and `Editor::marker_advance` measures which it is.
+    fn advances(hinted: bool) -> [i32; 6] {
+        let cell = typography::cell(Face::Duo, STEP);
+        std::array::from_fn(|level| {
+            let cells = level as f64 + 2.0;
+            pixels(if hinted {
+                cell.round() * cells
+            } else {
+                cell * cells
+            })
+        })
     }
 
     #[test]
     fn the_first_row_hangs_by_exactly_what_the_wrapped_rows_get_back() {
         // Pango puts the first row at the tag's own left margin and every row
-        // after it at margin + |indent|, which must be the prose's margin.
-        let column = container(Face::Duo, STEP);
-        let side = margin(column.side);
-        for level in 1..=6u8 {
-            let width = margin(column.hang(level));
-            let (left, indent) = hung(width, side);
-            assert_eq!(
-                left,
-                side - width,
-                "a level {level} heading starts one marker left of the prose"
-            );
-            assert_eq!(
-                left - indent,
-                side,
-                "a wrapped row of a level {level} heading must land on the prose margin"
-            );
+        // after it at margin + |indent|, which must be the prose's margin —
+        // and puts the first row's own words at margin + the advance, which
+        // must be the same. Round 10 was lost on the second of those: the
+        // hang was `level + 1` of a cell the glyphs were not being advanced
+        // by, so `# ` and `## ` started their words on one column and the
+        // deeper four on another, two device pixels over. Whatever the layout
+        // advances, the pair has to give back exactly what it took, so both
+        // ladders are held to it here.
+        let side = margin(container(Face::Duo, STEP).side);
+        for hinted in [true, false] {
+            for (level, advance) in (1..=6u8).zip(advances(hinted)) {
+                let (left, indent) = hung(advance, side);
+                assert_eq!(
+                    left + advance,
+                    side,
+                    "hinted {hinted}: a level {level} heading's words start off the body column"
+                );
+                assert_eq!(
+                    left - indent,
+                    side,
+                    "hinted {hinted}: a wrapped row of a level {level} heading must land on the prose margin"
+                );
+            }
         }
     }
 
@@ -655,13 +613,15 @@ mod tests {
 
     #[test]
     fn a_window_too_narrow_to_hang_the_marker_keeps_its_gutter() {
-        // The container never asks for this — [`typography::column`] holds the
-        // gutter at seven cells and gives up measure instead, so `hang(6)` is
-        // the gutter and can at worst equal `side`. The clamp is the guard for
-        // a caller that has not been through the container, and it must leave
-        // the two rows agreeing even then.
+        // The container barely asks for this — [`typography::column`] holds
+        // the gutter at seven cells and gives up measure instead, so a marker
+        // run has the whole gutter to hang in. The clamp is the guard for the
+        // window that is narrower than the gutter itself, and it must leave
+        // the two rows agreeing even there. The heading's words go off the
+        // column when it bites, which is the right way round: a window that
+        // narrow has no column left to speak of.
         let side = 4;
-        let width = margin(container(Face::Duo, STEP).hang(6));
+        let width = advances(true)[5];
         assert!(
             width > side,
             "this is the narrow case, or it proves nothing"

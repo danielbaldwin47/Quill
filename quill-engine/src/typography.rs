@@ -258,17 +258,6 @@ pub struct Column {
     pub side: u32,
     /// What is left for the text, in pixels: the container less both gutters.
     pub width: u32,
-    /// One cell as the text engine will actually advance it: the cell the
-    /// edges above were counted off, rounded to a whole pixel.
-    ///
-    /// The app asks GTK for `gtk-hint-font-metrics`, so Pango rounds a
-    /// glyph's advance to a whole pixel before it lays anything out
-    /// (`quill::harness::determine`). A hang is the one length here that is
-    /// given straight back — subtracted from the body column and then
-    /// re-advanced by the `#`s Pango sets after it — so it is the only one
-    /// that has to be counted off *that* number rather than off the true
-    /// cell. Not an edge, so not public.
-    advance: u32,
 }
 
 impl Column {
@@ -288,41 +277,15 @@ impl Column {
     /// against the measure. This is the Design oracle's rule (`14-gutters`),
     /// and it is why the gutter is seven cells wide.
     ///
-    /// Counted off [`advance`](Self::advance) — **not** off the rounded
-    /// [`gutter`](Self::gutter), and not off the true cell either, which every
-    /// other length here is. The three look interchangeable and are not.
-    ///
-    /// A hang is given straight back. The heading's first row starts at
-    /// `side - hang`, and Pango then advances the `level + 1` `#`s and their
-    /// space before the first word — so that word lands off the body column by
-    /// exactly the difference between the hang and what Pango advanced, and
-    /// the six levels land on six columns unless that difference is zero for
-    /// all of them. Because the app hints font metrics, what Pango advances is
-    /// a whole number of pixels per cell, so the only hang that is exactly it
-    /// is `level + 1` of those whole pixels. Round 10 of the Markup Piece was
-    /// lost to this: sevenths of the rounded gutter made `## ` 39 px at the
-    /// default step where Pango advances 39, but `# ` 26 where Pango advances
-    /// 26 — and the 2 device px between them read to a critic as two body
-    /// columns rather than one (#167).
-    ///
-    /// The cost is that `hang(6)` is `7 × round(cell)` where the gutter is
-    /// `round(7 × cell)`, so the deepest heading's `#` lands within four
-    /// pixels of [`left`](Self::left) rather than exactly on it, and on either
-    /// side of it: one pixel outside at the default step, where the cell
-    /// rounds up, and one inside at step 1, where it rounds down. It never
-    /// leaves the window — the window's own margin outside the container is
-    /// far wider — and the caller clamps at [`side`](Self::side) regardless.
-    ///
-    /// That is the right way round. A marker a few pixels into air nobody has
-    /// drawn on is a wobble in the margin; a heading whose words start a pixel
-    /// off the column is a wobble in the sentence being read.
-    /// [ADR 0016](../../docs/adr/0016-the-text-container-is-78-cells.md) sizes
-    /// the gutter at what `###### ` needs, and this is what it needs once the
-    /// metrics are hinted.
+    /// Counted off [`gutter`](Self::gutter) rather than off the cell a second
+    /// time, so that `hang(6)` reaches the container's edge exactly however
+    /// the cell rounded. The app keeps its own copy of the `level + 1` rule in
+    /// `quill::tags::marker_cells` until #167 hangs it off this container
+    /// instead.
     #[must_use]
     pub fn hang(&self, level: u8) -> u32 {
         debug_assert!((1..=6).contains(&level), "a heading is level 1 to 6");
-        self.advance * (u32::from(level) + 1)
+        (f64::from(self.gutter()) * (f64::from(level) + 1.0) / f64::from(GUTTER)).round() as u32
     }
 }
 
@@ -348,7 +311,6 @@ pub fn column(view: u32, cell: f64) -> Column {
         right: (left + container) as u32,
         side: (left + gutter) as u32,
         width: (container - 2.0 * gutter).max(0.0) as u32,
-        advance: cell.round().max(0.0) as u32,
     }
 }
 
@@ -616,8 +578,7 @@ mod tests {
                 left: 221,
                 right: 1219,
                 side: 311,
-                width: 818,
-                advance: 13
+                width: 818
             },
             "a judged 1440 px window does not centre the 78-cell container with the measure a gutter inside it"
         );
@@ -627,8 +588,7 @@ mod tests {
                 left: 0,
                 right: 960,
                 side: 90,
-                width: 780,
-                advance: 13
+                width: 780
             },
             "the `narrow` judged state is narrower than the container at the default step"
         );
@@ -642,25 +602,19 @@ mod tests {
                 left: 0,
                 right: 600,
                 side: 90,
-                width: 420,
-                advance: 13
+                width: 420
             },
             "a window narrower than 78 cells is not the container itself, with its gutters held at 7 cells and the measure giving up the difference"
         );
     }
 
     #[test]
-    fn the_deepest_heading_hangs_the_whole_gutter_to_within_a_pixel() {
+    fn the_deepest_heading_hangs_to_the_container_edge() {
         let column = column(1440, cell(Face::Duo, default_step()));
-        // The gutter is `GUTTER × 12.798` rounded, 90; the hang is seven of
-        // the 13 px cell Pango will actually advance, 91. `###### ` reaches
-        // the container's left edge and goes one pixel past it, into the
-        // window's own margin, which is 221 px wide.
-        assert!(
-            column.hang(6).abs_diff(column.gutter()) <= 4,
-            "`###### ` hangs {} where the gutter is {}, which is not the gutter to within the cell's rounding",
+        assert_eq!(
             column.hang(6),
-            column.gutter()
+            column.gutter(),
+            "`###### ` does not hang the whole gutter, out to the container's left edge"
         );
         assert_eq!(
             column.hang(1),
@@ -683,38 +637,11 @@ mod tests {
             column.gutter(),
             "the gutter right of the measure is not the one left of it"
         );
-        assert!(
-            column.hang(6).abs_diff(column.gutter()) <= 4,
-            "`###### ` hangs {} where the gutter is {}: once the cell rounds the two part company, but never by more than the seven roundings that separate them",
+        assert_eq!(
             column.hang(6),
-            column.gutter()
+            column.gutter(),
+            "`###### ` misses the container's edge once the cell rounds"
         );
-    }
-
-    #[test]
-    fn every_heading_level_drops_its_words_on_the_one_body_column() {
-        // What the round 10 critic caught. A heading's first row starts at
-        // `side - hang(level)`, and Pango then advances the `level + 1` `#`s
-        // and their space by their own real width before the first word — so
-        // the word lands `(level + 1) * cell - hang(level)` from the body
-        // column, and only a hang rounded off the cell keeps that inside half
-        // a pixel. Counting sevenths of the rounded gutter instead put `## `
-        // a whole pixel out, which at scale 2 is the two device px a critic
-        // read as two columns.
-        for step in steps() {
-            let column = column(1440, cell(Face::Duo, step));
-            // What Pango will advance the marker run by, hinted metrics and
-            // all: a whole pixel per cell, `level + 1` of them.
-            let advance = cell(Face::Duo, step).round() as u32;
-            for level in 1..=6u8 {
-                assert_eq!(
-                    column.hang(level),
-                    advance * (u32::from(level) + 1),
-                    "at step {step} a level {level} heading's words land off the body column, \
-                     because its hang is not what the `#`s in front of them advance"
-                );
-            }
-        }
     }
 
     #[test]

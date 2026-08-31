@@ -1,0 +1,107 @@
+{
+  "piece": "markup",
+  "round": 12,
+  "winner": "ours",
+  "margin": "clear",
+  "gap": "B buys its exactness with a wider measure: cap 30px vs 29 and a 26px advance vs 25.5 push the same 15-character line to x=609 vs 601, leaving 170px of right margin against A's 178 and making the six-level block 411px tall vs 405 — at H6 the gutter alone eats 183px of a 780px viewport",
+  "gapTheirs": "A's cell advance is a fractional ~25.5px, so nothing lands on a grid: the six # runs step 26,26,25,26,25 px instead of a flat 26 (H4 at x=94 and H6 at x=43 vs B's 93 and 41), row pitch runs 74,73,73,73,73 instead of a flat 74, and identical lines end at x=601 on four rows and x=602 on two — the ###### stops 2px short of the left edge B flushes to",
+  "verdict": "Same design, and only one of them can hold a grid. B steps the # ladder exactly 26px per level and the rows exactly 74px apart, so the six markers form a clean diagonal against a dead-flat body column; A rounds a 25.5px cell per row and comes out 26,26,25,26,25 with an equally jittery 73/74 pitch, so its ladder shifts under the eye and its deepest ###### fails to reach the edge by 2px. Since neither app varies heading size at all — every level is a 29–30px cap — that ladder is the sole structural signal, and A has let it wobble. B also spreads flat matte black behind the text while A dithers the entire canvas ±1 luma; nobody will see it, but it's grain on a writing surface for nothing.",
+  "oursShot": "shots/markup/r12-gutters-ours-crop.png",
+  "theirsShot": "shots/markup/r12-gutters-theirs-crop.png",
+  "refSource": "ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in ref/ia/mac-native/ (ADR 0015), cropped per state: gutters from mac-native-14-dark-markup-gutters.png, blocks from mac-native-14-dark-markup-blocks.png",
+  "builderNote": "",
+  "secondary": [
+    "Neither differentiates heading level by size or weight: all six caps are 29px (A) / 30px (B), so level reads only from # count and indent depth",
+    "Both hold the body column dead flat at x=224 on all six rows — that part is equal",
+    "Only the gutters state is shown; the blocks state (quote, bullet, ordinal, no rule beside the quote) is absent from both images and unjudged",
+    "Marker grey differs (A ~204, identical to body text; B ~128, visibly recessed) — recorded but not scored, per the palette rule",
+    "A's PNG is 77KB vs B's 23KB, entirely from the background dither noise (26/27 alternating over ~317k pixels)",
+    "Leading is generous in both: ~74px pitch on ~30px cap, roughly 2.5x cap height"
+  ],
+  "opponent": "mac-native",
+  "build": {
+    "git": "4d96c9d",
+    "binary": "9badd5bb4fbd0a16",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "gutters",
+      "ours": "shots/markup/r12-gutters-ours-crop.png",
+      "theirs": "shots/markup/r12-gutters-theirs-crop.png",
+      "opponent": {
+        "capture": "ref/ia/shots/mac-native/mac-native-14-dark-markup-gutters.png",
+        "crop": [
+          470,
+          1020,
+          780,
+          460
+        ],
+        "ours": [
+          400,
+          288,
+          780,
+          460
+        ]
+      },
+      "oursWhole": "shots/markup/r12-gutters-ours.png",
+      "blind": "shots/blind/markup/gutters",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "B buys its exactness with a wider measure: cap 30px vs 29 and a 26px advance vs 25.5 push the same 15-character line to x=609 vs 601, leaving 170px of right margin against A's 178 and making the six-level block 411px tall vs 405 — at H6 the gutter alone eats 183px of a 780px viewport",
+      "gapTheirs": "A's cell advance is a fractional ~25.5px, so nothing lands on a grid: the six # runs step 26,26,25,26,25 px instead of a flat 26 (H4 at x=94 and H6 at x=43 vs B's 93 and 41), row pitch runs 74,73,73,73,73 instead of a flat 74, and identical lines end at x=601 on four rows and x=602 on two — the ###### stops 2px short of the left edge B flushes to",
+      "verdict": "Same design, and only one of them can hold a grid. B steps the # ladder exactly 26px per level and the rows exactly 74px apart, so the six markers form a clean diagonal against a dead-flat body column; A rounds a 25.5px cell per row and comes out 26,26,25,26,25 with an equally jittery 73/74 pitch, so its ladder shifts under the eye and its deepest ###### fails to reach the edge by 2px. Since neither app varies heading size at all — every level is a 29–30px cap — that ladder is the sole structural signal, and A has let it wobble. B also spreads flat matte black behind the text while A dithers the entire canvas ±1 luma; nobody will see it, but it's grain on a writing surface for nothing.",
+      "secondary": [
+        "Neither differentiates heading level by size or weight: all six caps are 29px (A) / 30px (B), so level reads only from # count and indent depth",
+        "Both hold the body column dead flat at x=224 on all six rows — that part is equal",
+        "Only the gutters state is shown; the blocks state (quote, bullet, ordinal, no rule beside the quote) is absent from both images and unjudged",
+        "Marker grey differs (A ~204, identical to body text; B ~128, visibly recessed) — recorded but not scored, per the palette rule",
+        "A's PNG is 77KB vs B's 23KB, entirely from the background dither noise (26/27 alternating over ~317k pixels)",
+        "Leading is generous in both: ~74px pitch on ~30px cap, roughly 2.5x cap height"
+      ]
+    },
+    {
+      "name": "blocks",
+      "ours": "shots/markup/r12-blocks-ours-crop.png",
+      "theirs": "shots/markup/r12-blocks-theirs-crop.png",
+      "opponent": {
+        "capture": "ref/ia/shots/mac-native/mac-native-14-dark-markup-blocks.png",
+        "crop": [
+          470,
+          140,
+          780,
+          620
+        ],
+        "ours": [
+          400,
+          656,
+          780,
+          620
+        ]
+      },
+      "oursWhole": "shots/markup/r12-blocks-ours.png",
+      "blind": "shots/blind/markup/blocks",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "B pays for its exact grid with a 1.7% larger cell (26.0 vs 25.56px advance, cap 30px vs 29px): the hang eats 185px of gutter instead of 183, and the same 20-character body line runs to x=731 instead of 722, leaving ~9px of slack to A's ~18px before the measure gives out — in a body column already pinned at x=225 in a 780px frame, that is measure you don't have to spare. Its row-start marks are also the thinnest ink on the page (3px stems, 5-6% coverage in the marker cell for `-` at 4px thick vs A's 5px).",
+      "gapTheirs": "A's character cell is fractional (25.56px vs B's exact 26.0px), so the seven-cell hang doesn't land on the pixel grid: the six identical hashes step 26,25,26,25,26 px (origins 42,68,93,119,144,170 — peaks confirm it), two of the five inter-hash gaps close to 0-1px while the others hold 1-2px, and the run's left ink lands at 42 instead of B's clean 40. On top of that A sets the marker run in the heading's bold — stems 4-5px vs B's 3px, ~487 ink px per hash vs 326 (1.5x the area) — so 183px of gutter reads as one solid picket fence you cannot count, and 'H6 heading here' loses the row to it.",
+      "verdict": "Structurally these are the same editor: body column at x=225 in both, heading word at x=224 in both, `###### ` hanging exactly seven cells, `>` `-` and `1.` sitting on the body column and pushing their words to cell 2 (cell 3 for the ordinal), no rule beside the quote, block gap exactly two lines and leading ~1.71 in both. What separates them is the grid underneath: B's 26px cell is whole-pixel, so the six hashes march at a dead-even 26px and you can count the level at a glance; A's 25.56px cell rounds unevenly, the hashes wobble 26/25/26/25/26, and two of them fuse — at H6, counting hashes is the only way to read the level, and A breaks exactly that. A then compounds it by inheriting the heading's bold into the marker run, so the widest thing on the page is also the heaviest and the words you actually wrote come second on their own line.",
+      "secondary": [
+        "Both hang the H6 run exactly 7 cells; both land the heading word on the body column at x=224-225 — the architecture is not in dispute",
+        "Neither draws a rule beside the quote; both push quote/list text to cell 2 and ordinal text to cell 3 — spec-clean on both sides",
+        "Baseline pitch A 73px / B 74px, block gaps A 146-147 / B 148 — both exactly 2x line, leading ratio ~1.71 both; no rhythm advantage either way",
+        "Body text weight is identical (both ~3.5px stems at grey 204/205); only the markers differ in weight",
+        "A's canvas carries a 1-level dither (26/27 alternating, ~42% of pixels, ~26px tile period) — invisible at delta 1/255 but it triples the file (68KB vs 20KB) and means the paper is not a flat field",
+        "Marker greyness (A 205 = body text exactly; B 128 vs 204) was excluded from scoring per the palette rule and is not counted in the pick",
+        "Body column at x=225 of a 780px frame gives ~20 characters of measure in both — the gutter takes ~24% of the width on both sides"
+      ]
+    }
+  ],
+  "at": "2026-08-31T19:45:46.163Z"
+}
