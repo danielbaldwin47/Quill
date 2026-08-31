@@ -712,7 +712,9 @@ class Stage {
   /// the owner's panel takes focus straight back off whatever was focused here. Read back rather
   /// than assumed, and tried more than once, because the compositor answers the dispatch before it
   /// has finished acting on it — and because the whole point of asking is that a bench about to
-  /// write real keys to `/dev/uinput` must not take the owner's word for where they will land.
+  /// write real keys to `/dev/uinput` must not take the owner's word for where they will land. A
+  /// shot asks for its own reason: an unfocused Quill paints the ghost caret, which is a judged
+  /// state of its own and so is never a shot that merely looks wrong.
   async focused(address) {
     movePointer(this.corner);
     for (let tries = 0; tries < FOCUS_TRIES; tries += 1) {
@@ -777,7 +779,16 @@ class Stage {
       }
 
       ours = await this.launch(bin, argv);
-      if (active) focusWindow(ours.address);
+      // Read back rather than dispatched and hoped for. The compositor answers the dispatch before
+      // it has finished acting on it, and an unfocused Quill still paints — it paints the ghost
+      // caret the `unfocused` state is judged on. `steady()` cannot catch that: it proves two
+      // captures agree, and a page with nothing on it but a ghost is agreed from its first frame,
+      // so the shot that loses the race is the stillest one. #166 lost `page/empty` this way, at
+      // 0.3 alpha, while `page/light` and `page/narrow` won — their text layout cost enough frames
+      // for the activation notify to land.
+      if (active && !(await this.focused(ours.address))) {
+        throw new Error(`keyboard focus never took on ours (${ours.address}); the shot would be ghosted`);
+      }
       await sleep(SETTLE_MS);
 
       const png = await this.steady(ours.toplevel.id);

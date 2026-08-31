@@ -1,0 +1,79 @@
+{
+  "piece": "page",
+  "round": 4,
+  "winner": "ours",
+  "margin": "clear",
+  "gap": "B's leading is tighter: line pitch 74 device px against A's 76, on type that is ~2.5% larger (same 62-char string measures 1612 px in B vs 1588 in A) — roughly 1.69 vs 1.76 line-height ratio, so B's block is ~5% denser line-to-line. B also pays for its hanging markers with an off-centre block: the ## reaches 275 CSS px from the left edge while the right margin stays 319, a 44 px asymmetry.",
+  "gapTheirs": "A leaves markdown markers inside the column, so the left edge steps: body text starts at x=622, H1 words at x=676, H2 words at x=698 — a 27–38 CSS px indent applied to the two boldest lines on the page. B outdents the markers (# at 571, ## at 547, - at 577) so every word on every line begins at exactly x=623. Compounding it, A spends ~90 CSS px of window on a title bar plus a full-bleed hairline rule and a live '188 words / 961 characters / 1 min read' counter sitting 25 CSS px under the last line, showing 2 fewer lines of the passage at an identical viewport.",
+  "verdict": "Same paper, same measure, same caret — so the page comes down to the left edge and what is parked around it, and A loses both. A's headings are the only things on the page knocked out of the monospace grid, sliding 27–38 px right of the body while a permanent word counter sits under the last line with a hairline ruled across the full 2880 px; that is a counter you will read every time you look up, and a page with a lid on it. B gives you one unbroken left edge at x=623 from the H1 to the list dash, and nothing else in the window. B's 5% tighter leading and its 44 px leftward drift are real and you would notice them by hour three, but they are grievances about a page you can work on, not reasons to leave it.",
+  "oursShot": "shots/page/r4-light-ours.png",
+  "theirsShot": "shots/oracle/page/light.png",
+  "refSource": "shots/oracle/page/ — the Parity oracle frozen by tools/gate oracle page from legacy/app 738f48c969965ac3 with legacy/tools/shoot.mjs b2362316db135d06",
+  "builderNote": "",
+  "secondary": [
+    "Paper identical in both: srgb(249,249,249) sampled at 6 points including corners and gutters — no differentiator",
+    "Measure identical: ~1620 device px / ~810 CSS px, ~62 characters; both blocks near-centred (A left 622 / right 638; B left 623 / right 639)",
+    "Caret identical: same blue, ~5 device px (~3 CSS px) wide, same overshoot above cap height — not a differentiator",
+    "Shared failure: paragraph gap and heading gap are both exactly 2× line pitch (A 152, B 148 device px), so '## What the sea keeps' gets no more air above it than an ordinary paragraph break and reads as another paragraph, not a section",
+    "A's markers are the better grey: '#' bottoms out at ~158 vs B's ~122 (36 levels darker), so B's hanging hash is more assertive than a hanging mark should be — B only gets away with it by having moved it out of the column",
+    "A's body clears the footer rule by only 31 device px (~15 CSS px); B has zero bottom padding and slices a glyph row 4 device px deep at y=1799 — both crowd the bottom edge, A merely caps it",
+    "A's headroom below its title bar is ~74 CSS px vs B's 84 CSS px of bare paper above the H1 — neither is generous, and the chrome does not buy A any top air",
+    "No scrollbar in either; A's only right-edge ink is the menu glyph in the top chrome"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "e047764",
+    "binary": "5b9191c07d394151",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "light",
+      "ours": "shots/page/r4-light-ours.png",
+      "theirs": "shots/oracle/page/light.png",
+      "blind": "shots/blind/page/light",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "B's leading is tighter: line pitch 74 device px against A's 76, on type that is ~2.5% larger (same 62-char string measures 1612 px in B vs 1588 in A) — roughly 1.69 vs 1.76 line-height ratio, so B's block is ~5% denser line-to-line. B also pays for its hanging markers with an off-centre block: the ## reaches 275 CSS px from the left edge while the right margin stays 319, a 44 px asymmetry.",
+      "gapTheirs": "A leaves markdown markers inside the column, so the left edge steps: body text starts at x=622, H1 words at x=676, H2 words at x=698 — a 27–38 CSS px indent applied to the two boldest lines on the page. B outdents the markers (# at 571, ## at 547, - at 577) so every word on every line begins at exactly x=623. Compounding it, A spends ~90 CSS px of window on a title bar plus a full-bleed hairline rule and a live '188 words / 961 characters / 1 min read' counter sitting 25 CSS px under the last line, showing 2 fewer lines of the passage at an identical viewport.",
+      "verdict": "Same paper, same measure, same caret — so the page comes down to the left edge and what is parked around it, and A loses both. A's headings are the only things on the page knocked out of the monospace grid, sliding 27–38 px right of the body while a permanent word counter sits under the last line with a hairline ruled across the full 2880 px; that is a counter you will read every time you look up, and a page with a lid on it. B gives you one unbroken left edge at x=623 from the H1 to the list dash, and nothing else in the window. B's 5% tighter leading and its 44 px leftward drift are real and you would notice them by hour three, but they are grievances about a page you can work on, not reasons to leave it.",
+      "secondary": [
+        "Paper identical in both: srgb(249,249,249) sampled at 6 points including corners and gutters — no differentiator",
+        "Measure identical: ~1620 device px / ~810 CSS px, ~62 characters; both blocks near-centred (A left 622 / right 638; B left 623 / right 639)",
+        "Caret identical: same blue, ~5 device px (~3 CSS px) wide, same overshoot above cap height — not a differentiator",
+        "Shared failure: paragraph gap and heading gap are both exactly 2× line pitch (A 152, B 148 device px), so '## What the sea keeps' gets no more air above it than an ordinary paragraph break and reads as another paragraph, not a section",
+        "A's markers are the better grey: '#' bottoms out at ~158 vs B's ~122 (36 levels darker), so B's hanging hash is more assertive than a hanging mark should be — B only gets away with it by having moved it out of the column",
+        "A's body clears the footer rule by only 31 device px (~15 CSS px); B has zero bottom padding and slices a glyph row 4 device px deep at y=1799 — both crowd the bottom edge, A merely caps it",
+        "A's headroom below its title bar is ~74 CSS px vs B's 84 CSS px of bare paper above the H1 — neither is generous, and the chrome does not buy A any top air",
+        "No scrollbar in either; A's only right-edge ink is the menu glyph in the top chrome"
+      ]
+    },
+    {
+      "name": "narrow",
+      "ours": "shots/page/r4-narrow-ours.png",
+      "theirs": "shots/oracle/page/narrow.png",
+      "blind": "shots/blind/page/narrow",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "No bottom gutter: the column runs straight into the window edge and a line is guillotined mid-x-height at y=1800, with zero padding below it. Top air is also thinner, 168px to first ink versus A's 238px, so the whole block is shoved up and out of the frame rather than floated in it.",
+      "gapTheirs": "Ragged left edge: body text sets at x=142, but H1 text starts at x=193 and H2 text at x=217, because the '#'/'##' markers sit inline instead of hanging. That is a 51px and 75px stagger on the one edge the eye uses to track down the page. B outdents markers to x=129 and x=105 and holds every line of body, heading and list text at x=181-182.",
+      "verdict": "Same paper (#F9F9F9 in both), same 32px cap height, same 6px caret, line-height within 2px (76 vs 74) — so this comes down to the left edge, and A doesn't have one. Every time you drop a heading in A the text jumps 51-75px right, which you will feel as a lurch on every scroll pass through a long piece, and the permanent '188 words 961 characters 1 min read' strip is exactly the thing a drafting writer switches off. B's page is a straight line with the markup pushed out into the margin where it belongs, at a tighter 58ch to A's 62ch and 40px more side air. B's own failure is real and daily — text runs off the bottom rim with a sliced line and no scroll gutter — but a ragged reading edge is structural and a missing bottom pad is a setting.",
+      "secondary": [
+        "identical paper: #F9F9F9 both; neither commits to a warmer stock",
+        "caret identical in both: 6px wide and the full line-box height (76px A / 74px B) — a slab, not a caret",
+        "measure: A ~62ch, B ~58ch at the same ~26.2px advance",
+        "neither column is centred: A sits at 140/152 left/right, B at 179/194 — both ~6-8px left of the 960px axis",
+        "A's line-height 76px vs B's 74px on a 32px cap height = 1.73 vs 1.68; A is marginally airier per line and gives that back at the headings",
+        "A carries chrome at both edges: 'Untitled.md' + sidebar toggle + menu chevron on top, hairline-divided stats strip at bottom; B has none",
+        "B hangs list bullets too ('-' at x=135, item text at x=181), so the left edge survives lists as well as headings"
+      ]
+    }
+  ],
+  "at": "2026-08-31T15:12:52.447Z"
+}
