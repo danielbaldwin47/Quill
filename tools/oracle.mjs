@@ -45,10 +45,11 @@ import { appFiles, gitHead, hashApp, sha256 } from './fingerprint.mjs';
 // The port legacy/bin/quill opens the app on, and the same way of moving it.
 const PORT = +(process.env.QUILL_PORT || 4173);
 
-// The flags that say how big the type is, in the order a `defaults` has held them: `size` today,
-// `step` once #164 lands. A state judged against a Design oracle crop takes these from the
-// defaults whatever it says itself — see [`resolveStates`].
-const TYPE_KEYS = ['size', 'step'];
+// The flag that says how big the type is: `step`, since #164 put the ladder where the pixels were.
+// A state judged against a Design oracle crop takes it from the defaults whatever it says itself —
+// see [`resolveStates`]. A list of one, because the day this key changes again is the day the loop
+// below has to hold both at once, and finding it then is harder than leaving it here.
+const TYPE_KEYS = ['step'];
 
 // ---------- the judged states ----------
 // `QUILL_STATES` is for a selftest that has to put a state in front of a whole command without
@@ -75,10 +76,10 @@ export function resolveStates(states, piece) {
     const flags = { ...states.defaults, ...rest };
     if (opponent) {
       flags.font = 'mono';
-      // The type the defaults name, not the type this state names — whichever key names it. `step`
-      // is #164's and `size` is what stands today; asking which of them the defaults hold, rather
-      // than assuming, is what stops this rule quietly setting `size: undefined` and leaving the
-      // state's own override in place on the day the key changes.
+      // The type the defaults name, not the type this state names — whichever key names it. Asking
+      // which of them the defaults hold, rather than assuming, is what stops this rule quietly
+      // setting `step: undefined` and leaving the state's own override in place on the day the key
+      // changes; it changed once already, from `size` (#164).
       for (const key of TYPE_KEYS) {
         if (Object.prototype.hasOwnProperty.call(states.defaults, key)) flags[key] = states.defaults[key];
       }
@@ -106,10 +107,26 @@ export function byteToChar(text, byte) {
   return head.toString('utf8').length;
 }
 
+// ---------- the ladder, on the oracle's side ----------
+// A judged state names a step of the type ladder. `legacy/tools/shoot.mjs` predates the ladder and
+// counts in pixels, so the oracle's command line is the one place left that turns a step back into
+// a size: the em in logical pixels, fractional, which is what the legacy app's `fontSize` takes.
+// The numbers are `LADDER` in `quill-engine/src/typography.rs`, and `tools/oracle-selftest.mjs`
+// reads that file to prove the two have not drifted apart.
+export const LADDER_EM = [14.50, 15.25, 16.17, 17.17, 19.25, 21.33, 25.58, 29.75, 33.92, 38.08, 44.25, 50.33, 56.50, 62.58];
+
+// The em at `step`, in logical pixels. A step off the ladder is said rather than clamped: an oracle
+// frozen at a size nobody asked for is worse than one that was never taken.
+export function emForStep(step) {
+  const em = LADDER_EM[step];
+  if (em === undefined) throw new Error(`step ${step} is not on the type ladder (0 to ${LADDER_EM.length - 1})`);
+  return em;
+}
+
 // ---------- the command line a state is shot with ----------
 export function shootArgv(root, flags, out, url) {
   const argv = ['--out', out, '--url', url, '--w', String(flags.w), '--h', String(flags.h), '--dpr', String(flags.scale)];
-  argv.push('--theme', flags.theme, '--font', flags.font, '--size', String(flags.size));
+  argv.push('--theme', flags.theme, '--font', flags.font, '--size', String(emForStep(flags.step)));
   argv.push('--focus', flags.focus, '--chrome', flags.chrome, '--active', flags.active ? 'on' : 'off');
   if (flags.typewriter) argv.push('--typewriter');
   if (flags.nocaret) argv.push('--nocaret');

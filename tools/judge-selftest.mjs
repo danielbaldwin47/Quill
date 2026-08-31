@@ -57,7 +57,7 @@ ok('a state becomes the native flags that state means', () => {
   assert.equal(flag('--h'), '900');
   assert.equal(flag('--theme'), 'light');
   assert.equal(flag('--font'), 'duo');
-  assert.equal(flag('--size'), '20');
+  assert.equal(flag('--step'), '5');
   assert.equal(flag('--focus'), 'off');
   // The caret Piece is judged bare (#139), so its states override the defaults' chrome; that
   // override reaching the command line is the half of this case the defaults cannot show.
@@ -320,16 +320,16 @@ function synthetic(opponent, overrides = {}) {
 }
 
 ok('a state that names an opponent carries no such flag, and is shot in Mono at the defaults\' type', () => {
-  const made = synthetic({ capture: CAPTURE, crop: [0, 0, 8, 8], ours: [0, 0, 8, 8] }, { font: 'quattro', size: 28, theme: 'dark' });
+  const made = synthetic({ capture: CAPTURE, crop: [0, 0, 8, 8], ours: [0, 0, 8, 8] }, { font: 'quattro', step: 6, theme: 'dark' });
   const [s] = resolveStates(made, 'synthetic');
   // `opponent` says who judges the state, not what it is shot at, so it must never reach the flags:
   // `unservable` would call it a flag no tool serves and refuse the Piece before a window opened.
   assert.deepEqual(unservable(made.defaults, s.flags), []);
   assert.deepEqual(s.opponent, { capture: CAPTURE, crop: [0, 0, 8, 8], ours: [0, 0, 8, 8] });
-  // Mono at the defaults' size whatever the state itself says, so the two grids compare cell for
+  // Mono at the defaults' step whatever the state itself says, so the two grids compare cell for
   // cell; everything that is not the type is still the state's own.
   assert.equal(s.flags.font, 'mono');
-  assert.equal(s.flags.size, states.defaults.size);
+  assert.equal(s.flags.step, states.defaults.step);
   assert.equal(s.flags.theme, 'dark');
   // And a state with no opponent is exactly what it was.
   const plain = resolveStates(states, 'type').find((t) => t.name === 'quattro');

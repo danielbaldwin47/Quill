@@ -229,7 +229,7 @@ ok("the caret's script is the two bursts the fixture was taken with", () => {
   // Live, on an empty Document, with the chrome off: the defaults with the script's state over them.
   assert.equal(script.flags.text, null);
   assert.equal(script.flags.chrome, 'off');
-  assert.equal(script.flags.size, 20);
+  assert.equal(script.flags.step, 5);
 });
 
 ok('a Piece with no keys script is told so by name', () => {

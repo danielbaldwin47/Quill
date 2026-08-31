@@ -286,7 +286,7 @@ impl Editor {
         editor
             .imp()
             .step
-            .set(quill_engine::settings::default_size());
+            .set(quill_engine::settings::default_step());
         editor.watch_caret();
         editor
     }
@@ -470,7 +470,7 @@ impl Editor {
         let layout = self.create_pango_layout(Some("Ag"));
         layout.set_font_description(Some(&body_font(
             self.imp().face.get(),
-            em_px(self.imp().step.get()),
+            typography::em(self.imp().step.get()),
         )));
         let features = pango::AttrList::new();
         features.insert(pango::AttrFontFeatures::new(&pango_features()));
@@ -586,7 +586,7 @@ impl Editor {
         Some(caret::Bar {
             x: f64::from(row.x()) * scale,
             y,
-            w: f64::from(caret::width(em_px(step))) * scale,
+            w: f64::from(caret::width(caret_em_px(step))) * scale,
             h,
         })
     }
@@ -652,7 +652,7 @@ impl Editor {
         if pitch == 0.0 {
             return None;
         }
-        let tail = caret::tail(em_px(self.imp().step.get()));
+        let tail = caret::tail(caret_em_px(self.imp().step.get()));
         let scale = self.scale();
         let view = self.visible_rect();
         let top = f64::from(view.y()) - pitch * SELECTION_SLACK;
@@ -1236,25 +1236,31 @@ fn pango_features() -> String {
 /// because a description that leaves either open is one a missing Face can be
 /// resolved into obliquely (ADR 0004, ADR 0007). Sizes are absolute pixels;
 /// points appear nowhere.
-fn body_font(face: Face, size: u32) -> pango::FontDescription {
+///
+/// `em` is the ladder's own value in logical pixels and is fractional — the
+/// default step's is 21.33 — so it is handed to Pango as it stands. Rounding
+/// it to the whole pixel the type used to be named in would put the page a
+/// third of a pixel off the Design oracle at the default and further at other
+/// steps, which is the difference the oracles are frozen at.
+fn body_font(face: Face, em: f64) -> pango::FontDescription {
     let mut font = pango::FontDescription::new();
     font.set_family(face.family());
     font.set_style(pango::Style::Normal);
     font.set_weight(pango::Weight::Normal);
     font.set_variations(Some(&format!("wght={INK_WEIGHT}")));
-    font.set_absolute_size(f64::from(size) * f64::from(pango::SCALE));
+    font.set_absolute_size(em * f64::from(pango::SCALE));
     font
 }
 
-/// The em at `step` of the type ladder, in the whole logical pixels the type
-/// is named in.
+/// The em at `step` of the type ladder, rounded to whole logical pixels.
 ///
-/// The ladder's ems are fractional — the default is 21.33 — and both Pango and
-/// GTK's CSS would take the fraction. Rounding here keeps the Editor's font
-/// size the whole number it has always been; setting the type at the em itself
-/// is [#164](https://github.com/danielbaldwin47/Quill/issues/164)'s, with the
-/// judged states it moves.
-fn em_px(step: u32) -> u32 {
+/// The type itself is set at the fractional em ([`body_font`]); this is the
+/// caret's unit alone, because [`caret::width`] and [`caret::tail`] are still
+/// scaled off a whole-pixel size. The ladder carries a caret width per step
+/// ([`typography::caret_width`]) and reading it there is
+/// [#169](https://github.com/danielbaldwin47/Quill/issues/169)'s, with the
+/// blink.
+fn caret_em_px(step: u32) -> u32 {
     typography::em(step).round() as u32
 }
 
@@ -1287,7 +1293,7 @@ pub fn install_type(face: Face, step: u32) {
             );
             provider
         });
-        provider.load_from_string(&stylesheet(face, em_px(step)));
+        provider.load_from_string(&stylesheet(face, typography::em(step)));
     });
 }
 
@@ -1305,14 +1311,14 @@ pub fn install_type(face: Face, step: u32) {
 /// well would be a second, differently rounded rectangle under it. The
 /// `color` stays, for the same reason the ink is named twice above: clearing
 /// the ground alone leaves the selected glyphs to the desktop theme.
-fn stylesheet(face: Face, size: u32) -> String {
+fn stylesheet(face: Face, em: f64) -> String {
     format!(
         "window {{ background-color: {PAPER}; }}\n\
          textview.{FACE_CLASS}, textview.{FACE_CLASS} text {{\n\
          \x20 background-color: {PAPER};\n\
          \x20 color: {INK};\n\
          \x20 font-family: \"{family}\";\n\
-         \x20 font-size: {size}px;\n\
+         \x20 font-size: {em}px;\n\
          \x20 font-style: normal;\n\
          \x20 font-weight: {INK_WEIGHT};\n\
          \x20 font-feature-settings: {features};\n\
@@ -1336,6 +1342,29 @@ impl Default for Editor {
 mod tests {
     use super::*;
 
+    /// The ladder's ems are fractional, and the type is set at them.
+    ///
+    /// Both places the size is named — GTK's CSS and Pango's description —
+    /// take the fraction, and the Editor rounded it to a whole pixel only
+    /// while `--size` counted in pixels. At the default step that rounding was
+    /// 21.33 to 21, which is a page a third of a pixel narrower per em than
+    /// the one the oracles are frozen at.
+    #[test]
+    fn the_type_is_set_at_the_ladders_fractional_em() {
+        let em = typography::em(quill_engine::settings::default_step());
+        assert!((em - 21.33).abs() < 0.001, "the default step's em is {em}");
+        assert!(
+            stylesheet(Face::Duo, em).contains("font-size: 21.33px"),
+            "the stylesheet named the type at a whole pixel"
+        );
+        let described = f64::from(body_font(Face::Duo, em).size());
+        let wanted = em * f64::from(pango::SCALE);
+        assert!(
+            (described - wanted).abs() <= 1.0,
+            "Pango was given {described} rather than {wanted}"
+        );
+    }
+
     /// GTK paints no selection ground at all, and still paints the glyphs in
     /// the page's own ink.
     ///
@@ -1348,7 +1377,10 @@ mod tests {
     /// dark desktop is white on our paper.
     #[test]
     fn the_stylesheet_leaves_the_selection_ground_to_us_and_keeps_the_ink() {
-        let css = stylesheet(Face::Duo, 20);
+        let css = stylesheet(
+            Face::Duo,
+            typography::em(quill_engine::settings::default_step()),
+        );
         let rule = css
             .split_once(&format!("textview.{FACE_CLASS} text selection"))
             .expect("no selection rule at all")
