@@ -20,7 +20,7 @@ Workspace 1 is the user's: a test window (GTK, browser, bench) goes to a virtual
 
 ## Rust
 
-The `rust-analyzer-lsp` plugin is installed, so for any Rust in either crate the LSP tool answers definition, references, hover, symbols and call hierarchy. It arrives deferred: load its schema with `ToolSearch` at the session's start. Reach for it before a `grep` for a symbol or a `cat` of a file to find one.
+The `rust-analyzer-lsp` plugin is installed, and its `LSP` tool arrives deferred, so it is loaded the moment Rust enters the session: the first `.rs` path in context — in the ticket, in a fork's report, in a `grep` result, in a listing — is followed by one call, `ToolSearch` with `select:LSP`, before any other tool touches the file. This holds in the main session as much as in a fork. Loaded, it answers definition, references, hover, symbols and call hierarchy for either crate.
 
 Every question about a Rust symbol — where it is defined, who calls it, what its type is, what a module exports — goes to the LSP tool first; `grep` and `cat` are for what it cannot answer: string literals, comments, and files that are not Rust.
 
