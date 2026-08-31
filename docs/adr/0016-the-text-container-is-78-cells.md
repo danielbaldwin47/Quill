@@ -42,4 +42,5 @@ counterpart. The Design oracle draws no quote rule (`14-blocks`), so none is dra
 where 78 cells exceed the window the column is window-limited, as the oracle's is past its step 7.
 
 **The selection painter fills the container.** `caret::NL_TAIL` and the per-row ink extent are
-replaced by the container's edges; #150's keys burst to the foot asserts the new shape.
+replaced by the container's edges. #150's keys burst to the foot still passes: it counts painted
+rows, not their widths.
