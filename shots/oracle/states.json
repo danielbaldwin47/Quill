@@ -33,7 +33,14 @@
       "dark": { "text": "shots/oracle/markup.md", "caret": 131, "chrome": "off", "theme": "dark" }
     },
     "caret": {
-      "caret": { "chrome": "off" },
+      "caret": {
+        "chrome": "off", "font": "mono", "caret": 23,
+        "opponent": {
+          "capture": "mac-native-01-light-caret-midword.png",
+          "crop": [459, 187, 720, 260],
+          "ours": [392, 205, 720, 260]
+        }
+      },
       "selection": { "select": [153, 171], "caret": 171, "chrome": "off" },
       "unfocused": { "active": false, "chrome": "off" }
     },
