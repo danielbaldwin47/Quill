@@ -1,0 +1,97 @@
+{
+  "piece": "caret",
+  "round": 7,
+  "winner": "theirs",
+  "margin": "clear",
+  "gap": "No caret at all: a full-image histogram of A returns zero chromatic pixels — 0px of caret ink at either selection edge (checked x=1409-1420 and x=900-919, all #F9F9F9 or #C2EAFA). The selection is a bare #C2EAFA slab with no focus marker, versus B's 3 CSS px #00B5FF bar. The writer cannot see where the next keystroke lands.",
+  "gapTheirs": "The caret is drawn at BOTH ends of the selection — two pixel-identical 6-device-px #00B5FF bars — so the focus end is unmarked and shift-arrow direction is unguessable; and it is 3 CSS px wide (2-3x a normal 1px caret) spanning 100% of the 38 CSS px line box, i.e. 2.3x the 16.5px cap height, with 0px clearance to a caret on the line above.",
+  "verdict": "A doesn't render a caret, which ends the argument: an editor whose insertion point is invisible during a selection is not an instrument, it's a viewer. B's caret is crude — 3px of unblended OS-accent cyan, the only chroma on an otherwise strictly achromatic #1C1C1C-on-#F9F9F9 page, stretched to the full line box so it would abut its neighbours into a continuous rule — and duplicating it at both selection ends betrays that it's a border on the highlight rect rather than a real caret tracking the focus. But a chunky caret you can find beats an elegant page where you're typing blind. B wins by default, not by merit.",
+  "oursShot": "shots/caret/r7-selection-ours.png",
+  "theirsShot": "shots/oracle/caret/selection.png",
+  "refSource": "shots/oracle/caret/ — the Parity oracle frozen by tools/gate oracle caret from legacy/app 738f48c969965ac3 with legacy/tools/shoot.mjs b2362316db135d06",
+  "builderNote": "",
+  "secondary": [
+    "Selection fill identical in both: #C2EAFA on #F9F9F9 — a ~41% luminance drop, heavy for a highlight; neither app offers a dimmed unfocused-selection state",
+    "B's caret has zero antialiasing: all 912 px are pure #00B5FF with no blend pixels, so the edges are mechanically hard at 2x DPR",
+    "Selection rect heights near-identical (A 74 device px, B 76) — no differentiator; B's rect is 500 device px wide vs A's 492 for the same 15 characters",
+    "B's left bar is inset over the fill starting at the rect edge (x910-915) rather than sitting on the character boundary at x920 — a border, not a caret",
+    "Blink cannot be judged from a still; B at least proves the caret persists while a selection is active, A proves nothing"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "7113df0",
+    "binary": "197d2ccdbf1efbfd",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "caret",
+      "ours": "shots/caret/r7-caret-ours.png",
+      "theirs": "shots/oracle/caret/caret.png",
+      "blind": "shots/blind/caret/caret",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "B buys its tightness at the cost of separation: only 5px (2.5 CSS px) of white sits between the 's' and the caret — barely more than one of B's own 4px stems — so at typing speed the bar can read as a stroke of the glyph rather than a mark beside it. Vertically B is also 2px shorter (74px vs 76px device; 37 vs 38 CSS px), leaving 19px of clearance to the next line's ascenders against A's 21px, and 18px of naked blue above the ascender line instead of A's 20px.",
+      "gapTheirs": "The caret floats off the word: 8px device (4 CSS px) of white between the right edge of the 's' in 'steps' and the caret's left edge, vs 5px (2.5 CSS px) in B. Least-squares fit of the glyph grid (advance 25.9px) puts A's caret centre ~5.4px right of the character-cell boundary — ~21% of a cell of drift — vs ~1.9px (~7%) in B. Compounding it, A's body stems measure 3px against the same 6px caret, so the caret is 2.0x the stem weight vs B's 1.5x: a blunt bar parked in the space rather than a nib at the insertion point.",
+      "verdict": "This is a near-tie decided by three pixels, and anyone claiming otherwise hasn't measured: same #00B5FF, same 6px width, same hard-edged pixel-snapped rendering, same full-line-box height, no selection shown in either. What separates them is that A's caret sits ~5px right of the character cell boundary — you finish typing 'steps' and the caret is out in the space, so for a beat you don't know whether the next letter lands before or after the gap. B's caret sits on the boundary and hugs the letterform, and at 1.5x the stem weight instead of 2.0x it belongs to the same hand that set the type. Neither trims the caret to text height, so both are still 1.8x fenceposts with 18-20px of dead blue above the ascenders; B is simply the less wrong one.",
+      "secondary": [
+        "Both images 2880x1800; caret is the ONLY chromatic pixel in either (fx chroma scan returns exactly the caret bbox) — no selection state shown, so selection colour is untestable in both",
+        "Caret bbox: A 6x76+1930+838, B 6x74+1946+816 — both hard-edged top, bottom and sides, no antialiasing, so both are pixel-snapped with no half-pixel drift",
+        "Caret height equals line pitch exactly in both (A 76/76, B 74/74) — neither trims to cap-height; both ~1.8x the 41-42px ascender-to-descender ink span",
+        "Caret sits top-heavy on the line in both: A 20px above ascender / 15px below descender, B 18px / 14px",
+        "Identical type size in both (21px x-height, 31px ascender-to-baseline) but B is set slightly heavier (4px stems vs A's 3px) and slightly wider (advance 26.2 vs 25.9px)",
+        "Line pitch A 76px vs B 74px device (38 vs 37 CSS px) — A marginally looser, which is the whole source of its 2px-taller caret",
+        "Blink rate and caret motion cannot be judged from stills; neither image gives evidence either way"
+      ]
+    },
+    {
+      "name": "selection",
+      "ours": "shots/caret/r7-selection-ours.png",
+      "theirs": "shots/oracle/caret/selection.png",
+      "blind": "shots/blind/caret/selection",
+      "oursWas": "A",
+      "pick": "B",
+      "winner": "theirs",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "No caret at all: a full-image histogram of A returns zero chromatic pixels — 0px of caret ink at either selection edge (checked x=1409-1420 and x=900-919, all #F9F9F9 or #C2EAFA). The selection is a bare #C2EAFA slab with no focus marker, versus B's 3 CSS px #00B5FF bar. The writer cannot see where the next keystroke lands.",
+      "gapTheirs": "The caret is drawn at BOTH ends of the selection — two pixel-identical 6-device-px #00B5FF bars — so the focus end is unmarked and shift-arrow direction is unguessable; and it is 3 CSS px wide (2-3x a normal 1px caret) spanning 100% of the 38 CSS px line box, i.e. 2.3x the 16.5px cap height, with 0px clearance to a caret on the line above.",
+      "verdict": "A doesn't render a caret, which ends the argument: an editor whose insertion point is invisible during a selection is not an instrument, it's a viewer. B's caret is crude — 3px of unblended OS-accent cyan, the only chroma on an otherwise strictly achromatic #1C1C1C-on-#F9F9F9 page, stretched to the full line box so it would abut its neighbours into a continuous rule — and duplicating it at both selection ends betrays that it's a border on the highlight rect rather than a real caret tracking the focus. But a chunky caret you can find beats an elegant page where you're typing blind. B wins by default, not by merit.",
+      "secondary": [
+        "Selection fill identical in both: #C2EAFA on #F9F9F9 — a ~41% luminance drop, heavy for a highlight; neither app offers a dimmed unfocused-selection state",
+        "B's caret has zero antialiasing: all 912 px are pure #00B5FF with no blend pixels, so the edges are mechanically hard at 2x DPR",
+        "Selection rect heights near-identical (A 74 device px, B 76) — no differentiator; B's rect is 500 device px wide vs A's 492 for the same 15 characters",
+        "B's left bar is inset over the fill starting at the rect edge (x910-915) rather than sitting on the character boundary at x920 — a border, not a caret",
+        "Blink cannot be judged from a still; B at least proves the caret persists while a selection is active, A proves nothing"
+      ]
+    },
+    {
+      "name": "unfocused",
+      "ours": "shots/caret/r7-unfocused-ours.png",
+      "theirs": "shots/oracle/caret/unfocused.png",
+      "blind": "shots/blind/caret/unfocused",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "The opposite overcorrection: 2 CSS px of air before the caret against 11 CSS px after it, a 5.5:1 lopsided split of the same 16 CSS px gap (A splits it 3.5/9, i.e. 2.6:1). The caret licks the 's' and the space beyond it optically reads as a double space, so 'steps | the' looks mis-spaced every time you stop typing mid-line.",
+      "gapTheirs": "Caret sits off the character grid: its left edge lands ~1 CSS px past the cell boundary after 'steps', leaving 3.5 CSS px of air between the final 's' and the bar (B: 2 CSS px). It reads as parked in the word-space rather than at the insertion point. It is also the taller of the two — 76 device px vs 74, overshooting 11 CSS px above the 't' ascender vs B's 10.",
+      "verdict": "These are the same caret with a 2px shove — 3 CSS px wide, #AEE5FB, one full line-box tall in both — so anyone claiming a real difference is selling something. B wins only because its bar lands within half a pixel of the character cell boundary while A's drifts right into the word-space, and because B overshoots the ascender by 10 CSS px instead of 11. Both commit the same larger crime: a caret 2.5x the ascender height (76/30 and 74/30 device px), a pale blue column of leading that announces the line box instead of the letter you are about to type, at 1.29:1 contrast against a #F9F9F9 page while the text sits at ~15:1. Neither feels like a nib; both feel like a leftover highlight, and with no selection rendered in either shot half this dimension is simply unbuilt.",
+      "secondary": [
+        "Both 2880x1800, same passage, same #F9F9F9 bg and #1C1C1C body text",
+        "Caret fill effectively identical: #AEE5FB (A) vs #AFE5FB (B) — 1/255 apart",
+        "Caret contrast vs page ~1.29:1 in both; a writer glancing back to a paused document will lose it",
+        "Both 6 device px = 3 CSS px wide, hard-edged, zero antialiasing on the vertical edges — correctly snapped in both",
+        "Caret height = exactly one line pitch in both (A 76/76, B 74/74); A's line-height ~1.79 vs B's ~1.70 relative to font size",
+        "Vertical centring: A's caret centre sits 1.5 CSS px above the glyph ink band centre, B's 0.75 CSS px",
+        "No selection anywhere in either image — selection colour, selection height and selection-vs-caret contrast are all unjudgeable",
+        "Blink rate, caret easing and drag/click-through motion are invisible in a still; both graded on geometry alone"
+      ]
+    }
+  ],
+  "at": "2026-08-31T17:17:13.712Z"
+}

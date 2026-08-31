@@ -161,6 +161,10 @@ mod imp {
         pub edited: Cell<Option<i64>>,
         /// Whether the frame-clock callback is attached.
         pub ticking: Cell<bool>,
+        /// Whether `--caret` is still owed the scroll that shows where it
+        /// went. Set when the caret is placed and cleared by the first
+        /// allocation that can resolve it. See [`Editor::reveal_caret`].
+        pub reveal: Cell<bool>,
         /// The one-shot that brings the blink back when the quiet after a
         /// move or an edit runs out: no frame is asked for inside it, so
         /// something outside the frame clock has to ask for the one that ends
@@ -204,6 +208,9 @@ mod imp {
             // a placement that moves nothing, so the allocations that do not
             // move the page cost nothing either.
             self.obj().caret_settled();
+            // And the scroll that shows the row it is on, which could not be
+            // resolved against a layout that did not exist yet either (#148).
+            self.obj().reveal_caret();
         }
     }
 
@@ -1074,8 +1081,36 @@ impl Editor {
         };
         buffer.place_cursor(&at);
         if reveal {
-            self.scroll_to_mark(&buffer.get_insert(), 0.0, true, 0.0, CARET_LINE);
+            self.imp().reveal.set(true);
+            self.reveal_caret();
         }
+    }
+
+    /// Scrolls the view to the caret, but never before the page is laid out.
+    ///
+    /// GTK resolves a `scroll_to_mark` against the layout the view has, and
+    /// until the first `size_allocate` it has none: the request is queued as
+    /// a pending scroll and flushed when the view is next validated. On a
+    /// Document shorter than the viewport that flush never happens — the
+    /// scroll it asks for is a scroll there is no room to make — and the
+    /// validation it is holding up is the one that draws the text, so the
+    /// window comes up as bare paper with neither glyph nor bar on it
+    /// (#148). A long Document was never hit by it because there the scroll
+    /// does move, which flushes the queue and lets the validation through.
+    ///
+    /// So the reveal waits for a size the way [`Editor::lay_out`] does, and
+    /// `size_allocate` asks again the moment there is one. One request from
+    /// there is enough, where [`Editor::scroll_to`] holds its own across
+    /// [`SCROLL_FRAMES`]: measured on a Document of three paragraphs,
+    /// `--caret 0`, `--caret 10` and `--caret end` each leave the window on
+    /// the same ink `--scroll 0` leaves it on, and `ref/sample.md` does not
+    /// move.
+    fn reveal_caret(&self) {
+        if !self.imp().reveal.get() || self.imp().laid_out.get().is_none() {
+            return;
+        }
+        self.imp().reveal.set(false);
+        self.scroll_to_mark(&self.buffer().get_insert(), 0.0, true, 0.0, CARET_LINE);
     }
 
     /// Scrolls the Document to `fraction` of its length, 0 at the top.
