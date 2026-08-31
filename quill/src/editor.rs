@@ -481,11 +481,12 @@ impl Editor {
         self.set_bottom_margin(page.bottom);
         // The heading markers hang into this container's gutter, so they are
         // re-hung with it: both halves of the pair move, the measure's edge
-        // with the window and the hang with the type.
+        // with the window and the marker run with the type.
         tags::hang_markers(
             &self.buffer(),
             self.imp().step.get(),
             page.column,
+            std::array::from_fn(|level| self.marker_advance(level as u8 + 1)),
             self.imp().scheme.get(),
         );
     }
@@ -517,7 +518,63 @@ impl Editor {
 
     /// One row of body type, laid out to be measured.
     fn body_layout(&self) -> pango::Layout {
-        let layout = self.create_pango_layout(Some("Ag"));
+        self.measured("Ag")
+    }
+
+    /// How far a level-`level` heading's markers advance: its `#`s and the one
+    /// space after them, in the pixels this widget lays out in.
+    ///
+    /// **Measured, not counted off [`typography::cell`]**, because the two are
+    /// not the same number and which one is right changes under the app. Pango
+    /// rounds a glyph's advance to a whole pixel when font metrics are hinted
+    /// and does not when they are not, and this app is both: a `--deterministic`
+    /// launch pins hinting on in [`harness::determine`], and a writer's own
+    /// launch takes whatever the desktop and the display's scale settle on. At
+    /// the default step that is 13 px a cell in a judged shot and 12.798 in the
+    /// app.
+    ///
+    /// A hang is handed straight back by these very glyphs — the heading's row
+    /// starts one marker run left of the body column and Pango then advances
+    /// that run before the first word — so a hang that is not what they will
+    /// actually advance puts the heading's words off the column, and the six
+    /// levels on to as many columns. Round 10 of the Markup Piece was lost to
+    /// exactly that, and counting the cell either way would only have moved
+    /// which of the two builds was wrong (#167).
+    ///
+    /// Asking the layout is the best either can do, and it is not the same
+    /// answer for both. Hinted, the advance is already whole and the six
+    /// levels land on one column exactly. Unhinted it is fractional, and a
+    /// `left-margin` is an `i32`, so the rounding leaves a residual of up to
+    /// half a logical pixel — one device pixel at scale 2, and no integer
+    /// margin can beat it. That residual is the same disagreement ADR 0016
+    /// leaves open for the Typography Piece.
+    ///
+    /// The markers are marker ink at [`Weight::Regular`](quill_engine::annotate::Weight),
+    /// which is what body type is set at, so the body's own description
+    /// measures them.
+    fn marker_advance(&self, level: u8) -> i32 {
+        let mut run = "#".repeat(usize::from(level));
+        run.push(' ');
+        let layout = self.measured(&run);
+        // The logical width, rounded once here, as every other horizontal
+        // length this widget sets is.
+        let width = f64::from(layout.size().0) / f64::from(pango::SCALE);
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "seven cells of one type size, which is under a hundred pixels"
+        )]
+        let whole = width.round().max(0.0) as i32;
+        whole
+    }
+
+    /// `text` laid out in the Face, size and features body type is set in, for
+    /// measuring rather than for drawing.
+    ///
+    /// The description is built here rather than read off the widget because
+    /// GTK recomputes style after this is asked, and a layout that took the
+    /// widget's word for it would be measuring the desktop theme's font.
+    fn measured(&self, text: &str) -> pango::Layout {
+        let layout = self.create_pango_layout(Some(text));
         layout.set_font_description(Some(&body_font(
             self.imp().face.get(),
             typography::em(self.imp().step.get()),
