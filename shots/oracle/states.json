@@ -1,5 +1,6 @@
 {
-  "_about": "The judged states of the nine Pieces, decided in issue #24. tools/gate judge <piece> shoots ours and the Parity oracle at every state listed for the Piece and freezes the oracle's shot at shots/oracle/<piece>/<state>.png. Offsets are UTF-8 bytes from the start of the passage (the native --caret and --select form); the tool converts them to legacy/tools/shoot.mjs's character offsets. Every key in `defaults` is a flag from docs/architecture.md and is overridden per state.",
+  "_about": "The judged states of the nine Pieces, decided in issue #24. tools/gate judge <piece> shoots ours and the Parity oracle at every state listed for the Piece and freezes the oracle's shot at shots/oracle/<piece>/<state>.png. Offsets are UTF-8 bytes from the start of the passage (the native --caret and --select form); the tool converts them to legacy/tools/shoot.mjs's character offsets. Every key in `defaults` is a flag from docs/architecture.md and is overridden per state — except `opponent`, which is not a flag and says who the state is judged against instead.",
+  "opponent": "A state that follows a docs/design.md row has left the Parity oracle behind, and says so with `opponent` (ADR 0015): { capture, crop, ours } — a file name under ref/ia/shots/mac-native/, the rectangle [x, y, w, h] in that capture's device px, and the matching rectangle in ours, either given outright or as the string \"centre\". The Design oracle's window is 3024 x 1898 device px and ours 2880 x 1800, both with the container centred, so \"centre\" means the same size at the same offset from ours' window centre; a crop whose place the chrome's height decides names its own rectangle. A capture taken as a region rather than as the whole window adds `window` [w, h] and `at` [x, y], which only \"centre\" reads. Such a state is shot in Mono at the type the `defaults` name whatever it says itself, so the two grids compare cell for cell, and tools/gate oracle passes it over: its opponent is committed under ref/ia/, not frozen from legacy/.",
   "defaults": {
     "text": "ref/sample.md",
     "w": 1440, "h": 900, "scale": 2,
@@ -8,7 +9,7 @@
     "caret": 403, "select": null, "scroll": 0, "nocaret": false,
     "active": true, "typing": false, "menu": null
   },
-  "reference": "When legacy/ is gone, and for any Piece with no oracle state, the opponent is the iA reference crop recorded as refSource in progress/rounds/<piece>-r1.json; those crop recipes and their odd sizes are the reference states and are not repeated here.",
+  "reference": "A state that names no `opponent` is judged against the Parity oracle while legacy/ stands. When legacy/ is gone the opponent for every state is a mac-native crop, named the way `opponent` above says; the gauntlet's own crop recipes, recorded as refSource in progress/rounds/<piece>-r1.json, were read off marketing frames and are history rather than an opponent (ADR 0015).",
   "pieces": {
     "type": {
       "duo": { "chrome": "off" },
