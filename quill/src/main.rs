@@ -96,7 +96,10 @@ fn main() -> glib::ExitCode {
         if let Some(out) = starting.flags().measure.as_deref() {
             harness::capture(out);
         }
-        editor::install_type(starting.settings().face, starting.step());
+        // The ground is in the stylesheet, and the stylesheet is loaded here:
+        // before any window exists, so the first frame a writer sees is
+        // already on the paper they asked for and never flashes the other one.
+        editor::install_type(starting.scheme(), starting.settings().face, starting.step());
     });
 
     // The accelerators the Commands answer to, from the Appearance rows of
@@ -108,6 +111,7 @@ fn main() -> glib::ExitCode {
     app.set_accels_for_action("win.font.bigger", &["<Ctrl>equal", "<Ctrl>plus"]);
     app.set_accels_for_action("win.font.smaller", &["<Ctrl>minus"]);
     app.set_accels_for_action("win.font.reset", &["<Ctrl>0"]);
+    app.set_accels_for_action("win.theme.toggle", &["<Ctrl><Shift>l"]);
 
     // Launched with no file: an empty Editor, a Document with nothing in it.
     let activated = Rc::clone(&session);

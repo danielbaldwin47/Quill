@@ -35,8 +35,9 @@ use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 
 use quill_engine::settings::{
-    Choice, Chrome, Face, FocusScope, Settings, Theme, WindowState, window_sizes,
+    Choice, Chrome, Face, FocusScope, Settings, WindowState, window_sizes,
 };
+use quill_engine::theme::Scheme;
 use quill_engine::typography;
 
 /// What `--help` prints: every flag, in the architecture's order.
@@ -74,8 +75,9 @@ overrides the writer's settings for that launch alone, and it writes neither
 settings.toml nor state.toml.";
 
 /// What `--theme` takes: the two the Gate judges. `auto` is the desktop's
-/// answer rather than an answer, so it is a setting and not a judged state.
-const THEMES: [(&str, Theme); 2] = [("light", Theme::Light), ("dark", Theme::Dark)];
+/// answer rather than an answer, so it is a setting and not a judged state —
+/// which is why the flag names a ground and not the three-valued setting.
+const THEMES: [(&str, Scheme); 2] = [("light", Scheme::Light), ("dark", Scheme::Dark)];
 
 /// What `--chrome` takes. On the command line the chrome is on or off, which
 /// is how every other switch here reads; in the file it is shown or hidden,
@@ -128,8 +130,13 @@ impl fmt::Display for Error {
 pub struct Flags {
     /// The Document `--text` names.
     pub text: Option<PathBuf>,
-    /// The theme `--theme` names.
-    pub theme: Option<Theme>,
+    /// The ground `--theme` names.
+    ///
+    /// A [`Scheme`] rather than a [`Theme`], because the flag pins what is on
+    /// screen: it is read straight into `quill_engine::theme::effective` as
+    /// the flag that beats both the setting and the desktop, and `auto` is not
+    /// something it can say.
+    pub theme: Option<Scheme>,
     /// The Face `--font` names. A Face and not a font: the flag is spelled
     /// the way `docs/architecture.md` spells it, and the word stops there
     /// (`CONTEXT.md`).
@@ -249,8 +256,8 @@ impl Flags {
     /// names one over the top. Nothing here reaches `settings.toml`.
     #[must_use]
     pub fn over(&self, mut settings: Settings) -> Settings {
-        if let Some(theme) = self.theme {
-            settings.theme = theme;
+        if let Some(scheme) = self.theme {
+            settings.theme = scheme.setting();
         }
         if let Some(face) = self.face {
             settings.face = face;
@@ -460,7 +467,7 @@ mod tests {
         )
         .expect("every flag at once");
         assert_eq!(flags.text.as_deref(), Some(Path::new("ref/sample.md")));
-        assert_eq!(flags.theme, Some(Theme::Dark));
+        assert_eq!(flags.theme, Some(Scheme::Dark));
         assert_eq!(flags.face, Some(Face::Mono));
         assert_eq!(flags.step, Some(6));
         assert_eq!(flags.focus, Some(Focus::Paragraph));
@@ -593,7 +600,7 @@ mod tests {
             parse("--theme dark --font mono --step 6 --focus paragraph --typewriter --chrome off")
                 .expect("six settings overridden");
         let launched = flags.over(writers.clone());
-        assert_eq!(launched.theme, Theme::Dark);
+        assert_eq!(launched.theme, quill_engine::settings::Theme::Dark);
         assert_eq!(launched.face, Face::Mono);
         assert_eq!(launched.step, 6);
         assert!(launched.focus);
