@@ -1,4 +1,4 @@
-node_modules/
+node_modules
 shots/_*
 # A blind pair is two copies of shots that are already committed — ours at
 # shots/<piece>/r<N>-<state>-ours.png and the opponent's under shots/oracle/ —
