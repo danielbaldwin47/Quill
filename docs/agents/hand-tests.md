@@ -12,7 +12,7 @@ Each ported Piece is its own feature ticket, closed by the owner's `hand test: p
 
 **Dark and light**: 1. Toggle the theme; paper and ink swap instantly with no flash. 2. In each theme, Markup, dimmed Focus text, selection and caret read as designed, not inverted. 3. Quit and relaunch; the last theme is remembered.
 
-**Markup rendering**: 1. Type `# Heading`; the marker hangs into the margin and the heading is bold at body size. 2. Type `*emphasis*` and `**strong**`; markers dim, text styles, nothing shifts horizontally. 3. Type a list, a blockquote, a fenced code block and a link; each marker is quiet and the prose stays readable.
+**Markup rendering**: 1. Type `# Heading`; the marker hangs into the margin and the heading is bold at body size. 2. Type `*emphasis*` and `**strong**`; markers dim, text styles, nothing shifts horizontally. 3. Type a list, a blockquote, a fenced code block and a link; each marker is quiet, the list and quote markers sit on the body column with no rule beside the quote (`docs/design.md` § What hangs), and the prose stays readable.
 
 **Chrome and menus**: 1. Start typing; the chrome fades. 2. Stop, move the mouse; the title and the stats return. 3. Open each menu; every in-scope feature is reachable with its shortcut shown.
 
