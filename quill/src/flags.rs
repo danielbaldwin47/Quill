@@ -35,8 +35,23 @@ use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 
 use quill_engine::settings::{
-    Choice, Chrome, Face, FocusScope, Settings, Theme, WindowState, type_sizes, window_sizes,
+    Choice, Chrome, Face, FocusScope, Settings, Theme, WindowState, window_sizes,
 };
+use quill_engine::typography;
+
+/// The pixel sizes `--size` takes, outside which a number is a typo rather
+/// than a request.
+///
+/// The type is a ladder of fourteen steps now, and `--size` is one of the two
+/// flags still counted in pixels: the Gate's harness writes `--size 20` from
+/// `shots/oracle/states.json`, and every launch it shoots is that state. The
+/// pixels are read as they always were and land on the step nearest above
+/// them, so nothing that drives Quill has to know the ladder yet;
+/// [#164](https://github.com/danielbaldwin47/Quill/issues/164) replaces the
+/// flag with `--step` and the judged states with it.
+fn pixel_sizes() -> RangeInclusive<u32> {
+    10..=40
+}
 
 /// What `--help` prints: every flag, in the architecture's order.
 pub const USAGE: &str = "\
@@ -47,7 +62,7 @@ Judged state — the states the Gate shoots and benches at:
   --theme light|dark     Set the theme.
   --font duo|quattro|mono
                          Set the Face.
-  --size <px>            Set the type size.
+  --size <px>            Set the type size, at the step at or above it.
   --focus off|sentence|paragraph
                          Turn Focus off, or on at a scope.
   --typewriter           Turn Typewriter on.
@@ -133,8 +148,8 @@ pub struct Flags {
     /// the way `docs/architecture.md` spells it, and the word stops there
     /// (`CONTEXT.md`).
     pub face: Option<Face>,
-    /// The type size `--size` names, in pixels.
-    pub size: Option<u32>,
+    /// The step of the type ladder the pixel size `--size` names lands on.
+    pub step: Option<u32>,
     /// What `--focus` asks of Focus.
     pub focus: Option<Focus>,
     /// Whether `--typewriter` turned Typewriter on.
@@ -188,7 +203,10 @@ impl Flags {
                 "--text" => flags.text = Some(file(&mut args, flag)?),
                 "--theme" => flags.theme = Some(one_of(flag, &text(&mut args, flag)?, &THEMES)?),
                 "--font" => flags.face = Some(choice(flag, &text(&mut args, flag)?)?),
-                "--size" => flags.size = Some(whole(flag, &text(&mut args, flag)?, &type_sizes())?),
+                "--size" => {
+                    let size = whole(flag, &text(&mut args, flag)?, &pixel_sizes())?;
+                    flags.step = Some(typography::step_for_size(size));
+                }
                 "--focus" => flags.focus = Some(one_of(flag, &text(&mut args, flag)?, &FOCUSES)?),
                 "--typewriter" => flags.typewriter = true,
                 "--chrome" => flags.chrome = Some(one_of(flag, &text(&mut args, flag)?, &CHROMES)?),
@@ -243,8 +261,8 @@ impl Flags {
         if let Some(face) = self.face {
             settings.face = face;
         }
-        if let Some(size) = self.size {
-            settings.size = size;
+        if let Some(step) = self.step {
+            settings.step = step;
         }
         // `--focus off` says nothing about the scope, so the writer's is left
         // where it is: turning Focus back on is their scope again.
@@ -450,7 +468,7 @@ mod tests {
         assert_eq!(flags.text.as_deref(), Some(Path::new("ref/sample.md")));
         assert_eq!(flags.theme, Some(Theme::Dark));
         assert_eq!(flags.face, Some(Face::Mono));
-        assert_eq!(flags.size, Some(24));
+        assert_eq!(flags.step, Some(6), "24 px is step 6, whose em is 25.58");
         assert_eq!(flags.focus, Some(Focus::Paragraph));
         assert!(flags.typewriter);
         assert_eq!(flags.chrome, Some(Chrome::Hidden));
@@ -462,6 +480,15 @@ mod tests {
         assert!(flags.deterministic);
         assert_eq!(flags.measure.as_deref(), Some(Path::new("out.jsonl")));
         assert!(!flags.help);
+    }
+
+    #[test]
+    fn the_pixel_size_the_gates_harness_writes_is_the_ladders_default_step() {
+        // `shots/oracle/states.json` says `"size": 20`, and every judged state
+        // is launched with it. The flag is still counted in pixels for that
+        // reason, and 20 px is step 5.
+        let flags = parse("--size 20").expect("the harness's own size");
+        assert_eq!(flags.step, Some(quill_engine::settings::default_size()));
     }
 
     #[test]
@@ -563,7 +590,7 @@ mod tests {
         let launched = flags.over(writers.clone());
         assert_eq!(launched.theme, Theme::Dark);
         assert_eq!(launched.face, Face::Mono);
-        assert_eq!(launched.size, 24);
+        assert_eq!(launched.step, 6);
         assert!(launched.focus);
         assert_eq!(launched.focus_scope, FocusScope::Paragraph);
         assert!(launched.typewriter);
