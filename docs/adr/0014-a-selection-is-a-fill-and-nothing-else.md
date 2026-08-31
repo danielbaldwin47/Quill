@@ -1,5 +1,12 @@
 # A selection is a fill and nothing else
 
+*Confirmed against iA Writer for Mac running, on evidence independent of the four captures it was
+decided from — [`ref/ia/mac-native/VERDICTS.md`](../../ref/ia/mac-native/VERDICTS.md) § ADR 0014.
+Fill-only selections at four shapes in both themes, no bar or handle at either end, the caret out
+for as long as a selection stands, `#113d52` and `#00bfff` exact. One row is contradicted in colour:
+0014.9's "paler band" for a window that has lost focus is a neutral grey — `#464646` on dark,
+`#dcdcdc` on light — with no blue in it. The swap is still the fill's alone.*
+
 A selection is drawn as its fill rows and nothing else: no bar at either end, and the caret stays
 out for as long as it stands. This supersedes the "a bar at each end" of
 [ADR 0012](0012-editor-draws-its-own-selection.md) — its opening sentence, its
