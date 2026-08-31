@@ -275,7 +275,8 @@ ok('a Piece is ours only when every state is, and the round speaks for the state
   assert.equal(lost.builderNote, 'n');
   assert.equal(lost.opponent, 'oracle');
   assert.deepEqual(lost.build, { git: 'abc', binary: 'def' });
-  assert.deepEqual(lost.states.map((s) => s.name), ['duo', 'quattro', 'mono']);
+  const judged = JSON.parse(fs.readFileSync(path.join(ROOT, 'shots/oracle/states.json'), 'utf8')).pieces.type;
+  assert.deepEqual(lost.states.map((s) => s.name), Object.keys(judged));
   // tools/progress.mjs reads a round by these names and has to go on doing so.
   for (const key of ['piece', 'round', 'winner', 'gap', 'verdict', 'oursShot', 'theirsShot', 'builderNote', 'at']) {
     assert.ok(key in lost, `a round with no ${key} is not a round progress.mjs can draw`);

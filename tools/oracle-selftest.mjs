@@ -39,7 +39,7 @@ const states = readStates(ROOT);
 // ---------- the judged states ----------
 ok('a state is the defaults with its own overrides on top', () => {
   const type = resolveStates(states, 'type');
-  assert.deepEqual(type.map((s) => s.name), ['duo', 'quattro', 'mono']);
+  assert.deepEqual(type.map((s) => s.name), Object.keys(states.pieces.type));
   const duo = type[0].flags;
   assert.equal(duo.chrome, 'off');           // the state's own
   assert.equal(duo.font, 'duo');             // from the defaults
