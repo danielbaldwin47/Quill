@@ -216,8 +216,10 @@ ok('a state judged against a mac-native crop is not this tool\'s to freeze', () 
     assert.match(r.out.trim().split('\n').pop(), /^gate oracle type: nothing to freeze \(its one state names a mac-native crop\)/);
     // And it took nothing away from the Piece as it really stands: the sweep below reads the
     // fingerprint, and this run must not have removed the shots type is actually frozen at. Those
-    // are duo and quattro alone since #165 moved `mono` to a Design oracle crop — the state whose
-    // own opponent is committed under ref/ia/, and which this command is right to pass over.
+    // are duo and quattro alone since #165 moved `mono` to a Design oracle crop: a real
+    // `gate oracle type` took `mono.png` away then, by the removal path below, because the state
+    // had stopped being one this freezes — so naming it here would assert a file the command was
+    // right to delete. The fixture in front of this case never reaches that path itself.
     for (const name of ['duo', 'quattro']) {
       assert.ok(fs.existsSync(path.join(ROOT, 'shots/oracle/type', `${name}.png`)), `${name}.png went missing`);
     }
