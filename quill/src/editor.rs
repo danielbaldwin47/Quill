@@ -72,6 +72,15 @@ const BASELINE_DRIFT: f64 = 0.5;
 /// a pitch small enough, that a screenful is still hundreds of rows.
 const MAX_ROWS: usize = 400;
 
+/// The scale the ladder is asked at for anything GTK lays the page out from.
+///
+/// A `GtkTextView`'s margins and its three leadings are logical pixels — GTK
+/// applies the surface's scale factor itself, on the way to the glass — so the
+/// pitch that feeds them is the ladder at scale 1. The surface's own scale is
+/// for the caret alone, whose machine measures in device pixels because the
+/// snap that keeps the bar's edges hard is a snap onto one of those.
+const LAYOUT_SCALE: f64 = 1.0;
+
 /// How far past the viewport the selection's rows are still built, in rows.
 ///
 /// `M.pitch * 6` either side of the scroller in `drawSelection`. The slack is
@@ -117,8 +126,8 @@ mod imp {
     pub struct Editor {
         /// The Face this Editor is set in.
         pub face: Cell<Face>,
-        /// The type size, in pixels.
-        pub size: Cell<u32>,
+        /// Which of the type ladder's fourteen steps the Editor is set at.
+        pub step: Cell<u32>,
         /// The page as it was last laid out. Setting a margin queues another
         /// allocation, so an allocation that does not move the page must not
         /// set it again.
@@ -276,7 +285,7 @@ impl Editor {
         editor.set_cursor_visible(false);
         editor
             .imp()
-            .size
+            .step
             .set(quill_engine::settings::default_size());
         editor.watch_caret();
         editor
@@ -357,14 +366,17 @@ impl Editor {
         ));
     }
 
-    /// Sets the Editor in `face` at `size` and lays the page out again.
+    /// Sets the Editor in `face` at `step` of the type ladder and lays the
+    /// page out again.
     ///
     /// Everything downstream of the size moves with it: a size without the
     /// leading that belongs to it is half a decision, and a leading without
-    /// the measure that belongs to it is the other half.
-    pub fn set_type(&self, face: Face, size: u32) {
+    /// the measure that belongs to it is the other half. A step names all
+    /// three at once, which is the point of a ladder measured off the app
+    /// rather than a curve fitted to it.
+    pub fn set_type(&self, face: Face, step: u32) {
         self.imp().face.set(face);
-        self.imp().size.set(size);
+        self.imp().step.set(step);
         self.restyle();
     }
 
@@ -374,7 +386,7 @@ impl Editor {
         // be moved to the new one; the rest of the type is CSS the widget
         // picks up on its own.
         tags::set_face(&self.buffer(), self.imp().face.get());
-        let pitch = typography::pitch(self.imp().size.get());
+        let pitch = typography::pitch(self.imp().step.get(), LAYOUT_SCALE);
         let leading = typography::leading(pitch, self.row_height());
         // The caret's band and its unit, kept with the type: a bar placed on
         // the keystroke path must not cost a row measured all over again.
@@ -405,7 +417,7 @@ impl Editor {
         if width <= 0 || height <= 0 {
             return;
         }
-        let measure = typography::measure(self.imp().face.get(), self.imp().size.get());
+        let measure = typography::measure(self.imp().face.get(), self.imp().step.get());
         let page = Page {
             side: signed(typography::column(unsigned(width), measure).side),
             bottom: signed(typography::page_bottom(unsigned(height))),
@@ -423,7 +435,7 @@ impl Editor {
         tags::hang_markers(
             &self.buffer(),
             self.imp().face.get(),
-            self.imp().size.get(),
+            self.imp().step.get(),
             page.side,
         );
     }
@@ -458,7 +470,7 @@ impl Editor {
         let layout = self.create_pango_layout(Some("Ag"));
         layout.set_font_description(Some(&body_font(
             self.imp().face.get(),
-            self.imp().size.get(),
+            em_px(self.imp().step.get()),
         )));
         let features = pango::AttrList::new();
         features.insert(pango::AttrFontFeatures::new(&pango_features()));
@@ -525,7 +537,7 @@ impl Editor {
 
     /// One em in the device pixels the machine measures its gates in.
     fn em(&self) -> f64 {
-        f64::from(self.imp().size.get()) * self.scale()
+        typography::em(self.imp().step.get()) * self.scale()
     }
 
     /// The surface's scale factor, which is the machine's unit.
@@ -568,13 +580,13 @@ impl Editor {
         }
         let buffer = self.buffer();
         let row = self.iter_location(&buffer.iter_at_mark(&buffer.get_insert()));
-        let size = self.imp().size.get();
+        let step = self.imp().step.get();
         let scale = self.scale();
         let (y, h) = self.band(f64::from(row.y()));
         Some(caret::Bar {
             x: f64::from(row.x()) * scale,
             y,
-            w: f64::from(caret::width(size)) * scale,
+            w: f64::from(caret::width(em_px(step))) * scale,
             h,
         })
     }
@@ -640,7 +652,7 @@ impl Editor {
         if pitch == 0.0 {
             return None;
         }
-        let size = self.imp().size.get();
+        let tail = caret::tail(em_px(self.imp().step.get()));
         let scale = self.scale();
         let view = self.visible_rect();
         let top = f64::from(view.y()) - pitch * SELECTION_SLACK;
@@ -699,7 +711,7 @@ impl Editor {
             // stub past the last glyph. `ends_line` is what tells it from a
             // wrap: a wrap is inside one line and never ends it.
             if stop < end && stop.ends_line() {
-                right += caret::tail(size);
+                right += tail;
             }
             let (y, h) = self.band(f64::from(box_of_first.y()));
             let x = caret::snap(left * scale);
@@ -1224,6 +1236,18 @@ fn pango_features() -> String {
 /// because a description that leaves either open is one a missing Face can be
 /// resolved into obliquely (ADR 0004, ADR 0007). Sizes are absolute pixels;
 /// points appear nowhere.
+/// The em at `step` of the type ladder, in the whole logical pixels the type
+/// is named in.
+///
+/// The ladder's ems are fractional — the default is 21.33 — and both Pango and
+/// GTK's CSS would take the fraction. Rounding here keeps the Editor's font
+/// size the whole number it has always been; setting the type at the em itself
+/// is [#164](https://github.com/danielbaldwin47/Quill/issues/164)'s, with the
+/// judged states it moves.
+fn em_px(step: u32) -> u32 {
+    typography::em(step).round() as u32
+}
+
 fn body_font(face: Face, size: u32) -> pango::FontDescription {
     let mut font = pango::FontDescription::new();
     font.set_family(face.family());
@@ -1248,7 +1272,7 @@ thread_local! {
 /// as a written one — a page whose empty lines are a different height is not a
 /// page. It is installed once, before the first window, and reloaded whenever
 /// the writer steps the size.
-pub fn install_type(face: Face, size: u32) {
+pub fn install_type(face: Face, step: u32) {
     let Some(display) = gtk::gdk::Display::default() else {
         // No display: nothing to style, and nothing that will draw text.
         return;
@@ -1263,7 +1287,7 @@ pub fn install_type(face: Face, size: u32) {
             );
             provider
         });
-        provider.load_from_string(&stylesheet(face, size));
+        provider.load_from_string(&stylesheet(face, em_px(step)));
     });
 }
 

@@ -112,15 +112,16 @@ const LIST_CELLS: u8 = 12;
 /// How far a tab advances a marker, in cells: CommonMark's tab stop.
 const TAB_CELLS: usize = 4;
 
-/// How far the code ground runs past each edge of the measure, at `size`.
+/// How far the code ground runs past each edge of the measure, at `step` of
+/// the type ladder.
 ///
 /// The oracle's `box-shadow: -.7em 0 0 var(--code-bg), .7em 0 0 var(--code-bg)`
 /// on `.line.l-code`, which is what makes a fenced block read as a well rather
 /// than as a stripe the exact width of the prose. Ems rather than cells,
 /// because that is what the oracle measured it in and the two are not the same
 /// thing: a cell is 0.6em on these Faces.
-fn well(size: u32) -> i32 {
-    pixels(0.7 * f64::from(size))
+fn well(step: u32) -> i32 {
+    pixels(0.7 * typography::em(step))
 }
 
 /// `length` as whole pixels.
@@ -138,14 +139,15 @@ fn pixels(length: f64) -> i32 {
     whole
 }
 
-/// The pixels a marker of `cells` cells hangs by, in `face` at `size`.
+/// The pixels a marker of `cells` cells hangs by, in `face` at `step` of the
+/// type ladder.
 ///
 /// The Faces are cut to one cell grid, so a marker's width is its cell count
 /// times the advance [`typography::cell`] already measures the 64-character
 /// measure from. Rounded once, here, so the hang and the measure are counted
 /// off the same number and a heading cannot land half a pixel from the prose.
-fn hang(face: Face, size: u32, cells: f64) -> i32 {
-    pixels(typography::cell(face, size) * cells)
+fn hang(face: Face, step: u32, cells: f64) -> i32 {
+    pixels(typography::cell(face, step) * cells)
 }
 
 /// The tag named `name`, made by `build` if this is the first ask for it.
@@ -286,8 +288,8 @@ fn list(buffer: &gtk::TextBuffer, cells: u8) -> gtk::TextTag {
 /// The pair is the whole trick, so it is one function rather than two lines
 /// inside a loop: the first row starts at the margin, and the indent gives the
 /// marker back to every row under it, which must land on `side` exactly.
-fn hung(face: Face, size: u32, cells: f64, side: i32) -> (i32, i32) {
-    let width = hang(face, size, cells).min(side);
+fn hung(face: Face, step: u32, cells: f64, side: i32) -> (i32, i32) {
+    let width = hang(face, step, cells).min(side);
     (side - width, -width)
 }
 
@@ -306,9 +308,9 @@ fn hung(face: Face, size: u32, cells: f64, side: i32) -> (i32, i32) {
 /// A window too narrow to give the marker its margin keeps what it has — the
 /// tag's left margin cannot go below zero, and a heading that cannot hang is
 /// worth less than a heading pushed off the left edge of the view.
-pub fn hang_markers(buffer: &gtk::TextBuffer, face: Face, size: u32, side: i32) {
+pub fn hang_markers(buffer: &gtk::TextBuffer, face: Face, step: u32, side: i32) {
     let hang = |tag: &gtk::TextTag, cells: f64| {
-        let (margin, indent) = hung(face, size, cells, side);
+        let (margin, indent) = hung(face, step, cells, side);
         tag.set_left_margin(margin);
         tag.set_indent(indent);
     };
@@ -341,7 +343,7 @@ pub fn hang_markers(buffer: &gtk::TextBuffer, face: Face, size: u32, side: i32) 
     //
     // Deliberately not `min(side)`-ed away to nothing: a window too narrow to
     // give the well its margin is one the prose has no gutter in either.
-    let edge = well(size).min(side);
+    let edge = well(step).min(side);
     let ground = code_ground(buffer);
     ground.set_left_margin(side - edge);
     ground.set_right_margin(side - edge);
@@ -624,13 +626,18 @@ mod tests {
     // `GtkTextTag`: `tools/gate check` runs `cargo test` with no display
     // attached, and the tags themselves are judged from a shot instead.
 
+    /// The judged step: the ladder's default, whose em is 21.33 logical
+    /// pixels and whose cell is therefore 12.798.
+    const STEP: u32 = 5;
+
     #[test]
     fn a_heading_hangs_by_its_markers_and_the_space_after_them() {
-        // At 20 px every Face is on a 12 px cell (`typography` asserts it), so
-        // `# ` is 24 px and each further `#` is another 12.
-        for (level, width) in [(1u8, 24), (2, 36), (3, 48), (4, 60), (5, 72), (6, 84)] {
+        // Every Face is on a 0.6 em cell (`typography` asserts it), so at the
+        // default step `# ` is two cells of 12.798 px and each further `#` is
+        // another one.
+        for (level, width) in [(1u8, 26), (2, 38), (3, 51), (4, 64), (5, 77), (6, 90)] {
             assert_eq!(
-                hang(Face::Duo, 20, marker_cells(level)),
+                hang(Face::Duo, STEP, marker_cells(level)),
                 width,
                 "a level {level} heading hangs by the wrong width"
             );
@@ -641,16 +648,16 @@ mod tests {
     fn a_list_marker_hangs_by_its_own_width_and_not_by_its_depth() {
         // The widths the engine measures off the line: `- ` is two cells,
         // `1. ` is three, and `  - ` is a nested bullet at four.
-        for (cells, width) in [(2u8, 24), (3, 36), (4, 48)] {
+        for (cells, width) in [(2u8, 26), (3, 38), (4, 51)] {
             assert_eq!(
-                hang(Face::Duo, 20, f64::from(cells)),
+                hang(Face::Duo, STEP, f64::from(cells)),
                 width,
                 "a {cells}-cell marker hangs by the wrong width"
             );
         }
         assert_eq!(
-            hang(Face::Duo, 20, 2.0),
-            hang(Face::Duo, 20, marker_cells(1)),
+            hang(Face::Duo, STEP, 2.0),
+            hang(Face::Duo, STEP, marker_cells(1)),
             "a bullet and a level-1 heading are both two cells, so they hang alike"
         );
     }
@@ -786,7 +793,7 @@ mod tests {
     fn a_list_items_words_land_on_the_prose_margin_whatever_its_marker_is() {
         let side = 240;
         for cells in 1..=LIST_CELLS {
-            let (margin, indent) = hung(Face::Duo, 20, f64::from(cells), side);
+            let (margin, indent) = hung(Face::Duo, STEP, f64::from(cells), side);
             assert_eq!(
                 margin - indent,
                 side,
@@ -801,21 +808,27 @@ mod tests {
 
     #[test]
     fn the_hang_grows_with_the_type_it_is_set_in() {
-        let small = hang(Face::Duo, 16, marker_cells(1));
-        let large = hang(Face::Duo, 32, marker_cells(1));
-        assert!(
-            small < large,
-            "the marker is measured in cells, so it must move with the size: {small} then {large}"
-        );
-        assert_eq!(large, small * 2, "twice the size is twice the cell");
+        // Every rung of the ladder, because the ladder is measurement rather
+        // than a multiple: the em from step to step grows by anything from
+        // 0.75 px to 6.17, and only the direction is a rule.
+        for step in quill_engine::settings::type_sizes().skip(1) {
+            let small = hang(Face::Duo, step - 1, marker_cells(1));
+            let large = hang(Face::Duo, step, marker_cells(1));
+            assert!(
+                small < large,
+                "the marker is measured in cells, so it must move with the type: \
+                 step {} hangs by {small} and step {step} by {large}",
+                step - 1
+            );
+        }
     }
 
     #[test]
     fn every_face_hangs_a_heading_by_the_same_width() {
         for face in [Face::Duo, Face::Quattro, Face::Mono] {
             assert_eq!(
-                hang(face, 20, marker_cells(1)),
-                hang(Face::Duo, 20, marker_cells(1)),
+                hang(face, STEP, marker_cells(1)),
+                hang(Face::Duo, STEP, marker_cells(1)),
                 "{face:?} is cut to the same cell grid as the others"
             );
         }
@@ -827,10 +840,10 @@ mod tests {
         // after it at margin + |indent|, which must be the prose's margin.
         let side = 240;
         for level in 1..=6u8 {
-            let (margin, indent) = hung(Face::Duo, 20, marker_cells(level), side);
+            let (margin, indent) = hung(Face::Duo, STEP, marker_cells(level), side);
             assert_eq!(
                 margin,
-                side - hang(Face::Duo, 20, marker_cells(level)),
+                side - hang(Face::Duo, STEP, marker_cells(level)),
                 "a level {level} heading starts one marker left of the prose"
             );
             assert_eq!(
@@ -843,10 +856,11 @@ mod tests {
 
     #[test]
     fn the_code_ground_runs_past_both_edges_of_the_measure() {
-        // The oracle's ±0.7em, which at 20 px is 14 px on each side.
-        assert_eq!(well(20), 14);
+        // The oracle's ±0.7em, which at the default step's 21.33 px em is 15
+        // px on each side.
+        assert_eq!(well(STEP), 15);
         let side = 240;
-        let edge = well(20).min(side);
+        let edge = well(STEP).min(side);
         assert!(
             edge > 0 && side - edge < side,
             "the block's box has to start left of the prose for its ground to"
@@ -875,10 +889,24 @@ mod tests {
 
     #[test]
     fn the_well_grows_with_the_type_it_is_set_in() {
-        assert_eq!(
-            well(40),
-            well(20) * 2,
-            "an em is the type's own size, so twice the size is twice the well"
+        // Never back down the ladder, and plainly bigger across it. Not
+        // strictly bigger at every rung: a well is under one cell and a fifth,
+        // and two adjacent ems of the ladder's small end — 15.25 and 16.17 —
+        // round to the same whole pixel.
+        let ladder = quill_engine::settings::type_sizes();
+        for step in ladder.clone().skip(1) {
+            assert!(
+                well(step - 1) <= well(step),
+                "a well is 0.7 of an em, so it must never shrink as the type grows: \
+                 step {} wells by {} and step {step} by {}",
+                step - 1,
+                well(step - 1),
+                well(step)
+            );
+        }
+        assert!(
+            well(*ladder.end()) > 4 * well(*ladder.start()),
+            "the ladder's top em is more than four times its bottom one"
         );
     }
 
@@ -886,10 +914,10 @@ mod tests {
     fn a_window_too_narrow_to_hang_the_marker_keeps_its_gutter() {
         let side = 4;
         assert!(
-            hang(Face::Duo, 20, marker_cells(6)) > side,
+            hang(Face::Duo, STEP, marker_cells(6)) > side,
             "this is the narrow case, or it proves nothing"
         );
-        let (margin, indent) = hung(Face::Duo, 20, marker_cells(6), side);
+        let (margin, indent) = hung(Face::Duo, STEP, marker_cells(6), side);
         assert_eq!(margin, 0, "the left margin of a tag cannot go below zero");
         assert_eq!(
             margin - indent,

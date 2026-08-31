@@ -1,13 +1,22 @@
 //! Typography: the pitch, the measure, the margins a page is laid out from and
 //! the band the caret's row is kept in.
 //!
-//! The numbers, and none of the widget that reads them. The Parity oracle
-//! keeps them in `legacy/app/css/type.css` and `legacy/app/css/page.css` as
-//! custom properties; here they are functions of the type size and of the view
-//! the text is set in, computed in the oracle's own order so that the two land
-//! on the same integers. Everything that has to agree with a row of text — the
-//! leading, the top of the page, later the caret's height and the Typewriter
-//! anchor — asks this module rather than doing the arithmetic again.
+//! The numbers, and none of the widget that reads them. Everything that has to
+//! agree with a row of text — the leading, the top of the page, the caret's
+//! height and width, later the Typewriter anchor — asks this module rather
+//! than doing the arithmetic again.
+//!
+//! The type sizes are a **ladder of fourteen steps**, not a range of pixels.
+//! They are the Design oracle's own, measured off iA Writer for Mac and
+//! written out in [`LADDER`]: a step names an em, a line pitch and a caret
+//! width that were read together, so nothing here fits a curve through them
+//! ([ADR 0015](https://github.com/danielbaldwin47/Quill/blob/main/docs/adr/0015-the-design-oracle.md),
+//! `docs/design.md` § Text sizes). The page around a row — the measure, the
+//! gutter, the band the caret's row is kept in — is still the Parity oracle's
+//! `legacy/app/css/page.css`, in its own order so the two land on the same
+//! integers.
+
+use std::ops::RangeInclusive;
 
 use crate::settings::Face;
 
@@ -42,20 +51,114 @@ const PAGE_BOTTOM: f64 = 0.30;
 const BAND_ABOVE: f64 = 0.10;
 const BAND_BELOW: f64 = 0.28;
 
-/// The line pitch at `size`, in whole pixels: iA's liquid leading.
+/// One rung of the Design oracle's text-size ladder.
 ///
-/// A proportional part plus a near-constant slab of air, `1.30 × size +
-/// 10.4`, held between 1.52 and 2 times the size, and only then rounded —
-/// `--line-air` and `--line-pitch` in `legacy/app/css/type.css`, in that
-/// order, because rounding a clamp is not the number clamping a round gives.
-/// The clamp is what keeps small type readable: at 14 px and below the liquid
-/// leading asks for more air than the type is tall, and the pitch stops at
-/// twice the size instead.
+/// The Text Size menu steps rather than names a value, so the three numbers
+/// here were measured off the app at every size it reaches, on a scale-2
+/// display: `ref/ia/mac-native/NOTES.md` § 11 is the table, and this is that
+/// table.
+#[derive(Clone, Copy, Debug)]
+struct Rung {
+    /// The em in logical pixels. macOS points are logical pixels, so this is
+    /// the ladder's own pt value.
+    em: f64,
+    /// The line pitch, in device pixels at scale 2.
+    pitch: u32,
+    /// The caret's width, in device pixels at scale 2.
+    caret_width: u32,
+}
+
+/// How many text sizes the Design oracle offers.
+pub const STEPS: u32 = 14;
+
+/// The ladder, step 0 to step 13.
+///
+/// Two things a formula would have got wrong are in these numbers. The
+/// leading is *liquid*: `pitch / em` falls from 1.732 to 1.374 up the ladder,
+/// so the bigger the type the tighter the leading, proportionally — the
+/// linear clamp the Parity oracle fitted through three marketing stills is
+/// not this curve at either end. And the caret's width quantises to 5, 6, 8
+/// and 10 device pixels and stops there, so it is not a fraction of the em:
+/// `caret width / em` falls from 0.172 to 0.080 across the range.
+// A table is read down its columns, and rustfmt would give each rung five
+// lines of its own.
+#[rustfmt::skip]
+const LADDER: [Rung; STEPS as usize] = [
+    Rung { em: 14.50, pitch: 49, caret_width: 5 },
+    Rung { em: 15.25, pitch: 52, caret_width: 5 },
+    Rung { em: 16.17, pitch: 56, caret_width: 6 },
+    Rung { em: 17.17, pitch: 59, caret_width: 6 },
+    Rung { em: 19.25, pitch: 66, caret_width: 6 },
+    Rung { em: 21.33, pitch: 73, caret_width: 6 },
+    Rung { em: 25.58, pitch: 86, caret_width: 8 },
+    Rung { em: 29.75, pitch: 98, caret_width: 8 },
+    Rung { em: 33.92, pitch: 109, caret_width: 8 },
+    Rung { em: 38.08, pitch: 120, caret_width: 10 },
+    Rung { em: 44.25, pitch: 135, caret_width: 10 },
+    Rung { em: 50.33, pitch: 149, caret_width: 10 },
+    Rung { em: 56.50, pitch: 161, caret_width: 10 },
+    Rung { em: 62.58, pitch: 172, caret_width: 10 },
+];
+
+/// The steps a writer may ask for: every rung of the ladder.
 #[must_use]
-pub fn pitch(size: u32) -> u32 {
+pub fn steps() -> RangeInclusive<u32> {
+    0..=(STEPS - 1)
+}
+
+/// The rung at `step`, or the top one when the ladder does not go that high.
+///
+/// Clamped rather than checked: [`crate::settings`] is where a step is held
+/// to [`steps`], and a painter asking for type it can no longer reach should
+/// draw the largest there is rather than stop drawing.
+fn rung(step: u32) -> Rung {
+    LADDER[step.min(STEPS - 1) as usize]
+}
+
+/// A ladder number, measured in device pixels at scale 2, in the device
+/// pixels of a display at `scale`.
+///
+/// Never nothing: a rounded-away pitch would stack every row of a page on one
+/// line, and a rounded-away caret would leave a writer with no caret at all.
+fn device(at_scale_2: u32, scale: f64) -> u32 {
+    ((f64::from(at_scale_2) * scale / 2.0).round().max(1.0)) as u32
+}
+
+/// The em at `step`, in logical pixels.
+#[must_use]
+pub fn em(step: u32) -> f64 {
+    rung(step).em
+}
+
+/// The line pitch at `step` on a display of `scale`, in device pixels.
+#[must_use]
+pub fn pitch(step: u32, scale: f64) -> u32 {
+    device(rung(step).pitch, scale)
+}
+
+/// The caret's width at `step` on a display of `scale`, in device pixels.
+///
+/// An odd bar's extra pixel falls right of the advance boundary the bar is
+/// centred on; that is the painter's, and `docs/design.md` § Caret width says
+/// so.
+#[must_use]
+pub fn caret_width(step: u32, scale: f64) -> u32 {
+    device(rung(step).caret_width, scale)
+}
+
+/// The step an old `size` in logical pixels becomes.
+///
+/// The ladder replaced a free integer, so every `settings.toml` written before
+/// it has a size that is not a rung. A size between two rungs takes the rung
+/// **above** it, so that no writer's type is made smaller by an upgrade they
+/// did not ask for; a size above the whole ladder takes the top rung. The old
+/// default, 20 px, lands that way on step 5 — which is the ladder's own
+/// default, and the size iA Writer opens at.
+#[must_use]
+pub fn step_for_size(size: u32) -> u32 {
     let size = f64::from(size);
-    let air = (1.30 * size + 10.4).clamp(1.52 * size, 2.0 * size);
-    air.round() as u32
+    let step = LADDER.iter().position(|rung| rung.em >= size);
+    step.unwrap_or(LADDER.len() - 1) as u32
 }
 
 /// How the air around a row of ink is divided between the three gaps GTK
@@ -94,22 +197,26 @@ pub fn leading(pitch: u32, row: u32) -> Leading {
     }
 }
 
-/// One cell of `face` at `size`, in pixels.
+/// One cell of `face` at `step`, in logical pixels.
 ///
-/// A Face is asked for rather than assumed, so that a Face cut to another grid
-/// has somewhere to say so; the three shipped today share [`CELL`].
+/// The cell follows the em, and the em is the ladder's: VERDICTS 4.1.7 read
+/// 0.6 em per cell off the app itself, which is the grid the Quill Faces are
+/// already cut on. A Face is asked for rather than assumed, so that a Face cut
+/// to another grid has somewhere to say so; the three shipped today share
+/// [`CELL`].
 #[must_use]
-pub fn cell(face: Face, size: u32) -> f64 {
-    let em = match face {
+pub fn cell(face: Face, step: u32) -> f64 {
+    let per_em = match face {
         Face::Duo | Face::Quattro | Face::Mono => CELL,
     };
-    em * f64::from(size)
+    per_em * em(step)
 }
 
-/// The measure at `size` in `face`, in pixels: [`MEASURE`] cells of it.
+/// The measure at `step` in `face`, in logical pixels: [`MEASURE`] cells of
+/// it.
 #[must_use]
-pub fn measure(face: Face, size: u32) -> u32 {
-    (cell(face, size) * f64::from(MEASURE)).round() as u32
+pub fn measure(face: Face, step: u32) -> u32 {
+    (cell(face, step) * f64::from(MEASURE)).round() as u32
 }
 
 /// The column of text, and the margin on each side of it.
@@ -192,16 +299,31 @@ pub fn band_target(row_top: f64, row_height: f64, scroll: f64, viewport: f64) ->
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::settings::{Choice, type_sizes};
+    use crate::settings::{Choice, default_size, type_sizes};
 
-    /// The oracle's `--line-air` and `--line-pitch`, written out as CSS writes
-    /// them, so that this disagrees with the code the moment the code stops
-    /// being the oracle's arithmetic in the oracle's order.
-    fn oracle_pitch(size: u32) -> u32 {
-        let size = f64::from(size);
-        let air = f64::max(size * 1.52, f64::min(size * 1.30 + 10.4, size * 2.0));
-        air.round() as u32
-    }
+    /// `ref/ia/mac-native/NOTES.md` § 11, written out again: step, em in
+    /// logical pixels, and pitch and caret width in device pixels at scale 2.
+    ///
+    /// A second copy on purpose. The ladder is measurement rather than
+    /// arithmetic, so there is nothing to re-derive it from; what a test can
+    /// hold is that the table in the code is still the table in the notes, and
+    /// it can only do that by having read the notes itself.
+    const NOTES: [(u32, f64, u32, u32); STEPS as usize] = [
+        (0, 14.50, 49, 5),
+        (1, 15.25, 52, 5),
+        (2, 16.17, 56, 6),
+        (3, 17.17, 59, 6),
+        (4, 19.25, 66, 6),
+        (5, 21.33, 73, 6),
+        (6, 25.58, 86, 8),
+        (7, 29.75, 98, 8),
+        (8, 33.92, 109, 8),
+        (9, 38.08, 120, 10),
+        (10, 44.25, 135, 10),
+        (11, 50.33, 149, 10),
+        (12, 56.50, 161, 10),
+        (13, 62.58, 172, 10),
+    ];
 
     /// A pitch at the judged size, so that the band's rows are the rows a
     /// judged shot has.
@@ -223,34 +345,92 @@ mod tests {
     }
 
     #[test]
-    fn the_pitch_is_the_oracles_own_arithmetic_at_every_size_a_writer_can_reach() {
-        for size in type_sizes() {
+    fn every_step_is_the_em_the_pitch_and_the_width_the_notes_measured() {
+        assert_eq!(
+            type_sizes(),
+            steps(),
+            "the steps a writer may ask for are not the ladder's own"
+        );
+        for (step, em_px, pitch_px, width_px) in NOTES {
+            assert!(
+                (em(step) - em_px).abs() < 0.005,
+                "step {step}'s em is {} logical px, not NOTES § 11's {em_px}",
+                em(step)
+            );
             assert_eq!(
-                pitch(size),
-                oracle_pitch(size),
-                "the pitch at {size} px is not `legacy/app/css/type.css`'s"
+                pitch(step, 2.0),
+                pitch_px,
+                "step {step}'s pitch at scale 2 is not NOTES § 11's"
+            );
+            assert_eq!(
+                caret_width(step, 2.0),
+                width_px,
+                "step {step}'s caret is not NOTES § 11's width at scale 2"
             );
         }
     }
 
     #[test]
-    fn the_pitch_at_twenty_pixels_is_the_thirty_six_the_spike_measured() {
-        assert_eq!(pitch(20), 36, "spike/gtk4-editor/RESULTS.txt measured 36");
+    fn a_display_at_another_scale_gets_the_ladder_scaled_and_never_nothing() {
+        // The ladder was measured at scale 2, so scale 1 is half of it and
+        // scale 3 half again as much, each rounded once.
+        assert_eq!(pitch(5, 1.0), 37, "step 5 is 73 device px at scale 2");
+        assert_eq!(pitch(5, 3.0), 110, "and 109.5 at scale 3, rounded up");
+        assert_eq!(caret_width(0, 1.0), 3, "5 device px at scale 2 is 2.5");
+        assert_eq!(caret_width(13, 4.0), 20, "and 10 at scale 2 is 20 at 4");
+        assert_eq!(
+            caret_width(0, 0.25),
+            1,
+            "a caret rounded away is a writer with no caret"
+        );
+        assert_eq!(pitch(0, 0.01), 1, "and a pitch rounded away is one row");
     }
 
     #[test]
-    fn small_type_stops_at_twice_its_size_and_larger_type_is_left_alone() {
-        assert_eq!(pitch(10), 20, "10 px is clamped to twice its size");
-        assert_eq!(pitch(14), 28, "14 px is the last size the clamp holds");
-        assert_eq!(pitch(16), 31, "16 px is the liquid leading itself");
-        assert_eq!(pitch(40), 62, "40 px is the liquid leading itself");
+    fn the_leading_is_liquid_rather_than_a_constant_multiple_of_the_em() {
+        // What the linear clamp could not do: the bigger the type, the
+        // tighter the leading, proportionally. `docs/design.md` § Line pitch
+        // reads the curve off the ends of the ladder.
+        let ratio = |step| f64::from(pitch(step, 2.0)) / (2.0 * em(step));
+        assert!((ratio(2) - 1.732).abs() < 0.001, "{}", ratio(2));
+        assert!((ratio(5) - 1.711).abs() < 0.001, "{}", ratio(5));
+        assert!((ratio(13) - 1.374).abs() < 0.001, "{}", ratio(13));
+        for step in 2..STEPS - 1 {
+            assert!(
+                ratio(step) > ratio(step + 1),
+                "the leading stopped tightening between steps {step} and {}",
+                step + 1
+            );
+        }
+    }
+
+    #[test]
+    fn a_step_past_the_top_of_the_ladder_draws_the_largest_type_there_is() {
+        assert!((em(STEPS) - em(STEPS - 1)).abs() < f64::EPSILON);
+        assert_eq!(pitch(99, 2.0), pitch(STEPS - 1, 2.0));
+    }
+
+    #[test]
+    fn an_old_size_in_pixels_takes_the_rung_above_it_and_never_shrinks() {
+        assert_eq!(step_for_size(10), 0, "10 px is below the whole ladder");
+        assert_eq!(step_for_size(20), 5, "the old default is the ladder's");
+        assert_eq!(step_for_size(40), 10, "40 px is between steps 9 and 10");
+        assert_eq!(step_for_size(21), 5, "a rung's own size is that rung");
+        assert_eq!(step_for_size(1000), STEPS - 1, "and nothing goes higher");
+        for (step, em_px, _, _) in NOTES {
+            assert_eq!(
+                step_for_size(em_px.floor() as u32),
+                step,
+                "the last whole pixel step {step}'s em covers did not take it"
+            );
+        }
     }
 
     #[test]
     fn a_wrapped_row_and_a_new_paragraph_both_sit_one_pitch_below_the_last_row() {
-        for size in type_sizes() {
-            let pitch = pitch(size);
-            // Every row of ink a Face could give at this size, since the split
+        for step in type_sizes() {
+            let pitch = pitch(step, 2.0);
+            // Every row of ink a Face could give at this step, since the split
             // has to hold whatever Pango measures: at 20 px the spike measured
             // a 36 px pitch over a row of 26 (`spike/gtk4-editor/RESULTS.txt`,
             // pitch 36 above 10 pixels of air), and a Face cut taller or
@@ -260,13 +440,13 @@ mod tests {
                 let leading = leading(pitch, row);
                 assert_eq!(
                     leading.inside_wrap, air,
-                    "at {size} px over a {row} px row, a wrapped row is not one pitch \
+                    "at step {step} over a {row} px row, a wrapped row is not one pitch \
                      below the row above it"
                 );
                 assert_eq!(
                     leading.below + leading.above,
                     air,
-                    "at {size} px over a {row} px row, a paragraph does not start one \
+                    "at step {step} over a {row} px row, a paragraph does not start one \
                      pitch below the one before it"
                 );
             }
@@ -287,37 +467,43 @@ mod tests {
     }
 
     #[test]
-    fn every_face_is_measured_on_the_same_twelve_pixel_cell_at_twenty_pixels() {
+    fn every_face_is_measured_on_the_same_cell_and_it_follows_the_ladders_em() {
         for name in Face::VALUES {
             let face = Face::parse(name).expect("every Face `settings.toml` writes is a Face");
+            for step in steps() {
+                assert!(
+                    (cell(face, step) - 0.6 * em(step)).abs() < f64::EPSILON,
+                    "{name} at step {step} is not on the 0.6 em cell VERDICTS 4.1.7 read"
+                );
+            }
             assert!(
-                (cell(face, 20) - 12.0).abs() < f64::EPSILON,
-                "{name} at 20 px is not on the 12 px cell the spike measured"
+                (cell(face, default_size()) - 12.798).abs() < 0.001,
+                "{name} at the default step is not 0.6 of its 21.33 px em"
             );
             assert_eq!(
-                measure(face, 20),
-                768,
-                "{name} at 20 px is not the 768 px column `legacy/app/css/page.css` measured"
+                measure(face, default_size()),
+                819,
+                "{name}'s 64-character measure at the default step is not 819 px"
             );
         }
     }
 
     #[test]
     fn the_measure_is_centred_while_it_fits() {
-        let measure = measure(Face::Duo, 20);
+        let measure = measure(Face::Duo, default_size());
         assert_eq!(
             column(1440, measure),
             Column {
-                side: 336,
-                width: 768
+                side: 311,
+                width: 819
             },
             "a judged 1440 px window does not centre the 64-character measure"
         );
         assert_eq!(
             column(960, measure),
             Column {
-                side: 96,
-                width: 768
+                side: 71,
+                width: 819
             },
             "the `narrow` judged state is still wide enough for the whole measure"
         );
@@ -325,7 +511,7 @@ mod tests {
 
     #[test]
     fn a_window_too_narrow_for_the_measure_keeps_its_gutter_instead() {
-        let measure = measure(Face::Duo, 20);
+        let measure = measure(Face::Duo, default_size());
         assert_eq!(
             column(600, measure),
             Column {
@@ -345,9 +531,9 @@ mod tests {
     #[test]
     fn the_page_starts_two_pitches_down_and_ends_well_clear_of_the_bottom() {
         assert_eq!(
-            page_top(pitch(20)),
-            72,
-            "the first row at 20 px does not start two pitches down"
+            page_top(pitch(default_size(), 1.0)),
+            74,
+            "the first row at the default step does not start two pitches down"
         );
         assert_eq!(
             page_bottom(900),
