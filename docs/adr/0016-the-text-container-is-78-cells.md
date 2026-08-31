@@ -38,6 +38,21 @@ name a `mac-native` crop as their opponent (ADR 0015).
 **`quill::tags`' list gutters go.** The `list-N` hanging tags and `LIST_CELLS` have no
 counterpart. The Design oracle draws no quote rule (`14-blocks`), so none is drawn.
 
+**A heading hangs by the cell the text engine advances, not by the one the container is measured
+in.** The two are not the same number here and are on the oracle: the app asks GTK for
+`gtk-hint-font-metrics`, so Pango rounds a cell to a whole pixel before it lays anything out, while
+the container is counted off the ladder's true cell — 13 px against 12.798 at the default step. A
+hang is subtracted from the body column and then handed straight back by the `#`s set after it, so
+a hang that is not what Pango will advance puts that heading's words off the column, and the six
+levels on to six columns. Round 10 of the Markup Piece was lost to exactly that (#167). So
+`Column::hang` is `level + 1` **hinted** cells, and `###### ` lands within four pixels of the
+container's left edge rather than on it — outside it where the cell rounds up, inside where it
+rounds down. The gutter is still what the deepest heading needs; what it needs is now measured in
+the pixels the text is actually set in. A marker a few pixels into undrawn margin is a wobble in the
+margin; a split body column is a wobble in the sentence. The underlying disagreement — hinted
+metrics make every rendered line wider than the measure it was laid out for, so the 64-cell measure
+does not hold 64 characters — is the Typography Piece's, not this one's, and is unresolved.
+
 **`quill-engine::typography::column()` centres 78 cells, not 64 inside a clamp.** Where 78 cells
 exceed the window the container is the window and the gutters hold at 7 cells while the measure
 shrinks, so `###### ` still hangs and a selection's edges stay the container's; the oracle is

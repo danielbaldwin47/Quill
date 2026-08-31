@@ -468,24 +468,24 @@ impl Editor {
         }
         let cell = typography::cell(self.imp().face.get(), self.imp().step.get());
         let page = Page {
-            side: signed(typography::column(unsigned(width), cell).side),
+            column: typography::column(unsigned(width), cell),
             bottom: signed(typography::page_bottom(unsigned(height))),
         };
         if self.imp().laid_out.get() == Some(page) {
             return;
         }
         self.imp().laid_out.set(Some(page));
-        self.set_left_margin(page.side);
-        self.set_right_margin(page.side);
+        let side = signed(page.column.side);
+        self.set_left_margin(side);
+        self.set_right_margin(side);
         self.set_bottom_margin(page.bottom);
-        // The heading and list markers hang off this margin, so they are
-        // re-hung with it: both halves of the pair move, `side` with the window
-        // and the marker's width with the type.
+        // The heading markers hang into this container's gutter, so they are
+        // re-hung with it: both halves of the pair move, the measure's edge
+        // with the window and the hang with the type.
         tags::hang_markers(
             &self.buffer(),
-            self.imp().face.get(),
             self.imp().step.get(),
-            page.side,
+            page.column,
             self.imp().scheme.get(),
         );
     }
@@ -1175,9 +1175,13 @@ impl Editor {
 /// The margins a page was laid out with, in the pixels GTK takes.
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub struct Page {
-    /// `left-margin` and `right-margin`, which are the same: the column is
-    /// centred.
-    side: i32,
+    /// The text container the margins were counted off: its
+    /// [`side`](typography::Column::side) is `left-margin` and `right-margin`,
+    /// which are the same because the measure is centred, and its gutter is
+    /// what a heading's markers hang into (ADR 0016). The whole `Column` is
+    /// kept rather than the one edge, so that two windows agreeing on the
+    /// measure but not on the gutter are two layouts and not one.
+    column: typography::Column,
     /// `bottom-margin`: the air below the last row of the Document.
     bottom: i32,
 }
