@@ -72,7 +72,7 @@ ok('a state becomes the native flags that state means', () => {
   // Neither of the two flags that are not the app's ever reaches its command line.
   assert.ok(!argv.includes('--scale') && !argv.includes('--active'));
 
-  const empty = quillArgv(ROOT, flagsOf('page').empty);
+  const empty = quillArgv(ROOT, flagsOf('chrome').empty);
   assert.ok(!empty.includes('--text'), 'an empty Document is opened with no passage');
   assert.ok(!empty.includes('--caret'), 'and with no offset into one it does not have');
   assert.equal(empty[empty.indexOf('--w') + 1], '1440');

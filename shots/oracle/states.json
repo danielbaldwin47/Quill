@@ -25,7 +25,6 @@
     },
     "page": {
       "light": {},
-      "empty": { "text": null, "caret": 0 },
       "narrow": { "w": 960 }
     },
     "markup": {
@@ -48,6 +47,7 @@
     },
     "chrome": {
       "bars": {},
+      "empty": { "text": null, "caret": 0 },
       "typing": { "typing": true },
       "view-menu": { "menu": "view" },
       "palette": { "menu": "palette" }
