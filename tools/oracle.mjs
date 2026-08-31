@@ -66,13 +66,18 @@ export function readStates(root) {
 // at the type the `defaults` name, whatever the state itself says, because the Design oracle's
 // captures are all in Mono and a crop of ours only compares cell for cell against them at the same
 // face and size (ADR 0015).
+//
+// `assert` is not one of them either, and for the same reason: it says the state is answered by
+// arithmetic off its own pixels rather than by a critic against anybody
+// ([ADR 0017](../docs/adr/0017-a-judged-state-neither-oracle-can-arbitrate.md)). It is shot at
+// whatever the state says, because there is no second app whose grid it has to line up with.
 export function resolveStates(states, piece) {
   const pieces = states.pieces || {};
   if (!Object.prototype.hasOwnProperty.call(pieces, piece)) {
     throw new Error(`${piece}: no Piece by that name has judged states (shots/oracle/states.json names ${Object.keys(pieces).join(', ')})`);
   }
   return Object.entries(pieces[piece]).map(([name, overrides]) => {
-    const { opponent = null, ...rest } = overrides;
+    const { opponent = null, assert: asserted = null, ...rest } = overrides;
     const flags = { ...states.defaults, ...rest };
     if (opponent) {
       flags.font = 'mono';
@@ -84,7 +89,7 @@ export function resolveStates(states, piece) {
         if (Object.prototype.hasOwnProperty.call(states.defaults, key)) flags[key] = states.defaults[key];
       }
     }
-    return { name, flags, opponent };
+    return { name, flags, opponent, assert: asserted };
   });
 }
 
@@ -273,7 +278,9 @@ async function freeze(root, piece, force) {
   // `ref/ia/shots/mac-native/` already, and no browser can take it: `legacy/` is not the app it is
   // a capture of. So it is not frozen here, and a Piece whose states are all of that kind is
   // finished before it starts rather than failing for an opponent it does not want (ADR 0015).
-  const parity = resolved.filter((s) => !s.opponent);
+  // A state carrying `assert` has no opponent at all — it is measured against itself — so it is
+  // passed over here for the same reason and by the same rule (ADR 0017).
+  const parity = resolved.filter((s) => !s.opponent && !s.assert);
   const dir = path.join(root, 'shots/oracle', piece);
   const fpFile = path.join(dir, 'fingerprint.json');
   const was = fs.existsSync(fpFile) ? JSON.parse(fs.readFileSync(fpFile, 'utf8')) : null;
