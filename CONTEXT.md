@@ -89,7 +89,7 @@ One of the nine judged facets of the app: page, type, cursor and caret, focus an
 
 **Parity oracle**:
 The original JavaScript app, kept in `legacy/` until the native app wins every Piece against it blind. What the port ports; where it and the Design oracle disagree, `docs/design.md` says which Quill follows.
-_Avoid_: the oracle, the reference
+_Avoid_: the reference
 
 **Design oracle**:
 iA Writer for Mac running natively, as captured and measured in `ref/ia/mac-native/`. Outranks every marketing frame under `ref/ia/shots/`, and outranks the Parity oracle wherever `docs/design.md` says so.
@@ -108,4 +108,4 @@ One named configuration (passage, theme, Face, size, Focus, caret, chrome) at wh
 _Avoid_: scenario, screenshot, fixture
 
 **Blind judging**:
-A critic with fresh context picks between two unlabelled screenshots (ours vs the reference) for a Piece and names the biggest gap of each.
+A critic with fresh context picks between two unlabelled screenshots (ours vs the opponent's) for a Piece and names the biggest gap of each.
