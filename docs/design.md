@@ -16,7 +16,7 @@ stay in that file.
 | Behaviour | Design oracle | Parity oracle | **Quill** | Why · evidence |
 |---|---|---|---|---|
 | Caret column | 6 px bar **centred** on the advance boundary, 3 px each side | left edge a nudge past the boundary (`caret.js`) | **centred on the boundary** — sharpens ADR 0013, whose bar has its left edge there; `Editor::bar()` moves half a bar left | 0013.1–0013.3; `01-caret-offset-*`. What #147 reports as "sits on the leading glyph" |
-| Caret width | quantised **5 / 6 / 8 / 10 px** over the 14 sizes (0.080–0.186 em) | a fixed fraction of the em, floored (`caret.js`) | **the oracle's ladder**, one width per size step, NOTES § 11 | 3.5.5; `11-*` |
+| Caret width | quantised **5 / 6 / 8 / 10 px** over the 14 sizes (0.080–0.186 em) | a fixed fraction of the em, rounded, never under 2 px (`caret.js`) | **the oracle's ladder**, one width per size step, NOTES § 11 | 3.5.5; `11-*` |
 | Caret height | the line pitch, within 1 px | the pitch | the pitch | 3.5.6 — agreed |
 | Blink | **1.000 s**, 0.516 on / 0.484 off, ~90 ms ramps; **held solid while typing**, resumes **0.633 s** after the last key | a longer cycle, resuming sooner (`caret.css`, `caret.js`) | **the oracle's numbers**; `caret.rs` cites `blink-idle.tsv` and `blink-typing.tsv` | 3.5.8, found-here; `04-*`, `05-*` |
 | Caret on window deactivation | **gone** | 30 % ghost, no blink (`caret.css`) | **the ghost** — Quill's own, and the `unfocused` judged state stays a still against the Parity oracle | A tiling desktop shows the active window less plainly than macOS; the ghost says where the writer was. Departs from both oracles on purpose; 0013.8 |
@@ -40,8 +40,8 @@ stay in that file.
 
 Every colour Quill paints becomes a `Role` in `quill-engine::theme` (#110 moves the last literal
 constants there). Six roles take the Design oracle's values above — paper, ink, dim, accent, active
-and idle selection; the rest (marks, links, code ground, rules, chrome) keep the Parity oracle's
-until they are measured (VERDICTS 4.2.13–4.2.15 are still unknown).
+and idle selection; the rest (marks, links, code ground, rules, shadow, chrome) keep the Parity
+oracle's until they are measured (VERDICTS 4.2.13–4.2.15 are still unknown).
 
 A writer who wants the desktop's colours sets one key, `palette = "<path>"`, in `settings.toml`, and
 Quill loads a file of `[light]` and `[dark]` tables keyed by `Role`; a slot the file omits, a scheme
@@ -52,7 +52,7 @@ The Gate judges the built-ins; `--theme` pins them.
 Omarchy themes an app through a template in `~/.config/omarchy/themed/<file>.tpl` (stock ones live
 in `/usr/share/omarchy/default/themed/`), rendered from the theme's `colors.toml` into
 `~/.local/state/omarchy/current/theme/<file>` on every `omarchy theme set`; a theme without a
-`colors.toml` renders nothing, which is the missing-file case above. Quill ships
+`colors.toml` renders nothing, which is the missing-file case above. Quill will ship
 `packaging/quill.toml.tpl`, mapping `background`, `foreground`, `dark_foreground`, `muted`,
 `accent`, `selection` and a `{{ mix selection background N% }}` onto the roles, and its README has
 the two steps: copy the template into `~/.config/omarchy/themed/`, and set

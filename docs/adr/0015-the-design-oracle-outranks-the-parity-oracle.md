@@ -58,13 +58,14 @@ before the first re-judge.
 suppression. The deactivated caret stays a still, because the ghost stays and the `unfocused` judged
 state already holds it.
 
-**ADR 0006's near tier is superseded.** Its § Consequences paragraph keeping "the neighbouring
-sentences one shade above the far dim" is withdrawn: Focus has one dim tier per theme. Its
-independence of Focus and Typewriter stands.
+**ADR 0006's near tier is superseded.** Its § Consequences paragraph "The two Quill refinements
+stay" loses its first refinement — "the neighbouring sentences sit one shade above the far dim (the
+'near' tier)" — and Focus has one dim tier per theme. The second refinement, the edge band, and the
+independence of Focus and Typewriter stand.
 
 **The open children of #38–#40 that touch a row are amended before they run**: #110, #113, #114,
-#115, #126, #129, #147, #148. Amended means the triage adds a comment naming the row and the
+#115, #126, #129, #147. Amended means the triage adds a comment naming the row and the
 `VERDICTS.md` evidence the ticket now builds to, and its Reading line gains `docs/design.md`.
-#111 and #150 touch no row and run as written.
+#111, #148 and #150 touch no row and run as written.
 
 **`CONTEXT.md` names both oracles.** *Design oracle* and *Parity oracle* are the two terms.
