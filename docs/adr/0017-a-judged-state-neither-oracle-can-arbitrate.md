@@ -3,7 +3,7 @@
 A judged state whose subject neither the Design oracle nor the Parity oracle holds is answered by
 arithmetic off ours' own pixels, and the Piece takes that answer exactly as it takes a critic's.
 `shots/oracle/states.json` says so with `assert` where such a state would have carried `opponent`,
-and `tools/assert-state.mjs` holds the rules. Decided from
+and `tools/assert-state.mjs` holds the rules. Decided 2026-08-31 with the owner, from
 [#147](https://github.com/danielbaldwin47/Quill/issues/147) and the round it could not win.
 
 ## Context
