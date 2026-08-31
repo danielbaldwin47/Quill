@@ -16,8 +16,8 @@
 //   2  theirs, and this Piece had been won against this opponent before ("a Piece once won is never
 //      lost", docs/agents/gate.md); the line above the verdict says which round won it
 //   3  nothing was judged — a command line this could not read, a Piece with no judged states, a
-//      state naming a flag the app has not got, an opponent that is not frozen, or a run that broke
-//      before a verdict
+//      state naming a flag the app has not got, an opponent that is not frozen or a crop that
+//      cannot be cut, or a run that broke before a verdict
 //
 // The 0/1/2 are the verdict and are this command's own, which is why everything that is *not* a
 // verdict is gathered under 3 — a mistyped flag included, where `check` and `oracle` would say 2.
@@ -41,6 +41,13 @@
 // OURS WILL LOSE. The Pieces are still to be ported; a shot of today's app against the JavaScript
 // app that won its gauntlet is a loss, and that is the point of having the pipeline before the
 // Pieces rather than after.
+//
+// WHICH OPPONENT. The Parity oracle — `legacy/` frozen by `tools/gate oracle` — unless the state
+// names one. A state carrying `opponent` in `shots/oracle/states.json` is judged against a crop of
+// the Design oracle instead, because `docs/design.md` has taken that behaviour away from `legacy/`
+// (ADR 0015): the pair is then the rectangle it names in a `ref/ia/shots/mac-native/` capture
+// against the matching rectangle of ours, shot in Mono at the `defaults`' type so the two grids
+// compare cell for cell. `tools/crop.mjs` is where that geometry and the cutting live.
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -49,6 +56,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { BUDGET, ORACLE, latencyVerdict } from './bench-join.mjs';
 import { pair, pairDir, reveal } from './blind.mjs';
+import { CAPTURES, cropPng, resolveOpponent } from './crop.mjs';
 import { gitHead, sha256 } from './fingerprint.mjs';
 import { APP_ID, compositorAvailable, openStage, quillArgv } from './harness.mjs';
 import { fingerprint, freezeReason, readStates, resolveStates, unservable } from './oracle.mjs';
@@ -59,6 +67,22 @@ import { nextRound, opponentName, round, rounds, wonBefore } from './rounds.mjs'
 // it under. The switch to the iA reference belongs to the retirement ticket
 // (`docs/architecture.md`, "Repo migration"), not here.
 const OPPONENT = 'oracle';
+
+// Who a round was judged against, read off the states rather than declared: a state carrying
+// `opponent` is paired with a crop of the Design oracle instead of the Parity oracle's frozen shot
+// (ADR 0015), and a Piece may hold both kinds while its rows are moved one at a time.
+//
+// What the word does is caption the round — `opponentName` in `tools/rounds.mjs`, which is what
+// the progress page prints and what the line above a lost Piece says it was won against. What it
+// does *not* do is scope "a Piece once won is never lost": `wonBefore` asks only whether a round
+// carrying any `opponent` was won, so a Piece won over `legacy/` is still held to that win when its
+// first row moves to a crop. That is the rule as `docs/agents/gate.md` states it, and narrowing it
+// to the opponent would weaken the guard exactly as the re-judges begin (#165–#168).
+export function opponentOf(resolved) {
+  if (resolved.every((s) => s.opponent)) return 'mac-native';
+  if (resolved.some((s) => s.opponent)) return 'mixed';
+  return OPPONENT;
+}
 
 // The binary a judged shot is of. Release rather than debug: the Gate judges what the owner would
 // install, and a debug build's frame timings and font rasterisation are not the shipped ones.
@@ -452,25 +476,49 @@ async function judge(root, piece, note, summaryFile, settingsFile) {
     return refuse(piece, `${blocked.length} of ${resolved.length} states name flags the app has not got`);
   }
 
+  // A state carrying `opponent` is judged against a crop of the Design oracle, which is committed
+  // under `ref/ia/shots/mac-native/` rather than frozen by `tools/gate oracle` — so the Parity
+  // oracle is asked about the other states only, and a Piece with none of those wants no frozen
+  // shot and no fingerprint at all (ADR 0015).
+  const parity = resolved.filter((s) => !s.opponent);
+  const crops = resolved.filter((s) => s.opponent);
+
+  // The crops, resolved against the captures on disk before the first window opens, for the reason
+  // every other refusal is checked here: a capture that is not there, or a rectangle that runs off
+  // one, is not something to find out at the third state with two critics already spent.
+  const cropping = new Map();
+  const uncroppable = [];
+  for (const s of crops) {
+    try {
+      cropping.set(s.name, resolveOpponent(root, s.name, s.opponent, { w: s.flags.w * s.flags.scale, h: s.flags.h * s.flags.scale }));
+    } catch (e) {
+      say(`gate judge ${piece}: ${e.message}`);
+      uncroppable.push(s.name);
+    }
+  }
+  if (uncroppable.length) {
+    return refuse(piece, `${uncroppable.length} of ${resolved.length} states name a mac-native crop that cannot be cut`);
+  }
+
   // The opponent is a directory of shots and the fingerprint of what took them. Half of that is not
   // an opponent: shots with no fingerprint beside them are shots nobody can say the provenance of.
   const oracleDir = path.join(root, 'shots/oracle', piece);
   const fingerprintFile = path.join(oracleDir, 'fingerprint.json');
-  const unfrozen = resolved.filter((s) => !fs.existsSync(path.join(oracleDir, `${s.name}.png`))).map((s) => s.name);
-  if (unfrozen.length || !fs.existsSync(fingerprintFile)) {
+  const unfrozen = parity.filter((s) => !fs.existsSync(path.join(oracleDir, `${s.name}.png`))).map((s) => s.name);
+  if (parity.length && (unfrozen.length || !fs.existsSync(fingerprintFile))) {
     const missing = unfrozen.length ? `for ${unfrozen.join(', ')}` : 'and has no fingerprint beside it';
     say(`gate judge ${piece}: no frozen opponent ${missing}; run tools/gate oracle ${piece}`);
     return refuse(piece, unfrozen.length
-      ? `the Parity oracle is not frozen for ${unfrozen.length} of ${resolved.length} states`
+      ? `the Parity oracle is not frozen for ${unfrozen.length} of ${parity.length} states`
       : 'the Parity oracle has no fingerprint');
   }
 
   // Judging against shots the oracle would no longer take is judging against the wrong opponent, and
   // it is invisible in the round afterwards. Checked here because it is four file reads, and skipped
   // once `legacy/` is gone, which is the retirement ticket's business rather than this command's.
-  const frozen = JSON.parse(fs.readFileSync(fingerprintFile, 'utf8'));
-  if (fs.existsSync(path.join(root, 'legacy/app'))) {
-    const stale = freezeReason(frozen, fingerprint(root, resolved), resolved.map((s) => s.name));
+  const frozen = parity.length ? JSON.parse(fs.readFileSync(fingerprintFile, 'utf8')) : null;
+  if (parity.length && fs.existsSync(path.join(root, 'legacy/app'))) {
+    const stale = freezeReason(frozen, fingerprint(root, parity), parity.map((s) => s.name));
     if (stale) {
       say(`gate judge ${piece}: the frozen opponent is out of date (${stale}); run tools/gate oracle ${piece}`);
       return refuse(piece, 'the Parity oracle is out of date');
@@ -532,17 +580,32 @@ async function judge(root, piece, note, summaryFile, settingsFile) {
   const stage = await openStage({ root, appId: APP_ID });
   try {
     for (const s of resolved) {
-      const ours = path.join('shots', piece, `r${number}-${s.name}-ours.png`);
-      const theirs = path.join('shots/oracle', piece, `${s.name}.png`);
+      const shot = path.join('shots', piece, `r${number}-${s.name}-ours.png`);
       say(`gate judge ${piece}: shooting ${s.name}`);
       await stage.shoot({
         bin: path.join(root, BINARY),
         argv: oursArgv(root, s.flags, settingsFile),
         w: s.flags.w,
         h: s.flags.h,
-        out: path.join(root, ours),
+        out: path.join(root, shot),
         active: s.flags.active !== false,
       });
+
+      // What the critic is shown. For a Parity oracle state that is the two whole windows, as it
+      // has always been. For a Design oracle state it is the two rectangles, cut here: the windows
+      // are 3024 x 1898 and 2880 x 1800, so whole against whole would put a critic on the two
+      // apps' chrome rather than on the row the state is about (ADR 0015). The whole shot of ours
+      // stays on disk beside its crop — it is the evidence the crop was cut from.
+      const cut = cropping.get(s.name);
+      let ours = shot;
+      let theirs = path.join('shots/oracle', piece, `${s.name}.png`);
+      if (cut) {
+        ours = path.join('shots', piece, `r${number}-${s.name}-ours-crop.png`);
+        theirs = path.join('shots', piece, `r${number}-${s.name}-theirs-crop.png`);
+        fs.writeFileSync(path.join(root, ours), cropPng(fs.readFileSync(path.join(root, shot)), cut.ours));
+        fs.writeFileSync(path.join(root, theirs), cropPng(fs.readFileSync(path.join(root, cut.capture)), cut.crop));
+        say(`gate judge ${piece}: ${s.name} cropped to ${cut.crop[2]}x${cut.crop[3]} against ${cut.capture}`);
+      }
 
       const paired = pair(piece, s.name, ours, theirs);
       say(`gate judge ${piece}: ${s.name} paired at ${paired.dir}, asking a critic`);
@@ -556,6 +619,9 @@ async function judge(root, piece, note, summaryFile, settingsFile) {
         name: s.name,
         ours,
         theirs,
+        // Which capture the crop came out of and both rectangles, so a round says what a critic
+        // was shown without anyone having to re-derive it from states.json as it reads today.
+        ...(cut ? { opponent: { capture: cut.capture, crop: cut.crop, ours: cut.ours }, oursWhole: shot } : {}),
         blind: pairDir(piece, s.name),
         oursWas: key.ours,
         pick: answer.pick,
@@ -572,8 +638,12 @@ async function judge(root, piece, note, summaryFile, settingsFile) {
     stage.close();
   }
 
-  const oracle = `shots/oracle/${piece}/ — the Parity oracle frozen by tools/gate oracle ${piece} from legacy/app ${frozen.app?.sha256} with legacy/tools/shoot.mjs ${frozen.shoot}`;
-  const written = round({ piece, number, judged, opponent: OPPONENT, build: ours, oracle, note, at: new Date().toISOString() });
+  // Where the other side of every pair came from, in one sentence per opponent the round used.
+  const sources = [];
+  if (parity.length) sources.push(`shots/oracle/${piece}/ — the Parity oracle frozen by tools/gate oracle ${piece} from legacy/app ${frozen.app?.sha256} with legacy/tools/shoot.mjs ${frozen.shoot}`);
+  if (crops.length) sources.push(`${CAPTURES}/ — the Design oracle, iA Writer for Mac as captured and measured in ref/ia/mac-native/ (ADR 0015), cropped per state: ${crops.map((s) => `${s.name} from ${path.basename(cropping.get(s.name).capture)}`).join(', ')}`);
+  const oracle = sources.join('; ');
+  const written = round({ piece, number, judged, opponent: opponentOf(resolved), build: ours, oracle, note, at: new Date().toISOString() });
   const file = path.join(root, 'progress/rounds', `${piece}-r${number}.json`);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, `${JSON.stringify(written, null, 2)}\n`);
