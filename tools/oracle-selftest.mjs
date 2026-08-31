@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -162,8 +163,9 @@ ok('states with the same flags were shot into the same bytes', () => {
 // The owner's line is the last one on stdout; everything the agent reads on the way to it is on
 // stderr, so the two are kept apart here rather than interleaved.
 function gate(...argv) {
+  const env = typeof argv[argv.length - 1] === 'object' ? argv.pop() : {};
   try {
-    return { code: 0, out: execFileSync(GATE, argv, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }), err: '' };
+    return { code: 0, out: execFileSync(GATE, argv, { cwd: ROOT, encoding: 'utf8', env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] }), err: '' };
   } catch (e) {
     return { code: e.status, out: e.stdout || '', err: e.stderr || '' };
   }
@@ -182,6 +184,32 @@ ok('a Piece whose states need flags this tool cannot serve names them and fails,
   assert.match(r.err, /state search names library, search, sidebar/);
   assert.match(r.out.trim().split('\n').pop(), /^gate oracle files: fail/);
   assert.ok(!fs.existsSync(path.join(ROOT, 'shots/oracle/files')), 'a Piece is frozen whole or not at all');
+});
+
+ok('a state judged against a mac-native crop is not this tool\'s to freeze', () => {
+  // The Design oracle's captures are committed under ref/ia/, and no browser driving legacy/ can
+  // take one (ADR 0015): the state is passed over, and a Piece with no other kind of state is
+  // finished before a server starts. Put in front of the whole command through QUILL_STATES,
+  // because the first real such state belongs to the ticket that changes its row, not to this one.
+  const file = path.join(os.tmpdir(), `quill-oracle-selftest-${process.pid}.json`);
+  const states = JSON.parse(fs.readFileSync(path.join(ROOT, 'shots/oracle/states.json'), 'utf8'));
+  states.pieces.type = {
+    design: { opponent: { capture: 'mac-native-01-light-caret-midword.png', crop: [1500, 380, 100, 40], ours: 'centre' } },
+  };
+  fs.writeFileSync(file, JSON.stringify(states));
+  try {
+    const r = gate('oracle', 'type', { QUILL_STATES: file });
+    assert.equal(r.code, 0, `${r.out}${r.err}`);
+    assert.match(r.out.trim().split('\n').pop(), /^gate oracle type: nothing to freeze \(its one state names a mac-native crop\)/);
+    // And it took nothing away from the Piece as it really stands: the sweep below reads the
+    // fingerprint, and this run must not have removed the three shots type is actually frozen at.
+    for (const name of ['duo', 'quattro', 'mono']) {
+      assert.ok(fs.existsSync(path.join(ROOT, 'shots/oracle/type', `${name}.png`)), `${name}.png went missing`);
+    }
+    assert.ok(fs.existsSync(path.join(ROOT, 'shots/oracle/type/fingerprint.json')));
+  } finally {
+    fs.rmSync(file, { force: true });
+  }
 });
 
 ok('a Piece nobody has judged states for is not a Piece', () => {
