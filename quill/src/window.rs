@@ -115,7 +115,7 @@ impl Window {
         window
             .imp()
             .editor
-            .set_type(session.settings().face, session.size());
+            .set_type(session.settings().face, session.step());
         window.install_size_steps();
         window.imp().editor.grab_focus();
         window.watch_active();
@@ -193,30 +193,31 @@ impl Window {
         ]);
     }
 
-    /// Steps the type size one pixel, or back to the default one.
+    /// Steps the type size one rung of the ladder, or back to the default
+    /// one.
     ///
     /// The step stops at the ends of [`quill_engine::settings::type_sizes`]
     /// rather than wrapping or refusing: a writer holding the key down means
-    /// "as big as it goes", and it is the same range `size` in the file and
+    /// "as big as it goes", and it is the same range `step` in the file and
     /// `--size` on the command line are held to, because it is the same
     /// question asked three ways.
-    fn step_size(&self, step: Step) {
+    fn step_size(&self, direction: Step) {
         let Some(session) = self.imp().session.borrow().clone() else {
             return;
         };
-        let steps = quill_engine::settings::type_sizes();
-        let wanted = match step {
-            Step::Bigger => session.size().saturating_add(1),
-            Step::Smaller => session.size().saturating_sub(1),
+        let ladder = quill_engine::settings::type_sizes();
+        let wanted = match direction {
+            Step::Bigger => session.step().saturating_add(1),
+            Step::Smaller => session.step().saturating_sub(1),
             Step::Default => quill_engine::settings::default_size(),
         };
-        let size = wanted.clamp(*steps.start(), *steps.end());
-        if size == session.size() {
+        let step = wanted.clamp(*ladder.start(), *ladder.end());
+        if step == session.step() {
             return;
         }
-        session.set_size(size);
+        session.set_step(step);
         if let Some(app) = self.application() {
-            reset_type(&app, session.settings().face, size);
+            reset_type(&app, session.settings().face, step);
         }
     }
 

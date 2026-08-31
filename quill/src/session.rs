@@ -32,11 +32,12 @@ pub struct Session {
     harness: bool,
     /// What the writer chose, with the flags over the top, as it was read.
     settings: Settings,
-    /// The type size this launch is running at: the setting until the writer
-    /// steps it, and then whatever they stepped it to. Held apart from
-    /// [`Session::settings`] so that what was read stays readable, which is
-    /// how [`Session::store`] knows whether there is anything to write.
-    size: Cell<u32>,
+    /// The step of the type ladder this launch is running at: the setting
+    /// until the writer steps it, and then whatever they stepped it to. Held
+    /// apart from [`Session::settings`] so that what was read stays readable,
+    /// which is how [`Session::store`] knows whether there is anything to
+    /// write.
+    step: Cell<u32>,
     /// The shape the next window opens at: what the last session left, at the
     /// size the flags name.
     opening: WindowState,
@@ -77,7 +78,7 @@ impl Session {
         let settings = flags.over(settings);
         Rc::new(Self {
             opening: flags.shape(opening),
-            size: Cell::new(settings.size),
+            step: Cell::new(settings.step),
             settings,
             flags,
             harness,
@@ -100,14 +101,14 @@ impl Session {
         &self.settings
     }
 
-    /// The type size this launch is reading at.
-    pub fn size(&self) -> u32 {
-        self.size.get()
+    /// The step of the type ladder this launch is reading at.
+    pub fn step(&self) -> u32 {
+        self.step.get()
     }
 
     /// Steps the type size, for this launch and — for a writer's — the next.
-    pub fn set_size(&self, size: u32) {
-        self.size.set(size);
+    pub fn set_step(&self, step: u32) {
+        self.step.set(step);
     }
 
     /// The shape a new window opens at.
@@ -152,11 +153,11 @@ impl Session {
     /// has already returned before this is reached. A file that cannot be
     /// written is one line on stderr, like every other file here.
     fn store_settings(&self) {
-        if self.size.get() == self.settings.size {
+        if self.step.get() == self.settings.step {
             return;
         }
         let mut settings = self.settings.clone();
-        settings.size = self.size.get();
+        settings.step = self.step.get();
         if let Err(err) = settings.write_to(&Settings::path()) {
             eprintln!(
                 "quill: {}: cannot be written ({err})",
