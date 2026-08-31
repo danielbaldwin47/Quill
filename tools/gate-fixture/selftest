@@ -87,7 +87,7 @@ run() {
 }
 
 run "the fixture as committed" ""         ""
-run "formatting error"         fmt        fmt
+run "formatting error"         fmt        ""     "^gate check: fmt \\(cargo fmt applied: src/defect\\.rs\\)$"
 run "bare #[allow]"            allow      allow "^src/defect\.rs:[0-9]+:"
 run "#[allow] with a reason"   reasoned   ""
 run "clippy warning"           clippy     clippy

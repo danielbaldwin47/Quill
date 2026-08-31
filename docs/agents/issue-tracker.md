@@ -7,9 +7,9 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 - **Create an issue**: `gh issue create --title "..." --body "..."`. Use `--body-file <path>` for multi-line bodies (a heredoc is refused in a worktree, `CLAUDE.md` § Context in an `/implement` session).
 - **Read an issue**: `gh issue view <number> --comments`, filtering comments by `jq` and also fetching labels.
 - **List issues**: `gh issue list --state open --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'` with appropriate `--label` and `--state` filters.
-- **Comment on an issue**: `gh issue comment <number> --body "..."`
+- **Comment on an issue**: `gh issue comment <number> --body-file <path>` for anything with a code span or more than one line — a double-quoted `--body` hands its backticks to the shell, and four comments on #40–#44 ran their code spans as commands; `--body "..."` for one plain line.
 - **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
-- **Close**: `gh issue close <number> --comment "..."`
+- **Close**: a merged PR whose body says `Closes #<number>` has closed it already, and `gh issue close --comment` on a closed issue is refused, so the closing comment goes up with `gh issue comment`. Without a PR: `gh issue close <number> --comment "..."`.
 
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 

@@ -229,21 +229,6 @@ impl Window {
         self.imp().editor.show_document(&document);
     }
 
-    /// Keeps the engine's copy of the text in step with the buffer, keystroke
-    /// by keystroke, and draws what that changed.
-    ///
-    /// Three handlers and the order between them is the keystroke path.
-    /// `insert-text` and `delete-range` are read **before** GTK's own handler,
-    /// because that is the last moment at which the buffer and the Document
-    /// still agree on what a byte offset means — the iterators name a place in
-    /// the text the Document still has. `changed` is read after, because a tag
-    /// is put on by line and byte index within the line, and both have to be
-    /// the ones the writer can now see.
-    ///
-    /// So the splice happens before any Annotator runs, as
-    /// `docs/architecture.md` § Text model requires, and the retag happens
-    /// after the text has moved. What the splice worked out is carried between
-    /// them in [`imp::Window::pending`].
     /// Tells the Editor whether this window has the keyboard, now and after.
     ///
     /// `is-active` is the property GTK keeps the answer in, so it is the one
@@ -262,6 +247,21 @@ impl Window {
         });
     }
 
+    /// Keeps the engine's copy of the text in step with the buffer, keystroke
+    /// by keystroke, and draws what that changed.
+    ///
+    /// Three handlers and the order between them is the keystroke path.
+    /// `insert-text` and `delete-range` are read **before** GTK's own handler,
+    /// because that is the last moment at which the buffer and the Document
+    /// still agree on what a byte offset means — the iterators name a place in
+    /// the text the Document still has. `changed` is read after, because a tag
+    /// is put on by line and byte index within the line, and both have to be
+    /// the ones the writer can now see.
+    ///
+    /// So the splice happens before any Annotator runs, as
+    /// `docs/architecture.md` § Text model requires, and the retag happens
+    /// after the text has moved. What the splice worked out is carried between
+    /// them in [`imp::Window::pending`].
     fn watch_edits(&self) {
         let buffer = self.imp().editor.buffer();
 

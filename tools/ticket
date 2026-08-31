@@ -152,6 +152,10 @@ def main(argv):
     for part, offset in parts:
         for line_no, text in headings(part, offset):
             print(f"{line_no}: {text}")
+    # The path once more, last: a session reads this through `| tail`, and four
+    # of them spent a call finding the file whose path was on the first line.
+    print()
+    print(path)
     return 0
 
 
