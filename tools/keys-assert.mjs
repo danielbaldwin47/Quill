@@ -1,8 +1,9 @@
 // Everything `tools/gate keys` can decide without a window: the script a Piece is typed by, and
-// the pixels it is judged on — decode the PNG, find the caret's bar and the ink beside it, and say
-// whether the bar stands where the writing left it.
+// the pixels it is judged on — decode the PNG, find the caret's bar and the ink beside it, say
+// whether the bar stands where the writing left it, and count the rows a selection was painted on.
 //
-//   import { decodePng, readBar, judgeBurst, judgeMove, resolveScript } from './keys-assert.mjs'
+//   import { decodePng, readBar, readSelectionRows, judgeBurst, judgeSelectionRows, judgeMove,
+//     resolveScript } from './keys-assert.mjs'
 //
 // The split is `tools/bench-selftest.mjs` and `tools/bench-join.mjs`'s: the half with the compositor
 // in it is `keys.mjs`, and nothing here reaches for one, so `tools/gate check` runs the selftest
@@ -166,6 +167,13 @@ function pixel(png, x, y) {
   return { g, b, chroma: b - r, lum: (r + g + b) / 3 };
 }
 
+// The one test for "this pixel is the accent and not a grey", shared by the bar and the selection.
+//
+// One predicate covers both because both are `Role::Accent`: the bar is it at full alpha and the
+// selection's fill is it at .22, which over paper comes out `#c2eafa` — chroma 56, on the same
+// side of `CHROMA` as the bar's own 113 and 114.
+const leansBlue = (p) => p.chroma >= CHROMA && p.b > p.g;
+
 /// Where the caret's bar is, and where the ink on its rows ends.
 ///
 /// `null` for `bar` when nothing on the page leans blue — which is not the same as a bar in the
@@ -174,14 +182,12 @@ function pixel(png, x, y) {
 export function readBar(png, { ink = INK, paper = PAPER } = {}) {
   const edge = lum(ink) + (lum(paper) - lum(ink)) * INK_SHARE;
   const inkIsDarker = lum(paper) > lum(ink);
-  const isBar = (p) => p.chroma >= CHROMA && p.b > p.g;
-
   const cols = new Set();
   const rows = new Set();
   let n = 0;
   for (let y = 0; y < png.h; y += 1) {
     for (let x = 0; x < png.w; x += 1) {
-      if (isBar(pixel(png, x, y))) {
+      if (leansBlue(pixel(png, x, y))) {
         cols.add(x);
         rows.add(y);
         n += 1;
@@ -202,7 +208,7 @@ export function readBar(png, { ink = INK, paper = PAPER } = {}) {
   for (let y = bar.top; y <= bar.bottom; y += 1) {
     for (let x = 0; x < png.w; x += 1) {
       const p = pixel(png, x, y);
-      if (isBar(p)) continue;
+      if (leansBlue(p)) continue;
       if (inkIsDarker ? p.lum < edge : p.lum > edge) {
         if (inkLeft === null || x < inkLeft) inkLeft = x;
         if (inkRight === null || x > inkRight) inkRight = x;
@@ -212,7 +218,50 @@ export function readBar(png, { ink = INK, paper = PAPER } = {}) {
   return { bar, oneRun, pixels: n, inkLeft, inkRight };
 }
 
-// ---------- the two assertions ----------
+// ---------- the selection, as the rows it was painted on ----------
+
+/// The selection's row bands, top to bottom: `{ top, bottom, left, right }` per display row the
+/// selection colour was painted on, and how many pixels carry it.
+///
+/// WHY THE BANDS ARE TOLD APART BY THEIR ENDS AND NOT BY A GAP
+///
+/// There is no gap. `Editor::band` gives every row the full pitch and `Editor::selection` stacks
+/// one fill per display row, so row *k*'s fill ends on the device pixel row *k+1*'s begins — a scan
+/// for empty rows between them would answer "one band" for a selection of any height, and #146's
+/// missing last row would not move that number. What does differ is how far along each row the
+/// fill reaches: a row is filled to its last glyph's advance, so rows of different lengths end in
+/// different columns. So a band here is a run of consecutive scanlines whose selection colour
+/// starts and ends in the same two columns, which is why the keys script selects rows of
+/// deliberately different lengths.
+///
+/// The seam between two bands costs nothing: where the two fills share a device pixel row it
+/// carries both, so its span is the union of theirs — and since every row of a selection starts at
+/// the same left edge, that union is the wider of the two and the seam joins that band rather than
+/// standing as a third.
+export function readSelectionRows(png) {
+  const bands = [];
+  let pixels = 0;
+  for (let y = 0; y < png.h; y += 1) {
+    let left = null;
+    let right = null;
+    for (let x = 0; x < png.w; x += 1) {
+      if (!leansBlue(pixel(png, x, y))) continue;
+      if (left === null) left = x;
+      right = x;
+      pixels += 1;
+    }
+    if (left === null) continue;
+    const open = bands[bands.length - 1];
+    if (open && open.bottom === y - 1 && open.left === left && open.right === right) {
+      open.bottom = y;
+    } else {
+      bands.push({ top: y, bottom: y, left, right });
+    }
+  }
+  return { bands, pixels };
+}
+
+// ---------- the assertions ----------
 
 /// After a burst, the bar stands just right of the ink.
 ///
@@ -256,6 +305,44 @@ export function judgeBurst(png, { chars, colours, read = readBar(png, colours) }
   };
 }
 
+/// After a burst that ends in a selection, every row of it was painted — the bottom one included.
+///
+/// `rows` is how many display rows the burst's selection covers, written down in the script beside
+/// the text that makes them. Counting the bands rather than looking at the last one is what makes
+/// this catch an off-by-one at *either* end: a walk that stops a row early and one that starts a
+/// row late both come out one band short, and neither is visible in a still of the middle of a
+/// Document — which is why #146 survived six rounds and eighteen critics.
+///
+/// It reads the page itself rather than taking the `read` the run carries from burst to burst:
+/// that one is [`readBar`]'s, and a selection is not a bar.
+export function judgeSelectionRows(png, { rows } = {}) {
+  const read = readSelectionRows(png);
+  if (!(rows > 0)) {
+    return {
+      pass: false,
+      read,
+      said: `a burst asserting selection-rows has to say how many rows it selects, and this one `
+        + `says ${JSON.stringify(rows)}`,
+    };
+  }
+  if (!read.bands.length) {
+    return {
+      pass: false,
+      read,
+      said: 'nothing on the page is drawn in the selection colour, so no row of the selection '
+        + 'was painted at all',
+    };
+  }
+  const where = read.bands
+    .map((b) => `y ${b.top}..${b.bottom} x ${b.left}..${b.right}`)
+    .join('; ');
+  return {
+    pass: read.bands.length === rows,
+    read,
+    said: `${read.bands.length} row bands in the selection colour, expected ${rows} (${where})`,
+  };
+}
+
 /// Between the bursts, the bar moved right.
 export function judgeMove(before, after) {
   if (!before.bar || !after.bar) {
@@ -274,8 +361,24 @@ export function judgeMove(before, after) {
 // functions they name so that adding one is an edit to this file and to the script in states.json,
 // and to nothing else.
 
-export const AFTER_BURST = { 'bar-after-ink': judgeBurst };
+export const AFTER_BURST = {
+  'bar-after-ink': judgeBurst,
+  'selection-rows': judgeSelectionRows,
+};
 export const BETWEEN_BURSTS = { 'bar-moved-right': judgeMove };
+
+/// How a burst's shot is waited for, by the name a burst may say in `settle`.
+///
+/// `caret` is the two typing bursts': a page with the caret on it, re-shot until the blink is
+/// caught lit. `still` is a page with no caret on it — what a burst that ends in a selection
+/// leaves, because a selection puts the caret out entirely (ADR 0014) — where two agreeing
+/// captures are the whole rule, and a run that waited for a lit bar would spend its tries and then
+/// refuse a page that is exactly right.
+///
+/// The names are here rather than in `keys.mjs` so that a script naming a settle rule the command
+/// has not got is refused by `resolveScript`, with no window open, in the same breath as an
+/// assertion it has not got. `keys.mjs` holds the functions.
+export const SETTLES = ['caret', 'still'];
 
 /// Where the scripts are, said once so the command and its error messages agree.
 export const STATES = 'shots/oracle/states.json';
@@ -297,16 +400,26 @@ export function resolveScript(states, piece) {
   const bursts = script.bursts || [];
   if (!bursts.length) throw new Error(`no keys script for ${piece}`);
 
-  // `chars` is how many characters stand on the line once the burst has been typed, and the
-  // advance the assertions measure against is derived from it. It is written down rather than
-  // counted so that the day a script presses Enter or Backspace, the number that stops being the
-  // running total says so here instead of quietly shifting the tolerance.
+  // `chars` is how many characters have been typed by the end of the burst. It is written down in
+  // the script and checked against the running total here, so that the day a script's arithmetic
+  // and its text disagree the file says which one moved instead of quietly shifting a tolerance.
+  // A burst's chords are not in it: `keys` spells what the keyboard does, and `Control+a` puts no
+  // character on the page.
+  //
+  // `bar-after-ink` reads it as how many characters stand on the line, which it is only while the
+  // script stays on one line — the two typing bursts do, and the burst that presses Enter asserts
+  // the selection instead. A burst wanting both would need a count of its own, and this check is
+  // where it would be given one.
   let running = 0;
   for (const burst of bursts) {
-    running += [...burst.text].length;
+    running += [...(burst.text || '')].length;
     if (burst.chars !== running) {
       throw new Error(`${piece}: burst ${burst.name} says chars ${burst.chars}, but ${running} `
         + 'characters have been typed by the end of it');
+    }
+    if (burst.settle !== undefined && !SETTLES.includes(burst.settle)) {
+      throw new Error(`${piece}: burst ${burst.name} settles ${burst.settle} `
+        + `(this command knows ${SETTLES.join(', ')})`);
     }
   }
   for (const [table, names, what] of [
