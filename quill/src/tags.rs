@@ -811,7 +811,7 @@ mod tests {
         // Every rung of the ladder, because the ladder is measurement rather
         // than a multiple: the em from step to step grows by anything from
         // 0.75 px to 6.17, and only the direction is a rule.
-        for step in quill_engine::settings::type_sizes().skip(1) {
+        for step in quill_engine::settings::type_steps().skip(1) {
             let small = hang(Face::Duo, step - 1, marker_cells(1));
             let large = hang(Face::Duo, step, marker_cells(1));
             assert!(
@@ -893,7 +893,7 @@ mod tests {
         // strictly bigger at every rung: a well is under one cell and a fifth,
         // and two adjacent ems of the ladder's small end — 15.25 and 16.17 —
         // round to the same whole pixel.
-        let ladder = quill_engine::settings::type_sizes();
+        let ladder = quill_engine::settings::type_steps();
         for step in ladder.clone().skip(1) {
             assert!(
                 well(step - 1) <= well(step),

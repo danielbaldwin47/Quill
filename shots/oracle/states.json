@@ -1,9 +1,9 @@
 {
-  "_about": "The judged states of the nine Pieces, decided in issue #24. tools/gate judge <piece> shoots ours and the Parity oracle at every state listed for the Piece and freezes the oracle's shot at shots/oracle/<piece>/<state>.png. Offsets are UTF-8 bytes from the start of the passage (the native --caret and --select form); the tool converts them to legacy/tools/shoot.mjs's character offsets. Every key in `defaults` is a flag from docs/architecture.md and is overridden per state.",
+  "_about": "The judged states of the nine Pieces, decided in issue #24. tools/gate judge <piece> shoots ours and the Parity oracle at every state listed for the Piece and freezes the oracle's shot at shots/oracle/<piece>/<state>.png. Offsets are UTF-8 bytes from the start of the passage (the native --caret and --select form); the tool converts them to legacy/tools/shoot.mjs's character offsets. `step` is a rung of the type ladder in quill-engine/src/typography.rs, and the tool converts it the same way to the em in pixels that shoot.mjs's --size wants. Every key in `defaults` is a flag from docs/architecture.md and is overridden per state.",
   "defaults": {
     "text": "ref/sample.md",
     "w": 1440, "h": 900, "scale": 2,
-    "theme": "light", "font": "duo", "size": 20,
+    "theme": "light", "font": "duo", "step": 5,
     "focus": "off", "typewriter": false, "chrome": "on",
     "caret": 403, "select": null, "scroll": 0, "nocaret": false,
     "active": true, "typing": false, "menu": null

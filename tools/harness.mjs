@@ -124,7 +124,7 @@ const SWITCH_TIMEOUT_MS = 1_500;
 export function quillArgv(root, flags, { live = false } = {}) {
   const argv = live ? [] : ['--deterministic'];
   argv.push('--w', String(flags.w), '--h', String(flags.h));
-  argv.push('--theme', flags.theme, '--font', flags.font, '--size', String(flags.size));
+  argv.push('--theme', flags.theme, '--font', flags.font, '--step', String(flags.step));
   argv.push('--focus', flags.focus, '--chrome', flags.chrome);
   if (flags.typewriter) argv.push('--typewriter');
   if (flags.nocaret) argv.push('--nocaret');
@@ -808,6 +808,6 @@ class Stage {
 // state and a state has a size; they are the judged default so that nothing surprising happens if a
 // rule ever fails to apply.
 const PARKING = {
-  w: 1440, h: 900, theme: 'light', font: 'duo', size: 20, focus: 'off', chrome: 'on',
+  w: 1440, h: 900, theme: 'light', font: 'duo', step: 5, focus: 'off', chrome: 'on',
   typewriter: false, nocaret: false, text: null, caret: null, select: null, scroll: 0,
 };
