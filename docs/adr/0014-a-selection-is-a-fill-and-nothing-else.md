@@ -8,10 +8,10 @@ for as long as a selection stands, `#113d52` and `#00bfff` exact. One row is con
 `#dcdcdc` on light — with no blue in it. The swap is still the fill's alone.*
 
 *Overtaken in two places by [ADR 0015](0015-the-design-oracle-outranks-the-parity-oracle.md).
-§ Consequences' "a lost round on this Piece reads as the decision it is": the caret states now name
-a `mac-native` crop as their opponent, so a round is winnable and a loss is a loss again. And its
-"wider question is open, not answered here" is answered there — `docs/design.md` decides the writing
-surface row by row.*
+§ Consequences' "a lost round on this Piece reads as the decision it is": ADR 0015 gives the caret
+states a `mac-native` opponent (the Gate's per-state key is #161), so a round is winnable and a
+loss is a loss again. And its "wider question is open, not answered here" is answered there —
+`docs/design.md` decides the writing surface row by row.*
 
 A selection is drawn as its fill rows and nothing else: no bar at either end, and the caret stays
 out for as long as it stands. This supersedes the "a bar at each end" of
