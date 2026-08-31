@@ -96,7 +96,7 @@ ok('a state becomes the shoot.mjs flags that state means', () => {
   const unfocused = shootArgv(ROOT, caret.unfocused, 'o.png', 'u');
   assert.equal(unfocused[unfocused.indexOf('--active') + 1], 'off');
 
-  const empty = resolveStates(states, 'page').find((s) => s.name === 'empty').flags;
+  const empty = resolveStates(states, 'chrome').find((s) => s.name === 'empty').flags;
   const noText = shootArgv(ROOT, empty, 'o.png', 'u');
   assert.ok(!noText.includes('--text'), 'an empty Document is shot with no --text');
   assert.ok(!noText.includes('--caret'), 'and with no caret offset into a passage it does not have');
@@ -215,8 +215,12 @@ ok('a state judged against a mac-native crop is not this tool\'s to freeze', () 
     assert.equal(r.code, 0, `${r.out}${r.err}`);
     assert.match(r.out.trim().split('\n').pop(), /^gate oracle type: nothing to freeze \(its one state names a mac-native crop\)/);
     // And it took nothing away from the Piece as it really stands: the sweep below reads the
-    // fingerprint, and this run must not have removed the three shots type is actually frozen at.
-    for (const name of ['duo', 'quattro', 'mono']) {
+    // fingerprint, and this run must not have removed the shots type is actually frozen at. Those
+    // are duo and quattro alone since #165 moved `mono` to a Design oracle crop: a real
+    // `gate oracle type` took `mono.png` away then, by the removal path below, because the state
+    // had stopped being one this freezes — so naming it here would assert a file the command was
+    // right to delete. The fixture in front of this case never reaches that path itself.
+    for (const name of ['duo', 'quattro']) {
       assert.ok(fs.existsSync(path.join(ROOT, 'shots/oracle/type', `${name}.png`)), `${name}.png went missing`);
     }
     assert.ok(fs.existsSync(path.join(ROOT, 'shots/oracle/type/fingerprint.json')));
