@@ -19,9 +19,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { pair, pairDir, reveal } from './blind.mjs';
+import { CAPTURES, cropPng, encodePng, resolveOpponent } from './crop.mjs';
 import { APP_ID, appeared, classPattern, launchEnv, parseToplevels, pngSize, quillArgv, rulesLua } from './harness.mjs';
-import { criticAnswer, criticPrompt, oursArgv, refusedFlag } from './judge.mjs';
-import { readStates, resolveStates } from './oracle.mjs';
+import { criticAnswer, criticPrompt, opponentOf, oursArgv, refusedFlag } from './judge.mjs';
+import { decodePng } from './keys-assert.mjs';
+import { readStates, resolveStates, unservable } from './oracle.mjs';
 import { regimes } from './regimes.mjs';
 import { OPPONENTS, decisive, nextRound, opponentName, round, wonBefore } from './rounds.mjs';
 
@@ -57,8 +59,8 @@ ok('a state becomes the native flags that state means', () => {
   assert.equal(flag('--font'), 'duo');
   assert.equal(flag('--step'), '5');
   assert.equal(flag('--focus'), 'off');
-  // The state's own rather than the defaults': the caret Piece is judged bare (#139), so this one
-  // says `off` where `defaults` says `on`.
+  // The caret Piece is judged bare (#139), so its states override the defaults' chrome; that
+  // override reaching the command line is the half of this case the defaults cannot show.
   assert.equal(flag('--chrome'), 'off');
   assert.equal(flag('--text'), path.join(ROOT, 'ref/sample.md'));
   // Bytes on the way in and bytes on the way out: the native flags take the form states.json
@@ -303,13 +305,137 @@ ok('every recorded round names an opponent the progress page can caption', () =>
   }
 });
 
+// ---------- the Design oracle's crop ----------
+// A capture that is on disk and is the shape this cuts: the caret mid-word state of #154, which is
+// a region rather than a whole window and so exercises `window` and `at` as well.
+const CAPTURE = 'mac-native-01-light-caret-midword.png';
+
+// One synthetic Piece, so a state with an `opponent` can be resolved without waiting for the first
+// real one — the ticket that changes a row adds that (#161 is the tooling and nothing else).
+function synthetic(opponent, overrides = {}) {
+  return {
+    defaults: { ...states.defaults, w: 200, h: 100, scale: 2 },
+    pieces: { synthetic: { crop: { ...overrides, opponent } } },
+  };
+}
+
+ok('a state that names an opponent carries no such flag, and is shot in Mono at the defaults\' type', () => {
+  const made = synthetic({ capture: CAPTURE, crop: [0, 0, 8, 8], ours: [0, 0, 8, 8] }, { font: 'quattro', step: 6, theme: 'dark' });
+  const [s] = resolveStates(made, 'synthetic');
+  // `opponent` says who judges the state, not what it is shot at, so it must never reach the flags:
+  // `unservable` would call it a flag no tool serves and refuse the Piece before a window opened.
+  assert.deepEqual(unservable(made.defaults, s.flags), []);
+  assert.deepEqual(s.opponent, { capture: CAPTURE, crop: [0, 0, 8, 8], ours: [0, 0, 8, 8] });
+  // Mono at the defaults' step whatever the state itself says, so the two grids compare cell for
+  // cell; everything that is not the type is still the state's own.
+  assert.equal(s.flags.font, 'mono');
+  assert.equal(s.flags.step, states.defaults.step);
+  assert.equal(s.flags.theme, 'dark');
+  // And a state with no opponent is exactly what it was.
+  const plain = resolveStates(states, 'type').find((t) => t.name === 'quattro');
+  assert.equal(plain.opponent, null);
+  assert.equal(plain.flags.font, 'quattro');
+});
+
+ok('a round names the opponent its states were judged against, and says so when they differ', () => {
+  const design = { capture: CAPTURE, crop: [0, 0, 8, 8], ours: [0, 0, 8, 8] };
+  assert.equal(opponentOf([{ opponent: null }, { opponent: null }]), 'oracle');
+  assert.equal(opponentOf([{ opponent: design }, { opponent: design }]), 'mac-native');
+  // A Piece part-way through: #165-#168 move one row at a time, so this is what the ledger says
+  // for every round between the first row moving and the last.
+  assert.equal(opponentOf([{ opponent: null }, { opponent: design }]), 'mixed');
+  // And every word one of them returns is one the progress page can caption.
+  for (const word of ['oracle', 'mac-native', 'mixed']) {
+    assert.ok(OPPONENTS[word], `a round recording ${word} would be captioned by its own key`);
+    assert.equal(opponentName({ opponent: word }), OPPONENTS[word]);
+  }
+});
+
+ok('an opponent is resolved against the capture on disk, and the centre rule carries the container', () => {
+  const ours = { w: 2880, h: 1800 };
+  const given = resolveOpponent(ROOT, 'crop', { capture: CAPTURE, crop: [1500, 380, 100, 40], ours: [1428, 331, 100, 40] }, ours);
+  assert.equal(given.capture, path.join(CAPTURES, CAPTURE));
+  assert.deepEqual(given.crop, [1500, 380, 100, 40]);
+
+  // The centre rule, on the numbers ADR 0015 names: the capture sits in a 3024 x 1898 window and
+  // ours is 2880 x 1800, both with the container centred, so what transfers is the offset from the
+  // centre — 38 px right of it and 549 px above, in both windows.
+  const centred = resolveOpponent(ROOT, 'crop', { capture: CAPTURE, crop: [1500, 380, 100, 40], window: [3024, 1898], ours: 'centre' }, ours);
+  assert.deepEqual(centred.ours, [1428, 331, 100, 40]);
+  // `at` moves the capture within that window, and the crop with it.
+  const moved = resolveOpponent(ROOT, 'crop', { capture: CAPTURE, crop: [1500, 380, 100, 40], window: [3024, 1898], at: [40, 100], ours: 'centre' }, ours);
+  assert.deepEqual(moved.ours, [1468, 431, 100, 40]);
+});
+
+ok('a crop that cannot be cut says which state and why, and cuts nothing', () => {
+  const ours = { w: 2880, h: 1800 };
+  const bad = [
+    [{ capture: 'ref/ia/shots/mac-native/nope.png', crop: [0, 0, 8, 8], ours: 'centre' }, /a file name under/],
+    [{ capture: 'mac-native-99-nothing.png', crop: [0, 0, 8, 8], ours: 'centre' }, /not a capture on disk/],
+    [{ capture: CAPTURE, crop: [2900, 0, 100, 8], ours: 'centre' }, /past the capture/],
+    [{ capture: CAPTURE, crop: [0, 0, 8], ours: 'centre' }, /is not \[x, y, w, h\]/],
+    [{ capture: CAPTURE, crop: [0, 0, 8, 8], ours: [2879, 0, 8, 8] }, /past ours/],
+    [{ capture: CAPTURE, crop: [0, 0, 8, 8], ours: 'middle' }, /is not \[x, y, w, h\]/],
+    [{ capture: CAPTURE, crop: [0, 0, 8, 8], window: [100, 100], ours: 'centre' }, /does not hold it/],
+  ];
+  for (const [opponent, why] of bad) {
+    assert.throws(() => resolveOpponent(ROOT, 'crop', opponent, ours), why, `${JSON.stringify(opponent)} was resolved`);
+  }
+});
+
+ok('a state with an opponent pairs the named crop, and both sides are the same rectangle', () => {
+  const crop = [1500, 380, 100, 40];
+  const mine = [40, 20, 100, 40];
+  const made = synthetic({ capture: CAPTURE, crop, ours: mine });
+  const [s] = resolveStates(made, 'synthetic');
+  const cut = resolveOpponent(ROOT, s.name, s.opponent, { w: s.flags.w * s.flags.scale, h: s.flags.h * s.flags.scale });
+
+  // Ours, as a shot of the size this state would be shot at: 200 x 100 logical at scale 2.
+  const w = s.flags.w * s.flags.scale;
+  const h = s.flags.h * s.flags.scale;
+  const data = Buffer.alloc(w * h * 3);
+  for (let i = 0; i < w * h; i += 1) data[i * 3] = i % 251;
+  const shot = encodePng({ w, h, ch: 3, data });
+
+  const capture = fs.readFileSync(path.join(ROOT, cut.capture));
+  const theirsCrop = cropPng(capture, cut.crop);
+  const oursCrop = cropPng(shot, cut.ours);
+
+  inTemp((dir) => {
+    fs.writeFileSync(path.join(dir, 'ours.png'), oursCrop);
+    fs.writeFileSync(path.join(dir, 'theirs.png'), theirsCrop);
+    const paired = pair('synthetic', s.name, 'ours.png', 'theirs.png');
+    // A pair of two sizes is the one thing a critic must not be shown: it would answer "the same
+    // window at two zooms" whatever the two apps did.
+    for (const letter of ['A', 'B']) {
+      const size = pngSize(fs.readFileSync(path.join(paired.dir, `${letter}.png`)));
+      assert.deepEqual([size.w, size.h], [crop[2], crop[3]], `${letter}.png is not the crop`);
+    }
+    const key = reveal('synthetic', s.name);
+    const theirs = decodePng(fs.readFileSync(path.join(paired.dir, key.ours === 'A' ? 'B.png' : 'A.png')));
+    const whole = decodePng(capture);
+    // The crop is the rectangle the state named, and not some other rectangle of the same size:
+    // its corners are the capture's own pixels at that offset.
+    for (const [x, y] of [[0, 0], [crop[2] - 1, crop[3] - 1], [50, 20]]) {
+      const from = ((crop[1] + y) * whole.w + crop[0] + x) * whole.ch;
+      const to = (y * crop[2] + x) * theirs.ch;
+      assert.deepEqual(
+        [...theirs.data.subarray(to, to + theirs.ch)],
+        [...whole.data.subarray(from, from + whole.ch)],
+        `the crop's pixel at ${x}, ${y} is not the capture's at ${crop[0] + x}, ${crop[1] + y}`,
+      );
+    }
+  });
+});
+
 // ---------- the answers that need no compositor ----------
 // The owner's line is the whole of stdout; everything said on the way to it is held back, and comes
 // out on stderr only when the run ends in no verdict at all, so the two are kept apart here rather
 // than interleaved.
 function gate(...argv) {
+  const env = typeof argv[argv.length - 1] === 'object' ? argv.pop() : {};
   try {
-    return { code: 0, out: execFileSync(GATE, argv, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }), err: '' };
+    return { code: 0, out: execFileSync(GATE, argv, { cwd: ROOT, encoding: 'utf8', env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] }), err: '' };
   } catch (e) {
     return { code: e.status, out: e.stdout || '', err: e.stderr || '' };
   }
@@ -440,6 +566,29 @@ ok('--settings needs a path, and the Piece that shoots nothing will not take one
   const latency = gate('judge', 'latency', '--settings', 'a-settings-file-this-test-never-opens.toml');
   assert.equal(latency.code, 3, latency.err);
   assert.match(lastLine(latency), /^gate judge latency: refused \(--settings is not a flag the latency Piece has\)/);
+});
+
+ok('a crop that cannot be cut is refused before a window opens, and never as a verdict', () => {
+  // Named by the state and by the reason, in one run rather than one per state, for the reason
+  // every other refusal here is: a crop found wrong at the third state has already spent two
+  // critics. It is checked before the frozen opponent is, so a Piece whose crops are wrong says so
+  // rather than sending an agent to run `tools/gate oracle` first.
+  const file = path.join(os.tmpdir(), `quill-judge-selftest-${process.pid}.json`);
+  const states = JSON.parse(fs.readFileSync(path.join(ROOT, 'shots/oracle/states.json'), 'utf8'));
+  states.pieces.type = {
+    off: { opponent: { capture: 'mac-native-01-light-caret-midword.png', crop: [2900, 0, 100, 40], ours: 'centre' } },
+    gone: { opponent: { capture: 'mac-native-99-nothing.png', crop: [0, 0, 8, 8], ours: 'centre' } },
+  };
+  fs.writeFileSync(file, JSON.stringify(states));
+  try {
+    const r = gate('judge', 'type', { QUILL_STATES: file });
+    assert.equal(r.code, 3, `${r.out}${r.err}`);
+    assert.match(r.err, /state off's opponent's crop runs to 3000 x 40, past the capture/);
+    assert.match(r.err, /state gone's opponent names ref\/ia\/shots\/mac-native\/mac-native-99-nothing\.png, which is not a capture on disk/);
+    assert.match(lastLine(r), /^gate judge type: refused \(2 of 2 states name a mac-native crop that cannot be cut\)/);
+  } finally {
+    fs.rmSync(file, { force: true });
+  }
 });
 
 ok('a Piece nobody has judged states for is not a Piece', () => {
