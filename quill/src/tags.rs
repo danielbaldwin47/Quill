@@ -952,14 +952,10 @@ mod tests {
     // text before it, and if any of that changed a glyph's advance the line
     // would jolt under the writer's hands as they typed the last asterisk.
     // Measured in the Faces themselves, at the two weights and the two cuts the
-    // tag table asks for, on the passage the Piece is judged on. Pango's own
-    // font map, because `cargo test` runs with no display and GTK's contexts
-    // all come off one.
+    // tag table asks for, on the passage the Piece is judged on.
     #[test]
     fn no_face_moves_a_glyph_across_the_weights_and_cuts_the_tags_ask_for() {
-        crate::fonts::load_private(&quill_engine::data::fonts())
-            .expect("the Faces are in the checkout");
-        let context = pangocairo::FontMap::default().create_context();
+        let context = faces();
         let passage = std::fs::read_to_string("../shots/oracle/markup.md")
             .expect("the judged Markup passage is in the repo");
         for face in [Face::Duo, Face::Quattro, Face::Mono] {
@@ -979,19 +975,20 @@ mod tests {
         }
     }
 
-    // The passage above is prose, and prose is not where iA left the advance
-    // varying: five of the six Faces carried a `wght` delta on the advance of
-    // some glyph, and `tools/fontbuild.py` zeroes every one of them (#95). Only
-    // Quattro Italic's `t` and `f` are ordinary enough to reach the passage;
-    // the rest are punctuation and marks it happens not to use, so they are
-    // measured here instead. Across the weights only, one cut at a time: what
-    // an italic sets a glyph to is the Face's business, and the invariant is
-    // that setting a run bold leaves the run the width it was.
+    // The passage above is prose, and prose is not where iA left most of the
+    // advance varying. Five of the six Faces carried a `wght` delta on the
+    // advance of some glyph, and `tools/fontbuild.py` zeroes every one; #95
+    // asked for the pin having found the one pair prose reaches, Quattro
+    // Italic's `t` and `f`, and its comment records the other four Faces. The
+    // rest of what moved is punctuation and marks the passage happens not to
+    // use, so a glyph of each is measured here — a sample, not the whole set:
+    // the dieresis composites and the Greek `.case` glyphs have no plain
+    // character to type. Across the weights only, one cut at a time: what an
+    // italic sets a glyph to is the Face's business, and the invariant is that
+    // setting a run bold leaves the run the width it was.
     #[test]
-    fn no_face_moves_the_glyphs_ia_varied_on_the_weight_axis() {
-        crate::fonts::load_private(&quill_engine::data::fonts())
-            .expect("the Faces are in the checkout");
-        let context = pangocairo::FontMap::default().create_context();
+    fn no_face_moves_the_varied_glyphs_a_writer_types_when_a_run_goes_bold() {
+        let context = faces();
         for face in [Face::Duo, Face::Quattro, Face::Mono] {
             for slant in [Slant::Upright, Slant::Italic] {
                 let ink = advance(&context, face, REGULAR, slant, MOVERS);
@@ -1005,11 +1002,20 @@ mod tests {
         }
     }
 
-    /// One of every glyph iA varied on `wght`, in the Faces that varied it:
-    /// Quattro Italic's narrow letters, Mono's `j` and per-cent signs, the
-    /// ellipsis, the exclamation mark, the dieresis, and the two Cyrillic
-    /// letters Quattro and Mono move.
+    /// A glyph iA varied on `wght` from each of the five Faces that varied one,
+    /// and every one of them a writer can type: Quattro Italic's narrow
+    /// letters, Mono's `j` and per-cent signs, the ellipsis, the exclamation
+    /// mark, the dieresis, and the two Cyrillic letters Quattro and Mono move.
     const MOVERS: &str = "jf t %‰©…!¨ юј ťțţ";
+
+    /// The Faces loaded into a Pango context of their own. `cargo test` runs
+    /// with no display and GTK's contexts all come off one, so the measuring
+    /// tests take Pango's own font map instead.
+    fn faces() -> pango::Context {
+        crate::fonts::load_private(&quill_engine::data::fonts())
+            .expect("the Faces are in the checkout");
+        pangocairo::FontMap::default().create_context()
+    }
 
     /// The width of `passage` set in `face` at `weight` and `slant`, in Pango
     /// units, from the same description the Editor builds.

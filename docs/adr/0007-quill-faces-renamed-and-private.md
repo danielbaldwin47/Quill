@@ -36,8 +36,9 @@ Quattro Italic patch that `tools/fontgrid.py` made for the web app: the space (g
 450 units to match the Roman, with its `gvar` entry frozen. It then freezes every glyph's advance
 across the `wght` axis, by zeroing the advance phantom point of each `gvar` tuple that varies on it,
 so that a run of text keeps its width when it is set bold ([#95](https://github.com/danielbaldwin47/Quill/issues/95)).
-Outputs are committed under `fonts/` at the repo root, and the script is a pure function of its
-inputs: a rebuild that changes nothing changes no bytes.
+Outputs are committed under `fonts/` at the repo root. The script stamps no build time, so two runs
+over the same sources agree byte for byte; nothing in the Gate holds the committed files to a fresh
+build, and a change here is rebuilt by hand and the diff read.
 
 **Fonts are private to the process.** Startup calls `FcConfigAppFontAddDir` on the current fontconfig
 with the font directory (`/usr/share/quill/fonts` from the package, `<repo>/fonts` in a development
