@@ -513,6 +513,22 @@ Three values fall out of the same two frames.
 The underline is the same colour under a full-ink bare URL as under the quieted destination, so it
 is its own ink rather than a tint of the text above it.
 
+**What it runs under is the URL and nothing else**, read off `17-dark-marks` a row at a time
+(#198 phase 2, from this repo). The dark frame carries exactly two rules, each 4 px tall and each
+`#545452` to the pixel:
+
+| rule | rows | x | what is above it |
+|---|---|---|---|
+| the bare URL, first half | 402–405 | 1844 … 2045 | `https://`, where the row wraps |
+| the bare URL, second half | 476–479 | 692 … 1123 | `example.com/plain` |
+| the link's destination | 476–479 | 1639 … 2275 | `https://example.com/named` |
+
+The link's own row reads `[` at x 1315, its **words** in body ink at 1336 … 1575, then `](`, the
+destination and `)` in the link grey out to 2293. The rule starts at 1639 — after the `](` — and
+stops at 2275, before the `)`. So the words carry no rule, the brackets carry no rule, and a bare
+URL carries one over its whole length, wrap and all. This is the row `VERDICTS.md` 4.2.13 states,
+and it corrects the phrase "link text is body ink and underlined" this section first carried.
+
 The fenced block's ground runs x 680 … 2341, 11 px left of the body column at 691.0 and 12 px past
 the measure's end at 2329.4 — about 0.43 cells of bleed each side — and 222 px tall over three
 lines. An inline run's ground is the run's own cells plus about 3 px each side (x 944 … 1282 for

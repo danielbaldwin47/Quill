@@ -31,7 +31,7 @@
 //! Nothing here paints. The engine cannot see a display
 //! ([ADR 0008](../../../docs/adr/0008-engine-crate-without-gtk.md)), so a role
 //! resolves to a [`Colour`] and the app turns that into the widget stylesheet
-//! and the tag table. A colour that is a step off the page — the two fills, the
+//! and the tag table. A colour that is a step off the page — the idle fill, the
 //! code ground — is an alpha here rather than the grey it flattens to, because
 //! an alpha survives a palette swap where a hex does not.
 
@@ -239,7 +239,7 @@ pub enum Role {
     /// them. The link's *words* are the writer's and take [`Role::Ink`]; this
     /// is the grey the Design oracle quiets the machinery around them to.
     Link,
-    /// The hairline under a link's words.
+    /// The hairline under a link's destination.
     LinkRule,
     /// The selection.
     Selection,
@@ -312,7 +312,8 @@ impl Colours {
     /// flatten to, because an alpha survives a palette swap where a hex does
     /// not: over this paper they land on the oracle's own `#dcdcdc` and
     /// `#eeeeee`, and over a writer's paper they land wherever that paper puts
-    /// them (`design.md` rows Idle fill and Code ground).
+    /// them (`design.md` rows Idle fill and Code ground). The active fill is a
+    /// hex, because the oracle's `#ccedf8` is a blue and not a step off paper.
     const LIGHT: Self = Self {
         paper: Colour::from_hex("#f7f7f7"),
         ink: Colour::from_hex("#191919"),
@@ -529,7 +530,7 @@ mod tests {
     /// Focus dims to — a link's destination is quiet, not out of focus — which
     /// it does on both grounds by a margin narrower on light than on dark.
     #[test]
-    fn ink_and_marker_stay_legible_on_both_grounds() {
+    fn the_ink_holds_each_ground_the_markers_ride_with_it_and_the_link_stays_above_the_dim_tier() {
         for (scheme, ink_floor, ink_ratio, link_ratio, dim_ratio) in [
             (Scheme::Light, 12.0, 16.41, 1.95, 1.62),
             (Scheme::Dark, 10.5, 10.84, 4.05, 3.51),
