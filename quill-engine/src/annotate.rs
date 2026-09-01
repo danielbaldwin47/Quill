@@ -152,6 +152,11 @@ pub enum Ink {
     /// mark kind at the prose's own ink (#198), so on the built-in grounds this
     /// is the same colour as [`Ink::Prose`]; it stays an ink of its own because
     /// a writer's `palette` file may set the markers apart.
+    ///
+    /// Two runs that are not markers ride with it and move when it does:
+    /// struck text and inline HTML, both of which took the marker grey for
+    /// being not-prose. Neither is in the measured passage, so both follow the
+    /// markers until a capture says otherwise.
     Marker,
     /// The grey a link's plumbing goes quiet in: its `[`, `]`, `(`, `)` and the
     /// destination between them. Not its words, which are the writer's.

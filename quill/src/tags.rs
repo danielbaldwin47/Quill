@@ -201,15 +201,14 @@ fn code_ground(buffer: &gtk::TextBuffer, scheme: Scheme) -> gtk::TextTag {
 /// [`Role::LinkRule`] rather than the link colour at an opacity, because the
 /// Design oracle draws the hairline the same under a full-ink URL as under a
 /// quieted one — it is its own ink, not a tint of the text above it (#198,
-/// `VERDICTS.md` § Found here: the link's ink and the code ground).
+/// `ref/ia/mac-native/NOTES.md` § Found here: the link's ink and the code
+/// ground).
 fn underline(buffer: &gtk::TextBuffer, scheme: Scheme) -> gtk::TextTag {
     let underline = tag(buffer, "decoration-underline", |tag| {
         tag.set_underline(pango::Underline::Single);
     });
-    underline.set_underline_rgba(Some(&shaded(
-        &Colours::of(scheme).colour(Role::LinkRule).to_hex(),
-        u8::MAX,
-    )));
+    let rule = Colours::of(scheme).colour(Role::LinkRule).to_hex();
+    underline.set_underline_rgba(Some(&shaded(&rule, Look::OPAQUE)));
     underline
 }
 
