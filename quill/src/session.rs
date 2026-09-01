@@ -19,7 +19,8 @@ use std::cell::{Cell, RefCell};
 use std::path::Path;
 use std::rc::Rc;
 
-use quill_engine::settings::{Settings, State, Theme, WindowState};
+use quill_engine::focus::Focus;
+use quill_engine::settings::{FocusScope, Settings, State, Theme, WindowState};
 use quill_engine::theme::{self, Scheme};
 
 use crate::flags::Flags;
@@ -44,6 +45,17 @@ pub struct Session {
     /// [`Session::step`] is — what was read has to stay readable for
     /// [`Session::store_settings`] to know there is anything to write.
     theme: Cell<Theme>,
+    /// Whether Focus is on now: the setting until the writer presses the key,
+    /// and then what they pressed it to. Held apart from [`Session::settings`]
+    /// for the reason [`Session::step`] is.
+    focus: Cell<bool>,
+    /// The scope Focus is at, which outlives Focus being switched off because
+    /// it is what `Ctrl+D` restores (ADR 0006). Held live for the same reason
+    /// [`Session::focus`] is.
+    focus_scope: Cell<FocusScope>,
+    /// Whether Typewriter is on now. Nothing scrolls to it yet — #115 is what
+    /// makes it move — so this launch only remembers it.
+    typewriter: Cell<bool>,
     /// The ground this launch is painting on, resolved once before the first
     /// window: the flag, then the setting, then — once #111 wires it — the
     /// desktop, then what the last session left.
@@ -123,6 +135,9 @@ impl Session {
             opening: flags.shape(opening),
             step: Cell::new(settings.step),
             theme: Cell::new(settings.theme),
+            focus: Cell::new(settings.focus),
+            focus_scope: Cell::new(settings.focus_scope),
+            typewriter: Cell::new(settings.typewriter),
             scheme: Cell::new(scheme),
             settings,
             flags,
@@ -154,6 +169,59 @@ impl Session {
     /// Steps the type size, for this launch and — for a writer's — the next.
     pub fn set_step(&self, step: u32) {
         self.step.set(step);
+    }
+
+    /// How much Focus leaves lit now, as the one value the Editor draws from.
+    ///
+    /// The live pair rather than `settings().focus`, for the reason
+    /// [`Session::theme`] is live: the keys move it, and a window opened after
+    /// one was pressed opens the way the writer is reading rather than the way
+    /// they started.
+    pub fn focus(&self) -> Focus {
+        Focus::at(self.focus.get(), self.focus_scope.get())
+    }
+
+    /// Switches Focus off, or back on at the scope it left. ADR 0006's
+    /// `Ctrl+D`.
+    ///
+    /// The scope is not touched, which is the whole of "back on at its last
+    /// scope": it is remembered while Focus is off, and only
+    /// [`Session::swap_focus_scope`] moves it. So a writer who works in
+    /// Paragraph scope and switches Focus off and on twice is still in
+    /// Paragraph scope.
+    pub fn toggle_focus(&self) -> Focus {
+        self.focus.set(!self.focus.get());
+        self.focus()
+    }
+
+    /// Swaps Sentence and Paragraph, switching Focus on if it was off. ADR
+    /// 0006's `Ctrl+Shift+D`.
+    ///
+    /// Both halves always happen, so the key means the same thing from either
+    /// state: from off it is "show me the other scope", which is a scope the
+    /// writer can only be shown with Focus on. Picking a scope switching Focus
+    /// on is ADR 0006's rule for the menu's radios too.
+    pub fn swap_focus_scope(&self) -> Focus {
+        self.focus_scope.set(match self.focus_scope.get() {
+            FocusScope::Sentence => FocusScope::Paragraph,
+            FocusScope::Paragraph => FocusScope::Sentence,
+        });
+        self.focus.set(true);
+        self.focus()
+    }
+
+    /// Whether Typewriter is on now.
+    pub fn typewriter(&self) -> bool {
+        self.typewriter.get()
+    }
+
+    /// Turns Typewriter on or off. ADR 0006's `Ctrl+T`.
+    ///
+    /// The value and nothing else: what the caret's line then does about it is
+    /// #115's, and this is the setting it will read.
+    pub fn toggle_typewriter(&self) -> bool {
+        self.typewriter.set(!self.typewriter.get());
+        self.typewriter.get()
     }
 
     /// The ground this launch is painting on.
@@ -244,33 +312,57 @@ impl Session {
     /// The settings this launch would leave in the file, or `None` when it
     /// would leave them exactly as it found them.
     ///
-    /// The decision, without the write: what has moved is a question about
-    /// three values in memory, and a test that asks it should not need a
-    /// writer's file on disk to be asked it.
+    /// The decision, without the write: what has moved is a question about the
+    /// values held live beside [`Session::settings`], and a test that asks it
+    /// should not need a writer's file on disk to be asked it.
+    ///
+    /// The whole of what was read is compared against the whole of what would
+    /// be written, rather than the live values one by one, so that a value
+    /// given a live twin later is compared without this function being
+    /// remembered: the keys a writer can press are the only things that can
+    /// differ, and every one of them has been laid over the copy by then.
     fn stored(&self) -> Option<Settings> {
-        if self.step.get() == self.settings.step && self.theme.get() == self.settings.theme {
-            return None;
-        }
         let mut settings = self.settings.clone();
         settings.step = self.step.get();
         settings.theme = self.theme.get();
+        settings.focus = self.focus.get();
+        settings.focus_scope = self.focus_scope.get();
+        settings.typewriter = self.typewriter.get();
+        if settings == self.settings {
+            return None;
+        }
         Some(settings)
     }
 
     /// Writes `settings.toml` when this launch changed something in it.
     ///
-    /// The size and the ground are what can move so far, and only a writer's
-    /// launch can move either: the flags a launch of the harness's carries are
-    /// this launch's alone and have no business in the writer's file, which is
-    /// why a harness launch has already returned before this is reached. A
-    /// file that cannot be written is one line on stderr, like every other
-    /// file here.
+    /// The size, the ground, Focus, its scope and Typewriter are what can move
+    /// so far, and only a writer's launch can move any of them: the flags a
+    /// launch of the harness's carries are this launch's alone and have no
+    /// business in the writer's file, which is why a harness launch has already
+    /// returned before this is reached and why `--focus` and `--typewriter`
+    /// leave nothing behind (`docs/architecture.md` § Command-line flags). A
+    /// file that cannot be written is one line on stderr, like every other file
+    /// here.
     ///
-    /// Both keys are compared against what was read rather than against a
+    /// Called both as a key is pressed and once on the way out, and safe to
+    /// call either way round: a launch that has already written what it changed
+    /// finds nothing left to write, and a launch killed between the two has
+    /// left the writer's choice in the file rather than in a process that is
+    /// gone. The harness is turned away here rather than by the caller, because
+    /// there is now more than one caller and only one of them is shutdown.
+    ///
+    /// Every key is compared against what was read rather than against a
     /// default, so a writer who toggles the ground twice leaves the file
     /// exactly as they found it — `auto` included, which no toggle can reach
-    /// and no write should quietly replace.
-    fn store_settings(&self) {
+    /// and no write should quietly replace, and the Typewriter anchor with it,
+    /// which nothing but the file itself can move.
+    pub fn store_settings(&self) {
+        if self.harness {
+            // The flags a launch of the harness's carries are this launch's
+            // alone and have no business in the writer's file.
+            return;
+        }
         let Some(settings) = self.stored() else {
             return;
         };
@@ -472,6 +564,108 @@ mod tests {
         assert!(
             session.stored().is_none(),
             "a desktop moving writes nothing to the writer's `settings.toml`"
+        );
+    }
+
+    /// A writer's launch reading `settings`, on a desktop with no answer.
+    fn writing(settings: Settings) -> Rc<Session> {
+        Session::launch(
+            Flags::default(),
+            settings,
+            State::default(),
+            WindowState::default(),
+            false,
+            None,
+        )
+    }
+
+    /// The launch the three keys start from: Focus off at `scope`, Typewriter
+    /// off, which is what a writer who has never pressed any of them has.
+    fn focused_at(scope: FocusScope) -> Rc<Session> {
+        let mut settings = Settings::default();
+        settings.focus_scope = scope;
+        writing(settings)
+    }
+
+    /// `Ctrl+D` off and on again comes back to the scope it left, not to the
+    /// default one.
+    ///
+    /// The scope is the half of Focus the key does not touch, and a writer who
+    /// works in Paragraph scope would find Sentence scope waiting for them if
+    /// it did. Two presses rather than one, because one press only proves the
+    /// off.
+    #[test]
+    fn the_focus_key_off_and_on_comes_back_to_the_scope_it_left() {
+        let session = focused_at(FocusScope::Paragraph);
+        assert_eq!(session.toggle_focus(), Focus::On(FocusScope::Paragraph));
+        assert_eq!(session.toggle_focus(), Focus::Off);
+        assert_eq!(
+            session.toggle_focus(),
+            Focus::On(FocusScope::Paragraph),
+            "the scope outlives Focus being switched off"
+        );
+    }
+
+    /// `Ctrl+Shift+D` from off switches Focus on in the other scope, so the key
+    /// means the same thing whichever state it is pressed from.
+    #[test]
+    fn the_scope_key_from_off_switches_focus_on_in_the_other_scope() {
+        let session = focused_at(FocusScope::Sentence);
+        assert_eq!(session.focus(), Focus::Off, "it starts off");
+        assert_eq!(
+            session.swap_focus_scope(),
+            Focus::On(FocusScope::Paragraph),
+            "on, and in the scope it was not in"
+        );
+        assert_eq!(
+            session.swap_focus_scope(),
+            Focus::On(FocusScope::Sentence),
+            "and back, with Focus left on"
+        );
+    }
+
+    /// `Ctrl+T` flips Typewriter and nothing else.
+    #[test]
+    fn the_typewriter_key_flips_typewriter_and_leaves_focus_alone() {
+        let session = focused_at(FocusScope::Sentence);
+        assert!(session.toggle_typewriter());
+        assert_eq!(session.focus(), Focus::Off, "Typewriter is not a scope");
+        assert!(!session.toggle_typewriter());
+    }
+
+    /// What the three keys moved is what the launch would leave in the file,
+    /// and a launch that moved nothing leaves nothing.
+    ///
+    /// Asked of [`Session::stored`] rather than of a file on disk, because the
+    /// decision is the thing being proved and a writer's `settings.toml` is not
+    /// this test's to touch.
+    #[test]
+    fn the_three_keys_are_what_the_launch_leaves_in_the_file() {
+        let session = focused_at(FocusScope::Sentence);
+        assert!(
+            session.stored().is_none(),
+            "a launch that pressed nothing rewrites nothing"
+        );
+        session.toggle_focus();
+        session.swap_focus_scope();
+        session.toggle_typewriter();
+        let mut expected = session.settings().clone();
+        expected.focus = true;
+        expected.focus_scope = FocusScope::Paragraph;
+        expected.typewriter = true;
+        assert_eq!(
+            session.stored().expect("three keys moved three values"),
+            expected,
+            "the three the keys moved, and every other key exactly as it was \
+             read — the anchor included, which no key can reach"
+        );
+
+        session.toggle_typewriter();
+        session.swap_focus_scope();
+        session.toggle_focus();
+        assert!(
+            session.stored().is_none(),
+            "and pressing them back leaves the file exactly as it was found"
         );
     }
 }

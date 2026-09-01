@@ -70,11 +70,21 @@ impl Focus {
     /// [`Settings::focus_scope`]: crate::settings::Settings::focus_scope
     #[must_use]
     pub fn of(settings: &Settings) -> Self {
-        if settings.focus {
-            Self::On(settings.focus_scope)
-        } else {
-            Self::Off
-        }
+        Self::at(settings.focus, settings.focus_scope)
+    }
+
+    /// The same pair, where it is held as two values rather than read off a
+    /// [`Settings`].
+    ///
+    /// The app keeps Focus and its scope live while it runs, because the keys
+    /// move them and the scope has to outlive Focus being switched off; this is
+    /// how that pair becomes the enum, so that there is one rule for what the
+    /// two mean together and not one per place they are kept.
+    ///
+    /// [`Settings`]: crate::settings::Settings
+    #[must_use]
+    pub const fn at(on: bool, scope: FocusScope) -> Self {
+        if on { Self::On(scope) } else { Self::Off }
     }
 }
 

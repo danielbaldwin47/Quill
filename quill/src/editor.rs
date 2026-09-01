@@ -25,10 +25,11 @@ use gtk::graphene;
 use gtk::pango;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
+use quill_engine::annotate::{self, Painted};
 use quill_engine::document::Document;
 use quill_engine::focus::{self, Focus, LineTiers};
 use quill_engine::settings::Face;
-use quill_engine::theme::{Colours, Role, Scheme};
+use quill_engine::theme::{self, Colour, Colours, Role, Scheme};
 use quill_engine::typography;
 
 use crate::caret;
@@ -106,6 +107,92 @@ const FEATURES: [&str; 4] = ["liga", "clig", "calt", "kern"];
 /// How many frames `--scroll` holds the view where it was asked for.
 const SCROLL_FRAMES: u32 = 8;
 
+/// A cross-fade in flight: the dim on its way from where it was to where the
+/// caret has just put it.
+///
+/// Held whole rather than as a fade per run, because every run of one tier
+/// change moves together: they left at the same frame and they arrive at the
+/// same one, and a writer reading a page whose sentences arrived at slightly
+/// different moments would be reading a page that shimmers.
+/// `pub` because it is a field of the `pub` state struct the subclass macro
+/// generates, and a narrower visibility is a `private_interfaces` warning; the
+/// module it lives in is private, so nothing outside this file can name it.
+pub struct Fade {
+    /// The frame it started in, on the frame clock's clock ([`Editor::now`]).
+    ///
+    /// How long it runs is not held beside it: a fade that is running at all
+    /// runs for [`theme::FADE_MS`], because the only other length
+    /// [`theme::fade_ms`] answers with is no fade, and
+    /// [`Editor::begin_fade`] turns that away before there is anything to hold.
+    started: i64,
+    /// The lines it is moving, so that a fade cut short can be settled by
+    /// drawing them again rather than by guessing what colour they were on
+    /// their way to.
+    lines: Vec<Range<usize>>,
+    /// The runs it moves, each with the colour it is showing this frame.
+    runs: Vec<FadeRun>,
+}
+
+/// One run of a cross-fade: where it is, the two tiers it lies between, and
+/// what is on it now.
+struct FadeRun {
+    /// The buffer's own offsets, taken once ([`tags::offsets_of`]).
+    at: Range<i32>,
+    /// The colour the tier it is leaving drew it in.
+    from: Colour,
+    /// The colour the tier it is arriving at draws it in.
+    to: Colour,
+    /// What is on those offsets now, so that the frame after can take it off
+    /// again and leave one foreground tag on the run.
+    shown: Colour,
+}
+
+/// The runs a tier change moved, and the two colours each moves between.
+///
+/// `before` and `after` are the same bytes painted under the tiers on either
+/// side of the change, so they cover the same span and differ only where a
+/// colour did. Every overlap of one with the other is a stretch drawn in one
+/// colour before and one colour after; the ones where those are the same
+/// colour are not moving and are left out, which is what keeps a fade to the
+/// sentence that changed rather than the block around it.
+///
+/// The walk is every pair of the two lists, bounded by the runs of one block
+/// of prose: [`focus::changed`] answers with the lines of the caret's block and
+/// no others, so both lists are that block's runs and neither is the
+/// manuscript's.
+fn faded(
+    before: &[Painted],
+    after: &[Painted],
+    offsets: impl Fn(&Range<usize>) -> Range<i32>,
+) -> Vec<FadeRun> {
+    let mut runs = Vec::new();
+    for now in after {
+        for was in before {
+            let both = now.at.start.max(was.at.start)..now.at.end.min(was.at.end);
+            if both.start >= both.end || was.paint.colour == now.paint.colour {
+                continue;
+            }
+            runs.push(FadeRun {
+                at: offsets(&both),
+                from: was.paint.colour,
+                to: now.paint.colour,
+                shown: now.paint.colour,
+            });
+        }
+    }
+    runs
+}
+
+/// How many milliseconds a frame at `now` is into something that started at
+/// `started`, both on the frame clock's microseconds.
+///
+/// A frame that arrives before the one the fade started in — which a clock
+/// stepped by hand can hand out — is nothing elapsed rather than a fade run
+/// backwards.
+fn millis_since(started: i64, now: i64) -> u32 {
+    u32::try_from((now - started).max(0) / 1_000).unwrap_or(u32::MAX)
+}
+
 mod imp {
     use std::cell::{Cell, RefCell};
 
@@ -116,6 +203,7 @@ mod imp {
 
     use quill_engine::focus::{Focus, LineTiers};
 
+    use super::Fade;
     use crate::caret;
 
     #[derive(Default)]
@@ -148,10 +236,8 @@ mod imp {
         /// cost a row measured again.
         pub pitch: Cell<u32>,
         /// How much Focus leaves lit, held here for the same reason as the
-        /// ground: it is read at every draw, and it is the value the
-        /// [`Settings`] pair becomes ([`focus::Focus::of`]).
-        ///
-        /// [`Settings`]: quill_engine::settings::Settings
+        /// ground: it is read at every draw, and it is the value the pair the
+        /// session holds becomes ([`focus::Focus::at`]).
         pub focus: Cell<Focus>,
         /// What Focus lit when the tiers were last worked out, so that the
         /// next caret move can be told which lines changed and redraw only
@@ -172,6 +258,20 @@ mod imp {
         pub edited: Cell<Option<i64>>,
         /// Whether the frame-clock callback is attached.
         pub ticking: Cell<bool>,
+        /// The cross-fade in flight, if the dim is on its way from one tier to
+        /// the other. `None` between fades, which is nearly always: a fade is
+        /// [`quill_engine::theme::FADE_MS`] long and only a tier that moved
+        /// starts one.
+        pub fade: RefCell<Option<Fade>>,
+        /// Whether the cross-fade's own frame-clock callback is attached. Its
+        /// own rather than the caret's, so that a page fading while the caret
+        /// is held still asks for frames and a caret blinking over a settled
+        /// page does not repaint the text.
+        pub fading: Cell<bool>,
+        /// Whether this launch is `--deterministic`, which is one of the two
+        /// things that leave no fade
+        /// ([`quill_engine::theme::fade_ms`]).
+        pub deterministic: Cell<bool>,
         /// Whether the last placement is still owed the scroll that shows
         /// where the caret went. Every placement sets it to what it asked
         /// for, so a placement that wants no reveal calls off one still
@@ -481,16 +581,36 @@ impl Editor {
     /// which is most of them, since a sentence is many keystrokes wide — draws
     /// nothing at all.
     pub fn refocus(&self, document: &Document) {
+        let before = self.imp().tiers.borrow().clone();
         let moved = self.retier(document);
         if moved.is_empty() {
+            // No tier moved, so nothing is drawn again and a fade already in
+            // flight is left alone: a caret walking along the sentence it is
+            // in is most of what a caret does, and settling the fade on each
+            // step of it would be a fade that never finished.
             return;
         }
+        self.settle_fade(document);
+        self.redraw(document, &moved);
+        self.begin_fade(document, &before, &moved);
+    }
+
+    /// Draws each of `lines` again in the tiers the Editor now holds, inside
+    /// one `freeze_notify`.
+    ///
+    /// The one way a stretch of this Editor is drawn again, so that the caret's
+    /// feed, the edit's feed and a cross-fade being settled all put the same
+    /// page on the screen. Batched because applying a tag emits the buffer's
+    /// `notify::` and nothing else: the handlers that splice the engine's copy
+    /// of the text are not listening for any of this, and the text has not
+    /// moved for them to hear about.
+    fn redraw(&self, document: &Document, lines: &[Range<usize>]) {
         let tiers = self.imp().tiers.borrow();
         let painting = self.painting(&tiers);
         let buffer = self.buffer();
         let batch = buffer.freeze_notify();
-        for lines in &moved {
-            tags::retag(&buffer, document, painting, lines);
+        for at in lines {
+            tags::retag(&buffer, document, painting, at);
         }
         drop(batch);
     }
@@ -736,14 +856,168 @@ impl Editor {
         // the edit changed and the lines the dim moved across are drawn in the
         // same pass. A line named by both is drawn twice, which is a tag taken
         // off and put back on the same bytes and not a second look on them.
+        let before = self.imp().tiers.borrow().clone();
         let moved = self.retier(document);
-        let tiers = self.imp().tiers.borrow();
-        let painting = self.painting(&tiers);
+        // Every edit settles the fade, whether or not a tier moved with it: a
+        // fade holds the buffer's offsets, and an edit is the one thing that
+        // moves the text out from under them. A writer typing through their own
+        // full stop therefore sees the fade the keystroke started run until the
+        // next keystroke and then arrive, rather than a stretch of an earlier
+        // sentence left stranded half-way between the two tiers.
+        self.settle_fade(document);
+        self.redraw(document, std::slice::from_ref(lines));
+        self.redraw(document, &moved);
+        self.begin_fade(document, &before, &moved);
+    }
+
+    /// How much Focus leaves lit from now on, with the page redrawn to say so.
+    ///
+    /// The whole Document rather than the lines a tier moved across, which is
+    /// what separates this from [`Editor::refocus`]: the tiers only ever name
+    /// the caret's block ([`focus::tiers`]), and every other block is dim by
+    /// not being named at all, so a Focus that has just been switched on or off
+    /// has changed the colour of blocks no tier mentions. The same
+    /// whole-Document pass [`Editor::set_scheme`] pays for the same reason.
+    ///
+    /// Nothing cross-fades here. A fade is the dim moving between sentences as
+    /// the writer writes; a key that switches Focus on or off is the writer
+    /// asking for another page, and the oracle's fade is on the focus moving
+    /// rather than on the mode arriving.
+    pub fn set_focus(&self, focus: Focus, document: &Document) {
+        self.imp().focus.set(focus);
+        // Any fade is dropped rather than settled: the draw below is the whole
+        // Document, which takes every tag off and puts back the ones the new
+        // Focus asks for, interim colours included.
+        self.imp().fade.take();
+        self.retier(document);
         let buffer = self.buffer();
-        tags::retag(&buffer, document, painting, lines);
-        for at in &moved {
-            tags::retag(&buffer, document, painting, at);
+        let batch = buffer.freeze_notify();
+        let tiers = self.imp().tiers.borrow();
+        tags::apply(&buffer, document, self.painting(&tiers));
+        drop(tiers);
+        drop(batch);
+        self.queue_draw();
+    }
+
+    /// How long a cross-fade in this Editor runs for.
+    ///
+    /// Asked at the moment a fade starts rather than held, because both halves
+    /// of the answer can move under a running app: a desktop that asks for
+    /// reduced motion mid-session turns `gtk-enable-animations` off, and GTK
+    /// is what fills that from the portal. A display with no settings at all is
+    /// a process that will not draw a frame, so it is read as no animations.
+    fn fade_length(&self) -> u32 {
+        let animations =
+            gtk::Settings::default().is_some_and(|settings| settings.is_gtk_enable_animations());
+        theme::fade_ms(self.imp().deterministic.get(), animations)
+    }
+
+    /// Starts the cross-fade the tiers that just moved ask for.
+    ///
+    /// `before` is the tiers as they were and the Editor now holds the tiers as
+    /// they are, so the same bytes painted under each are the two ends of the
+    /// fade. The target has already been drawn by the caller, which is what
+    /// makes a fade something that can be dropped at any frame: the page is
+    /// already right, and the fade is only holding the old colour on top of it
+    /// for [`quill_engine::theme::FADE_MS`].
+    fn begin_fade(&self, document: &Document, before: &[LineTiers], moved: &[Range<usize>]) {
+        if self.fade_length() == 0 || moved.is_empty() {
+            return;
         }
+        let focus = self.imp().focus.get();
+        let colours = Colours::of(self.imp().scheme.get());
+        let buffer = self.buffer();
+        let after = self.imp().tiers.borrow();
+        let mut runs = Vec::new();
+        for lines in moved {
+            let at = document.line_bytes(lines.start).start
+                ..document.line_bytes(lines.end.saturating_sub(1)).end;
+            let spans = document.spans_in(&at);
+            runs.append(&mut faded(
+                &annotate::paint_in(spans, &at, before, focus, &colours),
+                &annotate::paint_in(spans, &at, &after, focus, &colours),
+                |at| tags::offsets_of(&buffer, document, at),
+            ));
+        }
+        drop(after);
+        if runs.is_empty() {
+            return;
+        }
+        self.imp().fade.replace(Some(Fade {
+            started: self.now(),
+            lines: moved.to_vec(),
+            runs,
+        }));
+        self.start_fade();
+    }
+
+    /// Ends a cross-fade wherever it had got to, with its lines on the page as
+    /// they are meant to end.
+    ///
+    /// Drawn again rather than recoloured to the target, because this is the
+    /// path taken when the ground has moved under the fade — a keystroke, a
+    /// second tier change — and a draw asks the engine what those lines look
+    /// like now instead of trusting a colour worked out for a page that has
+    /// since changed. A line number the edit has moved is a line drawn as it
+    /// stands, which is never wrong, only wasted.
+    fn settle_fade(&self, document: &Document) {
+        let Some(fade) = self.imp().fade.take() else {
+            return;
+        };
+        self.redraw(document, &fade.lines);
+    }
+
+    /// Attaches the cross-fade's frame-clock callback, if it is not already
+    /// attached.
+    ///
+    /// The idle rule the caret's tick follows ([`Editor::start_tick`]): the
+    /// source stands only while a fade is in flight, and the frame that
+    /// arrives at the target is the frame that drops it. So an Editor with a
+    /// settled page asks the frame clock for nothing on Focus's account.
+    fn start_fade(&self) {
+        if self.imp().fading.replace(true) {
+            return;
+        }
+        self.add_tick_callback(|editor, clock| {
+            if editor.advance_fade(clock.frame_time()) {
+                return glib::ControlFlow::Continue;
+            }
+            editor.imp().fading.set(false);
+            glib::ControlFlow::Break
+        });
+    }
+
+    /// Puts the frame at `now` of the cross-fade on the page, and says whether
+    /// another frame is wanted.
+    ///
+    /// One foreground tag stays on each run, because each frame takes off the
+    /// colour it put on last ([`tags::recolour`]). A frame whose colour rounds
+    /// to the one already showing is skipped, which is most frames of a fade
+    /// between two close greys: the tag work of a fade is the number of
+    /// distinguishable colours between its ends, not the number of frames it
+    /// is drawn over.
+    fn advance_fade(&self, now: i64) -> bool {
+        let mut slot = self.imp().fade.borrow_mut();
+        let Some(fade) = slot.as_mut() else {
+            return false;
+        };
+        let elapsed = millis_since(fade.started, now);
+        let arrived = elapsed >= theme::FADE_MS;
+        let buffer = self.buffer();
+        let batch = buffer.freeze_notify();
+        for run in &mut fade.runs {
+            let colour = Colour::fade(run.from, run.to, elapsed);
+            if colour == run.shown {
+                continue;
+            }
+            tags::recolour(&buffer, &run.at, run.shown, colour);
+            run.shown = colour;
+        }
+        drop(batch);
+        if arrived {
+            *slot = None;
+        }
+        !arrived
     }
 
     /// The frame the widget is in, in the microseconds the machine counts.
@@ -1271,6 +1545,12 @@ impl Editor {
     /// this is read before the first frame and a machine that has been in
     /// another mode has been keeping the wrong kind of state.
     pub fn set_mode(&self, mode: caret::Mode) {
+        // The one place the whole widget hears what kind of launch this is, so
+        // the cross-fade reads its half of the answer from here rather than
+        // being handed the flags a second time.
+        self.imp()
+            .deterministic
+            .set(matches!(mode, caret::Mode::Deterministic));
         self.imp().caret.set(caret::Caret::new(mode));
         self.tell_caret(|caret| caret.resize(self.em()));
     }
