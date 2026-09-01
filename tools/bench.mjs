@@ -43,7 +43,7 @@ import {
   panelBlocked,
 } from './harness.mjs';
 import {
-  DEFAULT_KEYS, PASTE_TEXT, WARMUP_KEYS, hash32, regimes, script, uinputPlan,
+  DEFAULT_KEYS, PASTE_TEXT, WARMUP_KEYS, hash32, regimes, scoredRegime, script, uinputPlan,
 } from './regimes.mjs';
 
 // The binary a bench is of. Release rather than debug, for the reason a judged shot is: the Gate
@@ -421,7 +421,7 @@ async function benchOne(root, stage, { regime, keys, sessions, warmup, panel }) 
   const decided = measure(sent, seen, runs.reduce((a, r) => a + r.planned, 0));
   const colds = runs.map((r) => r.cold).filter((c) => c != null);
   const cold = colds.length ? Math.max(...colds) : null;
-  const scored = regime.scored !== false;
+  const scored = scoredRegime(regime.name);
   const said = verdict(decided.uinput_write_to_presented_ms, cold, scored);
 
   const result = {

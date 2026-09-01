@@ -24,9 +24,8 @@ import { mulberry32, scoredRegime } from './regimes.mjs';
 export const BUDGET = { mean_ms: 5, worst_ms: 16, cold_ms: 250 };
 
 // Why a regime is recorded and not held to the budget, in the words every line and file that says
-// so uses. Eleven of the twelve are scored; `saturation_stress` (`tools/regimes.mjs`) is the one that
-// is not: unpaced, two keys land in every 16.7 ms frame and queue behind each other, so the
-// per-keystroke figure grows by construction — the oracle kept it out of its table for that reason.
+// so uses. `tools/regimes.mjs` marks which regimes are scored (`scored: false`) and says why;
+// `docs/agents/gate.md` § Latency carries the rule.
 export const NOT_SCORED = 'keys share frames at this pace, so a per-keystroke latency grows by construction';
 
 /// Whether a regime's row — a `verdict()` or a summary row — is held to the budget. The row's own

@@ -738,7 +738,8 @@ ok('an unscored regime is still one of the twelve, and still has to account for 
     : { regime: r.name, mean_ms: 2, worst_ms: 8, p50_ms: 2, p99_ms: 7, cold_ms: 120, pass: true }));
   const body = (extra) => ({
     ran: '--all', headline: 'prose_end_of_draft', regimes: rows,
-    regimes_not_run: [], regimes_unaccounted_for: [], regimes_not_scored: ['saturation_stress'],
+    regimes_not_run: [], regimes_unaccounted_for: [],
+    regimes_not_scored: regimes().filter((r) => r.scored === false).map((r) => r.name),
     pass: true, lines: ['gate bench --all: pass'], ...extra,
   });
 

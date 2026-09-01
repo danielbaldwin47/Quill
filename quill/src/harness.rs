@@ -236,6 +236,9 @@ fn presented(clock: &gdk::FrameClock) -> Option<i64> {
 /// when the compositor showed it, otherwise the first later frame's that was
 /// presented. `None` while every frame from `frame` on is incomplete or
 /// discarded ([`Capture::drain`]).
+///
+/// Not unit-tested: a `gdk::FrameClock` and its timings exist only under a
+/// display. The tests below cover the line the result is written as.
 fn presented_from(clock: &gdk::FrameClock, frame: i64) -> Option<(i64, i64)> {
     (frame..=clock.frame_counter())
         .filter_map(|counter| clock.timings(counter))
