@@ -1,12 +1,13 @@
-//! What one keystroke costs the engine, at two Document sizes.
+//! What one keystroke costs the engine, at three Document sizes, and what the
+//! cold parse of the bench's 10,000-word Document costs before the first frame.
 //!
 //! Informational rather than a test, as the Markup spec says: `cargo test` has
 //! the correctness, and the Gate's own number is `tools/gate bench`, which
 //! measures the whole path from a real key to a presented frame. What this
 //! answers is the one question that path cannot separate out — whether the
 //! block re-parse and the flatten under it are **flat across Document size**.
-//! Two sizes an order of magnitude apart, and the shape of the pair is the
-//! answer; the absolute numbers are this machine's.
+//! Three sizes, the largest fifty-five times the smallest, and the shape of the
+//! series is the answer; the absolute numbers are this machine's.
 //!
 //! Run it with `cargo bench -p quill-engine`. No harness and no dependency:
 //! the whole of it is [`Instant`] around the call the keystroke path makes,
@@ -28,7 +29,7 @@ const KEYS: usize = 200;
 
 fn main() {
     println!("keystroke: the block re-parse, the flatten and the splice, per key");
-    for words in [1_000, 55_000] {
+    for words in [1_000, 10_000, 55_000] {
         let path = draft_of(words);
         // Two carets. At the end there is nothing under the edit to move, so
         // the number is the re-parse and the flatten alone. In the middle every
@@ -74,6 +75,45 @@ fn main() {
         focus_flatten(words, &path);
         std::fs::remove_file(&path).ok();
     }
+    cold_parse();
+}
+
+/// What the whole-Document parse costs before the first frame.
+///
+/// Cold start keeps this parse on purpose — the block index it builds is what
+/// makes the first keystroke as flat as the thousandth — so its cost is part
+/// of the ≤ 250 ms the Gate holds cold start to, and this is the number to
+/// read when that budget moves. The Document is `tools/gate bench`'s own,
+/// `shots/latency/doc10k.md`, so that the figure is the one the harness pays;
+/// a checkout without it prints so rather than measuring something else.
+fn cold_parse() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../shots/latency/doc10k.md");
+    let Ok(text) = std::fs::read_to_string(&path) else {
+        println!("cold parse: shots/latency/doc10k.md is not in this checkout");
+        return;
+    };
+    let words = text.split_whitespace().count();
+    let bytes = text.len();
+
+    // Ten opens, not two hundred: a cold start happens once per launch, and the
+    // spread of ten says whether the median is to be believed.
+    const OPENS: usize = 10;
+    let mut each = Vec::with_capacity(OPENS);
+    for _ in 0..OPENS {
+        let started = Instant::now();
+        black_box(Document::open(&path).expect("the harness's own Document opens"));
+        each.push(started.elapsed());
+    }
+    each.sort_unstable();
+
+    println!("cold parse: Document::open on shots/latency/doc10k.md, before the first frame");
+    println!(
+        "  {words:>6} words ({bytes:>7} bytes), whole Document       : \
+         median {:>7.1} µs, worst {:>7.1} µs, mean {:>7.1} µs",
+        micros(each[each.len() / 2]),
+        micros(each[each.len() - 1]),
+        micros(each.iter().sum::<Duration>() / u32::try_from(each.len()).unwrap_or(1)),
+    );
 }
 
 /// What Focus costs on top: the tiers for a caret, and the flattening painted
