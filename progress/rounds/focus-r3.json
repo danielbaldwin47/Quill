@@ -1,0 +1,132 @@
+{
+  "piece": "focus",
+  "round": 3,
+  "winner": "ours",
+  "margin": "slight",
+  "gap": "B crowds the live line. 34px of clear air between the dim sentence's lowest ink (y=227) and the lit line's topmost ink (y=261), against A's 36px (224 to 260) — and B does it while setting 3% larger type, so proportionally the gutter is tighter still. B's dim stems also drop to a 2px solid core (profile 206/198/198/210) where A holds 3px (225/198/198/198/223); at 1.63:1 that is the difference between a ghost you can still parse and one that is simply gone.",
+  "gapTheirs": "A's dimmed sentence does not fall as far back. Identical ink pair in both (#C6C4C2 on #F7F7F7, 1.63:1), but A renders the greyed line with 13,606 covered px vs B's 12,575, and 8,236 vs 7,344 px at full dim ink across the same 50 glyphs — at 3% smaller type (cap-height 29px vs 30px, advance 25.90 vs 26.32px/char). Size-adjusted, A's dead line carries ~11% more ink, so the lit-to-dim step is the shallower of the two and the sentence you already finished keeps tugging.",
+  "verdict": "These are the same design twice over — same two tiers, same sentence scope, same 73/74px advance, same line resting in the bottom quarter — so there is nothing here to admire, only two rasterizations of one decision. B wins because the thing focus mode exists to do, push the last sentence away, it does about 11% harder, and it does it on a page that is one flat colour instead of 1,874. A's compensation is 2px more air and a marginally more legible ghost, which is worth nothing when both ghosts sit at 1.63:1 and neither is readable anyway. Neither side has drawn a caret, and neither has centred the line; you would notice the missing caret within four seconds of typing, and no amount of dimming covers for it.",
+  "oursShot": "shots/focus/r3-sentence-ours-crop.png",
+  "theirsShot": "shots/focus/r3-sentence-theirs-crop.png",
+  "refSource": "shots/oracle/focus/ — the Parity oracle frozen by tools/gate oracle focus from legacy/app 738f48c969965ac3 with legacy/tools/shoot.mjs b2362316db135d06; ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in ref/ia/mac-native/ (ADR 0015), cropped per state: sentence from mac-native-13-light-focus-sentence.png, paragraph from mac-native-13-light-focus-paragraph.png",
+  "builderNote": "#113 after code review: the dim link's rule goes out rather than grey, and a code block's well is lifted from the block; ref/sample.md carries neither, so the pixels are r2's",
+  "secondary": [
+    "No caret visible in either image on the active line — 50 (A) / 47 (B) glyph runs, none narrower than 17px or taller than a glyph; a writer loses the insertion point entirely",
+    "Active line sits at y=260 (A) / y=261 (B) of a 320px viewport — bottom quarter, not centre, in both",
+    "A's page is not one colour: 1,874 unique values with ±1 per-channel RGB jitter on every background pixel (248,247,248 / 246,247,246 / 247,246,247); B's page is a flat #F7F7F7 in 333 colours total",
+    "A runs its text column to x=1705 of 1740 — a 35px right inset against a 74px left inset, better than 2:1 asymmetric and hard against the window edge",
+    "Dim tier is 1.63:1 against the page in both — well under any legibility floor, so glancing back one sentence is impossible in either app",
+    "A carries ~6-9% more ink per glyph at both tiers (lit line 184.7 px/char vs B's 174.9), a uniform weight difference, not a dimming decision",
+    "Crispness (full-ink px / total covered px) is a wash and phase-dependent: lit line A 0.669 vs B 0.659, heading A 0.798 vs B 0.817 — neither renderer is systematically sharper"
+  ],
+  "opponent": "mixed",
+  "build": {
+    "git": "299e200",
+    "binary": "27d6ab0fe0b77f86",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "sentence",
+      "ours": "shots/focus/r3-sentence-ours-crop.png",
+      "theirs": "shots/focus/r3-sentence-theirs-crop.png",
+      "opponent": {
+        "capture": "ref/ia/shots/mac-native/mac-native-13-light-focus-sentence.png",
+        "crop": [
+          620,
+          643,
+          1740,
+          320
+        ],
+        "ours": [
+          551,
+          129,
+          1740,
+          320
+        ]
+      },
+      "oursWhole": "shots/focus/r3-sentence-ours.png",
+      "blind": "shots/blind/focus/sentence",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "B crowds the live line. 34px of clear air between the dim sentence's lowest ink (y=227) and the lit line's topmost ink (y=261), against A's 36px (224 to 260) — and B does it while setting 3% larger type, so proportionally the gutter is tighter still. B's dim stems also drop to a 2px solid core (profile 206/198/198/210) where A holds 3px (225/198/198/198/223); at 1.63:1 that is the difference between a ghost you can still parse and one that is simply gone.",
+      "gapTheirs": "A's dimmed sentence does not fall as far back. Identical ink pair in both (#C6C4C2 on #F7F7F7, 1.63:1), but A renders the greyed line with 13,606 covered px vs B's 12,575, and 8,236 vs 7,344 px at full dim ink across the same 50 glyphs — at 3% smaller type (cap-height 29px vs 30px, advance 25.90 vs 26.32px/char). Size-adjusted, A's dead line carries ~11% more ink, so the lit-to-dim step is the shallower of the two and the sentence you already finished keeps tugging.",
+      "verdict": "These are the same design twice over — same two tiers, same sentence scope, same 73/74px advance, same line resting in the bottom quarter — so there is nothing here to admire, only two rasterizations of one decision. B wins because the thing focus mode exists to do, push the last sentence away, it does about 11% harder, and it does it on a page that is one flat colour instead of 1,874. A's compensation is 2px more air and a marginally more legible ghost, which is worth nothing when both ghosts sit at 1.63:1 and neither is readable anyway. Neither side has drawn a caret, and neither has centred the line; you would notice the missing caret within four seconds of typing, and no amount of dimming covers for it.",
+      "secondary": [
+        "No caret visible in either image on the active line — 50 (A) / 47 (B) glyph runs, none narrower than 17px or taller than a glyph; a writer loses the insertion point entirely",
+        "Active line sits at y=260 (A) / y=261 (B) of a 320px viewport — bottom quarter, not centre, in both",
+        "A's page is not one colour: 1,874 unique values with ±1 per-channel RGB jitter on every background pixel (248,247,248 / 246,247,246 / 247,246,247); B's page is a flat #F7F7F7 in 333 colours total",
+        "A runs its text column to x=1705 of 1740 — a 35px right inset against a 74px left inset, better than 2:1 asymmetric and hard against the window edge",
+        "Dim tier is 1.63:1 against the page in both — well under any legibility floor, so glancing back one sentence is impossible in either app",
+        "A carries ~6-9% more ink per glyph at both tiers (lit line 184.7 px/char vs B's 174.9), a uniform weight difference, not a dimming decision",
+        "Crispness (full-ink px / total covered px) is a wash and phase-dependent: lit line A 0.669 vs B 0.659, heading A 0.798 vs B 0.817 — neither renderer is systematically sharper"
+      ]
+    },
+    {
+      "name": "paragraph",
+      "ours": "shots/focus/r3-paragraph-ours-crop.png",
+      "theirs": "shots/focus/r3-paragraph-theirs-crop.png",
+      "opponent": {
+        "capture": "ref/ia/shots/mac-native/mac-native-13-light-focus-paragraph.png",
+        "crop": [
+          620,
+          643,
+          1740,
+          320
+        ],
+        "ours": [
+          551,
+          129,
+          1740,
+          320
+        ]
+      },
+      "oursWhole": "shots/focus/r3-paragraph-ours.png",
+      "blind": "shots/blind/focus/paragraph",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Larger glyphs on the same fixed 74px line advance leave less white channel between lines: line-1 descender bottom y=227 to line-2 ascender top y=261 is 34px of clear space, against B's 224→261 = 37px — an 8% narrower gap, so in a mode whose whole job is detaching one line from its neighbours, A's rows sit closer together than B's.",
+      "gapTheirs": "The text block leans right: 72px left indent against a 35px right gutter at the longest line (line 2 ink ends x=1705 of 1740), where A's longest line ends x=1673 for a 67px right gutter that nearly matches its 72px left. A 2:1 gutter imbalance with the rag running to within 35px of the window edge, on the same viewport and the same left indent.",
+      "verdict": "These are the same design twice, and the split comes down to where the column sits and how big the type is. B crowds the right edge — 72px of left indent and 35px of right gutter means the block visibly leans, and on the second line the rag runs almost into the window; a writer feels that as the page pulling sideways while trying to hold one line. A gives up 3px of interline clearance and about one x-height-unit of airiness (x-height 24px vs 23px, ascender 32 vs 30) to keep the block centred and the rag comfortable, which is the better trade for staring at two dimmed lines for an hour. Neither one earns anything on the actual focus behaviour: identical single dim tier, identical body ink, no caret on screen, and two undimmed sentences in both, so the dimming itself is a wash and this is decided on the column.",
+      "secondary": [
+        "Body ink #191919 on #F7F7F7 in both — 15.9:1; dim tier #C6C4C2 vs #C6C4C1, effectively the same shade, and only one dim tier present in each",
+        "'#' marker matches its heading's ink in both (min 194 vs 193) — no quieter-marker difference",
+        "Heading stems ~6px vs body ~3.3px in both; heading advance 27.5 vs 26.1px, i.e. h1 barely larger than body in both",
+        "Heading text and body text both left-align at x=72 in both, with '#' hanging at x=20/21 in the gutter",
+        "B's background is not one colour: 26 unique values in a text-free band (246–255, sd 0.38, including chroma-tinted pixels like srgb(248,246,248)); A's is a dead-flat single #F7F7F7. Invisible at normal viewing, but it triples the file size (70KB vs 21KB) and is a shimmer risk on cheap panels",
+        "Measure: A wraps at 60–62 chars, B at 62–64; both inside the readable range, so not a differentiator",
+        "Neither shows a caret or a centred active line in this 320px viewport, so typewriter placement is untestable here"
+      ]
+    },
+    {
+      "name": "dark-sentence-typewriter",
+      "ours": "shots/focus/r3-dark-sentence-typewriter-ours.png",
+      "theirs": "shots/oracle/focus/dark-sentence-typewriter.png",
+      "blind": "shots/blind/focus/dark-sentence-typewriter",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "B's typewriter is off centre: the caret sits at y816–889 (centre 852 of 1800 = 47.4%), 48 device px / 24 CSS px above the window's vertical midline, while A parks its caret at y864–939 (centre 901.5 = 50.1%) — dead centre. Under an hour of drafting that's a line that drifts upward instead of staying nailed.",
+      "gapTheirs": "A renders THREE dim tiers where the design has two: on the caret line, the lit sentence 'beside it.' is #CCCCCC (204), the very next sentence 'The door took both hands to open.' is #888888 (136, ~3,404 px of solid fill from x686–1736), and only from 'Outside, the wind' onward does it drop to the real dim #707070 (112). B holds a single dim (#707070) for everything outside the sentence — 204 → 112, one step, no halo.",
+      "verdict": "A's focus mode lies to you: it lights the sentence at #CCCCCC and then gives the following sentence its own #888888 halo, so your eye finishes 'beside it.' and is immediately dragged sideways into the next clause at 3.8:1 contrast against the 2.55:1 everything else sits at — that is a gradient, not a focus, and it defeats the point of sentence scope. B's dimming is one clean step with nothing in between, so the lit sentence is genuinely the only thing on the page. B's cost is that the caret line rests 24 CSS px above centre instead of on it, which is under a third of a line and something you notice on the tenth paragraph, not the first. A also can't hold a left edge: body at x623, the h1 words at 673, the h2 words at 698 — three margins in one document, where B hangs '#' and '##' out into the gutter and keeps all prose flush at 623.",
+      "secondary": [
+        "Both: bg #1A1A1A, dim #707070, lit #CCCCCC — identical palette and dim amount, so the only colour difference is A's extra #888888 tier",
+        "Both: markers ('#', '##', '*', '**') rest at the same #707070 as the body ink — no quiet-marker difference either way",
+        "Line-height A 76 device px (38 CSS) vs B 74 (37 CSS) on a 26px-advance mono; ~1.75 vs ~1.70 — negligible",
+        "Caret: A 6x76 px #00B5FF, B 6x74 px #00BFFF — same 3 CSS px bar, B fractionally brighter",
+        "Both use sentence scope, and both correctly keep the rest of the focused paragraph ('had the sound of a long vowel.') at full dim",
+        "B is internally inconsistent about hanging: heading markers outdent 52px (h1) / 77px (h2) but the list bullet '-' sits inside the text edge at x623 like body text",
+        "A wastes 32 more device px of top padding and shows one fewer line of the document at the same viewport"
+      ]
+    }
+  ],
+  "at": "2026-09-01T14:42:58.199Z"
+}
