@@ -427,6 +427,29 @@ pub const fn effective(
     }
 }
 
+/// The ground a change of the desktop's moves us to, or `None` for a change
+/// that changes nothing.
+///
+/// The desktop can say `color-scheme` moved at any moment, and only a session
+/// following it cares: `light` and `dark` are answers already given, and a
+/// `--theme` launch has spelled its setting into `setting` on the way in, so
+/// the one test here — is the setting still the question? — covers the flag
+/// too. `Some` is a repaint *and* a `last_scheme` write, which is why a
+/// desktop that announces the ground already on screen comes back `None`: the
+/// two are the same decision, and there is nothing to write or to paint.
+///
+/// This is [`effective`]'s counterpart rather than a second copy of it. That
+/// one resolves a launch out of four inputs; this one reads one signal against
+/// what the launch resolved, and the app's handler does what it is told.
+#[must_use]
+pub const fn followed(setting: Theme, portal: Option<Scheme>, painting: Scheme) -> Option<Scheme> {
+    match (setting, portal, painting) {
+        (Theme::Auto, Some(Scheme::Dark), Scheme::Light) => Some(Scheme::Dark),
+        (Theme::Auto, Some(Scheme::Light), Scheme::Dark) => Some(Scheme::Light),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -583,6 +606,45 @@ mod tests {
                         let ours = effective(Some(flag), setting, portal, last);
                         assert_eq!(ours, flag, "--theme {flag:?} over {setting:?} {portal:?}");
                     }
+                }
+            }
+        }
+    }
+
+    /// The two answers the ticket names, spelled out rather than derived: a
+    /// desktop that goes dark under `auto` moves the ground, and the same
+    /// desktop saying the same thing to a writer who pinned `light` is not
+    /// heard. `--theme light` is the second of these, because the flag has
+    /// already written itself into the setting by the time a signal arrives.
+    #[test]
+    fn a_desktop_going_dark_is_heard_under_auto_and_nowhere_else() {
+        assert_eq!(
+            followed(Theme::Auto, Some(Scheme::Dark), Scheme::Light),
+            Some(Scheme::Dark)
+        );
+        assert_eq!(
+            followed(Theme::Light, Some(Scheme::Dark), Scheme::Light),
+            None
+        );
+    }
+
+    /// Every way the desktop can speak, against every ground it can speak to.
+    ///
+    /// `None` is the portal answering something this Quill cannot read, which
+    /// is the same as its not having spoken; a desktop naming the ground
+    /// already on screen is `None` too, because the return is a repaint and a
+    /// `last_scheme` write together and neither has anything to do.
+    #[test]
+    fn only_a_following_session_hears_a_ground_it_is_not_already_on() {
+        for painting in [Scheme::Light, Scheme::Dark] {
+            for setting in [Theme::Auto, Theme::Light, Theme::Dark] {
+                for portal in [None, Some(Scheme::Light), Some(Scheme::Dark)] {
+                    let wanted = match (setting, portal) {
+                        (Theme::Auto, Some(desktop)) if desktop != painting => Some(desktop),
+                        _ => None,
+                    };
+                    let ours = followed(setting, portal, painting);
+                    assert_eq!(ours, wanted, "{setting:?} {portal:?} on {painting:?}");
                 }
             }
         }

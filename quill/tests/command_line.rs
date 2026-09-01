@@ -47,3 +47,42 @@ fn help_is_the_usage_on_stdout_and_a_zero_exit() {
         assert!(printed.contains(flag), "no {flag} in:\n{printed}");
     }
 }
+
+/// A launch whose session bus is not there waits for nobody.
+///
+/// The settings portal is asked for the desktop's ground before the first
+/// frame, synchronously, because a ground resolved after that frame is a flash
+/// of the other one — so the one thing that must never happen is a launch
+/// hanging on a bus that is not answering. This points the address at a socket
+/// that does not exist and times the whole process: it gets past the portal,
+/// past the fonts and into GTK, which is where a run with no display ends.
+///
+/// A launch of the harness's, because it is the one that writes nothing: this
+/// test must not put a `settings.toml` in front of whoever ran `cargo test`.
+/// The bound is loose on purpose — this is a hang detector, and the number
+/// that matters is the cold start on the ticket, measured by `tools/gate
+/// bench` on a machine that has a display.
+#[test]
+fn a_session_bus_that_is_not_there_does_not_hold_the_launch_up() {
+    let began = std::time::Instant::now();
+    let launched = quill()
+        .arg("--deterministic")
+        .env(
+            "DBUS_SESSION_BUS_ADDRESS",
+            "unix:path=/nonexistent/quill/bus",
+        )
+        .env_remove("DISPLAY")
+        .env_remove("WAYLAND_DISPLAY")
+        .output()
+        .expect("the binary runs");
+    let took = began.elapsed();
+    assert!(
+        !launched.status.success(),
+        "a launch with no display has nothing to paint on: {:?}",
+        launched.status
+    );
+    assert!(
+        took < std::time::Duration::from_secs(2),
+        "the launch waited {took:?} on a bus that is not there"
+    );
+}

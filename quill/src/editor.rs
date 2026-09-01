@@ -237,7 +237,8 @@ mod imp {
         ///
         /// The fill has to be under: the ink of a held word is the ink of any
         /// other word, and a fill painted over it would tint it. The caret has
-        /// to be over. A bar is [`caret::width`] of the em and a glyph's left
+        /// to be over. A bar is several device pixels wide
+        /// ([`typography::caret_width`]) and a glyph's left
         /// side bearing can be less than that, so a bar standing on a boundary
         /// meets the ink of the letter after it; drawn under, the letter is
         /// rasterised straight through the bar and the two read as one mark,
@@ -817,7 +818,7 @@ impl Editor {
         let step = self.imp().step.get();
         let scale = self.scale();
         let (y, h) = self.band(f64::from(row.y()));
-        let w = f64::from(caret::width(caret_em_px(step))) * scale;
+        let w = f64::from(typography::caret_width(step, scale));
         Some(caret::Bar {
             x: caret::left(f64::from(row.x()) * scale, w),
             y,
@@ -1545,18 +1546,6 @@ fn body_font(face: Face, em: f64) -> pango::FontDescription {
     font.set_variations(Some(&format!("wght={INK_WEIGHT}")));
     font.set_absolute_size(em * f64::from(pango::SCALE));
     font
-}
-
-/// The em at `step` of the type ladder, rounded to whole logical pixels.
-///
-/// The type itself is set at the fractional em ([`body_font`]); this is the
-/// caret's unit alone, because [`caret::width`] is still scaled off a
-/// whole-pixel size. The ladder carries a caret width per step
-/// ([`typography::caret_width`]) and reading it there is
-/// [#169](https://github.com/danielbaldwin47/Quill/issues/169)'s, with the
-/// blink.
-fn caret_em_px(step: u32) -> u32 {
-    typography::em(step).round() as u32
 }
 
 thread_local! {

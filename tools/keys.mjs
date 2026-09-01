@@ -54,10 +54,12 @@ const SETTLE_MS = 1200;
 
 // How many times a burst's shot is taken before the run gives up looking for the bar.
 //
-// The caret holds its blink for 480 ms after an edit, so the first capture — taken as soon as the
-// typist has let go — finds the bar full on and two grim frames apart agree. If that one is missed
-// the blink is running: 470 ms on, 85 ms down, 445 ms off, 55 ms back, so a capture lands on a
-// static page seven times in eight and on a *lit* page about half the time. Eight tries spans
+// An edit puts the caret's blink back to the top of its on-phase, so the bar is at full strength
+// for the whole of that phase — `ON` in `quill/src/caret.rs`, which is where the number is kept —
+// and the first capture, taken as soon as the typist has let go, finds it lit with two grim frames
+// apart agreeing. If that one is missed the blink is running, and the four phases there put a
+// capture on a static page about four times in five and on a *lit* page about half the time. Eight
+// tries spans
 // several turns of that cycle, which makes a run that never sees a bar a fact about the build
 // rather than about the moment it was caught in.
 const BLINK_TRIES = 8;

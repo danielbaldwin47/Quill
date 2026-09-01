@@ -29,9 +29,11 @@ segmentation, the bright tier and the one dim tier —
 trait and the enchant and `spellbook` implementations), `pos` (Syntax highlight), `style` (Style
 check), `typography` (the pitch, the measure, the 78-cell text container and its gutters —
 [ADR 0016](adr/0016-the-text-container-is-78-cells.md) — and the page margins), `theme` (the two
-grounds' colour table and the rule that resolves one). App modules mirror the Pieces and features:
-`editor`, `caret`, `focus`, `typewriter`, `theme` (the portal listener and the CSS provider, painting
-the engine table's colours), `chrome`, `library`, `preview`, `export`, `flags`, `harness`.
+grounds' colour table and the rule that resolves one, and the rule that reads a change of the
+desktop's against it). App modules mirror the Pieces and features: `editor` (which also installs the
+display's stylesheet, where the engine table's colours are painted from), `caret`, `focus`,
+`typewriter`, `portal` (the settings portal: the desktop's colour scheme, read before the first frame
+and listened to after it), `chrome`, `library`, `preview`, `export`, `flags`, `harness`.
 
 ## Text model
 
@@ -147,7 +149,7 @@ and a line that cannot be applied is logged once and skipped, never fatal.
 
 State, in `state.toml`: the size of each window and whether it was maximized or full screen, the last
 Document per window, caret position per recent Document, the recents list, `last_scheme` (the ground
-the last session ended on, which an `auto` launch paints while the portal is being asked), and the
+the last session ended on, which an `auto` launch paints where the portal has no answer), and the
 Gate's blind keys under `blind-keys/` beside it. Not window position: GTK4 gives a client no way to ask where its
 window is or to put it back, on Wayland or on X11, so placement is the compositor's and Quill
 remembers nothing it could not act on.
