@@ -65,7 +65,7 @@ impl Session {
     /// that a writer looking for something to edit finds it. A launch of the
     /// harness's writes nothing at all.
     #[must_use]
-    pub fn open(flags: Flags) -> Rc<Self> {
+    pub fn open(flags: Flags, portal: Option<Scheme>) -> Rc<Self> {
         let harness = flags.is_harness();
         let (settings, notes) = if harness {
             Settings::read_from(&Settings::path())
@@ -88,7 +88,7 @@ impl Session {
             (state, opening)
         };
 
-        Self::launch(flags, settings, state, opening, harness)
+        Self::launch(flags, settings, state, opening, harness, portal)
     }
 
     /// The session those three make, with no file in sight.
@@ -105,14 +105,17 @@ impl Session {
         mut state: State,
         opening: WindowState,
         harness: bool,
+        portal: Option<Scheme>,
     ) -> Rc<Self> {
         let settings = flags.over(settings);
         // The ground, before anything can paint on it. The flag is passed as
         // itself rather than read back off the setting it already overrode,
         // because the two are different answers to a different question once
         // the portal is asked: a setting of `auto` follows the desktop and a
-        // `--theme` never does. The portal is `None` until #111 asks it.
-        let scheme = theme::effective(flags.theme, settings.theme, None, state.last_scheme);
+        // `--theme` never does. The portal is `None` where the desktop has no
+        // answer, or none it gave in time, and the ground this Quill left is
+        // what an `auto` launch paints instead.
+        let scheme = theme::effective(flags.theme, settings.theme, portal, state.last_scheme);
         // What this session will leave for the next one to open on while the
         // desktop is still being asked.
         state.last_scheme = scheme;
@@ -158,6 +161,15 @@ impl Session {
         self.scheme.get()
     }
 
+    /// What the writer asked for, which is a question where it is `auto`.
+    ///
+    /// The live one rather than `settings().theme`, because the toggle moves
+    /// it: a writer who has pressed the key has pinned a ground, and the
+    /// desktop is no longer being followed.
+    pub fn theme(&self) -> Theme {
+        self.theme.get()
+    }
+
     /// Moves to the other ground, the way `legacy/app/js/theme.js` does: the
     /// setting becomes the ground that is not on screen now.
     ///
@@ -172,6 +184,27 @@ impl Session {
         self.theme.set(scheme.setting());
         self.leaving.borrow_mut().last_scheme = scheme;
         scheme
+    }
+
+    /// Follows the desktop to `scheme`, for this launch and for the next.
+    ///
+    /// [`Session::toggle_scheme`]'s sibling, and deliberately not the same
+    /// method: a writer pressing the key is choosing a ground, so the setting
+    /// moves with it, and a desktop changing under a writer who asked for
+    /// `auto` is answering the question they left open. Writing `light` into
+    /// their `settings.toml` because their desktop went light this morning
+    /// would take `auto` away from them without their touching anything.
+    ///
+    /// The ground itself is remembered either way: `last_scheme` is what the
+    /// next launch paints before the portal has answered, so it wants to be
+    /// the ground actually on screen however that was arrived at.
+    ///
+    /// Whether a signal reaches here at all is
+    /// [`theme::followed`](quill_engine::theme::followed)'s, not this
+    /// function's: the decision is in the engine, tested there.
+    pub fn follow(&self, scheme: Scheme) {
+        self.scheme.set(scheme);
+        self.leaving.borrow_mut().last_scheme = scheme;
     }
 
     /// The shape a new window opens at.
@@ -277,6 +310,11 @@ mod tests {
     ///
     /// Built from its default by hand for the reason [`left_on`] is.
     fn launched(setting: Theme, last: Scheme) -> Rc<Session> {
+        following(setting, last, None)
+    }
+
+    /// The same launch, on a desktop that answered `desktop`.
+    fn following(setting: Theme, last: Scheme, desktop: Option<Scheme>) -> Rc<Session> {
         let mut settings = Settings::default();
         settings.theme = setting;
         let state = left_on(last);
@@ -286,6 +324,7 @@ mod tests {
             state,
             WindowState::default(),
             false,
+            desktop,
         )
     }
 
@@ -363,9 +402,8 @@ mod tests {
                 theme: Some(scheme),
                 ..Flags::default()
             };
-            // The last session's ground is the other one, and once #111 asks
-            // the desktop it will be answering the other one too, so nothing
-            // but the flag can be what comes back.
+            // The last session's ground is the other one, and so is the
+            // desktop's answer, so nothing but the flag can be what comes back.
             let state = left_on(scheme.other());
             let session = Session::launch(
                 flags,
@@ -373,8 +411,67 @@ mod tests {
                 state,
                 WindowState::default(),
                 true,
+                Some(scheme.other()),
             );
             assert_eq!(session.scheme(), scheme, "--theme {scheme:?}");
         }
+    }
+
+    /// The desktop's answer is the first frame, and it is left for the next
+    /// launch to open on.
+    ///
+    /// The second half is the whole of what `last_scheme` is for: a writer on
+    /// `auto` whose desktop is dark must not get a white first frame the next
+    /// morning while the portal is still being asked, and the only way it can
+    /// avoid one is if this launch wrote down the ground the desktop gave it.
+    #[test]
+    fn a_desktop_that_answers_is_the_ground_and_is_what_is_left_behind() {
+        for desktop in [Scheme::Light, Scheme::Dark] {
+            let session = following(Theme::Auto, desktop.other(), Some(desktop));
+            assert_eq!(session.scheme(), desktop, "the desktop said {desktop:?}");
+            assert_eq!(session.leaving.borrow().last_scheme, desktop);
+        }
+    }
+
+    /// A desktop that says nothing costs the launch nothing: it opens on the
+    /// ground it left, which is the no-flash promise on a machine with no
+    /// portal on its bus.
+    #[test]
+    fn a_silent_desktop_leaves_the_launch_on_the_ground_it_left() {
+        for last in [Scheme::Light, Scheme::Dark] {
+            assert_eq!(following(Theme::Auto, last, None).scheme(), last);
+        }
+    }
+
+    /// A writer who pinned a ground is not following the desktop, whatever it
+    /// answered.
+    #[test]
+    fn a_pinned_ground_does_not_hear_the_desktop() {
+        for setting in [Theme::Light, Theme::Dark] {
+            for desktop in [Scheme::Light, Scheme::Dark] {
+                let session = following(setting, Scheme::Light, Some(desktop));
+                assert_eq!(session.theme(), setting);
+                assert_eq!(session.scheme().setting(), setting, "{setting:?}");
+            }
+        }
+    }
+
+    /// Following the desktop moves the ground and what the next launch opens
+    /// on, and leaves `auto` where the writer put it.
+    ///
+    /// The toggle is the comparison: it means "not this ground", so it writes
+    /// the setting. A desktop moving is an answer to `auto` rather than a
+    /// replacement for it, so the writer still has `auto` tomorrow.
+    #[test]
+    fn following_the_desktop_moves_the_ground_and_not_the_setting() {
+        let session = launched(Theme::Auto, Scheme::Light);
+        session.follow(Scheme::Dark);
+        assert_eq!(session.scheme(), Scheme::Dark);
+        assert_eq!(session.theme(), Theme::Auto, "`auto` is still the setting");
+        assert_eq!(session.leaving.borrow().last_scheme, Scheme::Dark);
+        assert!(
+            session.stored().is_none(),
+            "a desktop moving writes nothing to the writer's `settings.toml`"
+        );
     }
 }
