@@ -97,11 +97,19 @@ pub const FADE_MS: u32 = 130;
 /// [`FADE_MS`] and lands on the target on the first frame.
 #[must_use]
 pub const fn fade_ms(deterministic: bool, animations: bool) -> u32 {
-    if deterministic || !animations {
-        0
-    } else {
+    if animated(deterministic, animations) {
         FADE_MS
+    } else {
+        0
     }
+}
+
+/// Whether anything on the page moves over frames rather than jumping: the
+/// two things that leave no fade leave no Typewriter glide either
+/// ([`crate::focus::typewriter`]), so both ask this.
+#[must_use]
+pub const fn animated(deterministic: bool, animations: bool) -> bool {
+    !deterministic && animations
 }
 
 /// A colour, on its way to GTK.
