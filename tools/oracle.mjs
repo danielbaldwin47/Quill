@@ -174,14 +174,16 @@ export function installRefusal(root) {
   const installed = (dir) => fs.existsSync(path.join(dir, 'legacy/node_modules/playwright-core'));
   if (installed(root)) return null;
   let line = 'gate oracle: legacy/ has no playwright-core to shoot with; run `npm i` inside legacy/ (its manifest is its own, and the root one is not enough)';
-  const dotGit = path.join(root, '.git');
-  let main = null;
+  // `git worktree add` writes `gitdir: <main>/.git/worktrees/<name>`, so the main checkout is
+  // three levels up. Any other layout (a submodule's `.git/modules/<name>`) lands somewhere with
+  // no install and offers nothing, rather than a link to the wrong place.
+  let mainCheckout = null;
   try {
-    const m = /^gitdir:\s*(.+?)\s*$/.exec(fs.readFileSync(dotGit, 'utf8'));
-    if (m) main = path.resolve(root, m[1], '..', '..', '..');
+    const gitdir = /^gitdir:\s*(.+?)\s*$/.exec(fs.readFileSync(path.join(root, '.git'), 'utf8'));
+    if (gitdir) mainCheckout = path.resolve(root, gitdir[1], '..', '..', '..');
   } catch { /* a directory, or no .git at all: not a worktree */ }
-  if (main !== null && installed(main)) {
-    line += `,\n  or link the main checkout's: \`ln -s ${path.join(main, 'legacy/node_modules')} legacy/node_modules\` (from ${root})`;
+  if (mainCheckout !== null && installed(mainCheckout)) {
+    line += `,\n  or link the main checkout's: \`ln -s ${path.join(mainCheckout, 'legacy/node_modules')} legacy/node_modules\` (from ${root})`;
   }
   return line;
 }
@@ -356,9 +358,9 @@ async function freeze(root, piece, force) {
     return 1;
   }
 
-  const uninstalled = installRefusal(root);
-  if (uninstalled !== null) {
-    process.stderr.write(`${uninstalled}\n`);
+  const refusal = installRefusal(root);
+  if (refusal !== null) {
+    process.stderr.write(`${refusal}\n`);
     console.log(`gate oracle ${piece}: fail (legacy/ is not installed)`);
     return 1;
   }
