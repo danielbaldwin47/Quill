@@ -14,6 +14,7 @@
 #![warn(missing_docs)]
 
 pub mod annotate;
+pub mod commands;
 pub mod data;
 pub mod document;
 pub mod focus;

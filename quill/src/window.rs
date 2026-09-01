@@ -27,6 +27,7 @@ use quill_engine::settings::WindowState;
 use quill_engine::theme::Scheme;
 
 use crate::caret;
+use crate::chrome;
 use crate::harness;
 use crate::session::Session;
 use crate::tags;
@@ -130,7 +131,7 @@ impl Window {
             .imp()
             .editor
             .set_type(session.settings().face, session.step());
-        window.install_commands();
+        chrome::install_window(&window);
         window.imp().editor.grab_focus();
         window.watch_active();
         // A window is remembered as it closes rather than at shutdown, so that
@@ -187,37 +188,13 @@ impl Window {
         }
     }
 
-    /// Installs Bigger Text, Smaller Text, Default Text Size and Dark Mode.
-    ///
-    /// On the window rather than on the application because that is what
-    /// `docs/shortcuts.md` names them: `font.bigger` with `win.` in front. What
-    /// they move is the session's, though — the size and the ground both — so
-    /// moving either in one window moves it in every window: a writer has one
-    /// pair of eyes.
-    fn install_commands(&self) {
-        self.add_action_entries([
-            gio::ActionEntry::builder("font.bigger")
-                .activate(|window: &Self, _, _| window.step_size(Step::Bigger))
-                .build(),
-            gio::ActionEntry::builder("font.smaller")
-                .activate(|window: &Self, _, _| window.step_size(Step::Smaller))
-                .build(),
-            gio::ActionEntry::builder("font.reset")
-                .activate(|window: &Self, _, _| window.step_size(Step::Default))
-                .build(),
-            gio::ActionEntry::builder("theme.toggle")
-                .activate(|window: &Self, _, _| window.toggle_scheme())
-                .build(),
-            gio::ActionEntry::builder("focus.toggle")
-                .activate(|window: &Self, _, _| window.toggle_focus())
-                .build(),
-            gio::ActionEntry::builder("focus.swap")
-                .activate(|window: &Self, _, _| window.swap_focus_scope())
-                .build(),
-            gio::ActionEntry::builder("typewriter.toggle")
-                .activate(|window: &Self, _, _| window.toggle_typewriter())
-                .build(),
-        ]);
+    /// What the session shows in this window, as the Commands' stateful
+    /// actions show it.
+    pub(crate) fn modes(&self) -> chrome::Modes {
+        match self.imp().session.borrow().as_ref() {
+            Some(session) => chrome::Modes::of(session, self.is_fullscreen()),
+            None => chrome::Modes::default(),
+        }
     }
 
     /// Steps the type size one rung of the ladder, or back to the default
@@ -228,7 +205,7 @@ impl Window {
     /// "as big as it goes", and it is the same range `step` in the file and
     /// `--step` on the command line are held to, because it is the same
     /// question asked three ways.
-    fn step_size(&self, direction: Step) {
+    pub(crate) fn step_size(&self, direction: Step) {
         let Some(session) = self.imp().session.borrow().clone() else {
             return;
         };
@@ -253,12 +230,11 @@ impl Window {
 
     /// Toggles the ground, for this launch and for the next.
     ///
-    /// A working binding until #119 moves the Commands into the registry
-    /// `docs/shortcuts.md` describes; the accelerator is that table's
-    /// `theme.toggle` row, `Ctrl+Shift+L`. The session decides which ground
-    /// the toggle lands on — it is the one holding what `auto` resolved to —
-    /// and writes the setting on the way out.
-    fn toggle_scheme(&self) {
+    /// `docs/shortcuts.md`'s `theme.toggle` row, reached through its action
+    /// (`chrome`). The session decides which ground the toggle lands on — it
+    /// is the one holding what `auto` resolved to — and writes the setting on
+    /// the way out.
+    pub(crate) fn toggle_scheme(&self) {
         let Some(session) = self.imp().session.borrow().clone() else {
             return;
         };
@@ -270,28 +246,27 @@ impl Window {
 
     /// Switches Focus off, or back on at the scope it left.
     ///
-    /// A working binding until #119 moves the Commands into the registry
-    /// `docs/shortcuts.md` describes; the accelerator is that table's
-    /// `focus.toggle` row, `Ctrl+D`. The session holds which scope that is and
-    /// writes it on the way out, as it does the ground.
-    fn toggle_focus(&self) {
+    /// `docs/shortcuts.md`'s `focus.toggle` row, reached through its action
+    /// (`chrome`). The session holds which scope that is and writes it on the
+    /// way out, as it does the ground.
+    pub(crate) fn toggle_focus(&self) {
         self.refocus_windows(|session| session.toggle_focus());
     }
 
     /// Swaps Sentence and Paragraph, switching Focus on if it was off.
     ///
-    /// `docs/shortcuts.md`'s `focus.swap` row, `Ctrl+Shift+D`.
-    fn swap_focus_scope(&self) {
+    /// `docs/shortcuts.md`'s `focus.swap` row.
+    pub(crate) fn swap_focus_scope(&self) {
         self.refocus_windows(Session::swap_focus_scope);
     }
 
     /// Turns Typewriter on or off.
     ///
-    /// `docs/shortcuts.md`'s `typewriter.toggle` row, `Ctrl+T`. The session
+    /// `docs/shortcuts.md`'s `typewriter.toggle` row. The session
     /// remembers the value, and every window's Editor is told, for the reason
     /// [`Window::refocus_windows`] tells them all: on brings the caret's row
     /// to the anchor, off leaves the view where it is.
-    fn toggle_typewriter(&self) {
+    pub(crate) fn toggle_typewriter(&self) {
         self.move_windows(Session::toggle_typewriter, |window, typewriter| {
             window.imp().editor.set_typewriter(typewriter);
         });
@@ -455,9 +430,12 @@ impl Window {
 
 /// Which way Bigger Text, Smaller Text and Default Text Size move.
 #[derive(Clone, Copy)]
-enum Step {
+pub(crate) enum Step {
+    /// One rung up the ladder.
     Bigger,
+    /// One rung down.
     Smaller,
+    /// Back to the default rung.
     Default,
 }
 
@@ -500,6 +478,7 @@ pub fn repaint(app: &gtk::Application, session: &Session, scheme: Scheme) {
         let document = window.imp().document.borrow();
         window.imp().editor.set_scheme(scheme, &document);
     });
+    chrome::reflect_windows(app);
 }
 
 /// Opens the windows this launch asks for.
