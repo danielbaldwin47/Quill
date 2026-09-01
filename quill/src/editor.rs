@@ -359,6 +359,9 @@ mod imp {
             // And the scroll that shows the row it is on, which could not be
             // resolved against a layout that did not exist yet either (#148).
             self.obj().reveal_caret();
+            // And Typewriter's hold on the row, which is a share of a viewport
+            // this allocation may just have changed the height of.
+            self.obj().hold_row();
         }
     }
 
@@ -1407,8 +1410,56 @@ impl Editor {
                     self.keep_in_margins(bar);
                 }
             }
-            hold => self.follow(bar, hold),
+            hold => self.follow(bar, hold, self.glides()),
         }
+    }
+
+    /// Re-holds the caret's row at the anchor after an allocation, with
+    /// Typewriter on.
+    ///
+    /// The anchor is a share of the viewport, and an allocation is what
+    /// changes the viewport: a window resized, or the chrome stepping back
+    /// and giving the page its height, which is how a `--typewriter` launch
+    /// arrives at its first still frame. The row did not travel, so the view
+    /// jumps rather than glides, as [`Editor::caret_settled`] places the bar
+    /// without a glide.
+    ///
+    /// Nothing is done before the layout can say how far it scrolls: a text
+    /// view validates its lines after the allocation, so at the allocation
+    /// the adjustment's upper is still no more than its page, and a target
+    /// clamped against it would pin the view at the top. The hold is asked
+    /// for again on the frames after, for as long as `--scroll` holds its own
+    /// ([`SCROLL_FRAMES`]), and taken on the first of them the layout has
+    /// been validated by; measured on `ref/sample.md` that is the frame after
+    /// the first, and [`Editor::reveal_caret`] has the first.
+    fn hold_row(&self) {
+        if !self.imp().typewriter.get() || self.hold_row_now() {
+            return;
+        }
+        let left = Cell::new(SCROLL_FRAMES);
+        self.add_tick_callback(move |editor, _| {
+            left.set(left.get().saturating_sub(1));
+            if editor.hold_row_now() || left.get() == 0 {
+                glib::ControlFlow::Break
+            } else {
+                glib::ControlFlow::Continue
+            }
+        });
+    }
+
+    /// Holds the row at the anchor now, and says whether the layout was far
+    /// enough along to.
+    fn hold_row_now(&self) -> bool {
+        let validated = self
+            .vadjustment()
+            .is_some_and(|adjustment| adjustment.upper() > adjustment.page_size());
+        if !validated {
+            return false;
+        }
+        if let Some(bar) = self.bar() {
+            self.follow(bar, Hold::Anchor(self.imp().anchor.get()), false);
+        }
+        true
     }
 
     /// Keeps the caret's row inside the scroll band with both modes off.
@@ -1421,19 +1472,19 @@ impl Editor {
     /// first key pressed afterwards brings the row into the band.
     ///
     /// The row comes from the bar the machine was just handed rather than a
-    /// second `iter_location`, because this is on the keystroke path; the bar
-    /// is device pixels and the adjustment is not, so it comes back through
-    /// the scale. The target is not clamped by the engine, and does not need
-    /// to be: a `GtkAdjustment` holds itself inside its own ends.
+    /// second `iter_location`, because this is on the keystroke path; it is
+    /// read in the adjustment's coordinate by [`Editor::row_of`]. The target
+    /// is not clamped by the engine, and does not need to be: a
+    /// `GtkAdjustment` holds itself inside its own ends.
     fn keep_in_margins(&self, bar: caret::Bar) {
         let Some(adjustment) = self.vadjustment() else {
             // Not in a scroller: there is nowhere for the band to move to.
             return;
         };
-        let scale = self.scale();
+        let (row_top, row_height) = self.row_of(bar);
         if let Some(target) = typography::band_target(
-            bar.y / scale,
-            bar.h / scale,
+            row_top,
+            row_height,
             adjustment.value(),
             adjustment.page_size(),
         ) {
@@ -1441,8 +1492,26 @@ impl Editor {
         }
     }
 
+    /// The caret's row as the vertical adjustment counts it: `(top, height)`
+    /// in logical pixels from the top of the page.
+    ///
+    /// The bar is device pixels in buffer coordinates, which is what
+    /// `iter_location` answers in and what the layers are drawn in; the
+    /// adjustment counts logical pixels from the top of the page, which is
+    /// the page's top margin above the buffer's first row
+    /// ([`typography::page_top`]). Measured with `--typewriter` on
+    /// `ref/sample.md`: the bar the machine held was 148 device pixels above
+    /// where the shot drew it, at scale 2 with a pitch of 37 — the two pitches
+    /// of air the page opens with. So the row comes back through the scale
+    /// and down by the margin, and a band or a hold reads it where the writer
+    /// sees it.
+    fn row_of(&self, bar: caret::Bar) -> (f64, f64) {
+        let scale = self.scale();
+        (bar.y / scale + f64::from(self.top_margin()), bar.h / scale)
+    }
+
     /// Moves the view to where `hold` keeps the caret's row, gliding there
-    /// when the desktop lets things move and jumping otherwise.
+    /// when `glides` says the move is one to be seen and jumping otherwise.
     ///
     /// The target is clamped to the adjustment's ends here rather than left
     /// to the adjustment, because a glide is measured from where it leaves
@@ -1451,15 +1520,14 @@ impl Editor {
     /// A glide already in flight is retargeted from where it has got to
     /// ([`Glide::retarget`]), so a caret moving mid-glide bends the travel
     /// rather than restarting it.
-    fn follow(&self, bar: caret::Bar, hold: Hold) {
+    fn follow(&self, bar: caret::Bar, hold: Hold, glides: bool) {
         let Some(adjustment) = self.vadjustment() else {
             // Not in a scroller: there is nowhere for the row to be held.
             return;
         };
-        let scale = self.scale();
-        let row_height = bar.h / scale;
+        let (row_top, row_height) = self.row_of(bar);
         let Some(target) = typewriter::target(
-            bar.y / scale,
+            row_top,
             row_height,
             adjustment.value(),
             adjustment.page_size(),
@@ -1469,7 +1537,7 @@ impl Editor {
         };
         let end = (adjustment.upper() - adjustment.page_size()).max(adjustment.lower());
         let target = target.clamp(adjustment.lower(), end);
-        if !self.glides() {
+        if !glides {
             self.imp().glide.set(None);
             adjustment.set_value(target);
             return;
@@ -1537,7 +1605,7 @@ impl Editor {
             return;
         }
         if let Some(bar) = self.bar() {
-            self.follow(bar, Hold::Anchor(anchor));
+            self.follow(bar, Hold::Anchor(anchor), self.glides());
         }
     }
 
