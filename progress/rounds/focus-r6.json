@@ -1,0 +1,137 @@
+{
+  "piece": "focus",
+  "round": 6,
+  "winner": "ours",
+  "margin": "slight",
+  "gap": "Its glyphs are lighter: effective stem width ~3.75px vs A's ~3.96px (edge pixels 230/97 vs 207/74 across the same 'I' stem), and ~182 ink px per character on the focused line vs A's ~191, ~5% less. At the identical #191919 the active sentence therefore sits a touch more washed on the #F7F7F7 page, and the jump out of the #C6C4C2 dim is carried by colour alone with no help from weight.",
+  "gapTheirs": "Type is set ~3-4% smaller than B — x-height 23px vs 24px, cap-height 29px vs 30px, ascender 30px vs 32px — and its tighter 25.6px advance (vs 25.9px) crams one extra word onto the focused line, which runs to x=1704 on a 1740px canvas: a 36px right gutter against a 72px left one, i.e. half of B's 68px. The measure is not centred and the lit line all but touches the window edge.",
+  "verdict": "These are the same page rendered by two hands: same two dim tiers, same #C6C4C2 against #191919, same 74px pitch, same active line parked ~91% down a 320px window. B wins on the only thing that actually differs for a writer at 2am — a larger x-height on identical leading, lighter stems, a perfectly flat canvas, and lines that stop 68px short of the edge instead of 36px. A's answer is to set smaller and heavier so one more word squeezes in per line, which buys nothing and shoves the right rag into the window frame.",
+  "oursShot": "shots/focus/r6-sentence-ours-crop.png",
+  "theirsShot": "shots/focus/r6-sentence-theirs-crop.png",
+  "refSource": "shots/oracle/focus/ — the Parity oracle frozen by tools/gate oracle focus from legacy/app 738f48c969965ac3 with legacy/tools/shoot.mjs b2362316db135d06; ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in ref/ia/mac-native/ (ADR 0015), cropped per state: sentence from mac-native-13-light-focus-sentence.png, paragraph from mac-native-13-light-focus-paragraph.png",
+  "builderNote": "retro: every shot first, critics at once, the same pixels carried from the round that judged them",
+  "secondary": [
+    "Single dim tier confirmed on both: heading ink and dimmed-sentence ink are the identical (198,196,194) — neither side invents a third shade",
+    "Marker hex is identical (#C6C4C2, min 196) in both; B's '#' is merely drawn thinner (341 ink px vs A's 494) at the same colour — excluded as a settled decision",
+    "Neither centres the caret line: both baselines land at y≈291 of 320 — the unported typewriter piece, identical on both, so it separates nothing",
+    "No caret rendered in either image at the line end — nothing to compare on caret width",
+    "A's canvas carries a ±1-level dither on a 32px grid (1874 unique colours vs B's 333, 68KB vs 20KB PNG); invisible on screen but the page is not actually flat",
+    "Both hang the '#' in the gutter at x≈20 with body at x=72 — alignment is correct on both sides",
+    "Dim-to-background contrast is ~1.6:1 in both; the dimmed sentence is at the edge of legibility on either side"
+  ],
+  "opponent": "mixed",
+  "build": {
+    "git": "2e45fa0",
+    "binary": "adb0d38da7c0790c",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "sentence",
+      "ours": "shots/focus/r6-sentence-ours-crop.png",
+      "theirs": "shots/focus/r6-sentence-theirs-crop.png",
+      "opponent": {
+        "capture": "ref/ia/shots/mac-native/mac-native-13-light-focus-sentence.png",
+        "crop": [
+          620,
+          643,
+          1740,
+          320
+        ],
+        "ours": [
+          551,
+          129,
+          1740,
+          320
+        ]
+      },
+      "oursWhole": "shots/focus/r6-sentence-ours.png",
+      "blind": "shots/blind/focus/sentence",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Its glyphs are lighter: effective stem width ~3.75px vs A's ~3.96px (edge pixels 230/97 vs 207/74 across the same 'I' stem), and ~182 ink px per character on the focused line vs A's ~191, ~5% less. At the identical #191919 the active sentence therefore sits a touch more washed on the #F7F7F7 page, and the jump out of the #C6C4C2 dim is carried by colour alone with no help from weight.",
+      "gapTheirs": "Type is set ~3-4% smaller than B — x-height 23px vs 24px, cap-height 29px vs 30px, ascender 30px vs 32px — and its tighter 25.6px advance (vs 25.9px) crams one extra word onto the focused line, which runs to x=1704 on a 1740px canvas: a 36px right gutter against a 72px left one, i.e. half of B's 68px. The measure is not centred and the lit line all but touches the window edge.",
+      "verdict": "These are the same page rendered by two hands: same two dim tiers, same #C6C4C2 against #191919, same 74px pitch, same active line parked ~91% down a 320px window. B wins on the only thing that actually differs for a writer at 2am — a larger x-height on identical leading, lighter stems, a perfectly flat canvas, and lines that stop 68px short of the edge instead of 36px. A's answer is to set smaller and heavier so one more word squeezes in per line, which buys nothing and shoves the right rag into the window frame.",
+      "secondary": [
+        "Single dim tier confirmed on both: heading ink and dimmed-sentence ink are the identical (198,196,194) — neither side invents a third shade",
+        "Marker hex is identical (#C6C4C2, min 196) in both; B's '#' is merely drawn thinner (341 ink px vs A's 494) at the same colour — excluded as a settled decision",
+        "Neither centres the caret line: both baselines land at y≈291 of 320 — the unported typewriter piece, identical on both, so it separates nothing",
+        "No caret rendered in either image at the line end — nothing to compare on caret width",
+        "A's canvas carries a ±1-level dither on a 32px grid (1874 unique colours vs B's 333, 68KB vs 20KB PNG); invisible on screen but the page is not actually flat",
+        "Both hang the '#' in the gutter at x≈20 with body at x=72 — alignment is correct on both sides",
+        "Dim-to-background contrast is ~1.6:1 in both; the dimmed sentence is at the edge of legibility on either side"
+      ],
+      "carried": 5
+    },
+    {
+      "name": "paragraph",
+      "ours": "shots/focus/r6-paragraph-ours-crop.png",
+      "theirs": "shots/focus/r6-paragraph-theirs-crop.png",
+      "opponent": {
+        "capture": "ref/ia/shots/mac-native/mac-native-13-light-focus-paragraph.png",
+        "crop": [
+          620,
+          643,
+          1740,
+          320
+        ],
+        "ours": [
+          551,
+          129,
+          1740,
+          320
+        ]
+      },
+      "oursWhole": "shots/focus/r6-paragraph-ours.png",
+      "blind": "shots/blind/focus/paragraph",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Tighter interline gutter in the lit paragraph: A's ascender-to-descender ink band is 41px inside the same 74px line advance, leaving 33px of air between the two lit lines vs B's 38px band leaving 36px — ~9% less breathing room, so the focused block reads as a denser slab; A also wraps one character earlier (62 chars/line vs B's 63) at the same ~1612px column.",
+      "gapTheirs": "The lit text is ~7% smaller at identical ink and identical leading: cap height 28px vs A's 30px, x-height 23px vs 24px, ink band 38px vs 41px, advance 25.6px vs 26.0px — so against the pixel-identical #C6C4C2 dim, B's lit paragraph carries less mass and the lit/dim step announces itself less.",
+      "verdict": "These are near-twins — same #F7F7F7 page, same #191919 lit ink, same #C6C4C2 dim, same 74px advance, same left edge — so the dimming decides nothing here and the lit paragraph decides everything. A sets that paragraph at 30px cap / 24px x-height, B at 28 / 23, in the same 74px box. Write in B for an afternoon and you feel the lit line underperforming: you dimmed the entire page to make one paragraph matter, then set it 7% smaller than the other guy did. A pays for that with a 33px gutter instead of 36px, which is the lesser sin when the dim tier — not the leading — is what isolates the active line.",
+      "secondary": [
+        "Dim tier identical: #C6C4C2 on #F7F7F7 = 1.63:1 against the page, lit #191919 = 16.4:1, lit-to-dim step ~10:1. Neither side holds a third shade.",
+        "Both render the '#' at exactly the same grey as its heading word — matched, neither quieter than the other.",
+        "Focus scope reads as paragraph in both: sentence 2 ('It was a small thing…') is lit at the same #191919 as sentence 1, so no sentence-level split is observable in this state.",
+        "No caret rendered in either image — caret width, colour and blink cannot be judged from these.",
+        "Identical scroll offset (heading baseline y≈78 in both); the lit paragraph starts at y=187 of a 320px window in both, so neither shows a centred active line — same in both, not a differentiator.",
+        "Word gaps (median 31-34px) and inter-letter gaps (median 6-7px) match within 1px; ink mass over line 1 is 31.3 vs 31.9 (inverted-mean, alpha off) — no weight difference.",
+        "B's flat background carries ±1-level RGB dither (2082 unique colours vs A's 333) on what should be a flat #F7F7F7; imperceptible, but it is noise on a page that has none in A.",
+        "Both frames cut off mid-paragraph at 320px tall, so where the active line rests down a full window is untestable from these."
+      ],
+      "carried": 5
+    },
+    {
+      "name": "dark-sentence-typewriter",
+      "ours": "shots/focus/r6-dark-sentence-typewriter-ours.png",
+      "theirs": "shots/oracle/focus/dark-sentence-typewriter.png",
+      "blind": "shots/blind/focus/dark-sentence-typewriter",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "Leading is 2px tighter per line: caret/line box 74px device (37 CSS, ~1.69 ratio at ~22px type) vs B's 76px (38 CSS, ~1.74). Across a 7-line dimmed paragraph that is 14px less air, and the grey blocks above and below the lit sentence pack correspondingly closer to it.",
+      "gapTheirs": "B renders a third shade the palette does not have: on the boundary line, 'beside it.' is #cccccc, then 'The door took both hands to open.' comes back at #888888 (grey 136, a 3413px flat plateau in the histogram), and only 'Outside, the wind' drops to the real dim #707070. A goes #cccccc straight to #707070 with no intermediate. Second offence: B sets '#'/'##' inline at the body edge (x=622), so heading words start at x=673 and x=698 — 51px and 76px (≈26 and 38 CSS px) right of every body line at x=623; A hangs the marks out to x=571 and x=545 and keeps one flush left spine.",
+      "verdict": "B's focus mode cannot make up its mind what it is dimming: the sentence after your caret is lit at #888888, the one after that at #707070, so the eye lands on a fading band about 1.5 sentences wide instead of on the sentence you are writing. That near tier is exactly the thing you notice at 2am when you are trying to fix one clause — you keep re-reading the door sentence because it is still half-lit and half-asking for attention. A pays for its clean two-step with 2px less leading per line, which is a fair trade and a one-line CSS argument; B's is a wrong idea rendered correctly. B then compounds it by shunting heading words 26–38px right of the body margin while A hangs the hashes and keeps the left edge straight.",
+      "secondary": [
+        "Both dim #707070, lit #cccccc, bg #1a1a1a — identical two-colour base, so the only palette difference is B's extra #888888",
+        "Focus scope is sentence on both, and both cut cleanly mid-line at 'beside it.'",
+        "Caret is effectively identical: 6px device (3 CSS) wide, full line-box tall, #00BFFF (A) vs #00B5FF (B) — no gap here",
+        "Markers sit at body ink #707070 on both (#, ##, *, **) — matches the design row, not a differentiator",
+        "Active line rests at 47.2% of window height in A vs 50.0% in B; per the brief this is the unported typewriter centring, not scored",
+        "B's vertical rhythm around the H2 is uneven: 149px before, 155.5px after (6.5px asymmetry); A is 148 vs 148.5",
+        "A's outdented marks are themselves ragged — '#' at x=571 but '##' at x=545, a 26px step in the hanging margin",
+        "A fits one more line of the passage in the same viewport as a direct result of the tighter leading"
+      ],
+      "carried": 5
+    }
+  ],
+  "at": "2026-09-01T21:32:07.502Z"
+}

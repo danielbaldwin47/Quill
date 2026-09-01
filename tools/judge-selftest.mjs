@@ -25,7 +25,7 @@ import {
   ACCENT, ACCENT_HEX, APP_ID, accentPixels, appeared, carriesAccent, classPattern, launchEnv, parseToplevels,
   pngSize, quillArgv, rulesLua, wantsLitCaret,
 } from './harness.mjs';
-import { criticAnswer, criticPrompt, opponentOf, oursArgv, refusedFlag } from './judge.mjs';
+import { VERDICT_KEYS, carriedFrom, criticAnswer, criticPrompt, opponentOf, oursArgv, refusedFlag, shotPaths } from './judge.mjs';
 import { decodePng } from './keys-assert.mjs';
 import { readStates, resolveStates, unservable } from './oracle.mjs';
 import { regimes } from './regimes.mjs';
@@ -640,6 +640,53 @@ ok('a state with an opponent pairs the named crop, and both sides are the same r
         `the crop's pixel at ${x}, ${y} is not the capture's at ${crop[0] + x}, ${crop[1] + y}`,
       );
     }
+  });
+});
+
+// ---------- the same pixels are not judged twice ----------
+
+ok('a round names its shots under shots/<piece>/, whole for a Parity state and cut for a Design oracle one', () => {
+  const whole = shotPaths('focus', 4, 'sentence', null);
+  assert.equal(whole.shot, 'shots/focus/r4-sentence-ours.png');
+  assert.equal(whole.ours, whole.shot);
+  assert.equal(whole.theirs, 'shots/oracle/focus/sentence.png');
+  assert.equal(whole.lit, 'shots/focus/r4-sentence-ours-lit.png');
+  const cut = shotPaths('focus', 4, 'sentence', { crop: [0, 0, 1, 1] });
+  assert.equal(cut.shot, whole.shot, 'the whole shot stays beside its crop');
+  assert.equal(cut.ours, 'shots/focus/r4-sentence-ours-crop.png');
+  assert.equal(cut.theirs, 'shots/focus/r4-sentence-theirs-crop.png');
+});
+
+ok('a state carries the latest verdict on the same bytes, both sides, and nothing else', () => {
+  inTemp((root) => {
+    const write = (file, bytes) => { fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true }); fs.writeFileSync(path.join(root, file), bytes); return file; };
+    const ours3 = write('shots/focus/r3-sentence-ours.png', 'ours-a');
+    const ours4 = write('shots/focus/r4-sentence-ours.png', 'ours-a');
+    const ours5 = write('shots/focus/r5-sentence-ours.png', 'ours-b');
+    const theirs = write('shots/oracle/focus/sentence.png', 'theirs-a');
+    const now = write('shots/focus/r6-sentence-ours.png', 'ours-a');
+    const verdict = (n, ours, extra = {}) => ({
+      piece: 'focus', round: n, opponent: 'oracle', winner: 'ours',
+      states: [{ name: 'sentence', ours, theirs, blind: 'shots/blind/focus/sentence', oursWas: 'A', pick: 'A', winner: 'ours', margin: n === 3 ? 'clear' : 'slight', sameViewport: true, gap: `g${n}`, gapTheirs: `t${n}`, verdict: `v${n}`, secondary: [], ...extra }],
+    });
+    const r3 = verdict(3, ours3);
+    // Round 4 carried round 3: its state is round 3's verdict under round 4's own shot.
+    const r4 = { ...verdict(4, ours4), states: [{ ...r3.states[0], ours: ours4, carried: 3 }] };
+    const r5 = verdict(5, ours5);
+
+    const fromLatest = carriedFrom(root, [r3, r4], 'sentence', now, theirs);
+    assert.equal(fromLatest.round, 3, 'a carried verdict points at the round whose critic looked, not the round that carried it');
+    assert.equal(fromLatest.state.verdict, 'v3');
+    assert.deepEqual(Object.keys(fromLatest.state).filter((k) => VERDICT_KEYS.includes(k)).sort(), [...VERDICT_KEYS].sort(), 'every key a verdict is made of is there to copy');
+
+    assert.equal(carriedFrom(root, [r3, r4, r5], 'sentence', now, theirs).round, 3, 'pixels that moved and moved back are the pixels round 3 judged, whatever round 5 saw');
+    assert.equal(carriedFrom(root, [r3, r4, r5], 'sentence', ours5, theirs).round, 5, 'and the latest round to have judged these bytes is the one carried');
+    assert.equal(carriedFrom(root, [r3], 'sentence', ours5, theirs), null, 'ours moved');
+    assert.equal(carriedFrom(root, [r3], 'sentence', now, write('shots/oracle/focus/other.png', 'theirs-b')), null, 'the opponent moved');
+    assert.equal(carriedFrom(root, [r3], 'paragraph', now, theirs), null, 'another state');
+    assert.equal(carriedFrom(root, [{ ...r3, states: [{ ...r3.states[0], pick: undefined, margin: 'asserted' }] }], 'sentence', now, theirs), null, 'an assertion is arithmetic and is run again');
+    assert.equal(carriedFrom(root, [{ piece: 'focus', round: 1, winner: 'ours' }], 'sentence', now, theirs), null, 'a gauntlet round has no states to carry');
+    assert.equal(carriedFrom(root, [r3], 'sentence', 'shots/focus/nosuch.png', theirs), null, 'a file that is not there is not the same bytes');
   });
 });
 
