@@ -30,7 +30,8 @@ trait and the enchant and `spellbook` implementations), `pos` (Syntax highlight)
 check), `typography` (the pitch, the measure, the 78-cell text container and its gutters —
 [ADR 0016](adr/0016-the-text-container-is-78-cells.md) — and the page margins), `theme` (the two
 grounds' colour table and the rule that resolves one, and the rule that reads a change of the
-desktop's against it). App modules mirror the Pieces and features: `editor` (which also installs the
+desktop's against it), `commands` (`docs/shortcuts.md` as data: every Command with its chords
+and menu rows, and the reserved and off-limits chord lists). App modules mirror the Pieces and features: `editor` (which also installs the
 display's stylesheet, where the engine table's colours are painted from), `caret`, `focus`,
 `typewriter`, `portal` (the settings portal: the desktop's colour scheme, read before the first frame
 and listened to after it), `chrome`, `library`, `preview`, `export`, `flags`, `harness`.
