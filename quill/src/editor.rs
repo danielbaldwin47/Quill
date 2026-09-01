@@ -732,14 +732,15 @@ impl Editor {
     pub fn retag(&self, document: &Document, lines: &Range<usize>) {
         // An edit moves the caret as well as the text, so the tiers are worked
         // out again here rather than left to the caret's own feed: the lines
-        // the edit changed and the lines the dim moved across are drawn in one
-        // pass, and a line in both is drawn once.
+        // the edit changed and the lines the dim moved across are drawn in the
+        // same pass. A line named by both is drawn twice, which is a tag taken
+        // off and put back on the same bytes and not a second look on them.
         let moved = self.retier(document);
         let tiers = self.imp().tiers.borrow();
         let painting = self.painting(&tiers);
         let buffer = self.buffer();
         tags::retag(&buffer, document, painting, lines);
-        for at in moved.iter().filter(|at| at != &lines) {
+        for at in &moved {
             tags::retag(&buffer, document, painting, at);
         }
     }

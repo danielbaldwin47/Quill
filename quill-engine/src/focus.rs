@@ -202,9 +202,11 @@ pub fn tiers_by_line(doc: &Document, tiers: &Tiers) -> Vec<LineTiers> {
 /// Ascending, and no two of them touching — the runs of consecutive lines whose
 /// share of the tiers is not what it was. This is what the Editor retags on a
 /// caret move (#113), in the shape [`crate::document::Edit::lines`] hands the
-/// same retag after an edit (#90), and the reason a caret move costs a line or
-/// two rather than a page: a line missing from both lists is wholly dim in both
-/// and has nothing to redraw.
+/// same retag after an edit (#90), and the reason a caret move costs the
+/// sentence it left and the one it entered rather than a page: a line missing
+/// from both lists is wholly dim in both and has nothing to redraw.
+/// `a_one_character_caret_move_retags_at_most_two_lines` is that cost, over
+/// the shared passage.
 ///
 /// Two disjoint runs rather than one range covering both, because a caret that
 /// jumps the length of a manuscript changes the tiers of the block it left and
@@ -247,6 +249,11 @@ pub fn changed(before: &[LineTiers], after: &[LineTiers]) -> Vec<Range<usize>> {
 /// single answer, and a block Focus lights any of is a block the writer is in.
 /// With Focus off there are no tiers and the answer is the untiered one,
 /// [`Tier::Bright`], as it is throughout the flattening.
+///
+/// One pass over the bright ranges, which [`reach`] bounds to the caret's block
+/// however long the Document is: one range in Sentence scope, and one per line
+/// of that block in Paragraph. `a_paragraph_property_costs_the_caret_s_block`
+/// pins it.
 #[must_use]
 pub fn tier_in(tiers: &[LineTiers], focus: Focus, at: &Range<usize>) -> Tier {
     if matches!(focus, Focus::Off) {
@@ -986,7 +993,7 @@ mod tests {
     }
 
     #[test]
-    fn a_caret_move_in_a_long_document_retags_a_line_or_two() {
+    fn a_one_character_caret_move_retags_at_most_two_lines() {
         let doc = passage();
         let text = doc.text();
         let focus = Focus::On(FocusScope::Sentence);
@@ -1000,11 +1007,35 @@ mod tests {
             widest = widest.max(lines);
             caret = next;
         }
-        assert!(
-            widest <= 4,
-            "a one-character caret move redrew {widest} lines at its worst, \
-             which is not the block the caret is in"
+        assert_eq!(
+            widest, 2,
+            "a one-character caret move redraws the line the sentence it left \
+             is on and the line the one it entered is on, and a sentence is \
+             read off one line ([`tiers`]), so two is the whole of it"
         );
+    }
+
+    #[test]
+    fn a_paragraph_property_costs_the_caret_s_block() {
+        let doc = passage();
+        let text = doc.text();
+        let block = doc.blocks()[0].at.clone();
+        for scope in [FocusScope::Sentence, FocusScope::Paragraph] {
+            let focus = Focus::On(scope);
+            let mut widest = 0;
+            for caret in (0..text.len()).filter(|at| text.is_char_boundary(*at)) {
+                let lines = tiers_by_line(&doc, &tiers(&doc, &(caret..caret), focus));
+                widest = widest.max(lines.iter().map(|on| on.tiers.bright.len()).sum::<usize>());
+                // The answer is read the way `tags::draw` reads it, once per
+                // span of the range being drawn.
+                let _ = tier_in(&lines, focus, &block);
+            }
+            assert!(
+                widest <= 8,
+                "{scope:?} scope left {widest} bright ranges for a paragraph \
+                 property to walk, which is not one block's worth"
+            );
+        }
     }
 
     // The pair of settings, read as one value.
