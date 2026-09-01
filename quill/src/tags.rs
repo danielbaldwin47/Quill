@@ -372,6 +372,43 @@ pub fn retag(
     draw(buffer, document, painting, &at);
 }
 
+/// Takes the colour `was` off the bytes `at` and puts `now` on them instead.
+///
+/// One frame of a cross-fade, and the only way a colour reaches the buffer
+/// outside a [`draw`]. The old one comes off first so that exactly one
+/// foreground tag is ever on those bytes: two would leave the tag table's own
+/// order to decide which is seen, and that order is the order the tags happened
+/// to be first asked for, which is neither the fade's nor anything a reader
+/// could predict. Taking one off and putting one on is a decision this module
+/// makes rather than one it delegates.
+///
+/// The interim colours are tags like any other: [`colour`] makes each one on
+/// the first frame that asks for it and hands back the same tag every frame
+/// after, in this fade and in every later one, so a fade in flight allocates
+/// nothing. Nothing but the foreground moves — the cut, the code well and the
+/// link's rule stay where the draw put them, because a tier changing is a
+/// change of colour and of nothing else.
+/// `at` is the buffer's own offsets ([`offsets_of`]) and not the Document's
+/// bytes, because a fade is stepped from the frame clock, where there is a
+/// widget and no Document: the two are mapped once when the fade is built, out
+/// of the same [`iter_at`] every other byte range goes through.
+pub fn recolour(buffer: &gtk::TextBuffer, at: &Range<i32>, was: Colour, now: Colour) {
+    let from = buffer.iter_at_offset(at.start);
+    let to = buffer.iter_at_offset(at.end);
+    buffer.remove_tag(&colour(buffer, &was.to_hex(), was.opacity()), &from, &to);
+    buffer.apply_tag(&colour(buffer, &now.to_hex(), now.opacity()), &from, &to);
+}
+
+/// The offsets `buffer` counts the bytes `at` of `document` in.
+///
+/// The one crossing between the two ways of naming a place in the text, taken
+/// where there is still a Document to take it from. Everything else in this
+/// module works in the Document's bytes; a cross-fade cannot, because the frame
+/// clock hands its callback a widget and nothing else.
+pub fn offsets_of(buffer: &gtk::TextBuffer, document: &Document, at: &Range<usize>) -> Range<i32> {
+    iter_at(buffer, document, at.start).offset()..iter_at(buffer, document, at.end).offset()
+}
+
 /// Puts every tag the bytes `at` ask for on to `buffer`.
 ///
 /// Several tags land on the same bytes, which is safe here for one reason and

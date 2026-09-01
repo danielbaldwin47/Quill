@@ -80,6 +80,30 @@ impl Scheme {
     }
 }
 
+/// How long the dim takes to cross from one tier to the other, in
+/// milliseconds: the oracle's `--focus-fade`, `legacy/app/css/focus.css:19`.
+///
+/// The whole of the duration lives here, and [`fade`] and [`fade_ms`] are what
+/// read it: the app never spells `130` and asks this instead.
+pub const FADE_MS: u32 = 130;
+
+/// The length a cross-fade runs at, given how the launch was asked to move.
+///
+/// Zero either way it can be turned off: a `--deterministic` launch shoots a
+/// still and a fade in flight is not one, and a desktop that asked for reduced
+/// motion has turned `gtk-enable-animations` off, which GTK fills from the
+/// portal. Both arrive here as a `bool`, and either being the off one leaves no
+/// fade — so [`Colour::fade`] is called with an `elapsed_ms` already at or past
+/// [`FADE_MS`] and lands on the target on the first frame.
+#[must_use]
+pub const fn fade_ms(deterministic: bool, animations: bool) -> u32 {
+    if deterministic || !animations {
+        0
+    } else {
+        FADE_MS
+    }
+}
+
 /// A colour, on its way to GTK.
 ///
 /// Channels and opacity are 0–1 so that [`Colour::over`] is ordinary
@@ -152,6 +176,24 @@ impl Colour {
             green: mix(fg.green, bg.green, amount),
             blue: mix(fg.blue, bg.blue, amount),
             alpha: bg.alpha,
+        }
+    }
+
+    /// `from` on its way to `to`, `elapsed_ms` into a cross-fade of [`FADE_MS`].
+    ///
+    /// Linear in each channel and in the opacity, so at `0` it is `from`, at
+    /// [`FADE_MS`] it is `to`, and at half it is the midpoint. Past the
+    /// duration it holds at `to`, so a tick that overshoots the last frame
+    /// lands on the target rather than beyond it. The cross-fade the dim makes
+    /// as Focus moves, `legacy/app/css/focus.css:19` (`--focus-fade: 130ms`).
+    #[must_use]
+    pub fn fade(from: Self, to: Self, elapsed_ms: u32) -> Self {
+        let amount = f64::from(elapsed_ms.min(FADE_MS)) / f64::from(FADE_MS);
+        Self {
+            red: mix(to.red, from.red, amount),
+            green: mix(to.green, from.green, amount),
+            blue: mix(to.blue, from.blue, amount),
+            alpha: mix(to.alpha, from.alpha, amount),
         }
     }
 
@@ -707,5 +749,62 @@ mod tests {
             "auto is a setting, not a ground"
         );
         assert_eq!(Scheme::VALUES, ["light", "dark"]);
+    }
+
+    /// A cross-fade leaves the old colour, arrives at the new one, and is the
+    /// midpoint of the two halfway between.
+    ///
+    /// The three the tick reads: the first frame is the tier the dim is leaving
+    /// so nothing snaps, [`FADE_MS`] is the tier it is going to, and half of
+    /// [`FADE_MS`] is the average of the two, which is what makes the motion a
+    /// fade rather than a jump on some middle frame.
+    #[test]
+    fn a_cross_fade_leaves_the_old_tier_reaches_the_new_and_is_the_midpoint_between() {
+        let from = Colour::from_hex("#191919");
+        let to = Colour::from_hex("#c6c4c2");
+        assert_eq!(
+            Colour::fade(from, to, 0),
+            from,
+            "the first frame is the old"
+        );
+        assert_eq!(Colour::fade(from, to, FADE_MS), to, "the last is the new");
+        let mid = Colour::fade(from, to, FADE_MS / 2);
+        for (half, ends) in [
+            (mid.red, (from.red, to.red)),
+            (mid.green, (from.green, to.green)),
+            (mid.blue, (from.blue, to.blue)),
+            (mid.alpha, (from.alpha, to.alpha)),
+        ] {
+            assert!(
+                (half - (ends.0 + ends.1) / 2.0).abs() < 1.0 / 255.0,
+                "the midpoint channel is the average of the two ends"
+            );
+        }
+    }
+
+    /// A fade asked for past its end holds on the target rather than sailing
+    /// through it, so a slow frame is the arrival and never an overshoot.
+    #[test]
+    fn a_fade_past_its_length_holds_on_the_target() {
+        let from = Colour::from_hex("#191919");
+        let to = Colour::from_hex("#c6c4c2");
+        assert_eq!(Colour::fade(from, to, FADE_MS + 1000), to);
+    }
+
+    /// The fade is off whenever the launch is either the harness's or a desktop
+    /// that asked for stillness, and on only for an ordinary writer's.
+    ///
+    /// Both are the same answer — no length, so the first frame is already the
+    /// target — reached two ways, which is why the length is a function of the
+    /// two and asserted here rather than read off `gtk-enable-animations` alone.
+    #[test]
+    fn a_deterministic_launch_or_reduced_motion_leaves_no_fade() {
+        assert_eq!(fade_ms(true, true), 0, "a --deterministic shot is a still");
+        assert_eq!(
+            fade_ms(false, false),
+            0,
+            "a desktop that asked for stillness"
+        );
+        assert_eq!(fade_ms(false, true), FADE_MS, "an ordinary writer fades");
     }
 }
