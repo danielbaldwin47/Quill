@@ -23,6 +23,7 @@ use gtk::subclass::prelude::*;
 use gtk::{gio, glib};
 use quill_engine::document::Document;
 use quill_engine::settings::WindowState;
+use quill_engine::theme::Scheme;
 
 use crate::caret;
 use crate::harness;
@@ -245,10 +246,7 @@ impl Window {
         };
         let scheme = session.toggle_scheme();
         if let Some(app) = self.application() {
-            reset(&app, &session, |window| {
-                let document = window.imp().document.borrow();
-                window.imp().editor.set_scheme(scheme, &document);
-            });
+            repaint(&app, &session, scheme);
         }
     }
 
@@ -383,6 +381,25 @@ fn reset(app: &gtk::Application, session: &Session, each: impl Fn(&Window)) {
             each(&window);
         }
     }
+}
+
+/// Puts a ground on to every open window, stylesheet and tags together.
+///
+/// The one pass the switch is: [`reset`] reloads the stylesheet the paper and
+/// the chrome are named in, and each Editor re-resolves its tag table from the
+/// palette, so a frame is never composed half on one ground and half on the
+/// other. Both of the things that can move the ground — a writer's
+/// `Ctrl+Shift+L` and a desktop the writer asked Quill to follow — arrive
+/// here, because a writer has one pair of eyes and there is one way to repaint
+/// what they are looking at.
+///
+/// The caller has already moved the session; this is told the ground rather
+/// than asking, so that the two cannot disagree about which one it is.
+pub fn repaint(app: &gtk::Application, session: &Session, scheme: Scheme) {
+    reset(app, session, |window| {
+        let document = window.imp().document.borrow();
+        window.imp().editor.set_scheme(scheme, &document);
+    });
 }
 
 /// Opens the windows this launch asks for.

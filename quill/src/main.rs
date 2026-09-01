@@ -23,6 +23,7 @@ mod editor;
 mod flags;
 mod fonts;
 mod harness;
+mod portal;
 mod session;
 mod tags;
 mod window;
@@ -32,6 +33,8 @@ use std::rc::Rc;
 use gtk::gio::ApplicationFlags;
 use gtk::glib;
 use gtk::prelude::*;
+
+use quill_engine::theme;
 
 use flags::Flags;
 use session::Session;
@@ -63,10 +66,19 @@ fn main() -> glib::ExitCode {
         eprintln!("quill: {err}");
     }
 
+    // The desktop, before the session that has to resolve a ground out of what
+    // it says. Asked here rather than after GTK is up because the answer is an
+    // input to the first frame: a ground resolved any later than this is a
+    // flash of the other one. It costs a launch nothing where there is no
+    // portal — `Portal::open` is `None` and the ground is the one this Quill
+    // left — and at most `portal::TIMEOUT` where there is a bus but no answer.
+    let portal = portal::Portal::open();
+
     // And before any window: what the writer chose, what the last session
-    // left, and what this command line says instead. All read here and nowhere
-    // else, and the session is what everything below asks.
-    let session = Session::open(flags);
+    // left, what the desktop answered, and what this command line says
+    // instead. All read here and nowhere else, and the session is what
+    // everything below asks.
+    let session = Session::open(flags, portal.as_ref().and_then(portal::Portal::scheme));
     let harness = session.is_harness();
 
     let app = gtk::Application::builder()
@@ -101,6 +113,26 @@ fn main() -> glib::ExitCode {
         // already on the paper they asked for and never flashes the other one.
         editor::install_type(starting.scheme(), starting.settings().face, starting.step());
     });
+
+    // And from here on, the desktop can change its mind. Subscribed after the
+    // ground is resolved and never before it: a signal that arrived while the
+    // first frame was still being decided would be answering a question the
+    // launch was in the middle of asking. What a signal *means* is the
+    // engine's — `theme::followed` reads it against the setting this launch is
+    // on, so a writer who pinned a ground, or launched with `--theme`, hears
+    // nothing — and everything below only does what it is told.
+    if let Some(portal) = &portal {
+        let following = Rc::clone(&session);
+        let app = app.clone();
+        portal.watch_scheme(move |desktop| {
+            let Some(scheme) = theme::followed(following.theme(), desktop, following.scheme())
+            else {
+                return;
+            };
+            following.follow(scheme);
+            window::repaint(&app, &following, scheme);
+        });
+    }
 
     // The accelerators the Commands answer to, from the Appearance rows of
     // `docs/shortcuts.md`. On the application because that is where GTK keeps
