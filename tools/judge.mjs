@@ -28,6 +28,19 @@
 // therefore checked for every state before the first window opens: a run that shoots two of three
 // states and then finds the third unshootable has spent a critic on a verdict it cannot use.
 //
+// EVERY SHOT FIRST, THEN EVERY CRITIC AT ONCE. The stage is one window and the states are shot in
+// turn; the critics are independent sessions and are run together once the stage has closed. A
+// three-state Piece took seventeen minutes with the critics in a row (2026-09-01, each five to six
+// minutes) and takes one critic's worth this way; it also means a rebuild of the binary can only
+// corrupt a run during the minute the shots take, not the quarter-hour after.
+//
+// THE SAME PIXELS ARE NOT JUDGED TWICE. A state whose shot of ours and whose opponent are, byte for
+// byte, what an earlier round's critic was shown carries that round's verdict forward — the latest
+// such round, whatever was judged in between — marked `carried`. Forty-three of the hundred-odd blind verdicts on disk by 2026-09-01 were on pixels
+// identical to the round before — every focus round from r3 to r5, most of markup r4 to r9 — and
+// one of them (caret r10) turned a won state into a lost one on no new evidence. `--fresh` asks
+// the critics anyway, which is how the owner re-rolls a verdict that looks wrong.
+//
 // WHAT THE CRITIC IS AND IS NOT. One fresh `claude -p` session per pair, Opus at high effort, with
 // `tools/critic.md`'s prompt and nothing else: it runs in a scratch directory outside the checkout
 // holding only `A.png` and `B.png`, with customizations off, allowed `Read` and `magick` and no
@@ -187,7 +200,11 @@ export function criticAnswer(text) {
 // instructions, and a critic that has read `CLAUDE.md` knows there is a JavaScript app in
 // `legacy/` it is probably being asked about, which is not a blind critic. The header above says
 // where that stops being enforcement and starts being instruction.
-async function runCritic(prompt, A, B) {
+//
+// `effort` is the critic's reasoning effort, `high` for a round and whatever `tools/critic-replay`
+// is asked to try: a cheaper critic is only ever adopted after a replay over recorded rounds has
+// shown it agreeing with the verdicts on disk.
+export async function runCritic(prompt, A, B, { effort = 'high' } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'quill-critic-'));
   try {
     fs.copyFileSync(A, path.join(dir, 'A.png'));
@@ -195,7 +212,7 @@ async function runCritic(prompt, A, B) {
     const argv = [
       '-p', prompt,
       '--model', 'opus',
-      '--effort', 'high',
+      '--effort', effort,
       '--output-format', 'json',
       '--safe-mode',
       '--allowedTools', 'Read', 'Bash(magick:*)',
@@ -231,10 +248,14 @@ function run(command, argv, { cwd, timeout }) {
 // ---------- the command ----------
 
 function usage(where = process.stderr) {
-  where.write(`usage: tools/gate judge <piece> [--note <text>] [--summary <file>] [--settings <path>]
+  where.write(`usage: tools/gate judge <piece> [--note <text>] [--summary <file>] [--settings <path>] [--fresh]
 
   The Pieces with judged states are the keys of "pieces" in
   shots/oracle/states.json. What the command does: tools/gate --help
+
+  --fresh asks a critic about every state, including one whose pixels are,
+  on both sides, what the latest round that judged it saw; without it such a
+  state carries that round's verdict forward and no critic is spent on it.
 
   --settings is ours' settings file for the run, and goes to ours only: the
   Parity oracle has no such file, and its shots are frozen before the round
@@ -252,28 +273,30 @@ function usage(where = process.stderr) {
 // run that reached a verdict has its detail in the round it wrote.
 const trail = [];
 let logFile = null;
-function say(line) {
+export function say(line) {
   trail.push(line);
   if (!logFile) return;
   // The log is a convenience and never the thing that decides a run: a target/ that cannot be
   // written to must not turn a verdict into a stack trace. Given up on at the first refusal, so a
   // full disk is not one failed write per line; the trail itself is kept either way.
-  try { fs.appendFileSync(logFile, `${line}\n`); } catch { logFile = null; }
+  // Each line carries the clock, because where a run's minutes went — the build, the shots, the
+  // critics — is the one question the log is opened for afterwards.
+  try { fs.appendFileSync(logFile, `${new Date().toISOString().slice(11, 19)} ${line}\n`); } catch { logFile = null; }
 }
 
 // The trail, for the agent who has to fix what stopped this.
-function spill() {
+export function spill() {
   if (trail.length) process.stderr.write(`${trail.join('\n')}\n`);
 }
 
 // The file the trail is written to as it is said, so a run that is still going, or one killed
 // part-way, can be read from another terminal. Silent when it cannot be opened, for the reason
-// say() is.
-function openLog(root, piece) {
-  const file = path.join(root, 'target/gate', `judge-${piece}.log`);
+// say() is. `name` is the command and the Piece, `judge-focus` or `shoot-focus`.
+export function openLog(root, name) {
+  const file = path.join(root, 'target/gate', `${name}.log`);
   try {
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, `gate judge ${piece} — ${new Date().toISOString()}\n`);
+    fs.writeFileSync(file, `gate ${name.replace('-', ' ')} — ${new Date().toISOString()}\n`);
     logFile = file;
   } catch { logFile = null; }
 }
@@ -299,9 +322,11 @@ async function main(argv) {
   let note = '';
   let summaryFile = null;
   let settingsFile = null;
+  let fresh = false;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--note') {
+    if (a === '--fresh') fresh = true;
+    else if (a === '--note') {
       note = argv[++i];
       if (note === undefined) { process.stderr.write('gate judge: --note takes the text to record\n'); usage(); return 3; }
     } else if (a === '--summary') {
@@ -316,9 +341,9 @@ async function main(argv) {
     else { process.stderr.write('gate judge: one Piece at a time\n'); usage(); return 3; }
   }
   if (piece === null) { usage(); return 3; }
-  openLog(root, piece);
+  openLog(root, `judge-${piece}`);
 
-  try { return await judge(root, piece, note, summaryFile, settingsFile); }
+  try { return await judge(root, piece, note, summaryFile, settingsFile, fresh); }
   catch (e) {
     say(`gate judge ${piece}: ${e.message}`);
     return refuse(piece, 'the run broke before a verdict');
@@ -447,39 +472,45 @@ async function judgeLatency(root, note, named) {
   return 1;
 }
 
-async function judge(root, piece, note, summaryFile, settingsFile) {
-  // The latency Piece is not shot and not paired: its opponent is a set of numbers, so its round is
-  // arithmetic over what `tools/gate bench --all` already measured. Answered before anything below
-  // opens a window or builds a binary, because none of that is needed to read two files.
-  // --settings is a flag ours is opened with, and latency opens nothing here: taking it and doing
-  // nothing with it would put a settings file in the round's build that never touched the numbers.
-  if (piece === 'latency') {
-    if (settingsFile) {
-      say('gate judge latency: --settings is ours\' settings file for a shot, and the latency Piece shoots nothing');
-      return refuse(piece, '--settings is not a flag the latency Piece has');
-    }
-    return judgeLatency(root, note, summaryFile);
+// A refusal on the way to a verdict: the words for the last line, with everything said before it
+// already in the trail. Thrown by `preflight` so its checks read as one list, and caught by the
+// command that prints the line — `judge` here, `tools/shoot.mjs` for a shot with no critic.
+export class Refused extends Error {
+  constructor(why) {
+    super(why);
+    this.why = why;
   }
+}
 
+// Everything a judged shot of a Piece needs settled before a window opens, or a `Refused` naming
+// what is missing: the states resolved, every flag servable, every assertion readable, every crop
+// cuttable, the Parity oracle frozen and current, a compositor to shoot on, the release binary
+// built, and ours willing to open at every state. `tools/gate shoot` runs the same list, so a shot
+// taken to look at is a shot the judge would have taken.
+//
+// Answers with the states sorted by how they are judged — `parity` against the frozen oracle,
+// `crops` against a Design oracle rectangle (with `cropping` holding each one resolved), `asserted`
+// against ours' own pixels — and `frozen`, the Parity oracle's fingerprint when any state needs it.
+export function preflight(root, piece, settingsFile, { command = 'judge' } = {}) {
   const states = readStates(root);
   let resolved;
   try { resolved = resolveStates(states, piece); }
   catch (e) {
-    say(`gate judge: ${e.message}`);
-    return refuse(piece, `${piece} is not a Piece with judged states`);
+    say(`gate ${command}: ${e.message}`);
+    throw new Refused(`${piece} is not a Piece with judged states`);
   }
 
   if (resolved.length === 0) {
-    return refuse(piece, 'this Piece has no judged states');
+    throw new Refused('this Piece has no judged states');
   }
 
   // Every refusal, for every state, before a window opens. The order is cheapest first and each one
   // names every state it applies to, so one run tells the agent the whole of what is missing.
   const blocked = resolved.map((s) => ({ ...s, cannot: unservable(states.defaults, s.flags) })).filter((s) => s.cannot.length);
   if (blocked.length) {
-    for (const s of blocked) say(`gate judge ${piece}: state ${s.name} names ${s.cannot.join(', ')}`);
-    say('gate judge: the app has no such flag yet; those states wait for the File handling spec (shots/oracle/states.json)');
-    return refuse(piece, `${blocked.length} of ${resolved.length} states name flags the app has not got`);
+    for (const s of blocked) say(`gate ${command} ${piece}: state ${s.name} names ${s.cannot.join(', ')}`);
+    say(`gate ${command}: the app has no such flag yet; those states wait for the File handling spec (shots/oracle/states.json)`);
+    throw new Refused(`${blocked.length} of ${resolved.length} states name flags the app has not got`);
   }
 
   // A state carrying `opponent` is judged against a crop of the Design oracle, which is committed
@@ -501,19 +532,19 @@ async function judge(root, piece, note, summaryFile, settingsFile) {
     // state that says it is paired and says it is measured, and there is no honest order to read
     // those in — so it is refused rather than resolved by whichever branch happens to run first.
     if (s.opponent) {
-      say(`gate judge ${piece}: ${s.name} names both an opponent and an assertion, and a state is answered one way`);
+      say(`gate ${command} ${piece}: ${s.name} names both an opponent and an assertion, and a state is answered one way`);
       unreadable.push(s.name);
       continue;
     }
     try {
       validate(s.assert);
     } catch (e) {
-      say(`gate judge ${piece}: ${s.name}'s assertion cannot be read: ${e.message}`);
+      say(`gate ${command} ${piece}: ${s.name}'s assertion cannot be read: ${e.message}`);
       unreadable.push(s.name);
     }
   }
   if (unreadable.length) {
-    return refuse(piece, `${unreadable.length} of ${resolved.length} states name an assertion this build cannot run`);
+    throw new Refused(`${unreadable.length} of ${resolved.length} states name an assertion this build cannot run`);
   }
 
   // The crops, resolved against the captures on disk before the first window opens, for the reason
@@ -525,12 +556,12 @@ async function judge(root, piece, note, summaryFile, settingsFile) {
     try {
       cropping.set(s.name, resolveOpponent(root, s.name, s.opponent, { w: s.flags.w * s.flags.scale, h: s.flags.h * s.flags.scale }));
     } catch (e) {
-      say(`gate judge ${piece}: ${e.message}`);
+      say(`gate ${command} ${piece}: ${e.message}`);
       uncroppable.push(s.name);
     }
   }
   if (uncroppable.length) {
-    return refuse(piece, `${uncroppable.length} of ${resolved.length} states name a mac-native crop that cannot be cut`);
+    throw new Refused(`${uncroppable.length} of ${resolved.length} states name a mac-native crop that cannot be cut`);
   }
 
   // The opponent is a directory of shots and the fingerprint of what took them. Half of that is not
@@ -540,8 +571,8 @@ async function judge(root, piece, note, summaryFile, settingsFile) {
   const unfrozen = parity.filter((s) => !fs.existsSync(path.join(oracleDir, `${s.name}.png`))).map((s) => s.name);
   if (parity.length && (unfrozen.length || !fs.existsSync(fingerprintFile))) {
     const missing = unfrozen.length ? `for ${unfrozen.join(', ')}` : 'and has no fingerprint beside it';
-    say(`gate judge ${piece}: no frozen opponent ${missing}; run tools/gate oracle ${piece}`);
-    return refuse(piece, unfrozen.length
+    say(`gate ${command} ${piece}: no frozen opponent ${missing}; run tools/gate oracle ${piece}`);
+    throw new Refused(unfrozen.length
       ? `the Parity oracle is not frozen for ${unfrozen.length} of ${parity.length} states`
       : 'the Parity oracle has no fingerprint');
   }
@@ -553,24 +584,24 @@ async function judge(root, piece, note, summaryFile, settingsFile) {
   if (parity.length && fs.existsSync(path.join(root, 'legacy/app'))) {
     const stale = freezeReason(frozen, fingerprint(root, parity), parity.map((s) => s.name));
     if (stale) {
-      say(`gate judge ${piece}: the frozen opponent is out of date (${stale}); run tools/gate oracle ${piece}`);
-      return refuse(piece, 'the Parity oracle is out of date');
+      say(`gate ${command} ${piece}: the frozen opponent is out of date (${stale}); run tools/gate oracle ${piece}`);
+      throw new Refused('the Parity oracle is out of date');
     }
   }
 
   if (!compositorAvailable()) {
-    say('gate judge: no Hyprland to open a window on; a judged shot needs the compositor (docs/research/native-harness.md)');
-    return refuse(piece, 'there is no compositor to shoot on');
+    say(`gate ${command}: no Hyprland to open a window on; a judged shot needs the compositor (docs/research/native-harness.md)`);
+    throw new Refused('there is no compositor to shoot on');
   }
 
-  say(`gate judge ${piece}: building ${BINARY}`);
+  say(`gate ${command} ${piece}: building ${BINARY}`);
   // cargo's own words go into the trail rather than past it: a build that will not build is the one
   // ending where an agent needs every line, and it gets them all together at the bottom.
   try { execFileSync('cargo', ['build', '--release'], { cwd: root, stdio: ['ignore', 'ignore', 'pipe'], maxBuffer: BUILD_OUTPUT_MAX }); }
   catch (e) {
     const said = String(e.stderr || '').trim();
     if (said) say(said);
-    return refuse(piece, 'the binary would not build');
+    throw new Refused('the binary would not build');
   }
 
   // Whether ours can be opened at all at each state, asked of the binary rather than kept in a list
@@ -586,14 +617,95 @@ async function judge(root, piece, note, summaryFile, settingsFile) {
       execFileSync(bin, [...oursArgv(root, s.flags, settingsFile), '--help'], { stdio: ['ignore', 'ignore', 'pipe'] });
     } catch (e) {
       const flag = refusedFlag(String(e.stderr || ''));
-      say(`gate judge ${piece}: state ${s.name} opens ours with ${flag ?? 'a command line it would not take'}`);
+      say(`gate ${command} ${piece}: state ${s.name} opens ours with ${flag ?? 'a command line it would not take'}`);
       cannot.push(s.name);
     }
   }
   if (cannot.length) {
-    say(`gate judge: ours will not open at ${cannot.join(', ')}; those flags wait for the spec that teaches the app to parse them`);
-    return refuse(piece, `${cannot.length} of ${resolved.length} states name flags the app has not got`);
+    say(`gate ${command}: ours will not open at ${cannot.join(', ')}; those flags wait for the spec that teaches the app to parse them`);
+    throw new Refused(`${cannot.length} of ${resolved.length} states name flags the app has not got`);
   }
+
+  return { resolved, parity, crops, asserted, cropping, frozen };
+}
+
+// Where a judged shot of ours goes, and its crop when the state is judged on one: the round's
+// files under `shots/<piece>/`, which are the evidence a round is read from.
+export function shotPaths(piece, number, state, cut) {
+  const stem = path.join('shots', piece, `r${number}-${state}`);
+  return {
+    shot: `${stem}-ours.png`,
+    lit: `${stem}-ours-lit.png`,
+    ours: cut ? `${stem}-ours-crop.png` : `${stem}-ours.png`,
+    theirs: cut ? `${stem}-theirs-crop.png` : path.join('shots/oracle', piece, `${state}.png`),
+  };
+}
+
+// Shoots ours at one state onto `out`, and — when the state is judged on a crop — cuts both sides,
+// ours out of that shot and the opponent's out of its capture, onto the two crop paths. Answers with
+// the paths the pair is made of. Shared with `tools/shoot.mjs`, so a shot taken to look at is cut
+// exactly as the judge cuts one.
+export async function shootState(stage, root, s, settingsFile, cut, paths, { active = s.flags.active !== false } = {}) {
+  await stage.shoot({
+    bin: path.join(root, BINARY),
+    argv: oursArgv(root, s.flags, settingsFile),
+    w: s.flags.w,
+    h: s.flags.h,
+    out: path.join(root, paths.shot),
+    active,
+  });
+  if (cut) {
+    fs.writeFileSync(path.join(root, paths.ours), cropPng(fs.readFileSync(path.join(root, paths.shot)), cut.ours));
+    fs.writeFileSync(path.join(root, paths.theirs), cropPng(fs.readFileSync(path.join(root, cut.capture)), cut.crop));
+  }
+  return { ours: paths.ours, theirs: paths.theirs };
+}
+
+// What a critic's verdict on one state is made of, in the round file: the keys a carried state
+// copies from the round it carries, everything but the paths that name this round's own files.
+export const VERDICT_KEYS = ['blind', 'oursWas', 'pick', 'winner', 'margin', 'sameViewport', 'gap', 'gapTheirs', 'verdict', 'secondary'];
+
+// The latest round whose verdict on this state still stands, or null: the one that put a critic on
+// the same bytes, ours and the opponent's both, that are about to be paired now. Read off the files
+// the round names rather than a hash it recorded, because the shots are committed and a hash would
+// be one more thing to keep true. A state a round answered by assertion carries no `pick` and is
+// never carried: an assertion is arithmetic and costs nothing to run again. A verdict that was
+// itself carried names the round it came from, so a chain of identical rounds points at the one
+// critic who looked.
+export function carriedFrom(root, recorded, name, oursFile, theirsFile) {
+  const same = (a, b) => {
+    try { return fs.readFileSync(path.join(root, a)).equals(fs.readFileSync(path.join(root, b))); } catch { return false; }
+  };
+  for (const r of [...recorded].reverse()) {
+    const s = (r.states || []).find((x) => x.name === name);
+    if (!s || !s.pick || !s.ours || !s.theirs) continue;
+    if (!same(s.ours, oursFile) || !same(s.theirs, theirsFile)) continue;
+    return { round: s.carried ?? r.round, state: s };
+  }
+  return null;
+}
+
+async function judge(root, piece, note, summaryFile, settingsFile, fresh) {
+  // The latency Piece is not shot and not paired: its opponent is a set of numbers, so its round is
+  // arithmetic over what `tools/gate bench --all` already measured. Answered before anything below
+  // opens a window or builds a binary, because none of that is needed to read two files.
+  // --settings is a flag ours is opened with, and latency opens nothing here: taking it and doing
+  // nothing with it would put a settings file in the round's build that never touched the numbers.
+  if (piece === 'latency') {
+    if (settingsFile) {
+      say('gate judge latency: --settings is ours\' settings file for a shot, and the latency Piece shoots nothing');
+      return refuse(piece, '--settings is not a flag the latency Piece has');
+    }
+    return judgeLatency(root, note, summaryFile);
+  }
+
+  let plan;
+  try { plan = preflight(root, piece, settingsFile); }
+  catch (e) {
+    if (e instanceof Refused) return refuse(piece, e.why);
+    throw e;
+  }
+  const { resolved, parity, crops, asserted, cropping, frozen } = plan;
 
   const recorded = rounds(root, piece);
   const number = nextRound(recorded);
@@ -609,49 +721,40 @@ async function judge(root, piece, note, summaryFile, settingsFile) {
     return refuse(piece, 'the Piece has no judging brief');
   }
 
+  // The round's states in order, each filled in as it is answered: an asserted one at its shot, a
+  // carried one at its shot too, and a paired one when its critic comes back. `pairs` is the paired
+  // ones with what their critic is shown, in the same order.
   const judged = [];
+  const pairs = [];
   const stage = await openStage({ root, appId: APP_ID });
   try {
     for (const s of resolved) {
-      const shot = path.join('shots', piece, `r${number}-${s.name}-ours.png`);
+      const cut = cropping.get(s.name);
+      const paths = shotPaths(piece, number, s.name, cut);
       say(`gate judge ${piece}: shooting ${s.name}`);
-      await stage.shoot({
-        bin: path.join(root, BINARY),
-        argv: oursArgv(root, s.flags, settingsFile),
-        w: s.flags.w,
-        h: s.flags.h,
-        out: path.join(root, shot),
-        active: s.flags.active !== false,
-      });
+      const { ours, theirs } = await shootState(stage, root, s, settingsFile, cut, paths);
+      if (cut) say(`gate judge ${piece}: ${s.name} cropped to ${cut.crop[2]}x${cut.crop[3]} against ${cut.capture}`);
 
       // An asserted state is answered here and never paired: it is shot a second time with the
       // window active, and the rule is read off the two shots (ADR 0017). Both are kept, because
       // the measurement is only checkable by someone who has the pixels it was taken from.
       if (s.assert) {
-        const lit = path.join('shots', piece, `r${number}-${s.name}-ours-lit.png`);
-        await stage.shoot({
-          bin: path.join(root, BINARY),
-          argv: oursArgv(root, s.flags, settingsFile),
-          w: s.flags.w,
-          h: s.flags.h,
-          out: path.join(root, lit),
-          active: true,
-        });
+        await shootState(stage, root, s, settingsFile, null, { ...paths, shot: paths.lit }, { active: true });
         const answer = assertState(s.assert, {
-          lit: fs.readFileSync(path.join(root, lit)),
-          dim: fs.readFileSync(path.join(root, shot)),
+          lit: fs.readFileSync(path.join(root, paths.lit)),
+          dim: fs.readFileSync(path.join(root, paths.shot)),
         });
         const winner = answer.ours ? 'ours' : 'theirs';
         say(`gate judge ${piece}: ${s.name}: ${winner} (asserted: ${answer.why})`);
         judged.push({
           name: s.name,
-          ours: shot,
+          ours: paths.shot,
           // No opponent shot, and `null` rather than the lit one: the second shot is ours as well,
           // and a round that named it `theirs` would have the progress page caption our own window
           // as somebody else's. It is kept under its own key, because the measurement is only
           // checkable by someone holding both frames it was taken from.
           theirs: null,
-          lit,
+          lit: paths.lit,
           assert: { ...s.assert, held: answer.ours },
           winner,
           margin: 'asserted',
@@ -665,50 +768,69 @@ async function judge(root, piece, note, summaryFile, settingsFile) {
       }
 
       // What the critic is shown. For a Parity oracle state that is the two whole windows, as it
-      // has always been. For a Design oracle state it is the two rectangles, cut here: the windows
-      // are 3024 x 1898 and 2880 x 1800, so whole against whole would put a critic on the two
-      // apps' chrome rather than on the row the state is about (ADR 0015). The whole shot of ours
-      // stays on disk beside its crop — it is the evidence the crop was cut from.
-      const cut = cropping.get(s.name);
-      let ours = shot;
-      let theirs = path.join('shots/oracle', piece, `${s.name}.png`);
-      if (cut) {
-        ours = path.join('shots', piece, `r${number}-${s.name}-ours-crop.png`);
-        theirs = path.join('shots', piece, `r${number}-${s.name}-theirs-crop.png`);
-        fs.writeFileSync(path.join(root, ours), cropPng(fs.readFileSync(path.join(root, shot)), cut.ours));
-        fs.writeFileSync(path.join(root, theirs), cropPng(fs.readFileSync(path.join(root, cut.capture)), cut.crop));
-        say(`gate judge ${piece}: ${s.name} cropped to ${cut.crop[2]}x${cut.crop[3]} against ${cut.capture}`);
-      }
-
-      const paired = pair(piece, s.name, ours, theirs);
-      say(`gate judge ${piece}: ${s.name} paired at ${paired.dir}, asking a critic`);
-      const answer = await runCritic(criticPrompt(template, { title: brief.title, judge: brief.judge }), paired.A, paired.B);
-
-      // Revealed here, after the critic has answered and from a file the critic could not reach.
-      const key = reveal(piece, s.name);
-      const winner = answer.pick === key.ours ? 'ours' : 'theirs';
-      say(`gate judge ${piece}: ${s.name}: ${winner} (${answer.margin})`);
-      judged.push({
+      // has always been. For a Design oracle state it is the two rectangles, cut by `shootState`:
+      // the windows are 3024 x 1898 and 2880 x 1800, so whole against whole would put a critic on
+      // the two apps' chrome rather than on the row the state is about (ADR 0015). The whole shot
+      // of ours stays on disk beside its crop — it is the evidence the crop was cut from.
+      const entry = {
         name: s.name,
         ours,
         theirs,
         // Which capture the crop came out of and both rectangles, so a round says what a critic
         // was shown without anyone having to re-derive it from states.json as it reads today.
-        ...(cut ? { opponent: { capture: cut.capture, crop: cut.crop, ours: cut.ours }, oursWhole: shot } : {}),
-        blind: pairDir(piece, s.name),
-        oursWas: key.ours,
-        pick: answer.pick,
-        winner,
-        margin: answer.margin,
-        sameViewport: answer.sameViewport,
-        gap: key.ours === 'A' ? answer.gapA : answer.gapB,
-        gapTheirs: key.ours === 'A' ? answer.gapB : answer.gapA,
-        verdict: answer.verdict,
-        secondary: answer.secondary,
-      });
+        ...(cut ? { opponent: { capture: cut.capture, crop: cut.crop, ours: cut.ours }, oursWhole: paths.shot } : {}),
+      };
+
+      // The same bytes on both sides as the latest round that judged this state: that round's
+      // verdict stands, and the critic it spent is not spent again (the header says why). The
+      // verdict's own keys are copied whole — pick, gaps, the letters — and `carried` names the
+      // round a reader goes to for the critic's reasoning.
+      const prior = fresh ? null : carriedFrom(root, recorded, s.name, ours, theirs);
+      if (prior) {
+        say(`gate judge ${piece}: ${s.name}: ${prior.state.winner} (${prior.state.margin}, carried from round ${prior.round}: the same pixels on both sides)`);
+        const verdictKeys = Object.fromEntries(VERDICT_KEYS.map((k) => [k, prior.state[k]]));
+        judged.push({ ...entry, ...verdictKeys, carried: prior.round });
+        continue;
+      }
+
+      const paired = pair(piece, s.name, ours, theirs);
+      say(`gate judge ${piece}: ${s.name} paired at ${paired.dir}`);
+      const slot = { ...entry, blind: pairDir(piece, s.name) };
+      judged.push(slot);
+      pairs.push({ slot, A: paired.A, B: paired.B });
     }
   } finally {
     stage.close();
+  }
+
+  // Every critic at once, after the stage has closed (the header says why). A critic that gave no
+  // answer names itself, and the run refuses rather than write a round with a hole in it — after
+  // the others have finished, so no session is left running unowned in the background.
+  if (pairs.length) say(`gate judge ${piece}: asking ${pairs.length} critic${pairs.length === 1 ? '' : 's'} at once about ${pairs.map((p) => p.slot.name).join(', ')}`);
+  const prompt = criticPrompt(template, { title: brief.title, judge: brief.judge });
+  const answers = await Promise.allSettled(pairs.map((p) => runCritic(prompt, p.A, p.B)));
+  const unanswered = pairs.filter((_, i) => answers[i].status === 'rejected');
+  if (unanswered.length) {
+    for (const [i, p] of pairs.entries()) if (answers[i].status === 'rejected') say(`gate judge ${piece}: ${p.slot.name}: ${answers[i].reason.message}`);
+    return refuse(piece, `${unanswered.length} of ${pairs.length} critics gave no answer`);
+  }
+  for (const [i, { slot }] of pairs.entries()) {
+    const answer = answers[i].value;
+    // Revealed here, after the critic has answered and from a file the critic could not reach.
+    const key = reveal(piece, slot.name);
+    const winner = answer.pick === key.ours ? 'ours' : 'theirs';
+    say(`gate judge ${piece}: ${slot.name}: ${winner} (${answer.margin})`);
+    Object.assign(slot, {
+      oursWas: key.ours,
+      pick: answer.pick,
+      winner,
+      margin: answer.margin,
+      sameViewport: answer.sameViewport,
+      gap: key.ours === 'A' ? answer.gapA : answer.gapB,
+      gapTheirs: key.ours === 'A' ? answer.gapB : answer.gapA,
+      verdict: answer.verdict,
+      secondary: answer.secondary,
+    });
   }
 
   // Where the other side of every pair came from, in one sentence per opponent the round used.
