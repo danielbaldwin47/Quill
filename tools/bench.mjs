@@ -35,7 +35,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
-  BUDGET, ORACLE, allSummary, measure, regimeLine, summary, verdict, writeGaps,
+  BUDGET, NOT_SCORED, ORACLE, allSummary, measure, regimeLine, scoredRow, summary, verdict, writeGaps,
 } from './bench-join.mjs';
 import { gitHead } from './fingerprint.mjs';
 import {
@@ -421,13 +421,16 @@ async function benchOne(root, stage, { regime, keys, sessions, warmup, panel }) 
   const decided = measure(sent, seen, runs.reduce((a, r) => a + r.planned, 0));
   const colds = runs.map((r) => r.cold).filter((c) => c != null);
   const cold = colds.length ? Math.max(...colds) : null;
-  const said = verdict(decided.uinput_write_to_presented_ms, cold);
+  const scored = regime.scored !== false;
+  const said = verdict(decided.uinput_write_to_presented_ms, cold, scored);
 
   const result = {
     // First in the file, and in the file at all rather than only in the line the run printed,
     // because a result outlives the terminal it was printed in: whoever opens this in six months
-    // meets "not a Gate condition" before they meet a mean.
+    // meets "not a Gate condition" before they meet a mean. The same for a regime that is recorded
+    // and not scored: its `verdict.pass` is null, and the reason is the first thing in the file.
     ...(panel ? { informational: PANEL_IS_INFORMATIONAL, panel } : {}),
+    ...(scored ? {} : { not_scored: NOT_SCORED }),
     regime: regime.name,
     definition: {
       mix: regime.mix, where: regime.where, pace_ms: regime.pace, focus: regime.focus,
@@ -567,10 +570,11 @@ function oneSaid(one) {
       : `not every keystroke is accounted for; the numbers are in ${one.file}`);
   }
   for (const line of summary(one.regime, one.reported)) console.log(line);
-  // 1 is "this missed the budget", and the panel is not held to the budget. A panel run that
-  // measured every key it sent has done the whole of what it was asked, so it exits 0 whatever the
-  // numbers are; the only way it fails is the accounting above, which is not about speed.
-  return one.reported.panel || one.said.pass ? 0 : 1;
+  // 1 is "this missed the budget", and neither the panel nor an unscored regime is held to the
+  // budget. A run of either that measured every key it sent has done the whole of what it was
+  // asked, so it exits 0 whatever the numbers are; the only way it fails is the accounting above,
+  // which is not about speed.
+  return one.reported.panel || !scoredRow(one.said) || one.said.pass ? 0 : 1;
 }
 
 /// What a run of several regimes prints, and the code it exits with.
@@ -589,7 +593,10 @@ function manySaid(root, { ran, chosen, done, warmup, panel }) {
   // A regime that never ran is not a regime that passed. The run is short, and the summary says so
   // by name rather than by a count the reader has to do themselves.
   const missing = chosen.slice(done.length).map((r) => r.name);
+  // Every regime accounts for its keys, scored or not: an unscored regime is recorded, and a record
+  // over whichever keys survived is not one.
   const unaccounted = rows.filter((r) => !r.every_keystroke_accounted_for).map((r) => r.regime);
+  const cleared = (r) => !scoredRow(r) || r.pass;
 
   // Written before anything is printed, and holding the printed lines themselves, because the file
   // is the run's own record of what it said: `tools/gate judge latency` reads it rather than
@@ -612,10 +619,13 @@ function manySaid(root, { ran, chosen, done, warmup, panel }) {
     regimes: rows,
     regimes_not_run: missing,
     regimes_unaccounted_for: unaccounted,
+    // Recorded and not held to the budget, `NOT_SCORED`; their rows carry `scored: false` and a
+    // null `pass`, and `pass` below is over the others.
+    regimes_not_scored: rows.filter((r) => !scoredRow(r)).map((r) => r.regime),
     stage_first_client_ms: warmup,
     // Null rather than a boolean for a panel run: `pass` here means "cleared the Gate's budget",
     // and these numbers were not taken where that budget applies. There is no answer to give.
-    pass: panel ? null : whole && rows.every((r) => r.pass),
+    pass: panel ? null : whole && rows.every(cleared),
     ...(panel ? { informational: PANEL_IS_INFORMATIONAL, panel } : {}),
     lines,
     build: {
@@ -633,7 +643,7 @@ function manySaid(root, { ran, chosen, done, warmup, panel }) {
       ? `${missing.join(', ')} never ran; ${file} records how far the run got`
       : `not every keystroke is accounted for in ${unaccounted.join(', ')}; the numbers are in ${file}`);
   }
-  return rows.every((r) => r.pass) ? 0 : 1;
+  return rows.every(cleared) ? 0 : 1;
 }
 
 async function main(argv) {
