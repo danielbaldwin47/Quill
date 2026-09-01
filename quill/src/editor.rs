@@ -114,12 +114,17 @@ const SCROLL_FRAMES: u32 = 8;
 /// change moves together: they left at the same frame and they arrive at the
 /// same one, and a writer reading a page whose sentences arrived at slightly
 /// different moments would be reading a page that shimmers.
+/// `pub` because it is a field of the `pub` state struct the subclass macro
+/// generates, and a narrower visibility is a `private_interfaces` warning; the
+/// module it lives in is private, so nothing outside this file can name it.
 pub struct Fade {
     /// The frame it started in, on the frame clock's clock ([`Editor::now`]).
+    ///
+    /// How long it runs is not held beside it: a fade that is running at all
+    /// runs for [`theme::FADE_MS`], because the only other length
+    /// [`theme::fade_ms`] answers with is no fade, and
+    /// [`Editor::begin_fade`] turns that away before there is anything to hold.
     started: i64,
-    /// How long it runs, in milliseconds
-    /// ([`quill_engine::theme::fade_ms`]).
-    length: u32,
     /// The lines it is moving, so that a fade cut short can be settled by
     /// drawing them again rather than by guessing what colour they were on
     /// their way to.
@@ -163,12 +168,12 @@ fn faded(
     let mut runs = Vec::new();
     for now in after {
         for was in before {
-            let at = now.at.start.max(was.at.start)..now.at.end.min(was.at.end);
-            if at.start >= at.end || was.paint.colour == now.paint.colour {
+            let both = now.at.start.max(was.at.start)..now.at.end.min(was.at.end);
+            if both.start >= both.end || was.paint.colour == now.paint.colour {
                 continue;
             }
             runs.push(FadeRun {
-                at: offsets(&at),
+                at: offsets(&both),
                 from: was.paint.colour,
                 to: now.paint.colour,
                 shown: now.paint.colour,
@@ -184,7 +189,7 @@ fn faded(
 /// A frame that arrives before the one the fade started in — which a clock
 /// stepped by hand can hand out — is nothing elapsed rather than a fade run
 /// backwards.
-fn elapsed_ms(started: i64, now: i64) -> u32 {
+fn millis_since(started: i64, now: i64) -> u32 {
     u32::try_from((now - started).max(0) / 1_000).unwrap_or(u32::MAX)
 }
 
@@ -231,10 +236,8 @@ mod imp {
         /// cost a row measured again.
         pub pitch: Cell<u32>,
         /// How much Focus leaves lit, held here for the same reason as the
-        /// ground: it is read at every draw, and it is the value the
-        /// [`Settings`] pair becomes ([`focus::Focus::of`]).
-        ///
-        /// [`Settings`]: quill_engine::settings::Settings
+        /// ground: it is read at every draw, and it is the value the pair the
+        /// session holds becomes ([`focus::Focus::at`]).
         pub focus: Cell<Focus>,
         /// What Focus lit when the tiers were last worked out, so that the
         /// next caret move can be told which lines changed and redraw only
@@ -588,16 +591,28 @@ impl Editor {
             return;
         }
         self.settle_fade(document);
+        self.redraw(document, &moved);
+        self.begin_fade(document, &before, &moved);
+    }
+
+    /// Draws each of `lines` again in the tiers the Editor now holds, inside
+    /// one `freeze_notify`.
+    ///
+    /// The one way a stretch of this Editor is drawn again, so that the caret's
+    /// feed, the edit's feed and a cross-fade being settled all put the same
+    /// page on the screen. Batched because applying a tag emits the buffer's
+    /// `notify::` and nothing else: the handlers that splice the engine's copy
+    /// of the text are not listening for any of this, and the text has not
+    /// moved for them to hear about.
+    fn redraw(&self, document: &Document, lines: &[Range<usize>]) {
         let tiers = self.imp().tiers.borrow();
         let painting = self.painting(&tiers);
         let buffer = self.buffer();
         let batch = buffer.freeze_notify();
-        for lines in &moved {
-            tags::retag(&buffer, document, painting, lines);
+        for at in lines {
+            tags::retag(&buffer, document, painting, at);
         }
         drop(batch);
-        drop(tiers);
-        self.begin_fade(document, &before, &moved);
     }
 
     /// Moves this Editor's own painting to `scheme`'s ground.
@@ -850,14 +865,8 @@ impl Editor {
         // next keystroke and then arrive, rather than a stretch of an earlier
         // sentence left stranded half-way between the two tiers.
         self.settle_fade(document);
-        let tiers = self.imp().tiers.borrow();
-        let painting = self.painting(&tiers);
-        let buffer = self.buffer();
-        tags::retag(&buffer, document, painting, lines);
-        for at in &moved {
-            tags::retag(&buffer, document, painting, at);
-        }
-        drop(tiers);
+        self.redraw(document, std::slice::from_ref(lines));
+        self.redraw(document, &moved);
         self.begin_fade(document, &before, &moved);
     }
 
@@ -912,8 +921,7 @@ impl Editor {
     /// already right, and the fade is only holding the old colour on top of it
     /// for [`quill_engine::theme::FADE_MS`].
     fn begin_fade(&self, document: &Document, before: &[LineTiers], moved: &[Range<usize>]) {
-        let length = self.fade_length();
-        if length == 0 || moved.is_empty() {
+        if self.fade_length() == 0 || moved.is_empty() {
             return;
         }
         let focus = self.imp().focus.get();
@@ -937,7 +945,6 @@ impl Editor {
         }
         self.imp().fade.replace(Some(Fade {
             started: self.now(),
-            length,
             lines: moved.to_vec(),
             runs,
         }));
@@ -957,14 +964,7 @@ impl Editor {
         let Some(fade) = self.imp().fade.take() else {
             return;
         };
-        let tiers = self.imp().tiers.borrow();
-        let painting = self.painting(&tiers);
-        let buffer = self.buffer();
-        let batch = buffer.freeze_notify();
-        for lines in &fade.lines {
-            tags::retag(&buffer, document, painting, lines);
-        }
-        drop(batch);
+        self.redraw(document, &fade.lines);
     }
 
     /// Attaches the cross-fade's frame-clock callback, if it is not already
@@ -1001,8 +1001,8 @@ impl Editor {
         let Some(fade) = slot.as_mut() else {
             return false;
         };
-        let elapsed = elapsed_ms(fade.started, now);
-        let arrived = elapsed >= fade.length;
+        let elapsed = millis_since(fade.started, now);
+        let arrived = elapsed >= theme::FADE_MS;
         let buffer = self.buffer();
         let batch = buffer.freeze_notify();
         for run in &mut fade.runs {

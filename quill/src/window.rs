@@ -292,6 +292,7 @@ impl Window {
             return;
         };
         session.toggle_typewriter();
+        session.store_settings();
     }
 
     /// Moves Focus the way `move_it` says, and puts the answer on every window.
@@ -305,6 +306,10 @@ impl Window {
             return;
         };
         let focus = move_it(&session);
+        // Written as the key is pressed rather than only on the way out, so a
+        // session that never gets to shut down cleanly still leaves the writer
+        // reading the way they chose to read.
+        session.store_settings();
         let Some(app) = self.application() else {
             return;
         };

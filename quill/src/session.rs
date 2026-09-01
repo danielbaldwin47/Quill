@@ -178,11 +178,7 @@ impl Session {
     /// one was pressed opens the way the writer is reading rather than the way
     /// they started.
     pub fn focus(&self) -> Focus {
-        if self.focus.get() {
-            Focus::On(self.focus_scope.get())
-        } else {
-            Focus::Off
-        }
+        Focus::at(self.focus.get(), self.focus_scope.get())
     }
 
     /// Switches Focus off, or back on at the scope it left. ADR 0006's
@@ -349,17 +345,24 @@ impl Session {
     /// file that cannot be written is one line on stderr, like every other file
     /// here.
     ///
-    /// The write is at the end of the launch rather than at each key, which is
-    /// what "remembered across launches" asks for and what the ground and the
-    /// size already do: a writer pressing `Ctrl+D` twice a minute is not a
-    /// writer asking for their config file to be rewritten twice a minute.
+    /// Called both as a key is pressed and once on the way out, and safe to
+    /// call either way round: a launch that has already written what it changed
+    /// finds nothing left to write, and a launch killed between the two has
+    /// left the writer's choice in the file rather than in a process that is
+    /// gone. The harness is turned away here rather than by the caller, because
+    /// there is now more than one caller and only one of them is shutdown.
     ///
     /// Every key is compared against what was read rather than against a
     /// default, so a writer who toggles the ground twice leaves the file
     /// exactly as they found it — `auto` included, which no toggle can reach
     /// and no write should quietly replace, and the Typewriter anchor with it,
     /// which nothing but the file itself can move.
-    fn store_settings(&self) {
+    pub fn store_settings(&self) {
+        if self.harness {
+            // The flags a launch of the harness's carries are this launch's
+            // alone and have no business in the writer's file.
+            return;
+        }
         let Some(settings) = self.stored() else {
             return;
         };
@@ -646,13 +649,15 @@ mod tests {
         session.toggle_focus();
         session.swap_focus_scope();
         session.toggle_typewriter();
-        let stored = session.stored().expect("three keys moved three values");
-        assert!(stored.focus);
-        assert_eq!(stored.focus_scope, FocusScope::Paragraph);
-        assert!(stored.typewriter);
-        assert!(
-            (stored.typewriter_anchor - session.settings().typewriter_anchor).abs() < f64::EPSILON,
-            "the anchor is the file's own and no key moves it"
+        let mut expected = session.settings().clone();
+        expected.focus = true;
+        expected.focus_scope = FocusScope::Paragraph;
+        expected.typewriter = true;
+        assert_eq!(
+            session.stored().expect("three keys moved three values"),
+            expected,
+            "the three the keys moved, and every other key exactly as it was \
+             read — the anchor included, which no key can reach"
         );
 
         session.toggle_typewriter();

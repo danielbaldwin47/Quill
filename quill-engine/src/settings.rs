@@ -631,10 +631,7 @@ mod tests {
         };
         let (read, notes) = Settings::parse(&settings.to_toml());
         assert!(notes.is_empty(), "{notes:?}");
-        assert!(read.focus);
-        assert_eq!(read.focus_scope, FocusScope::Paragraph);
-        assert!(read.typewriter);
-        assert!((read.typewriter_anchor - 0.35).abs() < f64::EPSILON);
+        assert_eq!(read, settings);
     }
 
     /// An anchor outside the viewport is refused and the default stands, with
@@ -643,8 +640,8 @@ mod tests {
     /// Refused rather than clamped: `1.7` of the way down a window is not a
     /// place, and a writer who typed it meant something the app cannot do, so
     /// it says so once and holds the half-way anchor rather than silently
-    /// reading their `1.7` as the bottom edge. #40 called this "clamped" and
-    /// the reader's rule is what stands.
+    /// reading their `1.7` as the bottom edge. #40 § Further Notes corrected
+    /// itself to this on 2026-08-29, and the reader had it already.
     #[test]
     fn an_anchor_outside_the_viewport_is_refused_and_the_default_stands() {
         let (settings, notes) = Settings::parse("typewriter_anchor = 1.7\n");

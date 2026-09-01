@@ -185,7 +185,7 @@ impl Colour {
     /// [`FADE_MS`] it is `to`, and at half it is the midpoint. Past the
     /// duration it holds at `to`, so a tick that overshoots the last frame
     /// lands on the target rather than beyond it. The cross-fade the dim makes
-    /// as Focus moves, `legacy/app/css/focus.css:19` (`--focus-fade: 130ms`).
+    /// as Focus moves; how long that is, is [`FADE_MS`].
     #[must_use]
     pub fn fade(from: Self, to: Self, elapsed_ms: u32) -> Self {
         let amount = f64::from(elapsed_ms.min(FADE_MS)) / f64::from(FADE_MS);
