@@ -21,6 +21,6 @@
 563..566 Marker 255 Regular Upright Page
 566..612 Prose 255 Regular Upright Page
 612..615 Marker 255 Regular Upright Page
-632..633 Marker 255 Regular Upright Page
-633..650 Link 255 Regular Upright Page
-650..685 Marker 255 Regular Upright Page
+632..633 Link 255 Regular Upright Page
+633..650 Prose 255 Regular Upright Page
+650..685 Link 255 Regular Upright Page

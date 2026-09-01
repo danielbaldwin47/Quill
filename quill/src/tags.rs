@@ -42,13 +42,6 @@ use quill_engine::typography;
 
 use crate::editor::INK_WEIGHT;
 
-/// How opaque a link's underline is: `color-mix(… var(--md-link) 35%,
-/// transparent)` of `legacy/app/css/markup.css`.
-///
-/// A hairline the eye reads as belonging to the words above it rather than as a
-/// second mark competing with them.
-const UNDERLINE_ALPHA: u8 = 89;
-
 /// The weight a heading or a strong is set at: `.md-h`, `.md-strong { font-
 /// weight: 700 }` of `legacy/app/css/markup.css`.
 ///
@@ -199,16 +192,24 @@ fn code_ground(buffer: &gtk::TextBuffer, scheme: Scheme) -> gtk::TextTag {
     ground
 }
 
-/// The tag that underlines a link's words.
+/// The tag that underlines a link's destination.
 ///
 /// A decoration, layered over the runs rather than resolved into them:
 /// underline and colour are different properties, so the overlap is safe
 /// (`docs/architecture.md` § Annotators).
+///
+/// [`Role::LinkRule`] rather than the link colour at an opacity, because the
+/// Design oracle draws the hairline the same under a full-ink URL as under a
+/// quieted one — it is its own ink, not a tint of the text above it (#198,
+/// `VERDICTS.md` § Found here: the link's ink and the code ground).
 fn underline(buffer: &gtk::TextBuffer, scheme: Scheme) -> gtk::TextTag {
     let underline = tag(buffer, "decoration-underline", |tag| {
         tag.set_underline(pango::Underline::Single);
     });
-    underline.set_underline_rgba(Some(&shaded(&hex(scheme, Ink::Link), UNDERLINE_ALPHA)));
+    underline.set_underline_rgba(Some(&shaded(
+        &Colours::of(scheme).colour(Role::LinkRule).to_hex(),
+        u8::MAX,
+    )));
     underline
 }
 
@@ -379,12 +380,6 @@ fn draw(
         if on == Ground::Code {
             buffer.apply_tag(&ground(buffer, scheme), &from, &to);
         }
-        // The one decoration that reads off the run rather than off a mark: a
-        // link's words are exactly the bytes that came out in the link colour,
-        // whether they were bracketed or written bare as an autolink.
-        if ink == Ink::Link {
-            buffer.apply_tag(&underline(buffer, scheme), &from, &to);
-        }
     }
     for span in document.spans_in(at) {
         if span.at.end <= at.start {
@@ -399,6 +394,15 @@ fn draw(
                 let from = iter_at(buffer, document, span.at.start);
                 let to = iter_at(buffer, document, span.at.end);
                 buffer.apply_tag(&struck(buffer), &from, &to);
+            }
+            // The rule goes under the URL and nothing else: not the words that
+            // stand for it, and not the brackets around them. The Design
+            // oracle draws it that way (#198), and the mark says exactly which
+            // bytes are the destination.
+            Mark::Url => {
+                let from = iter_at(buffer, document, span.at.start);
+                let to = iter_at(buffer, document, span.at.end);
+                buffer.apply_tag(&underline(buffer, scheme), &from, &to);
             }
             _ => {}
         }
@@ -431,18 +435,19 @@ fn paragraph(buffer: &gtk::TextBuffer, document: &Document, span: &Span, tag: &g
 /// Nothing here holds a colour of its own, which is why
 /// `grep -n '#[0-9a-f]\{6\}' quill/src` comes back empty.
 ///
-/// Every marker holds the full grey, which is a step short of the oracle, and
-/// short of it in a wider way than a marker grey looks. `markup.css` quiets
-/// more than inline punctuation: a heading's `#`s (`.md-hmark`), a quote's `>`
-/// (`.md-quote-mark`), fences, code marks and URLs all take `--md-quiet`,
-/// resting at `--md-mark-quiet` — 72 % of the grey over the page — while
-/// bullets, task boxes and a fence's info string keep the full grey and a
-/// thematic break drops again to `--md-hair`, 34 % of it. Only the lift of the
-/// caret's own line back to the full grey is #40's (`markup.css:39`,
-/// `.line.md-here { --md-quiet: var(--mark) }`). The resting ladder is the
-/// markup Piece's, and it wants its own ticket rather than a line here: it is
-/// three greys across a dozen marks, and the blind critic reads the oracle's
-/// own two-tone as inconsistency as often as it reads ours as too loud.
+/// Every marker holds the body's own ink, and that is the whole ladder. #198
+/// shot the Design oracle at every mark kind on both grounds and found no
+/// resting marker grey: `markup.css`'s three tiers — `--md-mark-quiet` at 72 %
+/// for a heading's `#`s, a quote's `>`, fences, code marks and URLs, the full
+/// grey for bullets, task boxes and a fence's info string, `--md-hair` at 34 %
+/// for a thematic break — have no counterpart in the app the port is measured
+/// against, which rests all three at the ink. The ladder was the Parity
+/// oracle's, and ADR 0015 is why it was measured before it was ported.
+///
+/// So [`Ink::Marker`] and [`Ink::Prose`] answer with the same hex on both
+/// built-in grounds, and the two stay separate roles for the writer whose
+/// `palette` file sets them apart. What is quieter than the prose is a link's
+/// plumbing, which is [`Ink::Link`].
 fn hex(scheme: Scheme, ink: Ink) -> String {
     let role = match ink {
         Ink::Prose => Role::Ink,
@@ -651,16 +656,18 @@ mod tests {
     }
 
     /// The three inks are three roles of the table, on whichever ground is
-    /// asked for, and no two of them are alike on either.
+    /// asked for.
     ///
-    /// Two grounds rather than one: an ink that came out the same on both
-    /// would be a role read off the wrong row, and a marker that came out as
-    /// the prose would be a Markup nobody can see. The values themselves are
-    /// the engine's to assert (`theme.rs` § `ORACLE`); what is checked here is
-    /// that this module reaches the right three and reads them off the ground
-    /// it was handed.
+    /// Two grounds rather than one: an ink that came out the same on both would
+    /// be a role read off the wrong row. What is *not* asserted here any more
+    /// is that the marker differs from the prose — the Design oracle rests
+    /// every mark kind at the body's ink (#198), so on the built-in grounds the
+    /// two are one colour and the mapping is what keeps them separable. The
+    /// values themselves are the engine's to assert (`theme.rs` § `ORACLE`);
+    /// what is checked here is that this module reaches the right three roles
+    /// and reads them off the ground it was handed.
     #[test]
-    fn the_three_inks_are_three_roles_of_the_ground_and_no_two_are_alike() {
+    fn the_three_inks_are_three_roles_of_the_ground() {
         for scheme in [Scheme::Light, Scheme::Dark] {
             let colours = Colours::of(scheme);
             assert_eq!(
@@ -682,11 +689,18 @@ mod tests {
             hex(Scheme::Dark, Ink::Prose),
             "the two grounds are not the same ink"
         );
-        assert_ne!(
-            hex(Scheme::Dark, Ink::Prose),
-            hex(Scheme::Dark, Ink::Marker),
-            "a marker the colour of the prose is no marker"
-        );
+        for scheme in [Scheme::Light, Scheme::Dark] {
+            assert_eq!(
+                hex(scheme, Ink::Prose),
+                hex(scheme, Ink::Marker),
+                "{scheme:?} rests its markers at the prose's ink"
+            );
+            assert_ne!(
+                hex(scheme, Ink::Prose),
+                hex(scheme, Ink::Link),
+                "{scheme:?} quiets a link's plumbing below the prose"
+            );
+        }
     }
 
     /// The code well is opaque by the time GTK sees it, and it is a different

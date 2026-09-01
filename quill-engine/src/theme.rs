@@ -1,14 +1,24 @@
 //! The two designed grounds: the colour table, and the rule that picks a ground.
 //!
-//! Six roles are the **Design oracle**'s, measured off iA Writer for Mac
-//! (`ref/ia/mac-native/VERDICTS.md` 4.2.1–4.2.11) and carried by
-//! [`docs/design.md`](../../../docs/design.md) rows Paper · ink · dim, Accent,
-//! Active fill and Idle fill: paper, ink, the dimmed grey, the accent and the
-//! selection's two fills. The other seven — the marker grey, the link, the code
-//! ground, the rule, the shadow and the chrome's two texts — are the Parity
-//! oracle's, role for role out of `legacy/app/css/theme.css`, until they are
-//! measured in their turn (4.2.13–4.2.15 are still unknown), which is the split
-//! `design.md` § The palette is a file states.
+//! Ten roles are the **Design oracle**'s, measured off iA Writer for Mac
+//! (`ref/ia/mac-native/VERDICTS.md` 4.2.1–4.2.13 and § Marker ink) and carried
+//! by [`docs/design.md`](../../../docs/design.md) rows Paper · ink · dim,
+//! Accent, Active fill, Idle fill, Markers and Link: paper, ink, the dimmed
+//! grey, the accent, the selection's two fills, the markers, the link's two
+//! greys and the code ground. The other four — the rule, the shadow and the
+//! chrome's two texts — are the Parity oracle's, role for role out of
+//! `legacy/app/css/theme.css`, until they are measured in their turn
+//! (4.2.14–4.2.15 are still unknown), which is the split `design.md` § The
+//! palette is a file states.
+//!
+//! The markers are the ink. #198 shot iA Writer at every mark kind on both
+//! grounds and found no resting marker grey at all: a heading's `#`, a quote's
+//! `>`, a bullet, an ordered marker, a task box, a thematic break, a fence and
+//! its info string, the inline-code marks, the emphasis runs and a bare URL all
+//! rest at the body's own ink. The Parity oracle's 72 % quiet and 34 % hair
+//! have no counterpart there, so [`Role::Mark`] survives as a role — a writer's
+//! `palette` file still names it, and the app still says which run is a marker
+//! — carrying the ink's value rather than a grey of its own.
 //!
 //! The two grounds are not inversions of each other but two designs: light ink
 //! sits 16.4:1 over paper and dark ink only 10.8:1, because pure white on black
@@ -21,9 +31,9 @@
 //! Nothing here paints. The engine cannot see a display
 //! ([ADR 0008](../../../docs/adr/0008-engine-crate-without-gtk.md)), so a role
 //! resolves to a [`Colour`] and the app turns that into the widget stylesheet
-//! and the tag table. A colour that is a step off another colour — the resting
-//! marker grey — is computed here from [`Colour::over`] rather than written
-//! down twice.
+//! and the tag table. A colour that is a step off the page — the two fills, the
+//! code ground — is an alpha here rather than the grey it flattens to, because
+//! an alpha survives a palette swap where a hex does not.
 
 use crate::settings::{Choice, Theme, choice};
 
@@ -128,9 +138,9 @@ impl Colour {
     /// `fg` laid over `bg` at `amount` coverage.
     ///
     /// `amount` stands in for `fg`'s own opacity and the ground's is what comes
-    /// out, which is how a role is flattened onto the page: `theme.css` gives
-    /// `--code-bg` as `#eeeeee` and `--selection` as `#c2eafa` over light paper
-    /// this way, and the resting marker grey is the marker at 72 % of itself.
+    /// out, which is how a role is flattened onto the page: the code ground and
+    /// the idle selection are both washes, and this is what lands them on the
+    /// greys `docs/design.md` measured over each ground's own paper.
     ///
     /// `bg` is a ground and not a second translucent role — every caller lays a
     /// role on the page — so its opacity passes through rather than being
@@ -217,13 +227,20 @@ pub enum Role {
     Ink,
     /// Text Focus has dimmed.
     InkDim,
-    /// Markdown's syntax markers.
+    /// Markdown's syntax markers. The Design oracle rests every one of them at
+    /// the body's ink, so this is [`Role::Ink`]'s value on both built-in
+    /// grounds; it stays a role of its own because a writer's `palette` file
+    /// may still set the markers apart from the prose.
     Mark,
     /// The caret: the same blue on both grounds, because it is the one
     /// instrument the writer watches.
     Accent,
-    /// Link text.
+    /// A link's plumbing: its `[`, `]`, `(` and `)` and the destination between
+    /// them. The link's *words* are the writer's and take [`Role::Ink`]; this
+    /// is the grey the Design oracle quiets the machinery around them to.
     Link,
+    /// The hairline under a link's words.
+    LinkRule,
     /// The selection.
     Selection,
     /// The selection while the window is not focused.
@@ -248,13 +265,14 @@ impl Role {
     /// arm, so the table stays total either way; this list is the one place
     /// kept by hand, and what a role missing from it costs is the tests below
     /// quietly stopping short of it.
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 14] = [
         Self::Paper,
         Self::Ink,
         Self::InkDim,
         Self::Mark,
         Self::Accent,
         Self::Link,
+        Self::LinkRule,
         Self::Selection,
         Self::SelectionIdle,
         Self::ChromeFg,
@@ -277,6 +295,7 @@ pub struct Colours {
     mark: Colour,
     accent: Colour,
     link: Colour,
+    link_rule: Colour,
     selection: Colour,
     selection_idle: Colour,
     chrome_fg: Colour,
@@ -287,46 +306,51 @@ pub struct Colours {
 }
 
 impl Colours {
-    /// Paper: the Design oracle's six, then `theme.css`'s `:root` for the rest.
+    /// Paper: the Design oracle's ten, then `theme.css`'s `:root` for the rest.
     ///
-    /// The idle fill is the ink at an alpha rather than the grey it flattens
-    /// to, because an alpha survives a palette swap where a hex does not: over
-    /// this paper it lands on the oracle's own `#dcdcdc`, and over a writer's
-    /// paper it lands wherever that paper puts it (`design.md` row Idle fill).
+    /// The idle fill and the code ground are alphas rather than the greys they
+    /// flatten to, because an alpha survives a palette swap where a hex does
+    /// not: over this paper they land on the oracle's own `#dcdcdc` and
+    /// `#eeeeee`, and over a writer's paper they land wherever that paper puts
+    /// them (`design.md` rows Idle fill and Code ground).
     const LIGHT: Self = Self {
         paper: Colour::from_hex("#f7f7f7"),
         ink: Colour::from_hex("#191919"),
         ink_dim: Colour::from_hex("#c6c4c2"),
-        mark: Colour::from_hex("#7a7a7a"),
+        mark: Colour::from_hex("#191919"),
         accent: Colour::from_hex("#00bfff"),
-        link: Colour::from_hex("#0b7cba"),
+        link: Colour::from_hex("#b5b3b0"),
+        link_rule: Colour::from_hex("#d5d3d1"),
         selection: Colour::from_hex("#ccedf8"),
         selection_idle: Colour::rgba(25, 25, 25, 0.122),
         chrome_fg: Colour::from_hex("#8c8c8c"),
         chrome_fg_strong: Colour::from_hex("#4a4a4a"),
-        code_bg: Colour::rgba(0, 0, 0, 0.045),
+        code_bg: Colour::rgba(0, 0, 0, 0.036),
         rule: Colour::rgba(0, 0, 0, 0.10),
         shadow: Colour::rgba(0, 0, 0, 0.18),
     };
 
-    /// The dark ground: the same six measured, then
+    /// The dark ground: the same ten measured, then
     /// `theme.css`'s `:root[data-theme="dark"]`.
     ///
-    /// Three of the six were already the oracle's own numbers — the dark paper,
+    /// Three of the ten were already the oracle's own numbers — the dark paper,
     /// ink and dimmed grey are what `theme.css` set them to and what
-    /// `VERDICTS.md` measured — so only the accent and the two fills move here.
+    /// `VERDICTS.md` measured — and the marker is now the ink, so what moves
+    /// here is the accent, the two fills, the link's two greys and the ground
+    /// under code.
     const DARK: Self = Self {
         paper: Colour::from_hex("#1a1a1a"),
         ink: Colour::from_hex("#cccccc"),
         ink_dim: Colour::from_hex("#707070"),
-        mark: Colour::from_hex("#808080"),
+        mark: Colour::from_hex("#cccccc"),
         accent: Colour::from_hex("#00bfff"),
-        link: Colour::from_hex("#4cc5ff"),
+        link: Colour::from_hex("#7a7a78"),
+        link_rule: Colour::from_hex("#545452"),
         selection: Colour::from_hex("#113d52"),
         selection_idle: Colour::rgba(204, 204, 204, 0.247),
         chrome_fg: Colour::from_hex("#7e7e7e"),
         chrome_fg_strong: Colour::from_hex("#bdbdbd"),
-        code_bg: Colour::rgba(255, 255, 255, 0.06),
+        code_bg: Colour::rgba(255, 255, 255, 0.048),
         rule: Colour::rgba(255, 255, 255, 0.10),
         shadow: Colour::rgba(0, 0, 0, 0.55),
     };
@@ -354,6 +378,7 @@ impl Colours {
             Role::Mark => self.mark,
             Role::Accent => self.accent,
             Role::Link => self.link,
+            Role::LinkRule => self.link_rule,
             Role::Selection => self.selection,
             Role::SelectionIdle => self.selection_idle,
             Role::ChromeFg => self.chrome_fg,
@@ -398,17 +423,20 @@ mod tests {
     /// opaque ones as the hex it writes, the translucent ones as the CSS the
     /// app will emit, which is that `rgba()` with its opacity spelled in full.
     ///
-    /// Six of the rows are `docs/design.md`'s, off the Design oracle, and the
+    /// Ten of the rows are `docs/design.md`'s, off the Design oracle, and the
     /// rest are `legacy/app/css/theme.css`'s; which is which is the module's
     /// header. Every row is written out here rather than derived, because a
-    /// table that computes what it asserts asserts nothing.
-    const ORACLE: [(Scheme, Role, &str); 26] = [
+    /// table that computes what it asserts asserts nothing — including the two
+    /// marker rows, which are the ink's value said a second time rather than a
+    /// reference to it, so that a hand that unpicks the two grounds fails here.
+    const ORACLE: [(Scheme, Role, &str); 28] = [
         (Scheme::Light, Role::Paper, "#f7f7f7"),
         (Scheme::Light, Role::Ink, "#191919"),
         (Scheme::Light, Role::InkDim, "#c6c4c2"),
-        (Scheme::Light, Role::Mark, "#7a7a7a"),
+        (Scheme::Light, Role::Mark, "#191919"),
         (Scheme::Light, Role::Accent, "#00bfff"),
-        (Scheme::Light, Role::Link, "#0b7cba"),
+        (Scheme::Light, Role::Link, "#b5b3b0"),
+        (Scheme::Light, Role::LinkRule, "#d5d3d1"),
         (Scheme::Light, Role::Selection, "#ccedf8"),
         (
             Scheme::Light,
@@ -417,15 +445,16 @@ mod tests {
         ),
         (Scheme::Light, Role::ChromeFg, "#8c8c8c"),
         (Scheme::Light, Role::ChromeFgStrong, "#4a4a4a"),
-        (Scheme::Light, Role::CodeBg, "rgba(0, 0, 0, 0.045)"),
+        (Scheme::Light, Role::CodeBg, "rgba(0, 0, 0, 0.036)"),
         (Scheme::Light, Role::Rule, "rgba(0, 0, 0, 0.1)"),
         (Scheme::Light, Role::Shadow, "rgba(0, 0, 0, 0.18)"),
         (Scheme::Dark, Role::Paper, "#1a1a1a"),
         (Scheme::Dark, Role::Ink, "#cccccc"),
         (Scheme::Dark, Role::InkDim, "#707070"),
-        (Scheme::Dark, Role::Mark, "#808080"),
+        (Scheme::Dark, Role::Mark, "#cccccc"),
         (Scheme::Dark, Role::Accent, "#00bfff"),
-        (Scheme::Dark, Role::Link, "#4cc5ff"),
+        (Scheme::Dark, Role::Link, "#7a7a78"),
+        (Scheme::Dark, Role::LinkRule, "#545452"),
         (Scheme::Dark, Role::Selection, "#113d52"),
         (
             Scheme::Dark,
@@ -434,7 +463,7 @@ mod tests {
         ),
         (Scheme::Dark, Role::ChromeFg, "#7e7e7e"),
         (Scheme::Dark, Role::ChromeFgStrong, "#bdbdbd"),
-        (Scheme::Dark, Role::CodeBg, "rgba(255, 255, 255, 0.06)"),
+        (Scheme::Dark, Role::CodeBg, "rgba(255, 255, 255, 0.048)"),
         (Scheme::Dark, Role::Rule, "rgba(255, 255, 255, 0.1)"),
         (Scheme::Dark, Role::Shadow, "rgba(0, 0, 0, 0.55)"),
     ];
@@ -493,30 +522,36 @@ mod tests {
     /// below are the rule each ground actually holds to; the exact ratios are
     /// asserted beside them so that a colour edited by hand fails here.
     ///
-    /// The light marker now clears its floor by seven thousandths. That is the
-    /// Design oracle's lighter paper (`#f7f7f7`, a shade off `theme.css`'s
-    /// `#f9f9f9`) meeting a marker grey still measured against the old one, so
-    /// the pair is a mixed one until 4.2.13 measures the grey too — and the
-    /// margin is the reason the exact ratio is pinned rather than only the
-    /// floor: the next hand that lightens the paper fails here rather than in
-    /// a critic's verdict.
+    /// The markers ride with the ink and are asserted to, because the Design
+    /// oracle rests every mark kind at the body's own ink (#198): there is no
+    /// marker floor left to clear. What is quieter than the prose is the link's
+    /// plumbing, and the rule it holds to is that it stays *above* the tier
+    /// Focus dims to — a link's destination is quiet, not out of focus — which
+    /// it does on both grounds by a margin narrower on light than on dark.
     #[test]
     fn ink_and_marker_stay_legible_on_both_grounds() {
-        for (scheme, ink_floor, ink_ratio, mark_ratio) in [
-            (Scheme::Light, 12.0, 16.41, 4.01),
-            (Scheme::Dark, 10.5, 10.84, 4.41),
+        for (scheme, ink_floor, ink_ratio, link_ratio, dim_ratio) in [
+            (Scheme::Light, 12.0, 16.41, 1.95, 1.62),
+            (Scheme::Dark, 10.5, 10.84, 4.05, 3.51),
         ] {
             let colours = Colours::of(scheme);
             let paper = colours.colour(Role::Paper);
             let ink = contrast(colours.colour(Role::Ink), paper);
-            let mark = contrast(colours.colour(Role::Mark), paper);
+            let link = contrast(colours.colour(Role::Link), paper);
+            let dim = contrast(colours.colour(Role::InkDim), paper);
             assert!(ink >= ink_floor, "{scheme:?} ink over paper is {ink:.2}:1");
-            assert!(mark >= 4.0, "{scheme:?} mark over paper is {mark:.2}:1");
             assert!((ink - ink_ratio).abs() < 0.01, "{scheme:?} ink {ink:.2}:1");
-            assert!(
-                (mark - mark_ratio).abs() < 0.01,
-                "{scheme:?} mark {mark:.2}:1"
+            assert_eq!(
+                colours.colour(Role::Mark),
+                colours.colour(Role::Ink),
+                "{scheme:?} rests its markers at the ink"
             );
+            assert!(link > dim, "{scheme:?} link {link:.2}:1, dim {dim:.2}:1");
+            assert!(
+                (link - link_ratio).abs() < 0.01,
+                "{scheme:?} link {link:.2}"
+            );
+            assert!((dim - dim_ratio).abs() < 0.01, "{scheme:?} dim {dim:.2}");
         }
     }
 
@@ -541,41 +576,26 @@ mod tests {
         }
     }
 
-    /// A step off a role, which moves when the role does: `#9d9d9d` is what
-    /// the Design oracle's paper makes of the Parity oracle's marker grey at
-    /// the 72 % `markup.css` rests an inline marker at, and is a number nobody
-    /// chose. It was `#9e9e9e` over the paper #110 replaced.
+    /// What the translucent roles flatten to, which is the whole reason they
+    /// are alphas: `docs/design.md` rows Idle fill and Code ground measured
+    /// `#dcdcdc` / `#464646` and `#eeeeee` / `#252525` off the Design oracle,
+    /// and the alphas below are the ones that land each role on exactly those
+    /// greys over each ground's own paper. A hex would have said the same thing
+    /// once and then lied to the first writer who set `palette` to their own
+    /// paper.
     ///
-    /// Nothing paints it yet — the port rests every marker at the full grey,
-    /// which is what `theme/dark` lost round 3 on and what
-    /// [#198](https://github.com/danielbaldwin47/Quill/issues/198) is for. It
-    /// is asserted here because the arithmetic that will paint it is here.
-    #[test]
-    fn the_resting_marker_grey_is_computed_rather_than_written() {
-        let light = Colours::of(Scheme::Light);
-        let resting = Colour::over(light.colour(Role::Mark), light.colour(Role::Paper), 0.72);
-        assert_eq!(resting.to_hex(), "#9d9d9d", "the resting marker grey");
-    }
-
-    /// What the two idle fills flatten to, which is the whole reason they are
-    /// alphas: `docs/design.md` row Idle fill measured `#dcdcdc` light and
-    /// `#464646` dark off the Design oracle, and the alphas below are the ones
-    /// that land the ink on exactly those greys over each ground's own paper.
-    /// A hex would have said the same thing once and then lied to the first
-    /// writer who set `palette` to their own paper.
-    ///
-    /// The code ground comes with them because it is the last translucent role
-    /// the page flattens, and it is the check that [`Colour::over`] composites
-    /// the way a browser does — `theme.css` stated its own light answer,
-    /// `#eeeeee`, and the value here is that same 4.5 % black over the Design
-    /// oracle's slightly lighter paper.
+    /// The code ground's light value is `theme.css`'s own `#eeeeee` and its
+    /// dark one is not: the Parity oracle's 6 % white lands on `#2a2a2a`, and
+    /// the oracle's ground is a shade below it. Both alphas here are the ones
+    /// measured, so this is also the check that [`Colour::over`] composites the
+    /// way a browser does.
     #[test]
     fn a_translucent_role_flattens_onto_the_page_the_way_the_oracle_says() {
         for (scheme, role, flattened) in [
             (Scheme::Light, Role::SelectionIdle, "#dcdcdc"),
             (Scheme::Dark, Role::SelectionIdle, "#464646"),
-            (Scheme::Light, Role::CodeBg, "#ececec"),
-            (Scheme::Dark, Role::CodeBg, "#282828"),
+            (Scheme::Light, Role::CodeBg, "#eeeeee"),
+            (Scheme::Dark, Role::CodeBg, "#252525"),
         ] {
             let colours = Colours::of(scheme);
             let colour = colours.colour(role);
