@@ -71,8 +71,29 @@
       }
     },
     "theme": {
-      "light": {},
-      "dark": { "theme": "dark" }
+      "light": {
+        "text": "ref/ia/mac-native/passage-markup.md",
+        "caret": 0,
+        "nocaret": true,
+        "chrome": "off",
+        "opponent": {
+          "capture": "mac-native-17-light-marks.png",
+          "crop": [654, 553, 600, 380],
+          "ours": [584, 730, 600, 380]
+        }
+      },
+      "dark": {
+        "text": "ref/ia/mac-native/passage-markup.md",
+        "caret": 0,
+        "nocaret": true,
+        "chrome": "off",
+        "theme": "dark",
+        "opponent": {
+          "capture": "mac-native-17-dark-marks.png",
+          "crop": [654, 553, 600, 380],
+          "ours": [584, 730, 600, 380]
+        }
+      }
     },
     "focus": {
       "sentence": { "focus": "sentence", "chrome": "off" },

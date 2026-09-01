@@ -73,14 +73,22 @@ pub enum Mark {
     /// oracle pads the ground with a box-shadow precisely so that no glyph
     /// moves, and a ground that stops at the backticks moves none either.
     Code,
-    /// A link, from its opening bracket to its closing parenthesis. The text
-    /// takes the link colour; the brackets and the destination inside it are
-    /// spanned over the top in the marker grey.
+    /// A link, from its opening bracket to its closing parenthesis. It draws
+    /// nothing itself: the Design oracle sets a link's words in the body's own
+    /// ink, and what it quiets is the machinery around them —
+    /// [`Mark::LinkMark`] and [`Mark::Url`], spanned over the top.
     Link,
     /// An image, `![alt](src)`: a link whose text is the alt text.
     Image,
-    /// A link's destination and title: plumbing, in the marker grey.
+    /// A link's destination and title: plumbing, in the link grey, and
+    /// underlined, because the Design oracle underlines a URL and not the words
+    /// that stand for it.
     Url,
+    /// The `[`, `]`, `(` and `)` of a link or an image — a marker of its own
+    /// rather than [`Mark::Markup`] because a link's punctuation goes quiet
+    /// with its destination while every other marker rests at the body's ink,
+    /// and because it is the one delimiter the oracle leaves un-underlined.
+    LinkMark,
     /// Inline or block HTML: not prose, so it stays in the marker grey.
     Html,
     /// A block quote, from its first `>` to the end of its last line. It draws
@@ -140,9 +148,18 @@ pub enum Mark {
 pub enum Ink {
     /// The ink prose is set in.
     Prose,
-    /// The marker grey.
+    /// The ink Markdown's markers are set in. The Design oracle rests every
+    /// mark kind at the prose's own ink (#198), so on the built-in grounds this
+    /// is the same colour as [`Ink::Prose`]; it stays an ink of its own because
+    /// a writer's `palette` file may set the markers apart.
+    ///
+    /// Two runs that are not markers ride with it and move when it does:
+    /// struck text and inline HTML, both of which took the marker grey for
+    /// being not-prose. Neither is in the measured passage, so both follow the
+    /// markers until a capture says otherwise.
     Marker,
-    /// The link colour.
+    /// The grey a link's plumbing goes quiet in: its `[`, `]`, `(`, `)` and the
+    /// destination between them. Not its words, which are the writer's.
     Link,
 }
 
@@ -382,10 +399,11 @@ pub fn flatten(spans: &[Span]) -> Vec<Run> {
 ///
 /// Each mark sets the properties it is about and leaves the rest as it found
 /// them, which is what makes nesting work: emphasis inside strong sets the
-/// slant and keeps the weight. The one mark that resets is [`Mark::Markup`],
-/// because a marker is grey, upright and at the prose's weight wherever it
-/// sits — `legacy/app/css/markup.css` says it in one line, `.md-mark { color:
-/// var(--mark); font-weight: 400; font-style: normal }`.
+/// slant and keeps the weight. The marks that reset are the delimiters —
+/// [`Mark::Markup`] and its two named kin — because a marker is upright and at
+/// the prose's weight wherever it sits; `legacy/app/css/markup.css` says it in
+/// one line, `.md-mark { color: var(--mark); font-weight: 400; font-style:
+/// normal }`, and only its colour has moved since (#198).
 fn resolve(mark: Mark, under: Look) -> Look {
     match mark {
         // Every marker, inline or block, is the same three properties set the
@@ -424,8 +442,22 @@ fn resolve(mark: Mark, under: Look) -> Look {
             slant: Slant::Italic,
             ..under
         },
-        Mark::Strikethrough | Mark::Url | Mark::Html => Look {
+        Mark::Strikethrough | Mark::Html => Look {
             ink: Ink::Marker,
+            ..under
+        },
+        // A link's plumbing. The destination keeps whatever weight and slant it
+        // sits inside, the way a struck or an HTML run does; the brackets reset
+        // like any other marker, because punctuation is upright and regular
+        // wherever it lands.
+        Mark::Url => Look {
+            ink: Ink::Link,
+            ..under
+        },
+        Mark::LinkMark => Look {
+            ink: Ink::Link,
+            weight: Weight::Regular,
+            slant: Slant::Upright,
             ..under
         },
         // The ground, and with it the ink the oracle sets back to the prose's
@@ -437,10 +469,10 @@ fn resolve(mark: Mark, under: Look) -> Look {
             ground: Ground::Code,
             ..under
         },
-        Mark::Link | Mark::Image => Look {
-            ink: Ink::Link,
-            ..under
-        },
+        // A link draws nothing, the way a quote draws nothing: the words
+        // between its brackets are the writer's, in the writer's ink, and only
+        // its machinery goes quiet.
+        Mark::Link | Mark::Image => under,
     }
 }
 
@@ -699,12 +731,14 @@ fn tag_mark(tag: &Tag<'_>, text: &str, at: &Range<usize>) -> Option<Mark> {
 /// The mark the delimiter bytes of a construct marked `mark` carry.
 ///
 /// Almost always [`Mark::Markup`], because almost every delimiter is drawn the
-/// one way. A quote is the exception the app needs named: its `>`s are the only
-/// markers that repeat down a construct rather than closing it, and a later
-/// ticket dims them by tier.
+/// one way. Two are not: a quote's `>`s are the only markers that repeat down a
+/// construct rather than closing it, and a later ticket dims them by tier; and
+/// a link's brackets go quiet with its destination rather than resting at the
+/// ink every other marker rests at, which is what the Design oracle draws.
 const fn marker_mark(mark: Mark) -> Mark {
     match mark {
         Mark::Quote => Mark::QuoteMarker,
+        Mark::Link | Mark::Image => Mark::LinkMark,
         _ => Mark::Markup,
     }
 }
@@ -1097,9 +1131,15 @@ mod tests {
         }
     }
 
-    /// The marker grey, upright, at the prose's weight: what every marker is.
+    /// The markers' ink, upright, at the prose's weight: what every marker is.
     const MARKER: Look = Look {
         ink: Ink::Marker,
+        ..Look::PROSE
+    };
+
+    /// A link's plumbing: the quiet grey its brackets and its destination take.
+    const LINK: Look = Look {
+        ink: Ink::Link,
         ..Look::PROSE
     };
 
@@ -1431,10 +1471,10 @@ mod tests {
     /// set to write the file, and read the diff before committing it.
     ///
     /// The file was written from the flattening as it stood before #126 and has
-    /// not moved since. What says the runs are unchanged rather than merely
-    /// self-consistent is that #126 edits no line of [`markup`], [`flatten`],
-    /// [`resolve`] or [`push_run`] — from here on, this file is what would
-    /// catch it if a later ticket did.
+    /// moved once since, in #198: the passage's one link now sets its words in
+    /// the prose's ink and quiets its brackets with its destination, which the
+    /// Design oracle measures and the old runs had the other way round. Every
+    /// other run in the file is byte for byte what it was.
     #[test]
     fn the_oracle_passages_untiered_runs_are_what_they_were() {
         let runs = written(&flatten(&markup(&oracle())));
@@ -1667,7 +1707,7 @@ mod tests {
     }
 
     #[test]
-    fn a_links_text_takes_the_link_colour_and_its_plumbing_the_marker_grey() {
+    fn a_links_words_are_the_writers_ink_and_its_plumbing_goes_quiet() {
         let text = "in [the keeper's book](https://example.org/keepers-book), and\n";
         assert_eq!(
             marked(text),
@@ -1676,26 +1716,21 @@ mod tests {
                     "[the keeper's book](https://example.org/keepers-book)",
                     Mark::Link
                 ),
-                ("[", Mark::Markup),
-                ("](", Mark::Markup),
+                ("[", Mark::LinkMark),
+                ("](", Mark::LinkMark),
                 ("https://example.org/keepers-book", Mark::Url),
-                (")", Mark::Markup),
+                (")", Mark::LinkMark),
             ]
         );
         assert_eq!(
             drawn(text),
             [
-                ("[", MARKER),
-                (
-                    "the keeper's book",
-                    Look {
-                        ink: Ink::Link,
-                        ..Look::PROSE
-                    }
-                ),
-                ("](https://example.org/keepers-book)", MARKER),
+                ("[", LINK),
+                ("the keeper's book", Look::PROSE),
+                ("](https://example.org/keepers-book)", LINK),
             ],
-            "the words are the link; the address is plumbing and stays grey"
+            "the words are the writer's and stay at the prose's ink; the \
+             brackets and the address are plumbing and go quiet"
         );
     }
 
@@ -1705,10 +1740,10 @@ mod tests {
             marked("[ref][r] and [short]\n\n[r]: /x\n"),
             [
                 ("[ref][r]", Mark::Link),
-                ("[", Mark::Markup),
-                ("][", Mark::Markup),
+                ("[", Mark::LinkMark),
+                ("][", Mark::LinkMark),
                 ("r", Mark::Url),
-                ("]", Mark::Markup),
+                ("]", Mark::LinkMark),
                 ("[r]:", Mark::DefinitionLabel),
             ],
             "`[short]` has no definition, so the parser says it is not a link \
@@ -1719,20 +1754,19 @@ mod tests {
         );
     }
 
+    /// An autolink's own text is a URL the writer reads, so it keeps the
+    /// prose's ink; what goes quiet is the angles that make it one, the way a
+    /// bracketed link's brackets do. The Design oracle sets a bare URL in the
+    /// body's ink and underlines it (#198); the underline is a mark of the
+    /// destination and an autolink has none, so ours draws no rule under it.
     #[test]
-    fn an_autolinks_own_text_is_the_link_and_only_the_angles_are_markers() {
+    fn an_autolinks_own_text_is_the_writers_and_only_the_angles_go_quiet() {
         assert_eq!(
             drawn("see <https://example.org> now\n"),
             [
-                ("<", MARKER),
-                (
-                    "https://example.org",
-                    Look {
-                        ink: Ink::Link,
-                        ..Look::PROSE
-                    }
-                ),
-                (">", MARKER),
+                ("<", LINK),
+                ("https://example.org", Look::PROSE),
+                (">", LINK),
             ]
         );
     }
@@ -1743,10 +1777,10 @@ mod tests {
             marked("an ![alt](/pic.png \"t\") image\n"),
             [
                 ("![alt](/pic.png \"t\")", Mark::Image),
-                ("![", Mark::Markup),
-                ("](", Mark::Markup),
+                ("![", Mark::LinkMark),
+                ("](", Mark::LinkMark),
                 ("/pic.png \"t\"", Mark::Url),
-                (")", Mark::Markup),
+                (")", Mark::LinkMark),
             ],
             "the title travels with the destination: both are plumbing"
         );
@@ -2048,9 +2082,9 @@ mod tests {
                 Mark::Link,
             ),
             ("https://example.org/keepers-book", Mark::Url),
-            ("[", Mark::Markup),
-            ("](", Mark::Markup),
-            (")", Mark::Markup),
+            ("[", Mark::LinkMark),
+            ("](", Mark::LinkMark),
+            (")", Mark::LinkMark),
             ("> ", Mark::QuoteMarker),
             ("- ", Mark::BulletMarker),
             ("1. ", Mark::OrderedMarker),

@@ -29,9 +29,10 @@ Nothing here changes the spec. The evidence is put where a spec change can be ar
 
 **Every number below is in device pixels at scale 2.0.** Divide by two for logical points.
 
-Two states need markup `ref/sample.md` does not contain, so they use passages kept beside this file:
-[`passage-blocks.md`](passage-blocks.md) (heading, blockquote, list, emphasis) for states 9 and 14,
-and [`passage-markers.md`](passage-markers.md) (all six heading levels) for the gutter ladder.
+Three states need markup `ref/sample.md` does not contain, so they use passages kept beside this
+file: [`passage-blocks.md`](passage-blocks.md) (heading, blockquote, list, emphasis) for states 9
+and 14, [`passage-markers.md`](passage-markers.md) (all six heading levels) for the gutter ladder,
+and [`passage-markup.md`](passage-markup.md) (every mark kind at once) for state 17.
 
 ### How things were measured
 
@@ -48,6 +49,15 @@ The Linux rig's vocabulary is kept so the two evidence sets compare
   -l <windowid>` returns a black frame for an occluded window on this macOS, so it cannot be used.)
 - The blink series were sampled through Quartz at ~103 Hz, not `screencapture`, which is far too
   slow per frame to time a blink.
+- **A capture carries the display's profile, so a later capture is converted into the earlier one's**
+  (`rig/colour.py`). States 1–16 were shot while the built-in display carried its stock profile;
+  it now carries a calibration profile (DisplayCAL, `Display #1 2025-12-15 …`) and the same pixels
+  come back as `#252525` paper and `#d1d1d1` ink. The stock profile is kept as `rig/display.icc`,
+  taken out of `mac-native-14-dark-markup.png`, and every state-17 frame was converted into it
+  before it was measured or committed. The conversion is checked rather than assumed: it lands the
+  paper on `#1a1a1a` and the body ink on `#cccccc` exactly, which is what the § 4.2 rows already
+  hold, and `colour.check()` fails if it stops doing so. Calibrating the display is the writer's,
+  so the rig converts rather than asking for it back.
 
 ## The grid at the default text size
 
@@ -432,6 +442,97 @@ foot.
 The page's *height* cannot be read from this capture: its top edge is flush against the toolbar, so
 the sheet is clipped by the viewport and no paper size can be fitted to it. Only its width and its
 centring are measured here.
+
+## State 17 — marker ink at rest
+
+`mac-native-17-dark-marks.png` and `-light-marks.png`, from
+[`passage-markup.md`](passage-markup.md), which puts every mark kind
+[#198](https://github.com/danielbaldwin47/Quill/issues/198) asks about in one screenful: `#` and
+`##`, inline code, `**bold**`, `*italic*`, a bare URL, a `[named](url)` link, `>`, `-`, `1.`, both
+task boxes, `---`, and a fenced block with a `rust` info string. Region `(0, 90, 1470, 800)` in
+logical points, shot by `rig/run_markup.py`.
+
+**The caret is driven to the end of the document before each frame.** The caret's own line could
+lift a marker, and *resting* ink is what this state measures. `-caret-on-heading.png`, both grounds,
+is the control that says whether it does.
+
+`rig/inks.py` reads the frames: it groups a line's glyph runs by the ink each carries, so a line
+drawn in one colour prints one row and a line that changes ink prints one row per ink. A run's ink
+is the colour furthest from the paper that the run holds at least six times, so a stem's covered
+pixels answer and its antialiasing does not.
+
+### Every mark kind, both grounds
+
+| line | mark | dark | light |
+|---|---|---|---|
+| `# Heading one` | `#`, hung at cell −2.0 | `#cccccc` | `#191919` |
+| `## Heading two` | `##`, hung at cell −3.0 | `#cccccc` | `#191919` |
+| *(state 14)* | `###` … `######`, dark only | `#cccccc` | not shot |
+| body | `` ` `` inline-code marks | `#cccccc` | `#191919` |
+| body | `**` and `*` | `#cccccc` | `#191919` |
+| body | bare URL `https://example.com/plain` | `#cccccc` | `#191919` |
+| body | link text inside `[…]` | `#cccccc` | `#191919` |
+| body | link `[`, `]`, `(`, `)` and the destination URL | **`#7a7a78`** | **`#b5b3b0`** |
+| `> Quoted line one.` | `>` | `#cccccc` | `#191919` |
+| `- bullet item` | `-` | `#cccccc` | `#191919` |
+| `1. ordered item` | `1.` | `#cccccc` | `#191919` |
+| `- [ ] task not done` | `-`, `[`, `]` and the text | `#cccccc` | `#191919` |
+| `- [x] task done` | the whole row, marker and text | **`#7a7a78`** | **`#b5b3b0`** |
+| `---` | all three hyphens | `#cccccc` | `#191919` |
+| ` ```rust ` | the three backticks **and** the info string | `#cccccc` | `#191919` |
+| ` ``` ` | the closing backticks | `#cccccc` | `#191919` |
+
+**Every Markdown marker rests at the body ink, on both grounds.** `#cccccc` on `#1a1a1a` is
+10.84:1 and `#191919` on `#f7f7f7` is 16.41:1 — the body's own contrast, to the unit, at every
+mark kind. There is no resting marker grey, no quiet tier and no hair tier: `---` is drawn at the
+same ink as a heading's `#`, and a fence's info string at the same ink as its backticks.
+
+The two rows that are not body ink are not markers quieted. `- [x] task done` is **Settings →
+Editor → Completed tasks → Fade**, which was on, and it fades the item's text with its marker; the
+link value is the destination and its punctuation, not the syntax of a block. Both grounds put that
+one value just above the focus dim tier — `#7a7a78` at 4.05:1 against dim's 3.51:1, `#b5b3b0` at
+1.95:1 against dim's 1.62:1 — so it is its own ink, not the dim role reused.
+
+### The control: the caret lifts nothing
+
+`-caret-on-heading.png` is the same frame with the caret back on the H1's line, and it reads
+identically, ink for ink, on both grounds. The only difference is the bar standing at the `#`'s
+left edge, which takes the run's measured x0 from 641 to 643. **A marker's ink does not depend on
+where the caret is.**
+
+### Found here: the link's ink and the code ground
+
+Three values fall out of the same two frames.
+
+| | dark | light |
+|---|---|---|
+| link punctuation and destination URL | `#7a7a78` (4.05:1) | `#b5b3b0` (1.95:1) |
+| link underline, 4 px tall | `#545452` (2.29:1) | `#d5d3d1` (1.39:1) |
+| code ground, inline and fenced alike | `#252525` (1.14:1) | `#eeeeee` (1.08:1) |
+
+The underline is the same colour under a full-ink bare URL as under the quieted destination, so it
+is its own ink rather than a tint of the text above it.
+
+**What it runs under is the URL and nothing else**, read off `17-dark-marks` a row at a time
+(#198 phase 2, from this repo). The dark frame carries exactly two rules, each 4 px tall and each
+`#545452` to the pixel:
+
+| rule | rows | x | what is above it |
+|---|---|---|---|
+| the bare URL, first half | 402–405 | 1844 … 2045 | `https://`, where the row wraps |
+| the bare URL, second half | 476–479 | 692 … 1123 | `example.com/plain` |
+| the link's destination | 476–479 | 1639 … 2275 | `https://example.com/named` |
+
+The link's own row reads `[` at x 1315, its **words** in body ink at 1336 … 1575, then `](`, the
+destination and `)` in the link grey out to 2293. The rule starts at 1639 — after the `](` — and
+stops at 2275, before the `)`. So the words carry no rule, the brackets carry no rule, and a bare
+URL carries one over its whole length, wrap and all. This is the row `VERDICTS.md` 4.2.13 states,
+and it corrects the phrase "link text is body ink and underlined" this section first carried.
+
+The fenced block's ground runs x 680 … 2341, 11 px left of the body column at 691.0 and 12 px past
+the measure's end at 2329.4 — about 0.43 cells of bleed each side — and 222 px tall over three
+lines. An inline run's ground is the run's own cells plus about 3 px each side (x 944 … 1282 for
+13 cells starting at cell 10) and 64 px tall against the 73 px pitch.
 
 ## Window chrome
 
