@@ -612,6 +612,44 @@ mod tests {
         assert!(!settings.focus && !settings.typewriter);
     }
 
+    /// The four values Focus and Typewriter are remembered by survive a write
+    /// and a read, so the app opens the way the writer left it.
+    ///
+    /// Round-tripped through the file's own text rather than compared field by
+    /// field, because what the writer gets back next launch is what the reader
+    /// makes of what the writer left: a key written under a name the reader
+    /// does not look for reads back as its default and this is where that
+    /// shows.
+    #[test]
+    fn the_four_focus_and_typewriter_values_survive_a_write_and_a_read() {
+        let settings = Settings {
+            focus: true,
+            focus_scope: FocusScope::Paragraph,
+            typewriter: true,
+            typewriter_anchor: 0.35,
+            ..Default::default()
+        };
+        let (read, notes) = Settings::parse(&settings.to_toml());
+        assert!(notes.is_empty(), "{notes:?}");
+        assert_eq!(read, settings);
+    }
+
+    /// An anchor outside the viewport is refused and the default stands, with
+    /// a line saying so.
+    ///
+    /// Refused rather than clamped: `1.7` of the way down a window is not a
+    /// place, and a writer who typed it meant something the app cannot do, so
+    /// it says so once and holds the half-way anchor rather than silently
+    /// reading their `1.7` as the bottom edge. #40 § Further Notes corrected
+    /// itself to this on 2026-08-29, and the reader had it already.
+    #[test]
+    fn an_anchor_outside_the_viewport_is_refused_and_the_default_stands() {
+        let (settings, notes) = Settings::parse("typewriter_anchor = 1.7\n");
+        assert!((settings.typewriter_anchor - 0.5).abs() < f64::EPSILON);
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].contains("typewriter_anchor"), "{notes:?}");
+    }
+
     #[test]
     fn the_five_syntax_highlight_categories_are_on_under_a_master_that_is_off() {
         let syntax = SyntaxHighlight::default();
