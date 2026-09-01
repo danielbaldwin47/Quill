@@ -114,6 +114,25 @@ ok('a key no frame carried is paired, and counted as having no presentation time
     'four presented out of five sent is not every keystroke accounted for');
 });
 
+ok('a key written late, because no frame ever carried it, is scanned where it was seen', () => {
+  // A key that changed no pixel — #220's ArrowLeft — has no frame to complete, so the app writes
+  // it only when it goes stale, after the keys that followed it. In file order the walk would pair
+  // it with the next key of its code and shift every pair after that; in the order the app saw
+  // them, it pairs with itself, carries no latency, and the four around it keep theirs.
+  const seen = captured(QUILL);
+  const [late] = seen.splice(1, 1);
+  seen.push({ ...late, frame: null, present_us: null, refresh_us: null });
+
+  const joined = align(written(QUILL), seen);
+  assert.equal(joined.pairs.length, 5, 'every key was seen, so every key pairs');
+  assert.equal(joined.stray.length, 0);
+  assert.equal(joined.pairs[1].sent.code, CODES.u);
+  assert.equal(latencyMs(joined.pairs[1]), null, 'the late key has no presentation to measure');
+  for (const pair of joined.pairs.filter((_, i) => i !== 1)) {
+    assert.equal(latencyMs(pair), 2, 'the keys around it keep their own frames');
+  }
+});
+
 ok('a key the app never saw does not shift the keys after it', () => {
   // The opposite failure: the bench wrote a key that never arrived. The cursor must not advance,
   // or every later key pairs with the wrong frame.
