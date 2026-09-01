@@ -124,8 +124,14 @@ export function ciMean(arr, resamples = 2000) {
 ///   where this one did and the rest of the run still pairs correctly.
 ///
 /// `sent` is `tools/uinput-keys.py`'s `events`: `{ i, code, shift, t_ns }`, in the order written.
-/// `seen` is the app's capture file, one object per line, in the order the app saw them.
+/// `seen` is the app's capture file, one object per line, in the order the app *wrote* them — which
+/// is the order their frames completed, not the order the keys arrived. A key whose frame never
+/// presented (#220's arrows, which moved nothing and so changed no pixel) is written only when it
+/// goes stale, after the keys that followed it; scanned in file order, the greedy walk then pairs
+/// it with the next key of its code and every latency after it is a lie. `handler_us` is the order
+/// the app saw them in, so that is the order scanned.
 export function align(sent, seen) {
+  seen = [...seen].sort((a, b) => (a.handler_us ?? 0) - (b.handler_us ?? 0));
   const pairs = [];
   const missing = [];
   let cursor = 0;
