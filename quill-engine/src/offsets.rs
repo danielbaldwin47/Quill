@@ -29,12 +29,12 @@ use std::ops::Range;
 pub(crate) struct Offsets<T> {
     /// The entries at or above the seam, in absolute bytes, ascending.
     head: Vec<(usize, T)>,
-    /// The entries below the seam, each as `len - offset`, the nearest the
+    /// The entries below the seam, each as `text_len - offset`, the nearest the
     /// seam at the back — so that reading them from the back is ascending and
     /// the seam moves by a push or a pop.
     tail: Vec<(usize, T)>,
     /// The length of the text the tail is measured from.
-    len: usize,
+    text_len: usize,
 }
 
 impl<T> Offsets<T> {
@@ -49,7 +49,7 @@ impl<T> Offsets<T> {
         Self {
             head: entries,
             tail: Vec::new(),
-            len,
+            text_len: len,
         }
     }
 
@@ -66,7 +66,7 @@ impl<T> Offsets<T> {
         let from_back = index - self.head.len();
         let at = self.tail.len().checked_sub(from_back + 1)?;
         let (from_end, tag) = &self.tail[at];
-        Some((self.len - from_end, tag))
+        Some((self.text_len - from_end, tag))
     }
 
     /// The offset at `index`, in absolute bytes.
@@ -80,7 +80,7 @@ impl<T> Offsets<T> {
             self.tail
                 .iter()
                 .rev()
-                .map(|(from_end, tag)| (self.len - from_end, tag)),
+                .map(|(from_end, tag)| (self.text_len - from_end, tag)),
         )
     }
 
@@ -96,7 +96,7 @@ impl<T> Offsets<T> {
         // fails first and then holds; the entries it holds for are the back.
         let failing = self
             .tail
-            .partition_point(|&(from_end, _)| !holds(self.len - from_end));
+            .partition_point(|&(from_end, _)| !holds(self.text_len - from_end));
         self.head.len() + (self.tail.len() - failing)
     }
 
@@ -110,7 +110,7 @@ impl<T> Offsets<T> {
         self.seam_to(stale.start);
         self.tail
             .truncate(self.tail.len().saturating_sub(stale.end - stale.start));
-        self.len = self.len.saturating_add_signed(delta);
+        self.text_len = self.text_len.saturating_add_signed(delta);
         self.head.extend(fresh);
     }
 
@@ -119,7 +119,7 @@ impl<T> Offsets<T> {
         self.seam_to(index);
         self.tail
             .pop()
-            .map(|(from_end, tag)| (self.len - from_end, tag))
+            .map(|(from_end, tag)| (self.text_len - from_end, tag))
     }
 
     /// Moves entries across the seam until exactly `index` of them are above
@@ -127,13 +127,13 @@ impl<T> Offsets<T> {
     fn seam_to(&mut self, index: usize) {
         while self.head.len() > index {
             let (offset, tag) = self.head.pop().expect("the head is longer than index");
-            self.tail.push((self.len - offset, tag));
+            self.tail.push((self.text_len - offset, tag));
         }
         while self.head.len() < index {
             let Some((from_end, tag)) = self.tail.pop() else {
                 break;
             };
-            self.head.push((self.len - from_end, tag));
+            self.head.push((self.text_len - from_end, tag));
         }
     }
 }
@@ -151,7 +151,7 @@ impl<T: PartialEq> PartialEq for Offsets<T> {
     /// Two lists are equal when they read the same, wherever each one's seam
     /// happens to be.
     fn eq(&self, other: &Self) -> bool {
-        self.len == other.len && self.iter().eq(other.iter())
+        self.text_len == other.text_len && self.iter().eq(other.iter())
     }
 }
 
@@ -212,7 +212,7 @@ mod tests {
         // stale, nothing fresh, everything below moves by three.
         table.splice(2..2, Vec::new(), 3);
         assert_eq!(table.offsets(), vec![0, 10, 23, 33, 43]);
-        assert_eq!(table.len, 53);
+        assert_eq!(table.text_len, 53);
         // A newline written at 12: one fresh start at 13, and the rest move
         // by one more.
         table.splice(2..2, vec![(13, 'n')], 1);
@@ -222,7 +222,7 @@ mod tests {
         // up by eighteen.
         table.splice(2..4, Vec::new(), -18);
         assert_eq!(table.offsets(), vec![0, 10, 16, 26]);
-        assert_eq!(table.len, 36);
+        assert_eq!(table.text_len, 36);
     }
 
     #[test]

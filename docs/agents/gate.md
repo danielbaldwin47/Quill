@@ -41,4 +41,4 @@ The ported Pieces' checklists are `docs/agents/hand-tests.md`, one per Piece.
 
 Done when: the owner comments `hand test: pass` with the `pacman -Q quill` output on the feature ticket. That comment closes the ticket.
 
-Before a release, additionally: the eleven scored latency regimes clear the budget and `saturation_stress` is recorded beside them (`tools/gate bench --all`), and every Piece's latest verdict is ours.
+Before a release, additionally: every scored latency regime clears the budget and `saturation_stress` is recorded beside them (`tools/gate bench --all`), and every Piece's latest verdict is ours.

@@ -15,7 +15,7 @@
 //! yields by the slice's start offset, which is the whole trick; the blocks
 //! after it shift by the edit's byte delta, an integer add rather than a parse.
 //! The spans and runs are not shifted at all: each block keeps its own,
-//! measured from the block's start ([`Markup`]), so a keystroke in the middle
+//! measured from the block's start ([`BlockMarks`]), so a keystroke in the middle
 //! of a manuscript moves the block index and the line table below it and
 //! nothing else, and the accessors add a block's start back on the way out.
 //!
@@ -200,7 +200,7 @@ pub struct Document {
     blocks: Offsets<Kind>,
     /// Each block's Markup, one entry per block of `blocks`, measured from
     /// that block's start.
-    markup: Vec<Markup>,
+    markup: Vec<BlockMarks>,
 }
 
 impl Default for Document {
@@ -292,26 +292,23 @@ impl Document {
     /// [`Scope::blocks`], which name blocks the Document has.
     #[must_use]
     pub fn block(&self, index: usize) -> Block {
-        let (start, kind) = self
-            .blocks
-            .get(index)
-            .expect("a block index the Document handed out");
+        let (start, kind) = self.indexed_start(index);
         let end = self.blocks.offset(index + 1).unwrap_or(self.text.len());
         Block {
             at: start..end,
-            kind: *kind,
+            kind,
         }
     }
 
     /// Every block with its Markup, in order, from the block at `first`.
-    fn indexed(&self, first: usize) -> impl Iterator<Item = (Block, &Markup)> + '_ {
+    fn indexed(&self, first: usize) -> impl Iterator<Item = (Block, &BlockMarks)> + '_ {
         (first..self.blocks.len()).map(|at| (self.block(at), &self.markup[at]))
     }
 
     /// The Markup spans of the whole Document, in absolute bytes.
     ///
     /// Assembled on the way out, because the spans are kept per block
-    /// ([`Markup`]); the readers of a whole Document — the tests, and the debug
+    /// ([`BlockMarks`]); the readers of a whole Document — the tests, and the debug
     /// net under [`Document::edit`] — pay for the walk, and no keystroke does.
     #[must_use]
     pub fn spans(&self) -> Vec<Span> {
@@ -361,7 +358,7 @@ impl Document {
 
     /// The blocks `at` reaches, each with its Markup: from the block holding
     /// `at.start` through every block that begins before `at.end`.
-    fn over(&self, at: &Range<usize>) -> impl Iterator<Item = (Block, &Markup)> + '_ {
+    fn over(&self, at: &Range<usize>) -> impl Iterator<Item = (Block, &BlockMarks)> + '_ {
         let first = self.block_at(at.start).unwrap_or(0);
         let end = at.end;
         self.indexed(first)
@@ -593,11 +590,17 @@ impl Document {
 
     /// What the block at `found` is.
     fn kind(&self, found: usize) -> Kind {
-        *self
+        self.indexed_start(found).1
+    }
+
+    /// Where block `index` starts and what it is, for an `index` the
+    /// Document handed out ([`Document::block`]).
+    fn indexed_start(&self, index: usize) -> (usize, Kind) {
+        let (start, kind) = self
             .blocks
-            .get(found)
-            .expect("a block index the Document handed out")
-            .1
+            .get(index)
+            .expect("a block index the Document handed out");
+        (start, *kind)
     }
 
     /// The byte a region beginning at block `hi` ends at: the end of the first
@@ -756,7 +759,7 @@ impl Document {
         debug_assert!(
             self.blocks.offset(0).is_none_or(|start| start == 0)
                 && self.blocks.len() == self.markup.len(),
-            "the block index stopped tiling the Document at {new:?}"
+            "after {new:?} the block index does not start at 0 or has a block without its marks"
         );
         head..tail
     }
@@ -890,14 +893,14 @@ fn clip(at: &Range<usize>, line: &Range<usize>) -> Range<usize> {
 /// whole Document because [`annotate::flatten`] resolves nothing across a
 /// stretch no span covers.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-struct Markup {
+struct BlockMarks {
     /// The block's spans, in the order [`annotate::markup`] gives them.
     spans: Vec<Span>,
     /// Those spans flattened: non-overlapping, in order.
     runs: Vec<Run>,
 }
 
-impl Markup {
+impl BlockMarks {
     /// The Markup of `block`, from the `spans` inside it in absolute bytes.
     fn of(block: &Block, spans: &[Span]) -> Self {
         let base = block.at.start;
@@ -911,17 +914,12 @@ impl Markup {
 
     /// The spans, back in absolute bytes for a block starting at `base`.
     fn spans_from(&self, base: usize) -> impl Iterator<Item = Span> + '_ {
-        self.spans
-            .iter()
-            .map(move |span| Span::new(base + span.at.start..base + span.at.end, span.mark))
+        rebased_spans(&self.spans, base)
     }
 
     /// The runs, back in absolute bytes for a block starting at `base`.
     fn runs_from(&self, base: usize) -> impl Iterator<Item = Run> + '_ {
-        self.runs.iter().map(move |run| Run {
-            at: base + run.at.start..base + run.at.end,
-            look: run.look,
-        })
+        rebased_runs(&self.runs, base)
     }
 
     /// The spans starting before the absolute byte `end`, for a block
@@ -930,9 +928,7 @@ impl Markup {
         let count = self
             .spans
             .partition_point(|span| base + span.at.start < end);
-        self.spans[..count]
-            .iter()
-            .map(move |span| Span::new(base + span.at.start..base + span.at.end, span.mark))
+        rebased_spans(&self.spans[..count], base)
     }
 
     /// The runs that draw any of the absolute bytes `at`, for a block starting
@@ -942,11 +938,25 @@ impl Markup {
         let end = at.end.saturating_sub(base);
         let from = self.runs.partition_point(|run| run.at.end <= start);
         let count = self.runs[from..].partition_point(|run| run.at.start < end);
-        self.runs[from..from + count].iter().map(move |run| Run {
-            at: base + run.at.start..base + run.at.end,
-            look: run.look,
-        })
+        rebased_runs(&self.runs[from..from + count], base)
     }
+}
+
+/// `spans`, measured from a block's start, back in absolute bytes for a block
+/// starting at `base`.
+fn rebased_spans(spans: &[Span], base: usize) -> impl Iterator<Item = Span> + '_ {
+    spans
+        .iter()
+        .map(move |span| Span::new(base + span.at.start..base + span.at.end, span.mark))
+}
+
+/// `runs`, measured from a block's start, back in absolute bytes for a block
+/// starting at `base`.
+fn rebased_runs(runs: &[Run], base: usize) -> impl Iterator<Item = Run> + '_ {
+    runs.iter().map(move |run| Run {
+        at: base + run.at.start..base + run.at.end,
+        look: run.look,
+    })
 }
 
 /// `blocks` as the block index keeps them: the byte each starts at and what it
@@ -963,13 +973,13 @@ fn starts_of(blocks: Vec<Block>) -> Vec<(usize, Kind)> {
 ///
 /// `blocks` tile the stretch the spans were parsed from, so every span lands
 /// in one of them; the debug build checks that none was left over.
-fn distribute(blocks: &[Block], spans: &[Span]) -> Vec<Markup> {
+fn distribute(blocks: &[Block], spans: &[Span]) -> Vec<BlockMarks> {
     let mut from = 0;
     let markup = blocks
         .iter()
         .map(|block| {
             let count = spans[from..].partition_point(|span| span.at.start < block.at.end);
-            let markup = Markup::of(block, &spans[from..from + count]);
+            let markup = BlockMarks::of(block, &spans[from..from + count]);
             from += count;
             markup
         })
