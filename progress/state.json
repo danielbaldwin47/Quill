@@ -23,7 +23,7 @@
       "id": "caret",
       "title": "Cursor & caret",
       "what": "Shape, color, blink, motion, selection",
-      "judge": "the caret and selection only: caret colour, width, height relative to the line, how it sits against the glyphs, blink/motion implied, selection colour; does the caret feel like a precise, alive instrument. What the markers are coloured is not this Piece's row: docs/design.md row Markers rests every mark kind at the body's own ink, measured off the Design oracle, so a marker that is quieter on one side than the other is a decision already taken and not a gap"
+      "judge": "the caret and selection only: caret colour, width, height relative to the line, how it sits against the glyphs, blink/motion implied, selection colour; does the caret feel like a precise, alive instrument. What the markers are coloured is not this Piece's row: docs/design.md row Markers rests every mark kind at the body's own ink, measured off the Design oracle, so a marker that is quieter on one side than the other is a decision already taken and not a gap. Nor is how far a selection reaches: docs/design.md rows Selection, Held newline and Multi-row fill make a selection a fill of the text container, so a row the selection runs past is filled to the container's right edge and a row it entered from above starts at the container's left, gutter and all, and only the anchor and the focus are measured off glyphs — a band wider than the words beneath it is that rule and not a gap"
     },
     {
       "id": "focus",

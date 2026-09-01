@@ -10,6 +10,13 @@ the interior rows of a multi-row selection span it whole. Measured on the Design
 `09-select-all`, `14-gutters`, `14-blocks`, `10-newline-only`). Decided 2026-08-30 with the owner
 under [ADR 0015](0015-the-design-oracle-outranks-the-parity-oracle.md).
 
+*Stands as decided on 2026-08-31, with the selection Consequence below now landed by
+[#168](https://github.com/danielbaldwin47/Quill/issues/168): `Editor::selection` reads the
+container's edges off `quill_engine::typography::Column`, and `caret::NL_TAIL` and `caret::tail`
+are gone rather than pending. The two shapes no judged still shows are typed instead — the
+`selection-container-wide` and `selection-newline-to-edge` assertions in `tools/keys-assert.mjs`.
+Nothing else here moves.*
+
 ## What changed the answer
 
 The Markup Piece was won (#86, #89, #102) hanging every marker — bullets, numbers and a quote's
@@ -73,6 +80,9 @@ exceed the window the container is the window and the gutters hold at 7 cells wh
 shrinks, so `###### ` still hangs and a selection's edges stay the container's; the oracle is
 window-limited past its step 7, and which of its two gives was not measured (NOTES § 11).
 
-**The selection painter fills the container.** `caret::NL_TAIL` and the per-row ink extent are
-replaced by the container's edges. #150 runs as written: its burst counts painted rows, not their
-widths.
+**The selection painter fills the container.** `caret::NL_TAIL` and the per-row ink extent were
+replaced by the container's edges in #168: `Editor::selection` measures only the anchor and the
+focus off glyphs and takes every edge between them from `Column`. #150 runs as written — its burst
+counts painted rows, not their widths — so the two shapes it cannot see are two assertions beside
+it, which is why the same burst now carries `selection-container-wide` and a fourth burst holds a
+newline for `selection-newline-to-edge`.

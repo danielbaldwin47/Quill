@@ -9,9 +9,11 @@
 // #108, so the question "does it actually go red on that defect?" cannot be left to the day it
 // matters. The builds it is asked of are committed as pixels — `tools/keys-fixture/fixed-typing-
 // {16,38}.png` from the build with `45d1434` and `broken-typing-{16,38}.png` from the one without
-// it for #108's caret, `fixed-select-all.png` and `broken-select-all.png` for #146's selection —
-// so the whole assertion is exercised here with no window, no compositor and no keyboard, which is
-// what lets `tools/gate check` run it.
+// it for #108's caret, `fixed-select-all.png` and `broken-select-all.png` for #146's selection, and
+// `fill-select-all.png` and `fill-newline-held.png` from the build that fills the container for
+// #168's, against `fixed-select-all.png` as the build that filled each row to its ink — so the
+// whole assertion is exercised here with no window, no compositor and no keyboard, which is what
+// lets `tools/gate check` run it.
 
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -19,8 +21,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  INK_DARK, PAPER_DARK, decodePng, glyphAdvance, judgeBurst, judgeMove, judgeSelectionRows,
-  readBar, readSelectionRows, resolveScript,
+  INK_DARK, PAPER_DARK, decodePng, glyphAdvance, judgeBurst, judgeMove, judgeSelectionFill,
+  judgeSelectionNewline, judgeSelectionRows, readBar, readSelectionRows, resolveScript,
 } from './keys-assert.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -191,6 +193,93 @@ ok('a row band is told from the next by where the fill ends, not by a gap betwee
   }
 });
 
+// ---------- the selection filling the container: #168 ----------
+//
+// A second matched pair, one build against itself again: `fill-select-all.png` is `tools/gate keys
+// caret --shots` on the tip and `fixed-select-all.png` above is the same burst on the build that
+// filled each row to its own ink. Same three rows, same type, same window, same three bands at the
+// same heights — the reach along each row is the only thing that moved. `fill-newline-held.png` is
+// the fourth burst, whose selection ends past a newline rather than past a glyph.
+
+ok('the container-filling build spans the container on the row between the two ends', () => {
+  const v = judgeSelectionFill(shot('fill-select-all'), { rows: 3 });
+  assert.equal(v.pass, true, v.said);
+  assert.deepEqual(v.read.bands, [
+    { top: 150, bottom: 223, left: 622, right: 2437 },
+    { top: 224, bottom: 297, left: 442, right: 2437 },
+    { top: 298, bottom: 371, left: 442, right: 877 },
+  ]);
+  // The container is x 442 … 2438 of a 2880 px view: 442 either side of it.
+  assert.equal(v.read.bands[1].left + v.read.bands[1].right + 1, 2880);
+});
+
+ok('the build that filled each row to its ink fails it, and the line names the container', () => {
+  const v = judgeSelectionFill(shot('fixed-select-all'), { rows: 3 });
+  assert.equal(v.pass, false);
+  assert.match(v.said, /an interior row is filled x 622\.\.744/);
+});
+
+ok('matched, the two builds differ in how far each row reaches and in nothing else', () => {
+  const fill = readSelectionRows(shot('fill-select-all')).bands;
+  const ink = readSelectionRows(shot('fixed-select-all')).bands;
+  assert.equal(fill.length, ink.length, 'the same three rows are painted by both');
+  for (let i = 0; i < fill.length; i += 1) {
+    assert.equal(fill[i].top, ink[i].top, `row ${i} stands at the same height`);
+    assert.equal(fill[i].bottom, ink[i].bottom, `row ${i} is the same height`);
+  }
+  assert.equal(fill[0].left, ink[0].left, 'both start the first row at the anchor');
+  assert.equal(fill[2].right, ink[2].right, 'both stop the last row at the focus');
+  assert.ok(fill[1].left < ink[1].left, 'only the fill reaches into the left gutter');
+  assert.ok(fill[1].right > ink[1].right, 'only the fill reaches the container’s right edge');
+});
+
+ok('a selection ending past a newline fills that row to the container’s right edge', () => {
+  const v = judgeSelectionNewline(shot('fill-newline-held'), { rows: 2 });
+  assert.equal(v.pass, true, v.said);
+  assert.deepEqual(v.read.bands, [
+    { top: 150, bottom: 223, left: 622, right: 2437 },
+    { top: 224, bottom: 297, left: 442, right: 2437 },
+  ]);
+  // The empty row the trailing newline opens holds none of the selection, so it is a fill of no
+  // width and there is no third band for it.
+  assert.equal(v.read.bands.length, 2);
+});
+
+ok('the stub past the last glyph fails it, and the line names both rows', () => {
+  const v = judgeSelectionNewline(shot('fixed-select-all'), { rows: 3 });
+  assert.equal(v.pass, false);
+  assert.match(v.said, /the row holding the newline is filled x 622\.\.877/);
+});
+
+ok('either container assertion without a row count is refused, not passed', () => {
+  assert.match(judgeSelectionFill(shot('fill-select-all'), {}).said, /three or more/);
+  assert.match(judgeSelectionFill(shot('fill-select-all'), { rows: 2 }).said, /three or more/);
+  assert.match(judgeSelectionNewline(shot('fill-newline-held'), {}).said, /two or more/);
+});
+
+ok('a container off centre by the pixel its rounding can leave passes, and by more does not', () => {
+  // The container is centred by rounding the view's spare width in half, so a view that leaves an
+  // odd number over seats it half a logical pixel off centre — two device pixels at scale 2, and
+  // no more than that. The whole range is asserted: dead centre, either edge of the play, and the
+  // first pixel past it on each side.
+  const rows = (right) => page(400, 60, (fill) => {
+    fill(60, 0, right, 19, BAR_PX);
+    fill(58, 20, right, 39, BAR_PX);
+    fill(58, 40, 200, 59, BAR_PX);
+  });
+  // 58 + right + 1 against a 400 px view: 341 sums to 400 exactly, 339 and 343 to 398 and 402.
+  for (const right of [339, 340, 341, 342, 343]) {
+    assert.equal(judgeSelectionFill(rows(right), { rows: 3 }).pass, true, `right ${right}`);
+  }
+  for (const right of [338, 344]) {
+    const v = judgeSelectionFill(rows(right), { rows: 3 });
+    assert.equal(v.pass, false, `right ${right}`);
+    assert.match(v.said, /sums to 400 within 2/);
+  }
+  // And a band that stops a whole cell short of the container is nowhere near it.
+  assert.equal(judgeSelectionFill(rows(320), { rows: 3 }).pass, false);
+});
+
 ok('two rows filled to the same column are one band, which is why the script varies its rows', () => {
   const same = page(200, 60, (fill) => {
     fill(20, 10, 120, 29, BAR_PX);
@@ -291,11 +380,11 @@ ok('too few characters to measure an advance from is said, not guessed at', () =
 
 const states = JSON.parse(fs.readFileSync(path.join(ROOT, 'shots/oracle/states.json'), 'utf8'));
 
-ok("the caret's script is the three bursts the fixtures were taken with", () => {
+ok("the caret's script is the four bursts the fixtures were taken with", () => {
   const script = resolveScript(states, 'caret');
   assert.deepEqual(script.bursts.map((b) => b.text),
-    ['dfdfsdfsdfsdfsdf', 'fefefefefefsfesfesfesf', '\nffff\nssssssssss']);
-  assert.deepEqual(script.bursts.map((b) => b.chars), [16, 38, 54]);
+    ['dfdfsdfsdfsdfsdf', 'fefefefefefsfesfesfesf', '\nffff\nssssssssss', 'aa\nbbbb\n']);
+  assert.deepEqual(script.bursts.map((b) => b.chars), [16, 38, 54, 62]);
   // The rows the third burst selects, and the lengths that tell one band from the next: 38 from
   // the first two bursts, then 4 and 10. No two neighbours end in the same column.
   const rows = script.bursts[2].text.split('\n').slice(1);
@@ -304,6 +393,20 @@ ok("the caret's script is the three bursts the fixtures were taken with", () => 
   // Only `keys` can spell a chord, and a chord is what puts the selection on the page.
   assert.deepEqual(script.bursts[2].keys, [{ press: 'Control+a' }]);
   assert.equal(script.bursts[2].settle, 'still');
+  // The fourth types over that selection and takes the Document down to two short rows and a
+  // trailing newline, so the selection it then makes ends past a newline rather than past a glyph.
+  // The empty row that newline opens holds none of the selection, which is why it is two rows.
+  assert.equal(script.bursts[3].text.endsWith('\n'), true);
+  assert.deepEqual(script.bursts[3].text.split('\n'), ['aa', 'bbbb', '']);
+  assert.equal(script.bursts[3].rows, 2);
+  assert.deepEqual(script.bursts[3].keys, [{ press: 'Control+a' }]);
+  assert.equal(script.bursts[3].settle, 'still');
+  assert.deepEqual(script.bursts.map((b) => b.assert), [
+    ['bar-after-ink'],
+    ['bar-after-ink'],
+    ['selection-rows', 'selection-container-wide'],
+    ['selection-newline-to-edge'],
+  ]);
   // Live, on an empty Document, with the chrome off: the defaults with the script's state over them.
   assert.equal(script.flags.text, null);
   assert.equal(script.flags.chrome, 'off');

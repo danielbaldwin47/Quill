@@ -60,7 +60,10 @@ ok('a state becomes the native flags that state means', () => {
   assert.equal(flag('--w'), '1440');
   assert.equal(flag('--h'), '900');
   assert.equal(flag('--theme'), 'light');
-  assert.equal(flag('--font'), 'duo');
+  // Mono rather than the defaults' Duo, because this state names a `mac-native` crop as its
+  // opponent and such a state is shot on a grid the capture can be compared against cell for cell
+  // (ADR 0015). The state itself says nothing about the face: `resolveStates` does.
+  assert.equal(flag('--font'), 'mono');
   assert.equal(flag('--step'), '5');
   assert.equal(flag('--focus'), 'off');
   // The caret Piece is judged bare (#139), so its states override the defaults' chrome; that
@@ -69,8 +72,8 @@ ok('a state becomes the native flags that state means', () => {
   assert.equal(flag('--text'), path.join(ROOT, 'ref/sample.md'));
   // Bytes on the way in and bytes on the way out: the native flags take the form states.json
   // writes, which is what the oracle has to convert away from and this does not.
-  assert.equal(flag('--caret'), '171');
-  assert.equal(flag('--select'), '153,171');
+  assert.equal(flag('--caret'), '36');
+  assert.equal(flag('--select'), '18,36');
   assert.ok(!argv.includes('--typewriter'));
   assert.ok(!argv.includes('--nocaret'));
   // Neither of the two flags that are not the app's ever reaches its command line.
@@ -529,15 +532,18 @@ ok('every judged state that draws a determined caret is held to one, and no othe
   // and a selection, which paints a band where the bar would be. Every other state draws the bar.
   const exempt = Object.entries(wants).filter(([, held]) => !held).map(([name]) => name).sort();
   assert.deepEqual(exempt, [
-    'caret/selection', 'caret/unfocused', 'markup/blocks', 'markup/gutters', 'type/mono',
+    'caret/selection', 'caret/unfocused', 'markup/blocks', 'markup/gutters',
+    'theme/dark', 'theme/light', 'type/mono',
   ]);
-  assert.equal(wants['theme/dark'], true, 'the state #197 came out of is held to its caret');
+  // #197 came out of `theme/dark`, which has since gone `--nocaret` (#198) so that its marks can be
+  // read with no bar among them. The rule it left behind is held by the states that still draw one.
+  assert.equal(wants['caret/caret'], true, 'the caret Piece is held to the bar it is about');
   assert.equal(wants['chrome/empty'], true, 'an empty Document still draws a caret, and #166 lost it');
 
   // The fourth way out, which no judged state takes: a Live launch has no `--deterministic`, so its
   // caret is meant to be dark half the time and there is no lit frame to insist on. `tools/gate
   // keys` is the one caller that opens ours that way.
-  const live = quillArgv(ROOT, resolveStates(states, 'theme').find((s) => s.name === 'dark').flags, { live: true });
+  const live = quillArgv(ROOT, resolveStates(states, 'page').find((s) => s.name === 'light').flags, { live: true });
   assert.equal(wantsLitCaret(live), false, 'a blinking caret cannot be held to a lit frame');
 });
 

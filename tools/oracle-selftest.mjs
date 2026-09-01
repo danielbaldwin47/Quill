@@ -84,8 +84,12 @@ ok('a state becomes the shoot.mjs flags that state means', () => {
   assert.equal(flag('--w'), '1440');
   assert.equal(flag('--h'), '900');
   assert.equal(flag('--dpr'), '2');
-  assert.equal(flag('--caret'), '171');
-  assert.equal(flag('--select'), '153,171');
+  // `caret/selection` is the one judged state that holds a selection, so it is the only one whose
+  // `--select` conversion this can be read off. Since #168 it names a mac-native crop and this tool
+  // passes it over rather than freezing it; what is measured here is the conversion, which is the
+  // same for every state and is asked of this one because it is the only one that exercises it.
+  assert.equal(flag('--caret'), '36');
+  assert.equal(flag('--select'), '18,36');
   assert.equal(flag('--active'), 'on');
   // The state names step 5 and the shooter counts in pixels, so the one conversion this tool makes
   // besides the offsets shows up here: the ladder's em, fractional, and not the 21 it rounds to.
