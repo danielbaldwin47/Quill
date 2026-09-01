@@ -2184,7 +2184,7 @@ mod tests {
             let whole = paint(&markup(text), text.len(), &tiers, focus, &colours);
             for line in 0..20 {
                 let at = doc.line_bytes(line);
-                let part = paint_in(doc.spans_in(&at), &at, &tiers, focus, &colours);
+                let part = paint_in(&doc.spans_in(&at), &at, &tiers, focus, &colours);
                 let cut: Vec<_> = whole
                     .iter()
                     .filter(|run| run.at.start < at.end && at.start < run.at.end)
@@ -2216,7 +2216,7 @@ mod tests {
              is the manuscript's length",
             doc.spans().len()
         );
-        for run in paint_in(spans, &at, &tiers, focus, &colours) {
+        for run in paint_in(&spans, &at, &tiers, focus, &colours) {
             assert!(
                 run.at.start >= at.start && run.at.end <= at.end,
                 "{run:?} reaches outside the line the retag asked for"
