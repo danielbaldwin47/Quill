@@ -122,6 +122,12 @@ impl Window {
         // meant to show: the tiers are worked out inside the same draw that
         // puts the Document on the page.
         window.imp().editor.open_focused_on(session.focus());
+        // And Typewriter with them, so that `--typewriter`'s first frame holds
+        // the caret's row at the anchor rather than travelling to it.
+        window
+            .imp()
+            .editor
+            .set_typewriter(session.typewriter(), session.settings().typewriter_anchor);
         window.set_document(document);
         window
             .imp()
@@ -284,15 +290,26 @@ impl Window {
 
     /// Turns Typewriter on or off.
     ///
-    /// `docs/shortcuts.md`'s `typewriter.toggle` row, `Ctrl+T`. Nothing is
-    /// redrawn and nothing scrolls: the key sets the value the session
-    /// remembers, and #115 is what makes the caret's line move to it.
+    /// `docs/shortcuts.md`'s `typewriter.toggle` row, `Ctrl+T`. The session
+    /// remembers the value, and every window's Editor is told, for the reason
+    /// [`Window::refocus_windows`] tells them all: on brings the caret's row
+    /// to the anchor, off leaves the view where it is.
     fn toggle_typewriter(&self) {
         let Some(session) = self.imp().session.borrow().clone() else {
             return;
         };
-        session.toggle_typewriter();
+        let on = session.toggle_typewriter();
         session.store_settings();
+        let anchor = session.settings().typewriter_anchor;
+        let Some(app) = self.application() else {
+            return;
+        };
+        for window in app.windows() {
+            let Ok(window) = window.downcast::<Window>() else {
+                continue;
+            };
+            window.imp().editor.set_typewriter(on, anchor);
+        }
     }
 
     /// Moves Focus the way `move_it` says, and puts the answer on every window.

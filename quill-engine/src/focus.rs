@@ -42,6 +42,8 @@ use std::ops::Range;
 use crate::document::Document;
 use crate::settings::{FocusScope, Settings};
 
+pub mod typewriter;
+
 /// How much Focus leaves lit.
 ///
 /// The two settings ADR 0006 keeps independent — Focus on or off, and its scope
