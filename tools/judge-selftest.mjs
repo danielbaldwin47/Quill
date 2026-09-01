@@ -530,10 +530,13 @@ ok('every judged state that draws a determined caret is held to one, and no othe
   }
   // The three ways out a judged state has, and nothing else: focus parked elsewhere, `--nocaret`,
   // and a selection, which paints a band where the bar would be. Every other state draws the bar.
+  // The two Focus states take the `--nocaret` way out for the reason `theme/dark` does: they are
+  // crops of the Design oracle, whose own captures carry no bar, and the state is about which
+  // words are dim rather than where the caret is (#113).
   const exempt = Object.entries(wants).filter(([, held]) => !held).map(([name]) => name).sort();
   assert.deepEqual(exempt, [
-    'caret/selection', 'caret/unfocused', 'markup/blocks', 'markup/gutters',
-    'theme/dark', 'theme/light', 'type/mono',
+    'caret/selection', 'caret/unfocused', 'focus/paragraph', 'focus/sentence',
+    'markup/blocks', 'markup/gutters', 'theme/dark', 'theme/light', 'type/mono',
   ]);
   // #197 came out of `theme/dark`, which has since gone `--nocaret` (#198) so that its marks can be
   // read with no bar among them. The rule it left behind is held by the states that still draw one.
