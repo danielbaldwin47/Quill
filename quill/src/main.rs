@@ -106,6 +106,14 @@ fn main() -> glib::ExitCode {
         if starting.flags().deterministic {
             harness::determine();
         }
+        // GTK's caret is painted transparent by the stylesheet, not switched
+        // off (#220), so GTK would still blink it on its own timer, and every
+        // blink of a bar nobody can see is a frame an idle window should not
+        // present. Off here for every launch, deterministic or not: Quill
+        // blinks its own caret.
+        if let Some(settings) = gtk::Settings::default() {
+            settings.set_gtk_cursor_blink(false);
+        }
         // Before the window rather than with it: the file a bench was promised
         // is there even if nothing opens.
         if let Some(out) = starting.flags().measure.as_deref() {
