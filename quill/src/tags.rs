@@ -434,7 +434,7 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
     // The flattening resolves the Markup mark and the Focus tier into one
     // colour, so the ink is read here rather than off the run's role: with
     // Focus on, most of the page is drawn in a colour no role names.
-    for run in annotate::paint_in(document.spans_in(at), at, tiers, focus, &colours) {
+    for run in annotate::paint_in(&document.spans_in(at), at, tiers, focus, &colours) {
         let from = iter_at(buffer, document, run.at.start);
         let to = iter_at(buffer, document, run.at.end);
         let ink = run.paint.colour;
@@ -448,7 +448,7 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
             buffer.apply_tag(&ground(buffer, scheme), &from, &to);
         }
     }
-    for span in document.spans_in(at) {
+    for span in &document.spans_in(at) {
         if span.at.end <= at.start {
             continue;
         }

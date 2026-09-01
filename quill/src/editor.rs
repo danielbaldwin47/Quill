@@ -1017,8 +1017,8 @@ impl Editor {
                 ..document.line_bytes(lines.end.saturating_sub(1)).end;
             let spans = document.spans_in(&at);
             runs.append(&mut faded(
-                &annotate::paint_in(spans, &at, before, focus, &colours),
-                &annotate::paint_in(spans, &at, &after, focus, &colours),
+                &annotate::paint_in(&spans, &at, before, focus, &colours),
+                &annotate::paint_in(&spans, &at, &after, focus, &colours),
                 |at| tags::offsets_of(&buffer, document, at),
             ));
         }
