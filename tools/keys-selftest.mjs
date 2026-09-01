@@ -257,16 +257,26 @@ ok('either container assertion without a row count is refused, not passed', () =
   assert.match(judgeSelectionNewline(shot('fill-newline-held'), {}).said, /two or more/);
 });
 
-ok('a container measured off the glass is allowed the pixel its two roundings can leave', () => {
-  // The container is centred by rounding the view's spare width in half, and each edge is then
-  // snapped to a device pixel, so its two edges need not sum to the view's width exactly. Two
-  // pixels of play at each end pass; a band that stops a whole cell short does not.
+ok('a container off centre by the pixel its rounding can leave passes, and by more does not', () => {
+  // The container is centred by rounding the view's spare width in half, so a view that leaves an
+  // odd number over seats it half a logical pixel off centre — two device pixels at scale 2, and
+  // no more than that. The whole range is asserted: dead centre, either edge of the play, and the
+  // first pixel past it on each side.
   const rows = (right) => page(400, 60, (fill) => {
     fill(60, 0, right, 19, BAR_PX);
     fill(58, 20, right, 39, BAR_PX);
     fill(58, 40, 200, 59, BAR_PX);
   });
-  assert.equal(judgeSelectionFill(rows(341), { rows: 3 }).pass, true);
+  // 58 + right + 1 against a 400 px view: 341 sums to 400 exactly, 339 and 343 to 398 and 402.
+  for (const right of [339, 340, 341, 342, 343]) {
+    assert.equal(judgeSelectionFill(rows(right), { rows: 3 }).pass, true, `right ${right}`);
+  }
+  for (const right of [338, 344]) {
+    const v = judgeSelectionFill(rows(right), { rows: 3 });
+    assert.equal(v.pass, false, `right ${right}`);
+    assert.match(v.said, /sums to 400 within 2/);
+  }
+  // And a band that stops a whole cell short of the container is nowhere near it.
   assert.equal(judgeSelectionFill(rows(320), { rows: 3 }).pass, false);
 });
 

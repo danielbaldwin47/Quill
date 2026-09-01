@@ -753,7 +753,10 @@ impl Editor {
 
     /// The selection as the boxes that draw it, in device pixels.
     ///
-    /// `None` when there is nothing selected, or before the type has been set.
+    /// `None` when there is nothing selected, before the type has been set, or
+    /// before the view has been laid out — a selection is a fill of the
+    /// container ([`typography::Column`]), and a view with no size yet has no
+    /// container to fill.
     ///
     /// The walk is display lines rather than logical ones, because a wrapped
     /// paragraph is as many bands as it has rows on the glass. A row is
@@ -763,7 +766,7 @@ impl Editor {
     /// decide. A character's own box is on one row and only one.
     ///
     /// A selection is a fill of the **container**, not of the ink it covers
-    /// (`docs/design.md` § Selection, § Held newline, § Multi-row fill; the
+    /// (`docs/design.md` rows Selection, Held newline and Multi-row fill; the
     /// Design oracle's `09-dark` and `10-newline-only`). So only the two ends
     /// are measured off glyphs: the first row starts at the anchor and the
     /// last stops at the focus. Every edge between them is
