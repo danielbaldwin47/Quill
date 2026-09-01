@@ -39,7 +39,7 @@ import {
 } from './bench-join.mjs';
 import { gitHead } from './fingerprint.mjs';
 import {
-  APP_ID, PANEL_IDLE_S, PANEL_WORKSPACE, compositorAvailable, openPanelStage, openStage,
+  APP_ID, PANEL_IDLE_S, PANEL_WORKSPACE, compositorAvailable, launchEnv, openPanelStage, openStage,
   panelBlocked,
 } from './harness.mjs';
 import {
@@ -161,6 +161,10 @@ function fingerprint(root, stage) {
       sha256: crypto.createHash('sha256').update(fs.readFileSync(path.join(root, BINARY))).digest('hex').slice(0, 16),
       git_head: gitHead(root),
       tree_was_dirty: dirty,
+      // The renderer every launch is pinned to by `launchEnv` (`gl`, byte-identical to `ngl` and
+      // `vulkan` in a judged shot). #41 asks that the choice be in the fingerprint the moment it is
+      // a choice, and it has been one since the harness pinned it.
+      renderer: launchEnv().GSK_RENDERER,
     },
     display: {
       output: monitor.name ?? stage.output,
