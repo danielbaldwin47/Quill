@@ -390,8 +390,8 @@ mod imp {
         /// This costs the layer above the text, where a future Annotator's
         /// marks were going to go; they will have to sort against the caret
         /// rather than assume the layer to themselves. GTK's own caret is not
-        /// here to be drawn over either way: `cursor-visible` is false for the
-        /// widget's life.
+        /// here to be drawn over either way: the stylesheet paints it
+        /// transparent, so it is laid out and never seen.
         ///
         /// Both layers are snapshotted in buffer coordinates, which is what
         /// `iter_location` answers in, so nothing is translated on the way.
@@ -440,11 +440,13 @@ impl Editor {
         editor.set_wrap_mode(gtk::WrapMode::WordChar);
         editor.add_css_class(FACE_CLASS);
         // GTK's caret is a one-pixel line at the font's height on a system
-        // timer, and ours is the whole point of the Piece. It is switched off
-        // here, once and for the widget's life, rather than per launch: there
-        // is no state in which both are wanted, and `--nocaret` asks for
-        // neither.
-        editor.set_cursor_visible(false);
+        // timer, and ours is the whole point of the Piece. It is hidden by the
+        // stylesheet (`caret-color: transparent`, in [`stylesheet`]) and not
+        // by `cursor-visible`: with that property off, `GtkTextView` turns
+        // every `move-cursor` into a scroll of the viewport instead of a move
+        // of the insert mark, and the arrows, Home, End and Shift with any of
+        // them stop doing anything (#220). Its blink is off as well, on the
+        // display's settings at startup, so the unseen bar asks for no frames.
         editor
             .imp()
             .step
@@ -2182,6 +2184,14 @@ pub fn install_type(scheme: Scheme, face: Face, step: u32) {
 /// well would be a second, differently rounded rectangle under it. The
 /// `color` stays, for the same reason the ink is named twice above: clearing
 /// the ground alone leaves the selected glyphs to the desktop theme.
+///
+/// The two caret colours are how GTK's own caret is hidden. `cursor-visible`
+/// would hide it too, but a `GtkTextView` with that property off answers
+/// `move-cursor` by scrolling the viewport rather than moving the insert
+/// mark, and the keyboard can then move nothing (#220). Transparent, the bar
+/// is laid out and blinked like any other and never lands a pixel; the blink
+/// itself is turned off at startup so that it asks for no frames either. The
+/// secondary colour is the split caret a bidirectional line shows.
 fn stylesheet(scheme: Scheme, face: Face, em: f64) -> String {
     let colours = Colours::of(scheme);
     let paper = colours.colour(Role::Paper).to_hex();
@@ -2196,6 +2206,8 @@ fn stylesheet(scheme: Scheme, face: Face, em: f64) -> String {
          \x20 font-style: normal;\n\
          \x20 font-weight: {INK_WEIGHT};\n\
          \x20 font-feature-settings: {features};\n\
+         \x20 caret-color: transparent;\n\
+         \x20 -gtk-secondary-caret-color: transparent;\n\
          }}\n\
          textview.{FACE_CLASS} text selection {{\n\
          \x20 background-color: transparent;\n\
