@@ -15,7 +15,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { LADDER_EM, byteToChar, emForStep, freezeReason, readStates, resolveStates, shootArgv, unservable } from './oracle.mjs';
+import { LADDER_EM, byteToChar, emForStep, freezeReason, installRefusal, readStates, resolveStates, shootArgv, unservable } from './oracle.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const GATE = path.join(ROOT, 'tools', 'gate');
@@ -230,6 +230,40 @@ ok('a state judged against a mac-native crop is not this tool\'s to freeze', () 
     assert.ok(fs.existsSync(path.join(ROOT, 'shots/oracle/type/fingerprint.json')));
   } finally {
     fs.rmSync(file, { force: true });
+  }
+});
+
+ok('the refusal for an uninstalled legacy/ names only commands that leave git status clean', () => {
+  // node_modules was once tracked, as a symlink to itself (#210), and the advice to `npm i`
+  // over it left `D legacy/node_modules` for the next commit to land. Now that it is ignored,
+  // the two ways offered — an install, or a worktree's link to the main checkout's install —
+  // both stay out of git status; the message may name a second only when it would resolve.
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'quill-oracle-selftest-'));
+  try {
+    const mk = (...p) => { const d = path.join(tmp, ...p); fs.mkdirSync(d, { recursive: true }); return d; };
+    mk('installed', 'legacy', 'node_modules', 'playwright-core');
+    assert.equal(installRefusal(path.join(tmp, 'installed')), null, 'an installed legacy/ is not refused');
+
+    const alone = installRefusal(path.dirname(mk('plain', 'legacy')));
+    assert.match(alone, /npm i/);
+    assert.match(alone, /inside legacy\//);
+    assert.doesNotMatch(alone, /ln -s/, 'a checkout with no main checkout to link to is offered no link');
+    assert.doesNotMatch(alone, /git checkout/, 'nothing to put back: node_modules is not tracked');
+
+    // A worktree: its .git is a file naming the main checkout's .git/worktrees/<name>.
+    const main = mk('main');
+    mk('main', 'legacy', 'node_modules', 'playwright-core');
+    const wt = path.dirname(mk('main', '.claude', 'worktrees', 'wt', 'legacy'));
+    fs.writeFileSync(path.join(wt, '.git'), `gitdir: ${path.join(main, '.git', 'worktrees', 'wt')}\n`);
+    const linked = installRefusal(wt);
+    assert.match(linked, /npm i/);
+    assert.ok(linked.includes(`ln -s ${path.join(main, 'legacy/node_modules')} legacy/node_modules`), linked);
+
+    // The same worktree when the main checkout has no install either: no link is offered.
+    fs.rmSync(path.join(main, 'legacy', 'node_modules'), { recursive: true });
+    assert.doesNotMatch(installRefusal(wt), /ln -s/, 'a main checkout with nothing installed is not linked to');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
 

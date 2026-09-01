@@ -1,3 +1,5 @@
+# Unanchored: the root install and legacy/'s. Never `git add -f` one — a worktree's link to
+# the main checkout's install went in that way once and became a symlink to itself (#210).
 node_modules
 shots/_*
 # A blind pair is two copies of shots that are already committed — ours at
