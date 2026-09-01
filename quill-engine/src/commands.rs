@@ -91,14 +91,24 @@ pub struct Command {
 }
 
 impl Command {
-    /// The action name with its scope in front: `win.focus.toggle`, and
-    /// `app.quit` for the one id that already carries its prefix.
-    pub fn action(&self) -> String {
+    /// The action's name on its map: the id, except that `app.quit` is
+    /// `quit` on the application, whose prefix its id already carries.
+    pub fn name(&self) -> &'static str {
         let prefix = self.scope.prefix();
-        if self.id.starts_with(prefix) && self.id[prefix.len()..].starts_with('.') {
-            return self.id.to_owned();
+        match self
+            .id
+            .strip_prefix(prefix)
+            .and_then(|rest| rest.strip_prefix('.'))
+        {
+            Some(rest) => rest,
+            None => self.id,
         }
-        format!("{prefix}.{}", self.id)
+    }
+
+    /// The action name with its scope in front, as an accelerator or a menu
+    /// row names it: `win.focus.toggle`, `app.quit`, `app.window.new`.
+    pub fn action(&self) -> String {
+        format!("{}.{}", self.scope.prefix(), self.name())
     }
 
     /// The chord the menu labels, in the table's syntax.
@@ -138,7 +148,7 @@ const fn place(menu: Menu, section: Option<&'static str>, label: &'static str) -
     }
 }
 
-const fn command(
+const fn row(
     id: &'static str,
     title: &'static str,
     scope: Scope,
@@ -180,72 +190,72 @@ pub const VIEW_SECTIONS: [&str; 6] = [
 #[rustfmt::skip]
 pub const COMMANDS: &[Command] = &[
     // Document menu.
-    command("file.new", "New Document", Scope::Win, Kind::Plain, &["Ctrl+N"], &[place(DOC, None, "New Document")], false),
-    command("window.new", "New Window", Scope::App, Kind::Plain, &["Ctrl+Shift+N"], &[place(DOC, None, "New Window")], false),
-    command("file.open", "Open File…", Scope::Win, Kind::Plain, &["Ctrl+O"], &[place(DOC, None, "Open File…")], false),
-    command("file.save", "Save", Scope::Win, Kind::Plain, &["Ctrl+S"], &[place(DOC, None, "Save")], false),
-    command("file.saveAs", "Save As…", Scope::Win, Kind::Plain, &["Ctrl+Shift+S"], &[place(DOC, None, "Save As…")], false),
-    command("file.rename", "Rename Document…", Scope::Win, Kind::Plain, &["F2"], &[place(DOC, None, "Rename Document…")], false),
-    command("file.duplicate", "Duplicate Document", Scope::Win, Kind::Plain, &[], &[place(DOC, None, "Duplicate Document")], false),
-    command("export.open", "Export…", Scope::Win, Kind::Plain, &["Ctrl+Shift+E"], &[place(DOC, None, "Export…")], false),
-    command("window.close", "Close Window", Scope::Win, Kind::Plain, &["Ctrl+W"], &[place(DOC, None, "Close Window")], true),
-    command("app.quit", "Quit", Scope::App, Kind::Plain, &["Ctrl+Q"], &[place(DOC, None, "Quit")], true),
+    row("file.new", "New Document", Scope::Win, Kind::Plain, &["Ctrl+N"], &[place(DOC, None, "New Document")], false),
+    row("window.new", "New Window", Scope::App, Kind::Plain, &["Ctrl+Shift+N"], &[place(DOC, None, "New Window")], false),
+    row("file.open", "Open File…", Scope::Win, Kind::Plain, &["Ctrl+O"], &[place(DOC, None, "Open File…")], false),
+    row("file.save", "Save", Scope::Win, Kind::Plain, &["Ctrl+S"], &[place(DOC, None, "Save")], false),
+    row("file.saveAs", "Save As…", Scope::Win, Kind::Plain, &["Ctrl+Shift+S"], &[place(DOC, None, "Save As…")], false),
+    row("file.rename", "Rename Document…", Scope::Win, Kind::Plain, &["F2"], &[place(DOC, None, "Rename Document…")], false),
+    row("file.duplicate", "Duplicate Document", Scope::Win, Kind::Plain, &[], &[place(DOC, None, "Duplicate Document")], false),
+    row("export.open", "Export…", Scope::Win, Kind::Plain, &["Ctrl+Shift+E"], &[place(DOC, None, "Export…")], false),
+    row("window.close", "Close Window", Scope::Win, Kind::Plain, &["Ctrl+W"], &[place(DOC, None, "Close Window")], true),
+    row("app.quit", "Quit", Scope::App, Kind::Plain, &["Ctrl+Q"], &[place(DOC, None, "Quit")], true),
     // View › Focus.
-    command("focus.toggle", "Enable Focus Mode / Disable Focus Mode", Scope::Win, Kind::Check, &["Ctrl+D"], &[place( VIEW, Some("Focus"), "Enable Focus Mode / Disable Focus Mode", )], true),
-    command("focus.sentence", "Sentence", Scope::Win, Kind::Radio { group: "focus_scope", value: "sentence", }, &[], &[place(VIEW, Some("Focus"), "Sentence")], false),
-    command("focus.paragraph", "Paragraph", Scope::Win, Kind::Radio { group: "focus_scope", value: "paragraph", }, &[], &[place(VIEW, Some("Focus"), "Paragraph")], false),
-    command("focus.swap", "Switch Focus Scope", Scope::Win, Kind::Plain, &["Ctrl+Shift+D"], &[], true),
-    command("typewriter.toggle", "Typewriter", Scope::Win, Kind::Check, &["Ctrl+T"], &[place(VIEW, Some("Focus"), "Typewriter")], true),
+    row("focus.toggle", "Enable Focus Mode / Disable Focus Mode", Scope::Win, Kind::Check, &["Ctrl+D"], &[place( VIEW, Some("Focus"), "Enable Focus Mode / Disable Focus Mode", )], true),
+    row("focus.sentence", "Sentence", Scope::Win, Kind::Radio { group: "focus_scope", value: "sentence", }, &[], &[place(VIEW, Some("Focus"), "Sentence")], false),
+    row("focus.paragraph", "Paragraph", Scope::Win, Kind::Radio { group: "focus_scope", value: "paragraph", }, &[], &[place(VIEW, Some("Focus"), "Paragraph")], false),
+    row("focus.swap", "Switch Focus Scope", Scope::Win, Kind::Plain, &["Ctrl+Shift+D"], &[], true),
+    row("typewriter.toggle", "Typewriter", Scope::Win, Kind::Check, &["Ctrl+T"], &[place(VIEW, Some("Focus"), "Typewriter")], true),
     // View › Panes.
-    command("library.toggle", "Show Library / Hide Library", Scope::Win, Kind::Check, &["Ctrl+E", "F9"], &[place(VIEW, Some("Panes"), "Show Library / Hide Library")], false),
-    command("preview.toggle", "Show Preview / Hide Preview", Scope::Win, Kind::Check, &["Ctrl+R"], &[place(VIEW, Some("Panes"), "Show Preview / Hide Preview")], false),
+    row("library.toggle", "Show Library / Hide Library", Scope::Win, Kind::Check, &["Ctrl+E", "F9"], &[place(VIEW, Some("Panes"), "Show Library / Hide Library")], false),
+    row("preview.toggle", "Show Preview / Hide Preview", Scope::Win, Kind::Check, &["Ctrl+R"], &[place(VIEW, Some("Panes"), "Show Preview / Hide Preview")], false),
     // The Preview spec decides the pair's values; `Ctrl+Shift+R` is reserved
     // for it and bound to nothing.
-    command("preview.layout", "Preview Split / Preview Full", Scope::Win, Kind::Radio { group: "preview_layout", value: "split", }, &[], &[place(VIEW, Some("Panes"), "Preview Split / Preview Full")], false),
+    row("preview.layout", "Preview Split / Preview Full", Scope::Win, Kind::Radio { group: "preview_layout", value: "split", }, &[], &[place(VIEW, Some("Panes"), "Preview Split / Preview Full")], false),
     // View › Writing tools.
-    command("syntax.toggle", "Syntax Highlight", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Syntax Highlight")], false),
-    command("syntax.nouns", "Nouns", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Nouns")], false),
-    command("syntax.verbs", "Verbs", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Verbs")], false),
-    command("syntax.adjectives", "Adjectives", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Adjectives")], false),
-    command("syntax.adverbs", "Adverbs", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Adverbs")], false),
-    command("syntax.conjunctions", "Conjunctions", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Conjunctions")], false),
-    command("style.toggle", "Style Check", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Style Check")], false),
-    command("spell.toggle", "Spell Check", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Spell Check")], false),
+    row("syntax.toggle", "Syntax Highlight", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Syntax Highlight")], false),
+    row("syntax.nouns", "Nouns", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Nouns")], false),
+    row("syntax.verbs", "Verbs", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Verbs")], false),
+    row("syntax.adjectives", "Adjectives", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Adjectives")], false),
+    row("syntax.adverbs", "Adverbs", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Adverbs")], false),
+    row("syntax.conjunctions", "Conjunctions", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Conjunctions")], false),
+    row("style.toggle", "Style Check", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Style Check")], false),
+    row("spell.toggle", "Spell Check", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Spell Check")], false),
     // View › Typeface.
-    command("font.duo", "Duo", Scope::Win, Kind::Radio { group: "face", value: "duo", }, &[], &[place(VIEW, Some("Typeface"), "Duo")], false),
-    command("font.quattro", "Quattro", Scope::Win, Kind::Radio { group: "face", value: "quattro", }, &[], &[place(VIEW, Some("Typeface"), "Quattro")], false),
-    command("font.mono", "Mono", Scope::Win, Kind::Radio { group: "face", value: "mono", }, &[], &[place(VIEW, Some("Typeface"), "Mono")], false),
+    row("font.duo", "Duo", Scope::Win, Kind::Radio { group: "face", value: "duo", }, &[], &[place(VIEW, Some("Typeface"), "Duo")], false),
+    row("font.quattro", "Quattro", Scope::Win, Kind::Radio { group: "face", value: "quattro", }, &[], &[place(VIEW, Some("Typeface"), "Quattro")], false),
+    row("font.mono", "Mono", Scope::Win, Kind::Radio { group: "face", value: "mono", }, &[], &[place(VIEW, Some("Typeface"), "Mono")], false),
     // View › Appearance.
-    command("theme.toggle", "Dark Mode", Scope::Win, Kind::Check, &["Ctrl+Shift+L", "Alt+Shift+N"], &[place(VIEW, Some("Appearance"), "Dark Mode")], true),
-    command("font.bigger", "Bigger Text", Scope::Win, Kind::Plain, &["Ctrl+=", "Ctrl++"], &[place(VIEW, Some("Appearance"), "Bigger Text")], true),
-    command("font.smaller", "Smaller Text", Scope::Win, Kind::Plain, &["Ctrl+-"], &[place(VIEW, Some("Appearance"), "Smaller Text")], true),
-    command("font.reset", "Default Text Size", Scope::Win, Kind::Plain, &["Ctrl+0"], &[place(VIEW, Some("Appearance"), "Default Text Size")], true),
+    row("theme.toggle", "Dark Mode", Scope::Win, Kind::Check, &["Ctrl+Shift+L", "Alt+Shift+N"], &[place(VIEW, Some("Appearance"), "Dark Mode")], true),
+    row("font.bigger", "Bigger Text", Scope::Win, Kind::Plain, &["Ctrl+=", "Ctrl++"], &[place(VIEW, Some("Appearance"), "Bigger Text")], true),
+    row("font.smaller", "Smaller Text", Scope::Win, Kind::Plain, &["Ctrl+-"], &[place(VIEW, Some("Appearance"), "Smaller Text")], true),
+    row("font.reset", "Default Text Size", Scope::Win, Kind::Plain, &["Ctrl+0"], &[place(VIEW, Some("Appearance"), "Default Text Size")], true),
     // View › Window.
-    command("chrome.stats", "Statistics", Scope::Win, Kind::Check, &[], &[ place(VIEW, Some("Window"), "Statistics"), place(STATS, None, "Hide Statistics"), ], false),
-    command("chrome.toggle", "Hide Bars / Show Bars", Scope::Win, Kind::Check, &["Ctrl+Shift+H"], &[place(VIEW, Some("Window"), "Hide Bars / Show Bars")], false),
-    command("window.fullscreen", "Full Screen", Scope::Win, Kind::Check, &["F11"], &[place(VIEW, Some("Window"), "Full Screen")], true),
-    command("settings.open", "Settings…", Scope::Win, Kind::Plain, &["Ctrl+,"], &[place(VIEW, Some("Window"), "Settings…")], false),
-    command("shortcuts.open", "Keyboard Shortcuts", Scope::Win, Kind::Plain, &["Ctrl+?"], &[place(VIEW, Some("Window"), "Keyboard Shortcuts")], false),
-    command("palette.open", "All Commands…", Scope::Win, Kind::Plain, &["Ctrl+K", "Ctrl+Shift+P"], &[place(VIEW, Some("Window"), "All Commands…")], false),
+    row("chrome.stats", "Statistics", Scope::Win, Kind::Check, &[], &[ place(VIEW, Some("Window"), "Statistics"), place(STATS, None, "Hide Statistics"), ], false),
+    row("chrome.toggle", "Hide Bars / Show Bars", Scope::Win, Kind::Check, &["Ctrl+Shift+H"], &[place(VIEW, Some("Window"), "Hide Bars / Show Bars")], false),
+    row("window.fullscreen", "Full Screen", Scope::Win, Kind::Check, &["F11"], &[place(VIEW, Some("Window"), "Full Screen")], true),
+    row("settings.open", "Settings…", Scope::Win, Kind::Plain, &["Ctrl+,"], &[place(VIEW, Some("Window"), "Settings…")], false),
+    row("shortcuts.open", "Keyboard Shortcuts", Scope::Win, Kind::Plain, &["Ctrl+?"], &[place(VIEW, Some("Window"), "Keyboard Shortcuts")], false),
+    row("palette.open", "All Commands…", Scope::Win, Kind::Plain, &["Ctrl+K", "Ctrl+Shift+P"], &[place(VIEW, Some("Window"), "All Commands…")], false),
     // Stats menu.
-    command("stats.words", "Words", Scope::Win, Kind::Radio { group: "stats", value: "words", }, &[], &[place(STATS, None, "Words")], false),
-    command("stats.characters", "Characters", Scope::Win, Kind::Radio { group: "stats", value: "characters", }, &[], &[place(STATS, None, "Characters")], false),
-    command("stats.charactersNoSpaces", "Characters Without Spaces", Scope::Win, Kind::Radio { group: "stats", value: "charactersNoSpaces", }, &[], &[place(STATS, None, "Characters Without Spaces")], false),
-    command("stats.sentences", "Sentences", Scope::Win, Kind::Radio { group: "stats", value: "sentences", }, &[], &[place(STATS, None, "Sentences")], false),
-    command("stats.paragraphs", "Paragraphs", Scope::Win, Kind::Radio { group: "stats", value: "paragraphs", }, &[], &[place(STATS, None, "Paragraphs")], false),
-    command("stats.readingTime", "Reading Time", Scope::Win, Kind::Radio { group: "stats", value: "readingTime", }, &[], &[place(STATS, None, "Reading Time")], false),
+    row("stats.words", "Words", Scope::Win, Kind::Radio { group: "stats", value: "words", }, &[], &[place(STATS, None, "Words")], false),
+    row("stats.characters", "Characters", Scope::Win, Kind::Radio { group: "stats", value: "characters", }, &[], &[place(STATS, None, "Characters")], false),
+    row("stats.charactersNoSpaces", "Characters Without Spaces", Scope::Win, Kind::Radio { group: "stats", value: "charactersNoSpaces", }, &[], &[place(STATS, None, "Characters Without Spaces")], false),
+    row("stats.sentences", "Sentences", Scope::Win, Kind::Radio { group: "stats", value: "sentences", }, &[], &[place(STATS, None, "Sentences")], false),
+    row("stats.paragraphs", "Paragraphs", Scope::Win, Kind::Radio { group: "stats", value: "paragraphs", }, &[], &[place(STATS, None, "Paragraphs")], false),
+    row("stats.readingTime", "Reading Time", Scope::Win, Kind::Radio { group: "stats", value: "readingTime", }, &[], &[place(STATS, None, "Reading Time")], false),
     // Palette and keyboard only.
-    command("library.search", "Find a Document…", Scope::Win, Kind::Plain, &["Ctrl+Shift+O"], &[], false),
-    command("file.next", "Next Document", Scope::Win, Kind::Plain, &["Ctrl+Page Down"], &[], false),
-    command("file.prev", "Previous Document", Scope::Win, Kind::Plain, &["Ctrl+Page Up"], &[], false),
-    command("file.follow", "Open Linked Document", Scope::Win, Kind::Plain, &["Ctrl+Enter"], &[], false),
-    command("file.openFolder", "Open Folder as Library…", Scope::Win, Kind::Plain, &[], &[], false),
-    command("file.delete", "Delete Document…", Scope::Win, Kind::Plain, &[], &[], false),
-    command("theme.light", "Light Theme", Scope::Win, Kind::Radio { group: "theme", value: "light", }, &[], &[], false),
-    command("theme.dark", "Dark Theme", Scope::Win, Kind::Radio { group: "theme", value: "dark", }, &[], &[], false),
-    command("theme.auto", "Follow System", Scope::Win, Kind::Radio { group: "theme", value: "auto", }, &[], &[], false),
-    command("chrome.doc", "Document Menu", Scope::Win, Kind::Plain, &[], &[], false),
-    command("chrome.view", "View Menu", Scope::Win, Kind::Plain, &["F10"], &[], false),
+    row("library.search", "Find a Document…", Scope::Win, Kind::Plain, &["Ctrl+Shift+O"], &[], false),
+    row("file.next", "Next Document", Scope::Win, Kind::Plain, &["Ctrl+Page Down"], &[], false),
+    row("file.prev", "Previous Document", Scope::Win, Kind::Plain, &["Ctrl+Page Up"], &[], false),
+    row("file.follow", "Open Linked Document", Scope::Win, Kind::Plain, &["Ctrl+Enter"], &[], false),
+    row("file.openFolder", "Open Folder as Library…", Scope::Win, Kind::Plain, &[], &[], false),
+    row("file.delete", "Delete Document…", Scope::Win, Kind::Plain, &[], &[], false),
+    row("theme.light", "Light Theme", Scope::Win, Kind::Radio { group: "theme", value: "light", }, &[], &[], false),
+    row("theme.dark", "Dark Theme", Scope::Win, Kind::Radio { group: "theme", value: "dark", }, &[], &[], false),
+    row("theme.auto", "Follow System", Scope::Win, Kind::Radio { group: "theme", value: "auto", }, &[], &[], false),
+    row("chrome.doc", "Document Menu", Scope::Win, Kind::Plain, &[], &[], false),
+    row("chrome.view", "View Menu", Scope::Win, Kind::Plain, &["F10"], &[], false),
 ];
 
 /// Chords with no Command yet, held so nothing else takes them
@@ -305,15 +315,10 @@ pub fn by_chord(chord: &str) -> Option<&'static Command> {
 
 /// The radio groups the registry names, each once, in the table's order.
 pub fn radio_groups() -> Vec<&'static str> {
-    let mut groups = Vec::new();
-    for command in COMMANDS {
-        if let Kind::Radio { group, .. } = command.kind
-            && !groups.contains(&group)
-        {
-            groups.push(group);
-        }
-    }
-    groups
+    distinct(COMMANDS.iter().filter_map(|command| match command.kind {
+        Kind::Radio { group, .. } => Some(group),
+        Kind::Plain | Kind::Check => None,
+    }))
 }
 
 /// A chord in the table's syntax as GTK's accelerator syntax:
@@ -347,24 +352,24 @@ pub fn accel(chord: &str) -> Option<String> {
 /// GDK's name for a key as the table writes it.
 fn key_name(key: &str) -> Option<String> {
     let named = match key {
-        "=" => "equal",
-        "+" => "plus",
-        "-" => "minus",
-        "," => "comma",
-        "?" => "question",
-        "." => "period",
-        ";" => "semicolon",
-        "Page Down" => "Page_Down",
-        "Page Up" => "Page_Up",
-        "Enter" => "Return",
-        "Backspace" => "BackSpace",
-        "Delete" => "Delete",
-        "Menu" => "Menu",
-        "←" => "Left",
-        "→" => "Right",
-        _ => "",
+        "=" => Some("equal"),
+        "+" => Some("plus"),
+        "-" => Some("minus"),
+        "," => Some("comma"),
+        "?" => Some("question"),
+        "." => Some("period"),
+        ";" => Some("semicolon"),
+        "Page Down" => Some("Page_Down"),
+        "Page Up" => Some("Page_Up"),
+        "Enter" => Some("Return"),
+        "Backspace" => Some("BackSpace"),
+        "Delete" => Some("Delete"),
+        "Menu" => Some("Menu"),
+        "←" => Some("Left"),
+        "→" => Some("Right"),
+        _ => None,
     };
-    if !named.is_empty() {
+    if let Some(named) = named {
         return Some(named.to_owned());
     }
     let mut chars = key.chars();
@@ -378,6 +383,17 @@ fn key_name(key: &str) -> Option<String> {
         }
         _ => None,
     }
+}
+
+/// `items` with each value kept where it first appears.
+pub fn distinct<T: PartialEq>(items: impl Iterator<Item = T>) -> Vec<T> {
+    let mut seen = Vec::new();
+    for item in items {
+        if !seen.contains(&item) {
+            seen.push(item);
+        }
+    }
+    seen
 }
 
 #[cfg(test)]
@@ -552,15 +568,7 @@ mod tests {
     fn check(doc: &str) -> Vec<String> {
         let table = parse(doc);
         let mut faults = Vec::new();
-        let ids_in_file: Vec<&str> = {
-            let mut seen = Vec::new();
-            for row in &table.rows {
-                if !seen.contains(&row.id.as_str()) {
-                    seen.push(row.id.as_str());
-                }
-            }
-            seen
-        };
+        let ids_in_file = distinct(table.rows.iter().map(|row| row.id.as_str()));
         let ids_here: Vec<&str> = COMMANDS.iter().map(|command| command.id).collect();
         if ids_in_file != ids_here {
             faults.push(format!(
@@ -759,10 +767,12 @@ mod tests {
         assert_eq!(by_chord("F9").map(|c| c.id), Some("library.toggle"));
         assert_eq!(by_chord("Ctrl+Shift+P").map(|c| c.id), Some("palette.open"));
         assert_eq!(by_chord("Ctrl+P"), None);
+        assert_eq!(by_id("app.quit").map(Command::name), Some("quit"));
         assert_eq!(
             by_id("app.quit").map(Command::action).as_deref(),
             Some("app.quit")
         );
+        assert_eq!(by_id("window.new").map(Command::name), Some("window.new"));
         assert_eq!(
             by_id("window.new").map(Command::action).as_deref(),
             Some("app.window.new")

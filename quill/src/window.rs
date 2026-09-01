@@ -192,7 +192,7 @@ impl Window {
     /// actions show it.
     pub(crate) fn modes(&self) -> chrome::Modes {
         match self.imp().session.borrow().as_ref() {
-            Some(session) => chrome::modes(session, self.is_fullscreen()),
+            Some(session) => chrome::Modes::of(session, self.is_fullscreen()),
             None => chrome::Modes::default(),
         }
     }
