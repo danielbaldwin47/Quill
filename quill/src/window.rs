@@ -22,12 +22,14 @@ use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{gio, glib};
 use quill_engine::document::Document;
+use quill_engine::focus::Focus;
 use quill_engine::settings::WindowState;
 use quill_engine::theme::Scheme;
 
 use crate::caret;
 use crate::harness;
 use crate::session::Session;
+use crate::tags;
 
 mod imp {
     use std::cell::RefCell;
@@ -116,6 +118,13 @@ impl Window {
         // carries and a tag is drawn in a colour: the ground has to be settled
         // before the first thing painted on it.
         window.imp().editor.open_on(session.scheme());
+        // And with it, because `--focus` names a state the first frame is
+        // meant to show: the tiers are worked out inside the same draw that
+        // puts the Document on the page.
+        window
+            .imp()
+            .editor
+            .open_focused_on(Focus::of(session.settings()));
         window.set_document(document);
         window
             .imp()
@@ -303,7 +312,7 @@ impl Window {
                 return;
             }
             let mut document = window.imp().document.borrow_mut();
-            let offset = offset_of(&document, at);
+            let offset = tags::offset_of(&document, at);
             let edit = document.insert(offset, text);
             window.imp().pending.replace(Some(edit));
         });
@@ -317,7 +326,7 @@ impl Window {
                 return;
             }
             let mut document = window.imp().document.borrow_mut();
-            let at = offset_of(&document, from)..offset_of(&document, to);
+            let at = tags::offset_of(&document, from)..tags::offset_of(&document, to);
             let edit = document.delete(at);
             window.imp().pending.replace(Some(edit));
         });
@@ -338,19 +347,35 @@ impl Window {
             let document = window.imp().document.borrow();
             window.imp().editor.retag(&document, &edit.lines);
         });
-    }
-}
 
-/// The byte `at` names, in the offsets the engine counts in.
-///
-/// `GtkTextIter` already counts bytes within a line, which is the half of the
-/// mapping GTK gives away for nothing; the Document's line table gives the
-/// other half. This is [`crate::tags::iter_at`] read backwards, and it must be
-/// called while the two still hold the same text.
-fn offset_of(document: &Document, at: &gtk::TextIter) -> usize {
-    let line = usize::try_from(at.line()).unwrap_or(0);
-    let index = usize::try_from(at.line_index()).unwrap_or(0);
-    document.line_bytes(line).start + index
+        // Focus's own feed, and the Document is why it is here rather than
+        // beside the Editor's other caret handlers: the Editor holds no
+        // Document, and the tiers are read off one. A move the writer made
+        // with a key, a click or a shift-drag all arrive as `mark-set`; the
+        // ones an edit made arrive above, where the retag they share is
+        // already being paid for.
+        let watcher = self.downgrade();
+        buffer.connect_mark_set(move |buffer, _, mark| {
+            let Some(window) = watcher.upgrade() else {
+                return;
+            };
+            if window.imp().editor.loading() {
+                return;
+            }
+            // The other end of a selection moves on its own through a
+            // shift-drag, and a selection is the bright span.
+            if mark != &buffer.get_insert() && mark != &buffer.selection_bound() {
+                return;
+            }
+            // `changed` fires before this for an edit, and its retag has
+            // already moved the dim: taking the Document here would be a
+            // second borrow of one the splice may still hold.
+            let Ok(document) = window.imp().document.try_borrow() else {
+                return;
+            };
+            window.imp().editor.refocus(&document);
+        });
+    }
 }
 
 /// Which way Bigger Text, Smaller Text and Default Text Size move.

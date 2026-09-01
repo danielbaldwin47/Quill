@@ -28,14 +28,23 @@
 //! opposite reason: a run's background stops with the last glyph on the line,
 //! so only a paragraph's can run past both edges of the measure and read as a
 //! well.
+//!
+//! **A run arrives with its colour already resolved.** The engine's flattening
+//! takes the Markup mark and the Focus tier and answers with one colour
+//! ([`quill_engine::annotate::paint_in`]), so this module reads no palette role
+//! for text: it asks for the tag that draws that colour at that opacity, and
+//! the roles a ground still owes it are the ones no run carries — the code
+//! well and a link's rule. Nothing here holds a colour of its own, which is
+//! why `grep -n '#[0-9a-f]\{6\}' quill/src` comes back empty.
 
 use std::ops::Range;
 
 use gtk::gdk;
 use gtk::pango;
 use gtk::prelude::*;
-use quill_engine::annotate::{Ground, Ink, Look, Mark, Slant, Span, Weight};
+use quill_engine::annotate::{self, Ground, Look, Mark, Slant, Span, Weight};
 use quill_engine::document::Document;
+use quill_engine::focus::{self, Focus, LineTiers, Tier};
 use quill_engine::settings::Face;
 use quill_engine::theme::{Colour, Colours, Role, Scheme};
 use quill_engine::typography;
@@ -308,29 +317,49 @@ pub fn hang_markers(
     ground.set_indent(edge);
 }
 
+/// Everything but the text that decides how a Document is drawn.
+///
+/// The Face and the ground were two arguments carried side by side through
+/// every function here; Focus adds the tiers, which travel with them and are
+/// read at the same moment, so the four are one value. What it is *not* is
+/// state: it is read off the Editor at the top of each draw, because a tag is
+/// drawn in the colours of the moment it is applied.
+#[derive(Clone, Copy)]
+pub struct Painting<'a> {
+    /// The Face the Editor is set in.
+    pub face: Face,
+    /// The ground being painted on, which every colour is read off.
+    pub scheme: Scheme,
+    /// How much Focus leaves lit.
+    pub focus: Focus,
+    /// What Focus lights, for the caret where it now is. Empty with Focus off,
+    /// and empty with Focus on when the caret lights nothing.
+    pub tiers: &'a [LineTiers],
+}
+
 /// Draws the whole of `document` on `buffer`, which must hold its text.
 ///
 /// The whole Document at once is what opening one costs: the architecture
 /// parses and draws whole on open as a cold-start cost inside the 250 ms
 /// budget. A keystroke goes through [`retag`] instead.
-pub fn apply(buffer: &gtk::TextBuffer, document: &Document, face: Face, scheme: Scheme) {
+pub fn apply(buffer: &gtk::TextBuffer, document: &Document, painting: Painting) {
     buffer.remove_all_tags(&buffer.start_iter(), &buffer.end_iter());
-    draw(buffer, document, face, scheme, &(0..document.text().len()));
+    draw(buffer, document, painting, &(0..document.text().len()));
 }
 
 /// Draws `lines` again, and leaves every other line of `buffer` alone.
 ///
-/// The lines an [`Edit`] names, and no others. Every line below an edit
-/// carries tags that are still right: GTK moves a tag with the text it is on,
-/// so a run that only slid down the Document needs nothing done to it, and the
-/// engine hands back only the lines whose runs came out looking different.
+/// The lines an [`Edit`] names, or the lines whose Focus tier changed under a
+/// caret that moved ([`focus::changed`]), and no others. Every line below an
+/// edit carries tags that are still right: GTK moves a tag with the text it is
+/// on, so a run that only slid down the Document needs nothing done to it, and
+/// the engine hands back only the lines whose runs came out looking different.
 ///
 /// [`Edit`]: quill_engine::document::Edit
 pub fn retag(
     buffer: &gtk::TextBuffer,
     document: &Document,
-    face: Face,
-    scheme: Scheme,
+    painting: Painting,
     lines: &Range<usize>,
 ) {
     if lines.is_empty() {
@@ -340,7 +369,7 @@ pub fn retag(
     let from = iter_at(buffer, document, at.start);
     let to = iter_at(buffer, document, at.end);
     buffer.remove_all_tags(&from, &to);
-    draw(buffer, document, face, scheme, &at);
+    draw(buffer, document, painting, &at);
 }
 
 /// Puts every tag the bytes `at` ask for on to `buffer`.
@@ -357,26 +386,28 @@ pub fn retag(
 /// off the whole line and belongs to every line its span touches, including
 /// the ones outside `at` that still have it. Applying a tag they already carry
 /// is what leaves them as they were.
-fn draw(
-    buffer: &gtk::TextBuffer,
-    document: &Document,
-    face: Face,
-    scheme: Scheme,
-    at: &Range<usize>,
-) {
-    for run in document.runs_in(at) {
-        let from = iter_at(buffer, document, run.at.start.max(at.start));
-        let to = iter_at(buffer, document, run.at.end.min(at.end));
-        let Look {
-            ink,
-            alpha,
-            weight,
-            slant,
-            ground: on,
-        } = run.look;
-        buffer.apply_tag(&colour(buffer, &hex(scheme, ink), alpha), &from, &to);
-        buffer.apply_tag(&cut(buffer, face, weight, slant), &from, &to);
-        if on == Ground::Code {
+fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &Range<usize>) {
+    let Painting {
+        face,
+        scheme,
+        focus,
+        tiers,
+    } = painting;
+    let colours = Colours::of(scheme);
+    // The flattening resolves the Markup mark and the Focus tier into one
+    // colour, so the ink is read here rather than off the run's role: with
+    // Focus on, most of the page is drawn in a colour no role names.
+    for run in annotate::paint_in(document.spans_in(at), at, tiers, focus, &colours) {
+        let from = iter_at(buffer, document, run.at.start);
+        let to = iter_at(buffer, document, run.at.end);
+        let ink = run.paint.colour;
+        buffer.apply_tag(&colour(buffer, &ink.to_hex(), ink.opacity()), &from, &to);
+        buffer.apply_tag(
+            &cut(buffer, face, run.paint.weight, run.paint.slant),
+            &from,
+            &to,
+        );
+        if run.paint.ground == Ground::Code {
             buffer.apply_tag(&ground(buffer, scheme), &from, &to);
         }
     }
@@ -384,11 +415,29 @@ fn draw(
         if span.at.end <= at.start {
             continue;
         }
+        // A paragraph property is not cut at a tier boundary, so it takes the
+        // one tier the block it belongs to is in.
+        let tier = focus::tier_in(tiers, focus, &span.at);
         match span.mark {
             Mark::Heading(level) => {
                 paragraph(buffer, document, span, &heading(buffer, level));
             }
-            Mark::CodeBlock => paragraph(buffer, document, span, &code_ground(buffer, scheme)),
+            // Out of focus a code block keeps its glyphs and loses its well —
+            // `legacy/app/css/focus.css:42-43` sets the background transparent
+            // — so that the dim is one flat grey rather than a stack of lit
+            // panels. The same rule the flattening applies to a code span's
+            // own ground ([`quill_engine::annotate::Paint`]).
+            //
+            // Lifted across the whole block rather than left to the lines the
+            // caller cleared, because a paragraph tag was put on rows outside
+            // them: see [`unparagraph`].
+            Mark::CodeBlock => {
+                let well = code_ground(buffer, scheme);
+                match tier {
+                    Tier::Bright => paragraph(buffer, document, span, &well),
+                    Tier::Dim => unparagraph(buffer, document, span, &well),
+                }
+            }
             Mark::Strikethrough => {
                 let from = iter_at(buffer, document, span.at.start);
                 let to = iter_at(buffer, document, span.at.end);
@@ -398,7 +447,12 @@ fn draw(
             // stand for it, and not the brackets around them. The Design
             // oracle draws it that way (#198), and the mark says exactly which
             // bytes are the destination.
-            Mark::Url => {
+            //
+            // Out of focus it goes, as the well does:
+            // `legacy/app/css/focus.css:41` takes the rule's colour to
+            // `transparent` on a dimmed URL, so a dim link is grey words and
+            // nothing under them.
+            Mark::Url if tier == Tier::Bright => {
                 let from = iter_at(buffer, document, span.at.start);
                 let to = iter_at(buffer, document, span.at.end);
                 buffer.apply_tag(&underline(buffer, scheme), &from, &to);
@@ -416,6 +470,29 @@ fn draw(
 /// touches all of its own, which is what puts its ground under every row rather
 /// than only the first.
 fn paragraph(buffer: &gtk::TextBuffer, document: &Document, span: &Span, tag: &gtk::TextTag) {
+    let (start, end) = paragraph_lines(buffer, document, span);
+    buffer.apply_tag(tag, &start, &end);
+}
+
+/// Takes a paragraph tag off every line `span` touches.
+///
+/// The other half of [`paragraph`], and it exists because the two are not
+/// symmetric anywhere else: the caller takes the tags off the lines it is about
+/// to redraw, and a paragraph tag was put on lines outside them. A code block
+/// the caret has just left is dim on all of its rows, and only some of them are
+/// in the retag — so the well has to be lifted from the block rather than left
+/// to the lines, or the rows nobody redrew keep a fragment of it.
+fn unparagraph(buffer: &gtk::TextBuffer, document: &Document, span: &Span, tag: &gtk::TextTag) {
+    let (start, end) = paragraph_lines(buffer, document, span);
+    buffer.remove_tag(tag, &start, &end);
+}
+
+/// The whole lines `span` touches, as the pair of iterators both halves use.
+fn paragraph_lines(
+    buffer: &gtk::TextBuffer,
+    document: &Document,
+    span: &Span,
+) -> (gtk::TextIter, gtk::TextIter) {
     let mut start = buffer.start_iter();
     start.set_line(iter_at(buffer, document, span.at.start).line());
     let mut end = buffer.start_iter();
@@ -423,37 +500,7 @@ fn paragraph(buffer: &gtk::TextBuffer, document: &Document, span: &Span, tag: &g
     if !end.ends_line() {
         end.forward_to_line_end();
     }
-    buffer.apply_tag(tag, &start, &end);
-}
-
-/// The colour `ink` names on `scheme`, as GTK parses one.
-///
-/// The engine names a role because it cannot see a display; the three roles
-/// meet their colours here, and that is the whole of what a ground is to
-/// marked-up text — the same three roles read off the other row of the table.
-/// Nothing here holds a colour of its own, which is why
-/// `grep -n '#[0-9a-f]\{6\}' quill/src` comes back empty.
-///
-/// Every marker holds the body's own ink, and that is the whole ladder. #198
-/// shot the Design oracle at every mark kind on both grounds and found no
-/// resting marker grey: `markup.css`'s three tiers — `--md-mark-quiet` at 72 %
-/// for a heading's `#`s, a quote's `>`, fences, code marks and URLs, the full
-/// grey for bullets, task boxes and a fence's info string, `--md-hair` at 34 %
-/// for a thematic break — have no counterpart in the app the port is measured
-/// against, which rests all three at the ink. The ladder was the Parity
-/// oracle's, and ADR 0015 is why it was measured before it was ported.
-///
-/// So [`Ink::Marker`] and [`Ink::Prose`] answer with the same hex on both
-/// built-in grounds, and the two stay separate roles for the writer whose
-/// `palette` file sets them apart. What is quieter than the prose is a link's
-/// plumbing, which is [`Ink::Link`].
-fn hex(scheme: Scheme, ink: Ink) -> String {
-    let role = match ink {
-        Ink::Prose => Role::Ink,
-        Ink::Marker => Role::Mark,
-        Ink::Link => Role::Link,
-    };
-    Colours::of(scheme).colour(role).to_hex()
+    (start, end)
 }
 
 /// The code ground on `scheme`, flattened onto that ground's paper.
@@ -496,6 +543,20 @@ pub fn iter_at(buffer: &gtk::TextBuffer, document: &Document, offset: usize) -> 
     iter
 }
 
+/// The byte `at` names, in the offsets the engine counts in.
+///
+/// `GtkTextIter` already counts bytes within a line, which is the half of the
+/// mapping GTK gives away for nothing; the Document's line table gives the
+/// other half. This is [`iter_at`] read backwards, and it must be called while
+/// the two still hold the same text. It lives beside it so that the app has one
+/// mapping in each direction and no second copy to drift: the splice reads a
+/// keystroke's offsets with it, and Focus reads where the caret now is.
+pub fn offset_of(document: &Document, at: &gtk::TextIter) -> usize {
+    let line = usize::try_from(at.line()).unwrap_or(0);
+    let index = usize::try_from(at.line_index()).unwrap_or(0);
+    document.line_bytes(line).start + index
+}
+
 /// `count` as the `i32` GTK counts lines and byte indices in.
 ///
 /// A Document long enough to overflow this is 2 GB of prose; saturating rather
@@ -507,11 +568,23 @@ fn gtk_index(count: usize) -> i32 {
 
 #[cfg(test)]
 mod tests {
+    use quill_engine::annotate::Ink;
+
     use super::*;
 
     // These test the arithmetic the hang is built on. Nothing here makes a
     // `GtkTextTag`: `tools/gate check` runs `cargo test` with no display
     // attached, and the tags themselves are judged from a shot instead.
+
+    /// The colour `ink` is drawn in on `scheme` with Focus off, as GTK parses
+    /// one: what a run carries by the time it reaches this module.
+    ///
+    /// Through the flattening rather than a table of its own, because that is
+    /// where the module now reads a colour from, and a second mapping here
+    /// would be one that could disagree with the drawn page.
+    fn hex(scheme: Scheme, ink: Ink) -> String {
+        annotate::colour(ink, Tier::Bright, &Colours::of(scheme)).to_hex()
+    }
 
     /// The judged step: the ladder's default, whose em is 21.33 logical
     /// pixels and whose cell is therefore 12.798.
@@ -663,8 +736,8 @@ mod tests {
     /// every mark kind at the body's ink (#198), so on the built-in grounds the
     /// two are one colour and the mapping is what keeps them separable. The
     /// values themselves are the engine's to assert (`theme.rs` § `ORACLE`);
-    /// what is checked here is that this module reaches the right three roles
-    /// and reads them off the ground it was handed.
+    /// what is checked here is that a run reaches this module carrying the
+    /// right three roles, read off the ground it was handed.
     #[test]
     fn the_three_inks_are_three_roles_of_the_ground() {
         for scheme in [Scheme::Light, Scheme::Dark] {
