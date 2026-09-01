@@ -77,14 +77,6 @@ const GLIDE_FAR: f64 = 14.0;
 /// a new place rather than the same caret moving to it.
 const GLIDE_DROP: f64 = 1.2;
 
-/// How far past the last glyph a selected newline is drawn, in ems: `NL_TAIL`.
-///
-/// A newline has no advance to highlight and is a real selected character all
-/// the same, so every editor draws a stub past the end of the row to stand for
-/// it. Half an em is the oracle's, and near enough iA's own, which is what the
-/// `selection` state is judged against.
-const NL_TAIL: f64 = 0.5;
-
 /// The bar full on, at the top of the blink's cycle.
 const ON: i64 = 470 * MS;
 
@@ -559,16 +551,6 @@ impl Default for Caret {
     fn default() -> Self {
         Self::new(Mode::Live)
     }
-}
-
-/// How far past the last glyph of a row a selected newline reaches at type
-/// size `size`, in the pixels the widget lays out in.
-///
-/// `M.em * NL_TAIL` in `drawSelection`. Logical pixels, for the reason
-/// [`nudge`] gives.
-#[must_use]
-pub fn tail(size: u32) -> f64 {
-    f64::from(size) * NL_TAIL
 }
 
 /// Where the bar's top sits, given the row's baseline and the pitch, in the
