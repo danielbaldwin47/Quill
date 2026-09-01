@@ -311,8 +311,7 @@ fn reach(doc: &Document, at: &Range<usize>, focus: Focus) -> Range<usize> {
 
 /// The block `caret` is in, as the bytes it covers.
 fn block_of(doc: &Document, caret: usize) -> Option<Range<usize>> {
-    doc.block_at(caret)
-        .map(|block| doc.blocks()[block].at.clone())
+    doc.block_at(caret).map(|block| doc.block(block).at)
 }
 
 /// The lines the blank-line rule may look at, above a caret parked on `line`.
