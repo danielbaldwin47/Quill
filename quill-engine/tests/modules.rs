@@ -8,9 +8,9 @@
 use std::fs;
 use std::path::PathBuf;
 
-/// The engine's concepts, in `docs/architecture.md`'s order: its sixteen
-/// modules, then `data`, which the "Fonts and data files" section adds and
-/// every other module reads its files through.
+/// The engine's concepts, in `docs/architecture.md`'s order: the modules its
+/// "Engine modules" paragraph lists, then `data`, which the "Fonts and data
+/// files" section adds and every other module reads its files through.
 const MODULES: [&str; 17] = [
     "document",
     "markdown",

@@ -44,8 +44,30 @@ pub struct Modes {
     pub fullscreen: bool,
 }
 
+impl Modes {
+    /// What the session shows, as the actions show it.
+    ///
+    /// The scope is the live one while Focus is on; off, it is the one the
+    /// settings file holds, which the session restores when Focus returns.
+    pub fn of(session: &crate::session::Session, fullscreen: bool) -> Self {
+        let (focus, focus_scope) = match session.focus() {
+            Focus::On(scope) => (true, scope.as_str()),
+            Focus::Off => (false, session.settings().focus_scope.as_str()),
+        };
+        Modes {
+            focus,
+            focus_scope,
+            typewriter: matches!(session.typewriter(), Typewriter::On(_)),
+            dark: session.scheme() == Scheme::Dark,
+            theme: session.theme().as_str(),
+            face: session.settings().face.as_str(),
+            fullscreen,
+        }
+    }
+}
+
 /// What a fired Command does, given the Command.
-type Run = Rc<dyn Fn(&'static Command)>;
+type Handler = Rc<dyn Fn(&'static Command)>;
 
 /// Installs the application's half: every chord in the table, and the
 /// `app.` actions.
@@ -104,11 +126,13 @@ pub fn reflect_windows(app: &gtk::Application) {
 ///
 /// Generic over the map so a test can hand it a `SimpleActionGroup` and
 /// activate by name without a window.
-pub fn register(map: &impl IsA<gio::ActionMap>, scope: Scope, run: Run) {
+pub fn register(map: &impl IsA<gio::ActionMap>, scope: Scope, run: Handler) {
     for command in COMMANDS.iter().filter(|command| command.scope == scope) {
         let action = match command.kind {
-            Kind::Check => gio::SimpleAction::new_stateful(command.id, None, &false.to_variant()),
-            Kind::Plain | Kind::Radio { .. } => gio::SimpleAction::new(command.id, None),
+            Kind::Check => {
+                gio::SimpleAction::new_stateful(command.name(), None, &false.to_variant())
+            }
+            Kind::Plain | Kind::Radio { .. } => gio::SimpleAction::new(command.name(), None),
         };
         let fire = Rc::clone(&run);
         action.connect_activate(move |_, _| fire(command));
@@ -159,23 +183,6 @@ pub fn reflect(map: &impl IsA<gio::ActionMap>, modes: Modes) {
     set("face", modes.face.to_variant());
 }
 
-/// What the session shows, as the actions show it.
-pub fn modes(session: &crate::session::Session, fullscreen: bool) -> Modes {
-    let (focus, focus_scope) = match session.focus() {
-        Focus::On(scope) => (true, scope.as_str()),
-        Focus::Off => (false, session.settings().focus_scope.as_str()),
-    };
-    Modes {
-        focus,
-        focus_scope,
-        typewriter: matches!(session.typewriter(), Typewriter::On(_)),
-        dark: session.scheme() == Scheme::Dark,
-        theme: session.theme().as_str(),
-        face: session.settings().face.as_str(),
-        fullscreen,
-    }
-}
-
 /// The application's Commands.
 fn run_app(app: &gtk::Application, command: &Command) {
     if command.id == "app.quit" {
@@ -210,14 +217,14 @@ mod tests {
 
     use super::*;
 
-    /// A map with every `win.` action on it, and the ids fired through it.
-    fn map() -> (gio::SimpleActionGroup, Rc<RefCell<Vec<&'static str>>>) {
+    /// A map with one scope's actions on it, and the ids fired through it.
+    fn map(scope: Scope) -> (gio::SimpleActionGroup, Rc<RefCell<Vec<&'static str>>>) {
         let fired = Rc::new(RefCell::new(Vec::new()));
         let map = gio::SimpleActionGroup::new();
         let log = Rc::clone(&fired);
         register(
             &map,
-            Scope::Win,
+            scope,
             Rc::new(move |command| log.borrow_mut().push(command.id)),
         );
         (map, fired)
@@ -225,7 +232,7 @@ mod tests {
 
     #[test]
     fn every_chord_in_the_table_reaches_its_action_by_name() {
-        let (map, fired) = map();
+        let (map, fired) = map(Scope::Win);
         for command in COMMANDS
             .iter()
             .filter(|command| command.scope == Scope::Win)
@@ -288,7 +295,7 @@ mod tests {
 
     #[test]
     fn a_disabled_commands_activation_returns_without_effect() {
-        let (map, fired) = map();
+        let (map, fired) = map(Scope::Win);
         assert!(!commands::by_id("file.open").unwrap().built);
         assert!(!map.is_action_enabled("file.open"));
         map.activate_action("file.open", None);
@@ -300,7 +307,7 @@ mod tests {
 
     #[test]
     fn the_stateful_actions_show_the_modes_they_are_given() {
-        let (map, _) = map();
+        let (map, _) = map(Scope::Win);
         let modes = Modes {
             focus: true,
             focus_scope: "paragraph",
