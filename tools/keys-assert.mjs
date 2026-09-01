@@ -228,16 +228,17 @@ export function readBar(png, { ink = INK, paper = PAPER } = {}) {
 /// There is no gap. `Editor::band` gives every row the full pitch and `Editor::selection` stacks
 /// one fill per display row, so row *k*'s fill ends on the device pixel row *k+1*'s begins — a scan
 /// for empty rows between them would answer "one band" for a selection of any height, and #146's
-/// missing last row would not move that number. What does differ is how far along each row the
-/// fill reaches: a row is filled to its last glyph's advance, so rows of different lengths end in
-/// different columns. So a band here is a run of consecutive scanlines whose selection colour
-/// starts and ends in the same two columns, which is why the keys script selects rows of
-/// deliberately different lengths.
+/// missing last row would not move that number. What does differ is where each row's fill starts
+/// and stops: a selection is a fill of the container, so only its two ends are measured off glyphs
+/// — the first row starts at the anchor and the last stops at the focus, while every row between
+/// them runs the container's whole width (#168). So a band here is a run of consecutive scanlines
+/// whose selection colour starts and ends in the same two columns, and the three shapes a
+/// multi-row selection has are three bands.
 ///
 /// The seam between two bands costs nothing: where the two fills share a device pixel row it
-/// carries both, so its span is the union of theirs — and since every row of a selection starts at
-/// the same left edge, that union is the wider of the two and the seam joins that band rather than
-/// standing as a third.
+/// carries both, so its span is the union of theirs — and an interior row spans the container,
+/// which contains the row above it and the row below it, so that union is the interior row's own
+/// span and the seam joins its band rather than standing as a third.
 export function readSelectionRows(png) {
   const bands = [];
   let pixels = 0;
@@ -343,6 +344,122 @@ export function judgeSelectionRows(png, { rows } = {}) {
   };
 }
 
+// How far the two edges of a container measured off the glass may miss each other by, in device
+// pixels. The container is centred in the view, so its left edge and the pixel past its right one
+// sum to the view's width — but the centre is rounded to a whole logical pixel on the way in and
+// each edge is snapped to a device one on the way out, and at scale 2 that is two pixels of play at
+// each end.
+//
+// A band's `right` is the last pixel the fill painted and the container's right edge is the one
+// after it, so every sum below is `left + right + 1`.
+const SPREAD = 4;
+
+/// After a burst that ends in a multi-row selection, the rows between the first and the last fill
+/// the container edge to edge.
+///
+/// A selection is a fill of the container rather than of the ink it covers (`docs/design.md`
+/// § Multi-row fill, the Design oracle's `09-dark`), so only its two ends are measured off glyphs:
+/// the first row starts at the anchor, the last stops at the focus, and every row between them
+/// runs the container's whole width. That is read off the bands alone, which is all a still of the
+/// glass carries — an interior band starts where the last row starts and stops where the first row
+/// stops, and reaches past both: left of the anchor into the gutter, and right of the focus. A
+/// painter filling each row to its own ink cannot do either, however many rows it paints.
+///
+/// The container is centred in the view, so its two edges sum to the view's width. That is the one
+/// absolute number here, and it is what says the band reached the container's edges rather than
+/// merely the widest ink on the page.
+export function judgeSelectionFill(png, { rows } = {}) {
+  const read = readSelectionRows(png);
+  const where = read.bands.map((b) => `x ${b.left}..${b.right}`).join('; ');
+  if (!(rows >= 3)) {
+    return {
+      pass: false,
+      read,
+      said: `a burst asserting selection-container-wide has to say how many rows it selects, and `
+        + `an interior row wants three or more, not ${JSON.stringify(rows)}`,
+    };
+  }
+  if (read.bands.length !== rows) {
+    return {
+      pass: false,
+      read,
+      said: `${read.bands.length} row bands in the selection colour, expected ${rows} (${where})`,
+    };
+  }
+  const first = read.bands[0];
+  const last = read.bands[rows - 1];
+  const astray = read.bands.slice(1, -1).find(
+    (b) => b.left !== last.left || b.right !== first.right
+      || b.left >= first.left || b.right <= last.right,
+  );
+  if (astray) {
+    return {
+      pass: false,
+      read,
+      said: `an interior row is filled x ${astray.left}..${astray.right}, where the container is `
+        + `x ${last.left}..${first.right} — the first row runs from the anchor at ${first.left} `
+        + `and the last to the focus at ${last.right} (${where})`,
+    };
+  }
+  const edges = last.left + first.right + 1;
+  return {
+    pass: Math.abs(edges - png.w) <= SPREAD,
+    read,
+    said: `the interior rows fill x ${last.left}..${first.right}, whose edges sum to ${edges} in a `
+      + `${png.w} px view; a container centred in it sums to ${png.w} within ${SPREAD} (${where})`,
+  };
+}
+
+/// After a burst whose selection ends past a row's newline, that row is filled to the container's
+/// right edge.
+///
+/// A newline has no advance to highlight and is a held character all the same. The oracle drew a
+/// half-em stub past the last glyph for it and the port inherited one; the Design oracle fills the
+/// row to the container's right edge instead (`docs/design.md` § Held newline, `10-newline-only`),
+/// which is the same edge every row the selection runs past reaches.
+///
+/// The burst holds the newline of its **last** row, so that row was also entered from above and
+/// spans the whole container: it starts left of the first row's anchor and stops where the first
+/// row stops, and those two edges sum to the view's width. A stub would stop a half em past ink
+/// that ends nowhere near either.
+export function judgeSelectionNewline(png, { rows } = {}) {
+  const read = readSelectionRows(png);
+  const where = read.bands.map((b) => `x ${b.left}..${b.right}`).join('; ');
+  if (!(rows >= 2)) {
+    return {
+      pass: false,
+      read,
+      said: `a burst asserting selection-newline-to-edge has to say how many rows it selects, and `
+        + `a held newline below the first row wants two or more, not ${JSON.stringify(rows)}`,
+    };
+  }
+  if (read.bands.length !== rows) {
+    return {
+      pass: false,
+      read,
+      said: `${read.bands.length} row bands in the selection colour, expected ${rows} (${where})`,
+    };
+  }
+  const first = read.bands[0];
+  const last = read.bands[rows - 1];
+  if (last.right !== first.right || last.left >= first.left) {
+    return {
+      pass: false,
+      read,
+      said: `the row holding the newline is filled x ${last.left}..${last.right}, and the row `
+        + `above it x ${first.left}..${first.right} — a row the selection runs past reaches the `
+        + `container's right edge, and one entered from above starts at its left (${where})`,
+    };
+  }
+  const edges = last.left + last.right + 1;
+  return {
+    pass: Math.abs(edges - png.w) <= SPREAD,
+    read,
+    said: `the newline's row fills x ${last.left}..${last.right}, whose edges sum to ${edges} in a `
+      + `${png.w} px view; a container centred in it sums to ${png.w} within ${SPREAD} (${where})`,
+  };
+}
+
 /// Between the bursts, the bar moved right.
 export function judgeMove(before, after) {
   if (!before.bar || !after.bar) {
@@ -364,6 +481,8 @@ export function judgeMove(before, after) {
 export const AFTER_BURST = {
   'bar-after-ink': judgeBurst,
   'selection-rows': judgeSelectionRows,
+  'selection-container-wide': judgeSelectionFill,
+  'selection-newline-to-edge': judgeSelectionNewline,
 };
 export const BETWEEN_BURSTS = { 'bar-moved-right': judgeMove };
 

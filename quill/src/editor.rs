@@ -756,12 +756,23 @@ impl Editor {
     /// `None` when there is nothing selected, or before the type has been set.
     ///
     /// The walk is display lines rather than logical ones, because a wrapped
-    /// paragraph is as many bands as it has rows on the glass. Each row is
-    /// measured from the box of the character it starts at and the box of the
-    /// character it ends at, and never from an iterator sitting on a wrap:
-    /// that one offset is both the end of one row and the start of the next,
-    /// and which of the two `iter_location` answers for is not ours to decide.
-    /// A character's own box is on one row and only one.
+    /// paragraph is as many bands as it has rows on the glass. A row is
+    /// measured from an iterator's own box and never from one sitting on a
+    /// wrap: that one offset is both the end of one row and the start of the
+    /// next, and which of the two `iter_location` answers for is not ours to
+    /// decide. A character's own box is on one row and only one.
+    ///
+    /// A selection is a fill of the **container**, not of the ink it covers
+    /// (`docs/design.md` § Selection, § Held newline, § Multi-row fill; the
+    /// Design oracle's `09-dark` and `10-newline-only`). So only the two ends
+    /// are measured off glyphs: the first row starts at the anchor and the
+    /// last stops at the focus. Every edge between them is
+    /// [`typography::Column`]'s — a row the selection entered from above is
+    /// filled from the container's left edge, and a row it runs past to the
+    /// container's right edge. The interior rows of a multi-row selection are
+    /// both, and are filled edge to edge whatever their ink. A selection
+    /// inside one row, holding no row end, is the anchor to the focus and
+    /// nothing more.
     ///
     /// Only what can be seen is built. `drawSelection` clips to the viewport
     /// with six rows of slack either side and counts nothing outside it toward
@@ -782,7 +793,9 @@ impl Editor {
         if pitch == 0.0 {
             return None;
         }
-        let tail = caret::tail(caret_em_px(self.imp().step.get()));
+        let column = self.imp().laid_out.get()?.column;
+        let container_left = f64::from(column.left);
+        let container_right = f64::from(column.right);
         let scale = self.scale();
         let view = self.visible_rect();
         let top = f64::from(view.y()) - pitch * SELECTION_SLACK;
@@ -829,7 +842,18 @@ impl Editor {
             if f64::from(box_of_first.y()) > bottom {
                 break;
             }
-            let left = f64::from(box_of_first.x());
+            // A row the selection entered from above is filled from the
+            // container's left edge rather than from its first glyph: the
+            // writer held everything on it, gutter included. `at > start` is
+            // that test and it survives the clip at the top of the band —
+            // a row the walk began at because the rows above are off the
+            // glass was still entered from above.
+            let entered_from_above = at > start;
+            let left = if entered_from_above {
+                container_left
+            } else {
+                f64::from(box_of_first.x())
+            };
             let mut right = left;
             if stop > at {
                 let mut last = stop;
@@ -837,11 +861,15 @@ impl Editor {
                 let glyph = self.iter_location(&last);
                 right = f64::from(glyph.x() + glyph.width());
             }
-            // A selected newline has no advance to fill, so it is drawn as a
-            // stub past the last glyph. `ends_line` is what tells it from a
-            // wrap: a wrap is inside one line and never ends it.
-            if stop < end && stop.ends_line() {
-                right += tail;
+            // A row the selection runs past is filled to the container's right
+            // edge, not to its own last glyph. `stop < end` is that test: the
+            // row's end is inside the selection, so whatever the row holds
+            // after its ink — a newline with no advance, or a wrap with
+            // nothing at all — is held too, and the fill stands for it. An
+            // empty row inside a selection is filled the same way, edge to
+            // edge, without ink of its own to measure.
+            if stop < end {
+                right = container_right;
             }
             let (y, h) = self.band(f64::from(box_of_first.y()));
             let x = caret::snap(left * scale);
@@ -1414,8 +1442,8 @@ fn body_font(face: Face, em: f64) -> pango::FontDescription {
 /// The em at `step` of the type ladder, rounded to whole logical pixels.
 ///
 /// The type itself is set at the fractional em ([`body_font`]); this is the
-/// caret's unit alone, because [`caret::width`] and [`caret::tail`] are still
-/// scaled off a whole-pixel size. The ladder carries a caret width per step
+/// caret's unit alone, because [`caret::width`] is still scaled off a
+/// whole-pixel size. The ladder carries a caret width per step
 /// ([`typography::caret_width`]) and reading it there is
 /// [#169](https://github.com/danielbaldwin47/Quill/issues/169)'s, with the
 /// blink.

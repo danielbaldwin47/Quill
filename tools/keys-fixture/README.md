@@ -82,8 +82,39 @@ late fails the same way a walk that stops a row early does. The bands touch — 
 then 298 — so what tells one from the next is the column its fill ends at, which is why the script's
 three rows are of three different lengths.
 
+## The selection filling the container
+
+- `fill-select-all.png` — the same third burst again, on the build that fills the **container**
+  rather than each row's ink (#168). `fixed-select-all.png` above is its red half: that build is
+  the one whose rows stopped at their own last glyph.
+- `fill-newline-held.png` — the fourth burst, added by #168. It types over the standing selection,
+  leaving a Document of `aa`, `bbbb` and the empty row a trailing newline opens, and presses
+  `Control+a`. The selection then ends past a **newline** rather than past a glyph, which is the
+  one shape no still in `shots/oracle/` shows.
+
+Taken by #168 with `tools/gate keys caret --shots`, on the same window and the same type as the
+pair above, so the three bands stand at the same three heights and only their reach along each row
+has moved.
+
+| | row 1 | row 2 | row 3 |
+|---|---|---|---|
+| filling the ink | y 150..223, x 622..1616 | y 224..297, x 622..744 | y 298..371, x 622..877 |
+| filling the container | y 150..223, x **622..2437** | y 224..297, x **442..2437** | y 298..371, x **442**..877 |
+| the newline held | y 150..223, x 622..2437 | y 224..297, x 442..2437 | — |
+
+The container is x 442 … 2438 of a 2880 px view — 442 either side of it — and that is what the two
+assertions read: the first row starts at the anchor and the last stops at the focus, and every row
+the selection runs past reaches the container's right edge, every row it entered from above the
+container's left. `442 + 2437 + 1 = 2880` is the whole of the arithmetic. A row-band count cannot
+see any of this, which is why `selection-rows` passes on both builds.
+
+`fill-newline-held.png` has two bands and not three: the empty row the trailing newline opens is
+inside the selection and holds none of it, so it is a fill of no width and nothing is painted for
+it.
+
 ## What runs over them
 
-`tools/gate check` runs `tools/keys-selftest.mjs` over all eight shots on every commit, with no
-display attached: green on the two fixed caret pairs and on `fixed-select-all`, red on
-`broken-typing-*` and on `broken-select-all`.
+`tools/gate check` runs `tools/keys-selftest.mjs` over all ten shots on every commit, with no
+display attached: green on the two fixed caret pairs, on `fixed-select-all` for the row count and
+on `fill-*` for the container, red on `broken-typing-*`, on `broken-select-all`, and on
+`fixed-select-all` for the container it does not fill.
