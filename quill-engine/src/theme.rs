@@ -173,6 +173,17 @@ impl Colour {
         )
     }
 
+    /// The opacity alone, as the 0–255 the tag table is keyed by.
+    ///
+    /// [`Colour::to_hex`] answers with the three channels and leaves this one
+    /// out, because the two are separate keys of the same row
+    /// (`docs/architecture.md` § Annotators): the pair is what a colour becomes
+    /// at the boundary with GTK.
+    #[must_use]
+    pub fn opacity(self) -> u8 {
+        channel(self.alpha)
+    }
+
     /// The colour as CSS: `rgba(249, 249, 249, 1)`.
     ///
     /// The one text form the widget stylesheet and the tag table are both built

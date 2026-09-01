@@ -525,6 +525,25 @@ pub fn paint(
     focus: Focus,
     colours: &Colours,
 ) -> Vec<Painted> {
+    paint_in(spans, &(0..len), tiers, focus, colours)
+}
+
+/// [`paint`], over the bytes `at` and no others.
+///
+/// What a retag draws: the lines an edit or a caret move changed, rather than
+/// the Document. `spans` is [`crate::document::Document::spans_in`]'s answer
+/// for `at` — every span that could reach those bytes and no others before them
+/// — so the cost is the block the retag is in, not the manuscript it is in the
+/// middle of. Its runs are absolute, as they are in [`paint`], and the ones
+/// lying outside `at` are cut away here.
+#[must_use]
+pub fn paint_in(
+    spans: &[Span],
+    at: &Range<usize>,
+    tiers: &[LineTiers],
+    focus: Focus,
+    colours: &Colours,
+) -> Vec<Painted> {
     let runs = flatten(spans);
     // With Focus on every byte is spoken for, because the buffer's own ink is
     // the wrong colour for most of the page and the writer must not see it
@@ -532,19 +551,22 @@ pub fn paint(
     // saying so again would be a tag for nothing.
     let covers = matches!(focus, Focus::On(_));
     let mut out = Vec::new();
-    let mut next = 0;
-    for (segment, tier) in segments(len, tiers, focus) {
+    // The runs behind `at` are the ones a widened `spans_in` brought with it;
+    // the loop below walks forward only, so they are stepped over here rather
+    // than dragging the cursor back over bytes the caller did not ask for.
+    let mut next = runs.partition_point(|run| run.at.end <= at.start);
+    for (segment, tier) in segments_in(at, tiers, focus) {
         let plain = covers.then(|| Paint::of(Look::PROSE, tier, colours));
         let mut cursor = segment.start;
         while let Some(run) = runs.get(next).filter(|run| run.at.start < segment.end) {
-            let at = run.at.start.max(segment.start)..run.at.end.min(segment.end);
-            push_painted(&mut out, cursor..at.start, plain);
+            let drawn = run.at.start.max(segment.start)..run.at.end.min(segment.end);
+            push_painted(&mut out, cursor..drawn.start, plain);
             push_painted(
                 &mut out,
-                at.clone(),
+                drawn.clone(),
                 Some(Paint::of(run.look, tier, colours)),
             );
-            cursor = at.end;
+            cursor = drawn.end;
             if run.at.end > segment.end {
                 break;
             }
@@ -555,7 +577,7 @@ pub fn paint(
     out
 }
 
-/// `len` bytes cut into tiers, ascending and with no gaps between them.
+/// The bytes `at` cut into tiers, ascending and with no gaps between them.
 ///
 /// The dim tier is what the bright ranges leave over, which is why [`Tiers`]
 /// lists only one of the two: dim is the page, and bright are the holes cut in
@@ -563,15 +585,19 @@ pub fn paint(
 /// nothing is dim, but because nothing is anything, and the bright arm of
 /// [`colour`] is the untiered colour.
 ///
+/// Bright ranges outside `at` are clipped away rather than skipped, so that a
+/// sentence straddling the first or last line of a retag keeps the part of it
+/// that is being redrawn.
+///
 /// [`Tiers`]: crate::focus::Tiers
-fn segments(len: usize, tiers: &[LineTiers], focus: Focus) -> Vec<(Range<usize>, Tier)> {
+fn segments_in(at: &Range<usize>, tiers: &[LineTiers], focus: Focus) -> Vec<(Range<usize>, Tier)> {
     if matches!(focus, Focus::Off) {
-        return vec![(0..len, Tier::Bright)];
+        return vec![(at.clone(), Tier::Bright)];
     }
     let mut out = Vec::new();
-    let mut cursor = 0;
-    for at in tiers.iter().flat_map(|on| &on.tiers.bright) {
-        let bright = at.start.max(cursor)..at.end.max(cursor);
+    let mut cursor = at.start;
+    for lit in tiers.iter().flat_map(|on| &on.tiers.bright) {
+        let bright = lit.start.max(cursor)..lit.end.max(cursor).min(at.end);
         if bright.is_empty() {
             continue;
         }
@@ -581,8 +607,8 @@ fn segments(len: usize, tiers: &[LineTiers], focus: Focus) -> Vec<(Range<usize>,
         cursor = bright.end;
         out.push((bright, Tier::Bright));
     }
-    if cursor < len {
-        out.push((cursor..len, Tier::Dim));
+    if cursor < at.end {
+        out.push((cursor..at.end, Tier::Dim));
     }
     out
 }
@@ -2144,5 +2170,57 @@ mod tests {
             [],
             "a run exists to change something: prose changes nothing"
         );
+    }
+
+    // A retag draws a range of the page, and must draw it the same.
+
+    #[test]
+    fn a_range_is_painted_as_the_whole_document_paints_it() {
+        let doc = sample();
+        let colours = Colours::of(Scheme::Light);
+        let text = doc.text();
+        for focus in [Focus::Off, Focus::On(FocusScope::Sentence)] {
+            let tiers = tiers_of(&doc, 403..403, focus);
+            let whole = paint(&markup(text), text.len(), &tiers, focus, &colours);
+            for line in 0..20 {
+                let at = doc.line_bytes(line);
+                let part = paint_in(doc.spans_in(&at), &at, &tiers, focus, &colours);
+                let cut: Vec<_> = whole
+                    .iter()
+                    .filter(|run| run.at.start < at.end && at.start < run.at.end)
+                    .map(|run| Painted {
+                        at: run.at.start.max(at.start)..run.at.end.min(at.end),
+                        paint: run.paint,
+                    })
+                    .collect();
+                assert_eq!(
+                    part, cut,
+                    "line {line} under {focus:?} came out differently when it \
+                     was retagged on its own"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_retag_reads_only_the_spans_of_the_lines_it_draws() {
+        let doc = sample();
+        let colours = Colours::of(Scheme::Dark);
+        let focus = Focus::On(FocusScope::Sentence);
+        let tiers = tiers_of(&doc, 403..403, focus);
+        let at = doc.line_bytes(8);
+        let spans = doc.spans_in(&at);
+        assert!(
+            spans.len() < doc.spans().len(),
+            "a line's retag was handed all {} spans of the Document, so its cost \
+             is the manuscript's length",
+            doc.spans().len()
+        );
+        for run in paint_in(spans, &at, &tiers, focus, &colours) {
+            assert!(
+                run.at.start >= at.start && run.at.end <= at.end,
+                "{run:?} reaches outside the line the retag asked for"
+            );
+        }
     }
 }

@@ -26,6 +26,7 @@ use gtk::pango;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use quill_engine::document::Document;
+use quill_engine::focus::{self, Focus, LineTiers};
 use quill_engine::settings::Face;
 use quill_engine::theme::{Colours, Role, Scheme};
 use quill_engine::typography;
@@ -113,6 +114,8 @@ mod imp {
     use quill_engine::settings::Face;
     use quill_engine::theme::Scheme;
 
+    use quill_engine::focus::{Focus, LineTiers};
+
     use crate::caret;
 
     #[derive(Default)]
@@ -144,6 +147,16 @@ mod imp {
         /// kept with the type: placing the bar on the keystroke path must not
         /// cost a row measured again.
         pub pitch: Cell<u32>,
+        /// How much Focus leaves lit, held here for the same reason as the
+        /// ground: it is read at every draw, and it is the value the
+        /// [`Settings`] pair becomes ([`focus::Focus::of`]).
+        ///
+        /// [`Settings`]: quill_engine::settings::Settings
+        pub focus: Cell<Focus>,
+        /// What Focus lit when the tiers were last worked out, so that the
+        /// next caret move can be told which lines changed and redraw only
+        /// those ([`focus::changed`]). Empty with Focus off.
+        pub tiers: RefCell<Vec<LineTiers>>,
         /// How far the baseline sits below the top of the box
         /// `iter_location` answers with, which is what the bar's band is
         /// anchored to. See [`Editor::bar`], and [`caret::band_top`] for why
@@ -399,6 +412,88 @@ impl Editor {
         self.imp().scheme.set(scheme);
     }
 
+    /// How much Focus leaves lit when this Editor opens.
+    ///
+    /// Set beside [`Editor::open_on`] and for the same reason: `--focus` names
+    /// a state the first frame is meant to show, and a frame that showed the
+    /// undimmed page first would be a flash of the wrong one. Nothing is
+    /// redrawn here because nothing has been drawn — the tiers themselves are
+    /// worked out by [`Editor::show_document`], which is the first draw and the
+    /// first thing with a caret to work them out from.
+    pub fn open_focused_on(&self, focus: Focus) {
+        self.imp().focus.set(focus);
+    }
+
+    /// Everything but the text that decides how this Editor draws.
+    ///
+    /// `tiers` is borrowed rather than read from the Editor here, because every
+    /// caller already holds the borrow: the tiers are worked out and drawn in
+    /// one breath, and a second borrow inside a draw is a second chance for
+    /// them to be the tiers of a different caret.
+    fn painting<'a>(&self, tiers: &'a [LineTiers]) -> tags::Painting<'a> {
+        tags::Painting {
+            face: self.imp().face.get(),
+            scheme: self.imp().scheme.get(),
+            focus: self.imp().focus.get(),
+            tiers,
+        }
+    }
+
+    /// Works out the tiers for the caret where it now is, and answers with the
+    /// lines whose tier changed.
+    ///
+    /// The whole of Focus on the keystroke path: the engine reads the caret's
+    /// block and nothing else ([`focus::tiers`]), and the answer is compared
+    /// with the one before it so that a move redraws the lines it moved the
+    /// dim across and no others. With Focus off there is nothing to work out
+    /// and nothing changes, which is what leaves the Focus-off page byte for
+    /// byte the page it was before Focus existed.
+    fn retier(&self, document: &Document) -> Vec<Range<usize>> {
+        let buffer = self.buffer();
+        let (from, to) = buffer.selection_bounds().unwrap_or_else(|| {
+            let at = buffer.iter_at_mark(&buffer.get_insert());
+            (at, at)
+        });
+        let at = tags::offset_of(document, &from)..tags::offset_of(document, &to);
+        self.retier_at(document, &at)
+    }
+
+    /// [`Editor::retier`], for a caret the buffer does not hold yet.
+    ///
+    /// A Document is drawn before its cursor is placed, because placing one
+    /// measures a column and a column is measured on the advances the draw
+    /// puts there. So the caret it opens at is named rather than read.
+    fn retier_at(&self, document: &Document, at: &Range<usize>) -> Vec<Range<usize>> {
+        let focus = self.imp().focus.get();
+        if matches!(focus, Focus::Off) {
+            return Vec::new();
+        }
+        let after = focus::tiers_by_line(document, &focus::tiers(document, at, focus));
+        let moved = focus::changed(&self.imp().tiers.borrow(), &after);
+        self.imp().tiers.replace(after);
+        moved
+    }
+
+    /// Draws the lines the caret's move took the dim off and put it on.
+    ///
+    /// The caret feed Focus listens to. A move that changed no line's tier —
+    /// which is most of them, since a sentence is many keystrokes wide — draws
+    /// nothing at all.
+    pub fn refocus(&self, document: &Document) {
+        let moved = self.retier(document);
+        if moved.is_empty() {
+            return;
+        }
+        let tiers = self.imp().tiers.borrow();
+        let painting = self.painting(&tiers);
+        let buffer = self.buffer();
+        let batch = buffer.freeze_notify();
+        for lines in &moved {
+            tags::retag(&buffer, document, painting, lines);
+        }
+        drop(batch);
+    }
+
     /// Moves this Editor's own painting to `scheme`'s ground.
     ///
     /// Every colour on screen is read off the table at the moment it is drawn,
@@ -431,7 +526,9 @@ impl Editor {
         self.imp().scheme.set(scheme);
         let buffer = self.buffer();
         let batch = buffer.freeze_notify();
-        tags::apply(&buffer, document, self.imp().face.get(), scheme);
+        let tiers = self.imp().tiers.borrow();
+        tags::apply(&buffer, document, self.painting(&tiers));
+        drop(tiers);
         drop(batch);
         // The caret takes the new accent on its next frame, and the selection
         // its new fill, because both are read inside `snapshot`.
@@ -610,12 +707,14 @@ impl Editor {
         self.imp().loading.set(true);
         buffer.set_text(document.text());
         self.imp().loading.set(false);
-        tags::apply(
-            &buffer,
-            document,
-            self.imp().face.get(),
-            self.imp().scheme.get(),
-        );
+        // The caret this Document opens at, worked out before the draw rather
+        // than read off the buffer after it: with Focus on the first sentence
+        // is what the first frame lights, and a page drawn before its tiers
+        // were known would be a flash of the whole thing bright.
+        self.retier_at(document, &(0..0));
+        let tiers = self.imp().tiers.borrow();
+        tags::apply(&buffer, document, self.painting(&tiers));
+        drop(tiers);
         buffer.place_cursor(&buffer.start_iter());
     }
 
@@ -631,13 +730,18 @@ impl Editor {
     /// by the line and the byte index within it and both of those have to be
     /// the ones the writer can now see.
     pub fn retag(&self, document: &Document, lines: &Range<usize>) {
-        tags::retag(
-            &self.buffer(),
-            document,
-            self.imp().face.get(),
-            self.imp().scheme.get(),
-            lines,
-        );
+        // An edit moves the caret as well as the text, so the tiers are worked
+        // out again here rather than left to the caret's own feed: the lines
+        // the edit changed and the lines the dim moved across are drawn in one
+        // pass, and a line in both is drawn once.
+        let moved = self.retier(document);
+        let tiers = self.imp().tiers.borrow();
+        let painting = self.painting(&tiers);
+        let buffer = self.buffer();
+        tags::retag(&buffer, document, painting, lines);
+        for at in moved.iter().filter(|at| at != &lines) {
+            tags::retag(&buffer, document, painting, at);
+        }
     }
 
     /// The frame the widget is in, in the microseconds the machine counts.

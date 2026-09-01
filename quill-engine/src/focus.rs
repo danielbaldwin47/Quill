@@ -40,7 +40,7 @@ use std::collections::BTreeMap;
 use std::ops::Range;
 
 use crate::document::Document;
-use crate::settings::FocusScope;
+use crate::settings::{FocusScope, Settings};
 
 /// How much Focus leaves lit.
 ///
@@ -55,6 +55,27 @@ pub enum Focus {
     Off,
     /// Focus is on, at this scope.
     On(FocusScope),
+}
+
+impl Focus {
+    /// The two values [`Settings`] keeps apart, read as the one value Focus is.
+    ///
+    /// [`Settings::focus_scope`] outlives Focus being switched off — it is what
+    /// the shortcut restores — so the scope is only a scope while
+    /// [`Settings::focus`] is true, and this is the one place the pair becomes
+    /// the enum the rest of Focus is written against.
+    ///
+    /// [`Settings`]: crate::settings::Settings
+    /// [`Settings::focus`]: crate::settings::Settings::focus
+    /// [`Settings::focus_scope`]: crate::settings::Settings::focus_scope
+    #[must_use]
+    pub fn of(settings: &Settings) -> Self {
+        if settings.focus {
+            Self::On(settings.focus_scope)
+        } else {
+            Self::Off
+        }
+    }
 }
 
 /// Which of the two tiers a stretch of bytes is in.
@@ -174,6 +195,68 @@ pub fn tiers_by_line(doc: &Document, tiers: &Tiers) -> Vec<LineTiers> {
         .into_iter()
         .map(|(line, tiers)| LineTiers { line, tiers })
         .collect()
+}
+
+/// The lines drawn differently now that the tiers are `after` and not `before`.
+///
+/// Ascending, and no two of them touching — the runs of consecutive lines whose
+/// share of the tiers is not what it was. This is what the Editor retags on a
+/// caret move (#113), in the shape [`crate::document::Edit::lines`] hands the
+/// same retag after an edit (#90), and the reason a caret move costs a line or
+/// two rather than a page: a line missing from both lists is wholly dim in both
+/// and has nothing to redraw.
+///
+/// Two disjoint runs rather than one range covering both, because a caret that
+/// jumps the length of a manuscript changes the tiers of the block it left and
+/// the block it landed in and of nothing in between, and redrawing what lies
+/// between them would put the cost of a click in proportion to how far it went.
+///
+/// Bounded by [`reach`] on each side: each list covers at most the lines of one
+/// block, so there are at most two runs and they are as long as those blocks.
+#[must_use]
+pub fn changed(before: &[LineTiers], after: &[LineTiers]) -> Vec<Range<usize>> {
+    let mut out: Vec<Range<usize>> = Vec::new();
+    let (mut was, mut now) = (before.iter().peekable(), after.iter().peekable());
+    loop {
+        let line = match (was.peek(), now.peek()) {
+            (None, None) => break,
+            // A line lit in one and unlit in the other is a line that changed.
+            (Some(one), None) => one.line,
+            (None, Some(two)) => two.line,
+            (Some(one), Some(two)) => one.line.min(two.line),
+        };
+        let one = was.next_if(|on| on.line == line);
+        let two = now.next_if(|on| on.line == line);
+        if one.map(|on| &on.tiers) == two.map(|on| &on.tiers) {
+            continue;
+        }
+        match out.last_mut() {
+            Some(run) if run.end == line => run.end = line + 1,
+            _ => out.push(line..line + 1),
+        }
+    }
+    out
+}
+
+/// The one tier a stretch of bytes is drawn in, for a property that has only
+/// one.
+///
+/// [`crate::annotate::paint`] cuts its runs at every tier boundary, which is
+/// the right answer for the ink. A paragraph property — a code block's well —
+/// belongs to whole lines and cannot be cut, so it needs the block's tier as a
+/// single answer, and a block Focus lights any of is a block the writer is in.
+/// With Focus off there are no tiers and the answer is the untiered one,
+/// [`Tier::Bright`], as it is throughout the flattening.
+#[must_use]
+pub fn tier_in(tiers: &[LineTiers], focus: Focus, at: &Range<usize>) -> Tier {
+    if matches!(focus, Focus::Off) {
+        return Tier::Bright;
+    }
+    let lit = tiers
+        .iter()
+        .flat_map(|on| &on.tiers.bright)
+        .any(|bright| bright.start < at.end && at.start < bright.end);
+    if lit { Tier::Bright } else { Tier::Dim }
 }
 
 /// The bytes [`tiers`] reads to answer for `at`, and the only ones it looks at.
@@ -838,5 +921,125 @@ mod tests {
                 }
             }
         }
+    }
+
+    // The retag: which lines the Editor draws again when the caret moves.
+
+    /// The lines whose tier changed when the caret went from `from` to `to`.
+    fn moved(doc: &Document, from: usize, to: usize, focus: Focus) -> Vec<Range<usize>> {
+        let before = tiers_by_line(doc, &tiers(doc, &(from..from), focus));
+        let after = tiers_by_line(doc, &tiers(doc, &(to..to), focus));
+        changed(&before, &after)
+    }
+
+    #[test]
+    fn a_caret_that_does_not_leave_its_sentence_changes_no_line() {
+        let doc = document("A first thought. A second one.\n\nA third.\n");
+        assert_eq!(
+            moved(&doc, 2, 8, Focus::On(FocusScope::Sentence)),
+            Vec::<Range<usize>>::new(),
+            "the same sentence is lit before and after, so nothing is redrawn"
+        );
+    }
+
+    #[test]
+    fn a_caret_crossing_a_full_stop_retags_only_the_line_the_two_sentences_share() {
+        let doc = document("A first thought. A second one.\n\nA third.\n");
+        assert_eq!(
+            moved(&doc, 2, 20, Focus::On(FocusScope::Sentence)),
+            vec![0..1],
+            "both sentences are on line 0, and no other line's tier moved"
+        );
+    }
+
+    #[test]
+    fn a_caret_leaving_a_paragraph_retags_the_two_it_is_between_and_nothing_between_them() {
+        let doc = document("One.\n\nTwo.\n\nThree.\n\nFour.\n");
+        assert_eq!(
+            moved(&doc, 0, 20, Focus::On(FocusScope::Paragraph)),
+            [0..1, 6..7],
+            "the block left and the block landed in, as two runs: the lines \
+             between them were dim before and are dim now"
+        );
+    }
+
+    #[test]
+    fn a_caret_move_with_focus_off_changes_no_line() {
+        let doc = document("One.\n\nTwo.\n\nThree.\n");
+        assert_eq!(
+            moved(&doc, 0, 12, Focus::Off),
+            Vec::<Range<usize>>::new(),
+            "with Focus off there are no tiers, so a move has nothing to redraw \
+             and the page is the one the buffer already draws"
+        );
+    }
+
+    #[test]
+    fn consecutive_changed_lines_are_one_run() {
+        let doc = document("A block that runs on\nover two lines.\n\nApart.\n");
+        assert_eq!(
+            moved(&doc, 40, 0, Focus::On(FocusScope::Paragraph)),
+            [0..2, 3..4],
+            "the block spans lines 0 and 1, which are one run, and the block the \
+             caret left is another"
+        );
+    }
+
+    #[test]
+    fn a_caret_move_in_a_long_document_retags_a_line_or_two() {
+        let doc = passage();
+        let text = doc.text();
+        let focus = Focus::On(FocusScope::Sentence);
+        let mut widest = 0;
+        let mut caret = 0;
+        for next in (1..text.len()).filter(|at| text.is_char_boundary(*at)) {
+            let lines: usize = moved(&doc, caret, next, focus)
+                .iter()
+                .map(std::iter::ExactSizeIterator::len)
+                .sum();
+            widest = widest.max(lines);
+            caret = next;
+        }
+        assert!(
+            widest <= 4,
+            "a one-character caret move redrew {widest} lines at its worst, \
+             which is not the block the caret is in"
+        );
+    }
+
+    // The pair of settings, read as one value.
+
+    #[test]
+    fn focus_off_keeps_the_scope_it_will_be_switched_back_on_at() {
+        let mut settings = Settings::default();
+        settings.focus_scope = FocusScope::Paragraph;
+        settings.focus = false;
+        assert_eq!(Focus::of(&settings), Focus::Off);
+        settings.focus = true;
+        assert_eq!(
+            Focus::of(&settings),
+            Focus::On(FocusScope::Paragraph),
+            "the scope was remembered across the switch, which is what the \
+             shortcut restores"
+        );
+    }
+
+    // A paragraph property takes one tier for the whole block.
+
+    #[test]
+    fn a_block_focus_lights_any_of_is_a_block_the_writer_is_in() {
+        let doc = document("One.\n\n```\ncode\n```\n\nThree.\n");
+        let focus = Focus::On(FocusScope::Paragraph);
+        let fence = doc.text().find("```").expect("the fence is in the text");
+        let block = fence..fence + 12;
+        let inside = tiers_by_line(&doc, &tiers(&doc, &(fence + 4..fence + 4), focus));
+        assert_eq!(tier_in(&inside, focus, &block), Tier::Bright);
+        let elsewhere = tiers_by_line(&doc, &tiers(&doc, &(0..0), focus));
+        assert_eq!(tier_in(&elsewhere, focus, &block), Tier::Dim);
+        assert_eq!(
+            tier_in(&[], Focus::Off, &block),
+            Tier::Bright,
+            "with Focus off the untiered colour is the bright arm of the table"
+        );
     }
 }
