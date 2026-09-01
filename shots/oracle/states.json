@@ -103,8 +103,28 @@
       }
     },
     "focus": {
-      "sentence": { "focus": "sentence", "chrome": "off" },
-      "paragraph": { "focus": "paragraph", "chrome": "off" },
+      "sentence": {
+        "focus": "sentence",
+        "chrome": "off",
+        "caret": 140,
+        "nocaret": true,
+        "opponent": {
+          "capture": "mac-native-13-light-focus-sentence.png",
+          "crop": [620, 643, 1740, 320],
+          "ours": [551, 129, 1740, 320]
+        }
+      },
+      "paragraph": {
+        "focus": "paragraph",
+        "chrome": "off",
+        "caret": 140,
+        "nocaret": true,
+        "opponent": {
+          "capture": "mac-native-13-light-focus-paragraph.png",
+          "crop": [620, 643, 1740, 320],
+          "ours": [551, 129, 1740, 320]
+        }
+      },
       "dark-sentence-typewriter": { "focus": "sentence", "typewriter": true, "theme": "dark", "chrome": "off" }
     },
     "chrome": {
