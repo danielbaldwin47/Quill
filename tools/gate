@@ -91,9 +91,14 @@ usage: tools/gate <command> [arguments]
                 --all runs every one of the twelve and --regimes just the named
                 ones, each with its own launch, its own caret and Focus, and its
                 own result file; a run of several says one line per regime and
-                then one line for the run, which is pass only when every regime
-                in it cleared the budget, and writes what those lines say to
-                shots/latency/summary-<stamp>.json. A regime name, --all and
+                then one line for the run, which is pass only when every scored
+                regime in it cleared the budget, and writes what those lines say
+                to shots/latency/summary-<stamp>.json. Eleven regimes are
+                scored; saturation_stress is unpaced, so its keys share frames
+                and its per-keystroke figure grows by construction — it runs,
+                is recorded and must account for its keys like the rest, and
+                its lines say informational rather than pass or fail, as the
+                oracle's own report kept it out of the table. A regime name, --all and
                 --regimes each say which regimes to run, so only one may be
                 given.
                 --panel measures on the physical display instead — the one

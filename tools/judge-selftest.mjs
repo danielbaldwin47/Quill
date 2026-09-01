@@ -729,6 +729,40 @@ ok('the latency Piece is judged on a whole bench run, and refuses anything less'
     'two regimes are a measurement, not a verdict on the Piece');
 });
 
+// `saturation_stress` is recorded and not scored, and that exempts it from the budget alone: a
+// whole run is still twelve regimes, and every one of them still accounts for its keys.
+ok('an unscored regime is still one of the twelve, and still has to account for its keys', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'quill-judge-unscored-'));
+  const rows = regimes().map((r) => (r.scored === false
+    ? { regime: r.name, mean_ms: 24.83, worst_ms: 33.89, p50_ms: 25.08, p99_ms: 31.2, cold_ms: 149, scored: false, pass: null }
+    : { regime: r.name, mean_ms: 2, worst_ms: 8, p50_ms: 2, p99_ms: 7, cold_ms: 120, pass: true }));
+  const body = (extra) => ({
+    ran: '--all', headline: 'prose_end_of_draft', regimes: rows,
+    regimes_not_run: [], regimes_unaccounted_for: [], regimes_not_scored: ['saturation_stress'],
+    pass: true, lines: ['gate bench --all: pass'], ...extra,
+  });
+
+  const eleven = path.join(tmp, 'summary-20260901T000001.json');
+  fs.writeFileSync(eleven, JSON.stringify(body({ regimes: rows.filter((r) => r.scored !== false) })));
+  const short = gate('judge', 'latency', '--summary', eleven);
+  assert.equal(short.code, 3, short.out);
+  assert.match(lastLine(short), /^gate judge latency: refused \(.* is not a whole run — saturation_stress missing\)/,
+    'eleven scored regimes without the twelfth recorded is not a whole run');
+
+  const stray = path.join(tmp, 'summary-20260901T000002.json');
+  fs.writeFileSync(stray, JSON.stringify(body({ regimes_unaccounted_for: ['saturation_stress'], pass: false })));
+  const unaccounted = gate('judge', 'latency', '--summary', stray);
+  fs.rmSync(tmp, { recursive: true, force: true });
+  assert.equal(unaccounted.code, 3, unaccounted.out);
+  assert.match(lastLine(unaccounted), /^gate judge latency: refused \(.* could not account for every keystroke in saturation_stress\)/,
+    'not scored is not the same as not counted');
+
+  // The whole body as written — twelve regimes, saturation over every bar and marked unscored — is
+  // deliberately not run: judge would take a verdict from it and write a round, and writing a round
+  // into the ledger is not something a test may do. That it would is `tools/bench-selftest.mjs`'s
+  // to check, in `latencyVerdict`.
+});
+
 // #66's panel mode measures on the physical display, which is fractional-scale and so is not the
 // output the budget or the oracle's numbers belong to. It writes `panel-summary-*.json`, which the
 // newest-summary search does not match, so the accident this guards against is the deliberate one:
