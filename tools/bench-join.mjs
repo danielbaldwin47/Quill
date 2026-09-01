@@ -15,13 +15,24 @@
 // the two things that actually happen — a stray key of the owner's, and a key no frame carried —
 // and `tools/gate check` runs that.
 
-import { mulberry32 } from './regimes.mjs';
+import { mulberry32, scoredRegime } from './regimes.mjs';
 
 // ---------- the bar ----------
 
 // The Gate's hard budget, `docs/agents/gate.md` § Ticket tier. Missing it fails the ticket; it is
 // not what wins the latency Piece.
 export const BUDGET = { mean_ms: 5, worst_ms: 16, cold_ms: 250 };
+
+// Why a regime is recorded and not held to the budget, in the words every line and file that says
+// so uses. Eleven of the twelve are scored; `saturation_stress` (`tools/regimes.mjs`) is the one that
+// is not: unpaced, two keys land in every 16.7 ms frame and queue behind each other, so the
+// per-keystroke figure grows by construction — the oracle kept it out of its table for that reason.
+export const NOT_SCORED = 'keys share frames at this pace, so a per-keystroke latency grows by construction';
+
+/// Whether a regime's row — a `verdict()` or a summary row — is held to the budget. The row's own
+/// `scored` when it carries one; the regime's definition when it does not, so a summary written
+/// before the field existed reads the same way as one written after.
+export const scoredRow = (row) => (row?.scored == null ? scoredRegime(row?.regime) : row.scored !== false);
 
 // The Parity oracle's own numbers, from the JavaScript app as it won its gauntlet. Printed beside
 // ours because beating *these* is what wins the Piece — the budget is only the floor.
@@ -230,7 +241,11 @@ export function measure(sent, seen, planned = sent.length) {
 /// `cold` may be `null` — a launch with no `$QUILL_T0_NS` has no cold start to clear — and that is
 /// a miss rather than a pass, because the Gate asks for three numbers and a run that produced two
 /// has not answered it.
-export function verdict(stats, cold) {
+///
+/// `scored` false is a regime recorded and not held to the budget (`NOT_SCORED`): the three
+/// `clears_*` are still written, because the numbers are real, and `pass` is `null` rather than a
+/// boolean, because there is no answer to give — the same shape a `--panel` summary uses.
+export function verdict(stats, cold, scored = true) {
   const mean = stats?.mean ?? null;
   const worst = stats?.max ?? null;
   const clears_mean = mean != null && mean <= BUDGET.mean_ms;
@@ -245,7 +260,8 @@ export function verdict(stats, cold) {
     clears_mean,
     clears_worst,
     clears_cold,
-    pass: clears_mean && clears_worst && clears_cold,
+    scored,
+    pass: scored ? clears_mean && clears_worst && clears_cold : null,
   };
 }
 
@@ -279,9 +295,14 @@ const caveat = (panel) => ` (on ${panel.output} at ${panel.mode} scale ${panel.s
 /// numbers is what differs: a single run names the bars, a regime in a run of twelve leaves them
 /// to `allSummary`, and a panel run has no bars to name because it is not judged against any.
 const numbers = (regime, said, panel) => `gate bench ${labelled(regime, panel)}: `
-  + `${panel ? 'informational' : (said.pass ? 'pass' : 'fail')}`
+  + `${panel || !scoredRow(said) ? 'informational' : (said.pass ? 'pass' : 'fail')}`
   + ` — mean ${say(said.mean_ms)} ms, worst ${say(said.worst_ms)} ms`
   + `, p50 ${say(said.p50_ms)} ms, p99 ${say(said.p99_ms)} ms, cold ${say(said.cold_ms)} ms`;
+
+/// The clause an unscored regime's line ends in, on every line it has — a single run's and its row
+/// in a run of twelve — because its numbers read as a fail against the budget to anyone who does
+/// not know why they are not held to it, and the reason is one clause long.
+const unscoredClause = ` (not scored: ${NOT_SCORED})`;
 
 /// The whole of what `tools/gate bench` prints, as an array of lines.
 ///
@@ -310,9 +331,11 @@ export function summary(regime, decided) {
   }
   lines.push(panel
     ? numbers(regime, said, panel) + caveat(panel)
-    : numbers(regime, said)
-      + ` (budget mean <= ${BUDGET.mean_ms}, worst <= ${BUDGET.worst_ms}, cold <= ${BUDGET.cold_ms} ms;`
-      + ` oracle ${ORACLE.uinput_to_presented_ms}, ${ORACLE.worst_ms}, ${ORACLE.cold_ms} ms)`);
+    : !scoredRow(said)
+      ? numbers(regime, said) + unscoredClause
+      : numbers(regime, said)
+        + ` (budget mean <= ${BUDGET.mean_ms}, worst <= ${BUDGET.worst_ms}, cold <= ${BUDGET.cold_ms} ms;`
+        + ` oracle ${ORACLE.uinput_to_presented_ms}, ${ORACLE.worst_ms}, ${ORACLE.cold_ms} ms)`);
   return lines;
 }
 
@@ -325,15 +348,19 @@ export function summary(regime, decided) {
 /// where it would otherwise read as a clean fail.
 export function regimeLine(regime, decided) {
   const said = decided.verdict;
-  return numbers(regime, said, decided.panel ?? null)
+  const panel = decided.panel ?? null;
+  return numbers(regime, said, panel)
+    + (!panel && !scoredRow(said) ? unscoredClause : '')
     + (decided.accounting.every_keystroke_accounted_for ? '' : ' — not every keystroke is accounted for');
 }
 
-/// The last line of a run of several: pass only when every regime in it cleared the budget.
+/// The last line of a run of several: pass only when every scored regime in it cleared the budget.
 ///
 /// `ran` is what was asked for — `--all`, or `--regimes a,b` — because a run of two that passed
 /// and a run of twelve that passed are not the same evidence, and the line the owner reads should
-/// not need the command scrolled back to to tell them apart.
+/// not need the command scrolled back to to tell them apart. A regime that is recorded and not
+/// scored (`NOT_SCORED`) is named as informational and counted in neither number, so a run of
+/// twelve reads "11 of 11 scored regimes" rather than a fail nobody can clear.
 export function allSummary(ran, rows, panel = null) {
   // A panel run has nothing to pass or fail: the budget is set on the headless output, so counting
   // how many of these regimes cleared it would be inventing a verdict out of numbers taken
@@ -342,10 +369,13 @@ export function allSummary(ran, rows, panel = null) {
     return `gate bench ${labelled(ran, panel)}: informational — `
       + `${rows.length} regime${rows.length === 1 ? '' : 's'} measured${caveat(panel)}`;
   }
-  const failed = rows.filter((r) => !r.pass).map((r) => r.regime);
+  const scored = rows.filter(scoredRow);
+  const informational = rows.filter((r) => !scoredRow(r)).map((r) => r.regime);
+  const failed = scored.filter((r) => !r.pass).map((r) => r.regime);
   return `gate bench ${ran}: ${failed.length ? 'fail' : 'pass'} — `
-    + `${rows.length - failed.length} of ${rows.length} regimes clear the budget`
+    + `${scored.length - failed.length} of ${scored.length}${informational.length ? ' scored' : ''} regimes clear the budget`
     + (failed.length ? `, not ${failed.join(', ')}` : '')
+    + (informational.length ? `; ${informational.join(', ')} informational` : '')
     + ` (mean <= ${BUDGET.mean_ms}, worst <= ${BUDGET.worst_ms}, cold <= ${BUDGET.cold_ms} ms;`
     + ` oracle ${ORACLE.uinput_to_presented_ms}, ${ORACLE.worst_ms}, ${ORACLE.cold_ms} ms)`;
 }
@@ -399,10 +429,24 @@ const asPercent = (ratio) => (Number.isFinite(ratio) ? `${Math.round(ratio * 100
 /// Ours when every regime clears the budget and the headline regime is under the oracle's own
 /// keystroke and cold-start numbers — which is the rule as `docs/agents/gate.md` states it, with
 /// the budget as the floor and the oracle as what winning is measured against. One state per
-/// regime, because that is what a round has room to record and what a reader would want to see.
+/// scored regime, because that is what a round has room to record and what a reader would want to
+/// see; a regime that is recorded and not scored (`NOT_SCORED`) is returned apart, as
+/// `informational`, with its numbers and no winner, and decides nothing.
 export function latencyVerdict(summary) {
-  const rows = summary.regimes || [];
+  const rows = (summary.regimes || []).filter(scoredRow);
   const headline = rows.find((r) => r.regime === summary.headline) || null;
+
+  const informational = (summary.regimes || []).filter((r) => !scoredRow(r)).map((row) => ({
+    name: row.regime,
+    result: row.file,
+    scored: false,
+    why: NOT_SCORED,
+    mean_ms: row.mean_ms,
+    worst_ms: row.worst_ms,
+    p50_ms: row.p50_ms,
+    p99_ms: row.p99_ms,
+    cold_ms: row.cold_ms,
+  }));
 
   const states = rows.map((row) => {
     const bars = against(row, row.regime === summary.headline);
@@ -445,6 +489,7 @@ export function latencyVerdict(summary) {
     gapTheirs,
     verdict: (summary.lines || []).join('\n'),
     states,
+    informational,
     tightest,
   };
 }
