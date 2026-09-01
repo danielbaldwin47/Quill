@@ -6,12 +6,14 @@
 //! Stats belong to a window; the Library and settings belong to the
 //! application.
 //!
-//! Three things happen before the first window, in this order and for the same
+//! Four things happen before the first window, in this order and for the same
 //! reason — none of them can be changed once a frame has been drawn. The
 //! command line is read ([`flags`]), so that a launch knows what it is. The
-//! Faces are given to fontconfig ([`fonts`]). And the writer's `settings.toml`
-//! and `state.toml` are read ([`session`]), with the flags over the top for
-//! this launch alone.
+//! Faces are given to fontconfig ([`fonts`]). The desktop is asked which ground
+//! it prefers ([`portal`]), which is a question only worth asking before the
+//! answer would have to be a repaint. And the writer's `settings.toml` and
+//! `state.toml` are read ([`session`]), with the flags over the top for this
+//! launch alone and the desktop's answer resolved against them.
 //!
 //! A launch carrying a flag is the harness's rather than a writer's, and is
 //! served by the process that was launched: it runs non-unique, so a judged
