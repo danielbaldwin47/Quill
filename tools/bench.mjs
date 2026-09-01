@@ -464,6 +464,14 @@ async function benchOne(root, stage, { regime, keys, sessions, warmup, panel }) 
   fs.mkdirSync(path.join(root, RESULTS), { recursive: true });
   fs.writeFileSync(path.join(root, file), `${JSON.stringify(result, null, 2)}\n`);
   say(`gate bench: wrote ${file}`);
+  // A refused run keeps what it was refused on: the keys as written and the stamps as the app wrote
+  // them, which otherwise go with the stage's tmp directory. The result file carries counts and
+  // samples, and a count of two keys without a presentation time says nothing about which two.
+  if (!decided.accounting.every_keystroke_accounted_for) {
+    const raw = file.replace(/\.json$/, '.capture.json');
+    fs.writeFileSync(path.join(root, raw), `${JSON.stringify({ sent, seen })}\n`);
+    say(`gate bench: wrote ${raw} (the keys and stamps the accounting refused)`);
+  }
 
   return {
     regime: regime.name,
