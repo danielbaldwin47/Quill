@@ -27,7 +27,7 @@ use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use quill_engine::annotate::{self, Painted};
 use quill_engine::document::Document;
-use quill_engine::focus::typewriter::{self, Glide, Hold};
+use quill_engine::focus::typewriter::{self, Glide, Hold, Typewriter};
 use quill_engine::focus::{self, Focus, LineTiers};
 use quill_engine::settings::Face;
 use quill_engine::theme::{self, Colour, Colours, Role, Scheme};
@@ -155,7 +155,7 @@ struct FadeRun {
 ///
 /// `pub` for the reason [`Fade`] is.
 #[derive(Clone, Copy)]
-pub struct Scroll {
+pub struct Travel {
     /// Where the view is going and how it gets there.
     glide: Glide,
     /// The frame it started in.
@@ -218,8 +218,9 @@ mod imp {
 
     use quill_engine::focus::{Focus, LineTiers};
 
-    use super::{Fade, Scroll};
+    use super::{Fade, Travel};
     use crate::caret;
+    use quill_engine::focus::typewriter::Typewriter;
 
     #[derive(Default)]
     pub struct Editor {
@@ -287,21 +288,23 @@ mod imp {
         /// things that leave no fade
         /// ([`quill_engine::theme::fade_ms`]).
         pub deterministic: Cell<bool>,
-        /// Whether Typewriter is on: the caret's row is held at `anchor`
+        /// Whether Typewriter is on, and where it holds the caret's row
         /// ([`quill_engine::focus::typewriter::hold`]).
-        pub typewriter: Cell<bool>,
-        /// The share of the viewport Typewriter holds the row's centre at,
-        /// `typewriter_anchor` in the settings file.
-        pub anchor: Cell<f64>,
-        /// The frame the pointer was last pressed in, on the frame clock's
-        /// clock, so that a caret move can be told how long ago that was
-        /// ([`quill_engine::focus::typewriter::POINTER_MS`]). `None` until
-        /// the first press.
+        pub typewriter: Cell<Typewriter>,
+        /// Whether `--scroll` has put the view where a judged state asked
+        /// for, which an allocation must not then hold the row against
+        /// ([`Editor::hold_row`]): a state naming both `--typewriter` and
+        /// `--scroll` means both.
+        pub pinned: Cell<bool>,
+        /// The frame the pointer was last pressed or released in, on the
+        /// frame clock's clock, so that a caret move can be told how long ago
+        /// that was ([`quill_engine::focus::typewriter::POINTER_MS`]). `None`
+        /// until the first press.
         pub pressed: Cell<Option<i64>>,
         /// The Typewriter glide in flight, if the view is on its way to where
         /// the row is held. `None` between glides, and always under
         /// `--deterministic`, which jumps instead.
-        pub glide: Cell<Option<Scroll>>,
+        pub glide: Cell<Option<Travel>>,
         /// Whether the glide's own frame-clock callback is attached. Its own
         /// for the reason the fade's is: a page scrolling under a still caret
         /// asks for frames, and a blinking caret over a settled page does not
@@ -471,7 +474,31 @@ impl Editor {
                 editor.imp().pressed.set(Some(editor.now()));
             },
         ));
+        // And at the release, as the oracle stamps both (`focus.js:266-267`):
+        // a drag held longer than the pointer window still ends in a nudge.
+        clicks.connect_released(glib::clone!(
+            #[weak(rename_to = editor)]
+            self,
+            move |_, _, _, _| editor.imp().pressed.set(Some(editor.now())),
+        ));
         self.add_controller(clicks);
+
+        // A hand on the wheel takes the view from a glide in flight
+        // (`focus.js:268-269`): the next frame finds nothing to carry and
+        // drops the tick.
+        let wheel = gtk::EventControllerScroll::new(gtk::EventControllerScrollFlags::VERTICAL);
+        wheel.set_propagation_phase(gtk::PropagationPhase::Capture);
+        wheel.connect_scroll(glib::clone!(
+            #[weak(rename_to = editor)]
+            self,
+            #[upgrade_or]
+            glib::Propagation::Proceed,
+            move |_, _, _| {
+                editor.imp().glide.set(None);
+                glib::Propagation::Proceed
+            },
+        ));
+        self.add_controller(wheel);
 
         let keys = gtk::EventControllerKey::new();
         keys.set_propagation_phase(gtk::PropagationPhase::Capture);
@@ -940,6 +967,7 @@ impl Editor {
         drop(tiers);
         drop(batch);
         self.queue_draw();
+        self.settle();
     }
 
     /// How long a cross-fade in this Editor runs for.
@@ -1030,15 +1058,39 @@ impl Editor {
     /// arrives at the target is the frame that drops it. So an Editor with a
     /// settled page asks the frame clock for nothing on Focus's account.
     fn start_fade(&self) {
-        if self.imp().fading.replace(true) {
+        self.keep_ticking(|editor| &editor.imp().fading, Self::advance_fade);
+    }
+
+    /// Attaches a frame-clock callback that calls `advance` with each frame's
+    /// time until it says no more frames are wanted, unless `attached` says
+    /// one already is. The fade and the glide are each one of these, with
+    /// their own flag, so that neither asks for the other's frames.
+    fn keep_ticking(&self, attached: fn(&Self) -> &Cell<bool>, advance: fn(&Self, i64) -> bool) {
+        if attached(self).replace(true) {
             return;
         }
-        self.add_tick_callback(|editor, clock| {
-            if editor.advance_fade(clock.frame_time()) {
+        self.add_tick_callback(move |editor, clock| {
+            if advance(editor, clock.frame_time()) {
                 return glib::ControlFlow::Continue;
             }
-            editor.imp().fading.set(false);
+            attached(editor).set(false);
             glib::ControlFlow::Break
+        });
+    }
+
+    /// Runs `step` on each of the next `frames` frames, stopping early the
+    /// frame it answers true: the hold `--scroll` keeps and the one Typewriter
+    /// keeps on an allocation both outlast the scroll GTK makes of its own
+    /// while the layout is validated ([`Editor::scroll_to`]).
+    fn over_frames(&self, frames: u32, step: impl Fn(&Self) -> bool + 'static) {
+        let left = Cell::new(frames);
+        self.add_tick_callback(move |editor, _| {
+            left.set(left.get().saturating_sub(1));
+            if step(editor) || left.get() == 0 {
+                glib::ControlFlow::Break
+            } else {
+                glib::ControlFlow::Continue
+            }
         });
     }
 
@@ -1398,19 +1450,40 @@ impl Editor {
             .pressed
             .get()
             .map(|pressed| millis_since(pressed, self.now()));
-        let hold = typewriter::hold(
-            self.imp().typewriter.get(),
-            self.imp().anchor.get(),
-            self.imp().focus.get() != Focus::Off,
-            since_press,
-        );
-        match hold {
+        match self.hold(since_press) {
             Hold::Free => {
                 if last == caret::Source::Key {
                     self.keep_in_margins(bar);
                 }
             }
             hold => self.follow(bar, hold, self.glides()),
+        }
+    }
+
+    /// Which rule holds the caret's row now, `since_press` milliseconds after
+    /// the pointer was last pressed or released.
+    fn hold(&self, since_press: Option<u32>) -> Hold {
+        typewriter::hold(
+            self.imp().typewriter.get(),
+            self.imp().focus.get() != Focus::Off,
+            since_press,
+        )
+    }
+
+    /// Puts the row where the modes now hold it, without a glide: the
+    /// oracle's rule for a setting that changed (`focus.js:274-276`), so that
+    /// Typewriter switched on is seen to hold the row and Focus switched on
+    /// keeps its lit sentence off the edges from the first frame.
+    fn settle(&self) {
+        if self.imp().laid_out.get().is_none() {
+            return;
+        }
+        let Some(bar) = self.bar() else {
+            return;
+        };
+        match self.hold(None) {
+            Hold::Free => {}
+            hold => self.follow(bar, hold, false),
         }
     }
 
@@ -1433,23 +1506,18 @@ impl Editor {
     /// been validated by; measured on `ref/sample.md` that is the frame after
     /// the first, and [`Editor::reveal_caret`] has the first.
     fn hold_row(&self) {
-        if !self.imp().typewriter.get() || self.hold_row_now() {
+        let Typewriter::On(anchor) = self.imp().typewriter.get() else {
+            return;
+        };
+        if self.imp().pinned.get() || self.hold_row_now(anchor) {
             return;
         }
-        let left = Cell::new(SCROLL_FRAMES);
-        self.add_tick_callback(move |editor, _| {
-            left.set(left.get().saturating_sub(1));
-            if editor.hold_row_now() || left.get() == 0 {
-                glib::ControlFlow::Break
-            } else {
-                glib::ControlFlow::Continue
-            }
-        });
+        self.over_frames(SCROLL_FRAMES, move |editor| editor.hold_row_now(anchor));
     }
 
-    /// Holds the row at the anchor now, and says whether the layout was far
+    /// Holds the row at `anchor` now, and says whether the layout was far
     /// enough along to.
-    fn hold_row_now(&self) -> bool {
+    fn hold_row_now(&self, anchor: f64) -> bool {
         let validated = self
             .vadjustment()
             .is_some_and(|adjustment| adjustment.upper() > adjustment.page_size());
@@ -1457,19 +1525,20 @@ impl Editor {
             return false;
         }
         if let Some(bar) = self.bar() {
-            self.follow(bar, Hold::Anchor(self.imp().anchor.get()), false);
+            self.follow(bar, Hold::Anchor(anchor), false);
         }
         true
     }
 
     /// Keeps the caret's row inside the scroll band with both modes off.
     ///
-    /// Only for a move a key made, which is the oracle's own rule rather than
-    /// a narrowing of it. The band is `scroll-padding` on the scroller, and
-    /// `scroll-padding` is spent by the browser's caret-into-view — which runs
-    /// on typing and on cursor keys, and not on a click, whose target the hand
-    /// could already see. So a click low on the page does not jump it, and the
-    /// first key pressed afterwards brings the row into the band.
+    /// [`Editor::keep_in_band`] calls it only for a move a key made, which is
+    /// the oracle's own rule rather than a narrowing of it. The band is
+    /// `scroll-padding` on the scroller, and `scroll-padding` is spent by the
+    /// browser's caret-into-view — which runs on typing and on cursor keys,
+    /// and not on a click, whose target the hand could already see. So a
+    /// click low on the page does not jump it, and the first key pressed
+    /// afterwards brings the row into the band.
     ///
     /// The row comes from the bar the machine was just handed rather than a
     /// second `iter_location`, because this is on the keystroke path; it is
@@ -1551,7 +1620,7 @@ impl Editor {
             }
             None => Glide::new(adjustment.value(), target, row_height),
         };
-        self.imp().glide.set(Some(Scroll {
+        self.imp().glide.set(Some(Travel {
             glide,
             started: now,
         }));
@@ -1561,16 +1630,7 @@ impl Editor {
     /// Starts the frame-clock callback that carries a glide, unless one is
     /// already attached: the shape of [`Editor::start_fade`].
     fn start_glide(&self) {
-        if self.imp().gliding.replace(true) {
-            return;
-        }
-        self.add_tick_callback(|editor, clock| {
-            if editor.advance_glide(clock.frame_time()) {
-                return glib::ControlFlow::Continue;
-            }
-            editor.imp().gliding.set(false);
-            glib::ControlFlow::Break
-        });
+        self.keep_ticking(|editor| &editor.imp().gliding, Self::advance_glide);
     }
 
     /// Puts the view where the glide is at `now`, and says whether another
@@ -1594,19 +1654,12 @@ impl Editor {
 
     /// Turns Typewriter on or off, and says where it holds the row.
     ///
-    /// Turning it on brings the row to the anchor from wherever it is, as a
-    /// key's move would, so that `Ctrl+T` is seen to do something; turning it
-    /// off leaves the view where it is, and the next key's move is held by
-    /// whatever rule is left.
-    pub fn set_typewriter(&self, on: bool, anchor: f64) {
-        self.imp().typewriter.set(on);
-        self.imp().anchor.set(anchor);
-        if !on || self.imp().laid_out.get().is_none() {
-            return;
-        }
-        if let Some(bar) = self.bar() {
-            self.follow(bar, Hold::Anchor(anchor), self.glides());
-        }
+    /// The row is put where the modes now hold it ([`Editor::settle`]): on
+    /// brings it to the anchor from wherever it is, so that `Ctrl+T` is seen
+    /// to do something, and off leaves it to Focus's edge band or to nothing.
+    pub fn set_typewriter(&self, typewriter: Typewriter) {
+        self.imp().typewriter.set(typewriter);
+        self.settle();
     }
 
     /// The bar is where it was, but the page under it moved.
@@ -1908,10 +1961,9 @@ impl Editor {
         // With Typewriter on the first frame shows the row where every frame
         // after will hold it, so `--typewriter` is the state and not a jump
         // from the top to it.
-        let line = if self.imp().typewriter.get() {
-            self.imp().anchor.get()
-        } else {
-            CARET_LINE
+        let line = match self.imp().typewriter.get() {
+            Typewriter::On(anchor) => anchor,
+            Typewriter::Off => CARET_LINE,
         };
         self.scroll_to_mark(&self.buffer().get_insert(), 0.0, true, 0.0, line);
     }
@@ -1935,16 +1987,11 @@ impl Editor {
             return;
         };
         let fraction = fraction.clamp(0.0, 1.0);
-        let left = Cell::new(SCROLL_FRAMES);
-        self.add_tick_callback(move |_, _| {
+        self.imp().pinned.set(true);
+        self.over_frames(SCROLL_FRAMES, move |_| {
             let room = adjustment.upper() - adjustment.lower() - adjustment.page_size();
             adjustment.set_value(adjustment.lower() + room.max(0.0) * fraction);
-            left.set(left.get().saturating_sub(1));
-            if left.get() == 0 {
-                glib::ControlFlow::Break
-            } else {
-                glib::ControlFlow::Continue
-            }
+            false
         });
     }
 }

@@ -20,6 +20,7 @@ use std::path::Path;
 use std::rc::Rc;
 
 use quill_engine::focus::Focus;
+use quill_engine::focus::typewriter::Typewriter;
 use quill_engine::settings::{FocusScope, Settings, State, Theme, WindowState};
 use quill_engine::theme::{self, Scheme};
 
@@ -210,18 +211,19 @@ impl Session {
         self.focus()
     }
 
-    /// Whether Typewriter is on now.
-    pub fn typewriter(&self) -> bool {
-        self.typewriter.get()
+    /// Whether Typewriter is on now, and where it holds the caret's row.
+    ///
+    /// The live value paired with the anchor the settings file holds, for the
+    /// reason [`Session::focus`] is live: the key moves it, and a window
+    /// opened after one was pressed opens the way the writer is writing.
+    pub fn typewriter(&self) -> Typewriter {
+        Typewriter::at(self.typewriter.get(), self.settings().typewriter_anchor)
     }
 
     /// Turns Typewriter on or off. ADR 0006's `Ctrl+T`.
-    ///
-    /// The value and nothing else: what the caret's line then does about it is
-    /// #115's, and this is the setting it will read.
-    pub fn toggle_typewriter(&self) -> bool {
+    pub fn toggle_typewriter(&self) -> Typewriter {
         self.typewriter.set(!self.typewriter.get());
-        self.typewriter.get()
+        self.typewriter()
     }
 
     /// The ground this launch is painting on.
@@ -628,9 +630,10 @@ mod tests {
     #[test]
     fn the_typewriter_key_flips_typewriter_and_leaves_focus_alone() {
         let session = focused_at(FocusScope::Sentence);
-        assert!(session.toggle_typewriter());
+        let anchor = session.settings().typewriter_anchor;
+        assert_eq!(session.toggle_typewriter(), Typewriter::On(anchor));
         assert_eq!(session.focus(), Focus::Off, "Typewriter is not a scope");
-        assert!(!session.toggle_typewriter());
+        assert_eq!(session.toggle_typewriter(), Typewriter::Off);
     }
 
     /// What the three keys moved is what the launch would leave in the file,

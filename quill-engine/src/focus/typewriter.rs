@@ -21,13 +21,49 @@
 //!   [`crate::theme::animated`]: `--deterministic` and a desktop asking for
 //!   reduced motion make every move a jump.
 
-/// How long after a pointer press the [`Band::Pointer`] holds the row instead
-/// of the anchor: `focus.js:240`.
+use crate::settings::Settings;
+
+/// How long after a pointer press or release the [`Band::Pointer`] holds the
+/// row instead of the anchor: `focus.js:239`, stamped at both ends of a click
+/// by `focus.js:266-267`.
 pub const POINTER_MS: u32 = 400;
 
 /// A move shorter than this is no move: the oracle's `Math.abs(delta) < 0.5`
-/// (`focus.js:253`), which keeps a row already held from asking for a frame.
+/// (`focus.js:254`), which keeps a row already held from asking for a frame.
 const STILL: f64 = 0.5;
+
+/// Whether Typewriter is on, and where it holds the row when it is.
+///
+/// The two settings — on or off, and the anchor — arrive here as one value
+/// the way [`super::Focus`] does, because there is nothing for an anchor to
+/// mean while Typewriter is off.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub enum Typewriter {
+    /// Typewriter is off: the row goes where Focus or the caret's band says.
+    #[default]
+    Off,
+    /// Typewriter is on, holding the row's centre at this share of the
+    /// viewport (`typewriter_anchor` in the settings file).
+    On(f64),
+}
+
+impl Typewriter {
+    /// The pair the settings file holds, as one value.
+    #[must_use]
+    pub fn of(settings: &Settings) -> Typewriter {
+        Typewriter::at(settings.typewriter, settings.typewriter_anchor)
+    }
+
+    /// The pair as the session holds it live, as one value.
+    #[must_use]
+    pub fn at(on: bool, anchor: f64) -> Typewriter {
+        if on {
+            Typewriter::On(anchor)
+        } else {
+            Typewriter::Off
+        }
+    }
+}
 
 /// A band of the viewport the caret's row is nudged into, and no further than
 /// its nearest edge.
@@ -40,7 +76,7 @@ pub enum Band {
     /// The band a click nudges into, with Typewriter on: `focus.js:242`.
     Pointer,
     /// The band every move nudges into with Focus on and Typewriter off, wider
-    /// than the pointer's: `focus.js:249`.
+    /// than the pointer's: `focus.js:248`.
     Edge,
 }
 
@@ -70,24 +106,21 @@ pub enum Hold {
     Free,
 }
 
-/// Which rule holds the row: the three cases of `focus.js:233-251`.
+/// Which rule holds the row: the three cases of `focus.js:229-251`.
 ///
-/// `since_press` is how long ago the pointer was last pressed, or `None` when
-/// it never was. The pointer band outranks the anchor for [`POINTER_MS`] after
-/// a press whatever moved the caret, which is the oracle's rule: a key pressed
-/// in that window nudges too.
+/// `since_press` is how long ago the pointer was last pressed or released, or
+/// `None` when it never was. The pointer band outranks the anchor for
+/// [`POINTER_MS`] after a press whatever moved the caret, which is the
+/// oracle's rule: a key pressed in that window nudges too.
 #[must_use]
-pub fn hold(typewriter: bool, anchor: f64, focus: bool, since_press: Option<u32>) -> Hold {
-    if typewriter {
-        if since_press.is_some_and(|ms| ms < POINTER_MS) {
+pub fn hold(typewriter: Typewriter, focus: bool, since_press: Option<u32>) -> Hold {
+    match typewriter {
+        Typewriter::On(_) if since_press.is_some_and(|ms| ms < POINTER_MS) => {
             Hold::Nudge(Band::Pointer)
-        } else {
-            Hold::Anchor(anchor)
         }
-    } else if focus {
-        Hold::Nudge(Band::Edge)
-    } else {
-        Hold::Free
+        Typewriter::On(anchor) => Hold::Anchor(anchor),
+        Typewriter::Off if focus => Hold::Nudge(Band::Edge),
+        Typewriter::Off => Hold::Free,
     }
 }
 
@@ -139,17 +172,18 @@ pub fn target(
 ///
 /// Times are milliseconds since the glide started; the caller keeps the clock,
 /// and asks [`Glide::at`] for the frame. The length is the oracle's rule
-/// (`focus.js:255-257`): a row's travel — the common case, a new line — stays
+/// (`focus.js:257-259`): a row's travel — the common case, a new line — stays
 /// quick, and a longer one grows with the square root of the distance up to a
-/// ceiling, so a jump across the page is felt and a step is not.
+/// ceiling, so a jump across the page is felt and a step is not. Only
+/// [`Glide::new`] builds one, so a glide is never shorter than a row's.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Glide {
     /// The scroll it leaves.
-    pub from: f64,
+    from: f64,
     /// The scroll it lands on.
-    pub to: f64,
+    to: f64,
     /// How long it takes, in milliseconds.
-    pub length: f64,
+    length: f64,
 }
 
 impl Glide {
@@ -169,11 +203,7 @@ impl Glide {
     /// Where the view is `elapsed` milliseconds in.
     #[must_use]
     pub fn at(&self, elapsed: u32) -> f64 {
-        let share = if self.length <= 0.0 {
-            1.0
-        } else {
-            (f64::from(elapsed) / self.length).min(1.0)
-        };
+        let share = (f64::from(elapsed) / self.length).min(1.0);
         self.from + (self.to - self.from) * ease(share)
     }
 
@@ -215,7 +245,9 @@ mod tests {
     }
 
     /// The oracle's own arithmetic for a row at `centre` held at `anchor`:
-    /// `scrollTop + (y - anchor * h)`, `focus.js:238` and `:254`.
+    /// `scrollTop + (y - anchor * h)`, `focus.js:238` and `:255`. Written out
+    /// again on purpose rather than through [`target`], because the claim is
+    /// that the port's number is the oracle's.
     fn oracle_anchor(centre: f64, anchor: f64) -> f64 {
         SCROLL + (centre - VIEW * anchor)
     }
@@ -319,22 +351,39 @@ mod tests {
 
     #[test]
     fn within_the_press_window_the_pointer_band_holds_and_after_it_the_anchor() {
-        assert_eq!(hold(true, 0.5, false, Some(0)), Hold::Nudge(Band::Pointer));
+        let on = Typewriter::On(0.5);
+        assert_eq!(hold(on, false, Some(0)), Hold::Nudge(Band::Pointer));
         assert_eq!(
-            hold(true, 0.5, true, Some(POINTER_MS - 1)),
+            hold(on, true, Some(POINTER_MS - 1)),
             Hold::Nudge(Band::Pointer)
         );
-        assert_eq!(hold(true, 0.5, false, Some(POINTER_MS)), Hold::Anchor(0.5));
-        assert_eq!(hold(true, 0.2, true, Some(5_000)), Hold::Anchor(0.2));
-        assert_eq!(hold(true, 0.8, false, None), Hold::Anchor(0.8));
+        assert_eq!(hold(on, false, Some(POINTER_MS)), Hold::Anchor(0.5));
+        assert_eq!(
+            hold(Typewriter::On(0.2), true, Some(5_000)),
+            Hold::Anchor(0.2)
+        );
+        assert_eq!(hold(Typewriter::On(0.8), false, None), Hold::Anchor(0.8));
     }
 
     #[test]
     fn with_focus_on_and_typewriter_off_the_edge_band_holds() {
-        assert_eq!(hold(false, 0.5, true, None), Hold::Nudge(Band::Edge));
-        assert_eq!(hold(false, 0.5, true, Some(0)), Hold::Nudge(Band::Edge));
-        assert_eq!(hold(false, 0.5, false, Some(0)), Hold::Free);
-        assert_eq!(hold(false, 0.5, false, None), Hold::Free);
+        assert_eq!(hold(Typewriter::Off, true, None), Hold::Nudge(Band::Edge));
+        assert_eq!(
+            hold(Typewriter::Off, true, Some(0)),
+            Hold::Nudge(Band::Edge)
+        );
+        assert_eq!(hold(Typewriter::Off, false, Some(0)), Hold::Free);
+        assert_eq!(hold(Typewriter::Off, false, None), Hold::Free);
+    }
+
+    #[test]
+    fn the_pair_the_settings_hold_is_one_value() {
+        assert_eq!(Typewriter::at(true, 0.3), Typewriter::On(0.3));
+        assert_eq!(Typewriter::at(false, 0.3), Typewriter::Off);
+        let mut settings = Settings::default();
+        settings.typewriter = true;
+        settings.typewriter_anchor = 0.7;
+        assert_eq!(Typewriter::of(&settings), Typewriter::On(0.7));
     }
 
     // The ease.
@@ -387,16 +436,5 @@ mod tests {
         assert_eq!(again, Glide::new(reached, 50.0, ROW));
         assert_eq!(again.at(0), reached);
         assert_eq!(again.at(1_000), 50.0);
-    }
-
-    #[test]
-    fn a_glide_of_no_length_is_already_there() {
-        let glide = Glide {
-            from: 0.0,
-            to: 10.0,
-            length: 0.0,
-        };
-        assert_eq!(glide.at(0), 10.0);
-        assert!(glide.arrived(0));
     }
 }
