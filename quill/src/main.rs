@@ -146,6 +146,9 @@ fn main() -> glib::ExitCode {
     app.set_accels_for_action("win.font.smaller", &["<Ctrl>minus"]);
     app.set_accels_for_action("win.font.reset", &["<Ctrl>0"]);
     app.set_accels_for_action("win.theme.toggle", &["<Ctrl><Shift>l"]);
+    app.set_accels_for_action("win.focus.toggle", &["<Ctrl>d"]);
+    app.set_accels_for_action("win.focus.swap", &["<Ctrl><Shift>d"]);
+    app.set_accels_for_action("win.typewriter.toggle", &["<Ctrl>t"]);
 
     // Launched with no file: an empty Editor, a Document with nothing in it.
     let activated = Rc::clone(&session);

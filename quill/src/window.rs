@@ -121,10 +121,7 @@ impl Window {
         // And with it, because `--focus` names a state the first frame is
         // meant to show: the tiers are worked out inside the same draw that
         // puts the Document on the page.
-        window
-            .imp()
-            .editor
-            .open_focused_on(Focus::of(session.settings()));
+        window.imp().editor.open_focused_on(session.focus());
         window.set_document(document);
         window
             .imp()
@@ -208,6 +205,15 @@ impl Window {
             gio::ActionEntry::builder("theme.toggle")
                 .activate(|window: &Self, _, _| window.toggle_scheme())
                 .build(),
+            gio::ActionEntry::builder("focus.toggle")
+                .activate(|window: &Self, _, _| window.toggle_focus())
+                .build(),
+            gio::ActionEntry::builder("focus.swap")
+                .activate(|window: &Self, _, _| window.swap_focus_scope())
+                .build(),
+            gio::ActionEntry::builder("typewriter.toggle")
+                .activate(|window: &Self, _, _| window.toggle_typewriter())
+                .build(),
         ]);
     }
 
@@ -256,6 +262,58 @@ impl Window {
         let scheme = session.toggle_scheme();
         if let Some(app) = self.application() {
             repaint(&app, &session, scheme);
+        }
+    }
+
+    /// Switches Focus off, or back on at the scope it left.
+    ///
+    /// A working binding until #119 moves the Commands into the registry
+    /// `docs/shortcuts.md` describes; the accelerator is that table's
+    /// `focus.toggle` row, `Ctrl+D`. The session holds which scope that is and
+    /// writes it on the way out, as it does the ground.
+    fn toggle_focus(&self) {
+        self.refocus_windows(|session| session.toggle_focus());
+    }
+
+    /// Swaps Sentence and Paragraph, switching Focus on if it was off.
+    ///
+    /// `docs/shortcuts.md`'s `focus.swap` row, `Ctrl+Shift+D`.
+    fn swap_focus_scope(&self) {
+        self.refocus_windows(Session::swap_focus_scope);
+    }
+
+    /// Turns Typewriter on or off.
+    ///
+    /// `docs/shortcuts.md`'s `typewriter.toggle` row, `Ctrl+T`. Nothing is
+    /// redrawn and nothing scrolls: the key sets the value the session
+    /// remembers, and #115 is what makes the caret's line move to it.
+    fn toggle_typewriter(&self) {
+        let Some(session) = self.imp().session.borrow().clone() else {
+            return;
+        };
+        session.toggle_typewriter();
+    }
+
+    /// Moves Focus the way `move_it` says, and puts the answer on every window.
+    ///
+    /// The two Focus keys differ only in what they ask the session for, so what
+    /// they do with the answer is written once: a writer has one pair of eyes,
+    /// and Focus moving in one window moves it in all of them, as the ground
+    /// and the type size do.
+    fn refocus_windows(&self, move_it: impl Fn(&Session) -> Focus) {
+        let Some(session) = self.imp().session.borrow().clone() else {
+            return;
+        };
+        let focus = move_it(&session);
+        let Some(app) = self.application() else {
+            return;
+        };
+        for window in app.windows() {
+            let Ok(window) = window.downcast::<Window>() else {
+                continue;
+            };
+            let document = window.imp().document.borrow();
+            window.imp().editor.set_focus(focus, &document);
         }
     }
 
