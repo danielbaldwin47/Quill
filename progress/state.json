@@ -11,49 +11,49 @@
       "id": "page",
       "title": "The page",
       "what": "Paper, margins, measure, scrolling",
-      "judge": "the page itself: paper colour, margins, the measure (line length), vertical placement of text in the window, scrolling feel implied by spacing, how the empty space frames the text; overall calm"
+      "judge": "the page itself: paper colour, margins, the measure (line length), vertical placement of text in the window, scrolling feel implied by spacing, how the empty space frames the text; overall calm. What the markers are coloured is not this Piece's row: docs/design.md row Markers rests every mark kind at the body's own ink, measured off the Design oracle, so a marker that is quieter on one side than the other is a decision already taken and not a gap"
     },
     {
       "id": "type",
       "title": "The type",
       "what": "Duo / Quattro / Mono, size, line height, rhythm",
-      "judge": "the typography only: typeface rendering, size, line height, rhythm, weight and colour of the ink, the spacing of blank lines, how italic/bold sit; would a writer rather read and type in this type. Text size and line pitch are set by a published fourteen-step ladder, one pitch per step (docs/design.md, rows Text sizes and Line pitch), so the gap to name is a pitch or a size that misses its own step, not a pitch you would have set differently. Where a state is a crop of the text column rather than a whole window, judge the type inside the crop"
+      "judge": "the typography only: typeface rendering, size, line height, rhythm, weight and colour of the ink, the spacing of blank lines, how italic/bold sit; would a writer rather read and type in this type. Text size and line pitch are set by a published fourteen-step ladder, one pitch per step (docs/design.md, rows Text sizes and Line pitch), so the gap to name is a pitch or a size that misses its own step, not a pitch you would have set differently. Where a state is a crop of the text column rather than a whole window, judge the type inside the crop. What the markers are coloured is not this Piece's row: docs/design.md row Markers rests every mark kind at the body's own ink, measured off the Design oracle, so a marker that is quieter on one side than the other is a decision already taken and not a gap"
     },
     {
       "id": "caret",
       "title": "Cursor & caret",
       "what": "Shape, color, blink, motion, selection",
-      "judge": "the caret and selection only: caret colour, width, height relative to the line, how it sits against the glyphs, blink/motion implied, selection colour; does the caret feel like a precise, alive instrument"
+      "judge": "the caret and selection only: caret colour, width, height relative to the line, how it sits against the glyphs, blink/motion implied, selection colour; does the caret feel like a precise, alive instrument. What the markers are coloured is not this Piece's row: docs/design.md row Markers rests every mark kind at the body's own ink, measured off the Design oracle, so a marker that is quieter on one side than the other is a decision already taken and not a gap"
     },
     {
       "id": "focus",
       "title": "Focus & typewriter",
       "what": "Sentence/paragraph dimming, typewriter line",
-      "judge": "focus mode and typewriter scrolling: how the non-focused text is dimmed (colour, amount), sentence vs paragraph scope, where the active line rests in the window, whether the eye is drawn to exactly the right place"
+      "judge": "focus mode and typewriter scrolling: how the non-focused text is dimmed (colour, amount), sentence vs paragraph scope, where the active line rests in the window, whether the eye is drawn to exactly the right place. What the markers are coloured is not this Piece's row: docs/design.md row Markers rests every mark kind at the body's own ink, measured off the Design oracle, so a marker that is quieter on one side than the other is a decision already taken and not a gap"
     },
     {
       "id": "theme",
       "title": "Dark & light",
       "what": "Both palettes, contrast, switching",
-      "judge": "the two palettes: paper and ink colours, contrast, how dimmed and marker greys read, how the chrome sits on each ground once both sides have bars to sit, whether dark mode feels designed rather than inverted. Until then the comparison is the page, not the furniture around it: one of the two carries bars above and below the text and the other has none, and that is a Piece of its own that has not been built rather than a decision about either ground, so judge the paper, the ink on it and the greys between them and let the bars be"
+      "judge": "the two palettes: paper and ink colours, contrast, how the markers read against the words, whether the ground feels designed rather than inverted. Both states are a crop of the Design oracle at a passage carrying every mark kind, so what is in front of you is the page itself and none of the furniture around it: judge the paper, the ink on it, and how the `>`, the `-`, the `1.` and the task box sit against the words they mark. A marker that reads as loud as its words is the answer here rather than a defect — the Design oracle rests every mark kind at the body's own ink (docs/design.md row Markers), and a quieted marker on either side is the gap"
     },
     {
       "id": "markup",
       "title": "Markup rendering",
       "what": "Headings, emphasis, lists, quotes, code, links in the editor",
-      "judge": "how Markdown is shown while writing: heading markers, emphasis, lists, blockquotes, code, links \u2014 are markers quiet, does the text stay readable, do headings and structure read at a glance without the text jumping. Both states are the hanging-marker gutter and the body column: gutters is the six heading levels, whose `#` runs step out into the left gutter by level + 1 cells so their words all land on the body column and `###### ` reaches the container's own left edge; blocks is that deepest heading above a quote, a bullet and an ordinal, none of which hangs \u2014 `>`, `-` and `1.` sit on the body column and push their own words inward, and no rule is drawn beside a quote. Judge where each row starts and how the two columns read together. What the markers are coloured is not this Piece's row: marks keep the Parity oracle's greys until they are measured (docs/design.md \u00a7 The palette is a file), so a marker that is quieter on one side than the other is a decision already taken and not a gap"
+      "judge": "how Markdown is shown while writing: heading markers, emphasis, lists, blockquotes, code, links \u2014 are markers quiet, does the text stay readable, do headings and structure read at a glance without the text jumping. Both states are the hanging-marker gutter and the body column: gutters is the six heading levels, whose `#` runs step out into the left gutter by level + 1 cells so their words all land on the body column and `###### ` reaches the container's own left edge; blocks is that deepest heading above a quote, a bullet and an ordinal, none of which hangs \u2014 `>`, `-` and `1.` sit on the body column and push their own words inward, and no rule is drawn beside a quote. Judge where each row starts and how the two columns read together. What the markers are coloured is not this Piece's row: docs/design.md row Markers rests every mark kind at the body's own ink, measured off the Design oracle, so a marker that is quieter on one side than the other is a decision already taken and not a gap"
     },
     {
       "id": "chrome",
       "title": "Chrome & menus",
       "what": "Bars, counters, palette, what hides while typing, the empty state",
-      "judge": "the chrome: what UI is visible around the text, the stats/word-count bar, title, menus/palette, how it recedes while writing; is there exactly as much interface as a writer needs and no more"
+      "judge": "the chrome: what UI is visible around the text, the stats/word-count bar, title, menus/palette, how it recedes while writing; is there exactly as much interface as a writer needs and no more. What the markers are coloured is not this Piece's row: docs/design.md row Markers rests every mark kind at the body's own ink, measured off the Design oracle, so a marker that is quieter on one side than the other is a decision already taken and not a gap"
     },
     {
       "id": "files",
       "title": "File handling",
       "what": "Open/save, autosave, library, drag & drop",
-      "judge": "file handling UI: the library/sidebar, file list, how documents are named and found, open/save affordances, how it looks next to the editor; would a writer trust it with their manuscripts"
+      "judge": "file handling UI: the library/sidebar, file list, how documents are named and found, open/save affordances, how it looks next to the editor; would a writer trust it with their manuscripts. What the markers are coloured is not this Piece's row: docs/design.md row Markers rests every mark kind at the body's own ink, measured off the Design oracle, so a marker that is quieter on one side than the other is a decision already taken and not a gap"
     },
     {
       "id": "latency",

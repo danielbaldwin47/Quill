@@ -72,9 +72,37 @@ that section.
 | 4.2.10 | Selection dark: handles #00b5ff | **contradicted** | there are no handles; **no accent pixel at all** in any frame holding a selection | 07–10, both themes |
 | 4.2.11 | Selection light: "—" (no value recorded) | **now measured** | **#ccedf8** active, **#dcdcdc** idle | 08-light, 07-light |
 | 4.2.12 | Dimmed / focus tiers are plural | **contradicted** | there is **one** dim tier per theme; Sentence and Paragraph share it | 13-* |
-| 4.2.13 | Wikilink brackets, link, content-block chip, autocomplete popup, library list | **still unknown** — not covered by these states | — | — |
+| 4.2.13 | Wikilink brackets, link, content-block chip, autocomplete popup, library list | **split**: the **link** is now measured; wikilink brackets, the content-block chip, the autocomplete popup and the library list are **still unknown** — not covered | link text is body ink and carries **no** rule; its `[`, `]`, `(`, `)` and destination URL are **`#7a7a78`** dark / **`#b5b3b0`** light; the 4 px rule runs under the **destination alone** — not the words, not the brackets — at **`#545452`** / **`#d5d3d1`**, and under a bare URL at its full extent | 17-dark-marks, 17-light-marks |
 | 4.2.14 | Syntax colours (verbs, adjectives, adverbs, conjunctions, nouns) | **still unknown** — not covered; Syntax was off for every state by the ticket's Method | — | — |
 | 4.2.15 | Authorship author colours | **still unknown** — not covered; Authors were hidden for every state | — | — |
+
+### Marker ink, one row per mark kind
+
+No § 4.2 claim covers a marker's colour, which is why
+[#198](https://github.com/danielbaldwin47/Quill/issues/198) went out to measure it rather than port
+the Parity oracle's ladder. Every row below is read off state 17, both grounds, with the caret
+parked at the end of the document; the paper is `#1a1a1a` dark and `#f7f7f7` light, and "body ink"
+is `#cccccc` dark / `#191919` light, 10.84:1 and 16.41:1 against those papers.
+
+**There is no ladder.** Every mark kind rests at the body ink. The Parity oracle's 72 % quiet and
+34 % hair have no counterpart in this app, and neither does any single resting marker grey.
+
+| # | Claim | Verdict | Measured | Capture |
+|---|---|---|---|---|
+| — | *(no claim)* heading `#` … `######` | **no quiet tier** | body ink. `#` and `##` on both grounds; levels 3–6 on dark only, where 14-gutters already reads them at `#cccccc` | 17-*-marks; 14-gutters |
+| — | *(no claim)* blockquote `>` | **no quiet tier** | body ink | 17-*-marks |
+| — | *(no claim)* bullet `-` | **no quiet tier** | body ink | 17-*-marks |
+| — | *(no claim)* ordered `1.` | **no quiet tier** | body ink | 17-*-marks |
+| — | *(no claim)* task box `- [ ]` | **no quiet tier** | body ink, marker and box alike | 17-*-marks |
+| — | *(no claim)* completed task `- [x]` | **quieted, and not as a marker** | the **whole row**, marker and text, at `#7a7a78` / `#b5b3b0`; this is Settings → Editor → Completed tasks → **Fade**, a task feature, not markup ink | 17-*-marks |
+| — | *(no claim)* thematic break `---` | **no hair tier** | body ink — the same ink as a heading's `#`, where the Parity oracle drops it to 34 % | 17-*-marks |
+| — | *(no claim)* fence marks ` ``` ` | **no quiet tier** | body ink, opening and closing alike, over the code ground | 17-*-marks |
+| — | *(no claim)* fence info string | **no quiet tier** | body ink — the same ink as the backticks beside it, so the Parity oracle's split between the two is not drawn here | 17-*-marks |
+| — | *(no claim)* inline code marks `` ` `` | **no quiet tier** | body ink, over the code ground | 17-*-marks |
+| — | *(no claim)* emphasis `**` and `*` | **no quiet tier** | body ink | 17-*-marks |
+| — | *(no claim)* bare URL | **no quiet tier** | body ink, underlined at `#545452` / `#d5d3d1` | 17-*-marks |
+| — | *(no claim)* code ground, inline and fenced | **now measured** | **`#252525`** dark, **`#eeeeee`** light — one ground for both | 17-*-marks |
+| — | *(no claim)* does the caret's own line lift a marker? | **contradicted** | the caret parked on the H1 reads ink for ink the same as the caret parked away | 17-*-marks-caret-on-heading |
 
 ## REFERENCE.md § 4.3 — Preview template
 
