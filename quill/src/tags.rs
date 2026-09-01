@@ -212,25 +212,11 @@ fn code_ground(buffer: &gtk::TextBuffer, scheme: Scheme) -> gtk::TextTag {
 /// quieted one — it is its own ink, not a tint of the text above it (#198,
 /// `ref/ia/mac-native/NOTES.md` § Found here: the link's ink and the code
 /// ground).
-///
-/// Out of focus it goes to the dim grey with everything else it decorates
-/// (`legacy/app/css/focus.css:31-40` flattens a URL to `--ink-dim`, and the
-/// rule is a mark of the URL): a lit hairline under grey words would be the one
-/// bright thing on a dimmed page. Two tags rather than one, because the tag
-/// table is keyed by the look and these are two looks.
-fn underline(buffer: &gtk::TextBuffer, scheme: Scheme, tier: Tier) -> gtk::TextTag {
-    let name = match tier {
-        Tier::Bright => "decoration-underline",
-        Tier::Dim => "decoration-underline-dim",
-    };
-    let underline = tag(buffer, name, |tag| {
+fn underline(buffer: &gtk::TextBuffer, scheme: Scheme) -> gtk::TextTag {
+    let underline = tag(buffer, "decoration-underline", |tag| {
         tag.set_underline(pango::Underline::Single);
     });
-    let rule = match tier {
-        Tier::Bright => Role::LinkRule,
-        Tier::Dim => Role::InkDim,
-    };
-    let rule = Colours::of(scheme).colour(rule).to_hex();
+    let rule = Colours::of(scheme).colour(Role::LinkRule).to_hex();
     underline.set_underline_rgba(Some(&shaded(&rule, Look::OPAQUE)));
     underline
 }
@@ -441,8 +427,16 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
             // — so that the dim is one flat grey rather than a stack of lit
             // panels. The same rule the flattening applies to a code span's
             // own ground ([`quill_engine::annotate::Paint`]).
-            Mark::CodeBlock if tier == Tier::Bright => {
-                paragraph(buffer, document, span, &code_ground(buffer, scheme));
+            //
+            // Lifted across the whole block rather than left to the lines the
+            // caller cleared, because a paragraph tag was put on rows outside
+            // them: see [`unparagraph`].
+            Mark::CodeBlock => {
+                let well = code_ground(buffer, scheme);
+                match tier {
+                    Tier::Bright => paragraph(buffer, document, span, &well),
+                    Tier::Dim => unparagraph(buffer, document, span, &well),
+                }
             }
             Mark::Strikethrough => {
                 let from = iter_at(buffer, document, span.at.start);
@@ -453,10 +447,15 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
             // stand for it, and not the brackets around them. The Design
             // oracle draws it that way (#198), and the mark says exactly which
             // bytes are the destination.
-            Mark::Url => {
+            //
+            // Out of focus it goes, as the well does:
+            // `legacy/app/css/focus.css:41` takes the rule's colour to
+            // `transparent` on a dimmed URL, so a dim link is grey words and
+            // nothing under them.
+            Mark::Url if tier == Tier::Bright => {
                 let from = iter_at(buffer, document, span.at.start);
                 let to = iter_at(buffer, document, span.at.end);
-                buffer.apply_tag(&underline(buffer, scheme, tier), &from, &to);
+                buffer.apply_tag(&underline(buffer, scheme), &from, &to);
             }
             _ => {}
         }
@@ -471,6 +470,29 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
 /// touches all of its own, which is what puts its ground under every row rather
 /// than only the first.
 fn paragraph(buffer: &gtk::TextBuffer, document: &Document, span: &Span, tag: &gtk::TextTag) {
+    let (start, end) = paragraph_lines(buffer, document, span);
+    buffer.apply_tag(tag, &start, &end);
+}
+
+/// Takes a paragraph tag off every line `span` touches.
+///
+/// The other half of [`paragraph`], and it exists because the two are not
+/// symmetric anywhere else: the caller takes the tags off the lines it is about
+/// to redraw, and a paragraph tag was put on lines outside them. A code block
+/// the caret has just left is dim on all of its rows, and only some of them are
+/// in the retag — so the well has to be lifted from the block rather than left
+/// to the lines, or the rows nobody redrew keep a fragment of it.
+fn unparagraph(buffer: &gtk::TextBuffer, document: &Document, span: &Span, tag: &gtk::TextTag) {
+    let (start, end) = paragraph_lines(buffer, document, span);
+    buffer.remove_tag(tag, &start, &end);
+}
+
+/// The whole lines `span` touches, as the pair of iterators both halves use.
+fn paragraph_lines(
+    buffer: &gtk::TextBuffer,
+    document: &Document,
+    span: &Span,
+) -> (gtk::TextIter, gtk::TextIter) {
     let mut start = buffer.start_iter();
     start.set_line(iter_at(buffer, document, span.at.start).line());
     let mut end = buffer.start_iter();
@@ -478,7 +500,7 @@ fn paragraph(buffer: &gtk::TextBuffer, document: &Document, span: &Span, tag: &g
     if !end.ends_line() {
         end.forward_to_line_end();
     }
-    buffer.apply_tag(tag, &start, &end);
+    (start, end)
 }
 
 /// The code ground on `scheme`, flattened onto that ground's paper.
