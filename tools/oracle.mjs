@@ -161,6 +161,31 @@ export function fingerprint(root, resolved) {
   };
 }
 
+// Why legacy/ cannot be shot from `root` — or null when it holds playwright-core. legacy/ has its
+// own manifest, and the root `npm i` does not fill it. Said here, in one or two lines, rather than
+// as shoot.mjs's module-not-found under a failed shot.
+//
+// Every command offered leaves `git status` clean: node_modules is ignored at every depth, and
+// tracked nowhere — it was once, as a symlink to itself (#210), and the `npm i` offered then
+// replaced the tracked link and left its deletion for the next commit. A worktree — its `.git` a
+// file naming the main checkout's `.git/worktrees/<name>` — is offered a link to the main
+// checkout's install when that one would resolve, so the install is paid once per machine.
+export function installRefusal(root) {
+  const installed = (dir) => fs.existsSync(path.join(dir, 'legacy/node_modules/playwright-core'));
+  if (installed(root)) return null;
+  let line = 'gate oracle: legacy/ has no playwright-core to shoot with; run `npm i` inside legacy/ (its manifest is its own, and the root one is not enough)';
+  const dotGit = path.join(root, '.git');
+  let main = null;
+  try {
+    const m = /^gitdir:\s*(.+?)\s*$/.exec(fs.readFileSync(dotGit, 'utf8'));
+    if (m) main = path.resolve(root, m[1], '..', '..', '..');
+  } catch { /* a directory, or no .git at all: not a worktree */ }
+  if (main !== null && installed(main)) {
+    line += `,\n  or link the main checkout's: \`ln -s ${path.join(main, 'legacy/node_modules')} legacy/node_modules\` (from ${root})`;
+  }
+  return line;
+}
+
 // Why these shots are not the shots this run would take — or null if they are. `have` is the
 // states whose png is actually on disk.
 export function freezeReason(was, now, have) {
@@ -331,10 +356,9 @@ async function freeze(root, piece, force) {
     return 1;
   }
 
-  // legacy/ has its own manifest, and the root `npm i` does not fill it. Said here, where it is
-  // one line, rather than as shoot.mjs's module-not-found under a failed shot.
-  if (!fs.existsSync(path.join(root, 'legacy/node_modules/playwright-core'))) {
-    process.stderr.write('gate oracle: legacy/ has no playwright-core to shoot with; run `npm i` inside legacy/ (its manifest is its own, and the root one is not enough)\n');
+  const uninstalled = installRefusal(root);
+  if (uninstalled !== null) {
+    process.stderr.write(`${uninstalled}\n`);
     console.log(`gate oracle ${piece}: fail (legacy/ is not installed)`);
     return 1;
   }
