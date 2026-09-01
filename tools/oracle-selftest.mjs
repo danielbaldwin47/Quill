@@ -241,12 +241,10 @@ ok('the refusal for an uninstalled legacy/ names only commands that leave git st
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'quill-oracle-selftest-'));
   try {
     const mk = (...p) => { const d = path.join(tmp, ...p); fs.mkdirSync(d, { recursive: true }); return d; };
-    const installed = mk('installed', 'legacy', 'node_modules', 'playwright-core');
+    mk('installed', 'legacy', 'node_modules', 'playwright-core');
     assert.equal(installRefusal(path.join(tmp, 'installed')), null, 'an installed legacy/ is not refused');
-    assert.ok(installed);
 
-    const plain = mk('plain', 'legacy');
-    const alone = installRefusal(path.dirname(plain));
+    const alone = installRefusal(path.dirname(mk('plain', 'legacy')));
     assert.match(alone, /npm i/);
     assert.match(alone, /inside legacy\//);
     assert.doesNotMatch(alone, /ln -s/, 'a checkout with no main checkout to link to is offered no link');
@@ -255,8 +253,7 @@ ok('the refusal for an uninstalled legacy/ names only commands that leave git st
     // A worktree: its .git is a file naming the main checkout's .git/worktrees/<name>.
     const main = mk('main');
     mk('main', 'legacy', 'node_modules', 'playwright-core');
-    const wt = mk('main', '.claude', 'worktrees', 'wt');
-    mk('main', '.claude', 'worktrees', 'wt', 'legacy');
+    const wt = path.dirname(mk('main', '.claude', 'worktrees', 'wt', 'legacy'));
     fs.writeFileSync(path.join(wt, '.git'), `gitdir: ${path.join(main, '.git', 'worktrees', 'wt')}\n`);
     const linked = installRefusal(wt);
     assert.match(linked, /npm i/);
