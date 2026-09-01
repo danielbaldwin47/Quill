@@ -2,7 +2,7 @@
 //!
 //! `org.freedesktop.portal.Settings` is how a plain GTK4 application learns
 //! that the desktop prefers a dark appearance ([ADR
-//! 0009](../../../docs/adr/0009-plain-gtk4-not-libadwaita.md): libadwaita's
+//! 0009](../../docs/adr/0009-plain-gtk4-without-libadwaita.md): libadwaita's
 //! `StyleManager` would have answered this, and Quill does not link it). It is
 //! a few lines of `gio` rather than a D-Bus crate, because one namespace and
 //! one key is the whole of what Quill wants from a bus.
@@ -26,22 +26,32 @@ use gtk::prelude::*;
 
 use quill_engine::theme::Scheme;
 
-/// Where the portal answers: the bus name, the object and the interface.
+/// The bus name the portal answers on.
 const NAME: &str = "org.freedesktop.portal.Desktop";
+/// The object it answers at.
 const PATH: &str = "/org/freedesktop/portal/desktop";
+/// The interface the settings are behind.
 const INTERFACE: &str = "org.freedesktop.portal.Settings";
 
-/// The namespace and key the desktop's preferred appearance is under.
+/// The namespace the desktop's preferred appearance is under.
 const APPEARANCE: &str = "org.freedesktop.appearance";
+/// The key inside it that names a ground.
 const COLOUR_SCHEME: &str = "color-scheme";
 
-/// How long a launch waits for the desktop, in milliseconds.
+/// How long a launch waits for the desktop to answer, in milliseconds.
 ///
 /// The whole cold start is budgeted at 250 ms (`docs/agents/gate.md` § Ticket
 /// tier), and a portal that is running answers in single figures; this is the
 /// share a portal that is *not* running may spend failing to. It is spent once,
 /// before the first window, because a ground resolved after the first frame is
 /// a flash of the other one.
+///
+/// It bounds the *call*. Reaching the bus at all — [`gio::bus_get_sync`] and
+/// the proxy's own look-up of who owns the name — is a round trip to the
+/// session bus daemon rather than to the portal, and is left unbounded on
+/// purpose: those are the same calls GTK makes on its own behalf a moment
+/// later, so a session bus wedged enough to block them has already taken the
+/// launch, and a second timeout here would only decide which line reports it.
 const TIMEOUT: i32 = 50;
 
 /// The desktop, as far as Quill is concerned.
@@ -188,6 +198,9 @@ mod tests {
     use std::rc::Rc;
     use std::sync::Mutex;
 
+    use quill_engine::settings::Theme;
+    use quill_engine::theme;
+
     use super::*;
 
     /// The stub portal's interface, in the shape `gio` reads it from.
@@ -212,10 +225,7 @@ mod tests {
           </interface>
         </node>";
 
-    /// One test at a time on a bus.
-    ///
-    /// `TestDBus::up` puts its address in the environment, and a second one
-    /// doing that while this one reads it is a race rather than a test.
+    /// Serialises [`staged`]; see it for why.
     static ONE_AT_A_TIME: Mutex<()> = Mutex::new(());
 
     /// A private bus, Quill's own connection to it, and whatever stubs a test
@@ -286,14 +296,10 @@ mod tests {
     }
 
     impl Stage {
-        /// A portal on this bus that answers `ReadOne` with `answer`, or, when
-        /// `answers_one` is false, refuses it the way a portal older than the
-        /// interface's version 2 does and answers `Read` with the second layer
-        /// of wrapping that one carries.
+        /// A [`Stub`] on this bus, and Quill's own proxy pointed at it.
         ///
-        /// The stub gets a connection of its own, so the name Quill's proxy is
-        /// pointed at is the stub's and nothing else on the bus can be
-        /// mistaken for it.
+        /// The stub's connection is its own, so the name the proxy is pointed
+        /// at is the stub's and nothing else on the bus can be mistaken for it.
         fn portal(&self, answer: u32, answers_one: bool) -> Portal {
             let address = self.bus.bus_address().expect("the test bus has an address");
             let stub = Stub::up(address.as_str(), answer, answers_one);
@@ -302,9 +308,9 @@ mod tests {
             portal
         }
 
-        /// The desktop saying that key is now 1, whatever it answered before.
+        /// Every stub on this bus saying that key is now 1.
         ///
-        /// From the stub, not from the test's own connection: a proxy hears
+        /// From the stubs, not from the test's own connection: a proxy hears
         /// only the name it was pointed at, and a signal from anyone else on
         /// the bus is somebody else's business.
         fn announce(&self, namespace: &str, key: &str) {
@@ -313,19 +319,31 @@ mod tests {
             }
         }
 
-        /// Runs the main context until `done`, or until it is plainly not going to.
+        /// Runs the main context until `done`.
         ///
-        /// A signal is delivered by the main loop rather than by the emitting
-        /// call, so a test that asserts without running one asserts on nothing.
+        /// A signal is delivered by the main loop rather than by the call that
+        /// emitted it, so a test that asserts without running one asserts on
+        /// nothing.
         fn until(&self, done: impl Fn() -> bool) {
-            for _ in 0..500 {
+            for _ in 0..ROUNDS {
                 if done() {
                     return;
                 }
                 self.context.iteration(false);
             }
         }
+
+        /// Runs the main context long enough that anything on its way has
+        /// arrived — which is how a test proves something did *not* arrive.
+        fn settle(&self) {
+            for _ in 0..ROUNDS {
+                self.context.iteration(false);
+            }
+        }
     }
+
+    /// How many turns of a main context count as "everything pending".
+    const ROUNDS: usize = 500;
 
     impl Stub {
         /// Brings a portal up on the bus at `address` and waits for it to be there.
@@ -442,6 +460,23 @@ mod tests {
         });
     }
 
+    /// The whole chain a launch runs, short of the display.
+    ///
+    /// Each half is tested on its own — the answer here, the rule in
+    /// `quill-engine`'s `theme` tests, the ground it lands on in `session` —
+    /// and this is the seam between them, which is the one place a launch can
+    /// read the desktop correctly and still paint the other ground. It is the
+    /// same composition `main` performs, at the same point: everything before
+    /// `editor::install_type`, and nothing that needs a frame.
+    #[test]
+    fn a_desktop_answering_dark_resolves_an_auto_launch_to_the_dark_ground() {
+        staged(|stage| {
+            let answer = stage.portal(1, true).scheme();
+            let ground = theme::effective(None, Theme::Auto, answer, Scheme::Light);
+            assert_eq!(ground, Scheme::Dark, "the last session was light");
+        });
+    }
+
     #[test]
     fn no_preference_and_a_preference_for_light_are_both_the_light_ground() {
         staged(|stage| {
@@ -494,7 +529,7 @@ mod tests {
 
             stage.announce(APPEARANCE, "accent-color");
             stage.announce("org.gnome.desktop.interface", COLOUR_SCHEME);
-            stage.until(|| false);
+            stage.settle();
             assert!(!heard.get(), "only `color-scheme` is Quill's question");
         });
     }
