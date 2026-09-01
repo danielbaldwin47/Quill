@@ -124,10 +124,7 @@ impl Window {
         window.imp().editor.open_focused_on(session.focus());
         // And Typewriter with them, so that `--typewriter`'s first frame holds
         // the caret's row at the anchor rather than travelling to it.
-        window
-            .imp()
-            .editor
-            .set_typewriter(session.typewriter(), session.settings().typewriter_anchor);
+        window.imp().editor.set_typewriter(session.typewriter());
         window.set_document(document);
         window
             .imp()
@@ -295,37 +292,36 @@ impl Window {
     /// [`Window::refocus_windows`] tells them all: on brings the caret's row
     /// to the anchor, off leaves the view where it is.
     fn toggle_typewriter(&self) {
-        let Some(session) = self.imp().session.borrow().clone() else {
-            return;
-        };
-        let on = session.toggle_typewriter();
-        session.store_settings();
-        let anchor = session.settings().typewriter_anchor;
-        let Some(app) = self.application() else {
-            return;
-        };
-        for window in app.windows() {
-            let Ok(window) = window.downcast::<Window>() else {
-                continue;
-            };
-            window.imp().editor.set_typewriter(on, anchor);
-        }
+        self.move_windows(Session::toggle_typewriter, |window, typewriter| {
+            window.imp().editor.set_typewriter(typewriter);
+        });
     }
 
     /// Moves Focus the way `move_it` says, and puts the answer on every window.
     ///
     /// The two Focus keys differ only in what they ask the session for, so what
-    /// they do with the answer is written once: a writer has one pair of eyes,
-    /// and Focus moving in one window moves it in all of them, as the ground
-    /// and the type size do.
+    /// they do with the answer is written once.
     fn refocus_windows(&self, move_it: impl Fn(&Session) -> Focus) {
+        self.move_windows(move_it, |window, focus| {
+            let document = window.imp().document.borrow();
+            window.imp().editor.set_focus(focus, &document);
+        });
+    }
+
+    /// Moves a mode the way `move_it` says, stores it, and puts the answer on
+    /// every window with `apply`.
+    ///
+    /// Written once for the three mode keys: a writer has one pair of eyes,
+    /// and a mode moving in one window moves it in all of them, as the ground
+    /// and the type size do. The settings are written as the key is pressed
+    /// rather than only on the way out, so a session that never gets to shut
+    /// down cleanly still leaves the writer reading the way they chose to
+    /// read.
+    fn move_windows<T: Copy>(&self, move_it: impl Fn(&Session) -> T, apply: impl Fn(&Window, T)) {
         let Some(session) = self.imp().session.borrow().clone() else {
             return;
         };
-        let focus = move_it(&session);
-        // Written as the key is pressed rather than only on the way out, so a
-        // session that never gets to shut down cleanly still leaves the writer
-        // reading the way they chose to read.
+        let moved = move_it(&session);
         session.store_settings();
         let Some(app) = self.application() else {
             return;
@@ -334,8 +330,7 @@ impl Window {
             let Ok(window) = window.downcast::<Window>() else {
                 continue;
             };
-            let document = window.imp().document.borrow();
-            window.imp().editor.set_focus(focus, &document);
+            apply(&window, moved);
         }
     }
 
