@@ -16,9 +16,11 @@
 //!
 //! The bar's geometry is the caller's too. The Editor takes the row's top and
 //! the row's height from `quill_engine::typography`'s pitch rather than from
-//! the glyph, so the bar spans the split leading the way iA's does. This
-//! module keeps what it is given and does two pieces of arithmetic on it: the
-//! width from the type size, and the snap of x onto a whole device pixel.
+//! the glyph, so the bar spans the split leading the way iA's does, and its
+//! width from that module's ladder. This module keeps what it is given and
+//! does two pieces of arithmetic on it: the bar's left edge from the advance
+//! boundary it is centred on, and the snap of an edge onto a whole device
+//! pixel.
 //!
 //! Nothing here is a widget, and nothing here is `gtk`.
 
@@ -26,20 +28,6 @@ use crate::flags::Flags;
 
 /// A millisecond, in the microseconds every time in this module is counted in.
 const MS: i64 = 1_000;
-
-/// The share of the type size the bar is wide: `WIDTH` in `caret.js`.
-///
-/// iA's own captures measure 0.152 em — the header comment in `caret.js` — but
-/// 0.155 is the number the oracle draws with, so it is the number ours draws
-/// with. Between 10 px and 40 px the two disagree at 23 px and at 36 px, and
-/// nowhere else.
-const WIDTH: f64 = 0.155;
-
-/// The narrowest bar, whatever the size: two whole pixels, never a hairline.
-const MIN_WIDTH: u32 = 2;
-
-/// The quiet after a move or an edit before the blink starts again: `IDLE_MS`.
-const IDLE: i64 = 480 * MS;
 
 /// A move within this of an edit never glides: `EDIT_SNAP_MS`.
 const EDIT_SNAP: i64 = 150 * MS;
@@ -77,28 +65,59 @@ const GLIDE_FAR: f64 = 14.0;
 /// a new place rather than the same caret moving to it.
 const GLIDE_DROP: f64 = 1.2;
 
-/// The bar full on, at the top of the blink's cycle.
-const ON: i64 = 470 * MS;
-
-/// The fade down, slower than the fade back so the blink reads as breathing
-/// rather than flashing.
-const FADE_OUT: i64 = 85 * MS;
-
-/// The dark half of the cycle.
-const OFF: i64 = 445 * MS;
-
-/// The fade back up.
-const FADE_IN: i64 = 55 * MS;
-
-/// One turn of the blink.
+/// The bar full on, at the top of the blink's cycle — and the whole of the
+/// hold a key buys.
 ///
-/// The four above are the ones `caret.css` names in the comment over its
-/// keyframes, and the ones #106 § Decided details decided, so they are the
-/// ones built here. The keyframes themselves run `1.06s` at `0%,44% {1}
-/// 52%,94% {0} 100% {1}`, which works out at 466.4, 84.8, 445.2 and 63.6 for a
-/// 1060 ms round: the same blink to within 9 ms, all of it in the fade back
-/// up. Worth knowing if the two are ever put side by side frame by frame, and
-/// not worth seeing otherwise.
+/// Every edit and every move puts the cycle back to its top
+/// ([`Caret::alpha`]), so a hand typing at any pace quicker than this never
+/// sees the bar leave full strength, and a hand that stops sees it fade one
+/// ramp after this runs out. That is the machine
+/// `ref/ia/mac-native/NOTES.md` § State 5 describes — "the caret is held on
+/// for one full on-phase after the last key before the cadence starts again"
+/// — and it is why there is no suppression constant beside this one.
+///
+/// `docs/design.md` § Blink says the same thing from outside, as "resumes
+/// 0.633 s after the last key": `blink-typing.tsv` marks the last key at
+/// 5.432 s, holds full strength to 5.96 and is dark from 6.06, so last key to
+/// dark is 0.63 — this 0.516 plus one [`FADE_OUT`]. A hold of 0.633 *before*
+/// the cycle restarted would keep the bar solid to 1.15 s, which is not what
+/// the trace shows.
+const ON: i64 = 516 * MS;
+
+/// The fade down, one of the two ~0.09 s ramps between the two thresholds
+/// `ref/ia/mac-native/NOTES.md` § State 4 reads the trace at.
+const FADE_OUT: i64 = 90 * MS;
+
+/// The dark half of the cycle: 0.305 s measured, rounded to keep the turn
+/// exactly 1.000 s.
+const OFF: i64 = 304 * MS;
+
+/// The fade back up, the ramp down's twin.
+const FADE_IN: i64 = 90 * MS;
+
+/// One turn of the blink: 1.000 s.
+///
+/// The Design oracle's, measured under a hand. `ref/ia/mac-native/blink-idle.tsv`
+/// samples the bar's accent pixels at 103 Hz over twelve seconds of a window
+/// nobody is touching, and `ref/ia/mac-native/NOTES.md` § State 4 reads it at
+/// two thresholds: at **full strength** the bar is on 0.516 s and off 0.484 s
+/// to a 1.000 s period, and at **any accent pixel at all** it is on 0.691 s
+/// and off 0.305 s. Those two rows are what fix all four phases. The gap
+/// between them is the fade — "about 0.09 s at each edge", and the waveform
+/// is 426 → 356 → 0 and back rather than a hard switch — so the 0.516 is
+/// [`ON`] alone and the 0.484 is the ramp down, the 0.305 the bar is truly
+/// dark, and the ramp back. `docs/design.md` § Blink carries the
+/// full-strength row.
+///
+/// Reading the 0.516 as lit-to-dark instead — [`ON`] plus the ramp — would
+/// put the full-strength plateau at 0.426 and the dark at 0.394, and the
+/// trace shows 0.511 and 0.303.
+///
+/// The Parity oracle's `caret.css` runs a 1.06 s keyframe at `0%,44% {1}
+/// 52%,94% {0} 100% {1}` — 466.4, 84.8, 445.2 and 63.6 — which is where these
+/// four stood until #169: a turn 55 ms longer, 46 ms less of it at full
+/// strength and 141 ms more of it dark. The oracle that owns the row is the
+/// one measured.
 const CYCLE: i64 = ON + FADE_OUT + OFF + FADE_IN;
 
 /// The share of the pitch the band carries above the baseline: 11/16, leaving
@@ -129,7 +148,8 @@ pub struct Bar {
     pub x: f64,
     /// The top of the row, not the top of the ink.
     pub y: f64,
-    /// [`width`] at the type size.
+    /// The ladder's width at the session's step, in device pixels:
+    /// `quill_engine::typography::caret_width`.
     pub w: f64,
     /// The full line pitch, so the bar spans the split leading.
     pub h: f64,
@@ -259,7 +279,8 @@ pub struct Caret {
     /// oracle drops its `prev` at both.
     placed: bool,
     glide: Option<Glide>,
-    /// The last move or edit: the blink is held for [`IDLE`] after it.
+    /// The last move or edit, which is the top of the blink's cycle: the bar
+    /// is at full strength for [`ON`] after it.
     active_at: Option<i64>,
     /// The last move that went anywhere: another within [`SNAP`] of it is a
     /// key repeating rather than a hand, and snaps.
@@ -464,9 +485,13 @@ impl Caret {
         if self.mode == Mode::Deterministic {
             return 1.0;
         }
+        // The last edit or move is the top of the cycle, which is the whole of
+        // how the blink is held while a hand types: keys closer together than
+        // [`ON`] keep putting it back before it has begun to fade. A caret
+        // that has not moved at all has no cycle to be in and is simply lit.
         match self.active_at {
-            Some(a) if t >= a + IDLE => blink(t - (a + IDLE)),
-            _ => 1.0,
+            Some(a) => blink(t - a),
+            None => 1.0,
         }
     }
 
@@ -482,13 +507,14 @@ impl Caret {
             return false;
         }
         self.glide.is_some_and(|g| self.now < g.at + g.len)
-            || self.active_at.is_some_and(|a| self.now >= a + IDLE)
+            || self.active_at.is_some_and(|a| self.now >= a + ON)
     }
 
     /// When the Editor has to come back, if not on the very next frame.
     ///
-    /// [`Caret::wants_tick`] is false through the [`IDLE`] quiet a move or an
-    /// edit buys, because there is nothing to animate inside it and the
+    /// [`Caret::wants_tick`] is false through the [`ON`] a move or an edit
+    /// puts the cycle back to, because there is nothing to animate inside it —
+    /// the bar is at full strength for the whole of it — and the
     /// Latency Piece is paid for in the frames that are never asked for. The
     /// blink does come back at the end of it, though, and a widget that let
     /// its tick source go there would have nothing left to ask for the frame
@@ -501,7 +527,7 @@ impl Caret {
             return None;
         }
         self.active_at
-            .map(|a| a + IDLE)
+            .map(|a| a + ON)
             .filter(|&when| self.now < when)
     }
 
@@ -573,29 +599,6 @@ pub fn band_top(baseline: f64, pitch: f64) -> f64 {
     baseline - ABOVE_BASELINE * pitch
 }
 
-/// The bar's width at type size `size`, in whole device pixels.
-///
-/// `Math.max(2, Math.round(M.em * WIDTH))` in `caret.js`, and whole pixels for
-/// the reason the comment beside it gives: a rasteriser snaps a painted box's
-/// two edges on its own, so a 4.5 px stem comes out 5 px wide with a grey
-/// column down one side however hard its position is snapped. Asking for the
-/// integer keeps both edges hard at any scale. 3 px at 20 px, 5 px at 31 px.
-///
-/// The sibling of `quill_engine::typography::pitch`, and read with it: the
-/// Editor builds a [`Bar`] from the two, one across the row and one down it.
-///
-/// The Design oracle does not measure a fraction at all — it quantises to 5,
-/// 6, 8 and 10 device pixels over the fourteen steps, which is
-/// `quill_engine::typography::caret_width` and what `docs/design.md` § Caret
-/// width decides. That function has no caller yet: this one keeps the bar the
-/// width it has always been until
-/// [#169](https://github.com/danielbaldwin47/Quill/issues/169) takes the
-/// width from the ladder and retires this, with the blink it moves.
-#[must_use]
-pub fn width(size: u32) -> u32 {
-    ((f64::from(size) * WIDTH).round() as u32).max(MIN_WIDTH)
-}
-
 /// The bar's left edge, from the advance boundary it stands on and its width.
 ///
 /// The bar is **centred** on the boundary. iA Writer for Mac puts 3 px of its
@@ -608,9 +611,9 @@ pub fn width(size: u32) -> u32 {
 ///
 /// A width that will not split evenly gives the extra pixel to the right of
 /// the boundary, so the boundary is always inside the bar and never its left
-/// edge. Device pixels, like everything else in a [`Bar`]: the caller has
-/// applied the scale factor already, and at scale 2 every width [`width`]
-/// returns is even.
+/// edge. Device pixels, like everything else in a [`Bar`]: the caller asked
+/// `quill_engine::typography::caret_width` for the width in them already, and
+/// at scale 2 every width on the ladder is even.
 #[must_use]
 pub fn left(boundary: f64, w: f64) -> f64 {
     boundary - (w / 2.0).floor()
@@ -711,12 +714,14 @@ mod tests {
 
     /// A bar at 20 px type, which is a size off the ladder rather than a step
     /// of it: these are the geometry's own numbers, and the pitch and width
-    /// that go with them are 36 and 3.
+    /// that go with them are 36 and 3. Nothing here reads the width — these
+    /// tests are the blink's and the glide's — so it is written out rather
+    /// than asked of the ladder, which measures a step and not a size.
     fn bar(x: f64, y: f64) -> Bar {
         Bar {
             x,
             y,
-            w: f64::from(width(20)),
+            w: 3.0,
             h: 36.0,
         }
     }
@@ -731,8 +736,8 @@ mod tests {
         c
     }
 
-    /// The timeline #38 § Testing Decisions asks for: type, wait 479 ms, wait
-    /// 1 ms more, jump, edit and then move.
+    /// The timeline #38 § Testing Decisions asks for: type, wait out the
+    /// on-phase, wait a microsecond more, jump, edit and then move.
     #[test]
     fn the_scripted_timeline() {
         let mut c = live();
@@ -744,34 +749,34 @@ mod tests {
         assert_eq!(c.rect(0), bar(100.0, 0.0));
         assert_eq!(c.alpha(0), 1.0);
 
-        // 479 ms of quiet is not yet quiet enough.
-        c.tick(479 * MS);
-        assert_eq!(c.alpha(479 * MS), 1.0);
-        assert!(!c.wants_tick(), "the blink is still held at 479 ms");
+        // A microsecond short of the on-phase's end, nothing has begun to
+        // move, so the frame clock is still owed nothing.
+        c.tick(ON - 1);
+        assert_eq!(c.alpha(ON - 1), 1.0);
+        assert!(!c.wants_tick(), "the bar is still at full strength");
 
-        // 1 ms more, and it is back at the top of its cycle.
-        c.tick(IDLE);
-        assert!(c.wants_tick(), "the blink is running again at 480 ms");
-        assert_eq!(c.alpha(IDLE), 1.0);
-        assert_eq!(c.alpha(IDLE + ON), 1.0, "the fade has not started");
-        assert_eq!(c.alpha(IDLE + ON + FADE_OUT / 2), 0.5, "half way down");
-        assert_eq!(c.alpha(IDLE + ON + FADE_OUT), 0.0, "dark");
+        // The end of it, and the fade is under way.
+        c.tick(ON);
+        assert!(c.wants_tick(), "the blink is running again at 516 ms");
+        assert_eq!(c.alpha(ON), 1.0, "the fade has not moved yet");
+        assert_eq!(c.alpha(ON + FADE_OUT / 2), 0.5, "half way down");
+        assert_eq!(c.alpha(ON + FADE_OUT), 0.0, "dark");
         assert_eq!(
-            c.alpha(IDLE + ON + FADE_OUT + OFF),
+            c.alpha(ON + FADE_OUT + OFF),
             0.0,
             "the fade back starts here"
         );
         assert_eq!(
-            c.alpha(IDLE + ON + FADE_OUT + OFF + FADE_IN / 2),
+            c.alpha(ON + FADE_OUT + OFF + FADE_IN / 2),
             0.5,
             "half way up"
         );
-        assert_eq!(c.alpha(IDLE + CYCLE), 1.0, "and round again");
+        assert_eq!(c.alpha(CYCLE), 1.0, "and round again");
 
         // A jump: no edit for two cycles, so the caret travels there. Thirteen
         // ems of it, inside both the [`GLIDE_MIN`] floor and the [`GLIDE_FAR`]
         // cap, which is a hop the eye can follow.
-        let jump = IDLE + 2 * CYCLE;
+        let jump = 2 * CYCLE;
         c.moved(bar(360.0, 0.0), Move::Pointer, jump);
         assert_eq!(c.alpha(jump), 1.0, "a move holds the blink on");
         assert_eq!(c.rect(jump).x, 100.0, "it leaves from where it was");
@@ -783,6 +788,78 @@ mod tests {
         c.moved(bar(372.0, 0.0), Move::FollowsEdit, edit);
         assert_eq!(c.rect(edit), bar(372.0, 0.0));
         assert_eq!(c.alpha(edit), 1.0);
+    }
+
+    /// The turn of the blink the Design oracle was measured at: 1.000 s, of
+    /// which the bar is at full strength for 0.516 s and truly dark for
+    /// 0.305 s, with a fade of about 0.09 s between them each way.
+    ///
+    /// `ref/ia/mac-native/blink-idle.tsv` is the trace it is read off — the
+    /// bar's accent pixels at 103 Hz over twelve seconds of a window nobody
+    /// is touching — and `ref/ia/mac-native/NOTES.md` § State 4 is the reading
+    /// of it, at the two thresholds that fix all four phases. The cadence is a
+    /// pure function of the time since the cycle began, so this is the whole
+    /// of it: no widget, no clock and no caret.
+    #[test]
+    fn the_cadence_the_design_oracle_measured() {
+        assert_eq!(CYCLE, 1_000 * MS, "NOTES § State 4: a 1.000 s turn");
+        assert_eq!(ON, 516 * MS, "at full strength, on 0.516 s");
+        assert_eq!(FADE_OUT + OFF + FADE_IN, 484 * MS, "and off 0.484 s");
+        assert_eq!(OFF, 304 * MS, "of which 0.305 s is no accent pixel at all");
+
+        assert_eq!(blink(0), 1.0, "on at 0");
+        assert_eq!(blink(515 * MS), 1.0, "full strength to the last of the on");
+        assert_eq!(blink(ON), 1.0, "0.516 s in, where the fade down begins");
+        assert_eq!(blink(561 * MS), 0.5, "half way down");
+        assert_eq!(blink(606 * MS), 0.0, "dark once the fade has run");
+        assert_eq!(blink(909 * MS), 0.0, "and dark to the last of the 0.305");
+        assert_eq!(blink(955 * MS), 0.5, "half way back up");
+        assert_eq!(blink(1_000 * MS), 1.0, "on again at 1.000 s");
+
+        // The turn after it, and the one before: the cycle is `rem_euclid`, so
+        // it runs backwards from a caret whose cycle began after the frame.
+        assert_eq!(blink(CYCLE + 606 * MS), 0.0, "the second turn's dark");
+        assert_eq!(blink(-CYCLE), 1.0, "and a turn the other way");
+    }
+
+    /// The bar is held solid while a hand is typing, and dark 0.633 s after
+    /// the last key.
+    ///
+    /// `ref/ia/mac-native/NOTES.md` § State 5 is the reading of
+    /// `blink-typing.tsv`: through the typing window the bar is "solid on for
+    /// 3.448 s — no blink at all", and after the last key it is "held on for
+    /// one full on-phase before the cadence starts again". So the hold is not
+    /// a constant of its own — every key puts the cycle back to its top, and
+    /// keys closer together than [`ON`] never let it start to fade. What that
+    /// looks like from outside is the 0.633 s `docs/design.md` § Blink names:
+    /// the trace's last key is at 5.432 s and its first dark sample at 6.065.
+    #[test]
+    fn the_blink_is_held_while_a_hand_types() {
+        let mut c = live();
+
+        // Ten keys 180 ms apart, which is the pace NOTES § State 5 measured
+        // the oracle at. The bar never leaves full strength between them.
+        let mut last = 0;
+        for i in 0..10 {
+            last = i * 180 * MS;
+            c.edited(last);
+            assert_eq!(c.alpha(last), 1.0, "lit as the key lands");
+            assert_eq!(c.alpha(last + 179 * MS), 1.0, "and lit until the next");
+        }
+
+        // After the last one: one full on-phase, then the fade, then dark —
+        // 0.606 s from key to paper, which is the 0.63 the trace shows to
+        // within the 10 ms it was sampled at and the 180 ms the keys came at.
+        assert_eq!(c.alpha(last + ON - 1), 1.0, "full strength through the on");
+        assert_eq!(c.alpha(last + ON), 1.0, "and at the instant it runs out");
+        assert_eq!(c.alpha(last + 561 * MS), 0.5, "fading a fade later");
+        assert_eq!(c.alpha(last + 606 * MS), 0.0, "dark 0.606 s after the key");
+        assert_eq!(c.alpha(last + CYCLE), 1.0, "and lit again a turn on");
+
+        // Where a 0.633 s hold *before* the cycle restarted would differ: it
+        // would still be at full strength here, three quarters of a second
+        // after the hand stopped, and the oracle is dark.
+        assert_eq!(c.alpha(last + 750 * MS), 0.0, "dark at 0.75 s, not held");
     }
 
     /// The bar is centred on the advance boundary, which is what the Design
@@ -802,9 +879,10 @@ mod tests {
     }
 
     /// An odd width cannot split evenly, so the bar takes the fewer pixels on
-    /// the left and the extra one falls right of the boundary. This is the
-    /// scale-1 case: [`width`] is 3 px at 20 px type, and 3 px doubled is the
-    /// even 6 px every scale-2 shot is measured at.
+    /// the left and the extra one falls right of the boundary. The ladder is
+    /// even at scale 2 all the way up, so this is the odd scale-1 case — 5 px
+    /// at scale 2 is 3 px at scale 1 — and `quill_engine::typography`'s own
+    /// tests are where those halvings are pinned.
     #[test]
     fn an_odd_bars_extra_pixel_falls_right_of_the_boundary() {
         // The left edge a bar of each odd width takes on the boundary at 100,
@@ -827,26 +905,6 @@ mod tests {
             assert!(x < 1896.0, "{w} px starts at {x}, on or past the boundary");
             assert!(x + w > 1896.0, "{w} px ends at {} px, short of it", x + w);
         }
-    }
-
-    /// The width at every size the Type Piece offers, and the two iA measured
-    /// by name. 0.152 would give 3 px at 23 px and 5 px at 36 px; the oracle's
-    /// 0.155 gives 4 and 6, and the oracle's is what is drawn.
-    #[test]
-    fn the_width_is_whole_pixels_and_never_a_hairline() {
-        const WIDTHS: [u32; 31] = [
-            2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 6, 6, 6,
-            6, 6,
-        ];
-        for (i, expected) in WIDTHS.iter().enumerate() {
-            let size = 10 + i as u32;
-            assert_eq!(width(size), *expected, "the bar at {size} px");
-        }
-        assert_eq!(width(20), 3, "iA's 3 px at 20 px");
-        assert_eq!(width(31), 5, "iA's 5 px at 31 px");
-        assert_eq!(width(23), 4, "0.155, not the 0.152 in the header comment");
-        assert_eq!(width(36), 6, "the other size the two disagree at");
-        assert_eq!(width(10), MIN_WIDTH, "never a hairline");
     }
 
     /// x lands on a whole device pixel; the other three are kept as they came.
@@ -949,17 +1007,17 @@ mod tests {
     fn an_idle_caret_asks_for_no_frames() {
         let mut c = live();
         c.moved(bar(0.0, 0.0), Move::Key, 0);
-        c.tick(IDLE);
+        c.tick(ON);
         assert!(c.wants_tick(), "the blink is running again");
 
-        c.moved(bar(60.0, 0.0), Move::Key, IDLE);
-        c.tick(IDLE + GLIDE_ALONG);
-        assert!(!c.wants_tick(), "a move stopped the cycle");
+        c.moved(bar(60.0, 0.0), Move::Key, ON);
+        c.tick(ON + GLIDE_ALONG);
+        assert!(!c.wants_tick(), "a move put the cycle back to its top");
 
-        c.focus(false, IDLE + 2 * CYCLE);
-        c.tick(IDLE + 3 * CYCLE);
+        c.focus(false, ON + 2 * CYCLE);
+        c.tick(ON + 3 * CYCLE);
         assert!(!c.wants_tick(), "an unfocused caret is a still ghost");
-        assert_eq!(c.alpha(IDLE + 3 * CYCLE), GHOST);
+        assert_eq!(c.alpha(ON + 3 * CYCLE), GHOST);
     }
 
     /// A selection takes the caret away entirely, and the frames with it.
@@ -971,15 +1029,15 @@ mod tests {
 
         c.selected(true, 0);
         assert_eq!(c.alpha(0), 0.0, "the two end bars are the instrument now");
-        c.tick(IDLE + CYCLE);
-        assert_eq!(c.alpha(IDLE + CYCLE), 0.0, "and it does not blink back");
+        c.tick(ON + CYCLE);
+        assert_eq!(c.alpha(ON + CYCLE), 0.0, "and it does not blink back");
         assert!(!c.wants_tick(), "nothing left to animate");
         assert_eq!(c.resumes_at(), None, "nor a blink to come back for");
 
         // Unfocused, it is still out: a ghost floating inside the held cells
         // would read as a second cursor beside the ends.
-        c.focus(false, IDLE + CYCLE);
-        assert_eq!(c.alpha(IDLE + CYCLE), 0.0);
+        c.focus(false, ON + CYCLE);
+        assert_eq!(c.alpha(ON + CYCLE), 0.0);
 
         c.focus(true, 2 * CYCLE);
         c.selected(false, 2 * CYCLE);
@@ -1186,12 +1244,12 @@ mod tests {
         c.edited(0);
         c.moved(bar(100.0, 0.0), Move::FollowsEdit, 0);
         assert!(!c.wants_tick(), "nothing to animate inside the quiet");
-        assert_eq!(c.resumes_at(), Some(IDLE), "and the blink comes back here");
+        assert_eq!(c.resumes_at(), Some(ON), "and the blink comes back here");
 
-        c.tick(479 * MS);
-        assert_eq!(c.resumes_at(), Some(IDLE), "still, a millisecond short");
+        c.tick(ON - MS);
+        assert_eq!(c.resumes_at(), Some(ON), "still, a millisecond short");
 
-        c.tick(IDLE);
+        c.tick(ON);
         assert!(c.wants_tick(), "the blink is running now");
         assert_eq!(c.resumes_at(), None, "so there is nothing to come back for");
 
