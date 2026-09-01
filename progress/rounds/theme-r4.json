@@ -1,0 +1,96 @@
+{
+  "piece": "theme",
+  "round": 4,
+  "winner": "theirs",
+  "margin": "slight",
+  "gap": "Lays down 4% less ink (alpha-weighted glyph area 9,956px² vs A's 10,356px²) with glyphs that are 1.4% LARGER — roughly 7% lighter stroke per unit area; the stem cross-section of the '1' reads 3.6px of coverage vs A's 3.8px, so at #CCCCCC on #1A1A1A B's strokes haze at the edge instead of holding.",
+  "gapTheirs": "Sets ~1.4% tighter in both axes than B — line pitch 72.5px vs 73.5px, character advance 25.69px vs 26.06px, left inset 39px vs 40px — so the block is the denser of the two on identical #1A1A1A paper; over a full screen of prose that is the one that closes in.",
+  "verdict": "These are the same page rendered twice: paper #1A1A1A, ink #CCCCCC, 10.84:1, byte-identical in both — there is no palette decision here to praise or condemn, only a rendering weight. A holds its text colour; B is the same face bled 7% thinner per unit area, which on a light-on-dark ground is exactly where stems start blooming into grey fringe rather than sitting flat. Neither ships anything resembling a designed dark ground — 26/26/26 is a default, not a choice — and neither shows a light palette at all, so half of what this piece is supposed to be judged on is simply absent from the evidence. A wins because its ink is more firmly on the paper, and for no other reason.",
+  "oursShot": "shots/theme/r4-dark-ours-crop.png",
+  "theirsShot": "shots/theme/r4-dark-theirs-crop.png",
+  "refSource": "ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in ref/ia/mac-native/ (ADR 0015), cropped per state: light from mac-native-17-light-marks.png, dark from mac-native-17-dark-marks.png",
+  "builderNote": "#198 phase 2: markers at the body ink, the theme states moved to the Design oracle's state-17 crops",
+  "secondary": [],
+  "opponent": "mac-native",
+  "build": {
+    "git": "10e5632",
+    "binary": "39c215a61d5f8574",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "light",
+      "ours": "shots/theme/r4-light-ours-crop.png",
+      "theirs": "shots/theme/r4-light-theirs-crop.png",
+      "opponent": {
+        "capture": "ref/ia/shots/mac-native/mac-native-17-light-marks.png",
+        "crop": [
+          654,
+          553,
+          600,
+          380
+        ],
+        "ours": [
+          584,
+          730,
+          600,
+          380
+        ]
+      },
+      "oursWhole": "shots/theme/r4-light-ours.png",
+      "blind": "shots/blind/theme/light",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Body glyphs carry more antialias haze: 6895 pixels at full #191919 vs B's 7372 (-6.5%), despite A setting ~1% larger type — so A's stems bottom out at the same ink but render a shade greyer around the core; the `-` also sits 2.0px above the x-height midline vs B's 1.2px.",
+      "gapTheirs": "The `-` marker straddles the pixel grid: 5 rows of coverage (grey 165 above, 119 below three solid #191919 rows) plus grey 189 and 55 columns on either side, mean ink 79 vs A's hard-snapped 3px bar at mean 46 — on the bullet and task lines the mark reads soft-edged next to hard-edged words. Leading is also 73px vs 74px.",
+      "verdict": "This is a coin-flip dressed up as a comparison: same paper, same ink, same 16.4:1, same font, both grids dead uniform at zero wobble, and both rest every mark kind at the body's own ink, so the oracle's Markers row is satisfied twice over. The only thing a writer's eye will actually catch is the hyphen — B's is a fuzzy grey-fringed smear across five rows, A's is a clean three-row bar, and a dash is the smallest mark on the page and the one that most needs an edge. A takes it because a mushy bullet makes a list read half-committed; B's marginally denser stems don't buy back a soft dash on two of four lines. Note that both files are the light state, so half of what I was asked to judge — the dark palette, whether the ground is designed or merely inverted — is not in front of me.",
+      "secondary": [
+        "Both crops are LIGHT ONLY — no dark palette in either file, so the 'designed vs inverted' question is unjudgeable from these images",
+        "Paper #F7F7F7 and ink #191919 identical in both; contrast 16.41:1 in both",
+        "All markers at full body ink in both: > - 1. and [ ] each reach min grey 25",
+        "Neither renders a real task box — both set a literal '[ ]' bracket pair; no checkbox affordance in either",
+        "Baseline pitch perfectly uniform in both: A 74.0px (61/209/283/357), B 73.0px (59/206/279/352), zero rounding wobble",
+        "Blank line is exactly 2 pitches in both (A 147px, B 146px) — neither fakes paragraph space",
+        "x-height effectively identical (22px both); A's advance 26.0px vs B's 25.7px, a ~1% difference, not a design choice",
+        "No caret visible in either image",
+        "Left ink margin identical at x=40; longest line ends x=528 (A) vs 520 (B)",
+        "B's hyphen carries slightly MORE total ink coverage (~3.95 rows vs A's ~3.7) — it is blurrier, not lighter"
+      ]
+    },
+    {
+      "name": "dark",
+      "ours": "shots/theme/r4-dark-ours-crop.png",
+      "theirs": "shots/theme/r4-dark-theirs-crop.png",
+      "opponent": {
+        "capture": "ref/ia/shots/mac-native/mac-native-17-dark-marks.png",
+        "crop": [
+          654,
+          553,
+          600,
+          380
+        ],
+        "ours": [
+          584,
+          730,
+          600,
+          380
+        ]
+      },
+      "oursWhole": "shots/theme/r4-dark-ours.png",
+      "blind": "shots/blind/theme/dark",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Lays down 4% less ink (alpha-weighted glyph area 9,956px² vs A's 10,356px²) with glyphs that are 1.4% LARGER — roughly 7% lighter stroke per unit area; the stem cross-section of the '1' reads 3.6px of coverage vs A's 3.8px, so at #CCCCCC on #1A1A1A B's strokes haze at the edge instead of holding.",
+      "gapTheirs": "Sets ~1.4% tighter in both axes than B — line pitch 72.5px vs 73.5px, character advance 25.69px vs 26.06px, left inset 39px vs 40px — so the block is the denser of the two on identical #1A1A1A paper; over a full screen of prose that is the one that closes in.",
+      "verdict": "These are the same page rendered twice: paper #1A1A1A, ink #CCCCCC, 10.84:1, byte-identical in both — there is no palette decision here to praise or condemn, only a rendering weight. A holds its text colour; B is the same face bled 7% thinner per unit area, which on a light-on-dark ground is exactly where stems start blooming into grey fringe rather than sitting flat. Neither ships anything resembling a designed dark ground — 26/26/26 is a default, not a choice — and neither shows a light palette at all, so half of what this piece is supposed to be judged on is simply absent from the evidence. A wins because its ink is more firmly on the paper, and for no other reason.",
+      "secondary": []
+    }
+  ],
+  "at": "2026-09-01T00:05:39.004Z"
+}
