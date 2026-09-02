@@ -40,8 +40,9 @@ use quill_engine::focus::typewriter::Typewriter;
 use quill_engine::settings::{Choice, Chrome, FocusScope};
 use quill_engine::shortcuts::{Chord, Refusal};
 use quill_engine::stats::words;
-use quill_engine::theme::{Colours, Role, Scheme};
+use quill_engine::theme::{Role, Scheme};
 
+use crate::ground::Ground;
 use crate::session::Session;
 use crate::window::Window;
 
@@ -678,9 +679,10 @@ fn menu_stylesheet(scheme: Scheme) -> String {
 ///
 /// Everything the bars draw takes its colour from here, the icons and the
 /// rules through the widget's CSS `color`, so a scheme change is a stylesheet
-/// change and nothing else.
-pub fn stylesheet(scheme: Scheme) -> String {
-    let colours = Colours::of(scheme);
+/// change and nothing else. The greys are the ground's table; the menus'
+/// literals and the hit colour are the scheme's ([`menu_ink`], [`hit`]).
+pub fn stylesheet(ground: Ground) -> String {
+    let Ground { scheme, colours } = ground;
     let fg = colours.colour(Role::ChromeFg).to_hex();
     let strong = colours.colour(Role::ChromeFgStrong).to_hex();
     let rule = colours.colour(Role::Rule).to_css();
@@ -746,8 +748,10 @@ pub struct Bars {
     /// while they are.
     shown: Rc<Cell<Shown>>,
     focus: Rc<Cell<Focus>>,
-    scheme: Rc<Cell<Scheme>>,
-    /// The three counts the stats bar shows, kept so a scheme change can
+    /// The ground the counts are inked for; the rest of the bars take theirs
+    /// from the stylesheet.
+    ground: Rc<Cell<Ground>>,
+    /// The three counts the stats bar shows, kept so a ground change can
     /// re-ink them.
     counts: Rc<Cell<[(usize, &'static str); 3]>>,
 }
@@ -781,7 +785,7 @@ impl Bars {
     #[must_use]
     pub fn new() -> Self {
         let focus = Rc::new(Cell::new(Focus::Off));
-        let scheme = Rc::new(Cell::new(Scheme::Light));
+        let ground = Rc::new(Cell::new(Ground::default()));
 
         let library = button(&[], icon(15, 15, library_icon), Some("win.library.toggle"));
         library.set_margin_start(LIBRARY_LEFT);
@@ -882,7 +886,7 @@ impl Bars {
                 stats: true,
             })),
             focus,
-            scheme,
+            ground,
             counts: Rc::new(Cell::new([(0, "words"), (0, "characters"), (0, "read")])),
         };
         bars.set_count("");
@@ -1060,10 +1064,10 @@ impl Bars {
         self.rows.queue_draw();
     }
 
-    /// Re-inks the numbers for `scheme`. The rest of the bars follow the
+    /// Re-inks the numbers for `ground`. The rest of the bars follow the
     /// stylesheet on their own.
-    pub fn set_scheme(&self, scheme: Scheme) {
-        self.scheme.set(scheme);
+    pub fn set_ground(&self, ground: Ground) {
+        self.ground.set(ground);
         self.ink_counts();
     }
 
@@ -1091,7 +1095,10 @@ impl Bars {
     /// Writes the counts into the labels: the number strong and the label in
     /// the chrome's grey (`.stat b`).
     fn ink_counts(&self) {
-        let strong = Colours::of(self.scheme.get())
+        let strong = self
+            .ground
+            .get()
+            .colours
             .colour(Role::ChromeFgStrong)
             .to_hex();
         for (label, (number, name)) in self.stats.iter().zip(self.count()) {
@@ -1649,8 +1656,9 @@ mod tests {
     fn the_bars_are_the_oracles_height_and_take_the_tables_greys() {
         assert_eq!((TOP_HEIGHT, BOTTOM_HEIGHT), (32, 26));
         for scheme in [Scheme::Light, Scheme::Dark] {
-            let sheet = stylesheet(scheme);
-            let colours = Colours::of(scheme);
+            let ground = Ground::of(scheme);
+            let sheet = stylesheet(ground);
+            let colours = ground.colours;
             for role in [Role::ChromeFg, Role::ChromeFgStrong] {
                 let hex = colours.colour(role).to_hex();
                 assert!(
@@ -1685,7 +1693,7 @@ mod tests {
     /// rules, on the transition the whole chrome shares.
     #[test]
     fn the_sheet_carries_the_typing_states_opacities() {
-        let sheet = stylesheet(Scheme::Light);
+        let sheet = stylesheet(Ground::default());
         assert!(sheet.contains(".chrome-top.faded { opacity: 0; }"));
         assert!(sheet.contains(".chrome-bottom.faded { opacity: 0.38; }"));
         assert!(sheet.contains("transition: opacity"));

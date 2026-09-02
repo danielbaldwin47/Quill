@@ -37,6 +37,7 @@ use quill_engine::theme::{self, Scheme};
 use quill_engine::watch::{Watch, unsaid};
 
 use crate::flags::Flags;
+use crate::ground::Ground;
 
 /// The log domain every warning about the settings file carries, which is what
 /// `journalctl --user` and `G_MESSAGES_DEBUG` filter on.
@@ -473,6 +474,18 @@ impl Session {
     /// The ground this launch is painting on.
     pub fn scheme(&self) -> Scheme {
         self.scheme.get()
+    }
+
+    /// The ground this launch is painting on, with the table it is painted
+    /// from: what every painter reads a colour off.
+    ///
+    /// The one place the table is chosen. Every pass that puts a ground on to
+    /// the windows ([`crate::window::repaint`], [`crate::window::reapply`], a
+    /// window being built) asks this once and hands the answer down, so a
+    /// palette laid over the built-ins (#159) is a change to this answer and
+    /// to nothing downstream of it. The built-ins for now.
+    pub fn ground(&self) -> Ground {
+        Ground::of(self.scheme.get())
     }
 
     /// What the writer asked for, which is a question where it is `auto`.
