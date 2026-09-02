@@ -36,18 +36,19 @@ use crate::session::Session;
 use crate::tags;
 
 mod imp {
-    use std::cell::{Cell, RefCell};
+    use std::cell::{Cell, OnceCell, RefCell};
     use std::rc::Rc;
 
     use gtk::prelude::*;
     use gtk::subclass::prelude::*;
     use gtk::{ScrolledWindow, glib};
-    use quill_engine::commands;
     use quill_engine::document::{Document, Edit};
 
     use crate::chrome::Bars;
     use crate::chrome::typing::Typing;
     use crate::editor::Editor;
+    use crate::flags;
+    use crate::palette::Palette;
     use crate::session::Session;
 
     #[derive(Default)]
@@ -60,6 +61,9 @@ mod imp {
         pub editor: Editor,
         /// The title bar above the Editor and the stats bar below it.
         pub bars: Bars,
+        /// The Palette over the page, built once the window is, because a
+        /// popover is parented on its window.
+        pub palette: OnceCell<Palette>,
         /// How far the bars have stepped back from the last keystroke.
         pub typing: Cell<Typing>,
         /// The one timer the typing machine has armed, if one is coming.
@@ -67,10 +71,10 @@ mod imp {
         /// What the edit now going through the buffer changed, left here by
         /// the handler that spliced the Document for the one that retags.
         pub pending: RefCell<Option<Edit>>,
-        /// The menu `--menu` asked for, held until the window is on the
-        /// compositor: a popup opened over a toplevel that is not mapped yet
-        /// keeps the toplevel from ever mapping.
-        pub flagged: Cell<Option<commands::Menu>>,
+        /// The menu or the Palette `--menu` asked for, held until the window
+        /// is on the compositor: a popup opened over a toplevel that is not
+        /// mapped yet keeps the toplevel from ever mapping.
+        pub flagged: Cell<Option<flags::Menu>>,
     }
 
     #[glib::object_subclass]
@@ -100,10 +104,14 @@ mod imp {
             column.append(self.bars.bottom());
             self.bars.follow(&scroller);
             window.set_child(Some(&column));
+            let _ = self.palette.set(Palette::new(&column));
         }
 
         fn dispose(&self) {
             self.bars.dispose();
+            if let Some(palette) = self.palette.get() {
+                palette.dispose();
+            }
         }
     }
 
@@ -164,6 +172,9 @@ impl Window {
             .imp()
             .bars
             .set_menus_grabbing(!session.flags().deterministic);
+        window
+            .palette()
+            .set_grabbing(!session.flags().deterministic);
         // And Typewriter with them, so that `--typewriter`'s first frame holds
         // the caret's row at the anchor rather than travelling to it.
         window.imp().editor.set_typewriter(session.typewriter());
@@ -487,8 +498,28 @@ impl Window {
     pub(crate) fn open_menu(&self, menu: commands::Menu) {
         self.imp().typing.set(chrome::typing::Typing::new());
         self.settle();
+        self.palette().close();
         let model = menus::model(menu, &self.modes());
         self.imp().bars.open_menu(menu, &model);
+    }
+
+    /// Opens the Palette over the page, or closes it: `palette.open`, which
+    /// is `Ctrl+K`, `Ctrl+Shift+P` and View › Window "All Commands…". A
+    /// menu that is up closes first, and the bars come back as they do for a
+    /// menu.
+    pub(crate) fn open_palette(&self) {
+        self.imp().typing.set(chrome::typing::Typing::new());
+        self.settle();
+        self.imp().bars.close_menus();
+        self.palette().toggle(self.upcast_ref(), self.modes());
+    }
+
+    /// The Palette, built with the window.
+    fn palette(&self) -> &crate::palette::Palette {
+        self.imp()
+            .palette
+            .get()
+            .expect("the Palette is built in constructed")
     }
 
     /// Opens what `--menu` named, once the window has painted its first
@@ -500,14 +531,6 @@ impl Window {
     /// so `map` is already behind us; the frame clock's first `after-paint`
     /// is the first moment the compositor holds a frame of the window.
     fn open_flagged(&self, menu: flags::Menu) {
-        let menu = match menu {
-            flags::Menu::View => commands::Menu::View,
-            flags::Menu::Document => commands::Menu::Document,
-            flags::Menu::Stats => commands::Menu::Stats,
-            // The Palette is #122's; until then the flag parses and opens
-            // nothing.
-            flags::Menu::Palette => return,
-        };
         self.imp().flagged.set(Some(menu));
         let Some(clock) = self.frame_clock() else {
             return;
@@ -517,8 +540,12 @@ impl Window {
             let Some(window) = window.upgrade() else {
                 return;
             };
-            if let Some(menu) = window.imp().flagged.take() {
-                window.open_menu(menu);
+            match window.imp().flagged.take() {
+                Some(flags::Menu::View) => window.open_menu(commands::Menu::View),
+                Some(flags::Menu::Document) => window.open_menu(commands::Menu::Document),
+                Some(flags::Menu::Stats) => window.open_menu(commands::Menu::Stats),
+                Some(flags::Menu::Palette) => window.open_palette(),
+                None => {}
             }
         });
     }

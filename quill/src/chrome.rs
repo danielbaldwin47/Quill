@@ -26,7 +26,8 @@
 //! `GtkPopoverMenu` under each bar button: the Document menu under the
 //! title, the View menu under the View button and `F10`, the Stats menu
 //! above the stats bar. Their look is the oracle's menu rules, as constants
-//! beside the bars'.
+//! beside the bars'. The Palette (#122) is [`crate::palette`], one popover
+//! over the page that `palette.open` toggles.
 
 use std::cell::Cell;
 use std::rc::Rc;
@@ -237,6 +238,7 @@ fn run_window(window: &Window, command: &Command) {
         "chrome.stats" => window.toggle_stats(),
         "chrome.doc" => window.open_menu(Menu::Document),
         "chrome.view" => window.open_menu(Menu::View),
+        "palette.open" => window.open_palette(),
         "window.fullscreen" if window.is_fullscreen() => window.unfullscreen(),
         "window.fullscreen" => window.fullscreen(),
         "window.close" => window.close(),
@@ -285,7 +287,7 @@ const CHEVRON_GAP: (i32, i32) = (2, 1);
 /// The title's chevron while its menu is open (`.caretdown` at `.55`).
 const CHEVRON_OPEN: f64 = 0.55;
 /// The UI face, in the order `chrome.css` `--chrome-font` names it.
-const CHROME_FONT: &str = "\"Adwaita Sans\", \"Inter\", \"Noto Sans\", sans-serif";
+pub(crate) const CHROME_FONT: &str = "\"Adwaita Sans\", \"Inter\", \"Noto Sans\", sans-serif";
 /// How long the bars take to fade (`.chrome { transition: opacity .28s ease }`).
 /// Under `--deterministic` GTK's animations are off and this is zero.
 const FADE_MS: u32 = 280;
@@ -358,16 +360,16 @@ const TICK_GLYPH: &str = "resource:///org/gtk/libgtk/theme/Default/assets/check-
 /// A menu's colours per scheme (`chrome.css` `--menu-*`): its ground, its
 /// border, its ink, its dim ink for chords and headings, the selected row's
 /// ground and its shadow. Not in the engine's table, as `hit` is not.
-struct MenuInk {
-    ground: &'static str,
-    border: &'static str,
-    ink: &'static str,
-    dim: &'static str,
-    selected: &'static str,
-    shadow: &'static str,
+pub(crate) struct MenuInk {
+    pub(crate) ground: &'static str,
+    pub(crate) border: &'static str,
+    pub(crate) ink: &'static str,
+    pub(crate) dim: &'static str,
+    pub(crate) selected: &'static str,
+    pub(crate) shadow: &'static str,
 }
 
-const fn menu_ink(scheme: Scheme) -> MenuInk {
+pub(crate) const fn menu_ink(scheme: Scheme) -> MenuInk {
     match scheme {
         Scheme::Light => MenuInk {
             ground: "#f2f2f2",
@@ -490,8 +492,9 @@ pub fn stylesheet(scheme: Scheme) -> String {
          \x20 font-family: {CHROME_FONT}; font-size: {STAT_PX}px;\n\
          \x20 font-feature-settings: \"tnum\"; color: {fg};\n\
          }}\n\
-         .chrome .chrome-rule {{ color: {rule}; }}\n{}",
-        menu_stylesheet(scheme)
+         .chrome .chrome-rule {{ color: {rule}; }}\n{}{}",
+        menu_stylesheet(scheme),
+        crate::palette::stylesheet(scheme)
     )
 }
 
@@ -671,6 +674,13 @@ impl Bars {
     pub fn set_menus_grabbing(&self, grabbing: bool) {
         for menu in &self.menus {
             menu.set_autohide(grabbing);
+        }
+    }
+
+    /// Closes whichever menu is up, for the Palette opening over it.
+    pub fn close_menus(&self) {
+        for menu in &self.menus {
+            menu.popdown();
         }
     }
 
@@ -986,7 +996,7 @@ fn rule(edge: gtk::Align) -> gtk::DrawingArea {
 
 /// An icon `width` by `height` logical pixels, drawn by `draw`, which takes
 /// its ink from the widget's CSS colour through [`source`].
-fn icon(
+pub(crate) fn icon(
     width: i32,
     height: i32,
     draw: impl Fn(&gtk::DrawingArea, &cairo::Context) + 'static,
@@ -1004,7 +1014,7 @@ fn icon(
 
 /// Sets the source to the widget's CSS `color` at `alpha` of it, which is how
 /// an icon or a rule takes the stylesheet's colour without being told it.
-fn source(area: &gtk::DrawingArea, cr: &cairo::Context, alpha: f64) {
+pub(crate) fn source(area: &gtk::DrawingArea, cr: &cairo::Context, alpha: f64) {
     // GTK 4.10 deprecated `color()` for reading the style through a snapshot;
     // a draw function has no snapshot, and the property it reads is the one
     // the stylesheet sets.
