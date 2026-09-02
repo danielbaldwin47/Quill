@@ -809,6 +809,24 @@ margin = 3
         assert!(!notes[0].contains('\n'), "one line, not a stack: {notes:?}");
     }
 
+    /// The note says which line and why, because the parser's own first line
+    /// is a position alone: a `[shortcuts]` entry pasted in beside the one it
+    /// was meant to replace is the commonest way a settings file stops being
+    /// TOML (#44's hand test), and "line 7" without "named twice" sends the
+    /// writer to a line that reads fine on its own.
+    #[test]
+    fn a_key_named_twice_is_said_by_line_and_by_name() {
+        let (_, notes) = Settings::parse(
+            "theme = \"light\"\n\n[shortcuts]\n\"library.toggle\" = [\"F9\"]\n\"library.toggle\" = [\"<Super>l\"]\n",
+        );
+        assert_eq!(
+            notes,
+            [format!(
+                "is not TOML (line 5: duplicate key at \"library.toggle\"); {INSTEAD}"
+            )]
+        );
+    }
+
     /// The same file read a second time is nothing rather than the defaults,
     /// and says which: a Quill already running has last good settings, and
     /// putting the defaults over a writer's preferences because a save was
