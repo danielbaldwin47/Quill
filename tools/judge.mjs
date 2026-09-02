@@ -451,9 +451,19 @@ async function judgeLatency(root, note, named) {
         `budget: mean <= ${BUDGET.mean_ms} ms, worst <= ${BUDGET.worst_ms} ms, cold <= ${BUDGET.cold_ms} ms`,
         `won by beating the oracle at ${summary.headline}, not by clearing the budget`,
         `bench run: ${summary.ran} at ${summary.at}`,
+        // A regime recorded and not scored is named here with its numbers, so the round says what
+        // the run measured at it without a reader taking its absence from `states` for a regime
+        // that never ran. The whole run still had to hold it: `regimes_unaccounted_for` above
+        // refuses an unscored regime whose keys did not add up like any other.
+        ...said.informational.map((r) => `${r.name} recorded, not scored: mean ${r.mean_ms} ms, `
+          + `worst ${r.worst_ms} ms, p50 ${r.p50_ms} ms, p99 ${r.p99_ms} ms, cold ${r.cold_ms} ms `
+          + `(${r.why})`),
       ],
     },
   });
+  // Beside `states` rather than in it: `states` is what the round was won or lost on, and a round
+  // file's winner is every state's — an informational regime in there would be a verdict.
+  if (said.informational.length) written.informational = said.informational;
 
   const out = path.join(root, 'progress/rounds', `latency-r${number}.json`);
   fs.mkdirSync(path.dirname(out), { recursive: true });

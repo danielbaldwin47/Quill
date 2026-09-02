@@ -20,6 +20,7 @@ pub mod document;
 pub mod focus;
 pub mod library;
 pub mod markdown;
+mod offsets;
 pub mod outline;
 pub mod pos;
 pub mod render;

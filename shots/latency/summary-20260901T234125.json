@@ -1,0 +1,266 @@
+{
+  "ran": "--all",
+  "at": "2026-09-01T23:41:25.932Z",
+  "budget": {
+    "mean_ms": 5,
+    "worst_ms": 16,
+    "cold_ms": 250
+  },
+  "oracle": {
+    "mean_ms": 2.43,
+    "worst_ms": 15.61,
+    "uinput_to_presented_ms": 12.17,
+    "cold_ms": 370
+  },
+  "headline": "prose_end_of_draft",
+  "regimes": [
+    {
+      "regime": "prose_end_of_draft",
+      "file": "shots/latency/bench-prose_end_of_draft-20260901T233511.json",
+      "mean_ms": 2.48,
+      "worst_ms": 13.86,
+      "p50_ms": 1.85,
+      "p99_ms": 8.79,
+      "cold_ms": 138.23,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "prose_middle_of_draft",
+      "file": "shots/latency/bench-prose_middle_of_draft-20260901T233547.json",
+      "mean_ms": 2.9,
+      "worst_ms": 7.94,
+      "p50_ms": 2.55,
+      "p99_ms": 6.97,
+      "cold_ms": 147.59,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "prose_focus_sentence",
+      "file": "shots/latency/bench-prose_focus_sentence-20260901T233624.json",
+      "mean_ms": 3.04,
+      "worst_ms": 9.57,
+      "p50_ms": 2.64,
+      "p99_ms": 7.82,
+      "cold_ms": 165,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "paragraph_breaks",
+      "file": "shots/latency/bench-paragraph_breaks-20260901T233700.json",
+      "mean_ms": 2.81,
+      "worst_ms": 12.63,
+      "p50_ms": 2.11,
+      "p99_ms": 11.83,
+      "cold_ms": 161.28,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "revision",
+      "file": "shots/latency/bench-revision-20260901T233736.json",
+      "mean_ms": 3.2,
+      "worst_ms": 13.06,
+      "p50_ms": 2.61,
+      "p99_ms": 11.86,
+      "cold_ms": 165.62,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "markdown_syntax",
+      "file": "shots/latency/bench-markdown_syntax-20260901T233812.json",
+      "mean_ms": 3.1,
+      "worst_ms": 14.13,
+      "p50_ms": 2.53,
+      "p99_ms": 9.17,
+      "cold_ms": 152.48,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "fence_flip",
+      "file": "shots/latency/bench-fence_flip-20260901T233849.json",
+      "mean_ms": 2.99,
+      "worst_ms": 12.1,
+      "p50_ms": 2.43,
+      "p99_ms": 9.52,
+      "cold_ms": 213.85,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "paste_blocks",
+      "file": "shots/latency/bench-paste_blocks-20260901T233925.json",
+      "mean_ms": 2.32,
+      "worst_ms": 10.12,
+      "p50_ms": 1.73,
+      "p99_ms": 8.67,
+      "cold_ms": 144.41,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "letters_only_r1",
+      "file": "shots/latency/bench-letters_only_r1-20260901T234001.json",
+      "mean_ms": 2.91,
+      "worst_ms": 12.33,
+      "p50_ms": 2.49,
+      "p99_ms": 8.46,
+      "cold_ms": 170.98,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "bursts_and_pauses",
+      "file": "shots/latency/bench-bursts_and_pauses-20260901T234053.json",
+      "mean_ms": 2.47,
+      "worst_ms": 13.39,
+      "p50_ms": 1.87,
+      "p99_ms": 8.5,
+      "cold_ms": 224.52,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "fast_typist",
+      "file": "shots/latency/bench-fast_typist-20260901T234115.json",
+      "mean_ms": 2.59,
+      "worst_ms": 11.13,
+      "p50_ms": 2.26,
+      "p99_ms": 7.51,
+      "cold_ms": 152.67,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "saturation_stress",
+      "file": "shots/latency/bench-saturation_stress-20260901T234125.json",
+      "mean_ms": 24.93,
+      "worst_ms": 33.38,
+      "p50_ms": 25.01,
+      "p99_ms": 33.3,
+      "cold_ms": 135.3,
+      "clears_mean": false,
+      "clears_worst": false,
+      "clears_cold": true,
+      "scored": false,
+      "pass": null,
+      "every_keystroke_accounted_for": true
+    }
+  ],
+  "regimes_not_run": [],
+  "regimes_unaccounted_for": [],
+  "regimes_not_scored": [
+    "saturation_stress"
+  ],
+  "stage_first_client_ms": 197.114,
+  "pass": true,
+  "lines": [
+    "gate bench prose_end_of_draft: pass — mean 2.48 ms, worst 13.86 ms, p50 1.85 ms, p99 8.79 ms, cold 138.23 ms",
+    "gate bench prose_middle_of_draft: pass — mean 2.9 ms, worst 7.94 ms, p50 2.55 ms, p99 6.97 ms, cold 147.59 ms",
+    "gate bench prose_focus_sentence: pass — mean 3.04 ms, worst 9.57 ms, p50 2.64 ms, p99 7.82 ms, cold 165 ms",
+    "gate bench paragraph_breaks: pass — mean 2.81 ms, worst 12.63 ms, p50 2.11 ms, p99 11.83 ms, cold 161.28 ms",
+    "gate bench revision: pass — mean 3.2 ms, worst 13.06 ms, p50 2.61 ms, p99 11.86 ms, cold 165.62 ms",
+    "gate bench markdown_syntax: pass — mean 3.1 ms, worst 14.13 ms, p50 2.53 ms, p99 9.17 ms, cold 152.48 ms",
+    "gate bench fence_flip: pass — mean 2.99 ms, worst 12.1 ms, p50 2.43 ms, p99 9.52 ms, cold 213.85 ms",
+    "gate bench paste_blocks: pass — mean 2.32 ms, worst 10.12 ms, p50 1.73 ms, p99 8.67 ms, cold 144.41 ms",
+    "gate bench letters_only_r1: pass — mean 2.91 ms, worst 12.33 ms, p50 2.49 ms, p99 8.46 ms, cold 170.98 ms",
+    "gate bench bursts_and_pauses: pass — mean 2.47 ms, worst 13.39 ms, p50 1.87 ms, p99 8.5 ms, cold 224.52 ms",
+    "gate bench fast_typist: pass — mean 2.59 ms, worst 11.13 ms, p50 2.26 ms, p99 7.51 ms, cold 152.67 ms",
+    "gate bench saturation_stress: informational — mean 24.93 ms, worst 33.38 ms, p50 25.01 ms, p99 33.3 ms, cold 135.3 ms (not scored: keys share frames at this pace, so a per-keystroke latency grows by construction)",
+    "gate bench --all: pass — 11 of 11 scored regimes clear the budget; saturation_stress informational (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)"
+  ],
+  "build": {
+    "git": "a2d0cae",
+    "binary": "26882028bcfa8e23"
+  },
+  "fingerprint": {
+    "at": "2026-09-01T23:35:11.761Z",
+    "app": {
+      "binary": "target/release/quill",
+      "sha256": "26882028bcfa8e23",
+      "git_head": "a2d0cae",
+      "tree_was_dirty": true,
+      "renderer": "gl"
+    },
+    "display": {
+      "output": "HEADLESS-137",
+      "mode": "3200x2000",
+      "refresh_hz": 60,
+      "scale": 2,
+      "vrr": false
+    },
+    "machine": {
+      "node": "v26.7.0",
+      "kernel": "Linux 7.1.9-arch1-2",
+      "cpu": "13th Gen Intel(R) Core(TM) i5-13600K",
+      "cpus": 20,
+      "load1": 0.71,
+      "busiest_processes": [
+        "35.2 helium",
+        "2.2 claude",
+        "1.2 quill <defunct>",
+        "1.2 helium",
+        "0.9 claude"
+      ],
+      "mem_gb": 31
+    },
+    "document": {
+      "path": "shots/latency/doc10k.md",
+      "words": 9953,
+      "chars": 53031,
+      "lines": 432
+    },
+    "window": {
+      "w": 1440,
+      "h": 900
+    }
+  }
+}

@@ -114,6 +114,25 @@ ok('a key no frame carried is paired, and counted as having no presentation time
     'four presented out of five sent is not every keystroke accounted for');
 });
 
+ok('a key written late, because no frame ever carried it, is scanned where it was seen', () => {
+  // A key that changed no pixel — #220's ArrowLeft — has no frame to complete, so the app writes
+  // it only when it goes stale, after the keys that followed it. In file order the walk would pair
+  // it with the next key of its code and shift every pair after that; in the order the app saw
+  // them, it pairs with itself, carries no latency, and the four around it keep theirs.
+  const seen = captured(QUILL);
+  const [late] = seen.splice(1, 1);
+  seen.push({ ...late, frame: null, present_us: null, refresh_us: null });
+
+  const joined = align(written(QUILL), seen);
+  assert.equal(joined.pairs.length, 5, 'every key was seen, so every key pairs');
+  assert.equal(joined.stray.length, 0);
+  assert.equal(joined.pairs[1].sent.code, CODES.u);
+  assert.equal(latencyMs(joined.pairs[1]), null, 'the late key has no presentation to measure');
+  for (const pair of joined.pairs.filter((_, i) => i !== 1)) {
+    assert.equal(latencyMs(pair), 2, 'the keys around it keep their own frames');
+  }
+});
+
 ok('a key the app never saw does not shift the keys after it', () => {
   // The opposite failure: the bench wrote a key that never arrived. The cursor must not advance,
   // or every later key pairs with the wrong frame.
@@ -187,6 +206,17 @@ ok('the budget is the Gate\'s three numbers, and a miss on any one of them fails
   assert.equal(verdict(clears, BUDGET.cold_ms + 1).pass, false, 'cold start');
 });
 
+ok('a regime that is recorded and not scored keeps its numbers and has no pass to give', () => {
+  const over = { mean: 24.83, max: 33.89, p50: 25.08, p99: 31.2 };
+  const said = verdict(over, 149, false);
+  assert.equal(said.scored, false);
+  assert.equal(said.pass, null, 'neither pass nor fail: the budget is not what it is held to');
+  assert.equal(said.clears_mean, false, 'the numbers are still real, and still written');
+  assert.equal(said.mean_ms, 24.83);
+  assert.equal(verdict(over, 149).scored, true, 'scored unless told otherwise');
+  assert.equal(verdict(over, 149).pass, false, 'the same numbers on a scored regime fail');
+});
+
 ok('a run with no cold start is a miss rather than a pass', () => {
   // `--measure` with no `$QUILL_T0_NS` prints no cold start. The Gate asks for three numbers, and a
   // run that produced two has not answered it.
@@ -249,7 +279,7 @@ ok('every line starts with `gate bench` and is one line', () => {
 // ---------- a run of several ----------
 
 // One regime's row as `bench --all` records it in its summary file.
-const row = (regime, mean, worst, cold, pass = true) => ({
+const row = (regime, mean, worst, cold, pass = true, extra = {}) => ({
   regime,
   file: `shots/latency/bench-${regime}-20260828T000000.json`,
   mean_ms: mean,
@@ -259,7 +289,12 @@ const row = (regime, mean, worst, cold, pass = true) => ({
   cold_ms: cold,
   pass,
   every_keystroke_accounted_for: true,
+  ...extra,
 });
+
+// The saturation regime as a `bench --all` records it since it stopped being scored: over every
+// bar, `pass` null, `scored` false. The oracle's own figure was over the bars too.
+const saturation = () => row('saturation_stress', 24.83, 33.89, 149, null, { scored: false });
 
 const runOf = (rows, extra = {}) => ({
   ran: '--all',
@@ -298,6 +333,38 @@ ok('--regimes says which subset it was, so two runs are not confused', () => {
   assert.match(line, /^gate bench --regimes revision,paste_blocks: pass — 2 of 2 /);
 });
 
+ok('an unscored regime says informational on every line it has, and its numbers stay on it', () => {
+  const decided = measure(written(QUILL), captured(QUILL));
+  const said = verdict({ mean: 24.83, max: 33.89, p50: 25.08, p99: 31.2 }, 149, false);
+  const one = summary('saturation_stress', { accounting: decided.accounting, verdict: said });
+  const last = one[one.length - 1];
+  assert.match(last, /^gate bench saturation_stress: informational — mean 24\.83 ms, worst 33\.89 ms, p50 25\.08 ms, p99 31\.2 ms, cold 149 ms \(not scored: keys share frames/);
+  assert.ok(!last.includes('budget'), 'a regime not held to the budget does not quote it');
+
+  const inRun = regimeLine('saturation_stress', { accounting: decided.accounting, verdict: said });
+  assert.match(inRun, /^gate bench saturation_stress: informational — mean 24\.83 ms.* \(not scored: /);
+  assert.ok(!inRun.includes('\n'), inRun);
+
+  // Scored, the same numbers are a fail, and say so.
+  const scored = verdict({ mean: 24.83, max: 33.89, p50: 25.08, p99: 31.2 }, 149);
+  assert.match(regimeLine('fast_typist', { accounting: decided.accounting, verdict: scored }), /^gate bench fast_typist: fail — /);
+});
+
+ok('an unscored regime over every bar does not fail the run, and a scored one still does', () => {
+  const rows = [row('prose_end_of_draft', 2, 8, 120), row('revision', 2.4, 9, 130), saturation()];
+  const line = allSummary('--all', rows);
+  assert.match(line, /^gate bench --all: pass — 2 of 2 scored regimes clear the budget; saturation_stress informational \(mean <= /);
+  assert.ok(!line.includes('\n'), line);
+
+  const failing = [row('prose_end_of_draft', 2, 8, 120), row('revision', 6.1, 19, 130, false), saturation()];
+  assert.match(allSummary('--all', failing), /^gate bench --all: fail — 1 of 2 scored regimes clear the budget, not revision; saturation_stress informational/);
+
+  // A summary written before rows carried `scored` reads the same way: the regime's definition
+  // says which one is not scored, so the name is enough.
+  const legacy = [row('prose_end_of_draft', 2, 8, 120), row('saturation_stress', 24.43, 33.44, 133, false)];
+  assert.match(allSummary('--all', legacy), /^gate bench --all: pass — 1 of 1 scored regimes clear the budget; saturation_stress informational/);
+});
+
 // ---------- the latency Piece's verdict ----------
 
 ok('the headline regime is held to the oracle as well as the budget, and the rest to the budget', () => {
@@ -334,6 +401,25 @@ ok('a number that was never measured is not a number that passed', () => {
 
 ok('a run with no regimes in it wins nothing', () => {
   assert.equal(latencyVerdict(runOf([])).winner, 'theirs');
+});
+
+ok('an unscored regime is recorded beside the verdict and decides nothing', () => {
+  const said = latencyVerdict(runOf([row('prose_end_of_draft', 2, 8, 120), row('revision', 2.4, 9, 130), saturation()]));
+  assert.equal(said.winner, 'ours', 'saturation is over every bar and the Piece is still ours');
+  assert.deepEqual(said.states.map((s) => s.name), ['prose_end_of_draft', 'revision'], 'not a state: a state has a winner');
+  assert.equal(said.informational.length, 1);
+  assert.equal(said.informational[0].name, 'saturation_stress');
+  assert.equal(said.informational[0].scored, false);
+  assert.equal(said.informational[0].mean_ms, 24.83, 'its numbers travel with it');
+  assert.match(said.informational[0].why, /keys share frames/);
+  assert.ok(!said.gap.startsWith('saturation_stress'), `the gap names a scored regime: ${said.gap}`);
+
+  // A scored regime past a bar is still theirs, with saturation in the run.
+  const lost = latencyVerdict(runOf([row('prose_end_of_draft', 2, 8, 120), row('revision', 6.1, 19, 130, false), saturation()]));
+  assert.equal(lost.winner, 'theirs');
+  assert.match(lost.gap, /^revision is past a bar/);
+  // A run of only unscored regimes has no state to win on.
+  assert.equal(latencyVerdict(runOf([saturation()])).winner, 'theirs');
 });
 
 // ---------- the plan, and the keyboard that has to type it ----------

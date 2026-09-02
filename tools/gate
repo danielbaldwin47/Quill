@@ -91,9 +91,15 @@ usage: tools/gate <command> [arguments]
                 --all runs every one of the twelve and --regimes just the named
                 ones, each with its own launch, its own caret and Focus, and its
                 own result file; a run of several says one line per regime and
-                then one line for the run, which is pass only when every regime
-                in it cleared the budget, and writes what those lines say to
-                shots/latency/summary-<stamp>.json. A regime name, --all and
+                then one line for the run, which is pass only when every scored
+                regime in it cleared the budget, and writes what those lines say
+                to shots/latency/summary-<stamp>.json. tools/regimes.mjs marks
+                which regimes are scored (scored: false) and why; one that is
+                not still runs, is recorded and must account for its keys, and
+                its lines say informational rather than pass or fail. A regime
+                that cannot account for its keys refuses the run and keeps the
+                keys as sent and the stamps as written beside its result, as
+                bench-<regime>-<stamp>.capture.json. A regime name, --all and
                 --regimes each say which regimes to run, so only one may be
                 given.
                 --panel measures on the physical display instead — the one

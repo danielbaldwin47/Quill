@@ -1,0 +1,266 @@
+{
+  "ran": "--all",
+  "at": "2026-09-01T23:34:24.918Z",
+  "budget": {
+    "mean_ms": 5,
+    "worst_ms": 16,
+    "cold_ms": 250
+  },
+  "oracle": {
+    "mean_ms": 2.43,
+    "worst_ms": 15.61,
+    "uinput_to_presented_ms": 12.17,
+    "cold_ms": 370
+  },
+  "headline": "prose_end_of_draft",
+  "regimes": [
+    {
+      "regime": "prose_end_of_draft",
+      "file": "shots/latency/bench-prose_end_of_draft-20260901T232810.json",
+      "mean_ms": 2.52,
+      "worst_ms": 10.79,
+      "p50_ms": 1.95,
+      "p99_ms": 8.64,
+      "cold_ms": 138.9,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "prose_middle_of_draft",
+      "file": "shots/latency/bench-prose_middle_of_draft-20260901T232847.json",
+      "mean_ms": 2.8,
+      "worst_ms": 10.52,
+      "p50_ms": 2.4,
+      "p99_ms": 7.56,
+      "cold_ms": 216.11,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "prose_focus_sentence",
+      "file": "shots/latency/bench-prose_focus_sentence-20260901T232923.json",
+      "mean_ms": 3.03,
+      "worst_ms": 10.82,
+      "p50_ms": 2.61,
+      "p99_ms": 7.8,
+      "cold_ms": 150.95,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "paragraph_breaks",
+      "file": "shots/latency/bench-paragraph_breaks-20260901T232959.json",
+      "mean_ms": 2.63,
+      "worst_ms": 11.28,
+      "p50_ms": 2.1,
+      "p99_ms": 9.24,
+      "cold_ms": 165.86,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "revision",
+      "file": "shots/latency/bench-revision-20260901T233035.json",
+      "mean_ms": 3,
+      "worst_ms": 8.75,
+      "p50_ms": 2.58,
+      "p99_ms": 8.24,
+      "cold_ms": 160.01,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "markdown_syntax",
+      "file": "shots/latency/bench-markdown_syntax-20260901T233112.json",
+      "mean_ms": 2.99,
+      "worst_ms": 12.06,
+      "p50_ms": 2.57,
+      "p99_ms": 10.58,
+      "cold_ms": 160.59,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "fence_flip",
+      "file": "shots/latency/bench-fence_flip-20260901T233148.json",
+      "mean_ms": 2.66,
+      "worst_ms": 9.3,
+      "p50_ms": 2.3,
+      "p99_ms": 7.5,
+      "cold_ms": 138.31,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "paste_blocks",
+      "file": "shots/latency/bench-paste_blocks-20260901T233224.json",
+      "mean_ms": 2.55,
+      "worst_ms": 12.79,
+      "p50_ms": 1.9,
+      "p99_ms": 8.68,
+      "cold_ms": 132.82,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "letters_only_r1",
+      "file": "shots/latency/bench-letters_only_r1-20260901T233300.json",
+      "mean_ms": 3.04,
+      "worst_ms": 11.84,
+      "p50_ms": 2.6,
+      "p99_ms": 9.1,
+      "cold_ms": 132.75,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "bursts_and_pauses",
+      "file": "shots/latency/bench-bursts_and_pauses-20260901T233352.json",
+      "mean_ms": 2.35,
+      "worst_ms": 14.4,
+      "p50_ms": 1.87,
+      "p99_ms": 8.04,
+      "cold_ms": 152.63,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "fast_typist",
+      "file": "shots/latency/bench-fast_typist-20260901T233414.json",
+      "mean_ms": 2.82,
+      "worst_ms": 9.96,
+      "p50_ms": 2.41,
+      "p99_ms": 6.96,
+      "cold_ms": 157.83,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "saturation_stress",
+      "file": "shots/latency/bench-saturation_stress-20260901T233424.json",
+      "mean_ms": 25.07,
+      "worst_ms": 33.52,
+      "p50_ms": 25.21,
+      "p99_ms": 33.45,
+      "cold_ms": 155.18,
+      "clears_mean": false,
+      "clears_worst": false,
+      "clears_cold": true,
+      "scored": false,
+      "pass": null,
+      "every_keystroke_accounted_for": true
+    }
+  ],
+  "regimes_not_run": [],
+  "regimes_unaccounted_for": [],
+  "regimes_not_scored": [
+    "saturation_stress"
+  ],
+  "stage_first_client_ms": 187.451,
+  "pass": true,
+  "lines": [
+    "gate bench prose_end_of_draft: pass — mean 2.52 ms, worst 10.79 ms, p50 1.95 ms, p99 8.64 ms, cold 138.9 ms",
+    "gate bench prose_middle_of_draft: pass — mean 2.8 ms, worst 10.52 ms, p50 2.4 ms, p99 7.56 ms, cold 216.11 ms",
+    "gate bench prose_focus_sentence: pass — mean 3.03 ms, worst 10.82 ms, p50 2.61 ms, p99 7.8 ms, cold 150.95 ms",
+    "gate bench paragraph_breaks: pass — mean 2.63 ms, worst 11.28 ms, p50 2.1 ms, p99 9.24 ms, cold 165.86 ms",
+    "gate bench revision: pass — mean 3 ms, worst 8.75 ms, p50 2.58 ms, p99 8.24 ms, cold 160.01 ms",
+    "gate bench markdown_syntax: pass — mean 2.99 ms, worst 12.06 ms, p50 2.57 ms, p99 10.58 ms, cold 160.59 ms",
+    "gate bench fence_flip: pass — mean 2.66 ms, worst 9.3 ms, p50 2.3 ms, p99 7.5 ms, cold 138.31 ms",
+    "gate bench paste_blocks: pass — mean 2.55 ms, worst 12.79 ms, p50 1.9 ms, p99 8.68 ms, cold 132.82 ms",
+    "gate bench letters_only_r1: pass — mean 3.04 ms, worst 11.84 ms, p50 2.6 ms, p99 9.1 ms, cold 132.75 ms",
+    "gate bench bursts_and_pauses: pass — mean 2.35 ms, worst 14.4 ms, p50 1.87 ms, p99 8.04 ms, cold 152.63 ms",
+    "gate bench fast_typist: pass — mean 2.82 ms, worst 9.96 ms, p50 2.41 ms, p99 6.96 ms, cold 157.83 ms",
+    "gate bench saturation_stress: informational — mean 25.07 ms, worst 33.52 ms, p50 25.21 ms, p99 33.45 ms, cold 155.18 ms (not scored: keys share frames at this pace, so a per-keystroke latency grows by construction)",
+    "gate bench --all: pass — 11 of 11 scored regimes clear the budget; saturation_stress informational (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)"
+  ],
+  "build": {
+    "git": "a2d0cae",
+    "binary": "26882028bcfa8e23"
+  },
+  "fingerprint": {
+    "at": "2026-09-01T23:28:10.910Z",
+    "app": {
+      "binary": "target/release/quill",
+      "sha256": "26882028bcfa8e23",
+      "git_head": "a2d0cae",
+      "tree_was_dirty": true,
+      "renderer": "gl"
+    },
+    "display": {
+      "output": "HEADLESS-136",
+      "mode": "3200x2000",
+      "refresh_hz": 60,
+      "scale": 2,
+      "vrr": false
+    },
+    "machine": {
+      "node": "v26.7.0",
+      "kernel": "Linux 7.1.9-arch1-2",
+      "cpu": "13th Gen Intel(R) Core(TM) i5-13600K",
+      "cpus": 20,
+      "load1": 1.09,
+      "busiest_processes": [
+        "34.1 helium",
+        "2.1 claude",
+        "1.2 quill <defunct>",
+        "1.1 helium",
+        "0.9 claude"
+      ],
+      "mem_gb": 31
+    },
+    "document": {
+      "path": "shots/latency/doc10k.md",
+      "words": 9953,
+      "chars": 53031,
+      "lines": 432
+    },
+    "window": {
+      "w": 1440,
+      "h": 900
+    }
+  }
+}
