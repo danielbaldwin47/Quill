@@ -468,7 +468,7 @@ impl Window {
         if !typing.typing(now) {
             return;
         }
-        typing.pointer(now);
+        typing.pointer();
         self.imp().typing.set(typing);
         self.settle();
     }
@@ -538,14 +538,10 @@ impl Window {
 
     /// Opens `menu` under its bar button, its rows reading the modes as they
     /// are now: `chrome.doc`, `chrome.view` (`F10`), a click on the stats
-    /// bar, and `--menu`.
-    ///
-    /// A menu opening brings the bars back whatever the typing machine had
-    /// left to do: the oracle forces both to opacity 1 while a menu is up
-    /// (`chrome.css`, `[data-menu="on"]`).
+    /// bar, and `--menu`. The bars come back first
+    /// ([`Window::bring_bars_back`]).
     pub(crate) fn open_menu(&self, menu: commands::Menu) {
-        self.imp().typing.set(chrome::typing::Typing::new());
-        self.settle();
+        self.bring_bars_back();
         self.palette().close();
         let model = menus::model(menu, &self.modes());
         self.imp().bars.open_menu(menu, &model);
@@ -556,10 +552,18 @@ impl Window {
     /// menu that is up closes first, and the bars come back as they do for a
     /// menu.
     pub(crate) fn open_palette(&self) {
-        self.imp().typing.set(chrome::typing::Typing::new());
-        self.settle();
+        self.bring_bars_back();
         self.imp().bars.close_menus();
         self.palette().toggle(self.upcast_ref(), self.modes());
+    }
+
+    /// Puts the typing machine at rest and the bars at full strength, for a
+    /// popover about to open over them: the oracle forces both bars to
+    /// opacity 1 while a menu or the Palette is up (`chrome.css`,
+    /// `[data-menu="on"]`), whatever the timers had left to do.
+    fn bring_bars_back(&self) {
+        self.imp().typing.set(chrome::typing::Typing::new());
+        self.settle();
     }
 
     /// The Palette, built with the window.
@@ -589,9 +593,7 @@ impl Window {
                 return;
             };
             match window.imp().flagged.take() {
-                Some(flags::Menu::View) => window.open_menu(commands::Menu::View),
-                Some(flags::Menu::Document) => window.open_menu(commands::Menu::Document),
-                Some(flags::Menu::Stats) => window.open_menu(commands::Menu::Stats),
+                Some(flags::Menu::Bar(menu)) => window.open_menu(menu),
                 Some(flags::Menu::Palette) => window.open_palette(),
                 None => {}
             }

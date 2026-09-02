@@ -81,24 +81,30 @@ impl Typing {
         self.owed = true;
     }
 
-    /// The pointer moved at `t`: both bars come back at once (`chrome.js`
-    /// `wake`), and a count still owed is taken on idle.
-    pub const fn pointer(&mut self, _t: i64) {
+    /// The pointer moved: both bars come back at once (`chrome.js` `wake`),
+    /// whenever it was, and a count still owed is taken on idle.
+    pub const fn pointer(&mut self) {
         self.since = None;
         self.held = false;
+    }
+
+    /// Whether a bar that comes back `ms` after the last keystroke is still
+    /// stepped back at `t`: held, or inside that window.
+    fn stepped_back(&self, t: i64, ms: i64) -> bool {
+        self.held || self.since.is_some_and(|since| t < since + ms * MS)
     }
 
     /// Whether a bar is stepped back at all at `t`, so that a caller with
     /// nothing to change can stop reading.
     #[must_use]
     pub fn typing(&self, t: i64) -> bool {
-        self.held || self.since.is_some_and(|since| t < since + TITLE_MS * MS)
+        self.stepped_back(t, TITLE_MS)
     }
 
     /// The title bar's opacity at `t`.
     #[must_use]
     pub fn title_alpha(&self, t: i64) -> f64 {
-        if self.held || self.since.is_some_and(|since| t < since + TITLE_MS * MS) {
+        if self.stepped_back(t, TITLE_MS) {
             TITLE_FADED
         } else {
             1.0
@@ -108,7 +114,7 @@ impl Typing {
     /// The stats bar's opacity at `t`.
     #[must_use]
     pub fn stats_alpha(&self, t: i64) -> f64 {
-        if self.held || self.since.is_some_and(|since| t < since + STATS_MS * MS) {
+        if self.stepped_back(t, STATS_MS) {
             STATS_FADED
         } else {
             1.0
@@ -189,7 +195,7 @@ mod tests {
     fn pointer_motion_restores_both_bars_at_once() {
         let mut typing = Typing::new();
         typing.keystroke(0);
-        typing.pointer(100 * MS);
+        typing.pointer();
         assert_eq!(typing.title_alpha(100 * MS), 1.0);
         assert_eq!(typing.stats_alpha(100 * MS), 1.0);
         assert_eq!(typing.resumes_at(100 * MS), None);
@@ -226,7 +232,7 @@ mod tests {
     #[test]
     fn a_pointer_at_rest_is_nothing() {
         let mut typing = Typing::new();
-        typing.pointer(5 * MS);
+        typing.pointer();
         assert_eq!(typing, Typing::new());
         assert!(!typing.takes_recount(5 * MS));
     }
@@ -246,7 +252,7 @@ mod tests {
         assert_eq!(typing.resumes_at(10_000 * MS), None);
         assert!(!typing.takes_recount(10_000 * MS), "a flag owes no count");
 
-        typing.pointer(10_000 * MS);
+        typing.pointer();
         assert_eq!(typing, Typing::new());
 
         let mut typing = Typing::from_flags(&flags);

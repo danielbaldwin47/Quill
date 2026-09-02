@@ -69,11 +69,23 @@ pub const SECTIONS: [(&str, &[&str]); 4] = [
 /// one the menus already read in.
 pub const MORE: &str = "More";
 
-/// Where a match stands in the ranked list, lowest first: a title starting
-/// with the query, then one containing it, then one that has its letters in
-/// order; within each, the earlier the match begins the higher the row.
+/// How a title matched the query, best first (`chrome.js` ranks a prefix
+/// over a substring over a subsequence).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Rank(u8, usize);
+pub enum Tier {
+    /// The title starts with the query.
+    Prefix,
+    /// The title contains the query further in.
+    Inside,
+    /// The title has the query's letters in order, with gaps.
+    Letters,
+}
+
+/// Where a match stands in the ranked list, lowest first: its [`Tier`],
+/// then the byte the match begins at, so within a tier the earlier match is
+/// the higher row.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Rank(Tier, usize);
 
 /// One row of the list: its Command and, when a query matched it, the byte
 /// ranges of the title it matched, which the row sets heavier.
@@ -152,7 +164,7 @@ pub fn list(query: &str) -> Vec<(Option<&'static str>, Vec<Row>)> {
 #[must_use]
 pub fn score(title: &str, query: &str) -> Option<(Rank, Vec<(usize, usize)>)> {
     if query.is_empty() {
-        return Some((Rank(0, 0), Vec::new()));
+        return Some((Rank(Tier::Prefix, 0), Vec::new()));
     }
     // Each character of the title lower-cased beside where it starts and
     // ends in the title, so a hit can be handed back as bytes of the title.
@@ -172,7 +184,8 @@ pub fn score(title: &str, query: &str) -> Option<(Rank, Vec<(usize, usize)>)> {
                 .all(|(k, c)| chars[start + k].2 == *c)
     }) {
         let end = chars[at + wanted.len() - 1].1;
-        let rank = Rank(u8::from(at != 0), at);
+        let tier = if at == 0 { Tier::Prefix } else { Tier::Inside };
+        let rank = Rank(tier, at);
         return Some((rank, vec![(chars[at].0, end)]));
     }
     let mut hits = Vec::new();
@@ -190,7 +203,7 @@ pub fn score(title: &str, query: &str) -> Option<(Rank, Vec<(usize, usize)>)> {
         .iter()
         .position(|(from, _, _)| *from == hits[0].0)
         .unwrap_or(0);
-    Some((Rank(6, first), hits))
+    Some((Rank(Tier::Letters, first), hits))
 }
 
 #[cfg(test)]
@@ -270,14 +283,17 @@ mod tests {
 
     #[test]
     fn the_match_is_the_oracles_substring_first_then_letters_in_order() {
-        assert_eq!(score("Sentence", "sen"), Some((Rank(0, 0), vec![(0, 3)])));
+        assert_eq!(
+            score("Sentence", "sen"),
+            Some((Rank(Tier::Prefix, 0), vec![(0, 3)]))
+        );
         assert_eq!(
             score("Focus: Sentence", "sen"),
-            Some((Rank(1, 7), vec![(7, 10)]))
+            Some((Rank(Tier::Inside, 7), vec![(7, 10)]))
         );
         assert_eq!(
             score("Typewriter", "tw"),
-            Some((Rank(6, 0), vec![(0, 1), (4, 5)]))
+            Some((Rank(Tier::Letters, 0), vec![(0, 1), (4, 5)]))
         );
         assert_eq!(score("Typewriter", "xq"), None);
         // A later substring outranks an earlier scatter.
