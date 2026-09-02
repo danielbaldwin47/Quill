@@ -38,9 +38,11 @@ use quill_engine::commands::{self, COMMANDS, Command, Kind, Menu, Scope};
 use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
 use quill_engine::settings::{Choice, Chrome, FocusScope};
+use quill_engine::shortcuts::Refusal;
 use quill_engine::stats::words;
 use quill_engine::theme::{Colours, Role, Scheme};
 
+use crate::session::Session;
 use crate::window::Window;
 
 pub mod typing;
@@ -95,25 +97,74 @@ impl Modes {
 /// What a fired Command does, given the Command.
 type Handler = Rc<dyn Fn(&'static Command)>;
 
-/// Installs the application's half: every chord in the table, and the
-/// `app.` actions.
+/// Installs the application's half: the `app.` actions.
 ///
-/// The chords are installed for every Command, built or not, because GTK
-/// keeps them on the application and an unbuilt Command's action is disabled,
-/// which is what makes its chord do nothing. Called once, before the first
-/// window.
+/// The chords are [`install_chords`]', because what a Command is bound to is
+/// the writer's `[shortcuts]` table over the registry and reading a chord is
+/// `gtk::accelerator_parse`'s, which wants GTK started. Called once, before
+/// the first window.
 pub fn install(app: &gtk::Application) {
-    for command in COMMANDS {
-        let accels = command.accels();
-        let accels: Vec<&str> = accels.iter().map(String::as_str).collect();
-        app.set_accels_for_action(&command.action(), &accels);
-    }
     let fired = app.clone();
     register(
         app,
         Scope::App,
         Rc::new(move |command| run_app(&fired, command)),
     );
+}
+
+/// Installs every Command's chords as the settings file leaves them, and
+/// answers with the entries that could not be installed after all.
+///
+/// The chords are installed for every Command, built or not, because GTK keeps
+/// them on the application and an unbuilt Command's action is disabled, which
+/// is what makes its chord do nothing. Every Command is set, not only the ones
+/// the file names: `set_accels_for_action` replaces what a Command was bound
+/// to, so an entry taken out of the file restores its default here and an
+/// empty entry leaves it bound to nothing.
+///
+/// The engine reads the shape of a chord and leaves the key name to GTK
+/// ([`quill_engine::shortcuts`]), so this is where a chord shaped like a chord
+/// that names no key GDK has becomes a refusal — the one refusal the writer
+/// can only be told about from in here.
+///
+/// Called at startup and again on every save, so it must be idempotent: it is,
+/// because the map it installs is computed from the file on every read.
+pub fn install_chords(app: &gtk::Application, session: &Session) -> Vec<Refusal> {
+    let shortcuts = session.settings().shortcuts();
+    let mut refusals = shortcuts.refusals;
+    for command in COMMANDS {
+        let Some(chords) = shortcuts.chords.get(command.id) else {
+            continue;
+        };
+        let mut accels: Vec<&str> = Vec::new();
+        for chord in chords {
+            if gtk::accelerator_parse(chord.as_str()).is_some() {
+                accels.push(chord.as_str());
+            } else {
+                refusals.push(Refusal::unknown_key(command.id, chord));
+            }
+        }
+        app.set_accels_for_action(&command.action(), &accels);
+    }
+    refusals
+}
+
+/// The chords `command` is installed with now.
+///
+/// Asked of GTK, because [`install_chords`] put them there and a second copy
+/// of the effective map is a second thing that can go stale; the registry's
+/// own where there is no application yet, which is what a test without one
+/// reads. This is what the menus' rows ([`crate::menus`]) and the Palette's
+/// key labels ([`crate::palette`]) show, so a rebound Command is labelled the
+/// way the writer rebound it.
+pub fn accels(command: &Command) -> Vec<String> {
+    let Some(app) = gio::Application::default().and_downcast::<gtk::Application>() else {
+        return command.accels();
+    };
+    app.accels_for_action(&command.action())
+        .into_iter()
+        .map(String::from)
+        .collect()
 }
 
 /// Installs the window's half: every `win.` action, set to what the session

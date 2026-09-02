@@ -154,6 +154,25 @@ pub struct Refusal {
     pub reason: String,
 }
 
+impl Refusal {
+    /// The refusal for a chord that has the shape of one and names no key.
+    ///
+    /// The app's to make rather than this module's: the shape is all that is
+    /// read here, and whether GDK has a key by that name is
+    /// `gtk::accelerator_parse`'s answer at install (the `//!` above). The
+    /// line is written the way every other refusal's is, so the writer is
+    /// shown their entry however it was refused.
+    #[must_use]
+    pub fn unknown_key(id: &str, chord: &Chord) -> Self {
+        let value = toml::Value::Array(vec![toml::Value::String(chord.to_string())]);
+        Self {
+            line: line(id, &value),
+            id: id.to_owned(),
+            reason: format!("{chord} names no key on this keyboard"),
+        }
+    }
+}
+
 /// What a `[shortcuts]` table came to: the chords to install, and the entries
 /// that were refused.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -338,6 +357,24 @@ mod tests {
     /// The chords the texts name.
     fn chords(texts: &[&str]) -> Vec<Chord> {
         texts.iter().filter_map(|text| Chord::parse(text)).collect()
+    }
+
+    /// A refusal the app makes at install reads like one this module made: the
+    /// same entry, written the way the writer wrote it.
+    ///
+    /// Held against a refusal of this module's over the same entry rather than
+    /// against a copy of the line, so that the two cannot drift apart.
+    #[test]
+    fn a_chord_that_names_no_key_is_refused_in_the_writers_own_words() {
+        let entry = "\"library.toggle\" = [\"<Super>l\"]";
+        let refused = validate(&table(&format!("[shortcuts]\n{entry}\n")))
+            .1
+            .remove(0);
+        let chord = Chord::parse("<Super>l").expect("the shape of a chord");
+        let unknown = Refusal::unknown_key("library.toggle", &chord);
+        assert_eq!(unknown.line, refused.line);
+        assert_eq!(unknown.id, refused.id);
+        assert!(unknown.reason.contains(chord.as_str()), "{unknown:?}");
     }
 
     #[test]
