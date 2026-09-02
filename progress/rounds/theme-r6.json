@@ -1,0 +1,116 @@
+{
+  "piece": "theme",
+  "round": 6,
+  "winner": "ours",
+  "margin": "slight",
+  "gap": "A's task checkbox is the more lopsided of the two: the `]` carries 153 solid ink pixels against the `[`'s 116 — a 1.32 weight ratio between the two halves of one box (B's is 148 vs 118, 1.25). At 59px box width the right jaw reads visibly heavier than the left, so the empty box sits off-balance on every unchecked line.",
+  "gapTheirs": "B's stems straddle the pixel grid where A's snap to it: the 'b' of \"bullet\" in B is 3 solid columns fringed on BOTH sides (x92 at mean 91, x96 at mean 167), while A's is flush-left solid at x94–96 with a single fringe column. Global fringe/solid is 0.415 vs A's 0.406, and B's x-height is 22px vs A's 23px at an identical 25.5px advance — smaller type, softer edges, same measure.",
+  "verdict": "These are the same palette twice: paper #F7F7F7, ink #191919, 16.41:1, zero chroma anywhere, and markers that land at identical ink mass on both sides (bullet 10863 vs 11113, ordered 46648 vs 47257). Only 5.7% of pixels differ at all, and that is scale drift — A renders 1.5% larger, nothing more. Whoever built these did not design two grounds; they rendered one ground twice and let the rasteriser decide the difference. A wins because its stems sit on whole pixels and its x-height is a pixel taller, which is a rendering accident, not a decision — and neither image shows a dark state at all, so half the thing I was asked to judge was never put in front of me.",
+  "oursShot": "shots/theme/r6-light-ours-crop.png",
+  "theirsShot": "shots/theme/r6-light-theirs-crop.png",
+  "refSource": "ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in ref/ia/mac-native/ (ADR 0015), cropped per state: light from mac-native-17-light-marks.png, dark from mac-native-17-dark-marks.png",
+  "builderNote": "",
+  "secondary": [
+    "Both crops are the light palette — no dark state appears in either image, so 'Dark & light' is half unevidenced",
+    "Paper and ink are pixel-identical: #F7F7F7 on #191919, 16.41:1 contrast, in both",
+    "Max HSL saturation is 0 in both — no accent hue on any mark, marker or caret",
+    "Markers rest at full body ink (min 25) in both; neither side quiets them, so the oracle's Markers row is met twice over",
+    "Paper is #F7F7F7 not #FFF and ink #191919 not #000 in both — the ground is chosen, not defaulted, on both sides",
+    "No caret is visible in either image, so caret weight could not be judged",
+    "Both checkboxes share the lopsided-bracket flaw; A's is only the worse instance",
+    "Line-height 73.5px (A) vs 72.5px (B) against x-heights of 23px and 22px — leading is proportionally equal, roughly 1.7",
+    "Monospace advance is 25.5px in both; A's extra width on the task line (484px vs 477px) is pure scale, not tracking"
+  ],
+  "opponent": "mac-native",
+  "build": {
+    "git": "e99b7be",
+    "binary": "de0956fcf860fe4f",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "light",
+      "ours": "shots/theme/r6-light-ours-crop.png",
+      "theirs": "shots/theme/r6-light-theirs-crop.png",
+      "opponent": {
+        "capture": "ref/ia/shots/mac-native/mac-native-17-light-marks.png",
+        "crop": [
+          654,
+          553,
+          600,
+          380
+        ],
+        "ours": [
+          584,
+          730,
+          600,
+          380
+        ]
+      },
+      "oursWhole": "shots/theme/r6-light-ours.png",
+      "blind": "shots/blind/theme/light",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "A's task checkbox is the more lopsided of the two: the `]` carries 153 solid ink pixels against the `[`'s 116 — a 1.32 weight ratio between the two halves of one box (B's is 148 vs 118, 1.25). At 59px box width the right jaw reads visibly heavier than the left, so the empty box sits off-balance on every unchecked line.",
+      "gapTheirs": "B's stems straddle the pixel grid where A's snap to it: the 'b' of \"bullet\" in B is 3 solid columns fringed on BOTH sides (x92 at mean 91, x96 at mean 167), while A's is flush-left solid at x94–96 with a single fringe column. Global fringe/solid is 0.415 vs A's 0.406, and B's x-height is 22px vs A's 23px at an identical 25.5px advance — smaller type, softer edges, same measure.",
+      "verdict": "These are the same palette twice: paper #F7F7F7, ink #191919, 16.41:1, zero chroma anywhere, and markers that land at identical ink mass on both sides (bullet 10863 vs 11113, ordered 46648 vs 47257). Only 5.7% of pixels differ at all, and that is scale drift — A renders 1.5% larger, nothing more. Whoever built these did not design two grounds; they rendered one ground twice and let the rasteriser decide the difference. A wins because its stems sit on whole pixels and its x-height is a pixel taller, which is a rendering accident, not a decision — and neither image shows a dark state at all, so half the thing I was asked to judge was never put in front of me.",
+      "secondary": [
+        "Both crops are the light palette — no dark state appears in either image, so 'Dark & light' is half unevidenced",
+        "Paper and ink are pixel-identical: #F7F7F7 on #191919, 16.41:1 contrast, in both",
+        "Max HSL saturation is 0 in both — no accent hue on any mark, marker or caret",
+        "Markers rest at full body ink (min 25) in both; neither side quiets them, so the oracle's Markers row is met twice over",
+        "Paper is #F7F7F7 not #FFF and ink #191919 not #000 in both — the ground is chosen, not defaulted, on both sides",
+        "No caret is visible in either image, so caret weight could not be judged",
+        "Both checkboxes share the lopsided-bracket flaw; A's is only the worse instance",
+        "Line-height 73.5px (A) vs 72.5px (B) against x-heights of 23px and 22px — leading is proportionally equal, roughly 1.7",
+        "Monospace advance is 25.5px in both; A's extra width on the task line (484px vs 477px) is pure scale, not tracking"
+      ],
+      "carried": 5
+    },
+    {
+      "name": "dark",
+      "ours": "shots/theme/r6-dark-ours-crop.png",
+      "theirs": "shots/theme/r6-dark-theirs-crop.png",
+      "opponent": {
+        "capture": "ref/ia/shots/mac-native/mac-native-17-dark-marks.png",
+        "crop": [
+          654,
+          553,
+          600,
+          380
+        ],
+        "ours": [
+          584,
+          730,
+          600,
+          380
+        ]
+      },
+      "oursWhole": "shots/theme/r6-dark-ours.png",
+      "blind": "shots/blind/theme/dark",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Ragged marker column: A's four mark kinds start at x=41 (`>`), 44 (`-`), 40 (`1`), 44 (`-`) — a 4px left rag across the mark set, versus B's 40/43/40/43 = 3px. A's larger type inflates the side-bearing spread, so the marker edge wanders ~1px more than B's before the words even begin.",
+      "gapTheirs": "The `-` marker is drawn 5px thick against a 4px body stem (1.25x), while A's dash is 4px against a 4px stem (1.00x). B's type is 1.6% *smaller* than A's (x-height 21px vs 22px, advance 26.3 vs 26.7 px/char) yet its bullet and task dashes render heavier, so on two of four lines the mark blooms louder than the word it marks.",
+      "verdict": "These are near-clones: same #1A1A1A paper, same #CCCCCC ink, same 10.8:1 contrast, same ~1.66 leading ratio, and both correctly rest every marker at the body's own ink rather than greying it out. The split is the dash. B renders `-` at 5px against its own 4px stems, so the bullet and the task box's leading dash sit fractionally bolder than 'bullet item' and 'task not done' — the eye catches on the mark instead of running past it, which is the one thing a mark at body ink is supposed to prevent. A holds the dash at exactly stem weight and sets the type 5% larger for it; B's is a hinting accident that a typographer will see on every list line for the length of the piece.",
+      "secondary": [
+        "Paper is bit-identical in both: flat #1A1A1A, min=max at every sampled row, no gradient, vignette or banding",
+        "Both crops show only the dark state — no light palette is visible in either image, so half the brief's subject is unjudgeable from what was supplied",
+        "Neither draws a blockquote rule, gutter tint, or indent for the `>` line; the quote is distinguished by the character alone in both",
+        "Task box is a literal `[ ]` in both with no box affordance, hit target, or checked-state hint visible",
+        "No caret is visible in either image, so caret weight could not be compared",
+        "Right/left margin asymmetry favours A: ink runs 41-528 (72px right vs 41px left, 31px imbalance) versus B's 40-520 (80px vs 40px, 40px imbalance)",
+        "Marker vertical placement is equally correct in both: `>` and `-` centres sit 2px above x-height centre in each",
+        "Overall pixel difference is only 4.6% (AE 10594/228000), almost all of it the 1.6% type-scale offset"
+      ],
+      "carried": 5
+    }
+  ],
+  "at": "2026-09-02T20:46:11.948Z"
+}
