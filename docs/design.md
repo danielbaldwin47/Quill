@@ -69,7 +69,19 @@ built-in. Quill will ship `packaging/quill.toml.tpl`, mapping `background`, `for
 roles, and `README.md` § Build, install and run gets the two steps: copy the template into
 `~/.config/omarchy/themed/`, and set `palette = "~/.local/state/omarchy/current/theme/quill.toml"`.
 
-## Changing a row
+## Adding or changing a row
 
-A row changes on a `mac-native` capture with its measurement in `NOTES.md`, or on the owner's
-decision recorded in the row's Why column.
+A row is written or changed on a `mac-native` capture with its measurement in `NOTES.md`, or on
+the owner's decision recorded in the row's Why column. A spec or ticket that needs a Design-oracle
+value no capture holds files a **capture ticket** rather than reading a marketing still or guessing:
+a sub-issue of #154 (the Design oracle's parent issue), shaped like #231 § What would settle it —
+the states to shoot, at the rig `ref/ia/mac-native/NOTES.md` § The rig describes, and what each
+settles. It carries `ready-for-human` while the owner shoots and `ready-for-agent` once the
+captures are pushed, for the measuring half: the numbers into `NOTES.md`, the verdict rows into
+`VERDICTS.md`, and the row here. Until it lands no row is written, the state names no `opponent`
+in `states.json`, and it stays a Parity pair against `legacy/`.
+
+A capture ticket serves a row inside [ADR 0015](adr/0015-the-design-oracle-outranks-the-parity-oracle.md)'s
+reach, the writing surface. A spec wanting Design-oracle evidence outside it — the Library, Preview,
+chrome — files the same ticket, and its answer is the spec's own decision rather than a row here,
+unless an ADR widens the reach.
