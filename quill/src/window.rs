@@ -21,6 +21,7 @@ use std::rc::Rc;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{gio, glib};
+use quill_engine::commands;
 use quill_engine::document::Document;
 use quill_engine::focus::Focus;
 use quill_engine::settings::{Chrome, WindowState};
@@ -28,7 +29,9 @@ use quill_engine::theme::Scheme;
 
 use crate::caret;
 use crate::chrome;
+use crate::flags;
 use crate::harness;
+use crate::menus;
 use crate::session::Session;
 use crate::tags;
 
@@ -39,6 +42,7 @@ mod imp {
     use gtk::prelude::*;
     use gtk::subclass::prelude::*;
     use gtk::{ScrolledWindow, glib};
+    use quill_engine::commands;
     use quill_engine::document::{Document, Edit};
 
     use crate::chrome::Bars;
@@ -63,6 +67,10 @@ mod imp {
         /// What the edit now going through the buffer changed, left here by
         /// the handler that spliced the Document for the one that retags.
         pub pending: RefCell<Option<Edit>>,
+        /// The menu `--menu` asked for, held until the window is on the
+        /// compositor: a popup opened over a toplevel that is not mapped yet
+        /// keeps the toplevel from ever mapping.
+        pub flagged: Cell<Option<commands::Menu>>,
     }
 
     #[glib::object_subclass]
@@ -92,6 +100,10 @@ mod imp {
             column.append(self.bars.bottom());
             self.bars.follow(&scroller);
             window.set_child(Some(&column));
+        }
+
+        fn dispose(&self) {
+            self.bars.dispose();
         }
     }
 
@@ -147,6 +159,11 @@ impl Window {
             .imp()
             .bars
             .set_shown(session.chrome() == Chrome::Shown);
+        window.imp().bars.set_stats_shown(session.stats());
+        window
+            .imp()
+            .bars
+            .set_menus_grabbing(!session.flags().deterministic);
         // And Typewriter with them, so that `--typewriter`'s first frame holds
         // the caret's row at the anchor rather than travelling to it.
         window.imp().editor.set_typewriter(session.typewriter());
@@ -452,6 +469,60 @@ impl Window {
         self.add_controller(motion);
     }
 
+    /// Hides the stats bar, or shows it again: `chrome.stats`, the View
+    /// menu's Statistics check and the Stats menu's last row.
+    pub(crate) fn toggle_stats(&self) {
+        self.move_windows(Session::toggle_stats, |window, stats| {
+            window.imp().bars.set_stats_shown(stats);
+        });
+    }
+
+    /// Opens `menu` under its bar button, its rows reading the modes as they
+    /// are now: `chrome.doc`, `chrome.view` (`F10`), a click on the stats
+    /// bar, and `--menu`.
+    ///
+    /// A menu opening brings the bars back whatever the typing machine had
+    /// left to do: the oracle forces both to opacity 1 while a menu is up
+    /// (`chrome.css`, `[data-menu="on"]`).
+    pub(crate) fn open_menu(&self, menu: commands::Menu) {
+        self.imp().typing.set(chrome::typing::Typing::new());
+        self.settle();
+        let model = menus::model(menu, &self.modes());
+        self.imp().bars.open_menu(menu, &model);
+    }
+
+    /// Opens what `--menu` named, once the window has painted its first
+    /// frame.
+    ///
+    /// Held until then rather than opened now: a popup over a toplevel the
+    /// compositor has no frame of yet keeps the toplevel from ever mapping,
+    /// and the shot never comes. GTK maps the widget as `present` returns,
+    /// so `map` is already behind us; the frame clock's first `after-paint`
+    /// is the first moment the compositor holds a frame of the window.
+    fn open_flagged(&self, menu: flags::Menu) {
+        let menu = match menu {
+            flags::Menu::View => commands::Menu::View,
+            flags::Menu::Document => commands::Menu::Document,
+            flags::Menu::Stats => commands::Menu::Stats,
+            // The Palette is #122's; until then the flag parses and opens
+            // nothing.
+            flags::Menu::Palette => return,
+        };
+        self.imp().flagged.set(Some(menu));
+        let Some(clock) = self.frame_clock() else {
+            return;
+        };
+        let window = self.downgrade();
+        clock.connect_after_paint(move |_| {
+            let Some(window) = window.upgrade() else {
+                return;
+            };
+            if let Some(menu) = window.imp().flagged.take() {
+                window.open_menu(menu);
+            }
+        });
+    }
+
     /// Tells the Editor whether this window has the keyboard, now and after.
     ///
     /// `is-active` is the property GTK keeps the answer in, so it is the one
@@ -672,6 +743,12 @@ pub fn present_launch(app: &gtk::Application, session: &Rc<Session>) {
         }
         if let Some(scroll) = scroll {
             window.imp().editor.scroll_to(scroll);
+        }
+        // Last, over a page that is already where the state put it, because
+        // a popover is placed against its button and the bars are laid out
+        // with the page.
+        if let Some(menu) = session.flags().menu {
+            window.open_flagged(menu);
         }
     }
     if let Some(window) = first

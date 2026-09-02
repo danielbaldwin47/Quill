@@ -231,7 +231,7 @@ pub const COMMANDS: &[Command] = &[
     row("font.smaller", "Smaller Text", Scope::Win, Kind::Plain, &["Ctrl+-"], &[place(VIEW, Some("Appearance"), "Smaller Text")], true),
     row("font.reset", "Default Text Size", Scope::Win, Kind::Plain, &["Ctrl+0"], &[place(VIEW, Some("Appearance"), "Default Text Size")], true),
     // View › Window.
-    row("chrome.stats", "Statistics", Scope::Win, Kind::Check, &[], &[ place(VIEW, Some("Window"), "Statistics"), place(STATS, None, "Hide Statistics"), ], false),
+    row("chrome.stats", "Statistics", Scope::Win, Kind::Check, &[], &[ place(VIEW, Some("Window"), "Statistics"), place(STATS, None, "Hide Statistics"), ], true),
     row("chrome.toggle", "Hide Bars / Show Bars", Scope::Win, Kind::Check, &["Ctrl+Shift+H"], &[place(VIEW, Some("Window"), "Hide Bars / Show Bars")], true),
     row("window.fullscreen", "Full Screen", Scope::Win, Kind::Check, &["F11"], &[place(VIEW, Some("Window"), "Full Screen")], true),
     row("settings.open", "Settings…", Scope::Win, Kind::Plain, &["Ctrl+,"], &[place(VIEW, Some("Window"), "Settings…")], false),
@@ -254,8 +254,8 @@ pub const COMMANDS: &[Command] = &[
     row("theme.light", "Light Theme", Scope::Win, Kind::Radio { group: "theme", value: "light", }, &[], &[], false),
     row("theme.dark", "Dark Theme", Scope::Win, Kind::Radio { group: "theme", value: "dark", }, &[], &[], false),
     row("theme.auto", "Follow System", Scope::Win, Kind::Radio { group: "theme", value: "auto", }, &[], &[], false),
-    row("chrome.doc", "Document Menu", Scope::Win, Kind::Plain, &[], &[], false),
-    row("chrome.view", "View Menu", Scope::Win, Kind::Plain, &["F10"], &[], false),
+    row("chrome.doc", "Document Menu", Scope::Win, Kind::Plain, &[], &[], true),
+    row("chrome.view", "View Menu", Scope::Win, Kind::Plain, &["F10"], &[], true),
 ];
 
 /// Chords with no Command yet, held so nothing else takes them

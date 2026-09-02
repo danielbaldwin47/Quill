@@ -26,6 +26,7 @@ mod editor;
 mod flags;
 mod fonts;
 mod harness;
+mod menus;
 mod portal;
 mod session;
 mod tags;

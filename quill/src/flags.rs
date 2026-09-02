@@ -317,8 +317,14 @@ impl Flags {
             }
             None => {}
         }
+        // A judged state names every mode it is shot in, and Typewriter's
+        // flag has no `off`: a `--deterministic` launch without it is shot
+        // with Typewriter off, whatever the writer's file says, since the
+        // file is read until #44's `--settings` points a shot elsewhere.
         if self.typewriter {
             settings.typewriter = true;
+        } else if self.deterministic {
+            settings.typewriter = false;
         }
         if let Some(chrome) = self.chrome {
             settings.chrome = chrome;
@@ -633,6 +639,27 @@ mod tests {
             let flags = parse(&format!("--font {value}")).expect("a Face the file names");
             assert_eq!(flags.face.map(Face::as_str), Some(*value));
         }
+    }
+
+    /// A judged state is shot with Typewriter off unless it says
+    /// `--typewriter`, whatever the writer's file holds; a live launch
+    /// without the flag keeps the file's.
+    #[test]
+    fn a_deterministic_launch_without_typewriter_runs_with_it_off() {
+        let mut writers = Settings::default();
+        writers.typewriter = true;
+        let judged = parse("--deterministic")
+            .expect("one flag")
+            .over(writers.clone());
+        assert!(!judged.typewriter);
+        let live = parse("--theme dark")
+            .expect("one flag")
+            .over(writers.clone());
+        assert!(live.typewriter);
+        let asked = parse("--deterministic --typewriter")
+            .expect("two flags")
+            .over(writers);
+        assert!(asked.typewriter);
     }
 
     #[test]

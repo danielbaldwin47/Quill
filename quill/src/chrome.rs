@@ -22,13 +22,18 @@
 //! How the bars step back while a hand is typing is [`typing`] (#128): a
 //! machine with no widget in it, whose opacities the window puts on the bars
 //! through [`Bars::set_fade`] and whose fade is the stylesheet's transition.
+//! The three menus (#121) are [`crate::menus`]' models shown through a
+//! `GtkPopoverMenu` under each bar button: the Document menu under the
+//! title, the View menu under the View button and `F10`, the Stats menu
+//! above the stats bar. Their look is the oracle's menu rules, as constants
+//! beside the bars'.
 
 use std::cell::Cell;
 use std::rc::Rc;
 
 use gtk::prelude::*;
 use gtk::{cairo, gio, glib};
-use quill_engine::commands::{self, COMMANDS, Command, Kind, Scope};
+use quill_engine::commands::{self, COMMANDS, Command, Kind, Menu, Scope};
 use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
 use quill_engine::settings::{Choice, Chrome, FocusScope};
@@ -58,6 +63,8 @@ pub struct Modes {
     pub fullscreen: bool,
     /// The two bars are shown.
     pub bars: bool,
+    /// The stats bar is shown, while the bars are.
+    pub stats: bool,
 }
 
 impl Modes {
@@ -79,6 +86,7 @@ impl Modes {
             face: session.settings().face.as_str(),
             fullscreen,
             bars: session.chrome() == Chrome::Shown,
+            stats: session.stats(),
         }
     }
 }
@@ -197,7 +205,12 @@ pub fn reflect(map: &impl IsA<gio::ActionMap>, modes: Modes) {
     set("window.fullscreen", modes.fullscreen.to_variant());
     // The row reads "Hide Bars", so its check is on when the bars are hidden.
     set("chrome.toggle", (!modes.bars).to_variant());
-    set("focus_scope", modes.focus_scope.to_variant());
+    set("chrome.stats", modes.stats.to_variant());
+    // With Focus off neither scope's row is ticked, as the oracle's menu
+    // has it: the scope the file holds is the one Focus comes back to, not
+    // a state the page is in.
+    let scope = if modes.focus { modes.focus_scope } else { "" };
+    set("focus_scope", scope.to_variant());
     set("theme", modes.theme.to_variant());
     set("face", modes.face.to_variant());
 }
@@ -221,6 +234,9 @@ fn run_window(window: &Window, command: &Command) {
         "focus.swap" => window.swap_focus_scope(),
         "typewriter.toggle" => window.toggle_typewriter(),
         "chrome.toggle" => window.toggle_bars(),
+        "chrome.stats" => window.toggle_stats(),
+        "chrome.doc" => window.open_menu(Menu::Document),
+        "chrome.view" => window.open_menu(Menu::View),
         "window.fullscreen" if window.is_fullscreen() => window.unfullscreen(),
         "window.fullscreen" => window.fullscreen(),
         "window.close" => window.close(),
@@ -266,6 +282,8 @@ const STAT_GAP: i32 = 15;
 /// Between the View button's icon and its chevron (`gap: 2px`, then
 /// `.chev { margin-left: 1px }`).
 const CHEVRON_GAP: (i32, i32) = (2, 1);
+/// The title's chevron while its menu is open (`.caretdown` at `.55`).
+const CHEVRON_OPEN: f64 = 0.55;
 /// The UI face, in the order `chrome.css` `--chrome-font` names it.
 const CHROME_FONT: &str = "\"Adwaita Sans\", \"Inter\", \"Noto Sans\", sans-serif";
 /// How long the bars take to fade (`.chrome { transition: opacity .28s ease }`).
@@ -299,6 +317,141 @@ const fn hit(scheme: Scheme) -> &'static str {
     }
 }
 
+// --------------------------------------------------------------- the menus
+
+/// A menu's narrowest and widest (`.menu { min-width: 178px; max-width: 300px }`).
+const MENU_WIDTH: (i32, i32) = (178, 300);
+/// A menu's padding above its first row and below its last (`padding: 4px 0`).
+const MENU_PAD: i32 = 4;
+/// A menu's corner (`border-radius: 6px`).
+const MENU_RADIUS: i32 = 6;
+/// A menu's type (`font: 12.5px/1`).
+const MENU_PX: f64 = 12.5;
+/// Below the button a menu opens under (`menu()`: the button's bottom plus
+/// four), and above the stats bar the Stats menu opens over (its top less
+/// three).
+const MENU_GAP: (i32, i32) = (4, 3);
+/// A row's height (`.menu .row { height: 19px }`).
+const ROW_HEIGHT: i32 = 19;
+/// A row's side margin inside the menu (`margin: 0 4px`).
+const ROW_MARGIN: i32 = 4;
+/// A row's padding: `padding: 0 8px 0 19px`, the left of it the tick's
+/// column, which a row with no tick (`.flush`) does without.
+const ROW_PAD: i32 = 8;
+/// A row's corner (`border-radius: 4px`).
+const ROW_RADIUS: i32 = 4;
+/// The tick: `.tick { left: 4px }`, ten by eight, so the label stands
+/// nineteen in from the row's edge.
+const TICK: (i32, i32, i32) = (4, 10, 8);
+/// The chord's type and its distance from the label (`.keys { margin-left:
+/// 16px; font-size: 11.5px }`).
+const KEYS: (i32, f64) = (16, 11.5);
+/// A separator: one pixel high, `margin: 4px 8px`.
+const SEP_MARGIN: (i32, i32) = (4, 8);
+/// A section heading: `padding: 6px 10px 3px; font-size: 10px; weight 600;
+/// letter-spacing .06em`, upper case.
+const HEAD: (i32, i32, i32, f64) = (6, 10, 3, 10.0);
+/// GTK's own check glyph, the one shape its theme ships; recoloured to the
+/// row's ink where the oracle draws its tick path.
+const TICK_GLYPH: &str = "resource:///org/gtk/libgtk/theme/Default/assets/check-symbolic.svg";
+
+/// A menu's colours per scheme (`chrome.css` `--menu-*`): its ground, its
+/// border, its ink, its dim ink for chords and headings, the selected row's
+/// ground and its shadow. Not in the engine's table, as `hit` is not.
+struct MenuInk {
+    ground: &'static str,
+    border: &'static str,
+    ink: &'static str,
+    dim: &'static str,
+    selected: &'static str,
+    shadow: &'static str,
+}
+
+const fn menu_ink(scheme: Scheme) -> MenuInk {
+    match scheme {
+        Scheme::Light => MenuInk {
+            ground: "#f2f2f2",
+            border: "rgba(0, 0, 0, 0.12)",
+            ink: "#1d1d1d",
+            dim: "#8c8c8c",
+            selected: "#0a94d6",
+            shadow: "0 1px 1px rgba(0, 0, 0, 0.07), 0 8px 24px rgba(0, 0, 0, 0.15)",
+        },
+        Scheme::Dark => MenuInk {
+            ground: "#2e2e2e",
+            border: "rgba(255, 255, 255, 0.13)",
+            ink: "#e8e8e8",
+            dim: "#949494",
+            selected: "#0a84c8",
+            shadow: "0 1px 1px rgba(0, 0, 0, 0.35), 0 10px 30px rgba(0, 0, 0, 0.5)",
+        },
+    }
+}
+
+/// The menus' stylesheet, appended to the bars'.
+///
+/// GTK draws a menu row as a `modelbutton` with a `check` or `radio` before
+/// its label and its chord in an `accelerator` after it, the selected row
+/// `:selected`, a section's heading a `label.title` and the gap between
+/// sections a `separator`; every rule here restyles one of those to the
+/// oracle's measurement.
+fn menu_stylesheet(scheme: Scheme) -> String {
+    let MenuInk {
+        ground,
+        border,
+        ink,
+        dim,
+        selected,
+        shadow,
+    } = menu_ink(scheme);
+    // GTK's CSS has no `max-width`; a label's ellipsis (`.label` in the
+    // oracle) is what a long row would need, and no row of the table's is.
+    let (min_width, _) = MENU_WIDTH;
+    let (tick_left, tick_width, tick_height) = TICK;
+    // The tick's column: the row's padding less the tick's inset, then the
+    // tick, then what is left of the nineteen.
+    let tick_before = tick_left - ROW_PAD;
+    let tick_after = 19 - tick_left - tick_width;
+    let (keys_gap, keys_px) = KEYS;
+    let (sep_y, sep_x) = SEP_MARGIN;
+    let (head_top, head_x, head_bottom, head_px) = HEAD;
+    let head_tracking = 0.06 * head_px;
+    format!(
+        "popover.chrome-menu {{ font-family: {CHROME_FONT}; font-size: {MENU_PX}px; }}\n\
+         popover.chrome-menu > contents {{\n\
+         \x20 background-color: {ground}; color: {ink};\n\
+         \x20 border: 1px solid {border}; border-radius: {MENU_RADIUS}px;\n\
+         \x20 box-shadow: {shadow}; padding: {MENU_PAD}px 0;\n\
+         \x20 min-width: {min_width}px;\n\
+         }}\n\
+         popover.chrome-menu modelbutton {{\n\
+         \x20 min-height: {ROW_HEIGHT}px; min-width: 0;\n\
+         \x20 margin: 0 {ROW_MARGIN}px; padding: 0 {ROW_PAD}px;\n\
+         \x20 border-radius: {ROW_RADIUS}px; color: {ink};\n\
+         }}\n\
+         popover.chrome-menu modelbutton:disabled {{ color: {dim}; }}\n\
+         popover.chrome-menu modelbutton:selected {{ background-color: {selected}; color: white; }}\n\
+         popover.chrome-menu modelbutton:selected accelerator {{ color: rgba(255, 255, 255, 0.8); }}\n\
+         popover.chrome-menu accelerator {{ color: {dim}; font-size: {keys_px}px; margin-left: {keys_gap}px; }}\n\
+         popover.chrome-menu modelbutton check, popover.chrome-menu modelbutton radio {{\n\
+         \x20 min-width: {tick_width}px; min-height: {tick_height}px;\n\
+         \x20 margin: 0 {tick_after}px 0 {tick_before}px; padding: 0;\n\
+         \x20 border: none; background: none; box-shadow: none; transform: none;\n\
+         \x20 -gtk-icon-source: none; color: {ink};\n\
+         }}\n\
+         popover.chrome-menu modelbutton check:checked, popover.chrome-menu modelbutton radio:checked {{\n\
+         \x20 -gtk-icon-source: -gtk-recolor(url(\"{TICK_GLYPH}\"));\n\
+         }}\n\
+         popover.chrome-menu modelbutton:selected check, popover.chrome-menu modelbutton:selected radio {{ color: white; }}\n\
+         popover.chrome-menu modelbutton arrow {{ min-width: {tick_width}px; min-height: {tick_width}px; opacity: 0.5; }}\n\
+         popover.chrome-menu separator {{ min-height: 1px; margin: {sep_y}px {sep_x}px; background: {border}; }}\n\
+         popover.chrome-menu label.title {{\n\
+         \x20 padding: {head_top}px {head_x}px {head_bottom}px; font-size: {head_px}px;\n\
+         \x20 font-weight: 600; letter-spacing: {head_tracking}px; color: {dim};\n\
+         }}\n"
+    )
+}
+
 /// The bars' stylesheet, loaded with the type's ([`crate::editor::install_type`])
 /// so that a ground change reloads both together.
 ///
@@ -328,7 +481,7 @@ pub fn stylesheet(scheme: Scheme) -> String {
          \x20 color: {fg};\n\
          }}\n\
          .chrome button:hover {{ background-color: {hit}; }}\n\
-         .chrome button:active {{ background-color: {hit}; color: {strong}; }}\n\
+         .chrome button:active, .chrome button.open {{ background-color: {hit}; color: {strong}; }}\n\
          .chrome label.chrome-title {{\n\
          \x20 font-family: {CHROME_FONT}; font-size: {TITLE_PX}px; font-weight: normal;\n\
          \x20 letter-spacing: {tracking}px;\n\
@@ -337,7 +490,8 @@ pub fn stylesheet(scheme: Scheme) -> String {
          \x20 font-family: {CHROME_FONT}; font-size: {STAT_PX}px;\n\
          \x20 font-feature-settings: \"tnum\"; color: {fg};\n\
          }}\n\
-         .chrome .chrome-rule {{ color: {rule}; }}\n"
+         .chrome .chrome-rule {{ color: {rule}; }}\n{}",
+        menu_stylesheet(scheme)
     )
 }
 
@@ -364,6 +518,12 @@ pub struct Bars {
     under: gtk::DrawingArea,
     /// The View button's rows, lit the way Focus lights them.
     rows: gtk::DrawingArea,
+    /// The three menus, each under or over the button that opens it:
+    /// Document, View, Stats, in [`Menu`]'s order.
+    menus: [gtk::PopoverMenu; 3],
+    /// Whether the bars are shown at all, and whether the stats bar is
+    /// while they are.
+    shown: Rc<Cell<(bool, bool)>>,
     focus: Rc<Cell<Focus>>,
     scheme: Rc<Cell<Scheme>>,
     /// The three counts the stats bar shows, kept so a scheme change can
@@ -384,7 +544,7 @@ impl Bars {
         let focus = Rc::new(Cell::new(Focus::Off));
         let scheme = Rc::new(Cell::new(Scheme::Light));
 
-        let library = button(&[], icon(15, 15, library_icon), "win.library.toggle");
+        let library = button(&[], icon(15, 15, library_icon), Some("win.library.toggle"));
         library.set_margin_start(LIBRARY_LEFT);
 
         let title = gtk::Label::builder()
@@ -396,15 +556,15 @@ impl Bars {
             // puts the baseline two pixels lower; the margin lifts it back.
             .margin_bottom(4)
             .build();
-        // The chevron the Document menu shows when open (`.caretdown`), at no
-        // ink until #121 opens one, and taking its space from the start.
+        // The chevron the Document menu shows while it is open (`.caretdown`
+        // at `.55`), at no ink otherwise and taking its space throughout.
         let title_chevron = icon(9, 9, |area, cr| chevron_icon(area, cr, 1.0));
         title_chevron.set_margin_start(TITLE_GAP);
         title_chevron.set_opacity(0.0);
         let title_content = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         title_content.append(&title);
         title_content.append(&title_chevron);
-        let title_button = button(&["chrome-title"], title_content, "win.chrome.doc");
+        let title_button = button(&["chrome-title"], title_content, Some("win.chrome.doc"));
 
         let lit = Rc::clone(&focus);
         let rows = icon(15, 12, move |area, cr| rows_icon(area, cr, lit.get()));
@@ -415,7 +575,7 @@ impl Bars {
         let view_content = gtk::Box::new(gtk::Orientation::Horizontal, CHEVRON_GAP.0);
         view_content.append(&rows);
         view_content.append(&chevron);
-        let view = button(&[], view_content, "win.chrome.view");
+        let view = button(&[], view_content, Some("win.chrome.view"));
         view.set_margin_end(BAR_PAD);
 
         let top_bar = gtk::CenterBox::builder()
@@ -441,7 +601,15 @@ impl Bars {
         for stat in &stats {
             line.append(stat);
         }
-        let stats_button = button(&[], line, "win.chrome.stats");
+        // No Command opens the Stats menu — the oracle's bar opens it on a
+        // click and nothing else does — so the click asks the window
+        // directly, the way `chrome.doc` and `chrome.view` reach it.
+        let stats_button = button(&[], line, None);
+        stats_button.connect_clicked(|button| {
+            if let Some(window) = button.root().and_downcast::<Window>() {
+                window.open_menu(Menu::Stats);
+            }
+        });
         let bottom_bar = gtk::CenterBox::builder()
             .height_request(BOTTOM_HEIGHT)
             .hexpand(true)
@@ -449,6 +617,17 @@ impl Bars {
             .build();
         let under = rule(gtk::Align::Start);
         let bottom = bar(&["chrome", "chrome-bottom"], &bottom_bar, &under);
+
+        let menus = [
+            popover(&title_button, gtk::PositionType::Bottom, gtk::Align::Start),
+            popover(&view, gtk::PositionType::Bottom, gtk::Align::End),
+            popover(&stats_button, gtk::PositionType::Top, gtk::Align::Center),
+        ];
+        // The Document menu's chevron shows while its menu is up.
+        let chevron_up = title_chevron.clone();
+        menus[0].connect_show(move |_| chevron_up.set_opacity(CHEVRON_OPEN));
+        let chevron_down = title_chevron.clone();
+        menus[0].connect_closed(move |_| chevron_down.set_opacity(0.0));
 
         let bars = Self {
             top,
@@ -458,12 +637,71 @@ impl Bars {
             over,
             under,
             rows,
+            menus,
+            shown: Rc::new(Cell::new((true, true))),
             focus,
             scheme,
             counts: Rc::new(Cell::new([(0, "words"), (0, "characters"), (0, "read")])),
         };
         bars.set_count("");
         bars
+    }
+
+    /// Opens `menu` on `model`, its first row selected, over or under the
+    /// button that owns it; a menu already up is closed first, so a second
+    /// `F10` toggles.
+    pub fn open_menu(&self, menu: Menu, model: &gio::Menu) {
+        let popover = &self.menus[slot(menu)];
+        if popover.is_visible() {
+            popover.popdown();
+            return;
+        }
+        for other in &self.menus {
+            other.popdown();
+        }
+        popover.set_menu_model(Some(model));
+        popover.popup();
+    }
+
+    /// Whether an open menu takes the keyboard and closes on `Esc` or a
+    /// click outside it, which is what a menu does; `false` under
+    /// `--deterministic`, where the compositor hands the window its focus
+    /// after the menu is up and a menu holding a grab would be dismissed by
+    /// that, before the shot.
+    pub fn set_menus_grabbing(&self, grabbing: bool) {
+        for menu in &self.menus {
+            menu.set_autohide(grabbing);
+        }
+    }
+
+    /// The menu that is open now, if one is.
+    #[must_use]
+    pub fn open(&self) -> Option<Menu> {
+        [Menu::Document, Menu::View, Menu::Stats]
+            .into_iter()
+            .find(|menu| self.menus[slot(*menu)].is_visible())
+    }
+
+    /// Shows the stats bar, or hides it, while the bars are shown:
+    /// `chrome.stats`.
+    pub fn set_stats_shown(&self, shown: bool) {
+        let (bars, _) = self.shown.get();
+        self.shown.set((bars, shown));
+        self.apply_shown();
+    }
+
+    /// Whether the stats bar is shown while the bars are.
+    #[must_use]
+    pub fn stats_shown(&self) -> bool {
+        self.shown.get().1
+    }
+
+    /// Takes the menus off their buttons, for the buttons' disposal: a
+    /// popover is a child GTK does not take down with its parent.
+    pub fn dispose(&self) {
+        for menu in &self.menus {
+            menu.unparent();
+        }
     }
 
     /// The title bar, to put above the page.
@@ -482,14 +720,23 @@ impl Bars {
     /// `Ctrl+Shift+H`. Hidden bars take no space, so the page has the
     /// window.
     pub fn set_shown(&self, shown: bool) {
-        self.top.set_visible(shown);
-        self.bottom.set_visible(shown);
+        let (_, stats) = self.shown.get();
+        self.shown.set((shown, stats));
+        self.apply_shown();
     }
 
     /// Whether the bars are shown.
     #[must_use]
     pub fn shown(&self) -> bool {
         self.top.is_visible()
+    }
+
+    /// Puts the two switches on the widgets: the title bar follows the
+    /// bars, the stats bar follows both.
+    fn apply_shown(&self) {
+        let (bars, stats) = self.shown.get();
+        self.top.set_visible(bars);
+        self.bottom.set_visible(bars && stats);
     }
 
     /// Names the Document in the title button.
@@ -619,7 +866,11 @@ fn bar(classes: &[&str], content: &impl IsA<gtk::Widget>, rule: &gtk::DrawingAre
 /// Fired by name rather than bound with `set_action_name`, because GTK greys
 /// a button whose action is disabled and a Command not built yet is exactly
 /// that: the oracle's buttons stand at full ink whatever is behind them.
-fn button(classes: &[&str], child: impl IsA<gtk::Widget>, action: &'static str) -> gtk::Button {
+fn button(
+    classes: &[&str],
+    child: impl IsA<gtk::Widget>,
+    action: Option<&'static str>,
+) -> gtk::Button {
     let button = gtk::Button::builder()
         .css_classes(classes)
         .child(&child)
@@ -627,12 +878,82 @@ fn button(classes: &[&str], child: impl IsA<gtk::Widget>, action: &'static str) 
         .can_focus(false)
         .focus_on_click(false)
         .build();
-    button.connect_clicked(move |button| {
-        // A Command not built yet has a disabled action, and GTK answers a
-        // disabled action with `false`; that is the click doing nothing.
-        let _ = button.activate_action(action, None);
-    });
+    if let Some(action) = action {
+        button.connect_clicked(move |button| {
+            // A Command not built yet has a disabled action, and GTK answers
+            // a disabled action with `false`; that is the click doing
+            // nothing.
+            let _ = button.activate_action(action, None);
+        });
+    }
     button
+}
+
+/// The menu under (or, for the Stats menu, over) `button`, empty until it is
+/// opened on a model.
+///
+/// No arrow, as the oracle's menus have none; `NESTED` so the Syntax
+/// highlight submenu opens inside the same popover rather than beside it.
+/// While it is up the button reads as pressed (`.open`).
+fn popover(
+    button: &gtk::Button,
+    position: gtk::PositionType,
+    align: gtk::Align,
+) -> gtk::PopoverMenu {
+    let popover =
+        gtk::PopoverMenu::from_model_full(&gio::Menu::new(), gtk::PopoverMenuFlags::NESTED);
+    popover.add_css_class("chrome-menu");
+    popover.set_has_arrow(false);
+    popover.set_position(position);
+    popover.set_halign(align);
+    let (below, above) = MENU_GAP;
+    let gap = match position {
+        gtk::PositionType::Top => above,
+        _ => below,
+    };
+    popover.set_offset(0, gap);
+    popover.set_parent(button);
+    // The first row selected, which is what the oracle shows once a menu is
+    // open and the down arrow pressed. Selected by its state flag rather
+    // than by taking the keyboard focus, which stays on the page so that
+    // the caret is still lit behind the menu; GTK moves the flag with the
+    // pointer and the arrow keys from there. Set once the popup is on the
+    // compositor, because GTK builds the rows as it maps.
+    popover.connect_map(|popover| {
+        if let Some(row) = first_row(popover.upcast_ref()) {
+            row.set_state_flags(gtk::StateFlags::SELECTED, false);
+        }
+    });
+    let opened = button.clone();
+    popover.connect_show(move |_| opened.add_css_class("open"));
+    let closed = button.clone();
+    popover.connect_closed(move |_| closed.remove_css_class("open"));
+    popover
+}
+
+/// The first row GTK built for a menu's model: its first `modelbutton`, in
+/// drawing order.
+fn first_row(widget: &gtk::Widget) -> Option<gtk::Widget> {
+    if widget.css_name() == "modelbutton" {
+        return Some(widget.clone());
+    }
+    let mut child = widget.first_child();
+    while let Some(next) = child {
+        if let Some(row) = first_row(&next) {
+            return Some(row);
+        }
+        child = next.next_sibling();
+    }
+    None
+}
+
+/// Which of the three popovers is `menu`'s.
+const fn slot(menu: Menu) -> usize {
+    match menu {
+        Menu::Document => 0,
+        Menu::View => 1,
+        Menu::Stats => 2,
+    }
 }
 
 /// A hairline one device pixel high along `edge` of a bar
@@ -920,10 +1241,12 @@ mod tests {
             face: "quattro",
             fullscreen: false,
             bars: false,
+            stats: false,
         };
         reflect(&map, modes);
         let state = |name: &str| map.action_state(name).unwrap();
         assert_eq!(state("focus.toggle").get::<bool>(), Some(true));
+        assert_eq!(state("chrome.stats").get::<bool>(), Some(false));
         // "Hide Bars" is ticked when the bars are hidden.
         assert_eq!(state("chrome.toggle").get::<bool>(), Some(true));
         assert_eq!(state("typewriter.toggle").get::<bool>(), Some(false));
