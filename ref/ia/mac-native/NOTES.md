@@ -91,6 +91,49 @@ Select-all (`mac-native-09-dark-selection-select-all.png`) fills one unbroken bl
 So the container is the 64-cell measure plus a **7-cell hanging-marker gutter on each side**, and the
 gutter is exactly the width `###### ` needs — see the ladder under state 14.
 
+### The page top
+
+How far the first line stands below the top of the editor at scroll 0, at the default text size —
+the second figure #227 asks for.
+
+**The editor's top edge is the window's top edge.** `mac-native-00-dark-window-chrome.png` is the
+whole window, and its very first row already carries body ink cut off mid-glyph: the text view runs
+to the frame, and the title bar over it is transparent and draws nothing of its own. The window was
+set to logical `{0, 33, 1512, 982}` for every state, so a capture taken from logical y = 48 begins
+**30 device px** below that edge and one taken from y = 90 begins 114 px below it.
+
+| capture | region y | in-capture | below the window's top edge |
+|---|---|---|---|
+| `mac-native-01-dark-caret-midword.png` | 48 | first ink 155 | ink **185** |
+| `mac-native-01-light-caret-midword.png` | 48 | first ink 155 | ink **185** |
+| `mac-native-08-dark-selection-inline.png` | 48 | first ink 155 | ink **185** |
+| `mac-native-14-dark-markup.png` | 48 | first ink 155 | ink **185** |
+| `mac-native-17-dark-marks.png` | 90 | first ink 71 | ink **185** |
+| `mac-native-03-dark-caret-empty-document.png` | 48 | caret box 134 … 206 | box **164** |
+
+Four region origins and both grounds agree on the ink. The two figures are two things, read off two
+documents: **185 px** is where a *heading's* ink begins, `ref/sample.md` opening on
+`# The Lighthouse`, and **164 px** is where the *line box* begins, given by the empty document,
+whose caret is the pitch tall (134 … 206) and has no glyph to be read instead. The box is the
+figure another app can hold to; the ink is what a shot shows. **The page top is 164 device px
+(82 pt)**, at the default step and at scale 2.
+
+Two things these captures cannot say, and a port wants both:
+
+- **How much of the band is the title bar's.** The text runs to the frame, so the 164 px is measured
+  from there; how much of it is room left for the invisible title bar over the text cannot be read
+  out of a capture that never draws one. A window whose chrome is opaque has no counterpart to that
+  room, so the figure is not yet a number another app can take.
+- **Whether it scales with the pitch.** 164 px is 2.25 × the 73 px pitch, which one point cannot tell
+  from a constant. No committed capture at another step is at the document top: every one of the
+  fourteen `11-*` frames opens its first line near y 900, some 750 px below where four captures at
+  the same step and the same region origin put it, so the sweep was not shot at the top of the
+  document. (Its origin was never recorded either — `shots/oracle/states.json` § `opponent` says so,
+  from #165.) One scroll-0 capture at a second step settles it.
+
+**#231 is the capture that closes both**, and `docs/design.md` row Page top holds Quill at two
+pitches until it lands.
+
 ---
 
 ## State 1 — caret mid-word, light and dark
@@ -370,6 +413,14 @@ same `#cccccc`: **bold, and the same size and colour as body**, as § 4.1 says.
 Paragraph spacing: a blank Markdown line is exactly one empty line. Body-to-body pitch is 73 px and
 a paragraph break measures 145–146 px = 2 × 73, with **no extra paragraph margin**. Heading-to-heading
 pitch is 74 px, the one pixel being the heading's taller line box.
+
+**A heading and the paragraph under it are the same two pitches**, which is the figure #227 asks
+for as one number. Heading ink to the first paragraph's ink across a blank line is **146 px** here
+(ink tops 155 and 301) and **146 px** again in a second passage
+(`mac-native-17-dark-marks.png`, 71 and 217). The other way round, a body paragraph to the heading
+under it, is **147 px** (301 → 448) — the extra pixel is the same taller line box as the
+heading-to-heading 74. So a heading carries **no margin of its own above or below it**: it stands on
+the body grid, and a blank line costs one pitch wherever it falls.
 
 ## State 15 — Typewriter mode
 

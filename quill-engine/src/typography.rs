@@ -316,9 +316,15 @@ pub fn column(view: u32, cell: f64) -> Column {
 
 /// The air above the first row of text: two pitches (`--page-top`).
 ///
-/// The oracle measured the iA window's first ink 85 logical pixels below the
-/// top of its editor area, and settled on two pitches as the rule that lands
-/// nearest it at every size.
+/// The Parity oracle settled on two pitches from an 85 point reading of iA of
+/// unrecorded provenance. The Design oracle has since been measured (#227): at
+/// the default step its first line box stands 164 device pixels below the
+/// editor's top edge, above what two pitches give here
+/// (`ref/ia/mac-native/NOTES.md` § The page top). Two pitches is kept, and
+/// `docs/design.md` row Page top says why — the 164 is measured from a window
+/// whose title bar is drawn over the text, which a window with opaque chrome
+/// has no counterpart for, and no capture at a second step is at the document
+/// top to say whether the band scales with the pitch.
 #[must_use]
 pub fn page_top(pitch: u32) -> u32 {
     2 * pitch
