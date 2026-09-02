@@ -137,6 +137,9 @@ fn main() -> glib::ExitCode {
         let following = Rc::clone(&session);
         let app = app.clone();
         portal.watch_scheme(move |desktop| {
+            // Taken down whether or not it is followed: Follow System, picked
+            // later from the Palette, returns to what the desktop is on now.
+            following.desktop_moved(desktop);
             let Some(scheme) = theme::followed(following.theme(), desktop, following.scheme())
             else {
                 return;
