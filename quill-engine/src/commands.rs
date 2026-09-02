@@ -111,6 +111,18 @@ impl Command {
         format!("{}.{}", self.scope.prefix(), self.name())
     }
 
+    /// What a row or a Palette entry activates: a radio member fires its
+    /// group's action (`win.face`) with its value as the target, and any
+    /// other Command its own action with none.
+    pub fn action_and_target(&self) -> (String, Option<&'static str>) {
+        match self.kind {
+            Kind::Radio { group, value } => {
+                (format!("{}.{group}", self.scope.prefix()), Some(value))
+            }
+            Kind::Plain | Kind::Check => (self.action(), None),
+        }
+    }
+
     /// The chord the menu labels, in the table's syntax.
     pub fn default(&self) -> Option<&'static str> {
         self.chords.first().copied()
@@ -202,8 +214,8 @@ pub const COMMANDS: &[Command] = &[
     row("app.quit", "Quit", Scope::App, Kind::Plain, &["Ctrl+Q"], &[place(DOC, None, "Quit")], true),
     // View › Focus.
     row("focus.toggle", "Enable Focus Mode / Disable Focus Mode", Scope::Win, Kind::Check, &["Ctrl+D"], &[place( VIEW, Some("Focus"), "Enable Focus Mode / Disable Focus Mode", )], true),
-    row("focus.sentence", "Sentence", Scope::Win, Kind::Radio { group: "focus_scope", value: "sentence", }, &[], &[place(VIEW, Some("Focus"), "Sentence")], false),
-    row("focus.paragraph", "Paragraph", Scope::Win, Kind::Radio { group: "focus_scope", value: "paragraph", }, &[], &[place(VIEW, Some("Focus"), "Paragraph")], false),
+    row("focus.sentence", "Sentence", Scope::Win, Kind::Radio { group: "focus_scope", value: "sentence", }, &[], &[place(VIEW, Some("Focus"), "Sentence")], true),
+    row("focus.paragraph", "Paragraph", Scope::Win, Kind::Radio { group: "focus_scope", value: "paragraph", }, &[], &[place(VIEW, Some("Focus"), "Paragraph")], true),
     row("focus.swap", "Switch Focus Scope", Scope::Win, Kind::Plain, &["Ctrl+Shift+D"], &[], true),
     row("typewriter.toggle", "Typewriter", Scope::Win, Kind::Check, &["Ctrl+T"], &[place(VIEW, Some("Focus"), "Typewriter")], true),
     // View › Panes.
@@ -222,21 +234,21 @@ pub const COMMANDS: &[Command] = &[
     row("style.toggle", "Style Check", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Style Check")], false),
     row("spell.toggle", "Spell Check", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Spell Check")], false),
     // View › Typeface.
-    row("font.duo", "Duo", Scope::Win, Kind::Radio { group: "face", value: "duo", }, &[], &[place(VIEW, Some("Typeface"), "Duo")], false),
-    row("font.quattro", "Quattro", Scope::Win, Kind::Radio { group: "face", value: "quattro", }, &[], &[place(VIEW, Some("Typeface"), "Quattro")], false),
-    row("font.mono", "Mono", Scope::Win, Kind::Radio { group: "face", value: "mono", }, &[], &[place(VIEW, Some("Typeface"), "Mono")], false),
+    row("font.duo", "Duo", Scope::Win, Kind::Radio { group: "face", value: "duo", }, &[], &[place(VIEW, Some("Typeface"), "Duo")], true),
+    row("font.quattro", "Quattro", Scope::Win, Kind::Radio { group: "face", value: "quattro", }, &[], &[place(VIEW, Some("Typeface"), "Quattro")], true),
+    row("font.mono", "Mono", Scope::Win, Kind::Radio { group: "face", value: "mono", }, &[], &[place(VIEW, Some("Typeface"), "Mono")], true),
     // View › Appearance.
     row("theme.toggle", "Dark Mode", Scope::Win, Kind::Check, &["Ctrl+Shift+L", "Alt+Shift+N"], &[place(VIEW, Some("Appearance"), "Dark Mode")], true),
     row("font.bigger", "Bigger Text", Scope::Win, Kind::Plain, &["Ctrl+=", "Ctrl++"], &[place(VIEW, Some("Appearance"), "Bigger Text")], true),
     row("font.smaller", "Smaller Text", Scope::Win, Kind::Plain, &["Ctrl+-"], &[place(VIEW, Some("Appearance"), "Smaller Text")], true),
     row("font.reset", "Default Text Size", Scope::Win, Kind::Plain, &["Ctrl+0"], &[place(VIEW, Some("Appearance"), "Default Text Size")], true),
     // View › Window.
-    row("chrome.stats", "Statistics", Scope::Win, Kind::Check, &[], &[ place(VIEW, Some("Window"), "Statistics"), place(STATS, None, "Hide Statistics"), ], false),
-    row("chrome.toggle", "Hide Bars / Show Bars", Scope::Win, Kind::Check, &["Ctrl+Shift+H"], &[place(VIEW, Some("Window"), "Hide Bars / Show Bars")], false),
+    row("chrome.stats", "Statistics", Scope::Win, Kind::Check, &[], &[ place(VIEW, Some("Window"), "Statistics"), place(STATS, None, "Hide Statistics"), ], true),
+    row("chrome.toggle", "Hide Bars / Show Bars", Scope::Win, Kind::Check, &["Ctrl+Shift+H"], &[place(VIEW, Some("Window"), "Hide Bars / Show Bars")], true),
     row("window.fullscreen", "Full Screen", Scope::Win, Kind::Check, &["F11"], &[place(VIEW, Some("Window"), "Full Screen")], true),
     row("settings.open", "Settings…", Scope::Win, Kind::Plain, &["Ctrl+,"], &[place(VIEW, Some("Window"), "Settings…")], false),
     row("shortcuts.open", "Keyboard Shortcuts", Scope::Win, Kind::Plain, &["Ctrl+?"], &[place(VIEW, Some("Window"), "Keyboard Shortcuts")], false),
-    row("palette.open", "All Commands…", Scope::Win, Kind::Plain, &["Ctrl+K", "Ctrl+Shift+P"], &[place(VIEW, Some("Window"), "All Commands…")], false),
+    row("palette.open", "All Commands…", Scope::Win, Kind::Plain, &["Ctrl+K", "Ctrl+Shift+P"], &[place(VIEW, Some("Window"), "All Commands…")], true),
     // Stats menu.
     row("stats.words", "Words", Scope::Win, Kind::Radio { group: "stats", value: "words", }, &[], &[place(STATS, None, "Words")], false),
     row("stats.characters", "Characters", Scope::Win, Kind::Radio { group: "stats", value: "characters", }, &[], &[place(STATS, None, "Characters")], false),
@@ -251,11 +263,11 @@ pub const COMMANDS: &[Command] = &[
     row("file.follow", "Open Linked Document", Scope::Win, Kind::Plain, &["Ctrl+Enter"], &[], false),
     row("file.openFolder", "Open Folder as Library…", Scope::Win, Kind::Plain, &[], &[], false),
     row("file.delete", "Delete Document…", Scope::Win, Kind::Plain, &[], &[], false),
-    row("theme.light", "Light Theme", Scope::Win, Kind::Radio { group: "theme", value: "light", }, &[], &[], false),
-    row("theme.dark", "Dark Theme", Scope::Win, Kind::Radio { group: "theme", value: "dark", }, &[], &[], false),
-    row("theme.auto", "Follow System", Scope::Win, Kind::Radio { group: "theme", value: "auto", }, &[], &[], false),
-    row("chrome.doc", "Document Menu", Scope::Win, Kind::Plain, &[], &[], false),
-    row("chrome.view", "View Menu", Scope::Win, Kind::Plain, &["F10"], &[], false),
+    row("theme.light", "Light Theme", Scope::Win, Kind::Radio { group: "theme", value: "light", }, &[], &[], true),
+    row("theme.dark", "Dark Theme", Scope::Win, Kind::Radio { group: "theme", value: "dark", }, &[], &[], true),
+    row("theme.auto", "Follow System", Scope::Win, Kind::Radio { group: "theme", value: "auto", }, &[], &[], true),
+    row("chrome.doc", "Document Menu", Scope::Win, Kind::Plain, &[], &[], true),
+    row("chrome.view", "View Menu", Scope::Win, Kind::Plain, &["F10"], &[], true),
 ];
 
 /// Chords with no Command yet, held so nothing else takes them

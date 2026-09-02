@@ -21,7 +21,7 @@ use std::rc::Rc;
 
 use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
-use quill_engine::settings::{FocusScope, Settings, State, Theme, WindowState};
+use quill_engine::settings::{Chrome, Face, FocusScope, Settings, State, Theme, WindowState};
 use quill_engine::theme::{self, Scheme};
 
 use crate::flags::Flags;
@@ -57,6 +57,22 @@ pub struct Session {
     /// Whether Typewriter is on now. Nothing scrolls to it yet — #115 is what
     /// makes it move — so this launch only remembers it.
     typewriter: Cell<bool>,
+    /// The face the page is set in now: the setting until the writer picks
+    /// one from View › Typeface, and then the one they picked. Held live for
+    /// the reason [`Session::step`] is.
+    face: Cell<Face>,
+    /// The ground the desktop last answered, or `None` where it has not
+    /// answered: what `theme.auto` returns the page to when a writer who had
+    /// pinned a ground asks to follow the desktop again.
+    desktop: Cell<Option<Scheme>>,
+    /// Whether the two bars are there now: the setting until the writer
+    /// presses `Ctrl+Shift+H`, and then what they pressed it to. Held live for
+    /// the reason [`Session::focus`] is.
+    chrome: Cell<Chrome>,
+    /// Whether the stats bar is shown while the bars are: `chrome.stats`.
+    /// Live only — no settings key holds it until the Stats spec (#30)
+    /// decides what the bar remembers — so every launch shows it.
+    stats: Cell<bool>,
     /// The ground this launch is painting on, resolved once before the first
     /// window: the flag, then the setting, then — once #111 wires it — the
     /// desktop, then what the last session left.
@@ -139,6 +155,10 @@ impl Session {
             focus: Cell::new(settings.focus),
             focus_scope: Cell::new(settings.focus_scope),
             typewriter: Cell::new(settings.typewriter),
+            face: Cell::new(settings.face),
+            desktop: Cell::new(portal),
+            chrome: Cell::new(settings.chrome),
+            stats: Cell::new(true),
             scheme: Cell::new(scheme),
             settings,
             flags,
@@ -211,6 +231,32 @@ impl Session {
         self.focus()
     }
 
+    /// Puts Focus on at `scope`: View › Focus's Sentence and Paragraph radios.
+    ///
+    /// Picking a scope switches Focus on, which is ADR 0006's rule for the
+    /// menu's radios as it is for the key: a scope is a thing the writer can
+    /// only be shown with Focus on, and a tick beside Paragraph on a page that
+    /// is not dimmed would be a tick beside nothing.
+    pub fn set_focus_scope(&self, scope: FocusScope) -> Focus {
+        self.focus_scope.set(scope);
+        self.focus.set(true);
+        self.focus()
+    }
+
+    /// The face the page is set in now.
+    ///
+    /// The live value rather than `settings().face`, because View › Typeface
+    /// moves it and a window opened after a pick opens in the face the writer
+    /// is reading.
+    pub fn face(&self) -> Face {
+        self.face.get()
+    }
+
+    /// Sets the face, for this launch and — for a writer's — the next.
+    pub fn set_face(&self, face: Face) {
+        self.face.set(face);
+    }
+
     /// Whether Typewriter is on now, and where it holds the caret's row.
     ///
     /// The live value paired with the anchor the settings file holds, for the
@@ -224,6 +270,39 @@ impl Session {
     pub fn toggle_typewriter(&self) -> Typewriter {
         self.typewriter.set(!self.typewriter.get());
         self.typewriter()
+    }
+
+    /// Whether the two bars are shown now.
+    ///
+    /// The live value rather than `settings().chrome`, because `Ctrl+Shift+H`
+    /// moves it and a window opened after the key was pressed opens the way
+    /// the writer is writing.
+    pub fn chrome(&self) -> Chrome {
+        self.chrome.get()
+    }
+
+    /// Hides the bars, or shows them again. `docs/shortcuts.md`'s
+    /// `chrome.toggle` row.
+    pub fn toggle_chrome(&self) -> Chrome {
+        let chrome = match self.chrome.get() {
+            Chrome::Shown => Chrome::Hidden,
+            Chrome::Hidden => Chrome::Shown,
+        };
+        self.chrome.set(chrome);
+        chrome
+    }
+
+    /// Whether the stats bar is shown now, while the bars are.
+    pub fn stats(&self) -> bool {
+        self.stats.get()
+    }
+
+    /// Hides the stats bar, or shows it again: `docs/shortcuts.md`'s
+    /// `chrome.stats` row, the View menu's Statistics check and the Stats
+    /// menu's Hide Statistics.
+    pub fn toggle_stats(&self) -> bool {
+        self.stats.set(!self.stats.get());
+        self.stats.get()
     }
 
     /// The ground this launch is painting on.
@@ -275,6 +354,36 @@ impl Session {
     pub fn follow(&self, scheme: Scheme) {
         self.scheme.set(scheme);
         self.leaving.borrow_mut().last_scheme = scheme;
+    }
+
+    /// Takes down what the desktop answered, whether or not it is being
+    /// followed, so that `theme.auto` has an answer to return to.
+    ///
+    /// Apart from [`Session::follow`] because a writer on a pinned ground
+    /// hears nothing when the desktop moves — [`theme::followed`] says so —
+    /// and still means "whatever the desktop is on now" when they pick
+    /// Follow System later.
+    pub fn desktop_moved(&self, desktop: Option<Scheme>) {
+        self.desktop.set(desktop);
+    }
+
+    /// Sets the theme to `theme`: the Palette's Light Theme, Dark Theme and
+    /// Follow System.
+    ///
+    /// The two grounds pin themselves, as the toggle does. `auto` is the
+    /// question, and its answer is the ground the desktop last gave — or,
+    /// where the desktop never answered, the ground on screen, which is what
+    /// [`theme::effective`] answers for a launch on `auto` with no portal.
+    pub fn set_theme(&self, theme: Theme) -> Scheme {
+        let scheme = match theme {
+            Theme::Light => Scheme::Light,
+            Theme::Dark => Scheme::Dark,
+            Theme::Auto => self.desktop.get().unwrap_or(self.scheme.get()),
+        };
+        self.theme.set(theme);
+        self.scheme.set(scheme);
+        self.leaving.borrow_mut().last_scheme = scheme;
+        scheme
     }
 
     /// The shape a new window opens at.
@@ -330,6 +439,8 @@ impl Session {
         settings.focus = self.focus.get();
         settings.focus_scope = self.focus_scope.get();
         settings.typewriter = self.typewriter.get();
+        settings.face = self.face.get();
+        settings.chrome = self.chrome.get();
         if settings == self.settings {
             return None;
         }
@@ -338,8 +449,8 @@ impl Session {
 
     /// Writes `settings.toml` when this launch changed something in it.
     ///
-    /// The size, the ground, Focus, its scope and Typewriter are what can move
-    /// so far, and only a writer's launch can move any of them: the flags a
+    /// The size, the ground, Focus, its scope, Typewriter, the face and the bars
+    /// are what can move so far, and only a writer's launch can move any of them: the flags a
     /// launch of the harness's carries are this launch's alone and have no
     /// business in the writer's file, which is why a harness launch has already
     /// returned before this is reached and why `--focus` and `--typewriter`
@@ -420,6 +531,118 @@ mod tests {
             false,
             desktop,
         )
+    }
+
+    /// `Ctrl+Shift+H` flips the `chrome` setting, and the file follows it:
+    /// hidden after one press, back to what was read after two.
+    #[test]
+    fn the_bars_key_flips_the_setting_and_the_file_follows() {
+        let session = launched(Theme::Light, Scheme::Light);
+        assert_eq!(session.chrome(), Chrome::Shown, "the default");
+        assert!(session.stored().is_none(), "nothing has moved yet");
+        assert_eq!(session.toggle_chrome(), Chrome::Hidden);
+        assert_eq!(session.chrome(), Chrome::Hidden);
+        assert_eq!(
+            session.stored().map(|settings| settings.chrome),
+            Some(Chrome::Hidden),
+            "the file would say hidden"
+        );
+        assert_eq!(session.toggle_chrome(), Chrome::Shown);
+        assert!(session.stored().is_none(), "back where it was read");
+    }
+
+    /// View › Typeface picks a face, and the file follows it: Mono after the
+    /// pick, back to what was read after picking the default again.
+    #[test]
+    fn a_typeface_radio_moves_the_face_and_the_file_follows() {
+        let session = launched(Theme::Light, Scheme::Light);
+        assert_eq!(session.face(), Face::default(), "the default");
+        assert!(session.stored().is_none(), "nothing has moved yet");
+        session.set_face(Face::Mono);
+        assert_eq!(session.face(), Face::Mono);
+        assert_eq!(
+            session.stored().map(|settings| settings.face),
+            Some(Face::Mono),
+            "the file would say mono"
+        );
+        session.set_face(Face::default());
+        assert!(session.stored().is_none(), "back where it was read");
+    }
+
+    /// A Focus radio picks its scope and switches Focus on with it (ADR
+    /// 0006), from either state.
+    #[test]
+    fn a_focus_radio_picks_the_scope_and_switches_focus_on() {
+        let session = launched(Theme::Light, Scheme::Light);
+        assert_eq!(session.focus(), Focus::Off, "the default");
+        assert_eq!(
+            session.set_focus_scope(FocusScope::Paragraph),
+            Focus::On(FocusScope::Paragraph)
+        );
+        assert_eq!(
+            session.set_focus_scope(FocusScope::Sentence),
+            Focus::On(FocusScope::Sentence),
+            "already on: the scope moves, Focus stays on"
+        );
+        session.toggle_focus();
+        assert_eq!(session.focus(), Focus::Off);
+        assert_eq!(
+            session.set_focus_scope(FocusScope::Sentence),
+            Focus::On(FocusScope::Sentence),
+            "picking the scope Focus left is still a pick: Focus comes back"
+        );
+    }
+
+    /// Light Theme and Dark Theme pin a ground; Follow System returns to what
+    /// the desktop last answered, and to the ground on screen where it never
+    /// did.
+    #[test]
+    fn the_theme_radios_pin_a_ground_and_auto_returns_to_the_desktops() {
+        let session = following(Theme::Auto, Scheme::Light, Some(Scheme::Light));
+        assert_eq!(session.set_theme(Theme::Dark), Scheme::Dark);
+        assert_eq!(session.theme(), Theme::Dark);
+        assert_eq!(session.scheme(), Scheme::Dark);
+        // The desktop goes dark and back to light while the writer is pinned:
+        // they hear nothing, and the session only takes it down.
+        session.desktop_moved(Some(Scheme::Dark));
+        session.desktop_moved(Some(Scheme::Light));
+        assert_eq!(session.scheme(), Scheme::Dark, "pinned");
+        assert_eq!(
+            session.set_theme(Theme::Auto),
+            Scheme::Light,
+            "the desktop's"
+        );
+        assert!(session.stored().is_none(), "auto is what was read");
+
+        let alone = launched(Theme::Light, Scheme::Light);
+        assert_eq!(alone.set_theme(Theme::Dark), Scheme::Dark);
+        assert_eq!(
+            alone.set_theme(Theme::Auto),
+            Scheme::Dark,
+            "no desktop ever answered: the ground on screen stays"
+        );
+        assert_eq!(
+            alone.stored().map(|settings| settings.theme),
+            Some(Theme::Auto)
+        );
+    }
+
+    /// `--chrome off` is the setting for that launch alone.
+    #[test]
+    fn the_chrome_flag_hides_the_bars_for_the_launch() {
+        let flags = Flags {
+            chrome: Some(Chrome::Hidden),
+            ..Flags::default()
+        };
+        let session = Session::launch(
+            flags,
+            Settings::default(),
+            State::default(),
+            WindowState::default(),
+            true,
+            None,
+        );
+        assert_eq!(session.chrome(), Chrome::Hidden);
     }
 
     /// `auto` is not a ground, so the key that swaps grounds has to start from
