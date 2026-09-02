@@ -168,8 +168,10 @@ accelerator syntax:
 - Every Command in this file is rebindable, the unbound ones too. Reserved chords are not ids; a
   chord becomes bindable to a Command when a spec ships that Command.
 - Refused, with one log line naming the entry and the reason: an unknown id, a chord that does not
-  parse, an off-limits chord, a `Super` or `Ctrl+Alt` chord, and a chord already taken earlier in the
-  file (first entry keeps it). A refused entry leaves the default in place.
+  parse, a chord of the right shape naming a key the keyboard has none of, an off-limits chord, a
+  `Super` or `Ctrl+Alt` chord, and a chord already taken earlier in the file (first entry keeps it).
+  A refused entry leaves the default in place, whichever of these refused it and however many of its
+  chords were fine: the whole entry goes, never part of it.
 - Menu labels, the Palette and the `Ctrl+?` window show the effective bindings, never the defaults.
 - The settings file is watched; a saved edit applies without a restart.
 - The Settings window has one row, "Keyboard shortcuts: edit settings.toml", that opens the file in
