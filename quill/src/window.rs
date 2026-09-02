@@ -395,7 +395,7 @@ impl Window {
                 return;
             };
             let document = window.imp().document.borrow();
-            window.imp().editor.retag(&document, &edit.lines);
+            window.imp().editor.retag(&document, &edit);
         });
 
         // Focus's own feed, and the Document is why it is here rather than

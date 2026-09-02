@@ -39,7 +39,7 @@
 use std::collections::BTreeMap;
 use std::ops::Range;
 
-use crate::document::Document;
+use crate::document::{Document, Splice};
 use crate::settings::{FocusScope, Settings};
 
 pub mod typewriter;
@@ -250,6 +250,62 @@ pub fn changed(before: &[LineTiers], after: &[LineTiers]) -> Vec<Range<usize>> {
         }
     }
     out
+}
+
+/// The tiers as they were before an edit, carried into the text after it.
+///
+/// `before` holds bytes of the text as it was; `doc` is the text now, and
+/// `splice` is what the edit did between the two. Every range is moved across
+/// the splice — what lay after it slides by what the edit added or took, what
+/// lay inside the bytes it took collapses to where they were — and the bytes
+/// the edit brought in are drawn as `after`, the tiers read from the text now,
+/// draws them: text the writer has just typed has no earlier colour to fade
+/// from, so it is bright at once where the sentence it joined is bright.
+///
+/// This is what [`changed`] compares against after a keystroke. Compared
+/// against `before` as it stands, a byte typed inside the lit sentence turned
+/// `a..b` into `a..b + 1` and shifted every range below it, so the line read
+/// as moved and the cross-fade carried the sentence's last byte from dim to
+/// bright on every keystroke (#224, found by the owner's hand).
+#[must_use]
+pub fn rebased(
+    doc: &Document,
+    before: &[LineTiers],
+    splice: &Splice,
+    after: &[LineTiers],
+) -> Vec<LineTiers> {
+    let came_in = splice.at.start..splice.at.start + splice.inserted;
+    let carry = |offset: usize| {
+        if offset <= splice.at.start {
+            offset
+        } else if offset >= splice.at.end {
+            offset - splice.at.len() + splice.inserted
+        } else {
+            splice.at.start
+        }
+    };
+    let mut bright: Vec<Range<usize>> = Vec::new();
+    for was in before.iter().flat_map(|on| &on.tiers.bright) {
+        let moved = carry(was.start)..carry(was.end);
+        // Split around the bytes that came in: those are `after`'s to say.
+        bright.push(moved.start..moved.end.min(came_in.start));
+        bright.push(moved.start.max(came_in.end)..moved.end);
+    }
+    for now in after.iter().flat_map(|on| &on.tiers.bright) {
+        bright.push(now.start.max(came_in.start)..now.end.min(came_in.end));
+    }
+    bright.retain(|at| at.start < at.end);
+    bright.sort_by_key(|at| at.start);
+    // Joined back up, so that a range split around the typed bytes and filled
+    // in again reads as the one range it is.
+    let mut joined: Vec<Range<usize>> = Vec::with_capacity(bright.len());
+    for at in bright {
+        match joined.last_mut() {
+            Some(last) if at.start <= last.end => last.end = last.end.max(at.end),
+            _ => joined.push(at),
+        }
+    }
+    tiers_by_line(doc, &Tiers { bright: joined })
 }
 
 /// The one tier a stretch of bytes is drawn in, for a property that has only
@@ -1023,6 +1079,82 @@ mod tests {
             "a one-character caret move redraws the line the sentence it left \
              is on and the line the one it entered is on, and a sentence is \
              read off one line ([`tiers`]), so two is the whole of it"
+        );
+    }
+
+    // The retag after an edit: the tiers from before it, carried across it.
+
+    /// The lines whose tier changed when `text` was typed at `caret`, judged
+    /// the way the Editor judges it: the tiers from before the keystroke,
+    /// carried across it, against the tiers read from the text after.
+    fn moved_by_typing(
+        doc: &mut Document,
+        caret: usize,
+        text: &str,
+        focus: Focus,
+    ) -> Vec<Range<usize>> {
+        let before = tiers_by_line(doc, &tiers(doc, &(caret..caret), focus));
+        let edit = doc.insert(caret, text);
+        let landed = caret + text.len();
+        let after = tiers_by_line(doc, &tiers(doc, &(landed..landed), focus));
+        changed(&rebased(doc, &before, &edit.splice, &after), &after)
+    }
+
+    #[test]
+    fn a_keystroke_inside_the_lit_sentence_moves_no_line() {
+        let focus = Focus::On(FocusScope::Sentence);
+        let text = "A first thought. A second one.\n\nA third.\n";
+        assert_eq!(
+            moved_by_typing(&mut document(text), 8, "x", focus),
+            Vec::<Range<usize>>::new(),
+            "the sentence is one byte longer and still the lit one"
+        );
+        assert_eq!(
+            moved_by_typing(&mut document(text), 40, "x", focus),
+            Vec::<Range<usize>>::new(),
+            "typed at the block's last byte, where the range's end moved"
+        );
+        assert_eq!(
+            moved_by_typing(&mut document(text), 32, "x", focus),
+            Vec::<Range<usize>>::new(),
+            "typed at the block's first byte, where the range's start moved"
+        );
+    }
+
+    #[test]
+    fn a_keystroke_at_the_judged_caret_moves_no_line_of_the_passage() {
+        let mut doc = passage();
+        // `shots/oracle/states.json`, `focus/sentence`: `"caret": 140`.
+        assert_eq!(
+            moved_by_typing(&mut doc, 140, "x", Focus::On(FocusScope::Sentence)),
+            Vec::<Range<usize>>::new(),
+            "the keystroke the owner's hand test types at the judged state"
+        );
+    }
+
+    #[test]
+    fn typing_through_a_full_stop_moves_the_line_the_sentence_split_on() {
+        let mut doc = document("A first thought Another one.\n\nA third.\n");
+        assert_eq!(
+            moved_by_typing(&mut doc, 15, ".", Focus::On(FocusScope::Sentence)),
+            vec![0..1],
+            "the line was one lit sentence and is now `A first thought.` lit \
+             with `Another one.` dim: a tier moved, and its line is drawn again"
+        );
+    }
+
+    #[test]
+    fn a_deletion_across_a_range_edge_collapses_it_and_moves_only_its_line() {
+        let focus = Focus::On(FocusScope::Sentence);
+        let mut doc = document("One. Two.\n\nThree.\n");
+        let before = tiers_by_line(&doc, &tiers(&doc, &(6..6), focus));
+        let edit = doc.delete(2..7);
+        let after = tiers_by_line(&doc, &tiers(&doc, &(2..2), focus));
+        assert_eq!(
+            changed(&rebased(&doc, &before, &edit.splice, &after), &after),
+            vec![0..1],
+            "`Two.` began inside the bytes taken out, so what is left of it \
+             starts where they were; the joined sentence `Onwo.` is lit whole"
         );
     }
 
