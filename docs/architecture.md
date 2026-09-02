@@ -152,8 +152,11 @@ default 5 = 21.33 logical px; an old `size` in px becomes the nearest step at or
 and `spell_language`, `[syntax_highlight]` (a table: `enabled` is the master, and the five category
 toggles sit beside it), `[style_check]` (the same shape, one toggle per list beside `enabled`),
 `template` (the current Template's name), `preview_layout` (split, full), `library` (the Library
-path), and a `[shortcuts]` table of Command id → chords that
+path), `palette` (the file the grounds take their colours from, `design.md` § The palette is a
+file; empty is the built-ins), and a `[shortcuts]` table of Command id → chords that
 replaces the defaults in [`shortcuts.md`](shortcuts.md) ([ADR 0011](adr/0011-shortcut-precedence-on-linux.md)).
+A path — `library` or `palette` — written with a leading `~/` is read as under the home directory,
+because that is how a hand writes one, and is written back expanded.
 
 The settings file is watched with `notify` and a debouncer whose window is
 `quill_engine::watch::DEBOUNCE`, the
@@ -167,8 +170,14 @@ not saves. Every value a key can move is written to the file as the key is press
 file is never behind what is on screen and a re-read puts nothing back. A file that is not TOML
 at all leaves the settings Quill is running on where they are; a line that cannot be applied is one
 `g_warning` under the domain `quill-settings`, said once per distinct line per version of the file,
-and never fatal, and the Settings window shows the same lines. The Documents and the Library join
-the same watch when they are built.
+and never fatal, and the Settings window shows the same lines. The palette file `palette` names is
+the watch's second subject, on the same receiver: a save of it is a re-read of the palette, and
+because a desktop theme tool does not save into the directory but removes it and moves a fresh one
+into its place, or re-points a link, the directory above it is watched too and the watch is armed
+again when the directory is replaced, with the file's new version sent on. The watch follows the
+setting — re-pointed when `palette` changes, dropped when it is unset — and a directory that is
+not there yet is not polled: the add says so, and the app adds the file again on the settings
+watch's next event. The Documents and the Library join the same watch when they are built.
 
 State, in `state.toml`: the size of each window and whether it was maximized or full screen, the last
 Document per window, caret position per recent Document, the recents list, `last_scheme` (the ground

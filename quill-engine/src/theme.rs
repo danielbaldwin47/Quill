@@ -43,6 +43,8 @@
 //! the file leaves out stays designed, and what it gets wrong costs one line
 //! and a note, never the palette (`design.md` § The palette is a file).
 
+use std::path::Path;
+
 use crate::settings::{Choice, Theme, choice};
 
 choice! {
@@ -603,6 +605,21 @@ impl Palette {
         (palette, notes)
     }
 
+    /// Reads the palette file at `path`.
+    ///
+    /// A file that is missing, cannot be read or is empty is the empty
+    /// palette with no note: a theme tool that has not written yet, or a
+    /// writer whose `rm` was their undo, has asked for the built-ins and not
+    /// for a line about it (#159's story 7). A file that is there is
+    /// [`Palette::parse`], notes and all.
+    #[must_use]
+    pub fn read_from(path: &Path) -> (Self, Vec<String>) {
+        match crate::settings::file::read(path) {
+            Ok(Some(text)) => Self::parse(&text),
+            Ok(None) | Err(_) => (Self::default(), Vec::new()),
+        }
+    }
+
     /// The colour the file gives `role` on `scheme`, or `None` where it is the
     /// built-in's to answer.
     #[must_use]
@@ -1084,6 +1101,33 @@ mod tests {
         for scheme in [Scheme::Light, Scheme::Dark] {
             assert_eq!(Colours::overlaid(scheme, &palette), Colours::of(scheme));
         }
+    }
+
+    #[test]
+    fn a_missing_or_unreadable_file_is_the_empty_palette_with_no_note() {
+        let directory = crate::settings::file::scratch("palette-missing");
+        let nothing = (Palette::default(), Vec::<String>::new());
+        assert_eq!(Palette::read_from(&directory.join("quill.toml")), nothing);
+        // A directory where the file should be cannot be read as one, and a
+        // writer whose theme tool left that behind is not asking for a line.
+        assert_eq!(Palette::read_from(&directory), nothing);
+        std::fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn a_file_that_is_there_is_read_notes_and_all() {
+        let directory = crate::settings::file::scratch("palette-present");
+        let file = directory.join("quill.toml");
+        std::fs::write(&file, "[dark]\npaper = \"#101010\"\nink = \"red\"\n").unwrap();
+        let (palette, notes) = Palette::read_from(&file);
+        assert_eq!(
+            palette.colour(Scheme::Dark, Role::Paper),
+            Colour::parse("#101010")
+        );
+        assert_eq!(palette.colour(Scheme::Dark, Role::Ink), None);
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].contains("[dark] ink"), "{notes:?}");
+        std::fs::remove_dir_all(&directory).ok();
     }
 
     #[test]
