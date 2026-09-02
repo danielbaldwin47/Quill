@@ -83,7 +83,7 @@ impl Modes {
             typewriter: matches!(session.typewriter(), Typewriter::On(_)),
             dark: session.scheme() == Scheme::Dark,
             theme: session.theme().as_str(),
-            face: session.settings().face.as_str(),
+            face: session.face().as_str(),
             fullscreen,
             bars: session.chrome() == Chrome::Shown,
             stats: session.stats(),
@@ -229,8 +229,16 @@ fn run_window(window: &Window, command: &Command) {
         "font.bigger" => window.step_size(crate::window::Step::Bigger),
         "font.smaller" => window.step_size(crate::window::Step::Smaller),
         "font.reset" => window.step_size(crate::window::Step::Default),
+        "font.duo" => window.set_face(quill_engine::settings::Face::Duo),
+        "font.quattro" => window.set_face(quill_engine::settings::Face::Quattro),
+        "font.mono" => window.set_face(quill_engine::settings::Face::Mono),
         "theme.toggle" => window.toggle_scheme(),
+        "theme.light" => window.set_theme(quill_engine::settings::Theme::Light),
+        "theme.dark" => window.set_theme(quill_engine::settings::Theme::Dark),
+        "theme.auto" => window.set_theme(quill_engine::settings::Theme::Auto),
         "focus.toggle" => window.toggle_focus(),
+        "focus.sentence" => window.set_focus_scope(FocusScope::Sentence),
+        "focus.paragraph" => window.set_focus_scope(FocusScope::Paragraph),
         "focus.swap" => window.swap_focus_scope(),
         "typewriter.toggle" => window.toggle_typewriter(),
         "chrome.toggle" => window.toggle_bars(),
@@ -1223,10 +1231,32 @@ mod tests {
         assert!(!commands::by_id("file.open").unwrap().built);
         assert!(!map.is_action_enabled("file.open"));
         map.activate_action("file.open", None);
-        map.activate_action("face", Some(&"mono".to_variant()));
+        // The Stats menu's fields are the Stats spec's (#30), so the whole
+        // radio group is disabled.
+        map.activate_action("stats", Some(&"words".to_variant()));
         assert!(fired.borrow().is_empty());
         map.activate_action("focus.toggle", None);
         assert_eq!(fired.borrow().as_slice(), ["focus.toggle"]);
+    }
+
+    /// A radio group whose members are built fires the member the value
+    /// names: the View menu's Typeface and Focus radios, the Palette's three
+    /// themes.
+    #[test]
+    fn a_built_radio_group_fires_the_member_its_value_names() {
+        let (map, fired) = map(Scope::Win);
+        for group in ["face", "focus_scope", "theme"] {
+            assert!(map.is_action_enabled(group), "{group} has built members");
+        }
+        map.activate_action("face", Some(&"mono".to_variant()));
+        map.activate_action("focus_scope", Some(&"paragraph".to_variant()));
+        map.activate_action("theme", Some(&"auto".to_variant()));
+        map.activate_action("face", Some(&"serif".to_variant()));
+        assert_eq!(
+            fired.borrow().as_slice(),
+            ["font.mono", "focus.paragraph", "theme.auto"],
+            "a value no member carries fires nothing"
+        );
     }
 
     #[test]

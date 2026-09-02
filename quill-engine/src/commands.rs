@@ -202,8 +202,8 @@ pub const COMMANDS: &[Command] = &[
     row("app.quit", "Quit", Scope::App, Kind::Plain, &["Ctrl+Q"], &[place(DOC, None, "Quit")], true),
     // View › Focus.
     row("focus.toggle", "Enable Focus Mode / Disable Focus Mode", Scope::Win, Kind::Check, &["Ctrl+D"], &[place( VIEW, Some("Focus"), "Enable Focus Mode / Disable Focus Mode", )], true),
-    row("focus.sentence", "Sentence", Scope::Win, Kind::Radio { group: "focus_scope", value: "sentence", }, &[], &[place(VIEW, Some("Focus"), "Sentence")], false),
-    row("focus.paragraph", "Paragraph", Scope::Win, Kind::Radio { group: "focus_scope", value: "paragraph", }, &[], &[place(VIEW, Some("Focus"), "Paragraph")], false),
+    row("focus.sentence", "Sentence", Scope::Win, Kind::Radio { group: "focus_scope", value: "sentence", }, &[], &[place(VIEW, Some("Focus"), "Sentence")], true),
+    row("focus.paragraph", "Paragraph", Scope::Win, Kind::Radio { group: "focus_scope", value: "paragraph", }, &[], &[place(VIEW, Some("Focus"), "Paragraph")], true),
     row("focus.swap", "Switch Focus Scope", Scope::Win, Kind::Plain, &["Ctrl+Shift+D"], &[], true),
     row("typewriter.toggle", "Typewriter", Scope::Win, Kind::Check, &["Ctrl+T"], &[place(VIEW, Some("Focus"), "Typewriter")], true),
     // View › Panes.
@@ -222,9 +222,9 @@ pub const COMMANDS: &[Command] = &[
     row("style.toggle", "Style Check", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Style Check")], false),
     row("spell.toggle", "Spell Check", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Spell Check")], false),
     // View › Typeface.
-    row("font.duo", "Duo", Scope::Win, Kind::Radio { group: "face", value: "duo", }, &[], &[place(VIEW, Some("Typeface"), "Duo")], false),
-    row("font.quattro", "Quattro", Scope::Win, Kind::Radio { group: "face", value: "quattro", }, &[], &[place(VIEW, Some("Typeface"), "Quattro")], false),
-    row("font.mono", "Mono", Scope::Win, Kind::Radio { group: "face", value: "mono", }, &[], &[place(VIEW, Some("Typeface"), "Mono")], false),
+    row("font.duo", "Duo", Scope::Win, Kind::Radio { group: "face", value: "duo", }, &[], &[place(VIEW, Some("Typeface"), "Duo")], true),
+    row("font.quattro", "Quattro", Scope::Win, Kind::Radio { group: "face", value: "quattro", }, &[], &[place(VIEW, Some("Typeface"), "Quattro")], true),
+    row("font.mono", "Mono", Scope::Win, Kind::Radio { group: "face", value: "mono", }, &[], &[place(VIEW, Some("Typeface"), "Mono")], true),
     // View › Appearance.
     row("theme.toggle", "Dark Mode", Scope::Win, Kind::Check, &["Ctrl+Shift+L", "Alt+Shift+N"], &[place(VIEW, Some("Appearance"), "Dark Mode")], true),
     row("font.bigger", "Bigger Text", Scope::Win, Kind::Plain, &["Ctrl+=", "Ctrl++"], &[place(VIEW, Some("Appearance"), "Bigger Text")], true),
@@ -251,9 +251,9 @@ pub const COMMANDS: &[Command] = &[
     row("file.follow", "Open Linked Document", Scope::Win, Kind::Plain, &["Ctrl+Enter"], &[], false),
     row("file.openFolder", "Open Folder as Library…", Scope::Win, Kind::Plain, &[], &[], false),
     row("file.delete", "Delete Document…", Scope::Win, Kind::Plain, &[], &[], false),
-    row("theme.light", "Light Theme", Scope::Win, Kind::Radio { group: "theme", value: "light", }, &[], &[], false),
-    row("theme.dark", "Dark Theme", Scope::Win, Kind::Radio { group: "theme", value: "dark", }, &[], &[], false),
-    row("theme.auto", "Follow System", Scope::Win, Kind::Radio { group: "theme", value: "auto", }, &[], &[], false),
+    row("theme.light", "Light Theme", Scope::Win, Kind::Radio { group: "theme", value: "light", }, &[], &[], true),
+    row("theme.dark", "Dark Theme", Scope::Win, Kind::Radio { group: "theme", value: "dark", }, &[], &[], true),
+    row("theme.auto", "Follow System", Scope::Win, Kind::Radio { group: "theme", value: "auto", }, &[], &[], true),
     row("chrome.doc", "Document Menu", Scope::Win, Kind::Plain, &[], &[], true),
     row("chrome.view", "View Menu", Scope::Win, Kind::Plain, &["F10"], &[], true),
 ];
