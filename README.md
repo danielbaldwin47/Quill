@@ -51,6 +51,25 @@ display in its environment — stopping at the first failure, and ending in one 
 Data files — the six Quill Faces, Templates, `OFL.txt` — resolve from one directory: `$QUILL_DATA_DIR`
 if it is set, else the path the package build compiled in (`/usr/share/quill`), else this checkout.
 
+### Theme Quill with the desktop
+
+On Omarchy, two steps and Quill follows `omarchy theme set` from then on, with no relaunch:
+
+```
+cp /usr/share/quill/quill.toml.tpl ~/.config/omarchy/themed/    # or packaging/quill.toml.tpl from this checkout
+palette = "~/.local/state/omarchy/current/theme/quill.toml"      # the palette line in ~/.config/quill/settings.toml
+```
+
+The second is a line to set, not to append: Quill writes `settings.toml` with an empty `palette = ""`
+on its first launch, and TOML refuses a key named twice. The template is in Omarchy's own contract, so
+`omarchy theme set` renders it into the current theme's directory beside every other app's, writing only
+the ground the theme's `mode` names; the other ground stays Quill's own.
+
+Any tool that writes TOML can theme Quill the same way: the file holds a `[light]` and a `[dark]` table
+whose keys are the fourteen roles in `docs/design.md` § The palette is a file (`paper`, `ink`, `accent`,
+…) and whose values are `#rrggbb` or `#rrggbbaa`; whatever it leaves out stays the built-in, and
+`quill --theme light|dark` shows the built-in ground whatever the file says.
+
 ## Run the Parity oracle
 
 The JavaScript app: no framework, no build step, `legacy/app/index.html` + `legacy/app/css/*.css` +
