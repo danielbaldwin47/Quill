@@ -26,7 +26,7 @@ use gtk::pango;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use quill_engine::annotate::{self, Painted};
-use quill_engine::document::Document;
+use quill_engine::document::{Document, Edit};
 use quill_engine::focus::typewriter::{self, Glide, Hold, Typewriter};
 use quill_engine::focus::{self, Focus, LineTiers};
 use quill_engine::settings::Face;
@@ -940,14 +940,28 @@ impl Editor {
     /// the engine's copy has been spliced to match it, because a tag is put on
     /// by the line and the byte index within it and both of those have to be
     /// the ones the writer can now see.
-    pub fn retag(&self, document: &Document, lines: &Range<usize>) {
+    pub fn retag(&self, document: &Document, edit: &Edit) {
         // An edit moves the caret as well as the text, so the tiers are worked
         // out again here rather than left to the caret's own feed: the lines
         // the edit changed and the lines the dim moved across are drawn in the
         // same pass. A line named by both is drawn twice, which is a tag taken
         // off and put back on the same bytes and not a second look on them.
-        let before = self.imp().tiers.borrow().clone();
-        let moved = self.retier(document);
+        let was = self.imp().tiers.borrow().clone();
+        // What the edit moved is not what `retier` answers: that compares the
+        // tiers' bytes as they stood, and a keystroke inside the lit sentence
+        // moves every byte after it, so every line read as moved and the
+        // sentence's last byte faded from dim to bright on each key (#224).
+        // The tiers from before are carried across the edit first.
+        self.retier(document);
+        let (before, moved) = match self.imp().focus.get() {
+            Focus::Off => (Vec::new(), Vec::new()),
+            Focus::On(_) => {
+                let after = self.imp().tiers.borrow();
+                let before = focus::rebased(document, &was, &edit.splice, &after);
+                let moved = focus::changed(&before, &after);
+                (before, moved)
+            }
+        };
         // Every edit settles the fade, whether or not a tier moved with it: a
         // fade holds the buffer's offsets, and an edit is the one thing that
         // moves the text out from under them. A writer typing through their own
@@ -955,9 +969,29 @@ impl Editor {
         // next keystroke and then arrive, rather than a stretch of an earlier
         // sentence left stranded half-way between the two tiers.
         self.settle_fade(document);
-        self.redraw(document, std::slice::from_ref(lines));
+        self.redraw(document, std::slice::from_ref(&edit.lines));
+        self.redraw(document, self.typed(document, edit).as_slice());
         self.redraw(document, &moved);
         self.begin_fade(document, &before, &moved);
+    }
+
+    /// The lines the bytes an edit put in lie on, while Focus is on.
+    ///
+    /// The buffer gives an inserted byte the tags of the byte before it, and
+    /// with Focus on that byte is the dim of the sentence before when the
+    /// writer types at the start of their own — so the typed bytes' lines are
+    /// drawn again from the tiers whatever [`focus::changed`] says of them,
+    /// and without a fade: the tiers say the typed text is bright, and it is
+    /// bright at once. With Focus off the buffer's own ink is right and the
+    /// Markup tags are [`Edit::lines`]'s to redraw.
+    fn typed(&self, document: &Document, edit: &Edit) -> Option<Range<usize>> {
+        let splice = &edit.splice;
+        if splice.inserted == 0 || matches!(self.imp().focus.get(), Focus::Off) {
+            return None;
+        }
+        let first = document.place(splice.at.start).line;
+        let last = document.place(splice.at.start + splice.inserted - 1).line;
+        Some(first..last + 1)
     }
 
     /// How much Focus leaves lit from now on, with the page redrawn to say so.
@@ -2338,6 +2372,43 @@ fn on_glass(row: (f64, f64), view: (f64, f64)) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A keystroke inside the lit sentence starts no fade: the tiers from
+    /// before it, carried across it, paint the same bytes the same colour as
+    /// the tiers read after it. Against the tiers as they stood, the byte the
+    /// keystroke pushed past the range's end faded from dim to bright, which
+    /// is what the owner saw (#224).
+    #[test]
+    fn a_keystroke_inside_the_lit_sentence_fades_nothing() {
+        use quill_engine::settings::FocusScope;
+        let focus = Focus::On(FocusScope::Sentence);
+        let colours = Colours::of(Scheme::Light);
+        let mut doc = Document::untitled();
+        doc.insert(0, "A first thought. A second one.\n");
+        let was = focus::tiers_by_line(&doc, &focus::tiers(&doc, &(8..8), focus));
+        let edit = doc.insert(8, "x");
+        let after = focus::tiers_by_line(&doc, &focus::tiers(&doc, &(9..9), focus));
+        let before = focus::rebased(&doc, &was, &edit.splice, &after);
+        let at = doc.line_bytes(0);
+        let spans = doc.spans_in(&at);
+        let painted = |tiers: &[LineTiers]| annotate::paint_in(&spans, &at, tiers, focus, &colours);
+        let offsets = |at: &Range<usize>| {
+            let offset = |at: usize| i32::try_from(at).expect("a line's bytes fit an i32");
+            offset(at.start)..offset(at.end)
+        };
+        let runs = faded(&painted(&before), &painted(&after), offsets);
+        assert!(
+            runs.is_empty(),
+            "the typed byte and the sentence around it are bright on both sides"
+        );
+        let stale = faded(&painted(&was), &painted(&after), offsets);
+        assert!(
+            matches!(stale.as_slice(), [FadeRun { at, .. }] if *at == (17..18)),
+            "the defect, kept so this test is known to see it: judged against \
+             the tiers as they stood, the sentence's last byte fades in; got {:?}",
+            stale.iter().map(|run| run.at.clone()).collect::<Vec<_>>()
+        );
+    }
 
     /// A reveal has landed only when the whole row is on the glass.
     ///
