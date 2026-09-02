@@ -133,8 +133,19 @@ fn item(command: &Command, placement: &Placement, modes: &Modes) -> gio::MenuIte
 /// do; any other label is the placement's.
 #[must_use]
 pub fn label(command: &Command, placement: &Placement, modes: &Modes) -> String {
-    let Some((first, second)) = placement.label.split_once(" / ") else {
-        return placement.label.to_string();
+    half(command, placement.label, modes)
+}
+
+/// The Command's title now, by the same rule: what the Palette lists it as.
+#[must_use]
+pub fn title(command: &Command, modes: &Modes) -> String {
+    half(command, command.title, modes)
+}
+
+/// The half of a paired `text` the modes call for, or all of an unpaired one.
+fn half(command: &Command, text: &str, modes: &Modes) -> String {
+    let Some((first, second)) = text.split_once(" / ") else {
+        return text.to_string();
     };
     // The second half is the way back: Disable once Focus is on, Show once
     // the bars are hidden. A pane not built yet is closed, so its row offers
