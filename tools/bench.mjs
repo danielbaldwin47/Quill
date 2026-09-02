@@ -24,8 +24,8 @@
 //
 // **The warm-up is typed and thrown away.** A regime is 300 keys after 25 that pay for first touch
 // of the editing machinery, which is how the oracle's numbers were measured; comparing a cold ours
-// against a warm theirs would flatter neither honestly. The warm-up keys are in the app's capture
-// too, so the join is given only the lines written after them.
+// against a warm theirs would flatter neither honestly. Both go through one keyboard, as the
+// oracle's went through one page, and the join is given only the lines written after the warm-up.
 
 import { execFileSync, spawn } from 'node:child_process';
 import crypto from 'node:crypto';
@@ -69,9 +69,14 @@ const PANEL_IS_INFORMATIONAL = 'the physical panel is never a Gate condition: th
   + 'a fractional-scale output rather than the headless stage the budget and the oracle numbers '
   + 'belong to, so its numbers are comparable only with another panel run of the same output';
 
-// How long the app is given after the last key before its capture is read: past `harness.rs`'s own
-// 250 ms tail, which is what makes the frame carrying the last key complete.
+// How long the app's capture is given to stop growing before it is read. The app drains its stamps
+// every 100 ms and a stamp waits at most 250 ms (`harness.rs`'s `TAIL`) for its frame, so a file
+// that has not grown for `QUIET_MS` is whole. `SETTLE_MS` is the most a wait costs when the file
+// keeps growing, which nothing but a run still typing does, and the plain wait where there is no
+// capture to watch.
+const QUIET_MS = 500;
 const SETTLE_MS = 1_500;
+const DRAIN_POLL_MS = 100;
 
 // How long one chunk of keys has to come back before the injector is called hung. A chunk is 25
 // keys at 90 ms, so this is many times what it takes.
@@ -226,7 +231,11 @@ function reader(stream) {
 /// type the next lot, so focus is a question asked every 25 keys rather than once at the start. A
 /// run that loses focus stops at the chunk boundary and says so, rather than typing the rest of a
 /// draft into whatever took it.
-export async function typeKeys(root, plan, held) {
+///
+/// `between` maps a key index to a function awaited before the chunk starting at that key is
+/// asked for, and no chunk crosses one: the bench's boundary between its warm-up and its measured
+/// keys falls on a `go`, so one device types both.
+export async function typeKeys(root, plan, held, { between = {} } = {}) {
   const py = spawn('python3', [path.join(root, 'tools/uinput-keys.py')], {
     cwd: root, stdio: ['pipe', 'pipe', 'pipe'],
   });
@@ -241,11 +250,16 @@ export async function typeKeys(root, plan, held) {
     const ready = JSON.parse(await out.next());
     if (!ready.ready) throw new Error(`the injector would not start: ${JSON.stringify(ready)}`);
 
-    for (let typed = 0; typed < ready.keys; typed += ready.chunk) {
+    const stops = Object.keys(between).map(Number).sort((a, b) => a - b);
+    for (let typed = 0; typed < ready.keys;) {
+      if (between[typed]) await between[typed]();
       rechecks += 1;
       if (!held()) { lost = true; break; }
-      py.stdin.write('go\n');
-      await out.next();
+      const stop = stops.find((s) => s > typed) ?? ready.keys;
+      py.stdin.write(`go ${Math.min(ready.chunk, stop - typed)}\n`);
+      const ack = JSON.parse(await out.next());
+      if (!ack.typed) throw new Error(`the injector typed none of the ${ready.keys - typed} keys left`);
+      typed += ack.typed;
     }
     py.stdin.write('end\n');
   } catch (e) {
@@ -276,6 +290,17 @@ function capture(file) {
     try { keys.push(JSON.parse(line)); } catch { /* a line still being written */ }
   }
   return keys;
+}
+
+/// Waits until the capture has stopped growing — see `QUIET_MS` — or `SETTLE_MS` has passed.
+async function settled(file) {
+  let last = capture(file).length;
+  for (let quiet = 0, waited = 0; quiet < QUIET_MS && waited < SETTLE_MS; waited += DRAIN_POLL_MS) {
+    await sleep(DRAIN_POLL_MS);
+    const now = capture(file).length;
+    quiet = now === last ? quiet + DRAIN_POLL_MS : 0;
+    last = now;
+  }
 }
 
 /// Where the regime says the writer is, in the flag the app takes.
@@ -340,8 +365,11 @@ async function warmStage(root, stage, regime) {
   const first = await stage.launch(path.join(root, BINARY), launchArgv(root, path.join(stage.tmp, 'capture-warmup.jsonl'), regime));
   await sleep(SETTLE_MS);
   const cold = /^cold start: ([\d.]+) ms$/m.exec(first.said());
+  // Gone rather than waited out: what the first measured launch must not share the machine with
+  // is a client still shutting down, and that is over when its process is.
+  const exited = new Promise((resolve) => first.child.once('exit', resolve));
   stage.kill(first.child);
-  await sleep(SETTLE_MS);
+  await Promise.race([exited, sleep(SETTLE_MS)]);
   return cold ? Number(cold[1]) : null;
 }
 
@@ -361,27 +389,29 @@ async function runSession(root, stage, { regime, keys, index }) {
     }
     say(`gate bench: focus is on ours (${ours.address}), ${APP_ID}`);
 
-    // The warm-up, thrown away: typed, then the capture is measured so the join never sees it.
+    // The warm-up, thrown away: the keyboard that types the measured keys types it first, and at
+    // the boundary the capture is measured so the join never sees it.
     const warm = uinputPlan(script('letters', WARMUP_KEYS, hash32('warmup')), regime.pace);
-    await typeKeys(root, warm.plan, () => stage.holds(ours.address));
-    await sleep(SETTLE_MS);
-    const before = capture(out).length;
-
     const planned = uinputPlan(script(regime.mix, keys, hash32(regime.name)), regime.pace,
       { pauseEvery: regime.pauseEvery, pauseMs: regime.pauseMs });
     if (planned.first_unexpressible) {
       throw new Error(`${regime.name} reaches ${planned.first_unexpressible.press} at step `
         + `${planned.first_unexpressible.at}, which the injector cannot type`);
     }
-    say(`gate bench: typing ${planned.keys} keys at ${planned.plan.pace_ms} ms`);
-    const wrote = await typeKeys(root, planned.plan, () => stage.holds(ours.address));
+    say(`gate bench: typing ${planned.keys} keys at ${planned.plan.pace_ms} ms, after ${warm.keys} of warm-up`);
+    let before = null;
+    const wrote = await typeKeys(root, { ...planned.plan, keys: [...warm.plan.keys, ...planned.plan.keys] },
+      () => stage.holds(ours.address),
+      { between: { [warm.keys]: async () => { await settled(out); before = capture(out).length; } } });
 
-    await sleep(SETTLE_MS);
-    const seen = capture(out).slice(before);
+    await settled(out);
+    // The warm-up's events lead, in order; a run that lost focus inside the warm-up sent nothing.
+    const sent = wrote.events.slice(warm.keys).map((e, i) => ({ ...e, i }));
+    const seen = before === null ? [] : capture(out).slice(before);
     const cold = /^cold start: ([\d.]+) ms$/m.exec(ours.said());
 
     return {
-      sent: wrote.events,
+      sent,
       seen,
       planned: planned.keys,
       cold: cold ? Number(cold[1]) : null,
@@ -546,10 +576,13 @@ async function bench(root, { ran, chosen, keys, sessions, wantsPanel, idle }) {
     for (const regime of chosen) {
       const one = await benchOne(root, stage, { regime, keys, sessions, warmup, panel });
       done.push(one);
-      // Focus going somewhere else is the one thing that stops the rest of the run: the keys after
-      // it would be typed into whatever took the focus, and no later regime's number would be of
-      // this app. Every other kind of short run is said and carried on from.
+      // Two things stop the rest of a run. Focus going somewhere else: the keys after it would be
+      // typed into whatever took the focus, and no later regime's number would be of this app. And,
+      // in a run of several, a regime whose keys did not add up: the run is refused whatever the
+      // rest measure and its files are not committed, so the six minutes the rest would take buy
+      // nothing. Every other kind of short run is said and carried on from.
       if (one.lost) break;
+      if (ran !== null && !one.reported.accounting.every_keystroke_accounted_for) break;
     }
   } catch (e) {
     say(String(e.stack || e.message));
@@ -647,9 +680,10 @@ function manySaid(root, { ran, chosen, done, warmup, panel }) {
   for (const line of lines) console.log(line);
   if (whole && panel) return 0;
   if (!whole) {
-    return refuse(missing.length
-      ? `${missing.join(', ')} never ran; ${file} records how far the run got`
-      : `not every keystroke is accounted for in ${unaccounted.join(', ')}; the numbers are in ${file}`);
+    return refuse(unaccounted.length
+      ? `not every keystroke is accounted for in ${unaccounted.join(', ')}, so the run stopped there`
+        + `${missing.length ? ` and ${missing.join(', ')} never ran` : ''}; the numbers are in ${file}`
+      : `${missing.join(', ')} never ran; ${file} records how far the run got`);
   }
   return rows.every(cleared) ? 0 : 1;
 }
