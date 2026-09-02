@@ -39,15 +39,39 @@ pub fn read(path: &Path) -> io::Result<Option<String>> {
 /// is the only thing the two files differ in: the writer's settings fall back
 /// to the defaults, and state starts fresh.
 pub fn parse(text: &str, instead: &str) -> (Option<toml::Table>, Vec<String>) {
-    match text.parse() {
+    match text.parse::<toml::Table>() {
         Ok(table) => (Some(table), Vec::new()),
-        // Only the first line: a TOML error carries the offending line beneath
-        // it, and a log line that wraps three times reads as a crash.
-        Err(err) => {
-            let err = err.to_string();
-            let first = err.lines().next().unwrap_or_default();
-            (None, vec![format!("is not TOML ({first}); {instead}")])
-        }
+        Err(err) => (
+            None,
+            vec![format!("is not TOML ({}); {instead}", reason(text, &err))],
+        ),
+    }
+}
+
+/// Why `text` is not TOML, on one line: the line the error is on, the reason
+/// the parser gives, and the text it points at.
+///
+/// The error's own rendering is a position, the offending line quoted with a
+/// caret under it, and then the reason — four lines, and a log line that
+/// wraps four times reads as a crash. Its first line alone was tried and was a
+/// position with no reason: `TOML parse error at line 7, column 1` for a key
+/// named twice, which a writer reads as "line 7 is wrong" and then finds
+/// nothing wrong with line 7 on its own. The reason is `duplicate key` with no
+/// key in it, so the text under the caret is quoted after it, which for that
+/// error is the key. Only the first line of the reason, because the parser
+/// hands some of them a second line saying what it expected instead.
+fn reason(text: &str, err: &toml::de::Error) -> String {
+    let message = err.message().lines().next().unwrap_or_default();
+    let Some(span) = err.span() else {
+        return message.to_owned();
+    };
+    let start = span.start.min(text.len());
+    let line = text[..start].matches('\n').count() + 1;
+    let at = &text[start..span.end.min(text.len())];
+    if at.is_empty() || at.contains('\n') {
+        format!("line {line}: {message}")
+    } else {
+        format!("line {line}: {message} at {at}")
     }
 }
 

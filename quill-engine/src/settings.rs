@@ -33,6 +33,7 @@ use std::path::{Path, PathBuf};
 
 pub use state::{STATE_FILE, State, WindowState, window_sizes};
 
+use crate::shortcuts;
 use reading::Reading;
 use writing::Writing;
 
@@ -110,6 +111,11 @@ const TEMPLATE: &str = "default";
 /// What a note about a settings file Quill could not read ends with: a writer
 /// wants to know what became of their preferences, not only what went wrong.
 const INSTEAD: &str = "using the defaults, and leaving the file alone";
+
+/// The same, for a file Quill has already read once ([`Settings::reread`]):
+/// there are last good settings by then, and they are what a file that cannot
+/// be read leaves running.
+const KEEPING: &str = "keeping the settings Quill is running on";
 
 /// One setting that takes one of a few named values.
 ///
@@ -402,8 +408,9 @@ pub struct Settings {
     pub preview_layout: PreviewLayout,
     /// The folder Quill was pointed at, or `None` until it is pointed at one.
     pub library: Option<PathBuf>,
-    /// Command id to chords, carried as written; validating and applying it is
-    /// the shortcut ticket's ([#44](https://github.com/danielbaldwin47/Quill/issues/44)).
+    /// Command id to chords, carried as written: an entry Quill refuses is
+    /// still the writer's line and survives the next write. What it comes to
+    /// is [`Settings::shortcuts`].
     pub shortcuts: toml::Table,
     /// Every key and table this Quill did not know, kept for the next write.
     rest: toml::Table,
@@ -448,21 +455,63 @@ impl Settings {
     /// note and a Quill running on the defaults.
     #[must_use]
     pub fn open() -> (Self, Vec<String>) {
-        let path = Self::path();
-        let (settings, mut notes) = Self::read_from(&path);
+        Self::open_at(&Self::path())
+    }
+
+    /// The same, of the file `path` names rather than the writer's own, which
+    /// is where a launch carrying `--settings` reads and writes
+    /// (`docs/architecture.md` § Command-line flags).
+    #[must_use]
+    pub fn open_at(path: &Path) -> (Self, Vec<String>) {
+        let (settings, mut notes) = Self::read_from(path);
         if !path.exists()
-            && let Err(err) = settings.write_to(&path)
+            && let Err(err) = settings.write_to(path)
         {
             notes.push(format!("cannot be written ({err}); using the defaults"));
         }
         (settings, notes)
     }
 
+    /// The chords every Command should be installed with, and one refusal per
+    /// `[shortcuts]` entry that could not be applied.
+    ///
+    /// Read out of the table on every call rather than kept beside it, so that
+    /// re-reading the file is the whole of an apply: an entry taken out of it
+    /// restores that Command's default ([`shortcuts::effective`]).
+    #[must_use]
+    pub fn shortcuts(&self) -> shortcuts::Shortcuts {
+        shortcuts::read(&self.shortcuts)
+    }
+
     /// Reads `path`, falling back to the defaults for anything it cannot.
     #[must_use]
     pub fn read_from(path: &Path) -> (Self, Vec<String>) {
-        let (table, mut notes) = file::read_table(path, INSTEAD);
-        let settings = table.map_or_else(Self::default, |table| Self::read(table, &mut notes));
+        let (settings, notes) = Self::read_at(path, INSTEAD);
+        (settings.unwrap_or_default(), notes)
+    }
+
+    /// The same read, answering `None` rather than the defaults where there
+    /// is nothing to read: no file, a file that cannot be read, or one that is
+    /// not TOML at all.
+    ///
+    /// What the settings watch reads, because a file caught between the two
+    /// halves of somebody's save, or one a hand has broken, is not a writer
+    /// asking for the defaults: the settings Quill is already running on are
+    /// the last good ones and stay (`docs/architecture.md` § Settings). A
+    /// first read has no last good settings and takes the defaults, which is
+    /// what [`Settings::read_from`] is — and the only thing the two differ in,
+    /// the note that says which included.
+    #[must_use]
+    pub fn reread(path: &Path) -> (Option<Self>, Vec<String>) {
+        Self::read_at(path, KEEPING)
+    }
+
+    /// Both reads: the settings in `path`, or `None` where there is nothing to
+    /// read, with `instead` finishing every note about what became of the
+    /// writer's preferences.
+    fn read_at(path: &Path, instead: &str) -> (Option<Self>, Vec<String>) {
+        let (table, mut notes) = file::read_table(path, instead);
+        let settings = table.map(|table| Self::read(table, &mut notes));
         (settings, notes)
     }
 
@@ -506,7 +555,13 @@ impl Settings {
         writing.rest(self.rest.clone());
         writing.table("syntax_highlight", self.syntax_highlight.to_table());
         writing.table("style_check", self.style_check.to_table());
-        writing.table("shortcuts", self.shortcuts.clone());
+        // Written only when there is an entry to write: an empty `[shortcuts]`
+        // header at the foot of the file is where a writer adding their first
+        // table, as `docs/shortcuts.md` § Rebinding tells them to, puts a
+        // second one — and two headers with one name are not TOML.
+        if !self.shortcuts.is_empty() {
+            writing.table("shortcuts", self.shortcuts.clone());
+        }
         writing.into_toml()
     }
 
@@ -561,8 +616,12 @@ mod tests {
     use super::file::scratch;
     use super::*;
 
-    /// Every key `docs/architecture.md`'s Settings section names.
-    const KEYS: [&str; 16] = [
+    /// Every key `docs/architecture.md`'s Settings section names that the
+    /// defaults write. `shortcuts` is the one it names and they do not: an
+    /// empty table is written as nothing, so that a writer adding their first
+    /// `[shortcuts]` header at the foot of the file is not adding a second
+    /// ([`Settings::to_toml`]).
+    const KEYS: [&str; 15] = [
         "theme",
         "face",
         "step",
@@ -578,7 +637,6 @@ mod tests {
         "template",
         "preview_layout",
         "library",
-        "shortcuts",
     ];
 
     #[test]
@@ -591,6 +649,10 @@ mod tests {
             assert!(written.contains_key(key), "no `{key}` in:\n{written}");
         }
         assert_eq!(written.len(), KEYS.len(), "a key nobody named: {written}");
+        assert!(
+            !written.contains_key("shortcuts"),
+            "an empty `[shortcuts]` table is no header:\n{written}"
+        );
     }
 
     #[test]
@@ -745,6 +807,54 @@ margin = 3
         assert_eq!(notes.len(), 1, "{notes:?}");
         assert!(notes[0].starts_with("is not TOML"), "{notes:?}");
         assert!(!notes[0].contains('\n'), "one line, not a stack: {notes:?}");
+    }
+
+    /// The note says which line and why, because the parser's own first line
+    /// is a position alone: a `[shortcuts]` entry pasted in beside the one it
+    /// was meant to replace is the commonest way a settings file stops being
+    /// TOML (#44's hand test), and "line 7" without "named twice" sends the
+    /// writer to a line that reads fine on its own.
+    #[test]
+    fn a_key_named_twice_is_said_by_line_and_by_name() {
+        let (_, notes) = Settings::parse(
+            "theme = \"light\"\n\n[shortcuts]\n\"library.toggle\" = [\"F9\"]\n\"library.toggle\" = [\"<Super>l\"]\n",
+        );
+        assert_eq!(
+            notes,
+            [format!(
+                "is not TOML (line 5: duplicate key at \"library.toggle\"); {INSTEAD}"
+            )]
+        );
+    }
+
+    /// The same file read a second time is nothing rather than the defaults,
+    /// and says which: a Quill already running has last good settings, and
+    /// putting the defaults over a writer's preferences because a save was
+    /// caught half-written is the one thing the watch must not do.
+    #[test]
+    fn a_file_that_is_not_toml_is_read_again_as_nothing_at_all() {
+        let path = scratch("reread").join(SETTINGS_FILE);
+        std::fs::write(&path, "theme = = = dark\n").expect("writes its own fixture");
+
+        let (settings, notes) = Settings::reread(&path);
+        assert!(settings.is_none(), "there is nothing to apply");
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].ends_with(KEEPING), "{notes:?}");
+
+        let (settings, notes) = Settings::read_from(&path);
+        assert_eq!(settings, Settings::default(), "a first read has no last");
+        assert!(notes[0].ends_with(INSTEAD), "{notes:?}");
+    }
+
+    /// A file that is not there is nothing to read either, and says nothing:
+    /// a writer who deleted their settings file while Quill was running has
+    /// not asked for anything.
+    #[test]
+    fn a_file_that_is_gone_is_read_again_as_nothing_and_says_nothing() {
+        let path = scratch("reread_gone").join(SETTINGS_FILE);
+        let (settings, notes) = Settings::reread(&path);
+        assert!(settings.is_none());
+        assert_eq!(notes, Vec::<String>::new());
     }
 
     #[test]
