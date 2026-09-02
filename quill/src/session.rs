@@ -5,13 +5,16 @@
 //! gone. Nothing here fails: a file that cannot be read or written is one line
 //! on stderr and a Quill that opens anyway.
 //!
-//! `settings.toml` is read more than once, and only that file: [`watch_settings`]
-//! puts [`quill_engine::watch::Watch`] on it and drains it from the main
-//! context, so a saved edit reaches [`Session::apply`] and every window without
-//! a restart. What a version of the file cannot apply — a line that is not
-//! settings, a `[shortcuts]` entry Quill refuses — is one `g_warning` under
-//! [`DOMAIN`] and never fatal, said once per distinct line per version of the
-//! file ([`Session::warn`]).
+//! Two files are read more than once: `settings.toml`, and the palette file
+//! its `palette` key names. [`watch_settings`] puts
+//! [`quill_engine::watch::Watch`] on both and drains it from the main context,
+//! so a saved edit reaches [`Session::apply`] and every window without a
+//! restart, and a palette a desktop's theme tool rewrote reaches
+//! [`Session::ground`] the same way. What a version of either file cannot
+//! apply — a line that is not settings, a `[shortcuts]` entry Quill refuses, a
+//! palette value that is not a colour — is one `g_warning` under [`DOMAIN`]
+//! and never fatal, said once per distinct line per version of the file
+//! ([`Session::warn`]).
 //!
 //! A launch of the harness's ([`Flags::is_harness`]) is the same session with
 //! two files' worth of the writer's own removed. It reads their `settings.toml`,
@@ -33,8 +36,8 @@ use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
 use quill_engine::settings::{Chrome, Face, FocusScope, Settings, State, Theme, WindowState};
 use quill_engine::shortcuts::Refusal;
-use quill_engine::theme::{self, Scheme};
-use quill_engine::watch::{Watch, unsaid};
+use quill_engine::theme::{self, Palette, Scheme};
+use quill_engine::watch::{Placed, Watch, unsaid};
 
 use crate::flags::Flags;
 use crate::ground::Ground;
@@ -77,6 +80,17 @@ pub struct Session {
     /// writer's own, or the one `--settings` named
     /// ([`Session::settings_path`]).
     settings_path: PathBuf,
+    /// The palette laid over the built-in grounds: what the file `palette`
+    /// names said when it was last read, or nothing where it names none.
+    /// Read again when the file is saved, when its directory is replaced and
+    /// when the setting moves ([`Session::reread_palette`]), and compared
+    /// before a repaint, so that a theme tool writing the same bytes costs
+    /// nothing.
+    palette: RefCell<Palette>,
+    /// What the last read of the palette file had to say — one line per value
+    /// that is not a colour — said once under [`DOMAIN`] alongside the
+    /// settings file's own lines ([`Session::say`]).
+    palette_notes: RefCell<Vec<String>>,
     /// The step of the type ladder this launch is running at: the setting
     /// until the writer steps it, and then whatever they stepped it to. Held
     /// apart from [`Session::settings`] so that what was read stays readable,
@@ -165,6 +179,9 @@ impl Session {
         };
 
         let session = Self::launch(flags, settings, state, opening, harness, portal);
+        if let Some(palette) = session.palette_path() {
+            report(&palette, &session.palette_notes.borrow());
+        }
         session.take_down(notes);
         session
     }
@@ -186,6 +203,10 @@ impl Session {
         portal: Option<Scheme>,
     ) -> Rc<Self> {
         let settings = flags.over(settings);
+        // The palette, read after the flags have gone over the setting: a
+        // `--theme` with no `--palette` has emptied the path by then, which is
+        // how the pin keeps the Gate's shots to the built-ins.
+        let (palette, palette_notes) = read_palette(settings.palette.as_deref());
         // The ground, before anything can paint on it. The flag is passed as
         // itself rather than read back off the setting it already overrode,
         // because the two are different answers to a different question once
@@ -214,6 +235,8 @@ impl Session {
             refusals: RefCell::new(Vec::new()),
             said: RefCell::new(BTreeSet::new()),
             settings_path: settings_path(&flags),
+            palette: RefCell::new(palette),
+            palette_notes: RefCell::new(palette_notes),
             flags,
             harness,
             leaving: RefCell::new(state),
@@ -264,8 +287,14 @@ impl Session {
     /// because a file that says `auto` is asking the desktop, which is the
     /// same question a launch asks itself.
     ///
+    /// The palette file is read again too, because the path that names it is
+    /// one of the settings: a moved `palette` line is a new file, and a line
+    /// left alone may name a file that has appeared since, which is the retry
+    /// the watch leaves to this save ([`watch_settings`]).
+    ///
     /// Answers with whether anything moved — the file as this launch is
-    /// running it ([`Session::running`]), before against after — so that the
+    /// running it ([`Session::running`]), before against after, and the
+    /// palette against what it was — so that the
     /// commonest save of all costs no repaint: the one Quill made itself,
     /// writing a key press back to the file ([`Session::store_settings`]),
     /// carries the values the live half is already holding.
@@ -281,7 +310,9 @@ impl Session {
         let theme = settings.theme;
         self.settings.replace(settings);
         self.set_theme(theme);
-        self.running() != before
+        let moved = self.running() != before;
+        let repainted = self.reread_palette();
+        moved || repainted
     }
 
     /// Takes down what the read of the settings file at launch said, which
@@ -293,8 +324,9 @@ impl Session {
     /// ([`Session::warn`]). Marked as said in the same breath, so that the
     /// warnings the first save makes are about the save.
     fn take_down(&self, notes: Vec<String>) {
-        self.said.replace(lines(&notes, &[]).into_iter().collect());
         self.notes.replace(notes);
+        self.said
+            .replace(self.worth_saying(&[]).into_iter().collect());
     }
 
     /// Reads the settings file again, taking down what it had to say.
@@ -337,15 +369,68 @@ impl Session {
         self.say(&[]);
     }
 
-    /// Says every line this version of the file is worth that has not been
-    /// said already, and takes down that it has been.
+    /// Warns about what the palette file cannot apply, once per distinct line
+    /// per version of it, the way [`Session::warn`] does for the settings
+    /// file. The settings file's own lines are handed back in so they stay
+    /// said: the rule is one set for the two files.
+    pub(crate) fn warn_palette(&self) {
+        self.say(&self.refusals.borrow());
+    }
+
+    /// Says every line this version of the two files is worth that has not
+    /// been said already, and takes down that it has been.
     fn say(&self, refusals: &[Refusal]) {
-        let lines = lines(&self.notes.borrow(), refusals);
+        let lines = self.worth_saying(refusals);
         let unsaid = unsaid(&self.said.borrow(), &lines);
         self.said.replace(unsaid.said);
         for line in unsaid.lines {
-            glib::g_warning!(DOMAIN, "{}: {line}", self.settings_path.display());
+            glib::g_warning!(DOMAIN, "{line}");
         }
+    }
+
+    /// Every line the two files are worth, each naming its file: what the
+    /// settings file said and refused ([`lines`]), then what the palette file
+    /// said. One list rather than two, because the say-once rule is one set
+    /// ([`quill_engine::watch::unsaid`] replaces it whole), and a palette said
+    /// on its own would drop the settings file's lines from what has been said.
+    fn worth_saying(&self, refusals: &[Refusal]) -> Vec<String> {
+        let settings = self.settings_path.display().to_string();
+        let palette = self
+            .palette_path()
+            .map_or_else(String::new, |path| path.display().to_string());
+        lines(&self.notes.borrow(), refusals)
+            .into_iter()
+            .map(|line| format!("{settings}: {line}"))
+            .chain(
+                self.palette_notes
+                    .borrow()
+                    .iter()
+                    .map(|note| format!("{palette}: {note}")),
+            )
+            .collect()
+    }
+
+    /// The palette file this launch reads, or `None` where the settings name
+    /// none — the flags already over the top, so a `--theme` launch without
+    /// `--palette` answers `None` whatever the writer's file says
+    /// ([`Flags::over`]).
+    pub fn palette_path(&self) -> Option<PathBuf> {
+        self.settings.borrow().palette.clone()
+    }
+
+    /// Reads the palette file again and answers with whether the palette
+    /// moved.
+    ///
+    /// The same bytes are not a repaint, and that is [`Palette`]'s equality
+    /// and not the watch's: the watch tells a save by its length and write
+    /// time, and a theme tool writes the same file whole. A file that is gone
+    /// is the empty palette, so an `rm` is a move back to the built-ins.
+    fn reread_palette(&self) -> bool {
+        let (palette, notes) = read_palette(self.palette_path().as_deref());
+        self.palette_notes.replace(notes);
+        let moved = *self.palette.borrow() != palette;
+        self.palette.replace(palette);
+        moved
     }
 
     /// The step of the type ladder this launch is reading at.
@@ -482,10 +567,12 @@ impl Session {
     /// The one place the table is chosen. Every pass that puts a ground on to
     /// the windows ([`crate::window::repaint`], [`crate::window::reapply`], a
     /// window being built) asks this once and hands the answer down, so a
-    /// palette laid over the built-ins (#159) is a change to this answer and
-    /// to nothing downstream of it. The built-ins for now.
+    /// palette laid over the built-ins is a change to this answer and to
+    /// nothing downstream of it: the file `palette` names, over the built-ins
+    /// for the ground on screen ([`Ground::overlaid`]), and with no file the
+    /// built-ins themselves.
     pub fn ground(&self) -> Ground {
-        Ground::of(self.scheme.get())
+        Ground::overlaid(self.scheme.get(), &self.palette.borrow())
     }
 
     /// What the writer asked for, which is a question where it is `auto`.
@@ -717,6 +804,15 @@ fn settings_path(flags: &Flags) -> PathBuf {
     flags.settings.clone().unwrap_or_else(Settings::path)
 }
 
+/// The palette the file at `path` holds, with what it had to say; the empty
+/// palette and nothing to say where no file is named.
+fn read_palette(path: Option<&Path>) -> (Palette, Vec<String>) {
+    match path {
+        Some(path) => Palette::read_from(path),
+        None => (Palette::default(), Vec::new()),
+    }
+}
+
 /// Says what a file was worth saying, one line each, naming the file.
 fn report(path: &Path, notes: &[String]) {
     for note in notes {
@@ -735,19 +831,21 @@ fn lines(notes: &[String], refusals: &[Refusal]) -> Vec<String> {
         .collect()
 }
 
-/// Watches the settings file, so that a saved edit applies without a restart.
+/// Watches the settings file and the palette file it names, so that a saved
+/// edit of either applies without a restart.
 ///
 /// Every launch watches, a launch of the harness's included, so that a judged
 /// run or a test can drive the fixture `--settings` named; the flags still
 /// override what the file says for as long as the launch runs
-/// ([`Session::apply`]).
+/// ([`Session::apply`]). The palette file is the watch's second subject, on
+/// the same receiver, and follows the setting ([`follow_palette`]).
 ///
 /// The saves are drained from a timer on the main context rather than answered
 /// on the watch's own thread, because that is the only thread a window may be
 /// touched from. A file that cannot be watched is one line on stderr and a
 /// Quill that runs on what it read at launch.
 pub fn watch_settings(app: &gtk::Application, session: &Rc<Session>) {
-    let (watch, saves) = match Watch::on(session.settings_path()) {
+    let (mut watch, saves) = match Watch::on(session.settings_path()) {
         Ok(watching) => watching,
         Err(err) => {
             eprintln!(
@@ -757,19 +855,62 @@ pub fn watch_settings(app: &gtk::Application, session: &Rc<Session>) {
             return;
         }
     };
+    let mut following = None;
+    follow_palette(&mut watch, &mut following, session);
     let app = app.clone();
     let session = Rc::clone(session);
     glib::timeout_add_local(DRAIN_EVERY, move || {
         // The watch is held here and nowhere else, so it stops when the
-        // application does.
-        let _watching = &watch;
-        // Every save waiting is one re-read: the file is read whole, so
-        // reading it twice would apply the same file twice.
-        let saved = saves.try_iter().count() > 0;
-        if saved {
+        // application does. Every save waiting is one re-read: a file is read
+        // whole, so reading it twice would apply the same file twice. The
+        // settings file's save is the larger of the two — applying it reads
+        // the palette again and may have moved where the palette is — so it
+        // is the one taken when both are waiting.
+        let mut settings_saved = false;
+        let mut palette_saved = false;
+        for saved in saves.try_iter() {
+            if saved == *session.settings_path() {
+                settings_saved = true;
+            } else {
+                palette_saved = true;
+            }
+        }
+        if settings_saved {
             reread(Some(&app), &session);
+            follow_palette(&mut watch, &mut following, &session);
+        } else if palette_saved {
+            repaint_palette(Some(&app), &session);
         }
         glib::ControlFlow::Continue
+    });
+}
+
+/// Points the watch's second subject at the palette file the session names
+/// now, so that the watch follows the setting: re-pointed when `palette`
+/// moves, dropped when it is unset, and left alone when it is where it was.
+///
+/// `following` is the file the watch was last asked for and whether it is
+/// being listened for yet. A file whose directory is not there is asked for
+/// again on the settings file's next save rather than polled for, which is
+/// what [`Placed::NoDirectory`] leaves to the caller; a directory that cannot
+/// be watched at all is one line on stderr and the same retry.
+fn follow_palette(watch: &mut Watch, following: &mut Option<(PathBuf, Placed)>, session: &Session) {
+    let wanted = session.palette_path();
+    if let Some((path, placed)) = following {
+        if Some(&*path) == wanted.as_ref() {
+            if *placed == Placed::Listening {
+                return;
+            }
+        } else {
+            watch.remove(path);
+        }
+    }
+    *following = wanted.map(|path| {
+        let placed = watch.add(&path).unwrap_or_else(|err| {
+            eprintln!("quill: {}: cannot be watched ({err})", path.display());
+            Placed::NoDirectory
+        });
+        (path, placed)
     });
 }
 
@@ -804,8 +945,25 @@ fn reread(app: Option<&gtk::Application>, session: &Rc<Session>) {
     }
 }
 
+/// Reads the palette file again and puts it on to every window where it
+/// moved — a theme tool's rewrite, a hand's edit, an `rm`, a directory
+/// replaced — through the pass a theme toggle uses, so a palette change and a
+/// scheme change are the same one repaint. What the file cannot apply is said
+/// once; the same bytes are not a repaint ([`Session::reread_palette`]).
+///
+/// `app` is `None` where there is no window to tell — a test with no display.
+fn repaint_palette(app: Option<&gtk::Application>, session: &Session) {
+    let moved = session.reread_palette();
+    session.warn_palette();
+    if let Some(app) = app.filter(|_| moved) {
+        crate::window::repaint(app, session);
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use quill_engine::theme::{Colour, Role};
+
     use super::*;
 
     /// The state a session that ended on `last` left behind.
@@ -1603,5 +1761,157 @@ mod tests {
             "a file with nothing wrong with it says nothing"
         );
         std::fs::remove_dir_all(path.parent().expect("the fixture has a directory")).ok();
+    }
+
+    /// A palette file beside `settings`, holding `text`.
+    fn palette_beside(settings: &Path, text: &str) -> PathBuf {
+        let path = settings.with_file_name("quill.toml");
+        std::fs::write(&path, text).expect("writes its own palette");
+        path
+    }
+
+    /// A launch of the harness's on `flags`, reading `settings` and no file.
+    fn shot(flags: Flags, settings: Settings) -> Rc<Session> {
+        Session::launch(
+            flags,
+            settings,
+            State::default(),
+            WindowState::default(),
+            true,
+            None,
+        )
+    }
+
+    /// The paper `session` is painting on.
+    fn paper(session: &Session) -> Colour {
+        session.ground().colours.colour(Role::Paper)
+    }
+
+    /// A light paper in a colour nothing in the design uses.
+    const RED_PAPER: &str = "[light]\npaper = \"#c81e1e\"\n";
+
+    #[test]
+    fn the_palette_flag_lays_its_file_over_the_ground_the_theme_flag_names() {
+        let palette = palette_beside(&fixture("palette-flag"), RED_PAPER);
+        let session = shot(
+            Flags {
+                theme: Some(Scheme::Light),
+                palette: Some(palette),
+                ..Flags::default()
+            },
+            Settings::default(),
+        );
+        assert_eq!(paper(&session), Colour::from_hex("#c81e1e"));
+        assert_eq!(
+            session.ground().colours.colour(Role::Ink),
+            Ground::of(Scheme::Light).colours.colour(Role::Ink),
+            "a role the file leaves out is the built-in"
+        );
+    }
+
+    #[test]
+    fn a_theme_flag_without_a_palette_flag_paints_the_built_ins_whatever_the_setting_names() {
+        let palette = palette_beside(&fixture("palette-pinned"), RED_PAPER);
+        let mut settings = Settings::default();
+        settings.palette = Some(palette);
+        let pinned = shot(
+            Flags {
+                theme: Some(Scheme::Light),
+                ..Flags::default()
+            },
+            settings.clone(),
+        );
+        assert_eq!(pinned.ground(), Ground::of(Scheme::Light));
+        assert_eq!(pinned.palette_path(), None, "the setting is not read");
+        let writers = writing(settings);
+        assert_eq!(
+            paper(&writers),
+            Colour::from_hex("#c81e1e"),
+            "the same setting with no --theme is the writer's palette"
+        );
+    }
+
+    #[test]
+    fn a_dark_only_palette_leaves_the_light_ground_designed_and_the_toggle_finds_it() {
+        let palette = palette_beside(
+            &fixture("palette-dark-only"),
+            "[dark]\npaper = \"#1e1ec8\"\n",
+        );
+        let mut settings = Settings::default();
+        settings.theme = Theme::Light;
+        settings.palette = Some(palette);
+        let session = writing(settings);
+        assert_eq!(session.ground(), Ground::of(Scheme::Light));
+        session.toggle_scheme();
+        assert_eq!(session.scheme(), Scheme::Dark);
+        assert_eq!(paper(&session), Colour::from_hex("#1e1ec8"));
+    }
+
+    /// The watch tells a save by its length and write time; whether it is a
+    /// repaint is the palette's equality, which is what is asked here.
+    #[test]
+    fn the_same_bytes_saved_again_are_not_a_repaint_and_a_removed_file_is_the_built_ins() {
+        let palette = palette_beside(&fixture("palette-same-bytes"), RED_PAPER);
+        let mut settings = Settings::default();
+        settings.palette = Some(palette.clone());
+        let session = writing(settings);
+        assert!(!session.reread_palette(), "the same bytes");
+        std::fs::write(&palette, "[light]\npaper = \"#1ec81e\"\n").expect("rewrites the palette");
+        assert!(session.reread_palette(), "a new colour");
+        assert_eq!(paper(&session), Colour::from_hex("#1ec81e"));
+        std::fs::remove_file(&palette).expect("removes the palette");
+        assert!(session.reread_palette(), "the file gone is a change");
+        assert_eq!(
+            session.ground(),
+            Ground::of(Scheme::Light),
+            "and it is the built-ins"
+        );
+        assert!(session.palette_notes.borrow().is_empty(), "with no note");
+    }
+
+    /// A `palette` line edited in the settings file moves the ground the way
+    /// any other setting moves what it names, through the same re-read.
+    #[test]
+    fn a_palette_line_saved_into_the_settings_file_moves_the_ground() {
+        let path = fixture("palette-setting");
+        let palette = palette_beside(&path, RED_PAPER);
+        let session = pointed_at(&path);
+        assert_eq!(session.ground(), Ground::of(Scheme::Light));
+        std::fs::write(&path, format!("palette = \"{}\"\n", palette.display()))
+            .expect("writes its own fixture");
+        reread(None, &session);
+        assert_eq!(session.palette_path(), Some(palette));
+        assert_eq!(paper(&session), Colour::from_hex("#c81e1e"));
+        std::fs::write(&path, "").expect("unsets the palette");
+        reread(None, &session);
+        assert_eq!(session.palette_path(), None);
+        assert_eq!(session.ground(), Ground::of(Scheme::Light));
+    }
+
+    /// A value that is not a colour costs its line and is said once, naming
+    /// the palette file rather than the settings file; saying the same version
+    /// again says nothing; and the other lines of the file land.
+    #[test]
+    fn a_palette_value_that_is_not_a_colour_is_said_once_and_names_its_file() {
+        let path = fixture("palette-said-once");
+        let palette = palette_beside(&path, "[light]\npaper = \"#c81e1e\"\nink = \"red\"\n");
+        let session = pointed_at(&path);
+        std::fs::write(&path, format!("palette = \"{}\"\n", palette.display()))
+            .expect("writes its own fixture");
+        let said = warnings(|| reread(None, &session));
+        assert_eq!(said.len(), 1, "{said:?}");
+        assert!(
+            said[0].starts_with(&format!("{}: ", palette.display())),
+            "{}",
+            said[0]
+        );
+        assert!(said[0].contains("[light] ink = \"red\""), "{}", said[0]);
+        assert_eq!(
+            paper(&session),
+            Colour::from_hex("#c81e1e"),
+            "the other line lands"
+        );
+        let again = warnings(|| repaint_palette(None, &session));
+        assert!(again.is_empty(), "the same version says nothing: {again:?}");
     }
 }
