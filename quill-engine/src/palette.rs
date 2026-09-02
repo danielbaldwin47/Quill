@@ -5,8 +5,12 @@
 //! meets it (`legacy/app/js/chrome.js`, `SECTIONS`); typing turns it into one
 //! ranked list. Both are pure functions of the registry, so the popover only
 //! draws what it is handed.
+//!
+//! The match on a title is the oracle's, ported from `chrome.js`; the match
+//! on a radio Command's group below it is Quill's own (#229), so that
+//! `theme` reaches Follow System, whose title holds no word of the query.
 
-use crate::commands::{COMMANDS, Command};
+use crate::commands::{COMMANDS, Command, Kind};
 
 /// The oracle's four sections, by the registry's ids in the oracle's order
 /// and membership (`chrome.js:364-368`; the oracle's `file.export` is
@@ -69,8 +73,9 @@ pub const SECTIONS: [(&str, &[&str]); 4] = [
 /// one the menus already read in.
 pub const MORE: &str = "More";
 
-/// How a title matched the query, best first (`chrome.js` ranks a prefix
-/// over a substring over a subsequence).
+/// How a row matched the query, best first: the oracle's three tiers on the
+/// title (`chrome.js` ranks a prefix over a substring over a subsequence),
+/// then Quill's own on the radio group, below them all.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Tier {
     /// The title starts with the query.
@@ -79,6 +84,10 @@ pub enum Tier {
     Inside,
     /// The title has the query's letters in order, with gaps.
     Letters,
+    /// The title did not match at all and the Command's radio group did
+    /// (#229, not the oracle's). Last, so an invisible match never outranks
+    /// a visible one.
+    Group,
 }
 
 /// Where a match stands in the ranked list, lowest first: its [`Tier`],
@@ -124,7 +133,10 @@ pub fn sections() -> Vec<(&'static str, Vec<&'static Command>)> {
 
 /// The list for `query`: the map at rest, section by section, when the
 /// query is blank; otherwise one ranked list under no heading, the rows
-/// ordered by [`Rank`] and then by title.
+/// ordered by [`Rank`] and then by title. A row whose title misses is still
+/// listed when its radio group matches, at [`Tier::Group`] below every title
+/// match and in the registry's order, since it has no title offset to rank
+/// by and no highlight to show.
 #[must_use]
 pub fn list(query: &str) -> Vec<(Option<&'static str>, Vec<Row>)> {
     let query = query.trim().to_lowercase();
@@ -143,17 +155,43 @@ pub fn list(query: &str) -> Vec<(Option<&'static str>, Vec<Row>)> {
             })
             .collect();
     }
-    let mut ranked: Vec<(Rank, Row)> = COMMANDS
+    // Each row beside the key it sorts on: its rank, then its title to
+    // break a tie. A group match has no title to break the tie with, so it
+    // takes the empty string and a stable sort leaves those rows in the
+    // order the registry gave them.
+    let mut ranked: Vec<((Rank, &'static str), Row)> = COMMANDS
         .iter()
         .filter_map(|command| {
-            score(command.title, &query).map(|(rank, hits)| (rank, Row { command, hits }))
+            if let Some((rank, hits)) = score(command.title, &query) {
+                return Some(((rank, command.title), Row { command, hits }));
+            }
+            score_group(command, &query).map(|rank| {
+                (
+                    (rank, ""),
+                    Row {
+                        command,
+                        hits: Vec::new(),
+                    },
+                )
+            })
         })
         .collect();
-    ranked.sort_by(|a, b| {
-        a.0.cmp(&b.0)
-            .then_with(|| a.1.command.title.cmp(b.1.command.title))
-    });
+    ranked.sort_by_key(|(key, _)| *key);
     vec![(None, ranked.into_iter().map(|(_, row)| row).collect())]
+}
+
+/// Quill's own fallback (#229): `query`, already lower-cased, against a radio
+/// Command's group, by the same substring-or-letters rule the title uses, so
+/// `theme` reaches Follow System and `stats` the counts `commands.rs` groups
+/// under it. Every hit ranks [`Tier::Group`], below every title match, and
+/// carries no highlight, the group being nowhere on screen. A Command with
+/// no group never matches.
+#[must_use]
+fn score_group(command: &Command, query: &str) -> Option<Rank> {
+    let Kind::Radio { group, .. } = command.kind else {
+        return None;
+    };
+    score(group, query).map(|_| Rank(Tier::Group, 0))
 }
 
 /// The oracle's match (`chrome.js:344-352`): `query`, already lower-cased,
@@ -161,6 +199,9 @@ pub fn list(query: &str) -> Vec<(Option<&'static str>, Vec<Row>)> {
 /// query's letters in order anywhere in the title, "sen" finding "Sentence"
 /// and "tw" "Typewriter"; failing that, no row. The hits are byte ranges of
 /// `title`.
+///
+/// [`score_group`] runs the same rule over a radio Command's group, which is
+/// how [`list`] reaches a row this one turns away.
 #[must_use]
 pub fn score(title: &str, query: &str) -> Option<(Rank, Vec<(usize, usize)>)> {
     if query.is_empty() {
@@ -298,5 +339,107 @@ mod tests {
         assert_eq!(score("Typewriter", "xq"), None);
         // A later substring outranks an earlier scatter.
         assert!(score("Focus: Sentence", "sen").unwrap().0 < score("Typewriter", "tw").unwrap().0);
+    }
+
+    fn command(id: &str) -> &'static Command {
+        COMMANDS.iter().find(|command| command.id == id).unwrap()
+    }
+
+    /// The ids of the rows `query` reached through their group. A query this
+    /// side of blank is the only kind `list` ranks, so a row it lists with
+    /// nothing highlighted is a row whose title matched nothing.
+    fn group_rows(query: &str) -> Vec<&'static str> {
+        let (_, rows) = &list(query)[0];
+        rows.iter()
+            .filter(|row| row.hits.is_empty())
+            .map(|row| row.command.id)
+            .collect()
+    }
+
+    #[test]
+    fn theme_reaches_follow_system_through_its_group() {
+        let (_, rows) = &list("theme")[0];
+        let ids: Vec<&str> = rows.iter().map(|row| row.command.id).collect();
+        // Dark Theme holds the query nearer its start than Light Theme, so
+        // it leads; Follow System's title holds it nowhere, and is listed
+        // for its group with nothing to highlight.
+        assert_eq!(ids, ["theme.dark", "theme.light", "theme.auto"]);
+        assert_eq!(rows[0].hits, vec![(5, 10)]);
+        assert_eq!(rows[1].hits, vec![(6, 11)]);
+        assert!(rows[2].hits.is_empty());
+    }
+
+    #[test]
+    fn a_group_match_ranks_below_every_title_match_and_keeps_the_registrys_order() {
+        // "Statistics" holds s-t-a-t-s in order, so it matches by title and
+        // outranks the six rows the `stats` group brings in.
+        assert!(
+            score("Statistics", "stats").unwrap().0
+                < score_group(command("stats.words"), "stats").unwrap()
+        );
+        let (_, rows) = &list("stats")[0];
+        let ids: Vec<&str> = rows.iter().map(|row| row.command.id).collect();
+        assert_eq!(ids[0], "chrome.stats");
+        assert!(!rows[0].hits.is_empty());
+        assert_eq!(
+            &ids[1..],
+            &group_rows("stats")[..],
+            "every row under the title match is a group match"
+        );
+        assert_eq!(
+            group_rows("stats"),
+            [
+                "stats.words",
+                "stats.characters",
+                "stats.charactersNoSpaces",
+                "stats.sentences",
+                "stats.paragraphs",
+                "stats.readingTime",
+            ],
+            "the group tier keeps the registry's order, not the alphabet"
+        );
+    }
+
+    #[test]
+    fn a_group_reaches_the_focus_scopes_and_the_faces() {
+        let (_, rows) = &list("focus")[0];
+        let ids: Vec<&str> = rows.iter().map(|row| row.command.id).collect();
+        // `focus_scope` starts with the query; the two titles holding
+        // "Focus" come first all the same.
+        assert_eq!(
+            ids,
+            [
+                "focus.toggle",
+                "focus.swap",
+                "focus.sentence",
+                "focus.paragraph"
+            ]
+        );
+        // The typeface group is `face`, the settings key, so `face` reaches
+        // the three faces and `font` — neither title nor group — reaches
+        // none of them (#229 out of scope: a keywords column).
+        assert_eq!(
+            group_rows("face"),
+            ["font.duo", "font.quattro", "font.mono"]
+        );
+        let (_, rows) = &list("font")[0];
+        assert!(rows.iter().all(|row| !row.command.id.starts_with("font.")));
+    }
+
+    #[test]
+    fn a_command_with_no_group_is_matched_by_no_group_name() {
+        assert_eq!(score_group(command("app.quit"), "theme"), None);
+        assert_eq!(score_group(command("palette.open"), "stats"), None);
+        // A check is not a radio, whatever its id shares with a group.
+        assert_eq!(score_group(command("theme.toggle"), "theme"), None);
+        // So every row the group tier brings in is a radio.
+        for query in ["theme", "stats", "focus", "face"] {
+            for id in group_rows(query) {
+                assert!(
+                    matches!(command(id).kind, Kind::Radio { .. }),
+                    "{id} was listed for `{query}` with no title match"
+                );
+            }
+        }
     }
 }
