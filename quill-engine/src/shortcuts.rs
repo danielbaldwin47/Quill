@@ -120,6 +120,21 @@ impl Chord {
         &self.text
     }
 
+    /// The modifier tags it carries, GTK's spelling of each, in the order
+    /// [`Chord`] writes them.
+    pub fn modifiers(&self) -> impl Iterator<Item = &'static str> + '_ {
+        self.modifiers.iter().map(|modifier| modifier.tag())
+    }
+
+    /// The key token, the one half of a chord this module does not check: a
+    /// caller with GDK to hand asks it whether there is a key by that name.
+    #[must_use]
+    pub fn key(&self) -> &str {
+        self.text
+            .rsplit_once('>')
+            .map_or(self.text.as_str(), |(_, key)| key)
+    }
+
     /// Whether the chord carries `modifier`.
     fn carries(&self, modifier: Modifier) -> bool {
         self.modifiers.contains(&modifier)
@@ -159,14 +174,14 @@ impl Refusal {
     ///
     /// The app's to make rather than this module's: the shape is all that is
     /// read here, and whether GDK has a key by that name is
-    /// `gtk::accelerator_parse`'s answer at install (the `//!` above). The
-    /// line is written the way every other refusal's is, so the writer is
-    /// shown their entry however it was refused.
+    /// `gtk::accelerator_parse`'s answer at install (the `//!` above).
+    /// `entry` is the writer's whole line as [`Shortcuts::entries`] kept it,
+    /// so a refusal made at install quotes exactly what a refusal made here
+    /// would, and it refuses the whole entry as every refusal here does.
     #[must_use]
-    pub fn unknown_key(id: &str, chord: &Chord) -> Self {
-        let value = toml::Value::Array(vec![toml::Value::String(chord.to_string())]);
+    pub fn unknown_key(id: &str, entry: &str, chord: &Chord) -> Self {
         Self {
-            line: line(id, &value),
+            line: entry.to_owned(),
             id: id.to_owned(),
             reason: format!("{chord} names no key on this keyboard"),
         }
@@ -183,13 +198,23 @@ impl fmt::Display for Refusal {
     }
 }
 
+/// Every Command in the registry with the chords it is bound to, in id order;
+/// empty for a Command bound to none.
+pub type Bound = BTreeMap<&'static str, Vec<Chord>>;
+
 /// What a `[shortcuts]` table came to: the chords to install, and the entries
 /// that were refused.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Shortcuts {
-    /// Every Command in the registry with the chords it should be installed
-    /// with, in id order; empty for a Command that has none.
-    pub chords: BTreeMap<&'static str, Vec<Chord>>,
+    /// The chords to install, the file's entries over the registry's
+    /// defaults.
+    pub chords: Bound,
+    /// The line every entry the file bound is written as, by the Command it
+    /// names, so that a refusal made after this module has had its say — a
+    /// chord GDK has no key for, which only the app can find out
+    /// (`quill::chrome::install_chords`) — quotes the writer's whole entry.
+    /// A Command the file left alone is not in here.
+    pub entries: BTreeMap<&'static str, String>,
     /// One per refused entry, in the file's order.
     pub refusals: Vec<Refusal>,
 }
@@ -199,8 +224,13 @@ pub struct Shortcuts {
 #[must_use]
 pub fn read(table: &toml::Table) -> Shortcuts {
     let (accepted, refusals) = validate(table);
+    let entries = accepted
+        .keys()
+        .filter_map(|id| table.get(*id).map(|value| (*id, line(id, value))))
+        .collect();
     Shortcuts {
         chords: effective(COMMANDS, &accepted),
+        entries,
         refusals,
     }
 }
@@ -214,8 +244,8 @@ pub fn read(table: &toml::Table) -> Shortcuts {
 /// untouched Command still has, so the rule a writer can see in their own file
 /// is the whole of it.
 #[must_use]
-pub fn validate(table: &toml::Table) -> (BTreeMap<&'static str, Vec<Chord>>, Vec<Refusal>) {
-    let mut accepted: BTreeMap<&'static str, Vec<Chord>> = BTreeMap::new();
+pub fn validate(table: &toml::Table) -> (Bound, Vec<Refusal>) {
+    let mut accepted: Bound = BTreeMap::new();
     let mut refusals = Vec::new();
     let mut taken: BTreeMap<Chord, &'static str> = BTreeMap::new();
     for (id, value) in table {
@@ -244,10 +274,7 @@ pub fn validate(table: &toml::Table) -> (BTreeMap<&'static str, Vec<Chord>>, Vec
 /// out of the file restore that Command's default and an empty entry unbind
 /// it: nothing is remembered between two reads.
 #[must_use]
-pub fn effective(
-    defaults: &[Command],
-    accepted: &BTreeMap<&'static str, Vec<Chord>>,
-) -> BTreeMap<&'static str, Vec<Chord>> {
+pub fn effective(defaults: &[Command], accepted: &Bound) -> Bound {
     defaults
         .iter()
         .map(|command| {
@@ -308,7 +335,7 @@ const KEYBOARD_ONLY: &str = "Palette and keyboard only";
 /// and lets it be built again on every open rather than kept. A Command placed
 /// in two menus has a row in both, as it has a row in both menus.
 #[must_use]
-pub fn sections(chords: &BTreeMap<&'static str, Vec<Chord>>) -> Vec<Section> {
+pub fn sections(chords: &Bound) -> Vec<Section> {
     commands::MENUS
         .iter()
         .map(|menu| Section {
@@ -327,7 +354,7 @@ pub fn sections(chords: &BTreeMap<&'static str, Vec<Chord>>) -> Vec<Section> {
 
 /// One menu's groups: the View menu's six subsections, and one group holding
 /// the whole of a menu that has none.
-fn groups(menu: commands::Menu, chords: &BTreeMap<&'static str, Vec<Chord>>) -> Vec<Group> {
+fn groups(menu: commands::Menu, chords: &Bound) -> Vec<Group> {
     if menu == commands::Menu::View {
         return commands::VIEW_SECTIONS
             .iter()
@@ -358,10 +385,7 @@ fn placed(
 
 /// One row per Command in the order they come, each labelled with the first
 /// chord `chords` leaves it on.
-fn rows<'a>(
-    commands: impl Iterator<Item = &'a Command>,
-    chords: &BTreeMap<&'static str, Vec<Chord>>,
-) -> Vec<Shortcut> {
+fn rows<'a>(commands: impl Iterator<Item = &'a Command>, chords: &Bound) -> Vec<Shortcut> {
     commands
         .map(|command| Shortcut {
             title: command.title,
@@ -480,20 +504,31 @@ mod tests {
     }
 
     /// A refusal the app makes at install reads like one this module made: the
-    /// same entry, written the way the writer wrote it.
+    /// writer's whole entry, written the way the writer wrote it.
     ///
-    /// Held against a refusal of this module's over the same entry rather than
-    /// against a copy of the line, so that the two cannot drift apart.
+    /// Held against a refusal of this module's over an entry of the same shape
+    /// rather than against a copy of the line, so that the two cannot drift
+    /// apart. A Command the file never named is not in [`Shortcuts::entries`]
+    /// at all, so there is no entry to quote and nothing at install to refuse.
     #[test]
     fn a_chord_that_names_no_key_is_refused_in_the_writers_own_words() {
-        let entry = "\"library.toggle\" = [\"<Super>l\"]";
-        let refused = validate(&table(&format!("[shortcuts]\n{entry}\n")))
+        // An entry this module refuses itself, for the line it writes.
+        let refusable = "\"library.toggle\" = [\"F9\", \"<Super>l\"]";
+        let refused = validate(&table(&format!("[shortcuts]\n{refusable}\n")))
             .1
             .remove(0);
-        let chord = Chord::parse("<Super>l").expect("the shape of a chord");
-        let unknown = Refusal::unknown_key("library.toggle", &chord);
-        assert_eq!(unknown.line, refused.line);
+        assert_eq!(refused.line, refusable);
+        // The same entry with a chord only the app can refuse: the shape is
+        // one this module accepts, so the line it kept is what the app quotes.
+        let installable = "\"library.toggle\" = [\"F9\", \"<Control>frobnicate\"]";
+        let kept = read(&table(&format!("[shortcuts]\n{installable}\n")));
+        assert_eq!(kept.refusals, Vec::new());
+        assert_eq!(kept.entries.get("theme.toggle"), None);
+        let chord = Chord::parse("<Control>frobnicate").expect("the shape of a chord");
+        let unknown =
+            Refusal::unknown_key("library.toggle", &kept.entries["library.toggle"], &chord);
         assert_eq!(unknown.id, refused.id);
+        assert_eq!(unknown.line, installable, "the whole entry, not the chord");
         assert!(unknown.reason.contains(chord.as_str()), "{unknown:?}");
     }
 
@@ -667,7 +702,7 @@ mod tests {
 
     /// Every row the `Ctrl+?` window would show, title and accelerator, in the
     /// order the sections put them in.
-    fn listed(sections: &[Section]) -> Vec<(&'static str, String)> {
+    fn labelled(sections: &[Section]) -> Vec<(&'static str, String)> {
         sections
             .iter()
             .flat_map(|section| section.groups.iter())
@@ -685,7 +720,7 @@ mod tests {
         let rebinding = table(&text);
         let shortcuts = read(&rebinding);
         assert_eq!(shortcuts.refusals, Vec::new());
-        let rows = listed(&sections(&shortcuts.chords));
+        let rows = labelled(&sections(&shortcuts.chords));
         // The rows are found by title below, which only says what it means
         // while no two Commands share one.
         let titles: std::collections::BTreeSet<&str> =
@@ -748,7 +783,7 @@ mod tests {
         // A Command on no chord is a row all the same, with nothing in the
         // accelerator: the window is the whole table.
         assert_eq!(
-            listed(&sections)
+            labelled(&sections)
                 .iter()
                 .find(|(title, _)| *title == commands::by_id("file.duplicate").unwrap().title),
             Some(&("Duplicate Document", String::new()))
