@@ -128,6 +128,13 @@ any number of windows; the Editor, Preview and Stats belong to a window, the Lib
 the application. Plain GTK4 without libadwaita ([ADR 0009](adr/0009-plain-gtk4-without-libadwaita.md));
 theme `auto` follows the settings portal's colour scheme.
 
+Two windows besides: `Ctrl+?` is a `GtkShortcutsWindow` listing every Command with the chord the
+effective map leaves it on, grouped as the menus are and built afresh on every open; `Ctrl+,` is a
+Settings window, one grid of the rows that have no menu home — the Typewriter anchor, Follow System,
+the Spell-check language, a button that opens `settings.toml` in the system editor, and whatever the
+last read of that file refused. Both are transient for the window they were opened from, and no row
+of either sets a value on the session: a row writes the file and the watch below applies it.
+
 ## Settings
 
 One TOML file at `$XDG_CONFIG_HOME/quill/settings.toml` for what the writer chose; `$XDG_STATE_HOME/quill/`

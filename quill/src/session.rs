@@ -236,7 +236,6 @@ impl Session {
 
     /// What the last read of the settings file refused, one per entry it
     /// could not apply, in the file's order.
-    #[allow(dead_code)] // the Settings window's refused-lines row reads it (#125)
     pub fn refusals(&self) -> Ref<'_, Vec<Refusal>> {
         self.refusals.borrow()
     }
@@ -619,16 +618,42 @@ impl Session {
     /// and no write should quietly replace, and the Typewriter anchor with it,
     /// which nothing but the file itself can move.
     pub fn store_settings(&self) {
-        if self.harness && self.settings_path == Settings::path() {
-            // The flags a launch of the harness's carries are this launch's
-            // alone and have no business in the writer's file. A launch given
-            // `--settings` is reading and writing a file of its own, and that
-            // one it may write.
-            return;
-        }
         let Some(settings) = self.stored() else {
             return;
         };
+        self.write_settings(&settings);
+    }
+
+    /// Puts one setting the Settings window moved into the file, and leaves
+    /// applying it to the watch (#125).
+    ///
+    /// The window never sets a live value itself: a row moved here and the
+    /// same key edited in a text editor are one path from then on — the file
+    /// is saved, the watch reads it back a moment later, and
+    /// [`Session::apply`] puts the whole of it on to this launch. That is what
+    /// keeps the Typewriter anchor, which no key can move and nothing holds
+    /// live, in one place rather than two.
+    ///
+    /// `edit` is handed the settings this launch is running
+    /// ([`Session::running`]) rather than the ones it read, so that a row
+    /// written after a key was pressed carries what the key did with it.
+    pub fn edit_settings(&self, edit: impl FnOnce(&mut Settings)) {
+        let mut settings = self.running();
+        edit(&mut settings);
+        self.write_settings(&settings);
+    }
+
+    /// Writes `settings` to this launch's settings file, saying so on stderr
+    /// where it cannot be written, as every file here does.
+    ///
+    /// The one place the writer's own file is defended: the flags a launch of
+    /// the harness's carries are this launch's alone and have no business in
+    /// it. A launch given `--settings` is reading and writing a file of its
+    /// own, and that one it may write.
+    fn write_settings(&self, settings: &Settings) {
+        if self.harness && self.settings_path == Settings::path() {
+            return;
+        }
         if let Err(err) = settings.write_to(&self.settings_path) {
             eprintln!(
                 "quill: {}: cannot be written ({err})",
@@ -664,11 +689,7 @@ fn lines(notes: &[String], refusals: &[Refusal]) -> Vec<String> {
     notes
         .iter()
         .cloned()
-        .chain(
-            refusals
-                .iter()
-                .map(|refusal| format!("{}: {}", refusal.line, refusal.reason)),
-        )
+        .chain(refusals.iter().map(Refusal::to_string))
         .collect()
 }
 
