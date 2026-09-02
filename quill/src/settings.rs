@@ -297,16 +297,16 @@ mod tests {
         // The file's own line first, then the entry's, in the words the app
         // warns with.
         let unapplied = [
-            "is not TOML (TOML parse error at line 28, column 2); keeping the settings Quill \
-             is running on"
+            "is not TOML (line 28: duplicate key at \"library.toggle\"); keeping the settings \
+             Quill is running on"
                 .to_owned(),
             refusal.to_string(),
         ];
         assert_eq!(
             refused(&unapplied),
             Some(
-                "is not TOML (TOML parse error at line 28, column 2); keeping the settings \
-                 Quill is running on\n\
+                "is not TOML (line 28: duplicate key at \"library.toggle\"); keeping the \
+                 settings Quill is running on\n\
                  \"library.toggle\" = [\"<Super>l\"]: <Super>l belongs to the compositor"
                     .to_owned()
             )
