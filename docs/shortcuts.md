@@ -171,7 +171,10 @@ accelerator syntax:
   parse, a chord of the right shape naming a key the keyboard has none of, an off-limits chord, a
   `Super` or `Ctrl+Alt` chord, and a chord already taken earlier in the file (first entry keeps it).
   A refused entry leaves the default in place, whichever of these refused it and however many of its
-  chords were fine: the whole entry goes, never part of it.
+  chords were fine: the whole entry goes, never part of it. The same line is shown at the foot of the
+  Settings window (`Ctrl+,`), as is a file that is not TOML at all — one `[shortcuts]` header is the
+  table; a second header with the same name is what makes a file not TOML, and Quill writes none of
+  its own until there is an entry to put under it.
 - Menu labels, the Palette and the `Ctrl+?` window show the effective bindings, never the defaults.
 - The settings file is watched; a saved edit applies without a restart.
 - The Settings window has one row, "Keyboard shortcuts: edit settings.toml", that opens the file in

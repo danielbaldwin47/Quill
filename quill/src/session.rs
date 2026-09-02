@@ -240,6 +240,15 @@ impl Session {
         self.refusals.borrow()
     }
 
+    /// Everything the last read of the settings file could not apply, one
+    /// line each: what the file as a whole had to say — not TOML, a key with
+    /// no such value — and then the `[shortcuts]` entries it refused. The same
+    /// lines the app warns under `quill-settings`, for the Settings window,
+    /// which is where a writer with no terminal reads them.
+    pub fn unapplied(&self) -> Vec<String> {
+        lines(&self.notes.borrow(), &self.refusals.borrow())
+    }
+
     /// Puts a settings file read while Quill is running on to this launch.
     ///
     /// Everything the file carries, not only what moved: a file is written

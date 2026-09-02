@@ -132,7 +132,8 @@ Two windows besides: `Ctrl+?` is a `GtkShortcutsWindow` listing every Command wi
 effective map leaves it on, grouped as the menus are and built afresh on every open; `Ctrl+,` is a
 Settings window, one grid of the rows that have no menu home — the Typewriter anchor, Follow System,
 the Spell-check language, a button that opens `settings.toml` in the system editor, and whatever the
-last read of that file refused. Both are transient for the window they were opened from, and no row
+last read of that file could not apply — a file that is not TOML says so there, above the entries it
+refused. Both are transient for the window they were opened from, and no row
 of either sets a value on the session: a row writes the file and the watch below applies it.
 
 ## Settings
@@ -159,10 +160,15 @@ The settings file is watched with `notify` and a debouncer whose window is
 directory rather than the file, because a save is a write beside it and a rename over the top. The
 app drains the watch from its main context and re-reads the file whole: every setting applies
 without a restart, `[shortcuts]` included, and the flags of a launch that carries any stay over the
-top of what the file says. A file that is not TOML at all leaves the settings Quill is running on
-where they are; a line that cannot be applied is one `g_warning` under the domain `quill-settings`,
-said once per distinct line per version of the file, and never fatal. The Documents and the Library
-join the same watch when they are built.
+top of what the file says. Only a save is re-read: `notify` reports a file being opened as readily
+as one being written, so the watch sends a file on only when its length or write time has moved
+since it last did, read with a `stat` — an editor re-reading the file, and Quill's own re-read, are
+not saves. Every value a key can move is written to the file as the key is pressed, so that the
+file is never behind what is on screen and a re-read puts nothing back. A file that is not TOML
+at all leaves the settings Quill is running on where they are; a line that cannot be applied is one
+`g_warning` under the domain `quill-settings`, said once per distinct line per version of the file,
+and never fatal, and the Settings window shows the same lines. The Documents and the Library join
+the same watch when they are built.
 
 State, in `state.toml`: the size of each window and whether it was maximized or full screen, the last
 Document per window, caret position per recent Document, the recents list, `last_scheme` (the ground

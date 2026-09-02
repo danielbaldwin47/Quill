@@ -2300,6 +2300,11 @@ thread_local! {
     static TYPE_STYLE: RefCell<Option<gtk::CssProvider>> = const { RefCell::new(None) };
 }
 
+/// The theme GTK draws its own widgets with: GTK 4's built-in one, whose light
+/// and dark variants `gtk-interface-color-scheme` picks between, rather than
+/// whatever the desktop is set to ([`install_type`]).
+const GTK_THEME: &str = "Default";
+
 /// Names the type on the display: the Face, the size, the paper and the ink.
 ///
 /// The base font goes through CSS rather than through the buffer's tags so
@@ -2312,6 +2317,18 @@ pub fn install_type(scheme: Scheme, face: Face, step: u32) {
         // No display: nothing to style, and nothing that will draw text.
         return;
     };
+    // The widgets GTK draws for itself — the Settings window's rows, the
+    // `Ctrl+?` window, a dialog — are drawn by GTK's theme, which is the
+    // desktop's: on a desktop set to `Adwaita-dark` they came out light on
+    // dark over the paper the stylesheet below paints. So the theme is pinned
+    // to GTK's own and its variant follows the ground, as the stylesheet does.
+    if let Some(settings) = gtk::Settings::default() {
+        settings.set_gtk_theme_name(Some(GTK_THEME));
+        settings.set_gtk_interface_color_scheme(match scheme {
+            Scheme::Light => gtk::InterfaceColorScheme::Light,
+            Scheme::Dark => gtk::InterfaceColorScheme::Dark,
+        });
+    }
     TYPE_STYLE.with_borrow_mut(|held| {
         let provider = held.get_or_insert_with(|| {
             let provider = gtk::CssProvider::new();
