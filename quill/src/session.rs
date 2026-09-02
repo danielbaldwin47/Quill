@@ -254,7 +254,14 @@ impl Session {
     /// The ground is resolved rather than read ([`Session::set_theme`]),
     /// because a file that says `auto` is asking the desktop, which is the
     /// same question a launch asks itself.
-    pub fn apply(&self, settings: Settings) {
+    ///
+    /// Answers with whether anything moved — the file as this launch is
+    /// running it ([`Session::running`]), before against after — so that the
+    /// commonest save of all costs no repaint: the one Quill made itself,
+    /// writing a key press back to the file ([`Session::store_settings`]),
+    /// carries the values the live half is already holding.
+    pub fn apply(&self, settings: Settings) -> bool {
+        let before = self.running();
         let settings = self.flags.over(settings);
         self.step.set(settings.step);
         self.focus.set(settings.focus);
@@ -265,6 +272,7 @@ impl Session {
         let theme = settings.theme;
         self.settings.replace(settings);
         self.set_theme(theme);
+        self.running() != before
     }
 
     /// Takes down what the read of the settings file at launch said, which
@@ -562,8 +570,21 @@ impl Session {
     /// remembered: the keys a writer can press are the only things that can
     /// differ, and every one of them has been laid over the copy by then.
     fn stored(&self) -> Option<Settings> {
-        let read = self.settings.borrow();
-        let mut settings = read.clone();
+        let settings = self.running();
+        if settings == *self.settings.borrow() {
+            return None;
+        }
+        Some(settings)
+    }
+
+    /// The settings this launch is running now: what was read, with every
+    /// value a key can move laid over it.
+    ///
+    /// What the windows are showing, in one value, which is what makes
+    /// [`Session::apply`] able to say whether a saved edit moved anything they
+    /// would have to be told about.
+    fn running(&self) -> Settings {
+        let mut settings = self.settings.borrow().clone();
         settings.step = self.step.get();
         settings.theme = self.theme.get();
         settings.focus = self.focus.get();
@@ -571,10 +592,7 @@ impl Session {
         settings.typewriter = self.typewriter.get();
         settings.face = self.face.get();
         settings.chrome = self.chrome.get();
-        if settings == *read {
-            return None;
-        }
-        Some(settings)
+        settings
     }
 
     /// Writes `settings.toml` when this launch changed something in it.
@@ -702,10 +720,15 @@ fn reread(app: &gtk::Application, session: &Rc<Session>) {
         session.warn(Vec::new());
         return;
     };
-    session.apply(settings);
+    let moved = session.apply(settings);
+    // The chords are installed either way, because they are cheap and the map
+    // is the file's every time; the windows are told only when something they
+    // are showing moved.
     let refusals = crate::chrome::install_chords(app, session);
     session.warn(refusals);
-    crate::window::reapply(app, session);
+    if moved {
+        crate::window::reapply(app, session);
+    }
 }
 
 #[cfg(test)]
@@ -1219,6 +1242,43 @@ mod tests {
             session.stored().is_none(),
             "what was applied is what is in the file, so there is nothing to \
              write back over the writer's save"
+        );
+    }
+
+    /// The save Quill makes itself moves nothing, so no window is told.
+    ///
+    /// A mode key writes the file as it is pressed, and the watch reads that
+    /// write back a moment later. What comes back is what the windows are
+    /// already showing, and repainting every window a fifth of a second after
+    /// every `Ctrl+T` is the one thing the watch must not cost a writer.
+    #[test]
+    fn the_file_quill_wrote_itself_comes_back_having_moved_nothing() {
+        let path = fixture("written");
+        let session = pointed_at(&path);
+        session.toggle_typewriter();
+        session.toggle_focus();
+        session.store_settings();
+        let saved = session.read_again().expect("the file Quill wrote is TOML");
+        assert!(
+            !session.apply(saved),
+            "the values in it are the ones this launch is running"
+        );
+        assert_eq!(session.typewriter(), Typewriter::On(0.5));
+        assert!(
+            session.stored().is_none(),
+            "and what was read is now what is in the file"
+        );
+        std::fs::remove_dir_all(path.parent().expect("the fixture has a directory")).ok();
+    }
+
+    /// A hand's edit of the file moves something, and the windows are told.
+    #[test]
+    fn a_hand_edit_of_the_file_moves_what_the_windows_show() {
+        let session = writing(Settings::default());
+        assert!(session.apply(edited()), "everything in it moved");
+        assert!(
+            !session.apply(edited()),
+            "and saving it again moves nothing"
         );
     }
 
