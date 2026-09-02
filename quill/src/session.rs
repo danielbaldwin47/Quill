@@ -11,12 +11,14 @@
 //! A launch of the harness's ([`Flags::is_harness`]) is the same session with
 //! two files' worth of the writer's own removed. It reads their `settings.toml`,
 //! because a flag overrides a setting rather than replacing every setting, but
-//! it writes nothing to it; and it neither reads nor writes `state.toml`, so it
+//! it writes nothing to it — unless `--settings` pointed it at a file of its
+//! own, which it reads and writes instead ([`Session::settings_path`]); and it
+//! neither reads nor writes `state.toml`, so it
 //! opens at the shape its flags name rather than at the window a writer left,
 //! and the window a writer left is still there after a bench has run.
 
 use std::cell::{Cell, RefCell};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use quill_engine::focus::Focus;
@@ -35,6 +37,10 @@ pub struct Session {
     harness: bool,
     /// What the writer chose, with the flags over the top, as it was read.
     settings: Settings,
+    /// The file the settings were read from and are written back to: the
+    /// writer's own, or the one `--settings` named
+    /// ([`Session::settings_path`]).
+    settings_path: PathBuf,
     /// The step of the type ladder this launch is running at: the setting
     /// until the writer steps it, and then whatever they stepped it to. Held
     /// apart from [`Session::settings`] so that what was read stays readable,
@@ -96,12 +102,17 @@ impl Session {
     #[must_use]
     pub fn open(flags: Flags, portal: Option<Scheme>) -> Rc<Self> {
         let harness = flags.is_harness();
-        let (settings, notes) = if harness {
-            Settings::read_from(&Settings::path())
+        // A launch pointed at a settings file of its own owns that file: the
+        // rule that a launch of the harness's writes nothing is about the
+        // writer's own (`docs/architecture.md` § Command-line flags), which is
+        // the file a missing `--settings` leaves this reading and writing.
+        let path = settings_path(&flags);
+        let (settings, notes) = if harness && flags.settings.is_none() {
+            Settings::read_from(&path)
         } else {
-            Settings::open()
+            Settings::open_at(&path)
         };
-        report(&Settings::path(), &notes);
+        report(&path, &notes);
 
         // The windows the last session left are this session's opening shape,
         // and the list is cleared for the windows this one leaves. Nothing is
@@ -161,6 +172,7 @@ impl Session {
             stats: Cell::new(true),
             scheme: Cell::new(scheme),
             settings,
+            settings_path: settings_path(&flags),
             flags,
             harness,
             leaving: RefCell::new(state),
@@ -471,21 +483,35 @@ impl Session {
     /// and no write should quietly replace, and the Typewriter anchor with it,
     /// which nothing but the file itself can move.
     pub fn store_settings(&self) {
-        if self.harness {
+        if self.harness && self.settings_path == Settings::path() {
             // The flags a launch of the harness's carries are this launch's
-            // alone and have no business in the writer's file.
+            // alone and have no business in the writer's file. A launch given
+            // `--settings` is reading and writing a file of its own, and that
+            // one it may write.
             return;
         }
         let Some(settings) = self.stored() else {
             return;
         };
-        if let Err(err) = settings.write_to(&Settings::path()) {
+        if let Err(err) = settings.write_to(&self.settings_path) {
             eprintln!(
                 "quill: {}: cannot be written ({err})",
-                Settings::path().display()
+                self.settings_path.display()
             );
         }
     }
+
+    /// The settings file this launch reads and writes.
+    #[must_use]
+    pub fn settings_path(&self) -> &Path {
+        &self.settings_path
+    }
+}
+
+/// Where a launch reads and writes its settings: the file `--settings` names,
+/// and the writer's own where it names none.
+fn settings_path(flags: &Flags) -> PathBuf {
+    flags.settings.clone().unwrap_or_else(Settings::path)
 }
 
 /// Says what a file was worth saying, one line each, naming the file.
@@ -549,6 +575,39 @@ mod tests {
         );
         assert_eq!(session.toggle_chrome(), Chrome::Shown);
         assert!(session.stored().is_none(), "back where it was read");
+    }
+
+    /// A launch given `--settings` writes what a key moved to the file it was
+    /// given, though it is a launch of the harness's and so may not write the
+    /// writer's own.
+    #[test]
+    fn a_launch_given_a_settings_file_writes_that_one() {
+        let path = std::env::temp_dir().join(format!("quill-settings-{}.toml", std::process::id()));
+        std::fs::remove_file(&path).ok();
+        let flags = Flags {
+            settings: Some(path.clone()),
+            ..Flags::default()
+        };
+        assert!(
+            flags.is_harness(),
+            "a launch pointed at a settings file of its own is its own process"
+        );
+        let session = Session::launch(
+            flags,
+            Settings::default(),
+            State::default(),
+            WindowState::default(),
+            true,
+            None,
+        );
+        assert_eq!(session.settings_path(), path);
+        assert_ne!(session.settings_path(), Settings::path());
+        assert_eq!(session.toggle_chrome(), Chrome::Hidden);
+        session.store_settings();
+        let (written, notes) = Settings::read_from(&path);
+        assert_eq!(notes, Vec::<String>::new());
+        assert_eq!(written.chrome, Chrome::Hidden);
+        std::fs::remove_file(&path).ok();
     }
 
     /// View › Typeface picks a face, and the file follows it: Mono after the

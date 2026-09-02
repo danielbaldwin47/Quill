@@ -33,6 +33,7 @@ use std::path::{Path, PathBuf};
 
 pub use state::{STATE_FILE, State, WindowState, window_sizes};
 
+use crate::shortcuts;
 use reading::Reading;
 use writing::Writing;
 
@@ -402,8 +403,9 @@ pub struct Settings {
     pub preview_layout: PreviewLayout,
     /// The folder Quill was pointed at, or `None` until it is pointed at one.
     pub library: Option<PathBuf>,
-    /// Command id to chords, carried as written; validating and applying it is
-    /// the shortcut ticket's ([#44](https://github.com/danielbaldwin47/Quill/issues/44)).
+    /// Command id to chords, carried as written: an entry Quill refuses is
+    /// still the writer's line and survives the next write. What it comes to
+    /// is [`Settings::shortcuts`].
     pub shortcuts: toml::Table,
     /// Every key and table this Quill did not know, kept for the next write.
     rest: toml::Table,
@@ -448,14 +450,32 @@ impl Settings {
     /// note and a Quill running on the defaults.
     #[must_use]
     pub fn open() -> (Self, Vec<String>) {
-        let path = Self::path();
-        let (settings, mut notes) = Self::read_from(&path);
+        Self::open_at(&Self::path())
+    }
+
+    /// The same, of the file `path` names rather than the writer's own, which
+    /// is where a launch carrying `--settings` reads and writes
+    /// (`docs/architecture.md` § Command-line flags).
+    #[must_use]
+    pub fn open_at(path: &Path) -> (Self, Vec<String>) {
+        let (settings, mut notes) = Self::read_from(path);
         if !path.exists()
-            && let Err(err) = settings.write_to(&path)
+            && let Err(err) = settings.write_to(path)
         {
             notes.push(format!("cannot be written ({err}); using the defaults"));
         }
         (settings, notes)
+    }
+
+    /// The chords every Command should be installed with, and one refusal per
+    /// `[shortcuts]` entry that could not be applied.
+    ///
+    /// Read out of the table on every call rather than kept beside it, so that
+    /// re-reading the file is the whole of an apply: an entry taken out of it
+    /// restores that Command's default ([`shortcuts::effective`]).
+    #[must_use]
+    pub fn shortcuts(&self) -> shortcuts::Shortcuts {
+        shortcuts::read(&self.shortcuts)
     }
 
     /// Reads `path`, falling back to the defaults for anything it cannot.

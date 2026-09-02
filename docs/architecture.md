@@ -31,7 +31,8 @@ check), `typography` (the pitch, the measure, the 78-cell text container and its
 [ADR 0016](adr/0016-the-text-container-is-78-cells.md) — and the page margins), `theme` (the two
 grounds' colour table and the rule that resolves one, and the rule that reads a change of the
 desktop's against it), `commands` (`docs/shortcuts.md` as data: every Command with its chords
-and menu rows, and the reserved and off-limits chord lists). App modules mirror the Pieces and
+and menu rows, and the reserved and off-limits chord lists), `shortcuts` (the `[shortcuts]` table
+checked against that registry and overlaid on its defaults). App modules mirror the Pieces and
 features: `editor` (which also installs the display's stylesheet, where the engine table's colours
 are painted from), `caret`, `focus`,
 `typewriter`, `portal` (the settings portal: the desktop's colour scheme, read before the first frame
@@ -194,14 +195,17 @@ and the determinism settings, this document names the flags:
   slight hinting, no subpixel, 96 dpi, hinted metrics, no client-side decorations; and Typewriter
   off unless `--typewriter` is given, so the writer's `settings.toml` reaches no judged shot),
   `--measure <out.jsonl>` (key capture in the capture phase, `GdkFrameTimings` presentation times,
-  cold start against `QUILL_T0_NS`).
+  cold start against `QUILL_T0_NS`), `--settings <path>` (read and write settings in `<path>`, so a
+  run drives a fixture — a `[shortcuts]` table, a theme — without touching the writer's file).
 
 Every flag has a matching setting or a harness-only effect; none creates state a writer cannot reach.
 
 A launch carrying any of them is the harness's rather than a writer's, and that decides three things
 about it. It runs non-unique, so a judged shot or a bench is served by the process that was launched
 even when a writer's Quill is already open. It overrides the settings for that launch alone and
-writes nothing back to `settings.toml`. And it neither reads nor writes `state.toml`, so it opens at
+writes nothing back to `settings.toml` — the writer's own, which is the one thing `--settings` moves:
+a launch that names a settings file of its own reads and writes that file, and the writer's is left
+untouched either way. And it neither reads nor writes `state.toml`, so it opens at
 the shape its flags name rather than at the window a writer left, the same command line is the same
 window twice, and a bench at 1440×900 is not a writer resizing anything.
 
