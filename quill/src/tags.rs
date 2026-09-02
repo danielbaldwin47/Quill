@@ -609,7 +609,6 @@ mod tests {
     use quill_engine::theme::Scheme;
 
     use super::*;
-    use crate::ground::Ground;
 
     // These test the arithmetic the hang is built on. Nothing here makes a
     // `GtkTextTag`: `tools/gate check` runs `cargo test` with no display
@@ -622,7 +621,12 @@ mod tests {
     /// where the module now reads a colour from, and a second mapping here
     /// would be one that could disagree with the drawn page.
     fn hex(scheme: Scheme, ink: Ink) -> String {
-        annotate::colour(ink, Tier::Bright, &Ground::of(scheme).colours).to_hex()
+        annotate::colour(
+            ink,
+            Tier::Bright,
+            &crate::ground::Ground::of(scheme).colours,
+        )
+        .to_hex()
     }
 
     /// The judged step: the ladder's default, whose em is 21.33 logical
@@ -780,7 +784,7 @@ mod tests {
     #[test]
     fn the_three_inks_are_three_roles_of_the_ground() {
         for scheme in [Scheme::Light, Scheme::Dark] {
-            let colours = Ground::of(scheme).colours;
+            let colours = crate::ground::Ground::of(scheme).colours;
             assert_eq!(
                 [
                     hex(scheme, Ink::Prose),
@@ -829,7 +833,7 @@ mod tests {
     #[test]
     fn the_code_well_is_flattened_onto_the_ground_it_is_drawn_on() {
         for scheme in [Scheme::Light, Scheme::Dark] {
-            let colours = Ground::of(scheme).colours;
+            let colours = crate::ground::Ground::of(scheme).colours;
             let well = code_well(&colours);
             let wash = colours.colour(Role::CodeBg);
             assert!(wash.alpha < 1.0, "{scheme:?} code ground is not a wash");
@@ -844,8 +848,8 @@ mod tests {
             );
         }
         assert_ne!(
-            code_well(&Ground::of(Scheme::Light).colours),
-            code_well(&Ground::of(Scheme::Dark).colours)
+            code_well(&crate::ground::Ground::of(Scheme::Light).colours),
+            code_well(&crate::ground::Ground::of(Scheme::Dark).colours)
         );
     }
 

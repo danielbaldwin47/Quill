@@ -894,9 +894,9 @@ pub fn watch_settings(app: &gtk::Application, session: &Rc<Session>) {
 /// again on the settings file's next save rather than polled for, which is
 /// what [`Placed::NoDirectory`] leaves to the caller; a directory that cannot
 /// be watched at all is one line on stderr and the same retry.
-fn follow_palette(watch: &mut Watch, following: &mut Option<(PathBuf, Placed)>, session: &Session) {
+fn follow_palette(watch: &mut Watch, following: &mut Option<Following>, session: &Session) {
     let wanted = session.palette_path();
-    if let Some((path, placed)) = following {
+    if let Some(Following { path, placed }) = following {
         if Some(&*path) == wanted.as_ref() {
             if *placed == Placed::Listening {
                 return;
@@ -910,8 +910,16 @@ fn follow_palette(watch: &mut Watch, following: &mut Option<(PathBuf, Placed)>, 
             eprintln!("quill: {}: cannot be watched ({err})", path.display());
             Placed::NoDirectory
         });
-        (path, placed)
+        Following { path, placed }
     });
+}
+
+/// The palette file the watch was last pointed at, and how that went.
+struct Following {
+    /// The file, as the setting named it and the watch was asked for it.
+    path: PathBuf,
+    /// Whether its directory was there to be listened to.
+    placed: Placed,
 }
 
 /// Reads the settings file again and puts what it says on to this launch: the

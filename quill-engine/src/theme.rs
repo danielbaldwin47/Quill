@@ -567,13 +567,13 @@ impl Colours {
 /// [`Palette::parse`]; laid over a ground by [`Colours::overlaid`].
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Palette {
-    light: Ground,
-    dark: Ground,
+    light: Slots,
+    dark: Slots,
 }
 
 /// One ground's partial table: a slot per [`Role`], in [`Role::ALL`]'s order,
 /// filled where the file named the role.
-type Ground = [Option<Colour>; Role::ALL.len()];
+type Slots = [Option<Colour>; Role::ALL.len()];
 
 /// What the note says Quill does about a line it cannot read.
 const BUILT_IN: &str = "using the built-in colour";
@@ -627,20 +627,14 @@ impl Palette {
         self.ground(scheme)[index(role)]
     }
 
-    /// Whether the file named no colour at all, on either ground.
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        *self == Self::default()
-    }
-
-    fn ground(&self, scheme: Scheme) -> &Ground {
+    fn ground(&self, scheme: Scheme) -> &Slots {
         match scheme {
             Scheme::Light => &self.light,
             Scheme::Dark => &self.dark,
         }
     }
 
-    fn ground_mut(&mut self, scheme: Scheme) -> &mut Ground {
+    fn ground_mut(&mut self, scheme: Scheme) -> &mut Slots {
         match scheme {
             Scheme::Light => &mut self.light,
             Scheme::Dark => &mut self.dark,
@@ -652,8 +646,8 @@ impl Palette {
 ///
 /// The keys are walked from [`Role::ALL`] rather than from the table, which is
 /// what makes an unknown key nothing to remark on: it is never looked at.
-fn read_ground(scheme: Scheme, table: &toml::Table, notes: &mut Vec<String>) -> Ground {
-    let mut ground = Ground::default();
+fn read_ground(scheme: Scheme, table: &toml::Table, notes: &mut Vec<String>) -> Slots {
+    let mut ground = Slots::default();
     for role in Role::ALL {
         let Some(value) = table.get(role.key()) else {
             continue;
@@ -670,7 +664,7 @@ fn read_ground(scheme: Scheme, table: &toml::Table, notes: &mut Vec<String>) -> 
     ground
 }
 
-/// Where `role` sits in a [`Ground`]: its place in [`Role::ALL`].
+/// Where `role` sits in a [`Slots`]: its place in [`Role::ALL`].
 fn index(role: Role) -> usize {
     Role::ALL
         .iter()
@@ -1097,7 +1091,6 @@ mod tests {
         let (palette, notes) = Palette::parse("");
         assert!(notes.is_empty(), "{notes:?}");
         assert_eq!(palette, Palette::default());
-        assert!(palette.is_empty());
         for scheme in [Scheme::Light, Scheme::Dark] {
             assert_eq!(Colours::overlaid(scheme, &palette), Colours::of(scheme));
         }

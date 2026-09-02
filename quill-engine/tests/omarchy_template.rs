@@ -12,7 +12,9 @@
 //! beside it — the owner's gruvbox-dark theme as Omarchy wrote it — and asks
 //! the engine to read the result: no note, every role present under the table
 //! the theme's `mode` names, the other ground untouched, and each role the
-//! colour the mapping in #159 § The template promises. The rules are a
+//! colour its mapping promises: the thirteen #159 § The template names, and
+//! `link_rule`, which that list left out and the template chose for itself
+//! (#238). The rules are a
 //! re-statement, so the Hand test on the owner's desktop (#159) is the check
 //! that they are Omarchy's; what this test guards is the template drifting
 //! from the roles or from the contract without anyone noticing.
@@ -29,8 +31,10 @@ const TEMPLATE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../packaging/quill.
 /// `~/.local/state/omarchy/current/theme/`.
 const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/omarchy-colors.toml");
 
-/// The mapping #159 § The template promises: which theme key, or which blend,
-/// each role takes. A role missing here fails the test below by name.
+/// Which theme key, or which blend, each role takes: the thirteen #159 § The
+/// template names, and `link_rule` as the template's own choice, because the
+/// spec's list left it out (#238). A role missing here fails the test below
+/// by name.
 const MAPPING: [(Role, Source); 14] = [
     (Role::Paper, Source::Key("background")),
     (Role::Ink, Source::Key("foreground")),
@@ -74,17 +78,14 @@ fn the_template_renders_to_a_palette_the_engine_reads_without_a_note() {
         "the rendered template read with notes: {notes:?}\n{rendered}"
     );
 
-    let mode = theme["mode"].as_str();
-    let (written, untouched) = match mode {
-        "dark" => (Scheme::Dark, Scheme::Light),
-        "light" => (Scheme::Light, Scheme::Dark),
-        other => panic!("the sample's `mode` is `{other}`, neither `dark` nor `light`"),
-    };
+    let written = written(&theme);
+    let untouched = written.other();
     for role in Role::ALL {
         assert!(
             palette.colour(written, role).is_some(),
-            "`{}` is not in the rendered `[{mode}]` table",
-            role.key()
+            "`{}` is not in the rendered `[{}]` table",
+            role.key(),
+            theme["mode"]
         );
         assert_eq!(
             palette.colour(untouched, role),
@@ -103,10 +104,7 @@ fn every_role_takes_the_theme_colour_the_mapping_promises() {
         &theme,
     );
     let (palette, _) = Palette::parse(&rendered);
-    let scheme = match theme["mode"].as_str() {
-        "dark" => Scheme::Dark,
-        _ => Scheme::Light,
-    };
+    let scheme = written(&theme);
 
     let mut promised: Vec<Role> = MAPPING.iter().map(|(role, _)| *role).collect();
     promised.sort_by_key(|role| role.key());
@@ -125,6 +123,17 @@ fn every_role_takes_the_theme_colour_the_mapping_promises() {
             "`{}` is not `{expected}`",
             role.key()
         );
+    }
+}
+
+/// The ground the theme's `mode` names, which is the one table the template
+/// writes. A sample whose `mode` is neither is a broken fixture, not a light
+/// theme.
+fn written(theme: &BTreeMap<String, String>) -> Scheme {
+    match theme["mode"].as_str() {
+        "dark" => Scheme::Dark,
+        "light" => Scheme::Light,
+        other => panic!("the sample's `mode` is `{other}`, neither `dark` nor `light`"),
     }
 }
 
