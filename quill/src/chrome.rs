@@ -12,16 +12,23 @@
 //! render greyed. Two key controllers remain elsewhere and bind no chord: the
 //! harness's capture-phase stamp (`harness::watch`, #64) and the Editor's
 //! caret-kind controller (#107).
+//!
+//! The two bars are [`Bars`] (#120): a title bar above the page and a stats
+//! bar below it, in the Parity oracle's proportions (`legacy/app/css/chrome.css`),
+//! shown or hidden by the `chrome` setting, `--chrome` and `chrome.toggle`.
+//! Their colours are the engine's table; their geometry is the constants
+//! below, because a bar's height is widget geometry and not a colour.
 
+use std::cell::Cell;
 use std::rc::Rc;
 
 use gtk::prelude::*;
-use gtk::{gio, glib};
+use gtk::{cairo, gio, glib};
 use quill_engine::commands::{self, COMMANDS, Command, Kind, Scope};
 use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
-use quill_engine::settings::Choice;
-use quill_engine::theme::Scheme;
+use quill_engine::settings::{Choice, Chrome, FocusScope};
+use quill_engine::theme::{Colours, Role, Scheme};
 
 use crate::window::Window;
 
@@ -42,6 +49,8 @@ pub struct Modes {
     pub face: &'static str,
     /// The window fills the screen.
     pub fullscreen: bool,
+    /// The two bars are shown.
+    pub bars: bool,
 }
 
 impl Modes {
@@ -62,6 +71,7 @@ impl Modes {
             theme: session.theme().as_str(),
             face: session.settings().face.as_str(),
             fullscreen,
+            bars: session.chrome() == Chrome::Shown,
         }
     }
 }
@@ -178,6 +188,8 @@ pub fn reflect(map: &impl IsA<gio::ActionMap>, modes: Modes) {
     set("typewriter.toggle", modes.typewriter.to_variant());
     set("theme.toggle", modes.dark.to_variant());
     set("window.fullscreen", modes.fullscreen.to_variant());
+    // The row reads "Hide Bars", so its check is on when the bars are hidden.
+    set("chrome.toggle", (!modes.bars).to_variant());
     set("focus_scope", modes.focus_scope.to_variant());
     set("theme", modes.theme.to_variant());
     set("face", modes.face.to_variant());
@@ -201,6 +213,7 @@ fn run_window(window: &Window, command: &Command) {
         "focus.toggle" => window.toggle_focus(),
         "focus.swap" => window.swap_focus_scope(),
         "typewriter.toggle" => window.toggle_typewriter(),
+        "chrome.toggle" => window.toggle_bars(),
         "window.fullscreen" if window.is_fullscreen() => window.unfullscreen(),
         "window.fullscreen" => window.fullscreen(),
         "window.close" => window.close(),
@@ -208,6 +221,548 @@ fn run_window(window: &Window, command: &Command) {
     }
     if let Some(app) = window.application() {
         reflect_windows(&app);
+    }
+}
+
+// ---------------------------------------------------------------- the bars
+
+/// The title bar's height at scale 1 (`chrome.css` `--bar-top`).
+pub const TOP_HEIGHT: i32 = 32;
+/// The stats bar's height at scale 1 (`--bar-bottom`).
+pub const BOTTOM_HEIGHT: i32 = 26;
+/// A bar's side padding (`.chrome .bar { padding: 0 10px }`), which is where
+/// the View button's right edge stands.
+const BAR_PAD: i32 = 10;
+/// Where the Library toggle's left edge stands: `.lib-toggle { left: 8px }`,
+/// pinned rather than padded so the title stays centred on the window, plus
+/// the two pixels the frozen `bars` shot puts its icon right of that.
+const LIBRARY_LEFT: i32 = 10;
+/// A bar button's padding (`.chrome button { padding: 4px 6px }`).
+const BUTTON_PAD: (i32, i32) = (4, 6);
+/// A bar button's corner (`border-radius: 5px`).
+const BUTTON_RADIUS: i32 = 5;
+/// The title's type. `.doc-title` asks for `500 13px`, but `.chrome button`
+/// is the more specific rule and says `font: inherit`, so the oracle sets its
+/// title at the page's default 16 px, regular, and the frozen shot measures
+/// so; `letter-spacing: -0.005em` is the one part of the title's rule that
+/// survives.
+const TITLE_PX: f64 = 16.0;
+/// Between the title and the chevron that shows when its menu is open
+/// (`.doc-title { gap: 4px }`). The chevron is invisible at rest and still
+/// takes its space, which is why the oracle's title sits a little left of
+/// centre.
+const TITLE_GAP: i32 = 4;
+/// The stats' type: `font: 11px/1`, tabular figures.
+const STAT_PX: f64 = 11.0;
+/// Between the stats (`.bar { gap: 15px }`).
+const STAT_GAP: i32 = 15;
+/// Between the View button's icon and its chevron (`gap: 2px`, then
+/// `.chev { margin-left: 1px }`).
+const CHEVRON_GAP: (i32, i32) = (2, 1);
+/// The UI face, in the order `chrome.css` `--chrome-font` names it.
+const CHROME_FONT: &str = "\"Adwaita Sans\", \"Inter\", \"Noto Sans\", sans-serif";
+/// How long the bars take to fade (`.chrome { transition: opacity .28s ease }`).
+/// Under `--deterministic` GTK's animations are off and this is zero.
+const FADE_MS: u32 = 280;
+/// The reading pace the stats bar counts at (`chrome.js` `WPM`).
+const WORDS_PER_MINUTE: f64 = 238.0;
+
+/// A bar button's hover ground (`--hit`), per scheme. Not in the engine's
+/// table: it is a widget's ground and no annotator paints it.
+const fn hit(scheme: Scheme) -> &'static str {
+    match scheme {
+        Scheme::Light => "rgba(0, 0, 0, 0.06)",
+        Scheme::Dark => "rgba(255, 255, 255, 0.09)",
+    }
+}
+
+/// The bars' stylesheet, loaded with the type's ([`crate::editor::install_type`])
+/// so that a ground change reloads both together.
+///
+/// Everything the bars draw takes its colour from here, the icons and the
+/// rules through the widget's CSS `color`, so a scheme change is a stylesheet
+/// change and nothing else.
+pub fn stylesheet(scheme: Scheme) -> String {
+    let colours = Colours::of(scheme);
+    let fg = colours.colour(Role::ChromeFg).to_hex();
+    let strong = colours.colour(Role::ChromeFgStrong).to_hex();
+    let rule = colours.colour(Role::Rule).to_css();
+    let hit = hit(scheme);
+    let (pad_y, pad_x) = BUTTON_PAD;
+    // `-0.005em` of the title's size, since GTK's CSS takes a length.
+    let tracking = -0.005 * TITLE_PX;
+    format!(
+        ".chrome {{ color: {fg}; transition: opacity {FADE_MS}ms ease; }}\n\
+         .chrome button {{\n\
+         \x20 background: none; border: none; box-shadow: none; outline: none;\n\
+         \x20 text-shadow: none; -gtk-icon-shadow: none;\n\
+         \x20 min-height: 0; min-width: 0;\n\
+         \x20 padding: {pad_y}px {pad_x}px; border-radius: {BUTTON_RADIUS}px;\n\
+         \x20 color: {fg};\n\
+         }}\n\
+         .chrome button:hover {{ background-color: {hit}; }}\n\
+         .chrome button:active {{ background-color: {hit}; color: {strong}; }}\n\
+         .chrome label.chrome-title {{\n\
+         \x20 font-family: {CHROME_FONT}; font-size: {TITLE_PX}px; font-weight: normal;\n\
+         \x20 letter-spacing: {tracking}px;\n\
+         }}\n\
+         .chrome label.chrome-stat {{\n\
+         \x20 font-family: {CHROME_FONT}; font-size: {STAT_PX}px;\n\
+         \x20 font-feature-settings: \"tnum\"; color: {fg};\n\
+         }}\n\
+         .chrome .chrome-rule {{ color: {rule}; }}\n"
+    )
+}
+
+/// The two bars: the title bar above the page and the stats bar below it.
+///
+/// Both are plain boxes in a column with the Editor's scrolled window rather
+/// than a header bar or a menubar (ADR 0009), so that the page sits between
+/// them the way the oracle's does and hiding them gives the page the whole
+/// window. The title bar carries the Library toggle, the title button and
+/// the View button; the stats bar the count. The buttons fire their
+/// Commands' actions by name, so an action not yet built does nothing
+/// without greying the button.
+#[derive(Clone)]
+pub struct Bars {
+    top: gtk::Overlay,
+    bottom: gtk::Overlay,
+    title: gtk::Label,
+    stats: [gtk::Label; 3],
+    /// The hairline under the title bar, shown once the page has scrolled
+    /// past its top (`#chrome-top::after`).
+    over: gtk::DrawingArea,
+    /// The hairline above the stats bar, shown while the page continues
+    /// below it (`#chrome-bottom::before`).
+    under: gtk::DrawingArea,
+    /// The View button's rows, lit the way Focus lights them.
+    rows: gtk::DrawingArea,
+    focus: Rc<Cell<Focus>>,
+    scheme: Rc<Cell<Scheme>>,
+    /// The three counts the stats bar shows, kept so a scheme change can
+    /// re-ink them.
+    counts: Rc<Cell<[(usize, &'static str); 3]>>,
+}
+
+impl Default for Bars {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Bars {
+    /// Builds both bars, empty and on the light ground.
+    #[must_use]
+    pub fn new() -> Self {
+        let focus = Rc::new(Cell::new(Focus::Off));
+        let scheme = Rc::new(Cell::new(Scheme::Light));
+
+        let library = button(&[], icon(15, 15, library_icon), "win.library.toggle");
+        library.set_margin_start(LIBRARY_LEFT);
+
+        let title = gtk::Label::builder()
+            .css_classes(["chrome-title"])
+            .ellipsize(gtk::pango::EllipsizeMode::End)
+            .single_line_mode(true)
+            // The oracle centres the title's 16 px em box (`line-height: 1`)
+            // and GTK centres the face's taller ascent-plus-descent, which
+            // puts the baseline two pixels lower; the margin lifts it back.
+            .margin_bottom(4)
+            .build();
+        // The chevron the Document menu shows when open (`.caretdown`), at no
+        // ink until #121 opens one, and taking its space from the start.
+        let title_chevron = icon(9, 9, |area, cr| chevron_icon(area, cr, 1.0));
+        title_chevron.set_margin_start(TITLE_GAP);
+        title_chevron.set_opacity(0.0);
+        let title_content = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        title_content.append(&title);
+        title_content.append(&title_chevron);
+        let title_button = button(&["chrome-title"], title_content, "win.chrome.doc");
+
+        let lit = Rc::clone(&focus);
+        let rows = icon(15, 12, move |area, cr| rows_icon(area, cr, lit.get()));
+        let chevron = icon(9, 9, |area, cr| chevron_icon(area, cr, 0.5));
+        chevron.set_margin_start(CHEVRON_GAP.1);
+        // A pixel lower than centred, where the frozen shot has it.
+        chevron.set_margin_top(1);
+        let view_content = gtk::Box::new(gtk::Orientation::Horizontal, CHEVRON_GAP.0);
+        view_content.append(&rows);
+        view_content.append(&chevron);
+        let view = button(&[], view_content, "win.chrome.view");
+        view.set_margin_end(BAR_PAD);
+
+        let top_bar = gtk::CenterBox::builder()
+            .height_request(TOP_HEIGHT)
+            .hexpand(true)
+            .start_widget(&library)
+            .center_widget(&title_button)
+            .end_widget(&view)
+            .build();
+        let over = rule(gtk::Align::End);
+        let top = bar(&["chrome", "chrome-top"], &top_bar, &over);
+
+        let stats: [gtk::Label; 3] = std::array::from_fn(|_| {
+            gtk::Label::builder()
+                .css_classes(["chrome-stat"])
+                .use_markup(true)
+                .valign(gtk::Align::Center)
+                .build()
+        });
+        let line = gtk::Box::new(gtk::Orientation::Horizontal, STAT_GAP);
+        // Half a pixel up, for the reason the title's margin gives.
+        line.set_margin_bottom(1);
+        for stat in &stats {
+            line.append(stat);
+        }
+        let stats_button = button(&[], line, "win.chrome.stats");
+        let bottom_bar = gtk::CenterBox::builder()
+            .height_request(BOTTOM_HEIGHT)
+            .hexpand(true)
+            .center_widget(&stats_button)
+            .build();
+        let under = rule(gtk::Align::Start);
+        let bottom = bar(&["chrome", "chrome-bottom"], &bottom_bar, &under);
+
+        let bars = Self {
+            top,
+            bottom,
+            title,
+            stats,
+            over,
+            under,
+            rows,
+            focus,
+            scheme,
+            counts: Rc::new(Cell::new([(0, "words"), (0, "characters"), (0, "read")])),
+        };
+        bars.set_count("");
+        bars
+    }
+
+    /// The title bar, to put above the page.
+    #[must_use]
+    pub fn top(&self) -> &gtk::Widget {
+        self.top.upcast_ref()
+    }
+
+    /// The stats bar, to put below the page.
+    #[must_use]
+    pub fn bottom(&self) -> &gtk::Widget {
+        self.bottom.upcast_ref()
+    }
+
+    /// Shows both bars, or hides both: `--chrome`, the `chrome` setting and
+    /// `Ctrl+Shift+H`. Hidden bars take no space, so the page has the
+    /// window.
+    pub fn set_shown(&self, shown: bool) {
+        self.top.set_visible(shown);
+        self.bottom.set_visible(shown);
+    }
+
+    /// Whether the bars are shown.
+    #[must_use]
+    pub fn shown(&self) -> bool {
+        self.top.is_visible()
+    }
+
+    /// Names the Document in the title button.
+    pub fn set_title(&self, title: &str) {
+        self.title.set_text(title);
+    }
+
+    /// The title button's text.
+    #[must_use]
+    pub fn title(&self) -> glib::GString {
+        self.title.text()
+    }
+
+    /// Counts `text` into the stats bar: words, characters and reading time,
+    /// the oracle's default three fields.
+    ///
+    /// Counted here, once, as the Document is shown. #128 moves the rule into
+    /// `quill_engine::stats` and recounts on idle after a keystroke; until
+    /// then a keystroke leaves the count where the load put it.
+    pub fn set_count(&self, text: &str) {
+        let words = words(text);
+        let characters = text.chars().count();
+        self.counts.set([
+            (words, if words == 1 { "word" } else { "words" }),
+            (characters, "characters"),
+            (words, "read"),
+        ]);
+        self.ink_counts();
+    }
+
+    /// The stats bar's three cells, as `("188", "words")`.
+    #[must_use]
+    pub fn count(&self) -> [(String, &'static str); 3] {
+        let [(words, word), (characters, characters_label), (_, read)] = self.counts.get();
+        [
+            (grouped(words), word),
+            (grouped(characters), characters_label),
+            (reading_time(words), read),
+        ]
+    }
+
+    /// Lights the View button's rows the way Focus lights the page.
+    pub fn set_focus(&self, focus: Focus) {
+        self.focus.set(focus);
+        self.rows.queue_draw();
+    }
+
+    /// Re-inks the numbers for `scheme`. The rest of the bars follow the
+    /// stylesheet on their own.
+    pub fn set_scheme(&self, scheme: Scheme) {
+        self.scheme.set(scheme);
+        self.ink_counts();
+    }
+
+    /// Follows the page's scrolling: the hairlines stand where the page
+    /// continues past a bar (`chrome.js` `over`/`under`).
+    pub fn follow(&self, scroller: &gtk::ScrolledWindow) {
+        let adjustment = scroller.vadjustment();
+        let (over, under) = (self.over.clone(), self.under.clone());
+        adjustment.connect_value_changed(move |adjustment| scrolled(adjustment, &over, &under));
+        let (over, under) = (self.over.clone(), self.under.clone());
+        adjustment.connect_changed(move |adjustment| scrolled(adjustment, &over, &under));
+        scrolled(&adjustment, &self.over, &self.under);
+    }
+
+    /// Whether the hairline under the title bar and the one above the stats
+    /// bar are shown.
+    #[must_use]
+    pub fn rules(&self) -> (bool, bool) {
+        (self.over.is_visible(), self.under.is_visible())
+    }
+
+    /// Writes the counts into the labels: the number strong and the label in
+    /// the chrome's grey (`.stat b`).
+    fn ink_counts(&self) {
+        let strong = Colours::of(self.scheme.get())
+            .colour(Role::ChromeFgStrong)
+            .to_hex();
+        for (label, (number, name)) in self.stats.iter().zip(self.count()) {
+            let number = glib::markup_escape_text(&number);
+            label.set_markup(&format!(
+                "<span weight=\"500\" foreground=\"{strong}\">{number}</span> {name}"
+            ));
+        }
+    }
+}
+
+/// A bar: its content with a hairline laid over one edge.
+fn bar(classes: &[&str], content: &impl IsA<gtk::Widget>, rule: &gtk::DrawingArea) -> gtk::Overlay {
+    let overlay = gtk::Overlay::builder()
+        .css_classes(classes)
+        .child(content)
+        .build();
+    overlay.add_overlay(rule);
+    overlay
+}
+
+/// A bar button showing `child`, firing `action` when clicked.
+///
+/// Fired by name rather than bound with `set_action_name`, because GTK greys
+/// a button whose action is disabled and a Command not built yet is exactly
+/// that: the oracle's buttons stand at full ink whatever is behind them.
+fn button(classes: &[&str], child: impl IsA<gtk::Widget>, action: &'static str) -> gtk::Button {
+    let button = gtk::Button::builder()
+        .css_classes(classes)
+        .child(&child)
+        .valign(gtk::Align::Center)
+        .can_focus(false)
+        .focus_on_click(false)
+        .build();
+    button.connect_clicked(move |button| {
+        // A Command not built yet has a disabled action, and GTK answers a
+        // disabled action with `false`; that is the click doing nothing.
+        let _ = button.activate_action(action, None);
+    });
+    button
+}
+
+/// A hairline one device pixel high along `edge` of a bar
+/// (`transform: scaleY(.5)` of a 1 px rule), in the rule's colour, hidden
+/// until the page scrolls under it.
+fn rule(edge: gtk::Align) -> gtk::DrawingArea {
+    let rule = gtk::DrawingArea::builder()
+        .css_classes(["chrome-rule"])
+        .content_height(1)
+        .hexpand(true)
+        .valign(edge)
+        .visible(false)
+        .can_target(false)
+        .build();
+    rule.set_draw_func(move |area, cr, width, height| {
+        // Half a logical pixel is one device pixel at the Gate's scale, and
+        // with no antialiasing it is exactly one row.
+        cr.set_antialias(cairo::Antialias::None);
+        source(area, cr, 1.0);
+        let top = if edge == gtk::Align::Start {
+            0.0
+        } else {
+            f64::from(height) - 0.5
+        };
+        cr.rectangle(0.0, top, f64::from(width), 0.5);
+        let _ = cr.fill();
+    });
+    rule
+}
+
+/// An icon `width` by `height` logical pixels, drawn by `draw`, which takes
+/// its ink from the widget's CSS colour through [`source`].
+fn icon(
+    width: i32,
+    height: i32,
+    draw: impl Fn(&gtk::DrawingArea, &cairo::Context) + 'static,
+) -> gtk::DrawingArea {
+    let area = gtk::DrawingArea::builder()
+        .content_width(width)
+        .content_height(height)
+        .halign(gtk::Align::Center)
+        .valign(gtk::Align::Center)
+        .can_target(false)
+        .build();
+    area.set_draw_func(move |area, cr, _, _| draw(area, cr));
+    area
+}
+
+/// Sets the source to the widget's CSS `color` at `alpha` of it, which is how
+/// an icon or a rule takes the stylesheet's colour without being told it.
+fn source(area: &gtk::DrawingArea, cr: &cairo::Context, alpha: f64) {
+    // GTK 4.10 deprecated `color()` for reading the style through a snapshot;
+    // a draw function has no snapshot, and the property it reads is the one
+    // the stylesheet sets.
+    #[allow(deprecated)] // The one way to read CSS `color` inside a draw function.
+    let colour = area.color();
+    cr.set_source_rgba(
+        f64::from(colour.red()),
+        f64::from(colour.green()),
+        f64::from(colour.blue()),
+        f64::from(colour.alpha()) * alpha,
+    );
+}
+
+/// The Library toggle's icon (`files.js` `I.panel`): a 16-unit panel drawn
+/// at 15 px, a rounded frame with a divider a third of the way across.
+fn library_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
+    source(area, cr, 1.0);
+    cr.scale(15.0 / 16.0, 15.0 / 16.0);
+    cr.set_line_width(1.2);
+    rounded(cr, 1.6, 2.6, 12.8, 10.8, 2.2);
+    let _ = cr.stroke();
+    cr.move_to(6.4, 2.6);
+    cr.line_to(6.4, 13.4);
+    let _ = cr.stroke();
+}
+
+/// The View button's icon (`chrome.js` `rowsIcon`): four rows of text, lit
+/// the way Focus lights the page — an even block with Focus off, one row for
+/// a sentence, three for a paragraph.
+fn rows_icon(area: &gtk::DrawingArea, cr: &cairo::Context, focus: Focus) {
+    let lit = match focus {
+        Focus::Off => [0.5, 0.5, 0.5, 0.5],
+        Focus::On(FocusScope::Sentence) => [0.22, 1.0, 0.22, 0.22],
+        Focus::On(FocusScope::Paragraph) => [0.22, 1.0, 1.0, 1.0],
+    };
+    let widths = [15.0, 15.0, 15.0, 9.0];
+    for (row, (width, alpha)) in widths.into_iter().zip(lit).enumerate() {
+        source(area, cr, alpha);
+        rounded(cr, 0.0, 3.4 * row as f64, width, 1.6, 0.8);
+        let _ = cr.fill();
+    }
+}
+
+/// A chevron (`chrome.js` `CHEV`) at `alpha` of the ink: half beside the
+/// View icon (`.chev { opacity: .5 }`), whole beside the title.
+fn chevron_icon(area: &gtk::DrawingArea, cr: &cairo::Context, alpha: f64) {
+    source(area, cr, alpha);
+    cr.set_line_width(1.3);
+    cr.set_line_cap(cairo::LineCap::Round);
+    cr.set_line_join(cairo::LineJoin::Round);
+    cr.move_to(1.6, 3.3);
+    cr.line_to(4.5, 6.1);
+    cr.line_to(7.4, 3.3);
+    let _ = cr.stroke();
+}
+
+/// A rectangle with corners of `radius`, as a path.
+fn rounded(cr: &cairo::Context, x: f64, y: f64, width: f64, height: f64, radius: f64) {
+    use std::f64::consts::FRAC_PI_2;
+    cr.new_sub_path();
+    cr.arc(x + width - radius, y + radius, radius, -FRAC_PI_2, 0.0);
+    cr.arc(
+        x + width - radius,
+        y + height - radius,
+        radius,
+        0.0,
+        FRAC_PI_2,
+    );
+    cr.arc(
+        x + radius,
+        y + height - radius,
+        radius,
+        FRAC_PI_2,
+        2.0 * FRAC_PI_2,
+    );
+    cr.arc(
+        x + radius,
+        y + radius,
+        radius,
+        2.0 * FRAC_PI_2,
+        3.0 * FRAC_PI_2,
+    );
+    cr.close_path();
+}
+
+/// Shows each hairline where the page continues past its bar
+/// (`chrome.js:262-272`): `over` once scrolled more than two pixels past
+/// the top, `under` while more than two pixels of page remain below.
+fn scrolled(adjustment: &gtk::Adjustment, over: &gtk::DrawingArea, under: &gtk::DrawingArea) {
+    let value = adjustment.value();
+    over.set_visible(value > 2.0);
+    under.set_visible(value + adjustment.page_size() < adjustment.upper() - 2.0);
+}
+
+/// The oracle's word rule (`chrome.js` `count`): a run of non-whitespace
+/// with at least one letter or digit in it, counted over the raw text,
+/// Markdown included. #128 lands this in `quill_engine::stats`.
+fn words(text: &str) -> usize {
+    text.split_whitespace()
+        .filter(|token| token.chars().any(char::is_alphanumeric))
+        .count()
+}
+
+/// `n` with thousands separated, as `toLocaleString` writes it.
+fn grouped(n: usize) -> String {
+    let digits = n.to_string();
+    let mut out = String::with_capacity(digits.len() + digits.len() / 3);
+    for (i, digit) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(digit);
+    }
+    out
+}
+
+/// How long `words` take to read at [`WORDS_PER_MINUTE`], as the oracle's
+/// `readTime` writes it: under 45 seconds is `< 1 min`, then whole minutes,
+/// then hours and minutes.
+fn reading_time(words: usize) -> String {
+    let seconds = (words as f64 / WORDS_PER_MINUTE * 60.0).round();
+    if seconds < 45.0 {
+        return "< 1 min".to_owned();
+    }
+    let minutes = (seconds / 60.0).round() as u64;
+    if minutes < 60 {
+        return format!("{minutes} min");
+    }
+    let (hours, minutes) = (minutes / 60, minutes % 60);
+    if minutes == 0 {
+        format!("{hours} h")
+    } else {
+        format!("{hours} h {minutes} min")
     }
 }
 
@@ -316,10 +871,13 @@ mod tests {
             theme: "auto",
             face: "quattro",
             fullscreen: false,
+            bars: false,
         };
         reflect(&map, modes);
         let state = |name: &str| map.action_state(name).unwrap();
         assert_eq!(state("focus.toggle").get::<bool>(), Some(true));
+        // "Hide Bars" is ticked when the bars are hidden.
+        assert_eq!(state("chrome.toggle").get::<bool>(), Some(true));
         assert_eq!(state("typewriter.toggle").get::<bool>(), Some(false));
         assert_eq!(state("theme.toggle").get::<bool>(), Some(true));
         assert_eq!(
@@ -328,5 +886,68 @@ mod tests {
         );
         assert_eq!(state("theme").get::<String>().as_deref(), Some("auto"));
         assert_eq!(state("face").get::<String>().as_deref(), Some("quattro"));
+    }
+
+    #[test]
+    fn the_bars_key_reaches_its_action_now_that_the_bars_are_built() {
+        let (map, fired) = map(Scope::Win);
+        assert!(map.is_action_enabled("chrome.toggle"));
+        map.activate_action("chrome.toggle", None);
+        assert_eq!(fired.borrow().as_slice(), ["chrome.toggle"]);
+    }
+
+    /// The bars are the oracle's height (`chrome.css` `--bar-top`,
+    /// `--bar-bottom`), and their sheet is set in the table's greys for each
+    /// ground.
+    #[test]
+    fn the_bars_are_the_oracles_height_and_take_the_tables_greys() {
+        assert_eq!((TOP_HEIGHT, BOTTOM_HEIGHT), (32, 26));
+        for scheme in [Scheme::Light, Scheme::Dark] {
+            let sheet = stylesheet(scheme);
+            let colours = Colours::of(scheme);
+            for role in [Role::ChromeFg, Role::ChromeFgStrong] {
+                let hex = colours.colour(role).to_hex();
+                assert!(
+                    sheet.contains(&hex),
+                    "{scheme:?}: {role:?} {hex} in\n{sheet}"
+                );
+            }
+            let rule = colours.colour(Role::Rule).to_css();
+            assert!(sheet.contains(&rule), "{scheme:?}: the rule {rule}");
+            assert!(sheet.contains(&format!("{TITLE_PX}px")));
+            assert!(sheet.contains(&format!("{STAT_PX}px")));
+        }
+    }
+
+    /// The stats bar's three cells for `ref/sample.md` are the numbers the
+    /// oracle's frozen `bars` shot shows, and its empty Document's are the
+    /// `empty` shot's.
+    #[test]
+    fn the_count_is_the_oracles_for_the_sample_and_for_nothing() {
+        let sample =
+            std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../ref/sample.md"))
+                .expect("ref/sample.md");
+        assert_eq!(words(&sample), 188);
+        assert_eq!(sample.chars().count(), 961);
+        assert_eq!(reading_time(words(&sample)), "1 min");
+        assert_eq!(words(""), 0);
+        assert_eq!(reading_time(0), "< 1 min");
+        // A lone `#` is not a word; `**bold**` is.
+        assert_eq!(words("# Title\n\n**bold** — text"), 3);
+        assert_eq!(words("one"), 1);
+    }
+
+    #[test]
+    fn numbers_are_grouped_and_times_written_the_way_the_oracle_writes_them() {
+        assert_eq!(grouped(0), "0");
+        assert_eq!(grouped(961), "961");
+        assert_eq!(grouped(1_234), "1,234");
+        assert_eq!(grouped(1_234_567), "1,234,567");
+        // 176 words are 44 seconds at 238 a minute; 177 are 45.
+        assert_eq!(reading_time(176), "< 1 min");
+        assert_eq!(reading_time(177), "1 min");
+        assert_eq!(reading_time(2_380), "10 min");
+        assert_eq!(reading_time(14_280), "1 h");
+        assert_eq!(reading_time(15_470), "1 h 5 min");
     }
 }

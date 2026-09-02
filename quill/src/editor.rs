@@ -2291,7 +2291,11 @@ pub fn install_type(scheme: Scheme, face: Face, step: u32) {
             );
             provider
         });
-        provider.load_from_string(&stylesheet(scheme, face, typography::em(step)));
+        // The bars' sheet rides with the type's, so the two grounds — the
+        // page's and the chrome's — change in the one reload.
+        let mut sheet = stylesheet(scheme, face, typography::em(step));
+        sheet.push_str(&crate::chrome::stylesheet(scheme));
+        provider.load_from_string(&sheet);
     });
 }
 

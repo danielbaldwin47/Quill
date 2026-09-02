@@ -23,7 +23,7 @@ use gtk::subclass::prelude::*;
 use gtk::{gio, glib};
 use quill_engine::document::Document;
 use quill_engine::focus::Focus;
-use quill_engine::settings::WindowState;
+use quill_engine::settings::{Chrome, WindowState};
 use quill_engine::theme::Scheme;
 
 use crate::caret;
@@ -41,6 +41,7 @@ mod imp {
     use gtk::{ScrolledWindow, glib};
     use quill_engine::document::{Document, Edit};
 
+    use crate::chrome::Bars;
     use crate::editor::Editor;
     use crate::session::Session;
 
@@ -52,6 +53,8 @@ mod imp {
         /// remembered in.
         pub session: RefCell<Option<Rc<Session>>>,
         pub editor: Editor,
+        /// The title bar above the Editor and the stats bar below it.
+        pub bars: Bars,
         /// What the edit now going through the buffer changed, left here by
         /// the handler that spliced the Document for the one that retags.
         pub pending: RefCell<Option<Edit>>,
@@ -75,7 +78,15 @@ mod imp {
                 .hscrollbar_policy(gtk::PolicyType::Never)
                 .child(&self.editor)
                 .build();
-            window.set_child(Some(&scroller));
+            // A column, the bars taking their space above and below the page
+            // as the oracle's do (`chrome.css` `.chrome { flex: none }`): a
+            // bar fading takes its ink away and leaves its space.
+            let column = gtk::Box::new(gtk::Orientation::Vertical, 0);
+            column.append(self.bars.top());
+            column.append(&scroller);
+            column.append(self.bars.bottom());
+            self.bars.follow(&scroller);
+            window.set_child(Some(&column));
         }
     }
 
@@ -119,10 +130,18 @@ impl Window {
         // carries and a tag is drawn in a colour: the ground has to be settled
         // before the first thing painted on it.
         window.imp().editor.open_on(session.scheme());
+        window.imp().bars.set_scheme(session.scheme());
         // And with it, because `--focus` names a state the first frame is
         // meant to show: the tiers are worked out inside the same draw that
         // puts the Document on the page.
         window.imp().editor.open_focused_on(session.focus());
+        window.imp().bars.set_focus(session.focus());
+        // The bars stand or not before the Document is shown, so the page is
+        // laid out once, at the height it will keep.
+        window
+            .imp()
+            .bars
+            .set_shown(session.chrome() == Chrome::Shown);
         // And Typewriter with them, so that `--typewriter`'s first frame holds
         // the caret's row at the anchor rather than travelling to it.
         window.imp().editor.set_typewriter(session.typewriter());
@@ -280,6 +299,7 @@ impl Window {
         self.move_windows(move_it, |window, focus| {
             let document = window.imp().document.borrow();
             window.imp().editor.set_focus(focus, &document);
+            window.imp().bars.set_focus(focus);
         });
     }
 
@@ -314,7 +334,20 @@ impl Window {
         self.imp().document.replace(document);
         let document = self.imp().document.borrow();
         self.set_title(Some(&document.title()));
+        self.imp().bars.set_title(&document.title());
+        self.imp().bars.set_count(document.text());
         self.imp().editor.show_document(&document);
+    }
+
+    /// Hides the two bars, or shows them again.
+    ///
+    /// `docs/shortcuts.md`'s `chrome.toggle` row. The session remembers the
+    /// value and every window's bars follow, for the reason
+    /// [`Window::move_windows`] gives.
+    pub(crate) fn toggle_bars(&self) {
+        self.move_windows(Session::toggle_chrome, |window, chrome| {
+            window.imp().bars.set_shown(chrome == Chrome::Shown);
+        });
     }
 
     /// Tells the Editor whether this window has the keyboard, now and after.
@@ -477,6 +510,7 @@ pub fn repaint(app: &gtk::Application, session: &Session, scheme: Scheme) {
     reset(app, session, |window| {
         let document = window.imp().document.borrow();
         window.imp().editor.set_scheme(scheme, &document);
+        window.imp().bars.set_scheme(scheme);
     });
     chrome::reflect_windows(app);
 }

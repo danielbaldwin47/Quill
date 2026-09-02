@@ -185,7 +185,11 @@ and the determinism settings, this document names the flags:
 
 - Judged state: `--text <file>`, `--theme light|dark`, `--font duo|quattro|mono`, `--step <n>`,
   `--focus off|sentence|paragraph`, `--typewriter`, `--chrome on|off`, `--caret <offset>|end`,
-  `--select <from>,<to>`, `--scroll <fraction>`, `--nocaret`, `--w <px> --h <px>`.
+  `--select <from>,<to>`, `--scroll <fraction>`, `--nocaret`, `--typing` (the chrome as it is
+  inside the 500 ms after a keystroke: the title bar gone, the stats bar dimmed), `--menu
+  view|document|stats|palette` (that menu, or the Palette, open with its first row selected),
+  `--w <px> --h <px>`. Both `--typing` and `--menu` name a state the app is put in before the
+  first frame, never one it is driven into after it.
 - Harness: `--deterministic` (animations off, blink off, manual font rendering with pinned antialias,
   slight hinting, no subpixel, 96 dpi, hinted metrics, no client-side decorations),
   `--measure <out.jsonl>` (key capture in the capture phase, `GdkFrameTimings` presentation times,
