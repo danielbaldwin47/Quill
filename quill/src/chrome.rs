@@ -223,6 +223,17 @@ fn run_app(app: &gtk::Application, command: &Command) {
     }
 }
 
+/// The menu a Command opens, for the two that open one: `chrome.doc` the
+/// Document menu under the title, `chrome.view` (`F10`) the View menu. The
+/// Stats menu has no Command of its own; a click on the stats bar opens it.
+pub(crate) fn opens(id: &str) -> Option<Menu> {
+    match id {
+        "chrome.doc" => Some(Menu::Document),
+        "chrome.view" => Some(Menu::View),
+        _ => None,
+    }
+}
+
 /// The window's Commands, each reaching the code its key reached before
 /// #119, then every window's actions set to what moved.
 fn run_window(window: &Window, command: &Command) {
@@ -244,8 +255,11 @@ fn run_window(window: &Window, command: &Command) {
         "typewriter.toggle" => window.toggle_typewriter(),
         "chrome.toggle" => window.toggle_bars(),
         "chrome.stats" => window.toggle_stats(),
-        "chrome.doc" => window.open_menu(Menu::Document),
-        "chrome.view" => window.open_menu(Menu::View),
+        "chrome.doc" | "chrome.view" => {
+            if let Some(menu) = opens(command.id) {
+                window.open_menu(menu);
+            }
+        }
         "palette.open" => window.open_palette(),
         "window.fullscreen" if window.is_fullscreen() => window.unfullscreen(),
         "window.fullscreen" => window.fullscreen(),
@@ -270,8 +284,15 @@ const BAR_PAD: i32 = 10;
 /// pinned rather than padded so the title stays centred on the window, plus
 /// the two pixels the frozen `bars` shot puts its icon right of that.
 const LIBRARY_LEFT: i32 = 10;
+/// A padding or a margin, as CSS writes a pair: vertical then horizontal.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Pad {
+    pub(crate) y: i32,
+    pub(crate) x: i32,
+}
+
 /// A bar button's padding (`.chrome button { padding: 4px 6px }`).
-const BUTTON_PAD: (i32, i32) = (4, 6);
+const BUTTON_PAD: Pad = Pad { y: 4, x: 6 };
 /// A bar button's corner (`border-radius: 5px`).
 const BUTTON_RADIUS: i32 = 5;
 /// The title's type. `.doc-title` asks for `500 13px`, but `.chrome button`
@@ -289,9 +310,10 @@ const TITLE_GAP: i32 = 4;
 const STAT_PX: f64 = 11.0;
 /// Between the stats (`.bar { gap: 15px }`).
 const STAT_GAP: i32 = 15;
-/// Between the View button's icon and its chevron (`gap: 2px`, then
-/// `.chev { margin-left: 1px }`).
-const CHEVRON_GAP: (i32, i32) = (2, 1);
+/// Between the View button's icon and its chevron (`gap: 2px`).
+const CHEVRON_GAP: i32 = 2;
+/// What the chevron adds to that gap of its own (`.chev { margin-left: 1px }`).
+const CHEVRON_MARGIN: i32 = 1;
 /// The title's chevron while its menu is open (`.caretdown` at `.55`).
 const CHEVRON_OPEN: f64 = 0.55;
 /// The UI face, in the order `chrome.css` `--chrome-font` names it.
@@ -329,8 +351,10 @@ const fn hit(scheme: Scheme) -> &'static str {
 
 // --------------------------------------------------------------- the menus
 
-/// A menu's narrowest and widest (`.menu { min-width: 178px; max-width: 300px }`).
-const MENU_WIDTH: (i32, i32) = (178, 300);
+/// A menu's narrowest (`.menu { min-width: 178px }`). Its widest, `max-width:
+/// 300px`, has no GTK CSS to go in: a label's ellipsis is what a long row
+/// would need, and no row of the table's is.
+const MENU_MIN_WIDTH: i32 = 178;
 /// A menu's padding above its first row and below its last (`padding: 4px 0`).
 const MENU_PAD: i32 = 4;
 /// A menu's corner (`border-radius: 6px`).
@@ -338,29 +362,97 @@ const MENU_RADIUS: i32 = 6;
 /// A menu's type (`font: 12.5px/1`).
 const MENU_PX: f64 = 12.5;
 /// Below the button a menu opens under (`menu()`: the button's bottom plus
-/// four), and above the stats bar the Stats menu opens over (its top less
-/// three).
-const MENU_GAP: (i32, i32) = (4, 3);
+/// four).
+const MENU_GAP_BELOW: i32 = 4;
+/// Above the stats bar the Stats menu opens over (its top less three).
+const MENU_GAP_ABOVE: i32 = 3;
 /// A row's height (`.menu .row { height: 19px }`).
 const ROW_HEIGHT: i32 = 19;
 /// A row's side margin inside the menu (`margin: 0 4px`).
 const ROW_MARGIN: i32 = 4;
-/// A row's padding: `padding: 0 8px 0 19px`, the left of it the tick's
-/// column, which a row with no tick (`.flush`) does without.
+/// A row's padding on the right (`padding: 0 8px 0 19px`); the left of it
+/// is [`TICK_COLUMN`], which a row with no tick (`.flush`) does without.
 const ROW_PAD: i32 = 8;
+/// The column a ticked row's label stands in from: the `19px` of the row's
+/// padding, which the tick sits inside.
+const TICK_COLUMN: i32 = 19;
 /// A row's corner (`border-radius: 4px`).
 const ROW_RADIUS: i32 = 4;
-/// The tick: `.tick { left: 4px }`, ten by eight, so the label stands
-/// nineteen in from the row's edge.
-const TICK: (i32, i32, i32) = (4, 10, 8);
-/// The chord's type and its distance from the label (`.keys { margin-left:
-/// 16px; font-size: 11.5px }`).
-const KEYS: (i32, f64) = (16, 11.5);
+
+/// The tick's place in its column.
+struct Tick {
+    /// Its inset from the row's edge (`.tick { left: 4px }`).
+    left: i32,
+    width: i32,
+    height: i32,
+}
+
+/// The tick: four in, ten by eight.
+const TICK: Tick = Tick {
+    left: 4,
+    width: 10,
+    height: 8,
+};
+
+/// A chord label's distance from its row's label, and its type.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Keys {
+    pub(crate) gap: i32,
+    pub(crate) px: f64,
+}
+
+/// The chord's type and its distance from the label, in a menu row and a
+/// Palette row alike (`.keys { margin-left: 16px; font-size: 11.5px }`).
+pub(crate) const KEYS: Keys = Keys { gap: 16, px: 11.5 };
+
 /// A separator: one pixel high, `margin: 4px 8px`.
-const SEP_MARGIN: (i32, i32) = (4, 8);
-/// A section heading: `padding: 6px 10px 3px; font-size: 10px; weight 600;
-/// letter-spacing .06em`, upper case.
-const HEAD: (i32, i32, i32, f64) = (6, 10, 3, 10.0);
+const SEP_MARGIN: Pad = Pad { y: 4, x: 8 };
+
+/// A section heading's padding and type.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Head {
+    pub(crate) top: i32,
+    pub(crate) x: i32,
+    pub(crate) bottom: i32,
+    pub(crate) px: f64,
+}
+
+impl Head {
+    /// The heading's `letter-spacing: .06em`, as the length GTK's CSS takes.
+    pub(crate) fn tracking(self) -> f64 {
+        0.06 * self.px
+    }
+
+    /// The heading's type, as the declarations the menus' and the Palette's
+    /// heading rules share: `weight 600`, tracked, upper case set by the
+    /// label, in the dim ink.
+    pub(crate) fn type_declarations(self, dim: &str) -> String {
+        let px = self.px;
+        let tracking = self.tracking();
+        format!("font-size: {px}px; font-weight: 600; letter-spacing: {tracking}px; color: {dim};")
+    }
+}
+
+/// A menu's section heading (`padding: 6px 10px 3px; font-size: 10px`).
+const HEAD: Head = Head {
+    top: 6,
+    x: 10,
+    bottom: 3,
+    px: 10.0,
+};
+
+/// `letter-spacing: -0.005em` of a `px` type, as the length GTK's CSS takes:
+/// the title's and the Palette's field's.
+pub(crate) fn tracking(px: f64) -> f64 {
+    -0.005 * px
+}
+
+/// The chord label's declarations, the same in a menu row's `accelerator`
+/// and a Palette row's keys label: the dim ink, [`KEYS`]' type and gap.
+pub(crate) fn keys_declarations(dim: &str) -> String {
+    let Keys { gap, px } = KEYS;
+    format!("color: {dim}; font-size: {px}px; margin-left: {gap}px;")
+}
 /// GTK's own check glyph, the one shape its theme ships; recoloured to the
 /// row's ink where the oracle draws its tick path.
 const TICK_GLYPH: &str = "resource:///org/gtk/libgtk/theme/Default/assets/check-symbolic.svg";
@@ -414,25 +506,31 @@ fn menu_stylesheet(scheme: Scheme) -> String {
         selected,
         shadow,
     } = menu_ink(scheme);
-    // GTK's CSS has no `max-width`; a label's ellipsis (`.label` in the
-    // oracle) is what a long row would need, and no row of the table's is.
-    let (min_width, _) = MENU_WIDTH;
-    let (tick_left, tick_width, tick_height) = TICK;
+    let Tick {
+        left: tick_left,
+        width: tick_width,
+        height: tick_height,
+    } = TICK;
     // The tick's column: the row's padding less the tick's inset, then the
-    // tick, then what is left of the nineteen.
+    // tick, then what is left of the column.
     let tick_before = tick_left - ROW_PAD;
-    let tick_after = 19 - tick_left - tick_width;
-    let (keys_gap, keys_px) = KEYS;
-    let (sep_y, sep_x) = SEP_MARGIN;
-    let (head_top, head_x, head_bottom, head_px) = HEAD;
-    let head_tracking = 0.06 * head_px;
+    let tick_after = TICK_COLUMN - tick_left - tick_width;
+    let keys = keys_declarations(dim);
+    let Pad { y: sep_y, x: sep_x } = SEP_MARGIN;
+    let Head {
+        top: head_top,
+        x: head_x,
+        bottom: head_bottom,
+        ..
+    } = HEAD;
+    let head = HEAD.type_declarations(dim);
     format!(
         "popover.chrome-menu {{ font-family: {CHROME_FONT}; font-size: {MENU_PX}px; }}\n\
          popover.chrome-menu > contents {{\n\
          \x20 background-color: {ground}; color: {ink};\n\
          \x20 border: 1px solid {border}; border-radius: {MENU_RADIUS}px;\n\
          \x20 box-shadow: {shadow}; padding: {MENU_PAD}px 0;\n\
-         \x20 min-width: {min_width}px;\n\
+         \x20 min-width: {MENU_MIN_WIDTH}px;\n\
          }}\n\
          popover.chrome-menu modelbutton {{\n\
          \x20 min-height: {ROW_HEIGHT}px; min-width: 0;\n\
@@ -442,7 +540,7 @@ fn menu_stylesheet(scheme: Scheme) -> String {
          popover.chrome-menu modelbutton:disabled {{ color: {dim}; }}\n\
          popover.chrome-menu modelbutton:selected {{ background-color: {selected}; color: white; }}\n\
          popover.chrome-menu modelbutton:selected accelerator {{ color: rgba(255, 255, 255, 0.8); }}\n\
-         popover.chrome-menu accelerator {{ color: {dim}; font-size: {keys_px}px; margin-left: {keys_gap}px; }}\n\
+         popover.chrome-menu accelerator {{ {keys} }}\n\
          popover.chrome-menu modelbutton check, popover.chrome-menu modelbutton radio {{\n\
          \x20 min-width: {tick_width}px; min-height: {tick_height}px;\n\
          \x20 margin: 0 {tick_after}px 0 {tick_before}px; padding: 0;\n\
@@ -456,8 +554,7 @@ fn menu_stylesheet(scheme: Scheme) -> String {
          popover.chrome-menu modelbutton arrow {{ min-width: {tick_width}px; min-height: {tick_width}px; opacity: 0.5; }}\n\
          popover.chrome-menu separator {{ min-height: 1px; margin: {sep_y}px {sep_x}px; background: {border}; }}\n\
          popover.chrome-menu label.title {{\n\
-         \x20 padding: {head_top}px {head_x}px {head_bottom}px; font-size: {head_px}px;\n\
-         \x20 font-weight: 600; letter-spacing: {head_tracking}px; color: {dim};\n\
+         \x20 padding: {head_top}px {head_x}px {head_bottom}px; {head}\n\
          }}\n"
     )
 }
@@ -474,9 +571,8 @@ pub fn stylesheet(scheme: Scheme) -> String {
     let strong = colours.colour(Role::ChromeFgStrong).to_hex();
     let rule = colours.colour(Role::Rule).to_css();
     let hit = hit(scheme);
-    let (pad_y, pad_x) = BUTTON_PAD;
-    // `-0.005em` of the title's size, since GTK's CSS takes a length.
-    let tracking = -0.005 * TITLE_PX;
+    let Pad { y: pad_y, x: pad_x } = BUTTON_PAD;
+    let tracking = tracking(TITLE_PX);
     let fade_ms = fade_ms();
     let (title_faded, stats_faded) = (typing::TITLE_FADED, typing::STATS_FADED);
     format!(
@@ -534,12 +630,30 @@ pub struct Bars {
     menus: [gtk::PopoverMenu; 3],
     /// Whether the bars are shown at all, and whether the stats bar is
     /// while they are.
-    shown: Rc<Cell<(bool, bool)>>,
+    shown: Rc<Cell<Shown>>,
     focus: Rc<Cell<Focus>>,
     scheme: Rc<Cell<Scheme>>,
     /// The three counts the stats bar shows, kept so a scheme change can
     /// re-ink them.
     counts: Rc<Cell<[(usize, &'static str); 3]>>,
+}
+
+/// The bars' two switches: whether they are shown at all, and whether the
+/// stats bar is while they are.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct Shown {
+    bars: bool,
+    stats: bool,
+}
+
+/// One answer for each bar: the title bar's above the page, the stats bar's
+/// below it.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Edges {
+    /// The title bar's.
+    pub top: bool,
+    /// The stats bar's.
+    pub bottom: bool,
 }
 
 impl Default for Bars {
@@ -580,10 +694,10 @@ impl Bars {
         let lit = Rc::clone(&focus);
         let rows = icon(15, 12, move |area, cr| rows_icon(area, cr, lit.get()));
         let chevron = icon(9, 9, |area, cr| chevron_icon(area, cr, 0.5));
-        chevron.set_margin_start(CHEVRON_GAP.1);
+        chevron.set_margin_start(CHEVRON_MARGIN);
         // A pixel lower than centred, where the frozen shot has it.
         chevron.set_margin_top(1);
-        let view_content = gtk::Box::new(gtk::Orientation::Horizontal, CHEVRON_GAP.0);
+        let view_content = gtk::Box::new(gtk::Orientation::Horizontal, CHEVRON_GAP);
         view_content.append(&rows);
         view_content.append(&chevron);
         let view = button(&[], view_content, Some("win.chrome.view"));
@@ -649,7 +763,10 @@ impl Bars {
             under,
             rows,
             menus,
-            shown: Rc::new(Cell::new((true, true))),
+            shown: Rc::new(Cell::new(Shown {
+                bars: true,
+                stats: true,
+            })),
             focus,
             scheme,
             counts: Rc::new(Cell::new([(0, "words"), (0, "characters"), (0, "read")])),
@@ -703,15 +820,15 @@ impl Bars {
     /// Shows the stats bar, or hides it, while the bars are shown:
     /// `chrome.stats`.
     pub fn set_stats_shown(&self, shown: bool) {
-        let (bars, _) = self.shown.get();
-        self.shown.set((bars, shown));
+        let bars = self.shown.get().bars;
+        self.shown.set(Shown { bars, stats: shown });
         self.apply_shown();
     }
 
     /// Whether the stats bar is shown while the bars are.
     #[must_use]
     pub fn stats_shown(&self) -> bool {
-        self.shown.get().1
+        self.shown.get().stats
     }
 
     /// Takes the menus off their buttons, for the buttons' disposal: a
@@ -738,8 +855,8 @@ impl Bars {
     /// `Ctrl+Shift+H`. Hidden bars take no space, so the page has the
     /// window.
     pub fn set_shown(&self, shown: bool) {
-        let (_, stats) = self.shown.get();
-        self.shown.set((shown, stats));
+        let stats = self.shown.get().stats;
+        self.shown.set(Shown { bars: shown, stats });
         self.apply_shown();
     }
 
@@ -752,7 +869,7 @@ impl Bars {
     /// Puts the two switches on the widgets: the title bar follows the
     /// bars, the stats bar follows both.
     fn apply_shown(&self) {
-        let (bars, stats) = self.shown.get();
+        let Shown { bars, stats } = self.shown.get();
         self.top.set_visible(bars);
         self.bottom.set_visible(bars && stats);
     }
@@ -786,13 +903,13 @@ impl Bars {
         }
     }
 
-    /// Which bars are stepped back: the title bar, the stats bar.
+    /// Which bars are stepped back.
     #[must_use]
-    pub fn faded(&self) -> (bool, bool) {
-        (
-            self.top.has_css_class("faded"),
-            self.bottom.has_css_class("faded"),
-        )
+    pub fn faded(&self) -> Edges {
+        Edges {
+            top: self.top.has_css_class("faded"),
+            bottom: self.bottom.has_css_class("faded"),
+        }
     }
 
     /// Counts `text` into the stats bar: words, characters and reading time,
@@ -847,11 +964,14 @@ impl Bars {
         scrolled(&adjustment, &self.over, &self.under);
     }
 
-    /// Whether the hairline under the title bar and the one above the stats
-    /// bar are shown.
+    /// Which hairlines are shown: the one under the title bar, the one above
+    /// the stats bar.
     #[must_use]
-    pub fn rules(&self) -> (bool, bool) {
-        (self.over.is_visible(), self.under.is_visible())
+    pub fn rules(&self) -> Edges {
+        Edges {
+            top: self.over.is_visible(),
+            bottom: self.under.is_visible(),
+        }
     }
 
     /// Writes the counts into the labels: the number strong and the label in
@@ -924,10 +1044,9 @@ fn popover(
     popover.set_has_arrow(false);
     popover.set_position(position);
     popover.set_halign(align);
-    let (below, above) = MENU_GAP;
     let gap = match position {
-        gtk::PositionType::Top => above,
-        _ => below,
+        gtk::PositionType::Top => MENU_GAP_ABOVE,
+        _ => MENU_GAP_BELOW,
     };
     popover.set_offset(0, gap);
     popover.set_parent(button);
@@ -974,16 +1093,22 @@ const fn slot(menu: Menu) -> usize {
     }
 }
 
-/// A hairline one device pixel high along `edge` of a bar
-/// (`transform: scaleY(.5)` of a 1 px rule), in the rule's colour, hidden
-/// until the page scrolls under it.
+/// A bar's hairline (`transform: scaleY(.5)` of a 1 px rule), in the rule's
+/// colour, hidden until the page scrolls under it.
 fn rule(edge: gtk::Align) -> gtk::DrawingArea {
+    hairline("chrome-rule", edge, false)
+}
+
+/// A hairline one device pixel high along `edge` of the widget it is put
+/// in, taking its colour from `class`'s CSS `color`: the bars' rules and the
+/// Palette's line under its field.
+pub(crate) fn hairline(class: &str, edge: gtk::Align, visible: bool) -> gtk::DrawingArea {
     let rule = gtk::DrawingArea::builder()
-        .css_classes(["chrome-rule"])
+        .css_classes([class])
         .content_height(1)
         .hexpand(true)
         .valign(edge)
-        .visible(false)
+        .visible(visible)
         .can_target(false)
         .build();
     rule.set_draw_func(move |area, cr, width, height| {
@@ -1307,6 +1432,21 @@ mod tests {
         assert_eq!(fired.borrow().as_slice(), ["chrome.toggle"]);
     }
 
+    /// `F10` opens the View menu: the chord reaches `chrome.view`, whose
+    /// Command opens that menu and no other; `chrome.doc` opens the
+    /// Document menu; a Command that opens no menu answers none.
+    #[test]
+    fn f10_reaches_the_command_that_opens_the_view_menu() {
+        let (map, fired) = map(Scope::Win);
+        let reached = commands::by_chord("F10").expect("F10 is in the table");
+        assert_eq!(reached.id, "chrome.view");
+        map.activate_action(reached.id, None);
+        assert_eq!(fired.borrow().as_slice(), ["chrome.view"]);
+        assert_eq!(opens("chrome.view"), Some(Menu::View));
+        assert_eq!(opens("chrome.doc"), Some(Menu::Document));
+        assert_eq!(opens("chrome.stats"), None);
+    }
+
     /// The bars are the oracle's height (`chrome.css` `--bar-top`,
     /// `--bar-bottom`), and their sheet is set in the table's greys for each
     /// ground.
@@ -1338,7 +1478,8 @@ mod tests {
         let sample =
             std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../ref/sample.md"))
                 .expect("ref/sample.md");
-        assert_eq!(words(&sample), 188);
+        // The count itself is `quill_engine::stats`' test; this one holds
+        // the two cells the bar makes of it.
         assert_eq!(sample.chars().count(), 961);
         assert_eq!(reading_time(words(&sample)), "1 min");
         assert_eq!(words(""), 0);

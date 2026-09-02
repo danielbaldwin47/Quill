@@ -14,7 +14,7 @@ use std::rc::Rc;
 
 use gtk::prelude::*;
 use gtk::{cairo, gdk, glib};
-use quill_engine::commands::{Command, Kind};
+use quill_engine::commands::Command;
 use quill_engine::palette::{self as engine, Row};
 use quill_engine::theme::Scheme;
 
@@ -23,33 +23,81 @@ use crate::menus;
 
 /// How far down the window the panel's top sits (`.palette { top: 13vh }`).
 const TOP: f64 = 0.13;
-/// The panel's width, and what it keeps clear of the window's edges when
-/// the window is narrower (`width: min(460px, 100vw - 48px)`).
-const WIDTH: (i32, i32) = (460, 48);
+/// The panel's width (`width: min(460px, 100vw - 48px)`).
+const WIDTH: i32 = 460;
+/// What the panel keeps clear of the window's edges, together, when the
+/// window is narrower than [`WIDTH`] plus this.
+const KEEP_CLEAR: i32 = 48;
 /// The panel's corner (`border-radius: 10px`).
 const RADIUS: i32 = 10;
-/// The search field: its height, its side padding and the gap between the
-/// magnifier and the entry (`.palette-field { height: 42px; padding: 0 13px;
-/// gap: 8px }`).
-const FIELD: (i32, i32, i32) = (42, 13, 8);
+
+/// The search field's measure (`.palette-field { height: 42px; padding: 0
+/// 13px; gap: 8px }`).
+struct Field {
+    height: i32,
+    /// Its side padding.
+    pad: i32,
+    /// Between the magnifier and the entry.
+    gap: i32,
+}
+
+const FIELD: Field = Field {
+    height: 42,
+    pad: 13,
+    gap: 8,
+};
+
 /// The magnifier's side (`MAG`, thirteen by thirteen).
 const MAG: i32 = 13;
 /// The entry's type (`font: 15px/1`, `letter-spacing: -0.005em`).
 const ENTRY_PX: f64 = 15.0;
-/// The list's padding above its first row and below its last, and the most
-/// of it that shows before it scrolls (`padding: 5px 0 6px; max-height:
-/// min(46vh, 320px)`).
-const LIST: (i32, i32, i32) = (5, 6, 320);
-/// A row: its height, its side margin, its side padding, its corner and its
-/// type (`height: 24px; margin: 0 5px; padding: 0 9px; border-radius: 5px;
-/// font-size: 12.5px`).
-const ROW: (i32, i32, i32, i32, f64) = (24, 5, 9, 5, 12.5);
-/// The chord's distance from the label and its type (`.keys { margin-left:
-/// 16px; font-size: 11.5px }`).
-const KEYS: (i32, f64) = (16, 11.5);
-/// A section heading: `padding: 9px 14px 3px` (the first `3px` above),
-/// `font-size: 10px; weight 600; letter-spacing .06em`, upper case.
-const HEAD: (i32, i32, i32, f64) = (9, 14, 3, 10.0);
+
+/// The list's measure (`padding: 5px 0 6px; max-height: min(46vh, 320px)`).
+struct List {
+    /// Above its first row.
+    top: i32,
+    /// Below its last.
+    bottom: i32,
+    /// The most of it that shows before it scrolls.
+    max: i32,
+}
+
+const LIST: List = List {
+    top: 5,
+    bottom: 6,
+    max: 320,
+};
+
+/// A row's measure (`height: 24px; margin: 0 5px; padding: 0 9px;
+/// border-radius: 5px; font-size: 12.5px`).
+struct RowRule {
+    height: i32,
+    /// Its side margin.
+    margin: i32,
+    /// Its side padding.
+    pad: i32,
+    /// Its corner.
+    radius: i32,
+    /// Its type.
+    px: f64,
+}
+
+const ROW: RowRule = RowRule {
+    height: 24,
+    margin: 5,
+    pad: 9,
+    radius: 5,
+    px: 12.5,
+};
+
+/// A section heading: `padding: 9px 14px 3px` (the first `3px` above), the
+/// menus' type ([`chrome::Head`]).
+const HEAD: chrome::Head = chrome::Head {
+    top: 9,
+    x: 14,
+    bottom: 3,
+    px: 10.0,
+};
 /// A heading's line in pixels. A browser's normal line box for 10 px of
 /// the face is 11.5, and GTK rounds a row's height up and the line to a
 /// whole pixel, so the line is set a pixel and a half short to land the
@@ -57,7 +105,29 @@ const HEAD: (i32, i32, i32, f64) = (9, 14, 3, 10.0);
 const HEAD_LINE: f64 = 10.0;
 /// The line shown when nothing matches (`.palette-empty { padding: 12px
 /// 14px 14px }`).
-const EMPTY: (i32, i32, i32) = (12, 14, 14);
+struct Empty {
+    top: i32,
+    x: i32,
+    bottom: i32,
+}
+
+const EMPTY: Empty = Empty {
+    top: 12,
+    x: 14,
+    bottom: 14,
+};
+
+/// `length` as whole pixels: the panel's top down the window, a heading's
+/// line in Pango units, the pointer's row. Rounded here and only here, in
+/// the shape of `quill::tags::pixels`.
+fn pixels(length: f64) -> i32 {
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "a window's height, a heading's line and a pointer's y are a few thousand at most"
+    )]
+    let whole = length.round() as i32;
+    whole
+}
 
 /// The Palette's stylesheet, appended to the menus'.
 ///
@@ -80,12 +150,27 @@ pub fn stylesheet(scheme: Scheme) -> String {
     // part in 255 of shadow takes away. At 18 px the tail is paper before
     // the caret and the shadow reads the same to the eye.
     let shadow = shadow.replace("24px", "18px").replace("30px", "22px");
-    let tracking = -0.005 * ENTRY_PX;
-    let (row_height, row_margin, row_pad, row_radius, row_px) = ROW;
-    let (keys_gap, keys_px) = KEYS;
-    let (head_top, head_x, head_bottom, head_px) = HEAD;
-    let head_tracking = 0.06 * head_px;
-    let (empty_top, empty_x, empty_bottom) = EMPTY;
+    let tracking = chrome::tracking(ENTRY_PX);
+    let RowRule {
+        height: row_height,
+        margin: row_margin,
+        pad: row_pad,
+        radius: row_radius,
+        px: row_px,
+    } = ROW;
+    let keys = chrome::keys_declarations(dim);
+    let chrome::Head {
+        top: head_top,
+        x: head_x,
+        bottom: head_bottom,
+        ..
+    } = HEAD;
+    let head = HEAD.type_declarations(dim);
+    let Empty {
+        top: empty_top,
+        x: empty_x,
+        bottom: empty_bottom,
+    } = EMPTY;
     format!(
         "popover.chrome-palette {{ font-family: {CHROME_FONT}; font-size: {row_px}px; }}\n\
          popover.chrome-palette > contents {{\n\
@@ -114,14 +199,12 @@ pub fn stylesheet(scheme: Scheme) -> String {
          }}\n\
          popover.chrome-palette list > row:selected label {{ color: white; }}\n\
          popover.chrome-palette list > row:selected label.palette-keys {{ color: rgba(255, 255, 255, 0.82); }}\n\
-         popover.chrome-palette label.palette-keys {{ color: {dim}; font-size: {keys_px}px; margin-left: {keys_gap}px; }}\n\
+         popover.chrome-palette label.palette-keys {{ {keys} }}\n\
          popover.chrome-palette list > row.palette-head {{\n\
          \x20 min-height: 0; margin: 0; padding: {head_top}px {head_x}px {head_bottom}px; border-radius: 0;\n\
          }}\n\
          popover.chrome-palette list > row.palette-head:first-child {{ padding-top: {head_bottom}px; }}\n\
-         popover.chrome-palette list > row.palette-head label {{\n\
-         \x20 font-size: {head_px}px; font-weight: 600; letter-spacing: {head_tracking}px; color: {dim};\n\
-         }}\n\
+         popover.chrome-palette list > row.palette-head label {{ {head} }}\n\
          popover.chrome-palette list > row.palette-empty {{\n\
          \x20 min-height: 0; margin: 0; padding: {empty_top}px {empty_x}px {empty_bottom}px; border-radius: 0; color: {dim};\n\
          }}\n"
@@ -145,7 +228,11 @@ pub struct Palette {
 impl Palette {
     /// Builds the Palette under `window`, closed.
     pub fn new(window: &impl IsA<gtk::Widget>) -> Self {
-        let (field_height, field_pad, field_gap) = FIELD;
+        let Field {
+            height: field_height,
+            pad: field_pad,
+            gap: field_gap,
+        } = FIELD;
         let mag = chrome::icon(MAG, MAG, magnifier_icon);
         mag.add_css_class("palette-mag");
         // A plain entry rather than GTK's search entry, whose own magnifier
@@ -168,7 +255,11 @@ impl Palette {
         field.append(&mag);
         field.append(&entry);
 
-        let (list_top, list_bottom, list_max) = LIST;
+        let List {
+            top: list_top,
+            bottom: list_bottom,
+            max: list_max,
+        } = LIST;
         let list = gtk::ListBox::builder()
             .selection_mode(gtk::SelectionMode::Single)
             .activate_on_single_click(true)
@@ -184,14 +275,13 @@ impl Palette {
             .child(&list)
             .build();
 
-        let (width, _) = WIDTH;
         let panel = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
             // Inside the panel's one-pixel border on either side.
-            .width_request(width - 2)
+            .width_request(WIDTH - 2)
             .build();
         panel.append(&field);
-        panel.append(&hairline());
+        panel.append(&chrome::hairline("palette-rule", gtk::Align::Start, true));
         panel.append(&scroller);
 
         let popover = gtk::Popover::builder()
@@ -259,7 +349,7 @@ impl Palette {
         let motion = gtk::EventControllerMotion::new();
         let hovered = self.clone();
         motion.connect_motion(move |_, _, y| {
-            let Some(row) = hovered.list.row_at_y(y as i32) else {
+            let Some(row) = hovered.list.row_at_y(pixels(y)) else {
                 return;
             };
             let at = hovered
@@ -292,10 +382,8 @@ impl Palette {
             return;
         }
         self.modes.set(modes);
-        let (width, keep_clear) = WIDTH;
-        let height = window.height();
-        let top = (f64::from(height) * TOP).round() as i32;
-        let width = width.min(window.width() - keep_clear);
+        let top = pixels(f64::from(window.height()) * TOP);
+        let width = WIDTH.min(window.width() - KEEP_CLEAR);
         if let Some(panel) = self.popover.child().and_downcast::<gtk::Box>() {
             panel.set_width_request(width - 2);
         }
@@ -399,31 +487,27 @@ impl Palette {
     }
 
     /// Runs the selected row's Command and closes; a row not built does
-    /// nothing, as its chord does nothing.
+    /// nothing at all, as its chord does nothing, and the Palette stays up.
     fn run_selected(&self) {
-        let command = self
-            .rows
-            .borrow()
-            .get(self.selected.get())
-            .map(|(_, command)| *command);
-        let Some(command) = command else {
+        let Some(command) = self.selected_command() else {
             return;
         };
-        self.close();
         if !command.built {
             return;
         }
-        match command.kind {
-            Kind::Radio { group, value } => {
-                let _ = self.popover.activate_action(
-                    &format!("{}.{group}", command.scope.prefix()),
-                    Some(&value.to_variant()),
-                );
-            }
-            Kind::Plain | Kind::Check => {
-                let _ = self.popover.activate_action(&command.action(), None);
-            }
-        }
+        self.close();
+        let (action, target) = command.action_and_target();
+        let _ = self
+            .popover
+            .activate_action(&action, target.map(ToVariant::to_variant).as_ref());
+    }
+
+    /// The Command of the selected row, if a row is selected.
+    fn selected_command(&self) -> Option<&'static Command> {
+        self.rows
+            .borrow()
+            .get(self.selected.get())
+            .map(|(_, command)| *command)
     }
 }
 
@@ -437,7 +521,7 @@ fn heading(text: &str) -> gtk::ListBoxRow {
     // ascent plus descent, 14, which would put every row below 2.5 px lower
     // than the oracle's.
     let attributes = gtk::pango::AttrList::new();
-    let units = (HEAD_LINE * f64::from(gtk::pango::SCALE)).round() as i32;
+    let units = pixels(HEAD_LINE * f64::from(gtk::pango::SCALE));
     attributes.insert(gtk::pango::AttrInt::new_line_height_absolute(units));
     label.set_attributes(Some(&attributes));
     gtk::ListBoxRow::builder()
@@ -523,24 +607,6 @@ fn key_label(command: &Command) -> Option<String> {
     let accel = command.accels().into_iter().next()?;
     let (key, modifiers) = gtk::accelerator_parse(&accel)?;
     Some(gtk::accelerator_get_label(key, modifiers).to_string())
-}
-
-/// The hairline between the field and the list (`border-bottom: .5px`):
-/// one device pixel at the Gate's scale, the way the bars' rules are drawn.
-fn hairline() -> gtk::DrawingArea {
-    let rule = gtk::DrawingArea::builder()
-        .css_classes(["palette-rule"])
-        .content_height(1)
-        .hexpand(true)
-        .can_target(false)
-        .build();
-    rule.set_draw_func(|area, cr, width, _| {
-        cr.set_antialias(cairo::Antialias::None);
-        chrome::source(area, cr, 1.0);
-        cr.rectangle(0.0, 0.0, f64::from(width), 0.5);
-        let _ = cr.fill();
-    });
-    rule
 }
 
 /// The magnifier (`chrome.js` `MAG`): a circle and a handle, stroked 1.4.

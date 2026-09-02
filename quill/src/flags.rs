@@ -34,6 +34,7 @@ use std::fmt;
 use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 
+use quill_engine::commands;
 use quill_engine::settings::{
     Choice, Chrome, Face, FocusScope, Settings, WindowState, window_sizes,
 };
@@ -92,25 +93,19 @@ const CHROMES: [(&str, Chrome); 2] = [("on", Chrome::Shown), ("off", Chrome::Hid
 /// What `--menu` takes: the three menus and the Palette, by the names
 /// `shots/oracle/states.json` uses for them.
 const MENUS: [(&str, Menu); 4] = [
-    ("view", Menu::View),
-    ("document", Menu::Document),
-    ("stats", Menu::Stats),
+    ("view", Menu::Bar(commands::Menu::View)),
+    ("document", Menu::Bar(commands::Menu::Document)),
+    ("stats", Menu::Bar(commands::Menu::Stats)),
     ("palette", Menu::Palette),
 ];
 
-/// What `--menu` opens before the first frame, its first row selected.
-///
-/// Parsed since #120 so that a judged state naming it is never refused for
-/// being early; the View, Document and Stats menus open in #121 and the
-/// Palette in #122.
+/// What `--menu` opens before the first frame, its first row selected: one
+/// of the bars' three menus, or the Palette.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Menu {
-    /// The View menu, which `F10` opens.
-    View,
-    /// The Document menu, under the title.
-    Document,
-    /// The Stats menu, above the stats bar.
-    Stats,
+    /// A menu under a bar button: the View menu (`F10`), the Document menu
+    /// under the title, or the Stats menu above the stats bar.
+    Bar(commands::Menu),
     /// The Palette, which `Ctrl+K` opens.
     Palette,
 }
@@ -189,7 +184,8 @@ pub struct Flags {
     /// Whether `--nocaret` asked for no caret at all.
     pub nocaret: bool,
     /// Whether `--typing` asked for the chrome as it is inside the 500 ms
-    /// after a keystroke. Carried since #120; the chrome steps back in #128.
+    /// after a keystroke: the title bar gone, the stats bar dimmed, held
+    /// there ([`crate::chrome::typing::Typing::from_flags`]).
     pub typing: bool,
     /// What `--menu` asked to have open before the first frame.
     pub menu: Option<Menu>,
@@ -197,7 +193,10 @@ pub struct Flags {
     pub width: Option<u32>,
     /// The window height `--h` names, in pixels.
     pub height: Option<u32>,
-    /// Whether `--deterministic` asked for the Gate's settings.
+    /// Whether `--deterministic` asked for the Gate's settings: the
+    /// rendering [`crate::harness`] pins, and Typewriter off unless
+    /// `--typewriter` is given, so the writer's file reaches no judged shot
+    /// ([`Flags::over`]).
     pub deterministic: bool,
     /// The file `--measure` writes its capture into.
     pub measure: Option<PathBuf>,

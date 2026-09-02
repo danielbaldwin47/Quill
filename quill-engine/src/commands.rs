@@ -111,6 +111,18 @@ impl Command {
         format!("{}.{}", self.scope.prefix(), self.name())
     }
 
+    /// What a row or a Palette entry activates: a radio member fires its
+    /// group's action (`win.face`) with its value as the target, and any
+    /// other Command its own action with none.
+    pub fn action_and_target(&self) -> (String, Option<&'static str>) {
+        match self.kind {
+            Kind::Radio { group, value } => {
+                (format!("{}.{group}", self.scope.prefix()), Some(value))
+            }
+            Kind::Plain | Kind::Check => (self.action(), None),
+        }
+    }
+
     /// The chord the menu labels, in the table's syntax.
     pub fn default(&self) -> Option<&'static str> {
         self.chords.first().copied()

@@ -14,7 +14,7 @@
 
 use gtk::gio;
 use gtk::prelude::*;
-use quill_engine::commands::{COMMANDS, Command, Kind, Menu, Placement, VIEW_SECTIONS};
+use quill_engine::commands::{COMMANDS, Command, Menu, Placement, VIEW_SECTIONS};
 
 use crate::chrome::Modes;
 
@@ -113,15 +113,8 @@ fn rows(menu: Menu) -> impl Iterator<Item = (&'static Command, &'static Placemen
 /// chord.
 fn item(command: &Command, placement: &Placement, modes: &Modes) -> gio::MenuItem {
     let item = gio::MenuItem::new(Some(&label(command, placement, modes)), None);
-    match command.kind {
-        Kind::Radio { group, value } => item.set_action_and_target_value(
-            Some(&format!("{}.{group}", command.scope.prefix())),
-            Some(&value.to_variant()),
-        ),
-        Kind::Plain | Kind::Check => {
-            item.set_action_and_target_value(Some(&command.action()), None);
-        }
-    }
+    let (action, target) = command.action_and_target();
+    item.set_action_and_target_value(Some(&action), target.map(ToVariant::to_variant).as_ref());
     if let Some(accel) = command.accels().first() {
         item.set_attribute_value("accel", Some(&accel.to_variant()));
     }
@@ -349,13 +342,8 @@ mod tests {
             assert_eq!(drawn.len(), placed.len(), "{menu:?}");
             for (row, (command, placement)) in drawn.into_iter().zip(placed) {
                 assert_eq!(row.label, label(command, placement, &modes));
-                let (action, target) = match command.kind {
-                    Kind::Radio { group, value } => (
-                        format!("{}.{group}", command.scope.prefix()),
-                        Some(value.to_string()),
-                    ),
-                    Kind::Plain | Kind::Check => (command.action(), None),
-                };
+                let (action, target) = command.action_and_target();
+                let target = target.map(String::from);
                 assert_eq!(
                     row.action.as_deref(),
                     Some(action.as_str()),

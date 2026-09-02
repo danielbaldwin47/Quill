@@ -191,7 +191,8 @@ and the determinism settings, this document names the flags:
   `--w <px> --h <px>`. Both `--typing` and `--menu` name a state the app is put in before the
   first frame, never one it is driven into after it.
 - Harness: `--deterministic` (animations off, blink off, manual font rendering with pinned antialias,
-  slight hinting, no subpixel, 96 dpi, hinted metrics, no client-side decorations),
+  slight hinting, no subpixel, 96 dpi, hinted metrics, no client-side decorations; and Typewriter
+  off unless `--typewriter` is given, so the writer's `settings.toml` reaches no judged shot),
   `--measure <out.jsonl>` (key capture in the capture phase, `GdkFrameTimings` presentation times,
   cold start against `QUILL_T0_NS`).
 
