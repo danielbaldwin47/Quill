@@ -281,6 +281,11 @@ impl Window {
             return;
         }
         session.set_step(step);
+        // Written as the key is pressed, as every value the settings watch
+        // can read back is: a live value the file does not carry is one the
+        // next save — a writer's, or the watch re-reading Quill's own — puts
+        // back to what the file says.
+        session.store_settings();
         let face = session.face();
         if let Some(app) = self.application() {
             reset(&app, &session, |window| {
@@ -293,13 +298,16 @@ impl Window {
     ///
     /// `docs/shortcuts.md`'s `theme.toggle` row, reached through its action
     /// (`chrome`). The session decides which ground the toggle lands on — it
-    /// is the one holding what `auto` resolved to — and writes the setting on
-    /// the way out.
+    /// is the one holding what `auto` resolved to — and writes the setting as
+    /// the key is pressed.
     pub(crate) fn toggle_scheme(&self) {
         let Some(session) = self.imp().session.borrow().clone() else {
             return;
         };
         let scheme = session.toggle_scheme();
+        // Written now rather than on the way out, for the reason the size is
+        // ([`Window::step_size`]).
+        session.store_settings();
         if let Some(app) = self.application() {
             repaint(&app, &session, scheme);
         }
@@ -557,6 +565,32 @@ impl Window {
         self.palette().toggle(self.upcast_ref(), self.modes());
     }
 
+    /// Opens the Settings window over this one: `settings.open`, `Ctrl+,` and
+    /// View › Window "Settings…".
+    pub(crate) fn open_settings(&self) {
+        let Some(session) = self.imp().session.borrow().clone() else {
+            return;
+        };
+        crate::settings::open(self.upcast_ref(), &session);
+    }
+
+    /// Opens the shortcuts window over this one: `shortcuts.open`, `Ctrl+?`
+    /// and View › Window "Keyboard Shortcuts".
+    ///
+    /// The table it lists is built here, from the effective map this launch is
+    /// running on, so a `[shortcuts]` edit saved a moment ago is in the window
+    /// that opens next.
+    pub(crate) fn open_shortcuts(&self) {
+        let Some(session) = self.imp().session.borrow().clone() else {
+            return;
+        };
+        let shortcuts = session.settings().shortcuts();
+        crate::shortcuts::open(
+            self.upcast_ref(),
+            &quill_engine::shortcuts::sections(&shortcuts.chords),
+        );
+    }
+
     /// Puts the typing machine at rest and the bars at full strength, for a
     /// popover about to open over them: the oracle forces both bars to
     /// opacity 1 while a menu or the Palette is up (`chrome.css`,
@@ -765,6 +799,37 @@ pub fn repaint(app: &gtk::Application, session: &Session, scheme: Scheme) {
         let document = window.imp().document.borrow();
         window.imp().editor.set_scheme(scheme, &document);
         window.imp().bars.set_scheme(scheme);
+    });
+    chrome::reflect_windows(app);
+}
+
+/// Puts a settings file saved while Quill is running on to every window.
+///
+/// The whole of what the file carries at once — the ground, the type, Focus,
+/// Typewriter and the bars — rather than only what moved, because a file is
+/// saved whole and the session has already been moved by it
+/// ([`Session::apply`]): a value the writer left alone is set to what it
+/// already held, and the writer sees one repaint rather than five.
+///
+/// The keys' own paths ([`repaint`], [`Window::step_size`]) stay as they are:
+/// they move one thing and write the file, and this is the other direction,
+/// the file moving everything.
+pub fn reapply(app: &gtk::Application, session: &Session) {
+    let scheme = session.scheme();
+    let focus = session.focus();
+    let typewriter = session.typewriter();
+    let face = session.face();
+    let step = session.step();
+    let bars = session.chrome() == Chrome::Shown;
+    reset(app, session, move |window| {
+        let document = window.imp().document.borrow();
+        window.imp().editor.set_type(face, step);
+        window.imp().editor.set_scheme(scheme, &document);
+        window.imp().editor.set_focus(focus, &document);
+        window.imp().editor.set_typewriter(typewriter);
+        window.imp().bars.set_scheme(scheme);
+        window.imp().bars.set_focus(focus);
+        window.imp().bars.set_shown(bars);
     });
     chrome::reflect_windows(app);
 }

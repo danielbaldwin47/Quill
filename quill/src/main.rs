@@ -30,6 +30,8 @@ mod menus;
 mod palette;
 mod portal;
 mod session;
+mod settings;
+mod shortcuts;
 mod tags;
 mod window;
 
@@ -104,7 +106,7 @@ fn main() -> glib::ExitCode {
     // Editor reads. Each handler outlives this scope, so each holds the
     // session it uses.
     let starting = Rc::clone(&session);
-    app.connect_startup(move |_| {
+    app.connect_startup(move |app| {
         if starting.flags().deterministic {
             harness::determine();
         }
@@ -125,6 +127,13 @@ fn main() -> glib::ExitCode {
         // before any window exists, so the first frame a writer sees is
         // already on the paper they asked for and never flashes the other one.
         editor::install_type(starting.scheme(), starting.settings().face, starting.step());
+        // The chords every Command is bound to: the registry's, with the
+        // writer's `[shortcuts]` table over the top. Here rather than beside
+        // the actions below, because reading a chord is
+        // `gtk::accelerator_parse`'s and it wants GTK started; and before any
+        // window, so the first menu a writer opens is already labelled the way
+        // they rebound it.
+        starting.warn(chrome::install_chords(app, &starting));
     });
 
     // And from here on, the desktop can change its mind. Subscribed after the
@@ -150,9 +159,13 @@ fn main() -> glib::ExitCode {
         });
     }
 
-    // Every chord in `docs/shortcuts.md`, and the `app.` actions; the `win.`
-    // actions go on each window as it is built.
+    // The `app.` actions; the `win.` actions go on each window as it is built,
+    // and the chords go on at startup, where GTK can read one.
     chrome::install(&app);
+
+    // And the settings file is watched from here on: a saved edit applies
+    // without a restart, whatever the writer changed.
+    session::watch_settings(&app, &session);
 
     // Launched with no file: an empty Editor, a Document with nothing in it.
     let activated = Rc::clone(&session);

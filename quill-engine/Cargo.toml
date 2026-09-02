@@ -13,6 +13,7 @@ publish.workspace = true
 [dependencies]
 cairo-rs.workspace = true
 notify.workspace = true
+notify-debouncer-mini.workspace = true
 pango.workspace = true
 pulldown-cmark.workspace = true
 serde.workspace = true

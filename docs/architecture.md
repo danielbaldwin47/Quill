@@ -31,7 +31,8 @@ check), `typography` (the pitch, the measure, the 78-cell text container and its
 [ADR 0016](adr/0016-the-text-container-is-78-cells.md) — and the page margins), `theme` (the two
 grounds' colour table and the rule that resolves one, and the rule that reads a change of the
 desktop's against it), `commands` (`docs/shortcuts.md` as data: every Command with its chords
-and menu rows, and the reserved and off-limits chord lists). App modules mirror the Pieces and
+and menu rows, and the reserved and off-limits chord lists), `shortcuts` (the `[shortcuts]` table
+checked against that registry and overlaid on its defaults). App modules mirror the Pieces and
 features: `editor` (which also installs the display's stylesheet, where the engine table's colours
 are painted from), `caret`, `focus`,
 `typewriter`, `portal` (the settings portal: the desktop's colour scheme, read before the first frame
@@ -127,6 +128,14 @@ any number of windows; the Editor, Preview and Stats belong to a window, the Lib
 the application. Plain GTK4 without libadwaita ([ADR 0009](adr/0009-plain-gtk4-without-libadwaita.md));
 theme `auto` follows the settings portal's colour scheme.
 
+Two windows besides: `Ctrl+?` is a `GtkShortcutsWindow` listing every Command with the chord the
+effective map leaves it on, grouped as the menus are and built afresh on every open; `Ctrl+,` is a
+Settings window, one grid of the rows that have no menu home — the Typewriter anchor, Follow System,
+the Spell-check language, a button that opens `settings.toml` in the system editor, and whatever the
+last read of that file could not apply — a file that is not TOML says so there, above the entries it
+refused. Both are transient for the window they were opened from, and no row
+of either sets a value on the session: a row writes the file and the watch below applies it.
+
 ## Settings
 
 One TOML file at `$XDG_CONFIG_HOME/quill/settings.toml` for what the writer chose; `$XDG_STATE_HOME/quill/`
@@ -146,8 +155,20 @@ toggles sit beside it), `[style_check]` (the same shape, one toggle per list bes
 path), and a `[shortcuts]` table of Command id → chords that
 replaces the defaults in [`shortcuts.md`](shortcuts.md) ([ADR 0011](adr/0011-shortcut-precedence-on-linux.md)).
 
-The settings file is watched with `notify` like a Document: a saved edit applies without a restart,
-and a line that cannot be applied is logged once and skipped, never fatal.
+The settings file is watched with `notify` and a debouncer whose window is
+`quill_engine::watch::DEBOUNCE`, the
+directory rather than the file, because a save is a write beside it and a rename over the top. The
+app drains the watch from its main context and re-reads the file whole: every setting applies
+without a restart, `[shortcuts]` included, and the flags of a launch that carries any stay over the
+top of what the file says. Only a save is re-read: `notify` reports a file being opened as readily
+as one being written, so the watch sends a file on only when its length or write time has moved
+since it last did, read with a `stat` — an editor re-reading the file, and Quill's own re-read, are
+not saves. Every value a key can move is written to the file as the key is pressed, so that the
+file is never behind what is on screen and a re-read puts nothing back. A file that is not TOML
+at all leaves the settings Quill is running on where they are; a line that cannot be applied is one
+`g_warning` under the domain `quill-settings`, said once per distinct line per version of the file,
+and never fatal, and the Settings window shows the same lines. The Documents and the Library join
+the same watch when they are built.
 
 State, in `state.toml`: the size of each window and whether it was maximized or full screen, the last
 Document per window, caret position per recent Document, the recents list, `last_scheme` (the ground
@@ -194,14 +215,17 @@ and the determinism settings, this document names the flags:
   slight hinting, no subpixel, 96 dpi, hinted metrics, no client-side decorations; and Typewriter
   off unless `--typewriter` is given, so the writer's `settings.toml` reaches no judged shot),
   `--measure <out.jsonl>` (key capture in the capture phase, `GdkFrameTimings` presentation times,
-  cold start against `QUILL_T0_NS`).
+  cold start against `QUILL_T0_NS`), `--settings <path>` (read and write settings in `<path>`, so a
+  run drives a fixture — a `[shortcuts]` table, a theme — without touching the writer's file).
 
 Every flag has a matching setting or a harness-only effect; none creates state a writer cannot reach.
 
 A launch carrying any of them is the harness's rather than a writer's, and that decides three things
 about it. It runs non-unique, so a judged shot or a bench is served by the process that was launched
 even when a writer's Quill is already open. It overrides the settings for that launch alone and
-writes nothing back to `settings.toml`. And it neither reads nor writes `state.toml`, so it opens at
+writes nothing back to `settings.toml` — the writer's own, which is the one thing `--settings` moves:
+a launch that names a settings file of its own reads and writes that file, and the writer's is left
+untouched either way. And it neither reads nor writes `state.toml`, so it opens at
 the shape its flags name rather than at the window a writer left, the same command line is the same
 window twice, and a bench at 1440×900 is not a writer resizing anything.
 
