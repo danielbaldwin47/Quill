@@ -270,7 +270,7 @@ impl Window {
             return;
         }
         session.set_step(step);
-        let face = session.settings().face;
+        let face = session.face();
         if let Some(app) = self.application() {
             reset(&app, &session, |window| {
                 window.imp().editor.set_type(face, step);
@@ -308,6 +308,54 @@ impl Window {
     /// `docs/shortcuts.md`'s `focus.swap` row.
     pub(crate) fn swap_focus_scope(&self) {
         self.refocus_windows(Session::swap_focus_scope);
+    }
+
+    /// Puts Focus on at `scope`.
+    ///
+    /// `docs/shortcuts.md`'s `focus.sentence` and `focus.paragraph` rows, the
+    /// View menu's Focus radios. The session applies ADR 0006's rule that a
+    /// pick switches Focus on.
+    pub(crate) fn set_focus_scope(&self, scope: quill_engine::settings::FocusScope) {
+        self.refocus_windows(move |session| session.set_focus_scope(scope));
+    }
+
+    /// Sets the page in `face`, in every window.
+    ///
+    /// `docs/shortcuts.md`'s `font.duo`, `font.quattro` and `font.mono` rows,
+    /// the View menu's Typeface radios. The same pass a size step is: the
+    /// session remembers the face and writes it on the way out, and every
+    /// Editor is re-set at the step this launch is reading at.
+    pub(crate) fn set_face(&self, face: quill_engine::settings::Face) {
+        let Some(session) = self.imp().session.borrow().clone() else {
+            return;
+        };
+        if face == session.face() {
+            return;
+        }
+        session.set_face(face);
+        session.store_settings();
+        let step = session.step();
+        if let Some(app) = self.application() {
+            reset(&app, &session, |window| {
+                window.imp().editor.set_type(face, step);
+            });
+        }
+    }
+
+    /// Sets the theme, and repaints on the ground it names.
+    ///
+    /// `docs/shortcuts.md`'s `theme.light`, `theme.dark` and `theme.auto`
+    /// rows, the Palette's three. The session decides the ground — `auto` is
+    /// the desktop's last answer — and writes the setting on the way out.
+    pub(crate) fn set_theme(&self, theme: quill_engine::settings::Theme) {
+        let Some(session) = self.imp().session.borrow().clone() else {
+            return;
+        };
+        let scheme = session.set_theme(theme);
+        session.store_settings();
+        if let Some(app) = self.application() {
+            repaint(&app, &session, scheme);
+        }
     }
 
     /// Turns Typewriter on or off.
@@ -663,7 +711,7 @@ pub(crate) enum Step {
 /// passed alongside is a second thing that can be stale. A writer has one pair
 /// of eyes, so a change in one window is a change in all of them.
 fn reset(app: &gtk::Application, session: &Session, each: impl Fn(&Window)) {
-    crate::editor::install_type(session.scheme(), session.settings().face, session.step());
+    crate::editor::install_type(session.scheme(), session.face(), session.step());
     for window in app.windows() {
         if let Ok(window) = window.downcast::<Window>() {
             each(&window);
