@@ -1,0 +1,11 @@
+# The settings file the Gate judges the chrome Piece with (#125), and the one
+# the engine's section-model test reads: two Commands rebound, so that every
+# label the chrome shows for them moves and nothing about the layout does.
+#
+# `library.toggle` keeps its alias and loses its default, which is story 1 of
+# spec #44 — the View menu labels it `F9` and `Ctrl+E` does nothing. Dark Mode
+# goes to a chord the table gives nobody, so its row and its Palette entry are
+# labelled something no default could have put there.
+[shortcuts]
+"library.toggle" = ["F9"]
+"theme.toggle" = ["<Control><Shift>k"]

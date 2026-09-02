@@ -38,6 +38,24 @@ pub enum Menu {
     Stats,
 }
 
+impl Menu {
+    /// The menu's name, as `docs/shortcuts.md` heads its table and the
+    /// `Ctrl+?` window titles the section holding it
+    /// ([`crate::shortcuts::sections`]).
+    #[must_use]
+    pub const fn title(self) -> &'static str {
+        match self {
+            Self::Document => "Document",
+            Self::View => "View",
+            Self::Stats => "Stats",
+        }
+    }
+}
+
+/// The three menus in the table's order, which is the order the `Ctrl+?`
+/// window puts their sections in.
+pub const MENUS: [Menu; 3] = [Menu::Document, Menu::View, Menu::Stats];
+
 /// How a Command's action holds state, which is how its menu row is drawn.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
@@ -246,8 +264,8 @@ pub const COMMANDS: &[Command] = &[
     row("chrome.stats", "Statistics", Scope::Win, Kind::Check, &[], &[ place(VIEW, Some("Window"), "Statistics"), place(STATS, None, "Hide Statistics"), ], true),
     row("chrome.toggle", "Hide Bars / Show Bars", Scope::Win, Kind::Check, &["Ctrl+Shift+H"], &[place(VIEW, Some("Window"), "Hide Bars / Show Bars")], true),
     row("window.fullscreen", "Full Screen", Scope::Win, Kind::Check, &["F11"], &[place(VIEW, Some("Window"), "Full Screen")], true),
-    row("settings.open", "Settings…", Scope::Win, Kind::Plain, &["Ctrl+,"], &[place(VIEW, Some("Window"), "Settings…")], false),
-    row("shortcuts.open", "Keyboard Shortcuts", Scope::Win, Kind::Plain, &["Ctrl+?"], &[place(VIEW, Some("Window"), "Keyboard Shortcuts")], false),
+    row("settings.open", "Settings…", Scope::Win, Kind::Plain, &["Ctrl+,"], &[place(VIEW, Some("Window"), "Settings…")], true),
+    row("shortcuts.open", "Keyboard Shortcuts", Scope::Win, Kind::Plain, &["Ctrl+?"], &[place(VIEW, Some("Window"), "Keyboard Shortcuts")], true),
     row("palette.open", "All Commands…", Scope::Win, Kind::Plain, &["Ctrl+K", "Ctrl+Shift+P"], &[place(VIEW, Some("Window"), "All Commands…")], true),
     // Stats menu.
     row("stats.words", "Words", Scope::Win, Kind::Radio { group: "stats", value: "words", }, &[], &[place(STATS, None, "Words")], false),

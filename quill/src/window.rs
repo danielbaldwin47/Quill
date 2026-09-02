@@ -557,6 +557,32 @@ impl Window {
         self.palette().toggle(self.upcast_ref(), self.modes());
     }
 
+    /// Opens the Settings window over this one: `settings.open`, `Ctrl+,` and
+    /// View › Window "Settings…".
+    pub(crate) fn open_settings(&self) {
+        let Some(session) = self.imp().session.borrow().clone() else {
+            return;
+        };
+        crate::settings::open(self.upcast_ref(), &session);
+    }
+
+    /// Opens the shortcuts window over this one: `shortcuts.open`, `Ctrl+?`
+    /// and View › Window "Keyboard Shortcuts".
+    ///
+    /// The table it lists is built here, from the effective map this launch is
+    /// running on, so a `[shortcuts]` edit saved a moment ago is in the window
+    /// that opens next.
+    pub(crate) fn open_shortcuts(&self) {
+        let Some(session) = self.imp().session.borrow().clone() else {
+            return;
+        };
+        let shortcuts = session.settings().shortcuts();
+        crate::shortcuts::open(
+            self.upcast_ref(),
+            &quill_engine::shortcuts::sections(&shortcuts.chords),
+        );
+    }
+
     /// Puts the typing machine at rest and the bars at full strength, for a
     /// popover about to open over them: the oracle forces both bars to
     /// opacity 1 while a menu or the Palette is up (`chrome.css`,

@@ -312,6 +312,8 @@ fn run_window(window: &Window, command: &Command) {
             }
         }
         "palette.open" => window.open_palette(),
+        "settings.open" => window.open_settings(),
+        "shortcuts.open" => window.open_shortcuts(),
         "window.fullscreen" if window.is_fullscreen() => window.unfullscreen(),
         "window.fullscreen" => window.fullscreen(),
         "window.close" => window.close(),
@@ -434,15 +436,39 @@ const ROW_RADIUS: i32 = 4;
 struct Tick {
     /// Its inset from the row's edge (`.tick { left: 4px }`).
     left: i32,
+    /// How wide its ink stands (`.tick { width: 10px }`), which is the width
+    /// the Parity oracle draws and the width [`Tick::glyph`] is sized for.
     width: i32,
-    height: i32,
+    /// The icon size GTK draws [`TICK_GLYPH`] at to lay that much ink down.
+    ///
+    /// GTK sizes a `-gtk-icon-source` by its icon size and not by the node's
+    /// `min-width`, and its default is 16 px, at which the check's ink covers
+    /// 12.5 x 8.5 of the box — half again the ink the Parity oracle's tick
+    /// lays in its own 10 x 7, which is what round 5's critic gave the View
+    /// menu away for. The glyph's ink is 78% of its icon's width and 53% of
+    /// its height, so 13 px draws it at 10.2 x 6.9: the tick this struct
+    /// already declares.
+    glyph: i32,
 }
 
-/// The tick: four in, ten by eight.
+impl Tick {
+    /// Where the icon's box stands from the row's edge.
+    ///
+    /// GTK centres the glyph's ink in its icon box, and the box is the wider
+    /// of the two, so the box starts half the difference left of where the
+    /// ink is meant to start — which is what keeps the label column where
+    /// [`TICK_COLUMN`] puts it whatever size the glyph is drawn at.
+    fn inset(&self) -> f64 {
+        f64::from(self.left) - f64::from(self.glyph - self.width) / 2.0
+    }
+}
+
+/// The tick: four in, ten wide (`chrome.css` `.tick`, whose 8 px box holds 7
+/// px of ink).
 const TICK: Tick = Tick {
     left: 4,
     width: 10,
-    height: 8,
+    glyph: 13,
 };
 
 /// A chord label's distance from its row's label, and its type.
@@ -548,6 +574,12 @@ pub(crate) const fn menu_ink(scheme: Scheme) -> MenuInk {
 /// `:selected`, a section's heading a `label.title` and the gap between
 /// sections a `separator`; every rule here restyles one of those to the
 /// oracle's measurement.
+///
+/// The heading's rule sets `opacity: 1` as well as its colour, because the
+/// platform theme draws a `label.title` in a popover menu at about 0.55 and
+/// colour alone does not undo that: [`menu_ink`]'s `dim` came out at #BABABA
+/// on the menu's #F2F2F2, lighter than the disabled rows the heading is there
+/// to organise, which is what round 5's critic gave the View menu away for.
 fn menu_stylesheet(scheme: Scheme) -> String {
     let MenuInk {
         ground,
@@ -558,14 +590,15 @@ fn menu_stylesheet(scheme: Scheme) -> String {
         shadow,
     } = menu_ink(scheme);
     let Tick {
-        left: tick_left,
         width: tick_width,
-        height: tick_height,
+        glyph: tick_glyph,
+        ..
     } = TICK;
-    // The tick's column: the row's padding less the tick's inset, then the
-    // tick, then what is left of the column.
-    let tick_before = tick_left - ROW_PAD;
-    let tick_after = TICK_COLUMN - tick_left - tick_width;
+    // The tick's column: the row's padding less where the icon's box stands,
+    // then the box, then what is left of the column.
+    let tick_inset = TICK.inset();
+    let tick_before = tick_inset - f64::from(ROW_PAD);
+    let tick_after = f64::from(TICK_COLUMN) - tick_inset - f64::from(tick_glyph);
     let keys = keys_declarations(dim);
     let Pad { y: sep_y, x: sep_x } = SEP_MARGIN;
     let Head {
@@ -593,7 +626,8 @@ fn menu_stylesheet(scheme: Scheme) -> String {
          popover.chrome-menu modelbutton:selected accelerator {{ color: rgba(255, 255, 255, 0.8); }}\n\
          popover.chrome-menu accelerator {{ {keys} }}\n\
          popover.chrome-menu modelbutton check, popover.chrome-menu modelbutton radio {{\n\
-         \x20 min-width: {tick_width}px; min-height: {tick_height}px;\n\
+         \x20 min-width: {tick_glyph}px; min-height: {tick_glyph}px;\n\
+         \x20 -gtk-icon-size: {tick_glyph}px;\n\
          \x20 margin: 0 {tick_after}px 0 {tick_before}px; padding: 0;\n\
          \x20 border: none; background: none; box-shadow: none; transform: none;\n\
          \x20 -gtk-icon-source: none; color: {ink};\n\
@@ -606,6 +640,7 @@ fn menu_stylesheet(scheme: Scheme) -> String {
          popover.chrome-menu separator {{ min-height: 1px; margin: {sep_y}px {sep_x}px; background: {border}; }}\n\
          popover.chrome-menu label.title {{\n\
          \x20 padding: {head_top}px {head_x}px {head_bottom}px; {head}\n\
+         \x20 opacity: 1;\n\
          }}\n"
     )
 }
