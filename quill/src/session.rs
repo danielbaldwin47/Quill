@@ -164,7 +164,7 @@ impl Session {
         };
 
         let session = Self::launch(flags, settings, state, opening, harness, portal);
-        session.reported(notes);
+        session.take_down(notes);
         session
     }
 
@@ -282,7 +282,7 @@ impl Session {
     /// installed, and the two are one version's worth of complaint
     /// ([`Session::warn`]). Marked as said in the same breath, so that the
     /// warnings the first save makes are about the save.
-    fn reported(&self, notes: Vec<String>) {
+    fn take_down(&self, notes: Vec<String>) {
         self.said.replace(lines(&notes, &[]).into_iter().collect());
         self.notes.replace(notes);
     }
@@ -293,7 +293,8 @@ impl Session {
     /// one that cannot be read, one that is gone — because the settings this
     /// launch is running on are the last good ones and stay
     /// ([`Settings::reread`]). The writer hears what happened either way, once
-    /// ([`Session::warn`]).
+    /// ([`Session::warn`], and [`Session::warn_unread`] where there was
+    /// nothing to read).
     fn read_again(&self) -> Option<Settings> {
         let (settings, notes) = Settings::reread(&self.settings_path);
         self.notes.replace(notes);
@@ -309,13 +310,32 @@ impl Session {
     /// stderr as every file's are ([`report`]) and marked said here, so the
     /// first save does not repeat them.
     pub(crate) fn warn(&self, refusals: Vec<Refusal>) {
-        let lines = lines(&self.notes.borrow(), &refusals);
+        self.say(&refusals);
+        self.refusals.replace(refusals);
+    }
+
+    /// Warns about a read that came to nothing, and leaves the refusals where
+    /// the last read that did apply left them.
+    ///
+    /// A file that is not TOML at all, one that cannot be read, one that is
+    /// gone: none of them applied a `[shortcuts]` entry, so none of them
+    /// refused one either. What the Settings window is showing is what this
+    /// launch is running on ([`Session::refusals`]), which is the same reason
+    /// the settings themselves stay. The line about the file is said the way
+    /// every other line is, once per version.
+    pub(crate) fn warn_unread(&self) {
+        self.say(&[]);
+    }
+
+    /// Says every line this version of the file is worth that has not been
+    /// said already, and takes down that it has been.
+    fn say(&self, refusals: &[Refusal]) {
+        let lines = lines(&self.notes.borrow(), refusals);
         let unsaid = unsaid(&self.said.borrow(), &lines);
         self.said.replace(unsaid.said);
         for line in unsaid.lines {
             glib::g_warning!(DOMAIN, "{}: {line}", self.settings_path.display());
         }
-        self.refusals.replace(refusals);
     }
 
     /// The step of the type ladder this launch is reading at.
@@ -725,7 +745,7 @@ pub fn watch_settings(app: &gtk::Application, session: &Rc<Session>) {
         // reading it twice would apply the same file twice.
         let saved = saves.try_iter().count() > 0;
         if saved {
-            reread(&app, &session);
+            reread(Some(&app), &session);
         }
         glib::ControlFlow::Continue
     });
@@ -733,21 +753,31 @@ pub fn watch_settings(app: &gtk::Application, session: &Rc<Session>) {
 
 /// Reads the settings file again and puts what it says on to this launch: the
 /// values, the chords every Command is installed with, and every window.
-fn reread(app: &gtk::Application, session: &Rc<Session>) {
+///
+/// `app` is `None` where there is no application to install a chord on or a
+/// window to tell — a test with no display, which is how a save can be driven
+/// through this without one. The entries a `[shortcuts]` table refuses are the
+/// engine's either way; the ones only GTK can find are
+/// [`crate::chrome::install_chords`]'.
+fn reread(app: Option<&gtk::Application>, session: &Rc<Session>) {
     let Some(settings) = session.read_again() else {
         // Nothing to read: a file that is not TOML at all, one that cannot be
         // read, or one that is gone. The last good settings are the ones Quill
-        // is running on and they stay; the writer hears what happened once.
-        session.warn(Vec::new());
+        // is running on and they stay, and so does what the last good read
+        // refused; the writer hears what happened once.
+        session.warn_unread();
         return;
     };
     let moved = session.apply(settings);
     // The chords are installed either way, because they are cheap and the map
     // is the file's every time; the windows are told only when something they
     // are showing moved.
-    let refusals = crate::chrome::install_chords(app, session);
+    let refusals = match app {
+        Some(app) => crate::chrome::install_chords(app, session),
+        None => session.settings().shortcuts().refusals,
+    };
     session.warn(refusals);
-    if moved {
+    if let Some(app) = app.filter(|_| moved) {
         crate::window::reapply(app, session);
     }
 }
@@ -1447,20 +1477,24 @@ mod tests {
 
     /// A refused line is warned about once per version of the file: the save
     /// that brought it says it, and a save that leaves it alone says nothing.
+    ///
+    /// Driven through the file and [`reread`], which is what the watch calls,
+    /// so that what is proved is what a writer saving `settings.toml` hears.
     #[test]
     fn a_refused_line_is_warned_about_once_and_not_again_on_the_next_save() {
-        let session = writing(Settings::default());
-        let refusals = rebound("\"library.toggle\" = [\"<Super>l\"]")
-            .shortcuts()
-            .refusals;
-        let first = warnings(|| session.warn(refusals.clone()));
+        let path = fixture("refused");
+        let session = pointed_at(&path);
+        let file = "[shortcuts]\n\"library.toggle\" = [\"<Super>l\"]\n";
+        std::fs::write(&path, file).expect("writes its own fixture");
+        let first = warnings(|| reread(None, &session));
         assert_eq!(first.len(), 1, "one warning, naming the entry: {first:?}");
         assert!(
             first[0].contains("\"library.toggle\" = [\"<Super>l\"]"),
             "the entry as the writer wrote it: {first:?}"
         );
+        std::fs::write(&path, file).expect("writes its own fixture");
         assert!(
-            warnings(|| session.warn(refusals.clone())).is_empty(),
+            warnings(|| reread(None, &session)).is_empty(),
             "saving the same file again says nothing"
         );
         assert_eq!(
@@ -1468,6 +1502,31 @@ mod tests {
             1,
             "and the Settings window can still show it"
         );
+        std::fs::remove_dir_all(path.parent().expect("the fixture has a directory")).ok();
+    }
+
+    /// A save that is not TOML at all leaves the refusal the Settings window
+    /// is showing where it is: it applied no `[shortcuts]` entry, so it
+    /// refused none.
+    #[test]
+    fn a_broken_save_leaves_the_refused_line_the_settings_window_shows() {
+        let path = fixture("kept-refusal");
+        let session = pointed_at(&path);
+        std::fs::write(&path, "[shortcuts]\n\"library.toggle\" = [\"<Super>l\"]\n")
+            .expect("writes its own fixture");
+        warnings(|| reread(None, &session));
+        let refused = session.refusals().clone();
+        assert_eq!(refused.len(), 1, "{refused:?}");
+        std::fs::write(&path, "theme = \n").expect("writes its own fixture");
+        let said = warnings(|| reread(None, &session));
+        assert_eq!(said.len(), 1, "one line about the file: {said:?}");
+        assert!(said[0].contains("is not TOML"), "{said:?}");
+        assert_eq!(
+            *session.refusals(),
+            refused,
+            "the Settings window still shows what the last good read refused"
+        );
+        std::fs::remove_dir_all(path.parent().expect("the fixture has a directory")).ok();
     }
 
     /// A file that is not TOML at all leaves the settings where they are and
@@ -1482,13 +1541,13 @@ mod tests {
             session.read_again().is_none(),
             "there is nothing to apply, so nothing is applied"
         );
-        let first = warnings(|| session.warn(Vec::new()));
+        let first = warnings(|| session.warn_unread());
         assert_eq!(first.len(), 1, "one line about the file: {first:?}");
         assert!(first[0].contains("is not TOML"), "{first:?}");
         assert!(
             warnings(|| {
                 session.read_again();
-                session.warn(Vec::new());
+                session.warn_unread();
             })
             .is_empty(),
             "and the same broken file again says nothing"
@@ -1511,7 +1570,7 @@ mod tests {
         let session = pointed_at(&path);
         std::fs::write(&path, "theme = \n").expect("writes its own fixture");
         assert!(session.read_again().is_none());
-        warnings(|| session.warn(Vec::new()));
+        warnings(|| session.warn_unread());
         edited().write_to(&path).expect("writes its own fixture");
         let settings = session.read_again().expect("the mended file is TOML");
         session.apply(settings);
