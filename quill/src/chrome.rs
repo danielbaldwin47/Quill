@@ -644,9 +644,12 @@ fn source(area: &gtk::DrawingArea, cr: &cairo::Context, alpha: f64) {
 }
 
 /// The Library toggle's icon (`files.js` `I.panel`): a 16-unit panel drawn
-/// at 15 px, a rounded frame with a divider a third of the way across.
+/// at 15 px, a rounded frame with a divider a third of the way across. Half
+/// a pixel down from centred, which is where the frozen `bars` shot has it
+/// beside the View button (round 2 read the two a device row apart).
 fn library_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
     source(area, cr, 1.0);
+    cr.translate(0.0, 0.5);
     cr.scale(15.0 / 16.0, 15.0 / 16.0);
     cr.set_line_width(1.2);
     rounded(cr, 1.6, 2.6, 12.8, 10.8, 2.2);
