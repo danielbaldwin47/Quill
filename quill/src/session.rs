@@ -21,7 +21,7 @@ use std::rc::Rc;
 
 use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
-use quill_engine::settings::{FocusScope, Settings, State, Theme, WindowState};
+use quill_engine::settings::{Chrome, FocusScope, Settings, State, Theme, WindowState};
 use quill_engine::theme::{self, Scheme};
 
 use crate::flags::Flags;
@@ -57,6 +57,10 @@ pub struct Session {
     /// Whether Typewriter is on now. Nothing scrolls to it yet — #115 is what
     /// makes it move — so this launch only remembers it.
     typewriter: Cell<bool>,
+    /// Whether the two bars are there now: the setting until the writer
+    /// presses `Ctrl+Shift+H`, and then what they pressed it to. Held live for
+    /// the reason [`Session::focus`] is.
+    chrome: Cell<Chrome>,
     /// The ground this launch is painting on, resolved once before the first
     /// window: the flag, then the setting, then — once #111 wires it — the
     /// desktop, then what the last session left.
@@ -139,6 +143,7 @@ impl Session {
             focus: Cell::new(settings.focus),
             focus_scope: Cell::new(settings.focus_scope),
             typewriter: Cell::new(settings.typewriter),
+            chrome: Cell::new(settings.chrome),
             scheme: Cell::new(scheme),
             settings,
             flags,
@@ -224,6 +229,26 @@ impl Session {
     pub fn toggle_typewriter(&self) -> Typewriter {
         self.typewriter.set(!self.typewriter.get());
         self.typewriter()
+    }
+
+    /// Whether the two bars are shown now.
+    ///
+    /// The live value rather than `settings().chrome`, because `Ctrl+Shift+H`
+    /// moves it and a window opened after the key was pressed opens the way
+    /// the writer is writing.
+    pub fn chrome(&self) -> Chrome {
+        self.chrome.get()
+    }
+
+    /// Hides the bars, or shows them again. `docs/shortcuts.md`'s
+    /// `chrome.toggle` row.
+    pub fn toggle_chrome(&self) -> Chrome {
+        let chrome = match self.chrome.get() {
+            Chrome::Shown => Chrome::Hidden,
+            Chrome::Hidden => Chrome::Shown,
+        };
+        self.chrome.set(chrome);
+        chrome
     }
 
     /// The ground this launch is painting on.
@@ -330,6 +355,7 @@ impl Session {
         settings.focus = self.focus.get();
         settings.focus_scope = self.focus_scope.get();
         settings.typewriter = self.typewriter.get();
+        settings.chrome = self.chrome.get();
         if settings == self.settings {
             return None;
         }
@@ -338,8 +364,8 @@ impl Session {
 
     /// Writes `settings.toml` when this launch changed something in it.
     ///
-    /// The size, the ground, Focus, its scope and Typewriter are what can move
-    /// so far, and only a writer's launch can move any of them: the flags a
+    /// The size, the ground, Focus, its scope, Typewriter and the bars are what
+    /// can move so far, and only a writer's launch can move any of them: the flags a
     /// launch of the harness's carries are this launch's alone and have no
     /// business in the writer's file, which is why a harness launch has already
     /// returned before this is reached and why `--focus` and `--typewriter`
@@ -420,6 +446,42 @@ mod tests {
             false,
             desktop,
         )
+    }
+
+    /// `Ctrl+Shift+H` flips the `chrome` setting, and the file follows it:
+    /// hidden after one press, back to what was read after two.
+    #[test]
+    fn the_bars_key_flips_the_setting_and_the_file_follows() {
+        let session = launched(Theme::Light, Scheme::Light);
+        assert_eq!(session.chrome(), Chrome::Shown, "the default");
+        assert!(session.stored().is_none(), "nothing has moved yet");
+        assert_eq!(session.toggle_chrome(), Chrome::Hidden);
+        assert_eq!(session.chrome(), Chrome::Hidden);
+        assert_eq!(
+            session.stored().map(|settings| settings.chrome),
+            Some(Chrome::Hidden),
+            "the file would say hidden"
+        );
+        assert_eq!(session.toggle_chrome(), Chrome::Shown);
+        assert!(session.stored().is_none(), "back where it was read");
+    }
+
+    /// `--chrome off` is the setting for that launch alone.
+    #[test]
+    fn the_chrome_flag_hides_the_bars_for_the_launch() {
+        let flags = Flags {
+            chrome: Some(Chrome::Hidden),
+            ..Flags::default()
+        };
+        let session = Session::launch(
+            flags,
+            Settings::default(),
+            State::default(),
+            WindowState::default(),
+            true,
+            None,
+        );
+        assert_eq!(session.chrome(), Chrome::Hidden);
     }
 
     /// `auto` is not a ground, so the key that swaps grounds has to start from
