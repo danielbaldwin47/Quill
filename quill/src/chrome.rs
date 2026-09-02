@@ -18,6 +18,10 @@
 //! shown or hidden by the `chrome` setting, `--chrome` and `chrome.toggle`.
 //! Their colours are the engine's table; their geometry is the constants
 //! below, because a bar's height is widget geometry and not a colour.
+//!
+//! How the bars step back while a hand is typing is [`typing`] (#128): a
+//! machine with no widget in it, whose opacities the window puts on the bars
+//! through [`Bars::set_fade`] and whose fade is the stylesheet's transition.
 
 use std::cell::Cell;
 use std::rc::Rc;
@@ -28,9 +32,12 @@ use quill_engine::commands::{self, COMMANDS, Command, Kind, Scope};
 use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
 use quill_engine::settings::{Choice, Chrome, FocusScope};
+use quill_engine::stats::words;
 use quill_engine::theme::{Colours, Role, Scheme};
 
 use crate::window::Window;
+
+pub mod typing;
 
 /// What the stateful actions show: the modes as the session holds them.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -264,6 +271,22 @@ const CHROME_FONT: &str = "\"Adwaita Sans\", \"Inter\", \"Noto Sans\", sans-seri
 /// How long the bars take to fade (`.chrome { transition: opacity .28s ease }`).
 /// Under `--deterministic` GTK's animations are off and this is zero.
 const FADE_MS: u32 = 280;
+
+/// The fade this display runs: [`FADE_MS`], or none where
+/// `gtk-enable-animations` is off — `--deterministic` turns it off
+/// ([`crate::harness::determine`]), as does a desktop that asks for no
+/// motion — so that a shot of the typing state is the state and not a frame
+/// of the way there.
+fn fade_ms() -> u32 {
+    // A test builds the sheet with no GTK to ask; a shipped sheet always has
+    // one, since the display is what the sheet is installed on.
+    if !gtk::is_initialized() {
+        return FADE_MS;
+    }
+    let animated =
+        gtk::Settings::default().is_none_or(|settings| settings.is_gtk_enable_animations());
+    if animated { FADE_MS } else { 0 }
+}
 /// The reading pace the stats bar counts at (`chrome.js` `WPM`).
 const WORDS_PER_MINUTE: f64 = 238.0;
 
@@ -291,8 +314,12 @@ pub fn stylesheet(scheme: Scheme) -> String {
     let (pad_y, pad_x) = BUTTON_PAD;
     // `-0.005em` of the title's size, since GTK's CSS takes a length.
     let tracking = -0.005 * TITLE_PX;
+    let fade_ms = fade_ms();
+    let (title_faded, stats_faded) = (typing::TITLE_FADED, typing::STATS_FADED);
     format!(
-        ".chrome {{ color: {fg}; transition: opacity {FADE_MS}ms ease; }}\n\
+        ".chrome {{ color: {fg}; transition: opacity {fade_ms}ms ease; }}\n\
+         .chrome-top.faded {{ opacity: {title_faded}; }}\n\
+         .chrome-bottom.faded {{ opacity: {stats_faded}; }}\n\
          .chrome button {{\n\
          \x20 background: none; border: none; box-shadow: none; outline: none;\n\
          \x20 text-shadow: none; -gtk-icon-shadow: none;\n\
@@ -476,12 +503,39 @@ impl Bars {
         self.title.text()
     }
 
+    /// Steps the bars back or brings them forward, to the opacities the
+    /// typing machine gives: a bar under 1 wears `faded`, and the stylesheet
+    /// says what `faded` is and how long the way there takes. A class already
+    /// on or already off is left alone, so a keystroke inside the window
+    /// changes nothing on the widget.
+    pub fn set_fade(&self, title: f64, stats: f64) {
+        for (bar, alpha) in [(&self.top, title), (&self.bottom, stats)] {
+            let faded = alpha < 1.0;
+            if bar.has_css_class("faded") != faded {
+                if faded {
+                    bar.add_css_class("faded");
+                } else {
+                    bar.remove_css_class("faded");
+                }
+            }
+        }
+    }
+
+    /// Which bars are stepped back: the title bar, the stats bar.
+    #[must_use]
+    pub fn faded(&self) -> (bool, bool) {
+        (
+            self.top.has_css_class("faded"),
+            self.bottom.has_css_class("faded"),
+        )
+    }
+
     /// Counts `text` into the stats bar: words, characters and reading time,
     /// the oracle's default three fields.
     ///
-    /// Counted here, once, as the Document is shown. #128 moves the rule into
-    /// `quill_engine::stats` and recounts on idle after a keystroke; until
-    /// then a keystroke leaves the count where the load put it.
+    /// Counted as the Document is shown, and again on idle 500 ms after the
+    /// last keystroke of a run ([`typing::Typing::takes_recount`]); never on
+    /// the keystroke path.
     pub fn set_count(&self, text: &str) {
         let words = words(text);
         let characters = text.chars().count();
@@ -727,15 +781,6 @@ fn scrolled(adjustment: &gtk::Adjustment, over: &gtk::DrawingArea, under: &gtk::
     under.set_visible(value + adjustment.page_size() < adjustment.upper() - 2.0);
 }
 
-/// The oracle's word rule (`chrome.js` `count`): a run of non-whitespace
-/// with at least one letter or digit in it, counted over the raw text,
-/// Markdown included. #128 lands this in `quill_engine::stats`.
-fn words(text: &str) -> usize {
-    text.split_whitespace()
-        .filter(|token| token.chars().any(char::is_alphanumeric))
-        .count()
-}
-
 /// `n` with thousands separated, as `toLocaleString` writes it.
 fn grouped(n: usize) -> String {
     let digits = n.to_string();
@@ -935,9 +980,16 @@ mod tests {
         assert_eq!(reading_time(words(&sample)), "1 min");
         assert_eq!(words(""), 0);
         assert_eq!(reading_time(0), "< 1 min");
-        // A lone `#` is not a word; `**bold**` is.
-        assert_eq!(words("# Title\n\n**bold** — text"), 3);
-        assert_eq!(words("one"), 1);
+    }
+
+    /// The typing state's opacities are in the sheet as the two `faded`
+    /// rules, on the transition the whole chrome shares.
+    #[test]
+    fn the_sheet_carries_the_typing_states_opacities() {
+        let sheet = stylesheet(Scheme::Light);
+        assert!(sheet.contains(".chrome-top.faded { opacity: 0; }"));
+        assert!(sheet.contains(".chrome-bottom.faded { opacity: 0.38; }"));
+        assert!(sheet.contains("transition: opacity"));
     }
 
     #[test]
