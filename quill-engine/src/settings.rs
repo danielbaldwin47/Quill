@@ -21,7 +21,7 @@
 //! file Quill misunderstands is to open it, and a Quill that overwrote it
 //! first would have taken that away.
 
-mod file;
+pub(crate) mod file;
 mod reading;
 mod state;
 mod writing;

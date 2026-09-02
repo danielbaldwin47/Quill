@@ -34,6 +34,14 @@
 //! and the tag table. A colour that is a step off the page — the idle fill, the
 //! code ground — is an alpha here rather than the grey it flattens to, because
 //! an alpha survives a palette swap where a hex does not.
+//!
+//! A writer's own colours arrive as a [`Palette`]: two partial tables read out
+//! of a file, one per ground, each naming as many roles as it likes in
+//! [`Role::key`]'s snake case. [`Colours::overlaid`] lays one ground's table
+//! over the built-in and hands back a [`Colours`] as total as before, so every
+//! painter keeps reading roles and none of them learns what a palette is; what
+//! the file leaves out stays designed, and what it gets wrong costs one line
+//! and a note, never the palette (`design.md` § The palette is a file).
 
 use crate::settings::{Choice, Theme, choice};
 
@@ -149,9 +157,8 @@ impl Colour {
     /// Panics when `hex` is not a `#` and six hex digits. Every call is a
     /// literal in the table below, evaluated where it is written, so a mistyped
     /// colour is a build failure rather than something a writer discovers. A
-    /// colour that arrives out of a file — a Template's own, when ADR 0005
-    /// gives Templates a palette — wants a reader that can fail instead, and
-    /// there is none yet because nothing reads one.
+    /// colour that arrives out of a file — a writer's `palette` — goes through
+    /// [`Colour::parse`], which answers `None` instead.
     #[must_use]
     pub const fn from_hex(hex: &str) -> Self {
         let digits = hex.as_bytes();
@@ -165,6 +172,34 @@ impl Colour {
             byte(digits[5], digits[6]),
             1.0,
         )
+    }
+
+    /// The colour a file writes: `#rrggbb` or `#rrggbbaa`, in either case of
+    /// hex digit, and `None` for anything else — a name, `#rgb`, a ninth
+    /// digit, a missing `#`.
+    ///
+    /// The fallible twin of [`Colour::from_hex`]: that one is `const` and
+    /// panics so a mistyped literal fails the build, and this one is what a
+    /// value out of a writer's `palette` file goes through, where the answer
+    /// to a mistake is a note and the built-in. A fourth pair of digits is the
+    /// opacity, so a role the built-in table keeps translucent — the idle
+    /// fill, the code ground — can be written translucent too.
+    #[must_use]
+    pub fn parse(text: &str) -> Option<Self> {
+        let digits = text.strip_prefix('#')?.as_bytes();
+        if !matches!(digits.len(), 6 | 8) || !digits.iter().all(u8::is_ascii_hexdigit) {
+            return None;
+        }
+        let alpha = match digits.get(6..8) {
+            Some(alpha) => f64::from(byte(alpha[0], alpha[1])) / 255.0,
+            None => 1.0,
+        };
+        Some(Self::rgba(
+            byte(digits[0], digits[1]),
+            byte(digits[2], digits[3]),
+            byte(digits[4], digits[5]),
+            alpha,
+        ))
     }
 
     /// `fg` laid over `bg` at `amount` coverage.
@@ -342,6 +377,29 @@ impl Role {
         Self::Rule,
         Self::Shadow,
     ];
+
+    /// The key a `palette` file writes this role under: the variant's name in
+    /// snake case, so a writer editing the file sees the same word the design
+    /// uses and needs no source to tell which colour they are changing.
+    #[must_use]
+    pub const fn key(self) -> &'static str {
+        match self {
+            Self::Paper => "paper",
+            Self::Ink => "ink",
+            Self::InkDim => "ink_dim",
+            Self::Mark => "mark",
+            Self::Accent => "accent",
+            Self::Link => "link",
+            Self::LinkRule => "link_rule",
+            Self::Selection => "selection",
+            Self::SelectionIdle => "selection_idle",
+            Self::ChromeFg => "chrome_fg",
+            Self::ChromeFgStrong => "chrome_fg_strong",
+            Self::CodeBg => "code_bg",
+            Self::Rule => "rule",
+            Self::Shadow => "shadow",
+        }
+    }
 }
 
 /// One ground's colour for every [`Role`].
@@ -426,6 +484,50 @@ impl Colours {
         }
     }
 
+    /// The colours of one ground with `palette`'s table for it laid on top.
+    ///
+    /// Every role the palette names for `scheme` is the palette's, and every
+    /// role it leaves out is [`Colours::of`]'s, so the table stays total and
+    /// nothing downstream can tell a two-line palette from a full one. The
+    /// derived colours — the dim tier, the code well's wash, the idle fill's
+    /// flattening — are read off this table by the code that derives them, so
+    /// a writer's paper carries them with it. A translucent value stays
+    /// translucent here and flattens where the built-in does.
+    #[must_use]
+    pub fn overlaid(scheme: Scheme, palette: &Palette) -> Self {
+        let mut colours = Self::of(scheme);
+        for role in Role::ALL {
+            if let Some(colour) = palette.colour(scheme, role) {
+                *colours.slot(role) = colour;
+            }
+        }
+        colours
+    }
+
+    /// The field behind `role`, for [`Colours::overlaid`] to write.
+    ///
+    /// The same match as [`Colours::colour`], mutably: a role added to
+    /// [`Role`] does not build without an arm here either, which is what keeps
+    /// the overlay as total as the table.
+    fn slot(&mut self, role: Role) -> &mut Colour {
+        match role {
+            Role::Paper => &mut self.paper,
+            Role::Ink => &mut self.ink,
+            Role::InkDim => &mut self.ink_dim,
+            Role::Mark => &mut self.mark,
+            Role::Accent => &mut self.accent,
+            Role::Link => &mut self.link,
+            Role::LinkRule => &mut self.link_rule,
+            Role::Selection => &mut self.selection,
+            Role::SelectionIdle => &mut self.selection_idle,
+            Role::ChromeFg => &mut self.chrome_fg,
+            Role::ChromeFgStrong => &mut self.chrome_fg_strong,
+            Role::CodeBg => &mut self.code_bg,
+            Role::Rule => &mut self.rule,
+            Role::Shadow => &mut self.shadow,
+        }
+    }
+
     /// What this ground paints `role` in.
     ///
     /// Total by construction: a role added to [`Role`] and not to this match is
@@ -450,6 +552,113 @@ impl Colours {
             Role::Shadow => self.shadow,
         }
     }
+}
+
+/// What a writer's `palette` file names: for each ground, the roles it colours
+/// and the colours it gives them, and nothing for the rest.
+///
+/// Partial on purpose. A two-line file (paper and ink) is a working palette, a
+/// `[dark]`-only file leaves light alone, and an empty file is this type's
+/// [`Default`], which lays nothing over anything. It is [`PartialEq`] so that
+/// a re-read of the same bytes can be told from a change without a repaint,
+/// which is the watch's question and not this module's. Read out of text by
+/// [`Palette::parse`]; laid over a ground by [`Colours::overlaid`].
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Palette {
+    light: Ground,
+    dark: Ground,
+}
+
+/// One ground's partial table: a slot per [`Role`], in [`Role::ALL`]'s order,
+/// filled where the file named the role.
+type Ground = [Option<Colour>; Role::ALL.len()];
+
+/// What the note says Quill does about a line it cannot read.
+const BUILT_IN: &str = "using the built-in colour";
+
+impl Palette {
+    /// Reads a palette out of the text of a file.
+    ///
+    /// Never fails, in the shape of [`crate::settings::Settings::parse`]: text
+    /// that is not TOML is the empty palette and one note; a `[light]` or
+    /// `[dark]` table's known keys are read through [`Colour::parse`], and a
+    /// known key whose value is not a colour costs that key and one note
+    /// naming the table, the key and the value. Anything else in the file — an
+    /// unknown table, an unknown key, a table that is not a table — is left
+    /// alone without a note, so a theme tool may keep its own keys beside
+    /// Quill's and a template written for a later Quill still loads in this
+    /// one. Nothing else in the file is read.
+    #[must_use]
+    pub fn parse(text: &str) -> (Self, Vec<String>) {
+        let (table, mut notes) = crate::settings::file::parse(text, "using the built-in colours");
+        let Some(table) = table else {
+            return (Self::default(), notes);
+        };
+        let mut palette = Self::default();
+        for scheme in [Scheme::Light, Scheme::Dark] {
+            if let Some(ground) = table.get(scheme.as_str()).and_then(toml::Value::as_table) {
+                *palette.ground_mut(scheme) = read_ground(scheme, ground, &mut notes);
+            }
+        }
+        (palette, notes)
+    }
+
+    /// The colour the file gives `role` on `scheme`, or `None` where it is the
+    /// built-in's to answer.
+    #[must_use]
+    pub fn colour(&self, scheme: Scheme, role: Role) -> Option<Colour> {
+        self.ground(scheme)[index(role)]
+    }
+
+    /// Whether the file named no colour at all, on either ground.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
+
+    fn ground(&self, scheme: Scheme) -> &Ground {
+        match scheme {
+            Scheme::Light => &self.light,
+            Scheme::Dark => &self.dark,
+        }
+    }
+
+    fn ground_mut(&mut self, scheme: Scheme) -> &mut Ground {
+        match scheme {
+            Scheme::Light => &mut self.light,
+            Scheme::Dark => &mut self.dark,
+        }
+    }
+}
+
+/// One table of the file — `[light]` or `[dark]` — read key by key.
+///
+/// The keys are walked from [`Role::ALL`] rather than from the table, which is
+/// what makes an unknown key nothing to remark on: it is never looked at.
+fn read_ground(scheme: Scheme, table: &toml::Table, notes: &mut Vec<String>) -> Ground {
+    let mut ground = Ground::default();
+    for role in Role::ALL {
+        let Some(value) = table.get(role.key()) else {
+            continue;
+        };
+        match value.as_str().and_then(Colour::parse) {
+            Some(colour) => ground[index(role)] = Some(colour),
+            None => notes.push(format!(
+                "[{}] {} = {value} is not a colour (`#rrggbb` or `#rrggbbaa`); {BUILT_IN}",
+                scheme.as_str(),
+                role.key()
+            )),
+        }
+    }
+    ground
+}
+
+/// Where `role` sits in a [`Ground`]: its place in [`Role::ALL`].
+fn index(role: Role) -> usize {
+    Role::ALL
+        .iter()
+        .position(|&each| each == role)
+        .expect("every role is in Role::ALL")
 }
 
 /// The ground to paint.
@@ -814,5 +1023,207 @@ mod tests {
             "a desktop that asked for stillness"
         );
         assert_eq!(fade_ms(false, true), FADE_MS, "an ordinary writer fades");
+    }
+
+    /// A paper nothing in the design uses, so a derived colour that came off
+    /// the built-in paper instead is told apart by its hex.
+    const ODD_PAPER: &str = "#ff0000";
+
+    /// `text` as a palette, asserting on the way that nothing in it was a
+    /// complaint.
+    fn palette(text: &str) -> Palette {
+        let (palette, notes) = Palette::parse(text);
+        assert!(notes.is_empty(), "nothing here is a complaint: {notes:?}");
+        palette
+    }
+
+    #[test]
+    fn a_two_line_file_is_a_working_palette() {
+        let palette = palette("[light]\npaper = \"#ff0000\"\nink = \"#00ff00\"\n");
+        let overlaid = Colours::overlaid(Scheme::Light, &palette);
+        let built_in = Colours::of(Scheme::Light);
+        assert_eq!(overlaid.colour(Role::Paper).to_hex(), "#ff0000");
+        assert_eq!(overlaid.colour(Role::Ink).to_hex(), "#00ff00");
+        for role in Role::ALL {
+            if !matches!(role, Role::Paper | Role::Ink) {
+                assert_eq!(
+                    overlaid.colour(role),
+                    built_in.colour(role),
+                    "{role:?} is the built-in"
+                );
+            }
+        }
+        assert_eq!(
+            Colours::overlaid(Scheme::Dark, &palette),
+            Colours::of(Scheme::Dark),
+            "a file with no [dark] table leaves the dark ground designed"
+        );
+    }
+
+    #[test]
+    fn a_missing_table_leaves_that_ground_the_built_in() {
+        let palette = palette("[dark]\npaper = \"#ff0000\"\n");
+        assert_eq!(
+            Colours::overlaid(Scheme::Light, &palette),
+            Colours::of(Scheme::Light)
+        );
+        assert_eq!(
+            Colours::overlaid(Scheme::Dark, &palette)
+                .colour(Role::Paper)
+                .to_hex(),
+            "#ff0000"
+        );
+    }
+
+    #[test]
+    fn an_empty_file_is_the_built_ins_with_no_note() {
+        let (palette, notes) = Palette::parse("");
+        assert!(notes.is_empty(), "{notes:?}");
+        assert_eq!(palette, Palette::default());
+        assert!(palette.is_empty());
+        for scheme in [Scheme::Light, Scheme::Dark] {
+            assert_eq!(Colours::overlaid(scheme, &palette), Colours::of(scheme));
+        }
+    }
+
+    #[test]
+    fn a_file_that_is_not_toml_is_the_built_ins_with_one_note() {
+        let (palette, notes) = Palette::parse("[light\npaper = \"#ff0000\"\n");
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].contains("is not TOML"), "{notes:?}");
+        assert!(notes[0].contains("line 1"), "{notes:?}");
+        assert_eq!(palette, Palette::default());
+    }
+
+    #[test]
+    fn a_key_that_is_not_a_colour_costs_that_line_and_says_which() {
+        let (palette, notes) =
+            Palette::parse("[dark]\npaper = \"#ff0000\"\nink = \"red\"\naccent = 7\n");
+        assert_eq!(notes.len(), 2, "{notes:?}");
+        assert!(
+            notes[0].contains("[dark]") && notes[0].contains("ink") && notes[0].contains("\"red\""),
+            "the note names the table, the key and the value: {notes:?}"
+        );
+        assert!(
+            notes[1].contains("[dark]") && notes[1].contains("accent") && notes[1].contains('7'),
+            "a value that is not even a string is the same note: {notes:?}"
+        );
+        let overlaid = Colours::overlaid(Scheme::Dark, &palette);
+        let built_in = Colours::of(Scheme::Dark);
+        assert_eq!(
+            overlaid.colour(Role::Paper).to_hex(),
+            "#ff0000",
+            "the other keys land"
+        );
+        assert_eq!(overlaid.colour(Role::Ink), built_in.colour(Role::Ink));
+        assert_eq!(overlaid.colour(Role::Accent), built_in.colour(Role::Accent));
+    }
+
+    #[test]
+    fn an_unknown_key_and_an_unknown_table_are_not_a_complaint() {
+        let palette = palette(
+            "name = \"tokyo-night\"\n[light]\npaper = \"#ff0000\"\ncursor = \"purple\"\n[terminal]\nink = \"nonsense\"\n",
+        );
+        assert_eq!(
+            Colours::overlaid(Scheme::Light, &palette)
+                .colour(Role::Paper)
+                .to_hex(),
+            "#ff0000"
+        );
+    }
+
+    #[test]
+    fn every_role_in_role_all_reads_by_its_key_link_rule_among_them() {
+        let mut text = String::from("[light]\n");
+        for (at, role) in Role::ALL.iter().enumerate() {
+            text.push_str(&format!("{} = \"#{at:02x}{at:02x}{at:02x}\"\n", role.key()));
+        }
+        let palette = palette(&text);
+        let overlaid = Colours::overlaid(Scheme::Light, &palette);
+        for (at, role) in Role::ALL.iter().enumerate() {
+            assert_eq!(
+                overlaid.colour(*role).to_hex(),
+                format!("#{at:02x}{at:02x}{at:02x}"),
+                "{role:?} read under `{}`",
+                role.key()
+            );
+        }
+        assert_eq!(Role::LinkRule.key(), "link_rule");
+        assert_eq!(
+            palette.colour(Scheme::Light, Role::LinkRule),
+            Some(Colour::from_hex("#060606"))
+        );
+    }
+
+    #[test]
+    fn a_translucent_value_stays_translucent() {
+        let palette = palette("[light]\nselection_idle = \"#19191980\"\n");
+        let colour = Colours::overlaid(Scheme::Light, &palette).colour(Role::SelectionIdle);
+        assert_eq!(colour.to_hex(), "#191919");
+        assert_eq!(colour.opacity(), 0x80, "the alpha reaches the table");
+        assert_eq!(colour.to_css(), "rgba(25, 25, 25, 0.502)");
+    }
+
+    #[test]
+    fn the_derived_colours_are_computed_from_the_overlaid_table() {
+        use crate::annotate::{self, Ink};
+        use crate::focus::Tier;
+
+        let palette = palette(&format!(
+            "[light]\npaper = \"{ODD_PAPER}\"\nink_dim = \"#123456\"\nmark = \"#654321\"\n"
+        ));
+        let colours = Colours::overlaid(Scheme::Light, &palette);
+        // Focus's dim tier is the overlaid `ink_dim`, whatever the ink was.
+        assert_eq!(
+            annotate::colour(Ink::Prose, Tier::Dim, &colours).to_hex(),
+            "#123456"
+        );
+        assert_eq!(
+            annotate::colour(Ink::Marker, Tier::Bright, &colours).to_hex(),
+            "#654321",
+            "the resting marker is the overlaid mark"
+        );
+        // The code well and the idle fill are washes, so they land on the
+        // writer's paper and not on the oracle's greys.
+        let flattened = |role: Role| {
+            let colour = colours.colour(role);
+            Colour::over(colour, colours.colour(Role::Paper), colour.alpha).to_hex()
+        };
+        assert_eq!(
+            flattened(Role::CodeBg),
+            "#f60000",
+            "the code well washes a red paper"
+        );
+        assert_eq!(
+            flattened(Role::SelectionIdle),
+            "#e30303",
+            "so does the idle fill"
+        );
+    }
+
+    #[test]
+    fn the_fallible_reader_accepts_both_forms_and_refuses_the_rest() {
+        assert_eq!(Colour::parse("#00b5ff"), Some(Colour::from_hex("#00b5ff")));
+        assert_eq!(Colour::parse("#00B5FF"), Some(Colour::from_hex("#00b5ff")));
+        assert_eq!(
+            Colour::parse("#00b5ff80"),
+            Some(Colour::rgba(0, 181, 255, 128.0 / 255.0))
+        );
+        assert_eq!(
+            Colour::parse("#00B5FFff"),
+            Some(Colour::from_hex("#00b5ff"))
+        );
+        for text in [
+            "red",
+            "#rgb",
+            "#00b5ff8",
+            "#00b5ff800",
+            "00b5ff",
+            "#00b5fg",
+            "",
+            "#",
+        ] {
+            assert_eq!(Colour::parse(text), None, "{text:?} is not a colour");
+        }
     }
 }
