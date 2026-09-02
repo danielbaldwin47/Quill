@@ -9,7 +9,7 @@
 //! recognise — the unknown keys and tables a write has to put back.
 
 use std::ops::RangeInclusive;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use toml::Value;
 
@@ -110,10 +110,13 @@ impl<'a> Reading<'a> {
     /// A directory or file a writer named, or `None` when the key is empty.
     ///
     /// Empty is how "no Library yet" and "no Document yet" are written: the key
-    /// stays in the file where a writer can see it, holding nothing.
+    /// stays in the file where a writer can see it, holding nothing. A
+    /// leading `~/` is the home directory ([`under_home`]), because that is
+    /// how a hand writes a path in a file it will carry between machines,
+    /// and how the README's `palette` step writes one.
     pub fn path(&mut self, key: &str) -> Option<PathBuf> {
         let text = self.text(key, "");
-        (!text.is_empty()).then(|| PathBuf::from(text))
+        (!text.is_empty()).then(|| under_home(&text, std::env::home_dir().as_deref()))
     }
 
     /// A list of paths, skipping any entry that is not a string.
@@ -187,6 +190,20 @@ impl<'a> Reading<'a> {
     }
 }
 
+/// `text` as a path, with a leading `~` — alone, or followed by `/` — standing
+/// for `home`.
+///
+/// Only the writer's own home: `~name/` is left as written, because guessing
+/// another account's home directory is a shell's business. With no home
+/// directory to expand against, the text is the path.
+fn under_home(text: &str, home: Option<&Path>) -> PathBuf {
+    match (text.strip_prefix('~'), home) {
+        (Some(""), Some(home)) => home.to_path_buf(),
+        (Some(rest), Some(home)) if rest.starts_with('/') => home.join(&rest[1..]),
+        _ => PathBuf::from(text),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -212,6 +229,30 @@ mod tests {
         assert!(
             notes[1].contains("\"big\""),
             "the note quotes what was written: {notes:?}"
+        );
+    }
+
+    #[test]
+    fn a_leading_tilde_is_the_home_directory_and_only_the_writers_own() {
+        let home = Path::new("/home/writer");
+        assert_eq!(
+            under_home("~/x/quill.toml", Some(home)),
+            PathBuf::from("/home/writer/x/quill.toml")
+        );
+        assert_eq!(under_home("~", Some(home)), PathBuf::from("/home/writer"));
+        assert_eq!(
+            under_home("~other/x", Some(home)),
+            PathBuf::from("~other/x"),
+            "another account's home is not guessed at"
+        );
+        assert_eq!(
+            under_home("/etc/quill.toml", Some(home)),
+            PathBuf::from("/etc/quill.toml")
+        );
+        assert_eq!(
+            under_home("~/x", None),
+            PathBuf::from("~/x"),
+            "with no home directory the text is the path"
         );
     }
 
