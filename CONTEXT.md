@@ -76,11 +76,11 @@ _Avoid_: accelerator (GTK's term), hotkey, keybinding
 
 **Annotator**:
 Anything that marks spans of a Document's prose for the Editor to style: Markup, Syntax highlight, Style check and Spell check are the four. An Annotator sees the prose stream, never the Markup characters.
+_Avoid_: highlighter, linter, decorator
 
 **Well**:
 The ground a code block is drawn on, run past both edges of the measure so the block reads as sunk into the page rather than as a stripe the width of the prose. A code span has the same ground without being a Well: it is padded, not sunk.
 _Avoid_: code background, block highlight
-_Avoid_: highlighter, linter, decorator
 
 ## Quality
 
@@ -106,6 +106,10 @@ _Avoid_: QA, acceptance test, manual test
 **Judged state**:
 One named configuration (passage, theme, Face, size, Focus, caret, chrome) at which a Piece is shot on both sides for Blind judging, the other side being the Parity oracle's frozen shot or the Design oracle crop the state names; each Piece has a fixed list of them.
 _Avoid_: scenario, screenshot, fixture
+
+**Capture ticket**:
+A ticket for the owner's Mac naming the Design-oracle states a spec needs and no capture holds, in the shape `docs/design.md` § Adding or changing a row gives; until it lands the row stays unwritten and the state keeps the Parity oracle as opponent.
+_Avoid_: screenshot request, reference ticket, research ticket (that is `wayfinder:research`: reading, never shooting)
 
 **Blind judging**:
 A critic with fresh context picks between two unlabelled screenshots (ours vs the opponent's) for a Piece and names the biggest gap of each.
