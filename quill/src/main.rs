@@ -30,6 +30,8 @@ mod menus;
 mod palette;
 mod portal;
 mod session;
+mod settings;
+mod shortcuts;
 mod tags;
 mod window;
 

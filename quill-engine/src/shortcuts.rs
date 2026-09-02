@@ -173,6 +173,16 @@ impl Refusal {
     }
 }
 
+impl fmt::Display for Refusal {
+    /// The entry and why it was refused, in one line: what the app warns
+    /// under `quill-settings` and what the Settings window shows at the
+    /// bottom (`quill::settings::refused`), which are the same sentence said
+    /// in two places.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}: {}", self.line, self.reason)
+    }
+}
+
 /// What a `[shortcuts]` table came to: the chords to install, and the entries
 /// that were refused.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -249,6 +259,116 @@ pub fn effective(
                     .collect()
             });
             (command.id, chords)
+        })
+        .collect()
+}
+
+/// One section of the `Ctrl+?` window: a menu, or the Commands with no menu.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Section {
+    /// What the window's switcher calls it.
+    pub title: &'static str,
+    /// Its groups, in the table's order.
+    pub groups: Vec<Group>,
+}
+
+/// One group of a [`Section`]: a View menu subsection, or the whole of a
+/// section that has no subsections.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Group {
+    /// The heading over its rows, and `None` for the one group of a section
+    /// that has no subsections, whose heading is the section's own title.
+    pub title: Option<&'static str>,
+    /// Its rows, in the table's order.
+    pub shortcuts: Vec<Shortcut>,
+}
+
+/// One row of a [`Group`]: a Command, and the chord it is on now.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Shortcut {
+    /// The Command's title as `docs/shortcuts.md` writes it, the pairs whole
+    /// (`Show Library / Hide Library`): this window is the table rather than
+    /// a menu, and has no window's state to read half a pair against.
+    pub title: &'static str,
+    /// The chord the row is labelled with, in GTK's accelerator syntax, and
+    /// empty for a Command on none. The aliases are left out for the reason
+    /// the menus leave them out: a row shows the chord it is labelled by.
+    pub accelerator: String,
+}
+
+/// The section for the Commands with no menu row, titled as
+/// `docs/shortcuts.md` heads their table.
+const KEYBOARD_ONLY: &str = "Palette and keyboard only";
+
+/// The `Ctrl+?` window's sections for `chords`: every Command in the registry,
+/// grouped the way the menus group it, each on the chord that map leaves it.
+///
+/// A pure function of the effective map ([`effective`]), which is what makes
+/// the window show what the writer's file came to rather than the defaults,
+/// and lets it be built again on every open rather than kept. A Command placed
+/// in two menus has a row in both, as it has a row in both menus.
+#[must_use]
+pub fn sections(chords: &BTreeMap<&'static str, Vec<Chord>>) -> Vec<Section> {
+    commands::MENUS
+        .iter()
+        .map(|menu| Section {
+            title: menu.title(),
+            groups: groups(*menu, chords),
+        })
+        .chain(std::iter::once(Section {
+            title: KEYBOARD_ONLY,
+            groups: vec![Group {
+                title: None,
+                shortcuts: rows(COMMANDS.iter().filter(|command| command.hidden()), chords),
+            }],
+        }))
+        .collect()
+}
+
+/// One menu's groups: the View menu's six subsections, and one group holding
+/// the whole of a menu that has none.
+fn groups(menu: commands::Menu, chords: &BTreeMap<&'static str, Vec<Chord>>) -> Vec<Group> {
+    if menu == commands::Menu::View {
+        return commands::VIEW_SECTIONS
+            .iter()
+            .map(|section| Group {
+                title: Some(section),
+                shortcuts: rows(placed(menu, Some(section)), chords),
+            })
+            .collect();
+    }
+    vec![Group {
+        title: None,
+        shortcuts: rows(placed(menu, None), chords),
+    }]
+}
+
+/// The Commands with a row in `menu` under `section`, in the table's order.
+fn placed(
+    menu: commands::Menu,
+    section: Option<&'static str>,
+) -> impl Iterator<Item = &'static Command> {
+    COMMANDS.iter().filter(move |command| {
+        command
+            .placements
+            .iter()
+            .any(|placement| placement.menu == menu && placement.section == section)
+    })
+}
+
+/// One row per Command in the order they come, each labelled with the first
+/// chord `chords` leaves it on.
+fn rows<'a>(
+    commands: impl Iterator<Item = &'a Command>,
+    chords: &BTreeMap<&'static str, Vec<Chord>>,
+) -> Vec<Shortcut> {
+    commands
+        .map(|command| Shortcut {
+            title: command.title,
+            accelerator: chords
+                .get(command.id)
+                .and_then(|chords| chords.first())
+                .map_or_else(String::new, |chord| chord.as_str().to_owned()),
         })
         .collect()
 }
@@ -535,5 +655,103 @@ mod tests {
         ] {
             assert_eq!(Chord::parse(text), None, "{text:?}");
         }
+    }
+
+    /// The settings file the Gate judges the chrome Piece with, read here
+    /// rather than written out again, so that the window this models and the
+    /// shots the critics are shown are the same rebinding.
+    const FIXTURE: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../quill/tests/fixtures/rebind.toml"
+    );
+
+    /// Every row the `Ctrl+?` window would show, title and accelerator, in the
+    /// order the sections put them in.
+    fn listed(sections: &[Section]) -> Vec<(&'static str, String)> {
+        sections
+            .iter()
+            .flat_map(|section| section.groups.iter())
+            .flat_map(|group| group.shortcuts.iter())
+            .map(|shortcut| (shortcut.title, shortcut.accelerator.clone()))
+            .collect()
+    }
+
+    /// The window under the rebinding fixture: `F9` for the Library, the chord
+    /// the fixture gave Dark Mode, and every other Command on its own default
+    /// or on nothing.
+    #[test]
+    fn the_window_shows_the_fixtures_chords_and_every_other_commands_default() {
+        let text = std::fs::read_to_string(FIXTURE).expect(FIXTURE);
+        let rebinding = table(&text);
+        let shortcuts = read(&rebinding);
+        assert_eq!(shortcuts.refusals, Vec::new());
+        let rows = listed(&sections(&shortcuts.chords));
+        // The rows are found by title below, which only says what it means
+        // while no two Commands share one.
+        let titles: std::collections::BTreeSet<&str> =
+            COMMANDS.iter().map(|command| command.title).collect();
+        assert_eq!(titles.len(), COMMANDS.len());
+        for command in COMMANDS {
+            let expected = match rebinding.get(command.id) {
+                Some(entry) => entry.as_array().expect(command.id)[0]
+                    .as_str()
+                    .expect(command.id)
+                    .to_owned(),
+                None => command.accels().first().cloned().unwrap_or_default(),
+            };
+            let shown: Vec<&String> = rows
+                .iter()
+                .filter(|(title, _)| *title == command.title)
+                .map(|(_, accelerator)| accelerator)
+                .collect();
+            assert!(!shown.is_empty(), "{} has no row", command.id);
+            for accelerator in shown {
+                assert_eq!(*accelerator, expected, "{}", command.id);
+            }
+        }
+        assert_eq!(
+            rows.len(),
+            COMMANDS.len() + 1,
+            "one row each, and `chrome.stats` in both the menus it is placed in"
+        );
+        assert_eq!(
+            rows.iter()
+                .find(|(title, _)| *title == commands::by_id("library.toggle").unwrap().title),
+            Some(&("Show Library / Hide Library", "F9".to_owned()))
+        );
+    }
+
+    /// The sections are the menus, the View menu's are its six subsections,
+    /// and the Commands with no menu row are the last section of all.
+    #[test]
+    fn the_sections_are_the_menus_and_the_view_menus_groups_its_subsections() {
+        let sections = sections(&read(&toml::Table::new()).chords);
+        assert_eq!(
+            sections
+                .iter()
+                .map(|section| section.title)
+                .collect::<Vec<_>>(),
+            ["Document", "View", "Stats", KEYBOARD_ONLY]
+        );
+        let view = &sections[1];
+        assert_eq!(
+            view.groups
+                .iter()
+                .map(|group| group.title)
+                .collect::<Vec<_>>(),
+            commands::VIEW_SECTIONS.map(Some)
+        );
+        for section in sections.iter().filter(|section| section.title != "View") {
+            assert_eq!(section.groups.len(), 1, "{}", section.title);
+            assert_eq!(section.groups[0].title, None, "{}", section.title);
+        }
+        // A Command on no chord is a row all the same, with nothing in the
+        // accelerator: the window is the whole table.
+        assert_eq!(
+            listed(&sections)
+                .iter()
+                .find(|(title, _)| *title == commands::by_id("file.duplicate").unwrap().title),
+            Some(&("Duplicate Document", String::new()))
+        );
     }
 }
