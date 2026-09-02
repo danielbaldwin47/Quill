@@ -176,6 +176,21 @@ pub struct Scope {
     pub bytes: Range<usize>,
 }
 
+/// Where an edit cut into the text.
+///
+/// What a reader holding offsets from before the edit needs to carry them
+/// across it: [`crate::focus::rebased`] moves the tiers Focus lit before a
+/// keystroke into the text after it, so that the keystroke is judged against
+/// where the dim was and not where its numbers happened to point (#224).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Splice {
+    /// The bytes it took out, as they lay *before* the edit. Empty for an
+    /// insertion, and then the offset the text went in at.
+    pub at: Range<usize>,
+    /// How many bytes it put in their place. Zero for a deletion.
+    pub inserted: usize,
+}
+
 /// What one edit changed.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Edit {
@@ -185,6 +200,8 @@ pub struct Edit {
     pub lines: Range<usize>,
     /// What had to be re-parsed to find them.
     pub scope: Scope,
+    /// Where the edit cut, for whatever held offsets from before it.
+    pub splice: Splice,
 }
 
 /// One Markdown file, plus everything the engine keeps in step with its text.
@@ -466,6 +483,10 @@ impl Document {
         Edit {
             lines: changed(first, &before, &after),
             scope: Scope { blocks, bytes: new },
+            splice: Splice {
+                at,
+                inserted: inserted.len(),
+            },
         }
     }
 
@@ -1559,6 +1580,29 @@ mod tests {
         expected.insert_str(stop, " again");
         assert_eq!(doc.text(), expected);
         as_if_opened(&doc);
+    }
+
+    #[test]
+    fn an_edit_says_where_it_cut() {
+        let mut doc = opened("One two.\n\nThree four.\n");
+        let edit = doc.insert(4, "\nand ");
+        assert_eq!(
+            edit.splice,
+            Splice {
+                at: 4..4,
+                inserted: 5
+            },
+            "an insertion cuts nothing out and says how much went in"
+        );
+        let edit = doc.delete(4..9);
+        assert_eq!(
+            edit.splice,
+            Splice {
+                at: 4..9,
+                inserted: 0
+            },
+            "a deletion names the bytes it took, as they lay before it"
+        );
     }
 
     #[test]

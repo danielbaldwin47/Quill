@@ -1,0 +1,88 @@
+{
+  "ran": "--regimes prose_focus_sentence",
+  "at": "2026-09-02T01:54:44.728Z",
+  "budget": {
+    "mean_ms": 5,
+    "worst_ms": 16,
+    "cold_ms": 250
+  },
+  "oracle": {
+    "mean_ms": 2.43,
+    "worst_ms": 15.61,
+    "uinput_to_presented_ms": 12.17,
+    "cold_ms": 370
+  },
+  "headline": "prose_end_of_draft",
+  "regimes": [
+    {
+      "regime": "prose_focus_sentence",
+      "file": "shots/latency/bench-prose_focus_sentence-20260902T015444.json",
+      "mean_ms": 2.69,
+      "worst_ms": 4.92,
+      "p50_ms": 2.48,
+      "p99_ms": 4.18,
+      "cold_ms": 143.95,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    }
+  ],
+  "regimes_not_run": [],
+  "regimes_unaccounted_for": [],
+  "regimes_not_scored": [],
+  "stage_first_client_ms": 203.075,
+  "pass": true,
+  "lines": [
+    "gate bench prose_focus_sentence: pass — mean 2.69 ms, worst 4.92 ms, p50 2.48 ms, p99 4.18 ms, cold 143.95 ms",
+    "gate bench --regimes prose_focus_sentence: pass — 1 of 1 regimes clear the budget (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)"
+  ],
+  "build": {
+    "git": "fceaf46",
+    "binary": "8fbc36c911bc09d3"
+  },
+  "fingerprint": {
+    "at": "2026-09-02T01:54:44.681Z",
+    "app": {
+      "binary": "target/release/quill",
+      "sha256": "8fbc36c911bc09d3",
+      "git_head": "fceaf46",
+      "tree_was_dirty": true,
+      "renderer": "gl"
+    },
+    "display": {
+      "output": "HEADLESS-184",
+      "mode": "3200x2000",
+      "refresh_hz": 60,
+      "scale": 2,
+      "vrr": false
+    },
+    "machine": {
+      "node": "v26.7.0",
+      "kernel": "Linux 7.1.9-arch1-2",
+      "cpu": "13th Gen Intel(R) Core(TM) i5-13600K",
+      "cpus": 20,
+      "load1": 0.26,
+      "busiest_processes": [
+        "2.0 rust-analyzer",
+        "1.9 quill <defunct>",
+        "1.5 claude",
+        "1.4 claude",
+        "1.2 helium"
+      ],
+      "mem_gb": 31
+    },
+    "document": {
+      "path": "shots/latency/doc10k.md",
+      "words": 9953,
+      "chars": 53031,
+      "lines": 432
+    },
+    "window": {
+      "w": 1440,
+      "h": 900
+    }
+  }
+}
