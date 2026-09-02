@@ -149,9 +149,17 @@ export function regimes(pace = DEFAULT_PACE) {
     { name: 'letters_only_r1',       mix: 'letters',  where: 'middle', pace, focus: 'off' },
     { name: 'bursts_and_pauses',     mix: 'prose',    where: 'end',    pace, focus: 'off', pauseEvery: 25, pauseMs: 1400 },
     { name: 'fast_typist',           mix: 'prose',    where: 'middle', pace: 45,   focus: 'off' },
-    { name: 'saturation_stress',     mix: 'prose',    where: 'end',    pace: 0,    focus: 'off' },
+    // Unpaced: two keys land in every 16.7 ms frame and queue behind each other, so a per-keystroke
+    // uinput → presented figure grows by construction and can never clear a 5 ms mean. Run and
+    // recorded like the rest, never scored — the oracle scored the eleven paced regimes and kept
+    // this one out of its table (progress/latency-report.md, #41).
+    { name: 'saturation_stress',     mix: 'prose',    where: 'end',    pace: 0,    focus: 'off', scored: false },
   ];
 }
+
+/// Whether a regime, by name, is held to the budget. Every regime is unless its definition says
+/// `scored: false`; a name the twelve do not include is scored, so a misspelling cannot exempt a run.
+export const scoredRegime = (name) => !regimes().some((r) => r.name === name && r.scored === false);
 
 // ---------- one regime, written out ----------
 // The definition a bench acts on, then every step it will type. Two benches producing the same

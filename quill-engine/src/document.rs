@@ -3,8 +3,8 @@
 //! A Document is one Markdown file on disk, and the file is the only source of
 //! truth. The engine keeps its own `String` copy of the text, spliced from the
 //! buffer's edit signals before any Annotator runs, and keeps beside it the
-//! three things the splice has to move with the text: the line-start table, the
-//! block index, and the Markup spans flattened into runs.
+//! three things the splice has to keep in step with the text: the line-start
+//! table, the block index, and the Markup spans flattened into runs.
 //!
 //! The **block index** is the list of top-level blocks, each a byte range and
 //! the [`Kind`] it is. It tiles the Document — the stretches no block covers,
@@ -14,6 +14,10 @@
 //! block's bytes alone with a fresh parser and rebases every range the parser
 //! yields by the slice's start offset, which is the whole trick; the blocks
 //! after it shift by the edit's byte delta, an integer add rather than a parse.
+//! The spans and runs are not shifted at all: each block keeps its own,
+//! measured from the block's start ([`BlockMarks`]), so a keystroke in the middle
+//! of a manuscript moves the block index and the line table below it and
+//! nothing else, and the accessors add a block's start back on the way out.
 //!
 //! An edit that touches a **block boundary** — a blank line, a fence marker, a
 //! list marker, a setext underline — **widens** the re-parse to the block's
@@ -42,6 +46,7 @@ use pulldown_cmark::{CodeBlockKind, Event, Tag};
 
 use crate::annotate::{self, Look, Mark, Run, Span};
 use crate::markdown;
+use crate::offsets::Offsets;
 
 /// What a window titles a Document that is not on disk yet.
 pub const UNTITLED: &str = "Untitled";
@@ -188,14 +193,14 @@ pub struct Document {
     path: Option<PathBuf>,
     text: String,
     /// The byte each line starts at, ascending, always beginning with 0.
-    lines: Vec<usize>,
-    /// The top-level blocks, in order, tiling the whole text.
-    blocks: Vec<Block>,
-    /// The Markup spans of the whole text, in the order [`annotate::markup`]
-    /// gives them.
-    spans: Vec<Span>,
-    /// Those spans flattened: non-overlapping, in order.
-    runs: Vec<Run>,
+    lines: Offsets<()>,
+    /// The top-level blocks, in order, tiling the whole text: the byte each
+    /// starts at and what it is. A block ends where the next begins, or at
+    /// the end of the text; [`Document::block`] puts the two together.
+    blocks: Offsets<Kind>,
+    /// Each block's Markup, one entry per block of `blocks`, measured from
+    /// that block's start.
+    markup: Vec<BlockMarks>,
 }
 
 impl Default for Document {
@@ -203,10 +208,9 @@ impl Default for Document {
         Self {
             path: None,
             text: String::new(),
-            lines: vec![0],
-            blocks: Vec::new(),
-            spans: Vec::new(),
-            runs: Vec::new(),
+            lines: Offsets::new(vec![(0, ())], 0),
+            blocks: Offsets::new(Vec::new(), 0),
+            markup: Vec::new(),
         }
     }
 }
@@ -234,17 +238,22 @@ impl Document {
 
     /// A Document of `text`, parsed whole.
     fn holding(text: String, path: Option<PathBuf>) -> Self {
-        let lines = line_starts(&text);
+        let lines = Offsets::new(
+            line_starts(&text)
+                .into_iter()
+                .map(|start| (start, ()))
+                .collect(),
+            text.len(),
+        );
         let blocks = index(&text, 0);
-        let spans = annotate::markup(&text);
-        let runs = annotate::flatten(&spans);
+        let markup = distribute(&blocks, &annotate::markup(&text));
+        let blocks = Offsets::new(starts_of(blocks), text.len());
         Self {
             path,
             text,
             lines,
             blocks,
-            spans,
-            runs,
+            markup,
         }
     }
 
@@ -261,35 +270,74 @@ impl Document {
     }
 
     /// The top-level blocks, in order, tiling the whole text.
+    ///
+    /// Assembled on the way out, block by block, so it costs the length of
+    /// the index: a reader of one block on the keystroke path asks
+    /// [`Document::block`] for it instead.
     #[must_use]
-    pub fn blocks(&self) -> &[Block] {
-        &self.blocks
+    pub fn blocks(&self) -> Vec<Block> {
+        (0..self.blocks.len()).map(|at| self.block(at)).collect()
     }
 
-    /// The Markup spans of the whole Document.
+    /// The block at `index` in the block index, as the bytes it covers and
+    /// what it is.
+    ///
+    /// A block ends where the next one begins, and the last at the end of the
+    /// text, because the index tiles the Document.
+    ///
+    /// # Panics
+    ///
+    /// When `index` is not below the count [`Document::blocks`] would give:
+    /// the indices that reach here come from [`Document::block_at`] and
+    /// [`Scope::blocks`], which name blocks the Document has.
     #[must_use]
-    pub fn spans(&self) -> &[Span] {
-        &self.spans
+    pub fn block(&self, index: usize) -> Block {
+        let (start, kind) = self.indexed_start(index);
+        let end = self.blocks.offset(index + 1).unwrap_or(self.text.len());
+        Block {
+            at: start..end,
+            kind,
+        }
     }
 
-    /// Those spans flattened into runs that do not overlap.
+    /// Every block with its Markup, in order, from the block at `first`.
+    fn indexed(&self, first: usize) -> impl Iterator<Item = (Block, &BlockMarks)> + '_ {
+        (first..self.blocks.len()).map(|at| (self.block(at), &self.markup[at]))
+    }
+
+    /// The Markup spans of the whole Document, in absolute bytes.
+    ///
+    /// Assembled on the way out, because the spans are kept per block
+    /// ([`BlockMarks`]); the readers of a whole Document — the tests, and the debug
+    /// net under [`Document::edit`] — pay for the walk, and no keystroke does.
     #[must_use]
-    pub fn runs(&self) -> &[Run] {
-        &self.runs
+    pub fn spans(&self) -> Vec<Span> {
+        self.indexed(0)
+            .flat_map(|(block, markup)| markup.spans_from(block.at.start))
+            .collect()
+    }
+
+    /// Those spans flattened into runs that do not overlap, in absolute bytes.
+    #[must_use]
+    pub fn runs(&self) -> Vec<Run> {
+        self.indexed(0)
+            .flat_map(|(block, markup)| markup.runs_from(block.at.start))
+            .collect()
     }
 
     /// The runs that draw any of the bytes `at`.
     ///
-    /// Found by binary search on both ends, because the caller is the retag
-    /// and the retag is on the keystroke path: walking the Document's runs to
-    /// find a line's worth of them would put the cost of a keystroke back in
-    /// proportion to the length of the manuscript, which is the one shape
-    /// `docs/research/markdown-parser.md` rules out.
+    /// Found by binary search — on the block index for the block `at` starts
+    /// in, then on both ends of that block's own runs — because the caller is
+    /// the retag and the retag is on the keystroke path: walking the
+    /// Document's runs to find a line's worth of them would put the cost of a
+    /// keystroke back in proportion to the length of the manuscript, which is
+    /// the one shape `docs/research/markdown-parser.md` rules out.
     #[must_use]
-    pub fn runs_in(&self, at: &Range<usize>) -> &[Run] {
-        let from = self.runs.partition_point(|run| run.at.end <= at.start);
-        let count = self.runs[from..].partition_point(|run| run.at.start < at.end);
-        &self.runs[from..from + count]
+    pub fn runs_in(&self, at: &Range<usize>) -> Vec<Run> {
+        self.over(at)
+            .flat_map(|(block, markup)| markup.runs_over(block.at.start, at))
+            .collect()
     }
 
     /// The spans that could cover any of the bytes `at`, and no others before
@@ -299,16 +347,22 @@ impl Document {
     /// starting well before `at` can still reach into it. What bounds the
     /// search is that a span never straddles a block — so nothing starting
     /// before the block holding `at.start` can reach `at`, and the block index
-    /// finds that block by binary search. A span in the returned slice may
+    /// finds that block by binary search. A span in the returned list may
     /// still end before `at` begins; the caller skips it.
     #[must_use]
-    pub fn spans_in(&self, at: &Range<usize>) -> &[Span] {
-        let floor = self
-            .block_at(at.start)
-            .map_or(0, |block| self.blocks[block].at.start);
-        let from = self.spans.partition_point(|span| span.at.start < floor);
-        let to = self.spans.partition_point(|span| span.at.start < at.end);
-        &self.spans[from..to.max(from)]
+    pub fn spans_in(&self, at: &Range<usize>) -> Vec<Span> {
+        self.over(at)
+            .flat_map(|(block, markup)| markup.spans_before(block.at.start, at.end))
+            .collect()
+    }
+
+    /// The blocks `at` reaches, each with its Markup: from the block holding
+    /// `at.start` through every block that begins before `at.end`.
+    fn over(&self, at: &Range<usize>) -> impl Iterator<Item = (Block, &BlockMarks)> + '_ {
+        let first = self.block_at(at.start).unwrap_or(0);
+        let end = at.end;
+        self.indexed(first)
+            .take_while(move |(block, _)| block.at.start < end)
     }
 
     /// The block `offset` is in, by its index in [`Document::blocks`].
@@ -319,11 +373,9 @@ impl Document {
     /// past it.
     #[must_use]
     pub fn block_at(&self, offset: usize) -> Option<usize> {
-        let found = self
-            .blocks
-            .partition_point(|block| block.at.start <= offset);
+        let found = self.blocks.partition_point(|start| start <= offset);
         let index = found.checked_sub(1)?;
-        if offset < self.blocks[index].at.end || offset == self.text.len() {
+        if offset < self.block(index).at.end || offset == self.text.len() {
             Some(index)
         } else {
             None
@@ -345,7 +397,7 @@ impl Document {
         let line = self.line_of(offset);
         Place {
             line,
-            index: offset - self.lines[line],
+            index: offset - self.line_start(line),
         }
     }
 
@@ -398,16 +450,14 @@ impl Document {
 
         let new = plan.at.start..shift(plan.at.end, delta);
         let spans = rebase(annotate::markup(&plan.slice), plan.at.start);
-        let runs = annotate::flatten(&spans);
-        let blocks = self.splice_index(&old, &new, delta, plan.index);
-        self.splice_spans(&old, delta, spans, runs);
+        let blocks = self.splice_index(&old, &new, delta, plan.index, &spans);
         // The net under the whole strategy, and the reason it can be trusted
         // on a writer's own files rather than only on the passages the tests
         // hold. It costs a whole-Document parse per keystroke, so a debug
         // build types like one; that is the trade, and a build that renders
         // the wrong thing quietly would be the worse half of it.
         debug_assert_eq!(
-            self.spans,
+            self.spans(),
             annotate::markup(&self.text),
             "a block-scoped re-parse drew what a whole-Document parse would not"
         );
@@ -458,10 +508,10 @@ impl Document {
         let Some(found) = self.block_at(at.start) else {
             return 0..self.text.len();
         };
-        let block = &self.blocks[found];
+        let block = self.block(found);
         // A delete that runs off the end of its block crossed a boundary to
         // get there, so it widens for the same reason the four rules do.
-        let widen = at.end > block.at.end || self.at_a_boundary(at, inserted, block);
+        let widen = at.end > block.at.end || self.at_a_boundary(at, inserted, &block);
         // The rule widens to the block's *neighbours*, not to the blank lines
         // beside it: a blank line is what a Gap is made of, so stepping only
         // that far would leave a rule that fired changing nothing.
@@ -476,7 +526,7 @@ impl Document {
         // `at.end` is the delete that ran off the end of its block: whatever
         // else the region is, it has to hold every byte the edit names, or the
         // slice cannot be built from it.
-        self.blocks[lo].at.start..self.out_to_a_gap(hi, at.end)
+        self.block(lo).at.start..self.out_to_a_gap(hi, at.end)
     }
 
     /// `region`'s bytes with the edit written into them.
@@ -535,7 +585,22 @@ impl Document {
     /// Whether the block at `found` is a Gap — blank lines, and so a byte
     /// nothing is open at.
     fn blank(&self, found: usize) -> bool {
-        self.blocks[found].kind == Kind::Gap
+        self.kind(found) == Kind::Gap
+    }
+
+    /// What the block at `found` is.
+    fn kind(&self, found: usize) -> Kind {
+        self.indexed_start(found).1
+    }
+
+    /// Where block `index` starts and what it is, for an `index` the
+    /// Document handed out ([`Document::block`]).
+    fn indexed_start(&self, index: usize) -> (usize, Kind) {
+        let (start, kind) = self
+            .blocks
+            .get(index)
+            .expect("a block index the Document handed out");
+        (start, *kind)
     }
 
     /// The byte a region beginning at block `hi` ends at: the end of the first
@@ -554,18 +619,18 @@ impl Document {
         // beginning wherever it begins. A Gap at `hi + 1` settles nothing: that
         // is the edge at a Gap's start, which is the seam that slips.
         while hi < last
-            && ((!self.blank(hi) && !self.blocks[hi + 1].kind.begins_a_block())
-                || self.blocks[hi].at.end < past)
+            && ((!self.blank(hi) && !self.kind(hi + 1).begins_a_block())
+                || self.block(hi).at.end < past)
         {
             hi += 1;
         }
-        self.blocks[hi].at.end
+        self.block(hi).at.end
     }
 
     /// Whether the block at `found` starts at a seam a slice can be cut at: it
     /// is a Gap, or it begins wherever it begins.
     fn settled(&self, found: usize) -> bool {
-        self.blank(found) || self.blocks[found].kind.begins_a_block()
+        self.blank(found) || self.kind(found).begins_a_block()
     }
 
     /// The block over `found` that is not a Gap, or the Document's first.
@@ -618,52 +683,70 @@ impl Document {
 
     /// The list markers inside `block`, in order.
     fn markers(&self, block: Range<usize>) -> impl Iterator<Item = Range<usize>> + '_ {
-        let from = self
-            .spans
-            .partition_point(|span| span.at.start < block.start);
-        self.spans[from..]
-            .iter()
-            .take_while(move |span| span.at.start < block.end)
+        self.spans_in(&block)
+            .into_iter()
             .filter(|span| matches!(span.mark, Mark::BulletMarker | Mark::OrderedMarker))
-            .map(|span| span.at.clone())
+            .map(|span| span.at)
     }
 
     /// Moves the line-start table over the same bytes the text moved over.
     ///
     /// A line start is one byte past a newline, so the starts that go are
     /// exactly the ones whose newline was inside `at`, the starts that come are
-    /// the newlines of `inserted`, and every start after the edit shifts by the
-    /// delta. Rebuilding instead would be O(document) on every keystroke, which
-    /// is the shape of cost long-form cannot carry.
+    /// the newlines of `inserted`, and every start after the edit moves by the
+    /// delta — which [`Offsets`] does without walking them. Rebuilding instead
+    /// would be O(document) on every keystroke, which is the shape of cost
+    /// long-form cannot carry.
     fn splice_lines(&mut self, at: &Range<usize>, inserted: &str, delta: isize) {
-        let first = self.lines.partition_point(|&start| start <= at.start);
-        let last = self.lines.partition_point(|&start| start <= at.end);
-        let fresh: Vec<usize> = newlines(inserted)
-            .map(|index| at.start + index + 1)
+        let first = self.lines.partition_point(|start| start <= at.start);
+        let last = self.lines.partition_point(|start| start <= at.end);
+        let fresh = newlines(inserted)
+            .map(|index| (at.start + index + 1, ()))
             .collect();
-        let grew = fresh.len();
-        self.lines.splice(first..last, fresh);
-        for start in &mut self.lines[first + grew..] {
-            *start = shift(*start, delta);
-        }
+        self.lines.splice(first..last, fresh, delta);
     }
 
-    /// Puts `blocks` where the blocks over `old` were, and shifts the rest.
+    /// Puts `blocks` where the blocks over `old` were, with `spans` as their
+    /// Markup, and shifts the rest.
     ///
-    /// Returns where they landed, which is what [`Scope::blocks`] names. A heal
-    /// at the head merges the first of them into the block before it, so the
-    /// range it reports is one shorter and starts one earlier; a heal at the
-    /// tail merges the block after them into the last of them, and leaves the
-    /// range as it was.
+    /// The shift is the integer add the block-scoped strategy trades a
+    /// re-parse for: what is below an edit is the same Markup it was, one delta
+    /// further down the file — and because each block's Markup is measured
+    /// from the block's own start, the add touches the block index alone.
+    ///
+    /// Returns where the blocks landed, which is what [`Scope::blocks`] names.
+    /// A heal at the head merges the first of them into the block before it,
+    /// so the range it reports is one shorter and starts one earlier; a heal
+    /// at the tail merges the block after them into the last of them, and
+    /// leaves the range as it was.
     fn splice_index(
         &mut self,
         old: &Range<usize>,
         new: &Range<usize>,
         delta: isize,
         blocks: Vec<Block>,
+        spans: &[Span],
     ) -> Range<usize> {
+        // The index is kept as starts, and a block ends where the next one
+        // begins, so the re-parsed blocks have to tile `new` exactly or the
+        // block before them would quietly grow over the region.
+        debug_assert!(
+            (blocks.is_empty() && new.is_empty())
+                || (blocks
+                    .first()
+                    .is_some_and(|block| block.at.start == new.start)
+                    && blocks.last().is_some_and(|block| block.at.end == new.end)
+                    && blocks
+                        .windows(2)
+                        .all(|pair| pair[0].at.end == pair[1].at.start)),
+            "the re-parsed blocks do not tile {new:?}: {blocks:?}"
+        );
+        let markup = distribute(&blocks, spans);
         let grew = blocks.len();
-        let mut head = splice_by_start(&mut self.blocks, old, delta, blocks);
+        let mut head = self.blocks.partition_point(|start| start < old.start);
+        let stale = self.blocks.partition_point(|start| start < old.end);
+        self.blocks.splice(head..stale, starts_of(blocks), delta);
+        self.markup.splice(head..stale, markup);
         let mut tail = head + grew;
         // A re-parsed slice reaches exactly as far as its own bytes, so where
         // it ends in a Gap and what follows begins in one, the two are one Gap
@@ -674,16 +757,9 @@ impl Document {
             tail -= 1;
         }
         debug_assert!(
-            self.blocks.first().is_none_or(|block| block.at.start == 0)
-                && self
-                    .blocks
-                    .last()
-                    .is_none_or(|b| b.at.end == self.text.len())
-                && self
-                    .blocks
-                    .windows(2)
-                    .all(|pair| pair[0].at.end == pair[1].at.start),
-            "the block index stopped tiling the Document at {new:?}"
+            self.blocks.offset(0).is_none_or(|start| start == 0)
+                && self.blocks.len() == self.markup.len(),
+            "after {new:?} the block index does not start at 0 or has a block without its marks"
         );
         head..tail
     }
@@ -694,29 +770,31 @@ impl Document {
         if seam == 0 || seam >= self.blocks.len() {
             return false;
         }
-        if self.blocks[seam - 1].kind == Kind::Gap && self.blocks[seam].kind == Kind::Gap {
-            self.blocks[seam - 1].at.end = self.blocks[seam].at.end;
+        if self.kind(seam - 1) == Kind::Gap && self.kind(seam) == Kind::Gap {
+            // A Gap carries no Markup as a rule, but the merge moves whatever
+            // it does carry onto the joined block's start all the same. The
+            // first Gap runs on to wherever the second ended once the second's
+            // start is out of the index.
+            let base = self.block(seam - 1).at.len();
+            let taken = self.markup.remove(seam);
+            self.markup[seam - 1].spans.extend(taken.spans_from(base));
+            self.markup[seam - 1].runs.extend(taken.runs_from(base));
             self.blocks.remove(seam);
             return true;
         }
         false
     }
 
-    /// Puts `spans` and `runs` where the ones over `old` were, and shifts the
-    /// rest.
-    ///
-    /// Both lists are sorted by where a span starts, and no span or run
-    /// straddles a block boundary, so the stretch to replace is the one whose
-    /// starts fall inside `old` and everything past it is an integer add.
-    fn splice_spans(&mut self, old: &Range<usize>, delta: isize, spans: Vec<Span>, runs: Vec<Run>) {
-        splice_by_start(&mut self.spans, old, delta, spans);
-        splice_by_start(&mut self.runs, old, delta, runs);
-    }
-
     /// The line `offset` is on.
     fn line_of(&self, offset: usize) -> usize {
         let offset = offset.min(self.text.len());
-        self.lines.partition_point(|&start| start <= offset) - 1
+        self.lines.partition_point(|start| start <= offset) - 1
+    }
+
+    /// The byte `line` starts at, or the end of the text for a line past the
+    /// last.
+    fn line_start(&self, line: usize) -> usize {
+        self.lines.offset(line).unwrap_or(self.text.len())
     }
 
     /// The last line `at` reaches, or `first` when `at` covers no bytes.
@@ -731,7 +809,7 @@ impl Document {
     /// The byte the last line of `block` starts at.
     fn last_line_start(&self, block: &Range<usize>) -> usize {
         let line = self.last_line_of(block, self.line_of(block.start));
-        self.lines[line]
+        self.line_start(line)
     }
 
     /// The bytes of `line`, its newline included.
@@ -741,13 +819,8 @@ impl Document {
     /// ask for the line after the last one without checking first.
     #[must_use]
     pub fn line_bytes(&self, line: usize) -> Range<usize> {
-        let start = self.lines.get(line).copied().unwrap_or(self.text.len());
-        let end = self
-            .lines
-            .get(line + 1)
-            .copied()
-            .unwrap_or(self.text.len())
-            .max(start);
+        let start = self.line_start(line);
+        let end = self.line_start(line + 1).max(start);
         start..end
     }
 
@@ -805,65 +878,119 @@ fn clip(at: &Range<usize>, line: &Range<usize>) -> Range<usize> {
     at.start.max(line.start) - line.start..at.end.min(line.end) - line.start
 }
 
-/// One entry of a list the splice moves: the blocks, the spans and the runs.
+/// The Markup of one block, measured from the block's own start.
 ///
-/// All three are ordered by where an entry starts and none of them straddles a
-/// block boundary, which is what makes one splice serve all three.
-trait Ranged {
-    /// Where the entry is, in absolute bytes.
-    fn at(&self) -> &Range<usize>;
-    /// The same, to move.
-    fn at_mut(&mut self) -> &mut Range<usize>;
-}
-
-impl Ranged for Block {
-    fn at(&self) -> &Range<usize> {
-        &self.at
-    }
-    fn at_mut(&mut self) -> &mut Range<usize> {
-        &mut self.at
-    }
-}
-
-impl Ranged for Span {
-    fn at(&self) -> &Range<usize> {
-        &self.at
-    }
-    fn at_mut(&mut self) -> &mut Range<usize> {
-        &mut self.at
-    }
-}
-
-impl Ranged for Run {
-    fn at(&self) -> &Range<usize> {
-        &self.at
-    }
-    fn at_mut(&mut self) -> &mut Range<usize> {
-        &mut self.at
-    }
-}
-
-/// Puts `fresh` where the entries starting inside `old` were, and moves every
-/// entry after them by `delta`.
+/// Kept per block rather than as one list over the Document so that an edit
+/// moves none of it. A span below an edit is the same span at the same offset
+/// inside its block; only the block's start moved, and the block index is
+/// what resolves a start. Before this, the spans and the runs were two more
+/// absolute lists shifted by every keystroke, and at 55,000 words the two
+/// shifts were most of what a keystroke in the middle of a draft cost (#218).
 ///
-/// Returns the index the first of `fresh` landed at. The shift is the integer
-/// add the block-scoped strategy trades a re-parse for: what is below an edit
-/// is the same Markup it was, one delta further down the file.
-fn splice_by_start<T: Ranged>(
-    list: &mut Vec<T>,
-    old: &Range<usize>,
-    delta: isize,
-    fresh: Vec<T>,
-) -> usize {
-    let head = list.partition_point(|entry| entry.at().start < old.start);
-    let tail = list.partition_point(|entry| entry.at().start < old.end);
-    let grew = fresh.len();
-    list.splice(head..tail, fresh);
-    for entry in &mut list[head + grew..] {
-        let at = entry.at_mut();
-        *at = shift(at.start, delta)..shift(at.end, delta);
+/// No span straddles a block, which is what lets a block own its spans
+/// outright: a span is filed under the block it starts in, and the runs are
+/// the block's own spans flattened, which comes out the same as flattening the
+/// whole Document because [`annotate::flatten`] resolves nothing across a
+/// stretch no span covers.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+struct BlockMarks {
+    /// The block's spans, in the order [`annotate::markup`] gives them.
+    spans: Vec<Span>,
+    /// Those spans flattened: non-overlapping, in order.
+    runs: Vec<Run>,
+}
+
+impl BlockMarks {
+    /// The Markup of `block`, from the `spans` inside it in absolute bytes.
+    fn of(block: &Block, spans: &[Span]) -> Self {
+        let base = block.at.start;
+        let spans: Vec<Span> = spans
+            .iter()
+            .map(|span| Span::new(span.at.start - base..span.at.end - base, span.mark))
+            .collect();
+        let runs = annotate::flatten(&spans);
+        Self { spans, runs }
     }
-    head
+
+    /// The spans, back in absolute bytes for a block starting at `base`.
+    fn spans_from(&self, base: usize) -> impl Iterator<Item = Span> + '_ {
+        rebased_spans(&self.spans, base)
+    }
+
+    /// The runs, back in absolute bytes for a block starting at `base`.
+    fn runs_from(&self, base: usize) -> impl Iterator<Item = Run> + '_ {
+        rebased_runs(&self.runs, base)
+    }
+
+    /// The spans starting before the absolute byte `end`, for a block
+    /// starting at `base`.
+    fn spans_before(&self, base: usize, end: usize) -> impl Iterator<Item = Span> + '_ {
+        let count = self
+            .spans
+            .partition_point(|span| base + span.at.start < end);
+        rebased_spans(&self.spans[..count], base)
+    }
+
+    /// The runs that draw any of the absolute bytes `at`, for a block starting
+    /// at `base`, by binary search on both ends.
+    fn runs_over(&self, base: usize, at: &Range<usize>) -> impl Iterator<Item = Run> + '_ {
+        let start = at.start.saturating_sub(base);
+        let end = at.end.saturating_sub(base);
+        let from = self.runs.partition_point(|run| run.at.end <= start);
+        let count = self.runs[from..].partition_point(|run| run.at.start < end);
+        rebased_runs(&self.runs[from..from + count], base)
+    }
+}
+
+/// `spans`, measured from a block's start, back in absolute bytes for a block
+/// starting at `base`.
+fn rebased_spans(spans: &[Span], base: usize) -> impl Iterator<Item = Span> + '_ {
+    spans
+        .iter()
+        .map(move |span| Span::new(base + span.at.start..base + span.at.end, span.mark))
+}
+
+/// `runs`, measured from a block's start, back in absolute bytes for a block
+/// starting at `base`.
+fn rebased_runs(runs: &[Run], base: usize) -> impl Iterator<Item = Run> + '_ {
+    runs.iter().map(move |run| Run {
+        at: base + run.at.start..base + run.at.end,
+        look: run.look,
+    })
+}
+
+/// `blocks` as the block index keeps them: the byte each starts at and what it
+/// is, the end left to the block after it.
+fn starts_of(blocks: Vec<Block>) -> Vec<(usize, Kind)> {
+    blocks
+        .into_iter()
+        .map(|block| (block.at.start, block.kind))
+        .collect()
+}
+
+/// `spans`, in absolute bytes and in order, filed under the block of `blocks`
+/// each starts in.
+///
+/// `blocks` tile the stretch the spans were parsed from, so every span lands
+/// in one of them; the debug build checks that none was left over.
+fn distribute(blocks: &[Block], spans: &[Span]) -> Vec<BlockMarks> {
+    let mut from = 0;
+    let markup = blocks
+        .iter()
+        .map(|block| {
+            let count = spans[from..].partition_point(|span| span.at.start < block.at.end);
+            let markup = BlockMarks::of(block, &spans[from..from + count]);
+            from += count;
+            markup
+        })
+        .collect();
+    debug_assert_eq!(
+        from,
+        spans.len(),
+        "a span starts outside every block it was parsed with: {:?}",
+        &spans[from..]
+    );
+    markup
 }
 
 /// A container's opening line, in the two things that close it again: the
@@ -1127,33 +1254,48 @@ mod tests {
     /// never seen the edit would have built from the same bytes.
     fn as_if_opened(document: &Document) {
         assert_eq!(
-            document.lines,
+            document.lines.offsets(),
             line_starts(&document.text),
             "the line table drifted from the text"
         );
         assert_eq!(
-            document.blocks,
+            document.blocks(),
             index(&document.text, 0),
             "the block index drifted from the text"
         );
         assert_eq!(
-            document.spans,
+            document.spans(),
             annotate::markup(&document.text),
             "the spans are not the ones a whole-Document parse gives"
         );
         assert_eq!(
-            document.runs,
-            annotate::flatten(&document.spans),
+            document.runs(),
+            annotate::flatten(&document.spans()),
             "the runs drifted from the spans"
         );
+        assert_eq!(
+            document.markup,
+            distribute(&document.blocks(), &annotate::markup(&document.text)),
+            "a span is filed under a block it does not start in"
+        );
+    }
+
+    /// Every block's spans and runs as the accessors give them, in absolute
+    /// bytes, which is what a rebase has to agree with a fresh parse on.
+    fn read_back(document: &Document) -> Vec<(Vec<Span>, Vec<Run>)> {
+        document
+            .blocks()
+            .iter()
+            .map(|block| (document.spans_in(&block.at), document.runs_in(&block.at)))
+            .collect()
     }
 
     /// The block index as `(bytes, kind)` pairs, for reading in a failure.
     fn shape(document: &Document) -> Vec<(Range<usize>, Kind)> {
         document
-            .blocks
-            .iter()
-            .map(|block| (block.at.clone(), block.kind))
+            .blocks()
+            .into_iter()
+            .map(|block| (block.at, block.kind))
             .collect()
     }
 
@@ -1174,9 +1316,9 @@ mod tests {
     /// widening test names when it says what the spans are afterwards.
     fn marked(document: &Document) -> Vec<(&str, Mark)> {
         document
-            .spans
-            .iter()
-            .map(|span| (&document.text[span.at.clone()], span.mark))
+            .spans()
+            .into_iter()
+            .map(|span| (&document.text[span.at], span.mark))
             .collect()
     }
 
@@ -1422,12 +1564,12 @@ mod tests {
     #[test]
     fn a_newline_written_and_taken_away_leaves_the_line_table_as_it_found_it() {
         let mut doc = opened("One two.\n\nThree four.\n");
-        let table = doc.lines.clone();
+        let table = doc.lines.offsets();
         doc.insert(4, "\nand ");
-        assert_eq!(doc.lines, line_starts(doc.text()));
+        assert_eq!(doc.lines.offsets(), line_starts(doc.text()));
         as_if_opened(&doc);
         doc.delete(4..9);
-        assert_eq!(doc.lines, table, "the table did not come back");
+        assert_eq!(doc.lines.offsets(), table, "the table did not come back");
         as_if_opened(&doc);
     }
 
@@ -1731,24 +1873,24 @@ mod tests {
             .expect("the judged Markup passage is in the repo");
         for line in 0..doc.lines.len() {
             let at = doc.line_bytes(line);
-            let runs: Vec<&Run> = doc
+            let runs: Vec<Run> = doc
                 .runs()
-                .iter()
+                .into_iter()
                 .filter(|run| run.at.start < at.end && run.at.end > at.start)
                 .collect();
             assert_eq!(
-                doc.runs_in(&at).iter().collect::<Vec<_>>(),
+                doc.runs_in(&at),
                 runs,
                 "line {line}'s runs are not the ones a walk of the whole Document finds"
             );
-            let spans: Vec<&Span> = doc
+            let spans: Vec<Span> = doc
                 .spans()
-                .iter()
+                .into_iter()
                 .filter(|span| span.at.start < at.end && span.at.end > at.start)
                 .collect();
-            let found: Vec<&Span> = doc
+            let found: Vec<Span> = doc
                 .spans_in(&at)
-                .iter()
+                .into_iter()
                 .filter(|span| span.at.end > at.start)
                 .collect();
             assert_eq!(
@@ -1966,7 +2108,7 @@ mod tests {
             let mut doc = opened(&source);
             let edit = doc.insert(offset, "x");
             assert_eq!(
-                doc.blocks,
+                doc.blocks(),
                 index(doc.text(), 0),
                 "an `x` written at byte {offset} indexed as {:?}",
                 edit.scope
@@ -1975,7 +2117,7 @@ mod tests {
             let edit = doc.delete(offset..offset + 1);
             assert_eq!(doc.text(), source, "byte {offset} did not come back");
             assert_eq!(
-                doc.blocks,
+                doc.blocks(),
                 index(doc.text(), 0),
                 "taking the `x` at byte {offset} back out again indexed as {:?}",
                 edit.scope
@@ -2028,6 +2170,74 @@ mod tests {
             }
             assert!(doc.text().ends_with("The lamp"), "{name}");
         }
+    }
+
+    /// Five blocks with Markup in each, so an edit in the first has four
+    /// blocks below it whose spans and runs only moved.
+    const STACKED: &str = "# Title with *emphasis*\n\nSome **strong** prose here.\n\n\
+                           - one `code`\n- two\n\n> a quote with a [link](x)\n\n\
+                           Last paragraph, _still_ marked.\n";
+
+    #[test]
+    fn an_insert_in_the_first_block_leaves_every_block_below_it_reading_as_a_fresh_parse() {
+        let mut doc = opened(STACKED);
+        assert!(
+            doc.blocks().len() >= 5,
+            "the passage stacks blocks: {:?}",
+            shape(&doc)
+        );
+        doc.insert("# Ti".len(), "xyz");
+        let fresh = opened(doc.text());
+        assert_eq!(
+            read_back(&doc),
+            read_back(&fresh),
+            "a block below the edit reads differently from a fresh parse of the same text"
+        );
+        as_if_opened(&doc);
+    }
+
+    #[test]
+    fn a_delete_in_the_first_block_leaves_every_block_below_it_reading_as_a_fresh_parse() {
+        let mut doc = opened(STACKED);
+        doc.delete("# Title".len().."# Title with".len());
+        let fresh = opened(doc.text());
+        assert_eq!(
+            read_back(&doc),
+            read_back(&fresh),
+            "a block below the edit reads differently from a fresh parse of the same text"
+        );
+        as_if_opened(&doc);
+    }
+
+    #[test]
+    fn a_block_keeps_its_markup_from_its_own_start_so_an_edit_above_it_moves_none_of_it() {
+        let mut doc = opened(STACKED);
+        let last = doc.blocks().len() - 1;
+        let before = doc.markup[last].clone();
+        assert!(
+            !before.spans.is_empty()
+                && before
+                    .spans
+                    .iter()
+                    .all(|span| span.at.end <= doc.blocks()[last].at.len()),
+            "the last block's spans are not measured from its own start: {before:?}"
+        );
+        doc.insert(0, "Words written above everything.\n\n");
+        let moved = doc.blocks().len() - 1;
+        assert!(
+            moved > last,
+            "the insert put blocks above: {:?}",
+            shape(&doc)
+        );
+        assert_eq!(
+            doc.markup[moved], before,
+            "an edit above a block rewrote the block's own Markup"
+        );
+        assert_eq!(
+            doc.spans_in(&doc.blocks()[moved].at),
+            opened(doc.text()).spans_in(&doc.blocks()[moved].at),
+            "the accessor did not add the moved start back"
+        );
     }
 
     fn write_temp(stem: &str, text: &str) -> PathBuf {

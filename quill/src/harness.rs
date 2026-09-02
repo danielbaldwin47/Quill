@@ -231,6 +231,22 @@ fn presented(clock: &gdk::FrameClock) -> Option<i64> {
         .find(|time| *time != 0)
 }
 
+/// When the pixels painted in `frame` first reached the glass, with the
+/// refresh interval of the frame that carried them: `frame`'s own presentation
+/// when the compositor showed it, otherwise the first later frame's that was
+/// presented. `None` while every frame from `frame` on is incomplete or
+/// discarded ([`Capture::drain`]).
+///
+/// Not unit-tested: a `gdk::FrameClock` and its timings exist only under a
+/// display. The tests below cover the line the result is written as.
+fn presented_from(clock: &gdk::FrameClock, frame: i64) -> Option<(i64, i64)> {
+    (frame..=clock.frame_counter())
+        .filter_map(|counter| clock.timings(counter))
+        .filter(gdk::FrameTimings::is_complete)
+        .map(|timings| (timings.presentation_time(), timings.refresh_interval()))
+        .find(|(time, _)| *time != 0)
+}
+
 /// Does something to the capture, if this launch has one.
 ///
 /// Every one of the three moments below reaches it the same way, and a launch
@@ -304,8 +320,19 @@ impl Capture {
         }
     }
 
-    /// Writes every key whose frame has completed, and says whether a key is
-    /// still waiting on a frame that only a later frame will complete.
+    /// Writes every key whose frame has been presented, and says whether a key
+    /// is still waiting on a frame that only a later frame will complete.
+    ///
+    /// A key's frame is the one painted after it, but the compositor does not
+    /// show every frame it is handed: two painted inside one refresh, which a
+    /// stall followed by a catch-up produces at saturation, reach it together
+    /// and only the later is presented; the earlier is discarded, and its
+    /// timings never complete (or complete saying zero). Its pixels were first
+    /// on the glass when the next presented frame was, and presentation is in
+    /// order, so the first presented frame at or after a key's own is the
+    /// time the key is written with. Until one completes the key waits, and
+    /// if none ever comes it is written with none when its frame leaves the
+    /// clock's history or the capture closes.
     fn drain(&mut self, clock: &gdk::FrameClock, now: i64) -> bool {
         let mut lines = String::new();
         let mut stale = false;
@@ -315,26 +342,21 @@ impl Capture {
                 // Stamped between two paints: the next one is its frame.
                 return true;
             };
-            match clock.timings(frame) {
-                Some(timings) if timings.is_complete() => {
-                    let presented = (timings.presentation_time() != 0)
-                        .then(|| (timings.presentation_time(), timings.refresh_interval()));
-                    lines.push_str(&line(stamp, presented));
-                    lines.push('\n');
-                    false
-                }
-                // Fallen out of the clock's history: it will never complete
-                // now, and holding it would hold the whole buffer.
-                None if frame < history => {
-                    lines.push_str(&line(stamp, None));
-                    lines.push('\n');
-                    false
-                }
-                _ => {
-                    stale |= now - stamp.handler_us > TAIL;
-                    true
-                }
+            if let Some(presented) = presented_from(clock, frame) {
+                lines.push_str(&line(stamp, Some(presented)));
+                lines.push('\n');
+                return false;
             }
+            if frame < history {
+                // Fallen out of the clock's history with nothing presented
+                // after it: it never will be now, and holding it would hold
+                // the whole buffer.
+                lines.push_str(&line(stamp, None));
+                lines.push('\n');
+                return false;
+            }
+            stale |= now - stamp.handler_us > TAIL;
+            true
         });
         self.write(&lines);
         stale
