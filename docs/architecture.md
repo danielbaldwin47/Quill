@@ -154,7 +154,8 @@ toggles sit beside it), `[style_check]` (the same shape, one toggle per list bes
 path), and a `[shortcuts]` table of Command id → chords that
 replaces the defaults in [`shortcuts.md`](shortcuts.md) ([ADR 0011](adr/0011-shortcut-precedence-on-linux.md)).
 
-The settings file is watched with `notify` and a 100 ms debouncer (`quill_engine::watch`), the
+The settings file is watched with `notify` and a debouncer whose window is
+`quill_engine::watch::DEBOUNCE`, the
 directory rather than the file, because a save is a write beside it and a rename over the top. The
 app drains the watch from its main context and re-reads the file whole: every setting applies
 without a restart, `[shortcuts]` included, and the flags of a launch that carries any stay over the

@@ -38,7 +38,7 @@ use quill_engine::commands::{self, COMMANDS, Command, Kind, Menu, Scope};
 use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
 use quill_engine::settings::{Choice, Chrome, FocusScope};
-use quill_engine::shortcuts::Refusal;
+use quill_engine::shortcuts::{Chord, Refusal};
 use quill_engine::stats::words;
 use quill_engine::theme::{Colours, Role, Scheme};
 
@@ -125,7 +125,8 @@ pub fn install(app: &gtk::Application) {
 /// The engine reads the shape of a chord and leaves the key name to GTK
 /// ([`quill_engine::shortcuts`]), so this is where a chord shaped like a chord
 /// that names no key GDK has becomes a refusal — the one refusal the writer
-/// can only be told about from in here.
+/// can only be told about from in here. What it refuses is [`installed`]'s to
+/// decide.
 ///
 /// Called at startup and again on every save, so it must be idempotent: it is,
 /// because the map it installs is computed from the file on every read.
@@ -136,17 +137,43 @@ pub fn install_chords(app: &gtk::Application, session: &Session) -> Vec<Refusal>
         let Some(chords) = shortcuts.chords.get(command.id) else {
             continue;
         };
-        let mut accels: Vec<&str> = Vec::new();
-        for chord in chords {
-            if gtk::accelerator_parse(chord.as_str()).is_some() {
-                accels.push(chord.as_str());
-            } else {
-                refusals.push(Refusal::unknown_key(command.id, chord));
-            }
-        }
+        let entry = shortcuts.entries.get(command.id).map(String::as_str);
+        let (accels, refused) = installed(command, chords, entry, |chord| {
+            gtk::accelerator_parse(chord.as_str()).is_some()
+        });
+        refusals.extend(refused);
+        let accels: Vec<&str> = accels.iter().map(String::as_str).collect();
         app.set_accels_for_action(&command.action(), &accels);
     }
     refusals
+}
+
+/// What GTK is told `command` is bound to, and the refusal where the writer's
+/// entry names a key GDK has none of.
+///
+/// One chord GDK has no key for refuses the writer's whole entry, the way every
+/// refusal the engine makes refuses one, and leaves the Command on the defaults
+/// the entry was meant to replace (`docs/shortcuts.md` § Rebinding). `entry` is
+/// `None` for a Command the file never named, whose chords are the registry's
+/// own and are held to keys GDK has by
+/// `gdk_knows_every_key_name_the_table_installs`.
+///
+/// Split out of [`install_chords`] with `known` as a parameter because
+/// `gtk::accelerator_parse` wants a display and this decision does not.
+fn installed(
+    command: &'static Command,
+    chords: &[Chord],
+    entry: Option<&str>,
+    known: impl Fn(&Chord) -> bool,
+) -> (Vec<String>, Option<Refusal>) {
+    let refused = entry.and_then(|entry| {
+        let unknown = chords.iter().find(|chord| !known(chord))?;
+        Some(Refusal::unknown_key(command.id, entry, unknown))
+    });
+    match refused {
+        Some(refusal) => (command.accels(), Some(refusal)),
+        None => (chords.iter().map(Chord::to_string).collect(), None),
+    }
 }
 
 /// The chords `command` is installed with now.
@@ -436,18 +463,19 @@ const ROW_RADIUS: i32 = 4;
 struct Tick {
     /// Its inset from the row's edge (`.tick { left: 4px }`).
     left: i32,
-    /// How wide its ink stands (`.tick { width: 10px }`), which is the width
-    /// the Parity oracle draws and the width [`Tick::glyph`] is sized for.
+    /// How wide its ink stands: the width of the Parity oracle's own tick,
+    /// which `legacy/app/js/chrome.js` draws as an `svg(10, 8, …)`, and the
+    /// width [`Tick::glyph`] is sized for.
     width: i32,
     /// The icon size GTK draws [`TICK_GLYPH`] at to lay that much ink down.
     ///
     /// GTK sizes a `-gtk-icon-source` by its icon size and not by the node's
-    /// `min-width`, and its default is 16 px, at which the check's ink covers
-    /// 12.5 x 8.5 of the box — half again the ink the Parity oracle's tick
-    /// lays in its own 10 x 7, which is what round 5's critic gave the View
-    /// menu away for. The glyph's ink is 78% of its icon's width and 53% of
-    /// its height, so 13 px draws it at 10.2 x 6.9: the tick this struct
-    /// already declares.
+    /// `min-width`, and at its default of 16 px the check came out wider and
+    /// heavier than the oracle's — twice its ink, and darker than any label in
+    /// the menu, which is what round 5's critic gave the View menu away for
+    /// (`progress/rounds/chrome-r5.json`). The glyph's ink is a fixed share of
+    /// its icon, so 13 px is the icon size at which it stands [`Tick::width`]
+    /// wide.
     glyph: i32,
 }
 
@@ -463,8 +491,8 @@ impl Tick {
     }
 }
 
-/// The tick: four in, ten wide (`chrome.css` `.tick`, whose 8 px box holds 7
-/// px of ink).
+/// The tick: four in from the row's edge (`chrome.css` `.tick { left: 4px }`),
+/// as wide as the oracle's own (`chrome.js`'s `TICK`).
 const TICK: Tick = Tick {
     left: 4,
     width: 10,
@@ -1429,19 +1457,14 @@ mod tests {
     /// `gtk::accelerator_parse` needs a display, so the two halves of an
     /// accelerator are checked apart: the modifier tags against the names GTK
     /// gives them, the key name through GDK's own table, which
-    /// `gtk::gdk::Key::from_name` reads without one.
-    fn installs(accel: &str) -> bool {
-        let mut rest = accel;
-        while let Some(after) = rest.strip_prefix('<') {
-            let Some((tag, tail)) = after.split_once('>') else {
-                return false;
-            };
-            if !["Control", "Shift", "Alt"].contains(&tag) {
-                return false;
-            }
-            rest = tail;
-        }
-        gtk::gdk::Key::from_name(rest).is_some_and(|key| key != gtk::gdk::Key::VoidSymbol)
+    /// `gtk::gdk::Key::from_name` reads without one. The halves are
+    /// [`Chord`]'s, which is the one walk over `<Tag>` groups there is.
+    fn installs(chord: &Chord) -> bool {
+        chord
+            .modifiers()
+            .all(|tag| ["Control", "Shift", "Alt"].contains(&tag))
+            && gtk::gdk::Key::from_name(chord.key())
+                .is_some_and(|key| key != gtk::gdk::Key::VoidSymbol)
     }
 
     #[test]
@@ -1450,7 +1473,9 @@ mod tests {
             let accels = command.accels();
             assert_eq!(accels.len(), command.chords().count(), "{}", command.id);
             for accel in accels {
-                assert!(installs(&accel), "{}: {accel}", command.id);
+                let chord =
+                    Chord::parse(&accel).unwrap_or_else(|| panic!("{}: {accel}", command.id));
+                assert!(installs(&chord), "{}: {accel}", command.id);
             }
         }
     }
@@ -1473,7 +1498,7 @@ mod tests {
         for written in table {
             let accel = commands::accel(written).unwrap_or_else(|| panic!("{written}"));
             let chord = Chord::parse(&accel).unwrap_or_else(|| panic!("{written} is {accel}"));
-            assert!(installs(chord.as_str()), "{written} is {chord}");
+            assert!(installs(&chord), "{written} is {chord}");
             seen += 1;
         }
         let bound: usize = COMMANDS
@@ -1484,6 +1509,50 @@ mod tests {
             seen,
             bound + commands::RESERVED.len() + commands::OFF_LIMITS.len()
         );
+    }
+
+    /// One chord GDK has no key for refuses the writer's whole entry: the
+    /// Command keeps the defaults the entry was meant to replace, and the
+    /// refusal quotes the entry as it was written rather than the one chord.
+    #[test]
+    fn a_chord_naming_no_key_refuses_the_whole_entry_and_leaves_the_defaults() {
+        let (settings, notes) = quill_engine::settings::Settings::parse(
+            "[shortcuts]\n\"library.toggle\" = [\"F9\", \"<Control>frobnicate\"]\n",
+        );
+        assert_eq!(notes, Vec::<String>::new(), "the fixture reads cleanly");
+        let shortcuts = settings.shortcuts();
+        assert_eq!(shortcuts.refusals, Vec::new(), "the engine took the shape");
+        let command = commands::by_id("library.toggle").expect("the registry has it");
+        let (accels, refused) = installed(
+            command,
+            &shortcuts.chords[command.id],
+            shortcuts.entries.get(command.id).map(String::as_str),
+            installs,
+        );
+        assert_eq!(accels, command.accels());
+        let refused = refused.expect("the entry names a key GDK has none of");
+        assert_eq!(refused.id, "library.toggle");
+        assert_eq!(
+            refused.line,
+            "\"library.toggle\" = [\"F9\", \"<Control>frobnicate\"]"
+        );
+        assert!(refused.reason.contains("names no key"), "{refused}");
+    }
+
+    /// A Command the file never named is installed with the registry's own,
+    /// and nothing about it is refused.
+    #[test]
+    fn a_command_the_file_left_alone_is_installed_with_its_defaults() {
+        let shortcuts = quill_engine::settings::Settings::default().shortcuts();
+        let command = commands::by_id("library.toggle").expect("the registry has it");
+        let (accels, refused) = installed(
+            command,
+            &shortcuts.chords[command.id],
+            shortcuts.entries.get(command.id).map(String::as_str),
+            installs,
+        );
+        assert_eq!(accels, command.accels());
+        assert_eq!(refused, None);
     }
 
     #[test]
