@@ -33,3 +33,4 @@ pub mod style;
 pub mod template;
 pub mod theme;
 pub mod typography;
+pub mod watch;

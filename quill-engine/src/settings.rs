@@ -112,6 +112,11 @@ const TEMPLATE: &str = "default";
 /// wants to know what became of their preferences, not only what went wrong.
 const INSTEAD: &str = "using the defaults, and leaving the file alone";
 
+/// The same, for a file Quill has already read once ([`Settings::reread`]):
+/// there are last good settings by then, and they are what a file that cannot
+/// be read leaves running.
+const KEEPING: &str = "keeping the settings Quill is running on";
+
 /// One setting that takes one of a few named values.
 ///
 /// Written as a string, because `theme = "dark"` says in the file what a writer
@@ -481,8 +486,32 @@ impl Settings {
     /// Reads `path`, falling back to the defaults for anything it cannot.
     #[must_use]
     pub fn read_from(path: &Path) -> (Self, Vec<String>) {
-        let (table, mut notes) = file::read_table(path, INSTEAD);
-        let settings = table.map_or_else(Self::default, |table| Self::read(table, &mut notes));
+        let (settings, notes) = Self::read_at(path, INSTEAD);
+        (settings.unwrap_or_default(), notes)
+    }
+
+    /// The same read, answering `None` rather than the defaults where there
+    /// is nothing to read: no file, a file that cannot be read, or one that is
+    /// not TOML at all.
+    ///
+    /// What the settings watch reads, because a file caught between the two
+    /// halves of somebody's save, or one a hand has broken, is not a writer
+    /// asking for the defaults: the settings Quill is already running on are
+    /// the last good ones and stay (`docs/architecture.md` § Settings). A
+    /// first read has no last good settings and takes the defaults, which is
+    /// what [`Settings::read_from`] is — and the only thing the two differ in,
+    /// the note that says which included.
+    #[must_use]
+    pub fn reread(path: &Path) -> (Option<Self>, Vec<String>) {
+        Self::read_at(path, KEEPING)
+    }
+
+    /// Both reads: the settings in `path`, or `None` where there is nothing to
+    /// read, with `instead` finishing every note about what became of the
+    /// writer's preferences.
+    fn read_at(path: &Path, instead: &str) -> (Option<Self>, Vec<String>) {
+        let (table, mut notes) = file::read_table(path, instead);
+        let settings = table.map(|table| Self::read(table, &mut notes));
         (settings, notes)
     }
 
@@ -765,6 +794,36 @@ margin = 3
         assert_eq!(notes.len(), 1, "{notes:?}");
         assert!(notes[0].starts_with("is not TOML"), "{notes:?}");
         assert!(!notes[0].contains('\n'), "one line, not a stack: {notes:?}");
+    }
+
+    /// The same file read a second time is nothing rather than the defaults,
+    /// and says which: a Quill already running has last good settings, and
+    /// putting the defaults over a writer's preferences because a save was
+    /// caught half-written is the one thing the watch must not do.
+    #[test]
+    fn a_file_that_is_not_toml_is_read_again_as_nothing_at_all() {
+        let path = scratch("reread").join(SETTINGS_FILE);
+        std::fs::write(&path, "theme = = = dark\n").expect("writes its own fixture");
+
+        let (settings, notes) = Settings::reread(&path);
+        assert!(settings.is_none(), "there is nothing to apply");
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].ends_with(KEEPING), "{notes:?}");
+
+        let (settings, notes) = Settings::read_from(&path);
+        assert_eq!(settings, Settings::default(), "a first read has no last");
+        assert!(notes[0].ends_with(INSTEAD), "{notes:?}");
+    }
+
+    /// A file that is not there is nothing to read either, and says nothing:
+    /// a writer who deleted their settings file while Quill was running has
+    /// not asked for anything.
+    #[test]
+    fn a_file_that_is_gone_is_read_again_as_nothing_and_says_nothing() {
+        let path = scratch("reread_gone").join(SETTINGS_FILE);
+        let (settings, notes) = Settings::reread(&path);
+        assert!(settings.is_none());
+        assert_eq!(notes, Vec::<String>::new());
     }
 
     #[test]

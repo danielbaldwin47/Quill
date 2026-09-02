@@ -18,6 +18,11 @@ quill-engine = { path = "quill-engine" }
 gtk = { package = "gtk4", version = "0.11", features = ["v4_22"] }
 cairo-rs = "0.22"
 notify = "8"
+# `notify` 8 has no debouncer of its own, and a save is never one event: an
+# editor writes a temporary file and renames it over the top, as Quill's own
+# `settings::file::write` does. The mini debouncer is the one that gathers a
+# run of events per path into one, which is all the settings watch asks of it.
+notify-debouncer-mini = "0.7"
 pango = "0.22"
 pangocairo = "0.22"
 # `default-features = false` drops `getopts`, which serves the crate's own
