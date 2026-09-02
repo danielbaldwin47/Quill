@@ -8,6 +8,8 @@ A `/to-spec` issue carries the `spec` label. Size it when it is created: a spec 
 
 Either way the spec closes on the owner's `hand test: pass`, by `docs/agents/gate.md` § Feature tier. The agent's last comment on a spec ends with a **Hand test** section: the install command, then the numbered "do X, see Y" steps written out in full (the `docs/agents/hand-tests.md` checklist merged with the spec's additions), so the owner tests from that comment alone. The last child ticket names itself as the one that writes it. A failed step is commented on the spec and returns it to the agent.
 
+A spec that needs a Design-oracle value no capture holds files a capture ticket (`docs/design.md` § Adding or changing a row) and names it under a **Waits on captures** line; a judged state that follows a row not yet written is not one of the spec's states until the capture lands.
+
 ## Tickets
 
 `/to-tickets` sizes every ticket for one `/implement` session. Each ticket carries a **Size** line and a **Reading** line naming the spec sections and ADRs the session needs by heading — and, for a ticket touching the writing surface, the `docs/design.md` row it builds to — and what it can skip (the parent spec whole, `legacy/`).
@@ -23,4 +25,4 @@ What drives calls, and the bounds a ticket inside the zone has kept:
 - Tests: `cargo test` runs with no display (`docs/agents/gate.md` § Commit tier), so an acceptance criterion asserts a pure function, a model or a file, and reads the widget from a `--deterministic` shot; a criterion that needs a window and no keystroke is a Hand test step; one that needs a keystroke is a keys assertion (`docs/agents/gate.md` § Ticket tier), because a still cannot show what only happens under a hand.
 - Numbers: an acceptance criterion that names a measured value quotes the file, the row and the value it was read from (`ref/ia/mac-native/blink-idle.tsv`, row 0.516, "the full-strength plateau"), never a restatement — #169 carried two thresholds restated from that file, both misread, and the session ended with the PR open and unmerged until the owner answered eight hours later.
 - Files shared with a sibling: two `ready-for-agent` tickets that edit the same module land in sequence, the second Blocked-by the first — #162 and #164 each spent twelve to fifteen calls merging a sibling that landed on `typography.rs` or `oracle.mjs` mid-session.
-- Gate tooling the ticket's judge needs (an unfrozen oracle, a state key no tool serves, a `mac-native` opponent no tool serves yet — `tools/gate judge <piece>` exits 3 for each) is its own ticket, before the first judged child.
+- Gate tooling the ticket's judge needs (an unfrozen oracle, a state key no tool serves, a `mac-native` opponent no tool serves yet — `tools/gate judge <piece>` exits 3 for each) is its own ticket, before the first judged child. A child that builds to a row waiting on a capture ticket comes last, Blocked-by that ticket.
