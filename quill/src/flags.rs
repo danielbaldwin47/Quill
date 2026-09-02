@@ -74,6 +74,8 @@ Harness:
                          presented frame, and create <out.jsonl>.
   --settings <file>      Read and write settings in <file> rather than in the
                          writer's own settings.toml.
+  --palette <file>       Paint the grounds from the palette in <file> for this
+                         launch, whatever the palette setting names.
 
   --help                 Print this.
 
@@ -81,7 +83,9 @@ A launch carrying any flag above is the harness's rather than a writer's: it
 opens in a process of its own rather than reaching a Quill already running, it
 overrides the writer's settings for that launch alone, and it writes neither
 settings.toml nor state.toml — except that a launch given --settings owns the
-file it names, and reads and writes that one.";
+file it names, and reads and writes that one. A launch given --theme and no
+--palette paints the built-in grounds, whatever the palette setting names, so a
+judged shot is the same on every machine.";
 
 /// What `--theme` takes: the two the Gate judges. `auto` is the desktop's
 /// answer rather than an answer, so it is a setting and not a judged state —
@@ -209,6 +213,11 @@ pub struct Flags {
     /// leaves `state.toml` alone; what it moves is where `settings.toml` is
     /// ([`crate::session::Session::settings_path`]).
     pub settings: Option<PathBuf>,
+    /// The palette file `--palette` names, laid over the built-in grounds
+    /// for this launch in place of whatever the `palette` setting names
+    /// ([`Flags::over`]): a palette previewed without editing the writer's
+    /// file, and the way a `--deterministic` shot shows one applied.
+    pub palette: Option<PathBuf>,
     /// Whether `--help` was asked for. Not one of the harness's flags: it
     /// prints and stops.
     pub help: bool,
@@ -268,6 +277,7 @@ impl Flags {
                 "--deterministic" => flags.deterministic = true,
                 "--measure" => flags.measure = Some(file(&mut args, flag)?),
                 "--settings" => flags.settings = Some(file(&mut args, flag)?),
+                "--palette" => flags.palette = Some(file(&mut args, flag)?),
                 "--help" => flags.help = true,
                 _ if flag.starts_with('-') && flag != "-" => {
                     return Err(Error(format!("{flag}: not a flag Quill knows")));
@@ -337,6 +347,17 @@ impl Flags {
         }
         if let Some(chrome) = self.chrome {
             settings.chrome = chrome;
+        }
+        // The palette rides on the ground: `--palette` names the file for this
+        // launch, and `--theme` on its own pins the built-in table for the
+        // ground it names, whatever the writer's file says (`docs/design.md`
+        // § The palette is a file), so that a judged shot is the same on
+        // every machine. The two together are a palette previewed on a pinned
+        // ground.
+        if let Some(palette) = &self.palette {
+            settings.palette = Some(palette.clone());
+        } else if self.theme.is_some() {
+            settings.palette = None;
         }
         settings
     }
@@ -463,7 +484,7 @@ mod tests {
 
     /// Every flag `docs/architecture.md` names, with a value it takes and —
     /// where it has a domain — one it does not.
-    const FLAGS: [(&str, &str, Option<&str>); 18] = [
+    const FLAGS: [(&str, &str, Option<&str>); 19] = [
         ("--text", "ref/sample.md", None),
         ("--theme", "dark", Some("purple")),
         ("--font", "mono", Some("comic")),
@@ -483,6 +504,7 @@ mod tests {
         ("--deterministic", "", None),
         ("--measure", "out.jsonl", None),
         ("--settings", "settings.toml", None),
+        ("--palette", "quill.toml", None),
     ];
 
     /// A command line, written as it would be typed.
@@ -519,7 +541,8 @@ mod tests {
         let flags = parse(
             "--text ref/sample.md --theme dark --font mono --step 6 --focus paragraph \
              --typewriter --chrome off --caret end --select 10,20 --scroll 0.25 --nocaret \
-             --typing --menu palette --w 1440 --h 900 --deterministic --measure out.jsonl",
+             --typing --menu palette --w 1440 --h 900 --deterministic --measure out.jsonl \
+             --palette quill.toml",
         )
         .expect("every flag at once");
         assert!(flags.typing);
@@ -538,6 +561,7 @@ mod tests {
         assert_eq!((flags.width, flags.height), (Some(1440), Some(900)));
         assert!(flags.deterministic);
         assert_eq!(flags.measure.as_deref(), Some(Path::new("out.jsonl")));
+        assert_eq!(flags.palette.as_deref(), Some(Path::new("quill.toml")));
         assert!(!flags.help);
     }
 
@@ -691,6 +715,38 @@ mod tests {
             Flags::default().over(writers.clone()),
             writers,
             "a launch with no flags is the writer's settings exactly"
+        );
+    }
+
+    /// `--palette` names the file for the launch; `--theme` on its own pins
+    /// the built-ins for its ground, so the Gate's shots never see a writer's
+    /// palette; the two together are a palette previewed on a pinned ground;
+    /// and any other flag leaves the setting where it was.
+    #[test]
+    fn the_palette_flag_lays_its_file_over_the_setting_and_theme_alone_pins_the_built_ins() {
+        let mut writers = Settings::default();
+        writers.palette = Some(PathBuf::from("/theme/quill.toml"));
+        let previewed = parse("--palette quill.toml")
+            .expect("one flag")
+            .over(writers.clone());
+        assert_eq!(previewed.palette.as_deref(), Some(Path::new("quill.toml")));
+        let pinned = parse("--theme light")
+            .expect("one flag")
+            .over(writers.clone());
+        assert_eq!(
+            pinned.palette, None,
+            "the setting is not read under --theme"
+        );
+        let both = parse("--theme light --palette quill.toml")
+            .expect("two flags")
+            .over(writers.clone());
+        assert_eq!(both.palette.as_deref(), Some(Path::new("quill.toml")));
+        let live = parse("--font mono")
+            .expect("one flag")
+            .over(writers.clone());
+        assert_eq!(
+            live.palette, writers.palette,
+            "any other flag leaves the setting alone"
         );
     }
 

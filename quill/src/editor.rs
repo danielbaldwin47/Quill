@@ -35,6 +35,7 @@ use quill_engine::typography;
 
 use crate::caret;
 use crate::flags;
+use crate::ground::Ground;
 use crate::tags;
 
 /// The CSS class the Editor's type is named on.
@@ -255,9 +256,10 @@ mod imp {
     use gtk::glib;
     use gtk::subclass::prelude::*;
     use quill_engine::settings::Face;
-    use quill_engine::theme::Scheme;
 
     use quill_engine::focus::{Focus, LineTiers};
+
+    use crate::ground::Ground;
 
     use super::{Fade, Travel};
     use crate::caret;
@@ -269,11 +271,11 @@ mod imp {
         pub face: Cell<Face>,
         /// Which of the type ladder's fourteen steps the Editor is set at.
         pub step: Cell<u32>,
-        /// The ground this Editor is painting on, which every colour it draws
-        /// is read off. Held here rather than asked of the session per frame
-        /// because the caret asks for it on every frame it is visible, and a
-        /// `Cell<Scheme>` is a byte.
-        pub scheme: Cell<Scheme>,
+        /// The ground this Editor is painting on, with the table every colour
+        /// it draws is read off. Held here rather than asked of the session
+        /// per frame because the caret asks for it on every frame it is
+        /// visible, and a `Cell` of a `Copy` table is a read and no borrow.
+        pub ground: Cell<Ground>,
         /// The page as it was last laid out. Setting a margin queues another
         /// allocation, so an allocation that does not move the page must not
         /// set it again.
@@ -621,10 +623,10 @@ impl Editor {
     /// the first frame is already in the right colours: a dark desktop that
     /// saw one light frame has seen a flash, and a flash is the one thing
     /// #39's story 4 is about. Nothing is redrawn here because nothing has
-    /// been drawn — the switch afterwards is [`Editor::set_scheme`], which has
+    /// been drawn — the switch afterwards is [`Editor::set_ground`], which has
     /// a Document to retag and a frame to invalidate.
-    pub fn open_on(&self, scheme: Scheme) {
-        self.imp().scheme.set(scheme);
+    pub fn open_on(&self, ground: Ground) {
+        self.imp().ground.set(ground);
     }
 
     /// How much Focus leaves lit when this Editor opens.
@@ -648,7 +650,7 @@ impl Editor {
     fn painting<'a>(&self, tiers: &'a [LineTiers]) -> tags::Painting<'a> {
         tags::Painting {
             face: self.imp().face.get(),
-            scheme: self.imp().scheme.get(),
+            colours: self.colours(),
             focus: self.imp().focus.get(),
             tiers,
         }
@@ -741,10 +743,10 @@ impl Editor {
         drop(batch);
     }
 
-    /// Moves this Editor's own painting to `scheme`'s ground.
+    /// Moves this Editor's own painting to `ground`.
     ///
     /// Every colour on screen is read off the table at the moment it is drawn,
-    /// so the switch is nothing more than changing which row is read and then
+    /// so the switch is nothing more than changing which table is read and then
     /// making everything read it again: the tags, because a colour is baked
     /// into the tag the buffer is carrying; and the caret and the selection,
     /// because those are painted in the snapshot and a snapshot is only taken
@@ -769,8 +771,8 @@ impl Editor {
     /// nothing else — applying a tag emits no `changed`, so the handlers that
     /// splice the engine's copy of the text are not listening for any of this
     /// and the text has not moved for them to hear about.
-    pub fn set_scheme(&self, scheme: Scheme, document: &Document) {
-        self.imp().scheme.set(scheme);
+    pub fn set_ground(&self, ground: Ground, document: &Document) {
+        self.imp().ground.set(ground);
         let buffer = self.buffer();
         let batch = buffer.freeze_notify();
         let tiers = self.imp().tiers.borrow();
@@ -840,7 +842,7 @@ impl Editor {
             self.imp().step.get(),
             page.column,
             std::array::from_fn(|level| self.marker_advance(level as u8 + 1)),
-            self.imp().scheme.get(),
+            &self.colours(),
         );
     }
 
@@ -1086,7 +1088,7 @@ impl Editor {
             return;
         }
         let focus = self.imp().focus.get();
-        let colours = Colours::of(self.imp().scheme.get());
+        let colours = self.colours();
         let buffer = self.buffer();
         let after = self.imp().tiers.borrow();
         let mut runs = Vec::new();
@@ -1226,6 +1228,11 @@ impl Editor {
         let mut caret = self.imp().caret.get();
         said(&mut caret);
         self.imp().caret.set(caret);
+    }
+
+    /// The table this Editor paints from: the held ground's colours.
+    fn colours(&self) -> Colours {
+        self.imp().ground.get().colours
     }
 
     /// One em in the device pixels the machine measures its gates in.
@@ -1900,7 +1907,7 @@ impl Editor {
         }
         draw_box(
             snapshot,
-            &paint(self.imp().scheme.get(), Role::Accent, alpha),
+            &paint(&self.colours(), Role::Accent, alpha),
             caret.rect(now),
             self.scale(),
         );
@@ -1917,7 +1924,7 @@ impl Editor {
             return;
         };
         let scale = self.scale();
-        let fill = selection_fill(self.imp().scheme.get(), self.imp().caret.get().focused());
+        let fill = selection_fill(&self.colours(), self.imp().caret.get().focused());
         for row in &selection.rows {
             draw_box(snapshot, &fill, *row, scale);
         }
@@ -1945,7 +1952,7 @@ impl Editor {
             logical(f64::from(at.x()), 1.0),
             logical(f64::from(at.y()), 1.0),
         ));
-        snapshot.append_layout(&layout, &paint(self.imp().scheme.get(), Role::InkDim, 1.0));
+        snapshot.append_layout(&layout, &paint(&self.colours(), Role::InkDim, 1.0));
         snapshot.restore();
     }
 
@@ -2197,27 +2204,26 @@ fn channel(value: f64) -> f32 {
 /// to say it with, now that the free caret is out for as long as a selection
 /// stands and no bar brackets either end.
 ///
-/// A function of the scheme and the one flag so that it can be checked without
+/// A function of the table and the one flag so that it can be checked without
 /// a window: `unfocused` is shot with nothing selected, so no judged state
 /// carries the idle fill and the swap is only ever true here.
-fn selection_fill(scheme: Scheme, focused: bool) -> gdk::RGBA {
+fn selection_fill(colours: &Colours, focused: bool) -> gdk::RGBA {
     if focused {
-        paint(scheme, Role::Selection, 1.0)
+        paint(colours, Role::Selection, 1.0)
     } else {
-        paint(scheme, Role::SelectionIdle, 1.0)
+        paint(colours, Role::SelectionIdle, 1.0)
     }
 }
 
-/// One role's colour on `scheme`'s ground, at `alpha` of the alpha the table
-/// gives it.
+/// One role's colour in `colours`, at `alpha` of the alpha the table gives it.
 ///
-/// Read from the engine's colour table rather than written out here, because
-/// the table carries every role on both grounds and a second copy of a number
-/// the critic reads is a second thing to keep true. The three roles that reach
-/// here are the three the layer above the glyphs paints: the accent the caret
-/// is cut from, and the selection's two fills.
-fn paint(scheme: Scheme, role: Role, alpha: f64) -> gdk::RGBA {
-    let colour = Colours::of(scheme).colour(role);
+/// Read from the ground's table rather than written out here, because the
+/// table carries every role and a second copy of a number the critic reads is
+/// a second thing to keep true. The three roles that reach here are the three
+/// the layer above the glyphs paints: the accent the caret is cut from, and
+/// the selection's two fills.
+fn paint(colours: &Colours, role: Role, alpha: f64) -> gdk::RGBA {
+    let colour = colours.colour(role);
     gdk::RGBA::new(
         channel(colour.red),
         channel(colour.green),
@@ -2312,7 +2318,7 @@ const GTK_THEME: &str = "Default";
 /// as a written one — a page whose empty lines are a different height is not a
 /// page. It is installed once, before the first window, and reloaded whenever
 /// the writer steps the size.
-pub fn install_type(scheme: Scheme, face: Face, step: u32) {
+pub fn install_type(ground: Ground, face: Face, step: u32) {
     let Some(display) = gtk::gdk::Display::default() else {
         // No display: nothing to style, and nothing that will draw text.
         return;
@@ -2324,7 +2330,7 @@ pub fn install_type(scheme: Scheme, face: Face, step: u32) {
     // to GTK's own and its variant follows the ground, as the stylesheet does.
     if let Some(settings) = gtk::Settings::default() {
         settings.set_gtk_theme_name(Some(GTK_THEME));
-        settings.set_gtk_interface_color_scheme(match scheme {
+        settings.set_gtk_interface_color_scheme(match ground.scheme {
             Scheme::Light => gtk::InterfaceColorScheme::Light,
             Scheme::Dark => gtk::InterfaceColorScheme::Dark,
         });
@@ -2341,8 +2347,8 @@ pub fn install_type(scheme: Scheme, face: Face, step: u32) {
         });
         // The bars' sheet rides with the type's, so the two grounds — the
         // page's and the chrome's — change in the one reload.
-        let mut sheet = stylesheet(scheme, face, typography::em(step));
-        sheet.push_str(&crate::chrome::stylesheet(scheme));
+        let mut sheet = stylesheet(&ground.colours, face, typography::em(step));
+        sheet.push_str(&crate::chrome::stylesheet(ground));
         provider.load_from_string(&sheet);
     });
 }
@@ -2369,8 +2375,7 @@ pub fn install_type(scheme: Scheme, face: Face, step: u32) {
 /// is laid out and blinked like any other and never lands a pixel; the blink
 /// itself is turned off at startup so that it asks for no frames either. The
 /// secondary colour is the split caret a bidirectional line shows.
-fn stylesheet(scheme: Scheme, face: Face, em: f64) -> String {
-    let colours = Colours::of(scheme);
+fn stylesheet(colours: &Colours, face: Face, em: f64) -> String {
     let paper = colours.colour(Role::Paper).to_hex();
     let ink = colours.colour(Role::Ink).to_hex();
     format!(
@@ -2468,7 +2473,7 @@ mod tests {
     fn a_keystroke_inside_the_lit_sentence_fades_nothing() {
         use quill_engine::settings::FocusScope;
         let focus = Focus::On(FocusScope::Sentence);
-        let colours = Colours::of(Scheme::Light);
+        let colours = Ground::default().colours;
         let mut doc = Document::untitled();
         doc.insert(0, "A first thought. A second one.\n");
         let was = focus::tiers_by_line(&doc, &focus::tiers(&doc, &(8..8), focus));
@@ -2501,7 +2506,7 @@ mod tests {
     fn a_full_stop_typed_into_the_lit_sentence_fades_the_half_it_cut_off() {
         use quill_engine::settings::FocusScope;
         let focus = Focus::On(FocusScope::Sentence);
-        let colours = Colours::of(Scheme::Light);
+        let colours = Ground::default().colours;
         let mut doc = Document::untitled();
         doc.insert(0, "A first thought Another one.\n");
         let line = 0..doc.text().len();
@@ -2613,7 +2618,7 @@ mod tests {
         let em = typography::em(quill_engine::settings::default_step());
         assert!((em - 21.33).abs() < 0.001, "the default step's em is {em}");
         assert!(
-            stylesheet(Scheme::Light, Face::Duo, em).contains("font-size: 21.33px"),
+            stylesheet(&Ground::default().colours, Face::Duo, em).contains("font-size: 21.33px"),
             "the stylesheet named the type at a whole pixel"
         );
         let described = f64::from(body_font(Face::Duo, em).size());
@@ -2650,7 +2655,7 @@ mod tests {
             assert!(
                 rule.contains(&format!(
                     "color: {}",
-                    Colours::of(scheme).colour(Role::Ink).to_hex()
+                    Ground::of(scheme).colours.colour(Role::Ink).to_hex()
                 )),
                 "{scheme:?}: selected glyphs are not in the page's ink:\n{css}"
             );
@@ -2679,10 +2684,13 @@ mod tests {
     #[test]
     fn each_ground_is_dressed_in_its_own_paper_and_its_own_ink() {
         for scheme in [Scheme::Light, Scheme::Dark] {
-            let colours = Colours::of(scheme);
+            let colours = Ground::of(scheme).colours;
             let paper = colours.colour(Role::Paper).to_hex();
             let ink = colours.colour(Role::Ink).to_hex();
-            let other = Colours::of(scheme.other()).colour(Role::Paper).to_hex();
+            let other = Ground::of(scheme.other())
+                .colours
+                .colour(Role::Paper)
+                .to_hex();
             let css = sheet(scheme);
             assert_eq!(
                 css.matches(&format!("background-color: {paper}")).count(),
@@ -2704,7 +2712,7 @@ mod tests {
     /// judged state is shot at.
     fn sheet(scheme: Scheme) -> String {
         stylesheet(
-            scheme,
+            &Ground::of(scheme).colours,
             Face::Duo,
             typography::em(quill_engine::settings::default_step()),
         )
@@ -2720,19 +2728,20 @@ mod tests {
     #[test]
     fn the_selection_goes_idle_with_the_window() {
         for scheme in [Scheme::Light, Scheme::Dark] {
-            let fill = selection_fill(scheme, true);
-            let idle = selection_fill(scheme, false);
+            let colours = Ground::of(scheme).colours;
+            let fill = selection_fill(&colours, true);
+            let idle = selection_fill(&colours, false);
             assert_eq!(
                 fill,
-                paint(scheme, Role::Selection, 1.0),
+                paint(&colours, Role::Selection, 1.0),
                 "{scheme:?}: an active window is the oracle's active fill"
             );
             assert_ne!(fill, idle, "{scheme:?}: the fill did not go idle");
-            assert_eq!(idle, paint(scheme, Role::SelectionIdle, 1.0));
+            assert_eq!(idle, paint(&colours, Role::SelectionIdle, 1.0));
         }
         assert_ne!(
-            selection_fill(Scheme::Light, true),
-            selection_fill(Scheme::Dark, true),
+            selection_fill(&Ground::of(Scheme::Light).colours, true),
+            selection_fill(&Ground::of(Scheme::Dark).colours, true),
             "the two grounds were designed one fill each"
         );
     }

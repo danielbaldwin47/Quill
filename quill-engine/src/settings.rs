@@ -21,7 +21,7 @@
 //! file Quill misunderstands is to open it, and a Quill that overwrote it
 //! first would have taken that away.
 
-mod file;
+pub(crate) mod file;
 mod reading;
 mod state;
 mod writing;
@@ -408,6 +408,9 @@ pub struct Settings {
     pub preview_layout: PreviewLayout,
     /// The folder Quill was pointed at, or `None` until it is pointed at one.
     pub library: Option<PathBuf>,
+    /// The file the grounds take their colours from
+    /// ([`crate::theme::Palette`]), or `None` for the built-ins.
+    pub palette: Option<PathBuf>,
     /// Command id to chords, carried as written: an entry Quill refuses is
     /// still the writer's line and survives the next write. What it comes to
     /// is [`Settings::shortcuts`].
@@ -434,6 +437,7 @@ impl Default for Settings {
             template: TEMPLATE.to_string(),
             preview_layout: PreviewLayout::default(),
             library: None,
+            palette: None,
             shortcuts: toml::Table::new(),
             rest: toml::Table::new(),
         }
@@ -552,6 +556,7 @@ impl Settings {
         writing.text("template", &self.template);
         writing.choice("preview_layout", self.preview_layout);
         writing.path("library", self.library.as_deref());
+        writing.path("palette", self.palette.as_deref());
         writing.rest(self.rest.clone());
         writing.table("syntax_highlight", self.syntax_highlight.to_table());
         writing.table("style_check", self.style_check.to_table());
@@ -583,6 +588,7 @@ impl Settings {
         let template = reading.text("template", &defaults.template);
         let preview_layout = reading.choice("preview_layout");
         let library = reading.path("library");
+        let palette = reading.path("palette");
         // The tables are taken here and read below, once the reading of the
         // top level is done with the notes it is writing into.
         let syntax_highlight = reading.table("syntax_highlight");
@@ -605,6 +611,7 @@ impl Settings {
             template,
             preview_layout,
             library,
+            palette,
             shortcuts,
             rest,
         }
@@ -621,7 +628,7 @@ mod tests {
     /// empty table is written as nothing, so that a writer adding their first
     /// `[shortcuts]` header at the foot of the file is not adding a second
     /// ([`Settings::to_toml`]).
-    const KEYS: [&str; 15] = [
+    const KEYS: [&str; 16] = [
         "theme",
         "face",
         "step",
@@ -637,6 +644,7 @@ mod tests {
         "template",
         "preview_layout",
         "library",
+        "palette",
     ];
 
     #[test]
@@ -727,6 +735,37 @@ mod tests {
         assert!(notes.is_empty(), "{notes:?}");
     }
 
+    /// The home directory the tests expand `~` against: the process's own,
+    /// which is what [`Reading::path`] uses.
+    fn home() -> PathBuf {
+        std::env::home_dir().expect("the tests run with a home directory")
+    }
+
+    #[test]
+    fn a_path_written_with_a_tilde_is_read_as_under_the_home_directory() {
+        let (settings, notes) =
+            Settings::parse("palette = \"~/x/quill.toml\"\nlibrary = \"~/Writing\"\n");
+        assert_eq!(notes, Vec::<String>::new());
+        assert_eq!(settings.palette, Some(home().join("x/quill.toml")));
+        assert_eq!(settings.library, Some(home().join("Writing")));
+        let (again, _) = Settings::parse(&settings.to_toml());
+        assert_eq!(again, settings, "and round-trips through a write");
+    }
+
+    #[test]
+    fn no_palette_line_is_no_palette_and_is_written_as_the_empty_key() {
+        let (settings, notes) = Settings::parse("theme = \"dark\"\n");
+        assert_eq!(settings.palette, None);
+        assert_eq!(notes, Vec::<String>::new());
+        // Written empty rather than left out, as `library` is: the key
+        // stays in the file where a writer can see it, holding nothing.
+        assert!(
+            settings.to_toml().contains("palette = \"\"\n"),
+            "{}",
+            settings.to_toml()
+        );
+    }
+
     #[test]
     fn writing_twice_writes_the_same_bytes() {
         // What "a relaunch leaves the file byte-identical" rests on.
@@ -739,6 +778,7 @@ mod tests {
     fn a_hand_added_key_and_a_hand_added_table_survive_a_write() {
         let hand_edited = "\
 step = 7
+palette = \"~/theme/quill.toml\"
 wayfinder = \"fog\"
 
 [syntax_highlight]
@@ -759,6 +799,11 @@ margin = 3
         let (settings, notes) = Settings::parse(hand_edited);
         assert!(notes.is_empty(), "nothing here is a complaint: {notes:?}");
         assert_eq!(settings.step, 7);
+        assert_eq!(
+            settings.palette,
+            Some(home().join("theme/quill.toml")),
+            "the palette line is read with its `~` expanded"
+        );
         assert!(settings.syntax_highlight.enabled && settings.style_check.enabled);
         assert_eq!(settings.style_check.lists.len(), 2, "the lists are carried");
         assert_eq!(settings.shortcuts.len(), 1, "the shortcuts are carried");

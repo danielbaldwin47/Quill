@@ -52,6 +52,11 @@ package() {
   install -m644 "$startdir"/fonts/*.ttf "$data/fonts/"
   install -m644 "$startdir/fonts/OFL.txt" "$data/fonts/OFL.txt"
 
+  # The Omarchy template (README.md § Theme Quill with the desktop): a writer
+  # copies it into their own themed/ directory, so it is installed where the
+  # README can name it rather than into Omarchy's tree, which is Omarchy's.
+  install -m644 "$startdir/packaging/quill.toml.tpl" "$data/quill.toml.tpl"
+
   install -Dm644 "$startdir/packaging/$_appid.desktop" "$share/applications/$_appid.desktop"
   install -Dm644 "$startdir/packaging/$_appid.svg" \
     "$share/icons/hicolor/scalable/apps/$_appid.svg"

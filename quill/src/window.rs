@@ -25,11 +25,11 @@ use quill_engine::commands;
 use quill_engine::document::Document;
 use quill_engine::focus::Focus;
 use quill_engine::settings::{Chrome, WindowState};
-use quill_engine::theme::Scheme;
 
 use crate::caret;
 use crate::chrome;
 use crate::flags;
+use crate::ground::Ground;
 use crate::harness;
 use crate::menus;
 use crate::session::Session;
@@ -154,8 +154,9 @@ impl Window {
         // And before the Document, because showing one draws every tag it
         // carries and a tag is drawn in a colour: the ground has to be settled
         // before the first thing painted on it.
-        window.imp().editor.open_on(session.scheme());
-        window.imp().bars.set_scheme(session.scheme());
+        let ground = session.ground();
+        window.imp().editor.open_on(ground);
+        window.imp().bars.set_ground(ground);
         // And with it, because `--focus` names a state the first frame is
         // meant to show: the tiers are worked out inside the same draw that
         // puts the Document on the page.
@@ -288,7 +289,7 @@ impl Window {
         session.store_settings();
         let face = session.face();
         if let Some(app) = self.application() {
-            reset(&app, &session, |window| {
+            reset(&app, &session, |window, _| {
                 window.imp().editor.set_type(face, step);
             });
         }
@@ -304,12 +305,12 @@ impl Window {
         let Some(session) = self.imp().session.borrow().clone() else {
             return;
         };
-        let scheme = session.toggle_scheme();
+        session.toggle_scheme();
         // Written now rather than on the way out, for the reason the size is
         // ([`Window::step_size`]).
         session.store_settings();
         if let Some(app) = self.application() {
-            repaint(&app, &session, scheme);
+            repaint(&app, &session);
         }
     }
 
@@ -355,7 +356,7 @@ impl Window {
         session.store_settings();
         let step = session.step();
         if let Some(app) = self.application() {
-            reset(&app, &session, |window| {
+            reset(&app, &session, |window, _| {
                 window.imp().editor.set_type(face, step);
             });
         }
@@ -370,10 +371,10 @@ impl Window {
         let Some(session) = self.imp().session.borrow().clone() else {
             return;
         };
-        let scheme = session.set_theme(theme);
+        session.set_theme(theme);
         session.store_settings();
         if let Some(app) = self.application() {
-            repaint(&app, &session, scheme);
+            repaint(&app, &session);
         }
     }
 
@@ -773,11 +774,16 @@ pub(crate) enum Step {
 /// this launch is running: the caller has already moved it, and a second copy
 /// passed alongside is a second thing that can be stale. A writer has one pair
 /// of eyes, so a change in one window is a change in all of them.
-fn reset(app: &gtk::Application, session: &Session, each: impl Fn(&Window)) {
-    crate::editor::install_type(session.scheme(), session.face(), session.step());
+///
+/// The ground is asked for once here and handed to `each` window, so the
+/// stylesheet and every widget in the pass are painted from the one table
+/// ([`Session::ground`]).
+fn reset(app: &gtk::Application, session: &Session, each: impl Fn(&Window, Ground)) {
+    let ground = session.ground();
+    crate::editor::install_type(ground, session.face(), session.step());
     for window in app.windows() {
         if let Ok(window) = window.downcast::<Window>() {
-            each(&window);
+            each(&window, ground);
         }
     }
 }
@@ -792,13 +798,15 @@ fn reset(app: &gtk::Application, session: &Session, each: impl Fn(&Window)) {
 /// here, because a writer has one pair of eyes and there is one way to repaint
 /// what they are looking at.
 ///
-/// The caller has already moved the session; this is told the ground rather
-/// than asking, so that the two cannot disagree about which one it is.
-pub fn repaint(app: &gtk::Application, session: &Session, scheme: Scheme) {
-    reset(app, session, |window| {
+/// The caller has already moved the session, and the ground is read back off
+/// it rather than passed alongside, because the table is the session's to
+/// choose ([`Session::ground`]) and a scheme handed in beside it would be a
+/// second answer to the same question.
+pub fn repaint(app: &gtk::Application, session: &Session) {
+    reset(app, session, |window, ground| {
         let document = window.imp().document.borrow();
-        window.imp().editor.set_scheme(scheme, &document);
-        window.imp().bars.set_scheme(scheme);
+        window.imp().editor.set_ground(ground, &document);
+        window.imp().bars.set_ground(ground);
     });
     chrome::reflect_windows(app);
 }
@@ -815,19 +823,18 @@ pub fn repaint(app: &gtk::Application, session: &Session, scheme: Scheme) {
 /// they move one thing and write the file, and this is the other direction,
 /// the file moving everything.
 pub fn reapply(app: &gtk::Application, session: &Session) {
-    let scheme = session.scheme();
     let focus = session.focus();
     let typewriter = session.typewriter();
     let face = session.face();
     let step = session.step();
     let bars = session.chrome() == Chrome::Shown;
-    reset(app, session, move |window| {
+    reset(app, session, move |window, ground| {
         let document = window.imp().document.borrow();
         window.imp().editor.set_type(face, step);
-        window.imp().editor.set_scheme(scheme, &document);
+        window.imp().editor.set_ground(ground, &document);
         window.imp().editor.set_focus(focus, &document);
         window.imp().editor.set_typewriter(typewriter);
-        window.imp().bars.set_scheme(scheme);
+        window.imp().bars.set_ground(ground);
         window.imp().bars.set_focus(focus);
         window.imp().bars.set_shown(bars);
     });
