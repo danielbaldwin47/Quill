@@ -312,6 +312,8 @@ fn run_window(window: &Window, command: &Command) {
             }
         }
         "palette.open" => window.open_palette(),
+        "settings.open" => window.open_settings(),
+        "shortcuts.open" => window.open_shortcuts(),
         "window.fullscreen" if window.is_fullscreen() => window.unfullscreen(),
         "window.fullscreen" => window.fullscreen(),
         "window.close" => window.close(),
