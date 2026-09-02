@@ -21,19 +21,22 @@ use std::rc::Rc;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{gio, glib};
+use quill_engine::commands;
 use quill_engine::document::Document;
 use quill_engine::focus::Focus;
-use quill_engine::settings::WindowState;
+use quill_engine::settings::{Chrome, WindowState};
 use quill_engine::theme::Scheme;
 
 use crate::caret;
 use crate::chrome;
+use crate::flags;
 use crate::harness;
+use crate::menus;
 use crate::session::Session;
 use crate::tags;
 
 mod imp {
-    use std::cell::RefCell;
+    use std::cell::{Cell, OnceCell, RefCell};
     use std::rc::Rc;
 
     use gtk::prelude::*;
@@ -41,7 +44,11 @@ mod imp {
     use gtk::{ScrolledWindow, glib};
     use quill_engine::document::{Document, Edit};
 
+    use crate::chrome::Bars;
+    use crate::chrome::typing::Typing;
     use crate::editor::Editor;
+    use crate::flags;
+    use crate::palette::Palette;
     use crate::session::Session;
 
     #[derive(Default)]
@@ -52,9 +59,22 @@ mod imp {
         /// remembered in.
         pub session: RefCell<Option<Rc<Session>>>,
         pub editor: Editor,
+        /// The title bar above the Editor and the stats bar below it.
+        pub bars: Bars,
+        /// The Palette over the page, built once the window is, because a
+        /// popover is parented on its window.
+        pub palette: OnceCell<Palette>,
+        /// How far the bars have stepped back from the last keystroke.
+        pub typing: Cell<Typing>,
+        /// The one timer the typing machine has armed, if one is coming.
+        pub wake: RefCell<Option<glib::SourceId>>,
         /// What the edit now going through the buffer changed, left here by
         /// the handler that spliced the Document for the one that retags.
         pub pending: RefCell<Option<Edit>>,
+        /// The menu or the Palette `--menu` asked for, held until the window
+        /// is on the compositor: a popup opened over a toplevel that is not
+        /// mapped yet keeps the toplevel from ever mapping.
+        pub flagged: Cell<Option<flags::Menu>>,
     }
 
     #[glib::object_subclass]
@@ -75,7 +95,23 @@ mod imp {
                 .hscrollbar_policy(gtk::PolicyType::Never)
                 .child(&self.editor)
                 .build();
-            window.set_child(Some(&scroller));
+            // A column, the bars taking their space above and below the page
+            // as the oracle's do (`chrome.css` `.chrome { flex: none }`): a
+            // bar fading takes its ink away and leaves its space.
+            let column = gtk::Box::new(gtk::Orientation::Vertical, 0);
+            column.append(self.bars.top());
+            column.append(&scroller);
+            column.append(self.bars.bottom());
+            self.bars.follow(&scroller);
+            window.set_child(Some(&column));
+            let _ = self.palette.set(Palette::new(&column));
+        }
+
+        fn dispose(&self) {
+            self.bars.dispose();
+            if let Some(palette) = self.palette.get() {
+                palette.dispose();
+            }
         }
     }
 
@@ -119,14 +155,39 @@ impl Window {
         // carries and a tag is drawn in a colour: the ground has to be settled
         // before the first thing painted on it.
         window.imp().editor.open_on(session.scheme());
+        window.imp().bars.set_scheme(session.scheme());
         // And with it, because `--focus` names a state the first frame is
         // meant to show: the tiers are worked out inside the same draw that
         // puts the Document on the page.
         window.imp().editor.open_focused_on(session.focus());
+        window.imp().bars.set_focus(session.focus());
+        // The bars stand or not before the Document is shown, so the page is
+        // laid out once, at the height it will keep.
+        window
+            .imp()
+            .bars
+            .set_shown(session.chrome() == Chrome::Shown);
+        window.imp().bars.set_stats_shown(session.stats());
+        window
+            .imp()
+            .bars
+            .set_menus_grabbing(!session.flags().deterministic);
+        window
+            .palette()
+            .set_grabbing(!session.flags().deterministic);
         // And Typewriter with them, so that `--typewriter`'s first frame holds
         // the caret's row at the anchor rather than travelling to it.
         window.imp().editor.set_typewriter(session.typewriter());
         window.set_document(document);
+        // After the Document, whose showing counts it, and before the first
+        // frame: `--typing` is the chrome inside the window after a
+        // keystroke, and a shot of it is the first frame.
+        window
+            .imp()
+            .typing
+            .set(chrome::typing::Typing::from_flags(session.flags()));
+        window.settle();
+        window.watch_pointer();
         window
             .imp()
             .editor
@@ -220,7 +281,7 @@ impl Window {
             return;
         }
         session.set_step(step);
-        let face = session.settings().face;
+        let face = session.face();
         if let Some(app) = self.application() {
             reset(&app, &session, |window| {
                 window.imp().editor.set_type(face, step);
@@ -260,6 +321,54 @@ impl Window {
         self.refocus_windows(Session::swap_focus_scope);
     }
 
+    /// Puts Focus on at `scope`.
+    ///
+    /// `docs/shortcuts.md`'s `focus.sentence` and `focus.paragraph` rows, the
+    /// View menu's Focus radios. The session applies ADR 0006's rule that a
+    /// pick switches Focus on.
+    pub(crate) fn set_focus_scope(&self, scope: quill_engine::settings::FocusScope) {
+        self.refocus_windows(move |session| session.set_focus_scope(scope));
+    }
+
+    /// Sets the page in `face`, in every window.
+    ///
+    /// `docs/shortcuts.md`'s `font.duo`, `font.quattro` and `font.mono` rows,
+    /// the View menu's Typeface radios. The same pass a size step is: the
+    /// session remembers the face and writes it on the way out, and every
+    /// Editor is re-set at the step this launch is reading at.
+    pub(crate) fn set_face(&self, face: quill_engine::settings::Face) {
+        let Some(session) = self.imp().session.borrow().clone() else {
+            return;
+        };
+        if face == session.face() {
+            return;
+        }
+        session.set_face(face);
+        session.store_settings();
+        let step = session.step();
+        if let Some(app) = self.application() {
+            reset(&app, &session, |window| {
+                window.imp().editor.set_type(face, step);
+            });
+        }
+    }
+
+    /// Sets the theme, and repaints on the ground it names.
+    ///
+    /// `docs/shortcuts.md`'s `theme.light`, `theme.dark` and `theme.auto`
+    /// rows, the Palette's three. The session decides the ground — `auto` is
+    /// the desktop's last answer — and writes the setting on the way out.
+    pub(crate) fn set_theme(&self, theme: quill_engine::settings::Theme) {
+        let Some(session) = self.imp().session.borrow().clone() else {
+            return;
+        };
+        let scheme = session.set_theme(theme);
+        session.store_settings();
+        if let Some(app) = self.application() {
+            repaint(&app, &session, scheme);
+        }
+    }
+
     /// Turns Typewriter on or off.
     ///
     /// `docs/shortcuts.md`'s `typewriter.toggle` row. The session
@@ -280,6 +389,7 @@ impl Window {
         self.move_windows(move_it, |window, focus| {
             let document = window.imp().document.borrow();
             window.imp().editor.set_focus(focus, &document);
+            window.imp().bars.set_focus(focus);
         });
     }
 
@@ -314,7 +424,180 @@ impl Window {
         self.imp().document.replace(document);
         let document = self.imp().document.borrow();
         self.set_title(Some(&document.title()));
+        self.imp().bars.set_title(&document.title());
+        self.imp().bars.set_count(document.text());
         self.imp().editor.show_document(&document);
+    }
+
+    /// Hides the two bars, or shows them again.
+    ///
+    /// `docs/shortcuts.md`'s `chrome.toggle` row. The session remembers the
+    /// value and every window's bars follow, for the reason
+    /// [`Window::move_windows`] gives.
+    pub(crate) fn toggle_bars(&self) {
+        self.move_windows(Session::toggle_chrome, |window, chrome| {
+            window.imp().bars.set_shown(chrome == Chrome::Shown);
+        });
+    }
+
+    /// The typing machine's clock: the same monotonic microseconds the frame
+    /// clock counts in, read off the system because a timer fires between
+    /// frames.
+    fn now() -> i64 {
+        glib::monotonic_time()
+    }
+
+    /// A real keystroke went through the buffer: the chrome steps back.
+    ///
+    /// On the keystroke path, so it does as little as the machine allows —
+    /// two CSS classes that are already on stay on, and one timer is
+    /// re-armed. The count is not taken here; the timer asks for it.
+    fn typed(&self) {
+        let mut typing = self.imp().typing.get();
+        typing.keystroke(Self::now());
+        self.imp().typing.set(typing);
+        self.settle();
+    }
+
+    /// The pointer moved: the bars come back at once, whatever the timers
+    /// had left to do. Nothing at rest, which is where the pointer mostly
+    /// finds it.
+    fn woken(&self) {
+        let now = Self::now();
+        let mut typing = self.imp().typing.get();
+        if !typing.typing(now) {
+            return;
+        }
+        typing.pointer();
+        self.imp().typing.set(typing);
+        self.settle();
+    }
+
+    /// Puts the bars where the machine says they are now, counts on idle if
+    /// a count is owed, and arms the one timer for the next thing the machine
+    /// will do on its own.
+    fn settle(&self) {
+        let now = Self::now();
+        let mut typing = self.imp().typing.get();
+        self.imp()
+            .bars
+            .set_fade(typing.title_alpha(now), typing.stats_alpha(now));
+        if typing.takes_recount(now) {
+            glib::idle_add_local_once(glib::clone!(
+                #[weak(rename_to = window)]
+                self,
+                move || window.recount(),
+            ));
+        }
+        self.imp().typing.set(typing);
+        if let Some(armed) = self.imp().wake.take() {
+            armed.remove();
+        }
+        if let Some(when) = typing.resumes_at(now) {
+            let left = u64::try_from(when - now).unwrap_or(0);
+            let id = glib::timeout_add_local_once(
+                std::time::Duration::from_micros(left),
+                glib::clone!(
+                    #[weak(rename_to = window)]
+                    self,
+                    move || {
+                        window.imp().wake.take();
+                        window.settle();
+                    },
+                ),
+            );
+            self.imp().wake.replace(Some(id));
+        }
+    }
+
+    /// Counts the Document into the stats bar, on idle.
+    fn recount(&self) {
+        let document = self.imp().document.borrow();
+        self.imp().bars.set_count(document.text());
+    }
+
+    /// Watches the pointer for the typing machine: any motion over the
+    /// window is [`Window::woken`].
+    fn watch_pointer(&self) {
+        let motion = gtk::EventControllerMotion::new();
+        motion.connect_motion(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |_, _, _| window.woken(),
+        ));
+        self.add_controller(motion);
+    }
+
+    /// Hides the stats bar, or shows it again: `chrome.stats`, the View
+    /// menu's Statistics check and the Stats menu's last row.
+    pub(crate) fn toggle_stats(&self) {
+        self.move_windows(Session::toggle_stats, |window, stats| {
+            window.imp().bars.set_stats_shown(stats);
+        });
+    }
+
+    /// Opens `menu` under its bar button, its rows reading the modes as they
+    /// are now: `chrome.doc`, `chrome.view` (`F10`), a click on the stats
+    /// bar, and `--menu`. The bars come back first
+    /// ([`Window::bring_bars_back`]).
+    pub(crate) fn open_menu(&self, menu: commands::Menu) {
+        self.bring_bars_back();
+        self.palette().close();
+        let model = menus::model(menu, &self.modes());
+        self.imp().bars.open_menu(menu, &model);
+    }
+
+    /// Opens the Palette over the page, or closes it: `palette.open`, which
+    /// is `Ctrl+K`, `Ctrl+Shift+P` and View › Window "All Commands…". A
+    /// menu that is up closes first, and the bars come back as they do for a
+    /// menu.
+    pub(crate) fn open_palette(&self) {
+        self.bring_bars_back();
+        self.imp().bars.close_menus();
+        self.palette().toggle(self.upcast_ref(), self.modes());
+    }
+
+    /// Puts the typing machine at rest and the bars at full strength, for a
+    /// popover about to open over them: the oracle forces both bars to
+    /// opacity 1 while a menu or the Palette is up (`chrome.css`,
+    /// `[data-menu="on"]`), whatever the timers had left to do.
+    fn bring_bars_back(&self) {
+        self.imp().typing.set(chrome::typing::Typing::new());
+        self.settle();
+    }
+
+    /// The Palette, built with the window.
+    fn palette(&self) -> &crate::palette::Palette {
+        self.imp()
+            .palette
+            .get()
+            .expect("the Palette is built in constructed")
+    }
+
+    /// Opens what `--menu` named, once the window has painted its first
+    /// frame.
+    ///
+    /// Held until then rather than opened now: a popup over a toplevel the
+    /// compositor has no frame of yet keeps the toplevel from ever mapping,
+    /// and the shot never comes. GTK maps the widget as `present` returns,
+    /// so `map` is already behind us; the frame clock's first `after-paint`
+    /// is the first moment the compositor holds a frame of the window.
+    fn open_flagged(&self, menu: flags::Menu) {
+        self.imp().flagged.set(Some(menu));
+        let Some(clock) = self.frame_clock() else {
+            return;
+        };
+        let window = self.downgrade();
+        clock.connect_after_paint(move |_| {
+            let Some(window) = window.upgrade() else {
+                return;
+            };
+            match window.imp().flagged.take() {
+                Some(flags::Menu::Bar(menu)) => window.open_menu(menu),
+                Some(flags::Menu::Palette) => window.open_palette(),
+                None => {}
+            }
+        });
     }
 
     /// Tells the Editor whether this window has the keyboard, now and after.
@@ -396,6 +679,10 @@ impl Window {
             };
             let document = window.imp().document.borrow();
             window.imp().editor.retag(&document, &edit);
+            drop(document);
+            // A keystroke, and only a keystroke: a load is skipped above and
+            // a switch fills the buffer with nothing pending.
+            window.typed();
         });
 
         // Focus's own feed, and the Document is why it is here rather than
@@ -453,7 +740,7 @@ pub(crate) enum Step {
 /// passed alongside is a second thing that can be stale. A writer has one pair
 /// of eyes, so a change in one window is a change in all of them.
 fn reset(app: &gtk::Application, session: &Session, each: impl Fn(&Window)) {
-    crate::editor::install_type(session.scheme(), session.settings().face, session.step());
+    crate::editor::install_type(session.scheme(), session.face(), session.step());
     for window in app.windows() {
         if let Ok(window) = window.downcast::<Window>() {
             each(&window);
@@ -477,6 +764,7 @@ pub fn repaint(app: &gtk::Application, session: &Session, scheme: Scheme) {
     reset(app, session, |window| {
         let document = window.imp().document.borrow();
         window.imp().editor.set_scheme(scheme, &document);
+        window.imp().bars.set_scheme(scheme);
     });
     chrome::reflect_windows(app);
 }
@@ -532,6 +820,12 @@ pub fn present_launch(app: &gtk::Application, session: &Rc<Session>) {
         }
         if let Some(scroll) = scroll {
             window.imp().editor.scroll_to(scroll);
+        }
+        // Last, over a page that is already where the state put it, because
+        // a popover is placed against its button and the bars are laid out
+        // with the page.
+        if let Some(menu) = session.flags().menu {
+            window.open_flagged(menu);
         }
     }
     if let Some(window) = first

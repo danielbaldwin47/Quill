@@ -34,6 +34,7 @@ use std::fmt;
 use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 
+use quill_engine::commands;
 use quill_engine::settings::{
     Choice, Chrome, Face, FocusScope, Settings, WindowState, window_sizes,
 };
@@ -58,6 +59,11 @@ Judged state — the states the Gate shoots and benches at:
   --select <from>,<to>   Select from one byte offset to another.
   --scroll <fraction>    Scroll the Document, 0 at the top and 1 at the foot.
   --nocaret              Draw no caret.
+  --typing               Open inside the 500 ms after a keystroke: the title
+                         bar gone and the stats bar dimmed.
+  --menu view|document|stats|palette
+                         Open with that menu or the Palette up, its first row
+                         selected.
   --w <px>               Open the window this wide.
   --h <px>               Open the window this tall.
 
@@ -83,6 +89,26 @@ const THEMES: [(&str, Scheme); 2] = [("light", Scheme::Light), ("dark", Scheme::
 /// is how every other switch here reads; in the file it is shown or hidden,
 /// which is how a writer describes a bar.
 const CHROMES: [(&str, Chrome); 2] = [("on", Chrome::Shown), ("off", Chrome::Hidden)];
+
+/// What `--menu` takes: the three menus and the Palette, by the names
+/// `shots/oracle/states.json` uses for them.
+const MENUS: [(&str, Menu); 4] = [
+    ("view", Menu::Bar(commands::Menu::View)),
+    ("document", Menu::Bar(commands::Menu::Document)),
+    ("stats", Menu::Bar(commands::Menu::Stats)),
+    ("palette", Menu::Palette),
+];
+
+/// What `--menu` opens before the first frame, its first row selected: one
+/// of the bars' three menus, or the Palette.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Menu {
+    /// A menu under a bar button: the View menu (`F10`), the Document menu
+    /// under the title, or the Stats menu above the stats bar.
+    Bar(commands::Menu),
+    /// The Palette, which `Ctrl+K` opens.
+    Palette,
+}
 
 /// What `--focus` takes: one flag for the two settings behind it.
 const FOCUSES: [(&str, Focus); 3] = [
@@ -157,11 +183,20 @@ pub struct Flags {
     pub scroll: Option<f64>,
     /// Whether `--nocaret` asked for no caret at all.
     pub nocaret: bool,
+    /// Whether `--typing` asked for the chrome as it is inside the 500 ms
+    /// after a keystroke: the title bar gone, the stats bar dimmed, held
+    /// there ([`crate::chrome::typing::Typing::from_flags`]).
+    pub typing: bool,
+    /// What `--menu` asked to have open before the first frame.
+    pub menu: Option<Menu>,
     /// The window width `--w` names, in pixels.
     pub width: Option<u32>,
     /// The window height `--h` names, in pixels.
     pub height: Option<u32>,
-    /// Whether `--deterministic` asked for the Gate's settings.
+    /// Whether `--deterministic` asked for the Gate's settings: the
+    /// rendering [`crate::harness`] pins, and Typewriter off unless
+    /// `--typewriter` is given, so the writer's file reaches no judged shot
+    /// ([`Flags::over`]).
     pub deterministic: bool,
     /// The file `--measure` writes its capture into.
     pub measure: Option<PathBuf>,
@@ -215,6 +250,8 @@ impl Flags {
                 "--select" => flags.select = Some(select(flag, &text(&mut args, flag)?)?),
                 "--scroll" => flags.scroll = Some(fraction(flag, &text(&mut args, flag)?)?),
                 "--nocaret" => flags.nocaret = true,
+                "--typing" => flags.typing = true,
+                "--menu" => flags.menu = Some(one_of(flag, &text(&mut args, flag)?, &MENUS)?),
                 "--w" => flags.width = Some(whole(flag, &text(&mut args, flag)?, &window_sizes())?),
                 "--h" => {
                     flags.height = Some(whole(flag, &text(&mut args, flag)?, &window_sizes())?)
@@ -279,8 +316,14 @@ impl Flags {
             }
             None => {}
         }
+        // A judged state names every mode it is shot in, and Typewriter's
+        // flag has no `off`: a `--deterministic` launch without it is shot
+        // with Typewriter off, whatever the writer's file says, since the
+        // file is read until #44's `--settings` points a shot elsewhere.
         if self.typewriter {
             settings.typewriter = true;
+        } else if self.deterministic {
+            settings.typewriter = false;
         }
         if let Some(chrome) = self.chrome {
             settings.chrome = chrome;
@@ -410,7 +453,7 @@ mod tests {
 
     /// Every flag `docs/architecture.md` names, with a value it takes and —
     /// where it has a domain — one it does not.
-    const FLAGS: [(&str, &str, Option<&str>); 15] = [
+    const FLAGS: [(&str, &str, Option<&str>); 17] = [
         ("--text", "ref/sample.md", None),
         ("--theme", "dark", Some("purple")),
         ("--font", "mono", Some("comic")),
@@ -423,6 +466,8 @@ mod tests {
         ("--select", "10,20", Some("10")),
         ("--scroll", "0.25", Some("2")),
         ("--nocaret", "", None),
+        ("--typing", "", None),
+        ("--menu", "view", Some("file")),
         ("--w", "1440", Some("0")),
         ("--h", "900", Some("tall")),
         ("--deterministic", "", None),
@@ -463,9 +508,11 @@ mod tests {
         let flags = parse(
             "--text ref/sample.md --theme dark --font mono --step 6 --focus paragraph \
              --typewriter --chrome off --caret end --select 10,20 --scroll 0.25 --nocaret \
-             --w 1440 --h 900 --deterministic --measure out.jsonl",
+             --typing --menu palette --w 1440 --h 900 --deterministic --measure out.jsonl",
         )
         .expect("every flag at once");
+        assert!(flags.typing);
+        assert_eq!(flags.menu, Some(Menu::Palette));
         assert_eq!(flags.text.as_deref(), Some(Path::new("ref/sample.md")));
         assert_eq!(flags.theme, Some(Scheme::Dark));
         assert_eq!(flags.face, Some(Face::Mono));
@@ -591,6 +638,27 @@ mod tests {
             let flags = parse(&format!("--font {value}")).expect("a Face the file names");
             assert_eq!(flags.face.map(Face::as_str), Some(*value));
         }
+    }
+
+    /// A judged state is shot with Typewriter off unless it says
+    /// `--typewriter`, whatever the writer's file holds; a live launch
+    /// without the flag keeps the file's.
+    #[test]
+    fn a_deterministic_launch_without_typewriter_runs_with_it_off() {
+        let mut writers = Settings::default();
+        writers.typewriter = true;
+        let judged = parse("--deterministic")
+            .expect("one flag")
+            .over(writers.clone());
+        assert!(!judged.typewriter);
+        let live = parse("--theme dark")
+            .expect("one flag")
+            .over(writers.clone());
+        assert!(live.typewriter);
+        let asked = parse("--deterministic --typewriter")
+            .expect("two flags")
+            .over(writers);
+        assert!(asked.typewriter);
     }
 
     #[test]

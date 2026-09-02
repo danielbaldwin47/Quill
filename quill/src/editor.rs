@@ -109,6 +109,10 @@ const FEATURES: [&str; 4] = ["liga", "clig", "calt", "kern"];
 /// How many frames `--scroll` holds the view where it was asked for.
 const SCROLL_FRAMES: u32 = 8;
 
+/// What the empty page says on its first line, in the oracle's words
+/// (`legacy/app/css/page.css` `content: "Start writing…"`).
+const PLACEHOLDER: &str = "Start writing…";
+
 /// The most frames a `--caret` reveal is asked again for while GTK validates
 /// the layout it is resolved against ([`Editor::reveal_caret`]). A bound, not
 /// a duration: the hold ends the frame the row stops moving and is on the
@@ -434,6 +438,7 @@ mod imp {
         /// `iter_location` answers in, so nothing is translated on the way.
         fn snapshot_layer(&self, layer: gtk::TextViewLayer, snapshot: gtk::Snapshot) {
             if layer == gtk::TextViewLayer::BelowText {
+                self.obj().draw_placeholder(&snapshot);
                 self.obj().draw_selection_fill(&snapshot);
             }
             if layer == gtk::TextViewLayer::AboveText {
@@ -1918,6 +1923,32 @@ impl Editor {
         }
     }
 
+    /// The empty page's one whisper: [`PLACEHOLDER`] on the first line, where
+    /// the first glyph will land, in the grey Focus dims prose to.
+    ///
+    /// The Parity oracle sets it there (`legacy/app/css/page.css`, the
+    /// `#mirror` rule for a Document with nothing in it) and it is gone the
+    /// moment there is a character in the Document. It is the chrome Piece's
+    /// to paint — #43 moved `empty` there — and the Editor's to place, because
+    /// only the Editor knows where its first line is. Under the glyphs, so
+    /// the caret is drawn over it like over any text.
+    fn draw_placeholder(&self, snapshot: &gtk::Snapshot) {
+        let buffer = self.buffer();
+        if buffer.char_count() != 0 {
+            return;
+        }
+        let at = self.iter_location(&buffer.start_iter());
+        let layout = self.create_pango_layout(Some(PLACEHOLDER));
+        snapshot.save();
+        // Buffer coordinates are whole logical pixels, which `f32` holds.
+        snapshot.translate(&graphene::Point::new(
+            logical(f64::from(at.x()), 1.0),
+            logical(f64::from(at.y()), 1.0),
+        ));
+        snapshot.append_layout(&layout, &paint(self.imp().scheme.get(), Role::InkDim, 1.0));
+        snapshot.restore();
+    }
+
     /// The mode `--deterministic` and `--nocaret` asked for.
     ///
     /// A whole machine rather than a mode set on the one there is, because
@@ -2291,7 +2322,11 @@ pub fn install_type(scheme: Scheme, face: Face, step: u32) {
             );
             provider
         });
-        provider.load_from_string(&stylesheet(scheme, face, typography::em(step)));
+        // The bars' sheet rides with the type's, so the two grounds — the
+        // page's and the chrome's — change in the one reload.
+        let mut sheet = stylesheet(scheme, face, typography::em(step));
+        sheet.push_str(&crate::chrome::stylesheet(scheme));
+        provider.load_from_string(&sheet);
     });
 }
 
@@ -2391,6 +2426,21 @@ fn on_glass(row: (f64, f64), view: (f64, f64)) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The empty page's words are the oracle's, read from the rule that sets
+    /// them, so the two sides of `chrome/empty` say the same thing.
+    #[test]
+    fn the_placeholder_is_the_oracles_words() {
+        let css = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../legacy/app/css/page.css"
+        ))
+        .expect("legacy/app/css/page.css");
+        assert!(
+            css.contains(&format!("content: \"{PLACEHOLDER}\";")),
+            "page.css sets a different placeholder than {PLACEHOLDER:?}"
+        );
+    }
 
     /// A keystroke inside the lit sentence starts no fade: the tiers from
     /// before it, carried across it, paint the same bytes the same colour as
