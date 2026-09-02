@@ -26,7 +26,7 @@ use gtk::pango;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use quill_engine::annotate::{self, Painted};
-use quill_engine::document::Document;
+use quill_engine::document::{Document, Edit};
 use quill_engine::focus::typewriter::{self, Glide, Hold, Typewriter};
 use quill_engine::focus::{self, Focus, LineTiers};
 use quill_engine::settings::Face;
@@ -178,6 +178,25 @@ pub struct Travel {
     glide: Glide,
     /// The frame it started in.
     started: i64,
+}
+
+/// The lines the bytes an edit put in lie on; none for a deletion.
+///
+/// Drawn again with Focus on ([`Editor::retag`]): the buffer gives an
+/// inserted byte the tags of the byte before it, and that byte is the dim of
+/// the sentence before when the writer types at the start of their own — so
+/// the typed bytes' lines are drawn from the tiers whatever [`focus::changed`]
+/// says of them, and without a fade: the tiers say the typed text is bright,
+/// and it is bright at once. With Focus off the buffer's own ink is right and
+/// the Markup tags are [`Edit::lines`]'s to redraw.
+fn typed_lines(document: &Document, edit: &Edit) -> Option<Range<usize>> {
+    let splice = &edit.splice;
+    if splice.inserted == 0 {
+        return None;
+    }
+    let first = document.place(splice.at.start).line;
+    let last = document.place(splice.at.start + splice.inserted - 1).line;
+    Some(first..last + 1)
 }
 
 /// The runs a tier change moved, and the two colours each moves between.
@@ -640,13 +659,26 @@ impl Editor {
     /// and nothing changes, which is what leaves the Focus-off page byte for
     /// byte the page it was before Focus existed.
     fn retier(&self, document: &Document) -> Vec<Range<usize>> {
+        let at = self.caret_bytes(document);
+        self.retier_at(document, &at)
+    }
+
+    /// The writer's selection as the buffer holds it, in the Document's
+    /// bytes: an empty range is the caret.
+    fn caret_bytes(&self, document: &Document) -> Range<usize> {
         let buffer = self.buffer();
         let (from, to) = buffer.selection_bounds().unwrap_or_else(|| {
             let at = buffer.iter_at_mark(&buffer.get_insert());
             (at, at)
         });
-        let at = tags::offset_of(document, &from)..tags::offset_of(document, &to);
-        self.retier_at(document, &at)
+        tags::offset_of(document, &from)..tags::offset_of(document, &to)
+    }
+
+    /// The tiers for a caret at `at`, by line, as Focus stands: none while it
+    /// is off.
+    fn tiers_at(&self, document: &Document, at: &Range<usize>) -> Vec<LineTiers> {
+        let focus = self.imp().focus.get();
+        focus::tiers_by_line(document, &focus::tiers(document, at, focus))
     }
 
     /// [`Editor::retier`], for a caret the buffer does not hold yet.
@@ -655,11 +687,10 @@ impl Editor {
     /// measures a column and a column is measured on the advances the draw
     /// puts there. So the caret it opens at is named rather than read.
     fn retier_at(&self, document: &Document, at: &Range<usize>) -> Vec<Range<usize>> {
-        let focus = self.imp().focus.get();
-        if matches!(focus, Focus::Off) {
+        if matches!(self.imp().focus.get(), Focus::Off) {
             return Vec::new();
         }
-        let after = focus::tiers_by_line(document, &focus::tiers(document, at, focus));
+        let after = self.tiers_at(document, at);
         let moved = focus::changed(&self.imp().tiers.borrow(), &after);
         self.imp().tiers.replace(after);
         moved
@@ -934,20 +965,34 @@ impl Editor {
         self.imp().loading.get()
     }
 
-    /// Draws the lines an edit changed, and no others.
+    /// Draws the lines an edit changed: the ones whose Markup moved, the ones
+    /// the dim moved across, and with Focus on the line the typed bytes lie
+    /// on; no others.
     ///
     /// Called from the buffer's `changed`, after the text has moved and after
     /// the engine's copy has been spliced to match it, because a tag is put on
     /// by the line and the byte index within it and both of those have to be
     /// the ones the writer can now see.
-    pub fn retag(&self, document: &Document, lines: &Range<usize>) {
+    pub fn retag(&self, document: &Document, edit: &Edit) {
         // An edit moves the caret as well as the text, so the tiers are worked
         // out again here rather than left to the caret's own feed: the lines
         // the edit changed and the lines the dim moved across are drawn in the
         // same pass. A line named by both is drawn twice, which is a tag taken
         // off and put back on the same bytes and not a second look on them.
-        let before = self.imp().tiers.borrow().clone();
-        let moved = self.retier(document);
+        //
+        // What the edit moved is not what `retier` answers: that compares the
+        // tiers' bytes as they stood, and a keystroke inside the lit sentence
+        // moves every byte after it, so every line read as moved and the
+        // sentence's last byte faded from dim to bright on each key (#224).
+        // The tiers from before are carried across the edit first, and with
+        // Focus off there are none to carry: the tiers on hand are the last
+        // ones Focus lit, left where they were for the reason `retier_at` has.
+        let on = matches!(self.imp().focus.get(), Focus::On(_));
+        let was = self.imp().tiers.borrow().clone();
+        if on {
+            let at = self.caret_bytes(document);
+            self.imp().tiers.replace(self.tiers_at(document, &at));
+        }
         // Every edit settles the fade, whether or not a tier moved with it: a
         // fade holds the buffer's offsets, and an edit is the one thing that
         // moves the text out from under them. A writer typing through their own
@@ -955,7 +1000,15 @@ impl Editor {
         // next keystroke and then arrive, rather than a stretch of an earlier
         // sentence left stranded half-way between the two tiers.
         self.settle_fade(document);
-        self.redraw(document, std::slice::from_ref(lines));
+        self.redraw(document, std::slice::from_ref(&edit.lines));
+        if !on {
+            return;
+        }
+        let after = self.imp().tiers.borrow();
+        let before = focus::rebased(document, &was, &edit.splice, &after);
+        let moved = focus::changed(&before, &after);
+        drop(after);
+        self.redraw(document, typed_lines(document, edit).as_slice());
         self.redraw(document, &moved);
         self.begin_fade(document, &before, &moved);
     }
@@ -2338,6 +2391,94 @@ fn on_glass(row: (f64, f64), view: (f64, f64)) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A keystroke inside the lit sentence starts no fade: the tiers from
+    /// before it, carried across it, paint the same bytes the same colour as
+    /// the tiers read after it. Against the tiers as they stood, the byte the
+    /// keystroke pushed past the range's end faded from dim to bright, which
+    /// is what the owner saw (#224).
+    #[test]
+    fn a_keystroke_inside_the_lit_sentence_fades_nothing() {
+        use quill_engine::settings::FocusScope;
+        let focus = Focus::On(FocusScope::Sentence);
+        let colours = Colours::of(Scheme::Light);
+        let mut doc = Document::untitled();
+        doc.insert(0, "A first thought. A second one.\n");
+        let was = focus::tiers_by_line(&doc, &focus::tiers(&doc, &(8..8), focus));
+        let edit = doc.insert(8, "x");
+        let after = focus::tiers_by_line(&doc, &focus::tiers(&doc, &(9..9), focus));
+        let before = focus::rebased(&doc, &was, &edit.splice, &after);
+        let line = doc.line_bytes(0);
+        let spans = doc.spans_in(&line);
+        let painted =
+            |tiers: &[LineTiers]| annotate::paint_in(&spans, &line, tiers, focus, &colours);
+        let runs = faded(&painted(&before), &painted(&after), buffer_offsets);
+        assert!(
+            runs.is_empty(),
+            "the typed byte and the sentence around it are bright on both sides"
+        );
+        let stale = faded(&painted(&was), &painted(&after), buffer_offsets);
+        assert!(
+            matches!(stale.as_slice(), [FadeRun { at, .. }] if *at == (17..18)),
+            "the defect, kept so this test is known to see it: judged against \
+             the tiers as they stood, the sentence's last byte fades in; got {:?}",
+            stale.iter().map(|run| run.at.clone()).collect::<Vec<_>>()
+        );
+    }
+
+    /// A full stop typed into a sentence still moves the dim, and so still
+    /// fades: the half the caret is not in goes from bright to dim; taken out
+    /// again, that half comes back the other way. The one keystroke that is
+    /// meant to fade, kept beside the one that is not.
+    #[test]
+    fn a_full_stop_typed_into_the_lit_sentence_fades_the_half_it_cut_off() {
+        use quill_engine::settings::FocusScope;
+        let focus = Focus::On(FocusScope::Sentence);
+        let colours = Colours::of(Scheme::Light);
+        let mut doc = Document::untitled();
+        doc.insert(0, "A first thought Another one.\n");
+        let line = 0..doc.text().len();
+        let ends = |runs: &[FadeRun]| {
+            runs.iter()
+                .map(|run| (run.at.clone(), run.from == run.to))
+                .collect::<Vec<_>>()
+        };
+
+        let was = focus::tiers_by_line(&doc, &focus::tiers(&doc, &(15..15), focus));
+        let edit = doc.insert(15, ".");
+        let after = focus::tiers_by_line(&doc, &focus::tiers(&doc, &(16..16), focus));
+        let before = focus::rebased(&doc, &was, &edit.splice, &after);
+        let spans = doc.spans_in(&line);
+        let painted =
+            |tiers: &[LineTiers]| annotate::paint_in(&spans, &line, tiers, focus, &colours);
+        let cut = faded(&painted(&before), &painted(&after), buffer_offsets);
+        assert_eq!(
+            ends(&cut),
+            [(17..29, false)],
+            "`Another one.` was lit and is dim now; `A first thought.` fades nowhere"
+        );
+
+        let was = after;
+        let edit = doc.delete(15..16);
+        let after = focus::tiers_by_line(&doc, &focus::tiers(&doc, &(15..15), focus));
+        let before = focus::rebased(&doc, &was, &edit.splice, &after);
+        let spans = doc.spans_in(&line);
+        let painted =
+            |tiers: &[LineTiers]| annotate::paint_in(&spans, &line, tiers, focus, &colours);
+        let joined = faded(&painted(&before), &painted(&after), buffer_offsets);
+        assert_eq!(
+            ends(&joined),
+            [(16..28, false)],
+            "the full stop gone, `Another one.` is the caret's sentence again and lights"
+        );
+    }
+
+    /// Buffer offsets for a test with no buffer: the Document's own bytes,
+    /// which is what a one-line ASCII passage's buffer offsets are.
+    fn buffer_offsets(at: &Range<usize>) -> Range<i32> {
+        let offset = |byte: usize| i32::try_from(byte).expect("a line's bytes fit an i32");
+        offset(at.start)..offset(at.end)
+    }
 
     /// A reveal has landed only when the whole row is on the glass.
     ///
