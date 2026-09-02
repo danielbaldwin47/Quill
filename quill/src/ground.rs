@@ -11,15 +11,16 @@
 //! The table is chosen once, where the ground is chosen
 //! ([`crate::session::Session::ground`]), and handed down: every painter
 //! takes a `Ground` or reads the one its widget holds, and none of them
-//! builds a table of its own. That is what lets a later ticket lay a palette
-//! over the built-ins (#159): one site changes what the table is, and no
+//! builds a table of its own. That is what lets a writer's palette file lie
+//! over the built-ins (`docs/design.md` § The palette is a file): the one
+//! site answers [`Ground::overlaid`] rather than [`Ground::of`], and no
 //! painter learns what a palette is.
 //!
 //! Not the engine's [`quill_engine::annotate::Ground`], which is what one run
 //! is drawn on — the page or the code well — and is spelled with its module
 //! where the two meet.
 
-use quill_engine::theme::{Colours, Scheme};
+use quill_engine::theme::{Colours, Palette, Scheme};
 
 /// One of the two grounds, and the colours it is painted in.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -42,6 +43,21 @@ impl Ground {
         Self {
             scheme,
             colours: Colours::of(scheme),
+        }
+    }
+
+    /// `scheme`'s ground with `palette`'s table for it laid over the
+    /// built-ins: what a writer with a palette file paints on.
+    ///
+    /// Every role the file names is the file's and every role it leaves out
+    /// is [`Ground::of`]'s ([`Colours::overlaid`]), so the answer is as total
+    /// as the built-ins and no painter can tell the two apart. The empty
+    /// palette answers exactly what [`Ground::of`] does.
+    #[must_use]
+    pub fn overlaid(scheme: Scheme, palette: &Palette) -> Self {
+        Self {
+            scheme,
+            colours: Colours::overlaid(scheme, palette),
         }
     }
 }

@@ -177,7 +177,14 @@ into its place, or re-points a link, the directory above it is watched too and t
 again when the directory is replaced, with the file's new version sent on. The watch follows the
 setting — re-pointed when `palette` changes, dropped when it is unset — and a directory that is
 not there yet is not polled: the add says so, and the app adds the file again on the settings
-watch's next event. The Documents and the Library join the same watch when they are built.
+watch's next event. A palette that moved — the file saved, its directory replaced, the `palette`
+line edited — is applied through the pass a theme toggle uses (`quill::window::repaint`: the table,
+the stylesheet and the tag table together, on the main context), so a palette change and a scheme
+change are the same one repaint; a re-read that yields the same palette is not a repaint, told by
+the palette's equality rather than by the watch. The palette never chooses the ground: the scheme is
+still the flag, then the setting, then the portal, then `last_scheme`, and the palette colours
+whichever ground that lands on. The Documents and the Library join the same watch when they are
+built.
 
 State, in `state.toml`: the size of each window and whether it was maximized or full screen, the last
 Document per window, caret position per recent Document, the recents list, `last_scheme` (the ground
@@ -213,7 +220,9 @@ downloaded at build time.
 The harness drives the app through flags applied before the first frame; the Gate names the states
 and the determinism settings, this document names the flags:
 
-- Judged state: `--text <file>`, `--theme light|dark`, `--font duo|quattro|mono`, `--step <n>`,
+- Judged state: `--text <file>`, `--theme light|dark` (the ground, and — given without `--palette` —
+  the built-in table for it whatever the `palette` setting names, so a judged shot is the same on
+  every machine), `--font duo|quattro|mono`, `--step <n>`,
   `--focus off|sentence|paragraph`, `--typewriter`, `--chrome on|off`, `--caret <offset>|end`,
   `--select <from>,<to>`, `--scroll <fraction>`, `--nocaret`, `--typing` (the chrome as it is
   inside the 500 ms after a keystroke: the title bar gone, the stats bar dimmed), `--menu
@@ -225,7 +234,9 @@ and the determinism settings, this document names the flags:
   off unless `--typewriter` is given, so the writer's `settings.toml` reaches no judged shot),
   `--measure <out.jsonl>` (key capture in the capture phase, `GdkFrameTimings` presentation times,
   cold start against `QUILL_T0_NS`), `--settings <path>` (read and write settings in `<path>`, so a
-  run drives a fixture — a `[shortcuts]` table, a theme — without touching the writer's file).
+  run drives a fixture — a `[shortcuts]` table, a theme — without touching the writer's file),
+  `--palette <path>` (paint the grounds from the palette file at `<path>` for this launch, over the
+  `palette` setting; with `--theme`, a palette previewed on a pinned ground).
 
 Every flag has a matching setting or a harness-only effect; none creates state a writer cannot reach.
 
