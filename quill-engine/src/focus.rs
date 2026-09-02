@@ -267,6 +267,10 @@ pub fn changed(before: &[LineTiers], after: &[LineTiers]) -> Vec<Range<usize>> {
 /// `a..b` into `a..b + 1` and shifted every range below it, so the line read
 /// as moved and the cross-fade carried the sentence's last byte from dim to
 /// bright on every keystroke (#224, found by the owner's hand).
+///
+/// Bounded as [`changed`] is: each list holds the lines of one block at most
+/// ([`reach`]), and the walk is once over each and then a sort of what they
+/// held, so a keystroke costs the caret's block and not the manuscript.
 #[must_use]
 pub fn rebased(
     doc: &Document,
@@ -1140,6 +1144,13 @@ mod tests {
             vec![0..1],
             "the line was one lit sentence and is now `A first thought.` lit \
              with `Another one.` dim: a tier moved, and its line is drawn again"
+        );
+        let mut doc = document("One Two three.\n");
+        assert_eq!(
+            moved_by_typing(&mut doc, 3, ". ", Focus::On(FocusScope::Sentence)),
+            vec![0..1],
+            "`. ` at a sentence's end: the caret lands in `Two three.`, which \
+             is lit on its own now, and `One.` behind it went dim"
         );
     }
 
