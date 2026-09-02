@@ -1282,6 +1282,8 @@ fn reading_time(words: usize) -> String {
 mod tests {
     use std::cell::RefCell;
 
+    use quill_engine::shortcuts::Chord;
+
     use super::*;
 
     /// A map with one scope's actions on it, and the ids fired through it.
@@ -1335,29 +1337,67 @@ mod tests {
         }
     }
 
+    /// Whether GTK would install this accelerator, asked the way a test with
+    /// no display can ask it.
+    ///
+    /// `gtk::accelerator_parse` needs a display, so the two halves of an
+    /// accelerator are checked apart: the modifier tags against the names GTK
+    /// gives them, the key name through GDK's own table, which
+    /// `gtk::gdk::Key::from_name` reads without one.
+    fn installs(accel: &str) -> bool {
+        let mut rest = accel;
+        while let Some(after) = rest.strip_prefix('<') {
+            let Some((tag, tail)) = after.split_once('>') else {
+                return false;
+            };
+            if !["Control", "Shift", "Alt"].contains(&tag) {
+                return false;
+            }
+            rest = tail;
+        }
+        gtk::gdk::Key::from_name(rest).is_some_and(|key| key != gtk::gdk::Key::VoidSymbol)
+    }
+
     #[test]
     fn gdk_knows_every_key_name_the_table_installs() {
-        // `gtk::accelerator_parse` needs a display, so the two halves of an
-        // accelerator are checked apart: the modifier tags against the three
-        // GTK names, the key name through GDK's own table.
         for command in COMMANDS {
             let accels = command.accels();
             assert_eq!(accels.len(), command.chords().count(), "{}", command.id);
             for accel in accels {
-                let mut rest = accel.as_str();
-                while let Some(after) = rest.strip_prefix('<') {
-                    let (tag, tail) = after.split_once('>').expect(&accel);
-                    assert!(
-                        ["Control", "Shift", "Alt"].contains(&tag),
-                        "{}: {accel}",
-                        command.id
-                    );
-                    rest = tail;
-                }
-                let key = gtk::gdk::Key::from_name(rest).expect(&accel);
-                assert_ne!(key, gtk::gdk::Key::VoidSymbol, "{}: {accel}", command.id);
+                assert!(installs(&accel), "{}: {accel}", command.id);
             }
         }
+    }
+
+    /// Every chord `docs/shortcuts.md` names — the Commands' and the two
+    /// lists' — is one GTK can install, once the engine has read its shape.
+    ///
+    /// The engine's half of this is
+    /// `quill_engine::shortcuts::Chord`'s: it says the chord has the shape of
+    /// a chord, and says nothing about the key name, which is GDK's to know
+    /// (ADR 0008). This is the other half, over the same chords.
+    #[test]
+    fn gtk_installs_every_chord_the_shape_parser_accepts_here() {
+        let table = COMMANDS
+            .iter()
+            .flat_map(Command::chords)
+            .chain(commands::RESERVED.iter().copied())
+            .chain(commands::OFF_LIMITS.iter().copied());
+        let mut seen = 0;
+        for written in table {
+            let accel = commands::accel(written).unwrap_or_else(|| panic!("{written}"));
+            let chord = Chord::parse(&accel).unwrap_or_else(|| panic!("{written} is {accel}"));
+            assert!(installs(chord.as_str()), "{written} is {chord}");
+            seen += 1;
+        }
+        let bound: usize = COMMANDS
+            .iter()
+            .map(|command| command.chords().count())
+            .sum();
+        assert_eq!(
+            seen,
+            bound + commands::RESERVED.len() + commands::OFF_LIMITS.len()
+        );
     }
 
     #[test]

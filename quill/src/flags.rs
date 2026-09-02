@@ -72,13 +72,16 @@ Harness:
                          rendering, no client-side decorations.
   --measure <out.jsonl>  Print the cold start from $QUILL_T0_NS at the first
                          presented frame, and create <out.jsonl>.
+  --settings <file>      Read and write settings in <file> rather than in the
+                         writer's own settings.toml.
 
   --help                 Print this.
 
 A launch carrying any flag above is the harness's rather than a writer's: it
 opens in a process of its own rather than reaching a Quill already running, it
 overrides the writer's settings for that launch alone, and it writes neither
-settings.toml nor state.toml.";
+settings.toml nor state.toml — except that a launch given --settings owns the
+file it names, and reads and writes that one.";
 
 /// What `--theme` takes: the two the Gate judges. `auto` is the desktop's
 /// answer rather than an answer, so it is a setting and not a judged state —
@@ -200,6 +203,12 @@ pub struct Flags {
     pub deterministic: bool,
     /// The file `--measure` writes its capture into.
     pub measure: Option<PathBuf>,
+    /// The settings file `--settings` names, which this launch reads and
+    /// writes instead of the writer's own. One of the harness's flags like
+    /// the rest, so a launch carrying it is still its own process and still
+    /// leaves `state.toml` alone; what it moves is where `settings.toml` is
+    /// ([`crate::session::Session::settings_path`]).
+    pub settings: Option<PathBuf>,
     /// Whether `--help` was asked for. Not one of the harness's flags: it
     /// prints and stops.
     pub help: bool,
@@ -258,6 +267,7 @@ impl Flags {
                 }
                 "--deterministic" => flags.deterministic = true,
                 "--measure" => flags.measure = Some(file(&mut args, flag)?),
+                "--settings" => flags.settings = Some(file(&mut args, flag)?),
                 "--help" => flags.help = true,
                 _ if flag.starts_with('-') && flag != "-" => {
                     return Err(Error(format!("{flag}: not a flag Quill knows")));
@@ -318,8 +328,8 @@ impl Flags {
         }
         // A judged state names every mode it is shot in, and Typewriter's
         // flag has no `off`: a `--deterministic` launch without it is shot
-        // with Typewriter off, whatever the writer's file says, since the
-        // file is read until #44's `--settings` points a shot elsewhere.
+        // with Typewriter off, whatever the file says — the writer's own,
+        // where `--settings` did not point the launch at another.
         if self.typewriter {
             settings.typewriter = true;
         } else if self.deterministic {
@@ -453,7 +463,7 @@ mod tests {
 
     /// Every flag `docs/architecture.md` names, with a value it takes and —
     /// where it has a domain — one it does not.
-    const FLAGS: [(&str, &str, Option<&str>); 17] = [
+    const FLAGS: [(&str, &str, Option<&str>); 18] = [
         ("--text", "ref/sample.md", None),
         ("--theme", "dark", Some("purple")),
         ("--font", "mono", Some("comic")),
@@ -472,6 +482,7 @@ mod tests {
         ("--h", "900", Some("tall")),
         ("--deterministic", "", None),
         ("--measure", "out.jsonl", None),
+        ("--settings", "settings.toml", None),
     ];
 
     /// A command line, written as it would be typed.
