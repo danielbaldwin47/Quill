@@ -769,6 +769,37 @@ pub fn repaint(app: &gtk::Application, session: &Session, scheme: Scheme) {
     chrome::reflect_windows(app);
 }
 
+/// Puts a settings file saved while Quill is running on to every window.
+///
+/// The whole of what the file carries at once — the ground, the type, Focus,
+/// Typewriter and the bars — rather than only what moved, because a file is
+/// saved whole and the session has already been moved by it
+/// ([`Session::apply`]): a value the writer left alone is set to what it
+/// already held, and the writer sees one repaint rather than five.
+///
+/// The keys' own paths ([`repaint`], [`Window::step_size`]) stay as they are:
+/// they move one thing and write the file, and this is the other direction,
+/// the file moving everything.
+pub fn reapply(app: &gtk::Application, session: &Session) {
+    let scheme = session.scheme();
+    let focus = session.focus();
+    let typewriter = session.typewriter();
+    let face = session.face();
+    let step = session.step();
+    let bars = session.chrome() == Chrome::Shown;
+    reset(app, session, move |window| {
+        let document = window.imp().document.borrow();
+        window.imp().editor.set_type(face, step);
+        window.imp().editor.set_scheme(scheme, &document);
+        window.imp().editor.set_focus(focus, &document);
+        window.imp().editor.set_typewriter(typewriter);
+        window.imp().bars.set_scheme(scheme);
+        window.imp().bars.set_focus(focus);
+        window.imp().bars.set_shown(bars);
+    });
+    chrome::reflect_windows(app);
+}
+
 /// Opens the windows this launch asks for.
 ///
 /// The Documents its flags name, or one untitled Document when they name none.

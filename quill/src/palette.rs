@@ -602,9 +602,11 @@ fn marked(title: &str, hits: &[(usize, usize)]) -> String {
     out
 }
 
-/// The Command's first chord as GTK writes it, the way the menus' rows do.
+/// The Command's first chord as GTK writes it, the way the menus' rows do:
+/// the one it is installed with now ([`chrome::accels`]), so a Command the
+/// writer rebound in `settings.toml` reads as they rebound it.
 fn key_label(command: &Command) -> Option<String> {
-    let accel = command.accels().into_iter().next()?;
+    let accel = chrome::accels(command).into_iter().next()?;
     let (key, modifiers) = gtk::accelerator_parse(&accel)?;
     Some(gtk::accelerator_get_label(key, modifiers).to_string())
 }

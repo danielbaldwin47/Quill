@@ -9,14 +9,16 @@
 //! under their head. A row's action is the Command's, so the check or the
 //! radio the popover draws reads the stateful action the chord fires, and a
 //! Command not built yet has a disabled action, which is the greyed row. The
-//! accelerator label is GTK's own rendering of the first chord, handed over
-//! in GTK's syntax as the row's `accel`.
+//! accelerator label is GTK's own rendering of the first chord the Command is
+//! installed with now ([`chrome::accels`]) rather than of the registry's own,
+//! handed over in GTK's syntax as the row's `accel`, so a row rebound in
+//! `settings.toml` is labelled the way the writer rebound it (#124).
 
 use gtk::gio;
 use gtk::prelude::*;
 use quill_engine::commands::{COMMANDS, Command, Menu, Placement, VIEW_SECTIONS};
 
-use crate::chrome::Modes;
+use crate::chrome::{self, Modes};
 
 /// The head of the Syntax highlight submenu, whose five rows are the
 /// `syntax.` Commands that follow it in the table.
@@ -115,7 +117,7 @@ fn item(command: &Command, placement: &Placement, modes: &Modes) -> gio::MenuIte
     let item = gio::MenuItem::new(Some(&label(command, placement, modes)), None);
     let (action, target) = command.action_and_target();
     item.set_action_and_target_value(Some(&action), target.map(ToVariant::to_variant).as_ref());
-    if let Some(accel) = command.accels().first() {
+    if let Some(accel) = chrome::accels(command).first() {
         item.set_attribute_value("accel", Some(&accel.to_variant()));
     }
     item
@@ -353,7 +355,7 @@ mod tests {
                 assert_eq!(row.target, target, "{}", command.id);
                 assert_eq!(
                     row.accel,
-                    command.accels().first().cloned(),
+                    chrome::accels(command).first().cloned(),
                     "{}",
                     command.id
                 );

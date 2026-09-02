@@ -1,12 +1,17 @@
 //! What Quill was launched with: the flags, the settings and the state.
 //!
 //! All three belong to the application rather than to a window, and all three
-//! are touched once: read before the first window is built, written after the
-//! last one is gone. Nothing here re-reads a file while Quill is running — the
-//! `notify` watch that applies a saved edit without a restart is the settings
-//! ticket's ([#44](https://github.com/danielbaldwin47/Quill/issues/44)) — and
-//! nothing here fails: a file that cannot be read or written is one line on
-//! stderr and a Quill that opens anyway.
+//! are read before the first window is built and written after the last one is
+//! gone. Nothing here fails: a file that cannot be read or written is one line
+//! on stderr and a Quill that opens anyway.
+//!
+//! `settings.toml` is read more than once, and only that file: [`watch_settings`]
+//! puts [`quill_engine::watch::Watch`] on it and drains it from the main
+//! context, so a saved edit reaches [`Session::apply`] and every window without
+//! a restart. What a version of the file cannot apply — a line that is not
+//! settings, a `[shortcuts]` entry Quill refuses — is one `g_warning` under
+//! [`DOMAIN`] and never fatal, said once per distinct line per version of the
+//! file ([`Session::warn`]).
 //!
 //! A launch of the harness's ([`Flags::is_harness`]) is the same session with
 //! two files' worth of the writer's own removed. It reads their `settings.toml`,
@@ -17,16 +22,33 @@
 //! opens at the shape its flags name rather than at the window a writer left,
 //! and the window a writer left is still there after a bench has run.
 
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell, Ref, RefCell};
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::time::Duration;
 
+use gtk::glib;
 use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
 use quill_engine::settings::{Chrome, Face, FocusScope, Settings, State, Theme, WindowState};
+use quill_engine::shortcuts::Refusal;
 use quill_engine::theme::{self, Scheme};
+use quill_engine::watch::{Watch, unsaid};
 
 use crate::flags::Flags;
+
+/// The log domain every warning about the settings file carries, which is what
+/// `journalctl --user` and `G_MESSAGES_DEBUG` filter on.
+pub const DOMAIN: &str = "quill-settings";
+
+/// How often the main context looks for a save the watch has passed on.
+///
+/// The watch answers on a thread of its own and a setting can only be applied
+/// on this one, so the receiver is drained from a timer. Together with
+/// [`quill_engine::watch::DEBOUNCE`] this is what stands between a writer's
+/// save and the page following it.
+const DRAIN_EVERY: Duration = Duration::from_millis(100);
 
 /// The settings and state of one run of Quill.
 pub struct Session {
@@ -35,8 +57,21 @@ pub struct Session {
     /// Whether this launch is the harness's, asked once of the flags and
     /// answered from here afterwards.
     harness: bool,
-    /// What the writer chose, with the flags over the top, as it was read.
-    settings: Settings,
+    /// What the writer chose, with the flags over the top, as it was last
+    /// read: replaced when a saved edit is applied ([`Session::apply`]), so
+    /// that what [`Session::store_settings`] compares the live values against
+    /// is the file as it is now and not as it was at launch.
+    settings: RefCell<Settings>,
+    /// What the last read of the settings file had to say, kept because the
+    /// chords are installed after the file is read and one version of the
+    /// file says its notes and its refusals in one breath ([`Session::warn`]).
+    notes: RefCell<Vec<String>>,
+    /// What the last read refused, for the Settings window to show (#125).
+    refusals: RefCell<Vec<Refusal>>,
+    /// Every line the last version of the settings file said, so that a
+    /// writer who saves the same refused line again hears nothing
+    /// ([`quill_engine::watch::unsaid`]).
+    said: RefCell<BTreeSet<String>>,
     /// The file the settings were read from and are written back to: the
     /// writer's own, or the one `--settings` named
     /// ([`Session::settings_path`]).
@@ -128,7 +163,9 @@ impl Session {
             (state, opening)
         };
 
-        Self::launch(flags, settings, state, opening, harness, portal)
+        let session = Self::launch(flags, settings, state, opening, harness, portal);
+        session.reported(notes);
+        session
     }
 
     /// The session those three make, with no file in sight.
@@ -171,7 +208,10 @@ impl Session {
             chrome: Cell::new(settings.chrome),
             stats: Cell::new(true),
             scheme: Cell::new(scheme),
-            settings,
+            settings: RefCell::new(settings),
+            notes: RefCell::new(Vec::new()),
+            refusals: RefCell::new(Vec::new()),
+            said: RefCell::new(BTreeSet::new()),
             settings_path: settings_path(&flags),
             flags,
             harness,
@@ -190,8 +230,85 @@ impl Session {
     }
 
     /// What the writer chose, as this launch is running it.
-    pub fn settings(&self) -> &Settings {
-        &self.settings
+    pub fn settings(&self) -> Ref<'_, Settings> {
+        self.settings.borrow()
+    }
+
+    /// What the last read of the settings file refused, one per entry it
+    /// could not apply, in the file's order.
+    #[allow(dead_code)] // the Settings window's refused-lines row reads it (#125)
+    pub fn refusals(&self) -> Ref<'_, Vec<Refusal>> {
+        self.refusals.borrow()
+    }
+
+    /// Puts a settings file read while Quill is running on to this launch.
+    ///
+    /// Everything the file carries, not only what moved: a file is written
+    /// whole and read whole, and a value the writer left alone costs one Cell
+    /// being set to what it already held. The flags go over the top again,
+    /// because a launch of the harness's runs what its command line says for
+    /// as long as it runs (`docs/architecture.md` § Command-line flags) — so a
+    /// fixture edited under one moves everything the flags do not name, which
+    /// is what lets a `--settings` test drive its own file.
+    ///
+    /// The ground is resolved rather than read ([`Session::set_theme`]),
+    /// because a file that says `auto` is asking the desktop, which is the
+    /// same question a launch asks itself.
+    pub fn apply(&self, settings: Settings) {
+        let settings = self.flags.over(settings);
+        self.step.set(settings.step);
+        self.focus.set(settings.focus);
+        self.focus_scope.set(settings.focus_scope);
+        self.typewriter.set(settings.typewriter);
+        self.face.set(settings.face);
+        self.chrome.set(settings.chrome);
+        let theme = settings.theme;
+        self.settings.replace(settings);
+        self.set_theme(theme);
+    }
+
+    /// Takes down what the read of the settings file at launch said, which
+    /// [`report`] has already put on stderr.
+    ///
+    /// Kept rather than answered here, because the `[shortcuts]` entries this
+    /// version of the file refuses are only known once the chords have been
+    /// installed, and the two are one version's worth of complaint
+    /// ([`Session::warn`]). Marked as said in the same breath, so that the
+    /// warnings the first save makes are about the save.
+    fn reported(&self, notes: Vec<String>) {
+        self.said.replace(lines(&notes, &[]).into_iter().collect());
+        self.notes.replace(notes);
+    }
+
+    /// Reads the settings file again, taking down what it had to say.
+    ///
+    /// `None` where there is nothing to read — a file that is not TOML at all,
+    /// one that cannot be read, one that is gone — because the settings this
+    /// launch is running on are the last good ones and stay
+    /// ([`Settings::reread`]). The writer hears what happened either way, once
+    /// ([`Session::warn`]).
+    fn read_again(&self) -> Option<Settings> {
+        let (settings, notes) = Settings::reread(&self.settings_path);
+        self.notes.replace(notes);
+        settings
+    }
+
+    /// Warns about what the settings file cannot apply — a line per note and a
+    /// line per refusal — and takes the refusals down for the Settings window.
+    ///
+    /// Once per distinct line per version of the file
+    /// ([`quill_engine::watch::unsaid`]): a writer who saves the same refused
+    /// line again hears nothing. The lines the read at launch made are said on
+    /// stderr as every file's are ([`report`]) and marked said here, so the
+    /// first save does not repeat them.
+    pub(crate) fn warn(&self, refusals: Vec<Refusal>) {
+        let lines = lines(&self.notes.borrow(), &refusals);
+        let unsaid = unsaid(&self.said.borrow(), &lines);
+        self.said.replace(unsaid.said);
+        for line in unsaid.lines {
+            glib::g_warning!(DOMAIN, "{}: {line}", self.settings_path.display());
+        }
+        self.refusals.replace(refusals);
     }
 
     /// The step of the type ladder this launch is reading at.
@@ -445,7 +562,8 @@ impl Session {
     /// remembered: the keys a writer can press are the only things that can
     /// differ, and every one of them has been laid over the copy by then.
     fn stored(&self) -> Option<Settings> {
-        let mut settings = self.settings.clone();
+        let read = self.settings.borrow();
+        let mut settings = read.clone();
         settings.step = self.step.get();
         settings.theme = self.theme.get();
         settings.focus = self.focus.get();
@@ -453,7 +571,7 @@ impl Session {
         settings.typewriter = self.typewriter.get();
         settings.face = self.face.get();
         settings.chrome = self.chrome.get();
-        if settings == self.settings {
+        if settings == *read {
             return None;
         }
         Some(settings)
@@ -519,6 +637,75 @@ fn report(path: &Path, notes: &[String]) {
     for note in notes {
         eprintln!("quill: {}: {note}", path.display());
     }
+}
+
+/// What a read of the settings file has to say: what could not be read, then
+/// one line per `[shortcuts]` entry that could not be applied, each quoting
+/// the entry as the writer wrote it.
+fn lines(notes: &[String], refusals: &[Refusal]) -> Vec<String> {
+    notes
+        .iter()
+        .cloned()
+        .chain(
+            refusals
+                .iter()
+                .map(|refusal| format!("{}: {}", refusal.line, refusal.reason)),
+        )
+        .collect()
+}
+
+/// Watches the settings file, so that a saved edit applies without a restart.
+///
+/// Every launch watches, a launch of the harness's included, so that a judged
+/// run or a test can drive the fixture `--settings` named; the flags still
+/// override what the file says for as long as the launch runs
+/// ([`Session::apply`]).
+///
+/// The saves are drained from a timer on the main context rather than answered
+/// on the watch's own thread, because that is the only thread a window may be
+/// touched from. A file that cannot be watched is one line on stderr and a
+/// Quill that runs on what it read at launch.
+pub fn watch_settings(app: &gtk::Application, session: &Rc<Session>) {
+    let (watch, saves) = match Watch::on(session.settings_path()) {
+        Ok(watching) => watching,
+        Err(err) => {
+            eprintln!(
+                "quill: {}: cannot be watched ({err})",
+                session.settings_path().display()
+            );
+            return;
+        }
+    };
+    let app = app.clone();
+    let session = Rc::clone(session);
+    glib::timeout_add_local(DRAIN_EVERY, move || {
+        // The watch is held here and nowhere else, so it stops when the
+        // application does.
+        let _watching = &watch;
+        // Every save waiting is one re-read: the file is read whole, so
+        // reading it twice would apply the same file twice.
+        let saved = saves.try_iter().count() > 0;
+        if saved {
+            reread(&app, &session);
+        }
+        glib::ControlFlow::Continue
+    });
+}
+
+/// Reads the settings file again and puts what it says on to this launch: the
+/// values, the chords every Command is installed with, and every window.
+fn reread(app: &gtk::Application, session: &Rc<Session>) {
+    let Some(settings) = session.read_again() else {
+        // Nothing to read: a file that is not TOML at all, one that cannot be
+        // read, or one that is gone. The last good settings are the ones Quill
+        // is running on and they stay; the writer hears what happened once.
+        session.warn(Vec::new());
+        return;
+    };
+    session.apply(settings);
+    let refusals = crate::chrome::install_chords(app, session);
+    session.warn(refusals);
+    crate::window::reapply(app, session);
 }
 
 #[cfg(test)]
@@ -952,5 +1139,307 @@ mod tests {
             session.stored().is_none(),
             "and pressing them back leaves the file exactly as it was found"
         );
+    }
+
+    /// The settings a writer would have saved: every value moved off its
+    /// default, so that a value the apply forgets shows as the default it was
+    /// left at.
+    fn edited() -> Settings {
+        let mut settings = Settings::default();
+        settings.theme = Theme::Dark;
+        settings.face = Face::Mono;
+        settings.step = 7;
+        settings.focus = true;
+        settings.focus_scope = FocusScope::Paragraph;
+        settings.typewriter = true;
+        settings.typewriter_anchor = 0.3;
+        settings.chrome = Chrome::Hidden;
+        settings
+    }
+
+    /// A settings file whose only edit is the `[shortcuts]` entry `line`.
+    ///
+    /// Read out of the text of a file rather than built, because a
+    /// `[shortcuts]` table is the one thing in [`Settings`] the writer's own
+    /// hand fills in and the entry is quoted here as they would write it.
+    fn rebound(line: &str) -> Settings {
+        let (settings, notes) = Settings::parse(&format!("[shortcuts]\n{line}\n"));
+        assert_eq!(notes, Vec::<String>::new(), "the fixture reads cleanly");
+        settings
+    }
+
+    /// The chords `id` is bound to once the file is over the registry.
+    fn bound(session: &Session, id: &str) -> Vec<String> {
+        session.settings().shortcuts().chords[id]
+            .iter()
+            .map(|chord| chord.as_str().to_owned())
+            .collect()
+    }
+
+    /// The chords the registry gives `id`, which is what a file that says
+    /// nothing about it leaves it bound to.
+    fn defaults(id: &str) -> Vec<String> {
+        quill_engine::commands::by_id(id)
+            .expect("the registry has it")
+            .accels()
+    }
+
+    /// Every chord the file leaves installed, over every Command.
+    fn every_chord(session: &Session) -> Vec<String> {
+        session
+            .settings()
+            .shortcuts()
+            .chords
+            .values()
+            .flatten()
+            .map(|chord| chord.as_str().to_owned())
+            .collect()
+    }
+
+    /// A saved edit moves every setting the file carries, in one call.
+    ///
+    /// Whole-struct equality on what the launch would store rather than value
+    /// by value, so that a setting given a live twin later is compared here
+    /// without this test being remembered: after an apply the live values and
+    /// the file agree about everything, which is exactly
+    /// [`Session::stored`] finding nothing to write.
+    #[test]
+    fn a_saved_edit_moves_every_setting_the_file_carries() {
+        let session = writing(Settings::default());
+        session.apply(edited());
+        assert_eq!(session.step(), 7);
+        assert_eq!(session.face(), Face::Mono);
+        assert_eq!(session.theme(), Theme::Dark);
+        assert_eq!(session.scheme(), Scheme::Dark, "the ground is repainted");
+        assert_eq!(session.focus(), Focus::On(FocusScope::Paragraph));
+        assert_eq!(session.typewriter(), Typewriter::On(0.3));
+        assert_eq!(session.chrome(), Chrome::Hidden);
+        assert_eq!(*session.settings(), edited());
+        assert!(
+            session.stored().is_none(),
+            "what was applied is what is in the file, so there is nothing to \
+             write back over the writer's save"
+        );
+    }
+
+    /// A file that says `auto` asks the desktop, as a launch on `auto` does.
+    #[test]
+    fn a_saved_auto_follows_the_ground_the_desktop_last_answered() {
+        let session = following(Theme::Light, Scheme::Light, Some(Scheme::Dark));
+        let mut settings = Settings::default();
+        settings.theme = Theme::Auto;
+        session.apply(settings);
+        assert_eq!(session.theme(), Theme::Auto);
+        assert_eq!(session.scheme(), Scheme::Dark);
+    }
+
+    /// A launch of the harness's keeps its flags over a file saved under it,
+    /// so that a `--settings` fixture can be driven without the flags of the
+    /// state being shot going with it.
+    #[test]
+    fn the_flags_still_override_a_file_saved_under_a_harness_launch() {
+        let session = Session::launch(
+            Flags {
+                theme: Some(Scheme::Light),
+                step: Some(3),
+                ..Flags::default()
+            },
+            Settings::default(),
+            State::default(),
+            WindowState::default(),
+            true,
+            None,
+        );
+        session.apply(edited());
+        assert_eq!(session.theme(), Theme::Light, "the flag, not the file");
+        assert_eq!(session.step(), 3, "the flag, not the file");
+        assert_eq!(session.face(), Face::Mono, "the file, which no flag names");
+    }
+
+    /// The rebind of the acceptance: `library.toggle` on `F9` alone, and
+    /// `Ctrl+E`, which the registry gives it, bound to nothing at all.
+    #[test]
+    fn a_rebound_command_takes_its_chord_and_leaves_its_default_bound_to_nothing() {
+        let session = writing(Settings::default());
+        assert_eq!(
+            bound(&session, "library.toggle"),
+            defaults("library.toggle")
+        );
+        session.apply(rebound("\"library.toggle\" = [\"F9\"]"));
+        assert_eq!(bound(&session, "library.toggle"), ["F9"]);
+        assert!(
+            !every_chord(&session).contains(&"<Control>e".to_owned()),
+            "the default it replaced is bound to nothing"
+        );
+    }
+
+    /// An entry taken out of the file puts the default back, because the map
+    /// is computed on every read and nothing is remembered between two.
+    #[test]
+    fn a_rebind_taken_out_of_the_file_restores_the_default() {
+        let session = writing(rebound("\"library.toggle\" = [\"F9\"]"));
+        session.apply(Settings::default());
+        assert_eq!(
+            bound(&session, "library.toggle"),
+            defaults("library.toggle")
+        );
+    }
+
+    /// A refused entry leaves the Command bound to its default.
+    #[test]
+    fn a_super_chord_leaves_the_command_on_its_default() {
+        let session = writing(Settings::default());
+        session.apply(rebound("\"library.toggle\" = [\"<Super>l\"]"));
+        assert_eq!(
+            bound(&session, "library.toggle"),
+            defaults("library.toggle")
+        );
+        let refusals = session.settings().shortcuts().refusals;
+        assert_eq!(refusals.len(), 1);
+        assert_eq!(refusals[0].id, "library.toggle");
+    }
+
+    /// The file this test writes and edits, in a directory of its own.
+    ///
+    /// Named for the test and carrying the pid, because worktrees test
+    /// concurrently.
+    fn fixture(name: &str) -> PathBuf {
+        let directory =
+            std::env::temp_dir().join(format!("quill-session-{name}-{}", std::process::id()));
+        std::fs::remove_dir_all(&directory).ok();
+        std::fs::create_dir_all(&directory).expect("makes its own scratch directory");
+        directory.join("settings.toml")
+    }
+
+    /// A writer's launch reading and writing `path` rather than the writer's
+    /// own file.
+    fn pointed_at(path: &Path) -> Rc<Session> {
+        Session::launch(
+            Flags {
+                settings: Some(path.to_owned()),
+                ..Flags::default()
+            },
+            Settings::default(),
+            State::default(),
+            WindowState::default(),
+            false,
+            None,
+        )
+    }
+
+    /// Held for as long as a test is listening for warnings, because the
+    /// listening is the process's rather than the test's ([`warnings`]).
+    static HANDLER: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// Every `quill-settings` warning `saving` makes, in order.
+    ///
+    /// The handler is GLib's own, because the domain is the thing being
+    /// proved: a warning raised anywhere else in this process during the call
+    /// would be caught here too, and there is nowhere else that warns.
+    fn warnings(saving: impl FnOnce()) -> Vec<String> {
+        // GLib keeps one handler per domain for the whole process and hands a
+        // warning to the last one set, so two tests listening at once would
+        // hear each other's and one of them would hear nothing.
+        let _listening = HANDLER
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        // GLib's handler is `Send + Sync`, so the warnings come back through a
+        // lock even though the call below raises them on this thread.
+        let said = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let heard = std::sync::Arc::clone(&said);
+        let handler = glib::log_set_handler(
+            Some(DOMAIN),
+            glib::LogLevels::LEVEL_WARNING,
+            false,
+            false,
+            move |_, _, message| {
+                if let Ok(mut heard) = heard.lock() {
+                    heard.push(message.to_owned());
+                }
+            },
+        );
+        saving();
+        glib::log_remove_handler(Some(DOMAIN), handler);
+        let said = said.lock().expect("the handler is gone");
+        said.clone()
+    }
+
+    /// A refused line is warned about once per version of the file: the save
+    /// that brought it says it, and a save that leaves it alone says nothing.
+    #[test]
+    fn a_refused_line_is_warned_about_once_and_not_again_on_the_next_save() {
+        let session = writing(Settings::default());
+        let refusals = rebound("\"library.toggle\" = [\"<Super>l\"]")
+            .shortcuts()
+            .refusals;
+        let first = warnings(|| session.warn(refusals.clone()));
+        assert_eq!(first.len(), 1, "one warning, naming the entry: {first:?}");
+        assert!(
+            first[0].contains("\"library.toggle\" = [\"<Super>l\"]"),
+            "the entry as the writer wrote it: {first:?}"
+        );
+        assert!(
+            warnings(|| session.warn(refusals.clone())).is_empty(),
+            "saving the same file again says nothing"
+        );
+        assert_eq!(
+            session.refusals().len(),
+            1,
+            "and the Settings window can still show it"
+        );
+    }
+
+    /// A file that is not TOML at all leaves the settings where they are and
+    /// says so once.
+    #[test]
+    fn broken_toml_keeps_the_last_good_settings_and_is_said_once() {
+        let path = fixture("broken");
+        let session = pointed_at(&path);
+        session.apply(edited());
+        std::fs::write(&path, "theme = \n").expect("writes its own fixture");
+        assert!(
+            session.read_again().is_none(),
+            "there is nothing to apply, so nothing is applied"
+        );
+        let first = warnings(|| session.warn(Vec::new()));
+        assert_eq!(first.len(), 1, "one line about the file: {first:?}");
+        assert!(first[0].contains("is not TOML"), "{first:?}");
+        assert!(
+            warnings(|| {
+                session.read_again();
+                session.warn(Vec::new());
+            })
+            .is_empty(),
+            "and the same broken file again says nothing"
+        );
+        assert_eq!(
+            *session.settings(),
+            edited(),
+            "the last good settings are still the ones this launch is running"
+        );
+        assert_eq!(session.step(), 7);
+        assert_eq!(session.scheme(), Scheme::Dark);
+        std::fs::remove_dir_all(path.parent().expect("the fixture has a directory")).ok();
+    }
+
+    /// A file mended after a broken save applies, and is not warned about
+    /// again.
+    #[test]
+    fn a_file_mended_after_a_broken_save_applies() {
+        let path = fixture("mended");
+        let session = pointed_at(&path);
+        std::fs::write(&path, "theme = \n").expect("writes its own fixture");
+        assert!(session.read_again().is_none());
+        warnings(|| session.warn(Vec::new()));
+        edited().write_to(&path).expect("writes its own fixture");
+        let settings = session.read_again().expect("the mended file is TOML");
+        session.apply(settings);
+        assert_eq!(session.step(), 7);
+        assert_eq!(session.scheme(), Scheme::Dark);
+        assert!(
+            warnings(|| session.warn(Vec::new())).is_empty(),
+            "a file with nothing wrong with it says nothing"
+        );
+        std::fs::remove_dir_all(path.parent().expect("the fixture has a directory")).ok();
     }
 }

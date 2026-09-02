@@ -147,8 +147,14 @@ toggles sit beside it), `[style_check]` (the same shape, one toggle per list bes
 path), and a `[shortcuts]` table of Command id → chords that
 replaces the defaults in [`shortcuts.md`](shortcuts.md) ([ADR 0011](adr/0011-shortcut-precedence-on-linux.md)).
 
-The settings file is watched with `notify` like a Document: a saved edit applies without a restart,
-and a line that cannot be applied is logged once and skipped, never fatal.
+The settings file is watched with `notify` and a 100 ms debouncer (`quill_engine::watch`), the
+directory rather than the file, because a save is a write beside it and a rename over the top. The
+app drains the watch from its main context and re-reads the file whole: every setting applies
+without a restart, `[shortcuts]` included, and the flags of a launch that carries any stay over the
+top of what the file says. A file that is not TOML at all leaves the settings Quill is running on
+where they are; a line that cannot be applied is one `g_warning` under the domain `quill-settings`,
+said once per distinct line per version of the file, and never fatal. The Documents and the Library
+join the same watch when they are built.
 
 State, in `state.toml`: the size of each window and whether it was maximized or full screen, the last
 Document per window, caret position per recent Document, the recents list, `last_scheme` (the ground
