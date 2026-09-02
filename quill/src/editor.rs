@@ -650,7 +650,7 @@ impl Editor {
     fn painting<'a>(&self, tiers: &'a [LineTiers]) -> tags::Painting<'a> {
         tags::Painting {
             face: self.imp().face.get(),
-            colours: self.imp().ground.get().colours,
+            colours: self.colours(),
             focus: self.imp().focus.get(),
             tiers,
         }
@@ -842,7 +842,7 @@ impl Editor {
             self.imp().step.get(),
             page.column,
             std::array::from_fn(|level| self.marker_advance(level as u8 + 1)),
-            &self.imp().ground.get().colours,
+            &self.colours(),
         );
     }
 
@@ -1088,7 +1088,7 @@ impl Editor {
             return;
         }
         let focus = self.imp().focus.get();
-        let colours = self.imp().ground.get().colours;
+        let colours = self.colours();
         let buffer = self.buffer();
         let after = self.imp().tiers.borrow();
         let mut runs = Vec::new();
@@ -1228,6 +1228,11 @@ impl Editor {
         let mut caret = self.imp().caret.get();
         said(&mut caret);
         self.imp().caret.set(caret);
+    }
+
+    /// The table this Editor paints from: the held ground's colours.
+    fn colours(&self) -> Colours {
+        self.imp().ground.get().colours
     }
 
     /// One em in the device pixels the machine measures its gates in.
@@ -1902,7 +1907,7 @@ impl Editor {
         }
         draw_box(
             snapshot,
-            &paint(&self.imp().ground.get().colours, Role::Accent, alpha),
+            &paint(&self.colours(), Role::Accent, alpha),
             caret.rect(now),
             self.scale(),
         );
@@ -1919,10 +1924,7 @@ impl Editor {
             return;
         };
         let scale = self.scale();
-        let fill = selection_fill(
-            &self.imp().ground.get().colours,
-            self.imp().caret.get().focused(),
-        );
+        let fill = selection_fill(&self.colours(), self.imp().caret.get().focused());
         for row in &selection.rows {
             draw_box(snapshot, &fill, *row, scale);
         }
@@ -1950,10 +1952,7 @@ impl Editor {
             logical(f64::from(at.x()), 1.0),
             logical(f64::from(at.y()), 1.0),
         ));
-        snapshot.append_layout(
-            &layout,
-            &paint(&self.imp().ground.get().colours, Role::InkDim, 1.0),
-        );
+        snapshot.append_layout(&layout, &paint(&self.colours(), Role::InkDim, 1.0));
         snapshot.restore();
     }
 

@@ -155,7 +155,9 @@ struct Inner {
 
 impl Inner {
     /// Watches every directory the subjects want and no other, and answers
-    /// with the first error the watcher gave, having tried them all.
+    /// with the first error the watcher gave, having tried them all. A
+    /// directory the watcher refused is not remembered as watched, so the
+    /// next add tries it again rather than taking the refusal as final.
     fn sync(&mut self) -> Result<(), notify::Error> {
         let wanted: BTreeSet<PathBuf> = self
             .subjects
@@ -175,12 +177,16 @@ impl Inner {
             let _ = watcher.unwatch(gone);
         }
         let mut first = Ok(());
+        let mut watched: BTreeSet<PathBuf> = self.watched.intersection(&wanted).cloned().collect();
         for new in wanted.difference(&self.watched) {
-            if let Err(err) = watcher.watch(new, RecursiveMode::NonRecursive) {
-                first = first.and(Err(err));
+            match watcher.watch(new, RecursiveMode::NonRecursive) {
+                Ok(()) => {
+                    watched.insert(new.clone());
+                }
+                Err(err) => first = first.and(Err(err)),
             }
         }
-        self.watched = wanted;
+        self.watched = watched;
         first
     }
 
@@ -583,6 +589,29 @@ mod tests {
         let settings = directory.join("settings.toml");
         fs::write(&settings, "theme = \"auto\"\n").unwrap();
         Watch::on(&settings).unwrap()
+    }
+
+    /// A directory the watcher refuses — one that cannot be read, which inotify
+    /// will not watch — is tried again by the next add of a file in it, so a
+    /// refusal is not taken as the directory being watched.
+    #[test]
+    fn a_directory_the_watcher_refused_is_tried_again_on_the_next_add() {
+        use std::os::unix::fs::PermissionsExt;
+        let directory = scratch("refused");
+        let theme = directory.join("theme");
+        fs::create_dir_all(&theme).unwrap();
+        let palette = theme.join("quill.toml");
+        let (mut watch, saves) = opened(&directory);
+        fs::set_permissions(&theme, fs::Permissions::from_mode(0o000)).unwrap();
+        let refused = watch.add(&palette);
+        fs::set_permissions(&theme, fs::Permissions::from_mode(0o755)).unwrap();
+        assert!(
+            refused.is_err(),
+            "a directory that cannot be read cannot be watched"
+        );
+        assert_eq!(watch.add(&palette).ok(), Some(Placed::Listening));
+        fs::write(&palette, "[dark]\npaper = \"#101010\"\n").unwrap();
+        assert_eq!(saves.recv_timeout(WAIT), Ok(palette));
     }
 
     /// A theme directory under `directory` holding a palette file that says
