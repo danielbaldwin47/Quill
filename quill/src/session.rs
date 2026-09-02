@@ -61,6 +61,10 @@ pub struct Session {
     /// presses `Ctrl+Shift+H`, and then what they pressed it to. Held live for
     /// the reason [`Session::focus`] is.
     chrome: Cell<Chrome>,
+    /// Whether the stats bar is shown while the bars are: `chrome.stats`.
+    /// Live only — no settings key holds it until the Stats spec (#30)
+    /// decides what the bar remembers — so every launch shows it.
+    stats: Cell<bool>,
     /// The ground this launch is painting on, resolved once before the first
     /// window: the flag, then the setting, then — once #111 wires it — the
     /// desktop, then what the last session left.
@@ -144,6 +148,7 @@ impl Session {
             focus_scope: Cell::new(settings.focus_scope),
             typewriter: Cell::new(settings.typewriter),
             chrome: Cell::new(settings.chrome),
+            stats: Cell::new(true),
             scheme: Cell::new(scheme),
             settings,
             flags,
@@ -249,6 +254,19 @@ impl Session {
         };
         self.chrome.set(chrome);
         chrome
+    }
+
+    /// Whether the stats bar is shown now, while the bars are.
+    pub fn stats(&self) -> bool {
+        self.stats.get()
+    }
+
+    /// Hides the stats bar, or shows it again: `docs/shortcuts.md`'s
+    /// `chrome.stats` row, the View menu's Statistics check and the Stats
+    /// menu's Hide Statistics.
+    pub fn toggle_stats(&self) -> bool {
+        self.stats.set(!self.stats.get());
+        self.stats.get()
     }
 
     /// The ground this launch is painting on.
