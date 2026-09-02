@@ -91,8 +91,6 @@ Select-all (`mac-native-09-dark-selection-select-all.png`) fills one unbroken bl
 So the container is the 64-cell measure plus a **7-cell hanging-marker gutter on each side**, and the
 gutter is exactly the width `###### ` needs — see the ladder under state 14.
 
----
-
 ### The page top
 
 How far the first line stands below the top of the editor at scroll 0, at the default text size —
@@ -113,11 +111,12 @@ set to logical `{0, 33, 1512, 982}` for every state, so a capture taken from log
 | `mac-native-17-dark-marks.png` | 90 | first ink 71 | ink **185** |
 | `mac-native-03-dark-caret-empty-document.png` | 48 | caret box 134 … 206 | box **164** |
 
-Four region origins and both grounds agree on the ink, and the empty document gives the line box
-the ink sits in: the caret there is the pitch tall and stands on the first row, so that row's box
-opens at 134 and its ink 21 px inside it — the same 21 px every row of state 1 keeps (box tops 134,
-207, 280 against ink tops 155, 228, 301). **The page top is 164 device px (82 pt) to the first line
-box and 185 px (92.5 pt) to the first ink**, at the default step and at scale 2.
+Four region origins and both grounds agree on the ink. The two figures are two things, read off two
+documents: **185 px** is where a *heading's* ink begins, `ref/sample.md` opening on
+`# The Lighthouse`, and **164 px** is where the *line box* begins, given by the empty document,
+whose caret is the pitch tall (134 … 206) and has no glyph to be read instead. The box is the
+figure another app can hold to; the ink is what a shot shows. **The page top is 164 device px
+(82 pt)**, at the default step and at scale 2.
 
 Two things these captures cannot say, and a port wants both:
 
@@ -134,6 +133,8 @@ Two things these captures cannot say, and a port wants both:
 
 **#231 is the capture that closes both**, and `docs/design.md` row Page top holds Quill at two
 pitches until it lands.
+
+---
 
 ## State 1 — caret mid-word, light and dark
 

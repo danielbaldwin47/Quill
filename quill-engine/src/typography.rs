@@ -319,7 +319,7 @@ pub fn column(view: u32, cell: f64) -> Column {
 /// The Parity oracle settled on two pitches from an 85 point reading of iA of
 /// unrecorded provenance. The Design oracle has since been measured (#227): at
 /// the default step its first line box stands 164 device pixels below the
-/// editor's top edge, against the 146 two pitches give
+/// editor's top edge, above what two pitches give here
 /// (`ref/ia/mac-native/NOTES.md` § The page top). Two pitches is kept, and
 /// `docs/design.md` row Page top says why — the 164 is measured from a window
 /// whose title bar is drawn over the text, which a window with opaque chrome
