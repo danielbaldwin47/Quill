@@ -19,11 +19,12 @@
 //! say that the version before it did not already say — because a writer who
 //! saves the same refused line twice should hear about it once.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use notify::{RecommendedWatcher, RecursiveMode};
 use notify_debouncer_mini::{DebounceEventResult, DebouncedEventKind, Debouncer, new_debouncer};
@@ -35,9 +36,34 @@ use notify_debouncer_mini::{DebounceEventResult, DebouncedEventKind, Debouncer, 
 /// enough that a writer who saved sees the page follow.
 pub const DEBOUNCE: Duration = Duration::from_millis(100);
 
-/// The files a [`Watch`] is listening for, as its debouncer's thread reads
-/// them.
-type Listening = Arc<Mutex<BTreeSet<PathBuf>>>;
+/// The files a [`Watch`] is listening for, each with the version of it last
+/// sent on, as its debouncer's thread reads them.
+type Listening = Arc<Mutex<BTreeMap<PathBuf, Option<Version>>>>;
+
+/// What tells one version of a file from the one before it: how long it is
+/// and when it was written, read with a `stat` and never by opening it.
+///
+/// Here because `notify` reports a file being *opened* as readily as one
+/// being written — an editor re-reading the file, a hand's `cat`, and Quill's
+/// own re-read of a save — and an open is not a save. A file whose length and
+/// write time have not moved since it was last sent on has not been saved,
+/// whatever was done to it; and the question is asked with a `stat` because
+/// opening the file to look would be one more open for the watch to report.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Version {
+    /// The file's length in bytes.
+    len: u64,
+    /// When it was last written, where the file system says.
+    modified: Option<SystemTime>,
+}
+
+/// The version of the file at `path`, or `None` where there is no file.
+fn version(path: &Path) -> Option<Version> {
+    fs::metadata(path).ok().map(|metadata| Version {
+        len: metadata.len(),
+        modified: metadata.modified().ok(),
+    })
+}
 
 /// A watch on one or more files, which stops when it is dropped.
 pub struct Watch {
@@ -86,7 +112,8 @@ impl Watch {
     pub fn add(&mut self, path: &Path) -> Result<(), notify::Error> {
         let (directory, file) = place(path)?;
         if let Ok(mut listening) = self.listening.lock() {
-            listening.insert(file);
+            let now = version(&file);
+            listening.insert(file, now);
         }
         if self.directories.insert(directory.clone()) {
             self.debouncer
@@ -110,13 +137,23 @@ impl Watch {
 /// fatal (`docs/architecture.md` § Settings), and a watch that has stopped
 /// answering leaves a Quill running on the settings it read.
 fn send(listening: &Listening, sender: &Sender<PathBuf>, events: DebounceEventResult) {
-    let (Ok(events), Ok(listening)) = (events, listening.lock()) else {
+    let (Ok(events), Ok(mut listening)) = (events, listening.lock()) else {
         return;
     };
     for event in events {
-        if event.kind == DebouncedEventKind::Any && listening.contains(&event.path) {
-            let _ = sender.send(event.path);
+        if event.kind != DebouncedEventKind::Any {
+            continue;
         }
+        let Some(known) = listening.get_mut(&event.path) else {
+            continue;
+        };
+        // A version already sent on is an open, not a save ([`Version`]).
+        let now = version(&event.path);
+        if now == *known {
+            continue;
+        }
+        *known = now;
+        let _ = sender.send(event.path);
     }
 }
 
@@ -248,6 +285,25 @@ mod tests {
             Err(RecvTimeoutError::Timeout),
             "the second write is the same save"
         );
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    /// An editor re-reading the file, a `cat`, and Quill's own re-read of a
+    /// save all open the file, and `notify` reports every open. None of them
+    /// is a save, and a Quill that took its own re-read for one would re-read
+    /// the file for as long as it ran.
+    #[test]
+    fn a_read_of_the_watched_file_is_not_a_save() {
+        let directory = scratch("read");
+        let file = directory.join("settings.toml");
+        fs::write(&file, "theme = \"light\"\n").unwrap();
+        let (_watch, saves) = Watch::on(&file).unwrap();
+        let read = fs::read_to_string(&file).unwrap();
+        assert_eq!(read, "theme = \"light\"\n");
+        assert_eq!(saves.recv_timeout(WAIT), Err(RecvTimeoutError::Timeout));
+        // And a save after the read is still a save.
+        fs::write(&file, "theme = \"dark\"\n").unwrap();
+        assert_eq!(saves.recv_timeout(WAIT), Ok(file));
         fs::remove_dir_all(&directory).ok();
     }
 

@@ -555,7 +555,13 @@ impl Settings {
         writing.rest(self.rest.clone());
         writing.table("syntax_highlight", self.syntax_highlight.to_table());
         writing.table("style_check", self.style_check.to_table());
-        writing.table("shortcuts", self.shortcuts.clone());
+        // Written only when there is an entry to write: an empty `[shortcuts]`
+        // header at the foot of the file is where a writer adding their first
+        // table, as `docs/shortcuts.md` § Rebinding tells them to, puts a
+        // second one — and two headers with one name are not TOML.
+        if !self.shortcuts.is_empty() {
+            writing.table("shortcuts", self.shortcuts.clone());
+        }
         writing.into_toml()
     }
 
@@ -610,8 +616,12 @@ mod tests {
     use super::file::scratch;
     use super::*;
 
-    /// Every key `docs/architecture.md`'s Settings section names.
-    const KEYS: [&str; 16] = [
+    /// Every key `docs/architecture.md`'s Settings section names that the
+    /// defaults write. `shortcuts` is the one it names and they do not: an
+    /// empty table is written as nothing, so that a writer adding their first
+    /// `[shortcuts]` header at the foot of the file is not adding a second
+    /// ([`Settings::to_toml`]).
+    const KEYS: [&str; 15] = [
         "theme",
         "face",
         "step",
@@ -627,7 +637,6 @@ mod tests {
         "template",
         "preview_layout",
         "library",
-        "shortcuts",
     ];
 
     #[test]
@@ -640,6 +649,10 @@ mod tests {
             assert!(written.contains_key(key), "no `{key}` in:\n{written}");
         }
         assert_eq!(written.len(), KEYS.len(), "a key nobody named: {written}");
+        assert!(
+            !written.contains_key("shortcuts"),
+            "an empty `[shortcuts]` table is no header:\n{written}"
+        );
     }
 
     #[test]

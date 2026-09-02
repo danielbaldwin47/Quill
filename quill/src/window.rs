@@ -281,6 +281,11 @@ impl Window {
             return;
         }
         session.set_step(step);
+        // Written as the key is pressed, as every value the settings watch
+        // can read back is: a live value the file does not carry is one the
+        // next save — a writer's, or the watch re-reading Quill's own — puts
+        // back to what the file says.
+        session.store_settings();
         let face = session.face();
         if let Some(app) = self.application() {
             reset(&app, &session, |window| {
@@ -293,13 +298,16 @@ impl Window {
     ///
     /// `docs/shortcuts.md`'s `theme.toggle` row, reached through its action
     /// (`chrome`). The session decides which ground the toggle lands on — it
-    /// is the one holding what `auto` resolved to — and writes the setting on
-    /// the way out.
+    /// is the one holding what `auto` resolved to — and writes the setting as
+    /// the key is pressed.
     pub(crate) fn toggle_scheme(&self) {
         let Some(session) = self.imp().session.borrow().clone() else {
             return;
         };
         let scheme = session.toggle_scheme();
+        // Written now rather than on the way out, for the reason the size is
+        // ([`Window::step_size`]).
+        session.store_settings();
         if let Some(app) = self.application() {
             repaint(&app, &session, scheme);
         }

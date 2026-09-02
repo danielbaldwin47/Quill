@@ -21,7 +21,6 @@ use gtk::prelude::*;
 use gtk::{gio, glib};
 
 use quill_engine::settings::{Settings, Theme};
-use quill_engine::shortcuts::Refusal;
 use quill_engine::theme::Scheme;
 
 use crate::session::Session;
@@ -125,7 +124,7 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
     ));
     row(&grid, 3, "Keyboard shortcuts", &button);
 
-    if let Some(said) = refused(&session.refusals()) {
+    if let Some(said) = refused(&session.unapplied()) {
         let label = gtk::Label::builder()
             .label(said)
             .halign(gtk::Align::Start)
@@ -171,19 +170,15 @@ fn followed(settings: &mut Settings, on: bool, scheme: Scheme) {
 }
 
 /// What the window says at the bottom about the last read of the settings
-/// file, and `None` where it refused nothing.
+/// file, and `None` where all of it applied.
 ///
-/// One line per refused entry, each the entry as the writer wrote it and why
-/// none of it was applied — the same sentence the app warns under
-/// `quill-settings`, which is [`Refusal`]'s own.
-fn refused(refusals: &[Refusal]) -> Option<String> {
-    (!refusals.is_empty()).then(|| {
-        refusals
-            .iter()
-            .map(Refusal::to_string)
-            .collect::<Vec<_>>()
-            .join("\n")
-    })
+/// The lines [`Session::unapplied`] answers, one under the other: a file that
+/// is not TOML says so and that the settings on screen are the last good ones,
+/// and a refused `[shortcuts]` entry is the entry as the writer wrote it and
+/// why none of it was applied — the same sentences the app warns under
+/// `quill-settings`.
+fn refused(unapplied: &[String]) -> Option<String> {
+    (!unapplied.is_empty()).then(|| unapplied.join("\n"))
 }
 
 /// Hands the settings file to `launch`, as the URI a handler is asked for.
@@ -208,6 +203,7 @@ mod tests {
     use std::cell::RefCell;
 
     use quill_engine::settings::Chrome;
+    use quill_engine::shortcuts::Refusal;
 
     use super::*;
     use crate::flags::Flags;
@@ -293,23 +289,25 @@ mod tests {
     #[test]
     fn a_refused_line_is_shown_with_its_reason_and_a_clean_file_shows_none() {
         assert_eq!(refused(&[]), None);
-        let refusals = [
-            Refusal {
-                line: "\"library.toggle\" = [\"<Super>l\"]".to_owned(),
-                id: "library.toggle".to_owned(),
-                reason: "<Super>l belongs to the compositor".to_owned(),
-            },
-            Refusal {
-                line: "\"libary.toggle\" = [\"<Control>b\"]".to_owned(),
-                id: "libary.toggle".to_owned(),
-                reason: "there is no Command with this id".to_owned(),
-            },
+        let refusal = Refusal {
+            line: "\"library.toggle\" = [\"<Super>l\"]".to_owned(),
+            id: "library.toggle".to_owned(),
+            reason: "<Super>l belongs to the compositor".to_owned(),
+        };
+        // The file's own line first, then the entry's, in the words the app
+        // warns with.
+        let unapplied = [
+            "is not TOML (TOML parse error at line 28, column 2); keeping the settings Quill \
+             is running on"
+                .to_owned(),
+            refusal.to_string(),
         ];
         assert_eq!(
-            refused(&refusals),
+            refused(&unapplied),
             Some(
-                "\"library.toggle\" = [\"<Super>l\"]: <Super>l belongs to the compositor\n\
-                 \"libary.toggle\" = [\"<Control>b\"]: there is no Command with this id"
+                "is not TOML (TOML parse error at line 28, column 2); keeping the settings \
+                 Quill is running on\n\
+                 \"library.toggle\" = [\"<Super>l\"]: <Super>l belongs to the compositor"
                     .to_owned()
             )
         );
