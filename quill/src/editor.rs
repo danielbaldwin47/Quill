@@ -112,13 +112,20 @@ const SCROLL_FRAMES: u32 = 8;
 /// The most frames a `--caret` reveal is asked again for while GTK validates
 /// the layout it is resolved against ([`Editor::reveal_caret`]). A bound, not
 /// a duration: the hold ends the frame the row stops moving and is on the
-/// glass. Measured Live on the scale-2 headless output, that is the second
+/// glass. Measured Live on the scale-2 headless output, that is the third
 /// frame on `ref/short.md` and `ref/sample.md`, and the thirteenth on the
 /// 10,062-word `shots/latency/doc10k.md` at `--caret 26000` — the layout had
 /// its real height by the third, and the rest is the scroll GTK animates
 /// into place over 200 ms, which the hold leaves to finish once the row is
 /// on the glass.
 const REVEAL_FRAMES: u32 = 120;
+
+/// How many frames running the layout has to hold still for before a reveal
+/// counts it validated ([`Landing::stood`]). GTK validates a long Document a
+/// stretch at a time from an idle source below the frame clock's redraw, so
+/// a frame the source got no turn in reads still with validation to come;
+/// one more frame of the same reading is what tells the two apart.
+const STILL_FRAMES: u32 = 2;
 
 /// A cross-fade in flight: the dim on its way from where it was to where the
 /// caret has just put it.
@@ -1092,9 +1099,10 @@ impl Editor {
     }
 
     /// Runs `step` on each of the next `frames` frames, stopping early the
-    /// frame it answers true: the hold `--scroll` keeps and the one Typewriter
-    /// keeps on an allocation both outlast the scroll GTK makes of its own
-    /// while the layout is validated ([`Editor::scroll_to`]).
+    /// frame it answers true: the hold `--scroll` keeps, the one Typewriter
+    /// keeps on an allocation and the one a `--caret` reveal keeps all outlast
+    /// the scroll GTK makes of its own while the layout is validated
+    /// ([`Editor::scroll_to`], [`Editor::hold_row`], [`Editor::reveal_caret`]).
     fn over_frames(&self, frames: u32, step: impl Fn(&Self) -> bool + 'static) {
         let left = Cell::new(frames);
         self.add_tick_callback(move |editor, _| {
@@ -1984,8 +1992,8 @@ impl Editor {
         }
         self.imp().reveal_owed.set(false);
         self.ask_reveal();
-        let last = Cell::new(None);
-        self.over_frames(REVEAL_FRAMES, move |editor| editor.reveal_settled(&last));
+        let landing = Cell::new(Landing::default());
+        self.over_frames(REVEAL_FRAMES, move |editor| editor.reveal_settled(&landing));
     }
 
     /// Asks GTK for the scroll that shows the caret's row.
@@ -1995,43 +2003,41 @@ impl Editor {
     /// the top to it; the frames after are [`Editor::hold_row`]'s, which
     /// places the row itself, and the reveal's re-asks defer to it there.
     fn ask_reveal(&self) {
-        match self.imp().typewriter.get() {
-            Typewriter::On(anchor) => {
-                if !self.hold_row_now(anchor) {
-                    self.scroll_to_mark(&self.buffer().get_insert(), 0.0, true, 0.0, anchor);
-                }
-            }
-            Typewriter::Off => {
-                self.scroll_to_mark(&self.buffer().get_insert(), 0.0, true, 0.0, CARET_LINE);
-            }
-        }
+        let line = match self.imp().typewriter.get() {
+            Typewriter::On(anchor) if self.hold_row_now(anchor) => return,
+            Typewriter::On(anchor) => anchor,
+            Typewriter::Off => CARET_LINE,
+        };
+        self.scroll_to_mark(&self.buffer().get_insert(), 0.0, true, 0.0, line);
     }
 
     /// One frame of the reveal's hold: says whether the caret's row has
     /// landed, and asks again when it has not.
     ///
     /// Landed is two things read off the same frame. The layout's height and
-    /// the bar's top in buffer pixels are what validation moves, and `last`
-    /// holds the previous frame's pair; when they match, the paragraphs above
-    /// the caret have their real heights and a scroll resolved now stays
-    /// resolved. And the row is on the glass ([`on_glass`]), which is what
-    /// the reveal was for. A Document shorter than its viewport passes both on
-    /// the second frame, wherever the view is, so #148's guarantee is asked
-    /// for once more and not moved.
-    fn reveal_settled(&self, last: &Cell<Option<(f64, f64)>>) -> bool {
+    /// the bar's top in buffer pixels are what validation moves, and
+    /// `landing` carries the last frame's pair and how many frames running it
+    /// has held ([`Landing::stood`]); once it has held for [`STILL_FRAMES`],
+    /// the paragraphs above the caret have their real heights and a scroll
+    /// resolved now stays resolved. And the row is on the glass
+    /// ([`on_glass`]), which is what the reveal was for. A Document shorter
+    /// than its viewport passes both on the third frame, wherever the view
+    /// is, so #148's guarantee is asked for twice more and not moved.
+    fn reveal_settled(&self, landing: &Cell<Landing>) -> bool {
         let Some(adjustment) = self.vadjustment() else {
             // Not in a scroller: there is nowhere for the row to be shown.
             return true;
         };
-        let Some(bar) = self.bar() else {
-            return false;
-        };
-        let now = (adjustment.upper(), bar.y);
-        let still = last.replace(Some(now)) == Some(now);
-        let view = (adjustment.value(), adjustment.page_size());
-        if still && on_glass(self.row_of(bar), view) {
-            return true;
+        if let Some(bar) = self.bar() {
+            let stood = landing.get().stood(adjustment.upper(), bar.y);
+            landing.set(stood);
+            let view = (adjustment.value(), adjustment.page_size());
+            if stood.still >= STILL_FRAMES && on_glass(self.row_of(bar), view) {
+                return true;
+            }
         }
+        // Before the type is set there is no bar to read, and the frame is
+        // spent asking anyway.
         self.ask_reveal();
         false
     }
@@ -2290,12 +2296,43 @@ impl Default for Editor {
     }
 }
 
+/// Where the layout stood on the last frame of a reveal's hold, and for how
+/// many frames running it has stood there ([`Editor::reveal_settled`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+struct Landing {
+    /// The vertical adjustment's upper: the layout's height in logical pixels.
+    upper: f64,
+    /// The bar's top in buffer device pixels ([`Editor::bar`]).
+    bar_top: f64,
+    /// Frames running the pair above has been read unchanged. Zero on the
+    /// first reading and on any frame that moved either.
+    still: u32,
+}
+
+impl Landing {
+    /// The landing after a frame that read `upper` and `bar_top`.
+    fn stood(self, upper: f64, bar_top: f64) -> Self {
+        let still = if self.upper == upper && self.bar_top == bar_top {
+            self.still + 1
+        } else {
+            0
+        };
+        Self {
+            upper,
+            bar_top,
+            still,
+        }
+    }
+}
+
 /// Whether the row `(top, height)` lies whole inside the viewport
 /// `(top, height)`, both counted as the vertical adjustment counts them
 /// ([`Editor::row_of`]). A row over either edge is not shown, and a reveal
 /// that left one there has not landed ([`Editor::reveal_settled`]).
 fn on_glass(row: (f64, f64), view: (f64, f64)) -> bool {
-    row.0 >= view.0 && row.0 + row.1 <= view.0 + view.1
+    let (row_top, row_height) = row;
+    let (view_top, view_height) = view;
+    row_top >= view_top && row_top + row_height <= view_top + view_height
 }
 
 #[cfg(test)]
@@ -2304,11 +2341,12 @@ mod tests {
 
     /// A reveal has landed only when the whole row is on the glass.
     ///
-    /// The numbers are #221's: the bar drawn at buffer y 13156 with the
-    /// viewport held at 2578–3478, which is the row GTK's validation carried
-    /// off the bottom. A row straddling either edge is not shown either, and
-    /// the row of a Document shorter than its viewport is, from wherever the
-    /// view is.
+    /// The numbers are #221's: the bar drawn at buffer y 13156 at scale 2,
+    /// which [`Editor::row_of`] reads as 6578 logical pixels from the page's
+    /// top, with the viewport held at 2578–3478 — the row GTK's validation
+    /// carried off the bottom. A row straddling either edge is not shown
+    /// either, and the row of a Document shorter than its viewport is, from
+    /// wherever the view is.
     #[test]
     fn a_row_is_on_the_glass_only_when_the_viewport_holds_all_of_it() {
         let view = (2578.0, 900.0);
@@ -2324,6 +2362,35 @@ mod tests {
             on_glass((60.0, 37.0), (0.0, 900.0)),
             "a short Document's row"
         );
+    }
+
+    /// The layout has stood still only for the frames it read the same, and
+    /// a frame that moved either reading starts the count over.
+    ///
+    /// The readings are the first frames of #221's Live run at
+    /// `--caret 26000`: the height and the bar both moved twice as GTK
+    /// validated, then held.
+    #[test]
+    fn a_landing_counts_the_frames_the_layout_has_held_still_for() {
+        let landing = Landing::default().stood(5425.0, 6626.0);
+        assert_eq!(
+            landing.still, 0,
+            "the first reading has nothing to hold against"
+        );
+        let landing = landing.stood(18232.0, 26312.0);
+        assert_eq!(landing.still, 0, "the height and the bar both moved");
+        let landing = landing.stood(29691.0, 26312.0);
+        assert_eq!(landing.still, 0, "the height moved with the bar still");
+        let landing = landing.stood(29691.0, 26312.0);
+        assert_eq!(landing.still, 1, "one frame the same");
+        let landing = landing.stood(29691.0, 26312.0);
+        assert_eq!(
+            landing.still, 2,
+            "two frames the same, which is STILL_FRAMES"
+        );
+        assert_eq!(STILL_FRAMES, 2, "the test's count is the constant's");
+        let landing = landing.stood(29691.0, 26400.0);
+        assert_eq!(landing.still, 0, "a bar that moved starts the count over");
     }
 
     /// The ladder's ems are fractional, and the type is set at them.
