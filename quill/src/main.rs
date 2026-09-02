@@ -25,6 +25,7 @@ mod chrome;
 mod editor;
 mod flags;
 mod fonts;
+mod ground;
 mod harness;
 mod menus;
 mod palette;
@@ -126,7 +127,7 @@ fn main() -> glib::ExitCode {
         // The ground is in the stylesheet, and the stylesheet is loaded here:
         // before any window exists, so the first frame a writer sees is
         // already on the paper they asked for and never flashes the other one.
-        editor::install_type(starting.scheme(), starting.settings().face, starting.step());
+        editor::install_type(starting.ground(), starting.settings().face, starting.step());
         // The chords every Command is bound to: the registry's, with the
         // writer's `[shortcuts]` table over the top. Here rather than beside
         // the actions below, because reading a chord is
@@ -155,7 +156,7 @@ fn main() -> glib::ExitCode {
                 return;
             };
             following.follow(scheme);
-            window::repaint(&app, &following, scheme);
+            window::repaint(&app, &following);
         });
     }
 

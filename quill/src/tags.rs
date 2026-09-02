@@ -42,11 +42,11 @@ use std::ops::Range;
 use gtk::gdk;
 use gtk::pango;
 use gtk::prelude::*;
-use quill_engine::annotate::{self, Ground, Look, Mark, Slant, Span, Weight};
+use quill_engine::annotate::{self, Look, Mark, Slant, Span, Weight};
 use quill_engine::document::Document;
 use quill_engine::focus::{self, Focus, LineTiers, Tier};
 use quill_engine::settings::Face;
-use quill_engine::theme::{Colour, Colours, Role, Scheme};
+use quill_engine::theme::{Colour, Colours, Role};
 use quill_engine::typography;
 
 use crate::editor::INK_WEIGHT;
@@ -180,9 +180,9 @@ fn cut(buffer: &gtk::TextBuffer, face: Face, weight: Weight, slant: Slant) -> gt
 /// the light well on the dark page. The colour-keyed tags [`colour`] makes need
 /// none of this — their ground is in their name — and these three do because
 /// there is one of each.
-fn ground(buffer: &gtk::TextBuffer, scheme: Scheme) -> gtk::TextTag {
+fn ground(buffer: &gtk::TextBuffer, colours: &Colours) -> gtk::TextTag {
     let ground = tag(buffer, "ground-code", |_| {});
-    ground.set_background(Some(&code_well(scheme)));
+    ground.set_background(Some(&code_well(colours)));
     ground
 }
 
@@ -195,9 +195,9 @@ fn ground(buffer: &gtk::TextBuffer, scheme: Scheme) -> gtk::TextTag {
 /// how the ground runs past both edges of the measure and reads as a well —
 /// the same picture the oracle buys with a ±0.7em box-shadow on `.line.l-code`
 /// because a `<textarea>` gives it no paragraph to paint.
-fn code_ground(buffer: &gtk::TextBuffer, scheme: Scheme) -> gtk::TextTag {
+fn code_ground(buffer: &gtk::TextBuffer, colours: &Colours) -> gtk::TextTag {
     let ground = tag(buffer, "ground-code-block", |_| {});
-    ground.set_paragraph_background(Some(&code_well(scheme)));
+    ground.set_paragraph_background(Some(&code_well(colours)));
     ground
 }
 
@@ -212,11 +212,11 @@ fn code_ground(buffer: &gtk::TextBuffer, scheme: Scheme) -> gtk::TextTag {
 /// quieted one — it is its own ink, not a tint of the text above it (#198,
 /// `ref/ia/mac-native/NOTES.md` § Found here: the link's ink and the code
 /// ground).
-fn underline(buffer: &gtk::TextBuffer, scheme: Scheme) -> gtk::TextTag {
+fn underline(buffer: &gtk::TextBuffer, colours: &Colours) -> gtk::TextTag {
     let underline = tag(buffer, "decoration-underline", |tag| {
         tag.set_underline(pango::Underline::Single);
     });
-    let rule = Colours::of(scheme).colour(Role::LinkRule).to_hex();
+    let rule = colours.colour(Role::LinkRule).to_hex();
     underline.set_underline_rgba(Some(&shaded(&rule, Look::OPAQUE)));
     underline
 }
@@ -283,7 +283,7 @@ pub fn hang_markers(
     step: u32,
     column: typography::Column,
     advances: [i32; 6],
-    scheme: Scheme,
+    colours: &Colours,
 ) {
     let side = margin(column.side);
     for (level, advance) in (1..=6u8).zip(advances) {
@@ -311,7 +311,7 @@ pub fn hang_markers(
     // Deliberately not `min(side)`-ed away to nothing: a window too narrow to
     // give the well its margin is one the prose has no gutter in either.
     let edge = well(step).min(side);
-    let ground = code_ground(buffer, scheme);
+    let ground = code_ground(buffer, colours);
     ground.set_left_margin(side - edge);
     ground.set_right_margin(side - edge);
     ground.set_indent(edge);
@@ -328,8 +328,9 @@ pub fn hang_markers(
 pub struct Painting<'a> {
     /// The Face the Editor is set in.
     pub face: Face,
-    /// The ground being painted on, which every colour is read off.
-    pub scheme: Scheme,
+    /// The table every colour is read off: the ground's, as the Editor holds
+    /// it. Nothing here asks which ground that is.
+    pub colours: Colours,
     /// How much Focus leaves lit.
     pub focus: Focus,
     /// What Focus lights, for the caret where it now is. Empty with Focus off,
@@ -426,11 +427,10 @@ pub fn offsets_of(buffer: &gtk::TextBuffer, document: &Document, at: &Range<usiz
 fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &Range<usize>) {
     let Painting {
         face,
-        scheme,
+        colours,
         focus,
         tiers,
     } = painting;
-    let colours = Colours::of(scheme);
     // The flattening resolves the Markup mark and the Focus tier into one
     // colour, so the ink is read here rather than off the run's role: with
     // Focus on, most of the page is drawn in a colour no role names.
@@ -445,8 +445,8 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
             &from,
             &to,
         );
-        if run.paint.ground == Ground::Code {
-            buffer.apply_tag(&ground(buffer, scheme), &from, &to);
+        if run.paint.ground == annotate::Ground::Code {
+            buffer.apply_tag(&ground(buffer, &colours), &from, &to);
         }
     }
     for span in &spans {
@@ -470,7 +470,7 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
             // caller cleared, because a paragraph tag was put on rows outside
             // them: see [`unparagraph`].
             Mark::CodeBlock => {
-                let well = code_ground(buffer, scheme);
+                let well = code_ground(buffer, &colours);
                 match tier {
                     Tier::Bright => paragraph(buffer, document, span, &well),
                     Tier::Dim => unparagraph(buffer, document, span, &well),
@@ -493,7 +493,7 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
             Mark::Url if tier == Tier::Bright => {
                 let from = iter_at(buffer, document, span.at.start);
                 let to = iter_at(buffer, document, span.at.end);
-                buffer.apply_tag(&underline(buffer, scheme), &from, &to);
+                buffer.apply_tag(&underline(buffer, &colours), &from, &to);
             }
             _ => {}
         }
@@ -541,15 +541,14 @@ fn paragraph_lines(
     (start, end)
 }
 
-/// The code ground on `scheme`, flattened onto that ground's paper.
+/// The code ground in `colours`, flattened onto that ground's paper.
 ///
 /// [`Role::CodeBg`] is a wash — 4.5 % black over the light paper, 6 % white
 /// over the dark — and a `GtkTextTag` background is a ground rather than a
 /// wash: nothing is ever drawn under it. So it is composited here, once,
 /// rather than handed to GTK translucent to be blended against whatever the
 /// widget happens to have behind the line.
-fn code_well(scheme: Scheme) -> String {
-    let colours = Colours::of(scheme);
+fn code_well(colours: &Colours) -> String {
     let wash = colours.colour(Role::CodeBg);
     Colour::over(wash, colours.colour(Role::Paper), wash.alpha).to_hex()
 }
@@ -607,6 +606,7 @@ fn gtk_index(count: usize) -> i32 {
 #[cfg(test)]
 mod tests {
     use quill_engine::annotate::Ink;
+    use quill_engine::theme::Scheme;
 
     use super::*;
 
@@ -621,7 +621,12 @@ mod tests {
     /// where the module now reads a colour from, and a second mapping here
     /// would be one that could disagree with the drawn page.
     fn hex(scheme: Scheme, ink: Ink) -> String {
-        annotate::colour(ink, Tier::Bright, &Colours::of(scheme)).to_hex()
+        annotate::colour(
+            ink,
+            Tier::Bright,
+            &crate::ground::Ground::of(scheme).colours,
+        )
+        .to_hex()
     }
 
     /// The judged step: the ladder's default, whose em is 21.33 logical
@@ -779,7 +784,7 @@ mod tests {
     #[test]
     fn the_three_inks_are_three_roles_of_the_ground() {
         for scheme in [Scheme::Light, Scheme::Dark] {
-            let colours = Colours::of(scheme);
+            let colours = crate::ground::Ground::of(scheme).colours;
             assert_eq!(
                 [
                     hex(scheme, Ink::Prose),
@@ -828,8 +833,8 @@ mod tests {
     #[test]
     fn the_code_well_is_flattened_onto_the_ground_it_is_drawn_on() {
         for scheme in [Scheme::Light, Scheme::Dark] {
-            let well = code_well(scheme);
-            let colours = Colours::of(scheme);
+            let colours = crate::ground::Ground::of(scheme).colours;
+            let well = code_well(&colours);
             let wash = colours.colour(Role::CodeBg);
             assert!(wash.alpha < 1.0, "{scheme:?} code ground is not a wash");
             assert!(
@@ -842,7 +847,10 @@ mod tests {
                 "{scheme:?} well is the page: nothing would read as code"
             );
         }
-        assert_ne!(code_well(Scheme::Light), code_well(Scheme::Dark));
+        assert_ne!(
+            code_well(&crate::ground::Ground::of(Scheme::Light).colours),
+            code_well(&crate::ground::Ground::of(Scheme::Dark).colours)
+        );
     }
 
     // The invariant the whole Markup rests on: a closing marker restyles the

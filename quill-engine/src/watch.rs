@@ -6,14 +6,28 @@
 //! top — an editor's, and Quill's own ([`crate::settings::Settings::write_to`])
 //! — and a watch on the path alone follows the file it was pointed at out of
 //! the way. Events are gathered up for [`DEBOUNCE`] first, so the two halves of
-//! one save are one save. The settings file is the only path watched today; the
-//! Documents and the Library add theirs later (the File handling spec) through
+//! one save are one save. Two paths are watched today: the settings file, and
+//! the palette file it names (`docs/architecture.md` § Settings); the Documents
+//! and the Library add theirs later (the File handling spec) through
 //! [`Watch::add`], which is why what is being listened for is a set rather than
-//! the one path the settings watch needs.
+//! the one path the settings watch needs, and why [`Watch::remove`] exists — a
+//! `palette` line edited or taken out drops the file it named.
+//!
+//! The palette file is what a desktop theme tool writes, and such a tool does
+//! not save into the directory: it removes the directory and moves a fresh one
+//! into place, or re-points a link at another. A watch on the directory dies
+//! with it, so the directory *above* it is watched too, non-recursively, and an
+//! event there naming the directory re-resolves the file and arms the watch
+//! again — with the file's new version sent on, because a replaced directory
+//! is an edit and not a bystander. A directory that is not there yet is the
+//! same shape: [`Watch::add`] says so ([`Placed::NoDirectory`]) rather than
+//! polling for it, and the caller adds the file again when it has reason to.
 //!
 //! The app owns the [`Watch`] and drains its [`Receiver`] from its own main
 //! loop: the engine has no `glib` (ADR 0008), and the thread the debouncer
-//! answers on is not one a window can be touched from.
+//! answers on is not one a window can be touched from. What arrives is the path
+//! the file was added by, so the app tells the settings file from the palette
+//! file by comparing against what it asked for.
 //!
 //! [`unsaid`] is the other half of a re-read — what a version of a file has to
 //! say that the version before it did not already say — because a writer who
@@ -23,7 +37,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, Sender};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, SystemTime};
 
 use notify::{RecommendedWatcher, RecursiveMode};
@@ -36,9 +50,19 @@ use notify_debouncer_mini::{DebounceEventResult, DebouncedEventKind, Debouncer, 
 /// enough that a writer who saved sees the page follow.
 pub const DEBOUNCE: Duration = Duration::from_millis(100);
 
-/// The files a [`Watch`] is listening for, each with the version of it last
-/// sent on, as its debouncer's thread reads them.
-type Listening = Arc<Mutex<BTreeMap<PathBuf, Option<Version>>>>;
+/// Whether a file handed to [`Watch::add`] is being listened for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[must_use = "a file whose directory is not there is not being listened for"]
+pub enum Placed {
+    /// The file's directory is there and watched: its saves will arrive.
+    Listening,
+    /// The file's directory is not there, so there is nothing to watch yet.
+    /// The watch does not poll for it; the caller adds the file again when it
+    /// has reason to think the directory has appeared — the app, on the
+    /// settings watch's next event — and meanwhile, if the directory above it
+    /// is there, the directory's arrival is seen there and arms the watch.
+    NoDirectory,
+}
 
 /// What tells one version of a file from the one before it: how long it is
 /// and when it was written, read with a `stat` and never by opening it.
@@ -65,116 +89,288 @@ fn version(path: &Path) -> Option<Version> {
     })
 }
 
+/// Where a file added by one path is on the file system now, as the watcher's
+/// events will name it.
+///
+/// Resolved once and put back together, because an event's path is the watched
+/// directory's with a name joined to it: a relative path, or one through a
+/// symbolic link, would never be equal to a path reported for the same file.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct Place {
+    /// The file, under its directory resolved — `None` while the directory is
+    /// not there.
+    file: Option<PathBuf>,
+    /// The file's directory as an event on the directory *above* it names it,
+    /// which is how the directory's being replaced is seen — `None` where
+    /// there is no directory above to resolve.
+    directory: Option<PathBuf>,
+}
+
+/// Resolves `given` now.
+fn locate(given: &Path) -> Place {
+    let directory = match given.parent() {
+        Some(directory) if !directory.as_os_str().is_empty() => directory,
+        _ => Path::new("."),
+    };
+    let file = given.file_name().and_then(|name| {
+        directory
+            .canonicalize()
+            .ok()
+            .map(|directory| directory.join(name))
+    });
+    let above = directory
+        .parent()
+        .filter(|above| !above.as_os_str().is_empty())
+        .and_then(|above| above.canonicalize().ok());
+    let directory = match (above, directory.file_name()) {
+        (Some(above), Some(name)) => Some(above.join(name)),
+        _ => None,
+    };
+    Place { file, directory }
+}
+
+/// One file being listened for.
+struct Subject {
+    /// Where it is now.
+    place: Place,
+    /// The version of it last sent on.
+    sent: Option<Version>,
+}
+
+/// What the watch knows, shared between the thread that owns the [`Watch`] and
+/// the debouncer's, which is where a directory replaced is seen and where the
+/// watcher has to be reached to arm it again.
+struct Inner {
+    /// The debouncer, whose thread and whose watches end with it; `None` once
+    /// the [`Watch`] is dropped, which is what ends them.
+    debouncer: Option<Debouncer<RecommendedWatcher>>,
+    /// The files listened for, by the path each was added by.
+    subjects: BTreeMap<PathBuf, Subject>,
+    /// The directories handed to the watcher: each subject's own, resolved,
+    /// and the one above it.
+    watched: BTreeSet<PathBuf>,
+    /// Where a save is sent on.
+    sender: Sender<PathBuf>,
+}
+
+impl Inner {
+    /// Watches every directory the subjects want and no other, and answers
+    /// with the first error the watcher gave, having tried them all. A
+    /// directory the watcher refused is not remembered as watched, so the
+    /// next add tries it again rather than taking the refusal as final.
+    fn sync(&mut self) -> Result<(), notify::Error> {
+        let wanted: BTreeSet<PathBuf> = self
+            .subjects
+            .values()
+            .flat_map(|subject| {
+                let own = subject.place.file.as_deref().and_then(Path::parent);
+                let above = subject.place.directory.as_deref().and_then(Path::parent);
+                own.into_iter().chain(above).map(Path::to_path_buf)
+            })
+            .collect();
+        let Some(debouncer) = self.debouncer.as_mut() else {
+            return Ok(());
+        };
+        let watcher = debouncer.watcher();
+        for gone in self.watched.difference(&wanted) {
+            // A directory that was removed under the watch is already unwatched.
+            let _ = watcher.unwatch(gone);
+        }
+        let mut first = Ok(());
+        let mut watched: BTreeSet<PathBuf> = self.watched.intersection(&wanted).cloned().collect();
+        for new in wanted.difference(&self.watched) {
+            match watcher.watch(new, RecursiveMode::NonRecursive) {
+                Ok(()) => {
+                    watched.insert(new.clone());
+                }
+                Err(err) => first = first.and(Err(err)),
+            }
+        }
+        self.watched = watched;
+        first
+    }
+
+    /// Listens for `given`, placed where it is now.
+    fn add(&mut self, given: &Path) -> Result<Placed, notify::Error> {
+        let place = locate(given);
+        let placed = match place.file {
+            Some(_) => Placed::Listening,
+            None => Placed::NoDirectory,
+        };
+        let sent = place.file.as_deref().and_then(version);
+        self.subjects
+            .insert(given.to_path_buf(), Subject { place, sent });
+        self.sync()?;
+        Ok(placed)
+    }
+
+    /// Acts on what the debouncer has gathered.
+    fn heard(&mut self, events: DebounceEventResult) {
+        // An error the watcher itself reports is dropped: the settings watch is
+        // never fatal (`docs/architecture.md` § Settings), and a watch that has
+        // stopped answering leaves a Quill running on the settings it read.
+        let Ok(events) = events else {
+            return;
+        };
+        for event in events {
+            // A file still being written is `AnyContinuous` and is not sent on:
+            // a run of writes is one save, and the `Any` that ends it is the
+            // one worth reading the file at.
+            if event.kind == DebouncedEventKind::Any {
+                self.heard_at(&event.path);
+            }
+        }
+    }
+
+    /// Acts on one settled path: a subject's file saved, or a subject's
+    /// directory replaced — named from above, or itself moved or removed.
+    ///
+    /// The temporary file a save is written through is in the same directory
+    /// and is reported like anything else there, so what is sent on is what
+    /// was asked for rather than what moved.
+    fn heard_at(&mut self, path: &Path) {
+        let saved: Vec<PathBuf> = self
+            .subjects
+            .iter()
+            .filter(|(_, subject)| subject.place.file.as_deref() == Some(path))
+            .map(|(given, _)| given.clone())
+            .collect();
+        for given in saved {
+            self.check(&given);
+        }
+        let replaced: Vec<PathBuf> = self
+            .subjects
+            .iter()
+            .filter(|(_, subject)| {
+                let own = subject.place.file.as_deref().and_then(Path::parent);
+                subject.place.directory.as_deref() == Some(path) || own == Some(path)
+            })
+            .map(|(given, _)| given.clone())
+            .collect();
+        for given in replaced {
+            self.replace(&given);
+        }
+    }
+
+    /// Sends `given` on if its version has moved since it was last sent.
+    fn check(&mut self, given: &Path) {
+        let Some(subject) = self.subjects.get_mut(given) else {
+            return;
+        };
+        // A version already sent on is an open, not a save ([`Version`]).
+        let now = subject.place.file.as_deref().and_then(version);
+        if now == subject.sent {
+            return;
+        }
+        subject.sent = now;
+        let _ = self.sender.send(given.to_path_buf());
+    }
+
+    /// Resolves `given` again after its directory moved, arms the watch on
+    /// whatever is there now, and sends the file on if it changed with it.
+    ///
+    /// The old directory is unwatched by name whether or not it still exists:
+    /// a directory moved away keeps its watch, and that watch would report a
+    /// stranger's saves under the old path.
+    fn replace(&mut self, given: &Path) {
+        let Some(subject) = self.subjects.get_mut(given) else {
+            return;
+        };
+        let stale = subject
+            .place
+            .file
+            .as_deref()
+            .and_then(Path::parent)
+            .map(Path::to_path_buf);
+        subject.place = locate(given);
+        if let (Some(stale), Some(debouncer)) = (stale, self.debouncer.as_mut()) {
+            let _ = debouncer.watcher().unwatch(&stale);
+            self.watched.remove(&stale);
+        }
+        let _ = self.sync();
+        self.check(given);
+    }
+}
+
 /// A watch on one or more files, which stops when it is dropped.
 pub struct Watch {
-    /// The debouncer, whose thread and whose watches end with it.
-    debouncer: Debouncer<RecommendedWatcher>,
-    /// The files whose saves are sent on, shared with that thread.
-    listening: Listening,
-    /// The directories already handed to the watcher, so that a second file
-    /// in one of them costs no second watch.
-    directories: BTreeSet<PathBuf>,
+    /// Everything, shared with the debouncer's thread.
+    inner: Arc<Mutex<Inner>>,
+}
+
+/// The lock, poisoned or not: a thread that panicked while holding it has
+/// left the map as it was, and a watch that fell silent for good would be a
+/// worse outcome than one that reads a map mid-edit.
+fn lock(inner: &Mutex<Inner>) -> MutexGuard<'_, Inner> {
+    inner.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 impl Watch {
     /// Watches `path`, and answers with the receiver every save of it arrives
     /// on.
     ///
-    /// The path arrives as it is written here rather than as the event
+    /// The path arrives as it was handed here rather than as the event
     /// reported it, so a caller can compare it against the path it asked for.
     ///
     /// # Errors
     ///
-    /// Returns the watcher's own error where the directory holding `path`
-    /// cannot be resolved or cannot be watched.
+    /// Returns the watcher's own error where the directory holding `path` is
+    /// not there or cannot be watched: the first file is the settings file,
+    /// whose directory the app has made by then.
     pub fn on(path: &Path) -> Result<(Self, Receiver<PathBuf>), notify::Error> {
         let (sender, receiver) = mpsc::channel();
-        let listening: Listening = Listening::default();
-        let heard = Arc::clone(&listening);
+        let inner = Arc::new(Mutex::new(Inner {
+            debouncer: None,
+            subjects: BTreeMap::new(),
+            watched: BTreeSet::new(),
+            sender,
+        }));
+        let heard = Arc::clone(&inner);
         let debouncer = new_debouncer(DEBOUNCE, move |events: DebounceEventResult| {
-            send(&heard, &sender, events);
+            lock(&heard).heard(events);
         })?;
-        let mut watch = Self {
-            debouncer,
-            listening,
-            directories: BTreeSet::new(),
-        };
-        watch.add(path)?;
-        Ok((watch, receiver))
+        lock(&inner).debouncer = Some(debouncer);
+        let mut watch = Self { inner };
+        match watch.add(path)? {
+            Placed::Listening => Ok((watch, receiver)),
+            Placed::NoDirectory => {
+                Err(notify::Error::path_not_found().add_path(path.to_path_buf()))
+            }
+        }
     }
 
-    /// Listens for `path` as well, on the same receiver.
+    /// Listens for `path` as well, on the same receiver, and says whether it
+    /// is being listened for yet.
+    ///
+    /// Adding a path already listened for places it again, which is how a
+    /// caller retries a [`Placed::NoDirectory`].
     ///
     /// # Errors
     ///
-    /// Returns the watcher's own error where the directory holding `path`
-    /// cannot be resolved or cannot be watched.
-    pub fn add(&mut self, path: &Path) -> Result<(), notify::Error> {
-        let (directory, file) = place(path)?;
-        if let Ok(mut listening) = self.listening.lock() {
-            let now = version(&file);
-            listening.insert(file, now);
-        }
-        if self.directories.insert(directory.clone()) {
-            self.debouncer
-                .watcher()
-                .watch(&directory, RecursiveMode::NonRecursive)?;
-        }
-        Ok(())
+    /// Returns the watcher's own error where a directory cannot be watched.
+    pub fn add(&mut self, path: &Path) -> Result<Placed, notify::Error> {
+        lock(&self.inner).add(path)
+    }
+
+    /// Stops listening for `path`; a directory stays watched only while a file
+    /// in it is listened for.
+    pub fn remove(&mut self, path: &Path) {
+        let mut inner = lock(&self.inner);
+        inner.subjects.remove(path);
+        let _ = inner.sync();
     }
 }
 
-/// Sends on every watched file the events say has settled, and nothing else.
-///
-/// The temporary file a save is written through is in the same directory and
-/// is reported like anything else there, so what is sent on is what was asked
-/// for rather than what moved. A file still being written is
-/// [`DebouncedEventKind::AnyContinuous`] and is not sent on: a run of writes
-/// is one save, and the [`DebouncedEventKind::Any`] that ends it is the one
-/// worth reading the file at.
-///
-/// An error the watcher itself reports is dropped: the settings watch is never
-/// fatal (`docs/architecture.md` § Settings), and a watch that has stopped
-/// answering leaves a Quill running on the settings it read.
-fn send(listening: &Listening, sender: &Sender<PathBuf>, events: DebounceEventResult) {
-    let (Ok(events), Ok(mut listening)) = (events, listening.lock()) else {
-        return;
-    };
-    for event in events {
-        if event.kind != DebouncedEventKind::Any {
-            continue;
-        }
-        let Some(known) = listening.get_mut(&event.path) else {
-            continue;
-        };
-        // A version already sent on is an open, not a save ([`Version`]).
-        let now = version(&event.path);
-        if now == *known {
-            continue;
-        }
-        *known = now;
-        let _ = sender.send(event.path);
+impl Drop for Watch {
+    /// Takes the debouncer out from under the shared state so that it is
+    /// dropped — and its thread and watches ended — even though the debouncer's
+    /// own closure still holds the state; taken under the lock and dropped
+    /// outside it, so that a callback waiting for the lock is never waited on
+    /// in turn.
+    fn drop(&mut self) {
+        let debouncer = lock(&self.inner).debouncer.take();
+        drop(debouncer);
     }
-}
-
-/// The directory to watch for `path`, and the path its saves are reported
-/// under.
-///
-/// The directory is resolved and the file name put back on it, because an
-/// event's path is the watched directory's with a name joined to it: a
-/// relative path, or one through a symbolic link, would never be equal to a
-/// path reported for the same file.
-fn place(path: &Path) -> Result<(PathBuf, PathBuf), notify::Error> {
-    let directory = match path.parent() {
-        Some(directory) if !directory.as_os_str().is_empty() => directory,
-        _ => Path::new("."),
-    };
-    let name = path
-        .file_name()
-        .ok_or_else(|| notify::Error::generic("names no file to watch"))?;
-    let directory = directory.canonicalize()?;
-    let file = directory.join(name);
-    Ok((directory, file))
 }
 
 /// What a version of a file has to say, and what the version after it is
@@ -217,6 +413,7 @@ pub fn unsaid(said: &BTreeSet<String>, now: &[String]) -> Unsaid {
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::os::unix::fs::symlink;
     use std::sync::mpsc::RecvTimeoutError;
 
     use crate::shortcuts::Chord;
@@ -326,7 +523,7 @@ mod tests {
         fs::write(&file, "theme = \"light\"\n").unwrap();
         fs::write(&later, "# A Document\n").unwrap();
         let (mut watch, saves) = Watch::on(&file).unwrap();
-        watch.add(&later).unwrap();
+        assert_eq!(watch.add(&later).unwrap(), Placed::Listening);
         fs::write(&later, "# A Document, saved\n").unwrap();
         assert_eq!(saves.recv_timeout(WAIT), Ok(later));
         fs::remove_dir_all(&directory).ok();
@@ -383,6 +580,182 @@ mod tests {
                 .any(|chord| chord.as_str() == "<Control>e"),
             "the chord it replaced is left bound to nothing"
         );
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    /// A watch opened on a settings file in `directory`, the way the app opens
+    /// one, so that a palette file can be added beside it.
+    fn opened(directory: &Path) -> (Watch, Receiver<PathBuf>) {
+        let settings = directory.join("settings.toml");
+        fs::write(&settings, "theme = \"auto\"\n").unwrap();
+        Watch::on(&settings).unwrap()
+    }
+
+    /// A directory the watcher refuses — one that cannot be read, which inotify
+    /// will not watch — is tried again by the next add of a file in it, so a
+    /// refusal is not taken as the directory being watched.
+    #[test]
+    fn a_directory_the_watcher_refused_is_tried_again_on_the_next_add() {
+        use std::os::unix::fs::PermissionsExt;
+        let directory = scratch("refused");
+        let theme = directory.join("theme");
+        fs::create_dir_all(&theme).unwrap();
+        let palette = theme.join("quill.toml");
+        let (mut watch, saves) = opened(&directory);
+        fs::set_permissions(&theme, fs::Permissions::from_mode(0o000)).unwrap();
+        let refused = watch.add(&palette);
+        fs::set_permissions(&theme, fs::Permissions::from_mode(0o755)).unwrap();
+        assert!(
+            refused.is_err(),
+            "a directory that cannot be read cannot be watched"
+        );
+        assert_eq!(watch.add(&palette).ok(), Some(Placed::Listening));
+        fs::write(&palette, "[dark]\npaper = \"#101010\"\n").unwrap();
+        assert_eq!(saves.recv_timeout(WAIT), Ok(palette));
+    }
+
+    /// A theme directory under `directory` holding a palette file that says
+    /// `text`, and the path the palette will be added by.
+    fn themed(directory: &Path, name: &str, text: &str) -> PathBuf {
+        let theme = directory.join(name);
+        fs::create_dir_all(&theme).unwrap();
+        let palette = theme.join("quill.toml");
+        fs::write(&palette, text).unwrap();
+        palette
+    }
+
+    /// Everything the receiver has to say before it falls silent for a wait.
+    fn drained(saves: &Receiver<PathBuf>) -> Vec<PathBuf> {
+        let mut heard = Vec::new();
+        while let Ok(path) = saves.recv_timeout(WAIT) {
+            heard.push(path);
+        }
+        heard
+    }
+
+    #[test]
+    fn a_palette_file_in_another_directory_arrives_by_the_path_it_was_added_by() {
+        let directory = scratch("palette");
+        let palette = themed(&directory, "theme", "[dark]\npaper = \"#101010\"\n");
+        let (mut watch, saves) = opened(&directory);
+        assert_eq!(watch.add(&palette).unwrap(), Placed::Listening);
+        fs::write(&palette, "[dark]\npaper = \"#202020\"\n").unwrap();
+        assert_eq!(saves.recv_timeout(WAIT), Ok(palette));
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    /// What `omarchy theme set` does: the theme directory is removed and the
+    /// next one is moved into its place, so the directory the watch was on is
+    /// gone and the one at its path is a stranger.
+    #[test]
+    fn a_directory_moved_over_the_watched_one_is_watched_in_its_turn() {
+        let directory = scratch("replaced");
+        let palette = themed(&directory, "theme", "[dark]\npaper = \"#101010\"\n");
+        let (mut watch, saves) = opened(&directory);
+        assert_eq!(watch.add(&palette).unwrap(), Placed::Listening);
+
+        themed(&directory, "next-theme", "[light]\npaper = \"#fafafa\"\n");
+        fs::remove_dir_all(directory.join("theme")).unwrap();
+        fs::rename(directory.join("next-theme"), directory.join("theme")).unwrap();
+        let heard = drained(&saves);
+        assert!(
+            !heard.is_empty() && heard.iter().all(|path| *path == palette),
+            "the directory moved in is an edit of the file: {heard:?}"
+        );
+
+        fs::write(&palette, "[light]\npaper = \"#f0f0f0\"\n").unwrap();
+        assert_eq!(
+            saves.recv_timeout(WAIT),
+            Ok(palette),
+            "and the watch is on the directory that is there now"
+        );
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    /// What a theme tool that keeps every theme and points a link at the
+    /// current one does: the link is written beside and renamed over, and the
+    /// directory the watch resolved to is untouched and no longer current.
+    #[test]
+    fn a_directory_re_pointed_through_a_link_is_followed() {
+        let directory = scratch("linked");
+        let first = themed(&directory, "themes/a", "[dark]\npaper = \"#101010\"\n");
+        let second = themed(&directory, "themes/b", "[light]\npaper = \"#fafafa\"\n");
+        symlink(first.parent().unwrap(), directory.join("theme")).unwrap();
+        let palette = directory.join("theme/quill.toml");
+        let (mut watch, saves) = opened(&directory);
+        assert_eq!(watch.add(&palette).unwrap(), Placed::Listening);
+
+        symlink(second.parent().unwrap(), directory.join("theme.next")).unwrap();
+        fs::rename(directory.join("theme.next"), directory.join("theme")).unwrap();
+        let heard = drained(&saves);
+        assert!(
+            !heard.is_empty() && heard.iter().all(|path| *path == palette),
+            "the link re-pointed is an edit of the file: {heard:?}"
+        );
+
+        fs::write(&second, "[light]\npaper = \"#f0f0f0\"\n").unwrap();
+        assert_eq!(saves.recv_timeout(WAIT), Ok(palette), "the new directory");
+        fs::write(&first, "[dark]\npaper = \"#202020\"\n").unwrap();
+        assert_eq!(
+            saves.recv_timeout(WAIT),
+            Err(RecvTimeoutError::Timeout),
+            "the old directory is nobody's now"
+        );
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn a_file_removed_from_the_watch_is_not_sent_on() {
+        let directory = scratch("removed");
+        let palette = themed(&directory, "theme", "[dark]\npaper = \"#101010\"\n");
+        let (mut watch, saves) = opened(&directory);
+        assert_eq!(watch.add(&palette).unwrap(), Placed::Listening);
+        watch.remove(&palette);
+        fs::write(&palette, "[dark]\npaper = \"#202020\"\n").unwrap();
+        assert_eq!(saves.recv_timeout(WAIT), Err(RecvTimeoutError::Timeout));
+        // The file the watch was opened on is still listened for.
+        let settings = directory.join("settings.toml");
+        fs::write(&settings, "theme = \"dark\"\n").unwrap();
+        assert_eq!(saves.recv_timeout(WAIT), Ok(settings));
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn a_file_whose_directory_is_not_there_yet_is_said_so_and_added_again_later() {
+        let directory = scratch("later");
+        let palette = directory.join("theme/quill.toml");
+        let (mut watch, saves) = opened(&directory);
+        assert_eq!(watch.add(&palette).unwrap(), Placed::NoDirectory);
+        fs::create_dir(directory.join("theme")).unwrap();
+        assert_eq!(watch.add(&palette).unwrap(), Placed::Listening);
+        fs::write(&palette, "[dark]\npaper = \"#101010\"\n").unwrap();
+        assert_eq!(saves.recv_timeout(WAIT), Ok(palette));
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    /// The watch tells a save from an open by length and write time, so the
+    /// same bytes saved again are a save to it; whether they are a repaint is
+    /// the palette's question, answered by reading both and comparing.
+    #[test]
+    fn the_same_bytes_saved_twice_are_told_apart_by_the_palette_and_not_the_watch() {
+        use crate::theme::Palette;
+
+        let directory = scratch("same");
+        let text = "[dark]\npaper = \"#101010\"\n";
+        let palette = themed(&directory, "theme", text);
+        let (mut watch, saves) = opened(&directory);
+        assert_eq!(watch.add(&palette).unwrap(), Placed::Listening);
+        let (before, _) = Palette::read_from(&palette);
+
+        fs::write(&palette, text).unwrap();
+        drained(&saves);
+        let (again, _) = Palette::read_from(&palette);
+        assert_eq!(again, before, "the same bytes are not a repaint");
+
+        fs::write(&palette, "[dark]\npaper = \"#202020\"\n").unwrap();
+        assert_eq!(saves.recv_timeout(WAIT), Ok(palette.clone()));
+        let (changed, _) = Palette::read_from(&palette);
+        assert_ne!(changed, before, "and a change is");
         fs::remove_dir_all(&directory).ok();
     }
 
