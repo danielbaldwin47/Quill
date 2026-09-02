@@ -33,7 +33,7 @@ use crate::session::Session;
 use crate::tags;
 
 mod imp {
-    use std::cell::RefCell;
+    use std::cell::{Cell, RefCell};
     use std::rc::Rc;
 
     use gtk::prelude::*;
@@ -42,6 +42,7 @@ mod imp {
     use quill_engine::document::{Document, Edit};
 
     use crate::chrome::Bars;
+    use crate::chrome::typing::Typing;
     use crate::editor::Editor;
     use crate::session::Session;
 
@@ -55,6 +56,10 @@ mod imp {
         pub editor: Editor,
         /// The title bar above the Editor and the stats bar below it.
         pub bars: Bars,
+        /// How far the bars have stepped back from the last keystroke.
+        pub typing: Cell<Typing>,
+        /// The one timer the typing machine has armed, if one is coming.
+        pub wake: RefCell<Option<glib::SourceId>>,
         /// What the edit now going through the buffer changed, left here by
         /// the handler that spliced the Document for the one that retags.
         pub pending: RefCell<Option<Edit>>,
@@ -146,6 +151,15 @@ impl Window {
         // the caret's row at the anchor rather than travelling to it.
         window.imp().editor.set_typewriter(session.typewriter());
         window.set_document(document);
+        // After the Document, whose showing counts it, and before the first
+        // frame: `--typing` is the chrome inside the window after a
+        // keystroke, and a shot of it is the first frame.
+        window
+            .imp()
+            .typing
+            .set(chrome::typing::Typing::from_flags(session.flags()));
+        window.settle();
+        window.watch_pointer();
         window
             .imp()
             .editor
@@ -350,6 +364,94 @@ impl Window {
         });
     }
 
+    /// The typing machine's clock: the same monotonic microseconds the frame
+    /// clock counts in, read off the system because a timer fires between
+    /// frames.
+    fn now() -> i64 {
+        glib::monotonic_time()
+    }
+
+    /// A real keystroke went through the buffer: the chrome steps back.
+    ///
+    /// On the keystroke path, so it does as little as the machine allows —
+    /// two CSS classes that are already on stay on, and one timer is
+    /// re-armed. The count is not taken here; the timer asks for it.
+    fn typed(&self) {
+        let mut typing = self.imp().typing.get();
+        typing.keystroke(Self::now());
+        self.imp().typing.set(typing);
+        self.settle();
+    }
+
+    /// The pointer moved: the bars come back at once, whatever the timers
+    /// had left to do. Nothing at rest, which is where the pointer mostly
+    /// finds it.
+    fn woken(&self) {
+        let now = Self::now();
+        let mut typing = self.imp().typing.get();
+        if !typing.typing(now) {
+            return;
+        }
+        typing.pointer(now);
+        self.imp().typing.set(typing);
+        self.settle();
+    }
+
+    /// Puts the bars where the machine says they are now, counts on idle if
+    /// a count is owed, and arms the one timer for the next thing the machine
+    /// will do on its own.
+    fn settle(&self) {
+        let now = Self::now();
+        let mut typing = self.imp().typing.get();
+        self.imp()
+            .bars
+            .set_fade(typing.title_alpha(now), typing.stats_alpha(now));
+        if typing.takes_recount(now) {
+            glib::idle_add_local_once(glib::clone!(
+                #[weak(rename_to = window)]
+                self,
+                move || window.recount(),
+            ));
+        }
+        self.imp().typing.set(typing);
+        if let Some(armed) = self.imp().wake.take() {
+            armed.remove();
+        }
+        if let Some(when) = typing.resumes_at(now) {
+            let left = u64::try_from(when - now).unwrap_or(0);
+            let id = glib::timeout_add_local_once(
+                std::time::Duration::from_micros(left),
+                glib::clone!(
+                    #[weak(rename_to = window)]
+                    self,
+                    move || {
+                        window.imp().wake.take();
+                        window.settle();
+                    },
+                ),
+            );
+            self.imp().wake.replace(Some(id));
+        }
+    }
+
+    /// Counts the Document into the stats bar, on idle.
+    fn recount(&self) {
+        let document = self.imp().document.borrow();
+        self.imp().bars.set_count(document.text());
+    }
+
+    /// Watches the pointer for the typing machine: any motion over the
+    /// window is [`Window::woken`].
+    fn watch_pointer(&self) {
+        let motion = gtk::EventControllerMotion::new();
+        motion.connect_motion(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |_, _, _| window.woken(),
+        ));
+        self.add_controller(motion);
+    }
+
     /// Tells the Editor whether this window has the keyboard, now and after.
     ///
     /// `is-active` is the property GTK keeps the answer in, so it is the one
@@ -429,6 +531,10 @@ impl Window {
             };
             let document = window.imp().document.borrow();
             window.imp().editor.retag(&document, &edit);
+            drop(document);
+            // A keystroke, and only a keystroke: a load is skipped above and
+            // a switch fills the buffer with nothing pending.
+            window.typed();
         });
 
         // Focus's own feed, and the Document is why it is here rather than
