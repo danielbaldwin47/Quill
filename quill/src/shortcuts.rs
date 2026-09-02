@@ -54,6 +54,12 @@ fn grouped(group: &Group) -> gtk::ShortcutsGroup {
         .title(group.title.unwrap_or_default())
         .build();
     for shortcut in &group.shortcuts {
+        // A Command with no chord is a row with an empty accelerator, so that
+        // the window is the whole table. GTK draws that as nothing, and warns
+        // once that it measured the nothing at a negative width; the warning
+        // is `GtkShortcutLabel`'s own — its box is empty and its spacing is
+        // subtracted from it — and there is no property on
+        // `GtkShortcutsShortcut` to put anything in its place.
         built.add_shortcut(
             &gtk::ShortcutsShortcut::builder()
                 .title(shortcut.title)

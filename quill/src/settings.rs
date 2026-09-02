@@ -77,6 +77,9 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
         ANCHOR_STEP,
     );
     anchor.set_digits(ANCHOR_DIGITS);
+    // The number beside the slider, so that a writer reading the row and a
+    // writer reading the file are reading the same value.
+    anchor.set_draw_value(true);
     anchor.set_hexpand(true);
     // Set before the handler is connected, so that opening the window is not
     // itself a write.
