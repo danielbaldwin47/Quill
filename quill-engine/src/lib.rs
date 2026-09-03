@@ -16,6 +16,7 @@
 pub mod annotate;
 pub mod commands;
 pub mod data;
+pub mod disk;
 pub mod document;
 pub mod focus;
 pub mod library;
