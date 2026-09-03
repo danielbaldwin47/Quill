@@ -39,8 +39,8 @@ import {
 } from './bench-join.mjs';
 import { gitHead } from './fingerprint.mjs';
 import {
-  APP_ID, PANEL_IDLE_S, PANEL_WORKSPACE, compositorAvailable, launchEnv, openPanelStage, openStage,
-  panelBlocked,
+  APP_ID, PANEL_IDLE_S, PANEL_WORKSPACE, Refusal, chosenList, compositorAvailable, launchEnv,
+  openPanelStage, openStage, panelBlocked,
 } from './harness.mjs';
 import {
   DEFAULT_KEYS, PASTE_TEXT, WARMUP_KEYS, hash32, regimes, scoredRegime, script, uinputPlan,
@@ -694,7 +694,7 @@ async function main(argv) {
 
   let name = null;
   let all = false;
-  let subset = null;
+  let listed = null;
   let keys = DEFAULT_KEYS;
   let sessions = 1;
   let wantsPanel = false;
@@ -726,12 +726,7 @@ async function main(argv) {
     } else if (a === '--panel') { wantsPanel = true; } else if (a === '--all') {
       all = true;
     } else if (a === '--regimes') {
-      subset = String(argv[i += 1] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-      if (!subset.length) {
-        process.stderr.write('gate bench: --regimes takes regime names separated by commas\n');
-        usage();
-        return 3;
-      }
+      listed = argv[i += 1] ?? '';
     } else if (a === '-h' || a === '--help') { usage(process.stdout); return 0; } else if (a.startsWith('-')) {
       process.stderr.write(`gate bench: ${a}: not a flag this command has\n`);
       usage();
@@ -754,41 +749,32 @@ async function main(argv) {
   }
 
   const known = regimes();
-  const asked = [name, all ? '--all' : null, subset ? '--regimes' : null].filter(Boolean);
-  if (asked.length > 1) {
-    process.stderr.write(`gate bench: ${asked.join(' and ')} both say which regimes to run; pick one\n`);
+  let choice;
+  try {
+    choice = chosenList({
+      command: 'gate bench', flag: '--regimes', listOf: 'regime names', what: 'which regimes to run',
+      all, listed, named: name, universe: () => known.map((r) => r.name),
+    });
+  } catch (e) {
+    if (!(e instanceof Refusal)) throw e;
+    process.stderr.write(`${e.message}\n`);
     usage();
     return 3;
   }
 
   // `ran` is null for a bare `gate bench [regime]` and the flag itself otherwise, because it is
   // both what decides the shape of the output and what the summary file records as the run.
-  let ran = null;
-  let chosen = [];
-  if (all) {
-    ran = '--all';
-    chosen = known;
-  } else if (subset) {
-    ran = `--regimes ${subset.join(',')}`;
-    for (const want of subset) {
-      const found = known.find((r) => r.name === want);
-      if (!found) {
-        process.stderr.write(`gate bench: ${want}: not one of the twelve regimes `
-          + `(${known.map((r) => r.name).join(', ')})\n`);
-        usage();
-        return 3;
-      }
-      chosen.push(found);
-    }
-  } else {
-    const regime = known.find((r) => r.name === (name ?? HEADLINE));
-    if (!regime) {
-      process.stderr.write(`gate bench: ${name}: not one of the twelve regimes `
+  const ran = choice.flag === '--regimes' ? `--regimes ${choice.names.join(',')}` : choice.flag;
+  const chosen = [];
+  for (const want of choice.names ?? [name ?? HEADLINE]) {
+    const found = known.find((r) => r.name === want);
+    if (!found) {
+      process.stderr.write(`gate bench: ${want}: not one of the twelve regimes `
         + `(${known.map((r) => r.name).join(', ')})\n`);
       usage();
       return 3;
     }
-    chosen = [regime];
+    chosen.push(found);
   }
 
   openLog(root);

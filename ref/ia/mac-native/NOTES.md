@@ -34,6 +34,9 @@ file: [`passage-blocks.md`](passage-blocks.md) (heading, blockquote, list, empha
 and 14, [`passage-markers.md`](passage-markers.md) (all six heading levels) for the gutter ladder,
 and [`passage-markup.md`](passage-markup.md) (every mark kind at once) for state 17.
 
+On the Linux box a capture is measured with `magick` or with node and `pngjs` (`tools/ink-coverage.mjs`
+is the template); `rig/`'s Python imports Quartz and runs only on the Mac.
+
 ### How things were measured
 
 The Linux rig's vocabulary is kept so the two evidence sets compare

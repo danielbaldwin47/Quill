@@ -50,7 +50,7 @@
 // ([`carriesAccent`]): a judged shot is `--deterministic`, its blink frozen at alpha 1.0, and
 // `Role::Accent` is one flat colour on both grounds, so an active state that draws a caret must
 // hold at least one pixel of it and a ghosted frame never does.
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -79,11 +79,22 @@ const MARGIN = { x: 80, y: 50 };
 // fails while an agent is still watching.
 const MAP_TIMEOUT_MS = 10_000;
 
-// How long a created output has to turn up in `hyprctl monitors` before the stage gives up on
-// naming it. See where it is used: an output nobody named is the one thing here that can be left
-// behind.
+// How long a created output has to turn up in `hyprctl monitors` before the stage gives up on it.
+// `output create` answers before the monitor is listed, and a second of asking is far past the
+// millisecond it actually takes.
 const CREATE_TIMEOUT_MS = 1_000;
 const POLL_MS = 50;
+
+// The display is one lock. Two stages open at once take each other's rules down (ONE STAGE AT A
+// TIME, above), and two sessions each asking Hyprland for an output hung it on 2026-09-02 — so a
+// stage holds this file, through `flock(2)` on a descriptor of this process, from before it asks
+// the compositor for anything until `close`. A second `shoot`, `judge`, `keys` or `bench` waits
+// its turn rather than refusing, because the turn comes: a `bench --all` is about six minutes and
+// a judge lets go before its critics run. Twenty minutes is past every run there is, and a lock
+// held longer than that is a run that has hung, which the refusal names by the line the holder
+// wrote into the file. Under `$XDG_RUNTIME_DIR`, which is per user and gone at logout.
+const LOCK = path.join(process.env.XDG_RUNTIME_DIR || os.tmpdir(), 'quill-gate-display.lock');
+const LOCK_WAIT_S = 1200;
 
 // What a window is given between mapping and the shutter. GTK maps, then paints, then the
 // compositor presents; a capture taken inside that has caught a half-drawn frame. The pair check in
@@ -495,6 +506,34 @@ function toplevels() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// The trail a stage says the one thing it has to say on the way in to — that it is waiting for
+// the display — when its caller gave it no `say` of its own.
+const stderr = (line) => process.stderr.write(`${line}\n`);
+
+// ---------- choosing what to run ----------
+
+// A refusal of the command line, thrown by [`chosenList`]: the message is the line the command
+// prints above its usage.
+export class Refusal extends Error {}
+
+// What a command that runs over several of a kind — `gate shoot` over Pieces, `gate bench` over
+// regimes — was told to run: `--all` for every name `universe()` answers, `--<flag> a,b` for the
+// names listed, or neither, when the name given as an argument (or the default) is the caller's
+// own to resolve. `all` and `listed` are what the command line carried — whether `--all` was
+// given, and the flag's value or null — and `named` is the argument, for a command that counts it
+// against the flags. Answers `{ flag, names }`: the flag that chose and the names it chose, both
+// null when neither flag was given. Throws a `Refusal` for a list with no names in it, and for two
+// of them saying which.
+export function chosenList({ command, flag, listOf, what, all, listed, named = null, universe }) {
+  const names = listed === null ? null : String(listed).split(',').map((s) => s.trim()).filter(Boolean);
+  if (names !== null && !names.length) throw new Refusal(`${command}: ${flag} takes ${listOf} separated by commas`);
+  const asked = [named, all ? '--all' : null, names ? flag : null].filter(Boolean);
+  if (asked.length > 1) throw new Refusal(`${command}: ${asked.join(' and ')} both say ${what}; pick one`);
+  if (all) return { flag: '--all', names: universe() };
+  if (names) return { flag, names };
+  return { flag: null, names: null };
+}
+
 // The wall clock in nanoseconds, which is what the app reads `$QUILL_T0_NS` as: `date +%s%N`'s
 // scale. `Date.now()` alone would quantise the cold start to the millisecond, so the origin and the
 // sub-millisecond offset are added instead.
@@ -527,12 +566,51 @@ function armTeardown(close) {
   };
 }
 
+// Takes the display lock, and answers with the descriptor that holds it. `flock` is handed the
+// descriptor itself (as its fd 3) rather than the path, so the lock belongs to the open file
+// description this process holds: it is released when `close` closes the descriptor or when the
+// process ends, and nothing this process spawns inherits it, because Node opens files
+// close-on-exec and passes a child only the stdio it is given. The file is opened without
+// truncating, so the holder's line can be read before it is overwritten with this run's.
+//
+// `say` is the caller's trail, because a wait is something the owner should be able to see from
+// the log while it is happening, and the one line here is the holder's own description of itself,
+// read through the descriptor this process holds: the file it opened is the file it waits on.
+function holdDisplay(say) {
+  const fd = fs.openSync(LOCK, fs.constants.O_RDWR | fs.constants.O_CREAT, 0o600);
+  const holder = () => {
+    try {
+      const buf = Buffer.alloc(fs.fstatSync(fd).size);
+      const read = fs.readSync(fd, buf, 0, buf.length, 0);
+      return buf.toString('utf8', 0, read).trim() || 'a run that wrote no name';
+    } catch { return 'a run that wrote no name'; }
+  };
+  const take = (...args) => {
+    const r = spawnSync('flock', [...args, '3'], { stdio: ['ignore', 'ignore', 'ignore', fd] });
+    if (r.error) { fs.closeSync(fd); throw new Error(`the display lock needs flock(1), which would not run: ${r.error.message}`); }
+    return r.status === 0;
+  };
+  if (!take('-n')) {
+    say(`the display is held by ${holder()}; waiting`);
+    if (!take('-w', String(LOCK_WAIT_S))) {
+      const who = holder();
+      fs.closeSync(fd);
+      throw new Error(`the display has been held for ${LOCK_WAIT_S}s by ${who}`);
+    }
+  }
+  fs.ftruncateSync(fd);
+  fs.writeSync(fd, `pid ${process.pid}: gate ${path.basename(process.argv[1] || '', '.mjs')} ${process.argv.slice(2).join(' ')}`.trimEnd(), 0);
+  return fd;
+}
+
 // Everything both stages undo, and the order it has to be undone in.
 //
 // The windows go first, because a window on an output that has just been removed is a window
 // Hyprland has moved somewhere the owner can see. `restore` is the one step the two stages do not
 // share — the headless one removes the output it made, the panel one puts back the workspace it
 // took — and it runs before the pointer and the focus, which are the owner's own and go back last.
+// The display lock goes last of all, so the next run in line finds the compositor as this one
+// found it.
 //
 // Idempotent, and says nothing the second time: the trap calls this on paths that may already have.
 function closeStage({ state, owner, tmp, disarm }, restore) {
@@ -545,6 +623,7 @@ function closeStage({ state, owner, tmp, disarm }, restore) {
   if (owner.cursor) { try { movePointer(owner.cursor); } catch { /* ditto */ } }
   if (owner.window) { try { focusWindow(owner.window); } catch { /* ditto */ } }
   try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { /* ditto */ }
+  if (state.lock !== null) { try { fs.closeSync(state.lock); } catch { /* the exit releases it anyway */ } state.lock = null; }
   disarm();
 }
 
@@ -563,17 +642,23 @@ function parkingCorner(monitor) {
 // workspace is not among them because this stage never changes it — the window goes to the new
 // output's own workspace, which nothing is displaying. [`openPanelStage`] is the one that does.
 //
-// The teardown is registered before the output is created, not after, so that a failure inside
-// this function is still torn down; `close` is idempotent and says nothing the second time.
+// The display lock is taken first, before the owner's focus and pointer are read, so that what
+// `close` puts back is what the owner had when this run's turn came rather than when it joined
+// the queue. The teardown is registered before the output is created, not after, so that a failure
+// inside this function is still torn down; `close` is idempotent and says nothing the second time.
 //
 // The mode and the scale are not arguments. They are the judged states' own — 3200x2000 at integer
 // scale 2 is what `w`x`h`x2 is asserted against in [`Stage.shoot`] — so a caller that could pass a
 // different scale could only pass one that every capture then refuses.
-export async function openStage({ root, appId = APP_ID } = {}) {
+//
+// `say` takes the one line a wait for the display produces; a caller with a trail of its own
+// (`tools/judge.mjs`, `tools/shoot.mjs`) passes it, and the default is stderr.
+export async function openStage({ root, appId = APP_ID, say = stderr } = {}) {
+  const lock = holdDisplay(say);
   const owner = { window: activeWindowAddress(), cursor: cursorPosition() };
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'quill-gate-'));
 
-  const state = { output: null, workspace: null, closed: false, children: new Set() };
+  const state = { output: null, workspace: null, lock, closed: false, children: new Set() };
   let disarm = () => {};
 
   const close = () => closeStage({ state, owner, tmp, disarm: () => disarm() }, () => {
@@ -582,22 +667,22 @@ export async function openStage({ root, appId = APP_ID } = {}) {
   });
   disarm = armTeardown(close);
 
-  const before = monitors().map((m) => m.name);
-  hyprctl(['output', 'create', 'headless']);
-  // Named by watching one appear, and watched for rather than looked for once. `output create`
-  // answers before the monitor is in `hyprctl monitors`, and an output this function did not manage
-  // to name is an output `close` cannot remove — the one way this stage can leak something onto the
-  // owner's machine. A second of asking is far past the millisecond it actually takes.
-  let output = null;
-  for (let waited = 0; waited < CREATE_TIMEOUT_MS && !output; waited += POLL_MS) {
-    output = monitors().map((m) => m.name).find((n) => !before.includes(n)) || null;
-    if (!output) await sleep(POLL_MS);
-  }
-  if (!output) {
-    close();
-    throw new Error('asked Hyprland for a headless output and no new monitor appeared; if one appears now, remove it with `hyprctl output remove <name>`');
-  }
+  // Named for this run's pid, so that an output a killed run left behind says whose it was, and so
+  // that two runs can never mistake each other's for their own. It is `state.output` from the
+  // moment it is asked for: `output create` answers before the monitor is in `hyprctl monitors`,
+  // and one that turns up late is still one `close` removes.
+  const output = `quill-gate-${process.pid}`;
+  hyprctl(['output', 'create', 'headless', output]);
   state.output = output;
+  let monitor = null;
+  for (let waited = 0; waited < CREATE_TIMEOUT_MS && !monitor; waited += POLL_MS) {
+    monitor = monitors().find((m) => m.name === output) || null;
+    if (!monitor) await sleep(POLL_MS);
+  }
+  if (!monitor) {
+    close();
+    throw new Error(`asked Hyprland for headless output ${output} and it never appeared; a leftover of an earlier run is any \`quill-gate-*\` in \`hyprctl monitors\`, removed with \`hyprctl output remove <name>\``);
+  }
 
   lua(`hl.monitor({output="${output}", mode="${MODE}", position="auto", scale=${SCALE}}) return "set"`);
   // Read back rather than read once. `hl.monitor` answers before Hyprland has applied the mode, and
@@ -605,7 +690,7 @@ export async function openStage({ root, appId = APP_ID } = {}) {
   // read returns the size the output had a moment ago. That was wrong twice: it put a mode into
   // every bench's fingerprint that the run was not taken at, and it computed `corner` from the
   // wrong logical size, parking the pointer on top of the window instead of clear of it.
-  let monitor = null;
+  monitor = null;
   for (let waited = 0; waited < CREATE_TIMEOUT_MS; waited += POLL_MS) {
     monitor = monitors().find((m) => m.name === output) || null;
     if (monitor && `${monitor.width}x${monitor.height}` === MODE_SIZE && monitor.scale === SCALE) break;
@@ -636,10 +721,15 @@ export async function openStage({ root, appId = APP_ID } = {}) {
 // fractional-scale, so the window's buffer is not the judged stage's. `tools/gate bench` marks it
 // informational, and the mode and scale it was taken at go into the result's fingerprint.
 export async function openPanelStage({
-  root, appId = APP_ID, workspace = PANEL_WORKSPACE, idle = PANEL_IDLE_S,
+  root, appId = APP_ID, workspace = PANEL_WORKSPACE, idle = PANEL_IDLE_S, say = stderr,
 } = {}) {
   const blocked = panelBlocked({ workspace });
   if (blocked) throw new Error(blocked);
+
+  // The display lock comes after the refusals that cost nothing and before the one that has to be
+  // asked last: a run that waited twenty minutes for its turn is refused for the owner's workspace
+  // no differently, and the idle check below is only worth anything asked after the wait.
+  const lock = holdDisplay(say);
 
   // Asked here and not a moment earlier. An idle check with a `cargo build` or a compositor call
   // after it is a check of a machine that was empty a minute ago, and the point of it is that the
@@ -654,6 +744,7 @@ export async function openPanelStage({
     });
   } catch (e) {
     const why = String(e.stderr || '').trim().split('\n').pop().replace(/^idle-check: /, '');
+    fs.closeSync(lock);
     throw new Error("not taking the owner's screen: "
       + (why || `something used this machine in the last ${idle}s`));
   }
@@ -668,7 +759,7 @@ export async function openPanelStage({
     workspace: monitor.activeWorkspace.id,
   };
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'quill-gate-panel-'));
-  const state = { output: null, workspace, closed: false, children: new Set() };
+  const state = { output: null, workspace, lock, closed: false, children: new Set() };
   let disarm = () => {};
 
   // The workspace goes back as this stage's own step, which puts it before the pointer and the

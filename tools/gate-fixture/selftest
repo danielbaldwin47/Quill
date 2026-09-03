@@ -17,7 +17,7 @@ set -uo pipefail
 ROOT=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../.." && pwd)
 FIXTURE=$ROOT/tools/gate-fixture
 GATE=$ROOT/tools/gate
-STEPS=(fmt allow clippy test)
+STEPS=(fmt allow round clippy test)
 
 cases=0
 failures=0
@@ -90,6 +90,7 @@ run "the fixture as committed" ""         ""
 run "formatting error"         fmt        ""     "^gate check: fmt \\(cargo fmt applied: src/defect\\.rs\\)$"
 run "bare #[allow]"            allow      allow "^src/defect\.rs:[0-9]+:"
 run "#[allow] with a reason"   reasoned   ""
+run "stray rounding cast"      round      round "^src/defect\.rs:[0-9]+:.*\(in fn wobble\)$"
 run "clippy warning"           clippy     clippy
 run "failing test"             test       test
 

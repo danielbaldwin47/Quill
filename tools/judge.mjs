@@ -267,10 +267,10 @@ function usage(where = process.stderr) {
 `);
 }
 
-// Says something on the way to the verdict. None of it is printed as it is said: the owner reads one
-// line on stdout and an agent pays for every other one, so the trail goes to
-// target/gate/judge-<piece>.log and is handed over only when the run ends in no verdict at all. A
-// run that reached a verdict has its detail in the round it wrote.
+// Says something on the way to the verdict. None of it is printed as it is said: the owner reads the
+// verdict and the per-state lines above it on stdout and an agent pays for every other one, so the
+// trail goes to target/gate/judge-<piece>.log and is handed over only when the run ends in no
+// verdict at all. A run that reached a verdict has its detail in the round it wrote.
 const trail = [];
 let logFile = null;
 export function say(line) {
@@ -495,13 +495,24 @@ export class Refused extends Error {
 // Everything a judged shot of a Piece needs settled before a window opens, or a `Refused` naming
 // what is missing: the states resolved, every flag servable, every assertion readable, every crop
 // cuttable, the Parity oracle frozen and current, a compositor to shoot on, the release binary
-// built, and ours willing to open at every state. `tools/gate shoot` runs the same list, so a shot
-// taken to look at is a shot the judge would have taken.
+// built, and ours willing to open at every state. Three parts, in that order: [`checkStates`],
+// [`buildOurs`] and [`opensAt`]. `tools/gate shoot` runs the same list, so a shot taken to look at
+// is a shot the judge would have taken — over several Pieces it runs the parts itself, every
+// Piece's checks, then one build, then every Piece's states asked of the binary.
 //
 // Answers with the states sorted by how they are judged — `parity` against the frozen oracle,
 // `crops` against a Design oracle rectangle (with `cropping` holding each one resolved), `asserted`
 // against ours' own pixels — and `frozen`, the Parity oracle's fingerprint when any state needs it.
 export function preflight(root, piece, settingsFile, { command = 'judge' } = {}) {
+  const plan = checkStates(root, piece, settingsFile, { command });
+  buildOurs(root, { command, piece });
+  opensAt(root, piece, plan.resolved, settingsFile, { command });
+  return plan;
+}
+
+// The checks before the build: everything [`preflight`] settles that a file read or a compositor
+// query can answer, cheapest first. Answers what `preflight` answers.
+export function checkStates(root, piece, settingsFile, { command = 'judge' } = {}) {
   const states = readStates(root);
   let resolved;
   try { resolved = resolveStates(states, piece); }
@@ -604,22 +615,30 @@ export function preflight(root, piece, settingsFile, { command = 'judge' } = {})
     throw new Refused('there is no compositor to shoot on');
   }
 
-  say(`gate ${command} ${piece}: building ${BINARY}`);
-  // cargo's own words go into the trail rather than past it: a build that will not build is the one
-  // ending where an agent needs every line, and it gets them all together at the bottom.
+  return { resolved, parity, crops, asserted, cropping, frozen };
+}
+
+// The release binary, built, or a `Refused` saying it would not build. cargo's own words go into
+// the trail rather than past it: a build that will not build is the one ending where an agent
+// needs every line, and it gets them all together at the bottom. `piece` is null for a run over
+// several Pieces, which builds once for all of them.
+export function buildOurs(root, { command = 'judge', piece = null } = {}) {
+  say(`gate ${command}${piece ? ` ${piece}` : ''}: building ${BINARY}`);
   try { execFileSync('cargo', ['build', '--release'], { cwd: root, stdio: ['ignore', 'ignore', 'pipe'], maxBuffer: BUILD_OUTPUT_MAX }); }
   catch (e) {
     const said = String(e.stderr || '').trim();
     if (said) say(said);
     throw new Refused('the binary would not build');
   }
+}
 
-  // Whether ours can be opened at all at each state, asked of the binary rather than kept in a list
-  // here, so it cannot drift from what the app actually parses: `--help` makes it read the whole
-  // command line and print instead of opening a window. Asked here, after the build that is the
-  // only way to ask and before the first pair, because a round that learns this at its third state
-  // has already put a critic on the first two. Every state is named in one go, the way the refusals
-  // above name theirs.
+// Whether ours can be opened at all at each state, asked of the binary rather than kept in a list
+// here, so it cannot drift from what the app actually parses: `--help` makes it read the whole
+// command line and print instead of opening a window. Asked after the build that is the only way
+// to ask and before the first pair, because a round that learns this at its third state has
+// already put a critic on the first two. Every state is named in one go, the way the refusals in
+// [`checkStates`] name theirs; a state it will not open at is a `Refused`.
+export function opensAt(root, piece, resolved, settingsFile, { command = 'judge' } = {}) {
   const bin = path.join(root, BINARY);
   const cannot = [];
   for (const s of resolved) {
@@ -635,8 +654,6 @@ export function preflight(root, piece, settingsFile, { command = 'judge' } = {})
     say(`gate ${command}: ours will not open at ${cannot.join(', ')}; those flags wait for the spec that teaches the app to parse them`);
     throw new Refused(`${cannot.length} of ${resolved.length} states name flags the app has not got`);
   }
-
-  return { resolved, parity, crops, asserted, cropping, frozen };
 }
 
 // Where a judged shot of ours goes, and its crop when the state is judged on one: the round's
@@ -736,7 +753,7 @@ async function judge(root, piece, note, summaryFile, settingsFile, fresh) {
   // ones with what their critic is shown, in the same order.
   const judged = [];
   const pairs = [];
-  const stage = await openStage({ root, appId: APP_ID });
+  const stage = await openStage({ root, appId: APP_ID, say });
   try {
     for (const s of resolved) {
       const cut = cropping.get(s.name);
@@ -854,6 +871,17 @@ async function judge(root, piece, note, summaryFile, settingsFile, fresh) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, `${JSON.stringify(written, null, 2)}\n`);
   say(`gate judge ${piece}: wrote ${path.relative(root, file)}`);
+
+  // Every state's reading on stdout, above the verdict: the winner, the margin, the round a carried
+  // verdict came from, and the winner's gap — or, for an asserted state, what was measured — so a
+  // round is read from the output rather than from the letters in its JSON. Sorted by state, so two
+  // rounds' outputs line up; printed together here rather than as each was decided, so the last
+  // line stays the verdict.
+  for (const s of [...judged].sort((a, b) => a.name.localeCompare(b.name))) {
+    const carried = s.carried ? `, carried from round ${s.carried}` : '';
+    console.log(`gate judge ${piece}: ${s.name}: ${s.winner} (${s.margin}${carried})`);
+    console.log(`gate judge ${piece}: ${s.name}: gap: ${s.winner === 'ours' ? s.gap : s.gapTheirs}`);
+  }
 
   if (written.winner === 'ours') { verdict(piece, 'ours', number); return 0; }
 
