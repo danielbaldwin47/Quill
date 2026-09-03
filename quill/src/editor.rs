@@ -1001,8 +1001,9 @@ impl Editor {
     /// Whole-Document, and the only part of Live that is: the fold is drawn
     /// by the block ([`Editor::refold`]), but a furnishing is held at an
     /// offset the buffer counts and an edit anywhere moves every offset below
-    /// it. Paid only with Live on, so no judged state but `live/folded` and no
-    /// bench regime pays it at all.
+    /// it. Paid only with Live on: `live/folded` is the one judged state that
+    /// pays it, and `tools/regimes.mjs`'s `live_end_of_draft` regime launches
+    /// `--live`, so the bench pins what it costs a keystroke.
     fn refurnish(&self, document: &Document) {
         let mut furniture = Vec::new();
         if self.imp().live.get() {
