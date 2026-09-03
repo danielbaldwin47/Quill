@@ -106,12 +106,13 @@ type Handler = Rc<dyn Fn(&'static Command)>;
 /// the writer's `[shortcuts]` table over the registry and reading a chord is
 /// `gtk::accelerator_parse`'s, which wants GTK started. Called once, before
 /// the first window.
-pub fn install(app: &gtk::Application) {
+pub fn install(app: &gtk::Application, session: &Rc<Session>) {
     let fired = app.clone();
+    let session = Rc::clone(session);
     register(
         app,
         Scope::App,
-        Rc::new(move |command| run_app(&fired, command)),
+        Rc::new(move |command| run_app(&fired, &session, command)),
     );
 }
 
@@ -298,9 +299,15 @@ pub fn reflect(map: &impl IsA<gio::ActionMap>, modes: Modes) {
 }
 
 /// The application's Commands.
-fn run_app(app: &gtk::Application, command: &Command) {
-    if command.id == "app.quit" {
-        app.quit();
+///
+/// Quit walks the windows itself rather than calling `app.quit()`, because a
+/// window whose Document has something to ask has to be able to keep itself —
+/// and Quill — open ([`crate::window::quit`]).
+fn run_app(app: &gtk::Application, session: &Rc<Session>, command: &Command) {
+    match command.id {
+        "app.quit" => crate::window::quit(app),
+        "window.new" => crate::window::open_new(app, session),
+        _ => {}
     }
 }
 
@@ -341,6 +348,9 @@ fn run_window(window: &Window, command: &Command) {
                 window.open_menu(menu);
             }
         }
+        "file.open" => window.open_file(),
+        "file.save" => window.save(),
+        "file.saveAs" => window.save_as(crate::window::After::Stay),
         "palette.open" => window.open_palette(),
         "settings.open" => window.open_settings(),
         "shortcuts.open" => window.open_shortcuts(),
@@ -1564,12 +1574,31 @@ mod tests {
         assert_eq!(refused, None);
     }
 
+    /// The four Commands the File handling spec's second ticket builds are
+    /// out of the disabled set: their rows are live and each fires.
+    #[test]
+    fn the_four_file_commands_are_enabled_and_fire() {
+        let (window, fired) = map(Scope::Win);
+        for id in ["file.open", "file.save", "file.saveAs"] {
+            assert!(window.is_action_enabled(id), "{id}");
+            window.activate_action(id, None);
+        }
+        assert_eq!(
+            fired.borrow().as_slice(),
+            ["file.open", "file.save", "file.saveAs"]
+        );
+        let (app, app_fired) = map(Scope::App);
+        assert!(app.is_action_enabled("window.new"));
+        app.activate_action("window.new", None);
+        assert_eq!(app_fired.borrow().as_slice(), ["window.new"]);
+    }
+
     #[test]
     fn a_disabled_commands_activation_returns_without_effect() {
         let (map, fired) = map(Scope::Win);
-        assert!(!commands::by_id("file.open").unwrap().built);
-        assert!(!map.is_action_enabled("file.open"));
-        map.activate_action("file.open", None);
+        assert!(!commands::by_id("file.rename").unwrap().built);
+        assert!(!map.is_action_enabled("file.rename"));
+        map.activate_action("file.rename", None);
         // The Stats menu's fields are the Stats spec's (#30), so the whole
         // radio group is disabled.
         map.activate_action("stats", Some(&"words".to_variant()));

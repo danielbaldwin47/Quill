@@ -16,24 +16,34 @@
 //! client no way to ask where its window is or to put it back, so where a
 //! window opens is the compositor's, on Wayland and on X11 alike.
 
+use std::cell::Ref;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::time::Duration;
 
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{gio, glib};
 use quill_engine::commands;
+use quill_engine::disk::{Filed, Kept, Noticed, OnDisk, Saved, first_save_name};
 use quill_engine::document::Document;
 use quill_engine::focus::Focus;
 use quill_engine::settings::{Chrome, WindowState};
 
 use crate::caret;
 use crate::chrome;
+use crate::files::{self, Leaving, Where};
 use crate::flags;
 use crate::ground::Ground;
 use crate::harness;
 use crate::menus;
 use crate::session::Session;
 use crate::tags;
+
+/// How long after the last keystroke autosave writes the Document out.
+///
+/// `docs/architecture.md` § Documents and files: "after one second of idle".
+const AUTOSAVE: Duration = Duration::from_secs(1);
 
 mod imp {
     use std::cell::{Cell, OnceCell, RefCell};
@@ -42,7 +52,8 @@ mod imp {
     use gtk::prelude::*;
     use gtk::subclass::prelude::*;
     use gtk::{ScrolledWindow, glib};
-    use quill_engine::document::{Document, Edit};
+    use quill_engine::disk::Filed;
+    use quill_engine::document::Edit;
 
     use crate::chrome::Bars;
     use crate::chrome::typing::Typing;
@@ -53,8 +64,20 @@ mod imp {
 
     #[derive(Default)]
     pub struct Window {
-        /// The one Document this window shows.
-        pub document: RefCell<Document>,
+        /// The one Document this window shows, and the file behind it.
+        pub filed: RefCell<Filed>,
+        /// Whether the buffer holds edits the file does not: what autosave
+        /// has something to do about, and what tells a change on disk from a
+        /// conflict ([`Filed::noticed`]).
+        pub dirty: Cell<bool>,
+        /// When the last edit went through the buffer, on the same monotonic
+        /// clock the typing machine reads.
+        pub edited: Cell<i64>,
+        /// The one autosave timer, armed by the first edit of a burst.
+        pub saving: RefCell<Option<glib::SourceId>>,
+        /// Set once the writer has answered the prompt a close asked, so the
+        /// close that follows the answer goes through instead of asking again.
+        pub answered: Cell<bool>,
         /// The settings and state this window was opened from and will be
         /// remembered in.
         pub session: RefCell<Option<Rc<Session>>>,
@@ -129,8 +152,8 @@ glib::wrapper! {
 }
 
 impl Window {
-    /// A window of `app` showing `document`, in the shape `session` remembers.
-    fn new(app: &gtk::Application, document: Document, session: &Rc<Session>) -> Self {
+    /// A window of `app` showing `filed`, in the shape `session` remembers.
+    fn new(app: &gtk::Application, filed: Filed, session: &Rc<Session>) -> Self {
         let window: Self = glib::Object::builder().property("application", app).build();
         window.imp().session.replace(Some(Rc::clone(session)));
         window.open_at(session.opening());
@@ -179,7 +202,7 @@ impl Window {
         // And Typewriter with them, so that `--typewriter`'s first frame holds
         // the caret's row at the anchor rather than travelling to it.
         window.imp().editor.set_typewriter(session.typewriter());
-        window.set_document(document);
+        window.set_filed(filed);
         // After the Document, whose showing counts it, and before the first
         // frame: `--typing` is the chrome inside the window after a
         // keystroke, and a shot of it is the first frame.
@@ -198,11 +221,9 @@ impl Window {
         window.watch_active();
         // A window is remembered as it closes rather than at shutdown, so that
         // the last window a writer sized is the first one the next launch
-        // reads, whichever of its windows they closed first.
-        window.connect_close_request(|window| {
-            window.remember();
-            glib::Propagation::Proceed
-        });
+        // reads, whichever of its windows they closed first. What its Document
+        // has to say about closing is [`Window::closing`]'s.
+        window.connect_close_request(Self::closing);
         window
     }
 
@@ -268,7 +289,7 @@ impl Window {
     /// `--step` on the command line are held to, because it is the same
     /// question asked three ways.
     pub(crate) fn step_size(&self, direction: Step) {
-        let Some(session) = self.imp().session.borrow().clone() else {
+        let Some(session) = self.session() else {
             return;
         };
         let ladder = quill_engine::settings::type_steps();
@@ -302,7 +323,7 @@ impl Window {
     /// is the one holding what `auto` resolved to — and writes the setting as
     /// the key is pressed.
     pub(crate) fn toggle_scheme(&self) {
-        let Some(session) = self.imp().session.borrow().clone() else {
+        let Some(session) = self.session() else {
             return;
         };
         session.toggle_scheme();
@@ -346,7 +367,7 @@ impl Window {
     /// session remembers the face and writes it on the way out, and every
     /// Editor is re-set at the step this launch is reading at.
     pub(crate) fn set_face(&self, face: quill_engine::settings::Face) {
-        let Some(session) = self.imp().session.borrow().clone() else {
+        let Some(session) = self.session() else {
             return;
         };
         if face == session.face() {
@@ -368,7 +389,7 @@ impl Window {
     /// rows, the Palette's three. The session decides the ground — `auto` is
     /// the desktop's last answer — and writes the setting on the way out.
     pub(crate) fn set_theme(&self, theme: quill_engine::settings::Theme) {
-        let Some(session) = self.imp().session.borrow().clone() else {
+        let Some(session) = self.session() else {
             return;
         };
         session.set_theme(theme);
@@ -396,7 +417,7 @@ impl Window {
     /// they do with the answer is written once.
     fn refocus_windows(&self, move_it: impl Fn(&Session) -> Focus) {
         self.move_windows(move_it, |window, focus| {
-            let document = window.imp().document.borrow();
+            let document = window.document();
             window.imp().editor.set_focus(focus, &document);
             window.imp().bars.set_focus(focus);
         });
@@ -412,7 +433,7 @@ impl Window {
     /// down cleanly still leaves the writer reading the way they chose to
     /// read.
     fn move_windows<T: Copy>(&self, move_it: impl Fn(&Session) -> T, apply: impl Fn(&Window, T)) {
-        let Some(session) = self.imp().session.borrow().clone() else {
+        let Some(session) = self.session() else {
             return;
         };
         let moved = move_it(&session);
@@ -428,14 +449,469 @@ impl Window {
         }
     }
 
-    /// Takes `document` as this window's own and shows it.
-    fn set_document(&self, document: Document) {
-        self.imp().document.replace(document);
-        let document = self.imp().document.borrow();
+    /// The Document this window shows.
+    ///
+    /// A [`Ref`] of the Document inside the [`Filed`], so that every reader of
+    /// the text goes on reading it the way it always did and only the file's
+    /// half of the state is new.
+    pub(crate) fn document(&self) -> Ref<'_, Document> {
+        Ref::map(self.imp().filed.borrow(), Filed::document)
+    }
+
+    /// The file this window's Document is, or `None` while it is untitled.
+    fn path(&self) -> Option<PathBuf> {
+        self.imp().filed.borrow().path().map(Path::to_path_buf)
+    }
+
+    /// Takes `filed` as this window's own and shows it.
+    ///
+    /// Everything a new Document brings with it: the buffer, the two titles,
+    /// the count, a clean slate for autosave, the watch on its file and its
+    /// place at the front of the recents.
+    fn set_filed(&self, filed: Filed) {
+        self.imp().filed.replace(filed);
+        self.imp().dirty.set(false);
+        self.shown();
+        let (Some(path), Some(session)) = (self.path(), self.session()) else {
+            return;
+        };
+        session.watch_document(&path);
+        session.opened_at(&path);
+    }
+
+    /// Puts the Document this window holds on to the page and the bars.
+    ///
+    /// Split from [`Window::set_filed`] because a reload shows the same
+    /// Document again rather than taking a new one.
+    fn shown(&self) {
+        let document = self.document();
         self.set_title(Some(&document.title()));
         self.imp().bars.set_title(&document.title());
         self.imp().bars.set_count(document.text());
         self.imp().editor.show_document(&document);
+    }
+
+    /// The session this window was opened from.
+    fn session(&self) -> Option<Rc<Session>> {
+        self.imp().session.borrow().clone()
+    }
+
+    // ------------------------------------------------- the file on disk
+
+    /// A keystroke went through the buffer: the autosave clock restarts.
+    ///
+    /// On the keystroke path, so it does the least the machine allows — two
+    /// `Cell`s and, once per burst of typing, one timer. The timer is not
+    /// taken down and put back on every key: when it fires it asks how long
+    /// ago the last key was and arms itself for the rest of the second where
+    /// the writer is still typing, which is the shape [`Window::settle`] uses
+    /// for the bars. Nothing here touches the disk.
+    fn edited(&self) {
+        self.imp().dirty.set(true);
+        self.imp().edited.set(Self::now());
+        if self.imp().saving.borrow().is_some() {
+            return;
+        }
+        self.arm_autosave(AUTOSAVE);
+    }
+
+    /// Arms the autosave timer for `left` from now.
+    fn arm_autosave(&self, left: Duration) {
+        let id = glib::timeout_add_local_once(
+            left,
+            glib::clone!(
+                #[weak(rename_to = window)]
+                self,
+                move || {
+                    window.imp().saving.take();
+                    let since = Self::now() - window.imp().edited.get();
+                    let waited = Duration::from_micros(u64::try_from(since).unwrap_or(0));
+                    match AUTOSAVE.checked_sub(waited) {
+                        Some(left) if !left.is_zero() => window.arm_autosave(left),
+                        _ => window.autosave(),
+                    }
+                },
+            ),
+        );
+        self.imp().saving.replace(Some(id));
+    }
+
+    /// Writes the Document out wherever that can be done without asking.
+    ///
+    /// The four places autosave runs from — a second of idle, the window
+    /// losing the keyboard, a Library action, and closing or quitting
+    /// (`docs/architecture.md` § Documents and files) — all arrive here.
+    /// Silent by construction: a Document with no file and nowhere to put it
+    /// is left for the close prompt to ask about, because a timer a second
+    /// after a keystroke is not a question the writer asked.
+    fn autosave(&self) {
+        self.flush();
+    }
+
+    /// Saves what can be saved without asking, and answers whether the file
+    /// now holds what the writer typed.
+    ///
+    /// False for the two Documents nobody but the writer can settle: an
+    /// untitled one with text and no Location to put it in, and one whose file
+    /// changed underneath it.
+    fn flush(&self) -> bool {
+        if !self.imp().filed.borrow().autosaves() {
+            return false;
+        }
+        if !self.imp().dirty.get() {
+            return true;
+        }
+        if self.path().is_some() {
+            return self.write(None);
+        }
+        if self.document().text().is_empty() {
+            // Nothing typed: there is nothing a file would hold.
+            return true;
+        }
+        match self.first_save_folder() {
+            Where::Folder(folder) => self.write(Some(&folder)),
+            Where::Ask => false,
+        }
+    }
+
+    /// Whether this window may put its Document on disk at all.
+    ///
+    /// A launch of the harness's may not: a bench types into `ref/sample.md`,
+    /// and the passage every Piece is judged on has to be the same bytes when
+    /// it has finished. The same rule the settings file is defended by
+    /// ([`Session::is_harness`]), for the same reason.
+    fn writes(&self) -> bool {
+        !self.session().is_some_and(|session| session.is_harness())
+    }
+
+    /// Where this window's first save goes ([`crate::files::first_save_folder`]).
+    fn first_save_folder(&self) -> Where {
+        let Some(session) = self.session() else {
+            return Where::Ask;
+        };
+        files::first_save_folder(session.first_location().as_deref(), session.always_asks())
+    }
+
+    /// Writes the Document — into `folder` under a derived name where it has
+    /// no file yet, over its own file where it has one — and takes in
+    /// everything the write moved.
+    ///
+    /// Answers whether the file holds the Editor's text now. A write that
+    /// cannot happen is one line on stderr, as every other file here is.
+    fn write(&self, folder: Option<&Path>) -> bool {
+        if !self.writes() {
+            return false;
+        }
+        let written = match folder {
+            Some(folder) => self.imp().filed.borrow_mut().save_in(folder),
+            None => self.imp().filed.borrow_mut().save(),
+        };
+        match written {
+            Ok(Saved::Written) => {
+                self.saved();
+                true
+            }
+            Ok(Saved::NeedsAFolder | Saved::Refused) => false,
+            Err(err) => {
+                eprintln!("quill: cannot save: {err}");
+                false
+            }
+        }
+    }
+
+    /// Takes in a write that happened: the file is what the window holds, so
+    /// the titles follow the name a first save derived, the file joins the
+    /// watch and the recents, and autosave has nothing left to do.
+    fn saved(&self) {
+        self.imp().dirty.set(false);
+        let document = self.document();
+        self.set_title(Some(&document.title()));
+        self.imp().bars.set_title(&document.title());
+        drop(document);
+        let (Some(path), Some(session)) = (self.path(), self.session()) else {
+            return;
+        };
+        session.watch_document(&path);
+        session.opened_at(&path);
+    }
+
+    /// `file.save`: what the writer asked for, which may be a dialog.
+    ///
+    /// The one save that is allowed to ask: an untitled Document with nowhere
+    /// to go, or a writer who asked to always be asked, gets the Save As
+    /// dialog rather than nothing happening.
+    pub(crate) fn save(&self) {
+        let state = self.imp().filed.borrow().state();
+        match state {
+            // A file that is gone comes back: `Filed::save` recreates it.
+            OnDisk::Named | OnDisk::DeletedOnDisk => {
+                self.write(None);
+            }
+            OnDisk::Untitled => match self.first_save_folder() {
+                Where::Folder(folder) => {
+                    self.write(Some(&folder));
+                }
+                Where::Ask => self.save_as(After::Stay),
+            },
+            // The writer has to say whether their text or the disk's wins, and
+            // the status line that asks them is the conflicts ticket's (#246).
+            OnDisk::ChangedOnDisk => eprintln!(
+                "quill: {}: changed on disk; reload or keep it first",
+                self.path().unwrap_or_default().display()
+            ),
+        }
+    }
+
+    /// `file.saveAs`: the writer names the file, and the Document is that file
+    /// from then on.
+    ///
+    /// `after` is what to do once it is written, which is how the Save button
+    /// of a close prompt gets its window closed only when the save it asked
+    /// for actually happened.
+    pub(crate) fn save_as(&self, after: After) {
+        let dialog = gtk::FileDialog::new();
+        dialog.set_title("Save As");
+        let document = self.document();
+        dialog.set_initial_name(Some(
+            &document
+                .path()
+                .and_then(|path| path.file_name())
+                .map_or_else(
+                    || first_save_name(document.text()),
+                    |name| name.to_string_lossy().into_owned(),
+                ),
+        ));
+        drop(document);
+        if let Some(folder) = self.save_folder() {
+            dialog.set_initial_folder(Some(&gio::File::for_path(folder)));
+        }
+        dialog.save(
+            Some(self),
+            None::<&gio::Cancellable>,
+            glib::clone!(
+                #[weak(rename_to = window)]
+                self,
+                move |answer| {
+                    let Some(path) = answer.ok().and_then(|file| file.path()) else {
+                        // Cancelled, or a place with no local path: the
+                        // Document stays where it was, and a window that was
+                        // waiting on the save stays open.
+                        return;
+                    };
+                    if window.write_as(&path) && after == After::Close {
+                        window.leave();
+                    }
+                },
+            ),
+        );
+    }
+
+    /// The folder a dialog opens in: the Document's own, else the Library's
+    /// first Location.
+    fn save_folder(&self) -> Option<PathBuf> {
+        match self.path() {
+            Some(path) => path.parent().map(Path::to_path_buf),
+            None => self.session()?.first_location(),
+        }
+    }
+
+    /// Makes `path` this Document's file and writes it there.
+    ///
+    /// `moved_to` then `keep`, which is what Save As is: the Document follows
+    /// the path the writer named, and its text is written over whatever is
+    /// there — including nothing, which is the ordinary case.
+    fn write_as(&self, path: &Path) -> bool {
+        if !self.writes() {
+            return false;
+        }
+        {
+            let mut filed = self.imp().filed.borrow_mut();
+            filed.moved_to(path);
+        }
+        let kept = self.imp().filed.borrow_mut().keep();
+        match kept {
+            Ok(Saved::Written) => {
+                self.saved();
+                true
+            }
+            Ok(Saved::NeedsAFolder | Saved::Refused) => false,
+            Err(err) => {
+                eprintln!("quill: cannot save {}: {err}", path.display());
+                false
+            }
+        }
+    }
+
+    /// `file.open`: the writer picks a file and this window shows it.
+    ///
+    /// The Document it was showing is written out first, because opening
+    /// another Document is a Library action and a Library action flushes
+    /// autosave. Where that Document cannot be settled without asking — an
+    /// untitled one with text, a conflicted one — the file opens in a window
+    /// of its own instead, so nothing the writer typed is stepped on.
+    pub(crate) fn open_file(&self) {
+        let dialog = gtk::FileDialog::new();
+        dialog.set_title("Open File");
+        if let Some(folder) = self.save_folder() {
+            dialog.set_initial_folder(Some(&gio::File::for_path(folder)));
+        }
+        dialog.open(
+            Some(self),
+            None::<&gio::Cancellable>,
+            glib::clone!(
+                #[weak(rename_to = window)]
+                self,
+                move |answer| {
+                    let Some(path) = answer.ok().and_then(|file| file.path()) else {
+                        return;
+                    };
+                    window.open_path(&path);
+                },
+            ),
+        );
+    }
+
+    /// Shows the Document at `path`, here or in a window of its own.
+    fn open_path(&self, path: &Path) {
+        let filed = match Filed::open(path) {
+            Ok(filed) => filed,
+            Err(err) => {
+                eprintln!("quill: cannot open {}: {err}", path.display());
+                return;
+            }
+        };
+        if self.flush() {
+            self.set_filed(filed);
+            return;
+        }
+        let (Some(app), Some(session)) = (self.application(), self.session()) else {
+            return;
+        };
+        present(&app, filed, &session);
+    }
+
+    /// The caret's byte offset into the Document, which is what a reload puts
+    /// back and what a conflict is measured from.
+    fn caret_offset(&self) -> usize {
+        let buffer = self.imp().editor.buffer();
+        let at = buffer.iter_at_mark(&buffer.get_insert());
+        tags::offset_of(&self.document(), &at)
+    }
+
+    /// Something happened to this window's file: the Document answers it.
+    ///
+    /// A clean Document takes the disk's text and keeps the caret in the block
+    /// it was in; a Document with unsaved edits enters
+    /// [`OnDisk::ChangedOnDisk`] and autosave pauses for it
+    /// ([`quill_engine::disk::Filed::autosaves`]). This is the seam the
+    /// conflicts ticket hangs the row's dot, the status line and the diff view
+    /// on (#246): what a conflict looks like is drawn from here, and the state
+    /// it is drawn from is already right.
+    fn noticed(&self) {
+        let caret = self.caret_offset();
+        let dirty = self.imp().dirty.get();
+        let noticed = self.imp().filed.borrow_mut().noticed(dirty, caret);
+        match noticed {
+            Noticed::Unchanged | Noticed::Changed | Noticed::Deleted => {}
+            Noticed::Reloaded(kept) => self.reloaded(kept),
+        }
+    }
+
+    /// Shows a Document the disk replaced, with the caret back in the block it
+    /// was in.
+    fn reloaded(&self, kept: Kept) {
+        self.imp().dirty.set(false);
+        self.shown();
+        let document = self.document();
+        // The block index came from the Document as it was, and the disk's
+        // version may be shorter: a block that is no longer there leaves the
+        // caret at the offset it had, clamped. Counting the blocks walks them,
+        // which a reload can afford and a keystroke could not.
+        let at = kept
+            .block
+            .filter(|block| *block < document.blocks().len())
+            .map_or(kept.caret, |block| document.block(block).at.start);
+        self.imp().editor.place_caret(
+            &document,
+            flags::Caret::At(u64::try_from(at).unwrap_or(u64::MAX)),
+            true,
+        );
+    }
+
+    /// Answers `close-request`: the window goes, or asks the writer first.
+    ///
+    /// [`crate::files::leaving`] decides which. A prompt keeps the window
+    /// (`Stop`) and closes it again once it has an answer, which is the only
+    /// way GTK lets a close be undone.
+    fn closing(&self) -> glib::Propagation {
+        // A launch of the harness's is never asked anything: there is no
+        // writer at the keyboard to answer, and a dialog over a judged shot is
+        // not the state the Gate asked for.
+        if self.imp().answered.get() || !self.writes() {
+            return self.go();
+        }
+        let state = self.imp().filed.borrow().state();
+        let has_text = !self.document().text().is_empty();
+        match files::leaving(state, has_text) {
+            Leaving::Go => self.go(),
+            Leaving::Flush => {
+                self.flush();
+                self.go()
+            }
+            Leaving::Ask => {
+                self.ask_before_leaving();
+                glib::Propagation::Stop
+            }
+        }
+    }
+
+    /// The window is going: its shape is taken down and the close proceeds.
+    fn go(&self) -> glib::Propagation {
+        if let Some(armed) = self.imp().saving.take() {
+            armed.remove();
+        }
+        self.remember();
+        glib::Propagation::Proceed
+    }
+
+    /// Closes the window without asking again, whatever the Document is in.
+    fn leave(&self) {
+        self.imp().answered.set(true);
+        self.close();
+    }
+
+    /// Asks the writer what to do with a Document that cannot be closed
+    /// silently: Save, Discard, Cancel, with Cancel keeping the window.
+    fn ask_before_leaving(&self) {
+        let dialog = gtk::AlertDialog::builder()
+            .modal(true)
+            .message(format!(
+                "Save changes to {} before closing?",
+                self.document().title()
+            ))
+            .detail("Your changes will be lost if you don't save them.")
+            .buttons(["Save", "Discard", "Cancel"])
+            .default_button(0)
+            .cancel_button(2)
+            .build();
+        dialog.choose(
+            Some(self),
+            None::<&gio::Cancellable>,
+            glib::clone!(
+                #[weak(rename_to = window)]
+                self,
+                move |answer| match answer {
+                    Ok(0) if window.flush() => window.leave(),
+                    // Nowhere to flush to: the writer names the file, and the
+                    // window closes when they have.
+                    Ok(0) => window.save_as(After::Close),
+                    Ok(1) => window.leave(),
+                    // Cancel, `Esc`, or a dialog that could not be shown: the
+                    // window stays, which is the answer that loses nothing.
+                    _ => {}
+                },
+            ),
+        );
     }
 
     /// Hides the two bars, or shows them again.
@@ -456,12 +932,16 @@ impl Window {
         glib::monotonic_time()
     }
 
-    /// A real keystroke went through the buffer: the chrome steps back.
+    /// A real keystroke went through the buffer: the chrome steps back and
+    /// the autosave clock restarts.
     ///
     /// On the keystroke path, so it does as little as the machine allows —
     /// two CSS classes that are already on stay on, and one timer is
-    /// re-armed. The count is not taken here; the timer asks for it.
+    /// re-armed. The count is not taken here; the timer asks for it. Autosave
+    /// is [`Window::edited`]'s two `Cell`s and nothing else: no file is
+    /// touched between keystrokes.
     fn typed(&self) {
+        self.edited();
         let mut typing = self.imp().typing.get();
         typing.keystroke(Self::now());
         self.imp().typing.set(typing);
@@ -521,7 +1001,7 @@ impl Window {
 
     /// Counts the Document into the stats bar, on idle.
     fn recount(&self) {
-        let document = self.imp().document.borrow();
+        let document = self.document();
         self.imp().bars.set_count(document.text());
     }
 
@@ -569,7 +1049,7 @@ impl Window {
     /// Opens the Settings window over this one: `settings.open`, `Ctrl+,` and
     /// View › Window "Settings…".
     pub(crate) fn open_settings(&self) {
-        let Some(session) = self.imp().session.borrow().clone() else {
+        let Some(session) = self.session() else {
             return;
         };
         crate::settings::open(self.upcast_ref(), &session);
@@ -582,7 +1062,7 @@ impl Window {
     /// running on, so a `[shortcuts]` edit saved a moment ago is in the window
     /// that opens next.
     pub(crate) fn open_shortcuts(&self) {
-        let Some(session) = self.imp().session.borrow().clone() else {
+        let Some(session) = self.session() else {
             return;
         };
         let shortcuts = session.settings().shortcuts();
@@ -646,10 +1126,18 @@ impl Window {
     /// never given the keyboard never notifies: the `unfocused` judged state
     /// is shot with another surface focused, and its caret has to be a ghost
     /// from the first frame rather than after a change that never comes.
+    /// Losing it is also one of the four moments autosave runs at, which is
+    /// why the write is here and not beside the Editor's own handlers.
     fn watch_active(&self) {
         self.imp().editor.set_active(self.is_active());
         self.connect_is_active_notify(|window| {
             window.imp().editor.set_active(window.is_active());
+            // Focus loss is one of the four moments autosave runs at
+            // (`docs/architecture.md` § Documents and files): a writer who
+            // turned to another window has stopped typing into this one.
+            if !window.is_active() {
+                window.autosave();
+            }
         });
     }
 
@@ -679,8 +1167,9 @@ impl Window {
             if window.imp().editor.loading() {
                 return;
             }
-            let mut document = window.imp().document.borrow_mut();
-            let offset = tags::offset_of(&document, at);
+            let mut filed = window.imp().filed.borrow_mut();
+            let document = filed.document_mut();
+            let offset = tags::offset_of(document, at);
             let edit = document.insert(offset, text);
             window.imp().pending.replace(Some(edit));
         });
@@ -693,8 +1182,9 @@ impl Window {
             if window.imp().editor.loading() {
                 return;
             }
-            let mut document = window.imp().document.borrow_mut();
-            let at = tags::offset_of(&document, from)..tags::offset_of(&document, to);
+            let mut filed = window.imp().filed.borrow_mut();
+            let document = filed.document_mut();
+            let at = tags::offset_of(document, from)..tags::offset_of(document, to);
             let edit = document.delete(at);
             window.imp().pending.replace(Some(edit));
         });
@@ -712,7 +1202,7 @@ impl Window {
             let Some(edit) = window.imp().pending.take() else {
                 return;
             };
-            let document = window.imp().document.borrow();
+            let document = window.document();
             window.imp().editor.retag(&document, &edit);
             drop(document);
             // A keystroke, and only a keystroke: a load is skipped above and
@@ -742,12 +1232,21 @@ impl Window {
             // `changed` fires before this for an edit, and its retag has
             // already moved the dim: taking the Document here would be a
             // second borrow of one the splice may still hold.
-            let Ok(document) = window.imp().document.try_borrow() else {
+            let Ok(filed) = window.imp().filed.try_borrow() else {
                 return;
             };
-            window.imp().editor.refocus(&document);
+            window.imp().editor.refocus(filed.document());
         });
     }
+}
+
+/// What a Save As dialog leaves behind once the file is written.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum After {
+    /// The window stays: `file.saveAs` on its own.
+    Stay,
+    /// The window closes: the Save button of the prompt a close asked.
+    Close,
 }
 
 /// Which way Bigger Text, Smaller Text and Default Text Size move.
@@ -804,7 +1303,7 @@ fn reset(app: &gtk::Application, session: &Session, each: impl Fn(&Window, Groun
 /// second answer to the same question.
 pub fn repaint(app: &gtk::Application, session: &Session) {
     reset(app, session, |window, ground| {
-        let document = window.imp().document.borrow();
+        let document = window.document();
         window.imp().editor.set_ground(ground, &document);
         window.imp().bars.set_ground(ground);
     });
@@ -829,7 +1328,7 @@ pub fn reapply(app: &gtk::Application, session: &Session) {
     let step = session.step();
     let bars = session.chrome() == Chrome::Shown;
     reset(app, session, move |window, ground| {
-        let document = window.imp().document.borrow();
+        let document = window.document();
         window.imp().editor.set_type(face, step);
         window.imp().editor.set_ground(ground, &document);
         window.imp().editor.set_focus(focus, &document);
@@ -855,12 +1354,12 @@ pub fn present_launch(app: &gtk::Application, session: &Rc<Session>) {
     let documents = session.flags().documents();
     let mut first = None;
     if documents.is_empty() {
-        first = Some(present(app, Document::untitled(), session));
+        first = Some(present(app, Filed::untitled(), session));
     }
     for path in documents {
-        match Document::open(path) {
-            Ok(document) => {
-                let window = present(app, document, session);
+        match Filed::open(path) {
+            Ok(filed) => {
+                let window = present(app, filed, session);
                 if first.is_none() {
                     first = Some(window);
                 }
@@ -875,20 +1374,16 @@ pub fn present_launch(app: &gtk::Application, session: &Rc<Session>) {
     if let Some(window) = &first {
         let scroll = session.flags().scroll;
         if let Some(caret) = session.flags().caret {
-            window.imp().editor.place_caret(
-                &window.imp().document.borrow(),
-                caret,
-                scroll.is_none(),
-            );
+            window
+                .imp()
+                .editor
+                .place_caret(&window.document(), caret, scroll.is_none());
         }
         // After `--caret`, because placing the cursor collapses a selection to
         // it: a state naming both means the selection, with the caret at the
         // end `--select` leaves the insert mark on.
         if let Some((from, to)) = session.flags().select {
-            window
-                .imp()
-                .editor
-                .select(&window.imp().document.borrow(), from, to);
+            window.imp().editor.select(&window.document(), from, to);
         }
         if let Some(scroll) = scroll {
             window.imp().editor.scroll_to(scroll);
@@ -908,11 +1403,16 @@ pub fn present_launch(app: &gtk::Application, session: &Rc<Session>) {
     }
 }
 
-/// Opens one window on `document`, and hands it back.
-fn present(app: &gtk::Application, document: Document, session: &Rc<Session>) -> Window {
-    let window = Window::new(app, document, session);
+/// Opens one window on `filed`, and hands it back.
+fn present(app: &gtk::Application, filed: Filed, session: &Rc<Session>) -> Window {
+    let window = Window::new(app, filed, session);
     window.present();
     window
+}
+
+/// `window.new`: an empty window, with an untitled Document in it.
+pub fn open_new(app: &gtk::Application, session: &Rc<Session>) {
+    present(app, Filed::untitled(), session);
 }
 
 /// Opens one window per file of an open request.
@@ -928,12 +1428,51 @@ pub fn present_files(app: &gtk::Application, files: &[gio::File], session: &Rc<S
             eprintln!("quill: not a local file: {}", file.uri());
             continue;
         };
-        match Document::open(&path) {
-            Ok(document) => {
-                present(app, document, session);
+        match Filed::open(&path) {
+            Ok(filed) => {
+                present(app, filed, session);
             }
             Err(err) => eprintln!("quill: cannot open {}: {err}", path.display()),
         }
+    }
+}
+
+/// Tells the window showing `path` that something happened to its file.
+///
+/// Every window is asked, because two of them can show the same Document, and
+/// a window showing something else is one comparison and no work.
+pub fn noticed(app: &gtk::Application, path: &Path) {
+    for window in app.windows() {
+        let Ok(window) = window.downcast::<Window>() else {
+            continue;
+        };
+        if window.path().as_deref() == Some(path) {
+            window.noticed();
+        }
+    }
+}
+
+/// Writes out every window's Document that can be written without asking.
+///
+/// The last of autosave's four moments: a Quill going down — `Ctrl+Q` having
+/// closed its windows, or the desktop ending the session — leaves the file
+/// holding the last keystroke.
+pub fn flush_open(app: &gtk::Application) {
+    for window in app.windows() {
+        if let Ok(window) = window.downcast::<Window>() {
+            window.flush();
+        }
+    }
+}
+
+/// Quit: every window closes as if the writer had closed it.
+///
+/// So a Document with something to ask asks it, and Cancel keeps that window —
+/// and with it Quill, which ends when its last window does. `app.quit()` would
+/// destroy the windows without asking any of them.
+pub fn quit(app: &gtk::Application) {
+    for window in app.windows() {
+        window.close();
     }
 }
 
