@@ -24,7 +24,7 @@ use std::time::Duration;
 
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
-use gtk::{gio, glib};
+use gtk::{gdk, gio, glib};
 use quill_engine::commands;
 use quill_engine::disk::{Filed, Kept, Line, Noticed, OnDisk, Saved, first_save_name};
 use quill_engine::document::Document;
@@ -54,8 +54,27 @@ const AUTOSAVE: Duration = Duration::from_secs(1);
 /// seconds of being true. It is the only line in the app that ages on its own.
 const STATUS_TICK: u32 = 30;
 
+/// How wide the rename dialog is, and how much air stands around the one field
+/// in it ([`Window::rename_dialog`]).
+///
+/// Wide enough for a file name and no wider: it is a rename, not a form, and
+/// it opens only where the pane that would have held the field is shut.
+const DIALOG_WIDTH: i32 = 320;
+/// The dialog's inset, and the air around the field in it.
+const DIALOG_PAD: i32 = 12;
+
+/// What the file at `path` is called, for the words the rename dialog and the
+/// status line put it in.
+fn basename(path: &Path) -> String {
+    path.file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .into_owned()
+}
+
 mod imp {
     use std::cell::{Cell, OnceCell, RefCell};
+    use std::path::PathBuf;
     use std::rc::Rc;
 
     use gtk::prelude::*;
@@ -95,6 +114,12 @@ mod imp {
         /// Set once the writer has answered the prompt a close asked, so the
         /// close that follows the answer goes through instead of asking again.
         pub answered: Cell<bool>,
+        /// The folder this window's untitled Document was started in — the
+        /// sidebar's selected row when `file.new` ran — which its first save
+        /// goes into ([`crate::files::first_save_folder`]). Taken then rather
+        /// than at the save, because by then the writer may have clicked
+        /// somewhere else; cleared by every Document that follows.
+        pub new_in: RefCell<Option<PathBuf>>,
         /// The settings and state this window was opened from and will be
         /// remembered in.
         pub session: RefCell<Option<Rc<Session>>>,
@@ -508,6 +533,8 @@ impl Window {
     fn set_filed(&self, filed: Filed) {
         self.imp().filed.replace(filed);
         self.imp().dirty.set(false);
+        // Where the last `file.new` was going is nothing to this Document.
+        self.imp().new_in.replace(None);
         // A Document this window has not written yet, whatever it wrote of the
         // one before it.
         self.imp().wrote.set(None);
@@ -633,7 +660,11 @@ impl Window {
         let Some(session) = self.session() else {
             return Where::Ask;
         };
-        files::first_save_folder(session.first_location().as_deref(), session.always_asks())
+        files::first_save_folder(
+            self.imp().new_in.borrow().as_deref(),
+            session.first_location().as_deref(),
+            session.always_asks(),
+        )
     }
 
     /// Writes the Document — into `folder` under a derived name where it has
@@ -858,6 +889,244 @@ impl Window {
             return;
         };
         present(&app, filed, &session);
+    }
+
+    // ------------------------------------------------- the Library's rows
+
+    /// `file.new`: an empty Document in this window, to be written into the
+    /// folder the Library's selected row stands in.
+    ///
+    /// Where the Document this window holds cannot be settled without asking —
+    /// an untitled one with text, a conflicted one — the new Document opens in
+    /// a window of its own, as [`Window::open_path`] does, so nothing the
+    /// writer typed is stepped on.
+    pub(crate) fn new_document(&self) {
+        let folder = self.imp().sidebar.selected_folder();
+        if self.flush() {
+            self.set_filed(Filed::untitled());
+            self.imp().new_in.replace(folder);
+            return;
+        }
+        let (Some(app), Some(session)) = (self.application(), self.session()) else {
+            return;
+        };
+        open_new(&app, &session);
+    }
+
+    /// The file a row operation acts on: the Library's selected row where the
+    /// pane has one, and the Document this window holds otherwise.
+    ///
+    /// The context menu selects the row under the pointer before it opens, so
+    /// this is also the row that was right-clicked.
+    fn target(&self) -> Option<PathBuf> {
+        self.imp().sidebar.selected_file().or_else(|| self.path())
+    }
+
+    /// `file.rename` and `F2`: the row's name becomes a field to type in, or —
+    /// where the pane is shut, or has no file row selected — a small dialog
+    /// does.
+    pub(crate) fn rename_document(&self) {
+        if self.imp().sidebar.is_shown() && self.imp().sidebar.start_rename() {
+            return;
+        }
+        if let Some(path) = self.target() {
+            self.rename_dialog(&path);
+        }
+    }
+
+    /// Renames the file at `path` to `typed` and follows it: the disk first
+    /// ([`quill_engine::library::Library::rename`]), then this window where
+    /// what moved is the Document it holds, then every window's pane.
+    pub(crate) fn rename_path(&self, path: &Path, typed: &str) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        let to = match session.rename_file(path, typed) {
+            Ok(to) => to,
+            Err(err) => {
+                eprintln!("quill: cannot rename {}: {err}", path.display());
+                return;
+            }
+        };
+        if to != path && self.path().as_deref() == Some(path) {
+            self.imp().filed.borrow_mut().moved_to(&to);
+            self.shown();
+            self.imp().sidebar.set_open(Some(&to));
+            session.watch_document(&to);
+        }
+        self.redraw_library();
+    }
+
+    /// The rename dialog: one field, for the writer who pressed `F2` with the
+    /// Library shut.
+    ///
+    /// Enter renames and Esc leaves it alone, which is what the field in the
+    /// row does; there are no buttons, because there is one thing to say.
+    fn rename_dialog(&self, path: &Path) {
+        let name = basename(path);
+        let dialog = gtk::Window::builder()
+            .title("Rename Document")
+            .transient_for(self)
+            .modal(true)
+            .resizable(false)
+            .default_width(DIALOG_WIDTH)
+            .build();
+        let column = gtk::Box::new(gtk::Orientation::Vertical, DIALOG_PAD);
+        column.set_margin_top(DIALOG_PAD);
+        column.set_margin_bottom(DIALOG_PAD);
+        column.set_margin_start(DIALOG_PAD);
+        column.set_margin_end(DIALOG_PAD);
+        let entry = gtk::Entry::new();
+        entry.set_text(&name);
+        entry.select_region(0, files::stem_chars(&name));
+        column.append(&entry);
+        dialog.set_child(Some(&column));
+
+        let asked = path.to_path_buf();
+        entry.connect_activate(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            #[weak]
+            dialog,
+            move |entry| {
+                let typed = entry.text().trim().to_string();
+                dialog.close();
+                if !typed.is_empty() {
+                    window.rename_path(&asked, &typed);
+                }
+            }
+        ));
+        let keys = gtk::EventControllerKey::new();
+        keys.connect_key_pressed(glib::clone!(
+            #[weak]
+            dialog,
+            #[upgrade_or]
+            glib::Propagation::Proceed,
+            move |_, key, _, _| {
+                if key == gdk::Key::Escape {
+                    dialog.close();
+                    return glib::Propagation::Stop;
+                }
+                glib::Propagation::Proceed
+            }
+        ));
+        dialog.add_controller(keys);
+        dialog.present();
+    }
+
+    /// `file.duplicate`: the file beside itself as `X copy`
+    /// ([`quill_engine::library::Library::duplicate`]).
+    pub(crate) fn duplicate_document(&self) {
+        let (Some(session), Some(path)) = (self.session(), self.target()) else {
+            return;
+        };
+        if let Err(err) = session.duplicate_file(&path) {
+            eprintln!("quill: cannot duplicate {}: {err}", path.display());
+            return;
+        }
+        self.redraw_library();
+    }
+
+    /// `file.delete`, which the registry calls Move to Trash.
+    pub(crate) fn trash_document(&self) {
+        if let Some(path) = self.target() {
+            self.trash_path(&path);
+        }
+    }
+
+    /// Puts the file at `path` in the system trash and says so at the foot of
+    /// the Library.
+    ///
+    /// No prompt: the desktop's trash is the undo that the oracle's twelve
+    /// second banner was (`legacy/app/js/files.js` `del`). GIO's trash rather
+    /// than a delete, because a writer looking for it will look there — and
+    /// GIO is the app's, not the engine's (ADR 0008), so the engine is told
+    /// once the file has gone ([`quill_engine::library::Library::trashed`]).
+    pub(crate) fn trash_path(&self, path: &Path) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        if let Err(err) = gio::File::for_path(path).trash(None::<&gio::Cancellable>) {
+            eprintln!("quill: cannot move {} to the trash: {err}", path.display());
+            return;
+        }
+        session.trashed_file(path);
+        self.redraw_library();
+        // After the redraw, because what the pane has just been told about the
+        // file is the last thing it should say about it.
+        self.imp()
+            .sidebar
+            .set_status(&files::moved_to_trash(&basename(path)));
+    }
+
+    /// Pins the row at `path`, or unpins it: the Library's Pinned list, and
+    /// `[library].pinned` in the settings file behind it.
+    pub(crate) fn set_pinned(&self, path: &Path, pinned: bool) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        let moved = if pinned {
+            session.pin(path)
+        } else {
+            session.unpin(path)
+        };
+        if moved {
+            self.redraw_library();
+        }
+    }
+
+    /// Drops `root` from the Library, which touches nothing on disk
+    /// ([`Session::remove_location`]).
+    pub(crate) fn drop_location(&self, root: &Path) {
+        if let Some(session) = self.session() {
+            session.remove_location(root);
+        }
+        self.redraw_library();
+    }
+
+    /// `file.openFolder`, which the registry calls Add Location…: the writer
+    /// picks a folder and the Library shows it from then on.
+    pub(crate) fn add_location(&self) {
+        let dialog = gtk::FileDialog::new();
+        dialog.set_title("Add Location");
+        if let Some(folder) = self.save_folder() {
+            dialog.set_initial_folder(Some(&gio::File::for_path(folder)));
+        }
+        dialog.select_folder(
+            Some(self),
+            None::<&gio::Cancellable>,
+            glib::clone!(
+                #[weak(rename_to = window)]
+                self,
+                move |answer| {
+                    let Some(root) = answer.ok().and_then(|file| file.path()) else {
+                        return;
+                    };
+                    if let Some(session) = window.session() {
+                        session.add_location(&root);
+                    }
+                    window.redraw_library();
+                }
+            ),
+        );
+    }
+
+    /// `file.next` and `file.prev`: the Document `step` lands on, walking the
+    /// list the Library is showing in the order it is showing it
+    /// ([`crate::files::stepped`]).
+    pub(crate) fn step_document(&self, step: files::Step) {
+        let listed = self.imp().sidebar.listed_files();
+        if let Some(path) = files::stepped(&listed, self.path().as_deref(), step) {
+            self.open_path(&path);
+        }
+    }
+
+    /// Draws the Library again in every window, which is what a row operation
+    /// leaves behind ([`relist`]).
+    fn redraw_library(&self) {
+        if let Some(app) = self.application() {
+            relist(&app);
+        }
     }
 
     /// The caret's byte offset into the Document, which is what a reload puts
