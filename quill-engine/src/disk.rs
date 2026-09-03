@@ -225,7 +225,7 @@ impl Filed {
         match self.state {
             OnDisk::Untitled => Ok(Saved::NeedsAFolder),
             OnDisk::ChangedOnDisk => Ok(Saved::Refused),
-            OnDisk::Named | OnDisk::DeletedOnDisk => self.write_over_the_file(),
+            OnDisk::Named | OnDisk::DeletedOnDisk => self.write_over_the_file(Over::OurVersion),
         }
     }
 
@@ -262,7 +262,7 @@ impl Filed {
         if self.state == OnDisk::Untitled {
             return Ok(Saved::NeedsAFolder);
         }
-        self.write_over_the_file()
+        self.write_over_the_file(Over::Anything)
     }
 
     /// Replaces the Document's text with the file's: the Reload half of a
@@ -343,6 +343,44 @@ impl Filed {
         };
     }
 
+    /// Follows a rename made outside Quill, given every path one drain of the
+    /// watch answered for; answers whether the Document followed.
+    ///
+    /// A rename arrives as two paths in the one drain — the path the file left
+    /// and the path it took ([`crate::watch::Watch::add_tree`]) — so the pair
+    /// is looked for there and nowhere else. This Document's file has to be
+    /// gone, and one other path of the batch has to be a file that is there
+    /// and is this one: the same file name, which is a Document moved into
+    /// another folder, or the length and write time this Document last wrote
+    /// or read, which is one renamed where it stood.
+    ///
+    /// Asked before [`Filed::noticed`], which sees only the path that is gone
+    /// and would call it deleted (#246, story 29). The bound is one `stat` per
+    /// path of the batch.
+    pub fn followed(&mut self, batch: &[PathBuf]) -> bool {
+        let Some(path) = self.document.path().map(Path::to_path_buf) else {
+            return false;
+        };
+        if watch::version(&path).is_some() {
+            return false;
+        }
+        let was = self.saved;
+        let took = batch.iter().find(|arrived| {
+            if **arrived == path || !library::listed(arrived) {
+                return false;
+            }
+            match watch::version(arrived) {
+                None => false,
+                now => arrived.file_name() == path.file_name() || now == was,
+            }
+        });
+        let Some(took) = took.cloned() else {
+            return false;
+        };
+        self.moved_to(&took);
+        true
+    }
+
     /// The file's text as it is now, which a conflict shows against the
     /// Editor's.
     ///
@@ -372,14 +410,42 @@ impl Filed {
     }
 
     /// Writes the text over the file and records what the file then is.
-    fn write_over_the_file(&mut self) -> io::Result<Saved> {
+    ///
+    /// `over` says what the write may stand on. Under [`Over::OurVersion`] the
+    /// file is re-stated first: a file that moved since Quill last wrote or
+    /// read it is a conflict, and the write is refused rather than clobbering
+    /// it — the watch's own event for that change arrives a moment later and
+    /// finds the Document already in [`OnDisk::ChangedOnDisk`].
+    fn write_over_the_file(&mut self, over: Over) -> io::Result<Saved> {
         let Some(path) = self.document.path().map(Path::to_path_buf) else {
             return Ok(Saved::NeedsAFolder);
         };
+        if over == Over::OurVersion
+            && self.state == OnDisk::Named
+            && watch::version(&path) != self.saved
+        {
+            self.state = OnDisk::ChangedOnDisk;
+            return Ok(Saved::Refused);
+        }
         self.saved = Some(wrote(&path, self.document.text())?);
         self.state = OnDisk::Named;
         Ok(Saved::Written)
     }
+}
+
+/// What a write is allowed to stand on.
+///
+/// A sentinel rather than a `bool`, because the two writes are different acts:
+/// one is autosave, which may never lose someone else's change, and the other
+/// is the writer having looked at that change and chosen theirs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Over {
+    /// Only the version this Document last wrote or read. Anything else is a
+    /// conflict and the write is refused.
+    OurVersion,
+    /// Whatever the file holds now: the Keep half of a conflict, and what
+    /// recreates a file that is gone.
+    Anything,
 }
 
 /// Writes `text` over `path` and reads back the version it now is.
@@ -484,23 +550,31 @@ fn derived_title(text: &str) -> String {
     let Some(line) = text.lines().find(|line| !line.trim().is_empty()) else {
         return String::new();
     };
-    let line = strip_marker(strip_hashes(line.trim_start()));
+    let line = strip_marker(unheaded(line));
     let bare: String = line.chars().filter(|c| !"*_`~[]".contains(*c)).collect();
     let collapsed = bare.split_whitespace().collect::<Vec<_>>().join(" ");
     collapsed.chars().take(TITLE_CHARS).collect::<String>()
 }
 
 /// `line` without a leading ATX heading marker: one to six hashes and the
-/// whitespace after them, which is what makes them a heading.
-fn strip_hashes(line: &str) -> &str {
-    let hashes = line.chars().take_while(|c| *c == '#').count();
+/// whitespace after them, which is what makes them a heading. The leading
+/// whitespace goes either way, so that a heading and a plain line answer the
+/// same shape.
+///
+/// The one reading of a heading marker in the engine: a derived name
+/// ([`derived_title`]) and a search's excerpt
+/// ([`crate::library::Library::search`]) both drop it, and they drop the same
+/// thing.
+pub(crate) fn unheaded(line: &str) -> &str {
+    let rest = line.trim_start();
+    let hashes = rest.chars().take_while(|letter| *letter == '#').count();
     if (1..=6).contains(&hashes) {
-        let rest = &line[hashes..];
-        if rest.starts_with(char::is_whitespace) {
-            return rest.trim_start();
+        let after = &rest[hashes..];
+        if after.starts_with(char::is_whitespace) {
+            return after.trim_start();
         }
     }
-    line
+    rest
 }
 
 /// `line` without a leading list or block quote marker and the whitespace
@@ -813,6 +887,66 @@ mod tests {
         assert_eq!(filed.document().text(), "theirs\n");
         assert_eq!(filed.state(), OnDisk::Named);
         assert!(filed.autosaves());
+    }
+
+    #[test]
+    fn a_save_on_to_a_file_that_moved_since_is_refused_and_is_a_conflict() {
+        let folder = scratch("restat");
+        let path = folder.join("one.md");
+        fs::write(&path, "one\n").expect("writes the file");
+        let mut filed = Filed::open(&path).expect("opens it");
+        filed.document_mut().reload("ours\n".to_string());
+
+        // The write from outside, and no watch event yet: the save is the
+        // first thing that looks at the file, and it looks before it writes.
+        fs::write(&path, "theirs and longer\n").expect("writes from outside");
+        assert_eq!(filed.save().expect("answers"), Saved::Refused);
+        assert_eq!(
+            fs::read_to_string(&path).expect("reads it back"),
+            "theirs and longer\n",
+            "the file is as the other writer left it"
+        );
+        assert_eq!(filed.state(), OnDisk::ChangedOnDisk);
+        assert!(!filed.autosaves());
+
+        // And the event, when it arrives, finds the conflict already standing.
+        assert_eq!(filed.noticed(true, 0), Noticed::Changed);
+        assert_eq!(filed.keep().expect("keeps ours"), Saved::Written);
+        assert_eq!(fs::read_to_string(&path).expect("reads it back"), "ours\n");
+    }
+
+    #[test]
+    fn an_outside_rename_in_one_drain_is_followed_rather_than_read_as_a_delete() {
+        let folder = scratch("followed");
+        let from = folder.join("one.md");
+        let to = folder.join("two.md");
+        fs::write(&from, "one\n").expect("writes the file");
+        let mut filed = Filed::open(&from).expect("opens it");
+
+        fs::rename(&from, &to).expect("renames it from outside");
+        // What one drain of the watch answers for: the path the file left and
+        // the path it took.
+        assert!(filed.followed(&[from.clone(), to.clone()]), "it followed");
+        assert_eq!(filed.path(), Some(to.as_path()));
+        assert_eq!(filed.state(), OnDisk::Named);
+        assert_eq!(filed.noticed(false, 0), Noticed::Unchanged);
+
+        // A drain that holds no file this one could be is the delete it was.
+        let gone = folder.join("three.md");
+        fs::rename(&to, &gone).expect("moves it away again");
+        fs::write(
+            folder.join("elsewhere.md"),
+            "a longer line of another file\n",
+        )
+        .expect("writes another file");
+        assert!(
+            !filed.followed(&[to.clone(), folder.join("elsewhere.md")]),
+            "nothing in the drain is this file"
+        );
+        assert_eq!(filed.path(), Some(to.as_path()));
+        assert_eq!(filed.noticed(false, 0), Noticed::Deleted);
+        assert_eq!(filed.state(), OnDisk::DeletedOnDisk);
+        fs::remove_dir_all(&folder).ok();
     }
 
     #[test]

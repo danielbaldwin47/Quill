@@ -307,8 +307,13 @@ const fn digit(digit: u8) -> u8 {
     }
 }
 
-/// A channel as the 0–255 CSS writes.
-fn channel(value: f64) -> u8 {
+/// A colour channel as the 0–255 CSS writes.
+///
+/// The one place a channel in 0.0–1.0 becomes a whole number
+/// (`CODING_STANDARDS.md` § Shape): a stylesheet writes the byte, and a caller
+/// wanting more bits than a byte widens this rather than rounding again.
+#[must_use]
+pub fn channel(value: f64) -> u8 {
     (value.clamp(0.0, 1.0) * 255.0).round() as u8
 }
 
