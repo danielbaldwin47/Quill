@@ -1,0 +1,50 @@
+# Manuscript (Mono): the Editor's own typography with the Markup removed.
+#
+# One face throughout, at the Editor's default size, headings bold at body
+# size. The numbers are the Editor's, converted once: 16 pt is the 21.33 px em
+# of step 5 at 96 dpi (`typography::LADDER`), 1.711 is that step's leading
+# (a 36.5 px pitch over the em), and 38.4 em is the 64-cell measure on the
+# 0.6 em cell the Quill Faces are cut on.
+
+id = "manuscript-mono"
+name = "Manuscript (Mono)"
+paragraphs = "spaced"
+
+[faces]
+body = { family = "Quill Mono", italic = "Quill Mono Italic" }
+heading = { family = "Quill Mono", italic = "Quill Mono Italic" }
+code = { family = "Quill Mono", italic = "Quill Mono Italic" }
+
+[sizes]
+base = 16.0
+headings = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+code = 1.0
+
+[rhythm]
+line_height = 1.711
+measure = 38.4
+paragraph_spacing = 1.0
+space_before_heading = 1.0
+space_after_heading = 1.0
+
+[headings]
+alignment = "left"
+weight = 700
+
+# The Editor's own grounds: a Manuscript is the page the writer is typing on,
+# so it keeps the paper it was typed on rather than the darker one State 16
+# measured under Modern.
+
+[light]
+paper = "#f7f7f7"
+ink = "#191919"
+muted = "#8c8c8c"
+link = "#1a5fb4"
+code_ground = "#eeeeee"
+
+[dark]
+paper = "#1a1a1a"
+ink = "#cccccc"
+muted = "#7e7e7e"
+link = "#78aeed"
+code_ground = "#252525"
