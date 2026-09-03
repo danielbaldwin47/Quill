@@ -257,14 +257,14 @@ pub const COMMANDS: &[Command] = &[
     row("font.mono", "Mono", Scope::Win, Kind::Radio { group: "face", value: "mono", }, &[], &[place(VIEW, Some("Typeface"), "Mono")], true),
     // View › Template. The five Templates are one radio group whose value is
     // the `[template]` table's `name`; the three toggles are its other keys.
-    row("template.modern", "Modern", Scope::Win, Kind::Radio { group: "template", value: "modern", }, &[], &[place(VIEW, Some("Template"), "Modern")], false),
-    row("template.classic", "Classic", Scope::Win, Kind::Radio { group: "template", value: "classic", }, &[], &[place(VIEW, Some("Template"), "Classic")], false),
-    row("template.manuscriptMono", "Manuscript Mono", Scope::Win, Kind::Radio { group: "template", value: "manuscript-mono", }, &[], &[place(VIEW, Some("Template"), "Manuscript Mono")], false),
-    row("template.manuscriptDuo", "Manuscript Duo", Scope::Win, Kind::Radio { group: "template", value: "manuscript-duo", }, &[], &[place(VIEW, Some("Template"), "Manuscript Duo")], false),
-    row("template.manuscriptQuattro", "Manuscript Quattro", Scope::Win, Kind::Radio { group: "template", value: "manuscript-quattro", }, &[], &[place(VIEW, Some("Template"), "Manuscript Quattro")], false),
-    row("template.centerHeadings", "Center Headings", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Template"), "Center Headings")], false),
-    row("template.numberHeadings", "Number Headings", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Template"), "Number Headings")], false),
-    row("template.indentParagraphs", "Indent Paragraphs", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Template"), "Indent Paragraphs")], false),
+    row("template.modern", "Modern", Scope::Win, Kind::Radio { group: "template", value: "modern", }, &[], &[place(VIEW, Some("Template"), "Modern")], true),
+    row("template.classic", "Classic", Scope::Win, Kind::Radio { group: "template", value: "classic", }, &[], &[place(VIEW, Some("Template"), "Classic")], true),
+    row("template.manuscriptMono", "Manuscript Mono", Scope::Win, Kind::Radio { group: "template", value: "manuscript-mono", }, &[], &[place(VIEW, Some("Template"), "Manuscript Mono")], true),
+    row("template.manuscriptDuo", "Manuscript Duo", Scope::Win, Kind::Radio { group: "template", value: "manuscript-duo", }, &[], &[place(VIEW, Some("Template"), "Manuscript Duo")], true),
+    row("template.manuscriptQuattro", "Manuscript Quattro", Scope::Win, Kind::Radio { group: "template", value: "manuscript-quattro", }, &[], &[place(VIEW, Some("Template"), "Manuscript Quattro")], true),
+    row("template.centerHeadings", "Center Headings", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Template"), "Center Headings")], true),
+    row("template.numberHeadings", "Number Headings", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Template"), "Number Headings")], true),
+    row("template.indentParagraphs", "Indent Paragraphs", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Template"), "Indent Paragraphs")], true),
     // View › Appearance.
     row("theme.toggle", "Dark Mode", Scope::Win, Kind::Check, &["Ctrl+Shift+L", "Alt+Shift+N"], &[place(VIEW, Some("Appearance"), "Dark Mode")], true),
     row("font.bigger", "Bigger Text", Scope::Win, Kind::Plain, &["Ctrl+=", "Ctrl++"], &[place(VIEW, Some("Appearance"), "Bigger Text")], true),
