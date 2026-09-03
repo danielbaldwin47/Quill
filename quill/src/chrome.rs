@@ -362,6 +362,7 @@ fn run_window(window: &Window, command: &Command) {
         "file.rename" => window.rename_document(),
         "file.duplicate" => window.duplicate_document(),
         "file.delete" => window.trash_document(),
+        "file.pin" => window.pin_document(),
         "file.next" => window.step_document(crate::files::Step::Next),
         "file.prev" => window.step_document(crate::files::Step::Prev),
         "file.save" => window.save(),
