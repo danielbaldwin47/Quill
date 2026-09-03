@@ -46,6 +46,7 @@ Sections in this order, separators between them.
 | `focus.paragraph` | Paragraph (radio) | — | |
 | `focus.swap` | Switch Focus Scope (Palette only, no menu row) | `Ctrl+Shift+D` | |
 | `typewriter.toggle` | Typewriter | `Ctrl+T` | |
+| `live.toggle` | Live | `Ctrl+L` | |
 
 **Panes**
 
@@ -53,9 +54,10 @@ Sections in this order, separators between them.
 |---|---|---|---|
 | `library.toggle` | Show Library / Hide Library | `Ctrl+E` | `F9` |
 | `preview.toggle` | Show Preview / Hide Preview | `Ctrl+R` | |
-| `preview.layout` | Preview Split / Preview Full (radio pair) | reserved `Ctrl+Shift+R` | |
+| `preview.layout` | Preview Split / Preview Full (radio pair) | `Ctrl+Shift+R` | |
 
-`preview.layout`'s binding is the Preview spec's call; the chord is reserved so nothing else takes it.
+`preview.layout` is where Preview opens, Split or Full; `Ctrl+Shift+R` flips the pair, as
+`Ctrl+Shift+D` flips the Focus scope.
 
 **Writing tools**
 
@@ -77,6 +79,23 @@ the menu. The Palette reaches them in two keystrokes.
 | `font.quattro` | Quattro (radio) | — | |
 | `font.mono` | Mono (radio) | — | |
 
+**Template** (a submenu: the five Templates Preview and Export lay a Document out in, then the three
+toggles that bend one)
+
+| Id | Title | Default | Alias |
+|---|---|---|---|
+| `template.modern` | Modern (radio) | — | |
+| `template.classic` | Classic (radio) | — | |
+| `template.manuscriptMono` | Manuscript Mono (radio) | — | |
+| `template.manuscriptDuo` | Manuscript Duo (radio) | — | |
+| `template.manuscriptQuattro` | Manuscript Quattro (radio) | — | |
+| `template.centerHeadings` | Center Headings (check) | — | |
+| `template.numberHeadings` | Number Headings (check) | — | |
+| `template.indentParagraphs` | Indent Paragraphs (check) | — | |
+
+A Template is chosen once and left, as a Face is, so none of the eight has a chord; the Palette
+reaches them in two keystrokes.
+
 **Appearance**
 
 | Id | Title | Default | Alias |
@@ -85,6 +104,12 @@ the menu. The Palette reaches them in two keystrokes.
 | `font.bigger` | Bigger Text | `Ctrl+=` | `Ctrl++` |
 | `font.smaller` | Smaller Text | `Ctrl+-` | |
 | `font.reset` | Default Text Size | `Ctrl+0` | |
+| `preview.bigger` | Bigger Preview Text | `Ctrl+Shift+=` | |
+| `preview.smaller` | Smaller Preview Text | `Ctrl+Shift+-` | |
+| `preview.reset` | Default Preview Size | `Ctrl+Shift+0` | |
+
+The `font.*` ladder is the Editor's text and the `preview.*` one is Preview's zoom; neither reaches
+the other pane.
 
 **Window**
 
@@ -143,7 +168,6 @@ Chords with no Command yet. A spec that ships the Command claims the chord; noth
 | `Ctrl+B`, `Ctrl+I` | Bold, Italic |
 | `Ctrl+F`, `Ctrl+H`, `Ctrl+G`, `Ctrl+Shift+G` | Find, Find and Replace, Next match, Previous match |
 | `Ctrl+Shift+C` | Copy as HTML |
-| `Ctrl+Shift+R` | Preview Split / Full |
 
 ## Off-limits chords
 
