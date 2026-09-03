@@ -1,15 +1,15 @@
 {
   "piece": "theme",
-  "round": 6,
+  "round": 7,
   "winner": "ours",
   "margin": "slight",
   "gap": "A's task checkbox is the more lopsided of the two: the `]` carries 153 solid ink pixels against the `[`'s 116 — a 1.32 weight ratio between the two halves of one box (B's is 148 vs 118, 1.25). At 59px box width the right jaw reads visibly heavier than the left, so the empty box sits off-balance on every unchecked line.",
   "gapTheirs": "B's stems straddle the pixel grid where A's snap to it: the 'b' of \"bullet\" in B is 3 solid columns fringed on BOTH sides (x92 at mean 91, x96 at mean 167), while A's is flush-left solid at x94–96 with a single fringe column. Global fringe/solid is 0.415 vs A's 0.406, and B's x-height is 22px vs A's 23px at an identical 25.5px advance — smaller type, softer edges, same measure.",
   "verdict": "These are the same palette twice: paper #F7F7F7, ink #191919, 16.41:1, zero chroma anywhere, and markers that land at identical ink mass on both sides (bullet 10863 vs 11113, ordered 46648 vs 47257). Only 5.7% of pixels differ at all, and that is scale drift — A renders 1.5% larger, nothing more. Whoever built these did not design two grounds; they rendered one ground twice and let the rasteriser decide the difference. A wins because its stems sit on whole pixels and its x-height is a pixel taller, which is a rendering accident, not a decision — and neither image shows a dark state at all, so half the thing I was asked to judge was never put in front of me.",
-  "oursShot": "shots/theme/r6-light-ours-crop.png",
-  "theirsShot": "shots/theme/r6-light-theirs-crop.png",
-  "refSource": "shots/oracle/theme/ — the Parity oracle frozen by tools/gate oracle theme from legacy/app 738f48c969965ac3 with legacy/tools/shoot.mjs b2362316db135d06; ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in ref/ia/mac-native/ (ADR 0015), cropped per state: light from mac-native-17-light-marks.png, dark from mac-native-17-dark-marks.png",
-  "builderNote": "#129: the Piece re-judged with the bars on, at a new dark-bars state against the Parity oracle; light and dark are the Design oracle crops #198 left, unmoved",
+  "oursShot": "shots/theme/r7-light-ours-crop.png",
+  "theirsShot": "shots/theme/r7-light-theirs-crop.png",
+  "refSource": "ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in ref/ia/mac-native/ (ADR 0015), cropped per state: light from mac-native-17-light-marks.png, dark from mac-native-17-dark-marks.png",
+  "builderNote": "",
   "secondary": [
     "Both crops are the light palette — no dark state appears in either image, so 'Dark & light' is half unevidenced",
     "Paper and ink are pixel-identical: #F7F7F7 on #191919, 16.41:1 contrast, in both",
@@ -21,17 +21,17 @@
     "Line-height 73.5px (A) vs 72.5px (B) against x-heights of 23px and 22px — leading is proportionally equal, roughly 1.7",
     "Monospace advance is 25.5px in both; A's extra width on the task line (484px vs 477px) is pure scale, not tracking"
   ],
-  "opponent": "mixed",
+  "opponent": "mac-native",
   "build": {
-    "git": "92a0d6f",
-    "binary": "481f30a157c6f8cd",
+    "git": "e99b7be",
+    "binary": "de0956fcf860fe4f",
     "settings": null
   },
   "states": [
     {
       "name": "light",
-      "ours": "shots/theme/r6-light-ours-crop.png",
-      "theirs": "shots/theme/r6-light-theirs-crop.png",
+      "ours": "shots/theme/r7-light-ours-crop.png",
+      "theirs": "shots/theme/r7-light-theirs-crop.png",
       "opponent": {
         "capture": "ref/ia/shots/mac-native/mac-native-17-light-marks.png",
         "crop": [
@@ -47,7 +47,7 @@
           380
         ]
       },
-      "oursWhole": "shots/theme/r6-light-ours.png",
+      "oursWhole": "shots/theme/r7-light-ours.png",
       "blind": "shots/blind/theme/light",
       "oursWas": "A",
       "pick": "A",
@@ -72,8 +72,8 @@
     },
     {
       "name": "dark",
-      "ours": "shots/theme/r6-dark-ours-crop.png",
-      "theirs": "shots/theme/r6-dark-theirs-crop.png",
+      "ours": "shots/theme/r7-dark-ours-crop.png",
+      "theirs": "shots/theme/r7-dark-theirs-crop.png",
       "opponent": {
         "capture": "ref/ia/shots/mac-native/mac-native-17-dark-marks.png",
         "crop": [
@@ -89,7 +89,7 @@
           380
         ]
       },
-      "oursWhole": "shots/theme/r6-dark-ours.png",
+      "oursWhole": "shots/theme/r7-dark-ours.png",
       "blind": "shots/blind/theme/dark",
       "oursWas": "A",
       "pick": "A",
@@ -110,22 +110,7 @@
         "Overall pixel difference is only 4.6% (AE 10594/228000), almost all of it the 1.6% type-scale offset"
       ],
       "carried": 5
-    },
-    {
-      "name": "dark-bars",
-      "ours": "shots/theme/r6-dark-bars-ours.png",
-      "theirs": "shots/oracle/theme/dark-bars.png",
-      "blind": "shots/blind/theme/dark-bars",
-      "oursWas": "A",
-      "pick": "A",
-      "winner": "ours",
-      "margin": "clear",
-      "sameViewport": true,
-      "gap": "Tighter leading: body line pitch 74px vs B's 76px (37 vs 38 CSS px at 2x), ≈1.71 vs ≈1.78 against a ~21.5px body — and 10px (5 CSS px) less air above the H1 (first paragraph top at y=380 vs 390). Over a 6-line paragraph that is a full 12px of lost breathing room; the block reads a shade more packed than B's.",
-      "gapTheirs": "Every marker is demoted to a dim tier instead of resting at the body's ink: `#`, `##`, `*` and `**` all peak at 99/255 (#636363) against #1A1A1A paper — 2.9:1 contrast — while the words they mark sit at 204/255 (#CCCCCC), 10.8:1. A does not demote them: its markers measure 204 exactly like the prose. B compounds it by setting the markers inline rather than hanging them, so the left edge splits into three columns — body text at x=622, H1 text at 673, H2 text at 697 (a 51px and 75px step) — where A hangs `#` at 570 and `##` at 544 and keeps body, H1 and H2 all flush at 622.",
-      "verdict": "The two grounds are the same decision — #1A1A1A paper, #CCCCCC ink, a 3px #00BFFF caret spanning the full line box, a 32px title bar and 26px stats bar with the same #7E7E7E labels under #BDBDBD numbers and the same 1px hairline at y=1748 — so this comes down entirely to how the marks sit on it, and B blinks. Dropping `#` and `**` to #636363 is a designer deciding the writer's own syntax is an embarrassment to be hidden; at 2.9:1 you cannot see at a glance whether you typed one asterisk or two, which is exactly when you need to. Then B refuses to hang them, so the H1 and H2 titles float 51 and 75 pixels right of the paragraph edge and the page has no left edge at all — three ragged starts down one column. A's slightly tighter leading is a real loss and you feel it in the long paragraph, but I would take 2px of leading over a page that can't hold a straight margin or show me what I wrote.",
-      "secondary": []
     }
   ],
-  "at": "2026-09-02T13:53:59.012Z"
+  "at": "2026-09-02T20:46:11.948Z"
 }
