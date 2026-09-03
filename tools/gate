@@ -80,7 +80,7 @@ usage: tools/gate <command> [arguments]
                 ours built and launched on the 10k-word document with the caret
                 at the end of it, on a headless output of the Gate's own, and
                 the regime typed into it with real keys through /dev/uinput —
-                prose_end_of_draft at 133 wpm unless another of the thirteen is
+                prose_end_of_draft at 133 wpm unless another of the fourteen is
                 named. Focus is read back from the compositor before the first
                 key and between every chunk of 25, and a run that cannot prove
                 the keys will land on ours types none of them. The measurement
@@ -95,7 +95,7 @@ usage: tools/gate <command> [arguments]
                 however many others ran. Those three
                 lines are the whole of stdout; everything said on the way there
                 is target/gate/bench.log, printed when the run refuses.
-                --all runs every one of the thirteen and --regimes just the named
+                --all runs every one of the fourteen and --regimes just the named
                 ones, each with its own launch, its own caret and Focus, and its
                 own result file; a run of several says one line per regime and
                 then one line for the run, which is pass only when every scored
@@ -562,7 +562,7 @@ case "${1-}" in
     # own, in the shape the header above asks of every command here.
     oracle) shift; exec node "$ROOT/tools/oracle.mjs" "$@" ;;
     # The bench drives the compositor, a binary and /dev/uinput, and reads the
-    # thirteen regimes out of tools/regimes.mjs; it is Node for the same reason
+    # fourteen regimes out of tools/regimes.mjs; it is Node for the same reason
     # the oracle is, and ends in its own line in the same shape.
     bench) shift; exec node "$ROOT/tools/bench.mjs" "$@" ;;
     # Judging drives the compositor, a binary and a critic session, and its exit
