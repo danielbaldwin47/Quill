@@ -270,9 +270,9 @@ pub const COMMANDS: &[Command] = &[
     row("font.bigger", "Bigger Text", Scope::Win, Kind::Plain, &["Ctrl+=", "Ctrl++"], &[place(VIEW, Some("Appearance"), "Bigger Text")], true),
     row("font.smaller", "Smaller Text", Scope::Win, Kind::Plain, &["Ctrl+-"], &[place(VIEW, Some("Appearance"), "Smaller Text")], true),
     row("font.reset", "Default Text Size", Scope::Win, Kind::Plain, &["Ctrl+0"], &[place(VIEW, Some("Appearance"), "Default Text Size")], true),
-    row("preview.bigger", "Bigger Preview Text", Scope::Win, Kind::Plain, &["Ctrl+Shift+="], &[place(VIEW, Some("Appearance"), "Bigger Preview Text")], false),
-    row("preview.smaller", "Smaller Preview Text", Scope::Win, Kind::Plain, &["Ctrl+Shift+-"], &[place(VIEW, Some("Appearance"), "Smaller Preview Text")], false),
-    row("preview.reset", "Default Preview Size", Scope::Win, Kind::Plain, &["Ctrl+Shift+0"], &[place(VIEW, Some("Appearance"), "Default Preview Size")], false),
+    row("preview.bigger", "Bigger Preview Text", Scope::Win, Kind::Plain, &["Ctrl+Shift+="], &[place(VIEW, Some("Appearance"), "Bigger Preview Text")], true),
+    row("preview.smaller", "Smaller Preview Text", Scope::Win, Kind::Plain, &["Ctrl+Shift+-"], &[place(VIEW, Some("Appearance"), "Smaller Preview Text")], true),
+    row("preview.reset", "Default Preview Size", Scope::Win, Kind::Plain, &["Ctrl+Shift+0"], &[place(VIEW, Some("Appearance"), "Default Preview Size")], true),
     // View › Window.
     row("chrome.stats", "Statistics", Scope::Win, Kind::Check, &[], &[ place(VIEW, Some("Window"), "Statistics"), place(STATS, None, "Hide Statistics"), ], true),
     row("chrome.toggle", "Hide Bars / Show Bars", Scope::Win, Kind::Check, &["Ctrl+Shift+H"], &[place(VIEW, Some("Window"), "Hide Bars / Show Bars")], true),

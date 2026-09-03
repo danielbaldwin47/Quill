@@ -403,13 +403,13 @@ async function judgeLatency(root, note, named) {
   //
   // Asked of the regimes the summary actually holds, never of `ran`: that is the line the run
   // printed for a human to read, and a verdict that turned on its exact wording would be one
-  // rewording away from judging a subset as though it were the whole thirteen.
+  // rewording away from judging a subset as though it were the whole fourteen.
   const held = new Set((summary.regimes || []).map((row) => row.regime));
   const short = (summary.regimes_not_run || []).concat(
     regimes().map((r) => r.name).filter((name) => !held.has(name)),
   );
   if (short.length) {
-    say(`gate judge latency: ${file} ran ${summary.ran}, and the Piece is judged on all thirteen`);
+    say(`gate judge latency: ${file} ran ${summary.ran}, and the Piece is judged on all fourteen`);
     return refuse('latency', `${file} is not a whole run — ${short.join(', ')} missing`);
   }
   if ((summary.regimes_unaccounted_for || []).length) {

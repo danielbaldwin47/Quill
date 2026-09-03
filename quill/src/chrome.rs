@@ -388,6 +388,11 @@ fn run_window(window: &Window, command: &Command) {
         "font.bigger" => window.step_size(crate::window::Step::Bigger),
         "font.smaller" => window.step_size(crate::window::Step::Smaller),
         "font.reset" => window.step_size(crate::window::Step::Default),
+        // The rendered page's own ladder, which the Editor's never reaches
+        // and which never reaches the Editor (#263 § Zoom).
+        "preview.bigger" => window.step_zoom(crate::window::Zoom::Bigger),
+        "preview.smaller" => window.step_zoom(crate::window::Zoom::Smaller),
+        "preview.reset" => window.step_zoom(crate::window::Zoom::Reset),
         "font.duo" => window.set_face(quill_engine::settings::Face::Duo),
         "font.quattro" => window.set_face(quill_engine::settings::Face::Quattro),
         "font.mono" => window.set_face(quill_engine::settings::Face::Mono),
