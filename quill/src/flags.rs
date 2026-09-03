@@ -16,7 +16,11 @@
 //!
 //! Three rules the rest of the app rests on. **Nothing is written back**: a
 //! flag overrides the writer's settings for this launch and never reaches
-//! `settings.toml`. **A harness launch leaves no trace**: [`Flags::is_harness`]
+//! `settings.toml`. `--library` overrides more than the one setting it names:
+//! it pins the whole `[library]` table to its defaults — the fixture as the
+//! one Location, nothing Pinned, dot-entries and extensions off, no
+//! confirmation and no ask-where — so that a judged shot of the Library is the
+//! fixture's rows and never the rows the writer's own switches would draw. **A harness launch leaves no trace**: [`Flags::is_harness`]
 //! is true the moment one of these flags is given, and a session that answers
 //! true to it reads no state file and writes none, so two launches of the same
 //! command line are the same window twice and a bench never resizes the window
@@ -66,7 +70,8 @@ Judged state — the states the Gate shoots and benches at:
                          selected.
   --library <dir>        Take the Library from the fixture tree at <dir>: a
                          copy of it, each file stamped with the mtime its
-                         manifest.json names, as the one Location.
+                         manifest.json names, as the one Location, with the
+                         rest of [library] at its defaults.
   --sidebar              Open with the Library beside the page.
   --search <query>       Put <query> in the Library's search field and narrow
                          the list to what it finds. Wants --sidebar.
@@ -392,10 +397,20 @@ impl Flags {
         // The fixture stands in for the writer's Locations, and for nothing
         // else of theirs: a judged shot walks the tree the flag named and no
         // folder of the machine it is run on, and pins nothing, because the
-        // Pinned section is a state the fixture would have to carry.
+        // Pinned section is a state the fixture would have to carry. The four
+        // `[library]` booleans are pinned off with them, because each of them
+        // is rows in the shot — the dot-folder the fixture holds, every name's
+        // extension — and a writer who turned one on in their own settings
+        // would otherwise be shooting a different Library than round 6 judged.
+        // The sort is Date already: the pane opens at it and no setting
+        // carries it (`crate::sidebar::Sidebar`).
         if let Some(library) = &self.library {
             settings.library.locations = vec![library.clone()];
             settings.library.pinned = Vec::new();
+            settings.library.show_hidden = false;
+            settings.library.show_extensions = false;
+            settings.library.confirm_move = false;
+            settings.library.ask_where_to_save = false;
         }
         settings
     }
@@ -757,6 +772,44 @@ mod tests {
             .expect("two flags")
             .over(writers);
         assert!(asked.typewriter);
+    }
+
+    /// The fixture is the whole of the Library for a judged launch: the one
+    /// Location, and the four switches that decide which rows are drawn and
+    /// under what names answered no, whatever the writer turned on in their
+    /// own file. Round 6 of the `files` Piece was shot on a `settings.toml`
+    /// with all four off, and a writer flipping one is not a change to the
+    /// pixels the Piece is judged at.
+    #[test]
+    fn the_library_flag_pins_the_whole_table_the_judged_shot_reads() {
+        let mut writers = Settings::default();
+        writers.library.locations = vec![PathBuf::from("/home/writer/Writing")];
+        writers.library.pinned = vec![PathBuf::from("/home/writer/Writing/sea-storm.md")];
+        writers.library.show_hidden = true;
+        writers.library.show_extensions = true;
+        writers.library.confirm_move = true;
+        writers.library.ask_where_to_save = true;
+        let judged = parse("--library shots/oracle/library")
+            .expect("one flag")
+            .over(writers.clone());
+        assert_eq!(
+            judged.library.locations,
+            vec![PathBuf::from("shots/oracle/library")],
+            "the fixture, and no folder of the writer's"
+        );
+        assert!(judged.library.pinned.is_empty());
+        assert!(!judged.library.show_hidden, "the dot-folder stays hidden");
+        assert!(!judged.library.show_extensions);
+        assert!(!judged.library.confirm_move);
+        assert!(!judged.library.ask_where_to_save);
+        assert_eq!(
+            parse("--sidebar")
+                .expect("one flag")
+                .over(writers.clone())
+                .library,
+            writers.library,
+            "a launch that named no fixture is the writer's Library exactly"
+        );
     }
 
     #[test]

@@ -234,7 +234,9 @@ and the determinism settings, this document names the flags:
   `--library <dir>` (take the Library from the fixture tree at `<dir>`: the launch copies it to a
   folder of its own, stamps each file with the mtime the fixture's `manifest.json` names, and walks
   that copy as its one Location, so a judged shot of the Library is the same rows in the same order
-  on every machine — a `--text` named inside the fixture is opened from the copy with it),
+  on every machine — a `--text` named inside the fixture is opened from the copy with it; the rest
+  of the `[library]` table is pinned to its defaults for the launch, nothing Pinned and all four
+  booleans off, so a writer who turned on hidden files or extensions does not change the shot),
   `--sidebar` (open with the Library beside the page), `--search <query>` (put `<query>` in the
   Library's search field and narrow the list to what it finds; refused without `--sidebar`, which is
   the pane the field stands in), `--w <px> --h <px>`. Both `--typing` and `--menu` name a state the app is
