@@ -14,7 +14,14 @@ publish.workspace = true
 cairo-rs.workspace = true
 notify.workspace = true
 notify-debouncer-mini.workspace = true
-pango.workspace = true
+# `v1_50` is the absolute line height a rendered page's leading is set with,
+# which the app crate gets for free through `gtk`'s own Pango feature and this
+# crate, built and tested on its own, has to ask for.
+pango = { workspace = true, features = ["v1_50"] }
+# Pango lays a rendered page out (`render`), and `pangocairo` is what reads the
+# resolution a context draws at and what gives a test a context with no display
+# behind it. Neither is a widget, which is the whole of ADR 0008's rule.
+pangocairo.workspace = true
 pulldown-cmark.workspace = true
 serde.workspace = true
 toml.workspace = true
