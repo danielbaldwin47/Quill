@@ -36,7 +36,8 @@ use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
 use quill_engine::library::Library;
 use quill_engine::settings::{
-    Chrome, Face, FocusScope, PreviewLayout, Settings, State, Theme, WindowState,
+    Chrome, Face, FocusScope, PreviewLayout, Settings, State, Template, TemplateName, Theme,
+    WindowState,
 };
 use quill_engine::shortcuts::Refusal;
 use quill_engine::theme::{self, Palette, Scheme};
@@ -56,6 +57,42 @@ pub const DOMAIN: &str = "quill-settings";
 /// [`quill_engine::watch::DEBOUNCE`] this is what stands between a writer's
 /// save and the page following it.
 const DRAIN_EVERY: Duration = Duration::from_millis(100);
+
+/// Which of the Template's three toggles a Command or a Settings row moves.
+///
+/// A sentinel rather than three near-identical methods: the three read and
+/// write one boolean each and differ only in which key of `[template]` it is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TemplateToggle {
+    /// `center_headings`: every heading centred rather than set as the
+    /// Template has it.
+    CenterHeadings,
+    /// `number_headings`: the headings under the title numbered.
+    NumberHeadings,
+    /// `indent_paragraphs`: a paragraph indented rather than spaced.
+    IndentParagraphs,
+}
+
+impl TemplateToggle {
+    /// What `template` says this toggle is now.
+    #[must_use]
+    pub fn of(self, template: &Template) -> bool {
+        match self {
+            Self::CenterHeadings => template.center_headings,
+            Self::NumberHeadings => template.number_headings,
+            Self::IndentParagraphs => template.indent_paragraphs,
+        }
+    }
+
+    /// Sets this toggle in `template` to `on`.
+    pub fn set(self, template: &mut Template, on: bool) {
+        match self {
+            Self::CenterHeadings => template.center_headings = on,
+            Self::NumberHeadings => template.number_headings = on,
+            Self::IndentParagraphs => template.indent_paragraphs = on,
+        }
+    }
+}
 
 /// The settings and state of one run of Quill.
 pub struct Session {
@@ -145,6 +182,13 @@ pub struct Session {
     /// it to. Held apart from [`Session::settings`] for the reason
     /// [`Session::preview_layout`] is.
     preview_zoom: Cell<u32>,
+    /// The Template the page is laid out in now and the three toggles that
+    /// bend it: the settings until the writer picks from View › Template, and
+    /// then what they picked. Held apart from [`Session::settings`] for the
+    /// reason [`Session::preview_layout`] is, and whole rather than as four
+    /// values so that a `[template]` key this Quill does not know is carried
+    /// through a write with the rest of the table.
+    template: RefCell<Template>,
     /// Whether the stats bar is shown while the bars are: `chrome.stats`.
     /// Live only — no settings key holds it until the Stats spec (#30)
     /// decides what the bar remembers — so every launch shows it.
@@ -275,6 +319,7 @@ impl Session {
             chrome: Cell::new(settings.chrome),
             preview_layout: Cell::new(settings.preview.layout),
             preview_zoom: Cell::new(settings.preview.zoom),
+            template: RefCell::new(settings.template.clone()),
             stats: Cell::new(true),
             scheme: Cell::new(scheme),
             settings: RefCell::new(settings),
@@ -359,6 +404,7 @@ impl Session {
         self.chrome.set(settings.chrome);
         self.preview_layout.set(settings.preview.layout);
         self.preview_zoom.set(settings.preview.zoom);
+        self.template.replace(settings.template.clone());
         let theme = settings.theme;
         self.settings.replace(settings);
         self.set_theme(theme);
@@ -853,6 +899,33 @@ impl Session {
         self.preview_zoom.set(zoom);
     }
 
+    /// The Template the page is laid out in now, with its three toggles.
+    ///
+    /// The live value rather than `settings().template`, for the reason
+    /// [`Session::preview_zoom`] is live: View › Template moves it, and a
+    /// window opened after a pick opens on the page the writer is reading.
+    pub fn template(&self) -> Ref<'_, Template> {
+        self.template.borrow()
+    }
+
+    /// Lays the page out in `name` from now on, for this launch and — for a
+    /// writer's — the next.
+    pub fn set_template(&self, name: TemplateName) {
+        self.template.borrow_mut().name = name;
+    }
+
+    /// Flips one of the Template's three toggles and answers what it now is.
+    ///
+    /// `docs/shortcuts.md`'s `template.centerHeadings`,
+    /// `template.numberHeadings` and `template.indentParagraphs` rows, which
+    /// are the same three the Settings window's switches write.
+    pub fn toggle_template(&self, toggle: TemplateToggle) -> bool {
+        let mut template = self.template.borrow_mut();
+        let on = !toggle.of(&template);
+        toggle.set(&mut template, on);
+        on
+    }
+
     /// Writes the settings and the state file. Called once, when the
     /// application shuts down.
     pub fn store(&self) {
@@ -916,8 +989,12 @@ impl Session {
     ///
     /// What the windows are showing, in one value, which is what makes
     /// [`Session::apply`] able to say whether a saved edit moved anything they
-    /// would have to be told about.
-    fn running(&self) -> Settings {
+    /// would have to be told about — and what the render pass is handed, so
+    /// that a Template picked or a zoom stepped a moment ago is on the page
+    /// before the watch has read the write back
+    /// ([`crate::window::Window::refresh_preview`]).
+    #[must_use]
+    pub fn running(&self) -> Settings {
         let mut settings = self.settings.borrow().clone();
         settings.step = self.step.get();
         settings.theme = self.theme.get();
@@ -929,6 +1006,7 @@ impl Session {
         settings.chrome = self.chrome.get();
         settings.preview.layout = self.preview_layout.get();
         settings.preview.zoom = self.preview_zoom.get();
+        settings.template = self.template.borrow().clone();
         settings
     }
 
@@ -1638,6 +1716,64 @@ mod tests {
             written.preview.zoom, 110,
             "the file says what the keys left"
         );
+        std::fs::remove_file(&path).ok();
+    }
+
+    /// A Template picked from View › Template is the one the render pass is
+    /// handed from then on, each toggle writes its own key, and the file says
+    /// what the rows left (#271).
+    ///
+    /// The live half against the settings model and the written file: what
+    /// [`crate::window::Window::set_template`] and
+    /// [`crate::window::Window::toggle_template`] press.
+    #[test]
+    fn the_template_rows_move_the_setting_and_the_file_follows() {
+        let path = std::env::temp_dir().join(format!("quill-template-{}.toml", std::process::id()));
+        std::fs::remove_file(&path).ok();
+        let session = Session::launch(
+            Flags {
+                settings: Some(path.clone()),
+                ..Flags::default()
+            },
+            Settings::default(),
+            State::default(),
+            WindowState::default(),
+            true,
+            None,
+        );
+        assert_eq!(
+            session.template().name,
+            TemplateName::Modern,
+            "the one a writer who has chosen none reads in"
+        );
+        session.set_template(TemplateName::Classic);
+        assert_eq!(session.template().name, TemplateName::Classic);
+        assert_eq!(
+            session.running().template.name,
+            TemplateName::Classic,
+            "and the render pass is handed it before the file is read back"
+        );
+        for toggle in [
+            TemplateToggle::CenterHeadings,
+            TemplateToggle::NumberHeadings,
+            TemplateToggle::IndentParagraphs,
+        ] {
+            let was = toggle.of(&session.template());
+            assert_eq!(session.toggle_template(toggle), !was, "{toggle:?} flipped");
+            assert_eq!(toggle.of(&session.template()), !was);
+        }
+        session.store_settings();
+        let (written, notes) = Settings::read_from(&path);
+        assert_eq!(notes, Vec::<String>::new());
+        assert_eq!(written.template.name, TemplateName::Classic);
+        assert!(!written.template.center_headings, "on by default, flipped");
+        assert!(written.template.number_headings);
+        assert!(written.template.indent_paragraphs);
+        // The file read back is the live half's again, which is what a
+        // Settings-window row moving one of the three arrives as.
+        session.apply(written);
+        assert_eq!(session.template().name, TemplateName::Classic);
+        assert!(session.template().number_headings);
         std::fs::remove_file(&path).ok();
     }
 
