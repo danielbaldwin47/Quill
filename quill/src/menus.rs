@@ -359,14 +359,17 @@ mod tests {
         assert_eq!(names.last().map(String::as_str), Some("draft-9"));
     }
 
-    /// The View menu is six sections with a separator between each pair,
-    /// Focus first and All Commands… last; every placed row is there once,
-    /// with the pairs read for the modes given.
+    /// The View menu is one section per section of the table with a separator
+    /// between each pair, Focus first and All Commands… last; every placed row
+    /// is there once, with the pairs read for the modes given.
     #[test]
-    fn the_view_menu_is_six_sections_focus_first_and_all_commands_last() {
+    fn the_view_menu_is_the_tables_sections_focus_first_and_all_commands_last() {
         let model = model(Menu::View, &resting(), &[]);
         let rows = rows_of(model.upcast_ref());
-        assert_eq!(rows.iter().filter(|row| row.is_none()).count(), 5);
+        assert_eq!(
+            rows.iter().filter(|row| row.is_none()).count(),
+            VIEW_SECTIONS.len() - 1
+        );
         let labels: Vec<String> = rows.into_iter().flatten().map(|row| row.label).collect();
         let expected: Vec<String> = placed(Menu::View)
             .into_iter()
