@@ -54,11 +54,17 @@ ok('a Piece with no judged states resolves to none, and an unknown Piece is an e
 
 // ---------- the flags this tool cannot serve yet ----------
 ok('a state may only name flags the defaults name', () => {
-  const files = Object.fromEntries(resolveStates(states, 'files').map((s) => [s.name, unservable(states.defaults, s.flags)]));
-  assert.deepEqual(files.library, ['library', 'sidebar']);
-  assert.deepEqual(files.search, ['library', 'search', 'sidebar']);
-  for (const piece of ['type', 'page', 'markup', 'caret', 'theme', 'focus', 'chrome']) {
+  // Every Piece, rather than a list of them: the day a tenth is added, this is the case that has to
+  // notice its states name nothing the shooter has not learnt.
+  for (const piece of Object.keys(states.pieces)) {
     for (const s of resolveStates(states, piece)) assert.deepEqual(unservable(states.defaults, s.flags), [], `${piece}/${s.name}`);
+  }
+  // What the rule catches, now that nothing in states.json trips it: a flag the defaults have never
+  // heard of, named by the state and by nobody else. `files`' three were exactly this until the
+  // shooter learnt to seed a Library.
+  assert.deepEqual(unservable(states.defaults, { ...states.defaults, sepia: true, grain: 3 }), ['grain', 'sepia']);
+  for (const flag of ['library', 'sidebar', 'search']) {
+    assert.ok(Object.prototype.hasOwnProperty.call(states.defaults, flag), `${flag} is a flag the files states name, so the defaults must name it`);
   }
 });
 
@@ -122,6 +128,50 @@ ok('a state becomes the shoot.mjs flags that state means', () => {
   assert.equal(view[view.indexOf('--menu') + 1], 'view');
   const palette = shootArgv(ROOT, chrome.palette, 'o.png', 'u');
   assert.equal(palette[palette.indexOf('--menu') + 1], 'palette');
+
+  // The three flags of the files Piece: the fixture folder, the pane, and the query in its field.
+  // The passage is one of the fixture's own documents, because the Library is what opens it there.
+  const files = Object.fromEntries(resolveStates(states, 'files').map((s) => [s.name, s.flags]));
+  const library = shootArgv(ROOT, files.library, 'o.png', 'u');
+  assert.equal(library[library.indexOf('--library') + 1], files.library.library);
+  assert.ok(library.includes('--sidebar'));
+  assert.ok(!library.includes('--search'), 'a Library at rest is not a narrowed one');
+  assert.ok(files.library.text.startsWith(`${files.library.library}/`), 'the open document is one of the Library\'s own');
+  assert.equal(library[library.indexOf('--text') + 1], files.library.text);
+  const search = shootArgv(ROOT, files.search, 'o.png', 'u');
+  assert.equal(search[search.indexOf('--search') + 1], files.search.search);
+  assert.ok(search.includes('--sidebar'), 'a query narrows a pane that is open');
+});
+
+// ---------- the Library fixture the files Piece is shot on ----------
+// Derived from the states file and the fixture itself: what the two frozen shots depend on is that
+// the tree holds a Collection and a dot-folder, that every row's date is stamped and distinct, and
+// that the query narrows to exactly the two documents the spec asked for — one named for it and one
+// whose text says it. A ninth file with `sea` in it would change the search shot and nothing here
+// would say why.
+ok('the library fixture is the tree the files states are judged on', () => {
+  const files = resolveStates(states, 'files');
+  const dir = files[0].flags.library;
+  const mtimes = JSON.parse(fs.readFileSync(path.join(ROOT, dir, 'manifest.json'), 'utf8')).mtimes;
+  const on = [];
+  const walk = (rel) => {
+    for (const e of fs.readdirSync(path.join(ROOT, dir, rel), { withFileTypes: true })) {
+      const under = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(under);
+      else if (under !== 'manifest.json') on.push(under);
+    }
+  };
+  walk('');
+  assert.deepEqual(on.slice().sort(), Object.keys(mtimes).sort(), 'every file in the fixture is stamped, and every stamp is a file');
+  assert.equal(new Set(Object.values(mtimes)).size, on.length, 'two files share an mtime, and the Date sort would answer differently on two machines');
+  assert.ok(on.some((f) => f.startsWith('.')), 'no dot-folder, so the shot cannot show a hidden entry staying hidden');
+  assert.ok(on.some((f) => f.includes('/') && !f.startsWith('.')), 'no Collection, so the shot cannot show a subfolder');
+
+  const q = files.find((s) => s.name === 'search').flags.search;
+  const shown = on.filter((f) => !f.startsWith('.'));
+  const named = shown.filter((f) => path.basename(f).toLowerCase().includes(q));
+  const said = shown.filter((f) => !named.includes(f) && fs.readFileSync(path.join(ROOT, dir, f), 'utf8').toLowerCase().includes(q));
+  assert.deepEqual([named.length, said.length], [1, 1], `--search ${q} narrows to ${named.length} named for it and ${said.length} saying it, and the state is judged on two rows`);
 });
 
 // ---------- the ladder, on both sides of the port ----------
@@ -135,14 +185,20 @@ ok('the ems a step is converted with are the ladder the engine holds', () => {
 });
 
 // ---------- what makes a frozen Piece stale ----------
-ok('a freeze is stale when the app, the shooter, the passage or the states move under it', () => {
-  const was = { app: { files: 9, sha256: 'aaaa' }, shoot: 'bbbb', passages: { 'ref/sample.md': 'eeee' }, states: { duo: { font: 'duo' } } };
+ok('a freeze is stale when the app, the shooter, the passage, the fixture or the states move under it', () => {
+  const was = {
+    app: { files: 9, sha256: 'aaaa' }, shoot: 'bbbb', passages: { 'ref/sample.md': 'eeee' },
+    libraries: { 'shots/oracle/library': '1111' }, states: { duo: { font: 'duo' } },
+  };
   const same = JSON.parse(JSON.stringify(was));
   assert.equal(freezeReason(was, same, ['duo']), null);
   assert.match(freezeReason(null, same, ['duo']), /nothing frozen/);
   assert.match(freezeReason({ ...was, app: { files: 9, sha256: 'cccc' } }, same, ['duo']), /legacy\/app/);
   assert.match(freezeReason({ ...was, shoot: 'dddd' }, same, ['duo']), /shoot\.mjs/);
   assert.match(freezeReason(was, { ...same, passages: { 'ref/sample.md': 'ffff' } }, ['duo']), /passage/);
+  // The Library is eight rows and `passages` hashes only the one document that is open, so a
+  // fixture edit that changes the other seven has to move something of its own.
+  assert.match(freezeReason(was, { ...same, libraries: { 'shots/oracle/library': '2222' } }, ['duo']), /library fixture/);
   assert.match(freezeReason(was, { ...same, states: { duo: { font: 'mono' } } }, ['duo']), /judged states/);
   assert.match(freezeReason(was, same, []), /shot is missing/);
 });
@@ -156,14 +212,16 @@ ok('states with the same flags were shot into the same bytes', () => {
   const bytes = new Map();
   const flags = new Map();
   let shot = 0;
-  for (const piece of fs.readdirSync(path.join(ROOT, 'shots/oracle'), { withFileTypes: true }).filter((e) => e.isDirectory())) {
-    for (const s of resolveStates(states, piece.name)) {
-      const png = path.join(ROOT, 'shots/oracle', piece.name, `${s.name}.png`);
+  // The Pieces, not the directories under shots/oracle/: a judged state is a Piece's, and that
+  // directory holds the `files` Piece's Library fixture as well as the frozen shots.
+  for (const piece of Object.keys(states.pieces)) {
+    for (const s of resolveStates(states, piece)) {
+      const png = path.join(ROOT, 'shots/oracle', piece, `${s.name}.png`);
       if (!fs.existsSync(png)) continue;
       shot++;
       const key = JSON.stringify(s.flags);
       const digest = crypto.createHash('sha256').update(fs.readFileSync(png)).digest('hex');
-      const where = `${piece.name}/${s.name}`;
+      const where = `${piece}/${s.name}`;
       if (bytes.has(key)) assert.equal(digest, bytes.get(key), `${where} and ${flags.get(key)} are the same judged state but not the same bytes`);
       else { bytes.set(key, digest); flags.set(key, where); }
     }
@@ -195,12 +253,25 @@ ok('the latency Piece says it has no judged states, and says it without failing'
 });
 
 ok('a Piece whose states need flags this tool cannot serve names them and fails, shooting nothing', () => {
-  const r = gate('oracle', 'files');
-  assert.equal(r.code, 1, r.err);
-  assert.match(r.err, /state library names library, sidebar/);
-  assert.match(r.err, /state search names library, search, sidebar/);
-  assert.match(r.out.trim().split('\n').pop(), /^gate oracle files: fail/);
-  assert.ok(!fs.existsSync(path.join(ROOT, 'shots/oracle/files')), 'a Piece is frozen whole or not at all');
+  // `files` was this case until the shooter learnt to seed a Library, and no state in states.json
+  // trips the rule now — so the flag is invented and put in front of the command through
+  // QUILL_STATES, on a Piece that is really frozen, which also shows the refusal comes before
+  // anything of that Piece's is touched.
+  const file = path.join(os.tmpdir(), `quill-oracle-selftest-unservable-${process.pid}.json`);
+  const fixture = JSON.parse(fs.readFileSync(path.join(ROOT, 'shots/oracle/states.json'), 'utf8'));
+  fixture.pieces.type = { duo: { chrome: 'off', sepia: true }, quattro: { chrome: 'off', font: 'quattro' } };
+  fs.writeFileSync(file, JSON.stringify(fixture));
+  try {
+    const r = gate('oracle', 'type', { QUILL_STATES: file });
+    assert.equal(r.code, 1, r.err);
+    assert.match(r.err, /state duo names sepia/);
+    assert.match(r.out.trim().split('\n').pop(), /^gate oracle type: fail \(1 of 2 states name flags this tool cannot serve yet\)/);
+    for (const name of ['duo', 'quattro']) {
+      assert.ok(fs.existsSync(path.join(ROOT, 'shots/oracle/type', `${name}.png`)), `${name}.png went missing`);
+    }
+  } finally {
+    fs.rmSync(file, { force: true });
+  }
 });
 
 ok('a state judged against a mac-native crop is not this tool\'s to freeze', () => {

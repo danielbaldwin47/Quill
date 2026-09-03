@@ -530,7 +530,7 @@ export function checkStates(root, piece, settingsFile, { command = 'judge' } = {
   const blocked = resolved.map((s) => ({ ...s, cannot: unservable(states.defaults, s.flags) })).filter((s) => s.cannot.length);
   if (blocked.length) {
     for (const s of blocked) say(`gate ${command} ${piece}: state ${s.name} names ${s.cannot.join(', ')}`);
-    say(`gate ${command}: the app has no such flag yet; those states wait for the File handling spec (shots/oracle/states.json)`);
+    say(`gate ${command}: the app has no such flag yet; a state may name only the flags the defaults name (shots/oracle/states.json)`);
     throw new Refused(`${blocked.length} of ${resolved.length} states name flags the app has not got`);
   }
 
