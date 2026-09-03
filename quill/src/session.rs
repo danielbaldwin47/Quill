@@ -365,14 +365,15 @@ impl Session {
             .borrow()
             .locations()
             .iter()
-            .map(|location| location.root().to_path_buf())
+            .map(|location| location.path().to_path_buf())
             .collect();
-        for root in held.iter().filter(|root| !wanted.contains(root)) {
-            self.library.borrow_mut().remove_location(root);
+        for gone in held.iter().filter(|held| !wanted.contains(held)) {
+            self.library.borrow_mut().remove_location(gone);
+            self.unwatch_tree(gone);
         }
-        for root in wanted.iter().filter(|root| !held.contains(root)) {
-            if self.library.borrow_mut().add_location(root) {
-                self.watch_tree(root);
+        for added in wanted.iter().filter(|wanted| !held.contains(wanted)) {
+            if self.library.borrow_mut().add_location(added) {
+                self.watch_tree(added);
             }
         }
         let pinned = self.settings.borrow().library.pinned.clone();
@@ -882,7 +883,7 @@ impl Session {
             .borrow()
             .locations()
             .first()
-            .map(|location| location.root().to_path_buf())
+            .map(|location| location.path().to_path_buf())
     }
 
     /// Whether the writer asked to be asked where every first save goes
@@ -899,14 +900,33 @@ impl Session {
     /// and points the writer's Library at nothing, so `ref/sample.md` never
     /// makes `ref/` a Location of theirs.
     pub fn opened_at(&self, path: &Path) {
+        self.wrote_at(path);
+        if self.harness {
+            return;
+        }
+        // Read out before the Location is added, because adding it borrows
+        // the Library again to walk it.
+        let wanted = crate::files::location_for(&self.library.borrow(), path);
+        if let Some(location) = wanted {
+            self.add_location(&location);
+        }
+    }
+
+    /// Takes in that `path` was written: it becomes the newest of the recents,
+    /// and nothing else.
+    ///
+    /// A save adds no Location. Story 45 gives that to a file the writer
+    /// opened — from the shell, or through `file.open` — and a Save As into a
+    /// folder they named once is not a folder they asked Quill to watch from
+    /// now on (#246).
+    ///
+    /// A launch of the harness's takes in nothing, for the reason
+    /// [`Session::opened_at`] gives.
+    pub fn wrote_at(&self, path: &Path) {
         if self.harness {
             return;
         }
         self.leaving.borrow_mut().visited(path);
-        let root = crate::files::location_for(&self.library.borrow(), path);
-        if let Some(root) = root {
-            self.add_location(&root);
-        }
     }
 
     /// The Documents this writer has opened, most recent first: what
@@ -943,16 +963,17 @@ impl Session {
             .insert(path.to_path_buf(), offset);
     }
 
-    /// Adds `root` as a Location: walked now, watched from now on, and written
-    /// to the settings file, which is the only place Locations are remembered.
+    /// Adds the folder at `path` as a Location: walked now, watched from now
+    /// on, and written to the settings file, which is the only place Locations
+    /// are remembered.
     ///
     /// A folder the Library already holds, or one that is not a folder, is
     /// refused by the model and nothing is written.
-    pub fn add_location(&self, root: &Path) {
-        if !self.library.borrow_mut().add_location(root) {
+    pub fn add_location(&self, path: &Path) {
+        if !self.library.borrow_mut().add_location(path) {
             return;
         }
-        self.watch_tree(root);
+        self.watch_tree(path);
         // The list this launch is running is moved as well as the file, and
         // not left to the watch to bring back: two folders added in one breath
         // would otherwise be written from a list that had heard about neither,
@@ -961,7 +982,7 @@ impl Session {
             .borrow_mut()
             .library
             .locations
-            .push(root.to_path_buf());
+            .push(path.to_path_buf());
         let settings = self.running();
         self.write_settings(&settings);
     }
@@ -971,26 +992,35 @@ impl Session {
     /// Called once, when the watch is made: the trees were walked at launch,
     /// before there was a watch to add them to.
     fn watch_locations(&self) {
-        let roots: Vec<PathBuf> = self
+        let locations: Vec<PathBuf> = self
             .library
             .borrow()
             .locations()
             .iter()
-            .map(|location| location.root().to_path_buf())
+            .map(|location| location.path().to_path_buf())
             .collect();
-        for root in roots {
-            self.watch_tree(&root);
+        for location in locations {
+            self.watch_tree(&location);
         }
     }
 
-    /// Listens under `root` for everything that happens in it.
-    fn watch_tree(&self, root: &Path) {
+    /// Listens under `path` for everything that happens in it.
+    fn watch_tree(&self, path: &Path) {
         let mut watch = self.watch.borrow_mut();
         let Some(watch) = watch.as_mut() else {
             return;
         };
-        if let Err(err) = watch.add_tree(root) {
-            eprintln!("quill: {}: cannot be watched ({err})", root.display());
+        if let Err(err) = watch.add_tree(path) {
+            eprintln!("quill: {}: cannot be watched ({err})", path.display());
+        }
+    }
+
+    /// Stops listening under `path`, the tree of a Location that has left the
+    /// Library.
+    fn unwatch_tree(&self, path: &Path) {
+        let mut watch = self.watch.borrow_mut();
+        if let Some(watch) = watch.as_mut() {
+            watch.remove_tree(path);
         }
     }
 
@@ -1023,23 +1053,24 @@ impl Session {
         self.library.borrow_mut().patch(path)
     }
 
-    /// Drops `root` as a Location: out of the model and out of the settings
-    /// file, which is the only place Locations are remembered.
+    /// Drops the Location at `path`: out of the model, off the watch, and out
+    /// of the settings file, which is the only place Locations are remembered.
     ///
     /// Nothing on disk is touched — a Location is a folder Quill was pointed
-    /// at, and forgetting it is not deleting it — and the watch keeps the
-    /// subject: a path arriving from a folder no Location holds patches
-    /// nothing ([`quill_engine::library::Library::patch`]), and a folder added
-    /// back is a folder already listened for.
-    pub fn remove_location(&self, root: &Path) {
-        if !self.library.borrow_mut().remove_location(root) {
+    /// at, and forgetting it is not deleting it. The tree comes off the watch
+    /// with it, so a folder Quill is no longer showing is a folder it is no
+    /// longer listening to; an open Document under it keeps its own subject,
+    /// which [`Session::watch_document`] asked for by the file.
+    pub fn remove_location(&self, path: &Path) {
+        if !self.library.borrow_mut().remove_location(path) {
             return;
         }
+        self.unwatch_tree(path);
         self.settings
             .borrow_mut()
             .library
             .locations
-            .retain(|held| held != root);
+            .retain(|held| held != path);
         let settings = self.running();
         self.write_settings(&settings);
     }
@@ -1213,10 +1244,15 @@ pub fn watch_settings(app: &gtk::Application, session: &Rc<Session>) {
         } else if palette_saved {
             repaint_palette(Some(&app), &session);
         }
+        // A rename made outside Quill is a delete and a create in the one
+        // drain, so the open Documents follow before any path is answered on
+        // its own (#246, story 29).
+        let batch: Vec<PathBuf> = touched.into_iter().collect();
+        crate::window::followed(&app, &batch);
         let mut patched = false;
-        for path in touched {
+        for path in batch {
             patched |= session.patch_library(&path);
-            crate::window::noticed(&app, &path);
+            crate::window::heard(&app, &path);
         }
         // One pass over the windows for however many rows moved, rather than
         // a redraw per path: a folder saved into ten times in one drain is one
@@ -1945,6 +1981,33 @@ mod tests {
         assert_eq!(refusals[0].id, "library.toggle");
     }
 
+    /// A Save As is not an open: the folder the writer named once is where
+    /// this Document went, not a folder Quill watches from now on (story 45).
+    #[test]
+    fn a_write_takes_the_recents_and_adds_no_location() {
+        let path = fixture("write-library");
+        let folder = path
+            .parent()
+            .expect("the fixture is in a folder")
+            .to_owned();
+        let document = folder.join("saved-as.md");
+        std::fs::write(&document, "# A passage\n").expect("writes the Document");
+        let session = pointed_at(&path);
+
+        session.wrote_at(&document);
+
+        assert!(
+            session.library().locations().is_empty(),
+            "the folder it was written into is no Location of theirs"
+        );
+        assert!(session.settings().library.locations.is_empty());
+        assert_eq!(
+            session.recents(),
+            vec![document],
+            "and the write is the newest of the recents"
+        );
+    }
+
     /// The first file a writer opens is where they write: with no Location,
     /// its folder becomes one and the settings file says so.
     #[test]
@@ -1966,7 +2029,7 @@ mod tests {
                 .library()
                 .locations()
                 .iter()
-                .map(|location| location.root().to_owned())
+                .map(|location| location.path().to_owned())
                 .collect::<Vec<PathBuf>>(),
             vec![folder.clone()]
         );
