@@ -663,6 +663,49 @@ mod tests {
         );
     }
 
+    /// `docs/shortcuts.md` as the writer reads it, so that the example it
+    /// tells them to paste is the one this file is tested against.
+    const SHORTCUTS_DOC: &str = include_str!("../../docs/shortcuts.md");
+
+    /// The first fenced `toml` block under the doc's Rebinding section: the
+    /// three-entry example a writer is shown.
+    fn rebinding_example() -> &'static str {
+        let (_, section) = SHORTCUTS_DOC
+            .split_once("\n## Rebinding\n")
+            .expect("a Rebinding section in docs/shortcuts.md");
+        let (_, fenced) = section
+            .split_once("```toml\n")
+            .expect("a toml block under Rebinding");
+        let (example, _) = fenced.split_once("```").expect("a fence closing the block");
+        example
+    }
+
+    /// The doc's rebinding example, pasted at the foot of the file the
+    /// defaults write, rebinds: the entry with two chords takes both, the
+    /// empty one unbinds, and the one for a Command with no default binds it.
+    ///
+    /// Pasted after the written defaults rather than parsed on its own,
+    /// because that is what #44's hand test did and where it failed: the
+    /// defaults once wrote an empty `[shortcuts]` header, the paste made a
+    /// second, and a file with two is not TOML — nothing in it was read.
+    #[test]
+    fn the_rebinding_example_appended_to_the_written_defaults_rebinds() {
+        let text = format!("{}{}", Settings::default().to_toml(), rebinding_example());
+        let (settings, notes) = Settings::parse(&text);
+        assert!(notes.is_empty(), "{notes:?}\n{text}");
+        let shortcuts = settings.shortcuts();
+        assert!(shortcuts.refusals.is_empty(), "{:?}", shortcuts.refusals);
+        let bound = |id: &str| -> Vec<&str> {
+            shortcuts.chords[id]
+                .iter()
+                .map(shortcuts::Chord::as_str)
+                .collect()
+        };
+        assert_eq!(bound("library.toggle"), ["F9", "<Control>e"]);
+        assert_eq!(bound("theme.toggle"), Vec::<&str>::new());
+        assert_eq!(bound("spell.toggle"), ["<Control><Shift>k"]);
+    }
+
     #[test]
     fn the_defaults_are_the_ones_the_architecture_names() {
         let settings = Settings::default();

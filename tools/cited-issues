@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+"""The closed issues the doc comments still cite.
+
+Owner: a `/code-review` session. CODING_STANDARDS.md § Comments and docs says a `#N` in a
+`///` or `//!` line is about an issue as it stands, so once the issue closes the line is
+history to be read as such or removed. This lists them; it runs only under `/code-review`,
+because it needs `gh`, and `tools/gate check` is offline.
+
+  tools/cited-issues
+
+Greps every `#N` in a `///` or `//!` line of both crates, asks `gh` once for the closed
+issues, and prints one `file:line: #N closed — <the line>` per citation of a closed one, in
+file order. Prints nothing and exits 0 when every cited issue is open; exits 1 when one is
+closed, and 2 when `gh` fails.
+"""
+import json
+import os
+import re
+import subprocess
+import sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+CRATES = ["quill", "quill-engine"]
+DOC_LINE = re.compile(r"^\s*//[/!]")
+ISSUE_REF = re.compile(r"#(\d+)\b")
+
+
+def closed_issues():
+    """The numbers of every closed issue, as `gh` lists them — 500 is well above the count."""
+    run = subprocess.run(
+        ["gh", "issue", "list", "--state", "closed", "--json", "number", "--limit", "500"],
+        capture_output=True,
+        text=True,
+        cwd=ROOT,
+    )
+    if run.returncode != 0:
+        sys.stderr.write(f"cited-issues: gh issue list failed: {run.stderr.strip()}\n")
+        sys.exit(2)
+    return {issue["number"] for issue in json.loads(run.stdout)}
+
+
+def citations():
+    """Every (path, line number, issue number, line) for a `#N` in a doc comment, in file order."""
+    for crate in CRATES:
+        for directory, _, files in sorted(os.walk(os.path.join(ROOT, crate, "src"))):
+            for name in sorted(files):
+                if not name.endswith(".rs"):
+                    continue
+                path = os.path.join(directory, name)
+                with open(path, encoding="utf-8") as source:
+                    for lineno, line in enumerate(source, 1):
+                        if DOC_LINE.match(line):
+                            for m in ISSUE_REF.finditer(line):
+                                yield os.path.relpath(path, ROOT), lineno, int(m.group(1)), line.strip()
+
+
+def main():
+    closed = closed_issues()
+    stale = [(path, lineno, n, line) for path, lineno, n, line in citations() if n in closed]
+    for path, lineno, n, line in stale:
+        print(f"{path}:{lineno}: #{n} closed — {line}")
+    sys.exit(1 if stale else 0)
+
+
+if __name__ == "__main__":
+    main()

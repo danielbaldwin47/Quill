@@ -5,6 +5,23 @@
   "worktree": {
     "symlinkDirectories": ["node_modules", "legacy/node_modules"]
   },
+  "permissions": {
+    "allow": [
+      "Bash(gh issue view:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh issue comment:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr comment:*)",
+      "Bash(gh pr ready:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(tools/ticket:*)",
+      "Bash(tools/context-report:*)"
+    ]
+  },
+  "env": {
+    "GH_REPO": "danielbaldwin47/Quill"
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -19,6 +36,11 @@
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/gate-run-mode-guard.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pr-base-guard.sh",
+            "timeout": 20
           }
         ]
       }
