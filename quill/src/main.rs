@@ -200,6 +200,9 @@ fn main() -> glib::ExitCode {
         window::flush_open(app);
         window::remember_open(app);
         session.store();
+        // The `--library` copy is this launch's own, and goes with it
+        // ([`files::stage`]).
+        files::unstage();
     });
 
     if harness {
