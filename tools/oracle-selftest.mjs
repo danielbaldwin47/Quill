@@ -288,7 +288,7 @@ ok('a state judged against a mac-native crop is not this tool\'s to freeze', () 
   try {
     const r = gate('oracle', 'type', { QUILL_STATES: file });
     assert.equal(r.code, 0, `${r.out}${r.err}`);
-    assert.match(r.out.trim().split('\n').pop(), /^gate oracle type: nothing to freeze \(its one state names a mac-native crop\)/);
+    assert.match(r.out.trim().split('\n').pop(), /^gate oracle type: nothing to freeze \(its one state is judged against a mac-native crop\)/);
     // And it took nothing away from the Piece as it really stands: the sweep below reads the
     // fingerprint, and this run must not have removed the shots type is actually frozen at. Those
     // are duo and quattro alone since #165 moved `mono` to a Design oracle crop: a real
