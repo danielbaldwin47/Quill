@@ -42,7 +42,7 @@ use std::ops::Range;
 use gtk::gdk;
 use gtk::pango;
 use gtk::prelude::*;
-use quill_engine::annotate::live::{self, Fold, LiveLook};
+use quill_engine::annotate::live::{self, Fold, Furniture, LiveLook};
 use quill_engine::annotate::{self, Look, Mark, Slant, Span, Weight};
 use quill_engine::document::Document;
 use quill_engine::focus::{self, Focus, LineTiers, Tier};
@@ -286,6 +286,32 @@ fn hidden(buffer: &gtk::TextBuffer, ground: &str) -> gtk::TextTag {
     });
     hidden.set_priority(buffer.tag_table().size() - 1);
     hidden
+}
+
+/// The tag that draws the accent rule under a link's words.
+///
+/// Live's one piece of furniture that is a tag rather than a box painted in
+/// the Editor's snapshot (#274), and it has to be. Every other piece stands in
+/// the cells of a **block-leading** marker, and those cells are where GTK says
+/// they are; a link's words stand after its folded `[`, and
+/// `gtk_text_view_get_iter_location` answers for a byte as though nothing on
+/// the line were invisible — measured on #274's own passage, where every
+/// offset after a folded `](https://…)` came back at the end of the row. Pango
+/// knows where the words really are, and an underline is what it is for.
+///
+/// The accent, which #263 § Live: the fold names for it: the colour the caret
+/// is cut from, and the one a writer already reads as the app speaking rather
+/// than the page. [`underline`]'s rule is the Design oracle's under a
+/// *destination* and is a different colour on different bytes, so the two tags
+/// never meet — and they must not, because both set `underline` and priority
+/// would be left to decide.
+fn link_rule(buffer: &gtk::TextBuffer, colours: &Colours) -> gtk::TextTag {
+    let rule = tag(buffer, "live-link", |tag| {
+        tag.set_underline(pango::Underline::Single);
+    });
+    let accent = colours.colour(Role::Accent).to_hex();
+    rule.set_underline_rgba(Some(&shaded(&accent, Look::OPAQUE)));
+    rule
 }
 
 /// The tag that sets a heading of `level` at its size on the Live ladder.
@@ -653,12 +679,16 @@ fn fold(
                     buffer.apply_tag(&scaled, &from, &to);
                 }
             }
-            // A link's words are the writer's own and are not folded: the
-            // accent rule that stands over them is furniture, and furniture is
-            // drawn in the snapshot rather than tagged here (#274). Every
-            // other piece of furniture stands where its marker did, so the
-            // marker goes off the page and its cells stay the width they were
-            // ([`hidden`]).
+            // A link's words are the writer's own and are not folded: what
+            // stands over them is the accent rule, and it is the one piece of
+            // furniture drawn from here rather than in the Editor's snapshot
+            // ([`link_rule`] says why).
+            LiveLook::Furniture(Furniture::Link { .. }) => {
+                buffer.apply_tag(&link_rule(buffer, colours), &from, &to);
+            }
+            // Every other piece of furniture stands where its marker did, so
+            // the marker goes off the page and its cells stay the width they
+            // were ([`hidden`]); the Editor paints what stands in them.
             LiveLook::Furniture(furniture) => {
                 if furniture.folds() {
                     buffer.apply_tag(&hidden(buffer, &ground(&span.at)), &from, &to);

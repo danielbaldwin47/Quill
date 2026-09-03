@@ -258,10 +258,15 @@ const BLOCK = 1.5;
 //
 // Three facts, and they are the three a still can hold. The block the caret is in is the writer's
 // to edit, so its rows are the same pixels folded or not. Every marker outside it is off the page:
-// nothing is left hanging in the gutter, and the cells a bullet stood in are empty, which shows as
-// its words beginning further in than the body column they began on. And a heading is set by the
-// ladder: its ink is `scale` times the ink of the same heading unfolded, and its row is taller than
-// a body row.
+// nothing is left hanging in the gutter, and no block's words moved, because a marker that is not
+// hung is folded to its own ground and its cells keep their advance for the furniture #274 draws in
+// them. And a heading is set by the ladder: its ink is `scale` times the ink of the same heading
+// unfolded, and its row is taller than a body row.
+//
+// The middle fact used to be the opposite one — that a list item's words moved *off* the body
+// column, because the cells its bullet stood in were empty. That was true for exactly one ticket:
+// #273 folded the markers and #274 draws a dot, a number, a task box and a hairline back into the
+// cells they left, so a still can no longer see those cells as empty and must not claim to.
 //
 // Nothing is compared against a length written down here. The body column, the pitch, the blocks
 // and the heading's two sizes are all read out of the two shots, for the reason `ghost` reads its
@@ -315,9 +320,9 @@ function folded({ scale: want }, { lit, dim }) {
   if (left < column - skirt) {
     return no(`a marker is still hanging in the gutter: ink at column ${left}, where the body column is ${column}`);
   }
-  const moved = after.filter((block, i) => Math.abs(before[i].left - column) <= skirt && block.left > column + skirt);
-  if (!moved.length) {
-    return no(`no block’s words moved off the body column, so the cells a bullet or a number stood in are not empty`);
+  const shifted = after.findIndex((block, i) => before[i].left >= column - skirt && Math.abs(block.left - before[i].left) > skirt);
+  if (shifted >= 0) {
+    return no(`the fold moved a block’s words: block ${shifted} begins at column ${before[shifted].left} with the markers on the page and ${after[shifted].left} with them folded, and a marker that hangs in no gutter keeps its cells`);
   }
 
   const grew = after[1].top - after[0].top - (before[1].top - before[0].top);
@@ -332,7 +337,7 @@ function folded({ scale: want }, { lit, dim }) {
   const got = height(other) / height(one);
   const off = Math.abs(got - want);
   const ladder = `the heading is set at ${got.toFixed(3)} of its unfolded ink, against the ${want} rung of the Live ladder`;
-  const cells = `the gutter is empty and ${moved.length} block’s words begin ${moved[0].left - column} px inside the body column at ${column}, where their markers stood`;
+  const cells = `the gutter is empty and every block that hung nothing in it begins where it began with the markers on the page, so the cells a bullet, a number or a task box stood in kept their advance`;
   const row = `the heading’s row is ${grew} device px taller than a body row`;
   if (off > LADDER) {
     return no(`${ladder}, which is ${off.toFixed(3)} out and past the ${LADDER} this is measured to`);
