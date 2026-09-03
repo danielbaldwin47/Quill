@@ -59,6 +59,28 @@ fn a_flag_quill_does_not_know_is_a_non_zero_exit_and_one_line_naming_it() {
     assert!(refused.stdout.is_empty(), "nothing on stdout: {refused:?}");
 }
 
+/// A query with no `--sidebar` beside it is refused before GTK, for the same
+/// reason: a shot of a window with the Library away is not a shot of a search.
+#[test]
+fn a_query_with_no_sidebar_is_a_non_zero_exit_and_one_line_naming_it() {
+    let refused = quill()
+        .args(["--search", "sea"])
+        .output()
+        .expect("the binary runs");
+    assert!(
+        !refused.status.success(),
+        "a query with no field to type it into must fail: {:?}",
+        refused.status
+    );
+    let said = String::from_utf8_lossy(&refused.stderr);
+    assert_eq!(
+        said.trim_end(),
+        "quill: --search: --sidebar too: there is no field to type a query into"
+    );
+    assert_eq!(said.lines().count(), 1, "one line, not a stack: {said}");
+    assert!(refused.stdout.is_empty(), "nothing on stdout: {refused:?}");
+}
+
 /// A fixture Library that is not there is refused before GTK, like a flag
 /// Quill cannot read: a `tools/gate shoot` that had copied nothing would
 /// otherwise shoot an empty sidebar and call it the Library.

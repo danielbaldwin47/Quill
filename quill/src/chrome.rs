@@ -349,6 +349,7 @@ fn run_window(window: &Window, command: &Command) {
         "typewriter.toggle" => window.toggle_typewriter(),
         "chrome.toggle" => window.toggle_bars(),
         "library.toggle" => window.toggle_library(),
+        "library.search" => window.search_library(),
         "chrome.stats" => window.toggle_stats(),
         "chrome.doc" | "chrome.view" => {
             if let Some(menu) = opens(command.id) {
