@@ -1148,6 +1148,13 @@ impl Window {
         self.imp().bars.set_library_toggle_shown(!shown);
     }
 
+    /// `library.search`: the Library stands beside the page if it was away,
+    /// and the keyboard goes to its search field.
+    pub(crate) fn search_library(&self) {
+        self.show_library(true);
+        self.imp().sidebar.focus_search();
+    }
+
     /// The keyboard goes back to the page: what Esc does in the sidebar.
     pub(crate) fn focus_editor(&self) {
         self.imp().editor.grab_focus();
