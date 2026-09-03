@@ -121,8 +121,10 @@ No menu row; the Palette lists them under their section.
 | `file.next` | Next Document | `Ctrl+Page Down` | |
 | `file.prev` | Previous Document | `Ctrl+Page Up` | |
 | `file.follow` | Open Linked Document | `Ctrl+Enter` | |
-| `file.openFolder` | Open Folder as Library… | — | |
-| `file.delete` | Delete Document… | — | |
+| `file.recent` | Open Recent… | — | |
+| `file.openFolder` | Add Location… | — | |
+| `file.delete` | Move to Trash | — | |
+| `file.pin` | Pin / Unpin | — | |
 | `theme.light`, `theme.dark`, `theme.auto` | Light Theme, Dark Theme, Follow System | — | |
 | `chrome.doc` | Document Menu | — | |
 | `chrome.view` | View Menu | `F10` | |

@@ -79,10 +79,11 @@ fn well(step: u32) -> i32 {
 
 /// `length` as whole pixels.
 ///
-/// Every horizontal length this module sets — a hang, a well — is rounded here
-/// and only here, so that two of them counted off the same measure cannot land
-/// half a pixel apart.
-fn pixels(length: f64) -> i32 {
+/// The app's one rounding to a whole pixel: every horizontal length this module
+/// sets — a hang, a well — and every length the Library and the Palette lay out
+/// come through here, so that two of them counted off the same measure cannot
+/// land half a pixel apart.
+pub(crate) fn pixels(length: f64) -> i32 {
     #[expect(
         clippy::cast_possible_truncation,
         reason = "a marker is a handful of cells and a well a fraction of a type size; \

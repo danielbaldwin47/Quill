@@ -1,0 +1,85 @@
+{
+  "piece": "files",
+  "round": 4,
+  "winner": "ours",
+  "margin": "clear",
+  "gap": "The search field's placeholder is #BCBCBC — 1.77:1 against the #F7F7F7 paper — while the 21x21px magnifier glyph sitting 35px to its left is #8C8C8C (3.14:1). That is a 48-grey-level split inside one control, and it makes 'Search documents' the palest ink in a pane where every other secondary label (dates, previews, 'Sort by Date', '8 documents · 239 words', 'All changes saved') lands on exactly #8C8C8C. B's placeholder is #999999 against a #989898 icon — matched to within one level.",
+  "gapTheirs": "B runs two secondary greys and two papers across a single hairline. Sidebar chrome and text — toolbar toggle, folder icon, + button, every date, both preview lines, the sort control, the count, the status line — are #999999 on #FDFDFD paper (2.80:1). The document title 'sea-storm.md' in the same 40px toolbar strip, eight pixels across the divider, is #8C8C8C on #F9F9F9. A puts all of it — pane chrome, dates, previews, status line and editor title — on one grey (#8C8C8C) and one paper (#F7F7F7), 3.14:1, so its library is continuous with its page; B's is a second, paler theme bolted to the side of the first.",
+  "verdict": "A's library and A's page are the same sheet of paper with a line ruled down it; B's library is a slightly whiter card laid on top, set in a slightly weaker grey, and you feel the seam every time your eye crosses it. B's previews are the ones that cost you: at 2.80:1 the two lines under each filename are texture rather than text, and finding the chapter that starts with the gale means opening files instead of reading the list. B also can't hold a straight left edge — its sort label, file icons and search glyph sit at 14.5, 16.5 and 20 logical px, three edges where A has one — and its row pitch alternates 77/78px instead of A's flat 75. A's one real failure is that its search placeholder is a ghost at 1.8:1 next to its own icon at 3.1:1; that is a bad half-hour for one control, not a pane built on two grey ramps.",
+  "oursShot": "shots/files/r4-library-ours.png",
+  "theirsShot": "shots/oracle/files/library.png",
+  "refSource": "shots/oracle/files/ — the Parity oracle frozen by tools/gate oracle files from legacy/app 738f48c969965ac3 with legacy/tools/shoot.mjs 239bd27db3974b27",
+  "builderNote": "#254: the search field narrows the list to the engine's results, name hits then content hits with the match marked; the pane's left edges pulled onto one margin and the hairline onto the name column",
+  "secondary": [
+    "Row pitch: A is exactly 150 device px (75 logical) on every file row, zero variance; B alternates 154/156 px, so its separators wobble 1 logical px row to row",
+    "Left rail: A's sort label / search glyph / file icons at x=33/34/33 device px; B's at 29/40/33 — a 5.5 logical px spread on a column that should be one edge",
+    "Selection is identical in both: a 4 logical px accent bar at x=4-7.5 (A #00BFFF, B #00B5FF) over a row tint only 5 grey levels off paper — neither pane makes the open document findable without the bar",
+    "B's nested rules start at x=124 device px, aligning with neither the nested icon (92) nor the nested name (149) — the indent lands in the gap between them",
+    "Same skeleton in both: 368 logical px pane, hairline at x=367, row rules inset to x=46 logical and run to the pane edge, dates right-aligned to x=352",
+    "Neither search field has a box, focus ring or clear affordance — it is an icon and a word on bare paper in both",
+    "Preview truncation: A's ellipsis follows a space ('The fourth ...'), B's is set tight ('doubled…'); B once truncates as 'awake.…', a period plus ellipsis",
+    "Status line slot is identical; A reads 'On this device', B 'In this browser'",
+    "Outside this piece: A's editor measure is ~58ch, B's ~62ch, at 13.2 vs 13.0 logical px advance",
+    "Toolbar hairline: A #DFDFDF, B #E7E7E7 — both ~Δ22 from their own paper, no meaningful difference"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "483bf7a",
+    "binary": "591ab0d9204983ce",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "library",
+      "ours": "shots/files/r4-library-ours.png",
+      "theirs": "shots/oracle/files/library.png",
+      "blind": "shots/blind/files/library",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "The search field's placeholder is #BCBCBC — 1.77:1 against the #F7F7F7 paper — while the 21x21px magnifier glyph sitting 35px to its left is #8C8C8C (3.14:1). That is a 48-grey-level split inside one control, and it makes 'Search documents' the palest ink in a pane where every other secondary label (dates, previews, 'Sort by Date', '8 documents · 239 words', 'All changes saved') lands on exactly #8C8C8C. B's placeholder is #999999 against a #989898 icon — matched to within one level.",
+      "gapTheirs": "B runs two secondary greys and two papers across a single hairline. Sidebar chrome and text — toolbar toggle, folder icon, + button, every date, both preview lines, the sort control, the count, the status line — are #999999 on #FDFDFD paper (2.80:1). The document title 'sea-storm.md' in the same 40px toolbar strip, eight pixels across the divider, is #8C8C8C on #F9F9F9. A puts all of it — pane chrome, dates, previews, status line and editor title — on one grey (#8C8C8C) and one paper (#F7F7F7), 3.14:1, so its library is continuous with its page; B's is a second, paler theme bolted to the side of the first.",
+      "verdict": "A's library and A's page are the same sheet of paper with a line ruled down it; B's library is a slightly whiter card laid on top, set in a slightly weaker grey, and you feel the seam every time your eye crosses it. B's previews are the ones that cost you: at 2.80:1 the two lines under each filename are texture rather than text, and finding the chapter that starts with the gale means opening files instead of reading the list. B also can't hold a straight left edge — its sort label, file icons and search glyph sit at 14.5, 16.5 and 20 logical px, three edges where A has one — and its row pitch alternates 77/78px instead of A's flat 75. A's one real failure is that its search placeholder is a ghost at 1.8:1 next to its own icon at 3.1:1; that is a bad half-hour for one control, not a pane built on two grey ramps.",
+      "secondary": [
+        "Row pitch: A is exactly 150 device px (75 logical) on every file row, zero variance; B alternates 154/156 px, so its separators wobble 1 logical px row to row",
+        "Left rail: A's sort label / search glyph / file icons at x=33/34/33 device px; B's at 29/40/33 — a 5.5 logical px spread on a column that should be one edge",
+        "Selection is identical in both: a 4 logical px accent bar at x=4-7.5 (A #00BFFF, B #00B5FF) over a row tint only 5 grey levels off paper — neither pane makes the open document findable without the bar",
+        "B's nested rules start at x=124 device px, aligning with neither the nested icon (92) nor the nested name (149) — the indent lands in the gap between them",
+        "Same skeleton in both: 368 logical px pane, hairline at x=367, row rules inset to x=46 logical and run to the pane edge, dates right-aligned to x=352",
+        "Neither search field has a box, focus ring or clear affordance — it is an icon and a word on bare paper in both",
+        "Preview truncation: A's ellipsis follows a space ('The fourth ...'), B's is set tight ('doubled…'); B once truncates as 'awake.…', a period plus ellipsis",
+        "Status line slot is identical; A reads 'On this device', B 'In this browser'",
+        "Outside this piece: A's editor measure is ~58ch, B's ~62ch, at 13.2 vs 13.0 logical px advance",
+        "Toolbar hairline: A #DFDFDF, B #E7E7E7 — both ~Δ22 from their own paper, no meaningful difference"
+      ]
+    },
+    {
+      "name": "search",
+      "ours": "shots/files/r4-search-ours.png",
+      "theirs": "shots/oracle/files/search.png",
+      "blind": "shots/blind/files/search",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "A does not emphasise the search hit: the matched 'sea' inside the preview stays at #8C8C8C, the exact ink of the words either side of it, so only a pale #B2E7F9 wash marks it — B lifts the matched glyphs to #1C1C1C against a #999999 excerpt, a ~125-level jump you cannot miss. A also gives its Location header no disclosure chevron (B has one after 'Library'), so the folder name is inert text with no visible way to switch or collapse the Location.",
+      "gapTheirs": "B runs every secondary string in the pane at #999999 on a #FDFDFD ground — 2.80:1, under the 3:1 floor: both date stamps, both two-line previews, 'Sort by Date', '2 of 8 documents' and the whole status line. A holds the same strings at #8C8C8C on #F7F7F7 = 3.14:1. Compounding it, B's search magnifier sits at x=20 while its document icons sit at x=16.5 — 3.5px out of the left rail that A aligns exactly (both at 16.5).",
+      "verdict": "B builds a better search row and a better door — the matched word goes black inside the wash, and the chevron says the Location can be changed — but it then greys out everything you actually scan: dates, previews, count and status line all sit at 2.80:1 and go soft the moment you stop staring. A keeps the same content one step darker and lines the search field up with the document icons under it to the pixel, which is the difference between a column you read and one you squint at. Neither highlights 'sea' in 'sea-storm', so the top result in both shows no visible reason for being there — a search list that cannot mark a filename match is not finished. A wins on legibility, and only just; fix A's match emphasis and add the header chevron and it stops being close.",
+      "secondary": [
+        "Sidebar width identical: hairline at x=734 device → 367px column, both.",
+        "A's sidebar ground (#F7F7F7) is identical to its editor paper (#F7F7F7) — only a 1px #DFDFDF rule separates pane from page. B tints them apart (#FDFDFD vs #F9F9F9), though 4/255 is barely a separation and it makes the sidebar lighter than the page, inverting the usual recessed-pane cue.",
+        "Row separators geometrically identical in both: 1px, inset 46px left / 14px right.",
+        "Selected-row tint delta identical: A #F2F2F2 on #F7F7F7, B #F8F8F8 on #FDFDFD — 5 levels each. Both are near-invisible; the 4px blue bar is doing all the work.",
+        "Row height A 74px vs B 78px logical; B is 4px airier per row.",
+        "Right rail is clean in both — count, dates and status all flush at x=705 device. B's '+' button sits at 708, 1.5px proud of that rail.",
+        "Neither pane offers a clear (×) control in the search field once a query is entered.",
+        "Editor side (not this piece, noted only): A hangs the '#' 26.5px into the margin so heading and body share a left edge; B sets '#' on the body edge and pushes 'The storm' 26px right, breaking the left margin.",
+        "Both clip the status line at the viewport bottom — 26px of bar for text that needs more."
+      ]
+    }
+  ],
+  "at": "2026-09-03T05:48:45.193Z"
+}

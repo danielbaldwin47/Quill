@@ -34,6 +34,7 @@ use std::time::Duration;
 use gtk::glib;
 use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
+use quill_engine::library::Library;
 use quill_engine::settings::{Chrome, Face, FocusScope, Settings, State, Theme, WindowState};
 use quill_engine::shortcuts::Refusal;
 use quill_engine::theme::{self, Palette, Scheme};
@@ -141,6 +142,16 @@ pub struct Session {
     opening: WindowState,
     /// What this session will leave behind, filled as windows close.
     leaving: RefCell<State>,
+    /// The Library: the Locations the settings named, walked at launch. It
+    /// belongs to the application and every window reads this one
+    /// (`docs/architecture.md` § Library).
+    library: RefCell<Library>,
+    /// The one `notify` instance, put here by [`watch_settings`] once GTK is
+    /// up: the settings file, the palette file it names, every Location's tree
+    /// and every open Document's file are subjects of it, which is the
+    /// architecture's "the Documents and the Library join the same watch".
+    /// `None` until then, and where the watch could not be made at all.
+    watch: RefCell<Option<Watch>>,
 }
 
 impl Session {
@@ -218,6 +229,20 @@ impl Session {
         // What this session will leave for the next one to open on while the
         // desktop is still being asked.
         state.last_scheme = scheme;
+        // The Locations are walked here, once, before the first window: the
+        // Library is in memory and nothing persists an index of it (ADR 0002),
+        // so launch is the only place the trees can come from. A launch of the
+        // harness's walks none of the writer's: a judged shot and a bench are
+        // the same launch on every machine, and their folders are neither
+        // theirs to read nor a cost the cold-start budget agreed to. The one
+        // Library the harness does walk is the fixture `--library` named,
+        // whose copy this launch stamped and whose rows are the judged shot
+        // ([`crate::files::stage`]).
+        let library = if harness && flags.library.is_none() {
+            Library::new()
+        } else {
+            Library::open(&settings.library.locations, &settings.library.pinned)
+        };
         Rc::new(Self {
             opening: flags.shape(opening),
             step: Cell::new(settings.step),
@@ -240,6 +265,8 @@ impl Session {
             flags,
             harness,
             leaving: RefCell::new(state),
+            library: RefCell::new(library),
+            watch: RefCell::new(None),
         })
     }
 
@@ -310,9 +337,55 @@ impl Session {
         let theme = settings.theme;
         self.settings.replace(settings);
         self.set_theme(theme);
+        // The Library is a model beside the settings rather than a value in
+        // them, so a `[library]` table that moved has to be put on to it here;
+        // every other setting the sidebar reads — hidden files, extensions —
+        // is read at the next listing and needs nothing but the redraw
+        // `moved` asks for ([`crate::window::reapply`]).
+        self.resync_library();
         let moved = self.running() != before;
         let repainted = self.reread_palette();
         moved || repainted
+    }
+
+    /// Puts the Locations and Pinned the settings file now names on to the
+    /// Library: the folders it no longer lists are dropped, the ones it has
+    /// gained are walked and watched, and Pinned is made to say what the file
+    /// says.
+    ///
+    /// This is what makes a `[library]` edit — the Settings window's rows, or
+    /// a writer's own edit of `settings.toml` — apply live rather than at the
+    /// next launch (#246; #251 found the edit going nowhere). The file is not
+    /// written back: this direction is the file moving the app, and
+    /// [`Session::add_location`] is the other one.
+    fn resync_library(&self) {
+        let wanted = self.settings.borrow().library.locations.clone();
+        let held: Vec<PathBuf> = self
+            .library
+            .borrow()
+            .locations()
+            .iter()
+            .map(|location| location.path().to_path_buf())
+            .collect();
+        for gone in held.iter().filter(|held| !wanted.contains(held)) {
+            self.library.borrow_mut().remove_location(gone);
+            self.unwatch_tree(gone);
+        }
+        for added in wanted.iter().filter(|wanted| !held.contains(wanted)) {
+            if self.library.borrow_mut().add_location(added) {
+                self.watch_tree(added);
+            }
+        }
+        let pinned = self.settings.borrow().library.pinned.clone();
+        let held = self.library.borrow().pinned().to_vec();
+        for path in held.iter().filter(|path| !pinned.contains(path)) {
+            self.library.borrow_mut().unpin(path);
+        }
+        for path in pinned.iter().filter(|path| !held.contains(path)) {
+            // A path under no Location is not pinned, and the file keeps it
+            // all the same: a Location added back brings its pins with it.
+            let _pinned = self.library.borrow_mut().pin(path);
+        }
     }
 
     /// Takes down what the read of the settings file at launch said, which
@@ -661,7 +734,31 @@ impl Session {
         self.leaving.borrow_mut().windows.insert(0, window);
     }
 
-    /// Writes the state file. Called once, when the application shuts down.
+    /// The width the Library pane stands at in every window of this launch.
+    ///
+    /// One width for the app rather than one per window, which is what a
+    /// drag on the divider sets ([`Session::set_library_width`]) and what the
+    /// state file remembers; a launch of the harness's is always at the
+    /// default, having read no state file.
+    #[must_use]
+    pub fn library_width(&self) -> u32 {
+        self.leaving.borrow().library_width
+    }
+
+    /// Takes down the width the writer dragged the pane to.
+    ///
+    /// A launch of the harness's takes down nothing, for the reason
+    /// [`Session::store`] gives: the width a writer left is theirs, and a
+    /// judged shot is not a writer dragging the divider.
+    pub fn set_library_width(&self, width: u32) {
+        if self.harness {
+            return;
+        }
+        self.leaving.borrow_mut().library_width = width;
+    }
+
+    /// Writes the settings and the state file. Called once, when the
+    /// application shuts down.
     pub fn store(&self) {
         if self.harness {
             // A launch of the harness's read no state and leaves none: the
@@ -670,6 +767,19 @@ impl Session {
             return;
         }
         self.store_settings();
+        self.store_state();
+    }
+
+    /// Writes the state file.
+    ///
+    /// Called on the way out and, like [`Session::store_settings`], as the
+    /// writer moves something a Quill that never shuts down cleanly should
+    /// still remember: the pane's width as a drag ends
+    /// ([`crate::window::Window::resize_library`]).
+    pub fn store_state(&self) {
+        if self.harness {
+            return;
+        }
         let mut state = self.leaving.borrow().clone();
         if state.windows.is_empty() {
             // A run that never opened a window, or one whose windows were
@@ -796,6 +906,283 @@ impl Session {
     pub fn settings_path(&self) -> &Path {
         &self.settings_path
     }
+
+    /// The Library, which belongs to the application and is the same one in
+    /// every window (`docs/architecture.md` § Library).
+    pub fn library(&self) -> Ref<'_, Library> {
+        self.library.borrow()
+    }
+
+    /// The Location an untitled Document's first save goes into, or `None`
+    /// where the writer has pointed Quill at no folder yet.
+    pub fn first_location(&self) -> Option<PathBuf> {
+        self.library
+            .borrow()
+            .locations()
+            .first()
+            .map(|location| location.path().to_path_buf())
+    }
+
+    /// Whether the writer asked to be asked where every first save goes
+    /// (`library.ask_where_to_save`).
+    pub fn always_asks(&self) -> bool {
+        self.settings.borrow().library.ask_where_to_save
+    }
+
+    /// Takes in that `path` was opened: it becomes the newest of the recents,
+    /// and with an empty Library its folder becomes the first Location
+    /// ([`crate::files::location_for`]).
+    ///
+    /// A launch of the harness's takes in nothing: it leaves no state behind
+    /// and points the writer's Library at nothing, so `ref/sample.md` never
+    /// makes `ref/` a Location of theirs.
+    pub fn opened_at(&self, path: &Path) {
+        self.wrote_at(path);
+        if self.harness {
+            return;
+        }
+        // Read out before the Location is added, because adding it borrows
+        // the Library again to walk it.
+        let wanted = crate::files::location_for(&self.library.borrow(), path);
+        if let Some(location) = wanted {
+            self.add_location(&location);
+        }
+    }
+
+    /// Takes in that `path` was written: it becomes the newest of the recents,
+    /// and nothing else.
+    ///
+    /// A save adds no Location. Story 45 gives that to a file the writer
+    /// opened — from the shell, or through `file.open` — and a Save As into a
+    /// folder they named once is not a folder they asked Quill to watch from
+    /// now on (#246).
+    ///
+    /// A launch of the harness's takes in nothing, for the reason
+    /// [`Session::opened_at`] gives.
+    pub fn wrote_at(&self, path: &Path) {
+        if self.harness {
+            return;
+        }
+        self.leaving.borrow_mut().visited(path);
+    }
+
+    /// The Documents this writer has opened, most recent first: what
+    /// `file.recent` fills the Palette with and what the Open Recent submenu
+    /// lists (#246, stories 41 and 42).
+    ///
+    /// The live list rather than the file's, so a Document opened a moment ago
+    /// is at the top of it; the file is written on the way out
+    /// ([`Session::store`]).
+    #[must_use]
+    pub fn recents(&self) -> Vec<PathBuf> {
+        self.leaving.borrow().recents.clone()
+    }
+
+    /// Where the caret was left in `path`, or `None` for a Document this
+    /// writer has not been in before.
+    #[must_use]
+    pub fn caret(&self, path: &Path) -> Option<u64> {
+        self.leaving.borrow().caret(path)
+    }
+
+    /// Takes down where the caret stands in `path`, so that opening the
+    /// Document again comes back to the sentence (#246, story 43).
+    ///
+    /// A launch of the harness's takes down nothing, for the reason
+    /// [`Session::opened_at`] gives: its caret is a flag's and not a writer's.
+    pub fn left_caret(&self, path: &Path, offset: u64) {
+        if self.harness {
+            return;
+        }
+        self.leaving
+            .borrow_mut()
+            .carets
+            .insert(path.to_path_buf(), offset);
+    }
+
+    /// Adds the folder at `path` as a Location: walked now, watched from now
+    /// on, and written to the settings file, which is the only place Locations
+    /// are remembered.
+    ///
+    /// A folder the Library already holds, or one that is not a folder, is
+    /// refused by the model and nothing is written.
+    pub fn add_location(&self, path: &Path) {
+        if !self.library.borrow_mut().add_location(path) {
+            return;
+        }
+        self.watch_tree(path);
+        // The list this launch is running is moved as well as the file, and
+        // not left to the watch to bring back: two folders added in one breath
+        // would otherwise be written from a list that had heard about neither,
+        // and the second write would drop the first.
+        self.settings
+            .borrow_mut()
+            .library
+            .locations
+            .push(path.to_path_buf());
+        let settings = self.running();
+        self.write_settings(&settings);
+    }
+
+    /// Puts every Location the settings named on to the watch.
+    ///
+    /// Called once, when the watch is made: the trees were walked at launch,
+    /// before there was a watch to add them to.
+    fn watch_locations(&self) {
+        let locations: Vec<PathBuf> = self
+            .library
+            .borrow()
+            .locations()
+            .iter()
+            .map(|location| location.path().to_path_buf())
+            .collect();
+        for location in locations {
+            self.watch_tree(&location);
+        }
+    }
+
+    /// Listens under `path` for everything that happens in it.
+    fn watch_tree(&self, path: &Path) {
+        let mut watch = self.watch.borrow_mut();
+        let Some(watch) = watch.as_mut() else {
+            return;
+        };
+        if let Err(err) = watch.add_tree(path) {
+            eprintln!("quill: {}: cannot be watched ({err})", path.display());
+        }
+    }
+
+    /// Stops listening under `path`, the tree of a Location that has left the
+    /// Library.
+    fn unwatch_tree(&self, path: &Path) {
+        let mut watch = self.watch.borrow_mut();
+        if let Some(watch) = watch.as_mut() {
+            watch.remove_tree(path);
+        }
+    }
+
+    /// Listens for `path`, the file an open Document is.
+    ///
+    /// A Document under a Location is already listened for as part of its
+    /// tree, and asking for it again costs nothing — the watch holds its
+    /// subjects as a set. A Document outside every Location is why this is
+    /// asked at all: the writer still sees another editor's save of it.
+    ///
+    /// Nothing is taken off again when the Document is closed: the subject is
+    /// one directory, an event for a file no window holds is a look at a path
+    /// nothing answers, and a watch dropped while a second window still shows
+    /// the same file would be the bug worth avoiding.
+    pub fn watch_document(&self, path: &Path) {
+        let mut watch = self.watch.borrow_mut();
+        let Some(watch) = watch.as_mut() else {
+            return;
+        };
+        if let Err(err) = watch.add(path) {
+            eprintln!("quill: {}: cannot be watched ({err})", path.display());
+        }
+    }
+
+    /// Puts what happened at `path` on to the Library's tree.
+    ///
+    /// Answers whether a row moved, which is the sidebar's signal to draw
+    /// again (#246).
+    pub fn patch_library(&self, path: &Path) -> bool {
+        self.library.borrow_mut().patch(path)
+    }
+
+    /// Drops the Location at `path`: out of the model, off the watch, and out
+    /// of the settings file, which is the only place Locations are remembered.
+    ///
+    /// Nothing on disk is touched — a Location is a folder Quill was pointed
+    /// at, and forgetting it is not deleting it. The tree comes off the watch
+    /// with it, so a folder Quill is no longer showing is a folder it is no
+    /// longer listening to; an open Document under it keeps its own subject,
+    /// which [`Session::watch_document`] asked for by the file.
+    pub fn remove_location(&self, path: &Path) {
+        if !self.library.borrow_mut().remove_location(path) {
+            return;
+        }
+        self.unwatch_tree(path);
+        self.settings
+            .borrow_mut()
+            .library
+            .locations
+            .retain(|held| held != path);
+        let settings = self.running();
+        self.write_settings(&settings);
+    }
+
+    /// Pins `path`, and says whether it took: the model first, then
+    /// `[library].pinned` in the settings file, which is where Pinned is
+    /// remembered.
+    pub fn pin(&self, path: &Path) -> bool {
+        if !matches!(
+            self.library.borrow_mut().pin(path),
+            quill_engine::library::Pin::Held
+        ) {
+            return false;
+        }
+        let mut settings = self.settings.borrow_mut();
+        if !settings.library.pinned.iter().any(|held| held == path) {
+            settings.library.pinned.push(path.to_path_buf());
+        }
+        drop(settings);
+        let settings = self.running();
+        self.write_settings(&settings);
+        true
+    }
+
+    /// Unpins `path`, and says whether it was pinned.
+    pub fn unpin(&self, path: &Path) -> bool {
+        if !self.library.borrow_mut().unpin(path) {
+            return false;
+        }
+        self.settings
+            .borrow_mut()
+            .library
+            .pinned
+            .retain(|held| held != path);
+        let settings = self.running();
+        self.write_settings(&settings);
+        true
+    }
+
+    /// Renames the file at `path` to what a writer typed
+    /// ([`quill_engine::library::Library::rename`]).
+    ///
+    /// # Errors
+    ///
+    /// What the rename could not do.
+    pub fn rename_file(&self, path: &Path, typed: &str) -> std::io::Result<PathBuf> {
+        self.library.borrow_mut().rename(path, typed)
+    }
+
+    /// Copies the file at `path` beside itself
+    /// ([`quill_engine::library::Library::duplicate`]).
+    ///
+    /// # Errors
+    ///
+    /// What the copy could not do.
+    pub fn duplicate_file(&self, path: &Path) -> std::io::Result<PathBuf> {
+        self.library.borrow_mut().duplicate(path)
+    }
+
+    /// Moves the file at `path` into `folder`
+    /// ([`quill_engine::library::Library::move_to`]), and answers where it
+    /// landed.
+    ///
+    /// # Errors
+    ///
+    /// What the move could not do.
+    pub fn move_file(&self, path: &Path, folder: &Path) -> std::io::Result<PathBuf> {
+        self.library.borrow_mut().move_to(path, folder)
+    }
+
+    /// Takes in that the app has put `path` in the system trash
+    /// ([`quill_engine::library::Library::trashed`]).
+    pub fn trashed_file(&self, path: &Path) {
+        self.library.borrow_mut().trashed(path);
+    }
 }
 
 /// Where a launch reads and writes its settings: the file `--settings` names,
@@ -845,7 +1232,7 @@ fn lines(notes: &[String], refusals: &[Refusal]) -> Vec<String> {
 /// touched from. A file that cannot be watched is one line on stderr and a
 /// Quill that runs on what it read at launch.
 pub fn watch_settings(app: &gtk::Application, session: &Rc<Session>) {
-    let (mut watch, saves) = match Watch::on(session.settings_path()) {
+    let (watch, saves) = match Watch::on(session.settings_path()) {
         Ok(watching) => watching,
         Err(err) => {
             eprintln!(
@@ -855,8 +1242,12 @@ pub fn watch_settings(app: &gtk::Application, session: &Rc<Session>) {
             return;
         }
     };
+    session.watch.replace(Some(watch));
+    // The Locations were walked at launch, before there was a watch to put
+    // them on; the Documents add themselves as their windows show them.
+    session.watch_locations();
     let mut following = None;
-    follow_palette(&mut watch, &mut following, session);
+    follow_palette(&mut following, session);
     let app = app.clone();
     let session = Rc::clone(session);
     glib::timeout_add_local(DRAIN_EVERY, move || {
@@ -868,18 +1259,43 @@ pub fn watch_settings(app: &gtk::Application, session: &Rc<Session>) {
         // is the one taken when both are waiting.
         let mut settings_saved = false;
         let mut palette_saved = false;
+        // Everything else is a Location's tree or an open Document's file, and
+        // each of those is answered per path: the Library re-stats the one row
+        // it names, and the window showing it asks what happened to it.
+        let mut touched: BTreeSet<PathBuf> = BTreeSet::new();
         for saved in saves.try_iter() {
             if saved == *session.settings_path() {
                 settings_saved = true;
-            } else {
+            } else if following
+                .as_ref()
+                .is_some_and(|palette: &Following| palette.path == saved)
+            {
                 palette_saved = true;
+            } else {
+                touched.insert(saved);
             }
         }
         if settings_saved {
             reread(Some(&app), &session);
-            follow_palette(&mut watch, &mut following, &session);
+            follow_palette(&mut following, &session);
         } else if palette_saved {
             repaint_palette(Some(&app), &session);
+        }
+        // A rename made outside Quill is a delete and a create in the one
+        // drain, so the open Documents follow before any path is answered on
+        // its own (#246, story 29).
+        let batch: Vec<PathBuf> = touched.into_iter().collect();
+        crate::window::followed(&app, &batch);
+        let mut patched = false;
+        for path in batch {
+            patched |= session.patch_library(&path);
+            crate::window::heard(&app, &path);
+        }
+        // One pass over the windows for however many rows moved, rather than
+        // a redraw per path: a folder saved into ten times in one drain is one
+        // Library and one list.
+        if patched {
+            crate::window::relist(&app);
         }
         glib::ControlFlow::Continue
     });
@@ -894,7 +1310,11 @@ pub fn watch_settings(app: &gtk::Application, session: &Rc<Session>) {
 /// again on the settings file's next save rather than polled for, which is
 /// what [`Placed::NoDirectory`] leaves to the caller; a directory that cannot
 /// be watched at all is one line on stderr and the same retry.
-fn follow_palette(watch: &mut Watch, following: &mut Option<Following>, session: &Session) {
+fn follow_palette(following: &mut Option<Following>, session: &Session) {
+    let mut held = session.watch.borrow_mut();
+    let Some(watch) = held.as_mut() else {
+        return;
+    };
     let wanted = session.palette_path();
     if let Some(Following { path, placed }) = following {
         if Some(&*path) == wanted.as_ref() {
@@ -1057,6 +1477,48 @@ mod tests {
         assert_eq!(notes, Vec::<String>::new());
         assert_eq!(written.chrome, Chrome::Hidden);
         std::fs::remove_file(&path).ok();
+    }
+
+    /// The width a drag on the divider arrives at is the app's, one for every
+    /// window; a launch of the harness's keeps none of it, having read no
+    /// state file and leaving none behind (#260).
+    #[test]
+    fn the_pane_width_is_the_sessions_and_a_harness_launch_keeps_none_of_it() {
+        let writer = Session::launch(
+            Flags::default(),
+            Settings::default(),
+            State::default(),
+            WindowState::default(),
+            false,
+            None,
+        );
+        assert_eq!(
+            writer.library_width(),
+            State::default().library_width,
+            "a first launch opens the pane at the default"
+        );
+        writer.set_library_width(512);
+        assert_eq!(writer.library_width(), 512);
+
+        let flags = Flags {
+            deterministic: true,
+            ..Flags::default()
+        };
+        assert!(flags.is_harness(), "a deterministic launch is the Gate's");
+        let harness = Session::launch(
+            flags,
+            Settings::default(),
+            State::default(),
+            WindowState::default(),
+            true,
+            None,
+        );
+        harness.set_library_width(512);
+        assert_eq!(
+            harness.library_width(),
+            State::default().library_width,
+            "a judged shot never drags the divider into the writer's state"
+        );
     }
 
     /// View › Typeface picks a face, and the file follows it: Mono after the
@@ -1596,6 +2058,95 @@ mod tests {
         let refusals = session.settings().shortcuts().refusals;
         assert_eq!(refusals.len(), 1);
         assert_eq!(refusals[0].id, "library.toggle");
+    }
+
+    /// A Save As is not an open: the folder the writer named once is where
+    /// this Document went, not a folder Quill watches from now on (story 45).
+    #[test]
+    fn a_write_takes_the_recents_and_adds_no_location() {
+        let path = fixture("write-library");
+        let folder = path
+            .parent()
+            .expect("the fixture is in a folder")
+            .to_owned();
+        let document = folder.join("saved-as.md");
+        std::fs::write(&document, "# A passage\n").expect("writes the Document");
+        let session = pointed_at(&path);
+
+        session.wrote_at(&document);
+
+        assert!(
+            session.library().locations().is_empty(),
+            "the folder it was written into is no Location of theirs"
+        );
+        assert!(session.settings().library.locations.is_empty());
+        assert_eq!(
+            session.recents(),
+            vec![document],
+            "and the write is the newest of the recents"
+        );
+    }
+
+    /// The first file a writer opens is where they write: with no Location,
+    /// its folder becomes one and the settings file says so.
+    #[test]
+    fn a_first_open_with_an_empty_library_writes_its_folder_as_a_location() {
+        let path = fixture("empty-library");
+        let folder = path
+            .parent()
+            .expect("the fixture is in a folder")
+            .to_owned();
+        let document = folder.join("sample.md");
+        std::fs::write(&document, "# A passage\n").expect("writes the Document");
+        let session = pointed_at(&path);
+        assert!(session.library().locations().is_empty(), "nothing yet");
+
+        session.opened_at(&document);
+
+        assert_eq!(
+            session
+                .library()
+                .locations()
+                .iter()
+                .map(|location| location.path().to_owned())
+                .collect::<Vec<PathBuf>>(),
+            vec![folder.clone()]
+        );
+        assert_eq!(session.settings().library.locations, vec![folder.clone()]);
+        let (written, _) = Settings::read_from(&path);
+        assert_eq!(written.library.locations, vec![folder]);
+    }
+
+    /// A writer who has already pointed Quill at a folder has said which
+    /// folders it shows: opening a file changes nothing, and the settings file
+    /// is not even written.
+    #[test]
+    fn a_first_open_with_a_location_leaves_the_settings_alone() {
+        let path = fixture("one-location");
+        let folder = path
+            .parent()
+            .expect("the fixture is in a folder")
+            .to_owned();
+        let document = folder.join("sample.md");
+        std::fs::write(&document, "# A passage\n").expect("writes the Document");
+        let mut settings = Settings::default();
+        settings.library.locations = vec![folder.clone()];
+        let session = Session::launch(
+            Flags {
+                settings: Some(path.clone()),
+                ..Flags::default()
+            },
+            settings,
+            State::default(),
+            WindowState::default(),
+            false,
+            None,
+        );
+
+        session.opened_at(&document);
+
+        assert_eq!(session.library().locations().len(), 1);
+        assert!(!path.exists(), "the settings file was never written");
     }
 
     /// The file this test writes and edits, in a directory of its own.

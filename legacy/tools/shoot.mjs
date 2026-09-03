@@ -5,6 +5,7 @@
 //   [--active on|off]  off blurs the input, so the caret and any selection are drawn in their unfocused state
 //   [--typing]  the chrome stepped back, the way it is while the writer is typing
 //   [--menu view|document|stats|palette]  that popover open, its first row selected
+//   [--library dir] [--sidebar] [--search q]  seed the Library from a fixture folder, show it, narrow it
 //   [--state seed.json]  merge {localStorageKey: value} into localStorage before load (e.g. a demo Library)
 import { chromium } from 'playwright-core'; import fs from 'node:fs'; import path from 'node:path';
 const args = {}; for (let i = 2; i < process.argv.length; i++) { const a = process.argv[i]; if (a.startsWith('--')) { const k = a.slice(2); const v = process.argv[i + 1]; if (v === undefined || v.startsWith('--')) args[k] = true; else { args[k] = v; i++; } } }
@@ -13,17 +14,74 @@ const url = args.url || process.env.QUILL_URL || 'http://localhost:4173/';
 const settings = { theme: args.theme || 'light', font: args.font || 'duo', focus: args.focus || 'off', typewriter: !!args.typewriter, showChrome: (args.chrome || 'on') !== 'off' };
 if (args.size) settings.fontSize = +args.size;
 const text = args.text ? fs.readFileSync(args.text, 'utf8') : null;
+// Where --caret puts it in a passage: an offset, a needle to land past, or the end — which is also
+// where a bare --caret and no --caret at all put it. Asked of whichever text is being opened, since
+// the Library seeds a document rather than typing one. [files piece]
+const caretIn = (t) => {
+  if (!args.caret || args.caret === true || args.caret === 'end') return t.length;
+  if (/^\d+$/.test(args.caret)) return +args.caret;
+  const i = t.indexOf(args.caret);
+  return i >= 0 ? i + args.caret.length : t.length;
+};
+// --library <dir>: the fixture folder as the app's device Library. The folder location is a File
+// System Access handle behind a picker and cannot be driven headless, so the browser location is
+// the only one there is — and that one is localStorage, which is exactly what --state merges.
+// The tree is read here rather than handed in, so the seed and the fixture cannot drift: the four
+// extensions the Library lists, one level of subfolder (a Collection is one level, files.js
+// `entries`), dot-entries left out because the hidden folder is there to be absent, and every
+// mtime from the fixture's manifest.json — git carries no mtimes, so the disk's would sort the
+// rows by whenever the checkout happened. [files piece]
+const LIB_EXT = /\.(md|markdown|mdown|txt|text)$/i;
+function libraryDocs(dir) {
+  const mtimes = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8')).mtimes;
+  const docs = [];
+  const read = (folder) => {
+    const at = folder ? path.join(dir, folder) : dir;
+    for (const e of fs.readdirSync(at, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+      if (e.name.startsWith('.')) continue;
+      const rel = folder ? `${folder}/${e.name}` : e.name;
+      if (e.isDirectory()) { if (!folder) read(rel); continue; }
+      if (!LIB_EXT.test(e.name)) continue;
+      if (mtimes[rel] === undefined) { console.error(`shoot: --library ${dir}: ${rel} has no mtime in manifest.json, and the checkout's date is not a judged state`); process.exit(2); }
+      docs.push({ id: rel, name: e.name, folder: folder || null, mtime: mtimes[rel] * 1000, text: fs.readFileSync(path.join(dir, rel), 'utf8'), caret: 0 });
+    }
+  };
+  read(null);
+  return docs;
+}
+let seed = args.state ? JSON.parse(fs.readFileSync(args.state, 'utf8')) : null;   // [files piece] --state seeds localStorage
+if (args.sidebar !== undefined || args.search !== undefined || args.library !== undefined) {
+  if (args.library === undefined || args.library === true) { console.error('shoot: --library takes the fixture folder to seed the Library from, and --sidebar and --search are that Library\'s'); process.exit(2); }
+  const dir = String(args.library);
+  const docs = libraryDocs(dir);
+  // The open document is the one --text names, and --text must name one of these: the page and the
+  // sidebar then show the same document, the way they do for a writer who clicked the row. It is
+  // seeded rather than typed with setText, which is the point — setText raises `change`, and the
+  // autosave 400 ms behind it restamps the open document's mtime with the wall clock and repaints
+  // its row, so the shot would be of a different Library every run.
+  const rel = text === null ? null : path.relative(dir, args.text);
+  const open = rel === null ? [...docs].sort((a, b) => b.mtime - a.mtime)[0] : docs.find((d) => d.id === rel);
+  if (open === undefined) { console.error(`shoot: --library ${dir} holds no ${rel ?? 'document'} for --text ${args.text ?? '(none)'} to open`); process.exit(2); }
+  open.caret = caretIn(open.text);
+  seed = {
+    ...(seed || {}),
+    'quill.lib': {
+      open: !!args.sidebar, loc: 'device', sort: 'mtime', width: 368,
+      q: args.search === undefined || args.search === true ? '' : String(args.search),
+      openId: open.id, collapsed: {}, dirName: '', device: docs,
+    },
+  };
+}
 const b = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true, args: ['--font-render-hinting=none', '--disable-lcd-text', '--hide-scrollbars'] });
 const ctx = await b.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: dpr, colorScheme: settings.theme === 'dark' ? 'dark' : 'light', reducedMotion: 'no-preference' });
 const p = await ctx.newPage();
-const seed = args.state ? JSON.parse(fs.readFileSync(args.state, 'utf8')) : null;   // [files piece] --state seeds localStorage
 await p.addInitScript(([s, seed]) => { localStorage.setItem('quill.settings', JSON.stringify(s)); localStorage.removeItem('quill.doc'); localStorage.removeItem('quill.doc.sel'); if (seed) for (const k in seed) localStorage.setItem(k, typeof seed[k] === 'string' ? seed[k] : JSON.stringify(seed[k])); }, [settings, seed]);
 await p.goto(url, { waitUntil: 'load' });
 await p.evaluate(async () => { await document.fonts.ready; });
-if (text !== null) {
-  let caret = text.length;
-  if (args.caret && args.caret !== 'end') { if (/^\d+$/.test(args.caret)) caret = +args.caret; else { const i = text.indexOf(args.caret); caret = i >= 0 ? i + args.caret.length : text.length; } }
-  await p.evaluate(([t, c]) => { Writer.setText(t, { caret: c }); Writer.el.input.focus(); }, [text, caret]);
+// Under --library the passage is the Library's own document, seeded above and opened by the app's
+// own boot; typing it in here would raise the `change` the autosave restamps its mtime behind.
+if (text !== null && args.library === undefined) {
+  await p.evaluate(([t, c]) => { Writer.setText(t, { caret: c }); Writer.el.input.focus(); }, [text, caretIn(text)]);
 }
 // --scroll <px|needle>: put the document where the reference shot has it. A number is a
 // scrollTop; a string scrolls the line that contains it to the top of the viewport. [chrome piece]

@@ -4,7 +4,8 @@
 //! the only source of truth: a Document's folder holds Documents and nothing
 //! of Quill's — no index, no dot-file, no sidecar. Everything Quill remembers
 //! is under the two XDG directories, and this test is the one that watches both
-//! ends of that at once, with a Document opened and both files written.
+//! ends of that at once, with a Document opened and saved and both of Quill's
+//! own files written.
 //!
 //! One test in this file, deliberately: it sets the two XDG variables, and a
 //! second test running beside it would read them from under itself.
@@ -12,11 +13,12 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use quill_engine::disk::{Filed, Saved};
 use quill_engine::document::Document;
 use quill_engine::settings::{Settings, State};
 
 #[test]
-fn opening_a_document_writes_nothing_beside_it_and_nothing_under_the_library() {
+fn opening_and_saving_a_document_writes_nothing_beside_it_and_nothing_under_the_library() {
     let scratch = scratch();
     let library = scratch.join("Library");
     let document = library.join("chapter").join("one.md");
@@ -33,6 +35,19 @@ fn opening_a_document_writes_nothing_beside_it_and_nothing_under_the_library() {
 
     let opened = Document::open(&document).expect("opens the Document");
     assert_eq!(opened.text(), "# One\n\nThe lamp had been lit.\n");
+
+    // And a save writes through a temporary in the same folder, which is gone
+    // by the time the save is: the folder holds the Document and no sidecar.
+    let mut filed = Filed::around(opened);
+    filed
+        .document_mut()
+        .reload("# One\n\nThe lamp had been lit, and put out.\n".to_string());
+    assert_eq!(filed.save().expect("saves the Document"), Saved::Written);
+    assert_eq!(
+        fs::read_to_string(&document).expect("reads the saved Document"),
+        "# One\n\nThe lamp had been lit, and put out.\n"
+    );
+
     let (settings, notes) = Settings::open();
     assert!(notes.is_empty(), "{notes:?}");
     let (state, notes) = State::open();

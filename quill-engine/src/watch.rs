@@ -23,6 +23,16 @@
 //! same shape: [`Watch::add`] says so ([`Placed::NoDirectory`]) rather than
 //! polling for it, and the caller adds the file again when it has reason to.
 //!
+//! A Location is the other kind of subject: a folder tree, added with
+//! [`Watch::add_tree`] and watched recursively, every settled event under it
+//! sent on — the architecture's "the Documents and the Library join the same
+//! watch" (`docs/architecture.md` § Settings). A version is not consulted for
+//! one, because a `stat` tells a save from an open but not a file created from
+//! a file renamed away, and what reads the path is the Library, which re-stats
+//! it as it patches its tree ([`crate::library::Library::patch`]). What arrives
+//! is the path under the root as the root was added, so a caller tells a tree's
+//! event from a file's by the prefix.
+//!
 //! The app owns the [`Watch`] and drains its [`Receiver`] from its own main
 //! loop: the engine has no `glib` (ADR 0008), and the thread the debouncer
 //! answers on is not one a window can be touched from. What arrives is the path
@@ -50,17 +60,21 @@ use notify_debouncer_mini::{DebounceEventResult, DebouncedEventKind, Debouncer, 
 /// enough that a writer who saved sees the page follow.
 pub const DEBOUNCE: Duration = Duration::from_millis(100);
 
-/// Whether a file handed to [`Watch::add`] is being listened for.
+/// Whether a path handed to [`Watch::add`] or [`Watch::add_tree`] is being
+/// listened for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[must_use = "a file whose directory is not there is not being listened for"]
+#[must_use = "a path whose directory is not there is not being listened for"]
 pub enum Placed {
-    /// The file's directory is there and watched: its saves will arrive.
+    /// The file's directory — or the tree's root — is there and watched: what
+    /// happens under it will arrive.
     Listening,
     /// The file's directory is not there, so there is nothing to watch yet.
     /// The watch does not poll for it; the caller adds the file again when it
     /// has reason to think the directory has appeared — the app, on the
     /// settings watch's next event — and meanwhile, if the directory above it
-    /// is there, the directory's arrival is seen there and arms the watch.
+    /// is there, the directory's arrival is seen there and arms the watch. A
+    /// tree whose root is not a folder is this same answer, and is added again
+    /// the same way.
     NoDirectory,
 }
 
@@ -73,8 +87,12 @@ pub enum Placed {
 /// write time have not moved since it was last sent on has not been saved,
 /// whatever was done to it; and the question is asked with a `stat` because
 /// opening the file to look would be one more open for the watch to report.
+///
+/// [`crate::disk`] asks the same question of an open Document's file, against
+/// the version its last save wrote, which is why this is the crate's rather
+/// than the module's.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Version {
+pub(crate) struct Version {
     /// The file's length in bytes.
     len: u64,
     /// When it was last written, where the file system says.
@@ -82,7 +100,7 @@ struct Version {
 }
 
 /// The version of the file at `path`, or `None` where there is no file.
-fn version(path: &Path) -> Option<Version> {
+pub(crate) fn version(path: &Path) -> Option<Version> {
     fs::metadata(path).ok().map(|metadata| Version {
         len: metadata.len(),
         modified: metadata.modified().ok(),
@@ -137,6 +155,21 @@ struct Subject {
     sent: Option<Version>,
 }
 
+/// One folder tree being listened for, root and all.
+struct Tree {
+    /// Its root as the watcher's events will name it — `None` while there is
+    /// no folder there.
+    root: Option<PathBuf>,
+}
+
+/// Resolves the root of a tree added as `given`, which is `None` where there is
+/// no folder there: a tree is a root and everything under it, so a path that is
+/// not a directory is not a tree.
+fn root_of(given: &Path) -> Option<PathBuf> {
+    let root = given.canonicalize().ok()?;
+    root.is_dir().then_some(root)
+}
+
 /// What the watch knows, shared between the thread that owns the [`Watch`] and
 /// the debouncer's, which is where a directory replaced is seen and where the
 /// watcher has to be reached to arm it again.
@@ -146,42 +179,77 @@ struct Inner {
     debouncer: Option<Debouncer<RecommendedWatcher>>,
     /// The files listened for, by the path each was added by.
     subjects: BTreeMap<PathBuf, Subject>,
-    /// The directories handed to the watcher: each subject's own, resolved,
-    /// and the one above it.
-    watched: BTreeSet<PathBuf>,
+    /// The folder trees listened for, by the path each was added by.
+    trees: BTreeMap<PathBuf, Tree>,
+    /// The directories handed to the watcher and how each is watched: every
+    /// subject's own, resolved, and the one above it, non-recursively; every
+    /// tree's root recursively.
+    watched: BTreeMap<PathBuf, RecursiveMode>,
     /// Where a save is sent on.
     sender: Sender<PathBuf>,
 }
 
 impl Inner {
-    /// Watches every directory the subjects want and no other, and answers
-    /// with the first error the watcher gave, having tried them all. A
-    /// directory the watcher refused is not remembered as watched, so the
-    /// next add tries it again rather than taking the refusal as final.
-    fn sync(&mut self) -> Result<(), notify::Error> {
-        let wanted: BTreeSet<PathBuf> = self
-            .subjects
+    /// Every directory that has to be watched and how: a tree's root
+    /// recursively, and every subject's own directory and the one above it
+    /// non-recursively, unless a tree's root already covers it — one directory
+    /// is one watch, and the recursive one is the one that sees more.
+    ///
+    /// The walk is one pass over the subjects, each asked against the roots,
+    /// and there are as many roots as the writer has Locations.
+    fn wanted(&self) -> BTreeMap<PathBuf, RecursiveMode> {
+        let roots: Vec<&Path> = self
+            .trees
             .values()
-            .flat_map(|subject| {
-                let own = subject.place.file.as_deref().and_then(Path::parent);
-                let above = subject.place.directory.as_deref().and_then(Path::parent);
-                own.into_iter().chain(above).map(Path::to_path_buf)
-            })
+            .filter_map(|tree| tree.root.as_deref())
             .collect();
+        let mut wanted: BTreeMap<PathBuf, RecursiveMode> = roots
+            .iter()
+            .map(|root| (root.to_path_buf(), RecursiveMode::Recursive))
+            .collect();
+        let directories = self.subjects.values().flat_map(|subject| {
+            let own = subject.place.file.as_deref().and_then(Path::parent);
+            let above = subject.place.directory.as_deref().and_then(Path::parent);
+            own.into_iter().chain(above)
+        });
+        for directory in directories {
+            if roots.iter().any(|root| directory.starts_with(root)) {
+                continue;
+            }
+            wanted.insert(directory.to_path_buf(), RecursiveMode::NonRecursive);
+        }
+        wanted
+    }
+
+    /// Watches every directory the subjects and the trees want, each in the
+    /// mode that wants it, and no other; answers with the first error the
+    /// watcher gave, having tried them all. A directory the watcher refused is
+    /// not remembered as watched, so the next add tries it again rather than
+    /// taking the refusal as final.
+    fn sync(&mut self) -> Result<(), notify::Error> {
+        let wanted = self.wanted();
         let Some(debouncer) = self.debouncer.as_mut() else {
             return Ok(());
         };
         let watcher = debouncer.watcher();
-        for gone in self.watched.difference(&wanted) {
-            // A directory that was removed under the watch is already unwatched.
-            let _ = watcher.unwatch(gone);
+        let mut watched = BTreeMap::new();
+        for (path, mode) in &self.watched {
+            if wanted.get(path) == Some(mode) {
+                watched.insert(path.clone(), *mode);
+            } else {
+                // A directory that was removed under the watch is already
+                // unwatched; one whose mode moved is watched again below.
+                let _ = watcher.unwatch(path);
+            }
         }
         let mut first = Ok(());
-        let mut watched: BTreeSet<PathBuf> = self.watched.intersection(&wanted).cloned().collect();
-        for new in wanted.difference(&self.watched) {
-            match watcher.watch(new, RecursiveMode::NonRecursive) {
+        for (path, mode) in &wanted {
+            if watched.contains_key(path) {
+                continue;
+            }
+            match watcher.watch(path, *mode) {
                 Ok(()) => {
-                    watched.insert(new.clone());
+                    watched.insert(path.clone(), *mode);
                 }
                 Err(err) => first = first.and(Err(err)),
             }
@@ -204,6 +272,18 @@ impl Inner {
         Ok(placed)
     }
 
+    /// Listens for the tree rooted at `given`, resolved where it is now.
+    fn add_tree(&mut self, given: &Path) -> Result<Placed, notify::Error> {
+        let root = root_of(given);
+        let placed = match root {
+            Some(_) => Placed::Listening,
+            None => Placed::NoDirectory,
+        };
+        self.trees.insert(given.to_path_buf(), Tree { root });
+        self.sync()?;
+        Ok(placed)
+    }
+
     /// Acts on what the debouncer has gathered.
     fn heard(&mut self, events: DebounceEventResult) {
         // An error the watcher itself reports is dropped: the settings watch is
@@ -222,12 +302,16 @@ impl Inner {
         }
     }
 
-    /// Acts on one settled path: a subject's file saved, or a subject's
-    /// directory replaced — named from above, or itself moved or removed.
+    /// Acts on one settled path: a subject's file saved, a subject's directory
+    /// replaced — named from above, or itself moved or removed — or a path
+    /// under a tree, whatever happened to it.
     ///
     /// The temporary file a save is written through is in the same directory
-    /// and is reported like anything else there, so what is sent on is what
-    /// was asked for rather than what moved.
+    /// and is reported like anything else there, so what is sent on for a
+    /// subject is what was asked for rather than what moved. A tree sends the
+    /// path that moved, under the root as the root was added: the Library is
+    /// told which of its rows to look at again, and a caller tells a tree's
+    /// event from a subject's by the prefix.
     fn heard_at(&mut self, path: &Path) {
         let saved: Vec<PathBuf> = self
             .subjects
@@ -249,6 +333,21 @@ impl Inner {
             .collect();
         for given in replaced {
             self.replace(&given);
+        }
+        let under: Vec<PathBuf> = self
+            .trees
+            .iter()
+            .filter_map(|(given, tree)| {
+                let rest = path.strip_prefix(tree.root.as_deref()?).ok()?;
+                Some(if rest.as_os_str().is_empty() {
+                    given.clone()
+                } else {
+                    given.join(rest)
+                })
+            })
+            .collect();
+        for moved in under {
+            let _ = self.sender.send(moved);
         }
     }
 
@@ -322,7 +421,8 @@ impl Watch {
         let inner = Arc::new(Mutex::new(Inner {
             debouncer: None,
             subjects: BTreeMap::new(),
-            watched: BTreeSet::new(),
+            trees: BTreeMap::new(),
+            watched: BTreeMap::new(),
             sender,
         }));
         let heard = Arc::clone(&inner);
@@ -352,11 +452,35 @@ impl Watch {
         lock(&self.inner).add(path)
     }
 
+    /// Listens for everything under the folder `path` as well, on the same
+    /// receiver, and says whether it is being listened for yet.
+    ///
+    /// This is what a Location joins the watch by: the folder and everything
+    /// beneath it, a file created, written, renamed or deleted anywhere under
+    /// it arriving as the path it happened to, under `path` as `path` was
+    /// handed here. Adding a tree already listened for resolves its root
+    /// again, which is how a caller retries a [`Placed::NoDirectory`].
+    ///
+    /// # Errors
+    ///
+    /// Returns the watcher's own error where the folder cannot be watched.
+    pub fn add_tree(&mut self, path: &Path) -> Result<Placed, notify::Error> {
+        lock(&self.inner).add_tree(path)
+    }
+
     /// Stops listening for `path`; a directory stays watched only while a file
     /// in it is listened for.
     pub fn remove(&mut self, path: &Path) {
         let mut inner = lock(&self.inner);
         inner.subjects.remove(path);
+        let _ = inner.sync();
+    }
+
+    /// Stops listening for the tree rooted at `path`, which a Location removed
+    /// from the Library does.
+    pub fn remove_tree(&mut self, path: &Path) {
+        let mut inner = lock(&self.inner);
+        inner.trees.remove(path);
         let _ = inner.sync();
     }
 }
@@ -717,6 +841,74 @@ mod tests {
         let settings = directory.join("settings.toml");
         fs::write(&settings, "theme = \"dark\"\n").unwrap();
         assert_eq!(saves.recv_timeout(WAIT), Ok(settings));
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    /// A Location under `directory`, with a folder in it, and the path it will
+    /// be added by.
+    fn located(directory: &Path) -> PathBuf {
+        let root = directory.join("Library");
+        fs::create_dir_all(root.join("chapters")).unwrap();
+        root
+    }
+
+    #[test]
+    fn a_file_created_deep_in_a_watched_tree_arrives_by_the_path_the_root_was_added_by() {
+        let directory = scratch("tree");
+        let root = located(&directory);
+        let (mut watch, saves) = opened(&directory);
+        assert_eq!(watch.add_tree(&root).unwrap(), Placed::Listening);
+        let file = root.join("chapters").join("one.md");
+        fs::write(&file, "# One\n").unwrap();
+        assert!(drained(&saves).contains(&file), "the file that was created");
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn a_file_renamed_inside_a_watched_tree_arrives_as_the_path_it_left_and_the_one_it_took() {
+        // Which is what a tree's caller needs: `notify` gathers events by path,
+        // so a rename is two paths, and the Library takes the row off the one
+        // and puts it on the other.
+        let directory = scratch("moved");
+        let root = located(&directory);
+        let one = root.join("one.md");
+        fs::write(&one, "# One\n").unwrap();
+        let (mut watch, saves) = opened(&directory);
+        assert_eq!(watch.add_tree(&root).unwrap(), Placed::Listening);
+        let two = root.join("two.md");
+        fs::rename(&one, &two).unwrap();
+        let heard = drained(&saves);
+        assert!(heard.contains(&one) && heard.contains(&two), "{heard:?}");
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn a_tree_removed_from_the_watch_is_not_sent_on() {
+        let directory = scratch("dropped-tree");
+        let root = located(&directory);
+        let (mut watch, saves) = opened(&directory);
+        assert_eq!(watch.add_tree(&root).unwrap(), Placed::Listening);
+        watch.remove_tree(&root);
+        fs::write(root.join("one.md"), "# One\n").unwrap();
+        assert_eq!(saves.recv_timeout(WAIT), Err(RecvTimeoutError::Timeout));
+        // The file the watch was opened on is still listened for.
+        let settings = directory.join("settings.toml");
+        fs::write(&settings, "theme = \"dark\"\n").unwrap();
+        assert_eq!(saves.recv_timeout(WAIT), Ok(settings));
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn a_tree_whose_folder_is_not_there_is_said_so_and_added_again_later() {
+        let directory = scratch("no-tree");
+        let root = directory.join("Library");
+        let (mut watch, saves) = opened(&directory);
+        assert_eq!(watch.add_tree(&root).unwrap(), Placed::NoDirectory);
+        fs::create_dir_all(&root).unwrap();
+        assert_eq!(watch.add_tree(&root).unwrap(), Placed::Listening);
+        let file = root.join("one.md");
+        fs::write(&file, "# One\n").unwrap();
+        assert!(drained(&saves).contains(&file), "the file that was created");
         fs::remove_dir_all(&directory).ok();
     }
 
