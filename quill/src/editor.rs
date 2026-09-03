@@ -340,6 +340,20 @@ mod imp {
         /// ([`Editor::refold`]). `None` with Live off, and while it has not
         /// been worked out yet.
         pub open: RefCell<Option<std::ops::Range<usize>>>,
+        /// Whether a pointer button is down. The fold stands still while it
+        /// is: folding takes bytes off the page, and text that moved under a
+        /// held button turns a click into a drag across whatever slid past
+        /// ([`Editor::released`](super::Editor::released)).
+        pub held: Cell<bool>,
+        /// Whether a refold was asked for while a button was down, and so is
+        /// owed at the release.
+        pub fold_owed: Cell<bool>,
+        /// Where the fold was last committed to putting the writer, which is
+        /// what every draw between two refolds paints from
+        /// ([`Editor::painting`](super::Editor::painting)). The live caret
+        /// would fold the page to a place the fold has not moved to yet, which
+        /// is the same reflow under a held button by another road.
+        pub writer: RefCell<std::ops::Range<usize>>,
         /// What Live's fold left standing in the marker cells, in the
         /// buffer's own offsets, top to bottom
         /// ([`Editor::refurnish`](super::Editor::refurnish)). Empty with Live
@@ -657,6 +671,10 @@ impl Editor {
             self,
             move |clicks, _, x, y| {
                 editor.imp().last.set(caret::Source::Pointer);
+                // The fold stands still until the button comes up: a block
+                // folding under a held pointer moves the text the release will
+                // be read against ([`Editor::released`]).
+                editor.imp().held.set(true);
                 // Stamped here, in the capture phase, so that the caret move
                 // the press makes finds the press already on record.
                 editor.imp().pressed.set(Some(editor.now()));
@@ -805,8 +823,15 @@ impl Editor {
     /// caller already holds the borrow: the tiers are worked out and drawn in
     /// one breath, and a second borrow inside a draw is a second chance for
     /// them to be the tiers of a different caret.
-    fn painting<'a>(&self, document: &Document, tiers: &'a [LineTiers]) -> tags::Painting<'a> {
-        self.painting_at(&self.caret_bytes(document), tiers)
+    ///
+    /// Live's half is the writer the fold was last committed at
+    /// ([`Editor::refold`]) rather than the caret as the buffer now holds it:
+    /// a draw that folded to a caret the fold has not moved to yet would take
+    /// bytes off the page between the fold's own two passes, which is the
+    /// reflow under a held button that [`Editor::released`] exists to prevent.
+    fn painting<'a>(&self, tiers: &'a [LineTiers]) -> tags::Painting<'a> {
+        let writer = self.imp().writer.borrow().clone();
+        self.painting_at(&writer, tiers)
     }
 
     /// [`Editor::painting`], for a writer whose place the buffer does not hold
@@ -908,25 +933,56 @@ impl Editor {
     /// Nothing but the two blocks is drawn, which is what keeps Live on the
     /// keystroke path: a caret walking along the sentence it is in leaves the
     /// same lines open and draws nothing at all.
+    ///
+    /// Nothing at all is drawn while a pointer button is down: the fold is put
+    /// on the slate and paid at the release ([`Editor::released`]), because a
+    /// block folding under a held button moves the text out from under the
+    /// pointer and GTK reads the release's own coordinates. A key press is not
+    /// a held button and folds at once, as it always did.
     fn refold(&self, document: &Document) {
         if !self.imp().live.get() {
             return;
         }
-        let at = self.caret_bytes(document);
-        let now = self.open_lines(document, &at);
-        let was = self.imp().open.replace(Some(now.clone()));
-        if was.as_ref() == Some(&now) {
+        if self.imp().held.get() {
+            self.imp().fold_owed.set(true);
             return;
         }
-        let mut lines = Vec::with_capacity(2);
-        lines.extend(was);
-        lines.push(now);
+        let at = self.caret_bytes(document);
+        let now = self.open_lines(document, &at);
+        // Committed whether or not the open lines moved, because it is what
+        // every draw until the next refold folds to: an edit that left the
+        // same lines open still moved the bytes the fold is written in.
+        self.imp().writer.replace(at);
+        let was = self.imp().open.replace(Some(now.clone()));
+        let Some(lines) = refolded(was, now) else {
+            return;
+        };
         self.redraw(document, &lines);
         // The block the writer left is furnished and the one they entered is
         // not, so the furniture moves with the fold and in the same pass, for
         // the reason the fold moves in one: two frames apart is a flash of a
         // dot standing on the `-` it replaced.
         self.refurnish(document);
+    }
+
+    /// A pointer button came up: the fold moves now, if it was asked to while
+    /// the button was down.
+    ///
+    /// The other half of [`Editor::refold`]'s standing still. The writer's
+    /// range at the release is the selection if the press turned into a drag,
+    /// so every block the drag crossed unfolds together and none of them moved
+    /// under the pointer on the way.
+    ///
+    /// Heard by the window, from a legacy event controller rather than a
+    /// gesture: the press on a task box claims its sequence and so does GTK's
+    /// own selection drag, a claimed sequence denies every other gesture on
+    /// the widget, and a denied gesture's `released` never fires — which would
+    /// leave the fold held down for good.
+    pub fn released(&self, document: &Document) {
+        self.imp().held.set(false);
+        if self.imp().fold_owed.take() {
+            self.refold(document);
+        }
     }
 
     /// The lines of the parts the writer's range reaches: what Live leaves
@@ -1089,7 +1145,7 @@ impl Editor {
     /// moved for them to hear about.
     fn redraw(&self, document: &Document, lines: &[Range<usize>]) {
         let tiers = self.imp().tiers.borrow();
-        let painting = self.painting(document, &tiers);
+        let painting = self.painting(&tiers);
         let buffer = self.buffer();
         let batch = buffer.freeze_notify();
         for at in lines {
@@ -1131,7 +1187,7 @@ impl Editor {
         let buffer = self.buffer();
         let batch = buffer.freeze_notify();
         let tiers = self.imp().tiers.borrow();
-        tags::apply(&buffer, document, self.painting(document, &tiers));
+        tags::apply(&buffer, document, self.painting(&tiers));
         drop(tiers);
         drop(batch);
         // The caret takes the new accent on its next frame, and the selection
@@ -1363,7 +1419,9 @@ impl Editor {
         tags::apply(&buffer, document, self.painting_at(&(0..0), &tiers));
         drop(tiers);
         // The fold this Document opened at, remembered for the same reason the
-        // tiers are: the first caret move has to know which block to fold.
+        // tiers are: the first caret move has to know which block to fold, and
+        // every draw before it has to know where the fold stands.
+        self.imp().writer.replace(0..0);
         self.imp().open.replace(
             self.imp()
                 .live
@@ -1417,13 +1475,15 @@ impl Editor {
         // next keystroke and then arrive, rather than a stretch of an earlier
         // sentence left stranded half-way between the two tiers.
         self.settle_fade(document);
-        self.redraw(document, std::slice::from_ref(&edit.lines));
         // An edit moves the fold as well as the dim: a writer who types a
         // blank line has left one block for another, and the lines the fold
-        // was last open over have moved under the splice. Asked after the
-        // edit's own redraw, so the block the caret has left is folded in the
-        // same pass ([`Editor::refold`]).
+        // was last open over have moved under the splice. Asked before the
+        // edit's own redraw, because the redraw folds to the writer the fold
+        // last committed ([`Editor::painting`]) and the splice has just moved
+        // that writer; the block the caret left is folded in the same pass
+        // either way ([`Editor::refold`]).
         self.refold(document);
+        self.redraw(document, std::slice::from_ref(&edit.lines));
         // And the furniture, whether or not the fold moved: every furnishing
         // below the splice is held at an offset the edit has just moved.
         // Before the Focus half returns, because Live is on or off on its own.
@@ -1463,7 +1523,7 @@ impl Editor {
         let buffer = self.buffer();
         let batch = buffer.freeze_notify();
         let tiers = self.imp().tiers.borrow();
-        tags::apply(&buffer, document, self.painting(document, &tiers));
+        tags::apply(&buffer, document, self.painting(&tiers));
         drop(tiers);
         drop(batch);
         self.queue_draw();
@@ -1485,6 +1545,7 @@ impl Editor {
         self.imp().live.set(live);
         self.hang();
         let at = self.caret_bytes(document);
+        self.imp().writer.replace(at.clone());
         self.imp()
             .open
             .replace(live.then(|| self.open_lines(document, &at)));
@@ -3223,6 +3284,24 @@ fn tick(buffer: &gtk::TextBuffer, box_at: &Range<i32>, checked: bool) {
     buffer.end_user_action();
 }
 
+/// The lines a fold that has just moved from `was` to `now` draws again, or
+/// `None` where it moved nowhere.
+///
+/// The whole of the decision [`Editor::refold`] makes once it knows both, kept
+/// out of the method because a buffer is what the rest of that pass needs and
+/// this needs nothing: the block the writer left is drawn folded and the one
+/// they entered unfolded, and a fold that left the same lines open draws
+/// nothing, which is most keystrokes.
+fn refolded(was: Option<Range<usize>>, now: Range<usize>) -> Option<Vec<Range<usize>>> {
+    if was.as_ref() == Some(&now) {
+        return None;
+    }
+    let mut lines = Vec::with_capacity(2);
+    lines.extend(was);
+    lines.push(now);
+    Some(lines)
+}
+
 /// The cells a press rewrites inside the box at `box_at`, and what it writes
 /// there.
 ///
@@ -3566,6 +3645,17 @@ fn on_glass(row: (f64, f64), view: (f64, f64)) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_fold_draws_the_lines_it_left_and_the_lines_it_entered_and_nothing_when_it_stood_still() {
+        assert_eq!(refolded(Some(4..5), 4..5), None, "the same lines are open");
+        assert_eq!(refolded(Some(4..5), 7..9), Some(vec![4..5, 7..9]));
+        assert_eq!(
+            refolded(None, 7..9),
+            Some(std::iter::once(7..9).collect::<Vec<_>>()),
+            "the first fold has no lines to close"
+        );
+    }
 
     /// The empty page's words are the oracle's, read from the rule that sets
     /// them, so the two sides of `chrome/empty` say the same thing.
