@@ -11,11 +11,15 @@
 //! where the caret was in each Document the writer visited, and the recents
 //! list. The Dark and light Piece adds a fifth, `last_scheme`: the ground the
 //! last session ended on, which an `auto` launch paints while the desktop is
-//! still being asked. Beside the file sits `blind-keys/`, which is the Gate's.
+//! still being asked, and the Library a sixth, `library_width`: how wide the
+//! writer dragged the pane, one width for the app and every window in it.
+//! Beside the file sits `blind-keys/`, which is the Gate's.
 //!
-//! The last two are the Library's: [`State::visited`] puts a Document at the
-//! front of the recents, and [`State::caret`] hands back where its caret was,
-//! so that opening a recent Document puts the writer back where they left.
+//! Three of them are the Library's: [`State::visited`] puts a Document at the
+//! front of the recents, [`State::caret`] hands back where its caret was, so
+//! that opening a recent Document puts the writer back where they left, and
+//! [`State::library_width`] is the width the pane comes back at, pulled into
+//! range by [`library_width`] on the way in as it was on the way out.
 //!
 //! **Position is not here.** GTK4 gives a client no way to ask where its window
 //! is or to put it back, on Wayland or on X11: placement belongs to the
@@ -66,6 +70,30 @@ const LARGEST: u32 = 32768;
 #[must_use]
 pub fn window_sizes() -> RangeInclusive<u32> {
     SMALLEST..=LARGEST
+}
+
+/// The width the Library pane stands at until a writer drags the divider:
+/// `quill::sidebar::WIDTH`, the pane as the Parity oracle measures it.
+const LIBRARY: u32 = 368;
+
+/// The narrowest the pane may be dragged. Below this a row is a truncated
+/// name rather than a Document.
+const NARROWEST: u32 = 240;
+
+/// What the page keeps of the window whatever the pane is dragged to: the
+/// divider stops here rather than pushing the writing off the screen.
+const PAGE: u32 = 320;
+
+/// The width the Library pane stands at in a window `window` pixels wide,
+/// given the `wanted` width a drag or a state file asked for.
+///
+/// One pure function for all three askers — a drag, a launch reading the
+/// state file, and a window that has since been made narrower — so that the
+/// pane is never at a width one of them would refuse. A window with room for
+/// neither keeps the pane at [`NARROWEST`] and gives the page what is left.
+#[must_use]
+pub fn library_width(wanted: u32, window: u32) -> u32 {
+    wanted.clamp(NARROWEST, window.saturating_sub(PAGE).max(NARROWEST))
 }
 
 /// One window as it was left.
@@ -133,7 +161,7 @@ impl WindowState {
 }
 
 /// Everything the app observed.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct State {
     /// The windows of the last session, the one left last first.
     pub windows: Vec<WindowState>,
@@ -147,8 +175,28 @@ pub struct State {
     /// asked which colour scheme it is in, so that a dark desktop never sees a
     /// white first frame.
     pub last_scheme: Scheme,
+    /// How wide the writer dragged the Library pane, in logical pixels.
+    ///
+    /// One width for the app: every window stands its pane at it, and a drag
+    /// in any of them moves all of them. Read back through [`library_width`],
+    /// so a file written beside a wider monitor never opens a pane with no
+    /// page beside it.
+    pub library_width: u32,
     /// Every key and table this Quill did not know, kept for the next write.
     rest: toml::Table,
+}
+
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            windows: Vec::new(),
+            recents: Vec::new(),
+            carets: BTreeMap::new(),
+            last_scheme: Scheme::default(),
+            library_width: LIBRARY,
+            rest: toml::Table::new(),
+        }
+    }
 }
 
 impl State {
@@ -219,6 +267,12 @@ impl State {
         let mut reading = Reading::new(table, "", notes);
         let recents = reading.paths("recents");
         let last_scheme = reading.choice("last_scheme");
+        // Read at every whole number a file could hold and then pulled into
+        // range, rather than read at the range: the width is one Quill wrote
+        // itself, so a value outside it is a monitor that has gone away and
+        // not a writer's typo, and the pane opens at the nearest width it can
+        // stand at.
+        let width = reading.whole("library_width", LIBRARY, &(0..=LARGEST));
         // The windows are taken here and read below, once the reading of the
         // top level is done with the notes it is writing into.
         let windows = reading.tables("window");
@@ -232,6 +286,7 @@ impl State {
             recents,
             carets: read_carets(&carets),
             last_scheme,
+            library_width: library_width(width, LARGEST),
             rest,
         }
     }
@@ -242,6 +297,7 @@ impl State {
         let mut writing = Writing::new();
         writing.paths("recents", &self.recents);
         writing.choice("last_scheme", self.last_scheme);
+        writing.whole("library_width", self.library_width);
         writing.rest(self.rest.clone());
         writing.tables(
             "window",
@@ -422,7 +478,7 @@ mod tests {
     fn every_key_the_state_file_holds_is_in_what_the_defaults_write() {
         let text = State::default().to_toml();
         let written: toml::Table = text.parse().expect("what is written is TOML");
-        for key in ["recents", "last_scheme", "window", "caret"] {
+        for key in ["recents", "last_scheme", "library_width", "window", "caret"] {
             assert!(written.contains_key(key), "no `{key}` in:\n{text}");
         }
     }
@@ -446,6 +502,7 @@ mod tests {
                 .into_iter()
                 .collect(),
             last_scheme: Scheme::Dark,
+            library_width: 480,
             rest: toml::Table::new(),
         };
         let text = state.to_toml();
@@ -473,6 +530,59 @@ mod tests {
         let written: toml::Table = state.to_toml().parse().expect("writes TOML");
         assert_eq!(written["session"].as_str(), Some("night"));
         assert_eq!(written["window"][0]["zoom"].as_integer(), Some(2));
+    }
+
+    #[test]
+    fn the_width_the_pane_was_dragged_to_comes_back_and_anything_else_is_clamped() {
+        let path = scratch("library_width").join(STATE_FILE);
+        let left = State {
+            library_width: 512,
+            ..State::default()
+        };
+        left.write_to(&path).expect("writes the state file");
+        let (back, notes) = State::read_from(&path);
+        assert!(notes.is_empty(), "{notes:?}");
+        assert_eq!(back.library_width, 512);
+
+        let (fresh, notes) = State::parse("recents = []\n");
+        assert!(notes.is_empty(), "{notes:?}");
+        assert_eq!(
+            fresh.library_width, LIBRARY,
+            "a file with no width opens the pane at the default"
+        );
+        assert_eq!(State::default().library_width, LIBRARY);
+
+        let (narrow, notes) = State::parse("library_width = 12\n");
+        assert!(notes.is_empty(), "{notes:?}");
+        assert_eq!(narrow.library_width, NARROWEST, "12 is not a pane");
+
+        let (wide, notes) = State::parse(&format!("library_width = {LARGEST}\n"));
+        assert!(notes.is_empty(), "{notes:?}");
+        assert_eq!(
+            wide.library_width,
+            LARGEST - PAGE,
+            "a pane as wide as the widest window leaves the page nothing"
+        );
+    }
+
+    #[test]
+    fn the_pane_is_never_narrower_than_its_narrowest_nor_wider_than_leaves_the_page() {
+        assert_eq!(library_width(LIBRARY, 1100), LIBRARY, "the default fits");
+        assert_eq!(library_width(NARROWEST - 1, 1100), NARROWEST);
+        assert_eq!(library_width(0, 1100), NARROWEST);
+        assert_eq!(library_width(NARROWEST, 1100), NARROWEST);
+        assert_eq!(
+            library_width(1000, 1100),
+            1100 - PAGE,
+            "the page keeps its {PAGE}"
+        );
+        assert_eq!(library_width(u32::MAX, 1100), 1100 - PAGE);
+        assert_eq!(
+            library_width(LIBRARY, 400),
+            NARROWEST,
+            "a window with room for neither keeps the pane at its narrowest"
+        );
+        assert_eq!(library_width(LIBRARY, 0), NARROWEST);
     }
 
     #[test]

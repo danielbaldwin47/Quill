@@ -117,7 +117,11 @@ The Library is the folder tree the writer pointed Quill at, plus recents. It is 
 on launch, watched with inotify, never persisted as an index ([ADR 0002](adr/0002-plain-markdown-documents.md)
 leaves nothing in the folder, and there is no stale index to delete). Config remembers the Locations and what is Pinned;
 state remembers recents (25, newest first) and per-Document caret positions. Content search, if the Library spec wants
-it, scans `.md` files live. The Library is shared by all windows.
+it, scans `.md` files live. The Library is shared by all windows. The pane's right edge is a divider — a
+narrow grab zone that paints nothing (`quill::sidebar`) — and dragging it sets one width for every
+window, pulled into range by `quill_engine::settings::library_width` so that the pane stays a Library and
+the page keeps room to write in, remembered in state as `library_width` and put back to the default by a
+double-click.
 
 ## Windows
 

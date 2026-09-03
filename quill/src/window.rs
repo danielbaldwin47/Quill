@@ -29,7 +29,7 @@ use quill_engine::commands;
 use quill_engine::disk::{Filed, Kept, Line, Noticed, OnDisk, Saved, first_save_name};
 use quill_engine::document::{Document, full_name};
 use quill_engine::focus::Focus;
-use quill_engine::settings::{Chrome, WindowState};
+use quill_engine::settings::{Chrome, WindowState, library_width};
 
 use crate::caret;
 use crate::chrome;
@@ -1638,6 +1638,36 @@ impl Window {
     /// [`Window::move_windows`]'s modes, and nothing the settings file holds.
     pub(crate) fn toggle_library(&self) {
         self.show_library(!self.imp().sidebar.is_shown());
+    }
+
+    /// Stands the Library pane at `wanted` logical pixels wide, in this
+    /// window and in every other.
+    ///
+    /// One width for the app, as the ground and the type size are and for the
+    /// reason [`Window::move_windows`] gives: a writer has one pair of eyes,
+    /// and a divider dragged in one window is the Library's width everywhere.
+    /// It is not a setting, though — what a writer dragged is what Quill
+    /// observed — so it is taken down in the state
+    /// ([`Session::set_library_width`]) and the file is written as the drag
+    /// ends ([`crate::sidebar::Sidebar::watch_divider`]).
+    ///
+    /// `wanted` is what the drag asked for; what the pane is given is what
+    /// this window can hold ([`quill_engine::settings::library_width`]).
+    pub(crate) fn resize_library(&self, wanted: i32) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        let width = library_width(
+            u32::try_from(wanted).unwrap_or_default(),
+            u32::try_from(self.width()).unwrap_or(u32::MAX),
+        );
+        session.set_library_width(width);
+        let Some(app) = self.application() else {
+            return;
+        };
+        for window in windows(&app) {
+            window.imp().sidebar.set_width(width);
+        }
     }
 
     /// Stands the Library beside the page, or takes it away.

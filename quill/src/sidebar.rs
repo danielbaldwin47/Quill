@@ -39,6 +39,13 @@
 //! itself, a file into the folder it is already in, a row already pinned — is
 //! refused while the drag is still in the air.
 //!
+//! Its right edge is the divider (#260): a [`GRAB`]-pixel strip lying over the
+//! edge, which paints nothing at all — the hairline there is the pane's own
+//! border — so that the states judged at [`WIDTH`] are the pixels they were.
+//! A drag on it sets the pane's width for the app, every window at once
+//! ([`crate::window::Window::resize_library`]), and a double-click puts it
+//! back to [`WIDTH`].
+//!
 //! Its measurements are `files.css`'s, as constants below; its colours are the
 //! theme's roles, through [`stylesheet`], which rides with the bars' sheet so
 //! that one ground change repaints both.
@@ -54,6 +61,7 @@ use gtk::prelude::*;
 use gtk::{cairo, gdk, gio, glib, graphene};
 use quill_engine::document::full_name;
 use quill_engine::library::{Contents, File, Library, Row, Section, Snippet, Sort, View};
+use quill_engine::settings::library_width;
 use quill_engine::theme::{self, Colour, Role, Scheme};
 
 use crate::chrome::{self, CHROME_FONT};
@@ -62,8 +70,16 @@ use crate::ground::Ground;
 use crate::tags::pixels;
 use crate::window::Window;
 
-/// The pane's width (`files.css` `--lib-w: 368px`).
+/// The pane's width until a writer drags the divider (`files.css`
+/// `--lib-w: 368px`), and the width a double-click on the divider puts back.
 pub const WIDTH: i32 = 368;
+/// How wide the divider is to a pointer: the last logical pixels of the pane,
+/// lying over its right edge rather than beside it, so that the page stands
+/// where it stood and the strip has room to be caught.
+const GRAB: i32 = 6;
+/// What the pointer becomes over the divider: the name a desktop's cursor
+/// theme keeps its two-headed horizontal arrow under.
+const RESIZE_CURSOR: &str = "col-resize";
 /// The pane's own head, the title bar's height so that what the pane is called
 /// and the Document's name stand on one line across the window
 /// (`.lib-head { height: var(--bar-top) }`).
@@ -259,14 +275,17 @@ const SETTLE_MS: u64 = 150;
 ///
 /// A bound rather than the whole file: the excerpt is two lines of type, and
 /// a Library of a thousand Documents would otherwise read a thousand files
-/// whole to draw them. Two lines of 368 px hold well under [`EXCERPT_CHARS`]
-/// characters, and the first four kilobytes of a Markdown file hold that many
-/// even where every line is a marker.
+/// whole to draw them. Four kilobytes is more prose than two lines of even
+/// the widest pane can show, and [`EXCERPT_CHARS`] is the cap on what is kept
+/// of them.
 const EXCERPT_BYTES: u64 = 4096;
 /// How many characters of it a row keeps. The label ellipsizes at two lines
-/// long before this; the cap is what stops a one-line file of 4 KB being laid
-/// out in full to find that out.
-const EXCERPT_CHARS: usize = 240;
+/// long before this at any width the divider can be dragged to: a pane as
+/// wide as a maximized window on a 3840 px screen leaves it is 3520 logical
+/// px, and two lines of it hold around a thousand characters at [`EXCERPT_PX`]
+/// (#260). The cap is what stops a one-line file of 4 KB being laid out in
+/// full to find that out.
+const EXCERPT_CHARS: usize = 1200;
 
 /// The months a date is named in, January first.
 ///
@@ -434,10 +453,29 @@ struct Listed {
     dot: gtk::DrawingArea,
 }
 
+/// Where a drag on the divider began: the pane's width then, and where the
+/// pointer stood in the window's own pixels, which is what the width the drag
+/// is asking for is measured off ([`Sidebar::dragged`]).
+#[derive(Clone, Copy)]
+struct Grab {
+    /// The pane's width when the drag began, in logical pixels.
+    width: i32,
+    /// Where the pointer was across the window, in logical pixels.
+    at: f64,
+}
+
 /// The Library beside the page.
 #[derive(Clone)]
 pub struct Sidebar {
+    /// The pane and the divider over its right edge: what stands beside the
+    /// page ([`Sidebar::widget`]) and what is shown and hidden, since an
+    /// overlay whose pane is away would still take the divider's room.
+    frame: gtk::Overlay,
     root: gtk::Box,
+    /// The divider: a strip of [`GRAB`] pixels on the pane's right edge with
+    /// nothing in it and nothing drawn, which a drag widens the pane by and a
+    /// double-click puts back to [`WIDTH`].
+    divider: gtk::Box,
     /// What the pane's head calls it: the one Location's folder, where that is
     /// the whole Library, and [`TITLE`] where there is more than one thing
     /// under it.
@@ -527,7 +565,6 @@ impl Sidebar {
         // window: said here rather than left to the children, because the list
         // inside it expands and a box takes its children's answer.
         root.set_hexpand(false);
-        root.set_visible(false);
 
         let title = gtk::Label::new(Some(TITLE));
         let head = head(&title);
@@ -568,7 +605,25 @@ impl Sidebar {
         // own column is unmoved by it.
         let menu = menu_popover(&root);
         let head_menu = menu_popover(&head);
+        // The divider lies over the pane's last [`GRAB`] pixels rather than
+        // standing beside them: an overlay child is given room without taking
+        // any, so the page begins where it always did and a state judged at
+        // [`WIDTH`] is the pixels it was. It holds nothing and is styled by
+        // nothing, so there is nothing for it to draw.
+        let divider = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        divider.set_width_request(GRAB);
+        divider.set_halign(gtk::Align::End);
+        divider.set_cursor_from_name(Some(RESIZE_CURSOR));
+        let frame = gtk::Overlay::new();
+        frame.set_child(Some(&root));
+        frame.add_overlay(&divider);
+        frame.set_hexpand(false);
+        // Hidden on the frame and not on the pane: a hidden pane inside a
+        // shown overlay would still leave the divider's strip beside the page.
+        frame.set_visible(false);
         let sidebar = Self {
+            frame,
+            divider,
             root,
             head,
             title,
@@ -631,10 +686,11 @@ impl Sidebar {
         self.entry.add_controller(keys);
     }
 
-    /// The widget to stand left of the page.
+    /// The widget to stand left of the page: the pane with its divider over
+    /// its right edge.
     #[must_use]
     pub fn widget(&self) -> &gtk::Widget {
-        self.root.upcast_ref()
+        self.frame.upcast_ref()
     }
 
     /// Gives the pane its window, which is what a row opens a Document in,
@@ -644,6 +700,18 @@ impl Sidebar {
     /// it has a session to build them from ([`crate::window::Window::new`]).
     pub fn attach(&self, window: &Window) {
         self.window.replace(Some(window.downgrade()));
+        // The pane opens at the width the writer last dragged it to, held to
+        // what the shape this window opens at can hold: a width taken down
+        // beside a wider monitor is not one this window has room for. A
+        // launch of the harness's read no state file and so opens at [`WIDTH`]
+        // ([`crate::session::Session::library_width`]).
+        if let Some(session) = window.session() {
+            self.set_width(library_width(
+                session.library_width(),
+                u32::try_from(window.default_width()).unwrap_or(u32::MAX),
+            ));
+        }
+        self.watch_divider();
         let activated = self.clone();
         self.list
             .connect_row_activated(move |_, row| activated.activate(row));
@@ -720,16 +788,120 @@ impl Sidebar {
         self.refresh();
     }
 
+    /// The divider's drag and its double-click.
+    ///
+    /// A drag moves the pane's right edge and every window's page follows it
+    /// live; the width is written to the state file as the drag ends, so a
+    /// Quill that never shuts down cleanly still opens at the width the
+    /// writer chose, which is why [`crate::session::Session::store_settings`]
+    /// writes as a key is pressed. A double-click puts the pane back to
+    /// [`WIDTH`].
+    fn watch_divider(&self) {
+        let grab = Rc::new(Cell::new(Grab {
+            width: WIDTH,
+            at: 0.0,
+        }));
+        // One gesture for both, and a `GtkGestureClick` rather than a
+        // `GtkGestureDrag`: a drag gesture claims the press it begins on, and
+        // a click gesture beside it then never sees a second press to count
+        // (a double-click on the divider did nothing at all, by hand, until
+        // the two were one). The press records where the pane began, every
+        // move of the held pointer sets the width, and the release writes it.
+        let clicks = gtk::GestureClick::new();
+        clicks.set_button(gdk::BUTTON_PRIMARY);
+        let pressed = self.clone();
+        let taken = Rc::clone(&grab);
+        clicks.connect_pressed(move |_, presses, x, _| {
+            let Some(at) = pressed.pointer(x) else {
+                return;
+            };
+            if presses >= 2 {
+                // The second press of a double-click also anchors the drag it
+                // is: the release that ends it then leaves the pane where the
+                // double-click put it rather than where it was dragged to.
+                taken.set(Grab { width: WIDTH, at });
+                pressed.resize(WIDTH);
+                pressed.store_width();
+                return;
+            }
+            taken.set(Grab {
+                width: pressed.root.width(),
+                at,
+            });
+        });
+        let moved = self.clone();
+        let from = Rc::clone(&grab);
+        clicks.connect_update(move |gesture, sequence| {
+            if let Some((x, _)) = gesture.point(sequence) {
+                moved.dragged(from.get(), x);
+            }
+        });
+        // Letting go writes the width the moves arrived at and sets nothing
+        // itself: a press and a release of the same click report the pointer
+        // half a pixel apart under a scaled output, and a divider that
+        // answered the release would shave a pixel off the pane every time it
+        // was clicked.
+        let ended = self.clone();
+        clicks.connect_released(move |_, _, _, _| ended.store_width());
+        self.divider.add_controller(clicks);
+    }
+
+    /// Where the pointer is now in the window's own pixels, given where it is
+    /// in the divider's.
+    ///
+    /// The divider travels with the edge it is: an offset read off its own
+    /// coordinates counts every pixel the pane has already grown by a second
+    /// time, and the pane runs away from the pointer.
+    fn pointer(&self, at: f64) -> Option<f64> {
+        let window = self.owner()?;
+        let point = self.divider.compute_point(&window, &place(at, 0.0))?;
+        Some(f64::from(point.x()))
+    }
+
+    /// The pane's width part-way through a drag: what it was when the drag
+    /// began, plus how far the pointer has travelled since.
+    fn dragged(&self, grab: Grab, at: f64) {
+        let Some(now) = self.pointer(at) else {
+            return;
+        };
+        self.resize(grab.width + pixels(now - grab.at));
+    }
+
+    /// Stands every window's pane at `width` ([`Window::resize_library`]).
+    fn resize(&self, width: i32) {
+        if let Some(window) = self.owner() {
+            window.resize_library(width);
+        }
+    }
+
+    /// Writes the width the drag left the pane at to the state file.
+    fn store_width(&self) {
+        if let Some(session) = self.session() {
+            session.store_state();
+        }
+    }
+
     /// Whether the pane is showing.
     #[must_use]
     pub fn is_shown(&self) -> bool {
-        self.root.is_visible()
+        self.frame.is_visible()
     }
 
     /// Shows or hides the pane. The page keeps its own centring and is simply
     /// given a narrower window, as the oracle's is.
     pub fn set_shown(&self, shown: bool) {
-        self.root.set_visible(shown);
+        self.frame.set_visible(shown);
+    }
+
+    /// Stands the pane at `width` logical pixels.
+    ///
+    /// The width the drag arrived at, already pulled into range by the window
+    /// that took the drag ([`crate::window::Window::resize_library`]); the
+    /// pane asks for it and the page takes what is left, which is how the
+    /// pane has always been sized.
+    pub fn set_width(&self, width: u32) {
+        self.root
+            .set_width_request(i32::try_from(width).unwrap_or(WIDTH));
     }
 
     /// Puts the keyboard in the search field: the second half of

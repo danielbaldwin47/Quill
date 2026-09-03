@@ -16,6 +16,6 @@ Each ported Piece is its own feature ticket, closed by the owner's `hand test: p
 
 **Chrome and menus**: 1. Start typing; the chrome fades. 2. Stop, move the mouse; the title and the stats return. 3. Open each menu; every in-scope feature is reachable with its shortcut shown. 4. Open an empty Document; both bars stand, the stats bar reads zero words, and nothing in the frame is waiting on text to fill in.
 
-**File handling**: 1. Open a folder as the Library; its Documents list in the sidebar. 2. Create a new Document, type, wait; it is on disk as plain Markdown with nothing else written beside it. 3. Edit the file in another editor; Quill shows the change. 4. Rename and delete from the sidebar; the disk agrees.
+**File handling**: 1. Open a folder as the Library; its Documents list in the sidebar. 2. Create a new Document, type, wait; it is on disk as plain Markdown with nothing else written beside it. 3. Edit the file in another editor; Quill shows the change. 4. Rename and delete from the sidebar; the disk agrees. 5. Drag the divider on the sidebar's right edge wider and narrower; the pointer is a resize arrow over it and the page follows live. Open a second window; its sidebar is at the same width. Relaunch; the width is kept. Double-click the divider; the sidebar is back at its default.
 
 **Latency**: 1. Open `shots/latency/doc10k.md` and type in the middle of it; the caret and glyph appear together with no visible lag. 2. Hold a key; repeat is smooth. 3. Quit and relaunch with that Document; the window is readable in well under a second.
