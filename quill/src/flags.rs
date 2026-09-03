@@ -68,7 +68,8 @@ Judged state — the states the Gate shoots and benches at:
                          copy of it, each file stamped with the mtime its
                          manifest.json names, as the one Location.
   --sidebar              Open with the Library beside the page.
-  --search <query>       Put <query> in the Library's search field.
+  --search <query>       Put <query> in the Library's search field and narrow
+                         the list to what it finds. Wants --sidebar.
   --w <px>               Open the window this wide.
   --h <px>               Open the window this tall.
 
@@ -250,8 +251,8 @@ impl Flags {
     /// # Errors
     ///
     /// One [`Error`], one line long, naming the flag: a flag Quill does not
-    /// know, a flag with nothing after it, or a value outside what the flag
-    /// takes.
+    /// know, a flag with nothing after it, a value outside what the flag
+    /// takes, or `--search` with no `--sidebar` beside it.
     pub fn parse<A: IntoIterator<Item = OsString>>(args: A) -> Result<Self, Error> {
         let mut flags = Self::default();
         let mut args = args.into_iter();
@@ -304,6 +305,15 @@ impl Flags {
                 }
                 _ => flags.files.push(PathBuf::from(argument)),
             }
+        }
+        // A query with no pane to type it into would shoot a window with the
+        // Library away and the search unrun, and call it a search: refused
+        // here for the reason a fixture that is not there is
+        // ([`crate::files::stage`]).
+        if flags.search.is_some() && !flags.sidebar {
+            return Err(Error(
+                "--search: --sidebar too: there is no field to type a query into".to_string(),
+            ));
         }
         Ok(flags)
     }
@@ -529,7 +539,9 @@ mod tests {
         ("--menu", "view", Some("file")),
         ("--library", "shots/oracle/library", None),
         ("--sidebar", "", None),
-        ("--search", "sea", None),
+        // With the flag it wants beside it: a query and no pane to type it
+        // into is refused ([`Flags::parse`]).
+        ("--search", "sea --sidebar", None),
         ("--w", "1440", Some("0")),
         ("--h", "900", Some("tall")),
         ("--deterministic", "", None),
@@ -565,6 +577,19 @@ mod tests {
             );
             assert!(!said.contains('\n'), "one line, not a stack: {said}");
         }
+    }
+
+    #[test]
+    fn a_query_with_no_sidebar_to_type_it_into_is_refused() {
+        let err = parse("--library shots/oracle/library --search sea")
+            .expect_err("a query with the Library away");
+        let said = err.to_string();
+        assert_eq!(
+            said,
+            "--search: --sidebar too: there is no field to type a query into"
+        );
+        assert!(!said.contains('\n'), "one line, not a stack: {said}");
+        assert!(parse("--search sea --sidebar").is_ok());
     }
 
     #[test]

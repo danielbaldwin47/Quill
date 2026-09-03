@@ -275,7 +275,7 @@ pub const COMMANDS: &[Command] = &[
     row("stats.paragraphs", "Paragraphs", Scope::Win, Kind::Radio { group: "stats", value: "paragraphs", }, &[], &[place(STATS, None, "Paragraphs")], false),
     row("stats.readingTime", "Reading Time", Scope::Win, Kind::Radio { group: "stats", value: "readingTime", }, &[], &[place(STATS, None, "Reading Time")], false),
     // Palette and keyboard only.
-    row("library.search", "Find a Document…", Scope::Win, Kind::Plain, &["Ctrl+Shift+O"], &[], false),
+    row("library.search", "Find a Document…", Scope::Win, Kind::Plain, &["Ctrl+Shift+O"], &[], true),
     row("file.next", "Next Document", Scope::Win, Kind::Plain, &["Ctrl+Page Down"], &[], false),
     row("file.prev", "Previous Document", Scope::Win, Kind::Plain, &["Ctrl+Page Up"], &[], false),
     row("file.follow", "Open Linked Document", Scope::Win, Kind::Plain, &["Ctrl+Enter"], &[], false),

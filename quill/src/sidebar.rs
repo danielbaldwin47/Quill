@@ -1,5 +1,5 @@
 //! The Library beside the page: sections, rows, the search field and the
-//! status line (#253).
+//! status line (#253), and what the field finds (#254).
 //!
 //! One sidebar per window, all of them showing the one Library the session
 //! holds (`docs/architecture.md` § Library, § Windows). It stands left of the
@@ -17,6 +17,12 @@
 //! is the theme's paper, so the pane belongs to the same window as the page
 //! rather than to a file manager.
 //!
+//! Typing in the search field puts the engine's results in place of the tree:
+//! the files whose names matched first, then the files whose texts did, each
+//! of those with the one snippet around its match and the match marked
+//! ([`quill_engine::library::Library::search`]). Enter opens the highlighted
+//! hit and Esc clears the field and hands the keyboard back to the page.
+//!
 //! Its measurements are `files.css`'s, as constants below; its colours are the
 //! theme's roles, through [`stylesheet`], which rides with the bars' sheet so
 //! that one ground change repaints both.
@@ -26,12 +32,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use gtk::prelude::*;
 use gtk::{cairo, gdk, glib};
-use quill_engine::library::{Row, Sort, View};
-use quill_engine::theme::{Role, Scheme};
+use quill_engine::library::{Contents, Library, Row, Section, Snippet, Sort, View};
+use quill_engine::theme::{Colour, Role, Scheme};
 
 use crate::chrome::{self, CHROME_FONT};
 use crate::ground::Ground;
@@ -71,8 +77,8 @@ const FIELD_BELOW: i32 = 8;
 const WHERE: &str = "On this device";
 /// The field's height (`#lib-q { height: 26px }`).
 const FIELD_HEIGHT: i32 = 26;
-/// What the field keeps clear of the pane's edges (`.lib-find { padding: 0
-/// 10px }`).
+/// What the field keeps clear of the pane's right edge (`.lib-find { padding:
+/// 0 10px }`; its left is [`PANE_LEFT`], which every left edge in the pane is).
 const FIELD_PAD: i32 = 10;
 /// Between the magnifier and the text (`#lib-q { padding-left: 26px }` less
 /// the magnifier's own place).
@@ -88,14 +94,22 @@ const SORT_HEIGHT: i32 = 26;
 const META_PX: f64 = 11.5;
 /// The sort button's own padding (`#lib-sortb { padding: 0 4px }`).
 const SORT_BUTTON_PAD: i32 = 4;
-/// Where the sort row's text starts (`.lib-sort { padding-left: 10px }`).
-const SORT_LEFT: i32 = 10;
 /// What the count keeps clear of the right edge (`padding-right: 14px`).
 const SORT_RIGHT: i32 = 14;
 /// A chevron's side (`I.chev`, eleven by eleven).
 const CHEV: i32 = 11;
 /// A row's inset from the pane's left edge (`.lib-row { padding-left: 16px }`).
 const ROW_LEFT: i32 = 16;
+/// The pane's one left margin: where the ink of the search field, of the sort
+/// control and of a row's icon column all begins.
+///
+/// `files.css` reaches the same edge through three paddings, each of them
+/// answering the inset its own mark is drawn with; ours are drawn to their
+/// edges, so the margin is said once, here, and every one of the three is set
+/// from it. The round that asked for it read the pane's left edges as
+/// 10.5/10.5/14/24.5 px against the oracle's 14.5/15/16.5/20
+/// (`progress/rounds/files-r3.json`, the `search` state).
+const PANE_LEFT: i32 = ROW_LEFT;
 /// A row's inset from the right (`padding-right: 14px`).
 const ROW_RIGHT: i32 = 14;
 /// Above a row's first line (`padding-top: 10px`).
@@ -185,6 +199,20 @@ const AT_REST: &str = "All changes saved";
 
 /// What the search field says while it is empty.
 const PLACEHOLDER: &str = "Search documents";
+
+/// How much of the accent stands behind a matched word in a snippet
+/// (`.lib-row .ex mark { background: color-mix(in srgb, var(--accent) 28%,
+/// transparent) }`), over the paper the row is drawn on.
+const MARK_TINT: f64 = 0.28;
+
+/// How long the field waits after a keystroke before it searches.
+///
+/// A content search reads every shown file whose name did not match, so the
+/// field answers the writer's pause rather than the writer's typing; the
+/// engine's cache then holds those texts, and the query after this one reads
+/// nothing ([`Contents`]). Re-armed by each keystroke, so a word typed at
+/// speed is one search.
+const SETTLE_MS: u64 = 150;
 
 /// How much of a file the excerpt is taken from.
 ///
@@ -305,6 +333,28 @@ struct Drawing<'a> {
     now: Option<&'a glib::DateTime>,
     /// The head of every shown file, by path.
     read: &'a BTreeMap<PathBuf, Head>,
+    /// What a matched word in a snippet is marked with, over the paper.
+    mark: Colour,
+}
+
+/// One file's row, and what it is drawn from.
+///
+/// The tree's rows and a search's results are the same row built from
+/// different places: the tree knows how deep the file lies, a result knows
+/// what the query matched in it.
+struct FileRow<'a> {
+    /// The file's name on disk, extension and all.
+    name: &'a str,
+    /// Where it is.
+    path: &'a Path,
+    /// How many folders below its section it lies; a result is drawn flat.
+    depth: usize,
+    /// When it was last written.
+    modified: Option<SystemTime>,
+    /// The snippet around a content hit's match, drawn in place of the file's
+    /// own excerpt and with the match marked. A tree row and a name hit have
+    /// none, and show the excerpt.
+    snippet: Option<&'a Snippet>,
 }
 
 /// One row of the list, and what it stands for.
@@ -343,6 +393,12 @@ pub struct Sidebar {
     sort: Rc<Cell<Sort>>,
     /// The Document the window is showing, whose row is the highlighted one.
     open: Rc<RefCell<Option<PathBuf>>>,
+    /// The file texts search has read, kept for as long as the window is, so
+    /// that a query over a tree nothing has touched reads nothing.
+    contents: Rc<RefCell<Contents>>,
+    /// The keystroke the field is waiting out before it searches
+    /// ([`SETTLE_MS`]).
+    settle: Rc<RefCell<Option<glib::SourceId>>>,
 }
 
 impl Default for Sidebar {
@@ -405,10 +461,42 @@ impl Sidebar {
             expanded: Rc::new(RefCell::new(BTreeSet::new())),
             sort: Rc::new(Cell::new(Sort::Date)),
             open: Rc::new(RefCell::new(None)),
+            contents: Rc::new(RefCell::new(Contents::new())),
+            settle: Rc::new(RefCell::new(None)),
         };
         let cycling = sidebar.clone();
         sort_button.connect_clicked(move |_| cycling.cycle_sort());
+        sidebar.wire();
         sidebar
+    }
+
+    /// The search field's keys.
+    ///
+    /// Typing narrows the list once the keystrokes stop, Enter opens the
+    /// highlighted hit, Esc clears the query and hands the keyboard back to
+    /// the page, and Down steps into the list, where the arrows walk the rows
+    /// (`legacy/app/js/files.js`, the field's `keydown`).
+    fn wire(&self) {
+        let typed = self.clone();
+        self.entry.connect_changed(move |_| typed.settle());
+        let entered = self.clone();
+        self.entry
+            .connect_activate(move |_| entered.open_highlighted());
+        let keys = gtk::EventControllerKey::new();
+        keys.set_propagation_phase(gtk::PropagationPhase::Capture);
+        let pressed = self.clone();
+        keys.connect_key_pressed(move |_, key, _, _| match key {
+            gdk::Key::Escape => {
+                pressed.clear();
+                glib::Propagation::Stop
+            }
+            gdk::Key::Down => {
+                pressed.step_into_list();
+                glib::Propagation::Stop
+            }
+            _ => glib::Propagation::Proceed,
+        });
+        self.entry.add_controller(keys);
     }
 
     /// The widget to stand left of the page.
@@ -454,17 +542,23 @@ impl Sidebar {
         self.root.set_visible(shown);
     }
 
-    /// Puts the keyboard in the search field, opening the pane if it is shut:
-    /// what `library.search` does.
+    /// Puts the keyboard in the search field: the second half of
+    /// `library.search`, whose first half is the window standing the pane
+    /// beside the page ([`crate::window::Window::search_library`]).
     pub fn focus_search(&self) {
-        self.set_shown(true);
         self.entry.grab_focus();
     }
 
-    /// Puts `query` in the search field, as `--search` does.
+    /// Puts `query` in the search field and narrows the list to it, as
+    /// `--search` does.
+    ///
+    /// Searched at once rather than after [`SETTLE_MS`]: a harness launch
+    /// shoots its first frame, and what the flag asks for is a window with the
+    /// results in it.
     pub fn set_query(&self, query: &str) {
         self.entry.set_text(query);
         self.entry.set_position(-1);
+        self.search_now();
     }
 
     /// What the status line says.
@@ -505,38 +599,87 @@ impl Sidebar {
             .files(&view)
             .map(|file| (file.path().to_path_buf(), Head::of(file.path())))
             .collect();
+        let ground = session.ground();
         let drawing = Drawing {
             extensions: session.settings().library.show_extensions,
             now: now.as_ref(),
             read: &read,
+            mark: Colour::over(
+                ground.colours.colour(Role::Accent),
+                ground.colours.colour(Role::Paper),
+                MARK_TINT,
+            ),
         };
-        let mut sections = 0;
+        let shown = library.shown(&view);
         let pinned = library.pinned_rows(&view);
         // One Location and nothing pinned is one thing to name, and the head
         // names it: a pane called Library over a section called library says
         // the same word twice. Anything else is the pane over its parts.
         let parts = !pinned.is_empty() || library.locations().len() > 1;
+        let alone = (!parts).then(|| shown.first().map(section_name)).flatten();
+        self.title.set_text(alone.as_deref().unwrap_or(TITLE));
+        let query = self.query();
+        if query.is_empty() {
+            self.tree(&shown, &pinned, parts, &drawing);
+            let words = read.values().map(|head| head.words).sum();
+            self.count.set_text(&counted(read.len(), words));
+        } else {
+            self.results(&query, &library, &view, &drawing);
+        }
+        self.highlight();
+    }
+
+    /// The Library as it stands: the Pinned section, then one section per
+    /// Location, or the one Location's rows alone under the pane's own head.
+    fn tree(&self, shown: &[Section<'_>], pinned: &[Row<'_>], parts: bool, drawing: &Drawing<'_>) {
+        let mut sections = 0;
         if !pinned.is_empty() {
-            self.section(None, "Pinned", sections, &pinned, &drawing);
+            self.section(None, "Pinned", sections, pinned, drawing);
             sections += 1;
         }
-        self.title.set_text(TITLE);
-        for section in library.shown(&view) {
-            let name = match section.root.file_name() {
-                Some(name) => name.to_string_lossy().into_owned(),
-                None => section.root.display().to_string(),
-            };
+        for section in shown {
             if parts {
-                self.section(Some(section.root), &name, sections, &section.rows, &drawing);
+                self.section(
+                    Some(section.root),
+                    &section_name(section),
+                    sections,
+                    &section.rows,
+                    drawing,
+                );
             } else {
-                self.title.set_text(&name);
-                self.rows_of(&section.rows, &drawing);
+                self.rows_of(&section.rows, drawing);
             }
             sections += 1;
         }
-        let words = read.values().map(|head| head.words).sum();
-        self.count.set_text(&counted(read.len(), words));
-        self.highlight();
+    }
+
+    /// The list narrowed to what `query` found, in the engine's order: the
+    /// files whose names matched, then the files whose texts did, each of
+    /// those with its snippet and the match marked in it.
+    ///
+    /// Flat, with no sections and no folders: what a writer asked for is the
+    /// Documents that answer the query, and where each one lies is the tree's
+    /// answer to a different question.
+    fn results(&self, query: &str, library: &Library, view: &View, drawing: &Drawing<'_>) {
+        let mut contents = self.contents.borrow_mut();
+        let found = library.search(query, view, &mut contents);
+        self.count
+            .set_text(&narrowed(found.len(), drawing.read.len()));
+        for hit in &found {
+            let file = hit.file();
+            let listed = self.file_row(
+                &FileRow {
+                    name: file.name(),
+                    path: file.path(),
+                    depth: 0,
+                    modified: file.modified(),
+                    snippet: hit.snippet(),
+                },
+                drawing,
+            );
+            self.list.append(&listed.row);
+            self.rows.borrow_mut().push(listed);
+        }
     }
 
     /// One section: its head, then the rows of it that are not inside a closed
@@ -580,9 +723,16 @@ impl Sidebar {
                     }
                     self.folder_row(folder.name(), row.path(), *depth, open, held(rows, at))
                 }
-                Row::File { file, depth } => {
-                    self.file_row(file.name(), row.path(), *depth, file.modified(), drawing)
-                }
+                Row::File { file, depth } => self.file_row(
+                    &FileRow {
+                        name: file.name(),
+                        path: row.path(),
+                        depth: *depth,
+                        modified: file.modified(),
+                        snippet: None,
+                    },
+                    drawing,
+                ),
             };
             self.list.append(&listed.row);
             self.rows.borrow_mut().push(listed);
@@ -614,17 +764,10 @@ impl Sidebar {
     }
 
     /// A file: its name, when it was last written, and two lines of what it
-    /// says.
-    fn file_row(
-        &self,
-        name: &str,
-        path: &Path,
-        depth: usize,
-        modified: Option<SystemTime>,
-        drawing: &Drawing<'_>,
-    ) -> Listed {
+    /// says — its own beginning, or the snippet a query found in it.
+    fn file_row(&self, row: &FileRow<'_>, drawing: &Drawing<'_>) -> Listed {
         let line = gtk::Box::new(gtk::Orientation::Horizontal, ICON_GAP);
-        line.set_margin_start(ROW_LEFT + INDENT * i32::try_from(depth).unwrap_or(0));
+        line.set_margin_start(ROW_LEFT + INDENT * i32::try_from(row.depth).unwrap_or(0));
         line.set_margin_end(ROW_RIGHT);
         line.set_margin_top(ROW_TOP);
         line.set_margin_bottom(ROW_BOTTOM);
@@ -635,35 +778,38 @@ impl Sidebar {
         let body = gtk::Box::new(gtk::Orientation::Vertical, 0);
         body.set_hexpand(true);
         let top = gtk::Box::new(gtk::Orientation::Horizontal, ICON_GAP);
-        let title = gtk::Label::new(Some(&shown_name(name, drawing.extensions)));
+        let title = gtk::Label::new(Some(&shown_name(row.name, drawing.extensions)));
         title.add_css_class("lib-name");
         title.set_hexpand(true);
         title.set_xalign(0.0);
         title.set_ellipsize(gtk::pango::EllipsizeMode::End);
         top.append(&title);
-        if let (Some(modified), Some(now)) = (modified, drawing.now) {
+        if let (Some(modified), Some(now)) = (row.modified, drawing.now) {
             let date = gtk::Label::new(Some(&stamp(modified, now)));
             date.add_css_class("lib-date");
             top.append(&date);
         }
         body.append(&top);
-        let said = drawing
-            .read
-            .get(path)
-            .map_or("", |head| head.excerpt.as_str());
+        let said = match row.snippet {
+            Some(snippet) => snippet.text(),
+            None => drawing
+                .read
+                .get(row.path)
+                .map_or("", |head| head.excerpt.as_str()),
+        };
         if !said.is_empty() {
             let excerpt = gtk::Label::new(Some(said));
             excerpt.add_css_class("lib-excerpt");
             excerpt.set_xalign(0.0);
             excerpt.set_wrap(true);
             excerpt.set_wrap_mode(gtk::pango::WrapMode::WordChar);
-            excerpt.set_attributes(Some(&leading()));
+            excerpt.set_attributes(Some(&marks(row.snippet, drawing)));
             excerpt.set_lines(EXCERPT_LINES);
             excerpt.set_ellipsize(gtk::pango::EllipsizeMode::End);
             body.append(&excerpt);
         }
         line.append(&body);
-        self.listed(line, path, false)
+        self.listed(line, row.path, false)
     }
 
     /// A row of the list: the hairline above it, the accent bar down its left
@@ -671,9 +817,14 @@ impl Sidebar {
     fn listed(&self, line: gtk::Box, path: &Path, folder: bool) -> Listed {
         let bar = gtk::Box::new(gtk::Orientation::Vertical, 0);
         bar.add_css_class("lib-bar");
-        let beside = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-        beside.append(&bar);
-        beside.append(&line);
+        bar.set_halign(gtk::Align::Start);
+        // Over the row rather than beside it, as `.lib-row.file.sel::after`
+        // is: a bar that takes a column of its own pushes the icon and the
+        // name eight pixels right of the padding they are set from, which is
+        // how the pane came to have four left edges (#254, [`PANE_LEFT`]).
+        let beside = gtk::Overlay::new();
+        beside.set_child(Some(&line));
+        beside.add_overlay(&bar);
         let stacked = gtk::Box::new(gtk::Orientation::Vertical, 0);
         // The hairline starts under the name rather than at the pane's edge,
         // as iA's does (`.lib-row + .lib-row::before { left: 46px; right: 14px }`),
@@ -681,7 +832,7 @@ impl Sidebar {
         let rule = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         rule.add_css_class("lib-rule");
         rule.set_height_request(1);
-        rule.set_margin_start(BAR.width + ROW_LEFT + ICON_COLUMN + ICON_GAP);
+        rule.set_margin_start(ROW_LEFT + ICON_COLUMN + ICON_GAP);
         rule.set_margin_end(ROW_RIGHT);
         rule.set_visible(!self.at_section_head());
         stacked.append(&rule);
@@ -695,24 +846,35 @@ impl Sidebar {
         }
     }
 
-    /// Whether the row now being built is the first of its section.
+    /// Whether the row now being built is the first of its section, and so
+    /// draws no hairline above it.
+    ///
+    /// A list with nothing in it yet counts: the first row of a result list
+    /// stands under the sort row, whose own border is already the line
+    /// between them.
     fn at_section_head(&self) -> bool {
-        self.list
-            .last_child()
-            .and_downcast::<gtk::ListBoxRow>()
-            .is_some_and(|row| !row.is_selectable())
+        match self.list.last_child().and_downcast::<gtk::ListBoxRow>() {
+            Some(row) => !row.is_selectable(),
+            None => true,
+        }
     }
 
     /// Highlights the row of the Document the window is showing, and no row at
     /// all where it is showing something the Library does not hold.
+    ///
+    /// Under a query, a result list with the open Document nowhere in it
+    /// highlights its first hit instead, because the highlight is what Enter
+    /// opens.
     fn highlight(&self) {
         let open = self.open.borrow();
-        let found = open.as_deref().and_then(|open| {
-            let rows = self.rows.borrow();
-            rows.iter()
-                .find(|listed| listed.path == open)
-                .map(|listed| listed.row.clone())
-        });
+        let rows = self.rows.borrow();
+        let found = rows
+            .iter()
+            .find(|listed| open.as_deref() == Some(listed.path.as_path()))
+            .or_else(|| {
+                (!self.query().is_empty()).then(|| rows.iter().find(|listed| !listed.folder))?
+            })
+            .map(|listed| listed.row.clone());
         self.list.select_row(found.as_ref());
     }
 
@@ -747,6 +909,68 @@ impl Sidebar {
         if let Some(window) = self.owner() {
             window.focus_editor();
         }
+    }
+
+    /// What the field says, with the spaces around it dropped; empty where it
+    /// says nothing, which is the pane drawing its tree.
+    fn query(&self) -> String {
+        self.entry.text().trim().to_string()
+    }
+
+    /// Searches once the keystrokes stop, re-arming the wait at each one.
+    fn settle(&self) {
+        self.wake();
+        let searching = self.clone();
+        let waiting = glib::timeout_add_local_once(Duration::from_millis(SETTLE_MS), move || {
+            searching.settle.replace(None);
+            searching.refresh();
+        });
+        self.settle.replace(Some(waiting));
+    }
+
+    /// Draws the list for what the field says now, without waiting the
+    /// keystrokes out.
+    fn search_now(&self) {
+        self.wake();
+        self.refresh();
+    }
+
+    /// Drops the wait a keystroke armed, so that nothing searches twice.
+    fn wake(&self) {
+        if let Some(waiting) = self.settle.replace(None) {
+            waiting.remove();
+        }
+    }
+
+    /// Esc in the field: the query goes, the tree comes back, and the keyboard
+    /// returns to the page.
+    fn clear(&self) {
+        self.entry.set_text("");
+        self.search_now();
+        self.leave();
+    }
+
+    /// Enter in the field: the highlighted hit opens, or the first row where
+    /// nothing is highlighted.
+    fn open_highlighted(&self) {
+        let row = self
+            .list
+            .selected_row()
+            .or_else(|| self.list.row_at_index(0));
+        if let Some(row) = row {
+            self.activate(&row);
+        }
+    }
+
+    /// Down in the field: the keyboard steps into the list, where the arrows
+    /// walk the rows.
+    fn step_into_list(&self) {
+        if self.list.selected_row().is_none()
+            && let Some(first) = self.list.row_at_index(0)
+        {
+            self.list.select_row(Some(&first));
+        }
+        self.list.grab_focus();
     }
 
     /// The next sort order, and the list drawn in it.
@@ -839,7 +1063,7 @@ fn button(
 fn find(entry: &gtk::Entry) -> gtk::Box {
     let field = gtk::Box::new(gtk::Orientation::Horizontal, FIELD_GAP);
     field.set_height_request(FIELD_HEIGHT);
-    field.set_margin_start(FIELD_PAD);
+    field.set_margin_start(PANE_LEFT);
     field.set_margin_end(FIELD_PAD);
     field.set_margin_bottom(FIELD_BELOW);
     let mag = icon((MAG, MAG), magnifier_icon);
@@ -854,7 +1078,7 @@ fn sort_row(button: &gtk::Button, count: &gtk::Label) -> gtk::Box {
     let row = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     row.add_css_class("lib-sort");
     row.set_height_request(SORT_HEIGHT);
-    button.set_margin_start(SORT_LEFT - SORT_BUTTON_PAD);
+    button.set_margin_start(PANE_LEFT - SORT_BUTTON_PAD);
     button.set_hexpand(true);
     button.set_halign(gtk::Align::Start);
     count.set_margin_end(SORT_RIGHT);
@@ -898,16 +1122,57 @@ fn foot(status: &gtk::Label) -> gtk::Box {
     foot
 }
 
-/// The excerpt's two lines, set on the leading the oracle gives them.
+/// The excerpt's two lines, set on the leading the oracle gives them, and the
+/// mark behind what a query matched in them.
 ///
-/// Through Pango rather than through the stylesheet: GTK's CSS has no
-/// `line-height`, and two lines of 13.5 px type on their own natural leading
-/// stand a pixel and a half tighter than iA's.
-fn leading() -> gtk::pango::AttrList {
+/// The leading is through Pango rather than through the stylesheet: GTK's CSS
+/// has no `line-height`, and two lines of 13.5 px type on their own natural
+/// leading stand a pixel and a half tighter than iA's. The mark is through
+/// Pango because it stands behind a range of the text and a stylesheet can
+/// only reach the whole label.
+fn marks(snippet: Option<&Snippet>, drawing: &Drawing<'_>) -> gtk::pango::AttrList {
     let attributes = gtk::pango::AttrList::new();
     let height = pixels(EXCERPT_LEADING * f64::from(gtk::pango::SCALE));
     attributes.insert(gtk::pango::AttrInt::new_line_height_absolute(height));
+    let Some(snippet) = snippet else {
+        return attributes;
+    };
+    let at = snippet.at();
+    let (from, to) = (index(at.start), index(at.end));
+    let mut ground = gtk::pango::AttrColor::new_background(
+        channel(drawing.mark.red),
+        channel(drawing.mark.green),
+        channel(drawing.mark.blue),
+    );
+    ground.set_start_index(from);
+    ground.set_end_index(to);
+    attributes.insert(ground);
     attributes
+}
+
+/// A byte offset into a snippet as Pango counts them.
+fn index(at: usize) -> u32 {
+    u32::try_from(at).unwrap_or(u32::MAX)
+}
+
+/// One channel of a colour as Pango takes it: 0–1 over the sixteen bits it
+/// holds a channel in. Rounded here and only here, beside [`pixels`].
+fn channel(amount: f64) -> u16 {
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "a channel is 0-1, so the product is inside u16 whatever it rounds to"
+    )]
+    let whole = (amount.clamp(0.0, 1.0) * f64::from(u16::MAX)).round() as u16;
+    whole
+}
+
+/// A section's name: the folder's own, or the path where it has none.
+fn section_name(section: &Section<'_>) -> String {
+    match section.root.file_name() {
+        Some(name) => name.to_string_lossy().into_owned(),
+        None => section.root.display().to_string(),
+    }
 }
 
 /// `length` as a whole number: the excerpt's leading in Pango units. Rounded
@@ -985,6 +1250,12 @@ fn counted(documents: usize, words: usize) -> String {
         format!("{words} words")
     };
     format!("{documents} · {words}")
+}
+
+/// The count while a query narrows the list: how much of the Library answered
+/// it (`files.js` `renderCount`: `${shown} of ${list.length} documents`).
+fn narrowed(found: usize, of: usize) -> String {
+    format!("{found} of {of} documents")
 }
 
 /// The head of one file: what its row shows of it, and how much of it there is.
@@ -1245,6 +1516,58 @@ mod tests {
         assert_eq!(counted(0, 0), "0 documents · 0 words");
         assert_eq!(counted(1, 1), "1 document · 1 word");
         assert_eq!(counted(8, 239), "8 documents · 239 words");
+    }
+
+    #[test]
+    fn the_count_says_how_much_of_the_library_a_query_left() {
+        assert_eq!(narrowed(2, 8), "2 of 8 documents");
+        assert_eq!(narrowed(0, 8), "0 of 8 documents");
+    }
+
+    #[test]
+    fn a_content_hits_snippet_is_marked_where_the_match_is() {
+        // Its own folder, named for this process, because the worktrees test
+        // at the same time.
+        let root = std::env::temp_dir().join(format!("quill-sidebar-{}", std::process::id()));
+        std::fs::create_dir_all(&root).expect("a folder to search");
+        std::fs::write(root.join("harbour.md"), "The lamps. The sea was flat.\n")
+            .expect("a file to find");
+        let library = Library::open(std::slice::from_ref(&root), &[]);
+        let view = View {
+            show_hidden: false,
+            sort: Sort::Date,
+        };
+        let mut contents = Contents::new();
+        let found = library.search("sea", &view, &mut contents);
+        let snippet = found
+            .first()
+            .expect("the file's text holds the word")
+            .snippet()
+            .expect("a content hit carries a snippet");
+        assert_eq!(snippet.matched(), "sea");
+        let read = BTreeMap::new();
+        let drawing = Drawing {
+            extensions: false,
+            now: None,
+            read: &read,
+            mark: Colour::rgba(0, 191, 255, 1.0),
+        };
+        let at = snippet.at();
+        let marked: Vec<_> = marks(Some(snippet), &drawing)
+            .attributes()
+            .into_iter()
+            .filter(|attribute| attribute.type_() == gtk::pango::AttrType::Background)
+            .map(|attribute| (attribute.start_index(), attribute.end_index()))
+            .collect();
+        assert_eq!(marked, vec![(index(at.start), index(at.end))]);
+        assert!(
+            marks(None, &drawing)
+                .attributes()
+                .iter()
+                .all(|attribute| attribute.type_() != gtk::pango::AttrType::Background),
+            "a row with no query is unmarked"
+        );
+        std::fs::remove_dir_all(&root).expect("the folder to go");
     }
 
     #[test]
