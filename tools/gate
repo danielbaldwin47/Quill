@@ -335,7 +335,7 @@ allow_reasons() {
 # the sources to this list.
 ROUND_ONCE=(
     quill/src/tags.rs:pixels               # the shape itself: a length as whole pixels
-    quill/src/palette.rs:pixels            # a copy of tags::pixels until it is pub(crate) — a ticket to file (§ Shape, one helper both call)
+    quill/src/palette.rs:pixels            # a copy of tags::pixels until #244 makes it pub(crate)
     quill/src/chrome.rs:reading_time       # seconds to the nearest minute, for the word count's bar
     quill-engine/src/theme.rs:channel      # a colour channel in 0.0–1.0 to a byte
     quill-engine/src/typography.rs:measure # the 64-cell measure in whole pixels
@@ -422,10 +422,13 @@ def heading_resolves(section, heads):
         section = f"State {section}"
     for head in heads:
         # The heading as cited, or the citation running on into prose after
-        # the heading's own words ("NOTES § State 14 says ..."); either way
-        # the match ends at a word boundary, so `State 9` is not `State 99`.
+        # the heading's own words ("NOTES § State 14 says ..."). The cited
+        # text is the heading's whole first phrase: what follows it in the
+        # heading is its end, a space and a word, or punctuation — a space and
+        # a digit is a longer name, so `State` is not `State 9`, and a letter
+        # or a digit is a longer word, so `State 9` is not `State 99`.
         short = re.split(r" — |: ", head)[0]
-        if re.match(re.escape(section) + r"(?![A-Za-z0-9])", head):
+        if re.match(re.escape(section) + r"($| [^0-9]|[^A-Za-z0-9 ])", head):
             return True
         if re.match(re.escape(short) + r"(?![A-Za-z0-9])", section):
             return True
@@ -437,12 +440,18 @@ ROWS = rows()
 ADRS = {m.group(1) for p in glob.glob("docs/adr/*.md") for m in [re.match(r".*/(\d{4})-", p)] if m}
 
 def row_names(text):
-    # The row names cited, longest known name first, joined by ", " or " and ".
+    # The row names cited, longest known name first and whole (a name ends at
+    # a word boundary, so `Selection` is not `Selectionist`), joined by ", " or
+    # " and ". Every capitalised name after a separator is a citation and must
+    # resolve; a lowercase word there is prose ("row Selection and the ...").
+    # Answers the names that resolved and the first cited name that did not,
+    # or None.
     names = []
     while True:
-        hit = next((r for r in ROWS if text.startswith(r)), None)
+        hit = next((r for r in ROWS if re.match(re.escape(r) + r"(?![A-Za-z0-9])", text)), None)
         if hit is None:
-            return names, text
+            cited = re.split(r"[,.;:)|\"`]", text)[0].strip()
+            return names, cited if re.match(r"[A-Z]", text) else None
         names.append(hit)
         text = text[len(hit):]
         for sep in (", ", " and "):
@@ -450,7 +459,7 @@ def row_names(text):
                 text = text[len(sep):]
                 break
         else:
-            return names, text
+            return names, None
 
 unresolved = []
 for path in FILES:
@@ -463,10 +472,9 @@ for path in FILES:
             if not heading_resolves(m.group(2), heads):
                 unresolved.append((path, lineno, f"{m.group(1)} § {m.group(2).strip()}"))
         for m in re.finditer(r"design\.md rows? ([A-Z][^\n]*)", line):
-            names, rest = row_names(m.group(1))
-            if not names:
-                cited = re.split(r"[,.;:)|\"`]", m.group(1))[0].strip()
-                unresolved.append((path, lineno, f"design.md row {cited}"))
+            names, missing = row_names(m.group(1))
+            if missing is not None:
+                unresolved.append((path, lineno, f"design.md row {missing}"))
 
 for path, lineno, cited in unresolved:
     print(f"{path}:{lineno}: {cited} resolves to nothing")

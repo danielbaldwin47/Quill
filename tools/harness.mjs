@@ -506,9 +506,33 @@ function toplevels() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Where a stage says the one thing it has to say on the way in — that it is waiting for the
-// display — when its caller gave it no trail of its own.
-const trace = (line) => process.stderr.write(`${line}\n`);
+// The trail a stage says the one thing it has to say on the way in to — that it is waiting for
+// the display — when its caller gave it no `say` of its own.
+const stderr = (line) => process.stderr.write(`${line}\n`);
+
+// ---------- choosing what to run ----------
+
+// A refusal of the command line, thrown by [`chosenList`]: the message is the line the command
+// prints above its usage.
+export class Refusal extends Error {}
+
+// What a command that runs over several of a kind — `gate shoot` over Pieces, `gate bench` over
+// regimes — was told to run: `--all` for every name `universe()` answers, `--<flag> a,b` for the
+// names listed, or neither, when the name given as an argument (or the default) is the caller's
+// own to resolve. `all` and `listed` are what the command line carried — whether `--all` was
+// given, and the flag's value or null — and `named` is the argument, for a command that counts it
+// against the flags. Answers `{ flag, names }`: the flag that chose and the names it chose, both
+// null when neither flag was given. Throws a `Refusal` for a list with no names in it, and for two
+// of them saying which.
+export function chosenList({ command, flag, listOf, what, all, listed, named = null, universe }) {
+  const names = listed === null ? null : String(listed).split(',').map((s) => s.trim()).filter(Boolean);
+  if (names !== null && !names.length) throw new Refusal(`${command}: ${flag} takes ${listOf} separated by commas`);
+  const asked = [named, all ? '--all' : null, names ? flag : null].filter(Boolean);
+  if (asked.length > 1) throw new Refusal(`${command}: ${asked.join(' and ')} both say ${what}; pick one`);
+  if (all) return { flag: '--all', names: universe() };
+  if (names) return { flag, names };
+  return { flag: null, names: null };
+}
 
 // The wall clock in nanoseconds, which is what the app reads `$QUILL_T0_NS` as: `date +%s%N`'s
 // scale. `Date.now()` alone would quantise the cold start to the millisecond, so the origin and the
@@ -550,10 +574,17 @@ function armTeardown(close) {
 // truncating, so the holder's line can be read before it is overwritten with this run's.
 //
 // `say` is the caller's trail, because a wait is something the owner should be able to see from
-// the log while it is happening, and the one line here is the holder's own description of itself.
+// the log while it is happening, and the one line here is the holder's own description of itself,
+// read through the descriptor this process holds: the file it opened is the file it waits on.
 function holdDisplay(say) {
   const fd = fs.openSync(LOCK, fs.constants.O_RDWR | fs.constants.O_CREAT, 0o600);
-  const holder = () => { try { return fs.readFileSync(LOCK, 'utf8').trim() || 'a run that wrote no name'; } catch { return 'a run that wrote no name'; } };
+  const holder = () => {
+    try {
+      const buf = Buffer.alloc(fs.fstatSync(fd).size);
+      const read = fs.readSync(fd, buf, 0, buf.length, 0);
+      return buf.toString('utf8', 0, read).trim() || 'a run that wrote no name';
+    } catch { return 'a run that wrote no name'; }
+  };
   const take = (...args) => {
     const r = spawnSync('flock', [...args, '3'], { stdio: ['ignore', 'ignore', 'ignore', fd] });
     if (r.error) { fs.closeSync(fd); throw new Error(`the display lock needs flock(1), which would not run: ${r.error.message}`); }
@@ -622,7 +653,7 @@ function parkingCorner(monitor) {
 //
 // `say` takes the one line a wait for the display produces; a caller with a trail of its own
 // (`tools/judge.mjs`, `tools/shoot.mjs`) passes it, and the default is stderr.
-export async function openStage({ root, appId = APP_ID, say = trace } = {}) {
+export async function openStage({ root, appId = APP_ID, say = stderr } = {}) {
   const lock = holdDisplay(say);
   const owner = { window: activeWindowAddress(), cursor: cursorPosition() };
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'quill-gate-'));
@@ -690,7 +721,7 @@ export async function openStage({ root, appId = APP_ID, say = trace } = {}) {
 // fractional-scale, so the window's buffer is not the judged stage's. `tools/gate bench` marks it
 // informational, and the mode and scale it was taken at go into the result's fingerprint.
 export async function openPanelStage({
-  root, appId = APP_ID, workspace = PANEL_WORKSPACE, idle = PANEL_IDLE_S, say = trace,
+  root, appId = APP_ID, workspace = PANEL_WORKSPACE, idle = PANEL_IDLE_S, say = stderr,
 } = {}) {
   const blocked = panelBlocked({ workspace });
   if (blocked) throw new Error(blocked);

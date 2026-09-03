@@ -35,8 +35,8 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { assertState } from './assert-state.mjs';
-import { APP_ID, openStage } from './harness.mjs';
-import { Refused, carriedFrom, openLog, preflight, say, shootState, spill } from './judge.mjs';
+import { APP_ID, Refusal, chosenList, openStage } from './harness.mjs';
+import { Refused, buildOurs, carriedFrom, checkStates, openLog, opensAt, say, shootState, spill } from './judge.mjs';
 import { readStates, resolveStates } from './oracle.mjs';
 import { rounds } from './rounds.mjs';
 
@@ -100,9 +100,9 @@ function refuse(piece, why) {
   return 3;
 }
 
-// Everything one Piece needs settled before a window opens, as the judge settles it, or the
-// `Refused` saying what is missing. A state the Piece has not got is refused before the build the
-// checks end in, because a typo should cost a second and not a minute.
+// Everything one Piece needs settled before the build, as the judge settles it (`checkStates`), or
+// the `Refused` saying what is missing. A state the Piece has not got is refused here too, before
+// the build, because a typo should cost a second and not a minute.
 function planPiece(root, piece, names, settingsFile) {
   if (piece === 'latency') throw new Refused('the latency Piece is a bench run and shoots nothing');
   let resolved;
@@ -113,8 +113,8 @@ function planPiece(root, piece, names, settingsFile) {
   }
   const unknown = names.filter((n) => !resolved.some((s) => s.name === n));
   if (unknown.length) throw new Refused(`${unknown.join(', ')}: not a judged state of ${piece}`);
-  const plan = preflight(root, piece, settingsFile, { command: 'shoot' });
-  return { want: plan.resolved.filter((s) => !names.length || names.includes(s.name)), cropping: plan.cropping };
+  const plan = checkStates(root, piece, settingsFile, { command: 'shoot' });
+  return { want: plan.resolved.filter((s) => !names.length || names.includes(s.name)), cropping: plan.cropping, resolved: plan.resolved };
 }
 
 // One Piece's states shot on the open stage: its lines, how many it shot, and how many a judge
@@ -153,40 +153,46 @@ async function main(argv) {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   process.chdir(root);
 
-  let piece = null;
   let all = false;
-  let subset = null;
-  const names = [];
+  let listed = null;
+  const positionals = [];
   let settingsFile = null;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--settings') {
       settingsFile = argv[++i];
       if (settingsFile === undefined) { process.stderr.write('gate shoot: --settings takes the settings file to open ours with\n'); usage(); return 3; }
-    } else if (a === '--all') { all = true; } else if (a === '--pieces') {
-      subset = String(argv[++i] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-      if (!subset.length) { process.stderr.write('gate shoot: --pieces takes Piece names separated by commas\n'); usage(); return 3; }
-    } else if (a === '-h' || a === '--help') { usage(process.stdout); return 0; }
+    } else if (a === '--all') { all = true; } else if (a === '--pieces') { listed = argv[++i] ?? ''; } else if (a === '-h' || a === '--help') { usage(process.stdout); return 0; }
     else if (a.startsWith('-')) { process.stderr.write(`gate shoot: ${a}: not a flag this command has\n`); usage(); return 3; }
-    else if (piece === null) piece = a;
-    else names.push(a);
+    else positionals.push(a);
   }
-  // With --all or --pieces every positional is a state, and a state is named for one Piece.
-  const several = all || subset !== null;
-  if (several && piece !== null) { names.unshift(piece); piece = null; }
-  if (all && subset) {
-    process.stderr.write('gate shoot: --all and --pieces both say which Pieces to shoot; pick one\n');
+  let choice;
+  try {
+    choice = chosenList({
+      command: 'gate shoot', flag: '--pieces', listOf: 'Piece names', what: 'which Pieces to shoot',
+      all, listed, universe: () => shootablePieces(readStates(root)),
+    });
+  } catch (e) {
+    if (!(e instanceof Refusal)) throw e;
+    process.stderr.write(`${e.message}\n`);
     usage();
     return 3;
   }
+  // A Piece name takes the first positional and states the rest; with --all or --pieces every
+  // positional is a state, and a state is named for one Piece.
+  const several = choice.flag !== null;
+  const piece = several ? null : positionals[0] ?? null;
+  const names = several ? positionals : positionals.slice(1);
   if (!several && piece === null) { usage(); return 3; }
-  const pieces = all ? shootablePieces(readStates(root)) : (subset ?? [piece]);
+  const pieces = choice.names ?? [piece];
   openLog(root, several ? 'shoot' : `shoot-${piece}`);
-  if (several && names.length) return refuse(null, `states are named for one Piece, and ${names.join(', ')} came with ${all ? '--all' : '--pieces'}`);
+  if (several && names.length) return refuse(null, `states are named for one Piece, and ${names.join(', ')} came with ${choice.flag}`);
   if (!pieces.length) return refuse(null, 'shots/oracle/states.json names no Piece to shoot');
 
-  // Every Piece's checks before any window opens, so a refusal costs nobody the display: a Piece
-  // refused here is refused by its line after the rest have shot.
+  // Every Piece's checks before the build, then one build for all of them, then every Piece's
+  // states asked of the binary — all before any window opens, so a refusal costs nobody the
+  // display. A Piece refused at either step is refused by its line after the rest have shot; a
+  // binary that would not build refuses the run.
   const plans = new Map();
   const refused = new Map();
   for (const p of pieces) {
@@ -194,6 +200,21 @@ async function main(argv) {
     catch (e) {
       if (!(e instanceof Refused)) throw e;
       refused.set(p, e.why);
+    }
+  }
+  if (plans.size) {
+    try { buildOurs(root, { command: 'shoot', piece }); }
+    catch (e) {
+      if (!(e instanceof Refused)) throw e;
+      return refuse(piece, e.why);
+    }
+    for (const [p, plan] of plans) {
+      try { opensAt(root, p, plan.resolved, settingsFile, { command: 'shoot' }); }
+      catch (e) {
+        if (!(e instanceof Refused)) throw e;
+        plans.delete(p);
+        refused.set(p, e.why);
+      }
     }
   }
   if (!several && refused.size) return refuse(piece, refused.get(piece));

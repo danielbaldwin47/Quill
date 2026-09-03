@@ -7,8 +7,8 @@
 # (docs/agents/issue-tracker.md, Open a ticket's PR). The hook reads the call
 # it is about to allow and refuses only that shape: a `gh pr merge` at command
 # position whose PR targets a base other than main, where that base has a
-# MERGED PR and no OPEN one. Everything else passes, and so does every doubt —
-# no jq, no gh, gh failing, no PR for the current branch.
+# MERGED PR to main and no OPEN one. Everything else passes, and so does every
+# doubt — no jq, no gh, gh failing, no PR for the current branch.
 set -uo pipefail
 set -f # the command is split into words below, and a `*` in it stays a `*`
 
@@ -58,8 +58,8 @@ base=$(jq -r '.baseRefName // empty' <<< "$view")
 [ -n "$n" ] && [ -n "$base" ] || exit 0
 [ "$base" = main ] && exit 0
 
-# Call two: the base's own PRs. Refuse only when one has merged and none is open.
-states=$(timeout 8 gh pr list --state all --head "$base" "${gh_repo[@]}" --json state --jq '.[].state' 2> /dev/null) || exit 0
+# Call two: the base's own PRs to main. Refuse only when one has merged and none is open.
+states=$(timeout 8 gh pr list --state all --head "$base" --base main "${gh_repo[@]}" --json state --jq '.[].state' 2> /dev/null) || exit 0
 grep -qx MERGED <<< "$states" || exit 0
 grep -qx OPEN <<< "$states" && exit 0
 

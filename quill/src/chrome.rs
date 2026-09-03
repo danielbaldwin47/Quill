@@ -7,7 +7,7 @@
 //! (`app.quit`, `app.window.new`) and installs its chords with
 //! `set_accels_for_action`. Toggles are stateful booleans and each radio
 //! group is one stateful string action, so the menus' checks and radios
-//! (#121) read the same actions the chords fire. A Command whose feature is
+//! read the same actions the chords fire. A Command whose feature is
 //! not built is registered disabled: its chord does nothing and its row will
 //! render greyed. Two key controllers remain elsewhere and bind no chord: the
 //! harness's capture-phase stamp (`harness::watch`, #64) and the Editor's
@@ -24,7 +24,7 @@
 //! How the bars step back while a hand is typing is [`typing`] (#128): a
 //! machine with no widget in it, whose opacities the window puts on the bars
 //! through [`Bars::set_fade`] and whose fade is the stylesheet's transition.
-//! The three menus (#121) are [`crate::menus`]' models shown through a
+//! The three menus are [`crate::menus`]' models shown through a
 //! `GtkPopoverMenu` under each bar button: the Document menu under the
 //! title, the View menu under the View button and `F10`, the Stats menu
 //! above the stats bar. Their look is the oracle's menu rules, as constants

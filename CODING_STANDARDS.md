@@ -7,7 +7,7 @@ What `/code-review` holds a diff to, beyond the smell baseline the skill carries
 - A doc comment sits on the item it describes: an item inserted above a documented one goes above that item's `///` block, and one inserted below it goes below the item. (dc60fb2, #175, #181, and `watch_edits` in `quill/src/window.rs` until #190.)
 - A module's `//!` line and a struct's doc describe the module after the change; a doc that says "only when" or "never" is checked against the new path. (dc60fb2, 3d91cdb)
 - A citation — an ADR, a `REFERENCE.md` section, a ticket, "the oracle's comment" — says what the cited source says; the reviewer opens it and finds the claim. (dc60fb2, 513a9b6, 63deb6f, e439bb6)
-- A `#N` in a doc comment is about an issue as it stands: `tools/cited-issues` lists the closed ones, and each is read as history or removed. (#121 in `quill/src/chrome.rs` and `quill/src/menus.rs` on 2026-09-02)
+- A `#N` in a doc comment is about an issue as it stands: `tools/cited-issues` lists the closed ones, and each is read as history or removed. (#121, closed, in `quill/src/chrome.rs` and `quill/src/menus.rs` until 2026-09-02)
 - A number in a row or an ADR is one a script printed from a named capture, quoted as `docs/agents/tickets.md` § Tickets (Numbers) has it; a derived one says it is derived. (#169)
 - A number the code implements lives in the code; a doc that mentions it names the function or file that holds it rather than restating the value. (3d91cdb, b78c425, ea8ef8f)
 - An ADR touched by a change carries a dated status line in its header naming what changed it and whether the decision stands, is narrowed, or waits on a named ticket; it states what is on `main`, never what a later ticket will land. (4a6a8af, 6ff8e46, c2969cf, 697cc37)
