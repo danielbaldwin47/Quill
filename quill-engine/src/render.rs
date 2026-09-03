@@ -44,12 +44,6 @@ use crate::document::{self, Document};
 use crate::markdown;
 use crate::template::{Alignment, Face, Paragraphs, Template};
 
-/// The narrowest zoom, as a whole percentage.
-pub const ZOOM_MIN: u32 = 50;
-
-/// The widest zoom, as a whole percentage.
-pub const ZOOM_MAX: u32 = 200;
-
 /// The resolution a context that names none is read at, which is what an
 /// unconfigured `pangocairo` context answers with.
 const DPI: f64 = 96.0;
@@ -94,8 +88,10 @@ pub struct Toggles {
 pub enum Kind {
     /// A heading, at the level it was written.
     Heading {
-        /// 1 to 6, as Markdown writes them.
-        level: u32,
+        /// 1 to 6, as Markdown writes them. The type the parser hands a level
+        /// out in, which is what [`crate::annotate::Mark::Heading`] and Live's
+        /// ladder carry too.
+        level: u8,
     },
     /// Prose.
     Paragraph,
@@ -170,7 +166,8 @@ pub struct Page {
 
 /// `document` laid out under `template`, `measure` pixels wide.
 ///
-/// `zoom` is a whole percentage, clamped to [`ZOOM_MIN`]..=[`ZOOM_MAX`], and
+/// `zoom` is a whole percentage, clamped to
+/// [`crate::settings::preview_zooms`] ([`scale`] is where), and
 /// scales every size the Template names — the measure is not one of them: it is
 /// the pane's, and it is what the text wraps in.
 #[must_use]
@@ -254,8 +251,9 @@ struct Pass<'a> {
     measure: f64,
     /// The base size in pixels: the em every rhythm value is a multiple of.
     em: f64,
-    /// The six heading sizes in pixels, H1 first.
-    headings: [f64; 6],
+    /// What a Template's point sizes are multiplied by to reach this context's
+    /// pixels: the zoom and the resolution together ([`scale`]).
+    scale: f64,
     /// The code size in pixels.
     code: f64,
     /// Whether paragraphs are indented rather than spaced, by the Template or
@@ -274,19 +272,14 @@ impl<'a> Pass<'a> {
     ) -> Self {
         // A Template's sizes are in points, so the context's resolution is
         // what turns them into the pixels this display draws.
-        let scale = f64::from(zoom.clamp(ZOOM_MIN, ZOOM_MAX)) / 100.0 * resolution(context) / 72.0;
-        let mut headings = [0.0; 6];
-        for (level, size) in headings.iter_mut().enumerate() {
-            let level = u32::try_from(level).unwrap_or(0) + 1;
-            *size = template.sizes.heading(level) * scale;
-        }
+        let scale = scale(zoom, resolution(context));
         Self {
             context,
             template,
             toggles,
             measure,
             em: template.sizes.base * scale,
-            headings,
+            scale,
             code: template.sizes.base * template.sizes.code * scale,
             indented: toggles.indent_paragraphs || template.paragraphs == Paragraphs::Indented,
         }
@@ -309,12 +302,12 @@ impl<'a> Pass<'a> {
     }
 
     /// The size a heading at `level` is set at, in pixels.
-    fn heading(&self, level: u32) -> f64 {
-        usize::try_from(level)
-            .ok()
-            .and_then(|level| self.headings.get(level.wrapping_sub(1)))
-            .copied()
-            .unwrap_or(self.em)
+    ///
+    /// The Template's own walk of its ladder ([`crate::template::Sizes`]),
+    /// scaled: a level off the ladder is the base size there and the body size
+    /// here, which are the same statement.
+    fn heading(&self, level: u8) -> f64 {
+        self.template.sizes.heading(level) * self.scale
     }
 
     /// A font description for `face` at `size` pixels.
@@ -364,7 +357,7 @@ impl<'a> Pass<'a> {
         let level = events
             .iter()
             .find_map(|(event, _)| match event {
-                Event::Start(Tag::Heading { level, .. }) => Some(*level as u32),
+                Event::Start(Tag::Heading { level, .. }) => Some(*level as u8),
                 _ => None,
             })
             .unwrap_or(1);
@@ -730,8 +723,8 @@ impl Numbering {
     /// The number a heading at `level` takes, or `None` for the title: an H1 is
     /// the Document's own name and stands bare, and the numbering starts under
     /// it at H2.
-    fn next(&mut self, level: u32) -> Option<String> {
-        let level = usize::try_from(level).ok()?;
+    fn next(&mut self, level: u8) -> Option<String> {
+        let level = usize::from(level);
         if !(2..self.counters.len()).contains(&level) {
             return None;
         }
@@ -797,14 +790,39 @@ fn italic(face: &Face) -> pango::Attribute {
 }
 
 /// The resolution `context` draws at, in dots per inch.
-fn resolution(context: &pango::Context) -> f64 {
+///
+/// The app asks too: the pane measures its own widest line off the context it
+/// will draw the page on (`quill::preview`), and a measure read at one
+/// resolution and a page laid out at another would be a page that wraps
+/// somewhere else.
+#[must_use]
+pub fn resolution(context: &pango::Context) -> f64 {
     let dpi = pangocairo::functions::context_get_resolution(context);
     if dpi > 0.0 { dpi } else { DPI }
 }
 
+/// The multiplier a Template's point sizes are drawn at, at `zoom` on a screen
+/// of `dpi` dots to the inch.
+///
+/// The one home for the arithmetic the pass sizes every heading and every
+/// paragraph by and the pane sizes its measure by (`quill::preview`'s
+/// `widest`), and so the one place `zoom` is held to the percentages a writer
+/// may ask for ([`crate::settings::preview_zooms`], which the settings file and
+/// the three zoom Commands are read against as well).
+#[must_use]
+pub fn scale(zoom: u32, dpi: f64) -> f64 {
+    let zooms = crate::settings::preview_zooms();
+    f64::from(zoom.clamp(*zooms.start(), *zooms.end())) / 100.0 * dpi / 72.0
+}
+
 /// `pixels` in the units Pango counts in. A float-to-integer cast saturates in
 /// Rust, so a page too tall to count clamps rather than wrapping.
-fn units(pixels: f64) -> i32 {
+///
+/// Public because the pane asks Pango which byte a pointer landed on, in the
+/// units Pango takes (`quill::preview`), and a truncation there and a rounding
+/// here would be two answers about one page.
+#[must_use]
+pub fn units(pixels: f64) -> i32 {
     (pixels * f64::from(pango::SCALE)).round() as i32
 }
 
@@ -1182,7 +1200,8 @@ let x = 1;
     fn a_zoom_off_the_range_is_clamped_rather_than_believed() {
         let text = "A line.\n";
         let height = |zoom| page("modern", text, Toggles::default(), 600.0, zoom).height;
-        assert_eq!(height(0), height(ZOOM_MIN));
-        assert_eq!(height(1000), height(ZOOM_MAX));
+        let zooms = crate::settings::preview_zooms();
+        assert_eq!(height(0), height(*zooms.start()));
+        assert_eq!(height(1000), height(*zooms.end()));
     }
 }

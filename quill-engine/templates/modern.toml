@@ -6,7 +6,6 @@
 # paper is white until the same capture lands in the light scheme (#261).
 
 id = "modern"
-name = "Modern"
 paragraphs = "spaced"
 
 [faces]

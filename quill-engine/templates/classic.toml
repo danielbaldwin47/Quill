@@ -5,7 +5,6 @@
 # template until a capture of it lands beside State 16's.
 
 id = "classic"
-name = "Classic"
 paragraphs = "indented"
 
 [faces]

@@ -31,7 +31,7 @@ use gtk::subclass::prelude::*;
 use gtk::{gdk, gio, glib, graphene, pango};
 use quill_engine::document::Document;
 use quill_engine::render;
-use quill_engine::settings::{Choice, EVEN, Settings};
+use quill_engine::settings::{Choice, Settings};
 use quill_engine::sync;
 use quill_engine::template;
 use quill_engine::theme::{Colour, Scheme};
@@ -63,10 +63,6 @@ const NARROWEST_MEASURE: f64 = 160.0;
 /// The air above and below the page, in logical pixels.
 const PAD: f64 = 32.0;
 
-/// The resolution a Pango context that names none is read at, which is what
-/// [`quill_engine::render`] falls back to for the same reason.
-const DPI: f64 = 96.0;
-
 /// The narrowest either half of the pair is dragged to, in logical pixels.
 ///
 /// The Library's rule ([`quill_engine::settings::library_width`]) with both
@@ -84,16 +80,14 @@ const HAIRLINE: f64 = 1.0;
 /// the `wanted` width a drag or the state file asked for.
 ///
 /// One pure function for all three askers, as the Library's is: a drag, a
-/// launch reading the state file, and a window since made narrower. The one
-/// value that is not a width is [`EVEN`], which is what a pane nobody has
-/// dragged says, and it comes back as itself: an even Split is not 50 % of
-/// anything until there is a pair to halve, and the pair halves itself.
+/// launch reading the state file, and a window since made narrower. [`None`] is
+/// what a pane nobody has dragged asks for and what it comes back as: an even
+/// Split is not 50 % of anything until there is a pair to halve, and the pair
+/// halves itself.
 #[must_use]
-pub fn pane_width(wanted: u32, pair: u32) -> u32 {
-    if wanted == EVEN {
-        return EVEN;
-    }
-    wanted.clamp(NARROWEST, pair.saturating_sub(NARROWEST).max(NARROWEST))
+pub fn pane_width(wanted: Option<u32>, pair: u32) -> Option<u32> {
+    let wanted = wanted?;
+    Some(wanted.clamp(NARROWEST, pair.saturating_sub(NARROWEST).max(NARROWEST)))
 }
 
 /// Where a drag on the divider began: the pane's width then, and where the
@@ -232,7 +226,7 @@ impl Sheet {
                 template.rhythm.measure,
                 template.sizes.base,
                 zoom,
-                resolution(&context),
+                render::resolution(&context),
             ),
         );
         let page = render::render(document, &template, toggles, measure, zoom, &context);
@@ -279,7 +273,7 @@ impl Sheet {
         // way the oracle's does.
         snapshot.append_color(
             &rgba(palette.paper),
-            &graphene::Rect::new(0.0, 0.0, at(self.width()), at(self.height())),
+            &graphene::Rect::new(0.0, 0.0, length(self.width()), length(self.height())),
         );
         let page = imp.page.borrow();
         let Some(page) = page.as_ref() else {
@@ -353,7 +347,9 @@ impl Sheet {
                 if x < 0.0 || y < 0.0 || x > f64::from(width) || y > f64::from(height) {
                     continue;
                 }
-                let (inside, index, _) = placed.layout.xy_to_index(units(x), units(y));
+                let (inside, index, _) = placed
+                    .layout
+                    .xy_to_index(render::units(x), render::units(y));
                 if !inside {
                     continue;
                 }
@@ -452,27 +448,21 @@ impl Preview {
         self.sheet.lay_out(document, settings, scheme);
     }
 
-    /// Whether the pane is showing.
-    #[must_use]
-    pub fn is_shown(&self) -> bool {
-        self.frame.is_visible()
-    }
-
     /// Shows or hides the pane.
     pub fn set_shown(&self, shown: bool) {
         self.frame.set_visible(shown);
     }
 
     /// Stands the pane at `width` logical pixels, or lets the pair divide
-    /// itself where `width` is [`EVEN`].
-    pub fn set_width(&self, width: u32) {
-        if width == EVEN {
-            self.frame.set_hexpand(true);
-            self.frame.set_width_request(-1);
-        } else {
+    /// itself where `width` is [`None`].
+    pub fn set_width(&self, width: Option<u32>) {
+        if let Some(width) = width {
             self.frame.set_hexpand(false);
             self.frame
                 .set_width_request(i32::try_from(width).unwrap_or(i32::MAX));
+        } else {
+            self.frame.set_hexpand(true);
+            self.frame.set_width_request(-1);
         }
     }
 
@@ -717,15 +707,7 @@ fn measure(width: f64, widest: f64) -> f64 {
 /// reads: a Template's sizes are in points, so a zoom and a resolution stand
 /// between them and a width.
 fn widest(measure: f64, base: f64, zoom: u32, dpi: f64) -> f64 {
-    let scale = f64::from(zoom.clamp(render::ZOOM_MIN, render::ZOOM_MAX)) / 100.0 * dpi / 72.0;
-    measure * base * scale
-}
-
-/// The resolution `context` draws at, in dots per inch, as the render pass
-/// reads it.
-fn resolution(context: &pango::Context) -> f64 {
-    let dpi = pangocairo::functions::context_get_resolution(context);
-    if dpi > 0.0 { dpi } else { DPI }
+    measure * base * render::scale(zoom, dpi)
 }
 
 /// The rectangles the bytes `at` of `layout` are drawn in, one per line they
@@ -767,11 +749,6 @@ fn index(at: usize) -> i32 {
     i32::try_from(at).unwrap_or(i32::MAX)
 }
 
-/// A length in Pango units, as `xy_to_index` takes it.
-fn units(value: f64) -> i32 {
-    (value * f64::from(pango::SCALE)) as i32
-}
-
 /// A length in Pango units, back in the layout's own pixels.
 fn back(units: i32) -> f64 {
     f64::from(units) / f64::from(pango::SCALE)
@@ -786,7 +763,7 @@ fn rect(x: f64, y: f64, width: f64, height: f64) -> graphene::Rect {
 }
 
 /// A length in the sheet's own pixels, as `graphene` takes it.
-fn at(value: i32) -> f32 {
+fn length(value: i32) -> f32 {
     value as f32
 }
 
@@ -815,21 +792,25 @@ mod tests {
     /// width nobody dragged stays the one value that is not a width.
     #[test]
     fn a_pane_nobody_dragged_divides_the_pair_and_a_dragged_one_leaves_a_page() {
-        assert_eq!(pane_width(EVEN, 1440), EVEN, "an even Split is not a width");
-        assert_eq!(pane_width(700, 1440), 700, "what fits is what was asked");
+        assert_eq!(pane_width(None, 1440), None, "an even Split is not a width");
         assert_eq!(
-            pane_width(12, 1440),
-            NARROWEST,
+            pane_width(Some(700), 1440),
+            Some(700),
+            "what fits is what was asked"
+        );
+        assert_eq!(
+            pane_width(Some(12), 1440),
+            Some(NARROWEST),
             "a pane too narrow to read is stood at the narrowest"
         );
         assert_eq!(
-            pane_width(1400, 1440),
-            1440 - NARROWEST,
+            pane_width(Some(1400), 1440),
+            Some(1440 - NARROWEST),
             "a pane that would leave the Editor nothing stops"
         );
         assert_eq!(
-            pane_width(700, 300),
-            NARROWEST,
+            pane_width(Some(700), 300),
+            Some(NARROWEST),
             "a pair with room for neither still stands the pane at the narrowest"
         );
     }
@@ -859,20 +840,21 @@ mod tests {
     }
 
     /// The zoom scales the cap with every other size, and is held to the
-    /// render pass's own range rather than believed.
+    /// percentages a writer may ask for rather than believed.
     #[test]
-    fn the_zoom_scales_the_measure_and_is_clamped_to_the_render_passs_range() {
+    fn the_zoom_scales_the_measure_and_is_clamped_to_the_range_settings_names() {
         let at = |zoom| widest(34.0, 16.0, zoom, 96.0);
+        let zooms = quill_engine::settings::preview_zooms();
         assert!(
             (at(200) - 2.0 * at(100)).abs() < f64::EPSILON,
             "twice the zoom is twice the measure"
         );
         assert!(
-            (at(1000) - at(render::ZOOM_MAX)).abs() < f64::EPSILON,
-            "a zoom past the range lays out at the widest the pass allows"
+            (at(1000) - at(*zooms.end())).abs() < f64::EPSILON,
+            "a zoom past the range lays out at the widest a writer may ask for"
         );
         assert!(
-            (at(1) - at(render::ZOOM_MIN)).abs() < f64::EPSILON,
+            (at(1) - at(*zooms.start())).abs() < f64::EPSILON,
             "a zoom below the range lays out at the narrowest"
         );
     }

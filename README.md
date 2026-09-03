@@ -48,8 +48,10 @@ tools/gate check                          # what every commit must pass: format,
 display in its environment — stopping at the first failure, and ending in one line the owner can read,
 `gate check: pass` or `gate check: fail (<step>)`.
 
-Data files — the six Quill Faces, Templates, `OFL.txt` — resolve from one directory: `$QUILL_DATA_DIR`
-if it is set, else the path the package build compiled in (`/usr/share/quill`), else this checkout.
+Data files — the six Quill Faces, Inter and Source Serif 4, their `OFL` licences — resolve from one
+directory: `$QUILL_DATA_DIR` if it is set, else the path the package build compiled in
+(`/usr/share/quill`), else this checkout. Templates are not data files: they are compiled into the
+binary (`quill-engine/templates/`).
 
 ### Theme Quill with the desktop
 
@@ -141,7 +143,8 @@ Those are the numbers the native app has to beat: `docs/agents/gate.md` holds it
 ```
 quill/          the app crate: GtkApplication, window, editor, flags, harness
 quill-engine/   the display-free half: text model, Markdown, Annotators, Library, settings, rendering
-fonts/          the six Quill Faces (private, loaded at startup) + OFL.txt
+fonts/          the six Quill Faces, Inter and Source Serif 4 (private, loaded at startup) + their
+                OFL licences
 tools/          the Gate: `gate check`, and its helpers — blind pairs, progress page, uinput keys,
                 idle check, font build (`npm i` at the root once, for the three that drive a browser)
 legacy/         the JavaScript app as it won, and the Parity oracle (bin/quill, app/, tools/, BRIEF.md, NOTES.md)
