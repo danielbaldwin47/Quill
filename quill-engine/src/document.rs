@@ -51,6 +51,19 @@ use crate::offsets::Offsets;
 /// What a window titles a Document that is not on disk yet.
 pub const UNTITLED: &str = "Untitled";
 
+/// The name a Document at `path` is shown by: its file name without its
+/// extension, which is the top bar's title ([`Document::name`]) and the label
+/// of a recents row ([`crate::palette::recents`]).
+///
+/// A path with no file name at all — a bare `/`, a path ending in `..` — is
+/// shown as it was written rather than as nothing, since a Document there is
+/// already a path Quill cannot make sense of and hiding it would say less.
+#[must_use]
+pub fn shown_name(path: &Path) -> Cow<'_, str> {
+    path.file_stem()
+        .map_or_else(|| path.to_string_lossy(), std::ffi::OsStr::to_string_lossy)
+}
+
 /// Where a byte offset is, in the two numbers a `GtkTextIter` is set from.
 ///
 /// The app reaches a byte with `set_line` and then `set_line_index`, never by
@@ -441,6 +454,15 @@ impl Document {
             .as_deref()
             .and_then(Path::file_name)
             .map_or(Cow::Borrowed(UNTITLED), std::ffi::OsStr::to_string_lossy)
+    }
+
+    /// The name the top bar shows: the file name without its extension, or
+    /// [`UNTITLED`] until the first save (#246, story 48).
+    #[must_use]
+    pub fn name(&self) -> Cow<'_, str> {
+        self.path
+            .as_deref()
+            .map_or(Cow::Borrowed(UNTITLED), shown_name)
     }
 
     /// Writes `text` in at `at` bytes, and says what that changed.

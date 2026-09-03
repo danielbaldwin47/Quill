@@ -5,20 +5,24 @@
 //! the same action, and `--menu palette` has it up before the first frame.
 //! What it lists is [`quill_engine::palette`]: the oracle's four sections and
 //! More with nothing typed, one ranked list once something is. Arrows move
-//! the selection, Enter runs it and closes, Esc closes. Its look is the
+//! the selection, Enter runs it and closes, Esc closes. `file.recent` opens
+//! the same panel on a second list — the state's recent Documents, newest
+//! first, narrowed by [`quill_engine::palette::recents`] — where Enter opens
+//! the Document in this window instead (#246). Its look is the
 //! Parity oracle's palette rules (`legacy/app/css/chrome.css`), as constants
 //! beside the menus'.
 
 use std::cell::{Cell, RefCell};
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use gtk::prelude::*;
 use gtk::{cairo, gdk, glib};
 use quill_engine::commands::Command;
-use quill_engine::palette::{self as engine, Row};
+use quill_engine::palette::{self as engine, Recent, Row};
 use quill_engine::theme::Scheme;
 
-use crate::chrome::{self, CHROME_FONT, Modes};
+use crate::chrome::{self, CHROME_FONT, Modes, RECENT_OPEN};
 use crate::menus;
 
 /// How far down the window the panel's top sits (`.palette { top: 13vh }`).
@@ -211,6 +215,48 @@ pub fn stylesheet(scheme: Scheme) -> String {
     )
 }
 
+/// What the Palette is listing: every Command, or the writer's recent
+/// Documents (`file.recent`, #246 story 41).
+///
+/// One popover in two modes rather than two popovers, because the panel, the
+/// field, the keys and the look are the same list either way; only what fills
+/// it and what Enter does with a row differ.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+enum Listing {
+    /// The registry, in the oracle's sections: `palette.open`.
+    #[default]
+    Commands,
+    /// The state's recents, newest first: `file.recent`.
+    Recents,
+}
+
+impl Listing {
+    /// What the empty field says it is for.
+    fn placeholder(self) -> &'static str {
+        match self {
+            Self::Commands => "Search commands",
+            Self::Recents => "Search recent documents",
+        }
+    }
+
+    /// What stands in the list when nothing is in it and nothing was typed.
+    fn nothing(self) -> &'static str {
+        match self {
+            Self::Commands => "No commands",
+            Self::Recents => "No recent documents",
+        }
+    }
+}
+
+/// What one selectable row runs.
+#[derive(Clone, Debug)]
+enum Item {
+    /// A Command, activated through its action as a menu row would.
+    Command(&'static Command),
+    /// A recent Document, opened in this window through [`RECENT_OPEN`].
+    Recent(PathBuf),
+}
+
 /// The Palette popover, parented on its window.
 #[derive(Clone)]
 pub struct Palette {
@@ -218,11 +264,15 @@ pub struct Palette {
     entry: gtk::Entry,
     list: gtk::ListBox,
     scroller: gtk::ScrolledWindow,
-    /// The rows that can be selected, top to bottom, each with its Command.
-    rows: Rc<RefCell<Vec<(gtk::ListBoxRow, &'static Command)>>>,
+    /// The rows that can be selected, top to bottom, each with what it runs.
+    rows: Rc<RefCell<Vec<(gtk::ListBoxRow, Item)>>>,
     selected: Rc<Cell<usize>>,
     /// The modes the rows' titles read, as of the last opening.
     modes: Rc<Cell<Modes>>,
+    /// Which list is up, as of the last opening.
+    listing: Rc<Cell<Listing>>,
+    /// The recents the last opening was handed, narrowed as the writer types.
+    recents: Rc<RefCell<Vec<PathBuf>>>,
 }
 
 impl Palette {
@@ -300,6 +350,8 @@ impl Palette {
             rows: Rc::new(RefCell::new(Vec::new())),
             selected: Rc::new(Cell::new(0)),
             modes: Rc::new(Cell::new(Modes::default())),
+            listing: Rc::new(Cell::new(Listing::default())),
+            recents: Rc::new(RefCell::new(Vec::new())),
         };
         palette.wire();
         palette
@@ -381,7 +433,26 @@ impl Palette {
             self.close();
             return;
         }
+        self.show(window, modes, Listing::Commands);
+    }
+
+    /// Opens the Palette over `window`'s page on `recents`, newest first and
+    /// nothing typed: `file.recent`, the Command a writer reaches Open
+    /// Recent… by (#246, story 41).
+    ///
+    /// Never a toggle: the Command runs from the Palette itself, which closes
+    /// as it runs, so a toggle here would be a Palette that never opens.
+    pub fn open_recents(&self, window: &gtk::Window, modes: Modes, recents: Vec<PathBuf>) {
+        self.recents.replace(recents);
+        self.show(window, modes, Listing::Recents);
+    }
+
+    /// Puts the panel over `window`'s page with `listing` in it and its first
+    /// row selected.
+    fn show(&self, window: &gtk::Window, modes: Modes, listing: Listing) {
         self.modes.set(modes);
+        self.listing.set(listing);
+        self.entry.set_placeholder_text(Some(listing.placeholder()));
         let top = pixels(f64::from(window.height()) * TOP);
         let width = WIDTH.min(window.width() - KEEP_CLEAR);
         if let Some(panel) = self.popover.child().and_downcast::<gtk::Box>() {
@@ -434,20 +505,32 @@ impl Palette {
         while let Some(child) = self.list.first_child() {
             self.list.remove(&child);
         }
-        let modes = self.modes.get();
+        let listing = self.listing.get();
         let mut rows = Vec::new();
-        for (head, group) in engine::list(query) {
-            if let Some(head) = head {
-                self.list.append(&heading(head));
+        match listing {
+            Listing::Commands => {
+                let modes = self.modes.get();
+                for (head, group) in engine::list(query) {
+                    if let Some(head) = head {
+                        self.list.append(&heading(head));
+                    }
+                    for row in group {
+                        let widget = item(&row, &modes);
+                        self.list.append(&widget);
+                        rows.push((widget, Item::Command(row.command)));
+                    }
+                }
             }
-            for row in group {
-                let widget = item(&row, &modes);
-                self.list.append(&widget);
-                rows.push((widget, row.command));
+            Listing::Recents => {
+                for row in engine::recents(&self.recents.borrow(), query) {
+                    let widget = recent(&row);
+                    self.list.append(&widget);
+                    rows.push((widget, Item::Recent(row.path.to_path_buf())));
+                }
             }
         }
         if rows.is_empty() {
-            self.list.append(&nothing(query.trim()));
+            self.list.append(&nothing(query.trim(), listing));
         }
         *self.rows.borrow_mut() = rows;
         self.select(0);
@@ -486,28 +569,37 @@ impl Palette {
         }
     }
 
-    /// Runs the selected row's Command and closes; a row not built does
-    /// nothing at all, as its chord does nothing, and the Palette stays up.
+    /// Runs the selected row and closes: a Command through its action, a
+    /// recent Document through [`RECENT_OPEN`], which opens it in this
+    /// window. A Command not built does nothing at all, as its chord does
+    /// nothing, and the Palette stays up.
     fn run_selected(&self) {
-        let Some(command) = self.selected_command() else {
+        let Some(item) = self.selected_item() else {
             return;
         };
-        if !command.built {
-            return;
-        }
+        let (action, target) = match &item {
+            Item::Command(command) => {
+                if !command.built {
+                    return;
+                }
+                let (action, target) = command.action_and_target();
+                (action, target.map(ToVariant::to_variant))
+            }
+            Item::Recent(path) => {
+                let target = path.to_string_lossy().into_owned();
+                (format!("win.{RECENT_OPEN}"), Some(target.to_variant()))
+            }
+        };
         self.close();
-        let (action, target) = command.action_and_target();
-        let _ = self
-            .popover
-            .activate_action(&action, target.map(ToVariant::to_variant).as_ref());
+        let _ = self.popover.activate_action(&action, target.as_ref());
     }
 
-    /// The Command of the selected row, if a row is selected.
-    fn selected_command(&self) -> Option<&'static Command> {
+    /// What the selected row runs, if a row is selected.
+    fn selected_item(&self) -> Option<Item> {
         self.rows
             .borrow()
             .get(self.selected.get())
-            .map(|(_, command)| *command)
+            .map(|(_, item)| item.clone())
     }
 }
 
@@ -533,12 +625,16 @@ fn heading(text: &str) -> gtk::ListBoxRow {
         .build()
 }
 
-/// The line under an empty list.
-fn nothing(query: &str) -> gtk::ListBoxRow {
-    let label = gtk::Label::builder()
-        .label(format!("Nothing matches “{query}”"))
-        .xalign(0.0)
-        .build();
+/// The line under an empty list: what the query missed, or — with nothing
+/// typed — that there was nothing to list, which is what a writer who has
+/// opened no Document yet sees under Open Recent….
+fn nothing(query: &str, listing: Listing) -> gtk::ListBoxRow {
+    let said = if query.is_empty() {
+        listing.nothing().to_string()
+    } else {
+        format!("Nothing matches “{query}”")
+    };
+    let label = gtk::Label::builder().label(said).xalign(0.0).build();
     gtk::ListBoxRow::builder()
         .css_classes(["palette-empty"])
         .selectable(false)
@@ -579,6 +675,43 @@ fn item(row: &Row, modes: &Modes) -> gtk::ListBoxRow {
         widget.add_css_class("dim");
     }
     widget
+}
+
+/// One recent Document's row: its name without the extension, the letters a
+/// query matched set heavier, and the folder it sits in at the right, in the
+/// dim type a Command's chord takes — which is what tells two Documents of
+/// the same name apart.
+fn recent(row: &Recent<'_>) -> gtk::ListBoxRow {
+    let label = gtk::Label::builder()
+        .label(marked(&row.name, &row.hits))
+        .use_markup(true)
+        .xalign(0.0)
+        .hexpand(true)
+        .ellipsize(gtk::pango::EllipsizeMode::End)
+        .css_classes(["palette-label"])
+        .build();
+    let line = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    line.append(&label);
+    if let Some(folder) = folder_of(row.path) {
+        let folder = gtk::Label::builder()
+            .label(folder)
+            .css_classes(["palette-keys"])
+            .build();
+        line.append(&folder);
+    }
+    gtk::ListBoxRow::builder()
+        .css_classes(["palette-row"])
+        .can_focus(false)
+        .child(&line)
+        .build()
+}
+
+/// The folder a recent Document sits in, as its own name alone: the whole
+/// path would be the row rather than a note beside it, and a Document at the
+/// root of a filesystem has none.
+fn folder_of(path: &Path) -> Option<String> {
+    let folder = path.parent()?.file_name()?;
+    Some(folder.to_string_lossy().into_owned())
 }
 
 /// The title as markup, the matched byte ranges set at weight 600
