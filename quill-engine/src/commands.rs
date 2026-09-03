@@ -237,7 +237,7 @@ pub const COMMANDS: &[Command] = &[
     row("focus.paragraph", "Paragraph", Scope::Win, Kind::Radio { group: "focus_scope", value: "paragraph", }, &[], &[place(VIEW, Some("Focus"), "Paragraph")], true),
     row("focus.swap", "Switch Focus Scope", Scope::Win, Kind::Plain, &["Ctrl+Shift+D"], &[], true),
     row("typewriter.toggle", "Typewriter", Scope::Win, Kind::Check, &["Ctrl+T"], &[place(VIEW, Some("Focus"), "Typewriter")], true),
-    row("live.toggle", "Live", Scope::Win, Kind::Check, &["Ctrl+L"], &[place(VIEW, Some("Focus"), "Live")], false),
+    row("live.toggle", "Live", Scope::Win, Kind::Check, &["Ctrl+L"], &[place(VIEW, Some("Focus"), "Live")], true),
     // View › Panes.
     row("library.toggle", "Show Library / Hide Library", Scope::Win, Kind::Check, &["Ctrl+E", "F9"], &[place(VIEW, Some("Panes"), "Show Library / Hide Library")], true),
     row("preview.toggle", "Show Preview / Hide Preview", Scope::Win, Kind::Check, &["Ctrl+R"], &[place(VIEW, Some("Panes"), "Show Preview / Hide Preview")], true),

@@ -1,6 +1,6 @@
-// The twelve latency regimes and the typist behind them: what a bench types, for both benches.
+// The thirteen latency regimes and the typist behind them: what a bench types, for both benches.
 //
-//   node tools/regimes.mjs                                  the twelve regimes, one line each
+//   node tools/regimes.mjs                                  the thirteen regimes, one line each
 //   node tools/regimes.mjs prose_end_of_draft --keys 300    the regime and every step it types
 //   node tools/regimes.mjs revision --uinput                the plan line tools/uinput-keys.py reads
 //
@@ -125,12 +125,12 @@ const SHIFTED_CHARS = new Set('!@#$%^&*()_+{}:"~|<>?'.split(''));
 export const needsShift = (ch) => /[A-Z]/.test(ch) || SHIFTED_CHARS.has(ch);
 export const pressChar = (st) => (st.press === 'Space' ? ' ' : st.press === 'Enter' ? '\n' : st.press === 'Backspace' ? '\b' : st.press);
 
-// ---------- the twelve regimes ----------
+// ---------- the thirteen regimes ----------
 // `pace` is the wait between keystrokes: 90 ms is about 133 wpm, and three regimes fix their own
 // pace because that is the thing they measure.
 export const DEFAULT_PACE = 90;
 // Keys measured per regime. 300 at 90 ms is 27 seconds of typing, which is enough samples for a
-// p99 with an interval and short enough that twelve regimes are one sitting.
+// p99 with an interval and short enough that thirteen regimes are one sitting.
 export const DEFAULT_KEYS = 300;
 // Keys typed into a freshly loaded page before the trace starts: the first keystrokes pay for lazy
 // compilation and first touch of the editing machinery, and no writer types only 300 keys.
@@ -154,11 +154,16 @@ export function regimes(pace = DEFAULT_PACE) {
     // recorded like the rest, never scored — the oracle scored the eleven paced regimes and kept
     // this one out of its table (progress/latency-report.md, #41).
     { name: 'saturation_stress',     mix: 'prose',    where: 'end',    pace: 0,    focus: 'off', scored: false },
+    // The headline regime's own typing with Live on, so the two lines are read against each other:
+    // the fold runs on the keystroke lane beside the Markup Annotator, over the block the caret is
+    // in and the one it left, and this is what says whether it stays inside the budget (#273). Only
+    // the native bench reads `live`; the Parity oracle has no Live and types this as more prose.
+    { name: 'live_end_of_draft',     mix: 'prose',    where: 'end',    pace, focus: 'off', live: true },
   ];
 }
 
 /// Whether a regime, by name, is held to the budget. Every regime is unless its definition says
-/// `scored: false`; a name the twelve do not include is scored, so a misspelling cannot exempt a run.
+/// `scored: false`; a name the thirteen do not include is scored, so a misspelling cannot exempt a run.
 export const scoredRegime = (name) => !regimes().some((r) => r.name === name && r.scored === false);
 
 // ---------- one regime, written out ----------
@@ -172,6 +177,7 @@ export function formatPlan(r, keys) {
   out.push(`  caret        ${r.where === 'end' ? 'end of the document' : 'middle of the document, at the first line break past half way'}`);
   out.push(`  pace         ${r.pace === 0 ? 'no wait between keystrokes (as fast as the driver types)' : r.pace + ' ms between keystrokes'}`);
   out.push(`  focus        ${r.focus || 'off'}`);
+  out.push(`  live         ${r.live ? 'on: the markup rendered in place' : 'off'}`);
   out.push(`  pauses       ${r.pauseEvery ? `every ${r.pauseEvery} keys, ${r.pauseMs || 1200} ms` : 'none'}`);
   out.push(`  seed         ${hash32(r.name)}`);
   out.push(`  warm-up      ${WARMUP_KEYS} letter keys, outside the measurement`);

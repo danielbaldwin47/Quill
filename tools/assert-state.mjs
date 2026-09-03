@@ -38,12 +38,30 @@ const TOLERANCE = 0.02;
 const SEPARATION = 32;
 
 // The assertions a state may name, by the word it names them with.
-export const ASSERTIONS = { ghost: ghost };
+export const ASSERTIONS = { ghost: ghost, folded: folded };
+
+// How each rule wants its second shot taken: the state to shoot, and what to shoot it with.
+//
+// Every asserted state is shot twice, because every one of these rules is a comparison of ours with
+// ours (ADR 0017). What the second shot is differs by rule, and the difference is here rather than
+// in the two callers: `ghost` wants the same state with the window active, and `folded` wants the
+// same state with Live off, which is the page whose markers the fold is measured against.
+export const SECOND = {
+  ghost: (s) => ({ state: s, options: { active: true } }),
+  folded: (s) => ({ state: { ...s, flags: { ...s.flags, live: false } }, options: {} }),
+};
+
+// The second shot one asserted state asks for: `{ state, options }` for `shootState`.
+export function secondShot(spec, s) {
+  validate(spec);
+  return SECOND[spec.kind](s);
+}
 
 // One asserted state's answer: `{ ours, why, secondary }`, `ours` being whether the rule held.
 //
-// `shots` is the state's own shot and the same state shot lit, both as raw PNG buffers, and
-// `spec` is the `assert` entry from `shots/oracle/states.json`. Throws when the state names an
+// `shots` is `{ dim, lit }`, both raw PNG buffers: `dim` is the state's own shot and `lit` the
+// second one [`SECOND`] asked for — the same state with the window active for `ghost`, and the same
+// state with Live off for `folded`. `spec` is the `assert` entry from `shots/oracle/states.json`. Throws when the state names an
 // assertion this file has not got, which `tools/gate judge` turns into a refusal before it shoots.
 export function assertState(spec, shots) {
   validate(spec);
@@ -68,6 +86,11 @@ const CHECKS = {
   ghost({ alpha }) {
     if (typeof alpha !== 'number' || !(alpha > 0) || !(alpha < 1)) {
       throw new Error(`the ghost's alpha is ${JSON.stringify(alpha)}, and an alpha is between 0 and 1`);
+    }
+  },
+  folded({ scale }) {
+    if (typeof scale !== 'number' || !(scale > 1)) {
+      throw new Error(`the fold's heading scale is ${JSON.stringify(scale)}, and a rung of the Live ladder is over 1`);
     }
   },
 };
@@ -169,6 +192,243 @@ function alphaOf(a, b, bar, y, paper) {
   }
   if (!shares.length) return null;
   return shares.reduce((t, s) => t + s, 0) / shares.length;
+}
+
+// ---------- the fold ----------
+
+// How far the measured ladder may sit from the rung the state names.
+//
+// A tenth, which is half the distance between two rungs: 1.6 and 1.4 cannot pass for each other,
+// and neither can body size at 1.0. It is that wide because the ladder is applied to the type and
+// the type is hinted — a judged shot pins hinted metrics, so the cell is a whole pixel at both
+// sizes and the ratio comes back quantised: the 1.6 rung measures about 1.52 at the default step,
+// which is 20 hinted pixels over 13.
+const LADDER = 0.1;
+
+// How far from the paper a channel must be before a pixel counts as ink.
+//
+// A folded marker is drawn in ink at alpha 0, which is no ink at all rather than a faint one, so
+// this only has to clear the encoder's own noise; an antialiased glyph edge clears it easily.
+const INK = 8;
+
+// How far a glyph's own ink may stand from the column it was laid out at, as a share of the pitch.
+//
+// A body column is a pen position, and a glyph's ink is not obliged to begin there: a `W` at a
+// heading's size reaches a few pixels to the left of it, and a hyphen begins a few to the right. The
+// narrowest marker that can hang is `# ` at two cells, which is most of a pitch, so a tenth of one
+// tells a bearing from a marker with room to spare either way.
+const SKIRT = 0.1;
+
+// Where two bands are one block, as a share of the pitch.
+//
+// Two rows of one paragraph are one pitch apart; two blocks have a blank line between them and are
+// two pitches apart. Half way between the two is the only place this line can go.
+const BLOCK = 1.5;
+
+// The page with Live on against the same page with Live off.
+//
+// Three facts, and they are the three a still can hold. The block the caret is in is the writer's
+// to edit, so its rows are the same pixels folded or not. Every marker outside it is off the page:
+// nothing is left hanging in the gutter, and the cells a bullet stood in are empty, which shows as
+// its words beginning further in than the body column they began on. And a heading is set by the
+// ladder: its ink is `scale` times the ink of the same heading unfolded, and its row is taller than
+// a body row.
+//
+// Nothing is compared against a length written down here. The body column, the pitch, the blocks
+// and the heading's two sizes are all read out of the two shots, for the reason `ghost` reads its
+// colours out of them: this repo has twice found a pinned constant outliving what it was copied
+// from.
+function folded({ scale: want }, { lit, dim }) {
+  const source = decodePng(lit);
+  const page = decodePng(dim);
+  if (source.w !== page.w || source.h !== page.h) {
+    return no(`the folded shot is ${page.w}x${page.h} and the source one ${source.w}x${source.h}`);
+  }
+  const paper = paperOf(source, page);
+  if (paper === null) {
+    return no('the two shots do not agree about the paper at their four corners, so ink cannot be told from it');
+  }
+
+  const before = blocksOf(source, paper);
+  const after = blocksOf(page, paper);
+  if (before.length < 2 || after.length < 2) {
+    return no(`the page is ${before.length} blocks of ink with the markers on it and ${after.length} with them folded, and this reads a passage`);
+  }
+  if (before.length !== after.length) {
+    return no(`the fold changed how many blocks the page has: ${before.length} with the markers on it, ${after.length} with them folded`);
+  }
+
+  const found = readBar(page);
+  if (!found.bar) return no('the folded shot has no caret in it, so which block is the writer’s cannot be read');
+  const middle = Math.floor((found.bar.top + found.bar.bottom) / 2);
+  const index = after.findIndex((block) => middle >= block.top && middle <= block.bottom);
+  if (index < 0) return no(`the caret at row ${middle} stands in no block of ink, so it names no open block`);
+
+  // The body column, read off the caret's own block: it is the one block Live folds nothing in, so
+  // its words begin where every unmarked block's words begin.
+  const column = after[index].left;
+  if (before[index].left !== column) {
+    return no(`the caret’s block begins at column ${before[index].left} with the markers on the page and ${column} with them folded: the fold moved the words the writer is editing`);
+  }
+
+  // The block the caret is in is the writer's to edit, so it is the same pixels either way. Read
+  // row for row from each block's own first inked row, because the block below a heading set larger
+  // does not stand at the same height on the two pages.
+  const rows = same(source, before[index], page, after[index]);
+  if (rows !== null) return no(`the caret’s block is not the same pixels folded and unfolded: ${rows}`);
+
+  const skirt = Math.round(pitch(before) * SKIRT);
+  const hung = Math.min(...before.map((block) => block.left));
+  if (hung >= column - skirt) {
+    return no(`nothing hangs in the gutter with the markers on the page (every block begins at ${column} or further in), so there is no fold here to measure`);
+  }
+  const left = Math.min(...after.map((block) => block.left));
+  if (left < column - skirt) {
+    return no(`a marker is still hanging in the gutter: ink at column ${left}, where the body column is ${column}`);
+  }
+  const moved = after.filter((block, i) => Math.abs(before[i].left - column) <= skirt && block.left > column + skirt);
+  if (!moved.length) {
+    return no(`no block’s words moved off the body column, so the cells a bullet or a number stood in are not empty`);
+  }
+
+  const grew = after[1].top - after[0].top - (before[1].top - before[0].top);
+  // The heading's own words at the two sizes, and not its whole block: with the markers on the page
+  // the block carries a `#` as well, whose ink is not the same height as the letters beside it.
+  const words = (img, block) => words_(img, paper, block, column);
+  const one = words(source, before[0]);
+  const other = words(page, after[0]);
+  if (one === null || other === null) {
+    return no('the first block on the page has no ink on the body column, so the heading’s two sizes cannot be measured');
+  }
+  const got = height(other) / height(one);
+  const off = Math.abs(got - want);
+  const ladder = `the heading is set at ${got.toFixed(3)} of its unfolded ink, against the ${want} rung of the Live ladder`;
+  const cells = `the gutter is empty and ${moved.length} block’s words begin ${moved[0].left - column} px inside the body column at ${column}, where their markers stood`;
+  const row = `the heading’s row is ${grew} device px taller than a body row`;
+  if (off > LADDER) {
+    return no(`${ladder}, which is ${off.toFixed(3)} out and past the ${LADDER} this is measured to`);
+  }
+  if (grew <= 0) {
+    return no(`${ladder}, but its row is no taller than a body row: the page below it stands where it stood unfolded`);
+  }
+  return {
+    ours: true,
+    scale: got,
+    why: `${ladder}; ${row}; ${cells}; and the caret’s block is the same pixels folded and unfolded`,
+    secondary: [cells, row, 'the body column, the pitch and the two heading sizes are read off the two shots, not from a length written down here'],
+  };
+}
+
+// The paper both shots are drawn on, or `null` where their corners do not agree on one.
+//
+// A judged state that asserts a fold is shot with the bars off, so the four corners are page and
+// nothing else. Two shots that disagree there are not two shots of one state.
+function paperOf(a, b) {
+  let paper = null;
+  for (const [x, y] of [[1, 1], [a.w - 2, 1], [1, a.h - 2], [a.w - 2, a.h - 2]]) {
+    for (const img of [a, b]) {
+      const here = [0, 1, 2].map((c) => at(img, x, y, c));
+      if (paper === null) paper = here;
+      else if (here.some((v, c) => v !== paper[c])) return null;
+    }
+  }
+  return paper;
+}
+
+// The blocks of ink on `img`, top to bottom: `{ top, bottom, left }` per block.
+//
+// A row of text is a run of scanlines carrying ink; two rows of one paragraph start one pitch
+// apart and two blocks have a blank line between them, so they start two pitches apart. The rows
+// are grouped into blocks at [`BLOCK`] pitches, the pitch being the one the rows themselves
+// measure. `left` is the column that block's ink begins at, which
+// is what says whether a marker is still standing in front of its words.
+function blocksOf(img, paper) {
+  const rows = [];
+  for (let y = 0; y < img.h; y += 1) {
+    let left = -1;
+    for (let x = 0; x < img.w && left < 0; x += 1) {
+      if ([0, 1, 2].some((c) => Math.abs(at(img, x, y, c) - paper[c]) > INK)) left = x;
+    }
+    rows.push(left);
+  }
+  const bands = [];
+  let open = null;
+  rows.forEach((left, y) => {
+    if (left >= 0) {
+      if (open === null) open = { top: y, bottom: y, left };
+      else open = { ...open, bottom: y, left: Math.min(open.left, left) };
+    } else if (open !== null) {
+      bands.push(open);
+      open = null;
+    }
+  });
+  if (open !== null) bands.push(open);
+  if (bands.length < 2) return bands;
+
+  // The pitch is the closest two rows on the page stand: every row of one paragraph is one pitch
+  // from the next, and nothing on a page of prose is closer than that. The smallest step rather
+  // than the commonest, because how many rows a paragraph runs to changes with the fold and a
+  // count of them would be a measurement of this passage rather than of the leading.
+  const steps = bands.slice(1).map((band, i) => band.top - bands[i].top);
+  const pitch = Math.min(...steps);
+  const blocks = [];
+  let last = null;
+  for (const band of bands) {
+    if (last === null || band.top - last.top >= pitch * BLOCK) blocks.push({ ...band });
+    else {
+      const block = blocks[blocks.length - 1];
+      block.bottom = band.bottom;
+      block.left = Math.min(block.left, band.left);
+    }
+    last = band;
+  }
+  return blocks;
+}
+
+// How tall a block of ink is, in device pixels.
+const height = ({ top, bottom }) => bottom - top + 1;
+
+// The pitch these blocks are set on: the closest two rows of ink stand, blocks and all.
+const pitch = (blocks) => Math.min(...blocks.slice(1).map((block, i) => block.top - blocks[i].top));
+
+// The rows of `block` carrying ink at or right of `column`, or `null` where it carries none.
+//
+// A heading's words without the `#` in front of them, which is the only way the same words can be
+// measured at their two sizes: the marker is folded away on one page and standing on the other.
+function words_(img, paper, block, column) {
+  let top = null;
+  let bottom = null;
+  for (let y = block.top; y <= block.bottom; y += 1) {
+    let ink = false;
+    for (let x = column; x < img.w && !ink; x += 1) {
+      if ([0, 1, 2].some((c) => Math.abs(at(img, x, y, c) - paper[c]) > INK)) ink = true;
+    }
+    if (ink) {
+      if (top === null) top = y;
+      bottom = y;
+    }
+  }
+  return top === null ? null : { top, bottom };
+}
+
+// Why two blocks are not the same pixels, or `null` when they are.
+//
+// Compared row for row from each block's own top, because a block under a heading set larger sits
+// further down the page: what is being asked is whether the fold changed the block, not where the
+// page put it.
+function same(a, one, b, other) {
+  if (height(one) !== height(other)) {
+    return `it is ${height(one)} device px of ink unfolded and ${height(other)} folded`;
+  }
+  const stride = a.w * a.ch;
+  for (let i = 0; i < height(one); i += 1) {
+    const here = a.data.subarray((one.top + i) * stride, (one.top + i + 1) * stride);
+    const there = b.data.subarray((other.top + i) * stride, (other.top + i + 1) * stride);
+    if (Buffer.compare(Buffer.from(here), Buffer.from(there)) !== 0) {
+      return `row ${i} of it differs, at y ${one.top + i} unfolded and y ${other.top + i} folded`;
+    }
+  }
+  return null;
 }
 
 function at({ data, w, ch }, x, y, c) {

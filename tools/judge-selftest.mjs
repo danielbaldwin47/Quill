@@ -434,7 +434,7 @@ ok('the ghost is measured off ours own pixels, and the alpha is solved rather th
   for (const alpha of [3, 0, 1, '0.3', undefined]) {
     assert.throws(() => validate({ kind: 'ghost', alpha }), /between 0 and 1/, `an alpha of ${alpha} was taken`);
   }
-  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost']);
+  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'folded']);
 });
 
 ok('the ghost refuses to read a bar it cannot see the ground beside, and never guesses one', () => {
@@ -470,6 +470,121 @@ ok('the ghost refuses to read a bar it cannot see the ground beside, and never g
   const two = assertState(spec, { lit: twice, dim: doubled });
   assert.equal(two.ours, false, two.why);
   assert.match(two.why, /not one run of colour/);
+});
+
+// ---------- the fold ----------
+
+// The leading and the row the fold's fixtures are painted on, in the pixels of a shot.
+//
+// Two rows of one paragraph start `PITCH` apart, and a row of ink is `ROW` of it: the numbers only
+// have to hold that shape, because the rule reads the pitch off the page it is given rather than
+// from anything written down.
+const PITCH = 12;
+const ROW = 6;
+
+// A page painted as blocks of ink: `{ top, left, rows, height }` each, and the caret's bar on the
+// first row of block `caret`.
+//
+// The blocks are the shape `live/folded` is measured on — a heading, the paragraph the caret is in,
+// and a list whose bullets stand on the body column — and nothing else is on the page, because the
+// rule reads blocks of ink and has no opinion about what the ink says.
+function page(blocks, caret = 1, { w = 90, h = 220, paper = GROUND } = {}) {
+  const data = Buffer.alloc(w * h * 3);
+  for (let i = 0; i < w * h; i += 1) for (let c = 0; c < 3; c += 1) data[i * 3 + c] = paper[c];
+  const paint = (x0, y0, wide, tall, colour) => {
+    for (let y = y0; y < y0 + tall; y += 1) {
+      for (let x = x0; x < x0 + wide; x += 1) for (let c = 0; c < 3; c += 1) data[(y * w + x) * 3 + c] = colour[c];
+    }
+  };
+  blocks.forEach((block, i) => {
+    const tall = block.height ?? ROW;
+    for (let r = 0; r < block.rows; r += 1) {
+      paint(block.left, block.top + r * PITCH, 40, tall, [20, 20, 20]);
+      if (i === caret && r === 0) paint(block.left + 10, block.top, 2, tall, BAR);
+    }
+  });
+  return encodePng({ w, h, ch: 3, data });
+}
+
+// The page with the markers on it: the heading's `#` hung in the gutter at column 14, the caret's
+// paragraph and the list's bullets both beginning on the body column at 20.
+const SOURCE = [
+  { top: 10, left: 14, rows: 1, height: 10 },
+  { top: 34, left: 20, rows: 3 },
+  { top: 82, left: 20, rows: 2 },
+];
+
+// The same page folded: nothing in the gutter, the heading's ink 1.6 times as tall and its row
+// taller with it, and the list's words 6 px inside the body column where its bullets stood.
+const FOLDED = [
+  { top: 10, left: 20, rows: 1, height: 16 },
+  { top: 40, left: 20, rows: 3 },
+  { top: 88, left: 26, rows: 2 },
+];
+
+// One block of a fixture with `change` written over it.
+const with_ = (blocks, i, change) => blocks.map((block, at) => (at === i ? { ...block, ...change } : block));
+
+ok('the fold is measured off ours own pixels: the caret block untouched, the markers gone, the heading on the ladder', () => {
+  const spec = { kind: 'folded', scale: 1.6 };
+  const lit = page(SOURCE);
+  const held = assertState(spec, { lit, dim: page(FOLDED) });
+  assert.equal(held.ours, true, held.why);
+  // Solved, not asserted against a length: the answer carries the ladder it read off the two shots.
+  assert.ok(Math.abs(held.scale - 1.6) <= 0.1, `read ${held.scale} for a heading painted at 1.6`);
+
+  // A marker left standing in a folded block is the defect this catches, either where it hangs...
+  const hung = assertState(spec, { lit, dim: page(with_(FOLDED, 0, { left: 14 })) });
+  assert.equal(hung.ours, false, hung.why);
+  assert.match(hung.why, /still hanging in the gutter/);
+
+  // ...or where it stands on the body column, in the cells its furniture is drawn in.
+  const bullet = assertState(spec, { lit, dim: page(with_(FOLDED, 2, { left: 20 })) });
+  assert.equal(bullet.ours, false, bullet.why);
+  assert.match(bullet.why, /cells a bullet or a number stood in are not empty/);
+
+  // A heading left at body height fails the ladder, and so does one at the rung below it.
+  const flat = assertState(spec, { lit, dim: page(with_(FOLDED, 0, { height: 10 })) });
+  assert.equal(flat.ours, false, flat.why);
+  assert.match(flat.why, /rung of the Live ladder/);
+  const wrong = assertState(spec, { lit, dim: page(with_(FOLDED, 0, { height: 14 })) });
+  assert.equal(wrong.ours, false, wrong.why);
+
+  // The block the caret is in is the writer's to edit, so a fold that changed it is a defect
+  // wherever the page put it.
+  const moved = assertState(spec, { lit, dim: page(with_(FOLDED, 1, { left: 24 })) });
+  assert.equal(moved.ours, false, moved.why);
+
+  // A rung of the ladder that is not one is refused rather than guessed at, by the call
+  // `tools/gate judge` makes over every asserted state before it shoots.
+  for (const scale of [1, 0.5, '1.6', undefined]) {
+    assert.throws(() => validate({ kind: 'folded', scale }), /rung of the Live ladder/, `a scale of ${scale} was taken`);
+  }
+});
+
+ok('the fold refuses a pair it cannot read a fold out of, and never passes one silently', () => {
+  const spec = { kind: 'folded', scale: 1.6 };
+
+  // Two shots of different sizes are not two shots of one state.
+  const odd = assertState(spec, { lit: page(SOURCE), dim: page(FOLDED, 1, { w: 91 }) });
+  assert.equal(odd.ours, false, odd.why);
+  assert.match(odd.why, /is 91x220 and the source one 90x220/);
+
+  // A source page with nothing hung in the gutter is a page this cannot measure a fold against:
+  // saying so is the honest answer, and passing it would be a rule that holds for any two shots.
+  const flat = assertState(spec, { lit: page(with_(SOURCE, 0, { left: 20 })), dim: page(FOLDED) });
+  assert.equal(flat.ours, false, flat.why);
+  assert.match(flat.why, /nothing hangs in the gutter/);
+
+  // A fold that took a whole block off the page is not a fold.
+  const gone = assertState(spec, { lit: page(SOURCE), dim: page(FOLDED.slice(0, 2)) });
+  assert.equal(gone.ours, false, gone.why);
+  assert.match(gone.why, /how many blocks the page has/);
+
+  // A page with no caret on it names no open block, and is refused rather than measured.
+  const blind = assertState(spec, { lit: page(SOURCE), dim: page(FOLDED, -1) });
+  assert.equal(blind.ours, false, blind.why);
+  assert.match(blind.why, /no caret/);
 });
 
 // One more mark painted into an encoded shot, at `x`, `y`: ink by default, which is what a caret
@@ -748,8 +863,8 @@ ok('the latency Piece is judged on a whole bench run, and refuses anything less'
 });
 
 // `saturation_stress` is recorded and not scored, and that exempts it from the budget alone: a
-// whole run is still twelve regimes, and every one of them still accounts for its keys.
-ok('an unscored regime is still one of the twelve, and still has to account for its keys', () => {
+// whole run is still thirteen regimes, and every one of them still accounts for its keys.
+ok('an unscored regime is still one of the thirteen, and still has to account for its keys', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'quill-judge-unscored-'));
   const rows = regimes().map((r) => (r.scored === false
     ? { regime: r.name, mean_ms: 24.83, worst_ms: 33.89, p50_ms: 25.08, p99_ms: 31.2, cold_ms: 149, scored: false, pass: null }
@@ -776,7 +891,7 @@ ok('an unscored regime is still one of the twelve, and still has to account for 
   assert.match(lastLine(unaccounted), /^gate judge latency: refused \(.* could not account for every keystroke in saturation_stress\)/,
     'not scored is not the same as not counted');
 
-  // The whole body as written — twelve regimes, saturation over every bar and marked unscored — is
+  // The whole body as written — thirteen regimes, saturation over every bar and marked unscored — is
   // deliberately not run: judge would take a verdict from it and write a round, and writing a round
   // into the ledger is not something a test may do. That it would is `tools/bench-selftest.mjs`'s
   // to check, in `latencyVerdict`.
@@ -810,7 +925,7 @@ ok('a --panel run is informational, and the latency Piece is never judged from o
   fs.rmSync(tmp, { recursive: true, force: true });
   assert.equal(r.code, 3, r.out);
   assert.match(lastLine(r), /^gate judge latency: refused \(.* is informational/,
-    'a whole run of twelve inside every bar is still not evidence when it came off the panel');
+    'a whole run of thirteen inside every bar is still not evidence when it came off the panel');
 
   // The same body without the mark is deliberately not run here. It is whole, accounted for and
   // inside every bar, so judge would take a verdict from it and write a round — and writing a round

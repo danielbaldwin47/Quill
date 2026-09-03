@@ -34,7 +34,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { assertState } from './assert-state.mjs';
+import { assertState, secondShot } from './assert-state.mjs';
 import { APP_ID, Refusal, chosenList, openStage } from './harness.mjs';
 import { Refused, buildOurs, carriedFrom, checkStates, openLog, opensAt, say, shootState, spill } from './judge.mjs';
 import { readStates, resolveStates } from './oracle.mjs';
@@ -130,9 +130,11 @@ async function shootPiece(stage, root, piece, { want, cropping }, settingsFile) 
     say(`gate shoot ${piece}: shooting ${s.name}`);
     const { ours, theirs } = await shootState(stage, root, s, settingsFile, cut, paths);
 
-    // An asserted state is measured rather than compared, as the judge measures it (ADR 0017).
+    // An asserted state is measured rather than compared, as the judge measures it (ADR 0017): the
+    // second shot is the one its own rule asks for ([`SECOND`] in tools/assert-state.mjs).
     if (s.assert) {
-      await shootState(stage, root, s, settingsFile, null, { ...paths, shot: paths.lit }, { active: true });
+      const second = secondShot(s.assert, s);
+      await shootState(stage, root, second.state, settingsFile, null, { ...paths, shot: paths.lit }, second.options);
       const answer = assertState(s.assert, {
         lit: fs.readFileSync(path.join(root, paths.lit)),
         dim: fs.readFileSync(path.join(root, paths.shot)),

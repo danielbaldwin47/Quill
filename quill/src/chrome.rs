@@ -60,6 +60,8 @@ pub struct Modes {
     pub focus_scope: &'static str,
     /// Typewriter is on.
     pub typewriter: bool,
+    /// Live is on: the markup rendered in place.
+    pub live: bool,
     /// The ground shown is the dark one, whatever `theme` says.
     pub dark: bool,
     /// The theme setting, `auto`, `light` or `dark`.
@@ -104,6 +106,7 @@ impl Modes {
             focus,
             focus_scope,
             typewriter: matches!(session.typewriter(), Typewriter::On(_)),
+            live: session.live(),
             dark: session.scheme() == Scheme::Dark,
             theme: session.theme().as_str(),
             face: session.face().as_str(),
@@ -333,6 +336,7 @@ pub fn reflect(map: &impl IsA<gio::ActionMap>, modes: Modes) {
     };
     set("focus.toggle", modes.focus.to_variant());
     set("typewriter.toggle", modes.typewriter.to_variant());
+    set("live.toggle", modes.live.to_variant());
     set("theme.toggle", modes.dark.to_variant());
     set("window.fullscreen", modes.fullscreen.to_variant());
     // The row reads "Hide Bars", so its check is on when the bars are hidden.
@@ -396,6 +400,7 @@ fn run_window(window: &Window, command: &Command) {
         "focus.paragraph" => window.set_focus_scope(FocusScope::Paragraph),
         "focus.swap" => window.swap_focus_scope(),
         "typewriter.toggle" => window.toggle_typewriter(),
+        "live.toggle" => window.toggle_live(),
         "chrome.toggle" => window.toggle_bars(),
         "library.toggle" => window.toggle_library(),
         "preview.toggle" => window.toggle_preview(),
@@ -1719,6 +1724,7 @@ mod tests {
             focus: true,
             focus_scope: "paragraph",
             typewriter: false,
+            live: true,
             dark: true,
             theme: "auto",
             face: "quattro",
@@ -1736,6 +1742,7 @@ mod tests {
         // "Hide Bars" is ticked when the bars are hidden.
         assert_eq!(state("chrome.toggle").get::<bool>(), Some(true));
         assert_eq!(state("typewriter.toggle").get::<bool>(), Some(false));
+        assert_eq!(state("live.toggle").get::<bool>(), Some(true));
         assert_eq!(state("theme.toggle").get::<bool>(), Some(true));
         assert_eq!(
             state("focus_scope").get::<String>().as_deref(),
