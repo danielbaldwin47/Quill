@@ -358,7 +358,14 @@ async function freeze(root, piece, force) {
         : 'is no longer a judged state';
       process.stderr.write(`gate oracle ${piece}: ${name} ${why}; shots/oracle/${piece}/${name}.png is the opponent it had, and nothing reads it any more\n`);
     }
-    console.log(`gate oracle ${piece}: nothing to freeze (${resolved.length === 1 ? 'its one state names' : `all ${resolved.length} states name`} a mac-native crop)`);
+    // Which kind of elsewhere, because there are two and they want different things looked at: a
+    // crop is committed under `ref/ia/` for somebody to compare against, and an assertion is
+    // measured off ours alone and has no opponent anywhere (ADR 0017).
+    const how = [
+      resolved.some((s) => s.opponent) && 'judged against a mac-native crop',
+      resolved.some((s) => s.assert) && "measured off ours' own pixels",
+    ].filter(Boolean).join(' or ');
+    console.log(`gate oracle ${piece}: nothing to freeze (${resolved.length === 1 ? 'its one state is' : `all ${resolved.length} of its states are`} ${how})`);
     return 0;
   }
 
