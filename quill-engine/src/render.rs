@@ -88,8 +88,10 @@ pub struct Toggles {
 pub enum Kind {
     /// A heading, at the level it was written.
     Heading {
-        /// 1 to 6, as Markdown writes them.
-        level: u32,
+        /// 1 to 6, as Markdown writes them. The type the parser hands a level
+        /// out in, which is what [`crate::annotate::Mark::Heading`] and Live's
+        /// ladder carry too.
+        level: u8,
     },
     /// Prose.
     Paragraph,
@@ -249,8 +251,9 @@ struct Pass<'a> {
     measure: f64,
     /// The base size in pixels: the em every rhythm value is a multiple of.
     em: f64,
-    /// The six heading sizes in pixels, H1 first.
-    headings: [f64; 6],
+    /// What a Template's point sizes are multiplied by to reach this context's
+    /// pixels: the zoom and the resolution together ([`scale`]).
+    scale: f64,
     /// The code size in pixels.
     code: f64,
     /// Whether paragraphs are indented rather than spaced, by the Template or
@@ -270,18 +273,13 @@ impl<'a> Pass<'a> {
         // A Template's sizes are in points, so the context's resolution is
         // what turns them into the pixels this display draws.
         let scale = scale(zoom, resolution(context));
-        let mut headings = [0.0; 6];
-        for (level, size) in headings.iter_mut().enumerate() {
-            let level = u32::try_from(level).unwrap_or(0) + 1;
-            *size = template.sizes.heading(level) * scale;
-        }
         Self {
             context,
             template,
             toggles,
             measure,
             em: template.sizes.base * scale,
-            headings,
+            scale,
             code: template.sizes.base * template.sizes.code * scale,
             indented: toggles.indent_paragraphs || template.paragraphs == Paragraphs::Indented,
         }
@@ -304,12 +302,12 @@ impl<'a> Pass<'a> {
     }
 
     /// The size a heading at `level` is set at, in pixels.
-    fn heading(&self, level: u32) -> f64 {
-        usize::try_from(level)
-            .ok()
-            .and_then(|level| self.headings.get(level.wrapping_sub(1)))
-            .copied()
-            .unwrap_or(self.em)
+    ///
+    /// The Template's own walk of its ladder ([`crate::template::Sizes`]),
+    /// scaled: a level off the ladder is the base size there and the body size
+    /// here, which are the same statement.
+    fn heading(&self, level: u8) -> f64 {
+        self.template.sizes.heading(level) * self.scale
     }
 
     /// A font description for `face` at `size` pixels.
@@ -359,7 +357,7 @@ impl<'a> Pass<'a> {
         let level = events
             .iter()
             .find_map(|(event, _)| match event {
-                Event::Start(Tag::Heading { level, .. }) => Some(*level as u32),
+                Event::Start(Tag::Heading { level, .. }) => Some(*level as u8),
                 _ => None,
             })
             .unwrap_or(1);
@@ -725,8 +723,8 @@ impl Numbering {
     /// The number a heading at `level` takes, or `None` for the title: an H1 is
     /// the Document's own name and stands bare, and the numbering starts under
     /// it at H2.
-    fn next(&mut self, level: u32) -> Option<String> {
-        let level = usize::try_from(level).ok()?;
+    fn next(&mut self, level: u8) -> Option<String> {
+        let level = usize::from(level);
         if !(2..self.counters.len()).contains(&level) {
             return None;
         }

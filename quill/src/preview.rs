@@ -273,7 +273,7 @@ impl Sheet {
         // way the oracle's does.
         snapshot.append_color(
             &rgba(palette.paper),
-            &graphene::Rect::new(0.0, 0.0, at(self.width()), at(self.height())),
+            &graphene::Rect::new(0.0, 0.0, length(self.width()), length(self.height())),
         );
         let page = imp.page.borrow();
         let Some(page) = page.as_ref() else {
@@ -763,7 +763,7 @@ fn rect(x: f64, y: f64, width: f64, height: f64) -> graphene::Rect {
 }
 
 /// A length in the sheet's own pixels, as `graphene` takes it.
-fn at(value: i32) -> f32 {
+fn length(value: i32) -> f32 {
     value as f32
 }
 

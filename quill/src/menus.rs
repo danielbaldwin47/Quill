@@ -36,7 +36,7 @@ const HEADED: &str = "Typeface";
 /// The section that is a submenu of its own name rather than rows between
 /// separators: eight rows is a menu's worth, and a Template is picked once and
 /// left (`docs/shortcuts.md` § View menu).
-const FOLDED: &str = "Template";
+const SUBMENU: &str = "Template";
 /// The Stats menu's last row, the one that hides the bar.
 const HIDE_STATS: &str = "chrome.stats";
 /// The row Open Recent opens under, where a writer looks for it: under the
@@ -95,12 +95,12 @@ pub fn model(menu: Menu, modes: &Modes, recents: &[PathBuf]) -> gio::Menu {
                     .filter(|(_, placement)| placement.section == Some(section))
                     .collect();
                 let heading = (section == HEADED).then(|| section.to_uppercase());
-                let folded = if section == FOLDED {
+                let built = if section == SUBMENU {
                     template_section(section, &rows, modes)
                 } else {
                     view_section(&rows, modes)
                 };
-                model.append_section(heading.as_deref(), &folded);
+                model.append_section(heading.as_deref(), &built);
             }
         }
     }
@@ -157,7 +157,7 @@ fn view_section(rows: &[(&'static Command, &'static Placement)], modes: &Modes) 
     section
 }
 
-/// The [`FOLDED`] section as one row that opens a submenu: the five Template
+/// The [`SUBMENU`] section as one row that opens a submenu: the five Template
 /// radios, a separator, then the three toggles that bend the one chosen.
 ///
 /// The Syntax highlight submenu hangs off a head row that is itself a Command
@@ -487,7 +487,7 @@ mod tests {
         let at = i32::try_from(
             VIEW_SECTIONS
                 .iter()
-                .position(|section| *section == FOLDED)
+                .position(|section| *section == SUBMENU)
                 .expect("the table has the section"),
         )
         .unwrap();
@@ -496,7 +496,7 @@ mod tests {
         let label = section
             .item_attribute_value(0, "label", Some(glib::VariantTy::STRING))
             .and_then(|value| value.get::<String>());
-        assert_eq!(label.as_deref(), Some(FOLDED));
+        assert_eq!(label.as_deref(), Some(SUBMENU));
         let submenu = section.item_link(0, "submenu").expect("the submenu");
         // Two sections inside it, so the popover draws a separator between
         // the Templates and the toggles that bend one.
