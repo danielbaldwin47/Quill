@@ -104,12 +104,24 @@ fn recent_menu(recents: &[PathBuf]) -> gio::Menu {
     let menu = gio::Menu::new();
     let action = format!("win.{RECENT_OPEN}");
     for path in recents.iter().take(RECENT_ROWS) {
-        let row = gio::MenuItem::new(Some(&shown_name(path)), None);
+        let row = gio::MenuItem::new(Some(&mnemonic_free(&shown_name(path))), None);
         let target = path.to_string_lossy().into_owned();
         row.set_action_and_target_value(Some(&action), Some(&target.to_variant()));
         menu.append_item(&row);
     }
     menu
+}
+
+/// `name` as a menu label: every `_` doubled.
+///
+/// A GMenu label is read for a mnemonic, so a single underscore is taken as
+/// the marker in front of the letter to underline and is not drawn at all —
+/// `sea_storm` would read as "seastorm" with the `s` underlined. The rows
+/// built from a Command's own label say what they mean and are left as they
+/// are written; a row named after a writer's file has to be escaped, because
+/// the writer named it and not us.
+fn mnemonic_free(name: &str) -> String {
+    name.replace('_', "__")
 }
 
 /// The View menu's rows of one section, the Syntax highlight rows folded
@@ -311,6 +323,24 @@ mod tests {
         assert_eq!(row.action.as_deref(), Some("win.file.recentOpen"));
         assert_eq!(row.target.as_deref(), Some("/home/w/draft-0.md"));
         assert_eq!(row.accel, None);
+    }
+
+    /// An underscore in a file's name is drawn, not eaten as a mnemonic.
+    #[test]
+    fn an_underscore_in_a_recents_name_is_drawn_rather_than_underlining_a_letter() {
+        let path = PathBuf::from("/home/w/sea_storm_two.md");
+        let model = model(
+            Menu::Document,
+            &Modes::default(),
+            std::slice::from_ref(&path),
+        );
+        let submenu = model.item_link(3, "submenu").expect("Open Recent");
+        let row = rows_of(&submenu).remove(0).expect("the one recent");
+        assert_eq!(
+            row.label, "sea__storm__two",
+            "each underscore of the name is doubled, which is one underscore drawn"
+        );
+        assert_eq!(row.target.as_deref(), path.to_str());
     }
 
     /// It lists the ten newest and no more, however many the state holds.
