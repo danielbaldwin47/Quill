@@ -30,6 +30,15 @@
 //! is the window's ([`crate::window`]) and, under that, the engine's, which
 //! does the disk before the pane is drawn again.
 //!
+//! A row can also be dragged (#257). Let go over a folder's row or a Location's
+//! head it moves into that folder, asked about first where the writer asked to
+//! be asked (`library.confirm_move`); let go anywhere over the Pinned section
+//! it is pinned, and the section lights as the one target it is rather than the
+//! row under the pointer. What each drop would do is [`crate::files::dropped`],
+//! a decision over paths, and a drop it would do nothing with — a folder onto
+//! itself, a file into the folder it is already in, a row already pinned — is
+//! refused while the drag is still in the air.
+//!
 //! Its measurements are `files.css`'s, as constants below; its colours are the
 //! theme's roles, through [`stylesheet`], which rides with the bars' sheet so
 //! that one ground change repaints both.
@@ -47,7 +56,7 @@ use quill_engine::library::{Contents, Library, Row, Section, Snippet, Sort, View
 use quill_engine::theme::{Colour, Role, Scheme};
 
 use crate::chrome::{self, CHROME_FONT};
-use crate::files::{self, Standing};
+use crate::files::{self, Dropped, Onto, Standing};
 use crate::ground::Ground;
 use crate::window::Window;
 
@@ -224,6 +233,17 @@ const PLACEHOLDER: &str = "Search documents";
 /// what makes a match visible in a line of grey.
 const MARK_TINT: f64 = 0.28;
 
+/// How much of the accent stands behind a row a dragged row would land on,
+/// over the paper beneath it.
+///
+/// Stronger than a hover and weaker than a selection's bar: the light says
+/// "here", and a whole Pinned section lit at hover strength would not read as
+/// one target at all.
+const DROP_TINT: f64 = 0.16;
+
+/// The class a row wears while it is the target a drop would land on.
+const DROP_CLASS: &str = "lib-drop";
+
 /// How long the field waits after a keystroke before it searches.
 ///
 /// A content search reads every shown file whose name did not match, so the
@@ -270,6 +290,12 @@ pub fn stylesheet(ground: Ground) -> String {
     let dim = colours.colour(Role::ChromeFg).to_hex();
     let rule = colours.colour(Role::Rule).to_css();
     let accent = colours.colour(Role::Accent).to_hex();
+    let drop = Colour::over(
+        colours.colour(Role::Accent),
+        colours.colour(Role::Paper),
+        DROP_TINT,
+    )
+    .to_hex();
     // The row a click would take, and the row the open Document is on: the
     // oracle's `--lib-hover` and `--lib-sel`, which are steps off whatever
     // ground they land on rather than colours of their own, and so are ink on
@@ -340,7 +366,8 @@ pub fn stylesheet(ground: Ground) -> String {
          \x20 background: none; border-radius: {bar_radius}px;\n\
          \x20 min-width: {bar_width}px; margin: {bar_top}px 0 {bar_bottom}px {bar_left}px;\n\
          }}\n\
-         .library list > row:selected .lib-bar {{ background-color: {accent}; }}\n"
+         .library list > row:selected .lib-bar {{ background-color: {accent}; }}\n\
+         .library list > row.{DROP_CLASS} {{ background-color: {drop}; }}\n"
     )
 }
 
@@ -384,6 +411,11 @@ struct FileRow<'a> {
 }
 
 /// One row of the list, and what it stands for.
+///
+/// Clonable so that the rows of one section can be taken out of the list
+/// ([`Sidebar::drawn_since`]) and handed a drop target between them: every
+/// field of it is a handle on the one widget or a path.
+#[derive(Clone)]
 struct Listed {
     row: gtk::ListBoxRow,
     /// The file or folder it draws.
@@ -754,23 +786,184 @@ impl Sidebar {
     fn tree(&self, shown: &[Section<'_>], pinned: &[Row<'_>], parts: bool, drawing: &Drawing<'_>) {
         let mut sections = 0;
         if !pinned.is_empty() {
-            self.section(None, "Pinned", sections, pinned, drawing);
+            let first = self.rows.borrow().len();
+            let head = self.section(None, "Pinned", sections, pinned, drawing);
+            // One target, however many rows it draws: the whole section lights
+            // and every row of it takes the drop (#246 story 11).
+            let mut group = vec![head];
+            group.extend(self.drawn_since(first).into_iter().map(|listed| listed.row));
+            let group = Rc::new(group);
+            let over = Rc::new(Cell::new(0));
+            for row in group.iter() {
+                self.drop_onto(row, &Onto::Pinned, &group, &over);
+            }
             sections += 1;
         }
         for section in shown {
+            let first = self.rows.borrow().len();
             if parts {
-                self.section(
+                let head = self.section(
                     Some(section.root),
                     &section_name(section),
                     sections,
                     &section.rows,
                     drawing,
                 );
+                self.folder_target(&head, section.root);
             } else {
                 self.rows_of(&section.rows, drawing);
             }
+            for listed in self.drawn_since(first) {
+                if listed.folder {
+                    self.folder_target(&listed.row, &listed.path);
+                }
+            }
             sections += 1;
         }
+    }
+
+    /// The rows drawn since the list held `first` of them: the section just
+    /// built, in the order it was built.
+    fn drawn_since(&self, first: usize) -> Vec<Listed> {
+        self.rows.borrow()[first..].to_vec()
+    }
+
+    /// A folder's row or a Location's head as a place a dragged row can be
+    /// moved into, lighting alone.
+    fn folder_target(&self, row: &gtk::ListBoxRow, folder: &Path) {
+        let lit = Rc::new(vec![row.clone()]);
+        let over = Rc::new(Cell::new(0));
+        self.drop_onto(row, &Onto::Folder(folder.to_path_buf()), &lit, &over);
+    }
+
+    /// Puts `onto` under `row`: what letting a dragged row go there does, and
+    /// which rows light while the pointer is over it.
+    ///
+    /// `lit` is every row of the target — the Pinned section is one target
+    /// however many rows it draws — and `over` counts how many of them the
+    /// pointer is inside, so that crossing from one row of a section to the
+    /// next never puts the light out. A drop the Library cannot do is refused
+    /// while the drag is still in the air, which is what preloading the value
+    /// is for: without it the path is unreadable until the writer has let go.
+    fn drop_onto(
+        &self,
+        row: &gtk::ListBoxRow,
+        onto: &Onto,
+        lit: &Rc<Vec<gtk::ListBoxRow>>,
+        over: &Rc<Cell<usize>>,
+    ) {
+        let target = gtk::DropTarget::new(glib::types::Type::STRING, gdk::DragAction::MOVE);
+        target.set_preload(true);
+
+        let lighting = Rc::clone(lit);
+        let light = move |allowed: bool| {
+            for row in lighting.iter() {
+                if allowed {
+                    row.add_css_class(DROP_CLASS);
+                } else {
+                    row.remove_css_class(DROP_CLASS);
+                }
+            }
+        };
+
+        // Entering and moving both answer, because a preloaded value arrives
+        // when the drag's own read of it finishes and can still be unread at
+        // the first `enter`; the answers agree, so the later one is the same
+        // light rather than a second one.
+        let pane = self.clone();
+        let asked = onto.clone();
+        let entering = light.clone();
+        let counted = Rc::clone(over);
+        target.connect_enter(move |target, _, _| {
+            counted.set(counted.get() + 1);
+            let allowed = pane.would(target, &asked).is_some();
+            entering(allowed);
+            action(allowed)
+        });
+
+        let pane = self.clone();
+        let asked = onto.clone();
+        let moving = light.clone();
+        target.connect_motion(move |target, _, _| {
+            let allowed = pane.would(target, &asked).is_some();
+            moving(allowed);
+            action(allowed)
+        });
+
+        let leaving = light.clone();
+        let counted = Rc::clone(over);
+        target.connect_leave(move |_| {
+            let left = counted.get().saturating_sub(1);
+            counted.set(left);
+            if left == 0 {
+                leaving(false);
+            }
+        });
+
+        let pane = self.clone();
+        let asked = onto.clone();
+        let counted = Rc::clone(over);
+        target.connect_drop(move |_, value, _, _| {
+            counted.set(0);
+            light(false);
+            let Ok(from) = value.get::<String>() else {
+                return false;
+            };
+            let from = PathBuf::from(from);
+            let Some(done) = files::dropped(&from, &asked, &pane.pinned_now()) else {
+                return false;
+            };
+            pane.let_go(&from, &done);
+            true
+        });
+        row.add_controller(target);
+    }
+
+    /// What letting the row `target` is carrying go over `onto` would do, and
+    /// `None` where it would do nothing.
+    fn would(&self, target: &gtk::DropTarget, onto: &Onto) -> Option<Dropped> {
+        let carried = target.value()?.get::<String>().ok()?;
+        files::dropped(Path::new(&carried), onto, &self.pinned_now())
+    }
+
+    /// The Pinned list as it stands, which is what a drop over the Pinned
+    /// section is answered against.
+    fn pinned_now(&self) -> Vec<PathBuf> {
+        self.session()
+            .map_or_else(Vec::new, |session| session.library().pinned().to_vec())
+    }
+
+    /// Does what the drop decided, which is the window's to do: a pin goes
+    /// through the settings and a move through the engine, each after asking
+    /// whatever it has to ask.
+    fn let_go(&self, from: &Path, done: &Dropped) {
+        let Some(window) = self.owner() else {
+            return;
+        };
+        match done {
+            Dropped::Pin => window.set_pinned(from, true),
+            Dropped::Into(folder) => window.move_path(from, folder),
+        }
+    }
+
+    /// Makes `row` draggable, carrying `path` as the plain text of it.
+    ///
+    /// A string rather than a type of Quill's own, because the drag never
+    /// leaves this pane and a path is what both targets want; the icon under
+    /// the pointer is the row itself, so what is being dragged is what was
+    /// grabbed.
+    fn drag_from(&self, row: &gtk::ListBoxRow, path: &Path) {
+        let source = gtk::DragSource::new();
+        source.set_actions(gdk::DragAction::MOVE);
+        let carried = path.to_string_lossy().into_owned();
+        source.connect_prepare(move |_, _, _| {
+            Some(gdk::ContentProvider::for_value(&carried.to_value()))
+        });
+        let dragged = row.clone();
+        source.connect_drag_begin(move |source, _| {
+            source.set_icon(Some(&gtk::WidgetPaintable::new(Some(&dragged))), 0, 0);
+        });
+        row.add_controller(source);
     }
 
     /// The list narrowed to what `query` found, in the engine's order: the
@@ -803,7 +996,8 @@ impl Sidebar {
     }
 
     /// One section: its head, then the rows of it that are not inside a closed
-    /// folder.
+    /// folder. The head is answered, because it is what a drop over the section
+    /// lands on ([`Sidebar::drop_onto`]).
     fn section(
         &self,
         root: Option<&Path>,
@@ -811,7 +1005,7 @@ impl Sidebar {
         above: usize,
         rows: &[Row<'_>],
         drawing: &Drawing<'_>,
-    ) {
+    ) -> gtk::ListBoxRow {
         let head = gtk::ListBoxRow::new();
         head.set_selectable(false);
         head.set_activatable(false);
@@ -826,6 +1020,7 @@ impl Sidebar {
         }
         self.list.append(&head);
         self.rows_of(rows, drawing);
+        head
     }
 
     /// The rows of one section, in the order the tree hands them over, less
@@ -972,6 +1167,9 @@ impl Sidebar {
         stacked.append(&beside);
         let row = gtk::ListBoxRow::new();
         row.set_child(Some(&stacked));
+        // Every row of the pane can be dragged: a file into a folder or onto
+        // Pinned, a folder either way too.
+        self.drag_from(&row, path);
         Listed {
             row,
             path: path.to_path_buf(),
@@ -1420,6 +1618,16 @@ impl Sidebar {
     /// The session behind the window, which holds the one Library.
     fn session(&self) -> Option<Rc<crate::session::Session>> {
         self.owner().and_then(|window| window.session())
+    }
+}
+
+/// What a drop target answers a drag hovering over it with: the move it would
+/// do, or nothing at all, which is how GTK is told to refuse the drop.
+fn action(allowed: bool) -> gdk::DragAction {
+    if allowed {
+        gdk::DragAction::MOVE
+    } else {
+        gdk::DragAction::empty()
     }
 }
 

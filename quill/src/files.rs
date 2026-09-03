@@ -4,7 +4,8 @@
 //! Some questions come up wherever a Document meets the disk: where an
 //! untitled Document's first save goes, whether a window closing has anything
 //! to ask the writer first, whether opening a file should point the Library at
-//! the folder it came from, which row `file.next` steps to, and what the status
+//! the folder it came from, which row `file.next` steps to, what letting a
+//! dragged row go does and which way `file.pin` turns, and what the status
 //! line says. Each is a decision over plain values — the path state
 //! ([`quill_engine::disk::OnDisk`]), the Locations, the list of rows on screen,
 //! whether there is any text — so each is a function here rather than a branch
@@ -89,6 +90,72 @@ pub fn stepped(files: &[PathBuf], open: Option<&Path>, step: Step) -> Option<Pat
 #[must_use]
 pub fn moved_to_trash(name: &str) -> String {
     format!("Moved {name} to Trash")
+}
+
+/// What the status line says once a Document has been moved into a folder.
+///
+/// The trash notice's shape ([`moved_to_trash`]), naming the folder rather than
+/// the whole path it went to: the writer let the row go over another row, and
+/// that row's own name is what they aimed at.
+#[must_use]
+pub fn moved_into(name: &str, folder: &str) -> String {
+    format!("Moved {name} to {folder}")
+}
+
+/// Where a dragged row was let go.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Onto {
+    /// The Pinned section: its head or any row of it, because the whole
+    /// section is the one target and no row of it is a target of its own.
+    Pinned,
+    /// A folder's row or a Location's head, both of which are folders on disk.
+    Folder(PathBuf),
+}
+
+/// What letting a dragged row go does.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Dropped {
+    /// The dragged path joins the Pinned list.
+    Pin,
+    /// It moves into this folder.
+    Into(PathBuf),
+}
+
+/// What dropping `dragged` onto `onto` does, or `None` where it does nothing
+/// and the drag is refused while it is still in the air.
+///
+/// A file's row is no target at all, so it is not one of [`Onto`]'s cases. Of
+/// the two that are: the Pinned section takes anything not pinned already, and
+/// a folder takes anything that is not already in it and is not the folder
+/// itself or a folder above it — a folder cannot be moved inside its own tree,
+/// and `starts_with` is both of those refusals at once.
+#[must_use]
+pub fn dropped(dragged: &Path, onto: &Onto, pinned: &[PathBuf]) -> Option<Dropped> {
+    match onto {
+        Onto::Pinned => (!pinned.iter().any(|held| held == dragged)).then_some(Dropped::Pin),
+        Onto::Folder(folder) => {
+            let stays = folder.starts_with(dragged) || dragged.parent() == Some(folder.as_path());
+            (!stays).then(|| Dropped::Into(folder.clone()))
+        }
+    }
+}
+
+/// What `file.pin` does: the path it acts on, and whether that path is being
+/// pinned rather than unpinned.
+///
+/// The Library's selected row first, because the row a writer is looking at is
+/// the one they mean, and the open Document where the pane is shut or has
+/// nothing selected, so the Command works either way. A path already Pinned is
+/// unpinned, which is the Command's other half. `None` where there is neither a
+/// row nor a file, which is an untitled Document with the pane shut.
+#[must_use]
+pub fn pinning(
+    selected: Option<&Path>,
+    open: Option<&Path>,
+    pinned: &[PathBuf],
+) -> Option<(PathBuf, bool)> {
+    let path = selected.or(open)?;
+    Some((path.to_path_buf(), !pinned.iter().any(|held| held == path)))
 }
 
 /// How much of `name` a rename field selects when it opens: everything before
@@ -417,6 +484,66 @@ mod tests {
         assert_eq!(stem_chars("README"), 6);
         // Characters, not bytes: a GTK field counts positions in characters.
         assert_eq!(stem_chars("œuvre.md"), 5);
+    }
+
+    #[test]
+    fn the_move_notice_names_the_document_and_the_folder_it_went_into() {
+        assert_eq!(
+            moved_into("Sea storm.md", "Drafts"),
+            "Moved Sea storm.md to Drafts"
+        );
+    }
+
+    #[test]
+    fn a_row_let_go_over_the_pinned_section_pins_it_unless_it_is_pinned_already() {
+        let held = PathBuf::from("/w/Drafts");
+        let loose = PathBuf::from("/w/Sea storm.md");
+        let pinned = vec![held.clone()];
+        assert_eq!(dropped(&loose, &Onto::Pinned, &pinned), Some(Dropped::Pin));
+        assert_eq!(dropped(&held, &Onto::Pinned, &pinned), None);
+    }
+
+    #[test]
+    fn a_row_let_go_over_a_folder_moves_into_it_and_never_into_itself_or_where_it_is() {
+        let drafts = PathBuf::from("/w/Drafts");
+        let file = PathBuf::from("/w/Sea storm.md");
+        assert_eq!(
+            dropped(&file, &Onto::Folder(drafts.clone()), &[]),
+            Some(Dropped::Into(drafts.clone()))
+        );
+        // Already in it, on itself, and into its own subtree: nothing to do,
+        // and the drag is refused before it lands.
+        assert_eq!(
+            dropped(
+                &PathBuf::from("/w/Drafts/Sea storm.md"),
+                &Onto::Folder(drafts.clone()),
+                &[]
+            ),
+            None
+        );
+        assert_eq!(dropped(&drafts, &Onto::Folder(drafts.clone()), &[]), None);
+        assert_eq!(
+            dropped(&drafts, &Onto::Folder(PathBuf::from("/w/Drafts/Old")), &[]),
+            None
+        );
+    }
+
+    #[test]
+    fn pin_acts_on_the_selected_row_before_the_open_document_and_turns_it_the_other_way() {
+        let row = PathBuf::from("/w/Drafts");
+        let open = PathBuf::from("/w/Sea storm.md");
+        let pinned = vec![row.clone()];
+        assert_eq!(
+            pinning(Some(&row), Some(&open), &pinned),
+            Some((row.clone(), false)),
+            "the selected row is pinned, so the Command unpins it"
+        );
+        assert_eq!(
+            pinning(None, Some(&open), &pinned),
+            Some((open, true)),
+            "with no row, the open Document"
+        );
+        assert_eq!(pinning(None, None, &pinned), None);
     }
 
     #[test]

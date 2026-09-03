@@ -1020,6 +1020,17 @@ impl Session {
         self.library.borrow_mut().duplicate(path)
     }
 
+    /// Moves the file at `path` into `folder`
+    /// ([`quill_engine::library::Library::move_to`]), and answers where it
+    /// landed.
+    ///
+    /// # Errors
+    ///
+    /// What the move could not do.
+    pub fn move_file(&self, path: &Path, folder: &Path) -> std::io::Result<PathBuf> {
+        self.library.borrow_mut().move_to(path, folder)
+    }
+
     /// Takes in that the app has put `path` in the system trash
     /// ([`quill_engine::library::Library::trashed`]).
     pub fn trashed_file(&self, path: &Path) {
