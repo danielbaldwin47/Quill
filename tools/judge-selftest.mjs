@@ -102,6 +102,21 @@ ok('a state becomes the native flags that state means', () => {
   assert.ok(!view.includes('--typing'), 'an open menu is not the chrome stepped back');
   const palette = quillArgv(ROOT, chrome.palette);
   assert.equal(palette[palette.indexOf('--menu') + 1], 'palette');
+
+  // The three flags of the files Piece. `--library` is joined to the root the way `--text` is,
+  // because ours is launched from wherever the harness is standing; the other two are the state's
+  // own words. The passage is one of the fixture's own documents, so the page and the sidebar show
+  // the same one.
+  const files = flagsOf('files');
+  const lib = quillArgv(ROOT, files.library);
+  assert.equal(lib[lib.indexOf('--library') + 1], path.join(ROOT, files.library.library));
+  assert.ok(lib.includes('--sidebar'));
+  assert.ok(!lib.includes('--search'), 'a Library at rest is not a narrowed one');
+  assert.equal(lib[lib.indexOf('--text') + 1], path.join(ROOT, files.library.text));
+  const narrowed = quillArgv(ROOT, files.search);
+  assert.equal(narrowed[narrowed.indexOf('--search') + 1], files.search.search);
+  assert.ok(narrowed.includes('--sidebar'), 'a query narrows a pane that is open');
+  assert.ok(!quillArgv(ROOT, chrome.bars).includes('--sidebar'), 'the Piece that is not files opens no pane');
 });
 
 ok('the launch environment is the one the research pinned', () => {
@@ -532,10 +547,13 @@ ok('every judged state that draws a determined caret is held to one, and no othe
   // and a selection, which paints a band where the bar would be. Every other state draws the bar.
   // The two Focus states take the `--nocaret` way out for the reason `theme/dark` does: they are
   // crops of the Design oracle, whose own captures carry no bar, and the state is about which
-  // words are dim rather than where the caret is (#113).
+  // words are dim rather than where the caret is (#113). The two `files` states take it because the
+  // Parity oracle measures the bar of a Library-opened document at one of two places depending on
+  // when it is asked, one shot in three, and those states are about the sidebar beside the page.
   const exempt = Object.entries(wants).filter(([, held]) => !held).map(([name]) => name).sort();
   assert.deepEqual(exempt, [
-    'caret/selection', 'caret/unfocused', 'focus/paragraph', 'focus/sentence',
+    'caret/selection', 'caret/unfocused', 'files/library', 'files/search',
+    'focus/paragraph', 'focus/sentence',
     'markup/blocks', 'markup/gutters', 'theme/dark', 'theme/light', 'type/mono',
   ]);
   // #197 came out of `theme/dark`, which has since gone `--nocaret` (#198) so that its marks can be
@@ -800,23 +818,43 @@ ok('a --panel run is informational, and the latency Piece is never judged from o
   // only thing standing between a panel run and the latency Piece.
 });
 
-// The chrome states were the other half of this case until the tools learnt `typing` and `menu`;
-// `files` is what is left waiting on a spec, and the states.json defaults are the whole of the rule.
+// `chrome` was this case until the tools learnt `typing` and `menu`, and `files` until they learnt
+// `library`, `sidebar` and `search`. No state in states.json names a flag the defaults lack now, and
+// the defaults are the whole of the rule — so the flag is invented and put in front of the command
+// through QUILL_STATES, which is also what keeps this case off whichever Piece is waiting on a spec
+// this month. The refusal is `checkStates`'s, before the build and before a window.
+function unservableStates(file) {
+  const states = JSON.parse(fs.readFileSync(path.join(ROOT, 'shots/oracle/states.json'), 'utf8'));
+  states.pieces.type = { duo: { chrome: 'off', sepia: true }, quattro: { chrome: 'off', grain: 3 } };
+  fs.writeFileSync(file, JSON.stringify(states));
+  return { QUILL_STATES: file };
+}
+
 ok('a Piece whose states need flags the app has not got names them and judges nothing', () => {
-  const r = gate('judge', 'files');
-  assert.equal(r.code, 3, r.err);
-  assert.match(r.err, /state library names library, sidebar/);
-  assert.match(r.err, /state search names library, search, sidebar/);
-  assert.match(lastLine(r), /^gate judge files: refused \(2 of 2 states name flags the app has not got\)/);
+  const file = path.join(os.tmpdir(), `quill-judge-selftest-unservable-${process.pid}.json`);
+  try {
+    const r = gate('judge', 'type', unservableStates(file));
+    assert.equal(r.code, 3, r.err);
+    assert.match(r.err, /state duo names sepia/);
+    assert.match(r.err, /state quattro names grain/);
+    assert.match(lastLine(r), /^gate judge type: refused \(2 of 2 states name flags the app has not got\)/);
+  } finally {
+    fs.rmSync(file, { force: true });
+  }
 });
 
 ok('a refused run is one line on stdout, and what it said is on stderr and in its log', () => {
-  const log = path.join(ROOT, 'target/gate/judge-files.log');
+  const file = path.join(os.tmpdir(), `quill-judge-selftest-log-${process.pid}.json`);
+  const log = path.join(ROOT, 'target/gate/judge-type.log');
   fs.rmSync(log, { force: true });
-  const r = gate('judge', 'files');
-  assert.deepEqual(r.out.trim().split('\n').length, 1, `stdout was more than the owner's line:\n${r.out}`);
-  assert.match(r.err, /state library names library, sidebar/);
-  assert.match(fs.readFileSync(log, 'utf8'), /state library names library, sidebar/);
+  try {
+    const r = gate('judge', 'type', unservableStates(file));
+    assert.deepEqual(r.out.trim().split('\n').length, 1, `stdout was more than the owner's line:\n${r.out}`);
+    assert.match(r.err, /state duo names sepia/);
+    assert.match(fs.readFileSync(log, 'utf8'), /state duo names sepia/);
+  } finally {
+    fs.rmSync(file, { force: true });
+  }
 });
 
 // ---------- the flags ours has not got yet ----------
