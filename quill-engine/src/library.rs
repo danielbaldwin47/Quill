@@ -22,6 +22,20 @@
 //! the one row it names. The Library owns no watch itself: the engine has no
 //! `glib` (ADR 0008), so draining the receiver is the app's.
 //!
+//! The row operations a writer asks for — [`rename`], [`duplicate`],
+//! [`move_to`] and [`trashed`] — are here rather than in the app, and each does
+//! the disk first and the tree after, so a row never says something the folder
+//! does not. Three of them are `std::fs`; the fourth is not, because the system
+//! trash is GIO's `g_file_trash` and ADR 0008 keeps the engine clear of GTK and
+//! everything under it. So the app trashes the file and hands the path to
+//! [`trashed`], which is the same split under the same rule: the tree follows
+//! the disk.
+//!
+//! [`rename`]: Library::rename
+//! [`duplicate`]: Library::duplicate
+//! [`move_to`]: Library::move_to
+//! [`trashed`]: Library::trashed
+//!
 //! Search over the shown tree is one function, [`Library::search`]: a fuzzy
 //! matcher over names — the query's letters in order with gaps, scored by
 //! tightness — and a matcher over contents that wants every word of the query
@@ -35,9 +49,12 @@
 use std::cmp::{Ordering, Reverse};
 use std::collections::BTreeMap;
 use std::fs;
+use std::io;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
+
+use crate::disk;
 
 /// The file names the Library lists, without their dot.
 ///
@@ -733,6 +750,121 @@ impl Library {
         };
         patch_at(&mut location.tree, rest)
     }
+
+    /// Renames the file at `path` to what a writer typed, and answers where it
+    /// is now.
+    ///
+    /// The disk moves first and the tree follows: one [`fs::rename`], then the
+    /// two [`Library::patch`]es a rename is — the old path gone, the new one
+    /// there — so a row never says something the folder does not.
+    ///
+    /// `typed` is made a file name by [`crate::disk::named`] and suffixed by
+    /// [`crate::disk::unique_in`] where the folder already holds that name,
+    /// which is the oracle's rule (`legacy/app/js/files.js` `startRename`);
+    /// typing the name the file already has is no rename at all.
+    ///
+    /// # Errors
+    ///
+    /// What the rename could not do: a file that is gone, or a folder that
+    /// cannot be written.
+    pub fn rename(&mut self, path: &Path, typed: &str) -> io::Result<PathBuf> {
+        let folder = folder_of(path)?;
+        let name = disk::named(typed);
+        let held = path.file_name().unwrap_or_default().to_string_lossy();
+        if held.eq_ignore_ascii_case(&name) {
+            return Ok(path.to_path_buf());
+        }
+        let to = disk::unique_in(folder, &name);
+        fs::rename(path, &to)?;
+        self.patch(path);
+        self.patch(&to);
+        Ok(to)
+    }
+
+    /// Copies the file at `path` beside itself, and answers where the copy is.
+    ///
+    /// The oracle's naming (`legacy/app/js/files.js` `duplicate`): the stem,
+    /// ` copy`, then the extension, suffixed where that is taken — so `X.md`
+    /// duplicated twice is `X copy.md` and `X copy 2.md`. The disk moves first
+    /// and the tree follows, as [`Library::rename`] does.
+    ///
+    /// # Errors
+    ///
+    /// What the copy could not do: a file that is gone, or a folder that
+    /// cannot be written.
+    pub fn duplicate(&mut self, path: &Path) -> io::Result<PathBuf> {
+        let folder = folder_of(path)?;
+        let name = file_name_of(path);
+        let (stem, extension) = disk::split_extension(&name);
+        let to = disk::unique_in(folder, &format!("{stem} copy{extension}"));
+        fs::copy(path, &to)?;
+        self.patch(&to);
+        Ok(to)
+    }
+
+    /// Moves the file at `path` into `folder`, and answers where it is now.
+    ///
+    /// One rename where the two lie on one filesystem, and a copy followed by
+    /// a delete where they do not, which is the cross-device move the Library
+    /// spec asks for; the original is dropped only once the copy is there. The
+    /// name is suffixed where `folder` already holds it, and the disk moves
+    /// before the tree does.
+    ///
+    /// # Errors
+    ///
+    /// What neither the rename nor the copy could do, and what a delete of the
+    /// original could not.
+    pub fn move_to(&mut self, path: &Path, folder: &Path) -> io::Result<PathBuf> {
+        if folder_of(path)? == folder {
+            // Already there. Asked before the name is, because a folder that
+            // holds the file holds its name too, and suffixing it would move
+            // the file on top of itself under another name.
+            return Ok(path.to_path_buf());
+        }
+        let to = disk::unique_in(folder, &file_name_of(path));
+        if let Err(across) = fs::rename(path, &to) {
+            fs::copy(path, &to).map_err(|_| across)?;
+            fs::remove_file(path)?;
+        }
+        self.patch(path);
+        self.patch(&to);
+        Ok(to)
+    }
+
+    /// Takes in that `path` is in the system trash: its row goes, and the
+    /// answer is whether the tree moved.
+    ///
+    /// The one row operation split in two. The system trash is GIO's
+    /// `g_file_trash`, and the engine never sees GIO or GTK (ADR 0008), so the
+    /// app trashes the file and calls this — which keeps the rule the other
+    /// three keep, that the tree follows the disk rather than leading it: a
+    /// file still on disk when this is called still has its row.
+    pub fn trashed(&mut self, path: &Path) -> bool {
+        self.patch(path)
+    }
+}
+
+/// The folder holding `path`.
+///
+/// # Errors
+///
+/// A path with no folder above it, which is nothing a Location holds.
+fn folder_of(path: &Path) -> io::Result<&Path> {
+    path.parent().ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("{}: has no folder above it", path.display()),
+        )
+    })
+}
+
+/// What `path` is called, as an owned name the borrow of `path` does not tie
+/// down.
+fn file_name_of(path: &Path) -> String {
+    path.file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .into_owned()
 }
 
 /// Walks `directory` into a [`Folder`]: every folder under it and every listed
@@ -1699,6 +1831,92 @@ mod tests {
             hits(&library.search("sst", &everything, &mut contents)),
             [".sea-storm.md"]
         );
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn a_rename_moves_the_file_and_the_row_after_it() {
+        let directory = scratch("rename");
+        let path = written(&directory, "storm.md", "the tide turned");
+        let mut library = Library::open(std::slice::from_ref(&directory), &[]);
+        assert!(library.at(&path).is_some(), "the row is there to rename");
+
+        let to = library.rename(&path, "Calm").expect("renames the file");
+        assert_eq!(to, directory.join("Calm.md"), "and gives it the extension");
+        assert!(to.is_file() && !path.exists(), "the disk moved");
+        assert!(library.at(&to).is_some(), "and the tree followed it");
+        assert!(library.at(&path).is_none(), "leaving nothing behind");
+
+        // A name the folder already holds is suffixed, the oracle's rule, and
+        // the name a file already has is no rename.
+        let other = written(&directory, "notes.md", "and the wind with it");
+        let taken = library.rename(&other, "Calm").expect("renames the second");
+        assert_eq!(taken, directory.join("Calm 2.md"));
+        assert_eq!(
+            library.rename(&taken, "Calm 2").expect("nothing to do"),
+            taken
+        );
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn a_duplicate_is_x_copy_and_the_next_one_is_x_copy_2() {
+        let directory = scratch("duplicate");
+        let path = written(&directory, "storm.md", "the tide turned");
+        let mut library = Library::open(std::slice::from_ref(&directory), &[]);
+
+        let copy = library.duplicate(&path).expect("copies the file");
+        assert_eq!(copy, directory.join("storm copy.md"));
+        assert_eq!(
+            fs::read_to_string(&copy).expect("the copy is on disk"),
+            "the tide turned",
+            "and holds what the original does"
+        );
+        assert!(library.at(&copy).is_some(), "the tree followed the copy");
+        assert!(library.at(&path).is_some(), "and kept the original");
+
+        let again = library.duplicate(&path).expect("copies it again");
+        assert_eq!(again, directory.join("storm copy 2.md"));
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn a_trashed_row_goes_only_once_the_file_has() {
+        let directory = scratch("trashed");
+        let path = written(&directory, "storm.md", "the tide turned");
+        let mut library = Library::open(std::slice::from_ref(&directory), &[]);
+
+        // The app's GIO trash has not happened yet, so neither has the row.
+        library.trashed(&path);
+        assert!(
+            library.at(&path).is_some(),
+            "the row stands while the file does"
+        );
+
+        // What the app's `g_file_trash` leaves behind, as a test with no GIO
+        // in it can make: the path gone.
+        fs::remove_file(&path).expect("takes the file away");
+        assert!(library.trashed(&path), "the tree moved");
+        assert!(library.at(&path).is_none(), "and the row is gone");
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn a_move_carries_the_file_into_the_folder_and_the_row_with_it() {
+        let directory = scratch("move");
+        let path = written(&directory, "storm.md", "the tide turned");
+        written(&directory, "Drafts/closing.md", "and the wind with it");
+        let into = directory.join("Drafts");
+        let mut library = Library::open(std::slice::from_ref(&directory), &[]);
+
+        let to = library.move_to(&path, &into).expect("moves the file");
+        assert_eq!(to, into.join("storm.md"));
+        assert!(to.is_file() && !path.exists(), "the disk moved");
+        assert!(library.at(&to).is_some(), "and the tree followed it");
+        assert!(library.at(&path).is_none(), "leaving nothing behind");
+        // Into the folder it is already in is nothing at all, rather than a
+        // suffixed copy of itself.
+        assert_eq!(library.move_to(&to, &into).expect("stays put"), to);
         fs::remove_dir_all(&directory).ok();
     }
 }
