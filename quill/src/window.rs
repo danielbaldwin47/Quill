@@ -2125,9 +2125,9 @@ pub fn present_files(app: &gtk::Application, files: &[gio::File], session: &Rc<S
 
 /// Every window of this application that is one of Quill's.
 ///
-/// The one walk the passes over the windows share — a repaint, a relist, a
-/// flush, a quit — because `gtk::Application` answers its windows as GTK
-/// windows and each pass wants Quill's own.
+/// The one walk every pass over the windows shares — a relist, a flush, a
+/// quit — because `gtk::Application` answers its windows as GTK windows and
+/// each pass wants Quill's own.
 fn windows(app: &gtk::Application) -> Vec<Window> {
     app.windows()
         .into_iter()
@@ -2156,6 +2156,9 @@ pub fn heard(app: &gtk::Application, path: &Path) {
 /// whose file is where it says, and the drain's own event for it finds nothing
 /// changed rather than a file that is gone (#246, story 29).
 pub fn followed(app: &gtk::Application, batch: &[PathBuf]) {
+    if batch.is_empty() {
+        return;
+    }
     for window in windows(app) {
         let moved = window.imp().filed.borrow_mut().followed(batch);
         if moved {
@@ -2200,7 +2203,10 @@ pub fn flush_open(app: &gtk::Application) {
 /// through and left the writer with the windows it had not reached yet.
 /// `app.quit()` would destroy them all without asking any of them.
 pub fn quit(app: &gtk::Application) {
-    let asking: Vec<Window> = windows(app).into_iter().filter(Window::would_ask).collect();
+    let mut asking: Vec<Window> = windows(app).into_iter().filter(Window::would_ask).collect();
+    // Asked off the end, so the writer answers for the windows in the order
+    // the application holds them.
+    asking.reverse();
     ask_to_quit(app, asking);
 }
 
