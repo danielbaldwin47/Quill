@@ -225,10 +225,11 @@ pub enum Standing {
 /// The status line at rest: the file is on disk as the writer left it.
 const AT_REST: &str = "All changes saved";
 
-/// A minute, an hour and a day in seconds: how coarsely [`ago`] says a save's
-/// age as it gets older.
+/// A minute in seconds: the first step [`ago`] coarsens a save's age to.
 const MINUTE: u64 = 60;
+/// An hour in seconds: the step after that.
 const HOUR: u64 = 60 * MINUTE;
+/// A day in seconds: the last step, which every older save is said in.
 const DAY: u64 = 24 * HOUR;
 
 /// What the status line says while the Document is `standing`.
@@ -313,9 +314,7 @@ pub fn stage(fixture: &Path) -> Result<PathBuf, String> {
     let name = fixture
         .file_name()
         .ok_or_else(|| format!("{}: has no folder name", fixture.display()))?;
-    let root = std::env::temp_dir()
-        .join(format!("quill-library-{}", std::process::id()))
-        .join(name);
+    let root = staging().join(name);
     std::fs::remove_dir_all(&root).ok();
     copy(fixture, &root, STAGE_DEPTH)?;
     for (path, seconds) in mtimes(&read) {
@@ -328,6 +327,24 @@ pub fn stage(fixture: &Path) -> Result<PathBuf, String> {
             .map_err(|err| format!("{}: {err}", file.display()))?;
     }
     Ok(root)
+}
+
+/// The folder this launch stages a fixture Library into.
+///
+/// Named for the process, so that two launches at once — a shoot and a judge —
+/// stage into folders of their own.
+fn staging() -> PathBuf {
+    std::env::temp_dir().join(format!("quill-library-{}", std::process::id()))
+}
+
+/// Takes the staged copy away again.
+///
+/// Called as Quill goes down: the copy is this launch's own, nothing outside
+/// it reads it, and a `$TMPDIR` left holding a tree per judged run is a tree
+/// per judged run nobody clears. A launch that staged nothing has nothing
+/// here to remove.
+pub fn unstage() {
+    std::fs::remove_dir_all(staging()).ok();
 }
 
 /// A path named inside the fixture, as it stands in the copy [`stage`] made.
@@ -346,28 +363,191 @@ pub fn restaged(fixture: &Path, root: &Path, path: &Path) -> PathBuf {
 /// The fixture's stamps, beside its files.
 const MANIFEST: &str = "manifest.json";
 
-/// The mtimes `manifest.json` names, each a path under the fixture and the
-/// epoch second it is stamped with.
+/// How deep a value of the manifest may nest before it is refused, which is
+/// what bounds the read.
+const NESTING: usize = 16;
+
+/// A value of the manifest's JSON, as much of it as [`mtimes`] reads.
+#[derive(Debug, PartialEq, Eq)]
+enum Value {
+    /// A `{}` and what it names, in the order the file names them.
+    Table(Vec<(String, Value)>),
+    /// A whole number, which is what a stamp is.
+    Whole(u64),
+    /// Anything else — a string, a list, a fraction, `true`, `false`, `null` —
+    /// read to its end and stepped over.
+    Passed,
+}
+
+/// A reader over the manifest's JSON.
 ///
-/// Read by hand rather than through a JSON parser: the file is the Gate's own,
-/// its shape is `{"mtimes": {"<path>": <seconds>}}`, and the app crate carries
-/// no JSON reader for one fixture to justify. Anything it cannot read is
-/// nothing stamped, which the Date sort shows at once.
+/// A parser of its own rather than a dependency: the `quill` crate carries no
+/// JSON reader, and the one shape this reads — a table of tables of numbers —
+/// is a few lines of recursive descent. It is not a general JSON reader and
+/// does not claim to be one; what it will not read, it refuses.
+struct Json<'a> {
+    /// What is left to read.
+    rest: &'a str,
+}
+
+impl Json<'_> {
+    /// The next letter, with any whitespace in front of it stepped over.
+    fn peek(&mut self) -> Option<char> {
+        self.rest = self.rest.trim_start();
+        self.rest.chars().next()
+    }
+
+    /// Takes `letter` where it is next, answering whether it was there.
+    fn take(&mut self, letter: char) -> bool {
+        if self.peek() == Some(letter) {
+            self.rest = &self.rest[letter.len_utf8()..];
+            return true;
+        }
+        false
+    }
+
+    /// One value, `depth` tables deep.
+    fn value(&mut self, depth: usize) -> Option<Value> {
+        match self.peek()? {
+            '{' => self.table(depth),
+            '[' => self.list(depth),
+            '"' => self.text().map(|_| Value::Passed),
+            '-' | '0'..='9' => self.number(),
+            _ => self.word(),
+        }
+    }
+
+    /// A `{}` and every name in it.
+    fn table(&mut self, depth: usize) -> Option<Value> {
+        if depth == 0 || !self.take('{') {
+            return None;
+        }
+        let mut named = Vec::new();
+        if self.take('}') {
+            return Some(Value::Table(named));
+        }
+        loop {
+            let name = self.text()?;
+            if !self.take(':') {
+                return None;
+            }
+            named.push((name, self.value(depth - 1)?));
+            if self.take(',') {
+                continue;
+            }
+            if self.take('}') {
+                return Some(Value::Table(named));
+            }
+            return None;
+        }
+    }
+
+    /// A `[]` and everything in it, stepped over.
+    fn list(&mut self, depth: usize) -> Option<Value> {
+        if depth == 0 || !self.take('[') {
+            return None;
+        }
+        if self.take(']') {
+            return Some(Value::Passed);
+        }
+        loop {
+            self.value(depth - 1)?;
+            if self.take(',') {
+                continue;
+            }
+            if self.take(']') {
+                return Some(Value::Passed);
+            }
+            return None;
+        }
+    }
+
+    /// A string, with its escapes read.
+    fn text(&mut self) -> Option<String> {
+        if !self.take('"') {
+            return None;
+        }
+        let mut held = String::new();
+        loop {
+            let letter = self.next_letter()?;
+            match letter {
+                '"' => return Some(held),
+                '\\' => held.push(self.escaped()?),
+                other => held.push(other),
+            }
+        }
+    }
+
+    /// What a `\` in a string stands for.
+    fn escaped(&mut self) -> Option<char> {
+        match self.next_letter()? {
+            'n' => Some('\n'),
+            't' => Some('\t'),
+            'r' => Some('\r'),
+            'b' => Some('\u{8}'),
+            'f' => Some('\u{c}'),
+            'u' => {
+                let digits = self.rest.get(..4)?;
+                self.rest = &self.rest[4..];
+                char::from_u32(u32::from_str_radix(digits, 16).ok()?)
+            }
+            // `"`, `\` and `/`, and nothing else is written this way.
+            other => Some(other),
+        }
+    }
+
+    /// The next letter, whitespace and all.
+    fn next_letter(&mut self) -> Option<char> {
+        let mut letters = self.rest.chars();
+        let letter = letters.next()?;
+        self.rest = letters.as_str();
+        Some(letter)
+    }
+
+    /// A number. A whole one is a stamp; anything else is stepped over.
+    fn number(&mut self) -> Option<Value> {
+        let end = self
+            .rest
+            .find(|letter: char| !matches!(letter, '0'..='9' | '-' | '+' | '.' | 'e' | 'E'))
+            .unwrap_or(self.rest.len());
+        let (digits, rest) = self.rest.split_at(end);
+        self.rest = rest;
+        Some(digits.parse().map_or(Value::Passed, Value::Whole))
+    }
+
+    /// `true`, `false` or `null`, stepped over.
+    fn word(&mut self) -> Option<Value> {
+        let end = self
+            .rest
+            .find(|letter: char| !letter.is_ascii_alphabetic())
+            .unwrap_or(self.rest.len());
+        if end == 0 {
+            return None;
+        }
+        self.rest = &self.rest[end..];
+        Some(Value::Passed)
+    }
+}
+
+/// The mtimes `manifest.json` names, each a path under the fixture and the
+/// epoch second it is stamped with, in the order the file names them.
+///
+/// A manifest this cannot read is nothing stamped, which the Date sort shows
+/// at once.
 fn mtimes(read: &str) -> Vec<(String, u64)> {
-    let Some(table) = read.split_once("\"mtimes\"").and_then(|(_, rest)| {
-        let open = rest.find('{')?;
-        let close = rest[open..].find('}')?;
-        Some(&rest[open + 1..open + close])
-    }) else {
+    let mut json = Json { rest: read };
+    let Some(Value::Table(named)) = json.value(NESTING) else {
         return Vec::new();
     };
-    table
-        .split(',')
-        .filter_map(|entry| {
-            let (path, seconds) = entry.split_once(':')?;
-            let path = path.trim().trim_matches('"');
-            let seconds = seconds.trim().parse().ok()?;
-            Some((path.to_string(), seconds))
+    let Some((_, Value::Table(mtimes))) = named.into_iter().find(|(name, _)| name == "mtimes")
+    else {
+        return Vec::new();
+    };
+    mtimes
+        .into_iter()
+        .filter_map(|(path, stamp)| match stamp {
+            Value::Whole(seconds) => Some((path, seconds)),
+            _ => None,
         })
         .collect()
 }
@@ -619,21 +799,55 @@ mod tests {
         fs::remove_dir_all(&directory).ok();
     }
 
+    /// The manifest the Gate actually stamps from, read from the checkout
+    /// rather than copied into a literal here (`CODING_STANDARDS.md` § Tools).
+    fn judged_manifest() -> String {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("the crate sits inside the workspace")
+            .join("shots/oracle/library")
+            .join(MANIFEST);
+        fs::read_to_string(&path).unwrap_or_else(|err| panic!("{}: {err}", path.display()))
+    }
+
     #[test]
     fn the_manifest_is_read_as_the_paths_and_the_seconds_it_names() {
-        // Derived from `shots/oracle/library/manifest.json`, prose and all.
-        let read = "{\n  \"_about\": \"The mtime each file is stamped with.\",\n  \
-                    \"mtimes\": {\n    \".archive/old-draft.md\": 1740819600,\n    \
-                    \"Drafts/closing.md\": 1740906000,\n    \"sea-storm.md\": 1741942800\n  }\n}\n";
+        let read = judged_manifest();
+        let named = mtimes(&read);
+
+        // Every stamp the file writes, and no other: each pair is the file's
+        // own `"<path>": <seconds>` line, and there are as many pairs as the
+        // `mtimes` table has lines with a stamp on them.
+        let table = read
+            .split_once("\"mtimes\"")
+            .expect("the manifest names its mtimes")
+            .1;
+        let lines = table.lines().filter(|line| line.contains("\": 1")).count();
+        assert_eq!(named.len(), lines, "one pair per stamped line");
+        assert!(lines >= 3, "the fixture stamps its files: {lines}");
+        for (path, seconds) in &named {
+            assert!(
+                read.contains(&format!("\"{path}\": {seconds}")),
+                "{path} is stamped {seconds} in the file"
+            );
+        }
+
+        assert!(mtimes("{}").is_empty(), "no table is nothing stamped");
+        assert!(mtimes("not json").is_empty(), "and nothing it cannot read");
+    }
+
+    #[test]
+    fn a_stamp_is_read_past_the_prose_the_lists_and_the_escapes_around_it() {
+        let read = r#"{
+            "_about": "a note with a \" and a \\ in it",
+            "_seen": [1, {"deep": 2}, true, null, 1.5],
+            "mtimes": {"a\/b.md": 1740819600, "half.md": 1.5}
+        }"#;
         assert_eq!(
             mtimes(read),
-            vec![
-                (".archive/old-draft.md".to_string(), 1_740_819_600),
-                ("Drafts/closing.md".to_string(), 1_740_906_000),
-                ("sea-storm.md".to_string(), 1_741_942_800),
-            ]
+            vec![("a/b.md".to_string(), 1_740_819_600)],
+            "the whole seconds are stamps and nothing else is"
         );
-        assert!(mtimes("{}").is_empty(), "no table is nothing stamped");
     }
 
     #[test]
@@ -674,8 +888,12 @@ mod tests {
             restaged(&fixture, &root, Path::new("/tmp/elsewhere.md")),
             Path::new("/tmp/elsewhere.md")
         );
+
+        // And the copy goes with the launch that made it.
+        unstage();
+        assert!(!root.exists(), "the staged Library is gone");
+        assert!(!staging().exists(), "and so is the folder it stood in");
         fs::remove_dir_all(&fixture).ok();
-        fs::remove_dir_all(root.parent().expect("a temp folder of its own")).ok();
     }
 
     #[test]

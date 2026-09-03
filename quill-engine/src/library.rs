@@ -18,7 +18,7 @@
 //! A Location joins the settings watch as a tree
 //! ([`crate::watch::Watch::add_tree`]) — the architecture's "the Documents and
 //! the Library join the same watch" — and the app hands every path that arrives
-//! under a Location's root to [`Library::patch`], which re-stats it and moves
+//! under a Location's own folder to [`Library::patch`], which re-stats it and moves
 //! the one row it names. The Library owns no watch itself: the engine has no
 //! `glib` (ADR 0008), so draining the receiver is the app's.
 //!
@@ -55,6 +55,7 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use crate::disk;
+use crate::document::full_name;
 
 /// The file names the Library lists, without their dot.
 ///
@@ -68,9 +69,7 @@ pub(crate) fn listed(path: &Path) -> bool {
     let Some(extension) = path.extension().and_then(|extension| extension.to_str()) else {
         return false;
     };
-    EXTENSIONS
-        .iter()
-        .any(|listed| extension.eq_ignore_ascii_case(listed))
+    EXTENSIONS.iter().any(|listed| same_name(extension, listed))
 }
 
 /// When `path` was last written, where the file system says, and `None` where
@@ -81,20 +80,10 @@ fn modified(path: &Path) -> Option<SystemTime> {
         .and_then(|metadata| metadata.modified().ok())
 }
 
-/// The display name of `path`: its last component, held rather than derived
-/// because the sort and the sidebar both ask for it. A name that is not UTF-8
-/// is held as `to_string_lossy` writes it, which is what a sidebar would draw.
-fn name_of(path: &Path) -> String {
-    path.file_name()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .into_owned()
-}
-
 /// One file under a Location, as the tree holds it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct File {
-    /// Where it is, under the Location's root as the root was added.
+    /// Where it is, under the Location's folder as that folder was added.
     path: PathBuf,
     /// Its name on disk, extension and all.
     name: String,
@@ -102,7 +91,7 @@ pub struct File {
     /// which sorts last under [`Sort::Date`].
     modified: Option<SystemTime>,
     /// Whether it is hidden: its own name, or any folder between it and the
-    /// Location's root, begins with a dot.
+    /// Location's own folder, begins with a dot.
     hidden: bool,
 }
 
@@ -141,18 +130,18 @@ impl File {
     }
 }
 
-/// One folder under a Location — or the Location's root itself — and everything
+/// One folder under a Location — or the Location's own folder — and everything
 /// the walk found in it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Folder {
-    /// Where it is, under the Location's root as the root was added.
+    /// Where it is, under the Location's folder as that folder was added.
     path: PathBuf,
     /// Its name on disk.
     name: String,
     /// When it was last written.
     modified: Option<SystemTime>,
     /// Whether it is hidden: its own name, or any folder between it and the
-    /// Location's root, begins with a dot.
+    /// Location's own folder, begins with a dot.
     hidden: bool,
     /// The folders in it, unsorted: an order is a view's, not a tree's.
     folders: Vec<Folder>,
@@ -212,17 +201,17 @@ impl Folder {
 /// One folder the writer pointed Quill at, and the tree walked from it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Location {
-    /// Its root, as the writer named it.
-    root: PathBuf,
-    /// Everything under the root, walked.
+    /// The folder itself, as the writer named it.
+    path: PathBuf,
+    /// Everything under it, walked.
     tree: Folder,
 }
 
 impl Location {
     /// The folder the writer pointed Quill at, which is what heads its section.
     #[must_use]
-    pub fn root(&self) -> &Path {
-        &self.root
+    pub fn path(&self) -> &Path {
+        &self.path
     }
 }
 
@@ -265,10 +254,21 @@ struct Key<'a> {
 }
 
 /// Orders two names case-insensitively, without a lower-cased copy of either.
+///
+/// The Library's one case-folding rule: the sort reads it as an order and
+/// [`same_name`] reads it as an equality, so a name the sort calls equal is a
+/// name a rename calls the same name, and neither can drift from the other.
+/// Full Unicode lowercasing rather than ASCII's, because a writer's folder is
+/// not written in ASCII.
 fn folded(one: &str, other: &str) -> Ordering {
     one.chars()
         .flat_map(char::to_lowercase)
         .cmp(other.chars().flat_map(char::to_lowercase))
+}
+
+/// Whether two names are the same name, case aside ([`folded`]).
+fn same_name(one: &str, other: &str) -> bool {
+    folded(one, other) == Ordering::Equal
 }
 
 /// Orders two entries under `sort`: [`Sort::Name`] is case-insensitive, and
@@ -285,21 +285,21 @@ fn order(sort: Sort, one: Key<'_>, other: Key<'_>) -> Ordering {
     }
 }
 
-/// One entry of a shown tree, at its depth under the section's root.
+/// One entry of a shown tree, at its depth under the section's own folder.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Row<'a> {
     /// A folder, drawn before any file beside it, with its own rows beneath.
     Folder {
         /// The folder.
         folder: &'a Folder,
-        /// How many folders lie between it and the section's root.
+        /// How many folders lie between it and the section's own folder.
         depth: usize,
     },
     /// A file.
     File {
         /// The file.
         file: &'a File,
-        /// How many folders lie between it and the section's root.
+        /// How many folders lie between it and the section's own folder.
         depth: usize,
     },
 }
@@ -324,7 +324,7 @@ impl<'a> Row<'a> {
         }
     }
 
-    /// How many folders lie between it and the section's root.
+    /// How many folders lie between it and the section's own folder.
     #[must_use]
     pub fn depth(&self) -> usize {
         match self {
@@ -336,8 +336,8 @@ impl<'a> Row<'a> {
 /// One Location as the sidebar draws it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Section<'a> {
-    /// The Location's root, which heads the section.
-    pub root: &'a Path,
+    /// The Location's own folder, which heads the section.
+    pub path: &'a Path,
     /// What is shown beneath it, in the order it is drawn.
     pub rows: Vec<Row<'a>>,
 }
@@ -525,8 +525,8 @@ impl Library {
     #[must_use]
     pub fn open(locations: &[PathBuf], pinned: &[PathBuf]) -> Self {
         let mut library = Self::new();
-        for root in locations {
-            library.add_location(root);
+        for location in locations {
+            library.add_location(location);
         }
         for path in pinned {
             let _ = library.pin(path);
@@ -540,47 +540,48 @@ impl Library {
         &self.locations
     }
 
-    /// Adds `root` as a Location and walks it, answering whether it was added.
+    /// Adds the folder at `path` as a Location and walks it, answering whether
+    /// it was added.
     ///
     /// A folder that is already a Location, and a path that is not a folder,
     /// are both refused and change nothing. Walking is one `read_dir` per
     /// folder in the tree ([`Library::patch`] keeps it that way afterwards).
-    pub fn add_location(&mut self, root: &Path) -> bool {
-        if !root.is_dir() || self.locations.iter().any(|location| location.root == root) {
+    pub fn add_location(&mut self, path: &Path) -> bool {
+        if !path.is_dir() || self.locations.iter().any(|location| location.path == path) {
             return false;
         }
-        let hidden = name_of(root).starts_with('.');
+        let hidden = full_name(path).starts_with('.');
         let mut reads = 0;
-        let tree = walk(root, hidden, &mut reads);
+        let tree = walk(path, hidden, &mut reads);
         self.locations.push(Location {
-            root: root.to_path_buf(),
+            path: path.to_path_buf(),
             tree,
         });
         true
     }
 
-    /// Drops the Location rooted at `root` and its tree, answering whether
-    /// there was one. Nothing on disk is touched, and a pinned path under it
-    /// stays pinned, answering nothing until the Location comes back.
-    pub fn remove_location(&mut self, root: &Path) -> bool {
+    /// Drops the Location at `path` and its tree, answering whether there was
+    /// one. Nothing on disk is touched, and a pinned path under it stays
+    /// pinned, answering nothing until the Location comes back.
+    pub fn remove_location(&mut self, path: &Path) -> bool {
         let before = self.locations.len();
-        self.locations.retain(|location| location.root != root);
+        self.locations.retain(|location| location.path != path);
         self.locations.len() != before
     }
 
-    /// The Location holding `path`, which is the one whose root it is under.
+    /// The Location holding `path`, which is the one whose folder it is under.
     fn holder(&self, path: &Path) -> Option<&Location> {
         self.locations
             .iter()
-            .find(|location| path.starts_with(&location.root))
+            .find(|location| path.starts_with(&location.path))
     }
 
     /// The row at `path` — a folder or a file — where a Location's tree holds
-    /// one. A Location's own root answers as a folder row at depth zero.
+    /// one. A Location's own folder answers as a folder row at depth zero.
     #[must_use]
     pub fn at(&self, path: &Path) -> Option<Row<'_>> {
         let location = self.holder(path)?;
-        let rest = path.strip_prefix(&location.root).ok()?;
+        let rest = path.strip_prefix(&location.path).ok()?;
         descend(&location.tree, rest)
     }
 
@@ -593,7 +594,7 @@ impl Library {
         self.locations
             .iter()
             .map(|location| Section {
-                root: &location.root,
+                path: &location.path,
                 rows: rows_of(&location.tree, view, 0),
             })
             .collect()
@@ -741,11 +742,11 @@ impl Library {
         let Some(location) = self
             .locations
             .iter_mut()
-            .find(|location| path.starts_with(&location.root))
+            .find(|location| path.starts_with(&location.path))
         else {
             return false;
         };
-        let Ok(rest) = path.strip_prefix(&location.root) else {
+        let Ok(rest) = path.strip_prefix(&location.path) else {
             return false;
         };
         patch_at(&mut location.tree, rest)
@@ -763,6 +764,12 @@ impl Library {
     /// which is the oracle's rule (`legacy/app/js/files.js` `startRename`);
     /// typing the name the file already has is no rename at all.
     ///
+    /// A name that differs from the one the file has only in its case is a
+    /// rename on a case-sensitive file system and nothing on a case-insensitive
+    /// one, and [`disk::unique_in`] cannot tell them apart: it would suffix the
+    /// new name against the file's own. So that one goes through a temporary
+    /// name, which frees the old name whichever kind of file system this is.
+    ///
     /// # Errors
     ///
     /// What the rename could not do: a file that is gone, or a folder that
@@ -770,12 +777,27 @@ impl Library {
     pub fn rename(&mut self, path: &Path, typed: &str) -> io::Result<PathBuf> {
         let folder = folder_of(path)?;
         let name = disk::named(typed);
-        let held = path.file_name().unwrap_or_default().to_string_lossy();
-        if held.eq_ignore_ascii_case(&name) {
+        let held = full_name(path);
+        if held == name {
             return Ok(path.to_path_buf());
         }
+        let from = if same_name(&held, &name) {
+            let aside = disk::unique_in(folder, &format!("{name}~"));
+            fs::rename(path, &aside)?;
+            aside
+        } else {
+            path.to_path_buf()
+        };
         let to = disk::unique_in(folder, &name);
-        fs::rename(path, &to)?;
+        if let Err(err) = fs::rename(&from, &to) {
+            // The file is standing under the temporary name: it goes back to
+            // the one it had, so that a rename that could not happen has not
+            // moved anything.
+            if from != path {
+                fs::rename(&from, path)?;
+            }
+            return Err(err);
+        }
         self.patch(path);
         self.patch(&to);
         Ok(to)
@@ -794,7 +816,7 @@ impl Library {
     /// cannot be written.
     pub fn duplicate(&mut self, path: &Path) -> io::Result<PathBuf> {
         let folder = folder_of(path)?;
-        let name = file_name_of(path);
+        let name = full_name(path);
         let (stem, extension) = disk::split_extension(&name);
         let to = disk::unique_in(folder, &format!("{stem} copy{extension}"));
         fs::copy(path, &to)?;
@@ -821,7 +843,7 @@ impl Library {
             // the file on top of itself under another name.
             return Ok(path.to_path_buf());
         }
-        let to = disk::unique_in(folder, &file_name_of(path));
+        let to = disk::unique_in(folder, &full_name(path));
         if let Err(across) = fs::rename(path, &to) {
             fs::copy(path, &to).map_err(|_| across)?;
             fs::remove_file(path)?;
@@ -858,15 +880,6 @@ fn folder_of(path: &Path) -> io::Result<&Path> {
     })
 }
 
-/// What `path` is called, as an owned name the borrow of `path` does not tie
-/// down.
-fn file_name_of(path: &Path) -> String {
-    path.file_name()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .into_owned()
-}
-
 /// Walks `directory` into a [`Folder`]: every folder under it and every listed
 /// file, dot-entries held and flagged.
 ///
@@ -879,7 +892,7 @@ fn walk(directory: &Path, hidden: bool, reads: &mut usize) -> Folder {
     *reads += 1;
     let mut folder = Folder {
         path: directory.to_path_buf(),
-        name: name_of(directory),
+        name: full_name(directory),
         modified: modified(directory),
         hidden,
         folders: Vec::new(),
@@ -890,7 +903,7 @@ fn walk(directory: &Path, hidden: bool, reads: &mut usize) -> Folder {
     };
     for entry in entries.flatten() {
         let path = entry.path();
-        let name = name_of(&path);
+        let name = full_name(&path);
         let hidden = hidden || name.starts_with('.');
         let Ok(kind) = entry.file_type() else {
             continue;
@@ -969,8 +982,8 @@ fn rows_of<'a>(folder: &'a Folder, view: &View, depth: usize) -> Vec<Row<'a>> {
 fn patch_at(folder: &mut Folder, rest: &Path) -> bool {
     let mut components = rest.components();
     let Some(component) = components.next() else {
-        // The Location's own root. What happened inside it arrives as its own
-        // path, so the only question here is whether the root is still there;
+        // The Location's own folder. What happened inside it arrives as its own
+        // path, so the only question here is whether the folder is still there;
         // a folder already held is never walked again, because reading a
         // folder is itself an event under the watch — `notify`'s inotify mask
         // carries `OPEN` — and a walk answering its own events would have no
@@ -1152,7 +1165,7 @@ fn fuzzy(query: &str, name: &str) -> Option<i32> {
 fn flatten(text: &str) -> String {
     let mut flat = String::with_capacity(text.len());
     for line in text.lines() {
-        for letter in unheaded(line).chars() {
+        for letter in disk::unheaded(line).chars() {
             if matches!(letter, '*' | '_' | '`' | '~') {
                 continue;
             }
@@ -1170,20 +1183,6 @@ fn flatten(text: &str) -> String {
     }
     flat.truncate(flat.trim_end().len());
     flat
-}
-
-/// `line` without its Markdown heading marker, where it opens with one: up to
-/// six `#` and the whitespace after them.
-fn unheaded(line: &str) -> &str {
-    let rest = line.trim_start();
-    let hashes = rest.chars().take_while(|letter| *letter == '#').count();
-    if (1..=6).contains(&hashes) {
-        let after = &rest[hashes..];
-        if after.starts_with(char::is_whitespace) {
-            return after.trim_start();
-        }
-    }
-    rest
 }
 
 /// Where `word`, already lowercase, ends in `text` if it starts at `start`.
@@ -1317,10 +1316,10 @@ mod tests {
             .expect("stamps the file");
     }
 
-    /// A Library of the one Location at `root`, walked now, which is what most
+    /// A Library of the one Location at `path`, walked now, which is what most
     /// of these tests are.
-    fn walked(root: &Path) -> Library {
-        Library::open(std::slice::from_ref(&root.to_path_buf()), &[])
+    fn walked(path: &Path) -> Library {
+        Library::open(std::slice::from_ref(&path.to_path_buf()), &[])
     }
 
     /// The names of every shown row of every section, in the order they are
@@ -1480,7 +1479,7 @@ mod tests {
         written(&directory, "chapters/parts/three.md", "three");
         let mut reads = 0;
         let tree = walk(&directory, false, &mut reads);
-        assert_eq!(reads, 3, "the root, `chapters` and `chapters/parts`");
+        assert_eq!(reads, 3, "the Location, `chapters` and `chapters/parts`");
         assert_eq!(tree.folders.len(), 1);
         assert_eq!(tree.files.len(), 1);
         fs::remove_dir_all(&directory).ok();
@@ -1500,7 +1499,7 @@ mod tests {
         // under the watch, and a patch that walked again would answer its own
         // events for ever.
         written(&directory, "chapters/two.md", "two");
-        assert!(!library.patch(&directory), "the Location's own root");
+        assert!(!library.patch(&directory), "the Location's own folder");
         assert!(!library.patch(&directory.join("chapters")), "a folder held");
         assert_eq!(names(&library, &view), ["chapters", "one.md"]);
         // The file's own path is what moves it, which is what the watch sends.
@@ -1512,24 +1511,24 @@ mod tests {
     #[test]
     fn a_file_written_renamed_and_deleted_under_the_watch_moves_the_tree() {
         let directory = scratch("watched");
-        let root = directory.join("Library");
-        fs::create_dir_all(&root).expect("makes the Location");
+        let location = directory.join("Library");
+        fs::create_dir_all(&location).expect("makes the Location");
         let settings = written(&directory, "settings.toml", "theme = \"auto\"\n");
         let (mut watch, events) = Watch::on(&settings).expect("watches the settings file");
         assert_eq!(
-            watch.add_tree(&root).expect("watches the Location"),
+            watch.add_tree(&location).expect("watches the Location"),
             Placed::Listening
         );
-        let mut library = walked(&root);
+        let mut library = walked(&location);
         let view = View::default();
         assert!(names(&library, &view).is_empty(), "an empty Location");
 
-        let one = root.join("one.md");
+        let one = location.join("one.md");
         fs::write(&one, "# One\n").expect("writes the file");
         assert!(drained(&mut library, &events), "the file is in the tree");
         assert_eq!(names(&library, &view), ["one.md"]);
 
-        let two = root.join("two.md");
+        let two = location.join("two.md");
         fs::rename(&one, &two).expect("renames the file");
         assert!(
             drained(&mut library, &events),
@@ -1549,18 +1548,18 @@ mod tests {
     #[test]
     fn a_folder_created_under_the_watch_arrives_with_what_is_in_it() {
         let directory = scratch("subtree");
-        let root = directory.join("Library");
-        fs::create_dir_all(&root).expect("makes the Location");
+        let location = directory.join("Library");
+        fs::create_dir_all(&location).expect("makes the Location");
         let settings = written(&directory, "settings.toml", "theme = \"auto\"\n");
         let (mut watch, events) = Watch::on(&settings).expect("watches the settings file");
         assert_eq!(
-            watch.add_tree(&root).expect("watches the Location"),
+            watch.add_tree(&location).expect("watches the Location"),
             Placed::Listening
         );
-        let mut library = walked(&root);
+        let mut library = walked(&location);
         let elsewhere = directory.join("chapters");
         written(&elsewhere, "one.md", "one");
-        fs::rename(&elsewhere, root.join("chapters")).expect("moves the folder in");
+        fs::rename(&elsewhere, location.join("chapters")).expect("moves the folder in");
         assert!(drained(&mut library, &events), "the folder is in the tree");
         assert_eq!(
             names(
@@ -1625,17 +1624,17 @@ mod tests {
         let second = directory.join("second");
         let mut library = Library::open(&[first.clone(), second.clone()], &[]);
         let view = View::default();
-        let roots: Vec<&Path> = library
+        let folders: Vec<&Path> = library
             .shown(&view)
             .into_iter()
-            .map(|section| section.root)
+            .map(|section| section.path)
             .collect();
-        assert_eq!(roots, [first.as_path(), second.as_path()]);
+        assert_eq!(folders, [first.as_path(), second.as_path()]);
 
         assert!(library.remove_location(&first), "the first is a Location");
         let sections = library.shown(&view);
         assert_eq!(sections.len(), 1);
-        assert_eq!(sections[0].root, second.as_path());
+        assert_eq!(sections[0].path, second.as_path());
         assert_eq!(names(&library, &view), ["two.md"]);
         fs::remove_dir_all(&directory).ok();
     }
@@ -1855,6 +1854,35 @@ mod tests {
         assert_eq!(
             library.rename(&taken, "Calm 2").expect("nothing to do"),
             taken
+        );
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn a_rename_that_moves_only_the_case_of_the_name_still_moves_the_file() {
+        let directory = scratch("rename-case");
+        let path = written(&directory, "Notes.md", "the tide turned");
+        let mut library = Library::open(std::slice::from_ref(&directory), &[]);
+
+        let to = library.rename(&path, "notes").expect("renames the file");
+        assert_eq!(
+            to,
+            directory.join("notes.md"),
+            "the name it was given, not a suffixed one"
+        );
+        assert_eq!(
+            fs::read_to_string(&to).expect("the file is at the new name"),
+            "the tide turned"
+        );
+        assert!(library.at(&to).is_some(), "the tree followed it");
+        let left: Vec<String> = fs::read_dir(&directory)
+            .expect("reads the folder")
+            .filter_map(|entry| Some(full_name(&entry.ok()?.path())))
+            .collect();
+        assert_eq!(
+            left,
+            ["notes.md"],
+            "the one file, with nothing left under the temporary name"
         );
         fs::remove_dir_all(&directory).ok();
     }

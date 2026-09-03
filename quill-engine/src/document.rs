@@ -64,6 +64,22 @@ pub fn shown_name(path: &Path) -> Cow<'_, str> {
         .map_or_else(|| path.to_string_lossy(), std::ffi::OsStr::to_string_lossy)
 }
 
+/// What the file at `path` is called, extension and all: the name the Library
+/// sorts and searches by, the name a rename field opens with, and the name a
+/// status notice puts in its words.
+///
+/// [`shown_name`] is the same name without its extension, and is what a title
+/// shows. Owned, because every caller either holds it past the borrow of
+/// `path` or hands it to a widget; a name that is not UTF-8 is answered as
+/// `to_string_lossy` writes it, which is what a window would draw.
+#[must_use]
+pub fn full_name(path: &Path) -> String {
+    path.file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .into_owned()
+}
+
 /// Where a byte offset is, in the two numbers a `GtkTextIter` is set from.
 ///
 /// The app reaches a byte with `set_line` and then `set_line_index`, never by

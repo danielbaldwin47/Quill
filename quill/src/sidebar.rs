@@ -52,12 +52,14 @@ use std::time::{Duration, SystemTime};
 
 use gtk::prelude::*;
 use gtk::{cairo, gdk, gio, glib};
-use quill_engine::library::{Contents, Library, Row, Section, Snippet, Sort, View};
-use quill_engine::theme::{Colour, Role, Scheme};
+use quill_engine::document::full_name;
+use quill_engine::library::{Contents, File, Library, Row, Section, Snippet, Sort, View};
+use quill_engine::theme::{self, Colour, Role, Scheme};
 
 use crate::chrome::{self, CHROME_FONT};
 use crate::files::{self, Dropped, Onto, Standing};
 use crate::ground::Ground;
+use crate::tags::pixels;
 use crate::window::Window;
 
 /// The pane's width (`files.css` `--lib-w: 368px`).
@@ -470,12 +472,22 @@ pub struct Sidebar {
     sort: Rc<Cell<Sort>>,
     /// The Document the window is showing, whose row is the highlighted one.
     open: Rc<RefCell<Option<PathBuf>>>,
-    /// The Location whose head was last right-clicked, which is the one
-    /// `row.remove` drops.
-    head: Rc<RefCell<Option<PathBuf>>>,
+    /// The pane's own head. Where the Library is one Location with nothing
+    /// Pinned beside it, the head is that Location's header as well
+    /// ([`Sidebar::head_as_location`]).
+    head: gtk::Box,
+    /// The Location the head is heading, or `None` where it is only saying
+    /// Library. Taken down by each [`Sidebar::refresh`].
+    header: Rc<RefCell<Option<PathBuf>>>,
+    /// The head's drop target while it is a Location's header, kept so that it
+    /// can be taken off again when it stops being one.
+    head_drop: Rc<RefCell<Option<gtk::DropTarget>>>,
     /// The file texts search has read, kept for as long as the window is, so
     /// that a query over a tree nothing has touched reads nothing.
     contents: Rc<RefCell<Contents>>,
+    /// What each shown file's first lines said, by path, so that a refresh
+    /// over files nothing has written reads nothing ([`Sidebar::refresh`]).
+    read: Rc<RefCell<BTreeMap<PathBuf, Head>>>,
     /// The keystroke the field is waiting out before it searches
     /// ([`SETTLE_MS`]).
     settle: Rc<RefCell<Option<glib::SourceId>>>,
@@ -501,7 +513,8 @@ impl Sidebar {
         root.set_visible(false);
 
         let title = gtk::Label::new(Some(TITLE));
-        root.append(&head(&title));
+        let head = head(&title);
+        root.append(&head);
         let entry = gtk::Entry::builder()
             .hexpand(true)
             .has_frame(false)
@@ -533,6 +546,7 @@ impl Sidebar {
 
         let sidebar = Self {
             root,
+            head,
             title,
             entry,
             sort_label,
@@ -549,8 +563,10 @@ impl Sidebar {
             expanded: Rc::new(RefCell::new(BTreeSet::new())),
             sort: Rc::new(Cell::new(Sort::Date)),
             open: Rc::new(RefCell::new(None)),
-            head: Rc::new(RefCell::new(None)),
+            header: Rc::new(RefCell::new(None)),
+            head_drop: Rc::new(RefCell::new(None)),
             contents: Rc::new(RefCell::new(Contents::new())),
+            read: Rc::new(RefCell::new(BTreeMap::new())),
             settle: Rc::new(RefCell::new(None)),
         };
         let cycling = sidebar.clone();
@@ -643,6 +659,20 @@ impl Sidebar {
             opening.menu_at(x, y);
         });
         self.list.add_controller(menued);
+        // The pane's head is the one Location's header where the Library has
+        // only the one, so the right button offers there what a section head
+        // offers ([`Sidebar::head_as_location`]).
+        let heading = gtk::GestureClick::new();
+        heading.set_button(gdk::BUTTON_SECONDARY);
+        let removing = self.clone();
+        heading.connect_pressed(move |gesture, _, x, y| {
+            let Some(location) = removing.header.borrow().clone() else {
+                return;
+            };
+            gesture.set_state(gtk::EventSequenceState::Claimed);
+            removing.popup(&location_menu(&location), &removing.head, x, y);
+        });
+        self.head.add_controller(heading);
         self.install_row_actions();
         // The two words of "Changed on disk · Reload · Keep": each opens the
         // diff view of what it would do, in the window this pane belongs to.
@@ -743,13 +773,8 @@ impl Sidebar {
             sort: self.sort.get(),
         };
         let now = glib::DateTime::now_local().ok();
-        // Every shown file read once, here, for the two things a row and the
-        // count both want out of it. The walk is the files the view shows and
-        // at most [`EXCERPT_BYTES`] of each.
-        let read: BTreeMap<PathBuf, Head> = library
-            .files(&view)
-            .map(|file| (file.path().to_path_buf(), Head::of(file.path())))
-            .collect();
+        self.read_heads(library.files(&view));
+        let read = self.read.borrow();
         let ground = session.ground();
         let drawing = Drawing {
             extensions: session.settings().library.show_extensions,
@@ -768,8 +793,15 @@ impl Sidebar {
         // names it: a pane called Library over a section called library says
         // the same word twice. Anything else is the pane over its parts.
         let parts = !pinned.is_empty() || library.locations().len() > 1;
-        let alone = (!parts).then(|| shown.first().map(section_name)).flatten();
-        self.title.set_text(alone.as_deref().unwrap_or(TITLE));
+        let alone = (!parts).then(|| shown.first()).flatten();
+        self.title
+            .set_text(&alone.map_or_else(|| TITLE.to_string(), section_name));
+        // No section head is drawn for it, so the pane's head is its header:
+        // what it is called, what its menu offers, and what a row let go over
+        // it moves into (#246, stories 3 and 38).
+        self.header
+            .replace(alone.map(|section| section.path.to_path_buf()));
+        self.head_as_location();
         let query = self.query();
         if query.is_empty() {
             self.tree(&shown, &pinned, parts, &drawing);
@@ -781,6 +813,28 @@ impl Sidebar {
         self.highlight();
     }
 
+    /// Reads the head of every shown file, keeping the ones already read.
+    ///
+    /// A row shows two lines of what its file says and the count adds up their
+    /// words, so every shown file has to be read; a file whose write time has
+    /// not moved since the last refresh is not read again, which is the shape
+    /// [`quill_engine::library::Contents`] gives search. The bound is one read
+    /// of at most [`EXCERPT_BYTES`] per shown file that has been written since
+    /// the pane last drew, and what is held is one head per shown file: the
+    /// map is built again from the files the view shows, so a file that has
+    /// left the Library leaves the map with it.
+    fn read_heads<'a>(&self, files: impl Iterator<Item = &'a File>) {
+        let mut read = self.read.borrow_mut();
+        let mut before = std::mem::take(&mut *read);
+        for file in files {
+            let head = match before.remove(file.path()) {
+                Some(head) if head.modified == file.modified() => head,
+                _ => Head::of(file.path(), file.modified()),
+            };
+            read.insert(file.path().to_path_buf(), head);
+        }
+    }
+
     /// The Library as it stands: the Pinned section, then one section per
     /// Location, or the one Location's rows alone under the pane's own head.
     fn tree(&self, shown: &[Section<'_>], pinned: &[Row<'_>], parts: bool, drawing: &Drawing<'_>) {
@@ -790,8 +844,12 @@ impl Sidebar {
             let head = self.section(None, "Pinned", sections, pinned, drawing);
             // One target, however many rows it draws: the whole section lights
             // and every row of it takes the drop (#246 story 11).
-            let mut group = vec![head];
-            group.extend(self.drawn_since(first).into_iter().map(|listed| listed.row));
+            let mut group: Vec<gtk::Widget> = vec![head.upcast()];
+            group.extend(
+                self.drawn_since(first)
+                    .into_iter()
+                    .map(|listed| listed.row.upcast()),
+            );
             let group = Rc::new(group);
             let over = Rc::new(Cell::new(0));
             for row in group.iter() {
@@ -803,13 +861,13 @@ impl Sidebar {
             let first = self.rows.borrow().len();
             if parts {
                 let head = self.section(
-                    Some(section.root),
+                    Some(section.path),
                     &section_name(section),
                     sections,
                     &section.rows,
                     drawing,
                 );
-                self.folder_target(&head, section.root);
+                self.folder_target(&head, section.path);
             } else {
                 self.rows_of(&section.rows, drawing);
             }
@@ -828,12 +886,12 @@ impl Sidebar {
         self.rows.borrow()[first..].to_vec()
     }
 
-    /// A folder's row or a Location's head as a place a dragged row can be
-    /// moved into, lighting alone.
-    fn folder_target(&self, row: &gtk::ListBoxRow, folder: &Path) {
-        let lit = Rc::new(vec![row.clone()]);
+    /// A folder's row, a Location's head or the pane's own head as a place a
+    /// dragged row can be moved into, lighting alone.
+    fn folder_target(&self, on: &impl IsA<gtk::Widget>, folder: &Path) -> gtk::DropTarget {
+        let lit = Rc::new(vec![on.clone().upcast()]);
         let over = Rc::new(Cell::new(0));
-        self.drop_onto(row, &Onto::Folder(folder.to_path_buf()), &lit, &over);
+        self.drop_onto(on, &Onto::Folder(folder.to_path_buf()), &lit, &over)
     }
 
     /// Puts `onto` under `row`: what letting a dragged row go there does, and
@@ -847,11 +905,11 @@ impl Sidebar {
     /// is for: without it the path is unreadable until the writer has let go.
     fn drop_onto(
         &self,
-        row: &gtk::ListBoxRow,
+        on: &impl IsA<gtk::Widget>,
         onto: &Onto,
-        lit: &Rc<Vec<gtk::ListBoxRow>>,
+        lit: &Rc<Vec<gtk::Widget>>,
         over: &Rc<Cell<usize>>,
-    ) {
+    ) -> gtk::DropTarget {
         let target = gtk::DropTarget::new(glib::types::Type::STRING, gdk::DragAction::MOVE);
         target.set_preload(true);
 
@@ -916,7 +974,8 @@ impl Sidebar {
             pane.let_go(&from, &done);
             true
         });
-        row.add_controller(target);
+        on.add_controller(target.clone());
+        target
     }
 
     /// What letting the row `target` is carrying go over `onto` would do, and
@@ -1098,7 +1157,7 @@ impl Sidebar {
         let body = gtk::Box::new(gtk::Orientation::Vertical, 0);
         body.set_hexpand(true);
         let top = gtk::Box::new(gtk::Orientation::Horizontal, ICON_GAP);
-        let title = gtk::Label::new(Some(&shown_name(row.name, drawing.extensions)));
+        let title = gtk::Label::new(Some(&row_name(row.name, drawing.extensions)));
         title.add_css_class("lib-name");
         title.set_hexpand(true);
         title.set_xalign(0.0);
@@ -1233,14 +1292,33 @@ impl Sidebar {
         if folder {
             let mut expanded = self.expanded.borrow_mut();
             if !expanded.remove(&path) {
-                expanded.insert(path);
+                expanded.insert(path.clone());
             }
             drop(expanded);
+            // The refresh builds every row again, so the row that was pressed
+            // is a new widget and the keyboard would be left on the list with
+            // nothing under it: the arrows go on from where the writer is.
             self.refresh();
+            self.focus_row(&path);
             return;
         }
         if let Some(window) = self.owner() {
             window.open_path(&path);
+        }
+    }
+
+    /// Puts the selection and the keyboard on the row at `path`, where the
+    /// list still draws one.
+    fn focus_row(&self, path: &Path) {
+        let found = self
+            .rows
+            .borrow()
+            .iter()
+            .find(|listed| listed.path == path)
+            .map(|listed| listed.row.clone());
+        if let Some(row) = found {
+            self.list.select_row(Some(&row));
+            row.grab_focus();
         }
     }
 
@@ -1339,7 +1417,7 @@ impl Sidebar {
         let Some(beside) = label.parent().and_downcast::<gtk::Box>() else {
             return false;
         };
-        let name = file_name_of(&path);
+        let name = full_name(&path);
         let entry = gtk::Entry::builder()
             .text(&name)
             .hexpand(true)
@@ -1423,9 +1501,8 @@ impl Sidebar {
         let Some(row) = self.list.row_at_y(pixels(y)) else {
             return;
         };
-        let model = if let Some(root) = self.head_at(&row) {
-            self.head.replace(Some(root));
-            location_menu()
+        let model = if let Some(location) = self.head_at(&row) {
+            location_menu(&location)
         } else {
             let Some((path, folder)) = self.listed_at(&row) else {
                 return;
@@ -1433,18 +1510,44 @@ impl Sidebar {
             self.list.select_row(Some(&row));
             row_menu(folder, self.is_pinned(&path))
         };
-        let menu = gtk::PopoverMenu::from_model_full(&model, gtk::PopoverMenuFlags::NESTED);
+        self.popup(&model, &self.list, x, y);
+    }
+
+    /// Stands `model` at (`x`, `y`) of `over`, as the menu of what can be done
+    /// there.
+    fn popup(&self, model: &gio::Menu, over: &impl IsA<gtk::Widget>, x: f64, y: f64) {
+        let menu = gtk::PopoverMenu::from_model_full(model, gtk::PopoverMenuFlags::NESTED);
         // The bars' and the Palette's menu look, which the one stylesheet
         // carries ([`crate::chrome::stylesheet`]).
         menu.add_css_class("chrome-menu");
         menu.set_has_arrow(false);
         menu.set_halign(gtk::Align::Start);
-        menu.set_parent(&self.list);
+        menu.set_parent(over);
         menu.set_pointing_to(Some(&gdk::Rectangle::new(pixels(x), pixels(y), 1, 1)));
-        // A popover parented on the list belongs to nobody once it closes, so
+        // A popover parented on a widget belongs to nobody once it closes, so
         // it takes itself down rather than leaving one behind per right-click.
         menu.connect_closed(|menu| menu.unparent());
         menu.popup();
+    }
+
+    /// Puts the one Location's header on the pane's own head, or takes it off
+    /// again.
+    ///
+    /// A Library of one Location with nothing Pinned draws no section head —
+    /// the pane's head is already saying that Location's name — so the head is
+    /// where Remove from Library and a drop on to the Location's top level
+    /// have to live, or neither is reachable at all. The target goes on and
+    /// comes off as the Library changes, because one left behind would answer
+    /// for a Location the pane has stopped showing.
+    fn head_as_location(&self) {
+        if let Some(target) = self.head_drop.take() {
+            self.head.remove_controller(&target);
+        }
+        let Some(location) = self.header.borrow().clone() else {
+            return;
+        };
+        self.head_drop
+            .replace(Some(self.folder_target(&self.head, &location)));
     }
 
     /// The actions a row menu fires that no Command covers: opening the row
@@ -1465,9 +1568,16 @@ impl Sidebar {
             action.connect_activate(move |_, _| pinning.set_pinned(pinned));
             actions.add_action(&action);
         }
-        let removed = gio::SimpleAction::new("remove", None);
+        // The one action with something to say: which Location. It rides on
+        // the menu item rather than in a field the right-click filled in, so
+        // that what the row menu fires is all there in the model.
+        let removed = gio::SimpleAction::new("remove", Some(glib::VariantTy::STRING));
         let dropping = self.clone();
-        removed.connect_activate(move |_, _| dropping.drop_location());
+        removed.connect_activate(move |_, location| {
+            if let Some(location) = location.and_then(glib::Variant::str) {
+                dropping.drop_location(Path::new(location));
+            }
+        });
         actions.add_action(&removed);
         self.root.insert_action_group("row", Some(&actions));
     }
@@ -1487,12 +1597,10 @@ impl Sidebar {
         window.set_pinned(&path, pinned);
     }
 
-    /// `row.remove`: the Location whose head was right-clicked leaves the
-    /// Library.
-    fn drop_location(&self) {
-        let root = self.head.borrow().clone();
-        if let (Some(window), Some(root)) = (self.owner(), root) {
-            window.drop_location(&root);
+    /// `row.remove`: the Location the menu item names leaves the Library.
+    fn drop_location(&self, location: &Path) {
+        if let Some(window) = self.owner() {
+            window.drop_location(location);
         }
     }
 
@@ -1677,26 +1785,22 @@ fn row_menu(folder: bool, pinned: bool) -> gio::Menu {
 }
 
 /// What a Location's head offers: the one thing that is not about a file.
-fn location_menu() -> gio::Menu {
+fn location_menu(location: &Path) -> gio::Menu {
     let menu = gio::Menu::new();
-    menu.append(Some("Remove from Library"), Some("row.remove"));
+    let row = gio::MenuItem::new(Some("Remove from Library"), None);
+    let target = location.to_string_lossy().into_owned();
+    row.set_action_and_target_value(Some("row.remove"), Some(&target.to_variant()));
+    menu.append_item(&row);
     menu
-}
-
-/// What the file at `path` is called, which is what a rename field opens with.
-fn file_name_of(path: &Path) -> String {
-    path.file_name()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .into_owned()
 }
 
 /// The pane's head: what it is called, the toggle that shuts it, and the
 /// button that starts a Document in it.
 ///
-/// Both buttons fire their Commands by name, so `file.new` — which the row
-/// operations ticket builds — does nothing yet without the button being greyed,
-/// which is how the bars' buttons stand ([`crate::chrome::Bars`]).
+/// Both buttons fire their Commands by name, as the bars' buttons do
+/// ([`crate::chrome::Bars`]). Where the head is naming the one Location of the
+/// whole Library it is that Location's header too, and carries its menu and
+/// its drop target ([`Sidebar::head_location`]).
 fn head(title: &gtk::Label) -> gtk::Box {
     let head = gtk::Box::new(gtk::Orientation::Horizontal, HEAD_GAP);
     head.set_height_request(HEAD_HEIGHT);
@@ -1824,10 +1928,10 @@ fn foot(status: &gtk::Label, offer: &gtk::Box) -> gtk::Box {
     // Where the manuscripts are, at the foot's right (`.lib-where`), because a
     // status line that says the work is saved without saying where has not
     // said the half that matters.
-    let held = gtk::Label::new(Some(WHERE));
-    held.add_css_class("lib-meta");
-    held.set_margin_end(ROW_RIGHT);
-    foot.append(&held);
+    let device = gtk::Label::new(Some(WHERE));
+    device.add_css_class("lib-meta");
+    device.set_margin_end(ROW_RIGHT);
+    foot.append(&device);
     foot
 }
 
@@ -1849,17 +1953,17 @@ fn marks(snippet: Option<&Snippet>, drawing: &Drawing<'_>) -> gtk::pango::AttrLi
     let at = snippet.at();
     let (from, to) = (index(at.start), index(at.end));
     let mut ground = gtk::pango::AttrColor::new_background(
-        channel(drawing.mark.red),
-        channel(drawing.mark.green),
-        channel(drawing.mark.blue),
+        marked(drawing.mark.red),
+        marked(drawing.mark.green),
+        marked(drawing.mark.blue),
     );
     ground.set_start_index(from);
     ground.set_end_index(to);
     attributes.insert(ground);
     let mut ink = gtk::pango::AttrColor::new_foreground(
-        channel(drawing.marked.red),
-        channel(drawing.marked.green),
-        channel(drawing.marked.blue),
+        marked(drawing.marked.red),
+        marked(drawing.marked.green),
+        marked(drawing.marked.blue),
     );
     ink.set_start_index(from);
     ink.set_end_index(to);
@@ -1872,35 +1976,23 @@ fn index(at: usize) -> u32 {
     u32::try_from(at).unwrap_or(u32::MAX)
 }
 
-/// One channel of a colour as Pango takes it: 0–1 over the sixteen bits it
-/// holds a channel in. Rounded here and only here, beside [`pixels`].
-fn channel(amount: f64) -> u16 {
-    #[expect(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        reason = "a channel is 0-1, so the product is inside u16 whatever it rounds to"
-    )]
-    let whole = (amount.clamp(0.0, 1.0) * f64::from(u16::MAX)).round() as u16;
-    whole
+/// One channel of a colour as Pango marks a range in: the byte
+/// [`quill_engine::theme::channel`] rounds it to, widened to the sixteen bits
+/// Pango holds a channel in.
+///
+/// The rounding is the engine's and happens once there; the widening is exact
+/// — a byte in both halves of the sixteen — and what the screen is given is
+/// that byte either way.
+fn marked(amount: f64) -> u16 {
+    u16::from(theme::channel(amount)) * 257
 }
 
 /// A section's name: the folder's own, or the path where it has none.
 fn section_name(section: &Section<'_>) -> String {
-    match section.root.file_name() {
+    match section.path.file_name() {
         Some(name) => name.to_string_lossy().into_owned(),
-        None => section.root.display().to_string(),
+        None => section.path.display().to_string(),
     }
-}
-
-/// `length` as a whole number: the excerpt's leading in Pango units. Rounded
-/// here and only here, in the shape of `quill::tags::pixels`.
-fn pixels(length: f64) -> i32 {
-    #[expect(
-        clippy::cast_possible_truncation,
-        reason = "a line of type in Pango units is a few tens of thousands at most"
-    )]
-    let whole = length.round() as i32;
-    whole
 }
 
 /// A section's head: the folder's name, or Pinned.
@@ -1944,7 +2036,7 @@ fn icon(
 
 /// The name a row shows: the file's, without its extension unless the writer
 /// asked for them (`library.show_extensions`, false by default).
-fn shown_name(name: &str, extensions: bool) -> String {
+fn row_name(name: &str, extensions: bool) -> String {
     if extensions {
         return name.to_string();
     }
@@ -1985,24 +2077,30 @@ struct Head {
     /// How many words the read holds ([`quill_engine::stats::words`], the same
     /// count the stats bar shows).
     words: usize,
+    /// When the file was last written, as the read found it: what says whether
+    /// a later refresh has to read it again ([`Sidebar::read_heads`]).
+    modified: Option<SystemTime>,
 }
 
 impl Head {
-    /// The first [`EXCERPT_BYTES`] of the file at `path`, read as prose.
+    /// The first [`EXCERPT_BYTES`] of the file at `path`, read as prose, held
+    /// against the write time `modified` the Library has for it.
     ///
     /// A file that cannot be read is an empty head rather than a missing row:
     /// the tree says the file is there and the sidebar's job is to show it,
     /// whatever a reader of it just found.
-    fn of(path: &Path) -> Self {
+    fn of(path: &Path, modified: Option<SystemTime>) -> Self {
         let Some(read) = beginning(path) else {
             return Self {
                 excerpt: String::new(),
                 words: 0,
+                modified,
             };
         };
         Self {
             words: quill_engine::stats::words(&read),
             excerpt: prose(&read),
+            modified,
         }
     }
 }
@@ -2061,11 +2159,11 @@ fn stamp(modified: SystemTime, now: &glib::DateTime) -> String {
     let Ok(when) = glib::DateTime::from_unix_local(seconds) else {
         return String::new();
     };
-    said(&when, now)
+    dated(&when, now)
 }
 
 /// [`stamp`] with both dates already resolved, so a test can name them.
-fn said(when: &glib::DateTime, now: &glib::DateTime) -> String {
+fn dated(when: &glib::DateTime, now: &glib::DateTime) -> String {
     let day = days(when.year(), when.month(), when.day_of_month());
     let today = days(now.year(), now.month(), now.day_of_month());
     let month = MONTHS[usize::try_from(when.month() - 1).unwrap_or(0).min(11)];
@@ -2233,10 +2331,10 @@ mod tests {
 
     #[test]
     fn a_row_drops_the_extension_unless_the_writer_asked_for_it() {
-        assert_eq!(shown_name("sea-storm.md", false), "sea-storm");
-        assert_eq!(shown_name("sea-storm.md", true), "sea-storm.md");
-        assert_eq!(shown_name("letters.txt", false), "letters");
-        assert_eq!(shown_name("notes", false), "notes");
+        assert_eq!(row_name("sea-storm.md", false), "sea-storm");
+        assert_eq!(row_name("sea-storm.md", true), "sea-storm.md");
+        assert_eq!(row_name("letters.txt", false), "letters");
+        assert_eq!(row_name("notes", false), "notes");
     }
 
     #[test]
@@ -2329,13 +2427,13 @@ mod tests {
     fn a_date_is_the_time_today_yesterday_the_weekday_then_the_month() {
         // 2026-03-04 was a Wednesday.
         let now = at(2026, 3, 4, 15);
-        assert_eq!(said(&at(2026, 3, 4, 9), &now), "9:00 AM");
-        assert_eq!(said(&at(2026, 3, 4, 0), &now), "12:00 AM");
-        assert_eq!(said(&at(2026, 3, 4, 13), &now), "1:00 PM");
-        assert_eq!(said(&at(2026, 3, 3, 9), &now), "Yesterday");
-        assert_eq!(said(&at(2026, 3, 1, 9), &now), "Sun");
-        assert_eq!(said(&at(2026, 1, 9, 9), &now), "Jan 9");
-        assert_eq!(said(&at(2025, 3, 14, 9), &now), "Mar 14, 25");
+        assert_eq!(dated(&at(2026, 3, 4, 9), &now), "9:00 AM");
+        assert_eq!(dated(&at(2026, 3, 4, 0), &now), "12:00 AM");
+        assert_eq!(dated(&at(2026, 3, 4, 13), &now), "1:00 PM");
+        assert_eq!(dated(&at(2026, 3, 3, 9), &now), "Yesterday");
+        assert_eq!(dated(&at(2026, 3, 1, 9), &now), "Sun");
+        assert_eq!(dated(&at(2026, 1, 9, 9), &now), "Jan 9");
+        assert_eq!(dated(&at(2025, 3, 14, 9), &now), "Mar 14, 25");
     }
 
     #[test]

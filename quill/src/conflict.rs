@@ -27,9 +27,12 @@ const ADDED: &str = "added";
 /// The tag on a line the file will lose.
 const REMOVED: &str = "removed";
 
-/// What each kind of line is marked with, as a diff is marked anywhere.
+/// What a line both texts have is marked with: the width of the other two, so
+/// that every line of the diff starts at one column.
 const SAME_MARK: &str = "  ";
+/// What a line the file will lose is marked with, as a diff is marked anywhere.
 const REMOVED_MARK: &str = "- ";
+/// What a line the file will gain is marked with, as a diff is marked anywhere.
 const ADDED_MARK: &str = "+ ";
 
 /// How strongly a changed line's tint is laid over the paper.
@@ -38,13 +41,16 @@ const ADDED_MARK: &str = "+ ";
 /// front of it already says which kind it is.
 const TINT: f64 = 0.14;
 
-/// The view's size when it opens, in logical pixels: wide enough for a line of
-/// prose without wrapping, tall enough for a screenful of it.
+/// The view's width when it opens, in logical pixels: wide enough for a line
+/// of prose without wrapping.
 const VIEW_WIDTH: i32 = 720;
+/// The view's height when it opens, in logical pixels: tall enough for a
+/// screenful of that prose.
 const VIEW_HEIGHT: i32 = 520;
 
-/// The air around the view's parts, and between them.
+/// The air around the view's parts.
 const MARGIN: i32 = 12;
+/// The air between them.
 const GAP: i32 = 8;
 
 /// Which way out of a conflict the view is showing.
