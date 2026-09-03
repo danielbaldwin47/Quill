@@ -20,7 +20,7 @@ stdin  : line 1, the plan:
          `text` is a convenience: one key per character, converted with the US layout table below.
          `keys` wins when both are given, and is the only form that can spell a chord or ask for a
          longer wait after one key. `pause_ms` replaces that key's `pace_ms`, it is not added to it.
-         Then one line per chunk: "go" types the next `chunk` keys, "end" stops.
+         Then one line per chunk: "go" types the next `chunk` keys, "go N" the next N, "end" stops.
 stdout : line 1 {"ready":true,...}; one {"chunk":i,"typed":n} per "go"; then the summary
          {"ok":true,"n":300,"clock":"CLOCK_MONOTONIC","events":[{"i","code","shift","t_ns"},...]}.
 
@@ -144,11 +144,14 @@ def main():
     try:
         i = 0
         while i < len(keys):
-            cmd = sys.stdin.readline().strip()
-            if cmd != 'go':                       # "end", EOF, or anything unexpected: stop typing
+            cmd = sys.stdin.readline().split()
+            if not cmd or cmd[0] != 'go':         # "end", EOF, or anything unexpected: stop typing
                 break
+            # "go N" types N rather than a chunk: the bench's warm-up ends on one, so the measured
+            # keys go through the same device without a second settle.
+            asked_now = int(cmd[1]) if len(cmd) > 1 else chunk
             first = i
-            for _ in range(min(chunk, len(keys) - i)):
+            for _ in range(min(asked_now, len(keys) - i)):
                 k = keys[i]
                 pkt = b''
                 for m in k['mods']: pkt += ev(EV_KEY, m, 1)
