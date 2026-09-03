@@ -91,9 +91,12 @@ impl fmt::Display for Error {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Template {
     /// What the settings file and the Command rows call it.
+    ///
+    /// The only name a Template carries: what the View menu, the Palette and
+    /// the Settings window call it is the Command's own title
+    /// (`quill::commands`), so a second one here would be a second place to
+    /// change it.
     pub id: String,
-    /// What a menu calls it.
-    pub name: String,
     /// How one paragraph is told from the next.
     pub paragraphs: Paragraphs,
     /// The three families a page is set in.
@@ -296,7 +299,6 @@ mod tests {
         for id in IDS {
             let template = built_in(id).expect("a built-in id");
             assert_eq!(template.id, id, "{id}'s file names another Template");
-            assert!(!template.name.is_empty(), "{id} has no name for a menu");
         }
     }
 

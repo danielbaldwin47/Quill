@@ -1871,8 +1871,11 @@ impl Window {
         let Some(session) = self.session() else {
             return;
         };
+        // A drag is always a width, however far left the pointer went: the
+        // pane stops at the narrowest it may stand at rather than falling back
+        // to the even divide, which is what a pane nobody dragged reads as.
         let width = crate::preview::pane_width(
-            u32::try_from(wanted).unwrap_or_default(),
+            Some(u32::try_from(wanted).unwrap_or_default()),
             u32::try_from(self.pair_width()).unwrap_or(u32::MAX),
         );
         session.set_preview_width(width);
@@ -1905,13 +1908,13 @@ impl Window {
                 session.preview_width(),
                 u32::try_from(self.pair_width()).unwrap_or(u32::MAX),
             ),
-            _ => quill_engine::settings::EVEN,
+            _ => None,
         };
         if let Some(pair) = imp.pair.get() {
             // An even Split is the two halves of a homogeneous box rather
             // than a width worked out here: the pair knows how wide it is and
             // a window has not been allocated when this first runs.
-            pair.set_homogeneous(shown && split && width == quill_engine::settings::EVEN);
+            pair.set_homogeneous(shown && split && width.is_none());
         }
         imp.preview.set_width(width);
     }

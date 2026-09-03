@@ -956,7 +956,7 @@ impl Editor {
             return;
         }
         let (bx, by) =
-            self.window_to_buffer_coords(gtk::TextWindowType::Widget, x as i32, y as i32);
+            self.window_to_buffer_coords(gtk::TextWindowType::Widget, buffer_px(x), buffer_px(y));
         let Some(at) = self.iter_at_location(bx, by).map(|at| at.offset()) else {
             return;
         };
@@ -1844,7 +1844,7 @@ impl Editor {
         let bottom = f64::from(view.y() + view.height()) + pitch * SELECTION_SLACK;
         let mut rows: Vec<caret::Bar> = Vec::new();
         let mut at = start;
-        if let Some(seen) = self.iter_at_location(0, top.max(0.0) as i32)
+        if let Some(seen) = self.iter_at_location(0, buffer_px(top.max(0.0)))
             && seen > at
         {
             at = seen;
@@ -2458,10 +2458,10 @@ impl Editor {
         let top = f64::from(view.y()) - slack;
         let bottom = f64::from(view.y() + view.height()) + slack;
         let first = self
-            .iter_at_location(0, top.max(0.0) as i32)
+            .iter_at_location(0, buffer_px(top.max(0.0)))
             .map_or(0, |at| at.offset());
         let last = self
-            .iter_at_location(0, bottom as i32)
+            .iter_at_location(0, buffer_px(bottom))
             .map_or(i32::MAX, |at| at.offset());
         first..last
     }
@@ -2484,8 +2484,12 @@ impl Editor {
         let side = (em * BULLET).max(1.0);
         let x = cell.x + (cell.w - side) / 2.0;
         let y = cell.y + self.imp().baseline.get() - em * X_HEIGHT - side / 2.0;
-        let rect = graphene::Rect::new(x as f32, y as f32, side as f32, side as f32);
-        snapshot.push_rounded_clip(&gsk::RoundedRect::from_rect(rect, (side / 2.0) as f32));
+        // Already in the widget's own pixels — the em above is divided by the
+        // scale — so the narrowing is [`logical`] at a scale of one, which is
+        // what [`Editor::draw_number`] hands its own two lengths through.
+        let side_px = logical(side, 1.0);
+        let rect = graphene::Rect::new(logical(x, 1.0), logical(y, 1.0), side_px, side_px);
+        snapshot.push_rounded_clip(&gsk::RoundedRect::from_rect(rect, side_px / 2.0));
         snapshot.append_color(&paint(colours, Role::Mark, 1.0), &rect);
         snapshot.pop();
     }
@@ -2898,7 +2902,7 @@ impl Editor {
     #[must_use]
     pub fn top_block(&self, document: &Document, offset: f64) -> Option<sync::Block> {
         let y = offset - f64::from(self.top_margin());
-        let at = self.iter_at_location(0, y.max(0.0) as i32)?;
+        let at = self.iter_at_location(0, buffer_px(y.max(0.0)))?;
         let key = document.block_at(tags::offset_of(document, &at))?;
         self.block_row(document, key)
     }
@@ -3195,6 +3199,23 @@ fn open(destination: &str, window: Option<&gtk::Window>) {
 /// A byte offset a flag named, as the Document counts them.
 fn byte_offset(bytes: u64) -> usize {
     usize::try_from(bytes).unwrap_or(usize::MAX)
+}
+
+/// A view or pointer coordinate as the buffer counts them: whole pixels.
+///
+/// The rounding every crossing into `GtkTextView`'s own coordinates makes, done
+/// once and in one place (`CODING_STANDARDS.md` § Shape): a gesture, a scroll
+/// offset and a viewport edge all arrive as fractions of a logical pixel, and
+/// `window_to_buffer_coords` and `iter_at_location` count in whole ones. The
+/// cast saturates in Rust, so a coordinate no window could hold clamps rather
+/// than wrapping.
+fn buffer_px(length: f64) -> i32 {
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "a coordinate inside one window, and the cast saturates either way"
+    )]
+    let whole = length.round() as i32;
+    whole
 }
 
 /// A length in device pixels, in the widget's own pixels, as `graphene` takes

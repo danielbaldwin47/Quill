@@ -4,7 +4,6 @@
 # where each of them comes from.
 
 id = "manuscript-duo"
-name = "Manuscript (Duo)"
 paragraphs = "spaced"
 
 [faces]
