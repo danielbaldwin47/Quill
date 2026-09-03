@@ -22,6 +22,7 @@
 
 mod caret;
 mod chrome;
+mod conflict;
 mod editor;
 mod files;
 mod flags;
