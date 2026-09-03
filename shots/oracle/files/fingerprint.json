@@ -7,12 +7,14 @@
   "shoot": "239bd27db3974b27",
   "git_head": "1dccaf4",
   "passages": {
-    "ref/sample.md": "8005e6c57d435cea"
+    "shots/oracle/library/sea-storm.md": "06a3d968fd0e7e7d"
   },
-  "libraries": {},
+  "libraries": {
+    "shots/oracle/library": "0e72ba605d56c3cd"
+  },
   "states": {
-    "duo": {
-      "text": "ref/sample.md",
+    "library": {
+      "text": "shots/oracle/library/sea-storm.md",
       "w": 1440,
       "h": 900,
       "scale": 2,
@@ -21,39 +23,39 @@
       "step": 5,
       "focus": "off",
       "typewriter": false,
-      "chrome": "off",
-      "caret": 403,
+      "chrome": "on",
+      "caret": 0,
       "select": null,
       "scroll": 0,
-      "nocaret": false,
+      "nocaret": true,
       "active": true,
       "typing": false,
       "menu": null,
-      "library": null,
-      "sidebar": false,
+      "library": "shots/oracle/library",
+      "sidebar": true,
       "search": null
     },
-    "quattro": {
-      "text": "ref/sample.md",
+    "search": {
+      "text": "shots/oracle/library/sea-storm.md",
       "w": 1440,
       "h": 900,
       "scale": 2,
       "theme": "light",
-      "font": "quattro",
+      "font": "duo",
       "step": 5,
       "focus": "off",
       "typewriter": false,
-      "chrome": "off",
-      "caret": 403,
+      "chrome": "on",
+      "caret": 0,
       "select": null,
       "scroll": 0,
-      "nocaret": false,
+      "nocaret": true,
       "active": true,
       "typing": false,
       "menu": null,
-      "library": null,
-      "sidebar": false,
-      "search": null
+      "library": "shots/oracle/library",
+      "sidebar": true,
+      "search": "sea"
     }
   }
 }

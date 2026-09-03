@@ -4,11 +4,12 @@
     "files": 16,
     "sha256": "738f48c969965ac3"
   },
-  "shoot": "b2362316db135d06",
-  "git_head": "27225bc",
+  "shoot": "239bd27db3974b27",
+  "git_head": "1dccaf4",
   "passages": {
     "ref/sample.md": "8005e6c57d435cea"
   },
+  "libraries": {},
   "states": {
     "dark-sentence-typewriter": {
       "text": "ref/sample.md",
@@ -27,7 +28,10 @@
       "nocaret": false,
       "active": true,
       "typing": false,
-      "menu": null
+      "menu": null,
+      "library": null,
+      "sidebar": false,
+      "search": null
     }
   }
 }

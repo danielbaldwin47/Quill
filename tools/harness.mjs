@@ -174,6 +174,13 @@ export function quillArgv(root, flags, { live = false } = {}) {
   // before its first frame, so they are flags and not a script of keystrokes.
   if (flags.typing) argv.push('--typing');
   if (flags.menu) argv.push('--menu', flags.menu);
+  // The Library the `files` states open. `--library` is the fixture folder — joined to the root the
+  // way `--text` is, because ours is launched from wherever the harness happens to be — `--sidebar`
+  // shows the pane, and `--search` puts the query in its field. The app copies the tree and stamps
+  // it from the fixture's `manifest.json`, so the Date sort is the same on every machine.
+  if (flags.library) argv.push('--library', path.join(root, flags.library));
+  if (flags.sidebar) argv.push('--sidebar');
+  if (flags.search) argv.push('--search', flags.search);
   // An empty Document has no passage, and so has no offset into one either.
   if (flags.text) {
     argv.push('--text', path.join(root, flags.text));

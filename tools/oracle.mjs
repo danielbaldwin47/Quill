@@ -17,11 +17,12 @@
 // passage as it read last month is no longer the judged state once the state says 960 or the
 // passage gains a line, and neither of those is visible in the app.
 //
-// A PIECE IS FROZEN WHOLE OR NOT AT ALL. `files`' `library`, `sidebar` and `search` are flags no
-// tool under legacy/ serves yet; they wait for the File handling spec, as states.json says. A
-// Piece with such a state is reported by name and fails — that Piece only — before a browser is
+// A PIECE IS FROZEN WHOLE OR NOT AT ALL. A state may name only flags the `defaults` name — that is
+// the whole of the rule, and no list of the flags of the day is kept here. A Piece with a state
+// that reaches past them is reported by name and fails — that Piece only — before a browser is
 // launched, so a half-frozen opponent never sits on disk waiting to be judged as if it were whole.
-// The rule needs no list kept here: a state may name only flags the defaults name.
+// Every Piece's states are servable today; the next flag a spec invents is refused here until
+// `legacy/tools/shoot.mjs` and this file can serve it, as `library`, `sidebar` and `search` were.
 //
 // WHAT IS NOT FROZEN HERE. A state carrying `opponent` is judged against a crop of the Design
 // oracle — iA Writer for Mac, captured under `ref/ia/shots/mac-native/` (ADR 0015) — and `legacy/`
@@ -137,6 +138,13 @@ export function shootArgv(root, flags, out, url) {
   if (flags.nocaret) argv.push('--nocaret');
   if (flags.typing) argv.push('--typing');
   if (flags.menu) argv.push('--menu', flags.menu);
+  // The Library the `files` states open: the committed fixture folder, the sidebar shown, and the
+  // query in its field. The shooter seeds the fixture into the browser location, because the
+  // oracle's folder location is a picker and cannot be driven headless — so `--text` names one of
+  // the fixture's own documents and the Library is what opens it.
+  if (flags.library) argv.push('--library', flags.library);
+  if (flags.sidebar) argv.push('--sidebar');
+  if (flags.search) argv.push('--search', flags.search);
   if (flags.text) {
     const passage = fs.readFileSync(path.join(root, flags.text), 'utf8');
     argv.push('--text', flags.text);
@@ -148,6 +156,25 @@ export function shootArgv(root, flags, out, url) {
 }
 
 // ---------- what produced the shots ----------
+
+// The fixture a `library` state opens, hashed whole: every file under it, its subfolders and its
+// dot-folders included, each under its path. `passages` covers the one document `--text` names and
+// nothing else, and a Library judged on eight rows is out of date the moment any of the other
+// seven is — the row it draws is the file, not just the one that is open.
+function hashLibrary(root, dir) {
+  const lines = [];
+  const walk = (rel) => {
+    const at = path.join(root, dir, rel);
+    for (const e of fs.readdirSync(at, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+      const under = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(under);
+      else lines.push(`${under}:${sha256(fs.readFileSync(path.join(root, dir, under)))}`);
+    }
+  };
+  walk('');
+  return sha256(Buffer.from(`${lines.join('\n')}\n`)).slice(0, 16);
+}
+
 export function fingerprint(root, resolved) {
   const git = gitHead(root);
   return {
@@ -157,6 +184,8 @@ export function fingerprint(root, resolved) {
     git_head: git,
     passages: Object.fromEntries([...new Set(resolved.map((s) => s.flags.text).filter(Boolean))].sort()
       .map((p) => [p, sha256(fs.readFileSync(path.join(root, p))).slice(0, 16)])),
+    libraries: Object.fromEntries([...new Set(resolved.map((s) => s.flags.library).filter(Boolean))].sort()
+      .map((d) => [d, hashLibrary(root, d)])),
     states: Object.fromEntries(resolved.map((s) => [s.name, s.flags])),
   };
 }
@@ -195,6 +224,7 @@ export function freezeReason(was, now, have) {
   if (was.app?.sha256 !== now.app.sha256 || was.app?.files !== now.app.files) return 'legacy/app changed';
   if (was.shoot !== now.shoot) return 'legacy/tools/shoot.mjs changed';
   if (JSON.stringify(was.passages) !== JSON.stringify(now.passages)) return 'the passage changed';
+  if (JSON.stringify(was.libraries) !== JSON.stringify(now.libraries)) return 'the library fixture changed';
   if (JSON.stringify(was.states) !== JSON.stringify(now.states)) return 'the judged states changed';
   const missing = Object.keys(now.states).filter((s) => !have.includes(s));
   if (missing.length) return `a shot is missing (${missing.join(', ')})`;
@@ -342,7 +372,7 @@ async function freeze(root, piece, force) {
       const fixtures = s.cannot.map((f) => s.flags[f]).filter((v) => typeof v === 'string' && v.includes('/'));
       process.stderr.write(`gate oracle ${piece}: state ${s.name} names ${s.cannot.join(', ')}${fixtures.length ? `, and the fixture ${fixtures.join(', ')}` : ''}\n`);
     }
-    process.stderr.write('gate oracle: no tool under legacy/ serves those yet; they wait for the File handling spec (shots/oracle/states.json)\n');
+    process.stderr.write('gate oracle: no tool under legacy/ serves those yet; a state may name only the flags the defaults name (shots/oracle/states.json)\n');
     console.log(`gate oracle ${piece}: fail (${blocked.length} of ${parity.length} states name flags this tool cannot serve yet)`);
     return 1;
   }
