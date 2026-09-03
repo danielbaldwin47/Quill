@@ -734,7 +734,31 @@ impl Session {
         self.leaving.borrow_mut().windows.insert(0, window);
     }
 
-    /// Writes the state file. Called once, when the application shuts down.
+    /// The width the Library pane stands at in every window of this launch.
+    ///
+    /// One width for the app rather than one per window, which is what a
+    /// drag on the divider sets ([`Session::set_library_width`]) and what the
+    /// state file remembers; a launch of the harness's is always at the
+    /// default, having read no state file.
+    #[must_use]
+    pub fn library_width(&self) -> u32 {
+        self.leaving.borrow().library_width
+    }
+
+    /// Takes down the width the writer dragged the pane to.
+    ///
+    /// A launch of the harness's takes down nothing, for the reason
+    /// [`Session::store`] gives: the width a writer left is theirs, and a
+    /// judged shot is not a writer dragging the divider.
+    pub fn set_library_width(&self, width: u32) {
+        if self.harness {
+            return;
+        }
+        self.leaving.borrow_mut().library_width = width;
+    }
+
+    /// Writes the settings and the state file. Called once, when the
+    /// application shuts down.
     pub fn store(&self) {
         if self.harness {
             // A launch of the harness's read no state and leaves none: the
@@ -743,6 +767,19 @@ impl Session {
             return;
         }
         self.store_settings();
+        self.store_state();
+    }
+
+    /// Writes the state file.
+    ///
+    /// Called on the way out and, like [`Session::store_settings`], as the
+    /// writer moves something a Quill that never shuts down cleanly should
+    /// still remember: the pane's width as a drag ends
+    /// ([`crate::window::Window::resize_library`]).
+    pub fn store_state(&self) {
+        if self.harness {
+            return;
+        }
         let mut state = self.leaving.borrow().clone();
         if state.windows.is_empty() {
             // A run that never opened a window, or one whose windows were
@@ -1440,6 +1477,48 @@ mod tests {
         assert_eq!(notes, Vec::<String>::new());
         assert_eq!(written.chrome, Chrome::Hidden);
         std::fs::remove_file(&path).ok();
+    }
+
+    /// The width a drag on the divider arrives at is the app's, one for every
+    /// window; a launch of the harness's keeps none of it, having read no
+    /// state file and leaving none behind (#260).
+    #[test]
+    fn the_pane_width_is_the_sessions_and_a_harness_launch_keeps_none_of_it() {
+        let writer = Session::launch(
+            Flags::default(),
+            Settings::default(),
+            State::default(),
+            WindowState::default(),
+            false,
+            None,
+        );
+        assert_eq!(
+            writer.library_width(),
+            State::default().library_width,
+            "a first launch opens the pane at the default"
+        );
+        writer.set_library_width(512);
+        assert_eq!(writer.library_width(), 512);
+
+        let flags = Flags {
+            deterministic: true,
+            ..Flags::default()
+        };
+        assert!(flags.is_harness(), "a deterministic launch is the Gate's");
+        let harness = Session::launch(
+            flags,
+            Settings::default(),
+            State::default(),
+            WindowState::default(),
+            true,
+            None,
+        );
+        harness.set_library_width(512);
+        assert_eq!(
+            harness.library_width(),
+            State::default().library_width,
+            "a judged shot never drags the divider into the writer's state"
+        );
     }
 
     /// View › Typeface picks a face, and the file follows it: Mono after the
