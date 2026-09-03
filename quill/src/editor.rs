@@ -1456,7 +1456,7 @@ impl Editor {
         let row = self.iter_location(&buffer.iter_at_mark(&buffer.get_insert()));
         let step = self.imp().step.get();
         let scale = self.scale();
-        let (y, h) = self.band(f64::from(row.y()));
+        let (y, h) = self.band(&row);
         let w = f64::from(typography::caret_width(step, scale));
         Some(caret::Bar {
             x: caret::left(f64::from(row.x()) * scale, w),
@@ -1466,8 +1466,8 @@ impl Editor {
         })
     }
 
-    /// The band of the row whose box starts at `top`, in device pixels: the y
-    /// every mark on that row takes, and the height they all take.
+    /// The band of the row `row` is a character's box on, in device pixels:
+    /// the y every mark on that row takes, and the height they all take.
     ///
     /// One function because the registration is the whole of the answer. The
     /// caret and the selection's fill rows are boxes that have to agree to the
@@ -1485,15 +1485,53 @@ impl Editor {
     /// with a pale row standing in for the fraction — which is exactly the
     /// disagreement this function exists to prevent, one end of the band at a
     /// time.
-    fn band(&self, top: f64) -> (f64, f64) {
-        let pitch = f64::from(self.imp().pitch.get());
+    ///
+    /// The whole rectangle rather than its top, because under Live a heading's
+    /// row is not the pitch tall and the rectangle is where the view says how
+    /// tall it is ([`Editor::row_pitch`]).
+    fn band(&self, row: &gdk::Rectangle) -> (f64, f64) {
         let scale = self.scale();
+        let (pitch, baseline) = self.row_pitch(row);
         (
             caret::snap(
-                caret::band_top(top + self.imp().baseline.get() + BASELINE_DRIFT, pitch) * scale,
+                caret::band_top(f64::from(row.y()) + baseline + BASELINE_DRIFT, pitch) * scale,
             ),
             pitch * scale,
         )
+    }
+
+    /// The pitch and the baseline of the row `row` is a character's box on, in
+    /// logical pixels.
+    ///
+    /// The body row's pair, cached with the type, on every row of a page with
+    /// Live off — which is every row every judged state was won on, and the
+    /// reason the answer is gated on the mode rather than taken from the view
+    /// throughout. `iter_location` answers with the ink's own height, and a
+    /// row set in another Face at the same size — inline code in the Mono
+    /// Face, an italic run — need not be the body's to the pixel; a band cut
+    /// from that would move a state Live never reaches.
+    ///
+    /// With Live on the view is asked, because the ladder ([`tags::LADDER`])
+    /// sets a heading larger than the body and the row it stands on is taller
+    /// by exactly as much as its ink is: the leading is a widget property, so
+    /// the same air sits above and below a row whatever it holds
+    /// ([`typography::leading`]), and only the ink between them grows. Every
+    /// other row under Live is the body's ink and comes back out of
+    /// [`row_band`] as the cached pair, so it is untouched.
+    fn row_pitch(&self, row: &gdk::Rectangle) -> (f64, f64) {
+        let pitch = f64::from(self.imp().pitch.get());
+        let baseline = self.imp().baseline.get();
+        if !self.imp().live.get() {
+            return (pitch, baseline);
+        }
+        // The body row's ink, from the numbers already in hand rather than
+        // from a fresh `Editor::row_height`: the leading split the pitch into
+        // the ink and the air above and below it, so the air taken off the
+        // pitch is the ink back again — and a band is cut on the paint path,
+        // once for the caret and once for every row of a selection, which is
+        // no place to lay out a row of type.
+        let air = f64::from(self.pixels_above_lines() + self.pixels_below_lines());
+        row_band(pitch, baseline, pitch - air, f64::from(row.height()))
     }
 
     /// The selection as the boxes that draw it, in device pixels.
@@ -1619,7 +1657,7 @@ impl Editor {
             if stop < end {
                 right = container_right;
             }
-            let (y, h) = self.band(f64::from(box_of_first.y()));
+            let (y, h) = self.band(&box_of_first);
             let x = caret::snap(left * scale);
             let row = caret::Bar {
                 x,
@@ -2611,6 +2649,33 @@ impl Landing {
 /// `(top, height)`, both counted as the vertical adjustment counts them
 /// ([`Editor::row_of`]). A row over either edge is not shown, and a reveal
 /// that left one there has not landed ([`Editor::reveal_settled`]).
+/// The pitch and the baseline of a row whose ink is `ink` tall, on a page
+/// whose body row is `body` tall at `pitch` and `baseline`. All in logical
+/// pixels.
+///
+/// The rule [`Editor::row_pitch`] is: a row is the ink it holds plus the air
+/// the leading puts above and below it, and that air is a widget property and
+/// so is the same on every row. A row of taller ink is therefore taller by
+/// exactly the ink's own excess, and no more — an H1 at 1.6 is *not* 1.6
+/// pitches, because the air did not grow with the type.
+///
+/// The baseline moves with the ink because Pango's `scale` is a multiplier on
+/// the font's size and a font's ascent is a fraction of its size, so the
+/// distance from the top of the ink down to the baseline grows in the same
+/// proportion the ink does. Taken from the ink's own height rather than from
+/// the ladder's rung, so nothing here has to know which level the row is or
+/// whether the rung was rounded on the way to a whole pixel.
+///
+/// A row of the body's own ink comes back as the pair it was given, exactly:
+/// `ink / body` is one, and one times the baseline is the baseline. That is
+/// what leaves every row but a heading's where it was.
+fn row_band(pitch: f64, baseline: f64, body: f64, ink: f64) -> (f64, f64) {
+    if body <= 0.0 || ink <= 0.0 {
+        return (pitch, baseline);
+    }
+    (pitch + ink - body, baseline * (ink / body))
+}
+
 fn on_glass(row: (f64, f64), view: (f64, f64)) -> bool {
     let (row_top, row_height) = row;
     let (view_top, view_height) = view;
@@ -2916,5 +2981,66 @@ mod tests {
             selection_fill(&Ground::of(Scheme::Dark).colours, true),
             "the two grounds were designed one fill each"
         );
+    }
+
+    /// The page the numbers below were read off: `--deterministic --font duo
+    /// --step 5`, the step every judged state is shot at, measured from the
+    /// running app through `iter_location`. The body's ink is 28 logical
+    /// pixels in a pitch of 37, so the leading splits 9 pixels of air over it
+    /// (4 above, 5 below), and its baseline sits 22 pixels down. Live sets an
+    /// H1 at [`tags::LADDER`]'s 1.6, which Pango lays out as 45 pixels of ink
+    /// — 44.8 rounded — and an H2 at 1.4 as 40.
+    const PAGE: (f64, f64, f64) = (37.0, 22.0, 28.0);
+
+    /// Every row but a heading's is the pitch the type was cut at, to the bit:
+    /// the caret Piece is won on those bands and a band that moved by a
+    /// rounding would be a state lost to arithmetic nobody asked for.
+    #[test]
+    fn a_row_of_body_ink_is_the_pitch_and_the_baseline_it_was_cut_with() {
+        let (pitch, baseline, body) = PAGE;
+        assert_eq!(row_band(pitch, baseline, body, body), (pitch, baseline));
+    }
+
+    /// A heading's row is taller by the excess of its own ink and by nothing
+    /// else: the air above and below it is a widget property and did not grow
+    /// with the type. So an H1 is 54 rather than the 59.2 that 1.6 pitches
+    /// would be, and the acceptance line's "1.6 × the pitch" is the ink's
+    /// ladder rung and not the row's.
+    #[test]
+    fn a_heading_row_is_taller_by_its_inks_own_excess() {
+        let (pitch, baseline, body) = PAGE;
+        let air = pitch - body;
+        for ink in [45.0, 40.0, 34.0] {
+            let (row, _) = row_band(pitch, baseline, body, ink);
+            assert_eq!(row, ink + air, "a row of {ink} px of ink keeps the air");
+            assert!(
+                row > pitch && row < ink / body * pitch,
+                "{ink}: taller than the pitch, and short of the ink's own multiple of it"
+            );
+        }
+    }
+
+    /// The baseline moves down the row in the proportion the ink grew, so the
+    /// band keeps its eleven-sixteenths above the letters rather than riding
+    /// up toward the row above ([`caret::band_top`]).
+    #[test]
+    fn a_heading_rows_baseline_moves_with_its_ink() {
+        let (pitch, baseline, body) = PAGE;
+        let (_, deep) = row_band(pitch, baseline, body, 45.0);
+        assert!((deep - baseline * (45.0 / body)).abs() < f64::EPSILON);
+        assert!(
+            deep > baseline && deep < 45.0,
+            "the baseline is further down a taller row and still inside its ink"
+        );
+    }
+
+    /// A page with no type set yet, and a row the view has not laid out, are
+    /// both the body's pair: there is no rectangle to read and the band the
+    /// caller draws is the one it would have drawn before Live existed.
+    #[test]
+    fn a_row_with_no_ink_falls_back_to_the_body() {
+        let (pitch, baseline, body) = PAGE;
+        assert_eq!(row_band(pitch, baseline, body, 0.0), (pitch, baseline));
+        assert_eq!(row_band(pitch, baseline, 0.0, 45.0), (pitch, baseline));
     }
 }
