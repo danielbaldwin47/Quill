@@ -9,8 +9,16 @@ One Markdown file on disk. The file is the only source of truth; Quill stores no
 _Avoid_: note, page, buffer
 
 **Library**:
-The folder tree Quill has been pointed at, browsed from the sidebar.
+The Locations the writer has added, browsed from the sidebar.
 _Avoid_: workspace, vault, project
+
+**Location**:
+One folder the writer has added to the Library; the sidebar shows each with its full tree.
+_Avoid_: root, workspace, vault, project
+
+**Pinned**:
+A Document or folder the writer has pinned; the sidebar lists them above the Locations.
+_Avoid_: favourite, starred
 
 **Editor**:
 The text surface where a Document is written. Renders markup styling inline without changing glyph advance widths.
