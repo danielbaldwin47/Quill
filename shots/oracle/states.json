@@ -100,7 +100,8 @@
           "crop": [654, 553, 600, 380],
           "ours": [584, 730, 600, 380]
         }
-      }
+      },
+      "dark-bars": { "theme": "dark" }
     },
     "focus": {
       "sentence": {
