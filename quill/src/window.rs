@@ -2033,7 +2033,12 @@ impl Window {
         // One block is the whole of what the rule reads of a driver: whichever
         // block the top edge falls in, and how far into it
         // ([`crate::editor::Editor::top_block`]).
-        self.follow_preview(imp.preview.top_block_offset(&[driver], offset), false);
+        // Asked again if it does not land, as the caret rule asks: the sheet is
+        // laid out after the Editor's first scroll arrives, and until it is the
+        // adjustment clamps every value to the end it has been told about — an
+        // Editor put where `--scroll` asked at launch drove a Preview that
+        // stayed at the top.
+        self.follow_preview(imp.preview.top_block_offset(&[driver], offset), true);
     }
 
     /// Puts the Editor where the Preview's top edge asks for it: the same rule
