@@ -27,7 +27,7 @@ use gtk::subclass::prelude::*;
 use gtk::{gdk, gio, glib};
 use quill_engine::commands;
 use quill_engine::disk::{Filed, Kept, Line, Noticed, OnDisk, Saved, first_save_name};
-use quill_engine::document::Document;
+use quill_engine::document::{Document, full_name};
 use quill_engine::focus::Focus;
 use quill_engine::settings::{Chrome, WindowState};
 
@@ -62,15 +62,6 @@ const STATUS_TICK: u32 = 30;
 const DIALOG_WIDTH: i32 = 320;
 /// The dialog's inset, and the air around the field in it.
 const DIALOG_PAD: i32 = 12;
-
-/// What the file at `path` is called, for the words the rename dialog and the
-/// status line put it in.
-fn basename(path: &Path) -> String {
-    path.file_name()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .into_owned()
-}
 
 mod imp {
     use std::cell::{Cell, OnceCell, RefCell};
@@ -584,12 +575,20 @@ impl Window {
     /// Document again rather than taking a new one.
     fn shown(&self) {
         let document = self.document();
-        // The name without its extension, which is what the top bar shows
-        // (#246, story 48) and what a `.md` writer reads as the title.
-        self.set_title(Some(&document.name()));
-        self.imp().bars.set_title(&document.name());
+        self.show_title(&document);
         self.imp().bars.set_count(document.text());
         self.imp().editor.show_document(&document);
+    }
+
+    /// Puts the Document's name on the window and on the top bar.
+    ///
+    /// The name without its extension, which is what the top bar shows (#246,
+    /// story 48) and what a `.md` writer reads as the title. Its own step,
+    /// because a save that derived a name moves the titles and nothing else
+    /// the page is showing.
+    fn show_title(&self, document: &Document) {
+        self.set_title(Some(&document.name()));
+        self.imp().bars.set_title(&document.name());
     }
 
     /// The session this window was opened from.
@@ -675,6 +674,20 @@ impl Window {
         }
     }
 
+    /// Autosave's third moment: a Library action, which writes the Document
+    /// out before the action moves the folder under it.
+    ///
+    /// Story 20's "on any Library action" (`docs/architecture.md` § Documents
+    /// and files): every row operation, every open and every Location added
+    /// goes through here first. The answer is [`Window::flush`]'s — whether
+    /// the file holds what the writer typed — which [`Window::open_path`] and
+    /// [`Window::new_document`] read to decide whether the Document being
+    /// replaced can be replaced at all; a rename or a pin does not step on the
+    /// window's text and ignores it.
+    fn library_action(&self) -> bool {
+        self.flush()
+    }
+
     /// Whether this window may put its Document on disk at all.
     ///
     /// A launch of the harness's may not: a bench types into `ref/sample.md`,
@@ -723,7 +736,7 @@ impl Window {
     /// The one write allowed to stand on someone else's change, because it
     /// happens only where the writer has looked at what it would do
     /// ([`crate::conflict`]) and said yes.
-    fn keep(&self) -> bool {
+    fn keep_over_the_file(&self) -> bool {
         if !self.writes() {
             return false;
         }
@@ -739,12 +752,15 @@ impl Window {
     fn written(&self, written: io::Result<Saved>) -> bool {
         match written {
             Ok(Saved::Written) => {
-                self.saved();
+                self.write_landed();
                 true
             }
             Ok(Saved::NeedsAFolder | Saved::Refused) => false,
             Err(err) => {
-                eprintln!("quill: cannot save: {err}");
+                match self.path() {
+                    Some(path) => eprintln!("quill: cannot save {}: {err}", path.display()),
+                    None => eprintln!("quill: cannot save: {err}"),
+                }
                 false
             }
         }
@@ -753,22 +769,20 @@ impl Window {
     /// Takes in a write that happened: the file is what the window holds, so
     /// the titles follow the name a first save derived, the file joins the
     /// watch and the recents, and autosave has nothing left to do.
-    fn saved(&self) {
+    fn write_landed(&self) {
         self.imp().dirty.set(false);
         self.imp().wrote.set(Some(Self::now()));
         self.show_standing();
         self.tick_standing();
-        let document = self.document();
-        // The name without its extension, which is what the top bar shows
-        // (#246, story 48) and what a `.md` writer reads as the title.
-        self.set_title(Some(&document.name()));
-        self.imp().bars.set_title(&document.name());
-        drop(document);
+        self.show_title(&self.document());
         let (Some(path), Some(session)) = (self.path(), self.session()) else {
             return;
         };
         session.watch_document(&path);
-        session.opened_at(&path);
+        // The recents and not the Locations: story 45 gives a Location to a
+        // file the writer opened, and a Save As into a folder they picked once
+        // is not a folder they asked Quill to watch (#246).
+        session.wrote_at(&path);
     }
 
     /// `file.save`: what the writer asked for, which may be a dialog.
@@ -857,22 +871,9 @@ impl Window {
         if !self.writes() {
             return false;
         }
-        {
-            let mut filed = self.imp().filed.borrow_mut();
-            filed.moved_to(path);
-        }
+        self.imp().filed.borrow_mut().moved_to(path);
         let kept = self.imp().filed.borrow_mut().keep();
-        match kept {
-            Ok(Saved::Written) => {
-                self.saved();
-                true
-            }
-            Ok(Saved::NeedsAFolder | Saved::Refused) => false,
-            Err(err) => {
-                eprintln!("quill: cannot save {}: {err}", path.display());
-                false
-            }
-        }
+        self.written(kept)
     }
 
     /// `file.open`: the writer picks a file and this window shows it.
@@ -913,7 +914,7 @@ impl Window {
                 return;
             }
         };
-        if self.flush() {
+        if self.library_action() {
             self.set_filed(filed);
             return;
         }
@@ -934,7 +935,7 @@ impl Window {
     /// writer typed is stepped on.
     pub(crate) fn new_document(&self) {
         let folder = self.imp().sidebar.selected_folder();
-        if self.flush() {
+        if self.library_action() {
             self.set_filed(Filed::untitled());
             self.imp().new_in.replace(folder);
             return;
@@ -973,6 +974,7 @@ impl Window {
         let Some(session) = self.session() else {
             return;
         };
+        self.library_action();
         let to = match session.rename_file(path, typed) {
             Ok(to) => to,
             Err(err) => {
@@ -980,12 +982,7 @@ impl Window {
                 return;
             }
         };
-        if to != path && self.path().as_deref() == Some(path) {
-            self.imp().filed.borrow_mut().moved_to(&to);
-            self.shown();
-            self.imp().sidebar.set_open(Some(&to));
-            session.watch_document(&to);
-        }
+        self.follow_to(&session, path, &to);
         self.redraw_library();
     }
 
@@ -995,7 +992,7 @@ impl Window {
     /// Enter renames and Esc leaves it alone, which is what the field in the
     /// row does; there are no buttons, because there is one thing to say.
     fn rename_dialog(&self, path: &Path) {
-        let name = basename(path);
+        let name = full_name(path);
         let dialog = gtk::Window::builder()
             .title("Rename Document")
             .transient_for(self)
@@ -1052,6 +1049,7 @@ impl Window {
         let (Some(session), Some(path)) = (self.session(), self.target()) else {
             return;
         };
+        self.library_action();
         if let Err(err) = session.duplicate_file(&path) {
             eprintln!("quill: cannot duplicate {}: {err}", path.display());
             return;
@@ -1078,6 +1076,7 @@ impl Window {
         let Some(session) = self.session() else {
             return;
         };
+        self.library_action();
         if let Err(err) = gio::File::for_path(path).trash(None::<&gio::Cancellable>) {
             eprintln!("quill: cannot move {} to the trash: {err}", path.display());
             return;
@@ -1088,7 +1087,7 @@ impl Window {
         // file is the last thing it should say about it.
         self.imp()
             .sidebar
-            .set_status(&files::moved_to_trash(&basename(path)));
+            .set_status(&files::moved_to_trash(&full_name(path)));
     }
 
     /// Moves the file at `path` into `folder`, which is what letting a row go
@@ -1108,7 +1107,11 @@ impl Window {
         }
         let dialog = gtk::AlertDialog::builder()
             .modal(true)
-            .message(format!("Move {} to {}?", basename(path), basename(folder)))
+            .message(format!(
+                "Move {} to {}?",
+                full_name(path),
+                full_name(folder)
+            ))
             .detail("The file moves on disk.")
             .buttons(["Move", "Cancel"])
             .default_button(0)
@@ -1141,6 +1144,7 @@ impl Window {
         let Some(session) = self.session() else {
             return;
         };
+        self.library_action();
         let to = match session.move_file(path, folder) {
             Ok(to) => to,
             Err(err) => {
@@ -1152,17 +1156,30 @@ impl Window {
                 return;
             }
         };
-        if to != path && self.path().as_deref() == Some(path) {
-            self.imp().filed.borrow_mut().moved_to(&to);
-            self.shown();
-            self.imp().sidebar.set_open(Some(&to));
-            session.watch_document(&to);
-        }
+        self.follow_to(&session, path, &to);
         self.redraw_library();
         // After the redraw, for the reason [`Window::trash_path`] gives.
         self.imp()
             .sidebar
-            .set_status(&files::moved_into(&basename(path), &basename(folder)));
+            .set_status(&files::moved_into(&full_name(path), &full_name(folder)));
+    }
+
+    /// Follows the Document this window holds from `from` to `to`, where a
+    /// row operation moved the file it was showing.
+    ///
+    /// The two operations that move a file — a rename and a move into another
+    /// folder — leave the same four things behind: the Document takes the new
+    /// path, the titles follow the name, the pane highlights the row where it
+    /// went, and the watch listens for it there. A window showing something
+    /// else, and a file that did not move, leave nothing behind at all.
+    fn follow_to(&self, session: &Session, from: &Path, to: &Path) {
+        if to == from || self.path().as_deref() != Some(from) {
+            return;
+        }
+        self.imp().filed.borrow_mut().moved_to(to);
+        self.shown();
+        self.imp().sidebar.set_open(Some(to));
+        session.watch_document(to);
     }
 
     /// `file.pin`, which the registry calls Pin / Unpin: the Library's selected
@@ -1189,6 +1206,7 @@ impl Window {
         let Some(session) = self.session() else {
             return;
         };
+        self.library_action();
         let moved = if pinned {
             session.pin(path)
         } else {
@@ -1199,11 +1217,11 @@ impl Window {
         }
     }
 
-    /// Drops `root` from the Library, which touches nothing on disk
-    /// ([`Session::remove_location`]).
-    pub(crate) fn drop_location(&self, root: &Path) {
+    /// Drops the Location at `path` from the Library, which touches nothing on
+    /// disk ([`Session::remove_location`]).
+    pub(crate) fn drop_location(&self, path: &Path) {
         if let Some(session) = self.session() {
-            session.remove_location(root);
+            session.remove_location(path);
         }
         self.redraw_library();
     }
@@ -1223,11 +1241,12 @@ impl Window {
                 #[weak(rename_to = window)]
                 self,
                 move |answer| {
-                    let Some(root) = answer.ok().and_then(|file| file.path()) else {
+                    let Some(location) = answer.ok().and_then(|file| file.path()) else {
                         return;
                     };
+                    window.library_action();
                     if let Some(session) = window.session() {
-                        session.add_location(&root);
+                        session.add_location(&location);
                     }
                     window.redraw_library();
                 }
@@ -1269,7 +1288,7 @@ impl Window {
     /// ([`quill_engine::disk::Filed::autosaves`]), the row takes a dot and the
     /// status line offers Reload and Keep ([`Window::show_standing`]). A file
     /// that is gone is the other conflict, and says so.
-    fn noticed(&self) {
+    fn heard(&self) {
         let caret = self.caret_offset();
         let dirty = self.imp().dirty.get();
         let noticed = self.imp().filed.borrow_mut().noticed(dirty, caret);
@@ -1402,7 +1421,7 @@ impl Window {
         match choice {
             conflict::Choice::Reload => self.reload(),
             conflict::Choice::Keep => {
-                self.keep();
+                self.keep_over_the_file();
             }
         }
     }
@@ -1433,12 +1452,14 @@ impl Window {
         let has_text = !self.document().text().is_empty();
         match files::leaving(state, has_text) {
             Leaving::Go => self.go(),
-            Leaving::Flush => {
-                self.flush();
-                self.go()
-            }
-            Leaving::Ask => {
-                self.ask_before_leaving();
+            // The write has to have happened. A failed one — a folder that
+            // cannot be written, a file that moved under the Document since
+            // ([`quill_engine::disk::Saved::Refused`]) — is exactly the case
+            // the prompt is for, so it asks rather than closing on a file that
+            // does not hold what the writer typed.
+            Leaving::Flush if self.flush() => self.go(),
+            Leaving::Flush | Leaving::Ask => {
+                self.ask_before_leaving(Self::leave);
                 glib::Propagation::Stop
             }
         }
@@ -1454,6 +1475,17 @@ impl Window {
         }
         self.remember();
         glib::Propagation::Proceed
+    }
+
+    /// Whether closing this window would put a question to the writer, which
+    /// is what a quit has to know before it closes anything ([`quit`]).
+    fn would_ask(&self) -> bool {
+        if self.imp().answered.get() || !self.writes() {
+            return false;
+        }
+        let state = self.imp().filed.borrow().state();
+        let has_text = !self.document().text().is_empty();
+        matches!(files::leaving(state, has_text), Leaving::Ask)
     }
 
     /// Closes the window without asking again, whatever the Document is in.
@@ -1472,19 +1504,24 @@ impl Window {
     fn keeping(&self) -> bool {
         let state = self.imp().filed.borrow().state();
         match state {
-            OnDisk::ChangedOnDisk | OnDisk::DeletedOnDisk => self.keep(),
+            OnDisk::ChangedOnDisk | OnDisk::DeletedOnDisk => self.keep_over_the_file(),
             OnDisk::Untitled | OnDisk::Named => self.flush(),
         }
     }
 
     /// Asks the writer what to do with a Document that cannot be closed
     /// silently: Save, Discard, Cancel, with Cancel keeping the window.
-    fn ask_before_leaving(&self) {
+    ///
+    /// `answered` is what Save and Discard lead to — the window leaving, for a
+    /// close, and the next window being asked, for a quit ([`quit`]) — and
+    /// Cancel leads nowhere, which is what makes it the answer that loses
+    /// nothing.
+    fn ask_before_leaving(&self, answered: impl Fn(&Self) + 'static) {
         let dialog = gtk::AlertDialog::builder()
             .modal(true)
             .message(format!(
                 "Save changes to {} before closing?",
-                self.document().title()
+                self.document().name()
             ))
             .detail("Your changes will be lost if you don't save them.")
             .buttons(["Save", "Discard", "Cancel"])
@@ -1498,11 +1535,11 @@ impl Window {
                 #[weak(rename_to = window)]
                 self,
                 move |answer| match answer {
-                    Ok(0) if window.keeping() => window.leave(),
+                    Ok(0) if window.keeping() => answered(&window),
                     // Nowhere to flush to: the writer names the file, and the
                     // window closes when they have.
                     Ok(0) => window.save_as(After::Close),
-                    Ok(1) => window.leave(),
+                    Ok(1) => answered(&window),
                     // Cancel, `Esc`, or a dialog that could not be shown: the
                     // window stays, which is the answer that loses nothing.
                     _ => {}
@@ -2086,17 +2123,50 @@ pub fn present_files(app: &gtk::Application, files: &[gio::File], session: &Rc<S
     }
 }
 
+/// Every window of this application that is one of Quill's.
+///
+/// The one walk every pass over the windows shares — a relist, a flush, a
+/// quit — because `gtk::Application` answers its windows as GTK windows and
+/// each pass wants Quill's own.
+fn windows(app: &gtk::Application) -> Vec<Window> {
+    app.windows()
+        .into_iter()
+        .filter_map(|window| window.downcast::<Window>().ok())
+        .collect()
+}
+
 /// Tells the window showing `path` that something happened to its file.
 ///
 /// Every window is asked, because two of them can show the same Document, and
 /// a window showing something else is one comparison and no work.
-pub fn noticed(app: &gtk::Application, path: &Path) {
-    for window in app.windows() {
-        let Ok(window) = window.downcast::<Window>() else {
-            continue;
-        };
+pub fn heard(app: &gtk::Application, path: &Path) {
+    for window in windows(app) {
         if window.path().as_deref() == Some(path) {
-            window.noticed();
+            window.heard();
+        }
+    }
+}
+
+/// Follows every open Document whose file was renamed outside Quill, given
+/// every path one drain of the watch answered for.
+///
+/// A rename arrives as the path the file left and the path it took, in the one
+/// drain ([`quill_engine::disk::Filed::followed`]), so this runs before the
+/// paths are answered one by one: a Document that followed is then a Document
+/// whose file is where it says, and the drain's own event for it finds nothing
+/// changed rather than a file that is gone (#246, story 29).
+pub fn followed(app: &gtk::Application, batch: &[PathBuf]) {
+    if batch.is_empty() {
+        return;
+    }
+    for window in windows(app) {
+        let moved = window.imp().filed.borrow_mut().followed(batch);
+        if moved {
+            window.shown();
+            if let (Some(path), Some(session)) = (window.path(), window.session()) {
+                window.imp().sidebar.set_open(Some(&path));
+                session.watch_document(&path);
+            }
         }
     }
 }
@@ -2107,10 +2177,8 @@ pub fn noticed(app: &gtk::Application, path: &Path) {
 /// the watch has patched is one pass over the windows, the way a ground change
 /// is: every sidebar reads the same tree and each redraws its own rows.
 pub fn relist(app: &gtk::Application) {
-    for window in app.windows() {
-        if let Ok(window) = window.downcast::<Window>() {
-            window.imp().sidebar.refresh();
-        }
+    for window in windows(app) {
+        window.imp().sidebar.refresh();
     }
 }
 
@@ -2120,22 +2188,48 @@ pub fn relist(app: &gtk::Application) {
 /// closed its windows, or the desktop ending the session — leaves the file
 /// holding the last keystroke.
 pub fn flush_open(app: &gtk::Application) {
-    for window in app.windows() {
-        if let Ok(window) = window.downcast::<Window>() {
-            window.flush();
-        }
+    for window in windows(app) {
+        window.flush();
     }
 }
 
-/// Quit: every window closes as if the writer had closed it.
+/// Quit: every window is asked as if the writer had closed it, and Cancel
+/// anywhere cancels the quit.
 ///
-/// So a Document with something to ask asks it, and Cancel keeps that window —
-/// and with it Quill, which ends when its last window does. `app.quit()` would
-/// destroy the windows without asking any of them.
+/// The questions come first and the closing after: the windows with something
+/// to ask ask it one at a time, and every window closes only once the last of
+/// them has been answered. A Cancel ends the walk with nothing closed, which
+/// is what makes it a cancelled quit rather than a quit that stopped halfway
+/// through and left the writer with the windows it had not reached yet.
+/// `app.quit()` would destroy them all without asking any of them.
 pub fn quit(app: &gtk::Application) {
-    for window in app.windows() {
-        window.close();
-    }
+    let mut asking: Vec<Window> = windows(app).into_iter().filter(Window::would_ask).collect();
+    // Asked off the end, so the writer answers for the windows in the order
+    // the application holds them.
+    asking.reverse();
+    ask_to_quit(app, asking);
+}
+
+/// Asks the windows of `asking` in turn, and closes every window once the last
+/// of them has answered.
+///
+/// A window that answered Save or Discard is marked as having answered, so
+/// that its own close does not ask again; one whose Save had nowhere to go is
+/// in the Save As dialog, and the quit ends there, since the writer is being
+/// asked something already.
+fn ask_to_quit(app: &gtk::Application, asking: Vec<Window>) {
+    let mut rest = asking;
+    let Some(window) = rest.pop() else {
+        for window in windows(app) {
+            window.close();
+        }
+        return;
+    };
+    let app = app.clone();
+    window.ask_before_leaving(move |window| {
+        window.imp().answered.set(true);
+        ask_to_quit(&app, rest.clone());
+    });
 }
 
 /// Takes down the shape of every window still open.
@@ -2145,9 +2239,7 @@ pub fn quit(app: &gtk::Application) {
 /// left. A window that closed on its own is already gone from this list and is
 /// remembered once.
 pub fn remember_open(app: &gtk::Application) {
-    for window in app.windows() {
-        if let Ok(window) = window.downcast::<Window>() {
-            window.remember();
-        }
+    for window in windows(app) {
+        window.remember();
     }
 }

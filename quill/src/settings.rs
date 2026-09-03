@@ -577,7 +577,7 @@ mod tests {
                 .library()
                 .locations()
                 .iter()
-                .map(|location| location.root().to_path_buf())
+                .map(|location| location.path().to_path_buf())
                 .collect::<Vec<_>>(),
             std::slice::from_ref(&root),
             "the folder the row added is a Location now"

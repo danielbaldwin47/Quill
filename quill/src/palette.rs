@@ -24,6 +24,7 @@ use quill_engine::theme::Scheme;
 
 use crate::chrome::{self, CHROME_FONT, Modes, RECENT_OPEN};
 use crate::menus;
+use crate::tags::pixels;
 
 /// How far down the window the panel's top sits (`.palette { top: 13vh }`).
 const TOP: f64 = 0.13;
@@ -120,18 +121,6 @@ const EMPTY: Empty = Empty {
     x: 14,
     bottom: 14,
 };
-
-/// `length` as whole pixels: the panel's top down the window, a heading's
-/// line in Pango units, the pointer's row. Rounded here and only here, in
-/// the shape of `quill::tags::pixels`.
-fn pixels(length: f64) -> i32 {
-    #[expect(
-        clippy::cast_possible_truncation,
-        reason = "a window's height, a heading's line and a pointer's y are a few thousand at most"
-    )]
-    let whole = length.round() as i32;
-    whole
-}
 
 /// The Palette's stylesheet, appended to the menus'.
 ///
