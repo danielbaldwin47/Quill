@@ -115,9 +115,13 @@ delete go through the Library and the disk agrees before the sidebar does.
 
 The Library is the folder tree the writer pointed Quill at, plus recents. It is **in memory**: walked
 on launch, watched with inotify, never persisted as an index ([ADR 0002](adr/0002-plain-markdown-documents.md)
-leaves nothing in the folder, and there is no stale index to delete). Config remembers the location;
-state remembers recents and per-Document caret positions. Content search, if the Library spec wants
-it, scans `.md` files live. The Library is shared by all windows.
+leaves nothing in the folder, and there is no stale index to delete). Config remembers the Locations and what is Pinned;
+state remembers recents (25, newest first) and per-Document caret positions. Content search, if the Library spec wants
+it, scans `.md` files live. The Library is shared by all windows. The pane's right edge is a divider — a
+narrow grab zone that paints nothing (`quill::sidebar`) — and dragging it sets one width for every
+window, pulled into range by `quill_engine::settings::library_width` so that the pane stays a Library and
+the page keeps room to write in, remembered in state as `library_width` and put back to the default by a
+double-click.
 
 ## Windows
 
@@ -151,12 +155,16 @@ default 5 = 21.33 logical px; an old `size` in px becomes the nearest step at or
 `typewriter_anchor` (0–1, default 0.5), `chrome` (shown/hidden), `spell_check` (on/off, default on)
 and `spell_language`, `[syntax_highlight]` (a table: `enabled` is the master, and the five category
 toggles sit beside it), `[style_check]` (the same shape, one toggle per list beside `enabled`),
-`template` (the current Template's name), `preview_layout` (split, full), `library` (the Library
-path), `palette` (the file the grounds take their colours from, `design.md` § The palette is a
-file; empty is the built-ins), and a `[shortcuts]` table of Command id → chords that
+`template` (the current Template's name), `preview_layout` (split, full),
+`palette` (the file the grounds take their colours from, `design.md` § The palette is a
+file; empty is the built-ins), a `[library]` table (`locations` and `pinned`, two lists of paths,
+and `show_hidden`, `show_extensions`, `confirm_move` and `ask_where_to_save`, four booleans that
+default to false; a scalar `library` naming one folder, which is how the Library was written before
+it was a set of Locations, is read as its first Location and rewritten as the table on the next
+write), and a `[shortcuts]` table of Command id → chords that
 replaces the defaults in [`shortcuts.md`](shortcuts.md) ([ADR 0011](adr/0011-shortcut-precedence-on-linux.md)).
-A path — `library` or `palette` — written with a leading `~/` is read as under the home directory,
-because that is how a hand writes one, and is written back expanded.
+A path — `palette`, or an entry in `locations` or `pinned` — written with a leading `~/` is read as
+under the home directory, because that is how a hand writes one, and is written back expanded.
 
 The settings file is watched with `notify` and a debouncer whose window is
 `quill_engine::watch::DEBOUNCE`, the
@@ -227,8 +235,16 @@ and the determinism settings, this document names the flags:
   `--select <from>,<to>`, `--scroll <fraction>`, `--nocaret`, `--typing` (the chrome as it is
   inside the 500 ms after a keystroke: the title bar gone, the stats bar dimmed), `--menu
   view|document|stats|palette` (that menu, or the Palette, open with its first row selected),
-  `--w <px> --h <px>`. Both `--typing` and `--menu` name a state the app is put in before the
-  first frame, never one it is driven into after it.
+  `--library <dir>` (take the Library from the fixture tree at `<dir>`: the launch copies it to a
+  folder of its own, stamps each file with the mtime the fixture's `manifest.json` names, and walks
+  that copy as its one Location, so a judged shot of the Library is the same rows in the same order
+  on every machine — a `--text` named inside the fixture is opened from the copy with it; the rest
+  of the `[library]` table is pinned to its defaults for the launch, nothing Pinned and all four
+  booleans off, so a writer who turned on hidden files or extensions does not change the shot),
+  `--sidebar` (open with the Library beside the page), `--search <query>` (put `<query>` in the
+  Library's search field and narrow the list to what it finds; refused without `--sidebar`, which is
+  the pane the field stands in), `--w <px> --h <px>`. Both `--typing` and `--menu` name a state the app is
+  put in before the first frame, never one it is driven into after it.
 - Harness: `--deterministic` (animations off, blink off, manual font rendering with pinned antialias,
   slight hinting, no subpixel, 96 dpi, hinted metrics, no client-side decorations; and Typewriter
   off unless `--typewriter` is given, so the writer's `settings.toml` reaches no judged shot),

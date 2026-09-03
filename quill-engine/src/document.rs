@@ -51,6 +51,35 @@ use crate::offsets::Offsets;
 /// What a window titles a Document that is not on disk yet.
 pub const UNTITLED: &str = "Untitled";
 
+/// The name a Document at `path` is shown by: its file name without its
+/// extension, which is the top bar's title ([`Document::name`]) and the label
+/// of a recents row ([`crate::palette::recents`]).
+///
+/// A path with no file name at all — a bare `/`, a path ending in `..` — is
+/// shown as it was written rather than as nothing, since a Document there is
+/// already a path Quill cannot make sense of and hiding it would say less.
+#[must_use]
+pub fn shown_name(path: &Path) -> Cow<'_, str> {
+    path.file_stem()
+        .map_or_else(|| path.to_string_lossy(), std::ffi::OsStr::to_string_lossy)
+}
+
+/// What the file at `path` is called, extension and all: the name the Library
+/// sorts and searches by, the name a rename field opens with, and the name a
+/// status notice puts in its words.
+///
+/// [`shown_name`] is the same name without its extension, and is what a title
+/// shows. Owned, because every caller either holds it past the borrow of
+/// `path` or hands it to a widget; a name that is not UTF-8 is answered as
+/// `to_string_lossy` writes it, which is what a window would draw.
+#[must_use]
+pub fn full_name(path: &Path) -> String {
+    path.file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .into_owned()
+}
+
 /// Where a byte offset is, in the two numbers a `GtkTextIter` is set from.
 ///
 /// The app reaches a byte with `set_line` and then `set_line_index`, never by
@@ -274,6 +303,22 @@ impl Document {
         }
     }
 
+    /// Gives the Document the file it is: the name an untitled Document's
+    /// first save derives for it, or the path a file moved to under it
+    /// ([`crate::disk`]).
+    pub fn set_path(&mut self, path: PathBuf) {
+        self.path = Some(path);
+    }
+
+    /// Replaces the text with `text`, parsed whole, keeping the file.
+    ///
+    /// What a Document does when its file changed underneath it: the parse is
+    /// [`Document::open`]'s, since nothing of the old text is reusable, and
+    /// [`crate::disk::Filed::reload`] is what puts the caret back afterwards.
+    pub fn reload(&mut self, text: String) {
+        *self = Self::holding(text, self.path.take());
+    }
+
     /// The file this Document is, or `None` while it is untitled.
     #[must_use]
     pub fn path(&self) -> Option<&Path> {
@@ -425,6 +470,15 @@ impl Document {
             .as_deref()
             .and_then(Path::file_name)
             .map_or(Cow::Borrowed(UNTITLED), std::ffi::OsStr::to_string_lossy)
+    }
+
+    /// The name the top bar shows: the file name without its extension, or
+    /// [`UNTITLED`] until the first save (#246, story 48).
+    #[must_use]
+    pub fn name(&self) -> Cow<'_, str> {
+        self.path
+            .as_deref()
+            .map_or(Cow::Borrowed(UNTITLED), shown_name)
     }
 
     /// Writes `text` in at `at` bytes, and says what that changed.

@@ -32,6 +32,7 @@
 //! over the page that `palette.open` toggles.
 
 use std::cell::Cell;
+use std::path::Path;
 use std::rc::Rc;
 
 use gtk::prelude::*;
@@ -71,6 +72,10 @@ pub struct Modes {
     pub bars: bool,
     /// The stats bar is shown, while the bars are.
     pub stats: bool,
+    /// The Library stands beside the page. Per window rather than per session,
+    /// as the fullscreen above it is: the Library is the application's, the
+    /// pane showing it is the window's.
+    pub library: bool,
 }
 
 impl Modes {
@@ -78,7 +83,7 @@ impl Modes {
     ///
     /// The scope is the live one while Focus is on; off, it is the one the
     /// settings file holds, which the session restores when Focus returns.
-    pub fn of(session: &crate::session::Session, fullscreen: bool) -> Self {
+    pub fn of(session: &crate::session::Session, fullscreen: bool, library: bool) -> Self {
         let (focus, focus_scope) = match session.focus() {
             Focus::On(scope) => (true, scope.as_str()),
             Focus::Off => (false, session.settings().focus_scope.as_str()),
@@ -93,6 +98,7 @@ impl Modes {
             fullscreen,
             bars: session.chrome() == Chrome::Shown,
             stats: session.stats(),
+            library,
         }
     }
 }
@@ -106,12 +112,13 @@ type Handler = Rc<dyn Fn(&'static Command)>;
 /// the writer's `[shortcuts]` table over the registry and reading a chord is
 /// `gtk::accelerator_parse`'s, which wants GTK started. Called once, before
 /// the first window.
-pub fn install(app: &gtk::Application) {
+pub fn install(app: &gtk::Application, session: &Rc<Session>) {
     let fired = app.clone();
+    let session = Rc::clone(session);
     register(
         app,
         Scope::App,
-        Rc::new(move |command| run_app(&fired, command)),
+        Rc::new(move |command| run_app(&fired, &session, command)),
     );
 }
 
@@ -210,10 +217,39 @@ pub fn install_window(window: &Window) {
             }
         }),
     );
+    install_recent(window);
     // The compositor can fill the screen without `F11` being pressed, so the
     // check follows the window rather than the Command.
     window.connect_fullscreened_notify(|window| reflect(window, window.modes()));
     reflect(window, window.modes());
+}
+
+/// The one window action that is not a Command: opening a named recent
+/// Document (#246, stories 41 and 42).
+///
+/// It takes the path as its target, which no [`COMMANDS`] row can — a Command
+/// is one action with no parameter, or a radio's group with a fixed value —
+/// and both the Open Recent submenu ([`crate::menus`]) and the Palette's
+/// recents rows ([`crate::palette`]) activate it, so a recent is opened by one
+/// path however it was chosen. It is registered here rather than by
+/// [`register`] because it is outside the registry, and it carries no chord
+/// and no menu row of its own: `file.recent` is the Command a writer reaches.
+pub const RECENT_OPEN: &str = "file.recentOpen";
+
+/// Registers [`RECENT_OPEN`] on `window`.
+fn install_recent(window: &Window) {
+    let action = gio::SimpleAction::new(RECENT_OPEN, Some(glib::VariantTy::STRING));
+    let opened = window.downgrade();
+    action.connect_activate(move |_, target| {
+        let (Some(window), Some(path)) = (
+            opened.upgrade(),
+            target.and_then(|target| target.get::<String>()),
+        ) else {
+            return;
+        };
+        window.open_path(Path::new(&path));
+    });
+    window.add_action(&action);
 }
 
 /// Puts what the session now shows on to every window's stateful actions.
@@ -288,6 +324,7 @@ pub fn reflect(map: &impl IsA<gio::ActionMap>, modes: Modes) {
     // The row reads "Hide Bars", so its check is on when the bars are hidden.
     set("chrome.toggle", (!modes.bars).to_variant());
     set("chrome.stats", modes.stats.to_variant());
+    set("library.toggle", modes.library.to_variant());
     // With Focus off neither scope's row is ticked, as the oracle's menu
     // has it: the scope the file holds is the one Focus comes back to, not
     // a state the page is in.
@@ -298,9 +335,15 @@ pub fn reflect(map: &impl IsA<gio::ActionMap>, modes: Modes) {
 }
 
 /// The application's Commands.
-fn run_app(app: &gtk::Application, command: &Command) {
-    if command.id == "app.quit" {
-        app.quit();
+///
+/// Quit walks the windows itself rather than calling `app.quit()`, because a
+/// window whose Document has something to ask has to be able to keep itself —
+/// and Quill — open ([`crate::window::quit`]).
+fn run_app(app: &gtk::Application, session: &Rc<Session>, command: &Command) {
+    match command.id {
+        "app.quit" => crate::window::quit(app),
+        "window.new" => crate::window::open_new(app, session),
+        _ => {}
     }
 }
 
@@ -335,13 +378,27 @@ fn run_window(window: &Window, command: &Command) {
         "focus.swap" => window.swap_focus_scope(),
         "typewriter.toggle" => window.toggle_typewriter(),
         "chrome.toggle" => window.toggle_bars(),
+        "library.toggle" => window.toggle_library(),
+        "library.search" => window.search_library(),
         "chrome.stats" => window.toggle_stats(),
         "chrome.doc" | "chrome.view" => {
             if let Some(menu) = opens(command.id) {
                 window.open_menu(menu);
             }
         }
+        "file.new" => window.new_document(),
+        "file.open" => window.open_file(),
+        "file.openFolder" => window.add_location(),
+        "file.rename" => window.rename_document(),
+        "file.duplicate" => window.duplicate_document(),
+        "file.delete" => window.trash_document(),
+        "file.pin" => window.pin_document(),
+        "file.next" => window.step_document(crate::files::Step::Next),
+        "file.prev" => window.step_document(crate::files::Step::Prev),
+        "file.save" => window.save(),
+        "file.saveAs" => window.save_as(crate::window::After::Stay),
         "palette.open" => window.open_palette(),
+        "file.recent" => window.open_recents(),
         "settings.open" => window.open_settings(),
         "shortcuts.open" => window.open_shortcuts(),
         "window.fullscreen" if window.is_fullscreen() => window.unfullscreen(),
@@ -717,7 +774,7 @@ pub fn stylesheet(ground: Ground) -> String {
          .chrome .chrome-rule {{ color: {rule}; }}\n{}{}",
         menu_stylesheet(scheme),
         crate::palette::stylesheet(scheme)
-    )
+    ) + &crate::sidebar::stylesheet(ground)
 }
 
 /// The two bars: the title bar above the page and the stats bar below it.
@@ -743,6 +800,10 @@ pub struct Bars {
     under: gtk::DrawingArea,
     /// The View button's rows, lit the way Focus lights them.
     rows: gtk::DrawingArea,
+    /// The Library toggle at the title bar's left, which steps aside while the
+    /// Library is standing beside the page and carrying a toggle of its own
+    /// ([`crate::sidebar`]), as the oracle's does.
+    library: gtk::Button,
     /// The three menus, each under or over the button that opens it:
     /// Document, View, Stats, in [`Menu`]'s order.
     menus: [gtk::PopoverMenu; 3],
@@ -882,6 +943,7 @@ impl Bars {
             over,
             under,
             rows,
+            library,
             menus,
             shown: Rc::new(Cell::new(Shown {
                 bars: true,
@@ -1064,6 +1126,16 @@ impl Bars {
     pub fn set_focus(&self, focus: Focus) {
         self.focus.set(focus);
         self.rows.queue_draw();
+    }
+
+    /// Shows or hides the title bar's Library toggle.
+    ///
+    /// Hidden while the sidebar stands beside the page, because the pane's own
+    /// head carries the toggle that shuts it and two of them in one frame is
+    /// one too many; shown again the moment the pane goes, which is the
+    /// oracle's arrangement (`files.js`, `.lib-head`).
+    pub fn set_library_toggle_shown(&self, shown: bool) {
+        self.library.set_visible(shown);
     }
 
     /// Re-inks the numbers for `ground`. The rest of the bars follow the
@@ -1564,12 +1636,31 @@ mod tests {
         assert_eq!(refused, None);
     }
 
+    /// The four Commands the File handling spec's second ticket builds are
+    /// out of the disabled set: their rows are live and each fires.
+    #[test]
+    fn the_four_file_commands_are_enabled_and_fire() {
+        let (window, fired) = map(Scope::Win);
+        for id in ["file.open", "file.save", "file.saveAs"] {
+            assert!(window.is_action_enabled(id), "{id}");
+            window.activate_action(id, None);
+        }
+        assert_eq!(
+            fired.borrow().as_slice(),
+            ["file.open", "file.save", "file.saveAs"]
+        );
+        let (app, app_fired) = map(Scope::App);
+        assert!(app.is_action_enabled("window.new"));
+        app.activate_action("window.new", None);
+        assert_eq!(app_fired.borrow().as_slice(), ["window.new"]);
+    }
+
     #[test]
     fn a_disabled_commands_activation_returns_without_effect() {
         let (map, fired) = map(Scope::Win);
-        assert!(!commands::by_id("file.open").unwrap().built);
-        assert!(!map.is_action_enabled("file.open"));
-        map.activate_action("file.open", None);
+        assert!(!commands::by_id("export.open").unwrap().built);
+        assert!(!map.is_action_enabled("export.open"));
+        map.activate_action("export.open", None);
         // The Stats menu's fields are the Stats spec's (#30), so the whole
         // radio group is disabled.
         map.activate_action("stats", Some(&"words".to_variant()));
@@ -1611,6 +1702,7 @@ mod tests {
             fullscreen: false,
             bars: false,
             stats: false,
+            library: true,
         };
         reflect(&map, modes);
         let state = |name: &str| map.action_state(name).unwrap();
@@ -1626,6 +1718,7 @@ mod tests {
         );
         assert_eq!(state("theme").get::<String>().as_deref(), Some("auto"));
         assert_eq!(state("face").get::<String>().as_deref(), Some("quattro"));
+        assert_eq!(state("library.toggle").get::<bool>(), Some(true));
     }
 
     #[test]

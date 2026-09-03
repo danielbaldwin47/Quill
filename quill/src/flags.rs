@@ -16,7 +16,11 @@
 //!
 //! Three rules the rest of the app rests on. **Nothing is written back**: a
 //! flag overrides the writer's settings for this launch and never reaches
-//! `settings.toml`. **A harness launch leaves no trace**: [`Flags::is_harness`]
+//! `settings.toml`. `--library` overrides more than the one setting it names:
+//! it pins the whole `[library]` table to its defaults — the fixture as the
+//! one Location, nothing Pinned, dot-entries and extensions off, no
+//! confirmation and no ask-where — so that a judged shot of the Library is the
+//! fixture's rows and never the rows the writer's own switches would draw. **A harness launch leaves no trace**: [`Flags::is_harness`]
 //! is true the moment one of these flags is given, and a session that answers
 //! true to it reads no state file and writes none, so two launches of the same
 //! command line are the same window twice and a bench never resizes the window
@@ -64,6 +68,13 @@ Judged state — the states the Gate shoots and benches at:
   --menu view|document|stats|palette
                          Open with that menu or the Palette up, its first row
                          selected.
+  --library <dir>        Take the Library from the fixture tree at <dir>: a
+                         copy of it, each file stamped with the mtime its
+                         manifest.json names, as the one Location, with the
+                         rest of [library] at its defaults.
+  --sidebar              Open with the Library beside the page.
+  --search <query>       Put <query> in the Library's search field and narrow
+                         the list to what it finds. Wants --sidebar.
   --w <px>               Open the window this wide.
   --h <px>               Open the window this tall.
 
@@ -196,6 +207,18 @@ pub struct Flags {
     pub typing: bool,
     /// What `--menu` asked to have open before the first frame.
     pub menu: Option<Menu>,
+    /// The fixture tree `--library` names, which stands in for the writer's
+    /// Locations for this launch.
+    ///
+    /// The folder as it was named on the command line until the launch has
+    /// copied it ([`crate::files::stage`]); the copy from then on, because a
+    /// judged shot walks a tree whose mtimes it stamped and never the one in
+    /// the checkout.
+    pub library: Option<PathBuf>,
+    /// Whether `--sidebar` asked for the Library beside the page.
+    pub sidebar: bool,
+    /// The query `--search` puts in the Library's search field.
+    pub search: Option<String>,
     /// The window width `--w` names, in pixels.
     pub width: Option<u32>,
     /// The window height `--h` names, in pixels.
@@ -233,8 +256,8 @@ impl Flags {
     /// # Errors
     ///
     /// One [`Error`], one line long, naming the flag: a flag Quill does not
-    /// know, a flag with nothing after it, or a value outside what the flag
-    /// takes.
+    /// know, a flag with nothing after it, a value outside what the flag
+    /// takes, or `--search` with no `--sidebar` beside it.
     pub fn parse<A: IntoIterator<Item = OsString>>(args: A) -> Result<Self, Error> {
         let mut flags = Self::default();
         let mut args = args.into_iter();
@@ -270,6 +293,9 @@ impl Flags {
                 "--nocaret" => flags.nocaret = true,
                 "--typing" => flags.typing = true,
                 "--menu" => flags.menu = Some(one_of(flag, &text(&mut args, flag)?, &MENUS)?),
+                "--library" => flags.library = Some(file(&mut args, flag)?),
+                "--sidebar" => flags.sidebar = true,
+                "--search" => flags.search = Some(text(&mut args, flag)?),
                 "--w" => flags.width = Some(whole(flag, &text(&mut args, flag)?, &window_sizes())?),
                 "--h" => {
                     flags.height = Some(whole(flag, &text(&mut args, flag)?, &window_sizes())?)
@@ -284,6 +310,15 @@ impl Flags {
                 }
                 _ => flags.files.push(PathBuf::from(argument)),
             }
+        }
+        // A query with no pane to type it into would shoot a window with the
+        // Library away and the search unrun, and call it a search: refused
+        // here for the reason a fixture that is not there is
+        // ([`crate::files::stage`]).
+        if flags.search.is_some() && !flags.sidebar {
+            return Err(Error(
+                "--search: --sidebar too: there is no field to type a query into".to_string(),
+            ));
         }
         Ok(flags)
     }
@@ -358,6 +393,24 @@ impl Flags {
             settings.palette = Some(palette.clone());
         } else if self.theme.is_some() {
             settings.palette = None;
+        }
+        // The fixture stands in for the writer's Locations, and for nothing
+        // else of theirs: a judged shot walks the tree the flag named and no
+        // folder of the machine it is run on, and pins nothing, because the
+        // Pinned section is a state the fixture would have to carry. The four
+        // `[library]` booleans are pinned off with them, because each of them
+        // is rows in the shot — the dot-folder the fixture holds, every name's
+        // extension — and a writer who turned one on in their own settings
+        // would otherwise be shooting a different Library than round 6 judged.
+        // The sort is Date already: the pane opens at it and no setting
+        // carries it (`crate::sidebar::Sidebar`).
+        if let Some(library) = &self.library {
+            settings.library.locations = vec![library.clone()];
+            settings.library.pinned = Vec::new();
+            settings.library.show_hidden = false;
+            settings.library.show_extensions = false;
+            settings.library.confirm_move = false;
+            settings.library.ask_where_to_save = false;
         }
         settings
     }
@@ -484,7 +537,7 @@ mod tests {
 
     /// Every flag `docs/architecture.md` names, with a value it takes and —
     /// where it has a domain — one it does not.
-    const FLAGS: [(&str, &str, Option<&str>); 19] = [
+    const FLAGS: [(&str, &str, Option<&str>); 22] = [
         ("--text", "ref/sample.md", None),
         ("--theme", "dark", Some("purple")),
         ("--font", "mono", Some("comic")),
@@ -499,6 +552,11 @@ mod tests {
         ("--nocaret", "", None),
         ("--typing", "", None),
         ("--menu", "view", Some("file")),
+        ("--library", "shots/oracle/library", None),
+        ("--sidebar", "", None),
+        // With the flag it wants beside it: a query and no pane to type it
+        // into is refused ([`Flags::parse`]).
+        ("--search", "sea --sidebar", None),
         ("--w", "1440", Some("0")),
         ("--h", "900", Some("tall")),
         ("--deterministic", "", None),
@@ -537,14 +595,34 @@ mod tests {
     }
 
     #[test]
+    fn a_query_with_no_sidebar_to_type_it_into_is_refused() {
+        let err = parse("--library shots/oracle/library --search sea")
+            .expect_err("a query with the Library away");
+        let said = err.to_string();
+        assert_eq!(
+            said,
+            "--search: --sidebar too: there is no field to type a query into"
+        );
+        assert!(!said.contains('\n'), "one line, not a stack: {said}");
+        assert!(parse("--search sea --sidebar").is_ok());
+    }
+
+    #[test]
     fn the_whole_judged_state_and_the_harness_parse_together() {
         let flags = parse(
             "--text ref/sample.md --theme dark --font mono --step 6 --focus paragraph \
              --typewriter --chrome off --caret end --select 10,20 --scroll 0.25 --nocaret \
-             --typing --menu palette --w 1440 --h 900 --deterministic --measure out.jsonl \
+             --typing --menu palette --library shots/oracle/library --sidebar --search sea \
+             --w 1440 --h 900 --deterministic --measure out.jsonl \
              --palette quill.toml",
         )
         .expect("every flag at once");
+        assert_eq!(
+            flags.library.as_deref(),
+            Some(Path::new("shots/oracle/library"))
+        );
+        assert!(flags.sidebar);
+        assert_eq!(flags.search.as_deref(), Some("sea"));
         assert!(flags.typing);
         assert_eq!(flags.menu, Some(Menu::Palette));
         assert_eq!(flags.text.as_deref(), Some(Path::new("ref/sample.md")));
@@ -694,6 +772,44 @@ mod tests {
             .expect("two flags")
             .over(writers);
         assert!(asked.typewriter);
+    }
+
+    /// The fixture is the whole of the Library for a judged launch: the one
+    /// Location, and the four switches that decide which rows are drawn and
+    /// under what names answered no, whatever the writer turned on in their
+    /// own file. Round 6 of the `files` Piece was shot on a `settings.toml`
+    /// with all four off, and a writer flipping one is not a change to the
+    /// pixels the Piece is judged at.
+    #[test]
+    fn the_library_flag_pins_the_whole_table_the_judged_shot_reads() {
+        let mut writers = Settings::default();
+        writers.library.locations = vec![PathBuf::from("/home/writer/Writing")];
+        writers.library.pinned = vec![PathBuf::from("/home/writer/Writing/sea-storm.md")];
+        writers.library.show_hidden = true;
+        writers.library.show_extensions = true;
+        writers.library.confirm_move = true;
+        writers.library.ask_where_to_save = true;
+        let judged = parse("--library shots/oracle/library")
+            .expect("one flag")
+            .over(writers.clone());
+        assert_eq!(
+            judged.library.locations,
+            vec![PathBuf::from("shots/oracle/library")],
+            "the fixture, and no folder of the writer's"
+        );
+        assert!(judged.library.pinned.is_empty());
+        assert!(!judged.library.show_hidden, "the dot-folder stays hidden");
+        assert!(!judged.library.show_extensions);
+        assert!(!judged.library.confirm_move);
+        assert!(!judged.library.ask_where_to_save);
+        assert_eq!(
+            parse("--sidebar")
+                .expect("one flag")
+                .over(writers.clone())
+                .library,
+            writers.library,
+            "a launch that named no fixture is the writer's Library exactly"
+        );
     }
 
     #[test]

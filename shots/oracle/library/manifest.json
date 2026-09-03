@@ -1,0 +1,14 @@
+{
+  "_about": "The mtime each file in this fixture is stamped with, in epoch seconds. Git carries no mtimes, so a fresh checkout would sort this Library by whenever it was cloned; these are what make the Date sort the same on every machine. legacy/tools/shoot.mjs --library seeds them into the Parity oracle's browser Library, and the app's --library stamps them onto its copy of the tree. The dot-folder is stamped like the rest: it is hidden from the Library, not missing from the disk.",
+  "mtimes": {
+    ".archive/old-draft.md": 1740819600,
+    "Drafts/closing.md": 1740906000,
+    "Drafts/opening.md": 1741856400,
+    "field-notes.md": 1741251600,
+    "harbour-lights.md": 1741770000,
+    "letters.txt": 1741424400,
+    "quiet-morning.md": 1741597200,
+    "sea-storm.md": 1741942800,
+    "winter-list.md": 1741078800
+  }
+}

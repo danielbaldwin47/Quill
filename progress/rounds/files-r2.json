@@ -1,0 +1,82 @@
+{
+  "piece": "files",
+  "round": 2,
+  "winner": "theirs",
+  "margin": "clear",
+  "gap": "B has no pane header at all and therefore no new-document control anywhere in the 2880×1800 frame: A gives the sidebar a 44 CSS px header carrying the Location name, a disclosure chevron and a '+', while B's topmost ink is the search magnifier at y=7 CSS px — zero top padding, the placeholder hard against the window frame — and the pane-collapse toggle has been exiled to x=391, some 24 CSS px right of the hairline, floating over the manuscript's paper.",
+  "gapTheirs": "A's sidebar paper is #FDFDFD while its own editor paper is #F9F9F9 — a 4-level split that runs the full 367×900 CSS px of the column, so the Library reads as a white slab pasted onto grey stock rather than the same sheet; B holds pane and page at exactly #F7F7F7 with only the hairline between them, which is what 'a column on the theme's paper' means. A also emits a four-dot truncation ('is awake.…' — full stop plus ellipsis glyph) that B does not.",
+  "verdict": "B is a file list with the filing cabinet removed: you can search it and sort it, but there is no button that makes a new document and nothing at the top of the column that names what you are looking at, so the first thing a writer wants to do on opening the app has no target. Worse for trust, B's status line says 'All changes saved' and stops — A's says it and then tells you, right-aligned at the pane's foot, 'In this browser', which is the one fact that decides whether you put a manuscript here. B's search field is also jammed flush to the window edge with 0 px of pane padding, which is the kind of thing you stop seeing after a week and never stop feeling. A's pane is a shade too white against its own page and its truncator emits four dots in a row, but that is a proof-reading fault against a structural one.",
+  "oursShot": "shots/files/r2-library-ours.png",
+  "theirsShot": "shots/oracle/files/library.png",
+  "refSource": "shots/oracle/files/ — the Parity oracle frozen by tools/gate oracle files from legacy/app 738f48c969965ac3 with legacy/tools/shoot.mjs 239bd27db3974b27",
+  "builderNote": "#253 round 1: the sidebar at rest — sections, rows with excerpts, the sort control and the status line; search is unbuilt",
+  "secondary": [
+    "B drops the corpus word count: '8 documents' against A's '8 documents · 239 words'",
+    "B's Location head reads lowercase 'library' and wears the identical #00BFFF filled folder as the child 'Drafts' row — only 26 CSS px of indent distinguishes a Location from a folder",
+    "B's status bar right half is empty; A right-aligns the storage disclosure there",
+    "A's file-row pitch alternates 77/78 CSS px (dividers at 728/882/1038/1192/1348 at 2×); B's is a flat 75 CSS px every row",
+    "A insets the nested divider to 62 CSS px under opening.md but reverts to 46 CSS px under closing.md, so the Drafts indent bracket breaks at the last child",
+    "B truncates with three periods after a dangling space ('thrown away three. The ...') rather than a true ellipsis glyph",
+    "Selection treatment is a wash: ~4 CSS px cyan bar (A #00B5FF, B #00BFFF) over a Δ5 tint in both",
+    "Hairline contrast is a wash: A #E7E7E7 on #FDFDFD (Δ22), B #DFDFDF on #F7F7F7 (Δ24)",
+    "Extension display, Drafts expanded-vs-collapsed, the sidebar typeface, and the unbuilt search filtering were all excluded from scoring per the brief"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "b8f6b65",
+    "binary": "f7172632372a7bce",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "library",
+      "ours": "shots/files/r2-library-ours.png",
+      "theirs": "shots/oracle/files/library.png",
+      "blind": "shots/blind/files/library",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "B has no pane header at all and therefore no new-document control anywhere in the 2880×1800 frame: A gives the sidebar a 44 CSS px header carrying the Location name, a disclosure chevron and a '+', while B's topmost ink is the search magnifier at y=7 CSS px — zero top padding, the placeholder hard against the window frame — and the pane-collapse toggle has been exiled to x=391, some 24 CSS px right of the hairline, floating over the manuscript's paper.",
+      "gapTheirs": "A's sidebar paper is #FDFDFD while its own editor paper is #F9F9F9 — a 4-level split that runs the full 367×900 CSS px of the column, so the Library reads as a white slab pasted onto grey stock rather than the same sheet; B holds pane and page at exactly #F7F7F7 with only the hairline between them, which is what 'a column on the theme's paper' means. A also emits a four-dot truncation ('is awake.…' — full stop plus ellipsis glyph) that B does not.",
+      "verdict": "B is a file list with the filing cabinet removed: you can search it and sort it, but there is no button that makes a new document and nothing at the top of the column that names what you are looking at, so the first thing a writer wants to do on opening the app has no target. Worse for trust, B's status line says 'All changes saved' and stops — A's says it and then tells you, right-aligned at the pane's foot, 'In this browser', which is the one fact that decides whether you put a manuscript here. B's search field is also jammed flush to the window edge with 0 px of pane padding, which is the kind of thing you stop seeing after a week and never stop feeling. A's pane is a shade too white against its own page and its truncator emits four dots in a row, but that is a proof-reading fault against a structural one.",
+      "secondary": [
+        "B drops the corpus word count: '8 documents' against A's '8 documents · 239 words'",
+        "B's Location head reads lowercase 'library' and wears the identical #00BFFF filled folder as the child 'Drafts' row — only 26 CSS px of indent distinguishes a Location from a folder",
+        "B's status bar right half is empty; A right-aligns the storage disclosure there",
+        "A's file-row pitch alternates 77/78 CSS px (dividers at 728/882/1038/1192/1348 at 2×); B's is a flat 75 CSS px every row",
+        "A insets the nested divider to 62 CSS px under opening.md but reverts to 46 CSS px under closing.md, so the Drafts indent bracket breaks at the last child",
+        "B truncates with three periods after a dangling space ('thrown away three. The ...') rather than a true ellipsis glyph",
+        "Selection treatment is a wash: ~4 CSS px cyan bar (A #00B5FF, B #00BFFF) over a Δ5 tint in both",
+        "Hairline contrast is a wash: A #E7E7E7 on #FDFDFD (Δ22), B #DFDFDF on #F7F7F7 (Δ24)",
+        "Extension display, Drafts expanded-vs-collapsed, the sidebar typeface, and the unbuilt search filtering were all excluded from scoring per the brief"
+      ]
+    },
+    {
+      "name": "search",
+      "ours": "shots/files/r2-search-ours.png",
+      "theirs": "shots/oracle/files/search.png",
+      "blind": "shots/blind/files/search",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "No document-creation or location affordance anywhere in the pane: the sidebar opens flush at y=18 straight into the search field, with no header row, no '+', no Location switcher, and the pane's own collapse toggle exiled into the editor at x=543 — A carries all three in a 44pt chrome row. B's status foot compounds it, printing 'All changes saved' and leaving the right half of a 368pt bar empty where A prints 'In this browser'.",
+      "gapTheirs": "Secondary ink is 13 levels fainter: dates and the two-line preview render at #999999 on a #F8F8F8 selected row (~2.5:1) where B uses #8C8C8C on #F2F2F2 (~3.0:1) — the snippet that exists so you can find a file without opening it is the palest thing in the pane.",
+      "verdict": "The two panes are near clones — 368pt column, 1px hairline at the same x, 4px accent bar inset 4px, separators indented left and 15pt off the right edge, row heights 79pt vs 75pt, names at #1C1C1C vs #191919 — so this comes down to what each one refuses to do. B refuses to let you make a file: there is no '+', no folder menu, no location control, only a list you may scroll and a foot that says your work is saved without ever saying where. A tells you the manuscripts are 'In this browser' and gives you a way to add to them, then undercuts itself by washing every date and preview out to #999999, which is exactly the text you squint at when hunting a half-remembered sentence. B answers with two solid #00BFFF folder blobs — the loudest ink in an otherwise grey window — which is a worse trade than A's timidity.",
+      "secondary": [
+        "A's sidebar paper is #FDFDFD against its own page at #F9F9F9 — the chrome column is brighter than the manuscript; B holds pane and page both at #F7F7F7 so the #DFDFDF hairline is the only division.",
+        "B's folder marks are filled #00BFFF at ~14x12pt, twice; A's folder mark is #999999 and matches the rest of the pane's greyscale.",
+        "Selection contrast is identical in both: row tint sits exactly 5 levels under the pane paper (A #F8F8F8/#FDFDFD, B #F2F2F2/#F7F7F7), so in both the blue bar is doing nearly all the work.",
+        "A's selected-row tint #F8F8F8 is within one level of its editor paper #F9F9F9, so across the hairline the 'selected' state disappears into the page.",
+        "Accent bars are the same geometry, 8px wide at 8px inset; only the hue differs, #00B5FF vs #00BFFF.",
+        "Name-ink size matches within 1px (ascender band 21px vs 20px), so nothing here is a font-size gap.",
+        "Excluded per brief and not counted either way: A showing '.md' extensions, A's list narrowed to '2 of 8 documents' with the match highlighted, B's collapsed Drafts row, and the Quattro/Adwaita face difference.",
+        "B's section header 'library' is set lowercase at the raw folder name, same weight and near-same size as the file names below it, so the Location reads as another row rather than a heading."
+      ]
+    }
+  ],
+  "at": "2026-09-03T05:07:42.936Z"
+}

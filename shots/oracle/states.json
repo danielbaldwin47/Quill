@@ -18,7 +18,10 @@
     "nocaret": false,
     "active": true,
     "typing": false,
-    "menu": null
+    "menu": null,
+    "library": null,
+    "sidebar": false,
+    "search": null
   },
   "assert": "A state that names `assert` instead is judged against nobody: neither oracle holds what it is about, so it is measured off ours' own pixels by tools/assert-state.mjs and the Piece takes that answer the way it takes a critic's (ADR 0017). { kind, ... } — the rule's name, and whatever that rule reads. `ghost` shoots the state a second time with the window active and holds the bar to the same column, width and band lit or ghosted, and to `alpha` of the lit bar over the paper; the alpha is solved out of the two shots rather than compared against a hex, and the state names it because docs/design.md is where it is decided. Like `opponent` it never reaches a command line, and tools/gate oracle passes such a state over.",
   "reference": "A state that names no `opponent` is judged against the Parity oracle while legacy/ stands. When legacy/ is gone the opponent for every state is a mac-native crop, named the way `opponent` above says; the gauntlet's own crop recipes, recorded as refSource in progress/rounds/<piece>-r1.json, were read off marketing frames and are history rather than an opponent (ADR 0015).",
@@ -280,12 +283,18 @@
     "files": {
       "library": {
         "library": "shots/oracle/library",
-        "sidebar": true
+        "sidebar": true,
+        "text": "shots/oracle/library/sea-storm.md",
+        "caret": 0,
+        "nocaret": true
       },
       "search": {
         "library": "shots/oracle/library",
         "sidebar": true,
-        "search": "sea"
+        "search": "sea",
+        "text": "shots/oracle/library/sea-storm.md",
+        "caret": 0,
+        "nocaret": true
       }
     },
     "latency": {}
@@ -353,5 +362,5 @@
       ]
     }
   },
-  "_pending": "The files states use flags (library, sidebar, search) and a fixture folder that the File handling spec (after #25) defines; they are listed now so the state ids are stable."
+  "library": "The `files` states open a Library on `shots/oracle/library`, the fixture committed beside this file: eight documents in the four extensions, one Collection, one dot-folder that must not show, and `manifest.json`, the mtime each is stamped with so the Date sort is the same on every machine. `text` names one of those files rather than the shared passage, so both sides show the document the sidebar has selected; the Parity oracle's Library is the browser's, seeded from the fixture by `legacy/tools/shoot.mjs --library` (its folder location wants a picker and cannot be driven headless). Both states are shot with `nocaret`: the oracle places the bar of a Library-opened document three logical pixels either side of the first glyph depending on when it is measured, which is one shot in three, and the caret is the caret Piece's to judge rather than this one's."
 }

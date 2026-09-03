@@ -1,4 +1,4 @@
-//! One small TOML file, read whole and written whole.
+//! One small file, read whole and written whole.
 //!
 //! Both of Quill's files — the writer's `settings.toml` and the state Quill
 //! leaves for its next launch — are read once and rewritten in full, so the
@@ -11,6 +11,11 @@
 //! The temporary file is hidden and carries this process's id, so two Quills
 //! writing at once cannot write through the same temporary; the loser of the
 //! rename simply loses, which is what "last writer wins" means.
+//!
+//! The reading here is TOML's; the writing is any file's, and a Document's
+//! save ([`crate::disk`]) is the third caller of [`write`], because a
+//! Document's save asks that same question of a half-finished write and must
+//! have that same answer.
 
 use std::fs;
 use std::io::{self, Write};
@@ -88,8 +93,15 @@ pub fn read_table(path: &Path, instead: &str) -> (Option<toml::Table>, Vec<Strin
 /// Writes `contents` to `path` without ever leaving a partial file there.
 ///
 /// Creates the directory the file lives in, writes a temporary file beside it,
-/// flushes it to the disk and renames it over `path`. A failure at any step
-/// removes the temporary and leaves whatever was at `path` untouched.
+/// flushes it to the disk, puts on it the permissions the file being replaced
+/// had, and renames it over `path`. A failure at any step removes the
+/// temporary and leaves whatever was at `path` untouched.
+///
+/// The permissions are carried over because this writes the writer's
+/// Documents as well as Quill's own two files (`docs/architecture.md`
+/// § Documents and files, "renamed over the original with its permissions
+/// preserved"): a Document the writer made read-only, or shared with a group,
+/// is the same file after a save.
 ///
 /// # Errors
 ///
@@ -104,7 +116,15 @@ pub fn write(path: &Path, contents: &str) -> io::Result<()> {
     };
     fs::create_dir_all(directory)?;
     let temporary = temporary(path);
-    let written = write_and_flush(&temporary, contents).and_then(|()| fs::rename(&temporary, path));
+    let replacing = fs::metadata(path)
+        .map(|metadata| metadata.permissions())
+        .ok();
+    let written = write_and_flush(&temporary, contents)
+        .and_then(|()| match replacing {
+            Some(permissions) => fs::set_permissions(&temporary, permissions),
+            None => Ok(()),
+        })
+        .and_then(|()| fs::rename(&temporary, path));
     if written.is_err() {
         // Best effort: the write has already failed, and a temporary nobody
         // can remove is not worth a second error nobody can act on.

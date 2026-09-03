@@ -8,17 +8,23 @@
 //! separator between them; the Syntax highlight rows are a nested submenu
 //! under their head. A row's action is the Command's, so the check or the
 //! radio the popover draws reads the stateful action the chord fires, and a
-//! Command not built yet has a disabled action, which is the greyed row. The
-//! accelerator label is GTK's own rendering of the first chord the Command is
+//! Command not built yet has a disabled action, which is the greyed row.
+//! Document → Open Recent is the one row no Command places: a submenu of the
+//! recents the caller hands over, appended after Open File… and opening each
+//! Document through [`chrome::RECENT_OPEN`] (#246). The accelerator
+//! label is GTK's own rendering of the first chord the Command is
 //! installed with now ([`chrome::accels`]) rather than of the registry's own,
 //! handed over in GTK's syntax as the row's `accel`, so a row rebound in
 //! `settings.toml` is labelled the way the writer rebound it (#124).
 
+use std::path::PathBuf;
+
 use gtk::gio;
 use gtk::prelude::*;
 use quill_engine::commands::{COMMANDS, Command, Menu, Placement, VIEW_SECTIONS};
+use quill_engine::document::shown_name;
 
-use crate::chrome::{self, Modes};
+use crate::chrome::{self, Modes, RECENT_OPEN};
 
 /// The head of the Syntax highlight submenu, whose five rows are the
 /// `syntax.` Commands that follow it in the table.
@@ -28,15 +34,35 @@ const SYNTAX_HEAD: &str = "syntax.toggle";
 const HEADED: &str = "Typeface";
 /// The Stats menu's last row, the one that hides the bar.
 const HIDE_STATS: &str = "chrome.stats";
+/// The row Open Recent opens under, where a writer looks for it: under the
+/// other way of reaching a Document that is not in the Library.
+const RECENT_AFTER: &str = "file.open";
+/// What that row reads.
+const RECENT_HEAD: &str = "Open Recent";
+/// How many Documents it lists: the ten newest (#246, story 42). The whole of
+/// the state's recents is the Palette's list, which narrows as it is typed
+/// into; a menu that cannot be typed into is a short one.
+const RECENT_ROWS: usize = 10;
 
-/// The model for `menu`, its labels read the way `modes` says they read now.
+/// The model for `menu`, its labels read the way `modes` says they read now
+/// and its Open Recent submenu the Documents in `recents`, newest first.
+///
+/// `recents` is handed over rather than read from the session because a model
+/// is a pure function of what it is given, which is what lets a test build
+/// every menu with no session and no display.
 #[must_use]
-pub fn model(menu: Menu, modes: &Modes) -> gio::Menu {
+pub fn model(menu: Menu, modes: &Modes, recents: &[PathBuf]) -> gio::Menu {
     let model = gio::Menu::new();
     match menu {
         Menu::Document => {
             for (command, placement) in rows(menu) {
                 model.append_item(&item(command, placement, modes));
+                // A writer who has opened nothing yet gets no row rather than
+                // an empty one that opens on nothing.
+                if command.id == RECENT_AFTER && !recents.is_empty() {
+                    let submenu = recent_menu(recents);
+                    model.append_item(&gio::MenuItem::new_submenu(Some(RECENT_HEAD), &submenu));
+                }
             }
         }
         Menu::Stats => {
@@ -69,6 +95,33 @@ pub fn model(menu: Menu, modes: &Modes) -> gio::Menu {
         }
     }
     model
+}
+
+/// The Open Recent submenu: the [`RECENT_ROWS`] newest Documents, each under
+/// the name the top bar would show it by and each opening it in this window
+/// through [`RECENT_OPEN`], the one window action outside the registry.
+fn recent_menu(recents: &[PathBuf]) -> gio::Menu {
+    let menu = gio::Menu::new();
+    let action = format!("win.{RECENT_OPEN}");
+    for path in recents.iter().take(RECENT_ROWS) {
+        let row = gio::MenuItem::new(Some(&mnemonic_free(&shown_name(path))), None);
+        let target = path.to_string_lossy().into_owned();
+        row.set_action_and_target_value(Some(&action), Some(&target.to_variant()));
+        menu.append_item(&row);
+    }
+    menu
+}
+
+/// `name` as a menu label: every `_` doubled.
+///
+/// A GMenu label is read for a mnemonic, so a single underscore is taken as
+/// the marker in front of the letter to underline and is not drawn at all —
+/// `sea_storm` would read as "seastorm" with the `s` underlined. The rows
+/// built from a Command's own label say what they mean and are left as they
+/// are written; a row named after a writer's file has to be escaped, because
+/// the writer named it and not us.
+fn mnemonic_free(name: &str) -> String {
+    name.replace('_', "__")
 }
 
 /// The View menu's rows of one section, the Syntax highlight rows folded
@@ -142,6 +195,13 @@ fn half(command: &Command, text: &str, modes: &Modes) -> String {
     let Some((first, second)) = text.split_once(" / ") else {
         return text.to_string();
     };
+    // A pair reads whole where nothing the window holds picks a half.
+    // `file.pin` acts on whichever row the Library has selected before it acts
+    // on the Document — the pane's state, not the window's — so neither Pin
+    // nor Unpin is the one true label and the row offers both.
+    if command.id == "file.pin" {
+        return text.to_string();
+    }
     // The second half is the way back: Disable once Focus is on, Show once
     // the bars are hidden. A pane not built yet is closed, so its row offers
     // to open it.
@@ -222,14 +282,81 @@ mod tests {
         }
     }
 
+    /// The Documents a state would hand the menu, newest first.
+    fn opened(count: usize) -> Vec<PathBuf> {
+        (0..count)
+            .map(|i| PathBuf::from(format!("/home/w/draft-{i}.md")))
+            .collect()
+    }
+
     /// The Document menu is the table's ten rows in the table's order, New
-    /// Document first and Quit last.
+    /// Document first and Quit last, and with no recents it is only those.
     #[test]
     fn the_document_menu_is_the_tables_rows_in_the_tables_order() {
-        let labels = labels(&model(Menu::Document, &Modes::default()));
+        let labels = labels(&model(Menu::Document, &Modes::default(), &[]));
         assert_eq!(labels, placed(Menu::Document));
         assert_eq!(labels.first().map(String::as_str), Some("New Document"));
         assert_eq!(labels.last().map(String::as_str), Some("Quit"));
+    }
+
+    /// Open Recent is a submenu under Open File…, holding the recents by the
+    /// name the top bar shows them by, each opening its own path.
+    #[test]
+    fn open_recent_is_a_submenu_under_open_file_naming_each_documents_path() {
+        let recents = opened(2);
+        let model = model(Menu::Document, &Modes::default(), &recents);
+        let mut expected: Vec<String> = placed(Menu::Document)
+            .into_iter()
+            .map(str::to_string)
+            .collect();
+        let at = expected
+            .iter()
+            .position(|label| label == "Open File…")
+            .unwrap()
+            + 1;
+        expected.splice(at..at, ["draft-0".to_string(), "draft-1".to_string()]);
+        assert_eq!(labels(&model), expected, "the submenu's rows draw in place");
+        let submenu = model.item_link(3, "submenu").expect("Open Recent");
+        let rows = rows_of(&submenu);
+        assert_eq!(rows.len(), 2);
+        let row = rows[0].as_ref().unwrap();
+        assert_eq!(row.action.as_deref(), Some("win.file.recentOpen"));
+        assert_eq!(row.target.as_deref(), Some("/home/w/draft-0.md"));
+        assert_eq!(row.accel, None);
+    }
+
+    /// An underscore in a file's name is drawn, not eaten as a mnemonic.
+    #[test]
+    fn an_underscore_in_a_recents_name_is_drawn_rather_than_underlining_a_letter() {
+        let path = PathBuf::from("/home/w/sea_storm_two.md");
+        let model = model(
+            Menu::Document,
+            &Modes::default(),
+            std::slice::from_ref(&path),
+        );
+        let submenu = model.item_link(3, "submenu").expect("Open Recent");
+        let row = rows_of(&submenu).remove(0).expect("the one recent");
+        assert_eq!(
+            row.label, "sea__storm__two",
+            "each underscore of the name is doubled, which is one underscore drawn"
+        );
+        assert_eq!(row.target.as_deref(), path.to_str());
+    }
+
+    /// It lists the ten newest and no more, however many the state holds.
+    #[test]
+    fn open_recent_lists_the_ten_newest_and_no_more() {
+        let recents = opened(25);
+        let model = model(Menu::Document, &Modes::default(), &recents);
+        let submenu = model.item_link(3, "submenu").expect("Open Recent");
+        let names: Vec<String> = rows_of(&submenu)
+            .into_iter()
+            .flatten()
+            .map(|row| row.label)
+            .collect();
+        assert_eq!(names.len(), RECENT_ROWS);
+        assert_eq!(names.first().map(String::as_str), Some("draft-0"));
+        assert_eq!(names.last().map(String::as_str), Some("draft-9"));
     }
 
     /// The View menu is six sections with a separator between each pair,
@@ -237,7 +364,7 @@ mod tests {
     /// with the pairs read for the modes given.
     #[test]
     fn the_view_menu_is_six_sections_focus_first_and_all_commands_last() {
-        let model = model(Menu::View, &resting());
+        let model = model(Menu::View, &resting(), &[]);
         let rows = rows_of(model.upcast_ref());
         assert_eq!(rows.iter().filter(|row| row.is_none()).count(), 5);
         let labels: Vec<String> = rows.into_iter().flatten().map(|row| row.label).collect();
@@ -262,7 +389,7 @@ mod tests {
     /// Typeface section carries a heading, as the oracle's does.
     #[test]
     fn the_view_sections_are_the_tables_and_typeface_alone_is_headed() {
-        let model = model(Menu::View, &Modes::default());
+        let model = model(Menu::View, &Modes::default(), &[]);
         assert_eq!(model.n_items(), i32::try_from(VIEW_SECTIONS.len()).unwrap());
         for (i, section) in VIEW_SECTIONS.iter().enumerate() {
             let i = i32::try_from(i).unwrap();
@@ -280,7 +407,7 @@ mod tests {
     /// section.
     #[test]
     fn the_syntax_rows_are_a_submenu_under_their_head() {
-        let model = model(Menu::View, &Modes::default());
+        let model = model(Menu::View, &Modes::default(), &[]);
         let tools = model.item_link(2, "section").expect("Writing tools");
         let loose: Vec<String> = (0..tools.n_items())
             .filter_map(|i| {
@@ -314,7 +441,7 @@ mod tests {
     /// `chrome.stats` first.
     #[test]
     fn the_stats_menu_is_the_six_fields_then_hide_statistics() {
-        let model = model(Menu::Stats, &Modes::default());
+        let model = model(Menu::Stats, &Modes::default(), &[]);
         let rows = rows_of(model.upcast_ref());
         assert_eq!(rows.iter().filter(|row| row.is_none()).count(), 1);
         let labels: Vec<String> = rows.into_iter().flatten().map(|row| row.label).collect();
@@ -333,7 +460,7 @@ mod tests {
     fn every_row_names_its_commands_action_and_first_chord() {
         for menu in [Menu::Document, Menu::View, Menu::Stats] {
             let modes = resting();
-            let drawn: Vec<Row> = rows_of(model(menu, &modes).upcast_ref())
+            let drawn: Vec<Row> = rows_of(model(menu, &modes, &[]).upcast_ref())
                 .into_iter()
                 .flatten()
                 .collect();
@@ -388,5 +515,14 @@ mod tests {
         let quit = by_id("app.quit").unwrap();
         assert_eq!(quit.scope, Scope::App);
         assert_eq!(label(quit, &quit.placements[0], &off), "Quit");
+    }
+
+    /// `file.pin` is the one pair the modes cannot pick a half of: what it
+    /// pins is the pane's selected row before it is the window's Document.
+    #[test]
+    fn the_pin_pair_reads_whole_because_the_modes_do_not_hold_which_row_it_means() {
+        let pin = by_id("file.pin").unwrap();
+        assert_eq!(title(pin, &Modes::default()), "Pin / Unpin");
+        assert!(pin.placements.is_empty(), "the Palette lists it, no menu");
     }
 }

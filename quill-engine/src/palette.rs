@@ -10,7 +10,11 @@
 //! on a radio Command's group below it is Quill's own (#229), so that
 //! `theme` reaches Follow System, whose title holds no word of the query.
 
+use std::borrow::Cow;
+use std::path::{Path, PathBuf};
+
 use crate::commands::{COMMANDS, Command, Kind};
+use crate::document::shown_name;
 
 /// The oracle's four sections, by the registry's ids in the oracle's order
 /// and membership (`chrome.js:364-368`; the oracle's `file.export` is
@@ -178,6 +182,47 @@ pub fn list(query: &str) -> Vec<(Option<&'static str>, Vec<Row>)> {
         .collect();
     ranked.sort_by_key(|(key, _)| *key);
     vec![(None, ranked.into_iter().map(|(_, row)| row).collect())]
+}
+
+/// One row of the Palette's recents list: a Document the writer opened
+/// before, as `file.recent` lists it (#246, story 41).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Recent<'a> {
+    /// The Document the row opens.
+    pub path: &'a Path,
+    /// What the row reads: the file name without its extension, the name the
+    /// top bar shows it under ([`shown_name`]).
+    pub name: Cow<'a, str>,
+    /// The byte ranges of that name the query matched; none at rest.
+    pub hits: Vec<(usize, usize)>,
+}
+
+/// The recents list for `query`: `opened` as it stands, newest first, when
+/// the query is blank; otherwise the rows whose name matched, by [`Rank`].
+///
+/// The match is [`score`] over the name alone, the same rule the Commands
+/// are narrowed by, so `sst` finds `sea-storm.md` here as it does in the
+/// Library's search. Within a rank the sort is stable, so two names matched
+/// alike stay newest first, which is the order the writer was handed them in.
+#[must_use]
+pub fn recents<'a>(opened: &'a [PathBuf], query: &str) -> Vec<Recent<'a>> {
+    let query = query.trim().to_lowercase();
+    let named = opened.iter().map(|path| Recent {
+        path: path.as_path(),
+        name: shown_name(path),
+        hits: Vec::new(),
+    });
+    if query.is_empty() {
+        return named.collect();
+    }
+    let mut ranked: Vec<(Rank, Recent<'a>)> = named
+        .filter_map(|row| {
+            let (rank, hits) = score(&row.name, &query)?;
+            Some((rank, Recent { hits, ..row }))
+        })
+        .collect();
+    ranked.sort_by_key(|(rank, _)| *rank);
+    ranked.into_iter().map(|(_, row)| row).collect()
 }
 
 /// Quill's own fallback (#229): `query`, already lower-cased, against a radio
@@ -424,6 +469,68 @@ mod tests {
         );
         let (_, rows) = &list("font")[0];
         assert!(rows.iter().all(|row| !row.command.id.starts_with("font.")));
+    }
+
+    /// The Documents a state would hand `file.recent`, newest first.
+    fn opened() -> Vec<PathBuf> {
+        [
+            "/home/w/sea-storm.md",
+            "/home/w/notes.txt",
+            "/home/w/set.md",
+        ]
+        .iter()
+        .map(PathBuf::from)
+        .collect()
+    }
+
+    /// The names of the rows `query` leaves, in the order they are listed.
+    fn listed(opened: &[PathBuf], query: &str) -> Vec<String> {
+        recents(opened, query)
+            .into_iter()
+            .map(|row| row.name.into_owned())
+            .collect()
+    }
+
+    /// At rest the recents are the state's order, newest first, under the
+    /// name the top bar shows each Document by.
+    #[test]
+    fn the_recents_are_newest_first_under_the_name_without_the_extension() {
+        let opened = opened();
+        assert_eq!(listed(&opened, ""), ["sea-storm", "notes", "set"]);
+        assert_eq!(listed(&opened, "  "), ["sea-storm", "notes", "set"]);
+        let rows = recents(&opened, "");
+        assert_eq!(rows[0].path, Path::new("/home/w/sea-storm.md"));
+        assert!(rows[0].hits.is_empty());
+    }
+
+    /// Typing narrows them by the same rule the Commands are narrowed by:
+    /// a substring first, then the letters in order, and the letters they
+    /// matched are handed back to be marked.
+    #[test]
+    fn typing_narrows_the_recents_by_name_and_marks_what_matched() {
+        let opened = opened();
+        // "set" is a whole word of one name and scattered through another.
+        assert_eq!(listed(&opened, "set"), ["set", "sea-storm"]);
+        let rows = recents(&opened, "sto");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].name, "sea-storm");
+        assert_eq!(rows[0].hits, vec![(4, 7)]);
+        assert!(listed(&opened, "zzzq").is_empty());
+    }
+
+    /// Two names matched alike stay in the order the state handed them over,
+    /// so the newer of the two is the higher row.
+    #[test]
+    fn recents_matched_alike_stay_newest_first() {
+        let opened: Vec<PathBuf> = ["/w/new/draft.md", "/w/old/draft.md"]
+            .iter()
+            .map(PathBuf::from)
+            .collect();
+        let rows = recents(&opened, "draft");
+        assert_eq!(
+            rows.iter().map(|row| row.path).collect::<Vec<_>>(),
+            [Path::new("/w/new/draft.md"), Path::new("/w/old/draft.md")]
+        );
     }
 
     #[test]
