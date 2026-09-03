@@ -221,10 +221,10 @@ pub const VIEW_SECTIONS: [&str; 6] = [
 pub const COMMANDS: &[Command] = &[
     // Document menu.
     row("file.new", "New Document", Scope::Win, Kind::Plain, &["Ctrl+N"], &[place(DOC, None, "New Document")], false),
-    row("window.new", "New Window", Scope::App, Kind::Plain, &["Ctrl+Shift+N"], &[place(DOC, None, "New Window")], false),
-    row("file.open", "Open File…", Scope::Win, Kind::Plain, &["Ctrl+O"], &[place(DOC, None, "Open File…")], false),
-    row("file.save", "Save", Scope::Win, Kind::Plain, &["Ctrl+S"], &[place(DOC, None, "Save")], false),
-    row("file.saveAs", "Save As…", Scope::Win, Kind::Plain, &["Ctrl+Shift+S"], &[place(DOC, None, "Save As…")], false),
+    row("window.new", "New Window", Scope::App, Kind::Plain, &["Ctrl+Shift+N"], &[place(DOC, None, "New Window")], true),
+    row("file.open", "Open File…", Scope::Win, Kind::Plain, &["Ctrl+O"], &[place(DOC, None, "Open File…")], true),
+    row("file.save", "Save", Scope::Win, Kind::Plain, &["Ctrl+S"], &[place(DOC, None, "Save")], true),
+    row("file.saveAs", "Save As…", Scope::Win, Kind::Plain, &["Ctrl+Shift+S"], &[place(DOC, None, "Save As…")], true),
     row("file.rename", "Rename Document…", Scope::Win, Kind::Plain, &["F2"], &[place(DOC, None, "Rename Document…")], false),
     row("file.duplicate", "Duplicate Document", Scope::Win, Kind::Plain, &[], &[place(DOC, None, "Duplicate Document")], false),
     row("export.open", "Export…", Scope::Win, Kind::Plain, &["Ctrl+Shift+E"], &[place(DOC, None, "Export…")], false),

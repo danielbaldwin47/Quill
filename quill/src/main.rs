@@ -23,6 +23,7 @@
 mod caret;
 mod chrome;
 mod editor;
+mod files;
 mod flags;
 mod fonts;
 mod ground;
@@ -162,7 +163,7 @@ fn main() -> glib::ExitCode {
 
     // The `app.` actions; the `win.` actions go on each window as it is built,
     // and the chords go on at startup, where GTK can read one.
-    chrome::install(&app);
+    chrome::install(&app, &session);
 
     // And the settings file is watched from here on: a saved edit applies
     // without a restart, whatever the writer changed.
@@ -179,6 +180,10 @@ fn main() -> glib::ExitCode {
     // nothing here can fail in a way that should cost it its last keys.
     app.connect_shutdown(move |app| {
         harness::flush();
+        // Autosave's last moment: a Quill going down with a window still open
+        // — the desktop ending the session, rather than `Ctrl+Q`, which asks
+        // each window first — leaves the file holding the last keystroke.
+        window::flush_open(app);
         window::remember_open(app);
         session.store();
     });

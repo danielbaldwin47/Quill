@@ -125,6 +125,14 @@ pub struct Filed {
     saved: Option<Version>,
 }
 
+impl Default for Filed {
+    /// The same as [`Filed::untitled`], so that a window built before it has
+    /// been handed a Document holds an untitled one rather than a `None`.
+    fn default() -> Self {
+        Self::untitled()
+    }
+}
+
 impl Filed {
     /// A Document with no file behind it and nothing written in it.
     #[must_use]
