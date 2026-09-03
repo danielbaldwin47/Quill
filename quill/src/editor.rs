@@ -389,6 +389,13 @@ mod imp {
         /// that was ([`quill_engine::focus::typewriter::POINTER_MS`]). `None`
         /// until the first press.
         pub pressed: Cell<Option<i64>>,
+        /// Whether the edit now reaching the buffer is a task box being
+        /// flipped by a press ([`Editor::press`](super::Editor::press)) rather
+        /// than something the writer typed. The caret's machine stands down
+        /// while it is set: the caret did not move and was not written at, so
+        /// nothing holds the blink and nothing brings the row back into the
+        /// band. Named apart from `ticking`, which is the frame clock's.
+        pub pressing_box: Cell<bool>,
         /// The Typewriter glide in flight, if the view is on its way to where
         /// the row is held. `None` between glides, and always under
         /// `--deterministic`, which jumps instead.
@@ -957,6 +964,12 @@ impl Editor {
     /// The whole answer is read off the buffer's offsets and the furnishings
     /// already worked out ([`Editor::refurnish`]), because a gesture is handed
     /// a position and no Document.
+    ///
+    /// A box press is an edit the caret did not make, so the caret's machine
+    /// stands down for it: the `pressing_box` flag is up across the edit and
+    /// [`Editor::caret_edit_began`] and [`Editor::caret_edited`] return while
+    /// it is. The window's own handlers are untouched — the splice, the retag,
+    /// the furniture and autosave all run.
     fn press(&self, clicks: &gtk::GestureClick, x: f64, y: f64) {
         if !self.imp().live.get() {
             return;
@@ -982,7 +995,12 @@ impl Editor {
         match what {
             Furnish::Checkbox { checked, .. } if !ctrl => {
                 let Some(box_at) = box_at else { return };
+                // The caret's machine stands down for the edit this makes: it
+                // is the box's, not the writer's, and the caret is wherever it
+                // already was, most likely on another block entirely.
+                self.imp().pressing_box.set(true);
                 tick(&self.buffer(), &box_at, !checked);
+                self.imp().pressing_box.set(false);
             }
             Furnish::Link { destination } if ctrl => {
                 open(
@@ -1963,9 +1981,11 @@ impl Editor {
     ///
     /// Filling the buffer with a Document is a delete and an insert like any
     /// other and is not a writer's edit, so this stands down for it with the
-    /// rest of the handlers watching this buffer.
+    /// rest of the handlers watching this buffer. A task box flipped by a
+    /// press is the second edit the caret did not make, and stands down here
+    /// for the same reason ([`Editor::press`]).
     fn caret_edit_began(&self) {
-        if self.loading() {
+        if self.loading() || self.imp().pressing_box.get() {
             return;
         }
         self.imp().edited.set(Some(self.now()));
@@ -2265,8 +2285,13 @@ impl Editor {
     /// about to be made inside the edit-snap window, so the bar is put at the
     /// new column rather than travelling to it, and because the frames the
     /// placement asks for are asked for on what the machine knows by then.
+    ///
+    /// A task box flipped by a press stands down here as it does in
+    /// [`Editor::caret_edit_began`]: the bytes that changed are not the ones
+    /// the caret sits on, and a bar told otherwise would take the view back to
+    /// a row the writer never left ([`Editor::press`]).
     fn caret_edited(&self) {
-        if self.loading() {
+        if self.loading() || self.imp().pressing_box.get() {
             return;
         }
         let now = self.now();
@@ -3177,6 +3202,11 @@ fn address(text: &str, at: &Range<usize>, defined: &BTreeMap<String, String>) ->
 /// One byte inside the brackets rather than the whole box, so that nothing on
 /// the line moves under the writer's finger, and both halves inside one
 /// `begin_user_action`, so that undo takes the tick off in one press.
+///
+/// The caller raises `pressing_box` around this call: the edit is the box's
+/// and not the caret's, and the caret's machine would otherwise read it as a
+/// keystroke and glide the view back to whatever row the caret stands on
+/// ([`Editor::press`]).
 fn tick(buffer: &gtk::TextBuffer, box_at: &Range<i32>, checked: bool) {
     let (cells, state) = flip(box_at, checked);
     let mut from = buffer.iter_at_offset(cells.start);
