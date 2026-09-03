@@ -51,7 +51,7 @@ use std::rc::Rc;
 use std::time::{Duration, SystemTime};
 
 use gtk::prelude::*;
-use gtk::{cairo, gdk, gio, glib};
+use gtk::{cairo, gdk, gio, glib, graphene};
 use quill_engine::document::full_name;
 use quill_engine::library::{Contents, File, Library, Row, Section, Snippet, Sort, View};
 use quill_engine::theme::{self, Colour, Role, Scheme};
@@ -482,6 +482,23 @@ pub struct Sidebar {
     /// The head's drop target while it is a Location's header, kept so that it
     /// can be taken off again when it stops being one.
     head_drop: Rc<RefCell<Option<gtk::DropTarget>>>,
+    /// The menu the right button opens over a row.
+    ///
+    /// Parented once and handed a model as it opens, which is the shape the
+    /// bars' menus have ([`crate::chrome::Bars`]). A popover built per click
+    /// and unparented as that click closes it is out of the widget tree before
+    /// the item pressed has resolved its action, and nothing the menu offers
+    /// ever runs.
+    menu: gtk::PopoverMenu,
+    /// The menu the right button opens over the pane's own head, which is the
+    /// one Location's header where the Library has only the one
+    /// ([`Sidebar::head_as_location`]). Kept for the same reason [`Sidebar::menu`] is.
+    head_menu: gtk::PopoverMenu,
+    /// The Locations whose trees are folded away, which a click on a section
+    /// head puts one into and takes it out of again. Held for as long as the
+    /// window is and no longer: nothing persists it, because what a writer
+    /// folded to see past is not what they want the Library to open at.
+    folded: Rc<RefCell<BTreeSet<PathBuf>>>,
     /// The file texts search has read, kept for as long as the window is, so
     /// that a query over a tree nothing has touched reads nothing.
     contents: Rc<RefCell<Contents>>,
@@ -544,6 +561,13 @@ impl Sidebar {
         let offer = offered(&reload, &keep);
         root.append(&foot(&status, &offer));
 
+        // On the pane and not on the list: a `GtkListBox` takes only rows
+        // away, so a popover parented on it is a child [`Sidebar::refresh`]
+        // cannot remove and its loop over the children never ends. A popover
+        // is a `GtkNative` and no layout manager gives it room, so the pane's
+        // own column is unmoved by it.
+        let menu = menu_popover(&root);
+        let head_menu = menu_popover(&head);
         let sidebar = Self {
             root,
             head,
@@ -565,6 +589,9 @@ impl Sidebar {
             open: Rc::new(RefCell::new(None)),
             header: Rc::new(RefCell::new(None)),
             head_drop: Rc::new(RefCell::new(None)),
+            menu,
+            head_menu,
+            folded: Rc::new(RefCell::new(BTreeSet::new())),
             contents: Rc::new(RefCell::new(Contents::new())),
             read: Rc::new(RefCell::new(BTreeMap::new())),
             settle: Rc::new(RefCell::new(None)),
@@ -620,13 +647,15 @@ impl Sidebar {
         let activated = self.clone();
         self.list
             .connect_row_activated(move |_, row| activated.activate(row));
-        // Esc hands the keyboard back to the page, which is where a writer who
-        // came to the pane looking for a Document leaves it.
+        // Esc drops the query and hands the keyboard back to the page, which
+        // is where a writer who came to the pane looking for a Document leaves
+        // it — the same thing Esc in the field does, because a writer who
+        // arrowed down into the hits is in the same search.
         let keys = gtk::EventControllerKey::new();
         let escaped = self.clone();
         keys.connect_key_pressed(move |_, key, _, _| {
             if key == gdk::Key::Escape {
-                escaped.leave();
+                escaped.clear();
                 return glib::Propagation::Stop;
             }
             glib::Propagation::Proceed
@@ -670,7 +699,7 @@ impl Sidebar {
                 return;
             };
             gesture.set_state(gtk::EventSequenceState::Claimed);
-            removing.popup(&location_menu(&location), &removing.head, x, y);
+            removing.popup(&location_menu(&location), &removing.head_menu, x, y);
         });
         self.head.add_controller(heading);
         self.install_row_actions();
@@ -1057,6 +1086,15 @@ impl Sidebar {
     /// One section: its head, then the rows of it that are not inside a closed
     /// folder. The head is answered, because it is what a drop over the section
     /// lands on ([`Sidebar::drop_onto`]).
+    ///
+    /// A Location's head is also what folds its tree away: a click on it puts
+    /// the Location in [`Sidebar::folded`] and the section draws its head
+    /// alone, and the next click brings the tree back. The head says which way
+    /// it stands by what is under it and by nothing drawn on the head itself,
+    /// because the head's pixels are the judged `library` state's. The pane's
+    /// own head is not one of these: where it is heading the one Location
+    /// ([`Sidebar::head_as_location`]) it carries the buttons that shut the
+    /// pane and start a Document, and a click on it is one of those.
     fn section(
         &self,
         root: Option<&Path>,
@@ -1076,10 +1114,24 @@ impl Sidebar {
             self.heads
                 .borrow_mut()
                 .push((head.clone(), root.to_path_buf()));
+            let folding = gtk::GestureClick::new();
+            folding.set_button(gdk::BUTTON_PRIMARY);
+            let location = root.to_path_buf();
+            let pane = self.clone();
+            folding.connect_pressed(move |_, _, _, _| pane.fold(&location));
+            head.add_controller(folding);
         }
         self.list.append(&head);
-        self.rows_of(rows, drawing);
+        if !root.is_some_and(|root| self.folded.borrow().contains(root)) {
+            self.rows_of(rows, drawing);
+        }
         head
+    }
+
+    /// A click on a Location's head: its tree folds away, or comes back.
+    fn fold(&self, location: &Path) {
+        files::flipped(&mut self.folded.borrow_mut(), location);
+        self.refresh();
     }
 
     /// The rows of one section, in the order the tree hands them over, less
@@ -1290,11 +1342,7 @@ impl Sidebar {
             return;
         };
         if folder {
-            let mut expanded = self.expanded.borrow_mut();
-            if !expanded.remove(&path) {
-                expanded.insert(path.clone());
-            }
-            drop(expanded);
+            files::flipped(&mut self.expanded.borrow_mut(), &path);
             // The refresh builds every row again, so the row that was pressed
             // is a new widget and the keyboard would be left on the list with
             // nothing under it: the arrows go on from where the writer is.
@@ -1510,24 +1558,27 @@ impl Sidebar {
             self.list.select_row(Some(&row));
             row_menu(folder, self.is_pinned(&path))
         };
-        self.popup(&model, &self.list, x, y);
+        // The gesture counts from the list's top left and the menu stands on
+        // the pane, which the list is scrolled inside.
+        let on_pane = self.list.compute_point(&self.root, &place(x, y));
+        let (x, y) = on_pane.map_or((x, y), |point| (f64::from(point.x()), f64::from(point.y())));
+        self.popup(&model, &self.menu, x, y);
     }
 
-    /// Stands `model` at (`x`, `y`) of `over`, as the menu of what can be done
-    /// there.
-    fn popup(&self, model: &gio::Menu, over: &impl IsA<gtk::Widget>, x: f64, y: f64) {
-        let menu = gtk::PopoverMenu::from_model_full(model, gtk::PopoverMenuFlags::NESTED);
-        // The bars' and the Palette's menu look, which the one stylesheet
-        // carries ([`crate::chrome::stylesheet`]).
-        menu.add_css_class("chrome-menu");
-        menu.set_has_arrow(false);
-        menu.set_halign(gtk::Align::Start);
-        menu.set_parent(over);
-        menu.set_pointing_to(Some(&gdk::Rectangle::new(pixels(x), pixels(y), 1, 1)));
-        // A popover parented on a widget belongs to nobody once it closes, so
-        // it takes itself down rather than leaving one behind per right-click.
-        menu.connect_closed(|menu| menu.unparent());
-        menu.popup();
+    /// Stands `model` in `over` at (`x`, `y`) of the widget `over` is parented
+    /// on, as the menu of what can be done there.
+    fn popup(&self, model: &gio::Menu, over: &gtk::PopoverMenu, x: f64, y: f64) {
+        over.set_menu_model(Some(model));
+        over.set_pointing_to(Some(&gdk::Rectangle::new(pixels(x), pixels(y), 1, 1)));
+        over.popup();
+    }
+
+    /// Takes the two menus off the widgets they are parented on, for the
+    /// window's disposal: a popover is a child GTK does not take down with its
+    /// parent ([`crate::chrome::Bars::dispose`]).
+    pub fn dispose(&self) {
+        self.menu.unparent();
+        self.head_menu.unparent();
     }
 
     /// Puts the one Location's header on the pane's own head, or takes it off
@@ -1673,12 +1724,27 @@ impl Sidebar {
         }
     }
 
-    /// Esc in the field: the query goes, the tree comes back, and the keyboard
-    /// returns to the page.
+    /// Esc in the field or in the list: the query goes, the tree comes back,
+    /// and the keyboard returns to the page (#246 story 18).
     fn clear(&self) {
+        self.clear_query();
+        self.leave();
+    }
+
+    /// Drops the query and draws the tree again, answering whether there was a
+    /// query to drop.
+    ///
+    /// The answer is what tells Esc pressed on the page apart from Esc pressed
+    /// on nothing, which is what the window listens for ([`crate::window`]): a
+    /// writer who searched, opened a hit and is now typing is still in a
+    /// search until they say otherwise, and Esc is how they say it.
+    pub fn clear_query(&self) -> bool {
+        if self.entry.text().is_empty() {
+            return false;
+        }
         self.entry.set_text("");
         self.search_now();
-        self.leave();
+        true
     }
 
     /// Enter in the field: the highlighted hit opens, or the first row where
@@ -1753,6 +1819,31 @@ fn held(rows: &[Row<'_>], at: usize) -> usize {
         .count()
 }
 
+/// A place in a widget, as `graphene` takes it.
+///
+/// The narrowing is where the pointer is: the pane is [`WIDTH`] wide and a
+/// list of a thousand rows is tens of thousands of pixels tall, which an `f32`
+/// counts exactly.
+fn place(x: f64, y: f64) -> graphene::Point {
+    graphene::Point::new(x as f32, y as f32)
+}
+
+/// The menu the right button opens on `over`, empty until it is opened on a
+/// model.
+///
+/// Built once and kept, as the bars' menus are ([`crate::chrome::Bars`]):
+/// `NESTED` and arrowless for the same reason, and the same `.chrome-menu`
+/// look, which the one stylesheet carries
+/// ([`crate::chrome::stylesheet`]).
+fn menu_popover(over: &impl IsA<gtk::Widget>) -> gtk::PopoverMenu {
+    let menu = gtk::PopoverMenu::from_model_full(&gio::Menu::new(), gtk::PopoverMenuFlags::NESTED);
+    menu.add_css_class("chrome-menu");
+    menu.set_has_arrow(false);
+    menu.set_halign(gtk::Align::Start);
+    menu.set_parent(over);
+    menu
+}
+
 /// What a row's context menu offers.
 ///
 /// The oracle's order (`legacy/app/js/files.js` `rowMenu`: Open, Rename…,
@@ -1784,13 +1875,24 @@ fn row_menu(folder: bool, pinned: bool) -> gio::Menu {
     menu
 }
 
-/// What a Location's head offers: the one thing that is not about a file.
+/// What a Location's head offers: the two things that are not about a file.
+///
+/// Adding a Location is `file.openFolder`, the Command the Palette and the
+/// Document menu already run, so the head offers the writer looking at their
+/// Locations the same one path to another rather than a second of its own;
+/// dropping this Location stands under a rule of its own, as Move to Trash
+/// does in a row's menu ([`row_menu`]).
 fn location_menu(location: &Path) -> gio::Menu {
     let menu = gio::Menu::new();
+    let adding = gio::Menu::new();
+    adding.append(Some("Add Location…"), Some("win.file.openFolder"));
+    menu.append_section(None, &adding);
+    let going = gio::Menu::new();
     let row = gio::MenuItem::new(Some("Remove from Library"), None);
     let target = location.to_string_lossy().into_owned();
     row.set_action_and_target_value(Some("row.remove"), Some(&target.to_variant()));
-    menu.append_item(&row);
+    going.append_item(&row);
+    menu.append_section(None, &going);
     menu
 }
 
@@ -2327,6 +2429,58 @@ mod tests {
     /// A date the tests measure from: a Wednesday.
     fn at(year: i32, month: i32, day: i32, hour: i32) -> glib::DateTime {
         glib::DateTime::from_local(year, month, day, hour, 0, 0.0).expect("a date")
+    }
+
+    /// What `model` offers, in drawing order and its sections flattened: each
+    /// row's label and the action it fires.
+    fn menu_rows(model: &gio::MenuModel) -> Vec<(String, String)> {
+        let mut rows = Vec::new();
+        for at in 0..model.n_items() {
+            if let Some(section) = model.item_link(at, "section") {
+                rows.extend(menu_rows(&section));
+                continue;
+            }
+            let string = |attribute: &str| {
+                model
+                    .item_attribute_value(at, attribute, Some(glib::VariantTy::STRING))
+                    .and_then(|value| value.get::<String>())
+                    .unwrap_or_default()
+            };
+            rows.push((string("label"), string("action")));
+        }
+        rows
+    }
+
+    #[test]
+    fn a_location_head_offers_adding_a_location_and_removing_this_one() {
+        let rows = menu_rows(location_menu(Path::new("/w/Drafts")).upcast_ref());
+        assert_eq!(
+            rows,
+            vec![
+                (
+                    "Add Location…".to_string(),
+                    "win.file.openFolder".to_string()
+                ),
+                ("Remove from Library".to_string(), "row.remove".to_string()),
+            ],
+            "Add Location… is the Command the Palette runs, not a second path"
+        );
+    }
+
+    #[test]
+    fn a_rows_menu_offers_the_half_of_pin_or_unpin_the_row_is_not() {
+        let pinning = |folder, pinned| {
+            menu_rows(row_menu(folder, pinned).upcast_ref())
+                .into_iter()
+                .find(|(label, _)| label == "Pin" || label == "Unpin")
+                .expect("Pin or Unpin")
+        };
+        assert_eq!(pinning(false, false), ("Pin".into(), "row.pin".into()));
+        assert_eq!(pinning(false, true), ("Unpin".into(), "row.unpin".into()));
+        // A folder has neither a name a rename can give it nor a copy worth
+        // making, so pinning is the whole of its menu.
+        assert_eq!(pinning(true, false), ("Pin".into(), "row.pin".into()));
+        assert_eq!(menu_rows(row_menu(true, false).upcast_ref()).len(), 1);
     }
 
     #[test]
