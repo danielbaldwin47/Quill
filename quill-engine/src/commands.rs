@@ -281,6 +281,7 @@ pub const COMMANDS: &[Command] = &[
     row("file.follow", "Open Linked Document", Scope::Win, Kind::Plain, &["Ctrl+Enter"], &[], false),
     row("file.openFolder", "Add Location…", Scope::Win, Kind::Plain, &[], &[], true),
     row("file.delete", "Move to Trash", Scope::Win, Kind::Plain, &[], &[], true),
+    row("file.pin", "Pin / Unpin", Scope::Win, Kind::Plain, &[], &[], true),
     row("theme.light", "Light Theme", Scope::Win, Kind::Radio { group: "theme", value: "light", }, &[], &[], true),
     row("theme.dark", "Dark Theme", Scope::Win, Kind::Radio { group: "theme", value: "dark", }, &[], &[], true),
     row("theme.auto", "Follow System", Scope::Win, Kind::Radio { group: "theme", value: "auto", }, &[], &[], true),

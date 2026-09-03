@@ -1059,6 +1059,98 @@ impl Window {
             .set_status(&files::moved_to_trash(&basename(path)));
     }
 
+    /// Moves the file at `path` into `folder`, which is what letting a row go
+    /// over a folder's row or a Location's head does.
+    ///
+    /// `library.confirm_move` is off by default, and then the drop is the move.
+    /// With it on, a stock `GtkAlertDialog` — the shape the close prompt is
+    /// asked in ([`Window::ask_before_leaving`]) — stands between the drop and
+    /// the disk, and Cancel leaves the file where it is.
+    pub(crate) fn move_path(&self, path: &Path, folder: &Path) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        if !session.settings().library.confirm_move {
+            self.move_now(path, folder);
+            return;
+        }
+        let dialog = gtk::AlertDialog::builder()
+            .modal(true)
+            .message(format!("Move {} to {}?", basename(path), basename(folder)))
+            .detail("The file moves on disk.")
+            .buttons(["Move", "Cancel"])
+            .default_button(0)
+            .cancel_button(1)
+            .build();
+        let from = path.to_path_buf();
+        let into = folder.to_path_buf();
+        dialog.choose(
+            Some(self),
+            None::<&gio::Cancellable>,
+            glib::clone!(
+                #[weak(rename_to = window)]
+                self,
+                move |answer| {
+                    // Cancel, `Esc`, or a dialog that could not be shown: the
+                    // file stays, which is the answer that moves nothing.
+                    if matches!(answer, Ok(0)) {
+                        window.move_now(&from, &into);
+                    }
+                }
+            ),
+        );
+    }
+
+    /// The move itself: the disk first
+    /// ([`quill_engine::library::Library::move_to`]), then this window where
+    /// what moved is the Document it holds, then every window's pane, and a
+    /// notice at the foot of this one.
+    fn move_now(&self, path: &Path, folder: &Path) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        let to = match session.move_file(path, folder) {
+            Ok(to) => to,
+            Err(err) => {
+                eprintln!(
+                    "quill: cannot move {} to {}: {err}",
+                    path.display(),
+                    folder.display()
+                );
+                return;
+            }
+        };
+        if to != path && self.path().as_deref() == Some(path) {
+            self.imp().filed.borrow_mut().moved_to(&to);
+            self.shown();
+            self.imp().sidebar.set_open(Some(&to));
+            session.watch_document(&to);
+        }
+        self.redraw_library();
+        // After the redraw, for the reason [`Window::trash_path`] gives.
+        self.imp()
+            .sidebar
+            .set_status(&files::moved_into(&basename(path), &basename(folder)));
+    }
+
+    /// `file.pin`, which the registry calls Pin / Unpin: the Library's selected
+    /// row, or the Document this window holds where the pane has none
+    /// ([`crate::files::pinning`]).
+    pub(crate) fn pin_document(&self) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        // Copied out, because pinning borrows the Library again to change it.
+        let pinned = session.library().pinned().to_vec();
+        let selected = self.imp().sidebar.selected_path();
+        let Some((path, pin)) =
+            files::pinning(selected.as_deref(), self.path().as_deref(), &pinned)
+        else {
+            return;
+        };
+        self.set_pinned(&path, pin);
+    }
+
     /// Pins the row at `path`, or unpins it: the Library's Pinned list, and
     /// `[library].pinned` in the settings file behind it.
     pub(crate) fn set_pinned(&self, path: &Path, pinned: bool) {

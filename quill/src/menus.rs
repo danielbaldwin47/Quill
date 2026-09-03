@@ -142,6 +142,13 @@ fn half(command: &Command, text: &str, modes: &Modes) -> String {
     let Some((first, second)) = text.split_once(" / ") else {
         return text.to_string();
     };
+    // A pair reads whole where nothing the window holds picks a half.
+    // `file.pin` acts on whichever row the Library has selected before it acts
+    // on the Document — the pane's state, not the window's — so neither Pin
+    // nor Unpin is the one true label and the row offers both.
+    if command.id == "file.pin" {
+        return text.to_string();
+    }
     // The second half is the way back: Disable once Focus is on, Show once
     // the bars are hidden. A pane not built yet is closed, so its row offers
     // to open it.
@@ -388,5 +395,14 @@ mod tests {
         let quit = by_id("app.quit").unwrap();
         assert_eq!(quit.scope, Scope::App);
         assert_eq!(label(quit, &quit.placements[0], &off), "Quit");
+    }
+
+    /// `file.pin` is the one pair the modes cannot pick a half of: what it
+    /// pins is the pane's selected row before it is the window's Document.
+    #[test]
+    fn the_pin_pair_reads_whole_because_the_modes_do_not_hold_which_row_it_means() {
+        let pin = by_id("file.pin").unwrap();
+        assert_eq!(title(pin, &Modes::default()), "Pin / Unpin");
+        assert!(pin.placements.is_empty(), "the Palette lists it, no menu");
     }
 }

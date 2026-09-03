@@ -1919,4 +1919,27 @@ mod tests {
         assert_eq!(library.move_to(&to, &into).expect("stays put"), to);
         fs::remove_dir_all(&directory).ok();
     }
+
+    /// A folder's row can be dragged too (#257), and what it carries is
+    /// everything under it.
+    #[test]
+    fn a_folder_moved_into_another_takes_its_tree_with_it() {
+        let directory = scratch("move-folder");
+        written(&directory, "Notes/storm.md", "the tide turned");
+        written(&directory, "Drafts/closing.md", "and the wind with it");
+        let notes = directory.join("Notes");
+        let into = directory.join("Drafts");
+        let mut library = Library::open(std::slice::from_ref(&directory), &[]);
+
+        let to = library.move_to(&notes, &into).expect("moves the folder");
+        assert_eq!(to, into.join("Notes"));
+        assert!(to.is_dir() && !notes.exists(), "the disk moved");
+        assert!(library.at(&to).is_some(), "and the tree followed it");
+        assert!(library.at(&notes).is_none(), "leaving nothing behind");
+        assert!(
+            library.at(&to.join("storm.md")).is_some(),
+            "with everything that was under it"
+        );
+        fs::remove_dir_all(&directory).ok();
+    }
 }
