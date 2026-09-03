@@ -22,7 +22,7 @@
 //! that one ground change repaints both.
 
 use std::cell::{Cell, RefCell};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -39,9 +39,36 @@ use crate::window::Window;
 
 /// The pane's width (`files.css` `--lib-w: 368px`).
 pub const WIDTH: i32 = 368;
-/// The band the search field sits in, the title bar's own height so that the
-/// field and the Document's name stand on one line across the window.
+/// The pane's own head, the title bar's height so that what the pane is called
+/// and the Document's name stand on one line across the window
+/// (`.lib-head { height: var(--bar-top) }`).
 const HEAD_HEIGHT: i32 = chrome::TOP_HEIGHT;
+/// The head's insets and the air between its buttons (`.lib-head { padding: 0
+/// 6px 0 8px; gap: 2px }`).
+const HEAD_LEFT: i32 = 8;
+/// What the head keeps clear of the right edge.
+const HEAD_RIGHT: i32 = 6;
+/// Between one thing in the head and the next.
+const HEAD_GAP: i32 = 2;
+/// A head button's side (`#library .lib-btn { width: 26px; height: 26px }`).
+const BUTTON: i32 = 26;
+/// A head button's corner (`border-radius: 5px`).
+const BUTTON_RADIUS: i32 = 5;
+/// The panel and plus marks in the head (`I.panel`, `I.plus`, fifteen by
+/// fifteen).
+const MARK: i32 = 15;
+/// What the pane is called, above the Locations it holds. The oracle names its
+/// one browser Location here; a Location of ours is named by its own section
+/// head, so what stands here is the pane.
+const TITLE: &str = "Library";
+/// Below the search field, before the sort row (`.lib-find { padding: 0 10px
+/// 8px }`).
+const FIELD_BELOW: i32 = 8;
+/// Where the manuscripts are, at the status line's right. The counterpart of
+/// the oracle's "In this browser": ours are plain Markdown files in the
+/// writer's own folders (ADR 0002), which is the fact that decides whether a
+/// writer trusts a Library with a manuscript.
+const WHERE: &str = "On this device";
 /// The field's height (`#lib-q { height: 26px }`).
 const FIELD_HEIGHT: i32 = 26;
 /// What the field keeps clear of the pane's edges (`.lib-find { padding: 0
@@ -231,6 +258,12 @@ pub fn stylesheet(ground: Ground) -> String {
          }}\n\
          .library .lib-icon {{ color: {dim}; }}\n\
          .library .lib-folder-icon {{ color: {accent}; }}\n\
+         .library button.lib-btn {{\n\
+         \x20 background: none; border: none; box-shadow: none; outline: none;\n\
+         \x20 min-height: 0; min-width: 0; padding: 0;\n\
+         \x20 border-radius: {BUTTON_RADIUS}px; color: {dim};\n\
+         }}\n\
+         .library button.lib-btn:hover {{ background-color: {hit}; color: {ink}; }}\n\
          .library button.lib-sortb {{\n\
          \x20 background: none; border: none; box-shadow: none; outline: none;\n\
          \x20 min-height: 0; min-width: 0; padding: 0 {SORT_BUTTON_PAD}px;\n\
@@ -259,6 +292,21 @@ pub fn stylesheet(ground: Ground) -> String {
     )
 }
 
+/// What every row of one refresh is drawn against.
+///
+/// The three things that are the same for all of them and none of which the
+/// tree holds: the setting a name is shown under, the clock a date is measured
+/// from, and what was read of the files.
+struct Drawing<'a> {
+    /// Whether a name keeps its extension (`library.show_extensions`).
+    extensions: bool,
+    /// Now, as the dates are said against it. `None` where the clock could not
+    /// be asked, which is a row with no date rather than no row.
+    now: Option<&'a glib::DateTime>,
+    /// The head of every shown file, by path.
+    read: &'a BTreeMap<PathBuf, Head>,
+}
+
 /// One row of the list, and what it stands for.
 struct Listed {
     row: gtk::ListBoxRow,
@@ -273,6 +321,10 @@ struct Listed {
 #[derive(Clone)]
 pub struct Sidebar {
     root: gtk::Box,
+    /// What the pane's head calls it: the one Location's folder, where that is
+    /// the whole Library, and [`TITLE`] where there is more than one thing
+    /// under it.
+    title: gtk::Label,
     entry: gtk::Entry,
     sort_label: gtk::Label,
     count: gtk::Label,
@@ -312,12 +364,14 @@ impl Sidebar {
         root.set_hexpand(false);
         root.set_visible(false);
 
+        let title = gtk::Label::new(Some(TITLE));
+        root.append(&head(&title));
         let entry = gtk::Entry::builder()
             .hexpand(true)
             .has_frame(false)
             .placeholder_text(PLACEHOLDER)
             .build();
-        root.append(&head(&entry));
+        root.append(&find(&entry));
 
         let sort_label = gtk::Label::new(Some(sort_title(Sort::Date)));
         let count = gtk::Label::new(None);
@@ -340,6 +394,7 @@ impl Sidebar {
 
         let sidebar = Self {
             root,
+            title,
             entry,
             sort_label,
             count,
@@ -442,31 +497,45 @@ impl Sidebar {
             show_hidden: session.settings().library.show_hidden,
             sort: self.sort.get(),
         };
-        let extensions = session.settings().library.show_extensions;
         let now = glib::DateTime::now_local().ok();
+        // Every shown file read once, here, for the two things a row and the
+        // count both want out of it. The walk is the files the view shows and
+        // at most [`EXCERPT_BYTES`] of each.
+        let read: BTreeMap<PathBuf, Head> = library
+            .files(&view)
+            .map(|file| (file.path().to_path_buf(), Head::of(file.path())))
+            .collect();
+        let drawing = Drawing {
+            extensions: session.settings().library.show_extensions,
+            now: now.as_ref(),
+            read: &read,
+        };
         let mut sections = 0;
         let pinned = library.pinned_rows(&view);
+        // One Location and nothing pinned is one thing to name, and the head
+        // names it: a pane called Library over a section called library says
+        // the same word twice. Anything else is the pane over its parts.
+        let parts = !pinned.is_empty() || library.locations().len() > 1;
         if !pinned.is_empty() {
-            self.section(None, "Pinned", sections, &pinned, extensions, now.as_ref());
+            self.section(None, "Pinned", sections, &pinned, &drawing);
             sections += 1;
         }
+        self.title.set_text(TITLE);
         for section in library.shown(&view) {
             let name = match section.root.file_name() {
                 Some(name) => name.to_string_lossy().into_owned(),
                 None => section.root.display().to_string(),
             };
-            self.section(
-                Some(section.root),
-                &name,
-                sections,
-                &section.rows,
-                extensions,
-                now.as_ref(),
-            );
+            if parts {
+                self.section(Some(section.root), &name, sections, &section.rows, &drawing);
+            } else {
+                self.title.set_text(&name);
+                self.rows_of(&section.rows, &drawing);
+            }
             sections += 1;
         }
-        let documents = library.files(&view).count();
-        self.count.set_text(&documents_said(documents));
+        let words = read.values().map(|head| head.words).sum();
+        self.count.set_text(&counted(read.len(), words));
         self.highlight();
     }
 
@@ -478,8 +547,7 @@ impl Sidebar {
         name: &str,
         above: usize,
         rows: &[Row<'_>],
-        extensions: bool,
-        now: Option<&glib::DateTime>,
+        drawing: &Drawing<'_>,
     ) {
         let head = gtk::ListBoxRow::new();
         head.set_selectable(false);
@@ -489,6 +557,12 @@ impl Sidebar {
             head.set_margin_top(SECTION_AIR);
         }
         self.list.append(&head);
+        self.rows_of(rows, drawing);
+    }
+
+    /// The rows of one section, in the order the tree hands them over, less
+    /// whatever is inside a folder that is closed.
+    fn rows_of(&self, rows: &[Row<'_>], drawing: &Drawing<'_>) {
         // A closed folder takes its subtree with it: the tree arrives
         // flattened, deepest last, so everything below a closed folder is
         // everything after it that is deeper than it is.
@@ -506,14 +580,9 @@ impl Sidebar {
                     }
                     self.folder_row(folder.name(), row.path(), *depth, open, held(rows, at))
                 }
-                Row::File { file, depth } => self.file_row(
-                    file.name(),
-                    row.path(),
-                    *depth,
-                    file.modified(),
-                    extensions,
-                    now,
-                ),
+                Row::File { file, depth } => {
+                    self.file_row(file.name(), row.path(), *depth, file.modified(), drawing)
+                }
             };
             self.list.append(&listed.row);
             self.rows.borrow_mut().push(listed);
@@ -552,8 +621,7 @@ impl Sidebar {
         path: &Path,
         depth: usize,
         modified: Option<SystemTime>,
-        extensions: bool,
-        now: Option<&glib::DateTime>,
+        drawing: &Drawing<'_>,
     ) -> Listed {
         let line = gtk::Box::new(gtk::Orientation::Horizontal, ICON_GAP);
         line.set_margin_start(ROW_LEFT + INDENT * i32::try_from(depth).unwrap_or(0));
@@ -567,21 +635,24 @@ impl Sidebar {
         let body = gtk::Box::new(gtk::Orientation::Vertical, 0);
         body.set_hexpand(true);
         let top = gtk::Box::new(gtk::Orientation::Horizontal, ICON_GAP);
-        let title = gtk::Label::new(Some(&shown_name(name, extensions)));
+        let title = gtk::Label::new(Some(&shown_name(name, drawing.extensions)));
         title.add_css_class("lib-name");
         title.set_hexpand(true);
         title.set_xalign(0.0);
         title.set_ellipsize(gtk::pango::EllipsizeMode::End);
         top.append(&title);
-        if let (Some(modified), Some(now)) = (modified, now) {
+        if let (Some(modified), Some(now)) = (modified, drawing.now) {
             let date = gtk::Label::new(Some(&stamp(modified, now)));
             date.add_css_class("lib-date");
             top.append(&date);
         }
         body.append(&top);
-        let said = excerpt(path);
+        let said = drawing
+            .read
+            .get(path)
+            .map_or("", |head| head.excerpt.as_str());
         if !said.is_empty() {
-            let excerpt = gtk::Label::new(Some(&said));
+            let excerpt = gtk::Label::new(Some(said));
             excerpt.add_css_class("lib-excerpt");
             excerpt.set_xalign(0.0);
             excerpt.set_wrap(true);
@@ -717,21 +788,65 @@ fn held(rows: &[Row<'_>], at: usize) -> usize {
         .count()
 }
 
-/// The search field's band, the title bar's height.
-fn head(entry: &gtk::Entry) -> gtk::Box {
+/// The pane's head: what it is called, the toggle that shuts it, and the
+/// button that starts a Document in it.
+///
+/// Both buttons fire their Commands by name, so `file.new` — which the row
+/// operations ticket builds — does nothing yet without the button being greyed,
+/// which is how the bars' buttons stand ([`crate::chrome::Bars`]).
+fn head(title: &gtk::Label) -> gtk::Box {
+    let head = gtk::Box::new(gtk::Orientation::Horizontal, HEAD_GAP);
+    head.set_height_request(HEAD_HEIGHT);
+    head.set_margin_start(HEAD_LEFT);
+    head.set_margin_end(HEAD_RIGHT);
+    head.append(&button(panel_icon, "win.library.toggle"));
+    let name = gtk::Box::new(gtk::Orientation::Horizontal, SECTION_GAP);
+    name.set_margin_start(HEAD_GAP);
+    name.set_hexpand(true);
+    name.append(&column(icon(FOLDER, folder_icon), "lib-icon"));
+    title.add_css_class("lib-head");
+    title.set_xalign(0.0);
+    title.set_ellipsize(gtk::pango::EllipsizeMode::End);
+    name.append(title);
+    head.append(&name);
+    head.append(&button(plus_icon, "win.file.new"));
+    head
+}
+
+/// A head button: a mark in a 26 px square that fires a Command by name.
+fn button(
+    draw: impl Fn(&gtk::DrawingArea, &cairo::Context) + 'static,
+    action: &'static str,
+) -> gtk::Button {
+    let mark = icon((MARK, MARK), draw);
+    let button = gtk::Button::builder()
+        .child(&mark)
+        .valign(gtk::Align::Center)
+        .can_focus(false)
+        .focus_on_click(false)
+        .build();
+    button.add_css_class("lib-btn");
+    button.set_size_request(BUTTON, BUTTON);
+    button.connect_clicked(move |button| {
+        // A Command not built yet has a disabled action, and GTK answers a
+        // disabled action with `false`; that is the click doing nothing.
+        let _ = button.activate_action(action, None);
+    });
+    button
+}
+
+/// The search field, under the head.
+fn find(entry: &gtk::Entry) -> gtk::Box {
     let field = gtk::Box::new(gtk::Orientation::Horizontal, FIELD_GAP);
     field.set_height_request(FIELD_HEIGHT);
-    field.set_valign(gtk::Align::Center);
     field.set_margin_start(FIELD_PAD);
     field.set_margin_end(FIELD_PAD);
+    field.set_margin_bottom(FIELD_BELOW);
     let mag = icon((MAG, MAG), magnifier_icon);
     mag.add_css_class("lib-icon");
     field.append(&mag);
     field.append(entry);
-    let band = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    band.set_height_request(HEAD_HEIGHT);
-    band.append(&field);
-    band
+    field
 }
 
 /// The sort row: what the list is ordered by, and how much of it there is.
@@ -769,7 +884,17 @@ fn foot(status: &gtk::Label) -> gtk::Box {
     dot.add_css_class("lib-icon");
     dot.set_margin_start(FOOT_LEFT);
     foot.append(&dot);
+    status.set_hexpand(true);
+    status.set_xalign(0.0);
+    status.set_ellipsize(gtk::pango::EllipsizeMode::End);
     foot.append(status);
+    // Where the manuscripts are, at the foot's right (`.lib-where`), because a
+    // status line that says the work is saved without saying where has not
+    // said the half that matters.
+    let held = gtk::Label::new(Some(WHERE));
+    held.add_css_class("lib-meta");
+    held.set_margin_end(ROW_RIGHT);
+    foot.append(&held);
     foot
 }
 
@@ -803,7 +928,11 @@ fn section_head(name: &str, folder: bool) -> gtk::Box {
     head.set_margin_start(SECTION_LEFT);
     head.set_margin_end(ROW_RIGHT);
     if folder {
-        head.append(&column(icon(FOLDER, folder_icon), "lib-folder-icon"));
+        // In the grey rather than the folder colour, which the oracle keeps
+        // for a folder inside a Location (`#library[data-loc="device"]
+        // .lib-loc .fold { color: var(--lib-2) }`): a Location is what the
+        // pane is made of, not a folder inside one.
+        head.append(&column(icon(FOLDER, folder_icon), "lib-icon"));
     }
     let label = gtk::Label::new(Some(name));
     label.add_css_class("lib-head");
@@ -843,12 +972,51 @@ fn shown_name(name: &str, extensions: bool) -> String {
     }
 }
 
-/// The count beside the sort control.
-fn documents_said(documents: usize) -> String {
-    if documents == 1 {
-        return "1 document".to_string();
+/// The count beside the sort control: how much there is to write with.
+fn counted(documents: usize, words: usize) -> String {
+    let documents = if documents == 1 {
+        "1 document".to_string()
+    } else {
+        format!("{documents} documents")
+    };
+    let words = if words == 1 {
+        "1 word".to_string()
+    } else {
+        format!("{words} words")
+    };
+    format!("{documents} · {words}")
+}
+
+/// The head of one file: what its row shows of it, and how much of it there is.
+///
+/// Read once per refresh and shared by the row and the count, so that a Library
+/// of a thousand Documents is a thousand bounded reads and not two thousand.
+struct Head {
+    /// Two lines of what the file says.
+    excerpt: String,
+    /// How many words the read holds ([`quill_engine::stats::words`], the same
+    /// count the stats bar shows).
+    words: usize,
+}
+
+impl Head {
+    /// The first [`EXCERPT_BYTES`] of the file at `path`, read as prose.
+    ///
+    /// A file that cannot be read is an empty head rather than a missing row:
+    /// the tree says the file is there and the sidebar's job is to show it,
+    /// whatever a reader of it just found.
+    fn of(path: &Path) -> Self {
+        let Some(read) = beginning(path) else {
+            return Self {
+                excerpt: String::new(),
+                words: 0,
+            };
+        };
+        Self {
+            words: quill_engine::stats::words(&read),
+            excerpt: prose(&read),
+        }
     }
-    format!("{documents} documents")
 }
 
 /// What the sort control reads in each order.
@@ -859,25 +1027,21 @@ fn sort_title(sort: Sort) -> &'static str {
     }
 }
 
+/// The first [`EXCERPT_BYTES`] of the file at `path`, or nothing where it
+/// cannot be read.
+fn beginning(path: &Path) -> Option<String> {
+    let file = std::fs::File::open(path).ok()?;
+    let mut read = Vec::new();
+    file.take(EXCERPT_BYTES).read_to_end(&mut read).ok()?;
+    Some(String::from_utf8_lossy(&read).into_owned())
+}
+
 /// Two lines of what a file says, for the row beneath its name.
 ///
 /// The file's own text with its Markdown markers taken off the front of each
 /// line and its line breaks closed up, which is what the oracle shows
-/// (`files.js` `excerptOf`): the row is a glance at the Document, not a
-/// rendering of it. At most [`EXCERPT_BYTES`] of the file are read and at most
-/// [`EXCERPT_CHARS`] characters kept.
-fn excerpt(path: &Path) -> String {
-    let Ok(file) = std::fs::File::open(path) else {
-        return String::new();
-    };
-    let mut head = Vec::new();
-    if file.take(EXCERPT_BYTES).read_to_end(&mut head).is_err() {
-        return String::new();
-    }
-    prose(&String::from_utf8_lossy(&head))
-}
-
-/// The words in `text`, with the markers off and the whitespace closed up.
+/// (`files.js` `rowHTML`): the row is a glance at the Document, not a
+/// rendering of it. At most [`EXCERPT_CHARS`] characters are kept.
 fn prose(text: &str) -> String {
     let mut said = String::new();
     for line in text.lines() {
@@ -968,6 +1132,42 @@ fn document_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
     let _ = cr.stroke();
 }
 
+/// The panel mark in the head (`files.js` `I.panel`), the same one the title
+/// bar's Library toggle carries: a rounded frame with a divider a third of the
+/// way across.
+fn panel_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
+    chrome::source(area, cr, 1.0);
+    cr.scale(f64::from(MARK) / 16.0, f64::from(MARK) / 16.0);
+    cr.set_line_width(1.2);
+    cr.move_to(1.6, 4.8);
+    cr.curve_to(1.6, 3.6, 2.6, 2.6, 3.8, 2.6);
+    cr.line_to(12.2, 2.6);
+    cr.curve_to(13.4, 2.6, 14.4, 3.6, 14.4, 4.8);
+    cr.line_to(14.4, 11.2);
+    cr.curve_to(14.4, 12.4, 13.4, 13.4, 12.2, 13.4);
+    cr.line_to(3.8, 13.4);
+    cr.curve_to(2.6, 13.4, 1.6, 12.4, 1.6, 11.2);
+    cr.close_path();
+    let _ = cr.stroke();
+    cr.move_to(6.4, 2.6);
+    cr.line_to(6.4, 13.4);
+    let _ = cr.stroke();
+}
+
+/// The plus in the head (`files.js` `I.plus`): a new Document.
+fn plus_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
+    chrome::source(area, cr, 1.0);
+    cr.scale(f64::from(MARK) / 16.0, f64::from(MARK) / 16.0);
+    cr.set_line_width(1.4);
+    cr.set_line_cap(cairo::LineCap::Round);
+    cr.move_to(8.0, 3.0);
+    cr.line_to(8.0, 13.0);
+    let _ = cr.stroke();
+    cr.move_to(3.0, 8.0);
+    cr.line_to(13.0, 8.0);
+    let _ = cr.stroke();
+}
+
 /// The folder mark (`files.js` `I.folder`): a filled tab folder.
 fn folder_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
     chrome::source(area, cr, 1.0);
@@ -1041,10 +1241,10 @@ mod tests {
     }
 
     #[test]
-    fn the_count_says_documents_and_says_one_of_them_singly() {
-        assert_eq!(documents_said(0), "0 documents");
-        assert_eq!(documents_said(1), "1 document");
-        assert_eq!(documents_said(8), "8 documents");
+    fn the_count_says_documents_and_words_and_says_one_of_each_singly() {
+        assert_eq!(counted(0, 0), "0 documents · 0 words");
+        assert_eq!(counted(1, 1), "1 document · 1 word");
+        assert_eq!(counted(8, 239), "8 documents · 239 words");
     }
 
     #[test]

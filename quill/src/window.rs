@@ -216,7 +216,7 @@ impl Window {
         // The Library beside the page before the Document is shown, for the
         // reason the bars are: the page is laid out once, at the width it will
         // keep, rather than reflowing under the first frame.
-        window.imp().sidebar.set_shown(session.flags().sidebar);
+        window.show_library(session.flags().sidebar);
         window.imp().sidebar.attach(&window);
         if let Some(query) = session.flags().search.as_deref() {
             window.imp().sidebar.set_query(query);
@@ -956,8 +956,16 @@ impl Window {
     /// one window has not asked for the pane in the others — and so not one of
     /// [`Window::move_windows`]'s modes, and nothing the settings file holds.
     pub(crate) fn toggle_library(&self) {
-        let sidebar = &self.imp().sidebar;
-        sidebar.set_shown(!sidebar.is_shown());
+        self.show_library(!self.imp().sidebar.is_shown());
+    }
+
+    /// Stands the Library beside the page, or takes it away.
+    ///
+    /// The title bar's toggle goes with it: the pane's own head carries the
+    /// one that shuts it while it is open.
+    fn show_library(&self, shown: bool) {
+        self.imp().sidebar.set_shown(shown);
+        self.imp().bars.set_library_toggle_shown(!shown);
     }
 
     /// The keyboard goes back to the page: what Esc does in the sidebar.

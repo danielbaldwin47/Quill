@@ -760,6 +760,10 @@ pub struct Bars {
     under: gtk::DrawingArea,
     /// The View button's rows, lit the way Focus lights them.
     rows: gtk::DrawingArea,
+    /// The Library toggle at the title bar's left, which steps aside while the
+    /// Library is standing beside the page and carrying a toggle of its own
+    /// ([`crate::sidebar`]), as the oracle's does.
+    library: gtk::Button,
     /// The three menus, each under or over the button that opens it:
     /// Document, View, Stats, in [`Menu`]'s order.
     menus: [gtk::PopoverMenu; 3],
@@ -899,6 +903,7 @@ impl Bars {
             over,
             under,
             rows,
+            library,
             menus,
             shown: Rc::new(Cell::new(Shown {
                 bars: true,
@@ -1081,6 +1086,16 @@ impl Bars {
     pub fn set_focus(&self, focus: Focus) {
         self.focus.set(focus);
         self.rows.queue_draw();
+    }
+
+    /// Shows or hides the title bar's Library toggle.
+    ///
+    /// Hidden while the sidebar stands beside the page, because the pane's own
+    /// head carries the toggle that shuts it and two of them in one frame is
+    /// one too many; shown again the moment the pane goes, which is the
+    /// oracle's arrangement (`files.js`, `.lib-head`).
+    pub fn set_library_toggle_shown(&self, shown: bool) {
+        self.library.set_visible(shown);
     }
 
     /// Re-inks the numbers for `ground`. The rest of the bars follow the
