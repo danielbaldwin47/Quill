@@ -65,6 +65,16 @@ pub fn default_step() -> u32 {
     STEP
 }
 
+/// The percentages Preview draws a Template's sizes at: half of them to double
+/// them.
+///
+/// A range for the reason [`type_steps`] is one: `zoom` in the file and the
+/// three Preview zoom Commands, which step inside it, must hold the same line.
+#[must_use]
+pub fn preview_zooms() -> RangeInclusive<u32> {
+    50..=200
+}
+
 /// Takes an old `size` in pixels out of `table` and hands back the step it
 /// becomes, with one line telling the writer what happened to it.
 ///
@@ -133,11 +143,71 @@ fn library_as_a_table(table: &mut toml::Table, notes: &mut Vec<String>) {
     table.insert("library".to_string(), toml::Value::Table(library));
 }
 
+/// Turns a scalar `preview_layout` in `table` into the `[preview]` table that
+/// holds it as its `layout`, with one line telling the writer.
+///
+/// Where Preview opens was the whole of what a writer chose about it, and
+/// every `settings.toml` written then names it as a plain key. It is read once
+/// as the table's `layout`, as the scalar `library` is read as its first
+/// Location ([`library_as_a_table`]), and the next write puts the table in the
+/// file where the scalar was.
+fn preview_as_a_table(table: &mut toml::Table, notes: &mut Vec<String>) {
+    // A hand-written file naming both keeps its table; the scalar is then a
+    // key this Quill does not know, and is carried on like any other.
+    if table.contains_key("preview") {
+        return;
+    }
+    let Some(layout) = table.get("preview_layout").and_then(toml::Value::as_str) else {
+        return;
+    };
+    let layout = layout.to_string();
+    notes.push(format!(
+        "preview_layout: where Preview opens is the `[preview]` table's `layout` now; \
+         \"{layout}\" is that value, and the next write puts it in the file"
+    ));
+    let mut preview = toml::Table::new();
+    preview.insert("layout".to_string(), toml::Value::String(layout));
+    table.remove("preview_layout");
+    table.insert("preview".to_string(), toml::Value::Table(preview));
+}
+
+/// Turns a scalar `template` in `table` into the `[template]` table that holds
+/// it as its `name`, with one line telling the writer.
+///
+/// The Template was a name alone before it was a name and three toggles, and
+/// the key keeps that name, so a file cannot carry both ([`Settings::read`]
+/// reads `template` as a table from here on).
+fn template_as_a_table(table: &mut toml::Table, notes: &mut Vec<String>) {
+    let Some(name) = table.get("template").and_then(toml::Value::as_str) else {
+        return;
+    };
+    let name = name.to_string();
+    let mut template = toml::Table::new();
+    // `template = "default"` is what every settings file written before there
+    // were Templates to choose carries — the owner's among them. It names no
+    // Template, so it becomes the default one, and there is nothing to tell
+    // the writer.
+    if !name.is_empty() && name != NO_TEMPLATE {
+        notes.push(format!(
+            "template: the Template is a `[template]` table now; \"{name}\" is its `name`, and \
+             the next write puts it in the file"
+        ));
+        template.insert("name".to_string(), toml::Value::String(name));
+    }
+    table.insert("template".to_string(), toml::Value::Table(template));
+}
+
 /// Where the caret sits down the window when Typewriter is on: the middle.
 const ANCHOR: f64 = 0.5;
 
-/// The Template Preview and Export start from.
-const TEMPLATE: &str = "default";
+/// What `template` named while there was one Template and no way to choose
+/// another: no Template of its own, and no line worth telling a writer about
+/// ([`template_as_a_table`]).
+const NO_TEMPLATE: &str = "default";
+
+/// How large Preview draws the sizes a Template names, as a percentage: the
+/// sizes themselves.
+const ZOOM: u32 = 100;
 
 /// What a note about a settings file Quill could not read ends with: a writer
 /// wants to know what became of their preferences, not only what went wrong.
@@ -263,6 +333,27 @@ choice! {
         Split => "split",
         /// In place of the Editor.
         Full => "full",
+    }
+}
+
+choice! {
+    /// Which Template Preview and Export lay a Document out in.
+    ///
+    /// The five built-ins by id ([`crate::template`] parses the file each one
+    /// is); a name that is none of them is a typo and keeps the default, the
+    /// way any other named value does.
+    TemplateName {
+        /// Inter, and the one a writer who has chosen none reads in.
+        #[default]
+        Modern => "modern",
+        /// Source Serif 4.
+        Classic => "classic",
+        /// Quill Mono, at the Editor's size.
+        ManuscriptMono => "manuscript-mono",
+        /// Quill Duo, at the Editor's size.
+        ManuscriptDuo => "manuscript-duo",
+        /// Quill Quattro, at the Editor's size.
+        ManuscriptQuattro => "manuscript-quattro",
     }
 }
 
@@ -463,6 +554,119 @@ impl Library {
     }
 }
 
+/// Preview: where it opens, and how large it draws what a Template names.
+///
+/// Neither is per window and neither is per Document: a writer sets the pane
+/// up once. Whether the pane is open at all is not here — `preview.toggle` is
+/// the window's own and is never remembered.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Preview {
+    /// Where Preview opens.
+    pub layout: PreviewLayout,
+    /// The percentage every size the Template names is drawn at
+    /// ([`preview_zooms`]).
+    pub zoom: u32,
+    /// Anything else in the table, carried through a write.
+    rest: toml::Table,
+}
+
+impl Default for Preview {
+    fn default() -> Self {
+        Self {
+            layout: PreviewLayout::default(),
+            zoom: ZOOM,
+            rest: toml::Table::new(),
+        }
+    }
+}
+
+impl Preview {
+    /// Reads the `[preview]` table.
+    fn read(table: toml::Table, notes: &mut Vec<String>) -> Self {
+        let defaults = Self::default();
+        let mut reading = Reading::new(table, "preview.", notes);
+        let layout = reading.choice("layout");
+        let zoom = reading.whole("zoom", defaults.zoom, &preview_zooms());
+        Self {
+            layout,
+            zoom,
+            rest: reading.rest(),
+        }
+    }
+
+    /// The `[preview]` table as it is written.
+    fn to_table(&self) -> toml::Table {
+        let mut writing = Writing::new();
+        writing.choice("layout", self.layout);
+        writing.whole("zoom", self.zoom);
+        writing.rest(self.rest.clone());
+        writing.finish()
+    }
+}
+
+/// The Template a Document is laid out in, and the three toggles that bend it.
+///
+/// Headings are centred because that is what the Templates were drawn for;
+/// numbering them and indenting paragraphs are each something a writer asks
+/// for, so both start off.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Template {
+    /// Which Template.
+    pub name: TemplateName,
+    /// Whether every heading is centred rather than set as the Template has
+    /// it.
+    pub center_headings: bool,
+    /// Whether the headings under the title are numbered `1`, `1.1`, `1.1.1`.
+    pub number_headings: bool,
+    /// Whether a paragraph is indented on its first line rather than spaced
+    /// from the one before it.
+    pub indent_paragraphs: bool,
+    /// Anything else in the table, carried through a write.
+    rest: toml::Table,
+}
+
+impl Default for Template {
+    fn default() -> Self {
+        Self {
+            name: TemplateName::default(),
+            center_headings: true,
+            number_headings: false,
+            indent_paragraphs: false,
+            rest: toml::Table::new(),
+        }
+    }
+}
+
+impl Template {
+    /// Reads the `[template]` table.
+    fn read(table: toml::Table, notes: &mut Vec<String>) -> Self {
+        let defaults = Self::default();
+        let mut reading = Reading::new(table, "template.", notes);
+        let name = reading.choice("name");
+        let center_headings = reading.boolean("center_headings", defaults.center_headings);
+        let number_headings = reading.boolean("number_headings", defaults.number_headings);
+        let indent_paragraphs = reading.boolean("indent_paragraphs", defaults.indent_paragraphs);
+        Self {
+            name,
+            center_headings,
+            number_headings,
+            indent_paragraphs,
+            rest: reading.rest(),
+        }
+    }
+
+    /// The `[template]` table as it is written.
+    fn to_table(&self) -> toml::Table {
+        let mut writing = Writing::new();
+        writing.choice("name", self.name);
+        writing.boolean("center_headings", self.center_headings);
+        writing.boolean("number_headings", self.number_headings);
+        writing.boolean("indent_paragraphs", self.indent_paragraphs);
+        writing.rest(self.rest.clone());
+        writing.finish()
+    }
+}
+
 /// Everything the writer chose.
 ///
 /// One field per key in `docs/architecture.md`'s Settings section, in that
@@ -485,6 +689,9 @@ pub struct Settings {
     pub typewriter: bool,
     /// Where down the window Typewriter holds the caret's line, 0 to 1.
     pub typewriter_anchor: f64,
+    /// Whether Live is on: the Editor rendering the markup it is not being
+    /// typed in.
+    pub live: bool,
     /// Whether the bars around the Editor are there.
     pub chrome: Chrome,
     /// Whether Spell check is on.
@@ -496,10 +703,10 @@ pub struct Settings {
     pub syntax_highlight: SyntaxHighlight,
     /// Style check and its lists.
     pub style_check: StyleCheck,
-    /// The current Template's name.
-    pub template: String,
-    /// Where Preview opens.
-    pub preview_layout: PreviewLayout,
+    /// The Template a Document is laid out in, and its three toggles.
+    pub template: Template,
+    /// Where Preview opens, and how large it draws.
+    pub preview: Preview,
     /// The Locations Quill was pointed at, what is Pinned, and the four
     /// toggles the sidebar reads.
     pub library: Library,
@@ -524,13 +731,14 @@ impl Default for Settings {
             focus_scope: FocusScope::default(),
             typewriter: false,
             typewriter_anchor: ANCHOR,
+            live: false,
             chrome: Chrome::default(),
             spell_check: true,
             spell_language: String::new(),
             syntax_highlight: SyntaxHighlight::default(),
             style_check: StyleCheck::default(),
-            template: TEMPLATE.to_string(),
-            preview_layout: PreviewLayout::default(),
+            template: Template::default(),
+            preview: Preview::default(),
             library: Library::default(),
             palette: None,
             shortcuts: toml::Table::new(),
@@ -645,13 +853,14 @@ impl Settings {
         writing.choice("focus_scope", self.focus_scope);
         writing.boolean("typewriter", self.typewriter);
         writing.fraction("typewriter_anchor", self.typewriter_anchor);
+        writing.boolean("live", self.live);
         writing.choice("chrome", self.chrome);
         writing.boolean("spell_check", self.spell_check);
         writing.text("spell_language", &self.spell_language);
-        writing.text("template", &self.template);
-        writing.choice("preview_layout", self.preview_layout);
         writing.path("palette", self.palette.as_deref());
         writing.rest(self.rest.clone());
+        writing.table("template", self.template.to_table());
+        writing.table("preview", self.preview.to_table());
         writing.table("library", self.library.to_table());
         writing.table("syntax_highlight", self.syntax_highlight.to_table());
         writing.table("style_check", self.style_check.to_table());
@@ -670,6 +879,8 @@ impl Settings {
         let defaults = Self::default();
         let carried = size_in_steps(&mut table, notes);
         library_as_a_table(&mut table, notes);
+        preview_as_a_table(&mut table, notes);
+        template_as_a_table(&mut table, notes);
         let mut reading = Reading::new(table, "", notes);
         let theme = reading.choice("theme");
         let face = reading.choice("face");
@@ -678,14 +889,15 @@ impl Settings {
         let focus_scope = reading.choice("focus_scope");
         let typewriter = reading.boolean("typewriter", defaults.typewriter);
         let typewriter_anchor = reading.fraction("typewriter_anchor", defaults.typewriter_anchor);
+        let live = reading.boolean("live", defaults.live);
         let chrome = reading.choice("chrome");
         let spell_check = reading.boolean("spell_check", defaults.spell_check);
         let spell_language = reading.text("spell_language", &defaults.spell_language);
-        let template = reading.text("template", &defaults.template);
-        let preview_layout = reading.choice("preview_layout");
         let palette = reading.path("palette");
         // The tables are taken here and read below, once the reading of the
         // top level is done with the notes it is writing into.
+        let template = reading.table("template");
+        let preview = reading.table("preview");
         let library = reading.table("library");
         let syntax_highlight = reading.table("syntax_highlight");
         let style_check = reading.table("style_check");
@@ -699,13 +911,14 @@ impl Settings {
             focus_scope,
             typewriter,
             typewriter_anchor,
+            live,
             chrome,
             spell_check,
             spell_language,
             syntax_highlight: SyntaxHighlight::read(syntax_highlight, notes),
             style_check: StyleCheck::read(style_check, notes),
-            template,
-            preview_layout,
+            template: Template::read(template, notes),
+            preview: Preview::read(preview, notes),
             library: Library::read(library, notes),
             palette,
             shortcuts,
@@ -724,7 +937,7 @@ mod tests {
     /// empty table is written as nothing, so that a writer adding their first
     /// `[shortcuts]` header at the foot of the file is not adding a second
     /// ([`Settings::to_toml`]).
-    const KEYS: [&str; 16] = [
+    const KEYS: [&str; 17] = [
         "theme",
         "face",
         "step",
@@ -732,13 +945,14 @@ mod tests {
         "focus_scope",
         "typewriter",
         "typewriter_anchor",
+        "live",
         "chrome",
         "spell_check",
         "spell_language",
         "syntax_highlight",
         "style_check",
         "template",
-        "preview_layout",
+        "preview",
         "library",
         "palette",
     ];
@@ -816,9 +1030,10 @@ mod tests {
         assert!((settings.typewriter_anchor - 0.5).abs() < f64::EPSILON);
         assert_eq!(settings.chrome, Chrome::Shown);
         assert!(settings.spell_check, "spell check is on by default");
-        assert_eq!(settings.preview_layout, PreviewLayout::Split);
+        assert_eq!(settings.preview.layout, PreviewLayout::Split);
+        assert_eq!(settings.template.name, TemplateName::Modern);
         assert_eq!(settings.library, Library::default());
-        assert!(!settings.focus && !settings.typewriter);
+        assert!(!settings.focus && !settings.typewriter && !settings.live);
     }
 
     /// The four values Focus and Typewriter are remembered by survive a write
@@ -993,6 +1208,159 @@ mod tests {
     }
 
     #[test]
+    fn the_two_preview_keys_are_read_from_the_table() {
+        let (settings, notes) = Settings::parse("[preview]\nlayout = \"full\"\nzoom = 150\n");
+        assert_eq!(notes, Vec::<String>::new());
+        assert_eq!(
+            settings.preview,
+            Preview {
+                layout: PreviewLayout::Full,
+                zoom: 150,
+                rest: toml::Table::new(),
+            }
+        );
+        let (again, _) = Settings::parse(&settings.to_toml());
+        assert_eq!(again, settings, "and round-trips through a write");
+    }
+
+    #[test]
+    fn a_file_with_no_preview_table_opens_split_at_the_templates_own_sizes() {
+        let (settings, notes) = Settings::parse("theme = \"dark\"\n");
+        assert_eq!(notes, Vec::<String>::new());
+        assert_eq!(settings.preview.layout, PreviewLayout::Split);
+        assert_eq!(settings.preview.zoom, 100);
+        assert_eq!(settings.preview, Preview::default());
+    }
+
+    #[test]
+    fn a_zoom_off_the_range_is_a_typo_not_a_preference() {
+        let (settings, notes) = Settings::parse("[preview]\nzoom = 400\n");
+        assert_eq!(settings.preview.zoom, ZOOM);
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].contains("preview.zoom"), "{notes:?}");
+        assert!(notes[0].contains("from 50 to 200"), "{notes:?}");
+    }
+
+    /// The scalar `preview_layout` every settings file written before the
+    /// table names is read as the table's `layout`, and the next write puts
+    /// the table where it was.
+    #[test]
+    fn a_scalar_preview_layout_is_read_as_the_layout_and_written_back_as_the_table() {
+        let (settings, notes) = Settings::parse("preview_layout = \"full\"\n");
+        assert_eq!(settings.preview.layout, PreviewLayout::Full);
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].contains("`[preview]` table"), "{notes:?}");
+
+        let written = settings.to_toml();
+        assert!(
+            !written.contains("preview_layout"),
+            "the scalar is carried on:\n{written}"
+        );
+        assert!(written.contains("[preview]"), "no table in:\n{written}");
+        let (again, notes) = Settings::parse(&written);
+        assert_eq!(again, settings);
+        assert!(notes.is_empty(), "a rewritten file is quiet: {notes:?}");
+    }
+
+    #[test]
+    fn the_four_template_keys_are_read_from_the_table() {
+        let (settings, notes) = Settings::parse(
+            "[template]\n\
+             name = \"classic\"\n\
+             center_headings = false\n\
+             number_headings = true\n\
+             indent_paragraphs = true\n",
+        );
+        assert_eq!(notes, Vec::<String>::new());
+        assert_eq!(
+            settings.template,
+            Template {
+                name: TemplateName::Classic,
+                center_headings: false,
+                number_headings: true,
+                indent_paragraphs: true,
+                rest: toml::Table::new(),
+            }
+        );
+        let (again, _) = Settings::parse(&settings.to_toml());
+        assert_eq!(again, settings, "and round-trips through a write");
+    }
+
+    #[test]
+    fn a_file_with_no_template_table_is_modern_with_its_headings_centred() {
+        let (settings, notes) = Settings::parse("theme = \"dark\"\n");
+        assert_eq!(notes, Vec::<String>::new());
+        assert_eq!(settings.template.name, TemplateName::Modern);
+        assert!(settings.template.center_headings);
+        assert!(!settings.template.number_headings);
+        assert!(!settings.template.indent_paragraphs);
+    }
+
+    #[test]
+    fn a_name_that_is_no_template_keeps_the_default_and_says_why() {
+        let (settings, notes) = Settings::parse("[template]\nname = \"broadsheet\"\n");
+        assert_eq!(settings.template.name, TemplateName::Modern);
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].contains("template.name"), "{notes:?}");
+        assert!(notes[0].contains("manuscript-quattro"), "{notes:?}");
+    }
+
+    /// The scalar `template` is read as the table's `name`, and the next write
+    /// puts the table where it was.
+    #[test]
+    fn a_scalar_template_is_read_as_the_name_and_written_back_as_the_table() {
+        let (settings, notes) = Settings::parse("template = \"manuscript-duo\"\n");
+        assert_eq!(settings.template.name, TemplateName::ManuscriptDuo);
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].contains("`[template]` table"), "{notes:?}");
+
+        let written = settings.to_toml();
+        assert!(
+            !written.contains("template = "),
+            "the scalar is carried on:\n{written}"
+        );
+        assert!(written.contains("[template]"), "no table in:\n{written}");
+        let (again, notes) = Settings::parse(&written);
+        assert_eq!(again, settings);
+        assert!(notes.is_empty(), "a rewritten file is quiet: {notes:?}");
+    }
+
+    /// Every settings file Quill wrote before there were Templates names
+    /// `default`, which is the writer having chosen none and not a line worth
+    /// telling them about.
+    #[test]
+    fn the_template_an_older_file_names_is_no_choice_and_no_note() {
+        let (settings, notes) = Settings::parse("template = \"default\"\n");
+        assert_eq!(settings.template, Template::default());
+        assert_eq!(notes, Vec::<String>::new());
+        assert_eq!(Settings::parse(&settings.to_toml()).0, settings);
+    }
+
+    /// A key a later Quill puts in either table survives an older Quill's
+    /// write, as one at the top level does.
+    #[test]
+    fn a_hand_added_preview_or_template_key_survives_a_write() {
+        let (settings, notes) =
+            Settings::parse("[preview]\nruler = true\n\n[template]\nleading = 1.5\n");
+        assert!(notes.is_empty(), "{notes:?}");
+        let written: toml::Table = settings.to_toml().parse().expect("writes TOML");
+        assert_eq!(written["preview"]["ruler"].as_bool(), Some(true));
+        assert_eq!(written["template"]["leading"].as_float(), Some(1.5));
+        assert_eq!(Settings::parse(&settings.to_toml()).0, settings);
+    }
+
+    #[test]
+    fn live_is_off_until_the_file_turns_it_on() {
+        let (settings, notes) = Settings::parse("theme = \"dark\"\n");
+        assert!(!settings.live);
+        assert_eq!(notes, Vec::<String>::new());
+        let (settings, notes) = Settings::parse("live = true\n");
+        assert!(settings.live);
+        assert_eq!(notes, Vec::<String>::new());
+        assert_eq!(Settings::parse(&settings.to_toml()).0, settings);
+    }
+
+    #[test]
     fn no_palette_line_is_no_palette_and_is_written_as_the_empty_key() {
         let (settings, notes) = Settings::parse("theme = \"dark\"\n");
         assert_eq!(settings.palette, None);
@@ -1073,7 +1441,7 @@ margin = 3
         // And everything absent is the default.
         assert_eq!(settings.theme, Theme::Auto);
         assert!(settings.spell_check);
-        assert_eq!(settings.template, TEMPLATE);
+        assert_eq!(settings.template, Template::default());
         assert_eq!(settings.syntax_highlight, SyntaxHighlight::default());
     }
 
