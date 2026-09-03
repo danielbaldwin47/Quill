@@ -29,7 +29,7 @@ use quill_engine::commands;
 use quill_engine::disk::{Filed, Kept, Line, Noticed, OnDisk, Saved, first_save_name};
 use quill_engine::document::{Document, full_name};
 use quill_engine::focus::Focus;
-use quill_engine::settings::{Chrome, WindowState, library_width};
+use quill_engine::settings::{Chrome, PreviewLayout, WindowState, library_width};
 
 use crate::caret;
 use crate::chrome;
@@ -79,6 +79,7 @@ mod imp {
     use crate::editor::Editor;
     use crate::flags;
     use crate::palette::Palette;
+    use crate::preview::Preview;
     use crate::session::Session;
     use crate::sidebar::Sidebar;
 
@@ -115,6 +116,21 @@ mod imp {
         /// remembered in.
         pub session: RefCell<Option<Rc<Session>>>,
         pub editor: Editor,
+        /// What scrolls the Editor: kept because Full hides it and puts it
+        /// back, and because the sync ticket reads its vertical adjustment
+        /// (#270).
+        pub scroller: OnceCell<ScrolledWindow>,
+        /// The Editor's scroller and the Preview side by side, between the
+        /// bars: what the divider divides, and what divides itself evenly
+        /// until a writer has dragged it.
+        pub pair: OnceCell<gtk::Box>,
+        /// The rendered page beside the Editor, hidden until `preview.toggle`
+        /// opens it.
+        pub preview: Preview,
+        /// Whether the Preview pane is open in this window. Per window like
+        /// the Library's pane and, unlike it, never remembered: the pane is
+        /// closed at every launch (#263).
+        pub previewing: Cell<bool>,
         /// The title bar above the Editor and the stats bar below it.
         pub bars: Bars,
         /// The Library beside the page, hidden until `library.toggle` shows
@@ -157,11 +173,21 @@ mod imp {
             // A column, the bars taking their space above and below the page
             // as the oracle's do (`chrome.css` `.chrome { flex: none }`): a
             // bar fading takes its ink away and leaves its space.
+            // The Editor and the rendered page side by side, the Preview
+            // right of the Editor and hidden until it is asked for, with the
+            // bars spanning both: the split is inside the column and not
+            // beside it, so the title bar and the stats bar are the window's
+            // and not one pane's (`ref/ia/mac-native/NOTES.md` § State 16).
+            let pair = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+            pair.append(&scroller);
+            pair.append(self.preview.widget());
             let column = gtk::Box::new(gtk::Orientation::Vertical, 0);
             column.append(self.bars.top());
-            column.append(&scroller);
+            column.append(&pair);
             column.append(self.bars.bottom());
             self.bars.follow(&scroller);
+            let _ = self.scroller.set(scroller.clone());
+            let _ = self.pair.set(pair);
             // The Library stands left of that column and pushes it right
             // rather than covering it, which is the oracle's model: the page
             // keeps its own centring and is given a narrower window
@@ -252,6 +278,12 @@ impl Window {
         // keep, rather than reflowing under the first frame.
         window.show_library(session.flags().sidebar);
         window.imp().sidebar.attach(&window);
+        // The Preview pane with it, and for the same reason: the Editor is
+        // laid out once, at the width it will keep. The pane is open only
+        // where `--preview` asked for it — nothing else opens one, because
+        // nothing remembers one (#263).
+        window.imp().preview.attach(&window);
+        window.show_preview(session.flags().preview.is_some());
         if let Some(query) = session.flags().search.as_deref() {
             window.imp().sidebar.set_query(query);
         }
@@ -329,9 +361,12 @@ impl Window {
     /// actions show it.
     pub(crate) fn modes(&self) -> chrome::Modes {
         match self.imp().session.borrow().as_ref() {
-            Some(session) => {
-                chrome::Modes::of(session, self.is_fullscreen(), self.imp().sidebar.is_shown())
-            }
+            Some(session) => chrome::Modes::of(
+                session,
+                self.is_fullscreen(),
+                self.imp().sidebar.is_shown(),
+                self.imp().previewing.get(),
+            ),
             None => chrome::Modes::default(),
         }
     }
@@ -1679,6 +1714,145 @@ impl Window {
         self.imp().bars.set_library_toggle_shown(!shown);
     }
 
+    /// `preview.toggle`: the rendered page stands beside the Editor, or steps
+    /// out of it.
+    ///
+    /// Per window rather than per session, as the Library's pane is and for
+    /// the same reason, and — unlike the Library's width and unlike where the
+    /// pane opens — nothing the state or the settings file holds: the pane is
+    /// closed at every launch (#263).
+    pub(crate) fn toggle_preview(&self) {
+        self.show_preview(!self.imp().previewing.get());
+    }
+
+    /// Opens the Preview pane or shuts it.
+    ///
+    /// Closing hands the keyboard back to the Editor, which is what Full took
+    /// it from: the caret and the scroll are where the writer left them,
+    /// because hiding a widget moves neither.
+    fn show_preview(&self, shown: bool) {
+        self.imp().previewing.set(shown);
+        self.apply_preview();
+        if shown {
+            self.refresh_preview();
+            self.focus_pane();
+        } else {
+            self.focus_editor();
+        }
+    }
+
+    /// `preview.layout`: Split becomes Full and Full becomes Split, in every
+    /// window whose pane is open.
+    ///
+    /// The value is the settings file's, so it moves the way the ground and
+    /// Focus's scope do ([`Window::move_windows`]) and is written as the key
+    /// is pressed; the pane's being open is not, so a window with no pane is
+    /// left alone until it opens one.
+    pub(crate) fn swap_preview_layout(&self) {
+        self.move_windows(Session::swap_preview_layout, |window, _| {
+            window.apply_preview();
+            window.refresh_preview();
+            window.focus_pane();
+        });
+    }
+
+    /// Stands the Preview pane at `wanted` logical pixels wide, in this window
+    /// and in every other.
+    ///
+    /// One width for the app, as the Library's is and for the reason
+    /// [`Window::resize_library`] gives; taken down in the state rather than
+    /// the settings, because what a writer dragged is what Quill observed, and
+    /// written as the drag ends ([`crate::preview::Preview`]).
+    pub(crate) fn resize_preview(&self, wanted: i32) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        let width = crate::preview::pane_width(
+            u32::try_from(wanted).unwrap_or_default(),
+            u32::try_from(self.pair_width()).unwrap_or(u32::MAX),
+        );
+        session.set_preview_width(width);
+        let Some(app) = self.application() else {
+            return;
+        };
+        for window in windows(&app) {
+            window.apply_preview();
+        }
+    }
+
+    /// Puts the pane's state — open or away, Split or Full, and how wide — on
+    /// to this window's widgets.
+    ///
+    /// The one pass all three go through, because they are one shape: Full is
+    /// the pane open with the Editor's scroller away, and a width means
+    /// nothing in it.
+    fn apply_preview(&self) {
+        let imp = self.imp();
+        let shown = imp.previewing.get();
+        let split = self
+            .session()
+            .is_none_or(|session| session.preview_layout() == PreviewLayout::Split);
+        imp.preview.set_shown(shown);
+        if let Some(scroller) = imp.scroller.get() {
+            scroller.set_visible(!shown || split);
+        }
+        let width = match self.session() {
+            Some(session) if shown && split => crate::preview::pane_width(
+                session.preview_width(),
+                u32::try_from(self.pair_width()).unwrap_or(u32::MAX),
+            ),
+            _ => quill_engine::settings::EVEN,
+        };
+        if let Some(pair) = imp.pair.get() {
+            // An even Split is the two halves of a homogeneous box rather
+            // than a width worked out here: the pair knows how wide it is and
+            // a window has not been allocated when this first runs.
+            pair.set_homogeneous(shown && split && width == quill_engine::settings::EVEN);
+        }
+        imp.preview.set_width(width);
+    }
+
+    /// How wide the pair the panes divide is, which is the window less the
+    /// Library.
+    fn pair_width(&self) -> i32 {
+        self.imp()
+            .pair
+            .get()
+            .map_or_else(|| self.width(), WidgetExt::width)
+    }
+
+    /// Lays the Document out again in the Preview pane, where one is open.
+    ///
+    /// Everything the render pass reads — the Template, its toggles, the zoom
+    /// and the ground — is the session's, so the pane is handed the settings
+    /// rather than a copy of each ([`crate::preview::Preview::refresh`]).
+    pub(crate) fn refresh_preview(&self) {
+        if !self.imp().previewing.get() {
+            return;
+        }
+        let Some(session) = self.session() else {
+            return;
+        };
+        let document = self.document();
+        self.imp()
+            .preview
+            .refresh(&document, &session.settings(), session.ground().scheme);
+    }
+
+    /// The keyboard goes wherever the pane's state says it should: to the
+    /// Preview in Full, since there is no Editor on screen to type into, and
+    /// to the Editor everywhere else.
+    fn focus_pane(&self) {
+        let full = self
+            .session()
+            .is_some_and(|session| session.preview_layout() == PreviewLayout::Full);
+        if self.imp().previewing.get() && full {
+            self.imp().preview.grab_focus();
+        } else {
+            self.focus_editor();
+        }
+    }
+
     /// `library.search`: the Library stands beside the page if it was away,
     /// and the keyboard goes to its search field.
     pub(crate) fn search_library(&self) {
@@ -2115,6 +2289,11 @@ pub fn repaint(app: &gtk::Application, session: &Session) {
         let document = window.document();
         window.imp().editor.set_ground(ground, &document);
         window.imp().bars.set_ground(ground);
+        // The rendered page is on the Template's paper and not the Editor's,
+        // but which of the Template's two palettes it is on follows the
+        // ground: a dark Editor is a dark page beside it.
+        drop(document);
+        window.refresh_preview();
     });
     chrome::reflect_windows(app);
 }
@@ -2145,6 +2324,12 @@ pub fn reapply(app: &gtk::Application, session: &Session) {
         window.imp().bars.set_ground(ground);
         window.imp().bars.set_focus(focus);
         window.imp().bars.set_shown(bars);
+        // A `[template]` or a `[preview]` key saved while Quill is running is
+        // a page laid out again, and where the pane opens is a pane to stand
+        // again (#271's Settings rows arrive this way).
+        drop(document);
+        window.apply_preview();
+        window.refresh_preview();
     });
     // The sidebar reads the `[library]` settings as it lists — hidden files,
     // extensions — and the Library itself has already been made to say what

@@ -35,7 +35,9 @@ use gtk::glib;
 use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
 use quill_engine::library::Library;
-use quill_engine::settings::{Chrome, Face, FocusScope, Settings, State, Theme, WindowState};
+use quill_engine::settings::{
+    Chrome, Face, FocusScope, PreviewLayout, Settings, State, Theme, WindowState,
+};
 use quill_engine::shortcuts::Refusal;
 use quill_engine::theme::{self, Palette, Scheme};
 use quill_engine::watch::{Placed, Watch, unsaid};
@@ -126,6 +128,13 @@ pub struct Session {
     /// presses `Ctrl+Shift+H`, and then what they pressed it to. Held live for
     /// the reason [`Session::focus`] is.
     chrome: Cell<Chrome>,
+    /// Where Preview opens now: the setting until the writer presses
+    /// `Ctrl+Shift+R`, and then what they flipped it to. Held apart from
+    /// [`Session::settings`] for the reason [`Session::focus_scope`] is —
+    /// what was read has to stay readable for [`Session::store_settings`] to
+    /// know there is anything to write. Whether the pane is open at all is
+    /// not here: that is the window's, and it is never remembered.
+    preview_layout: Cell<PreviewLayout>,
     /// Whether the stats bar is shown while the bars are: `chrome.stats`.
     /// Live only — no settings key holds it until the Stats spec (#30)
     /// decides what the bar remembers — so every launch shows it.
@@ -253,6 +262,7 @@ impl Session {
             face: Cell::new(settings.face),
             desktop: Cell::new(portal),
             chrome: Cell::new(settings.chrome),
+            preview_layout: Cell::new(settings.preview.layout),
             stats: Cell::new(true),
             scheme: Cell::new(scheme),
             settings: RefCell::new(settings),
@@ -334,6 +344,7 @@ impl Session {
         self.typewriter.set(settings.typewriter);
         self.face.set(settings.face);
         self.chrome.set(settings.chrome);
+        self.preview_layout.set(settings.preview.layout);
         let theme = settings.theme;
         self.settings.replace(settings);
         self.set_theme(theme);
@@ -757,6 +768,47 @@ impl Session {
         self.leaving.borrow_mut().library_width = width;
     }
 
+    /// The width the Preview pane stands at in every window of this launch,
+    /// or [`quill_engine::settings::EVEN`] where the divider has never been
+    /// dragged and the pair divides evenly.
+    ///
+    /// One width for the app, as [`Session::library_width`] is, and kept in
+    /// the same file for the same reason: what a writer dragged is what Quill
+    /// observed, not something they set.
+    #[must_use]
+    pub fn preview_width(&self) -> u32 {
+        self.leaving.borrow().preview_width
+    }
+
+    /// Takes down the width the writer dragged the Preview divider to.
+    pub fn set_preview_width(&self, width: u32) {
+        if self.harness {
+            return;
+        }
+        self.leaving.borrow_mut().preview_width = width;
+    }
+
+    /// Where Preview opens now.
+    #[must_use]
+    pub fn preview_layout(&self) -> PreviewLayout {
+        self.preview_layout.get()
+    }
+
+    /// Swaps Split and Full: `preview.layout`'s `Ctrl+Shift+R`.
+    ///
+    /// One value with two states rather than two Commands, so the key means
+    /// the same thing from either — "show me the other one" — the way
+    /// [`Session::swap_focus_scope`] does. The pane's being open at all is
+    /// the window's and is not touched here: a writer who flips the layout
+    /// with the pane closed has said where it opens next.
+    pub fn swap_preview_layout(&self) -> PreviewLayout {
+        self.preview_layout.set(match self.preview_layout.get() {
+            PreviewLayout::Split => PreviewLayout::Full,
+            PreviewLayout::Full => PreviewLayout::Split,
+        });
+        self.preview_layout.get()
+    }
+
     /// Writes the settings and the state file. Called once, when the
     /// application shuts down.
     pub fn store(&self) {
@@ -830,6 +882,7 @@ impl Session {
         settings.typewriter = self.typewriter.get();
         settings.face = self.face.get();
         settings.chrome = self.chrome.get();
+        settings.preview.layout = self.preview_layout.get();
         settings
     }
 

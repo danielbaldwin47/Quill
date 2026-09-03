@@ -40,7 +40,8 @@ use std::path::{Path, PathBuf};
 
 use quill_engine::commands;
 use quill_engine::settings::{
-    Choice, Chrome, Face, FocusScope, Settings, WindowState, window_sizes,
+    Choice, Chrome, Face, FocusScope, Preview, PreviewLayout, Settings,
+    Template as TemplateSettings, TemplateName, WindowState, window_sizes,
 };
 use quill_engine::theme::Scheme;
 use quill_engine::typography;
@@ -73,6 +74,11 @@ Judged state — the states the Gate shoots and benches at:
                          manifest.json names, as the one Location, with the
                          rest of [library] at its defaults.
   --sidebar              Open with the Library beside the page.
+  --preview split|full   Open with the Preview pane beside the Editor, or in
+                         place of it, with the rest of [preview] at its
+                         defaults.
+  --template <id>        Lay the rendered page out in that Template, with the
+                         rest of [template] at its defaults.
   --search <query>       Put <query> in the Library's search field and narrow
                          the list to what it finds. Wants --sidebar.
   --w <px>               Open the window this wide.
@@ -219,6 +225,13 @@ pub struct Flags {
     pub sidebar: bool,
     /// The query `--search` puts in the Library's search field.
     pub search: Option<String>,
+    /// Where `--preview` asked the pane to open. The pane's being open at all
+    /// is this flag having been given: nothing else opens one, because the
+    /// pane is closed at every launch (#263).
+    pub preview: Option<PreviewLayout>,
+    /// The Template `--template` names, which the rendered page is laid out
+    /// in for this launch.
+    pub template: Option<TemplateName>,
     /// The window width `--w` names, in pixels.
     pub width: Option<u32>,
     /// The window height `--h` names, in pixels.
@@ -296,6 +309,8 @@ impl Flags {
                 "--library" => flags.library = Some(file(&mut args, flag)?),
                 "--sidebar" => flags.sidebar = true,
                 "--search" => flags.search = Some(text(&mut args, flag)?),
+                "--preview" => flags.preview = Some(choice(flag, &text(&mut args, flag)?)?),
+                "--template" => flags.template = Some(choice(flag, &text(&mut args, flag)?)?),
                 "--w" => flags.width = Some(whole(flag, &text(&mut args, flag)?, &window_sizes())?),
                 "--h" => {
                     flags.height = Some(whole(flag, &text(&mut args, flag)?, &window_sizes())?)
@@ -411,6 +426,26 @@ impl Flags {
             settings.library.show_extensions = false;
             settings.library.confirm_move = false;
             settings.library.ask_where_to_save = false;
+        }
+        // A judged shot of the pane names where it opens and nothing else
+        // about it, so the rest of the table is pinned to its defaults with
+        // it: a writer who reads at 140 % is not shooting a different Piece
+        // than the one that was judged. The pane's being open is the window's
+        // ([`crate::window::Window::new`]), and absent under `--deterministic`
+        // there is no pane to pin.
+        if let Some(layout) = self.preview {
+            settings.preview = Preview::default();
+            settings.preview.layout = layout;
+        } else if self.deterministic {
+            settings.preview = Preview::default();
+        }
+        // The Template the same way, and the three toggles with it: each of
+        // them is the shape of every heading and every paragraph in the shot.
+        if let Some(name) = self.template {
+            settings.template = TemplateSettings::default();
+            settings.template.name = name;
+        } else if self.deterministic {
+            settings.template = TemplateSettings::default();
         }
         settings
     }
@@ -537,7 +572,7 @@ mod tests {
 
     /// Every flag `docs/architecture.md` names, with a value it takes and —
     /// where it has a domain — one it does not.
-    const FLAGS: [(&str, &str, Option<&str>); 22] = [
+    const FLAGS: [(&str, &str, Option<&str>); 24] = [
         ("--text", "ref/sample.md", None),
         ("--theme", "dark", Some("purple")),
         ("--font", "mono", Some("comic")),
@@ -557,6 +592,8 @@ mod tests {
         // With the flag it wants beside it: a query and no pane to type it
         // into is refused ([`Flags::parse`]).
         ("--search", "sea --sidebar", None),
+        ("--preview", "split", Some("beside")),
+        ("--template", "classic", Some("gothic")),
         ("--w", "1440", Some("0")),
         ("--h", "900", Some("tall")),
         ("--deterministic", "", None),
@@ -613,6 +650,7 @@ mod tests {
             "--text ref/sample.md --theme dark --font mono --step 6 --focus paragraph \
              --typewriter --chrome off --caret end --select 10,20 --scroll 0.25 --nocaret \
              --typing --menu palette --library shots/oracle/library --sidebar --search sea \
+             --preview full --template classic \
              --w 1440 --h 900 --deterministic --measure out.jsonl \
              --palette quill.toml",
         )
@@ -623,6 +661,8 @@ mod tests {
         );
         assert!(flags.sidebar);
         assert_eq!(flags.search.as_deref(), Some("sea"));
+        assert_eq!(flags.preview, Some(PreviewLayout::Full));
+        assert_eq!(flags.template, Some(TemplateName::Classic));
         assert!(flags.typing);
         assert_eq!(flags.menu, Some(Menu::Palette));
         assert_eq!(flags.text.as_deref(), Some(Path::new("ref/sample.md")));
@@ -809,6 +849,61 @@ mod tests {
                 .library,
             writers.library,
             "a launch that named no fixture is the writer's Library exactly"
+        );
+    }
+
+    /// A judged shot of the Preview names where the pane opens and which
+    /// Template is on the page, and the rest of both tables is pinned to its
+    /// defaults with it: a writer reading at 140 % in Manuscript Duo with
+    /// numbered headings is not shooting the state that was judged. Absent
+    /// under `--deterministic` they are pinned all the same — closed and
+    /// `modern` — so every state judged before Preview existed shoots as it
+    /// did.
+    #[test]
+    fn the_preview_and_template_flags_pin_the_whole_tables_the_judged_shot_reads() {
+        let mut writers = Settings::default();
+        writers.preview.layout = PreviewLayout::Full;
+        writers.preview.zoom = 140;
+        writers.template.name = TemplateName::ManuscriptDuo;
+        writers.template.center_headings = false;
+        writers.template.number_headings = true;
+        writers.template.indent_paragraphs = true;
+
+        let judged = parse("--preview split --template classic")
+            .expect("two flags")
+            .over(writers.clone());
+        assert_eq!(judged.preview.layout, PreviewLayout::Split);
+        assert_eq!(judged.preview.zoom, Settings::default().preview.zoom);
+        assert_eq!(judged.template.name, TemplateName::Classic);
+        assert_eq!(judged.template, {
+            let mut wanted = TemplateSettings::default();
+            wanted.name = TemplateName::Classic;
+            wanted
+        });
+
+        let bare = parse("--deterministic")
+            .expect("one flag")
+            .over(writers.clone());
+        assert_eq!(
+            (bare.preview, bare.template),
+            (Preview::default(), TemplateSettings::default()),
+            "a judged shot that names neither is shot with neither"
+        );
+        assert!(
+            parse("--deterministic")
+                .expect("one flag")
+                .preview
+                .is_none(),
+            "and with no pane at all: the table says where one would open"
+        );
+
+        let live = parse("--theme dark")
+            .expect("one flag")
+            .over(writers.clone());
+        assert_eq!(
+            (live.preview, live.template),
+            (writers.preview, writers.template),
+            "a writer's launch that named neither is theirs exactly"
         );
     }
 

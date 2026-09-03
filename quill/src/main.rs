@@ -32,6 +32,7 @@ mod harness;
 mod menus;
 mod palette;
 mod portal;
+mod preview;
 mod session;
 mod settings;
 mod shortcuts;
