@@ -101,7 +101,7 @@ reaches them in two keystrokes.
 | Id | Title | Default | Alias |
 |---|---|---|---|
 | `theme.toggle` | Dark Mode | `Ctrl+Shift+L` | `Alt+Shift+N` |
-| `font.bigger` | Bigger Text | `Ctrl+=` | `Ctrl++` |
+| `font.bigger` | Bigger Text | `Ctrl+=` | |
 | `font.smaller` | Smaller Text | `Ctrl+-` | |
 | `font.reset` | Default Text Size | `Ctrl+0` | |
 | `preview.bigger` | Bigger Preview Text | `Ctrl+Shift+=` | |
@@ -204,6 +204,10 @@ accelerator syntax:
   is an entry to put under it), or a Command named twice in it — a rebinding is edited in place, not
   pasted in beside the entry it replaces. Nothing in such a file is read: Quill keeps what it is
   running on, or the defaults at launch, until the file is TOML again.
+- A `Shift` chord on a symbol or a digit names the keyval Shift produces, not the unshifted key:
+  `<Control><Shift>plus` for `Ctrl+Shift+=`, `<Control><Shift>underscore` for `Ctrl+Shift+-`,
+  `<Control><Shift>parenright` for `Ctrl+Shift+0`. GDK matches the keyval the press produced, so
+  `<Control><Shift>equal` is a chord no US keyboard sends. Letters are unaffected.
 - Menu labels, the Palette and the `Ctrl+?` window show the effective bindings, never the defaults.
 - The settings file is watched; a saved edit applies without a restart.
 - The Settings window has one row, "Keyboard shortcuts: edit settings.toml", that opens the file in
