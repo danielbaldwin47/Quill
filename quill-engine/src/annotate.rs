@@ -7,6 +7,12 @@
 //! against a Document generation, and a result computed against a stale
 //! generation is discarded.
 //!
+//! [`live`] is the fifth, and the one that reads the other Annotators rather
+//! than the text: from Markup's spans and the writer's caret it says which
+//! marker bytes are folded away, which are scaled, and what furniture stands
+//! where a marker was. It runs on the keystroke beside Markup and carries a
+//! vocabulary of its own, because what it says is not a colour.
+//!
 //! Overlapping `GtkTextTag`s override colour by priority rather than blending,
 //! so Markup × Focus × Syntax highlight are flattened here into
 //! non-overlapping runs carrying one precomputed colour each. Decorations
@@ -33,6 +39,8 @@
 use std::ops::Range;
 
 use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Tag};
+
+pub mod live;
 
 use crate::focus::{Focus, LineTiers, Tier};
 use crate::markdown;
