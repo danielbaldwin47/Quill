@@ -274,6 +274,22 @@ impl Document {
         }
     }
 
+    /// Gives the Document the file it is: the name an untitled Document's
+    /// first save derives for it, or the path a file moved to under it
+    /// ([`crate::disk`]).
+    pub fn set_path(&mut self, path: PathBuf) {
+        self.path = Some(path);
+    }
+
+    /// Replaces the text with `text`, parsed whole, keeping the file.
+    ///
+    /// What a Document does when its file changed underneath it: the parse is
+    /// [`Document::open`]'s, since nothing of the old text is reusable, and
+    /// [`crate::disk::Filed::reload`] is what puts the caret back afterwards.
+    pub fn reload(&mut self, text: String) {
+        *self = Self::holding(text, self.path.take());
+    }
+
     /// The file this Document is, or `None` while it is untitled.
     #[must_use]
     pub fn path(&self) -> Option<&Path> {
