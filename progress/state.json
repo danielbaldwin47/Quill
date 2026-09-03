@@ -59,6 +59,12 @@
       "id": "latency",
       "title": "Latency",
       "what": "Keystroke-to-paint and startup, measured"
+    },
+    {
+      "id": "live",
+      "title": "Live rendering",
+      "what": "Markup folded away in place, headings on the ladder, furniture in the marker cells",
+      "judge": "the page with Live on: whether the markup reads as a rendered page while it is still the source — the markers gone from every block but the one the caret is in, that block showing its source to edit, the headings larger by level, and the words landing on the same body column folded or not. The one state is asserted rather than paired (ADR 0017): neither oracle holds it, so tools/assert-state.mjs measures it off ours own pixels and the Piece takes that answer."
     }
   ],
   "log": [

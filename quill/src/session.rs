@@ -114,6 +114,11 @@ pub struct Session {
     /// Whether Typewriter is on now. Nothing scrolls to it yet — #115 is what
     /// makes it move — so this launch only remembers it.
     typewriter: Cell<bool>,
+    /// Whether Live is on now: the markup rendered in place rather than
+    /// written out. A per-app mode as Focus is, so it is held live for the
+    /// reason [`Session::focus`] is — the key moves it in every window, and a
+    /// window opened after it was pressed opens folded.
+    live: Cell<bool>,
     /// The face the page is set in now: the setting until the writer picks
     /// one from View › Typeface, and then the one they picked. Held live for
     /// the reason [`Session::step`] is.
@@ -250,6 +255,7 @@ impl Session {
             focus: Cell::new(settings.focus),
             focus_scope: Cell::new(settings.focus_scope),
             typewriter: Cell::new(settings.typewriter),
+            live: Cell::new(settings.live),
             face: Cell::new(settings.face),
             desktop: Cell::new(portal),
             chrome: Cell::new(settings.chrome),
@@ -332,6 +338,7 @@ impl Session {
         self.focus.set(settings.focus);
         self.focus_scope.set(settings.focus_scope);
         self.typewriter.set(settings.typewriter);
+        self.live.set(settings.live);
         self.face.set(settings.face);
         self.chrome.set(settings.chrome);
         let theme = settings.theme;
@@ -596,6 +603,21 @@ impl Session {
         self.typewriter()
     }
 
+    /// Whether Live is on now: the markup rendered in place.
+    ///
+    /// The live pair rather than `settings().live`, for the reason
+    /// [`Session::focus`] gives: `Ctrl+L` moves it, and the file is written
+    /// from it rather than read back into it.
+    pub fn live(&self) -> bool {
+        self.live.get()
+    }
+
+    /// Turns Live on or off. `docs/shortcuts.md`'s `live.toggle`, `Ctrl+L`.
+    pub fn toggle_live(&self) -> bool {
+        self.live.set(!self.live.get());
+        self.live.get()
+    }
+
     /// Whether the two bars are shown now.
     ///
     /// The live value rather than `settings().chrome`, because `Ctrl+Shift+H`
@@ -828,6 +850,7 @@ impl Session {
         settings.focus = self.focus.get();
         settings.focus_scope = self.focus_scope.get();
         settings.typewriter = self.typewriter.get();
+        settings.live = self.live.get();
         settings.face = self.face.get();
         settings.chrome = self.chrome.get();
         settings
@@ -835,7 +858,7 @@ impl Session {
 
     /// Writes `settings.toml` when this launch changed something in it.
     ///
-    /// The size, the ground, Focus, its scope, Typewriter, the face and the bars
+    /// The size, the ground, Focus, its scope, Typewriter, Live, the face and the bars
     /// are what can move so far, and only a writer's launch can move any of them: the flags a
     /// launch of the harness's carries are this launch's alone and have no
     /// business in the writer's file, which is why a harness launch has already
@@ -1829,6 +1852,30 @@ mod tests {
         assert_eq!(session.toggle_typewriter(), Typewriter::Off);
     }
 
+    /// `Ctrl+L` flips Live, and the launch leaves it in the file it writes.
+    ///
+    /// Asked of [`Session::stored`], which is the value
+    /// [`Session::store_settings`] writes, for the reason
+    /// `the_three_keys_are_what_the_launch_leaves_in_the_file` gives.
+    #[test]
+    fn the_live_key_flips_live_and_the_launch_writes_it() {
+        let session = focused_at(FocusScope::Sentence);
+        assert!(!session.live(), "a launch reads it off the file, off");
+        assert!(session.toggle_live());
+        let mut expected = session.settings().clone();
+        expected.live = true;
+        assert_eq!(
+            session.stored().expect("the key moved one value"),
+            expected,
+            "Live, and nothing else the file carries"
+        );
+        assert!(!session.toggle_live());
+        assert!(
+            session.stored().is_none(),
+            "and pressing it back leaves the file exactly as it was found"
+        );
+    }
+
     /// What the three keys moved is what the launch would leave in the file,
     /// and a launch that moved nothing leaves nothing.
     ///
@@ -1877,6 +1924,7 @@ mod tests {
         settings.focus_scope = FocusScope::Paragraph;
         settings.typewriter = true;
         settings.typewriter_anchor = 0.3;
+        settings.live = true;
         settings.chrome = Chrome::Hidden;
         settings
     }
@@ -1937,6 +1985,7 @@ mod tests {
         assert_eq!(session.scheme(), Scheme::Dark, "the ground is repainted");
         assert_eq!(session.focus(), Focus::On(FocusScope::Paragraph));
         assert_eq!(session.typewriter(), Typewriter::On(0.3));
+        assert!(session.live());
         assert_eq!(session.chrome(), Chrome::Hidden);
         assert_eq!(*session.settings(), edited());
         assert!(
