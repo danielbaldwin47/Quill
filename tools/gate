@@ -67,9 +67,11 @@ usage: tools/gate <command> [arguments]
                 shots/oracle/<piece>/<state>.png with the fingerprint of what
                 produced them beside. Shoots nothing when those shots are
                 already the ones it would take; --force shoots them anyway. A
-                state naming a mac-native crop as its opponent is not this
-                command's to freeze and is passed over, so a Piece whose every
-                state does that is finished before a browser starts.
+                state with no Parity opponent is not this command's to freeze
+                and is passed over: one naming a mac-native crop, and one
+                carrying `assert`, which is measured off ours' own pixels. A
+                Piece whose every state does that is finished before a browser
+                starts.
                 Ends in `gate oracle <piece>: froze N states (<why>)`,
                 `... unchanged`, `... nothing to freeze (...)`,
                 `... no judged states (...)`, or `... fail (...)`.

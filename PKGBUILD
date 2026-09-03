@@ -45,10 +45,11 @@ package() {
 
   install -Dm755 "$startdir/target/release/$pkgname" "$pkgdir/usr/bin/$pkgname"
 
-  # The data directory: the Faces today, Templates and the Style check lists as
-  # their Pieces land. One directory, so an installed build and a development
-  # build differ in one path rather than in every lookup.
-  install -dm755 "$data/fonts" "$data/templates" "$data/data"
+  # The data directory: the fonts today, the Style check lists as their Piece
+  # lands. One directory, so an installed build and a development build differ
+  # in one path rather than in every lookup. Templates are not here: they are
+  # compiled into the binary (`quill_engine::template`).
+  install -dm755 "$data/fonts" "$data/data"
   install -m644 "$startdir"/fonts/*.ttf "$data/fonts/"
   # One licence per set of files in there: the Faces' own, then Inter's and
   # Source Serif 4's, which ship unmodified and carry their own.

@@ -264,7 +264,7 @@ fn folded(buffer: &gtk::TextBuffer) -> gtk::TextTag {
 /// heading's words one marker run inside the gutter. A marker drawn in its own
 /// ground keeps the advance: the hang is handed back by the same glyphs, the
 /// words stay on the body column, and the cells a bullet or a task box left
-/// stay the width the furniture #274 will be drawn in.
+/// stay the width the Editor draws its furniture in (`Editor::draw_furniture`).
 ///
 /// **The ground rather than transparent ink**, which is what this wanted:
 /// `GtkTextTag`'s foreground reaches Pango as a `PangoColor`, which has no
@@ -641,9 +641,11 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
 ///
 /// The third loop, and it is its own function because it is its own Annotator:
 /// the Live spans are asked for over the blocks these bytes touch and mapped
-/// one to one on to a tag, exactly as the marks above are. Nothing here draws
-/// furniture — that is the Editor's snapshot, ticket #274 — so a furnished
-/// marker's cells are folded and left empty.
+/// one to one on to a tag, exactly as the marks above are. A furnished
+/// marker's cells are folded and left empty here, and what stands in them is
+/// painted in the Editor's snapshot (`Editor::draw_furniture`); the one
+/// exception is a link's accent rule, which is a tag because only Pango knows
+/// where a link's words are ([`link_rule`]).
 fn fold(
     buffer: &gtk::TextBuffer,
     document: &Document,

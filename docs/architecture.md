@@ -224,11 +224,15 @@ sit behind the Gate like everything else.
 
 ## Fonts and data files
 
-Before GTK initialises, startup calls `FcConfigAppFontAddDir` on the six Faces ([ADR 0007](adr/0007-quill-faces-renamed-and-private.md)).
-Data files (fonts, Templates, the Style check lists, the tagger model, `OFL.txt`) are resolved from
+Before GTK initialises, startup calls `FcConfigAppFontAddDir` on the fonts directory, which carries
+the six Faces and the two Template families, Inter and Source Serif 4
+([ADR 0007](adr/0007-quill-faces-renamed-and-private.md)).
+Data files (fonts, the Style check lists, the tagger model, the `OFL` licences) are resolved from
 one data directory: `$QUILL_DATA_DIR` if set, else the directory compiled in at build time
 (`/usr/share/quill` for the package), else the repo root for a development build. Nothing is
-downloaded at build time.
+downloaded at build time. Templates are the exception: they are compiled into the binary with
+`include_str!` rather than resolved from the data directory, so a build that finds no data directory
+still renders (`quill_engine::template`).
 
 ## Command-line flags
 
