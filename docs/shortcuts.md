@@ -123,6 +123,7 @@ No menu row; the Palette lists them under their section.
 | `file.follow` | Open Linked Document | `Ctrl+Enter` | |
 | `file.openFolder` | Add Location… | — | |
 | `file.delete` | Move to Trash | — | |
+| `file.pin` | Pin / Unpin | — | |
 | `theme.light`, `theme.dark`, `theme.auto` | Light Theme, Dark Theme, Follow System | — | |
 | `chrome.doc` | Document Menu | — | |
 | `chrome.view` | View Menu | `F10` | |
