@@ -121,6 +121,7 @@ No menu row; the Palette lists them under their section.
 | `file.next` | Next Document | `Ctrl+Page Down` | |
 | `file.prev` | Previous Document | `Ctrl+Page Up` | |
 | `file.follow` | Open Linked Document | `Ctrl+Enter` | |
+| `file.recent` | Open Recent… | — | |
 | `file.openFolder` | Add Location… | — | |
 | `file.delete` | Move to Trash | — | |
 | `theme.light`, `theme.dark`, `theme.auto` | Light Theme, Dark Theme, Follow System | — | |

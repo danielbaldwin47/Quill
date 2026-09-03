@@ -279,6 +279,7 @@ pub const COMMANDS: &[Command] = &[
     row("file.next", "Next Document", Scope::Win, Kind::Plain, &["Ctrl+Page Down"], &[], true),
     row("file.prev", "Previous Document", Scope::Win, Kind::Plain, &["Ctrl+Page Up"], &[], true),
     row("file.follow", "Open Linked Document", Scope::Win, Kind::Plain, &["Ctrl+Enter"], &[], false),
+    row("file.recent", "Open Recent…", Scope::Win, Kind::Plain, &[], &[], true),
     row("file.openFolder", "Add Location…", Scope::Win, Kind::Plain, &[], &[], true),
     row("file.delete", "Move to Trash", Scope::Win, Kind::Plain, &[], &[], true),
     row("theme.light", "Light Theme", Scope::Win, Kind::Radio { group: "theme", value: "light", }, &[], &[], true),
