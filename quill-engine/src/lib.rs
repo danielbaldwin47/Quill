@@ -31,6 +31,7 @@ pub mod shortcuts;
 pub mod spell;
 pub mod stats;
 pub mod style;
+pub mod sync;
 pub mod template;
 pub mod theme;
 pub mod typography;
