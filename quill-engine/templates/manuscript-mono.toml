@@ -7,7 +7,6 @@
 # 0.6 em cell the Quill Faces are cut on.
 
 id = "manuscript-mono"
-name = "Manuscript (Mono)"
 paragraphs = "spaced"
 
 [faces]

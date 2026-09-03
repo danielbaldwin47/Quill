@@ -4,7 +4,6 @@
 # for where each of them comes from.
 
 id = "manuscript-quattro"
-name = "Manuscript (Quattro)"
 paragraphs = "spaced"
 
 [faces]
