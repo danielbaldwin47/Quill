@@ -321,8 +321,9 @@ impl Window {
         shape
     }
 
-    /// Takes this window's shape down for the next launch.
+    /// Takes this window's shape — and its caret — down for the next launch.
     fn remember(&self) {
+        self.leave_caret();
         // Set the moment the window is built, so this is every window; the
         // `Option` is there because a `GObject` is constructed before anyone
         // can hand it anything.
@@ -531,6 +532,9 @@ impl Window {
     /// the count, a clean slate for autosave, the watch on its file and its
     /// place at the front of the recents.
     fn set_filed(&self, filed: Filed) {
+        // Where the caret stands in the Document being left, before it is
+        // gone: what opening that Document again comes back to.
+        self.leave_caret();
         self.imp().filed.replace(filed);
         self.imp().dirty.set(false);
         // Where the last `file.new` was going is nothing to this Document.
@@ -548,6 +552,30 @@ impl Window {
         };
         session.watch_document(&path);
         session.opened_at(&path);
+        // Back to the sentence the writer left this Document in (#246, story
+        // 43), revealed rather than merely placed, since the block it is in
+        // may be a screen down.
+        if let Some(offset) = session.caret(&path) {
+            self.imp()
+                .editor
+                .place_caret(&self.document(), flags::Caret::At(offset), true);
+        }
+    }
+
+    /// Takes down where the caret stands in the Document this window is
+    /// showing, for the state file
+    /// ([`crate::session::Session::left_caret`]).
+    ///
+    /// Called as a Document is left rather than as it is edited: the caret
+    /// moves on every arrow key and the state is written once, on the way out.
+    fn leave_caret(&self) {
+        let (Some(path), Some(session)) = (self.path(), self.session()) else {
+            return;
+        };
+        session.left_caret(
+            &path,
+            u64::try_from(self.caret_offset()).unwrap_or_default(),
+        );
     }
 
     /// Puts the Document this window holds on to the page and the bars.
@@ -556,8 +584,10 @@ impl Window {
     /// Document again rather than taking a new one.
     fn shown(&self) {
         let document = self.document();
-        self.set_title(Some(&document.title()));
-        self.imp().bars.set_title(&document.title());
+        // The name without its extension, which is what the top bar shows
+        // (#246, story 48) and what a `.md` writer reads as the title.
+        self.set_title(Some(&document.name()));
+        self.imp().bars.set_title(&document.name());
         self.imp().bars.set_count(document.text());
         self.imp().editor.show_document(&document);
     }
@@ -729,8 +759,10 @@ impl Window {
         self.show_standing();
         self.tick_standing();
         let document = self.document();
-        self.set_title(Some(&document.title()));
-        self.imp().bars.set_title(&document.title());
+        // The name without its extension, which is what the top bar shows
+        // (#246, story 48) and what a `.md` writer reads as the title.
+        self.set_title(Some(&document.name()));
+        self.imp().bars.set_title(&document.name());
         drop(document);
         let (Some(path), Some(session)) = (self.path(), self.session()) else {
             return;
@@ -1628,7 +1660,10 @@ impl Window {
     pub(crate) fn open_menu(&self, menu: commands::Menu) {
         self.bring_bars_back();
         self.palette().close();
-        let model = menus::model(menu, &self.modes());
+        // Built on every open, so Open Recent lists what has been opened
+        // since the last one.
+        let recents = self.session().map(|session| session.recents());
+        let model = menus::model(menu, &self.modes(), recents.as_deref().unwrap_or_default());
         self.imp().bars.open_menu(menu, &model);
     }
 
@@ -1640,6 +1675,19 @@ impl Window {
         self.bring_bars_back();
         self.imp().bars.close_menus();
         self.palette().toggle(self.upcast_ref(), self.modes());
+    }
+
+    /// `file.recent`: the Palette over the page on this writer's recent
+    /// Documents, newest first, Enter opening the highlighted one in this
+    /// window (#246, story 41).
+    pub(crate) fn open_recents(&self) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        self.bring_bars_back();
+        self.imp().bars.close_menus();
+        self.palette()
+            .open_recents(self.upcast_ref(), self.modes(), session.recents());
     }
 
     /// Opens the Settings window over this one: `settings.open`, `Ctrl+,` and
@@ -1933,6 +1981,11 @@ pub fn reapply(app: &gtk::Application, session: &Session) {
         window.imp().bars.set_focus(focus);
         window.imp().bars.set_shown(bars);
     });
+    // The sidebar reads the `[library]` settings as it lists — hidden files,
+    // extensions — and the Library itself has already been made to say what
+    // the file says ([`Session::apply`]), so a settings save that moved either
+    // is one re-listing (#246).
+    relist(app);
     chrome::reflect_windows(app);
 }
 

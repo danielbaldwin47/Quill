@@ -2,10 +2,12 @@
 //!
 //! Plain GTK4 ([ADR 0009](../../docs/adr/0009-plain-gtk4-without-libadwaita.md)):
 //! a window transient for the one it was opened from, holding one grid. Every
-//! other setting a writer can move is a menu row or a chord; these four are
-//! what is left — the Typewriter anchor, which nothing else can move at all,
-//! Follow System, the Spell-check language the Spell check spec will fill in,
-//! and a button that hands `settings.toml` to the system editor.
+//! other setting a writer can move is a menu row or a chord; these are what is
+//! left — the Typewriter anchor, which nothing else can move at all, Follow
+//! System, the Spell-check language the Spell check spec will fill in, the
+//! Library's own six (#246: the Locations, Pinned, and the four switches
+//! nothing but this window and the file can reach), and a button that hands
+//! `settings.toml` to the system editor.
 //!
 //! No row sets a value on the session. A row writes the file
 //! ([`Session::edit_settings`]) and the settings watch reads it back and puts
@@ -14,7 +16,8 @@
 //! not two. What the last read of the file refused is the label at the bottom,
 //! the one place a writer is shown a refusal without a terminal.
 
-use std::path::Path;
+use std::cell::RefCell;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use gtk::prelude::*;
@@ -54,6 +57,10 @@ const COLUMN_GAP: i32 = 24;
 /// the desktop's default handler, or — under a test — to a stub that takes
 /// down what it was handed.
 type Launch = dyn Fn(&str) -> Result<(), glib::Error>;
+
+/// What a path list — Locations or Pinned — writes when a path goes in or
+/// out of it: the whole list, never one path against what the file last said.
+type WritePaths = fn(&mut Settings, Vec<PathBuf>);
 
 /// Opens the Settings window over `parent`.
 ///
@@ -112,6 +119,43 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
     language.set_tooltip_text(Some(SPELL_TOOLTIP));
     row(&grid, 2, "Spell-check language", &language);
 
+    // Built before the rows so that the Add… dialog has a window to open
+    // over; nothing is on screen until it is presented at the end.
+    let window = gtk::Window::builder()
+        .title("Settings")
+        .transient_for(parent)
+        .destroy_with_parent(true)
+        .child(&grid)
+        .build();
+
+    row(&grid, 3, "Locations", &location_list(&window, session));
+    row(&grid, 4, "Pinned", &pinned_list(session));
+    let library = session.settings().library.clone();
+    row(
+        &grid,
+        5,
+        "Show hidden folders",
+        &switch(session, library.show_hidden, showed_hidden),
+    );
+    row(
+        &grid,
+        6,
+        "Show file extensions",
+        &switch(session, library.show_extensions, showed_extensions),
+    );
+    row(
+        &grid,
+        7,
+        "Confirm before moving files",
+        &switch(session, library.confirm_move, confirmed_move),
+    );
+    row(
+        &grid,
+        8,
+        "Always ask where to save",
+        &switch(session, library.ask_where_to_save, asked_where_to_save),
+    );
+
     let button = gtk::Button::builder()
         .label("Edit settings.toml…")
         .halign(gtk::Align::End)
@@ -122,7 +166,7 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
         session,
         move |_| edit(session.settings_path(), launch.as_ref())
     ));
-    row(&grid, 3, "Keyboard shortcuts", &button);
+    row(&grid, 9, "Keyboard shortcuts", &button);
 
     if let Some(said) = refused(&session.unapplied()) {
         let label = gtk::Label::builder()
@@ -130,16 +174,10 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
             .halign(gtk::Align::Start)
             .wrap(true)
             .build();
-        grid.attach(&label, 0, 4, 2, 1);
+        grid.attach(&label, 0, 10, 2, 1);
     }
 
-    gtk::Window::builder()
-        .title("Settings")
-        .transient_for(parent)
-        .destroy_with_parent(true)
-        .child(&grid)
-        .build()
-        .present();
+    window.present();
 }
 
 /// One row of the grid: its label in the first column, its control in the
@@ -167,6 +205,184 @@ fn anchored(settings: &mut Settings, anchor: f64) {
 /// `Ctrl+Shift+L` toggle makes).
 fn followed(settings: &mut Settings, on: bool, scheme: Scheme) {
     settings.theme = if on { Theme::Auto } else { scheme.setting() };
+}
+
+/// A switch that writes one `[library]` boolean, set to what the file says
+/// now before its handler is connected, so opening the window is not a write.
+fn switch(session: &Rc<Session>, on: bool, write: fn(&mut Settings, bool)) -> gtk::Switch {
+    let switch = gtk::Switch::builder().halign(gtk::Align::End).build();
+    switch.set_active(on);
+    switch.connect_active_notify(glib::clone!(
+        #[strong]
+        session,
+        move |switch| {
+            let on = switch.is_active();
+            session.edit_settings(|settings| write(settings, on));
+        }
+    ));
+    switch
+}
+
+/// The lines of a path list — Locations or Pinned — one per path with a
+/// button that drops it, beside the copy of the list this window holds.
+///
+/// The window writes the whole list each time rather than one path against
+/// what the file last said, because the file is applied a moment later by the
+/// watch ([`Session::apply`]): two removes in one breath would both read the
+/// settings from before either, and the second would put the first back.
+fn paths(
+    session: &Rc<Session>,
+    held: Vec<PathBuf>,
+    write: WritePaths,
+) -> (gtk::Box, Rc<RefCell<Vec<PathBuf>>>) {
+    let list = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .spacing(ROW_GAP)
+        .hexpand(true)
+        .build();
+    let held = Rc::new(RefCell::new(held));
+    for path in held.borrow().clone() {
+        let line = line(session, &list, &held, &path, write);
+        list.append(&line);
+    }
+    (list, held)
+}
+
+/// One line of such a list: the path, and the button that drops it.
+fn line(
+    session: &Rc<Session>,
+    list: &gtk::Box,
+    held: &Rc<RefCell<Vec<PathBuf>>>,
+    path: &Path,
+    write: WritePaths,
+) -> gtk::Box {
+    let line = gtk::Box::new(gtk::Orientation::Horizontal, COLUMN_GAP);
+    let label = gtk::Label::builder()
+        .label(path.display().to_string())
+        .halign(gtk::Align::Start)
+        .hexpand(true)
+        // A long path is cut at the front: the folder it ends in is the half
+        // that says which one it is.
+        .ellipsize(gtk::pango::EllipsizeMode::Start)
+        .build();
+    let remove = gtk::Button::builder().label("Remove").build();
+    let gone = path.to_path_buf();
+    remove.connect_clicked(glib::clone!(
+        #[strong]
+        session,
+        #[strong]
+        held,
+        #[strong]
+        list,
+        #[strong]
+        line,
+        move |_| {
+            held.borrow_mut().retain(|kept| *kept != gone);
+            let paths = held.borrow().clone();
+            session.edit_settings(|settings| write(settings, paths));
+            list.remove(&line);
+        }
+    ));
+    line.append(&label);
+    line.append(&remove);
+    line
+}
+
+/// The Locations row: the folders the Library shows, and the button that adds
+/// another.
+fn location_list(window: &gtk::Window, session: &Rc<Session>) -> gtk::Box {
+    let locations = session.settings().library.locations.clone();
+    let (list, held) = paths(session, locations, located);
+    let add = gtk::Button::builder()
+        .label("Add…")
+        .halign(gtk::Align::End)
+        .build();
+    add.connect_clicked(glib::clone!(
+        #[strong]
+        session,
+        #[strong]
+        held,
+        #[strong]
+        list,
+        #[weak]
+        window,
+        move |_| {
+            let dialog = gtk::FileDialog::new();
+            dialog.set_title("Add Location");
+            dialog.select_folder(
+                Some(&window),
+                None::<&gio::Cancellable>,
+                glib::clone!(
+                    #[strong]
+                    session,
+                    #[strong]
+                    held,
+                    #[strong]
+                    list,
+                    move |answer| {
+                        let Some(root) = answer.ok().and_then(|folder| folder.path()) else {
+                            return;
+                        };
+                        if held.borrow().contains(&root) {
+                            return;
+                        }
+                        held.borrow_mut().push(root.clone());
+                        let paths = held.borrow().clone();
+                        session.edit_settings(|settings| located(settings, paths));
+                        let line = line(&session, &list, &held, &root, located);
+                        list.append(&line);
+                    }
+                ),
+            );
+        }
+    ));
+    let column = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .spacing(ROW_GAP)
+        .hexpand(true)
+        .build();
+    column.append(&list);
+    column.append(&add);
+    column
+}
+
+/// The Pinned row: what sits above the Locations in the sidebar, each with a
+/// button that unpins it. Nothing adds one here — a pin is made in the
+/// sidebar, on the Document or the folder being pinned.
+fn pinned_list(session: &Rc<Session>) -> gtk::Box {
+    let pinned = session.settings().library.pinned.clone();
+    let (list, _) = paths(session, pinned, held_pinned);
+    list
+}
+
+/// What the Locations list writes.
+fn located(settings: &mut Settings, locations: Vec<PathBuf>) {
+    settings.library.locations = locations;
+}
+
+/// What the Pinned list writes.
+fn held_pinned(settings: &mut Settings, pinned: Vec<PathBuf>) {
+    settings.library.pinned = pinned;
+}
+
+/// What Show hidden folders writes.
+fn showed_hidden(settings: &mut Settings, on: bool) {
+    settings.library.show_hidden = on;
+}
+
+/// What Show file extensions writes.
+fn showed_extensions(settings: &mut Settings, on: bool) {
+    settings.library.show_extensions = on;
+}
+
+/// What Confirm before moving files writes.
+fn confirmed_move(settings: &mut Settings, on: bool) {
+    settings.library.confirm_move = on;
+}
+
+/// What Always ask where to save writes.
+fn asked_where_to_save(settings: &mut Settings, on: bool) {
+    settings.library.ask_where_to_save = on;
 }
 
 /// What the window says at the bottom about the last read of the settings
@@ -200,8 +416,6 @@ fn launcher() -> Box<Launch> {
 
 #[cfg(test)]
 mod tests {
-    use std::cell::RefCell;
-
     use quill_engine::settings::Chrome;
     use quill_engine::shortcuts::Refusal;
 
@@ -282,6 +496,99 @@ mod tests {
             )],
             "the path, escaped as a URI"
         );
+    }
+
+    /// One row's write, read back off the file and then put on to the session
+    /// the way the watch would ([`Session::apply`]), so that the row after it
+    /// writes from where this one left off rather than putting it back.
+    fn wrote(session: &Rc<Session>, path: &Path, edit: impl FnOnce(&mut Settings)) -> Settings {
+        session.edit_settings(edit);
+        let (written, notes) = Settings::read_from(path);
+        assert_eq!(notes, Vec::<String>::new());
+        session.apply(written.clone());
+        written
+    }
+
+    /// A folder of this test's own for a Location to point at, made empty.
+    fn folder(name: &str) -> PathBuf {
+        let path = std::env::temp_dir().join(format!("quill-{name}-{}", std::process::id()));
+        std::fs::remove_dir_all(&path).ok();
+        std::fs::create_dir_all(&path).unwrap();
+        path
+    }
+
+    /// Every Library row writes its own key into `[library]` and leaves the
+    /// rows written before it alone.
+    #[test]
+    fn every_library_row_writes_its_key_and_keeps_the_rows_before_it() {
+        let (session, path) = launched("library-rows");
+        let root = folder("library-rows-in");
+        let pin = root.join("draft.md");
+        let written = wrote(&session, &path, |settings| {
+            located(settings, vec![root.clone()]);
+        });
+        assert_eq!(written.library.locations, std::slice::from_ref(&root));
+        let written = wrote(&session, &path, |settings| {
+            held_pinned(settings, vec![pin.clone()]);
+        });
+        assert_eq!(written.library.pinned, [pin]);
+        for (flip, reads) in [
+            (showed_hidden as fn(&mut Settings, bool), 0),
+            (showed_extensions, 1),
+            (confirmed_move, 2),
+            (asked_where_to_save, 3),
+        ] {
+            let written = wrote(&session, &path, |settings| flip(settings, true));
+            let switches = [
+                written.library.show_hidden,
+                written.library.show_extensions,
+                written.library.confirm_move,
+                written.library.ask_where_to_save,
+            ];
+            assert!(switches[reads], "row {reads} wrote its own key");
+            assert_eq!(
+                switches.iter().filter(|on| **on).count(),
+                reads + 1,
+                "and left the rows before it on"
+            );
+            assert_eq!(
+                written.library.locations,
+                std::slice::from_ref(&root),
+                "and the Locations row alone"
+            );
+        }
+        std::fs::remove_file(&path).ok();
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    /// A Location written by the row reaches the Library as the watch reads
+    /// the file back, which is what makes the row apply without a relaunch
+    /// (#251 found the edit going nowhere).
+    #[test]
+    fn a_location_the_row_wrote_reaches_the_library_when_the_file_is_read_back() {
+        let (session, path) = launched("library-live");
+        let root = folder("library-live-in");
+        assert!(session.library().locations().is_empty());
+        wrote(&session, &path, |settings| {
+            located(settings, vec![root.clone()]);
+        });
+        assert_eq!(
+            session
+                .library()
+                .locations()
+                .iter()
+                .map(|location| location.root().to_path_buf())
+                .collect::<Vec<_>>(),
+            std::slice::from_ref(&root),
+            "the folder the row added is a Location now"
+        );
+        wrote(&session, &path, |settings| located(settings, Vec::new()));
+        assert!(
+            session.library().locations().is_empty(),
+            "and removing it drops it"
+        );
+        std::fs::remove_file(&path).ok();
+        std::fs::remove_dir_all(&root).ok();
     }
 
     /// A refused entry is shown with its reason, and nothing is shown where
