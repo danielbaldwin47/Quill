@@ -117,6 +117,20 @@ ok('a state becomes the native flags that state means', () => {
   assert.equal(narrowed[narrowed.indexOf('--search') + 1], files.search.search);
   assert.ok(narrowed.includes('--sidebar'), 'a query narrows a pane that is open');
   assert.ok(!quillArgv(ROOT, chrome.bars).includes('--sidebar'), 'the Piece that is not files opens no pane');
+
+  // The Preview's two flags. `--preview` is named only by a state that wants the pane, because a
+  // pane's being open is never remembered and every other state is shot without one; `--template`
+  // is named by all of them off the defaults, because it pins the whole `[template]` table and the
+  // shape of a heading is the shape of one whatever Piece the shot is of.
+  const preview = flagsOf('preview');
+  const beside = quillArgv(ROOT, preview.split);
+  assert.equal(beside[beside.indexOf('--preview') + 1], 'split');
+  assert.equal(beside[beside.indexOf('--template') + 1], 'modern');
+  const whole = quillArgv(ROOT, preview.full);
+  assert.equal(whole[whole.indexOf('--preview') + 1], 'full');
+  const plain = quillArgv(ROOT, flagsOf('page').light);
+  assert.ok(!plain.includes('--preview'), 'a state that says nothing about the pane opens with none');
+  assert.equal(plain[plain.indexOf('--template') + 1], 'modern', 'and is pinned to the defaults Template all the same');
 });
 
 ok('the launch environment is the one the research pinned', () => {
@@ -434,7 +448,7 @@ ok('the ghost is measured off ours own pixels, and the alpha is solved rather th
   for (const alpha of [3, 0, 1, '0.3', undefined]) {
     assert.throws(() => validate({ kind: 'ghost', alpha }), /between 0 and 1/, `an alpha of ${alpha} was taken`);
   }
-  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost']);
+  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'split', 'full']);
 });
 
 ok('the ghost refuses to read a bar it cannot see the ground beside, and never guesses one', () => {
@@ -481,6 +495,108 @@ function smudged(png, x, y, colour = [20, 20, 20]) {
   }
   return encodePng({ w, h, ch, data });
 }
+
+// ---------- the Preview pane, measured off its own pixels ----------
+
+// Two papers and an ink that are deliberately **not** the app's palette, for the reason the ghost's
+// ground is not: both Preview rules read every colour they compare out of the shot, so they have to
+// hold for whatever pair of grounds a Template hands them. Painting `theme.rs`'s hexes here would
+// test one palette and go quietly stale the day a Template moves.
+const EDITOR_PAPER = [30, 30, 30];
+const PAGE_PAPER = [16, 16, 16];
+const GLYPH = [200, 200, 200];
+
+// A window divided at `divider`: the Editor's paper left of it, the rendered page's from it to the
+// edge, a heading's run of ink `ink` wide centred on `centre`, and a paragraph in each pane below.
+//
+// The paragraph matters twice over. It is wider than the heading, so a rule that read the pane's
+// whole ink rather than the first block of it would measure the wrong run; and it puts ink down the
+// columns either side of the divider, so the divider is found by a majority down each column rather
+// than by the first row that happens to change colour.
+function paned({ w = 400, h = 200, divider = 200, left = EDITOR_PAPER, right = PAGE_PAPER, centre = 300, ink = 120 } = {}) {
+  const data = Buffer.alloc(w * h * 3);
+  const put = (x, y, rgb) => { for (let c = 0; c < 3; c += 1) data[((y * w) + x) * 3 + c] = rgb[c]; };
+  for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) put(x, y, x < divider ? left : right);
+  const run = (y0, y1, x0, x1) => { for (let y = y0; y < y1; y += 1) for (let x = x0; x < x1; x += 1) put(x, y, GLYPH); };
+  if (ink > 0) {
+    run(20, 32, Math.round(centre - ink / 2), Math.round(centre + ink / 2));
+    run(50, 58, divider + 20, w - 20);
+    if (divider > 40) run(50, 58, 20, divider - 20);
+  }
+  return encodePng({ w, h, ch: 3, data });
+}
+
+// One sheet of paper, which is what Full is: the same painter with nothing left of the divider.
+const sheet = (opts = {}) => paned({ divider: 0, centre: 200, ...opts });
+
+// Where a heading centred in the pane right of `divider` has its ink, for a 400 px window.
+const inPane = (divider) => (divider + 399) / 2 + 0.5;
+
+ok('Split is measured off the divider, the two papers and the heading over the rendered page', () => {
+  const spec = { kind: 'split' };
+  const held = assertState(spec, { dim: paned() });
+  assert.equal(held.ours, true, held.why);
+  assert.equal(held.divider, 200, 'the divider is the boundary between the last left column and the first right one');
+  assert.deepEqual(held.papers, ['#1e1e1e', '#101010'], 'both papers are read off the shot, not compared against a hex');
+  assert.match(held.why, /50\.0 % across the window/);
+
+  // A divider dragged off the middle is the defect this catches, at either side and with the
+  // heading still centred in the pane it made — so the reading names the divider and not the page.
+  for (const at of [160, 240]) {
+    const got = assertState(spec, { dim: paned({ divider: at, centre: inPane(at) }) });
+    assert.equal(got.ours, false, `a divider at ${at} of 400 passed for half the window: ${got.why}`);
+    assert.match(got.why, /the divider is \d+\.\d px off the window's half/);
+  }
+  // And the 3 px it is read to is real at both ends of itself: the glyph rounding gets through and
+  // the pixel after it does not.
+  assert.equal(assertState(spec, { dim: paned({ divider: 197, centre: inPane(197) }) }).ours, true);
+  assert.equal(assertState(spec, { dim: paned({ divider: 196, centre: inPane(196) }) }).ours, false);
+
+  // A pane showing the Editor's own ground rather than a rendered page has no two papers to divide.
+  const one = assertState(spec, { dim: paned({ right: EDITOR_PAPER }) });
+  assert.equal(one.ours, false, one.why);
+  assert.match(one.why, /both halves of the window are #1e1e1e/);
+
+  // A heading left where the Editor would put it — on the left edge of its measure — is the other
+  // half of the rule, and it fails with the divider exactly where it should be.
+  const flush = assertState(spec, { dim: paned({ centre: 260 }) });
+  assert.equal(flush.ours, false, flush.why);
+  assert.match(flush.why, /the heading is 40\.0 px off the centre of the pane it is drawn in/);
+
+  // An empty pane is its own answer and never a silent pass.
+  const bare = assertState(spec, { dim: paned({ ink: 0 }) });
+  assert.equal(bare.ours, false, bare.why);
+  assert.match(bare.why, /nothing was rendered on it/);
+
+  // The rule takes nothing but its kind, and an entry that sets something nobody reads is refused
+  // by the same call `tools/gate judge` makes over every asserted state before it shoots.
+  assert.throws(() => validate({ kind: 'split', alpha: 0.3 }), /the split assertion takes nothing but its kind, and this one names alpha/);
+});
+
+ok('Full is one paper across the window with the heading centred in it', () => {
+  const spec = { kind: 'full' };
+  const held = assertState(spec, { dim: sheet() });
+  assert.equal(held.ours, true, held.why);
+  assert.equal(held.paper, '#101010');
+  assert.match(held.why, /one paper, #101010, across all 400x200 of the window/);
+
+  // A pane still beside the page is a Full that did not hide the Editor's scroller.
+  const halved = assertState(spec, { dim: paned() });
+  assert.equal(halved.ours, false, halved.why);
+  assert.match(halved.why, /the window is not one paper: #1e1e1e down its left edge against #101010 at the right/);
+
+  // A heading off the window's centre fails, and the reading says by how much.
+  const flush = assertState(spec, { dim: sheet({ centre: 160 }) });
+  assert.equal(flush.ours, false, flush.why);
+  assert.match(flush.why, /40\.0 px out and past the 3 px/);
+
+  // A blank window is not a rendered page.
+  const bare = assertState(spec, { dim: sheet({ ink: 0 }) });
+  assert.equal(bare.ours, false, bare.why);
+  assert.match(bare.why, /from edge to edge: nothing was rendered on it/);
+
+  assert.throws(() => validate({ kind: 'full', paper: '#ffffff' }), /the full assertion takes nothing but its kind, and this one names paper/);
+});
 
 // ---------- the caret a judged shot proves it took focus by ----------
 
@@ -543,8 +659,10 @@ ok('every judged state that draws a determined caret is held to one, and no othe
       wants[`${piece}/${s.name}`] = wantsLitCaret(quillArgv(ROOT, s.flags), { active: s.flags.active !== false });
     }
   }
-  // The three ways out a judged state has, and nothing else: focus parked elsewhere, `--nocaret`,
-  // and a selection, which paints a band where the bar would be. Every other state draws the bar.
+  // The four ways out a judged state has, and nothing else: focus parked elsewhere, `--nocaret`,
+  // a selection, which paints a band where the bar would be, and `--preview full`, which puts the
+  // rendered page where the Editor's scroller was and leaves no Editor on the glass to draw a bar.
+  // Every other state draws the bar, `preview/split` — which keeps its Editor — included.
   // The two Focus states take the `--nocaret` way out for the reason `theme/dark` does: they are
   // crops of the Design oracle, whose own captures carry no bar, and the state is about which
   // words are dim rather than where the caret is (#113). The two `files` states take it because the
@@ -554,14 +672,14 @@ ok('every judged state that draws a determined caret is held to one, and no othe
   assert.deepEqual(exempt, [
     'caret/selection', 'caret/unfocused', 'files/library', 'files/search',
     'focus/paragraph', 'focus/sentence',
-    'markup/blocks', 'markup/gutters', 'theme/dark', 'theme/light', 'type/mono',
+    'markup/blocks', 'markup/gutters', 'preview/full', 'theme/dark', 'theme/light', 'type/mono',
   ]);
   // #197 came out of `theme/dark`, which has since gone `--nocaret` (#198) so that its marks can be
   // read with no bar among them. The rule it left behind is held by the states that still draw one.
   assert.equal(wants['caret/caret'], true, 'the caret Piece is held to the bar it is about');
   assert.equal(wants['chrome/empty'], true, 'an empty Document still draws a caret, and #166 lost it');
 
-  // The fourth way out, which no judged state takes: a Live launch has no `--deterministic`, so its
+  // The way out no judged state takes: a Live launch has no `--deterministic`, so its
   // caret is meant to be dark half the time and there is no lit frame to insist on. `tools/gate
   // keys` is the one caller that opens ours that way.
   const live = quillArgv(ROOT, resolveStates(states, 'page').find((s) => s.name === 'light').flags, { live: true });

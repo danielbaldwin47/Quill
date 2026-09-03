@@ -21,9 +21,11 @@
     "menu": null,
     "library": null,
     "sidebar": false,
-    "search": null
+    "search": null,
+    "preview": null,
+    "template": "modern"
   },
-  "assert": "A state that names `assert` instead is judged against nobody: neither oracle holds what it is about, so it is measured off ours' own pixels by tools/assert-state.mjs and the Piece takes that answer the way it takes a critic's (ADR 0017). { kind, ... } — the rule's name, and whatever that rule reads. `ghost` shoots the state a second time with the window active and holds the bar to the same column, width and band lit or ghosted, and to `alpha` of the lit bar over the paper; the alpha is solved out of the two shots rather than compared against a hex, and the state names it because docs/design.md is where it is decided. Like `opponent` it never reaches a command line, and tools/gate oracle passes such a state over.",
+  "assert": "A state that names `assert` instead is judged against nobody: neither oracle holds what it is about, so it is measured off ours' own pixels by tools/assert-state.mjs and the Piece takes that answer the way it takes a critic's (ADR 0017). { kind, ... } — the rule's name, and whatever that rule reads. `ghost` shoots the state a second time with the window active and holds the bar to the same column, width and band lit or ghosted, and to `alpha` of the lit bar over the paper; the alpha is solved out of the two shots rather than compared against a hex, and the state names it because docs/design.md is where it is decided. Like `opponent` it never reaches a command line, and tools/gate oracle passes such a state over. `split` and `full` are the Preview's, and neither oracle holds it either: legacy/ shows Markdown as source and has no rendered page at all, and iA Writer for Mac's own preview is that app's design rather than this one's, so #263 puts Preview outside ADR 0015's reach and makes its look the spec's own. `split` reads the divider between the two papers, holds it to half the window, and holds the heading at the top of the rendered page to the centre of the pane it is drawn in; `full` holds the window to one paper and that heading to the window's own centre. Both take nothing but their kind: every number they compare — the window's width, the paper either side of the divider, the pane's centre — is read off the shot, and the 3 px they are read to is the glyph rounding NOTES § State 16 measures its own rendered heading against. Both are shot bare, `chrome` off: the bars are the chrome Piece's to judge, and at the dark palette the top bar is drawn in the Editor's own paper, so a shot carrying them has that paper above the pane as well as beside it and neither the pane's topmost ink nor \"one paper across the window\" is a thing the still can say.",
   "reference": "A state that names no `opponent` is judged against the Parity oracle while legacy/ stands. When legacy/ is gone the opponent for every state is a mac-native crop, named the way `opponent` above says; the gauntlet's own crop recipes, recorded as refSource in progress/rounds/<piece>-r1.json, were read off marketing frames and are history rather than an opponent (ADR 0015).",
   "pieces": {
     "type": {
@@ -297,7 +299,27 @@
         "nocaret": true
       }
     },
-    "latency": {}
+    "latency": {},
+    "preview": {
+      "split": {
+        "theme": "dark",
+        "chrome": "off",
+        "preview": "split",
+        "template": "modern",
+        "assert": {
+          "kind": "split"
+        }
+      },
+      "full": {
+        "theme": "light",
+        "chrome": "off",
+        "preview": "full",
+        "template": "modern",
+        "assert": {
+          "kind": "full"
+        }
+      }
+    }
   },
   "keys": {
     "_about": "The scripts tools/gate keys <piece> types, beside the states tools/gate judge shoots, so a Piece is one entry to find. A Piece may carry none, and most do not. `state` overrides `defaults` exactly as a judged state does, but the app is opened Live rather than --deterministic: a still wants the blink frozen and the glide gone, and a typed condition wants the caret machine running, because that machine is what it is there to test. Each burst is typed in full, then shot, then its `assert` list is evaluated from the pixels; `between` is evaluated across consecutive bursts, and skips a pair with a burst that left no caret on the page. A burst types its `text` and then its `keys`, which is the form that can spell a chord and the only one that can; `settle` says which still it is shot at (`caret`, the default, or `still` for a page a selection has taken the caret off), and `chars` and `rows` are what the assertions measure against. The assertion and settle names are tools/keys-assert.mjs's.",
