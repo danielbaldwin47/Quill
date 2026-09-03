@@ -202,7 +202,9 @@ const PLACEHOLDER: &str = "Search documents";
 
 /// How much of the accent stands behind a matched word in a snippet
 /// (`.lib-row .ex mark { background: color-mix(in srgb, var(--accent) 28%,
-/// transparent) }`), over the paper the row is drawn on.
+/// transparent) }`), over the paper the row is drawn on. The words themselves
+/// go to the ink the same rule sets them in (`color: var(--fg)`), which is
+/// what makes a match visible in a line of grey.
 const MARK_TINT: f64 = 0.28;
 
 /// How long the field waits after a keystroke before it searches.
@@ -335,6 +337,8 @@ struct Drawing<'a> {
     read: &'a BTreeMap<PathBuf, Head>,
     /// What a matched word in a snippet is marked with, over the paper.
     mark: Colour,
+    /// What a matched word itself is set in, out of the excerpt's grey.
+    marked: Colour,
 }
 
 /// One file's row, and what it is drawn from.
@@ -609,6 +613,7 @@ impl Sidebar {
                 ground.colours.colour(Role::Paper),
                 MARK_TINT,
             ),
+            marked: ground.colours.colour(Role::Ink),
         };
         let shown = library.shown(&view);
         let pinned = library.pinned_rows(&view);
@@ -1147,6 +1152,14 @@ fn marks(snippet: Option<&Snippet>, drawing: &Drawing<'_>) -> gtk::pango::AttrLi
     ground.set_start_index(from);
     ground.set_end_index(to);
     attributes.insert(ground);
+    let mut ink = gtk::pango::AttrColor::new_foreground(
+        channel(drawing.marked.red),
+        channel(drawing.marked.green),
+        channel(drawing.marked.blue),
+    );
+    ink.set_start_index(from);
+    ink.set_end_index(to);
+    attributes.insert(ink);
     attributes
 }
 
@@ -1551,20 +1564,26 @@ mod tests {
             now: None,
             read: &read,
             mark: Colour::rgba(0, 191, 255, 1.0),
+            marked: Colour::rgba(28, 28, 28, 1.0),
         };
         let at = snippet.at();
-        let marked: Vec<_> = marks(Some(snippet), &drawing)
-            .attributes()
-            .into_iter()
-            .filter(|attribute| attribute.type_() == gtk::pango::AttrType::Background)
-            .map(|attribute| (attribute.start_index(), attribute.end_index()))
-            .collect();
-        assert_eq!(marked, vec![(index(at.start), index(at.end))]);
+        let coloured = |over: &gtk::pango::AttrList, kind| {
+            over.attributes()
+                .into_iter()
+                .filter(|attribute| attribute.type_() == kind)
+                .map(|attribute| (attribute.start_index(), attribute.end_index()))
+                .collect::<Vec<_>>()
+        };
+        // The match stands in the mark's ground and in the ink, out of the
+        // grey the words either side of it are set in.
+        let over = marks(Some(snippet), &drawing);
+        let range = vec![(index(at.start), index(at.end))];
+        assert_eq!(coloured(&over, gtk::pango::AttrType::Background), range);
+        assert_eq!(coloured(&over, gtk::pango::AttrType::Foreground), range);
+        let plain = marks(None, &drawing);
         assert!(
-            marks(None, &drawing)
-                .attributes()
-                .iter()
-                .all(|attribute| attribute.type_() != gtk::pango::AttrType::Background),
+            coloured(&plain, gtk::pango::AttrType::Background).is_empty()
+                && coloured(&plain, gtk::pango::AttrType::Foreground).is_empty(),
             "a row with no query is unmarked"
         );
         std::fs::remove_dir_all(&root).expect("the folder to go");
