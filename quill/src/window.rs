@@ -230,6 +230,10 @@ impl Window {
         // puts the Document on the page.
         window.imp().editor.open_focused_on(session.focus());
         window.imp().bars.set_focus(session.focus());
+        // And Live with them, for the same reason: `--live` names a state the
+        // first frame is meant to show, and the fold is worked out inside the
+        // same draw that puts the Document on the page.
+        window.imp().editor.open_live_on(session.live());
         // The bars stand or not before the Document is shown, so the page is
         // laid out once, at the height it will keep.
         window
@@ -464,6 +468,19 @@ impl Window {
     pub(crate) fn toggle_typewriter(&self) {
         self.move_windows(Session::toggle_typewriter, |window, typewriter| {
             window.imp().editor.set_typewriter(typewriter);
+        });
+    }
+
+    /// Turns Live on or off, in every window.
+    ///
+    /// `docs/shortcuts.md`'s `live.toggle` row. A per-app mode as Focus is:
+    /// the session remembers it and writes it as the key is pressed, and every
+    /// window folds or unfolds together, because a writer has one pair of eyes
+    /// ([`Window::move_windows`]).
+    pub(crate) fn toggle_live(&self) {
+        self.move_windows(Session::toggle_live, |window, live| {
+            let document = window.document();
+            window.imp().editor.set_live(live, &document);
         });
     }
 
@@ -2133,6 +2150,7 @@ pub fn repaint(app: &gtk::Application, session: &Session) {
 pub fn reapply(app: &gtk::Application, session: &Session) {
     let focus = session.focus();
     let typewriter = session.typewriter();
+    let live = session.live();
     let face = session.face();
     let step = session.step();
     let bars = session.chrome() == Chrome::Shown;
@@ -2142,6 +2160,7 @@ pub fn reapply(app: &gtk::Application, session: &Session) {
         window.imp().editor.set_ground(ground, &document);
         window.imp().editor.set_focus(focus, &document);
         window.imp().editor.set_typewriter(typewriter);
+        window.imp().editor.set_live(live, &document);
         window.imp().bars.set_ground(ground);
         window.imp().bars.set_focus(focus);
         window.imp().bars.set_shown(bars);

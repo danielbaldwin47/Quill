@@ -58,6 +58,7 @@ Judged state — the states the Gate shoots and benches at:
   --focus off|sentence|paragraph
                          Turn Focus off, or on at a scope.
   --typewriter           Turn Typewriter on.
+  --live                 Turn Live on: the markup rendered in place.
   --chrome on|off        Show or hide the bars around the Editor.
   --caret <offset>|end   Put the caret at a byte offset, or at the end.
   --select <from>,<to>   Select from one byte offset to another.
@@ -191,6 +192,8 @@ pub struct Flags {
     pub focus: Option<Focus>,
     /// Whether `--typewriter` turned Typewriter on.
     pub typewriter: bool,
+    /// Whether `--live` turned Live on.
+    pub live: bool,
     /// What `--chrome` asks of the bars around the Editor.
     pub chrome: Option<Chrome>,
     /// Where `--caret` puts the caret.
@@ -286,6 +289,7 @@ impl Flags {
                 }
                 "--focus" => flags.focus = Some(one_of(flag, &text(&mut args, flag)?, &FOCUSES)?),
                 "--typewriter" => flags.typewriter = true,
+                "--live" => flags.live = true,
                 "--chrome" => flags.chrome = Some(one_of(flag, &text(&mut args, flag)?, &CHROMES)?),
                 "--caret" => flags.caret = Some(caret(flag, &text(&mut args, flag)?)?),
                 "--select" => flags.select = Some(select(flag, &text(&mut args, flag)?)?),
@@ -379,6 +383,15 @@ impl Flags {
             settings.typewriter = true;
         } else if self.deterministic {
             settings.typewriter = false;
+        }
+        // Live is pinned the same way and for the same reason: every judged
+        // state but `live/folded` is shot with the markers on the page, and a
+        // writer who turned Live on in their own file would otherwise be
+        // shooting a folded page at every one of them.
+        if self.live {
+            settings.live = true;
+        } else if self.deterministic {
+            settings.live = false;
         }
         if let Some(chrome) = self.chrome {
             settings.chrome = chrome;
@@ -537,13 +550,14 @@ mod tests {
 
     /// Every flag `docs/architecture.md` names, with a value it takes and —
     /// where it has a domain — one it does not.
-    const FLAGS: [(&str, &str, Option<&str>); 22] = [
+    const FLAGS: [(&str, &str, Option<&str>); 23] = [
         ("--text", "ref/sample.md", None),
         ("--theme", "dark", Some("purple")),
         ("--font", "mono", Some("comic")),
         ("--step", "6", Some("14")),
         ("--focus", "paragraph", Some("all")),
         ("--typewriter", "", None),
+        ("--live", "", None),
         // The file says shown and hidden; the flag says on and off.
         ("--chrome", "off", Some("shown")),
         ("--caret", "end", Some("middle")),
@@ -611,7 +625,7 @@ mod tests {
     fn the_whole_judged_state_and_the_harness_parse_together() {
         let flags = parse(
             "--text ref/sample.md --theme dark --font mono --step 6 --focus paragraph \
-             --typewriter --chrome off --caret end --select 10,20 --scroll 0.25 --nocaret \
+             --typewriter --live --chrome off --caret end --select 10,20 --scroll 0.25 --nocaret \
              --typing --menu palette --library shots/oracle/library --sidebar --search sea \
              --w 1440 --h 900 --deterministic --measure out.jsonl \
              --palette quill.toml",
@@ -631,6 +645,7 @@ mod tests {
         assert_eq!(flags.step, Some(6));
         assert_eq!(flags.focus, Some(Focus::Paragraph));
         assert!(flags.typewriter);
+        assert!(flags.live);
         assert_eq!(flags.chrome, Some(Chrome::Hidden));
         assert_eq!(flags.caret, Some(Caret::End));
         assert_eq!(flags.select, Some((10, 20)));
@@ -772,6 +787,27 @@ mod tests {
             .expect("two flags")
             .over(writers);
         assert!(asked.typewriter);
+    }
+
+    /// The same rule for Live, and the reason is the same: `live/folded` is
+    /// the one judged state shot with the markers folded away, and every other
+    /// one is shot with them on the page whatever a writer's own file says.
+    #[test]
+    fn a_deterministic_launch_without_live_runs_with_it_off() {
+        let mut writers = Settings::default();
+        writers.live = true;
+        let judged = parse("--deterministic")
+            .expect("one flag")
+            .over(writers.clone());
+        assert!(!judged.live);
+        let writers_own = parse("--theme dark")
+            .expect("one flag")
+            .over(writers.clone());
+        assert!(writers_own.live);
+        let asked = parse("--deterministic --live")
+            .expect("two flags")
+            .over(writers);
+        assert!(asked.live);
     }
 
     /// The fixture is the whole of the Library for a judged launch: the one
