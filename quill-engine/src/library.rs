@@ -40,7 +40,7 @@ const EXTENSIONS: [&str; 4] = ["md", "markdown", "txt", "text"];
 
 /// Whether `path` is a file the Library lists, whatever the case of its
 /// extension.
-fn listed(path: &Path) -> bool {
+pub(crate) fn listed(path: &Path) -> bool {
     let Some(extension) = path.extension().and_then(|extension| extension.to_str()) else {
         return false;
     };

@@ -87,8 +87,12 @@ pub enum Placed {
 /// write time have not moved since it was last sent on has not been saved,
 /// whatever was done to it; and the question is asked with a `stat` because
 /// opening the file to look would be one more open for the watch to report.
+///
+/// [`crate::disk`] asks the same question of an open Document's file, against
+/// the version its last save wrote, which is why this is the crate's rather
+/// than the module's.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Version {
+pub(crate) struct Version {
     /// The file's length in bytes.
     len: u64,
     /// When it was last written, where the file system says.
@@ -96,7 +100,7 @@ struct Version {
 }
 
 /// The version of the file at `path`, or `None` where there is no file.
-fn version(path: &Path) -> Option<Version> {
+pub(crate) fn version(path: &Path) -> Option<Version> {
     fs::metadata(path).ok().map(|metadata| Version {
         len: metadata.len(),
         modified: metadata.modified().ok(),
