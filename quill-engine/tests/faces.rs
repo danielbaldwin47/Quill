@@ -1,6 +1,7 @@
-//! The six Faces as files: what `tools/fontbuild.py` must have written.
+//! The fonts as files: what `tools/fontbuild.py` must have written into the six
+//! Faces, and what the two bundled families must still say about themselves.
 //!
-//! Three things nobody can see without opening a font editor, and one of them
+//! Four things nobody can see without opening a font editor, and one of them
 //! is a licence condition.
 //!
 //! OFL 1.1 section 3 forbids a Modified Version from carrying the Reserved Font
@@ -13,6 +14,12 @@
 //! wider, which would set an italic word wider than the same word upright — the
 //! bug `tools/fontgrid.py` was written for in the web app.
 //!
+//! And Inter and Source Serif 4 are the opposite case: unmodified upstream
+//! releases, so what has to hold is that each file still names the family and
+//! the style [`quill_engine::data::FAMILIES`] promises a Template and
+//! fontconfig will find it under. A file swapped for another cut is a
+//! Template's bold silently coming out roman.
+//!
 //! The files are read straight off disk rather than through a font crate: what
 //! is being checked is bytes, and the engine has no business depending on a
 //! parser to say so.
@@ -20,7 +27,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use quill_engine::data::{self, FACES};
+use quill_engine::data::{self, FACES, FAMILIES};
 
 /// The Reserved Font Name no Modified Version may carry.
 const RESERVED: &str = "iA Writer";
@@ -99,6 +106,24 @@ fn every_face_names_itself_by_its_quill_name() {
 }
 
 #[test]
+fn every_bundled_family_names_itself_and_its_style() {
+    for (family, style, file) in FAMILIES {
+        let names = names(&read(file));
+        for (id, want) in [(1, family), (2, style)] {
+            let found: Vec<&String> = names
+                .iter()
+                .filter(|(name_id, _)| *name_id == id)
+                .map(|(_, string)| string)
+                .collect();
+            assert!(!found.is_empty(), "{file} has no `name` record {id}");
+            for string in found {
+                assert_eq!(string, want, "{file}'s `name` record {id}");
+            }
+        }
+    }
+}
+
+#[test]
 fn the_quattro_italic_word_space_is_its_romans() {
     let roman = advance(&read("QuillQuattro.ttf"), SPACE_GLYPH);
     let italic = advance(&read("QuillQuattroItalic.ttf"), SPACE_GLYPH);
@@ -109,12 +134,13 @@ fn the_quattro_italic_word_space_is_its_romans() {
     );
 }
 
-/// One Face, read from the data directory this build resolves to.
+/// One font file, read from the data directory this build resolves to.
 fn read(file: &str) -> Vec<u8> {
     let path: PathBuf = data::fonts().join(file);
     fs::read(&path).unwrap_or_else(|err| {
         panic!(
-            "{} is readable: {err}. `python3 tools/fontbuild.py` writes the Faces",
+            "{} is readable: {err}. `python3 tools/fontbuild.py` writes the Faces; Inter and \
+             Source Serif 4 are committed as their releases ship them",
             path.display()
         )
     })
