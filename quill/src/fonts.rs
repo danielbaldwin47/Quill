@@ -9,6 +9,13 @@
 //! straight out of the checkout. The spike's `FONTCONFIG_FILE` and its
 //! `match target="scan"` rule are gone with the rename.
 //!
+//! Two more families ride in the same directory and the same call: Inter and
+//! Source Serif 4, unmodified OFL releases that Modern and Classic are set in
+//! ([`quill_engine::data::FAMILIES`], ADR 0005). They are not Faces — the
+//! Editor never offers them, and each covers its four cuts under one family
+//! name — but they are Quill's to carry rather than a writer's to install, so
+//! they are private here too.
+//!
 //! Each Italic is a family of its own. The files declare themselves roman —
 //! subfamily "Regular", the OS/2 italic bit clear — so asking for "Quill Duo"
 //! in an italic style would get a slanted Roman rather than the italic cut. The
@@ -79,7 +86,7 @@ pub struct Match {
     pub file: PathBuf,
 }
 
-/// Adds `fonts` to this process's fontconfig and checks the six Faces answer.
+/// Adds `fonts` to this process's fontconfig and checks every family answers.
 ///
 /// Call this before GTK initialises. Pango builds its font map from the current
 /// fontconfig the first time it lays anything out, and a Face added after that
@@ -107,10 +114,18 @@ pub fn load_private(fonts: &Path) -> Result<(), FaceError> {
     if added == 0 {
         return Err(FaceError::Directory(fonts.to_path_buf()));
     }
-    for (wanted, _) in data::FACES {
+    // The Faces are one family per file and the bundled two are four files per
+    // family, so a family is asked for more than once here; a match is a lookup
+    // in the map fontconfig has just built, and the tables stay the one place
+    // the files are listed.
+    let families = data::FACES
+        .iter()
+        .map(|(family, _)| *family)
+        .chain(data::FAMILIES.iter().map(|(family, _, _)| *family));
+    for wanted in families {
         let instead = matched(wanted);
         // fontconfig always answers something, so "did it answer?" proves
-        // nothing; the question is whether it answered with the Face's own
+        // nothing; the question is whether it answered with the family's own
         // name.
         if instead.as_ref().is_none_or(|found| found.family != *wanted) {
             return Err(FaceError::Missing { wanted, instead });
@@ -220,10 +235,10 @@ mod tests {
 
     use super::*;
 
-    /// One test, not six: `FcConfigAppFontAddDir` changes the process's own
+    /// One test, not eight: `FcConfigAppFontAddDir` changes the process's own
     /// fontconfig, and `cargo test` runs its tests in parallel threads.
     #[test]
-    fn the_faces_resolve_to_the_shipped_files() {
+    fn every_shipped_family_resolves_to_a_shipped_file() {
         assert!(
             std::env::var_os("FONTCONFIG_FILE").is_none(),
             "$FONTCONFIG_FILE is set, so this test would prove nothing: ADR 0007 retired the \
@@ -244,6 +259,28 @@ mod tests {
                 found.file,
                 fonts.join(file),
                 "{family} came from a font Quill does not ship"
+            );
+        }
+
+        // Inter and Source Serif 4 answer for four files each, and which cut
+        // fontconfig hands back for a bare family name is its business, so the
+        // assertion is that the file is one of the family's own.
+        for (family, _, _) in data::FAMILIES {
+            let found = matched(family).expect("fontconfig answers");
+            assert_eq!(
+                found.family,
+                OsStr::new(family),
+                "fontconfig matched {family} with something else"
+            );
+            let shipped: Vec<PathBuf> = data::FAMILIES
+                .iter()
+                .filter(|(name, _, _)| *name == family)
+                .map(|(_, _, file)| fonts.join(file))
+                .collect();
+            assert!(
+                shipped.contains(&found.file),
+                "{family} came from {}, which Quill does not ship",
+                found.file.display()
             );
         }
     }

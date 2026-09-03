@@ -38,6 +38,38 @@ pub const FACES: [(&str, &str); 6] = [
     ("Quill Mono Italic", "QuillMonoItalic.ttf"),
 ];
 
+/// The two bundled OFL families, as (family name, style, file name).
+///
+/// Inter 4.1 (`extras/ttf/` of the upstream release, github.com/rsms/inter) and
+/// Source Serif 4.005 (`TTF/` of the Desktop release,
+/// github.com/adobe-fonts/source-serif), unmodified: the four static cuts a
+/// Template asks for, Regular, Italic, Bold and Bold Italic. Modern is set in
+/// the first and Classic in the second ([`crate::template`]), so they load
+/// privately at startup the way the Faces do and a writer installs nothing.
+///
+/// Unlike the Faces, one family covers all four cuts. The family name repeats
+/// down the table and the style is what tells the files apart: a Template names
+/// the family alone and asks Pango for the weight and the slope. Neither is a
+/// Modified Version, so both keep their upstream names and file names, and
+/// their licences ship beside the Faces' own as [`LICENCES`] lists.
+pub const FAMILIES: [(&str, &str, &str); 8] = [
+    ("Inter", "Regular", "Inter-Regular.ttf"),
+    ("Inter", "Italic", "Inter-Italic.ttf"),
+    ("Inter", "Bold", "Inter-Bold.ttf"),
+    ("Inter", "Bold Italic", "Inter-BoldItalic.ttf"),
+    ("Source Serif 4", "Regular", "SourceSerif4-Regular.ttf"),
+    ("Source Serif 4", "Italic", "SourceSerif4-It.ttf"),
+    ("Source Serif 4", "Bold", "SourceSerif4-Bold.ttf"),
+    ("Source Serif 4", "Bold Italic", "SourceSerif4-BoldIt.ttf"),
+];
+
+/// The licences that ship in the fonts directory, one per set of files there.
+///
+/// `OFL.txt` is the Faces' (ADR 0007), and the other two are Inter's and Source
+/// Serif's own, copied out of their releases unchanged. The package installs
+/// all three beside the fonts and under `/usr/share/licenses/quill/`.
+pub const LICENCES: [&str; 3] = ["OFL.txt", "OFL-Inter.txt", "OFL-SourceSerif4.txt"];
+
 /// The variable that names the data directory, read at run time here and set by
 /// the package build so that [`COMPILED_IN`] has something to hold.
 const VARIABLE: &str = "QUILL_DATA_DIR";
@@ -52,7 +84,8 @@ pub fn dir() -> PathBuf {
     resolve(std::env::var_os(VARIABLE), COMPILED_IN, checkout())
 }
 
-/// The directory holding the six Faces.
+/// The directory holding the six Faces, the two bundled families and their
+/// licences.
 #[must_use]
 pub fn fonts() -> PathBuf {
     dir().join("fonts")
@@ -133,6 +166,27 @@ mod tests {
                 face.is_file(),
                 "no {family} at {}: `python3 tools/fontbuild.py` writes the Faces",
                 face.display()
+            );
+        }
+    }
+
+    #[test]
+    fn the_checkout_holds_the_bundled_families_and_every_licence() {
+        // Against `checkout()` for the same reason the Faces are.
+        for (family, style, file) in FAMILIES {
+            let font = checkout().join("fonts").join(file);
+            assert!(
+                font.is_file(),
+                "no {family} {style} at {}: it is committed, not built",
+                font.display()
+            );
+        }
+        for licence in LICENCES {
+            let text = checkout().join("fonts").join(licence);
+            assert!(
+                text.is_file(),
+                "no {} beside the fonts it licenses",
+                text.display()
             );
         }
     }
