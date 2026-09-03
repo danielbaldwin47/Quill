@@ -5,9 +5,10 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 ## Conventions
 
 - **Create an issue**: `gh issue create --title "..." --body "..."`. Use `--body-file <path>` for multi-line bodies (a heredoc is refused in a worktree, `CLAUDE.md` § Context in an `/implement` session).
-- **Read an issue**: `gh issue view <number> --comments`, filtering comments by `jq` and also fetching labels.
+- **Read an issue**: `tools/ticket <N>` — the ticket, its comments and its parent spec, fetched once to two files with a heading index, read afterwards by `sed -n` range; `tools/ticket --graph <M>` is a spec's children, states, blockers, Size and Reading lines on one screen. `gh issue view <N> --comments` is for an issue with no ticket shape.
 - **List issues**: `gh issue list --state open --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'` with appropriate `--label` and `--state` filters.
 - **Comment on an issue**: `gh issue comment <number> --body-file <path>` for anything with a code span or more than one line — a double-quoted `--body` hands its backticks to the shell, and four comments on #40–#44 ran their code spans as commands; `--body "..."` for one plain line.
+- **Open a ticket's PR**: its base is the parent spec's branch while that spec's PR to `main` is open, and `main` once that has merged — `gh pr list --state all --head <spec-branch> --json state,baseRefName` says which; `.claude/hooks/pr-base-guard.sh` refuses a merge into a base whose own PR has merged (#222 and #228 stranded that way on 2026-09-02), and `gh pr edit <n> --base main` retargets.
 - **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
 - **Close**: a merged PR whose body says `Closes #<number>` has closed it already, and `gh issue close --comment` on a closed issue is refused, so the closing comment goes up with `gh issue comment`. Without a PR: `gh issue close <number> --comment "..."`.
 
@@ -31,7 +32,7 @@ Create a GitHub issue.
 
 ## When a skill says "fetch the relevant ticket"
 
-Run `gh issue view <number> --comments`.
+Run `tools/ticket <number>`.
 
 ## Wayfinding operations
 

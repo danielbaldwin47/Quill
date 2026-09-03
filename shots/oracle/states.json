@@ -3,31 +3,67 @@
   "opponent": "A state that follows a docs/design.md row has left the Parity oracle behind, and says so with `opponent` (ADR 0015): { capture, crop, ours } — a file name under ref/ia/shots/mac-native/, the rectangle [x, y, w, h] in that capture's device px, and the matching rectangle in ours, either given outright or as the string \"centre\". The Design oracle's window is 3024 x 1898 device px and ours 2880 x 1800, both with the container centred, so \"centre\" means the same size at the same offset from ours' window centre; a crop whose place the chrome's height decides names its own rectangle. \"centre\" on a capture cut as a region needs two keys more: `window` [w, h], the window it came out of, and `at` [x, y], its origin in that window; nothing else reads either. A state whose `ours` is a rectangle needs neither, which is the way through when the capture's own origin was never recorded — as `mac-native-11-dark-text-size-05.png`'s was not (#165). Such a state is shot in Mono at the type the `defaults` name whatever it says itself, so the two grids compare cell for cell, and tools/gate oracle passes it over: its opponent is committed under ref/ia/, not frozen from legacy/.",
   "defaults": {
     "text": "ref/sample.md",
-    "w": 1440, "h": 900, "scale": 2,
-    "theme": "light", "font": "duo", "step": 5,
-    "focus": "off", "typewriter": false, "chrome": "on",
-    "caret": 403, "select": null, "scroll": 0, "nocaret": false,
-    "active": true, "typing": false, "menu": null
+    "w": 1440,
+    "h": 900,
+    "scale": 2,
+    "theme": "light",
+    "font": "duo",
+    "step": 5,
+    "focus": "off",
+    "typewriter": false,
+    "chrome": "on",
+    "caret": 403,
+    "select": null,
+    "scroll": 0,
+    "nocaret": false,
+    "active": true,
+    "typing": false,
+    "menu": null
   },
   "assert": "A state that names `assert` instead is judged against nobody: neither oracle holds what it is about, so it is measured off ours' own pixels by tools/assert-state.mjs and the Piece takes that answer the way it takes a critic's (ADR 0017). { kind, ... } — the rule's name, and whatever that rule reads. `ghost` shoots the state a second time with the window active and holds the bar to the same column, width and band lit or ghosted, and to `alpha` of the lit bar over the paper; the alpha is solved out of the two shots rather than compared against a hex, and the state names it because docs/design.md is where it is decided. Like `opponent` it never reaches a command line, and tools/gate oracle passes such a state over.",
   "reference": "A state that names no `opponent` is judged against the Parity oracle while legacy/ stands. When legacy/ is gone the opponent for every state is a mac-native crop, named the way `opponent` above says; the gauntlet's own crop recipes, recorded as refSource in progress/rounds/<piece>-r1.json, were read off marketing frames and are history rather than an opponent (ADR 0015).",
   "pieces": {
     "type": {
-      "duo": { "chrome": "off" },
-      "quattro": { "chrome": "off", "font": "quattro" },
+      "duo": {
+        "chrome": "off"
+      },
+      "quattro": {
+        "chrome": "off",
+        "font": "quattro"
+      },
       "mono": {
-        "chrome": "off", "font": "mono", "theme": "dark", "nocaret": true,
+        "chrome": "off",
+        "font": "mono",
+        "theme": "dark",
+        "nocaret": true,
         "opponent": {
           "capture": "mac-native-11-dark-text-size-05.png",
-          "crop": [630, 870, 1760, 520],
-          "ours": [560, 135, 1760, 520]
+          "crop": [
+            630,
+            870,
+            1760,
+            520
+          ],
+          "ours": [
+            560,
+            135,
+            1760,
+            520
+          ]
         }
       }
     },
     "page": {
       "light": {},
-      "narrow": { "w": 960 },
-      "short": { "text": "ref/short.md", "caret": 10, "scroll": null, "chrome": "off" }
+      "narrow": {
+        "w": 960
+      },
+      "short": {
+        "text": "ref/short.md",
+        "caret": 10,
+        "scroll": null,
+        "chrome": "off"
+      }
     },
     "markup": {
       "gutters": {
@@ -38,8 +74,18 @@
         "theme": "dark",
         "opponent": {
           "capture": "mac-native-14-dark-markup-gutters.png",
-          "crop": [470, 1020, 780, 460],
-          "ours": [400, 288, 780, 460]
+          "crop": [
+            470,
+            1020,
+            780,
+            460
+          ],
+          "ours": [
+            400,
+            288,
+            780,
+            460
+          ]
         }
       },
       "blocks": {
@@ -50,31 +96,71 @@
         "theme": "dark",
         "opponent": {
           "capture": "mac-native-14-dark-markup-blocks.png",
-          "crop": [470, 140, 780, 620],
-          "ours": [400, 656, 780, 620]
+          "crop": [
+            470,
+            140,
+            780,
+            620
+          ],
+          "ours": [
+            400,
+            656,
+            780,
+            620
+          ]
         }
       }
     },
     "caret": {
       "caret": {
-        "chrome": "off", "caret": 23,
+        "chrome": "off",
+        "caret": 23,
         "opponent": {
           "capture": "mac-native-01-light-caret-midword.png",
-          "crop": [459, 187, 720, 260],
-          "ours": [392, 205, 720, 260]
+          "crop": [
+            459,
+            187,
+            720,
+            260
+          ],
+          "ours": [
+            392,
+            205,
+            720,
+            260
+          ]
         }
       },
       "selection": {
-        "select": [18, 36], "caret": 36, "chrome": "off",
+        "select": [
+          18,
+          36
+        ],
+        "caret": 36,
+        "chrome": "off",
         "opponent": {
           "capture": "mac-native-08-light-selection-inline.png",
-          "crop": [470, 187, 800, 260],
-          "ours": [402, 203, 800, 260]
+          "crop": [
+            470,
+            187,
+            800,
+            260
+          ],
+          "ours": [
+            402,
+            203,
+            800,
+            260
+          ]
         }
       },
       "unfocused": {
-        "active": false, "chrome": "off",
-        "assert": { "kind": "ghost", "alpha": 0.3 }
+        "active": false,
+        "chrome": "off",
+        "assert": {
+          "kind": "ghost",
+          "alpha": 0.3
+        }
       }
     },
     "theme": {
@@ -85,8 +171,18 @@
         "chrome": "off",
         "opponent": {
           "capture": "mac-native-17-light-marks.png",
-          "crop": [654, 553, 600, 380],
-          "ours": [584, 730, 600, 380]
+          "crop": [
+            654,
+            553,
+            600,
+            380
+          ],
+          "ours": [
+            584,
+            730,
+            600,
+            380
+          ]
         }
       },
       "dark": {
@@ -97,11 +193,23 @@
         "theme": "dark",
         "opponent": {
           "capture": "mac-native-17-dark-marks.png",
-          "crop": [654, 553, 600, 380],
-          "ours": [584, 730, 600, 380]
+          "crop": [
+            654,
+            553,
+            600,
+            380
+          ],
+          "ours": [
+            584,
+            730,
+            600,
+            380
+          ]
         }
       },
-      "dark-bars": { "theme": "dark" }
+      "dark-bars": {
+        "theme": "dark"
+      }
     },
     "focus": {
       "sentence": {
@@ -111,8 +219,18 @@
         "nocaret": true,
         "opponent": {
           "capture": "mac-native-13-light-focus-sentence.png",
-          "crop": [620, 643, 1740, 320],
-          "ours": [551, 129, 1740, 320]
+          "crop": [
+            620,
+            643,
+            1740,
+            320
+          ],
+          "ours": [
+            551,
+            129,
+            1740,
+            320
+          ]
         }
       },
       "paragraph": {
@@ -122,22 +240,53 @@
         "nocaret": true,
         "opponent": {
           "capture": "mac-native-13-light-focus-paragraph.png",
-          "crop": [620, 643, 1740, 320],
-          "ours": [551, 129, 1740, 320]
+          "crop": [
+            620,
+            643,
+            1740,
+            320
+          ],
+          "ours": [
+            551,
+            129,
+            1740,
+            320
+          ]
         }
       },
-      "dark-sentence-typewriter": { "focus": "sentence", "typewriter": true, "theme": "dark", "chrome": "off" }
+      "dark-sentence-typewriter": {
+        "focus": "sentence",
+        "typewriter": true,
+        "theme": "dark",
+        "chrome": "off"
+      }
     },
     "chrome": {
       "bars": {},
-      "empty": { "text": null, "caret": 0 },
-      "typing": { "typing": true },
-      "view-menu": { "menu": "view" },
-      "palette": { "menu": "palette" }
+      "empty": {
+        "text": null,
+        "caret": 0
+      },
+      "typing": {
+        "typing": true
+      },
+      "view-menu": {
+        "menu": "view"
+      },
+      "palette": {
+        "menu": "palette"
+      }
     },
     "files": {
-      "library": { "library": "shots/oracle/library", "sidebar": true },
-      "search": { "library": "shots/oracle/library", "sidebar": true, "search": "sea" }
+      "library": {
+        "library": "shots/oracle/library",
+        "sidebar": true
+      },
+      "search": {
+        "library": "shots/oracle/library",
+        "sidebar": true,
+        "search": "sea"
+      }
     },
     "latency": {}
   },
@@ -145,23 +294,63 @@
     "_about": "The scripts tools/gate keys <piece> types, beside the states tools/gate judge shoots, so a Piece is one entry to find. A Piece may carry none, and most do not. `state` overrides `defaults` exactly as a judged state does, but the app is opened Live rather than --deterministic: a still wants the blink frozen and the glide gone, and a typed condition wants the caret machine running, because that machine is what it is there to test. Each burst is typed in full, then shot, then its `assert` list is evaluated from the pixels; `between` is evaluated across consecutive bursts, and skips a pair with a burst that left no caret on the page. A burst types its `text` and then its `keys`, which is the form that can spell a chord and the only one that can; `settle` says which still it is shot at (`caret`, the default, or `still` for a page a selection has taken the caret off), and `chars` and `rows` are what the assertions measure against. The assertion and settle names are tools/keys-assert.mjs's.",
     "caret": {
       "_about": "Four bursts on a Document that starts empty. The first two are tools/keys-fixture's, which is what #108's defect was found by hand with: the Document is empty so the first glyph starts at the left margin and the bar has nowhere to hide. The third adds two more rows and selects the lot with Control+a, which is #146's defect — the last row of a Document left unpainted by the selection — and it needs the rows to be of different lengths, because that is what tells one row band from the next (`readSelectionRows` in tools/keys-assert.mjs). So by the end of it the Document is three rows of 38, 4 and 10 characters, all selected, and the caret is out; its second assertion is #168's, that the middle row fills the container and not its own four characters of ink. The fourth types over that selection, replacing the Document with two short rows and a trailing newline, and selects the lot: the selection then ends past a newline rather than past a glyph, which is the shape no still shows — a held newline filling to the container's right edge rather than to a stub past the last glyph. The empty row the trailing newline opens is inside the selection and holds none of it, so it is a fill of no width and there are two bands rather than three. The chrome is off both because the caret Piece is judged bare (#139) and because the chrome's fade-on-typing is an animation, which is one more thing for `steady` to wait out inside the caret's idle hold — the on-phase an edit puts the blink back to the top of, which is `ON` in quill/src/caret.rs and where the number is kept.",
-      "state": { "text": null, "caret": 0, "chrome": "off" },
+      "state": {
+        "text": null,
+        "caret": 0,
+        "chrome": "off"
+      },
       "bursts": [
-        { "name": "typing-16", "text": "dfdfsdfsdfsdfsdf", "chars": 16, "assert": ["bar-after-ink"] },
-        { "name": "typing-38", "text": "fefefefefefsfesfesfesf", "chars": 38, "assert": ["bar-after-ink"] },
         {
-          "name": "select-all", "text": "\nffff\nssssssssss", "chars": 54,
-          "keys": [{ "press": "Control+a" }],
-          "settle": "still", "rows": 3,
-          "assert": ["selection-rows", "selection-container-wide"]
+          "name": "typing-16",
+          "text": "dfdfsdfsdfsdfsdf",
+          "chars": 16,
+          "assert": [
+            "bar-after-ink"
+          ]
         },
         {
-          "name": "newline-held", "text": "aa\nbbbb\n", "chars": 62,
-          "keys": [{ "press": "Control+a" }],
-          "settle": "still", "rows": 2, "assert": ["selection-newline-to-edge"]
+          "name": "typing-38",
+          "text": "fefefefefefsfesfesfesf",
+          "chars": 38,
+          "assert": [
+            "bar-after-ink"
+          ]
+        },
+        {
+          "name": "select-all",
+          "text": "\nffff\nssssssssss",
+          "chars": 54,
+          "keys": [
+            {
+              "press": "Control+a"
+            }
+          ],
+          "settle": "still",
+          "rows": 3,
+          "assert": [
+            "selection-rows",
+            "selection-container-wide"
+          ]
+        },
+        {
+          "name": "newline-held",
+          "text": "aa\nbbbb\n",
+          "chars": 62,
+          "keys": [
+            {
+              "press": "Control+a"
+            }
+          ],
+          "settle": "still",
+          "rows": 2,
+          "assert": [
+            "selection-newline-to-edge"
+          ]
         }
       ],
-      "between": ["bar-moved-right"]
+      "between": [
+        "bar-moved-right"
+      ]
     }
   },
   "_pending": "The files states use flags (library, sidebar, search) and a fixture folder that the File handling spec (after #25) defines; they are listed now so the state ids are stable."

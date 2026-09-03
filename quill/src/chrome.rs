@@ -17,7 +17,9 @@
 //! bar below it, in the Parity oracle's proportions (`legacy/app/css/chrome.css`),
 //! shown or hidden by the `chrome` setting, `--chrome` and `chrome.toggle`.
 //! Their colours are the engine's table; their geometry is the constants
-//! below, because a bar's height is widget geometry and not a colour.
+//! below, because a bar's height is widget geometry and not a colour. Their
+//! look is a stylesheet no file holds: [`stylesheet`] builds it per ground and
+//! [`crate::editor::install_type`] installs it.
 //!
 //! How the bars step back while a hand is typing is [`typing`] (#128): a
 //! machine with no widget in it, whose opacities the window puts on the bars

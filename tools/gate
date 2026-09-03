@@ -39,8 +39,15 @@ usage: tools/gate <command> [arguments]
 
   check [dir]   The Commit tier in one command: cargo fmt, applied — the step
                 line names any file it changed, and the change is the
-                session's to commit — the #[allow] reason rule, cargo clippy
-                --all-targets -- -D warnings, cargo test with no display
+                session's to commit — the #[allow] reason rule, the rounding
+                rule (round: a float becomes an integer only in a helper the
+                ROUND_ONCE list in this script names), and — on the repo root
+                only — the citation rule (cite: every ADR NNNN, NOTES §,
+                VERDICTS § and design.md row cited in docs/design.md,
+                progress/state.json and shots/oracle/states.json resolves)
+                and the canonical-JSON rule (json: those two JSON files are
+                Node's JSON.stringify(v, null, 2) byte for byte), then cargo
+                clippy --all-targets -- -D warnings, cargo test with no display
                 attached, and — on the repo root only — every
                 tools/*-selftest.mjs in name order, none of which needs a
                 window: the bench join's, the two the blind pair is decided
@@ -124,7 +131,7 @@ usage: tools/gate <command> [arguments]
                 shots/latency/panel-summary-<stamp>.json, which `judge latency`
                 does not read and refuses if it is handed one.
 
-  shoot <piece> [state ...] [--settings <path>]
+  shoot <piece> [state ...] | --pieces a,b | --all [--settings <path>]
                 A judged shot with no critic, for looking before one is spent:
                 ours built and shot at every judged state of the Piece, or at
                 the states named, on the Gate's headless output, cut exactly as
@@ -140,6 +147,18 @@ usage: tools/gate <command> [arguments]
                 refuses and for a state the Piece has not got. Takes about a
                 minute; runs in the foreground. No pair is made and no round
                 is written. The trail is target/gate/shoot-<piece>.log.
+                --pieces a,b shoots each Piece named and --all every Piece
+                with judged states, one build and one stage for all of them:
+                each Piece prints its lines and its own `shot N states` line,
+                and the run ends in `gate shoot: shot N states over P Pieces
+                (M unchanged since their last round)`, or, when a Piece was
+                refused, in that Piece's `refused (...)` line and `gate shoot:
+                refused (...)`, exit 3, after the others have printed. Several
+                Pieces are one stage: a shell loop opening and removing an
+                output per Piece hung Hyprland (2026-09-02). A Piece name,
+                --pieces and --all each say which, so only one may be given,
+                and states go with a name only. The trail of a run of several
+                is target/gate/shoot.log.
 
   judge <piece> [--note <text>] [--summary <file>] [--settings <path>] [--fresh]
                 The Ticket tier's blind judging for one Piece: ours built and
@@ -176,11 +195,11 @@ usage: tools/gate <command> [arguments]
                 (...)` when nothing was judged — a command line it could not
                 read, a crop that cannot be cut, or an assert this build
                 cannot run, included, since 2 is
-                spoken for. That line,
-                with the one above it that names the round which won a Piece now
-                lost, is the whole of stdout: everything said on the way there is
-                target/gate/judge-<piece>.log, printed when the run refuses, and
-                a round that reached a verdict has its detail in the JSON.
+                spoken for. Above it, one line per state naming the winner,
+                the margin and the round it was carried from, and one with the
+                winner's gap, so a round is read from the output rather than
+                from the letters in the JSON; the trail is
+                target/gate/judge-<piece>.log, printed when the run refuses.
                 latency is the one Piece with no picture to look at, so it is
                 judged by arithmetic instead: it reads the newest whole run
                 under shots/latency/, or the one --summary names, and is ours
@@ -309,6 +328,174 @@ allow_reasons() {
     return 1
 }
 
+# CODING_STANDARDS.md § Shape: a float becomes an integer once, at the end, in
+# a named helper. The helpers, as `<file>:<fn>` relative to the directory being
+# checked, each with the reason it rounds; a new one is added here with its
+# reason, and the step below holds every `.round() as` (floor, ceil, trunc) in
+# the sources to this list.
+ROUND_ONCE=(
+    quill/src/tags.rs:pixels               # the shape itself: a length as whole pixels
+    quill/src/palette.rs:pixels            # a copy of tags::pixels until it is pub(crate) — a ticket to file (§ Shape, one helper both call)
+    quill/src/chrome.rs:reading_time       # seconds to the nearest minute, for the word count's bar
+    quill-engine/src/theme.rs:channel      # a colour channel in 0.0–1.0 to a byte
+    quill-engine/src/typography.rs:measure # the 64-cell measure in whole pixels
+    quill-engine/src/typography.rs:hang    # a heading's hang in whole pixels
+    quill-engine/src/typography.rs:page_bottom # the page bottom in whole pixels
+    quill-engine/src/typography.rs:an_old_size_in_pixels_takes_the_rung_above_it_and_never_shrinks # a test reading NOTES's em down to its last whole pixel
+)
+
+# The enclosing function of line $2 in $1: the nearest `fn <name>` line above it,
+# or nothing when there is none (a site at module level).
+enclosing_fn() {
+    awk -v n="$2" '
+        NR > n { exit }
+        /^[[:space:]]*(pub(\([^)]*\))?[[:space:]]+)?((const|async|unsafe|extern "C")[[:space:]]+)*fn[[:space:]]+[A-Za-z_][A-Za-z_0-9]*/ {
+            name = $0; sub(/.*fn[[:space:]]+/, "", name); sub(/[^A-Za-z_0-9].*/, "", name)
+        }
+        END { print name }' "$1"
+}
+
+# Every float-to-integer cast in the sources sits in a helper ROUND_ONCE names,
+# by file and by the fn the site is in. Named by file and line like the
+# #[allow] step, and a step that read nothing is a failure for the same reason.
+round_once() {
+    local found status file lineno fn line here; local -a files=() stray=()
+    mapfile -t files < <(sources)
+    [ ${#files[@]} -gt 0 ] || { echo "gate: no Rust to read" >&2; return 1; }
+
+    found=$(grep -nE '\.(round|floor|ceil|trunc)\(\) as ' "${files[@]}" /dev/null) && status=0 || status=$?
+    [ "$status" -le 1 ] || { echo "gate: could not read the sources" >&2; return 1; }
+
+    while IFS= read -r line; do
+        [ -n "$line" ] || continue
+        file=${line%%:*}; line=${line#*:}
+        lineno=${line%%:*}; line=${line#*:}
+        fn=$(enclosing_fn "$file" "$lineno")
+        here=${file#"$PWD"/}:$fn
+        case " ${ROUND_ONCE[*]} " in *" $here "*) continue ;; esac
+        stray+=("${file#"$PWD"/}:$lineno:${line#"${line%%[![:space:]]*}"}  (in fn ${fn:-<none>})")
+    done <<< "$found"
+
+    [ ${#stray[@]} -eq 0 ] && return 0
+    printf '%s\n' "${stray[@]}"
+    echo "a float is rounded once, at the end, in a named helper (CODING_STANDARDS.md § Shape); a new one is added to the list in tools/gate with its reason"
+    return 1
+}
+
+# Every citation in docs/design.md, progress/state.json and
+# shots/oracle/states.json resolves: `ADR NNNN` to a file under docs/adr/,
+# `NOTES § X` and `VERDICTS § X` to a heading of the capture notes (a bare
+# number is `State N`), and `design.md row <Name>` (or `rows <A>, <B> and <C>`)
+# to a row of docs/design.md § Rows. A `design.md row` followed by a lowercase
+# word ("a design.md row has left ...") is prose, not a citation. The JSON is
+# read as text, so a line number is the file's own.
+citations_resolve() {
+    python3 - <<'PY'
+import glob, re, sys
+
+FILES = ["docs/design.md", "progress/state.json", "shots/oracle/states.json"]
+SECTION_END = r'[^,.;:)|"`\\\n]*'
+NUMBERED = re.compile(r"\d+")
+
+def headings(path):
+    heads = []
+    for line in open(path, encoding="utf-8"):
+        m = re.match(r"#+ (.*)", line)
+        if m:
+            heads.append(m.group(1).strip())
+    return heads
+
+def rows():
+    names, in_rows = [], False
+    for line in open("docs/design.md", encoding="utf-8"):
+        if line.startswith("## "):
+            in_rows = line.startswith("## Rows")
+        elif in_rows and line.startswith("| "):
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            if cells and cells[0] and not set(cells[0]) <= set("-: "):
+                names.append(cells[0])
+    return sorted(names, key=len, reverse=True)
+
+def heading_resolves(section, heads):
+    section = section.strip()
+    if NUMBERED.fullmatch(section):
+        section = f"State {section}"
+    for head in heads:
+        # The heading as cited, or the citation running on into prose after
+        # the heading's own words ("NOTES § State 14 says ..."); either way
+        # the match ends at a word boundary, so `State 9` is not `State 99`.
+        short = re.split(r" — |: ", head)[0]
+        if re.match(re.escape(section) + r"(?![A-Za-z0-9])", head):
+            return True
+        if re.match(re.escape(short) + r"(?![A-Za-z0-9])", section):
+            return True
+    return False
+
+NOTES = headings("ref/ia/mac-native/NOTES.md")
+VERDICTS = headings("ref/ia/mac-native/VERDICTS.md")
+ROWS = rows()
+ADRS = {m.group(1) for p in glob.glob("docs/adr/*.md") for m in [re.match(r".*/(\d{4})-", p)] if m}
+
+def row_names(text):
+    # The row names cited, longest known name first, joined by ", " or " and ".
+    names = []
+    while True:
+        hit = next((r for r in ROWS if text.startswith(r)), None)
+        if hit is None:
+            return names, text
+        names.append(hit)
+        text = text[len(hit):]
+        for sep in (", ", " and "):
+            if text.startswith(sep):
+                text = text[len(sep):]
+                break
+        else:
+            return names, text
+
+unresolved = []
+for path in FILES:
+    for lineno, line in enumerate(open(path, encoding="utf-8"), 1):
+        for m in re.finditer(r"ADR (\d{4})", line):
+            if m.group(1) not in ADRS:
+                unresolved.append((path, lineno, m.group(0)))
+        for m in re.finditer(r"(NOTES|VERDICTS) § (" + SECTION_END + ")", line):
+            heads = NOTES if m.group(1) == "NOTES" else VERDICTS
+            if not heading_resolves(m.group(2), heads):
+                unresolved.append((path, lineno, f"{m.group(1)} § {m.group(2).strip()}"))
+        for m in re.finditer(r"design\.md rows? ([A-Z][^\n]*)", line):
+            names, rest = row_names(m.group(1))
+            if not names:
+                cited = re.split(r"[,.;:)|\"`]", m.group(1))[0].strip()
+                unresolved.append((path, lineno, f"design.md row {cited}"))
+
+for path, lineno, cited in unresolved:
+    print(f"{path}:{lineno}: {cited} resolves to nothing")
+if unresolved:
+    print("every ADR NNNN, NOTES §, VERDICTS § and design.md row citation in these files names a file, a heading or a row that exists (docs/agents/gate.md)")
+    sys.exit(1)
+PY
+}
+
+# progress/state.json and shots/oracle/states.json are Node's
+# JSON.stringify(v, null, 2) byte for byte — the shape judge.mjs writes a
+# round in — so a scripted edit is a small diff and a hand edit is held to it.
+canonical_json() {
+    local file status=0
+    for file in progress/state.json shots/oracle/states.json; do
+        node -e '
+const fs = require("fs");
+const file = process.argv[1];
+const raw = fs.readFileSync(file, "utf8");
+if (JSON.stringify(JSON.parse(raw), null, 2) + "\n" !== raw) {
+  console.log(`${file}: not canonical; rewrite it with node -e '"'"'const fs=require("fs"),f=process.argv[1];fs.writeFileSync(f,JSON.stringify(JSON.parse(fs.readFileSync(f,"utf8")),null,2)+"\\n")'"'"' ${file}`);
+  process.exit(1);
+}' "$file" || status=1
+    done
+    [ "$status" -eq 0 ] && return 0
+    echo "progress/state.json and shots/oracle/states.json are Node's JSON.stringify(v, null, 2) plus a newline, byte for byte (docs/agents/gate.md)"
+    return 1
+}
+
 check() {
     local dir=${1:-$ROOT}
     if [ ! -f "$dir/Cargo.toml" ]; then
@@ -320,6 +507,17 @@ check() {
     fmt_step
     run_step allow "#[allow(...)] carries its reason on the same line" \
         allow_reasons
+    run_step round "a float becomes an integer in a named helper" \
+        round_once
+    # The two below read this repository's docs and judging files, which a
+    # `check <dir>` elsewhere has no counterpart of — the same reason the
+    # selftests wait for the root, below.
+    if [ "$PWD" = "$ROOT" ]; then
+        run_step cite "every citation in design.md and state.json resolves" \
+            citations_resolve
+        run_step json "state.json and states.json are their canonical dump" \
+            canonical_json
+    fi
     run_step clippy "cargo clippy --all-targets -- -D warnings" \
         cargo clippy --all-targets -- -D warnings
     run_step test "cargo test, with no display attached" \
