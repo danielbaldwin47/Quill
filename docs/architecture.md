@@ -152,10 +152,15 @@ Config: `theme` (auto, light, dark), `face` (duo, quattro, mono), `step` (the te
 default 5 = 21.33 logical px; an old `size` in px becomes the nearest step at or above it once,
 `docs/design.md` § Text sizes),
 `focus` (on/off) and `focus_scope` (sentence, paragraph), `typewriter` (on/off) and
-`typewriter_anchor` (0–1, default 0.5), `chrome` (shown/hidden), `spell_check` (on/off, default on)
+`typewriter_anchor` (0–1, default 0.5), `live` (on/off, default off: the Editor rendering the markup
+it is not being typed in), `chrome` (shown/hidden), `spell_check` (on/off, default on)
 and `spell_language`, `[syntax_highlight]` (a table: `enabled` is the master, and the five category
 toggles sit beside it), `[style_check]` (the same shape, one toggle per list beside `enabled`),
-`template` (the current Template's name), `preview_layout` (split, full),
+a `[template]` table (`name`, one of the five Templates, default `modern`; and `center_headings`,
+default true, `number_headings` and `indent_paragraphs`, the three toggles that bend one), a
+`[preview]` table (`layout`, split or full, and `zoom`, a whole percentage from 50 to 200, default
+100; a scalar `template` or `preview_layout`, which is how each was written before it was a table, is
+read as its table's value and rewritten as the table on the next write, as a scalar `library` is),
 `palette` (the file the grounds take their colours from, `design.md` § The palette is a
 file; empty is the built-ins), a `[library]` table (`locations` and `pinned`, two lists of paths,
 and `show_hidden`, `show_extensions`, `confirm_move` and `ask_where_to_save`, four booleans that

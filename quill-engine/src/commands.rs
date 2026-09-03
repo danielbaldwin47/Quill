@@ -203,11 +203,12 @@ const VIEW: Menu = Menu::View;
 const STATS: Menu = Menu::Stats;
 
 /// The View menu's sections in the table's order, separators between them.
-pub const VIEW_SECTIONS: [&str; 6] = [
+pub const VIEW_SECTIONS: [&str; 7] = [
     "Focus",
     "Panes",
     "Writing tools",
     "Typeface",
+    "Template",
     "Appearance",
     "Window",
 ];
@@ -236,12 +237,11 @@ pub const COMMANDS: &[Command] = &[
     row("focus.paragraph", "Paragraph", Scope::Win, Kind::Radio { group: "focus_scope", value: "paragraph", }, &[], &[place(VIEW, Some("Focus"), "Paragraph")], true),
     row("focus.swap", "Switch Focus Scope", Scope::Win, Kind::Plain, &["Ctrl+Shift+D"], &[], true),
     row("typewriter.toggle", "Typewriter", Scope::Win, Kind::Check, &["Ctrl+T"], &[place(VIEW, Some("Focus"), "Typewriter")], true),
+    row("live.toggle", "Live", Scope::Win, Kind::Check, &["Ctrl+L"], &[place(VIEW, Some("Focus"), "Live")], false),
     // View › Panes.
     row("library.toggle", "Show Library / Hide Library", Scope::Win, Kind::Check, &["Ctrl+E", "F9"], &[place(VIEW, Some("Panes"), "Show Library / Hide Library")], true),
     row("preview.toggle", "Show Preview / Hide Preview", Scope::Win, Kind::Check, &["Ctrl+R"], &[place(VIEW, Some("Panes"), "Show Preview / Hide Preview")], false),
-    // The Preview spec decides the pair's values; `Ctrl+Shift+R` is reserved
-    // for it and bound to nothing.
-    row("preview.layout", "Preview Split / Preview Full", Scope::Win, Kind::Radio { group: "preview_layout", value: "split", }, &[], &[place(VIEW, Some("Panes"), "Preview Split / Preview Full")], false),
+    row("preview.layout", "Preview Split / Preview Full", Scope::Win, Kind::Radio { group: "preview_layout", value: "split", }, &["Ctrl+Shift+R"], &[place(VIEW, Some("Panes"), "Preview Split / Preview Full")], false),
     // View › Writing tools.
     row("syntax.toggle", "Syntax Highlight", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Syntax Highlight")], false),
     row("syntax.nouns", "Nouns", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Nouns")], false),
@@ -255,11 +255,24 @@ pub const COMMANDS: &[Command] = &[
     row("font.duo", "Duo", Scope::Win, Kind::Radio { group: "face", value: "duo", }, &[], &[place(VIEW, Some("Typeface"), "Duo")], true),
     row("font.quattro", "Quattro", Scope::Win, Kind::Radio { group: "face", value: "quattro", }, &[], &[place(VIEW, Some("Typeface"), "Quattro")], true),
     row("font.mono", "Mono", Scope::Win, Kind::Radio { group: "face", value: "mono", }, &[], &[place(VIEW, Some("Typeface"), "Mono")], true),
+    // View › Template. The five Templates are one radio group whose value is
+    // the `[template]` table's `name`; the three toggles are its other keys.
+    row("template.modern", "Modern", Scope::Win, Kind::Radio { group: "template", value: "modern", }, &[], &[place(VIEW, Some("Template"), "Modern")], false),
+    row("template.classic", "Classic", Scope::Win, Kind::Radio { group: "template", value: "classic", }, &[], &[place(VIEW, Some("Template"), "Classic")], false),
+    row("template.manuscriptMono", "Manuscript Mono", Scope::Win, Kind::Radio { group: "template", value: "manuscript-mono", }, &[], &[place(VIEW, Some("Template"), "Manuscript Mono")], false),
+    row("template.manuscriptDuo", "Manuscript Duo", Scope::Win, Kind::Radio { group: "template", value: "manuscript-duo", }, &[], &[place(VIEW, Some("Template"), "Manuscript Duo")], false),
+    row("template.manuscriptQuattro", "Manuscript Quattro", Scope::Win, Kind::Radio { group: "template", value: "manuscript-quattro", }, &[], &[place(VIEW, Some("Template"), "Manuscript Quattro")], false),
+    row("template.centerHeadings", "Center Headings", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Template"), "Center Headings")], false),
+    row("template.numberHeadings", "Number Headings", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Template"), "Number Headings")], false),
+    row("template.indentParagraphs", "Indent Paragraphs", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Template"), "Indent Paragraphs")], false),
     // View › Appearance.
     row("theme.toggle", "Dark Mode", Scope::Win, Kind::Check, &["Ctrl+Shift+L", "Alt+Shift+N"], &[place(VIEW, Some("Appearance"), "Dark Mode")], true),
     row("font.bigger", "Bigger Text", Scope::Win, Kind::Plain, &["Ctrl+=", "Ctrl++"], &[place(VIEW, Some("Appearance"), "Bigger Text")], true),
     row("font.smaller", "Smaller Text", Scope::Win, Kind::Plain, &["Ctrl+-"], &[place(VIEW, Some("Appearance"), "Smaller Text")], true),
     row("font.reset", "Default Text Size", Scope::Win, Kind::Plain, &["Ctrl+0"], &[place(VIEW, Some("Appearance"), "Default Text Size")], true),
+    row("preview.bigger", "Bigger Preview Text", Scope::Win, Kind::Plain, &["Ctrl+Shift+="], &[place(VIEW, Some("Appearance"), "Bigger Preview Text")], false),
+    row("preview.smaller", "Smaller Preview Text", Scope::Win, Kind::Plain, &["Ctrl+Shift+-"], &[place(VIEW, Some("Appearance"), "Smaller Preview Text")], false),
+    row("preview.reset", "Default Preview Size", Scope::Win, Kind::Plain, &["Ctrl+Shift+0"], &[place(VIEW, Some("Appearance"), "Default Preview Size")], false),
     // View › Window.
     row("chrome.stats", "Statistics", Scope::Win, Kind::Check, &[], &[ place(VIEW, Some("Window"), "Statistics"), place(STATS, None, "Hide Statistics"), ], true),
     row("chrome.toggle", "Hide Bars / Show Bars", Scope::Win, Kind::Check, &["Ctrl+Shift+H"], &[place(VIEW, Some("Window"), "Hide Bars / Show Bars")], true),
@@ -307,7 +320,6 @@ pub const RESERVED: &[&str] = &[
     "Ctrl+G",
     "Ctrl+Shift+G",
     "Ctrl+Shift+C",
-    "Ctrl+Shift+R",
 ];
 
 /// Chords `GtkTextView` takes before a window shortcut sees them, so a
@@ -837,7 +849,14 @@ mod tests {
         assert_eq!(by_id("chrome.stats").unwrap().placements.len(), 2);
         assert_eq!(
             radio_groups(),
-            ["focus_scope", "preview_layout", "face", "stats", "theme"]
+            [
+                "focus_scope",
+                "preview_layout",
+                "face",
+                "template",
+                "stats",
+                "theme"
+            ]
         );
     }
 }
