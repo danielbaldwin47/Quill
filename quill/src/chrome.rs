@@ -32,6 +32,7 @@
 //! over the page that `palette.open` toggles.
 
 use std::cell::Cell;
+use std::path::Path;
 use std::rc::Rc;
 
 use gtk::prelude::*;
@@ -216,10 +217,39 @@ pub fn install_window(window: &Window) {
             }
         }),
     );
+    install_recent(window);
     // The compositor can fill the screen without `F11` being pressed, so the
     // check follows the window rather than the Command.
     window.connect_fullscreened_notify(|window| reflect(window, window.modes()));
     reflect(window, window.modes());
+}
+
+/// The one window action that is not a Command: opening a named recent
+/// Document (#246, stories 41 and 42).
+///
+/// It takes the path as its target, which no [`COMMANDS`] row can — a Command
+/// is one action with no parameter, or a radio's group with a fixed value —
+/// and both the Open Recent submenu ([`crate::menus`]) and the Palette's
+/// recents rows ([`crate::palette`]) activate it, so a recent is opened by one
+/// path however it was chosen. It is registered here rather than by
+/// [`register`] because it is outside the registry, and it carries no chord
+/// and no menu row of its own: `file.recent` is the Command a writer reaches.
+pub const RECENT_OPEN: &str = "file.recentOpen";
+
+/// Registers [`RECENT_OPEN`] on `window`.
+fn install_recent(window: &Window) {
+    let action = gio::SimpleAction::new(RECENT_OPEN, Some(glib::VariantTy::STRING));
+    let opened = window.downgrade();
+    action.connect_activate(move |_, target| {
+        let (Some(window), Some(path)) = (
+            opened.upgrade(),
+            target.and_then(|target| target.get::<String>()),
+        ) else {
+            return;
+        };
+        window.open_path(Path::new(&path));
+    });
+    window.add_action(&action);
 }
 
 /// Puts what the session now shows on to every window's stateful actions.
@@ -367,6 +397,7 @@ fn run_window(window: &Window, command: &Command) {
         "file.save" => window.save(),
         "file.saveAs" => window.save_as(crate::window::After::Stay),
         "palette.open" => window.open_palette(),
+        "file.recent" => window.open_recents(),
         "settings.open" => window.open_settings(),
         "shortcuts.open" => window.open_shortcuts(),
         "window.fullscreen" if window.is_fullscreen() => window.unfullscreen(),

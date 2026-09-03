@@ -337,9 +337,54 @@ impl Session {
         let theme = settings.theme;
         self.settings.replace(settings);
         self.set_theme(theme);
+        // The Library is a model beside the settings rather than a value in
+        // them, so a `[library]` table that moved has to be put on to it here;
+        // every other setting the sidebar reads — hidden files, extensions —
+        // is read at the next listing and needs nothing but the redraw
+        // `moved` asks for ([`crate::window::reapply`]).
+        self.resync_library();
         let moved = self.running() != before;
         let repainted = self.reread_palette();
         moved || repainted
+    }
+
+    /// Puts the Locations and Pinned the settings file now names on to the
+    /// Library: the folders it no longer lists are dropped, the ones it has
+    /// gained are walked and watched, and Pinned is made to say what the file
+    /// says.
+    ///
+    /// This is what makes a `[library]` edit — the Settings window's rows, or
+    /// a writer's own edit of `settings.toml` — apply live rather than at the
+    /// next launch (#246; #251 found the edit going nowhere). The file is not
+    /// written back: this direction is the file moving the app, and
+    /// [`Session::add_location`] is the other one.
+    fn resync_library(&self) {
+        let wanted = self.settings.borrow().library.locations.clone();
+        let held: Vec<PathBuf> = self
+            .library
+            .borrow()
+            .locations()
+            .iter()
+            .map(|location| location.root().to_path_buf())
+            .collect();
+        for root in held.iter().filter(|root| !wanted.contains(root)) {
+            self.library.borrow_mut().remove_location(root);
+        }
+        for root in wanted.iter().filter(|root| !held.contains(root)) {
+            if self.library.borrow_mut().add_location(root) {
+                self.watch_tree(root);
+            }
+        }
+        let pinned = self.settings.borrow().library.pinned.clone();
+        let held = self.library.borrow().pinned().to_vec();
+        for path in held.iter().filter(|path| !pinned.contains(path)) {
+            self.library.borrow_mut().unpin(path);
+        }
+        for path in pinned.iter().filter(|path| !held.contains(path)) {
+            // A path under no Location is not pinned, and the file keeps it
+            // all the same: a Location added back brings its pins with it.
+            let _pinned = self.library.borrow_mut().pin(path);
+        }
     }
 
     /// Takes down what the read of the settings file at launch said, which
@@ -862,6 +907,40 @@ impl Session {
         if let Some(root) = root {
             self.add_location(&root);
         }
+    }
+
+    /// The Documents this writer has opened, most recent first: what
+    /// `file.recent` fills the Palette with and what the Open Recent submenu
+    /// lists (#246, stories 41 and 42).
+    ///
+    /// The live list rather than the file's, so a Document opened a moment ago
+    /// is at the top of it; the file is written on the way out
+    /// ([`Session::store`]).
+    #[must_use]
+    pub fn recents(&self) -> Vec<PathBuf> {
+        self.leaving.borrow().recents.clone()
+    }
+
+    /// Where the caret was left in `path`, or `None` for a Document this
+    /// writer has not been in before.
+    #[must_use]
+    pub fn caret(&self, path: &Path) -> Option<u64> {
+        self.leaving.borrow().caret(path)
+    }
+
+    /// Takes down where the caret stands in `path`, so that opening the
+    /// Document again comes back to the sentence (#246, story 43).
+    ///
+    /// A launch of the harness's takes down nothing, for the reason
+    /// [`Session::opened_at`] gives: its caret is a flag's and not a writer's.
+    pub fn left_caret(&self, path: &Path, offset: u64) {
+        if self.harness {
+            return;
+        }
+        self.leaving
+            .borrow_mut()
+            .carets
+            .insert(path.to_path_buf(), offset);
     }
 
     /// Adds `root` as a Location: walked now, watched from now on, and written
