@@ -1,6 +1,6 @@
 //! The three menus — Document, View and Stats — as `GMenu` models built from
 //! the Command registry, so a section's order and a row's label are one edit
-//! in `docs/shortcuts.md` (#121).
+//! in `docs/shortcuts.md`.
 //!
 //! A model is a pure function of the registry and the modes: the rows are
 //! the Commands placed in that menu, in the table's order; the View menu's
