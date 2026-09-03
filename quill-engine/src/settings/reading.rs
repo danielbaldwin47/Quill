@@ -120,6 +120,10 @@ impl<'a> Reading<'a> {
     }
 
     /// A list of paths, skipping any entry that is not a string.
+    ///
+    /// A leading `~/` is the home directory in every entry, as it is in
+    /// [`Reading::path`]: the Locations and the Pinned list are written by
+    /// hand as readily as the single `library` path they replaced.
     pub fn paths(&mut self, key: &str) -> Vec<PathBuf> {
         let Some(value) = self.take(key) else {
             return Vec::new();
@@ -128,11 +132,12 @@ impl<'a> Reading<'a> {
             self.wrong(key, &value, "a list of paths", "nothing");
             return Vec::new();
         };
+        let home = std::env::home_dir();
         entries
             .iter()
             .filter_map(|entry| entry.as_str())
             .filter(|path| !path.is_empty())
-            .map(PathBuf::from)
+            .map(|path| under_home(path, home.as_deref()))
             .collect()
     }
 
