@@ -34,6 +34,7 @@ mod portal;
 mod session;
 mod settings;
 mod shortcuts;
+mod sidebar;
 mod tags;
 mod window;
 
@@ -66,6 +67,18 @@ fn main() -> glib::ExitCode {
         println!("{}", flags::USAGE);
         return glib::ExitCode::SUCCESS;
     }
+
+    // And the fixture Library before the settings, because the Locations are
+    // walked as the session opens: `--library` names a tree in the checkout
+    // and the launch walks a stamped copy of it, so the copy has to exist
+    // before anything asks what the Library holds.
+    let flags = match staged(flags) {
+        Ok(flags) => flags,
+        Err(err) => {
+            eprintln!("quill: {err}");
+            return glib::ExitCode::FAILURE;
+        }
+    };
 
     // Before anything GTK: Pango builds its font map from the current
     // fontconfig the first time it lays text out, and the Faces have to be in
@@ -196,4 +209,27 @@ fn main() -> glib::ExitCode {
     } else {
         app.run()
     }
+}
+
+/// The flags with `--library` pointed at the copy of the fixture this launch
+/// walks, and every Document named inside the fixture pointed at the copy with
+/// it ([`files::stage`], [`files::restaged`]).
+///
+/// # Errors
+///
+/// One line naming the flag and what was missing: a fixture folder that is not
+/// there, or one with no `manifest.json` beside it.
+fn staged(mut flags: Flags) -> Result<Flags, String> {
+    let Some(fixture) = flags.library.clone() else {
+        return Ok(flags);
+    };
+    let root = files::stage(&fixture).map_err(|err| format!("--library: {err}"))?;
+    if let Some(text) = flags.text.take() {
+        flags.text = Some(files::restaged(&fixture, &root, &text));
+    }
+    for file in &mut flags.files {
+        *file = files::restaged(&fixture, &root, file);
+    }
+    flags.library = Some(root);
+    Ok(flags)
 }

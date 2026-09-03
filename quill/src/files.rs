@@ -88,6 +88,115 @@ pub fn location_for(library: &Library, path: &Path) -> Option<PathBuf> {
     Some(path.parent()?.to_path_buf())
 }
 
+/// How deep [`stage`] copies. The fixture is two folders deep and this is the
+/// bound on a tree that is not: a copy is the harness's own folder, and a walk
+/// with no end would be a launch that never draws a frame.
+const STAGE_DEPTH: usize = 8;
+
+/// Copies the fixture Library at `fixture` to a folder of this process's own,
+/// stamping each file with the mtime `manifest.json` names, and answers where
+/// the copy is.
+///
+/// What `--library` is for: a judged shot of the Library has to be the same
+/// Library on every machine, and git carries no mtimes, so a fresh checkout
+/// would sort the fixture by whenever it was cloned. The copy is stamped
+/// rather than the checkout because a shot must not write to the repository,
+/// and because two runs at once — a shoot and a judge — would otherwise stamp
+/// one tree twice.
+///
+/// # Errors
+///
+/// One line, naming what was missing: a fixture folder that is not there, a
+/// `manifest.json` that is not beside it, or a copy that could not be made.
+pub fn stage(fixture: &Path) -> Result<PathBuf, String> {
+    if !fixture.is_dir() {
+        return Err(format!("{}: no such fixture Library", fixture.display()));
+    }
+    let manifest = fixture.join(MANIFEST);
+    let read = std::fs::read_to_string(&manifest)
+        .map_err(|err| format!("{}: {err}", manifest.display()))?;
+    let name = fixture
+        .file_name()
+        .ok_or_else(|| format!("{}: has no folder name", fixture.display()))?;
+    let root = std::env::temp_dir()
+        .join(format!("quill-library-{}", std::process::id()))
+        .join(name);
+    std::fs::remove_dir_all(&root).ok();
+    copy(fixture, &root, STAGE_DEPTH)?;
+    for (path, seconds) in mtimes(&read) {
+        let file = root.join(path);
+        let stamped = std::time::UNIX_EPOCH + std::time::Duration::from_secs(seconds);
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open(&file)
+            .and_then(|file| file.set_modified(stamped))
+            .map_err(|err| format!("{}: {err}", file.display()))?;
+    }
+    Ok(root)
+}
+
+/// A path named inside the fixture, as it stands in the copy [`stage`] made.
+///
+/// `--text` names a Document of the fixture's by its place in the checkout;
+/// the Library the launch walks is the copy, and a Document opened from
+/// outside it would be a window whose file no row of the sidebar holds.
+#[must_use]
+pub fn restaged(fixture: &Path, root: &Path, path: &Path) -> PathBuf {
+    match path.strip_prefix(fixture) {
+        Ok(inside) => root.join(inside),
+        Err(_) => path.to_path_buf(),
+    }
+}
+
+/// The fixture's stamps, beside its files.
+const MANIFEST: &str = "manifest.json";
+
+/// The mtimes `manifest.json` names, each a path under the fixture and the
+/// epoch second it is stamped with.
+///
+/// Read by hand rather than through a JSON parser: the file is the Gate's own,
+/// its shape is `{"mtimes": {"<path>": <seconds>}}`, and the app crate carries
+/// no JSON reader for one fixture to justify. Anything it cannot read is
+/// nothing stamped, which the Date sort shows at once.
+fn mtimes(read: &str) -> Vec<(String, u64)> {
+    let Some(table) = read.split_once("\"mtimes\"").and_then(|(_, rest)| {
+        let open = rest.find('{')?;
+        let close = rest[open..].find('}')?;
+        Some(&rest[open + 1..open + close])
+    }) else {
+        return Vec::new();
+    };
+    table
+        .split(',')
+        .filter_map(|entry| {
+            let (path, seconds) = entry.split_once(':')?;
+            let path = path.trim().trim_matches('"');
+            let seconds = seconds.trim().parse().ok()?;
+            Some((path.to_string(), seconds))
+        })
+        .collect()
+}
+
+/// Copies the tree at `from` to `to`, `depth` folders deep.
+fn copy(from: &Path, to: &Path, depth: usize) -> Result<(), String> {
+    std::fs::create_dir_all(to).map_err(|err| format!("{}: {err}", to.display()))?;
+    if depth == 0 {
+        return Ok(());
+    }
+    let entries = std::fs::read_dir(from).map_err(|err| format!("{}: {err}", from.display()))?;
+    for entry in entries {
+        let entry = entry.map_err(|err| format!("{}: {err}", from.display()))?;
+        let (source, target) = (entry.path(), to.join(entry.file_name()));
+        if source.is_dir() {
+            copy(&source, &target, depth - 1)?;
+        } else {
+            std::fs::copy(&source, &target)
+                .map_err(|err| format!("{}: {err}", source.display()))?;
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -166,5 +275,79 @@ mod tests {
         // And a file from somewhere else is still no reason to add one.
         assert_eq!(location_for(&library, Path::new("/tmp/elsewhere.md")), None);
         fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn the_manifest_is_read_as_the_paths_and_the_seconds_it_names() {
+        // Derived from `shots/oracle/library/manifest.json`, prose and all.
+        let read = "{\n  \"_about\": \"The mtime each file is stamped with.\",\n  \
+                    \"mtimes\": {\n    \".archive/old-draft.md\": 1740819600,\n    \
+                    \"Drafts/closing.md\": 1740906000,\n    \"sea-storm.md\": 1741942800\n  }\n}\n";
+        assert_eq!(
+            mtimes(read),
+            vec![
+                (".archive/old-draft.md".to_string(), 1_740_819_600),
+                ("Drafts/closing.md".to_string(), 1_740_906_000),
+                ("sea-storm.md".to_string(), 1_741_942_800),
+            ]
+        );
+        assert!(mtimes("{}").is_empty(), "no table is nothing stamped");
+    }
+
+    #[test]
+    fn staging_copies_the_tree_and_stamps_it_from_the_manifest() {
+        let fixture = scratch("fixture");
+        fs::create_dir_all(fixture.join("Drafts")).expect("the subfolder");
+        fs::write(fixture.join("sea-storm.md"), "# The storm\n").expect("a Document");
+        fs::write(fixture.join("Drafts/opening.md"), "# Opening\n").expect("another");
+        fs::write(
+            fixture.join(MANIFEST),
+            "{\"mtimes\": {\"sea-storm.md\": 1741942800, \"Drafts/opening.md\": 1741856400}}",
+        )
+        .expect("the manifest");
+
+        let root = stage(&fixture).expect("the fixture is copied");
+        assert_ne!(root, fixture, "the copy is not the checkout");
+        assert_eq!(
+            fs::read_to_string(root.join("sea-storm.md")).expect("the copy holds the Document"),
+            "# The storm\n"
+        );
+        let stamped = fs::metadata(root.join("Drafts/opening.md"))
+            .and_then(|of| of.modified())
+            .expect("the copy is stamped");
+        assert_eq!(
+            stamped
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("after the epoch")
+                .as_secs(),
+            1_741_856_400
+        );
+        // And the Document `--text` names in the checkout is the one in the
+        // copy, so the sidebar's highlight has a row to land on.
+        assert_eq!(
+            restaged(&fixture, &root, &fixture.join("sea-storm.md")),
+            root.join("sea-storm.md")
+        );
+        assert_eq!(
+            restaged(&fixture, &root, Path::new("/tmp/elsewhere.md")),
+            Path::new("/tmp/elsewhere.md")
+        );
+        fs::remove_dir_all(&fixture).ok();
+        fs::remove_dir_all(root.parent().expect("a temp folder of its own")).ok();
+    }
+
+    #[test]
+    fn a_fixture_that_is_not_there_is_one_line_naming_it() {
+        let missing = std::env::temp_dir().join(format!("quill-nothing-{}", std::process::id()));
+        let refused = stage(&missing).expect_err("nothing to copy");
+        assert!(refused.ends_with("no such fixture Library"), "{refused}");
+        assert!(!refused.contains('\n'), "one line, not a stack: {refused}");
+
+        // A folder with no manifest is refused by the file it is missing.
+        let bare = scratch("bare");
+        let refused = stage(&bare).expect_err("nothing to stamp from");
+        assert!(refused.contains(MANIFEST), "{refused}");
+        assert!(!refused.contains('\n'), "one line, not a stack: {refused}");
+        fs::remove_dir_all(&bare).ok();
     }
 }

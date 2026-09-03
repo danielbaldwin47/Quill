@@ -61,6 +61,7 @@ mod imp {
     use crate::flags;
     use crate::palette::Palette;
     use crate::session::Session;
+    use crate::sidebar::Sidebar;
 
     #[derive(Default)]
     pub struct Window {
@@ -84,6 +85,9 @@ mod imp {
         pub editor: Editor,
         /// The title bar above the Editor and the stats bar below it.
         pub bars: Bars,
+        /// The Library beside the page, hidden until `library.toggle` shows
+        /// it. One per window, all of them showing the session's one Library.
+        pub sidebar: Sidebar,
         /// The Palette over the page, built once the window is, because a
         /// popover is parented on its window.
         pub palette: OnceCell<Palette>,
@@ -126,8 +130,15 @@ mod imp {
             column.append(&scroller);
             column.append(self.bars.bottom());
             self.bars.follow(&scroller);
-            window.set_child(Some(&column));
-            let _ = self.palette.set(Palette::new(&column));
+            // The Library stands left of that column and pushes it right
+            // rather than covering it, which is the oracle's model: the page
+            // keeps its own centring and is given a narrower window
+            // (`files.css` `#app { padding-left: var(--lib-w) }`).
+            let beside = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+            beside.append(self.sidebar.widget());
+            beside.append(&column);
+            window.set_child(Some(&beside));
+            let _ = self.palette.set(Palette::new(&beside));
         }
 
         fn dispose(&self) {
@@ -202,6 +213,14 @@ impl Window {
         // And Typewriter with them, so that `--typewriter`'s first frame holds
         // the caret's row at the anchor rather than travelling to it.
         window.imp().editor.set_typewriter(session.typewriter());
+        // The Library beside the page before the Document is shown, for the
+        // reason the bars are: the page is laid out once, at the width it will
+        // keep, rather than reflowing under the first frame.
+        window.imp().sidebar.set_shown(session.flags().sidebar);
+        window.imp().sidebar.attach(&window);
+        if let Some(query) = session.flags().search.as_deref() {
+            window.imp().sidebar.set_query(query);
+        }
         window.set_filed(filed);
         // After the Document, whose showing counts it, and before the first
         // frame: `--typing` is the chrome inside the window after a
@@ -275,7 +294,9 @@ impl Window {
     /// actions show it.
     pub(crate) fn modes(&self) -> chrome::Modes {
         match self.imp().session.borrow().as_ref() {
-            Some(session) => chrome::Modes::of(session, self.is_fullscreen()),
+            Some(session) => {
+                chrome::Modes::of(session, self.is_fullscreen(), self.imp().sidebar.is_shown())
+            }
             None => chrome::Modes::default(),
         }
     }
@@ -472,6 +493,9 @@ impl Window {
         self.imp().filed.replace(filed);
         self.imp().dirty.set(false);
         self.shown();
+        // The sidebar's highlight follows the Document this window shows, so
+        // that the row a writer opened is the row they can see they are in.
+        self.imp().sidebar.set_open(self.path().as_deref());
         let (Some(path), Some(session)) = (self.path(), self.session()) else {
             return;
         };
@@ -492,7 +516,7 @@ impl Window {
     }
 
     /// The session this window was opened from.
-    fn session(&self) -> Option<Rc<Session>> {
+    pub(crate) fn session(&self) -> Option<Rc<Session>> {
         self.imp().session.borrow().clone()
     }
 
@@ -772,7 +796,7 @@ impl Window {
     }
 
     /// Shows the Document at `path`, here or in a window of its own.
-    fn open_path(&self, path: &Path) {
+    pub(crate) fn open_path(&self, path: &Path) {
         let filed = match Filed::open(path) {
             Ok(filed) => filed,
             Err(err) => {
@@ -923,6 +947,22 @@ impl Window {
         self.move_windows(Session::toggle_chrome, |window, chrome| {
             window.imp().bars.set_shown(chrome == Chrome::Shown);
         });
+    }
+
+    /// `library.toggle`: the Library stands beside the page, or steps out of
+    /// it.
+    ///
+    /// Per window rather than per session — a writer looking something up in
+    /// one window has not asked for the pane in the others — and so not one of
+    /// [`Window::move_windows`]'s modes, and nothing the settings file holds.
+    pub(crate) fn toggle_library(&self) {
+        let sidebar = &self.imp().sidebar;
+        sidebar.set_shown(!sidebar.is_shown());
+    }
+
+    /// The keyboard goes back to the page: what Esc does in the sidebar.
+    pub(crate) fn focus_editor(&self) {
+        self.imp().editor.grab_focus();
     }
 
     /// The typing machine's clock: the same monotonic microseconds the frame
@@ -1448,6 +1488,19 @@ pub fn noticed(app: &gtk::Application, path: &Path) {
         };
         if window.path().as_deref() == Some(path) {
             window.noticed();
+        }
+    }
+}
+
+/// Draws the Library again in every window that is showing it.
+///
+/// The Library is the application's and the pane is the window's, so a tree
+/// the watch has patched is one pass over the windows, the way a ground change
+/// is: every sidebar reads the same tree and each redraws its own rows.
+pub fn relist(app: &gtk::Application) {
+    for window in app.windows() {
+        if let Ok(window) = window.downcast::<Window>() {
+            window.imp().sidebar.refresh();
         }
     }
 }

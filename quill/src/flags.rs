@@ -64,6 +64,11 @@ Judged state — the states the Gate shoots and benches at:
   --menu view|document|stats|palette
                          Open with that menu or the Palette up, its first row
                          selected.
+  --library <dir>        Take the Library from the fixture tree at <dir>: a
+                         copy of it, each file stamped with the mtime its
+                         manifest.json names, as the one Location.
+  --sidebar              Open with the Library beside the page.
+  --search <query>       Put <query> in the Library's search field.
   --w <px>               Open the window this wide.
   --h <px>               Open the window this tall.
 
@@ -196,6 +201,18 @@ pub struct Flags {
     pub typing: bool,
     /// What `--menu` asked to have open before the first frame.
     pub menu: Option<Menu>,
+    /// The fixture tree `--library` names, which stands in for the writer's
+    /// Locations for this launch.
+    ///
+    /// The folder as it was named on the command line until the launch has
+    /// copied it ([`crate::files::stage`]); the copy from then on, because a
+    /// judged shot walks a tree whose mtimes it stamped and never the one in
+    /// the checkout.
+    pub library: Option<PathBuf>,
+    /// Whether `--sidebar` asked for the Library beside the page.
+    pub sidebar: bool,
+    /// The query `--search` puts in the Library's search field.
+    pub search: Option<String>,
     /// The window width `--w` names, in pixels.
     pub width: Option<u32>,
     /// The window height `--h` names, in pixels.
@@ -270,6 +287,9 @@ impl Flags {
                 "--nocaret" => flags.nocaret = true,
                 "--typing" => flags.typing = true,
                 "--menu" => flags.menu = Some(one_of(flag, &text(&mut args, flag)?, &MENUS)?),
+                "--library" => flags.library = Some(file(&mut args, flag)?),
+                "--sidebar" => flags.sidebar = true,
+                "--search" => flags.search = Some(text(&mut args, flag)?),
                 "--w" => flags.width = Some(whole(flag, &text(&mut args, flag)?, &window_sizes())?),
                 "--h" => {
                     flags.height = Some(whole(flag, &text(&mut args, flag)?, &window_sizes())?)
@@ -358,6 +378,14 @@ impl Flags {
             settings.palette = Some(palette.clone());
         } else if self.theme.is_some() {
             settings.palette = None;
+        }
+        // The fixture stands in for the writer's Locations, and for nothing
+        // else of theirs: a judged shot walks the tree the flag named and no
+        // folder of the machine it is run on, and pins nothing, because the
+        // Pinned section is a state the fixture would have to carry.
+        if let Some(library) = &self.library {
+            settings.library.locations = vec![library.clone()];
+            settings.library.pinned = Vec::new();
         }
         settings
     }
@@ -484,7 +512,7 @@ mod tests {
 
     /// Every flag `docs/architecture.md` names, with a value it takes and —
     /// where it has a domain — one it does not.
-    const FLAGS: [(&str, &str, Option<&str>); 19] = [
+    const FLAGS: [(&str, &str, Option<&str>); 22] = [
         ("--text", "ref/sample.md", None),
         ("--theme", "dark", Some("purple")),
         ("--font", "mono", Some("comic")),
@@ -499,6 +527,9 @@ mod tests {
         ("--nocaret", "", None),
         ("--typing", "", None),
         ("--menu", "view", Some("file")),
+        ("--library", "shots/oracle/library", None),
+        ("--sidebar", "", None),
+        ("--search", "sea", None),
         ("--w", "1440", Some("0")),
         ("--h", "900", Some("tall")),
         ("--deterministic", "", None),
@@ -541,10 +572,17 @@ mod tests {
         let flags = parse(
             "--text ref/sample.md --theme dark --font mono --step 6 --focus paragraph \
              --typewriter --chrome off --caret end --select 10,20 --scroll 0.25 --nocaret \
-             --typing --menu palette --w 1440 --h 900 --deterministic --measure out.jsonl \
+             --typing --menu palette --library shots/oracle/library --sidebar --search sea \
+             --w 1440 --h 900 --deterministic --measure out.jsonl \
              --palette quill.toml",
         )
         .expect("every flag at once");
+        assert_eq!(
+            flags.library.as_deref(),
+            Some(Path::new("shots/oracle/library"))
+        );
+        assert!(flags.sidebar);
+        assert_eq!(flags.search.as_deref(), Some("sea"));
         assert!(flags.typing);
         assert_eq!(flags.menu, Some(Menu::Palette));
         assert_eq!(flags.text.as_deref(), Some(Path::new("ref/sample.md")));

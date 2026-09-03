@@ -71,6 +71,10 @@ pub struct Modes {
     pub bars: bool,
     /// The stats bar is shown, while the bars are.
     pub stats: bool,
+    /// The Library stands beside the page. Per window rather than per session,
+    /// as the fullscreen above it is: the Library is the application's, the
+    /// pane showing it is the window's.
+    pub library: bool,
 }
 
 impl Modes {
@@ -78,7 +82,7 @@ impl Modes {
     ///
     /// The scope is the live one while Focus is on; off, it is the one the
     /// settings file holds, which the session restores when Focus returns.
-    pub fn of(session: &crate::session::Session, fullscreen: bool) -> Self {
+    pub fn of(session: &crate::session::Session, fullscreen: bool, library: bool) -> Self {
         let (focus, focus_scope) = match session.focus() {
             Focus::On(scope) => (true, scope.as_str()),
             Focus::Off => (false, session.settings().focus_scope.as_str()),
@@ -93,6 +97,7 @@ impl Modes {
             fullscreen,
             bars: session.chrome() == Chrome::Shown,
             stats: session.stats(),
+            library,
         }
     }
 }
@@ -289,6 +294,7 @@ pub fn reflect(map: &impl IsA<gio::ActionMap>, modes: Modes) {
     // The row reads "Hide Bars", so its check is on when the bars are hidden.
     set("chrome.toggle", (!modes.bars).to_variant());
     set("chrome.stats", modes.stats.to_variant());
+    set("library.toggle", modes.library.to_variant());
     // With Focus off neither scope's row is ticked, as the oracle's menu
     // has it: the scope the file holds is the one Focus comes back to, not
     // a state the page is in.
@@ -342,6 +348,7 @@ fn run_window(window: &Window, command: &Command) {
         "focus.swap" => window.swap_focus_scope(),
         "typewriter.toggle" => window.toggle_typewriter(),
         "chrome.toggle" => window.toggle_bars(),
+        "library.toggle" => window.toggle_library(),
         "chrome.stats" => window.toggle_stats(),
         "chrome.doc" | "chrome.view" => {
             if let Some(menu) = opens(command.id) {
@@ -727,7 +734,7 @@ pub fn stylesheet(ground: Ground) -> String {
          .chrome .chrome-rule {{ color: {rule}; }}\n{}{}",
         menu_stylesheet(scheme),
         crate::palette::stylesheet(scheme)
-    )
+    ) + &crate::sidebar::stylesheet(ground)
 }
 
 /// The two bars: the title bar above the page and the stats bar below it.
@@ -1640,6 +1647,7 @@ mod tests {
             fullscreen: false,
             bars: false,
             stats: false,
+            library: true,
         };
         reflect(&map, modes);
         let state = |name: &str| map.action_state(name).unwrap();
@@ -1655,6 +1663,7 @@ mod tests {
         );
         assert_eq!(state("theme").get::<String>().as_deref(), Some("auto"));
         assert_eq!(state("face").get::<String>().as_deref(), Some("quattro"));
+        assert_eq!(state("library.toggle").get::<bool>(), Some(true));
     }
 
     #[test]

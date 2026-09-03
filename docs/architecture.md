@@ -231,8 +231,13 @@ and the determinism settings, this document names the flags:
   `--select <from>,<to>`, `--scroll <fraction>`, `--nocaret`, `--typing` (the chrome as it is
   inside the 500 ms after a keystroke: the title bar gone, the stats bar dimmed), `--menu
   view|document|stats|palette` (that menu, or the Palette, open with its first row selected),
-  `--w <px> --h <px>`. Both `--typing` and `--menu` name a state the app is put in before the
-  first frame, never one it is driven into after it.
+  `--library <dir>` (take the Library from the fixture tree at `<dir>`: the launch copies it to a
+  folder of its own, stamps each file with the mtime the fixture's `manifest.json` names, and walks
+  that copy as its one Location, so a judged shot of the Library is the same rows in the same order
+  on every machine — a `--text` named inside the fixture is opened from the copy with it),
+  `--sidebar` (open with the Library beside the page), `--search <query>` (put `<query>` in the
+  Library's search field), `--w <px> --h <px>`. Both `--typing` and `--menu` name a state the app is
+  put in before the first frame, never one it is driven into after it.
 - Harness: `--deterministic` (animations off, blink off, manual font rendering with pinned antialias,
   slight hinting, no subpixel, 96 dpi, hinted metrics, no client-side decorations; and Typewriter
   off unless `--typewriter` is given, so the writer's `settings.toml` reaches no judged shot),
