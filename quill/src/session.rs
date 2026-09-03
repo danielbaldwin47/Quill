@@ -232,10 +232,13 @@ impl Session {
         // The Locations are walked here, once, before the first window: the
         // Library is in memory and nothing persists an index of it (ADR 0002),
         // so launch is the only place the trees can come from. A launch of the
-        // harness's walks none of them: a judged shot and a bench are the same
-        // launch on every machine, and the writer's own folders are neither
-        // theirs to read nor a cost the cold-start budget agreed to.
-        let library = if harness {
+        // harness's walks none of the writer's: a judged shot and a bench are
+        // the same launch on every machine, and their folders are neither
+        // theirs to read nor a cost the cold-start budget agreed to. The one
+        // Library the harness does walk is the fixture `--library` named,
+        // whose copy this launch stamped and whose rows are the judged shot
+        // ([`crate::files::stage`]).
+        let library = if harness && flags.library.is_none() {
             Library::new()
         } else {
             Library::open(&settings.library.locations, &settings.library.pinned)
@@ -1038,9 +1041,16 @@ pub fn watch_settings(app: &gtk::Application, session: &Rc<Session>) {
         } else if palette_saved {
             repaint_palette(Some(&app), &session);
         }
+        let mut patched = false;
         for path in touched {
-            session.patch_library(&path);
+            patched |= session.patch_library(&path);
             crate::window::noticed(&app, &path);
+        }
+        // One pass over the windows for however many rows moved, rather than
+        // a redraw per path: a folder saved into ten times in one drain is one
+        // Library and one list.
+        if patched {
+            crate::window::relist(&app);
         }
         glib::ControlFlow::Continue
     });

@@ -336,6 +336,7 @@ allow_reasons() {
 ROUND_ONCE=(
     quill/src/tags.rs:pixels               # the shape itself: a length as whole pixels
     quill/src/palette.rs:pixels            # a copy of tags::pixels until #244 makes it pub(crate)
+    quill/src/sidebar.rs:pixels            # the excerpt's leading in Pango units, the same shape
     quill/src/chrome.rs:reading_time       # seconds to the nearest minute, for the word count's bar
     quill-engine/src/theme.rs:channel      # a colour channel in 0.0–1.0 to a byte
     quill-engine/src/typography.rs:measure # the 64-cell measure in whole pixels
