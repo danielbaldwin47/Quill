@@ -907,7 +907,14 @@ impl Window {
         );
     }
 
-    /// Shows the Document at `path`, here or in a window of its own.
+    /// Shows the Document at `path` in this window, in place of the one it
+    /// holds.
+    ///
+    /// Every way of opening a file arrives here — a row clicked, Enter on the
+    /// highlighted row, a search hit, `file.open`, Open Recent, `file.next`
+    /// and `file.prev` — and each of them opens in this window (#246, the File
+    /// handling spec's "Single click opens in this window" and "Enter opening
+    /// in this window"). `window.new` is the one Command that opens a window.
     pub(crate) fn open_path(&self, path: &Path) {
         let filed = match Filed::open(path) {
             Ok(filed) => filed,
@@ -916,14 +923,7 @@ impl Window {
                 return;
             }
         };
-        if self.library_action() {
-            self.set_filed(filed);
-            return;
-        }
-        let (Some(app), Some(session)) = (self.application(), self.session()) else {
-            return;
-        };
-        present(&app, filed, &session);
+        self.replace_with(filed, |_| {});
     }
 
     // ------------------------------------------------- the Library's rows
@@ -932,9 +932,8 @@ impl Window {
     /// folder the Library's selected row stands in.
     ///
     /// Where the Document this window holds cannot be settled without asking —
-    /// an untitled one with text, a conflicted one — the new Document opens in
-    /// a window of its own, as [`Window::open_path`] does, so nothing the
-    /// writer typed is stepped on.
+    /// an untitled one with text, a conflicted one — the writer is asked first,
+    /// as [`Window::open_path`] does, so nothing they typed is stepped on.
     ///
     /// The keyboard goes to the page: `Ctrl+N` is most often pressed while the
     /// writer is picking the folder in the Library, and a blank page whose
@@ -942,16 +941,80 @@ impl Window {
     /// click into before they can write it.
     pub(crate) fn new_document(&self) {
         let folder = self.imp().sidebar.selected_folder();
-        if self.library_action() {
-            self.set_filed(Filed::untitled());
-            self.imp().new_in.replace(folder);
-            self.focus_editor();
+        self.replace_with(Filed::untitled(), move |window| {
+            // After the Document is in place, because taking one in clears
+            // where the last `file.new` was going ([`Window::set_filed`]).
+            window.imp().new_in.replace(folder.clone());
+            window.focus_editor();
+        });
+    }
+
+    /// Puts `filed` in this window in place of the Document it holds, and runs
+    /// `then` once it is there.
+    ///
+    /// The one way a Document is replaced, which is what keeps opening one
+    /// from opening a window: `window.new` is the only Command that opens a
+    /// window (#246). The Document being replaced is written out first
+    /// wherever that can be done without asking, which is autosave's Library
+    /// action ([`Window::library_action`]); where it cannot — an untitled
+    /// Document with text and nowhere to put it, or one whose file changed or
+    /// went under it — the writer is asked, because the text leaves the window
+    /// either way.
+    fn replace_with(&self, filed: Filed, then: impl Fn(&Self) + 'static) {
+        // A launch of the harness's is never asked anything, as a close is not
+        // ([`Window::closing`]): there is no writer at the keyboard to answer,
+        // and a dialog over a judged shot is not the state the Gate asked for.
+        if self.library_action() || !self.writes() {
+            self.set_filed(filed);
+            then(self);
             return;
         }
-        let (Some(app), Some(session)) = (self.application(), self.session()) else {
-            return;
-        };
-        open_new(&app, &session);
+        self.ask_before_replacing(filed, then);
+    }
+
+    /// Asks the writer what to do with a Document that cannot be put down
+    /// silently, and shows `filed` in its place once they have answered.
+    ///
+    /// The prompt a close puts up ([`Window::ask_before_leaving`]), for the
+    /// same two Documents and for the same reason: Save writes what can be
+    /// written, Discard lets the text go, and Cancel leaves the window on the
+    /// Document it holds.
+    fn ask_before_replacing(&self, filed: Filed, then: impl Fn(&Self) + 'static) {
+        let dialog = gtk::AlertDialog::builder()
+            .modal(true)
+            .message(format!(
+                "Save changes to {} before opening another Document?",
+                self.document().name()
+            ))
+            .detail("Your changes will be lost if you don't save them.")
+            .buttons(["Save", "Discard", "Cancel"])
+            .default_button(0)
+            .cancel_button(2)
+            .build();
+        dialog.choose(
+            Some(self),
+            None::<&gio::Cancellable>,
+            glib::clone!(
+                #[weak(rename_to = window)]
+                self,
+                move |answer| {
+                    match answer {
+                        Ok(0) if window.keeping() => {}
+                        // Nowhere to write it: the writer names the file, and
+                        // the Document they asked for waits to be asked for
+                        // again rather than standing on an unsaved one.
+                        Ok(0) => return window.save_as(After::Stay),
+                        Ok(1) => {}
+                        // Cancel, `Esc`, or a dialog that could not be shown:
+                        // the window stays on the Document it holds, which is
+                        // the answer that loses nothing.
+                        _ => return,
+                    }
+                    window.set_filed(filed);
+                    then(&window);
+                },
+            ),
+        );
     }
 
     /// The file a row operation acts on: the Library's selected row where the
