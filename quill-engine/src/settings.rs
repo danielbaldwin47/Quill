@@ -102,6 +102,37 @@ fn size_in_steps(table: &mut toml::Table, notes: &mut Vec<String>) -> Option<u32
     Some(step)
 }
 
+/// Turns a scalar `library` path in `table` into the `[library]` table that
+/// holds it as its first Location, with one line telling the writer.
+///
+/// Before the Library was a set of Locations it was one folder, and every
+/// `settings.toml` written then names it as a plain key — the settings
+/// installed on the owner's machine among them. It is read once as that
+/// Location, through the reading-notes path rather than a migration of its own
+/// (as `size` is, [`size_in_steps`]), and the next write puts the table in the
+/// file where the scalar was.
+fn library_as_a_table(table: &mut toml::Table, notes: &mut Vec<String>) {
+    let Some(path) = table.get("library").and_then(toml::Value::as_str) else {
+        return;
+    };
+    let path = path.to_string();
+    let mut library = toml::Table::new();
+    // `library = ""` is how "no Library yet" was written, and every file Quill
+    // wrote before the table carries it: it becomes an empty table, and there
+    // is nothing to tell the writer.
+    if !path.is_empty() {
+        notes.push(format!(
+            "library: the Library is a `[library]` table of Locations now; \"{path}\" is its \
+             first Location, and the next write puts it in the file"
+        ));
+        library.insert(
+            "locations".to_string(),
+            toml::Value::Array(vec![toml::Value::String(path)]),
+        );
+    }
+    table.insert("library".to_string(), toml::Value::Table(library));
+}
+
 /// Where the caret sits down the window when Typewriter is on: the middle.
 const ANCHOR: f64 = 0.5;
 
@@ -369,6 +400,69 @@ impl StyleCheck {
     }
 }
 
+/// The Library: the folders Quill was pointed at, and how it shows what is in
+/// them.
+///
+/// Everything here defaults to nothing chosen — no Location, nothing Pinned,
+/// and four questions answered no — because a first launch has been pointed at
+/// no folder, and dot-entries, file extensions, a confirmation before a move
+/// and a dialog before a first save are each something a writer asks for
+/// rather than something Quill decides for them.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Library {
+    /// The folders the Library is walked from, in the order they were added.
+    pub locations: Vec<PathBuf>,
+    /// The Documents and folders held at the top of the sidebar, in the order
+    /// the writer pinned them.
+    pub pinned: Vec<PathBuf>,
+    /// Whether dot-entries are shown.
+    pub show_hidden: bool,
+    /// Whether a row's name carries its extension.
+    pub show_extensions: bool,
+    /// Whether moving a Document to another folder asks first.
+    pub confirm_move: bool,
+    /// Whether the first save of an untitled Document asks where it goes even
+    /// when there is a Location to put it in.
+    pub ask_where_to_save: bool,
+    /// Anything else in the table, carried through a write.
+    rest: toml::Table,
+}
+
+impl Library {
+    /// Reads the `[library]` table.
+    fn read(table: toml::Table, notes: &mut Vec<String>) -> Self {
+        let mut reading = Reading::new(table, "library.", notes);
+        let locations = reading.paths("locations");
+        let pinned = reading.paths("pinned");
+        let show_hidden = reading.boolean("show_hidden", false);
+        let show_extensions = reading.boolean("show_extensions", false);
+        let confirm_move = reading.boolean("confirm_move", false);
+        let ask_where_to_save = reading.boolean("ask_where_to_save", false);
+        Self {
+            locations,
+            pinned,
+            show_hidden,
+            show_extensions,
+            confirm_move,
+            ask_where_to_save,
+            rest: reading.rest(),
+        }
+    }
+
+    /// The `[library]` table as it is written.
+    fn to_table(&self) -> toml::Table {
+        let mut writing = Writing::new();
+        writing.paths("locations", &self.locations);
+        writing.paths("pinned", &self.pinned);
+        writing.boolean("show_hidden", self.show_hidden);
+        writing.boolean("show_extensions", self.show_extensions);
+        writing.boolean("confirm_move", self.confirm_move);
+        writing.boolean("ask_where_to_save", self.ask_where_to_save);
+        writing.rest(self.rest.clone());
+        writing.finish()
+    }
+}
+
 /// Everything the writer chose.
 ///
 /// One field per key in `docs/architecture.md`'s Settings section, in that
@@ -406,8 +500,9 @@ pub struct Settings {
     pub template: String,
     /// Where Preview opens.
     pub preview_layout: PreviewLayout,
-    /// The folder Quill was pointed at, or `None` until it is pointed at one.
-    pub library: Option<PathBuf>,
+    /// The Locations Quill was pointed at, what is Pinned, and the four
+    /// toggles the sidebar reads.
+    pub library: Library,
     /// The file the grounds take their colours from
     /// ([`crate::theme::Palette`]), or `None` for the built-ins.
     pub palette: Option<PathBuf>,
@@ -436,7 +531,7 @@ impl Default for Settings {
             style_check: StyleCheck::default(),
             template: TEMPLATE.to_string(),
             preview_layout: PreviewLayout::default(),
-            library: None,
+            library: Library::default(),
             palette: None,
             shortcuts: toml::Table::new(),
             rest: toml::Table::new(),
@@ -555,9 +650,9 @@ impl Settings {
         writing.text("spell_language", &self.spell_language);
         writing.text("template", &self.template);
         writing.choice("preview_layout", self.preview_layout);
-        writing.path("library", self.library.as_deref());
         writing.path("palette", self.palette.as_deref());
         writing.rest(self.rest.clone());
+        writing.table("library", self.library.to_table());
         writing.table("syntax_highlight", self.syntax_highlight.to_table());
         writing.table("style_check", self.style_check.to_table());
         // Written only when there is an entry to write: an empty `[shortcuts]`
@@ -574,6 +669,7 @@ impl Settings {
     fn read(mut table: toml::Table, notes: &mut Vec<String>) -> Self {
         let defaults = Self::default();
         let carried = size_in_steps(&mut table, notes);
+        library_as_a_table(&mut table, notes);
         let mut reading = Reading::new(table, "", notes);
         let theme = reading.choice("theme");
         let face = reading.choice("face");
@@ -587,10 +683,10 @@ impl Settings {
         let spell_language = reading.text("spell_language", &defaults.spell_language);
         let template = reading.text("template", &defaults.template);
         let preview_layout = reading.choice("preview_layout");
-        let library = reading.path("library");
         let palette = reading.path("palette");
         // The tables are taken here and read below, once the reading of the
         // top level is done with the notes it is writing into.
+        let library = reading.table("library");
         let syntax_highlight = reading.table("syntax_highlight");
         let style_check = reading.table("style_check");
         let shortcuts = reading.table("shortcuts");
@@ -610,7 +706,7 @@ impl Settings {
             style_check: StyleCheck::read(style_check, notes),
             template,
             preview_layout,
-            library,
+            library: Library::read(library, notes),
             palette,
             shortcuts,
             rest,
@@ -721,7 +817,7 @@ mod tests {
         assert_eq!(settings.chrome, Chrome::Shown);
         assert!(settings.spell_check, "spell check is on by default");
         assert_eq!(settings.preview_layout, PreviewLayout::Split);
-        assert_eq!(settings.library, None);
+        assert_eq!(settings.library, Library::default());
         assert!(!settings.focus && !settings.typewriter);
     }
 
@@ -786,13 +882,114 @@ mod tests {
 
     #[test]
     fn a_path_written_with_a_tilde_is_read_as_under_the_home_directory() {
-        let (settings, notes) =
-            Settings::parse("palette = \"~/x/quill.toml\"\nlibrary = \"~/Writing\"\n");
+        let (settings, notes) = Settings::parse("palette = \"~/x/quill.toml\"\n");
         assert_eq!(notes, Vec::<String>::new());
         assert_eq!(settings.palette, Some(home().join("x/quill.toml")));
-        assert_eq!(settings.library, Some(home().join("Writing")));
         let (again, _) = Settings::parse(&settings.to_toml());
         assert_eq!(again, settings, "and round-trips through a write");
+    }
+
+    #[test]
+    fn the_six_library_keys_are_read_from_the_table() {
+        let (settings, notes) = Settings::parse(
+            "[library]\n\
+             locations = [\"/home/writer/Writing\", \"/home/writer/Notes\"]\n\
+             pinned = [\"/home/writer/Writing/sea-storm.md\"]\n\
+             show_hidden = true\n\
+             show_extensions = true\n\
+             confirm_move = true\n\
+             ask_where_to_save = true\n",
+        );
+        assert_eq!(notes, Vec::<String>::new());
+        assert_eq!(
+            settings.library,
+            Library {
+                locations: vec![
+                    PathBuf::from("/home/writer/Writing"),
+                    PathBuf::from("/home/writer/Notes"),
+                ],
+                pinned: vec![PathBuf::from("/home/writer/Writing/sea-storm.md")],
+                show_hidden: true,
+                show_extensions: true,
+                confirm_move: true,
+                ask_where_to_save: true,
+                rest: toml::Table::new(),
+            }
+        );
+        let (again, _) = Settings::parse(&settings.to_toml());
+        assert_eq!(again, settings, "and round-trips through a write");
+    }
+
+    #[test]
+    fn a_file_with_no_library_table_is_two_empty_lists_and_four_falses() {
+        let (settings, notes) = Settings::parse("theme = \"dark\"\n");
+        assert_eq!(notes, Vec::<String>::new());
+        let library = settings.library;
+        assert!(library.locations.is_empty() && library.pinned.is_empty());
+        assert!(!library.show_hidden && !library.show_extensions);
+        assert!(!library.confirm_move && !library.ask_where_to_save);
+        assert_eq!(library, Library::default());
+    }
+
+    /// The scalar `library` the owner's installed settings carry is read as
+    /// one Location, and the next write puts the table where it was.
+    #[test]
+    fn a_scalar_library_is_read_as_one_location_and_written_back_as_the_table() {
+        let (settings, notes) = Settings::parse("library = \"~/Writing\"\n");
+        assert_eq!(settings.library.locations, vec![home().join("Writing")]);
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].contains("first Location"), "{notes:?}");
+
+        let written = settings.to_toml();
+        assert!(
+            !written.contains("library = "),
+            "the scalar is carried on:\n{written}"
+        );
+        assert!(written.contains("[library]"), "no table in:\n{written}");
+        let (again, notes) = Settings::parse(&written);
+        assert_eq!(again, settings);
+        assert!(notes.is_empty(), "a rewritten file is quiet: {notes:?}");
+    }
+
+    /// Every settings file Quill wrote before the table names an empty
+    /// `library`, which is the writer having chosen no folder and not a line
+    /// worth telling them about.
+    #[test]
+    fn an_empty_scalar_library_is_no_location_and_no_note() {
+        let (settings, notes) = Settings::parse("library = \"\"\n");
+        assert_eq!(settings.library, Library::default());
+        assert_eq!(notes, Vec::<String>::new());
+        assert_eq!(Settings::parse(&settings.to_toml()).0, settings);
+    }
+
+    #[test]
+    fn locations_and_pinned_expand_a_tilde_as_the_scalar_did() {
+        let (settings, notes) = Settings::parse(
+            "[library]\nlocations = [\"~/Writing\"]\npinned = [\"~/Writing/sea-storm.md\"]\n",
+        );
+        assert_eq!(notes, Vec::<String>::new());
+        assert_eq!(settings.library.locations, vec![home().join("Writing")]);
+        assert_eq!(
+            settings.library.pinned,
+            vec![home().join("Writing/sea-storm.md")]
+        );
+        assert!(
+            settings.to_toml().contains(&home().display().to_string()),
+            "and is written back expanded:\n{}",
+            settings.to_toml()
+        );
+    }
+
+    /// A key a later Quill puts in the table survives an older Quill's write,
+    /// as one at the top level does.
+    #[test]
+    fn a_hand_added_library_key_survives_a_write() {
+        let (settings, notes) = Settings::parse("[library]\nshow_hidden = true\nsort = \"name\"\n");
+        assert!(notes.is_empty(), "{notes:?}");
+        assert!(settings.library.show_hidden);
+        let written: toml::Table = settings.to_toml().parse().expect("writes TOML");
+        assert_eq!(written["library"]["sort"].as_str(), Some("name"));
+        assert_eq!(Settings::parse(&settings.to_toml()).0, settings);
     }
 
     #[test]
