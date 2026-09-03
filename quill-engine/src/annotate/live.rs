@@ -19,7 +19,9 @@
 //!
 //! A quotation's `>` is never folded and takes no furniture: a quote is a quote
 //! by its marker, with no bar and no dimming (`docs/design.md` row Markers).
-//! The words inside it fold their own inline markers like any other prose.
+//! In a folded block it comes back as [`LiveLook::Quote`], which is the app's
+//! instruction to set it in the body's own ink rather than the marker's. The
+//! words inside it fold their own inline markers like any other prose.
 //!
 //! Spans come back in order, and one nesting is possible and no other: a
 //! [`LiveLook::Scaled`] heading contains the folded markers and furniture
@@ -77,7 +79,9 @@ pub enum Furniture {
     Fence,
     /// A link's words, and the bytes of the destination as the source wrote it.
     /// For a reference link that is the label rather than an address: what it
-    /// resolves to is a whole-document question and an idle pass answers it.
+    /// resolves to is a whole-document question, and the app answers it off the
+    /// map [`crate::markdown::references`] builds once for the page it is
+    /// furnishing.
     Link {
         /// The [`Mark::Url`] bytes inside the link.
         destination: Range<usize>,
@@ -105,6 +109,13 @@ pub enum LiveLook {
     Scaled(u8),
     /// Cells a marker left, and what stands in them.
     Furniture(Furniture),
+    /// A quotation's `>`, in a block whose markers are folded. It is not
+    /// folded and takes no furniture; what it takes is the body's own ink,
+    /// where the Markup Annotator rests it at [`Mark::QuoteMarker`]'s marker
+    /// ink. #263's story 31: a quote is unmistakably a quote and never reads as
+    /// dimmed. The caret's own block keeps the Markup look, as every other
+    /// marker in it does.
+    Quote,
 }
 
 /// One judgement of Live's about one byte range of a Document.
@@ -126,8 +137,11 @@ pub struct LiveSpan {
 /// caret, exactly as [`crate::focus::tiers`] takes it.
 ///
 /// One walk of the block index and one of the Document's spans, so it costs the
-/// length of the Document: the caller that is on the keystroke path asks
-/// [`spans_in`] for the bytes it is retagging instead.
+/// length of the Document, and nothing on the keystroke lane asks for it: the
+/// app asks [`spans_in`] both for the bytes it is retagging and for the page it
+/// is furnishing. This is the whole-page answer the bounded one is held against
+/// (`spans_in_reads_the_blocks_its_range_touches_and_no_others`), by a second
+/// walk that reads the Document's spans whole rather than block by block.
 #[must_use]
 pub fn spans(doc: &Document, at: &Range<usize>) -> Vec<LiveSpan> {
     let text = doc.text();
@@ -279,6 +293,7 @@ fn emit(
             Mark::TaskBox if swallowed != Some(index) => {
                 Some((span.at.clone(), checkbox(text, span)))
             }
+            Mark::QuoteMarker => Some((span.at.clone(), LiveLook::Quote)),
             Mark::Link => {
                 words(span, markup, block, out);
                 None
@@ -432,7 +447,7 @@ mod tests {
             .filter(|span| match &span.look {
                 LiveLook::Folded(_) => true,
                 LiveLook::Furniture(furniture) => furniture.folds(),
-                LiveLook::Scaled(_) => false,
+                LiveLook::Scaled(_) | LiveLook::Quote => false,
             })
             .map(|span| span.at.clone())
             .collect()
@@ -533,17 +548,31 @@ mod tests {
     }
 
     #[test]
-    fn a_quotations_marker_is_never_folded_and_takes_no_furniture() {
+    fn a_quotations_marker_is_never_folded_and_takes_the_bodys_ink_when_its_block_is() {
         let doc = document(PAGE);
         let quote = marked(&doc, Mark::QuoteMarker);
         assert_eq!(quote.len(), 1, "the passage quotes one line");
+        let block = doc
+            .block_at(quote[0].start)
+            .map(|at| doc.block(at).at)
+            .expect("the quotation is a block of the index");
         for caret in [0, quote[0].start, quote[0].end, doc.text().len()] {
             let live = spans(&doc, &(caret..caret));
-            assert!(
-                !live
-                    .iter()
-                    .any(|span| span.at.start < quote[0].end && quote[0].start < span.at.end),
-                "with the caret at {caret} the `>` is neither folded nor furnished: {live:?}"
+            let over: Vec<(Range<usize>, LiveLook)> = live
+                .iter()
+                .filter(|span| span.at.start < quote[0].end && quote[0].start < span.at.end)
+                .map(|span| (span.at.clone(), span.look.clone()))
+                .collect();
+            let wanted = if block.contains(&caret) {
+                Vec::new()
+            } else {
+                vec![(quote[0].clone(), LiveLook::Quote)]
+            };
+            assert_eq!(
+                over, wanted,
+                "with the caret at {caret} the `>` is neither folded nor \
+                 furnished, and it is the body's own ink in every block but \
+                 the writer's"
             );
         }
     }

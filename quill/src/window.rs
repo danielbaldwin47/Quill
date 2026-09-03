@@ -309,6 +309,7 @@ impl Window {
         // nothing remembers one (#263).
         window.imp().preview.attach(&window);
         window.watch_sync();
+        window.watch_furniture();
         window.show_preview(session.flags().preview.is_some());
         if let Some(query) = session.flags().search.as_deref() {
             window.imp().sidebar.set_query(query);
@@ -1839,8 +1840,20 @@ impl Window {
     /// Focus's scope do ([`Window::move_windows`]) and is written as the key
     /// is pressed; the pane's being open is not, so a window with no pane is
     /// left alone until it opens one.
+    ///
+    /// **Pressed with no pane open anywhere it still flips the setting and
+    /// writes it**, and that is [`Window::swap_focus_scope`]'s rule rather than
+    /// an oversight: `focus.swap` swaps Sentence and Paragraph whether or not
+    /// Focus is on, and #263 § Layout asks for this key to flip the pair "the
+    /// way `focus.swap` flips the Focus scope". What the writer sees is the
+    /// next pane they open, opening in the layout they last asked for. The one
+    /// thing a paneless window does not do is the pane work below, which would
+    /// take the keyboard off a Library search field to hand it to the Editor.
     pub(crate) fn swap_preview_layout(&self) {
         self.move_windows(Session::swap_preview_layout, |window, _| {
+            if !window.imp().previewing.get() {
+                return;
+            }
             window.apply_preview();
             window.refresh_preview();
             window.focus_pane();
@@ -2091,6 +2104,50 @@ impl Window {
                 self,
                 move |adjustment| window.follow_preview_scroll(adjustment.value()),
             ));
+    }
+
+    /// Works Live's furniture out again for the rows a scroll or a resize
+    /// brought on to the glass.
+    ///
+    /// [`crate::editor::Editor::refurnish`] is bounded to the viewport, and the
+    /// two feeds that call it — an edit and a caret move — are both about the
+    /// buffer. A wheel, a scrollbar and a window pulled taller move the
+    /// viewport and touch no byte, so the furniture would be worked out for
+    /// rows that have scrolled off and never for the rows that arrived. The
+    /// adjustment says both things: `value-changed` is the scroll, and
+    /// `changed` is the page under it growing or shrinking.
+    ///
+    /// Live off is a borrow and a return in the Editor, so this is connected
+    /// once for the window's life rather than switched with the mode.
+    fn watch_furniture(&self) {
+        let Some(scroller) = self.imp().scroller.get() else {
+            return;
+        };
+        let adjustment = scroller.vadjustment();
+        adjustment.connect_value_changed(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |_| window.refurnish(),
+        ));
+        adjustment.connect_changed(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |_| window.refurnish(),
+        ));
+    }
+
+    /// Hands the Editor the Document so it can furnish the rows it now shows.
+    ///
+    /// `try_borrow` for the reason [`Window::follow_editor`] has it: a scroll
+    /// is one of the things an edit sets off, and the splice may still be
+    /// holding the Document when it arrives. The edit's own pass furnishes the
+    /// page after it, so nothing is lost by standing back here.
+    fn refurnish(&self) {
+        let imp = self.imp();
+        let Ok(filed) = imp.filed.try_borrow() else {
+            return;
+        };
+        imp.editor.refurnish(filed.document());
     }
 
     /// Steps the rendered page's zoom, or puts it back to the default:

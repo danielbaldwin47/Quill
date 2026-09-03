@@ -43,7 +43,7 @@ use gtk::gdk;
 use gtk::pango;
 use gtk::prelude::*;
 use quill_engine::annotate::live::{self, Fold, Furniture, LiveLook};
-use quill_engine::annotate::{self, Look, Mark, Slant, Span, Weight};
+use quill_engine::annotate::{self, Ink, Look, Mark, Slant, Span, Weight};
 use quill_engine::document::Document;
 use quill_engine::focus::{self, Focus, LineTiers, Tier};
 use quill_engine::settings::Face;
@@ -286,6 +286,40 @@ fn hidden(buffer: &gtk::TextBuffer, ground: &str) -> gtk::TextTag {
     });
     hidden.set_priority(buffer.tag_table().size() - 1);
     hidden
+}
+
+/// The tag that sets a folded quotation's `>` in `ink`, the body's own.
+///
+/// The other place this module puts two tags with the same property on the same
+/// bytes ([`hidden`] is the first, and says what priority does about it): the
+/// flattening has already coloured this marker at [`Ink::Marker`], so the tag
+/// is lifted to the top of the table each time it is asked for. A colour first
+/// asked for after this tag was made would otherwise outrank it and the `>`
+/// would stay the marker's grey on a palette that sets the two apart.
+fn quoted(buffer: &gtk::TextBuffer, ink: &Colour) -> gtk::TextTag {
+    let hex = ink.to_hex();
+    let alpha = ink.opacity();
+    let quoted = tag(buffer, &format!("live-quote-{hex}-{alpha}"), |tag| {
+        tag.set_foreground_rgba(Some(&shaded(&hex, alpha)));
+    });
+    quoted.set_priority(buffer.tag_table().size() - 1);
+    quoted
+}
+
+/// The whole line `at` stands on, its line break with it.
+///
+/// In GTK's own units rather than the Document's, because the byte a fence's
+/// fold has to reach is the paragraph delimiter and no span the engine hands
+/// over is about it: a line is taken off the page only when everything on it
+/// *and* its delimiter are invisible.
+fn whole_line(at: &gtk::TextIter) -> (gtk::TextIter, gtk::TextIter) {
+    let mut from = *at;
+    from.set_line_offset(0);
+    let mut to = from;
+    // False at the last line of the buffer, where it has already moved the
+    // iterator to the end of that line, which is the answer wanted here.
+    to.forward_line();
+    (from, to)
 }
 
 /// The tag that draws the accent rule under a link's words.
@@ -632,7 +666,7 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
         }
     }
     if let Some(writer) = live {
-        fold(buffer, document, &colours, &spans, writer, at);
+        fold(buffer, document, painting, &spans, writer, at);
     }
 }
 
@@ -649,11 +683,12 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
 fn fold(
     buffer: &gtk::TextBuffer,
     document: &Document,
-    colours: &Colours,
+    painting: Painting,
     spans: &[Span],
     writer: Writer,
     at: &Range<usize>,
 ) {
+    let colours = &painting.colours;
     let paper = colours.colour(Role::Paper).to_hex();
     let well = code_well(colours);
     // The ground a folded marker stands on, which is what it is drawn in: the
@@ -688,6 +723,18 @@ fn fold(
             LiveLook::Furniture(Furniture::Link { .. }) => {
                 buffer.apply_tag(&link_rule(buffer, colours), &from, &to);
             }
+            // A fence takes its whole row with it, its line break included:
+            // nothing hangs in a fence's cells and nothing stands in them, so
+            // folding it to its own ground would leave a blank row of Well
+            // where #263's story 28 asks for a code block without its fences.
+            // A line whose every byte and whose paragraph delimiter are
+            // invisible is a line GTK gives no height at all, which is what
+            // takes the row off the page; the code rows keep their Well,
+            // because the ground is a paragraph property of their own lines.
+            LiveLook::Furniture(Furniture::Fence) => {
+                let (from, to) = whole_line(&from);
+                buffer.apply_tag(&folded(buffer), &from, &to);
+            }
             // Every other piece of furniture stands where its marker did, so
             // the marker goes off the page and its cells stay the width they
             // were ([`hidden`]); the Editor paints what stands in them.
@@ -695,6 +742,16 @@ fn fold(
                 if furniture.folds() {
                     buffer.apply_tag(&hidden(buffer, &ground(&span.at)), &from, &to);
                 }
+            }
+            // A quotation's `>` is the one marker Live leaves on the page, and
+            // this is what keeps it from reading as dimmed: the body's own ink
+            // over the marker ink the Markup Annotator rested it at, at the
+            // tier the block it stands in is lit to, so a quote out of focus
+            // still dims with the prose around it.
+            LiveLook::Quote => {
+                let tier = focus::tier_in(painting.tiers, painting.focus, &span.at);
+                let ink = annotate::colour(Ink::Prose, tier, colours);
+                buffer.apply_tag(&quoted(buffer, &ink), &from, &to);
             }
         }
     }

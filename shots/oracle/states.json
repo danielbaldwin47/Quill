@@ -305,6 +305,7 @@
       "folded": {
         "chrome": "off",
         "live": true,
+        "caret": 403,
         "assert": {
           "kind": "folded",
           "scale": 1.6
