@@ -34,6 +34,7 @@ use quill_engine::library::{Row, Sort, View};
 use quill_engine::theme::{Role, Scheme};
 
 use crate::chrome::{self, CHROME_FONT};
+use crate::files::{self, Standing};
 use crate::ground::Ground;
 use crate::window::Window;
 
@@ -177,11 +178,20 @@ struct Bar {
     radius: i32,
 }
 
-/// The status line at rest: the file is on disk as the writer left it.
+/// What marks the row of a Document whose file changed under unsaved edits.
 ///
-/// The texts autosave moves it through — "Saving…", and what a conflict has
-/// to say — are the ticket that owns those moments ([`Sidebar::set_status`]).
-const AT_REST: &str = "All changes saved";
+/// The oracle's warning colour, which it puts on the status dot
+/// (`legacy/app/css/files.css` line 212: `.lib-status[data-k="dirty"] .dot {
+/// background: #e0a030 }`); the spec puts it on the row as well, so that a
+/// writer scanning the pane can see which Document is waiting on them.
+const WARN: &str = "#e0a030";
+
+/// How far down the row the dot sits, so that it stands on the name's line
+/// rather than at the row's top edge.
+const DOT_TOP: i32 = 5;
+
+/// The "·" the status line's words are separated by.
+const SEPARATOR: &str = "·";
 
 /// What the search field says while it is empty.
 const PLACEHOLDER: &str = "Search documents";
@@ -258,12 +268,16 @@ pub fn stylesheet(ground: Ground) -> String {
          }}\n\
          .library .lib-icon {{ color: {dim}; }}\n\
          .library .lib-folder-icon {{ color: {accent}; }}\n\
+         .library .lib-changed {{ color: {WARN}; }}\n\
          .library button.lib-btn {{\n\
          \x20 background: none; border: none; box-shadow: none; outline: none;\n\
          \x20 min-height: 0; min-width: 0; padding: 0;\n\
          \x20 border-radius: {BUTTON_RADIUS}px; color: {dim};\n\
          }}\n\
          .library button.lib-btn:hover {{ background-color: {hit}; color: {ink}; }}\n\
+         .library button.lib-offer {{\n\
+         \x20 font-size: {META_PX}px; padding: 0 {SORT_BUTTON_PAD}px;\n\
+         }}\n\
          .library button.lib-sortb {{\n\
          \x20 background: none; border: none; box-shadow: none; outline: none;\n\
          \x20 min-height: 0; min-width: 0; padding: 0 {SORT_BUTTON_PAD}px;\n\
@@ -315,6 +329,10 @@ struct Listed {
     /// Whether it is a folder, which opens and closes rather than opening a
     /// Document.
     folder: bool,
+    /// The dot that says this row's file changed on disk. Shown only while
+    /// this is the row of the Document the window holds and that Document is
+    /// in a conflict ([`Sidebar::set_conflicted`]).
+    dot: gtk::DrawingArea,
 }
 
 /// The Library beside the page.
@@ -330,6 +348,14 @@ pub struct Sidebar {
     count: gtk::Label,
     list: gtk::ListBox,
     status: gtk::Label,
+    /// "· Reload · Keep" beside the status line, hidden until there is a
+    /// conflict to resolve.
+    offer: gtk::Box,
+    reload: gtk::Button,
+    keep: gtk::Button,
+    /// Whether the Document the window holds is changed on disk, which is what
+    /// the dot on its row says.
+    conflicted: Rc<Cell<bool>>,
     /// The window this sidebar belongs to, so a row can open a Document in
     /// it. Weak, because the window owns the sidebar.
     window: Rc<RefCell<Option<glib::WeakRef<Window>>>>,
@@ -388,9 +414,12 @@ impl Sidebar {
             .build();
         root.append(&scroller);
 
-        let status = gtk::Label::new(Some(AT_REST));
+        let status = gtk::Label::new(Some(&files::said(Standing::AtRest)));
         status.add_css_class("lib-meta");
-        root.append(&foot(&status));
+        let reload = offer_word("Reload");
+        let keep = offer_word("Keep");
+        let offer = offered(&reload, &keep);
+        root.append(&foot(&status, &offer));
 
         let sidebar = Self {
             root,
@@ -400,6 +429,10 @@ impl Sidebar {
             count,
             list,
             status,
+            offer,
+            reload,
+            keep,
+            conflicted: Rc::new(Cell::new(false)),
             window: Rc::new(RefCell::new(None)),
             rows: Rc::new(RefCell::new(Vec::new())),
             expanded: Rc::new(RefCell::new(BTreeSet::new())),
@@ -439,6 +472,20 @@ impl Sidebar {
             glib::Propagation::Proceed
         });
         self.list.add_controller(keys);
+        // The two words of "Changed on disk · Reload · Keep": each opens the
+        // diff view of what it would do, in the window this pane belongs to.
+        let reloading = self.clone();
+        self.reload.connect_clicked(move |_| {
+            if let Some(window) = reloading.owner() {
+                window.reload_from_disk();
+            }
+        });
+        let keeping = self.clone();
+        self.keep.connect_clicked(move |_| {
+            if let Some(window) = keeping.owner() {
+                window.keep_over_disk();
+            }
+        });
         self.refresh();
     }
 
@@ -467,9 +514,28 @@ impl Sidebar {
         self.entry.set_position(-1);
     }
 
-    /// What the status line says.
+    /// What the status line says ([`crate::files::said`]).
     pub fn set_status(&self, said: &str) {
         self.status.set_text(said);
+    }
+
+    /// Whether the status line offers Reload and Keep beside what it says.
+    ///
+    /// The slack in the foot goes to whichever of the two is expanding, so
+    /// that the words stand beside the line they belong to and where the
+    /// manuscripts are stays at the pane's edge: the label holds the slack at
+    /// rest, and the offer holds it while there is a conflict.
+    pub fn set_offer(&self, offered: bool) {
+        self.status.set_hexpand(!offered);
+        self.offer.set_hexpand(offered);
+        self.offer.set_visible(offered);
+    }
+
+    /// Whether the Document the window holds is changed on disk, which puts a
+    /// dot on its row.
+    pub fn set_conflicted(&self, conflicted: bool) {
+        self.conflicted.set(conflicted);
+        self.highlight();
     }
 
     /// The Document the window is showing, whose row is highlighted.
@@ -669,6 +735,14 @@ impl Sidebar {
     /// A row of the list: the hairline above it, the accent bar down its left
     /// edge, and the line itself.
     fn listed(&self, line: gtk::Box, path: &Path, folder: bool) -> Listed {
+        // At the row's right edge, inside the row's own margin, and hidden
+        // until the window says this Document is the one in a conflict.
+        let dot = icon((DOT, DOT), warned_dot);
+        dot.add_css_class("lib-changed");
+        dot.set_valign(gtk::Align::Start);
+        dot.set_margin_top(DOT_TOP);
+        dot.set_visible(false);
+        line.append(&dot);
         let bar = gtk::Box::new(gtk::Orientation::Vertical, 0);
         bar.add_css_class("lib-bar");
         let beside = gtk::Box::new(gtk::Orientation::Horizontal, 0);
@@ -692,6 +766,7 @@ impl Sidebar {
             row,
             path: path.to_path_buf(),
             folder,
+            dot,
         }
     }
 
@@ -704,15 +779,22 @@ impl Sidebar {
     }
 
     /// Highlights the row of the Document the window is showing, and no row at
-    /// all where it is showing something the Library does not hold.
+    /// all where it is showing something the Library does not hold; the dot
+    /// goes on that same row while that Document is in a conflict.
+    ///
+    /// One walk of the rows now drawn, which is what the pane shows and not
+    /// what the tree holds.
     fn highlight(&self) {
         let open = self.open.borrow();
-        let found = open.as_deref().and_then(|open| {
-            let rows = self.rows.borrow();
-            rows.iter()
-                .find(|listed| listed.path == open)
-                .map(|listed| listed.row.clone())
-        });
+        let conflicted = self.conflicted.get();
+        let mut found = None;
+        for listed in self.rows.borrow().iter() {
+            let is_open = open.as_deref() == Some(listed.path.as_path());
+            listed.dot.set_visible(is_open && conflicted);
+            if is_open {
+                found = Some(listed.row.clone());
+            }
+        }
         self.list.select_row(found.as_ref());
     }
 
@@ -875,8 +957,37 @@ fn sort_button(label: &gtk::Label) -> gtk::Button {
     button
 }
 
+/// One of the two words a conflict offers: a word in the status line that
+/// happens to be clicked rather than read, so it is a button with the pane's
+/// own flat look on it.
+fn offer_word(word: &str) -> gtk::Button {
+    let button = gtk::Button::with_label(word);
+    button.add_css_class("lib-btn");
+    button.add_css_class("lib-offer");
+    button
+}
+
+/// "· Reload · Keep", hidden until there is a conflict to resolve.
+fn offered(reload: &gtk::Button, keep: &gtk::Button) -> gtk::Box {
+    let offer = gtk::Box::new(gtk::Orientation::Horizontal, DOT_GAP);
+    offer.set_visible(false);
+    offer.set_halign(gtk::Align::Start);
+    offer.append(&separator());
+    offer.append(reload);
+    offer.append(&separator());
+    offer.append(keep);
+    offer
+}
+
+/// The "·" between two of the status line's words.
+fn separator() -> gtk::Label {
+    let separator = gtk::Label::new(Some(SEPARATOR));
+    separator.add_css_class("lib-meta");
+    separator
+}
+
 /// The status line at the pane's foot.
-fn foot(status: &gtk::Label) -> gtk::Box {
+fn foot(status: &gtk::Label, offer: &gtk::Box) -> gtk::Box {
     let foot = gtk::Box::new(gtk::Orientation::Horizontal, DOT_GAP);
     foot.add_css_class("lib-foot");
     foot.set_height_request(FOOT_HEIGHT);
@@ -888,6 +999,7 @@ fn foot(status: &gtk::Label) -> gtk::Box {
     status.set_xalign(0.0);
     status.set_ellipsize(gtk::pango::EllipsizeMode::End);
     foot.append(status);
+    foot.append(offer);
     // Where the manuscripts are, at the foot's right (`.lib-where`), because a
     // status line that says the work is saved without saying where has not
     // said the half that matters.
@@ -1217,7 +1329,18 @@ fn magnifier_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
 
 /// The status dot (`.lib-status .dot`), at rest.
 fn dot_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
-    chrome::source(area, cr, DOT_ALPHA);
+    dot_at(area, cr, DOT_ALPHA);
+}
+
+/// The dot that marks a row whose file changed on disk: the same circle at
+/// full strength, as the oracle's warning dot is (`files.css` line 212).
+fn warned_dot(area: &gtk::DrawingArea, cr: &cairo::Context) {
+    dot_at(area, cr, 1.0);
+}
+
+/// A [`DOT`]-wide circle in the widget's own colour, at `alpha`.
+fn dot_at(area: &gtk::DrawingArea, cr: &cairo::Context, alpha: f64) {
+    chrome::source(area, cr, alpha);
     let half = f64::from(DOT) / 2.0;
     cr.arc(half, half, half, 0.0, std::f64::consts::TAU);
     let _ = cr.fill();

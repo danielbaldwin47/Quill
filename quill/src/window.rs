@@ -17,6 +17,7 @@
 //! window opens is the compositor's, on Wayland and on X11 alike.
 
 use std::cell::Ref;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::time::Duration;
@@ -25,14 +26,15 @@ use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{gio, glib};
 use quill_engine::commands;
-use quill_engine::disk::{Filed, Kept, Noticed, OnDisk, Saved, first_save_name};
+use quill_engine::disk::{Filed, Kept, Line, Noticed, OnDisk, Saved, first_save_name};
 use quill_engine::document::Document;
 use quill_engine::focus::Focus;
 use quill_engine::settings::{Chrome, WindowState};
 
 use crate::caret;
 use crate::chrome;
-use crate::files::{self, Leaving, Where};
+use crate::conflict;
+use crate::files::{self, Leaving, Standing, Where};
 use crate::flags;
 use crate::ground::Ground;
 use crate::harness;
@@ -44,6 +46,13 @@ use crate::tags;
 ///
 /// `docs/architecture.md` § Documents and files: "after one second of idle".
 const AUTOSAVE: Duration = Duration::from_secs(1);
+
+/// How often the status line is drawn again while it is saying how long ago
+/// the last save was, in seconds.
+///
+/// Half a minute, so that "Saved · 1 min ago" is on screen within thirty
+/// seconds of being true. It is the only line in the app that ages on its own.
+const STATUS_TICK: u32 = 30;
 
 mod imp {
     use std::cell::{Cell, OnceCell, RefCell};
@@ -76,6 +85,13 @@ mod imp {
         pub edited: Cell<i64>,
         /// The one autosave timer, armed by the first edit of a burst.
         pub saving: RefCell<Option<glib::SourceId>>,
+        /// When this window last wrote its Document out, on the same monotonic
+        /// clock; `None` until it has written one, which is what the status
+        /// line says "All changes saved" for rather than "Saved · just now".
+        pub wrote: Cell<Option<i64>>,
+        /// The timer that keeps "Saved · 2 min ago" true, armed by the first
+        /// write and taken down when the window goes.
+        pub ticking: RefCell<Option<glib::SourceId>>,
         /// Set once the writer has answered the prompt a close asked, so the
         /// close that follows the answer goes through instead of asking again.
         pub answered: Cell<bool>,
@@ -492,10 +508,14 @@ impl Window {
     fn set_filed(&self, filed: Filed) {
         self.imp().filed.replace(filed);
         self.imp().dirty.set(false);
+        // A Document this window has not written yet, whatever it wrote of the
+        // one before it.
+        self.imp().wrote.set(None);
         self.shown();
         // The sidebar's highlight follows the Document this window shows, so
         // that the row a writer opened is the row they can see they are in.
         self.imp().sidebar.set_open(self.path().as_deref());
+        self.show_standing();
         let (Some(path), Some(session)) = (self.path(), self.session()) else {
             return;
         };
@@ -626,10 +646,36 @@ impl Window {
         if !self.writes() {
             return false;
         }
+        self.imp()
+            .sidebar
+            .set_status(&files::said(Standing::Saving));
         let written = match folder {
             Some(folder) => self.imp().filed.borrow_mut().save_in(folder),
             None => self.imp().filed.borrow_mut().save(),
         };
+        self.written(written)
+    }
+
+    /// Writes the Editor's text over the file whatever the file now holds:
+    /// the Keep half of a conflict, and what recreates a deleted file.
+    ///
+    /// The one write allowed to stand on someone else's change, because it
+    /// happens only where the writer has looked at what it would do
+    /// ([`crate::conflict`]) and said yes.
+    fn keep(&self) -> bool {
+        if !self.writes() {
+            return false;
+        }
+        let written = self.imp().filed.borrow_mut().keep();
+        self.written(written)
+    }
+
+    /// Takes in what a write answered, and says whether the file holds the
+    /// Editor's text now.
+    ///
+    /// A write that cannot happen is one line on stderr, as every other file
+    /// error here is.
+    fn written(&self, written: io::Result<Saved>) -> bool {
         match written {
             Ok(Saved::Written) => {
                 self.saved();
@@ -648,6 +694,9 @@ impl Window {
     /// watch and the recents, and autosave has nothing left to do.
     fn saved(&self) {
         self.imp().dirty.set(false);
+        self.imp().wrote.set(Some(Self::now()));
+        self.show_standing();
+        self.tick_standing();
         let document = self.document();
         self.set_title(Some(&document.title()));
         self.imp().bars.set_title(&document.title());
@@ -677,12 +726,9 @@ impl Window {
                 }
                 Where::Ask => self.save_as(After::Stay),
             },
-            // The writer has to say whether their text or the disk's wins, and
-            // the status line that asks them is the conflicts ticket's (#246).
-            OnDisk::ChangedOnDisk => eprintln!(
-                "quill: {}: changed on disk; reload or keep it first",
-                self.path().unwrap_or_default().display()
-            ),
+            // Save over a file that moved under the Document is Keep, and
+            // Keep is not done blind: the writer sees what it would do first.
+            OnDisk::ChangedOnDisk => self.keep_over_disk(),
         }
     }
 
@@ -827,17 +873,19 @@ impl Window {
     /// A clean Document takes the disk's text and keeps the caret in the block
     /// it was in; a Document with unsaved edits enters
     /// [`OnDisk::ChangedOnDisk`] and autosave pauses for it
-    /// ([`quill_engine::disk::Filed::autosaves`]). This is the seam the
-    /// conflicts ticket hangs the row's dot, the status line and the diff view
-    /// on (#246): what a conflict looks like is drawn from here, and the state
-    /// it is drawn from is already right.
+    /// ([`quill_engine::disk::Filed::autosaves`]), the row takes a dot and the
+    /// status line offers Reload and Keep ([`Window::show_standing`]). A file
+    /// that is gone is the other conflict, and says so.
     fn noticed(&self) {
         let caret = self.caret_offset();
         let dirty = self.imp().dirty.get();
         let noticed = self.imp().filed.borrow_mut().noticed(dirty, caret);
         match noticed {
-            Noticed::Unchanged | Noticed::Changed | Noticed::Deleted => {}
+            Noticed::Unchanged => {}
             Noticed::Reloaded(kept) => self.reloaded(kept),
+            // The two conflicts: nothing is written and nothing is thrown
+            // away, and the status line asks the writer which it is to be.
+            Noticed::Changed | Noticed::Deleted => self.show_standing(),
         }
     }
 
@@ -860,6 +908,120 @@ impl Window {
             flags::Caret::At(u64::try_from(at).unwrap_or(u64::MAX)),
             true,
         );
+        drop(document);
+        self.show_standing();
+    }
+
+    /// Where this window's file stands, as the status line says it.
+    fn standing(&self) -> Standing {
+        match self.imp().filed.borrow().state() {
+            OnDisk::ChangedOnDisk => Standing::Changed,
+            OnDisk::DeletedOnDisk => Standing::Deleted,
+            OnDisk::Untitled | OnDisk::Named => match self.imp().wrote.get() {
+                Some(wrote) => Standing::Saved(Duration::from_micros(
+                    u64::try_from(Self::now() - wrote).unwrap_or(0),
+                )),
+                None => Standing::AtRest,
+            },
+        }
+    }
+
+    /// Says where the file stands, at the foot of the Library and on the row:
+    /// the words, the two of them the writer can click, and the dot.
+    fn show_standing(&self) {
+        let standing = self.standing();
+        let conflict = standing == Standing::Changed;
+        let sidebar = &self.imp().sidebar;
+        sidebar.set_status(&files::said(standing));
+        sidebar.set_offer(conflict);
+        sidebar.set_conflicted(conflict);
+    }
+
+    /// Keeps "Saved · 2 min ago" true as the minutes pass.
+    ///
+    /// One timer per window, armed by the first write and left running: it
+    /// draws a label every [`STATUS_TICK`] seconds and stops itself when the
+    /// window it belongs to is gone.
+    fn tick_standing(&self) {
+        if self.imp().ticking.borrow().is_some() {
+            return;
+        }
+        let ticking = self.downgrade();
+        let id = glib::timeout_add_seconds_local(STATUS_TICK, move || {
+            let Some(window) = ticking.upgrade() else {
+                return glib::ControlFlow::Break;
+            };
+            window.show_standing();
+            glib::ControlFlow::Continue
+        });
+        self.imp().ticking.replace(Some(id));
+    }
+
+    /// The Reload of "Changed on disk · Reload · Keep": what taking the disk's
+    /// text would do to the window, before it is done.
+    pub(crate) fn reload_from_disk(&self) {
+        let read = self.imp().filed.borrow().text_on_disk();
+        let text = match read {
+            Ok(text) => text,
+            Err(err) => {
+                eprintln!("quill: cannot read the file: {err}");
+                return;
+            }
+        };
+        let lines = quill_engine::disk::diff(self.document().text(), &text);
+        self.show_diff(conflict::Choice::Reload, &lines);
+    }
+
+    /// The Keep of it: what writing the window's text over the file would do
+    /// to the file.
+    pub(crate) fn keep_over_disk(&self) {
+        let against = self.imp().filed.borrow().against_disk();
+        let lines = match against {
+            Ok(lines) => lines,
+            Err(err) => {
+                eprintln!("quill: cannot read the file: {err}");
+                return;
+            }
+        };
+        self.show_diff(conflict::Choice::Keep, &lines);
+    }
+
+    /// Opens the diff view for `choice` over this window; its Accept does it.
+    fn show_diff(&self, choice: conflict::Choice, lines: &[Line]) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        conflict::open(
+            self.upcast_ref(),
+            session.ground(),
+            choice,
+            lines,
+            glib::clone!(
+                #[weak(rename_to = window)]
+                self,
+                move || window.accepted(choice)
+            ),
+        );
+    }
+
+    /// The writer accepted the diff: the conflict is resolved the way it said.
+    fn accepted(&self, choice: conflict::Choice) {
+        match choice {
+            conflict::Choice::Reload => self.reload(),
+            conflict::Choice::Keep => {
+                self.keep();
+            }
+        }
+    }
+
+    /// Takes the disk's text, with the caret back in the block it was in.
+    fn reload(&self) {
+        let caret = self.caret_offset();
+        let kept = self.imp().filed.borrow_mut().reload(caret);
+        match kept {
+            Ok(kept) => self.reloaded(kept),
+            Err(err) => eprintln!("quill: cannot reload: {err}"),
+        }
     }
 
     /// Answers `close-request`: the window goes, or asks the writer first.
@@ -894,6 +1056,9 @@ impl Window {
         if let Some(armed) = self.imp().saving.take() {
             armed.remove();
         }
+        if let Some(ticking) = self.imp().ticking.take() {
+            ticking.remove();
+        }
         self.remember();
         glib::Propagation::Proceed
     }
@@ -902,6 +1067,21 @@ impl Window {
     fn leave(&self) {
         self.imp().answered.set(true);
         self.close();
+    }
+
+    /// The Save button of the prompt a close asked: what it means for the
+    /// Document standing in the way.
+    ///
+    /// Keep for a Document the disk has moved under — Save there is the writer
+    /// saying their text is the one to have, which is exactly Keep, and a
+    /// window on its way out has no room left to show them a diff — and
+    /// autosave's own flush for everything else.
+    fn keeping(&self) -> bool {
+        let state = self.imp().filed.borrow().state();
+        match state {
+            OnDisk::ChangedOnDisk | OnDisk::DeletedOnDisk => self.keep(),
+            OnDisk::Untitled | OnDisk::Named => self.flush(),
+        }
     }
 
     /// Asks the writer what to do with a Document that cannot be closed
@@ -925,7 +1105,7 @@ impl Window {
                 #[weak(rename_to = window)]
                 self,
                 move |answer| match answer {
-                    Ok(0) if window.flush() => window.leave(),
+                    Ok(0) if window.keeping() => window.leave(),
                     // Nowhere to flush to: the writer names the file, and the
                     // window closes when they have.
                     Ok(0) => window.save_as(After::Close),
