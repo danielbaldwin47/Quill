@@ -267,10 +267,10 @@ function usage(where = process.stderr) {
 `);
 }
 
-// Says something on the way to the verdict. None of it is printed as it is said: the owner reads one
-// line on stdout and an agent pays for every other one, so the trail goes to
-// target/gate/judge-<piece>.log and is handed over only when the run ends in no verdict at all. A
-// run that reached a verdict has its detail in the round it wrote.
+// Says something on the way to the verdict. None of it is printed as it is said: the owner reads the
+// verdict and the per-state lines above it on stdout and an agent pays for every other one, so the
+// trail goes to target/gate/judge-<piece>.log and is handed over only when the run ends in no
+// verdict at all. A run that reached a verdict has its detail in the round it wrote.
 const trail = [];
 let logFile = null;
 export function say(line) {
@@ -736,7 +736,7 @@ async function judge(root, piece, note, summaryFile, settingsFile, fresh) {
   // ones with what their critic is shown, in the same order.
   const judged = [];
   const pairs = [];
-  const stage = await openStage({ root, appId: APP_ID });
+  const stage = await openStage({ root, appId: APP_ID, say });
   try {
     for (const s of resolved) {
       const cut = cropping.get(s.name);
@@ -854,6 +854,17 @@ async function judge(root, piece, note, summaryFile, settingsFile, fresh) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, `${JSON.stringify(written, null, 2)}\n`);
   say(`gate judge ${piece}: wrote ${path.relative(root, file)}`);
+
+  // Every state's reading on stdout, above the verdict: the winner, the margin, the round a carried
+  // verdict came from, and the winner's gap — or, for an asserted state, what was measured — so a
+  // round is read from the output rather than from the letters in its JSON. Sorted by state, so two
+  // rounds' outputs line up; printed together here rather than as each was decided, so the last
+  // line stays the verdict.
+  for (const s of [...judged].sort((a, b) => a.name.localeCompare(b.name))) {
+    const carried = s.carried ? `, carried from round ${s.carried}` : '';
+    console.log(`gate judge ${piece}: ${s.name}: ${s.winner} (${s.margin}${carried})`);
+    console.log(`gate judge ${piece}: ${s.name}: gap: ${s.winner === 'ours' ? s.gap : s.gapTheirs}`);
+  }
 
   if (written.winner === 'ours') { verdict(piece, 'ours', number); return 0; }
 

@@ -1,6 +1,6 @@
 # Hand test checklists for the ported Pieces
 
-Each ported Piece is its own feature ticket, closed by the owner's `hand test: pass` (`docs/agents/gate.md` § Feature tier); these are its checklists. `/to-spec` merges a Piece's checklist with the spec's additions into the spec's **Hand test** section, so the owner tests from that comment alone.
+Each ported Piece is its own feature ticket, closed by the owner's `hand test: pass` (`docs/agents/gate.md` § Feature tier); these are its checklists. `/to-spec` merges a Piece's checklist with the spec's additions into the spec's **Hand test** section, so the owner tests from that comment alone. The section opens with the install step, written for the owner's checkout: the session first frees the branch (`git -C <worktree> checkout --detach`), then the comment says `git fetch origin <branch> && git checkout <branch>` followed by the three lines of `README.md` § Build, install and run the native app and `pacman -Q quill` — `makepkg` packages the checkout it runs in, so the branch is checked out where the owner builds, and `pacman -Q` names the commit installed (#167).
 
 **Page**: 1. Open `ref/sample.md`; the text sits in a measure of about 64 characters, centred, with calm margins. 2. Resize the window narrower and wider; the measure adapts and the text never touches an edge.
 
