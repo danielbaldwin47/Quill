@@ -2455,9 +2455,11 @@ impl Editor {
     /// for the two ends once is one lookup, and asking every furnishing for
     /// its rectangle is one lookup each.
     ///
-    /// A y above the first row or below the last is not over text, and GTK
-    /// answers nothing for it; the whole Document is the honest reading of
-    /// that, and the walk below drops what turns out to be off the glass.
+    /// A point off the text — a y above the first row or below the last, and
+    /// any x left of the centred column, x = 0 among them — is not over a
+    /// character, and GTK answers nothing for it; the whole Document is the
+    /// honest reading of that, and the walk below drops what turns out to be
+    /// off the glass.
     fn seen(&self) -> Range<i32> {
         let view = self.visible_rect();
         let slack = f64::from(self.imp().pitch.get()) / self.scale();
@@ -2908,12 +2910,15 @@ impl Editor {
     /// [`sync::follow_top_block`] reads of its driver — whichever block the
     /// top edge is in, and how far into it — and a manuscript's index is
     /// thousands of blocks long. The view is asked which block that is
-    /// (`iter_at_location`) rather than walked to it, so a wheel event costs
-    /// two row rectangles however long the Document is.
+    /// (`line_at_y`) rather than walked to it, so a wheel event costs two row
+    /// rectangles however long the Document is. The row is asked for by y
+    /// alone: the Editor centres its column in a left margin, so every x this
+    /// side of the text — x = 0 included — is off the line, and the lookups
+    /// that take an x answer nothing there.
     #[must_use]
     pub fn top_block(&self, document: &Document, offset: f64) -> Option<sync::Block> {
         let y = offset - f64::from(self.top_margin());
-        let at = self.iter_at_location(0, buffer_px(y.max(0.0)))?;
+        let (at, _) = self.line_at_y(buffer_px(y.max(0.0)));
         let key = document.block_at(tags::offset_of(document, &at))?;
         self.block_row(document, key)
     }
