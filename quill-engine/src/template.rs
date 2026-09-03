@@ -168,10 +168,10 @@ impl Sizes {
     /// Levels run 1 to 6 as Markdown writes them; anything outside that is the
     /// body size, which is what an H7 nobody can write would be.
     #[must_use]
-    pub fn heading(&self, level: u32) -> f64 {
-        let scale = usize::try_from(level)
-            .ok()
-            .and_then(|level| self.headings.get(level.wrapping_sub(1)))
+    pub fn heading(&self, level: u8) -> f64 {
+        let scale = self
+            .headings
+            .get(usize::from(level).wrapping_sub(1))
             .copied()
             .unwrap_or(1.0);
         self.base * scale

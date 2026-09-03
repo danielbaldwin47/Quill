@@ -64,8 +64,14 @@ pub enum Fold {
 pub enum Furniture {
     /// A bullet list item's dot, where its `-`, `*` or `+` stood.
     Bullet,
-    /// An ordered list item's number, as the source wrote it.
-    Number(u32),
+    /// An ordered list item's number, as the source wrote it, and the byte it
+    /// wrote after it: a `1)` list draws `1)` and not `1.`.
+    Number {
+        /// The count the marker counts with.
+        count: u32,
+        /// `.` or `)`, the two CommonMark allows after a count.
+        delimiter: char,
+    },
     /// A task list item's box, and whether it is ticked. It covers the item's
     /// whole marker — the bullet and the box together — because one box stands
     /// where both did.
@@ -280,8 +286,14 @@ fn emit(
             Mark::Fence => Some((span.at.clone(), furnished(Furniture::Fence))),
             Mark::ThematicBreak => Some((span.at.clone(), furnished(Furniture::Hairline))),
             Mark::OrderedMarker => {
-                let number = number(&text[span.at.clone()]);
-                Some((span.at.clone(), furnished(Furniture::Number(number))))
+                let marker = &text[span.at.clone()];
+                Some((
+                    span.at.clone(),
+                    furnished(Furniture::Number {
+                        count: number(marker),
+                        delimiter: delimiter(marker),
+                    }),
+                ))
             }
             Mark::BulletMarker => match task_box(markup, index) {
                 Some((at, task)) => {
@@ -344,6 +356,19 @@ fn task_box(markup: &[Span], index: usize) -> Option<(usize, &Span)> {
 fn checkbox(text: &str, span: &Span) -> LiveLook {
     let checked = text[span.at.clone()].contains(['x', 'X']);
     furnished(Furniture::Checkbox { checked })
+}
+
+/// The byte an ordered marker closes its count with.
+///
+/// `.` or `)`, the two CommonMark allows; the fallback is the commoner of the
+/// two and is unreachable for a marker the parser marked, standing here for the
+/// reason [`number`]'s does.
+fn delimiter(marker: &str) -> char {
+    if marker.trim_end().ends_with(')') {
+        ')'
+    } else {
+        '.'
+    }
 }
 
 /// The number an ordered marker counts with.
@@ -664,8 +689,20 @@ mod tests {
             [
                 ("- ", &Furniture::Bullet),
                 ("- ", &Furniture::Bullet),
-                ("1. ", &Furniture::Number(1)),
-                ("2. ", &Furniture::Number(2)),
+                (
+                    "1. ",
+                    &Furniture::Number {
+                        count: 1,
+                        delimiter: '.',
+                    },
+                ),
+                (
+                    "2. ",
+                    &Furniture::Number {
+                        count: 2,
+                        delimiter: '.',
+                    },
+                ),
                 ("- [ ]", &Furniture::Checkbox { checked: false }),
                 ("- [x]", &Furniture::Checkbox { checked: true }),
                 (

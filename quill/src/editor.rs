@@ -556,8 +556,14 @@ impl Furnishing {
 enum Furnish {
     /// A bullet item's dot.
     Bullet,
-    /// An ordered item's number, as the source counted it.
-    Number(u32),
+    /// An ordered item's number as the source counted it, with the byte it
+    /// wrote after the count: `.` or `)`.
+    Number {
+        /// The count the marker counts with.
+        count: u32,
+        /// `.` or `)`, as the source wrote it.
+        delimiter: char,
+    },
     /// A task item's box, ticked or not, and the `[ ]` or `[x]` a press on it
     /// rewrites — which is the one cell inside the brackets and not the whole
     /// marker, so that the item's words never move under the writer's finger.
@@ -2421,8 +2427,8 @@ impl Editor {
             }
             match &standing.what {
                 Furnish::Bullet => self.draw_bullet(snapshot, &standing.at, &colours),
-                Furnish::Number(number) => {
-                    self.draw_number(snapshot, &standing.at, &colours, *number);
+                Furnish::Number { count, delimiter } => {
+                    self.draw_number(snapshot, &standing.at, &colours, *count, *delimiter);
                 }
                 Furnish::Checkbox { checked, .. } => {
                     if let Some(box_at) = standing.box_cells() {
@@ -2494,8 +2500,12 @@ impl Editor {
         snapshot.pop();
     }
 
-    /// An ordered item's number and its point, in the cells its marker stood
-    /// in.
+    /// An ordered item's `count` and the `delimiter` the source closed it
+    /// with, in the cells its marker stood in.
+    ///
+    /// The delimiter is carried rather than assumed, because both of
+    /// CommonMark's are a writer's own choice: a list written `1)` reads `1)`
+    /// folded, where a drawn `.` would be the app rewriting the page.
     ///
     /// The one piece of furniture that is type: a number is read, so it is
     /// laid out in the page's own face at the page's own size, through the
@@ -2511,12 +2521,13 @@ impl Editor {
         snapshot: &gtk::Snapshot,
         at: &Range<i32>,
         colours: &Colours,
-        number: u32,
+        count: u32,
+        delimiter: char,
     ) {
         let Some(cell) = self.cells(at) else {
             return;
         };
-        let layout = self.create_pango_layout(Some(&format!("{number}.")));
+        let layout = self.create_pango_layout(Some(&format!("{count}{delimiter}")));
         let baseline = f64::from(layout.baseline()) / f64::from(pango::SCALE);
         snapshot.save();
         snapshot.translate(&graphene::Point::new(
@@ -3057,7 +3068,10 @@ impl Furnish {
     ) -> Option<Self> {
         Some(match furniture {
             Furniture::Bullet => Self::Bullet,
-            Furniture::Number(number) => Self::Number(*number),
+            Furniture::Number { count, delimiter } => Self::Number {
+                count: *count,
+                delimiter: *delimiter,
+            },
             Furniture::Hairline => Self::Hairline,
             Furniture::Fence => return None,
             Furniture::Checkbox { checked } => {
@@ -3924,7 +3938,7 @@ mod tests {
     }
 
     #[test]
-    fn a_press_on_a_task_box_rewrites_the_one_cell_between_its_brackets() {
+    fn the_cells_a_task_box_press_rewrites_are_the_one_between_its_brackets() {
         let text = "Chores\n\n- [ ] scrub the lens\n";
         let box_at = furniture(text, &(0..0))
             .first()
@@ -4025,7 +4039,10 @@ mod tests {
             kinds,
             [
                 Furnish::Bullet,
-                Furnish::Number(1),
+                Furnish::Number {
+                    count: 1,
+                    delimiter: '.'
+                },
                 Furnish::Checkbox {
                     box_at: 2..5,
                     checked: false
