@@ -14,10 +14,13 @@
 //! source. The one thing a pointer does is open a link, and the one thing the
 //! keyboard does is scroll, which is why Full can hold it at all.
 //!
-//! What it does not do yet is follow the writer: the page is laid out when the
-//! pane opens, when the pane's width moves and when the Template does, and
-//! ticket #270 is the idle refresh, the scroll sync and zoom. The block-to-
-//! offset map ([`Preview::blocks`]) is here for it.
+//! It follows the writer without being typed into. The page is laid out when
+//! the pane opens, when the pane's width moves, when the Template or the zoom
+//! does, and 200 ms after the last keystroke of a burst
+//! ([`crate::window::Window::refresh_preview`]); and it scrolls with the
+//! Editor by the rules in [`quill_engine::sync`], which are answered here from
+//! the page's own blocks ([`Preview::blocks`], [`Preview::caret_offset`],
+//! [`Preview::top_block_offset`]).
 
 use std::cell::Cell;
 use std::ops::Range;
@@ -29,11 +32,12 @@ use gtk::{gdk, gio, glib, graphene, pango};
 use quill_engine::document::Document;
 use quill_engine::render;
 use quill_engine::settings::{Choice, EVEN, Settings};
+use quill_engine::sync;
 use quill_engine::template;
 use quill_engine::theme::{Colour, Scheme};
 
 use crate::tags::pixels;
-use crate::window::Window;
+use crate::window::{Window, Zoom};
 
 /// How wide the divider is to a pointer, as the Library's is
 /// ([`crate::sidebar`]): a strip lying over the pane's left edge rather than
@@ -58,6 +62,10 @@ const NARROWEST_MEASURE: f64 = 160.0;
 
 /// The air above and below the page, in logical pixels.
 const PAD: f64 = 32.0;
+
+/// The resolution a Pango context that names none is read at, which is what
+/// [`quill_engine::render`] falls back to for the same reason.
+const DPI: f64 = 96.0;
 
 /// The narrowest either half of the pair is dragged to, in logical pixels.
 ///
@@ -104,6 +112,7 @@ mod imp {
     use gtk::glib;
     use gtk::subclass::prelude::*;
     use quill_engine::render::Page;
+    use quill_engine::sync;
     use quill_engine::template::Palette;
 
     use crate::window::Window;
@@ -113,6 +122,15 @@ mod imp {
     pub struct Sheet {
         /// The page as it was last laid out, or nothing until it has been.
         pub page: RefCell<Option<Page>>,
+        /// The same page's blocks as the scroll-sync rules read them, kept
+        /// beside it rather than built per event: an edit asks for them on
+        /// every keystroke, and a rule reads a slice.
+        pub rows: RefCell<Vec<sync::Block>>,
+        /// How tall the page stands, in the sheet's own pixels: the scrollable
+        /// height, read here rather than off the adjustment because a page
+        /// just laid out again is taller or shorter than the scroller has been
+        /// told.
+        pub height: Cell<f64>,
         /// The Template's palette for the ground the Editor is on.
         pub palette: Cell<Option<Palette>>,
         /// How wide the page was laid out, in logical pixels.
@@ -206,21 +224,31 @@ impl Sheet {
             number_headings: settings.template.number_headings,
             indent_paragraphs: settings.template.indent_paragraphs,
         };
-        let measure = (f64::from(width) - 2.0 * MARGIN).max(NARROWEST_MEASURE);
-        let page = render::render(
-            document,
-            &template,
-            toggles,
-            measure,
-            settings.preview.zoom,
-            &self.pango_context(),
+        let context = self.pango_context();
+        let zoom = settings.preview.zoom;
+        let measure = measure(
+            f64::from(width),
+            widest(
+                template.rhythm.measure,
+                template.sizes.base,
+                zoom,
+                resolution(&context),
+            ),
         );
+        let page = render::render(document, &template, toggles, measure, zoom, &context);
         let height = page.height + 2.0 * PAD;
+        let rows = page
+            .blocks
+            .iter()
+            .map(|block| sync::Block::new(block.key, PAD + block.top, block.height))
+            .collect();
         let imp = self.imp();
         imp.palette.set(Some(*template.palette(scheme)));
         imp.left.set((f64::from(width) - measure) / 2.0);
         imp.measure.set(measure);
         imp.laid.set(width);
+        imp.height.set(height);
+        imp.rows.replace(rows);
         imp.page.replace(Some(page));
         self.set_height_request(pixels(height));
         self.queue_draw();
@@ -337,18 +365,6 @@ impl Sheet {
         }
         None
     }
-
-    /// The page's blocks as the sync rules read them: the key, the top and the
-    /// height of each, in the sheet's own pixels.
-    fn blocks(&self) -> Vec<(usize, f64, f64)> {
-        let page = self.imp().page.borrow();
-        page.as_ref().map_or_else(Vec::new, |page| {
-            page.blocks
-                .iter()
-                .map(|block| (block.key, PAD + block.top, block.height))
-                .collect()
-        })
-    }
 }
 
 /// The Preview pane: the sheet in its scroller, with the divider over its left
@@ -428,6 +444,7 @@ impl Preview {
         self.watch_divider();
         self.watch_links();
         self.watch_keys();
+        self.watch_zoom();
     }
 
     /// Lays the Document out again and paints it.
@@ -459,7 +476,8 @@ impl Preview {
         }
     }
 
-    /// What the pane scrolls by: the sync ticket's handle on it (#270).
+    /// What the pane scrolls by: what a wheel or a scrollbar over it moves,
+    /// and what a sync applies its answer to (#270).
     #[must_use]
     pub fn vadjustment(&self) -> gtk::Adjustment {
         self.scroller.vadjustment()
@@ -467,10 +485,45 @@ impl Preview {
 
     /// The rendered page's blocks as vertical ranges — the key the Document's
     /// block index gave them, the top and the height — which is what a scroll
-    /// sync rule is answered from (#270).
+    /// sync rule is answered from when the pane is the one being scrolled.
     #[must_use]
-    pub fn blocks(&self) -> Vec<(usize, f64, f64)> {
-        self.sheet.blocks()
+    pub fn blocks(&self) -> Vec<sync::Block> {
+        self.sheet.imp().rows.borrow().clone()
+    }
+
+    /// The offset that puts the caret's block `fraction` down the pane: the
+    /// caret rule ([`sync::follow_caret`]) answered from the page.
+    ///
+    /// The rows are borrowed rather than handed out, because an edit asks this
+    /// on every keystroke.
+    #[must_use]
+    pub fn caret_offset(&self, caret: usize, fraction: f64) -> f64 {
+        let rows = self.sheet.imp().rows.borrow();
+        sync::follow_caret(caret, fraction, &rows, self.viewport(), self.max())
+    }
+
+    /// The offset that puts `driver`'s top block at the pane's own top edge:
+    /// the top-block rule ([`sync::follow_top_block`]) answered from the page.
+    #[must_use]
+    pub fn top_block_offset(&self, driver: &[sync::Block], offset: f64) -> f64 {
+        let rows = self.sheet.imp().rows.borrow();
+        sync::follow_top_block(driver, offset, &rows, self.max())
+    }
+
+    /// How tall the pane's viewport is.
+    fn viewport(&self) -> f64 {
+        self.vadjustment().page_size()
+    }
+
+    /// How far the page can be scrolled: its own height less the viewport.
+    ///
+    /// The page's height rather than the adjustment's `upper`, because a page
+    /// laid out again this instant is a height the scroller has not been
+    /// allocated at yet, and a rule clamped to the old end would answer the
+    /// old end ([`crate::window::Window::follow_preview`] asks again once GTK
+    /// has caught up).
+    fn max(&self) -> f64 {
+        (self.sheet.imp().height.get() - self.viewport()).max(0.0)
     }
 
     /// The keyboard comes here: Full's arrows and Page keys scroll the page.
@@ -602,6 +655,38 @@ impl Preview {
         });
         self.sheet.add_controller(keys);
     }
+
+    /// Ctrl+wheel over the pane steps the zoom; the wheel on its own scrolls
+    /// the page, as it does anywhere else.
+    ///
+    /// In the capture phase, so the modifier is read before the scroller has
+    /// taken the scroll for itself: a page that zoomed and scrolled on one
+    /// notch would do both by half.
+    fn watch_zoom(&self) {
+        let scroll = gtk::EventControllerScroll::new(gtk::EventControllerScrollFlags::VERTICAL);
+        scroll.set_propagation_phase(gtk::PropagationPhase::Capture);
+        let sheet = self.sheet.clone();
+        scroll.connect_scroll(move |controller, _, dy| {
+            if !controller
+                .current_event_state()
+                .contains(gdk::ModifierType::CONTROL_MASK)
+            {
+                return glib::Propagation::Proceed;
+            }
+            let Some(window) = sheet.owner() else {
+                return glib::Propagation::Proceed;
+            };
+            // A notch away from the writer is the page going small, which is
+            // the direction every other application scrolls a zoom in.
+            match dy.partial_cmp(&0.0) {
+                Some(std::cmp::Ordering::Less) => window.step_zoom(Zoom::Bigger),
+                Some(std::cmp::Ordering::Greater) => window.step_zoom(Zoom::Smaller),
+                _ => return glib::Propagation::Proceed,
+            }
+            glib::Propagation::Stop
+        });
+        self.sheet.add_controller(scroll);
+    }
 }
 
 /// Opens `destination` through the desktop's default handler for it.
@@ -612,6 +697,35 @@ impl Preview {
 /// before a strange scheme is handed to anything.
 fn open(destination: &str, window: Option<&Window>) {
     gtk::UriLauncher::new(destination).launch(window, gio::Cancellable::NONE, |_| {});
+}
+
+/// The measure a pane `width` logical pixels wide lays its page out at.
+///
+/// The pane less its margins, never wider than the Template asks for and never
+/// narrower than prose: Full at 1440 px is a page, not a 1360 px line, and the
+/// air left over is what the page is centred in ([`Sheet::lay_out`] puts it
+/// there).
+fn measure(width: f64, widest: f64) -> f64 {
+    (width - 2.0 * MARGIN).min(widest).max(NARROWEST_MEASURE)
+}
+
+/// The Template's own measure in logical pixels: `measure` ems of a `base`
+/// point body at `zoom`, on a screen of `dpi` dots to the inch.
+///
+/// The arithmetic [`quill_engine::render`] sizes everything else by, done here
+/// because the measure is the one thing the render pass is told rather than
+/// reads: a Template's sizes are in points, so a zoom and a resolution stand
+/// between them and a width.
+fn widest(measure: f64, base: f64, zoom: u32, dpi: f64) -> f64 {
+    let scale = f64::from(zoom.clamp(render::ZOOM_MIN, render::ZOOM_MAX)) / 100.0 * dpi / 72.0;
+    measure * base * scale
+}
+
+/// The resolution `context` draws at, in dots per inch, as the render pass
+/// reads it.
+fn resolution(context: &pango::Context) -> f64 {
+    let dpi = pangocairo::functions::context_get_resolution(context);
+    if dpi > 0.0 { dpi } else { DPI }
 }
 
 /// The rectangles the bytes `at` of `layout` are drawn in, one per line they
@@ -717,6 +831,49 @@ mod tests {
             pane_width(700, 300),
             NARROWEST,
             "a pair with room for neither still stands the pane at the narrowest"
+        );
+    }
+
+    /// The Template's measure caps a wide pane and nothing else does: `modern`
+    /// is 34 em of a 16 pt body, which at 96 dpi is 725 logical pixels, so a
+    /// 1440 px Full pane is a page rather than a 1360 px line (#270).
+    #[test]
+    fn a_wide_pane_lays_the_page_out_at_the_templates_own_measure() {
+        let widest = widest(34.0, 16.0, 100, 96.0);
+        assert!(
+            (widest - 725.0).abs() < 1.0,
+            "34 em of 16 pt at 96 dpi is about 725 px, not {widest}"
+        );
+        assert!(
+            (measure(1440.0, widest) - widest).abs() < f64::EPSILON,
+            "Full at 1440 px is capped at the Template's measure"
+        );
+        assert!(
+            (measure(600.0, widest) - (600.0 - 2.0 * MARGIN)).abs() < f64::EPSILON,
+            "a pane narrower than the measure keeps its own width, less the margins"
+        );
+        assert!(
+            (measure(120.0, widest) - NARROWEST_MEASURE).abs() < f64::EPSILON,
+            "a pane too narrow for prose still lays out at the narrowest measure"
+        );
+    }
+
+    /// The zoom scales the cap with every other size, and is held to the
+    /// render pass's own range rather than believed.
+    #[test]
+    fn the_zoom_scales_the_measure_and_is_clamped_to_the_render_passs_range() {
+        let at = |zoom| widest(34.0, 16.0, zoom, 96.0);
+        assert!(
+            (at(200) - 2.0 * at(100)).abs() < f64::EPSILON,
+            "twice the zoom is twice the measure"
+        );
+        assert!(
+            (at(1000) - at(render::ZOOM_MAX)).abs() < f64::EPSILON,
+            "a zoom past the range lays out at the widest the pass allows"
+        );
+        assert!(
+            (at(1) - at(render::ZOOM_MIN)).abs() < f64::EPSILON,
+            "a zoom below the range lays out at the narrowest"
         );
     }
 }

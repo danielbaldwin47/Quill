@@ -30,6 +30,7 @@ use quill_engine::document::{Document, Edit};
 use quill_engine::focus::typewriter::{self, Glide, Hold, Typewriter};
 use quill_engine::focus::{self, Focus, LineTiers};
 use quill_engine::settings::Face;
+use quill_engine::sync;
 use quill_engine::theme::{self, Colour, Colours, Role, Scheme};
 use quill_engine::typography;
 
@@ -2368,6 +2369,93 @@ impl Editor {
             adjustment.set_value(adjustment.lower() + room.max(0.0) * fraction);
             false
         });
+    }
+
+    /// The block the Editor's top edge falls in at scroll `offset`, as a
+    /// scroll-sync rule reads a driving pane ([`quill_engine::sync`], #270).
+    ///
+    /// One block rather than the whole page, because one is all
+    /// [`sync::follow_top_block`] reads of its driver — whichever block the
+    /// top edge is in, and how far into it — and a manuscript's index is
+    /// thousands of blocks long. The view is asked which block that is
+    /// (`iter_at_location`) rather than walked to it, so a wheel event costs
+    /// two row rectangles however long the Document is.
+    #[must_use]
+    pub fn top_block(&self, document: &Document, offset: f64) -> Option<sync::Block> {
+        let y = offset - f64::from(self.top_margin());
+        let at = self.iter_at_location(0, y.max(0.0) as i32)?;
+        let key = document.block_at(tags::offset_of(document, &at))?;
+        self.block_row(document, key)
+    }
+
+    /// Where block `key` stands in the Editor's scroll coordinate: the answer
+    /// a scroll-sync rule reads of the Editor as the following pane (#270).
+    ///
+    /// The rectangle is the view's own — `iter_location` at the block's first
+    /// byte and its last — taken in buffer coordinates and put in the
+    /// adjustment's by the top margin, which is the page's air above the first
+    /// row and the one difference between the two ([`Editor::row_of`] says the
+    /// same of the caret's).
+    #[must_use]
+    pub fn block_row(&self, document: &Document, key: usize) -> Option<sync::Block> {
+        // The index tiles the Document, so the end of the text names its last
+        // block: a key past that one is a page laid out before an edit shrank
+        // the Document, and asking for it would panic.
+        if key > document.block_at(document.text().len())? {
+            return None;
+        }
+        let block = document.block(key);
+        let buffer = self.buffer();
+        let from = tags::iter_at(&buffer, document, block.at.start);
+        let mut to = tags::iter_at(&buffer, document, block.at.end);
+        if to.offset() > from.offset() {
+            // A block ends where the next one begins, and that byte is on the
+            // next block's first row: the foot of this one is the row its own
+            // last character is on.
+            to.backward_char();
+        }
+        let head = self.iter_location(&from);
+        let foot = self.iter_location(&to);
+        let margin = f64::from(self.top_margin());
+        let top = f64::from(head.y()) + margin;
+        let bottom = f64::from(foot.y()) + f64::from(foot.height()) + margin;
+        Some(sync::Block::new(key, top, (bottom - top).max(0.0)))
+    }
+
+    /// Every block of `document` as a vertical range in the Editor's scroll
+    /// coordinate: the Editor's side of the top-block rule when the Preview is
+    /// the pane being scrolled (#270).
+    ///
+    /// The whole page here, because a follower is asked for a block the driver
+    /// names and any block can be named. It walks the index, so it belongs to
+    /// a wheel or a scrollbar and never to the keystroke lane: what an edit
+    /// drives is the caret rule, which asks for one row.
+    #[must_use]
+    pub fn block_rows(&self, document: &Document) -> Vec<sync::Block> {
+        let Some(last) = document.block_at(document.text().len()) else {
+            return Vec::new();
+        };
+        (0..=last)
+            .filter_map(|key| self.block_row(document, key))
+            .collect()
+    }
+
+    /// Where the caret's row stands down the Editor's viewport: 0 at the top
+    /// edge, 1 at the foot.
+    ///
+    /// The fraction [`sync::follow_caret`] puts the caret's block at down the
+    /// Preview, so the block being written stays where the eye already is
+    /// (#270). `None` before the type has been set or outside a scroller,
+    /// where there is no row and no viewport to place it in.
+    #[must_use]
+    pub fn caret_fraction(&self) -> Option<f64> {
+        let adjustment = self.vadjustment()?;
+        let viewport = adjustment.page_size();
+        if viewport <= 0.0 {
+            return None;
+        }
+        let (top, _) = self.row_of(self.bar()?);
+        Some(((top - adjustment.value()) / viewport).clamp(0.0, 1.0))
     }
 }
 

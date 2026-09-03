@@ -315,7 +315,7 @@ ok("a regime's line is one line of numbers, and the run's line says how many cle
   });
   assert.match(line, /^gate bench fence_flip: pass — mean /);
   assert.ok(!line.includes('\n'), line);
-  assert.ok(!line.includes('budget'), 'the budget is said once, by the run, not thirteen times');
+  assert.ok(!line.includes('budget'), 'the budget is said once, by the run, not fourteen times');
 
   const rows = [row('prose_end_of_draft', 2, 8, 120), row('revision', 2.4, 9, 130)];
   assert.match(allSummary('--all', rows), /^gate bench --all: pass — 2 of 2 regimes clear the budget/);
@@ -424,7 +424,7 @@ ok('an unscored regime is recorded beside the verdict and decides nothing', () =
 
 // ---------- the plan, and the keyboard that has to type it ----------
 
-ok('every one of the thirteen is a plan the injector can be handed', () => {
+ok('every one of the fourteen is a plan the injector can be handed', () => {
   for (const r of regimes()) {
     const plan = uinputPlan(script(r.mix, DEFAULT_KEYS, hash32(r.name)), r.pace,
       { pauseEvery: r.pauseEvery, pauseMs: r.pauseMs });
@@ -454,7 +454,7 @@ ok('the chord regimes press chords, and bursts_and_pauses pauses every 25 keys',
   assert.equal(planOf('saturation_stress').pace_ms, 8, 'the injector floor stands in for a pace of 0');
 });
 
-ok('the injector can say every press the thirteen ask for', () => {
+ok('the injector can say every press the fourteen ask for', () => {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const wanted = new Set();
   for (const r of regimes()) {
