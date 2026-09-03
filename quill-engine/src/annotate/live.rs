@@ -554,9 +554,8 @@ mod tests {
         // the one it was with the writer in the paragraph.
         let far = spans(&doc, &(0..0));
         let here = spans(&doc, &(two.start..two.start));
-        let elsewhere = |span: &&LiveSpan| {
-            !two.contains(&span.at.start) && !paragraph.contains(&span.at.start)
-        };
+        let elsewhere =
+            |span: &&LiveSpan| !two.contains(&span.at.start) && !paragraph.contains(&span.at.start);
         assert_eq!(
             here.iter().filter(elsewhere).collect::<Vec<_>>(),
             far.iter().filter(elsewhere).collect::<Vec<_>>()
