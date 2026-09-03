@@ -5,8 +5,9 @@
 //! untitled Document's first save goes, whether a window closing has anything
 //! to ask the writer first, whether opening a file should point the Library at
 //! the folder it came from, which row `file.next` steps to, what letting a
-//! dragged row go does and which way `file.pin` turns, and what the status
-//! line says. Each is a decision over plain values — the path state
+//! dragged row go does, which way `file.pin` and a click on a folder or a
+//! Location's head turn, and what the status line says. Each is a decision
+//! over plain values — the path state
 //! ([`quill_engine::disk::OnDisk`]), the Locations, the list of rows on screen,
 //! whether there is any text — so each is a function here rather than a branch
 //! inside a signal handler, and each is tested with no display attached.
@@ -15,6 +16,7 @@
 //! dialogs and shows Documents. The rules themselves are
 //! `docs/architecture.md` § Documents and files and the File handling spec.
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -156,6 +158,22 @@ pub fn pinning(
 ) -> Option<(PathBuf, bool)> {
     let path = selected.or(open)?;
     Some((path.to_path_buf(), !pinned.iter().any(|held| held == path)))
+}
+
+/// A click that turns something in the pane the other way: `path` goes into
+/// `held` if it was not in it, and comes out if it was, and the answer is
+/// whether it is in it now.
+///
+/// The one shape two of the pane's clicks have — a folder's chevron over the
+/// folders that are open, a Location's head over the Locations that are folded
+/// away — so the set that remembers which is the only thing that differs
+/// between them.
+pub fn flipped(held: &mut BTreeSet<PathBuf>, path: &Path) -> bool {
+    if held.remove(path) {
+        return false;
+    }
+    held.insert(path.to_path_buf());
+    true
 }
 
 /// How much of `name` a rename field selects when it opens: everything before
@@ -724,6 +742,19 @@ mod tests {
             "with no row, the open Document"
         );
         assert_eq!(pinning(None, None, &pinned), None);
+    }
+
+    #[test]
+    fn a_click_on_a_location_head_folds_it_away_and_the_next_click_brings_it_back() {
+        let drafts = PathBuf::from("/w/Drafts");
+        let notes = PathBuf::from("/w/Notes");
+        let mut held = BTreeSet::new();
+        assert!(flipped(&mut held, &drafts), "the first click folds it");
+        assert!(!flipped(&mut held, &drafts), "the second unfolds it");
+        assert!(held.is_empty(), "and leaves nothing behind");
+        assert!(flipped(&mut held, &drafts));
+        assert!(flipped(&mut held, &notes), "each head answers for itself");
+        assert_eq!(held, BTreeSet::from([drafts, notes]));
     }
 
     #[test]

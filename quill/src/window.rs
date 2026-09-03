@@ -175,6 +175,7 @@ mod imp {
 
         fn dispose(&self) {
             self.bars.dispose();
+            self.sidebar.dispose();
             if let Some(palette) = self.palette.get() {
                 palette.dispose();
             }
@@ -210,6 +211,7 @@ impl Window {
         // Before the first Document is shown, so that there is no window whose
         // buffer can be typed into without the engine hearing about it.
         window.watch_edits();
+        window.watch_escape();
         // And before the type, since setting the type places the bar: a
         // machine in the wrong mode would have blinked once before the flags
         // that said not to were read.
@@ -933,11 +935,17 @@ impl Window {
     /// an untitled one with text, a conflicted one — the new Document opens in
     /// a window of its own, as [`Window::open_path`] does, so nothing the
     /// writer typed is stepped on.
+    ///
+    /// The keyboard goes to the page: `Ctrl+N` is most often pressed while the
+    /// writer is picking the folder in the Library, and a blank page whose
+    /// first keystroke lands in the search field is a Document they have to
+    /// click into before they can write it.
     pub(crate) fn new_document(&self) {
         let folder = self.imp().sidebar.selected_folder();
         if self.library_action() {
             self.set_filed(Filed::untitled());
             self.imp().new_in.replace(folder);
+            self.focus_editor();
             return;
         }
         let (Some(app), Some(session)) = (self.application(), self.session()) else {
@@ -1588,6 +1596,33 @@ impl Window {
     /// The keyboard goes back to the page: what Esc does in the sidebar.
     pub(crate) fn focus_editor(&self) {
         self.imp().editor.grab_focus();
+    }
+
+    /// Esc anywhere the page has the keyboard: a search still standing is
+    /// dropped and the pane draws its tree again (#246 story 18).
+    ///
+    /// A writer searches, opens the hit and is then on the page with the pane
+    /// still showing the hits; Esc is what puts the Library back, and the pane
+    /// cannot hear it because the keyboard is not in the pane. The controller
+    /// watches in the bubble phase, so it hears only what the widget with the
+    /// keyboard let through: the Palette's field, the pane's field and a
+    /// rename field each take Esc for themselves.
+    fn watch_escape(&self) {
+        let keys = gtk::EventControllerKey::new();
+        keys.connect_key_pressed(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            #[upgrade_or]
+            glib::Propagation::Proceed,
+            move |_, key, _, _| {
+                if key == gdk::Key::Escape && window.imp().sidebar.clear_query() {
+                    window.focus_editor();
+                    return glib::Propagation::Stop;
+                }
+                glib::Propagation::Proceed
+            }
+        ));
+        self.add_controller(keys);
     }
 
     /// The typing machine's clock: the same monotonic microseconds the frame
