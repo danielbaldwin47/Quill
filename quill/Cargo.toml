@@ -11,6 +11,12 @@ publish.workspace = true
 # The only crate that may see `gtk` (ADR 0008): windows, widgets, events.
 [dependencies]
 gtk.workspace = true
+# The resolution a Pango context draws at, which is the one number the Preview
+# needs to put a Template's measure — ems of a size in points — in the pixels a
+# pane is wide (`preview::resolution`). Not a widget, so ADR 0008's line is
+# untouched; the engine's render pass reads the same function of the same
+# context.
+pangocairo.workspace = true
 quill-engine.workspace = true
 
 # Pango's Cairo font map, which is the one way to lay text out with no display

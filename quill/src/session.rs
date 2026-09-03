@@ -140,6 +140,11 @@ pub struct Session {
     /// know there is anything to write. Whether the pane is open at all is
     /// not here: that is the window's, and it is never remembered.
     preview_layout: Cell<PreviewLayout>,
+    /// How far the rendered page is zoomed now: the setting until the writer
+    /// presses one of the three Preview size keys, and then what they stepped
+    /// it to. Held apart from [`Session::settings`] for the reason
+    /// [`Session::preview_layout`] is.
+    preview_zoom: Cell<u32>,
     /// Whether the stats bar is shown while the bars are: `chrome.stats`.
     /// Live only — no settings key holds it until the Stats spec (#30)
     /// decides what the bar remembers — so every launch shows it.
@@ -269,6 +274,7 @@ impl Session {
             desktop: Cell::new(portal),
             chrome: Cell::new(settings.chrome),
             preview_layout: Cell::new(settings.preview.layout),
+            preview_zoom: Cell::new(settings.preview.zoom),
             stats: Cell::new(true),
             scheme: Cell::new(scheme),
             settings: RefCell::new(settings),
@@ -352,6 +358,7 @@ impl Session {
         self.face.set(settings.face);
         self.chrome.set(settings.chrome);
         self.preview_layout.set(settings.preview.layout);
+        self.preview_zoom.set(settings.preview.zoom);
         let theme = settings.theme;
         self.settings.replace(settings);
         self.set_theme(theme);
@@ -831,6 +838,21 @@ impl Session {
         self.preview_layout.get()
     }
 
+    /// How far the rendered page is zoomed now, as a whole percentage.
+    #[must_use]
+    pub fn preview_zoom(&self) -> u32 {
+        self.preview_zoom.get()
+    }
+
+    /// Steps the zoom, for this launch and — for a writer's — the next.
+    ///
+    /// The live value beside the settings, as [`Session::set_step`] is: the
+    /// three Preview size keys move it, and [`Session::store_settings`] is
+    /// what puts it in the file.
+    pub fn set_preview_zoom(&self, zoom: u32) {
+        self.preview_zoom.set(zoom);
+    }
+
     /// Writes the settings and the state file. Called once, when the
     /// application shuts down.
     pub fn store(&self) {
@@ -906,6 +928,7 @@ impl Session {
         settings.face = self.face.get();
         settings.chrome = self.chrome.get();
         settings.preview.layout = self.preview_layout.get();
+        settings.preview.zoom = self.preview_zoom.get();
         settings
     }
 
@@ -1552,6 +1575,69 @@ mod tests {
         let (written, notes) = Settings::read_from(&path);
         assert_eq!(notes, Vec::<String>::new());
         assert_eq!(written.chrome, Chrome::Hidden);
+        std::fs::remove_file(&path).ok();
+    }
+
+    /// The three Preview size keys step `[preview].zoom` by ten points inside
+    /// its range, `preview.reset` puts it back to the Template's own sizes,
+    /// and the file says what the keys left (#270).
+    ///
+    /// The stepping is [`crate::window::stepped_zoom`], which is what the
+    /// Commands press; this is that rule against the settings model and the
+    /// file it writes.
+    #[test]
+    fn the_preview_zoom_keys_step_the_setting_and_the_file_follows() {
+        let path = std::env::temp_dir().join(format!("quill-zoom-{}.toml", std::process::id()));
+        std::fs::remove_file(&path).ok();
+        let flags = Flags {
+            settings: Some(path.clone()),
+            ..Flags::default()
+        };
+        let session = Session::launch(
+            flags,
+            Settings::default(),
+            State::default(),
+            WindowState::default(),
+            true,
+            None,
+        );
+        let step = |direction| {
+            let zoom = crate::window::stepped_zoom(session.preview_zoom(), direction);
+            session.set_preview_zoom(zoom);
+            zoom
+        };
+        assert_eq!(session.preview_zoom(), 100, "the Template's own sizes");
+        assert_eq!(step(crate::window::Zoom::Bigger), 110, "ten points a press");
+        assert_eq!(
+            step(crate::window::Zoom::Smaller),
+            100,
+            "and ten points back"
+        );
+        for _ in 0..20 {
+            step(crate::window::Zoom::Bigger);
+        }
+        assert_eq!(
+            session.preview_zoom(),
+            200,
+            "the widest the file is read at"
+        );
+        for _ in 0..40 {
+            step(crate::window::Zoom::Smaller);
+        }
+        assert_eq!(session.preview_zoom(), 50, "and the narrowest");
+        assert_eq!(
+            step(crate::window::Zoom::Reset),
+            100,
+            "reset is the default"
+        );
+        step(crate::window::Zoom::Bigger);
+        session.store_settings();
+        let (written, notes) = Settings::read_from(&path);
+        assert_eq!(notes, Vec::<String>::new());
+        assert_eq!(
+            written.preview.zoom, 110,
+            "the file says what the keys left"
+        );
         std::fs::remove_file(&path).ok();
     }
 

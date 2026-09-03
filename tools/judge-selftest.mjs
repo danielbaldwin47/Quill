@@ -981,8 +981,8 @@ ok('the latency Piece is judged on a whole bench run, and refuses anything less'
 });
 
 // `saturation_stress` is recorded and not scored, and that exempts it from the budget alone: a
-// whole run is still thirteen regimes, and every one of them still accounts for its keys.
-ok('an unscored regime is still one of the thirteen, and still has to account for its keys', () => {
+// whole run is still fourteen regimes, and every one of them still accounts for its keys.
+ok('an unscored regime is still one of the fourteen, and still has to account for its keys', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'quill-judge-unscored-'));
   const rows = regimes().map((r) => (r.scored === false
     ? { regime: r.name, mean_ms: 24.83, worst_ms: 33.89, p50_ms: 25.08, p99_ms: 31.2, cold_ms: 149, scored: false, pass: null }
@@ -999,7 +999,7 @@ ok('an unscored regime is still one of the thirteen, and still has to account fo
   const short = gate('judge', 'latency', '--summary', eleven);
   assert.equal(short.code, 3, short.out);
   assert.match(lastLine(short), /^gate judge latency: refused \(.* is not a whole run — saturation_stress missing\)/,
-    'eleven scored regimes without the twelfth recorded is not a whole run');
+    'thirteen scored regimes without the fourteenth recorded is not a whole run');
 
   const stray = path.join(tmp, 'summary-20260901T000002.json');
   fs.writeFileSync(stray, JSON.stringify(body({ regimes_unaccounted_for: ['saturation_stress'], pass: false })));
@@ -1009,7 +1009,7 @@ ok('an unscored regime is still one of the thirteen, and still has to account fo
   assert.match(lastLine(unaccounted), /^gate judge latency: refused \(.* could not account for every keystroke in saturation_stress\)/,
     'not scored is not the same as not counted');
 
-  // The whole body as written — thirteen regimes, saturation over every bar and marked unscored — is
+  // The whole body as written — fourteen regimes, saturation over every bar and marked unscored — is
   // deliberately not run: judge would take a verdict from it and write a round, and writing a round
   // into the ledger is not something a test may do. That it would is `tools/bench-selftest.mjs`'s
   // to check, in `latencyVerdict`.
@@ -1043,7 +1043,7 @@ ok('a --panel run is informational, and the latency Piece is never judged from o
   fs.rmSync(tmp, { recursive: true, force: true });
   assert.equal(r.code, 3, r.out);
   assert.match(lastLine(r), /^gate judge latency: refused \(.* is informational/,
-    'a whole run of thirteen inside every bar is still not evidence when it came off the panel');
+    'a whole run of fourteen inside every bar is still not evidence when it came off the panel');
 
   // The same body without the mark is deliberately not run here. It is whole, accounted for and
   // inside every bar, so judge would take a verdict from it and write a round — and writing a round

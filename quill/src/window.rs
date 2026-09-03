@@ -30,6 +30,7 @@ use quill_engine::disk::{Filed, Kept, Line, Noticed, OnDisk, Saved, first_save_n
 use quill_engine::document::{Document, full_name};
 use quill_engine::focus::Focus;
 use quill_engine::settings::{Chrome, PreviewLayout, WindowState, library_width};
+use quill_engine::sync;
 
 use crate::caret;
 use crate::chrome;
@@ -46,6 +47,18 @@ use crate::tags;
 ///
 /// `docs/architecture.md` § Documents and files: "after one second of idle".
 const AUTOSAVE: Duration = Duration::from_secs(1);
+
+/// How long after the last keystroke the rendered page catches up.
+///
+/// #263 § Implementation Decisions, "Refresh": an edit arms this, every edit
+/// after it re-arms it, and the render pass runs once when it fires. Long
+/// enough that a burst of typing renders nothing and short enough that a
+/// writer looking up finds the page already there.
+const REFRESH: Duration = Duration::from_millis(200);
+
+/// How much one press of `preview.bigger` or `preview.smaller` moves the zoom,
+/// in percentage points ([`Window::step_zoom`]).
+const ZOOM_STEP: u32 = 10;
 
 /// How often the status line is drawn again while it is saying how long ago
 /// the last save was, in seconds.
@@ -131,6 +144,14 @@ mod imp {
         /// the Library's pane and, unlike it, never remembered: the pane is
         /// closed at every launch (#263).
         pub previewing: Cell<bool>,
+        /// The one Preview refresh timer, armed by the first edit of a burst
+        /// and re-armed by every edit after it, so the render pass runs once
+        /// when the writer stops rather than once per keystroke.
+        pub refresh: RefCell<Option<glib::SourceId>>,
+        /// Set while one pane's scroll is being put on to the other, so the
+        /// follower's own `value-changed` is read as the answer it is rather
+        /// than as a writer scrolling it back.
+        pub syncing: Cell<bool>,
         /// The title bar above the Editor and the stats bar below it.
         pub bars: Bars,
         /// The Library beside the page, hidden until `library.toggle` shows
@@ -287,6 +308,7 @@ impl Window {
         // where `--preview` asked for it — nothing else opens one, because
         // nothing remembers one (#263).
         window.imp().preview.attach(&window);
+        window.watch_sync();
         window.show_preview(session.flags().preview.is_some());
         if let Some(query) = session.flags().search.as_deref() {
             window.imp().sidebar.set_query(query);
@@ -1596,6 +1618,9 @@ impl Window {
         if let Some(ticking) = self.imp().ticking.take() {
             ticking.remove();
         }
+        if let Some(refresh) = self.imp().refresh.take() {
+            refresh.remove();
+        }
         self.remember();
         glib::Propagation::Proceed
     }
@@ -1854,6 +1879,193 @@ impl Window {
         self.imp()
             .preview
             .refresh(&document, &session.settings(), session.ground().scheme);
+        drop(document);
+        // The page is a new page, so the scroll it had means nothing: the
+        // caret's block is what the writer was looking at and where the pane
+        // is put back to (#263 § Refresh).
+        self.follow_caret();
+    }
+
+    /// Arms the Preview's refresh, or re-arms it where an earlier keystroke of
+    /// the same burst already did.
+    ///
+    /// The whole of what an edit costs the Preview: one timer taken down and
+    /// one put up, and nothing of the render pass on the keystroke lane. A
+    /// window with no pane open arms nothing at all.
+    fn arm_refresh(&self) {
+        if !self.imp().previewing.get() {
+            return;
+        }
+        if let Some(armed) = self.imp().refresh.take() {
+            armed.remove();
+        }
+        let id = glib::timeout_add_local_once(
+            REFRESH,
+            glib::clone!(
+                #[weak(rename_to = window)]
+                self,
+                move || {
+                    window.imp().refresh.take();
+                    window.refresh_preview();
+                },
+            ),
+        );
+        self.imp().refresh.replace(Some(id));
+    }
+
+    /// Puts the Preview where the caret's block asks for it: the caret rule
+    /// ([`quill_engine::sync::follow_caret`]), which is what an edit and a
+    /// caret move drive.
+    ///
+    /// One block index and one fraction, both of them O(1): this runs on every
+    /// keystroke and every arrow key, and the page it reads is whatever the
+    /// last refresh laid out.
+    fn follow_caret(&self) {
+        let imp = self.imp();
+        if !imp.previewing.get() {
+            return;
+        }
+        // `try_borrow` because a `mark-set` can arrive while the splice that
+        // moved the mark still holds the Document ([`Window::watch_edits`]).
+        let Ok(filed) = imp.filed.try_borrow() else {
+            return;
+        };
+        let document = filed.document();
+        let buffer = imp.editor.buffer();
+        let at = buffer.iter_at_mark(&buffer.get_insert());
+        let Some(caret) = document.block_at(tags::offset_of(document, &at)) else {
+            return;
+        };
+        drop(filed);
+        let Some(fraction) = imp.editor.caret_fraction() else {
+            return;
+        };
+        self.follow_preview(imp.preview.caret_offset(caret, fraction), true);
+    }
+
+    /// Puts the Preview where the Editor's top edge asks for it: the top-block
+    /// rule, which is what a wheel or a scrollbar over the Editor drives.
+    fn follow_editor(&self, offset: f64) {
+        let imp = self.imp();
+        if !imp.previewing.get() || imp.syncing.get() {
+            return;
+        }
+        // `try_borrow` for the reason [`Window::follow_caret`] has it: a scroll
+        // is one of the things an edit sets off, and the splice may still be
+        // holding the Document when it arrives.
+        let Ok(filed) = imp.filed.try_borrow() else {
+            return;
+        };
+        let driver = imp.editor.top_block(filed.document(), offset);
+        drop(filed);
+        let Some(driver) = driver else {
+            return;
+        };
+        // One block is the whole of what the rule reads of a driver: whichever
+        // block the top edge falls in, and how far into it
+        // ([`crate::editor::Editor::top_block`]).
+        self.follow_preview(imp.preview.top_block_offset(&[driver], offset), false);
+    }
+
+    /// Puts the Editor where the Preview's top edge asks for it: the same rule
+    /// the other way round, which is what a wheel or a scrollbar over the
+    /// rendered page drives.
+    fn follow_preview_scroll(&self, offset: f64) {
+        let imp = self.imp();
+        if !imp.previewing.get() || imp.syncing.get() {
+            return;
+        }
+        let Some(adjustment) = imp.scroller.get().map(|scroller| scroller.vadjustment()) else {
+            return;
+        };
+        let Ok(filed) = imp.filed.try_borrow() else {
+            return;
+        };
+        let follower = imp.editor.block_rows(filed.document());
+        drop(filed);
+        let max = (adjustment.upper() - adjustment.page_size()).max(0.0);
+        let to = sync::follow_top_block(&imp.preview.blocks(), offset, &follower, max);
+        imp.syncing.set(true);
+        adjustment.set_value(to);
+        imp.syncing.set(false);
+    }
+
+    /// Scrolls the Preview to `to`, without the scroll driving back.
+    ///
+    /// A page laid out again this instant is taller or shorter than the
+    /// scroller has been allocated for, and `gtk::Adjustment` clamps to the
+    /// end it has been told about; so a value that did not land is asked for
+    /// once more on the main loop, by which time GTK has laid the sheet out.
+    /// Once more and no further: a value that will not land twice is a page
+    /// with nowhere to put it.
+    fn follow_preview(&self, to: f64, again: bool) {
+        let imp = self.imp();
+        let adjustment = imp.preview.vadjustment();
+        imp.syncing.set(true);
+        adjustment.set_value(to);
+        imp.syncing.set(false);
+        if again && (adjustment.value() - to).abs() > 0.5 {
+            glib::idle_add_local_once(glib::clone!(
+                #[weak(rename_to = window)]
+                self,
+                move || window.follow_preview(to, false),
+            ));
+        }
+    }
+
+    /// Carries each pane's scroll to the other.
+    ///
+    /// Both directions off the adjustments rather than off a wheel, because a
+    /// scrollbar drag, a Page key and a wheel are one thing to a follower;
+    /// the guard is what keeps the answer from being read as a second
+    /// question. The caret rule runs after this one for an edit — the Editor
+    /// has already moved its own view by the time `mark-set` reaches
+    /// [`Window::watch_edits`] — so the finer rule has the last word.
+    fn watch_sync(&self) {
+        let Some(scroller) = self.imp().scroller.get() else {
+            return;
+        };
+        scroller.vadjustment().connect_value_changed(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |adjustment| window.follow_editor(adjustment.value()),
+        ));
+        self.imp()
+            .preview
+            .vadjustment()
+            .connect_value_changed(glib::clone!(
+                #[weak(rename_to = window)]
+                self,
+                move |adjustment| window.follow_preview_scroll(adjustment.value()),
+            ));
+    }
+
+    /// Steps the rendered page's zoom, or puts it back to the default:
+    /// `preview.bigger`, `preview.smaller` and `preview.reset`, and Ctrl+wheel
+    /// over the pane ([`crate::preview::Preview`]).
+    ///
+    /// The zoom is the settings file's, so every open pane re-renders at it,
+    /// the way a size step re-types every window ([`Window::step_size`]); the
+    /// Editor's own `font.*` ladder never reaches the Preview and this never
+    /// reaches the Editor.
+    pub(crate) fn step_zoom(&self, direction: Zoom) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        let zoom = stepped_zoom(session.preview_zoom(), direction);
+        if zoom == session.preview_zoom() {
+            return;
+        }
+        session.set_preview_zoom(zoom);
+        // Written as the key is pressed, for the reason the size is
+        // ([`Window::step_size`]).
+        session.store_settings();
+        let Some(app) = self.application() else {
+            return;
+        };
+        for window in windows(&app) {
+            window.refresh_preview();
+        }
     }
 
     /// The keyboard goes wherever the pane's state says it should: to the
@@ -1926,6 +2138,10 @@ impl Window {
     /// touched between keystrokes.
     fn typed(&self) {
         self.edited();
+        // Two timers and nothing else on the keystroke lane: autosave's, above,
+        // and the rendered page's ([`Window::arm_refresh`]).
+        self.arm_refresh();
+        self.follow_caret();
         let mut typing = self.imp().typing.get();
         typing.keystroke(Self::now());
         self.imp().typing.set(typing);
@@ -2236,6 +2452,11 @@ impl Window {
                 return;
             };
             window.imp().editor.refocus(filed.document());
+            drop(filed);
+            // A caret move takes the caret rule, as an edit does: the block
+            // being written is what the rendered page is kept on (#263
+            // § Scroll sync).
+            window.follow_caret();
         });
     }
 }
@@ -2247,6 +2468,33 @@ pub(crate) enum After {
     Stay,
     /// The window closes: the Save button of the prompt a close asked.
     Close,
+}
+
+/// Which way Bigger Preview Text, Smaller Preview Text and Default Preview
+/// Size move the rendered page's zoom.
+#[derive(Clone, Copy)]
+pub(crate) enum Zoom {
+    /// [`ZOOM_STEP`] points larger.
+    Bigger,
+    /// [`ZOOM_STEP`] points smaller.
+    Smaller,
+    /// Back to the Template's own sizes.
+    Reset,
+}
+
+/// The zoom one press of a Preview size key leaves, as a whole percentage.
+///
+/// A step of [`ZOOM_STEP`] points inside the range the settings file is read
+/// against ([`quill_engine::settings::preview_zooms`]), and a reset to the
+/// `[preview]` table's own default rather than to a number written twice.
+pub(crate) fn stepped_zoom(now: u32, direction: Zoom) -> u32 {
+    let range = quill_engine::settings::preview_zooms();
+    let wanted = match direction {
+        Zoom::Bigger => now.saturating_add(ZOOM_STEP),
+        Zoom::Smaller => now.saturating_sub(ZOOM_STEP),
+        Zoom::Reset => quill_engine::settings::Preview::default().zoom,
+    };
+    wanted.clamp(*range.start(), *range.end())
 }
 
 /// Which way Bigger Text, Smaller Text and Default Text Size move.
@@ -2573,5 +2821,70 @@ fn ask_to_quit(app: &gtk::Application, asking: Vec<Window>) {
 pub fn remember_open(app: &gtk::Application) {
     for window in windows(app) {
         window.remember();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A page of four blocks at `scale` times the heights the other pane lays
+    /// them out at, the third of which the rendered page will lack — a
+    /// Document's `Gap`, which the render pass drops.
+    fn page(scale: f64) -> Vec<sync::Block> {
+        [
+            (0, 0.0, 100.0),
+            (1, 100.0, 200.0),
+            (2, 300.0, 60.0),
+            (3, 360.0, 240.0),
+        ]
+        .into_iter()
+        .map(|(key, top, height)| sync::Block::new(key, top * scale, height * scale))
+        .collect()
+    }
+
+    /// What [`Window::follow_editor`] hands the rule is one block and not the
+    /// Editor's whole index, and the rule answers the same offset either way.
+    ///
+    /// The whole reason the Editor is asked for a block by
+    /// [`crate::editor::Editor::top_block`] rather than walked: the top-block
+    /// rule reads the driver only for whichever block its top edge is in, so a
+    /// slice of that one block is the same question asked cheaply, and a
+    /// keystroke never pays for a manuscript's index.
+    #[test]
+    fn one_block_is_the_whole_of_what_the_top_block_rule_asks_of_a_driver() {
+        let driver = page(1.0);
+        let follower = page(2.0);
+        let max = 2000.0;
+        for offset in [0.0, 50.0, 100.0, 355.0, 500.0] {
+            let whole = sync::follow_top_block(&driver, offset, &follower, max);
+            let one = driver
+                .iter()
+                .rev()
+                .find(|block| block.top <= offset)
+                .copied()
+                .expect("the top edge is in a block");
+            assert!(
+                (sync::follow_top_block(&[one], offset, &follower, max) - whole).abs()
+                    < f64::EPSILON,
+                "at {offset} the one block the top edge is in answers what the page does"
+            );
+        }
+    }
+
+    /// The stepping the three Preview size keys press, on its own: ten points
+    /// a press, held inside the range the settings file is read against, and a
+    /// reset to the Template's own sizes (#263 § Zoom).
+    #[test]
+    fn the_preview_zoom_steps_by_ten_points_and_stops_at_the_ends() {
+        assert_eq!(stepped_zoom(100, Zoom::Bigger), 110);
+        assert_eq!(stepped_zoom(100, Zoom::Smaller), 90);
+        assert_eq!(stepped_zoom(195, Zoom::Bigger), 200, "clamped, not refused");
+        assert_eq!(stepped_zoom(200, Zoom::Bigger), 200);
+        assert_eq!(stepped_zoom(55, Zoom::Smaller), 50);
+        assert_eq!(stepped_zoom(50, Zoom::Smaller), 50);
+        assert_eq!(stepped_zoom(0, Zoom::Smaller), 50, "and never below zero");
+        assert_eq!(stepped_zoom(175, Zoom::Reset), 100);
+        assert_eq!(stepped_zoom(50, Zoom::Reset), 100);
     }
 }
