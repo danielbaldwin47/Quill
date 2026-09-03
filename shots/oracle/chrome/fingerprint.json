@@ -4,11 +4,12 @@
     "files": 16,
     "sha256": "738f48c969965ac3"
   },
-  "shoot": "b2362316db135d06",
-  "git_head": "d7f66f9",
+  "shoot": "239bd27db3974b27",
+  "git_head": "1dccaf4",
   "passages": {
     "ref/sample.md": "8005e6c57d435cea"
   },
+  "libraries": {},
   "states": {
     "bars": {
       "text": "ref/sample.md",
@@ -27,7 +28,10 @@
       "nocaret": false,
       "active": true,
       "typing": false,
-      "menu": null
+      "menu": null,
+      "library": null,
+      "sidebar": false,
+      "search": null
     },
     "empty": {
       "text": null,
@@ -46,7 +50,10 @@
       "nocaret": false,
       "active": true,
       "typing": false,
-      "menu": null
+      "menu": null,
+      "library": null,
+      "sidebar": false,
+      "search": null
     },
     "typing": {
       "text": "ref/sample.md",
@@ -65,7 +72,10 @@
       "nocaret": false,
       "active": true,
       "typing": true,
-      "menu": null
+      "menu": null,
+      "library": null,
+      "sidebar": false,
+      "search": null
     },
     "view-menu": {
       "text": "ref/sample.md",
@@ -84,7 +94,10 @@
       "nocaret": false,
       "active": true,
       "typing": false,
-      "menu": "view"
+      "menu": "view",
+      "library": null,
+      "sidebar": false,
+      "search": null
     },
     "palette": {
       "text": "ref/sample.md",
@@ -103,7 +116,10 @@
       "nocaret": false,
       "active": true,
       "typing": false,
-      "menu": "palette"
+      "menu": "palette",
+      "library": null,
+      "sidebar": false,
+      "search": null
     }
   }
 }
