@@ -55,9 +55,11 @@ ranges after the edit by the edit's byte delta.
 
 ## Annotators and the keystroke path
 
-An Annotator turns a byte range of the Document into spans, each `(byte range, mark)`. Four exist:
+An Annotator turns a byte range of the Document into spans, each `(byte range, mark)`. Five exist:
 Markup (from the parser: which bytes are Markup, which are heading, emphasis, strong, code, link,
-quote, list marker), Syntax highlight (a UPOS tag per word), Style check (a list name per match) and
+quote, list marker), Live (from the Markup spans and the caret: which marker bytes are folded away,
+which bytes are a heading's and at what level, and what furniture stands in a folded marker's
+cells), Syntax highlight (a UPOS tag per word), Style check (a list name per match) and
 Spell check (a misspelling per word, suggestions fetched on demand). Syntax highlight, Style check and
 Spell check consume the **prose stream**: the parser's `Text` events with Markup, code spans, fenced
 code, URLs and front matter removed. They never see a `#` or a `*`.
@@ -236,7 +238,9 @@ and the determinism settings, this document names the flags:
 - Judged state: `--text <file>`, `--theme light|dark` (the ground, and — given without `--palette` —
   the built-in table for it whatever the `palette` setting names, so a judged shot is the same on
   every machine), `--font duo|quattro|mono`, `--step <n>`,
-  `--focus off|sentence|paragraph`, `--typewriter`, `--chrome on|off`, `--caret <offset>|end`,
+  `--focus off|sentence|paragraph`, `--typewriter`, `--live` (turn Live on; absent under
+  `--deterministic` it pins Live off, so every state judged before Live existed is shot with the
+  markup written out), `--chrome on|off`, `--caret <offset>|end`,
   `--select <from>,<to>`, `--scroll <fraction>`, `--nocaret`, `--typing` (the chrome as it is
   inside the 500 ms after a keystroke: the title bar gone, the stats bar dimmed), `--menu
   view|document|stats|palette` (that menu, or the Palette, open with its first row selected),

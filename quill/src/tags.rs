@@ -42,6 +42,7 @@ use std::ops::Range;
 use gtk::gdk;
 use gtk::pango;
 use gtk::prelude::*;
+use quill_engine::annotate::live::{self, Fold, LiveLook};
 use quill_engine::annotate::{self, Look, Mark, Slant, Span, Weight};
 use quill_engine::document::Document;
 use quill_engine::focus::{self, Focus, LineTiers, Tier};
@@ -64,6 +65,19 @@ const BOLD: i32 = 700;
 /// The Editor sets it in CSS on the whole widget; a run that is not bold has to
 /// say so all the same, because the run before it may have been.
 const REGULAR: i32 = INK_WEIGHT.cast_signed();
+
+/// How much larger than the body a heading is set under Live, by level.
+///
+/// The fixed ladder the Preview spec names: H1 1.6, H2 1.4, H3 1.2, and H4 to
+/// H6 at body size, bold as every heading already is. Fixed rather than
+/// derived, because it is a design decision of the spec's own and not a
+/// function of the type ladder: a heading is one and a half sentences of
+/// title, and the three that carry a manuscript's structure are the three that
+/// grow.
+///
+/// With Live off nothing reads it, which is what leaves every judged state the
+/// page it was.
+pub const LADDER: [f64; 6] = [1.6, 1.4, 1.2, 1.0, 1.0, 1.0];
 
 /// How far the code ground runs past each edge of the measure, at `step` of
 /// the type ladder.
@@ -229,6 +243,68 @@ fn struck(buffer: &gtk::TextBuffer) -> gtk::TextTag {
     })
 }
 
+/// The tag that closes a folded inline delimiter up.
+///
+/// `invisible` takes the bytes out of the layout altogether: they advance
+/// nothing and the words on either side of them meet, which is what a folded
+/// `**` or a backtick is meant to look like. It is the wrong fold for a
+/// block-leading marker — see [`hidden`].
+fn folded(buffer: &gtk::TextBuffer) -> gtk::TextTag {
+    tag(buffer, "live-folded", |tag| {
+        tag.set_invisible(true);
+    })
+}
+
+/// The tag that takes a marker's ink away and leaves its cells where they are,
+/// by drawing it in `ground` — the colour it stands on.
+///
+/// The other fold, and the one a marker at the head of its block takes. An
+/// invisible run advances zero, and a heading hangs by exactly what its `#`s
+/// advance ([`hang_markers`]), so folding them invisibly would start the
+/// heading's words one marker run inside the gutter. A marker drawn in its own
+/// ground keeps the advance: the hang is handed back by the same glyphs, the
+/// words stay on the body column, and the cells a bullet or a task box left
+/// stay the width the furniture #274 will be drawn in.
+///
+/// **The ground rather than transparent ink**, which is what this wanted:
+/// `GtkTextTag`'s foreground reaches Pango as a `PangoColor`, which has no
+/// alpha, so a foreground at alpha 0 is drawn at full strength — the fold was
+/// built that way first and the `#`s came back on the page in the shot. The
+/// price is that the colour has to be right: a marker inside a fenced block
+/// stands on the well and not on the paper, which is why the caller reads the
+/// ground under each span rather than passing the page's.
+///
+/// **The one place this module puts two tags with the same property on the
+/// same bytes.** A folded marker already carries the colour its run resolved
+/// to, and priority — the tag table's own order of addition — decides which
+/// foreground is seen. So the fold is lifted to the top of the table each time
+/// it is asked for: a colour first asked for after this tag was made would
+/// otherwise outrank it and the marker would come back on the page.
+fn hidden(buffer: &gtk::TextBuffer, ground: &str) -> gtk::TextTag {
+    let hidden = tag(buffer, &format!("live-hidden-{ground}"), |tag| {
+        tag.set_foreground_rgba(Some(&shaded(ground, Look::OPAQUE)));
+    });
+    hidden.set_priority(buffer.tag_table().size() - 1);
+    hidden
+}
+
+/// The tag that sets a heading of `level` at its size on the Live ladder.
+///
+/// A character property and not a paragraph one, so it goes on the heading's
+/// own bytes rather than on `heading-<level>`: that tag hangs every heading
+/// whether Live is on or off, and a size on it would scale the page with Live
+/// off. The levels the ladder leaves at body size take no tag at all, which is
+/// why this answers `None` for them.
+fn scaled(buffer: &gtk::TextBuffer, level: u8) -> Option<gtk::TextTag> {
+    let scale = *LADDER.get(usize::from(level).saturating_sub(1))?;
+    if scale == 1.0 {
+        return None;
+    }
+    Some(tag(buffer, &format!("live-scale-{level}"), |tag| {
+        tag.set_scale(scale);
+    }))
+}
+
 /// The paragraph tag for a heading of `level`.
 ///
 /// Made with nothing set on it, and hung by [`hang_headings`] instead: a
@@ -337,6 +413,35 @@ pub struct Painting<'a> {
     /// What Focus lights, for the caret where it now is. Empty with Focus off,
     /// and empty with Focus on when the caret lights nothing.
     pub tiers: &'a [LineTiers],
+    /// Where the writer stands, with Live on, and `None` with Live off.
+    ///
+    /// Live's spans are a function of the caret and of nothing this module
+    /// holds, so the place is carried and the spans are asked for at the draw,
+    /// over exactly the bytes being drawn ([`live::spans_in`]): a fold is a
+    /// judgement about the block the caret is not in, and the caret moves
+    /// between two draws of the same bytes.
+    pub live: Option<Writer>,
+}
+
+/// Where the writer stands: the selection as the buffer holds it, empty for
+/// the caret.
+///
+/// A pair rather than the `Range<usize>` [`live::spans_in`] takes, because
+/// [`Painting`] is `Copy` and a range is not; [`Writer::at`] hands the range
+/// back at the one place it is wanted.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Writer {
+    /// The first byte of the selection.
+    pub start: usize,
+    /// The byte after its last, equal to `start` for a caret.
+    pub end: usize,
+}
+
+impl Writer {
+    /// The writer's place as the engine takes it.
+    fn at(self) -> Range<usize> {
+        self.start..self.end
+    }
 }
 
 /// Draws the whole of `document` on `buffer`, which must hold its text.
@@ -431,6 +536,7 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
         colours,
         focus,
         tiers,
+        live,
     } = painting;
     // The flattening resolves the Markup mark and the Focus tier into one
     // colour, so the ink is read here rather than off the run's role: with
@@ -497,6 +603,67 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
                 buffer.apply_tag(&underline(buffer, &colours), &from, &to);
             }
             _ => {}
+        }
+    }
+    if let Some(writer) = live {
+        fold(buffer, document, &colours, &spans, writer, at);
+    }
+}
+
+/// Puts Live's fold and Live's ladder on the bytes `at`, for a writer at
+/// `writer`.
+///
+/// The third loop, and it is its own function because it is its own Annotator:
+/// the Live spans are asked for over the blocks these bytes touch and mapped
+/// one to one on to a tag, exactly as the marks above are. Nothing here draws
+/// furniture — that is the Editor's snapshot, ticket #274 — so a furnished
+/// marker's cells are folded and left empty.
+fn fold(
+    buffer: &gtk::TextBuffer,
+    document: &Document,
+    colours: &Colours,
+    spans: &[Span],
+    writer: Writer,
+    at: &Range<usize>,
+) {
+    let paper = colours.colour(Role::Paper).to_hex();
+    let well = code_well(colours);
+    // The ground a folded marker stands on, which is what it is drawn in: the
+    // well under a fence or an info string, and the page under everything else.
+    let ground = |at: &Range<usize>| {
+        let code = spans.iter().any(|span| {
+            matches!(span.mark, Mark::CodeBlock | Mark::Code)
+                && span.at.start <= at.start
+                && at.end <= span.at.end
+        });
+        if code { well.clone() } else { paper.clone() }
+    };
+    for span in live::spans_in(document, &writer.at(), at) {
+        let from = iter_at(buffer, document, span.at.start);
+        let to = iter_at(buffer, document, span.at.end);
+        match span.look {
+            LiveLook::Folded(Fold::Hanging) => {
+                buffer.apply_tag(&hidden(buffer, &ground(&span.at)), &from, &to);
+            }
+            LiveLook::Folded(Fold::Inline) => {
+                buffer.apply_tag(&folded(buffer), &from, &to);
+            }
+            LiveLook::Scaled(level) => {
+                if let Some(scaled) = scaled(buffer, level) {
+                    buffer.apply_tag(&scaled, &from, &to);
+                }
+            }
+            // A link's words are the writer's own and are not folded: the
+            // accent rule that stands over them is furniture, and furniture is
+            // drawn in the snapshot rather than tagged here (#274). Every
+            // other piece of furniture stands where its marker did, so the
+            // marker goes off the page and its cells stay the width they were
+            // ([`hidden`]).
+            LiveLook::Furniture(furniture) => {
+                if furniture.folds() {
+                    buffer.apply_tag(&hidden(buffer, &ground(&span.at)), &from, &to);
+                }
+            }
         }
     }
 }

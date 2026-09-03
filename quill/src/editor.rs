@@ -302,6 +302,15 @@ mod imp {
         /// next caret move can be told which lines changed and redraw only
         /// those ([`focus::changed`]). Empty with Focus off.
         pub tiers: RefCell<Vec<LineTiers>>,
+        /// Whether Live is on: the markup rendered in place rather than
+        /// written out. Held beside the Focus it reads like — a mode read at
+        /// every draw, and a `Cell` is a read and no borrow.
+        pub live: Cell<bool>,
+        /// The lines Live last left unfolded, so that a caret move can fold
+        /// the block it left in the same pass that unfolds the one it entered
+        /// ([`Editor::refold`]). `None` with Live off, and while it has not
+        /// been worked out yet.
+        pub open: RefCell<Option<std::ops::Range<usize>>>,
         /// How far the baseline sits below the top of the box
         /// `iter_location` answers with, which is what the bar's band is
         /// anchored to. See [`Editor::bar`], and [`caret::band_top`] for why
@@ -641,18 +650,43 @@ impl Editor {
         self.imp().focus.set(focus);
     }
 
+    /// Whether Live is on when this Editor opens.
+    ///
+    /// Beside [`Editor::open_focused_on`] and for its reason: `--live` names a
+    /// state the first frame is meant to show, and a frame that showed the
+    /// markers before folding them would be a flash of the wrong page. The
+    /// fold itself is worked out by [`Editor::show_document`], which is the
+    /// first draw and the first thing with a caret to work it out from.
+    pub fn open_live_on(&self, live: bool) {
+        self.imp().live.set(live);
+    }
+
     /// Everything but the text that decides how this Editor draws.
     ///
     /// `tiers` is borrowed rather than read from the Editor here, because every
     /// caller already holds the borrow: the tiers are worked out and drawn in
     /// one breath, and a second borrow inside a draw is a second chance for
     /// them to be the tiers of a different caret.
-    fn painting<'a>(&self, tiers: &'a [LineTiers]) -> tags::Painting<'a> {
+    fn painting<'a>(&self, document: &Document, tiers: &'a [LineTiers]) -> tags::Painting<'a> {
+        self.painting_at(&self.caret_bytes(document), tiers)
+    }
+
+    /// [`Editor::painting`], for a writer whose place the buffer does not hold
+    /// yet.
+    ///
+    /// The same reason [`Editor::retier_at`] takes one: a Document is drawn
+    /// before its cursor is placed, and Live's fold is a judgement about where
+    /// the writer is, so the place it opens at is named rather than read.
+    fn painting_at<'a>(&self, at: &Range<usize>, tiers: &'a [LineTiers]) -> tags::Painting<'a> {
         tags::Painting {
             face: self.imp().face.get(),
             colours: self.colours(),
             focus: self.imp().focus.get(),
             tiers,
+            live: self.imp().live.get().then_some(tags::Writer {
+                start: at.start,
+                end: at.end,
+            }),
         }
     }
 
@@ -709,6 +743,7 @@ impl Editor {
     /// which is most of them, since a sentence is many keystrokes wide — draws
     /// nothing at all.
     pub fn refocus(&self, document: &Document) {
+        self.refold(document);
         let before = self.imp().tiers.borrow().clone();
         let moved = self.retier(document);
         if moved.is_empty() {
@@ -723,6 +758,55 @@ impl Editor {
         self.begin_fade(document, &before, &moved);
     }
 
+    /// Folds the block the writer left and unfolds the one they are in, in one
+    /// pass.
+    ///
+    /// The caret feed Live listens to, beside the one Focus listens to, and
+    /// the two are drawn in the same breath for the same reason
+    /// [`Editor::retag`] draws the edit and the dim together: a fold and an
+    /// unfold that arrived a frame apart would be a flash of a page with two
+    /// blocks open, or none.
+    ///
+    /// Nothing but the two blocks is drawn, which is what keeps Live on the
+    /// keystroke path: a caret walking along the sentence it is in leaves the
+    /// same lines open and draws nothing at all.
+    fn refold(&self, document: &Document) {
+        if !self.imp().live.get() {
+            return;
+        }
+        let at = self.caret_bytes(document);
+        let now = self.open_lines(document, &at);
+        let was = self.imp().open.replace(Some(now.clone()));
+        if was.as_ref() == Some(&now) {
+            return;
+        }
+        let mut lines = Vec::with_capacity(2);
+        lines.extend(was);
+        lines.push(now);
+        self.redraw(document, &lines);
+    }
+
+    /// The lines of the blocks the writer's range reaches: what Live leaves
+    /// unfolded.
+    ///
+    /// The Document's own blocks rather than the smaller ones Live splits a
+    /// list into: a line drawn again is drawn as Live now says it is, so a
+    /// range that reaches wider than the fold moved costs a redraw and changes
+    /// nothing, and a range that reaches narrower would leave a marker behind.
+    fn open_lines(&self, document: &Document, at: &Range<usize>) -> Range<usize> {
+        let text = document.text().len();
+        let block = |offset: usize| {
+            document
+                .block_at(offset.min(text))
+                .map(|at| document.block(at))
+        };
+        let start = block(at.start).map_or(0, |block| block.at.start);
+        let end = block(at.end).map_or(text, |block| block.at.end);
+        let first = document.place(start).line;
+        let last = document.place(end.saturating_sub(1).max(start)).line;
+        first..last + 1
+    }
+
     /// Draws each of `lines` again in the tiers the Editor now holds, inside
     /// one `freeze_notify`.
     ///
@@ -734,7 +818,7 @@ impl Editor {
     /// moved for them to hear about.
     fn redraw(&self, document: &Document, lines: &[Range<usize>]) {
         let tiers = self.imp().tiers.borrow();
-        let painting = self.painting(&tiers);
+        let painting = self.painting(document, &tiers);
         let buffer = self.buffer();
         let batch = buffer.freeze_notify();
         for at in lines {
@@ -776,7 +860,7 @@ impl Editor {
         let buffer = self.buffer();
         let batch = buffer.freeze_notify();
         let tiers = self.imp().tiers.borrow();
-        tags::apply(&buffer, document, self.painting(&tiers));
+        tags::apply(&buffer, document, self.painting(document, &tiers));
         drop(tiers);
         drop(batch);
         // The caret takes the new accent on its next frame, and the selection
@@ -837,6 +921,20 @@ impl Editor {
         // The heading markers hang into this container's gutter, so they are
         // re-hung with it: both halves of the pair move, the measure's edge
         // with the window and the marker run with the type.
+        self.hang();
+    }
+
+    /// Hangs the heading markers into the gutter of the page as last laid out.
+    ///
+    /// Its own pass because three things move it and only one of them is the
+    /// window: the measure's edge with the allocation, the marker run with the
+    /// type, and — since Live sets a heading larger than the body — the run
+    /// again when Live is switched on or off. A page that has never been laid
+    /// out has no gutter to hang into and nothing to redraw.
+    fn hang(&self) {
+        let Some(page) = self.imp().laid_out.get() else {
+            return;
+        };
         tags::hang_markers(
             &self.buffer(),
             self.imp().step.get(),
@@ -907,10 +1005,17 @@ impl Editor {
     /// The markers are marker ink at [`Weight::Regular`](quill_engine::annotate::Weight),
     /// which is what body type is set at, so the body's own description
     /// measures them.
+    ///
+    /// With Live on they are the heading's own size instead
+    /// ([`tags::LADDER`]), because that is what the layout will advance them
+    /// by: the `#`s carry the heading's scale whether they are on the page or
+    /// folded to transparent ink, and one `heading-<level>` tag cannot hang
+    /// two ways. So under Live every heading of a level hangs by the scaled
+    /// run, and with Live off nothing here moves.
     fn marker_advance(&self, level: u8) -> i32 {
         let mut run = "#".repeat(usize::from(level));
         run.push(' ');
-        let layout = self.measured(&run);
+        let layout = self.measured_at(&run, self.heading_scale(level));
         // The logical width, rounded once here, as every other horizontal
         // length this widget sets is.
         let width = f64::from(layout.size().0) / f64::from(pango::SCALE);
@@ -929,15 +1034,37 @@ impl Editor {
     /// GTK recomputes style after this is asked, and a layout that took the
     /// widget's word for it would be measuring the desktop theme's font.
     fn measured(&self, text: &str) -> pango::Layout {
+        self.measured_at(text, 1.0)
+    }
+
+    /// [`Editor::measured`], with the em multiplied by `scale`.
+    ///
+    /// The one thing measured off the body's size rather than at it is a
+    /// heading's markers under Live, and they are measured through the same
+    /// description for the reason [`Editor::measured`] builds one: a run
+    /// measured on the desktop theme's font is the wrong run at any size.
+    fn measured_at(&self, text: &str, scale: f64) -> pango::Layout {
         let layout = self.create_pango_layout(Some(text));
         layout.set_font_description(Some(&body_font(
             self.imp().face.get(),
-            typography::em(self.imp().step.get()),
+            typography::em(self.imp().step.get()) * scale,
         )));
         let features = pango::AttrList::new();
         features.insert(pango::AttrFontFeatures::new(&pango_features()));
         layout.set_attributes(Some(&features));
         layout
+    }
+
+    /// How much larger than the body a heading of `level` is drawn: the Live
+    /// ladder while Live is on, and the body's own size while it is off.
+    fn heading_scale(&self, level: u8) -> f64 {
+        if !self.imp().live.get() {
+            return 1.0;
+        }
+        tags::LADDER
+            .get(usize::from(level).saturating_sub(1))
+            .copied()
+            .unwrap_or(1.0)
     }
 
     /// Shows `document`, marked up, with the caret at its start.
@@ -962,8 +1089,16 @@ impl Editor {
         // were known would be a flash of the whole thing bright.
         self.retier_at(document, &(0..0));
         let tiers = self.imp().tiers.borrow();
-        tags::apply(&buffer, document, self.painting(&tiers));
+        tags::apply(&buffer, document, self.painting_at(&(0..0), &tiers));
         drop(tiers);
+        // The fold this Document opened at, remembered for the same reason the
+        // tiers are: the first caret move has to know which block to fold.
+        self.imp().open.replace(
+            self.imp()
+                .live
+                .get()
+                .then(|| self.open_lines(document, &(0..0))),
+        );
         buffer.place_cursor(&buffer.start_iter());
     }
 
@@ -1008,6 +1143,12 @@ impl Editor {
         // sentence left stranded half-way between the two tiers.
         self.settle_fade(document);
         self.redraw(document, std::slice::from_ref(&edit.lines));
+        // An edit moves the fold as well as the dim: a writer who types a
+        // blank line has left one block for another, and the lines the fold
+        // was last open over have moved under the splice. Asked after the
+        // edit's own redraw, so the block the caret has left is folded in the
+        // same pass ([`Editor::refold`]).
+        self.refold(document);
         if !on {
             return;
         }
@@ -1043,10 +1184,41 @@ impl Editor {
         let buffer = self.buffer();
         let batch = buffer.freeze_notify();
         let tiers = self.imp().tiers.borrow();
-        tags::apply(&buffer, document, self.painting(&tiers));
+        tags::apply(&buffer, document, self.painting(document, &tiers));
         drop(tiers);
         drop(batch);
         self.queue_draw();
+        self.settle();
+    }
+
+    /// Whether the markup is rendered in place from now on, with the page
+    /// redrawn to say so.
+    ///
+    /// The whole Document rather than the lines a fold moved across, and for
+    /// [`Editor::set_focus`]'s reason: every block but the writer's changes
+    /// when Live arrives, and the fold only ever names the writer's own.
+    ///
+    /// The hang moves with it. A heading's `#`s advance further at the
+    /// heading's Live size than at the body's, and the gutter is hung by
+    /// exactly what they advance ([`tags::hang_markers`]), so the six levels
+    /// are measured again before the draw that will use them.
+    pub fn set_live(&self, live: bool, document: &Document) {
+        self.imp().live.set(live);
+        self.hang();
+        let at = self.caret_bytes(document);
+        self.imp()
+            .open
+            .replace(live.then(|| self.open_lines(document, &at)));
+        let buffer = self.buffer();
+        let batch = buffer.freeze_notify();
+        let tiers = self.imp().tiers.borrow();
+        tags::apply(&buffer, document, self.painting_at(&at, &tiers));
+        drop(tiers);
+        drop(batch);
+        self.queue_draw();
+        // A heading's row is the size of its type, so the rows under the caret
+        // have moved: the bar is re-cut on the page as it now stands.
+        self.caret_settled();
         self.settle();
     }
 

@@ -11,6 +11,7 @@
     "step": 5,
     "focus": "off",
     "typewriter": false,
+    "live": false,
     "chrome": "on",
     "caret": 403,
     "select": null,
@@ -297,7 +298,17 @@
         "nocaret": true
       }
     },
-    "latency": {}
+    "latency": {},
+    "live": {
+      "folded": {
+        "chrome": "off",
+        "live": true,
+        "assert": {
+          "kind": "folded",
+          "scale": 1.6
+        }
+      }
+    }
   },
   "keys": {
     "_about": "The scripts tools/gate keys <piece> types, beside the states tools/gate judge shoots, so a Piece is one entry to find. A Piece may carry none, and most do not. `state` overrides `defaults` exactly as a judged state does, but the app is opened Live rather than --deterministic: a still wants the blink frozen and the glide gone, and a typed condition wants the caret machine running, because that machine is what it is there to test. Each burst is typed in full, then shot, then its `assert` list is evaluated from the pixels; `between` is evaluated across consecutive bursts, and skips a pair with a burst that left no caret on the page. A burst types its `text` and then its `keys`, which is the form that can spell a chord and the only one that can; `settle` says which still it is shot at (`caret`, the default, or `still` for a page a selection has taken the caret off), and `chars` and `rows` are what the assertions measure against. The assertion and settle names are tools/keys-assert.mjs's.",
