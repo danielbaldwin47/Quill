@@ -213,6 +213,28 @@ fn block_spans(
     }
 }
 
+/// The part of its block that the writer at `offset` is in: the unit Live
+/// folds by, as the module's own lines describe it.
+///
+/// The app asks so that a caret move can be answered with the fold's own unit
+/// rather than the index's: a move from one item of a list to the next leaves
+/// the Document's block where it was and moves this. `None` where the Document
+/// has no block at `offset`.
+///
+/// One block's parts and no more: the walk is [`parts`] over the block
+/// [`Document::block_at`] names, and the part is picked with [`touches`], the
+/// predicate the fold itself uses, so the answer is the range the fold would
+/// leave open — the end of the text among it.
+#[must_use]
+pub fn part_at(doc: &Document, offset: usize) -> Option<Range<usize>> {
+    let block = doc.block(doc.block_at(offset)?);
+    let caret = offset..offset;
+    let len = doc.text().len();
+    parts(&block, &doc.spans_in(&block.at))
+        .into_iter()
+        .find(|part| touches(part, &caret, len))
+}
+
 /// The blocks Live sees in one block of the index.
 ///
 /// One, for everything but a list: a list is split at each of its items'
@@ -493,6 +515,64 @@ mod tests {
             .filter(|span| span.mark == mark)
             .map(|span| span.at)
             .collect()
+    }
+
+    #[test]
+    fn part_at_answers_the_item_the_offset_is_in_and_the_whole_block_elsewhere() {
+        let text = concat!(
+            "A paragraph\nthat runs on.\n\n",
+            "- one\n- two\n  - nested\n\n",
+            "```rust\nlet x = 1;\n```\n"
+        );
+        let doc = document(text);
+        let at = |needle: &str| text.find(needle).expect("the passage carries it");
+        let part = |offset: usize| part_at(&doc, offset).expect("every offset is in a block");
+
+        // Each item of the list is its own part, the nested one included, and
+        // one item ends where the next one's marker starts.
+        let (one, two, nested) = (part(at("- one")), part(at("- two")), part(at("  - nested")));
+        assert_eq!(one, at("- one")..at("- two"));
+        assert_eq!(two, at("- two")..at("  - nested"));
+        assert_eq!(nested.start, at("  - nested"));
+        assert!(nested.end > at("nested"));
+
+        // The paragraph and the fenced block are one part each, over both of
+        // their lines, and the end of the text belongs to the last part.
+        let paragraph = part(at("A paragraph"));
+        assert_eq!(part(at("that runs on")), paragraph);
+        assert!(!paragraph.contains(&at("- one")));
+        let fence = part(at("```rust"));
+        assert_eq!(part(at("let x")), fence);
+        assert_eq!(
+            part(text.len()).end,
+            text.len(),
+            "the end of the text belongs to the last part"
+        );
+
+        // And a part is exactly what the fold leaves open: with the writer in
+        // the second item, that item's spans are gone and every other span is
+        // the one it was with the writer in the paragraph.
+        let far = spans(&doc, &(0..0));
+        let here = spans(&doc, &(two.start..two.start));
+        let elsewhere = |span: &&LiveSpan| {
+            !two.contains(&span.at.start) && !paragraph.contains(&span.at.start)
+        };
+        assert_eq!(
+            here.iter().filter(elsewhere).collect::<Vec<_>>(),
+            far.iter().filter(elsewhere).collect::<Vec<_>>()
+        );
+        assert!(
+            here.iter().all(|span| !two.contains(&span.at.start)),
+            "nothing inside the writer's own item is folded: {here:?}"
+        );
+        assert!(
+            far.iter().any(|span| two.contains(&span.at.start)),
+            "with the writer elsewhere the item's marker folds: {far:?}"
+        );
+        assert!(
+            here.iter().any(|span| one.contains(&span.at.start)),
+            "the item the writer left folds while they stand in the next one: {here:?}"
+        );
     }
 
     #[test]

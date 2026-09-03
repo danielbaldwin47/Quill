@@ -28,7 +28,7 @@ use gtk::gsk;
 use gtk::pango;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
-use quill_engine::annotate::live::{Furniture, LiveLook, LiveSpan};
+use quill_engine::annotate::live::{self, Furniture, LiveLook, LiveSpan};
 use quill_engine::annotate::{self, Painted};
 use quill_engine::document::{Document, Edit};
 use quill_engine::focus::typewriter::{self, Glide, Hold, Typewriter};
@@ -929,22 +929,25 @@ impl Editor {
         self.refurnish(document);
     }
 
-    /// The lines of the blocks the writer's range reaches: what Live leaves
+    /// The lines of the parts the writer's range reaches: what Live leaves
     /// unfolded.
     ///
-    /// The Document's own blocks rather than the smaller ones Live splits a
-    /// list into: a line drawn again is drawn as Live now says it is, so a
-    /// range that reaches wider than the fold moved costs a redraw and changes
-    /// nothing, and a range that reaches narrower would leave a marker behind.
+    /// Live's part rather than the Document's block ([`live::part_at`]), which
+    /// is the same thing for everything but a list: a list is one block and
+    /// many parts, and a caret walking from one item to the next left the
+    /// block it was in, so a fold keyed on the block saw nothing change and
+    /// neither item was drawn again. Wider than the fold moved would only cost
+    /// a redraw — a line drawn again is drawn as Live now says it is — but
+    /// narrower leaves a marker behind, and the block is narrower nowhere and
+    /// wider only here.
+    ///
+    /// A part starts at a marker, which is the start of a line, so no line
+    /// belongs to two parts and the lines below are the part's own.
     fn open_lines(&self, document: &Document, at: &Range<usize>) -> Range<usize> {
         let text = document.text().len();
-        let block = |offset: usize| {
-            document
-                .block_at(offset.min(text))
-                .map(|at| document.block(at))
-        };
-        let start = block(at.start).map_or(0, |block| block.at.start);
-        let end = block(at.end).map_or(text, |block| block.at.end);
+        let part = |offset: usize| live::part_at(document, offset.min(text));
+        let start = part(at.start).map_or(0, |part| part.start);
+        let end = part(at.end).map_or(text, |part| part.end);
         let first = document.place(start).line;
         let last = document.place(end.saturating_sub(1).max(start)).line;
         first..last + 1
