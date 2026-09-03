@@ -267,7 +267,7 @@ pub const COMMANDS: &[Command] = &[
     row("template.indentParagraphs", "Indent Paragraphs", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Template"), "Indent Paragraphs")], true),
     // View › Appearance.
     row("theme.toggle", "Dark Mode", Scope::Win, Kind::Check, &["Ctrl+Shift+L", "Alt+Shift+N"], &[place(VIEW, Some("Appearance"), "Dark Mode")], true),
-    row("font.bigger", "Bigger Text", Scope::Win, Kind::Plain, &["Ctrl+=", "Ctrl++"], &[place(VIEW, Some("Appearance"), "Bigger Text")], true),
+    row("font.bigger", "Bigger Text", Scope::Win, Kind::Plain, &["Ctrl+="], &[place(VIEW, Some("Appearance"), "Bigger Text")], true),
     row("font.smaller", "Smaller Text", Scope::Win, Kind::Plain, &["Ctrl+-"], &[place(VIEW, Some("Appearance"), "Smaller Text")], true),
     row("font.reset", "Default Text Size", Scope::Win, Kind::Plain, &["Ctrl+0"], &[place(VIEW, Some("Appearance"), "Default Text Size")], true),
     row("preview.bigger", "Bigger Preview Text", Scope::Win, Kind::Plain, &["Ctrl+Shift+="], &[place(VIEW, Some("Appearance"), "Bigger Preview Text")], true),
@@ -367,7 +367,8 @@ pub fn radio_groups() -> Vec<&'static str> {
 
 /// A chord in the table's syntax as GTK's accelerator syntax:
 /// `Ctrl+Shift+L` is `<Control><Shift>l`, `Ctrl+Page Down` is
-/// `<Control>Page_Down`.
+/// `<Control>Page_Down`, `Ctrl+Shift+=` is `<Control><Shift>plus`
+/// ([`shifted`]).
 ///
 /// `None` for a key this converter has no name for, which the registry test
 /// turns into a failure rather than a silently unbound chord.
@@ -389,8 +390,43 @@ pub fn accel(chord: &str) -> Option<String> {
             _ => return None,
         });
     }
-    out.push_str(&key_name(key)?);
+    let name = match shifted(key) {
+        Some(name) if modifiers.contains(&"Shift") => name.to_owned(),
+        _ => key_name(key)?,
+    };
+    out.push_str(&name);
     Some(out)
+}
+
+/// GDK's name for the keyval a US layout's Shift produces for `key`, where
+/// Shift produces another one.
+///
+/// A chord names the keyval the press makes, not the unshifted key: GDK
+/// matches a consumed modifier as a don't-care, so `Ctrl+Shift+=` arrives as
+/// keyval `plus` with Shift consumed and an accelerator written
+/// `<Control><Shift>equal` never matches it. Letters are their own answer and
+/// are left to [`key_name`]. The table is the US layout's, as the rest of the
+/// registry is.
+fn shifted(key: &str) -> Option<&'static str> {
+    match key {
+        "1" => Some("exclam"),
+        "2" => Some("at"),
+        "3" => Some("numbersign"),
+        "4" => Some("dollar"),
+        "5" => Some("percent"),
+        "6" => Some("asciicircum"),
+        "7" => Some("ampersand"),
+        "8" => Some("asterisk"),
+        "9" => Some("parenleft"),
+        "0" => Some("parenright"),
+        "-" => Some("underscore"),
+        "=" => Some("plus"),
+        "," => Some("less"),
+        "." => Some("greater"),
+        ";" => Some("colon"),
+        "/" => Some("question"),
+        _ => None,
+    }
 }
 
 /// GDK's name for a key as the table writes it.
@@ -803,6 +839,31 @@ mod tests {
         assert_eq!(accel("Ctrl+?").as_deref(), Some("<Control>question"));
         assert_eq!(accel("Super+Q"), None);
         assert_eq!(accel("Ctrl+F13"), None);
+    }
+
+    #[test]
+    fn a_shift_chord_names_the_keyval_shift_produces() {
+        assert_eq!(
+            accel("Ctrl+Shift+=").as_deref(),
+            Some("<Control><Shift>plus")
+        );
+        assert_eq!(
+            accel("Ctrl+Shift+-").as_deref(),
+            Some("<Control><Shift>underscore")
+        );
+        assert_eq!(
+            accel("Ctrl+Shift+0").as_deref(),
+            Some("<Control><Shift>parenright")
+        );
+        assert_eq!(
+            accel("Ctrl+Shift+7").as_deref(),
+            Some("<Control><Shift>ampersand")
+        );
+        // A letter is its own keyval, and no modifier changes an unshifted
+        // chord's key.
+        assert_eq!(accel("Ctrl+Shift+L").as_deref(), Some("<Control><Shift>l"));
+        assert_eq!(accel("Ctrl+=").as_deref(), Some("<Control>equal"));
+        assert_eq!(accel("Ctrl+0").as_deref(), Some("<Control>0"));
     }
 
     #[test]

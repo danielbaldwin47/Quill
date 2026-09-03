@@ -2033,7 +2033,12 @@ impl Window {
         // One block is the whole of what the rule reads of a driver: whichever
         // block the top edge falls in, and how far into it
         // ([`crate::editor::Editor::top_block`]).
-        self.follow_preview(imp.preview.top_block_offset(&[driver], offset), false);
+        // Asked again if it does not land, as the caret rule asks: the sheet is
+        // laid out after the Editor's first scroll arrives, and until it is the
+        // adjustment clamps every value to the end it has been told about — an
+        // Editor put where `--scroll` asked at launch drove a Preview that
+        // stayed at the top.
+        self.follow_preview(imp.preview.top_block_offset(&[driver], offset), true);
     }
 
     /// Puts the Editor where the Preview's top edge asks for it: the same rule
@@ -2485,6 +2490,10 @@ impl Window {
     /// `docs/architecture.md` § Text model requires, and the retag happens
     /// after the text has moved. What the splice worked out is carried between
     /// them in [`imp::Window::pending`].
+    ///
+    /// The caret's two feeds are here for the same reason the splice is: the
+    /// Editor holds no Document and every one of them is a judgement about
+    /// one. The pointer's release is the fourth and last of them.
     fn watch_edits(&self) {
         let buffer = self.imp().editor.buffer();
 
@@ -2571,6 +2580,33 @@ impl Window {
             // § Scroll sync).
             window.follow_caret();
         });
+
+        // Live's fold waits for the button to come up ([`Editor::released`]),
+        // and this is where the Editor is told that it has. A legacy
+        // controller rather than a `GtkGestureClick`: a press on a task box
+        // claims its sequence and GTK's own selection drag claims one too, a
+        // claimed sequence denies every other gesture on the widget, and a
+        // denied gesture is never told about the release — which would leave
+        // the fold held down for good. A legacy controller is not a gesture
+        // and is never denied. It runs in the capture phase and takes nothing:
+        // the press is still GTK's to turn into a caret move.
+        let releases = gtk::EventControllerLegacy::new();
+        releases.set_propagation_phase(gtk::PropagationPhase::Capture);
+        let watcher = self.downgrade();
+        releases.connect_event(move |_, event| {
+            let Some(window) = watcher.upgrade() else {
+                return glib::Propagation::Proceed;
+            };
+            if event.event_type() == gdk::EventType::ButtonRelease {
+                // As the `mark-set` handler has it: a splice may still hold
+                // the Document, and this borrow is not worth waiting for.
+                if let Ok(filed) = window.imp().filed.try_borrow() {
+                    window.imp().editor.released(filed.document());
+                }
+            }
+            glib::Propagation::Proceed
+        });
+        self.imp().editor.add_controller(releases);
     }
 }
 
