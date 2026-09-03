@@ -220,13 +220,13 @@ pub const VIEW_SECTIONS: [&str; 6] = [
 #[rustfmt::skip]
 pub const COMMANDS: &[Command] = &[
     // Document menu.
-    row("file.new", "New Document", Scope::Win, Kind::Plain, &["Ctrl+N"], &[place(DOC, None, "New Document")], false),
+    row("file.new", "New Document", Scope::Win, Kind::Plain, &["Ctrl+N"], &[place(DOC, None, "New Document")], true),
     row("window.new", "New Window", Scope::App, Kind::Plain, &["Ctrl+Shift+N"], &[place(DOC, None, "New Window")], true),
     row("file.open", "Open File…", Scope::Win, Kind::Plain, &["Ctrl+O"], &[place(DOC, None, "Open File…")], true),
     row("file.save", "Save", Scope::Win, Kind::Plain, &["Ctrl+S"], &[place(DOC, None, "Save")], true),
     row("file.saveAs", "Save As…", Scope::Win, Kind::Plain, &["Ctrl+Shift+S"], &[place(DOC, None, "Save As…")], true),
-    row("file.rename", "Rename Document…", Scope::Win, Kind::Plain, &["F2"], &[place(DOC, None, "Rename Document…")], false),
-    row("file.duplicate", "Duplicate Document", Scope::Win, Kind::Plain, &[], &[place(DOC, None, "Duplicate Document")], false),
+    row("file.rename", "Rename Document…", Scope::Win, Kind::Plain, &["F2"], &[place(DOC, None, "Rename Document…")], true),
+    row("file.duplicate", "Duplicate Document", Scope::Win, Kind::Plain, &[], &[place(DOC, None, "Duplicate Document")], true),
     row("export.open", "Export…", Scope::Win, Kind::Plain, &["Ctrl+Shift+E"], &[place(DOC, None, "Export…")], false),
     row("window.close", "Close Window", Scope::Win, Kind::Plain, &["Ctrl+W"], &[place(DOC, None, "Close Window")], true),
     row("app.quit", "Quit", Scope::App, Kind::Plain, &["Ctrl+Q"], &[place(DOC, None, "Quit")], true),
@@ -276,11 +276,11 @@ pub const COMMANDS: &[Command] = &[
     row("stats.readingTime", "Reading Time", Scope::Win, Kind::Radio { group: "stats", value: "readingTime", }, &[], &[place(STATS, None, "Reading Time")], false),
     // Palette and keyboard only.
     row("library.search", "Find a Document…", Scope::Win, Kind::Plain, &["Ctrl+Shift+O"], &[], true),
-    row("file.next", "Next Document", Scope::Win, Kind::Plain, &["Ctrl+Page Down"], &[], false),
-    row("file.prev", "Previous Document", Scope::Win, Kind::Plain, &["Ctrl+Page Up"], &[], false),
+    row("file.next", "Next Document", Scope::Win, Kind::Plain, &["Ctrl+Page Down"], &[], true),
+    row("file.prev", "Previous Document", Scope::Win, Kind::Plain, &["Ctrl+Page Up"], &[], true),
     row("file.follow", "Open Linked Document", Scope::Win, Kind::Plain, &["Ctrl+Enter"], &[], false),
-    row("file.openFolder", "Open Folder as Library…", Scope::Win, Kind::Plain, &[], &[], false),
-    row("file.delete", "Delete Document…", Scope::Win, Kind::Plain, &[], &[], false),
+    row("file.openFolder", "Add Location…", Scope::Win, Kind::Plain, &[], &[], true),
+    row("file.delete", "Move to Trash", Scope::Win, Kind::Plain, &[], &[], true),
     row("theme.light", "Light Theme", Scope::Win, Kind::Radio { group: "theme", value: "light", }, &[], &[], true),
     row("theme.dark", "Dark Theme", Scope::Win, Kind::Radio { group: "theme", value: "dark", }, &[], &[], true),
     row("theme.auto", "Follow System", Scope::Win, Kind::Radio { group: "theme", value: "auto", }, &[], &[], true),

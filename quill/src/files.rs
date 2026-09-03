@@ -1,13 +1,14 @@
 //! What a window has to decide about the file behind its Document, without a
 //! window to decide it in.
 //!
-//! Three questions come up wherever a Document meets the disk: where an
+//! Some questions come up wherever a Document meets the disk: where an
 //! untitled Document's first save goes, whether a window closing has anything
-//! to ask the writer first, and whether opening a file should point the Library
-//! at the folder it came from. Each is a decision over plain values — the path
-//! state ([`quill_engine::disk::OnDisk`]), the Locations, whether there is any
-//! text — so each is a function here rather than a branch inside a signal
-//! handler, and each is tested with no display attached.
+//! to ask the writer first, whether opening a file should point the Library at
+//! the folder it came from, which row `file.next` steps to, and what the status
+//! line says. Each is a decision over plain values — the path state
+//! ([`quill_engine::disk::OnDisk`]), the Locations, the list of rows on screen,
+//! whether there is any text — so each is a function here rather than a branch
+//! inside a signal handler, and each is tested with no display attached.
 //!
 //! What the answers are *for* is [`crate::window`]: it flushes, prompts, opens
 //! dialogs and shows Documents. The rules themselves are
@@ -34,14 +35,74 @@ pub enum Where {
 /// pointed Quill at one is writing in; a writer who has pointed it at none is
 /// asked, and so is one who asked to always be asked (`library.ask_where_to_save`).
 ///
-/// `first` is the first Location rather than the row the sidebar has selected,
-/// because there is no sidebar yet; the selected row is the sidebar ticket's
-/// and goes in front of it here (#246).
-pub fn first_save_folder(first: Option<&Path>, always_ask: bool) -> Where {
-    match first {
-        Some(folder) if !always_ask => Where::Folder(folder.to_path_buf()),
-        _ => Where::Ask,
+/// `selected` is the folder the sidebar's selected row stands in, taken when
+/// the Document was started and not when it is saved, and it goes in front of
+/// the first Location: a writer who picked a folder and pressed `Ctrl+N` said
+/// where this one goes. Asking beats both, because it is the writer asking.
+#[must_use]
+pub fn first_save_folder(selected: Option<&Path>, first: Option<&Path>, always_ask: bool) -> Where {
+    if always_ask {
+        return Where::Ask;
     }
+    match selected.or(first) {
+        Some(folder) => Where::Folder(folder.to_path_buf()),
+        None => Where::Ask,
+    }
+}
+
+/// Which way `file.next` and `file.prev` walk the list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Step {
+    /// Down the list, as the sidebar shows it.
+    Next,
+    /// Up it.
+    Prev,
+}
+
+/// The Document `step` lands on, walking `files` — the visible list in the
+/// order the sidebar sorted it — from the one at `open`.
+///
+/// It wraps, so stepping past either end comes round rather than stopping: the
+/// list is what a writer can see, and a walk of it is a walk of a ring. With
+/// nothing open, or a Document no row of the list holds, Next is the first row
+/// and Prev the last. The bound is one pass of `files`.
+#[must_use]
+pub fn stepped(files: &[PathBuf], open: Option<&Path>, step: Step) -> Option<PathBuf> {
+    if files.is_empty() {
+        return None;
+    }
+    let at = open.and_then(|open| files.iter().position(|file| file == open));
+    let landed = match (at, step) {
+        (Some(at), Step::Next) => (at + 1) % files.len(),
+        (Some(at), Step::Prev) => (at + files.len() - 1) % files.len(),
+        (None, Step::Next) => 0,
+        (None, Step::Prev) => files.len() - 1,
+    };
+    files.get(landed).cloned()
+}
+
+/// What the status line says once a Document has gone to the system trash.
+///
+/// The spec's words, and transient by construction: the next thing the window
+/// has to say about the file overwrites them (`Window::show_standing`), which
+/// is what makes it a notice rather than a state.
+#[must_use]
+pub fn moved_to_trash(name: &str) -> String {
+    format!("Moved {name} to Trash")
+}
+
+/// How much of `name` a rename field selects when it opens: everything before
+/// the extension, in characters, which is what a GTK field's positions count
+/// in.
+///
+/// The oracle's rule (`legacy/app/js/files.js` `startRename`, which selects
+/// `value.replace(EXT, '').length`): a writer renaming a Document is renaming
+/// the name and not the `.md`, and typing over the selection keeps it. A name
+/// with no dot in it is selected whole.
+#[must_use]
+pub fn stem_chars(name: &str) -> i32 {
+    let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
+    i32::try_from(stem.chars().count()).unwrap_or(i32::MAX)
 }
 
 /// What a window has to do before it can go.
@@ -284,21 +345,85 @@ mod tests {
     fn the_first_save_lands_in_the_first_location() {
         let folder = Path::new("/home/writer/Notes");
         assert_eq!(
-            first_save_folder(Some(folder), false),
+            first_save_folder(None, Some(folder), false),
             Where::Folder(folder.to_path_buf())
         );
     }
 
     #[test]
     fn with_no_location_the_first_save_asks() {
-        assert_eq!(first_save_folder(None, false), Where::Ask);
+        assert_eq!(first_save_folder(None, None, false), Where::Ask);
     }
 
     #[test]
     fn always_ask_asks_even_with_a_location() {
         assert_eq!(
-            first_save_folder(Some(Path::new("/home/writer/Notes")), true),
+            first_save_folder(None, Some(Path::new("/home/writer/Notes")), true),
             Where::Ask
+        );
+    }
+
+    #[test]
+    fn the_selected_rows_folder_takes_the_first_save_before_the_first_location() {
+        let selected = Path::new("/home/writer/Notes/Drafts");
+        let first = Path::new("/home/writer/Notes");
+        assert_eq!(
+            first_save_folder(Some(selected), Some(first), false),
+            Where::Folder(selected.to_path_buf())
+        );
+        // And a writer who asked to be asked is still asked.
+        assert_eq!(
+            first_save_folder(Some(selected), Some(first), true),
+            Where::Ask
+        );
+    }
+
+    #[test]
+    fn next_and_prev_walk_the_visible_list_and_come_round_at_its_ends() {
+        let files: Vec<PathBuf> = ["a.md", "b.md", "c.md"]
+            .iter()
+            .map(|name| PathBuf::from("/notes").join(name))
+            .collect();
+        let at = |name: &str| PathBuf::from("/notes").join(name);
+        assert_eq!(
+            stepped(&files, Some(&at("a.md")), Step::Next),
+            Some(at("b.md"))
+        );
+        assert_eq!(
+            stepped(&files, Some(&at("c.md")), Step::Next),
+            Some(at("a.md"))
+        );
+        assert_eq!(
+            stepped(&files, Some(&at("b.md")), Step::Prev),
+            Some(at("a.md"))
+        );
+        assert_eq!(
+            stepped(&files, Some(&at("a.md")), Step::Prev),
+            Some(at("c.md"))
+        );
+        // A Document no row holds, and an untitled one, start at either end.
+        assert_eq!(stepped(&files, None, Step::Next), Some(at("a.md")));
+        assert_eq!(
+            stepped(&files, Some(Path::new("/elsewhere.md")), Step::Prev),
+            Some(at("c.md"))
+        );
+        assert_eq!(stepped(&[], None, Step::Next), None);
+    }
+
+    #[test]
+    fn a_rename_field_opens_with_the_name_selected_and_not_the_extension() {
+        assert_eq!(stem_chars("sea-storm.md"), 9);
+        assert_eq!(stem_chars("notes.tar.md"), 9);
+        assert_eq!(stem_chars("README"), 6);
+        // Characters, not bytes: a GTK field counts positions in characters.
+        assert_eq!(stem_chars("œuvre.md"), 5);
+    }
+
+    #[test]
+    fn the_trash_notice_names_the_document_that_went() {
+        assert_eq!(
+            moved_to_trash("sea-storm.md"),
+            "Moved sea-storm.md to Trash"
         );
     }
 
