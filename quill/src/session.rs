@@ -844,19 +844,19 @@ impl Session {
     }
 
     /// The width the Preview pane stands at in every window of this launch,
-    /// or [`quill_engine::settings::EVEN`] where the divider has never been
-    /// dragged and the pair divides evenly.
+    /// or [`None`] where the divider has never been dragged and the pair
+    /// divides evenly.
     ///
     /// One width for the app, as [`Session::library_width`] is, and kept in
     /// the same file for the same reason: what a writer dragged is what Quill
     /// observed, not something they set.
     #[must_use]
-    pub fn preview_width(&self) -> u32 {
+    pub fn preview_width(&self) -> Option<u32> {
         self.leaving.borrow().preview_width
     }
 
     /// Takes down the width the writer dragged the Preview divider to.
-    pub fn set_preview_width(&self, width: u32) {
+    pub fn set_preview_width(&self, width: Option<u32>) {
         if self.harness {
             return;
         }

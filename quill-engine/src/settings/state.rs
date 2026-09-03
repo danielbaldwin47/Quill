@@ -76,15 +76,6 @@ pub fn window_sizes() -> RangeInclusive<u32> {
 /// `quill::sidebar::WIDTH`, the pane as the Parity oracle measures it.
 const LIBRARY: u32 = 368;
 
-/// The Preview pane's width until a writer drags the divider: no width at all,
-/// which is what the pair reads as "divide evenly".
-///
-/// A width and not a fraction is what a drag leaves behind, and half a pair is
-/// not a width until there is a window to halve; so the state file says
-/// nothing until the writer has said something, and an even Split is what
-/// every window opens at.
-pub const EVEN: u32 = 0;
-
 /// The narrowest the pane may be dragged. Below this a row is a truncated
 /// name rather than a Document.
 const NARROWEST: u32 = 240;
@@ -191,15 +182,18 @@ pub struct State {
     /// so a file written beside a wider monitor never opens a pane with no
     /// page beside it.
     pub library_width: u32,
-    /// How wide the writer dragged the Preview pane, in logical pixels, or
-    /// [`EVEN`] where they never dragged it.
+    /// How wide the writer dragged the Preview pane, in logical pixels, and
+    /// [`None`] where they never dragged it — which is what the pair reads as
+    /// "divide evenly".
     ///
     /// One width for the app, as [`State::library_width`] is: every window
     /// stands its pane at it and a drag in any of them moves all of them. It
     /// is a width and not a fraction because that is what the writer dragged,
     /// and it is pulled into range against the pair it stands in rather than
-    /// here, where the window it will open beside is not known yet.
-    pub preview_width: u32,
+    /// here, where the window it will open beside is not known yet. Half a pair
+    /// is not a width until there is a window to halve, so there is no width to
+    /// carry until the writer has dragged one.
+    pub preview_width: Option<u32>,
     /// Every key and table this Quill did not know, kept for the next write.
     rest: toml::Table,
 }
@@ -212,7 +206,7 @@ impl Default for State {
             carets: BTreeMap::new(),
             last_scheme: Scheme::default(),
             library_width: LIBRARY,
-            preview_width: EVEN,
+            preview_width: None,
             rest: toml::Table::new(),
         }
     }
@@ -295,7 +289,11 @@ impl State {
         // Read at every whole number for the reason above, and not pulled into
         // range at all: the range a Preview pane stands in is the pair's, and
         // the pair is a window that has not opened yet.
-        let preview_width = reading.whole("preview_width", EVEN, &(0..=LARGEST));
+        // Zero on disk is the one number that is not a width: it is what a
+        // file written before any drag says, and what this writes back for
+        // [`None`], so the file keeps its one key either way.
+        let preview_width = reading.whole("preview_width", 0, &(0..=LARGEST));
+        let preview_width = (preview_width > 0).then_some(preview_width);
         // The windows are taken here and read below, once the reading of the
         // top level is done with the notes it is writing into.
         let windows = reading.tables("window");
@@ -322,7 +320,7 @@ impl State {
         writing.paths("recents", &self.recents);
         writing.choice("last_scheme", self.last_scheme);
         writing.whole("library_width", self.library_width);
-        writing.whole("preview_width", self.preview_width);
+        writing.whole("preview_width", self.preview_width.unwrap_or(0));
         writing.rest(self.rest.clone());
         writing.tables(
             "window",
@@ -535,7 +533,7 @@ mod tests {
                 .collect(),
             last_scheme: Scheme::Dark,
             library_width: 480,
-            preview_width: 620,
+            preview_width: Some(620),
             rest: toml::Table::new(),
         };
         let text = state.to_toml();
@@ -605,21 +603,21 @@ mod tests {
     fn the_width_the_preview_pane_was_dragged_to_comes_back_as_it_was() {
         let path = scratch("preview_width").join(STATE_FILE);
         let left = State {
-            preview_width: 620,
+            preview_width: Some(620),
             ..State::default()
         };
         left.write_to(&path).expect("writes the state file");
         let (back, notes) = State::read_from(&path);
         assert!(notes.is_empty(), "{notes:?}");
-        assert_eq!(back.preview_width, 620);
+        assert_eq!(back.preview_width, Some(620));
 
         let (fresh, notes) = State::parse("recents = []\n");
         assert!(notes.is_empty(), "{notes:?}");
         assert_eq!(
-            fresh.preview_width, EVEN,
+            fresh.preview_width, None,
             "a file that never saw a drag divides the pair evenly"
         );
-        assert_eq!(State::default().preview_width, EVEN);
+        assert_eq!(State::default().preview_width, None);
     }
 
     #[test]

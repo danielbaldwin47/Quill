@@ -7,6 +7,7 @@
 //! Annotators consume, which is the `Text` events with Markup, code spans,
 //! fenced code, URLs and front matter removed.
 
+use std::collections::BTreeMap;
 use std::ops::Range;
 
 use pulldown_cmark::{Event, LinkType, OffsetIter, Options, Parser, Tag};
@@ -104,7 +105,7 @@ pub fn prose(text: &str) -> Vec<Prose<'_>> {
     runs
 }
 
-/// The destination `label` is defined as, if `text` defines it.
+/// Every link-reference definition `text` writes, by the label that reaches it.
 ///
 /// The one whole-document question about a link, and the reason it is asked
 /// here rather than in the Annotator: a link-reference definition can stand
@@ -113,14 +114,23 @@ pub fn prose(text: &str) -> Vec<Prose<'_>> {
 /// reference link's [`crate::annotate::Mark::Url`] is its *label* rather than
 /// an address, so the app resolves it through this before it opens anything.
 ///
-/// The lookup case-folds, which is what the CommonMark spec asks for and what
-/// pulldown-cmark's own map does. The parser collects every definition as it
-/// builds its tree, so this parses `text` once and reads the map it left.
+/// The whole map rather than one lookup, because resolving a label is a parse
+/// of the file and a page can hold a dozen reference links: the caller builds
+/// this once for the page it is furnishing and reads it as often as it must
+/// (`quill::editor`'s `standing`). The parser collects every definition as it
+/// builds its tree, so the parse here is the one it was already doing.
+///
+/// Keyed by the label lowercased, and a caller lowercases what it looks up: a
+/// label matches case-insensitively, which is what the CommonMark spec asks
+/// for and what pulldown-cmark's own map does.
 #[must_use]
-pub fn reference(text: &str, label: &str) -> Option<String> {
+pub fn references(text: &str) -> BTreeMap<String, String> {
     let parser = Parser::new_ext(text, options());
-    let defined = parser.reference_definitions().get(label)?;
-    Some(defined.dest.to_string())
+    parser
+        .reference_definitions()
+        .iter()
+        .map(|(label, defined)| (label.to_lowercase(), defined.dest.to_string()))
+        .collect()
 }
 
 /// Whether the text inside `tag` is something other than the writer's prose.
@@ -329,14 +339,15 @@ mod tests {
     #[test]
     fn a_reference_label_resolves_to_the_definitions_destination_whatever_its_case() {
         let source = "See [the book][Ref] for it.\n\n[ref]: https://example.org/book\n";
+        let defined = references(source);
         assert_eq!(
-            reference(source, "Ref").as_deref(),
+            defined.get(&"Ref".to_lowercase()).map(String::as_str),
             Some("https://example.org/book"),
             "the label is written one way and defined another, and CommonMark \
              folds the case of both"
         );
         assert_eq!(
-            reference(source, "missing"),
+            defined.get("missing"),
             None,
             "a label nothing defines resolves to nothing, and the caller opens \
              nothing"

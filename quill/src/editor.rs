@@ -16,6 +16,7 @@
 //! type in the tickets that follow.
 
 use std::cell::{Cell, RefCell};
+use std::collections::BTreeMap;
 use std::ops::Range;
 use std::time::Duration;
 
@@ -27,7 +28,7 @@ use gtk::gsk;
 use gtk::pango;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
-use quill_engine::annotate::live::{Furniture, LiveLook};
+use quill_engine::annotate::live::{Furniture, LiveLook, LiveSpan};
 use quill_engine::annotate::{self, Painted};
 use quill_engine::document::{Document, Edit};
 use quill_engine::focus::typewriter::{self, Glide, Hold, Typewriter};
@@ -555,8 +556,14 @@ impl Furnishing {
 enum Furnish {
     /// A bullet item's dot.
     Bullet,
-    /// An ordered item's number, as the source counted it.
-    Number(u32),
+    /// An ordered item's number as the source counted it, with the byte it
+    /// wrote after the count: `.` or `)`.
+    Number {
+        /// The count the marker counts with.
+        count: u32,
+        /// `.` or `)`, as the source wrote it.
+        delimiter: char,
+    },
     /// A task item's box, ticked or not, and the `[ ]` or `[x]` a press on it
     /// rewrites — which is the one cell inside the brackets and not the whole
     /// marker, so that the item's words never move under the writer's finger.
@@ -955,7 +962,7 @@ impl Editor {
             return;
         }
         let (bx, by) =
-            self.window_to_buffer_coords(gtk::TextWindowType::Widget, x as i32, y as i32);
+            self.window_to_buffer_coords(gtk::TextWindowType::Widget, buffer_px(x), buffer_px(y));
         let Some(at) = self.iter_at_location(bx, by).map(|at| at.offset()) else {
             return;
         };
@@ -998,17 +1005,24 @@ impl Editor {
     /// clock and a gesture a pointer position — so the crossing is made here,
     /// on the passes that are already holding one, and the answer is kept.
     ///
-    /// Whole-Document, and the only part of Live that is: the fold is drawn
-    /// by the block ([`Editor::refold`]), but a furnishing is held at an
-    /// offset the buffer counts and an edit anywhere moves every offset below
-    /// it. Paid only with Live on, so no judged state but `live/folded` and no
-    /// bench regime pays it at all.
-    fn refurnish(&self, document: &Document) {
+    /// Bounded by the page on the glass ([`Editor::furnished`]), which is the
+    /// bound the keystroke lane wants: a furnishing is held at an offset the
+    /// buffer counts, and an edit anywhere moves every offset below it, so the
+    /// list is thrown away and worked out again on every edit and every fold
+    /// move. Paid only with Live on: `live/folded` is the one judged state that
+    /// pays it, and `tools/regimes.mjs`'s `live_end_of_draft` regime launches
+    /// `--live`, so the bench pins what it costs a keystroke.
+    ///
+    /// The viewport moves without the buffer moving, so a scroll and a resize
+    /// are feeds of their own: `quill::window`'s `watch_furniture` calls this
+    /// again for the rows they brought in.
+    pub(crate) fn refurnish(&self, document: &Document) {
         let mut furniture = Vec::new();
         if self.imp().live.get() {
             let buffer = self.buffer();
             let at = self.caret_bytes(document);
-            furniture = standing(document, &at)
+            let over = self.furnished(document);
+            furniture = standing(document, &at, &over)
                 .into_iter()
                 .map(|(at, what)| Furnishing {
                     at: tags::offsets_of(&buffer, document, &at),
@@ -1020,6 +1034,27 @@ impl Editor {
             self.imp().furniture.replace(furniture);
             self.queue_draw();
         }
+    }
+
+    /// The Document bytes [`Editor::refurnish`] works furniture out over: the
+    /// rows [`Editor::seen`] holds, which are the rows
+    /// [`Editor::draw_furniture`] draws.
+    ///
+    /// The whole Document before the widget has an allocation to read a
+    /// viewport off — opening one, where the view is still nothing by nothing.
+    /// That pass is the cost of opening a Document rather than of a keystroke,
+    /// and it is what leaves the first frame furnished all the way down: an
+    /// allocation is not a signal this widget hears, so a page bounded to a
+    /// viewport of nothing would stay bare until the first edit.
+    fn furnished(&self, document: &Document) -> Range<usize> {
+        if self.visible_rect().height() <= 0 {
+            return 0..document.text().len();
+        }
+        let buffer = self.buffer();
+        let seen = self.seen();
+        let start = tags::offset_of(document, &buffer.iter_at_offset(seen.start));
+        let end = tags::offset_of(document, &buffer.iter_at_offset(seen.end));
+        start..end.max(start)
     }
 
     /// Draws each of `lines` again in the tiers the Editor now holds, inside
@@ -1815,7 +1850,7 @@ impl Editor {
         let bottom = f64::from(view.y() + view.height()) + pitch * SELECTION_SLACK;
         let mut rows: Vec<caret::Bar> = Vec::new();
         let mut at = start;
-        if let Some(seen) = self.iter_at_location(0, top.max(0.0) as i32)
+        if let Some(seen) = self.iter_at_location(0, buffer_px(top.max(0.0)))
             && seen > at
         {
             at = seen;
@@ -2392,8 +2427,8 @@ impl Editor {
             }
             match &standing.what {
                 Furnish::Bullet => self.draw_bullet(snapshot, &standing.at, &colours),
-                Furnish::Number(number) => {
-                    self.draw_number(snapshot, &standing.at, &colours, *number);
+                Furnish::Number { count, delimiter } => {
+                    self.draw_number(snapshot, &standing.at, &colours, *count, *delimiter);
                 }
                 Furnish::Checkbox { checked, .. } => {
                     if let Some(box_at) = standing.box_cells() {
@@ -2429,10 +2464,10 @@ impl Editor {
         let top = f64::from(view.y()) - slack;
         let bottom = f64::from(view.y() + view.height()) + slack;
         let first = self
-            .iter_at_location(0, top.max(0.0) as i32)
+            .iter_at_location(0, buffer_px(top.max(0.0)))
             .map_or(0, |at| at.offset());
         let last = self
-            .iter_at_location(0, bottom as i32)
+            .iter_at_location(0, buffer_px(bottom))
             .map_or(i32::MAX, |at| at.offset());
         first..last
     }
@@ -2455,14 +2490,22 @@ impl Editor {
         let side = (em * BULLET).max(1.0);
         let x = cell.x + (cell.w - side) / 2.0;
         let y = cell.y + self.imp().baseline.get() - em * X_HEIGHT - side / 2.0;
-        let rect = graphene::Rect::new(x as f32, y as f32, side as f32, side as f32);
-        snapshot.push_rounded_clip(&gsk::RoundedRect::from_rect(rect, (side / 2.0) as f32));
+        // Already in the widget's own pixels — the em above is divided by the
+        // scale — so the narrowing is [`logical`] at a scale of one, which is
+        // what [`Editor::draw_number`] hands its own two lengths through.
+        let side_px = logical(side, 1.0);
+        let rect = graphene::Rect::new(logical(x, 1.0), logical(y, 1.0), side_px, side_px);
+        snapshot.push_rounded_clip(&gsk::RoundedRect::from_rect(rect, side_px / 2.0));
         snapshot.append_color(&paint(colours, Role::Mark, 1.0), &rect);
         snapshot.pop();
     }
 
-    /// An ordered item's number and its point, in the cells its marker stood
-    /// in.
+    /// An ordered item's `count` and the `delimiter` the source closed it
+    /// with, in the cells its marker stood in.
+    ///
+    /// The delimiter is carried rather than assumed, because both of
+    /// CommonMark's are a writer's own choice: a list written `1)` reads `1)`
+    /// folded, where a drawn `.` would be the app rewriting the page.
     ///
     /// The one piece of furniture that is type: a number is read, so it is
     /// laid out in the page's own face at the page's own size, through the
@@ -2478,12 +2521,13 @@ impl Editor {
         snapshot: &gtk::Snapshot,
         at: &Range<i32>,
         colours: &Colours,
-        number: u32,
+        count: u32,
+        delimiter: char,
     ) {
         let Some(cell) = self.cells(at) else {
             return;
         };
-        let layout = self.create_pango_layout(Some(&format!("{number}.")));
+        let layout = self.create_pango_layout(Some(&format!("{count}{delimiter}")));
         let baseline = f64::from(layout.baseline()) / f64::from(pango::SCALE);
         snapshot.save();
         snapshot.translate(&graphene::Point::new(
@@ -2869,7 +2913,7 @@ impl Editor {
     #[must_use]
     pub fn top_block(&self, document: &Document, offset: f64) -> Option<sync::Block> {
         let y = offset - f64::from(self.top_margin());
-        let at = self.iter_at_location(0, y.max(0.0) as i32)?;
+        let at = self.iter_at_location(0, buffer_px(y.max(0.0)))?;
         let key = document.block_at(tags::offset_of(document, &at))?;
         self.block_row(document, key)
     }
@@ -2959,25 +3003,53 @@ pub struct Page {
     bottom: i32,
 }
 
-/// What Live leaves standing on `document` for a writer at `at`, each with the
-/// Document bytes of the cells it stands in.
+/// What Live leaves standing on the bytes `over` of `document`, for a writer at
+/// `at`, each with the Document bytes of the cells it stands in.
 ///
 /// [`Editor::refurnish`] without the buffer: the whole of the answer that can
 /// be worked out from the text, so that the widget's one crossing into the
 /// offsets GTK counts is the last step and everything before it is testable
 /// with no display attached.
-fn standing(document: &Document, at: &Range<usize>) -> Vec<(Range<usize>, Furnish)> {
+///
+/// Bounded by `over`, through [`annotate::live::spans_in`], which widens it to
+/// the blocks it touches: this runs on the keystroke lane, so it pays for the
+/// page on the glass and not for the manuscript.
+fn standing(
+    document: &Document,
+    at: &Range<usize>,
+    over: &Range<usize>,
+) -> Vec<(Range<usize>, Furnish)> {
     let text = document.text();
-    annotate::live::spans(document, at)
+    let spans = annotate::live::spans_in(document, at, over);
+    // The one whole-document question Live asks, asked once for the page rather
+    // than once for each link: resolving a reference label is a parse of the
+    // file ([`markdown::references`]), and a page can hold a dozen of them.
+    // Nothing is parsed at all when no reference link is standing, which is
+    // every page that writes its addresses inline.
+    let defined = if spans.iter().any(|span| labelled(text, span)) {
+        markdown::references(text)
+    } else {
+        BTreeMap::new()
+    };
+    spans
         .into_iter()
         .filter_map(|span| {
             let LiveLook::Furniture(furniture) = span.look else {
                 return None;
             };
-            let what = Furnish::of(text, &span.at, &furniture)?;
+            let what = Furnish::of(text, &span.at, &furniture, &defined)?;
             Some((cells_of(text, &span.at, &what), what))
         })
         .collect()
+}
+
+/// Whether `span` is a link whose destination is a reference label rather than
+/// an address, and so wants the file's definitions to resolve it ([`address`]).
+fn labelled(text: &str, span: &LiveSpan) -> bool {
+    let LiveLook::Furniture(Furniture::Link { destination }) = &span.look else {
+        return false;
+    };
+    text[..destination.start].ends_with('[')
 }
 
 impl Furnish {
@@ -2986,11 +3058,20 @@ impl Furnish {
     /// `None` twice: a fence's furniture is the Well the code already stands
     /// on, so there is nothing left to draw where the backticks were; and a
     /// link whose destination resolves to nothing has nothing to open, so it
-    /// keeps its words and takes no rule.
-    fn of(text: &str, at: &Range<usize>, furniture: &Furniture) -> Option<Self> {
+    /// keeps its words and takes no rule. `defined` is the file's link-reference
+    /// definitions, which is what a reference link resolves through.
+    fn of(
+        text: &str,
+        at: &Range<usize>,
+        furniture: &Furniture,
+        defined: &BTreeMap<String, String>,
+    ) -> Option<Self> {
         Some(match furniture {
             Furniture::Bullet => Self::Bullet,
-            Furniture::Number(number) => Self::Number(*number),
+            Furniture::Number { count, delimiter } => Self::Number {
+                count: *count,
+                delimiter: *delimiter,
+            },
             Furniture::Hairline => Self::Hairline,
             Furniture::Fence => return None,
             Furniture::Checkbox { checked } => {
@@ -3001,7 +3082,7 @@ impl Furnish {
                 }
             }
             Furniture::Link { destination } => Self::Link {
-                destination: address(text, destination)?,
+                destination: address(text, destination, defined)?,
             },
         })
     }
@@ -3060,17 +3141,18 @@ fn brackets(text: &str, at: &Range<usize>) -> Option<Range<usize>> {
 /// Three shapes reach here. An inline `[words](https://…)` writes the address
 /// itself, with a title after it to cut off and angle brackets to strip. A
 /// reference `[words][label]` writes a label instead, and the definition
-/// somewhere else in the file is what says where it goes
-/// ([`markdown::reference`]); the byte before the destination tells the two
-/// apart, `(` for an address and `[` for a label. A label nothing defines
-/// opens nothing, which is [`None`].
-fn address(text: &str, at: &Range<usize>) -> Option<String> {
+/// somewhere else in the file is what says where it goes — `defined`, the map
+/// [`markdown::references`] builds once for the page ([`labelled`] is the same
+/// test made before the map is asked for); the byte before the destination
+/// tells the two apart, `(` for an address and `[` for a label. A label nothing
+/// defines opens nothing, which is [`None`].
+fn address(text: &str, at: &Range<usize>, defined: &BTreeMap<String, String>) -> Option<String> {
     let written = text.get(at.clone())?.trim();
     if written.is_empty() {
         return None;
     }
     if text[..at.start].ends_with('[') {
-        return markdown::reference(text, written);
+        return defined.get(&written.to_lowercase()).cloned();
     }
     if let Some(bracketed) = written.strip_prefix('<') {
         return Some(bracketed[..bracketed.find('>')?].to_owned());
@@ -3131,6 +3213,23 @@ fn open(destination: &str, window: Option<&gtk::Window>) {
 /// A byte offset a flag named, as the Document counts them.
 fn byte_offset(bytes: u64) -> usize {
     usize::try_from(bytes).unwrap_or(usize::MAX)
+}
+
+/// A view or pointer coordinate as the buffer counts them: whole pixels.
+///
+/// The rounding every crossing into `GtkTextView`'s own coordinates makes, done
+/// once and in one place (`CODING_STANDARDS.md` § Shape): a gesture, a scroll
+/// offset and a viewport edge all arrive as fractions of a logical pixel, and
+/// `window_to_buffer_coords` and `iter_at_location` count in whole ones. The
+/// cast saturates in Rust, so a coordinate no window could hold clamps rather
+/// than wrapping.
+fn buffer_px(length: f64) -> i32 {
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "a coordinate inside one window, and the cast saturates either way"
+    )]
+    let whole = length.round() as i32;
+    whole
 }
 
 /// A length in device pixels, in the widget's own pixels, as `graphene` takes
@@ -3803,9 +3902,10 @@ mod tests {
     }
 
     /// Everything Live leaves standing on `text` with the writer at `at`, as
-    /// the Editor keeps it: [`Editor::refurnish`] without the widget.
+    /// the Editor keeps it: [`Editor::refurnish`] without the widget, over the
+    /// whole passage rather than over one viewport of it.
     fn furniture(text: &str, at: &Range<usize>) -> Vec<Furnishing> {
-        standing(&document(text), at)
+        standing(&document(text), at, &(0..text.len()))
             .into_iter()
             .map(|(at, what)| Furnishing {
                 at: buffer_offsets(&at),
@@ -3838,7 +3938,7 @@ mod tests {
     }
 
     #[test]
-    fn a_press_on_a_task_box_rewrites_the_one_cell_between_its_brackets() {
+    fn the_cells_a_task_box_press_rewrites_are_the_one_between_its_brackets() {
         let text = "Chores\n\n- [ ] scrub the lens\n";
         let box_at = furniture(text, &(0..0))
             .first()
@@ -3896,13 +3996,22 @@ mod tests {
                 "angle brackets hold an address with a space in it",
             ),
         ] {
-            assert_eq!(address(source, &written(source)).as_deref(), opens, "{why}");
+            assert_eq!(
+                address(source, &written(source), &markdown::references(source)).as_deref(),
+                opens,
+                "{why}"
+            );
         }
 
         let referenced = "A [link][Book] here.\n\n[book]: https://example.org/book\n";
         let label = referenced.find("Book").expect("the label is written once");
         assert_eq!(
-            address(referenced, &(label..label + 4)).as_deref(),
+            address(
+                referenced,
+                &(label..label + 4),
+                &markdown::references(referenced)
+            )
+            .as_deref(),
             Some("https://example.org/book"),
             "a reference link writes a label, not an address, and the \
              definition elsewhere in the file says where it goes"
@@ -3912,7 +4021,11 @@ mod tests {
             .find("Nowhere")
             .expect("the label is written once");
         assert_eq!(
-            address(undefined, &(label..label + 7)),
+            address(
+                undefined,
+                &(label..label + 7),
+                &markdown::references(undefined)
+            ),
             None,
             "a label nothing defines opens nothing"
         );
@@ -3926,7 +4039,10 @@ mod tests {
             kinds,
             [
                 Furnish::Bullet,
-                Furnish::Number(1),
+                Furnish::Number {
+                    count: 1,
+                    delimiter: '.'
+                },
                 Furnish::Checkbox {
                     box_at: 2..5,
                     checked: false

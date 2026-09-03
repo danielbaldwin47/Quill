@@ -67,9 +67,11 @@ usage: tools/gate <command> [arguments]
                 shots/oracle/<piece>/<state>.png with the fingerprint of what
                 produced them beside. Shoots nothing when those shots are
                 already the ones it would take; --force shoots them anyway. A
-                state naming a mac-native crop as its opponent is not this
-                command's to freeze and is passed over, so a Piece whose every
-                state does that is finished before a browser starts.
+                state with no Parity opponent is not this command's to freeze
+                and is passed over: one naming a mac-native crop, and one
+                carrying `assert`, which is measured off ours' own pixels. A
+                Piece whose every state does that is finished before a browser
+                starts.
                 Ends in `gate oracle <piece>: froze N states (<why>)`,
                 `... unchanged`, `... nothing to freeze (...)`,
                 `... no judged states (...)`, or `... fail (...)`.
@@ -335,6 +337,7 @@ allow_reasons() {
 # the sources to this list.
 ROUND_ONCE=(
     quill/src/tags.rs:pixels               # the shape itself: a length as whole pixels, for the whole app crate
+    quill/src/editor.rs:buffer_px          # a pointer or a viewport coordinate in the whole pixels GtkTextView counts in
     quill/src/chrome.rs:reading_time       # seconds to the nearest minute, for the word count's bar
     quill-engine/src/theme.rs:channel      # a colour channel in 0.0–1.0 to a byte, for both crates
     quill-engine/src/typography.rs:measure # the 64-cell measure in whole pixels

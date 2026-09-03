@@ -91,9 +91,12 @@ impl fmt::Display for Error {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Template {
     /// What the settings file and the Command rows call it.
+    ///
+    /// The only name a Template carries: what the View menu, the Palette and
+    /// the Settings window call it is the Command's own title
+    /// (`quill::commands`), so a second one here would be a second place to
+    /// change it.
     pub id: String,
-    /// What a menu calls it.
-    pub name: String,
     /// How one paragraph is told from the next.
     pub paragraphs: Paragraphs,
     /// The three families a page is set in.
@@ -165,10 +168,10 @@ impl Sizes {
     /// Levels run 1 to 6 as Markdown writes them; anything outside that is the
     /// body size, which is what an H7 nobody can write would be.
     #[must_use]
-    pub fn heading(&self, level: u32) -> f64 {
-        let scale = usize::try_from(level)
-            .ok()
-            .and_then(|level| self.headings.get(level.wrapping_sub(1)))
+    pub fn heading(&self, level: u8) -> f64 {
+        let scale = self
+            .headings
+            .get(usize::from(level).wrapping_sub(1))
             .copied()
             .unwrap_or(1.0);
         self.base * scale
@@ -296,7 +299,6 @@ mod tests {
         for id in IDS {
             let template = built_in(id).expect("a built-in id");
             assert_eq!(template.id, id, "{id}'s file names another Template");
-            assert!(!template.name.is_empty(), "{id} has no name for a menu");
         }
     }
 

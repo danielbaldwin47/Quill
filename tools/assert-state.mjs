@@ -236,8 +236,9 @@ const LADDER = 0.1;
 
 // How far from the paper a channel must be before a pixel counts as ink.
 //
-// A folded marker is drawn in ink at alpha 0, which is no ink at all rather than a faint one, so
-// this only has to clear the encoder's own noise; an antialiased glyph edge clears it easily.
+// A folded marker is drawn in the ground it stands on rather than at a faint alpha — `quill::tags`'
+// `hidden` says why an alpha is impossible — so it lays down the paper's own channels and this only
+// has to clear the encoder's own noise; an antialiased glyph edge clears it easily.
 const INK = 8;
 
 // How far a glyph's own ink may stand from the column it was laid out at, as a share of the pitch.
