@@ -34,8 +34,13 @@ _Avoid_: zen mode, distraction-free
 **Typewriter**:
 Mode that keeps the caret's line at a fixed vertical position by scrolling the Editor. Independent of Focus, never a Focus scope.
 
+**Live**:
+The Editor with markup rendered in place: markers folded away except on the caret's block and the blocks a selection touches, headings scaled, bullets, checkboxes and hairlines drawn where their markers were. The file is source throughout; the Template never enters.
+_Avoid_: live preview (Preview is the pane), WYSIWYG, rich text, reading view
+
 **Preview**:
 The rendered (HTML-like) view of a Document, opened beside or in place of the Editor.
+_Avoid_: live preview (that is Live, the Editor's own mode)
 
 **Export**:
 Writing a Document out in another format (PDF, HTML, Markdown copy).
