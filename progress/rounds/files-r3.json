@@ -1,0 +1,78 @@
+{
+  "piece": "files",
+  "round": 3,
+  "winner": "theirs",
+  "margin": "slight",
+  "gap": "B has no single left margin in a 368px column: search icon at 10.5px, 'Sort by Date' at 10.5, the header toggle at 14, the document icons at 24.5 — a 14px scatter, twice A's 5.5px (14.5/15/16.5/20). Sharpest instance: B's row hairlines run 50→352.5px, flush with the date's right edge (352) but overhanging the filename column (54.5) by 4.5px on the left; A's run 46→352.5 against a name column starting at 46 — flush at both ends. Search-icon centre sits 14.75px left of the document-icon column in B, 2.75px in A.",
+  "gapTheirs": "Every secondary datum in the pane — date, the two-line preview, 'Sort by Date', the count, the save status — is set at #999999 on a #FDFDFD pane (2.80:1), where B holds the same class at #8C8C8C on #F7F7F7 (3.14:1). A's dates and previews fall under even the 3:1 large-text floor, and A compounds it by making the sidebar 4 levels brighter than its own page (#FDFDFD chrome against #F9F9F9 paper), so the file list is the brightest surface on screen while the manuscript sits behind it.",
+  "verdict": "A's rail is measured and B's is eyeballed — B ruled its rows to the date on the right and then let the line poke 4.5px past the filename on the left, and put its search icon 14px inboard of the very column it filters, so the pane reads as three left edges stacked on top of each other. A pays for that discipline with a washed-out column: #999 dates and previews at 2.80:1, on chrome that is brighter than the page you are supposed to be looking at, which is exactly backwards for a writing app. But A's fault is one hex value and B's is three margins and a rule aligned to nothing. Take A, and darken the greys the first week.",
+  "oursShot": "shots/files/r3-search-ours.png",
+  "theirsShot": "shots/oracle/files/search.png",
+  "refSource": "shots/oracle/files/ — the Parity oracle frozen by tools/gate oracle files from legacy/app 738f48c969965ac3 with legacy/tools/shoot.mjs 239bd27db3974b27",
+  "builderNote": "#253 round 2 fixes: the pane's head with the toggle and a new-document button, where the manuscripts are at the status line's right, the corpus word count, and air under the search field",
+  "secondary": [
+    "B's header is an inert lowercase 'library' with no disclosure control; A's is 'Library' with a chevron — one fewer visible way to switch or collapse a Location in the pane whose whole job is finding files",
+    "B's meta line gives '8 documents · 239 words' — a library word total a writer actually uses; A gives only a document count",
+    "Row pitch A 78px vs B 74px; hairlines A #E7E7E7 vs B #DFDFDF; both selections are a 5-level fill plus a 4px cyan bar (A #00B5FF, B #00BFFF) — a wash",
+    "B's collapsed 'Drafts' row is 38px tall against 75px file rows and carries a solid cyan folder icon plus a full-bleed rule where file rows get inset rules — two rule treatments in one list",
+    "Status line reads 'In this browser' (A) vs 'On this device' (B); A's is the more honest disclosure of where a manuscript actually lives, though I cannot verify either from a still",
+    "Out of this piece, but noted: B hangs the heading '#' in the margin so the heading's words sit flush with the body's left edge (both at x=991 native); A puts the '#' inside the text column at 990, pushing the heading's words ~24px right of every paragraph line",
+    "A's list is narrowed to 2 of 8 with the query highlighted; per the brief the unnarrowed state is not B's to lose, so no credit taken either way — it does mean A's folder handling is invisible in this shot and went unjudged"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "aa36cf4",
+    "binary": "477937180ae4c5e0",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "library",
+      "ours": "shots/files/r3-library-ours.png",
+      "theirs": "shots/oracle/files/library.png",
+      "blind": "shots/blind/files/library",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "A's row separators are set to nothing: all seven start at x=50 CSS px — 13.5px past the document icon's right edge (36.5) and 4.5px short of the name column (54.5) — so every hairline floats between two columns instead of bracketing one. A also runs three line values where one would do: 2 CSS px #DFDFDF under the toolbar, 1px #DFDFDF at the pane edge, 1px #E2E2E2 between rows. B uses a single 1px #E7E7E7 for all three and lands each rule's left edge on the name box (rule 46, name 47).",
+      "gapTheirs": "B's toolbar gutter is on three different left edges in three stacked items: 'Sort by Date' at 14.3 CSS px, the sidebar toggle at 15.8, the search magnifier at 19.8 — a 5.5px zigzag at the first thing you look at, where A holds the magnifier and the sort row on the same 11px line. Compounding it, B's row rules stop at 352.5px (flush with the date column) while the selected row's tint bleeds full-width to 367, leaving a 14px unruled notch wherever a rule meets the divider.",
+      "verdict": "These are the same pane built twice; the difference is who held the ruler where. B is tidier in the list body — one hairline value, every rule's left edge on the name column, a strict 16px indent ladder — then throws it away at the top, where the search magnifier sits 5.5px right of the sort row beneath it and the toggle beneath that, and at the seam, where the rules stop 14px short of a divider the row tint runs straight into. A's faults are duller and more forgivable: hairlines that begin at 50px and align to nothing, and three line weights doing one line's job. But A's pane is the same #F7F7F7 as the page, so the library reads as a margin of the sheet rather than a panel bolted to it, and its excerpts sit 10 levels darker — and the excerpt is what you actually scan when six filenames all look like hyphenated nouns. Neither is finished; A gets out of the way faster.",
+      "secondary": [
+        "Paper: A sidebar #F7F7F7 = editor #F7F7F7, zero step across the seam. B sidebar #FDFDFD vs editor #F9F9F9 — ~1.6 ΔL*, a faint brighter slab running the full 1800px of divider",
+        "Excerpt grey: A #979797 = 2.73:1 on its paper; B #A1A1A1 = 2.54:1. Both under the 3:1 floor — the two preview lines are the palest text in either window",
+        "Row pitch A 75 CSS px vs B 77; intra-row rhythm otherwise identical (name→preview 19.5px, preview leading 20px in both)",
+        "Selection accent identical in both: 4 CSS px bar at x=4, #00BFFF vs #00B5FF, inset 4px top / 5px bottom — both carry the same 1px vertical asymmetry",
+        "A's header is 'library', lowercase, with no disclosure chevron; B's 'Library ⌄' at least shows a door for changing Location. A shows no way to switch",
+        "Status line: A 'On this device', B 'In this browser'. The second is a sentence that will stop a novelist mid-scroll — a deployment fact rather than a design choice, but it is the only thing either pane says about where the words live",
+        "Neither pane exposes rename, duplicate, reveal-in-folder or delete; both offer '+' and a search field that is not wired up",
+        "Outside this piece but in the same frame: A hangs the heading's '#' 26 CSS px into the left margin so the heading's words align with the body at x=991; B sets it inline at 990 and pushes 'The storm' 20px off the body's left edge"
+      ]
+    },
+    {
+      "name": "search",
+      "ours": "shots/files/r3-search-ours.png",
+      "theirs": "shots/oracle/files/search.png",
+      "blind": "shots/blind/files/search",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "B has no single left margin in a 368px column: search icon at 10.5px, 'Sort by Date' at 10.5, the header toggle at 14, the document icons at 24.5 — a 14px scatter, twice A's 5.5px (14.5/15/16.5/20). Sharpest instance: B's row hairlines run 50→352.5px, flush with the date's right edge (352) but overhanging the filename column (54.5) by 4.5px on the left; A's run 46→352.5 against a name column starting at 46 — flush at both ends. Search-icon centre sits 14.75px left of the document-icon column in B, 2.75px in A.",
+      "gapTheirs": "Every secondary datum in the pane — date, the two-line preview, 'Sort by Date', the count, the save status — is set at #999999 on a #FDFDFD pane (2.80:1), where B holds the same class at #8C8C8C on #F7F7F7 (3.14:1). A's dates and previews fall under even the 3:1 large-text floor, and A compounds it by making the sidebar 4 levels brighter than its own page (#FDFDFD chrome against #F9F9F9 paper), so the file list is the brightest surface on screen while the manuscript sits behind it.",
+      "verdict": "A's rail is measured and B's is eyeballed — B ruled its rows to the date on the right and then let the line poke 4.5px past the filename on the left, and put its search icon 14px inboard of the very column it filters, so the pane reads as three left edges stacked on top of each other. A pays for that discipline with a washed-out column: #999 dates and previews at 2.80:1, on chrome that is brighter than the page you are supposed to be looking at, which is exactly backwards for a writing app. But A's fault is one hex value and B's is three margins and a rule aligned to nothing. Take A, and darken the greys the first week.",
+      "secondary": [
+        "B's header is an inert lowercase 'library' with no disclosure control; A's is 'Library' with a chevron — one fewer visible way to switch or collapse a Location in the pane whose whole job is finding files",
+        "B's meta line gives '8 documents · 239 words' — a library word total a writer actually uses; A gives only a document count",
+        "Row pitch A 78px vs B 74px; hairlines A #E7E7E7 vs B #DFDFDF; both selections are a 5-level fill plus a 4px cyan bar (A #00B5FF, B #00BFFF) — a wash",
+        "B's collapsed 'Drafts' row is 38px tall against 75px file rows and carries a solid cyan folder icon plus a full-bleed rule where file rows get inset rules — two rule treatments in one list",
+        "Status line reads 'In this browser' (A) vs 'On this device' (B); A's is the more honest disclosure of where a manuscript actually lives, though I cannot verify either from a still",
+        "Out of this piece, but noted: B hangs the heading '#' in the margin so the heading's words sit flush with the body's left edge (both at x=991 native); A puts the '#' inside the text column at 990, pushing the heading's words ~24px right of every paragraph line",
+        "A's list is narrowed to 2 of 8 with the query highlighted; per the brief the unnarrowed state is not B's to lose, so no credit taken either way — it does mean A's folder handling is invisible in this shot and went unjudged"
+      ]
+    }
+  ],
+  "at": "2026-09-03T05:25:14.478Z"
+}

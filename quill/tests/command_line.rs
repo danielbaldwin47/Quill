@@ -59,6 +59,35 @@ fn a_flag_quill_does_not_know_is_a_non_zero_exit_and_one_line_naming_it() {
     assert!(refused.stdout.is_empty(), "nothing on stdout: {refused:?}");
 }
 
+/// A fixture Library that is not there is refused before GTK, like a flag
+/// Quill cannot read: a `tools/gate shoot` that had copied nothing would
+/// otherwise shoot an empty sidebar and call it the Library.
+#[test]
+fn a_library_fixture_that_is_not_there_is_a_non_zero_exit_and_one_line_naming_it() {
+    let missing = std::env::temp_dir().join(format!("quill-no-library-{}", std::process::id()));
+    std::fs::remove_dir_all(&missing).ok();
+    let refused = quill()
+        .arg("--library")
+        .arg(&missing)
+        .output()
+        .expect("the binary runs");
+    assert!(
+        !refused.status.success(),
+        "a fixture Quill cannot copy must fail: {:?}",
+        refused.status
+    );
+    let said = String::from_utf8_lossy(&refused.stderr);
+    assert_eq!(
+        said.trim_end(),
+        format!(
+            "quill: --library: {}: no such fixture Library",
+            missing.display()
+        )
+    );
+    assert_eq!(said.lines().count(), 1, "one line, not a stack: {said}");
+    assert!(refused.stdout.is_empty(), "nothing on stdout: {refused:?}");
+}
+
 #[test]
 fn help_is_the_usage_on_stdout_and_a_zero_exit() {
     let asked = quill().arg("--help").output().expect("the binary runs");
