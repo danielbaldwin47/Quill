@@ -76,6 +76,13 @@ pub struct Modes {
     /// as the fullscreen above it is: the Library is the application's, the
     /// pane showing it is the window's.
     pub library: bool,
+    /// The Preview pane stands beside the Editor. Per window, as the Library
+    /// above it is, and remembered by nothing: the pane is closed at every
+    /// launch (#263).
+    pub preview: bool,
+    /// Where Preview opens, `split` or `full`. The session's, unlike the pane
+    /// itself: a writer sets it up once.
+    pub preview_layout: &'static str,
 }
 
 impl Modes {
@@ -83,7 +90,12 @@ impl Modes {
     ///
     /// The scope is the live one while Focus is on; off, it is the one the
     /// settings file holds, which the session restores when Focus returns.
-    pub fn of(session: &crate::session::Session, fullscreen: bool, library: bool) -> Self {
+    pub fn of(
+        session: &crate::session::Session,
+        fullscreen: bool,
+        library: bool,
+        preview: bool,
+    ) -> Self {
         let (focus, focus_scope) = match session.focus() {
             Focus::On(scope) => (true, scope.as_str()),
             Focus::Off => (false, session.settings().focus_scope.as_str()),
@@ -99,6 +111,8 @@ impl Modes {
             bars: session.chrome() == Chrome::Shown,
             stats: session.stats(),
             library,
+            preview,
+            preview_layout: session.preview_layout().as_str(),
         }
     }
 }
@@ -325,6 +339,11 @@ pub fn reflect(map: &impl IsA<gio::ActionMap>, modes: Modes) {
     set("chrome.toggle", (!modes.bars).to_variant());
     set("chrome.stats", modes.stats.to_variant());
     set("library.toggle", modes.library.to_variant());
+    set("preview.toggle", modes.preview.to_variant());
+    // The one radio row carries `split`, so Full ticks nothing, the way the
+    // scope rows tick nothing with Focus off: the row is where Preview opens
+    // and not a state the window is in.
+    set("preview_layout", modes.preview_layout.to_variant());
     // With Focus off neither scope's row is ticked, as the oracle's menu
     // has it: the scope the file holds is the one Focus comes back to, not
     // a state the page is in.
@@ -379,6 +398,10 @@ fn run_window(window: &Window, command: &Command) {
         "typewriter.toggle" => window.toggle_typewriter(),
         "chrome.toggle" => window.toggle_bars(),
         "library.toggle" => window.toggle_library(),
+        "preview.toggle" => window.toggle_preview(),
+        // One row with one value and two states: the chord and the menu row
+        // both flip it, the way `focus.swap` flips the scope.
+        "preview.layout" => window.swap_preview_layout(),
         "library.search" => window.search_library(),
         "chrome.stats" => window.toggle_stats(),
         "chrome.doc" | "chrome.view" => {
@@ -1703,6 +1726,8 @@ mod tests {
             bars: false,
             stats: false,
             library: true,
+            preview: true,
+            preview_layout: "full",
         };
         reflect(&map, modes);
         let state = |name: &str| map.action_state(name).unwrap();
@@ -1719,6 +1744,12 @@ mod tests {
         assert_eq!(state("theme").get::<String>().as_deref(), Some("auto"));
         assert_eq!(state("face").get::<String>().as_deref(), Some("quattro"));
         assert_eq!(state("library.toggle").get::<bool>(), Some(true));
+        assert_eq!(state("preview.toggle").get::<bool>(), Some(true));
+        assert_eq!(
+            state("preview_layout").get::<String>().as_deref(),
+            Some("full"),
+            "the row carries `split`, so Full ticks none of it"
+        );
     }
 
     #[test]
