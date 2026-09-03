@@ -40,13 +40,13 @@ use gtk::{cairo, gio, glib};
 use quill_engine::commands::{self, COMMANDS, Command, Kind, Menu, Scope};
 use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
-use quill_engine::settings::{Choice, Chrome, FocusScope};
+use quill_engine::settings::{Choice, Chrome, FocusScope, TemplateName};
 use quill_engine::shortcuts::{Chord, Refusal};
 use quill_engine::stats::words;
 use quill_engine::theme::{Role, Scheme};
 
 use crate::ground::Ground;
-use crate::session::Session;
+use crate::session::{Session, TemplateToggle};
 use crate::window::Window;
 
 pub mod typing;
@@ -85,6 +85,15 @@ pub struct Modes {
     /// Where Preview opens, `split` or `full`. The session's, unlike the pane
     /// itself: a writer sets it up once.
     pub preview_layout: &'static str,
+    /// The Template the page is laid out in, `modern` to
+    /// `manuscript-quattro`.
+    pub template: &'static str,
+    /// The Template's `center_headings` toggle.
+    pub center_headings: bool,
+    /// Its `number_headings` toggle.
+    pub number_headings: bool,
+    /// Its `indent_paragraphs` toggle.
+    pub indent_paragraphs: bool,
 }
 
 impl Modes {
@@ -116,6 +125,10 @@ impl Modes {
             library,
             preview,
             preview_layout: session.preview_layout().as_str(),
+            template: session.template().name.as_str(),
+            center_headings: session.template().center_headings,
+            number_headings: session.template().number_headings,
+            indent_paragraphs: session.template().indent_paragraphs,
         }
     }
 }
@@ -355,6 +368,19 @@ pub fn reflect(map: &impl IsA<gio::ActionMap>, modes: Modes) {
     set("focus_scope", scope.to_variant());
     set("theme", modes.theme.to_variant());
     set("face", modes.face.to_variant());
+    set("template", modes.template.to_variant());
+    set(
+        "template.centerHeadings",
+        modes.center_headings.to_variant(),
+    );
+    set(
+        "template.numberHeadings",
+        modes.number_headings.to_variant(),
+    );
+    set(
+        "template.indentParagraphs",
+        modes.indent_paragraphs.to_variant(),
+    );
 }
 
 /// The application's Commands.
@@ -396,6 +422,16 @@ fn run_window(window: &Window, command: &Command) {
         "font.duo" => window.set_face(quill_engine::settings::Face::Duo),
         "font.quattro" => window.set_face(quill_engine::settings::Face::Quattro),
         "font.mono" => window.set_face(quill_engine::settings::Face::Mono),
+        // View › Template: one Template for the app, on the rendered page
+        // alone (#263 § Templates).
+        "template.modern" => window.set_template(TemplateName::Modern),
+        "template.classic" => window.set_template(TemplateName::Classic),
+        "template.manuscriptMono" => window.set_template(TemplateName::ManuscriptMono),
+        "template.manuscriptDuo" => window.set_template(TemplateName::ManuscriptDuo),
+        "template.manuscriptQuattro" => window.set_template(TemplateName::ManuscriptQuattro),
+        "template.centerHeadings" => window.toggle_template(TemplateToggle::CenterHeadings),
+        "template.numberHeadings" => window.toggle_template(TemplateToggle::NumberHeadings),
+        "template.indentParagraphs" => window.toggle_template(TemplateToggle::IndentParagraphs),
         "theme.toggle" => window.toggle_scheme(),
         "theme.light" => window.set_theme(quill_engine::settings::Theme::Light),
         "theme.dark" => window.set_theme(quill_engine::settings::Theme::Dark),
@@ -1722,6 +1758,40 @@ mod tests {
         );
     }
 
+    /// The eight View › Template Commands are built: the radio group fires
+    /// the Template the value names, and each of the three toggles fires its
+    /// own Command (#271).
+    #[test]
+    fn the_eight_template_commands_are_built_and_fire() {
+        let (map, fired) = map(Scope::Win);
+        assert!(map.is_action_enabled("template"), "the radio group");
+        for value in TemplateName::VALUES {
+            map.activate_action("template", Some(&(*value).to_variant()));
+        }
+        let toggles = [
+            "template.centerHeadings",
+            "template.numberHeadings",
+            "template.indentParagraphs",
+        ];
+        for id in toggles {
+            assert!(map.is_action_enabled(id), "{id}");
+            map.activate_action(id, None);
+        }
+        assert_eq!(
+            fired.borrow().as_slice(),
+            [
+                "template.modern",
+                "template.classic",
+                "template.manuscriptMono",
+                "template.manuscriptDuo",
+                "template.manuscriptQuattro",
+                "template.centerHeadings",
+                "template.numberHeadings",
+                "template.indentParagraphs",
+            ]
+        );
+    }
+
     #[test]
     fn the_stateful_actions_show_the_modes_they_are_given() {
         let (map, _) = map(Scope::Win);
@@ -1739,6 +1809,10 @@ mod tests {
             library: true,
             preview: true,
             preview_layout: "full",
+            template: "classic",
+            center_headings: true,
+            number_headings: true,
+            indent_paragraphs: false,
         };
         reflect(&map, modes);
         let state = |name: &str| map.action_state(name).unwrap();
@@ -1761,6 +1835,16 @@ mod tests {
             state("preview_layout").get::<String>().as_deref(),
             Some("full"),
             "the row carries `split`, so Full ticks none of it"
+        );
+        assert_eq!(
+            state("template").get::<String>().as_deref(),
+            Some("classic")
+        );
+        assert_eq!(state("template.centerHeadings").get::<bool>(), Some(true));
+        assert_eq!(state("template.numberHeadings").get::<bool>(), Some(true));
+        assert_eq!(
+            state("template.indentParagraphs").get::<bool>(),
+            Some(false)
         );
     }
 

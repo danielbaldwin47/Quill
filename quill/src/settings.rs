@@ -26,7 +26,7 @@ use gtk::{gio, glib};
 use quill_engine::settings::{Settings, Theme};
 use quill_engine::theme::Scheme;
 
-use crate::session::Session;
+use crate::session::{Session, TemplateToggle};
 
 /// How near the top and the bottom of the window the Typewriter anchor may be
 /// dragged. The setting itself takes any fraction (`docs/architecture.md`
@@ -156,6 +156,30 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
         &switch(session, library.ask_where_to_save, asked_where_to_save),
     );
 
+    // The Template's three toggles, the same keys View › Template's checks
+    // flip: a row moved here is the file moving every open pane
+    // ([`crate::window::reapply`]), and a check flipped there is the file
+    // moving this row the next time the window is opened (#263).
+    let template = session.template().clone();
+    row(
+        &grid,
+        9,
+        "Center headings",
+        &switch(session, template.center_headings, centered_headings),
+    );
+    row(
+        &grid,
+        10,
+        "Number headings",
+        &switch(session, template.number_headings, numbered_headings),
+    );
+    row(
+        &grid,
+        11,
+        "Indent paragraphs",
+        &switch(session, template.indent_paragraphs, indented_paragraphs),
+    );
+
     let button = gtk::Button::builder()
         .label("Edit settings.toml…")
         .halign(gtk::Align::End)
@@ -166,7 +190,7 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
         session,
         move |_| edit(session.settings_path(), launch.as_ref())
     ));
-    row(&grid, 9, "Keyboard shortcuts", &button);
+    row(&grid, 12, "Keyboard shortcuts", &button);
 
     if let Some(said) = refused(&session.unapplied()) {
         let label = gtk::Label::builder()
@@ -174,7 +198,7 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
             .halign(gtk::Align::Start)
             .wrap(true)
             .build();
-        grid.attach(&label, 0, 10, 2, 1);
+        grid.attach(&label, 0, 13, 2, 1);
     }
 
     window.present();
@@ -385,6 +409,22 @@ fn asked_where_to_save(settings: &mut Settings, on: bool) {
     settings.library.ask_where_to_save = on;
 }
 
+/// What Center headings writes: the same key `template.centerHeadings` flips.
+fn centered_headings(settings: &mut Settings, on: bool) {
+    TemplateToggle::CenterHeadings.set(&mut settings.template, on);
+}
+
+/// What Number headings writes: the same key `template.numberHeadings` flips.
+fn numbered_headings(settings: &mut Settings, on: bool) {
+    TemplateToggle::NumberHeadings.set(&mut settings.template, on);
+}
+
+/// What Indent paragraphs writes: the same key `template.indentParagraphs`
+/// flips.
+fn indented_paragraphs(settings: &mut Settings, on: bool) {
+    TemplateToggle::IndentParagraphs.set(&mut settings.template, on);
+}
+
 /// What the window says at the bottom about the last read of the settings
 /// file, and `None` where all of it applied.
 ///
@@ -416,7 +456,7 @@ fn launcher() -> Box<Launch> {
 
 #[cfg(test)]
 mod tests {
-    use quill_engine::settings::Chrome;
+    use quill_engine::settings::{Chrome, TemplateName};
     use quill_engine::shortcuts::Refusal;
 
     use super::*;
@@ -559,6 +599,47 @@ mod tests {
         }
         std::fs::remove_file(&path).ok();
         std::fs::remove_dir_all(&root).ok();
+    }
+
+    /// Every Template row writes its own key into `[template]`, leaves the
+    /// other two and the Template itself alone, and the value it wrote is the
+    /// one View › Template's check reads back once the file is applied — one
+    /// setting under both (#271).
+    #[test]
+    fn every_template_row_writes_its_key_and_the_menus_check_reads_it_back() {
+        let (session, path) = launched("template-rows");
+        let rows = [
+            (
+                centered_headings as fn(&mut Settings, bool),
+                TemplateToggle::CenterHeadings,
+            ),
+            (numbered_headings, TemplateToggle::NumberHeadings),
+            (indented_paragraphs, TemplateToggle::IndentParagraphs),
+        ];
+        for (flip, moved) in rows {
+            for on in [true, false] {
+                let written = wrote(&session, &path, |settings| flip(settings, on));
+                assert_eq!(moved.of(&written.template), on, "{moved:?} wrote its key");
+                assert_eq!(
+                    moved.of(&session.template()),
+                    on,
+                    "and the menu's check reads it back"
+                );
+                assert_eq!(
+                    written.template.name,
+                    TemplateName::Modern,
+                    "and the Template itself is the radios'"
+                );
+                for (_, still) in rows.iter().filter(|(_, other)| *other != moved) {
+                    assert_eq!(
+                        still.of(&written.template),
+                        still.of(&session.template()),
+                        "{still:?} is where the row before it left it"
+                    );
+                }
+            }
+        }
+        std::fs::remove_file(&path).ok();
     }
 
     /// A Location written by the row reaches the Library as the watch reads

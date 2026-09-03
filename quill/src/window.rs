@@ -40,7 +40,7 @@ use crate::flags;
 use crate::ground::Ground;
 use crate::harness;
 use crate::menus;
-use crate::session::Session;
+use crate::session::{Session, TemplateToggle};
 use crate::tags;
 
 /// How long after the last keystroke autosave writes the Document out.
@@ -497,6 +497,55 @@ impl Window {
             reset(&app, &session, |window, _| {
                 window.imp().editor.set_type(face, step);
             });
+        }
+    }
+
+    /// Lays the rendered page out in `name`, in every window.
+    ///
+    /// `docs/shortcuts.md`'s five `template.*` radio rows, the View › Template
+    /// submenu. One Template for the app (ADR 0005), so the session remembers
+    /// it, writes it as the row is picked — the way a face is written — and
+    /// every open pane lays its Document out again.
+    pub(crate) fn set_template(&self, name: quill_engine::settings::TemplateName) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        if name == session.template().name {
+            return;
+        }
+        session.set_template(name);
+        self.relay_out(&session);
+    }
+
+    /// Flips one of the Template's three toggles, in every window.
+    ///
+    /// `docs/shortcuts.md`'s `template.centerHeadings`,
+    /// `template.numberHeadings` and `template.indentParagraphs` rows, and the
+    /// same three the Settings window's switches write: one Template for the
+    /// app, so a toggle moves every pane.
+    pub(crate) fn toggle_template(&self, toggle: TemplateToggle) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        session.toggle_template(toggle);
+        self.relay_out(&session);
+    }
+
+    /// Writes what the Template picks moved and lays every open pane out
+    /// again.
+    ///
+    /// The Editor is untouched: a Template is the rendered page's and the
+    /// `font.*` ladder is the Editor's, and neither reaches the other
+    /// (#263 § Zoom).
+    fn relay_out(&self, session: &Session) {
+        // Written as the row is picked, for the reason a size step is
+        // ([`Window::step_size`]).
+        session.store_settings();
+        let Some(app) = self.application() else {
+            return;
+        };
+        for window in windows(&app) {
+            window.refresh_preview();
         }
     }
 
@@ -1867,7 +1916,11 @@ impl Window {
     ///
     /// Everything the render pass reads — the Template, its toggles, the zoom
     /// and the ground — is the session's, so the pane is handed the settings
-    /// rather than a copy of each ([`crate::preview::Preview::refresh`]).
+    /// rather than a copy of each ([`crate::preview::Preview::refresh`]). The
+    /// settings it is handed are the ones this launch is running
+    /// ([`Session::running`]) rather than the ones it last read, because a
+    /// Template picked from the menu and a zoom stepped by a key are held live
+    /// and written to the file, not read back out of it.
     pub(crate) fn refresh_preview(&self) {
         if !self.imp().previewing.get() {
             return;
@@ -1878,7 +1931,7 @@ impl Window {
         let document = self.document();
         self.imp()
             .preview
-            .refresh(&document, &session.settings(), session.ground().scheme);
+            .refresh(&document, &session.running(), session.ground().scheme);
         drop(document);
         // The page is a new page, so the scroll it had means nothing: the
         // caret's block is what the writer was looking at and where the pane
