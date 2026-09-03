@@ -22,13 +22,20 @@
 //! the one row it names. The Library owns no watch itself: the engine has no
 //! `glib` (ADR 0008), so draining the receiver is the app's.
 //!
-//! Search over the shown tree is the Library spec's next ticket; [`files`] is
-//! the seam it reads through.
+//! Search over the shown tree is one function, [`Library::search`]: a fuzzy
+//! matcher over names — the query's letters in order with gaps, scored by
+//! tightness — and a matcher over contents that wants every word of the query
+//! somewhere in the file's text. That text is read live from disk and held for
+//! the session by write time in [`Contents`], so a second query over a tree
+//! nothing has touched reads nothing. [`files`] is the seam search reads the
+//! shown tree through, so it answers what the writer can see, in their order.
 //!
 //! [`files`]: Library::files
 
-use std::cmp::Ordering;
+use std::cmp::{Ordering, Reverse};
+use std::collections::BTreeMap;
 use std::fs;
+use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
@@ -329,6 +336,152 @@ pub enum Pin {
     Outside,
 }
 
+/// What a query matched in a file.
+///
+/// Ordered the way results are: a name hit before a content hit, whatever
+/// either scored.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Hit {
+    /// The file's name, matched fuzzily.
+    Name,
+    /// The file's text, matched by every word of the query.
+    Content,
+}
+
+/// The text around a content match, and where the match sits inside it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Snippet {
+    /// The window of the file's flattened text the match falls in, opened and
+    /// closed with `…` where it was cut into.
+    text: String,
+    /// Where the match is in `text`, in bytes.
+    at: Range<usize>,
+}
+
+impl Snippet {
+    /// The window of text the match falls in.
+    #[must_use]
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    /// Where the match is in [`text`](Snippet::text), in bytes, which is what
+    /// a sidebar draws marked.
+    #[must_use]
+    pub fn at(&self) -> Range<usize> {
+        self.at.clone()
+    }
+
+    /// The matched text itself.
+    #[must_use]
+    pub fn matched(&self) -> &str {
+        &self.text[self.at.clone()]
+    }
+}
+
+/// One file a query matched, and what matched in it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Found<'a> {
+    /// The file, as the tree holds it.
+    file: &'a File,
+    /// What matched.
+    hit: Hit,
+    /// How well it matched: higher is better, comparable within a [`Hit`] and
+    /// not across one, because a name hit is listed first whatever either
+    /// scored.
+    score: i32,
+    /// The text around the first content match; `None` for a name hit, which
+    /// is drawn as the name it matched.
+    snippet: Option<Snippet>,
+}
+
+impl<'a> Found<'a> {
+    /// The file that matched.
+    #[must_use]
+    pub fn file(&self) -> &'a File {
+        self.file
+    }
+
+    /// What matched in it.
+    #[must_use]
+    pub fn hit(&self) -> Hit {
+        self.hit
+    }
+
+    /// How well it matched.
+    #[must_use]
+    pub fn score(&self) -> i32 {
+        self.score
+    }
+
+    /// The text around the first content match, for a content hit.
+    #[must_use]
+    pub fn snippet(&self) -> Option<&Snippet> {
+        self.snippet.as_ref()
+    }
+}
+
+/// The file texts search has read, held for the session.
+///
+/// A file is read when it is first searched and again when the tree says its
+/// write time has moved, so a query over a tree nothing has touched reads
+/// nothing and a file the file system will not date is read once. The app
+/// keeps one beside the [`Library`] and hands it to every
+/// [`search`](Library::search); dropping it is forgetting every text.
+#[derive(Clone, Debug, Default)]
+pub struct Contents {
+    /// The flattened text of each file read, under the path it was read from.
+    texts: BTreeMap<PathBuf, Cached>,
+    /// How many times a file has been read from disk, which is what pins the
+    /// cost of a search.
+    reads: usize,
+}
+
+impl Contents {
+    /// A cache holding nothing.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// How many times it has gone to disk since it was made.
+    #[must_use]
+    pub fn reads(&self) -> usize {
+        self.reads
+    }
+
+    /// The flattened text of `file`, read where the cache does not already
+    /// hold it at the write time the tree last saw. A file that cannot be read
+    /// is held as no text, so an unreadable file is not read again either.
+    fn text(&mut self, file: &File) -> &str {
+        let held = self
+            .texts
+            .get(file.path())
+            .is_some_and(|cached| cached.modified == file.modified());
+        if !held {
+            self.reads += 1;
+            let text = flatten(&fs::read_to_string(file.path()).unwrap_or_default());
+            self.texts.insert(
+                file.path().to_path_buf(),
+                Cached {
+                    modified: file.modified(),
+                    text,
+                },
+            );
+        }
+        &self.texts[file.path()].text
+    }
+}
+
+/// One file's text as [`Contents`] holds it.
+#[derive(Clone, Debug)]
+struct Cached {
+    /// The write time the text was read at.
+    modified: Option<SystemTime>,
+    /// The text, flattened.
+    text: String,
+}
+
 /// The Locations Quill is showing and the paths pinned beside them.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Library {
@@ -503,6 +656,61 @@ impl Library {
             }
         }
         files.into_iter()
+    }
+
+    /// Every shown file `query` matched, name hits first and each kind by
+    /// score.
+    ///
+    /// The name matcher is fuzzy: the query's letters, whitespace dropped, in
+    /// order with gaps, case-insensitive and scored by tightness, so `sst`
+    /// finds `sea-storm.md` and ranks it above a looser name. The content
+    /// matcher wants every whitespace-separated word of the query as a
+    /// case-insensitive substring of the file's text, read live from disk
+    /// through `contents` and flattened the way a row shows it, and marks the
+    /// first match in a [`Snippet`]. A file whose name matched is a name hit
+    /// and its text is left unread. An empty query matches nothing, which is
+    /// the sidebar drawing its tree rather than a result list.
+    ///
+    /// The bound is one pass over the shown files, and one read of each file
+    /// whose name did not match and whose write time `contents` has not read
+    /// at already — so a second query over an untouched tree reads nothing.
+    #[must_use]
+    pub fn search(&self, query: &str, view: &View, contents: &mut Contents) -> Vec<Found<'_>> {
+        let words: Vec<String> = query.split_whitespace().map(str::to_lowercase).collect();
+        if words.is_empty() {
+            return Vec::new();
+        }
+        let letters: String = words.concat();
+        let mut found = Vec::new();
+        for file in self.files(view) {
+            if let Some(score) = fuzzy(&letters, &file.name.to_lowercase()) {
+                found.push(Found {
+                    file,
+                    hit: Hit::Name,
+                    score,
+                    snippet: None,
+                });
+                continue;
+            }
+            let text = contents.text(file);
+            let Some(at) = earliest_match(&words, text) else {
+                continue;
+            };
+            // Earlier is better, and a content score is never above zero, so
+            // the two kinds never share a scale — which is why they are sorted
+            // by kind first.
+            let score = -i32::try_from(at.start).unwrap_or(i32::MAX);
+            let snippet = Some(windowed(text, &at));
+            found.push(Found {
+                file,
+                hit: Hit::Content,
+                score,
+                snippet,
+            });
+        }
+        // A stable sort, so files that scored alike stay in the view's order.
+        found.sort_by_key(|found| (found.hit, Reverse(found.score)));
+        found
     }
 
     /// Takes in what happened at `path` — a watch event, under the Location it
@@ -714,6 +922,222 @@ fn drop_entry(folder: &mut Folder, name: &std::ffi::OsStr) -> bool {
         .files
         .retain(|file| file.path.file_name() != Some(name));
     folder.folders.len() + folder.files.len() != before
+}
+
+/// What one matched letter of a fuzzy name match is worth before its gap is
+/// charged.
+const MATCH: i32 = 1;
+/// What the name's first letter is worth, matched.
+const START: i32 = 12;
+/// What a letter just after a separator is worth: the writer typing the
+/// initials of a hyphenated name is the case the score is shaped for.
+const BOUNDARY: i32 = 8;
+/// What a letter just after the one before it is worth: an unbroken run is
+/// what tightness means.
+const ADJACENT: i32 = 10;
+/// What one skipped character costs.
+const GAP: i32 = 1;
+/// The most a single gap is charged, so one long gap does not sink a name
+/// that is otherwise tight.
+const GAP_CAP: i32 = 6;
+
+/// Whether `letter` opens a word in a file name.
+fn separator(letter: char) -> bool {
+    matches!(letter, '-' | '_' | '.' | '/') || letter.is_whitespace()
+}
+
+/// What matching a query letter at `index` of `letters` scores, having matched
+/// the letter before it at `before` — `None` where it is the query's first.
+fn scored(letters: &[char], before: Option<usize>, index: usize) -> i32 {
+    let gap = match before {
+        Some(before) => index - before - 1,
+        None => index,
+    };
+    let bonus = if gap == 0 && before.is_some() {
+        ADJACENT
+    } else if index == 0 {
+        START
+    } else if separator(letters[index - 1]) {
+        BOUNDARY
+    } else {
+        0
+    };
+    let charged = i32::try_from(gap).unwrap_or(i32::MAX).min(GAP_CAP);
+    MATCH + bonus - GAP * charged
+}
+
+/// How tightly `query` — lowercase, no whitespace — falls through `name`, also
+/// lowercase, or `None` where the query's letters are not all there in order.
+///
+/// Every letter scores [`MATCH`]; the name's first scores [`START`], one just
+/// after a separator [`BOUNDARY`], one just after the letter before it
+/// [`ADJACENT`], and every character skipped costs [`GAP`] up to [`GAP_CAP`].
+/// The score is the best-scoring way of laying the query through the name, not
+/// the leftmost, because the leftmost cannot tell `sea-storm` from
+/// `sunset-stories`: both take `sst` in the same span, and only the tighter
+/// laying says which one the writer meant.
+///
+/// The bound is the query's letters times the square of the name's, over a
+/// file name and nothing longer.
+fn fuzzy(query: &str, name: &str) -> Option<i32> {
+    let letters: Vec<char> = name.chars().collect();
+    // The best score for the query so far, laid so that its last letter is the
+    // name's letter at each index; `None` where it cannot end there.
+    let mut previous: Vec<Option<i32>> = Vec::new();
+    for (step, wanted) in query.chars().enumerate() {
+        let mut here: Vec<Option<i32>> = vec![None; letters.len()];
+        for (index, letter) in letters.iter().enumerate() {
+            if *letter != wanted {
+                continue;
+            }
+            if step == 0 {
+                here[index] = Some(scored(&letters, None, index));
+                continue;
+            }
+            let mut top: Option<i32> = None;
+            for (before, had) in previous.iter().enumerate().take(index) {
+                let Some(had) = had else {
+                    continue;
+                };
+                let score = had + scored(&letters, Some(before), index);
+                top = Some(top.map_or(score, |held: i32| held.max(score)));
+            }
+            here[index] = top;
+        }
+        previous = here;
+        if previous.iter().all(Option::is_none) {
+            return None;
+        }
+    }
+    previous.into_iter().flatten().max()
+}
+
+/// The file's text as a row shows it: a heading's `#` markers and the
+/// emphasis marks `*_`, a backtick and `~` dropped, every run of whitespace
+/// one space. A hit is then always something the writer can see in the
+/// snippet, which is what `legacy/app/js/files.js`'s `excerpt` flattened the
+/// text for.
+fn flatten(text: &str) -> String {
+    let mut flat = String::with_capacity(text.len());
+    for line in text.lines() {
+        for letter in unheaded(line).chars() {
+            if matches!(letter, '*' | '_' | '`' | '~') {
+                continue;
+            }
+            if letter.is_whitespace() {
+                if !flat.is_empty() && !flat.ends_with(' ') {
+                    flat.push(' ');
+                }
+            } else {
+                flat.push(letter);
+            }
+        }
+        if !flat.is_empty() && !flat.ends_with(' ') {
+            flat.push(' ');
+        }
+    }
+    flat.truncate(flat.trim_end().len());
+    flat
+}
+
+/// `line` without its Markdown heading marker, where it opens with one: up to
+/// six `#` and the whitespace after them.
+fn unheaded(line: &str) -> &str {
+    let rest = line.trim_start();
+    let hashes = rest.chars().take_while(|letter| *letter == '#').count();
+    if (1..=6).contains(&hashes) {
+        let after = &rest[hashes..];
+        if after.starts_with(char::is_whitespace) {
+            return after.trim_start();
+        }
+    }
+    rest
+}
+
+/// Where `word`, already lowercase, ends in `text` if it starts at `start`.
+fn match_at(text: &str, start: usize, word: &str) -> Option<usize> {
+    let mut wanted = word.chars().peekable();
+    wanted.peek()?;
+    let mut end = start;
+    for letter in text[start..].chars() {
+        for lowered in letter.to_lowercase() {
+            if wanted.next() != Some(lowered) {
+                return None;
+            }
+        }
+        end += letter.len_utf8();
+        if wanted.peek().is_none() {
+            return Some(end);
+        }
+    }
+    None
+}
+
+/// Where `word`, already lowercase, first falls in `text`, case-insensitively.
+///
+/// The bound is one try per character of `text`, each of at most `word`'s
+/// length.
+fn first_match(text: &str, word: &str) -> Option<Range<usize>> {
+    text.char_indices()
+        .find_map(|(start, _)| match_at(text, start, word).map(|end| start..end))
+}
+
+/// Where the earliest of `words` — all lowercase — falls in `text`, if every
+/// one of them is somewhere in it. Every word or no hit: that is what "every
+/// whitespace-separated word" means.
+fn earliest_match(words: &[String], text: &str) -> Option<Range<usize>> {
+    let mut earliest: Option<Range<usize>> = None;
+    for word in words {
+        let at = first_match(text, word)?;
+        match &earliest {
+            Some(held) if held.start <= at.start => {}
+            _ => earliest = Some(at),
+        }
+    }
+    earliest
+}
+
+/// How many characters of lead-in a snippet opens with.
+const LEAD: usize = 42;
+/// How many characters of the text a snippet shows.
+const WINDOW: usize = 160;
+
+/// The window of `text` around the match at `at`, and where the match sits in
+/// it.
+///
+/// The window opens up to [`LEAD`] characters before the match, moved forward
+/// to the next word so it does not open mid-word, and runs [`WINDOW`]
+/// characters — the shape `legacy/app/js/files.js`'s `snippet` drew — with `…`
+/// at whichever end was cut into. `text` is flattened, so a space is the only
+/// whitespace a word ends at.
+fn windowed(text: &str, at: &Range<usize>) -> Snippet {
+    let mut from = text[..at.start]
+        .char_indices()
+        .rev()
+        .take(LEAD)
+        .last()
+        .map_or(at.start, |(index, _)| index);
+    if from > 0 {
+        from += text[from..at.start].find(' ').map_or(0, |space| space + 1);
+    }
+    let to = text[from..]
+        .char_indices()
+        .nth(WINDOW)
+        .map_or(text.len(), |(index, _)| from + index)
+        .max(at.end);
+    let mut window = String::new();
+    if from > 0 {
+        window.push('…');
+    }
+    let start = window.len();
+    window.push_str(&text[from..to]);
+    if to < text.len() {
+        window.push('…');
+    }
+    Snippet {
+        text: window,
+        at: start + (at.start - from)..start + (at.end - from),
+    }
 }
 
 #[cfg(test)]
@@ -1103,6 +1527,178 @@ mod tests {
         };
         let all: Vec<&str> = library.files(&everything).map(File::name).collect();
         assert_eq!(all, ["deep.md", ".hidden.md", "top.md"]);
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    /// The names a search answered, in the order it answered them.
+    fn hits<'a>(found: &'a [Found<'a>]) -> Vec<&'a str> {
+        found.iter().map(|found| found.file().name()).collect()
+    }
+
+    #[test]
+    fn sst_finds_sea_storm_and_ranks_it_above_a_looser_name() {
+        let directory = scratch("fuzzy");
+        written(&directory, "sea-storm.md", "the tide turned");
+        written(&directory, "sunset-stories.md", "the tide turned");
+        written(&directory, "harbour.md", "the tide turned");
+        let library = walked(&directory);
+        let mut contents = Contents::new();
+        let found = library.search("sst", &View::default(), &mut contents);
+        assert_eq!(hits(&found), ["sea-storm.md", "sunset-stories.md"]);
+        assert!(found.iter().all(|found| found.hit() == Hit::Name));
+        assert!(
+            found[0].score() > found[1].score(),
+            "`sst` lies tighter on `sea-storm` than on `sunset-stories`"
+        );
+        assert!(
+            found.iter().all(|found| found.snippet().is_none()),
+            "a name hit is drawn as the name it matched"
+        );
+        assert_eq!(
+            contents.reads(),
+            1,
+            "only `harbour.md`, whose name did not match, was read"
+        );
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn a_query_no_name_or_text_holds_finds_nothing_and_an_empty_one_matches_nothing() {
+        let directory = scratch("miss");
+        written(&directory, "sea-storm.md", "the tide turned");
+        let library = walked(&directory);
+        let view = View::default();
+        let mut contents = Contents::new();
+        assert!(library.search("xyz", &view, &mut contents).is_empty());
+        assert!(library.search("", &view, &mut contents).is_empty());
+        assert!(library.search("   ", &view, &mut contents).is_empty());
+        assert_eq!(contents.reads(), 1, "the empty queries read nothing");
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn every_word_of_the_query_must_be_in_the_text() {
+        let directory = scratch("words");
+        written(
+            &directory,
+            "harbour.md",
+            "The lamp was lit before the sea rose.",
+        );
+        written(&directory, "lighthouse.md", "The sea rose.");
+        let library = walked(&directory);
+        let mut contents = Contents::new();
+        let found = library.search("lamp sea", &View::default(), &mut contents);
+        assert_eq!(hits(&found), ["harbour.md"]);
+        assert_eq!(found[0].hit(), Hit::Content);
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn a_content_hits_snippet_opens_on_a_whole_word_and_marks_exactly_the_match() {
+        let directory = scratch("snippet");
+        let lead = "the tide turned and turned again ".repeat(4);
+        let text = format!("# Harbour\n\n{lead}— the *sea* rose at dawn.\n");
+        written(&directory, "harbour.md", &text);
+        let library = walked(&directory);
+        let mut contents = Contents::new();
+        let found = library.search("sea", &View::default(), &mut contents);
+        assert_eq!(hits(&found), ["harbour.md"]);
+        let snippet = found[0].snippet().expect("a content hit carries a snippet");
+        assert_eq!(snippet.matched(), "sea");
+        assert_eq!(&snippet.text()[snippet.at()], "sea");
+        assert!(
+            snippet.text().starts_with('…'),
+            "the window was cut into, so it says so"
+        );
+        assert!(
+            snippet.text().contains("— the sea rose at dawn."),
+            "the em dash and the emphasis marks are flattened, not broken: {}",
+            snippet.text()
+        );
+        let flat = flatten(&text);
+        let body = snippet.text().trim_matches('…');
+        assert!(
+            flat.contains(&format!(" {body}")),
+            "the window opens on a whole word: {body}"
+        );
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn a_name_hit_lists_before_a_content_hit_of_any_score() {
+        let directory = scratch("kinds");
+        written(
+            &directory,
+            "chapters-of-the-unnamed.md",
+            "nothing to find here",
+        );
+        written(&directory, "harbour.md", "sea rose at dawn");
+        let library = walked(&directory);
+        let mut contents = Contents::new();
+        let found = library.search("sea", &View::default(), &mut contents);
+        assert_eq!(hits(&found), ["chapters-of-the-unnamed.md", "harbour.md"]);
+        assert_eq!(found[0].hit(), Hit::Name);
+        assert_eq!(found[1].hit(), Hit::Content);
+        assert!(
+            found[0].score() < found[1].score(),
+            "the name hit scored below the content hit and still lists first"
+        );
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn a_files_text_is_read_again_only_when_its_write_time_moves() {
+        let directory = scratch("cache");
+        let path = written(&directory, "harbour.md", "the lamp was lit");
+        stamped(&path, 1_000);
+        let view = View::default();
+        let mut contents = Contents::new();
+        let library = walked(&directory);
+        assert_eq!(
+            hits(&library.search("lamp", &view, &mut contents)),
+            ["harbour.md"]
+        );
+        assert_eq!(contents.reads(), 1);
+        // Rewritten behind the tree's back, at the write time it already read
+        // at: the cache answers, and answers what it read.
+        fs::write(&path, "the sea rose").expect("rewrites the file");
+        stamped(&path, 1_000);
+        assert_eq!(
+            hits(&library.search("lamp", &view, &mut contents)),
+            ["harbour.md"]
+        );
+        assert_eq!(contents.reads(), 1, "an unchanged write time reads nothing");
+        // A write time the tree has seen move is a read, and the new text.
+        stamped(&path, 2_000);
+        let moved = walked(&directory);
+        assert!(moved.search("lamp", &view, &mut contents).is_empty());
+        assert_eq!(
+            hits(&moved.search("sea", &view, &mut contents)),
+            ["harbour.md"]
+        );
+        assert_eq!(contents.reads(), 2, "one read for the new write time");
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn a_hidden_file_is_searched_only_where_it_is_shown() {
+        let directory = scratch("unshown");
+        written(&directory, ".sea-storm.md", "the tide turned");
+        let library = walked(&directory);
+        let mut contents = Contents::new();
+        assert!(
+            library
+                .search("sst", &View::default(), &mut contents)
+                .is_empty()
+        );
+        let everything = View {
+            show_hidden: true,
+            sort: Sort::Name,
+        };
+        assert_eq!(
+            hits(&library.search("sst", &everything, &mut contents)),
+            [".sea-storm.md"]
+        );
         fs::remove_dir_all(&directory).ok();
     }
 }
