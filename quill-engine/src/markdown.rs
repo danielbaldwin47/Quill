@@ -104,6 +104,25 @@ pub fn prose(text: &str) -> Vec<Prose<'_>> {
     runs
 }
 
+/// The destination `label` is defined as, if `text` defines it.
+///
+/// The one whole-document question about a link, and the reason it is asked
+/// here rather than in the Annotator: a link-reference definition can stand
+/// anywhere in the file, and the Markup Annotator reads a line at a time
+/// ([`crate::annotate::Mark::DefinitionLabel`] says so in as many words). A
+/// reference link's [`crate::annotate::Mark::Url`] is its *label* rather than
+/// an address, so the app resolves it through this before it opens anything.
+///
+/// The lookup case-folds, which is what the CommonMark spec asks for and what
+/// pulldown-cmark's own map does. The parser collects every definition as it
+/// builds its tree, so this parses `text` once and reads the map it left.
+#[must_use]
+pub fn reference(text: &str, label: &str) -> Option<String> {
+    let parser = Parser::new_ext(text, options());
+    let defined = parser.reference_definitions().get(label)?;
+    Some(defined.dest.to_string())
+}
+
 /// Whether the text inside `tag` is something other than the writer's prose.
 fn hides_prose(tag: &Tag<'_>) -> bool {
     matches!(
@@ -304,6 +323,23 @@ mod tests {
             &source[at.start - 1..at.start],
             "\\",
             "the backslash is uncovered, which is how subtraction marks it as Markup"
+        );
+    }
+
+    #[test]
+    fn a_reference_label_resolves_to_the_definitions_destination_whatever_its_case() {
+        let source = "See [the book][Ref] for it.\n\n[ref]: https://example.org/book\n";
+        assert_eq!(
+            reference(source, "Ref").as_deref(),
+            Some("https://example.org/book"),
+            "the label is written one way and defined another, and CommonMark \
+             folds the case of both"
+        );
+        assert_eq!(
+            reference(source, "missing"),
+            None,
+            "a label nothing defines resolves to nothing, and the caller opens \
+             nothing"
         );
     }
 }

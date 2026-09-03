@@ -20,15 +20,19 @@ use std::ops::Range;
 use std::time::Duration;
 
 use gtk::gdk;
+use gtk::gio;
 use gtk::glib;
 use gtk::graphene;
+use gtk::gsk;
 use gtk::pango;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
+use quill_engine::annotate::live::{Furniture, LiveLook};
 use quill_engine::annotate::{self, Painted};
 use quill_engine::document::{Document, Edit};
 use quill_engine::focus::typewriter::{self, Glide, Hold, Typewriter};
 use quill_engine::focus::{self, Focus, LineTiers};
+use quill_engine::markdown;
 use quill_engine::settings::Face;
 use quill_engine::theme::{self, Colour, Colours, Role, Scheme};
 use quill_engine::typography;
@@ -92,6 +96,29 @@ const LAYOUT_SCALE: f64 = 1.0;
 /// what keeps a scroll from showing the seam: the rows a frame is about to
 /// need are already drawn when it arrives.
 const SELECTION_SLACK: f64 = 6.0;
+
+/// How wide a bullet's dot is drawn, as a share of the em.
+///
+/// A typographic `•` is about a third of the em across in a text face, and
+/// this is furniture standing where one would: measured off the Design
+/// oracle's own list marker and rounded to a number a reader of this file can
+/// hold. See [`Editor::draw_bullet`] for why it is drawn rather than set.
+const BULLET: f64 = 0.3;
+
+/// How far above the baseline the middle of a lower-case letter sits, as a
+/// share of the em.
+///
+/// The height a bullet and a task box are centred on, because that is where a
+/// reader's eye finds the middle of a line of prose: half of an x-height, and
+/// an x-height is around half an em in every one of the six Faces. Nothing is
+/// measured off it that a fraction of a pixel would change.
+const X_HEIGHT: f64 = 0.25;
+
+/// How wide a task box is drawn, as a share of the em.
+///
+/// A shade under the x-height's own square, so that the box reads as one of
+/// the line's letters rather than as a panel dropped into it.
+const CHECKBOX: f64 = 0.58;
 
 /// The weight ink is set at on paper: `--ink-weight: 415` in
 /// `legacy/app/css/type.css`, a little heavier than Regular because a light
@@ -311,6 +338,13 @@ mod imp {
         /// ([`Editor::refold`]). `None` with Live off, and while it has not
         /// been worked out yet.
         pub open: RefCell<Option<std::ops::Range<usize>>>,
+        /// What Live's fold left standing in the marker cells, in the
+        /// buffer's own offsets, top to bottom
+        /// ([`Editor::refurnish`](super::Editor::refurnish)). Empty with Live
+        /// off. Held rather than asked for at the draw because the snapshot
+        /// has no Document to ask: it is worked out on the passes that have
+        /// one and read by the frame that paints it.
+        pub furniture: RefCell<Vec<super::Furnishing>>,
         /// How far the baseline sits below the top of the box
         /// `iter_location` answers with, which is what the bar's band is
         /// anchored to. See [`Editor::bar`], and [`caret::band_top`] for why
@@ -421,7 +455,7 @@ mod imp {
     }
 
     impl TextViewImpl for Editor {
-        /// The selection and the caret, and nothing else, around the text.
+        /// The selection, Live's furniture and the caret, around the text.
         ///
         /// The fill goes under the glyphs and the caret over them. Never both
         /// at once: the caret is out for as long as a selection stands
@@ -453,6 +487,11 @@ mod imp {
                 self.obj().draw_selection_fill(&snapshot);
             }
             if layer == gtk::TextViewLayer::AboveText {
+                // Over the glyphs, with the caret and under it: furniture is
+                // ink standing in the cells a marker left, so it takes the
+                // ink's own side of the selection's fill, and the caret is
+                // drawn over it as it is drawn over a letter (#274).
+                self.obj().draw_furniture(&snapshot);
                 self.obj().draw_caret(&snapshot);
             }
         }
@@ -476,6 +515,82 @@ struct Selection {
     /// The whole of it. A selection carries no bars at either end and no
     /// caret: see [ADR 0014](../../docs/adr/0014-a-selection-is-a-fill-and-nothing-else.md).
     rows: Vec<caret::Bar>,
+}
+
+/// One piece of furniture Live left standing, and where the buffer holds it.
+///
+/// [`quill_engine::annotate::live::Furniture`] as the widget can use it
+/// without a Document in hand: the byte ranges are the buffer's own offsets,
+/// and a link's destination is already resolved to the address a click opens.
+/// Both crossings are made where there is a Document to make them
+/// ([`Editor::refurnish`]), because the snapshot and the pointer have none.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Furnishing {
+    /// The cells it stands in, in the buffer's offsets: a marker's, folded to
+    /// its own ground so its advance is still there to stand in
+    /// ([`tags`]), or a link's own words.
+    at: Range<i32>,
+    /// What stands there.
+    what: Furnish,
+}
+
+impl Furnishing {
+    /// The cells a task box stands in, in the buffer's offsets, if this is a
+    /// task box.
+    fn box_cells(&self) -> Option<Range<i32>> {
+        let Furnish::Checkbox { box_at, .. } = &self.what else {
+            return None;
+        };
+        Some(self.at.start + box_at.start..self.at.start + box_at.end)
+    }
+}
+
+/// What one [`Furnishing`] is.
+///
+/// [`Furniture::Fence`] has no member here: a fence's furniture is the Well
+/// the code already stands on, so there is nothing left to draw where the
+/// backticks were, and nothing to click.
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum Furnish {
+    /// A bullet item's dot.
+    Bullet,
+    /// An ordered item's number, as the source counted it.
+    Number(u32),
+    /// A task item's box, ticked or not, and the `[ ]` or `[x]` a press on it
+    /// rewrites — which is the one cell inside the brackets and not the whole
+    /// marker, so that the item's words never move under the writer's finger.
+    Checkbox {
+        /// The box's own cells, counted from the first of the furnishing's.
+        ///
+        /// Relative, so that nothing but [`Editor::refurnish`] has to cross
+        /// into the buffer's offsets: a task item's marker is ASCII from end
+        /// to end — its indent, its bullet and its brackets — so the buffer
+        /// counts those cells one for one with the Document's bytes and the
+        /// two offsets add.
+        box_at: Range<i32>,
+        /// Whether it is ticked.
+        checked: bool,
+    },
+    /// The rule a thematic break draws.
+    Hairline,
+    /// A link's words, and the address Ctrl+click opens.
+    Link {
+        /// Resolved: an inline link's own destination, or what a reference
+        /// link's label is defined as ([`markdown::reference`]).
+        destination: String,
+    },
+}
+
+/// One display row a [`Furnishing`] runs across, in the buffer coordinates
+/// `iter_location` answers in.
+#[derive(Clone, Copy, Debug)]
+struct Cells {
+    /// The left edge of the first cell on the row.
+    x: f64,
+    /// The top of the row's box.
+    y: f64,
+    /// How far the cells reach across it.
+    w: f64,
 }
 
 impl Editor {
@@ -522,11 +637,16 @@ impl Editor {
         clicks.connect_pressed(glib::clone!(
             #[weak(rename_to = editor)]
             self,
-            move |_, _, _, _| {
+            move |clicks, _, x, y| {
                 editor.imp().last.set(caret::Source::Pointer);
                 // Stamped here, in the capture phase, so that the caret move
                 // the press makes finds the press already on record.
                 editor.imp().pressed.set(Some(editor.now()));
+                // And the one press that is not a caret move at all: on a task
+                // box, or on a link's words with Ctrl down. The capture phase
+                // is where it has to be answered, because it is answered by
+                // claiming the press before GTK turns it into a move.
+                editor.press(clicks, x, y);
             },
         ));
         // And at the release, as the oracle stamps both (`focus.js:266-267`):
@@ -784,6 +904,11 @@ impl Editor {
         lines.extend(was);
         lines.push(now);
         self.redraw(document, &lines);
+        // The block the writer left is furnished and the one they entered is
+        // not, so the furniture moves with the fold and in the same pass, for
+        // the reason the fold moves in one: two frames apart is a flash of a
+        // dot standing on the `-` it replaced.
+        self.refurnish(document);
     }
 
     /// The lines of the blocks the writer's range reaches: what Live leaves
@@ -805,6 +930,92 @@ impl Editor {
         let first = document.place(start).line;
         let last = document.place(end.saturating_sub(1).max(start)).line;
         first..last + 1
+    }
+
+    /// What a press does when it lands on Live's furniture.
+    ///
+    /// Two presses are not caret moves. One on a task item's marker cells
+    /// flips its box; Ctrl and one on a link's words opens the destination
+    /// through the desktop's default handler. Both claim the gesture, so GTK
+    /// never turns the press into a move: a caret landing in the item would
+    /// unfold it, and the writer who ticked a box would be left looking at the
+    /// `[x]` they meant to be shown as a tick. Every other press is left
+    /// entirely alone and places the caret as it always did, which unfolds the
+    /// block under it.
+    ///
+    /// The whole answer is read off the buffer's offsets and the furnishings
+    /// already worked out ([`Editor::refurnish`]), because a gesture is handed
+    /// a position and no Document.
+    fn press(&self, clicks: &gtk::GestureClick, x: f64, y: f64) {
+        if !self.imp().live.get() {
+            return;
+        }
+        let (bx, by) =
+            self.window_to_buffer_coords(gtk::TextWindowType::Widget, x as i32, y as i32);
+        let Some(at) = self.iter_at_location(bx, by).map(|at| at.offset()) else {
+            return;
+        };
+        let ctrl = clicks
+            .current_event_state()
+            .contains(gdk::ModifierType::CONTROL_MASK);
+        let furniture = self.imp().furniture.borrow();
+        let Some(standing) = furniture.iter().find(|standing| standing.at.contains(&at)) else {
+            return;
+        };
+        // Cloned and the borrow dropped before anything is done about it: a
+        // press on a box edits the buffer, the edit is spliced and retagged,
+        // and the retag asks for the furniture again.
+        let what = standing.what.clone();
+        let box_at = standing.box_cells();
+        drop(furniture);
+        match what {
+            Furnish::Checkbox { checked, .. } if !ctrl => {
+                let Some(box_at) = box_at else { return };
+                tick(&self.buffer(), &box_at, !checked);
+            }
+            Furnish::Link { destination } if ctrl => {
+                open(
+                    &destination,
+                    self.root().and_downcast::<gtk::Window>().as_ref(),
+                );
+            }
+            _ => return,
+        }
+        clicks.set_state(gtk::EventSequenceState::Claimed);
+    }
+
+    /// Works out what stands in the cells Live's fold emptied.
+    ///
+    /// The one pass that turns [`Furniture`] into a [`Furnishing`]: the
+    /// Document's bytes into the buffer's own offsets, a task box's brackets
+    /// out of the marker they sit in, and a reference link's label into the
+    /// address it is defined as. All three want the Document, and the two
+    /// things that read the answer have none — a snapshot is handed a frame
+    /// clock and a gesture a pointer position — so the crossing is made here,
+    /// on the passes that are already holding one, and the answer is kept.
+    ///
+    /// Whole-Document, and the only part of Live that is: the fold is drawn
+    /// by the block ([`Editor::refold`]), but a furnishing is held at an
+    /// offset the buffer counts and an edit anywhere moves every offset below
+    /// it. Paid only with Live on, so no judged state but `live/folded` and no
+    /// bench regime pays it at all.
+    fn refurnish(&self, document: &Document) {
+        let mut furniture = Vec::new();
+        if self.imp().live.get() {
+            let buffer = self.buffer();
+            let at = self.caret_bytes(document);
+            furniture = standing(document, &at)
+                .into_iter()
+                .map(|(at, what)| Furnishing {
+                    at: tags::offsets_of(&buffer, document, &at),
+                    what,
+                })
+                .collect();
+        }
+        if *self.imp().furniture.borrow() != furniture {
+            self.imp().furniture.replace(furniture);
+            self.queue_draw();
+        }
     }
 
     /// Draws each of `lines` again in the tiers the Editor now holds, inside
@@ -1100,6 +1311,10 @@ impl Editor {
                 .then(|| self.open_lines(document, &(0..0))),
         );
         buffer.place_cursor(&buffer.start_iter());
+        // After the cursor, because a furnishing is a judgement about the
+        // block the caret is not in and the caret is only where this Document
+        // opens once the buffer has been told.
+        self.refurnish(document);
     }
 
     /// Whether the buffer is being filled rather than written in.
@@ -1149,6 +1364,10 @@ impl Editor {
         // edit's own redraw, so the block the caret has left is folded in the
         // same pass ([`Editor::refold`]).
         self.refold(document);
+        // And the furniture, whether or not the fold moved: every furnishing
+        // below the splice is held at an offset the edit has just moved.
+        // Before the Focus half returns, because Live is on or off on its own.
+        self.refurnish(document);
         if !on {
             return;
         }
@@ -1215,6 +1434,10 @@ impl Editor {
         tags::apply(&buffer, document, self.painting_at(&at, &tiers));
         drop(tiers);
         drop(batch);
+        // Everything Live left standing arrives with it and goes with it:
+        // this fills the furniture on the way on and empties it on the way
+        // off, so a page with Live off carries none of it.
+        self.refurnish(document);
         self.queue_draw();
         // A heading's row is the size of its type, so the rows under the caret
         // have moved: the bar is re-cut on the page as it now stands.
@@ -2102,6 +2325,265 @@ impl Editor {
         }
     }
 
+    /// Paints what Live left standing in the cells its fold emptied.
+    ///
+    /// One pass over the furnishings the last Document pass worked out
+    /// ([`Editor::refurnish`]), clipped to the offsets the viewport holds, so
+    /// a manuscript of a thousand list items pays for the dozen rows on the
+    /// glass. With Live off the list is empty, which is a borrow and a return.
+    ///
+    /// Body ink and not a tint of it: `docs/design.md` row Markers rests every
+    /// mark at the body's own ink, and a bullet standing where a `-` stood is
+    /// the same mark drawn another way. The link rule is the exception the
+    /// spec names — the accent, the one colour the writer already reads as the
+    /// app speaking rather than the page.
+    fn draw_furniture(&self, snapshot: &gtk::Snapshot) {
+        let furniture = self.imp().furniture.borrow();
+        if furniture.is_empty() {
+            return;
+        }
+        let seen = self.seen();
+        let colours = self.colours();
+        for standing in furniture.iter() {
+            if standing.at.end < seen.start || standing.at.start > seen.end {
+                continue;
+            }
+            match &standing.what {
+                Furnish::Bullet => self.draw_bullet(snapshot, &standing.at, &colours),
+                Furnish::Number(number) => {
+                    self.draw_number(snapshot, &standing.at, &colours, *number);
+                }
+                Furnish::Checkbox { checked, .. } => {
+                    if let Some(box_at) = standing.box_cells() {
+                        self.draw_checkbox(snapshot, &box_at, &colours, *checked);
+                    }
+                }
+                Furnish::Hairline => self.draw_hairline(snapshot, &standing.at, &colours),
+                // A link's rule is a `GtkTextTag` and not a box drawn here
+                // ([`tags::link_rule`]), because the words it stands under are
+                // the one piece of furniture that is not in a marker's cells:
+                // they sit after the folded `[`, and `iter_location` answers
+                // for the bytes as if nothing on the line were invisible, so
+                // it cannot say where they are. Pango can, and an underline is
+                // what Pango is for.
+                Furnish::Link { .. } => {}
+            }
+        }
+    }
+
+    /// The buffer offsets the viewport holds, with a row of slack at each end.
+    ///
+    /// The clip [`Editor::draw_furniture`] reads, and it is offsets rather
+    /// than pixels because a furnishing is held at an offset: asking the view
+    /// for the two ends once is one lookup, and asking every furnishing for
+    /// its rectangle is one lookup each.
+    ///
+    /// A y above the first row or below the last is not over text, and GTK
+    /// answers nothing for it; the whole Document is the honest reading of
+    /// that, and the walk below drops what turns out to be off the glass.
+    fn seen(&self) -> Range<i32> {
+        let view = self.visible_rect();
+        let slack = f64::from(self.imp().pitch.get()) / self.scale();
+        let top = f64::from(view.y()) - slack;
+        let bottom = f64::from(view.y() + view.height()) + slack;
+        let first = self
+            .iter_at_location(0, top.max(0.0) as i32)
+            .map_or(0, |at| at.offset());
+        let last = self
+            .iter_at_location(0, bottom as i32)
+            .map_or(i32::MAX, |at| at.offset());
+        first..last
+    }
+
+    /// A bullet item's dot, in the cell its marker's `-`, `*` or `+` stood in.
+    ///
+    /// A drawn disc rather than a `•` laid out, because the six Faces are the
+    /// writer's choice and the dot is not: a glyph would be a different size
+    /// and a different weight in each of them, and this is furniture the app
+    /// draws rather than type the writer set.
+    ///
+    /// Centred on the x-height rather than on the box, which is where a
+    /// reader's eye puts a bullet: half an x-height above the baseline, and
+    /// the baseline is where [`Editor::bar`] takes it from.
+    fn draw_bullet(&self, snapshot: &gtk::Snapshot, at: &Range<i32>, colours: &Colours) {
+        let Some(cell) = self.cells(at) else {
+            return;
+        };
+        let em = self.em() / self.scale();
+        let side = (em * BULLET).max(1.0);
+        let x = cell.x + (cell.w - side) / 2.0;
+        let y = cell.y + self.imp().baseline.get() - em * X_HEIGHT - side / 2.0;
+        let rect = graphene::Rect::new(x as f32, y as f32, side as f32, side as f32);
+        snapshot.push_rounded_clip(&gsk::RoundedRect::from_rect(rect, (side / 2.0) as f32));
+        snapshot.append_color(&paint(colours, Role::Mark, 1.0), &rect);
+        snapshot.pop();
+    }
+
+    /// An ordered item's number and its point, in the cells its marker stood
+    /// in.
+    ///
+    /// The one piece of furniture that is type: a number is read, so it is
+    /// laid out in the page's own face at the page's own size, through the
+    /// widget's context rather than a description built here, because these
+    /// glyphs stand beside the item's words and have to be the same ink.
+    ///
+    /// Hung on the baseline rather than dropped from the top of the box: the
+    /// two layouts are the same type and the offset is nothing, but a heading
+    /// or a Face whose metrics disagree would put the number off the row, and
+    /// a baseline is the one line every row agrees on.
+    fn draw_number(
+        &self,
+        snapshot: &gtk::Snapshot,
+        at: &Range<i32>,
+        colours: &Colours,
+        number: u32,
+    ) {
+        let Some(cell) = self.cells(at) else {
+            return;
+        };
+        let layout = self.create_pango_layout(Some(&format!("{number}.")));
+        let baseline = f64::from(layout.baseline()) / f64::from(pango::SCALE);
+        snapshot.save();
+        snapshot.translate(&graphene::Point::new(
+            logical(cell.x, 1.0),
+            logical(cell.y + self.imp().baseline.get() - baseline, 1.0),
+        ));
+        snapshot.append_layout(&layout, &paint(colours, Role::Mark, 1.0));
+        snapshot.restore();
+    }
+
+    /// A task item's box, empty or ticked, centred in the cells its `[ ]` or
+    /// `[x]` stood in.
+    ///
+    /// Four rules and, when it is ticked, a fill inside them. Drawn as the
+    /// caret and the selection are — device pixels, snapped, back through
+    /// [`draw_box`] — because a box whose sides land on a fraction of a device
+    /// pixel is a box with two grey sides and two black ones.
+    fn draw_checkbox(
+        &self,
+        snapshot: &gtk::Snapshot,
+        at: &Range<i32>,
+        colours: &Colours,
+        checked: bool,
+    ) {
+        let Some(cell) = self.cells(at) else {
+            return;
+        };
+        let scale = self.scale();
+        let em = self.em();
+        let side = caret::snap(em * CHECKBOX).max(1.0);
+        let rule = (em / 16.0).round().max(1.0);
+        let middle = cell.y + self.imp().baseline.get() - em / scale * X_HEIGHT;
+        let x = caret::snap((cell.x + cell.w / 2.0) * scale - side / 2.0);
+        let y = caret::snap(middle * scale - side / 2.0);
+        let side = side.max(rule * 3.0);
+        let ink = paint(colours, Role::Mark, 1.0);
+        for edge in [
+            caret::Bar {
+                x,
+                y,
+                w: side,
+                h: rule,
+            },
+            caret::Bar {
+                x,
+                y: y + side - rule,
+                w: side,
+                h: rule,
+            },
+            caret::Bar {
+                x,
+                y,
+                w: rule,
+                h: side,
+            },
+            caret::Bar {
+                x: x + side - rule,
+                y,
+                w: rule,
+                h: side,
+            },
+        ] {
+            draw_box(snapshot, &ink, edge, scale);
+        }
+        if !checked {
+            return;
+        }
+        let inset = caret::snap(rule * 2.0);
+        draw_box(
+            snapshot,
+            &ink,
+            caret::Bar {
+                x: x + inset,
+                y: y + inset,
+                w: side - inset * 2.0,
+                h: side - inset * 2.0,
+            },
+            scale,
+        );
+    }
+
+    /// The rule a thematic break draws, across the measure, where its `---`
+    /// stood.
+    ///
+    /// The measure and not the marker's own cells: a break is the width of the
+    /// page it breaks. The row's own band gives it its height, which is the
+    /// band the caret and the selection take on that row, so the rule sits on
+    /// the line's middle however the type is set.
+    fn draw_hairline(&self, snapshot: &gtk::Snapshot, at: &Range<i32>, colours: &Colours) {
+        let Some(cell) = self.cells(at) else {
+            return;
+        };
+        let Some(page) = self.imp().laid_out.get() else {
+            return;
+        };
+        let scale = self.scale();
+        let (top, height) = self.band(cell.y);
+        let rule = scale.max(1.0);
+        let x = caret::snap(f64::from(page.column.left) * scale);
+        let right = caret::snap(f64::from(page.column.right) * scale);
+        draw_box(
+            snapshot,
+            &paint(colours, Role::Rule, 1.0),
+            caret::Bar {
+                x,
+                y: caret::snap(top + (height - rule) / 2.0),
+                w: (right - x).max(0.0),
+                h: rule,
+            },
+            scale,
+        );
+    }
+
+    /// The cells the buffer offsets `at` are drawn in.
+    ///
+    /// One row, because every furnishing that is drawn here stands in a
+    /// **block-leading** marker's cells: a bullet, a number, a task box and a
+    /// thematic break are all the first thing on their block's first row, and
+    /// none of them is long enough to wrap.
+    ///
+    /// That is also what makes `iter_location` safe to ask. It answers for an
+    /// offset as though nothing on the line were invisible — measured on
+    /// #274's own passage, where the offsets after a folded `](…)` all came
+    /// back at the end of the row — and a block-leading marker has nothing
+    /// folded before it, so its own cells are the ones GTK says they are.
+    /// `iter_at_location`, which the press reads, has no such trouble.
+    fn cells(&self, at: &Range<i32>) -> Option<Cells> {
+        if at.end <= at.start {
+            return None;
+        }
+        let buffer = self.buffer();
+        let head = self.iter_location(&buffer.iter_at_offset(at.start));
+        let mut last = buffer.iter_at_offset(at.end);
+        last.backward_char();
+        let tail = self.iter_location(&last);
+        Some(Cells {
+            x: f64::from(head.x()),
+            y: f64::from(head.y()),
+            w: f64::from((tail.x() + tail.width() - head.x()).max(0)),
+        })
+    }
+
     /// The empty page's one whisper: [`PLACEHOLDER`] on the first line, where
     /// the first glyph will land, in the grey Focus dims prose to.
     ///
@@ -2347,6 +2829,175 @@ pub struct Page {
     bottom: i32,
 }
 
+/// What Live leaves standing on `document` for a writer at `at`, each with the
+/// Document bytes of the cells it stands in.
+///
+/// [`Editor::refurnish`] without the buffer: the whole of the answer that can
+/// be worked out from the text, so that the widget's one crossing into the
+/// offsets GTK counts is the last step and everything before it is testable
+/// with no display attached.
+fn standing(document: &Document, at: &Range<usize>) -> Vec<(Range<usize>, Furnish)> {
+    let text = document.text();
+    annotate::live::spans(document, at)
+        .into_iter()
+        .filter_map(|span| {
+            let LiveLook::Furniture(furniture) = span.look else {
+                return None;
+            };
+            let what = Furnish::of(text, &span.at, &furniture)?;
+            Some((cells_of(text, &span.at, &what), what))
+        })
+        .collect()
+}
+
+impl Furnish {
+    /// What the `furniture` Live put on the bytes `at` of `text` stands for.
+    ///
+    /// `None` twice: a fence's furniture is the Well the code already stands
+    /// on, so there is nothing left to draw where the backticks were; and a
+    /// link whose destination resolves to nothing has nothing to open, so it
+    /// keeps its words and takes no rule.
+    fn of(text: &str, at: &Range<usize>, furniture: &Furniture) -> Option<Self> {
+        Some(match furniture {
+            Furniture::Bullet => Self::Bullet,
+            Furniture::Number(number) => Self::Number(*number),
+            Furniture::Hairline => Self::Hairline,
+            Furniture::Fence => return None,
+            Furniture::Checkbox { checked } => {
+                let box_at = brackets(text, at)?;
+                Self::Checkbox {
+                    box_at: cell(box_at.start - at.start)..cell(box_at.end - at.start),
+                    checked: *checked,
+                }
+            }
+            Furniture::Link { destination } => Self::Link {
+                destination: address(text, destination)?,
+            },
+        })
+    }
+}
+
+/// The cells `what` stands in, of a furniture span over the bytes `at`.
+///
+/// The span itself for a checkbox and for a link — a press anywhere on a task
+/// item's marker flips its box, and a link's words are the words — and the
+/// marker's ink alone for the other three.
+/// [`quill_engine::annotate::Mark::BulletMarker`] is measured from the start
+/// of the line, indent and all, so that the app can hang the item by its
+/// width; a dot drawn in the first cell of *that* would stand out in a nested
+/// item's indent rather than where its `-` was.
+fn cells_of(text: &str, at: &Range<usize>, what: &Furnish) -> Range<usize> {
+    match what {
+        Furnish::Checkbox { .. } | Furnish::Link { .. } => at.clone(),
+        _ => ink(text, at),
+    }
+}
+
+/// A count of cells inside one marker run, as the buffer counts them.
+///
+/// The run is ASCII, so its bytes and its cells are the same count: see
+/// [`Furnish::Checkbox`] for why the box is held relative to the marker at
+/// all.
+fn cell(count: usize) -> i32 {
+    i32::try_from(count).unwrap_or(0)
+}
+
+/// `at` with the whitespace at either end of it taken off.
+fn ink(text: &str, at: &Range<usize>) -> Range<usize> {
+    let Some(run) = text.get(at.clone()) else {
+        return at.clone();
+    };
+    let start = at.start + (run.len() - run.trim_start().len());
+    start..start + run.trim().len()
+}
+
+/// The `[ ]` or `[x]` inside the marker cells `at`.
+///
+/// A task item's furniture covers the bullet and the box together — one box
+/// stands where both did — and the writer's state is the one byte between the
+/// brackets, so the press that flips it wants the brackets and not the marker.
+/// Read out of the text rather than carried by the Annotator, which marks the
+/// box as one span and has no reason to cut it in half.
+fn brackets(text: &str, at: &Range<usize>) -> Option<Range<usize>> {
+    let marker = text.get(at.clone())?;
+    let open = marker.find('[')?;
+    let close = marker[open..].find(']')? + open;
+    Some(at.start + open..at.start + close + 1)
+}
+
+/// The address the link destination written at `at` opens.
+///
+/// Three shapes reach here. An inline `[words](https://…)` writes the address
+/// itself, with a title after it to cut off and angle brackets to strip. A
+/// reference `[words][label]` writes a label instead, and the definition
+/// somewhere else in the file is what says where it goes
+/// ([`markdown::reference`]); the byte before the destination tells the two
+/// apart, `(` for an address and `[` for a label. A label nothing defines
+/// opens nothing, which is [`None`].
+fn address(text: &str, at: &Range<usize>) -> Option<String> {
+    let written = text.get(at.clone())?.trim();
+    if written.is_empty() {
+        return None;
+    }
+    if text[..at.start].ends_with('[') {
+        return markdown::reference(text, written);
+    }
+    if let Some(bracketed) = written.strip_prefix('<') {
+        return Some(bracketed[..bracketed.find('>')?].to_owned());
+    }
+    Some(written.split_whitespace().next()?.to_owned())
+}
+
+/// Flips the task box at the buffer offsets `box_at` to `checked`.
+///
+/// **Through the buffer**, which is what the Document's edit path is from a
+/// widget: the engine's copy of the text is spliced from this buffer's own
+/// `insert-text` and `delete-range` (`quill::window`), undo is
+/// `GtkTextBuffer`'s, and autosave is armed by its `changed`. An edit made
+/// anywhere else would be a change the writer could not undo and the file
+/// would never see.
+///
+/// One byte inside the brackets rather than the whole box, so that nothing on
+/// the line moves under the writer's finger, and both halves inside one
+/// `begin_user_action`, so that undo takes the tick off in one press.
+fn tick(buffer: &gtk::TextBuffer, box_at: &Range<i32>, checked: bool) {
+    let (cells, state) = flip(box_at, checked);
+    let mut from = buffer.iter_at_offset(cells.start);
+    let mut to = buffer.iter_at_offset(cells.end);
+    if to <= from {
+        return;
+    }
+    buffer.begin_user_action();
+    buffer.delete(&mut from, &mut to);
+    buffer.insert(&mut from, state);
+    buffer.end_user_action();
+}
+
+/// The cells a press rewrites inside the box at `box_at`, and what it writes
+/// there.
+///
+/// The whole of the rewrite that can be said without a buffer, which is why it
+/// is here: gtk4-rs will not make a `GtkTextBuffer` before GTK is initialised,
+/// and GTK will not initialise without a display, so `tools/gate check` can
+/// assert this and the hand test asserts the rest of [`tick`].
+fn flip(box_at: &Range<i32>, checked: bool) -> (Range<i32>, &'static str) {
+    (
+        box_at.start + 1..box_at.end - 1,
+        if checked { "x" } else { " " },
+    )
+}
+
+/// Opens `destination` through the desktop's default handler for it.
+///
+/// [`gtk::UriLauncher`] rather than the `gio` call the Settings window's
+/// "Open settings.toml" uses, for the reason the Preview's own opener has it
+/// (`quill::preview`): this is a URI out of a Document and not a file Quill
+/// wrote, so it goes through the portal, which is what asks the writer before
+/// a strange scheme is handed to anything.
+fn open(destination: &str, window: Option<&gtk::Window>) {
+    gtk::UriLauncher::new(destination).launch(window, gio::Cancellable::NONE, |_| {});
+}
+
 /// A byte offset a flag named, as the Document counts them.
 fn byte_offset(bytes: u64) -> usize {
     usize::try_from(bytes).unwrap_or(usize::MAX)
@@ -2391,9 +3042,10 @@ fn selection_fill(colours: &Colours, focused: bool) -> gdk::RGBA {
 ///
 /// Read from the ground's table rather than written out here, because the
 /// table carries every role and a second copy of a number the critic reads is
-/// a second thing to keep true. The three roles that reach here are the three
-/// the layer above the glyphs paints: the accent the caret is cut from, and
-/// the selection's two fills.
+/// a second thing to keep true. The roles that reach here are the ones the
+/// layers around the glyphs paint: the accent the caret and a link's rule are
+/// cut from, the selection's two fills, the mark ink Live's furniture stands
+/// in, and the hairline a thematic break draws.
 fn paint(colours: &Colours, role: Role, alpha: f64) -> gdk::RGBA {
     let colour = colours.colour(role);
     gdk::RGBA::new(
@@ -2915,6 +3567,212 @@ mod tests {
             selection_fill(&Ground::of(Scheme::Light).colours, true),
             selection_fill(&Ground::of(Scheme::Dark).colours, true),
             "the two grounds were designed one fill each"
+        );
+    }
+
+    // Live's furniture, headless. Every judgement about it is made on the
+    // Document's own bytes ([`standing`]), and the widget's one step is the
+    // crossing into the offsets GTK counts — which cannot be tested here,
+    // because gtk4-rs asserts that GTK is initialised before it will make even
+    // a `GtkTextBuffer`, and `gtk::init` needs a display. The passages below
+    // are ASCII, so the two counts are the same and a byte offset is a cell.
+
+    /// A Document holding `text`, with its Markup already derived.
+    fn document(text: &str) -> Document {
+        let mut document = Document::untitled();
+        document.insert(0, text);
+        document
+    }
+
+    /// Everything Live leaves standing on `text` with the writer at `at`, as
+    /// the Editor keeps it: [`Editor::refurnish`] without the widget.
+    fn furniture(text: &str, at: &Range<usize>) -> Vec<Furnishing> {
+        standing(&document(text), at)
+            .into_iter()
+            .map(|(at, what)| Furnishing {
+                at: buffer_offsets(&at),
+                what,
+            })
+            .collect()
+    }
+
+    /// A page with one of each kind of furniture on it, and a caret parked in
+    /// the heading so that nothing below it is the writer's own block.
+    const PAGE: &str = "# Title\n\n- the rope\n\n1. Untie the skiff.\n\n- [ ] scrub the lens\n\n---\n\n\
+         A [link](https://example.org/book) to it.\n\n```rust\nlet x = 1;\n```\n";
+
+    #[test]
+    fn a_task_boxs_brackets_are_found_inside_the_marker_that_carries_them() {
+        let text = "- [ ] scrub the lens\n";
+        assert_eq!(
+            brackets(text, &(0..5)),
+            Some(2..5),
+            "the furniture covers the bullet and the box together; the press \
+             wants the box"
+        );
+        let nested = "  - [x] wind the clock\n";
+        assert_eq!(brackets(nested, &(0..7)), Some(4..7), "indent and all");
+        assert_eq!(
+            brackets("- the rope\n", &(0..2)),
+            None,
+            "a bullet with no box has no brackets to find"
+        );
+    }
+
+    #[test]
+    fn a_press_on_a_task_box_rewrites_the_one_cell_between_its_brackets() {
+        let text = "Chores\n\n- [ ] scrub the lens\n";
+        let box_at = furniture(text, &(0..0))
+            .first()
+            .and_then(Furnishing::box_cells)
+            .expect("the page holds one task item");
+        assert_eq!(
+            box_at,
+            10..13,
+            "the box's own cells, found inside the marker cells the bullet and \
+             the box share"
+        );
+
+        assert_eq!(
+            flip(&box_at, true),
+            (11..12, "x"),
+            "one cell is rewritten and it is the one between the brackets, so \
+             nothing on the line moves under the writer's finger"
+        );
+        assert_eq!(
+            flip(&box_at, false),
+            (11..12, " "),
+            "and the press flips back"
+        );
+        assert_eq!(
+            &text[11..12],
+            " ",
+            "the cells `flip` names are where the source wrote the state"
+        );
+    }
+
+    #[test]
+    fn a_links_words_open_the_address_the_source_wrote_or_the_one_it_defined() {
+        /// The bytes an inline link writes its destination in: the
+        /// [`Mark::Url`](quill_engine::annotate::Mark::Url) span, as the
+        /// Markup Annotator hands it over.
+        fn written(text: &str) -> Range<usize> {
+            text.find('(').expect("a destination is opened") + 1
+                ..text.rfind(')').expect("a destination is closed")
+        }
+
+        for (source, opens, why) in [
+            (
+                "A [link](https://example.org/book) to it.\n",
+                Some("https://example.org/book"),
+                "an inline destination is the address itself",
+            ),
+            (
+                "A [link](https://example.org \"The Book\") to it.\n",
+                Some("https://example.org"),
+                "the title after the address is not part of it",
+            ),
+            (
+                "A [link](<https://example.org/the book>) to it.\n",
+                Some("https://example.org/the book"),
+                "angle brackets hold an address with a space in it",
+            ),
+        ] {
+            assert_eq!(address(source, &written(source)).as_deref(), opens, "{why}");
+        }
+
+        let referenced = "A [link][Book] here.\n\n[book]: https://example.org/book\n";
+        let label = referenced.find("Book").expect("the label is written once");
+        assert_eq!(
+            address(referenced, &(label..label + 4)).as_deref(),
+            Some("https://example.org/book"),
+            "a reference link writes a label, not an address, and the \
+             definition elsewhere in the file says where it goes"
+        );
+        let undefined = "A [link][Nowhere] here.\n";
+        let label = undefined
+            .find("Nowhere")
+            .expect("the label is written once");
+        assert_eq!(
+            address(undefined, &(label..label + 7)),
+            None,
+            "a label nothing defines opens nothing"
+        );
+    }
+
+    #[test]
+    fn every_kind_of_marker_stands_in_its_own_cells_and_a_fence_stands_in_none() {
+        let standing = furniture(PAGE, &(0..0));
+        let kinds: Vec<Furnish> = standing.iter().map(|one| one.what.clone()).collect();
+        assert_eq!(
+            kinds,
+            [
+                Furnish::Bullet,
+                Furnish::Number(1),
+                Furnish::Checkbox {
+                    box_at: 2..5,
+                    checked: false
+                },
+                Furnish::Hairline,
+                Furnish::Link {
+                    destination: "https://example.org/book".to_owned()
+                },
+            ],
+            "one furnishing per marker, in the order the page writes them, and \
+             the fenced block's two fences draw nothing: the Well is already \
+             under the code"
+        );
+    }
+
+    #[test]
+    fn a_press_finds_the_furniture_it_landed_on_by_the_offset_alone() {
+        let standing = furniture(PAGE, &(0..0));
+        let on = |at: i32| {
+            standing
+                .iter()
+                .find(|one| one.at.contains(&at))
+                .map(|one| one.what.clone())
+        };
+        let box_at = i32::try_from(PAGE.find("[ ]").expect("the page holds one task item"))
+            .expect("the page fits an i32");
+
+        assert!(
+            matches!(on(box_at), Some(Furnish::Checkbox { .. })),
+            "a press on the box itself"
+        );
+        assert!(
+            matches!(on(box_at - 2), Some(Furnish::Checkbox { .. })),
+            "and one on the bullet the box swallowed: the whole marker is the \
+             target, because that is what the box stands in"
+        );
+        assert_eq!(
+            on(box_at + 4),
+            None,
+            "a press on the item's first word is a caret move like any other"
+        );
+
+        let word = i32::try_from(PAGE.find("link").expect("the page holds one link"))
+            .expect("the page fits an i32");
+        assert!(
+            matches!(on(word), Some(Furnish::Link { .. })),
+            "a link's words are the target, and its destination is folded away"
+        );
+    }
+
+    #[test]
+    fn the_writers_own_block_is_furnished_with_nothing() {
+        let item = PAGE
+            .find("the rope")
+            .expect("the page holds one bullet item");
+        let standing = furniture(PAGE, &(item..item));
+        assert!(
+            !standing.iter().any(|one| one.what == Furnish::Bullet),
+            "the caret is in the bullet item, so its marker is on the page and \
+             nothing stands in its cells: {standing:?}"
+        );
+        assert!(
+            standing.iter().any(|one| one.what == Furnish::Hairline),
+            "and every other block is furnished as it was"
         );
     }
 }

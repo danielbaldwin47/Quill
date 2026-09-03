@@ -515,11 +515,12 @@ const SOURCE = [
 ];
 
 // The same page folded: nothing in the gutter, the heading's ink 1.6 times as tall and its row
-// taller with it, and the list's words 6 px inside the body column where its bullets stood.
+// taller with it, and the list still beginning on the body column — its bullets are folded to the
+// paper and the furniture #274 draws stands in the cells they kept.
 const FOLDED = [
   { top: 10, left: 20, rows: 1, height: 16 },
   { top: 40, left: 20, rows: 3 },
-  { top: 88, left: 26, rows: 2 },
+  { top: 88, left: 20, rows: 2 },
 ];
 
 // One block of a fixture with `change` written over it.
@@ -538,10 +539,11 @@ ok('the fold is measured off ours own pixels: the caret block untouched, the mar
   assert.equal(hung.ours, false, hung.why);
   assert.match(hung.why, /still hanging in the gutter/);
 
-  // ...or where it stands on the body column, in the cells its furniture is drawn in.
-  const bullet = assertState(spec, { lit, dim: page(with_(FOLDED, 2, { left: 20 })) });
+  // ...or where a fold closed a marker's cells up instead of folding it to its ground, which shows
+  // as the block's words moving off the column they were laid out on.
+  const bullet = assertState(spec, { lit, dim: page(with_(FOLDED, 2, { left: 26 })) });
   assert.equal(bullet.ours, false, bullet.why);
-  assert.match(bullet.why, /cells a bullet or a number stood in are not empty/);
+  assert.match(bullet.why, /the fold moved a block’s words/);
 
   // A heading left at body height fails the ladder, and so does one at the rung below it.
   const flat = assertState(spec, { lit, dim: page(with_(FOLDED, 0, { height: 10 })) });
