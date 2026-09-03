@@ -7,12 +7,15 @@
 //! ([ADR 0010](../../../docs/adr/0010-settings-in-toml-under-xdg.md)). It may
 //! be deleted at any time; the next launch is simply a first launch.
 //!
-//! Four things live here, and this ticket fills the first: the size of each
-//! window, the last Document in each, where the caret was in each Document the
-//! writer visited, and the recents list. The Library ticket fills the other
-//! three. The Dark and light Piece adds a fifth, `last_scheme`: the ground the
+//! Four things live here: the size of each window, the last Document in each,
+//! where the caret was in each Document the writer visited, and the recents
+//! list. The Dark and light Piece adds a fifth, `last_scheme`: the ground the
 //! last session ended on, which an `auto` launch paints while the desktop is
 //! still being asked. Beside the file sits `blind-keys/`, which is the Gate's.
+//!
+//! The last two are the Library's: [`State::visited`] puts a Document at the
+//! front of the recents, and [`State::caret`] hands back where its caret was,
+//! so that opening a recent Document puts the writer back where they left.
 //!
 //! **Position is not here.** GTK4 gives a client no way to ask where its window
 //! is or to put it back, on Wayland or on X11: placement belongs to the
@@ -34,6 +37,11 @@ pub const STATE_FILE: &str = "state.toml";
 
 /// The directory the Gate keeps its blind keys in, beside the state file.
 const BLIND_KEYS: &str = "blind-keys";
+
+/// How many Documents the recents remember: the twenty-five most recently
+/// opened, which is what Open Recent narrows and what bounds every walk of the
+/// list ([`State::visited`] is the only thing that grows it).
+const RECENTS: usize = 25;
 
 /// What a note about a state file Quill could not read ends with. State is
 /// what quitting leaves, so there is nothing to lose by starting again.
@@ -243,6 +251,24 @@ impl State {
         writing.into_toml()
     }
 
+    /// Notes that `path` was opened: it goes to the front of the recents, and
+    /// the list is cut back to the [`RECENTS`] newest.
+    ///
+    /// A Document that is already in the list moves rather than repeats, so
+    /// re-opening the one file a writer lives in never fills the list with it.
+    pub fn visited(&mut self, path: &Path) {
+        self.recents.retain(|recent| recent != path);
+        self.recents.insert(0, path.to_path_buf());
+        self.recents.truncate(RECENTS);
+    }
+
+    /// Where the caret was in `path` when the writer last left it, or `None`
+    /// for a Document this state has never seen.
+    #[must_use]
+    pub fn caret(&self, path: &Path) -> Option<u64> {
+        self.carets.get(path).copied()
+    }
+
     /// The shape a window opens at: the one left last, or the default.
     #[must_use]
     pub fn window(&self) -> WindowState {
@@ -336,8 +362,64 @@ mod tests {
         assert_eq!(notes.len(), 1, "{notes:?}");
     }
 
+    /// The recents are the twenty-five newest, newest first, and a Document
+    /// opened again moves to the front rather than repeating.
     #[test]
-    fn every_key_the_later_tickets_fill_is_in_the_file_already() {
+    fn the_recents_hold_the_twenty_five_newest_with_a_reopened_document_first() {
+        let mut state = State::default();
+        let visit =
+            |state: &mut State, n: usize| state.visited(&PathBuf::from(format!("/w/{n}.md")));
+        for n in 0..30 {
+            visit(&mut state, n);
+        }
+        assert_eq!(state.recents.len(), RECENTS);
+        assert_eq!(state.recents[0], PathBuf::from("/w/29.md"));
+        assert_eq!(state.recents[RECENTS - 1], PathBuf::from("/w/5.md"));
+        assert!(
+            !state.recents.contains(&PathBuf::from("/w/4.md")),
+            "the oldest fell off the end: {:?}",
+            state.recents
+        );
+
+        visit(&mut state, 10);
+        assert_eq!(state.recents[0], PathBuf::from("/w/10.md"));
+        assert_eq!(
+            state.recents.len(),
+            RECENTS,
+            "a re-open moves, never repeats"
+        );
+        assert_eq!(
+            state
+                .recents
+                .iter()
+                .filter(|r| r.ends_with("10.md"))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn a_caret_stored_for_a_document_reads_back_at_its_offset() {
+        let path = scratch("caret").join(STATE_FILE);
+        let document = PathBuf::from("/w/sea-storm.md");
+        let mut left = State::default();
+        left.visited(&document);
+        left.carets.insert(document.clone(), 412);
+        left.write_to(&path).expect("writes the state file");
+
+        let (back, notes) = State::read_from(&path);
+        assert!(notes.is_empty(), "{notes:?}");
+        assert_eq!(back.caret(&document), Some(412));
+        assert_eq!(back.recents, vec![document]);
+        assert_eq!(
+            back.caret(Path::new("/w/never-opened.md")),
+            None,
+            "a Document this state never saw has no caret to put back"
+        );
+    }
+
+    #[test]
+    fn every_key_the_state_file_holds_is_in_what_the_defaults_write() {
         let text = State::default().to_toml();
         let written: toml::Table = text.parse().expect("what is written is TOML");
         for key in ["recents", "last_scheme", "window", "caret"] {
