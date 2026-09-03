@@ -23,6 +23,13 @@
 //! ([`quill_engine::library::Library::search`]). Enter opens the highlighted
 //! hit and Esc clears the field and hands the keyboard back to the page.
 //!
+//! A row can be acted on as well as opened (#256): a second click or `F2` puts
+//! a field in the place of its name, and the right button opens what it can do
+//! — Open, Rename, Duplicate, Pin or Unpin, Move to Trash, and on a Location's
+//! head, Remove from Library. The pane decides *which* row; what happens to it
+//! is the window's ([`crate::window`]) and, under that, the engine's, which
+//! does the disk before the pane is drawn again.
+//!
 //! Its measurements are `files.css`'s, as constants below; its colours are the
 //! theme's roles, through [`stylesheet`], which rides with the bars' sheet so
 //! that one ground change repaints both.
@@ -35,7 +42,7 @@ use std::rc::Rc;
 use std::time::{Duration, SystemTime};
 
 use gtk::prelude::*;
-use gtk::{cairo, gdk, glib};
+use gtk::{cairo, gdk, gio, glib};
 use quill_engine::library::{Contents, Library, Row, Section, Snippet, Sort, View};
 use quill_engine::theme::{Colour, Role, Scheme};
 
@@ -320,6 +327,7 @@ pub fn stylesheet(ground: Ground) -> String {
          \x20 font-size: {FIELD_PX}px; color: {ink}; caret-color: {accent};\n\
          }}\n\
          .library entry text > placeholder {{ color: {dim}; }}\n\
+         .library entry.lib-rename {{ font-size: {NAME_PX}px; }}\n\
          .library scrolledwindow, .library list {{ background: none; }}\n\
          .library list > row {{\n\
          \x20 background: none; padding: 0; min-height: 0; outline: none;\n\
@@ -383,6 +391,9 @@ struct Listed {
     /// Whether it is a folder, which opens and closes rather than opening a
     /// Document.
     folder: bool,
+    /// The label its name is drawn in, which a rename hides and puts a field
+    /// in the place of ([`Sidebar::start_rename`]).
+    name: gtk::Label,
     /// The dot that says this row's file changed on disk. Shown only while
     /// this is the row of the Document the window holds and that Document is
     /// in a conflict ([`Sidebar::set_conflicted`]).
@@ -415,6 +426,10 @@ pub struct Sidebar {
     window: Rc<RefCell<Option<glib::WeakRef<Window>>>>,
     /// The rows now drawn, top to bottom, for the highlight and the arrows.
     rows: Rc<RefCell<Vec<Listed>>>,
+    /// The section heads now drawn, each with the Location it names, so that a
+    /// right-click on one can offer to drop that Location. The Pinned head
+    /// names no Location and is not among them.
+    heads: Rc<RefCell<Vec<(gtk::ListBoxRow, PathBuf)>>>,
     /// The folders the writer has opened. Everything else is closed, which is
     /// what the spec asks a section to open at.
     expanded: Rc<RefCell<BTreeSet<PathBuf>>>,
@@ -423,6 +438,9 @@ pub struct Sidebar {
     sort: Rc<Cell<Sort>>,
     /// The Document the window is showing, whose row is the highlighted one.
     open: Rc<RefCell<Option<PathBuf>>>,
+    /// The Location whose head was last right-clicked, which is the one
+    /// `row.remove` drops.
+    head: Rc<RefCell<Option<PathBuf>>>,
     /// The file texts search has read, kept for as long as the window is, so
     /// that a query over a tree nothing has touched reads nothing.
     contents: Rc<RefCell<Contents>>,
@@ -495,9 +513,11 @@ impl Sidebar {
             conflicted: Rc::new(Cell::new(false)),
             window: Rc::new(RefCell::new(None)),
             rows: Rc::new(RefCell::new(Vec::new())),
+            heads: Rc::new(RefCell::new(Vec::new())),
             expanded: Rc::new(RefCell::new(BTreeSet::new())),
             sort: Rc::new(Cell::new(Sort::Date)),
             open: Rc::new(RefCell::new(None)),
+            head: Rc::new(RefCell::new(None)),
             contents: Rc::new(RefCell::new(Contents::new())),
             settle: Rc::new(RefCell::new(None)),
         };
@@ -564,6 +584,34 @@ impl Sidebar {
             glib::Propagation::Proceed
         });
         self.list.add_controller(keys);
+        // A second click on a row renames it where it stands, and the right
+        // button opens what can be done to it. Both watch the list in the
+        // capture phase, so that the press they take is one the list itself
+        // never sees: the first click has already opened the row, and opening
+        // it again on the second would put the caret back to the top of a
+        // Document the writer is only renaming.
+        let doubles = gtk::GestureClick::new();
+        doubles.set_button(gdk::BUTTON_PRIMARY);
+        doubles.set_propagation_phase(gtk::PropagationPhase::Capture);
+        let renaming = self.clone();
+        doubles.connect_pressed(move |gesture, presses, _, y| {
+            if presses < 2 {
+                return;
+            }
+            gesture.set_state(gtk::EventSequenceState::Claimed);
+            renaming.rename_at(y);
+        });
+        self.list.add_controller(doubles);
+        let menued = gtk::GestureClick::new();
+        menued.set_button(gdk::BUTTON_SECONDARY);
+        menued.set_propagation_phase(gtk::PropagationPhase::Capture);
+        let opening = self.clone();
+        menued.connect_pressed(move |gesture, _, x, y| {
+            gesture.set_state(gtk::EventSequenceState::Claimed);
+            opening.menu_at(x, y);
+        });
+        self.list.add_controller(menued);
+        self.install_row_actions();
         // The two words of "Changed on disk · Reload · Keep": each opens the
         // diff view of what it would do, in the window this pane belongs to.
         let reloading = self.clone();
@@ -656,6 +704,7 @@ impl Sidebar {
             self.list.remove(&child);
         }
         self.rows.borrow_mut().clear();
+        self.heads.borrow_mut().clear();
         let library = session.library();
         let view = View {
             show_hidden: session.settings().library.show_hidden,
@@ -770,6 +819,11 @@ impl Sidebar {
         if above > 0 {
             head.set_margin_top(SECTION_AIR);
         }
+        if let Some(root) = root {
+            self.heads
+                .borrow_mut()
+                .push((head.clone(), root.to_path_buf()));
+        }
         self.list.append(&head);
         self.rows_of(rows, drawing);
     }
@@ -831,7 +885,7 @@ impl Sidebar {
         let chevron = icon((CHEV, CHEV), move |area, cr| chevron_icon(area, cr, open));
         chevron.add_css_class("lib-icon");
         line.append(&chevron);
-        self.listed(line, path, true)
+        self.listed(line, &label, path, true)
     }
 
     /// A file: its name, when it was last written, and two lines of what it
@@ -880,12 +934,12 @@ impl Sidebar {
             body.append(&excerpt);
         }
         line.append(&body);
-        self.listed(line, row.path, false)
+        self.listed(line, &title, row.path, false)
     }
 
     /// A row of the list: the hairline above it, the accent bar down its left
     /// edge, and the line itself.
-    fn listed(&self, line: gtk::Box, path: &Path, folder: bool) -> Listed {
+    fn listed(&self, line: gtk::Box, name: &gtk::Label, path: &Path, folder: bool) -> Listed {
         // At the row's right edge, inside the row's own margin, and hidden
         // until the window says this Document is the one in a conflict.
         let dot = icon((DOT, DOT), warned_dot);
@@ -922,6 +976,7 @@ impl Sidebar {
             row,
             path: path.to_path_buf(),
             folder,
+            name: name.clone(),
             dot,
         }
     }
@@ -989,6 +1044,289 @@ impl Sidebar {
         if let Some(window) = self.owner() {
             window.open_path(&path);
         }
+    }
+
+    // ------------------------------------------------------ row operations
+
+    /// The path of the row the pane has selected, whether file or folder.
+    #[must_use]
+    pub fn selected_path(&self) -> Option<PathBuf> {
+        let row = self.list.selected_row()?;
+        self.listed_at(&row).map(|(path, _)| path)
+    }
+
+    /// The file the selected row is, and `None` where it is a folder or there
+    /// is no selected row: what a row operation acts on
+    /// (`Window::target`).
+    #[must_use]
+    pub fn selected_file(&self) -> Option<PathBuf> {
+        let row = self.list.selected_row()?;
+        let (path, folder) = self.listed_at(&row)?;
+        (!folder).then_some(path)
+    }
+
+    /// The folder a Document started from this pane goes into: the selected
+    /// folder row itself, or the folder the selected file stands in.
+    #[must_use]
+    pub fn selected_folder(&self) -> Option<PathBuf> {
+        let row = self.list.selected_row()?;
+        let (path, folder) = self.listed_at(&row)?;
+        if folder {
+            Some(path)
+        } else {
+            path.parent().map(Path::to_path_buf)
+        }
+    }
+
+    /// The files the pane is showing, top to bottom, which is the list
+    /// `file.next` and `file.prev` walk ([`crate::files::stepped`]).
+    ///
+    /// The rows now drawn and not the tree: a file inside a closed folder is
+    /// not a row a writer can step to, and under a query the list is the hits.
+    #[must_use]
+    pub fn listed_files(&self) -> Vec<PathBuf> {
+        self.rows
+            .borrow()
+            .iter()
+            .filter(|listed| !listed.folder)
+            .map(|listed| listed.path.clone())
+            .collect()
+    }
+
+    /// Puts a field in the place of the selected row's name, and answers
+    /// whether there was a file row to put one in.
+    ///
+    /// `false` is what sends `file.rename` to the dialog instead
+    /// (`Window::rename_document`): a folder row, or no row at all.
+    pub fn start_rename(&self) -> bool {
+        let Some(row) = self.list.selected_row() else {
+            return false;
+        };
+        self.rename_row(&row)
+    }
+
+    /// A double click at `y`: that row is selected and its name becomes a
+    /// field.
+    fn rename_at(&self, y: f64) {
+        let Some(row) = self.list.row_at_y(pixels(y)) else {
+            return;
+        };
+        if row.is_selectable() {
+            self.list.select_row(Some(&row));
+        }
+        self.rename_row(&row);
+    }
+
+    /// Puts a field in the place of `row`'s name, and answers whether it took.
+    ///
+    /// The oracle's field (`legacy/app/js/files.js` `startRename`): the name
+    /// as it stands with everything before the extension selected, Enter
+    /// renaming, Esc leaving it, and clicking away renaming — because a writer
+    /// who typed a name and looked elsewhere meant the name.
+    fn rename_row(&self, row: &gtk::ListBoxRow) -> bool {
+        let found = {
+            let rows = self.rows.borrow();
+            rows.iter()
+                .find(|listed| listed.row == *row)
+                .filter(|listed| !listed.folder)
+                .map(|listed| (listed.path.clone(), listed.name.clone()))
+        };
+        let Some((path, label)) = found else {
+            return false;
+        };
+        if !label.is_visible() {
+            // Already being renamed: the field is standing where the label is.
+            return true;
+        }
+        let Some(beside) = label.parent().and_downcast::<gtk::Box>() else {
+            return false;
+        };
+        let name = file_name_of(&path);
+        let entry = gtk::Entry::builder()
+            .text(&name)
+            .hexpand(true)
+            .has_frame(false)
+            .build();
+        entry.add_css_class("lib-rename");
+        beside.insert_child_after(&entry, Some(&label));
+        label.set_visible(false);
+        entry.select_region(0, files::stem_chars(&name));
+        entry.grab_focus();
+
+        // One rename, however many of the three ways of ending it fire: taking
+        // the field down moves the keyboard, which is itself one of them.
+        let done = Rc::new(Cell::new(false));
+        let ending = self.clone();
+        let (ended, asked, over) = (done.clone(), path.clone(), label.clone());
+        entry.connect_activate(move |entry| {
+            ending.end_rename(entry, &over, &asked, &ended, true);
+        });
+        let escaping = self.clone();
+        let (ended, asked, over) = (done.clone(), path.clone(), label.clone());
+        let keys = gtk::EventControllerKey::new();
+        keys.connect_key_pressed(glib::clone!(
+            #[weak]
+            entry,
+            #[upgrade_or]
+            glib::Propagation::Proceed,
+            move |_, key, _, _| {
+                if key == gdk::Key::Escape {
+                    escaping.end_rename(&entry, &over, &asked, &ended, false);
+                    return glib::Propagation::Stop;
+                }
+                glib::Propagation::Proceed
+            }
+        ));
+        entry.add_controller(keys);
+        let leaving = self.clone();
+        let focus = gtk::EventControllerFocus::new();
+        focus.connect_leave(glib::clone!(
+            #[weak]
+            entry,
+            move |_| leaving.end_rename(&entry, &label, &path, &done, true)
+        ));
+        entry.add_controller(focus);
+        true
+    }
+
+    /// Ends a rename: the field goes, the name comes back, and where the
+    /// writer meant it the window renames the file.
+    fn end_rename(
+        &self,
+        entry: &gtk::Entry,
+        label: &gtk::Label,
+        path: &Path,
+        done: &Rc<Cell<bool>>,
+        commit: bool,
+    ) {
+        if done.replace(true) {
+            return;
+        }
+        let typed = entry.text().trim().to_string();
+        if let Some(beside) = entry.parent().and_downcast::<gtk::Box>() {
+            beside.remove(entry);
+        }
+        label.set_visible(true);
+        if commit
+            && !typed.is_empty()
+            && let Some(window) = self.owner()
+        {
+            window.rename_path(path, &typed);
+        }
+    }
+
+    /// The right button at (`x`, `y`): the row under the pointer is selected
+    /// and the menu of what can be done to it opens where the pointer is.
+    ///
+    /// A section head has a menu of its own — a Location is dropped from the
+    /// Library, and nothing on disk is touched — and the Pinned head, which
+    /// names no Location, has none.
+    fn menu_at(&self, x: f64, y: f64) {
+        let Some(row) = self.list.row_at_y(pixels(y)) else {
+            return;
+        };
+        let model = if let Some(root) = self.head_at(&row) {
+            self.head.replace(Some(root));
+            location_menu()
+        } else {
+            let Some((path, folder)) = self.listed_at(&row) else {
+                return;
+            };
+            self.list.select_row(Some(&row));
+            row_menu(folder, self.is_pinned(&path))
+        };
+        let menu = gtk::PopoverMenu::from_model_full(&model, gtk::PopoverMenuFlags::NESTED);
+        // The bars' and the Palette's menu look, which the one stylesheet
+        // carries ([`crate::chrome::stylesheet`]).
+        menu.add_css_class("chrome-menu");
+        menu.set_has_arrow(false);
+        menu.set_halign(gtk::Align::Start);
+        menu.set_parent(&self.list);
+        menu.set_pointing_to(Some(&gdk::Rectangle::new(pixels(x), pixels(y), 1, 1)));
+        // A popover parented on the list belongs to nobody once it closes, so
+        // it takes itself down rather than leaving one behind per right-click.
+        menu.connect_closed(|menu| menu.unparent());
+        menu.popup();
+    }
+
+    /// The actions a row menu fires that no Command covers: opening the row
+    /// under the pointer rather than the Document the window holds, pinning it,
+    /// and dropping a Location.
+    ///
+    /// A `row.` group of the pane's own, beside the window's `win.file.*`,
+    /// which the same menu fires for Rename, Duplicate and Move to Trash.
+    fn install_row_actions(&self) {
+        let actions = gio::SimpleActionGroup::new();
+        let opened = gio::SimpleAction::new("open", None);
+        let opening = self.clone();
+        opened.connect_activate(move |_, _| opening.open_selected());
+        actions.add_action(&opened);
+        for (name, pinned) in [("pin", true), ("unpin", false)] {
+            let action = gio::SimpleAction::new(name, None);
+            let pinning = self.clone();
+            action.connect_activate(move |_, _| pinning.set_pinned(pinned));
+            actions.add_action(&action);
+        }
+        let removed = gio::SimpleAction::new("remove", None);
+        let dropping = self.clone();
+        removed.connect_activate(move |_, _| dropping.drop_location());
+        actions.add_action(&removed);
+        self.root.insert_action_group("row", Some(&actions));
+    }
+
+    /// `row.open`: the selected row, opened as a click on it would.
+    fn open_selected(&self) {
+        if let Some(row) = self.list.selected_row() {
+            self.activate(&row);
+        }
+    }
+
+    /// `row.pin` and `row.unpin`, on the selected row.
+    fn set_pinned(&self, pinned: bool) {
+        let (Some(window), Some(path)) = (self.owner(), self.selected_path()) else {
+            return;
+        };
+        window.set_pinned(&path, pinned);
+    }
+
+    /// `row.remove`: the Location whose head was right-clicked leaves the
+    /// Library.
+    fn drop_location(&self) {
+        let root = self.head.borrow().clone();
+        if let (Some(window), Some(root)) = (self.owner(), root) {
+            window.drop_location(&root);
+        }
+    }
+
+    /// What `row` stands for — its path, and whether it is a folder — or
+    /// `None` where it is a section head.
+    fn listed_at(&self, row: &gtk::ListBoxRow) -> Option<(PathBuf, bool)> {
+        self.rows
+            .borrow()
+            .iter()
+            .find(|listed| listed.row == *row)
+            .map(|listed| (listed.path.clone(), listed.folder))
+    }
+
+    /// The Location `row` heads, where it is a Location's head.
+    fn head_at(&self, row: &gtk::ListBoxRow) -> Option<PathBuf> {
+        self.heads
+            .borrow()
+            .iter()
+            .find(|(head, _)| head == row)
+            .map(|(_, root)| root.clone())
+    }
+
+    /// Whether `path` is Pinned, which is which half of Pin or Unpin the row's
+    /// menu offers.
+    fn is_pinned(&self, path: &Path) -> bool {
+        self.session().is_some_and(|session| {
+            session
+                .library()
+                .pinned()
+                .iter()
+                .any(|pinned| pinned == path)
+        })
     }
 
     /// Esc: the keyboard goes back to the page.
@@ -1097,6 +1435,52 @@ fn held(rows: &[Row<'_>], at: usize) -> usize {
         .take_while(|row| row.depth() > depth)
         .filter(|row| row.depth() == depth + 1)
         .count()
+}
+
+/// What a row's context menu offers.
+///
+/// The oracle's order (`legacy/app/js/files.js` `rowMenu`: Open, Rename…,
+/// Duplicate, then Delete under a rule), with Pin or Unpin — whichever the row
+/// is not — between them, and the oracle's Download dropped: a file already on
+/// disk has nothing to download. A folder is opened by clicking it and has
+/// neither a name a rename can give it nor a copy worth making, so all it
+/// offers is Pinned.
+fn row_menu(folder: bool, pinned: bool) -> gio::Menu {
+    let pinning = if pinned {
+        ("Unpin", "row.unpin")
+    } else {
+        ("Pin", "row.pin")
+    };
+    let menu = gio::Menu::new();
+    if folder {
+        menu.append(Some(pinning.0), Some(pinning.1));
+        return menu;
+    }
+    let doing = gio::Menu::new();
+    doing.append(Some("Open"), Some("row.open"));
+    doing.append(Some("Rename…"), Some("win.file.rename"));
+    doing.append(Some("Duplicate"), Some("win.file.duplicate"));
+    doing.append(Some(pinning.0), Some(pinning.1));
+    menu.append_section(None, &doing);
+    let going = gio::Menu::new();
+    going.append(Some("Move to Trash"), Some("win.file.delete"));
+    menu.append_section(None, &going);
+    menu
+}
+
+/// What a Location's head offers: the one thing that is not about a file.
+fn location_menu() -> gio::Menu {
+    let menu = gio::Menu::new();
+    menu.append(Some("Remove from Library"), Some("row.remove"));
+    menu
+}
+
+/// What the file at `path` is called, which is what a rename field opens with.
+fn file_name_of(path: &Path) -> String {
+    path.file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .into_owned()
 }
 
 /// The pane's head: what it is called, the toggle that shuts it, and the

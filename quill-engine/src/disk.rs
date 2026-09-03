@@ -413,13 +413,24 @@ fn within(text: &str, caret: usize) -> usize {
 /// The oracle's rule (`legacy/app/js/files.js` `deriveTitle`, `safeName` and
 /// `dispName`): the first non-empty line without its heading hashes, list or
 /// quote marker and inline Markup, whitespace collapsed, cut to
-/// [`TITLE_CHARS`]; then the characters no file name may hold dropped, leading
-/// dots dropped, and [`UNTITLED`] where nothing survives. A first line that
-/// already ends in an extension the Library lists keeps it, and everything
-/// else is given `.md`.
+/// [`TITLE_CHARS`]; then [`named`] makes a file name of what is left.
 #[must_use]
 pub fn first_save_name(text: &str) -> String {
-    let name = safe_name(&derived_title(text));
+    named(&derived_title(text))
+}
+
+/// `typed` as a file name.
+///
+/// The characters no file name may hold dropped, leading dots dropped, and
+/// [`UNTITLED`] where nothing survives; a name that already ends in an
+/// extension the Library lists keeps it, and everything else is given `.md`.
+///
+/// What a rename types and what a first line derives are the same question
+/// asked twice ([`crate::library::Library::rename`]), so both come through
+/// here.
+#[must_use]
+pub fn named(typed: &str) -> String {
+    let name = safe_name(typed);
     if library::listed(Path::new(&name)) {
         name
     } else {
@@ -457,7 +468,7 @@ pub fn unique_in(folder: &Path, name: &str) -> PathBuf {
 
 /// `name` as its stem and its extension with the dot, where the extension is
 /// one the Library lists; everything else is all stem.
-fn split_extension(name: &str) -> (&str, &str) {
+pub(crate) fn split_extension(name: &str) -> (&str, &str) {
     if !library::listed(Path::new(name)) {
         return (name, "");
     }

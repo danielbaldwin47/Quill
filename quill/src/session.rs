@@ -943,6 +943,88 @@ impl Session {
     pub fn patch_library(&self, path: &Path) -> bool {
         self.library.borrow_mut().patch(path)
     }
+
+    /// Drops `root` as a Location: out of the model and out of the settings
+    /// file, which is the only place Locations are remembered.
+    ///
+    /// Nothing on disk is touched — a Location is a folder Quill was pointed
+    /// at, and forgetting it is not deleting it — and the watch keeps the
+    /// subject: a path arriving from a folder no Location holds patches
+    /// nothing ([`quill_engine::library::Library::patch`]), and a folder added
+    /// back is a folder already listened for.
+    pub fn remove_location(&self, root: &Path) {
+        if !self.library.borrow_mut().remove_location(root) {
+            return;
+        }
+        self.settings
+            .borrow_mut()
+            .library
+            .locations
+            .retain(|held| held != root);
+        let settings = self.running();
+        self.write_settings(&settings);
+    }
+
+    /// Pins `path`, and says whether it took: the model first, then
+    /// `[library].pinned` in the settings file, which is where Pinned is
+    /// remembered.
+    pub fn pin(&self, path: &Path) -> bool {
+        if !matches!(
+            self.library.borrow_mut().pin(path),
+            quill_engine::library::Pin::Held
+        ) {
+            return false;
+        }
+        let mut settings = self.settings.borrow_mut();
+        if !settings.library.pinned.iter().any(|held| held == path) {
+            settings.library.pinned.push(path.to_path_buf());
+        }
+        drop(settings);
+        let settings = self.running();
+        self.write_settings(&settings);
+        true
+    }
+
+    /// Unpins `path`, and says whether it was pinned.
+    pub fn unpin(&self, path: &Path) -> bool {
+        if !self.library.borrow_mut().unpin(path) {
+            return false;
+        }
+        self.settings
+            .borrow_mut()
+            .library
+            .pinned
+            .retain(|held| held != path);
+        let settings = self.running();
+        self.write_settings(&settings);
+        true
+    }
+
+    /// Renames the file at `path` to what a writer typed
+    /// ([`quill_engine::library::Library::rename`]).
+    ///
+    /// # Errors
+    ///
+    /// What the rename could not do.
+    pub fn rename_file(&self, path: &Path, typed: &str) -> std::io::Result<PathBuf> {
+        self.library.borrow_mut().rename(path, typed)
+    }
+
+    /// Copies the file at `path` beside itself
+    /// ([`quill_engine::library::Library::duplicate`]).
+    ///
+    /// # Errors
+    ///
+    /// What the copy could not do.
+    pub fn duplicate_file(&self, path: &Path) -> std::io::Result<PathBuf> {
+        self.library.borrow_mut().duplicate(path)
+    }
+
+    /// Takes in that the app has put `path` in the system trash
+    /// ([`quill_engine::library::Library::trashed`]).
+    pub fn trashed_file(&self, path: &Path) {
+        self.library.borrow_mut().trashed(path);
+    }
 }
 
 /// Where a launch reads and writes its settings: the file `--settings` names,

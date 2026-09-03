@@ -356,7 +356,14 @@ fn run_window(window: &Window, command: &Command) {
                 window.open_menu(menu);
             }
         }
+        "file.new" => window.new_document(),
         "file.open" => window.open_file(),
+        "file.openFolder" => window.add_location(),
+        "file.rename" => window.rename_document(),
+        "file.duplicate" => window.duplicate_document(),
+        "file.delete" => window.trash_document(),
+        "file.next" => window.step_document(crate::files::Step::Next),
+        "file.prev" => window.step_document(crate::files::Step::Prev),
         "file.save" => window.save(),
         "file.saveAs" => window.save_as(crate::window::After::Stay),
         "palette.open" => window.open_palette(),
@@ -1619,9 +1626,9 @@ mod tests {
     #[test]
     fn a_disabled_commands_activation_returns_without_effect() {
         let (map, fired) = map(Scope::Win);
-        assert!(!commands::by_id("file.rename").unwrap().built);
-        assert!(!map.is_action_enabled("file.rename"));
-        map.activate_action("file.rename", None);
+        assert!(!commands::by_id("export.open").unwrap().built);
+        assert!(!map.is_action_enabled("export.open"));
+        map.activate_action("export.open", None);
         // The Stats menu's fields are the Stats spec's (#30), so the whole
         // radio group is disabled.
         map.activate_action("stats", Some(&"words".to_variant()));
