@@ -46,6 +46,7 @@ use quill_engine::settings::{Choice, Settings};
 use quill_engine::sync;
 use quill_engine::template;
 
+use crate::preview::DialogOverride;
 use crate::tags::pixels;
 use crate::window::Window;
 
@@ -387,14 +388,27 @@ impl Column {
     /// the margin, the text size and the three toggles are what Quick Export
     /// would write, which is the whole point of the mode. What the pane
     /// contributes is the scale, and fit width is a function of its width.
-    pub(crate) fn lay_out(&self, document: &Document, settings: &Settings) {
+    pub(crate) fn lay_out(
+        &self,
+        document: &Document,
+        settings: &Settings,
+        over: Option<&DialogOverride>,
+    ) {
         let width = self.width();
         if width <= 0 {
             // Not on the compositor yet: the first allocation asks again.
             return;
         }
         let template = template::named(settings.template.name.as_str());
-        let paper = paginate::Geometry::of(&settings.export);
+        // What an open PDF dialog's Options are showing, and `[export]` and
+        // `[template]` themselves whenever no dialog stands over the pane
+        // ([`DialogOverride`]).
+        let export = over.map_or(&settings.export, |over| &over.export);
+        let toggles = over.map_or_else(
+            || render::Toggles::of(&settings.template),
+            |over| over.toggles,
+        );
+        let paper = paginate::Geometry::of(export);
         // Its own context: `lay_out` puts the one it is handed into points,
         // and the Web sheet renders on the widget's shared context at the
         // screen's resolution (#293).
@@ -402,9 +416,9 @@ impl Column {
         let laid = paginate::lay_out(
             document,
             &template,
-            render::Toggles::of(&settings.template),
+            toggles,
             paper,
-            f64::from(settings.export.text_size),
+            f64::from(export.text_size),
             &context,
         );
         // Fit width is what the zoom's 100 % means here, and the three zoom
