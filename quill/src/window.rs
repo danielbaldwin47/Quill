@@ -2063,9 +2063,15 @@ impl Window {
     ///
     /// Recorded as the rule now placing the pane, for the reason
     /// [`Window::follow_caret`] records its own.
+    ///
+    /// A scroll the Editor makes to put the caret's row back after a fold is
+    /// not a writer scrolling and drives nothing: the row it moved is the row
+    /// it left standing still, and reading it as a scroll would take the pane
+    /// off the caret's block an edit had just put it on
+    /// ([`crate::editor::Editor::shifting`]).
     fn follow_editor(&self, offset: f64) {
         let imp = self.imp();
-        if !imp.previewing.get() || imp.syncing.get() {
+        if !imp.previewing.get() || imp.syncing.get() || imp.editor.shifting() {
             return;
         }
         imp.follows.set(Follows::TopBlock);
@@ -2150,6 +2156,11 @@ impl Window {
     /// question. The caret rule runs after this one for an edit — the Editor
     /// has already moved its own view by the time `mark-set` reaches
     /// [`Window::watch_edits`] — so the finer rule has the last word.
+    ///
+    /// One scroll runs later still and is not a rule at all: an edit under Live
+    /// folds the page, and the frame after puts the caret's row back where it
+    /// stood ([`crate::editor::Editor::anchor_row`]). That one is stood back
+    /// from rather than followed, so the caret rule keeps the last word.
     fn watch_sync(&self) {
         let Some(scroller) = self.imp().scroller.get() else {
             return;
