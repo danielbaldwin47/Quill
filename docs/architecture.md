@@ -279,7 +279,12 @@ and the determinism settings, this document names the flags:
   booleans off, so a writer who turned on hidden files or extensions does not change the shot),
   `--sidebar` (open with the Library beside the page), `--search <query>` (put `<query>` in the
   Library's search field and narrow the list to what it finds; refused without `--sidebar`, which is
-  the pane the field stands in), `--export-dialog pdf|html|markdown` (open that format's Export
+  the pane the field stands in), `--preview split|full|pdf-split|pdf-full` (open with the Preview
+  pane beside the Editor, or in place of it. The word names both of the pane's settings: `split` and
+  `full` are `[preview] layout` with the pane showing the rendered sheet, and `pdf-split` and
+  `pdf-full` are the same two layouts with the pane showing the pages Export writes. The rest of
+  `[preview]` is pinned to its defaults for the launch, so a writer's remembered mode and zoom reach
+  no judged shot), `--export-dialog pdf|html|markdown` (open that format's Export
   dialog over the page with its Options expander open, once the window has painted its first frame —
   a still cannot pull an expander, and a second surface over a toplevel the compositor has no frame
   of yet keeps the toplevel from ever mapping; `[export]` itself has no flag, and is pinned to its

@@ -492,7 +492,7 @@ ok('the ghost is measured off ours own pixels, and the alpha is solved rather th
   for (const alpha of [3, 0, 1, '0.3', undefined]) {
     assert.throws(() => validate({ kind: 'ghost', alpha }), /between 0 and 1/, `an alpha of ${alpha} was taken`);
   }
-  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'folded', 'split', 'full', 'dialog']);
+  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'folded', 'split', 'full', 'pdf-split', 'pdf-full', 'dialog']);
 });
 
 ok('the ghost refuses to read a bar it cannot see the ground beside, and never guesses one', () => {
@@ -759,6 +759,140 @@ ok('Full is one paper across the window with the heading centred in it', () => {
   assert.throws(() => validate({ kind: 'full', paper: '#ffffff' }), /the full assertion takes nothing but its kind, and this one names paper/);
 });
 
+// ---------- the page column, measured off its own pixels ----------
+
+// A surround, a paper and an ink that are again **not** the app's palette, and are picked for the
+// two thresholds the rules stand on rather than for the look. The paper is 30 off the surround,
+// inside the 40 a pixel has to clear to count as ink, so a page edge is an edge and not a glyph the
+// way `#ffffff` on `#f7f7f7` is not one; the glyph is 190 off the paper, well past it. And the
+// surround is far lighter than the Editor's paper, which is what a dark theme's window looks like
+// with a light column in half of it.
+const PDF_SURROUND = [200, 200, 200];
+const PDF_PAPER = [230, 230, 230];
+const PDF_GLYPH = [40, 40, 40];
+
+// A column of pages: the Editor's paper left of `divider`, the surround right of it, `pages` pages
+// `pageW` wide centred on `centre` with `top0` px of air over the first and `gap` between each
+// pair, and a run of ink `ink` wide on each.
+//
+// Everything the two rules read is a parameter, because every one of them is a defect somebody
+// could ship: a divider dragged off the middle, a column wearing the theme instead of its own
+// surround, a page filling the pane, a page off the pane's centre, a gap between pages that is not
+// the gap over the first, and a column with no pages drawn on it at all.
+function pdfColumn({
+  w = 400, h = 400, divider = 0, editor = EDITOR_PAPER, surround = PDF_SURROUND, paper = PDF_PAPER,
+  centre = null, pageW = 360, top0 = 20, gap = 20, pageH = 170, pages = 2, ink = 60,
+} = {}) {
+  const data = Buffer.alloc(w * h * 3);
+  const put = (x, y, rgb) => { for (let c = 0; c < 3; c += 1) data[((y * w) + x) * 3 + c] = rgb[c]; };
+  const fill = (x0, x1, y0, y1, rgb) => {
+    for (let y = Math.max(0, y0); y < Math.min(h, y1); y += 1) {
+      for (let x = Math.max(0, x0); x < Math.min(w, x1); x += 1) put(x, y, rgb);
+    }
+  };
+  fill(0, divider, 0, h, editor);
+  fill(divider, w, 0, h, surround);
+  const middle = centre === null ? (divider + w - 1) / 2 : centre;
+  const left = Math.round(middle - (pageW - 1) / 2);
+  for (let at = 0; at < pages; at += 1) {
+    const top = top0 + at * (pageH + gap);
+    fill(left, left + pageW, top, top + pageH, paper);
+    if (ink > 0) fill(Math.round(middle - ink / 2), Math.round(middle + ink / 2), top + 30, top + 42, PDF_GLYPH);
+  }
+  return encodePng({ w, h, ch: 3, data });
+}
+
+ok('PDF Split is the divider, a lighter surround than the Editor, and a page standing in the column', () => {
+  const spec = { kind: 'pdf-split' };
+  const held = assertState(spec, { dim: pdfColumn({ divider: 200, pageW: 160 }) });
+  assert.equal(held.ours, true, held.why);
+  assert.equal(held.divider, 200, 'the divider is the boundary between the Editor and the surround');
+  assert.deepEqual(held.grounds, ['#1e1e1e', '#c8c8c8', '#e6e6e6'],
+    'the Editor, the surround and the paper are all read off the shot, not compared against a hex');
+  assert.deepEqual(held.page, [220, 20, 160, 360], 'the page is the pane less a gutter each side');
+
+  // A divider dragged off the middle is a defect, at either side, with the page still centred in
+  // the pane it made — so the reading names the divider and not the page. The 3 px it is read to is
+  // real at both ends of itself.
+  for (const at of [160, 240]) {
+    const got = assertState(spec, { dim: pdfColumn({ divider: at, pageW: 400 - at - 40 }) });
+    assert.equal(got.ours, false, `a divider at ${at} of 400 passed for half the window: ${got.why}`);
+    assert.match(got.why, /the divider is \d+\.\d px off the window's half/);
+  }
+  assert.equal(assertState(spec, { dim: pdfColumn({ divider: 197, pageW: 160 }) }).ours, true);
+  assert.equal(assertState(spec, { dim: pdfColumn({ divider: 196, pageW: 160 }) }).ours, false);
+
+  // A column wearing the theme rather than its own surround: the pages are drawn in the Template's
+  // light palette whatever the theme, so the ground under them is never darker than the Editor's.
+  const dark = assertState(spec, { dim: pdfColumn({ divider: 200, pageW: 160, surround: [10, 10, 10] }) });
+  assert.equal(dark.ours, false, dark.why);
+  assert.match(dark.why, /no lighter than the Editor's own paper/);
+
+  // A page run out to the pane's own edge, with no gutter left on that side to stand in.
+  const edgeToEdge = assertState(spec, { dim: pdfColumn({ divider: 200, pageW: 180, centre: 309.5 }) });
+  assert.equal(edgeToEdge.ours, false, edgeToEdge.why);
+  assert.match(edgeToEdge.why, /reaches the edge of the pane/);
+
+  // A page laid out against the window rather than the half it was put in.
+  const offset = assertState(spec, { dim: pdfColumn({ divider: 200, pageW: 160, centre: 280 }) });
+  assert.equal(offset.ours, false, offset.why);
+  assert.match(offset.why, /19\.0 px off the centre of the pane it stands in/);
+
+  // A pane with nothing drawn on it, and a window whose air over the pages is the Editor's own
+  // ground, are each their own answer and never a silent pass.
+  const empty = assertState(spec, { dim: pdfColumn({ divider: 200, pages: 0 }) });
+  assert.equal(empty.ours, false, empty.why);
+  assert.match(empty.why, /no page is standing on the surround/);
+  const one = assertState(spec, { dim: pdfColumn({ divider: 200, pageW: 160, surround: EDITOR_PAPER }) });
+  assert.equal(one.ours, false, one.why);
+  assert.match(one.why, /the ground the Editor is made of/);
+
+  assert.throws(() => validate({ kind: 'pdf-split', paper: '#ffffff' }),
+    /the pdf-split assertion takes nothing but its kind, and this one names paper/);
+});
+
+ok('PDF Full is the page centred in the window with the column\'s gap over it and between its pages', () => {
+  const spec = { kind: 'pdf-full' };
+  const held = assertState(spec, { dim: pdfColumn() });
+  assert.equal(held.ours, true, held.why);
+  assert.deepEqual(held.grounds, ['#c8c8c8', '#e6e6e6']);
+  assert.equal(held.gap, 20, 'the air over the first page is the gap the column stacks with');
+  assert.match(held.why, /2 pages with 20 px between them/);
+
+  // A page off the window's centre, at the 3 px this is read to and the pixel past it.
+  assert.equal(assertState(spec, { dim: pdfColumn({ centre: 202.5 }) }).ours, true);
+  const off = assertState(spec, { dim: pdfColumn({ centre: 203.5 }) });
+  assert.equal(off.ours, false, off.why);
+  assert.match(off.why, /4\.0 px off the window's centre/);
+
+  // A page filling the window is a column that lost its gutters, and a first page flush with the
+  // top of the column is one that lost its air.
+  const edgeToEdge = assertState(spec, { dim: pdfColumn({ pageW: 400 }) });
+  assert.equal(edgeToEdge.ours, false, edgeToEdge.why);
+  assert.match(edgeToEdge.why, /reaches the edge of the window/);
+  const flush = assertState(spec, { dim: pdfColumn({ top0: 0 }) });
+  assert.equal(flush.ours, false, flush.why);
+  assert.match(flush.why, /none of the gap the column stacks its pages with over it/);
+
+  // The pages are stacked with one gap: a gap between two of them that is not the gap over the
+  // first is a column that stacked them by something else. Read to the same 3 px.
+  assert.equal(assertState(spec, { dim: pdfColumn({ gap: 23 }) }).ours, true);
+  const wide = assertState(spec, { dim: pdfColumn({ gap: 24 }) });
+  assert.equal(wide.ours, false, wide.why);
+  assert.match(wide.why, /a gap of 24 px between two pages against the 20 px over the first/);
+
+  // A blank page, and a window with no page on it at all.
+  const bare = assertState(spec, { dim: pdfColumn({ ink: 0 }) });
+  assert.equal(bare.ours, false, bare.why);
+  assert.match(bare.why, /the page is blank/);
+  const empty = assertState(spec, { dim: pdfColumn({ pages: 0 }) });
+  assert.equal(empty.ours, false, empty.why);
+  assert.match(empty.why, /from edge to edge: no page is standing on the surround/);
+
+  assert.throws(() => validate({ kind: 'pdf-full', gap: 20 }),
+    /the pdf-full assertion takes nothing but its kind, and this one names gap/);
+});
+
 // ---------- the Export dialog, measured off its own pixels ----------
 
 // A page paper and a dialog ground that are deliberately not the app's palette, for the reason the
@@ -891,9 +1025,10 @@ ok('every judged state that draws a determined caret is held to one, and no othe
     }
   }
   // The four ways out a judged state has, and nothing else: focus parked elsewhere, `--nocaret`,
-  // a selection, which paints a band where the bar would be, and `--preview full`, which puts the
-  // rendered page where the Editor's scroller was and leaves no Editor on the glass to draw a bar.
-  // Every other state draws the bar, `preview/split` — which keeps its Editor — included.
+  // a selection, which paints a band where the bar would be, and a Full pane — `--preview full` or
+  // `--preview pdf-full` — which puts the rendered page or the page column where the Editor's
+  // scroller was and leaves no Editor on the glass to draw a bar. Every other state draws the bar,
+  // both Split states — which keep their Editor — included.
   // The two Focus states take the `--nocaret` way out for the reason `theme/dark` does: they are
   // crops of the Design oracle, whose own captures carry no bar, and the state is about which
   // words are dim rather than where the caret is (#113). The two `files` states take it because the
@@ -905,7 +1040,8 @@ ok('every judged state that draws a determined caret is held to one, and no othe
   assert.deepEqual(exempt, [
     'caret/selection', 'caret/unfocused', 'export/dialog', 'files/library', 'files/search',
     'focus/paragraph', 'focus/sentence',
-    'markup/blocks', 'markup/gutters', 'preview/full', 'theme/dark', 'theme/light', 'type/mono',
+    'markup/blocks', 'markup/gutters', 'preview/full', 'preview/pdf-full',
+    'theme/dark', 'theme/light', 'type/mono',
   ]);
   // #197 came out of `theme/dark`, which has since gone `--nocaret` (#198) so that its marks can be
   // read with no bar among them. The rule it left behind is held by the states that still draw one.

@@ -40,7 +40,7 @@ use std::path::{Path, PathBuf};
 
 use quill_engine::commands;
 use quill_engine::settings::{
-    Choice, Chrome, Export, Face, FocusScope, Paper, Preview, PreviewLayout, Settings,
+    Choice, Chrome, Export, Face, FocusScope, Paper, Preview, PreviewLayout, PreviewMode, Settings,
     Template as TemplateSettings, TemplateName, WindowState, window_sizes,
 };
 use quill_engine::theme::Scheme;
@@ -77,8 +77,10 @@ Judged state — the states the Gate shoots and benches at:
                          manifest.json names, as the one Location, with the
                          rest of [library] at its defaults.
   --sidebar              Open with the Library beside the page.
-  --preview split|full   Open with the Preview pane beside the Editor, or in
-                         place of it, with the rest of [preview] at its
+  --preview split|full|pdf-split|pdf-full
+                         Open with the Preview pane beside the Editor, or in
+                         place of it, showing the rendered sheet or the pages
+                         Export writes, with the rest of [preview] at its
                          defaults.
   --template <id>        Lay the rendered page out in that Template, with the
                          rest of [template] at its defaults.
@@ -127,6 +129,23 @@ const MENUS: [(&str, Menu); 4] = [
     ("document", Menu::Bar(commands::Menu::Document)),
     ("stats", Menu::Bar(commands::Menu::Stats)),
     ("palette", Menu::Palette),
+];
+
+/// What `--preview` takes: where the pane opens and what it draws there, in
+/// one word.
+///
+/// The pane has two settings under it, `[preview] layout` and `[preview]
+/// mode`, and one flag names both because a shot of the pane is a shot of the
+/// pair — `pdf-split` is the page column beside the Editor, `split` the
+/// rendered sheet in the same place. It is a table here rather than
+/// [`choice`] over a settings [`Choice`] because neither enum's vocabulary is
+/// these four words: `PreviewLayout::VALUES` is what the settings file writes
+/// under `layout`, and widening it to carry the mode would change the file.
+const PREVIEWS: [(&str, (PreviewLayout, PreviewMode)); 4] = [
+    ("split", (PreviewLayout::Split, PreviewMode::Web)),
+    ("full", (PreviewLayout::Full, PreviewMode::Web)),
+    ("pdf-split", (PreviewLayout::Split, PreviewMode::Pdf)),
+    ("pdf-full", (PreviewLayout::Full, PreviewMode::Pdf)),
 ];
 
 /// What `--menu` opens before the first frame, its first row selected: one
@@ -237,6 +256,10 @@ pub struct Flags {
     /// is this flag having been given: nothing else opens one, because the
     /// pane is closed at every launch (#263).
     pub preview: Option<PreviewLayout>,
+    /// What `--preview` asked the pane to draw where it opened: the rendered
+    /// sheet, or the pages Export writes. It is set by the same word that set
+    /// [`Flags::preview`] and is `None` exactly when that is.
+    pub preview_mode: Option<PreviewMode>,
     /// The Template `--template` names, which the rendered page is laid out
     /// in for this launch.
     pub template: Option<TemplateName>,
@@ -324,7 +347,11 @@ impl Flags {
                 "--library" => flags.library = Some(file(&mut args, flag)?),
                 "--sidebar" => flags.sidebar = true,
                 "--search" => flags.search = Some(text(&mut args, flag)?),
-                "--preview" => flags.preview = Some(choice(flag, &text(&mut args, flag)?)?),
+                "--preview" => {
+                    let (layout, mode) = one_of(flag, &text(&mut args, flag)?, &PREVIEWS)?;
+                    flags.preview = Some(layout);
+                    flags.preview_mode = Some(mode);
+                }
                 "--template" => flags.template = Some(choice(flag, &text(&mut args, flag)?)?),
                 "--export-dialog" => {
                     let written = text(&mut args, flag)?;
@@ -467,9 +494,15 @@ impl Flags {
         // than the one that was judged. The pane's being open is the window's
         // ([`crate::window::Window::new`]), and absent under `--deterministic`
         // there is no pane to pin.
+        // The mode is set beside the layout rather than left to the reset,
+        // because the word the flag took names both: `--preview pdf-split` is
+        // a shot of the page column and `--preview split` a shot of the sheet,
+        // and a writer whose file remembers `mode = "pdf"` shoots neither by
+        // accident.
         if let Some(layout) = self.preview {
             settings.preview = Preview::default();
             settings.preview.layout = layout;
+            settings.preview.mode = self.preview_mode.unwrap_or_default();
         } else if self.deterministic {
             settings.preview = Preview::default();
         }
@@ -715,6 +748,7 @@ mod tests {
         assert!(flags.sidebar);
         assert_eq!(flags.search.as_deref(), Some("sea"));
         assert_eq!(flags.preview, Some(PreviewLayout::Full));
+        assert_eq!(flags.preview_mode, Some(PreviewMode::Web));
         assert_eq!(flags.template, Some(TemplateName::Classic));
         assert_eq!(flags.export_dialog, Some(Format::Pdf));
         assert!(flags.typing);
@@ -939,6 +973,7 @@ mod tests {
     fn the_preview_and_template_flags_pin_the_whole_tables_the_judged_shot_reads() {
         let mut writers = Settings::default();
         writers.preview.layout = PreviewLayout::Full;
+        writers.preview.mode = PreviewMode::Pdf;
         writers.preview.zoom = 140;
         writers.template.name = TemplateName::ManuscriptDuo;
         writers.template.center_headings = false;
@@ -949,6 +984,11 @@ mod tests {
             .expect("two flags")
             .over(writers.clone());
         assert_eq!(judged.preview.layout, PreviewLayout::Split);
+        assert_eq!(
+            judged.preview.mode,
+            PreviewMode::Web,
+            "a writer who reads in PDF mode is not shooting `preview/split`"
+        );
         assert_eq!(judged.preview.zoom, Settings::default().preview.zoom);
         assert_eq!(judged.template.name, TemplateName::Classic);
         assert_eq!(judged.template, {
@@ -981,6 +1021,48 @@ mod tests {
             (writers.preview, writers.template),
             "a writer's launch that named neither is theirs exactly"
         );
+    }
+
+    /// Every word `--preview` offers opens the pane, and the four are the two
+    /// layouts against the two modes: the flag names both settings because a
+    /// shot of the pane is a shot of the pair. A fifth word is refused with
+    /// the module's usual message, and a word `--help` names that nothing
+    /// parses would be a state the Gate could write and never shoot.
+    #[test]
+    fn preview_takes_every_word_the_usage_offers() {
+        for (word, layout, mode) in [
+            ("split", PreviewLayout::Split, PreviewMode::Web),
+            ("full", PreviewLayout::Full, PreviewMode::Web),
+            ("pdf-split", PreviewLayout::Split, PreviewMode::Pdf),
+            ("pdf-full", PreviewLayout::Full, PreviewMode::Pdf),
+        ] {
+            let flags = parse(&format!("--preview {word}")).expect("a word --help names");
+            assert_eq!(
+                (flags.preview, flags.preview_mode),
+                (Some(layout), Some(mode)),
+                "--preview {word}"
+            );
+            assert!(
+                USAGE.contains(word),
+                "--help names every word the flag takes, and not {word}"
+            );
+            let settings = flags.over(Settings::default());
+            assert_eq!(
+                (settings.preview.layout, settings.preview.mode),
+                (layout, mode),
+                "--preview {word} reaches the table the pane reads"
+            );
+        }
+
+        // A word that is a mode on its own is not one of the four: the flag
+        // takes the pair or nothing.
+        let err = parse("--preview pdf").expect_err("`pdf` names no layout");
+        let said = err.to_string();
+        assert_eq!(
+            said,
+            "--preview: \"pdf\" is not one of split, full, pdf-split, pdf-full"
+        );
+        assert!(!said.contains('\n'), "one line, not a stack: {said}");
     }
 
     /// Every word the flag offers in `--help` opens a dialog, and the three
