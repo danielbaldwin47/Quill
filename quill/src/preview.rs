@@ -14,6 +14,13 @@
 //! source. The one thing a pointer does is open a link, and the one thing the
 //! keyboard does is scroll, which is why Full can hold it at all.
 //!
+//! It has two modes. The Web mode is the sheet described above; the PDF mode
+//! ([`crate::column`]) is a column of the pages Export would write, cut by the
+//! engine's paginator and painted by its drawer at the geometry `[export]`
+//! names. `[preview] mode` says which, and the pane reads it on every refresh
+//! ([`Preview::set_mode`]): one scroller, one adjustment and one divider, with
+//! one of the two children in it.
+//!
 //! It follows the writer without being typed into. The page is laid out when
 //! the pane opens, when the pane's width moves, when the Template or the zoom
 //! does, and 200 ms after the last keystroke of a burst
@@ -31,11 +38,12 @@ use gtk::subclass::prelude::*;
 use gtk::{gdk, gio, glib, graphene, pango};
 use quill_engine::document::Document;
 use quill_engine::render;
-use quill_engine::settings::{Choice, Settings};
+use quill_engine::settings::{Choice, PreviewMode, Settings};
 use quill_engine::sync;
 use quill_engine::template;
 use quill_engine::theme::{Colour, Scheme};
 
+use crate::column::Column;
 use crate::tags::pixels;
 use crate::window::{Window, Zoom};
 
@@ -367,8 +375,14 @@ pub struct Preview {
     frame: gtk::Overlay,
     /// What scrolls the sheet, and what Full's arrow keys move.
     scroller: gtk::ScrolledWindow,
-    /// The sheet the page is painted on.
+    /// The sheet the page is painted on, which is what the Web mode shows.
     sheet: Sheet,
+    /// The pages Export would write, which is what the PDF mode shows.
+    column: Column,
+    /// Which of the two is showing, so the pane's own numbers — how tall it
+    /// stands, and so how far it scrolls — are the showing one's. Shared by
+    /// every clone of the pane, as the widgets are.
+    mode: Rc<Cell<PreviewMode>>,
     /// The divider: a strip of [`GRAB`] pixels on the pane's left edge with
     /// nothing in it and nothing drawn, which a drag moves the pane's edge by
     /// and a double-click puts back to an even Split.
@@ -390,14 +404,26 @@ impl Preview {
         sheet.set_vexpand(true);
         // Full holds the keyboard, and what it does with it is scroll.
         sheet.set_focusable(true);
+        let column = Column::new();
+        column.set_visible(false);
+        // The two modes stand in one box inside one scroller, one of them
+        // visible at a time, rather than in a scroller each: the window was
+        // handed this scroller's adjustment when it wired the scroll sync
+        // ([`crate::window::Window::watch_sync`]), and a mode switch must not
+        // hand it another.
+        let body = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        body.append(&sheet);
+        body.append(&column);
         let scroller = gtk::ScrolledWindow::builder()
             .hexpand(true)
             .vexpand(true)
             // A rendered page wraps in the measure, so there is nothing to
-            // scroll to sideways, exactly as the Editor's scroller has it.
+            // scroll to sideways, exactly as the Editor's scroller has it. A
+            // column too narrow for a whole page is #298's.
             .hscrollbar_policy(gtk::PolicyType::Never)
-            .child(&sheet)
+            .child(&body)
             .build();
+        column.watch_scroll(&scroller.vadjustment());
         let divider = gtk::Box::new(gtk::Orientation::Vertical, 0);
         divider.set_width_request(GRAB);
         divider.set_halign(gtk::Align::Start);
@@ -413,6 +439,8 @@ impl Preview {
             frame,
             scroller,
             sheet,
+            column,
+            mode: Rc::new(Cell::new(PreviewMode::default())),
             divider,
         }
     }
@@ -431,15 +459,42 @@ impl Preview {
     /// it has a session to build them from ([`crate::window::Window::new`]).
     pub fn attach(&self, window: &Window) {
         self.sheet.imp().window.replace(Some(window.downgrade()));
+        self.column.attach(window);
         self.watch_divider();
         self.watch_links();
-        self.watch_keys();
+        self.watch_keys(self.sheet.upcast_ref());
+        self.watch_keys(self.column.upcast_ref());
         self.watch_zoom();
     }
 
-    /// Lays the Document out again and paints it.
+    /// Lays the Document out again and paints it, in whichever mode
+    /// `[preview] mode` names.
+    ///
+    /// The mode is read here rather than pushed in from the menu, for the
+    /// reason the Template and the zoom are: the pane is handed the settings
+    /// this launch is running, and a mode written to the file by any window
+    /// reaches every pane on the refresh that follows
+    /// ([`crate::window::Window::reapply`]).
     pub fn refresh(&self, document: &Document, settings: &Settings, scheme: Scheme) {
-        self.sheet.lay_out(document, settings, scheme);
+        self.set_mode(settings.preview.mode);
+        match settings.preview.mode {
+            PreviewMode::Web => self.sheet.lay_out(document, settings, scheme),
+            PreviewMode::Pdf => self.column.lay_out(document, settings),
+        }
+    }
+
+    /// Shows the sheet or the pages, and lays nothing out.
+    ///
+    /// The one that comes into view is laid out by the refresh this is part
+    /// of, or by the allocation that follows when it has never been allocated
+    /// at all ([`Sheet::lay_out`] and [`Column::lay_out`] both wait for a
+    /// width).
+    pub fn set_mode(&self, mode: PreviewMode) {
+        if self.mode.replace(mode) == mode {
+            return;
+        }
+        self.sheet.set_visible(mode == PreviewMode::Web);
+        self.column.set_visible(mode == PreviewMode::Pdf);
     }
 
     /// Shows or hides the pane.
@@ -472,6 +527,8 @@ impl Preview {
     /// sync rule is answered from when the pane is the one being scrolled.
     #[must_use]
     pub fn blocks(&self) -> Vec<sync::Block> {
+        // #298: in PDF mode these are the column's blocks, which are the
+        // paginator's fragments mapped back to the page they stand on.
         self.sheet.imp().rows.borrow().clone()
     }
 
@@ -482,6 +539,7 @@ impl Preview {
     /// on every keystroke.
     #[must_use]
     pub fn caret_offset(&self, caret: usize, fraction: f64) -> f64 {
+        // #298: the column's rows in PDF mode, as [`Preview::blocks`] says.
         let rows = self.sheet.imp().rows.borrow();
         sync::follow_caret(caret, fraction, &rows, self.viewport(), self.max())
     }
@@ -490,6 +548,7 @@ impl Preview {
     /// the top-block rule ([`sync::follow_top_block`]) answered from the page.
     #[must_use]
     pub fn top_block_offset(&self, driver: &[sync::Block], offset: f64) -> f64 {
+        // #298: the column's rows in PDF mode, as [`Preview::blocks`] says.
         let rows = self.sheet.imp().rows.borrow();
         sync::follow_top_block(driver, offset, &rows, self.max())
     }
@@ -507,12 +566,25 @@ impl Preview {
     /// old end ([`crate::window::Window::follow_preview`] asks again once GTK
     /// has caught up).
     fn max(&self) -> f64 {
-        (self.sheet.imp().height.get() - self.viewport()).max(0.0)
+        (self.height() - self.viewport()).max(0.0)
+    }
+
+    /// How tall what the pane is showing stands: the sheet's page, or the
+    /// column of pages.
+    fn height(&self) -> f64 {
+        match self.mode.get() {
+            PreviewMode::Web => self.sheet.imp().height.get(),
+            PreviewMode::Pdf => self.column.laid_height(),
+        }
     }
 
     /// The keyboard comes here: Full's arrows and Page keys scroll the page.
     pub fn grab_focus(&self) {
-        self.sheet.grab_focus();
+        let showing: &gtk::Widget = match self.mode.get() {
+            PreviewMode::Web => self.sheet.upcast_ref(),
+            PreviewMode::Pdf => self.column.upcast_ref(),
+        };
+        showing.grab_focus();
     }
 
     /// The divider's drag and its double-click, done as the Library's are
@@ -615,7 +687,10 @@ impl Preview {
     /// The arrow and Page keys scroll the page, which is the whole of what the
     /// keyboard does here: Full has taken it from the Editor and has to give a
     /// reader some way down the page.
-    fn watch_keys(&self) {
+    ///
+    /// Wired on `on` rather than on the sheet, because both modes are read the
+    /// same way and the keyboard lands on whichever is showing.
+    fn watch_keys(&self, on: &gtk::Widget) {
         let keys = gtk::EventControllerKey::new();
         let scroller = self.scroller.clone();
         keys.connect_key_pressed(move |_, key, _, _| {
@@ -637,7 +712,7 @@ impl Preview {
             ));
             glib::Propagation::Stop
         });
-        self.sheet.add_controller(keys);
+        on.add_controller(keys);
     }
 
     /// Ctrl+wheel over the pane steps the zoom; the wheel on its own scrolls
