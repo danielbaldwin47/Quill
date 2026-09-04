@@ -838,7 +838,11 @@ fn index(at: usize) -> u32 {
 }
 
 /// The weight a Template names, as the nearest weight Pango has a name for.
-fn weight(value: u16) -> pango::Weight {
+///
+/// Public because the drawer sets the furniture itself ([`crate::draw`]) and a
+/// Template names its heading weight the same way there.
+#[must_use]
+pub fn weight(value: u16) -> pango::Weight {
     match value {
         ..150 => pango::Weight::Thin,
         150..250 => pango::Weight::Ultralight,

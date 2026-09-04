@@ -29,7 +29,9 @@ segmentation, the bright tier and the one dim tier —
 [ADR 0015](adr/0015-the-design-oracle-outranks-the-parity-oracle.md)), `library`, `settings`, `template`,
 `render` (Pango layout for Preview, PDF and HTML), `paginate` (a rendered page cut into pages of
 paper under Export's geometry), `html` (the standalone export page and the body fragment Copy as
-HTML carries), `stats`, `outline`, `spell` (the `SpellChecker`
+HTML carries), `draw` (one page of paper painted onto a cairo context, for both of Export's page
+sinks), `pdf` (the PDF file: the surface, the metadata and the bookmarks), `stats`, `outline` (the
+heading list a bookmark and Heading navigation are made of), `spell` (the `SpellChecker`
 trait and the enchant and `spellbook` implementations), `pos` (Syntax highlight), `style` (Style
 check), `typography` (the pitch, the measure, the 78-cell text container and its gutters —
 [ADR 0016](adr/0016-the-text-container-is-78-cells.md) — and the page margins), `theme` (the two
@@ -224,11 +226,17 @@ remembers nothing it could not act on.
 The engine's `render` module lays a whole Document out with Pango from the current Template ([ADR
 0005](adr/0005-native-templates.md)): one pass produces the layouts the Preview widget snapshots and
 the pages the PDF surface draws. Preview re-renders on idle after edits, debounced, and restores its
-scroll to the block the caret is in. PDF export runs through `GtkPrintOperation` in export mode so
-Print and Export to PDF are one path, with heading bookmarks from the outline and page geometry
-(size, margins, header, footer, title page) owned by Export, not the Template. HTML export is the
-parser's HTML plus the CSS the Template generates, inlined. Annotator marks never reach Preview or
-Export.
+scroll to the block the caret is in. `paginate` cuts that one tall rendered page into pages of paper
+under the page geometry (size, margins, header, footer, title page) owned by Export, not the
+Template: a heading never ends a page and moves with the block after it, a paragraph splits between
+lines with at least two on each side or moves whole, a code block or a quotation splits at a line
+boundary with its ground carried on to the next page, and neither a thematic break nor the line
+after a hard break ever opens one. There is no page-break syntax. `draw` paints one such page onto
+any cairo context, and both of the page sinks are fed by it: PDF export is the engine's own
+`cairo::PdfSurface` at the paper's size (`pdf`), with the document metadata and the heading
+bookmarks from `outline` on it, and `GtkPrintOperation` is Print's sink alone, the drawer called
+from its `draw-page`. HTML export is the parser's HTML plus the CSS the Template generates, inlined.
+Annotator marks never reach Preview or Export.
 
 Preview ships without tables, figures and footnote blocks first; they are the last renderer work and
 sit behind the Gate like everything else.
