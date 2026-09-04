@@ -148,11 +148,28 @@ impl Format {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Depth {
     /// The whole page: paper, text size, the three Template toggles and the
-    /// three pieces of furniture. What a PDF and Print are laid out with.
+    /// three pieces of furniture. What a PDF export is laid out with.
     Page,
+    /// The same, less the paper: the print dialog's own Page Setup names the
+    /// paper and the margins for that job, so the Quill tab standing beside it
+    /// offers everything else and no second answer to the one question.
+    Print,
     /// The three Template toggles alone, which is all an HTML page has: it is
     /// laid out by the browser and has no paper.
     Toggles,
+}
+
+impl Depth {
+    /// Whether the widget offers the paper the page is laid out on.
+    fn offers_paper(self) -> bool {
+        matches!(self, Self::Page)
+    }
+
+    /// Whether it offers what a page has and a browser's page has not: the
+    /// text size and the three pieces of furniture.
+    fn offers_page(self) -> bool {
+        matches!(self, Self::Page | Self::Print)
+    }
 }
 
 /// Everything one export is laid out with: an `[export]` table and the three
@@ -214,7 +231,7 @@ impl Chosen {
 /// answers a child by its position and a position is not a name. A control the
 /// depth left out is `None`, and [`Options::seed`] answers for it — an HTML
 /// export still has a paper somewhere behind it, and Print's tab still has the
-/// margin the page setup was seeded from.
+/// paper and the margin its page setup was seeded from.
 pub(crate) struct Options {
     /// The rows, which is what a dialog or a print tab puts on screen.
     grid: gtk::Grid,
@@ -252,39 +269,38 @@ impl Options {
             .column_spacing(COLUMN_GAP)
             .build();
         let mut at = 0;
-        let (paper, text_size) = match depth {
-            Depth::Page => {
-                let paper = paper_drop_down(seed.export.paper);
-                row(&grid, &mut at, "Paper", &paper);
-                let sizes = export_text_sizes();
-                let text_size = gtk::SpinButton::with_range(
-                    f64::from(*sizes.start()),
-                    f64::from(*sizes.end()),
-                    1.0,
-                );
-                text_size.set_value(f64::from(seed.export.text_size));
-                row(&grid, &mut at, "Text size", &text_size);
-                (Some(paper), Some(text_size))
-            }
-            Depth::Toggles => (None, None),
-        };
+        let paper = depth.offers_paper().then(|| {
+            let paper = paper_drop_down(seed.export.paper);
+            row(&grid, &mut at, "Paper", &paper);
+            paper
+        });
+        let text_size = depth.offers_page().then(|| {
+            let sizes = export_text_sizes();
+            let text_size = gtk::SpinButton::with_range(
+                f64::from(*sizes.start()),
+                f64::from(*sizes.end()),
+                1.0,
+            );
+            text_size.set_value(f64::from(seed.export.text_size));
+            row(&grid, &mut at, "Text size", &text_size);
+            text_size
+        });
         let center_headings = switch(seed.toggles.center_headings);
         row(&grid, &mut at, "Center headings", &center_headings);
         let number_headings = switch(seed.toggles.number_headings);
         row(&grid, &mut at, "Number headings", &number_headings);
         let indent_paragraphs = switch(seed.toggles.indent_paragraphs);
         row(&grid, &mut at, "Indent paragraphs", &indent_paragraphs);
-        let (title_page, header, footer) = match depth {
-            Depth::Page => {
-                let title_page = switch(seed.export.title_page);
-                row(&grid, &mut at, "Title page", &title_page);
-                let header = switch(seed.export.header);
-                row(&grid, &mut at, "Header", &header);
-                let footer = switch(seed.export.footer);
-                row(&grid, &mut at, "Footer", &footer);
-                (Some(title_page), Some(header), Some(footer))
-            }
-            Depth::Toggles => (None, None, None),
+        let (title_page, header, footer) = if depth.offers_page() {
+            let title_page = switch(seed.export.title_page);
+            row(&grid, &mut at, "Title page", &title_page);
+            let header = switch(seed.export.header);
+            row(&grid, &mut at, "Header", &header);
+            let footer = switch(seed.export.footer);
+            row(&grid, &mut at, "Footer", &footer);
+            (Some(title_page), Some(header), Some(footer))
+        } else {
+            (None, None, None)
         };
         Self {
             grid,
@@ -695,6 +711,21 @@ mod tests {
                 format!("The Lighthouse.{extension}")
             );
         }
+    }
+
+    /// The Quill tab of the print dialog offers no paper — the dialog's own
+    /// Page Setup names it for that job — and the Export dialog's expander,
+    /// which no print dialog stands beside, offers it as it always did.
+    #[test]
+    fn the_print_tab_offers_the_page_without_its_paper() {
+        assert!(Depth::Page.offers_paper() && Depth::Page.offers_page());
+        assert!(!Depth::Print.offers_paper() && Depth::Print.offers_page());
+        assert!(!Depth::Toggles.offers_paper() && !Depth::Toggles.offers_page());
+        assert_eq!(
+            Format::Pdf.depth(),
+            Some(Depth::Page),
+            "the depth the PDF dialog's rows are drawn from does not move"
+        );
     }
 
     /// The dialog opens on the `[export]` table and the `[template]` toggles
