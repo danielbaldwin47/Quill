@@ -107,12 +107,13 @@ pub(crate) fn pixels(length: f64) -> i32 {
     whole
 }
 
-/// A length the container measured, as the `i32` GTK sets a margin in.
+/// A length the typography counted, as the `i32` GTK takes it in.
 ///
 /// [`typography::Column`] counts every edge and every hang in whole pixels
-/// from the left of the view, and GTK takes a margin signed. A container wider
-/// than `i32::MAX` is not a window anyone has.
-fn margin(length: u32) -> i32 {
+/// from the left of the view and [`typography::Leading`] counts the air around
+/// a row the same way; GTK takes a margin and a paragraph's leading signed. A
+/// container wider than `i32::MAX` is not a window anyone has.
+fn signed(length: u32) -> i32 {
     i32::try_from(length).unwrap_or(i32::MAX)
 }
 
@@ -214,6 +215,48 @@ fn code_ground(buffer: &gtk::TextBuffer, colours: &Colours) -> gtk::TextTag {
     let ground = tag(buffer, "ground-code-block", |_| {});
     ground.set_paragraph_background(Some(&code_well(colours)));
     ground
+}
+
+/// The tag that sets a row's air above to the upper half of a paragraph's gap.
+///
+/// The view is set to the whole gap above every paragraph and to nothing below
+/// it, because a bottom band is where GTK aborts on a line holding invisible
+/// bytes (#279; `Editor::restyle` says the rest). That keeps every glyph row
+/// where it was and lifts the code well, which is a paragraph background and so
+/// is painted over the whole line box, leading included. This tag and
+/// [`well_foot`] hand the halves back around the well, four applications of the
+/// two: see [`well_edges`].
+///
+/// Set every time rather than only on the first ask, for the reason [`cut`]
+/// re-sets the Italic family — there is one of these and the type moves under
+/// it.
+fn well_head(buffer: &gtk::TextBuffer, leading: typography::Leading) -> gtk::TextTag {
+    let head = tag(buffer, "well-head", |_| {});
+    head.set_pixels_above_lines(signed(leading.above));
+    head
+}
+
+/// The tag that draws the lower half of a paragraph's gap under a row.
+///
+/// The other half of [`well_head`], and the one the view no longer sets at all.
+/// A row that carries it holds a band GTK could abort in — so it goes on a code
+/// row and on the line above a code block, which are rows the fold leaves whole
+/// (#279, [`well_edges`]).
+fn well_foot(buffer: &gtk::TextBuffer, leading: typography::Leading) -> gtk::TextTag {
+    let foot = tag(buffer, "well-foot", |_| {});
+    foot.set_pixels_below_lines(signed(leading.below));
+    foot
+}
+
+/// Sets both of the code well's leading tags to the air `leading` leaves.
+///
+/// What `Editor::restyle` calls, and it is called there rather than left to the
+/// next [`draw`] because a type change restyles without retagging: the tags are
+/// already on the rows they belong to, and only their values move with the
+/// size.
+pub fn well_leading(buffer: &gtk::TextBuffer, leading: typography::Leading) {
+    well_head(buffer, leading);
+    well_foot(buffer, leading);
 }
 
 /// The tag that underlines a link's destination.
@@ -422,7 +465,7 @@ pub fn hang_markers(
     advances: [i32; 6],
     colours: &Colours,
 ) {
-    let side = margin(column.side);
+    let side = signed(column.side);
     for (level, advance) in (1..=6u8).zip(advances) {
         let (left, indent) = hung(advance, side);
         let tag = heading(buffer, level);
@@ -468,6 +511,10 @@ pub struct Painting<'a> {
     /// The table every colour is read off: the ground's, as the Editor holds
     /// it. Nothing here asks which ground that is.
     pub colours: Colours,
+    /// The air the type leaves around a row, as the Editor holds it. Carried
+    /// rather than measured here so that [`well_edges`] costs no row measured
+    /// again on the keystroke path.
+    pub leading: typography::Leading,
     /// How much Focus leaves lit.
     pub focus: Focus,
     /// What Focus lights, for the caret where it now is. Empty with Focus off,
@@ -522,6 +569,14 @@ pub fn apply(buffer: &gtk::TextBuffer, document: &Document, painting: Painting) 
 /// on, so a run that only slid down the Document needs nothing done to it, and
 /// the engine hands back only the lines whose runs came out looking different.
 ///
+/// One line each side is drawn with them, because a code block's leading lives
+/// on the lines *outside* it ([`well_edges`]): the neighbours carry a half of
+/// the gap each, and a block is only in [`Document::spans_in`]'s answer for a
+/// range that reaches the block itself. Without the widening, typing in the
+/// paragraph above a block would take its `well-foot` off and drop the well.
+/// [`Document::line_bytes`] clamps past the last line, so no line count is
+/// needed here.
+///
 /// [`Edit`]: quill_engine::document::Edit
 pub fn retag(
     buffer: &gtk::TextBuffer,
@@ -532,6 +587,7 @@ pub fn retag(
     if lines.is_empty() {
         return;
     }
+    let lines = lines.start.saturating_sub(1)..lines.end + 1;
     let at = document.line_bytes(lines.start).start..document.line_bytes(lines.end - 1).end;
     let from = iter_at(buffer, document, at.start);
     let to = iter_at(buffer, document, at.end);
@@ -594,6 +650,7 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
     let Painting {
         face,
         colours,
+        leading,
         focus,
         tiers,
         live,
@@ -668,6 +725,83 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
     if let Some(writer) = live {
         fold(buffer, document, painting, &spans, writer, at);
     }
+    // Last of the three, because it asks the buffer which of a block's rows
+    // are folded away and the fold above is what folds them. Unconditional on
+    // the tier: dimming a block lifts its well and must not move a row.
+    for span in &spans {
+        if span.at.end > at.start && matches!(span.mark, Mark::CodeBlock) {
+            well_edges(buffer, document, span, leading);
+        }
+    }
+}
+
+/// Gives the well of the code block `span` back the leading its rows lost.
+///
+/// The view holds the whole gap between two paragraphs above them and nothing
+/// below (`Editor::restyle`, #279), which leaves every glyph row where it was
+/// and lifts the well: GTK paints a paragraph background over the whole line
+/// box, leading included, so both of its edges rise by the half that moved.
+/// Four applications of two tags put them back — the lower half under the line
+/// above the block and under the block's last standing row, the upper half
+/// alone above the block's first standing row and above the line after the
+/// block. Each of those two gaps still sums to the air the type leaves, so no
+/// glyph moves and the well's rectangle is the one it was.
+///
+/// Which rows stand is asked of the buffer rather than read off `span`. Under
+/// Live a fence is folded over its whole line and its delimiter, and GTK gives
+/// such a line no height, no leading and no background at all, so a tag on it
+/// would be inert; and the block the caret has just entered has had its fold
+/// taken off by the retag, which only the buffer knows. The two neighbours are
+/// counted from the block's own first and last line for the same reason: a
+/// folded fence between them and the block carries nothing.
+///
+/// A block starting on the buffer's first line has no line above to carry the
+/// lower half, so its well's top edge sits that much higher. No judged state
+/// has one, and it is not worth a conditional that would move the edge as the
+/// writer types.
+fn well_edges(
+    buffer: &gtk::TextBuffer,
+    document: &Document,
+    span: &Span,
+    leading: typography::Leading,
+) {
+    let (block_start, block_end) = paragraph_lines(buffer, document, span);
+    let (first, last) = (block_start.line(), block_end.line());
+    let folded = folded(buffer);
+    let standing = |line: i32| !line_at(buffer, line).0.has_tag(&folded);
+    let head = (first..=last).find(|line| standing(*line));
+    let foot = (first..=last).rev().find(|line| standing(*line));
+    let (Some(head), Some(foot)) = (head, foot) else {
+        return;
+    };
+    let above = well_head(buffer, leading);
+    let below = well_foot(buffer, leading);
+    if first > 0 {
+        apply_line(buffer, first - 1, &below);
+    }
+    apply_line(buffer, head, &above);
+    apply_line(buffer, foot, &below);
+    if last + 1 < buffer.line_count() {
+        apply_line(buffer, last + 1, &above);
+    }
+}
+
+/// Puts `tag` on the whole of `line`, as [`paragraph`] puts one on a span's.
+fn apply_line(buffer: &gtk::TextBuffer, line: i32, tag: &gtk::TextTag) {
+    let (from, to) = line_at(buffer, line);
+    buffer.apply_tag(tag, &from, &to);
+}
+
+/// The whole of `line`, its line break left out, as the pair of iterators
+/// [`paragraph_lines`] answers with for a span.
+fn line_at(buffer: &gtk::TextBuffer, line: i32) -> (gtk::TextIter, gtk::TextIter) {
+    let mut from = buffer.start_iter();
+    from.set_line(line);
+    let mut to = from;
+    if !to.ends_line() {
+        to.forward_to_line_end();
+    }
+    (from, to)
 }
 
 /// Puts Live's fold and Live's ladder on the bytes `at`, for a writer at
@@ -929,7 +1063,7 @@ mod tests {
         // deeper four on another, two device pixels over. Whatever the layout
         // advances, the pair has to give back exactly what it took, so both
         // ladders are held to it here.
-        let side = margin(container(Face::Duo, STEP).side);
+        let side = signed(container(Face::Duo, STEP).side);
         for hinted in [true, false] {
             for (level, advance) in (1..=6u8).zip(advances(hinted)) {
                 let (left, indent) = hung(advance, side);
