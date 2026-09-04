@@ -170,8 +170,9 @@ pub struct Session {
     /// presses `Ctrl+Shift+H`, and then what they pressed it to. Held live for
     /// the reason [`Session::focus`] is.
     chrome: Cell<Chrome>,
-    /// Where Preview opens now: the setting until the writer presses
-    /// `Ctrl+Shift+R`, and then what they flipped it to. Held apart from
+    /// The layout the pane last showed: the setting until the writer presses
+    /// `Ctrl+R` or `Ctrl+Shift+R`, and then the one that chord opened or
+    /// switched the pane to. Held apart from
     /// [`Session::settings`] for the reason [`Session::focus_scope`] is —
     /// what was read has to stay readable for [`Session::store_settings`] to
     /// know there is anything to write. Whether the pane is open at all is
@@ -863,25 +864,20 @@ impl Session {
         self.leaving.borrow_mut().preview_width = width;
     }
 
-    /// Where Preview opens now.
+    /// The layout the pane last showed, and the one it shows now while open.
     #[must_use]
     pub fn preview_layout(&self) -> PreviewLayout {
         self.preview_layout.get()
     }
 
-    /// Swaps Split and Full: `preview.layout`'s `Ctrl+Shift+R`.
+    /// Stands the pane's layout at `layout`: what `preview.full` and
+    /// `preview.split` set as they open or switch the pane.
     ///
-    /// One value with two states rather than two Commands, so the key means
-    /// the same thing from either — "show me the other one" — the way
-    /// [`Session::swap_focus_scope`] does. The pane's being open at all is
-    /// the window's and is not touched here: a writer who flips the layout
-    /// with the pane closed has said where it opens next.
-    pub fn swap_preview_layout(&self) -> PreviewLayout {
-        self.preview_layout.set(match self.preview_layout.get() {
-            PreviewLayout::Split => PreviewLayout::Full,
-            PreviewLayout::Full => PreviewLayout::Split,
-        });
-        self.preview_layout.get()
+    /// The layout is the session's, so it is one value for the app the way
+    /// the ground is; whether a pane is open at all is the window's and is
+    /// not touched here.
+    pub fn set_preview_layout(&self, layout: PreviewLayout) {
+        self.preview_layout.set(layout);
     }
 
     /// How far the rendered page is zoomed now, as a whole percentage.

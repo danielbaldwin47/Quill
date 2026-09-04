@@ -138,8 +138,8 @@ mod imp {
         /// bars: what the divider divides, and what divides itself evenly
         /// until a writer has dragged it.
         pub pair: OnceCell<gtk::Box>,
-        /// The rendered page beside the Editor, hidden until `preview.toggle`
-        /// opens it.
+        /// The rendered page beside the Editor, hidden until `preview.full`
+        /// or `preview.split` opens it.
         pub preview: Preview,
         /// Whether the Preview pane is open in this window. Per window like
         /// the Library's pane and, unlike it, never remembered: the pane is
@@ -1831,15 +1831,51 @@ impl Window {
         self.imp().bars.set_library_toggle_shown(!shown);
     }
 
-    /// `preview.toggle`: the rendered page stands beside the Editor, or steps
-    /// out of it.
+    /// `preview.full` and `preview.split`: the rendered page stands where
+    /// `asked` says, or steps out.
     ///
-    /// Per window rather than per session, as the Library's pane is and for
-    /// the same reason, and — unlike the Library's width and unlike where the
-    /// pane opens — nothing the state or the settings file holds: the pane is
-    /// closed at every launch (#263).
-    pub(crate) fn toggle_preview(&self) {
-        self.show_preview(!self.imp().previewing.get());
+    /// Each chord owns a layout and is that layout's toggle, which is
+    /// [`next_preview_pane`]'s rule: closed, the pane opens in `asked`; open
+    /// in the other layout, it switches to `asked` in place with the keyboard
+    /// following; open in `asked`, it closes. #263 story 4 asks for
+    /// `Ctrl+Shift+R` "to switch between Split and Full … without hiding the
+    /// pane first", which the middle case is.
+    ///
+    /// Whether the pane is open is this window's, as the Library's pane is
+    /// and for the same reason, and — unlike the Library's width and unlike
+    /// the layout — nothing the state or the settings file holds: the pane is
+    /// closed at every launch (#263). The layout is the session's, so it
+    /// moves the way the ground does ([`Window::move_windows`]) and every
+    /// other window's open pane follows it; a window with no pane open is
+    /// left alone, because the pane work below would take the keyboard off a
+    /// Library search field to hand it to the Editor.
+    pub(crate) fn preview_to(&self, asked: PreviewLayout) {
+        // A window with no session has no layout to show, and
+        // [`Window::apply_preview`] reads that case as Split.
+        let showing = self
+            .session()
+            .map_or(PreviewLayout::Split, |session| session.preview_layout());
+        match next_preview_pane(self.imp().previewing.get(), showing, asked) {
+            PreviewPane::Closed => self.show_preview(false),
+            PreviewPane::Open(layout) => {
+                self.move_windows(
+                    |session| session.set_preview_layout(layout),
+                    |window, ()| {
+                        if !window.imp().previewing.get() {
+                            return;
+                        }
+                        window.apply_preview();
+                        window.refresh_preview();
+                        window.focus_pane();
+                    },
+                );
+                // The pass above has already re-applied an open pane, this
+                // window's included; a closed one is this window's to open.
+                if !self.imp().previewing.get() {
+                    self.show_preview(true);
+                }
+            }
+        }
     }
 
     /// Opens the Preview pane or shuts it.
@@ -1856,33 +1892,6 @@ impl Window {
         } else {
             self.focus_editor();
         }
-    }
-
-    /// `preview.layout`: Split becomes Full and Full becomes Split, in every
-    /// window whose pane is open.
-    ///
-    /// The value is the settings file's, so it moves the way the ground and
-    /// Focus's scope do ([`Window::move_windows`]) and is written as the key
-    /// is pressed; the pane's being open is not, so a window with no pane is
-    /// left alone until it opens one.
-    ///
-    /// **Pressed with no pane open anywhere it still flips the setting and
-    /// writes it**, and that is [`Window::swap_focus_scope`]'s rule rather than
-    /// an oversight: `focus.swap` swaps Sentence and Paragraph whether or not
-    /// Focus is on, and #263 § Layout asks for this key to flip the pair "the
-    /// way `focus.swap` flips the Focus scope". What the writer sees is the
-    /// next pane they open, opening in the layout they last asked for. The one
-    /// thing a paneless window does not do is the pane work below, which would
-    /// take the keyboard off a Library search field to hand it to the Editor.
-    pub(crate) fn swap_preview_layout(&self) {
-        self.move_windows(Session::swap_preview_layout, |window, _| {
-            if !window.imp().previewing.get() {
-                return;
-            }
-            window.apply_preview();
-            window.refresh_preview();
-            window.focus_pane();
-        });
     }
 
     /// Stands the Preview pane at `wanted` logical pixels wide, in this window
@@ -2726,6 +2735,35 @@ pub(crate) enum After {
     Close,
 }
 
+/// Where the Preview pane stands once a Preview chord has been pressed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PreviewPane {
+    /// Away, with the Editor holding the window on its own.
+    Closed,
+    /// On screen, in this layout.
+    Open(PreviewLayout),
+}
+
+/// Where `asked`'s chord leaves the pane, given the one `showing` now.
+///
+/// Each chord owns a layout and is that layout's toggle: it closes the pane
+/// it is already looking at and otherwise shows its own, whether that means
+/// opening the pane or switching it in place. `showing` is read only while
+/// the pane is open — closed, the layout is where the pane last stood
+/// ([`crate::session::Session::preview_layout`]) and says nothing about what
+/// the chord should do.
+pub(crate) fn next_preview_pane(
+    previewing: bool,
+    showing: PreviewLayout,
+    asked: PreviewLayout,
+) -> PreviewPane {
+    if previewing && showing == asked {
+        PreviewPane::Closed
+    } else {
+        PreviewPane::Open(asked)
+    }
+}
+
 /// Which way Bigger Preview Text, Smaller Preview Text and Default Preview
 /// Size move the rendered page's zoom.
 #[derive(Clone, Copy)]
@@ -3142,5 +3180,49 @@ mod tests {
         assert_eq!(stepped_zoom(0, Zoom::Smaller), 50, "and never below zero");
         assert_eq!(stepped_zoom(175, Zoom::Reset), 100);
         assert_eq!(stepped_zoom(50, Zoom::Reset), 100);
+    }
+
+    /// With the pane away, either chord opens it in its own layout — the
+    /// layout the pane last stood in does not steer it (#263, the third Hand
+    /// test round).
+    #[test]
+    fn a_chord_with_no_pane_opens_its_own_layout() {
+        for showing in [PreviewLayout::Split, PreviewLayout::Full] {
+            assert_eq!(
+                next_preview_pane(false, showing, PreviewLayout::Full),
+                PreviewPane::Open(PreviewLayout::Full)
+            );
+            assert_eq!(
+                next_preview_pane(false, showing, PreviewLayout::Split),
+                PreviewPane::Open(PreviewLayout::Split)
+            );
+        }
+    }
+
+    /// Over the other layout a chord switches the open pane rather than
+    /// closing it: #263 story 4's "without hiding the pane first".
+    #[test]
+    fn a_chord_over_the_other_layout_switches_in_place() {
+        assert_eq!(
+            next_preview_pane(true, PreviewLayout::Split, PreviewLayout::Full),
+            PreviewPane::Open(PreviewLayout::Full)
+        );
+        assert_eq!(
+            next_preview_pane(true, PreviewLayout::Full, PreviewLayout::Split),
+            PreviewPane::Open(PreviewLayout::Split)
+        );
+    }
+
+    /// Over its own layout a chord is the way back out.
+    #[test]
+    fn a_chord_over_its_own_layout_closes_the_pane() {
+        assert_eq!(
+            next_preview_pane(true, PreviewLayout::Full, PreviewLayout::Full),
+            PreviewPane::Closed
+        );
+        assert_eq!(
+            next_preview_pane(true, PreviewLayout::Split, PreviewLayout::Split),
+            PreviewPane::Closed
+        );
     }
 }
