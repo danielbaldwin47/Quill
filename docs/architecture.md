@@ -146,7 +146,7 @@ theme `auto` follows the settings portal's colour scheme.
 Two windows besides: `Ctrl+?` is a `GtkShortcutsWindow` listing every Command with the chord the
 effective map leaves it on, grouped as the menus are and built afresh on every open; `Ctrl+,` is a
 Settings window, one grid of the rows that have no menu home — the Typewriter anchor, Follow System,
-the Spell-check language, the Library's own rows, the `[export]` group a printed or exported page is
+the Spell-check language, the Library's own rows, the Preview pane's Mode, the `[export]` group a printed or exported page is
 laid out on, a button that opens `settings.toml` in the system editor, and whatever the
 last read of that file could not apply — a file that is not TOML says so there, above the entries it
 refused. Both are transient for the window they were opened from, and no row
@@ -228,7 +228,10 @@ remembers nothing it could not act on.
 The engine's `render` module lays a whole Document out with Pango from the current Template ([ADR
 0005](adr/0005-native-templates.md)): one pass produces the layouts the Preview widget snapshots and
 the pages the PDF surface draws. Preview has two modes over that one pass, `[preview].mode`: Web
-draws the rendered sheet, and PDF draws the same pages Export writes, stacked as a column. Preview re-renders on idle after edits, debounced, and restores its
+draws the rendered sheet, and PDF draws the same pages Export writes, stacked as a column with the
+page under the column's top edge on the stats bar beside the counts. The mode is one setting for the
+app: View › Panes' Web and PDF rows and the Settings window's Mode row write it, and every open pane
+reads it on the refresh that follows. Preview re-renders on idle after edits, debounced, and restores its
 scroll to the block the caret is in. `paginate` cuts that one tall rendered page into pages of paper
 under the page geometry (size, margins, header, footer, title page) owned by Export, not the
 Template: a heading never ends a page and moves with the block after it, a paragraph splits between

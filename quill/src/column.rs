@@ -255,6 +255,32 @@ impl Column {
         None
     }
 
+    /// What the stats bar says while the column stands at `offset`: the page
+    /// under the pane's top edge, in the engine's words
+    /// ([`paginate::page_words`]).
+    ///
+    /// The words are the engine's and the page is this widget's, because the
+    /// column is what knows where a page stands: the paginator counts pages
+    /// and the stacking here turns a scroll into one of them
+    /// ([`page_under`]). Nothing until the pages have been laid out.
+    pub(crate) fn page_words(&self, offset: f64) -> Option<String> {
+        let imp = self.imp();
+        let scale = imp.scale.get();
+        if scale <= 0.0 {
+            return None;
+        }
+        let laid = imp.laid.borrow();
+        let laid = laid.as_ref()?;
+        let paper = laid.frame.paper;
+        let at = page_under(
+            offset,
+            paper.height * scale,
+            gap(paper, scale),
+            laid.pages.len(),
+        )?;
+        paginate::page_words(&laid.pages, at)
+    }
+
     /// Where the column stands with the page after the one at `offset` at the
     /// pane's top edge, and where it stands with the one before it.
     ///
@@ -523,6 +549,27 @@ fn page_at(y: f64, page: f64, gap: f64) -> Option<usize> {
     (y <= page_top(at, page, gap) + page).then_some(at)
 }
 
+/// The physical page the column's top edge stands over at `y`, counting the
+/// title page as page 1 as [`paginate::page_words`] does, or nothing where
+/// there are no pages.
+///
+/// [`page_at`] answers a point, and a point can land in the air between two
+/// pages or above the first; a top edge always has a page, so the air answers
+/// with the page coming into view under it, and an edge past the last page
+/// with the last.
+fn page_under(y: f64, page: f64, gap: f64, count: usize) -> Option<usize> {
+    let pitch = page + gap;
+    if pitch <= 0.0 || count == 0 {
+        return None;
+    }
+    let at = ((y - gap) / pitch).floor().max(0.0);
+    let mut at = usize::try_from(at as i64).ok()?;
+    if y > gap && page_at(y, page, gap).is_none() {
+        at += 1;
+    }
+    Some(at.min(count - 1) + 1)
+}
+
 /// Where the column stands with the page after the one at `offset` at the top
 /// of the pane, or with the one before it.
 ///
@@ -738,5 +785,36 @@ mod tests {
             None,
             "the air above the first page is on no page either"
         );
+    }
+
+    /// The top edge always stands over a page, whatever the scroll: the air
+    /// above the first page and the air between two of them read as the page
+    /// coming into view, and an edge past the end as the last page (#299).
+    #[test]
+    fn the_top_edge_stands_over_a_page_wherever_the_column_is_scrolled() {
+        let (page, gap) = (800.0, 40.0);
+        let second = page_top(1, page, gap);
+        assert_eq!(page_under(0.0, page, gap, 3), Some(1), "the column's head");
+        assert_eq!(
+            page_under(page_top(0, page, gap) + 1.0, page, gap, 3),
+            Some(1),
+            "a point on the first page"
+        );
+        assert_eq!(
+            page_under(second - gap / 2.0, page, gap, 3),
+            Some(2),
+            "the air between two pages is the one coming into view"
+        );
+        assert_eq!(
+            page_under(second + 1.0, page, gap, 3),
+            Some(2),
+            "and the page itself is that page"
+        );
+        assert_eq!(
+            page_under(page_top(9, page, gap), page, gap, 3),
+            Some(3),
+            "past the last page is the last page"
+        );
+        assert_eq!(page_under(0.0, page, gap, 0), None, "no pages, no page");
     }
 }

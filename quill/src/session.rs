@@ -36,8 +36,8 @@ use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
 use quill_engine::library::Library;
 use quill_engine::settings::{
-    Chrome, Face, FocusScope, PreviewLayout, Settings, State, Template, TemplateName, Theme,
-    WindowState,
+    Chrome, Face, FocusScope, PreviewLayout, PreviewMode, Settings, State, Template, TemplateName,
+    Theme, WindowState,
 };
 use quill_engine::shortcuts::Refusal;
 use quill_engine::theme::{self, Palette, Scheme};
@@ -178,6 +178,12 @@ pub struct Session {
     /// know there is anything to write. Whether the pane is open at all is
     /// not here: that is the window's, and it is never remembered.
     preview_layout: Cell<PreviewLayout>,
+    /// What the pane draws now, the sheet or the pages: the setting until the
+    /// writer picks View › Panes › Web or PDF, and then what they picked. Held
+    /// apart from [`Session::settings`] for the reason
+    /// [`Session::preview_layout`] is — the row writes the file, and the pane
+    /// must not lag the write by a watch tick.
+    preview_mode: Cell<PreviewMode>,
     /// How far the rendered page is zoomed now: the setting until the writer
     /// presses one of the three Preview size keys, and then what they stepped
     /// it to. Held apart from [`Session::settings`] for the reason
@@ -319,6 +325,7 @@ impl Session {
             desktop: Cell::new(portal),
             chrome: Cell::new(settings.chrome),
             preview_layout: Cell::new(settings.preview.layout),
+            preview_mode: Cell::new(settings.preview.mode),
             preview_zoom: Cell::new(settings.preview.zoom),
             template: RefCell::new(settings.template.clone()),
             stats: Cell::new(true),
@@ -404,6 +411,7 @@ impl Session {
         self.face.set(settings.face);
         self.chrome.set(settings.chrome);
         self.preview_layout.set(settings.preview.layout);
+        self.preview_mode.set(settings.preview.mode);
         self.preview_zoom.set(settings.preview.zoom);
         self.template.replace(settings.template.clone());
         let theme = settings.theme;
@@ -880,6 +888,23 @@ impl Session {
         self.preview_layout.set(layout);
     }
 
+    /// What the pane draws now, the sheet or the pages.
+    #[must_use]
+    pub fn preview_mode(&self) -> PreviewMode {
+        self.preview_mode.get()
+    }
+
+    /// Stands the pane at `mode`: what `preview.web` and `preview.pdf` set as
+    /// they write the key.
+    ///
+    /// The live value beside the write, as [`Session::set_preview_zoom`] is:
+    /// the row writes `[preview] mode` through [`Session::edit_settings`], and
+    /// this is what keeps the pane and View › Panes' check from lagging that
+    /// write by a watch tick.
+    pub fn set_preview_mode(&self, mode: PreviewMode) {
+        self.preview_mode.set(mode);
+    }
+
     /// How far the rendered page is zoomed now, as a whole percentage.
     #[must_use]
     pub fn preview_zoom(&self) -> u32 {
@@ -1001,6 +1026,7 @@ impl Session {
         settings.face = self.face.get();
         settings.chrome = self.chrome.get();
         settings.preview.layout = self.preview_layout.get();
+        settings.preview.mode = self.preview_mode.get();
         settings.preview.zoom = self.preview_zoom.get();
         settings.template = self.template.borrow().clone();
         settings
