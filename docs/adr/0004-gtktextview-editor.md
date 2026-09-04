@@ -1,5 +1,14 @@
 # The Editor is a GtkTextView subclass
 
+*Stands on the leading as of 2026-09-03, and the split is now load-bearing for a reason it was not
+decided for: GTK 4.22 aborts in `gtk_text_layout_get_iter_at_position` for a y in the band
+`pixels-below-lines` leaves under a line holding invisible bytes, which under Live is every folded
+paragraph ([#278](https://github.com/danielbaldwin47/Quill/issues/278)). Folding both halves of the
+gap into `pixels-above-lines` would close that band, but GTK paints a paragraph background over the
+line box and not over the ink, so the code well would move 5 logical px up its own rows — measured
+on the `theme/light` and `theme/dark` shots. `quill::editor`'s `press` clamps its own y out of the
+band instead; GTK's own click, drag and drop paths still take it.*
+
 The native Editor is one `GtkTextView` subclass on GTK4 / Pango through `gtk4-rs`. A spike
 ([#10](https://github.com/danielbaldwin47/Quill/issues/10), branch `spike/gtk4-editor`) built the four
 Pieces most likely to fail — type, markup, focus, caret — and judged them blind against the JavaScript
