@@ -871,8 +871,8 @@ fn rows(block: &render::Block) -> Vec<Row> {
             rows.push(Row {
                 placed,
                 line,
-                top: above + back(top),
-                bottom: above + back(bottom),
+                top: above + render::back(top),
+                bottom: above + render::back(bottom),
                 hard,
             });
             line += 1;
@@ -882,14 +882,6 @@ fn rows(block: &render::Block) -> Vec<Row> {
         }
     }
     rows
-}
-
-/// `units` of Pango's, as the points a page is measured in.
-///
-/// The drawer works in the same points off the same layouts, so it reads them
-/// back through this rather than through a second copy of it.
-pub(crate) fn back(units: i32) -> f64 {
-    f64::from(units) / f64::from(pango::SCALE)
 }
 
 #[cfg(test)]
@@ -1244,8 +1236,9 @@ mod tests {
         format!("{sample}\n{sample}\n{sample}")
     }
 
-    /// `text` laid out whole on the paper [`paper`] frames, so that the pages,
-    /// the frame and the render pass travel together.
+    /// `text` cut into pages on the paper [`paper`] frames — A4 wide, with a
+    /// body band `room` points tall — through the one call both page sinks
+    /// make, so that the pages, the frame and the render pass travel together.
     fn laid_at(text: &str, room: f64) -> Laid {
         let mut document = Document::untitled();
         document.reload(text.to_string());

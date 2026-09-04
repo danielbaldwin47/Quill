@@ -616,29 +616,41 @@ impl Preview {
     /// so the window's follow glue never learns which mode is showing.
     #[must_use]
     pub fn blocks(&self) -> Vec<sync::Block> {
+        self.with_rows(<[sync::Block]>::to_vec)
+    }
+
+    /// Runs `read` over the rows of whichever mode is showing.
+    ///
+    /// The one place the two are told apart for a sync rule: every rule is
+    /// answered from a slice of blocks keyed by the Document's block index, and
+    /// the sheet's rows and the column's are the same slice for the purpose
+    /// ([`Preview::blocks`]). Borrowed rather than cloned, because an edit asks
+    /// for them on every keystroke.
+    fn with_rows<T>(&self, read: impl FnOnce(&[sync::Block]) -> T) -> T {
         match self.mode.get() {
-            PreviewMode::Web => self.sheet.imp().rows.borrow().clone(),
-            PreviewMode::Pdf => self.column.rows().clone(),
+            PreviewMode::Web => read(&self.sheet.imp().rows.borrow()),
+            PreviewMode::Pdf => read(&self.column.rows()),
+        }
+    }
+
+    /// A follow's target, held where the showing mode holds it.
+    ///
+    /// The sheet's rule stands as it is; the column keeps the first body page's
+    /// top in view while the caret is on it ([`Column::hold_follow`]).
+    fn held(&self, target: f64) -> f64 {
+        match self.mode.get() {
+            PreviewMode::Web => target,
+            PreviewMode::Pdf => self.column.hold_follow(target),
         }
     }
 
     /// The offset that puts the caret's block `fraction` down the pane: the
-    /// caret rule ([`sync::follow_caret`]) answered from the page.
-    ///
-    /// The rows are borrowed rather than handed out, because an edit asks this
-    /// on every keystroke.
+    /// caret rule ([`sync::follow_caret`]) answered from the page, and held
+    /// where the mode holds it ([`Preview::held`]).
     #[must_use]
     pub fn caret_offset(&self, caret: usize, fraction: f64) -> f64 {
         let (viewport, max) = (self.viewport(), self.max());
-        match self.mode.get() {
-            PreviewMode::Web => {
-                let rows = self.sheet.imp().rows.borrow();
-                sync::follow_caret(caret, fraction, &rows, viewport, max)
-            }
-            PreviewMode::Pdf => {
-                sync::follow_caret(caret, fraction, &self.column.rows(), viewport, max)
-            }
-        }
+        self.held(self.with_rows(|rows| sync::follow_caret(caret, fraction, rows, viewport, max)))
     }
 
     /// The offset that puts `driver`'s top block at the pane's own top edge:
@@ -646,13 +658,7 @@ impl Preview {
     #[must_use]
     pub fn top_block_offset(&self, driver: &[sync::Block], offset: f64) -> f64 {
         let max = self.max();
-        match self.mode.get() {
-            PreviewMode::Web => {
-                let rows = self.sheet.imp().rows.borrow();
-                sync::follow_top_block(driver, offset, &rows, max)
-            }
-            PreviewMode::Pdf => sync::follow_top_block(driver, offset, &self.column.rows(), max),
-        }
+        self.held(self.with_rows(|rows| sync::follow_top_block(driver, offset, rows, max)))
     }
 
     /// How tall the pane's viewport is.
@@ -765,11 +771,8 @@ impl Preview {
     }
 
     /// A click on a link's words opens the destination through the desktop's
-    /// default handler.
+    /// default handler ([`watch_clicks`], which is where a click is read).
     ///
-    /// On the release rather than the press, so a click that began somewhere
-    /// else and ended here opens nothing, and never on the second press of a
-    /// double-click, which is a writer who missed.
     /// Both modes carry the Document's links, and both open them the one way;
     /// what differs is where the words are, which is each one's own to say.
     fn watch_links(&self) {
@@ -794,41 +797,25 @@ impl Preview {
     /// Wired on `on` rather than on the sheet, because both modes are read the
     /// same way and the keyboard lands on whichever is showing.
     ///
-    /// Three of them are read a second way over the pages. A screen of a column
-    /// is the foot of one page and the head of the next, so the Page keys move
-    /// by a page's pitch and land on a page's own top edge
-    /// ([`Column::page_after`]), End on the last page's; and the arrows
-    /// sideways slide a page too wide for the pane under it, which is the one
-    /// thing the pane's own scroller will not do.
+    /// One rule for both: a Page key moves a screen and End goes to the end of
+    /// what is showing, over a column of pages exactly as over the sheet (#293
+    /// § The page column). Sideways is the wheel's ([`Preview::watch_pan`]) and
+    /// not an arrow's: the arrows are the scroll every reader means by them.
     fn watch_keys(&self, on: &gtk::Widget) {
         let keys = gtk::EventControllerKey::new();
         let scroller = self.scroller.clone();
-        let column = self.column.clone();
-        let mode = Rc::clone(&self.mode);
         keys.connect_key_pressed(move |_, key, _, _| {
             let adjustment = scroller.vadjustment();
             let step = adjustment.step_increment();
             let page = adjustment.page_increment();
             let at = adjustment.value();
-            let pages = mode.get() == PreviewMode::Pdf;
             let to = match key {
                 gdk::Key::Up => at - step,
                 gdk::Key::Down => at + step,
-                gdk::Key::Page_Up if pages => column.page_before(at),
-                gdk::Key::Page_Down | gdk::Key::space if pages => column.page_after(at),
                 gdk::Key::Page_Up => at - page,
                 gdk::Key::Page_Down | gdk::Key::space => at + page,
                 gdk::Key::Home => adjustment.lower(),
-                gdk::Key::End if pages => column.last_page(),
                 gdk::Key::End => adjustment.upper(),
-                gdk::Key::Left | gdk::Key::Right if pages => {
-                    let by = if key == gdk::Key::Left { -1.0 } else { 1.0 };
-                    return if column.pan_by(by) {
-                        glib::Propagation::Stop
-                    } else {
-                        glib::Propagation::Proceed
-                    };
-                }
                 _ => return glib::Propagation::Proceed,
             };
             adjustment.set_value(to.clamp(
@@ -973,10 +960,10 @@ fn spans(layout: &pango::Layout, at: &Range<usize>) -> Vec<graphene::Rect> {
                 let (top, bottom) = iter.line_yrange();
                 for edges in line.x_ranges(from, to).as_chunks::<2>().0 {
                     spans.push(rect(
-                        back(edges[0]),
-                        back(top),
-                        back(edges[1] - edges[0]),
-                        back(bottom - top),
+                        render::back(edges[0]),
+                        render::back(top),
+                        render::back(edges[1] - edges[0]),
+                        render::back(bottom - top),
                     ));
                 }
             }
@@ -995,16 +982,14 @@ fn index(at: usize) -> i32 {
     i32::try_from(at).unwrap_or(i32::MAX)
 }
 
-/// A length in Pango units, back in the layout's own pixels.
-fn back(units: i32) -> f64 {
-    f64::from(units) / f64::from(pango::SCALE)
-}
-
-/// A rectangle in the sheet's own pixels, as `graphene` takes it.
+/// A rectangle in a pane's own pixels, as `graphene` takes it.
 ///
 /// The narrowing is where it belongs: a page is drawn in `f32`, and nothing on
-/// it is near what an `f32` stops counting whole pixels at.
-fn rect(x: f64, y: f64, width: f64, height: f64) -> graphene::Rect {
+/// it is near what an `f32` stops counting whole pixels at. The page column
+/// draws its pages and its surround through this one
+/// ([`crate::column::Column`]), because a rectangle is a rectangle in either
+/// mode.
+pub(crate) fn rect(x: f64, y: f64, width: f64, height: f64) -> graphene::Rect {
     graphene::Rect::new(x as f32, y as f32, width as f32, height as f32)
 }
 

@@ -699,12 +699,15 @@ function pdfSplit(_spec, { dim }) {
 // surround, and the paper the pages are drawn on — because Full hides the Editor rather than
 // shrinking it. The page stands in the column with a gutter each side and centred on the window,
 // which is what the pane's centre is when the pane is the window. And the column's air is above the
-// first page as well as between any two: [`page_top`] in `quill/src/column.rs` puts one page margin
-// over the first page and the same gap between each pair, so the gap this reads over page one is
-// the gap the ticket names between pages one and two, measured wherever the window is tall enough
-// to hold both. It is not at the state's own size: a page fitted to the width of a 1440 px window is
-// some 1900 px tall and the window is 900, so the shot carries the head of page one and the air over
-// it. Where a second page does show, every gap is held to the first.
+// first page as well as between any two: [`Stack::top_of`] in `quill/src/column.rs` puts one page
+// margin over the first page and the same gap between each pair, so the gap this reads over page
+// one is the gap between pages one and two.
+//
+// Both pages are in the shot because the state is shot for it: `preview/pdf-full` names a narrower
+// window and `zoom: 50` (shots/oracle/states.json), which stands the second page's top edge below
+// the first's foot with the air between them. At the judged 1440 px width and fit width a page is
+// some 1900 px tall against a 900 px window, and no second page would reach the glass — so the
+// count is asserted here rather than left to what happens to show.
 //
 // Nothing here reads an edge between the pane and the Editor's paper, because at the light palette
 // this state is shot in there is none to read: the surround and the light theme's paper are one
@@ -735,6 +738,9 @@ function pdfFull(_spec, { dim }) {
   }
   if (off > CENTRE) missed.push(`the page is ${off.toFixed(1)} px off the window's centre`);
   if (box.top <= 0) missed.push(`the first page starts at the top of the column, with none of the gap the column stacks its pages with over it`);
+  if (pages.length < 2) {
+    missed.push(`the window holds ${pages.length} page and the state is shot at the width and zoom that stand two in it, so there is no gap between two pages to read`);
+  }
   for (const gap of gaps) {
     if (Math.abs(gap - box.top) > CENTRE) {
       missed.push(`a gap of ${gap} px between two pages against the ${box.top} px over the first, and the column stacks them with one gap`);

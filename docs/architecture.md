@@ -287,7 +287,11 @@ and the determinism settings, this document names the flags:
   `full` are `[preview] layout` with the pane showing the rendered sheet, and `pdf-split` and
   `pdf-full` are the same two layouts with the pane showing the pages Export writes. The rest of
   `[preview]` is pinned to its defaults for the launch, so a writer's remembered mode and zoom reach
-  no judged shot), `--export-dialog pdf|html|markdown` (open that format's Export
+  no judged shot), `--zoom <percent>` (draw the pane at that per cent of fit width, which is
+  `[preview] zoom`, over the pinning above: the one key of the table a state names for itself, so
+  that a state can stand two pages of the page column in one window. Refused outside the range the
+  setting takes, and it wants `--preview`, which is what opens the pane),
+  `--export-dialog pdf|html|markdown` (open that format's Export
   dialog over the page with its Options expander open, once the window has painted its first frame —
   a still cannot pull an expander, and a second surface over a toplevel the compositor has no frame
   of yet keeps the toplevel from ever mapping; `[export]` itself has no flag, and is pinned to its

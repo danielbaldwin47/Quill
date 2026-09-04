@@ -37,7 +37,7 @@ use std::cell::Ref;
 
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
-use gtk::{gdk, glib, graphene, pango};
+use gtk::{gdk, glib};
 use quill_engine::document::Document;
 use quill_engine::draw;
 use quill_engine::paginate;
@@ -46,6 +46,7 @@ use quill_engine::settings::{Choice, Settings};
 use quill_engine::sync;
 use quill_engine::template;
 
+use crate::preview;
 use crate::preview::DialogOverride;
 use crate::tags::pixels;
 use crate::window::Window;
@@ -57,22 +58,104 @@ use crate::window::Window;
 /// rather than running it off the pane.
 const GUTTER: f64 = 24.0;
 
-/// The narrowest pane fit width still fits a whole page in, in logical pixels.
-///
-/// Below it the pages stop shrinking and the column pans instead: a page scaled
-/// to a sliver of a pane is a page nobody can read, and a pane that narrow is a
-/// divider dragged past what the mode is for.
-const NARROWEST: f64 = 240.0;
-
 /// How far one notch of a sideways wheel slides a page too wide for the pane,
 /// in logical pixels.
 const PAN: f64 = 48.0;
 
 /// The neutral the pages stand on, `#f7f7f7` in both themes.
 ///
-/// One value for every Template and both grounds: the surround is not paper
-/// and not the app's ground either, it is the light a sheet is read under.
+/// One value for every Template and both grounds, pinned by the spec (#293
+/// § The page column): the surround is not paper, it is the light a sheet is
+/// read under.
+///
+/// It is the light theme's own paper to the byte
+/// (`quill_engine::theme`'s light ground) — a coincidence, since one is a
+/// theme's and the other is fixed against every theme, but one two judged
+/// rules lean on: `pdf-full` and `dialog` in `tools/assert-state.mjs` read no
+/// edge between the pane and the Editor's paper at the light palette, because
+/// at that palette there is none to read.
 const SURROUND: f32 = 0.968_627_5;
+
+/// How the pages stand down the column, in the column's own pixels.
+///
+/// One value built per layout ([`Stack::of`]) rather than a page height and a
+/// gap carried apart and a pitch worked out at each place that asks: a page's
+/// top, the page a point is on, the page a top edge stands over and the
+/// column's whole height are one stacking, and this is it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Stack {
+    /// How tall one page stands.
+    page: f64,
+    /// The air between two pages, and above the first and below the last: one
+    /// page margin.
+    ///
+    /// The margin rather than a number of this module's own, so the air
+    /// between two pages reads as the air inside one and the column is one
+    /// continuous scroll rather than a stack of cards.
+    gap: f64,
+}
+
+impl Stack {
+    /// The stack pages cut on `paper` make when they are drawn at `scale`.
+    fn of(paper: paginate::Geometry, scale: f64) -> Self {
+        Self {
+            page: paper.height * scale,
+            gap: paper.margin * scale,
+        }
+    }
+
+    /// One page and the air under it, which is what a page's top moves by.
+    ///
+    /// Nought or less is a column with no geometry — a pane that has not been
+    /// laid out, or a scale of nothing — and every answer below is `None` or
+    /// the offset it was handed.
+    fn pitch(self) -> f64 {
+        self.page + self.gap
+    }
+
+    /// Where page `at` stands: the pages in order, the first one gap down from
+    /// the top of the column.
+    fn top_of(self, at: usize) -> f64 {
+        self.gap + at as f64 * self.pitch()
+    }
+
+    /// How tall a column of `pages` pages stands: every page with its gap, and
+    /// the gap above the first.
+    fn height(self, pages: usize) -> f64 {
+        self.gap + pages as f64 * self.pitch()
+    }
+
+    /// The page standing at `y`, or nothing where `y` is in the air between two
+    /// pages or off either end.
+    fn index_at(self, y: f64) -> Option<usize> {
+        if self.pitch() <= 0.0 || y < self.gap {
+            return None;
+        }
+        let at = ((y - self.gap) / self.pitch()).floor();
+        let at = usize::try_from(at as i64).ok()?;
+        (y <= self.top_of(at) + self.page).then_some(at)
+    }
+
+    /// The physical page a top edge at `y` stands over, counting the title page
+    /// as page 1 as [`paginate::page_words`] does, or nothing where there are
+    /// no pages.
+    ///
+    /// [`Stack::index_at`] answers a point, and a point can land in the air
+    /// between two pages or above the first; a top edge always has a page, so
+    /// the air answers with the page coming into view under it, and an edge
+    /// past the last page with the last.
+    fn under(self, y: f64, count: usize) -> Option<usize> {
+        if self.pitch() <= 0.0 || count == 0 {
+            return None;
+        }
+        let at = ((y - self.gap) / self.pitch()).floor().max(0.0);
+        let mut at = usize::try_from(at as i64).ok()?;
+        if y > self.gap && self.index_at(y).is_none() {
+            at += 1;
+        }
+        Some(at.min(count - 1) + 1)
+    }
+}
 
 mod imp {
     use std::cell::{Cell, RefCell};
@@ -144,8 +227,13 @@ mod imp {
         /// On the main loop rather than here, as the sheet's is: laying out
         /// sets the column's height, and a height set inside an allocation is
         /// an allocation inside an allocation.
+        ///
+        /// The pan is held here and not there: a pane made wider has less to
+        /// slide the moment it is allocated, and the paint that follows reads
+        /// the pan without moving it ([`super::Column::hold_pan`]).
         fn size_allocate(&self, width: i32, height: i32, baseline: i32) {
             self.parent_size_allocate(width, height, baseline);
+            self.obj().hold_pan();
             if width != self.laid_at.get() {
                 self.obj().lay_out_soon();
             }
@@ -231,15 +319,11 @@ impl Column {
         let laid = imp.laid.borrow();
         let laid = laid.as_ref()?;
         let paper = laid.frame.paper;
-        let (page_width, page_height) = (paper.width * scale, paper.height * scale);
-        let gap = gap(paper, scale);
-        let at = page_at(y, page_height, gap)?;
+        let stack = Stack::of(paper, scale);
+        let at = stack.index_at(y)?;
         let page = laid.pages.get(at)?;
-        let left = self.left(f64::from(self.width()), page_width);
-        let point = (
-            (x - left) / scale,
-            (y - page_top(at, page_height, gap)) / scale,
-        );
+        let left = self.left(f64::from(self.width()), paper.width * scale);
+        let point = ((x - left) / scale, (y - stack.top_of(at)) / scale);
         for fragment in &page.fragments {
             let Some(block) = laid.rendered.blocks.get(fragment.block) else {
                 continue;
@@ -263,7 +347,7 @@ impl Column {
     /// The words are the engine's and the page is this widget's, because the
     /// column is what knows where a page stands: the paginator counts pages
     /// and the stacking here turns a scroll into one of them
-    /// ([`page_under`]). Nothing until the pages have been laid out.
+    /// ([`Stack::under`]). Nothing until the pages have been laid out.
     pub(crate) fn page_words(&self, offset: f64) -> Option<String> {
         let imp = self.imp();
         let scale = imp.scale.get();
@@ -272,46 +356,30 @@ impl Column {
         }
         let laid = imp.laid.borrow();
         let laid = laid.as_ref()?;
-        let paper = laid.frame.paper;
-        let at = page_under(
-            offset,
-            paper.height * scale,
-            gap(paper, scale),
-            laid.pages.len(),
-        )?;
+        let stack = Stack::of(laid.frame.paper, scale);
+        let at = stack.under(offset, laid.pages.len())?;
         paginate::page_words(&laid.pages, at)
     }
 
-    /// Where the column stands with the page after the one at `offset` at the
-    /// pane's top edge, and where it stands with the one before it.
+    /// Where a follow may leave the column, given the offset the sync rules
+    /// answered with ([`held`]).
     ///
-    /// A page rather than a screen: the pane's own page increment would leave a
-    /// reader a band of one page and a band of the next, and the column is
-    /// pages ([`page_step`] lands on one).
-    pub(crate) fn page_after(&self, offset: f64) -> f64 {
-        self.turn(offset, true)
-    }
-
-    /// Where the column stands with the page before the one at `offset` at the
-    /// pane's top edge ([`Column::page_after`]).
-    pub(crate) fn page_before(&self, offset: f64) -> f64 {
-        self.turn(offset, false)
-    }
-
-    /// Where the column stands with the last page at the pane's top edge, which
-    /// is where End goes.
-    pub(crate) fn last_page(&self) -> f64 {
+    /// The clamp is here rather than in the window's glue because it is the
+    /// column that knows where a page stands: the sheet's rules answer in
+    /// blocks, and a page is what the first of them has a header and a title
+    /// page standing over.
+    pub(crate) fn hold_follow(&self, target: f64) -> f64 {
         let imp = self.imp();
         let laid = imp.laid.borrow();
         let Some(laid) = laid.as_ref() else {
-            return 0.0;
+            return target;
         };
-        let scale = imp.scale.get();
         let paper = laid.frame.paper;
-        let Some(last) = laid.pages.len().checked_sub(1) else {
-            return 0.0;
-        };
-        page_top(last, paper.height * scale, gap(paper, scale))
+        held(
+            target,
+            Stack::of(paper, imp.scale.get()),
+            usize::from(paper.title_page),
+        )
     }
 
     /// Slides a page too wide for the pane sideways by `notches` of a wheel, and
@@ -328,7 +396,7 @@ impl Column {
             return false;
         };
         let page = laid.frame.paper.width * imp.scale.get();
-        let was = self.pan(f64::from(self.width()), page);
+        let was = imp.pan.get();
         let now = (was + notches * PAN).clamp(0.0, spare(f64::from(self.width()), page));
         if (now - was).abs() < f64::EPSILON {
             return false;
@@ -336,18 +404,6 @@ impl Column {
         imp.pan.set(now);
         self.queue_draw();
         true
-    }
-
-    /// Where the column stands one page on from `offset`, or one page back.
-    fn turn(&self, offset: f64, forward: bool) -> f64 {
-        let imp = self.imp();
-        let laid = imp.laid.borrow();
-        let Some(laid) = laid.as_ref() else {
-            return offset;
-        };
-        let scale = imp.scale.get();
-        let paper = laid.frame.paper;
-        page_step(offset, paper.height * scale, gap(paper, scale), forward)
     }
 
     /// Where the page's left edge stands in a column `width` pixels wide.
@@ -360,17 +416,27 @@ impl Column {
         if room >= 0.0 {
             room / 2.0
         } else {
-            GUTTER - self.pan(width, page)
+            GUTTER - self.imp().pan.get()
         }
     }
 
-    /// How far the page is slid sideways, clamped to what there is to slide: a
-    /// pane made wider, or a zoom stepped back down, takes the page back with
-    /// it rather than leaving it off the edge.
-    fn pan(&self, width: f64, page: f64) -> f64 {
-        let pan = self.imp().pan.get().clamp(0.0, spare(width, page));
-        self.imp().pan.set(pan);
-        pan
+    /// Takes the pan back to what there is left to slide: a pane made wider, or
+    /// a zoom stepped back down, takes the page back with it rather than
+    /// leaving it off the edge.
+    ///
+    /// Run wherever the room moves — a fresh layout and an allocation — and
+    /// never from the paint, which reads the pan and writes nothing: a widget
+    /// that moves its own state while it is being drawn is a frame that draws
+    /// something else.
+    fn hold_pan(&self) {
+        let imp = self.imp();
+        let laid = imp.laid.borrow();
+        let Some(laid) = laid.as_ref() else {
+            return;
+        };
+        let page = laid.frame.paper.width * imp.scale.get();
+        let room = spare(f64::from(self.width()), page);
+        imp.pan.set(imp.pan.get().clamp(0.0, room));
     }
 
     /// The window whose Document this column draws.
@@ -424,7 +490,7 @@ impl Column {
         // Fit width is what the zoom's 100 % means here, and the three zoom
         // rows step over it: `[preview] zoom` is the one value both modes read.
         let scale = scale(f64::from(width), paper.width, settings.preview.zoom);
-        let height = stack(laid.pages.len(), paper.height * scale, gap(paper, scale));
+        let height = Stack::of(paper, scale).height(laid.pages.len());
         let blocks = rows(&laid, scale);
         let imp = self.imp();
         imp.scale.set(scale);
@@ -433,6 +499,9 @@ impl Column {
         imp.template.replace(Some(template));
         imp.blocks.replace(blocks);
         imp.laid.replace(Some(laid));
+        // A fresh scale is fresh room to slide in, and the pan is held to it
+        // here rather than in the paint.
+        self.hold_pan();
         self.set_height_request(pixels(height));
         self.queue_draw();
     }
@@ -457,7 +526,7 @@ impl Column {
         let width = f64::from(self.width());
         snapshot.append_color(
             &gdk::RGBA::new(SURROUND, SURROUND, SURROUND, 1.0),
-            &rect(0.0, 0.0, width, f64::from(self.height())),
+            &preview::rect(0.0, 0.0, width, f64::from(self.height())),
         );
         let laid = imp.laid.borrow();
         let Some(laid) = laid.as_ref() else {
@@ -473,11 +542,11 @@ impl Column {
         }
         let paper = laid.frame.paper;
         let (page_width, page_height) = (paper.width * scale, paper.height * scale);
-        let gap = gap(paper, scale);
+        let stack = Stack::of(paper, scale);
         let left = self.left(width, page_width);
         let (from, to) = self.in_view();
         for (at, page) in laid.pages.iter().enumerate() {
-            let top = page_top(at, page_height, gap);
+            let top = stack.top_of(at);
             if top + page_height < from || top > to {
                 continue;
             }
@@ -485,7 +554,7 @@ impl Column {
             // context is put where the page stands and scaled to it; the node
             // is clipped to the page, so nothing the drawer does reaches the
             // surround.
-            let cr = snapshot.append_cairo(&rect(left, top, page_width, page_height));
+            let cr = snapshot.append_cairo(&preview::rect(left, top, page_width, page_height));
             cr.translate(left, top);
             cr.scale(scale, scale);
             draw::draw(&cr, page, &laid.rendered, template, &laid.frame);
@@ -510,13 +579,14 @@ impl Column {
 /// The scale a column `width` logical pixels wide fits a page `paper` points
 /// wide at: fit width, which is what the zoom's 100 % means here.
 ///
-/// A pane under [`NARROWEST`] fits the page it would fit at that width and pans
-/// the rest, rather than shrinking the paper away to nothing.
+/// At 100 % the page fits whatever the pane is: fit width is the width, and
+/// there is nothing to slide sideways under it (#293 § Zoom). Sideways
+/// scrolling arises above 100 % and nowhere else ([`spare`]).
 fn fit(width: f64, paper: f64) -> f64 {
     if paper <= 0.0 {
         return 0.0;
     }
-    ((width.max(NARROWEST) - 2.0 * GUTTER) / paper).max(0.0)
+    ((width - 2.0 * GUTTER) / paper).max(0.0)
 }
 
 /// The scale a column `width` pixels wide draws a page `paper` points wide at,
@@ -541,68 +611,33 @@ fn spare(width: f64, page: f64) -> f64 {
 /// The engine walks the fragments ([`paginate::column_blocks`], which is handed
 /// the gap in the points the paper is measured in); what this adds is the air
 /// above the first page, since the column stands its first page one gap down
-/// ([`page_top`]) and the engine counts from the first page's top edge.
+/// ([`Stack::top_of`]) and the engine counts from the first page's top edge.
 fn rows(laid: &paginate::Laid, scale: f64) -> Vec<sync::Block> {
     let paper = laid.frame.paper;
-    let gap = gap(paper, scale);
+    let stack = Stack::of(paper, scale);
     paginate::column_blocks(laid, paper.margin, scale)
         .into_iter()
-        .map(|block| sync::Block::new(block.key, block.top + gap, block.height))
+        .map(|block| sync::Block::new(block.key, block.top + stack.gap, block.height))
         .collect()
 }
 
-/// The page standing at `y` in the column's own pixels, or nothing where `y` is
-/// in the air between two pages or off either end.
-fn page_at(y: f64, page: f64, gap: f64) -> Option<usize> {
-    let pitch = page + gap;
-    if pitch <= 0.0 || y < gap {
-        return None;
-    }
-    let at = ((y - gap) / pitch).floor();
-    let at = usize::try_from(at as i64).ok()?;
-    (y <= page_top(at, page, gap) + page).then_some(at)
-}
-
-/// The physical page the column's top edge stands over at `y`, counting the
-/// title page as page 1 as [`paginate::page_words`] does, or nothing where
-/// there are no pages.
+/// `target`, taken back to the top of page `first` where a follow would leave
+/// the column standing on that page.
 ///
-/// [`page_at`] answers a point, and a point can land in the air between two
-/// pages or above the first; a top edge always has a page, so the air answers
-/// with the page coming into view under it, and an edge past the last page
-/// with the last.
-fn page_under(y: f64, page: f64, gap: f64, count: usize) -> Option<usize> {
-    let pitch = page + gap;
-    if pitch <= 0.0 || count == 0 {
-        return None;
-    }
-    let at = ((y - gap) / pitch).floor().max(0.0);
-    let mut at = usize::try_from(at as i64).ok()?;
-    if y > gap && page_at(y, page, gap).is_none() {
-        at += 1;
-    }
-    Some(at.min(count - 1) + 1)
-}
-
-/// Where the column stands with the page after the one at `offset` at the top
-/// of the pane, or with the one before it.
-///
-/// Page-aligned either way, and the page under the top edge is the page turned
-/// from: a column standing part way down a page goes back to that page's own
-/// top before it goes back a page, which is what a reader means by both keys.
-fn page_step(offset: f64, page: f64, gap: f64, forward: bool) -> f64 {
-    let pitch = page + gap;
-    if pitch <= 0.0 {
-        return offset;
-    }
-    let at = ((offset - gap) / pitch).floor().max(0.0);
-    let here = gap + at * pitch;
-    if forward {
-        here + pitch
-    } else if offset - here > 1.0 {
-        here
+/// The sync rules answer in blocks and put a block's own top at the pane's top
+/// edge ([`quill_engine::sync`]), and the first body block's top is where the
+/// text band starts rather than where the page does. Followed to the letter,
+/// every keystroke on the first body page scrolls that page's header — and, on
+/// a Document with a title page, the title page over it — off the top. So a
+/// target landing anywhere on page `first` stands the column at that page's own
+/// top instead, and every page after it follows the sheet's rule unchanged
+/// (#293 § Refresh and follow).
+fn held(target: f64, stack: Stack, first: usize) -> f64 {
+    let top = stack.top_of(first);
+    if target > top && target < top + stack.page {
+        top
     } else {
-        here - pitch
+        target
     }
 }
 
@@ -621,8 +656,8 @@ fn link_in(placed: &render::Placed, run: &paginate::Run, at: (f64, f64)) -> Opti
     loop {
         if run.lines.contains(&line) {
             let (top, bottom) = iter.line_yrange();
-            let origin = *origin.get_or_insert(run.y - back(top));
-            if at.1 >= origin + back(top) && at.1 < origin + back(bottom) {
+            let origin = *origin.get_or_insert(run.y - render::back(top));
+            if at.1 >= origin + render::back(top) && at.1 < origin + render::back(bottom) {
                 let (inside, index, _) = placed
                     .layout
                     .xy_to_index(render::units(at.0 - run.x), render::units(at.1 - origin));
@@ -645,42 +680,6 @@ fn link_in(placed: &render::Placed, run: &paginate::Run, at: (f64, f64)) -> Opti
     None
 }
 
-/// A length in Pango units, back in the points a page is measured in.
-fn back(units: i32) -> f64 {
-    f64::from(units) / f64::from(pango::SCALE)
-}
-
-/// The air between two pages, and above the first and below the last: one page
-/// margin, in the column's own pixels.
-///
-/// The margin rather than a number of this module's own, so the air between
-/// two pages reads as the air inside one and the column is one continuous
-/// scroll rather than a stack of cards.
-fn gap(paper: paginate::Geometry, scale: f64) -> f64 {
-    paper.margin * scale
-}
-
-/// Where page `at` stands, in the column's own pixels: pages of `page` pixels
-/// each with `gap` between them, the first `gap` down from the top.
-fn page_top(at: usize, page: f64, gap: f64) -> f64 {
-    gap + at as f64 * (page + gap)
-}
-
-/// How tall a column of `pages` pages stands: every page with its gap, and the
-/// gap above the first.
-fn stack(pages: usize, page: f64, gap: f64) -> f64 {
-    gap + pages as f64 * (page + gap)
-}
-
-/// A rectangle in the column's own pixels, as `graphene` takes it.
-///
-/// The narrowing is where [`crate::preview`] puts it: a page is drawn in
-/// `f32`, and nothing on it is near what an `f32` stops counting whole pixels
-/// at.
-fn rect(x: f64, y: f64, width: f64, height: f64) -> graphene::Rect {
-    graphene::Rect::new(x as f32, y as f32, width as f32, height as f32)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -700,31 +699,38 @@ mod tests {
             (width * scale - (800.0 - 2.0 * GUTTER)).abs() < 1e-9,
             "the page fills the pane less its gutters"
         );
-        let (page, gap) = (height * scale, margin * scale);
+        let stack = Stack {
+            page: height * scale,
+            gap: margin * scale,
+        };
         assert!(
-            (page_top(0, page, gap) - gap).abs() < f64::EPSILON,
+            (stack.top_of(0) - stack.gap).abs() < f64::EPSILON,
             "the first page stands one gap down"
         );
         assert!(
-            (page_top(1, page, gap) - (gap + page + gap)).abs() < 1e-9,
+            (stack.top_of(1) - (stack.gap + stack.page + stack.gap)).abs() < 1e-9,
             "the second page's top is the first's foot and one gap"
         );
         assert!(
-            (stack(2, page, gap) - (page_top(1, page, gap) + page + gap)).abs() < 1e-9,
+            (stack.height(2) - (stack.top_of(1) + stack.page + stack.gap)).abs() < 1e-9,
             "the column is as tall as the last page's foot and its gap"
         );
         assert!(
-            (stack(0, page, gap) - gap).abs() < f64::EPSILON,
+            (stack.height(0) - stack.gap).abs() < f64::EPSILON,
             "a column with no pages is the gap and nothing else"
         );
         assert!(
             fit(800.0, 0.0).abs() < f64::EPSILON,
             "a paper with no width scales to nothing rather than dividing by nought"
         );
-        assert!(
-            (fit(10.0, width) - fit(NARROWEST, width)).abs() < f64::EPSILON,
-            "a pane narrower than a page stops shrinking it and pans instead"
-        );
+        // Fit width is 100 % whatever the pane is (#293 § Zoom): a narrow pane
+        // draws a small page, and there is nothing to slide under it.
+        for pane in [240.0, 100.0, 60.0] {
+            assert!(
+                spare(pane, width * fit(pane, width)).abs() < 1e-9,
+                "a page at fit width fits a {pane} px pane whole"
+            );
+        }
     }
 
     /// The zoom rows step over fit width, 100 % being fit width itself, and a
@@ -756,48 +762,74 @@ mod tests {
         );
     }
 
-    /// The Page keys land on a page top, and the page under the top edge is the
-    /// one they turn from.
+    /// A point in the column is on the page it stands on, and the air over a
+    /// page and between two of them is on neither: which is what a click has to
+    /// answer before a link on the paper can.
     #[test]
-    fn the_page_keys_land_page_aligned_and_turn_from_the_page_under_the_top_edge() {
-        let (page, gap) = (800.0, 40.0);
-        let (first, second) = (page_top(0, page, gap), page_top(1, page, gap));
-        assert!(
-            (page_step(0.0, page, gap, true) - second).abs() < f64::EPSILON,
-            "the top of the column turns to the second page"
-        );
-        assert!(
-            (page_step(second, page, gap, false) - first).abs() < f64::EPSILON,
-            "the second page's top turns back to the first"
-        );
-        assert!(
-            (page_step(second + 300.0, page, gap, false) - second).abs() < f64::EPSILON,
-            "part way down a page goes back to that page's own top"
-        );
-        assert!(
-            (page_step(second + 300.0, page, gap, true) - page_top(2, page, gap)).abs()
-                < f64::EPSILON,
-            "and forward to the next one"
-        );
+    fn a_point_is_on_the_page_it_stands_on_and_the_air_is_on_none_of_them() {
+        let stack = Stack {
+            page: 800.0,
+            gap: 40.0,
+        };
+        let (first, second) = (stack.top_of(0), stack.top_of(1));
         assert_eq!(
-            page_at(first + 1.0, page, gap),
+            stack.index_at(first + 1.0),
             Some(0),
             "a point on the first page is the first page's"
         );
         assert_eq!(
-            page_at(first + page + 1.0, page, gap),
+            stack.index_at(first + stack.page + 1.0),
             None,
             "a point in the air between two pages is on neither"
         );
         assert_eq!(
-            page_at(second + 1.0, page, gap),
+            stack.index_at(second + 1.0),
             Some(1),
             "and a point past that air is the second page's"
         );
         assert_eq!(
-            page_at(gap / 2.0, page, gap),
+            stack.index_at(stack.gap / 2.0),
             None,
             "the air above the first page is on no page either"
+        );
+    }
+
+    /// A follow that would leave the column standing part way down the first
+    /// body page stands it at that page's top instead, so the header over the
+    /// caret's block — and the title page over that — stay in view while the
+    /// caret is on page one (#293 § Refresh and follow).
+    #[test]
+    fn a_follow_on_to_the_first_body_page_stands_the_column_at_that_pages_top() {
+        let stack = Stack {
+            page: 800.0,
+            gap: 40.0,
+        };
+        // No title page: the first body page is the column's own first.
+        let first = stack.top_of(0);
+        assert!(
+            (held(first + 120.0, stack, 0) - first).abs() < f64::EPSILON,
+            "a target part way down page one is taken back to its top"
+        );
+        assert!(
+            (held(0.0, stack, 0) - 0.0).abs() < f64::EPSILON,
+            "a target above the page is left where it is: nothing is scrolled off"
+        );
+        let second = stack.top_of(1);
+        assert!(
+            (held(second + 120.0, stack, 0) - (second + 120.0)).abs() < f64::EPSILON,
+            "a target on page two follows the sheet's rule unchanged"
+        );
+        // With a title page the body opens on the column's second page, and it
+        // is that page the follow is held to.
+        let body = stack.top_of(1);
+        assert!(
+            (held(body + 300.0, stack, 1) - body).abs() < f64::EPSILON,
+            "a target part way down the first body page is taken back to its top"
+        );
+        assert!(
+            (held(stack.top_of(0) + 10.0, stack, 1) - (stack.top_of(0) + 10.0)).abs()
+                < f64::EPSILON,
+            "and a target on the title page over it is left where it is"
         );
     }
 
@@ -806,29 +838,32 @@ mod tests {
     /// coming into view, and an edge past the end as the last page (#299).
     #[test]
     fn the_top_edge_stands_over_a_page_wherever_the_column_is_scrolled() {
-        let (page, gap) = (800.0, 40.0);
-        let second = page_top(1, page, gap);
-        assert_eq!(page_under(0.0, page, gap, 3), Some(1), "the column's head");
+        let stack = Stack {
+            page: 800.0,
+            gap: 40.0,
+        };
+        let second = stack.top_of(1);
+        assert_eq!(stack.under(0.0, 3), Some(1), "the column's head");
         assert_eq!(
-            page_under(page_top(0, page, gap) + 1.0, page, gap, 3),
+            stack.under(stack.top_of(0) + 1.0, 3),
             Some(1),
             "a point on the first page"
         );
         assert_eq!(
-            page_under(second - gap / 2.0, page, gap, 3),
+            stack.under(second - stack.gap / 2.0, 3),
             Some(2),
             "the air between two pages is the one coming into view"
         );
         assert_eq!(
-            page_under(second + 1.0, page, gap, 3),
+            stack.under(second + 1.0, 3),
             Some(2),
             "and the page itself is that page"
         );
         assert_eq!(
-            page_under(page_top(9, page, gap), page, gap, 3),
+            stack.under(stack.top_of(9), 3),
             Some(3),
             "past the last page is the last page"
         );
-        assert_eq!(page_under(0.0, page, gap, 0), None, "no pages, no page");
+        assert_eq!(stack.under(0.0, 0), None, "no pages, no page");
     }
 }

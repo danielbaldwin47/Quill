@@ -24,6 +24,7 @@
     "sidebar": false,
     "search": null,
     "preview": null,
+    "zoom": null,
     "template": "modern",
     "export": null
   },
@@ -342,6 +343,8 @@
         }
       },
       "pdf-full": {
+        "w": 1000,
+        "zoom": 50,
         "theme": "light",
         "chrome": "off",
         "preview": "pdf-full",

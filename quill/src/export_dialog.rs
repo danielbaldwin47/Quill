@@ -33,6 +33,7 @@ use quill_engine::render::Toggles;
 use quill_engine::settings::{Choice, Export, Paper, PreviewMode, Template, export_text_sizes};
 use quill_engine::{html, pdf, template};
 
+use crate::choices;
 use crate::export::{confirm, file_name};
 use crate::files;
 use crate::preview::DialogOverride;
@@ -453,25 +454,13 @@ fn switch(on: bool) -> gtk::Switch {
 /// table, so that a paper named there and a paper named here are the one list;
 /// #290 built that group on this.
 pub(crate) fn paper_drop_down(paper: Paper) -> gtk::DropDown {
-    let words: Vec<&str> = PAPERS.iter().map(|(_, words)| *words).collect();
-    let drop_down = gtk::DropDown::from_strings(&words);
-    drop_down.set_selected(index_of(paper));
-    drop_down
+    choices::drop_down(&PAPERS, paper)
 }
 
 /// The paper the dropdown's `index`-th row names, and the default for an index
-/// [`PAPERS`] does not reach — which is what `GTK_INVALID_LIST_POSITION` is.
+/// [`PAPERS`] does not reach ([`choices::at`], which is where that rule is).
 pub(crate) fn paper_at(index: u32) -> Paper {
-    usize::try_from(index)
-        .ok()
-        .and_then(|index| PAPERS.get(index))
-        .map_or_else(Paper::default, |(paper, _)| *paper)
-}
-
-/// Which of the dropdown's rows `paper` stands on.
-fn index_of(paper: Paper) -> u32 {
-    let found = PAPERS.iter().position(|(offered, _)| *offered == paper);
-    u32::try_from(found.unwrap_or_default()).unwrap_or_default()
+    choices::at(&PAPERS, index)
 }
 
 /// The one line the overwrite confirm asks.
@@ -578,7 +567,7 @@ fn present(window: &Window, format: Format, expanded: bool) {
         .depth()
         .map(|depth| Rc::new(Options::new(&seed, depth)));
     if let Some(options) = &options {
-        column.append(&expander(&session, options, expanded));
+        column.append(&expander(window, &session, options, expanded));
     }
 
     // The dialog carries no preview of its own: it drives the pane behind it
@@ -674,7 +663,17 @@ fn present(window: &Window, format: Format, expanded: bool) {
 /// `expanded` is `--export-dialog`'s and nothing else's: a writer's dialog
 /// opens shut ([`open`]), and the judged state opens it open because a still
 /// cannot pull it.
-fn expander(session: &Rc<Session>, options: &Rc<Options>, expanded: bool) -> gtk::Expander {
+///
+/// The window is here for the button alone: what the write composed is handed
+/// to it, so the pane behind the dialog comes back to what was saved rather
+/// than to the table the running settings still hold
+/// ([`crate::window::Window::save_dialog_preview`]).
+fn expander(
+    window: &Window,
+    session: &Rc<Session>,
+    options: &Rc<Options>,
+    expanded: bool,
+) -> gtk::Expander {
     let inside = gtk::Box::new(gtk::Orientation::Vertical, PAD);
     inside.set_margin_top(PAD);
     inside.append(options.widget());
@@ -687,9 +686,12 @@ fn expander(session: &Rc<Session>, options: &Rc<Options>, expanded: bool) -> gtk
         session,
         #[strong]
         options,
+        #[weak]
+        window,
         move |_| {
             let chosen = options.chosen();
-            session.edit_settings(|settings| chosen.written_into(&mut settings.export));
+            let saved = session.edit_settings(|settings| chosen.written_into(&mut settings.export));
+            window.save_dialog_preview(saved);
         }
     ));
     inside.append(&defaults);
@@ -893,10 +895,13 @@ mod tests {
     }
 
     /// A paper and a text size moved in Options move the page behind the
-    /// dialog, and dropping the override at the close leaves the pane back on
-    /// `[export]`.
+    /// dialog.
+    ///
+    /// What the close leaves the pane on is the window's
+    /// ([`crate::window::dropped_preview`], tested there): here the override is
+    /// what the pane is handed while the dialog stands.
     #[test]
-    fn dialog_preview_follows_the_options_and_the_drop_leaves_the_export_table() {
+    fn dialog_preview_follows_the_options() {
         let settings = Settings::default();
         let mut moved = Chosen::of(&settings.export, &settings.template);
         // Legal, because `auto` reads the locale and answers A4 or Letter:
@@ -911,29 +916,10 @@ mod tests {
             "the paper Options shows is not the paper the file names"
         );
         assert_eq!(over.export.text_size, 14);
-        // The drop is the override gone ([`Preview::set_dialog_override`] with
-        // `None`), and what the pane then reads is the table itself.
         assert_eq!(
-            Geometry::of(&settings.export),
-            Geometry::of(&Settings::default().export),
+            settings.export,
+            Settings::default().export,
             "nothing the dialog showed was written on the way past"
-        );
-    }
-
-    /// Save as defaults writes `[export]` before the close reads it, so the
-    /// pane comes back to what was saved rather than to what the dialog opened
-    /// on.
-    #[test]
-    fn dialog_preview_comes_back_to_what_save_as_defaults_saved() {
-        let mut settings = Settings::default();
-        let mut chosen = Chosen::of(&settings.export, &settings.template);
-        chosen.export.paper = Paper::Legal;
-        chosen.export.text_size = 14;
-        chosen.written_into(&mut settings.export);
-        assert_eq!(
-            Geometry::of(&settings.export),
-            Geometry::of(&chosen.previewed(PreviewMode::Pdf).export),
-            "what the pane was showing is what the file now holds"
         );
     }
 
@@ -995,8 +981,7 @@ mod tests {
         );
         for (at, (paper, _)) in PAPERS.iter().enumerate() {
             let index = u32::try_from(at).unwrap();
-            assert_eq!(index_of(*paper), index);
-            assert_eq!(paper_at(index), *paper);
+            assert_eq!(paper_at(index), *paper, "row {index}");
         }
         assert_eq!(
             paper_at(gtk::INVALID_LIST_POSITION),
