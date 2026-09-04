@@ -5,7 +5,7 @@
     "sha256": "738f48c969965ac3"
   },
   "shoot": "239bd27db3974b27",
-  "git_head": "5dc8d8d",
+  "git_head": "13d4401",
   "passages": {
     "shots/oracle/library/sea-storm.md": "06a3d968fd0e7e7d"
   },
@@ -36,7 +36,9 @@
       "sidebar": true,
       "search": null,
       "preview": null,
-      "template": "modern"
+      "zoom": null,
+      "template": "modern",
+      "export": null
     },
     "search": {
       "text": "shots/oracle/library/sea-storm.md",
@@ -61,7 +63,9 @@
       "sidebar": true,
       "search": "sea",
       "preview": null,
-      "template": "modern"
+      "zoom": null,
+      "template": "modern",
+      "export": null
     }
   }
 }
