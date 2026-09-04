@@ -2598,6 +2598,32 @@ impl Window {
         });
     }
 
+    /// Opens the Export dialog `--export-dialog` named, its Options expander
+    /// open, once the window has painted its first frame.
+    ///
+    /// Held until then for the reason [`Self::open_flagged`] holds a menu: a
+    /// second surface over a toplevel the compositor has no frame of yet keeps
+    /// the toplevel from ever mapping, and the shot never comes.
+    ///
+    /// The format is carried in the callback rather than in the window,
+    /// because `after-paint` runs on every frame and this is the first
+    /// frame's alone: the [`Cell`] is emptied by the frame that opens the
+    /// dialog, so a writer looking at a judged shot is not looking at a stack
+    /// of them.
+    fn open_flagged_export(&self, format: crate::export_dialog::Format) {
+        let Some(clock) = self.frame_clock() else {
+            return;
+        };
+        let window = self.downgrade();
+        let asked = std::cell::Cell::new(Some(format));
+        clock.connect_after_paint(move |_| {
+            let (Some(window), Some(format)) = (window.upgrade(), asked.take()) else {
+                return;
+            };
+            crate::export_dialog::open_expanded(&window, format);
+        });
+    }
+
     /// Tells the Editor whether this window has the keyboard, now and after.
     ///
     /// `is-active` is the property GTK keeps the answer in, so it is the one
@@ -2990,6 +3016,13 @@ pub fn present_launch(app: &gtk::Application, session: &Rc<Session>) {
         // with the page.
         if let Some(menu) = session.flags().menu {
             window.open_flagged(menu);
+        }
+        // The Export dialog last of all, and for the same reason a menu is
+        // held: it is a second surface over a window that has to be mapped
+        // and laid out first, and its own seeded file name is read off the
+        // Document that was shown above.
+        if let Some(format) = session.flags().export_dialog {
+            window.open_flagged_export(format);
         }
     }
     if let Some(window) = first

@@ -79,8 +79,12 @@ const PAPERS: [(Paper, &str); 4] = [
 
 /// Which file an Export dialog writes, and so what the dialog is called, what
 /// the seeded name ends in, and which writer runs.
+///
+/// `pub` where the rest of this module is `pub(crate)`, and it reaches no
+/// further for it — this is a binary crate — because [`crate::flags::Flags`]
+/// carries one as a public field for `--export-dialog`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum Format {
+pub enum Format {
     /// The Document laid out on paper, through the engine's PDF writer.
     Pdf,
     /// The Document as a standalone styled page.
@@ -90,6 +94,23 @@ pub(crate) enum Format {
 }
 
 impl Format {
+    /// The words `--export-dialog` takes, in the order `--help` prints them.
+    pub(crate) const VALUES: [&'static str; 3] = ["pdf", "html", "markdown"];
+
+    /// The format `written` names, or `None` for a word that names none.
+    ///
+    /// The Gate's `--export-dialog` is the one caller: a format is not a
+    /// setting and is never written to a file, so this is a flag's spelling
+    /// rather than [`quill_engine::settings::Choice`].
+    pub(crate) fn parse(written: &str) -> Option<Self> {
+        match written {
+            "pdf" => Some(Self::Pdf),
+            "html" => Some(Self::Html),
+            "markdown" => Some(Self::Markdown),
+            _ => None,
+        }
+    }
+
     /// What the seeded file name ends in.
     fn extension(self) -> &'static str {
         match self {
@@ -402,7 +423,24 @@ fn copy(text: &str, path: &Path) -> std::io::Result<()> {
 
 /// `export.pdf`, `export.html` and `export.markdown`: the dialog for `format`,
 /// over the window whose Document it writes.
+///
+/// The expander is shut, which is what a writer opens it on: Options is what
+/// one job changes and most jobs change nothing.
 pub(crate) fn open(window: &Window, format: Format) {
+    opened(window, format, false);
+}
+
+/// The same dialog with its Options expander already open: `--export-dialog`,
+/// and the `export/dialog` judged state alone (ADR 0017).
+///
+/// A still cannot open an expander, so the state that shows what is inside one
+/// is launched with it open. Nothing else calls this, and no writer can reach
+/// it: the flag is the harness's.
+pub(crate) fn open_expanded(window: &Window, format: Format) {
+    opened(window, format, true);
+}
+
+fn opened(window: &Window, format: Format, expanded: bool) {
     let Some(session) = window.session() else {
         return;
     };
@@ -453,7 +491,7 @@ pub(crate) fn open(window: &Window, format: Format) {
         .depth()
         .map(|depth| Rc::new(Options::new(&seed, depth)));
     if let Some(options) = &options {
-        column.append(&expander(&session, options));
+        column.append(&expander(&session, options, expanded));
     }
 
     let go = gtk::Button::builder()
@@ -510,9 +548,13 @@ pub(crate) fn open(window: &Window, format: Format) {
     dialog.present();
 }
 
-/// The **Options** expander: the widget, shut, with the one button that keeps
-/// what is inside it.
-fn expander(session: &Rc<Session>, options: &Rc<Options>) -> gtk::Expander {
+/// The **Options** expander: the widget, shut unless `expanded`, with the one
+/// button that keeps what is inside it.
+///
+/// `expanded` is `--export-dialog`'s and nothing else's: a writer's dialog
+/// opens shut ([`open`]), and the judged state opens it open because a still
+/// cannot pull it.
+fn expander(session: &Rc<Session>, options: &Rc<Options>, expanded: bool) -> gtk::Expander {
     let inside = gtk::Box::new(gtk::Orientation::Vertical, PAD);
     inside.set_margin_top(PAD);
     inside.append(options.widget());
@@ -532,7 +574,7 @@ fn expander(session: &Rc<Session>, options: &Rc<Options>) -> gtk::Expander {
     ));
     inside.append(&defaults);
     let expander = gtk::Expander::new(Some(OPTIONS));
-    expander.set_expanded(false);
+    expander.set_expanded(expanded);
     expander.set_child(Some(&inside));
     expander
 }
