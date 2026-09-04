@@ -1985,9 +1985,21 @@ impl Editor {
         let bottom = f64::from(view.y() + view.height()) + pitch * SELECTION_SLACK;
         let mut rows: Vec<caret::Bar> = Vec::new();
         let mut at = start;
-        if let Some(seen) = self.iter_at_location(0, buffer_px(top.max(0.0)))
-            && seen > at
-        {
+        // The band's top edge by paragraph and then by row: `line_at_y` is the
+        // one lookup that builds no display and converts no byte index, and so
+        // the one that is safe over a folded paragraph (#278, and
+        // [`Editor::seen`]). It answers with the paragraph's first row, so the
+        // rows of that paragraph above the band are stepped over here — at most
+        // one paragraph's rows, and the same rows the walk below would have
+        // built.
+        let (mut seen, _) = self.line_at_y(buffer_px(top.max(0.0)));
+        loop {
+            let row = self.iter_location(&seen);
+            if f64::from(row.y() + row.height()) >= top || !self.forward_display_line(&mut seen) {
+                break;
+            }
+        }
+        if seen > at {
             at = seen;
         }
         if at >= end {
@@ -2731,23 +2743,31 @@ impl Editor {
     /// for the two ends once is one lookup, and asking every furnishing for
     /// its rectangle is one lookup each.
     ///
-    /// A point off the text — a y above the first row or below the last, and
-    /// any x left of the centred column, x = 0 among them — is not over a
-    /// character, and GTK answers nothing for it; the whole Document is the
-    /// honest reading of that, and the walk below drops what turns out to be
-    /// off the glass.
+    /// Both ends are asked for by paragraph rather than by position: GTK
+    /// answers `line_at_y` from the line heights its btree has cached, without
+    /// building a display for the line or converting a byte index through the
+    /// invisible bytes on it, so it is safe to ask from inside Quill's own
+    /// redraw and from inside an allocation — where asking for the position
+    /// aborted on a folded paragraph's bottom margin (#278). It answers for
+    /// every y, clamping one past the end of the page to the last line, so
+    /// there is no y this has no answer for.
+    ///
+    /// The range is wider than the glass by at most two paragraphs, the one
+    /// each edge cuts. That is the bound the reader wants: [`standing`]'s walk
+    /// over the spans in it is bounded by the same paragraphs, and a furnishing
+    /// worked out just off the glass is one the next scroll does not have to
+    /// stop for.
     fn seen(&self) -> Range<i32> {
         let view = self.visible_rect();
         let slack = f64::from(self.imp().pitch.get()) / self.scale();
         let top = f64::from(view.y()) - slack;
         let bottom = f64::from(view.y() + view.height()) + slack;
-        let first = self
-            .iter_at_location(0, buffer_px(top.max(0.0)))
-            .map_or(0, |at| at.offset());
-        let last = self
-            .iter_at_location(0, buffer_px(bottom))
-            .map_or(i32::MAX, |at| at.offset());
-        first..last
+        let (first, _) = self.line_at_y(buffer_px(top.max(0.0)));
+        let (mut last, _) = self.line_at_y(buffer_px(bottom));
+        if !last.ends_line() {
+            last.forward_to_line_end();
+        }
+        first.offset()..last.offset()
     }
 
     /// A bullet item's dot, in the cell its marker's `-`, `*` or `+` stood in.
