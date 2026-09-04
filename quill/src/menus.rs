@@ -4,9 +4,10 @@
 //!
 //! A model is a pure function of the registry and the modes: the rows are
 //! the Commands placed in that menu, in the table's order; the View menu's
-//! six sections are `GMenu` sections, which `GtkPopoverMenu` draws with a
+//! sections are `GMenu` sections, which `GtkPopoverMenu` draws with a
 //! separator between them; the Syntax highlight rows are a nested submenu
-//! under their head. A row's action is the Command's, so the check or the
+//! under their head, and the Template section is a nested submenu of its own
+//! name. A row's action is the Command's, so the check or the
 //! radio the popover draws reads the stateful action the chord fires, and a
 //! Command not built yet has a disabled action, which is the greyed row.
 //! Document → Open Recent is the one row no Command places: a submenu of the
@@ -21,7 +22,7 @@ use std::path::PathBuf;
 
 use gtk::gio;
 use gtk::prelude::*;
-use quill_engine::commands::{COMMANDS, Command, Menu, Placement, VIEW_SECTIONS};
+use quill_engine::commands::{COMMANDS, Command, Kind, Menu, Placement, VIEW_SECTIONS};
 use quill_engine::document::shown_name;
 
 use crate::chrome::{self, Modes, RECENT_OPEN};
@@ -32,6 +33,10 @@ const SYNTAX_HEAD: &str = "syntax.toggle";
 /// The section the Parity oracle heads with a label; the rest read as groups
 /// between separators.
 const HEADED: &str = "Typeface";
+/// The section that is a submenu of its own name rather than rows between
+/// separators: eight rows is a menu's worth, and a Template is picked once and
+/// left (`docs/shortcuts.md` § View menu).
+const SUBMENU: &str = "Template";
 /// The Stats menu's last row, the one that hides the bar.
 const HIDE_STATS: &str = "chrome.stats";
 /// The row Open Recent opens under, where a writer looks for it: under the
@@ -90,7 +95,12 @@ pub fn model(menu: Menu, modes: &Modes, recents: &[PathBuf]) -> gio::Menu {
                     .filter(|(_, placement)| placement.section == Some(section))
                     .collect();
                 let heading = (section == HEADED).then(|| section.to_uppercase());
-                model.append_section(heading.as_deref(), &view_section(&rows, modes));
+                let built = if section == SUBMENU {
+                    template_section(section, &rows, modes)
+                } else {
+                    view_section(&rows, modes)
+                };
+                model.append_section(heading.as_deref(), &built);
             }
         }
     }
@@ -144,6 +154,35 @@ fn view_section(rows: &[(&'static Command, &'static Placement)], modes: &Modes) 
             section.append_item(&item(command, placement, modes));
         }
     }
+    section
+}
+
+/// The [`SUBMENU`] section as one row that opens a submenu: the five Template
+/// radios, a separator, then the three toggles that bend the one chosen.
+///
+/// The Syntax highlight submenu hangs off a head row that is itself a Command
+/// ([`SYNTAX_HEAD`]); this one has no head — the section's own name is the row
+/// — because a Template is not a thing to switch on and off.
+fn template_section(
+    name: &'static str,
+    rows: &[(&'static Command, &'static Placement)],
+    modes: &Modes,
+) -> gio::Menu {
+    let section = gio::Menu::new();
+    let submenu = gio::Menu::new();
+    let templates = gio::Menu::new();
+    let toggles = gio::Menu::new();
+    for (command, placement) in rows {
+        let into = if matches!(command.kind, Kind::Radio { .. }) {
+            &templates
+        } else {
+            &toggles
+        };
+        into.append_item(&item(command, placement, modes));
+    }
+    submenu.append_section(None, &templates);
+    submenu.append_section(None, &toggles);
+    section.append_item(&gio::MenuItem::new_submenu(Some(name), &submenu));
     section
 }
 
@@ -359,14 +398,17 @@ mod tests {
         assert_eq!(names.last().map(String::as_str), Some("draft-9"));
     }
 
-    /// The View menu is six sections with a separator between each pair,
-    /// Focus first and All Commands… last; every placed row is there once,
-    /// with the pairs read for the modes given.
+    /// The View menu is one section per section of the table with a separator
+    /// between each pair, Focus first and All Commands… last; every placed row
+    /// is there once, with the pairs read for the modes given.
     #[test]
-    fn the_view_menu_is_six_sections_focus_first_and_all_commands_last() {
+    fn the_view_menu_is_the_tables_sections_focus_first_and_all_commands_last() {
         let model = model(Menu::View, &resting(), &[]);
         let rows = rows_of(model.upcast_ref());
-        assert_eq!(rows.iter().filter(|row| row.is_none()).count(), 5);
+        assert_eq!(
+            rows.iter().filter(|row| row.is_none()).count(),
+            VIEW_SECTIONS.len() - 1
+        );
         let labels: Vec<String> = rows.into_iter().flatten().map(|row| row.label).collect();
         let expected: Vec<String> = placed(Menu::View)
             .into_iter()
@@ -432,6 +474,49 @@ mod tests {
                 "Adjectives",
                 "Adverbs",
                 "Conjunctions"
+            ]
+        );
+    }
+
+    /// The Template section is one row that opens a submenu named for it: the
+    /// five Templates, then the three toggles, and none of the eight loose in
+    /// the View menu.
+    #[test]
+    fn the_template_rows_are_a_submenu_named_for_their_section() {
+        let model = model(Menu::View, &Modes::default(), &[]);
+        let at = i32::try_from(
+            VIEW_SECTIONS
+                .iter()
+                .position(|section| *section == SUBMENU)
+                .expect("the table has the section"),
+        )
+        .unwrap();
+        let section = model.item_link(at, "section").expect("the section");
+        assert_eq!(section.n_items(), 1, "one row, which opens the submenu");
+        let label = section
+            .item_attribute_value(0, "label", Some(glib::VariantTy::STRING))
+            .and_then(|value| value.get::<String>());
+        assert_eq!(label.as_deref(), Some(SUBMENU));
+        let submenu = section.item_link(0, "submenu").expect("the submenu");
+        // Two sections inside it, so the popover draws a separator between
+        // the Templates and the toggles that bend one.
+        assert_eq!(submenu.n_items(), 2);
+        let inside: Vec<String> = rows_of(&submenu)
+            .into_iter()
+            .flatten()
+            .map(|row| row.label)
+            .collect();
+        assert_eq!(
+            inside,
+            [
+                "Modern",
+                "Classic",
+                "Manuscript Mono",
+                "Manuscript Duo",
+                "Manuscript Quattro",
+                "Center Headings",
+                "Number Headings",
+                "Indent Paragraphs"
             ]
         );
     }

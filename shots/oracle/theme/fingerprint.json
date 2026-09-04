@@ -5,7 +5,7 @@
     "sha256": "738f48c969965ac3"
   },
   "shoot": "239bd27db3974b27",
-  "git_head": "1dccaf4",
+  "git_head": "5dc8d8d",
   "passages": {
     "ref/sample.md": "8005e6c57d435cea"
   },
@@ -21,6 +21,7 @@
       "step": 5,
       "focus": "off",
       "typewriter": false,
+      "live": false,
       "chrome": "on",
       "caret": 403,
       "select": null,
@@ -31,7 +32,9 @@
       "menu": null,
       "library": null,
       "sidebar": false,
-      "search": null
+      "search": null,
+      "preview": null,
+      "template": "modern"
     }
   }
 }

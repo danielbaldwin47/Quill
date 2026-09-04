@@ -40,13 +40,13 @@ use gtk::{cairo, gio, glib};
 use quill_engine::commands::{self, COMMANDS, Command, Kind, Menu, Scope};
 use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
-use quill_engine::settings::{Choice, Chrome, FocusScope};
+use quill_engine::settings::{Choice, Chrome, FocusScope, PreviewLayout, TemplateName};
 use quill_engine::shortcuts::{Chord, Refusal};
 use quill_engine::stats::words;
 use quill_engine::theme::{Role, Scheme};
 
 use crate::ground::Ground;
-use crate::session::Session;
+use crate::session::{Session, TemplateToggle};
 use crate::window::Window;
 
 pub mod typing;
@@ -60,6 +60,8 @@ pub struct Modes {
     pub focus_scope: &'static str,
     /// Typewriter is on.
     pub typewriter: bool,
+    /// Live is on: the markup rendered in place.
+    pub live: bool,
     /// The ground shown is the dark one, whatever `theme` says.
     pub dark: bool,
     /// The theme setting, `auto`, `light` or `dark`.
@@ -76,6 +78,22 @@ pub struct Modes {
     /// as the fullscreen above it is: the Library is the application's, the
     /// pane showing it is the window's.
     pub library: bool,
+    /// The Preview pane stands beside the Editor. Per window, as the Library
+    /// above it is, and remembered by nothing: the pane is closed at every
+    /// launch (#263).
+    pub preview: bool,
+    /// The layout the pane last showed, and the one it shows now while open,
+    /// `split` or `full`. The session's, unlike the pane itself.
+    pub preview_layout: &'static str,
+    /// The Template the page is laid out in, `modern` to
+    /// `manuscript-quattro`.
+    pub template: &'static str,
+    /// The Template's `center_headings` toggle.
+    pub center_headings: bool,
+    /// Its `number_headings` toggle.
+    pub number_headings: bool,
+    /// Its `indent_paragraphs` toggle.
+    pub indent_paragraphs: bool,
 }
 
 impl Modes {
@@ -83,7 +101,12 @@ impl Modes {
     ///
     /// The scope is the live one while Focus is on; off, it is the one the
     /// settings file holds, which the session restores when Focus returns.
-    pub fn of(session: &crate::session::Session, fullscreen: bool, library: bool) -> Self {
+    pub fn of(
+        session: &crate::session::Session,
+        fullscreen: bool,
+        library: bool,
+        preview: bool,
+    ) -> Self {
         let (focus, focus_scope) = match session.focus() {
             Focus::On(scope) => (true, scope.as_str()),
             Focus::Off => (false, session.settings().focus_scope.as_str()),
@@ -92,6 +115,7 @@ impl Modes {
             focus,
             focus_scope,
             typewriter: matches!(session.typewriter(), Typewriter::On(_)),
+            live: session.live(),
             dark: session.scheme() == Scheme::Dark,
             theme: session.theme().as_str(),
             face: session.face().as_str(),
@@ -99,6 +123,12 @@ impl Modes {
             bars: session.chrome() == Chrome::Shown,
             stats: session.stats(),
             library,
+            preview,
+            preview_layout: session.preview_layout().as_str(),
+            template: session.template().name.as_str(),
+            center_headings: session.template().center_headings,
+            number_headings: session.template().number_headings,
+            indent_paragraphs: session.template().indent_paragraphs,
         }
     }
 }
@@ -319,12 +349,19 @@ pub fn reflect(map: &impl IsA<gio::ActionMap>, modes: Modes) {
     };
     set("focus.toggle", modes.focus.to_variant());
     set("typewriter.toggle", modes.typewriter.to_variant());
+    set("live.toggle", modes.live.to_variant());
     set("theme.toggle", modes.dark.to_variant());
     set("window.fullscreen", modes.fullscreen.to_variant());
     // The row reads "Hide Bars", so its check is on when the bars are hidden.
     set("chrome.toggle", (!modes.bars).to_variant());
     set("chrome.stats", modes.stats.to_variant());
     set("library.toggle", modes.library.to_variant());
+    // Each row is its own layout's toggle, so it is ticked only while the
+    // pane is open in that layout and the pane away leaves both clear: the
+    // rows are states the window is in and not where Preview would open.
+    let showing = |layout: &str| (modes.preview && modes.preview_layout == layout).to_variant();
+    set("preview.full", showing("full"));
+    set("preview.split", showing("split"));
     // With Focus off neither scope's row is ticked, as the oracle's menu
     // has it: the scope the file holds is the one Focus comes back to, not
     // a state the page is in.
@@ -332,6 +369,19 @@ pub fn reflect(map: &impl IsA<gio::ActionMap>, modes: Modes) {
     set("focus_scope", scope.to_variant());
     set("theme", modes.theme.to_variant());
     set("face", modes.face.to_variant());
+    set("template", modes.template.to_variant());
+    set(
+        "template.centerHeadings",
+        modes.center_headings.to_variant(),
+    );
+    set(
+        "template.numberHeadings",
+        modes.number_headings.to_variant(),
+    );
+    set(
+        "template.indentParagraphs",
+        modes.indent_paragraphs.to_variant(),
+    );
 }
 
 /// The application's Commands.
@@ -365,9 +415,24 @@ fn run_window(window: &Window, command: &Command) {
         "font.bigger" => window.step_size(crate::window::Step::Bigger),
         "font.smaller" => window.step_size(crate::window::Step::Smaller),
         "font.reset" => window.step_size(crate::window::Step::Default),
+        // The rendered page's own ladder, which the Editor's never reaches
+        // and which never reaches the Editor (#263 § Zoom).
+        "preview.bigger" => window.step_zoom(crate::window::Zoom::Bigger),
+        "preview.smaller" => window.step_zoom(crate::window::Zoom::Smaller),
+        "preview.reset" => window.step_zoom(crate::window::Zoom::Reset),
         "font.duo" => window.set_face(quill_engine::settings::Face::Duo),
         "font.quattro" => window.set_face(quill_engine::settings::Face::Quattro),
         "font.mono" => window.set_face(quill_engine::settings::Face::Mono),
+        // View › Template: one Template for the app, on the rendered page
+        // alone (#263 § Templates).
+        "template.modern" => window.set_template(TemplateName::Modern),
+        "template.classic" => window.set_template(TemplateName::Classic),
+        "template.manuscriptMono" => window.set_template(TemplateName::ManuscriptMono),
+        "template.manuscriptDuo" => window.set_template(TemplateName::ManuscriptDuo),
+        "template.manuscriptQuattro" => window.set_template(TemplateName::ManuscriptQuattro),
+        "template.centerHeadings" => window.toggle_template(TemplateToggle::CenterHeadings),
+        "template.numberHeadings" => window.toggle_template(TemplateToggle::NumberHeadings),
+        "template.indentParagraphs" => window.toggle_template(TemplateToggle::IndentParagraphs),
         "theme.toggle" => window.toggle_scheme(),
         "theme.light" => window.set_theme(quill_engine::settings::Theme::Light),
         "theme.dark" => window.set_theme(quill_engine::settings::Theme::Dark),
@@ -377,8 +442,14 @@ fn run_window(window: &Window, command: &Command) {
         "focus.paragraph" => window.set_focus_scope(FocusScope::Paragraph),
         "focus.swap" => window.swap_focus_scope(),
         "typewriter.toggle" => window.toggle_typewriter(),
+        "live.toggle" => window.toggle_live(),
         "chrome.toggle" => window.toggle_bars(),
         "library.toggle" => window.toggle_library(),
+        // Two rows, each its own layout's toggle: the chord opens the pane in
+        // that layout, switches an open pane to it, or closes the pane it is
+        // already showing.
+        "preview.full" => window.preview_to(PreviewLayout::Full),
+        "preview.split" => window.preview_to(PreviewLayout::Split),
         "library.search" => window.search_library(),
         "chrome.stats" => window.toggle_stats(),
         "chrome.doc" | "chrome.view" => {
@@ -1689,13 +1760,48 @@ mod tests {
         );
     }
 
+    /// The eight View › Template Commands are built: the radio group fires
+    /// the Template the value names, and each of the three toggles fires its
+    /// own Command (#271).
     #[test]
-    fn the_stateful_actions_show_the_modes_they_are_given() {
-        let (map, _) = map(Scope::Win);
-        let modes = Modes {
+    fn the_eight_template_commands_are_built_and_fire() {
+        let (map, fired) = map(Scope::Win);
+        assert!(map.is_action_enabled("template"), "the radio group");
+        for value in TemplateName::VALUES {
+            map.activate_action("template", Some(&(*value).to_variant()));
+        }
+        let toggles = [
+            "template.centerHeadings",
+            "template.numberHeadings",
+            "template.indentParagraphs",
+        ];
+        for id in toggles {
+            assert!(map.is_action_enabled(id), "{id}");
+            map.activate_action(id, None);
+        }
+        assert_eq!(
+            fired.borrow().as_slice(),
+            [
+                "template.modern",
+                "template.classic",
+                "template.manuscriptMono",
+                "template.manuscriptDuo",
+                "template.manuscriptQuattro",
+                "template.centerHeadings",
+                "template.numberHeadings",
+                "template.indentParagraphs",
+            ]
+        );
+    }
+
+    /// The modes the two reflect tests read, with the Preview pane's pair as
+    /// the case asks for them.
+    fn preview_modes(preview: bool, preview_layout: &'static str) -> Modes {
+        Modes {
             focus: true,
             focus_scope: "paragraph",
             typewriter: false,
+            live: true,
             dark: true,
             theme: "auto",
             face: "quattro",
@@ -1703,14 +1809,26 @@ mod tests {
             bars: false,
             stats: false,
             library: true,
-        };
-        reflect(&map, modes);
+            preview,
+            preview_layout,
+            template: "classic",
+            center_headings: true,
+            number_headings: true,
+            indent_paragraphs: false,
+        }
+    }
+
+    #[test]
+    fn the_stateful_actions_show_the_modes_they_are_given() {
+        let (map, _) = map(Scope::Win);
+        reflect(&map, preview_modes(true, "full"));
         let state = |name: &str| map.action_state(name).unwrap();
         assert_eq!(state("focus.toggle").get::<bool>(), Some(true));
         assert_eq!(state("chrome.stats").get::<bool>(), Some(false));
         // "Hide Bars" is ticked when the bars are hidden.
         assert_eq!(state("chrome.toggle").get::<bool>(), Some(true));
         assert_eq!(state("typewriter.toggle").get::<bool>(), Some(false));
+        assert_eq!(state("live.toggle").get::<bool>(), Some(true));
         assert_eq!(state("theme.toggle").get::<bool>(), Some(true));
         assert_eq!(
             state("focus_scope").get::<String>().as_deref(),
@@ -1719,6 +1837,36 @@ mod tests {
         assert_eq!(state("theme").get::<String>().as_deref(), Some("auto"));
         assert_eq!(state("face").get::<String>().as_deref(), Some("quattro"));
         assert_eq!(state("library.toggle").get::<bool>(), Some(true));
+        assert_eq!(
+            state("preview.full").get::<bool>(),
+            Some(true),
+            "the pane is open and Full is what it shows"
+        );
+        assert_eq!(state("preview.split").get::<bool>(), Some(false));
+        assert_eq!(
+            state("template").get::<String>().as_deref(),
+            Some("classic")
+        );
+        assert_eq!(state("template.centerHeadings").get::<bool>(), Some(true));
+        assert_eq!(state("template.numberHeadings").get::<bool>(), Some(true));
+        assert_eq!(
+            state("template.indentParagraphs").get::<bool>(),
+            Some(false)
+        );
+    }
+
+    /// With the pane away neither Preview row is ticked, whatever layout the
+    /// pane last showed: the rows are the layout on screen and there is none
+    /// (#263).
+    #[test]
+    fn the_preview_rows_are_both_clear_with_the_pane_away() {
+        let (map, _) = map(Scope::Win);
+        for layout in ["full", "split"] {
+            reflect(&map, preview_modes(false, layout));
+            let state = |name: &str| map.action_state(name).unwrap();
+            assert_eq!(state("preview.full").get::<bool>(), Some(false));
+            assert_eq!(state("preview.split").get::<bool>(), Some(false));
+        }
     }
 
     #[test]

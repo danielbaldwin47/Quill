@@ -121,8 +121,8 @@ function usage(to = process.stderr) {
   to.write(`usage: tools/gate bench [regime] [--all] [--regimes a,b] [--keys N] [--sessions N]
                         [--panel] [--idle-window S]
 
-  regime          which of the twelve to type; ${HEADLINE} by default
-  --all           every one of the twelve, one line each and one line for the run
+  regime          which of the fourteen to type; ${HEADLINE} by default
+  --all           every one of the fourteen, one line each and one line for the run
   --regimes       just these, by name, separated by commas
   --keys N        keys measured per session (${DEFAULT_KEYS} by default, the oracle's count)
   --sessions N    launch and type this many times, for a run-to-run interval (1 by default)
@@ -136,7 +136,7 @@ A run of several writes ${RESULTS}/summary-<stamp>.json beside the per-regime re
 tools/gate judge latency reads. A --panel run of several writes ${RESULTS}/panel-summary-<stamp>.json
 instead, which judge does not read and never will: the panel is a fractional-scale output, its
 numbers are not the ones the budget is set on, and nothing about it decides a Piece. Every --panel
-result file, one regime or twelve, is marked informational inside and named bench-panel-<regime>-.
+result file, one regime or fourteen, is marked informational inside and named bench-panel-<regime>-.
 `);
 }
 
@@ -325,15 +325,19 @@ function caretFor(root, where) {
 }
 
 // The command line one regime's launches use, warm-up and measured alike: the judged states'
-// window size, the 10k-word document, and the caret and Focus the regime asks for, because where
-// the writer is and how much of the draft is dimmed are two of the things a regime varies.
+// window size, the 10k-word document, and the caret, Focus, Live and Preview the regime asks for,
+// because where the writer is, how much of the draft is dimmed, whether the markup is folded away
+// and whether a rendered page stands beside the Editor are four of the things a regime varies.
 function launchArgv(root, out, regime) {
-  return [
+  const argv = [
     '--deterministic', '--measure', out,
     '--text', path.join(root, DOC), '--caret', caretFor(root, regime.where),
     '--focus', regime.focus || 'off',
     '--w', String(WINDOW.w), '--h', String(WINDOW.h),
   ];
+  if (regime.live) argv.push('--live');
+  if (regime.preview) argv.push('--preview', regime.preview);
+  return argv;
 }
 
 /// Puts the regime's passage on the clipboard, for the regimes that paste.
@@ -428,7 +432,7 @@ async function runSession(root, stage, { regime, keys, index }) {
 
 /// One regime, measured: its sessions, pooled, and written to its own result file.
 ///
-/// The stage is the caller's, because opening one costs a compositor output and the twelve regimes
+/// The stage is the caller's, because opening one costs a compositor output and the fourteen regimes
 /// of a release run share it. The launch is not shared: every regime gets its own, so the caret it
 /// types at, the Focus it runs under and the cold start it reports are its own and not the last
 /// regime's.
@@ -509,7 +513,7 @@ async function benchOne(root, stage, { regime, keys, sessions, warmup, panel }) 
     result,
     said,
     // The one shape both `summary` and `regimeLine` read, built once here so that the lines a run
-    // of one prints and the lines a run of twelve prints cannot be assembled two different ways.
+    // of one prints and the lines a run of fourteen prints cannot be assembled two different ways.
     reported: {
       accounting: decided.accounting, verdict: said, stage_first_client: warmup, panel,
     },
@@ -622,8 +626,8 @@ function oneSaid(one) {
 ///
 /// One line per regime and then one line for the run, and a summary file beside the per-regime
 /// results holding what those lines say — because the release check and `tools/gate judge latency`
-/// both ask the same question of a whole run, and neither should have to reopen twelve files and
-/// decide for itself which twelve they were.
+/// both ask the same question of a whole run, and neither should have to reopen fourteen files and
+/// decide for itself which fourteen they were.
 function manySaid(root, { ran, chosen, done, warmup, panel }) {
   const rows = done.map((one) => ({
     regime: one.regime,
@@ -641,7 +645,7 @@ function manySaid(root, { ran, chosen, done, warmup, panel }) {
 
   // Written before anything is printed, and holding the printed lines themselves, because the file
   // is the run's own record of what it said: `tools/gate judge latency` reads it rather than
-  // re-deriving a verdict from twelve result files and hoping it phrases it the same way.
+  // re-deriving a verdict from fourteen result files and hoping it phrases it the same way.
   const whole = !missing.length && !unaccounted.length;
   const lines = done.map((one) => regimeLine(one.regime, one.reported));
   if (whole) lines.push(allSummary(ran, rows, panel));
@@ -769,7 +773,7 @@ async function main(argv) {
   for (const want of choice.names ?? [name ?? HEADLINE]) {
     const found = known.find((r) => r.name === want);
     if (!found) {
-      process.stderr.write(`gate bench: ${want}: not one of the twelve regimes `
+      process.stderr.write(`gate bench: ${want}: not one of the fourteen regimes `
         + `(${known.map((r) => r.name).join(', ')})\n`);
       usage();
       return 3;

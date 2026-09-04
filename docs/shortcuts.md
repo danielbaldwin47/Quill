@@ -46,16 +46,21 @@ Sections in this order, separators between them.
 | `focus.paragraph` | Paragraph (radio) | — | |
 | `focus.swap` | Switch Focus Scope (Palette only, no menu row) | `Ctrl+Shift+D` | |
 | `typewriter.toggle` | Typewriter | `Ctrl+T` | |
+| `live.toggle` | Live | `Ctrl+L` | |
 
 **Panes**
 
 | Id | Title | Default | Alias |
 |---|---|---|---|
 | `library.toggle` | Show Library / Hide Library | `Ctrl+E` | `F9` |
-| `preview.toggle` | Show Preview / Hide Preview | `Ctrl+R` | |
-| `preview.layout` | Preview Split / Preview Full (radio pair) | reserved `Ctrl+Shift+R` | |
+| `preview.full` | Preview Full (check) | `Ctrl+R` | |
+| `preview.split` | Preview Split (check) | `Ctrl+Shift+R` | |
 
-`preview.layout`'s binding is the Preview spec's call; the chord is reserved so nothing else takes it.
+Each chord owns a layout and is that layout's toggle: `Ctrl+R` opens the pane Full, or closes the
+pane when Full is already showing; `Ctrl+Shift+R` opens it Split, or closes it when Split is
+showing. Pressed over the other layout, a chord switches the pane to its own in place. A row is
+ticked while the pane is open in its layout. `[preview].layout` in the settings file is the layout
+the pane last showed, which is the one the next chord to open it opens in.
 
 **Writing tools**
 
@@ -77,14 +82,37 @@ the menu. The Palette reaches them in two keystrokes.
 | `font.quattro` | Quattro (radio) | — | |
 | `font.mono` | Mono (radio) | — | |
 
+**Template** (a submenu: the five Templates Preview and Export lay a Document out in, then the three
+toggles that bend one)
+
+| Id | Title | Default | Alias |
+|---|---|---|---|
+| `template.modern` | Modern (radio) | — | |
+| `template.classic` | Classic (radio) | — | |
+| `template.manuscriptMono` | Manuscript Mono (radio) | — | |
+| `template.manuscriptDuo` | Manuscript Duo (radio) | — | |
+| `template.manuscriptQuattro` | Manuscript Quattro (radio) | — | |
+| `template.centerHeadings` | Center Headings (check) | — | |
+| `template.numberHeadings` | Number Headings (check) | — | |
+| `template.indentParagraphs` | Indent Paragraphs (check) | — | |
+
+A Template is chosen once and left, as a Face is, so none of the eight has a chord; the Palette
+reaches them in two keystrokes.
+
 **Appearance**
 
 | Id | Title | Default | Alias |
 |---|---|---|---|
 | `theme.toggle` | Dark Mode | `Ctrl+Shift+L` | `Alt+Shift+N` |
-| `font.bigger` | Bigger Text | `Ctrl+=` | `Ctrl++` |
+| `font.bigger` | Bigger Text | `Ctrl+=` | |
 | `font.smaller` | Smaller Text | `Ctrl+-` | |
 | `font.reset` | Default Text Size | `Ctrl+0` | |
+| `preview.bigger` | Bigger Preview Text | `Ctrl+Shift+=` | |
+| `preview.smaller` | Smaller Preview Text | `Ctrl+Shift+-` | |
+| `preview.reset` | Default Preview Size | `Ctrl+Shift+0` | |
+
+The `font.*` ladder is the Editor's text and the `preview.*` one is Preview's zoom; neither reaches
+the other pane.
 
 **Window**
 
@@ -143,7 +171,6 @@ Chords with no Command yet. A spec that ships the Command claims the chord; noth
 | `Ctrl+B`, `Ctrl+I` | Bold, Italic |
 | `Ctrl+F`, `Ctrl+H`, `Ctrl+G`, `Ctrl+Shift+G` | Find, Find and Replace, Next match, Previous match |
 | `Ctrl+Shift+C` | Copy as HTML |
-| `Ctrl+Shift+R` | Preview Split / Full |
 
 ## Off-limits chords
 
@@ -180,6 +207,10 @@ accelerator syntax:
   is an entry to put under it), or a Command named twice in it — a rebinding is edited in place, not
   pasted in beside the entry it replaces. Nothing in such a file is read: Quill keeps what it is
   running on, or the defaults at launch, until the file is TOML again.
+- A `Shift` chord on a symbol or a digit names the keyval Shift produces, not the unshifted key:
+  `<Control><Shift>plus` for `Ctrl+Shift+=`, `<Control><Shift>underscore` for `Ctrl+Shift+-`,
+  `<Control><Shift>parenright` for `Ctrl+Shift+0`. GDK matches the keyval the press produced, so
+  `<Control><Shift>equal` is a chord no US keyboard sends. Letters are unaffected.
 - Menu labels, the Palette and the `Ctrl+?` window show the effective bindings, never the defaults.
 - The settings file is watched; a saved edit applies without a restart.
 - The Settings window has one row, "Keyboard shortcuts: edit settings.toml", that opens the file in

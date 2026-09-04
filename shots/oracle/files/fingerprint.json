@@ -5,7 +5,7 @@
     "sha256": "738f48c969965ac3"
   },
   "shoot": "239bd27db3974b27",
-  "git_head": "1dccaf4",
+  "git_head": "5dc8d8d",
   "passages": {
     "shots/oracle/library/sea-storm.md": "06a3d968fd0e7e7d"
   },
@@ -23,6 +23,7 @@
       "step": 5,
       "focus": "off",
       "typewriter": false,
+      "live": false,
       "chrome": "on",
       "caret": 0,
       "select": null,
@@ -33,7 +34,9 @@
       "menu": null,
       "library": "shots/oracle/library",
       "sidebar": true,
-      "search": null
+      "search": null,
+      "preview": null,
+      "template": "modern"
     },
     "search": {
       "text": "shots/oracle/library/sea-storm.md",
@@ -45,6 +48,7 @@
       "step": 5,
       "focus": "off",
       "typewriter": false,
+      "live": false,
       "chrome": "on",
       "caret": 0,
       "select": null,
@@ -55,7 +59,9 @@
       "menu": null,
       "library": "shots/oracle/library",
       "sidebar": true,
-      "search": "sea"
+      "search": "sea",
+      "preview": null,
+      "template": "modern"
     }
   }
 }

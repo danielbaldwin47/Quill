@@ -7,6 +7,7 @@
 //! Annotators consume, which is the `Text` events with Markup, code spans,
 //! fenced code, URLs and front matter removed.
 
+use std::collections::BTreeMap;
 use std::ops::Range;
 
 use pulldown_cmark::{Event, LinkType, OffsetIter, Options, Parser, Tag};
@@ -102,6 +103,34 @@ pub fn prose(text: &str) -> Vec<Prose<'_>> {
         }
     }
     runs
+}
+
+/// Every link-reference definition `text` writes, by the label that reaches it.
+///
+/// The one whole-document question about a link, and the reason it is asked
+/// here rather than in the Annotator: a link-reference definition can stand
+/// anywhere in the file, and the Markup Annotator reads a line at a time
+/// ([`crate::annotate::Mark::DefinitionLabel`] says so in as many words). A
+/// reference link's [`crate::annotate::Mark::Url`] is its *label* rather than
+/// an address, so the app resolves it through this before it opens anything.
+///
+/// The whole map rather than one lookup, because resolving a label is a parse
+/// of the file and a page can hold a dozen reference links: the caller builds
+/// this once for the page it is furnishing and reads it as often as it must
+/// (`quill::editor`'s `standing`). The parser collects every definition as it
+/// builds its tree, so the parse here is the one it was already doing.
+///
+/// Keyed by the label lowercased, and a caller lowercases what it looks up: a
+/// label matches case-insensitively, which is what the CommonMark spec asks
+/// for and what pulldown-cmark's own map does.
+#[must_use]
+pub fn references(text: &str) -> BTreeMap<String, String> {
+    let parser = Parser::new_ext(text, options());
+    parser
+        .reference_definitions()
+        .iter()
+        .map(|(label, defined)| (label.to_lowercase(), defined.dest.to_string()))
+        .collect()
 }
 
 /// Whether the text inside `tag` is something other than the writer's prose.
@@ -304,6 +333,24 @@ mod tests {
             &source[at.start - 1..at.start],
             "\\",
             "the backslash is uncovered, which is how subtraction marks it as Markup"
+        );
+    }
+
+    #[test]
+    fn a_reference_label_resolves_to_the_definitions_destination_whatever_its_case() {
+        let source = "See [the book][Ref] for it.\n\n[ref]: https://example.org/book\n";
+        let defined = references(source);
+        assert_eq!(
+            defined.get(&"Ref".to_lowercase()).map(String::as_str),
+            Some("https://example.org/book"),
+            "the label is written one way and defined another, and CommonMark \
+             folds the case of both"
+        );
+        assert_eq!(
+            defined.get("missing"),
+            None,
+            "a label nothing defines resolves to nothing, and the caller opens \
+             nothing"
         );
     }
 }

@@ -178,13 +178,13 @@ pub fn step_for_size(size: u32) -> u32 {
 
 /// How the air around a row of ink is divided between the three gaps GTK
 /// draws.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Leading {
-    /// `pixels-above-lines`: the air above a paragraph's first row.
+    /// The upper half of the air between two paragraphs.
     pub above: u32,
     /// `pixels-inside-wrap`: the air between the rows of one paragraph.
     pub inside_wrap: u32,
-    /// `pixels-below-lines`: the air below a paragraph's last row.
+    /// The lower half of the air between two paragraphs.
     pub below: u32,
 }
 
@@ -200,6 +200,14 @@ pub struct Leading {
 /// `below` plus `above` alone separate two paragraphs. They are also why the
 /// three do not sum to the air — each gap is drawn in one of those two places,
 /// never in both.
+///
+/// `above` and `below` are halves of one gap rather than two properties. The
+/// Editor hands GTK their **sum** as `pixels-above-lines` and leaves
+/// `pixels-below-lines` at zero (`quill::editor`'s `restyle`), because a
+/// non-zero bottom band is where GTK aborts on a paragraph holding invisible
+/// bytes (#279); `below` is given back to the code well's boundary rows
+/// through the tags `quill::tags`'s `well_leading` sets, which is what keeps
+/// the well's rectangle on the pixels it was on.
 #[must_use]
 pub fn leading(pitch: u32, row: u32) -> Leading {
     // A row of ink taller than the pitch has no air to give; the type is then

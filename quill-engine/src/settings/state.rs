@@ -182,6 +182,18 @@ pub struct State {
     /// so a file written beside a wider monitor never opens a pane with no
     /// page beside it.
     pub library_width: u32,
+    /// How wide the writer dragged the Preview pane, in logical pixels, and
+    /// [`None`] where they never dragged it — which is what the pair reads as
+    /// "divide evenly".
+    ///
+    /// One width for the app, as [`State::library_width`] is: every window
+    /// stands its pane at it and a drag in any of them moves all of them. It
+    /// is a width and not a fraction because that is what the writer dragged,
+    /// and it is pulled into range against the pair it stands in rather than
+    /// here, where the window it will open beside is not known yet. Half a pair
+    /// is not a width until there is a window to halve, so there is no width to
+    /// carry until the writer has dragged one.
+    pub preview_width: Option<u32>,
     /// Every key and table this Quill did not know, kept for the next write.
     rest: toml::Table,
 }
@@ -194,6 +206,7 @@ impl Default for State {
             carets: BTreeMap::new(),
             last_scheme: Scheme::default(),
             library_width: LIBRARY,
+            preview_width: None,
             rest: toml::Table::new(),
         }
     }
@@ -273,6 +286,14 @@ impl State {
         // not a writer's typo, and the pane opens at the nearest width it can
         // stand at.
         let width = reading.whole("library_width", LIBRARY, &(0..=LARGEST));
+        // Read at every whole number for the reason above, and not pulled into
+        // range at all: the range a Preview pane stands in is the pair's, and
+        // the pair is a window that has not opened yet.
+        // Zero on disk is the one number that is not a width: it is what a
+        // file written before any drag says, and what this writes back for
+        // [`None`], so the file keeps its one key either way.
+        let preview_width = reading.whole("preview_width", 0, &(0..=LARGEST));
+        let preview_width = (preview_width > 0).then_some(preview_width);
         // The windows are taken here and read below, once the reading of the
         // top level is done with the notes it is writing into.
         let windows = reading.tables("window");
@@ -287,6 +308,7 @@ impl State {
             carets: read_carets(&carets),
             last_scheme,
             library_width: library_width(width, LARGEST),
+            preview_width,
             rest,
         }
     }
@@ -298,6 +320,7 @@ impl State {
         writing.paths("recents", &self.recents);
         writing.choice("last_scheme", self.last_scheme);
         writing.whole("library_width", self.library_width);
+        writing.whole("preview_width", self.preview_width.unwrap_or(0));
         writing.rest(self.rest.clone());
         writing.tables(
             "window",
@@ -478,7 +501,14 @@ mod tests {
     fn every_key_the_state_file_holds_is_in_what_the_defaults_write() {
         let text = State::default().to_toml();
         let written: toml::Table = text.parse().expect("what is written is TOML");
-        for key in ["recents", "last_scheme", "library_width", "window", "caret"] {
+        for key in [
+            "recents",
+            "last_scheme",
+            "library_width",
+            "preview_width",
+            "window",
+            "caret",
+        ] {
             assert!(written.contains_key(key), "no `{key}` in:\n{text}");
         }
     }
@@ -503,6 +533,7 @@ mod tests {
                 .collect(),
             last_scheme: Scheme::Dark,
             library_width: 480,
+            preview_width: Some(620),
             rest: toml::Table::new(),
         };
         let text = state.to_toml();
@@ -563,6 +594,30 @@ mod tests {
             LARGEST - PAGE,
             "a pane as wide as the widest window leaves the page nothing"
         );
+    }
+
+    /// The Preview pane's width is the other half of the same story, with one
+    /// difference: nothing is clamped here, because the pane stands in a pair
+    /// and not in a window, and a file that says nothing is an even Split.
+    #[test]
+    fn the_width_the_preview_pane_was_dragged_to_comes_back_as_it_was() {
+        let path = scratch("preview_width").join(STATE_FILE);
+        let left = State {
+            preview_width: Some(620),
+            ..State::default()
+        };
+        left.write_to(&path).expect("writes the state file");
+        let (back, notes) = State::read_from(&path);
+        assert!(notes.is_empty(), "{notes:?}");
+        assert_eq!(back.preview_width, Some(620));
+
+        let (fresh, notes) = State::parse("recents = []\n");
+        assert!(notes.is_empty(), "{notes:?}");
+        assert_eq!(
+            fresh.preview_width, None,
+            "a file that never saw a drag divides the pair evenly"
+        );
+        assert_eq!(State::default().preview_width, None);
     }
 
     #[test]
