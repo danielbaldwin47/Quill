@@ -29,7 +29,7 @@ use quill_engine::commands;
 use quill_engine::disk::{Filed, Kept, Line, Noticed, OnDisk, Saved, first_save_name};
 use quill_engine::document::{Document, full_name};
 use quill_engine::focus::Focus;
-use quill_engine::settings::{Chrome, PreviewLayout, WindowState, library_width};
+use quill_engine::settings::{Chrome, PreviewLayout, PreviewMode, WindowState, library_width};
 use quill_engine::sync;
 
 use crate::caret;
@@ -1911,6 +1911,38 @@ impl Window {
         }
     }
 
+    /// Stands every window's Preview pane in `mode`, and writes the key.
+    ///
+    /// `docs/shortcuts.md`'s `preview.web` and `preview.pdf` rows, View ›
+    /// Panes' two mode rows and the Settings window's Mode row: one mode for
+    /// the app, as the Template is, and not a state a window is in.
+    ///
+    /// The write is the one path a setting takes
+    /// ([`Session::edit_settings`]), and the live value beside it is what
+    /// keeps the pane and the menu's check from waiting on the watch to read
+    /// that write back — the same pair a zoom step is
+    /// ([`Session::set_preview_mode`]).
+    pub(crate) fn set_preview_mode(&self, mode: PreviewMode) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        if mode == session.preview_mode() {
+            return;
+        }
+        session.set_preview_mode(mode);
+        session.edit_settings(|settings| settings.preview.mode = mode);
+        let Some(app) = self.application() else {
+            return;
+        };
+        for window in windows(&app) {
+            // A pane that is not open lays nothing out; the mode is on it all
+            // the same, so opening it later opens it in this one.
+            window.imp().preview.set_mode(mode);
+            window.refresh_preview();
+            window.show_page_words();
+        }
+    }
+
     /// Opens the Preview pane or shuts it.
     ///
     /// Closing hands the keyboard back to the Editor, which is what Full took
@@ -1923,6 +1955,8 @@ impl Window {
             self.refresh_preview();
             self.focus_pane();
         } else {
+            // The pane is away, so the page it stood over is not on the bar.
+            self.show_page_words();
             self.focus_editor();
         }
     }
@@ -2016,12 +2050,31 @@ impl Window {
             .preview
             .refresh(&document, &session.running(), session.ground().scheme);
         drop(document);
+        self.show_page_words();
         // The page is a new page, so the scroll it had means nothing: the pane
         // is put back by whichever rule last placed it. For an edit that is the
         // caret's block, which is what the writer was looking at (#263
         // § Refresh); a wheel or a task box flipped by a press left the pane in
         // step with the Editor instead, and it stays there.
         self.refollow();
+    }
+
+    /// Puts the page under the column's top edge on the stats bar, and takes
+    /// the cell away where there is no page there: Web mode, and a pane that
+    /// is not open.
+    ///
+    /// Asked of the pane rather than worked out here, because which mode is
+    /// showing and where it stands are both the pane's
+    /// ([`crate::preview::Preview::page_words`]); the words themselves are the
+    /// engine's, as the counts beside them are.
+    pub(crate) fn show_page_words(&self) {
+        let imp = self.imp();
+        let words = imp
+            .previewing
+            .get()
+            .then(|| imp.preview.page_words())
+            .flatten();
+        imp.bars.set_page(words);
     }
 
     /// Puts the Preview back where the rule that last placed it says, after a
@@ -2216,14 +2269,25 @@ impl Window {
             self,
             move |adjustment| window.follow_editor(adjustment.value()),
         ));
-        self.imp()
-            .preview
-            .vadjustment()
-            .connect_value_changed(glib::clone!(
-                #[weak(rename_to = window)]
-                self,
-                move |adjustment| window.follow_preview_scroll(adjustment.value()),
-            ));
+        let preview = self.imp().preview.vadjustment();
+        preview.connect_value_changed(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |adjustment| {
+                // The page counts up with the scroll however the scroll was
+                // made, a sync's own included, so this is read before the
+                // guard [`Window::follow_preview_scroll`] keeps.
+                window.show_page_words();
+                window.follow_preview_scroll(adjustment.value());
+            },
+        ));
+        // A column laid out again is a new count of pages under an unmoved
+        // scroll, which `changed` says and `value-changed` does not.
+        preview.connect_changed(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |_| window.show_page_words(),
+        ));
     }
 
     /// Works Live's furniture out again for the rows a scroll or a resize

@@ -40,7 +40,9 @@ use gtk::{cairo, gio, glib};
 use quill_engine::commands::{self, COMMANDS, Command, Kind, Menu, Scope};
 use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
-use quill_engine::settings::{Choice, Chrome, FocusScope, PreviewLayout, TemplateName};
+use quill_engine::settings::{
+    Choice, Chrome, FocusScope, PreviewLayout, PreviewMode, TemplateName,
+};
 use quill_engine::shortcuts::{Chord, Refusal};
 use quill_engine::stats::words;
 use quill_engine::theme::{Role, Scheme};
@@ -85,6 +87,10 @@ pub struct Modes {
     /// The layout the pane last showed, and the one it shows now while open,
     /// `split` or `full`. The session's, unlike the pane itself.
     pub preview_layout: &'static str,
+    /// What the pane draws, `web` or `pdf`. A setting rather than a state the
+    /// window is in, so one of the two rows is ticked whether a pane is open
+    /// or not (#299).
+    pub preview_mode: &'static str,
     /// The Template the page is laid out in, `modern` to
     /// `manuscript-quattro`.
     pub template: &'static str,
@@ -125,6 +131,7 @@ impl Modes {
             library,
             preview,
             preview_layout: session.preview_layout().as_str(),
+            preview_mode: session.preview_mode().as_str(),
             template: session.template().name.as_str(),
             center_headings: session.template().center_headings,
             number_headings: session.template().number_headings,
@@ -362,6 +369,9 @@ pub fn reflect(map: &impl IsA<gio::ActionMap>, modes: Modes) {
     let showing = |layout: &str| (modes.preview && modes.preview_layout == layout).to_variant();
     set("preview.full", showing("full"));
     set("preview.split", showing("split"));
+    // The mode is not one of those states: it is the setting the pane reads
+    // whenever it opens, so its row is ticked with the pane away as well.
+    set("preview_mode", modes.preview_mode.to_variant());
     // With Focus off neither scope's row is ticked, as the oracle's menu
     // has it: the scope the file holds is the one Focus comes back to, not
     // a state the page is in.
@@ -450,6 +460,10 @@ fn run_window(window: &Window, command: &Command) {
         // already showing.
         "preview.full" => window.preview_to(PreviewLayout::Full),
         "preview.split" => window.preview_to(PreviewLayout::Split),
+        // The two mode rows write the setting the pane reads: what a pane
+        // shows, rather than whether one is open.
+        "preview.web" => window.set_preview_mode(PreviewMode::Web),
+        "preview.pdf" => window.set_preview_mode(PreviewMode::Pdf),
         "library.search" => window.search_library(),
         "chrome.stats" => window.toggle_stats(),
         "chrome.doc" | "chrome.view" => {
@@ -875,6 +889,12 @@ pub struct Bars {
     bottom: gtk::Overlay,
     title: gtk::Label,
     stats: [gtk::Label; 3],
+    /// The page the Preview's column stands over, beside the three counts and
+    /// away while the pane is showing anything else (#299). A cell of its own
+    /// rather than a fourth count: the words are the engine's whole answer
+    /// ([`quill_engine::paginate::page_words`]) and not a number and a name,
+    /// and no ground change re-inks it.
+    page: gtk::Label,
     /// The hairline under the title bar, shown once the page has scrolled
     /// past its top (`#chrome-top::after`).
     over: gtk::DrawingArea,
@@ -984,12 +1004,18 @@ impl Bars {
                 .valign(gtk::Align::Center)
                 .build()
         });
+        let page = gtk::Label::builder()
+            .css_classes(["chrome-stat"])
+            .valign(gtk::Align::Center)
+            .visible(false)
+            .build();
         let line = gtk::Box::new(gtk::Orientation::Horizontal, STAT_GAP);
         // Half a pixel up, for the reason the title's margin gives.
         line.set_margin_bottom(1);
         for stat in &stats {
             line.append(stat);
         }
+        line.append(&page);
         // No Command opens the Stats menu — the oracle's bar opens it on a
         // click and nothing else does — so the click asks the window
         // directly, the way `chrome.doc` and `chrome.view` reach it.
@@ -1023,6 +1049,7 @@ impl Bars {
             bottom,
             title,
             stats,
+            page,
             over,
             under,
             rows,
@@ -1192,6 +1219,24 @@ impl Bars {
             (words, "read"),
         ]);
         self.ink_counts();
+    }
+
+    /// Says which page the Preview's column stands over, or takes the cell
+    /// away where no page does: Web mode, and a pane that is not open at all.
+    ///
+    /// The words are the engine's ([`quill_engine::paginate::page_words`]), so
+    /// the bar and the page's own footer count pages the one way.
+    pub fn set_page(&self, page: Option<String>) {
+        match page {
+            Some(words) => {
+                self.page.set_text(&words);
+                self.page.set_visible(true);
+            }
+            None => {
+                self.page.set_text("");
+                self.page.set_visible(false);
+            }
+        }
     }
 
     /// The stats bar's three cells, as `("188", "words")`.
@@ -1807,6 +1852,15 @@ mod tests {
     /// The modes the two reflect tests read, with the Preview pane's pair as
     /// the case asks for them.
     fn preview_modes(preview: bool, preview_layout: &'static str) -> Modes {
+        preview_modes_at(preview, preview_layout, "web")
+    }
+
+    /// The same, with the mode the case asks for.
+    fn preview_modes_at(
+        preview: bool,
+        preview_layout: &'static str,
+        preview_mode: &'static str,
+    ) -> Modes {
         Modes {
             focus: true,
             focus_scope: "paragraph",
@@ -1821,6 +1875,7 @@ mod tests {
             library: true,
             preview,
             preview_layout,
+            preview_mode,
             template: "classic",
             center_headings: true,
             number_headings: true,
@@ -1854,6 +1909,10 @@ mod tests {
         );
         assert_eq!(state("preview.split").get::<bool>(), Some(false));
         assert_eq!(
+            state("preview_mode").get::<String>().as_deref(),
+            Some("web")
+        );
+        assert_eq!(
             state("template").get::<String>().as_deref(),
             Some("classic")
         );
@@ -1876,6 +1935,23 @@ mod tests {
             let state = |name: &str| map.action_state(name).unwrap();
             assert_eq!(state("preview.full").get::<bool>(), Some(false));
             assert_eq!(state("preview.split").get::<bool>(), Some(false));
+        }
+    }
+
+    /// The mode's row is the setting and not the pane: it is ticked with the
+    /// pane away, and the row ticked is the mode the session holds (#299).
+    #[test]
+    fn preview_mode_ticks_the_mode_the_session_holds_with_the_pane_away() {
+        let (map, _) = map(Scope::Win);
+        for mode in ["web", "pdf"] {
+            reflect(&map, preview_modes_at(false, "split", mode));
+            assert_eq!(
+                map.action_state("preview_mode")
+                    .unwrap()
+                    .get::<String>()
+                    .as_deref(),
+                Some(mode)
+            );
         }
     }
 

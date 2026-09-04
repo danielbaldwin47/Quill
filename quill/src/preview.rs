@@ -520,6 +520,20 @@ impl Preview {
         }
     }
 
+    /// What the stats bar says about the page under the pane's top edge, and
+    /// nothing in Web mode, where a sheet has no pages to be on.
+    ///
+    /// Read off the scroller's own value rather than handed one, so that the
+    /// answer is the pane as it stands whoever asks and whenever
+    /// ([`crate::window::Window::show_page_words`]).
+    #[must_use]
+    pub fn page_words(&self) -> Option<String> {
+        match self.mode.get() {
+            PreviewMode::Web => None,
+            PreviewMode::Pdf => self.column.page_words(self.vadjustment().value()),
+        }
+    }
+
     /// What the pane scrolls by: what a wheel or a scrollbar over it moves,
     /// and what a sync applies its answer to (#270).
     #[must_use]
