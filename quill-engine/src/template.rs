@@ -268,6 +268,24 @@ pub fn built_in(id: &str) -> Result<Template, Error> {
         .unwrap_or_else(|err| panic!("the compiled-in Template {id} parses: {err}")))
 }
 
+/// The built-in Template `id` names, falling back to [`DEFAULT`].
+///
+/// What every reader of the `[template]` table asks for: a settings file can
+/// name a Template that is not compiled in — one from a newer Quill, or a typo
+/// — and the Preview and Export both still have to lay the Document out in
+/// something ([`built_in`] is the answer that says which of the two happened).
+///
+/// # Panics
+///
+/// Panics when [`DEFAULT`] is not a compiled-in Template, which
+/// `every_built_in_names_itself` holds it to.
+#[must_use]
+pub fn named(id: &str) -> Template {
+    built_in(id)
+        .or_else(|_| built_in(DEFAULT))
+        .expect("the default Template is compiled in")
+}
+
 /// A colour as a Template file writes it: `#rrggbb`.
 ///
 /// [`crate::theme::Colour`] is not `serde`'s to derive — it is four floats, and

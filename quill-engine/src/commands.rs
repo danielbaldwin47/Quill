@@ -228,7 +228,12 @@ pub const COMMANDS: &[Command] = &[
     row("file.saveAs", "Save As…", Scope::Win, Kind::Plain, &["Ctrl+Shift+S"], &[place(DOC, None, "Save As…")], true),
     row("file.rename", "Rename Document…", Scope::Win, Kind::Plain, &["F2"], &[place(DOC, None, "Rename Document…")], true),
     row("file.duplicate", "Duplicate Document", Scope::Win, Kind::Plain, &[], &[place(DOC, None, "Duplicate Document")], true),
-    row("export.open", "Export…", Scope::Win, Kind::Plain, &["Ctrl+Shift+E"], &[place(DOC, None, "Export…")], false),
+    row("export.pdf", "PDF…", Scope::Win, Kind::Plain, &["Ctrl+Shift+E"], &[place(DOC, None, "PDF…")], true),
+    row("export.html", "HTML…", Scope::Win, Kind::Plain, &[], &[place(DOC, None, "HTML…")], true),
+    row("export.markdown", "Markdown…", Scope::Win, Kind::Plain, &[], &[place(DOC, None, "Markdown…")], true),
+    row("export.quick", "Quick Export PDF", Scope::Win, Kind::Plain, &["Ctrl+Shift+P"], &[place(DOC, None, "Quick Export PDF")], true),
+    row("export.copyHtml", "Copy as HTML", Scope::Win, Kind::Plain, &["Ctrl+Shift+C"], &[place(DOC, None, "Copy as HTML")], true),
+    row("print", "Print…", Scope::Win, Kind::Plain, &["Ctrl+P"], &[place(DOC, None, "Print…")], true),
     row("window.close", "Close Window", Scope::Win, Kind::Plain, &["Ctrl+W"], &[place(DOC, None, "Close Window")], true),
     row("app.quit", "Quit", Scope::App, Kind::Plain, &["Ctrl+Q"], &[place(DOC, None, "Quit")], true),
     // View › Focus.
@@ -279,7 +284,7 @@ pub const COMMANDS: &[Command] = &[
     row("window.fullscreen", "Full Screen", Scope::Win, Kind::Check, &["F11"], &[place(VIEW, Some("Window"), "Full Screen")], true),
     row("settings.open", "Settings…", Scope::Win, Kind::Plain, &["Ctrl+,"], &[place(VIEW, Some("Window"), "Settings…")], true),
     row("shortcuts.open", "Keyboard Shortcuts", Scope::Win, Kind::Plain, &["Ctrl+?"], &[place(VIEW, Some("Window"), "Keyboard Shortcuts")], true),
-    row("palette.open", "All Commands…", Scope::Win, Kind::Plain, &["Ctrl+K", "Ctrl+Shift+P"], &[place(VIEW, Some("Window"), "All Commands…")], true),
+    row("palette.open", "All Commands…", Scope::Win, Kind::Plain, &["Ctrl+K"], &[place(VIEW, Some("Window"), "All Commands…")], true),
     // Stats menu.
     row("stats.words", "Words", Scope::Win, Kind::Radio { group: "stats", value: "words", }, &[], &[place(STATS, None, "Words")], false),
     row("stats.characters", "Characters", Scope::Win, Kind::Radio { group: "stats", value: "characters", }, &[], &[place(STATS, None, "Characters")], false),
@@ -306,7 +311,6 @@ pub const COMMANDS: &[Command] = &[
 /// Chords with no Command yet, held so nothing else takes them
 /// (`docs/shortcuts.md` § Reserved chords).
 pub const RESERVED: &[&str] = &[
-    "Ctrl+P",
     "Ctrl+1",
     "Ctrl+2",
     "Ctrl+3",
@@ -319,7 +323,6 @@ pub const RESERVED: &[&str] = &[
     "Ctrl+H",
     "Ctrl+G",
     "Ctrl+Shift+G",
-    "Ctrl+Shift+C",
 ];
 
 /// Chords `GtkTextView` takes before a window shortcut sees them, so a
@@ -814,7 +817,7 @@ mod tests {
                 .iter()
                 .any(|fault| fault.starts_with("ids differ"))
         );
-        let reserved = doc.replace("| `Ctrl+P` | Print |", "| `Ctrl+J` | Print |");
+        let reserved = doc.replace("| `Ctrl+B`, `Ctrl+I` |", "| `Ctrl+J`, `Ctrl+I` |");
         assert_ne!(reserved, doc);
         assert!(
             check(&reserved)
@@ -870,8 +873,9 @@ mod tests {
     fn a_chord_finds_its_command_by_default_or_alias() {
         assert_eq!(by_chord("Ctrl+E").map(|c| c.id), Some("library.toggle"));
         assert_eq!(by_chord("F9").map(|c| c.id), Some("library.toggle"));
-        assert_eq!(by_chord("Ctrl+Shift+P").map(|c| c.id), Some("palette.open"));
-        assert_eq!(by_chord("Ctrl+P"), None);
+        assert_eq!(by_chord("Ctrl+Shift+P").map(|c| c.id), Some("export.quick"));
+        // A reserved chord has no Command yet, so it finds none.
+        assert_eq!(by_chord("Ctrl+B"), None);
         assert_eq!(by_id("app.quit").map(Command::name), Some("quit"));
         assert_eq!(
             by_id("app.quit").map(Command::action).as_deref(),

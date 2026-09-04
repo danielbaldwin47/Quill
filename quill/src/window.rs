@@ -664,7 +664,7 @@ impl Window {
     }
 
     /// The file this window's Document is, or `None` while it is untitled.
-    fn path(&self) -> Option<PathBuf> {
+    pub(crate) fn path(&self) -> Option<PathBuf> {
         self.imp().filed.borrow().path().map(Path::to_path_buf)
     }
 
@@ -960,6 +960,34 @@ impl Window {
         }
     }
 
+    /// Gives an untitled Document a file so that `export.quick` has something
+    /// to stand a PDF beside, and exports once it has one.
+    ///
+    /// [`Window::save`]'s own decision, so that a Quick Export asks exactly
+    /// what a save would ask: the first-save folder where the Library names
+    /// one, and the Save As dialog where it does not. A save that does not
+    /// happen — a cancelled dialog, a write that failed — exports nothing.
+    pub(crate) fn save_before_export(&self) {
+        match self.first_save_folder() {
+            Where::Folder(folder) => {
+                if self.write(Some(&folder)) {
+                    crate::export::quick(self);
+                }
+            }
+            Where::Ask => self.save_as(After::Export),
+        }
+    }
+
+    /// Puts `words` on the status line at the foot of the Library over
+    /// whatever it now says.
+    ///
+    /// A notice rather than a state: the next [`Window::show_standing`] takes
+    /// it back down, which is what the trash notice is and what a file
+    /// export's confirmation is ([`crate::export::confirm`]).
+    pub(crate) fn notice(&self, words: &str) {
+        self.imp().sidebar.set_status(words);
+    }
+
     /// `file.saveAs`: the writer names the file, and the Document is that file
     /// from then on.
     ///
@@ -996,8 +1024,13 @@ impl Window {
                         // waiting on the save stays open.
                         return;
                     };
-                    if window.write_as(&path) && after == After::Close {
-                        window.leave();
+                    if !window.write_as(&path) {
+                        return;
+                    }
+                    match after {
+                        After::Stay => {}
+                        After::Close => window.leave(),
+                        After::Export => crate::export::quick(&window),
                     }
                 },
             ),
@@ -2474,7 +2507,7 @@ impl Window {
     }
 
     /// Opens the Palette over the page, or closes it: `palette.open`, which
-    /// is `Ctrl+K`, `Ctrl+Shift+P` and View › Window "All Commands…". A
+    /// is `Ctrl+K` and View › Window "All Commands…". A
     /// menu that is up closes first, and the bars come back as they do for a
     /// menu.
     pub(crate) fn open_palette(&self) {
@@ -2562,6 +2595,32 @@ impl Window {
                 Some(flags::Menu::Palette) => window.open_palette(),
                 None => {}
             }
+        });
+    }
+
+    /// Opens the Export dialog `--export-dialog` named, its Options expander
+    /// open, once the window has painted its first frame.
+    ///
+    /// Held until then for the reason [`Self::open_flagged`] holds a menu: a
+    /// second surface over a toplevel the compositor has no frame of yet keeps
+    /// the toplevel from ever mapping, and the shot never comes.
+    ///
+    /// The format is carried in the callback rather than in the window,
+    /// because `after-paint` runs on every frame and this is the first
+    /// frame's alone: the [`Cell`] is emptied by the frame that opens the
+    /// dialog, so a writer looking at a judged shot is not looking at a stack
+    /// of them.
+    fn open_flagged_export(&self, format: crate::export_dialog::Format) {
+        let Some(clock) = self.frame_clock() else {
+            return;
+        };
+        let window = self.downgrade();
+        let asked = std::cell::Cell::new(Some(format));
+        clock.connect_after_paint(move |_| {
+            let (Some(window), Some(format)) = (window.upgrade(), asked.take()) else {
+                return;
+            };
+            crate::export_dialog::open_expanded(&window, format);
         });
     }
 
@@ -2733,6 +2792,10 @@ pub(crate) enum After {
     Stay,
     /// The window closes: the Save button of the prompt a close asked.
     Close,
+    /// The Document is exported: `export.quick` on an untitled Document, which
+    /// asks for a file before it has anything to stand a PDF beside
+    /// ([`Window::save_before_export`]).
+    Export,
 }
 
 /// Where the Preview pane stands once a Preview chord has been pressed.
@@ -2953,6 +3016,13 @@ pub fn present_launch(app: &gtk::Application, session: &Rc<Session>) {
         // with the page.
         if let Some(menu) = session.flags().menu {
             window.open_flagged(menu);
+        }
+        // The Export dialog last of all, and for the same reason a menu is
+        // held: it is a second surface over a window that has to be mapped
+        // and laid out first, and its own seeded file name is read off the
+        // Document that was shown above.
+        if let Some(format) = session.flags().export_dialog {
+            window.open_flagged_export(format);
         }
     }
     if let Some(window) = first

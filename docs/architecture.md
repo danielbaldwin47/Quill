@@ -22,10 +22,16 @@ Every type both crates share is defined in the engine. `tools/gate check` runs `
 workspace; a test that needs a window is harness, not test.
 
 Engine modules, one per concept: `document` (text and block index), `markdown` (the parser, one
-shared `Options`), `annotate` (the Annotator trait, spans, run flattening), `focus` (sentence
+shared `Options`), `front_matter` (the `title`, `author` and `date` Export reads out of a
+Document's metadata block, and nothing written back), `annotate` (the Annotator trait, spans, run
+flattening), `focus` (sentence
 segmentation, the bright tier and the one dim tier —
 [ADR 0015](adr/0015-the-design-oracle-outranks-the-parity-oracle.md)), `library`, `settings`, `template`,
-`render` (Pango layout for Preview, PDF and HTML), `stats`, `outline`, `spell` (the `SpellChecker`
+`render` (Pango layout for Preview, PDF and HTML), `paginate` (a rendered page cut into pages of
+paper under Export's geometry), `html` (the standalone export page and the body fragment Copy as
+HTML carries), `draw` (one page of paper painted onto a cairo context, for both of Export's page
+sinks), `pdf` (the PDF file: the surface, the metadata and the bookmarks), `stats`, `outline` (the
+heading list a bookmark and Heading navigation are made of), `spell` (the `SpellChecker`
 trait and the enchant and `spellbook` implementations), `pos` (Syntax highlight), `style` (Style
 check), `typography` (the pitch, the measure, the 78-cell text container and its gutters —
 [ADR 0016](adr/0016-the-text-container-is-78-cells.md) — and the page margins), `theme` (the two
@@ -140,7 +146,8 @@ theme `auto` follows the settings portal's colour scheme.
 Two windows besides: `Ctrl+?` is a `GtkShortcutsWindow` listing every Command with the chord the
 effective map leaves it on, grouped as the menus are and built afresh on every open; `Ctrl+,` is a
 Settings window, one grid of the rows that have no menu home — the Typewriter anchor, Follow System,
-the Spell-check language, a button that opens `settings.toml` in the system editor, and whatever the
+the Spell-check language, the Library's own rows, the `[export]` group a printed or exported page is
+laid out on, a button that opens `settings.toml` in the system editor, and whatever the
 last read of that file could not apply — a file that is not TOML says so there, above the entries it
 refused. Both are transient for the window they were opened from, and no row
 of either sets a value on the session: a row writes the file and the watch below applies it.
@@ -166,7 +173,11 @@ default true, `number_headings` and `indent_paragraphs`, the three toggles that 
 `[preview]` table (`layout`, split or full, and `zoom`, a whole percentage from 50 to 200, default
 100; a scalar `template` or `preview_layout`, which is how each was written before it was a table, is
 read as its table's value and rewritten as the table on the next write, as a scalar `library` is),
-`palette` (the file the grounds take their colours from, `design.md` § The palette is a
+an `[export]` table (`paper`, one of `auto`, `a4`, `letter` and `legal`, default `auto`, which is
+resolved to the desktop locale's paper at the moment a page is laid out and never written back as a
+size; `margin` in whole millimetres, 0 to 50, default 20; `text_size` in whole points, 9 to 18,
+default 12; and `title_page`, `header` and `footer`, the three pieces of furniture outside the text,
+all default false), `palette` (the file the grounds take their colours from, `design.md` § The palette is a
 file; empty is the built-ins), a `[library]` table (`locations` and `pinned`, two lists of paths,
 and `show_hidden`, `show_extensions`, `confirm_move` and `ask_where_to_save`, four booleans that
 default to false; a scalar `library` naming one folder, which is how the Library was written before
@@ -216,11 +227,17 @@ remembers nothing it could not act on.
 The engine's `render` module lays a whole Document out with Pango from the current Template ([ADR
 0005](adr/0005-native-templates.md)): one pass produces the layouts the Preview widget snapshots and
 the pages the PDF surface draws. Preview re-renders on idle after edits, debounced, and restores its
-scroll to the block the caret is in. PDF export runs through `GtkPrintOperation` in export mode so
-Print and Export to PDF are one path, with heading bookmarks from the outline and page geometry
-(size, margins, header, footer, title page) owned by Export, not the Template. HTML export is the
-parser's HTML plus the CSS the Template generates, inlined. Annotator marks never reach Preview or
-Export.
+scroll to the block the caret is in. `paginate` cuts that one tall rendered page into pages of paper
+under the page geometry (size, margins, header, footer, title page) owned by Export, not the
+Template: a heading never ends a page and moves with the block after it, a paragraph splits between
+lines with at least two on each side or moves whole, a code block splits at a line boundary with its
+Well ground carried on to the next page, a quotation splits at a line boundary and has no ground to
+carry, and neither a thematic break nor the line after a hard break ever opens one. There is no page-break syntax. `draw` paints one such page onto
+any cairo context, and both of the page sinks are fed by it: PDF export is the engine's own
+`cairo::PdfSurface` at the paper's size (`pdf`), with the document metadata and the heading
+bookmarks from `outline` on it, and `GtkPrintOperation` is Print's sink alone, the drawer called
+from its `draw-page`. HTML export is the parser's HTML plus the CSS the Template generates, inlined.
+Annotator marks never reach Preview or Export.
 
 Preview ships without tables, figures and footnote blocks first; they are the last renderer work and
 sit behind the Gate like everything else.
@@ -259,7 +276,13 @@ and the determinism settings, this document names the flags:
   booleans off, so a writer who turned on hidden files or extensions does not change the shot),
   `--sidebar` (open with the Library beside the page), `--search <query>` (put `<query>` in the
   Library's search field and narrow the list to what it finds; refused without `--sidebar`, which is
-  the pane the field stands in), `--w <px> --h <px>`. Both `--typing` and `--menu` name a state the app is
+  the pane the field stands in), `--export-dialog pdf|html|markdown` (open that format's Export
+  dialog over the page with its Options expander open, once the window has painted its first frame —
+  a still cannot pull an expander, and a second surface over a toplevel the compositor has no frame
+  of yet keeps the toplevel from ever mapping; `[export]` itself has no flag, and is pinned to its
+  defaults under `--deterministic` with `paper` past its own default, because `auto` is the host's
+  locale and a judged shot is the same on every machine), `--w <px> --h <px>`. Both `--typing` and
+  `--menu` name a state the app is
   put in before the first frame, never one it is driven into after it.
 - Harness: `--deterministic` (animations off, blink off, manual font rendering with pinned antialias,
   slight hinting, no subpixel, 96 dpi, hinted metrics, no client-side decorations; and Typewriter

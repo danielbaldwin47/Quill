@@ -17,8 +17,9 @@ use crate::commands::{COMMANDS, Command, Kind};
 use crate::document::shown_name;
 
 /// The oracle's four sections, by the registry's ids in the oracle's order
-/// and membership (`chrome.js:364-368`; the oracle's `file.export` is
-/// `export.open` here).
+/// and membership (`chrome.js:364-368`; the oracle's one `file.export` is
+/// `export.pdf` here, and the other four Export Commands, which the oracle has
+/// no row for, fall to [`MORE`] with the rest of the table).
 pub const SECTIONS: [(&str, &[&str]); 4] = [
     (
         "Write",
@@ -63,7 +64,7 @@ pub const SECTIONS: [(&str, &[&str]); 4] = [
             "file.saveAs",
             "file.rename",
             "file.duplicate",
-            "export.open",
+            "export.pdf",
             "file.next",
             "file.prev",
             "file.follow",

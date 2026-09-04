@@ -7,9 +7,12 @@
 //! sections are `GMenu` sections, which `GtkPopoverMenu` draws with a
 //! separator between them; the Syntax highlight rows are a nested submenu
 //! under their head, and the Template section is a nested submenu of its own
-//! name. A row's action is the Command's, so the check or the
-//! radio the popover draws reads the stateful action the chord fires, and a
-//! Command not built yet has a disabled action, which is the greyed row.
+//! name. The Document menu's five `export.` rows are a nested submenu of
+//! their own name too, and Print… stands in a section of its own beneath it,
+//! which is the separator on each side of it. A row's action is the Command's,
+//! so the check or the radio the popover draws reads the stateful action the
+//! chord fires, and a Command not built yet has a disabled action, which is
+//! the greyed row.
 //! Document → Open Recent is the one row no Command places: a submenu of the
 //! recents the caller hands over, appended after Open File… and opening each
 //! Document through [`chrome::RECENT_OPEN`] (#246). The accelerator
@@ -37,6 +40,17 @@ const HEADED: &str = "Typeface";
 /// separators: eight rows is a menu's worth, and a Template is picked once and
 /// left (`docs/shortcuts.md` § View menu).
 const SUBMENU: &str = "Template";
+/// The Document menu's rows that fold into a submenu of their own name the
+/// same way, by the prefix their ids share: five sinks is a menu's worth, and
+/// a writer reaches for the File menu to save far oftener than to export
+/// (`docs/shortcuts.md` § Document menu).
+const EXPORT_PREFIX: &str = "export.";
+/// What the row that opens that submenu reads.
+const EXPORT_HEAD: &str = "Export";
+/// The Document menu's row that stands alone between two separators:
+/// printing a Document is not exporting one, so it is not in the submenu, and
+/// it is not one of the file operations above it either.
+const PRINT: &str = "print";
 /// The Stats menu's last row, the one that hides the bar.
 const HIDE_STATS: &str = "chrome.stats";
 /// The row Open Recent opens under, where a writer looks for it: under the
@@ -60,15 +74,45 @@ pub fn model(menu: Menu, modes: &Modes, recents: &[PathBuf]) -> gio::Menu {
     let model = gio::Menu::new();
     match menu {
         Menu::Document => {
+            // Three sections, so the popover draws a separator on each side
+            // of Print…: the file operations and the Export submenu, then
+            // Print… alone, then the two rows that end the menu.
+            let exports = gio::Menu::new();
+            for (command, placement) in rows(menu).filter(|(command, _)| is_export(command)) {
+                exports.append_item(&item(command, placement, modes));
+            }
+            let files = gio::Menu::new();
+            let printing = gio::Menu::new();
+            let closing = gio::Menu::new();
+            let mut printed = false;
+            let mut opened = false;
             for (command, placement) in rows(menu) {
-                model.append_item(&item(command, placement, modes));
+                if is_export(command) {
+                    // The row that opens the submenu stands where the first
+                    // of its rows stands in the table.
+                    if !opened {
+                        files.append_item(&gio::MenuItem::new_submenu(Some(EXPORT_HEAD), &exports));
+                        opened = true;
+                    }
+                    continue;
+                }
+                if command.id == PRINT {
+                    printing.append_item(&item(command, placement, modes));
+                    printed = true;
+                    continue;
+                }
+                let into = if printed { &closing } else { &files };
+                into.append_item(&item(command, placement, modes));
                 // A writer who has opened nothing yet gets no row rather than
                 // an empty one that opens on nothing.
                 if command.id == RECENT_AFTER && !recents.is_empty() {
                     let submenu = recent_menu(recents);
-                    model.append_item(&gio::MenuItem::new_submenu(Some(RECENT_HEAD), &submenu));
+                    into.append_item(&gio::MenuItem::new_submenu(Some(RECENT_HEAD), &submenu));
                 }
             }
+            model.append_section(None, &files);
+            model.append_section(None, &printing);
+            model.append_section(None, &closing);
         }
         Menu::Stats => {
             // The table's § Stats menu: the radios, then "the last row hides
@@ -184,6 +228,11 @@ fn template_section(
     submenu.append_section(None, &toggles);
     section.append_item(&gio::MenuItem::new_submenu(Some(name), &submenu));
     section
+}
+
+/// An `export.` Command: one of the Export submenu's rows.
+fn is_export(command: &Command) -> bool {
+    command.id.starts_with(EXPORT_PREFIX)
 }
 
 /// A `syntax.` Command other than the head: one of the submenu's rows.
@@ -328,14 +377,97 @@ mod tests {
             .collect()
     }
 
-    /// The Document menu is the table's ten rows in the table's order, New
+    /// The Document menu is the table's rows in the table's order, New
     /// Document first and Quit last, and with no recents it is only those.
+    /// The five Export rows draw inside the submenu that stands where the
+    /// first of them stands, so flattened they are still in the table's
+    /// order.
     #[test]
     fn the_document_menu_is_the_tables_rows_in_the_tables_order() {
         let labels = labels(&model(Menu::Document, &Modes::default(), &[]));
         assert_eq!(labels, placed(Menu::Document));
         assert_eq!(labels.first().map(String::as_str), Some("New Document"));
         assert_eq!(labels.last().map(String::as_str), Some("Quit"));
+    }
+
+    /// The five Export rows are one submenu of their own name, standing where
+    /// the first of them stands in the table, and Print… is a section of its
+    /// own beneath it — a separator on each side.
+    #[test]
+    fn the_export_rows_are_a_submenu_and_print_stands_alone_beneath_it() {
+        let model = model(Menu::Document, &Modes::default(), &[]);
+        assert_eq!(model.n_items(), 3, "three sections, two separators");
+        let files = model.item_link(0, "section").expect("the file operations");
+        let at = files.n_items() - 1;
+        let label = files
+            .item_attribute_value(at, "label", Some(glib::VariantTy::STRING))
+            .and_then(|value| value.get::<String>());
+        assert_eq!(label.as_deref(), Some(EXPORT_HEAD), "the last row opens it");
+        let submenu = files.item_link(at, "submenu").expect("the submenu");
+        let inside: Vec<String> = rows_of(&submenu)
+            .into_iter()
+            .flatten()
+            .map(|row| row.label)
+            .collect();
+        assert_eq!(
+            inside,
+            [
+                "PDF…",
+                "HTML…",
+                "Markdown…",
+                "Quick Export PDF",
+                "Copy as HTML"
+            ]
+        );
+        let printing = model.item_link(1, "section").expect("the print section");
+        assert_eq!(printing.n_items(), 1, "Print… is the whole section");
+        let rows = rows_of(&printing);
+        let row = rows[0].as_ref().unwrap();
+        assert_eq!(row.label, "Print…");
+        assert_eq!(row.action.as_deref(), Some("win.print"));
+        let closing = model.item_link(2, "section").expect("the closing rows");
+        let after: Vec<String> = rows_of(&closing)
+            .into_iter()
+            .flatten()
+            .map(|row| row.label)
+            .collect();
+        assert_eq!(after, ["Close Window", "Quit"]);
+    }
+
+    /// Print… is built and stands in the Document menu under the Export rows
+    /// rather than inside the submenu, which is the separator the spec asks
+    /// for; #290 built the Command behind the row.
+    #[test]
+    fn print_stands_built_below_the_export_rows() {
+        let print = by_id(PRINT).expect(PRINT);
+        assert!(print.built, "{PRINT} is not built");
+        assert!(!is_export(print), "{PRINT} is inside the Export submenu");
+        for id in ["export.pdf", "export.html", "export.markdown"] {
+            assert!(by_id(id).expect(id).built, "{id} is not built");
+        }
+    }
+
+    /// The two Commands that need no dialog are built, and each is a row of
+    /// the Export submenu rather than a Palette-only id; #287 built them.
+    #[test]
+    fn quick_export_and_copy_as_html_are_built_in_the_export_submenu() {
+        for (id, label) in [
+            ("export.quick", "Quick Export PDF"),
+            ("export.copyHtml", "Copy as HTML"),
+        ] {
+            let command = by_id(id).expect(id);
+            assert!(command.built, "{id} is not built");
+            assert!(is_export(command), "{id} is not an Export row");
+            assert_eq!(
+                command
+                    .placements
+                    .iter()
+                    .map(|placement| (placement.menu, placement.label))
+                    .collect::<Vec<_>>(),
+                [(Menu::Document, label)],
+                "{id} stands in the Document menu under its own label"
+            );
+        }
     }
 
     /// Open Recent is a submenu under Open File…, holding the recents by the
@@ -355,7 +487,8 @@ mod tests {
             + 1;
         expected.splice(at..at, ["draft-0".to_string(), "draft-1".to_string()]);
         assert_eq!(labels(&model), expected, "the submenu's rows draw in place");
-        let submenu = model.item_link(3, "submenu").expect("Open Recent");
+        let files = model.item_link(0, "section").expect("the file operations");
+        let submenu = files.item_link(3, "submenu").expect("Open Recent");
         let rows = rows_of(&submenu);
         assert_eq!(rows.len(), 2);
         let row = rows[0].as_ref().unwrap();
@@ -373,7 +506,8 @@ mod tests {
             &Modes::default(),
             std::slice::from_ref(&path),
         );
-        let submenu = model.item_link(3, "submenu").expect("Open Recent");
+        let files = model.item_link(0, "section").expect("the file operations");
+        let submenu = files.item_link(3, "submenu").expect("Open Recent");
         let row = rows_of(&submenu).remove(0).expect("the one recent");
         assert_eq!(
             row.label, "sea__storm__two",
@@ -387,7 +521,8 @@ mod tests {
     fn open_recent_lists_the_ten_newest_and_no_more() {
         let recents = opened(25);
         let model = model(Menu::Document, &Modes::default(), &recents);
-        let submenu = model.item_link(3, "submenu").expect("Open Recent");
+        let files = model.item_link(0, "section").expect("the file operations");
+        let submenu = files.item_link(3, "submenu").expect("Open Recent");
         let names: Vec<String> = rows_of(&submenu)
             .into_iter()
             .flatten()
