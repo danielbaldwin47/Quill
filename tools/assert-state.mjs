@@ -47,7 +47,15 @@ const TOLERANCE = 0.02;
 const SEPARATION = 32;
 
 // The assertions a state may name, by the word it names them with.
-export const ASSERTIONS = { ghost: ghost, folded: folded, split: split, full: full, dialog: dialog };
+export const ASSERTIONS = {
+  ghost: ghost,
+  folded: folded,
+  split: split,
+  full: full,
+  'pdf-split': pdfSplit,
+  'pdf-full': pdfFull,
+  dialog: dialog,
+};
 
 // How each rule wants its second shot taken: the state to shoot, and what to shoot it with.
 //
@@ -62,6 +70,8 @@ export const SECOND = {
   folded: (s) => ({ state: { ...s, flags: { ...s.flags, live: false } }, options: {} }),
   split: (s) => ({ state: s, options: { active: true } }),
   full: (s) => ({ state: s, options: { active: true } }),
+  'pdf-split': (s) => ({ state: s, options: { active: true } }),
+  'pdf-full': (s) => ({ state: s, options: { active: true } }),
   dialog: (s) => ({ state: s, options: { active: true } }),
 };
 
@@ -109,6 +119,8 @@ const CHECKS = {
   },
   split: bare('split'),
   full: bare('full'),
+  'pdf-split': bare('pdf-split'),
+  'pdf-full': bare('pdf-full'),
   dialog: bare('dialog'),
 };
 
@@ -609,6 +621,200 @@ function full(_spec, { dim }) {
   };
 }
 
+// ---------- the Preview pane in PDF mode ----------
+
+// PDF Split: the page column beside the Editor, the divider where Split puts it.
+//
+// The same three questions [`split`] asks of the rendered sheet, asked of a column of pages. The
+// divider stands at half the window, for the reason it does there. The pane carries a ground of its
+// own, and this one is the surround the pages stand on rather than a paper: the drawer paints every
+// page in the Template's light palette whatever the theme is wearing, and the surround under them
+// is one fixed neutral (#293 § The page column), so the pane reads light beside a dark Editor —
+// which is the fact held here, as a comparison of the two grounds the shot gave up and not against
+// a hex written down. And the page stands in the column with a gutter each side, centred in the
+// pane it is drawn in to the tolerance the sheet's heading is held to.
+//
+// No colour is named. The Editor's paper is the colour its quarter of the window is mostly made of;
+// the page's paper is the colour the half of the window the pane fills is mostly made of, the pages
+// being nearly all of a column; the surround is what the rest of that half is mostly made of. A
+// palette that moves takes all three with it.
+//
+// One frame, `shots.dim`, for the reason [`split`] reads one: this is not about activation.
+function pdfSplit(_spec, { dim }) {
+  const png = decodePng(dim);
+  const { w, h } = png;
+  const editor = groundOf(png, 0, w >> 2, 0, h);
+  const { paper, surround } = columnOf(png, w >> 1, w);
+  if (surround === null) {
+    return no(`the window right of its half is ${hex(paper)} throughout: no page is standing on the surround`);
+  }
+  if (sameRgb(editor, surround)) {
+    return no(`the pages stand on ${hex(surround)}, the ground the Editor is made of: the column has no surround of its own`);
+  }
+
+  const edge = dividerOf(png, editor, surround);
+  if (edge === null) {
+    return no(`${hex(editor)} and ${hex(surround)} do not divide the window into two runs, so there is no divider between them to measure`);
+  }
+  const { box, ink } = pageIn(png, paper, edge.firstRight, w);
+
+  const half = w / 2;
+  const paneCentre = (edge.firstRight + w - 1) / 2;
+  const pageCentre = (box.left + box.right) / 2;
+  const gutters = [box.left - edge.firstRight, w - 1 - box.right];
+  const offDivider = Math.abs(edge.divider - half);
+  const offPage = Math.abs(pageCentre - paneCentre);
+  const where = `the divider stands at x ${edge.divider} of ${w}, ${((100 * edge.divider) / w).toFixed(1)} % across the window, `
+    + `with ${hex(editor)} paper left of it and ${hex(paper)} pages on a ${hex(surround)} surround right`;
+  const page = `the page runs x ${box.left}..${box.right}, gutters ${gutters[0]} and ${gutters[1]}, `
+    + `centre ${pageCentre} against the pane's own ${paneCentre}`;
+  const missed = [];
+  if (offDivider > CENTRE) missed.push(`the divider is ${offDivider.toFixed(1)} px off the window's half at ${half}`);
+  if (luma(surround) <= luma(editor)) {
+    missed.push(`the surround is no lighter than the Editor's own paper, so the pane is wearing the theme rather than standing light beside it`);
+  }
+  if (gutters[0] <= 0 || gutters[1] <= 0) {
+    missed.push(`the page reaches the edge of the pane instead of standing in it with a gutter each side`);
+  }
+  if (offPage > CENTRE) missed.push(`the page is ${offPage.toFixed(1)} px off the centre of the pane it stands in`);
+  if (ink === null) missed.push(`the page is blank: nothing was drawn on it`);
+  return {
+    ours: missed.length === 0,
+    divider: edge.divider,
+    grounds: [hex(editor), hex(surround), hex(paper)],
+    page: [box.left, box.top, box.right - box.left + 1, box.bottom - box.top + 1],
+    why: missed.length === 0
+      ? `${where}; ${page}; ${inkOn(ink)}`
+      : `${where}; ${page} — ${missed.join(', and ')}, past the ${CENTRE} px this is measured to`,
+    secondary: [
+      `${page}; ${inkOn(ink)}`,
+      `all three grounds were read as the colour their part of the window is mostly made of, not compared against a hex written down here`,
+    ],
+  };
+}
+
+// PDF Full: the column where the Editor's scroller was, its pages down the middle of the window.
+//
+// Three facts, and a still holds all three. The window carries two grounds and no more — the
+// surround, and the paper the pages are drawn on — because Full hides the Editor rather than
+// shrinking it. The page stands in the column with a gutter each side and centred on the window,
+// which is what the pane's centre is when the pane is the window. And the column's air is above the
+// first page as well as between any two: [`page_top`] in `quill/src/column.rs` puts one page margin
+// over the first page and the same gap between each pair, so the gap this reads over page one is
+// the gap the ticket names between pages one and two, measured wherever the window is tall enough
+// to hold both. It is not at the state's own size: a page fitted to the width of a 1440 px window is
+// some 1900 px tall and the window is 900, so the shot carries the head of page one and the air over
+// it. Where a second page does show, every gap is held to the first.
+//
+// Nothing here reads an edge between the pane and the Editor's paper, because at the light palette
+// this state is shot in there is none to read: the surround and the light theme's paper are one
+// colour (`quill-engine/src/theme.rs`). What separates the two is the page's own white, the gutter
+// either side of it, and the air the column stacks with — all of them inside the pane.
+function pdfFull(_spec, { dim }) {
+  const png = decodePng(dim);
+  const { w, h } = png;
+  const { paper, surround } = columnOf(png, 0, w);
+  if (surround === null) {
+    return no(`the window is ${hex(paper)} from edge to edge: no page is standing on the surround`);
+  }
+  const { box, ink } = pageIn(png, paper, 0, w);
+
+  const pages = pagesIn(png, box, paper);
+  const gaps = pages.slice(1).map((page, i) => page.top - pages[i].bottom - 1);
+  const centre = (w - 1) / 2;
+  const pageCentre = (box.left + box.right) / 2;
+  const gutters = [box.left, w - 1 - box.right];
+  const off = Math.abs(pageCentre - centre);
+  const where = `${hex(paper)} pages on a ${hex(surround)} surround across all ${w}x${h} of the window`;
+  const page = `the page runs x ${box.left}..${box.right}, gutters ${gutters[0]} and ${gutters[1]}, `
+    + `centre ${pageCentre} against the window's own ${centre}, its top edge ${box.top} px down the column`
+    + (gaps.length ? `, ${pages.length} pages with ${gaps.join(', ')} px between them` : ', one page of the column in view');
+  const missed = [];
+  if (gutters[0] <= 0 || gutters[1] <= 0) {
+    missed.push(`the page reaches the edge of the window instead of standing in the column with a gutter each side`);
+  }
+  if (off > CENTRE) missed.push(`the page is ${off.toFixed(1)} px off the window's centre`);
+  if (box.top <= 0) missed.push(`the first page starts at the top of the column, with none of the gap the column stacks its pages with over it`);
+  for (const gap of gaps) {
+    if (Math.abs(gap - box.top) > CENTRE) {
+      missed.push(`a gap of ${gap} px between two pages against the ${box.top} px over the first, and the column stacks them with one gap`);
+    }
+  }
+  if (ink === null) missed.push(`the page is blank: nothing was drawn on it`);
+  return {
+    ours: missed.length === 0,
+    grounds: [hex(surround), hex(paper)],
+    page: [box.left, box.top, box.right - box.left + 1, box.bottom - box.top + 1],
+    gap: box.top,
+    why: missed.length === 0
+      ? `${where}; ${page}; ${inkOn(ink)}`
+      : `${where}; ${page} — ${missed.join(', and ')}, past the ${CENTRE} px this is measured to`,
+    secondary: [
+      `${page}; ${inkOn(ink)}`,
+      `both grounds were read as the colour their part of the window is mostly made of, not compared against a hex written down here`,
+    ],
+  };
+}
+
+// The two grounds a column of pages stands in, between `x0` and `x1`: the paper and the surround.
+//
+// The paper is the colour the column is mostly made of, the pages being nearly all of a column, and
+// the surround is what the rest of it is mostly made of. `surround` is `null` when the column is
+// one colour throughout, which is a column with no pages drawn on it.
+function columnOf(png, x0, x1) {
+  const paper = groundOf(png, x0, x1, 0, png.h);
+  return { paper, surround: groundOf(png, x0, x1, 0, png.h, paper) };
+}
+
+// The page of `paper` between `x0` and `x1`: its rectangle, and the first ink on it.
+//
+// The rectangle is every pixel of exactly the paper's colour — one page's, or the union of what
+// shows of each when the window holds more than one, which is the same rectangle in x either way.
+// The ink is read inside that rectangle, so the surround, whose white is a handful of units off the
+// paper's and well inside [`PANE_INK`], is never mistaken for a glyph.
+function pageIn(png, paper, x0, x1) {
+  const box = extentOf(png, paper, x0, x1);
+  const ink = box.right < box.left ? null : firstInk(png, box.left, box.right + 1, paper);
+  return { box, ink };
+}
+
+// The runs of rows inside `box` that are page rather than the air between two pages.
+//
+// A row of paper carries the page's paper at both its edges, because the margin is the widest thing
+// on a page and nothing is drawn in it but the header and the footer; a row of air carries the
+// surround there. So the runs are the pages the window holds, and what falls between two of them is
+// the gap the column stacks with.
+function pagesIn(png, box, paper) {
+  const found = [];
+  let open = null;
+  for (let y = box.top; y <= box.bottom; y += 1) {
+    if (!is(png, box.left, y, paper) || !is(png, box.right, y, paper)) {
+      if (open) found.push(open);
+      open = null;
+      continue;
+    }
+    if (!open) open = { top: y, bottom: y };
+    open.bottom = y;
+  }
+  if (open) found.push(open);
+  return found;
+}
+
+// What a page's first block of ink reads as, for a rule's reading.
+function inkOn(ink) {
+  return ink === null
+    ? 'no ink on the page'
+    : `the first ink on it runs x ${ink.left}..${ink.right} over rows y ${ink.top}..${ink.bottom}`;
+}
+
+// How light a ground reads, as the mean of its channels.
+//
+// The grounds this stands between are neutral greys — the theme's paper and the column's fixed
+// surround — so a mean says which of two is the lighter without a colour space to argue about.
+function luma(rgb) {
+  return (rgb[0] + rgb[1] + rgb[2]) / 3;
+}
+
 // ---------- the Export dialog ----------
 
 // How near the window's own centre the dialog's box has to stand, in device px.
@@ -710,14 +916,18 @@ function dialog(_spec, { dim }) {
 }
 
 // The bounding box of every pixel of `rgb`, or a box of nothing when the shot holds none.
-function extentOf(png, rgb) {
+//
+// `x0` and `x1` narrow it to one column of the window, which is what a rule measuring the pane
+// beside the Editor wants: the pages are the pane's, and a pixel of the same colour on the Editor's
+// side of the divider is not part of them.
+function extentOf(png, rgb, x0 = 0, x1 = png.w) {
   const { w, h } = png;
   let left = w;
   let right = -1;
   let top = h;
   let bottom = -1;
   for (let y = 0; y < h; y += 1) {
-    for (let x = 0; x < w; x += 1) {
+    for (let x = x0; x < x1; x += 1) {
       if (!is(png, x, y, rgb)) continue;
       if (x < left) left = x;
       if (x > right) right = x;
@@ -765,17 +975,24 @@ function bandsOf(png, box, paper) {
 //
 // A pane is mostly paper — a page of prose is a few per cent ink — so the commonest colour in a
 // rectangle wholly inside one pane is that pane's ground, whatever the palette says it should be.
-function groundOf(png, x0, x1, y0, y1) {
+//
+// `not` leaves one colour out, which is how a rectangle holding two grounds gives up the second:
+// a column of pages is mostly page, and what the rest of it is mostly made of is the surround the
+// pages stand on. `null` comes back when the rectangle holds nothing but `not`.
+function groundOf(png, x0, x1, y0, y1, not = null) {
+  const skip = not === null ? -1 : (not[0] << 16) | (not[1] << 8) | not[2];
   const seen = new Map();
   for (let y = y0; y < y1; y += 1) {
     for (let x = x0; x < x1; x += 1) {
       const k = (at(png, x, y, 0) << 16) | (at(png, x, y, 1) << 8) | at(png, x, y, 2);
+      if (k === skip) continue;
       seen.set(k, (seen.get(k) ?? 0) + 1);
     }
   }
   let best = 0;
   let held = -1;
   for (const [k, n] of seen) if (n > held) { best = k; held = n; }
+  if (held < 0) return null;
   return [(best >> 16) & 255, (best >> 8) & 255, best & 255];
 }
 

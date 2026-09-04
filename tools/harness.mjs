@@ -395,11 +395,13 @@ export function carriesAccent(buf) {
 /// other active state draws the bar, an empty Document included: `page/empty` is the state #166
 /// lost to the ghost.
 ///
-/// `--preview full` is the fourth way out, and the only one that is not about the caret at all:
-/// Full puts the rendered page where the Editor's scroller was, so there is no Editor on the glass
-/// to draw a bar and no accent pixel to wait for. It is read here rather than taken as the state's
-/// `nocaret` because the state has not asked for a caret to be left out — the layout has none to
-/// leave. Split keeps the Editor beside the page and is held to a lit frame like any other state.
+/// A Full pane is the fourth way out, and the only one that is not about the caret at all: Full
+/// puts the rendered page where the Editor's scroller was, so there is no Editor on the glass to
+/// draw a bar and no accent pixel to wait for. Both words that open one are read — `full`, the
+/// rendered sheet, and `pdf-full`, the page column — because what the pane draws there makes no
+/// difference to the Editor being gone. It is read here rather than taken as the state's `nocaret`
+/// because the state has not asked for a caret to be left out — the layout has none to leave.
+/// Either Split keeps the Editor beside the page and is held to a lit frame like any other state.
 ///
 /// `--deterministic` is a condition in its own right and not a detail of the ways out: it is what
 /// freezes the blink on, and [`quillArgv`] drops it for a Live launch, where the caret is meant to
@@ -411,11 +413,12 @@ export function carriesAccent(buf) {
 /// it reaches here; the session that builds `--menu` decides whether a popover leaves the Editor
 /// drawing its bar, and adds a way out here if it does not.
 export function wantsLitCaret(argv, { active = true } = {}) {
+  const preview = argv.includes('--preview') ? argv[argv.indexOf('--preview') + 1] : null;
   return active
     && argv.includes('--deterministic')
     && !argv.includes('--nocaret')
     && !argv.includes('--select')
-    && !(argv.includes('--preview') && argv[argv.indexOf('--preview') + 1] === 'full');
+    && !(preview === 'full' || preview === 'pdf-full');
 }
 
 // ---------- the compositor ----------
