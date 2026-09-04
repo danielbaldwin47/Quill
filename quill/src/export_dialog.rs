@@ -30,11 +30,12 @@ use gtk::{gdk, gio, glib};
 use quill_engine::document::full_name;
 use quill_engine::paginate::Geometry;
 use quill_engine::render::Toggles;
-use quill_engine::settings::{Choice, Export, Paper, Template, export_text_sizes};
+use quill_engine::settings::{Choice, Export, Paper, PreviewMode, Template, export_text_sizes};
 use quill_engine::{html, pdf, template};
 
 use crate::export::{confirm, file_name};
 use crate::files;
+use crate::preview::DialogOverride;
 use crate::session::Session;
 use crate::window::Window;
 
@@ -130,6 +131,21 @@ impl Format {
         }
     }
 
+    /// Which mode the pane behind this dialog shows while it is open, and
+    /// `None` for the dialog that leaves the pane alone.
+    ///
+    /// The page dialog drives the pages and the HTML dialog drives the sheet,
+    /// because each shows what its own file will hold; a Markdown export is
+    /// the Document's own bytes, so nothing on screen answers to it and
+    /// nothing on screen moves for it (#293).
+    fn preview_mode(self) -> Option<PreviewMode> {
+        match self {
+            Self::Pdf => Some(PreviewMode::Pdf),
+            Self::Html => Some(PreviewMode::Web),
+            Self::Markdown => None,
+        }
+    }
+
     /// How much of the page this format's expander offers, and `None` where it
     /// has no expander at all.
     ///
@@ -202,6 +218,21 @@ impl Chosen {
         Self {
             export: export.clone(),
             toggles: Toggles::of(template),
+        }
+    }
+
+    /// This choice as the pane behind the dialog lays out at it: `mode`, and
+    /// the values Options is showing now.
+    ///
+    /// The same struct the writer would be handed
+    /// ([`crate::preview::DialogOverride`]) rather than a geometry, so that
+    /// the pages behind the dialog and the pages the Export button writes are
+    /// laid out from one table by one [`Geometry::of`].
+    pub(crate) fn previewed(&self, mode: PreviewMode) -> DialogOverride {
+        DialogOverride {
+            mode,
+            export: self.export.clone(),
+            toggles: self.toggles,
         }
     }
 
@@ -313,6 +344,53 @@ impl Options {
             title_page,
             header,
             footer,
+        }
+    }
+
+    /// Calls `changed` with what the widget says, every time a writer moves
+    /// one of its controls.
+    ///
+    /// One callback for the whole widget rather than one signal per row,
+    /// because there is one thing to do with any of them: lay the pane behind
+    /// the dialog out again at what Options now shows
+    /// ([`crate::window::Window::move_dialog_preview`]). The widget holds
+    /// itself weakly inside the handlers, because it owns the grid and the
+    /// grid owns the controls the handlers hang on: a strong hold would be a
+    /// cycle, and the widget would outlive its dialog.
+    ///
+    /// The print tab connects nothing: its page setup is the print job's, and
+    /// the print dialog does not drive the pane (#293 § Out of Scope).
+    pub(crate) fn on_change(self: &Rc<Self>, changed: impl Fn(Chosen) + 'static) {
+        let options = Rc::downgrade(self);
+        let fire: Rc<dyn Fn()> = Rc::new(move || {
+            if let Some(options) = options.upgrade() {
+                changed(options.chosen());
+            }
+        });
+        if let Some(paper) = &self.paper {
+            let fire = Rc::clone(&fire);
+            paper.connect_selected_notify(move |_| fire());
+        }
+        if let Some(text_size) = &self.text_size {
+            let fire = Rc::clone(&fire);
+            text_size.connect_value_changed(move |_| fire());
+        }
+        // The state rather than the click, so that a switch moved by the
+        // keyboard is a change too; the three the depth may leave out answer
+        // `None` and connect nothing.
+        for switch in [
+            Some(&self.center_headings),
+            Some(&self.number_headings),
+            Some(&self.indent_paragraphs),
+            self.title_page.as_ref(),
+            self.header.as_ref(),
+            self.footer.as_ref(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            let fire = Rc::clone(&fire);
+            switch.connect_active_notify(move |_| fire());
         }
     }
 
@@ -501,6 +579,39 @@ fn present(window: &Window, format: Format, expanded: bool) {
         .map(|depth| Rc::new(Options::new(&seed, depth)));
     if let Some(options) = &options {
         column.append(&expander(&session, options, expanded));
+    }
+
+    // The dialog carries no preview of its own: it drives the pane behind it
+    // (#293 § The dialogs drive the pane). The pane takes this dialog's mode
+    // and its Options' values as an override, opening in Split where it was
+    // away, and gives them all up again when the dialog closes — `[preview]
+    // mode` and `[export]` are never written from here.
+    let driven = format.preview_mode().map(|mode| {
+        let before = window.show_dialog_preview(&seed.previewed(mode));
+        (mode, before)
+    });
+    if let (Some(options), Some((mode, _))) = (&options, driven) {
+        options.on_change(glib::clone!(
+            #[weak]
+            window,
+            move |chosen: Chosen| window.move_dialog_preview(&chosen.previewed(mode))
+        ));
+    }
+    if let Some((_, before)) = driven {
+        // The one hook for all three ways out — Escape, the window manager's
+        // button, and the close the Export button makes once the file is
+        // written (through the overwrite confirm or not) — because every one
+        // of them is [`gtk::prelude::GtkWindowExt::close`].
+        dialog.connect_close_request(glib::clone!(
+            #[weak]
+            window,
+            #[upgrade_or]
+            glib::Propagation::Proceed,
+            move |_| {
+                window.drop_dialog_preview(before);
+                glib::Propagation::Proceed
+            }
+        ));
     }
 
     let go = gtk::Button::builder()
@@ -747,6 +858,82 @@ mod tests {
             Chosen::of(&export, &moved).toggles,
             Toggles::of(&moved),
             "the toggles are the ones the writer is reading now"
+        );
+    }
+
+    /// Which pane each dialog drives, and the one that drives nothing.
+    #[test]
+    fn dialog_preview_is_the_pages_for_a_pdf_the_sheet_for_html_and_nothing_for_markdown() {
+        assert_eq!(
+            [Format::Pdf, Format::Html, Format::Markdown].map(Format::preview_mode),
+            [Some(PreviewMode::Pdf), Some(PreviewMode::Web), None]
+        );
+    }
+
+    /// The pane a dialog opens over is seeded at the `[export]` table and the
+    /// `[template]` toggles, so the first thing behind the dialog is what
+    /// Quick Export would write.
+    #[test]
+    fn dialog_preview_seeds_the_pane_at_the_export_table_and_the_current_toggles() {
+        let settings = Settings::default();
+        let seed = Chosen::of(&settings.export, &settings.template);
+        assert_eq!(
+            seed.previewed(PreviewMode::Pdf),
+            DialogOverride {
+                mode: PreviewMode::Pdf,
+                export: settings.export.clone(),
+                toggles: Toggles::of(&settings.template),
+            }
+        );
+        assert_eq!(
+            Geometry::of(&seed.previewed(PreviewMode::Pdf).export),
+            Geometry::of(&settings.export),
+            "the pane is laid out on the paper the file names"
+        );
+    }
+
+    /// A paper and a text size moved in Options move the page behind the
+    /// dialog, and dropping the override at the close leaves the pane back on
+    /// `[export]`.
+    #[test]
+    fn dialog_preview_follows_the_options_and_the_drop_leaves_the_export_table() {
+        let settings = Settings::default();
+        let mut moved = Chosen::of(&settings.export, &settings.template);
+        // Legal, because `auto` reads the locale and answers A4 or Letter:
+        // the one paper that is neither is the one this can compare against
+        // wherever the tests run.
+        moved.export.paper = Paper::Legal;
+        moved.export.text_size = 14;
+        let over = moved.previewed(PreviewMode::Pdf);
+        assert_ne!(
+            Geometry::of(&over.export),
+            Geometry::of(&settings.export),
+            "the paper Options shows is not the paper the file names"
+        );
+        assert_eq!(over.export.text_size, 14);
+        // The drop is the override gone ([`Preview::set_dialog_override`] with
+        // `None`), and what the pane then reads is the table itself.
+        assert_eq!(
+            Geometry::of(&settings.export),
+            Geometry::of(&Settings::default().export),
+            "nothing the dialog showed was written on the way past"
+        );
+    }
+
+    /// Save as defaults writes `[export]` before the close reads it, so the
+    /// pane comes back to what was saved rather than to what the dialog opened
+    /// on.
+    #[test]
+    fn dialog_preview_comes_back_to_what_save_as_defaults_saved() {
+        let mut settings = Settings::default();
+        let mut chosen = Chosen::of(&settings.export, &settings.template);
+        chosen.export.paper = Paper::Legal;
+        chosen.export.text_size = 14;
+        chosen.written_into(&mut settings.export);
+        assert_eq!(
+            Geometry::of(&settings.export),
+            Geometry::of(&chosen.previewed(PreviewMode::Pdf).export),
+            "what the pane was showing is what the file now holds"
         );
     }
 

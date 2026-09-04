@@ -901,18 +901,36 @@ ok('PDF Full is the page centred in the window with the column\'s gap over it an
 const DIALOG_PAGE = [24, 24, 24];
 const DIALOG_SHEET = [70, 70, 70];
 
-// A window of page paper with a dialog standing on it.
+// The paper the pages behind the dialog are drawn on, which is the one thing in the shot that says
+// the pane is showing them.
+//
+// Lighter than [`DIALOG_PAGE`], because the column's surround and the Editor's paper are one colour
+// in the shot this stands for and the page's white is what separates the pane from the window
+// around it. The surround is not a colour of its own here for exactly that reason: it is
+// [`DIALOG_PAGE`] again.
+const DIALOG_PAPER = [250, 250, 250];
+
+// A window of page paper with a dialog standing on it, and the PDF pane behind it.
 //
 // `off` moves the dialog's centre off the window's, `rows` is how many bands of ink it carries —
 // four is a shut dialog, a dozen an open one — and `dw`/`dh` are its size. The bands are drawn with
 // air between them, which is what makes them bands: one row of a dialog is a run of inked rows.
+// `paper` is the page standing in the right-hand half, which is the pane in PDF Split; `null` is
+// the pane away or the Web sheet's own paper filling it, which is the state's other defect.
 function dialogShot({
   w = 400, h = 300, dw = 160, dh = 220, off = [0, 0], rows = 12,
-  page = DIALOG_PAGE, sheet = DIALOG_SHEET,
+  page = DIALOG_PAGE, sheet = DIALOG_SHEET, paper = DIALOG_PAPER,
 } = {}) {
   const data = Buffer.alloc(w * h * 3);
   const put = (x, y, rgb) => { for (let c = 0; c < 3; c += 1) data[((y * w) + x) * 3 + c] = rgb[c]; };
   for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) put(x, y, page);
+  // The pane fills the right half, and the page stands in it with a gutter each side and air above
+  // and below, exactly as the column stacks one.
+  if (paper !== null) {
+    for (let y = 10; y < h - 10; y += 1) {
+      for (let x = (w >> 1) + 20; x < w - 20; x += 1) put(x, y, paper);
+    }
+  }
   const left = Math.round((w - dw) / 2 + off[0]);
   const top = Math.round((h - dh) / 2 + off[1]);
   for (let y = top; y < top + dh; y += 1) for (let x = left; x < left + dw; x += 1) put(x, y, sheet);
@@ -932,6 +950,20 @@ ok('the Export dialog is a second ground over the page, centred on the window, i
   assert.deepEqual(held.grounds, ['#181818', '#464646'], 'both grounds are read off the shot, not compared against a hex');
   assert.deepEqual(held.dialog, [120, 40, 160, 220], 'the dialog is where its own ground runs');
   assert.equal(held.bands, 12, 'and one band per row of it');
+  assert.deepEqual(held.pane, ['#fafafa', '#181818'], 'the page beside it and the surround it stands on');
+
+  // The dialog drives the pane, so a shot with nothing in the pane beside it is the defect this
+  // state is now for: the pane away, or the Web sheet where the pages should be, reads as one
+  // ground right of the dialog either way.
+  const alone = assertState(spec, { dim: dialogShot({ paper: null }) });
+  assert.equal(alone.ours, false, alone.why);
+  assert.match(alone.why, /no page is standing in the pane beside it/);
+
+  // Nor is one darker than what it stands on: the pages are drawn in the Template's light palette
+  // whatever the theme is wearing, which is what puts them against the surround at all.
+  const dark = assertState(spec, { dim: dialogShot({ paper: [8, 8, 8] }) });
+  assert.equal(dark.ours, false, dark.why);
+  assert.match(dark.why, /no lighter than the .* it stands on/);
 
   // A dialog dragged off the window's centre is the defect this catches, in either direction.
   for (const nudged of [[20, 0], [0, -20]]) {

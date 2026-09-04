@@ -40,6 +40,7 @@ use crate::flags;
 use crate::ground::Ground;
 use crate::harness;
 use crate::menus;
+use crate::preview::DialogOverride;
 use crate::session::{Session, TemplateToggle};
 use crate::tags;
 
@@ -1943,6 +1944,79 @@ impl Window {
         }
     }
 
+    /// Stands this window's Preview pane under an Export dialog that has just
+    /// opened: `over`'s mode and its Options' values, the pane opened in Split
+    /// where it was away, and not a line written to the settings file.
+    ///
+    /// The pane a dialog drives is this window's own, because the dialog is
+    /// modal over this window; the mode and the values it drives it with are
+    /// the pane's own override ([`crate::preview::Preview::set_dialog_override`])
+    /// rather than a setting, so `[preview] mode` and `[export]` are what the
+    /// close comes back to. What was there before is answered here and handed
+    /// back to [`Window::drop_dialog_preview`], because a dialog is one job
+    /// and nothing about it outlives its window.
+    pub(crate) fn show_dialog_preview(&self, over: &DialogOverride) -> DialogPreviewBefore {
+        let imp = self.imp();
+        let before = DialogPreviewBefore {
+            open: imp.previewing.get(),
+            layout: self
+                .session()
+                .map_or(PreviewLayout::Split, |session| session.preview_layout()),
+        };
+        imp.preview.set_dialog_override(Some(over.clone()));
+        if !before.open {
+            // Split, whatever layout the pane was last opened in: a Full pane
+            // behind a modal dialog would leave nothing of the Document the
+            // dialog is about. The pane is opened here rather than through
+            // [`Window::show_preview`] because the keyboard belongs to the
+            // dialog, and because a pane opened by a dialog is put back by the
+            // close rather than remembered.
+            if let Some(session) = self.session() {
+                session.set_preview_layout(PreviewLayout::Split);
+            }
+            imp.previewing.set(true);
+            self.apply_preview();
+        }
+        self.refresh_preview();
+        before
+    }
+
+    /// Lays the pane out again at what an open dialog's Options now say.
+    ///
+    /// One call for every control on the widget, because there is one thing
+    /// any of them means ([`crate::export_dialog::Options::on_change`]).
+    pub(crate) fn move_dialog_preview(&self, over: &DialogOverride) {
+        self.imp().preview.set_dialog_override(Some(over.clone()));
+        self.refresh_preview();
+    }
+
+    /// Puts the pane back to what `before` says the dialog opened over: the
+    /// Options' values dropped, the page re-laid at `[export]`, and the pane
+    /// hidden again where the dialog is what opened it.
+    ///
+    /// **Save as defaults** wrote `[export]` before ever this runs, so what
+    /// the pane comes back to is what was saved: the write is the one path a
+    /// setting takes ([`Session::edit_settings`]), and the drain that reads
+    /// the file back is what moves the running settings under it.
+    ///
+    /// The keyboard is left where the closing dialog puts it, which is this
+    /// window: a pane opened by a dialog never took it.
+    pub(crate) fn drop_dialog_preview(&self, before: DialogPreviewBefore) {
+        let imp = self.imp();
+        imp.preview.set_dialog_override(None);
+        if let Some(session) = self.session() {
+            session.set_preview_layout(before.layout);
+        }
+        imp.previewing.set(before.open);
+        self.apply_preview();
+        if before.open {
+            self.refresh_preview();
+        } else {
+            // The pane is away, so the page it stood over is not on the bar.
+            self.show_page_words();
+        }
+    }
+
     /// Opens the Preview pane or shuts it.
     ///
     /// Closing hands the keyboard back to the Editor, which is what Full took
@@ -2860,6 +2934,24 @@ pub(crate) enum After {
     /// asks for a file before it has anything to stand a PDF beside
     /// ([`Window::save_before_export`]).
     Export,
+}
+
+/// What the Preview pane was showing when an Export dialog opened over it,
+/// and so what closing the dialog puts back (#293 § The dialogs drive the
+/// pane).
+///
+/// Whether the pane was open at all is the window's own, as it always is; the
+/// layout beside it is the session's one value for the app
+/// ([`crate::session::Session::set_preview_layout`]), carried here because a
+/// dialog that opened a hidden pane moved it to Split and the close is what
+/// puts it back. The mode and the geometry are not here: those are the pane's
+/// override, dropped whole ([`crate::preview::DialogOverride`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct DialogPreviewBefore {
+    /// Whether this window's pane was open before the dialog opened.
+    open: bool,
+    /// The layout every open pane was standing in.
+    layout: PreviewLayout,
 }
 
 /// Where the Preview pane stands once a Preview chord has been pressed.

@@ -29,7 +29,7 @@
 //! the page's own blocks ([`Preview::blocks`], [`Preview::caret_offset`],
 //! [`Preview::top_block_offset`]).
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::ops::Range;
 use std::rc::Rc;
 
@@ -38,7 +38,7 @@ use gtk::subclass::prelude::*;
 use gtk::{gdk, gio, glib, graphene, pango};
 use quill_engine::document::Document;
 use quill_engine::render;
-use quill_engine::settings::{Choice, PreviewMode, Settings};
+use quill_engine::settings::{Choice, Export, PreviewMode, Settings};
 use quill_engine::sync;
 use quill_engine::template;
 use quill_engine::theme::{Colour, Scheme};
@@ -212,14 +212,25 @@ impl Sheet {
     /// The Template is read here rather than handed in, because the sheet is
     /// what knows how wide it is: the measure is the pane less its margins,
     /// and the measure is the one thing the render pass cannot be told twice.
-    fn lay_out(&self, document: &Document, settings: &Settings, scheme: Scheme) {
+    fn lay_out(
+        &self,
+        document: &Document,
+        settings: &Settings,
+        scheme: Scheme,
+        over: Option<&DialogOverride>,
+    ) {
         let width = self.width();
         if width <= 0 {
             // Not on the compositor yet: the first allocation asks again.
             return;
         }
         let template = template::named(settings.template.name.as_str());
-        let toggles = render::Toggles::of(&settings.template);
+        // The three toggles an open HTML dialog is showing, and `[template]`'s
+        // own whenever no dialog stands over the pane.
+        let toggles = over.map_or_else(
+            || render::Toggles::of(&settings.template),
+            |over| over.toggles,
+        );
         let context = self.pango_context();
         let zoom = settings.preview.zoom;
         let measure = measure(
@@ -365,6 +376,32 @@ impl Sheet {
     }
 }
 
+/// What an open Export dialog's Options say, while the dialog stands over the
+/// pane (#293 § The dialogs drive the pane).
+///
+/// The pane holds one of these for as long as a dialog is open and lays out at
+/// it rather than at the settings file's own values: the PDF dialog's paper,
+/// text size and furniture in PDF mode, the HTML dialog's three toggles in Web
+/// mode. Nothing here is ever written — `[preview] mode` is View › Panes' and
+/// the Settings window's, `[export]` is **Save as defaults**' — and the pane
+/// drops the override when the dialog closes
+/// ([`crate::window::Window::drop_dialog_preview`]).
+///
+/// The whole `[export]` table rather than the geometry it answers, for the
+/// reason [`crate::export_dialog::Chosen`] carries one: the pane lays out
+/// through the same [`quill_engine::paginate::Geometry::of`] the writer does,
+/// so the pages behind the dialog and the pages in the file are one layout.
+#[derive(Clone, Debug, PartialEq)]
+pub struct DialogOverride {
+    /// Which mode the dialog drives: PDF for the page dialog, Web for HTML.
+    pub mode: PreviewMode,
+    /// The page the column is cut and laid out on, as Options now stands.
+    pub export: Export,
+    /// The three Template toggles the blocks are laid out with, as Options now
+    /// stands.
+    pub toggles: render::Toggles,
+}
+
 /// The Preview pane: the sheet in its scroller, with the divider over its left
 /// edge.
 #[derive(Clone)]
@@ -383,6 +420,12 @@ pub struct Preview {
     /// stands, and so how far it scrolls — are the showing one's. Shared by
     /// every clone of the pane, as the widgets are.
     mode: Rc<Cell<PreviewMode>>,
+    /// What an open Export dialog's Options say, while one stands over the
+    /// pane: the mode and the values the pane lays out at instead of the
+    /// settings' own. [`None`] whenever no dialog is open, which is every
+    /// refresh a writer's typing arms. Shared by every clone of the pane, as
+    /// the widgets are.
+    dialog: Rc<RefCell<Option<DialogOverride>>>,
     /// The divider: a strip of [`GRAB`] pixels on the pane's left edge with
     /// nothing in it and nothing drawn, which a drag moves the pane's edge by
     /// and a double-click puts back to an even Split.
@@ -442,6 +485,7 @@ impl Preview {
             sheet,
             column,
             mode: Rc::new(Cell::new(PreviewMode::default())),
+            dialog: Rc::new(RefCell::new(None)),
             divider,
         }
     }
@@ -481,11 +525,32 @@ impl Preview {
     /// reaches every pane on the refresh that follows
     /// ([`crate::window::Window::reapply`]).
     pub fn refresh(&self, document: &Document, settings: &Settings, scheme: Scheme) {
-        self.set_mode(settings.preview.mode);
-        match settings.preview.mode {
-            PreviewMode::Web => self.sheet.lay_out(document, settings, scheme),
-            PreviewMode::Pdf => self.column.lay_out(document, settings),
+        // An open Export dialog outranks the settings for as long as it is
+        // open, and by the same read: the mode it drives and the values its
+        // Options now show ([`DialogOverride`]). Cloned rather than borrowed
+        // across the layout, so nothing laid out here can be surprised by a
+        // borrow the pane is holding; a pane with no dialog over it clones
+        // nothing.
+        let over = self.dialog.borrow().clone();
+        let over = over.as_ref();
+        let mode = over.map_or(settings.preview.mode, |over| over.mode);
+        self.set_mode(mode);
+        match mode {
+            PreviewMode::Web => self.sheet.lay_out(document, settings, scheme, over),
+            PreviewMode::Pdf => self.column.lay_out(document, settings, over),
         }
+    }
+
+    /// Lays the pane out at what an open dialog's Options say from now on, or
+    /// — for [`None`] — at the settings again.
+    ///
+    /// Held on the pane rather than written through the settings, because a
+    /// dialog's Options are one job's worth and never the file's: the mode a
+    /// writer picked and the `[export]` table they saved are what the pane
+    /// comes back to when the dialog closes. The refresh that shows this is
+    /// the window's ([`crate::window::Window::show_dialog_preview`]).
+    pub fn set_dialog_override(&self, over: Option<DialogOverride>) {
+        self.dialog.replace(over);
     }
 
     /// Shows the sheet or the pages, and lays nothing out.
