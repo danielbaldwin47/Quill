@@ -71,6 +71,12 @@
       "title": "Preview",
       "what": "The rendered page beside the Editor, and in place of it",
       "judge": "nothing, and no critic is spent here: every state of this Piece names `assert`, so it is measured off ours' own pixels by tools/assert-state.mjs and shown to nobody (ADR 0017). Neither oracle holds the Preview — legacy/ shows Markdown as source and has no rendered page at all, and iA Writer for Mac's own preview is that app's design rather than this one's, which is why #263 puts Preview outside ADR 0015's reach — so the states are won on arithmetic instead: in Split, the divider at half the window with the Editor's paper one side of it and the Template's the other, and the heading at the top of the rendered page centred in the pane it is drawn in; in Full, one paper across the whole window and that heading centred in the window itself. What a still cannot hold — the refresh, the scroll sync, a link opening — is the feature's Hand test."
+    },
+    {
+      "id": "export",
+      "title": "Export",
+      "what": "The Export dialog over the page, and the file it writes",
+      "judge": "nothing, and no critic is spent here either: the one state names `assert`, so it is measured off ours' own pixels by tools/assert-state.mjs and shown to nobody (ADR 0017). Neither oracle holds an Export dialog — legacy/ has none at all, and iA Writer for Mac's own is that app's dialog rather than this one's — so the state is won on arithmetic instead: the dialog standing over the page as a second ground, inside the window and centred on it, its Options expander open, and the file name seeded from the Document's own name. What a still cannot hold — the file that is written, the printer, the notification and the clipboard — is the feature's Hand test."
     }
   ],
   "log": [

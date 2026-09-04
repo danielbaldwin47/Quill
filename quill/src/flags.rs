@@ -40,11 +40,13 @@ use std::path::{Path, PathBuf};
 
 use quill_engine::commands;
 use quill_engine::settings::{
-    Choice, Chrome, Face, FocusScope, Preview, PreviewLayout, Settings,
+    Choice, Chrome, Export, Face, FocusScope, Paper, Preview, PreviewLayout, Settings,
     Template as TemplateSettings, TemplateName, WindowState, window_sizes,
 };
 use quill_engine::theme::Scheme;
 use quill_engine::typography;
+
+use crate::export_dialog::Format;
 
 /// What `--help` prints: every flag, in the architecture's order.
 pub const USAGE: &str = "\
@@ -82,6 +84,9 @@ Judged state — the states the Gate shoots and benches at:
                          rest of [template] at its defaults.
   --search <query>       Put <query> in the Library's search field and narrow
                          the list to what it finds. Wants --sidebar.
+  --export-dialog pdf|html|markdown
+                         Open that format's Export dialog over the page, its
+                         Options expander open, once the window has painted.
   --w <px>               Open the window this wide.
   --h <px>               Open the window this tall.
 
@@ -235,6 +240,12 @@ pub struct Flags {
     /// The Template `--template` names, which the rendered page is laid out
     /// in for this launch.
     pub template: Option<TemplateName>,
+    /// The Export dialog `--export-dialog` asks to be opened over the page,
+    /// its Options expander open, once the window has painted its first frame
+    /// ([`crate::window::Window::open_flagged_export`]). The dialog's being
+    /// open at all is this flag having been given: nothing else opens one
+    /// unasked.
+    pub export_dialog: Option<Format>,
     /// The window width `--w` names, in pixels.
     pub width: Option<u32>,
     /// The window height `--h` names, in pixels.
@@ -315,6 +326,16 @@ impl Flags {
                 "--search" => flags.search = Some(text(&mut args, flag)?),
                 "--preview" => flags.preview = Some(choice(flag, &text(&mut args, flag)?)?),
                 "--template" => flags.template = Some(choice(flag, &text(&mut args, flag)?)?),
+                "--export-dialog" => {
+                    let written = text(&mut args, flag)?;
+                    flags.export_dialog = Some(Format::parse(&written).ok_or_else(|| {
+                        not(
+                            flag,
+                            &written,
+                            &format!("one of {}", Format::VALUES.join(", ")),
+                        )
+                    })?);
+                }
                 "--w" => flags.width = Some(whole(flag, &text(&mut args, flag)?, &window_sizes())?),
                 "--h" => {
                     flags.height = Some(whole(flag, &text(&mut args, flag)?, &window_sizes())?)
@@ -460,6 +481,23 @@ impl Flags {
         } else if self.deterministic {
             settings.template = TemplateSettings::default();
         }
+        // `[export]` has no flag of its own: the geometry is not a state the
+        // Gate shoots, it is the rows the Export dialog opens on, so the whole
+        // table is pinned to its defaults under every judged shot and there is
+        // no half of this that reads a flag. A writer whose file asks for a
+        // title page at 14 pt on Legal would otherwise be shooting different
+        // rows than the ones that were judged.
+        //
+        // `paper` is pinned past the default, because the default is not one
+        // paper: `auto` is resolved through the host's locale at the moment it
+        // is asked for (`quill_engine::settings::locale_paper`), so the row the
+        // dialog draws would read one thing under `LANG=en_US` and another
+        // under `LANG=de_DE`. A4 names the same paper on every machine, which
+        // is what a judged shot needs of it.
+        if self.deterministic {
+            settings.export = Export::default();
+            settings.export.paper = Paper::A4;
+        }
         settings
     }
 
@@ -585,7 +623,7 @@ mod tests {
 
     /// Every flag `docs/architecture.md` names, with a value it takes and —
     /// where it has a domain — one it does not.
-    const FLAGS: [(&str, &str, Option<&str>); 25] = [
+    const FLAGS: [(&str, &str, Option<&str>); 26] = [
         ("--text", "ref/sample.md", None),
         ("--theme", "dark", Some("purple")),
         ("--font", "mono", Some("comic")),
@@ -608,6 +646,7 @@ mod tests {
         ("--search", "sea --sidebar", None),
         ("--preview", "split", Some("beside")),
         ("--template", "classic", Some("gothic")),
+        ("--export-dialog", "pdf", Some("docx")),
         ("--w", "1440", Some("0")),
         ("--h", "900", Some("tall")),
         ("--deterministic", "", None),
@@ -664,7 +703,7 @@ mod tests {
             "--text ref/sample.md --theme dark --font mono --step 6 --focus paragraph \
              --typewriter --live --chrome off --caret end --select 10,20 --scroll 0.25 --nocaret \
              --typing --menu palette --library shots/oracle/library --sidebar --search sea \
-             --preview full --template classic \
+             --preview full --template classic --export-dialog pdf \
              --w 1440 --h 900 --deterministic --measure out.jsonl \
              --palette quill.toml",
         )
@@ -677,6 +716,7 @@ mod tests {
         assert_eq!(flags.search.as_deref(), Some("sea"));
         assert_eq!(flags.preview, Some(PreviewLayout::Full));
         assert_eq!(flags.template, Some(TemplateName::Classic));
+        assert_eq!(flags.export_dialog, Some(Format::Pdf));
         assert!(flags.typing);
         assert_eq!(flags.menu, Some(Menu::Palette));
         assert_eq!(flags.text.as_deref(), Some(Path::new("ref/sample.md")));
@@ -940,6 +980,86 @@ mod tests {
             (live.preview, live.template),
             (writers.preview, writers.template),
             "a writer's launch that named neither is theirs exactly"
+        );
+    }
+
+    /// Every word the flag offers in `--help` opens a dialog, and the three
+    /// words are the three formats: a fourth is refused by the table test
+    /// above, and a word `--help` names that nothing parses would be a state
+    /// the Gate could write and never shoot.
+    #[test]
+    fn export_dialog_takes_every_word_the_usage_offers() {
+        for value in Format::VALUES {
+            let flags = parse(&format!("--export-dialog {value}")).expect("a format --help names");
+            assert!(flags.export_dialog.is_some(), "--export-dialog {value}");
+            assert!(
+                USAGE.contains(value),
+                "--help offers every word the flag takes: {value}"
+            );
+        }
+        assert_eq!(
+            parse("--export-dialog pdf")
+                .expect("one flag")
+                .export_dialog,
+            Some(Format::Pdf)
+        );
+        assert_eq!(
+            parse("--export-dialog html")
+                .expect("one flag")
+                .export_dialog,
+            Some(Format::Html)
+        );
+        assert_eq!(
+            parse("--export-dialog markdown")
+                .expect("one flag")
+                .export_dialog,
+            Some(Format::Markdown)
+        );
+        assert!(
+            Flags::default().export_dialog.is_none(),
+            "a launch that named none opens none"
+        );
+    }
+
+    /// The `export/dialog` state is the `[export]` table drawn as rows, so the
+    /// whole table is pinned to its defaults under `--deterministic` — and
+    /// `paper` past its default, because `auto` is the host's locale and a
+    /// judged shot is the same on every machine.
+    #[test]
+    fn export_is_pinned_to_its_defaults_under_every_judged_state() {
+        let mut writers = Settings::default();
+        writers.export.paper = Paper::Legal;
+        writers.export.margin = 35;
+        writers.export.text_size = 14;
+        writers.export.title_page = true;
+        writers.export.header = true;
+        writers.export.footer = true;
+
+        let judged = parse("--deterministic")
+            .expect("one flag")
+            .over(writers.clone());
+        assert_eq!(judged.export, {
+            let mut wanted = Export::default();
+            wanted.paper = Paper::A4;
+            wanted
+        });
+        assert_eq!(
+            judged.export.paper,
+            Paper::A4,
+            "one paper, not the locale's"
+        );
+        assert_ne!(
+            Export::default().paper,
+            Paper::A4,
+            "and past the default, which is the locale's"
+        );
+
+        let live = parse("--theme dark")
+            .expect("one flag")
+            .over(writers.clone());
+        assert_eq!(
+            live.export, writers.export,
+            "a writer's launch is their own table exactly"
         );
     }
 

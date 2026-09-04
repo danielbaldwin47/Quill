@@ -56,12 +56,24 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { overlaid } from './crop.mjs';
 import { decodePng } from './keys-assert.mjs';
 
 // The `GtkApplication` application-id, which is the xdg-toplevel `app_id`, which is what Hyprland
 // reports as a window's `class` and what `ext_foreign_toplevel_handle_v1` reports as its `app_id`.
 // One string, three names for it; `quill/src/main.rs` holds the original.
 export const APP_ID = 'io.github.danielbaldwin47.Quill';
+
+// The `app_id` a window of ours that is not the application window carries.
+//
+// GTK gives a `GtkApplicationWindow` the application id and every other `GtkWindow` the program
+// name, which for this binary is `quill`. The Export dialog `--export-dialog` opens is a plain
+// `gtk::Window` (ADR 0009, plain GTK), so it maps as a toplevel of its own under this second class
+// — which is what lets the stage rule it apart from the window it stands over ([`rulesLua`]) and
+// what makes it findable in the toplevel list. Measured on the stage, not read out of GTK: a
+// `--export-dialog` shoot says so at once if it ever moves, because there is no second toplevel to
+// find and the shot refuses rather than coming back without the dialog in it.
+export const DIALOG_APP_ID = 'quill';
 
 // The stage's own numbers. The mode is the widest judged state (1440 logical) plus margin, at the
 // integer scale every judged shot is taken at; the window sits at `MARGIN` from the top left so
@@ -194,6 +206,11 @@ export function quillArgv(root, flags, { live = false } = {}) {
   // and the shape of a heading is the shape of one whatever Piece the shot is of.
   if (flags.preview) argv.push('--preview', flags.preview);
   if (flags.template) argv.push('--template', flags.template);
+  // The Export dialog the `export` states open, named by its format. A still cannot pull an
+  // expander open, so the flag opens the dialog with its Options already showing; the dialog is a
+  // surface of its own over the page, which is why the state is shot with the caret away
+  // ([`wantsLitCaret`]) — the keyboard is the dialog's while it is up.
+  if (flags.export) argv.push('--export-dialog', flags.export);
   // An empty Document has no passage, and so has no offset into one either.
   if (flags.text) {
     argv.push('--text', path.join(root, flags.text));
@@ -258,16 +275,27 @@ export function classPattern(appId) {
 // `no_initial_focus` is added only for a state shot without keyboard focus: it stops ours taking
 // focus as it maps, so the parking window put there first keeps it.
 export function rulesLua(appId, { workspace, w, h, x = MARGIN.x, y = MARGIN.y, initialFocus = true }) {
+  const decoration = 'no_anim = true, border_size = 0, rounding = 0, no_shadow = true,'
+    + ' no_blur = true, no_dim = true, opacity = "1.0 1.0", tag = "-default-opacity"';
   const lines = [
     'QUILL_GATE_RULES = QUILL_GATE_RULES or {}',
     `local C = "${classPattern(appId)}"`,
+    `local D = "${classPattern(DIALOG_APP_ID)}"`,
     'local function rule(t) t.match = { class = C } QUILL_GATE_RULES[#QUILL_GATE_RULES + 1] = hl.window_rule(t) end',
+    'local function dialog(t) t.match = { class = D } QUILL_GATE_RULES[#QUILL_GATE_RULES + 1] = hl.window_rule(t) end',
     `rule({ name = "quill-gate-workspace", workspace = "${workspace} silent" })`,
     'rule({ name = "quill-gate-float", float = true })',
     `rule({ name = "quill-gate-size", size = "${w} ${h}" })`,
     `rule({ name = "quill-gate-move", move = "${x} ${y}" })`,
-    'rule({ name = "quill-gate-decoration", no_anim = true, border_size = 0, rounding = 0,'
-      + ' no_shadow = true, no_blur = true, no_dim = true, opacity = "1.0 1.0", tag = "-default-opacity" })',
+    `rule({ name = "quill-gate-decoration", ${decoration} })`,
+    // The dialog a `--export-dialog` state opens is a toplevel of its own under a second class
+    // ([`DIALOG_APP_ID`]), and it is ruled separately for two reasons. It wants what ours wants:
+    // the stage's workspace, so it is not put on the owner's, and Omarchy's compositing undone. And
+    // it must not be given ours' size and position — a dialog is placed by the compositor against
+    // the window it is transient for, and where it lands is the thing `export/dialog` measures.
+    `dialog({ name = "quill-gate-dialog-workspace", workspace = "${workspace} silent" })`,
+    'dialog({ name = "quill-gate-dialog-float", float = true })',
+    `dialog({ name = "quill-gate-dialog-decoration", ${decoration} })`,
   ];
   if (!initialFocus) lines.push('rule({ name = "quill-gate-no-initial-focus", no_initial_focus = true })');
   return `${lines.join('\n')}\n`;
@@ -899,6 +927,38 @@ class Stage {
     throw new Error(`the launch put no window on the compositor${why}${stderr.trim() ? `\n${stderr.trim()}` : ''}`);
   }
 
+  /// The second toplevel a `--export-dialog` launch puts on the stage: the dialog over the page.
+  ///
+  /// Found by the process rather than by the class, because the class is shared with every other
+  /// Quill and the process is this launch's alone: the one client of ours' pid that is not ours is
+  /// the dialog. Its toplevel identifier is then the one in the list under [`DIALOG_APP_ID`] with
+  /// the same title, which is the only name `grim -T` answers to ([`toplevels`]).
+  ///
+  /// `at` is where the compositor put it, in the device pixels of ours' own capture: the offset of
+  /// its top left from ours', doubled by the scale every judged shot is taken at. Nothing here
+  /// places the dialog — Hyprland centres it against the window it is transient for, and that
+  /// placement is what the `export/dialog` rule measures.
+  async dialogOver(ours) {
+    for (let waited = 0; waited < MAP_TIMEOUT_MS; waited += POLL_MS) {
+      await sleep(POLL_MS);
+      const client = clients().find((c) => c.pid === ours.child.pid && c.address !== ours.address);
+      if (!client) continue;
+      const toplevel = toplevels().find((t) => t.appId === DIALOG_APP_ID && t.title === client.title);
+      if (!toplevel) continue;
+      return {
+        address: client.address,
+        appId: DIALOG_APP_ID,
+        toplevel,
+        at: [
+          (client.at[0] - ours.geometry.at[0]) * SCALE,
+          (client.at[1] - ours.geometry.at[1]) * SCALE,
+        ],
+      };
+    }
+    throw new Error(`the launch opened no second window within ${MAP_TIMEOUT_MS / 1000}s, and the state`
+      + ` names a dialog: the shot would be the page with nothing over it`);
+  }
+
   kill(child) {
     if (!child) return;
     this.state.children.delete(child);
@@ -915,11 +975,13 @@ class Stage {
   /// shot asks for its own reason: an unfocused Quill paints the ghost caret, which is a judged
   /// state of its own and so is never a shot that merely looks wrong — and for its parking window,
   /// because focus that never left the owner is the arrangement `shoot`'s contract forbids.
-  async focused(address) {
+  /// `appId` is the class the window is expected under, which is ours' unless the window asked for
+  /// is the dialog over it ([`DIALOG_APP_ID`]).
+  async focused(address, appId = this.appId) {
     movePointer(this.corner);
     for (let tries = 0; tries < FOCUS_TRIES; tries += 1) {
       focusWindow(address);
-      if (this.holds(address)) return true;
+      if (this.holds(address, appId)) return true;
       await sleep(POLL_MS);
     }
     return false;
@@ -930,9 +992,9 @@ class Stage {
   /// The one question a bench asks between chunks, so it is one `hyprctl` call and no dispatch. The
   /// class is checked as well as the address because the address alone would be satisfied by an
   /// address the compositor has since given to something else.
-  holds(address) {
+  holds(address, appId = this.appId) {
     const active = activeWindow();
-    return active.address === address && active.class === this.appId;
+    return active.address === address && active.class === appId;
   }
 
   /// Captures one toplevel twice and answers with the bytes, once two consecutive captures agree.
@@ -993,6 +1055,12 @@ class Stage {
       }
 
       ours = await this.launch(bin, argv);
+      // A state that opens a dialog is two toplevels rather than one: the page, and the surface the
+      // compositor places over it. Both are waited for here, because everything below — the focus
+      // read-back, the shutter, the frame that is written — is about the pair rather than about
+      // ours alone. Read out of `argv` for the reason [`wantsLitCaret`] is: the flags a state names
+      // are what the state is, and a second channel saying the same thing could disagree with them.
+      const over = argv.includes('--export-dialog') ? await this.dialogOver(ours) : null;
       // Read back rather than dispatched and hoped for. The compositor answers the dispatch before
       // it has finished acting on it, and an unfocused Quill still paints — it paints the ghost
       // caret the `unfocused` state is judged on. `steady()` cannot catch that: it proves two
@@ -1000,8 +1068,14 @@ class Stage {
       // so the shot that loses the race is the stillest one. #166 lost `page/empty` this way, at
       // 0.3 alpha, while `page/light` and `page/narrow` won — their text layout cost enough frames
       // for the activation notify to land.
-      if (active && !(await this.focused(ours.address))) {
-        throw new Error(`keyboard focus never took on ours (${ours.address}); the shot would be ghosted`);
+      //
+      // The window focus is read back on is the dialog where there is one: a modal dialog takes the
+      // keyboard as it maps, so insisting on ours' own address would be insisting on the one
+      // arrangement the app will not give. The Editor under it draws the ghost caret by rights,
+      // which is why such a state names `--nocaret` and asks for no lit bar below.
+      const keyboard = over ?? ours;
+      if (active && !(await this.focused(keyboard.address, keyboard.appId))) {
+        throw new Error(`keyboard focus never took on ours (${keyboard.address}); the shot would be ghosted`);
       }
       // Settled, captured, and then asked whether the caret in it is lit — and settled and captured
       // again while it is not. The read-back above closed the compositor's half of this race (#186)
@@ -1014,6 +1088,12 @@ class Stage {
       for (let attempt = 0; attempt < LIT_TRIES; attempt += 1) {
         await sleep(SETTLE_MS);
         png = await this.steady(ours.toplevel.id);
+        // The dialog's own buffer over the page's, which is the one frame a writer sees: each
+        // toplevel is captured on its own because `grim -T` reads a toplevel's own buffer, and the
+        // region capture that would take both at once is the one the research ruled out
+        // ([`overlaid`]). Steadied on its own too — a dialog still laying itself out is a moving
+        // window whether or not the page under it has stopped.
+        if (over) png = overlaid(png, await this.steady(over.toplevel.id), over.at);
         if (!lit || carriesAccent(png)) break;
         png = null;
       }

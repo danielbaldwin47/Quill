@@ -47,7 +47,7 @@ const TOLERANCE = 0.02;
 const SEPARATION = 32;
 
 // The assertions a state may name, by the word it names them with.
-export const ASSERTIONS = { ghost: ghost, folded: folded, split: split, full: full };
+export const ASSERTIONS = { ghost: ghost, folded: folded, split: split, full: full, dialog: dialog };
 
 // How each rule wants its second shot taken: the state to shoot, and what to shoot it with.
 //
@@ -55,12 +55,14 @@ export const ASSERTIONS = { ghost: ghost, folded: folded, split: split, full: fu
 // ours (ADR 0017). What the second shot is differs by rule, and the difference is here rather than
 // in the two callers: `ghost` wants the same state with the window active, `folded` wants the
 // same state with Live off, which is the page whose markers the fold is measured against, and the
-// two Preview rules read one frame and take the active shot they do not read, as `ghost` does.
+// two Preview rules and the Export dialog's read one frame and take the active shot they do not
+// read, as `ghost` does.
 export const SECOND = {
   ghost: (s) => ({ state: s, options: { active: true } }),
   folded: (s) => ({ state: { ...s, flags: { ...s.flags, live: false } }, options: {} }),
   split: (s) => ({ state: s, options: { active: true } }),
   full: (s) => ({ state: s, options: { active: true } }),
+  dialog: (s) => ({ state: s, options: { active: true } }),
 };
 
 // The second shot one asserted state asks for: `{ state, options }` for `shootState`.
@@ -107,14 +109,16 @@ const CHECKS = {
   },
   split: bare('split'),
   full: bare('full'),
+  dialog: bare('dialog'),
 };
 
 // A rule with nothing to configure, checked for an entry that thinks otherwise.
 //
-// The Preview rules read every number they compare out of the shot — the window's own width, the
-// papers either side of the divider, the pane's centre — so there is nothing for the state to name
-// but the kind. An entry naming more than that has set something nobody reads, which is a state
-// quietly measuring something other than what it says.
+// The Preview rules and the Export dialog's read every number they compare out of the shot — the
+// window's own width, the papers either side of the divider, the pane's centre, the rectangle the
+// dialog's ground fills — so there is nothing for the state to name but the kind. An entry naming
+// more than that has set something nobody reads, which is a state quietly measuring something other
+// than what it says.
 function bare(kind) {
   return (spec) => {
     const extra = Object.keys(spec).filter((k) => k !== 'kind');
@@ -603,6 +607,158 @@ function full(_spec, { dim }) {
       `the paper was read as the colour the window is mostly made of, not compared against a hex written down here`,
     ],
   };
+}
+
+// ---------- the Export dialog ----------
+
+// How near the window's own centre the dialog's box has to stand, in device px.
+//
+// Wider than [`CENTRE`]: the divider and the heading are drawn by the app inside one surface, and
+// this is a second surface placed by the compositor against the first, whose height and width are
+// the dialog's natural ones and can be odd. Half a logical pixel at scale 2 is 1 device px, and a
+// box of odd extent centred in one of even extent is half a pixel out by construction.
+const DIALOG_CENTRE = 8;
+
+// How many bands of ink the dialog carries when its Options expander is open.
+//
+// A band is a run of rows carrying ink with air above and below it ([`bandsOf`]), which is what one
+// row of a dialog is: the file name, the folder button, the Options label, the Export button. Shut,
+// that is the four of them. Open, the PDF expander adds Paper, Text size, three Template toggles,
+// Title page, Header, Footer and Save as defaults beneath the label. The number is a floor rather
+// than a count, because two rows that meet leave one band and this is not a test of the row
+// spacing; eight is more bands than a shut dialog can make however its rows fall together.
+const DIALOG_BANDS = 8;
+
+// The Export dialog over the page, its Options expander open.
+//
+// Neither oracle holds this one either: `legacy/` has no Export dialog at all, and iA Writer for
+// Mac's own is that app's dialog rather than this one's, so it is measured instead of shown to
+// anybody (ADR 0017).
+//
+// Three facts, and they are the three a still can hold. The dialog is a **second ground over the
+// page**: the strip along the top of the window is still the Editor's paper, and the dialog's
+// ground is another colour standing in a rectangle wholly inside it — a dialog that filled the
+// window, or one that never opened, fails here. That is a fact about the look and not an accident
+// of it: the dialog is drawn in the same paper the Editor is, and it reads as a surface of its own
+// because GTK draws the window a modal dialog is up over at the half opacity of a widget that
+// cannot be typed into. A build where the two grounds came back the same would be a build where a
+// writer cannot see where the dialog ends, which is the thing worth failing on. That rectangle is
+// **centred on the window**, which is where a dialog transient for a window belongs. And it carries
+// **the bands of an open expander**: shut, the dialog is the file name, the folder, the Options
+// label and the Export button, and open it is those plus every row of the options grid, so counting
+// the bands says which of the two was shot without pinning a row to a y.
+//
+// What the entry says and where the switches stand are reported rather than held: the seeded file
+// name's ink is in the topmost band, and the count of bands is the count of rows. A still cannot
+// read a word, and this rule does not pretend to.
+//
+// One frame, and `shots.dim` is it, for the reason [`split`] reads one: this is not about
+// activation. No colour is compared against a hex written down here — both grounds are read as the
+// colour their part of the window is mostly made of — because a palette that moves takes both with
+// it.
+function dialog(_spec, { dim }) {
+  const png = decodePng(dim);
+  const { w, h } = png;
+  // The page off the strip along the top of the window and the dialog off the middle of it: a
+  // dialog is centred on the window it is transient for, so the top strip is page whatever the
+  // dialog's size and the middle is dialog whenever there is one.
+  const page = groundOf(png, 0, w, 0, h >> 4);
+  const sheet = groundOf(png, w >> 2, w - (w >> 2), h >> 2, h - (h >> 2));
+  if (sameRgb(page, sheet)) {
+    return no(`the middle of the window is ${hex(sheet)}, the same paper as the strip along its top: no dialog stands over the page`);
+  }
+
+  const sheetBox = extentOf(png, sheet);
+  const inside = sheetBox.left > 0 && sheetBox.right < w - 1
+    && sheetBox.top > 0 && sheetBox.bottom < h - 1;
+  if (!inside) {
+    return no(`the ${hex(sheet)} ground runs ${box(sheetBox)} of a ${w}x${h} window: it reaches an edge, so it is not a dialog standing over the page`);
+  }
+
+  const bands = bandsOf(png, sheetBox, sheet);
+  const boxCentre = [(sheetBox.left + sheetBox.right) / 2, (sheetBox.top + sheetBox.bottom) / 2];
+  const centre = [(w - 1) / 2, (h - 1) / 2];
+  const off = [Math.abs(boxCentre[0] - centre[0]), Math.abs(boxCentre[1] - centre[1])];
+  const where = `the dialog is ${hex(sheet)} over ${hex(page)}, ${box(sheetBox)} of a ${w}x${h} window, `
+    + `centre ${boxCentre[0]},${boxCentre[1]} against the window's own ${centre[0]},${centre[1]}`;
+  const rows = `${bands.length} bands of ink inside it, the topmost ${box(bands[0] ?? sheetBox)}`;
+  const missed = [];
+  if (off[0] > DIALOG_CENTRE || off[1] > DIALOG_CENTRE) {
+    missed.push(`it stands ${off[0].toFixed(1)},${off[1].toFixed(1)} px off the window's centre`);
+  }
+  if (bands.length < DIALOG_BANDS) {
+    missed.push(`it carries ${bands.length} bands of ink and an open expander carries at least ${DIALOG_BANDS}, so the Options are shut`);
+  }
+  return {
+    ours: missed.length === 0,
+    dialog: [
+      sheetBox.left,
+      sheetBox.top,
+      sheetBox.right - sheetBox.left + 1,
+      sheetBox.bottom - sheetBox.top + 1,
+    ],
+    grounds: [hex(page), hex(sheet)],
+    bands: bands.length,
+    why: missed.length === 0
+      ? `${where}; ${rows}`
+      : `${where}; ${rows} — ${missed.join(', and ')}, past the ${DIALOG_CENTRE} px this is measured to`,
+    secondary: [
+      rows,
+      `both grounds were read as the colour their part of the window is mostly made of, not compared against a hex written down here`,
+    ],
+  };
+}
+
+// The bounding box of every pixel of `rgb`, or a box of nothing when the shot holds none.
+function extentOf(png, rgb) {
+  const { w, h } = png;
+  let left = w;
+  let right = -1;
+  let top = h;
+  let bottom = -1;
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      if (!is(png, x, y, rgb)) continue;
+      if (x < left) left = x;
+      if (x > right) right = x;
+      if (y < top) top = y;
+      if (y > bottom) bottom = y;
+    }
+  }
+  return { left, right, top, bottom };
+}
+
+// The runs of rows inside `box` that carry ink over `paper`, each as its own bounding box.
+//
+// A row of a dialog is a run of inked rows with air above and below it, so the runs are the rows the
+// dialog is made of — a count that says whether an expander is open without saying where its rows
+// are. The box's own outermost columns are left out, because a border drawn round the dialog is ink
+// on every row and would make the whole of it one band.
+function bandsOf(png, box, paper) {
+  const x0 = box.left + 1;
+  const x1 = box.right;
+  const found = [];
+  let open = null;
+  for (let y = box.top; y <= box.bottom; y += 1) {
+    let left = x1;
+    let right = -1;
+    for (let x = x0; x < x1; x += 1) {
+      if (!inked(png, x, y, paper)) continue;
+      if (x < left) left = x;
+      if (x > right) right = x;
+    }
+    if (right < 0) {
+      if (open) found.push(open);
+      open = null;
+      continue;
+    }
+    if (!open) open = { top: y, bottom: y, left, right };
+    open.bottom = y;
+    if (left < open.left) open.left = left;
+    if (right > open.right) open.right = right;
+  }
+  if (open) found.push(open);
+  return found;
 }
 
 // The colour a rectangle of the shot is mostly made of, as `[r, g, b]`.

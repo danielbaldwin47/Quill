@@ -1,0 +1,46 @@
+{
+  "piece": "export",
+  "round": 1,
+  "winner": "ours",
+  "margin": "asserted",
+  "gap": "the dialog is #f7f7f7 over #7c7c7c, x 1020..1859, y 354..1447 of a 2880x1800 window, centre 1439.5,900.5 against the window's own 1439.5,899.5; 13 bands of ink inside it, the topmost x 1044..1835, y 378..445",
+  "gapTheirs": "no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)",
+  "verdict": "the dialog is #f7f7f7 over #7c7c7c, x 1020..1859, y 354..1447 of a 2880x1800 window, centre 1439.5,900.5 against the window's own 1439.5,899.5; 13 bands of ink inside it, the topmost x 1044..1835, y 378..445",
+  "oursShot": "shots/export/r1-dialog-ours.png",
+  "theirsShot": null,
+  "refSource": "no opponent for dialog (dialog) — measured off ours' own pixels by tools/assert-state.mjs, because neither oracle holds the state (ADR 0017)",
+  "builderNote": "#289: the export/dialog asserted state, --export-dialog and the [export] pin",
+  "secondary": [
+    "13 bands of ink inside it, the topmost x 1044..1835, y 378..445",
+    "both grounds were read as the colour their part of the window is mostly made of, not compared against a hex written down here"
+  ],
+  "opponent": "asserted",
+  "build": {
+    "git": "db81836",
+    "binary": "31d9214424eb4c5b",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "dialog",
+      "ours": "shots/export/r1-dialog-ours.png",
+      "theirs": null,
+      "lit": "shots/export/r1-dialog-ours-lit.png",
+      "assert": {
+        "kind": "dialog",
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "the dialog is #f7f7f7 over #7c7c7c, x 1020..1859, y 354..1447 of a 2880x1800 window, centre 1439.5,900.5 against the window's own 1439.5,899.5; 13 bands of ink inside it, the topmost x 1044..1835, y 378..445",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)",
+      "verdict": "the dialog is #f7f7f7 over #7c7c7c, x 1020..1859, y 354..1447 of a 2880x1800 window, centre 1439.5,900.5 against the window's own 1439.5,899.5; 13 bands of ink inside it, the topmost x 1044..1835, y 378..445",
+      "secondary": [
+        "13 bands of ink inside it, the topmost x 1044..1835, y 378..445",
+        "both grounds were read as the colour their part of the window is mostly made of, not compared against a hex written down here"
+      ]
+    }
+  ],
+  "at": "2026-09-04T16:49:53.241Z"
+}
