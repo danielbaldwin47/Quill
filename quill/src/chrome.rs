@@ -479,6 +479,7 @@ fn run_window(window: &Window, command: &Command) {
         }
         "export.quick" => crate::export::quick(window),
         "export.copyHtml" => crate::export::copy_html(window),
+        "print" => crate::print::open(window),
         "palette.open" => window.open_palette(),
         "file.recent" => window.open_recents(),
         "settings.open" => window.open_settings(),
@@ -1736,9 +1737,11 @@ mod tests {
     #[test]
     fn a_disabled_commands_activation_returns_without_effect() {
         let (map, fired) = map(Scope::Win);
-        assert!(!commands::by_id("print").unwrap().built);
-        assert!(!map.is_action_enabled("print"));
-        map.activate_action("print", None);
+        // Open Linked Document, which waits on the Links spec; Print… was
+        // this test's unbuilt Command until #290 built it.
+        assert!(!commands::by_id("file.follow").unwrap().built);
+        assert!(!map.is_action_enabled("file.follow"));
+        map.activate_action("file.follow", None);
         // The Stats menu's fields are the Stats spec's (#30), so the whole
         // radio group is disabled.
         map.activate_action("stats", Some(&"words".to_variant()));

@@ -433,12 +433,14 @@ mod tests {
         assert_eq!(after, ["Close Window", "Quit"]);
     }
 
-    /// Print… is greyed until the ticket that wires it flips its `built`,
-    /// which is the disabled action the popover draws; every Export row above
-    /// it is built (#287, #288).
+    /// Print… is built and stands in the Document menu under the Export rows
+    /// rather than inside the submenu, which is the separator the spec asks
+    /// for (#290).
     #[test]
-    fn print_is_the_row_still_waiting_for_its_ticket() {
-        assert!(!by_id(PRINT).expect(PRINT).built, "{PRINT} is built");
+    fn print_stands_built_below_the_export_rows() {
+        let print = by_id(PRINT).expect(PRINT);
+        assert!(print.built, "{PRINT} is not built");
+        assert!(!is_export(print), "{PRINT} is inside the Export submenu");
         for id in ["export.pdf", "export.html", "export.markdown"] {
             assert!(by_id(id).expect(id).built, "{id} is not built");
         }

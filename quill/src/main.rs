@@ -35,6 +35,7 @@ mod menus;
 mod palette;
 mod portal;
 mod preview;
+mod print;
 mod session;
 mod settings;
 mod shortcuts;
