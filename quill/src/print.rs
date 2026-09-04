@@ -11,8 +11,10 @@
 //! `[export]` — its paper and its margin seed the default page setup, and the
 //! Quill tab is the Export dialog's own options widget
 //! ([`crate::export_dialog::Options`]) — but the print dialog's Page Setup
-//! wins for that job, and nothing is written back to the settings file. There
-//! is no confirmation after a print: nothing was written to a file to open.
+//! wins for that job, and nothing is written back to the settings file. The
+//! tab carries no Paper row for that reason ([`Depth::Print`]): the paper is
+//! the page setup's to name here, and one question has one answer. There is no
+//! confirmation after a print: nothing was written to a file to open.
 //!
 //! No Print Plain Text: the map's Out of scope.
 
@@ -81,7 +83,7 @@ pub(crate) fn open(window: &Window) {
 
     // Built before the dialog is, and held, because the tab's widget is asked
     // for once and read back once and the two moments are not the same.
-    let options = Rc::new(Options::new(&seed, Depth::Page));
+    let options = Rc::new(Options::new(&seed, Depth::Print));
     let chosen = Rc::new(RefCell::new(seed));
     let job: Rc<RefCell<Option<Job>>> = Rc::new(RefCell::new(None));
 
