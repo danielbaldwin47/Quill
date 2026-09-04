@@ -704,10 +704,11 @@ function pdfSplit(_spec, { dim }) {
 // one is the gap between pages one and two.
 //
 // Both pages are in the shot because the state is shot for it: `preview/pdf-full` names a narrower
-// window and `zoom: 50` (shots/oracle/states.json), which stands the second page's top edge below
-// the first's foot with the air between them. At the judged 1440 px width and fit width a page is
-// some 1900 px tall against a 900 px window, and no second page would reach the glass — so the
-// count is asserted here rather than left to what happens to show.
+// window and `zoom: 75` (shots/oracle/states.json), which stands the second page's top edge below
+// the first's foot with the air between them, the page still the ground most of the window is made
+// of. At the judged 1440 px width and fit width a page is some 1900 px tall against a 900 px
+// window, and no second page would reach the glass — so the count is asserted here rather than
+// left to what happens to show.
 //
 // Nothing here reads an edge between the pane and the Editor's paper, because at the light palette
 // this state is shot in there is none to read: the surround and the light theme's paper are one
