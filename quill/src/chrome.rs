@@ -40,7 +40,7 @@ use gtk::{cairo, gio, glib};
 use quill_engine::commands::{self, COMMANDS, Command, Kind, Menu, Scope};
 use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
-use quill_engine::settings::{Choice, Chrome, FocusScope, TemplateName};
+use quill_engine::settings::{Choice, Chrome, FocusScope, PreviewLayout, TemplateName};
 use quill_engine::shortcuts::{Chord, Refusal};
 use quill_engine::stats::words;
 use quill_engine::theme::{Role, Scheme};
@@ -82,8 +82,8 @@ pub struct Modes {
     /// above it is, and remembered by nothing: the pane is closed at every
     /// launch (#263).
     pub preview: bool,
-    /// Where Preview opens, `split` or `full`. The session's, unlike the pane
-    /// itself: a writer sets it up once.
+    /// The layout the pane last showed, and the one it shows now while open,
+    /// `split` or `full`. The session's, unlike the pane itself.
     pub preview_layout: &'static str,
     /// The Template the page is laid out in, `modern` to
     /// `manuscript-quattro`.
@@ -356,11 +356,12 @@ pub fn reflect(map: &impl IsA<gio::ActionMap>, modes: Modes) {
     set("chrome.toggle", (!modes.bars).to_variant());
     set("chrome.stats", modes.stats.to_variant());
     set("library.toggle", modes.library.to_variant());
-    set("preview.toggle", modes.preview.to_variant());
-    // The one radio row carries `split`, so Full ticks nothing, the way the
-    // scope rows tick nothing with Focus off: the row is where Preview opens
-    // and not a state the window is in.
-    set("preview_layout", modes.preview_layout.to_variant());
+    // Each row is its own layout's toggle, so it is ticked only while the
+    // pane is open in that layout and the pane away leaves both clear: the
+    // rows are states the window is in and not where Preview would open.
+    let showing = |layout: &str| (modes.preview && modes.preview_layout == layout).to_variant();
+    set("preview.full", showing("full"));
+    set("preview.split", showing("split"));
     // With Focus off neither scope's row is ticked, as the oracle's menu
     // has it: the scope the file holds is the one Focus comes back to, not
     // a state the page is in.
@@ -444,10 +445,11 @@ fn run_window(window: &Window, command: &Command) {
         "live.toggle" => window.toggle_live(),
         "chrome.toggle" => window.toggle_bars(),
         "library.toggle" => window.toggle_library(),
-        "preview.toggle" => window.toggle_preview(),
-        // One row with one value and two states: the chord and the menu row
-        // both flip it, the way `focus.swap` flips the scope.
-        "preview.layout" => window.swap_preview_layout(),
+        // Two rows, each its own layout's toggle: the chord opens the pane in
+        // that layout, switches an open pane to it, or closes the pane it is
+        // already showing.
+        "preview.full" => window.preview_to(PreviewLayout::Full),
+        "preview.split" => window.preview_to(PreviewLayout::Split),
         "library.search" => window.search_library(),
         "chrome.stats" => window.toggle_stats(),
         "chrome.doc" | "chrome.view" => {
@@ -1792,10 +1794,10 @@ mod tests {
         );
     }
 
-    #[test]
-    fn the_stateful_actions_show_the_modes_they_are_given() {
-        let (map, _) = map(Scope::Win);
-        let modes = Modes {
+    /// The modes the two reflect tests read, with the Preview pane's pair as
+    /// the case asks for them.
+    fn preview_modes(preview: bool, preview_layout: &'static str) -> Modes {
+        Modes {
             focus: true,
             focus_scope: "paragraph",
             typewriter: false,
@@ -1807,14 +1809,19 @@ mod tests {
             bars: false,
             stats: false,
             library: true,
-            preview: true,
-            preview_layout: "full",
+            preview,
+            preview_layout,
             template: "classic",
             center_headings: true,
             number_headings: true,
             indent_paragraphs: false,
-        };
-        reflect(&map, modes);
+        }
+    }
+
+    #[test]
+    fn the_stateful_actions_show_the_modes_they_are_given() {
+        let (map, _) = map(Scope::Win);
+        reflect(&map, preview_modes(true, "full"));
         let state = |name: &str| map.action_state(name).unwrap();
         assert_eq!(state("focus.toggle").get::<bool>(), Some(true));
         assert_eq!(state("chrome.stats").get::<bool>(), Some(false));
@@ -1830,12 +1837,12 @@ mod tests {
         assert_eq!(state("theme").get::<String>().as_deref(), Some("auto"));
         assert_eq!(state("face").get::<String>().as_deref(), Some("quattro"));
         assert_eq!(state("library.toggle").get::<bool>(), Some(true));
-        assert_eq!(state("preview.toggle").get::<bool>(), Some(true));
         assert_eq!(
-            state("preview_layout").get::<String>().as_deref(),
-            Some("full"),
-            "the row carries `split`, so Full ticks none of it"
+            state("preview.full").get::<bool>(),
+            Some(true),
+            "the pane is open and Full is what it shows"
         );
+        assert_eq!(state("preview.split").get::<bool>(), Some(false));
         assert_eq!(
             state("template").get::<String>().as_deref(),
             Some("classic")
@@ -1846,6 +1853,20 @@ mod tests {
             state("template.indentParagraphs").get::<bool>(),
             Some(false)
         );
+    }
+
+    /// With the pane away neither Preview row is ticked, whatever layout the
+    /// pane last showed: the rows are the layout on screen and there is none
+    /// (#263).
+    #[test]
+    fn the_preview_rows_are_both_clear_with_the_pane_away() {
+        let (map, _) = map(Scope::Win);
+        for layout in ["full", "split"] {
+            reflect(&map, preview_modes(false, layout));
+            let state = |name: &str| map.action_state(name).unwrap();
+            assert_eq!(state("preview.full").get::<bool>(), Some(false));
+            assert_eq!(state("preview.split").get::<bool>(), Some(false));
+        }
     }
 
     #[test]

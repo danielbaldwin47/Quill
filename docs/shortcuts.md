@@ -53,11 +53,14 @@ Sections in this order, separators between them.
 | Id | Title | Default | Alias |
 |---|---|---|---|
 | `library.toggle` | Show Library / Hide Library | `Ctrl+E` | `F9` |
-| `preview.toggle` | Show Preview / Hide Preview | `Ctrl+R` | |
-| `preview.layout` | Preview Split / Preview Full (radio pair) | `Ctrl+Shift+R` | |
+| `preview.full` | Preview Full (check) | `Ctrl+R` | |
+| `preview.split` | Preview Split (check) | `Ctrl+Shift+R` | |
 
-`preview.layout` is where Preview opens, Split or Full; `Ctrl+Shift+R` flips the pair, as
-`Ctrl+Shift+D` flips the Focus scope.
+Each chord owns a layout and is that layout's toggle: `Ctrl+R` opens the pane Full, or closes the
+pane when Full is already showing; `Ctrl+Shift+R` opens it Split, or closes it when Split is
+showing. Pressed over the other layout, a chord switches the pane to its own in place. A row is
+ticked while the pane is open in its layout. `[preview].layout` in the settings file is the layout
+the pane last showed, which is the one the next chord to open it opens in.
 
 **Writing tools**
 

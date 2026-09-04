@@ -326,7 +326,12 @@ choice! {
 }
 
 choice! {
-    /// Where Preview opens.
+    /// The layout the Preview pane last showed, and the one it shows now
+    /// while open.
+    ///
+    /// `preview.full` and `preview.split` each set it as they open the pane
+    /// or switch it, so a pane opened with no chord in between opens in the
+    /// layout the writer last read in.
     PreviewLayout {
         /// Beside the Editor.
         #[default]
@@ -554,14 +559,15 @@ impl Library {
     }
 }
 
-/// Preview: where it opens, and how large it draws what a Template names.
+/// Preview: the layout the pane last showed, and how large it draws what a
+/// Template names.
 ///
 /// Neither is per window and neither is per Document: a writer sets the pane
-/// up once. Whether the pane is open at all is not here — `preview.toggle` is
-/// the window's own and is never remembered.
+/// up once. Whether the pane is open at all is not here — that is the
+/// window's own and is never remembered.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Preview {
-    /// Where Preview opens.
+    /// The layout the pane last showed, and the one it shows now while open.
     pub layout: PreviewLayout,
     /// The percentage every size the Template names is drawn at
     /// ([`preview_zooms`]).
