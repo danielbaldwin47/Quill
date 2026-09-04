@@ -361,14 +361,19 @@ mod imp {
         /// ([`Editor::refold`]). `None` with Live off, and while it has not
         /// been worked out yet.
         pub open: RefCell<Option<std::ops::Range<usize>>>,
-        /// Whether a pointer button is down. The fold stands still while it
-        /// is: folding takes bytes off the page, and text that moved under a
-        /// held button turns a click into a drag across whatever slid past
+        /// Whether a pointer button is down. Nothing the writer can see moves
+        /// while it is — neither the fold nor the caret's band — because text
+        /// that moved under a held button turns a click into a drag across
+        /// whatever slid past
         /// ([`Editor::released`](super::Editor::released)).
         pub held: Cell<bool>,
         /// Whether a refold was asked for while a button was down, and so is
         /// owed at the release.
         pub fold_owed: Cell<bool>,
+        /// Whether a caret move asked the band to follow while a button was
+        /// down, and so is owed at the release
+        /// ([`crate::caret::waits_for_release`]).
+        pub follow_owed: Cell<bool>,
         /// Where the fold was last committed to putting the writer, which is
         /// what every draw between two refolds paints from
         /// ([`Editor::painting`](super::Editor::painting)). The live caret
@@ -716,14 +721,12 @@ impl Editor {
                 editor.press(clicks, x, y);
             },
         ));
-        // And at the release, as the oracle stamps both (`focus.js:266-267`):
-        // a drag held longer than the pointer window still ends in a nudge.
-        clicks.connect_released(glib::clone!(
-            #[weak(rename_to = editor)]
-            self,
-            move |_, _, _, _| editor.imp().pressed.set(Some(editor.now())),
-        ));
         self.add_controller(clicks);
+        // The release is stamped too, as the oracle stamps both
+        // (`focus.js:266-267`), but by [`Editor::released`] rather than by a
+        // second handler here: this gesture is denied for a claimed sequence —
+        // a task box, GTK's own selection drag — and a denied gesture is never
+        // told about the release, which is the very case the stamp is for.
 
         // A hand on the wheel takes the view from a glide in flight
         // (`focus.js:268-269`): the next frame finds nothing to carry and
@@ -1004,10 +1007,18 @@ impl Editor {
         self.refurnish(document);
     }
 
-    /// A pointer button came up: the fold moves now, if it was asked to while
-    /// the button was down.
+    /// A pointer button came up: the fold moves now, and the caret's band
+    /// follows now, if either was asked to while the button was down.
     ///
-    /// The other half of [`Editor::refold`]'s standing still. The writer's
+    /// The other half of [`Editor::refold`]'s standing still, and of
+    /// [`Editor::keep_in_band`]'s. A click high or low on the page moves the
+    /// caret, and a band that glided the row in there and then would slide
+    /// text under a pointer GTK is already running a selection drag from
+    /// ([`caret::waits_for_release`]) — so the follow is owed here, after the
+    /// refold, and a click ends with the row where the modes want it and
+    /// nothing selected (#263, the third Hand test round).
+    ///
+    /// The writer's
     /// range at the release is the selection if the press turned into a drag,
     /// so every block the drag crossed unfolds together and none of them moved
     /// under the pointer on the way. The word under the pointer stays under it
@@ -1024,6 +1035,22 @@ impl Editor {
         self.imp().held.set(false);
         if self.imp().fold_owed.take() {
             self.refold(document);
+        }
+        // The release is a nudge of its own, as the oracle stamps it
+        // (`focus.js:266-267`), and it is stamped here rather than only on the
+        // `GestureClick` because a claimed sequence — GTK's own selection drag
+        // — denies that gesture and its `released` never fires. Without the
+        // stamp a drag held longer than the pointer window would pay the owed
+        // follow under Typewriter's anchor instead of the pointer band.
+        self.imp().pressed.set(Some(self.now()));
+        // After the refold, not before: the fold's [`Editor::anchor_row`]
+        // settles on the next frame and [`Editor::settle_reflow`] shifts a
+        // glide already in flight, so a glide started here lands where it
+        // aimed.
+        if self.imp().follow_owed.take()
+            && let Some(bar) = self.bar()
+        {
+            self.keep_in_band(bar);
         }
     }
 
@@ -2170,10 +2197,10 @@ impl Editor {
     ///
     /// Which rule holds the row is the engine's
     /// ([`typewriter::hold`]): Typewriter's anchor, the pointer band for a
-    /// moment after a click, the edge band with Focus on and Typewriter off,
-    /// and with both off the caret ticket's band — `scroll-padding: 10vh 0
-    /// 28vh` in `legacy/app/css/page.css`, which [`Editor::keep_in_margins`]
-    /// applies.
+    /// moment after the button comes up, the edge band with Focus on and
+    /// Typewriter off, and with both off the caret ticket's band —
+    /// `scroll-padding: 10vh 0 28vh` in `legacy/app/css/page.css`, which
+    /// [`Editor::keep_in_margins`] applies.
     ///
     /// [`caret::Source::App`] is out under every rule: a launch flag, a
     /// restored position or a Command is put where it was asked for rather
@@ -2182,9 +2209,19 @@ impl Editor {
     /// passage from the one it was asked for. `--typewriter`'s first frame is
     /// [`Editor::reveal_caret`]'s, which puts the row at the anchor without a
     /// move to follow.
+    ///
+    /// A move made while a button is down only takes the note
+    /// ([`caret::waits_for_release`]); [`Editor::released`] pays it. So a
+    /// drag's every `mark-set` sets the one flag and the view stands still
+    /// under the pointer, and leaving the viewport is GTK's own autoscroll as
+    /// it always was.
     fn keep_in_band(&self, bar: caret::Bar) {
         let last = self.imp().last.get();
         if last == caret::Source::App {
+            return;
+        }
+        if caret::waits_for_release(last, self.imp().held.get()) {
+            self.imp().follow_owed.set(true);
             return;
         }
         let since_press = self
