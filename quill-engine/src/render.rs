@@ -50,11 +50,18 @@ const DPI: f64 = 96.0;
 
 /// The indent a quotation is set at, and the hanging indent a list marker
 /// stands in, in ems of the base size.
-const INDENT: f64 = 1.5;
+///
+/// Crate-wide because [`crate::html`] sets the same two indents in CSS: the
+/// stylesheet an export carries is the same rendered page in another medium
+/// (ADR 0005), so the number lives here once. Nothing outside the engine reads
+/// it.
+pub(crate) const INDENT: f64 = 1.5;
 
 /// The first line's indent when paragraphs are indented rather than spaced, in
 /// ems of the base size.
-const FIRST_LINE: f64 = 1.5;
+///
+/// Crate-wide for the reason [`INDENT`] is.
+pub(crate) const FIRST_LINE: f64 = 1.5;
 
 /// How much room a thematic break's block takes, in ems: the rule itself is a
 /// hairline the widget draws through the middle of it.
@@ -74,6 +81,22 @@ pub struct Toggles {
     /// Indent a paragraph's first line rather than space it from the one
     /// before, as [`Paragraphs::Indented`] does for a whole Template.
     pub indent_paragraphs: bool,
+}
+
+impl Toggles {
+    /// The toggles `table` holds, which is what the Preview and every export
+    /// are laid out with.
+    ///
+    /// One place the three booleans are copied out of the settings table, so
+    /// that a reader who forgets one cannot exist.
+    #[must_use]
+    pub fn of(table: &crate::settings::Template) -> Self {
+        Self {
+            center_headings: table.center_headings,
+            number_headings: table.number_headings,
+            indent_paragraphs: table.indent_paragraphs,
+        }
+    }
 }
 
 /// What a rendered block is.
@@ -832,7 +855,12 @@ fn index(at: usize) -> u32 {
 }
 
 /// The weight a Template names, as the nearest weight Pango has a name for.
-fn weight(value: u16) -> pango::Weight {
+///
+/// Crate-wide because the drawer sets the furniture itself ([`crate::draw`])
+/// and a Template names its heading weight the same way there. Nothing outside
+/// the engine reads it.
+#[must_use]
+pub(crate) fn weight(value: u16) -> pango::Weight {
     match value {
         ..150 => pango::Weight::Thin,
         150..250 => pango::Weight::Ultralight,

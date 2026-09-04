@@ -25,12 +25,18 @@ The title button in the top bar opens it.
 | `file.saveAs` | Save As… | `Ctrl+Shift+S` | |
 | `file.rename` | Rename Document… | `F2` | |
 | `file.duplicate` | Duplicate Document | — | |
-| `export.open` | Export… | `Ctrl+Shift+E` | |
+| `export.pdf` | PDF… | `Ctrl+Shift+E` | |
+| `export.html` | HTML… | — | |
+| `export.markdown` | Markdown… | — | |
+| `export.quick` | Quick Export PDF | `Ctrl+Shift+P` | |
+| `export.copyHtml` | Copy as HTML | `Ctrl+Shift+C` | |
+| `print` | Print… | `Ctrl+P` | |
 | `window.close` | Close Window | `Ctrl+W` | |
 | `app.quit` | Quit | `Ctrl+Q` | |
 
-`export.open` opens the Export dialog. The Export spec decides whether the menu shows the three
-targets beneath it as `export.pdf`, `export.html`, `export.markdown` (unbound) or one item.
+The five `export.` rows draw as one **Export** submenu rather than as five rows of the menu, the
+way the View menu's Template section does; `print` is a row of its own beneath it, a separator on
+each side, because printing a Document is not exporting one.
 
 ## View menu
 
@@ -123,7 +129,7 @@ the other pane.
 | `window.fullscreen` | Full Screen | `F11` | |
 | `settings.open` | Settings… | `Ctrl+,` | |
 | `shortcuts.open` | Keyboard Shortcuts | `Ctrl+?` | |
-| `palette.open` | All Commands… | `Ctrl+K` | `Ctrl+Shift+P` |
+| `palette.open` | All Commands… | `Ctrl+K` | |
 
 ## Stats menu
 
@@ -166,11 +172,9 @@ Chords with no Command yet. A spec that ships the Command claims the chord; noth
 
 | Chord | For |
 |---|---|
-| `Ctrl+P` | Print |
 | `Ctrl+1` … `Ctrl+6` | Heading level 1–6 |
 | `Ctrl+B`, `Ctrl+I` | Bold, Italic |
 | `Ctrl+F`, `Ctrl+H`, `Ctrl+G`, `Ctrl+Shift+G` | Find, Find and Replace, Next match, Previous match |
-| `Ctrl+Shift+C` | Copy as HTML |
 
 ## Off-limits chords
 

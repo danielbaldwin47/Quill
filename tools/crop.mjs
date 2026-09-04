@@ -132,6 +132,35 @@ export function cropPng(buf, [x, y, w, h]) {
   return encodePng({ w, h, ch: img.ch, data: out });
 }
 
+// One toplevel's buffer painted onto another's at `at`, which is what the compositor shows.
+//
+// `grim -T` reads a toplevel's own buffer and nothing in front of it, which is why a judged shot is
+// free of the bar, the cursor and the compositor's own dimming (`tools/harness.mjs`, WHY `grim -T`).
+// A state that opens a dialog is two toplevels, so it comes back as two pictures, and this is where
+// they become the one frame a writer sees. The region capture that would take them together in one
+// go is the thing the research ruled out: it carries the layers, the pointer and the dim the
+// compositor lays over the window the dialog took focus from.
+//
+// The colour type is the one underneath: both come from grim on one output, so they agree, and only
+// the three colour channels are written — a buffer's alpha is its own and never the frame's.
+export function overlaid(under, over, [x, y]) {
+  const base = decodePng(under);
+  const top = decodePng(over);
+  const channels = Math.min(3, base.ch, top.ch);
+  for (let row = 0; row < top.h; row += 1) {
+    const py = y + row;
+    if (py < 0 || py >= base.h) continue;
+    for (let col = 0; col < top.w; col += 1) {
+      const px = x + col;
+      if (px < 0 || px >= base.w) continue;
+      for (let c = 0; c < channels; c += 1) {
+        base.data[(py * base.w + px) * base.ch + c] = top.data[(row * top.w + col) * top.ch + c];
+      }
+    }
+  }
+  return encodePng(base);
+}
+
 const SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 // CRC-32 as PNG asks for it, from the table the format's own specification prints.

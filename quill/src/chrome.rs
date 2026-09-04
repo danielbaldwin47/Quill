@@ -468,6 +468,18 @@ fn run_window(window: &Window, command: &Command) {
         "file.prev" => window.step_document(crate::files::Step::Prev),
         "file.save" => window.save(),
         "file.saveAs" => window.save_as(crate::window::After::Stay),
+        "export.pdf" => {
+            crate::export_dialog::open(window, crate::export_dialog::Format::Pdf);
+        }
+        "export.html" => {
+            crate::export_dialog::open(window, crate::export_dialog::Format::Html);
+        }
+        "export.markdown" => {
+            crate::export_dialog::open(window, crate::export_dialog::Format::Markdown);
+        }
+        "export.quick" => crate::export::quick(window),
+        "export.copyHtml" => crate::export::copy_html(window),
+        "print" => crate::print::open(window),
         "palette.open" => window.open_palette(),
         "file.recent" => window.open_recents(),
         "settings.open" => window.open_settings(),
@@ -1590,11 +1602,7 @@ mod tests {
 
     #[test]
     fn an_alias_reaches_the_same_action_as_its_labelled_chord() {
-        for (alias, labelled) in [
-            ("F9", "Ctrl+E"),
-            ("Alt+Shift+N", "Ctrl+Shift+L"),
-            ("Ctrl+Shift+P", "Ctrl+K"),
-        ] {
+        for (alias, labelled) in [("F9", "Ctrl+E"), ("Alt+Shift+N", "Ctrl+Shift+L")] {
             let by_alias = commands::by_chord(alias).expect(alias);
             let by_default = commands::by_chord(labelled).expect(labelled);
             assert_eq!(by_alias.id, by_default.id);
@@ -1729,9 +1737,11 @@ mod tests {
     #[test]
     fn a_disabled_commands_activation_returns_without_effect() {
         let (map, fired) = map(Scope::Win);
-        assert!(!commands::by_id("export.open").unwrap().built);
-        assert!(!map.is_action_enabled("export.open"));
-        map.activate_action("export.open", None);
+        // Open Linked Document, which waits on the Links spec; Print… was
+        // this test's unbuilt Command until #290 built it.
+        assert!(!commands::by_id("file.follow").unwrap().built);
+        assert!(!map.is_action_enabled("file.follow"));
+        map.activate_action("file.follow", None);
         // The Stats menu's fields are the Stats spec's (#30), so the whole
         // radio group is disabled.
         map.activate_action("stats", Some(&"words".to_variant()));

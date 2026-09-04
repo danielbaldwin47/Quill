@@ -6,8 +6,10 @@
 //! left — the Typewriter anchor, which nothing else can move at all, Follow
 //! System, the Spell-check language the Spell check spec will fill in, the
 //! Library's own six (#246: the Locations, Pinned, and the four switches
-//! nothing but this window and the file can reach), and a button that hands
-//! `settings.toml` to the system editor.
+//! nothing but this window and the file can reach), the `[export]` table's own
+//! six (#290 built them: the page every export and every print is laid out on,
+//! which the Export dialog offers a job's worth of and writes nothing back
+//! to), and a button that hands `settings.toml` to the system editor.
 //!
 //! No row sets a value on the session. A row writes the file
 //! ([`Session::edit_settings`]) and the settings watch reads it back and puts
@@ -17,15 +19,17 @@
 //! the one place a writer is shown a refusal without a terminal.
 
 use std::cell::RefCell;
+use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use gtk::prelude::*;
 use gtk::{gio, glib};
 
-use quill_engine::settings::{Settings, Theme};
+use quill_engine::settings::{Paper, Settings, Theme, export_margins, export_text_sizes};
 use quill_engine::theme::Scheme;
 
+use crate::export_dialog::{paper_at, paper_drop_down};
 use crate::session::{Session, TemplateToggle};
 
 /// How near the top and the bottom of the window the Typewriter anchor may be
@@ -180,6 +184,49 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
         &switch(session, template.indent_paragraphs, indented_paragraphs),
     );
 
+    // The `[export]` table, which #282 built: the page every export and every
+    // print is laid out on. The Export dialog offers one job's worth of the
+    // same table, and the print dialog's Quill tab all of it but the paper,
+    // and neither writes anything back — so this group and Save as defaults
+    // are the two ways a default moves.
+    let export = session.settings().export.clone();
+    row(&grid, 12, "Paper", &export_papers(session, export.paper));
+    row(
+        &grid,
+        13,
+        "Margin (mm)",
+        &export_spin(session, export.margin, &export_margins(), export_margin),
+    );
+    row(
+        &grid,
+        14,
+        "Text size (pt)",
+        &export_spin(
+            session,
+            export.text_size,
+            &export_text_sizes(),
+            export_text_size,
+        ),
+    );
+    row(
+        &grid,
+        15,
+        "Title page",
+        &switch(session, export.title_page, export_title_page),
+    );
+    row(
+        &grid,
+        16,
+        "Header",
+        &switch(session, export.header, export_header),
+    );
+    row(
+        &grid,
+        17,
+        "Footer",
+        &switch(session, export.footer, export_footer),
+    );
+
     let button = gtk::Button::builder()
         .label("Edit settings.toml…")
         .halign(gtk::Align::End)
@@ -190,7 +237,7 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
         session,
         move |_| edit(session.settings_path(), launch.as_ref())
     ));
-    row(&grid, 12, "Keyboard shortcuts", &button);
+    row(&grid, 18, "Keyboard shortcuts", &button);
 
     if let Some(said) = refused(&session.unapplied()) {
         let label = gtk::Label::builder()
@@ -198,7 +245,7 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
             .halign(gtk::Align::Start)
             .wrap(true)
             .build();
-        grid.attach(&label, 0, 13, 2, 1);
+        grid.attach(&label, 0, 19, 2, 1);
     }
 
     window.present();
@@ -245,6 +292,82 @@ fn switch(session: &Rc<Session>, on: bool, write: fn(&mut Settings, bool)) -> gt
         }
     ));
     switch
+}
+
+/// The paper dropdown of the Export group, over the rows the Export dialog
+/// offers ([`paper_drop_down`]) and standing on `paper` before its handler is
+/// connected.
+///
+/// The dialog's own list rather than a second one, so that a paper named here
+/// and a paper named there cannot drift apart.
+fn export_papers(session: &Rc<Session>, paper: Paper) -> gtk::DropDown {
+    let papers = paper_drop_down(paper);
+    papers.set_halign(gtk::Align::End);
+    papers.connect_selected_notify(glib::clone!(
+        #[strong]
+        session,
+        move |papers| {
+            let paper = paper_at(papers.selected());
+            session.edit_settings(|settings| export_paper(settings, paper));
+        }
+    ));
+    papers
+}
+
+/// A spin button that writes one whole number of `[export]`, held to the range
+/// the settings file holds that key to and set to what the file says now
+/// before its handler is connected, so opening the window is not a write.
+fn export_spin(
+    session: &Rc<Session>,
+    value: u32,
+    range: &RangeInclusive<u32>,
+    write: fn(&mut Settings, u32),
+) -> gtk::SpinButton {
+    let low = *range.start();
+    let spin = gtk::SpinButton::with_range(f64::from(low), f64::from(*range.end()), 1.0);
+    spin.set_halign(gtk::Align::End);
+    spin.set_value(f64::from(value));
+    spin.connect_value_changed(glib::clone!(
+        #[strong]
+        session,
+        move |spin| {
+            // The button was built over the range, so its value is inside it;
+            // the floor is the answer for a value no `u32` can hold.
+            let value = u32::try_from(spin.value_as_int()).unwrap_or(low);
+            session.edit_settings(|settings| write(settings, value));
+        }
+    ));
+    spin
+}
+
+/// What the Paper row writes.
+fn export_paper(settings: &mut Settings, paper: Paper) {
+    settings.export.paper = paper;
+}
+
+/// What the Margin row writes, in whole millimetres.
+fn export_margin(settings: &mut Settings, millimetres: u32) {
+    settings.export.margin = millimetres;
+}
+
+/// What the Text size row writes, in whole points.
+fn export_text_size(settings: &mut Settings, points: u32) {
+    settings.export.text_size = points;
+}
+
+/// What the Title page row writes.
+fn export_title_page(settings: &mut Settings, on: bool) {
+    settings.export.title_page = on;
+}
+
+/// What the Header row writes.
+fn export_header(settings: &mut Settings, on: bool) {
+    settings.export.header = on;
+}
+
+/// What the Footer row writes.
+fn export_footer(settings: &mut Settings, on: bool) {
+    settings.export.footer = on;
 }
 
 /// The lines of a path list — Locations or Pinned — one per path with a
@@ -638,6 +761,62 @@ mod tests {
                     );
                 }
             }
+        }
+        std::fs::remove_file(&path).ok();
+    }
+
+    /// Every Export row writes its own key into `[export]`, leaves the rows
+    /// written before it where they are, and the file itself says what the
+    /// row wrote — the one path a setting takes (#290).
+    #[test]
+    fn every_export_row_writes_its_key_and_the_file_says_so() {
+        let (session, path) = launched("export-rows");
+        let written = wrote(&session, &path, |settings| {
+            export_paper(settings, Paper::Legal);
+        });
+        assert_eq!(written.export.paper, Paper::Legal);
+        let written = wrote(&session, &path, |settings| export_margin(settings, 25));
+        assert_eq!(written.export.margin, 25);
+        assert_eq!(written.export.paper, Paper::Legal, "the row before it");
+        let written = wrote(&session, &path, |settings| export_text_size(settings, 14));
+        assert_eq!(written.export.text_size, 14);
+        for (flip, reads) in [
+            (export_title_page as fn(&mut Settings, bool), 0),
+            (export_header, 1),
+            (export_footer, 2),
+        ] {
+            let written = wrote(&session, &path, |settings| flip(settings, true));
+            let switches = [
+                written.export.title_page,
+                written.export.header,
+                written.export.footer,
+            ];
+            assert!(switches[reads], "row {reads} wrote its own key");
+            assert_eq!(
+                switches.iter().filter(|on| **on).count(),
+                reads + 1,
+                "and left the rows before it on"
+            );
+            assert_eq!(
+                (
+                    written.export.paper,
+                    written.export.margin,
+                    written.export.text_size
+                ),
+                (Paper::Legal, 25, 14),
+                "and the three rows above it alone"
+            );
+        }
+        let text = std::fs::read_to_string(&path).unwrap();
+        for said in [
+            "paper = \"legal\"",
+            "margin = 25",
+            "text_size = 14",
+            "title_page = true",
+            "header = true",
+            "footer = true",
+        ] {
+            assert!(text.contains(said), "the file says {said}:\n{text}");
         }
         std::fs::remove_file(&path).ok();
     }
