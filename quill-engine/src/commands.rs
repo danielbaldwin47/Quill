@@ -240,8 +240,8 @@ pub const COMMANDS: &[Command] = &[
     row("live.toggle", "Live", Scope::Win, Kind::Check, &["Ctrl+L"], &[place(VIEW, Some("Focus"), "Live")], true),
     // View › Panes.
     row("library.toggle", "Show Library / Hide Library", Scope::Win, Kind::Check, &["Ctrl+E", "F9"], &[place(VIEW, Some("Panes"), "Show Library / Hide Library")], true),
-    row("preview.toggle", "Show Preview / Hide Preview", Scope::Win, Kind::Check, &["Ctrl+R"], &[place(VIEW, Some("Panes"), "Show Preview / Hide Preview")], true),
-    row("preview.layout", "Preview Split / Preview Full", Scope::Win, Kind::Radio { group: "preview_layout", value: "split", }, &["Ctrl+Shift+R"], &[place(VIEW, Some("Panes"), "Preview Split / Preview Full")], true),
+    row("preview.full", "Preview Full", Scope::Win, Kind::Check, &["Ctrl+R"], &[place(VIEW, Some("Panes"), "Preview Full")], true),
+    row("preview.split", "Preview Split", Scope::Win, Kind::Check, &["Ctrl+Shift+R"], &[place(VIEW, Some("Panes"), "Preview Split")], true),
     // View › Writing tools.
     row("syntax.toggle", "Syntax Highlight", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Syntax Highlight")], false),
     row("syntax.nouns", "Nouns", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Nouns")], false),
@@ -910,14 +910,7 @@ mod tests {
         assert_eq!(by_id("chrome.stats").unwrap().placements.len(), 2);
         assert_eq!(
             radio_groups(),
-            [
-                "focus_scope",
-                "preview_layout",
-                "face",
-                "template",
-                "stats",
-                "theme"
-            ]
+            ["focus_scope", "face", "template", "stats", "theme"]
         );
     }
 }
