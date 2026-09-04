@@ -25,6 +25,7 @@ pub mod library;
 pub mod markdown;
 mod offsets;
 pub mod outline;
+pub mod paginate;
 pub mod palette;
 pub mod pos;
 pub mod render;

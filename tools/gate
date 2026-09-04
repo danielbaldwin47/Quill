@@ -344,6 +344,7 @@ ROUND_ONCE=(
     quill-engine/src/typography.rs:hang    # a heading's hang in whole pixels
     quill-engine/src/typography.rs:page_bottom # the page bottom in whole pixels
     quill-engine/src/render.rs:units       # a rendered page's pixels in the units Pango counts in
+    quill-engine/src/paginate.rs:zoom      # the render pass's zoom as the whole percentage it takes
     quill-engine/src/typography.rs:an_old_size_in_pixels_takes_the_rung_above_it_and_never_shrinks # a test reading NOTES's em down to its last whole pixel
 )
 

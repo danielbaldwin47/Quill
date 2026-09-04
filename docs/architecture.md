@@ -27,8 +27,9 @@ Document's metadata block, and nothing written back), `annotate` (the Annotator 
 flattening), `focus` (sentence
 segmentation, the bright tier and the one dim tier —
 [ADR 0015](adr/0015-the-design-oracle-outranks-the-parity-oracle.md)), `library`, `settings`, `template`,
-`render` (Pango layout for Preview, PDF and HTML), `html` (the standalone export page and the
-body fragment Copy as HTML carries), `stats`, `outline`, `spell` (the `SpellChecker`
+`render` (Pango layout for Preview, PDF and HTML), `paginate` (a rendered page cut into pages of
+paper under Export's geometry), `html` (the standalone export page and the body fragment Copy as
+HTML carries), `stats`, `outline`, `spell` (the `SpellChecker`
 trait and the enchant and `spellbook` implementations), `pos` (Syntax highlight), `style` (Style
 check), `typography` (the pitch, the measure, the 78-cell text container and its gutters —
 [ADR 0016](adr/0016-the-text-container-is-78-cells.md) — and the page margins), `theme` (the two
