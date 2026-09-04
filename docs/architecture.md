@@ -275,7 +275,13 @@ and the determinism settings, this document names the flags:
   booleans off, so a writer who turned on hidden files or extensions does not change the shot),
   `--sidebar` (open with the Library beside the page), `--search <query>` (put `<query>` in the
   Library's search field and narrow the list to what it finds; refused without `--sidebar`, which is
-  the pane the field stands in), `--w <px> --h <px>`. Both `--typing` and `--menu` name a state the app is
+  the pane the field stands in), `--export-dialog pdf|html|markdown` (open that format's Export
+  dialog over the page with its Options expander open, once the window has painted its first frame —
+  a still cannot pull an expander, and a second surface over a toplevel the compositor has no frame
+  of yet keeps the toplevel from ever mapping; `[export]` itself has no flag, and is pinned to its
+  defaults under `--deterministic` with `paper` past its own default, because `auto` is the host's
+  locale and a judged shot is the same on every machine), `--w <px> --h <px>`. Both `--typing` and
+  `--menu` name a state the app is
   put in before the first frame, never one it is driven into after it.
 - Harness: `--deterministic` (animations off, blink off, manual font rendering with pinned antialias,
   slight hinting, no subpixel, 96 dpi, hinted metrics, no client-side decorations; and Typewriter

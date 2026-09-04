@@ -20,10 +20,10 @@ import { fileURLToPath } from 'node:url';
 
 import { ASSERTIONS, assertState, validate } from './assert-state.mjs';
 import { pair, pairDir, reveal } from './blind.mjs';
-import { CAPTURES, cropPng, encodePng, resolveOpponent } from './crop.mjs';
+import { CAPTURES, cropPng, encodePng, overlaid, resolveOpponent } from './crop.mjs';
 import {
-  ACCENT, ACCENT_HEX, APP_ID, accentPixels, appeared, carriesAccent, classPattern, launchEnv, parseToplevels,
-  pngSize, quillArgv, rulesLua, wantsLitCaret,
+  ACCENT, ACCENT_HEX, APP_ID, DIALOG_APP_ID, accentPixels, appeared, carriesAccent, classPattern, launchEnv,
+  parseToplevels, pngSize, quillArgv, rulesLua, wantsLitCaret,
 } from './harness.mjs';
 import { VERDICT_KEYS, carriedFrom, criticAnswer, criticPrompt, opponentOf, oursArgv, refusedFlag, shotPaths } from './judge.mjs';
 import { decodePng } from './keys-assert.mjs';
@@ -131,6 +131,13 @@ ok('a state becomes the native flags that state means', () => {
   const plain = quillArgv(ROOT, flagsOf('page').light);
   assert.ok(!plain.includes('--preview'), 'a state that says nothing about the pane opens with none');
   assert.equal(plain[plain.indexOf('--template') + 1], 'modern', 'and is pinned to the defaults Template all the same');
+
+  // The Export dialog's flag, named only by the state that wants a dialog: nothing else opens one,
+  // and a still cannot pull an expander open, so the flag is what opens it with its Options showing.
+  const opened = quillArgv(ROOT, flagsOf('export').dialog);
+  assert.equal(opened[opened.indexOf('--export-dialog') + 1], 'pdf');
+  assert.ok(opened.includes('--nocaret'), 'the keyboard is the dialog\'s while it is up, so the Editor draws no caret');
+  assert.ok(!plain.includes('--export-dialog'), 'a state that says nothing about a dialog opens none');
 });
 
 ok('the launch environment is the one the research pinned', () => {
@@ -165,6 +172,43 @@ ok('the rules carry this state\'s size, and hold focus off only when the state a
   assert.match(rulesLua(APP_ID, { workspace: 7, w: 1440, h: 900, initialFocus: false }), /no_initial_focus = true/);
   // Every rule is in the one table the teardown empties; a rule outside it could not be taken off.
   assert.equal(focused.match(/rule\(\{/g).length, 5);
+
+  // The Export dialog maps under a class of its own, and is ruled apart from the window it stands
+  // over: it wants the stage's workspace and Omarchy's compositing undone, and it must not be given
+  // ours' size and position, because where the compositor puts it is what `export/dialog` measures.
+  assert.equal(classPattern(DIALOG_APP_ID), '^quill$');
+  assert.match(focused, /local D = "\^quill\$"/);
+  assert.equal(focused.match(/dialog\(\{/g).length, 3);
+  assert.match(focused, /dialog\(\{ name = "quill-gate-dialog-workspace", workspace = "7 silent" \}\)/);
+  assert.ok(!/dialog\(\{[^}]*\b(size|move) =/.test(focused), 'the dialog is placed by the compositor, not by a rule');
+});
+
+ok('a dialog\'s own buffer goes over the page\'s, which is the one frame a writer sees', () => {
+  // Two toplevels, two `grim -T` captures, one frame: the paste is where they become it. Painted
+  // rather than captured, for the reason every fixture here is.
+  const page = Buffer.alloc(8 * 6 * 3, 10);
+  const sheet = Buffer.alloc(3 * 2 * 3, 200);
+  const shot = decodePng(overlaid(
+    encodePng({ w: 8, h: 6, ch: 3, data: page }),
+    encodePng({ w: 3, h: 2, ch: 3, data: sheet }),
+    [4, 3],
+  ));
+  assert.deepEqual([shot.w, shot.h], [8, 6], 'the frame is the page\'s size, whatever the dialog\'s is');
+  const at = (x, y) => shot.data[((y * shot.w) + x) * shot.ch];
+  assert.equal(at(4, 3), 200, 'the dialog lands where the compositor put it');
+  assert.equal(at(6, 4), 200);
+  assert.equal(at(3, 3), 10, 'and the page is left either side of it');
+  assert.equal(at(4, 2), 10);
+
+  // A dialog hanging off the edge is clipped rather than throwing: the compositor can place one
+  // anywhere, and a shot that refused would be refusing the placement it is there to measure.
+  const over = decodePng(overlaid(
+    encodePng({ w: 8, h: 6, ch: 3, data: Buffer.alloc(8 * 6 * 3, 10) }),
+    encodePng({ w: 3, h: 2, ch: 3, data: sheet }),
+    [7, 5],
+  ));
+  assert.equal(over.data[((5 * 8) + 7) * 3], 200);
+  assert.deepEqual([over.w, over.h], [8, 6]);
 });
 
 // ---------- which toplevel the capture is of ----------
@@ -448,7 +492,7 @@ ok('the ghost is measured off ours own pixels, and the alpha is solved rather th
   for (const alpha of [3, 0, 1, '0.3', undefined]) {
     assert.throws(() => validate({ kind: 'ghost', alpha }), /between 0 and 1/, `an alpha of ${alpha} was taken`);
   }
-  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'folded', 'split', 'full']);
+  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'folded', 'split', 'full', 'dialog']);
 });
 
 ok('the ghost refuses to read a bar it cannot see the ground beside, and never guesses one', () => {
@@ -715,6 +759,76 @@ ok('Full is one paper across the window with the heading centred in it', () => {
   assert.throws(() => validate({ kind: 'full', paper: '#ffffff' }), /the full assertion takes nothing but its kind, and this one names paper/);
 });
 
+// ---------- the Export dialog, measured off its own pixels ----------
+
+// A page paper and a dialog ground that are deliberately not the app's palette, for the reason the
+// Preview pair above are not: the rule reads both out of the shot, so it has to hold for whatever
+// two grounds a theme hands it.
+const DIALOG_PAGE = [24, 24, 24];
+const DIALOG_SHEET = [70, 70, 70];
+
+// A window of page paper with a dialog standing on it.
+//
+// `off` moves the dialog's centre off the window's, `rows` is how many bands of ink it carries —
+// four is a shut dialog, a dozen an open one — and `dw`/`dh` are its size. The bands are drawn with
+// air between them, which is what makes them bands: one row of a dialog is a run of inked rows.
+function dialogShot({
+  w = 400, h = 300, dw = 160, dh = 220, off = [0, 0], rows = 12,
+  page = DIALOG_PAGE, sheet = DIALOG_SHEET,
+} = {}) {
+  const data = Buffer.alloc(w * h * 3);
+  const put = (x, y, rgb) => { for (let c = 0; c < 3; c += 1) data[((y * w) + x) * 3 + c] = rgb[c]; };
+  for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) put(x, y, page);
+  const left = Math.round((w - dw) / 2 + off[0]);
+  const top = Math.round((h - dh) / 2 + off[1]);
+  for (let y = top; y < top + dh; y += 1) for (let x = left; x < left + dw; x += 1) put(x, y, sheet);
+  for (let i = 0; i < rows; i += 1) {
+    const y0 = top + 10 + i * 14;
+    for (let y = y0; y < y0 + 6; y += 1) {
+      for (let x = left + 8; x < left + dw - 8; x += 1) put(x, y, GLYPH);
+    }
+  }
+  return encodePng({ w, h, ch: 3, data });
+}
+
+ok('the Export dialog is a second ground over the page, centred on the window, its expander open', () => {
+  const spec = { kind: 'dialog' };
+  const held = assertState(spec, { dim: dialogShot() });
+  assert.equal(held.ours, true, held.why);
+  assert.deepEqual(held.grounds, ['#181818', '#464646'], 'both grounds are read off the shot, not compared against a hex');
+  assert.deepEqual(held.dialog, [120, 40, 160, 220], 'the dialog is where its own ground runs');
+  assert.equal(held.bands, 12, 'and one band per row of it');
+
+  // A dialog dragged off the window's centre is the defect this catches, in either direction.
+  for (const nudged of [[20, 0], [0, -20]]) {
+    const got = assertState(spec, { dim: dialogShot({ off: nudged }) });
+    assert.equal(got.ours, false, `a dialog ${nudged} off centre passed: ${got.why}`);
+    assert.match(got.why, /px off the window's centre/);
+  }
+  // And the 8 px it is read to is real at both ends of itself.
+  assert.equal(assertState(spec, { dim: dialogShot({ off: [8, 0] }) }).ours, true);
+  assert.equal(assertState(spec, { dim: dialogShot({ off: [9, 0] }) }).ours, false);
+
+  // A shut expander is the state's whole subject: the dialog is there, centred, and carrying only
+  // the file name, the folder, the Options label and the Export button.
+  const shut = assertState(spec, { dim: dialogShot({ rows: 4 }) });
+  assert.equal(shut.ours, false, shut.why);
+  assert.match(shut.why, /carries 4 bands of ink and an open expander carries at least 8, so the Options are shut/);
+
+  // No dialog at all is its own answer and never a silent pass.
+  const none = assertState(spec, { dim: dialogShot({ sheet: DIALOG_PAGE }) });
+  assert.equal(none.ours, false, none.why);
+  assert.match(none.why, /no dialog stands over the page/);
+
+  // A second ground that runs to an edge is not a dialog standing over a page — it is the page
+  // gone, which is what a dialog opened full-window would look like.
+  const filled = assertState(spec, { dim: dialogShot({ dw: 400, dh: 120, rows: 4 }) });
+  assert.equal(filled.ours, false, filled.why);
+  assert.match(filled.why, /it reaches an edge, so it is not a dialog standing over the page/);
+
+  assert.throws(() => validate({ kind: 'dialog', rows: 12 }), /the dialog assertion takes nothing but its kind, and this one names rows/);
+});
+
 // ---------- the caret a judged shot proves it took focus by ----------
 
 // One colour out of `quill-engine/src/theme.rs`'s own palette table.
@@ -785,9 +899,11 @@ ok('every judged state that draws a determined caret is held to one, and no othe
   // words are dim rather than where the caret is (#113). The two `files` states take it because the
   // Parity oracle measures the bar of a Library-opened document at one of two places depending on
   // when it is asked, one shot in three, and those states are about the sidebar beside the page.
+  // `export/dialog` takes it for a reason of its own: the dialog is a surface over the page and the
+  // keyboard is the dialog's while it is up, so the Editor under it draws the ghost by rights.
   const exempt = Object.entries(wants).filter(([, held]) => !held).map(([name]) => name).sort();
   assert.deepEqual(exempt, [
-    'caret/selection', 'caret/unfocused', 'files/library', 'files/search',
+    'caret/selection', 'caret/unfocused', 'export/dialog', 'files/library', 'files/search',
     'focus/paragraph', 'focus/sentence',
     'markup/blocks', 'markup/gutters', 'preview/full', 'theme/dark', 'theme/light', 'type/mono',
   ]);
