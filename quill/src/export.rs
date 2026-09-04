@@ -4,8 +4,8 @@
 //! Quick Export writes the Document as a PDF beside its own file with the
 //! `[export]` defaults and the `[template]` toggles the Preview is showing,
 //! and Copy as HTML puts the body's markup on the clipboard. Neither asks
-//! anything, which is the whole of why they are here and not in the dialog
-//! this module gains later: the two of them are the engine's writers called
+//! anything, which is the whole of why they are here and not in
+//! [`crate::export_dialog`]: the two of them are the engine's writers called
 //! with what the settings file already says.
 //!
 //! The engine does the writing (ADR 0008): [`quill_engine::pdf::write`] lays
@@ -24,8 +24,10 @@ use gtk::{gio, glib};
 
 use quill_engine::document::full_name;
 use quill_engine::paginate::Geometry;
-use quill_engine::settings::{Choice, Export};
-use quill_engine::{draw, html, pdf, render, template};
+use quill_engine::settings::Choice;
+#[cfg(test)]
+use quill_engine::settings::Export;
+use quill_engine::{html, pdf, render, template};
 
 use crate::files;
 use crate::window::Window;
@@ -74,26 +76,16 @@ fn beside(path: &Path, name: &str, extension: &str) -> PathBuf {
     path.with_file_name(file_name(name, extension))
 }
 
-/// The paper the `[export]` table asks for, in the points a page is laid out
-/// in.
+/// An `[export]` table of the defaults with `edit` applied.
 ///
-/// `auto` is resolved here rather than kept, so a writer who carries a laptop
-/// across an ocean exports on the paper their desktop now names
-/// ([`Export::paper_size`]).
-///
-/// Shared with the dialog ([`crate::export_dialog`]), which lays the same page
-/// out on the table the writer's Options moved, so that a Quick Export and a
-/// dialog export of the same settings are the same file.
-pub(crate) fn geometry(export: &Export) -> Geometry {
-    let (width, height) = export.paper_size();
-    Geometry {
-        width,
-        height,
-        margin: export.margin_points(),
-        header: export.header,
-        footer: export.footer,
-        title_page: export.title_page,
-    }
+/// The table carries a private field for the keys it does not know, so the app
+/// crate cannot write one out as a literal and edits a default instead. Shared
+/// with [`crate::print`]'s tests, which seed a page setup from the same table.
+#[cfg(test)]
+pub(crate) fn edited_defaults(edit: impl FnOnce(&mut Export)) -> Export {
+    let mut export = Export::default();
+    edit(&mut export);
+    export
 }
 
 /// `export.quick`, `Ctrl+Shift+P`: the Document as a PDF beside its own file,
@@ -122,9 +114,8 @@ pub(crate) fn quick(window: &Window) {
         &document,
         &template::named(settings.template.name.as_str()),
         render::Toggles::of(&settings.template),
-        geometry(&settings.export),
+        Geometry::of(&settings.export),
         f64::from(settings.export.text_size),
-        &draw::wording(&document),
     );
     drop(document);
     drop(settings);
@@ -177,9 +168,15 @@ fn notification(words: &str, path: &Path) -> gio::Notification {
     notification.add_button_with_target_value(
         OPEN_LABEL,
         &format!("app.{OPEN}"),
-        Some(&path.to_string_lossy().to_variant()),
+        Some(&target(path)),
     );
     notification
+}
+
+/// The exported file as the button's target: its path, as the string
+/// [`open_action`] takes.
+fn target(path: &Path) -> glib::Variant {
+    path.to_string_lossy().to_variant()
 }
 
 /// Registers [`OPEN`] on `app`, so the notification's button has something to
@@ -188,7 +185,15 @@ fn notification(words: &str, path: &Path) -> gio::Notification {
 /// Outside the Command registry, as `chrome::RECENT_OPEN` is: it takes the
 /// path as its target, carries no chord and stands in no menu.
 pub fn install(app: &gtk::Application) {
-    let launch = launcher();
+    app.add_action(&open_action(launcher()));
+}
+
+/// The action [`OPEN`] names: it takes an exported file's path as its target
+/// and hands the file to `launch`.
+///
+/// Built here rather than in [`install`] so that a test can fire it with the
+/// target the button carries ([`target`]) and see what the desktop is handed.
+fn open_action(launch: Box<Launch>) -> gio::SimpleAction {
     let action = gio::SimpleAction::new(OPEN, Some(glib::VariantTy::STRING));
     action.connect_activate(move |_, target| {
         let Some(path) = target.and_then(|target| target.get::<String>()) else {
@@ -196,7 +201,7 @@ pub fn install(app: &gtk::Application) {
         };
         open(Path::new(&path), launch.as_ref());
     });
-    app.add_action(&action);
+    action
 }
 
 /// Hands the exported file to `launch`, as the URI a handler is asked for.
@@ -222,7 +227,6 @@ mod tests {
     use std::rc::Rc;
 
     use quill_engine::document::UNTITLED;
-    use quill_engine::settings::Paper;
 
     use super::*;
 
@@ -253,68 +257,25 @@ mod tests {
         );
     }
 
-    /// An `[export]` table of the defaults with `edit` applied.
+    /// The notification's Open button and the action the application registers
+    /// agree about one thing, which is the only thing either can get wrong:
+    /// the button's target is a path, and firing the action with that target
+    /// hands the desktop the file it names, as a URI.
     ///
-    /// The table carries a private field for the keys it does not know, so the
-    /// app crate cannot write one out as a literal and edits a default
-    /// instead.
-    fn export(edit: impl FnOnce(&mut Export)) -> Export {
-        let mut export = Export::default();
-        edit(&mut export);
-        export
-    }
-
-    /// The `[export]` table becomes a page geometry: the paper's own size in
-    /// points, the margin converted from millimetres, and the three switches
-    /// carried straight through.
+    /// `gio::Notification` answers nothing it was built with, so the button is
+    /// built here for the panic it would raise on a target the action cannot
+    /// take, and the action is fired with the target the button carries.
     #[test]
-    fn the_export_table_becomes_the_page_geometry() {
-        let export = export(|export| {
-            export.paper = Paper::A4;
-            export.footer = true;
-        });
-        let paper = geometry(&export);
-        assert_eq!((paper.width, paper.height), Paper::A4.size());
-        assert_eq!(paper.margin, export.margin_points());
-        assert_eq!(
-            (paper.header, paper.footer, paper.title_page),
-            (false, true, false)
-        );
-        assert_eq!(
-            geometry(&Export::default()).width,
-            Paper::default().size().0,
-            "auto is resolved to a size, never left as auto"
-        );
-    }
-
-    /// The notification is built from the status line's own words, and its
-    /// one button fires the action the application registers.
-    ///
-    /// `gio::Notification` answers nothing it was built with, so what is
-    /// asserted is the pair that has to agree with something else: the words,
-    /// which are the status line's ([`files::exported`]), and the detailed
-    /// action, which is [`install`]'s name in the `app.` scope.
-    #[test]
-    fn the_notification_says_the_status_lines_words_and_fires_the_apps_open_action() {
-        let path = Path::new("/tmp/drafts/The Lighthouse.pdf");
-        let words = files::exported(&full_name(path));
-        assert_eq!(words, "Exported The Lighthouse.pdf");
-        assert_eq!(format!("app.{OPEN}"), "app.export.open");
-        let _ = notification(&words, path);
-    }
-
-    /// The Open button hands the desktop the exported file, as a URI naming
-    /// the file that was written.
-    #[test]
-    fn the_open_button_hands_the_desktop_the_exported_file_as_a_uri() {
+    fn firing_the_open_action_with_the_buttons_target_hands_the_desktop_the_file() {
         let handed: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
         let taken = Rc::clone(&handed);
-        let launch: Box<Launch> = Box::new(move |uri| {
+        let action = open_action(Box::new(move |uri| {
             taken.borrow_mut().push(uri.to_owned());
             Ok(())
-        });
+        }));
         let path = std::env::temp_dir().join("The Lighthouse.pdf");
-        open(&path, launch.as_ref());
+        let _ = notification(&files::exported(&full_name(&path)), &path);
+        action.activate(Some(&target(&path)));
         assert_eq!(
             handed.borrow().as_slice(),
             [format!(

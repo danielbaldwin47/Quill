@@ -11,7 +11,7 @@
 //!
 //! The engine does the writing (ADR 0008): [`quill_engine::pdf::write`] lays
 //! the Document out on paper, [`quill_engine::html::page`] answers a styled
-//! page, and Markdown is the Document's own bytes ([`copy`]) — Duplicate
+//! page, and Markdown is the Document's own bytes ([`write_markdown`]) — Duplicate
 //! Document to a folder the writer names, which is why the Document does not
 //! follow the file.
 //!
@@ -28,11 +28,12 @@ use gtk::prelude::*;
 use gtk::{gdk, gio, glib};
 
 use quill_engine::document::full_name;
+use quill_engine::paginate::Geometry;
 use quill_engine::render::Toggles;
 use quill_engine::settings::{Choice, Export, Paper, Template, export_text_sizes};
-use quill_engine::{draw, html, pdf, template};
+use quill_engine::{html, pdf, template};
 
-use crate::export::{confirm, file_name, geometry};
+use crate::export::{confirm, file_name};
 use crate::files;
 use crate::session::Session;
 use crate::window::Window;
@@ -154,30 +155,21 @@ pub(crate) enum Depth {
     Toggles,
 }
 
-/// Everything one export is laid out with: the `[export]` table's own fields
-/// and the three `[template]` toggles beside them.
+/// Everything one export is laid out with: an `[export]` table and the three
+/// `[template]` toggles beside it.
 ///
 /// One struct rather than a pair, because every consumer wants both: the
-/// geometry a page is laid out on and the toggles the blocks are laid out
-/// with travel together from the widget to the writer.
+/// geometry a page is laid out on ([`Geometry::of`]) and the toggles the
+/// blocks are laid out with travel together from the widget to the writer.
+///
+/// The table itself rather than a copy of its six fields, so that a paper or a
+/// margin the widget never offers is still the file's own, and a key the table
+/// carries and this app does not know survives the round trip.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Chosen {
-    /// The paper a page is laid out on, `auto` still unresolved.
-    pub(crate) paper: Paper,
-    /// The margin on every side, in whole millimetres.
-    ///
-    /// Not offered by the widget — the expander holds what one job changes,
-    /// and a margin is a house style — but carried, so that Save as defaults
-    /// writes the whole table rather than a hole in it.
-    pub(crate) margin: u32,
-    /// The size the body is set at, in whole points.
-    pub(crate) text_size: u32,
-    /// Whether the export opens with a title page.
-    pub(crate) title_page: bool,
-    /// Whether each page carries the Document's name in its top margin.
-    pub(crate) header: bool,
-    /// Whether each page carries its number in its bottom margin.
-    pub(crate) footer: bool,
+    /// The page this export is laid out on: the `[export]` table the dialog
+    /// opened on, with whatever the widget offered moved on it.
+    pub(crate) export: Export,
     /// The three Template toggles as this export lays the blocks out.
     pub(crate) toggles: Toggles,
 }
@@ -191,12 +183,7 @@ impl Chosen {
     /// back on the next draft.
     pub(crate) fn of(export: &Export, template: &Template) -> Self {
         Self {
-            paper: export.paper,
-            margin: export.margin,
-            text_size: export.text_size,
-            title_page: export.title_page,
-            header: export.header,
-            footer: export.footer,
+            export: export.clone(),
             toggles: Toggles::of(template),
         }
     }
@@ -204,19 +191,20 @@ impl Chosen {
     /// Puts this choice into `export`, leaving everything else in the table
     /// alone.
     ///
-    /// A write over an `[export]` the file already holds rather than a fresh
-    /// one, so that the keys the table carries but this struct does not know
-    /// survive the write ([`Export`]'s own unknown keys).
+    /// The six keys and not the table, because the table this was cloned from
+    /// was read when the dialog opened: a key the file has gained since — or
+    /// one this app does not know at all — is the file's to keep
+    /// ([`Export`]'s own unknown keys).
     ///
     /// The toggles are not written: they are `[template]`'s, and the Settings
     /// window and View › Template are what move them.
     pub(crate) fn written_into(&self, export: &mut Export) {
-        export.paper = self.paper;
-        export.margin = self.margin;
-        export.text_size = self.text_size;
-        export.title_page = self.title_page;
-        export.header = self.header;
-        export.footer = self.footer;
+        export.paper = self.export.paper;
+        export.margin = self.export.margin;
+        export.text_size = self.export.text_size;
+        export.title_page = self.export.title_page;
+        export.header = self.export.header;
+        export.footer = self.export.footer;
     }
 }
 
@@ -224,7 +212,7 @@ impl Chosen {
 ///
 /// The controls are held rather than looked up again, because a `gtk::Grid`
 /// answers a child by its position and a position is not a name. A control the
-/// depth left out is `None`, and [`Chosen::seed`] answers for it — an HTML
+/// depth left out is `None`, and [`Options::seed`] answers for it — an HTML
 /// export still has a paper somewhere behind it, and Print's tab still has the
 /// margin the page setup was seeded from.
 pub(crate) struct Options {
@@ -266,7 +254,7 @@ impl Options {
         let mut at = 0;
         let (paper, text_size) = match depth {
             Depth::Page => {
-                let paper = paper_drop_down(seed.paper);
+                let paper = paper_drop_down(seed.export.paper);
                 row(&grid, &mut at, "Paper", &paper);
                 let sizes = export_text_sizes();
                 let text_size = gtk::SpinButton::with_range(
@@ -274,7 +262,7 @@ impl Options {
                     f64::from(*sizes.end()),
                     1.0,
                 );
-                text_size.set_value(f64::from(seed.text_size));
+                text_size.set_value(f64::from(seed.export.text_size));
                 row(&grid, &mut at, "Text size", &text_size);
                 (Some(paper), Some(text_size))
             }
@@ -288,11 +276,11 @@ impl Options {
         row(&grid, &mut at, "Indent paragraphs", &indent_paragraphs);
         let (title_page, header, footer) = match depth {
             Depth::Page => {
-                let title_page = switch(seed.title_page);
+                let title_page = switch(seed.export.title_page);
                 row(&grid, &mut at, "Title page", &title_page);
-                let header = switch(seed.header);
+                let header = switch(seed.export.header);
                 row(&grid, &mut at, "Header", &header);
-                let footer = switch(seed.footer);
+                let footer = switch(seed.export.footer);
                 row(&grid, &mut at, "Footer", &footer);
                 (Some(title_page), Some(header), Some(footer))
             }
@@ -322,11 +310,11 @@ impl Options {
     pub(crate) fn chosen(&self) -> Chosen {
         let mut chosen = self.seed.clone();
         if let Some(paper) = &self.paper {
-            chosen.paper = paper_at(paper.selected());
+            chosen.export.paper = paper_at(paper.selected());
         }
         if let Some(text_size) = &self.text_size {
-            chosen.text_size =
-                u32::try_from(text_size.value_as_int()).unwrap_or(self.seed.text_size);
+            chosen.export.text_size =
+                u32::try_from(text_size.value_as_int()).unwrap_or(self.seed.export.text_size);
         }
         chosen.toggles = Toggles {
             center_headings: self.center_headings.is_active(),
@@ -334,13 +322,13 @@ impl Options {
             indent_paragraphs: self.indent_paragraphs.is_active(),
         };
         if let Some(title_page) = &self.title_page {
-            chosen.title_page = title_page.is_active();
+            chosen.export.title_page = title_page.is_active();
         }
         if let Some(header) = &self.header {
-            chosen.header = header.is_active();
+            chosen.export.header = header.is_active();
         }
         if let Some(footer) = &self.footer {
-            chosen.footer = footer.is_active();
+            chosen.export.footer = footer.is_active();
         }
         chosen
     }
@@ -417,7 +405,7 @@ fn opening_folder(path: Option<&Path>, location: Option<PathBuf>) -> PathBuf {
 /// The text and not the file on disk, so that a Document with unsaved changes
 /// exports what the writer is looking at; the Document's own path is not
 /// touched, which is the whole difference between this and Save As.
-fn copy(text: &str, path: &Path) -> std::io::Result<()> {
+fn write_markdown(text: &str, path: &Path) -> std::io::Result<()> {
     std::fs::write(path, text.as_bytes())
 }
 
@@ -427,7 +415,7 @@ fn copy(text: &str, path: &Path) -> std::io::Result<()> {
 /// The expander is shut, which is what a writer opens it on: Options is what
 /// one job changes and most jobs change nothing.
 pub(crate) fn open(window: &Window, format: Format) {
-    opened(window, format, false);
+    present(window, format, false);
 }
 
 /// The same dialog with its Options expander already open: `--export-dialog`,
@@ -437,10 +425,15 @@ pub(crate) fn open(window: &Window, format: Format) {
 /// is launched with it open. Nothing else calls this, and no writer can reach
 /// it: the flag is the harness's.
 pub(crate) fn open_expanded(window: &Window, format: Format) {
-    opened(window, format, true);
+    present(window, format, true);
 }
 
-fn opened(window: &Window, format: Format, expanded: bool) {
+/// Builds the dialog for `format` and puts it on screen, its Options expander
+/// open or shut as `expanded` says.
+///
+/// What [`open`] and [`open_expanded`] both are: one dialog, and the flag the
+/// harness sets is the only difference between them.
+fn present(window: &Window, format: Format, expanded: bool) {
     let Some(session) = window.session() else {
         return;
     };
@@ -648,17 +641,14 @@ fn write(window: &Window, format: Format, target: &Path, chosen: &Chosen) {
     let built = template::named(session.template().name.as_str());
     let written = match format {
         Format::Pdf => {
-            let mut export = session.settings().export.clone();
-            chosen.written_into(&mut export);
             let document = window.document();
             pdf::write(
                 target,
                 &document,
                 &built,
                 chosen.toggles,
-                geometry(&export),
-                f64::from(export.text_size),
-                &draw::wording(&document),
+                Geometry::of(&chosen.export),
+                f64::from(chosen.export.text_size),
             )
             .map_err(|err| err.to_string())
         }
@@ -670,7 +660,7 @@ fn write(window: &Window, format: Format, target: &Path, chosen: &Chosen) {
         }
         Format::Markdown => {
             let document = window.document();
-            let copied = copy(document.text(), target);
+            let copied = write_markdown(document.text(), target);
             drop(document);
             copied.map_err(|err| err.to_string())
         }
@@ -716,12 +706,7 @@ mod tests {
         assert_eq!(
             Chosen::of(&export, &template),
             Chosen {
-                paper: export.paper,
-                margin: export.margin,
-                text_size: export.text_size,
-                title_page: export.title_page,
-                header: export.header,
-                footer: export.footer,
+                export: export.clone(),
                 toggles: Toggles::of(&template),
             }
         );
@@ -752,9 +737,9 @@ mod tests {
         let mut settings = Settings::default();
         let before = settings.to_toml();
         let mut chosen = Chosen::of(&settings.export, &settings.template);
-        chosen.paper = Paper::Letter;
-        chosen.text_size = 14;
-        chosen.footer = true;
+        chosen.export.paper = Paper::Letter;
+        chosen.export.text_size = 14;
+        chosen.export.footer = true;
         chosen.toggles.number_headings = !chosen.toggles.number_headings;
         chosen.written_into(&mut settings.export);
         assert_eq!(
@@ -840,7 +825,7 @@ mod tests {
         let own = folder.join("The Lighthouse.md");
         std::fs::write(&own, text).unwrap();
         let target = folder.join("Copy.md");
-        copy(text, &target).unwrap();
+        write_markdown(text, &target).unwrap();
         assert_eq!(std::fs::read(&target).unwrap(), text.as_bytes());
         assert_eq!(std::fs::read(&own).unwrap(), text.as_bytes());
         std::fs::remove_dir_all(&folder).ok();

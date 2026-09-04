@@ -16,7 +16,7 @@ use std::path::Path;
 use crate::document::Document;
 use crate::draw;
 use crate::outline;
-use crate::paginate::{self, Geometry, Wording};
+use crate::paginate::{self, Geometry};
 use crate::render;
 use crate::template::Template;
 
@@ -26,17 +26,17 @@ const CREATOR: &str = "Quill";
 /// Writes `document` to `path` as a PDF.
 ///
 /// `paper` is the `[export]` geometry with the paper already resolved to
-/// points ([`crate::settings::Export::paper_size`]), `size` the body size in
-/// points, and `wording` what the furniture and the metadata say — [`the
-/// drawer`](crate::draw::wording) reads it off the Document. The render pass
-/// and the paginator are called here, so a caller hands over a Document and
-/// gets a file.
+/// points ([`Geometry::of`]) and `size` the body size in points. The page is
+/// laid out here ([`paginate::lay_out`], which Print calls too), so a caller
+/// hands over a Document and gets a file.
 ///
-/// The Title is the title page's rule — the front matter's `title`, falling
-/// back to the Document's name — the Author the front matter's, and the
-/// Creator [`CREATOR`]. The outline is one bookmark per heading, nested by
-/// level, each pointing at the page and the offset the paginator placed its
-/// heading at.
+/// What the furniture and the metadata say is the Document's own
+/// ([`crate::draw::wording`]) rather than a caller's: the Title is the title
+/// page's rule ([`paginate::Wording::title_or_name`]), the Author the front
+/// matter's,
+/// and the Creator [`CREATOR`]. The outline is one bookmark per heading,
+/// nested by level, each pointing at the page and the offset the paginator
+/// placed its heading at.
 ///
 /// # Errors
 ///
@@ -50,49 +50,34 @@ pub fn write(
     toggles: render::Toggles,
     paper: Geometry,
     size: f64,
-    wording: &Wording,
 ) -> Result<(), cairo::Error> {
     use pango::prelude::FontMapExt;
 
     let context = pangocairo::FontMap::default().create_context();
-    paginate::in_points(&context);
-    let frame = paginate::frame(paper, template, size);
-    let rendered = render::render(
-        document,
-        template,
-        toggles,
-        frame.measure,
-        frame.zoom,
-        &context,
-    );
-    let pages = paginate::pages(&rendered, &frame, wording);
+    let laid = paginate::lay_out(document, template, toggles, paper, size, &context);
     let surface = cairo::PdfSurface::new(paper.width, paper.height, path)?;
-    surface.set_metadata(cairo::PdfMetadata::Title, &title(wording))?;
-    if let Some(author) = wording.author.as_deref() {
+    surface.set_metadata(cairo::PdfMetadata::Title, &laid.wording.title_or_name())?;
+    if let Some(author) = laid.wording.author.as_deref() {
         surface.set_metadata(cairo::PdfMetadata::Author, author)?;
     }
     surface.set_metadata(cairo::PdfMetadata::Creator, CREATOR)?;
     {
         let cr = cairo::Context::new(&surface)?;
-        for page in &pages {
-            draw::draw(&cr, page, &rendered, template, &frame);
+        for page in &laid.pages {
+            draw::draw(&cr, page, &laid.rendered, template, &laid.frame);
             cr.show_page()?;
         }
     }
     // After the pages, because a bookmark names a page cairo has to have
     // emitted before it can point at it.
-    bookmarks(&surface, &outline::of(&rendered), &pages, &frame)?;
+    bookmarks(
+        &surface,
+        &outline::of(&laid.rendered),
+        &laid.pages,
+        &laid.frame,
+    )?;
     surface.finish();
     surface.status()
-}
-
-/// The Title the file carries: the title page's rule, which is the front
-/// matter's `title` and the Document's name when it names none.
-fn title(wording: &Wording) -> String {
-    wording
-        .title
-        .clone()
-        .unwrap_or_else(|| wording.name.clone())
 }
 
 /// Adds one bookmark per heading, nested by level.
@@ -211,14 +196,11 @@ mod tests {
     fn a4(header: bool, footer: bool, title_page: bool) -> Geometry {
         let mut export = Export::default();
         export.paper = Paper::A4;
-        let (width, height) = export.paper_size();
         Geometry {
-            width,
-            height,
-            margin: export.margin_points(),
             header,
             footer,
             title_page,
+            ..Geometry::of(&export)
         }
     }
 
@@ -229,23 +211,14 @@ mod tests {
 
     /// Writes `document` to a scratch PDF named `name` and answers where it
     /// went.
-    fn export(
+    fn exported(
         name: &str,
         document: &Document,
         paper: Geometry,
         toggles: render::Toggles,
     ) -> PathBuf {
         let path = scratch(name, "pdf");
-        write(
-            &path,
-            document,
-            &modern(),
-            toggles,
-            paper,
-            size(),
-            &draw::wording(document),
-        )
-        .expect("the PDF is written");
+        write(&path, document, &modern(), toggles, paper, size()).expect("the PDF is written");
         path
     }
 
@@ -396,7 +369,7 @@ mod tests {
         if !poppler() {
             return;
         }
-        let path = export(
+        let path = exported(
             "sample",
             &passage(SAMPLE),
             a4(false, false, false),
@@ -422,7 +395,7 @@ mod tests {
         let (width, height) = Paper::Letter.size();
         paper.width = width;
         paper.height = height;
-        let path = export("short", &passage(SHORT), paper, render::Toggles::default());
+        let path = exported("short", &passage(SHORT), paper, render::Toggles::default());
         assert_eq!(pages_of(&path), 1);
         assert!(text(&path, 1).contains("The Note on the Table"));
         let said = said(&path, "Page size");
@@ -442,7 +415,7 @@ mod tests {
             "---\ntitle: The Lighthouse\nauthor: A. Writer\n---\n\n\
              The `lamp` turned, and [the keeper](https://example.invalid) wrote.\n",
         );
-        let path = export(
+        let path = exported(
             "front",
             &document,
             a4(false, false, false),
@@ -467,7 +440,7 @@ mod tests {
         let sample = fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SAMPLE))
             .expect("the sample reads");
         let document = written_out(&format!("{sample}\n{sample}\n{sample}"));
-        let path = export(
+        let path = exported(
             "long",
             &document,
             a4(false, false, false),
@@ -513,7 +486,7 @@ mod tests {
             number_headings: true,
             ..render::Toggles::default()
         };
-        let path = export(
+        let path = exported(
             "numbered",
             &passage(SAMPLE),
             a4(false, false, false),
@@ -541,7 +514,7 @@ mod tests {
             return;
         }
         let paper = a4(false, false, false);
-        let path = export(
+        let path = exported(
             "rule",
             &written_out("\n---\n"),
             paper,
@@ -570,13 +543,13 @@ mod tests {
             return;
         }
         let document = passage(SHORT);
-        let on = export(
+        let on = exported(
             "footer-on",
             &document,
             a4(false, true, false),
             render::Toggles::default(),
         );
-        let off = export(
+        let off = exported(
             "footer-off",
             &document,
             a4(false, false, false),
@@ -623,7 +596,7 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
         let document = written_out(&format!("```rust\n{lines}\n```\n"));
-        let path = export("well", &document, paper, render::Toggles::default());
+        let path = exported("well", &document, paper, render::Toggles::default());
         assert!(pages_of(&path) >= 3, "twelve lines run over three pages");
         let frame = paginate::frame(paper, &modern(), size());
         let raster = Raster::of(&path, 2);
@@ -651,7 +624,7 @@ mod tests {
             "---\ntitle: The Lighthouse\nauthor: A. Writer\ndate: 2026-09-04\n---\n\n\
              The lamp had been lit for an hour.\n",
         );
-        let path = export(
+        let path = exported(
             "title-page",
             &document,
             a4(false, true, true),

@@ -7,10 +7,14 @@
 //! [`Fragment`]s saying which of a block's layout lines fall on it and where
 //! they stand, and the [`Furniture`] the page carries.
 //!
-//! It places and it measures; it lays nothing out and it draws nothing. The
-//! layouts are the render pass's own, made once at the [`Frame::measure`] and
-//! [`Frame::zoom`] that [`frame`] answers for a geometry and a body size, and
-//! the ink and the paper are the drawer's.
+//! It places and it measures; it draws nothing, and the layouts it cuts are
+//! the render pass's own, made once at the [`Frame::measure`] and
+//! [`Frame::zoom`] that [`frame`] answers for a geometry and a body size. The
+//! ink and the paper are the drawer's.
+//!
+//! [`lay_out`] is the whole of that sequence in one call — the context set to
+//! points, the frame, the render pass, the cut — because both page sinks make
+//! it and two spellings of it are two pages ([`crate::pdf`] and Print).
 //!
 //! **Everything here is in points**, the unit a paper size is named in and the
 //! unit a cairo PDF surface draws in, so a render pass at any other resolution
@@ -25,8 +29,10 @@
 use std::mem;
 use std::ops::Range;
 
+use crate::document::Document;
+use crate::draw;
 use crate::render;
-use crate::settings::preview_zooms;
+use crate::settings::{Export, preview_zooms};
 use crate::template::Template;
 
 /// The resolution a page is measured at: one Pango pixel, one point.
@@ -65,6 +71,31 @@ pub struct Geometry {
     pub title_page: bool,
 }
 
+impl Geometry {
+    /// The page the `[export]` table asks for, in the points a page is laid
+    /// out in.
+    ///
+    /// `auto` is resolved here rather than kept, so a writer who carries a
+    /// laptop across an ocean exports on the paper their desktop now names
+    /// ([`Export::paper_size`]).
+    ///
+    /// Every sink that reads the table lays its page out on this — Quick
+    /// Export, the Export dialog, and Print before its own Page Setup has had
+    /// a say — so an export and a print of one table are one page.
+    #[must_use]
+    pub fn of(export: &Export) -> Self {
+        let (width, height) = export.paper_size();
+        Self {
+            width,
+            height,
+            margin: export.margin_points(),
+            header: export.header,
+            footer: export.footer,
+            title_page: export.title_page,
+        }
+    }
+}
+
 /// What the furniture says: the Document's name, and the title page's three
 /// strings as the front matter has them.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -78,6 +109,18 @@ pub struct Wording {
     pub author: Option<String>,
     /// The title page's date.
     pub date: Option<String>,
+}
+
+impl Wording {
+    /// The title page's rule: the front matter's `title`, and the Document's
+    /// own name when it names none.
+    ///
+    /// What the title page prints and what the PDF file carries as its Title
+    /// ([`crate::pdf::write`]), which are one string and not two.
+    #[must_use]
+    pub fn title_or_name(&self) -> String {
+        self.title.clone().unwrap_or_else(|| self.name.clone())
+    }
 }
 
 /// Where the text stands on the paper, and what the render pass is called with.
@@ -114,9 +157,11 @@ pub struct Frame {
 /// Whether a fragment's block stands on the Template's Well ground, and which
 /// end of that ground the fragment carries.
 ///
-/// A code block or a quotation cut across a page break is drawn as one ground
-/// per page, so the drawer is told which page opens it and which closes it
-/// rather than deriving it from the fragments around it.
+/// A code block cut across a page break is drawn as one ground per page, so
+/// the drawer is told which page opens it and which closes it rather than
+/// deriving it from the fragments around it. A quotation is [`Ground::None`]
+/// on every page it runs over: the Template gives it an indent and no ground
+/// ([`crate::render::Block::ground`]).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Ground {
     /// The block does not stand on the Well ground.
@@ -254,6 +299,67 @@ fn zoom(template: &Template, size: f64) -> u32 {
     ((100.0 * size / template.sizes.base).round() as u32).clamp(*zooms.start(), *zooms.end())
 }
 
+/// A Document laid out on paper: everything a sink needs to draw it.
+///
+/// [`lay_out`] is where it comes from, and the four travel together because a
+/// page cannot be drawn without all four: the fragments point into
+/// [`Laid::rendered`], their coordinates are [`Laid::frame`]'s, and the
+/// metadata a file carries is [`Laid::wording`]'s.
+pub struct Laid {
+    /// The frame the pages were cut under.
+    pub frame: Frame,
+    /// The Document as the render pass laid it out, which is what a page's
+    /// fragments point into.
+    pub rendered: render::Page,
+    /// The pages themselves, in order.
+    pub pages: Vec<Page>,
+    /// What the furniture and the metadata say, read off the Document
+    /// ([`crate::draw::wording`]).
+    pub wording: Wording,
+}
+
+/// `document` on `paper`, laid out in `template` at `size` points and cut into
+/// pages.
+///
+/// The whole of what a page sink does before it draws: `context` is set to lay
+/// out in points ([`in_points`]), [`frame`] measures the text block on the
+/// paper, the render pass lays the Document out at that measure, and [`pages`]
+/// cuts what comes back. `toggles` is how the blocks are laid out
+/// ([`crate::render::Toggles`]).
+///
+/// Both sinks call this and neither lays a page out itself — the PDF writer on
+/// a surface's own Pango context ([`crate::pdf::write`]) and Print on the one
+/// the print system hands its `begin-print` — so a print and an export of one
+/// Document are the same pages.
+#[must_use]
+pub fn lay_out(
+    document: &Document,
+    template: &Template,
+    toggles: render::Toggles,
+    paper: Geometry,
+    size: f64,
+    context: &pango::Context,
+) -> Laid {
+    in_points(context);
+    let frame = frame(paper, template, size);
+    let rendered = render::render(
+        document,
+        template,
+        toggles,
+        frame.measure,
+        frame.zoom,
+        context,
+    );
+    let wording = draw::wording(document);
+    let pages = pages(&rendered, &frame, &wording);
+    Laid {
+        frame,
+        rendered,
+        pages,
+        wording,
+    }
+}
+
 /// `rendered` cut into pages, under the geometry `frame` was measured for.
 ///
 /// `rendered` is the render pass's answer at [`Frame::measure`] and
@@ -265,8 +371,10 @@ fn zoom(template: &Template, size: f64) -> u32 {
 ///   it, and with the run of headings between them.
 /// - A paragraph splits between lines with at least two on each side, or moves
 ///   whole when it cannot.
-/// - A code block or a quotation splits at a line boundary, its
-///   [`Fragment::ground`] saying which page opens and which closes it.
+/// - A code block or a quotation splits at a line boundary. A code block
+///   stands on the Template's Well ground, so its [`Fragment::ground`] says
+///   which page opens that ground and which closes it; a quotation stands on
+///   no ground and carries none over the cut.
 /// - A rule never opens a page: it stays at the foot of the page before, inside
 ///   the bottom margin.
 /// - A hard break never opens a page either: the line after one goes with the
@@ -282,7 +390,7 @@ fn zoom(template: &Template, size: f64) -> u32 {
 #[must_use]
 pub fn pages(rendered: &render::Page, frame: &Frame, wording: &Wording) -> Vec<Page> {
     let table: Vec<Vec<Row>> = rendered.blocks.iter().map(rows).collect();
-    let room = frame.bottom - frame.top;
+    let band = frame.bottom - frame.top;
     let mut pages = Vec::new();
     if frame.paper.title_page {
         pages.push(Page {
@@ -301,7 +409,7 @@ pub fn pages(rendered: &render::Page, frame: &Frame, wording: &Wording) -> Vec<P
         let rows = &table[index];
         let fresh = fragments.is_empty();
         let gap = if fresh { 0.0 } else { space(rendered, index) };
-        let left = room - used - gap;
+        let room = band - used - gap;
         let head = rows.get(from).map_or(0.0, |row| row.top);
         let height = block.height - head;
         let y = frame.top + used + gap;
@@ -311,7 +419,7 @@ pub fn pages(rendered: &render::Page, frame: &Frame, wording: &Wording) -> Vec<P
             index,
             from,
             reach(block, rows) - head,
-            left,
+            room,
             fresh,
         ) {
             Step::Whole => {
@@ -366,15 +474,15 @@ enum Step {
     Move,
 }
 
-/// Which of the three the block at `index` takes, with `left` points of room
-/// and `reach` points of block still to place.
+/// Which of the three the block at `index` takes, with `room` points left on
+/// the page and `reach` points of block still to place.
 fn step(
     rendered: &render::Page,
     table: &[Vec<Row>],
     index: usize,
     from: usize,
     reach: f64,
-    left: f64,
+    room: f64,
     fresh: bool,
 ) -> Step {
     let block = &rendered.blocks[index];
@@ -387,14 +495,14 @@ fn step(
     if heading(block) {
         // A heading moves with what follows it rather than splitting, and a
         // fresh page is the one it cannot be moved off.
-        let stands = fresh || (reach <= left + SLACK && follows(rendered, table, index, left));
+        let stands = fresh || (reach <= room + SLACK && follows(rendered, table, index, room));
         return if stands { Step::Whole } else { Step::Move };
     }
-    if reach <= left + SLACK {
+    if reach <= room + SLACK {
         return Step::Whole;
     }
     let least = least(block.kind);
-    if let Some(cut) = split(rows, from, left, least, least) {
+    if let Some(cut) = split(rows, from, room, least, least) {
         return Step::Split(cut);
     }
     if !fresh {
@@ -402,7 +510,7 @@ fn step(
     }
     // A fresh page has nowhere to move it to, so it is cut where it can be,
     // and at worst after its first line.
-    Step::Split(split(rows, from, left, 1, 1).unwrap_or((from + 1).min(rows.len())))
+    Step::Split(split(rows, from, room, 1, 1).unwrap_or((from + 1).min(rows.len())))
 }
 
 /// How many lines of a block of `kind` must stand on each side of a cut.
@@ -416,14 +524,14 @@ fn least(kind: render::Kind) -> usize {
     }
 }
 
-/// The row the block is cut at: the last one that fits in `left`, backed off
+/// The row the block is cut at: the last one that fits in `room`, backed off
 /// until `least` lines stay, `tail` lines go, and the cut is not a hard break.
 ///
 /// `None` when no cut satisfies all three, which is a block that moves whole.
-fn split(rows: &[Row], from: usize, left: f64, least: usize, tail: usize) -> Option<usize> {
+fn split(rows: &[Row], from: usize, room: f64, least: usize, tail: usize) -> Option<usize> {
     let head = rows.get(from).map_or(0.0, |row| row.top);
     let mut cut = from;
-    while cut < rows.len() && rows[cut].bottom - head <= left + SLACK {
+    while cut < rows.len() && rows[cut].bottom - head <= room + SLACK {
         cut += 1;
     }
     while cut > from {
@@ -482,7 +590,9 @@ fn opens(block: &render::Block, rows: &[Row]) -> f64 {
     if rows.len() < 2 * least {
         return whole;
     }
-    rows.get(least - 1).map_or(whole, |row| row.bottom).min(whole)
+    rows.get(least - 1)
+        .map_or(whole, |row| row.bottom)
+        .min(whole)
 }
 
 /// How far down from its top edge `block`'s ink reaches: the bottom of its
@@ -602,10 +712,7 @@ fn furniture(frame: &Frame, wording: &Wording, number: u32) -> Vec<Furniture> {
 fn title_page(frame: &Frame, wording: &Wording) -> Vec<Furniture> {
     let mut lines = Vec::new();
     let mut baseline = frame.paper.height / 3.0;
-    let title = wording
-        .title
-        .clone()
-        .unwrap_or_else(|| wording.name.clone());
+    let title = wording.title_or_name();
     if !title.is_empty() {
         lines.push(Furniture {
             role: Role::Title,
@@ -696,22 +803,33 @@ fn rows(block: &render::Block) -> Vec<Row> {
 }
 
 /// `units` of Pango's, as the points a page is measured in.
-fn back(units: i32) -> f64 {
+///
+/// The drawer works in the same points off the same layouts, so it reads them
+/// back through this rather than through a second copy of it.
+pub(crate) fn back(units: i32) -> f64 {
     f64::from(units) / f64::from(pango::SCALE)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::document::Document;
     use crate::render::Toggles;
+    use crate::settings::Paper;
     use crate::template;
 
-    /// A4's width, a 20 mm margin and the default text size, in points: the
-    /// `[export]` defaults, which is the paper a page is cut on here.
-    const WIDTH: f64 = 595.0;
-    const MARGIN: f64 = 57.0;
-    const SIZE: f64 = 12.0;
+    /// The paper a page is cut on here: A4 at the `[export]` defaults, read
+    /// off the table rather than written out again.
+    fn a4() -> Geometry {
+        Geometry {
+            width: Paper::A4.size().0,
+            ..Geometry::of(&Export::default())
+        }
+    }
+
+    /// The body size every page here is set at: the `[export]` default.
+    fn size() -> f64 {
+        f64::from(Export::default().text_size)
+    }
 
     /// Long enough to wrap to four lines and more at the Template's measure,
     /// which is what a paragraph must do to be split at all.
@@ -757,17 +875,17 @@ mod tests {
 
     /// The same, with the header, footer and title page as asked for.
     fn switched(room: f64, header: bool, footer: bool, title_page: bool) -> Frame {
+        let a4 = a4();
         frame(
             Geometry {
-                width: WIDTH,
-                height: room + 2.0 * MARGIN,
-                margin: MARGIN,
+                height: room + 2.0 * a4.margin,
                 header,
                 footer,
                 title_page,
+                ..a4
             },
             &modern(),
-            SIZE,
+            size(),
         )
     }
 
@@ -805,6 +923,28 @@ mod tests {
     /// What furniture `page` carries, in the order it answers it.
     fn roles(page: &Page) -> Vec<Role> {
         page.furniture.iter().map(|line| line.role).collect()
+    }
+
+    /// The `[export]` table becomes a page geometry: the paper's own size in
+    /// points, the margin converted from millimetres, and the three switches
+    /// carried straight through.
+    #[test]
+    fn the_export_table_becomes_the_page_geometry() {
+        let mut export = Export::default();
+        export.paper = Paper::A4;
+        export.footer = true;
+        let paper = Geometry::of(&export);
+        assert_eq!((paper.width, paper.height), Paper::A4.size());
+        assert_eq!(paper.margin, export.margin_points());
+        assert_eq!(
+            (paper.header, paper.footer, paper.title_page),
+            (false, true, false)
+        );
+        assert_eq!(
+            Geometry::of(&Export::default()).width,
+            Paper::default().size().0,
+            "auto is resolved to a size, never left as auto"
+        );
     }
 
     #[test]
@@ -1026,24 +1166,24 @@ mod tests {
     fn the_measure_is_the_smaller_of_the_templates_and_what_the_margins_leave() {
         let template = modern();
         let wide = paper(600.0);
-        assert_eq!(wide.measure, template.rhythm.measure * SIZE);
-        assert_eq!(wide.left, (WIDTH - wide.measure) / 2.0);
+        assert_eq!(wide.measure, template.rhythm.measure * size());
+        assert_eq!(wide.left, (a4().width - wide.measure) / 2.0);
+        let margin = a4().margin;
         let narrow = frame(
             Geometry {
                 width: 300.0,
                 height: 500.0,
-                margin: MARGIN,
-                header: false,
-                footer: false,
-                title_page: false,
+                ..a4()
             },
             &template,
-            SIZE,
+            size(),
         );
-        assert_eq!(narrow.measure, 300.0 - 2.0 * MARGIN);
-        assert_eq!(narrow.left, MARGIN);
-        assert_eq!(narrow.top, MARGIN);
-        assert_eq!(narrow.bottom, 500.0 - MARGIN);
+        assert_eq!(narrow.measure, 300.0 - 2.0 * margin);
+        // The measure the margins leave, centred, is the margin again — to the
+        // last bit of the halving, which is not the same arithmetic.
+        assert!((narrow.left - margin).abs() < SLACK, "{}", narrow.left);
+        assert_eq!(narrow.top, margin);
+        assert_eq!(narrow.bottom, 500.0 - margin);
     }
 
     #[test]
