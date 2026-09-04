@@ -50,11 +50,17 @@ const DPI: f64 = 96.0;
 
 /// The indent a quotation is set at, and the hanging indent a list marker
 /// stands in, in ems of the base size.
-const INDENT: f64 = 1.5;
+///
+/// Public because [`crate::html`] sets the same two indents in CSS: the
+/// stylesheet an export carries is the same rendered page in another medium
+/// (ADR 0005), so the number lives here once.
+pub const INDENT: f64 = 1.5;
 
 /// The first line's indent when paragraphs are indented rather than spaced, in
 /// ems of the base size.
-const FIRST_LINE: f64 = 1.5;
+///
+/// Public for the reason [`INDENT`] is.
+pub const FIRST_LINE: f64 = 1.5;
 
 /// How much room a thematic break's block takes, in ems: the rule itself is a
 /// hairline the widget draws through the middle of it.

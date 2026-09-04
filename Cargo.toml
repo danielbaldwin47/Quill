@@ -26,12 +26,14 @@ notify-debouncer-mini = "0.7"
 pango = "0.22"
 pangocairo = "0.22"
 # `default-features = false` drops `getopts`, which serves the crate's own
-# binary and nothing here, and `html`, its renderer: the Editor styles from the
-# byte ranges `into_offset_iter()` reports and never builds a document. HTML
-# export does — `docs/architecture.md` § Preview and Export is "the parser's
-# HTML plus the CSS the Template generates" — so the ticket that lands Export
-# turns `html` back on. It is off until something reads it.
-pulldown-cmark = { version = "0.13", default-features = false }
+# binary and nothing here. `html` is on because Export reads it: the Editor
+# styles from the byte ranges `into_offset_iter()` reports and never builds a
+# document, but HTML export is — `docs/architecture.md` § Preview and Export —
+# "the parser's HTML plus the CSS the Template generates", and
+# `quill_engine::html` writes the first half through `html::push_html`.
+pulldown-cmark = { version = "0.13", default-features = false, features = [
+    "html",
+] }
 serde = { version = "1", features = ["derive"] }
 # `preserve_order`: a settings file is written in the order
 # `docs/architecture.md` names its keys, and a key a newer Quill added keeps
