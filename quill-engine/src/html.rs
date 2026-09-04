@@ -271,6 +271,11 @@ fn stack(face: &Face, generic: &str) -> String {
 /// Quill Faces (`fonts/`) are cut on one cell, so `monospace`; Source Serif 4
 /// is a serif; Inter is a sans, and so is anything a later Template names,
 /// because a sans is what a reader's browser sets prose in.
+///
+/// The family's name is what is read because it is all a stylesheet has to go
+/// on: an exported page is read on a machine that has none of these fonts, and
+/// the name with a generic after it is the whole of the font stack there. A
+/// loaded face's own metrics never reach it.
 fn prose_generic(family: &str) -> &'static str {
     if family.starts_with("Quill ") {
         "monospace"
@@ -316,7 +321,7 @@ mod tests {
     }
 
     /// The built-in `id`, which every test here sets its Document in.
-    fn template(id: &str) -> Template {
+    fn built(id: &str) -> Template {
         template::built_in(id).expect("a built-in Template")
     }
 
@@ -329,7 +334,7 @@ mod tests {
 
     #[test]
     fn the_samples_body_is_the_parsers_html_and_carries_no_markup() {
-        let page = page(&sample(), &template("modern"), Toggles::default());
+        let page = page(&sample(), &built("modern"), Toggles::default());
         let body = body_of(&page);
         assert!(body.starts_with("<h1>The Lighthouse</h1>"), "{body}");
         assert!(body.contains("<strong>bottle</strong>"), "{body}");
@@ -343,7 +348,7 @@ mod tests {
     #[test]
     fn the_front_matter_reaches_neither_the_page_nor_the_fragment() {
         let document = holding("---\ntitle: Kept out\nauthor: Her\n---\n\n# Heading\n\nProse.\n");
-        let page = page(&document, &template("modern"), Toggles::default());
+        let page = page(&document, &built("modern"), Toggles::default());
         assert!(!page.contains("Kept out"), "{page}");
         assert!(!page.contains("author"), "{page}");
         assert_eq!(
@@ -355,7 +360,7 @@ mod tests {
 
     #[test]
     fn the_head_carries_the_charset_and_the_documents_name() {
-        let page = page(&sample(), &template("modern"), Toggles::default());
+        let page = page(&sample(), &built("modern"), Toggles::default());
         assert!(page.starts_with("<!DOCTYPE html>\n<html>\n"), "{page}");
         assert!(page.contains("<meta charset=\"utf-8\">"), "{page}");
         assert!(page.contains("<title>sample</title>"), "{page}");
@@ -368,7 +373,7 @@ mod tests {
 
     #[test]
     fn the_stylesheet_names_the_templates_families_and_sizes() {
-        let page = page(&sample(), &template("modern"), Toggles::default());
+        let page = page(&sample(), &built("modern"), Toggles::default());
         assert!(
             page.contains("font-family: \"Inter\", sans-serif;"),
             "{page}"
@@ -386,7 +391,7 @@ mod tests {
 
     #[test]
     fn the_classic_serif_falls_back_to_serif_and_its_body_size_is_its_own() {
-        let page = page(&sample(), &template("classic"), Toggles::default());
+        let page = page(&sample(), &built("classic"), Toggles::default());
         assert!(
             page.contains("font-family: \"Source Serif 4\", serif;"),
             "{page}"
@@ -396,7 +401,7 @@ mod tests {
 
     #[test]
     fn both_palettes_are_there_and_the_dark_one_is_under_the_media_query() {
-        let page = page(&sample(), &template("modern"), Toggles::default());
+        let page = page(&sample(), &built("modern"), Toggles::default());
         let query = page
             .find("@media (prefers-color-scheme: dark)")
             .expect("the media query");
@@ -424,7 +429,7 @@ mod tests {
             number_headings: true,
             ..Toggles::default()
         };
-        let numbered = page(&sample(), &template("modern"), on);
+        let numbered = page(&sample(), &built("modern"), on);
         assert!(
             numbered.contains("counter-reset: h2 h3 h4 h5 h6;"),
             "{numbered}"
@@ -442,34 +447,34 @@ mod tests {
             !numbered.contains("counter-increment: h1;"),
             "an H1 stands bare"
         );
-        let plain = page(&sample(), &template("modern"), Toggles::default());
+        let plain = page(&sample(), &built("modern"), Toggles::default());
         assert!(!plain.contains("counter-"), "{plain}");
     }
 
     #[test]
     fn center_headings_centres_them_and_a_ranged_template_leaves_them_ranged() {
-        let ranged = page(&sample(), &template("classic"), Toggles::default());
+        let ranged = page(&sample(), &built("classic"), Toggles::default());
         assert!(!ranged.contains("text-align: center;"), "{ranged}");
         let on = Toggles {
             center_headings: true,
             ..Toggles::default()
         };
-        let centred = page(&sample(), &template("classic"), on);
+        let centred = page(&sample(), &built("classic"), on);
         assert!(centred.contains("text-align: center;"), "{centred}");
-        let by_the_template = page(&sample(), &template("modern"), Toggles::default());
+        let by_the_template = page(&sample(), &built("modern"), Toggles::default());
         assert!(by_the_template.contains("text-align: center;"));
     }
 
     #[test]
     fn indent_paragraphs_indents_them_and_closes_the_space_between_them() {
-        let spaced = page(&sample(), &template("modern"), Toggles::default());
+        let spaced = page(&sample(), &built("modern"), Toggles::default());
         assert!(!spaced.contains("text-indent"), "{spaced}");
         assert!(spaced.contains("margin-top: 1rem;"), "{spaced}");
         let on = Toggles {
             indent_paragraphs: true,
             ..Toggles::default()
         };
-        let indented = page(&sample(), &template("modern"), on);
+        let indented = page(&sample(), &built("modern"), on);
         assert!(
             indented.contains("body > p {\n  text-indent: 1.5rem;\n}"),
             "{indented}"
@@ -483,7 +488,7 @@ mod tests {
 
     #[test]
     fn an_indented_template_indents_with_the_toggle_off() {
-        let page = page(&sample(), &template("classic"), Toggles::default());
+        let page = page(&sample(), &built("classic"), Toggles::default());
         assert!(page.contains("text-indent: 1.5rem;"), "{page}");
         assert!(page.contains("margin-top: 0rem;"), "{page}");
     }
@@ -491,7 +496,7 @@ mod tests {
     #[test]
     fn every_built_in_template_makes_a_page() {
         for id in template::IDS {
-            let page = page(&sample(), &template(id), Toggles::default());
+            let page = page(&sample(), &built(id), Toggles::default());
             assert!(page.starts_with("<!DOCTYPE html>"), "{id}");
             assert!(page.ends_with("</html>\n"), "{id}");
             assert!(page.contains("@media (prefers-color-scheme: dark)"), "{id}");

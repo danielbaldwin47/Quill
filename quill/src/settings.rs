@@ -7,9 +7,9 @@
 //! System, the Spell-check language the Spell check spec will fill in, the
 //! Library's own six (#246: the Locations, Pinned, and the four switches
 //! nothing but this window and the file can reach), the `[export]` table's own
-//! six (#290: the page every export and every print is laid out on, which the
-//! Export dialog offers a job's worth of and writes nothing back to), and a
-//! button that hands `settings.toml` to the system editor.
+//! six (#290 built them: the page every export and every print is laid out on,
+//! which the Export dialog offers a job's worth of and writes nothing back
+//! to), and a button that hands `settings.toml` to the system editor.
 //!
 //! No row sets a value on the session. A row writes the file
 //! ([`Session::edit_settings`]) and the settings watch reads it back and puts
@@ -184,10 +184,11 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
         &switch(session, template.indent_paragraphs, indented_paragraphs),
     );
 
-    // The `[export]` table: the page every export and every print is laid out
-    // on (#282). The Export dialog and the Quill tab of the print dialog offer
-    // one job's worth of the same table and write nothing back, so this group
-    // and Save as defaults are the two ways a default moves.
+    // The `[export]` table, which #282 built: the page every export and every
+    // print is laid out on. The Export dialog offers one job's worth of the
+    // same table, and the print dialog's Quill tab all of it but the paper,
+    // and neither writes anything back — so this group and Save as defaults
+    // are the two ways a default moves.
     let export = session.settings().export.clone();
     row(&grid, 12, "Paper", &export_papers(session, export.paper));
     row(

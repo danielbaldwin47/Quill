@@ -230,9 +230,9 @@ the pages the PDF surface draws. Preview re-renders on idle after edits, debounc
 scroll to the block the caret is in. `paginate` cuts that one tall rendered page into pages of paper
 under the page geometry (size, margins, header, footer, title page) owned by Export, not the
 Template: a heading never ends a page and moves with the block after it, a paragraph splits between
-lines with at least two on each side or moves whole, a code block or a quotation splits at a line
-boundary with its ground carried on to the next page, and neither a thematic break nor the line
-after a hard break ever opens one. There is no page-break syntax. `draw` paints one such page onto
+lines with at least two on each side or moves whole, a code block splits at a line boundary with its
+Well ground carried on to the next page, a quotation splits at a line boundary and has no ground to
+carry, and neither a thematic break nor the line after a hard break ever opens one. There is no page-break syntax. `draw` paints one such page onto
 any cairo context, and both of the page sinks are fed by it: PDF export is the engine's own
 `cairo::PdfSurface` at the paper's size (`pdf`), with the document metadata and the heading
 bookmarks from `outline` on it, and `GtkPrintOperation` is Print's sink alone, the drawer called

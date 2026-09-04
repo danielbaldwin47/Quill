@@ -1,8 +1,8 @@
 //! `print`, `Ctrl+P`: the Document on the system's printer, through a
 //! `GtkPrintOperation` with a Quill tab of its own.
 //!
-//! Print is the second sink of the one page the engine lays out (`#282`,
-//! `docs/architecture.md` § Preview and Export): the PDF writer draws the
+//! Print is the second sink of the one page the engine lays out
+//! (`docs/architecture.md` § Preview and Export): the PDF writer draws the
 //! pages on a cairo surface of its own, and this draws the same pages on the
 //! surface the print system hands over, so a print and an export of one
 //! Document are the same page in two places.
