@@ -75,6 +75,25 @@ pub fn preview_zooms() -> RangeInclusive<u32> {
     50..=200
 }
 
+/// The margins an exported page may carry, in whole millimetres.
+///
+/// A range for the reason [`type_steps`] is one: `margin` in the file and the
+/// Export dialog's own field, which reads inside it, must hold the same line.
+/// The top is fifty because the narrowest paper Quill knows is A4's 210 mm,
+/// and twice fifty still leaves 110 mm of text on it.
+#[must_use]
+pub fn export_margins() -> RangeInclusive<u32> {
+    0..=50
+}
+
+/// The sizes an exported page may set the body at, in whole points: the range
+/// a printed book is set in, from a footnote's nine to a large-print
+/// eighteen.
+#[must_use]
+pub fn export_text_sizes() -> RangeInclusive<u32> {
+    9..=18
+}
+
 /// Takes an old `size` in pixels out of `table` and hands back the step it
 /// becomes, with one line telling the writer what happened to it.
 ///
@@ -208,6 +227,15 @@ const NO_TEMPLATE: &str = "default";
 /// How large Preview draws the sizes a Template names, as a percentage: the
 /// sizes themselves.
 const ZOOM: u32 = 100;
+
+/// The margin an exported page carries on every side, in whole millimetres:
+/// the width a book's inner margin is set at, and what iA Writer exports with.
+const MARGIN: u32 = 20;
+
+/// The size an exported page sets the body at, in whole points: the Templates'
+/// own base size (`quill_engine::template::Sizes::base`) read on paper rather
+/// than on a screen.
+const TEXT_SIZE: u32 = 12;
 
 /// What a note about a settings file Quill could not read ends with: a writer
 /// wants to know what became of their preferences, not only what went wrong.
@@ -359,6 +387,99 @@ choice! {
         ManuscriptDuo => "manuscript-duo",
         /// Quill Quattro, at the Editor's size.
         ManuscriptQuattro => "manuscript-quattro",
+    }
+}
+
+choice! {
+    /// The paper an exported PDF, and a print job, is laid out on.
+    ///
+    /// Three sizes and the desktop's own. The default is `auto` rather than a
+    /// size, because the paper in a writer's printer is a fact about where
+    /// they live and their desktop already knows it ([`locale_paper`]); it is
+    /// kept as `auto` in the file and resolved at the moment a page is laid
+    /// out, so a writer who carries a laptop across an ocean does not carry a
+    /// stale setting with it.
+    Paper {
+        /// Whatever the desktop's locale calls for.
+        #[default]
+        Auto => "auto",
+        /// 210 x 297 mm.
+        A4 => "a4",
+        /// 8.5 x 11 inches.
+        Letter => "letter",
+        /// 8.5 x 14 inches.
+        Legal => "legal",
+    }
+}
+
+/// The territories whose paper is US Letter (`ISO 3166-1 alpha-2`); every
+/// other locale, and no locale at all, is A4.
+const LETTER_TERRITORIES: [&str; 8] = ["US", "CA", "MX", "PH", "CL", "CO", "VE", "PR"];
+
+/// `millimetres` in points: 72 points to the inch, 25.4 millimetres to it.
+fn points_from_mm(millimetres: f64) -> f64 {
+    millimetres * 72.0 / 25.4
+}
+
+/// `inches` in points.
+fn points_from_inches(inches: f64) -> f64 {
+    inches * 72.0
+}
+
+/// The paper `locale` calls for, read from a POSIX locale name
+/// (`en_US.UTF-8`): the territory between the `_` and the encoding.
+///
+/// A name with no territory — `C`, `POSIX`, a bare `en` — names no country and
+/// so calls for no particular paper, which is A4, the paper everywhere that is
+/// not on the list uses.
+fn paper_for(locale: &str) -> Paper {
+    let territory = locale
+        .split_once('_')
+        .map(|(_, after)| after)
+        .unwrap_or_default();
+    let territory = territory.split(['.', '@']).next().unwrap_or_default();
+    if LETTER_TERRITORIES.contains(&territory) {
+        Paper::Letter
+    } else {
+        Paper::A4
+    }
+}
+
+/// The paper the desktop's locale calls for: what [`Paper::Auto`] comes to.
+///
+/// `LC_ALL` first, then `LC_PAPER`, then `LANG`, which is POSIX's own
+/// precedence: `LC_ALL` overrides every category, `LC_PAPER` is the category
+/// paper belongs to, and `LANG` is the fallback for a category nothing else
+/// sets. Read at the moment it is asked for rather than at startup, because a
+/// locale can change under a running app and nothing here is worth a restart.
+#[must_use]
+pub fn locale_paper() -> Paper {
+    for name in ["LC_ALL", "LC_PAPER", "LANG"] {
+        let Some(value) = std::env::var_os(name) else {
+            continue;
+        };
+        let value = value.to_string_lossy().into_owned();
+        if !value.is_empty() {
+            return paper_for(&value);
+        }
+    }
+    Paper::A4
+}
+
+impl Paper {
+    /// The width and height in points, `Auto` resolved through the desktop's
+    /// locale now.
+    ///
+    /// [`locale_paper`] answers a size and never `Auto`, so the one recursive
+    /// arm below terminates.
+    #[must_use]
+    pub fn size(self) -> (f64, f64) {
+        match self {
+            Self::Auto => locale_paper().size(),
+            Self::A4 => (points_from_mm(210.0), points_from_mm(297.0)),
+            Self::Letter => (points_from_inches(8.5), points_from_inches(11.0)),
+            Self::Legal => (points_from_inches(8.5), points_from_inches(14.0)),
+        }
     }
 }
 
@@ -673,6 +794,96 @@ impl Template {
     }
 }
 
+/// The page an export lays a Document out on: its paper, its margin, the size
+/// its body is set at, and the three pieces of furniture that sit outside the
+/// text.
+///
+/// The geometry is Export's and not the Template's: a Template says what a
+/// paragraph looks like, and the paper it is printed on is the writer's own
+/// (`docs/architecture.md` § Preview and Export). The furniture is all off,
+/// because an exported page is a manuscript until a writer says otherwise.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Export {
+    /// The paper a page is laid out on.
+    pub paper: Paper,
+    /// The margin on every side of the page, in whole millimetres
+    /// ([`export_margins`]).
+    pub margin: u32,
+    /// The size the body is set at, in whole points ([`export_text_sizes`]).
+    pub text_size: u32,
+    /// Whether the export opens with a title page.
+    pub title_page: bool,
+    /// Whether each page carries the Document's name in its top margin.
+    pub header: bool,
+    /// Whether each page carries its number in its bottom margin.
+    pub footer: bool,
+    /// Anything else in the table, carried through a write.
+    rest: toml::Table,
+}
+
+impl Default for Export {
+    fn default() -> Self {
+        Self {
+            paper: Paper::default(),
+            margin: MARGIN,
+            text_size: TEXT_SIZE,
+            title_page: false,
+            header: false,
+            footer: false,
+            rest: toml::Table::new(),
+        }
+    }
+}
+
+impl Export {
+    /// The paper's width and height in points, `auto` resolved through the
+    /// desktop's locale now ([`locale_paper`]).
+    #[must_use]
+    pub fn paper_size(&self) -> (f64, f64) {
+        self.paper.size()
+    }
+
+    /// The margin in points, which is what a page is laid out in.
+    #[must_use]
+    pub fn margin_points(&self) -> f64 {
+        points_from_mm(f64::from(self.margin))
+    }
+
+    /// Reads the `[export]` table.
+    fn read(table: toml::Table, notes: &mut Vec<String>) -> Self {
+        let defaults = Self::default();
+        let mut reading = Reading::new(table, "export.", notes);
+        let paper = reading.choice("paper");
+        let margin = reading.whole("margin", defaults.margin, &export_margins());
+        let text_size = reading.whole("text_size", defaults.text_size, &export_text_sizes());
+        let title_page = reading.boolean("title_page", defaults.title_page);
+        let header = reading.boolean("header", defaults.header);
+        let footer = reading.boolean("footer", defaults.footer);
+        Self {
+            paper,
+            margin,
+            text_size,
+            title_page,
+            header,
+            footer,
+            rest: reading.rest(),
+        }
+    }
+
+    /// The `[export]` table as it is written.
+    fn to_table(&self) -> toml::Table {
+        let mut writing = Writing::new();
+        writing.choice("paper", self.paper);
+        writing.whole("margin", self.margin);
+        writing.whole("text_size", self.text_size);
+        writing.boolean("title_page", self.title_page);
+        writing.boolean("header", self.header);
+        writing.boolean("footer", self.footer);
+        writing.rest(self.rest.clone());
+        writing.finish()
+    }
+}
+
 /// Everything the writer chose.
 ///
 /// One field per key in `docs/architecture.md`'s Settings section, in that
@@ -713,6 +924,8 @@ pub struct Settings {
     pub template: Template,
     /// Where Preview opens, and how large it draws.
     pub preview: Preview,
+    /// The page an export lays a Document out on.
+    pub export: Export,
     /// The Locations Quill was pointed at, what is Pinned, and the four
     /// toggles the sidebar reads.
     pub library: Library,
@@ -745,6 +958,7 @@ impl Default for Settings {
             style_check: StyleCheck::default(),
             template: Template::default(),
             preview: Preview::default(),
+            export: Export::default(),
             library: Library::default(),
             palette: None,
             shortcuts: toml::Table::new(),
@@ -867,6 +1081,7 @@ impl Settings {
         writing.rest(self.rest.clone());
         writing.table("template", self.template.to_table());
         writing.table("preview", self.preview.to_table());
+        writing.table("export", self.export.to_table());
         writing.table("library", self.library.to_table());
         writing.table("syntax_highlight", self.syntax_highlight.to_table());
         writing.table("style_check", self.style_check.to_table());
@@ -904,6 +1119,7 @@ impl Settings {
         // top level is done with the notes it is writing into.
         let template = reading.table("template");
         let preview = reading.table("preview");
+        let export = reading.table("export");
         let library = reading.table("library");
         let syntax_highlight = reading.table("syntax_highlight");
         let style_check = reading.table("style_check");
@@ -925,6 +1141,7 @@ impl Settings {
             style_check: StyleCheck::read(style_check, notes),
             template: Template::read(template, notes),
             preview: Preview::read(preview, notes),
+            export: Export::read(export, notes),
             library: Library::read(library, notes),
             palette,
             shortcuts,
@@ -943,7 +1160,7 @@ mod tests {
     /// empty table is written as nothing, so that a writer adding their first
     /// `[shortcuts]` header at the foot of the file is not adding a second
     /// ([`Settings::to_toml`]).
-    const KEYS: [&str; 17] = [
+    const KEYS: [&str; 18] = [
         "theme",
         "face",
         "step",
@@ -959,6 +1176,7 @@ mod tests {
         "style_check",
         "template",
         "preview",
+        "export",
         "library",
         "palette",
     ];
@@ -1356,6 +1574,136 @@ mod tests {
     }
 
     #[test]
+    fn the_six_export_keys_are_read_from_the_table() {
+        let (settings, notes) = Settings::parse(
+            "[export]\n\
+             paper = \"letter\"\n\
+             margin = 25\n\
+             text_size = 11\n\
+             title_page = true\n\
+             header = true\n\
+             footer = true\n",
+        );
+        assert_eq!(notes, Vec::<String>::new());
+        assert_eq!(
+            settings.export,
+            Export {
+                paper: Paper::Letter,
+                margin: 25,
+                text_size: 11,
+                title_page: true,
+                header: true,
+                footer: true,
+                rest: toml::Table::new(),
+            }
+        );
+        let (again, _) = Settings::parse(&settings.to_toml());
+        assert_eq!(again, settings, "and round-trips through a write");
+    }
+
+    #[test]
+    fn a_file_with_no_export_table_is_auto_paper_a_twenty_margin_and_no_furniture() {
+        let (settings, notes) = Settings::parse("theme = \"dark\"\n");
+        assert_eq!(notes, Vec::<String>::new());
+        assert_eq!(settings.export, Export::default());
+        assert_eq!(settings.export.paper, Paper::Auto);
+        assert_eq!(settings.export.margin, 20);
+        assert_eq!(settings.export.text_size, 12);
+        assert!(!settings.export.title_page);
+        assert!(!settings.export.header);
+        assert!(!settings.export.footer);
+    }
+
+    /// The defaults write the table with every key in it, so that a writer who
+    /// wants to change one opens the file and finds it already written.
+    #[test]
+    fn the_defaults_write_the_export_table_key_by_key() {
+        let written = Settings::default().to_toml();
+        assert!(written.contains("[export]"), "no table in:\n{written}");
+        for key in [
+            "paper = \"auto\"",
+            "margin = 20",
+            "text_size = 12",
+            "title_page = false",
+            "header = false",
+            "footer = false",
+        ] {
+            assert!(written.contains(key), "no `{key}` in:\n{written}");
+        }
+    }
+
+    #[test]
+    fn a_paper_that_is_none_of_the_four_keeps_the_default_and_says_why() {
+        let (settings, notes) = Settings::parse("[export]\npaper = \"foolscap\"\n");
+        assert_eq!(settings.export.paper, Paper::Auto);
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].contains("export.paper"), "{notes:?}");
+        assert!(notes[0].contains("legal"), "{notes:?}");
+    }
+
+    /// A margin below zero and a text size outside the nine-to-eighteen range
+    /// are typos, not preferences: each keeps its default and says so.
+    #[test]
+    fn a_margin_or_a_text_size_outside_its_range_keeps_the_default_and_says_why() {
+        let (settings, notes) = Settings::parse("[export]\nmargin = -5\ntext_size = 40\n");
+        assert_eq!(settings.export.margin, 20);
+        assert_eq!(settings.export.text_size, 12);
+        assert_eq!(notes.len(), 2, "{notes:?}");
+        assert!(notes[0].contains("export.margin"), "{notes:?}");
+        assert!(notes[0].contains("keeping 20"), "{notes:?}");
+        assert!(notes[1].contains("export.text_size"), "{notes:?}");
+        assert!(notes[1].contains("from 9 to 18"), "{notes:?}");
+        let (settings, notes) = Settings::parse("[export]\ntext_size = 8\n");
+        assert_eq!(settings.export.text_size, 12);
+        assert_eq!(notes.len(), 1, "{notes:?}");
+    }
+
+    #[test]
+    fn a_hand_added_export_key_survives_a_write() {
+        let (settings, notes) = Settings::parse("[export]\nbleed = 3\n");
+        assert!(notes.is_empty(), "{notes:?}");
+        let written: toml::Table = settings.to_toml().parse().expect("writes TOML");
+        assert_eq!(written["export"]["bleed"].as_integer(), Some(3));
+        assert_eq!(Settings::parse(&settings.to_toml()).0, settings);
+    }
+
+    /// The three named papers in points, at the sizes the standards give them.
+    #[test]
+    fn each_paper_is_its_own_size_in_points() {
+        let (width, height) = Paper::A4.size();
+        assert!((width - 595.28).abs() < 0.01, "{width}");
+        assert!((height - 841.89).abs() < 0.01, "{height}");
+        assert_eq!(Paper::Letter.size(), (612.0, 792.0));
+        assert_eq!(Paper::Legal.size(), (612.0, 1008.0));
+    }
+
+    /// `auto` is A4 everywhere but the handful of territories that print on
+    /// Letter, and a locale naming no territory is A4 too.
+    #[test]
+    fn auto_is_letter_in_the_territories_that_print_on_it_and_a4_everywhere_else() {
+        assert_eq!(paper_for("en_US.UTF-8"), Paper::Letter);
+        assert_eq!(paper_for("es_MX"), Paper::Letter);
+        assert_eq!(paper_for("en_CA@valencia"), Paper::Letter);
+        assert_eq!(paper_for("en_GB.UTF-8"), Paper::A4);
+        assert_eq!(paper_for("de_DE"), Paper::A4);
+        assert_eq!(paper_for("C"), Paper::A4);
+        assert_eq!(paper_for("POSIX"), Paper::A4);
+        assert_eq!(paper_for(""), Paper::A4);
+    }
+
+    /// The margin a page is laid out with is the millimetres the file names,
+    /// in points.
+    #[test]
+    fn the_margin_is_read_in_points_from_the_millimetres_the_file_names() {
+        let export = Export {
+            margin: 25,
+            ..Export::default()
+        };
+        assert!((export.margin_points() - 70.866).abs() < 0.01);
+        assert_eq!(Export::default().paper_size(), Paper::Auto.size());
+    }
+
+    #[test]
     fn live_is_off_until_the_file_turns_it_on() {
         let (settings, notes) = Settings::parse("theme = \"dark\"\n");
         assert!(!settings.live);
@@ -1595,12 +1943,20 @@ margin = 3
         // in silence from then on.
         let written = settings.to_toml();
         assert!(
-            !written.contains("size ="),
+            !carries_a_size(&written),
             "`size` is carried on:\n{written}"
         );
         let (again, notes) = Settings::parse(&written);
         assert_eq!(again, settings);
         assert!(notes.is_empty(), "a rewritten file is quiet: {notes:?}");
+    }
+
+    /// Whether a written file still names the old pixel `size` at the top
+    /// level. The key, not the substring: `[export]`'s `text_size` is a
+    /// different key that ends in the same five letters.
+    fn carries_a_size(written: &str) -> bool {
+        let table: toml::Table = written.parse().expect("what a write writes is TOML");
+        table.contains_key("size")
     }
 
     #[test]
@@ -1617,7 +1973,7 @@ margin = 3
         assert_eq!(settings.step, 2, "the step a writer wrote is the step");
         assert_eq!(notes.len(), 1, "{notes:?}");
         assert!(notes[0].contains("dropping `size`"), "{notes:?}");
-        assert!(!settings.to_toml().contains("size ="));
+        assert!(!carries_a_size(&settings.to_toml()));
     }
 
     #[test]

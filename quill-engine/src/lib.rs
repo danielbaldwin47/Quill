@@ -19,6 +19,7 @@ pub mod data;
 pub mod disk;
 pub mod document;
 pub mod focus;
+pub mod front_matter;
 pub mod html;
 pub mod library;
 pub mod markdown;

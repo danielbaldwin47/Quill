@@ -2474,7 +2474,7 @@ impl Window {
     }
 
     /// Opens the Palette over the page, or closes it: `palette.open`, which
-    /// is `Ctrl+K`, `Ctrl+Shift+P` and View › Window "All Commands…". A
+    /// is `Ctrl+K` and View › Window "All Commands…". A
     /// menu that is up closes first, and the bars come back as they do for a
     /// menu.
     pub(crate) fn open_palette(&self) {
