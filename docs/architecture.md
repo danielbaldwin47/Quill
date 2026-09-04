@@ -95,8 +95,11 @@ at the default), in device px at scale 2 and `round(value × scale / 2)` at any 
 leading as measured on the Design oracle, not a fitted curve (`docs/design.md` § Line pitch). The air
 a row leaves over, `pitch − row`, is split three ways as ADR 0004 requires, and the split is fixed by
 the two gaps GTK actually draws: `pixels-inside-wrap` carries all of it, because it alone separates
-two rows of one paragraph, and `pixels-above-lines` and `pixels-below-lines` take half each, because
-only their sum separates two paragraphs. The three therefore do not sum to the air. Font sizes are
+two rows of one paragraph, and the paragraph gap is halved, because only the sum of its two halves
+separates two paragraphs. The three therefore do not sum to the air. GTK is set to that sum as
+`pixels-above-lines` and to nothing below, because a bottom band is where it aborts on a line holding
+invisible bytes (ADR 0004's status line, #279); the page's margins move to match, and the code well's
+boundary rows are given the lower half back through tags. Font sizes are
 absolute pixels (`set_absolute_size`), never points, and the em is the ladder's value in logical px
 — 21.33 at the default step — so it is no longer an integer (`docs/design.md` § Text sizes).
 

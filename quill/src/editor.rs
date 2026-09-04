@@ -299,6 +299,7 @@ mod imp {
     use gtk::glib;
     use gtk::subclass::prelude::*;
     use quill_engine::settings::Face;
+    use quill_engine::typography;
 
     use quill_engine::focus::{Focus, LineTiers};
 
@@ -337,6 +338,12 @@ mod imp {
         /// kept with the type: placing the bar on the keystroke path must not
         /// cost a row measured again.
         pub pitch: Cell<u32>,
+        /// How the type's air is split above and below a paragraph. A
+        /// function of the type, so it is kept with the type: the view is set
+        /// to the sum of the two halves, and the half that no longer reaches
+        /// the view is what the page's bottom margin and the code well's tags
+        /// are worked out from ([`Editor::restyle`](super::Editor::restyle)).
+        pub leading: Cell<typography::Leading>,
         /// How much Focus leaves lit, held here for the same reason as the
         /// ground: it is read at every draw, and it is the value the pair the
         /// session holds becomes ([`focus::Focus::at`]).
@@ -868,6 +875,7 @@ impl Editor {
         tags::Painting {
             face: self.imp().face.get(),
             colours: self.colours(),
+            leading: self.imp().leading.get(),
             focus: self.imp().focus.get(),
             tiers,
             live: self.imp().live.get().then_some(tags::Writer {
@@ -1069,17 +1077,11 @@ impl Editor {
     /// already worked out ([`Editor::refurnish`]), because a gesture is handed
     /// a position and no Document.
     ///
-    /// The y is clamped into the paragraph's own extent before it is turned
-    /// into an offset. `gtk_text_layout_get_iter_at_position` has a branch for
-    /// a y in the `pixels-below-lines` band under a paragraph's last row, and
-    /// that branch hands the line's raw byte count to a setter that wants a
-    /// visible index — which aborts on any line holding invisible bytes, so
-    /// under Live on every folded paragraph (#278, GTK 4.22). The clamp keeps
-    /// this press out of the band: the paragraph is asked for by y
-    /// (`line_at_y`, which builds no display), and the height it leaves below
-    /// its ink is taken off. It is not the whole of the bug — GTK's own click,
-    /// selection drag and drop paths take the same road with no Quill frame to
-    /// clamp in — and the comment on #278 says so.
+    /// The y is handed to `iter_at_location` as it arrives. The band that had
+    /// to be clamped out of — the `pixels-below-lines` GTK left under a
+    /// paragraph's last row, where it aborts on a line holding invisible bytes
+    /// — is gone: the view carries no `pixels-below-lines` at all (#279,
+    /// [`Editor::restyle`]).
     ///
     /// A box press is an edit the caret did not make, so the caret's machine
     /// stands down for it: the `pressing_box` flag is up across the edit and
@@ -1092,12 +1094,6 @@ impl Editor {
         }
         let (bx, by) =
             self.window_to_buffer_coords(gtk::TextWindowType::Widget, buffer_px(x), buffer_px(y));
-        // The last row's own pixels, and never the air under them. A line is
-        // taller than the air below it by its ink and the air above, so the
-        // clamp never lifts the y out of the paragraph it landed in.
-        let (line, top) = self.line_at_y(by);
-        let (_, height) = self.line_yrange(&line);
-        let by = by.min(top + height - 1 - self.pixels_below_lines());
         let Some(at) = self.iter_at_location(bx, by).map(|at| at.offset()) else {
             return;
         };
@@ -1269,12 +1265,31 @@ impl Editor {
         // The caret's band and its unit, kept with the type: a bar placed on
         // the keystroke path must not cost a row measured all over again.
         self.imp().pitch.set(pitch);
+        self.imp().leading.set(leading);
         self.imp().baseline.set(self.row_baseline());
         self.tell_caret(|caret| caret.resize(self.em()));
-        self.set_pixels_above_lines(signed(leading.above));
+        // The whole gap between two paragraphs goes above them, and nothing
+        // below: `gtk_text_layout_get_iter_at_position` answers a y in the
+        // band `pixels-below-lines` leaves under a paragraph's last row by
+        // handing the line's raw byte count to a setter that wants a visible
+        // index, which aborts on any line holding invisible bytes — so under
+        // Live on every folded paragraph, on GTK's own click, drag, drop and
+        // page-scroll paths as well as on Quill's (#279).
+        //
+        // Every glyph row stays where it was, because every box keeps its
+        // height and each one starts `below` higher: the page's top margin
+        // gives that much back, and [`Editor::lay_out`]'s bottom margin gives
+        // back what the last paragraph no longer carries. The subtraction
+        // never goes negative — `page_top` is two pitches and `below` is under
+        // half of one row's worth of air. The code well is a paragraph
+        // background, which GTK paints over the whole line box, leading
+        // included, so its boundary rows and their neighbours are given
+        // `below` back through tags.
+        self.set_pixels_above_lines(signed(leading.above + leading.below));
         self.set_pixels_inside_wrap(signed(leading.inside_wrap));
-        self.set_pixels_below_lines(signed(leading.below));
-        self.set_top_margin(signed(typography::page_top(pitch)));
+        self.set_pixels_below_lines(0);
+        self.set_top_margin(signed(typography::page_top(pitch) - leading.below));
+        tags::well_leading(&self.buffer(), leading);
         // The cell a heading's markers hang by moves with the size, so the
         // page is laid out from scratch rather than compared with the last
         // one: the column can be the same width at two sizes, and the hang
@@ -1307,7 +1322,9 @@ impl Editor {
         let side = signed(page.column.side);
         self.set_left_margin(side);
         self.set_right_margin(side);
-        self.set_bottom_margin(page.bottom);
+        // Plus the half of the gap the last paragraph no longer draws under
+        // itself, so the end of the draft stops where it did ([`Editor::restyle`]).
+        self.set_bottom_margin(page.bottom + signed(self.imp().leading.get().below));
         // The heading markers hang into this container's gutter, so they are
         // re-hung with it: both halves of the pair move, the measure's edge
         // with the window and the marker run with the type.
@@ -2970,8 +2987,9 @@ impl Editor {
     /// back at the end of the row — and a block-leading marker has nothing
     /// folded before it, so its own cells are the ones GTK says they are.
     /// `iter_at_location`, which the press reads, has no such trouble with the
-    /// fold — it has a trouble of GTK's own instead, in the band below a
-    /// paragraph, which the press keeps out of ([`Editor::press`], #278).
+    /// fold, and none of its own either: the band below a paragraph where GTK
+    /// used to abort on invisible bytes is zero pixels tall (#279,
+    /// [`Editor::restyle`]).
     fn cells(&self, at: &Range<i32>) -> Option<Cells> {
         if at.end <= at.start {
             return None;
