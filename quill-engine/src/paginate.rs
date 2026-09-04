@@ -435,12 +435,12 @@ fn split(rows: &[Row], from: usize, left: f64, least: usize, tail: usize) -> Opt
     None
 }
 
-/// Whether what follows the heading at `index` fits under it in `left` points.
+/// Whether what follows the heading at `index` fits under it in `room` points.
 ///
 /// A run of headings is followed down to the first block that is not one, of
-/// which one line is enough: a heading may end a page only when nothing at all
-/// follows it in the Document, where moving it would not help.
-fn follows(rendered: &render::Page, table: &[Vec<Row>], index: usize, mut left: f64) -> bool {
+/// which [`opens`] is what has to fit: a heading may end a page only when
+/// nothing at all follows it in the Document, where moving it would not help.
+fn follows(rendered: &render::Page, table: &[Vec<Row>], index: usize, mut room: f64) -> bool {
     let mut at = index;
     loop {
         let block = &rendered.blocks[at];
@@ -448,15 +448,15 @@ fn follows(rendered: &render::Page, table: &[Vec<Row>], index: usize, mut left: 
         let need = if opening {
             reach(block, &table[at])
         } else {
-            table[at].first().map_or(block.height, |row| row.bottom)
+            opens(block, &table[at])
         };
-        left -= need
+        room -= need
             + if at == index {
                 0.0
             } else {
                 space(rendered, at)
             };
-        if left < -SLACK {
+        if room < -SLACK {
             return false;
         }
         if !opening {
@@ -467,6 +467,22 @@ fn follows(rendered: &render::Page, table: &[Vec<Row>], index: usize, mut left: 
             return true;
         }
     }
+}
+
+/// The least of `block` a page can open a heading's run with: what [`step`]
+/// will accept there.
+///
+/// [`least`] lines of it, which is the smallest cut [`split`] answers, and the
+/// whole block when it is shorter than a cut can leave on both sides of
+/// itself — a two-line paragraph is one line on each side of a cut and the
+/// cut wants two, so it moves whole and a heading over it moves with it.
+fn opens(block: &render::Block, rows: &[Row]) -> f64 {
+    let least = least(block.kind);
+    let whole = reach(block, rows);
+    if rows.len() < 2 * least {
+        return whole;
+    }
+    rows.get(least - 1).map_or(whole, |row| row.bottom).min(whole)
 }
 
 /// How far down from its top edge `block`'s ink reaches: the bottom of its
@@ -706,6 +722,12 @@ mod tests {
         which is how we know what the winter of that year was like on the rock, \
         and how long the boats were kept away from it.";
 
+    /// Long enough to wrap to two lines and no longer, which is a paragraph
+    /// that cannot be split at all: a cut leaves two lines on each side of it
+    /// and there are only two to leave.
+    const PAIR: &str = "The keeper wrote every evening about the weather and \
+        the ships, and about the way the light swung out over the water.";
+
     /// Nine lines of code, which is enough for a block to run across three
     /// pages and be neither opened nor closed on the middle one.
     const CODE: &str = "```rust\n\
@@ -850,6 +872,49 @@ mod tests {
         assert_eq!(carried(&pages[0]), vec![(0, 0..1)]);
         assert_eq!(pages[1].fragments[0].block, 1);
         assert_eq!(pages[1].fragments[1].block, 2);
+    }
+
+    /// One line of the paragraph under it is not enough to hold a heading on a
+    /// page: the cut the paragraph would then have to take leaves two lines on
+    /// each side of it, so what stands under the heading is nothing at all.
+    #[test]
+    fn a_heading_moves_when_only_one_line_of_the_paragraph_under_it_would_fit() {
+        let tall = paper(10_000.0);
+        let text = format!("A first paragraph.\n\n## A heading\n\n{PROSE}");
+        let rendered = rendered(&text, &tall);
+        let rows = rows(&rendered.blocks[2]);
+        assert!(
+            rows.len() >= 4,
+            "the fixture wraps to four lines or more, not {}",
+            rows.len()
+        );
+        let heading = &rendered.blocks[1];
+        // Room for the paragraph, the heading, and one whole line of the
+        // paragraph under it: one line short of the cut it would take.
+        let frame = paper(heading.top + heading.height + space(&rendered, 2) + rows[0].bottom);
+        let pages = pages(&rendered, &frame, &Wording::default());
+        assert_eq!(carried(&pages[0]), vec![(0, 0..1)]);
+        assert_eq!(pages[1].fragments[0].block, 1);
+        assert_eq!(pages[1].fragments[1].block, 2);
+    }
+
+    /// A paragraph too short to be cut at all moves whole, so the heading over
+    /// it needs the room for the whole of it: the two of them turn the page
+    /// together.
+    #[test]
+    fn a_heading_and_a_paragraph_that_cannot_be_cut_move_together() {
+        let tall = paper(10_000.0);
+        let text = format!("A first paragraph.\n\n## A heading\n\n{PAIR}");
+        let rendered = rendered(&text, &tall);
+        let rows = rows(&rendered.blocks[2]);
+        assert_eq!(rows.len(), 2, "the fixture wraps to two lines");
+        let heading = &rendered.blocks[1];
+        // Room for the paragraph, the heading, and one of the two lines under
+        // it, which is a line more than the pair can be split at.
+        let frame = paper(heading.top + heading.height + space(&rendered, 2) + rows[0].bottom);
+        let pages = pages(&rendered, &frame, &Wording::default());
+        assert_eq!(carried(&pages[0]), vec![(0, 0..1)]);
+        assert_eq!(carried(&pages[1]), vec![(1, 0..1), (2, 0..2)]);
     }
 
     #[test]
