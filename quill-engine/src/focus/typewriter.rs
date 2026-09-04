@@ -220,6 +220,23 @@ impl Glide {
     pub fn retarget(&self, elapsed: u32, to: f64, row_height: f64) -> Glide {
         Glide::new(self.at(elapsed), to, row_height)
     }
+
+    /// The page reflowed under a glide in flight: the same travel, so many
+    /// pixels further.
+    ///
+    /// Both ends move and the length does not, because nothing about where the
+    /// row is going has changed — the rows above it grew or shrank, and the
+    /// scroll that puts it in the same place is `by` pixels along. A retarget
+    /// would restart the ease from where the glide has got to; this leaves it
+    /// exactly as far through as it was.
+    #[must_use]
+    pub fn shift(&self, by: f64) -> Glide {
+        Glide {
+            from: self.from + by,
+            to: self.to + by,
+            length: self.length,
+        }
+    }
 }
 
 /// The oracle's ease-out cubic (`focus.js:219`): leaves fast, lands soft.
@@ -436,5 +453,15 @@ mod tests {
         assert_eq!(again, Glide::new(reached, 50.0, ROW));
         assert_eq!(again.at(0), reached);
         assert_eq!(again.at(1_000), 50.0);
+    }
+
+    #[test]
+    fn a_shifted_glide_travels_the_same_way_so_many_pixels_further() {
+        let glide = Glide::new(SCROLL, SCROLL + 300.0, ROW);
+        let shifted = glide.shift(40.0);
+        for elapsed in [0, 60, 1_000] {
+            assert_eq!(shifted.at(elapsed), glide.at(elapsed) + 40.0);
+            assert_eq!(shifted.arrived(elapsed), glide.arrived(elapsed));
+        }
     }
 }
