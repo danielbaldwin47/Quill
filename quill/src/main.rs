@@ -22,6 +22,7 @@
 
 mod caret;
 mod chrome;
+mod column;
 mod conflict;
 mod editor;
 mod export;
