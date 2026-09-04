@@ -43,7 +43,8 @@ The rendered (HTML-like) view of a Document, opened beside or in place of the Ed
 _Avoid_: live preview (that is Live, the Editor's own mode)
 
 **Export**:
-Writing a Document out in another format (PDF, HTML, Markdown copy).
+Writing a Document out, laid out in the current Template: to a file as PDF, HTML or Markdown, to the clipboard as HTML, or to a printer. Page furniture (paper, margins, header, footer, title page) is Export's; typography is the Template's.
+_Avoid_: print preview (there is none; Preview is Web-mode only), Save As (that re-points the Document, Export never does)
 
 **Face**:
 One of Quill's three shipped typefaces — Duo, Quattro, Mono — each a Roman file and an Italic file, derived from the iA Writer fonts.
