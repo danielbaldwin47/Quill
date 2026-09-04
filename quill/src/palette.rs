@@ -1,7 +1,7 @@
 //! The Palette: every Command in one popover, narrowing as the writer types
 //! (#122).
 //!
-//! `Ctrl+K` and `Ctrl+Shift+P` open it, View › Window "All Commands…" runs
+//! `Ctrl+K` opens it, View › Window "All Commands…" runs
 //! the same action, and `--menu palette` has it up before the first frame.
 //! What it lists is [`quill_engine::palette`]: the oracle's four sections and
 //! More with nothing typed, one ranked list once something is. Arrows move
