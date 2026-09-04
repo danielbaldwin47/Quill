@@ -161,15 +161,19 @@ pub(crate) fn confirm(window: &Window, path: &Path) {
     app.send_notification(Some(NOTIFICATION), &notification(&words, path));
 }
 
-/// The banner [`confirm`] sends: the words as its title, and one button that
-/// fires [`OPEN`] with the file's path.
+/// The banner [`confirm`] sends: the words as its title, and [`OPEN`] with
+/// the file's path both as its one button and as what a click on the banner
+/// itself does.
+///
+/// Both, because a daemon fires the default action for a click on the banner
+/// and the button's action only for the button, and a daemon that shows no
+/// buttons at all still answers the click: without the default action, the
+/// owner's first Hand test clicked the banner and nothing opened (#282).
 fn notification(words: &str, path: &Path) -> gio::Notification {
     let notification = gio::Notification::new(words);
-    notification.add_button_with_target_value(
-        OPEN_LABEL,
-        &format!("app.{OPEN}"),
-        Some(&target(path)),
-    );
+    let action = format!("app.{OPEN}");
+    notification.set_default_action_and_target_value(&action, Some(&target(path)));
+    notification.add_button_with_target_value(OPEN_LABEL, &action, Some(&target(path)));
     notification
 }
 
