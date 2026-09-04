@@ -210,6 +210,25 @@ pub fn kind(last: Source, edited: bool) -> Move {
     }
 }
 
+/// Whether a move made by `source` while `held` says a button is down owes
+/// its follow to the release rather than paying it now.
+///
+/// Nothing the writer can see moves under a held button. GTK's text view runs
+/// a selection drag from the press, and after a scroll re-lays the view out
+/// the window hands it a synthetic motion at the pointer's unmoved glass
+/// position, which now sits over different text — so a row glided into the
+/// band under a held button reads as a drag across whatever slid past. The
+/// fold already stands still for the same reason
+/// ([`crate::editor::Editor::released`]), and this is that rule for the
+/// caret's band (#263, the third Hand test round).
+///
+/// [`Source::App`] is out, as it is out of every band rule: what the app put
+/// there is not something the pointer is dragging.
+#[must_use]
+pub fn waits_for_release(source: Source, held: bool) -> bool {
+    held && source != Source::App
+}
+
 /// What the launch asked the caret to be.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Mode {
@@ -1281,5 +1300,22 @@ mod tests {
                 "a {pitch} px pitch puts {above} px above the baseline, not 11/16 of itself"
             );
         }
+    }
+
+    /// The press moves the caret before the button comes up, and the band
+    /// owes that move its follow until then (#263).
+    #[test]
+    fn a_move_under_a_held_button_waits_for_the_release() {
+        assert!(waits_for_release(Source::Pointer, true));
+        assert!(waits_for_release(Source::Key, true));
+    }
+
+    /// With no button down there is no drag to disturb, so the band follows
+    /// where it always did; and the app's own moves never follow at all.
+    #[test]
+    fn a_key_move_with_no_button_down_does_not() {
+        assert!(!waits_for_release(Source::Key, false));
+        assert!(!waits_for_release(Source::Pointer, false));
+        assert!(!waits_for_release(Source::App, true));
     }
 }
