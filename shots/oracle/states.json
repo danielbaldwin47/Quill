@@ -343,8 +343,9 @@
         }
       },
       "pdf-full": {
-        "w": 1000,
-        "zoom": 50,
+        "text": "shots/oracle/pages.md",
+        "w": 700,
+        "zoom": 75,
         "theme": "light",
         "chrome": "off",
         "preview": "pdf-full",
