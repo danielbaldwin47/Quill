@@ -755,10 +755,12 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
 /// counted from the block's own first and last line for the same reason: a
 /// folded fence between them and the block carries nothing.
 ///
-/// A block starting on the buffer's first line has no line above to carry the
-/// lower half, so its well's top edge sits that much higher. No judged state
-/// has one, and it is not worth a conditional that would move the edge as the
-/// writer types.
+/// The two applications above the block are made together or not at all, and so
+/// are the two below it: each pair takes a half off one row and puts it on the
+/// other, and half a pair would move every row under it rather than only the
+/// well's edge. A block on the buffer's first line therefore takes neither of
+/// the upper pair, and its well's top edge sits the lower half higher — the one
+/// place the edge is not where it was, and no judged state has one.
 fn well_edges(
     buffer: &gtk::TextBuffer,
     document: &Document,
@@ -778,10 +780,10 @@ fn well_edges(
     let below = well_foot(buffer, leading);
     if first > 0 {
         apply_line(buffer, first - 1, &below);
+        apply_line(buffer, head, &above);
     }
-    apply_line(buffer, head, &above);
-    apply_line(buffer, foot, &below);
     if last + 1 < buffer.line_count() {
+        apply_line(buffer, foot, &below);
         apply_line(buffer, last + 1, &above);
     }
 }
