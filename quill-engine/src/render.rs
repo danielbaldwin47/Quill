@@ -82,6 +82,22 @@ pub struct Toggles {
     pub indent_paragraphs: bool,
 }
 
+impl Toggles {
+    /// The toggles `table` holds, which is what the Preview and every export
+    /// are laid out with.
+    ///
+    /// One place the three booleans are copied out of the settings table, so
+    /// that a reader who forgets one cannot exist.
+    #[must_use]
+    pub fn of(table: &crate::settings::Template) -> Self {
+        Self {
+            center_headings: table.center_headings,
+            number_headings: table.number_headings,
+            indent_paragraphs: table.indent_paragraphs,
+        }
+    }
+}
+
 /// What a rendered block is.
 ///
 /// Coarser than [`crate::document::Kind`], because what the writer wrote it

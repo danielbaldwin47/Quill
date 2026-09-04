@@ -24,6 +24,7 @@ mod caret;
 mod chrome;
 mod conflict;
 mod editor;
+mod export;
 mod files;
 mod flags;
 mod fonts;
@@ -179,6 +180,9 @@ fn main() -> glib::ExitCode {
     // The `app.` actions; the `win.` actions go on each window as it is built,
     // and the chords go on at startup, where GTK can read one.
     chrome::install(&app, &session);
+    // And the one `app.` action that is not a Command: what an export's
+    // notification opens the file it wrote with.
+    export::install(&app);
 
     // And the settings file is watched from here on: a saved edit applies
     // without a restart, whatever the writer changed.

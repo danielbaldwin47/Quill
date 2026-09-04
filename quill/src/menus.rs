@@ -433,19 +433,36 @@ mod tests {
         assert_eq!(after, ["Close Window", "Quit"]);
     }
 
-    /// Every Export row and Print… is greyed until the ticket that wires it
-    /// flips its `built`, which is the disabled action the popover draws.
+    /// The Export rows that still want a dialog, and Print…, are greyed until
+    /// the ticket that wires each flips its `built`, which is the disabled
+    /// action the popover draws.
     #[test]
-    fn the_export_rows_and_print_are_not_built_yet() {
-        for id in [
-            "export.pdf",
-            "export.html",
-            "export.markdown",
-            "export.quick",
-            "export.copyHtml",
-            "print",
-        ] {
+    fn the_export_rows_that_need_a_dialog_are_not_built_yet() {
+        for id in ["export.pdf", "export.html", "export.markdown", "print"] {
             assert!(!by_id(id).expect(id).built, "{id} is built");
+        }
+    }
+
+    /// The two Commands that need no dialog are built, and each is a row of
+    /// the Export submenu rather than a Palette-only id (#287).
+    #[test]
+    fn quick_export_and_copy_as_html_are_built_in_the_export_submenu() {
+        for (id, label) in [
+            ("export.quick", "Quick Export PDF"),
+            ("export.copyHtml", "Copy as HTML"),
+        ] {
+            let command = by_id(id).expect(id);
+            assert!(command.built, "{id} is not built");
+            assert!(is_export(command), "{id} is not an Export row");
+            assert_eq!(
+                command
+                    .placements
+                    .iter()
+                    .map(|placement| (placement.menu, placement.label))
+                    .collect::<Vec<_>>(),
+                [(Menu::Document, label)],
+                "{id} stands in the Document menu under its own label"
+            );
         }
     }
 
