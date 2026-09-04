@@ -22,10 +22,10 @@ use std::rc::Rc;
 use gtk::glib;
 use gtk::prelude::*;
 
-use quill_engine::paginate::{self, Frame, Geometry};
+use quill_engine::paginate::{self, Geometry, Laid};
 use quill_engine::settings::{Choice, Export, Paper, locale_paper};
 use quill_engine::template::Template;
-use quill_engine::{draw, render, template};
+use quill_engine::{draw, template};
 
 use crate::export_dialog::{Chosen, Depth, Options};
 use crate::window::Window;
@@ -42,13 +42,8 @@ const TAB: &str = "Quill";
 struct Job {
     /// The Template the pages were laid out in.
     template: Template,
-    /// Where the text stands on the paper.
-    frame: Frame,
-    /// The Document as the render pass laid it out, which is what a page's
-    /// fragments point into.
-    rendered: render::Page,
-    /// The pages themselves, in order.
-    pages: Vec<paginate::Page>,
+    /// The Document on the paper the dialog settled on.
+    laid: Laid,
 }
 
 /// Runs the print operation over `window`.
@@ -115,7 +110,7 @@ pub(crate) fn open(window: &Window) {
         job,
         move |operation, context| {
             let laid = lay_out(&window, context, &chosen.borrow());
-            let pages = laid.as_ref().map_or(0, |laid| laid.pages.len());
+            let pages = laid.as_ref().map_or(0, |job| job.laid.pages.len());
             // Never nought: the print system takes a page count of nought as
             // a job it cannot start.
             operation.set_n_pages(i32::try_from(pages).unwrap_or(i32::MAX).max(1));
@@ -130,15 +125,18 @@ pub(crate) fn open(window: &Window) {
             let Some(job) = job.as_ref() else {
                 return;
             };
-            let Some(page) = usize::try_from(at).ok().and_then(|at| job.pages.get(at)) else {
+            let Some(page) = usize::try_from(at)
+                .ok()
+                .and_then(|at| job.laid.pages.get(at))
+            else {
                 return;
             };
             draw::draw(
                 &context.cairo_context(),
                 page,
-                &job.rendered,
+                &job.laid.rendered,
                 &job.template,
-                &job.frame,
+                &job.laid.frame,
             );
         }
     ));
@@ -156,7 +154,7 @@ pub(crate) fn open(window: &Window) {
 fn lay_out(window: &Window, context: &gtk::PrintContext, chosen: &Chosen) -> Option<Job> {
     let session = window.session()?;
     let setup = context.page_setup();
-    let paper = geometry(
+    let paper = setup_geometry(
         setup.paper_width(gtk::Unit::Points),
         setup.paper_height(gtk::Unit::Points),
         [
@@ -168,27 +166,23 @@ fn lay_out(window: &Window, context: &gtk::PrintContext, chosen: &Chosen) -> Opt
         chosen,
     );
     let built = template::named(session.template().name.as_str());
-    // The print context's own Pango context, set to lay out in points as
-    // every caller of the paginator's is: the Faces are in this process's
-    // fontconfig ([`crate::fonts::load_private`]), so any context finds them.
+    // The print context's own Pango context: the Faces are in this process's
+    // fontconfig ([`crate::fonts::load_private`]), so any context finds them,
+    // and the paginator sets it to lay out in points itself.
     let pango = context.create_pango_context();
-    paginate::in_points(&pango);
-    let frame = paginate::frame(paper, &built, f64::from(chosen.text_size));
     let document = window.document();
-    let rendered = render::render(
+    let laid = paginate::lay_out(
         &document,
         &built,
         chosen.toggles,
-        frame.measure,
-        frame.zoom,
+        paper,
+        f64::from(chosen.export.text_size),
         &pango,
     );
-    let pages = paginate::pages(&rendered, &frame, &draw::wording(&document));
+    drop(document);
     Some(Job {
         template: built,
-        frame,
-        rendered,
-        pages,
+        laid,
     })
 }
 
@@ -199,31 +193,27 @@ fn lay_out(window: &Window, context: &gtk::PrintContext, chosen: &Chosen) -> Opt
 /// A Quill page has one margin and a page setup has four, so the one is the
 /// largest of the four: the text then stands inside every margin the writer
 /// named, rather than inside the narrowest of them and over one of the others.
-fn geometry(width: f64, height: f64, margins: [f64; 4], chosen: &Chosen) -> Geometry {
+fn setup_geometry(width: f64, height: f64, margins: [f64; 4], chosen: &Chosen) -> Geometry {
     Geometry {
         width,
         height,
         margin: margins.into_iter().fold(0.0, f64::max),
-        header: chosen.header,
-        footer: chosen.footer,
-        title_page: chosen.title_page,
+        header: chosen.export.header,
+        footer: chosen.export.footer,
+        title_page: chosen.export.title_page,
     }
 }
 
-/// What the operation's default page setup stands on: the paper GTK is asked
-/// for by name, and the margin `[export]` names, in points.
+/// What the operation opens on: the paper `[export]` names, as GTK asks for it
+/// ([`paper_name`]), and the margin it names on all four sides
+/// ([`Export::margin_points`]).
 ///
 /// One margin on all four sides, because that is the page `[export]` describes
 /// and the page a PDF export is laid out on.
-fn seeded(export: &Export) -> (&'static str, f64) {
-    (paper_name(export.paper), export.margin_points())
-}
-
-/// The default page setup [`seeded`] describes.
 fn page_setup(export: &Export) -> gtk::PageSetup {
-    let (name, margin) = seeded(export);
+    let margin = export.margin_points();
     let setup = gtk::PageSetup::new();
-    setup.set_paper_size(&gtk::PaperSize::new(Some(name)));
+    setup.set_paper_size(&gtk::PaperSize::new(Some(paper_name(export.paper))));
     setup.set_top_margin(margin, gtk::Unit::Points);
     setup.set_bottom_margin(margin, gtk::Unit::Points);
     setup.set_left_margin(margin, gtk::Unit::Points);
@@ -235,8 +225,8 @@ fn page_setup(export: &Export) -> gtk::PageSetup {
 /// `GtkPaperSize` is asked for and how a printer names the tray it is in.
 ///
 /// `Auto` is resolved through the desktop's locale here, as an export resolves
-/// it ([`crate::export::geometry`]), so a print and an export of the same
-/// Document open on the same paper. [`locale_paper`] answers a size and never
+/// it ([`Geometry::of`]), so a print and an export of the same Document open on
+/// the same paper. [`locale_paper`] answers a size and never
 /// `Auto`, so the one recursive arm below terminates.
 fn paper_name(paper: Paper) -> &'static str {
     match paper {
@@ -252,29 +242,19 @@ mod tests {
     use quill_engine::render::Toggles;
 
     use super::*;
-
-    /// An `[export]` table of the defaults with `edit` applied.
-    ///
-    /// The table carries a private field for the keys it does not know, so the
-    /// app crate cannot write one out as a literal and edits a default
-    /// instead ([`crate::export`]'s tests do the same).
-    fn export(edit: impl FnOnce(&mut Export)) -> Export {
-        let mut export = Export::default();
-        edit(&mut export);
-        export
-    }
+    use crate::export::edited_defaults;
 
     /// A [`Chosen`] with every piece of furniture on, so that a geometry's
     /// switches are read from it rather than from a default that says no to
     /// all three.
     fn chosen() -> Chosen {
         Chosen {
-            paper: Paper::A4,
-            margin: 20,
-            text_size: 12,
-            title_page: true,
-            header: true,
-            footer: true,
+            export: edited_defaults(|export| {
+                export.paper = Paper::A4;
+                export.title_page = true;
+                export.header = true;
+                export.footer = true;
+            }),
             toggles: Toggles::default(),
         }
     }
@@ -283,7 +263,7 @@ mod tests {
     /// paginator's geometry, the one margin being the largest of the four.
     #[test]
     fn the_page_setups_paper_and_margins_become_the_geometry() {
-        let laid = geometry(595.0, 842.0, [56.0, 56.0, 72.0, 20.0], &chosen());
+        let laid = setup_geometry(595.0, 842.0, [56.0, 56.0, 72.0, 20.0], &chosen());
         assert_eq!(
             laid,
             Geometry {
@@ -303,12 +283,10 @@ mod tests {
     #[test]
     fn the_furniture_is_the_tabs_own() {
         let chosen = Chosen {
-            title_page: false,
-            header: false,
-            footer: false,
+            export: edited_defaults(|export| export.paper = Paper::A4),
             ..chosen()
         };
-        let laid = geometry(612.0, 792.0, [36.0; 4], &chosen);
+        let laid = setup_geometry(612.0, 792.0, [36.0; 4], &chosen);
         assert!(!laid.header && !laid.footer && !laid.title_page);
         assert_eq!(laid.margin, 36.0);
     }
@@ -319,35 +297,34 @@ mod tests {
     #[test]
     fn the_default_export_table_seeds_the_page_setup() {
         let export = Export::default();
-        let (name, margin) = seeded(&export);
+        let name = paper_name(export.paper);
         assert_eq!(name, paper_name(locale_paper()));
         assert!(
             ["iso_a4", "na_letter"].contains(&name),
             "the locale's paper is one GTK names: {name}"
         );
-        assert!(
-            (margin - 20.0 * 72.0 / 25.4).abs() < 1e-9,
-            "20 mm in points, not {margin}"
-        );
-        assert_eq!(margin, export.margin_points());
+        assert_eq!(export.margin, 20, "the default margin is 20 mm");
     }
 
-    /// A paper named in `[export]` is the paper GTK is asked for, and a margin
-    /// named there is that margin in points.
+    /// A paper named in `[export]` is the paper GTK is asked for, whatever the
+    /// rest of the table says.
+    ///
+    /// The margin the setup stands on is [`Export::margin_points`] itself
+    /// ([`page_setup`]), which no test here converts a second time; a
+    /// `GtkPageSetup` cannot be built without a display, so the setup's own
+    /// four sides are the Hand test's.
     #[test]
-    fn a_named_paper_and_margin_seed_the_page_setup() {
+    fn a_named_paper_seeds_the_page_setup() {
         for (paper, name) in [
             (Paper::A4, "iso_a4"),
             (Paper::Letter, "na_letter"),
             (Paper::Legal, "na_legal"),
         ] {
-            let export = export(|export| {
+            let export = edited_defaults(|export| {
                 export.paper = paper;
                 export.margin = 25;
             });
-            let (seeded_name, margin) = seeded(&export);
-            assert_eq!(seeded_name, name, "{paper:?}");
-            assert!((margin - 25.0 * 72.0 / 25.4).abs() < 1e-9, "{margin}");
+            assert_eq!(paper_name(export.paper), name, "{paper:?}");
         }
     }
 }

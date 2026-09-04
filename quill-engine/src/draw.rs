@@ -20,7 +20,7 @@ use std::ops::Range;
 
 use crate::document::Document;
 use crate::front_matter;
-use crate::paginate::{Fragment, Frame, Furniture, Ground, Page, Role, Run, Wording};
+use crate::paginate::{Fragment, Frame, Furniture, Ground, Page, Role, Run, Wording, back};
 use crate::render;
 use crate::template::{Palette, Template};
 use crate::theme::Colour;
@@ -64,7 +64,7 @@ pub fn draw(
         let Some(block) = rendered.blocks.get(fragment.block) else {
             continue;
         };
-        wash(cr, palette.code_ground, &ground(fragment, frame));
+        wash(cr, palette.code_ground, &well(fragment, frame));
         if block.kind == render::Kind::Rule {
             wash(cr, palette.muted, &[rule(fragment, frame)]);
         }
@@ -75,7 +75,7 @@ pub fn draw(
         }
     }
     for line in &page.furniture {
-        furniture(cr, line, template, frame, palette.muted);
+        label(cr, line, template, frame, palette.muted);
     }
 }
 
@@ -110,11 +110,11 @@ struct Patch {
 
 /// The Well ground under `fragment`, or nothing when it stands on none.
 ///
-/// A block cut across a page break is one ground per page, and the end of it
-/// the page carries is the end that is padded: an opened ground runs off the
-/// foot of its page and a closed one runs on from the head of its own, so the
-/// two halves read as one well.
-fn ground(fragment: &Fragment, frame: &Frame) -> Vec<Patch> {
+/// A code block cut across a page break is one ground per page, and the end of
+/// it the page carries is the end that is padded: an opened ground runs off
+/// the foot of its page and a closed one runs on from the head of its own, so
+/// the two halves read as one well.
+fn well(fragment: &Fragment, frame: &Frame) -> Vec<Patch> {
     let (above, below) = match fragment.ground {
         Ground::None => return Vec::new(),
         Ground::Whole => (WELL, WELL),
@@ -218,9 +218,9 @@ fn edges(line: &pango::LayoutLine, at: &Range<usize>, band: Patch) -> Vec<Patch>
         .collect()
 }
 
-/// Lays `line` out and paints it in `colour`, centred on the paper with its
-/// baseline where the paginator put it.
-fn furniture(
+/// Lays one line of furniture out and paints it in `colour`, centred on the
+/// paper with its baseline where the paginator put it.
+fn label(
     cr: &cairo::Context,
     line: &Furniture,
     template: &Template,
@@ -270,11 +270,6 @@ fn ink(cr: &cairo::Context, colour: Colour) {
 fn line_x(iter: &mut pango::LayoutIter) -> i32 {
     let (_, logical) = iter.line_extents();
     logical.x()
-}
-
-/// `units` of Pango's, as the points a page is measured in.
-fn back(units: i32) -> f64 {
-    f64::from(units) / f64::from(pango::SCALE)
 }
 
 /// A byte offset as Pango counts them: a range past what an `i32` holds is a
