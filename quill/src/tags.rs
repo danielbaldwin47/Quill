@@ -768,7 +768,7 @@ fn well_edges(
     let (block_start, block_end) = paragraph_lines(buffer, document, span);
     let (first, last) = (block_start.line(), block_end.line());
     let folded = folded(buffer);
-    let standing = |line: i32| !line_at(buffer, line).0.has_tag(&folded);
+    let standing = |line: i32| !line_start(buffer, line).has_tag(&folded);
     let head = (first..=last).find(|line| standing(*line));
     let foot = (first..=last).rev().find(|line| standing(*line));
     let (Some(head), Some(foot)) = (head, foot) else {
@@ -786,22 +786,24 @@ fn well_edges(
     }
 }
 
-/// Puts `tag` on the whole of `line`, as [`paragraph`] puts one on a span's.
+/// Puts `tag` on the whole of `line`, its line break with it.
+///
+/// The break is in the range because the neighbours a well's leading falls on
+/// are usually blank lines — Markdown's own separator — and a blank line's text
+/// is empty: a range that stopped at the line's end would be empty too, and
+/// `gtk_text_buffer_apply_tag` over an empty range applies nothing. A paragraph
+/// property is read off the start of the paragraph either way, and the range
+/// ends where the next line begins, so nothing on it is covered.
 fn apply_line(buffer: &gtk::TextBuffer, line: i32, tag: &gtk::TextTag) {
-    let (from, to) = line_at(buffer, line);
+    let (from, to) = whole_line(&line_start(buffer, line));
     buffer.apply_tag(tag, &from, &to);
 }
 
-/// The whole of `line`, its line break left out, as the pair of iterators
-/// [`paragraph_lines`] answers with for a span.
-fn line_at(buffer: &gtk::TextBuffer, line: i32) -> (gtk::TextIter, gtk::TextIter) {
-    let mut from = buffer.start_iter();
-    from.set_line(line);
-    let mut to = from;
-    if !to.ends_line() {
-        to.forward_to_line_end();
-    }
-    (from, to)
+/// The first byte of `line`, in GTK's own units.
+fn line_start(buffer: &gtk::TextBuffer, line: i32) -> gtk::TextIter {
+    let mut at = buffer.start_iter();
+    at.set_line(line);
+    at
 }
 
 /// Puts Live's fold and Live's ladder on the bytes `at`, for a writer at
