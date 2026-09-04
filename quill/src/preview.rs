@@ -419,7 +419,8 @@ impl Preview {
             .vexpand(true)
             // A rendered page wraps in the measure, so there is nothing to
             // scroll to sideways, exactly as the Editor's scroller has it. A
-            // column too narrow for a whole page is #298's.
+            // page too wide for the pane is the column's own to slide under it
+            // ([`Column::pan_by`]), which is why this one still never scrolls.
             .hscrollbar_policy(gtk::PolicyType::Never)
             .child(&body)
             .build();
@@ -464,7 +465,11 @@ impl Preview {
         self.watch_links();
         self.watch_keys(self.sheet.upcast_ref());
         self.watch_keys(self.column.upcast_ref());
-        self.watch_zoom();
+        let sheet = self.sheet.clone();
+        watch_zoom(self.sheet.upcast_ref(), move || sheet.owner());
+        let column = self.column.clone();
+        watch_zoom(self.column.upcast_ref(), move || column.owner());
+        self.watch_pan();
     }
 
     /// Lays the Document out again and paints it, in whichever mode
@@ -525,11 +530,17 @@ impl Preview {
     /// The rendered page's blocks as vertical ranges — the key the Document's
     /// block index gave them, the top and the height — which is what a scroll
     /// sync rule is answered from when the pane is the one being scrolled.
+    ///
+    /// In PDF mode they are the column's, which the paginator keys by the same
+    /// Document block index the render pass gives the sheet's
+    /// ([`Column::rows`]): the pages are a second set of rows for the one rule,
+    /// so the window's follow glue never learns which mode is showing.
     #[must_use]
     pub fn blocks(&self) -> Vec<sync::Block> {
-        // #298: in PDF mode these are the column's blocks, which are the
-        // paginator's fragments mapped back to the page they stand on.
-        self.sheet.imp().rows.borrow().clone()
+        match self.mode.get() {
+            PreviewMode::Web => self.sheet.imp().rows.borrow().clone(),
+            PreviewMode::Pdf => self.column.rows().clone(),
+        }
     }
 
     /// The offset that puts the caret's block `fraction` down the pane: the
@@ -539,18 +550,30 @@ impl Preview {
     /// on every keystroke.
     #[must_use]
     pub fn caret_offset(&self, caret: usize, fraction: f64) -> f64 {
-        // #298: the column's rows in PDF mode, as [`Preview::blocks`] says.
-        let rows = self.sheet.imp().rows.borrow();
-        sync::follow_caret(caret, fraction, &rows, self.viewport(), self.max())
+        let (viewport, max) = (self.viewport(), self.max());
+        match self.mode.get() {
+            PreviewMode::Web => {
+                let rows = self.sheet.imp().rows.borrow();
+                sync::follow_caret(caret, fraction, &rows, viewport, max)
+            }
+            PreviewMode::Pdf => {
+                sync::follow_caret(caret, fraction, &self.column.rows(), viewport, max)
+            }
+        }
     }
 
     /// The offset that puts `driver`'s top block at the pane's own top edge:
     /// the top-block rule ([`sync::follow_top_block`]) answered from the page.
     #[must_use]
     pub fn top_block_offset(&self, driver: &[sync::Block], offset: f64) -> f64 {
-        // #298: the column's rows in PDF mode, as [`Preview::blocks`] says.
-        let rows = self.sheet.imp().rows.borrow();
-        sync::follow_top_block(driver, offset, &rows, self.max())
+        let max = self.max();
+        match self.mode.get() {
+            PreviewMode::Web => {
+                let rows = self.sheet.imp().rows.borrow();
+                sync::follow_top_block(driver, offset, &rows, max)
+            }
+            PreviewMode::Pdf => sync::follow_top_block(driver, offset, &self.column.rows(), max),
+        }
     }
 
     /// How tall the pane's viewport is.
@@ -668,20 +691,21 @@ impl Preview {
     /// On the release rather than the press, so a click that began somewhere
     /// else and ended here opens nothing, and never on the second press of a
     /// double-click, which is a writer who missed.
+    /// Both modes carry the Document's links, and both open them the one way;
+    /// what differs is where the words are, which is each one's own to say.
     fn watch_links(&self) {
-        let clicks = gtk::GestureClick::new();
-        clicks.set_button(gdk::BUTTON_PRIMARY);
         let sheet = self.sheet.clone();
-        clicks.connect_released(move |_, presses, x, y| {
-            if presses != 1 {
-                return;
-            }
-            let Some(destination) = sheet.link_at(x, y) else {
-                return;
-            };
-            open(&destination, sheet.owner().as_ref());
+        watch_clicks(self.sheet.upcast_ref(), move |x, y| {
+            sheet
+                .link_at(x, y)
+                .map(|destination| (destination, sheet.owner()))
         });
-        self.sheet.add_controller(clicks);
+        let column = self.column.clone();
+        watch_clicks(self.column.upcast_ref(), move |x, y| {
+            column
+                .link_at(x, y)
+                .map(|destination| (destination, column.owner()))
+        });
     }
 
     /// The arrow and Page keys scroll the page, which is the whole of what the
@@ -690,20 +714,42 @@ impl Preview {
     ///
     /// Wired on `on` rather than on the sheet, because both modes are read the
     /// same way and the keyboard lands on whichever is showing.
+    ///
+    /// Three of them are read a second way over the pages. A screen of a column
+    /// is the foot of one page and the head of the next, so the Page keys move
+    /// by a page's pitch and land on a page's own top edge
+    /// ([`Column::page_after`]), End on the last page's; and the arrows
+    /// sideways slide a page too wide for the pane under it, which is the one
+    /// thing the pane's own scroller will not do.
     fn watch_keys(&self, on: &gtk::Widget) {
         let keys = gtk::EventControllerKey::new();
         let scroller = self.scroller.clone();
+        let column = self.column.clone();
+        let mode = Rc::clone(&self.mode);
         keys.connect_key_pressed(move |_, key, _, _| {
             let adjustment = scroller.vadjustment();
             let step = adjustment.step_increment();
             let page = adjustment.page_increment();
+            let at = adjustment.value();
+            let pages = mode.get() == PreviewMode::Pdf;
             let to = match key {
-                gdk::Key::Up => adjustment.value() - step,
-                gdk::Key::Down => adjustment.value() + step,
-                gdk::Key::Page_Up => adjustment.value() - page,
-                gdk::Key::Page_Down | gdk::Key::space => adjustment.value() + page,
+                gdk::Key::Up => at - step,
+                gdk::Key::Down => at + step,
+                gdk::Key::Page_Up if pages => column.page_before(at),
+                gdk::Key::Page_Down | gdk::Key::space if pages => column.page_after(at),
+                gdk::Key::Page_Up => at - page,
+                gdk::Key::Page_Down | gdk::Key::space => at + page,
                 gdk::Key::Home => adjustment.lower(),
+                gdk::Key::End if pages => column.last_page(),
                 gdk::Key::End => adjustment.upper(),
+                gdk::Key::Left | gdk::Key::Right if pages => {
+                    let by = if key == gdk::Key::Left { -1.0 } else { 1.0 };
+                    return if column.pan_by(by) {
+                        glib::Propagation::Stop
+                    } else {
+                        glib::Propagation::Proceed
+                    };
+                }
                 _ => return glib::Propagation::Proceed,
             };
             adjustment.set_value(to.clamp(
@@ -715,37 +761,89 @@ impl Preview {
         on.add_controller(keys);
     }
 
-    /// Ctrl+wheel over the pane steps the zoom; the wheel on its own scrolls
-    /// the page, as it does anywhere else.
+    /// A sideways wheel over the pages slides one too wide for the pane, and a
+    /// wheel with Shift held is the sideways one a mouse has not got.
     ///
-    /// In the capture phase, so the modifier is read before the scroller has
-    /// taken the scroll for itself: a page that zoomed and scrolled on one
-    /// notch would do both by half.
-    fn watch_zoom(&self) {
-        let scroll = gtk::EventControllerScroll::new(gtk::EventControllerScrollFlags::VERTICAL);
-        scroll.set_propagation_phase(gtk::PropagationPhase::Capture);
-        let sheet = self.sheet.clone();
-        scroll.connect_scroll(move |controller, _, dy| {
-            if !controller
-                .current_event_state()
-                .contains(gdk::ModifierType::CONTROL_MASK)
-            {
+    /// The column's alone: the sheet's page wraps in the measure and has
+    /// nothing to slide ([`Preview::new`]). In the bubble phase, so a wheel the
+    /// column has nothing to pan with is still the scroller's to scroll with,
+    /// and behind Ctrl, which is the zoom's ([`watch_zoom`]).
+    fn watch_pan(&self) {
+        let scroll = gtk::EventControllerScroll::new(gtk::EventControllerScrollFlags::BOTH_AXES);
+        let column = self.column.clone();
+        scroll.connect_scroll(move |controller, dx, dy| {
+            let held = controller.current_event_state();
+            if held.contains(gdk::ModifierType::CONTROL_MASK) {
                 return glib::Propagation::Proceed;
             }
-            let Some(window) = sheet.owner() else {
-                return glib::Propagation::Proceed;
+            let by = if dx == 0.0 && held.contains(gdk::ModifierType::SHIFT_MASK) {
+                dy
+            } else {
+                dx
             };
-            // A notch away from the writer is the page going small, which is
-            // the direction every other application scrolls a zoom in.
-            match dy.partial_cmp(&0.0) {
-                Some(std::cmp::Ordering::Less) => window.step_zoom(Zoom::Bigger),
-                Some(std::cmp::Ordering::Greater) => window.step_zoom(Zoom::Smaller),
-                _ => return glib::Propagation::Proceed,
+            if by == 0.0 || !column.pan_by(by) {
+                return glib::Propagation::Proceed;
             }
             glib::Propagation::Stop
         });
-        self.sheet.add_controller(scroll);
+        self.column.add_controller(scroll);
     }
+}
+
+/// A primary click on `on` opens whatever `link` answers for the point it
+/// landed on, in that widget's own pixels.
+///
+/// On the release rather than the press, so a click that began somewhere else
+/// and ended here opens nothing, and never on the second press of a
+/// double-click, which is a writer who missed.
+fn watch_clicks(
+    on: &gtk::Widget,
+    link: impl Fn(f64, f64) -> Option<(String, Option<Window>)> + 'static,
+) {
+    let clicks = gtk::GestureClick::new();
+    clicks.set_button(gdk::BUTTON_PRIMARY);
+    clicks.connect_released(move |_, presses, x, y| {
+        if presses != 1 {
+            return;
+        }
+        let Some((destination, window)) = link(x, y) else {
+            return;
+        };
+        open(&destination, window.as_ref());
+    });
+    on.add_controller(clicks);
+}
+
+/// Ctrl+wheel over `on` steps the zoom of the window `owner` answers; the wheel
+/// on its own scrolls the page, as it does anywhere else.
+///
+/// In the capture phase, so the modifier is read before the scroller has taken
+/// the scroll for itself: a page that zoomed and scrolled on one notch would do
+/// both by half. Wired over both modes, because the zoom is one value and the
+/// pages step over fit width by it as the sheet steps over its own measure.
+fn watch_zoom(on: &gtk::Widget, owner: impl Fn() -> Option<Window> + 'static) {
+    let scroll = gtk::EventControllerScroll::new(gtk::EventControllerScrollFlags::VERTICAL);
+    scroll.set_propagation_phase(gtk::PropagationPhase::Capture);
+    scroll.connect_scroll(move |controller, _, dy| {
+        if !controller
+            .current_event_state()
+            .contains(gdk::ModifierType::CONTROL_MASK)
+        {
+            return glib::Propagation::Proceed;
+        }
+        let Some(window) = owner() else {
+            return glib::Propagation::Proceed;
+        };
+        // A notch away from the writer is the page going small, which is the
+        // direction every other application scrolls a zoom in.
+        match dy.partial_cmp(&0.0) {
+            Some(std::cmp::Ordering::Less) => window.step_zoom(Zoom::Bigger),
+            Some(std::cmp::Ordering::Greater) => window.step_zoom(Zoom::Smaller),
+            _ => return glib::Propagation::Proceed,
+        }
+        glib::Propagation::Stop
+    });
+    on.add_controller(scroll);
 }
 
 /// Opens `destination` through the desktop's default handler for it.
