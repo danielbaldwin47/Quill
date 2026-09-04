@@ -214,6 +214,20 @@ pub struct Travel {
     started: i64,
 }
 
+/// Where the caret's row stood before a fold redrew the page around it: the
+/// anchor a reflow is settled against ([`Editor::anchor_row`]).
+///
+/// `pub` for the reason [`Travel`] is.
+#[derive(Clone, Copy)]
+pub struct Reflow {
+    /// The row's top in the vertical adjustment's coordinate, as
+    /// [`Editor::row_of`] counts it.
+    row: f64,
+    /// How far down the glass that row stood: the row less the adjustment's
+    /// value. What the settle puts back.
+    screen: f64,
+}
+
 /// The lines the bytes an edit put in lie on; none for a deletion.
 ///
 /// Drawn again with Focus on ([`Editor::retag`]): the buffer gives an
@@ -290,7 +304,7 @@ mod imp {
 
     use crate::ground::Ground;
 
-    use super::{Fade, Travel};
+    use super::{Fade, Reflow, Travel};
     use crate::caret;
     use quill_engine::focus::typewriter::Typewriter;
 
@@ -419,6 +433,16 @@ mod imp {
         /// asks for frames, and a blinking caret over a settled page does not
         /// move the view.
         pub gliding: Cell<bool>,
+        /// Where the caret's row stood before a fold redrew the page, while
+        /// the frame that settles the reflow against it is still to come
+        /// ([`Editor::anchor_row`](super::Editor::anchor_row)). `None` between
+        /// folds, which is every frame but the one after one.
+        pub reflow: Cell<Option<Reflow>>,
+        /// Set while a settled reflow is putting the caret's row back on the
+        /// glass. The scroll it makes is the page moving under a row that did
+        /// not, so it is not a writer scrolling and nothing follows it: the
+        /// window reads this at the top of its top-block rule.
+        pub shifting: Cell<bool>,
         /// Whether the last placement is still owed the scroll that shows
         /// where the caret went. Every placement sets it to what it asked
         /// for, so a placement that wants no reveal calls off one still
@@ -939,6 +963,10 @@ impl Editor {
     /// block folding under a held button moves the text out from under the
     /// pointer and GTK reads the release's own coordinates. A key press is not
     /// a held button and folds at once, as it always did.
+    ///
+    /// Whenever it does draw, the caret's row is anchored across the reflow and
+    /// put back on the glass a frame later ([`Editor::anchor_row`]): a fold
+    /// never moves the caret's row.
     fn refold(&self, document: &Document) {
         if !self.imp().live.get() {
             return;
@@ -957,6 +985,9 @@ impl Editor {
         let Some(lines) = refolded(was, now) else {
             return;
         };
+        // The rows above the caret are about to measure differently, and the
+        // caret's row is not to move on the glass for that.
+        self.anchor_row();
         self.redraw(document, &lines);
         // The block the writer left is furnished and the one they entered is
         // not, so the furniture moves with the fold and in the same pass, for
@@ -971,7 +1002,10 @@ impl Editor {
     /// The other half of [`Editor::refold`]'s standing still. The writer's
     /// range at the release is the selection if the press turned into a drag,
     /// so every block the drag crossed unfolds together and none of them moved
-    /// under the pointer on the way.
+    /// under the pointer on the way. The word under the pointer stays under it
+    /// as well: the fold the release pays anchors the caret's row
+    /// ([`Editor::anchor_row`]), so the paragraphs above it move and the
+    /// clicked row does not.
     ///
     /// Heard by the window, from a legacy event controller rather than a
     /// gesture: the press on a task box claims its sequence and so does GTK's
@@ -1552,6 +1586,10 @@ impl Editor {
     /// heading's Live size than at the body's, and the gutter is hung by
     /// exactly what they advance ([`tags::hang_markers`]), so the six levels
     /// are measured again before the draw that will use them.
+    ///
+    /// The caret's row is anchored across the whole-page redraw
+    /// ([`Editor::anchor_row`]): every row above the caret changes height at
+    /// once here, and the row the writer is on is where they are looking.
     pub fn set_live(&self, live: bool, document: &Document) {
         self.imp().live.set(live);
         self.hang();
@@ -1560,6 +1598,10 @@ impl Editor {
         self.imp()
             .open
             .replace(live.then(|| self.open_lines(document, &at)));
+        // The whole page is about to be folded or unfolded, which moves every
+        // row above the caret; the caret's own row is anchored across it
+        // ([`Editor::anchor_row`]).
+        self.anchor_row();
         let buffer = self.buffer();
         let batch = buffer.freeze_notify();
         let tiers = self.imp().tiers.borrow();
@@ -2198,6 +2240,10 @@ impl Editor {
     /// read in the adjustment's coordinate by [`Editor::row_of`]. The target
     /// is not clamped by the engine, and does not need to be: a
     /// `GtkAdjustment` holds itself inside its own ends.
+    ///
+    /// A fold waiting to settle is re-based on the way
+    /// ([`Editor::rebase_reflow`]), so that this move is kept rather than
+    /// undone by the frame that puts the row back.
     fn keep_in_margins(&self, bar: caret::Bar) {
         let Some(adjustment) = self.vadjustment() else {
             // Not in a scroller: there is nowhere for the band to move to.
@@ -2210,6 +2256,9 @@ impl Editor {
             adjustment.value(),
             adjustment.page_size(),
         ) {
+            // Where the row is being held now is where a fold still waiting to
+            // settle puts it back to ([`Editor::rebase_reflow`]).
+            self.rebase_reflow(target);
             adjustment.set_value(target);
         }
     }
@@ -2232,6 +2281,126 @@ impl Editor {
         (bar.y / scale + f64::from(self.top_margin()), bar.h / scale)
     }
 
+    /// Remembers where the caret's row stands, for the fold about to be drawn
+    /// to be settled against: **a fold never moves the caret's row on the
+    /// glass**.
+    ///
+    /// A fold takes bytes off the page or puts them back, and the rows above
+    /// the caret then stand taller or shorter than they did. GTK's own
+    /// compensation holds the *viewport's first paragraph* still, so a fold
+    /// between that paragraph and the caret carries the caret's row down the
+    /// glass by exactly the height it changed. That is the jump a click into a
+    /// lower paragraph makes, and the same jump a cursor key out of a block
+    /// makes.
+    ///
+    /// Settled one frame on ([`Editor::settle_reflow`]) rather than at the end
+    /// of this pass, because the heights are not true until GTK has validated
+    /// the lines on the glass: it does that in an idle above the frame clock's
+    /// paint, and a widget tick callback runs in the same frame's UPDATE phase,
+    /// after that idle and before the paint — so the correction is painted in
+    /// the frame the fold is. An idle of Quill's own at the default priority
+    /// would run after the paint: one frame with the jump, then the correction.
+    ///
+    /// An anchor already waiting is kept rather than replaced: it holds where
+    /// the row stood before the first of the folds, which is where it is to be
+    /// put back.
+    fn anchor_row(&self) {
+        if self.imp().reflow.get().is_some() {
+            return;
+        }
+        let Some(bar) = self.bar() else {
+            return;
+        };
+        let Some(adjustment) = self.vadjustment() else {
+            return;
+        };
+        let (row, _) = self.row_of(bar);
+        self.imp().reflow.set(Some(Reflow {
+            row,
+            screen: row - adjustment.value(),
+        }));
+        self.over_frames(1, |editor| {
+            editor.settle_reflow();
+            true
+        });
+    }
+
+    /// Puts the caret's row back where [`Editor::anchor_row`] saw it stand,
+    /// now that the fold's lines have been validated.
+    ///
+    /// The formula takes GTK's own compensation in its stride: a fold wholly
+    /// above the viewport moved the row and the adjustment's value by the same
+    /// amount, so the row is already where it was and nothing is set; a fold
+    /// inside the viewport, which GTK leaves alone, is corrected in full.
+    ///
+    /// A glide in flight is the one thing that has to be moved instead of the
+    /// view: it writes the adjustment outright on every frame, so a value set
+    /// here would be overwritten by the next one. It is shifted by the same
+    /// delta, which is the same travel so many pixels further
+    /// ([`Glide::shift`]), and this frame's value carried with it.
+    fn settle_reflow(&self) {
+        let Some(reflow) = self.imp().reflow.take() else {
+            return;
+        };
+        let Some(bar) = self.bar() else {
+            return;
+        };
+        let Some(adjustment) = self.vadjustment() else {
+            return;
+        };
+        let (row_now, _) = self.row_of(bar);
+        let delta = row_now - reflow.row;
+        if let Some(travel) = self.imp().glide.get() {
+            self.imp().glide.set(Some(Travel {
+                glide: travel.glide.shift(delta),
+                started: travel.started,
+            }));
+            self.shift(&adjustment, adjustment.value() + delta);
+            return;
+        }
+        let end = (adjustment.upper() - adjustment.page_size()).max(adjustment.lower());
+        let want = (row_now - reflow.screen).clamp(adjustment.lower(), end);
+        if (want - adjustment.value()).abs() >= 1.0 {
+            self.shift(&adjustment, want);
+        }
+    }
+
+    /// Scrolls to `to` as the settle of a reflow, which nothing follows.
+    ///
+    /// The row on the glass did not move — the page under it did — so the
+    /// window's top-block rule stands back for it rather than reading it as a
+    /// writer scrolling and carrying the Preview along
+    /// ([`Editor::shifting`]).
+    fn shift(&self, adjustment: &gtk::Adjustment, to: f64) {
+        self.imp().shifting.set(true);
+        adjustment.set_value(to);
+        self.imp().shifting.set(false);
+    }
+
+    /// Whether a settled reflow is scrolling the view this instant, which the
+    /// window's top-block rule stands back for.
+    #[must_use]
+    pub fn shifting(&self) -> bool {
+        self.imp().shifting.get()
+    }
+
+    /// Carries a waiting anchor across a scroll the caret's own machine makes
+    /// between the fold and its settle.
+    ///
+    /// The anchor says where the row is to be put back on the glass, and a
+    /// machine that has since decided to hold the row somewhere else is not to
+    /// be undone: `target` is where the row is being put now, so that is where
+    /// [`Editor::settle_reflow`] puts it back to.
+    fn rebase_reflow(&self, target: f64) {
+        let reflow = &self.imp().reflow;
+        if let Some(waiting) = reflow.get() {
+            reflow.set(Some(Reflow {
+                screen: waiting.row - target,
+                ..waiting
+            }));
+        }
+    }
+
     /// Moves the view to where `hold` keeps the caret's row, gliding there
     /// when `glides` says the move is one to be seen and jumping otherwise.
     ///
@@ -2242,6 +2411,11 @@ impl Editor {
     /// A glide already in flight is retargeted from where it has got to
     /// ([`Glide::retarget`]), so a caret moving mid-glide bends the travel
     /// rather than restarting it.
+    ///
+    /// A jump re-bases a fold waiting to settle, for
+    /// [`Editor::keep_in_margins`]'s reason; a glide needs no re-basing,
+    /// because the settle shifts the glide itself
+    /// ([`Editor::settle_reflow`]).
     fn follow(&self, bar: caret::Bar, hold: Hold, glides: bool) {
         let Some(adjustment) = self.vadjustment() else {
             // Not in a scroller: there is nowhere for the row to be held.
@@ -2261,6 +2435,8 @@ impl Editor {
         let target = target.clamp(adjustment.lower(), end);
         if !glides {
             self.imp().glide.set(None);
+            // As [`Editor::keep_in_margins`] does, and for the same reason.
+            self.rebase_reflow(target);
             adjustment.set_value(target);
             return;
         }
