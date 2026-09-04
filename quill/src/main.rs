@@ -25,6 +25,7 @@ mod chrome;
 mod conflict;
 mod editor;
 mod export;
+mod export_dialog;
 mod files;
 mod flags;
 mod fonts;

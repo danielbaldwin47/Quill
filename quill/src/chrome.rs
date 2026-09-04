@@ -468,6 +468,15 @@ fn run_window(window: &Window, command: &Command) {
         "file.prev" => window.step_document(crate::files::Step::Prev),
         "file.save" => window.save(),
         "file.saveAs" => window.save_as(crate::window::After::Stay),
+        "export.pdf" => {
+            crate::export_dialog::open(window, crate::export_dialog::Format::Pdf);
+        }
+        "export.html" => {
+            crate::export_dialog::open(window, crate::export_dialog::Format::Html);
+        }
+        "export.markdown" => {
+            crate::export_dialog::open(window, crate::export_dialog::Format::Markdown);
+        }
         "export.quick" => crate::export::quick(window),
         "export.copyHtml" => crate::export::copy_html(window),
         "palette.open" => window.open_palette(),
@@ -1727,9 +1736,9 @@ mod tests {
     #[test]
     fn a_disabled_commands_activation_returns_without_effect() {
         let (map, fired) = map(Scope::Win);
-        assert!(!commands::by_id("export.pdf").unwrap().built);
-        assert!(!map.is_action_enabled("export.pdf"));
-        map.activate_action("export.pdf", None);
+        assert!(!commands::by_id("print").unwrap().built);
+        assert!(!map.is_action_enabled("print"));
+        map.activate_action("print", None);
         // The Stats menu's fields are the Stats spec's (#30), so the whole
         // radio group is disabled.
         map.activate_action("stats", Some(&"words".to_variant()));
