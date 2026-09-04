@@ -372,8 +372,8 @@ fn switch(on: bool) -> gtk::Switch {
 /// The paper dropdown, standing on `paper`.
 ///
 /// The Settings window's Export group offers the same rows from the same
-/// table, so that a paper named there and a paper named here are the one list
-/// (#290).
+/// table, so that a paper named there and a paper named here are the one list;
+/// #290 built that group on this.
 pub(crate) fn paper_drop_down(paper: Paper) -> gtk::DropDown {
     let words: Vec<&str> = PAPERS.iter().map(|(_, words)| *words).collect();
     let drop_down = gtk::DropDown::from_strings(&words);

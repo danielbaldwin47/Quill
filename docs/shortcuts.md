@@ -36,8 +36,7 @@ The title button in the top bar opens it.
 
 The five `export.` rows draw as one **Export** submenu rather than as five rows of the menu, the
 way the View menu's Template section does; `print` is a row of its own beneath it, a separator on
-each side, because printing a Document is not exporting one. `print` is greyed until
-[#282](https://github.com/danielbaldwin47/Quill/issues/282) wires it.
+each side, because printing a Document is not exporting one.
 
 ## View menu
 

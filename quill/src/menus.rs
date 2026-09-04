@@ -9,9 +9,10 @@
 //! under their head, and the Template section is a nested submenu of its own
 //! name. The Document menu's five `export.` rows are a nested submenu of
 //! their own name too, and Print… stands in a section of its own beneath it,
-//! which is the separator on each side of it. A row's action is the Command's, so the check or the
-//! radio the popover draws reads the stateful action the chord fires, and a
-//! Command not built yet has a disabled action, which is the greyed row.
+//! which is the separator on each side of it. A row's action is the Command's,
+//! so the check or the radio the popover draws reads the stateful action the
+//! chord fires, and a Command not built yet has a disabled action, which is
+//! the greyed row.
 //! Document → Open Recent is the one row no Command places: a submenu of the
 //! recents the caller hands over, appended after Open File… and opening each
 //! Document through [`chrome::RECENT_OPEN`] (#246). The accelerator
@@ -435,7 +436,7 @@ mod tests {
 
     /// Print… is built and stands in the Document menu under the Export rows
     /// rather than inside the submenu, which is the separator the spec asks
-    /// for (#290).
+    /// for; #290 built the Command behind the row.
     #[test]
     fn print_stands_built_below_the_export_rows() {
         let print = by_id(PRINT).expect(PRINT);
@@ -447,7 +448,7 @@ mod tests {
     }
 
     /// The two Commands that need no dialog are built, and each is a row of
-    /// the Export submenu rather than a Palette-only id (#287).
+    /// the Export submenu rather than a Palette-only id; #287 built them.
     #[test]
     fn quick_export_and_copy_as_html_are_built_in_the_export_submenu() {
         for (id, label) in [
