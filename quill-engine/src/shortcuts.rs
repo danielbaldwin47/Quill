@@ -475,7 +475,7 @@ mod tests {
 \"file.save\" = [\"<Control\"]
 \"stats.words\" = \"F8\"
 \"file.saveAs\" = [\"<Control>a\"]
-\"focus.toggle\" = [\"<Control>p\"]
+\"focus.toggle\" = [\"<Control>g\"]
 \"typewriter.toggle\" = [\"<Super>t\"]
 \"chrome.toggle\" = [\"<Control><Alt>h\"]
 \"spell.toggle\" = [\"F9\"]
@@ -570,8 +570,8 @@ mod tests {
             ),
             (
                 "focus.toggle",
-                "\"focus.toggle\" = [\"<Control>p\"]",
-                "<Control>p is reserved for a Command Quill has not shipped",
+                "\"focus.toggle\" = [\"<Control>g\"]",
+                "<Control>g is reserved for a Command Quill has not shipped",
             ),
             (
                 "typewriter.toggle",

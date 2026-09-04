@@ -1590,11 +1590,7 @@ mod tests {
 
     #[test]
     fn an_alias_reaches_the_same_action_as_its_labelled_chord() {
-        for (alias, labelled) in [
-            ("F9", "Ctrl+E"),
-            ("Alt+Shift+N", "Ctrl+Shift+L"),
-            ("Ctrl+Shift+P", "Ctrl+K"),
-        ] {
+        for (alias, labelled) in [("F9", "Ctrl+E"), ("Alt+Shift+N", "Ctrl+Shift+L")] {
             let by_alias = commands::by_chord(alias).expect(alias);
             let by_default = commands::by_chord(labelled).expect(labelled);
             assert_eq!(by_alias.id, by_default.id);
@@ -1729,9 +1725,9 @@ mod tests {
     #[test]
     fn a_disabled_commands_activation_returns_without_effect() {
         let (map, fired) = map(Scope::Win);
-        assert!(!commands::by_id("export.open").unwrap().built);
-        assert!(!map.is_action_enabled("export.open"));
-        map.activate_action("export.open", None);
+        assert!(!commands::by_id("export.pdf").unwrap().built);
+        assert!(!map.is_action_enabled("export.pdf"));
+        map.activate_action("export.pdf", None);
         // The Stats menu's fields are the Stats spec's (#30), so the whole
         // radio group is disabled.
         map.activate_action("stats", Some(&"words".to_variant()));

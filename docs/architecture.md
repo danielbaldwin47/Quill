@@ -22,7 +22,9 @@ Every type both crates share is defined in the engine. `tools/gate check` runs `
 workspace; a test that needs a window is harness, not test.
 
 Engine modules, one per concept: `document` (text and block index), `markdown` (the parser, one
-shared `Options`), `annotate` (the Annotator trait, spans, run flattening), `focus` (sentence
+shared `Options`), `front_matter` (the `title`, `author` and `date` Export reads out of a
+Document's metadata block, and nothing written back), `annotate` (the Annotator trait, spans, run
+flattening), `focus` (sentence
 segmentation, the bright tier and the one dim tier —
 [ADR 0015](adr/0015-the-design-oracle-outranks-the-parity-oracle.md)), `library`, `settings`, `template`,
 `render` (Pango layout for Preview, PDF and HTML), `html` (the standalone export page and the
@@ -167,7 +169,11 @@ default true, `number_headings` and `indent_paragraphs`, the three toggles that 
 `[preview]` table (`layout`, split or full, and `zoom`, a whole percentage from 50 to 200, default
 100; a scalar `template` or `preview_layout`, which is how each was written before it was a table, is
 read as its table's value and rewritten as the table on the next write, as a scalar `library` is),
-`palette` (the file the grounds take their colours from, `design.md` § The palette is a
+an `[export]` table (`paper`, one of `auto`, `a4`, `letter` and `legal`, default `auto`, which is
+resolved to the desktop locale's paper at the moment a page is laid out and never written back as a
+size; `margin` in whole millimetres, 0 to 50, default 20; `text_size` in whole points, 9 to 18,
+default 12; and `title_page`, `header` and `footer`, the three pieces of furniture outside the text,
+all default false), `palette` (the file the grounds take their colours from, `design.md` § The palette is a
 file; empty is the built-ins), a `[library]` table (`locations` and `pinned`, two lists of paths,
 and `show_hidden`, `show_extensions`, `confirm_move` and `ask_where_to_save`, four booleans that
 default to false; a scalar `library` naming one folder, which is how the Library was written before
