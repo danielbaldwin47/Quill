@@ -170,9 +170,10 @@ and `spell_language`, `[syntax_highlight]` (a table: `enabled` is the master, an
 toggles sit beside it), `[style_check]` (the same shape, one toggle per list beside `enabled`),
 a `[template]` table (`name`, one of the five Templates, default `modern`; and `center_headings`,
 default true, `number_headings` and `indent_paragraphs`, the three toggles that bend one), a
-`[preview]` table (`layout`, split or full, and `zoom`, a whole percentage from 50 to 200, default
-100; a scalar `template` or `preview_layout`, which is how each was written before it was a table, is
-read as its table's value and rewritten as the table on the next write, as a scalar `library` is),
+`[preview]` table (`layout`, split or full; `mode`, web or pdf, default web, which of the pane's two
+modes it draws; and `zoom`, a whole percentage from 50 to 200, default 100; a scalar `template` or
+`preview_layout`, which is how each was written before it was a table, is read as its table's value
+and rewritten as the table on the next write, as a scalar `library` is),
 an `[export]` table (`paper`, one of `auto`, `a4`, `letter` and `legal`, default `auto`, which is
 resolved to the desktop locale's paper at the moment a page is laid out and never written back as a
 size; `margin` in whole millimetres, 0 to 50, default 20; `text_size` in whole points, 9 to 18,
@@ -226,17 +227,19 @@ remembers nothing it could not act on.
 
 The engine's `render` module lays a whole Document out with Pango from the current Template ([ADR
 0005](adr/0005-native-templates.md)): one pass produces the layouts the Preview widget snapshots and
-the pages the PDF surface draws. Preview re-renders on idle after edits, debounced, and restores its
+the pages the PDF surface draws. Preview has two modes over that one pass, `[preview].mode`: Web
+draws the rendered sheet, and PDF draws the same pages Export writes, stacked as a column. Preview re-renders on idle after edits, debounced, and restores its
 scroll to the block the caret is in. `paginate` cuts that one tall rendered page into pages of paper
 under the page geometry (size, margins, header, footer, title page) owned by Export, not the
 Template: a heading never ends a page and moves with the block after it, a paragraph splits between
 lines with at least two on each side or moves whole, a code block splits at a line boundary with its
 Well ground carried on to the next page, a quotation splits at a line boundary and has no ground to
 carry, and neither a thematic break nor the line after a hard break ever opens one. There is no page-break syntax. `draw` paints one such page onto
-any cairo context, and both of the page sinks are fed by it: PDF export is the engine's own
+any cairo context, and the three page sinks are fed by it: PDF export is the engine's own
 `cairo::PdfSurface` at the paper's size (`pdf`), with the document metadata and the heading
-bookmarks from `outline` on it, and `GtkPrintOperation` is Print's sink alone, the drawer called
-from its `draw-page`. HTML export is the parser's HTML plus the CSS the Template generates, inlined.
+bookmarks from `outline` on it; `GtkPrintOperation` is Print's sink alone, the drawer called
+from its `draw-page`; and Preview's page column in PDF mode is the third, the drawer called on the
+widget's own cairo context. HTML export is the parser's HTML plus the CSS the Template generates, inlined.
 Annotator marks never reach Preview or Export.
 
 Preview ships without tables, figures and footnote blocks first; they are the last renderer work and
