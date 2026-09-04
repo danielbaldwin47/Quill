@@ -104,6 +104,17 @@ pub fn moved_into(name: &str, folder: &str) -> String {
     format!("Moved {name} to {folder}")
 }
 
+/// What the status line says once a Document has been exported to a file.
+///
+/// The trash notice's shape ([`moved_to_trash`]), naming the file that was
+/// written rather than the Document it came from. The desktop notification
+/// says the same sentence ([`crate::export::confirm`]), because a writer who
+/// saw one of the two and not the other has been told the same thing.
+#[must_use]
+pub fn exported(name: &str) -> String {
+    format!("Exported {name}")
+}
+
 /// Where a dragged row was let go.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Onto {
@@ -763,6 +774,18 @@ mod tests {
             moved_to_trash("sea-storm.md"),
             "Moved sea-storm.md to Trash"
         );
+    }
+
+    /// The confirmation's words, which the status line and the desktop
+    /// notification both say ([`crate::export::confirm`]): the file that was
+    /// written, extension and all.
+    #[test]
+    fn the_export_notice_names_the_file_that_was_written() {
+        assert_eq!(
+            exported("The Lighthouse.pdf"),
+            "Exported The Lighthouse.pdf"
+        );
+        assert_eq!(exported("Untitled.pdf"), "Exported Untitled.pdf");
     }
 
     #[test]

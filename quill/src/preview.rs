@@ -210,14 +210,8 @@ impl Sheet {
             // Not on the compositor yet: the first allocation asks again.
             return;
         }
-        let template = template::built_in(settings.template.name.as_str())
-            .or_else(|_| template::built_in(template::DEFAULT))
-            .expect("the default Template is compiled in");
-        let toggles = render::Toggles {
-            center_headings: settings.template.center_headings,
-            number_headings: settings.template.number_headings,
-            indent_paragraphs: settings.template.indent_paragraphs,
-        };
+        let template = template::named(settings.template.name.as_str());
+        let toggles = render::Toggles::of(&settings.template);
         let context = self.pango_context();
         let zoom = settings.preview.zoom;
         let measure = measure(

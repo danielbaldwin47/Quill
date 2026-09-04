@@ -664,7 +664,7 @@ impl Window {
     }
 
     /// The file this window's Document is, or `None` while it is untitled.
-    fn path(&self) -> Option<PathBuf> {
+    pub(crate) fn path(&self) -> Option<PathBuf> {
         self.imp().filed.borrow().path().map(Path::to_path_buf)
     }
 
@@ -960,6 +960,34 @@ impl Window {
         }
     }
 
+    /// Gives an untitled Document a file so that `export.quick` has something
+    /// to stand a PDF beside, and exports once it has one.
+    ///
+    /// [`Window::save`]'s own decision, so that a Quick Export asks exactly
+    /// what a save would ask: the first-save folder where the Library names
+    /// one, and the Save As dialog where it does not. A save that does not
+    /// happen — a cancelled dialog, a write that failed — exports nothing.
+    pub(crate) fn save_before_export(&self) {
+        match self.first_save_folder() {
+            Where::Folder(folder) => {
+                if self.write(Some(&folder)) {
+                    crate::export::quick(self);
+                }
+            }
+            Where::Ask => self.save_as(After::Export),
+        }
+    }
+
+    /// Puts `words` on the status line at the foot of the Library over
+    /// whatever it now says.
+    ///
+    /// A notice rather than a state: the next [`Window::show_standing`] takes
+    /// it back down, which is what the trash notice is and what a file
+    /// export's confirmation is ([`crate::export::confirm`]).
+    pub(crate) fn notice(&self, words: &str) {
+        self.imp().sidebar.set_status(words);
+    }
+
     /// `file.saveAs`: the writer names the file, and the Document is that file
     /// from then on.
     ///
@@ -996,8 +1024,13 @@ impl Window {
                         // waiting on the save stays open.
                         return;
                     };
-                    if window.write_as(&path) && after == After::Close {
-                        window.leave();
+                    if !window.write_as(&path) {
+                        return;
+                    }
+                    match after {
+                        After::Stay => {}
+                        After::Close => window.leave(),
+                        After::Export => crate::export::quick(&window),
                     }
                 },
             ),
@@ -2733,6 +2766,10 @@ pub(crate) enum After {
     Stay,
     /// The window closes: the Save button of the prompt a close asked.
     Close,
+    /// The Document is exported: `export.quick` on an untitled Document, which
+    /// asks for a file before it has anything to stand a PDF beside
+    /// ([`Window::save_before_export`]).
+    Export,
 }
 
 /// Where the Preview pane stands once a Preview chord has been pressed.

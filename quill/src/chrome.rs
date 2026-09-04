@@ -468,6 +468,8 @@ fn run_window(window: &Window, command: &Command) {
         "file.prev" => window.step_document(crate::files::Step::Prev),
         "file.save" => window.save(),
         "file.saveAs" => window.save_as(crate::window::After::Stay),
+        "export.quick" => crate::export::quick(window),
+        "export.copyHtml" => crate::export::copy_html(window),
         "palette.open" => window.open_palette(),
         "file.recent" => window.open_recents(),
         "settings.open" => window.open_settings(),
