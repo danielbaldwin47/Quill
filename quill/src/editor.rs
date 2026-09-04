@@ -1069,6 +1069,18 @@ impl Editor {
     /// already worked out ([`Editor::refurnish`]), because a gesture is handed
     /// a position and no Document.
     ///
+    /// The y is clamped into the paragraph's own extent before it is turned
+    /// into an offset. `gtk_text_layout_get_iter_at_position` has a branch for
+    /// a y in the `pixels-below-lines` band under a paragraph's last row, and
+    /// that branch hands the line's raw byte count to a setter that wants a
+    /// visible index — which aborts on any line holding invisible bytes, so
+    /// under Live on every folded paragraph (#278, GTK 4.22). The clamp keeps
+    /// this press out of the band: the paragraph is asked for by y
+    /// (`line_at_y`, which builds no display), and the height it leaves below
+    /// its ink is taken off. It is not the whole of the bug — GTK's own click,
+    /// selection drag and drop paths take the same road with no Quill frame to
+    /// clamp in — and the comment on #278 says so.
+    ///
     /// A box press is an edit the caret did not make, so the caret's machine
     /// stands down for it: the `pressing_box` flag is up across the edit and
     /// [`Editor::caret_edit_began`] and [`Editor::caret_edited`] return while
@@ -1080,6 +1092,12 @@ impl Editor {
         }
         let (bx, by) =
             self.window_to_buffer_coords(gtk::TextWindowType::Widget, buffer_px(x), buffer_px(y));
+        // The last row's own pixels, and never the air under them. A line is
+        // taller than the air below it by its ink and the air above, so the
+        // clamp never lifts the y out of the paragraph it landed in.
+        let (line, top) = self.line_at_y(by);
+        let (_, height) = self.line_yrange(&line);
+        let by = by.min(top + height - 1 - self.pixels_below_lines());
         let Some(at) = self.iter_at_location(bx, by).map(|at| at.offset()) else {
             return;
         };
@@ -2951,7 +2969,9 @@ impl Editor {
     /// #274's own passage, where the offsets after a folded `](…)` all came
     /// back at the end of the row — and a block-leading marker has nothing
     /// folded before it, so its own cells are the ones GTK says they are.
-    /// `iter_at_location`, which the press reads, has no such trouble.
+    /// `iter_at_location`, which the press reads, has no such trouble with the
+    /// fold — it has a trouble of GTK's own instead, in the band below a
+    /// paragraph, which the press keeps out of ([`Editor::press`], #278).
     fn cells(&self, at: &Range<i32>) -> Option<Cells> {
         if at.end <= at.start {
             return None;
