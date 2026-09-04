@@ -849,6 +849,20 @@ pub fn units(pixels: f64) -> i32 {
     (pixels * f64::from(pango::SCALE)).round() as i32
 }
 
+/// `units` of Pango's, back in the units the layout was made in — the points a
+/// page is measured in, or the pixels a sheet is drawn in.
+///
+/// [`units`] the other way round, and public for the same reason: everything
+/// that reads a Pango layout back reads it back through this one division,
+/// rather than through a copy of it each. The paginator's rows and the drawer's
+/// runs are in points ([`crate::paginate`], [`crate::draw`]), and the Preview
+/// pane's sheet and page column are in the pixels they paint in
+/// (`quill::preview`, `quill::column`).
+#[must_use]
+pub fn back(units: i32) -> f64 {
+    f64::from(units) / f64::from(pango::SCALE)
+}
+
 /// A byte offset as Pango counts one.
 fn index(at: usize) -> u32 {
     u32::try_from(at).unwrap_or(u32::MAX)

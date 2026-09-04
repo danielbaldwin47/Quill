@@ -41,7 +41,7 @@ use std::path::{Path, PathBuf};
 use quill_engine::commands;
 use quill_engine::settings::{
     Choice, Chrome, Export, Face, FocusScope, Paper, Preview, PreviewLayout, PreviewMode, Settings,
-    Template as TemplateSettings, TemplateName, WindowState, window_sizes,
+    Template as TemplateSettings, TemplateName, WindowState, preview_zooms, window_sizes,
 };
 use quill_engine::theme::Scheme;
 use quill_engine::typography;
@@ -82,6 +82,8 @@ Judged state — the states the Gate shoots and benches at:
                          place of it, showing the rendered sheet or the pages
                          Export writes, with the rest of [preview] at its
                          defaults.
+  --zoom <percent>       Draw the Preview pane at that per cent of fit width,
+                         which is [preview] zoom. Wants --preview.
   --template <id>        Lay the rendered page out in that Template, with the
                          rest of [template] at its defaults.
   --search <query>       Put <query> in the Library's search field and narrow
@@ -252,14 +254,20 @@ pub struct Flags {
     pub sidebar: bool,
     /// The query `--search` puts in the Library's search field.
     pub search: Option<String>,
-    /// Where `--preview` asked the pane to open. The pane's being open at all
-    /// is this flag having been given: nothing else opens one, because the
-    /// pane is closed at every launch (#263).
-    pub preview: Option<PreviewLayout>,
-    /// What `--preview` asked the pane to draw where it opened: the rendered
-    /// sheet, or the pages Export writes. It is set by the same word that set
-    /// [`Flags::preview`] and is `None` exactly when that is.
-    pub preview_mode: Option<PreviewMode>,
+    /// Where `--preview` asked the pane to open and what it asked it to draw
+    /// there: the rendered sheet, or the pages Export writes.
+    ///
+    /// The pair the flag's word names and not two flags' worth of answer
+    /// ([`PREVIEWS`]), because `pdf-split` is one word and means both. The
+    /// pane's being open at all is this flag having been given: nothing else
+    /// opens one, because the pane is closed at every launch (#263).
+    pub preview: Option<(PreviewLayout, PreviewMode)>,
+    /// What `--zoom` pinned `[preview] zoom` to, per cent of fit width.
+    ///
+    /// A state that wants two pages of the column in one window says so with
+    /// this ([`Flags::over`] pins the rest of the table around it); a writer's
+    /// launch never names it.
+    pub zoom: Option<u32>,
     /// The Template `--template` names, which the rendered page is laid out
     /// in for this launch.
     pub template: Option<TemplateName>,
@@ -348,9 +356,10 @@ impl Flags {
                 "--sidebar" => flags.sidebar = true,
                 "--search" => flags.search = Some(text(&mut args, flag)?),
                 "--preview" => {
-                    let (layout, mode) = one_of(flag, &text(&mut args, flag)?, &PREVIEWS)?;
-                    flags.preview = Some(layout);
-                    flags.preview_mode = Some(mode);
+                    flags.preview = Some(one_of(flag, &text(&mut args, flag)?, &PREVIEWS)?);
+                }
+                "--zoom" => {
+                    flags.zoom = Some(whole(flag, &text(&mut args, flag)?, &preview_zooms())?);
                 }
                 "--template" => flags.template = Some(choice(flag, &text(&mut args, flag)?)?),
                 "--export-dialog" => {
@@ -499,12 +508,19 @@ impl Flags {
         // a shot of the page column and `--preview split` a shot of the sheet,
         // and a writer whose file remembers `mode = "pdf"` shoots neither by
         // accident.
-        if let Some(layout) = self.preview {
+        if let Some((layout, mode)) = self.preview {
             settings.preview = Preview::default();
             settings.preview.layout = layout;
-            settings.preview.mode = self.preview_mode.unwrap_or_default();
+            settings.preview.mode = mode;
         } else if self.deterministic {
             settings.preview = Preview::default();
+        }
+        // The zoom after the reset above, because it is the one key of the
+        // table a state may name for itself: `preview/pdf-full` stands two
+        // pages in one window with it, and every other state takes the
+        // default fit width the reset just put back (#293).
+        if let Some(zoom) = self.zoom {
+            settings.preview.zoom = zoom;
         }
         // The Template the same way, and the three toggles with it: each of
         // them is the shape of every heading and every paragraph in the shot.
@@ -747,8 +763,7 @@ mod tests {
         );
         assert!(flags.sidebar);
         assert_eq!(flags.search.as_deref(), Some("sea"));
-        assert_eq!(flags.preview, Some(PreviewLayout::Full));
-        assert_eq!(flags.preview_mode, Some(PreviewMode::Web));
+        assert_eq!(flags.preview, Some((PreviewLayout::Full, PreviewMode::Web)));
         assert_eq!(flags.template, Some(TemplateName::Classic));
         assert_eq!(flags.export_dialog, Some(Format::Pdf));
         assert!(flags.typing);
@@ -1023,25 +1038,17 @@ mod tests {
         );
     }
 
-    /// Every word `--preview` offers opens the pane, and the four are the two
-    /// layouts against the two modes: the flag names both settings because a
-    /// shot of the pane is a shot of the pair. A fifth word is refused with
-    /// the module's usual message, and a word `--help` names that nothing
-    /// parses would be a state the Gate could write and never shoot.
+    /// Every word `--preview` offers opens the pane, and each names the pair a
+    /// shot of the pane is a shot of: the table it stands the pane in is
+    /// [`PREVIEWS`] itself, walked here rather than written out a second time.
+    /// A fifth word is refused with the module's usual message, and a word
+    /// `--help` names that nothing parses would be a state the Gate could
+    /// write and never shoot.
     #[test]
     fn preview_takes_every_word_the_usage_offers() {
-        for (word, layout, mode) in [
-            ("split", PreviewLayout::Split, PreviewMode::Web),
-            ("full", PreviewLayout::Full, PreviewMode::Web),
-            ("pdf-split", PreviewLayout::Split, PreviewMode::Pdf),
-            ("pdf-full", PreviewLayout::Full, PreviewMode::Pdf),
-        ] {
+        for (word, (layout, mode)) in PREVIEWS {
             let flags = parse(&format!("--preview {word}")).expect("a word --help names");
-            assert_eq!(
-                (flags.preview, flags.preview_mode),
-                (Some(layout), Some(mode)),
-                "--preview {word}"
-            );
+            assert_eq!(flags.preview, Some((layout, mode)), "--preview {word}");
             assert!(
                 USAGE.contains(word),
                 "--help names every word the flag takes, and not {word}"
@@ -1063,6 +1070,46 @@ mod tests {
             "--preview: \"pdf\" is not one of split, full, pdf-split, pdf-full"
         );
         assert!(!said.contains('\n'), "one line, not a stack: {said}");
+    }
+
+    /// `--zoom` is the one key of `[preview]` a judged state names for itself:
+    /// it stands over the pinning `--preview` does, so that `preview/pdf-full`
+    /// holds two pages of the column in one window, and a state that does not
+    /// name it is shot at fit width. A per cent the setting does not take is
+    /// refused in the module's one line.
+    #[test]
+    fn zoom_pins_the_panes_own_zoom_over_the_rest_of_the_table() {
+        let flags = parse("--preview pdf-full --zoom 50").expect("a per cent in the range");
+        assert_eq!(flags.zoom, Some(50));
+        assert_eq!(
+            flags.over(Settings::default()).preview.zoom,
+            50,
+            "the table the column lays its pages out at"
+        );
+        assert_eq!(
+            parse("--preview pdf-full")
+                .expect("the pane without a zoom")
+                .over(Settings::default())
+                .preview
+                .zoom,
+            Preview::default().zoom,
+            "a state that names no zoom is shot at fit width"
+        );
+
+        let zooms = preview_zooms();
+        let past = zooms.end() + 1;
+        let err = parse(&format!("--zoom {past}")).expect_err("a per cent past the range");
+        let said = err.to_string();
+        assert_eq!(
+            said,
+            format!(
+                "--zoom: \"{past}\" is not a whole number from {} to {}",
+                zooms.start(),
+                zooms.end()
+            )
+        );
+        assert!(!said.contains('\n'), "one line, not a stack: {said}");
+        assert!(USAGE.contains("--zoom"), "--help names the flag");
     }
 
     /// Every word the flag offers in `--help` opens a dialog, and the three

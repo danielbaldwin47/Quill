@@ -205,6 +205,10 @@ export function quillArgv(root, flags, { live = false } = {}) {
   // `--template` is named by every state, off the defaults: it pins the whole `[template]` table,
   // and the shape of a heading is the shape of one whatever Piece the shot is of.
   if (flags.preview) argv.push('--preview', flags.preview);
+  // `--zoom` is the one key of `[preview]` a state names for itself, over the pinning `--preview`
+  // does: `preview/pdf-full` is shot at 50 % so that two pages of the column stand in one window
+  // and the air between them is a thing a still can hold.
+  if (flags.zoom) argv.push('--zoom', String(flags.zoom));
   if (flags.template) argv.push('--template', flags.template);
   // The Export dialog the `export` states open, named by its format. A still cannot pull an
   // expander open, so the flag opens the dialog with its Options already showing; the dialog is a

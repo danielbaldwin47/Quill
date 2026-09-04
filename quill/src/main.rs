@@ -21,6 +21,7 @@
 //! open, and it leaves both files exactly as it found them.
 
 mod caret;
+mod choices;
 mod chrome;
 mod column;
 mod conflict;

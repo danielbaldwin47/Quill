@@ -1075,10 +1075,15 @@ impl Session {
     /// `edit` is handed the settings this launch is running
     /// ([`Session::running`]) rather than the ones it read, so that a row
     /// written after a key was pressed carries what the key did with it.
-    pub fn edit_settings(&self, edit: impl FnOnce(&mut Settings)) {
+    /// What it wrote is answered back, because the file is ahead of
+    /// [`Session::running`] until the watch reads it: a caller that has to act
+    /// on the write before then acts on this rather than on the running table
+    /// ([`crate::window::Window::drop_dialog_preview`]).
+    pub fn edit_settings(&self, edit: impl FnOnce(&mut Settings)) -> Settings {
         let mut settings = self.running();
         edit(&mut settings);
         self.write_settings(&settings);
+        settings
     }
 
     /// Writes `settings` to this launch's settings file, saying so on stderr
