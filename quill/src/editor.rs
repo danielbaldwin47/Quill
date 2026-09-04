@@ -985,6 +985,17 @@ impl Editor {
         }
     }
 
+    /// Whether the edit now reaching the buffer is a task box a press is
+    /// flipping ([`Editor::press`]) rather than something the writer typed.
+    ///
+    /// Read by the window: the buffer's `changed` is emitted from inside the
+    /// press's own edit, and `quill::window`'s `typed` would otherwise put the
+    /// Preview on the caret's block for an edit the caret did not make.
+    #[must_use]
+    pub fn pressing_box(&self) -> bool {
+        self.imp().pressing_box.get()
+    }
+
     /// The lines of the parts the writer's range reaches: what Live leaves
     /// unfolded.
     ///

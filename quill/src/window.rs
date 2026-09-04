@@ -87,6 +87,7 @@ mod imp {
     use quill_engine::disk::Filed;
     use quill_engine::document::Edit;
 
+    use super::Follows;
     use crate::chrome::Bars;
     use crate::chrome::typing::Typing;
     use crate::editor::Editor;
@@ -152,6 +153,9 @@ mod imp {
         /// follower's own `value-changed` is read as the answer it is rather
         /// than as a writer scrolling it back.
         pub syncing: Cell<bool>,
+        /// The rule that last placed the Preview, re-applied after a refresh
+        /// (`Window::refollow`).
+        pub follows: Cell<Follows>,
         /// The title bar above the Editor and the stats bar below it.
         pub bars: Bars,
         /// The Library beside the page, hidden until `library.toggle` shows
@@ -232,6 +236,23 @@ mod imp {
     impl WidgetImpl for Window {}
     impl WindowImpl for Window {}
     impl ApplicationWindowImpl for Window {}
+}
+
+/// Which rule last placed the Preview's scroll.
+///
+/// A refresh lays the page out again and has to put the pane back
+/// (`Window::refollow`); which of the two sync rules puts it back is whichever
+/// one last moved it, because that is the move the pane is standing where it
+/// is for.
+#[derive(Clone, Copy, Default, Eq, PartialEq)]
+pub enum Follows {
+    /// The caret rule (`Window::follow_caret`): an edit or a caret move put
+    /// the caret's block where the eye already was.
+    #[default]
+    Caret,
+    /// The top-block rule (`Window::follow_editor`): a wheel or a scrollbar
+    /// over either pane left the two in step.
+    TopBlock,
 }
 
 glib::wrapper! {
@@ -1949,10 +1970,31 @@ impl Window {
             .preview
             .refresh(&document, &session.running(), session.ground().scheme);
         drop(document);
-        // The page is a new page, so the scroll it had means nothing: the
-        // caret's block is what the writer was looking at and where the pane
-        // is put back to (#263 § Refresh).
-        self.follow_caret();
+        // The page is a new page, so the scroll it had means nothing: the pane
+        // is put back by whichever rule last placed it. For an edit that is the
+        // caret's block, which is what the writer was looking at (#263
+        // § Refresh); a wheel or a task box flipped by a press left the pane in
+        // step with the Editor instead, and it stays there.
+        self.refollow();
+    }
+
+    /// Puts the Preview back where the rule that last placed it says, after a
+    /// refresh has laid the page out again.
+    ///
+    /// The two rules are the whole of what moves the pane, and neither is the
+    /// right answer to the other's page: putting an edit's caret rule on a pane
+    /// a wheel had left in step would snap it, and a wheel's rule on a pane the
+    /// caret placed would shift it for nothing.
+    fn refollow(&self) {
+        let imp = self.imp();
+        match imp.follows.get() {
+            Follows::Caret => self.follow_caret(),
+            Follows::TopBlock => {
+                if let Some(scroller) = imp.scroller.get() {
+                    self.follow_editor(scroller.vadjustment().value());
+                }
+            }
+        }
     }
 
     /// Arms the Preview's refresh, or re-arms it where an earlier keystroke of
@@ -1989,11 +2031,15 @@ impl Window {
     /// One block index and one fraction, both of them O(1): this runs on every
     /// keystroke and every arrow key, and the page it reads is whatever the
     /// last refresh laid out.
+    ///
+    /// Recorded as the rule now placing the pane, so that the refresh an edit
+    /// arms puts it back the same way ([`Window::refollow`]).
     fn follow_caret(&self) {
         let imp = self.imp();
         if !imp.previewing.get() {
             return;
         }
+        imp.follows.set(Follows::Caret);
         // `try_borrow` because a `mark-set` can arrive while the splice that
         // moved the mark still holds the Document ([`Window::watch_edits`]).
         let Ok(filed) = imp.filed.try_borrow() else {
@@ -2014,11 +2060,15 @@ impl Window {
 
     /// Puts the Preview where the Editor's top edge asks for it: the top-block
     /// rule, which is what a wheel or a scrollbar over the Editor drives.
+    ///
+    /// Recorded as the rule now placing the pane, for the reason
+    /// [`Window::follow_caret`] records its own.
     fn follow_editor(&self, offset: f64) {
         let imp = self.imp();
         if !imp.previewing.get() || imp.syncing.get() {
             return;
         }
+        imp.follows.set(Follows::TopBlock);
         // `try_borrow` for the reason [`Window::follow_caret`] has it: a scroll
         // is one of the things an edit sets off, and the splice may still be
         // holding the Document when it arrives.
@@ -2044,11 +2094,16 @@ impl Window {
     /// Puts the Editor where the Preview's top edge asks for it: the same rule
     /// the other way round, which is what a wheel or a scrollbar over the
     /// rendered page drives.
+    ///
+    /// Recorded as the rule now placing the pane, for the reason
+    /// [`Window::follow_caret`] records its own: the two panes are in step, and
+    /// a refresh keeps them there.
     fn follow_preview_scroll(&self, offset: f64) {
         let imp = self.imp();
         if !imp.previewing.get() || imp.syncing.get() {
             return;
         }
+        imp.follows.set(Follows::TopBlock);
         let Some(adjustment) = imp.scroller.get().map(|scroller| scroller.vadjustment()) else {
             return;
         };
@@ -2254,12 +2309,19 @@ impl Window {
     /// re-armed. The count is not taken here; the timer asks for it. Autosave
     /// is [`Window::edited`]'s two `Cell`s and nothing else: no file is
     /// touched between keystrokes.
+    ///
+    /// A task box flipped by a press is an edit the caret did not make, and it
+    /// drives no sync rule at all: the pane stands where the last rule put it,
+    /// and the refresh this arms puts it back there rather than on the caret's
+    /// block ([`Window::refollow`]).
     fn typed(&self) {
         self.edited();
         // Two timers and nothing else on the keystroke lane: autosave's, above,
         // and the rendered page's ([`Window::arm_refresh`]).
         self.arm_refresh();
-        self.follow_caret();
+        if !self.imp().editor.pressing_box() {
+            self.follow_caret();
+        }
         let mut typing = self.imp().typing.get();
         typing.keystroke(Self::now());
         self.imp().typing.set(typing);
