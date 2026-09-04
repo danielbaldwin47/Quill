@@ -80,7 +80,11 @@ fn beside(path: &Path, name: &str, extension: &str) -> PathBuf {
 /// `auto` is resolved here rather than kept, so a writer who carries a laptop
 /// across an ocean exports on the paper their desktop now names
 /// ([`Export::paper_size`]).
-fn geometry(export: &Export) -> Geometry {
+///
+/// Shared with the dialog ([`crate::export_dialog`]), which lays the same page
+/// out on the table the writer's Options moved, so that a Quick Export and a
+/// dialog export of the same settings are the same file.
+pub(crate) fn geometry(export: &Export) -> Geometry {
     let (width, height) = export.paper_size();
     Geometry {
         width,

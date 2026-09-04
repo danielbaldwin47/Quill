@@ -433,13 +433,14 @@ mod tests {
         assert_eq!(after, ["Close Window", "Quit"]);
     }
 
-    /// The Export rows that still want a dialog, and Print…, are greyed until
-    /// the ticket that wires each flips its `built`, which is the disabled
-    /// action the popover draws.
+    /// Print… is greyed until the ticket that wires it flips its `built`,
+    /// which is the disabled action the popover draws; every Export row above
+    /// it is built (#287, #288).
     #[test]
-    fn the_export_rows_that_need_a_dialog_are_not_built_yet() {
-        for id in ["export.pdf", "export.html", "export.markdown", "print"] {
-            assert!(!by_id(id).expect(id).built, "{id} is built");
+    fn print_is_the_row_still_waiting_for_its_ticket() {
+        assert!(!by_id(PRINT).expect(PRINT).built, "{PRINT} is built");
+        for id in ["export.pdf", "export.html", "export.markdown"] {
+            assert!(by_id(id).expect(id).built, "{id} is not built");
         }
     }
 
