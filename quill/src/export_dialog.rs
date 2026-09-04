@@ -345,7 +345,11 @@ fn switch(on: bool) -> gtk::Switch {
 }
 
 /// The paper dropdown, standing on `paper`.
-fn paper_drop_down(paper: Paper) -> gtk::DropDown {
+///
+/// The Settings window's Export group offers the same rows from the same
+/// table, so that a paper named there and a paper named here are the one list
+/// (#290).
+pub(crate) fn paper_drop_down(paper: Paper) -> gtk::DropDown {
     let words: Vec<&str> = PAPERS.iter().map(|(_, words)| *words).collect();
     let drop_down = gtk::DropDown::from_strings(&words);
     drop_down.set_selected(index_of(paper));
@@ -354,7 +358,7 @@ fn paper_drop_down(paper: Paper) -> gtk::DropDown {
 
 /// The paper the dropdown's `index`-th row names, and the default for an index
 /// [`PAPERS`] does not reach — which is what `GTK_INVALID_LIST_POSITION` is.
-fn paper_at(index: u32) -> Paper {
+pub(crate) fn paper_at(index: u32) -> Paper {
     usize::try_from(index)
         .ok()
         .and_then(|index| PAPERS.get(index))

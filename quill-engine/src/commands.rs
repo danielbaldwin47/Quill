@@ -233,7 +233,7 @@ pub const COMMANDS: &[Command] = &[
     row("export.markdown", "Markdown…", Scope::Win, Kind::Plain, &[], &[place(DOC, None, "Markdown…")], true),
     row("export.quick", "Quick Export PDF", Scope::Win, Kind::Plain, &["Ctrl+Shift+P"], &[place(DOC, None, "Quick Export PDF")], true),
     row("export.copyHtml", "Copy as HTML", Scope::Win, Kind::Plain, &["Ctrl+Shift+C"], &[place(DOC, None, "Copy as HTML")], true),
-    row("print", "Print…", Scope::Win, Kind::Plain, &["Ctrl+P"], &[place(DOC, None, "Print…")], false),
+    row("print", "Print…", Scope::Win, Kind::Plain, &["Ctrl+P"], &[place(DOC, None, "Print…")], true),
     row("window.close", "Close Window", Scope::Win, Kind::Plain, &["Ctrl+W"], &[place(DOC, None, "Close Window")], true),
     row("app.quit", "Quit", Scope::App, Kind::Plain, &["Ctrl+Q"], &[place(DOC, None, "Quit")], true),
     // View › Focus.
