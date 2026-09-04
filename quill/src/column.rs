@@ -27,17 +27,23 @@
 //!
 //! It is laid out on the pane's own refresh path
 //! ([`crate::window::Window::refresh_preview`], 200 ms after the last
-//! keystroke of a burst) and whenever the pane's width moves; scrolling only
-//! repaints, and repaints the pages in view.
+//! keystroke of a burst) and whenever the pane's width or the zoom moves;
+//! scrolling only repaints, and repaints the pages in view. What the pane's
+//! scroller does not do it does itself: a page grown past the pane by the zoom
+//! slides sideways under it ([`Column::pan_by`]), because the scroller is the
+//! Web sheet's too and a sheet has nothing sideways to scroll.
+
+use std::cell::Ref;
 
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
-use gtk::{gdk, glib, graphene};
+use gtk::{gdk, glib, graphene, pango};
 use quill_engine::document::Document;
 use quill_engine::draw;
 use quill_engine::paginate;
 use quill_engine::render;
 use quill_engine::settings::{Choice, Settings};
+use quill_engine::sync;
 use quill_engine::template;
 
 use crate::tags::pixels;
@@ -49,6 +55,17 @@ use crate::window::Window;
 /// gutter twice, which leaves the paper's edge visible against the surround
 /// rather than running it off the pane.
 const GUTTER: f64 = 24.0;
+
+/// The narrowest pane fit width still fits a whole page in, in logical pixels.
+///
+/// Below it the pages stop shrinking and the column pans instead: a page scaled
+/// to a sliver of a pane is a page nobody can read, and a pane that narrow is a
+/// divider dragged past what the mode is for.
+const NARROWEST: f64 = 240.0;
+
+/// How far one notch of a sideways wheel slides a page too wide for the pane,
+/// in logical pixels.
+const PAN: f64 = 48.0;
 
 /// The neutral the pages stand on, `#f7f7f7` in both themes.
 ///
@@ -62,6 +79,7 @@ mod imp {
     use gtk::glib;
     use gtk::subclass::prelude::*;
     use quill_engine::paginate::Laid;
+    use quill_engine::sync;
     use quill_engine::template::Template;
 
     use crate::window::Window;
@@ -76,9 +94,17 @@ mod imp {
         /// The Template the pages were laid out in, which the drawer is handed
         /// with them.
         pub template: RefCell<Option<Template>>,
-        /// Logical pixels to the point: what fit width worked out for the
-        /// width the pages were laid out at.
+        /// Logical pixels to the point: fit width for the width the pages were
+        /// laid out at, stepped by `[preview] zoom`.
         pub scale: Cell<f64>,
+        /// The pages as the sync rules read them: a block's key is the
+        /// Document's block index, as the sheet's rows are keyed, and its top
+        /// and height are the column's own pixels
+        /// ([`quill_engine::paginate::column_blocks`]).
+        pub blocks: RefCell<Vec<sync::Block>>,
+        /// How far the page is slid sideways under a pane too narrow to hold
+        /// it, in the column's own pixels; nought whenever it fits.
+        pub pan: Cell<f64>,
         /// How tall the whole column stands, in logical pixels — the
         /// scrollable height, kept here for the reason the sheet keeps its
         /// own: a column just laid out again is a height the scroller has not
@@ -178,8 +204,150 @@ impl Column {
         self.imp().height.get()
     }
 
+    /// The pages' blocks as the scroll sync rules read them, keyed by the
+    /// Document's block index exactly as the sheet's rows are, so the window's
+    /// follow glue is the same glue in both modes
+    /// ([`crate::preview::Preview::blocks`]).
+    ///
+    /// Borrowed rather than handed out, because an edit asks for them on every
+    /// keystroke.
+    pub(crate) fn rows(&self) -> Ref<'_, Vec<sync::Block>> {
+        self.imp().blocks.borrow()
+    }
+
+    /// The link whose words stand at `x`, `y` in the column's own pixels.
+    ///
+    /// The sheet answers this from the render pass's blocks, which stand where
+    /// it drew them; a page stands where the paginator's runs put them, so the
+    /// point is taken back to the paper it landed on, in points, and the run's
+    /// own lines are what carry the layout it is asked of.
+    pub(crate) fn link_at(&self, x: f64, y: f64) -> Option<String> {
+        let imp = self.imp();
+        let scale = imp.scale.get();
+        if scale <= 0.0 {
+            return None;
+        }
+        let laid = imp.laid.borrow();
+        let laid = laid.as_ref()?;
+        let paper = laid.frame.paper;
+        let (page_width, page_height) = (paper.width * scale, paper.height * scale);
+        let gap = gap(paper, scale);
+        let at = page_at(y, page_height, gap)?;
+        let page = laid.pages.get(at)?;
+        let left = self.left(f64::from(self.width()), page_width);
+        let point = (
+            (x - left) / scale,
+            (y - page_top(at, page_height, gap)) / scale,
+        );
+        for fragment in &page.fragments {
+            let Some(block) = laid.rendered.blocks.get(fragment.block) else {
+                continue;
+            };
+            for run in &fragment.runs {
+                let Some(placed) = block.layouts.get(run.placed) else {
+                    continue;
+                };
+                if let Some(destination) = link_in(placed, run, point) {
+                    return Some(destination);
+                }
+            }
+        }
+        None
+    }
+
+    /// Where the column stands with the page after the one at `offset` at the
+    /// pane's top edge, and where it stands with the one before it.
+    ///
+    /// A page rather than a screen: the pane's own page increment would leave a
+    /// reader a band of one page and a band of the next, and the column is
+    /// pages ([`page_step`] lands on one).
+    pub(crate) fn page_after(&self, offset: f64) -> f64 {
+        self.turn(offset, true)
+    }
+
+    /// Where the column stands with the page before the one at `offset` at the
+    /// pane's top edge ([`Column::page_after`]).
+    pub(crate) fn page_before(&self, offset: f64) -> f64 {
+        self.turn(offset, false)
+    }
+
+    /// Where the column stands with the last page at the pane's top edge, which
+    /// is where End goes.
+    pub(crate) fn last_page(&self) -> f64 {
+        let imp = self.imp();
+        let laid = imp.laid.borrow();
+        let Some(laid) = laid.as_ref() else {
+            return 0.0;
+        };
+        let scale = imp.scale.get();
+        let paper = laid.frame.paper;
+        let Some(last) = laid.pages.len().checked_sub(1) else {
+            return 0.0;
+        };
+        page_top(last, paper.height * scale, gap(paper, scale))
+    }
+
+    /// Slides a page too wide for the pane sideways by `notches` of a wheel, and
+    /// says whether it moved.
+    ///
+    /// The column pans itself rather than the pane scrolling: the pane's
+    /// scroller is the Web sheet's too, and a rendered page wraps in the
+    /// measure, so there is nothing sideways in it to scroll
+    /// ([`crate::preview::Preview::new`]).
+    pub(crate) fn pan_by(&self, notches: f64) -> bool {
+        let imp = self.imp();
+        let laid = imp.laid.borrow();
+        let Some(laid) = laid.as_ref() else {
+            return false;
+        };
+        let page = laid.frame.paper.width * imp.scale.get();
+        let was = self.pan(f64::from(self.width()), page);
+        let now = (was + notches * PAN).clamp(0.0, spare(f64::from(self.width()), page));
+        if (now - was).abs() < f64::EPSILON {
+            return false;
+        }
+        imp.pan.set(now);
+        self.queue_draw();
+        true
+    }
+
+    /// Where the column stands one page on from `offset`, or one page back.
+    fn turn(&self, offset: f64, forward: bool) -> f64 {
+        let imp = self.imp();
+        let laid = imp.laid.borrow();
+        let Some(laid) = laid.as_ref() else {
+            return offset;
+        };
+        let scale = imp.scale.get();
+        let paper = laid.frame.paper;
+        page_step(offset, paper.height * scale, gap(paper, scale), forward)
+    }
+
+    /// Where the page's left edge stands in a column `width` pixels wide.
+    ///
+    /// Centred in the pane while it fits, which is fit width and anything under
+    /// it; wider than the pane, the gutter stays on the leading edge and the
+    /// pan slides the paper under it.
+    fn left(&self, width: f64, page: f64) -> f64 {
+        let room = width - page;
+        if room >= 0.0 {
+            room / 2.0
+        } else {
+            GUTTER - self.pan(width, page)
+        }
+    }
+
+    /// How far the page is slid sideways, clamped to what there is to slide: a
+    /// pane made wider, or a zoom stepped back down, takes the page back with
+    /// it rather than leaving it off the edge.
+    fn pan(&self, width: f64, page: f64) -> f64 {
+        let pan = self.imp().pan.get().clamp(0.0, spare(width, page));
+        self.imp().pan.set(pan);
+        pan
+    }
+
     /// The window whose Document this column draws.
-    fn owner(&self) -> Option<Window> {
+    pub(crate) fn owner(&self) -> Option<Window> {
         self.imp()
             .window
             .borrow()
@@ -213,15 +381,17 @@ impl Column {
             f64::from(settings.export.text_size),
             &context,
         );
-        // Fit width is the whole of the scale here; the zoom rows step over it
-        // in #298.
-        let scale = fit(f64::from(width), paper.width);
+        // Fit width is what the zoom's 100 % means here, and the three zoom
+        // rows step over it: `[preview] zoom` is the one value both modes read.
+        let scale = scale(f64::from(width), paper.width, settings.preview.zoom);
         let height = stack(laid.pages.len(), paper.height * scale, gap(paper, scale));
+        let blocks = rows(&laid, scale);
         let imp = self.imp();
         imp.scale.set(scale);
         imp.height.set(height);
         imp.laid_at.set(width);
         imp.template.replace(Some(template));
+        imp.blocks.replace(blocks);
         imp.laid.replace(Some(laid));
         self.set_height_request(pixels(height));
         self.queue_draw();
@@ -264,7 +434,7 @@ impl Column {
         let paper = laid.frame.paper;
         let (page_width, page_height) = (paper.width * scale, paper.height * scale);
         let gap = gap(paper, scale);
-        let left = ((width - page_width) / 2.0).max(0.0);
+        let left = self.left(width, page_width);
         let (from, to) = self.in_view();
         for (at, page) in laid.pages.iter().enumerate() {
             let top = page_top(at, page_height, gap);
@@ -299,11 +469,124 @@ impl Column {
 
 /// The scale a column `width` logical pixels wide fits a page `paper` points
 /// wide at: fit width, which is what the zoom's 100 % means here.
+///
+/// A pane under [`NARROWEST`] fits the page it would fit at that width and pans
+/// the rest, rather than shrinking the paper away to nothing.
 fn fit(width: f64, paper: f64) -> f64 {
     if paper <= 0.0 {
         return 0.0;
     }
-    ((width - 2.0 * GUTTER) / paper).max(0.0)
+    ((width.max(NARROWEST) - 2.0 * GUTTER) / paper).max(0.0)
+}
+
+/// The scale a column `width` pixels wide draws a page `paper` points wide at,
+/// `zoom` per cent of fit width.
+///
+/// The zoom is a step over fit width and not a second geometry: 100 % is the
+/// page filling the pane less its gutters, and the range `[preview] zoom` is
+/// clamped to ([`quill_engine::settings::preview_zooms`]) is what the Web sheet
+/// steps over too.
+fn scale(width: f64, paper: f64, zoom: u32) -> f64 {
+    fit(width, paper) * f64::from(zoom) / 100.0
+}
+
+/// How much of a `page` pixels wide, with its gutters, a column `width` pixels
+/// wide has not got the room for: what there is to pan.
+fn spare(width: f64, page: f64) -> f64 {
+    (page + 2.0 * GUTTER - width).max(0.0)
+}
+
+/// The pages as the sync rules read them, in the column's own pixels.
+///
+/// The engine walks the fragments ([`paginate::column_blocks`], which is handed
+/// the gap in the points the paper is measured in); what this adds is the air
+/// above the first page, since the column stands its first page one gap down
+/// ([`page_top`]) and the engine counts from the first page's top edge.
+fn rows(laid: &paginate::Laid, scale: f64) -> Vec<sync::Block> {
+    let paper = laid.frame.paper;
+    let gap = gap(paper, scale);
+    paginate::column_blocks(laid, paper.margin, scale)
+        .into_iter()
+        .map(|block| sync::Block::new(block.key, block.top + gap, block.height))
+        .collect()
+}
+
+/// The page standing at `y` in the column's own pixels, or nothing where `y` is
+/// in the air between two pages or off either end.
+fn page_at(y: f64, page: f64, gap: f64) -> Option<usize> {
+    let pitch = page + gap;
+    if pitch <= 0.0 || y < gap {
+        return None;
+    }
+    let at = ((y - gap) / pitch).floor();
+    let at = usize::try_from(at as i64).ok()?;
+    (y <= page_top(at, page, gap) + page).then_some(at)
+}
+
+/// Where the column stands with the page after the one at `offset` at the top
+/// of the pane, or with the one before it.
+///
+/// Page-aligned either way, and the page under the top edge is the page turned
+/// from: a column standing part way down a page goes back to that page's own
+/// top before it goes back a page, which is what a reader means by both keys.
+fn page_step(offset: f64, page: f64, gap: f64, forward: bool) -> f64 {
+    let pitch = page + gap;
+    if pitch <= 0.0 {
+        return offset;
+    }
+    let at = ((offset - gap) / pitch).floor().max(0.0);
+    let here = gap + at * pitch;
+    if forward {
+        here + pitch
+    } else if offset - here > 1.0 {
+        here
+    } else {
+        here - pitch
+    }
+}
+
+/// The destination of the link at `at` — a point on the paper, in points — in
+/// the lines `run` carries of `placed`, or nothing where the point is on none
+/// of them.
+///
+/// The drawer's walk read backwards ([`draw::draw`]): the layout stands with
+/// its first line's top edge at [`paginate::Run::y`] and its left edge at
+/// [`paginate::Run::x`], so a point inside one of the run's lines is a point in
+/// the layout's own coordinates, and Pango says which byte it lands on.
+fn link_in(placed: &render::Placed, run: &paginate::Run, at: (f64, f64)) -> Option<String> {
+    let mut iter = placed.layout.iter();
+    let mut line = 0;
+    let mut origin = None;
+    loop {
+        if run.lines.contains(&line) {
+            let (top, bottom) = iter.line_yrange();
+            let origin = *origin.get_or_insert(run.y - back(top));
+            if at.1 >= origin + back(top) && at.1 < origin + back(bottom) {
+                let (inside, index, _) = placed
+                    .layout
+                    .xy_to_index(render::units(at.0 - run.x), render::units(at.1 - origin));
+                if !inside {
+                    return None;
+                }
+                let index = usize::try_from(index).unwrap_or(usize::MAX);
+                return placed
+                    .links
+                    .iter()
+                    .find(|link| link.at.contains(&index))
+                    .map(|link| link.destination.clone());
+            }
+        }
+        line += 1;
+        if !iter.next_line() {
+            break;
+        }
+    }
+    None
+}
+
+/// A length in Pango units, back in the points a page is measured in.
+fn back(units: i32) -> f64 {
+    f64::from(units) / f64::from(pango::SCALE)
 }
 
 /// The air between two pages, and above the first and below the last: one page
@@ -378,8 +661,82 @@ mod tests {
             "a paper with no width scales to nothing rather than dividing by nought"
         );
         assert!(
-            fit(10.0, width).abs() < f64::EPSILON,
-            "a pane narrower than its own gutters scales to nothing (#298 scrolls it)"
+            (fit(10.0, width) - fit(NARROWEST, width)).abs() < f64::EPSILON,
+            "a pane narrower than a page stops shrinking it and pans instead"
+        );
+    }
+
+    /// The zoom rows step over fit width, 100 % being fit width itself, and a
+    /// page grown past the pane leaves that much to pan.
+    #[test]
+    fn the_zoom_steps_over_fit_width_and_what_will_not_fit_is_what_pans() {
+        let width = 595.28;
+        let fit = fit(800.0, width);
+        assert!(
+            (scale(800.0, width, 100) - fit).abs() < f64::EPSILON,
+            "100 % is fit width"
+        );
+        assert!(
+            (scale(800.0, width, 200) - 2.0 * fit).abs() < 1e-9,
+            "200 % is twice it"
+        );
+        assert!(
+            (scale(800.0, width, 50) - fit / 2.0).abs() < 1e-9,
+            "50 % is half of it"
+        );
+        assert!(
+            spare(800.0, width * fit).abs() < f64::EPSILON,
+            "a page at fit width has nothing to pan"
+        );
+        let grown = width * scale(800.0, width, 200);
+        assert!(
+            (spare(800.0, grown) - (grown + 2.0 * GUTTER - 800.0)).abs() < 1e-9,
+            "a page past the pane pans by what it hangs over, its gutters included"
+        );
+    }
+
+    /// The Page keys land on a page top, and the page under the top edge is the
+    /// one they turn from.
+    #[test]
+    fn the_page_keys_land_page_aligned_and_turn_from_the_page_under_the_top_edge() {
+        let (page, gap) = (800.0, 40.0);
+        let (first, second) = (page_top(0, page, gap), page_top(1, page, gap));
+        assert!(
+            (page_step(0.0, page, gap, true) - second).abs() < f64::EPSILON,
+            "the top of the column turns to the second page"
+        );
+        assert!(
+            (page_step(second, page, gap, false) - first).abs() < f64::EPSILON,
+            "the second page's top turns back to the first"
+        );
+        assert!(
+            (page_step(second + 300.0, page, gap, false) - second).abs() < f64::EPSILON,
+            "part way down a page goes back to that page's own top"
+        );
+        assert!(
+            (page_step(second + 300.0, page, gap, true) - page_top(2, page, gap)).abs()
+                < f64::EPSILON,
+            "and forward to the next one"
+        );
+        assert_eq!(
+            page_at(first + 1.0, page, gap),
+            Some(0),
+            "a point on the first page is the first page's"
+        );
+        assert_eq!(
+            page_at(first + page + 1.0, page, gap),
+            None,
+            "a point in the air between two pages is on neither"
+        );
+        assert_eq!(
+            page_at(second + 1.0, page, gap),
+            Some(1),
+            "and a point past that air is the second page's"
+        );
+        assert_eq!(
+            page_at(gap / 2.0, page, gap),
+            None,
+            "the air above the first page is on no page either"
         );
     }
 }
