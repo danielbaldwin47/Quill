@@ -156,6 +156,10 @@ mod imp {
         /// The rule that last placed the Preview, re-applied after a refresh
         /// (`Window::refollow`).
         pub follows: Cell<Follows>,
+        /// Whether a furniture pass is owed on the next frame, so that the many
+        /// scrolls one frame brings ask for one pass and not one each
+        /// (`Window::arm_refurnish`).
+        pub furnish_owed: Cell<bool>,
         /// The title bar above the Editor and the stats bar below it.
         pub bars: Bars,
         /// The Library beside the page, hidden until `library.toggle` shows
@@ -2193,6 +2197,10 @@ impl Window {
     ///
     /// Live off is a borrow and a return in the Editor, so this is connected
     /// once for the window's life rather than switched with the mode.
+    ///
+    /// Neither feed furnishes on the spot ([`Window::arm_refurnish`]): GTK
+    /// emits both from inside `size_allocate`, on a layout it has not validated
+    /// yet, and the pass reads the view for the rows on the glass.
     fn watch_furniture(&self) {
         let Some(scroller) = self.imp().scroller.get() else {
             return;
@@ -2201,12 +2209,38 @@ impl Window {
         adjustment.connect_value_changed(glib::clone!(
             #[weak(rename_to = window)]
             self,
-            move |_| window.refurnish(),
+            move |_| window.arm_refurnish(),
         ));
         adjustment.connect_changed(glib::clone!(
             #[weak(rename_to = window)]
             self,
-            move |_| window.refurnish(),
+            move |_| window.arm_refurnish(),
+        ));
+    }
+
+    /// Asks for the furniture to be worked out again on the next frame, unless
+    /// a pass is already owed.
+    ///
+    /// Two things at once. The many `value-changed` a wheel, a glide or an
+    /// allocation emit become one pass, in the frame's UPDATE phase; and that
+    /// phase is after GTK's own validate idle and never inside `size_allocate`,
+    /// where the layout is mid-flight and the lookups the pass makes of it
+    /// abort (#277). A tick armed during LAYOUT — a resize — runs on the frame
+    /// after, so a resize shows one frame of rows without their furniture.
+    fn arm_refurnish(&self) {
+        if self.imp().furnish_owed.replace(true) {
+            return;
+        }
+        self.imp().editor.add_tick_callback(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            #[upgrade_or]
+            glib::ControlFlow::Break,
+            move |_, _| {
+                window.imp().furnish_owed.set(false);
+                window.refurnish();
+                glib::ControlFlow::Break
+            }
         ));
     }
 
