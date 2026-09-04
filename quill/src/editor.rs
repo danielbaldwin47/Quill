@@ -16,20 +16,26 @@
 //! type in the tickets that follow.
 
 use std::cell::{Cell, RefCell};
+use std::collections::BTreeMap;
 use std::ops::Range;
 use std::time::Duration;
 
 use gtk::gdk;
+use gtk::gio;
 use gtk::glib;
 use gtk::graphene;
+use gtk::gsk;
 use gtk::pango;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
+use quill_engine::annotate::live::{self, Furniture, LiveLook, LiveSpan};
 use quill_engine::annotate::{self, Painted};
 use quill_engine::document::{Document, Edit};
 use quill_engine::focus::typewriter::{self, Glide, Hold, Typewriter};
 use quill_engine::focus::{self, Focus, LineTiers};
+use quill_engine::markdown;
 use quill_engine::settings::Face;
+use quill_engine::sync;
 use quill_engine::theme::{self, Colour, Colours, Role, Scheme};
 use quill_engine::typography;
 
@@ -92,6 +98,29 @@ const LAYOUT_SCALE: f64 = 1.0;
 /// what keeps a scroll from showing the seam: the rows a frame is about to
 /// need are already drawn when it arrives.
 const SELECTION_SLACK: f64 = 6.0;
+
+/// How wide a bullet's dot is drawn, as a share of the em.
+///
+/// A typographic `•` is about a third of the em across in a text face, and
+/// this is furniture standing where one would: measured off the Design
+/// oracle's own list marker and rounded to a number a reader of this file can
+/// hold. See [`Editor::draw_bullet`] for why it is drawn rather than set.
+const BULLET: f64 = 0.3;
+
+/// How far above the baseline the middle of a lower-case letter sits, as a
+/// share of the em.
+///
+/// The height a bullet and a task box are centred on, because that is where a
+/// reader's eye finds the middle of a line of prose: half of an x-height, and
+/// an x-height is around half an em in every one of the six Faces. Nothing is
+/// measured off it that a fraction of a pixel would change.
+const X_HEIGHT: f64 = 0.25;
+
+/// How wide a task box is drawn, as a share of the em.
+///
+/// A shade under the x-height's own square, so that the box reads as one of
+/// the line's letters rather than as a panel dropped into it.
+const CHECKBOX: f64 = 0.58;
 
 /// The weight ink is set at on paper: `--ink-weight: 415` in
 /// `legacy/app/css/type.css`, a little heavier than Regular because a light
@@ -185,6 +214,20 @@ pub struct Travel {
     started: i64,
 }
 
+/// Where the caret's row stood before a fold redrew the page around it: the
+/// anchor a reflow is settled against ([`Editor::anchor_row`]).
+///
+/// `pub` for the reason [`Travel`] is.
+#[derive(Clone, Copy)]
+pub struct Reflow {
+    /// The row's top in the vertical adjustment's coordinate, as
+    /// [`Editor::row_of`] counts it.
+    row: f64,
+    /// How far down the glass that row stood: the row less the adjustment's
+    /// value. What the settle puts back.
+    screen: f64,
+}
+
 /// The lines the bytes an edit put in lie on; none for a deletion.
 ///
 /// Drawn again with Focus on ([`Editor::retag`]): the buffer gives an
@@ -256,12 +299,13 @@ mod imp {
     use gtk::glib;
     use gtk::subclass::prelude::*;
     use quill_engine::settings::Face;
+    use quill_engine::typography;
 
     use quill_engine::focus::{Focus, LineTiers};
 
     use crate::ground::Ground;
 
-    use super::{Fade, Travel};
+    use super::{Fade, Reflow, Travel};
     use crate::caret;
     use quill_engine::focus::typewriter::Typewriter;
 
@@ -294,6 +338,12 @@ mod imp {
         /// kept with the type: placing the bar on the keystroke path must not
         /// cost a row measured again.
         pub pitch: Cell<u32>,
+        /// How the type's air is split above and below a paragraph. A
+        /// function of the type, so it is kept with the type: the view is set
+        /// to the sum of the two halves, and the half that no longer reaches
+        /// the view is what the page's bottom margin and the code well's tags
+        /// are worked out from ([`Editor::restyle`](super::Editor::restyle)).
+        pub leading: Cell<typography::Leading>,
         /// How much Focus leaves lit, held here for the same reason as the
         /// ground: it is read at every draw, and it is the value the pair the
         /// session holds becomes ([`focus::Focus::at`]).
@@ -302,6 +352,41 @@ mod imp {
         /// next caret move can be told which lines changed and redraw only
         /// those ([`focus::changed`]). Empty with Focus off.
         pub tiers: RefCell<Vec<LineTiers>>,
+        /// Whether Live is on: the markup rendered in place rather than
+        /// written out. Held beside the Focus it reads like — a mode read at
+        /// every draw, and a `Cell` is a read and no borrow.
+        pub live: Cell<bool>,
+        /// The lines Live last left unfolded, so that a caret move can fold
+        /// the block it left in the same pass that unfolds the one it entered
+        /// ([`Editor::refold`]). `None` with Live off, and while it has not
+        /// been worked out yet.
+        pub open: RefCell<Option<std::ops::Range<usize>>>,
+        /// Whether a pointer button is down. Nothing the writer can see moves
+        /// while it is — neither the fold nor the caret's band — because text
+        /// that moved under a held button turns a click into a drag across
+        /// whatever slid past
+        /// ([`Editor::released`](super::Editor::released)).
+        pub held: Cell<bool>,
+        /// Whether a refold was asked for while a button was down, and so is
+        /// owed at the release.
+        pub fold_owed: Cell<bool>,
+        /// Whether a caret move asked the band to follow while a button was
+        /// down, and so is owed at the release
+        /// ([`crate::caret::waits_for_release`]).
+        pub follow_owed: Cell<bool>,
+        /// Where the fold was last committed to putting the writer, which is
+        /// what every draw between two refolds paints from
+        /// ([`Editor::painting`](super::Editor::painting)). The live caret
+        /// would fold the page to a place the fold has not moved to yet, which
+        /// is the same reflow under a held button by another road.
+        pub writer: RefCell<std::ops::Range<usize>>,
+        /// What Live's fold left standing in the marker cells, in the
+        /// buffer's own offsets, top to bottom
+        /// ([`Editor::refurnish`](super::Editor::refurnish)). Empty with Live
+        /// off. Held rather than asked for at the draw because the snapshot
+        /// has no Document to ask: it is worked out on the passes that have
+        /// one and read by the frame that paints it.
+        pub furniture: RefCell<Vec<super::Furnishing>>,
         /// How far the baseline sits below the top of the box
         /// `iter_location` answers with, which is what the bar's band is
         /// anchored to. See [`Editor::bar`], and [`caret::band_top`] for why
@@ -344,6 +429,13 @@ mod imp {
         /// that was ([`quill_engine::focus::typewriter::POINTER_MS`]). `None`
         /// until the first press.
         pub pressed: Cell<Option<i64>>,
+        /// Whether the edit now reaching the buffer is a task box being
+        /// flipped by a press ([`Editor::press`](super::Editor::press)) rather
+        /// than something the writer typed. The caret's machine stands down
+        /// while it is set: the caret did not move and was not written at, so
+        /// nothing holds the blink and nothing brings the row back into the
+        /// band. Named apart from `ticking`, which is the frame clock's.
+        pub pressing_box: Cell<bool>,
         /// The Typewriter glide in flight, if the view is on its way to where
         /// the row is held. `None` between glides, and always under
         /// `--deterministic`, which jumps instead.
@@ -353,6 +445,16 @@ mod imp {
         /// asks for frames, and a blinking caret over a settled page does not
         /// move the view.
         pub gliding: Cell<bool>,
+        /// Where the caret's row stood before a fold redrew the page, while
+        /// the frame that settles the reflow against it is still to come
+        /// ([`Editor::anchor_row`](super::Editor::anchor_row)). `None` between
+        /// folds, which is every frame but the one after one.
+        pub reflow: Cell<Option<Reflow>>,
+        /// Set while a settled reflow is putting the caret's row back on the
+        /// glass. The scroll it makes is the page moving under a row that did
+        /// not, so it is not a writer scrolling and nothing follows it: the
+        /// window reads this at the top of its top-block rule.
+        pub shifting: Cell<bool>,
         /// Whether the last placement is still owed the scroll that shows
         /// where the caret went. Every placement sets it to what it asked
         /// for, so a placement that wants no reveal calls off one still
@@ -412,7 +514,7 @@ mod imp {
     }
 
     impl TextViewImpl for Editor {
-        /// The selection and the caret, and nothing else, around the text.
+        /// The selection, Live's furniture and the caret, around the text.
         ///
         /// The fill goes under the glyphs and the caret over them. Never both
         /// at once: the caret is out for as long as a selection stands
@@ -444,6 +546,11 @@ mod imp {
                 self.obj().draw_selection_fill(&snapshot);
             }
             if layer == gtk::TextViewLayer::AboveText {
+                // Over the glyphs, with the caret and under it: furniture is
+                // ink standing in the cells a marker left, so it takes the
+                // ink's own side of the selection's fill, and the caret is
+                // drawn over it as it is drawn over a letter (#274).
+                self.obj().draw_furniture(&snapshot);
                 self.obj().draw_caret(&snapshot);
             }
         }
@@ -467,6 +574,91 @@ struct Selection {
     /// The whole of it. A selection carries no bars at either end and no
     /// caret: see [ADR 0014](../../docs/adr/0014-a-selection-is-a-fill-and-nothing-else.md).
     rows: Vec<caret::Bar>,
+}
+
+/// One piece of furniture Live left standing, and where the buffer holds it.
+///
+/// [`quill_engine::annotate::live::Furniture`] as the widget can use it
+/// without a Document in hand: the byte ranges are the buffer's own offsets,
+/// and a link's destination is already resolved to the address a click opens.
+/// Both crossings are made where there is a Document to make them
+/// ([`Editor::refurnish`]), because the snapshot and the pointer have none.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Furnishing {
+    /// The cells it stands in, in the buffer's offsets: a marker's, folded to
+    /// its own ground so its advance is still there to stand in
+    /// ([`tags`]), or a link's own words.
+    at: Range<i32>,
+    /// What stands there.
+    what: Furnish,
+}
+
+impl Furnishing {
+    /// The cells a task box stands in, in the buffer's offsets, if this is a
+    /// task box.
+    fn box_cells(&self) -> Option<Range<i32>> {
+        let Furnish::Checkbox { box_at, .. } = &self.what else {
+            return None;
+        };
+        Some(self.at.start + box_at.start..self.at.start + box_at.end)
+    }
+}
+
+/// What one [`Furnishing`] is.
+///
+/// [`Furniture::Fence`] has no member here: a fence's furniture is the Well
+/// the code already stands on, so there is nothing left to draw where the
+/// backticks were, and nothing to click.
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum Furnish {
+    /// A bullet item's dot.
+    Bullet,
+    /// An ordered item's number as the source counted it, with the byte it
+    /// wrote after the count: `.` or `)`.
+    Number {
+        /// The count the marker counts with.
+        count: u32,
+        /// `.` or `)`, as the source wrote it.
+        delimiter: char,
+    },
+    /// A task item's box, ticked or not, and the `[ ]` or `[x]` a press on it
+    /// rewrites — which is the one cell inside the brackets and not the whole
+    /// marker, so that the item's words never move under the writer's finger.
+    Checkbox {
+        /// The box's own cells, counted from the first of the furnishing's.
+        ///
+        /// Relative, so that nothing but [`Editor::refurnish`] has to cross
+        /// into the buffer's offsets: a task item's marker is ASCII from end
+        /// to end — its indent, its bullet and its brackets — so the buffer
+        /// counts those cells one for one with the Document's bytes and the
+        /// two offsets add.
+        box_at: Range<i32>,
+        /// Whether it is ticked.
+        checked: bool,
+    },
+    /// The rule a thematic break draws.
+    Hairline,
+    /// A link's words, and the address Ctrl+click opens.
+    Link {
+        /// Resolved: an inline link's own destination, or what a reference
+        /// link's label is defined as ([`markdown::reference`]).
+        destination: String,
+    },
+}
+
+/// One display row a [`Furnishing`] runs across, in the buffer coordinates
+/// `iter_location` answers in.
+#[derive(Clone, Copy, Debug)]
+struct Cells {
+    /// The left edge of the first cell on the row.
+    x: f64,
+    /// The top of the row's box.
+    y: f64,
+    /// How far the cells reach across it.
+    w: f64,
+    /// The row's own box, as the view laid it out: what [`Editor::band`]
+    /// reads a row's height from under Live.
+    row: gdk::Rectangle,
 }
 
 impl Editor {
@@ -513,21 +705,28 @@ impl Editor {
         clicks.connect_pressed(glib::clone!(
             #[weak(rename_to = editor)]
             self,
-            move |_, _, _, _| {
+            move |clicks, _, x, y| {
                 editor.imp().last.set(caret::Source::Pointer);
+                // The fold stands still until the button comes up: a block
+                // folding under a held pointer moves the text the release will
+                // be read against ([`Editor::released`]).
+                editor.imp().held.set(true);
                 // Stamped here, in the capture phase, so that the caret move
                 // the press makes finds the press already on record.
                 editor.imp().pressed.set(Some(editor.now()));
+                // And the one press that is not a caret move at all: on a task
+                // box, or on a link's words with Ctrl down. The capture phase
+                // is where it has to be answered, because it is answered by
+                // claiming the press before GTK turns it into a move.
+                editor.press(clicks, x, y);
             },
         ));
-        // And at the release, as the oracle stamps both (`focus.js:266-267`):
-        // a drag held longer than the pointer window still ends in a nudge.
-        clicks.connect_released(glib::clone!(
-            #[weak(rename_to = editor)]
-            self,
-            move |_, _, _, _| editor.imp().pressed.set(Some(editor.now())),
-        ));
         self.add_controller(clicks);
+        // The release is stamped too, as the oracle stamps both
+        // (`focus.js:266-267`), but by [`Editor::released`] rather than by a
+        // second handler here: this gesture is denied for a claimed sequence —
+        // a task box, GTK's own selection drag — and a denied gesture is never
+        // told about the release, which is the very case the stamp is for.
 
         // A hand on the wheel takes the view from a glide in flight
         // (`focus.js:268-269`): the next frame finds nothing to carry and
@@ -641,18 +840,51 @@ impl Editor {
         self.imp().focus.set(focus);
     }
 
+    /// Whether Live is on when this Editor opens.
+    ///
+    /// Beside [`Editor::open_focused_on`] and for its reason: `--live` names a
+    /// state the first frame is meant to show, and a frame that showed the
+    /// markers before folding them would be a flash of the wrong page. The
+    /// fold itself is worked out by [`Editor::show_document`], which is the
+    /// first draw and the first thing with a caret to work it out from.
+    pub fn open_live_on(&self, live: bool) {
+        self.imp().live.set(live);
+    }
+
     /// Everything but the text that decides how this Editor draws.
     ///
     /// `tiers` is borrowed rather than read from the Editor here, because every
     /// caller already holds the borrow: the tiers are worked out and drawn in
     /// one breath, and a second borrow inside a draw is a second chance for
     /// them to be the tiers of a different caret.
+    ///
+    /// Live's half is the writer the fold was last committed at
+    /// ([`Editor::refold`]) rather than the caret as the buffer now holds it:
+    /// a draw that folded to a caret the fold has not moved to yet would take
+    /// bytes off the page between the fold's own two passes, which is the
+    /// reflow under a held button that [`Editor::released`] exists to prevent.
     fn painting<'a>(&self, tiers: &'a [LineTiers]) -> tags::Painting<'a> {
+        let writer = self.imp().writer.borrow().clone();
+        self.painting_at(&writer, tiers)
+    }
+
+    /// [`Editor::painting`], for a writer whose place the buffer does not hold
+    /// yet.
+    ///
+    /// The same reason [`Editor::retier_at`] takes one: a Document is drawn
+    /// before its cursor is placed, and Live's fold is a judgement about where
+    /// the writer is, so the place it opens at is named rather than read.
+    fn painting_at<'a>(&self, at: &Range<usize>, tiers: &'a [LineTiers]) -> tags::Painting<'a> {
         tags::Painting {
             face: self.imp().face.get(),
             colours: self.colours(),
+            leading: self.imp().leading.get(),
             focus: self.imp().focus.get(),
             tiers,
+            live: self.imp().live.get().then_some(tags::Writer {
+                start: at.start,
+                end: at.end,
+            }),
         }
     }
 
@@ -709,6 +941,7 @@ impl Editor {
     /// which is most of them, since a sentence is many keystrokes wide — draws
     /// nothing at all.
     pub fn refocus(&self, document: &Document) {
+        self.refold(document);
         let before = self.imp().tiers.borrow().clone();
         let moved = self.retier(document);
         if moved.is_empty() {
@@ -721,6 +954,270 @@ impl Editor {
         self.settle_fade(document);
         self.redraw(document, &moved);
         self.begin_fade(document, &before, &moved);
+    }
+
+    /// Folds the block the writer left and unfolds the one they are in, in one
+    /// pass.
+    ///
+    /// The caret feed Live listens to, beside the one Focus listens to, and
+    /// the two are drawn in the same breath for the same reason
+    /// [`Editor::retag`] draws the edit and the dim together: a fold and an
+    /// unfold that arrived a frame apart would be a flash of a page with two
+    /// blocks open, or none.
+    ///
+    /// Nothing but the two blocks is drawn, which is what keeps Live on the
+    /// keystroke path: a caret walking along the sentence it is in leaves the
+    /// same lines open and draws nothing at all.
+    ///
+    /// Nothing at all is drawn while a pointer button is down: the fold is put
+    /// on the slate and paid at the release ([`Editor::released`]), because a
+    /// block folding under a held button moves the text out from under the
+    /// pointer and GTK reads the release's own coordinates. A key press is not
+    /// a held button and folds at once, as it always did.
+    ///
+    /// Whenever it does draw, the caret's row is anchored across the reflow and
+    /// put back on the glass a frame later ([`Editor::anchor_row`]): a fold
+    /// never moves the caret's row.
+    fn refold(&self, document: &Document) {
+        if !self.imp().live.get() {
+            return;
+        }
+        if self.imp().held.get() {
+            self.imp().fold_owed.set(true);
+            return;
+        }
+        let at = self.caret_bytes(document);
+        let now = self.open_lines(document, &at);
+        // Committed whether or not the open lines moved, because it is what
+        // every draw until the next refold folds to: an edit that left the
+        // same lines open still moved the bytes the fold is written in.
+        self.imp().writer.replace(at);
+        let was = self.imp().open.replace(Some(now.clone()));
+        let Some(lines) = refolded(was, now) else {
+            return;
+        };
+        // The rows above the caret are about to measure differently, and the
+        // caret's row is not to move on the glass for that.
+        self.anchor_row();
+        self.redraw(document, &lines);
+        // The block the writer left is furnished and the one they entered is
+        // not, so the furniture moves with the fold and in the same pass, for
+        // the reason the fold moves in one: two frames apart is a flash of a
+        // dot standing on the `-` it replaced.
+        self.refurnish(document);
+    }
+
+    /// A pointer button came up: the fold moves now, and the caret's band
+    /// follows now, if either was asked to while the button was down.
+    ///
+    /// The other half of [`Editor::refold`]'s standing still, and of
+    /// [`Editor::keep_in_band`]'s. A click high or low on the page moves the
+    /// caret, and a band that glided the row in there and then would slide
+    /// text under a pointer GTK is already running a selection drag from
+    /// ([`caret::waits_for_release`]) — so the follow is owed here, after the
+    /// refold, and a click ends with the row where the modes want it and
+    /// nothing selected (#263, the third Hand test round).
+    ///
+    /// The writer's
+    /// range at the release is the selection if the press turned into a drag,
+    /// so every block the drag crossed unfolds together and none of them moved
+    /// under the pointer on the way. The word under the pointer stays under it
+    /// as well: the fold the release pays anchors the caret's row
+    /// ([`Editor::anchor_row`]), so the paragraphs above it move and the
+    /// clicked row does not.
+    ///
+    /// Heard by the window, from a legacy event controller rather than a
+    /// gesture: the press on a task box claims its sequence and so does GTK's
+    /// own selection drag, a claimed sequence denies every other gesture on
+    /// the widget, and a denied gesture's `released` never fires — which would
+    /// leave the fold held down for good.
+    pub fn released(&self, document: &Document) {
+        self.imp().held.set(false);
+        if self.imp().fold_owed.take() {
+            self.refold(document);
+        }
+        // The release is a nudge of its own, as the oracle stamps it
+        // (`focus.js:266-267`), and it is stamped here rather than only on the
+        // `GestureClick` because a claimed sequence — GTK's own selection drag
+        // — denies that gesture and its `released` never fires. Without the
+        // stamp a drag held longer than the pointer window would pay the owed
+        // follow under Typewriter's anchor instead of the pointer band.
+        self.imp().pressed.set(Some(self.now()));
+        // After the refold, not before: the fold's [`Editor::anchor_row`]
+        // settles on the next frame and [`Editor::settle_reflow`] shifts a
+        // glide already in flight, so a glide started here lands where it
+        // aimed.
+        if self.imp().follow_owed.take()
+            && let Some(bar) = self.bar()
+        {
+            self.keep_in_band(bar);
+        }
+    }
+
+    /// Whether the edit now reaching the buffer is a task box a press is
+    /// flipping ([`Editor::press`]) rather than something the writer typed.
+    ///
+    /// Read by the window: the buffer's `changed` is emitted from inside the
+    /// press's own edit, and `quill::window`'s `typed` would otherwise put the
+    /// Preview on the caret's block for an edit the caret did not make.
+    #[must_use]
+    pub fn pressing_box(&self) -> bool {
+        self.imp().pressing_box.get()
+    }
+
+    /// The lines of the parts the writer's range reaches: what Live leaves
+    /// unfolded.
+    ///
+    /// Live's part rather than the Document's block ([`live::part_at`]), which
+    /// is the same thing for everything but a list: a list is one block and
+    /// many parts, and a caret walking from one item to the next left the
+    /// block it was in, so a fold keyed on the block saw nothing change and
+    /// neither item was drawn again. Wider than the fold moved would only cost
+    /// a redraw — a line drawn again is drawn as Live now says it is — but
+    /// narrower leaves a marker behind, and the block is narrower nowhere and
+    /// wider only here.
+    ///
+    /// A part starts at a marker, which is the start of a line, so no line
+    /// belongs to two parts and the lines below are the part's own.
+    fn open_lines(&self, document: &Document, at: &Range<usize>) -> Range<usize> {
+        let text = document.text().len();
+        let part = |offset: usize| live::part_at(document, offset.min(text));
+        let start = part(at.start).map_or(0, |part| part.start);
+        let end = part(at.end).map_or(text, |part| part.end);
+        let first = document.place(start).line;
+        let last = document.place(end.saturating_sub(1).max(start)).line;
+        first..last + 1
+    }
+
+    /// What a press does when it lands on Live's furniture.
+    ///
+    /// Two presses are not caret moves. One on a task item's marker cells
+    /// flips its box; Ctrl and one on a link's words opens the destination
+    /// through the desktop's default handler. Both claim the gesture, so GTK
+    /// never turns the press into a move: a caret landing in the item would
+    /// unfold it, and the writer who ticked a box would be left looking at the
+    /// `[x]` they meant to be shown as a tick. Every other press is left
+    /// entirely alone and places the caret as it always did, which unfolds the
+    /// block under it.
+    ///
+    /// The whole answer is read off the buffer's offsets and the furnishings
+    /// already worked out ([`Editor::refurnish`]), because a gesture is handed
+    /// a position and no Document.
+    ///
+    /// The y is handed to `iter_at_location` as it arrives. The band that had
+    /// to be clamped out of — the `pixels-below-lines` GTK left under a
+    /// paragraph's last row, where it aborts on a line holding invisible bytes
+    /// — is gone: the view carries no `pixels-below-lines` at all (#279,
+    /// [`Editor::restyle`]).
+    ///
+    /// A box press is an edit the caret did not make, so the caret's machine
+    /// stands down for it: the `pressing_box` flag is up across the edit and
+    /// [`Editor::caret_edit_began`] and [`Editor::caret_edited`] return while
+    /// it is. The window's own handlers are untouched — the splice, the retag,
+    /// the furniture and autosave all run.
+    fn press(&self, clicks: &gtk::GestureClick, x: f64, y: f64) {
+        if !self.imp().live.get() {
+            return;
+        }
+        let (bx, by) =
+            self.window_to_buffer_coords(gtk::TextWindowType::Widget, buffer_px(x), buffer_px(y));
+        let Some(at) = self.iter_at_location(bx, by).map(|at| at.offset()) else {
+            return;
+        };
+        let ctrl = clicks
+            .current_event_state()
+            .contains(gdk::ModifierType::CONTROL_MASK);
+        let furniture = self.imp().furniture.borrow();
+        let Some(standing) = furniture.iter().find(|standing| standing.at.contains(&at)) else {
+            return;
+        };
+        // Cloned and the borrow dropped before anything is done about it: a
+        // press on a box edits the buffer, the edit is spliced and retagged,
+        // and the retag asks for the furniture again.
+        let what = standing.what.clone();
+        let box_at = standing.box_cells();
+        drop(furniture);
+        match what {
+            Furnish::Checkbox { checked, .. } if !ctrl => {
+                let Some(box_at) = box_at else { return };
+                // The caret's machine stands down for the edit this makes: it
+                // is the box's, not the writer's, and the caret is wherever it
+                // already was, most likely on another block entirely.
+                self.imp().pressing_box.set(true);
+                tick(&self.buffer(), &box_at, !checked);
+                self.imp().pressing_box.set(false);
+            }
+            Furnish::Link { destination } if ctrl => {
+                open(
+                    &destination,
+                    self.root().and_downcast::<gtk::Window>().as_ref(),
+                );
+            }
+            _ => return,
+        }
+        clicks.set_state(gtk::EventSequenceState::Claimed);
+    }
+
+    /// Works out what stands in the cells Live's fold emptied.
+    ///
+    /// The one pass that turns [`Furniture`] into a [`Furnishing`]: the
+    /// Document's bytes into the buffer's own offsets, a task box's brackets
+    /// out of the marker they sit in, and a reference link's label into the
+    /// address it is defined as. All three want the Document, and the two
+    /// things that read the answer have none — a snapshot is handed a frame
+    /// clock and a gesture a pointer position — so the crossing is made here,
+    /// on the passes that are already holding one, and the answer is kept.
+    ///
+    /// Bounded by the page on the glass ([`Editor::furnished`]), which is the
+    /// bound the keystroke lane wants: a furnishing is held at an offset the
+    /// buffer counts, and an edit anywhere moves every offset below it, so the
+    /// list is thrown away and worked out again on every edit and every fold
+    /// move. Paid only with Live on: `live/folded` is the one judged state that
+    /// pays it, and `tools/regimes.mjs`'s `live_end_of_draft` regime launches
+    /// `--live`, so the bench pins what it costs a keystroke.
+    ///
+    /// The viewport moves without the buffer moving, so a scroll and a resize
+    /// are feeds of their own: `quill::window`'s `watch_furniture` calls this
+    /// again for the rows they brought in.
+    pub(crate) fn refurnish(&self, document: &Document) {
+        let mut furniture = Vec::new();
+        if self.imp().live.get() {
+            let buffer = self.buffer();
+            let at = self.caret_bytes(document);
+            let over = self.furnished(document);
+            furniture = standing(document, &at, &over)
+                .into_iter()
+                .map(|(at, what)| Furnishing {
+                    at: tags::offsets_of(&buffer, document, &at),
+                    what,
+                })
+                .collect();
+        }
+        if *self.imp().furniture.borrow() != furniture {
+            self.imp().furniture.replace(furniture);
+            self.queue_draw();
+        }
+    }
+
+    /// The Document bytes [`Editor::refurnish`] works furniture out over: the
+    /// rows [`Editor::seen`] holds, which are the rows
+    /// [`Editor::draw_furniture`] draws.
+    ///
+    /// The whole Document before the widget has an allocation to read a
+    /// viewport off — opening one, where the view is still nothing by nothing.
+    /// That pass is the cost of opening a Document rather than of a keystroke,
+    /// and it is what leaves the first frame furnished all the way down: an
+    /// allocation is not a signal this widget hears, so a page bounded to a
+    /// viewport of nothing would stay bare until the first edit.
+    fn furnished(&self, document: &Document) -> Range<usize> {
+        if self.visible_rect().height() <= 0 {
+            return 0..document.text().len();
+        }
+        let buffer = self.buffer();
+        let seen = self.seen();
+        let start = tags::offset_of(document, &buffer.iter_at_offset(seen.start));
+        let end = tags::offset_of(document, &buffer.iter_at_offset(seen.end));
+        start..end.max(start)
     }
 
     /// Draws each of `lines` again in the tiers the Editor now holds, inside
@@ -795,12 +1292,31 @@ impl Editor {
         // The caret's band and its unit, kept with the type: a bar placed on
         // the keystroke path must not cost a row measured all over again.
         self.imp().pitch.set(pitch);
+        self.imp().leading.set(leading);
         self.imp().baseline.set(self.row_baseline());
         self.tell_caret(|caret| caret.resize(self.em()));
-        self.set_pixels_above_lines(signed(leading.above));
+        // The whole gap between two paragraphs goes above them, and nothing
+        // below: `gtk_text_layout_get_iter_at_position` answers a y in the
+        // band `pixels-below-lines` leaves under a paragraph's last row by
+        // handing the line's raw byte count to a setter that wants a visible
+        // index, which aborts on any line holding invisible bytes — so under
+        // Live on every folded paragraph, on GTK's own click, drag, drop and
+        // page-scroll paths as well as on Quill's (#279).
+        //
+        // Every glyph row stays where it was, because every box keeps its
+        // height and each one starts `below` higher: the page's top margin
+        // gives that much back, and [`Editor::lay_out`]'s bottom margin gives
+        // back what the last paragraph no longer carries. The subtraction
+        // never goes negative — `page_top` is two pitches and `below` is under
+        // half of one row's worth of air. The code well is a paragraph
+        // background, which GTK paints over the whole line box, leading
+        // included, so its boundary rows and their neighbours are given
+        // `below` back through tags.
+        self.set_pixels_above_lines(signed(leading.above + leading.below));
         self.set_pixels_inside_wrap(signed(leading.inside_wrap));
-        self.set_pixels_below_lines(signed(leading.below));
-        self.set_top_margin(signed(typography::page_top(pitch)));
+        self.set_pixels_below_lines(0);
+        self.set_top_margin(signed(typography::page_top(pitch) - leading.below));
+        tags::well_leading(&self.buffer(), leading);
         // The cell a heading's markers hang by moves with the size, so the
         // page is laid out from scratch rather than compared with the last
         // one: the column can be the same width at two sizes, and the hang
@@ -833,10 +1349,26 @@ impl Editor {
         let side = signed(page.column.side);
         self.set_left_margin(side);
         self.set_right_margin(side);
-        self.set_bottom_margin(page.bottom);
+        // Plus the half of the gap the last paragraph no longer draws under
+        // itself, so the end of the draft stops where it did ([`Editor::restyle`]).
+        self.set_bottom_margin(page.bottom + signed(self.imp().leading.get().below));
         // The heading markers hang into this container's gutter, so they are
         // re-hung with it: both halves of the pair move, the measure's edge
         // with the window and the marker run with the type.
+        self.hang();
+    }
+
+    /// Hangs the heading markers into the gutter of the page as last laid out.
+    ///
+    /// Its own pass because three things move it and only one of them is the
+    /// window: the measure's edge with the allocation, the marker run with the
+    /// type, and — since Live sets a heading larger than the body — the run
+    /// again when Live is switched on or off. A page that has never been laid
+    /// out has no gutter to hang into and nothing to redraw.
+    fn hang(&self) {
+        let Some(page) = self.imp().laid_out.get() else {
+            return;
+        };
         tags::hang_markers(
             &self.buffer(),
             self.imp().step.get(),
@@ -907,10 +1439,17 @@ impl Editor {
     /// The markers are marker ink at [`Weight::Regular`](quill_engine::annotate::Weight),
     /// which is what body type is set at, so the body's own description
     /// measures them.
+    ///
+    /// With Live on they are the heading's own size instead
+    /// ([`tags::LADDER`]), because that is what the layout will advance them
+    /// by: the `#`s carry the heading's scale whether they are on the page or
+    /// folded to transparent ink, and one `heading-<level>` tag cannot hang
+    /// two ways. So under Live every heading of a level hangs by the scaled
+    /// run, and with Live off nothing here moves.
     fn marker_advance(&self, level: u8) -> i32 {
         let mut run = "#".repeat(usize::from(level));
         run.push(' ');
-        let layout = self.measured(&run);
+        let layout = self.measured_at(&run, self.heading_scale(level));
         // The logical width, rounded once here, as every other horizontal
         // length this widget sets is.
         let width = f64::from(layout.size().0) / f64::from(pango::SCALE);
@@ -929,15 +1468,37 @@ impl Editor {
     /// GTK recomputes style after this is asked, and a layout that took the
     /// widget's word for it would be measuring the desktop theme's font.
     fn measured(&self, text: &str) -> pango::Layout {
+        self.measured_at(text, 1.0)
+    }
+
+    /// [`Editor::measured`], with the em multiplied by `scale`.
+    ///
+    /// The one thing measured off the body's size rather than at it is a
+    /// heading's markers under Live, and they are measured through the same
+    /// description for the reason [`Editor::measured`] builds one: a run
+    /// measured on the desktop theme's font is the wrong run at any size.
+    fn measured_at(&self, text: &str, scale: f64) -> pango::Layout {
         let layout = self.create_pango_layout(Some(text));
         layout.set_font_description(Some(&body_font(
             self.imp().face.get(),
-            typography::em(self.imp().step.get()),
+            typography::em(self.imp().step.get()) * scale,
         )));
         let features = pango::AttrList::new();
         features.insert(pango::AttrFontFeatures::new(&pango_features()));
         layout.set_attributes(Some(&features));
         layout
+    }
+
+    /// How much larger than the body a heading of `level` is drawn: the Live
+    /// ladder while Live is on, and the body's own size while it is off.
+    fn heading_scale(&self, level: u8) -> f64 {
+        if !self.imp().live.get() {
+            return 1.0;
+        }
+        tags::LADDER
+            .get(usize::from(level).saturating_sub(1))
+            .copied()
+            .unwrap_or(1.0)
     }
 
     /// Shows `document`, marked up, with the caret at its start.
@@ -962,9 +1523,23 @@ impl Editor {
         // were known would be a flash of the whole thing bright.
         self.retier_at(document, &(0..0));
         let tiers = self.imp().tiers.borrow();
-        tags::apply(&buffer, document, self.painting(&tiers));
+        tags::apply(&buffer, document, self.painting_at(&(0..0), &tiers));
         drop(tiers);
+        // The fold this Document opened at, remembered for the same reason the
+        // tiers are: the first caret move has to know which block to fold, and
+        // every draw before it has to know where the fold stands.
+        self.imp().writer.replace(0..0);
+        self.imp().open.replace(
+            self.imp()
+                .live
+                .get()
+                .then(|| self.open_lines(document, &(0..0))),
+        );
         buffer.place_cursor(&buffer.start_iter());
+        // After the cursor, because a furnishing is a judgement about the
+        // block the caret is not in and the caret is only where this Document
+        // opens once the buffer has been told.
+        self.refurnish(document);
     }
 
     /// Whether the buffer is being filled rather than written in.
@@ -1007,7 +1582,19 @@ impl Editor {
         // next keystroke and then arrive, rather than a stretch of an earlier
         // sentence left stranded half-way between the two tiers.
         self.settle_fade(document);
+        // An edit moves the fold as well as the dim: a writer who types a
+        // blank line has left one block for another, and the lines the fold
+        // was last open over have moved under the splice. Asked before the
+        // edit's own redraw, because the redraw folds to the writer the fold
+        // last committed ([`Editor::painting`]) and the splice has just moved
+        // that writer; the block the caret left is folded in the same pass
+        // either way ([`Editor::refold`]).
+        self.refold(document);
         self.redraw(document, std::slice::from_ref(&edit.lines));
+        // And the furniture, whether or not the fold moved: every furnishing
+        // below the splice is held at an offset the edit has just moved.
+        // Before the Focus half returns, because Live is on or off on its own.
+        self.refurnish(document);
         if !on {
             return;
         }
@@ -1047,6 +1634,50 @@ impl Editor {
         drop(tiers);
         drop(batch);
         self.queue_draw();
+        self.settle();
+    }
+
+    /// Whether the markup is rendered in place from now on, with the page
+    /// redrawn to say so.
+    ///
+    /// The whole Document rather than the lines a fold moved across, and for
+    /// [`Editor::set_focus`]'s reason: every block but the writer's changes
+    /// when Live arrives, and the fold only ever names the writer's own.
+    ///
+    /// The hang moves with it. A heading's `#`s advance further at the
+    /// heading's Live size than at the body's, and the gutter is hung by
+    /// exactly what they advance ([`tags::hang_markers`]), so the six levels
+    /// are measured again before the draw that will use them.
+    ///
+    /// The caret's row is anchored across the whole-page redraw
+    /// ([`Editor::anchor_row`]): every row above the caret changes height at
+    /// once here, and the row the writer is on is where they are looking.
+    pub fn set_live(&self, live: bool, document: &Document) {
+        self.imp().live.set(live);
+        self.hang();
+        let at = self.caret_bytes(document);
+        self.imp().writer.replace(at.clone());
+        self.imp()
+            .open
+            .replace(live.then(|| self.open_lines(document, &at)));
+        // The whole page is about to be folded or unfolded, which moves every
+        // row above the caret; the caret's own row is anchored across it
+        // ([`Editor::anchor_row`]).
+        self.anchor_row();
+        let buffer = self.buffer();
+        let batch = buffer.freeze_notify();
+        let tiers = self.imp().tiers.borrow();
+        tags::apply(&buffer, document, self.painting_at(&at, &tiers));
+        drop(tiers);
+        drop(batch);
+        // Everything Live left standing arrives with it and goes with it:
+        // this fills the furniture on the way on and empties it on the way
+        // off, so a page with Live off carries none of it.
+        self.refurnish(document);
+        self.queue_draw();
+        // A heading's row is the size of its type, so the rows under the caret
+        // have moved: the bar is re-cut on the page as it now stands.
+        self.caret_settled();
         self.settle();
     }
 
@@ -1284,7 +1915,7 @@ impl Editor {
         let row = self.iter_location(&buffer.iter_at_mark(&buffer.get_insert()));
         let step = self.imp().step.get();
         let scale = self.scale();
-        let (y, h) = self.band(f64::from(row.y()));
+        let (y, h) = self.band(&row);
         let w = f64::from(typography::caret_width(step, scale));
         Some(caret::Bar {
             x: caret::left(f64::from(row.x()) * scale, w),
@@ -1294,8 +1925,8 @@ impl Editor {
         })
     }
 
-    /// The band of the row whose box starts at `top`, in device pixels: the y
-    /// every mark on that row takes, and the height they all take.
+    /// The band of the row `row` is a character's box on, in device pixels:
+    /// the y every mark on that row takes, and the height they all take.
     ///
     /// One function because the registration is the whole of the answer. The
     /// caret and the selection's fill rows are boxes that have to agree to the
@@ -1313,15 +1944,53 @@ impl Editor {
     /// with a pale row standing in for the fraction — which is exactly the
     /// disagreement this function exists to prevent, one end of the band at a
     /// time.
-    fn band(&self, top: f64) -> (f64, f64) {
-        let pitch = f64::from(self.imp().pitch.get());
+    ///
+    /// The whole rectangle rather than its top, because under Live a heading's
+    /// row is not the pitch tall and the rectangle is where the view says how
+    /// tall it is ([`Editor::row_pitch`]).
+    fn band(&self, row: &gdk::Rectangle) -> (f64, f64) {
         let scale = self.scale();
+        let (pitch, baseline) = self.row_pitch(row);
         (
             caret::snap(
-                caret::band_top(top + self.imp().baseline.get() + BASELINE_DRIFT, pitch) * scale,
+                caret::band_top(f64::from(row.y()) + baseline + BASELINE_DRIFT, pitch) * scale,
             ),
             pitch * scale,
         )
+    }
+
+    /// The pitch and the baseline of the row `row` is a character's box on, in
+    /// logical pixels.
+    ///
+    /// The body row's pair, cached with the type, on every row of a page with
+    /// Live off — which is every row every judged state was won on, and the
+    /// reason the answer is gated on the mode rather than taken from the view
+    /// throughout. `iter_location` answers with the ink's own height, and a
+    /// row set in another Face at the same size — inline code in the Mono
+    /// Face, an italic run — need not be the body's to the pixel; a band cut
+    /// from that would move a state Live never reaches.
+    ///
+    /// With Live on the view is asked, because the ladder ([`tags::LADDER`])
+    /// sets a heading larger than the body and the row it stands on is taller
+    /// by exactly as much as its ink is: the leading is a widget property, so
+    /// the same air sits above and below a row whatever it holds
+    /// ([`typography::leading`]), and only the ink between them grows. Every
+    /// other row under Live is the body's ink and comes back out of
+    /// [`row_band`] as the cached pair, so it is untouched.
+    fn row_pitch(&self, row: &gdk::Rectangle) -> (f64, f64) {
+        let pitch = f64::from(self.imp().pitch.get());
+        let baseline = self.imp().baseline.get();
+        if !self.imp().live.get() {
+            return (pitch, baseline);
+        }
+        // The body row's ink, from the numbers already in hand rather than
+        // from a fresh `Editor::row_height`: the leading split the pitch into
+        // the ink and the air above and below it, so the air taken off the
+        // pitch is the ink back again — and a band is cut on the paint path,
+        // once for the caret and once for every row of a selection, which is
+        // no place to lay out a row of type.
+        let air = f64::from(self.pixels_above_lines() + self.pixels_below_lines());
+        row_band(pitch, baseline, pitch - air, f64::from(row.height()))
     }
 
     /// The selection as the boxes that draw it, in device pixels.
@@ -1378,9 +2047,21 @@ impl Editor {
         let bottom = f64::from(view.y() + view.height()) + pitch * SELECTION_SLACK;
         let mut rows: Vec<caret::Bar> = Vec::new();
         let mut at = start;
-        if let Some(seen) = self.iter_at_location(0, top.max(0.0) as i32)
-            && seen > at
-        {
+        // The band's top edge by paragraph and then by row: `line_at_y` is the
+        // one lookup that builds no display and converts no byte index, and so
+        // the one that is safe over a folded paragraph (#278, and
+        // [`Editor::seen`]). It answers with the paragraph's first row, so the
+        // rows of that paragraph above the band are stepped over here — at most
+        // one paragraph's rows, and the same rows the walk below would have
+        // built.
+        let (mut seen, _) = self.line_at_y(buffer_px(top.max(0.0)));
+        loop {
+            let row = self.iter_location(&seen);
+            if f64::from(row.y() + row.height()) >= top || !self.forward_display_line(&mut seen) {
+                break;
+            }
+        }
+        if seen > at {
             at = seen;
         }
         if at >= end {
@@ -1447,7 +2128,7 @@ impl Editor {
             if stop < end {
                 right = container_right;
             }
-            let (y, h) = self.band(f64::from(box_of_first.y()));
+            let (y, h) = self.band(&box_of_first);
             let x = caret::snap(left * scale);
             let row = caret::Bar {
                 x,
@@ -1491,9 +2172,11 @@ impl Editor {
     ///
     /// Filling the buffer with a Document is a delete and an insert like any
     /// other and is not a writer's edit, so this stands down for it with the
-    /// rest of the handlers watching this buffer.
+    /// rest of the handlers watching this buffer. A task box flipped by a
+    /// press is the second edit the caret did not make, and stands down here
+    /// for the same reason ([`Editor::press`]).
     fn caret_edit_began(&self) {
-        if self.loading() {
+        if self.loading() || self.imp().pressing_box.get() {
             return;
         }
         self.imp().edited.set(Some(self.now()));
@@ -1514,10 +2197,10 @@ impl Editor {
     ///
     /// Which rule holds the row is the engine's
     /// ([`typewriter::hold`]): Typewriter's anchor, the pointer band for a
-    /// moment after a click, the edge band with Focus on and Typewriter off,
-    /// and with both off the caret ticket's band — `scroll-padding: 10vh 0
-    /// 28vh` in `legacy/app/css/page.css`, which [`Editor::keep_in_margins`]
-    /// applies.
+    /// moment after the button comes up, the edge band with Focus on and
+    /// Typewriter off, and with both off the caret ticket's band —
+    /// `scroll-padding: 10vh 0 28vh` in `legacy/app/css/page.css`, which
+    /// [`Editor::keep_in_margins`] applies.
     ///
     /// [`caret::Source::App`] is out under every rule: a launch flag, a
     /// restored position or a Command is put where it was asked for rather
@@ -1526,9 +2209,19 @@ impl Editor {
     /// passage from the one it was asked for. `--typewriter`'s first frame is
     /// [`Editor::reveal_caret`]'s, which puts the row at the anchor without a
     /// move to follow.
+    ///
+    /// A move made while a button is down only takes the note
+    /// ([`caret::waits_for_release`]); [`Editor::released`] pays it. So a
+    /// drag's every `mark-set` sets the one flag and the view stands still
+    /// under the pointer, and leaving the viewport is GTK's own autoscroll as
+    /// it always was.
     fn keep_in_band(&self, bar: caret::Bar) {
         let last = self.imp().last.get();
         if last == caret::Source::App {
+            return;
+        }
+        if caret::waits_for_release(last, self.imp().held.get()) {
+            self.imp().follow_owed.set(true);
             return;
         }
         let since_press = self
@@ -1631,6 +2324,10 @@ impl Editor {
     /// read in the adjustment's coordinate by [`Editor::row_of`]. The target
     /// is not clamped by the engine, and does not need to be: a
     /// `GtkAdjustment` holds itself inside its own ends.
+    ///
+    /// A fold waiting to settle is re-based on the way
+    /// ([`Editor::rebase_reflow`]), so that this move is kept rather than
+    /// undone by the frame that puts the row back.
     fn keep_in_margins(&self, bar: caret::Bar) {
         let Some(adjustment) = self.vadjustment() else {
             // Not in a scroller: there is nowhere for the band to move to.
@@ -1643,6 +2340,9 @@ impl Editor {
             adjustment.value(),
             adjustment.page_size(),
         ) {
+            // Where the row is being held now is where a fold still waiting to
+            // settle puts it back to ([`Editor::rebase_reflow`]).
+            self.rebase_reflow(target);
             adjustment.set_value(target);
         }
     }
@@ -1665,6 +2365,126 @@ impl Editor {
         (bar.y / scale + f64::from(self.top_margin()), bar.h / scale)
     }
 
+    /// Remembers where the caret's row stands, for the fold about to be drawn
+    /// to be settled against: **a fold never moves the caret's row on the
+    /// glass**.
+    ///
+    /// A fold takes bytes off the page or puts them back, and the rows above
+    /// the caret then stand taller or shorter than they did. GTK's own
+    /// compensation holds the *viewport's first paragraph* still, so a fold
+    /// between that paragraph and the caret carries the caret's row down the
+    /// glass by exactly the height it changed. That is the jump a click into a
+    /// lower paragraph makes, and the same jump a cursor key out of a block
+    /// makes.
+    ///
+    /// Settled one frame on ([`Editor::settle_reflow`]) rather than at the end
+    /// of this pass, because the heights are not true until GTK has validated
+    /// the lines on the glass: it does that in an idle above the frame clock's
+    /// paint, and a widget tick callback runs in the same frame's UPDATE phase,
+    /// after that idle and before the paint — so the correction is painted in
+    /// the frame the fold is. An idle of Quill's own at the default priority
+    /// would run after the paint: one frame with the jump, then the correction.
+    ///
+    /// An anchor already waiting is kept rather than replaced: it holds where
+    /// the row stood before the first of the folds, which is where it is to be
+    /// put back.
+    fn anchor_row(&self) {
+        if self.imp().reflow.get().is_some() {
+            return;
+        }
+        let Some(bar) = self.bar() else {
+            return;
+        };
+        let Some(adjustment) = self.vadjustment() else {
+            return;
+        };
+        let (row, _) = self.row_of(bar);
+        self.imp().reflow.set(Some(Reflow {
+            row,
+            screen: row - adjustment.value(),
+        }));
+        self.over_frames(1, |editor| {
+            editor.settle_reflow();
+            true
+        });
+    }
+
+    /// Puts the caret's row back where [`Editor::anchor_row`] saw it stand,
+    /// now that the fold's lines have been validated.
+    ///
+    /// The formula takes GTK's own compensation in its stride: a fold wholly
+    /// above the viewport moved the row and the adjustment's value by the same
+    /// amount, so the row is already where it was and nothing is set; a fold
+    /// inside the viewport, which GTK leaves alone, is corrected in full.
+    ///
+    /// A glide in flight is the one thing that has to be moved instead of the
+    /// view: it writes the adjustment outright on every frame, so a value set
+    /// here would be overwritten by the next one. It is shifted by the same
+    /// delta, which is the same travel so many pixels further
+    /// ([`Glide::shift`]), and this frame's value carried with it.
+    fn settle_reflow(&self) {
+        let Some(reflow) = self.imp().reflow.take() else {
+            return;
+        };
+        let Some(bar) = self.bar() else {
+            return;
+        };
+        let Some(adjustment) = self.vadjustment() else {
+            return;
+        };
+        let (row_now, _) = self.row_of(bar);
+        let delta = row_now - reflow.row;
+        if let Some(travel) = self.imp().glide.get() {
+            self.imp().glide.set(Some(Travel {
+                glide: travel.glide.shift(delta),
+                started: travel.started,
+            }));
+            self.shift(&adjustment, adjustment.value() + delta);
+            return;
+        }
+        let end = (adjustment.upper() - adjustment.page_size()).max(adjustment.lower());
+        let want = (row_now - reflow.screen).clamp(adjustment.lower(), end);
+        if (want - adjustment.value()).abs() >= 1.0 {
+            self.shift(&adjustment, want);
+        }
+    }
+
+    /// Scrolls to `to` as the settle of a reflow, which nothing follows.
+    ///
+    /// The row on the glass did not move — the page under it did — so the
+    /// window's top-block rule stands back for it rather than reading it as a
+    /// writer scrolling and carrying the Preview along
+    /// ([`Editor::shifting`]).
+    fn shift(&self, adjustment: &gtk::Adjustment, to: f64) {
+        self.imp().shifting.set(true);
+        adjustment.set_value(to);
+        self.imp().shifting.set(false);
+    }
+
+    /// Whether a settled reflow is scrolling the view this instant, which the
+    /// window's top-block rule stands back for.
+    #[must_use]
+    pub fn shifting(&self) -> bool {
+        self.imp().shifting.get()
+    }
+
+    /// Carries a waiting anchor across a scroll the caret's own machine makes
+    /// between the fold and its settle.
+    ///
+    /// The anchor says where the row is to be put back on the glass, and a
+    /// machine that has since decided to hold the row somewhere else is not to
+    /// be undone: `target` is where the row is being put now, so that is where
+    /// [`Editor::settle_reflow`] puts it back to.
+    fn rebase_reflow(&self, target: f64) {
+        let reflow = &self.imp().reflow;
+        if let Some(waiting) = reflow.get() {
+            reflow.set(Some(Reflow {
+                screen: waiting.row - target,
+                ..waiting
+            }));
+        }
+    }
+
     /// Moves the view to where `hold` keeps the caret's row, gliding there
     /// when `glides` says the move is one to be seen and jumping otherwise.
     ///
@@ -1675,6 +2495,11 @@ impl Editor {
     /// A glide already in flight is retargeted from where it has got to
     /// ([`Glide::retarget`]), so a caret moving mid-glide bends the travel
     /// rather than restarting it.
+    ///
+    /// A jump re-bases a fold waiting to settle, for
+    /// [`Editor::keep_in_margins`]'s reason; a glide needs no re-basing,
+    /// because the settle shifts the glide itself
+    /// ([`Editor::settle_reflow`]).
     fn follow(&self, bar: caret::Bar, hold: Hold, glides: bool) {
         let Some(adjustment) = self.vadjustment() else {
             // Not in a scroller: there is nowhere for the row to be held.
@@ -1694,6 +2519,8 @@ impl Editor {
         let target = target.clamp(adjustment.lower(), end);
         if !glides {
             self.imp().glide.set(None);
+            // As [`Editor::keep_in_margins`] does, and for the same reason.
+            self.rebase_reflow(target);
             adjustment.set_value(target);
             return;
         }
@@ -1793,8 +2620,13 @@ impl Editor {
     /// about to be made inside the edit-snap window, so the bar is put at the
     /// new column rather than travelling to it, and because the frames the
     /// placement asks for are asked for on what the machine knows by then.
+    ///
+    /// A task box flipped by a press stands down here as it does in
+    /// [`Editor::caret_edit_began`]: the bytes that changed are not the ones
+    /// the caret sits on, and a bar told otherwise would take the view back to
+    /// a row the writer never left ([`Editor::press`]).
     fn caret_edited(&self) {
-        if self.loading() {
+        if self.loading() || self.imp().pressing_box.get() {
             return;
         }
         let now = self.now();
@@ -1928,6 +2760,288 @@ impl Editor {
         for row in &selection.rows {
             draw_box(snapshot, &fill, *row, scale);
         }
+    }
+
+    /// Paints what Live left standing in the cells its fold emptied.
+    ///
+    /// One pass over the furnishings the last Document pass worked out
+    /// ([`Editor::refurnish`]), clipped to the offsets the viewport holds, so
+    /// a manuscript of a thousand list items pays for the dozen rows on the
+    /// glass. With Live off the list is empty, which is a borrow and a return.
+    ///
+    /// Body ink and not a tint of it: `docs/design.md` row Markers rests every
+    /// mark at the body's own ink, and a bullet standing where a `-` stood is
+    /// the same mark drawn another way. The link rule is the exception the
+    /// spec names — the accent, the one colour the writer already reads as the
+    /// app speaking rather than the page.
+    fn draw_furniture(&self, snapshot: &gtk::Snapshot) {
+        let furniture = self.imp().furniture.borrow();
+        if furniture.is_empty() {
+            return;
+        }
+        let seen = self.seen();
+        let colours = self.colours();
+        for standing in furniture.iter() {
+            if standing.at.end < seen.start || standing.at.start > seen.end {
+                continue;
+            }
+            match &standing.what {
+                Furnish::Bullet => self.draw_bullet(snapshot, &standing.at, &colours),
+                Furnish::Number { count, delimiter } => {
+                    self.draw_number(snapshot, &standing.at, &colours, *count, *delimiter);
+                }
+                Furnish::Checkbox { checked, .. } => {
+                    if let Some(box_at) = standing.box_cells() {
+                        self.draw_checkbox(snapshot, &box_at, &colours, *checked);
+                    }
+                }
+                Furnish::Hairline => self.draw_hairline(snapshot, &standing.at, &colours),
+                // A link's rule is a `GtkTextTag` and not a box drawn here
+                // ([`tags::link_rule`]), because the words it stands under are
+                // the one piece of furniture that is not in a marker's cells:
+                // they sit after the folded `[`, and `iter_location` answers
+                // for the bytes as if nothing on the line were invisible, so
+                // it cannot say where they are. Pango can, and an underline is
+                // what Pango is for.
+                Furnish::Link { .. } => {}
+            }
+        }
+    }
+
+    /// The buffer offsets the viewport holds, with a row of slack at each end.
+    ///
+    /// The clip [`Editor::draw_furniture`] reads, and it is offsets rather
+    /// than pixels because a furnishing is held at an offset: asking the view
+    /// for the two ends once is one lookup, and asking every furnishing for
+    /// its rectangle is one lookup each.
+    ///
+    /// Both ends are asked for by paragraph rather than by position: GTK
+    /// answers `line_at_y` from the line heights its btree has cached, without
+    /// building a display for the line or converting a byte index through the
+    /// invisible bytes on it, so it is safe to ask from inside Quill's own
+    /// redraw and from inside an allocation — where asking for the position
+    /// aborted on a folded paragraph's bottom margin (#278). It answers for
+    /// every y, clamping one past the end of the page to the last line, so
+    /// there is no y this has no answer for.
+    ///
+    /// The range is wider than the glass by at most two paragraphs, the one
+    /// each edge cuts. That is the bound the reader wants: [`standing`]'s walk
+    /// over the spans in it is bounded by the same paragraphs, and a furnishing
+    /// worked out just off the glass is one the next scroll does not have to
+    /// stop for.
+    fn seen(&self) -> Range<i32> {
+        let view = self.visible_rect();
+        let slack = f64::from(self.imp().pitch.get()) / self.scale();
+        let top = f64::from(view.y()) - slack;
+        let bottom = f64::from(view.y() + view.height()) + slack;
+        let (first, _) = self.line_at_y(buffer_px(top.max(0.0)));
+        let (mut last, _) = self.line_at_y(buffer_px(bottom));
+        if !last.ends_line() {
+            last.forward_to_line_end();
+        }
+        first.offset()..last.offset()
+    }
+
+    /// A bullet item's dot, in the cell its marker's `-`, `*` or `+` stood in.
+    ///
+    /// A drawn disc rather than a `•` laid out, because the six Faces are the
+    /// writer's choice and the dot is not: a glyph would be a different size
+    /// and a different weight in each of them, and this is furniture the app
+    /// draws rather than type the writer set.
+    ///
+    /// Centred on the x-height rather than on the box, which is where a
+    /// reader's eye puts a bullet: half an x-height above the baseline, and
+    /// the baseline is where [`Editor::bar`] takes it from.
+    fn draw_bullet(&self, snapshot: &gtk::Snapshot, at: &Range<i32>, colours: &Colours) {
+        let Some(cell) = self.cells(at) else {
+            return;
+        };
+        let em = self.em() / self.scale();
+        let side = (em * BULLET).max(1.0);
+        let x = cell.x + (cell.w - side) / 2.0;
+        let y = cell.y + self.imp().baseline.get() - em * X_HEIGHT - side / 2.0;
+        // Already in the widget's own pixels — the em above is divided by the
+        // scale — so the narrowing is [`logical`] at a scale of one, which is
+        // what [`Editor::draw_number`] hands its own two lengths through.
+        let side_px = logical(side, 1.0);
+        let rect = graphene::Rect::new(logical(x, 1.0), logical(y, 1.0), side_px, side_px);
+        snapshot.push_rounded_clip(&gsk::RoundedRect::from_rect(rect, side_px / 2.0));
+        snapshot.append_color(&paint(colours, Role::Mark, 1.0), &rect);
+        snapshot.pop();
+    }
+
+    /// An ordered item's `count` and the `delimiter` the source closed it
+    /// with, in the cells its marker stood in.
+    ///
+    /// The delimiter is carried rather than assumed, because both of
+    /// CommonMark's are a writer's own choice: a list written `1)` reads `1)`
+    /// folded, where a drawn `.` would be the app rewriting the page.
+    ///
+    /// The one piece of furniture that is type: a number is read, so it is
+    /// laid out in the page's own face at the page's own size, through the
+    /// widget's context rather than a description built here, because these
+    /// glyphs stand beside the item's words and have to be the same ink.
+    ///
+    /// Hung on the baseline rather than dropped from the top of the box: the
+    /// two layouts are the same type and the offset is nothing, but a heading
+    /// or a Face whose metrics disagree would put the number off the row, and
+    /// a baseline is the one line every row agrees on.
+    fn draw_number(
+        &self,
+        snapshot: &gtk::Snapshot,
+        at: &Range<i32>,
+        colours: &Colours,
+        count: u32,
+        delimiter: char,
+    ) {
+        let Some(cell) = self.cells(at) else {
+            return;
+        };
+        let layout = self.create_pango_layout(Some(&format!("{count}{delimiter}")));
+        let baseline = f64::from(layout.baseline()) / f64::from(pango::SCALE);
+        snapshot.save();
+        snapshot.translate(&graphene::Point::new(
+            logical(cell.x, 1.0),
+            logical(cell.y + self.imp().baseline.get() - baseline, 1.0),
+        ));
+        snapshot.append_layout(&layout, &paint(colours, Role::Mark, 1.0));
+        snapshot.restore();
+    }
+
+    /// A task item's box, empty or ticked, centred in the cells its `[ ]` or
+    /// `[x]` stood in.
+    ///
+    /// Four rules and, when it is ticked, a fill inside them. Drawn as the
+    /// caret and the selection are — device pixels, snapped, back through
+    /// [`draw_box`] — because a box whose sides land on a fraction of a device
+    /// pixel is a box with two grey sides and two black ones.
+    fn draw_checkbox(
+        &self,
+        snapshot: &gtk::Snapshot,
+        at: &Range<i32>,
+        colours: &Colours,
+        checked: bool,
+    ) {
+        let Some(cell) = self.cells(at) else {
+            return;
+        };
+        let scale = self.scale();
+        let em = self.em();
+        let side = caret::snap(em * CHECKBOX).max(1.0);
+        let rule = (em / 16.0).round().max(1.0);
+        let middle = cell.y + self.imp().baseline.get() - em / scale * X_HEIGHT;
+        let x = caret::snap((cell.x + cell.w / 2.0) * scale - side / 2.0);
+        let y = caret::snap(middle * scale - side / 2.0);
+        let side = side.max(rule * 3.0);
+        let ink = paint(colours, Role::Mark, 1.0);
+        for edge in [
+            caret::Bar {
+                x,
+                y,
+                w: side,
+                h: rule,
+            },
+            caret::Bar {
+                x,
+                y: y + side - rule,
+                w: side,
+                h: rule,
+            },
+            caret::Bar {
+                x,
+                y,
+                w: rule,
+                h: side,
+            },
+            caret::Bar {
+                x: x + side - rule,
+                y,
+                w: rule,
+                h: side,
+            },
+        ] {
+            draw_box(snapshot, &ink, edge, scale);
+        }
+        if !checked {
+            return;
+        }
+        let inset = caret::snap(rule * 2.0);
+        draw_box(
+            snapshot,
+            &ink,
+            caret::Bar {
+                x: x + inset,
+                y: y + inset,
+                w: side - inset * 2.0,
+                h: side - inset * 2.0,
+            },
+            scale,
+        );
+    }
+
+    /// The rule a thematic break draws, across the measure, where its `---`
+    /// stood.
+    ///
+    /// The measure and not the marker's own cells: a break is the width of the
+    /// page it breaks. The row's own band gives it its height, which is the
+    /// band the caret and the selection take on that row, so the rule sits on
+    /// the line's middle however the type is set.
+    fn draw_hairline(&self, snapshot: &gtk::Snapshot, at: &Range<i32>, colours: &Colours) {
+        let Some(cell) = self.cells(at) else {
+            return;
+        };
+        let Some(page) = self.imp().laid_out.get() else {
+            return;
+        };
+        let scale = self.scale();
+        let (top, height) = self.band(&cell.row);
+        let rule = scale.max(1.0);
+        let x = caret::snap(f64::from(page.column.left) * scale);
+        let right = caret::snap(f64::from(page.column.right) * scale);
+        draw_box(
+            snapshot,
+            &paint(colours, Role::Rule, 1.0),
+            caret::Bar {
+                x,
+                y: caret::snap(top + (height - rule) / 2.0),
+                w: (right - x).max(0.0),
+                h: rule,
+            },
+            scale,
+        );
+    }
+
+    /// The cells the buffer offsets `at` are drawn in.
+    ///
+    /// One row, because every furnishing that is drawn here stands in a
+    /// **block-leading** marker's cells: a bullet, a number, a task box and a
+    /// thematic break are all the first thing on their block's first row, and
+    /// none of them is long enough to wrap.
+    ///
+    /// That is also what makes `iter_location` safe to ask. It answers for an
+    /// offset as though nothing on the line were invisible — measured on
+    /// #274's own passage, where the offsets after a folded `](…)` all came
+    /// back at the end of the row — and a block-leading marker has nothing
+    /// folded before it, so its own cells are the ones GTK says they are.
+    /// `iter_at_location`, which the press reads, has no such trouble with the
+    /// fold, and none of its own either: the band below a paragraph where GTK
+    /// used to abort on invisible bytes is zero pixels tall (#279,
+    /// [`Editor::restyle`]).
+    fn cells(&self, at: &Range<i32>) -> Option<Cells> {
+        if at.end <= at.start {
+            return None;
+        }
+        let buffer = self.buffer();
+        let head = self.iter_location(&buffer.iter_at_offset(at.start));
+        let mut last = buffer.iter_at_offset(at.end);
+        last.backward_char();
+        let tail = self.iter_location(&last);
+        Some(Cells {
+            x: f64::from(head.x()),
+            y: f64::from(head.y()),
+            w: f64::from((tail.x() + tail.width() - head.x()).max(0)),
+            row: head,
+        })
     }
 
     /// The empty page's one whisper: [`PLACEHOLDER`] on the first line, where
@@ -2159,6 +3273,96 @@ impl Editor {
             false
         });
     }
+
+    /// The block the Editor's top edge falls in at scroll `offset`, as a
+    /// scroll-sync rule reads a driving pane ([`quill_engine::sync`], #270).
+    ///
+    /// One block rather than the whole page, because one is all
+    /// [`sync::follow_top_block`] reads of its driver — whichever block the
+    /// top edge is in, and how far into it — and a manuscript's index is
+    /// thousands of blocks long. The view is asked which block that is
+    /// (`line_at_y`) rather than walked to it, so a wheel event costs two row
+    /// rectangles however long the Document is. The row is asked for by y
+    /// alone: the Editor centres its column in a left margin, so every x this
+    /// side of the text — x = 0 included — is off the line, and the lookups
+    /// that take an x answer nothing there.
+    #[must_use]
+    pub fn top_block(&self, document: &Document, offset: f64) -> Option<sync::Block> {
+        let y = offset - f64::from(self.top_margin());
+        let (at, _) = self.line_at_y(buffer_px(y.max(0.0)));
+        let key = document.block_at(tags::offset_of(document, &at))?;
+        self.block_row(document, key)
+    }
+
+    /// Where block `key` stands in the Editor's scroll coordinate: the answer
+    /// a scroll-sync rule reads of the Editor as the following pane (#270).
+    ///
+    /// The rectangle is the view's own — `iter_location` at the block's first
+    /// byte and its last — taken in buffer coordinates and put in the
+    /// adjustment's by the top margin, which is the page's air above the first
+    /// row and the one difference between the two ([`Editor::row_of`] says the
+    /// same of the caret's).
+    #[must_use]
+    pub fn block_row(&self, document: &Document, key: usize) -> Option<sync::Block> {
+        // The index tiles the Document, so the end of the text names its last
+        // block: a key past that one is a page laid out before an edit shrank
+        // the Document, and asking for it would panic.
+        if key > document.block_at(document.text().len())? {
+            return None;
+        }
+        let block = document.block(key);
+        let buffer = self.buffer();
+        let from = tags::iter_at(&buffer, document, block.at.start);
+        let mut to = tags::iter_at(&buffer, document, block.at.end);
+        if to.offset() > from.offset() {
+            // A block ends where the next one begins, and that byte is on the
+            // next block's first row: the foot of this one is the row its own
+            // last character is on.
+            to.backward_char();
+        }
+        let head = self.iter_location(&from);
+        let foot = self.iter_location(&to);
+        let margin = f64::from(self.top_margin());
+        let top = f64::from(head.y()) + margin;
+        let bottom = f64::from(foot.y()) + f64::from(foot.height()) + margin;
+        Some(sync::Block::new(key, top, (bottom - top).max(0.0)))
+    }
+
+    /// Every block of `document` as a vertical range in the Editor's scroll
+    /// coordinate: the Editor's side of the top-block rule when the Preview is
+    /// the pane being scrolled (#270).
+    ///
+    /// The whole page here, because a follower is asked for a block the driver
+    /// names and any block can be named. It walks the index, so it belongs to
+    /// a wheel or a scrollbar and never to the keystroke lane: what an edit
+    /// drives is the caret rule, which asks for one row.
+    #[must_use]
+    pub fn block_rows(&self, document: &Document) -> Vec<sync::Block> {
+        let Some(last) = document.block_at(document.text().len()) else {
+            return Vec::new();
+        };
+        (0..=last)
+            .filter_map(|key| self.block_row(document, key))
+            .collect()
+    }
+
+    /// Where the caret's row stands down the Editor's viewport: 0 at the top
+    /// edge, 1 at the foot.
+    ///
+    /// The fraction [`sync::follow_caret`] puts the caret's block at down the
+    /// Preview, so the block being written stays where the eye already is
+    /// (#270). `None` before the type has been set or outside a scroller,
+    /// where there is no row and no viewport to place it in.
+    #[must_use]
+    pub fn caret_fraction(&self) -> Option<f64> {
+        let adjustment = self.vadjustment()?;
+        let viewport = adjustment.page_size();
+        if viewport <= 0.0 {
+            return None;
+        }
+        let (top, _) = self.row_of(self.bar()?);
+        Some(((top - adjustment.value()) / viewport).clamp(0.0, 1.0))
+    }
 }
 
 /// The margins a page was laid out with, in the pixels GTK takes.
@@ -2175,9 +3379,256 @@ pub struct Page {
     bottom: i32,
 }
 
+/// What Live leaves standing on the bytes `over` of `document`, for a writer at
+/// `at`, each with the Document bytes of the cells it stands in.
+///
+/// [`Editor::refurnish`] without the buffer: the whole of the answer that can
+/// be worked out from the text, so that the widget's one crossing into the
+/// offsets GTK counts is the last step and everything before it is testable
+/// with no display attached.
+///
+/// Bounded by `over`, through [`annotate::live::spans_in`], which widens it to
+/// the blocks it touches: this runs on the keystroke lane, so it pays for the
+/// page on the glass and not for the manuscript.
+fn standing(
+    document: &Document,
+    at: &Range<usize>,
+    over: &Range<usize>,
+) -> Vec<(Range<usize>, Furnish)> {
+    let text = document.text();
+    let spans = annotate::live::spans_in(document, at, over);
+    // The one whole-document question Live asks, asked once for the page rather
+    // than once for each link: resolving a reference label is a parse of the
+    // file ([`markdown::references`]), and a page can hold a dozen of them.
+    // Nothing is parsed at all when no reference link is standing, which is
+    // every page that writes its addresses inline.
+    let defined = if spans.iter().any(|span| labelled(text, span)) {
+        markdown::references(text)
+    } else {
+        BTreeMap::new()
+    };
+    spans
+        .into_iter()
+        .filter_map(|span| {
+            let LiveLook::Furniture(furniture) = span.look else {
+                return None;
+            };
+            let what = Furnish::of(text, &span.at, &furniture, &defined)?;
+            Some((cells_of(text, &span.at, &what), what))
+        })
+        .collect()
+}
+
+/// Whether `span` is a link whose destination is a reference label rather than
+/// an address, and so wants the file's definitions to resolve it ([`address`]).
+fn labelled(text: &str, span: &LiveSpan) -> bool {
+    let LiveLook::Furniture(Furniture::Link { destination }) = &span.look else {
+        return false;
+    };
+    text[..destination.start].ends_with('[')
+}
+
+impl Furnish {
+    /// What the `furniture` Live put on the bytes `at` of `text` stands for.
+    ///
+    /// `None` twice: a fence's furniture is the Well the code already stands
+    /// on, so there is nothing left to draw where the backticks were; and a
+    /// link whose destination resolves to nothing has nothing to open, so it
+    /// keeps its words and takes no rule. `defined` is the file's link-reference
+    /// definitions, which is what a reference link resolves through.
+    fn of(
+        text: &str,
+        at: &Range<usize>,
+        furniture: &Furniture,
+        defined: &BTreeMap<String, String>,
+    ) -> Option<Self> {
+        Some(match furniture {
+            Furniture::Bullet => Self::Bullet,
+            Furniture::Number { count, delimiter } => Self::Number {
+                count: *count,
+                delimiter: *delimiter,
+            },
+            Furniture::Hairline => Self::Hairline,
+            Furniture::Fence => return None,
+            Furniture::Checkbox { checked } => {
+                let box_at = brackets(text, at)?;
+                Self::Checkbox {
+                    box_at: cell(box_at.start - at.start)..cell(box_at.end - at.start),
+                    checked: *checked,
+                }
+            }
+            Furniture::Link { destination } => Self::Link {
+                destination: address(text, destination, defined)?,
+            },
+        })
+    }
+}
+
+/// The cells `what` stands in, of a furniture span over the bytes `at`.
+///
+/// The span itself for a checkbox and for a link — a press anywhere on a task
+/// item's marker flips its box, and a link's words are the words — and the
+/// marker's ink alone for the other three.
+/// [`quill_engine::annotate::Mark::BulletMarker`] is measured from the start
+/// of the line, indent and all, so that the app can hang the item by its
+/// width; a dot drawn in the first cell of *that* would stand out in a nested
+/// item's indent rather than where its `-` was.
+fn cells_of(text: &str, at: &Range<usize>, what: &Furnish) -> Range<usize> {
+    match what {
+        Furnish::Checkbox { .. } | Furnish::Link { .. } => at.clone(),
+        _ => ink(text, at),
+    }
+}
+
+/// A count of cells inside one marker run, as the buffer counts them.
+///
+/// The run is ASCII, so its bytes and its cells are the same count: see
+/// [`Furnish::Checkbox`] for why the box is held relative to the marker at
+/// all.
+fn cell(count: usize) -> i32 {
+    i32::try_from(count).unwrap_or(0)
+}
+
+/// `at` with the whitespace at either end of it taken off.
+fn ink(text: &str, at: &Range<usize>) -> Range<usize> {
+    let Some(run) = text.get(at.clone()) else {
+        return at.clone();
+    };
+    let start = at.start + (run.len() - run.trim_start().len());
+    start..start + run.trim().len()
+}
+
+/// The `[ ]` or `[x]` inside the marker cells `at`.
+///
+/// A task item's furniture covers the bullet and the box together — one box
+/// stands where both did — and the writer's state is the one byte between the
+/// brackets, so the press that flips it wants the brackets and not the marker.
+/// Read out of the text rather than carried by the Annotator, which marks the
+/// box as one span and has no reason to cut it in half.
+fn brackets(text: &str, at: &Range<usize>) -> Option<Range<usize>> {
+    let marker = text.get(at.clone())?;
+    let open = marker.find('[')?;
+    let close = marker[open..].find(']')? + open;
+    Some(at.start + open..at.start + close + 1)
+}
+
+/// The address the link destination written at `at` opens.
+///
+/// Three shapes reach here. An inline `[words](https://…)` writes the address
+/// itself, with a title after it to cut off and angle brackets to strip. A
+/// reference `[words][label]` writes a label instead, and the definition
+/// somewhere else in the file is what says where it goes — `defined`, the map
+/// [`markdown::references`] builds once for the page ([`labelled`] is the same
+/// test made before the map is asked for); the byte before the destination
+/// tells the two apart, `(` for an address and `[` for a label. A label nothing
+/// defines opens nothing, which is [`None`].
+fn address(text: &str, at: &Range<usize>, defined: &BTreeMap<String, String>) -> Option<String> {
+    let written = text.get(at.clone())?.trim();
+    if written.is_empty() {
+        return None;
+    }
+    if text[..at.start].ends_with('[') {
+        return defined.get(&written.to_lowercase()).cloned();
+    }
+    if let Some(bracketed) = written.strip_prefix('<') {
+        return Some(bracketed[..bracketed.find('>')?].to_owned());
+    }
+    Some(written.split_whitespace().next()?.to_owned())
+}
+
+/// Flips the task box at the buffer offsets `box_at` to `checked`.
+///
+/// **Through the buffer**, which is what the Document's edit path is from a
+/// widget: the engine's copy of the text is spliced from this buffer's own
+/// `insert-text` and `delete-range` (`quill::window`), undo is
+/// `GtkTextBuffer`'s, and autosave is armed by its `changed`. An edit made
+/// anywhere else would be a change the writer could not undo and the file
+/// would never see.
+///
+/// One byte inside the brackets rather than the whole box, so that nothing on
+/// the line moves under the writer's finger, and both halves inside one
+/// `begin_user_action`, so that undo takes the tick off in one press.
+///
+/// The caller raises `pressing_box` around this call: the edit is the box's
+/// and not the caret's, and the caret's machine would otherwise read it as a
+/// keystroke and glide the view back to whatever row the caret stands on
+/// ([`Editor::press`]).
+fn tick(buffer: &gtk::TextBuffer, box_at: &Range<i32>, checked: bool) {
+    let (cells, state) = flip(box_at, checked);
+    let mut from = buffer.iter_at_offset(cells.start);
+    let mut to = buffer.iter_at_offset(cells.end);
+    if to <= from {
+        return;
+    }
+    buffer.begin_user_action();
+    buffer.delete(&mut from, &mut to);
+    buffer.insert(&mut from, state);
+    buffer.end_user_action();
+}
+
+/// The lines a fold that has just moved from `was` to `now` draws again, or
+/// `None` where it moved nowhere.
+///
+/// The whole of the decision [`Editor::refold`] makes once it knows both, kept
+/// out of the method because a buffer is what the rest of that pass needs and
+/// this needs nothing: the block the writer left is drawn folded and the one
+/// they entered unfolded, and a fold that left the same lines open draws
+/// nothing, which is most keystrokes.
+fn refolded(was: Option<Range<usize>>, now: Range<usize>) -> Option<Vec<Range<usize>>> {
+    if was.as_ref() == Some(&now) {
+        return None;
+    }
+    let mut lines = Vec::with_capacity(2);
+    lines.extend(was);
+    lines.push(now);
+    Some(lines)
+}
+
+/// The cells a press rewrites inside the box at `box_at`, and what it writes
+/// there.
+///
+/// The whole of the rewrite that can be said without a buffer, which is why it
+/// is here: gtk4-rs will not make a `GtkTextBuffer` before GTK is initialised,
+/// and GTK will not initialise without a display, so `tools/gate check` can
+/// assert this and the hand test asserts the rest of [`tick`].
+fn flip(box_at: &Range<i32>, checked: bool) -> (Range<i32>, &'static str) {
+    (
+        box_at.start + 1..box_at.end - 1,
+        if checked { "x" } else { " " },
+    )
+}
+
+/// Opens `destination` through the desktop's default handler for it.
+///
+/// [`gtk::UriLauncher`] rather than the `gio` call the Settings window's
+/// "Open settings.toml" uses, for the reason the Preview's own opener has it
+/// (`quill::preview`): this is a URI out of a Document and not a file Quill
+/// wrote, so it goes through the portal, which is what asks the writer before
+/// a strange scheme is handed to anything.
+fn open(destination: &str, window: Option<&gtk::Window>) {
+    gtk::UriLauncher::new(destination).launch(window, gio::Cancellable::NONE, |_| {});
+}
+
 /// A byte offset a flag named, as the Document counts them.
 fn byte_offset(bytes: u64) -> usize {
     usize::try_from(bytes).unwrap_or(usize::MAX)
+}
+
+/// A view or pointer coordinate as the buffer counts them: whole pixels.
+///
+/// The rounding every crossing into `GtkTextView`'s own coordinates makes, done
+/// once and in one place (`CODING_STANDARDS.md` § Shape): a gesture, a scroll
+/// offset and a viewport edge all arrive as fractions of a logical pixel, and
+/// `window_to_buffer_coords` and `iter_at_location` count in whole ones. The
+/// cast saturates in Rust, so a coordinate no window could hold clamps rather
+/// than wrapping.
+fn buffer_px(length: f64) -> i32 {
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "a coordinate inside one window, and the cast saturates either way"
+    )]
+    let whole = length.round() as i32;
+    whole
 }
 
 /// A length in device pixels, in the widget's own pixels, as `graphene` takes
@@ -2219,9 +3670,10 @@ fn selection_fill(colours: &Colours, focused: bool) -> gdk::RGBA {
 ///
 /// Read from the ground's table rather than written out here, because the
 /// table carries every role and a second copy of a number the critic reads is
-/// a second thing to keep true. The three roles that reach here are the three
-/// the layer above the glyphs paints: the accent the caret is cut from, and
-/// the selection's two fills.
+/// a second thing to keep true. The roles that reach here are the ones the
+/// layers around the glyphs paint: the accent the caret and a link's rule are
+/// cut from, the selection's two fills, the mark ink Live's furniture stands
+/// in, and the hairline a thematic break draws.
 fn paint(colours: &Colours, role: Role, alpha: f64) -> gdk::RGBA {
     let colour = colours.colour(role);
     gdk::RGBA::new(
@@ -2439,6 +3891,33 @@ impl Landing {
 /// `(top, height)`, both counted as the vertical adjustment counts them
 /// ([`Editor::row_of`]). A row over either edge is not shown, and a reveal
 /// that left one there has not landed ([`Editor::reveal_settled`]).
+/// The pitch and the baseline of a row whose ink is `ink` tall, on a page
+/// whose body row is `body` tall at `pitch` and `baseline`. All in logical
+/// pixels.
+///
+/// The rule [`Editor::row_pitch`] is: a row is the ink it holds plus the air
+/// the leading puts above and below it, and that air is a widget property and
+/// so is the same on every row. A row of taller ink is therefore taller by
+/// exactly the ink's own excess, and no more — an H1 at 1.6 is *not* 1.6
+/// pitches, because the air did not grow with the type.
+///
+/// The baseline moves with the ink because Pango's `scale` is a multiplier on
+/// the font's size and a font's ascent is a fraction of its size, so the
+/// distance from the top of the ink down to the baseline grows in the same
+/// proportion the ink does. Taken from the ink's own height rather than from
+/// the ladder's rung, so nothing here has to know which level the row is or
+/// whether the rung was rounded on the way to a whole pixel.
+///
+/// A row of the body's own ink comes back as the pair it was given, exactly:
+/// `ink / body` is one, and one times the baseline is the baseline. That is
+/// what leaves every row but a heading's where it was.
+fn row_band(pitch: f64, baseline: f64, body: f64, ink: f64) -> (f64, f64) {
+    if body <= 0.0 || ink <= 0.0 {
+        return (pitch, baseline);
+    }
+    (pitch + ink - body, baseline * (ink / body))
+}
+
 fn on_glass(row: (f64, f64), view: (f64, f64)) -> bool {
     let (row_top, row_height) = row;
     let (view_top, view_height) = view;
@@ -2448,6 +3927,17 @@ fn on_glass(row: (f64, f64), view: (f64, f64)) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_fold_draws_the_lines_it_left_and_the_lines_it_entered_and_nothing_when_it_stood_still() {
+        assert_eq!(refolded(Some(4..5), 4..5), None, "the same lines are open");
+        assert_eq!(refolded(Some(4..5), 7..9), Some(vec![4..5, 7..9]));
+        assert_eq!(
+            refolded(None, 7..9),
+            Some(std::iter::once(7..9).collect::<Vec<_>>()),
+            "the first fold has no lines to close"
+        );
+    }
 
     /// The empty page's words are the oracle's, read from the rule that sets
     /// them, so the two sides of `chrome/empty` say the same thing.
@@ -2743,6 +4233,290 @@ mod tests {
             selection_fill(&Ground::of(Scheme::Light).colours, true),
             selection_fill(&Ground::of(Scheme::Dark).colours, true),
             "the two grounds were designed one fill each"
+        );
+    }
+
+    /// The page the numbers below were read off: `--deterministic --font duo
+    /// --step 5`, the step every judged state is shot at, measured from the
+    /// running app through `iter_location`. The body's ink is 28 logical
+    /// pixels in a pitch of 37, so the leading splits 9 pixels of air over it
+    /// (4 above, 5 below), and its baseline sits 22 pixels down. Live sets an
+    /// H1 at [`tags::LADDER`]'s 1.6, which Pango lays out as 45 pixels of ink
+    /// — 44.8 rounded — and an H2 at 1.4 as 40.
+    const PAGE: (f64, f64, f64) = (37.0, 22.0, 28.0);
+
+    /// Every row but a heading's is the pitch the type was cut at, to the bit:
+    /// the caret Piece is won on those bands and a band that moved by a
+    /// rounding would be a state lost to arithmetic nobody asked for.
+    #[test]
+    fn a_row_of_body_ink_is_the_pitch_and_the_baseline_it_was_cut_with() {
+        let (pitch, baseline, body) = PAGE;
+        assert_eq!(row_band(pitch, baseline, body, body), (pitch, baseline));
+    }
+
+    /// A heading's row is taller by the excess of its own ink and by nothing
+    /// else: the air above and below it is a widget property and did not grow
+    /// with the type. So an H1 is 54 rather than the 59.2 that 1.6 pitches
+    /// would be, and the acceptance line's "1.6 × the pitch" is the ink's
+    /// ladder rung and not the row's.
+    #[test]
+    fn a_heading_row_is_taller_by_its_inks_own_excess() {
+        let (pitch, baseline, body) = PAGE;
+        let air = pitch - body;
+        for ink in [45.0, 40.0, 34.0] {
+            let (row, _) = row_band(pitch, baseline, body, ink);
+            assert_eq!(row, ink + air, "a row of {ink} px of ink keeps the air");
+            assert!(
+                row > pitch && row < ink / body * pitch,
+                "{ink}: taller than the pitch, and short of the ink's own multiple of it"
+            );
+        }
+    }
+
+    /// The baseline moves down the row in the proportion the ink grew, so the
+    /// band keeps its eleven-sixteenths above the letters rather than riding
+    /// up toward the row above ([`caret::band_top`]).
+    #[test]
+    fn a_heading_rows_baseline_moves_with_its_ink() {
+        let (pitch, baseline, body) = PAGE;
+        let (_, deep) = row_band(pitch, baseline, body, 45.0);
+        assert!((deep - baseline * (45.0 / body)).abs() < f64::EPSILON);
+        assert!(
+            deep > baseline && deep < 45.0,
+            "the baseline is further down a taller row and still inside its ink"
+        );
+    }
+
+    /// A page with no type set yet, and a row the view has not laid out, are
+    /// both the body's pair: there is no rectangle to read and the band the
+    /// caller draws is the one it would have drawn before Live existed.
+    #[test]
+    fn a_row_with_no_ink_falls_back_to_the_body() {
+        let (pitch, baseline, body) = PAGE;
+        assert_eq!(row_band(pitch, baseline, body, 0.0), (pitch, baseline));
+        assert_eq!(row_band(pitch, baseline, 0.0, 45.0), (pitch, baseline));
+    }
+
+    // Live's furniture, headless. Every judgement about it is made on the
+    // Document's own bytes ([`standing`]), and the widget's one step is the
+    // crossing into the offsets GTK counts — which cannot be tested here,
+    // because gtk4-rs asserts that GTK is initialised before it will make even
+    // a `GtkTextBuffer`, and `gtk::init` needs a display. The passages below
+    // are ASCII, so the two counts are the same and a byte offset is a cell.
+
+    /// A Document holding `text`, with its Markup already derived.
+    fn document(text: &str) -> Document {
+        let mut document = Document::untitled();
+        document.insert(0, text);
+        document
+    }
+
+    /// Everything Live leaves standing on `text` with the writer at `at`, as
+    /// the Editor keeps it: [`Editor::refurnish`] without the widget, over the
+    /// whole passage rather than over one viewport of it.
+    fn furniture(text: &str, at: &Range<usize>) -> Vec<Furnishing> {
+        standing(&document(text), at, &(0..text.len()))
+            .into_iter()
+            .map(|(at, what)| Furnishing {
+                at: buffer_offsets(&at),
+                what,
+            })
+            .collect()
+    }
+
+    /// A page with one of each kind of furniture on it, and a caret parked in
+    /// the heading so that nothing below it is the writer's own block.
+    const PASSAGE: &str = "# Title\n\n- the rope\n\n1. Untie the skiff.\n\n- [ ] scrub the lens\n\n---\n\n\
+         A [link](https://example.org/book) to it.\n\n```rust\nlet x = 1;\n```\n";
+
+    #[test]
+    fn a_task_boxs_brackets_are_found_inside_the_marker_that_carries_them() {
+        let text = "- [ ] scrub the lens\n";
+        assert_eq!(
+            brackets(text, &(0..5)),
+            Some(2..5),
+            "the furniture covers the bullet and the box together; the press \
+             wants the box"
+        );
+        let nested = "  - [x] wind the clock\n";
+        assert_eq!(brackets(nested, &(0..7)), Some(4..7), "indent and all");
+        assert_eq!(
+            brackets("- the rope\n", &(0..2)),
+            None,
+            "a bullet with no box has no brackets to find"
+        );
+    }
+
+    #[test]
+    fn the_cells_a_task_box_press_rewrites_are_the_one_between_its_brackets() {
+        let text = "Chores\n\n- [ ] scrub the lens\n";
+        let box_at = furniture(text, &(0..0))
+            .first()
+            .and_then(Furnishing::box_cells)
+            .expect("the page holds one task item");
+        assert_eq!(
+            box_at,
+            10..13,
+            "the box's own cells, found inside the marker cells the bullet and \
+             the box share"
+        );
+
+        assert_eq!(
+            flip(&box_at, true),
+            (11..12, "x"),
+            "one cell is rewritten and it is the one between the brackets, so \
+             nothing on the line moves under the writer's finger"
+        );
+        assert_eq!(
+            flip(&box_at, false),
+            (11..12, " "),
+            "and the press flips back"
+        );
+        assert_eq!(
+            &text[11..12],
+            " ",
+            "the cells `flip` names are where the source wrote the state"
+        );
+    }
+
+    #[test]
+    fn a_links_words_open_the_address_the_source_wrote_or_the_one_it_defined() {
+        /// The bytes an inline link writes its destination in: the
+        /// [`Mark::Url`](quill_engine::annotate::Mark::Url) span, as the
+        /// Markup Annotator hands it over.
+        fn written(text: &str) -> Range<usize> {
+            text.find('(').expect("a destination is opened") + 1
+                ..text.rfind(')').expect("a destination is closed")
+        }
+
+        for (source, opens, why) in [
+            (
+                "A [link](https://example.org/book) to it.\n",
+                Some("https://example.org/book"),
+                "an inline destination is the address itself",
+            ),
+            (
+                "A [link](https://example.org \"The Book\") to it.\n",
+                Some("https://example.org"),
+                "the title after the address is not part of it",
+            ),
+            (
+                "A [link](<https://example.org/the book>) to it.\n",
+                Some("https://example.org/the book"),
+                "angle brackets hold an address with a space in it",
+            ),
+        ] {
+            assert_eq!(
+                address(source, &written(source), &markdown::references(source)).as_deref(),
+                opens,
+                "{why}"
+            );
+        }
+
+        let referenced = "A [link][Book] here.\n\n[book]: https://example.org/book\n";
+        let label = referenced.find("Book").expect("the label is written once");
+        assert_eq!(
+            address(
+                referenced,
+                &(label..label + 4),
+                &markdown::references(referenced)
+            )
+            .as_deref(),
+            Some("https://example.org/book"),
+            "a reference link writes a label, not an address, and the \
+             definition elsewhere in the file says where it goes"
+        );
+        let undefined = "A [link][Nowhere] here.\n";
+        let label = undefined
+            .find("Nowhere")
+            .expect("the label is written once");
+        assert_eq!(
+            address(
+                undefined,
+                &(label..label + 7),
+                &markdown::references(undefined)
+            ),
+            None,
+            "a label nothing defines opens nothing"
+        );
+    }
+
+    #[test]
+    fn every_kind_of_marker_stands_in_its_own_cells_and_a_fence_stands_in_none() {
+        let standing = furniture(PASSAGE, &(0..0));
+        let kinds: Vec<Furnish> = standing.iter().map(|one| one.what.clone()).collect();
+        assert_eq!(
+            kinds,
+            [
+                Furnish::Bullet,
+                Furnish::Number {
+                    count: 1,
+                    delimiter: '.'
+                },
+                Furnish::Checkbox {
+                    box_at: 2..5,
+                    checked: false
+                },
+                Furnish::Hairline,
+                Furnish::Link {
+                    destination: "https://example.org/book".to_owned()
+                },
+            ],
+            "one furnishing per marker, in the order the page writes them, and \
+             the fenced block's two fences draw nothing: the Well is already \
+             under the code"
+        );
+    }
+
+    #[test]
+    fn a_press_finds_the_furniture_it_landed_on_by_the_offset_alone() {
+        let standing = furniture(PASSAGE, &(0..0));
+        let on = |at: i32| {
+            standing
+                .iter()
+                .find(|one| one.at.contains(&at))
+                .map(|one| one.what.clone())
+        };
+        let box_at = i32::try_from(PASSAGE.find("[ ]").expect("the page holds one task item"))
+            .expect("the page fits an i32");
+
+        assert!(
+            matches!(on(box_at), Some(Furnish::Checkbox { .. })),
+            "a press on the box itself"
+        );
+        assert!(
+            matches!(on(box_at - 2), Some(Furnish::Checkbox { .. })),
+            "and one on the bullet the box swallowed: the whole marker is the \
+             target, because that is what the box stands in"
+        );
+        assert_eq!(
+            on(box_at + 4),
+            None,
+            "a press on the item's first word is a caret move like any other"
+        );
+
+        let word = i32::try_from(PASSAGE.find("link").expect("the page holds one link"))
+            .expect("the page fits an i32");
+        assert!(
+            matches!(on(word), Some(Furnish::Link { .. })),
+            "a link's words are the target, and its destination is folded away"
+        );
+    }
+
+    #[test]
+    fn the_writers_own_block_is_furnished_with_nothing() {
+        let item = PASSAGE
+            .find("the rope")
+            .expect("the page holds one bullet item");
+        let standing = furniture(PASSAGE, &(item..item));
+        assert!(
+            !standing.iter().any(|one| one.what == Furnish::Bullet),
+            "the caret is in the bullet item, so its marker is on the page and \
+             nothing stands in its cells: {standing:?}"
+        );
+        assert!(
+            standing.iter().any(|one| one.what == Furnish::Hairline),
+            "and every other block is furnished as it was"
         );
     }
 }

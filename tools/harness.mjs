@@ -168,6 +168,11 @@ export function quillArgv(root, flags, { live = false } = {}) {
   argv.push('--theme', flags.theme, '--font', flags.font, '--step', String(flags.step));
   argv.push('--focus', flags.focus, '--chrome', flags.chrome);
   if (flags.typewriter) argv.push('--typewriter');
+  // Live is passed only when the state names it, and absent it is pinned off by `--deterministic`
+  // (`Flags::over`), which is what leaves every state judged before Live existed the page it was.
+  // `flags.live` is the app's Live mode and has nothing to do with this function's own `live`
+  // option above, which is `tools/gate keys` asking for a launch that is not `--deterministic`.
+  if (flags.live) argv.push('--live');
   if (flags.nocaret) argv.push('--nocaret');
   // The two chrome states the bars alone do not reach: `--typing` is the chrome stepped back, and
   // `--menu` is one popover open with its first row selected. Both are states the app is put in
@@ -181,6 +186,14 @@ export function quillArgv(root, flags, { live = false } = {}) {
   if (flags.library) argv.push('--library', path.join(root, flags.library));
   if (flags.sidebar) argv.push('--sidebar');
   if (flags.search) argv.push('--search', flags.search);
+  // The Preview pane the `preview` states open, and the Template its page is laid out in.
+  // `--preview` is the layout — Split divides the pair, Full puts the page where the Editor's
+  // scroller was — and it is named only by a state that wants the pane, because the pane's being
+  // open is never remembered and a state that says nothing about it is shot with no pane at all.
+  // `--template` is named by every state, off the defaults: it pins the whole `[template]` table,
+  // and the shape of a heading is the shape of one whatever Piece the shot is of.
+  if (flags.preview) argv.push('--preview', flags.preview);
+  if (flags.template) argv.push('--template', flags.template);
   // An empty Document has no passage, and so has no offset into one either.
   if (flags.text) {
     argv.push('--text', path.join(root, flags.text));
@@ -354,19 +367,27 @@ export function carriesAccent(buf) {
 /// other active state draws the bar, an empty Document included: `page/empty` is the state #166
 /// lost to the ghost.
 ///
-/// `--deterministic` is the fourth condition and not a detail of the other three: it is what freezes
-/// the blink on, and [`quillArgv`] drops it for a Live launch, where the caret is meant to be dark
-/// half the time. A Live shot has no lit frame to insist on, so it is shot the way it always was.
+/// `--preview full` is the fourth way out, and the only one that is not about the caret at all:
+/// Full puts the rendered page where the Editor's scroller was, so there is no Editor on the glass
+/// to draw a bar and no accent pixel to wait for. It is read here rather than taken as the state's
+/// `nocaret` because the state has not asked for a caret to be left out — the layout has none to
+/// leave. Split keeps the Editor beside the page and is held to a lit frame like any other state.
+///
+/// `--deterministic` is a condition in its own right and not a detail of the ways out: it is what
+/// freezes the blink on, and [`quillArgv`] drops it for a Live launch, where the caret is meant to
+/// be dark half the time. A Live shot has no lit frame to insist on, so it is shot the way it
+/// always was.
 ///
 /// The list is the flags ours has today. `chrome/view-menu` and `chrome/palette` name `--menu`,
 /// which `quill/src/main.rs` has not grown yet, so `judge chrome` refuses on the flag long before
 /// it reaches here; the session that builds `--menu` decides whether a popover leaves the Editor
-/// drawing its bar, and adds the fourth way out here if it does not.
+/// drawing its bar, and adds a way out here if it does not.
 export function wantsLitCaret(argv, { active = true } = {}) {
   return active
     && argv.includes('--deterministic')
     && !argv.includes('--nocaret')
-    && !argv.includes('--select');
+    && !argv.includes('--select')
+    && !(argv.includes('--preview') && argv[argv.indexOf('--preview') + 1] === 'full');
 }
 
 // ---------- the compositor ----------

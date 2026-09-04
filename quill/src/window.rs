@@ -29,7 +29,8 @@ use quill_engine::commands;
 use quill_engine::disk::{Filed, Kept, Line, Noticed, OnDisk, Saved, first_save_name};
 use quill_engine::document::{Document, full_name};
 use quill_engine::focus::Focus;
-use quill_engine::settings::{Chrome, WindowState, library_width};
+use quill_engine::settings::{Chrome, PreviewLayout, WindowState, library_width};
+use quill_engine::sync;
 
 use crate::caret;
 use crate::chrome;
@@ -39,13 +40,25 @@ use crate::flags;
 use crate::ground::Ground;
 use crate::harness;
 use crate::menus;
-use crate::session::Session;
+use crate::session::{Session, TemplateToggle};
 use crate::tags;
 
 /// How long after the last keystroke autosave writes the Document out.
 ///
 /// `docs/architecture.md` § Documents and files: "after one second of idle".
 const AUTOSAVE: Duration = Duration::from_secs(1);
+
+/// How long after the last keystroke the rendered page catches up.
+///
+/// #263 § Implementation Decisions, "Refresh": an edit arms this, every edit
+/// after it re-arms it, and the render pass runs once when it fires. Long
+/// enough that a burst of typing renders nothing and short enough that a
+/// writer looking up finds the page already there.
+const REFRESH: Duration = Duration::from_millis(200);
+
+/// How much one press of `preview.bigger` or `preview.smaller` moves the zoom,
+/// in percentage points ([`Window::step_zoom`]).
+const ZOOM_STEP: u32 = 10;
 
 /// How often the status line is drawn again while it is saying how long ago
 /// the last save was, in seconds.
@@ -74,11 +87,13 @@ mod imp {
     use quill_engine::disk::Filed;
     use quill_engine::document::Edit;
 
+    use super::Follows;
     use crate::chrome::Bars;
     use crate::chrome::typing::Typing;
     use crate::editor::Editor;
     use crate::flags;
     use crate::palette::Palette;
+    use crate::preview::Preview;
     use crate::session::Session;
     use crate::sidebar::Sidebar;
 
@@ -115,6 +130,36 @@ mod imp {
         /// remembered in.
         pub session: RefCell<Option<Rc<Session>>>,
         pub editor: Editor,
+        /// What scrolls the Editor: kept because Full hides it and puts it
+        /// back, and because the sync ticket reads its vertical adjustment
+        /// (#270).
+        pub scroller: OnceCell<ScrolledWindow>,
+        /// The Editor's scroller and the Preview side by side, between the
+        /// bars: what the divider divides, and what divides itself evenly
+        /// until a writer has dragged it.
+        pub pair: OnceCell<gtk::Box>,
+        /// The rendered page beside the Editor, hidden until `preview.full`
+        /// or `preview.split` opens it.
+        pub preview: Preview,
+        /// Whether the Preview pane is open in this window. Per window like
+        /// the Library's pane and, unlike it, never remembered: the pane is
+        /// closed at every launch (#263).
+        pub previewing: Cell<bool>,
+        /// The one Preview refresh timer, armed by the first edit of a burst
+        /// and re-armed by every edit after it, so the render pass runs once
+        /// when the writer stops rather than once per keystroke.
+        pub refresh: RefCell<Option<glib::SourceId>>,
+        /// Set while one pane's scroll is being put on to the other, so the
+        /// follower's own `value-changed` is read as the answer it is rather
+        /// than as a writer scrolling it back.
+        pub syncing: Cell<bool>,
+        /// The rule that last placed the Preview, re-applied after a refresh
+        /// (`Window::refollow`).
+        pub follows: Cell<Follows>,
+        /// Whether a furniture pass is owed on the next frame, so that the many
+        /// scrolls one frame brings ask for one pass and not one each
+        /// (`Window::arm_refurnish`).
+        pub furnish_owed: Cell<bool>,
         /// The title bar above the Editor and the stats bar below it.
         pub bars: Bars,
         /// The Library beside the page, hidden until `library.toggle` shows
@@ -157,11 +202,21 @@ mod imp {
             // A column, the bars taking their space above and below the page
             // as the oracle's do (`chrome.css` `.chrome { flex: none }`): a
             // bar fading takes its ink away and leaves its space.
+            // The Editor and the rendered page side by side, the Preview
+            // right of the Editor and hidden until it is asked for, with the
+            // bars spanning both: the split is inside the column and not
+            // beside it, so the title bar and the stats bar are the window's
+            // and not one pane's (`ref/ia/mac-native/NOTES.md` § State 16).
+            let pair = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+            pair.append(&scroller);
+            pair.append(self.preview.widget());
             let column = gtk::Box::new(gtk::Orientation::Vertical, 0);
             column.append(self.bars.top());
-            column.append(&scroller);
+            column.append(&pair);
             column.append(self.bars.bottom());
             self.bars.follow(&scroller);
+            let _ = self.scroller.set(scroller.clone());
+            let _ = self.pair.set(pair);
             // The Library stands left of that column and pushes it right
             // rather than covering it, which is the oracle's model: the page
             // keeps its own centring and is given a narrower window
@@ -185,6 +240,23 @@ mod imp {
     impl WidgetImpl for Window {}
     impl WindowImpl for Window {}
     impl ApplicationWindowImpl for Window {}
+}
+
+/// Which rule last placed the Preview's scroll.
+///
+/// A refresh lays the page out again and has to put the pane back
+/// (`Window::refollow`); which of the two sync rules puts it back is whichever
+/// one last moved it, because that is the move the pane is standing where it
+/// is for.
+#[derive(Clone, Copy, Default, Eq, PartialEq)]
+pub enum Follows {
+    /// The caret rule (`Window::follow_caret`): an edit or a caret move put
+    /// the caret's block where the eye already was.
+    #[default]
+    Caret,
+    /// The top-block rule (`Window::follow_editor`): a wheel or a scrollbar
+    /// over either pane left the two in step.
+    TopBlock,
 }
 
 glib::wrapper! {
@@ -230,6 +302,10 @@ impl Window {
         // puts the Document on the page.
         window.imp().editor.open_focused_on(session.focus());
         window.imp().bars.set_focus(session.focus());
+        // And Live with them, for the same reason: `--live` names a state the
+        // first frame is meant to show, and the fold is worked out inside the
+        // same draw that puts the Document on the page.
+        window.imp().editor.open_live_on(session.live());
         // The bars stand or not before the Document is shown, so the page is
         // laid out once, at the height it will keep.
         window
@@ -252,6 +328,14 @@ impl Window {
         // keep, rather than reflowing under the first frame.
         window.show_library(session.flags().sidebar);
         window.imp().sidebar.attach(&window);
+        // The Preview pane with it, and for the same reason: the Editor is
+        // laid out once, at the width it will keep. The pane is open only
+        // where `--preview` asked for it — nothing else opens one, because
+        // nothing remembers one (#263).
+        window.imp().preview.attach(&window);
+        window.watch_sync();
+        window.watch_furniture();
+        window.show_preview(session.flags().preview.is_some());
         if let Some(query) = session.flags().search.as_deref() {
             window.imp().sidebar.set_query(query);
         }
@@ -329,9 +413,12 @@ impl Window {
     /// actions show it.
     pub(crate) fn modes(&self) -> chrome::Modes {
         match self.imp().session.borrow().as_ref() {
-            Some(session) => {
-                chrome::Modes::of(session, self.is_fullscreen(), self.imp().sidebar.is_shown())
-            }
+            Some(session) => chrome::Modes::of(
+                session,
+                self.is_fullscreen(),
+                self.imp().sidebar.is_shown(),
+                self.imp().previewing.get(),
+            ),
             None => chrome::Modes::default(),
         }
     }
@@ -439,6 +526,55 @@ impl Window {
         }
     }
 
+    /// Lays the rendered page out in `name`, in every window.
+    ///
+    /// `docs/shortcuts.md`'s five `template.*` radio rows, the View › Template
+    /// submenu. One Template for the app (ADR 0005), so the session remembers
+    /// it, writes it as the row is picked — the way a face is written — and
+    /// every open pane lays its Document out again.
+    pub(crate) fn set_template(&self, name: quill_engine::settings::TemplateName) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        if name == session.template().name {
+            return;
+        }
+        session.set_template(name);
+        self.relay_out(&session);
+    }
+
+    /// Flips one of the Template's three toggles, in every window.
+    ///
+    /// `docs/shortcuts.md`'s `template.centerHeadings`,
+    /// `template.numberHeadings` and `template.indentParagraphs` rows, and the
+    /// same three the Settings window's switches write: one Template for the
+    /// app, so a toggle moves every pane.
+    pub(crate) fn toggle_template(&self, toggle: TemplateToggle) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        session.toggle_template(toggle);
+        self.relay_out(&session);
+    }
+
+    /// Writes what the Template picks moved and lays every open pane out
+    /// again.
+    ///
+    /// The Editor is untouched: a Template is the rendered page's and the
+    /// `font.*` ladder is the Editor's, and neither reaches the other
+    /// (#263 § Zoom).
+    fn relay_out(&self, session: &Session) {
+        // Written as the row is picked, for the reason a size step is
+        // ([`Window::step_size`]).
+        session.store_settings();
+        let Some(app) = self.application() else {
+            return;
+        };
+        for window in windows(&app) {
+            window.refresh_preview();
+        }
+    }
+
     /// Sets the theme, and repaints on the ground it names.
     ///
     /// `docs/shortcuts.md`'s `theme.light`, `theme.dark` and `theme.auto`
@@ -464,6 +600,19 @@ impl Window {
     pub(crate) fn toggle_typewriter(&self) {
         self.move_windows(Session::toggle_typewriter, |window, typewriter| {
             window.imp().editor.set_typewriter(typewriter);
+        });
+    }
+
+    /// Turns Live on or off, in every window.
+    ///
+    /// `docs/shortcuts.md`'s `live.toggle` row. A per-app mode as Focus is:
+    /// the session remembers it and writes it as the key is pressed, and every
+    /// window folds or unfolds together, because a writer has one pair of eyes
+    /// ([`Window::move_windows`]).
+    pub(crate) fn toggle_live(&self) {
+        self.move_windows(Session::toggle_live, |window, live| {
+            let document = window.document();
+            window.imp().editor.set_live(live, &document);
         });
     }
 
@@ -1544,6 +1693,9 @@ impl Window {
         if let Some(ticking) = self.imp().ticking.take() {
             ticking.remove();
         }
+        if let Some(refresh) = self.imp().refresh.take() {
+            refresh.remove();
+        }
         self.remember();
         glib::Propagation::Proceed
     }
@@ -1679,6 +1831,484 @@ impl Window {
         self.imp().bars.set_library_toggle_shown(!shown);
     }
 
+    /// `preview.full` and `preview.split`: the rendered page stands where
+    /// `asked` says, or steps out.
+    ///
+    /// Each chord owns a layout and is that layout's toggle, which is
+    /// [`next_preview_pane`]'s rule: closed, the pane opens in `asked`; open
+    /// in the other layout, it switches to `asked` in place with the keyboard
+    /// following; open in `asked`, it closes. #263 story 4 asks for
+    /// `Ctrl+Shift+R` "to switch between Split and Full … without hiding the
+    /// pane first", which the middle case is.
+    ///
+    /// Whether the pane is open is this window's, as the Library's pane is
+    /// and for the same reason, and — unlike the Library's width and unlike
+    /// the layout — nothing the state or the settings file holds: the pane is
+    /// closed at every launch (#263). The layout is the session's, so it
+    /// moves the way the ground does ([`Window::move_windows`]) and every
+    /// other window's open pane follows it; a window with no pane open is
+    /// left alone, because the pane work below would take the keyboard off a
+    /// Library search field to hand it to the Editor.
+    pub(crate) fn preview_to(&self, asked: PreviewLayout) {
+        // A window with no session has no layout to show, and
+        // [`Window::apply_preview`] reads that case as Split.
+        let showing = self
+            .session()
+            .map_or(PreviewLayout::Split, |session| session.preview_layout());
+        match next_preview_pane(self.imp().previewing.get(), showing, asked) {
+            PreviewPane::Closed => self.show_preview(false),
+            PreviewPane::Open(layout) => {
+                self.move_windows(
+                    |session| session.set_preview_layout(layout),
+                    |window, ()| {
+                        if !window.imp().previewing.get() {
+                            return;
+                        }
+                        window.apply_preview();
+                        window.refresh_preview();
+                        window.focus_pane();
+                    },
+                );
+                // The pass above has already re-applied an open pane, this
+                // window's included; a closed one is this window's to open.
+                if !self.imp().previewing.get() {
+                    self.show_preview(true);
+                }
+            }
+        }
+    }
+
+    /// Opens the Preview pane or shuts it.
+    ///
+    /// Closing hands the keyboard back to the Editor, which is what Full took
+    /// it from: the caret and the scroll are where the writer left them,
+    /// because hiding a widget moves neither.
+    fn show_preview(&self, shown: bool) {
+        self.imp().previewing.set(shown);
+        self.apply_preview();
+        if shown {
+            self.refresh_preview();
+            self.focus_pane();
+        } else {
+            self.focus_editor();
+        }
+    }
+
+    /// Stands the Preview pane at `wanted` logical pixels wide, in this window
+    /// and in every other.
+    ///
+    /// One width for the app, as the Library's is and for the reason
+    /// [`Window::resize_library`] gives; taken down in the state rather than
+    /// the settings, because what a writer dragged is what Quill observed, and
+    /// written as the drag ends ([`crate::preview::Preview`]).
+    pub(crate) fn resize_preview(&self, wanted: i32) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        // A drag is always a width, however far left the pointer went: the
+        // pane stops at the narrowest it may stand at rather than falling back
+        // to the even divide, which is what a pane nobody dragged reads as.
+        let width = crate::preview::pane_width(
+            Some(u32::try_from(wanted).unwrap_or_default()),
+            u32::try_from(self.pair_width()).unwrap_or(u32::MAX),
+        );
+        session.set_preview_width(width);
+        let Some(app) = self.application() else {
+            return;
+        };
+        for window in windows(&app) {
+            window.apply_preview();
+        }
+    }
+
+    /// Puts the pane's state — open or away, Split or Full, and how wide — on
+    /// to this window's widgets.
+    ///
+    /// The one pass all three go through, because they are one shape: Full is
+    /// the pane open with the Editor's scroller away, and a width means
+    /// nothing in it.
+    fn apply_preview(&self) {
+        let imp = self.imp();
+        let shown = imp.previewing.get();
+        let split = self
+            .session()
+            .is_none_or(|session| session.preview_layout() == PreviewLayout::Split);
+        imp.preview.set_shown(shown);
+        if let Some(scroller) = imp.scroller.get() {
+            scroller.set_visible(!shown || split);
+        }
+        let width = match self.session() {
+            Some(session) if shown && split => crate::preview::pane_width(
+                session.preview_width(),
+                u32::try_from(self.pair_width()).unwrap_or(u32::MAX),
+            ),
+            _ => None,
+        };
+        if let Some(pair) = imp.pair.get() {
+            // An even Split is the two halves of a homogeneous box rather
+            // than a width worked out here: the pair knows how wide it is and
+            // a window has not been allocated when this first runs.
+            pair.set_homogeneous(shown && split && width.is_none());
+        }
+        imp.preview.set_width(width);
+    }
+
+    /// How wide the pair the panes divide is, which is the window less the
+    /// Library.
+    fn pair_width(&self) -> i32 {
+        self.imp()
+            .pair
+            .get()
+            .map_or_else(|| self.width(), WidgetExt::width)
+    }
+
+    /// Lays the Document out again in the Preview pane, where one is open.
+    ///
+    /// Everything the render pass reads — the Template, its toggles, the zoom
+    /// and the ground — is the session's, so the pane is handed the settings
+    /// rather than a copy of each ([`crate::preview::Preview::refresh`]). The
+    /// settings it is handed are the ones this launch is running
+    /// ([`Session::running`]) rather than the ones it last read, because a
+    /// Template picked from the menu and a zoom stepped by a key are held live
+    /// and written to the file, not read back out of it.
+    pub(crate) fn refresh_preview(&self) {
+        if !self.imp().previewing.get() {
+            return;
+        }
+        let Some(session) = self.session() else {
+            return;
+        };
+        let document = self.document();
+        self.imp()
+            .preview
+            .refresh(&document, &session.running(), session.ground().scheme);
+        drop(document);
+        // The page is a new page, so the scroll it had means nothing: the pane
+        // is put back by whichever rule last placed it. For an edit that is the
+        // caret's block, which is what the writer was looking at (#263
+        // § Refresh); a wheel or a task box flipped by a press left the pane in
+        // step with the Editor instead, and it stays there.
+        self.refollow();
+    }
+
+    /// Puts the Preview back where the rule that last placed it says, after a
+    /// refresh has laid the page out again.
+    ///
+    /// The two rules are the whole of what moves the pane, and neither is the
+    /// right answer to the other's page: putting an edit's caret rule on a pane
+    /// a wheel had left in step would snap it, and a wheel's rule on a pane the
+    /// caret placed would shift it for nothing.
+    fn refollow(&self) {
+        let imp = self.imp();
+        match imp.follows.get() {
+            Follows::Caret => self.follow_caret(),
+            Follows::TopBlock => {
+                if let Some(scroller) = imp.scroller.get() {
+                    self.follow_editor(scroller.vadjustment().value());
+                }
+            }
+        }
+    }
+
+    /// Arms the Preview's refresh, or re-arms it where an earlier keystroke of
+    /// the same burst already did.
+    ///
+    /// The whole of what an edit costs the Preview: one timer taken down and
+    /// one put up, and nothing of the render pass on the keystroke lane. A
+    /// window with no pane open arms nothing at all.
+    fn arm_refresh(&self) {
+        if !self.imp().previewing.get() {
+            return;
+        }
+        if let Some(armed) = self.imp().refresh.take() {
+            armed.remove();
+        }
+        let id = glib::timeout_add_local_once(
+            REFRESH,
+            glib::clone!(
+                #[weak(rename_to = window)]
+                self,
+                move || {
+                    window.imp().refresh.take();
+                    window.refresh_preview();
+                },
+            ),
+        );
+        self.imp().refresh.replace(Some(id));
+    }
+
+    /// Puts the Preview where the caret's block asks for it: the caret rule
+    /// ([`quill_engine::sync::follow_caret`]), which is what an edit and a
+    /// caret move drive.
+    ///
+    /// One block index and one fraction, both of them O(1): this runs on every
+    /// keystroke and every arrow key, and the page it reads is whatever the
+    /// last refresh laid out.
+    ///
+    /// Recorded as the rule now placing the pane, so that the refresh an edit
+    /// arms puts it back the same way ([`Window::refollow`]).
+    fn follow_caret(&self) {
+        let imp = self.imp();
+        if !imp.previewing.get() {
+            return;
+        }
+        imp.follows.set(Follows::Caret);
+        // `try_borrow` because a `mark-set` can arrive while the splice that
+        // moved the mark still holds the Document ([`Window::watch_edits`]).
+        let Ok(filed) = imp.filed.try_borrow() else {
+            return;
+        };
+        let document = filed.document();
+        let buffer = imp.editor.buffer();
+        let at = buffer.iter_at_mark(&buffer.get_insert());
+        let Some(caret) = document.block_at(tags::offset_of(document, &at)) else {
+            return;
+        };
+        drop(filed);
+        let Some(fraction) = imp.editor.caret_fraction() else {
+            return;
+        };
+        self.follow_preview(imp.preview.caret_offset(caret, fraction), true);
+    }
+
+    /// Puts the Preview where the Editor's top edge asks for it: the top-block
+    /// rule, which is what a wheel or a scrollbar over the Editor drives.
+    ///
+    /// Recorded as the rule now placing the pane, for the reason
+    /// [`Window::follow_caret`] records its own.
+    ///
+    /// A scroll the Editor makes to put the caret's row back after a fold is
+    /// not a writer scrolling and drives nothing: the row it moved is the row
+    /// it left standing still, and reading it as a scroll would take the pane
+    /// off the caret's block an edit had just put it on
+    /// ([`crate::editor::Editor::shifting`]).
+    fn follow_editor(&self, offset: f64) {
+        let imp = self.imp();
+        if !imp.previewing.get() || imp.syncing.get() || imp.editor.shifting() {
+            return;
+        }
+        imp.follows.set(Follows::TopBlock);
+        // `try_borrow` for the reason [`Window::follow_caret`] has it: a scroll
+        // is one of the things an edit sets off, and the splice may still be
+        // holding the Document when it arrives.
+        let Ok(filed) = imp.filed.try_borrow() else {
+            return;
+        };
+        let driver = imp.editor.top_block(filed.document(), offset);
+        drop(filed);
+        let Some(driver) = driver else {
+            return;
+        };
+        // One block is the whole of what the rule reads of a driver: whichever
+        // block the top edge falls in, and how far into it
+        // ([`crate::editor::Editor::top_block`]).
+        // Asked again if it does not land, as the caret rule asks: the sheet is
+        // laid out after the Editor's first scroll arrives, and until it is the
+        // adjustment clamps every value to the end it has been told about — an
+        // Editor put where `--scroll` asked at launch drove a Preview that
+        // stayed at the top.
+        self.follow_preview(imp.preview.top_block_offset(&[driver], offset), true);
+    }
+
+    /// Puts the Editor where the Preview's top edge asks for it: the same rule
+    /// the other way round, which is what a wheel or a scrollbar over the
+    /// rendered page drives.
+    ///
+    /// Recorded as the rule now placing the pane, for the reason
+    /// [`Window::follow_caret`] records its own: the two panes are in step, and
+    /// a refresh keeps them there.
+    fn follow_preview_scroll(&self, offset: f64) {
+        let imp = self.imp();
+        if !imp.previewing.get() || imp.syncing.get() {
+            return;
+        }
+        imp.follows.set(Follows::TopBlock);
+        let Some(adjustment) = imp.scroller.get().map(|scroller| scroller.vadjustment()) else {
+            return;
+        };
+        let Ok(filed) = imp.filed.try_borrow() else {
+            return;
+        };
+        let follower = imp.editor.block_rows(filed.document());
+        drop(filed);
+        let max = (adjustment.upper() - adjustment.page_size()).max(0.0);
+        let to = sync::follow_top_block(&imp.preview.blocks(), offset, &follower, max);
+        imp.syncing.set(true);
+        adjustment.set_value(to);
+        imp.syncing.set(false);
+    }
+
+    /// Scrolls the Preview to `to`, without the scroll driving back.
+    ///
+    /// A page laid out again this instant is taller or shorter than the
+    /// scroller has been allocated for, and `gtk::Adjustment` clamps to the
+    /// end it has been told about; so a value that did not land is asked for
+    /// once more on the main loop, by which time GTK has laid the sheet out.
+    /// Once more and no further: a value that will not land twice is a page
+    /// with nowhere to put it.
+    fn follow_preview(&self, to: f64, again: bool) {
+        let imp = self.imp();
+        let adjustment = imp.preview.vadjustment();
+        imp.syncing.set(true);
+        adjustment.set_value(to);
+        imp.syncing.set(false);
+        if again && (adjustment.value() - to).abs() > 0.5 {
+            glib::idle_add_local_once(glib::clone!(
+                #[weak(rename_to = window)]
+                self,
+                move || window.follow_preview(to, false),
+            ));
+        }
+    }
+
+    /// Carries each pane's scroll to the other.
+    ///
+    /// Both directions off the adjustments rather than off a wheel, because a
+    /// scrollbar drag, a Page key and a wheel are one thing to a follower;
+    /// the guard is what keeps the answer from being read as a second
+    /// question. The caret rule runs after this one for an edit — the Editor
+    /// has already moved its own view by the time `mark-set` reaches
+    /// [`Window::watch_edits`] — so the finer rule has the last word.
+    ///
+    /// One scroll runs later still and is not a rule at all: an edit under Live
+    /// folds the page, and the frame after puts the caret's row back where it
+    /// stood ([`crate::editor::Editor::anchor_row`]). That one is stood back
+    /// from rather than followed, so the caret rule keeps the last word.
+    fn watch_sync(&self) {
+        let Some(scroller) = self.imp().scroller.get() else {
+            return;
+        };
+        scroller.vadjustment().connect_value_changed(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |adjustment| window.follow_editor(adjustment.value()),
+        ));
+        self.imp()
+            .preview
+            .vadjustment()
+            .connect_value_changed(glib::clone!(
+                #[weak(rename_to = window)]
+                self,
+                move |adjustment| window.follow_preview_scroll(adjustment.value()),
+            ));
+    }
+
+    /// Works Live's furniture out again for the rows a scroll or a resize
+    /// brought on to the glass.
+    ///
+    /// [`crate::editor::Editor::refurnish`] is bounded to the viewport, and the
+    /// two feeds that call it — an edit and a caret move — are both about the
+    /// buffer. A wheel, a scrollbar and a window pulled taller move the
+    /// viewport and touch no byte, so the furniture would be worked out for
+    /// rows that have scrolled off and never for the rows that arrived. The
+    /// adjustment says both things: `value-changed` is the scroll, and
+    /// `changed` is the page under it growing or shrinking.
+    ///
+    /// Live off is a borrow and a return in the Editor, so this is connected
+    /// once for the window's life rather than switched with the mode.
+    ///
+    /// Neither feed furnishes on the spot ([`Window::arm_refurnish`]): GTK
+    /// emits both from inside `size_allocate`, on a layout it has not validated
+    /// yet, and the pass reads the view for the rows on the glass.
+    fn watch_furniture(&self) {
+        let Some(scroller) = self.imp().scroller.get() else {
+            return;
+        };
+        let adjustment = scroller.vadjustment();
+        adjustment.connect_value_changed(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |_| window.arm_refurnish(),
+        ));
+        adjustment.connect_changed(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |_| window.arm_refurnish(),
+        ));
+    }
+
+    /// Asks for the furniture to be worked out again on the next frame, unless
+    /// a pass is already owed.
+    ///
+    /// Two things at once. The many `value-changed` a wheel, a glide or an
+    /// allocation emit become one pass, in the frame's UPDATE phase; and that
+    /// phase is after GTK's own validate idle and never inside `size_allocate`,
+    /// where the layout is mid-flight and the lookups the pass makes of it
+    /// abort (#277). A tick armed during LAYOUT — a resize — runs on the frame
+    /// after, so a resize shows one frame of rows without their furniture.
+    fn arm_refurnish(&self) {
+        if self.imp().furnish_owed.replace(true) {
+            return;
+        }
+        self.imp().editor.add_tick_callback(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            #[upgrade_or]
+            glib::ControlFlow::Break,
+            move |_, _| {
+                window.imp().furnish_owed.set(false);
+                window.refurnish();
+                glib::ControlFlow::Break
+            }
+        ));
+    }
+
+    /// Hands the Editor the Document so it can furnish the rows it now shows.
+    ///
+    /// `try_borrow` for the reason [`Window::follow_editor`] has it: a scroll
+    /// is one of the things an edit sets off, and the splice may still be
+    /// holding the Document when it arrives. The edit's own pass furnishes the
+    /// page after it, so nothing is lost by standing back here.
+    fn refurnish(&self) {
+        let imp = self.imp();
+        let Ok(filed) = imp.filed.try_borrow() else {
+            return;
+        };
+        imp.editor.refurnish(filed.document());
+    }
+
+    /// Steps the rendered page's zoom, or puts it back to the default:
+    /// `preview.bigger`, `preview.smaller` and `preview.reset`, and Ctrl+wheel
+    /// over the pane ([`crate::preview::Preview`]).
+    ///
+    /// The zoom is the settings file's, so every open pane re-renders at it,
+    /// the way a size step re-types every window ([`Window::step_size`]); the
+    /// Editor's own `font.*` ladder never reaches the Preview and this never
+    /// reaches the Editor.
+    pub(crate) fn step_zoom(&self, direction: Zoom) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        let zoom = stepped_zoom(session.preview_zoom(), direction);
+        if zoom == session.preview_zoom() {
+            return;
+        }
+        session.set_preview_zoom(zoom);
+        // Written as the key is pressed, for the reason the size is
+        // ([`Window::step_size`]).
+        session.store_settings();
+        let Some(app) = self.application() else {
+            return;
+        };
+        for window in windows(&app) {
+            window.refresh_preview();
+        }
+    }
+
+    /// The keyboard goes wherever the pane's state says it should: to the
+    /// Preview in Full, since there is no Editor on screen to type into, and
+    /// to the Editor everywhere else.
+    fn focus_pane(&self) {
+        let full = self
+            .session()
+            .is_some_and(|session| session.preview_layout() == PreviewLayout::Full);
+        if self.imp().previewing.get() && full {
+            self.imp().preview.grab_focus();
+        } else {
+            self.focus_editor();
+        }
+    }
+
     /// `library.search`: the Library stands beside the page if it was away,
     /// and the keyboard goes to its search field.
     pub(crate) fn search_library(&self) {
@@ -1733,8 +2363,19 @@ impl Window {
     /// re-armed. The count is not taken here; the timer asks for it. Autosave
     /// is [`Window::edited`]'s two `Cell`s and nothing else: no file is
     /// touched between keystrokes.
+    ///
+    /// A task box flipped by a press is an edit the caret did not make, and it
+    /// drives no sync rule at all: the pane stands where the last rule put it,
+    /// and the refresh this arms puts it back there rather than on the caret's
+    /// block ([`Window::refollow`]).
     fn typed(&self) {
         self.edited();
+        // Two timers and nothing else on the keystroke lane: autosave's, above,
+        // and the rendered page's ([`Window::arm_refresh`]).
+        self.arm_refresh();
+        if !self.imp().editor.pressing_box() {
+            self.follow_caret();
+        }
         let mut typing = self.imp().typing.get();
         typing.keystroke(Self::now());
         self.imp().typing.set(typing);
@@ -1965,6 +2606,10 @@ impl Window {
     /// `docs/architecture.md` § Text model requires, and the retag happens
     /// after the text has moved. What the splice worked out is carried between
     /// them in [`imp::Window::pending`].
+    ///
+    /// The caret's two feeds are here for the same reason the splice is: the
+    /// Editor holds no Document and every one of them is a judgement about
+    /// one. The pointer's release is the fourth and last of them.
     fn watch_edits(&self) {
         let buffer = self.imp().editor.buffer();
 
@@ -2045,7 +2690,39 @@ impl Window {
                 return;
             };
             window.imp().editor.refocus(filed.document());
+            drop(filed);
+            // A caret move takes the caret rule, as an edit does: the block
+            // being written is what the rendered page is kept on (#263
+            // § Scroll sync).
+            window.follow_caret();
         });
+
+        // Live's fold waits for the button to come up ([`Editor::released`]),
+        // and this is where the Editor is told that it has. A legacy
+        // controller rather than a `GtkGestureClick`: a press on a task box
+        // claims its sequence and GTK's own selection drag claims one too, a
+        // claimed sequence denies every other gesture on the widget, and a
+        // denied gesture is never told about the release — which would leave
+        // the fold held down for good. A legacy controller is not a gesture
+        // and is never denied. It runs in the capture phase and takes nothing:
+        // the press is still GTK's to turn into a caret move.
+        let releases = gtk::EventControllerLegacy::new();
+        releases.set_propagation_phase(gtk::PropagationPhase::Capture);
+        let watcher = self.downgrade();
+        releases.connect_event(move |_, event| {
+            let Some(window) = watcher.upgrade() else {
+                return glib::Propagation::Proceed;
+            };
+            if event.event_type() == gdk::EventType::ButtonRelease {
+                // As the `mark-set` handler has it: a splice may still hold
+                // the Document, and this borrow is not worth waiting for.
+                if let Ok(filed) = window.imp().filed.try_borrow() {
+                    window.imp().editor.released(filed.document());
+                }
+            }
+            glib::Propagation::Proceed
+        });
+        self.imp().editor.add_controller(releases);
     }
 }
 
@@ -2056,6 +2733,62 @@ pub(crate) enum After {
     Stay,
     /// The window closes: the Save button of the prompt a close asked.
     Close,
+}
+
+/// Where the Preview pane stands once a Preview chord has been pressed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PreviewPane {
+    /// Away, with the Editor holding the window on its own.
+    Closed,
+    /// On screen, in this layout.
+    Open(PreviewLayout),
+}
+
+/// Where `asked`'s chord leaves the pane, given the one `showing` now.
+///
+/// Each chord owns a layout and is that layout's toggle: it closes the pane
+/// it is already looking at and otherwise shows its own, whether that means
+/// opening the pane or switching it in place. `showing` is read only while
+/// the pane is open — closed, the layout is where the pane last stood
+/// ([`crate::session::Session::preview_layout`]) and says nothing about what
+/// the chord should do.
+pub(crate) fn next_preview_pane(
+    previewing: bool,
+    showing: PreviewLayout,
+    asked: PreviewLayout,
+) -> PreviewPane {
+    if previewing && showing == asked {
+        PreviewPane::Closed
+    } else {
+        PreviewPane::Open(asked)
+    }
+}
+
+/// Which way Bigger Preview Text, Smaller Preview Text and Default Preview
+/// Size move the rendered page's zoom.
+#[derive(Clone, Copy)]
+pub(crate) enum Zoom {
+    /// [`ZOOM_STEP`] points larger.
+    Bigger,
+    /// [`ZOOM_STEP`] points smaller.
+    Smaller,
+    /// Back to the Template's own sizes.
+    Reset,
+}
+
+/// The zoom one press of a Preview size key leaves, as a whole percentage.
+///
+/// A step of [`ZOOM_STEP`] points inside the range the settings file is read
+/// against ([`quill_engine::settings::preview_zooms`]), and a reset to the
+/// `[preview]` table's own default rather than to a number written twice.
+pub(crate) fn stepped_zoom(now: u32, direction: Zoom) -> u32 {
+    let range = quill_engine::settings::preview_zooms();
+    let wanted = match direction {
+        Zoom::Bigger => now.saturating_add(ZOOM_STEP),
+        Zoom::Smaller => now.saturating_sub(ZOOM_STEP),
+        Zoom::Reset => quill_engine::settings::Preview::default().zoom,
+    };
+    wanted.clamp(*range.start(), *range.end())
 }
 
 /// Which way Bigger Text, Smaller Text and Default Text Size move.
@@ -2115,6 +2848,11 @@ pub fn repaint(app: &gtk::Application, session: &Session) {
         let document = window.document();
         window.imp().editor.set_ground(ground, &document);
         window.imp().bars.set_ground(ground);
+        // The rendered page is on the Template's paper and not the Editor's,
+        // but which of the Template's two palettes it is on follows the
+        // ground: a dark Editor is a dark page beside it.
+        drop(document);
+        window.refresh_preview();
     });
     chrome::reflect_windows(app);
 }
@@ -2133,6 +2871,7 @@ pub fn repaint(app: &gtk::Application, session: &Session) {
 pub fn reapply(app: &gtk::Application, session: &Session) {
     let focus = session.focus();
     let typewriter = session.typewriter();
+    let live = session.live();
     let face = session.face();
     let step = session.step();
     let bars = session.chrome() == Chrome::Shown;
@@ -2142,9 +2881,16 @@ pub fn reapply(app: &gtk::Application, session: &Session) {
         window.imp().editor.set_ground(ground, &document);
         window.imp().editor.set_focus(focus, &document);
         window.imp().editor.set_typewriter(typewriter);
+        window.imp().editor.set_live(live, &document);
         window.imp().bars.set_ground(ground);
         window.imp().bars.set_focus(focus);
         window.imp().bars.set_shown(bars);
+        // A `[template]` or a `[preview]` key saved while Quill is running is
+        // a page laid out again, and where the pane opens is a pane to stand
+        // again (#271's Settings rows arrive this way).
+        drop(document);
+        window.apply_preview();
+        window.refresh_preview();
     });
     // The sidebar reads the `[library]` settings as it lists — hidden files,
     // extensions — and the Library itself has already been made to say what
@@ -2369,5 +3115,114 @@ fn ask_to_quit(app: &gtk::Application, asking: Vec<Window>) {
 pub fn remember_open(app: &gtk::Application) {
     for window in windows(app) {
         window.remember();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A page of four blocks at `scale` times the heights the other pane lays
+    /// them out at, the third of which the rendered page will lack — a
+    /// Document's `Gap`, which the render pass drops.
+    fn page(scale: f64) -> Vec<sync::Block> {
+        [
+            (0, 0.0, 100.0),
+            (1, 100.0, 200.0),
+            (2, 300.0, 60.0),
+            (3, 360.0, 240.0),
+        ]
+        .into_iter()
+        .map(|(key, top, height)| sync::Block::new(key, top * scale, height * scale))
+        .collect()
+    }
+
+    /// What [`Window::follow_editor`] hands the rule is one block and not the
+    /// Editor's whole index, and the rule answers the same offset either way.
+    ///
+    /// The whole reason the Editor is asked for a block by
+    /// [`crate::editor::Editor::top_block`] rather than walked: the top-block
+    /// rule reads the driver only for whichever block its top edge is in, so a
+    /// slice of that one block is the same question asked cheaply, and a
+    /// keystroke never pays for a manuscript's index.
+    #[test]
+    fn one_block_is_the_whole_of_what_the_top_block_rule_asks_of_a_driver() {
+        let driver = page(1.0);
+        let follower = page(2.0);
+        let max = 2000.0;
+        for offset in [0.0, 50.0, 100.0, 355.0, 500.0] {
+            let whole = sync::follow_top_block(&driver, offset, &follower, max);
+            let one = driver
+                .iter()
+                .rev()
+                .find(|block| block.top <= offset)
+                .copied()
+                .expect("the top edge is in a block");
+            assert!(
+                (sync::follow_top_block(&[one], offset, &follower, max) - whole).abs()
+                    < f64::EPSILON,
+                "at {offset} the one block the top edge is in answers what the page does"
+            );
+        }
+    }
+
+    /// The stepping the three Preview size keys press, on its own: ten points
+    /// a press, held inside the range the settings file is read against, and a
+    /// reset to the Template's own sizes (#263 § Zoom).
+    #[test]
+    fn the_preview_zoom_steps_by_ten_points_and_stops_at_the_ends() {
+        assert_eq!(stepped_zoom(100, Zoom::Bigger), 110);
+        assert_eq!(stepped_zoom(100, Zoom::Smaller), 90);
+        assert_eq!(stepped_zoom(195, Zoom::Bigger), 200, "clamped, not refused");
+        assert_eq!(stepped_zoom(200, Zoom::Bigger), 200);
+        assert_eq!(stepped_zoom(55, Zoom::Smaller), 50);
+        assert_eq!(stepped_zoom(50, Zoom::Smaller), 50);
+        assert_eq!(stepped_zoom(0, Zoom::Smaller), 50, "and never below zero");
+        assert_eq!(stepped_zoom(175, Zoom::Reset), 100);
+        assert_eq!(stepped_zoom(50, Zoom::Reset), 100);
+    }
+
+    /// With the pane away, either chord opens it in its own layout — the
+    /// layout the pane last stood in does not steer it (#263, the third Hand
+    /// test round).
+    #[test]
+    fn a_chord_with_no_pane_opens_its_own_layout() {
+        for showing in [PreviewLayout::Split, PreviewLayout::Full] {
+            assert_eq!(
+                next_preview_pane(false, showing, PreviewLayout::Full),
+                PreviewPane::Open(PreviewLayout::Full)
+            );
+            assert_eq!(
+                next_preview_pane(false, showing, PreviewLayout::Split),
+                PreviewPane::Open(PreviewLayout::Split)
+            );
+        }
+    }
+
+    /// Over the other layout a chord switches the open pane rather than
+    /// closing it: #263 story 4's "without hiding the pane first".
+    #[test]
+    fn a_chord_over_the_other_layout_switches_in_place() {
+        assert_eq!(
+            next_preview_pane(true, PreviewLayout::Split, PreviewLayout::Full),
+            PreviewPane::Open(PreviewLayout::Full)
+        );
+        assert_eq!(
+            next_preview_pane(true, PreviewLayout::Full, PreviewLayout::Split),
+            PreviewPane::Open(PreviewLayout::Split)
+        );
+    }
+
+    /// Over its own layout a chord is the way back out.
+    #[test]
+    fn a_chord_over_its_own_layout_closes_the_pane() {
+        assert_eq!(
+            next_preview_pane(true, PreviewLayout::Full, PreviewLayout::Full),
+            PreviewPane::Closed
+        );
+        assert_eq!(
+            next_preview_pane(true, PreviewLayout::Split, PreviewLayout::Split),
+            PreviewPane::Closed
+        );
     }
 }

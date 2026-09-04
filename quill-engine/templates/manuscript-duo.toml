@@ -1,0 +1,42 @@
+# Manuscript (Duo): the Editor's own typography with the Markup removed.
+#
+# The Mono manuscript's numbers on Quill Duo. See `manuscript-mono.toml` for
+# where each of them comes from.
+
+id = "manuscript-duo"
+paragraphs = "spaced"
+
+[faces]
+body = { family = "Quill Duo", italic = "Quill Duo Italic" }
+heading = { family = "Quill Duo", italic = "Quill Duo Italic" }
+code = { family = "Quill Duo", italic = "Quill Duo Italic" }
+
+[sizes]
+base = 16.0
+headings = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+code = 1.0
+
+[rhythm]
+line_height = 1.711
+measure = 38.4
+paragraph_spacing = 1.0
+space_before_heading = 1.0
+space_after_heading = 1.0
+
+[headings]
+alignment = "left"
+weight = 700
+
+[light]
+paper = "#f7f7f7"
+ink = "#191919"
+muted = "#8c8c8c"
+link = "#1a5fb4"
+code_ground = "#eeeeee"
+
+[dark]
+paper = "#1a1a1a"
+ink = "#cccccc"
+muted = "#7e7e7e"
+link = "#78aeed"
+code_ground = "#252525"

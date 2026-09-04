@@ -203,11 +203,12 @@ const VIEW: Menu = Menu::View;
 const STATS: Menu = Menu::Stats;
 
 /// The View menu's sections in the table's order, separators between them.
-pub const VIEW_SECTIONS: [&str; 6] = [
+pub const VIEW_SECTIONS: [&str; 7] = [
     "Focus",
     "Panes",
     "Writing tools",
     "Typeface",
+    "Template",
     "Appearance",
     "Window",
 ];
@@ -236,12 +237,11 @@ pub const COMMANDS: &[Command] = &[
     row("focus.paragraph", "Paragraph", Scope::Win, Kind::Radio { group: "focus_scope", value: "paragraph", }, &[], &[place(VIEW, Some("Focus"), "Paragraph")], true),
     row("focus.swap", "Switch Focus Scope", Scope::Win, Kind::Plain, &["Ctrl+Shift+D"], &[], true),
     row("typewriter.toggle", "Typewriter", Scope::Win, Kind::Check, &["Ctrl+T"], &[place(VIEW, Some("Focus"), "Typewriter")], true),
+    row("live.toggle", "Live", Scope::Win, Kind::Check, &["Ctrl+L"], &[place(VIEW, Some("Focus"), "Live")], true),
     // View › Panes.
     row("library.toggle", "Show Library / Hide Library", Scope::Win, Kind::Check, &["Ctrl+E", "F9"], &[place(VIEW, Some("Panes"), "Show Library / Hide Library")], true),
-    row("preview.toggle", "Show Preview / Hide Preview", Scope::Win, Kind::Check, &["Ctrl+R"], &[place(VIEW, Some("Panes"), "Show Preview / Hide Preview")], false),
-    // The Preview spec decides the pair's values; `Ctrl+Shift+R` is reserved
-    // for it and bound to nothing.
-    row("preview.layout", "Preview Split / Preview Full", Scope::Win, Kind::Radio { group: "preview_layout", value: "split", }, &[], &[place(VIEW, Some("Panes"), "Preview Split / Preview Full")], false),
+    row("preview.full", "Preview Full", Scope::Win, Kind::Check, &["Ctrl+R"], &[place(VIEW, Some("Panes"), "Preview Full")], true),
+    row("preview.split", "Preview Split", Scope::Win, Kind::Check, &["Ctrl+Shift+R"], &[place(VIEW, Some("Panes"), "Preview Split")], true),
     // View › Writing tools.
     row("syntax.toggle", "Syntax Highlight", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Syntax Highlight")], false),
     row("syntax.nouns", "Nouns", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Nouns")], false),
@@ -255,11 +255,24 @@ pub const COMMANDS: &[Command] = &[
     row("font.duo", "Duo", Scope::Win, Kind::Radio { group: "face", value: "duo", }, &[], &[place(VIEW, Some("Typeface"), "Duo")], true),
     row("font.quattro", "Quattro", Scope::Win, Kind::Radio { group: "face", value: "quattro", }, &[], &[place(VIEW, Some("Typeface"), "Quattro")], true),
     row("font.mono", "Mono", Scope::Win, Kind::Radio { group: "face", value: "mono", }, &[], &[place(VIEW, Some("Typeface"), "Mono")], true),
+    // View › Template. The five Templates are one radio group whose value is
+    // the `[template]` table's `name`; the three toggles are its other keys.
+    row("template.modern", "Modern", Scope::Win, Kind::Radio { group: "template", value: "modern", }, &[], &[place(VIEW, Some("Template"), "Modern")], true),
+    row("template.classic", "Classic", Scope::Win, Kind::Radio { group: "template", value: "classic", }, &[], &[place(VIEW, Some("Template"), "Classic")], true),
+    row("template.manuscriptMono", "Manuscript Mono", Scope::Win, Kind::Radio { group: "template", value: "manuscript-mono", }, &[], &[place(VIEW, Some("Template"), "Manuscript Mono")], true),
+    row("template.manuscriptDuo", "Manuscript Duo", Scope::Win, Kind::Radio { group: "template", value: "manuscript-duo", }, &[], &[place(VIEW, Some("Template"), "Manuscript Duo")], true),
+    row("template.manuscriptQuattro", "Manuscript Quattro", Scope::Win, Kind::Radio { group: "template", value: "manuscript-quattro", }, &[], &[place(VIEW, Some("Template"), "Manuscript Quattro")], true),
+    row("template.centerHeadings", "Center Headings", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Template"), "Center Headings")], true),
+    row("template.numberHeadings", "Number Headings", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Template"), "Number Headings")], true),
+    row("template.indentParagraphs", "Indent Paragraphs", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Template"), "Indent Paragraphs")], true),
     // View › Appearance.
     row("theme.toggle", "Dark Mode", Scope::Win, Kind::Check, &["Ctrl+Shift+L", "Alt+Shift+N"], &[place(VIEW, Some("Appearance"), "Dark Mode")], true),
-    row("font.bigger", "Bigger Text", Scope::Win, Kind::Plain, &["Ctrl+=", "Ctrl++"], &[place(VIEW, Some("Appearance"), "Bigger Text")], true),
+    row("font.bigger", "Bigger Text", Scope::Win, Kind::Plain, &["Ctrl+="], &[place(VIEW, Some("Appearance"), "Bigger Text")], true),
     row("font.smaller", "Smaller Text", Scope::Win, Kind::Plain, &["Ctrl+-"], &[place(VIEW, Some("Appearance"), "Smaller Text")], true),
     row("font.reset", "Default Text Size", Scope::Win, Kind::Plain, &["Ctrl+0"], &[place(VIEW, Some("Appearance"), "Default Text Size")], true),
+    row("preview.bigger", "Bigger Preview Text", Scope::Win, Kind::Plain, &["Ctrl+Shift+="], &[place(VIEW, Some("Appearance"), "Bigger Preview Text")], true),
+    row("preview.smaller", "Smaller Preview Text", Scope::Win, Kind::Plain, &["Ctrl+Shift+-"], &[place(VIEW, Some("Appearance"), "Smaller Preview Text")], true),
+    row("preview.reset", "Default Preview Size", Scope::Win, Kind::Plain, &["Ctrl+Shift+0"], &[place(VIEW, Some("Appearance"), "Default Preview Size")], true),
     // View › Window.
     row("chrome.stats", "Statistics", Scope::Win, Kind::Check, &[], &[ place(VIEW, Some("Window"), "Statistics"), place(STATS, None, "Hide Statistics"), ], true),
     row("chrome.toggle", "Hide Bars / Show Bars", Scope::Win, Kind::Check, &["Ctrl+Shift+H"], &[place(VIEW, Some("Window"), "Hide Bars / Show Bars")], true),
@@ -307,7 +320,6 @@ pub const RESERVED: &[&str] = &[
     "Ctrl+G",
     "Ctrl+Shift+G",
     "Ctrl+Shift+C",
-    "Ctrl+Shift+R",
 ];
 
 /// Chords `GtkTextView` takes before a window shortcut sees them, so a
@@ -355,7 +367,8 @@ pub fn radio_groups() -> Vec<&'static str> {
 
 /// A chord in the table's syntax as GTK's accelerator syntax:
 /// `Ctrl+Shift+L` is `<Control><Shift>l`, `Ctrl+Page Down` is
-/// `<Control>Page_Down`.
+/// `<Control>Page_Down`, `Ctrl+Shift+=` is `<Control><Shift>plus`
+/// ([`shifted`]).
 ///
 /// `None` for a key this converter has no name for, which the registry test
 /// turns into a failure rather than a silently unbound chord.
@@ -377,8 +390,43 @@ pub fn accel(chord: &str) -> Option<String> {
             _ => return None,
         });
     }
-    out.push_str(&key_name(key)?);
+    let name = match shifted(key) {
+        Some(name) if modifiers.contains(&"Shift") => name.to_owned(),
+        _ => key_name(key)?,
+    };
+    out.push_str(&name);
     Some(out)
+}
+
+/// GDK's name for the keyval a US layout's Shift produces for `key`, where
+/// Shift produces another one.
+///
+/// A chord names the keyval the press makes, not the unshifted key: GDK
+/// matches a consumed modifier as a don't-care, so `Ctrl+Shift+=` arrives as
+/// keyval `plus` with Shift consumed and an accelerator written
+/// `<Control><Shift>equal` never matches it. Letters are their own answer and
+/// are left to [`key_name`]. The table is the US layout's, as the rest of the
+/// registry is.
+fn shifted(key: &str) -> Option<&'static str> {
+    match key {
+        "1" => Some("exclam"),
+        "2" => Some("at"),
+        "3" => Some("numbersign"),
+        "4" => Some("dollar"),
+        "5" => Some("percent"),
+        "6" => Some("asciicircum"),
+        "7" => Some("ampersand"),
+        "8" => Some("asterisk"),
+        "9" => Some("parenleft"),
+        "0" => Some("parenright"),
+        "-" => Some("underscore"),
+        "=" => Some("plus"),
+        "," => Some("less"),
+        "." => Some("greater"),
+        ";" => Some("colon"),
+        "/" => Some("question"),
+        _ => None,
+    }
 }
 
 /// GDK's name for a key as the table writes it.
@@ -794,6 +842,31 @@ mod tests {
     }
 
     #[test]
+    fn a_shift_chord_names_the_keyval_shift_produces() {
+        assert_eq!(
+            accel("Ctrl+Shift+=").as_deref(),
+            Some("<Control><Shift>plus")
+        );
+        assert_eq!(
+            accel("Ctrl+Shift+-").as_deref(),
+            Some("<Control><Shift>underscore")
+        );
+        assert_eq!(
+            accel("Ctrl+Shift+0").as_deref(),
+            Some("<Control><Shift>parenright")
+        );
+        assert_eq!(
+            accel("Ctrl+Shift+7").as_deref(),
+            Some("<Control><Shift>ampersand")
+        );
+        // A letter is its own keyval, and no modifier changes an unshifted
+        // chord's key.
+        assert_eq!(accel("Ctrl+Shift+L").as_deref(), Some("<Control><Shift>l"));
+        assert_eq!(accel("Ctrl+=").as_deref(), Some("<Control>equal"));
+        assert_eq!(accel("Ctrl+0").as_deref(), Some("<Control>0"));
+    }
+
+    #[test]
     fn a_chord_finds_its_command_by_default_or_alias() {
         assert_eq!(by_chord("Ctrl+E").map(|c| c.id), Some("library.toggle"));
         assert_eq!(by_chord("F9").map(|c| c.id), Some("library.toggle"));
@@ -837,7 +910,7 @@ mod tests {
         assert_eq!(by_id("chrome.stats").unwrap().placements.len(), 2);
         assert_eq!(
             radio_groups(),
-            ["focus_scope", "preview_layout", "face", "stats", "theme"]
+            ["focus_scope", "face", "template", "stats", "theme"]
         );
     }
 }

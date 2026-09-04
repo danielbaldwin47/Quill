@@ -79,7 +79,7 @@ export function decisive(judged) {
 //
 // `headline` fills the single-pair keys itself, for a run whose answer is not any one of its
 // judged states'. A blind round's is: one state lost, and that state's verdict is the round's.
-// `tools/gate judge latency` is twelve regimes and one bench summary, and the pair the round names
+// `tools/gate judge latency` is fourteen regimes and one bench summary, and the pair the round names
 // is that summary against the oracle's report — which is not a thing any single regime says.
 export function round({ piece, number, judged, opponent, build, oracle, note, at, headline }) {
   const head = headline || decisive(judged);

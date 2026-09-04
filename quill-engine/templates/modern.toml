@@ -1,0 +1,50 @@
+# Modern: the Sans, on Inter. The default Template.
+#
+# The papers are measured, not chosen: `ref/ia/mac-native/NOTES.md` § State 16
+# reads the rendered page's dark ground at #101010, a step darker than the
+# Editor's own #1a1a1a, and its headings centred in the measure. The light
+# paper is white until the same capture lands in the light scheme (#261).
+
+id = "modern"
+paragraphs = "spaced"
+
+[faces]
+body = { family = "Inter" }
+heading = { family = "Inter" }
+code = { family = "Quill Mono", italic = "Quill Mono Italic" }
+
+[sizes]
+base = 16.0
+headings = [2.0, 1.5, 1.25, 1.125, 1.0, 1.0]
+code = 0.9
+
+[rhythm]
+line_height = 1.5
+measure = 34.0
+paragraph_spacing = 1.0
+space_before_heading = 1.75
+space_after_heading = 0.5
+
+[headings]
+alignment = "center"
+weight = 700
+
+# The inks are the Editor's own (`theme.rs`, `Colours::LIGHT` and `DARK`), so a
+# rendered page beside the Editor is the same ink on a different paper. The
+# code ground is the Editor's wash flattened onto this Template's paper, and the
+# link is a blue rather than the Editor's grey rule: a rendered link is read,
+# not typed over.
+
+[light]
+paper = "#ffffff"
+ink = "#191919"
+muted = "#8c8c8c"
+link = "#1a5fb4"
+code_ground = "#f0f0f0"
+
+[dark]
+paper = "#101010"
+ink = "#cccccc"
+muted = "#7e7e7e"
+link = "#78aeed"
+code_ground = "#1c1c1c"

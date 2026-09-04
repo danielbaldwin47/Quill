@@ -55,9 +55,11 @@ ranges after the edit by the edit's byte delta.
 
 ## Annotators and the keystroke path
 
-An Annotator turns a byte range of the Document into spans, each `(byte range, mark)`. Four exist:
+An Annotator turns a byte range of the Document into spans, each `(byte range, mark)`. Five exist:
 Markup (from the parser: which bytes are Markup, which are heading, emphasis, strong, code, link,
-quote, list marker), Syntax highlight (a UPOS tag per word), Style check (a list name per match) and
+quote, list marker), Live (from the Markup spans and the caret: which marker bytes are folded away,
+which bytes are a heading's and at what level, and what furniture stands in a folded marker's
+cells), Syntax highlight (a UPOS tag per word), Style check (a list name per match) and
 Spell check (a misspelling per word, suggestions fetched on demand). Syntax highlight, Style check and
 Spell check consume the **prose stream**: the parser's `Text` events with Markup, code spans, fenced
 code, URLs and front matter removed. They never see a `#` or a `*`.
@@ -93,8 +95,11 @@ at the default), in device px at scale 2 and `round(value × scale / 2)` at any 
 leading as measured on the Design oracle, not a fitted curve (`docs/design.md` § Line pitch). The air
 a row leaves over, `pitch − row`, is split three ways as ADR 0004 requires, and the split is fixed by
 the two gaps GTK actually draws: `pixels-inside-wrap` carries all of it, because it alone separates
-two rows of one paragraph, and `pixels-above-lines` and `pixels-below-lines` take half each, because
-only their sum separates two paragraphs. The three therefore do not sum to the air. Font sizes are
+two rows of one paragraph, and the paragraph gap is halved, because only the sum of its two halves
+separates two paragraphs. The three therefore do not sum to the air. GTK is set to that sum as
+`pixels-above-lines` and to nothing below, because a bottom band is where it aborts on a line holding
+invisible bytes (ADR 0004's status line, #279); the page's margins move to match, and the code well's
+boundary rows are given the lower half back through tags. Font sizes are
 absolute pixels (`set_absolute_size`), never points, and the em is the ladder's value in logical px
 — 21.33 at the default step — so it is no longer an integer (`docs/design.md` § Text sizes).
 
@@ -152,10 +157,15 @@ Config: `theme` (auto, light, dark), `face` (duo, quattro, mono), `step` (the te
 default 5 = 21.33 logical px; an old `size` in px becomes the nearest step at or above it once,
 `docs/design.md` § Text sizes),
 `focus` (on/off) and `focus_scope` (sentence, paragraph), `typewriter` (on/off) and
-`typewriter_anchor` (0–1, default 0.5), `chrome` (shown/hidden), `spell_check` (on/off, default on)
+`typewriter_anchor` (0–1, default 0.5), `live` (on/off, default off: the Editor rendering the markup
+it is not being typed in), `chrome` (shown/hidden), `spell_check` (on/off, default on)
 and `spell_language`, `[syntax_highlight]` (a table: `enabled` is the master, and the five category
 toggles sit beside it), `[style_check]` (the same shape, one toggle per list beside `enabled`),
-`template` (the current Template's name), `preview_layout` (split, full),
+a `[template]` table (`name`, one of the five Templates, default `modern`; and `center_headings`,
+default true, `number_headings` and `indent_paragraphs`, the three toggles that bend one), a
+`[preview]` table (`layout`, split or full, and `zoom`, a whole percentage from 50 to 200, default
+100; a scalar `template` or `preview_layout`, which is how each was written before it was a table, is
+read as its table's value and rewritten as the table on the next write, as a scalar `library` is),
 `palette` (the file the grounds take their colours from, `design.md` § The palette is a
 file; empty is the built-ins), a `[library]` table (`locations` and `pinned`, two lists of paths,
 and `show_hidden`, `show_extensions`, `confirm_move` and `ask_where_to_save`, four booleans that
@@ -217,11 +227,15 @@ sit behind the Gate like everything else.
 
 ## Fonts and data files
 
-Before GTK initialises, startup calls `FcConfigAppFontAddDir` on the six Faces ([ADR 0007](adr/0007-quill-faces-renamed-and-private.md)).
-Data files (fonts, Templates, the Style check lists, the tagger model, `OFL.txt`) are resolved from
+Before GTK initialises, startup calls `FcConfigAppFontAddDir` on the fonts directory, which carries
+the six Faces and the two Template families, Inter and Source Serif 4
+([ADR 0007](adr/0007-quill-faces-renamed-and-private.md)).
+Data files (fonts, the Style check lists, the tagger model, the `OFL` licences) are resolved from
 one data directory: `$QUILL_DATA_DIR` if set, else the directory compiled in at build time
 (`/usr/share/quill` for the package), else the repo root for a development build. Nothing is
-downloaded at build time.
+downloaded at build time. Templates are the exception: they are compiled into the binary with
+`include_str!` rather than resolved from the data directory, so a build that finds no data directory
+still renders (`quill_engine::template`).
 
 ## Command-line flags
 
@@ -231,7 +245,9 @@ and the determinism settings, this document names the flags:
 - Judged state: `--text <file>`, `--theme light|dark` (the ground, and — given without `--palette` —
   the built-in table for it whatever the `palette` setting names, so a judged shot is the same on
   every machine), `--font duo|quattro|mono`, `--step <n>`,
-  `--focus off|sentence|paragraph`, `--typewriter`, `--chrome on|off`, `--caret <offset>|end`,
+  `--focus off|sentence|paragraph`, `--typewriter`, `--live` (turn Live on; absent under
+  `--deterministic` it pins Live off, so every state judged before Live existed is shot with the
+  markup written out), `--chrome on|off`, `--caret <offset>|end`,
   `--select <from>,<to>`, `--scroll <fraction>`, `--nocaret`, `--typing` (the chrome as it is
   inside the 500 ms after a keystroke: the title bar gone, the stats bar dimmed), `--menu
   view|document|stats|palette` (that menu, or the Palette, open with its first row selected),

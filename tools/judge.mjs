@@ -67,7 +67,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { assertState, validate } from './assert-state.mjs';
+import { assertState, secondShot, validate } from './assert-state.mjs';
 import { BUDGET, ORACLE, latencyVerdict } from './bench-join.mjs';
 import { pair, pairDir, reveal } from './blind.mjs';
 import { CAPTURES, cropPng, resolveOpponent } from './crop.mjs';
@@ -403,13 +403,13 @@ async function judgeLatency(root, note, named) {
   //
   // Asked of the regimes the summary actually holds, never of `ran`: that is the line the run
   // printed for a human to read, and a verdict that turned on its exact wording would be one
-  // rewording away from judging a subset as though it were the whole twelve.
+  // rewording away from judging a subset as though it were the whole fourteen.
   const held = new Set((summary.regimes || []).map((row) => row.regime));
   const short = (summary.regimes_not_run || []).concat(
     regimes().map((r) => r.name).filter((name) => !held.has(name)),
   );
   if (short.length) {
-    say(`gate judge latency: ${file} ran ${summary.ran}, and the Piece is judged on all twelve`);
+    say(`gate judge latency: ${file} ran ${summary.ran}, and the Piece is judged on all fourteen`);
     return refuse('latency', `${file} is not a whole run — ${short.join(', ')} missing`);
   }
   if ((summary.regimes_unaccounted_for || []).length) {
@@ -762,11 +762,13 @@ async function judge(root, piece, note, summaryFile, settingsFile, fresh) {
       const { ours, theirs } = await shootState(stage, root, s, settingsFile, cut, paths);
       if (cut) say(`gate judge ${piece}: ${s.name} cropped to ${cut.crop[2]}x${cut.crop[3]} against ${cut.capture}`);
 
-      // An asserted state is answered here and never paired: it is shot a second time with the
-      // window active, and the rule is read off the two shots (ADR 0017). Both are kept, because
-      // the measurement is only checkable by someone who has the pixels it was taken from.
+      // An asserted state is answered here and never paired: it is shot a second time, the way its
+      // own rule asks for ([`SECOND`] — active for `ghost`, Live off for `folded`), and the rule is
+      // read off the two shots (ADR 0017). Both are kept, because the measurement is only checkable
+      // by someone who has the pixels it was taken from.
       if (s.assert) {
-        await shootState(stage, root, s, settingsFile, null, { ...paths, shot: paths.lit }, { active: true });
+        const second = secondShot(s.assert, s);
+        await shootState(stage, root, second.state, settingsFile, null, { ...paths, shot: paths.lit }, second.options);
         const answer = assertState(s.assert, {
           lit: fs.readFileSync(path.join(root, paths.lit)),
           dim: fs.readFileSync(path.join(root, paths.shot)),

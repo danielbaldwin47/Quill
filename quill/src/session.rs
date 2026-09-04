@@ -35,7 +35,10 @@ use gtk::glib;
 use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
 use quill_engine::library::Library;
-use quill_engine::settings::{Chrome, Face, FocusScope, Settings, State, Theme, WindowState};
+use quill_engine::settings::{
+    Chrome, Face, FocusScope, PreviewLayout, Settings, State, Template, TemplateName, Theme,
+    WindowState,
+};
 use quill_engine::shortcuts::Refusal;
 use quill_engine::theme::{self, Palette, Scheme};
 use quill_engine::watch::{Placed, Watch, unsaid};
@@ -54,6 +57,42 @@ pub const DOMAIN: &str = "quill-settings";
 /// [`quill_engine::watch::DEBOUNCE`] this is what stands between a writer's
 /// save and the page following it.
 const DRAIN_EVERY: Duration = Duration::from_millis(100);
+
+/// Which of the Template's three toggles a Command or a Settings row moves.
+///
+/// A sentinel rather than three near-identical methods: the three read and
+/// write one boolean each and differ only in which key of `[template]` it is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TemplateToggle {
+    /// `center_headings`: every heading centred rather than set as the
+    /// Template has it.
+    CenterHeadings,
+    /// `number_headings`: the headings under the title numbered.
+    NumberHeadings,
+    /// `indent_paragraphs`: a paragraph indented rather than spaced.
+    IndentParagraphs,
+}
+
+impl TemplateToggle {
+    /// What `template` says this toggle is now.
+    #[must_use]
+    pub fn of(self, template: &Template) -> bool {
+        match self {
+            Self::CenterHeadings => template.center_headings,
+            Self::NumberHeadings => template.number_headings,
+            Self::IndentParagraphs => template.indent_paragraphs,
+        }
+    }
+
+    /// Sets this toggle in `template` to `on`.
+    pub fn set(self, template: &mut Template, on: bool) {
+        match self {
+            Self::CenterHeadings => template.center_headings = on,
+            Self::NumberHeadings => template.number_headings = on,
+            Self::IndentParagraphs => template.indent_paragraphs = on,
+        }
+    }
+}
 
 /// The settings and state of one run of Quill.
 pub struct Session {
@@ -114,6 +153,11 @@ pub struct Session {
     /// Whether Typewriter is on now. Nothing scrolls to it yet — #115 is what
     /// makes it move — so this launch only remembers it.
     typewriter: Cell<bool>,
+    /// Whether Live is on now: the markup rendered in place rather than
+    /// written out. A per-app mode as Focus is, so it is held live for the
+    /// reason [`Session::focus`] is — the key moves it in every window, and a
+    /// window opened after it was pressed opens folded.
+    live: Cell<bool>,
     /// The face the page is set in now: the setting until the writer picks
     /// one from View › Typeface, and then the one they picked. Held live for
     /// the reason [`Session::step`] is.
@@ -126,6 +170,26 @@ pub struct Session {
     /// presses `Ctrl+Shift+H`, and then what they pressed it to. Held live for
     /// the reason [`Session::focus`] is.
     chrome: Cell<Chrome>,
+    /// The layout the pane last showed: the setting until the writer presses
+    /// `Ctrl+R` or `Ctrl+Shift+R`, and then the one that chord opened or
+    /// switched the pane to. Held apart from
+    /// [`Session::settings`] for the reason [`Session::focus_scope`] is —
+    /// what was read has to stay readable for [`Session::store_settings`] to
+    /// know there is anything to write. Whether the pane is open at all is
+    /// not here: that is the window's, and it is never remembered.
+    preview_layout: Cell<PreviewLayout>,
+    /// How far the rendered page is zoomed now: the setting until the writer
+    /// presses one of the three Preview size keys, and then what they stepped
+    /// it to. Held apart from [`Session::settings`] for the reason
+    /// [`Session::preview_layout`] is.
+    preview_zoom: Cell<u32>,
+    /// The Template the page is laid out in now and the three toggles that
+    /// bend it: the settings until the writer picks from View › Template, and
+    /// then what they picked. Held apart from [`Session::settings`] for the
+    /// reason [`Session::preview_layout`] is, and whole rather than as four
+    /// values so that a `[template]` key this Quill does not know is carried
+    /// through a write with the rest of the table.
+    template: RefCell<Template>,
     /// Whether the stats bar is shown while the bars are: `chrome.stats`.
     /// Live only — no settings key holds it until the Stats spec (#30)
     /// decides what the bar remembers — so every launch shows it.
@@ -250,9 +314,13 @@ impl Session {
             focus: Cell::new(settings.focus),
             focus_scope: Cell::new(settings.focus_scope),
             typewriter: Cell::new(settings.typewriter),
+            live: Cell::new(settings.live),
             face: Cell::new(settings.face),
             desktop: Cell::new(portal),
             chrome: Cell::new(settings.chrome),
+            preview_layout: Cell::new(settings.preview.layout),
+            preview_zoom: Cell::new(settings.preview.zoom),
+            template: RefCell::new(settings.template.clone()),
             stats: Cell::new(true),
             scheme: Cell::new(scheme),
             settings: RefCell::new(settings),
@@ -332,8 +400,12 @@ impl Session {
         self.focus.set(settings.focus);
         self.focus_scope.set(settings.focus_scope);
         self.typewriter.set(settings.typewriter);
+        self.live.set(settings.live);
         self.face.set(settings.face);
         self.chrome.set(settings.chrome);
+        self.preview_layout.set(settings.preview.layout);
+        self.preview_zoom.set(settings.preview.zoom);
+        self.template.replace(settings.template.clone());
         let theme = settings.theme;
         self.settings.replace(settings);
         self.set_theme(theme);
@@ -596,6 +668,21 @@ impl Session {
         self.typewriter()
     }
 
+    /// Whether Live is on now: the markup rendered in place.
+    ///
+    /// The live pair rather than `settings().live`, for the reason
+    /// [`Session::focus`] gives: `Ctrl+L` moves it, and the file is written
+    /// from it rather than read back into it.
+    pub fn live(&self) -> bool {
+        self.live.get()
+    }
+
+    /// Turns Live on or off. `docs/shortcuts.md`'s `live.toggle`, `Ctrl+L`.
+    pub fn toggle_live(&self) -> bool {
+        self.live.set(!self.live.get());
+        self.live.get()
+    }
+
     /// Whether the two bars are shown now.
     ///
     /// The live value rather than `settings().chrome`, because `Ctrl+Shift+H`
@@ -757,6 +844,84 @@ impl Session {
         self.leaving.borrow_mut().library_width = width;
     }
 
+    /// The width the Preview pane stands at in every window of this launch,
+    /// or [`None`] where the divider has never been dragged and the pair
+    /// divides evenly.
+    ///
+    /// One width for the app, as [`Session::library_width`] is, and kept in
+    /// the same file for the same reason: what a writer dragged is what Quill
+    /// observed, not something they set.
+    #[must_use]
+    pub fn preview_width(&self) -> Option<u32> {
+        self.leaving.borrow().preview_width
+    }
+
+    /// Takes down the width the writer dragged the Preview divider to.
+    pub fn set_preview_width(&self, width: Option<u32>) {
+        if self.harness {
+            return;
+        }
+        self.leaving.borrow_mut().preview_width = width;
+    }
+
+    /// The layout the pane last showed, and the one it shows now while open.
+    #[must_use]
+    pub fn preview_layout(&self) -> PreviewLayout {
+        self.preview_layout.get()
+    }
+
+    /// Stands the pane's layout at `layout`: what `preview.full` and
+    /// `preview.split` set as they open or switch the pane.
+    ///
+    /// The layout is the session's, so it is one value for the app the way
+    /// the ground is; whether a pane is open at all is the window's and is
+    /// not touched here.
+    pub fn set_preview_layout(&self, layout: PreviewLayout) {
+        self.preview_layout.set(layout);
+    }
+
+    /// How far the rendered page is zoomed now, as a whole percentage.
+    #[must_use]
+    pub fn preview_zoom(&self) -> u32 {
+        self.preview_zoom.get()
+    }
+
+    /// Steps the zoom, for this launch and — for a writer's — the next.
+    ///
+    /// The live value beside the settings, as [`Session::set_step`] is: the
+    /// three Preview size keys move it, and [`Session::store_settings`] is
+    /// what puts it in the file.
+    pub fn set_preview_zoom(&self, zoom: u32) {
+        self.preview_zoom.set(zoom);
+    }
+
+    /// The Template the page is laid out in now, with its three toggles.
+    ///
+    /// The live value rather than `settings().template`, for the reason
+    /// [`Session::preview_zoom`] is live: View › Template moves it, and a
+    /// window opened after a pick opens on the page the writer is reading.
+    pub fn template(&self) -> Ref<'_, Template> {
+        self.template.borrow()
+    }
+
+    /// Lays the page out in `name` from now on, for this launch and — for a
+    /// writer's — the next.
+    pub fn set_template(&self, name: TemplateName) {
+        self.template.borrow_mut().name = name;
+    }
+
+    /// Flips one of the Template's three toggles and answers what it now is.
+    ///
+    /// `docs/shortcuts.md`'s `template.centerHeadings`,
+    /// `template.numberHeadings` and `template.indentParagraphs` rows, which
+    /// are the same three the Settings window's switches write.
+    pub fn toggle_template(&self, toggle: TemplateToggle) -> bool {
+        let mut template = self.template.borrow_mut();
+        let on = !toggle.of(&template);
+        toggle.set(&mut template, on);
+        on
+    }
+
     /// Writes the settings and the state file. Called once, when the
     /// application shuts down.
     pub fn store(&self) {
@@ -820,22 +985,30 @@ impl Session {
     ///
     /// What the windows are showing, in one value, which is what makes
     /// [`Session::apply`] able to say whether a saved edit moved anything they
-    /// would have to be told about.
-    fn running(&self) -> Settings {
+    /// would have to be told about — and what the render pass is handed, so
+    /// that a Template picked or a zoom stepped a moment ago is on the page
+    /// before the watch has read the write back
+    /// ([`crate::window::Window::refresh_preview`]).
+    #[must_use]
+    pub fn running(&self) -> Settings {
         let mut settings = self.settings.borrow().clone();
         settings.step = self.step.get();
         settings.theme = self.theme.get();
         settings.focus = self.focus.get();
         settings.focus_scope = self.focus_scope.get();
         settings.typewriter = self.typewriter.get();
+        settings.live = self.live.get();
         settings.face = self.face.get();
         settings.chrome = self.chrome.get();
+        settings.preview.layout = self.preview_layout.get();
+        settings.preview.zoom = self.preview_zoom.get();
+        settings.template = self.template.borrow().clone();
         settings
     }
 
     /// Writes `settings.toml` when this launch changed something in it.
     ///
-    /// The size, the ground, Focus, its scope, Typewriter, the face and the bars
+    /// The size, the ground, Focus, its scope, Typewriter, Live, the face and the bars
     /// are what can move so far, and only a writer's launch can move any of them: the flags a
     /// launch of the harness's carries are this launch's alone and have no
     /// business in the writer's file, which is why a harness launch has already
@@ -1479,6 +1652,127 @@ mod tests {
         std::fs::remove_file(&path).ok();
     }
 
+    /// The three Preview size keys step `[preview].zoom` by ten points inside
+    /// its range, `preview.reset` puts it back to the Template's own sizes,
+    /// and the file says what the keys left (#270).
+    ///
+    /// The stepping is [`crate::window::stepped_zoom`], which is what the
+    /// Commands press; this is that rule against the settings model and the
+    /// file it writes.
+    #[test]
+    fn the_preview_zoom_keys_step_the_setting_and_the_file_follows() {
+        let path = std::env::temp_dir().join(format!("quill-zoom-{}.toml", std::process::id()));
+        std::fs::remove_file(&path).ok();
+        let flags = Flags {
+            settings: Some(path.clone()),
+            ..Flags::default()
+        };
+        let session = Session::launch(
+            flags,
+            Settings::default(),
+            State::default(),
+            WindowState::default(),
+            true,
+            None,
+        );
+        let step = |direction| {
+            let zoom = crate::window::stepped_zoom(session.preview_zoom(), direction);
+            session.set_preview_zoom(zoom);
+            zoom
+        };
+        assert_eq!(session.preview_zoom(), 100, "the Template's own sizes");
+        assert_eq!(step(crate::window::Zoom::Bigger), 110, "ten points a press");
+        assert_eq!(
+            step(crate::window::Zoom::Smaller),
+            100,
+            "and ten points back"
+        );
+        for _ in 0..20 {
+            step(crate::window::Zoom::Bigger);
+        }
+        assert_eq!(
+            session.preview_zoom(),
+            200,
+            "the widest the file is read at"
+        );
+        for _ in 0..40 {
+            step(crate::window::Zoom::Smaller);
+        }
+        assert_eq!(session.preview_zoom(), 50, "and the narrowest");
+        assert_eq!(
+            step(crate::window::Zoom::Reset),
+            100,
+            "reset is the default"
+        );
+        step(crate::window::Zoom::Bigger);
+        session.store_settings();
+        let (written, notes) = Settings::read_from(&path);
+        assert_eq!(notes, Vec::<String>::new());
+        assert_eq!(
+            written.preview.zoom, 110,
+            "the file says what the keys left"
+        );
+        std::fs::remove_file(&path).ok();
+    }
+
+    /// A Template picked from View › Template is the one the render pass is
+    /// handed from then on, each toggle writes its own key, and the file says
+    /// what the rows left (#271).
+    ///
+    /// The live half against the settings model and the written file: what
+    /// [`crate::window::Window::set_template`] and
+    /// [`crate::window::Window::toggle_template`] press.
+    #[test]
+    fn the_template_rows_move_the_setting_and_the_file_follows() {
+        let path = std::env::temp_dir().join(format!("quill-template-{}.toml", std::process::id()));
+        std::fs::remove_file(&path).ok();
+        let session = Session::launch(
+            Flags {
+                settings: Some(path.clone()),
+                ..Flags::default()
+            },
+            Settings::default(),
+            State::default(),
+            WindowState::default(),
+            true,
+            None,
+        );
+        assert_eq!(
+            session.template().name,
+            TemplateName::Modern,
+            "the one a writer who has chosen none reads in"
+        );
+        session.set_template(TemplateName::Classic);
+        assert_eq!(session.template().name, TemplateName::Classic);
+        assert_eq!(
+            session.running().template.name,
+            TemplateName::Classic,
+            "and the render pass is handed it before the file is read back"
+        );
+        for toggle in [
+            TemplateToggle::CenterHeadings,
+            TemplateToggle::NumberHeadings,
+            TemplateToggle::IndentParagraphs,
+        ] {
+            let was = toggle.of(&session.template());
+            assert_eq!(session.toggle_template(toggle), !was, "{toggle:?} flipped");
+            assert_eq!(toggle.of(&session.template()), !was);
+        }
+        session.store_settings();
+        let (written, notes) = Settings::read_from(&path);
+        assert_eq!(notes, Vec::<String>::new());
+        assert_eq!(written.template.name, TemplateName::Classic);
+        assert!(!written.template.center_headings, "on by default, flipped");
+        assert!(written.template.number_headings);
+        assert!(written.template.indent_paragraphs);
+        // The file read back is the live half's again, which is what a
+        // Settings-window row moving one of the three arrives as.
+        session.apply(written);
+        assert_eq!(session.template().name, TemplateName::Classic);
+        assert!(session.template().number_headings);
+        std::fs::remove_file(&path).ok();
+    }
+
     /// The width a drag on the divider arrives at is the app's, one for every
     /// window; a launch of the harness's keeps none of it, having read no
     /// state file and leaving none behind (#260).
@@ -1829,6 +2123,30 @@ mod tests {
         assert_eq!(session.toggle_typewriter(), Typewriter::Off);
     }
 
+    /// `Ctrl+L` flips Live, and the launch leaves it in the file it writes.
+    ///
+    /// Asked of [`Session::stored`], which is the value
+    /// [`Session::store_settings`] writes, for the reason
+    /// `the_three_keys_are_what_the_launch_leaves_in_the_file` gives.
+    #[test]
+    fn the_live_key_flips_live_and_the_launch_writes_it() {
+        let session = focused_at(FocusScope::Sentence);
+        assert!(!session.live(), "a launch reads it off the file, off");
+        assert!(session.toggle_live());
+        let mut expected = session.settings().clone();
+        expected.live = true;
+        assert_eq!(
+            session.stored().expect("the key moved one value"),
+            expected,
+            "Live, and nothing else the file carries"
+        );
+        assert!(!session.toggle_live());
+        assert!(
+            session.stored().is_none(),
+            "and pressing it back leaves the file exactly as it was found"
+        );
+    }
+
     /// What the three keys moved is what the launch would leave in the file,
     /// and a launch that moved nothing leaves nothing.
     ///
@@ -1877,6 +2195,7 @@ mod tests {
         settings.focus_scope = FocusScope::Paragraph;
         settings.typewriter = true;
         settings.typewriter_anchor = 0.3;
+        settings.live = true;
         settings.chrome = Chrome::Hidden;
         settings
     }
@@ -1937,6 +2256,7 @@ mod tests {
         assert_eq!(session.scheme(), Scheme::Dark, "the ground is repainted");
         assert_eq!(session.focus(), Focus::On(FocusScope::Paragraph));
         assert_eq!(session.typewriter(), Typewriter::On(0.3));
+        assert!(session.live());
         assert_eq!(session.chrome(), Chrome::Hidden);
         assert_eq!(*session.settings(), edited());
         assert!(

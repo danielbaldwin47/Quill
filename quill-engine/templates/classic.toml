@@ -1,0 +1,45 @@
+# Classic: the Serif, on Source Serif 4.
+#
+# The book setting: paragraphs indented rather than spaced, headings ranged
+# left. Its alignment, ladder and spacing follow iA's own description of the
+# template until a capture of it lands beside State 16's.
+
+id = "classic"
+paragraphs = "indented"
+
+[faces]
+body = { family = "Source Serif 4" }
+heading = { family = "Source Serif 4" }
+code = { family = "Quill Mono", italic = "Quill Mono Italic" }
+
+[sizes]
+base = 17.0
+headings = [1.9, 1.5, 1.25, 1.125, 1.0, 1.0]
+code = 0.85
+
+# An indented Template names no space between paragraphs: the indent is what
+# marks the break, and the two together would mark it twice.
+[rhythm]
+line_height = 1.55
+measure = 32.0
+paragraph_spacing = 0.0
+space_before_heading = 1.75
+space_after_heading = 0.5
+
+[headings]
+alignment = "left"
+weight = 700
+
+[light]
+paper = "#ffffff"
+ink = "#191919"
+muted = "#8c8c8c"
+link = "#1a5fb4"
+code_ground = "#f0f0f0"
+
+[dark]
+paper = "#101010"
+ink = "#cccccc"
+muted = "#7e7e7e"
+link = "#78aeed"
+code_ground = "#1c1c1c"

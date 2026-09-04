@@ -59,6 +59,18 @@
       "id": "latency",
       "title": "Latency",
       "what": "Keystroke-to-paint and startup, measured"
+    },
+    {
+      "id": "live",
+      "title": "Live rendering",
+      "what": "Markup folded away in place, headings on the ladder, furniture in the marker cells",
+      "judge": "the page with Live on: whether the markup reads as a rendered page while it is still the source — the markers gone from every block but the one the caret is in, that block showing its source to edit, the headings larger by level, and the words landing on the same body column folded or not. The one state is asserted rather than paired (ADR 0017): neither oracle holds it, so tools/assert-state.mjs measures it off ours own pixels and the Piece takes that answer."
+    },
+    {
+      "id": "preview",
+      "title": "Preview",
+      "what": "The rendered page beside the Editor, and in place of it",
+      "judge": "nothing, and no critic is spent here: every state of this Piece names `assert`, so it is measured off ours' own pixels by tools/assert-state.mjs and shown to nobody (ADR 0017). Neither oracle holds the Preview — legacy/ shows Markdown as source and has no rendered page at all, and iA Writer for Mac's own preview is that app's design rather than this one's, which is why #263 puts Preview outside ADR 0015's reach — so the states are won on arithmetic instead: in Split, the divider at half the window with the Editor's paper one side of it and the Template's the other, and the heading at the top of the rendered page centred in the pane it is drawn in; in Full, one paper across the whole window and that heading centred in the window itself. What a still cannot hold — the refresh, the scroll sync, a link opening — is the feature's Hand test."
     }
   ],
   "log": [
