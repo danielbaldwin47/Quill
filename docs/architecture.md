@@ -94,8 +94,10 @@ and one per `(weight, slant)`, created lazily and never removed. Decorations are
 layered over the runs: one `underline: error` tag for Spell check, one per Style check list, one for
 selection-independent things such as the transparent underline a dim URL takes (`focus.css:41`).
 Focus's own dim is not among them: it is a colour, so it resolves into the run rather than layering
-over it (`quill_engine::annotate::paint`, #126). Underline and colour are
-different properties, so those overlaps are safe.
+over it (`quill_engine::annotate::paint`, #126). Syntax highlight is the third tier and enters the
+same flattening as an ink laid over the Markup runs rather than a mark resolved with them
+(`quill_engine::annotate::paint_tagged`, #313), which is what keeps a Category off a marker and off
+a link's plumbing. Underline and colour are different properties, so those overlaps are safe.
 
 **Leading.** Line pitch is the ladder's pitch per step (`ref/ia/mac-native/NOTES.md` § 11; 1.711 em
 at the default), in device px at scale 2 and `round(value × scale / 2)` at any other: iA's liquid
