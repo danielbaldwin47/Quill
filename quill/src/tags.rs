@@ -506,6 +506,8 @@ pub fn hang_markers(
 /// drawn in the colours of the moment it is applied.
 #[derive(Clone, Copy)]
 pub struct Painting<'a> {
+    /// Retained Category spans, read only over the range being drawn.
+    pub syntax: &'a std::cell::RefCell<crate::syntax::Syntax>,
     /// The Face the Editor is set in.
     pub face: Face,
     /// The table every colour is read off: the ground's, as the Editor holds
@@ -648,6 +650,7 @@ pub fn offsets_of(buffer: &gtk::TextBuffer, document: &Document, at: &Range<usiz
 /// is what leaves them as they were.
 fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &Range<usize>) {
     let Painting {
+        syntax,
         face,
         colours,
         leading,
@@ -659,7 +662,17 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
     // colour, so the ink is read here rather than off the run's role: with
     // Focus on, most of the page is drawn in a colour no role names.
     let spans = document.spans_in(at);
-    for run in annotate::paint_in(&spans, at, tiers, focus, &colours) {
+    let syntax = syntax.borrow();
+    let tagged = syntax.spans_in(document, at);
+    for run in annotate::paint_tagged_in(
+        &spans,
+        &tagged,
+        syntax.categories(),
+        at,
+        tiers,
+        focus,
+        &colours,
+    ) {
         let from = iter_at(buffer, document, run.at.start);
         let to = iter_at(buffer, document, run.at.end);
         let ink = run.paint.colour;
