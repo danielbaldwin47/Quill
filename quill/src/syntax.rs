@@ -2,18 +2,19 @@
 
 use std::ops::Range;
 
+use quill_engine::annotate::{Mark, Span};
 use quill_engine::document::{Document, Edit, Splice};
 use quill_engine::markdown;
 use quill_engine::pos::{Categories, Category};
 use quill_engine::settings::SyntaxHighlight;
-use quill_engine::worker::{Paragraph, ParagraphResult, Request, Worker};
+use quill_engine::worker::{Paragraph, ParagraphResult, Request, SpanStore, Worker};
 
 type Tokens = Vec<(Range<usize>, Category)>;
 
 #[derive(Default)]
 struct ParagraphState {
     length: usize,
-    spans: Tokens,
+    spans: SpanStore,
     dirty: bool,
     mapping: Mapping,
 }
@@ -29,13 +30,19 @@ struct Fragment {
 }
 
 impl Mapping {
-    fn extract(source: &str) -> (String, Self) {
+    fn extract(source: &str, resolved: &[Span], origin: usize) -> (String, Self) {
         let mut prose = String::new();
         let mut fragments = Vec::new();
-        // One pass over the parser's prose events in one complete dirty block.
-        // O(block bytes); mapping tests pin exclusions and fragmented words.
+        // The Document supplies reference context without reparsing the file.
+        let links: Vec<_> = resolved
+            .iter()
+            .filter(|span| matches!(span.mark, Mark::Link | Mark::Image))
+            .map(|span| span.at.start - origin)
+            .collect();
+        // One pass over one dirty block's prose events; only references add
+        // the lookup cost stated by prose_with_links. Request tests pin scope.
         let mut previous = 0;
-        for fragment in markdown::prose(source) {
+        for fragment in markdown::prose_with_links(source, &links) {
             // Inline delimiters join a split word; omitted code, URLs and
             // line breaks separate words rather than inventing a larger one.
             let gap = &source[previous..fragment.at.start];
@@ -172,7 +179,7 @@ impl Syntax {
         // relative ranges; Vec::splice moves their headers on split/join only.
         // Structural-edit and long-document tests pin both scopes.
         for paragraph in &self.paragraphs[first..old_end] {
-            for (at, category) in &paragraph.spans {
+            for (at, category) in paragraph.spans.spans() {
                 let at = rebased(&(origin + at.start..origin + at.end), &edit.splice);
                 if at.is_empty() {
                     continue;
@@ -184,7 +191,7 @@ impl Syntax {
                 for index in start.max(first)..=end.min(edit.scope.blocks.end.saturating_sub(1)) {
                     if let Some(target) = replacements.get_mut(index - first) {
                         let block = document.block(index).at;
-                        target.spans.push((
+                        target.spans.spans_mut().push((
                             at.start.max(block.start) - block.start
                                 ..at.end.min(block.end) - block.start,
                             *category,
@@ -211,8 +218,9 @@ impl Syntax {
                 if !entry.dirty {
                     return None;
                 }
-                let source = &document.text()[document.block(index).at];
-                let (prose, mapping) = Mapping::extract(source);
+                let at = document.block(index).at;
+                let source = &document.text()[at.clone()];
+                let (prose, mapping) = Mapping::extract(source, &document.spans_in(&at), at.start);
                 entry.mapping = mapping;
                 Some(Paragraph { index, prose })
             })
@@ -236,13 +244,15 @@ impl Syntax {
     }
 
     fn accept(&mut self, result: ParagraphResult, document: &Document) -> Option<Range<usize>> {
-        if result.generation != document.generation() {
+        let paragraph = result.paragraph;
+        let entry = self.paragraphs.get_mut(paragraph)?;
+        if !entry.spans.apply(result, document.generation(), |spans| {
+            entry.mapping.source_spans(spans)
+        }) {
             return None;
         }
-        let entry = self.paragraphs.get_mut(result.paragraph)?;
-        entry.spans = entry.mapping.source_spans(result.spans);
         entry.dirty = false;
-        let at = document.block(result.paragraph).at;
+        let at = document.block(paragraph).at;
         Some(document.place(at.start).line..document.place(at.end.saturating_sub(1)).line + 1)
     }
 
@@ -291,8 +301,9 @@ impl Syntax {
             let origin = document.block(index).at.start;
             let first = entry
                 .spans
+                .spans()
                 .partition_point(|(span, _)| origin + span.end <= at.start);
-            for (span, category) in entry.spans[first..]
+            for (span, category) in entry.spans.spans()[first..]
                 .iter()
                 .take_while(|(span, _)| origin + span.start < at.end)
             {
@@ -402,7 +413,7 @@ mod tests {
     #[test]
     fn mapping_splits_tokens_at_markup_without_colouring_invented_bytes() {
         let source = "é**lé**phant [fox](https://example.org) `code` &amp; \\*word";
-        let (prose, mapping) = Mapping::extract(source);
+        let (prose, mapping) = Mapping::extract(source, &[], 0);
         assert!(prose.starts_with("éléphant fox"), "{prose}");
         assert!(!prose.contains("code"));
         assert!(!prose.contains("https"));
@@ -425,7 +436,93 @@ mod tests {
             "    Alice reads.\n",
             "---\ntitle: Alice\n---\n",
         ] {
-            assert!(Mapping::extract(source).0.is_empty(), "{source}");
+            assert!(Mapping::extract(source, &[], 0).0.is_empty(), "{source}");
+        }
+    }
+
+    #[test]
+    fn requests_remove_external_reference_labels_and_map_only_the_linked_words() {
+        let document = document(
+            "An introduction.\n\n[é**lé**phant][animal] reads [books][volume].\n\n[animal]: https://example.org/elephant\n[volume]: https://example.org/books\n",
+        );
+        let mut syntax = enabled(&document);
+        let request = syntax.request(&document, 0..1).unwrap();
+        let paragraph = request
+            .paragraphs
+            .iter()
+            .find(|p| p.prose.contains("phant"))
+            .unwrap();
+        assert_eq!(
+            paragraph.prose.split_whitespace().collect::<Vec<_>>(),
+            ["éléphant", "reads", "books", "."]
+        );
+        assert!(
+            request
+                .paragraphs
+                .iter()
+                .all(|p| !p.prose.contains(['[', ']', '*'])
+                    && !p.prose.contains("animal")
+                    && !p.prose.contains("https"))
+        );
+        assert!(
+            syntax
+                .accept(
+                    ParagraphResult {
+                        generation: request.generation,
+                        paragraph: paragraph.index,
+                        spans: vec![(0.."éléphant".len(), Category::Nouns)],
+                    },
+                    &document
+                )
+                .is_some()
+        );
+        let spans = syntax.spans_in(&document, &(0..document.text().len()));
+        assert_eq!(
+            spans
+                .iter()
+                .map(|(at, _)| &document.text()[at.clone()])
+                .collect::<Vec<_>>(),
+            ["é", "lé", "phant"]
+        );
+    }
+
+    #[test]
+    fn requests_preserve_collapsed_shortcut_and_image_reference_context() {
+        for linked in ["[books][]", "[books]", "![books][]", "![books][volume]"] {
+            let document = document(&format!(
+                "An introduction.\n\n{linked} matter.\n\n[books]: /x\n[volume]: /y\n"
+            ));
+            let mut syntax = enabled(&document);
+            let request = syntax.request(&document, 0..1).unwrap();
+            let paragraph = request
+                .paragraphs
+                .iter()
+                .find(|p| p.prose.contains("books"))
+                .unwrap();
+            assert_eq!(
+                paragraph.prose.split_whitespace().collect::<Vec<_>>(),
+                ["books", "matter."],
+                "{linked}"
+            );
+        }
+        let document = document("[unknown] remains literal.");
+        let mut syntax = enabled(&document);
+        let request = syntax.request(&document, 0..1).unwrap();
+        assert_eq!(request.paragraphs[0].prose, document.text());
+    }
+
+    #[test]
+    fn resolved_links_do_not_consume_adjacent_literal_brackets() {
+        for linked in ["[books][unknown]", "[books][volume][]"] {
+            let source = format!("{linked} matter.\n\n[books]: /x\n[volume]: /y\n");
+            let document = document(&source);
+            let mut syntax = enabled(&document);
+            let request = syntax.request(&document, 0..1).unwrap();
+            assert_eq!(
+                request.paragraphs[0].prose,
+                Mapping::extract(&source, &[], 0).0,
+                "{linked}"
+            );
         }
     }
 
@@ -491,10 +588,13 @@ mod tests {
         let mut syntax = enabled(&document);
         answer(&mut syntax, &document);
         let last = syntax.paragraphs.len() - 1;
-        let first_allocation = syntax.paragraphs[0].spans.as_ptr();
+        let first_allocation = syntax.paragraphs[0].spans.spans().as_ptr();
         let edit = document.insert(document.text().len() - 2, " now");
         syntax.edited(&document, &edit);
-        assert_eq!(syntax.paragraphs[0].spans.as_ptr(), first_allocation);
+        assert_eq!(
+            syntax.paragraphs[0].spans.spans().as_ptr(),
+            first_allocation
+        );
         let request = syntax.request(&document, last..last + 1).unwrap();
         assert_eq!(
             request

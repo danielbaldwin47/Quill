@@ -10,7 +10,7 @@
 use std::collections::BTreeMap;
 use std::ops::Range;
 
-use pulldown_cmark::{Event, LinkType, OffsetIter, Options, Parser, Tag};
+use pulldown_cmark::{BrokenLink, Event, LinkType, OffsetIter, Options, Parser, Tag};
 
 /// The one option set Quill reads Markdown with.
 ///
@@ -80,12 +80,41 @@ pub struct Prose<'a> {
 /// consuming Annotator's judgement, not this function's.
 #[must_use]
 pub fn prose(text: &str) -> Vec<Prose<'_>> {
+    prose_events(text, events(text))
+}
+
+/// A block's prose with reference links already resolved by its Document.
+///
+/// `link_starts` lists the sorted, block-relative starts of known links and
+/// images. The parser may resolve references at those positions even when
+/// their definitions are in another block; unknown references remain literal
+/// prose. Destinations and titles are unused by the prose stream.
+///
+/// Parses only this block. Each missing reference binary-searches the known
+/// starts, so the bound is O(block bytes + references * log(known links)).
+/// The app's request tests cover explicit, collapsed and shortcut references.
+#[must_use]
+pub fn prose_with_links<'a>(text: &'a str, link_starts: &[usize]) -> Vec<Prose<'a>> {
+    let resolve = |link: BrokenLink<'_>| {
+        link_starts
+            .binary_search(&link.span.start)
+            .is_ok()
+            .then(|| ("".into(), "".into()))
+    };
+    let parser = Parser::new_with_broken_link_callback(text, options(), Some(resolve));
+    prose_events(text, parser.into_offset_iter())
+}
+
+fn prose_events<'a>(
+    text: &'a str,
+    events: impl Iterator<Item = (Event<'a>, Range<usize>)>,
+) -> Vec<Prose<'a>> {
     let mut runs = Vec::new();
     // One flag per open tag, because `Event::End` does not carry enough to
     // recognise an autolink again, and a `usize` alone could not be unwound.
     let mut open: Vec<bool> = Vec::new();
     let mut hidden = 0usize;
-    for (event, at) in events(text) {
+    for (event, at) in events {
         match &event {
             Event::Start(tag) => {
                 let hides = hides_prose(tag);
