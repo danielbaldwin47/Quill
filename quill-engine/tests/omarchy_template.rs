@@ -14,7 +14,7 @@
 //! the theme's `mode` names, the other ground untouched, and each role the
 //! colour its mapping promises: the thirteen #159 § The template names, and
 //! `link_rule`, which that list left out and the template chose for itself
-//! (#238). The rules are a
+//! (#238), plus the five Syntax highlight roles (#312). The rules are a
 //! re-statement, so the Hand test on the owner's desktop (#159) is the check
 //! that they are Omarchy's; what this test guards is the template drifting
 //! from the roles or from the contract without anyone noticing.
@@ -33,9 +33,10 @@ const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/omarchy-colors.
 
 /// Which theme key, or which blend, each role takes: the thirteen #159 § The
 /// template names, and `link_rule` as the template's own choice, because the
-/// spec's list left it out (#238). A role missing here fails the test below
+/// spec's list left it out (#238), plus five Syntax highlight roles (#312).
+/// A role missing here fails the test below
 /// by name.
-const MAPPING: [(Role, Source); 14] = [
+const MAPPING: [(Role, Source); 19] = [
     (Role::Paper, Source::Key("background")),
     (Role::Ink, Source::Key("foreground")),
     (Role::InkDim, Source::Key("dark_foreground")),
@@ -53,6 +54,11 @@ const MAPPING: [(Role, Source); 14] = [
     (Role::Shadow, Source::Key("darker_background")),
     (Role::ChromeFg, Source::Key("dark_foreground")),
     (Role::ChromeFgStrong, Source::Key("foreground")),
+    (Role::SyntaxNoun, Source::Key("red")),
+    (Role::SyntaxVerb, Source::Key("blue")),
+    (Role::SyntaxAdjective, Source::Key("brown")),
+    (Role::SyntaxAdverb, Source::Key("magenta")),
+    (Role::SyntaxConjunction, Source::Key("green")),
 ];
 
 /// Where a role's colour comes from in the theme.
