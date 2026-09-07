@@ -52,6 +52,18 @@ const states = readStates(ROOT);
 const flagsOf = (piece) => Object.fromEntries(resolveStates(states, piece).map((s) => [s.name, s.flags]));
 
 // ---------- the command line a judged state opens ours with ----------
+ok('every state pins Syntax highlight and an override reaches the app', () => {
+  assert.equal(states.defaults.syntax, 'off');
+  for (const piece of Object.keys(states.pieces)) {
+    for (const state of resolveStates(states, piece)) {
+      const argv = quillArgv(ROOT, state.flags);
+      assert.equal(argv[argv.indexOf('--syntax') + 1], state.flags.syntax, `${piece}/${state.name}`);
+    }
+  }
+  const argv = quillArgv(ROOT, { ...states.defaults, syntax: 'nouns,adverbs' });
+  assert.equal(argv[argv.indexOf('--syntax') + 1], 'nouns,adverbs');
+});
+
 ok('a state becomes the native flags that state means', () => {
   const caret = flagsOf('caret');
   const argv = quillArgv(ROOT, caret.selection);
@@ -66,6 +78,7 @@ ok('a state becomes the native flags that state means', () => {
   assert.equal(flag('--font'), 'mono');
   assert.equal(flag('--step'), '5');
   assert.equal(flag('--focus'), 'off');
+  assert.equal(flag('--syntax'), 'off');
   // The caret Piece is judged bare (#139), so its states override the defaults' chrome; that
   // override reaching the command line is the half of this case the defaults cannot show.
   assert.equal(flag('--chrome'), 'off');
