@@ -24,18 +24,18 @@
 //! therefore ordinary: a span inside another span is resolved after it, and
 //! [`flatten`] hands the app runs that no longer overlap at all.
 //!
-//! Markup is one tier and Focus is the second. They compose in [`paint`]: the
-//! Markup runs are cut at Focus's tier boundaries and each piece's `(mark,
-//! tier)` is resolved to one colour by [`colour`]. Focus is the tier that ends
-//! the resolving — a role cannot say "dim", because dim is a colour of the
-//! ground's and not a part a mark plays — so [`paint`] hands back [`Painted`]
-//! runs where [`flatten`] hands back [`Run`]s. #28 (Syntax highlight) is the
-//! third tier and still adds an arm to [`resolve`]; nothing else about the
-//! shape moves.
+//! Markup is one tier, Focus is the second and Syntax highlight is the third.
+//! They compose in [`paint_with_categories_in`]: the Markup runs are cut at
+//! Focus's tier boundaries and at the Category spans, then each piece is
+//! resolved to one colour by [`colour`]. Focus is the tier that ends the
+//! resolving — a role cannot say "dim", because dim is a colour of the
+//! ground's and not a part a mark plays — so painting hands back [`Painted`]
+//! runs where [`flatten`] hands back [`Run`]s.
 //!
 //! All offsets are UTF-8 bytes from the start of the Document, because that is
 //! what the parser emits.
 
+use std::collections::BTreeSet;
 use std::ops::Range;
 
 use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Tag};
@@ -44,6 +44,7 @@ pub mod live;
 
 use crate::focus::{Focus, LineTiers, Tier};
 use crate::markdown;
+use crate::pos::Category;
 use crate::theme::{Colour, Colours, Role};
 
 /// What an Annotator says a range of bytes is.
@@ -169,6 +170,8 @@ pub enum Ink {
     /// The grey a link's plumbing goes quiet in: its `[`, `]`, `(`, `)` and the
     /// destination between them. Not its words, which are the writer's.
     Link,
+    /// A prose word coloured by Syntax highlight.
+    Category(Category),
 }
 
 impl Ink {
@@ -183,6 +186,11 @@ impl Ink {
             Self::Prose => Role::Ink,
             Self::Marker => Role::Mark,
             Self::Link => Role::Link,
+            Self::Category(Category::Nouns) => Role::SyntaxNoun,
+            Self::Category(Category::Verbs) => Role::SyntaxVerb,
+            Self::Category(Category::Adjectives) => Role::SyntaxAdjective,
+            Self::Category(Category::Adverbs) => Role::SyntaxAdverb,
+            Self::Category(Category::Conjunctions) => Role::SyntaxConjunction,
         }
     }
 }
@@ -493,6 +501,7 @@ fn resolve(mark: Mark, under: Look) -> Look {
 /// | prose | `ink` | `ink_dim` |
 /// | marker | `mark` | `ink_dim` |
 /// | link | `link` | `ink_dim` |
+/// | Category | the Category's Syntax role | `ink_dim` |
 ///
 /// The bright column is the Markup colour untouched — Focus lights what the
 /// writer is in by leaving it alone — and the dim column is one grey, because
@@ -552,7 +561,56 @@ pub fn paint_in(
     focus: Focus,
     colours: &Colours,
 ) -> Vec<Painted> {
+    paint_with_categories_in(spans, &[], &BTreeSet::new(), at, tiers, focus, colours)
+}
+
+/// [`paint_in`] with Syntax highlight's Category spans.
+///
+/// `categories` are absolute UTF-8 byte ranges over prose words. A Category in
+/// `enabled` replaces only the run's ink, leaving Markup's weight, slant and
+/// ground intact. Marker characters, link plumbing, code, HTML and front
+/// matter keep their Markup painting even if a stale Category span reaches
+/// them. A disabled Category still speaks for its range with the body's ink,
+/// so changing the enabled set is a repaint rather than a retag.
+/// With no Category spans this has exactly [`paint_in`]'s sparse Focus-off
+/// output.
+#[must_use]
+pub fn paint_with_categories_in(
+    spans: &[Span],
+    categories: &[(Range<usize>, Category)],
+    enabled: &BTreeSet<Category>,
+    at: &Range<usize>,
+    tiers: &[LineTiers],
+    focus: Focus,
+    colours: &Colours,
+) -> Vec<Painted> {
     let runs = flatten(spans);
+    let mut categories: Vec<_> = categories.iter().collect();
+    categories.sort_by(|(left, _), (right, _)| {
+        left.start.cmp(&right.start).then(left.end.cmp(&right.end))
+    });
+    debug_assert!(
+        categories
+            .windows(2)
+            .all(|pair| pair[0].0.end <= pair[1].0.start)
+    );
+    let mut protected: Vec<_> = spans
+        .iter()
+        .filter(|span| category_protected(span.mark))
+        .map(|span| span.at.clone())
+        .collect();
+    protected.sort_by(|left, right| left.start.cmp(&right.start).then(left.end.cmp(&right.end)));
+    let mut merged_protected: Vec<Range<usize>> = Vec::new();
+    for range in protected {
+        if let Some(last) = merged_protected.last_mut()
+            && range.start <= last.end
+        {
+            last.end = last.end.max(range.end);
+        } else {
+            merged_protected.push(range);
+        }
+    }
+
     // With Focus on every byte is spoken for, because the buffer's own ink is
     // the wrong colour for most of the page and the writer must not see it
     // anywhere. With Focus off the buffer is right about plain prose, and
@@ -563,26 +621,98 @@ pub fn paint_in(
     // the loop below walks forward only, so they are stepped over here rather
     // than dragging the cursor back over bytes the caller did not ask for.
     let mut next = runs.partition_point(|run| run.at.end <= at.start);
+    let mut next_category = categories.partition_point(|(range, _)| range.end <= at.start);
+    let mut next_protected = merged_protected.partition_point(|range| range.end <= at.start);
     for (segment, tier) in segments_in(at, tiers, focus) {
-        let plain = covers.then(|| Paint::of(Look::PROSE, tier, colours));
         let mut cursor = segment.start;
-        while let Some(run) = runs.get(next).filter(|run| run.at.start < segment.end) {
-            let drawn = run.at.start.max(segment.start)..run.at.end.min(segment.end);
-            push_painted(&mut out, cursor..drawn.start, plain);
+        while cursor < segment.end {
+            while runs.get(next).is_some_and(|run| run.at.end <= cursor) {
+                next += 1;
+            }
+            while categories
+                .get(next_category)
+                .is_some_and(|(range, _)| range.end <= cursor)
+            {
+                next_category += 1;
+            }
+            while merged_protected
+                .get(next_protected)
+                .is_some_and(|range| range.end <= cursor)
+            {
+                next_protected += 1;
+            }
+
+            let run = runs
+                .get(next)
+                .filter(|run| run.at.start <= cursor && cursor < run.at.end);
+            let category = categories
+                .get(next_category)
+                .filter(|(range, _)| range.start <= cursor && cursor < range.end);
+            let protected = merged_protected
+                .get(next_protected)
+                .filter(|range| range.start <= cursor && cursor < range.end);
+
+            let mut end = segment.end;
+            end = end.min(run.map_or_else(
+                || runs.get(next).map_or(end, |run| run.at.start),
+                |run| run.at.end,
+            ));
+            end = end.min(category.map_or_else(
+                || {
+                    categories
+                        .get(next_category)
+                        .map_or(end, |(range, _)| range.start)
+                },
+                |(range, _)| range.end,
+            ));
+            end = end.min(protected.map_or_else(
+                || {
+                    merged_protected
+                        .get(next_protected)
+                        .map_or(end, |range| range.start)
+                },
+                |range| range.end,
+            ));
+
+            let mut look = run.map_or(Look::PROSE, |run| run.look);
+            if let Some((_, category)) = category
+                && protected.is_none()
+                && enabled.contains(category)
+            {
+                look.ink = Ink::Category(*category);
+            }
+            let speaks = covers || run.is_some() || category.is_some();
             push_painted(
                 &mut out,
-                drawn.clone(),
-                Some(Paint::of(run.look, tier, colours)),
+                cursor..end,
+                speaks.then(|| Paint::of(look, tier, colours)),
             );
-            cursor = drawn.end;
-            if run.at.end > segment.end {
-                break;
-            }
-            next += 1;
+            cursor = end;
         }
-        push_painted(&mut out, cursor..segment.end, plain);
     }
     out
+}
+
+/// Whether Markup says these bytes are outside Syntax highlight's prose stream.
+fn category_protected(mark: Mark) -> bool {
+    matches!(
+        mark,
+        Mark::Markup
+            | Mark::Code
+            | Mark::Url
+            | Mark::LinkMark
+            | Mark::Html
+            | Mark::QuoteMarker
+            | Mark::BulletMarker
+            | Mark::OrderedMarker
+            | Mark::TaskBox
+            | Mark::CodeBlock
+            | Mark::Fence
+            | Mark::InfoString
+            | Mark::ThematicBreak
+            | Mark::FrontMatter
+            | Mark::DefinitionLabel
+    )
 }
 
 /// The bytes `at` cut into tiers, ascending and with no gaps between them.
@@ -2230,5 +2360,316 @@ mod tests {
                 "{run:?} reaches outside the line the retag asked for"
             );
         }
+    }
+
+    #[test]
+    fn enabled_categories_colour_tagged_prose_and_leave_untagged_prose_to_the_body() {
+        let text = "lanterns glow quiet softly and plain";
+        let range = |needle: &str| {
+            let start = text.find(needle).expect("the passage contains the token");
+            start..start + needle.len()
+        };
+        let categories = [
+            (range("lanterns"), Category::Nouns),
+            (range("glow"), Category::Verbs),
+            (range("quiet"), Category::Adjectives),
+            (range("softly"), Category::Adverbs),
+            (range("and"), Category::Conjunctions),
+        ];
+        let enabled = BTreeSet::from([
+            Category::Nouns,
+            Category::Verbs,
+            Category::Adjectives,
+            Category::Adverbs,
+            Category::Conjunctions,
+        ]);
+        let colours = Colours::of(Scheme::Light);
+
+        let runs = paint_with_categories_in(
+            &[],
+            &categories,
+            &enabled,
+            &(0..text.len()),
+            &[],
+            Focus::Off,
+            &colours,
+        );
+
+        assert_eq!(runs.len(), categories.len());
+        for ((run, (at, _)), role) in runs.iter().zip(&categories).zip([
+            Role::SyntaxNoun,
+            Role::SyntaxVerb,
+            Role::SyntaxAdjective,
+            Role::SyntaxAdverb,
+            Role::SyntaxConjunction,
+        ]) {
+            assert_eq!(run.at, *at);
+            assert_eq!(run.paint.colour, colours.colour(role));
+            assert_eq!(run.paint.weight, Weight::Regular);
+            assert_eq!(run.paint.slant, Slant::Upright);
+            assert_eq!(run.paint.ground, Ground::Page);
+        }
+        assert!(
+            runs.iter()
+                .all(|run| !run.at.contains(&range("plain").start)),
+            "untagged prose stays on the buffer's body ink",
+        );
+    }
+
+    #[test]
+    fn markup_plumbing_wins_while_category_ink_keeps_prose_weight_and_slant() {
+        let text = "# ***bright*** [harbor](/url) `code` ~~struck~~\n";
+        let range = |needle: &str| {
+            let start = text.find(needle).expect("the passage contains the token");
+            start..start + needle.len()
+        };
+        let categories = [
+            (0..range("bright").end + 3, Category::Nouns),
+            (range("harbor"), Category::Adjectives),
+            (range("url"), Category::Adverbs),
+            (range("code"), Category::Conjunctions),
+            (range("~~struck~~"), Category::Verbs),
+        ];
+        let enabled = BTreeSet::from([
+            Category::Nouns,
+            Category::Verbs,
+            Category::Adjectives,
+            Category::Adverbs,
+            Category::Conjunctions,
+        ]);
+        let colours = Colours::of(Scheme::Light);
+        let runs = paint_with_categories_in(
+            &markup(text),
+            &categories,
+            &enabled,
+            &(0..text.len()),
+            &[],
+            Focus::Off,
+            &colours,
+        );
+        let holding = |byte| {
+            runs.iter()
+                .find(|run| run.at.contains(&byte))
+                .unwrap_or_else(|| panic!("byte {byte} has no painted run"))
+        };
+
+        assert_eq!(holding(0).paint.colour, colours.colour(Role::Mark));
+        assert_eq!(
+            holding(range("bright").start).paint,
+            Paint {
+                colour: colours.colour(Role::SyntaxNoun),
+                weight: Weight::Bold,
+                slant: Slant::Italic,
+                ground: Ground::Page,
+            },
+            "a bold noun keeps its weight and takes its Category colour",
+        );
+        assert_eq!(
+            holding(range("harbor").start).paint.colour,
+            colours.colour(Role::SyntaxAdjective),
+            "a link's words are prose and take their Category",
+        );
+        assert_eq!(
+            holding(range("url").start).paint.colour,
+            colours.colour(Role::Link),
+            "a link destination keeps Link ink",
+        );
+        assert_eq!(
+            holding(range("code").start).paint,
+            Paint {
+                colour: colours.colour(Role::Ink),
+                weight: Weight::Bold,
+                slant: Slant::Upright,
+                ground: Ground::Code,
+            },
+            "a code span keeps its own ground and the heading's weight",
+        );
+        assert_eq!(
+            holding(range("struck").start).paint.colour,
+            colours.colour(Role::SyntaxVerb),
+            "struck prose is still in the prose stream despite sharing Marker ink",
+        );
+        assert_eq!(
+            holding(range("~~struck~~").start).paint.colour,
+            colours.colour(Role::Mark),
+            "strikethrough delimiters keep Marker ink",
+        );
+    }
+
+    #[test]
+    fn focus_dim_wins_over_categories_and_bright_keeps_them_on_both_grounds() {
+        let doc = document("Lanterns wait. Sailors move.\n");
+        let text = doc.text();
+        let lanterns = text.find("Lanterns").expect("the passage has lanterns");
+        let sailors = text.find("Sailors").expect("the passage has sailors");
+        let categories = [
+            (lanterns..lanterns + "Lanterns".len(), Category::Nouns),
+            (sailors..sailors + "Sailors".len(), Category::Nouns),
+        ];
+        let enabled = BTreeSet::from([Category::Nouns]);
+        let focus = Focus::On(FocusScope::Sentence);
+        let tiers = tiers_of(&doc, sailors..sailors, focus);
+
+        for scheme in [Scheme::Light, Scheme::Dark] {
+            let colours = Colours::of(scheme);
+            let runs = paint_with_categories_in(
+                &markup(text),
+                &categories,
+                &enabled,
+                &(0..text.len()),
+                &tiers,
+                focus,
+                &colours,
+            );
+            let colour_at = |byte| {
+                runs.iter()
+                    .find(|run| run.at.contains(&byte))
+                    .expect("Focus paints every byte")
+                    .paint
+                    .colour
+            };
+
+            assert_eq!(
+                colour_at(lanterns),
+                colours.colour(Role::InkDim),
+                "a Category has no voice in a dim run",
+            );
+            assert_eq!(
+                colour_at(sailors),
+                colours.colour(Role::SyntaxNoun),
+                "the same Category takes its Role in the bright run",
+            );
+        }
+    }
+
+    #[test]
+    fn disabled_categories_use_body_ink_and_no_categories_keep_the_wrapper_sparse() {
+        let text = "Lanterns glow.";
+        let lanterns = 0.."Lanterns".len();
+        let glow = text.find("glow").expect("the passage has glow");
+        let categories = [
+            (lanterns.clone(), Category::Nouns),
+            (glow..glow + "glow".len(), Category::Verbs),
+        ];
+        let enabled = BTreeSet::from([Category::Nouns]);
+        let colours = Colours::of(Scheme::Light);
+        let runs = paint_with_categories_in(
+            &[],
+            &categories,
+            &enabled,
+            &(0..text.len()),
+            &[],
+            Focus::Off,
+            &colours,
+        );
+
+        assert_eq!(runs[0].paint.colour, colours.colour(Role::SyntaxNoun));
+        assert_eq!(
+            runs[1].paint.colour,
+            colours.colour(Role::Ink),
+            "a disabled Category retains its span but paints in the body's ink",
+        );
+        assert_eq!(
+            paint_with_categories_in(
+                &markup(text),
+                &[],
+                &enabled,
+                &(0..text.len()),
+                &[],
+                Focus::Off,
+                &colours,
+            ),
+            paint_in(&markup(text), &(0..text.len()), &[], Focus::Off, &colours,),
+            "master off delegates exactly to the existing sparse painting",
+        );
+    }
+
+    #[test]
+    fn category_painting_clips_to_the_retag_range() {
+        let text = "alpha beta gamma";
+        let beta = text.find("beta").expect("the passage has beta");
+        let categories = [
+            (0.."alpha".len(), Category::Nouns),
+            (beta..beta + "beta".len(), Category::Verbs),
+        ];
+        let enabled = BTreeSet::from([Category::Nouns, Category::Verbs]);
+        let colours = Colours::of(Scheme::Dark);
+
+        let runs = paint_with_categories_in(
+            &[],
+            &categories,
+            &enabled,
+            &(2..8),
+            &[],
+            Focus::Off,
+            &colours,
+        );
+
+        assert_eq!(runs[0].at, 2..5);
+        assert_eq!(runs[1].at, 6..8);
+        assert!(
+            runs.iter().all(|run| run.at.start >= 2 && run.at.end <= 8),
+            "a line retag never paints outside the bytes it requested",
+        );
+    }
+
+    #[test]
+    fn block_protection_uses_markup_origin_without_hiding_eligible_marker_ink() {
+        let text =
+            "---\ntitle: tide\n---\n\n```rust\nlet tide = 1;\n```\n\n~~tide~~ <b>tide</b> tide\n";
+        let tides: Vec<_> = text
+            .match_indices("tide")
+            .map(|(start, word)| start..start + word.len())
+            .collect();
+        let struck = text.find("~~tide~~").expect("the passage has struck prose");
+        let html = text
+            .find("<b>tide</b>")
+            .expect("the passage has inline HTML");
+        let categories = [
+            (tides[0].clone(), Category::Nouns),
+            (tides[1].clone(), Category::Nouns),
+            (struck..struck + "~~tide~~".len(), Category::Nouns),
+            (html..html + "<b>tide</b>".len(), Category::Nouns),
+            (tides[4].clone(), Category::Nouns),
+        ];
+        let enabled = BTreeSet::from([Category::Nouns]);
+        let colours = Colours::of(Scheme::Light);
+        let runs = paint_with_categories_in(
+            &markup(text),
+            &categories,
+            &enabled,
+            &(0..text.len()),
+            &[],
+            Focus::Off,
+            &colours,
+        );
+        let paint_at = |byte| {
+            runs.iter()
+                .find(|run| run.at.contains(&byte))
+                .unwrap_or_else(|| panic!("byte {byte} has no painted run"))
+                .paint
+        };
+
+        assert_eq!(paint_at(tides[0].start).colour, colours.colour(Role::Mark));
+        assert_eq!(
+            paint_at(tides[1].start).colour,
+            colours.colour(Role::Ink),
+            "fenced code keeps prose ink even though its flattened Look loses the CodeBlock origin",
+        );
+        assert_eq!(
+            paint_at(tides[2].start).colour,
+            colours.colour(Role::SyntaxNoun),
+            "struck prose may take a Category despite its flattened Marker ink",
+        );
+        assert_eq!(paint_at(html).colour, colours.colour(Role::Mark));
+        assert_eq!(
+            paint_at(tides[3].start).colour,
+            colours.colour(Role::SyntaxNoun),
+            "text between inline HTML tags remains prose",
+        );
+        assert_eq!(
+            paint_at(tides[4].start).colour,
+            colours.colour(Role::SyntaxNoun),
+        );
     }
 }
