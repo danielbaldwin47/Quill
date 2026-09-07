@@ -1,0 +1,214 @@
+#!/usr/bin/env python3
+"""What an agent run cost, read from its transcript: tokens, API dollars, calls, time.
+
+    tools/run-cost <transcript.jsonl>... [--price IN,CACHED,OUT[,WRITE]]
+
+    claude-opus-5: 70 API calls, 77 tool calls, peak context 226k, 24.3 min
+      input 140  cache-write 226,251  cache-read 9,040,033  output ~25,461 (floor)
+      cost $6.57 at $5.00/$0.50/$25.00 per MTok input/cached/output
+
+Owner: docs/agents/model-comparison.md. A run's agent cannot see its own usage,
+so the orchestrator reads it here after the run, from the files the CLI wrote.
+
+Two transcript shapes, told apart by their first records:
+
+  Claude Code: `<project dir>/<session>/subagents/agent-<id>.jsonl` (or a session's
+  own `<session>.jsonl`), one JSON record per line, assistant records carrying
+  `message.usage` with `cache_creation.ephemeral_5m_input_tokens` and
+  `ephemeral_1h_input_tokens` split out. Several records share one `requestId`, so
+  a call is a distinct request and its usage the max of its records. The
+  `output_tokens` there is a streaming placeholder (single digits on a call that
+  wrote a screen), so output is a floor estimated from the response's characters
+  at four to a token, and thinking text — omitted from the transcript — is not in it.
+
+  Codex: `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`, sub-agents in files of
+  their own whose `session_meta.payload.source.subagent.thread_spawn` names the
+  parent. Usage is one `token_usage_record` per API response, deduplicated by
+  `response_id`; `input_tokens` includes `cached_input_tokens`, `output_tokens`
+  includes `reasoning_output_tokens`; the model is the last `turn_context`'s.
+
+Prices are $/MTok. Claude models come from the table below (input, output; cache
+write 1.25x input for a 5-minute TTL and 2x for an hour, cache read 0.1x);
+anything else needs --price, quoted from the model's own page. The write rate in
+--price is optional and applies only to the Claude shape's cache writes.
+"""
+import argparse
+import json
+import sys
+from collections import defaultdict
+from datetime import datetime
+
+CLAUDE_RATES = {  # model prefix -> ($/MTok input, $/MTok output)
+    "claude-fable": (10.0, 50.0),
+    "claude-mythos": (10.0, 50.0),
+    "claude-opus": (5.0, 25.0),
+    "claude-sonnet-5": (2.0, 10.0),
+    "claude-sonnet": (3.0, 15.0),
+    "claude-haiku": (1.0, 5.0),
+}
+
+
+def stamp(text):
+    """A record's timestamp as a datetime, or None."""
+    if not text:
+        return None
+    return datetime.fromisoformat(text.replace("Z", "+00:00"))
+
+
+def read_claude(records):
+    """A Claude Code transcript's calls: {request: {model, in, w5, w1h, read, chars}}."""
+    calls = {}
+    seen = set()
+    for rec in records:
+        if rec.get("type") != "assistant" or rec.get("uuid") in seen:
+            continue
+        seen.add(rec.get("uuid"))
+        msg = rec.get("message") or {}
+        rid = rec.get("requestId") or rec.get("uuid")
+        c = calls.setdefault(rid, {
+            "model": msg.get("model", "?"), "in": 0, "w5": 0, "w1h": 0, "read": 0,
+            "chars": 0, "tools": 0, "at": stamp(rec.get("timestamp"))})
+        for block in msg.get("content") or []:
+            if not isinstance(block, dict):
+                continue
+            kind = block.get("type")
+            if kind == "tool_use":
+                c["tools"] += 1
+                c["chars"] += len(json.dumps(block.get("input", {})))
+            elif kind in ("text", "thinking"):
+                c["chars"] += len(block.get(kind, "") or "")
+        u = msg.get("usage") or {}
+        if not u:
+            continue
+        cc = u.get("cache_creation") or {}
+        w5 = cc.get("ephemeral_5m_input_tokens")
+        w1h = cc.get("ephemeral_1h_input_tokens")
+        if w5 is None and w1h is None:
+            w5, w1h = u.get("cache_creation_input_tokens", 0), 0
+        c["in"] = max(c["in"], u.get("input_tokens", 0))
+        c["w5"] = max(c["w5"], w5 or 0)
+        c["w1h"] = max(c["w1h"], w1h or 0)
+        c["read"] = max(c["read"], u.get("cache_read_input_tokens", 0))
+    for c in calls.values():
+        c["out"] = c["chars"] // 4
+        c["context"] = c["in"] + c["w5"] + c["w1h"] + c["read"]
+    return calls
+
+
+def read_codex(records):
+    """A Codex rollout's responses: {response_id: {model, in, read, out, reasoning}}."""
+    model = "?"
+    calls = {}
+    tools = 0
+    at = None
+    for rec in records:
+        t = rec.get("type")
+        p = rec.get("payload") or {}
+        if t == "turn_context":
+            model = p.get("model", model)
+        elif t == "response_item" and p.get("type") in ("custom_tool_call", "function_call"):
+            tools += 1
+            at = at or stamp(rec.get("timestamp"))
+        elif t == "token_usage_record":
+            rid = p.get("response_id")
+            if rid in calls:
+                continue
+            u = p.get("usage") or {}
+            calls[rid] = {
+                "model": model, "in": u.get("input_tokens", 0) - u.get("cached_input_tokens", 0),
+                "w5": u.get("cache_write_input_tokens", 0), "w1h": 0,
+                "read": u.get("cached_input_tokens", 0), "out": u.get("output_tokens", 0),
+                "reasoning": u.get("reasoning_output_tokens", 0),
+                "context": u.get("input_tokens", 0), "tools": 0,
+                "at": stamp(rec.get("timestamp"))}
+    # the model is read from turn_context records that precede the usage they
+    # govern, and a rollout whose first usage came before its first turn_context
+    # would name it "?"; tool calls are the file's, not a response's
+    if calls:
+        first = next(iter(calls.values()))
+        first["tools"] = tools
+        for c in calls.values():
+            c["model"] = model if c["model"] == "?" else c["model"]
+    return calls
+
+
+def read(path):
+    """The calls in one transcript, whichever CLI wrote it."""
+    records = []
+    with open(path) as fh:
+        for line in fh:
+            try:
+                records.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    kinds = {r.get("type") for r in records}
+    if "session_meta" in kinds or "token_usage_record" in kinds:
+        return read_codex(records)
+    return read_claude(records)
+
+
+def rate_for(model, price):
+    """($/MTok input, cached, output, write) for `model`, or None when unpriced."""
+    if price:
+        pin, pc, pout = price[:3]
+        pw = price[3] if len(price) > 3 else pin * 1.25
+        return pin, pc, pout, pw
+    for prefix, (pin, pout) in CLAUDE_RATES.items():
+        if model.startswith(prefix):
+            return pin, pin * 0.1, pout, pin * 1.25
+    return None
+
+
+def main(argv):
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("transcripts", nargs="+")
+    ap.add_argument("--price", help="$/MTok as IN,CACHED,OUT[,WRITE] for a model not in the table")
+    args = ap.parse_args(argv)
+    price = tuple(float(x) for x in args.price.split(",")) if args.price else None
+
+    by_model = defaultdict(lambda: defaultdict(int))
+    floor = False
+    first = last = None
+    for path in args.transcripts:
+        calls = read(path)
+        floor = floor or any("reasoning" not in c for c in calls.values())
+        for c in calls.values():
+            m = by_model[c["model"]]
+            m["calls"] += 1
+            for k in ("in", "w5", "w1h", "read", "out", "tools"):
+                m[k] += c[k]
+            m["reasoning"] += c.get("reasoning", 0)
+            m["peak"] = max(m["peak"], c["context"])
+            if c["at"]:
+                first = c["at"] if first is None or c["at"] < first else first
+                last = c["at"] if last is None or c["at"] > last else last
+
+    total = 0.0
+    unpriced = []
+    mins = (last - first).total_seconds() / 60 if first and last else 0
+    for model, m in by_model.items():
+        print(f"{model}: {m['calls']} API calls, {m['tools']} tool calls, "
+              f"peak context {m['peak'] / 1000:.0f}k, {mins:.1f} min")
+        out = f"~{m['out']:,} (floor)" if floor else f"{m['out']:,} (reasoning {m['reasoning']:,})"
+        print(f"  input {m['in']:,}  cache-write {m['w5'] + m['w1h']:,}  cache-read {m['read']:,}  "
+              f"output {out}")
+        rates = rate_for(model, price)
+        if rates is None:
+            unpriced.append(model)
+            continue
+        pin, pc, pout, pw = rates
+        cost = (m["in"] * pin + m["w5"] * pw + m["w1h"] * pin * 2.0 + m["read"] * pc
+                + m["out"] * pout) / 1e6
+        total += cost
+        print(f"  cost ${cost:.2f} at ${pin:.2f}/${pc:.2f}/${pout:.2f} per MTok input/cached/output")
+    if unpriced:
+        print(f"no price for {', '.join(unpriced)}: pass --price IN,CACHED,OUT from the model's page",
+              file=sys.stderr)
+        return 2
+    if len(by_model) > 1:
+        print(f"total ${total:.2f}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
