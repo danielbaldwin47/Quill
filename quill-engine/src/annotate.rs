@@ -161,42 +161,21 @@ pub enum Ink {
     /// a writer's `palette` file may set the markers apart.
     ///
     /// Two runs that are not markers ride with it and move when it does:
-    /// struck text and inline HTML, both of which took the marker grey for
-    /// being not-prose. Neither is in the measured passage, so both follow the
-    /// markers until a capture says otherwise.
+    /// inline HTML took the marker grey for being not-prose. It is not in the
+    /// measured passage, so it follows the markers until a capture says
+    /// otherwise.
     Marker,
+    /// Struck prose when Syntax highlight is not colouring it.
+    ///
+    /// This resolves to the marker role, preserving the existing appearance,
+    /// but remains distinct so a Category can colour the prose between the
+    /// `~~` delimiters without colouring the delimiters themselves.
+    Struck,
     /// The grey a link's plumbing goes quiet in: its `[`, `]`, `(`, `)` and the
     /// destination between them. Not its words, which are the writer's.
     Link,
     /// A prose token coloured by Syntax highlight.
-    Category(CategoryInk),
-}
-
-/// The five Category inks after the part-of-speech seam meets painting.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-pub enum CategoryInk {
-    /// Noun ink.
-    Noun,
-    /// Verb ink.
-    Verb,
-    /// Adjective ink.
-    Adjective,
-    /// Adverb ink.
-    Adverb,
-    /// Conjunction ink.
-    Conjunction,
-}
-
-impl CategoryInk {
-    const fn of(category: crate::pos::Category) -> Self {
-        match category {
-            crate::pos::Category::Nouns => Self::Noun,
-            crate::pos::Category::Verbs => Self::Verb,
-            crate::pos::Category::Adjectives => Self::Adjective,
-            crate::pos::Category::Adverbs => Self::Adverb,
-            crate::pos::Category::Conjunctions => Self::Conjunction,
-        }
-    }
+    Category(crate::pos::Category),
 }
 
 impl Ink {
@@ -210,13 +189,14 @@ impl Ink {
         match self {
             Self::Prose => Role::Ink,
             Self::Marker => Role::Mark,
+            Self::Struck => Role::Mark,
             Self::Link => Role::Link,
             Self::Category(category) => match category {
-                CategoryInk::Noun => Role::SyntaxNoun,
-                CategoryInk::Verb => Role::SyntaxVerb,
-                CategoryInk::Adjective => Role::SyntaxAdjective,
-                CategoryInk::Adverb => Role::SyntaxAdverb,
-                CategoryInk::Conjunction => Role::SyntaxConjunction,
+                crate::pos::Category::Nouns => Role::SyntaxNoun,
+                crate::pos::Category::Verbs => Role::SyntaxVerb,
+                crate::pos::Category::Adjectives => Role::SyntaxAdjective,
+                crate::pos::Category::Adverbs => Role::SyntaxAdverb,
+                crate::pos::Category::Conjunctions => Role::SyntaxConjunction,
             },
         }
     }
@@ -485,7 +465,11 @@ fn resolve(mark: Mark, under: Look) -> Look {
             slant: Slant::Italic,
             ..under
         },
-        Mark::Strikethrough | Mark::Html => Look {
+        Mark::Strikethrough => Look {
+            ink: Ink::Struck,
+            ..under
+        },
+        Mark::Html => Look {
             ink: Ink::Marker,
             ..under
         },
@@ -573,11 +557,12 @@ pub fn paint(
 
 /// Markup, Syntax highlight and Focus flattened into painted runs.
 ///
-/// Category spans are prose-stream byte ranges. An enabled Category supplies
-/// the ink while preserving Markup's weight and slant. Marker and link ink and
-/// code grounds take precedence. A non-empty span list also paints untagged
-/// and disabled prose explicitly, so changing the enabled set is a repaint;
-/// an empty list is the master-off state and has [`paint`]'s exact behaviour.
+/// Category spans are non-empty absolute Document byte ranges, sorted
+/// ascending and non-overlapping. An enabled Category supplies the ink while preserving
+/// Markup's weight and slant. Marker and link ink and code grounds take
+/// precedence. A non-empty span list also paints untagged and disabled prose
+/// explicitly, so changing the enabled set is a repaint; an empty list is the
+/// master-off state and has [`paint`]'s exact behaviour.
 #[must_use]
 pub fn paint_with_categories(
     spans: &[Span],
@@ -619,6 +604,10 @@ pub fn paint_in(
 }
 
 /// [`paint_with_categories`], over the bytes `at` and no others.
+///
+/// `category_spans` has the same public precondition: its ranges are non-empty,
+/// sorted ascending and non-overlapping. Debug builds assert that contract;
+/// release painting pays no validation pass on this hot path.
 #[must_use]
 pub fn paint_in_with_categories(
     spans: &[Span],
@@ -629,6 +618,13 @@ pub fn paint_in_with_categories(
     focus: Focus,
     colours: &Colours,
 ) -> Vec<Painted> {
+    debug_assert!(
+        category_spans.iter().all(|(span, _)| span.start < span.end)
+            && category_spans
+                .windows(2)
+                .all(|pair| pair[0].0.end <= pair[1].0.start),
+        "Category spans must be non-empty, sorted and non-overlapping"
+    );
     let runs = flatten(spans);
     // With Focus on every byte is spoken for, because the buffer's own ink is
     // the wrong colour for most of the page and the writer must not see it
@@ -675,10 +671,10 @@ pub fn paint_in_with_categories(
             let mut look = run.map_or(Look::PROSE, |run| run.look);
             if let Some((_, category)) = category
                 && enabled_categories.contains(category)
-                && look.ink == Ink::Prose
+                && matches!(look.ink, Ink::Prose | Ink::Struck)
                 && look.ground != Ground::Code
             {
-                look.ink = Ink::Category(CategoryInk::of(*category));
+                look.ink = Ink::Category(*category);
             }
             let paint = (covers || run.is_some() || category.is_some())
                 .then(|| Paint::of(look, tier, colours));
@@ -1276,6 +1272,13 @@ mod tests {
         ..Look::PROSE
     };
 
+    /// Struck prose's internal ink; it resolves to the marker role until a
+    /// Category colours it.
+    const STRUCK: Look = Look {
+        ink: Ink::Struck,
+        ..Look::PROSE
+    };
+
     /// A link's plumbing: the quiet grey its brackets and its destination take.
     const LINK: Look = Look {
         ink: Ink::Link,
@@ -1402,11 +1405,11 @@ mod tests {
         );
         assert_eq!(
             [
-                Ink::Category(CategoryInk::of(Category::Nouns)).role(),
-                Ink::Category(CategoryInk::of(Category::Verbs)).role(),
-                Ink::Category(CategoryInk::of(Category::Adjectives)).role(),
-                Ink::Category(CategoryInk::of(Category::Adverbs)).role(),
-                Ink::Category(CategoryInk::of(Category::Conjunctions)).role(),
+                Ink::Category(Category::Nouns).role(),
+                Ink::Category(Category::Verbs).role(),
+                Ink::Category(Category::Adjectives).role(),
+                Ink::Category(Category::Adverbs).role(),
+                Ink::Category(Category::Conjunctions).role(),
             ],
             [
                 Role::SyntaxNoun,
@@ -1416,6 +1419,93 @@ mod tests {
                 Role::SyntaxConjunction,
             ]
         );
+    }
+
+    #[test]
+    fn category_colours_struck_prose_but_only_the_delimiters_keep_marker_ink() {
+        let doc = document("~~noun~~ plain\n");
+        let text = doc.text();
+        let noun = text.find("noun").expect("the passage says noun");
+        let categories = [(0.."~~noun~~".len(), Category::Nouns)];
+        let colours = Colours::of(Scheme::Light);
+
+        for delimiter in [0, 1, noun + "noun".len(), noun + "noun".len() + 1] {
+            assert_eq!(
+                category_paint_at(
+                    &doc,
+                    &categories,
+                    &[Category::Nouns],
+                    delimiter,
+                    Focus::Off,
+                    &colours,
+                ),
+                Paint {
+                    colour: colours.colour(Role::Mark),
+                    weight: Weight::Regular,
+                    slant: Slant::Upright,
+                    ground: Ground::Page,
+                },
+                "a strikethrough delimiter keeps marker ink"
+            );
+        }
+        assert_eq!(
+            category_paint_at(
+                &doc,
+                &categories,
+                &[Category::Nouns],
+                noun,
+                Focus::Off,
+                &colours,
+            ),
+            Paint {
+                colour: colours.colour(Role::SyntaxNoun),
+                weight: Weight::Regular,
+                slant: Slant::Upright,
+                ground: Ground::Page,
+            },
+            "struck prose takes its enabled Category ink"
+        );
+        assert_eq!(
+            category_paint_at(&doc, &[], &[], noun, Focus::Off, &colours),
+            Paint {
+                colour: colours.colour(Role::Mark),
+                weight: Weight::Regular,
+                slant: Slant::Upright,
+                ground: Ground::Page,
+            },
+            "without Categories, struck prose keeps its existing marker colour"
+        );
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn category_spans_reject_empty_unsorted_and_overlapping_input_in_debug_builds() {
+        let doc = document("one two three\n");
+        let colours = Colours::of(Scheme::Light);
+        for (case, categories) in [
+            ("empty", [(0..0, Category::Nouns), (4..7, Category::Verbs)]),
+            (
+                "unsorted",
+                [(4..7, Category::Nouns), (0..3, Category::Verbs)],
+            ),
+            (
+                "overlapping",
+                [(0..5, Category::Nouns), (4..7, Category::Verbs)],
+            ),
+        ] {
+            let result = std::panic::catch_unwind(|| {
+                paint_with_categories(
+                    &markup(doc.text()),
+                    &categories,
+                    &[Category::Nouns, Category::Verbs],
+                    doc.text().len(),
+                    &[],
+                    Focus::Off,
+                    &colours,
+                )
+            });
+            assert!(result.is_err(), "{case} Category spans were accepted");
+        }
     }
 
     #[test]
@@ -2110,13 +2200,14 @@ mod tests {
     }
 
     #[test]
-    fn struck_text_and_inline_html_are_the_marker_grey() {
+    fn struck_text_and_inline_html_are_the_marker_colour() {
         assert_eq!(
             drawn("a ~~struck~~ word\n"),
-            [("~~struck~~", MARKER)],
-            "the grey is resolved here; the line through it is a decoration \
-             the app layers over the run"
+            [("~~", MARKER), ("struck", STRUCK), ("~~", MARKER)],
+            "the internal split lets Syntax highlight colour the struck prose; \
+             both inks resolve to the marker role until then"
         );
+        assert_eq!(Ink::Struck.role(), Role::Mark);
         assert_eq!(
             drawn("a <b>bold</b> tag\n"),
             [("<b>", MARKER), ("</b>", MARKER)],
