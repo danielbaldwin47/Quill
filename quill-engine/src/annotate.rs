@@ -641,9 +641,22 @@ fn categories_in<'a>(
     if at.is_empty() {
         return &[];
     }
-    let start = categories.partition_point(|(range, _)| range.end <= at.start);
-    let end = categories.partition_point(|(range, _)| range.start < at.end);
+    let start = categories.partition_point(|span| category_range(span).end <= at.start);
+    let end = categories.partition_point(|span| category_range(span).start < at.end);
     &categories[start..end]
+}
+
+#[cfg(test)]
+std::thread_local! {
+    static CATEGORY_RANGE_READS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// Every Category boundary read in painting passes here so the retag test can
+/// count both the binary searches and the merge without a wall-clock budget.
+fn category_range(span: &(Range<usize>, Category)) -> &Range<usize> {
+    #[cfg(test)]
+    CATEGORY_RANGE_READS.with(|reads| reads.set(reads.get() + 1));
+    &span.0
 }
 
 /// Cut Markup runs at Category and exclusion boundaries, then merge once.
@@ -692,7 +705,7 @@ fn syntax_runs_in(
     for range in runs
         .iter()
         .map(|run| &run.at)
-        .chain(categories.iter().map(|(range, _)| range))
+        .chain(categories.iter().map(category_range))
         .chain(&barriers)
     {
         if range.start < at.end && at.start < range.end {
@@ -712,7 +725,7 @@ fn syntax_runs_in(
         }
         while categories
             .peek()
-            .is_some_and(|(at, _)| at.end <= range.start)
+            .is_some_and(|span| category_range(span).end <= range.start)
         {
             categories.next();
         }
@@ -724,7 +737,9 @@ fn syntax_runs_in(
             .filter(|run| run.at.start <= range.start)
             .map(|run| run.look);
         if !barriers.peek().is_some_and(|at| at.start <= range.start)
-            && let Some((_, category)) = categories.peek().filter(|(at, _)| at.start <= range.start)
+            && let Some((_, category)) = categories
+                .peek()
+                .filter(|span| category_range(span).start <= range.start)
         {
             look.get_or_insert(Look::PROSE).ink = if enabled.contains(category) {
                 Ink::Syntax(*category)
@@ -2422,9 +2437,15 @@ mod tests {
             assert_eq!(runs.len(), words.len());
             for (run, (word, _, role)) in runs.iter().zip(words) {
                 assert_eq!(&text[run.at.clone()], word);
-                assert_eq!(run.paint.colour, colours.colour(role));
-                assert_eq!(run.paint.weight, Weight::Regular);
-                assert_eq!(run.paint.slant, Slant::Upright);
+                assert_eq!(
+                    run.paint,
+                    Paint {
+                        colour: colours.colour(role),
+                        weight: Weight::Regular,
+                        slant: Slant::Upright,
+                        ground: Ground::Page,
+                    }
+                );
             }
             assert!(
                 runs.iter()
@@ -2661,11 +2682,25 @@ mod tests {
                 &colours,
             );
             let dim = runs.iter().find(|run| run.at.contains(&noun)).unwrap();
-            assert_eq!(dim.paint.colour, colours.colour(Role::InkDim));
-            assert_eq!(dim.paint.weight, Weight::Bold);
+            assert_eq!(
+                dim.paint,
+                Paint {
+                    colour: colours.colour(Role::InkDim),
+                    weight: Weight::Bold,
+                    slant: Slant::Upright,
+                    ground: Ground::Page,
+                }
+            );
             let bright = runs.iter().find(|run| run.at.contains(&verb)).unwrap();
-            assert_eq!(bright.paint.colour, colours.colour(Role::SyntaxVerb));
-            assert_eq!(bright.paint.slant, Slant::Italic);
+            assert_eq!(
+                bright.paint,
+                Paint {
+                    colour: colours.colour(Role::SyntaxVerb),
+                    weight: Weight::Regular,
+                    slant: Slant::Italic,
+                    ground: Ground::Page,
+                }
+            );
             assert_eq!(runs.first().unwrap().at.start, 0);
             assert_eq!(runs.last().unwrap().at.end, text.len());
             for pair in runs.windows(2) {
@@ -2736,26 +2771,43 @@ mod tests {
 
     #[test]
     fn syntax_retag_selects_only_the_categories_reaching_its_range() {
-        let categories: Vec<_> = (0..100_000)
-            .map(|word| (word * 10..word * 10 + 4, Category::Nouns))
-            .collect();
-        let at = 500_001..500_012;
-        assert_eq!(categories_in(&categories, &at), &categories[50_000..50_002]);
-        assert!(categories_in(&categories, &(500_004..500_010)).is_empty());
-        assert!(categories_in(&categories, &(500_002..500_002)).is_empty());
         let colours = Colours::of(Scheme::Dark);
-        let runs = paint_in_with_categories(
-            &[],
-            &categories,
-            &[Category::Nouns],
-            &at,
-            &[],
-            Focus::Off,
-            &colours,
-        );
-        assert_eq!(
-            runs.iter().map(|run| run.at.clone()).collect::<Vec<_>>(),
-            [500_001..500_004, 500_010..500_012]
-        );
+        for count in [1_000_usize, 100_000] {
+            let categories: Vec<_> = (0..count)
+                .map(|word| (word * 10..word * 10 + 4, Category::Nouns))
+                .collect();
+            let middle = count / 2;
+            let start = middle * 10;
+            let at = start + 1..start + 12;
+            assert_eq!(
+                categories_in(&categories, &at),
+                &categories[middle..middle + 2]
+            );
+            assert!(categories_in(&categories, &(start + 4..start + 10)).is_empty());
+            assert!(categories_in(&categories, &(start + 2..start + 2)).is_empty());
+
+            CATEGORY_RANGE_READS.set(0);
+            let runs = paint_in_with_categories(
+                &[],
+                &categories,
+                &[Category::Nouns],
+                &at,
+                &[],
+                Focus::Off,
+                &colours,
+            );
+            let reads = CATEGORY_RANGE_READS.get();
+            // Two binary searches plus the constant work of merging two
+            // local tokens. A scan of either manuscript would exceed this.
+            let bound = 2 * (count.ilog2() as usize + 1) + 16;
+            assert!(
+                reads > 0 && reads <= bound,
+                "{count} Categories: {reads} reads > {bound}"
+            );
+            assert_eq!(
+                runs.iter().map(|run| run.at.clone()).collect::<Vec<_>>(),
+                [start + 1..start + 4, start + 10..start + 12]
+            );
+        }
     }
 }
