@@ -234,10 +234,11 @@ pub struct Edit {
 }
 
 /// One Markdown file, plus everything the engine keeps in step with its text.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Eq)]
 pub struct Document {
     path: Option<PathBuf>,
     text: String,
+    generation: u64,
     /// The byte each line starts at, ascending, always beginning with 0.
     lines: Offsets<()>,
     /// The top-level blocks, in order, tiling the whole text: the byte each
@@ -249,11 +250,23 @@ pub struct Document {
     markup: Vec<BlockMarks>,
 }
 
+// Generation describes edit history, not the text and indexes equality checks.
+impl PartialEq for Document {
+    fn eq(&self, other: &Self) -> bool {
+        self.path == other.path
+            && self.text == other.text
+            && self.lines == other.lines
+            && self.blocks == other.blocks
+            && self.markup == other.markup
+    }
+}
+
 impl Default for Document {
     fn default() -> Self {
         Self {
             path: None,
             text: String::new(),
+            generation: 0,
             lines: Offsets::new(vec![(0, ())], 0),
             blocks: Offsets::new(Vec::new(), 0),
             markup: Vec::new(),
@@ -297,6 +310,7 @@ impl Document {
         Self {
             path,
             text,
+            generation: 0,
             lines,
             blocks,
             markup,
@@ -316,7 +330,18 @@ impl Document {
     /// [`Document::open`]'s, since nothing of the old text is reusable, and
     /// [`crate::disk::Filed::reload`] is what puts the caret back afterwards.
     pub fn reload(&mut self, text: String) {
+        let generation = self.generation + 1;
         *self = Self::holding(text, self.path.take());
+        self.generation = generation;
+    }
+
+    /// The text revision asynchronous Annotators stamp their results with.
+    ///
+    /// Advances on insert, delete and reload, and is excluded from equality.
+    /// A new Document starts at zero; its worker and result store belong to it.
+    #[must_use]
+    pub fn generation(&self) -> u64 {
+        self.generation
     }
 
     /// The file this Document is, or `None` while it is untitled.
@@ -517,6 +542,7 @@ impl Document {
         let before = self.prints(first, self.last_line_of(&old, first));
 
         self.text.replace_range(at.clone(), inserted);
+        self.generation += 1;
         self.splice_lines(&at, inserted, delta);
 
         let new = plan.at.start..shift(plan.at.end, delta);

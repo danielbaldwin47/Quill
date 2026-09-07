@@ -32,7 +32,8 @@ paper under Export's geometry), `html` (the standalone export page and the body 
 HTML carries), `draw` (one page of paper painted onto a cairo context, for both of Export's page
 sinks), `pdf` (the PDF file: the surface, the metadata and the bookmarks), `stats`, `outline` (the
 heading list a bookmark and Heading navigation are made of), `spell` (the `SpellChecker`
-trait and the enchant and `spellbook` implementations), `pos` (Syntax highlight), `style` (Style
+trait and the enchant and `spellbook` implementations), `pos` (Syntax highlight), `worker` (the
+asynchronous Annotators' thread and generation-checked results), `style` (Style
 check), `typography` (the pitch, the measure, the 78-cell text container and its gutters —
 [ADR 0016](adr/0016-the-text-container-is-78-cells.md) — and the page margins), `theme` (the two
 grounds' colour table and the rule that resolves one, and the rule that reads a change of the
@@ -73,8 +74,9 @@ Markup, code spans, fenced code, URLs and front matter removed. They never see a
 
 Two lanes, and the budget is the Gate's ≤ 5 ms mean, ≤ 16 ms worst from keystroke to presented frame:
 
-- **Synchronous, on the keystroke**: splice the text, find the containing block, widen to its
-  neighbours when the edit touches a blank line, a fence marker, a list marker or a setext underline,
+- **Synchronous, on the keystroke**: splice the text and advance the Document generation, find the
+  containing block, widen to its neighbours when the edit touches a blank line, a fence marker,
+  a list marker or a setext underline,
   re-parse that slice with a fresh parser, rebase the ranges, splice the Markup spans, re-flatten the
   runs for the affected lines and retag the buffer. The spike measured 0.082 ms for a whole-document
   retag; the block re-parse must stay flat across Document sizes and under 200 µs at 55,000 words.
@@ -82,7 +84,20 @@ Two lanes, and the budget is the Gate's ≤ 5 ms mean, ≤ 16 ms worst from keys
   changed paragraphs only, debounced, viewport first. Each result carries the Document generation it
   was computed against; the main thread applies a result whose generation is current and discards the
   rest. Dictionary and tagger loading happen on that thread at first use, never on a keystroke or at
-  startup.
+  startup. `quill_engine::worker::Worker` starts the thread on its first request and reuses it;
+  dropping it closes its channels without joining on the main loop.
+
+The worker's `Request` carries the Document `generation`, the changed `Paragraph`s (each an
+`index` and its `prose` text), and the `viewport` paragraph-index range. It answers one
+`ParagraphResult` per paragraph: the same `generation`, the `paragraph` index and Category
+`spans` whose byte ranges address that paragraph's requested prose. Viewport paragraphs arrive
+first, with request order kept within each group. The receiver's `SpanStore::apply` takes the
+current Document generation and replaces a paragraph's spans only when it matches; pending or
+stale answers leave its last spans in place. The app owns the prose-to-source mapping and
+paragraph-index changes after structural edits. Document insert, delete and reload advance the
+generation; equality compares the Document's content and indexes, excluding that edit history.
+The app uses `worker::DEBOUNCE` (100 ms after the last keystroke) for its timer and drains
+`Worker::try_recv` on idle. The engine owns neither a timer nor a main-loop source (ADR 0008).
 
 Whole-document passes (link-reference and footnote definitions, Stats, the heading outline) run on
 idle after the synchronous lane, never inside it.
@@ -257,12 +272,12 @@ sit behind the Gate like everything else.
 Before GTK initialises, startup calls `FcConfigAppFontAddDir` on the fonts directory, which carries
 the six Faces and the two Template families, Inter and Source Serif 4
 ([ADR 0007](adr/0007-quill-faces-renamed-and-private.md)).
-Data files (fonts, the Style check lists, the tagger model, the `OFL` licences) are resolved from
+Data files (fonts, the Style check lists, the `OFL` licences) are resolved from
 one data directory: `$QUILL_DATA_DIR` if set, else the directory compiled in at build time
 (`/usr/share/quill` for the package), else the repo root for a development build. Nothing is
-downloaded at build time. Templates are the exception: they are compiled into the binary with
-`include_str!` rather than resolved from the data directory, so a build that finds no data directory
-still renders (`quill_engine::template`).
+downloaded at build time. Templates and the tagger model are compiled into the binary with
+`include_str!` rather than resolved from the data directory: Templates still render without that
+directory (`quill_engine::template`), and `harper-brill` owns the embedded model (ADR 0018).
 
 ## Command-line flags
 
@@ -329,10 +344,11 @@ window twice, and a bench at 1440×900 is not a writer resizing anything.
 
 `PKGBUILD` builds the workspace with `cargo build --release --locked` from the working tree
 (`cargo fetch` in `prepare`, so `makepkg` needs the network only there), `arch=('x86_64')`,
-`license=('GPL-3.0-or-later' 'OFL-1.1')`, `depends=('gtk4' 'enchant' 'hicolor-icon-theme')`,
+`license=('GPL-3.0-or-later' 'OFL-1.1' 'Apache-2.0')`, `depends=('gtk4' 'enchant' 'hicolor-icon-theme')`,
 `makedepends=('cargo')`, `optdepends=('hunspell-en_us: English spell checking')`. It installs the
 binary as `/usr/bin/quill`, data under `/usr/share/quill/`, the `.desktop` file and icon under the
-application id, `fonts/OFL.txt` beside the fonts and under `/usr/share/licenses/quill/`. With no
+application id, `fonts/OFL.txt` beside the fonts and under `/usr/share/licenses/quill/`, and
+`packaging/harper-brill-LICENSE` under that licence directory for the embedded model. With no
 dictionary installed, Spell check shows a "no dictionary" state rather than failing.
 
 Flatpak comes later (the map's fog) and this design keeps it cheap: fonts are private, enchant and
