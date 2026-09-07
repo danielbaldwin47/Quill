@@ -46,11 +46,8 @@ pub fn category_spans(paragraph: &str) -> Vec<(Range<usize>, Category)> {
         .into_iter()
         .zip(tokens)
         .filter_map(|(tag, token)| {
-            if !token.can_take_category() {
-                return None;
-            }
-
-            Some((token.range, category(tag?)?))
+            let category = token.category(tag?)?;
+            Some((token.range, category))
         })
         .collect()
 }
@@ -89,11 +86,10 @@ struct Token<'a> {
 }
 
 impl Token<'_> {
-    fn can_take_category(&self) -> bool {
+    fn category(&self, tag: UPOS) -> Option<Category> {
         match self.kind {
-            TokenKind::Word => true,
-            TokenKind::Suffix => !matches!(self.text, "'s" | "’s" | "'S" | "’S"),
-            TokenKind::Number | TokenKind::Punctuation => false,
+            TokenKind::Word | TokenKind::Suffix => category(tag),
+            TokenKind::Number | TokenKind::Punctuation => None,
         }
     }
 }
@@ -211,6 +207,20 @@ mod tests {
             [(0..5, Category::Nouns)],
             "only Alice should be coloured: {spans:?}"
         );
+    }
+
+    #[test]
+    fn s_suffix_obeys_its_tag_instead_of_being_blanket_suppressed() {
+        for text in ["'s", "’s", "'S", "’S"] {
+            let token = Token {
+                range: 0..text.len(),
+                text,
+                kind: TokenKind::Suffix,
+            };
+
+            assert_eq!(token.category(UPOS::AUX), Some(Category::Verbs));
+            assert_eq!(token.category(UPOS::PART), None);
+        }
     }
 
     #[test]

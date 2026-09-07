@@ -677,9 +677,12 @@ pub fn paint_with_categories_in(
             let mut look = run.map_or(Look::PROSE, |run| run.look);
             if let Some((_, category)) = category
                 && protected.is_none()
-                && enabled.contains(category)
             {
-                look.ink = Ink::Category(*category);
+                look.ink = if enabled.contains(category) {
+                    Ink::Category(*category)
+                } else {
+                    Ink::Prose
+                };
             }
             let speaks = covers || run.is_some() || category.is_some();
             push_painted(
@@ -1267,7 +1270,7 @@ mod tests {
     use crate::document::Document;
     use crate::focus;
     use crate::settings::FocusScope;
-    use crate::theme::Scheme;
+    use crate::theme::{Palette, Scheme};
 
     /// The spans of `text` as `(source text, mark)`, which is what an owner
     /// would see if the marks were drawn on the page.
@@ -2582,6 +2585,44 @@ mod tests {
             paint_in(&markup(text), &(0..text.len()), &[], Focus::Off, &colours,),
             "master off delegates exactly to the existing sparse painting",
         );
+    }
+
+    #[test]
+    fn a_disabled_category_restores_body_ink_inside_struck_prose() {
+        let text = "***~~fox~~***";
+        let fox = text.find("fox").expect("the passage has fox");
+        let categories = [(fox..fox + "fox".len(), Category::Nouns)];
+        let (palette, notes) = Palette::parse(
+            "[light]\nink = \"#102030\"\nmark = \"#405060\"\nsyntax_noun = \"#708090\"\n",
+        );
+        assert!(notes.is_empty(), "the test palette should parse: {notes:?}");
+        let colours = Colours::overlaid(Scheme::Light, &palette);
+
+        let runs = paint_with_categories_in(
+            &markup(text),
+            &categories,
+            &BTreeSet::new(),
+            &(0..text.len()),
+            &[],
+            Focus::Off,
+            &colours,
+        );
+        let fox = runs
+            .iter()
+            .find(|run| run.at.contains(&fox))
+            .expect("struck prose is painted");
+
+        assert_eq!(
+            fox.paint,
+            Paint {
+                colour: colours.colour(Role::Ink),
+                weight: Weight::Bold,
+                slant: Slant::Italic,
+                ground: Ground::Page,
+            },
+            "a disabled Category restores body ink without losing surrounding emphasis",
+        );
+        assert_ne!(fox.paint.colour, colours.colour(Role::Mark));
     }
 
     #[test]
