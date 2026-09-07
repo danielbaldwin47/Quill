@@ -41,6 +41,61 @@ pub enum Category {
     Conjunctions,
 }
 
+impl Category {
+    /// This Category's bit in a [`Categories`] set.
+    const fn bit(self) -> u8 {
+        1 << (self as u8)
+    }
+}
+
+/// Which Categories are coloured.
+///
+/// A set rather than five `bool`s because every reader asks it the one
+/// question — is this Category coloured? — and none asks after a particular
+/// one. It is separate state from the master toggle (#310), so that a writer
+/// who turns Syntax highlight off and on again finds the Categories they had
+/// chosen: the master toggle is the absence of spans and not an empty set.
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct Categories(u8);
+
+impl Categories {
+    /// Nothing coloured: every tagged word paints the body's ink.
+    pub const NONE: Self = Self(0);
+
+    /// All five coloured, which is what the shipped `[syntax_highlight]` table
+    /// says once the master toggle is on.
+    pub const ALL: Self = Self::NONE
+        .with(Category::Nouns)
+        .with(Category::Verbs)
+        .with(Category::Adjectives)
+        .with(Category::Adverbs)
+        .with(Category::Conjunctions);
+
+    /// This set with `category` in it.
+    #[must_use]
+    pub const fn with(self, category: Category) -> Self {
+        Self(self.0 | category.bit())
+    }
+
+    /// Whether `category` is coloured.
+    #[must_use]
+    pub const fn contains(self, category: Category) -> bool {
+        self.0 & category.bit() != 0
+    }
+
+    /// Whether nothing at all is coloured.
+    #[must_use]
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+}
+
+impl FromIterator<Category> for Categories {
+    fn from_iter<I: IntoIterator<Item = Category>>(categories: I) -> Self {
+        categories.into_iter().fold(Self::NONE, Self::with)
+    }
+}
+
 /// What Syntax highlight colours in one paragraph of prose: byte ranges into
 /// `prose`, ascending, never overlapping, one per coloured word.
 ///
@@ -299,6 +354,43 @@ mod tests {
                 "spans ascend, but {span:?} follows a span ending at {previous}"
             );
             previous = span.end;
+        }
+    }
+
+    /// The five switches: a set holds what it was given and nothing else, and
+    /// a writer revising for adjectives and adverbs leaves every noun plain.
+    #[test]
+    fn a_categories_set_holds_the_switches_it_was_given_and_no_others() {
+        let revising = Categories::NONE
+            .with(Category::Adjectives)
+            .with(Category::Adverbs);
+
+        assert!(revising.contains(Category::Adjectives));
+        assert!(revising.contains(Category::Adverbs));
+        assert!(
+            !revising.contains(Category::Nouns),
+            "a pass for adjectives and adverbs is a page where nothing else is coloured"
+        );
+        assert!(!revising.is_empty());
+        assert!(Categories::NONE.is_empty());
+        assert_eq!(
+            [Category::Adjectives, Category::Adverbs]
+                .into_iter()
+                .collect::<Categories>(),
+            revising,
+            "collected from the switches a writer set, it is the same set"
+        );
+        for category in [
+            Category::Nouns,
+            Category::Verbs,
+            Category::Adjectives,
+            Category::Adverbs,
+            Category::Conjunctions,
+        ] {
+            assert!(
+                Categories::ALL.contains(category),
+                "{category:?} is missing from the whole set"
+            );
         }
     }
 }
