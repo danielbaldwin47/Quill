@@ -63,8 +63,9 @@ export const ASSERTIONS = {
 // ours (ADR 0017). What the second shot is differs by rule, and the difference is here rather than
 // in the two callers: `ghost` wants the same state with the window active, `folded` wants the
 // same state with Live off, which is the page whose markers the fold is measured against, and the
-// two Preview rules and the Export dialog's read one frame and take the active shot they do not
-// read, as `ghost` does.
+// two Preview rules read one frame and take the active shot they do not read, as `ghost` does.
+// `dialog` removes the Export flag for a bare PDF Split reference: that is the independent reading
+// of the pane surround which the dialog shot must leave unchanged.
 export const SECOND = {
   ghost: (s) => ({ state: s, options: { active: true } }),
   folded: (s) => ({ state: { ...s, flags: { ...s.flags, live: false } }, options: {} }),
@@ -72,7 +73,7 @@ export const SECOND = {
   full: (s) => ({ state: s, options: { active: true } }),
   'pdf-split': (s) => ({ state: s, options: { active: true } }),
   'pdf-full': (s) => ({ state: s, options: { active: true } }),
-  dialog: (s) => ({ state: s, options: { active: true } }),
+  dialog: (s) => ({ state: { ...s, flags: { ...s.flags, export: null } }, options: { active: true } }),
 };
 
 // The second shot one asserted state asks for: `{ state, options }` for `shootState`.
@@ -848,69 +849,60 @@ const DIALOG_BANDS = 8;
 // Mac's own is that app's dialog rather than this one's, so it is measured instead of shown to
 // anybody (ADR 0017).
 //
-// Three facts, and they are the three a still can hold. The dialog is a **second ground over the
-// page**: the strip along the top of the window is still the Editor's paper, and the dialog's
-// ground is another colour standing in a rectangle wholly inside it — a dialog that filled the
-// window, or one that never opened, fails here. That is a fact about the look and not an accident
-// of it: the dialog is drawn in the same paper the Editor is, and it reads as a surface of its own
-// because GTK draws the window a modal dialog is up over at the half opacity of a widget that
-// cannot be typed into. A build where the two grounds came back the same would be a build where a
-// writer cannot see where the dialog ends, which is the thing worth failing on. That rectangle is
-// **centred on the window**, which is where a dialog transient for a window belongs. And it carries
-// **the bands of an open expander**: shut, the dialog is the file name, the folder, the Options
-// label and the Export button, and open it is those plus every row of the options grid, so counting
-// the bands says which of the two was shot without pinning a row to a y.
-//
-// A fourth fact since #300, which is what the dialog is now for: the **pane behind it is showing
-// the pages**. The dialog drives the pane rather than carrying a preview of its own, so the state
-// is shot with `"preview": "pdf-split"` and the strip of window right of the dialog's box is the
-// column. Two grounds there — a page standing on the surround — are the PDF mode; one ground is the
-// Web sheet's paper filling the pane, a pane that never opened, or a column with no page on it, and
-// a build that did any of those is a build where the dialog stopped driving the pane. Nothing here
-// reads the divider or the Editor: at this state's light theme the column's surround and the
-// Editor's own paper are one colour (`quill-engine/src/theme.rs`), so what says pane is the page's
-// white and the gutter beside it.
+// Four facts, all read from the dialog shot against its bare `pdf-split` reference. The Editor's
+// ground in the left quarter is darker than the pane surround: that is the app's scrim, scoped to
+// the Editor. The pane surround in the right quarter is byte-for-byte the reference's surround:
+// the dialog has not dimmed what it exists to preview. A light page stands on that surround, which
+// says the pane is in PDF mode. The dialog's ground makes a rectangle centred on the window and it
+// carries the bands of an open expander. The dialog and pane surround are the same light ground in
+// this state, so [`dialogBox`] reads the centred rectangle by a majority of its rows and columns;
+// it does not ask a globally shared colour for one impossible extent.
 //
 // What the entry says and where the switches stand are reported rather than held: the seeded file
 // name's ink is in the topmost band, and the count of bands is the count of rows. A still cannot
 // read a word, and this rule does not pretend to.
 //
-// One frame, and `shots.dim` is it, for the reason [`split`] reads one: this is not about
-// activation. No colour is compared against a hex written down here — both grounds are read as the
-// colour their part of the window is mostly made of — because a palette that moves takes both with
-// it.
-function dialog(_spec, { dim }) {
+// No colour is compared against a hex written down here. The pair carries every ground the rule
+// reads, so a palette that moves takes the measurement with it.
+function dialog(_spec, { dim, lit }) {
   const png = decodePng(dim);
+  const reference = decodePng(lit);
   const { w, h } = png;
-  // The page off the strip along the top of the window and the dialog off the middle of it: a
-  // dialog is centred on the window it is transient for, so the top strip is page whatever the
-  // dialog's size and the middle is dialog whenever there is one.
-  const page = groundOf(png, 0, w, 0, h >> 4);
-  const sheet = groundOf(png, w >> 2, w - (w >> 2), h >> 2, h - (h >> 2));
-  if (sameRgb(page, sheet)) {
-    return no(`the middle of the window is ${hex(sheet)}, the same paper as the strip along its top: no dialog stands over the page`);
+  if (reference.w !== w || reference.h !== h) {
+    return no(`the dialog shot is ${w}x${h} and its bare PDF Split reference is ${reference.w}x${reference.h}`);
   }
 
-  const sheetBox = extentOf(png, sheet);
+  const editor = groundOf(png, 0, w >> 2, 0, h >> 4);
+  const pane = columnOf(png, (w * 3) >> 2, w);
+  const referencePane = columnOf(reference, (w * 3) >> 2, w);
+  if (pane.surround === null || referencePane.surround === null) {
+    return no(`no page is standing in the pane beside it, so the pane is not showing what the dialog is about`);
+  }
+  if (!sameRgb(pane.surround, referencePane.surround)) {
+    return no(`the pane surround ${hex(pane.surround)} changed from ${hex(referencePane.surround)} in bare PDF Split`);
+  }
+  if (luma(editor) >= luma(pane.surround)) {
+    return no(`the ${hex(editor)} Editor is not darker than the ${hex(pane.surround)} pane surround`);
+  }
+  const sheet = referencePane.surround;
+  const sheetBox = dialogBox(png, sheet);
+  if (sheetBox.right < sheetBox.left || sheetBox.bottom < sheetBox.top) {
+    return no(`no centred rectangle of the pane's ${hex(sheet)} surround was found: no dialog stands over the page`);
+  }
   const inside = sheetBox.left > 0 && sheetBox.right < w - 1
     && sheetBox.top > 0 && sheetBox.bottom < h - 1;
   if (!inside) {
-    return no(`the ${hex(sheet)} ground runs ${box(sheetBox)} of a ${w}x${h} window: it reaches an edge, so it is not a dialog standing over the page`);
+    return no(`the ${hex(sheet)} dialog ground runs ${box(sheetBox)} of a ${w}x${h} window: it reaches an edge, so it is not a dialog standing over the page`);
   }
 
   const bands = bandsOf(png, sheetBox, sheet);
-  const beside = besideDialog(png, sheetBox);
   const boxCentre = [(sheetBox.left + sheetBox.right) / 2, (sheetBox.top + sheetBox.bottom) / 2];
   const centre = [(w - 1) / 2, (h - 1) / 2];
   const off = [Math.abs(boxCentre[0] - centre[0]), Math.abs(boxCentre[1] - centre[1])];
-  const where = `the dialog is ${hex(sheet)} over ${hex(page)}, ${box(sheetBox)} of a ${w}x${h} window, `
+  const where = `the dialog is ${hex(sheet)}, ${box(sheetBox)} of a ${w}x${h} window, `
     + `centre ${boxCentre[0]},${boxCentre[1]} against the window's own ${centre[0]},${centre[1]}`;
   const rows = `${bands.length} bands of ink inside it, the topmost ${box(bands[0] ?? sheetBox)}`;
-  const pane = beside === null
-    ? `the dialog runs to the window's own right edge, so there is no pane beside it to read`
-    : beside.surround === null
-      ? `the window right of the dialog is ${hex(beside.paper)} from x ${beside.x0} across`
-      : `a ${hex(beside.paper)} page stands on a ${hex(beside.surround)} surround right of it, from x ${beside.x0} across`;
+  const paneReading = `a ${hex(pane.paper)} page stands on a ${hex(pane.surround)} surround right of it`;
   const missed = [];
   if (off[0] > DIALOG_CENTRE || off[1] > DIALOG_CENTRE) {
     missed.push(`it stands ${off[0].toFixed(1)},${off[1].toFixed(1)} px off the window's centre`);
@@ -918,10 +910,8 @@ function dialog(_spec, { dim }) {
   if (bands.length < DIALOG_BANDS) {
     missed.push(`it carries ${bands.length} bands of ink and an open expander carries at least ${DIALOG_BANDS}, so the Options are shut`);
   }
-  if (beside === null || beside.surround === null) {
-    missed.push(`no page is standing in the pane beside it, so the pane is not showing what the dialog is about`);
-  } else if (luma(beside.paper) <= luma(beside.surround)) {
-    missed.push(`the page beside it is no lighter than the ${hex(beside.surround)} it stands on, so it is not a page on the column's surround`);
+  if (luma(pane.paper) <= luma(pane.surround)) {
+    missed.push(`the page beside it is no lighter than the ${hex(pane.surround)} it stands on, so it is not a page on the column's surround`);
   }
   return {
     ours: missed.length === 0,
@@ -931,17 +921,57 @@ function dialog(_spec, { dim }) {
       sheetBox.right - sheetBox.left + 1,
       sheetBox.bottom - sheetBox.top + 1,
     ],
-    grounds: [hex(page), hex(sheet)],
+    grounds: [hex(editor), hex(sheet)],
     bands: bands.length,
-    pane: beside === null || beside.surround === null ? null : [hex(beside.paper), hex(beside.surround)],
+    pane: [hex(pane.paper), hex(pane.surround)],
     why: missed.length === 0
-      ? `${where}; ${rows}; ${pane}`
-      : `${where}; ${rows}; ${pane} — ${missed.join(', and ')}, past the ${DIALOG_CENTRE} px this is measured to`,
+      ? `${where}; ${rows}; ${paneReading}; the Editor is ${hex(editor)}`
+      : `${where}; ${rows}; ${paneReading}; the Editor is ${hex(editor)} — ${missed.join(', and ')}, past the ${DIALOG_CENTRE} px this is measured to`,
     secondary: [
-      `${rows}; ${pane}`,
-      `both grounds were read as the colour their part of the window is mostly made of, not compared against a hex written down here`,
+      `${rows}; ${paneReading}`,
+      `the pane surround is held to bare PDF Split and every ground is read from the pair, not compared against a hex written down here`,
     ],
   };
+}
+
+// The dialog rectangle made by `ground`, where that colour is also the pane's surround.
+//
+// A row through the dialog is mostly its ground inside the middle half of the window; a row above
+// or below it carries only the pane's gutter there. Across those rows, the outer columns that are
+// mostly its ground mark the sides; form controls may split that run in the middle, so the boundary
+// is their outer span. Antialiased edges and rows of text can change a minority of pixels without
+// moving either boundary.
+function dialogBox(png, ground) {
+  const { w, h } = png;
+  const x0 = w >> 2;
+  const x1 = w - x0;
+  let top = h;
+  let bottom = -1;
+  for (let y = 0; y < h; y += 1) {
+    let held = 0;
+    for (let x = x0; x < x1; x += 1) if (is(png, x, y, ground)) held += 1;
+    if (held * 2 <= x1 - x0) continue;
+    if (top === h) top = y;
+    bottom = y;
+  }
+  if (bottom < top) return { left: w, right: -1, top: h, bottom: -1 };
+
+  const middle = w >> 1;
+  let left = w;
+  let right = -1;
+  for (let x = x0; x < x1; x += 1) {
+    let held = 0;
+    for (let y = top; y <= bottom; y += 1) if (is(png, x, y, ground)) held += 1;
+    if (held * 2 <= bottom - top + 1) continue;
+    if (left === w) left = x;
+    right = x;
+  }
+  let atLeft = 0;
+  for (let y = top; y <= bottom; y += 1) if (is(png, 0, y, ground)) atLeft += 1;
+  if (atLeft * 2 > bottom - top + 1) left = 0;
+  return left <= middle && right >= middle
+    ? { left, right, top, bottom }
+    : { left: w, right: -1, top: h, bottom: -1 };
 }
 
 // The bounding box of every pixel of `rgb`, or a box of nothing when the shot holds none.
@@ -965,28 +995,6 @@ function extentOf(png, rgb, x0 = 0, x1 = png.w) {
     }
   }
   return { left, right, top, bottom };
-}
-
-// What stands in the window right of the dialog's box: the page the pane is showing, and the
-// surround it stands on.
-//
-// The dialog is centred on the window and narrower than the half the pane fills in Split, so the
-// strip from its right edge to the window's is pane and nothing else — which is why this reads no
-// divider and no Editor. Two grounds in that strip are a page standing on the column's surround;
-// one is a pane with no page in it, or no pane at all. `null` is a dialog that reaches the edge,
-// which the check above has already refused.
-//
-// A page drawn in the dialog's own ground needs no check of its own: [`extentOf`] reads the
-// dialog's box as every pixel of that colour anywhere in the window, so such a page falls inside
-// the box this measures from and the strip beside it is one ground again.
-//
-// Both colours are read as what their part of the strip is mostly made of ([`columnOf`]), never
-// against a hex written down here, for the reason the two grounds above are.
-function besideDialog(png, sheetBox) {
-  const { w } = png;
-  const x0 = sheetBox.right + 1;
-  if (x0 >= w) return null;
-  return { x0, ...columnOf(png, x0, w) };
 }
 
 // The runs of rows inside `box` that carry ink over `paper`, each as its own bounding box.
