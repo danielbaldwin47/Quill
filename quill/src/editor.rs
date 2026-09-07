@@ -864,7 +864,13 @@ impl Editor {
         }
         self.imp().fade.take();
         let tiers = self.imp().tiers.borrow();
-        tags::apply(&self.buffer(), document, self.painting(&tiers));
+        let lines = 0..document.place(document.text().len()).line + 1;
+        tags::repaint(
+            &self.buffer(),
+            document,
+            self.painting(&tiers),
+            std::slice::from_ref(&lines),
+        );
     }
 
     /// Whether this Editor should schedule asynchronous Syntax work.
@@ -885,10 +891,17 @@ impl Editor {
 
     /// Drains a bounded idle batch and redraws only its accepted paragraphs.
     pub(crate) fn drain_syntax(&self, document: &Document) -> bool {
-        let lines = self.imp().syntax.borrow_mut().drain(document);
+        let mut lines = self.imp().syntax.borrow_mut().drain(document);
         if !lines.is_empty() {
-            self.settle_fade(document);
-            self.redraw(document, &lines);
+            // A fade's snapshots contain the old Category colours. Its whole
+            // range reaches the current endpoint before those snapshots go.
+            if let Some(fade) = self.imp().fade.take() {
+                lines.extend(fade.lines);
+            }
+            let tiers = self.imp().tiers.borrow();
+            let buffer = self.buffer();
+            let _batch = buffer.freeze_notify();
+            tags::repaint(&buffer, document, self.painting(&tiers), &lines);
         }
         self.imp().syntax.borrow().pending()
     }
