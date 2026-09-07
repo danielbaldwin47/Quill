@@ -84,8 +84,9 @@ const DIALOG_PAD: i32 = 12;
 ///
 /// Half, which is what the writer saw before: the Export dialog was modal
 /// until #302, and Hyprland's `decoration:dim_modal` dimmed a modal window's
-/// parent by exactly this much — the judged still `shots/export/r1-dialog-ours.png`
-/// reads the paper outside the dialog at half its value.
+/// parent by exactly that much. The judged still under
+/// `shots/export/r1-dialog-ours.png` reads `#7c7c7c` outside the dialog
+/// against the `#f7f7f7` inside it, which is that paper at half.
 const DIALOG_DIM: f64 = 0.5;
 
 mod imp {
@@ -2010,8 +2011,9 @@ impl Window {
     ///
     /// The pane a dialog drives is this window's own, because the dialog is
     /// transient for this window and one window holds one at a time
-    /// ([`Window::export_dialog`]); the mode and the values it drives it with are
-    /// the pane's own override ([`crate::preview::Preview::set_dialog_override`])
+    /// ([`Window::export_dialog`]); the mode and the values it drives it with
+    /// are the pane's own override
+    /// ([`crate::preview::Preview::set_dialog_override`])
     /// rather than a setting, so `[preview] mode` and `[export]` are what the
     /// close comes back to. What was there before is answered here and handed
     /// back to [`Window::drop_dialog_preview`], because a dialog is one job
