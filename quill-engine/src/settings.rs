@@ -754,7 +754,9 @@ impl Preview {
 
 /// The Template a Document is laid out in, and the three toggles that bend it.
 ///
-/// Headings are centred because that is what the Templates were drawn for;
+/// Headings are centred by default because that is what the Design oracle's
+/// own Modern does (`ref/ia/mac-native/NOTES.md` § State 16), and since #302
+/// this toggle is the one thing that decides it under every Template;
 /// numbering them and indenting paragraphs are each something a writer asks
 /// for, so both start off.
 #[derive(Clone, Debug, PartialEq)]

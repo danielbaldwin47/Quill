@@ -843,6 +843,11 @@ const DIALOG_CENTRE = 8;
 // spacing; eight is more bands than a shut dialog can make however its rows fall together.
 const DIALOG_BANDS = 8;
 
+// How many rows of the dialog's own top margin its sides are read along ([`dialogBox`]), in device
+// px: fewer than the margin the dialog keeps above its first control (24 in the judged still, 10 in
+// the selftest's fixture), and more than one so an antialiased row cannot end the walk early.
+const DIALOG_EDGE = 6;
+
 // The Export dialog over the page, its Options expander open.
 //
 // Neither oracle holds this one either: `legacy/` has no Export dialog at all, and iA Writer for
@@ -937,10 +942,15 @@ function dialog(_spec, { dim, lit }) {
 // The dialog rectangle made by `ground`, where that colour is also the pane's surround.
 //
 // A row through the dialog is mostly its ground inside the middle half of the window; a row above
-// or below it carries only the pane's gutter there. Across those rows, the outer columns that are
-// mostly its ground mark the sides; form controls may split that run in the middle, so the boundary
-// is their outer span. Antialiased edges and rows of text can change a minority of pixels without
-// moving either boundary.
+// or below it carries only the pane's gutter there, so the first and last such rows are its top
+// and bottom. The sides are read along the dialog's own top margin — the [`DIALOG_EDGE`] rows
+// under its top, which are ground clear across it, where a row through the controls is not: a
+// column through the switches is less than half ground over the dialog's height, and a walk over
+// the whole height would stop there. Out from the window's centre, each way, to the first column
+// that is not mostly ground in that band: the dimmed Editor on the left, the page's white on the
+// right. The pane's far gutter is that ground too, but the page stands between it and the dialog,
+// so the walk never joins them; and a dialog that runs to either edge of the window reads as
+// reaching it, which is what the caller's `inside` refuses.
 function dialogBox(png, ground) {
   const { w, h } = png;
   const x0 = w >> 2;
@@ -956,22 +966,19 @@ function dialogBox(png, ground) {
   }
   if (bottom < top) return { left: w, right: -1, top: h, bottom: -1 };
 
-  const middle = w >> 1;
-  let left = w;
-  let right = -1;
-  for (let x = x0; x < x1; x += 1) {
+  const margin = Math.min(DIALOG_EDGE, bottom - top + 1);
+  const mostly = (x) => {
     let held = 0;
-    for (let y = top; y <= bottom; y += 1) if (is(png, x, y, ground)) held += 1;
-    if (held * 2 <= bottom - top + 1) continue;
-    if (left === w) left = x;
-    right = x;
-  }
-  let atLeft = 0;
-  for (let y = top; y <= bottom; y += 1) if (is(png, 0, y, ground)) atLeft += 1;
-  if (atLeft * 2 > bottom - top + 1) left = 0;
-  return left <= middle && right >= middle
-    ? { left, right, top, bottom }
-    : { left: w, right: -1, top: h, bottom: -1 };
+    for (let y = top; y < top + margin; y += 1) if (is(png, x, y, ground)) held += 1;
+    return held * 2 > margin;
+  };
+  const middle = w >> 1;
+  if (!mostly(middle)) return { left: w, right: -1, top: h, bottom: -1 };
+  let left = middle;
+  while (left > 0 && mostly(left - 1)) left -= 1;
+  let right = middle;
+  while (right < w - 1 && mostly(right + 1)) right += 1;
+  return { left, right, top, bottom };
 }
 
 // The bounding box of every pixel of `rgb`, or a box of nothing when the shot holds none.
