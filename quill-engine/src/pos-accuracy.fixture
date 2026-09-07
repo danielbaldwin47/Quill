@@ -1,0 +1,37 @@
+# Each passage names the reference still transcribed by eye. `categories` lists
+# only the colours enabled in that still. A word record names its passage,
+# spelling, occurrence within that passage and Category.
+# TRIM: ref/ia/shots/ianet-mac-light-syntax-highlight.png
+passage|TRIM|Trim and tighten: You can employ Syntax Highlight, which helps you spot weak verbs, unwanted repetitions, and eliminate clutter. Together with Style Check, it'll make you a more persuasive writer.
+categories|TRIM|Verbs,Adjectives,Adverbs,Conjunctions
+word|TRIM|Trim|1|Verbs
+word|TRIM|and|1|Conjunctions
+word|TRIM|tighten|1|Verbs
+word|TRIM|can|1|Verbs
+word|TRIM|employ|1|Verbs
+word|TRIM|helps|1|Verbs
+word|TRIM|spot|1|Verbs
+word|TRIM|weak|1|Adjectives
+word|TRIM|unwanted|1|Adjectives
+word|TRIM|and|2|Conjunctions
+word|TRIM|eliminate|1|Verbs
+word|TRIM|Together|1|Adverbs
+word|TRIM|'ll|1|Verbs
+word|TRIM|make|1|Verbs
+word|TRIM|more|1|Adverbs
+word|TRIM|persuasive|1|Adjectives
+
+# ALICE-FALL: ref/ia/shots/appstore-mac-03-dark-syntax-highlight.png
+passage|ALICE-FALL|Down, down, down. Would the fall never come to an end? “I must actually be getting somewhere near the so-called centre of the earth
+categories|ALICE-FALL|Verbs,Adjectives,Adverbs
+word|ALICE-FALL|Down|1|Adverbs
+word|ALICE-FALL|down|2|Adverbs
+word|ALICE-FALL|down|3|Adverbs
+word|ALICE-FALL|Would|1|Verbs
+word|ALICE-FALL|never|1|Adverbs
+word|ALICE-FALL|come|1|Verbs
+word|ALICE-FALL|must|1|Verbs
+word|ALICE-FALL|be|1|Verbs
+word|ALICE-FALL|getting|1|Verbs
+word|ALICE-FALL|somewhere|1|Adverbs
+word|ALICE-FALL|so-called|1|Adjectives
