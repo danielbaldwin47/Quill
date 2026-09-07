@@ -1,0 +1,80 @@
+# iA Writer's own Syntax Highlight, transcribed word by word from its stills.
+#
+# The ground truth for `syntax_accuracy.rs`. No corpus is vendored: what
+# Syntax highlight has to agree with is not a treebank's tags but the colours a
+# writer sees in iA, and the only record of those is iA's own screenshots.
+#
+# Each passage names the still it was read from, the text as the prose stream
+# would hand it over (markers already gone: the dark still writes `*never*`,
+# and what the tagger sees is `never`), which Categories that still had switched
+# on, and every coloured word with its colour and its byte offset into `text`.
+#
+# `shows` is the whole of why the offsets are worth transcribing. iA's
+# marketing never once turns Nouns on — every noun in both passages is plain
+# ink — so a still cannot tell us whether the tagger's red is right, and a test
+# that scored red against it would be scoring a switch rather than a tagger.
+# The test therefore scores only the Categories a still shows on, in both
+# directions: a word iA colours that we leave plain counts against us, and so
+# does a word we colour that iA leaves plain.
+#
+# Read 2026-09-07 by eye from the two stills at 2× zoom.
+
+[[passage]]
+name = "TRIM"
+still = "ref/ia/shots/ianet-mac-light-syntax-highlight.png"
+# ia.net's lossless syntax-highlight still, light ground. Nouns off: `Syntax`,
+# `Highlight`, `verbs`, `repetitions`, `clutter`, `Style`, `Check` and `writer`
+# are all body ink. The word-by-word reading agrees with the one
+# `ref/ia/REFERENCE.md` already carried for this still.
+shows = ["Verbs", "Adjectives", "Adverbs", "Conjunctions"]
+text = "Trim and tighten: You can employ Syntax Highlight, which helps you spot weak verbs, unwanted repetitions, and eliminate clutter. Together with Style Check, it'll make you a more persuasive writer."
+coloured = [
+  { at = 0, word = "Trim", category = "Verbs" },
+  { at = 5, word = "and", category = "Conjunctions" },
+  { at = 9, word = "tighten", category = "Verbs" },
+  { at = 22, word = "can", category = "Verbs" },
+  { at = 26, word = "employ", category = "Verbs" },
+  { at = 57, word = "helps", category = "Verbs" },
+  { at = 67, word = "spot", category = "Verbs" },
+  { at = 72, word = "weak", category = "Adjectives" },
+  { at = 84, word = "unwanted", category = "Adjectives" },
+  { at = 106, word = "and", category = "Conjunctions" },
+  { at = 110, word = "eliminate", category = "Verbs" },
+  { at = 129, word = "Together", category = "Adverbs" },
+  { at = 158, word = "'ll", category = "Verbs" },
+  { at = 162, word = "make", category = "Verbs" },
+  { at = 173, word = "more", category = "Adverbs" },
+  { at = 178, word = "persuasive", category = "Adjectives" },
+]
+
+[[passage]]
+name = "ALICE-FALL"
+still = "ref/ia/shots/appstore-mac-03-dark-syntax-highlight.png"
+# The App Store's third Mac slide, dark ground: the ALICE-FALL passage
+# `ref/ia/REFERENCE.md` names, transcribed here from the pixels rather than
+# taken from that file's line, so the colours and the text are read together.
+#
+# Nouns off again: `fall`, `end`, `centre` and `earth` are all body ink.
+# Conjunctions is left out of `shows` for a different reason — the passage
+# holds no conjunction at all, so the still says nothing either way about
+# green, and a Category the still cannot answer is one the test must not score.
+#
+# `actually` is body ink in the still while `never` and `somewhere` beside it
+# are purple. That is iA's own tagger declining an adverb, and it is left in:
+# it is one of the disagreements the 86 % floor is there to bound.
+shows = ["Verbs", "Adjectives", "Adverbs"]
+text = "Down, down, down. Would the fall never come to an end? “I must actually be getting somewhere near the so-called centre of the earth"
+coloured = [
+  { at = 0, word = "Down", category = "Adverbs" },
+  { at = 6, word = "down", category = "Adverbs" },
+  { at = 12, word = "down", category = "Adverbs" },
+  { at = 18, word = "Would", category = "Verbs" },
+  { at = 33, word = "never", category = "Adverbs" },
+  { at = 39, word = "come", category = "Verbs" },
+  # `at` is a byte offset, and the opening curly quote above is three of them.
+  { at = 60, word = "must", category = "Verbs" },
+  { at = 74, word = "be", category = "Verbs" },
+  { at = 77, word = "getting", category = "Verbs" },
+  { at = 85, word = "somewhere", category = "Adverbs" },
+  { at = 104, word = "so-called", category = "Adjectives" },
+]

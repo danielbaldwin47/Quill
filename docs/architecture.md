@@ -65,10 +65,11 @@ An Annotator turns a byte range of the Document into spans, each `(byte range, m
 Markup (from the parser: which bytes are Markup, which are heading, emphasis, strong, code, link,
 quote, list marker), Live (from the Markup spans and the caret: which marker bytes are folded away,
 which bytes are a heading's and at what level, and what furniture stands in a folded marker's
-cells), Syntax highlight (a UPOS tag per word), Style check (a list name per match) and
-Spell check (a misspelling per word, suggestions fetched on demand). Syntax highlight, Style check and
-Spell check consume the **prose stream**: the parser's `Text` events with Markup, code spans, fenced
-code, URLs and front matter removed. They never see a `#` or a `*`.
+cells), Syntax highlight (a Category per word — Nouns, Verbs, Adjectives, Adverbs or Conjunctions;
+the Universal POS tag it reads them from never leaves `quill_engine::pos`), Style check (a list name
+per match) and Spell check (a misspelling per word, suggestions fetched on demand). Syntax
+highlight, Style check and Spell check consume the **prose stream**: the parser's `Text` events with
+Markup, code spans, fenced code, URLs and front matter removed. They never see a `#` or a `*`.
 
 Two lanes, and the budget is the Gate's ≤ 5 ms mean, ≤ 16 ms worst from keystroke to presented frame:
 
@@ -93,8 +94,10 @@ and one per `(weight, slant)`, created lazily and never removed. Decorations are
 layered over the runs: one `underline: error` tag for Spell check, one per Style check list, one for
 selection-independent things such as the transparent underline a dim URL takes (`focus.css:41`).
 Focus's own dim is not among them: it is a colour, so it resolves into the run rather than layering
-over it (`quill_engine::annotate::paint`, #126). Underline and colour are
-different properties, so those overlaps are safe.
+over it (`quill_engine::annotate::paint`, #126). Syntax highlight is the third tier and enters the
+same flattening as an ink laid over the Markup runs rather than a mark resolved with them
+(`quill_engine::annotate::paint_tagged`, #313), which is what keeps a Category off a marker and off
+a link's plumbing. Underline and colour are different properties, so those overlaps are safe.
 
 **Leading.** Line pitch is the ladder's pitch per step (`ref/ia/mac-native/NOTES.md` § 11; 1.711 em
 at the default), in device px at scale 2 and `round(value × scale / 2)` at any other: iA's liquid
@@ -335,7 +338,10 @@ its English dictionary are in `org.gnome.Platform`, data resolves through one di
 runs at build time that needs the network.
 
 **Licence rule.** Every dependency and data file is GPL-3.0-or-later compatible; no CC BY-SA data
-ships in Quill, because it is compatible with GPL-3.0 only and breaks "or-later".
+ships in Quill, because it is compatible with GPL-3.0 only and breaks "or-later". The rule is about
+what ships: `harper-brill`'s tagger model was *derived from* treebanks under those licences and
+holds no line of any of them, which is a distinction nobody has adjudicated and the owner has
+accepted knowingly — [ADR 0018](adr/0018-harper-brill-ships-as-is.md).
 
 ## Repo migration
 
