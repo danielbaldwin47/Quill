@@ -141,10 +141,8 @@ mod imp {
         /// The scroller and its input-transparent Export dim, hidden together in Full.
         pub editor_frame: OnceCell<gtk::Overlay>,
         pub editor_scrim: OnceCell<gtk::DrawingArea>,
-        /// Whether the Editor is dimmed while a dialog drives a Split pane.
-        pub editor_dimmed: Cell<bool>,
-        /// Present only while PDF or HTML Options drive this pane.
-        pub(super) dialog_preview: Cell<Option<super::DialogPreviewBefore>>,
+        /// The dialog's pane lifecycle, including the Editor dim read by the scrim.
+        pub(super) dialog_preview: RefCell<super::DialogPreview>,
         /// The one Export dialog belonging to this window, without an ownership cycle.
         pub export_dialog: glib::WeakRef<gtk::Window>,
         /// The Editor's scroller and the Preview side by side, between the
@@ -2013,10 +2011,11 @@ impl Window {
     /// and nothing about it outlives its window.
     pub(crate) fn show_dialog_preview(&self, over: &DialogOverride) -> DialogPreviewBefore {
         let imp = self.imp();
-        let before = DialogPreviewBefore {
-            open: imp.previewing.get(),
-        };
-        imp.dialog_preview.set(Some(before));
+        let before = imp.dialog_preview.borrow_mut().open(
+            imp.previewing.get(),
+            self.session()
+                .map_or(PreviewLayout::Split, |session| session.preview_layout()),
+        );
         imp.preview.set_dialog_override(Some(over.clone()));
         if !before.open {
             // Split, whatever layout the pane was last opened in: a Full pane
@@ -2070,10 +2069,9 @@ impl Window {
         let imp = self.imp();
         imp.preview.set_dialog_override(None);
         imp.dialog_split.set(false);
-        imp.dialog_preview.set(None);
-        imp.editor_dimmed.set(false);
+        imp.dialog_preview.borrow_mut().close();
         if let Some(scrim) = imp.editor_scrim.get() {
-            scrim.set_visible(false);
+            scrim.set_visible(imp.dialog_preview.borrow().editor_dimmed);
         }
         let saved = imp.dialog_saved.take();
         let Some(session) = self.session() else {
@@ -2081,7 +2079,6 @@ impl Window {
         };
         let dropped = dropped_preview(before, &session.running(), saved);
         imp.previewing.set(dropped.open);
-        imp.editor_dimmed.set(dropped.editor_dimmed);
         self.apply_preview();
         if dropped.open {
             self.refresh_preview_at(&dropped.settings);
@@ -2156,18 +2153,9 @@ impl Window {
             frame.set_visible(!shown || split);
         }
         // Layout commands remain usable while the non-modal dialog stands.
-        imp.editor_dimmed.set(
-            shown
-                && imp.dialog_preview.get().is_some_and(|before| {
-                    before.editor_dimmed(if split {
-                        PreviewLayout::Split
-                    } else {
-                        PreviewLayout::Full
-                    })
-                }),
-        );
+        imp.dialog_preview.borrow_mut().apply(shown, split);
         if let Some(scrim) = imp.editor_scrim.get() {
-            scrim.set_visible(imp.editor_dimmed.get());
+            scrim.set_visible(imp.dialog_preview.borrow().editor_dimmed);
         }
         let width = match self.session() {
             Some(session) if shown && split => crate::preview::pane_width(
@@ -3057,10 +3045,29 @@ pub(crate) struct DialogPreviewBefore {
     open: bool,
 }
 
-impl DialogPreviewBefore {
-    /// A hidden pane opens in Split; an open Full pane has no Editor to dim.
-    fn editor_dimmed(self, layout: PreviewLayout) -> bool {
-        !self.open || layout == PreviewLayout::Split
+/// The display-free lifecycle held by the window and read by its Editor scrim.
+#[derive(Default)]
+struct DialogPreview {
+    before: Option<DialogPreviewBefore>,
+    editor_dimmed: bool,
+}
+
+impl DialogPreview {
+    fn open(&mut self, open: bool, layout: PreviewLayout) -> DialogPreviewBefore {
+        let before = DialogPreviewBefore { open };
+        self.before = Some(before);
+        self.apply(true, !open || layout == PreviewLayout::Split);
+        before
+    }
+
+    fn apply(&mut self, shown: bool, split: bool) {
+        self.editor_dimmed = self.before.is_some() && shown && split;
+    }
+
+    /// Export, Escape and the window close all end the same lifecycle.
+    fn close(&mut self) {
+        self.before = None;
+        self.editor_dimmed = false;
     }
 }
 
@@ -3074,8 +3081,6 @@ pub(crate) struct DroppedPreview {
     /// Whether the pane stays open: it does where it was open before the
     /// dialog, and goes away where the dialog is what opened it.
     open: bool,
-    /// Every close removes the Editor dim together with the Options override.
-    editor_dimmed: bool,
     /// The settings the pane lays its pages out at.
     settings: Settings,
 }
@@ -3099,7 +3104,6 @@ pub(crate) fn dropped_preview(
 ) -> DroppedPreview {
     DroppedPreview {
         open: before.open,
-        editor_dimmed: false,
         settings: saved.unwrap_or_else(|| running.clone()),
     }
 }
@@ -3602,28 +3606,50 @@ mod tests {
         );
     }
 
-    /// The close of an Export dialog leaves the pane as it found it, laid out
-    /// at the `[export]` table that stands once the dialog has gone: the one
-    /// **Save as defaults** wrote where it was pressed, and the running one
-    /// where it was not.
-    ///
-    /// The written table and not the running one, because the write reaches
-    /// [`Session::running`] only when the watch reads the file back, which is
-    /// after the close (#293 § The dialogs drive the pane).
     #[test]
     fn dialog_preview_dims_only_the_split_editor_until_the_shared_close() {
         let settings = Settings::default();
         for open in [false, true] {
-            let before = DialogPreviewBefore { open };
-            assert!(before.editor_dimmed(PreviewLayout::Split));
-            assert_eq!(before.editor_dimmed(PreviewLayout::Full), !open);
-            // Export, Escape and the window close all take this same drop.
-            let dropped = dropped_preview(before, &settings, None);
-            assert!(!dropped.editor_dimmed);
-            assert_eq!(dropped.open, open);
+            for layout in [PreviewLayout::Split, PreviewLayout::Full] {
+                let mut dialog = DialogPreview::default();
+                assert!(!dialog.editor_dimmed);
+                let before = dialog.open(open, layout);
+                assert_eq!(
+                    dialog.editor_dimmed,
+                    !open || layout == PreviewLayout::Split
+                );
+                dialog.apply(true, false);
+                assert!(!dialog.editor_dimmed, "switching to Full removes the dim");
+                dialog.apply(true, true);
+                assert!(dialog.editor_dimmed, "switching back to Split restores it");
+                dialog.apply(false, true);
+                assert!(
+                    !dialog.editor_dimmed,
+                    "a hidden pane does not dim the Editor"
+                );
+                dialog.apply(true, true);
+                dialog.close();
+                assert!(!dialog.editor_dimmed, "the shared close removes the dim");
+                let dropped = dropped_preview(before, &settings, None);
+                dialog.apply(dropped.open, true);
+                assert!(
+                    !dialog.editor_dimmed,
+                    "restoring an open pane does not restore the dim"
+                );
+                assert_eq!(dropped.open, open);
+                dialog.open(true, PreviewLayout::Split);
+                assert!(
+                    dialog.editor_dimmed,
+                    "a later dialog can dim the Editor again"
+                );
+                dialog.close();
+                assert!(!dialog.editor_dimmed);
+            }
         }
     }
 
+    /// The close restores the running settings, or the file Save as defaults
+    /// wrote before the session's watch has read it back (#293).
     #[test]
     fn the_drop_lays_the_pane_out_at_what_save_as_defaults_wrote_and_at_the_table_otherwise() {
         use quill_engine::settings::Paper;
