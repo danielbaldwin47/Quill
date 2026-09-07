@@ -1076,9 +1076,8 @@ class Stage {
       // 0.3 alpha, while `page/light` and `page/narrow` won — their text layout cost enough frames
       // for the activation notify to land.
       //
-      // The window focus is read back on is the dialog where there is one: a modal dialog takes the
-      // keyboard as it maps, so insisting on ours' own address would be insisting on the one
-      // arrangement the app will not give. The Editor under it draws the ghost caret by rights,
+      // Presenting the dialog takes the keyboard, even though the parent remains typeable.
+      // The shot wants that opening focus. The Editor under it draws the ghost caret by rights,
       // which is why such a state names `--nocaret` and asks for no lit bar below.
       const keyboard = over ?? ours;
       if (active && !(await this.focused(keyboard.address, keyboard.appId))) {

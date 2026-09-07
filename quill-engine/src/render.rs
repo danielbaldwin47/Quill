@@ -42,7 +42,7 @@ use pulldown_cmark::{Event, Tag, TagEnd};
 
 use crate::document::{self, Document};
 use crate::markdown;
-use crate::template::{Alignment, Face, Paragraphs, Template};
+use crate::template::{Face, Paragraphs, Template};
 
 /// The resolution a context that names none is read at, which is what an
 /// unconfigured `pangocairo` context answers with.
@@ -74,7 +74,7 @@ const RULE: f64 = 1.0;
 /// writers reading the same Template can hold them differently.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Toggles {
-    /// Centre every heading, whatever the Template's own alignment says.
+    /// Centre every heading when on; range every heading left when off.
     pub center_headings: bool,
     /// Number the headings under the title `1`, `1.1`, `1.1.1`.
     pub number_headings: bool,
@@ -370,7 +370,7 @@ impl<'a> Pass<'a> {
         }
     }
 
-    /// A heading, numbered and aligned as the toggles and the Template have it.
+    /// A heading, numbered and aligned as the toggles have it.
     fn heading_block(
         &self,
         events: &[(Event<'_>, Range<usize>)],
@@ -397,9 +397,7 @@ impl<'a> Pass<'a> {
                 _ => inline.event(event, at, slice),
             }
         }
-        let alignment = if self.toggles.center_headings
-            || self.template.headings.alignment == Alignment::Center
-        {
+        let alignment = if self.toggles.center_headings {
             pango::Alignment::Center
         } else {
             pango::Alignment::Left
@@ -1053,7 +1051,7 @@ let x = 1;
     }
 
     #[test]
-    fn a_heading_takes_the_templates_alignment_until_the_toggle_centres_it() {
+    fn center_headings_alone_sets_heading_alignment() {
         let centred = Toggles {
             center_headings: true,
             ..Toggles::default()
@@ -1075,8 +1073,8 @@ let x = 1;
         );
         assert_eq!(
             alignment("modern", Toggles::default()),
-            pango::Alignment::Center,
-            "Modern centres them with the toggle off"
+            pango::Alignment::Left,
+            "Modern ranges them left with the toggle off"
         );
     }
 

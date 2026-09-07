@@ -26,7 +26,6 @@ space_before_heading = 1.75
 space_after_heading = 0.5
 
 [headings]
-alignment = "center"
 weight = 700
 
 # The inks are the Editor's own (`theme.rs`, `Colours::LIGHT` and `DARK`), so a
