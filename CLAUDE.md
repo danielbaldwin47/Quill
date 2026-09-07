@@ -14,7 +14,7 @@ A long-form writing environment for Linux: a native GTK4 app in Rust, ported Pie
 - `PKGBUILD` + `packaging/` — Arch package of the native binary; `README.md` § Build, install and run the native app has the build and install commands and the traps they avoid. The `.desktop` file and the icon are named for the application id, `io.github.danielbaldwin47.Quill`.
 - `docs/` — `architecture.md` (the native spec), `design.md` (what the writing surface is meant to do where the Design oracle and the Parity oracle disagree — read its row before a caret, selection, palette, focus, markup or type ticket, `grep -n '^| <Row> |' docs/design.md`, and its § Adding or changing a row before a spec), `shortcuts.md` (the one shortcut table every menu, the Palette and the shortcuts window read), `adr/` (decisions), `agents/` (the docs that § Gate and § Agent skills point at).
 
-Licences: GPL-3.0-or-later at the root (`LICENSE`), ISC in `legacy/`, OFL-1.1 for `fonts/`, and iA's own terms for `ref/ia/`.
+Licences: GPL-3.0-or-later at the root (`LICENSE`), ISC in `legacy/`, OFL-1.1 for `fonts/`, Apache-2.0 for the bundled `harper-brill` tagger (`packaging/harper-brill-LICENSE`), and iA's own terms for `ref/ia/`.
 
 Workspace 1 is the user's: a test window (GTK, browser, bench) goes to a virtual output or to workspace 5, by the commands in `legacy/BRIEF.md` § Headed windows. The same file, § Architecture, carries the glyph-advance rule every edit under `legacy/app/` obeys.
 
