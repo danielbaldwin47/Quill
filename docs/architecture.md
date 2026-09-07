@@ -65,7 +65,7 @@ An Annotator turns a byte range of the Document into spans, each `(byte range, m
 Markup (from the parser: which bytes are Markup, which are heading, emphasis, strong, code, link,
 quote, list marker), Live (from the Markup spans and the caret: which marker bytes are folded away,
 which bytes are a heading's and at what level, and what furniture stands in a folded marker's
-cells), Syntax highlight (a UPOS tag per word), Style check (a list name per match) and
+cells), Syntax highlight (Category spans over prose words), Style check (a list name per match) and
 Spell check (a misspelling per word, suggestions fetched on demand). Syntax highlight, Style check and
 Spell check consume the **prose stream**: the parser's `Text` events with Markup, code spans, fenced
 code, URLs and front matter removed. They never see a `#` or a `*`.

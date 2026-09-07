@@ -1,0 +1,119 @@
+[[passages]]
+name = "TRIM"
+still = "ref/ia/shots/ianet-mac-light-syntax-highlight.png"
+text = "Trim and tighten: You can employ Syntax Highlight, which helps you spot weak verbs, unwanted repetitions, and eliminate clutter. Together with Style Check, it'll make you a more persuasive writer."
+shown_categories = ["Verbs", "Adjectives", "Adverbs", "Conjunctions"]
+
+[[passages.coloured]]
+word = "Trim"
+category = "Verbs"
+
+[[passages.coloured]]
+word = "and"
+category = "Conjunctions"
+
+[[passages.coloured]]
+word = "tighten"
+category = "Verbs"
+
+[[passages.coloured]]
+word = "can"
+category = "Verbs"
+
+[[passages.coloured]]
+word = "employ"
+category = "Verbs"
+
+[[passages.coloured]]
+word = "helps"
+category = "Verbs"
+
+[[passages.coloured]]
+word = "spot"
+category = "Verbs"
+
+[[passages.coloured]]
+word = "weak"
+category = "Adjectives"
+
+[[passages.coloured]]
+word = "unwanted"
+category = "Adjectives"
+
+[[passages.coloured]]
+word = "and"
+category = "Conjunctions"
+
+[[passages.coloured]]
+word = "eliminate"
+category = "Verbs"
+
+[[passages.coloured]]
+word = "Together"
+category = "Adverbs"
+
+[[passages.coloured]]
+word = "'ll"
+category = "Verbs"
+
+[[passages.coloured]]
+word = "make"
+category = "Verbs"
+
+[[passages.coloured]]
+word = "more"
+category = "Adverbs"
+
+[[passages.coloured]]
+word = "persuasive"
+category = "Adjectives"
+
+[[passages]]
+name = "ALICE-FALL"
+still = "ref/ia/shots/appstore-mac-03-dark-syntax-highlight.png"
+text = "Down, down, down. Would the fall never come to an end? “I must actually be getting somewhere near the so-called centre of the earth"
+shown_categories = ["Verbs", "Adjectives", "Adverbs"]
+
+[[passages.coloured]]
+word = "Down"
+category = "Adverbs"
+
+[[passages.coloured]]
+word = "down"
+category = "Adverbs"
+
+[[passages.coloured]]
+word = "down"
+category = "Adverbs"
+
+[[passages.coloured]]
+word = "Would"
+category = "Verbs"
+
+[[passages.coloured]]
+word = "never"
+category = "Adverbs"
+
+[[passages.coloured]]
+word = "come"
+category = "Verbs"
+
+[[passages.coloured]]
+word = "must"
+category = "Verbs"
+
+[[passages.coloured]]
+word = "be"
+category = "Verbs"
+
+[[passages.coloured]]
+word = "getting"
+category = "Verbs"
+
+[[passages.coloured]]
+word = "somewhere"
+category = "Adverbs"
+
+[[passages.coloured]]
+word = "so-called"
+category = "Adjectives"
