@@ -1,0 +1,100 @@
+{
+  "piece": "page",
+  "round": 8,
+  "winner": "theirs",
+  "margin": "slight",
+  "gap": "The measure and the leading are both short of target and short in the same direction: the column is ~1558px ≈ 59 characters against B's ~1636px ≈ 63, and the line pitch is 74px on a ~43.7px em (~1.69) against B's 76px on ~43.2px (~1.76). Same passage, same type size (advance 26.25px vs 25.95px), yet A packs its lines ~4% closer inside a column 4 characters narrower — a denser, more cramped block dressed up as calm by the leftover 213px right gutter.",
+  "gapTheirs": "Less air on every edge: left margin 142px vs A's 181px, so the text fills 85.2% of the 1920px viewport against A's 81.1%; and the final line's descenders land 35px above the y=1748 status hairline where A leaves 78px. The block presses toward the window rather than floating inside it, and there is no visible bottom headroom — type one more line and the caret is against the chrome.",
+  "verdict": "B's page is proportioned the way a prose column should be: 63 characters at 1.76 leading is the pairing you set when you intend someone to read for an hour, and every block of ink starts on one flush edge at x=142. A pretends to be calmer because of its fat 181/213px gutters, but that air is a byproduct of a 59-character measure clamped down to 1.69 leading — a tight block with padding around it is not a generous page. A's left margin also has no single edge: ink begins at x=181, x=128 and x=102 depending on the row, so the margin steps out at every heading. B wins on the two things that decide the fifth hour of writing, and loses only on breathing room it could buy back with 40px.",
+  "oursShot": "shots/page/r8-narrow-ours.png",
+  "theirsShot": "shots/oracle/page/narrow.png",
+  "refSource": "shots/oracle/page/ — the Parity oracle frozen by tools/gate oracle page from legacy/app 738f48c969965ac3 with legacy/tools/shoot.mjs 239bd27db3974b27",
+  "builderNote": "Syntax flag and defaults off; all Parity oracles re-frozen with unchanged pixels for #315.",
+  "secondary": [
+    "Paper #F7F7F7 (A) vs #F9F9F9 (B) — 2 levels apart, both correctly off-white; no difference a writer would feel",
+    "Body ink minima 25 vs 28 — same weight of black on the page",
+    "Vertical rhythm is exact in both: A holds 74.0px pitch on every line, B 76.0px, and the paragraph gap is exactly 2x pitch in each — no drift either side",
+    "Top air is a wash: first cap at y=232 (A) vs y=238 (B); neither wastes the head of the page",
+    "Left-edge handling is the real fork: A hangs markers into the margin so heading and body text share x≈181 (three ink origins: 102/128/181); B keeps markers flush at 142 and insets heading words to 195 (h1) and 218 (h2), so its heading indent varies by level. Defensible both ways; each pays for it somewhere",
+    "Both columns sit within ~8px of the 960px centre axis — no centring fault to score against either",
+    "Neither screenshot shows typewriter-scroll headroom below the last line; B's 35px clearance is the tighter of the two"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "4fa7c6c",
+    "binary": "8c8f90ee24d5d4dd",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "light",
+      "ours": "shots/page/r8-light-ours.png",
+      "theirs": "shots/oracle/page/light.png",
+      "blind": "shots/blind/page/light",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "Leading is ~5% tighter: line pitch 37 CSS px on a ~22px face (1.68) vs B's 38 CSS px on ~21.5px (1.77); across the six-line opening paragraph A's block is denser and gives the eye less runway on a 61-character monospace measure.",
+      "gapTheirs": "The page has three different left edges instead of one: body text starts at x=622, but H1 words start at 673 (+26 CSS px) and H2 words at 697 (+38 CSS px), so every heading is the only line on the page that doesn't line up — and the offset grows with each level, building a staircase down the margin. A hangs its markers outboard (## at 544, # at 570) so all prose, heading and body alike, begins on one line at 623.",
+      "verdict": "A gets the one thing a page has to get right: a single left edge you can drop a plumb line down, headings and paragraphs starting at the same place, with the syntax pushed out into the margin where it belongs. B flushes the markup instead of the prose, so the H1 sits 26px right of the body and the H2 sits 38px right — the two most important lines in the passage are the two that don't align, and a document three levels deep will fan out further. B buys one extra CSS pixel of leading per line for that, which is a bad trade; it also spends the difference badly, leaving only 28px between the last line and the word count where A leaves 50, so B is already nudging the chrome before you've typed 200 words.",
+      "secondary": [
+        "Bottom gutter: A 50 CSS px from last line to the word-count row, B 28 — B crowds the chrome and will scroll a line sooner on the same passage",
+        "Paper is a non-difference: A #f7f7f7 vs B #f9f9f9, 2/255 apart, and both are R=G=B — neither surface has any warmth for a long session",
+        "Measure is a wash: ~61 chars (A) vs ~62 (B), both ~810 CSS px wide, both inside the comfortable band",
+        "Gutters near-symmetric in both — ~311 CSS px left of the prose column, ~319 right",
+        "Cost of A's hanging markers: on the two heading lines its ink block sits ~23 CSS px left of window centre; a real but local price for the flush prose edge",
+        "Top placement identical: first ink at 116 (A) vs 119 (B) CSS px below the window top",
+        "Body ink effectively identical (#191919 vs #1b1b1b), and the caret is 3 CSS px wide in both — no separation on either"
+      ]
+    },
+    {
+      "name": "narrow",
+      "ours": "shots/page/r8-narrow-ours.png",
+      "theirs": "shots/oracle/page/narrow.png",
+      "blind": "shots/blind/page/narrow",
+      "oursWas": "A",
+      "pick": "B",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "The measure and the leading are both short of target and short in the same direction: the column is ~1558px ≈ 59 characters against B's ~1636px ≈ 63, and the line pitch is 74px on a ~43.7px em (~1.69) against B's 76px on ~43.2px (~1.76). Same passage, same type size (advance 26.25px vs 25.95px), yet A packs its lines ~4% closer inside a column 4 characters narrower — a denser, more cramped block dressed up as calm by the leftover 213px right gutter.",
+      "gapTheirs": "Less air on every edge: left margin 142px vs A's 181px, so the text fills 85.2% of the 1920px viewport against A's 81.1%; and the final line's descenders land 35px above the y=1748 status hairline where A leaves 78px. The block presses toward the window rather than floating inside it, and there is no visible bottom headroom — type one more line and the caret is against the chrome.",
+      "verdict": "B's page is proportioned the way a prose column should be: 63 characters at 1.76 leading is the pairing you set when you intend someone to read for an hour, and every block of ink starts on one flush edge at x=142. A pretends to be calmer because of its fat 181/213px gutters, but that air is a byproduct of a 59-character measure clamped down to 1.69 leading — a tight block with padding around it is not a generous page. A's left margin also has no single edge: ink begins at x=181, x=128 and x=102 depending on the row, so the margin steps out at every heading. B wins on the two things that decide the fifth hour of writing, and loses only on breathing room it could buy back with 40px.",
+      "secondary": [
+        "Paper #F7F7F7 (A) vs #F9F9F9 (B) — 2 levels apart, both correctly off-white; no difference a writer would feel",
+        "Body ink minima 25 vs 28 — same weight of black on the page",
+        "Vertical rhythm is exact in both: A holds 74.0px pitch on every line, B 76.0px, and the paragraph gap is exactly 2x pitch in each — no drift either side",
+        "Top air is a wash: first cap at y=232 (A) vs y=238 (B); neither wastes the head of the page",
+        "Left-edge handling is the real fork: A hangs markers into the margin so heading and body text share x≈181 (three ink origins: 102/128/181); B keeps markers flush at 142 and insets heading words to 195 (h1) and 218 (h2), so its heading indent varies by level. Defensible both ways; each pays for it somewhere",
+        "Both columns sit within ~8px of the 960px centre axis — no centring fault to score against either",
+        "Neither screenshot shows typewriter-scroll headroom below the last line; B's 35px clearance is the tighter of the two"
+      ]
+    },
+    {
+      "name": "short",
+      "ours": "shots/page/r8-short-ours.png",
+      "theirs": "shots/oracle/page/short.png",
+      "blind": "shots/blind/page/short",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Line pitch 74px vs A's 76px (37 vs 38 CSS px, ~1.63 vs ~1.70 leading) on identical ~22.5px type, and the measure wraps three characters earlier (58–59 chars vs A's 62) — a marginally tighter, more crowded column.",
+      "gapTheirs": "The heading's words start at x=673 while every body line starts at x=623 — the '#' occupies a cell inside the column instead of hanging, so the title is kicked 51px (~25 CSS px, two character cells) right of the prose and the page has no single flush-left axis; with an H2/H3 present that indent stair-steps further.",
+      "verdict": "Two near-identical pages, and the whole decision is one vertical line: B holds a single left edge at x=623 for title and body alike, A lets the '#' eat a cell and shoves the title 51px inboard, so the eye trips on the one edge an empty page has nothing to hide. A buys back 2px of leading and three characters of measure — real, but you need a ruler to see it, whereas A's broken axis is visible from across the desk. Neither page does anything with the bottom 55% of the window: text is nailed to the top, first baseline at 75–77 CSS px, no vertical centering and no hint of typewriter scrolling, so both will feel like writing at the ceiling. B, on the axis alone.",
+      "secondary": [
+        "Paper: A #F9F9F9 vs B #F7F7F7 — 2/255 apart, indistinguishable; both flat, no warmth",
+        "Measure ~816 CSS px / 59-62 chars in both — inside the acceptable 60-75 band, neither generous nor cramped",
+        "Paragraph gap is exactly 2x line pitch in both (A 152px, B 148px) — a blank line, not a considered space",
+        "B's hanging '#' puts the block's optical left edge at x=570 vs a 626px right margin: the page reads ~28px off-centre, the standard price of hanging markers",
+        "Both dump ~1000px of dead window below the text with no scroll affordance implied — the page ends, the window doesn't",
+        "Caret 6px (3 CSS px) in both, height tracking line box (76 vs 74) — not this piece's row"
+      ],
+      "carried": 7
+    }
+  ],
+  "at": "2026-09-07T20:53:23.429Z"
+}
