@@ -29,9 +29,11 @@
 //! tier)` is resolved to one colour by [`colour`]. Focus is the tier that ends
 //! the resolving — a role cannot say "dim", because dim is a colour of the
 //! ground's and not a part a mark plays — so [`paint`] hands back [`Painted`]
-//! runs where [`flatten`] hands back [`Run`]s. #28 (Syntax highlight) is the
-//! third tier and still adds an arm to [`resolve`]; nothing else about the
-//! shape moves.
+//! runs where [`flatten`] hands back [`Run`]s. Syntax highlight is the third
+//! tier: [`paint_with_categories`] cuts the Markup runs at Category boundaries
+//! and changes only their ink, preserving markers and excluded content. Its
+//! Category spans stay separate from Markup's nested spans. Focus still ends
+//! the resolving, so a dim Category takes the same dim colour as every ink.
 //!
 //! All offsets are UTF-8 bytes from the start of the Document, because that is
 //! what the parser emits.
@@ -44,6 +46,7 @@ pub mod live;
 
 use crate::focus::{Focus, LineTiers, Tier};
 use crate::markdown;
+use crate::pos::Category;
 use crate::theme::{Colour, Colours, Role};
 
 /// What an Annotator says a range of bytes is.
@@ -148,10 +151,8 @@ pub enum Mark {
 
 /// The colour a run's text is drawn in, named by the role it plays.
 ///
-/// A role rather than a colour because the engine cannot see a display: the app
-/// holds the three constants (`docs/architecture.md` § Annotators), and the
-/// Dark & light ticket moves them into the palette table without this enum
-/// noticing.
+/// A role rather than a colour: [`Ink::role`] maps it to the palette, which
+/// answers for the current ground and any palette-file overrides.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum Ink {
     /// The ink prose is set in.
@@ -161,20 +162,20 @@ pub enum Ink {
     /// is the same colour as [`Ink::Prose`]; it stays an ink of its own because
     /// a writer's `palette` file may set the markers apart.
     ///
-    /// Two runs that are not markers ride with it and move when it does:
-    /// struck text and inline HTML, both of which took the marker grey for
-    /// being not-prose. Neither is in the measured passage, so both follow the
-    /// markers until a capture says otherwise.
+    /// Struck text and inline HTML also use this ink. Syntax highlight may
+    /// colour a struck prose token, but raw HTML remains excluded.
     Marker,
     /// The grey a link's plumbing goes quiet in: its `[`, `]`, `(`, `)` and the
     /// destination between them. Not its words, which are the writer's.
     Link,
+    /// A prose token's enabled Syntax highlight Category.
+    Syntax(Category),
 }
 
 impl Ink {
     /// The palette role this ink is.
     ///
-    /// The one place the flattening's three inks meet [`Colours`]. It is a
+    /// The one place the flattening's inks meet [`Colours`]. It is a
     /// mapping and not a merge because the palette answers for the whole app —
     /// chrome, rules, grounds — and the flattening only ever draws text.
     #[must_use]
@@ -183,6 +184,11 @@ impl Ink {
             Self::Prose => Role::Ink,
             Self::Marker => Role::Mark,
             Self::Link => Role::Link,
+            Self::Syntax(Category::Nouns) => Role::SyntaxNoun,
+            Self::Syntax(Category::Verbs) => Role::SyntaxVerb,
+            Self::Syntax(Category::Adjectives) => Role::SyntaxAdjective,
+            Self::Syntax(Category::Adverbs) => Role::SyntaxAdverb,
+            Self::Syntax(Category::Conjunctions) => Role::SyntaxConjunction,
         }
     }
 }
@@ -493,8 +499,9 @@ fn resolve(mark: Mark, under: Look) -> Look {
 /// | prose | `ink` | `ink_dim` |
 /// | marker | `mark` | `ink_dim` |
 /// | link | `link` | `ink_dim` |
+/// | Category | its `syntax_*` role | `ink_dim` |
 ///
-/// The bright column is the Markup colour untouched — Focus lights what the
+/// The bright column preserves the ink's colour — Focus lights what the
 /// writer is in by leaving it alone — and the dim column is one grey, because
 /// out of focus nothing has a voice of its own: `focus.css:31-40` flattens
 /// markers, link text, URLs, quotes, code and struck text alike to
@@ -552,7 +559,48 @@ pub fn paint_in(
     focus: Focus,
     colours: &Colours,
 ) -> Vec<Painted> {
-    let runs = flatten(spans);
+    paint_in_with_categories(spans, &[], &[], at, tiers, focus, colours)
+}
+
+/// [`paint`] with Syntax highlight over the prose stream.
+///
+/// `categories` contains sorted, non-overlapping, nonempty token spans in
+/// absolute Document bytes. The caller rebases [`crate::pos::tag`]'s offsets
+/// from paragraph prose to source bytes before calling. An empty slice is the
+/// master off; an omitted Category in `enabled` keeps its span but takes body
+/// ink. Weight, slant and ground are unchanged, and Focus dim wins over colour.
+#[must_use]
+pub fn paint_with_categories(
+    spans: &[Span],
+    categories: &[(Range<usize>, Category)],
+    enabled: &[Category],
+    len: usize,
+    tiers: &[LineTiers],
+    focus: Focus,
+    colours: &Colours,
+) -> Vec<Painted> {
+    paint_in_with_categories(spans, categories, enabled, &(0..len), tiers, focus, colours)
+}
+
+/// [`paint_with_categories`] restricted to `at`, with absolute output ranges.
+///
+/// Supply the same bounded Markup slice as [`paint_in`]. Category spans may
+/// cover the Document: two binary searches select only those meeting `at`.
+/// For M supplied Markup spans and C selected Categories, flattening and
+/// sorting their boundaries cost O((M + C) log(M + C)); the subsequent merge
+/// walks each run and boundary once. Nothing scans all Categories per run.
+/// Empty Category input preserves [`paint_in`]'s sparse, Focus-off output.
+#[must_use]
+pub fn paint_in_with_categories(
+    spans: &[Span],
+    categories: &[(Range<usize>, Category)],
+    enabled: &[Category],
+    at: &Range<usize>,
+    tiers: &[LineTiers],
+    focus: Focus,
+    colours: &Colours,
+) -> Vec<Painted> {
+    let runs = syntax_runs_in(spans, categories_in(categories, at), enabled, at);
     // With Focus on every byte is spoken for, because the buffer's own ink is
     // the wrong colour for most of the page and the writer must not see it
     // anywhere. With Focus off the buffer is right about plain prose, and
@@ -581,6 +629,112 @@ pub fn paint_in(
             next += 1;
         }
         push_painted(&mut out, cursor..segment.end, plain);
+    }
+    out
+}
+
+/// Only the sorted, disjoint Category spans touching a retag's bytes.
+fn categories_in<'a>(
+    categories: &'a [(Range<usize>, Category)],
+    at: &Range<usize>,
+) -> &'a [(Range<usize>, Category)] {
+    if at.is_empty() {
+        return &[];
+    }
+    let start = categories.partition_point(|(range, _)| range.end <= at.start);
+    let end = categories.partition_point(|(range, _)| range.start < at.end);
+    &categories[start..end]
+}
+
+/// Cut Markup runs at Category and exclusion boundaries, then merge once.
+///
+/// Eligibility is a property of the mark, not its ink: struck prose uses
+/// Marker ink but may be coloured; code blocks use Prose ink but may not.
+fn syntax_runs_in(
+    spans: &[Span],
+    categories: &[(Range<usize>, Category)],
+    enabled: &[Category],
+    at: &Range<usize>,
+) -> Vec<Run> {
+    let runs = flatten(spans);
+    if categories.is_empty() {
+        return runs;
+    }
+    let mut excluded: Vec<_> = spans
+        .iter()
+        .filter(|span| {
+            !matches!(
+                span.mark,
+                Mark::Heading(_)
+                    | Mark::Emphasis
+                    | Mark::Strong
+                    | Mark::Strikethrough
+                    | Mark::Link
+                    | Mark::Image
+                    | Mark::Quote
+            )
+        })
+        .map(|span| span.at.start.max(at.start)..span.at.end.min(at.end))
+        .filter(|range| !range.is_empty())
+        .collect();
+    excluded.sort_by_key(|range| range.start);
+    let mut barriers: Vec<Range<usize>> = Vec::new();
+    for range in excluded {
+        if let Some(last) = barriers.last_mut()
+            && range.start <= last.end
+        {
+            last.end = last.end.max(range.end);
+        } else {
+            barriers.push(range);
+        }
+    }
+    let mut cuts = vec![at.start, at.end];
+    for range in runs
+        .iter()
+        .map(|run| &run.at)
+        .chain(categories.iter().map(|(range, _)| range))
+        .chain(&barriers)
+    {
+        if range.start < at.end && at.start < range.end {
+            cuts.extend([range.start.max(at.start), range.end.min(at.end)]);
+        }
+    }
+    cuts.sort_unstable();
+    cuts.dedup();
+    let mut runs = runs.iter().peekable();
+    let mut categories = categories.iter().peekable();
+    let mut barriers = barriers.iter().peekable();
+    let mut out = Vec::new();
+    for cut in cuts.windows(2) {
+        let range = cut[0]..cut[1];
+        while runs.peek().is_some_and(|run| run.at.end <= range.start) {
+            runs.next();
+        }
+        while categories
+            .peek()
+            .is_some_and(|(at, _)| at.end <= range.start)
+        {
+            categories.next();
+        }
+        while barriers.peek().is_some_and(|at| at.end <= range.start) {
+            barriers.next();
+        }
+        let mut look = runs
+            .peek()
+            .filter(|run| run.at.start <= range.start)
+            .map(|run| run.look);
+        if !barriers.peek().is_some_and(|at| at.start <= range.start)
+            && let Some((_, category)) = categories.peek().filter(|(at, _)| at.start <= range.start)
+        {
+            look.get_or_insert(Look::PROSE).ink = if enabled.contains(category) {
+                Ink::Syntax(*category)
+            } else {
+                Ink::Prose
+            };
+        }
+        if let Some(look) = look {
+            push_run(&mut out, range, look);
+        }
     }
     out
 }
@@ -2230,5 +2384,378 @@ mod tests {
                 "{run:?} reaches outside the line the retag asked for"
             );
         }
+    }
+
+    #[test]
+    fn syntax_categories_paint_their_roles_and_leave_untagged_prose_sparse() {
+        let text = "noun verb adjective adverb conjunction untagged";
+        let words = [
+            ("noun", Category::Nouns, Role::SyntaxNoun),
+            ("verb", Category::Verbs, Role::SyntaxVerb),
+            ("adjective", Category::Adjectives, Role::SyntaxAdjective),
+            ("adverb", Category::Adverbs, Role::SyntaxAdverb),
+            (
+                "conjunction",
+                Category::Conjunctions,
+                Role::SyntaxConjunction,
+            ),
+        ];
+        let categories: Vec<_> = words
+            .iter()
+            .map(|(word, category, _)| {
+                let start = text.find(word).unwrap();
+                (start..start + word.len(), *category)
+            })
+            .collect();
+        let enabled: Vec<_> = words.iter().map(|(_, category, _)| *category).collect();
+        for scheme in [Scheme::Light, Scheme::Dark] {
+            let colours = Colours::of(scheme);
+            let runs = paint_with_categories(
+                &[],
+                &categories,
+                &enabled,
+                text.len(),
+                &[],
+                Focus::Off,
+                &colours,
+            );
+            assert_eq!(runs.len(), words.len());
+            for (run, (word, _, role)) in runs.iter().zip(words) {
+                assert_eq!(&text[run.at.clone()], word);
+                assert_eq!(run.paint.colour, colours.colour(role));
+                assert_eq!(run.paint.weight, Weight::Regular);
+                assert_eq!(run.paint.slant, Slant::Upright);
+            }
+            assert!(
+                runs.iter()
+                    .all(|run| run.at.end <= text.find(" untagged").unwrap())
+            );
+        }
+    }
+
+    #[test]
+    fn syntax_preserves_markers_and_exclusions_but_colours_struck_and_link_words() {
+        let text = "---\ntitle: secret\n---\n\n# **quick** *fox* ~~jumps~~ [dog](https://x) `code`\n\n```\nfenced\n```\n\n<tag>\n";
+        // Deliberately cross every construct to exercise precedence even when
+        // a supplied span reaches outside the prose stream.
+        let runs = syntax_runs_in(
+            &markup(text),
+            &[(0..text.len(), Category::Nouns)],
+            &[Category::Nouns],
+            &(0..text.len()),
+        );
+        for (token, ink, weight, slant, ground) in [
+            (
+                "secret",
+                Ink::Marker,
+                Weight::Regular,
+                Slant::Upright,
+                Ground::Page,
+            ),
+            (
+                "#",
+                Ink::Marker,
+                Weight::Regular,
+                Slant::Upright,
+                Ground::Page,
+            ),
+            (
+                "**",
+                Ink::Marker,
+                Weight::Regular,
+                Slant::Upright,
+                Ground::Page,
+            ),
+            (
+                "quick",
+                Ink::Syntax(Category::Nouns),
+                Weight::Bold,
+                Slant::Upright,
+                Ground::Page,
+            ),
+            (
+                "fox",
+                Ink::Syntax(Category::Nouns),
+                Weight::Bold,
+                Slant::Italic,
+                Ground::Page,
+            ),
+            (
+                "~~",
+                Ink::Marker,
+                Weight::Regular,
+                Slant::Upright,
+                Ground::Page,
+            ),
+            (
+                "jumps",
+                Ink::Syntax(Category::Nouns),
+                Weight::Bold,
+                Slant::Upright,
+                Ground::Page,
+            ),
+            (
+                "[",
+                Ink::Link,
+                Weight::Regular,
+                Slant::Upright,
+                Ground::Page,
+            ),
+            (
+                "dog",
+                Ink::Syntax(Category::Nouns),
+                Weight::Bold,
+                Slant::Upright,
+                Ground::Page,
+            ),
+            (
+                "]",
+                Ink::Link,
+                Weight::Regular,
+                Slant::Upright,
+                Ground::Page,
+            ),
+            (
+                "https://x",
+                Ink::Link,
+                Weight::Bold,
+                Slant::Upright,
+                Ground::Page,
+            ),
+            (
+                "code",
+                Ink::Prose,
+                Weight::Bold,
+                Slant::Upright,
+                Ground::Code,
+            ),
+            (
+                "fenced",
+                Ink::Prose,
+                Weight::Regular,
+                Slant::Upright,
+                Ground::Page,
+            ),
+            (
+                "<tag>",
+                Ink::Marker,
+                Weight::Regular,
+                Slant::Upright,
+                Ground::Page,
+            ),
+        ] {
+            let start = text.find(token).unwrap();
+            let run = runs.iter().find(|run| run.at.contains(&start)).unwrap();
+            assert_eq!(
+                run.look,
+                Look {
+                    ink,
+                    weight,
+                    slant,
+                    ground,
+                    ..Look::PROSE
+                },
+                "{token}"
+            );
+        }
+    }
+
+    #[test]
+    fn syntax_category_switches_keep_spans_and_master_off_keeps_the_existing_painting() {
+        let text = "noun ~~verb~~";
+        let spans = markup(text);
+        let categories = [(0..4, Category::Nouns), (7..11, Category::Verbs)];
+        let before = categories.clone();
+        let colours = Colours::of(Scheme::Light);
+        let runs = paint_with_categories(
+            &spans,
+            &categories,
+            &[Category::Nouns],
+            text.len(),
+            &[],
+            Focus::Off,
+            &colours,
+        );
+        assert_eq!(
+            runs.iter()
+                .find(|run| run.at.contains(&0))
+                .unwrap()
+                .paint
+                .colour,
+            colours.colour(Role::SyntaxNoun)
+        );
+        assert_eq!(
+            runs.iter()
+                .find(|run| run.at.contains(&7))
+                .unwrap()
+                .paint
+                .colour,
+            colours.colour(Role::Ink)
+        );
+        let enabled = paint_with_categories(
+            &spans,
+            &categories,
+            &[Category::Verbs],
+            text.len(),
+            &[],
+            Focus::Off,
+            &colours,
+        );
+        assert_eq!(
+            enabled
+                .iter()
+                .find(|run| run.at.contains(&7))
+                .unwrap()
+                .paint
+                .colour,
+            colours.colour(Role::SyntaxVerb)
+        );
+        assert_eq!(categories, before);
+        assert_eq!(
+            paint_with_categories(
+                &spans,
+                &[],
+                &[Category::Nouns],
+                text.len(),
+                &[],
+                Focus::Off,
+                &colours,
+            ),
+            paint(&spans, text.len(), &[], Focus::Off, &colours)
+        );
+        assert!(
+            paint_with_categories(
+                &[],
+                &[],
+                &[Category::Nouns],
+                text.len(),
+                &[],
+                Focus::Off,
+                &colours,
+            )
+            .is_empty()
+        );
+    }
+
+    #[test]
+    fn syntax_dim_wins_and_leaves_weight_and_slant_intact() {
+        let doc = document("**noun**.\n\n*verb*.\n");
+        let text = doc.text();
+        let noun = text.find("noun").unwrap();
+        let verb = text.find("verb").unwrap();
+        let categories = [
+            (noun..noun + 4, Category::Nouns),
+            (verb..verb + 4, Category::Verbs),
+        ];
+        let focus = Focus::On(FocusScope::Sentence);
+        let tiers = tiers_of(&doc, verb..verb, focus);
+        for scheme in [Scheme::Light, Scheme::Dark] {
+            let colours = Colours::of(scheme);
+            let runs = paint_with_categories(
+                &markup(text),
+                &categories,
+                &[Category::Nouns, Category::Verbs],
+                text.len(),
+                &tiers,
+                focus,
+                &colours,
+            );
+            let dim = runs.iter().find(|run| run.at.contains(&noun)).unwrap();
+            assert_eq!(dim.paint.colour, colours.colour(Role::InkDim));
+            assert_eq!(dim.paint.weight, Weight::Bold);
+            let bright = runs.iter().find(|run| run.at.contains(&verb)).unwrap();
+            assert_eq!(bright.paint.colour, colours.colour(Role::SyntaxVerb));
+            assert_eq!(bright.paint.slant, Slant::Italic);
+            assert_eq!(runs.first().unwrap().at.start, 0);
+            assert_eq!(runs.last().unwrap().at.end, text.len());
+            for pair in runs.windows(2) {
+                assert_eq!(pair[0].at.end, pair[1].at.start);
+                assert_ne!(
+                    pair[0].paint, pair[1].paint,
+                    "equal neighbours must coalesce"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn syntax_retag_clips_categories_and_matches_the_whole_document() {
+        let doc = document("**élan** and ~~violet~~.\n\n*fox* runs.\n");
+        let text = doc.text();
+        let categories: Vec<_> = ["élan", "violet", "fox", "runs"]
+            .into_iter()
+            .map(|word| {
+                let start = text.find(word).unwrap();
+                (start..start + word.len(), Category::Nouns)
+            })
+            .collect();
+        let colours = Colours::of(Scheme::Light);
+        for focus in [Focus::Off, Focus::On(FocusScope::Sentence)] {
+            let tiers = tiers_of(&doc, 28..28, focus);
+            let whole = paint_with_categories(
+                &markup(text),
+                &categories,
+                &[Category::Nouns],
+                text.len(),
+                &tiers,
+                focus,
+                &colours,
+            );
+            let boundaries: Vec<_> = text
+                .char_indices()
+                .map(|(at, _)| at)
+                .chain([text.len()])
+                .collect();
+            for (index, &start) in boundaries.iter().enumerate() {
+                for &end in &boundaries[index..] {
+                    let at = start..end;
+                    let part = paint_in_with_categories(
+                        &doc.spans_in(&at),
+                        &categories,
+                        &[Category::Nouns],
+                        &at,
+                        &tiers,
+                        focus,
+                        &colours,
+                    );
+                    let cut: Vec<_> = whole
+                        .iter()
+                        .filter_map(|run| {
+                            let range = run.at.start.max(start)..run.at.end.min(end);
+                            (!range.is_empty()).then_some(Painted {
+                                at: range,
+                                paint: run.paint,
+                            })
+                        })
+                        .collect();
+                    assert_eq!(part, cut, "{at:?} under {focus:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn syntax_retag_selects_only_the_categories_reaching_its_range() {
+        let categories: Vec<_> = (0..100_000)
+            .map(|word| (word * 10..word * 10 + 4, Category::Nouns))
+            .collect();
+        let at = 500_001..500_012;
+        assert_eq!(categories_in(&categories, &at), &categories[50_000..50_002]);
+        assert!(categories_in(&categories, &(500_004..500_010)).is_empty());
+        assert!(categories_in(&categories, &(500_002..500_002)).is_empty());
+        let colours = Colours::of(Scheme::Dark);
+        let runs = paint_in_with_categories(
+            &[],
+            &categories,
+            &[Category::Nouns],
+            &at,
+            &[],
+            Focus::Off,
+            &colours,
+        );
+        assert_eq!(
+            runs.iter().map(|run| run.at.clone()).collect::<Vec<_>>(),
+            [500_001..500_004, 500_010..500_012]
+        );
     }
 }
