@@ -36,14 +36,24 @@ struct Token {
     text: String,
 }
 
+/// One prose fragment's logical paragraph range and absolute source range.
+struct FragmentMap {
+    logical: Range<usize>,
+    source: Range<usize>,
+}
+
 /// Tag one paragraph's prose fragments and return one absolute Document span
 /// for each coloured word.
 ///
 /// `paragraph` is the parser's [`markdown::prose`] stream for one paragraph,
 /// in source order and without overlaps. Markdown markers, code, URLs and
 /// front matter are absent, but every fragment retains its source range. All
-/// fragments are tagged as one sentence context; a fragment boundary does not
-/// reset the tagger. Results are sorted and non-overlapping.
+/// fragments are concatenated without an invented separator and tagged as one
+/// sentence context, so Markdown splitting `rabbit-*hole*` into `rabbit-` and
+/// `hole` still gives the tagger one `rabbit-hole` token. A token crossing a
+/// fragment edge maps back to the smallest absolute source envelope that holds
+/// it; Markup painting protects the delimiter bytes inside that envelope.
+/// Results are sorted and non-overlapping.
 pub fn category_spans(paragraph: &[markdown::Prose<'_>]) -> Vec<(Range<usize>, Category)> {
     debug_assert!(
         paragraph
@@ -51,27 +61,8 @@ pub fn category_spans(paragraph: &[markdown::Prose<'_>]) -> Vec<(Range<usize>, C
             .all(|pair| pair[0].at.end <= pair[1].at.start),
         "paragraph prose fragments must be sorted and non-overlapping"
     );
-    let tokens: Vec<Token> = paragraph
-        .iter()
-        .flat_map(|fragment| {
-            debug_assert_eq!(
-                fragment.at.len(),
-                fragment.text.len(),
-                "a prose fragment's source range must match its source text"
-            );
-            tokenize(fragment.text).into_iter().map(|mut token| {
-                token.range =
-                    fragment.at.start + token.range.start..fragment.at.start + token.range.end;
-                token
-            })
-        })
-        .collect();
-    let words: Vec<String> = tokens.iter().map(|token| token.text.clone()).collect();
-    let tags = TAGGER.tag_sentence(&words);
-
-    tokens
+    tagged_tokens(paragraph)
         .into_iter()
-        .zip(tags)
         .filter_map(|(token, tag)| {
             if !can_be_coloured(&token.text) {
                 return None;
@@ -79,6 +70,55 @@ pub fn category_spans(paragraph: &[markdown::Prose<'_>]) -> Vec<(Range<usize>, C
             category_for(tag).map(|category| (token.range, category))
         })
         .collect()
+}
+
+fn tagged_tokens(paragraph: &[markdown::Prose<'_>]) -> Vec<(Token, Option<UPOS>)> {
+    let tokens = tokenize_paragraph(paragraph);
+    let words: Vec<String> = tokens.iter().map(|token| token.text.clone()).collect();
+    tokens
+        .into_iter()
+        .zip(TAGGER.tag_sentence(&words))
+        .collect()
+}
+
+fn tokenize_paragraph(paragraph: &[markdown::Prose<'_>]) -> Vec<Token> {
+    let mut logical = String::new();
+    let mut mapping = Vec::with_capacity(paragraph.len());
+    for fragment in paragraph {
+        debug_assert_eq!(
+            fragment.at.len(),
+            fragment.text.len(),
+            "a prose fragment's source range must match its source text"
+        );
+        let start = logical.len();
+        logical.push_str(fragment.text);
+        mapping.push(FragmentMap {
+            logical: start..logical.len(),
+            source: fragment.at.clone(),
+        });
+    }
+
+    tokenize(&logical)
+        .into_iter()
+        .map(|mut token| {
+            token.range = source_envelope(&token.range, &mapping);
+            token
+        })
+        .collect()
+}
+
+fn source_envelope(logical: &Range<usize>, mapping: &[FragmentMap]) -> Range<usize> {
+    let first = mapping
+        .iter()
+        .find(|fragment| logical.start < fragment.logical.end)
+        .expect("a token starts in a prose fragment");
+    let last = mapping
+        .iter()
+        .rev()
+        .find(|fragment| fragment.logical.start < logical.end)
+        .expect("a token ends in a prose fragment");
+    first.source.start + logical.start - first.logical.start
+        ..last.source.start + logical.end - last.logical.start
 }
 
 fn can_be_coloured(token: &str) -> bool {
@@ -280,6 +320,45 @@ mod tests {
                 .windows(2)
                 .all(|pair| pair[0].0.end <= pair[1].0.start),
             "results stay source-sorted and non-overlapping"
+        );
+    }
+
+    #[test]
+    fn a_word_split_by_markup_is_one_token_and_one_absolute_source_envelope() {
+        let source = "prefix The rabbit-*hole* opened. suffix";
+        let the = source.find("The").expect("the sentence starts with The");
+        let rabbit = source.find("rabbit-").expect("the passage says rabbit-");
+        let hole = source.find("hole").expect("the passage says hole");
+        let opened = source.find(" opened.").expect("the passage says opened");
+        let paragraph = [
+            markdown::Prose {
+                at: the..rabbit + "rabbit-".len(),
+                text: &source[the..rabbit + "rabbit-".len()],
+            },
+            markdown::Prose {
+                at: hole..hole + "hole".len(),
+                text: &source[hole..hole + "hole".len()],
+            },
+            markdown::Prose {
+                at: opened..opened + " opened.".len(),
+                text: &source[opened..opened + " opened.".len()],
+            },
+        ];
+        let envelope = rabbit..hole + "hole".len();
+        let tagged = tagged_tokens(&paragraph);
+        let rabbit_hole: Vec<&Token> = tagged
+            .iter()
+            .map(|(token, _)| token)
+            .filter(|token| token.text == "rabbit-hole")
+            .collect();
+
+        assert_eq!(
+            rabbit_hole,
+            [&Token {
+                range: envelope.clone(),
+                text: "rabbit-hole".to_owned(),
+            }],
+            "the fragment edge does not split the logical token"
         );
     }
 
