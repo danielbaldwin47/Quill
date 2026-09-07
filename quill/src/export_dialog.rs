@@ -15,6 +15,11 @@
 //! Document to a folder the writer names, which is why the Document does not
 //! follow the file.
 //!
+//! The dialog is not modal: it stands over the window to move what the Preview
+//! pane shows, so the pane behind it stays readable and the Editor half is what
+//! the app dims ([`crate::window::editor_dimmed`]). One window holds one Export
+//! dialog, and a second Export presents the one already open.
+//!
 //! [`Options`] is a widget of its own rather than part of the dialog because
 //! Print puts the same one in a `GtkPrintOperation` tab, where there is no
 //! dialog around it; [`Chosen`] is what it reads back, and the one shape both
@@ -520,15 +525,27 @@ fn present(window: &Window, format: Format, expanded: bool) {
     let Some(session) = window.session() else {
         return;
     };
+    if let Some(standing) = window.export_dialog() {
+        // The dialog does not block the window it stands over, so the chord
+        // and the menu item both still fire under it. One dialog per window:
+        // the one already open comes forward (#302).
+        standing.present();
+        return;
+    }
     let seed = {
         let settings = session.settings();
         let template = session.template();
         Chosen::of(&settings.export, &template)
     };
+    // Not modal: a modal dialog's parent is dimmed by the compositor, pane and
+    // all, and this dialog is here to move what the pane shows — so the app
+    // dims the Editor half instead ([`crate::window::editor_dimmed`]) and the
+    // Editor stays typeable behind it. `transient_for` still stacks it over
+    // the window and `present` still hands it the keyboard (#302).
     let dialog = gtk::Window::builder()
         .title(format.title())
         .transient_for(window)
-        .modal(true)
+        .modal(false)
         .destroy_with_parent(true)
         .resizable(false)
         .default_width(DIALOG_WIDTH)
@@ -586,22 +603,26 @@ fn present(window: &Window, format: Format, expanded: bool) {
             move |chosen: Chosen| window.move_dialog_preview(&chosen.previewed(mode))
         ));
     }
-    if let Some((_, before)) = driven {
-        // The one hook for all three ways out — Escape, the window manager's
-        // button, and the close the Export button makes once the file is
-        // written (through the overwrite confirm or not) — because every one
-        // of them is [`gtk::prelude::GtkWindowExt::close`].
-        dialog.connect_close_request(glib::clone!(
-            #[weak]
-            window,
-            #[upgrade_or]
-            glib::Propagation::Proceed,
-            move |_| {
+    window.set_export_dialog(Some(&dialog));
+    // The one hook for all three ways out — Escape, the window manager's
+    // button, and the close the Export button makes once the file is written
+    // (through the overwrite confirm or not) — because every one of them is
+    // [`gtk::prelude::GtkWindowExt::close`]. The window forgets the dialog
+    // here, so the next Export chord opens one rather than presenting a
+    // dialog that has gone.
+    dialog.connect_close_request(glib::clone!(
+        #[weak]
+        window,
+        #[upgrade_or]
+        glib::Propagation::Proceed,
+        move |_| {
+            if let Some((_, before)) = driven {
                 window.drop_dialog_preview(before);
-                glib::Propagation::Proceed
             }
-        ));
-    }
+            window.set_export_dialog(None);
+            glib::Propagation::Proceed
+        }
+    ));
 
     let go = gtk::Button::builder()
         .label(EXPORT)
