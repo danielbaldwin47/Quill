@@ -41,3 +41,4 @@ pub mod template;
 pub mod theme;
 pub mod typography;
 pub mod watch;
+pub mod worker;
