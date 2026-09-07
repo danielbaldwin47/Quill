@@ -12,6 +12,7 @@
     "focus": "off",
     "typewriter": false,
     "live": false,
+    "syntax": "off",
     "chrome": "on",
     "caret": 403,
     "select": null,
