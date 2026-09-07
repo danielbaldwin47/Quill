@@ -274,7 +274,9 @@ and the determinism settings, this document names the flags:
   every machine), `--font duo|quattro|mono`, `--step <n>`,
   `--focus off|sentence|paragraph`, `--typewriter`, `--live` (turn Live on; absent under
   `--deterministic` it pins Live off, so every state judged before Live existed is shot with the
-  markup written out), `--chrome on|off`, `--caret <offset>|end`,
+  markup written out), `--syntax off|on|nouns,verbs,adjectives,adverbs,conjunctions` (pin the whole
+  `[syntax_highlight]` table: off, every Category on, or only the comma-separated Categories on;
+  absent under `--deterministic` the table takes its defaults with the master off), `--chrome on|off`, `--caret <offset>|end`,
   `--select <from>,<to>`, `--scroll <fraction>`, `--nocaret`, `--typing` (the chrome as it is
   inside the 500 ms after a keystroke: the title bar gone, the stats bar dimmed), `--menu
   view|document|stats|palette` (that menu, or the Palette, open with its first row selected),
