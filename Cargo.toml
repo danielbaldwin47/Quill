@@ -20,6 +20,7 @@ gtk = { package = "gtk4", version = "0.11", features = ["v4_22"] }
 # document metadata and the heading bookmarks on it (`docs/architecture.md`
 # § Preview and Export); the app crate reaches the same crate through `gtk`.
 cairo-rs = { version = "0.22", features = ["pdf", "v1_16"] }
+harper-brill = "=2.8.0"
 notify = "8"
 # `notify` 8 has no debouncer of its own, and a save is never one event: an
 # editor writes a temporary file and renames it over the top, as Quill's own

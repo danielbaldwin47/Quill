@@ -1,0 +1,5 @@
+# Ship `harper-brill`'s trained model
+
+Quill ships `harper-brill` pinned at `=2.8.0`. The crate is Apache-2.0, but its 644.2 KiB tagger model was trained on UD English EWT (CC BY-SA 4.0), GUM (CC BY-NC-SA 4.0) and LinES (CC BY-NC-SA 4.0). The model contains no corpus text: it is a 26,900-entry word-to-tag map and 201 transformation rules. Whether corpus rights reach that derived model is unsettled; the owner accepts that provenance exposure and ships the model as Automattic publishes it under Apache-2.0.
+
+Version 2.8.0 also embeds 1.4 MiB of chunker data and brings in `burn` as a non-optional dependency, although Quill calls neither chunker. On this machine, clean `cargo build --release --locked` runs before and after the dependency took 30.725 and 38.831 seconds, respectively, and the resulting `target/release/quill` grew from 4,632,160 to 4,845,656 bytes: 8.106 seconds and 213,496 bytes. These are observed shared-machine figures, with other comparison builds able to contend for resources, rather than an isolated benchmark.
