@@ -9,7 +9,9 @@
 //! chrome's two texts — are the Parity oracle's, role for role out of
 //! `legacy/app/css/theme.css`, until they are measured in their turn
 //! (4.2.14–4.2.15 are still unknown), which is the split `design.md` § The
-//! palette is a file states.
+//! palette is a file states. Syntax highlight adds five provisional roles
+//! from the reference stills, pending capture #308; the two unread dark inks
+//! use the measured pairs' mean RGB lift documented beside the dark table.
 //!
 //! The markers are the ink. #198 shot iA Writer at every mark kind on both
 //! grounds and found no resting marker grey at all: a heading's `#`, a quote's
@@ -358,17 +360,27 @@ pub enum Role {
     Rule,
     /// What a raised surface casts.
     Shadow,
+    /// A noun in Syntax highlight.
+    SyntaxNoun,
+    /// A verb in Syntax highlight.
+    SyntaxVerb,
+    /// An adjective in Syntax highlight.
+    SyntaxAdjective,
+    /// An adverb in Syntax highlight.
+    SyntaxAdverb,
+    /// A conjunction in Syntax highlight.
+    SyntaxConjunction,
 }
 
 impl Role {
-    /// Every role, in the order `theme.css` declares them.
+    /// Every role: `theme.css`'s order, followed by Syntax highlight's roles.
     ///
     /// A role added to [`Role`] belongs here too. [`Colours`] does not build
     /// without a field for it and [`Colours::colour`] does not build without an
     /// arm, so the table stays total either way; this list is the one place
     /// kept by hand, and what a role missing from it costs is the tests below
     /// quietly stopping short of it.
-    pub const ALL: [Self; 14] = [
+    pub const ALL: [Self; 19] = [
         Self::Paper,
         Self::Ink,
         Self::InkDim,
@@ -383,6 +395,11 @@ impl Role {
         Self::CodeBg,
         Self::Rule,
         Self::Shadow,
+        Self::SyntaxNoun,
+        Self::SyntaxVerb,
+        Self::SyntaxAdjective,
+        Self::SyntaxAdverb,
+        Self::SyntaxConjunction,
     ];
 
     /// The key a `palette` file writes this role under: the variant's name in
@@ -405,6 +422,11 @@ impl Role {
             Self::CodeBg => "code_bg",
             Self::Rule => "rule",
             Self::Shadow => "shadow",
+            Self::SyntaxNoun => "syntax_noun",
+            Self::SyntaxVerb => "syntax_verb",
+            Self::SyntaxAdjective => "syntax_adjective",
+            Self::SyntaxAdverb => "syntax_adverb",
+            Self::SyntaxConjunction => "syntax_conjunction",
         }
     }
 }
@@ -429,6 +451,11 @@ pub struct Colours {
     code_bg: Colour,
     rule: Colour,
     shadow: Colour,
+    syntax_noun: Colour,
+    syntax_verb: Colour,
+    syntax_adjective: Colour,
+    syntax_adverb: Colour,
+    syntax_conjunction: Colour,
 }
 
 impl Colours {
@@ -455,6 +482,11 @@ impl Colours {
         code_bg: Colour::rgba(0, 0, 0, 0.036),
         rule: Colour::rgba(0, 0, 0, 0.10),
         shadow: Colour::rgba(0, 0, 0, 0.18),
+        syntax_noun: Colour::from_hex("#ca471a"), // Provisional until capture #308.
+        syntax_verb: Colour::from_hex("#3476b9"), // Provisional until capture #308.
+        syntax_adjective: Colour::from_hex("#a66500"), // Provisional until capture #308.
+        syntax_adverb: Colour::from_hex("#b24fa2"), // Provisional until capture #308.
+        syntax_conjunction: Colour::from_hex("#3f831e"), // Provisional until capture #308.
     };
 
     /// The dark ground: the same ten measured, then
@@ -480,6 +512,13 @@ impl Colours {
         code_bg: Colour::rgba(255, 255, 255, 0.048),
         rule: Colour::rgba(255, 255, 255, 0.10),
         shadow: Colour::rgba(0, 0, 0, 0.55),
+        // Missing dark reads use the rounded mean RGB lift of the three measured
+        // light/dark pairs: (69,41,9), (27,46,78), (8,63,16) -> (35,50,34).
+        syntax_noun: Colour::from_hex("#ed793c"), // Derived; provisional until capture #308.
+        syntax_verb: Colour::from_hex("#799fc2"), // Provisional until capture #308.
+        syntax_adjective: Colour::from_hex("#c1934e"), // Provisional until capture #308.
+        syntax_adverb: Colour::from_hex("#ba8eb2"), // Provisional until capture #308.
+        syntax_conjunction: Colour::from_hex("#62b540"), // Derived; provisional until capture #308.
     };
 
     /// The colours of one ground.
@@ -532,6 +571,11 @@ impl Colours {
             Role::CodeBg => &mut self.code_bg,
             Role::Rule => &mut self.rule,
             Role::Shadow => &mut self.shadow,
+            Role::SyntaxNoun => &mut self.syntax_noun,
+            Role::SyntaxVerb => &mut self.syntax_verb,
+            Role::SyntaxAdjective => &mut self.syntax_adjective,
+            Role::SyntaxAdverb => &mut self.syntax_adverb,
+            Role::SyntaxConjunction => &mut self.syntax_conjunction,
         }
     }
 
@@ -557,6 +601,11 @@ impl Colours {
             Role::CodeBg => self.code_bg,
             Role::Rule => self.rule,
             Role::Shadow => self.shadow,
+            Role::SyntaxNoun => self.syntax_noun,
+            Role::SyntaxVerb => self.syntax_verb,
+            Role::SyntaxAdjective => self.syntax_adjective,
+            Role::SyntaxAdverb => self.syntax_adverb,
+            Role::SyntaxConjunction => self.syntax_conjunction,
         }
     }
 }
@@ -734,12 +783,13 @@ mod tests {
     /// app will emit, which is that `rgba()` with its opacity spelled in full.
     ///
     /// Ten of the rows are `docs/design.md`'s, off the Design oracle, and the
-    /// rest are `legacy/app/css/theme.css`'s; which is which is the module's
-    /// header. Every row is written out here rather than derived, because a
+    /// next four are `legacy/app/css/theme.css`'s; Syntax highlight's five
+    /// are provisional until capture #308. Every row is written out here
+    /// rather than derived, because a
     /// table that computes what it asserts asserts nothing — including the two
     /// marker rows, which are the ink's value said a second time rather than a
     /// reference to it, so that a hand that unpicks the two grounds fails here.
-    const ORACLE: [(Scheme, Role, &str); 28] = [
+    const ORACLE: [(Scheme, Role, &str); 38] = [
         (Scheme::Light, Role::Paper, "#f7f7f7"),
         (Scheme::Light, Role::Ink, "#191919"),
         (Scheme::Light, Role::InkDim, "#c6c4c2"),
@@ -758,6 +808,11 @@ mod tests {
         (Scheme::Light, Role::CodeBg, "rgba(0, 0, 0, 0.036)"),
         (Scheme::Light, Role::Rule, "rgba(0, 0, 0, 0.1)"),
         (Scheme::Light, Role::Shadow, "rgba(0, 0, 0, 0.18)"),
+        (Scheme::Light, Role::SyntaxNoun, "#ca471a"), // Provisional until capture #308.
+        (Scheme::Light, Role::SyntaxVerb, "#3476b9"), // Provisional until capture #308.
+        (Scheme::Light, Role::SyntaxAdjective, "#a66500"), // Provisional until capture #308.
+        (Scheme::Light, Role::SyntaxAdverb, "#b24fa2"), // Provisional until capture #308.
+        (Scheme::Light, Role::SyntaxConjunction, "#3f831e"), // Provisional until capture #308.
         (Scheme::Dark, Role::Paper, "#1a1a1a"),
         (Scheme::Dark, Role::Ink, "#cccccc"),
         (Scheme::Dark, Role::InkDim, "#707070"),
@@ -776,6 +831,11 @@ mod tests {
         (Scheme::Dark, Role::CodeBg, "rgba(255, 255, 255, 0.048)"),
         (Scheme::Dark, Role::Rule, "rgba(255, 255, 255, 0.1)"),
         (Scheme::Dark, Role::Shadow, "rgba(0, 0, 0, 0.55)"),
+        (Scheme::Dark, Role::SyntaxNoun, "#ed793c"), // Derived; provisional until capture #308.
+        (Scheme::Dark, Role::SyntaxVerb, "#799fc2"), // Provisional until capture #308.
+        (Scheme::Dark, Role::SyntaxAdjective, "#c1934e"), // Provisional until capture #308.
+        (Scheme::Dark, Role::SyntaxAdverb, "#ba8eb2"), // Provisional until capture #308.
+        (Scheme::Dark, Role::SyntaxConjunction, "#62b540"), // Derived; provisional until capture #308.
     ];
 
     /// WCAG 2.1 relative luminance.
@@ -812,6 +872,7 @@ mod tests {
 
     #[test]
     fn the_table_answers_for_every_role_on_both_grounds() {
+        assert_eq!(Role::ALL.len(), 19);
         for scheme in [Scheme::Light, Scheme::Dark] {
             for role in Role::ALL {
                 let named = ORACLE
@@ -1074,6 +1135,35 @@ mod tests {
             Colours::of(Scheme::Dark),
             "a file with no [dark] table leaves the dark ground designed"
         );
+    }
+
+    #[test]
+    fn syntax_palette_keys_override_only_the_named_role() {
+        let keys = [
+            (Role::SyntaxNoun, "syntax_noun"),
+            (Role::SyntaxVerb, "syntax_verb"),
+            (Role::SyntaxAdjective, "syntax_adjective"),
+            (Role::SyntaxAdverb, "syntax_adverb"),
+            (Role::SyntaxConjunction, "syntax_conjunction"),
+        ];
+        for scheme in [Scheme::Light, Scheme::Dark] {
+            for (wanted, key) in keys {
+                assert_eq!(wanted.key(), key);
+                let palette = palette(&format!(
+                    "[{}]\n{key} = \"#123456\"\nunknown_syntax = \"ignored\"\n",
+                    scheme.as_str()
+                ));
+                let overlaid = Colours::overlaid(scheme, &palette);
+                for role in Role::ALL {
+                    let expected = if role == wanted {
+                        Colour::from_hex("#123456")
+                    } else {
+                        Colours::of(scheme).colour(role)
+                    };
+                    assert_eq!(overlaid.colour(role), expected, "{scheme:?} {role:?}");
+                }
+            }
+        }
     }
 
     #[test]
