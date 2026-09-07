@@ -670,11 +670,15 @@ pub fn paint_in_with_categories(
 
             let mut look = run.map_or(Look::PROSE, |run| run.look);
             if let Some((_, category)) = category
-                && enabled_categories.contains(category)
-                && matches!(look.ink, Ink::Prose | Ink::Struck)
                 && look.ground != Ground::Code
             {
-                look.ink = Ink::Category(*category);
+                match look.ink {
+                    Ink::Prose | Ink::Struck if enabled_categories.contains(category) => {
+                        look.ink = Ink::Category(*category);
+                    }
+                    Ink::Struck => look.ink = Ink::Prose,
+                    Ink::Prose | Ink::Marker | Ink::Link | Ink::Category(_) => {}
+                }
             }
             let paint = (covers || run.is_some() || category.is_some())
                 .then(|| Paint::of(look, tier, colours));
@@ -1422,7 +1426,7 @@ mod tests {
     }
 
     #[test]
-    fn category_colours_struck_prose_but_only_the_delimiters_keep_marker_ink() {
+    fn struck_prose_follows_enabled_disabled_and_master_off_category_painting() {
         let doc = document("~~noun~~ plain\n");
         let text = doc.text();
         let noun = text.find("noun").expect("the passage says noun");
@@ -1464,6 +1468,16 @@ mod tests {
                 ground: Ground::Page,
             },
             "struck prose takes its enabled Category ink"
+        );
+        assert_eq!(
+            category_paint_at(&doc, &categories, &[], noun, Focus::Off, &colours),
+            Paint {
+                colour: colours.colour(Role::Ink),
+                weight: Weight::Regular,
+                slant: Slant::Upright,
+                ground: Ground::Page,
+            },
+            "a disabled Category span explicitly repaints struck prose as body ink"
         );
         assert_eq!(
             category_paint_at(&doc, &[], &[], noun, Focus::Off, &colours),
