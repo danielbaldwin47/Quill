@@ -24,7 +24,6 @@ space_before_heading = 1.0
 space_after_heading = 1.0
 
 [headings]
-alignment = "left"
 weight = 700
 
 [light]

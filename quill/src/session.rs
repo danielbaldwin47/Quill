@@ -36,8 +36,8 @@ use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
 use quill_engine::library::Library;
 use quill_engine::settings::{
-    Chrome, Face, FocusScope, PreviewLayout, Settings, State, Template, TemplateName, Theme,
-    WindowState,
+    Chrome, Face, FocusScope, PreviewLayout, PreviewMode, Settings, State, Template, TemplateName,
+    Theme, WindowState,
 };
 use quill_engine::shortcuts::Refusal;
 use quill_engine::theme::{self, Palette, Scheme};
@@ -64,8 +64,7 @@ const DRAIN_EVERY: Duration = Duration::from_millis(100);
 /// write one boolean each and differ only in which key of `[template]` it is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TemplateToggle {
-    /// `center_headings`: every heading centred rather than set as the
-    /// Template has it.
+    /// `center_headings`: every heading centred rather than ranged left.
     CenterHeadings,
     /// `number_headings`: the headings under the title numbered.
     NumberHeadings,
@@ -178,6 +177,12 @@ pub struct Session {
     /// know there is anything to write. Whether the pane is open at all is
     /// not here: that is the window's, and it is never remembered.
     preview_layout: Cell<PreviewLayout>,
+    /// What the pane draws now, the sheet or the pages: the setting until the
+    /// writer picks View › Panes › Web or PDF, and then what they picked. Held
+    /// apart from [`Session::settings`] for the reason
+    /// [`Session::preview_layout`] is — the row writes the file, and the pane
+    /// must not lag the write by a watch tick.
+    preview_mode: Cell<PreviewMode>,
     /// How far the rendered page is zoomed now: the setting until the writer
     /// presses one of the three Preview size keys, and then what they stepped
     /// it to. Held apart from [`Session::settings`] for the reason
@@ -319,6 +324,7 @@ impl Session {
             desktop: Cell::new(portal),
             chrome: Cell::new(settings.chrome),
             preview_layout: Cell::new(settings.preview.layout),
+            preview_mode: Cell::new(settings.preview.mode),
             preview_zoom: Cell::new(settings.preview.zoom),
             template: RefCell::new(settings.template.clone()),
             stats: Cell::new(true),
@@ -404,6 +410,7 @@ impl Session {
         self.face.set(settings.face);
         self.chrome.set(settings.chrome);
         self.preview_layout.set(settings.preview.layout);
+        self.preview_mode.set(settings.preview.mode);
         self.preview_zoom.set(settings.preview.zoom);
         self.template.replace(settings.template.clone());
         let theme = settings.theme;
@@ -880,6 +887,23 @@ impl Session {
         self.preview_layout.set(layout);
     }
 
+    /// What the pane draws now, the sheet or the pages.
+    #[must_use]
+    pub fn preview_mode(&self) -> PreviewMode {
+        self.preview_mode.get()
+    }
+
+    /// Stands the pane at `mode`: what `preview.web` and `preview.pdf` set as
+    /// they write the key.
+    ///
+    /// The live value beside the write, as [`Session::set_preview_zoom`] is:
+    /// the row writes `[preview] mode` through [`Session::edit_settings`], and
+    /// this is what keeps the pane and View › Panes' check from lagging that
+    /// write by a watch tick.
+    pub fn set_preview_mode(&self, mode: PreviewMode) {
+        self.preview_mode.set(mode);
+    }
+
     /// How far the rendered page is zoomed now, as a whole percentage.
     #[must_use]
     pub fn preview_zoom(&self) -> u32 {
@@ -1001,6 +1025,7 @@ impl Session {
         settings.face = self.face.get();
         settings.chrome = self.chrome.get();
         settings.preview.layout = self.preview_layout.get();
+        settings.preview.mode = self.preview_mode.get();
         settings.preview.zoom = self.preview_zoom.get();
         settings.template = self.template.borrow().clone();
         settings
@@ -1049,10 +1074,15 @@ impl Session {
     /// `edit` is handed the settings this launch is running
     /// ([`Session::running`]) rather than the ones it read, so that a row
     /// written after a key was pressed carries what the key did with it.
-    pub fn edit_settings(&self, edit: impl FnOnce(&mut Settings)) {
+    /// What it wrote is answered back, because the file is ahead of
+    /// [`Session::running`] until the watch reads it: a caller that has to act
+    /// on the write before then acts on this rather than on the running table
+    /// ([`crate::window::Window::drop_dialog_preview`]).
+    pub fn edit_settings(&self, edit: impl FnOnce(&mut Settings)) -> Settings {
         let mut settings = self.running();
         edit(&mut settings);
         self.write_settings(&settings);
+        settings
     }
 
     /// Writes `settings` to this launch's settings file, saying so on stderr

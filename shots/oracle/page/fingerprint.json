@@ -5,7 +5,7 @@
     "sha256": "738f48c969965ac3"
   },
   "shoot": "239bd27db3974b27",
-  "git_head": "5dc8d8d",
+  "git_head": "13d4401",
   "passages": {
     "ref/sample.md": "8005e6c57d435cea",
     "ref/short.md": "2acef065165b4fa4"
@@ -35,7 +35,9 @@
       "sidebar": false,
       "search": null,
       "preview": null,
-      "template": "modern"
+      "zoom": null,
+      "template": "modern",
+      "export": null
     },
     "narrow": {
       "text": "ref/sample.md",
@@ -60,7 +62,9 @@
       "sidebar": false,
       "search": null,
       "preview": null,
-      "template": "modern"
+      "zoom": null,
+      "template": "modern",
+      "export": null
     },
     "short": {
       "text": "ref/short.md",
@@ -85,7 +89,9 @@
       "sidebar": false,
       "search": null,
       "preview": null,
-      "template": "modern"
+      "zoom": null,
+      "template": "modern",
+      "export": null
     }
   }
 }

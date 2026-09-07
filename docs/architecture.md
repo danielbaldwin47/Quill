@@ -146,7 +146,7 @@ theme `auto` follows the settings portal's colour scheme.
 Two windows besides: `Ctrl+?` is a `GtkShortcutsWindow` listing every Command with the chord the
 effective map leaves it on, grouped as the menus are and built afresh on every open; `Ctrl+,` is a
 Settings window, one grid of the rows that have no menu home — the Typewriter anchor, Follow System,
-the Spell-check language, the Library's own rows, the `[export]` group a printed or exported page is
+the Spell-check language, the Library's own rows, the Preview pane's Mode, the `[export]` group a printed or exported page is
 laid out on, a button that opens `settings.toml` in the system editor, and whatever the
 last read of that file could not apply — a file that is not TOML says so there, above the entries it
 refused. Both are transient for the window they were opened from, and no row
@@ -169,10 +169,12 @@ it is not being typed in), `chrome` (shown/hidden), `spell_check` (on/off, defau
 and `spell_language`, `[syntax_highlight]` (a table: `enabled` is the master, and the five category
 toggles sit beside it), `[style_check]` (the same shape, one toggle per list beside `enabled`),
 a `[template]` table (`name`, one of the five Templates, default `modern`; and `center_headings`,
-default true, `number_headings` and `indent_paragraphs`, the three toggles that bend one), a
-`[preview]` table (`layout`, split or full, and `zoom`, a whole percentage from 50 to 200, default
-100; a scalar `template` or `preview_layout`, which is how each was written before it was a table, is
-read as its table's value and rewritten as the table on the next write, as a scalar `library` is),
+default true and the only input to heading alignment, `number_headings` and `indent_paragraphs`,
+the three toggles that bend one), a
+`[preview]` table (`layout`, split or full; `mode`, web or pdf, default web, which of the pane's two
+modes it draws; and `zoom`, a whole percentage from 50 to 200, default 100; a scalar `template` or
+`preview_layout`, which is how each was written before it was a table, is read as its table's value
+and rewritten as the table on the next write, as a scalar `library` is),
 an `[export]` table (`paper`, one of `auto`, `a4`, `letter` and `legal`, default `auto`, which is
 resolved to the desktop locale's paper at the moment a page is laid out and never written back as a
 size; `margin` in whole millimetres, 0 to 50, default 20; `text_size` in whole points, 9 to 18,
@@ -226,17 +228,22 @@ remembers nothing it could not act on.
 
 The engine's `render` module lays a whole Document out with Pango from the current Template ([ADR
 0005](adr/0005-native-templates.md)): one pass produces the layouts the Preview widget snapshots and
-the pages the PDF surface draws. Preview re-renders on idle after edits, debounced, and restores its
+the pages the PDF surface draws. Preview has two modes over that one pass, `[preview].mode`: Web
+draws the rendered sheet, and PDF draws the same pages Export writes, stacked as a column with the
+page under the column's top edge on the stats bar beside the counts. The mode is one setting for the
+app: View › Panes' Web and PDF rows and the Settings window's Mode row write it, and every open pane
+reads it on the refresh that follows. Preview re-renders on idle after edits, debounced, and restores its
 scroll to the block the caret is in. `paginate` cuts that one tall rendered page into pages of paper
 under the page geometry (size, margins, header, footer, title page) owned by Export, not the
 Template: a heading never ends a page and moves with the block after it, a paragraph splits between
 lines with at least two on each side or moves whole, a code block splits at a line boundary with its
 Well ground carried on to the next page, a quotation splits at a line boundary and has no ground to
 carry, and neither a thematic break nor the line after a hard break ever opens one. There is no page-break syntax. `draw` paints one such page onto
-any cairo context, and both of the page sinks are fed by it: PDF export is the engine's own
+any cairo context, and the three page sinks are fed by it: PDF export is the engine's own
 `cairo::PdfSurface` at the paper's size (`pdf`), with the document metadata and the heading
-bookmarks from `outline` on it, and `GtkPrintOperation` is Print's sink alone, the drawer called
-from its `draw-page`. HTML export is the parser's HTML plus the CSS the Template generates, inlined.
+bookmarks from `outline` on it; `GtkPrintOperation` is Print's sink alone, the drawer called
+from its `draw-page`; and Preview's page column in PDF mode is the third, the drawer called on the
+widget's own cairo context. HTML export is the parser's HTML plus the CSS the Template generates, inlined.
 Annotator marks never reach Preview or Export.
 
 Preview ships without tables, figures and footnote blocks first; they are the last renderer work and
@@ -276,7 +283,16 @@ and the determinism settings, this document names the flags:
   booleans off, so a writer who turned on hidden files or extensions does not change the shot),
   `--sidebar` (open with the Library beside the page), `--search <query>` (put `<query>` in the
   Library's search field and narrow the list to what it finds; refused without `--sidebar`, which is
-  the pane the field stands in), `--export-dialog pdf|html|markdown` (open that format's Export
+  the pane the field stands in), `--preview split|full|pdf-split|pdf-full` (open with the Preview
+  pane beside the Editor, or in place of it. The word names both of the pane's settings: `split` and
+  `full` are `[preview] layout` with the pane showing the rendered sheet, and `pdf-split` and
+  `pdf-full` are the same two layouts with the pane showing the pages Export writes. The rest of
+  `[preview]` is pinned to its defaults for the launch, so a writer's remembered mode and zoom reach
+  no judged shot), `--zoom <percent>` (draw the pane at that per cent of fit width, which is
+  `[preview] zoom`, over the pinning above: the one key of the table a state names for itself, so
+  that a state can stand two pages of the page column in one window. Refused outside the range the
+  setting takes, and it wants `--preview`, which is what opens the pane),
+  `--export-dialog pdf|html|markdown` (open that format's Export
   dialog over the page with its Options expander open, once the window has painted its first frame —
   a still cannot pull an expander, and a second surface over a toplevel the compositor has no frame
   of yet keeps the toplevel from ever mapping; `[export]` itself has no flag, and is pinned to its

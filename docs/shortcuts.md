@@ -61,12 +61,18 @@ Sections in this order, separators between them.
 | `library.toggle` | Show Library / Hide Library | `Ctrl+E` | `F9` |
 | `preview.full` | Preview Full (check) | `Ctrl+R` | |
 | `preview.split` | Preview Split (check) | `Ctrl+Shift+R` | |
+| `preview.web` | Web (radio) | — | |
+| `preview.pdf` | PDF (radio) | — | |
 
 Each chord owns a layout and is that layout's toggle: `Ctrl+R` opens the pane Full, or closes the
 pane when Full is already showing; `Ctrl+Shift+R` opens it Split, or closes it when Split is
 showing. Pressed over the other layout, a chord switches the pane to its own in place. A row is
 ticked while the pane is open in its layout. `[preview].layout` in the settings file is the layout
 the pane last showed, which is the one the next chord to open it opens in.
+
+Web and PDF are what the pane draws, not where it sits: Web is the rendered sheet, PDF the pages
+Export writes. Neither opens the pane and neither closes it. The pair is a radio group over
+`[preview].mode` in the settings file, which the pane opens in next time.
 
 **Writing tools**
 

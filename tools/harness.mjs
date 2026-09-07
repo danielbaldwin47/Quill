@@ -205,6 +205,10 @@ export function quillArgv(root, flags, { live = false } = {}) {
   // `--template` is named by every state, off the defaults: it pins the whole `[template]` table,
   // and the shape of a heading is the shape of one whatever Piece the shot is of.
   if (flags.preview) argv.push('--preview', flags.preview);
+  // `--zoom` is the one key of `[preview]` a state names for itself, over the pinning `--preview`
+  // does: `preview/pdf-full` is shot at 75 % so that two pages of the column stand in one window
+  // and the air between them is a thing a still can hold.
+  if (flags.zoom) argv.push('--zoom', String(flags.zoom));
   if (flags.template) argv.push('--template', flags.template);
   // The Export dialog the `export` states open, named by its format. A still cannot pull an
   // expander open, so the flag opens the dialog with its Options already showing; the dialog is a
@@ -395,11 +399,13 @@ export function carriesAccent(buf) {
 /// other active state draws the bar, an empty Document included: `page/empty` is the state #166
 /// lost to the ghost.
 ///
-/// `--preview full` is the fourth way out, and the only one that is not about the caret at all:
-/// Full puts the rendered page where the Editor's scroller was, so there is no Editor on the glass
-/// to draw a bar and no accent pixel to wait for. It is read here rather than taken as the state's
-/// `nocaret` because the state has not asked for a caret to be left out — the layout has none to
-/// leave. Split keeps the Editor beside the page and is held to a lit frame like any other state.
+/// A Full pane is the fourth way out, and the only one that is not about the caret at all: Full
+/// puts the rendered page where the Editor's scroller was, so there is no Editor on the glass to
+/// draw a bar and no accent pixel to wait for. Both words that open one are read — `full`, the
+/// rendered sheet, and `pdf-full`, the page column — because what the pane draws there makes no
+/// difference to the Editor being gone. It is read here rather than taken as the state's `nocaret`
+/// because the state has not asked for a caret to be left out — the layout has none to leave.
+/// Either Split keeps the Editor beside the page and is held to a lit frame like any other state.
 ///
 /// `--deterministic` is a condition in its own right and not a detail of the ways out: it is what
 /// freezes the blink on, and [`quillArgv`] drops it for a Live launch, where the caret is meant to
@@ -411,11 +417,12 @@ export function carriesAccent(buf) {
 /// it reaches here; the session that builds `--menu` decides whether a popover leaves the Editor
 /// drawing its bar, and adds a way out here if it does not.
 export function wantsLitCaret(argv, { active = true } = {}) {
+  const preview = argv.includes('--preview') ? argv[argv.indexOf('--preview') + 1] : null;
   return active
     && argv.includes('--deterministic')
     && !argv.includes('--nocaret')
     && !argv.includes('--select')
-    && !(argv.includes('--preview') && argv[argv.indexOf('--preview') + 1] === 'full');
+    && !(preview === 'full' || preview === 'pdf-full');
 }
 
 // ---------- the compositor ----------
@@ -1069,10 +1076,10 @@ class Stage {
       // 0.3 alpha, while `page/light` and `page/narrow` won — their text layout cost enough frames
       // for the activation notify to land.
       //
-      // The window focus is read back on is the dialog where there is one: a modal dialog takes the
-      // keyboard as it maps, so insisting on ours' own address would be insisting on the one
-      // arrangement the app will not give. The Editor under it draws the ghost caret by rights,
-      // which is why such a state names `--nocaret` and asks for no lit bar below.
+      // The window focus is read back on is the dialog where there is one: presenting the
+      // transient gives it the keyboard, so insisting on ours' own address would reject the
+      // arrangement the app asks for. The Editor under it draws the ghost caret by rights, which
+      // is why such a state names `--nocaret` and asks for no lit bar below.
       const keyboard = over ?? ours;
       if (active && !(await this.focused(keyboard.address, keyboard.appId))) {
         throw new Error(`keyboard focus never took on ours (${keyboard.address}); the shot would be ghosted`);
