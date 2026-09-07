@@ -12,6 +12,7 @@ publish.workspace = true
 # convention (ADR 0008), and `tests/boundary.rs` fails the build if it slips.
 [dependencies]
 cairo-rs.workspace = true
+harper-brill.workspace = true
 notify.workspace = true
 notify-debouncer-mini.workspace = true
 # `v1_50` is the absolute line height a rendered page's leading is set with,
