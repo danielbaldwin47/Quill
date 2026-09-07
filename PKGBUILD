@@ -11,7 +11,7 @@ pkgrel=1
 pkgdesc="A long-form writing environment for Linux: plain Markdown, typography first"
 arch=('x86_64')
 url="https://github.com/danielbaldwin47/Quill"
-license=('GPL-3.0-or-later' 'OFL-1.1')
+license=('GPL-3.0-or-later' 'OFL-1.1' 'Apache-2.0')
 depends=('gtk4' 'enchant' 'hicolor-icon-theme')
 makedepends=('cargo')
 optdepends=('hunspell-en_us: English spell checking')
@@ -65,6 +65,7 @@ package() {
     "$share/icons/hicolor/scalable/apps/$_appid.svg"
 
   install -Dm644 "$startdir/LICENSE" "$share/licenses/$pkgname/LICENSE"
+  install -m644 "$startdir/packaging/harper-brill-LICENSE" "$share/licenses/$pkgname/"
   install -m644 "$startdir"/fonts/OFL*.txt "$share/licenses/$pkgname/"
   install -Dm644 "$startdir/README.md" "$share/doc/$pkgname/README.md"
 }
