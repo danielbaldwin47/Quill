@@ -64,8 +64,7 @@ const DRAIN_EVERY: Duration = Duration::from_millis(100);
 /// write one boolean each and differ only in which key of `[template]` it is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TemplateToggle {
-    /// `center_headings`: every heading centred rather than set as the
-    /// Template has it.
+    /// `center_headings`: every heading centred rather than ranged left.
     CenterHeadings,
     /// `number_headings`: the headings under the title numbered.
     NumberHeadings,

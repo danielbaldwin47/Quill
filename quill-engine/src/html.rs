@@ -28,7 +28,7 @@ use pulldown_cmark::{Event, Tag, TagEnd};
 use crate::document::Document;
 use crate::markdown;
 use crate::render::{self, Toggles};
-use crate::template::{Alignment, Face, Palette, Paragraphs, Template};
+use crate::template::{Face, Palette, Paragraphs, Template};
 
 /// The room the page leaves around its text block, as CSS writes a `padding`.
 ///
@@ -111,7 +111,7 @@ fn stylesheet(template: &Template, toggles: Toggles) -> String {
     let sizes = &template.sizes;
     let rhythm = &template.rhythm;
     let indented = toggles.indent_paragraphs || template.paragraphs == Paragraphs::Indented;
-    let centred = toggles.center_headings || template.headings.alignment == Alignment::Center;
+    let centred = toggles.center_headings;
     // `render::Pass::space`, in CSS: an indented Template marks the break with
     // the indent, so nothing stands between two paragraphs.
     let between = if indented {
@@ -452,7 +452,7 @@ mod tests {
     }
 
     #[test]
-    fn center_headings_centres_them_and_a_ranged_template_leaves_them_ranged() {
+    fn center_headings_is_the_only_heading_alignment_input() {
         let ranged = page(&sample(), &built("classic"), Toggles::default());
         assert!(!ranged.contains("text-align: center;"), "{ranged}");
         let on = Toggles {
@@ -461,8 +461,8 @@ mod tests {
         };
         let centred = page(&sample(), &built("classic"), on);
         assert!(centred.contains("text-align: center;"), "{centred}");
-        let by_the_template = page(&sample(), &built("modern"), Toggles::default());
-        assert!(by_the_template.contains("text-align: center;"));
+        let modern_off = page(&sample(), &built("modern"), Toggles::default());
+        assert!(!modern_off.contains("text-align: center;"), "{modern_off}");
     }
 
     #[test]

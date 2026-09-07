@@ -42,7 +42,7 @@ use pulldown_cmark::{Event, Tag, TagEnd};
 
 use crate::document::{self, Document};
 use crate::markdown;
-use crate::template::{Alignment, Face, Paragraphs, Template};
+use crate::template::{Face, Paragraphs, Template};
 
 /// The resolution a context that names none is read at, which is what an
 /// unconfigured `pangocairo` context answers with.
@@ -370,7 +370,7 @@ impl<'a> Pass<'a> {
         }
     }
 
-    /// A heading, numbered and aligned as the toggles and the Template have it.
+    /// A heading, numbered and aligned as the toggles have it.
     fn heading_block(
         &self,
         events: &[(Event<'_>, Range<usize>)],
@@ -397,9 +397,7 @@ impl<'a> Pass<'a> {
                 _ => inline.event(event, at, slice),
             }
         }
-        let alignment = if self.toggles.center_headings
-            || self.template.headings.alignment == Alignment::Center
-        {
+        let alignment = if self.toggles.center_headings {
             pango::Alignment::Center
         } else {
             pango::Alignment::Left
@@ -1053,7 +1051,7 @@ let x = 1;
     }
 
     #[test]
-    fn a_heading_takes_the_templates_alignment_until_the_toggle_centres_it() {
+    fn center_headings_is_the_only_heading_alignment_input() {
         let centred = Toggles {
             center_headings: true,
             ..Toggles::default()
@@ -1071,12 +1069,12 @@ let x = 1;
         assert_eq!(
             alignment("classic", centred),
             pango::Alignment::Center,
-            "Center Headings centres them anyway"
+            "Center Headings centres Classic"
         );
         assert_eq!(
             alignment("modern", Toggles::default()),
-            pango::Alignment::Center,
-            "Modern centres them with the toggle off"
+            pango::Alignment::Left,
+            "Modern ranges headings left when Center Headings is off"
         );
     }
 
