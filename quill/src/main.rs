@@ -42,6 +42,7 @@ mod session;
 mod settings;
 mod shortcuts;
 mod sidebar;
+mod syntax;
 mod tags;
 mod window;
 
