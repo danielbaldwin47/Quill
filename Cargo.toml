@@ -16,6 +16,8 @@ quill-engine = { path = "quill-engine" }
 # `gtk` belongs to the app crate alone (ADR 0008); the engine must stay
 # buildable and testable with no display attached.
 gtk = { package = "gtk4", version = "0.11", features = ["v4_22"] }
+# The model and its provenance are pinned together (ADR 0018).
+harper-brill = "=2.8.0"
 # `pdf` is the surface Export writes a file on and `v1_16` what puts the
 # document metadata and the heading bookmarks on it (`docs/architecture.md`
 # § Preview and Export); the app crate reaches the same crate through `gtk`.

@@ -65,7 +65,7 @@ An Annotator turns a byte range of the Document into spans, each `(byte range, m
 Markup (from the parser: which bytes are Markup, which are heading, emphasis, strong, code, link,
 quote, list marker), Live (from the Markup spans and the caret: which marker bytes are folded away,
 which bytes are a heading's and at what level, and what furniture stands in a folded marker's
-cells), Syntax highlight (a UPOS tag per word), Style check (a list name per match) and
+cells), Syntax highlight (Category spans, one byte range per coloured word), Style check (a list name per match) and
 Spell check (a misspelling per word, suggestions fetched on demand). Syntax highlight, Style check and
 Spell check consume the **prose stream**: the parser's `Text` events with Markup, code spans, fenced
 code, URLs and front matter removed. They never see a `#` or a `*`.
@@ -324,10 +324,11 @@ window twice, and a bench at 1440×900 is not a writer resizing anything.
 
 `PKGBUILD` builds the workspace with `cargo build --release --locked` from the working tree
 (`cargo fetch` in `prepare`, so `makepkg` needs the network only there), `arch=('x86_64')`,
-`license=('GPL-3.0-or-later' 'OFL-1.1')`, `depends=('gtk4' 'enchant' 'hicolor-icon-theme')`,
+`license=('GPL-3.0-or-later' 'OFL-1.1' 'Apache-2.0')`, `depends=('gtk4' 'enchant' 'hicolor-icon-theme')`,
 `makedepends=('cargo')`, `optdepends=('hunspell-en_us: English spell checking')`. It installs the
 binary as `/usr/bin/quill`, data under `/usr/share/quill/`, the `.desktop` file and icon under the
-application id, `fonts/OFL.txt` beside the fonts and under `/usr/share/licenses/quill/`. With no
+application id, `fonts/OFL.txt` beside the fonts and under `/usr/share/licenses/quill/`, and
+Harper's Apache-2.0 text in that licence directory ([ADR 0018](adr/0018-harper-tagger-provenance.md)). With no
 dictionary installed, Spell check shows a "no dictionary" state rather than failing.
 
 Flatpak comes later (the map's fog) and this design keeps it cheap: fonts are private, enchant and
