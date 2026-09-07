@@ -169,7 +169,8 @@ it is not being typed in), `chrome` (shown/hidden), `spell_check` (on/off, defau
 and `spell_language`, `[syntax_highlight]` (a table: `enabled` is the master, and the five category
 toggles sit beside it), `[style_check]` (the same shape, one toggle per list beside `enabled`),
 a `[template]` table (`name`, one of the five Templates, default `modern`; and `center_headings`,
-default true, `number_headings` and `indent_paragraphs`, the three toggles that bend one), a
+default true, the sole heading-alignment input under every Template: on centres, off ranges left;
+`number_headings` and `indent_paragraphs`, the other two toggles that bend one), a
 `[preview]` table (`layout`, split or full; `mode`, web or pdf, default web, which of the pane's two
 modes it draws; and `zoom`, a whole percentage from 50 to 200, default 100; a scalar `template` or
 `preview_layout`, which is how each was written before it was a table, is read as its table's value
