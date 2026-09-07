@@ -25,7 +25,7 @@ The text surface where a Document is written. Renders markup styling inline with
 _Avoid_: text view, canvas
 
 **Markup**:
-The Markdown syntax characters themselves (`#`, `*`, `[`), styled dimmer than prose so they read as structure, not content.
+The Markdown syntax characters themselves (`#`, `*`, `[`), drawn in the body's own ink; Live folds them off every block but the caret's.
 
 **Focus**:
 Mode that dims everything except the current sentence or paragraph; its scope is Sentence or Paragraph. Independent of Typewriter.
@@ -89,8 +89,12 @@ A key chord bound to a Command; every Command's is rebindable by the writer.
 _Avoid_: accelerator (GTK's term), hotkey, keybinding
 
 **Annotator**:
-Anything that marks spans of a Document's prose for the Editor to style: Markup, Syntax highlight, Style check and Spell check are the four. An Annotator sees the prose stream, never the Markup characters.
+Anything that marks spans of a Document for the Editor to style: Markup, Live, Syntax highlight, Style check and Spell check are the five. The last three see the prose stream, never the Markup characters.
 _Avoid_: highlighter, linter, decorator
+
+**Category**:
+One of the five parts of speech Syntax highlight colours, each behind its own toggle: Nouns, Verbs, Adjectives, Adverbs, Conjunctions. Syntax highlight is the master toggle over all five; the two are separate state.
+_Avoid_: part-of-speech class, tag (that is the tagger's output, of which a Category groups several)
 
 **Well**:
 The ground a code block is drawn on, run past both edges of the measure so the block reads as sunk into the page rather than as a stripe the width of the prose. A code span has the same ground without being a Well: it is padded, not sunk.
