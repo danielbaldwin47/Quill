@@ -761,8 +761,7 @@ impl Preview {
 pub struct Template {
     /// Which Template.
     pub name: TemplateName,
-    /// Whether every heading is centred rather than set as the Template has
-    /// it.
+    /// Whether every heading is centred rather than ranged left.
     pub center_headings: bool,
     /// Whether the headings under the title are numbered `1`, `1.1`, `1.1.1`.
     pub number_headings: bool,

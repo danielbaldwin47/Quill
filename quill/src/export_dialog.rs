@@ -517,6 +517,9 @@ pub(crate) fn open_expanded(window: &Window, format: Format) {
 /// What [`open`] and [`open_expanded`] both are: one dialog, and the flag the
 /// harness sets is the only difference between them.
 fn present(window: &Window, format: Format, expanded: bool) {
+    if window.present_export_dialog() {
+        return;
+    }
     let Some(session) = window.session() else {
         return;
     };
@@ -528,11 +531,12 @@ fn present(window: &Window, format: Format, expanded: bool) {
     let dialog = gtk::Window::builder()
         .title(format.title())
         .transient_for(window)
-        .modal(true)
+        .modal(false)
         .destroy_with_parent(true)
         .resizable(false)
         .default_width(DIALOG_WIDTH)
         .build();
+    window.hold_export_dialog(&dialog);
     let column = gtk::Box::new(gtk::Orientation::Vertical, PAD);
     column.set_margin_top(PAD);
     column.set_margin_bottom(PAD);
@@ -586,22 +590,24 @@ fn present(window: &Window, format: Format, expanded: bool) {
             move |chosen: Chosen| window.move_dialog_preview(&chosen.previewed(mode))
         ));
     }
-    if let Some((_, before)) = driven {
-        // The one hook for all three ways out — Escape, the window manager's
-        // button, and the close the Export button makes once the file is
-        // written (through the overwrite confirm or not) — because every one
-        // of them is [`gtk::prelude::GtkWindowExt::close`].
-        dialog.connect_close_request(glib::clone!(
-            #[weak]
-            window,
-            #[upgrade_or]
-            glib::Propagation::Proceed,
-            move |_| {
+    // The one hook for all three ways out — Escape, the window manager's
+    // button, and the close the Export button makes once the file is written
+    // (through the overwrite confirm or not) — because every one of them is
+    // [`gtk::prelude::GtkWindowExt::close`]. It also clears Markdown's
+    // standing-dialog guard, though Markdown never drives the pane.
+    dialog.connect_close_request(glib::clone!(
+        #[weak]
+        window,
+        #[upgrade_or]
+        glib::Propagation::Proceed,
+        move |_| {
+            if let Some((_, before)) = driven {
                 window.drop_dialog_preview(before);
-                glib::Propagation::Proceed
             }
-        ));
-    }
+            window.release_export_dialog();
+            glib::Propagation::Proceed
+        }
+    ));
 
     let go = gtk::Button::builder()
         .label(EXPORT)
