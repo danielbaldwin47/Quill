@@ -11,6 +11,7 @@ publish.workspace = true
 # No `gtk` here, ever: the engine/UI boundary is held by Cargo rather than by
 # convention (ADR 0008), and `tests/boundary.rs` fails the build if it slips.
 [dependencies]
+harper-brill.workspace = true
 cairo-rs.workspace = true
 notify.workspace = true
 notify-debouncer-mini.workspace = true

@@ -1,0 +1,33 @@
+# Transcribed visually from the two named stills, 2026-09-07 (#311).
+# Enabled lists name the five Category colours: nouns red, verbs blue,
+# adjectives brown, adverbs purple, conjunctions green. Each coloured entry
+# is one token in reading order, including repeats and contraction suffixes.
+
+[[passage]]
+still = "ref/ia/shots/ianet-mac-light-syntax-highlight.png"
+text = "Trim and tighten: You can employ Syntax Highlight, which helps you spot weak verbs, unwanted repetitions, and eliminate clutter. Together with Style Check, it'll make you a more persuasive writer."
+enabled = ["blue", "brown", "purple", "green"]
+coloured = [
+  ["Trim", "blue"], ["and", "green"], ["tighten", "blue"],
+  ["can", "blue"], ["employ", "blue"], ["helps", "blue"],
+  ["spot", "blue"], ["weak", "brown"], ["unwanted", "brown"],
+  ["and", "green"], ["eliminate", "blue"], ["Together", "purple"],
+  ["'ll", "blue"], ["make", "blue"], ["more", "purple"],
+  ["persuasive", "brown"],
+]
+
+[[passage]]
+still = "ref/ia/shots/appstore-mac-03-dark-syntax-highlight.png"
+# The editor passage, excluding the marketing headline. Markdown emphasis
+# markers around never are removed because this seam receives prose.
+# Nouns are plain here too (fall, end, centre, earth). There is no conjunction
+# to establish its switch, so only the three visibly active colours are scored.
+# actually is visibly plain despite purple adverbs; preserve that discrepancy.
+text = "Down, down, down. Would the fall never come to an end? “I must actually be getting somewhere near the so-called centre of the earth"
+enabled = ["blue", "brown", "purple"]
+coloured = [
+  ["Down", "purple"], ["down", "purple"], ["down", "purple"],
+  ["Would", "blue"], ["never", "purple"], ["come", "blue"],
+  ["must", "blue"], ["be", "blue"], ["getting", "blue"],
+  ["somewhere", "purple"], ["so-called", "brown"],
+]
