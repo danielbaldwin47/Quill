@@ -41,7 +41,8 @@ use std::path::{Path, PathBuf};
 use quill_engine::commands;
 use quill_engine::settings::{
     Choice, Chrome, Export, Face, FocusScope, Paper, Preview, PreviewLayout, PreviewMode, Settings,
-    Template as TemplateSettings, TemplateName, WindowState, preview_zooms, window_sizes,
+    SyntaxHighlight, Template as TemplateSettings, TemplateName, WindowState, preview_zooms,
+    window_sizes,
 };
 use quill_engine::theme::Scheme;
 use quill_engine::typography;
@@ -62,6 +63,8 @@ Judged state — the states the Gate shoots and benches at:
                          Turn Focus off, or on at a scope.
   --typewriter           Turn Typewriter on.
   --live                 Turn Live on: the markup rendered in place.
+  --syntax off|on|nouns,verbs,adjectives,adverbs,conjunctions
+                         Pin Syntax highlight off, all on, or to named Categories.
   --chrome on|off        Show or hide the bars around the Editor.
   --caret <offset>|end   Put the caret at a byte offset, or at the end.
   --select <from>,<to>   Select from one byte offset to another.
@@ -226,6 +229,8 @@ pub struct Flags {
     pub typewriter: bool,
     /// Whether `--live` turned Live on.
     pub live: bool,
+    /// The whole Syntax highlight table pinned by `--syntax`.
+    pub syntax: Option<SyntaxHighlight>,
     /// What `--chrome` asks of the bars around the Editor.
     pub chrome: Option<Chrome>,
     /// Where `--caret` puts the caret.
@@ -345,6 +350,7 @@ impl Flags {
                 "--focus" => flags.focus = Some(one_of(flag, &text(&mut args, flag)?, &FOCUSES)?),
                 "--typewriter" => flags.typewriter = true,
                 "--live" => flags.live = true,
+                "--syntax" => flags.syntax = Some(syntax(flag, &text(&mut args, flag)?)?),
                 "--chrome" => flags.chrome = Some(one_of(flag, &text(&mut args, flag)?, &CHROMES)?),
                 "--caret" => flags.caret = Some(caret(flag, &text(&mut args, flag)?)?),
                 "--select" => flags.select = Some(select(flag, &text(&mut args, flag)?)?),
@@ -464,6 +470,12 @@ impl Flags {
             settings.live = true;
         } else if self.deterministic {
             settings.live = false;
+        }
+        // Pin the whole table, so the writer's Category choices reach no shot.
+        if let Some(syntax) = &self.syntax {
+            settings.syntax_highlight = syntax.clone();
+        } else if self.deterministic {
+            settings.syntax_highlight = SyntaxHighlight::default();
         }
         if let Some(chrome) = self.chrome {
             settings.chrome = chrome;
@@ -609,6 +621,40 @@ fn choice<C: Choice>(flag: &str, written: &str) -> Result<C, Error> {
     C::parse(written).ok_or_else(|| not(flag, written, &format!("one of {}", C::VALUES.join(", "))))
 }
 
+/// Pins every Category as well as the master switch, including for `off`.
+fn syntax(flag: &str, written: &str) -> Result<SyntaxHighlight, Error> {
+    let mut syntax = SyntaxHighlight::default();
+    if written == "off" {
+        return Ok(syntax);
+    }
+    syntax.enabled = true;
+    if written == "on" {
+        return Ok(syntax);
+    }
+    syntax.nouns = false;
+    syntax.verbs = false;
+    syntax.adjectives = false;
+    syntax.adverbs = false;
+    syntax.conjunctions = false;
+    for category in written.split(',') {
+        match category {
+            "nouns" => syntax.nouns = true,
+            "verbs" => syntax.verbs = true,
+            "adjectives" => syntax.adjectives = true,
+            "adverbs" => syntax.adverbs = true,
+            "conjunctions" => syntax.conjunctions = true,
+            _ => {
+                return Err(not(
+                    flag,
+                    written,
+                    "off, on, or comma-separated nouns, verbs, adjectives, adverbs, conjunctions",
+                ));
+            }
+        }
+    }
+    Ok(syntax)
+}
+
 /// One of the values a flag takes, by the name it is written under.
 fn one_of<T: Copy>(flag: &str, written: &str, values: &[(&str, T)]) -> Result<T, Error> {
     values
@@ -672,7 +718,7 @@ mod tests {
 
     /// Every flag `docs/architecture.md` names, with a value it takes and —
     /// where it has a domain — one it does not.
-    const FLAGS: [(&str, &str, Option<&str>); 26] = [
+    const FLAGS: [(&str, &str, Option<&str>); 27] = [
         ("--text", "ref/sample.md", None),
         ("--theme", "dark", Some("purple")),
         ("--font", "mono", Some("comic")),
@@ -680,6 +726,7 @@ mod tests {
         ("--focus", "paragraph", Some("all")),
         ("--typewriter", "", None),
         ("--live", "", None),
+        ("--syntax", "nouns,adverbs", Some("pronouns")),
         // The file says shown and hidden; the flag says on and off.
         ("--chrome", "off", Some("shown")),
         ("--caret", "end", Some("middle")),
@@ -815,7 +862,7 @@ mod tests {
 
     #[test]
     fn a_flag_with_nothing_after_it_says_what_is_missing() {
-        for flag in ["--text", "--theme", "--step", "--measure"] {
+        for flag in ["--text", "--theme", "--step", "--measure", "--syntax"] {
             let err = parse(flag).expect_err("nothing follows it");
             assert_eq!(err.to_string(), format!("{flag}: needs a value after it"));
         }
@@ -937,6 +984,52 @@ mod tests {
             .expect("two flags")
             .over(writers);
         assert!(asked.live);
+    }
+
+    #[test]
+    fn syntax_pins_the_whole_table_over_the_writers_choices() {
+        let mut writers = Settings::default();
+        writers.syntax_highlight.enabled = true;
+        writers.syntax_highlight.nouns = false;
+        writers.syntax_highlight.adverbs = false;
+        assert_eq!(parse("").unwrap().over(writers.clone()), writers);
+        for flags in ["--syntax off", "--deterministic"] {
+            assert_eq!(
+                parse(flags).unwrap().over(writers.clone()).syntax_highlight,
+                SyntaxHighlight::default()
+            );
+        }
+        let mut all = SyntaxHighlight::default();
+        all.enabled = true;
+        assert_eq!(
+            parse("--syntax on")
+                .unwrap()
+                .over(writers.clone())
+                .syntax_highlight,
+            all
+        );
+        assert_eq!(
+            parse("--syntax nouns,verbs,adjectives,adverbs,conjunctions")
+                .unwrap()
+                .over(writers.clone())
+                .syntax_highlight,
+            all
+        );
+        all.verbs = false;
+        all.adjectives = false;
+        all.conjunctions = false;
+        assert_eq!(
+            parse("--deterministic --syntax nouns,adverbs")
+                .unwrap()
+                .over(writers)
+                .syntax_highlight,
+            all
+        );
+        for bad in ["nouns,", ",adverbs", "on,nouns", "nouns,pronouns"] {
+            let error = parse(&format!("--syntax {bad}")).unwrap_err().to_string();
+            assert!(error.starts_with("--syntax: "));
+            assert!(!error.contains('\n'));
+        }
     }
 
     /// The fixture is the whole of the Library for a judged launch: the one

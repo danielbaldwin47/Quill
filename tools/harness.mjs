@@ -185,6 +185,7 @@ export function quillArgv(root, flags, { live = false } = {}) {
   // `flags.live` is the app's Live mode and has nothing to do with this function's own `live`
   // option above, which is `tools/gate keys` asking for a launch that is not `--deterministic`.
   if (flags.live) argv.push('--live');
+  if (flags.syntax) argv.push('--syntax', flags.syntax);
   if (flags.nocaret) argv.push('--nocaret');
   // The two chrome states the bars alone do not reach: `--typing` is the chrome stepped back, and
   // `--menu` is one popover open with its first row selected. Both are states the app is put in
