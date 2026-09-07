@@ -26,9 +26,12 @@ use std::rc::Rc;
 use gtk::prelude::*;
 use gtk::{gio, glib};
 
-use quill_engine::settings::{Paper, Settings, Theme, export_margins, export_text_sizes};
+use quill_engine::settings::{
+    Paper, PreviewMode, Settings, Theme, export_margins, export_text_sizes,
+};
 use quill_engine::theme::Scheme;
 
+use crate::choices;
 use crate::export_dialog::{paper_at, paper_drop_down};
 use crate::session::{Session, TemplateToggle};
 
@@ -43,6 +46,15 @@ const ANCHOR_HIGH: f64 = 0.8;
 const ANCHOR_STEP: f64 = 0.01;
 /// How many digits of the anchor the scale writes beside itself.
 const ANCHOR_DIGITS: i32 = 2;
+
+/// The Mode row's two rows: the mode, and what View › Panes calls it, so one
+/// name for each of them.
+///
+/// The value beside the words as [`crate::export_dialog`]'s paper table has
+/// them, so that the row a mode stands on is never a second thing to keep in
+/// step ([`choices`]).
+const PREVIEW_MODES: [(PreviewMode, &str); 2] =
+    [(PreviewMode::Web, "Web"), (PreviewMode::Pdf, "PDF")];
 
 /// What the Spell-check row says for as long as the Spell check spec has not
 /// landed.
@@ -160,26 +172,40 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
         &switch(session, library.ask_where_to_save, asked_where_to_save),
     );
 
+    // The Preview pane's own group: the mode View › Panes' two rows write,
+    // which is the pane's and not one window's
+    // ([`crate::window::Window::set_preview_mode`]). The three groups below
+    // the Library's rows each carry a heading, so the window reads as groups
+    // rather than as one flat list of twenty rows.
+    group_heading(&grid, 9, "Preview");
+    row(
+        &grid,
+        10,
+        "Mode",
+        &preview_modes(session, session.preview_mode()),
+    );
+
     // The Template's three toggles, the same keys View › Template's checks
     // flip: a row moved here is the file moving every open pane
     // ([`crate::window::reapply`]), and a check flipped there is the file
     // moving this row the next time the window is opened (#263).
     let template = session.template().clone();
+    group_heading(&grid, 11, "Template");
     row(
         &grid,
-        9,
+        12,
         "Center headings",
         &switch(session, template.center_headings, centered_headings),
     );
     row(
         &grid,
-        10,
+        13,
         "Number headings",
         &switch(session, template.number_headings, numbered_headings),
     );
     row(
         &grid,
-        11,
+        14,
         "Indent paragraphs",
         &switch(session, template.indent_paragraphs, indented_paragraphs),
     );
@@ -190,16 +216,17 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
     // and neither writes anything back — so this group and Save as defaults
     // are the two ways a default moves.
     let export = session.settings().export.clone();
-    row(&grid, 12, "Paper", &export_papers(session, export.paper));
+    group_heading(&grid, 15, "Export");
+    row(&grid, 16, "Paper", &export_papers(session, export.paper));
     row(
         &grid,
-        13,
+        17,
         "Margin (mm)",
         &export_spin(session, export.margin, &export_margins(), export_margin),
     );
     row(
         &grid,
-        14,
+        18,
         "Text size (pt)",
         &export_spin(
             session,
@@ -210,19 +237,19 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
     );
     row(
         &grid,
-        15,
+        19,
         "Title page",
         &switch(session, export.title_page, export_title_page),
     );
     row(
         &grid,
-        16,
+        20,
         "Header",
         &switch(session, export.header, export_header),
     );
     row(
         &grid,
-        17,
+        21,
         "Footer",
         &switch(session, export.footer, export_footer),
     );
@@ -237,7 +264,7 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
         session,
         move |_| edit(session.settings_path(), launch.as_ref())
     ));
-    row(&grid, 18, "Keyboard shortcuts", &button);
+    row(&grid, 22, "Keyboard shortcuts", &button);
 
     if let Some(said) = refused(&session.unapplied()) {
         let label = gtk::Label::builder()
@@ -245,10 +272,30 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
             .halign(gtk::Align::Start)
             .wrap(true)
             .build();
-        grid.attach(&label, 0, 19, 2, 1);
+        grid.attach(&label, 0, 23, 2, 1);
     }
 
     window.present();
+}
+
+/// A group's heading, across both columns: the label in bold with a row's air
+/// above it, so the rows under it read as one group.
+///
+/// Bold by a Pango attribute rather than a CSS class: Quill's own stylesheet
+/// dresses the chrome by the `chrome-*` classes its widgets carry
+/// ([`crate::editor::install_type`] holds the provider), and this grid carries none
+/// of them, so a class named here would style nothing and leave the heading
+/// looking like a row.
+fn group_heading(grid: &gtk::Grid, at: i32, said: &str) {
+    let bold = gtk::pango::AttrList::new();
+    bold.insert(gtk::pango::AttrInt::new_weight(gtk::pango::Weight::Bold));
+    let label = gtk::Label::builder()
+        .label(said)
+        .halign(gtk::Align::Start)
+        .margin_top(ROW_GAP)
+        .attributes(&bold)
+        .build();
+    grid.attach(&label, 0, at, 2, 1);
 }
 
 /// One row of the grid: its label in the first column, its control in the
@@ -292,6 +339,31 @@ fn switch(session: &Rc<Session>, on: bool, write: fn(&mut Settings, bool)) -> gt
         }
     ));
     switch
+}
+
+/// The Mode dropdown of the Preview group, standing on `mode` before its
+/// handler is connected so that opening the window is not a write.
+///
+/// The mode is one setting for the app, so the row is the same key View ›
+/// Panes' two rows write and the check there reads back what is picked here,
+/// once the file is applied (#299).
+fn preview_modes(session: &Rc<Session>, mode: PreviewMode) -> gtk::DropDown {
+    let modes = choices::drop_down(&PREVIEW_MODES, mode);
+    modes.set_halign(gtk::Align::End);
+    modes.connect_selected_notify(glib::clone!(
+        #[strong]
+        session,
+        move |modes| {
+            let mode = choices::at(&PREVIEW_MODES, modes.selected());
+            session.edit_settings(|settings| preview_mode(settings, mode));
+        }
+    ));
+    modes
+}
+
+/// What the Mode row writes.
+fn preview_mode(settings: &mut Settings, mode: PreviewMode) {
+    settings.preview.mode = mode;
 }
 
 /// The paper dropdown of the Export group, over the rows the Export dialog
@@ -579,7 +651,7 @@ fn launcher() -> Box<Launch> {
 
 #[cfg(test)]
 mod tests {
-    use quill_engine::settings::{Chrome, TemplateName};
+    use quill_engine::settings::{Choice, Chrome, TemplateName};
     use quill_engine::shortcuts::Refusal;
 
     use super::*;
@@ -761,6 +833,39 @@ mod tests {
                     );
                 }
             }
+        }
+        std::fs::remove_file(&path).ok();
+    }
+
+    /// The Mode row writes `[preview] mode` and nothing else, the dropdown's
+    /// rows and the setting's values line up, and the value it wrote is the
+    /// one View › Panes' check reads back once the file is applied — one
+    /// setting under both (#299).
+    #[test]
+    fn the_preview_mode_row_writes_its_key_and_the_menus_check_reads_it_back() {
+        let (session, path) = launched("preview-mode-row");
+        assert_eq!(
+            PREVIEW_MODES.map(|(mode, _)| mode.as_str()).as_slice(),
+            PreviewMode::VALUES,
+            "a labelled row for every mode the setting takes, in its own order"
+        );
+        let before = session.running().preview;
+        for mode in [PreviewMode::Pdf, PreviewMode::Web] {
+            let written = wrote(&session, &path, |settings| preview_mode(settings, mode));
+            assert_eq!(written.preview.mode, mode, "the row wrote its key");
+            assert_eq!(
+                (written.preview.layout, written.preview.zoom),
+                (before.layout, before.zoom),
+                "and left the rest of [preview] alone"
+            );
+            assert_eq!(
+                session.preview_mode(),
+                mode,
+                "and the menu's check reads it back"
+            );
+            let text = std::fs::read_to_string(&path).unwrap();
+            let said = format!("mode = \"{}\"", mode.as_str());
+            assert!(text.contains(&said), "the file says {said}:\n{text}");
         }
         std::fs::remove_file(&path).ok();
     }

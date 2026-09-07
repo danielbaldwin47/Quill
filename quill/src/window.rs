@@ -29,7 +29,9 @@ use quill_engine::commands;
 use quill_engine::disk::{Filed, Kept, Line, Noticed, OnDisk, Saved, first_save_name};
 use quill_engine::document::{Document, full_name};
 use quill_engine::focus::Focus;
-use quill_engine::settings::{Chrome, PreviewLayout, WindowState, library_width};
+use quill_engine::settings::{
+    Chrome, PreviewLayout, PreviewMode, Settings, WindowState, library_width,
+};
 use quill_engine::sync;
 
 use crate::caret;
@@ -40,6 +42,7 @@ use crate::flags;
 use crate::ground::Ground;
 use crate::harness;
 use crate::menus;
+use crate::preview::DialogOverride;
 use crate::session::{Session, TemplateToggle};
 use crate::tags;
 
@@ -76,6 +79,29 @@ const DIALOG_WIDTH: i32 = 320;
 /// The dialog's inset, and the air around the field in it.
 const DIALOG_PAD: i32 = 12;
 
+/// The black laid over the Editor while a Preview-driving Export dialog
+/// stands in Split.
+///
+/// Hyprland's default modal dim is the source of this strength; moving it to
+/// the Editor preserves the old visual hierarchy while leaving the pane readable.
+const EXPORT_EDITOR_DIM: f64 = 0.5;
+
+/// The non-targetable black wash an Export dialog puts over the Editor.
+fn editor_scrim() -> gtk::DrawingArea {
+    let scrim = gtk::DrawingArea::builder()
+        .hexpand(true)
+        .vexpand(true)
+        .visible(false)
+        .can_target(false)
+        .build();
+    scrim.set_draw_func(|_, cr, width, height| {
+        cr.set_source_rgba(0.0, 0.0, 0.0, EXPORT_EDITOR_DIM);
+        cr.rectangle(0.0, 0.0, f64::from(width), f64::from(height));
+        let _ = cr.fill();
+    });
+    scrim
+}
+
 mod imp {
     use std::cell::{Cell, OnceCell, RefCell};
     use std::path::PathBuf;
@@ -86,8 +112,9 @@ mod imp {
     use gtk::{ScrolledWindow, glib};
     use quill_engine::disk::Filed;
     use quill_engine::document::Edit;
+    use quill_engine::settings::Settings;
 
-    use super::Follows;
+    use super::{DialogPreviewState, Follows};
     use crate::chrome::Bars;
     use crate::chrome::typing::Typing;
     use crate::editor::Editor;
@@ -134,6 +161,12 @@ mod imp {
         /// back, and because the sync ticket reads its vertical adjustment
         /// (#270).
         pub scroller: OnceCell<ScrolledWindow>,
+        /// The Editor's scroller with the Export-dialog scrim over it: the
+        /// left child of [`Window::pair`], hidden whole in Preview Full.
+        pub editor_frame: OnceCell<gtk::Overlay>,
+        /// The app-drawn dim over the Editor while an Export dialog drives a
+        /// Split pane. It takes no input.
+        pub editor_scrim: OnceCell<gtk::DrawingArea>,
         /// The Editor's scroller and the Preview side by side, between the
         /// bars: what the divider divides, and what divides itself evenly
         /// until a writer has dragged it.
@@ -145,6 +178,29 @@ mod imp {
         /// the Library's pane and, unlike it, never remembered: the pane is
         /// closed at every launch (#263).
         pub previewing: Cell<bool>,
+        /// Whether an Export dialog opened this window's pane and is holding it
+        /// in Split for as long as it stands.
+        ///
+        /// The window's own and not the session's: the layout is one value for
+        /// the app and a dialog never writes a setting, so a **Save as
+        /// defaults** pressed over a pane the dialog opened composes the file
+        /// with the layout the session had all along (#293 § The dialogs drive
+        /// the pane).
+        pub dialog_split: Cell<bool>,
+        /// What **Save as defaults** wrote while an Export dialog stood over
+        /// this window's pane, so the close lays the pane out at what was saved
+        /// in one step.
+        ///
+        /// The written file reaches [`Session::running`] only when the watch
+        /// reads it back, which is after the close; this is the same settings
+        /// the write composed ([`Session::edit_settings`]), kept for the drop
+        /// and dropped with it.
+        pub dialog_saved: RefCell<Option<Settings>>,
+        /// The lifecycle state that answers whether the Editor scrim is shown.
+        pub(super) dialog_preview: RefCell<DialogPreviewState>,
+        /// The one Export dialog standing over this window, so a second
+        /// command presents it instead of opening another.
+        pub export_dialog: RefCell<Option<glib::WeakRef<gtk::Window>>>,
         /// The one Preview refresh timer, armed by the first edit of a burst
         /// and re-armed by every edit after it, so the render pass runs once
         /// when the writer stops rather than once per keystroke.
@@ -208,7 +264,11 @@ mod imp {
             // beside it, so the title bar and the stats bar are the window's
             // and not one pane's (`ref/ia/mac-native/NOTES.md` § State 16).
             let pair = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-            pair.append(&scroller);
+            let editor_frame = gtk::Overlay::new();
+            editor_frame.set_child(Some(&scroller));
+            let scrim = super::editor_scrim();
+            editor_frame.add_overlay(&scrim);
+            pair.append(&editor_frame);
             pair.append(self.preview.widget());
             let column = gtk::Box::new(gtk::Orientation::Vertical, 0);
             column.append(self.bars.top());
@@ -216,6 +276,8 @@ mod imp {
             column.append(self.bars.bottom());
             self.bars.follow(&scroller);
             let _ = self.scroller.set(scroller.clone());
+            let _ = self.editor_frame.set(editor_frame);
+            let _ = self.editor_scrim.set(scrim);
             let _ = self.pair.set(pair);
             // The Library stands left of that column and pushes it right
             // rather than covering it, which is the oracle's model: the page
@@ -1911,6 +1973,157 @@ impl Window {
         }
     }
 
+    /// Stands every window's Preview pane in `mode`, and writes the key.
+    ///
+    /// `docs/shortcuts.md`'s `preview.web` and `preview.pdf` rows, View ›
+    /// Panes' two mode rows and the Settings window's Mode row: one mode for
+    /// the app, as the Template is, and not a state a window is in.
+    ///
+    /// The write is the one path a setting takes
+    /// ([`Session::edit_settings`]), and the live value beside it is what
+    /// keeps the pane and the menu's check from waiting on the watch to read
+    /// that write back — the same pair a zoom step is
+    /// ([`Session::set_preview_zoom`]).
+    pub(crate) fn set_preview_mode(&self, mode: PreviewMode) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        if mode == session.preview_mode() {
+            return;
+        }
+        session.set_preview_mode(mode);
+        session.edit_settings(|settings| settings.preview.mode = mode);
+        let Some(app) = self.application() else {
+            return;
+        };
+        for window in windows(&app) {
+            // A pane that is not open lays nothing out; the mode is on it all
+            // the same, so opening it later opens it in this one.
+            window.imp().preview.set_mode(mode);
+            window.refresh_preview();
+            window.show_page_words();
+        }
+    }
+
+    /// Presents the Export dialog already standing over this window.
+    ///
+    /// Every Export command goes through this before building a dialog, so a
+    /// second chord or menu choice returns to the existing job.
+    pub(crate) fn present_export_dialog(&self) -> bool {
+        let standing = self
+            .imp()
+            .export_dialog
+            .borrow()
+            .as_ref()
+            .and_then(glib::WeakRef::upgrade);
+        if let Some(dialog) = standing {
+            dialog.present();
+            true
+        } else {
+            self.imp().export_dialog.replace(None);
+            false
+        }
+    }
+
+    /// Remembers the one Export dialog standing over this window.
+    pub(crate) fn hold_export_dialog(&self, dialog: &gtk::Window) {
+        self.imp().export_dialog.replace(Some(dialog.downgrade()));
+    }
+
+    /// Forgets the Export dialog as its one close hook runs.
+    pub(crate) fn release_export_dialog(&self) {
+        self.imp().export_dialog.replace(None);
+    }
+
+    /// Stands this window's Preview pane under an Export dialog that has just
+    /// opened: `over`'s mode and its Options' values, the pane opened in Split
+    /// where it was away, and not a line written to the settings file.
+    ///
+    /// The pane a dialog drives is this window's own. The mode and the values
+    /// it drives it with are the pane's own override
+    /// ([`crate::preview::Preview::set_dialog_override`]) rather than a
+    /// setting, so `[preview] mode` and `[export]` are what the close comes
+    /// back to. What was there before is answered here and handed back to
+    /// [`Window::drop_dialog_preview`], because a dialog is one job and
+    /// nothing about it outlives its window.
+    pub(crate) fn show_dialog_preview(&self, over: &DialogOverride) -> DialogPreviewBefore {
+        let imp = self.imp();
+        let before = DialogPreviewBefore {
+            open: imp.previewing.get(),
+        };
+        imp.dialog_preview.borrow_mut().open();
+        imp.preview.set_dialog_override(Some(over.clone()));
+        if !before.open {
+            // Split, whatever layout the pane was last opened in: a Full pane
+            // behind a dialog that had to open it would replace the Editor
+            // the job belongs to. This window's own Split and not the session's
+            // ([`imp::Window::dialog_split`]), because a dialog writes no
+            // setting and **Save as defaults** composes the file from what the
+            // session is running. The pane is opened here rather than through
+            // [`Window::show_preview`] because the keyboard belongs to the
+            // dialog, and because a pane opened by a dialog is put back by the
+            // close rather than remembered.
+            imp.dialog_split.set(true);
+            imp.previewing.set(true);
+        }
+        self.apply_preview();
+        self.refresh_preview();
+        before
+    }
+
+    /// Takes down what **Save as defaults** wrote while a dialog stands over
+    /// this window's pane, so that the close lays the pane out at it
+    /// ([`Window::drop_dialog_preview`]).
+    pub(crate) fn save_dialog_preview(&self, saved: Settings) {
+        self.imp().dialog_saved.replace(Some(saved));
+    }
+
+    /// Lays the pane out again at what an open dialog's Options now say.
+    ///
+    /// One call for every control on the widget, because there is one thing
+    /// any of them means ([`crate::export_dialog::Options::on_change`]).
+    pub(crate) fn move_dialog_preview(&self, over: &DialogOverride) {
+        self.imp().preview.set_dialog_override(Some(over.clone()));
+        self.refresh_preview();
+    }
+
+    /// Puts the pane back to what `before` says the dialog opened over: the
+    /// Options' values dropped, the pages re-laid at the `[export]` table that
+    /// now stands, and the pane hidden again where the dialog is what opened
+    /// it.
+    ///
+    /// **Save as defaults** wrote `[export]` before ever this runs, and what
+    /// the pane comes back to is what was saved: the write is the one path a
+    /// setting takes ([`Session::edit_settings`]), but the drain that reads the
+    /// file back has not run yet, so the settings the write composed are what
+    /// the drop lays out at ([`dropped_preview`]) rather than the running table
+    /// the write is still ahead of.
+    ///
+    /// The keyboard is left where the closing dialog puts it, which is this
+    /// window: a pane opened by a dialog never took it.
+    pub(crate) fn drop_dialog_preview(&self, before: DialogPreviewBefore) {
+        let imp = self.imp();
+        imp.dialog_preview.borrow_mut().close();
+        if let Some(scrim) = imp.editor_scrim.get() {
+            scrim.set_visible(false);
+        }
+        imp.preview.set_dialog_override(None);
+        imp.dialog_split.set(false);
+        let saved = imp.dialog_saved.take();
+        let Some(session) = self.session() else {
+            return;
+        };
+        let dropped = dropped_preview(before, &session.running(), saved);
+        imp.previewing.set(dropped.open);
+        self.apply_preview();
+        if dropped.open {
+            self.refresh_preview_at(&dropped.settings);
+        } else {
+            // The pane is away, so the page it stood over is not on the bar.
+            self.show_page_words();
+        }
+    }
+
     /// Opens the Preview pane or shuts it.
     ///
     /// Closing hands the keyboard back to the Editor, which is what Full took
@@ -1923,6 +2136,8 @@ impl Window {
             self.refresh_preview();
             self.focus_pane();
         } else {
+            // The pane is away, so the page it stood over is not on the bar.
+            self.show_page_words();
             self.focus_editor();
         }
     }
@@ -1963,12 +2178,19 @@ impl Window {
     fn apply_preview(&self) {
         let imp = self.imp();
         let shown = imp.previewing.get();
-        let split = self
-            .session()
-            .is_none_or(|session| session.preview_layout() == PreviewLayout::Split);
+        // A dialog that opened this window's pane holds it in Split without
+        // moving the session's layout ([`Window::show_dialog_preview`]).
+        let split = imp.dialog_split.get()
+            || self
+                .session()
+                .is_none_or(|session| session.preview_layout() == PreviewLayout::Split);
         imp.preview.set_shown(shown);
-        if let Some(scroller) = imp.scroller.get() {
-            scroller.set_visible(!shown || split);
+        if let Some(editor_frame) = imp.editor_frame.get() {
+            editor_frame.set_visible(!shown || split);
+        }
+        let dimmed = imp.dialog_preview.borrow_mut().apply(shown, split);
+        if let Some(scrim) = imp.editor_scrim.get() {
+            scrim.set_visible(dimmed);
         }
         let width = match self.session() {
             Some(session) if shown && split => crate::preview::pane_width(
@@ -2005,6 +2227,20 @@ impl Window {
     /// Template picked from the menu and a zoom stepped by a key are held live
     /// and written to the file, not read back out of it.
     pub(crate) fn refresh_preview(&self) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        self.refresh_preview_at(&session.running());
+    }
+
+    /// The same, laid out at `settings` rather than at what the session is
+    /// running.
+    ///
+    /// The one caller that needs the difference is the close of an Export
+    /// dialog whose **Save as defaults** was pressed: what it wrote is ahead of
+    /// the running table until the watch reads the file back
+    /// ([`Window::drop_dialog_preview`]).
+    fn refresh_preview_at(&self, settings: &Settings) {
         if !self.imp().previewing.get() {
             return;
         }
@@ -2014,14 +2250,33 @@ impl Window {
         let document = self.document();
         self.imp()
             .preview
-            .refresh(&document, &session.running(), session.ground().scheme);
+            .refresh(&document, settings, session.ground().scheme);
         drop(document);
+        self.show_page_words();
         // The page is a new page, so the scroll it had means nothing: the pane
         // is put back by whichever rule last placed it. For an edit that is the
         // caret's block, which is what the writer was looking at (#263
         // § Refresh); a wheel or a task box flipped by a press left the pane in
         // step with the Editor instead, and it stays there.
         self.refollow();
+    }
+
+    /// Puts the page under the column's top edge on the stats bar, and takes
+    /// the cell away where there is no page there: Web mode, and a pane that
+    /// is not open.
+    ///
+    /// Asked of the pane rather than worked out here, because which mode is
+    /// showing and where it stands are both the pane's
+    /// ([`crate::preview::Preview::page_words`]); the words themselves are the
+    /// engine's, as the counts beside them are.
+    pub(crate) fn show_page_words(&self) {
+        let imp = self.imp();
+        let words = imp
+            .previewing
+            .get()
+            .then(|| imp.preview.page_words())
+            .flatten();
+        imp.bars.set_page(words);
     }
 
     /// Puts the Preview back where the rule that last placed it says, after a
@@ -2216,14 +2471,25 @@ impl Window {
             self,
             move |adjustment| window.follow_editor(adjustment.value()),
         ));
-        self.imp()
-            .preview
-            .vadjustment()
-            .connect_value_changed(glib::clone!(
-                #[weak(rename_to = window)]
-                self,
-                move |adjustment| window.follow_preview_scroll(adjustment.value()),
-            ));
+        let preview = self.imp().preview.vadjustment();
+        preview.connect_value_changed(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |adjustment| {
+                // The page counts up with the scroll however the scroll was
+                // made, a sync's own included, so this is read before the
+                // guard [`Window::follow_preview_scroll`] keeps.
+                window.show_page_words();
+                window.follow_preview_scroll(adjustment.value());
+            },
+        ));
+        // A column laid out again is a new count of pages under an unmoved
+        // scroll, which `changed` says and `value-changed` does not.
+        preview.connect_changed(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |_| window.show_page_words(),
+        ));
     }
 
     /// Works Live's furniture out again for the rows a scroll or a resize
@@ -2798,6 +3064,91 @@ pub(crate) enum After {
     Export,
 }
 
+/// What the Preview pane was showing when an Export dialog opened over it,
+/// and so what closing the dialog puts back (#293 § The dialogs drive the
+/// pane).
+///
+/// Whether the pane was open at all is the window's own, as it always is, and
+/// it is the whole of this: the Split a dialog stands a hidden pane in is the
+/// window's too and goes with the dialog ([`imp::Window::dialog_split`]), so
+/// the session's layout was never moved and has nothing to put back. The mode
+/// and the geometry are not here either: those are the pane's override, dropped
+/// whole ([`crate::preview::DialogOverride`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct DialogPreviewBefore {
+    /// Whether this window's pane was open before the dialog opened.
+    open: bool,
+}
+
+/// Whether a Preview-driving Export dialog stands over the window, which is
+/// the one thing the Editor's scrim depends on beyond the pane's own layout.
+///
+/// Display-free so the dialog's open, layout, close and reopen transitions are
+/// held by one lifecycle test. [`DialogPreviewState::apply`] answers whether
+/// the scrim shows and the window puts that answer on the widget; nothing here
+/// reaches the settings file.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct DialogPreviewState {
+    /// Whether a PDF or HTML Export dialog currently drives the pane.
+    open: bool,
+}
+
+impl DialogPreviewState {
+    /// Starts one dialog's Preview override.
+    fn open(&mut self) {
+        self.open = true;
+    }
+
+    /// Whether the scrim covers the Editor under the pane's current
+    /// visibility and layout: while a dialog stands and the Editor half is on
+    /// screen beside a Split pane, and never in Full or with the pane away.
+    fn apply(&self, previewing: bool, split: bool) -> bool {
+        self.open && previewing && split
+    }
+
+    /// Ends the dialog, and with it the scrim.
+    fn close(&mut self) {
+        self.open = false;
+    }
+}
+
+/// What the Preview pane comes back to when an Export dialog closes over it.
+///
+/// Built by [`dropped_preview`] and applied by
+/// [`Window::drop_dialog_preview`]; a struct rather than a pair because the
+/// pane is put back in one move.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct DroppedPreview {
+    /// Whether the pane stays open: it does where it was open before the
+    /// dialog, and goes away where the dialog is what opened it.
+    open: bool,
+    /// The settings the pane lays its pages out at.
+    settings: Settings,
+}
+
+/// Where the Preview pane is left when an Export dialog closes: `before`'s pane,
+/// laid out at what was saved from the dialog, or at `running` where nothing
+/// was.
+///
+/// **Save as defaults** writes `[export]` before the close ever runs, and it
+/// writes it to the file: the running settings carry it only once the watch has
+/// read the file back, which is after this. So the settings that write composed
+/// are what the pane goes back to, and the pane lands on what was saved in one
+/// step rather than on the old table and then on the saved one (#293 § The
+/// dialogs drive the pane).
+///
+/// Display-free, so that both cases are one headless test.
+pub(crate) fn dropped_preview(
+    before: DialogPreviewBefore,
+    running: &Settings,
+    saved: Option<Settings>,
+) -> DroppedPreview {
+    DroppedPreview {
+        open: before.open,
+        settings: saved.unwrap_or_else(|| running.clone()),
+    }
+}
+
 /// Where the Preview pane stands once a Preview chord has been pressed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PreviewPane {
@@ -3293,6 +3644,87 @@ mod tests {
         assert_eq!(
             next_preview_pane(true, PreviewLayout::Split, PreviewLayout::Split),
             PreviewPane::Closed
+        );
+    }
+
+    /// The close of an Export dialog leaves the pane as it found it, laid out
+    /// at the `[export]` table that stands once the dialog has gone: the one
+    /// **Save as defaults** wrote where it was pressed, and the running one
+    /// where it was not.
+    ///
+    /// The written table and not the running one, because the write reaches
+    /// [`Session::running`] only when the watch reads the file back, which is
+    /// after the close (#293 § The dialogs drive the pane).
+    #[test]
+    fn the_drop_lays_the_pane_out_at_what_save_as_defaults_wrote_and_at_the_table_otherwise() {
+        use quill_engine::settings::Paper;
+
+        // The table the dialog opened over: what the writer's file holds.
+        let mut running = Settings::default();
+        running.export.paper = Paper::Legal;
+        running.export.text_size = 12;
+
+        // Nothing saved: the pane goes back to that table, and stays open
+        // because it was open before the dialog.
+        let over_an_open_pane = DialogPreviewBefore { open: true };
+        let dropped = dropped_preview(over_an_open_pane, &running, None);
+        assert!(dropped.open, "a pane the dialog found open stays open");
+        assert_eq!(
+            dropped.settings.export, running.export,
+            "the Options' values are dropped and the file's table is what is left"
+        );
+
+        // Save as defaults pressed: the pane goes back to what it wrote, in
+        // one step, though the running settings are still the old table.
+        let mut saved = running.clone();
+        saved.export.paper = Paper::Letter;
+        saved.export.text_size = 14;
+        let dropped = dropped_preview(over_an_open_pane, &running, Some(saved.clone()));
+        assert_eq!(
+            dropped.settings.export, saved.export,
+            "what was saved is what the pane comes back to"
+        );
+        assert_ne!(
+            dropped.settings.export, running.export,
+            "and not the table the running settings still hold"
+        );
+
+        // A pane the dialog itself opened goes away again, whatever was saved.
+        let dropped = dropped_preview(DialogPreviewBefore { open: false }, &running, Some(saved));
+        assert!(
+            !dropped.open,
+            "a pane the dialog opened is hidden again by the close"
+        );
+    }
+
+    #[test]
+    fn a_dialog_dims_only_the_editor_in_split_through_close_and_reopen() {
+        let mut dialog = DialogPreviewState::default();
+        assert!(
+            !dialog.apply(false, true),
+            "no dialog leaves the Editor clear"
+        );
+
+        dialog.open();
+        assert!(dialog.apply(true, true), "Split dims the Editor");
+        assert!(!dialog.apply(true, false), "Full leaves the Editor clear");
+        assert!(
+            dialog.apply(true, true),
+            "returning to Split restores the dim"
+        );
+
+        dialog.close();
+        assert!(!dialog.apply(true, true), "every close takes the dim down");
+
+        dialog.open();
+        assert!(
+            dialog.apply(true, true),
+            "a later dialog can dim Split again"
+        );
+        dialog.close();
+        assert!(
+            !dialog.apply(false, true),
+            "closing over a hidden pane stays clear"
         );
     }
 }

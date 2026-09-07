@@ -33,6 +33,7 @@ use crate::document::Document;
 use crate::draw;
 use crate::render;
 use crate::settings::{Export, preview_zooms};
+use crate::sync;
 use crate::template::Template;
 
 /// The resolution a page is measured at: one Pango pixel, one point.
@@ -463,6 +464,87 @@ pub fn pages(rendered: &render::Page, frame: &Frame, wording: &Wording) -> Vec<P
     pages
 }
 
+/// The page `block` opens on, counting from 1 as a PDF does, and its top edge
+/// there.
+///
+/// `block` is a [`Fragment::block`]: the index into
+/// [`crate::render::Page::blocks`], which is what
+/// [`crate::outline::Heading::block`] carries too, and not the Document block
+/// index [`crate::sync::Block::key`] holds.
+///
+/// The number is the **physical** page — the title page counted as page 1, as a
+/// PDF reader counts and as [`page_words`] takes — rather than [`Page::number`],
+/// which leaves the title page unnumbered. The PDF writer's bookmarks are built
+/// on it ([`crate::pdf::write`]).
+///
+/// `None` when no page carries it, which a page list cut from another rendered
+/// page is the only way to reach.
+#[must_use]
+pub fn opens_on(pages: &[Page], block: usize) -> Option<(usize, f64)> {
+    pages.iter().enumerate().find_map(|(at, page)| {
+        let fragment = page
+            .fragments
+            .iter()
+            .find(|fragment| fragment.block == block)?;
+        Some((at + 1, fragment.y))
+    })
+}
+
+/// What the stats bar says while the physical page `at` stands under the
+/// column's top edge, and `None` when `at` names no page.
+///
+/// `at` counts the title page as page 1, which is what [`opens_on`] answers.
+/// The words count as the footer counts ([`Page::number`]): the title page is
+/// unnumbered and says so, and a body page is `Page N of M` over the numbered
+/// pages alone, so a one-page Document is `Page 1 of 1`.
+#[must_use]
+pub fn page_words(pages: &[Page], at: usize) -> Option<String> {
+    let page = pages.get(at.checked_sub(1)?)?;
+    let Some(number) = page.number else {
+        return Some("Title page".to_string());
+    };
+    let count = pages.iter().filter(|page| page.number.is_some()).count();
+    Some(format!("Page {number} of {count}"))
+}
+
+/// The Document's blocks as the page column stands them, for the sync rules.
+///
+/// The pages are stacked in one scroll, `gap` points of surround between them
+/// and the whole column drawn at `scale`, so page `i`'s top edge stands at `i *
+/// (the paper's height + gap) * scale`. Each answer is one
+/// [`crate::sync::Block`] per Document block, keyed by
+/// [`crate::render::Block::key`] as the Preview sheet's blocks are, so
+/// [`crate::sync::follow_top_block`] and [`crate::sync::follow_caret`] take the
+/// column and the sheet the same way — and the reverse, a column offset naming
+/// the block under it, is those same rules read the other way round rather than
+/// a fourth one.
+///
+/// A block the cut split across a page break is still one block: it stands from
+/// its first fragment's top edge to its last fragment's bottom, the gap between
+/// the pages included, because the sync rules take a block as one range.
+///
+/// One walk of the pages' fragments, which is linear in the Document's blocks;
+/// nothing here runs on the keystroke lane.
+#[must_use]
+pub fn column_blocks(laid: &Laid, gap: f64, scale: f64) -> Vec<sync::Block> {
+    let pitch = (laid.frame.paper.height + gap) * scale;
+    let mut blocks: Vec<sync::Block> = Vec::new();
+    let mut top = 0.0;
+    for page in &laid.pages {
+        for fragment in &page.fragments {
+            let key = laid.rendered.blocks[fragment.block].key;
+            let opens = top + fragment.y * scale;
+            let closes = opens + fragment.height * scale;
+            match blocks.last_mut() {
+                Some(block) if block.key == key => block.height = closes - block.top,
+                _ => blocks.push(sync::Block::new(key, opens, closes - opens)),
+            }
+        }
+        top += pitch;
+    }
+    blocks
+}
+
 /// What becomes of the block being placed.
 enum Step {
     /// All of what is left of it stands on this page.
@@ -789,8 +871,8 @@ fn rows(block: &render::Block) -> Vec<Row> {
             rows.push(Row {
                 placed,
                 line,
-                top: above + back(top),
-                bottom: above + back(bottom),
+                top: above + render::back(top),
+                bottom: above + render::back(bottom),
                 hard,
             });
             line += 1;
@@ -800,14 +882,6 @@ fn rows(block: &render::Block) -> Vec<Row> {
         }
     }
     rows
-}
-
-/// `units` of Pango's, as the points a page is measured in.
-///
-/// The drawer works in the same points off the same layouts, so it reads them
-/// back through this rather than through a second copy of it.
-pub(crate) fn back(units: i32) -> f64 {
-    f64::from(units) / f64::from(pango::SCALE)
 }
 
 #[cfg(test)]
@@ -1150,6 +1224,211 @@ mod tests {
         assert_eq!(pages[0].furniture[0].size, frame.body * FURNITURE);
         assert!(pages[0].furniture[0].baseline > frame.bottom);
         assert!(pages[0].furniture[0].baseline < frame.paper.height);
+    }
+
+    /// The shared test passage, which is what a reader is asked to read.
+    const SAMPLE: &str = "../ref/sample.md";
+
+    /// The shared test passage tripled, which is what runs over enough pages
+    /// for a third one to be asked about.
+    fn tripled() -> String {
+        let sample = std::fs::read_to_string(SAMPLE).expect("the shared test passage");
+        format!("{sample}\n{sample}\n{sample}")
+    }
+
+    /// `text` cut into pages on the paper [`paper`] frames — A4 wide, with a
+    /// body band `room` points tall — through the one call both page sinks
+    /// make, so that the pages, the frame and the render pass travel together.
+    fn laid_at(text: &str, room: f64) -> Laid {
+        let mut document = Document::untitled();
+        document.reload(text.to_string());
+        let a4 = a4();
+        lay_out(
+            &document,
+            &modern(),
+            Toggles::default(),
+            Geometry {
+                height: room + 2.0 * a4.margin,
+                ..a4
+            },
+            size(),
+            &context(),
+        )
+    }
+
+    /// Far more room than a column test asks for, so that a clamp is never the
+    /// reason for one of its answers.
+    const COLUMN_ROOM: f64 = 100_000.0;
+
+    #[test]
+    fn a_block_answers_the_page_it_opens_on_and_where_it_stands_there() {
+        let laid = laid_at(&tripled(), 600.0);
+        let pages = &laid.pages;
+        assert!(
+            pages.len() >= 3,
+            "the tripled sample runs to three pages, not {}",
+            pages.len()
+        );
+        // Every fragment's block answers the first page that carries it, and
+        // there it answers the top edge that fragment stands at.
+        for (at, page) in pages.iter().enumerate() {
+            for fragment in &page.fragments {
+                let (opened, y) = opens_on(pages, fragment.block).expect("a block a page carries");
+                assert!(
+                    opened <= at + 1,
+                    "block {} stands on page {} and answers {opened}",
+                    fragment.block,
+                    at + 1
+                );
+                if opened == at + 1 {
+                    assert_eq!(y, fragment.y, "block {}", fragment.block);
+                }
+            }
+        }
+        // A block that opens on page 3 answers 3, at an offset inside that
+        // page's text band.
+        let third = pages[2]
+            .fragments
+            .iter()
+            .find(|fragment| opens_on(pages, fragment.block) == Some((3, fragment.y)))
+            .expect("a block that opens on page 3");
+        assert!(
+            third.y >= laid.frame.top && third.y < laid.frame.bottom,
+            "{} is off the band",
+            third.y
+        );
+        // The last block answers the last page, and a block no page carries
+        // answers no page at all.
+        let last = laid.rendered.blocks.len() - 1;
+        assert_eq!(
+            opens_on(pages, last).map(|(page, _)| page),
+            Some(pages.len())
+        );
+        assert_eq!(opens_on(pages, laid.rendered.blocks.len()), None);
+    }
+
+    #[test]
+    fn a_block_a_heading_was_kept_with_answers_the_headings_page() {
+        let laid = laid_at(&tripled(), 600.0);
+        let mut headings = 0;
+        for (at, block) in laid.rendered.blocks.iter().enumerate() {
+            if !matches!(block.kind, render::Kind::Heading { .. }) {
+                continue;
+            }
+            if laid.rendered.blocks.get(at + 1).is_none() {
+                continue;
+            }
+            let heading = opens_on(&laid.pages, at).expect("a heading a page carries");
+            let under = opens_on(&laid.pages, at + 1).expect("the block under it");
+            assert_eq!(heading.0, under.0, "heading {at} and the block under it");
+            headings += 1;
+        }
+        assert!(
+            headings >= 6,
+            "the tripled sample has two headings a copy and more, not {headings}"
+        );
+    }
+
+    #[test]
+    fn the_page_words_count_as_the_footer_counts() {
+        let frame = switched(600.0, false, true, true);
+        let rendered = rendered("A paragraph.", &frame);
+        let pages = pages(&rendered, &frame, &Wording::default());
+        assert_eq!(pages.len(), 2);
+        // The index is the physical one [`opens_on`] answers, so the title
+        // page is page 1 and the body page under it is page 2.
+        assert_eq!(page_words(&pages, 1).as_deref(), Some("Title page"));
+        assert_eq!(page_words(&pages, 2).as_deref(), Some("Page 1 of 1"));
+        assert_eq!(page_words(&pages, 0), None);
+        assert_eq!(page_words(&pages, 3), None);
+    }
+
+    #[test]
+    fn a_body_page_says_which_of_the_numbered_pages_it_is() {
+        let laid = laid_at(&tripled(), 600.0);
+        let count = laid.pages.len();
+        assert_eq!(
+            page_words(&laid.pages, 1),
+            Some(format!("Page 1 of {count}"))
+        );
+        assert_eq!(
+            page_words(&laid.pages, 3),
+            Some(format!("Page 3 of {count}"))
+        );
+        let one = laid_at("A paragraph.", 600.0);
+        assert_eq!(one.pages.len(), 1);
+        assert_eq!(page_words(&one.pages, 1).as_deref(), Some("Page 1 of 1"));
+    }
+
+    #[test]
+    fn a_page_in_the_column_stands_a_page_and_a_gap_below_the_one_before() {
+        let laid = laid_at(&tripled(), 600.0);
+        let gap = laid.frame.paper.margin;
+        let scale = 0.5;
+        let blocks = column_blocks(&laid, gap, scale);
+        let pitch = (laid.frame.paper.height + gap) * scale;
+        // One column block per Document block, keyed as the sheet keys its own.
+        assert_eq!(blocks.len(), laid.rendered.blocks.len());
+        assert_eq!(
+            blocks.iter().map(|block| block.key).collect::<Vec<_>>(),
+            laid.rendered
+                .blocks
+                .iter()
+                .map(|block| block.key)
+                .collect::<Vec<_>>()
+        );
+        // The block page 2 opens with stands a page and a gap below the top of
+        // the column, plus its own offset into its page, all at the scale.
+        let second = laid.pages[1]
+            .fragments
+            .first()
+            .expect("a fragment on page 2");
+        let key = laid.rendered.blocks[second.block].key;
+        let column = blocks
+            .iter()
+            .find(|block| block.key == key)
+            .expect("its column block");
+        assert_eq!(column.top, pitch + second.y * scale);
+        assert_eq!(column.height, second.height * scale);
+        // The sheet's own top-block rule over the column answers that offset,
+        // which is the rule that reads a column offset back to its block too.
+        let sheet: Vec<sync::Block> = laid
+            .rendered
+            .blocks
+            .iter()
+            .map(|block| sync::Block::new(block.key, block.top, block.height))
+            .collect();
+        let top = sheet
+            .iter()
+            .find(|block| block.key == key)
+            .expect("its sheet block")
+            .top;
+        assert_eq!(
+            sync::follow_top_block(&sheet, top, &blocks, COLUMN_ROOM),
+            column.top.round()
+        );
+    }
+
+    #[test]
+    fn a_block_split_across_a_page_break_spans_the_gap_between_them() {
+        // Room for every line of the paragraph but the last two, which is the
+        // cut the two-line rule makes.
+        let rows = rows(&rendered(PROSE, &paper(10_000.0)).blocks[0]);
+        let laid = laid_at(PROSE, rows[rows.len() - 2].bottom);
+        assert_eq!(laid.pages.len(), 2);
+        let gap = 24.0;
+        let blocks = column_blocks(&laid, gap, 1.0);
+        // One block, not one a page.
+        assert_eq!(blocks.len(), 1);
+        let opens = &laid.pages[0].fragments[0];
+        let closes = &laid.pages[1].fragments[0];
+        assert_eq!(blocks[0].top, opens.y);
+        assert_eq!(
+            blocks[0].top + blocks[0].height,
+            laid.frame.paper.height + gap + closes.y + closes.height
+        );
+        // Which is more than the two fragments: the break between them is in it.
+        assert!(blocks[0].height > opens.height + closes.height);
     }
 
     #[test]

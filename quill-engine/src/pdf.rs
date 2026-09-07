@@ -94,7 +94,7 @@ fn bookmarks(
 ) -> Result<(), cairo::Error> {
     let mut open: Vec<(u8, i32)> = Vec::new();
     for heading in headings {
-        let Some((page, y)) = placed(pages, heading.block) else {
+        let Some((page, y)) = paginate::opens_on(pages, heading.block) else {
             continue;
         };
         while open
@@ -113,21 +113,6 @@ fn bookmarks(
         open.push((heading.level, id));
     }
     Ok(())
-}
-
-/// The page `block` opens on, counting from 1 as a PDF does, and its top edge
-/// there.
-///
-/// `None` when no page carries it, which a page list cut from another rendered
-/// page is the only way to reach.
-fn placed(pages: &[paginate::Page], block: usize) -> Option<(usize, f64)> {
-    pages.iter().enumerate().find_map(|(at, page)| {
-        let fragment = page
-            .fragments
-            .iter()
-            .find(|fragment| fragment.block == block)?;
-        Some((at + 1, fragment.y))
-    })
 }
 
 #[cfg(test)]

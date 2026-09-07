@@ -5,7 +5,7 @@
     "sha256": "738f48c969965ac3"
   },
   "shoot": "239bd27db3974b27",
-  "git_head": "5dc8d8d",
+  "git_head": "13d4401",
   "passages": {
     "ref/sample.md": "8005e6c57d435cea"
   },
@@ -34,7 +34,9 @@
       "sidebar": false,
       "search": null,
       "preview": null,
-      "template": "modern"
+      "zoom": null,
+      "template": "modern",
+      "export": null
     },
     "empty": {
       "text": null,
@@ -59,7 +61,9 @@
       "sidebar": false,
       "search": null,
       "preview": null,
-      "template": "modern"
+      "zoom": null,
+      "template": "modern",
+      "export": null
     },
     "typing": {
       "text": "ref/sample.md",
@@ -84,7 +88,9 @@
       "sidebar": false,
       "search": null,
       "preview": null,
-      "template": "modern"
+      "zoom": null,
+      "template": "modern",
+      "export": null
     },
     "view-menu": {
       "text": "ref/sample.md",
@@ -109,7 +115,9 @@
       "sidebar": false,
       "search": null,
       "preview": null,
-      "template": "modern"
+      "zoom": null,
+      "template": "modern",
+      "export": null
     },
     "palette": {
       "text": "ref/sample.md",
@@ -134,7 +142,9 @@
       "sidebar": false,
       "search": null,
       "preview": null,
-      "template": "modern"
+      "zoom": null,
+      "template": "modern",
+      "export": null
     }
   }
 }

@@ -247,6 +247,10 @@ pub const COMMANDS: &[Command] = &[
     row("library.toggle", "Show Library / Hide Library", Scope::Win, Kind::Check, &["Ctrl+E", "F9"], &[place(VIEW, Some("Panes"), "Show Library / Hide Library")], true),
     row("preview.full", "Preview Full", Scope::Win, Kind::Check, &["Ctrl+R"], &[place(VIEW, Some("Panes"), "Preview Full")], true),
     row("preview.split", "Preview Split", Scope::Win, Kind::Check, &["Ctrl+Shift+R"], &[place(VIEW, Some("Panes"), "Preview Split")], true),
+    // The two modes the pane draws in are one radio group whose value is the
+    // `[preview]` table's `mode`; the two layouts above are its checks.
+    row("preview.web", "Web", Scope::Win, Kind::Radio { group: "preview_mode", value: "web", }, &[], &[place(VIEW, Some("Panes"), "Web")], true),
+    row("preview.pdf", "PDF", Scope::Win, Kind::Radio { group: "preview_mode", value: "pdf", }, &[], &[place(VIEW, Some("Panes"), "PDF")], true),
     // View › Writing tools.
     row("syntax.toggle", "Syntax Highlight", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Syntax Highlight")], false),
     row("syntax.nouns", "Nouns", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Nouns")], false),
@@ -914,7 +918,14 @@ mod tests {
         assert_eq!(by_id("chrome.stats").unwrap().placements.len(), 2);
         assert_eq!(
             radio_groups(),
-            ["focus_scope", "face", "template", "stats", "theme"]
+            [
+                "focus_scope",
+                "preview_mode",
+                "face",
+                "template",
+                "stats",
+                "theme"
+            ]
         );
     }
 }

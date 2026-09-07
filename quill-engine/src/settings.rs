@@ -370,6 +370,21 @@ choice! {
 }
 
 choice! {
+    /// What the Preview pane draws: the rendered sheet, or the pages Export
+    /// writes.
+    ///
+    /// `preview.web` and `preview.pdf` each set it. It is not per window and
+    /// not per Document.
+    PreviewMode {
+        /// The rendered sheet, one column of text.
+        #[default]
+        Web => "web",
+        /// The pages Export writes, laid out at the page geometry.
+        Pdf => "pdf",
+    }
+}
+
+choice! {
     /// Which Template Preview and Export lay a Document out in.
     ///
     /// The five built-ins by id ([`crate::template`] parses the file each one
@@ -690,6 +705,8 @@ impl Library {
 pub struct Preview {
     /// The layout the pane last showed, and the one it shows now while open.
     pub layout: PreviewLayout,
+    /// What the pane draws: the rendered sheet, or the pages Export writes.
+    pub mode: PreviewMode,
     /// The percentage every size the Template names is drawn at
     /// ([`preview_zooms`]).
     pub zoom: u32,
@@ -701,6 +718,7 @@ impl Default for Preview {
     fn default() -> Self {
         Self {
             layout: PreviewLayout::default(),
+            mode: PreviewMode::default(),
             zoom: ZOOM,
             rest: toml::Table::new(),
         }
@@ -713,9 +731,11 @@ impl Preview {
         let defaults = Self::default();
         let mut reading = Reading::new(table, "preview.", notes);
         let layout = reading.choice("layout");
+        let mode = reading.choice("mode");
         let zoom = reading.whole("zoom", defaults.zoom, &preview_zooms());
         Self {
             layout,
+            mode,
             zoom,
             rest: reading.rest(),
         }
@@ -725,6 +745,7 @@ impl Preview {
     fn to_table(&self) -> toml::Table {
         let mut writing = Writing::new();
         writing.choice("layout", self.layout);
+        writing.choice("mode", self.mode);
         writing.whole("zoom", self.zoom);
         writing.rest(self.rest.clone());
         writing.finish()
@@ -733,15 +754,16 @@ impl Preview {
 
 /// The Template a Document is laid out in, and the three toggles that bend it.
 ///
-/// Headings are centred because that is what the Templates were drawn for;
+/// Headings are centred by default because that is what the Design oracle's
+/// own Modern does (`ref/ia/mac-native/NOTES.md` § State 16), and since #302
+/// this toggle is the one thing that decides it under every Template;
 /// numbering them and indenting paragraphs are each something a writer asks
 /// for, so both start off.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Template {
     /// Which Template.
     pub name: TemplateName,
-    /// Whether every heading is centred rather than set as the Template has
-    /// it.
+    /// Whether every heading is centred rather than ranged left.
     pub center_headings: bool,
     /// Whether the headings under the title are numbered `1`, `1.1`, `1.1.1`.
     pub number_headings: bool,
@@ -1432,13 +1454,15 @@ mod tests {
     }
 
     #[test]
-    fn the_two_preview_keys_are_read_from_the_table() {
-        let (settings, notes) = Settings::parse("[preview]\nlayout = \"full\"\nzoom = 150\n");
+    fn the_three_preview_keys_are_read_from_the_table() {
+        let (settings, notes) =
+            Settings::parse("[preview]\nlayout = \"full\"\nmode = \"pdf\"\nzoom = 150\n");
         assert_eq!(notes, Vec::<String>::new());
         assert_eq!(
             settings.preview,
             Preview {
                 layout: PreviewLayout::Full,
+                mode: PreviewMode::Pdf,
                 zoom: 150,
                 rest: toml::Table::new(),
             }
@@ -1463,6 +1487,45 @@ mod tests {
         assert_eq!(notes.len(), 1, "{notes:?}");
         assert!(notes[0].contains("preview.zoom"), "{notes:?}");
         assert!(notes[0].contains("from 50 to 200"), "{notes:?}");
+    }
+
+    #[test]
+    fn a_preview_mode_the_pane_has_no_drawing_for_falls_to_web() {
+        let (settings, notes) = Settings::parse("[preview]\nmode = \"paper\"\n");
+        assert_eq!(settings.preview.mode, PreviewMode::Web);
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].contains("preview.mode"), "{notes:?}");
+        assert!(notes[0].contains("one of web, pdf"), "{notes:?}");
+    }
+
+    /// Switching the mode is a write of the whole settings file, so the
+    /// write is only right if it carries every other key back out.
+    #[test]
+    fn writing_the_preview_mode_back_keeps_the_rest_of_the_file() {
+        let (before, notes) = Settings::parse(
+            "theme = \"dark\"\n\
+             [preview]\nlayout = \"full\"\nzoom = 150\nsurround = \"grey\"\n\
+             [template]\nname = \"classic\"\n\
+             [export]\npaper = \"letter\"\n",
+        );
+        assert_eq!(notes, Vec::<String>::new());
+        let mut after = before.clone();
+        after.preview.mode = PreviewMode::Pdf;
+
+        let written = after.to_toml();
+        let (again, notes) = Settings::parse(&written);
+        assert!(notes.is_empty(), "{notes:?}");
+        assert_eq!(again.preview.mode, PreviewMode::Pdf);
+        assert_eq!(again.preview.layout, PreviewLayout::Full);
+        assert_eq!(again.preview.zoom, 150);
+        assert_eq!(
+            again.preview.rest["surround"].as_str(),
+            Some("grey"),
+            "the rest of the table:\n{written}"
+        );
+        assert_eq!(again.theme, before.theme);
+        assert_eq!(again.template, before.template);
+        assert_eq!(again.export, before.export);
     }
 
     /// The scalar `preview_layout` every settings file written before the

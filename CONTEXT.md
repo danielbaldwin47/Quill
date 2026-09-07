@@ -39,12 +39,12 @@ The Editor with markup rendered in place: markers folded away except on the care
 _Avoid_: live preview (Preview is the pane), WYSIWYG, rich text, reading view
 
 **Preview**:
-The rendered (HTML-like) view of a Document, opened beside or in place of the Editor.
+The pane showing a Document laid out, opened beside or in place of the Editor. It has two modes: Web, the rendered (HTML-like) sheet, and PDF, the pages Export writes drawn as a column.
 _Avoid_: live preview (that is Live, the Editor's own mode)
 
 **Export**:
 Writing a Document out, laid out in the current Template: to a file as PDF, HTML or Markdown, to the clipboard as HTML, or to a printer. Page furniture (paper, margins, header, footer, title page) is Export's; typography is the Template's.
-_Avoid_: print preview (there is none; Preview is Web-mode only), Save As (that re-points the Document, Export never does)
+_Avoid_: print preview (Preview's PDF mode is the preview of what Export writes), Save As (that re-points the Document, Export never does)
 
 **Face**:
 One of Quill's three shipped typefaces — Duo, Quattro, Mono — each a Roman file and an Italic file, derived from the iA Writer fonts.

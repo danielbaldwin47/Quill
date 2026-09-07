@@ -20,7 +20,7 @@ use std::ops::Range;
 
 use crate::document::Document;
 use crate::front_matter;
-use crate::paginate::{Fragment, Frame, Furniture, Ground, Page, Role, Run, Wording, back};
+use crate::paginate::{Fragment, Frame, Furniture, Ground, Page, Role, Run, Wording};
 use crate::render;
 use crate::template::{Palette, Template};
 use crate::theme::Colour;
@@ -153,20 +153,20 @@ fn lines(cr: &cairo::Context, placed: &render::Placed, run: &Run, palette: Palet
     loop {
         if run.lines.contains(&at) {
             let (top, bottom) = iter.line_yrange();
-            let origin = *origin.get_or_insert(run.y - back(top));
+            let origin = *origin.get_or_insert(run.y - render::back(top));
             if let Some(line) = iter.line_readonly() {
                 let band = Patch {
                     x: run.x,
-                    y: origin + back(top),
+                    y: origin + render::back(top),
                     width: 0.0,
-                    height: back(bottom - top),
+                    height: render::back(bottom - top),
                 };
                 for at in &placed.code {
                     wash(cr, palette.code_ground, &edges(&line, at, band));
                 }
                 let (x, y) = (
-                    run.x + back(line_x(&mut iter)),
-                    origin + back(iter.baseline()),
+                    run.x + render::back(line_x(&mut iter)),
+                    origin + render::back(iter.baseline()),
                 );
                 ink(cr, palette.ink);
                 cr.move_to(x, y);
@@ -211,8 +211,8 @@ fn edges(line: &pango::LayoutLine, at: &Range<usize>, band: Patch) -> Vec<Patch>
         .0
         .iter()
         .map(|pair| Patch {
-            x: band.x + back(pair[0]),
-            width: back(pair[1] - pair[0]),
+            x: band.x + render::back(pair[0]),
+            width: render::back(pair[1] - pair[0]),
             ..band
         })
         .collect()
@@ -241,8 +241,8 @@ fn label(
     let (_, logical) = laid.extents();
     ink(cr, colour);
     cr.move_to(
-        (frame.paper.width - back(logical.width())) / 2.0,
-        line.baseline - back(laid.baseline()),
+        (frame.paper.width - render::back(logical.width())) / 2.0,
+        line.baseline - render::back(laid.baseline()),
     );
     pangocairo::functions::show_layout(cr, &laid);
 }
