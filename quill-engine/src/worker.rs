@@ -5,7 +5,6 @@
 //! check and Spell check join it when they land. Dropping the Worker closes
 //! both channels, so the thread stops without making the main loop join it.
 
-use std::collections::BTreeMap;
 use std::io;
 use std::ops::Range;
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
@@ -135,36 +134,42 @@ fn run(requests: Receiver<Request>, results: Sender<ParagraphResult>) {
     }
 }
 
-/// Last accepted spans per paragraph, kept while a replacement is pending.
+/// One paragraph's last accepted spans, kept while a replacement is pending.
 ///
-/// Owned by the receiver. Paragraph indices and prose-relative offsets belong
-/// to the caller: after structural edits it remaps or clears affected entries
-/// before painting them against the new source.
+/// The receiver owns paragraph indexing and chooses the stored coordinates
+/// through `apply`'s mapping. The app stores source-relative spans here and
+/// rebases them when its paragraph is edited.
 #[derive(Default)]
 pub struct SpanStore {
-    paragraphs: BTreeMap<usize, Vec<(Range<usize>, Category)>>,
+    spans: Vec<(Range<usize>, Category)>,
 }
 
 impl SpanStore {
     /// Replaces this paragraph's spans only when its generation is current.
     /// Returns whether the result was accepted; stale answers change nothing.
-    pub fn apply(&mut self, result: ParagraphResult, generation: u64) -> bool {
+    /// Mapping runs only for an accepted answer, against its captured prose.
+    pub fn apply(
+        &mut self,
+        result: ParagraphResult,
+        generation: u64,
+        map: impl FnOnce(Vec<(Range<usize>, Category)>) -> Vec<(Range<usize>, Category)>,
+    ) -> bool {
         if result.generation != generation {
             return false;
         }
-        self.paragraphs.insert(result.paragraph, result.spans);
+        self.spans = map(result.spans);
         true
     }
 
     /// The last accepted spans, or none while a paragraph awaits its first.
     #[must_use]
-    pub fn spans(&self, paragraph: usize) -> &[(Range<usize>, Category)] {
-        self.paragraphs.get(&paragraph).map_or(&[], Vec::as_slice)
+    pub fn spans(&self) -> &[(Range<usize>, Category)] {
+        &self.spans
     }
 
-    /// Clears results when replacing the Document or its paragraph indexing.
-    pub fn clear(&mut self) {
-        self.paragraphs.clear();
+    /// Retained spans for source rebasing; preserve ascending, disjoint ranges.
+    pub fn spans_mut(&mut self) -> &mut Vec<(Range<usize>, Category)> {
+        &mut self.spans
     }
 }
 
@@ -198,9 +203,9 @@ mod tests {
         let mut worker = Worker::default();
         let mut store = SpanStore::default();
         worker.request(request(0, "Alice reads.")).unwrap();
-        assert!(store.apply(receive(&worker), 0));
+        assert!(store.apply(receive(&worker), 0, std::convert::identity));
         assert_eq!(
-            store.spans(0),
+            store.spans(),
             &[(0..5, Category::Nouns), (6..11, Category::Verbs)]
         );
 
@@ -208,21 +213,21 @@ mod tests {
         worker.request(request(2, "Alice sleeps.")).unwrap();
         let stale = receive(&worker);
         assert_eq!(stale.generation, 1);
-        assert!(!store.apply(stale, 2));
+        assert!(!store.apply(stale, 2, |_| panic!("stale prose must not be mapped")));
         assert_eq!(
-            store.spans(0),
+            store.spans(),
             &[(0..5, Category::Nouns), (6..11, Category::Verbs)]
         );
-        assert!(store.apply(receive(&worker), 2));
+        assert!(store.apply(receive(&worker), 2, std::convert::identity));
         assert_eq!(
-            store.spans(0),
+            store.spans(),
             &[(0..5, Category::Nouns), (6..12, Category::Verbs)]
         );
 
         worker.request(request(3, "123.")).unwrap();
-        assert!(store.apply(receive(&worker), 3));
+        assert!(store.apply(receive(&worker), 3, std::convert::identity));
         assert!(
-            store.spans(0).is_empty(),
+            store.spans().is_empty(),
             "a current empty answer removes old colours"
         );
     }

@@ -91,12 +91,14 @@ The worker's `Request` carries the Document `generation`, the changed `Paragraph
 `index` and its `prose` text), and the `viewport` paragraph-index range. It answers one
 `ParagraphResult` per paragraph: the same `generation`, the `paragraph` index and Category
 `spans` whose byte ranges address that paragraph's requested prose. Viewport paragraphs arrive
-first, with request order kept within each group. The receiver's `SpanStore::apply` takes the
-current Document generation and replaces a paragraph's spans only when it matches; pending or
-stale answers leave its last spans in place. The app owns the prose-to-source mapping and
-paragraph-index changes after structural edits. Document insert, delete and reload advance the
+first, with request order kept within each group. The app's `Syntax::accept` delegates to the
+paragraph's engine `SpanStore::apply`, which checks the current Document generation before
+mapping the result into source-relative spans; pending or stale answers leave its last spans in
+place. The app owns the prose-to-source mapping and paragraph-index changes after structural
+edits. Dirty-block extraction uses the Document's resolved link marks to omit reference labels
+whose definitions live in other blocks. Document insert, delete and reload advance the
 generation; equality compares the Document's content and indexes, excluding that edit history.
-The app uses `worker::DEBOUNCE` (100 ms after the last keystroke) for its timer and drains
+The app uses `worker::DEBOUNCE` for the quiet period after the last keystroke and drains
 `Worker::try_recv` on idle. The engine owns neither a timer nor a main-loop source (ADR 0008).
 
 Whole-document passes (link-reference and footnote definitions, Stats, the heading outline) run on
