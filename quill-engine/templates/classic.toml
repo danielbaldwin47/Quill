@@ -1,8 +1,8 @@
 # Classic: the Serif, on Source Serif 4.
 #
-# The book setting: paragraphs indented rather than spaced, headings ranged
-# left. Its alignment, ladder and spacing follow iA's own description of the
-# template until a capture of it lands beside State 16's.
+# The book setting: paragraphs indented rather than spaced. Its ladder and
+# spacing follow iA's own description of the template until a capture of it
+# lands beside State 16's.
 
 id = "classic"
 paragraphs = "indented"
@@ -27,7 +27,6 @@ space_before_heading = 1.75
 space_after_heading = 0.5
 
 [headings]
-alignment = "left"
 weight = 700
 
 [light]

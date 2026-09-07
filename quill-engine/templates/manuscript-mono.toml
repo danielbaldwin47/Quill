@@ -27,7 +27,6 @@ space_before_heading = 1.0
 space_after_heading = 1.0
 
 [headings]
-alignment = "left"
 weight = 700
 
 # The Editor's own grounds: a Manuscript is the page the writer is typing on,
