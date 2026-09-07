@@ -43,7 +43,7 @@ use crate::ground::Ground;
 use crate::harness;
 use crate::menus;
 use crate::preview::DialogOverride;
-use crate::session::{Session, TemplateToggle};
+use crate::session::{Session, SyntaxToggle, TemplateToggle};
 use crate::tags;
 
 /// How long after the last keystroke autosave writes the Document out.
@@ -375,7 +375,7 @@ impl Window {
         window.imp().editor.open_live_on(session.live());
         // Install the table while the buffer is empty; showing the Document
         // below resets the worker and schedules its first viewport request.
-        window.set_syntax(session.settings().syntax_highlight.clone());
+        window.set_syntax(session.syntax().clone());
         // The bars stand or not before the Document is shown, so the page is
         // laid out once, at the height it will keep.
         window
@@ -684,6 +684,18 @@ impl Window {
             let document = window.document();
             window.imp().editor.set_live(live, &document);
         });
+    }
+
+    /// Moves one Syntax highlight key and applies the full table to every Editor.
+    pub(crate) fn toggle_syntax(&self, toggle: SyntaxToggle) {
+        self.move_windows(
+            |session| session.toggle_syntax(toggle),
+            |window, _| {
+                if let Some(session) = window.session() {
+                    window.set_syntax(session.syntax().clone());
+                }
+            },
+        );
     }
 
     /// Moves Focus the way `move_it` says, and puts the answer on every window.
@@ -3386,6 +3398,7 @@ pub fn reapply(app: &gtk::Application, session: &Session) {
         drop(document);
         window.apply_preview();
         window.refresh_preview();
+        window.set_syntax(session.syntax().clone());
     });
     // The sidebar reads the `[library]` settings as it lists — hidden files,
     // extensions — and the Library itself has already been made to say what
