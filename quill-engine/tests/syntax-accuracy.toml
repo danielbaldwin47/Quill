@@ -48,11 +48,11 @@ coloured = [
 ]
 
 [[passage]]
-name = "DOWN"
+name = "ALICE-FALL"
 still = "ref/ia/shots/appstore-mac-03-dark-syntax-highlight.png"
-# The App Store's third Mac slide, dark ground. `ref/ia/REFERENCE.md` calls its
-# passage ALICE-FALL; it is not — the screen holds three lines of "Down, down,
-# down", transcribed here from the pixels.
+# The App Store's third Mac slide, dark ground: the ALICE-FALL passage
+# `ref/ia/REFERENCE.md` names, transcribed here from the pixels rather than
+# taken from that file's line, so the colours and the text are read together.
 #
 # Nouns off again: `fall`, `end`, `centre` and `earth` are all body ink.
 # Conjunctions is left out of `shows` for a different reason — the passage
