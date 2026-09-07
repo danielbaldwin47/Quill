@@ -195,23 +195,13 @@ pub struct Rhythm {
 }
 
 /// How a heading is set.
+///
+/// Not where it sits in the measure: that is the `center_headings` toggle's
+/// answer alone ([`crate::render::Toggles`]), under every Template.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Headings {
-    /// Where a heading sits in the measure, when Center Headings is off.
-    pub alignment: Alignment,
     /// Its weight, as Pango and CSS both number weights.
     pub weight: u16,
-}
-
-/// Where a heading sits in the measure.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Alignment {
-    /// Ranged left with the body.
-    Left,
-    /// Centred in the measure, which is what the Design oracle's own Modern
-    /// does (`ref/ia/mac-native/NOTES.md` § State 16).
-    Center,
 }
 
 /// How one paragraph is told from the next.
@@ -342,7 +332,6 @@ mod tests {
         // `ref/ia/mac-native/NOTES.md` § State 16.
         assert_eq!(modern.dark.paper, Colour::from_hex("#101010"));
         assert_eq!(modern.light.paper, Colour::from_hex("#ffffff"));
-        assert_eq!(modern.headings.alignment, Alignment::Center);
         assert_eq!(DEFAULT, "modern");
     }
 

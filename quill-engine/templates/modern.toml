@@ -2,7 +2,7 @@
 #
 # The papers are measured, not chosen: `ref/ia/mac-native/NOTES.md` § State 16
 # reads the rendered page's dark ground at #101010, a step darker than the
-# Editor's own #1a1a1a, and its headings centred in the measure. The light
+# Editor's own #1a1a1a. The light
 # paper is white until the same capture lands in the light scheme (#261).
 
 id = "modern"
@@ -26,7 +26,6 @@ space_before_heading = 1.75
 space_after_heading = 0.5
 
 [headings]
-alignment = "center"
 weight = 700
 
 # The inks are the Editor's own (`theme.rs`, `Colours::LIGHT` and `DARK`), so a

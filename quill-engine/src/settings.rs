@@ -754,15 +754,16 @@ impl Preview {
 
 /// The Template a Document is laid out in, and the three toggles that bend it.
 ///
-/// Headings are centred because that is what the Templates were drawn for;
-/// numbering them and indenting paragraphs are each something a writer asks
-/// for, so both start off.
+/// Headings are centred by default because that is what the Design oracle's
+/// own Modern does (`ref/ia/mac-native/NOTES.md` § State 16); numbering them
+/// and indenting paragraphs are each something a writer asks for, so both
+/// start off.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Template {
     /// Which Template.
     pub name: TemplateName,
-    /// Whether every heading is centred rather than set as the Template has
-    /// it.
+    /// Whether every heading is centred rather than ranged left. The one
+    /// input to a heading's alignment, under every Template.
     pub center_headings: bool,
     /// Whether the headings under the title are numbered `1`, `1.1`, `1.1.1`.
     pub number_headings: bool,
