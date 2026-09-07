@@ -42,7 +42,7 @@ use pulldown_cmark::{Event, Tag, TagEnd};
 
 use crate::document::{self, Document};
 use crate::markdown;
-use crate::template::{Alignment, Face, Paragraphs, Template};
+use crate::template::{Face, Paragraphs, Template};
 
 /// The resolution a context that names none is read at, which is what an
 /// unconfigured `pangocairo` context answers with.
@@ -74,7 +74,8 @@ const RULE: f64 = 1.0;
 /// writers reading the same Template can hold them differently.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Toggles {
-    /// Centre every heading, whatever the Template's own alignment says.
+    /// Centre every heading. The one input to a heading's alignment: off,
+    /// every heading is ranged left, under every Template.
     pub center_headings: bool,
     /// Number the headings under the title `1`, `1.1`, `1.1.1`.
     pub number_headings: bool,
@@ -397,9 +398,7 @@ impl<'a> Pass<'a> {
                 _ => inline.event(event, at, slice),
             }
         }
-        let alignment = if self.toggles.center_headings
-            || self.template.headings.alignment == Alignment::Center
-        {
+        let alignment = if self.toggles.center_headings {
             pango::Alignment::Center
         } else {
             pango::Alignment::Left
@@ -1053,7 +1052,7 @@ let x = 1;
     }
 
     #[test]
-    fn a_heading_takes_the_templates_alignment_until_the_toggle_centres_it() {
+    fn the_toggle_alone_centres_a_heading_under_every_template() {
         let centred = Toggles {
             center_headings: true,
             ..Toggles::default()
@@ -1066,17 +1065,22 @@ let x = 1;
         assert_eq!(
             alignment("classic", Toggles::default()),
             pango::Alignment::Left,
-            "Classic ranges its headings left"
+            "the toggle off ranges a heading left"
         );
         assert_eq!(
             alignment("classic", centred),
             pango::Alignment::Center,
-            "Center Headings centres them anyway"
+            "and the toggle on centres it"
         );
         assert_eq!(
             alignment("modern", Toggles::default()),
+            pango::Alignment::Left,
+            "Modern is no exception: the toggle off ranges it left"
+        );
+        assert_eq!(
+            alignment("modern", centred),
             pango::Alignment::Center,
-            "Modern centres them with the toggle off"
+            "and centres it with the toggle on"
         );
     }
 
