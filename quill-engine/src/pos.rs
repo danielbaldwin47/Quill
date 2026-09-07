@@ -11,10 +11,12 @@ use std::sync::{Arc, LazyLock};
 
 use harper_brill::{BrillTagger, FreqDict, Tagger, UPOS};
 
+use crate::markdown;
+
 static TAGGER: LazyLock<Arc<BrillTagger<FreqDict>>> = LazyLock::new(harper_brill::brill_tagger);
 
 /// The five kinds of prose Syntax highlight can colour.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Category {
     /// Common and proper nouns.
     Nouns,
@@ -34,12 +36,36 @@ struct Token {
     text: String,
 }
 
-/// Tag a paragraph of prose and return one span for each coloured word.
+/// Tag one paragraph's prose fragments and return one absolute Document span
+/// for each coloured word.
 ///
-/// `paragraph` is already the parser's prose stream. Markdown markers, code,
-/// URLs and front matter must be removed before this seam is called.
-pub fn category_spans(paragraph: &str) -> Vec<(Range<usize>, Category)> {
-    let tokens = tokenize(paragraph);
+/// `paragraph` is the parser's [`markdown::prose`] stream for one paragraph,
+/// in source order and without overlaps. Markdown markers, code, URLs and
+/// front matter are absent, but every fragment retains its source range. All
+/// fragments are tagged as one sentence context; a fragment boundary does not
+/// reset the tagger. Results are sorted and non-overlapping.
+pub fn category_spans(paragraph: &[markdown::Prose<'_>]) -> Vec<(Range<usize>, Category)> {
+    debug_assert!(
+        paragraph
+            .windows(2)
+            .all(|pair| pair[0].at.end <= pair[1].at.start),
+        "paragraph prose fragments must be sorted and non-overlapping"
+    );
+    let tokens: Vec<Token> = paragraph
+        .iter()
+        .flat_map(|fragment| {
+            debug_assert_eq!(
+                fragment.at.len(),
+                fragment.text.len(),
+                "a prose fragment's source range must match its source text"
+            );
+            tokenize(fragment.text).into_iter().map(|mut token| {
+                token.range =
+                    fragment.at.start + token.range.start..fragment.at.start + token.range.end;
+                token
+            })
+        })
+        .collect();
     let words: Vec<String> = tokens.iter().map(|token| token.text.clone()).collect();
     let tags = TAGGER.tag_sentence(&words);
 
@@ -153,7 +179,24 @@ mod tests {
 
     use super::*;
 
-    type FixturePassage<'a> = (&'a str, Vec<Category>, Vec<(&'a str, usize, Category)>);
+    struct FixturePassage<'a> {
+        text: &'a str,
+        visible: Vec<Category>,
+        words: Vec<ExpectedWord<'a>>,
+    }
+
+    struct ExpectedWord<'a> {
+        text: &'a str,
+        occurrence: usize,
+        category: Category,
+    }
+
+    fn spans_for(text: &str) -> Vec<(Range<usize>, Category)> {
+        category_spans(&[markdown::Prose {
+            at: 0..text.len(),
+            text,
+        }])
+    }
 
     #[test]
     fn tokenizer_keeps_quills_word_boundaries() {
@@ -182,11 +225,61 @@ mod tests {
     #[test]
     fn numbers_punctuation_and_possessives_are_never_coloured() {
         let text = "Alice's 1865,";
-        let spans = category_spans(text);
+        let spans = spans_for(text);
         assert!(
             spans
                 .iter()
                 .all(|(range, _)| &text[range.clone()] == "Alice")
+        );
+    }
+
+    #[test]
+    fn fragmented_paragraphs_keep_sentence_context_and_absolute_source_ranges() {
+        let source = "Lead-in.\n\nThe **small** boat sailed.";
+        let flat = "The small boat sailed.";
+        let expected: Vec<(String, Category)> = spans_for(flat)
+            .into_iter()
+            .map(|(range, category)| (flat[range].to_owned(), category))
+            .collect();
+
+        let the = source
+            .find("The")
+            .expect("the paragraph starts after the lead-in");
+        let small = source.find("small").expect("the paragraph says small");
+        let boat = source.find(" boat").expect("the paragraph says boat");
+        let paragraph = [
+            markdown::Prose {
+                at: the..the + "The ".len(),
+                text: &source[the..the + "The ".len()],
+            },
+            markdown::Prose {
+                at: small..small + "small".len(),
+                text: &source[small..small + "small".len()],
+            },
+            markdown::Prose {
+                at: boat..source.len(),
+                text: &source[boat..],
+            },
+        ];
+        let actual = category_spans(&paragraph);
+        let actual_words: Vec<(String, Category)> = actual
+            .iter()
+            .map(|(range, category)| (source[range.clone()].to_owned(), *category))
+            .collect();
+
+        assert_eq!(
+            actual_words, expected,
+            "fragmentation must not reset tagging"
+        );
+        assert!(
+            actual.iter().all(|(range, _)| range.start >= the),
+            "every result is an absolute source offset"
+        );
+        assert!(
+            actual
+                .windows(2)
+                .all(|pair| pair[0].0.end <= pair[1].0.start),
+            "results stay source-sorted and non-overlapping"
         );
     }
 
@@ -215,24 +308,31 @@ mod tests {
             let fields: Vec<&str> = line.split('|').collect();
             match fields.as_slice() {
                 ["passage", name, text] => {
-                    passages.insert(name, (text, Vec::new(), Vec::new()));
+                    passages.insert(
+                        name,
+                        FixturePassage {
+                            text,
+                            visible: Vec::new(),
+                            words: Vec::new(),
+                        },
+                    );
                 }
                 ["categories", name, categories] => {
                     passages
                         .get_mut(name)
                         .expect("passage precedes categories")
-                        .1 = categories.split(',').map(parse_category).collect();
+                        .visible = categories.split(',').map(parse_category).collect();
                 }
                 ["word", name, word, occurrence, category] => {
                     passages
                         .get_mut(name)
                         .expect("passage precedes words")
-                        .2
-                        .push((
-                            word,
-                            occurrence.parse().expect("numeric occurrence"),
-                            parse_category(category),
-                        ));
+                        .words
+                        .push(ExpectedWord {
+                            text: word,
+                            occurrence: occurrence.parse().expect("numeric occurrence"),
+                            category: parse_category(category),
+                        });
                 }
                 _ => panic!("bad fixture line: {line}"),
             }
@@ -240,15 +340,15 @@ mod tests {
 
         let mut agreed = 0;
         let mut coloured = 0;
-        for (text, visible, expected_words) in passages.values() {
-            let tokens = tokenize(text);
+        for passage in passages.values() {
+            let tokens = tokenize(passage.text);
             let mut expected = HashMap::new();
-            for (word, occurrence, category) in expected_words {
-                let range = nth_word_range(&tokens, word, *occurrence);
-                expected.insert((range.start, range.end), *category);
+            for word in &passage.words {
+                let range = nth_word_range(&tokens, word.text, word.occurrence);
+                expected.insert((range.start, range.end), word.category);
             }
-            for (range, category) in category_spans(text) {
-                if visible.contains(&category) {
+            for (range, category) in spans_for(passage.text) {
+                if passage.visible.contains(&category) {
                     coloured += 1;
                     agreed +=
                         usize::from(expected.get(&(range.start, range.end)) == Some(&category));

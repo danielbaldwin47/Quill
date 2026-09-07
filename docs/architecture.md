@@ -68,7 +68,9 @@ which bytes are a heading's and at what level, and what furniture stands in a fo
 cells), Syntax highlight (`(byte range, Category)` spans over prose), Style check (a list name per match) and
 Spell check (a misspelling per word, suggestions fetched on demand). Syntax highlight, Style check and
 Spell check consume the **prose stream**: the parser's `Text` events with Markup, code spans, fenced
-code, URLs and front matter removed. They never see a `#` or a `*`.
+code, URLs and front matter removed. Each fragment retains its absolute Document byte range. Syntax
+highlight tags all fragments of one paragraph together for sentence context and maps its results
+back to sorted, non-overlapping absolute ranges. They never see a `#` or a `*`.
 
 Two lanes, and the budget is the Gate's ≤ 5 ms mean, ≤ 16 ms worst from keystroke to presented frame:
 
@@ -254,12 +256,13 @@ sit behind the Gate like everything else.
 Before GTK initialises, startup calls `FcConfigAppFontAddDir` on the fonts directory, which carries
 the six Faces and the two Template families, Inter and Source Serif 4
 ([ADR 0007](adr/0007-quill-faces-renamed-and-private.md)).
-Data files (fonts, the Style check lists, the tagger model, the `OFL` licences) are resolved from
-one data directory: `$QUILL_DATA_DIR` if set, else the directory compiled in at build time
+Data files (fonts, the Style check lists and the `OFL` licences) are resolved from one data
+directory: `$QUILL_DATA_DIR` if set, else the directory compiled in at build time
 (`/usr/share/quill` for the package), else the repo root for a development build. Nothing is
-downloaded at build time. Templates are the exception: they are compiled into the binary with
-`include_str!` rather than resolved from the data directory, so a build that finds no data directory
-still renders (`quill_engine::template`).
+downloaded at build time. Two families are embedded exceptions: Templates use `include_str!`, so a
+build that finds no data directory still renders (`quill_engine::template`); the pinned
+`harper-brill` crate embeds the tagger model accepted by
+[ADR 0018](adr/0018-ship-the-harper-brill-tagger-model.md).
 
 ## Command-line flags
 
@@ -324,11 +327,13 @@ window twice, and a bench at 1440×900 is not a writer resizing anything.
 
 `PKGBUILD` builds the workspace with `cargo build --release --locked` from the working tree
 (`cargo fetch` in `prepare`, so `makepkg` needs the network only there), `arch=('x86_64')`,
-`license=('GPL-3.0-or-later' 'OFL-1.1')`, `depends=('gtk4' 'enchant' 'hicolor-icon-theme')`,
+`license=('GPL-3.0-or-later' 'OFL-1.1' 'Apache-2.0')`,
+`depends=('gtk4' 'enchant' 'hicolor-icon-theme')`,
 `makedepends=('cargo')`, `optdepends=('hunspell-en_us: English spell checking')`. It installs the
 binary as `/usr/bin/quill`, data under `/usr/share/quill/`, the `.desktop` file and icon under the
-application id, `fonts/OFL.txt` beside the fonts and under `/usr/share/licenses/quill/`. With no
-dictionary installed, Spell check shows a "no dictionary" state rather than failing.
+application id, `fonts/OFL.txt` beside the fonts, and the OFL and Harper Brill Apache-2.0 texts under
+`/usr/share/licenses/quill/`. With no dictionary installed, Spell check shows a "no dictionary"
+state rather than failing.
 
 Flatpak comes later (the map's fog) and this design keeps it cheap: fonts are private, enchant and
 its English dictionary are in `org.gnome.Platform`, data resolves through one directory, and nothing

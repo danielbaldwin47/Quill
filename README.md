@@ -68,7 +68,7 @@ on its first launch, and TOML refuses a key named twice. The template is in Omar
 the ground the theme's `mode` names; the other ground stays Quill's own.
 
 Any tool that writes TOML can theme Quill the same way: the file holds a `[light]` and a `[dark]` table
-whose keys are the fourteen roles in `docs/design.md` § The palette is a file (`paper`, `ink`, `accent`,
+whose keys are the nineteen roles in `docs/design.md` § The palette is a file (`paper`, `ink`, `accent`,
 …) and whose values are `#rrggbb` or `#rrggbbaa`; whatever it leaves out stays the built-in, and
 `quill --theme light|dark` shows the built-in ground whatever the file says.
 
@@ -156,8 +156,9 @@ docs/           architecture.md, adr/, agents/ (the Gate, issue tracker, triage,
 PKGBUILD        the Arch package;  packaging/  the .desktop file and the icon
 ```
 
-Licences: the native app and everything at the root are GPL-3.0-or-later (`LICENSE`); `legacy/` is ISC
-(`legacy/LICENSE`); the Faces and the iA Writer fonts are SIL OFL 1.1.
+Licences: Quill's native source is GPL-3.0-or-later (`LICENSE`); the shipped Harper Brill tagger is
+Apache-2.0 (`licenses/harper-brill-Apache-2.0.txt`); `legacy/` is ISC (`legacy/LICENSE`); the Faces
+and the iA Writer fonts are SIL OFL 1.1.
 
 ## Known gaps the critic still named on winning rounds
 
