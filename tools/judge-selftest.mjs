@@ -895,73 +895,94 @@ ok('PDF Full is the page centred in the window with the column\'s gap over it an
 
 // ---------- the Export dialog, measured off its own pixels ----------
 
-// A page paper and a dialog ground that are deliberately not the app's palette, for the reason the
-// Preview pair above are not: the rule reads both out of the shot, so it has to hold for whatever
-// two grounds a theme hands it.
-const DIALOG_PAGE = [24, 24, 24];
-const DIALOG_SHEET = [70, 70, 70];
-
-// The paper the pages behind the dialog are drawn on, which is the one thing in the shot that says
-// the pane is showing them.
+// The grounds the Export dialog's rule is read off, deliberately not the app's palette, for the
+// reason the Preview pair above are not: the rule reads every one of them out of the shot, so it has
+// to hold for whatever a theme hands it.
 //
-// Lighter than [`DIALOG_PAGE`], because the column's surround and the Editor's paper are one colour
-// in the shot this stands for and the page's white is what separates the pane from the window
-// around it. The surround is not a colour of its own here for exactly that reason: it is
-// [`DIALOG_PAGE`] again.
-const DIALOG_PAPER = [250, 250, 250];
+// [`DIALOG_SHEET`] is two things at once, as it is in the window: the paper the dialog is drawn in,
+// and the surround the column's pages stand on. That is what makes the dialog's right edge invisible
+// over the pane and the scrim the only thing that shows the dialog at all. It is half again what
+// [`DIALOG_DIM`] is, so the scrim solved out of the two comes back at the half the window lays it on
+// (`quill::window`'s `DIALOG_DIM`), and far enough from [`GLYPH`] that a band of ink is ink over it.
+const DIALOG_DIM = [70, 70, 70];
+const DIALOG_SHEET = [140, 140, 140];
+const DIALOG_PAGE = [240, 240, 240];
 
-// A window of page paper with a dialog standing on it, and the PDF pane behind it.
+// A window with the Editor half under the app's scrim, a dialog standing in it, and the PDF pane
+// beside it.
 //
 // `off` moves the dialog's centre off the window's, `rows` is how many bands of ink it carries —
 // four is a shut dialog, a dozen an open one — and `dw`/`dh` are its size. The bands are drawn with
 // air between them, which is what makes them bands: one row of a dialog is a run of inked rows.
-// `paper` is the page standing in the right-hand half, which is the pane in PDF Split; `null` is
-// the pane away or the Web sheet's own paper filling it, which is the state's other defect.
+// `editor` is the Editor half's ground, `#302`'s scrim included, so a shot where nothing is dimmed
+// gives it the dialog's own paper and one where the compositor dimmed everything gives the pane the
+// same treatment. `surround` is the pane: `null` is the pane away, the Editor filling the window and
+// dimmed across it, and `page` is what stands in the column — `null` is a column with nothing drawn
+// on it, or the Web sheet's paper filling the pane, which is the state's other defect.
 function dialogShot({
   w = 400, h = 300, dw = 160, dh = 220, off = [0, 0], rows = 12,
-  page = DIALOG_PAGE, sheet = DIALOG_SHEET, paper = DIALOG_PAPER,
+  editor = DIALOG_DIM, sheet = DIALOG_SHEET, surround = DIALOG_SHEET, page = DIALOG_PAGE,
 } = {}) {
   const data = Buffer.alloc(w * h * 3);
   const put = (x, y, rgb) => { for (let c = 0; c < 3; c += 1) data[((y * w) + x) * 3 + c] = rgb[c]; };
-  for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) put(x, y, page);
+  for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) put(x, y, editor);
   // The pane fills the right half, and the page stands in it with a gutter each side and air above
   // and below, exactly as the column stacks one.
-  if (paper !== null) {
-    for (let y = 10; y < h - 10; y += 1) {
-      for (let x = (w >> 1) + 20; x < w - 20; x += 1) put(x, y, paper);
+  if (surround !== null) {
+    for (let y = 0; y < h; y += 1) for (let x = w >> 1; x < w; x += 1) put(x, y, surround);
+    if (page !== null) {
+      for (let y = 10; y < h - 10; y += 1) {
+        for (let x = (w >> 1) + 20; x < w - 20; x += 1) put(x, y, page);
+      }
     }
   }
   const left = Math.round((w - dw) / 2 + off[0]);
   const top = Math.round((h - dh) / 2 + off[1]);
-  for (let y = top; y < top + dh; y += 1) for (let x = left; x < left + dw; x += 1) put(x, y, sheet);
-  for (let i = 0; i < rows; i += 1) {
-    const y0 = top + 10 + i * 14;
-    for (let y = y0; y < y0 + 6; y += 1) {
-      for (let x = left + 8; x < left + dw - 8; x += 1) put(x, y, GLYPH);
+  if (sheet !== null) {
+    for (let y = top; y < top + dh; y += 1) for (let x = left; x < left + dw; x += 1) put(x, y, sheet);
+    for (let i = 0; i < rows; i += 1) {
+      const y0 = top + 10 + i * 14;
+      for (let y = y0; y < y0 + 6; y += 1) {
+        for (let x = left + 8; x < left + dw - 8; x += 1) put(x, y, GLYPH);
+      }
     }
   }
   return encodePng({ w, h, ch: 3, data });
 }
 
-ok('the Export dialog is a second ground over the page, centred on the window, its expander open', () => {
+ok('the Export dialog stands in the scrim over the Editor half, centred on the window, its expander open', () => {
   const spec = { kind: 'dialog' };
   const held = assertState(spec, { dim: dialogShot() });
   assert.equal(held.ours, true, held.why);
-  assert.deepEqual(held.grounds, ['#181818', '#464646'], 'both grounds are read off the shot, not compared against a hex');
-  assert.deepEqual(held.dialog, [120, 40, 160, 220], 'the dialog is where its own ground runs');
+  assert.deepEqual(held.grounds, ['#464646', '#8c8c8c'], 'both grounds are read off the shot, not compared against a hex');
+  assert.deepEqual(held.dialog, [120, 40, 160, 220], 'the dialog is where its own paper stands in the dim, right edge and all');
   assert.equal(held.bands, 12, 'and one band per row of it');
-  assert.deepEqual(held.pane, ['#fafafa', '#181818'], 'the page beside it and the surround it stands on');
+  assert.deepEqual(held.pane, ['#f0f0f0', '#8c8c8c'], 'the page beside it and the surround it stands on');
+  assert.match(held.why, /the Editor half reads 50\.0% of the dialog's own paper/);
+
+  // The dim is the app's over the Editor alone (#302). A window with nothing dimmed reads the
+  // Editor's ground as the very paper the dialog is drawn in, and there is then nothing in the shot
+  // that says a dialog stands over the page at all.
+  const undimmed = assertState(spec, { dim: dialogShot({ editor: DIALOG_SHEET }) });
+  assert.equal(undimmed.ours, false, undimmed.why);
+  assert.match(undimmed.why, /the Editor behind it is not dimmed/);
+
+  // And the compositor's old dim over the whole window — the pane dimmed with the Editor — is the
+  // defect this state is now for, because the pane is what the dialog is about.
+  const all = assertState(spec, { dim: dialogShot({ surround: DIALOG_DIM, page: [120, 120, 120] }) });
+  assert.equal(all.ours, false, all.why);
+  assert.match(all.why, /the pane is dimmed too and not the Editor alone/);
 
   // The dialog drives the pane, so a shot with nothing in the pane beside it is the defect this
-  // state is now for: the pane away, or the Web sheet where the pages should be, reads as one
-  // ground right of the dialog either way.
-  const alone = assertState(spec, { dim: dialogShot({ paper: null }) });
+  // state is also for: a column with no page drawn on it, or the Web sheet where the pages should
+  // be, reads as one ground right of the dialog either way.
+  const alone = assertState(spec, { dim: dialogShot({ surround: null }) });
   assert.equal(alone.ours, false, alone.why);
   assert.match(alone.why, /no page is standing in the pane beside it/);
 
   // Nor is one darker than what it stands on: the pages are drawn in the Template's light palette
   // whatever the theme is wearing, which is what puts them against the surround at all.
-  const dark = assertState(spec, { dim: dialogShot({ paper: [8, 8, 8] }) });
+  const dark = assertState(spec, { dim: dialogShot({ page: [100, 100, 100] }) });
   assert.equal(dark.ours, false, dark.why);
   assert.match(dark.why, /no lighter than the .* it stands on/);
 
@@ -982,15 +1003,15 @@ ok('the Export dialog is a second ground over the page, centred on the window, i
   assert.match(shut.why, /carries 4 bands of ink and an open expander carries at least 8, so the Options are shut/);
 
   // No dialog at all is its own answer and never a silent pass.
-  const none = assertState(spec, { dim: dialogShot({ sheet: DIALOG_PAGE }) });
+  const none = assertState(spec, { dim: dialogShot({ sheet: null }) });
   assert.equal(none.ours, false, none.why);
   assert.match(none.why, /no dialog stands over the page/);
 
-  // A second ground that runs to an edge is not a dialog standing over a page — it is the page
-  // gone, which is what a dialog opened full-window would look like.
+  // A dialog whose paper runs to the window's own edge is not one standing over the page — it is
+  // the page gone, which is what a dialog opened full-window would look like.
   const filled = assertState(spec, { dim: dialogShot({ dw: 400, dh: 120, rows: 4 }) });
   assert.equal(filled.ours, false, filled.why);
-  assert.match(filled.why, /it reaches an edge, so it is not a dialog standing over the page/);
+  assert.match(filled.why, /to the window's own right edge/);
 
   assert.throws(() => validate({ kind: 'dialog', rows: 12 }), /the dialog assertion takes nothing but its kind, and this one names rows/);
 });

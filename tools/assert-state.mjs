@@ -842,58 +842,78 @@ const DIALOG_CENTRE = 8;
 // spacing; eight is more bands than a shut dialog can make however its rows fall together.
 const DIALOG_BANDS = 8;
 
-// The Export dialog over the page, its Options expander open.
+// How far into the dialog's own top margin its right edge is read, in device px.
+//
+// The dialog is drawn in the app's paper and the column's surround is that same paper, so the
+// dialog's right edge shows only where it covers a page. It is read along a row of the dialog's own
+// top margin, which is ground clear across it, rather than through a row of controls: a field and a
+// switch's knob are drawn in the page's own white and would end the run early.
+const DIALOG_EDGE = 4;
+
+// The Export dialog over the page, its Options expander open, the Editor half dimmed behind it.
 //
 // Neither oracle holds this one either: `legacy/` has no Export dialog at all, and iA Writer for
 // Mac's own is that app's dialog rather than this one's, so it is measured instead of shown to
 // anybody (ADR 0017).
 //
-// Three facts, and they are the three a still can hold. The dialog is a **second ground over the
-// page**: the strip along the top of the window is still the Editor's paper, and the dialog's
-// ground is another colour standing in a rectangle wholly inside it — a dialog that filled the
-// window, or one that never opened, fails here. That is a fact about the look and not an accident
-// of it: the dialog is drawn in the same paper the Editor is, and it reads as a surface of its own
-// because GTK draws the window a modal dialog is up over at the half opacity of a widget that
-// cannot be typed into. A build where the two grounds came back the same would be a build where a
-// writer cannot see where the dialog ends, which is the thing worth failing on. That rectangle is
-// **centred on the window**, which is where a dialog transient for a window belongs. And it carries
-// **the bands of an open expander**: shut, the dialog is the file name, the folder, the Options
-// label and the Export button, and open it is those plus every row of the options grid, so counting
-// the bands says which of the two was shot without pinning a row to a y.
+// **The dim is the app's own** (#302). The dialog was modal until then, and Hyprland's
+// `decoration:dim_modal` dimmed the whole window behind it — the pane included, which is backwards,
+// because the dialog is there to move what the pane shows. The dialog is not modal now, nothing the
+// compositor does dims anything, and the app lays a scrim over the Editor half alone
+// (`quill::window::editor_dimmed`). So the first fact is that scrim: the **Editor's ground, read off
+// the left quarter of the strip along the top of the window, is darker than the dialog's own ground
+// and darker than the surround the pane's pages stand on**. A build where they came back the same is
+// a build with no dim at all, or with the old one back over everything.
 //
-// A fourth fact since #300, which is what the dialog is now for: the **pane behind it is showing
-// the pages**. The dialog drives the pane rather than carrying a preview of its own, so the state
-// is shot with `"preview": "pdf-split"` and the strip of window right of the dialog's box is the
-// column. Two grounds there — a page standing on the surround — are the PDF mode; one ground is the
-// Web sheet's paper filling the pane, a pane that never opened, or a column with no page on it, and
-// a build that did any of those is a build where the dialog stopped driving the pane. Nothing here
-// reads the divider or the Editor: at this state's light theme the column's surround and the
-// Editor's own paper are one colour (`quill-engine/src/theme.rs`), so what says pane is the page's
-// white and the gutter beside it.
+// That dim is also what shows the dialog. The dialog is drawn in the app's paper, and at this
+// state's light theme the column's surround is that same paper (`quill::column`'s `SURROUND`), so
+// over the pane the dialog has no edge a still can see: what the rule reads is the **rectangle of
+// undimmed paper standing in the dim**, whose left, top and bottom are the Editor's columns to give
+// and whose right edge is where the dialog stops covering the page ([`paneEdge`]). That rectangle
+// lies wholly inside the window — a dialog that filled it, or one that never opened, fails here —
+// and is **centred on the window**, which is where a dialog transient for a window belongs. It
+// carries **the bands of an open expander**: shut, the dialog is the file name, the folder, the
+// Options label and the Export button, and open it is those plus every row of the options grid, so
+// counting the bands says which of the two was shot without pinning a row to a y.
+//
+// And the **pane behind it is showing the pages**, which is what the dialog is for. The dialog
+// drives the pane rather than carrying a preview of its own, so the state is shot with
+// `"preview": "pdf-split"` and the strip of window right of the dialog's box is the column. Two
+// grounds there — a page standing on the surround — are the PDF mode; one ground is the Web sheet's
+// paper filling the pane, a pane that never opened, or a column with no page on it, and a build that
+// did any of those is a build where the dialog stopped driving the pane.
 //
 // What the entry says and where the switches stand are reported rather than held: the seeded file
 // name's ink is in the topmost band, and the count of bands is the count of rows. A still cannot
 // read a word, and this rule does not pretend to.
 //
 // One frame, and `shots.dim` is it, for the reason [`split`] reads one: this is not about
-// activation. No colour is compared against a hex written down here — both grounds are read as the
-// colour their part of the window is mostly made of — because a palette that moves takes both with
-// it.
+// activation. No colour is compared against a hex written down here — every ground is read as the
+// colour its part of the window is mostly made of, and the scrim's own strength is solved out of two
+// of them and reported rather than held — because a palette that moves takes all of them with it.
 function dialog(_spec, { dim }) {
   const png = decodePng(dim);
   const { w, h } = png;
-  // The page off the strip along the top of the window and the dialog off the middle of it: a
-  // dialog is centred on the window it is transient for, so the top strip is page whatever the
-  // dialog's size and the middle is dialog whenever there is one.
-  const page = groundOf(png, 0, w, 0, h >> 4);
+  // The Editor off the left quarter of the strip along the top of the window and the dialog off the
+  // middle of it: the dialog is centred on the window and stands well below that strip, so the strip
+  // is Editor on the left and pane on the right and nothing else, and the middle is dialog whenever
+  // there is one.
+  const editor = groundOf(png, 0, w >> 2, 0, h >> 4);
   const sheet = groundOf(png, w >> 2, w - (w >> 2), h >> 2, h - (h >> 2));
-  if (sameRgb(page, sheet)) {
-    return no(`the middle of the window is ${hex(sheet)}, the same paper as the strip along its top: no dialog stands over the page`);
+  if (sameRgb(editor, sheet)) {
+    return no(`the Editor's ground and the middle of the window are both ${hex(sheet)}: either no dialog stands over the page, or the Editor behind it is not dimmed`);
   }
-
-  const sheetBox = extentOf(png, sheet);
-  const inside = sheetBox.left > 0 && sheetBox.right < w - 1
-    && sheetBox.top > 0 && sheetBox.bottom < h - 1;
+  const paneLeft = dimEnds(png, editor);
+  const held = extentOf(png, sheet, 0, paneLeft);
+  if (held.right < 0) {
+    return no(`no ${hex(sheet)} stands in the ${hex(editor)} the Editor half is dimmed to: the dialog is not over the Editor at all`);
+  }
+  const right = paneEdge(png, sheet, held.right + 1, held.top + DIALOG_EDGE);
+  if (right === null) {
+    return no(`the ${hex(sheet)} ground runs from x ${held.left} to the window's own right edge: it is not a dialog standing over the page`);
+  }
+  const sheetBox = { ...held, right };
+  const inside = sheetBox.left > 0 && sheetBox.top > 0 && sheetBox.bottom < h - 1;
   if (!inside) {
     return no(`the ${hex(sheet)} ground runs ${box(sheetBox)} of a ${w}x${h} window: it reaches an edge, so it is not a dialog standing over the page`);
   }
@@ -903,7 +923,8 @@ function dialog(_spec, { dim }) {
   const boxCentre = [(sheetBox.left + sheetBox.right) / 2, (sheetBox.top + sheetBox.bottom) / 2];
   const centre = [(w - 1) / 2, (h - 1) / 2];
   const off = [Math.abs(boxCentre[0] - centre[0]), Math.abs(boxCentre[1] - centre[1])];
-  const where = `the dialog is ${hex(sheet)} over ${hex(page)}, ${box(sheetBox)} of a ${w}x${h} window, `
+  const share = luma(sheet) === 0 ? 0 : luma(editor) / luma(sheet);
+  const where = `the dialog is ${hex(sheet)} over a ${hex(editor)} Editor half, ${box(sheetBox)} of a ${w}x${h} window, `
     + `centre ${boxCentre[0]},${boxCentre[1]} against the window's own ${centre[0]},${centre[1]}`;
   const rows = `${bands.length} bands of ink inside it, the topmost ${box(bands[0] ?? sheetBox)}`;
   const pane = beside === null
@@ -911,7 +932,14 @@ function dialog(_spec, { dim }) {
     : beside.surround === null
       ? `the window right of the dialog is ${hex(beside.paper)} from x ${beside.x0} across`
       : `a ${hex(beside.paper)} page stands on a ${hex(beside.surround)} surround right of it, from x ${beside.x0} across`;
+  const scrim = `the Editor half reads ${(share * 100).toFixed(1)}% of the dialog's own paper, which is the scrim over it`;
   const missed = [];
+  if (luma(editor) >= luma(sheet)) {
+    missed.push(`the Editor half is no darker than the ${hex(sheet)} the dialog is drawn in, so nothing is dimmed behind it`);
+  }
+  if (beside !== null && beside.surround !== null && luma(beside.surround) <= luma(editor)) {
+    missed.push(`the ${hex(beside.surround)} the pages stand on is no lighter than the Editor half, so the pane is dimmed too and not the Editor alone`);
+  }
   if (off[0] > DIALOG_CENTRE || off[1] > DIALOG_CENTRE) {
     missed.push(`it stands ${off[0].toFixed(1)},${off[1].toFixed(1)} px off the window's centre`);
   }
@@ -931,17 +959,48 @@ function dialog(_spec, { dim }) {
       sheetBox.right - sheetBox.left + 1,
       sheetBox.bottom - sheetBox.top + 1,
     ],
-    grounds: [hex(page), hex(sheet)],
+    grounds: [hex(editor), hex(sheet)],
     bands: bands.length,
     pane: beside === null || beside.surround === null ? null : [hex(beside.paper), hex(beside.surround)],
     why: missed.length === 0
-      ? `${where}; ${rows}; ${pane}`
-      : `${where}; ${rows}; ${pane} — ${missed.join(', and ')}, past the ${DIALOG_CENTRE} px this is measured to`,
+      ? `${where}; ${scrim}; ${rows}; ${pane}`
+      : `${where}; ${scrim}; ${rows}; ${pane} — ${missed.join(', and ')}, past the ${DIALOG_CENTRE} px this is measured to`,
     secondary: [
       `${rows}; ${pane}`,
-      `both grounds were read as the colour their part of the window is mostly made of, not compared against a hex written down here`,
+      `every ground was read as the colour its part of the window is mostly made of, and the scrim's strength solved out of two of them, not compared against a hex written down here`,
     ],
   };
+}
+
+// Where the app's scrim over the Editor half ends and the pane begins.
+//
+// Read across the strip along the top of the window, which the dialog stands well below: that strip
+// is the dimmed Editor and then the pane, so the first column of it that is not mostly the dim is
+// the pane's own left edge, divider and all. The window's width comes back when nothing there is
+// anything but the dim, which is a window with no pane open in it.
+function dimEnds(png, editor) {
+  const { w, h } = png;
+  const rows = h >> 4;
+  for (let x = 0; x < w; x += 1) {
+    let dimmed = 0;
+    for (let y = 0; y < rows; y += 1) if (is(png, x, y, editor)) dimmed += 1;
+    if (dimmed * 2 < rows) return x;
+  }
+  return w;
+}
+
+// The last column of the dialog, scanning right from `x0` along row `y`.
+//
+// The dialog's left, top and bottom edges stand against the dim and are the Editor's columns to
+// give; its right edge does not, because at this state's light theme the dialog is drawn in the very
+// paper the column's surround is. What ends the run is the page the dialog covers, so the reading is
+// taken along a row of the dialog's own top margin and the answer is the column before the first
+// pixel that is not its ground. `null` is a row that runs to the window's edge without ever leaving
+// that ground, which is a dialog with no pane beside it.
+function paneEdge(png, sheet, x0, y) {
+  const { w } = png;
+  for (let x = x0; x < w; x += 1) if (!is(png, x, y, sheet)) return x - 1;
+  return null;
 }
 
 // The bounding box of every pixel of `rgb`, or a box of nothing when the shot holds none.
