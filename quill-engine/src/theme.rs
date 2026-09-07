@@ -335,6 +335,16 @@ pub enum Role {
     /// grounds; it stays a role of its own because a writer's `palette` file
     /// may still set the markers apart from the prose.
     Mark,
+    /// A noun named by Syntax highlight.
+    SyntaxNoun,
+    /// A verb named by Syntax highlight.
+    SyntaxVerb,
+    /// An adjective named by Syntax highlight.
+    SyntaxAdjective,
+    /// An adverb named by Syntax highlight.
+    SyntaxAdverb,
+    /// A conjunction named by Syntax highlight.
+    SyntaxConjunction,
     /// The caret: the same blue on both grounds, because it is the one
     /// instrument the writer watches.
     Accent,
@@ -368,11 +378,16 @@ impl Role {
     /// arm, so the table stays total either way; this list is the one place
     /// kept by hand, and what a role missing from it costs is the tests below
     /// quietly stopping short of it.
-    pub const ALL: [Self; 14] = [
+    pub const ALL: [Self; 19] = [
         Self::Paper,
         Self::Ink,
         Self::InkDim,
         Self::Mark,
+        Self::SyntaxNoun,
+        Self::SyntaxVerb,
+        Self::SyntaxAdjective,
+        Self::SyntaxAdverb,
+        Self::SyntaxConjunction,
         Self::Accent,
         Self::Link,
         Self::LinkRule,
@@ -395,6 +410,11 @@ impl Role {
             Self::Ink => "ink",
             Self::InkDim => "ink_dim",
             Self::Mark => "mark",
+            Self::SyntaxNoun => "syntax_noun",
+            Self::SyntaxVerb => "syntax_verb",
+            Self::SyntaxAdjective => "syntax_adjective",
+            Self::SyntaxAdverb => "syntax_adverb",
+            Self::SyntaxConjunction => "syntax_conjunction",
             Self::Accent => "accent",
             Self::Link => "link",
             Self::LinkRule => "link_rule",
@@ -419,6 +439,11 @@ pub struct Colours {
     ink: Colour,
     ink_dim: Colour,
     mark: Colour,
+    syntax_noun: Colour,
+    syntax_verb: Colour,
+    syntax_adjective: Colour,
+    syntax_adverb: Colour,
+    syntax_conjunction: Colour,
     accent: Colour,
     link: Colour,
     link_rule: Colour,
@@ -445,6 +470,11 @@ impl Colours {
         ink: Colour::from_hex("#191919"),
         ink_dim: Colour::from_hex("#c6c4c2"),
         mark: Colour::from_hex("#191919"),
+        syntax_noun: Colour::from_hex("#ca471a"), // Provisional until capture #308.
+        syntax_verb: Colour::from_hex("#3476b9"), // Provisional until capture #308.
+        syntax_adjective: Colour::from_hex("#a66500"), // Provisional until capture #308.
+        syntax_adverb: Colour::from_hex("#b24fa2"), // Provisional until capture #308.
+        syntax_conjunction: Colour::from_hex("#3f831e"), // Provisional until capture #308.
         accent: Colour::from_hex("#00bfff"),
         link: Colour::from_hex("#b5b3b0"),
         link_rule: Colour::from_hex("#d5d3d1"),
@@ -465,11 +495,20 @@ impl Colours {
     /// `VERDICTS.md` measured — and the marker is now the ink, so what moves
     /// here is the accent, the two fills, the link's two greys and the ground
     /// under code.
+    ///
+    /// The three measured Syntax pairs lift CIELAB lightness from about L*=49
+    /// to L*=64. The provisional noun and conjunction keep their light a*/b*
+    /// coordinates at L*=64, yielding the values below until capture #308.
     const DARK: Self = Self {
         paper: Colour::from_hex("#1a1a1a"),
         ink: Colour::from_hex("#cccccc"),
         ink_dim: Colour::from_hex("#707070"),
         mark: Colour::from_hex("#cccccc"),
+        syntax_noun: Colour::from_hex("#fc7140"), // Provisional until capture #308.
+        syntax_verb: Colour::from_hex("#799fc2"), // Provisional until capture #308.
+        syntax_adjective: Colour::from_hex("#c1934e"), // Provisional until capture #308.
+        syntax_adverb: Colour::from_hex("#ba8eb2"), // Provisional until capture #308.
+        syntax_conjunction: Colour::from_hex("#69ac46"), // Provisional until capture #308.
         accent: Colour::from_hex("#00bfff"),
         link: Colour::from_hex("#7a7a78"),
         link_rule: Colour::from_hex("#545452"),
@@ -522,6 +561,11 @@ impl Colours {
             Role::Ink => &mut self.ink,
             Role::InkDim => &mut self.ink_dim,
             Role::Mark => &mut self.mark,
+            Role::SyntaxNoun => &mut self.syntax_noun,
+            Role::SyntaxVerb => &mut self.syntax_verb,
+            Role::SyntaxAdjective => &mut self.syntax_adjective,
+            Role::SyntaxAdverb => &mut self.syntax_adverb,
+            Role::SyntaxConjunction => &mut self.syntax_conjunction,
             Role::Accent => &mut self.accent,
             Role::Link => &mut self.link,
             Role::LinkRule => &mut self.link_rule,
@@ -547,6 +591,11 @@ impl Colours {
             Role::Ink => self.ink,
             Role::InkDim => self.ink_dim,
             Role::Mark => self.mark,
+            Role::SyntaxNoun => self.syntax_noun,
+            Role::SyntaxVerb => self.syntax_verb,
+            Role::SyntaxAdjective => self.syntax_adjective,
+            Role::SyntaxAdverb => self.syntax_adverb,
+            Role::SyntaxConjunction => self.syntax_conjunction,
             Role::Accent => self.accent,
             Role::Link => self.link,
             Role::LinkRule => self.link_rule,
@@ -733,17 +782,23 @@ mod tests {
     /// opaque ones as the hex it writes, the translucent ones as the CSS the
     /// app will emit, which is that `rgba()` with its opacity spelled in full.
     ///
-    /// Ten of the rows are `docs/design.md`'s, off the Design oracle, and the
-    /// rest are `legacy/app/css/theme.css`'s; which is which is the module's
-    /// header. Every row is written out here rather than derived, because a
-    /// table that computes what it asserts asserts nothing — including the two
-    /// marker rows, which are the ink's value said a second time rather than a
+    /// Ten of the rows are `docs/design.md`'s, off the Design oracle, ten are
+    /// Syntax's provisional #308 values, and the rest are
+    /// `legacy/app/css/theme.css`'s; which is which is the module's header.
+    /// Every row is written out here rather than derived, because a table that
+    /// computes what it asserts asserts nothing — including the two marker
+    /// rows, which are the ink's value said a second time rather than a
     /// reference to it, so that a hand that unpicks the two grounds fails here.
-    const ORACLE: [(Scheme, Role, &str); 28] = [
+    const ORACLE: [(Scheme, Role, &str); 38] = [
         (Scheme::Light, Role::Paper, "#f7f7f7"),
         (Scheme::Light, Role::Ink, "#191919"),
         (Scheme::Light, Role::InkDim, "#c6c4c2"),
         (Scheme::Light, Role::Mark, "#191919"),
+        (Scheme::Light, Role::SyntaxNoun, "#ca471a"), // Provisional until capture #308.
+        (Scheme::Light, Role::SyntaxVerb, "#3476b9"), // Provisional until capture #308.
+        (Scheme::Light, Role::SyntaxAdjective, "#a66500"), // Provisional until capture #308.
+        (Scheme::Light, Role::SyntaxAdverb, "#b24fa2"), // Provisional until capture #308.
+        (Scheme::Light, Role::SyntaxConjunction, "#3f831e"), // Provisional until capture #308.
         (Scheme::Light, Role::Accent, "#00bfff"),
         (Scheme::Light, Role::Link, "#b5b3b0"),
         (Scheme::Light, Role::LinkRule, "#d5d3d1"),
@@ -762,6 +817,11 @@ mod tests {
         (Scheme::Dark, Role::Ink, "#cccccc"),
         (Scheme::Dark, Role::InkDim, "#707070"),
         (Scheme::Dark, Role::Mark, "#cccccc"),
+        (Scheme::Dark, Role::SyntaxNoun, "#fc7140"), // Provisional until capture #308.
+        (Scheme::Dark, Role::SyntaxVerb, "#799fc2"), // Provisional until capture #308.
+        (Scheme::Dark, Role::SyntaxAdjective, "#c1934e"), // Provisional until capture #308.
+        (Scheme::Dark, Role::SyntaxAdverb, "#ba8eb2"), // Provisional until capture #308.
+        (Scheme::Dark, Role::SyntaxConjunction, "#69ac46"), // Provisional until capture #308.
         (Scheme::Dark, Role::Accent, "#00bfff"),
         (Scheme::Dark, Role::Link, "#7a7a78"),
         (Scheme::Dark, Role::LinkRule, "#545452"),
@@ -1077,6 +1137,26 @@ mod tests {
     }
 
     #[test]
+    fn a_syntax_noun_key_overrides_its_built_in() {
+        let palette = palette("[light]\nsyntax_noun = \"#010203\"\n");
+        assert_eq!(
+            Colours::overlaid(Scheme::Light, &palette)
+                .colour(Role::SyntaxNoun)
+                .to_hex(),
+            "#010203"
+        );
+    }
+
+    #[test]
+    fn omitting_a_syntax_noun_key_keeps_its_built_in() {
+        let palette = palette("[light]\npaper = \"#ff0000\"\n");
+        assert_eq!(
+            Colours::overlaid(Scheme::Light, &palette).colour(Role::SyntaxNoun),
+            Colours::of(Scheme::Light).colour(Role::SyntaxNoun)
+        );
+    }
+
+    #[test]
     fn a_missing_table_leaves_that_ground_the_built_in() {
         let palette = palette("[dark]\npaper = \"#ff0000\"\n");
         assert_eq!(
@@ -1164,13 +1244,18 @@ mod tests {
     #[test]
     fn an_unknown_key_and_an_unknown_table_are_not_a_complaint() {
         let palette = palette(
-            "name = \"tokyo-night\"\n[light]\npaper = \"#ff0000\"\ncursor = \"purple\"\n[terminal]\nink = \"nonsense\"\n",
+            "name = \"tokyo-night\"\n[light]\npaper = \"#ff0000\"\nsyntax_future = \"#010203\"\ncursor = \"purple\"\n[terminal]\nink = \"nonsense\"\n",
         );
         assert_eq!(
             Colours::overlaid(Scheme::Light, &palette)
                 .colour(Role::Paper)
                 .to_hex(),
             "#ff0000"
+        );
+        assert_eq!(
+            Colours::overlaid(Scheme::Light, &palette).colour(Role::SyntaxNoun),
+            Colours::of(Scheme::Light).colour(Role::SyntaxNoun),
+            "an unknown future Syntax key does not change a known one"
         );
     }
 
@@ -1193,7 +1278,28 @@ mod tests {
         assert_eq!(Role::LinkRule.key(), "link_rule");
         assert_eq!(
             palette.colour(Scheme::Light, Role::LinkRule),
-            Some(Colour::from_hex("#060606"))
+            Some(Colour::from_hex("#0b0b0b"))
+        );
+    }
+
+    #[test]
+    fn syntax_role_keys_are_the_palette_contract() {
+        assert_eq!(
+            [
+                Role::SyntaxNoun,
+                Role::SyntaxVerb,
+                Role::SyntaxAdjective,
+                Role::SyntaxAdverb,
+                Role::SyntaxConjunction,
+            ]
+            .map(Role::key),
+            [
+                "syntax_noun",
+                "syntax_verb",
+                "syntax_adjective",
+                "syntax_adverb",
+                "syntax_conjunction",
+            ]
         );
     }
 
