@@ -6,6 +6,9 @@ CC BY-NC-SA 4.0 corpora, but contains no corpus text. The owner accepts the resi
 risk. Decided 2026-09-07 with the owner, from
 [#311](https://github.com/danielbaldwin47/Quill/issues/311) and the provenance research behind it.
 
+Status (2026-09-07): the review fix records and packages the exact Apache-2.0 text; the decision
+stands.
+
 ## Context
 
 Syntax highlight needs one local English part-of-speech tagger whose Universal POS output maps to
@@ -79,8 +82,9 @@ the measured accuracy bar.
 ## Consequences
 
 Syntax highlight may ship with this model. A release distribution that contains Harper's code or
-embedded artefacts also carries the Apache License 2.0 text; the published crate tarball does not
-include it, so packaging must not assume Cargo supplied the notice.
+embedded artefacts also carries the Apache License 2.0 text. The published crate tarball does not
+include it, so Quill keeps an exact copy at `licenses/harper-brill-Apache-2.0.txt` and the Arch
+package installs that copy under `/usr/share/licenses/quill/`.
 
 Quill accepts approximately 2.05 MiB of embedded tagger and unused chunker artifacts, the mandatory
 Burn dependency tree, and the measured compile and debug-binary cost. Only
