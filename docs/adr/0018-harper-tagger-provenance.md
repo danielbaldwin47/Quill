@@ -1,5 +1,9 @@
 # Ship the pinned Harper tagger with its provenance recorded
 
+**Status — 2026-09-07:** Accepted in [#311](https://github.com/danielbaldwin47/Quill/issues/311),
+implementing the owner's #310 decision. The decision stands; its implementation is on this
+branch pending merge. `main` does not yet contain the tagger dependency or this implementation.
+
 Syntax highlight uses `harper-brill = "=2.8.0"`, an Apache-2.0 crate, as accepted by the owner
 in [#310](https://github.com/danielbaldwin47/Quill/issues/310). Its embedded tagger was trained
 on Universal Dependencies English EWT (CC BY-SA 4.0), GUM and LinES (both CC BY-NC-SA 4.0).
@@ -40,6 +44,8 @@ Before the dependency, its body ended with `std::hint::black_box(prose)`; afterw
 `stat` the executable bytes, and `strip -o` made the stripped copies. The example is a
 measurement harness, not shipped code. Other implementation worktrees were active on the
 same machine, so these are single-run observations, not an isolated performance benchmark.
+The measurements preceded the final guard distinguishing auxiliary `'s` from possessive `'s`.
+The dependency, model and tokenizer were unchanged; the final executable size was not remeasured.
 
 These are engine-consumer probe sizes, not application sizes: the application does not yet
 call Syntax highlight at this ticket. A binary that never calls the seam can discard the
