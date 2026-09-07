@@ -12,6 +12,7 @@ repository = "https://github.com/danielbaldwin47/Quill"
 publish = false
 
 [workspace.dependencies]
+harper-brill = "=2.8.0"
 quill-engine = { path = "quill-engine" }
 # `gtk` belongs to the app crate alone (ADR 0008); the engine must stay
 # buildable and testable with no display attached.
