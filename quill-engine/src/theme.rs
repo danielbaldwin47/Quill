@@ -487,10 +487,14 @@ impl Colours {
         code_bg: Colour::rgba(0, 0, 0, 0.036),
         rule: Colour::rgba(0, 0, 0, 0.10),
         shadow: Colour::rgba(0, 0, 0, 0.18),
-        // The five Syntax highlight colours are still-reads off the iA
-        // syntax-highlight stills, transcribed in `ref/ia/REFERENCE.md`, and so
-        // are provisional: the capture ticket #308 measures them and replaces
-        // these five lines, the five in DARK and the ten oracle rows.
+        // The five Syntax highlight colours as `ref/ia/REFERENCE.md:231` has
+        // them, which is not one kind of number: the verb, adjective, adverb
+        // and conjunction are exact reads off ia.net's lossless light still,
+        // and the noun red is `≈ #ca471a`, read off an App Store slide's
+        // headline that reuses the palette and marked UNVERIFIED there as the
+        // editor value. All five are provisional either way: the capture
+        // ticket #308 measures them against the app and replaces these five
+        // lines, the five in DARK and the ten oracle rows.
         syntax_noun: Colour::from_hex("#ca471a"), // provisional, #308
         syntax_verb: Colour::from_hex("#3476b9"), // provisional, #308
         syntax_adjective: Colour::from_hex("#a66500"), // provisional, #308
@@ -521,17 +525,19 @@ impl Colours {
         code_bg: Colour::rgba(255, 255, 255, 0.048),
         rule: Colour::rgba(255, 255, 255, 0.10),
         shadow: Colour::rgba(0, 0, 0, 0.55),
-        // Verbs, adjectives and adverbs are still-reads off the dark iA still;
+        // Verbs, adjectives and adverbs are reads off the App Store's dark
+        // still (`ref/ia/REFERENCE.md:231`, where the adverb is `≈ #ba8eb2`);
         // nouns and conjunctions were never read on a dark ground, so they are
         // derived by the lift those three measured pairs show. The lift, in
         // HSL: the hue is held (the three drift by at most 1.5°), lightness
-        // rises by their mean (+0.166 of 1.0) and saturation falls to their
-        // mean ratio (×0.589). Run back over the three the rule reproduces
-        // them within 9 of 255 on every channel but the adjective's blue,
-        // which it misses by 26; the two it derives land at 5.9:1 and 6.1:1
-        // over this paper against the measured three's 6.3:1, so they are in
-        // family rather than merely in hue. All five are provisional: the
-        // capture ticket #308 measures the dark ground and replaces them.
+        // rises by their mean and saturation falls to their mean ratio.
+        //
+        // Every figure in that sentence, and both derived hexes, are recomputed
+        // from the three pairs by `the_derived_dark_syntax_colours_are_the_lift
+        // _the_three_measured_pairs_show` below, which is where to read the
+        // rule and what bounds it: it is a test rather than a note so that the
+        // day #308 replaces these values it says so out loud. All five are
+        // provisional until it does.
         syntax_noun: Colour::from_hex("#c9866f"), // derived from #ca471a; provisional, #308
         syntax_verb: Colour::from_hex("#799fc2"), // provisional, #308
         syntax_adjective: Colour::from_hex("#c1934e"), // provisional, #308
@@ -1313,6 +1319,161 @@ mod tests {
             None,
             "the file named no dark ground"
         );
+    }
+
+    /// The rule behind the two dark values nobody could read off a still, run
+    /// where it can be checked rather than quoted in a comment.
+    ///
+    /// Verbs, adjectives and adverbs were measured on both grounds
+    /// (`ref/ia/REFERENCE.md:231`), which is three light-to-dark pairs. In HSL
+    /// they hold their hue and move in lightness and saturation, so the lift
+    /// is those two means, and the dark noun and the dark conjunction are
+    /// their light values put through it. This asserts the means, what the
+    /// rule costs when it is run back over the three pairs it came from, and
+    /// the two hexes the table above commits — so #308's measured values
+    /// arrive as a failure here, which is the notice to delete the whole
+    /// derivation.
+    #[test]
+    fn the_derived_dark_syntax_colours_are_the_lift_the_three_measured_pairs_show() {
+        /// Hue 0–360, saturation 0–1, lightness 0–1.
+        type Hsl = (f64, f64, f64);
+        /// Red, green and blue, each 0–1, as [`Colour`] holds them.
+        type Rgb = (f64, f64, f64);
+        /// One role measured on both grounds: its light HSL, then its dark.
+        type Pair = (Hsl, Hsl);
+
+        fn hsl(colour: Colour) -> Hsl {
+            let (red, green, blue) = (colour.red, colour.green, colour.blue);
+            let high = red.max(green).max(blue);
+            let low = red.min(green).min(blue);
+            let (span, sum) = (high - low, high + low);
+            let lightness = sum / 2.0;
+            let saturation = if span == 0.0 {
+                0.0
+            } else {
+                span / (1.0 - (sum - 1.0).abs())
+            };
+            let hue = if span == 0.0 {
+                0.0
+            } else if high == red {
+                60.0 * (((green - blue) / span) % 6.0)
+            } else if high == green {
+                60.0 * ((blue - red) / span + 2.0)
+            } else {
+                60.0 * ((red - green) / span + 4.0)
+            };
+            ((hue + 360.0) % 360.0, saturation, lightness)
+        }
+
+        /// Back the other way, to red, green and blue each 0–1.
+        ///
+        /// No rounding to a byte here: the comparisons below are made in the
+        /// channels' own 0–1, and "is this hex" is asked as "is it inside half
+        /// a step of it", which is the same question without a cast
+        /// (`CODING_STANDARDS.md` § Shape).
+        fn rgb(hue: f64, saturation: f64, lightness: f64) -> Rgb {
+            let span = (1.0 - (2.0f64.mul_add(lightness, -1.0)).abs()) * saturation;
+            let second = span * (1.0 - ((hue / 60.0) % 2.0 - 1.0).abs());
+            let base = lightness - span / 2.0;
+            let (red, green, blue) = if hue < 60.0 {
+                (span, second, 0.0)
+            } else if hue < 120.0 {
+                (second, span, 0.0)
+            } else if hue < 180.0 {
+                (0.0, span, second)
+            } else if hue < 240.0 {
+                (0.0, second, span)
+            } else if hue < 300.0 {
+                (second, 0.0, span)
+            } else {
+                (span, 0.0, second)
+            };
+            (red + base, green + base, blue + base)
+        }
+
+        /// The channels of a committed colour, to compare a derived one with.
+        fn channels(colour: Colour) -> Rgb {
+            (colour.red, colour.green, colour.blue)
+        }
+
+        /// The widest of the three channels' gaps, in steps of 255.
+        fn apart(made: Rgb, want: Rgb) -> f64 {
+            let (red, green, blue) = (made.0 - want.0, made.1 - want.1, made.2 - want.2);
+            red.abs().max(green.abs()).max(blue.abs()) * 255.0
+        }
+
+        // The three roles measured on both grounds, light then dark.
+        let measured = [
+            (Role::SyntaxVerb, "#3476b9", "#799fc2"),
+            (Role::SyntaxAdjective, "#a66500", "#c1934e"),
+            (Role::SyntaxAdverb, "#b24fa2", "#ba8eb2"),
+        ];
+        let pairs: Vec<Pair> = measured
+            .iter()
+            .map(|&(_, light, dark)| (hsl(Colour::from_hex(light)), hsl(Colour::from_hex(dark))))
+            .collect();
+
+        let mean = |of: fn(&Pair) -> f64| pairs.iter().map(of).sum::<f64>() / pairs.len() as f64;
+        let drift = pairs
+            .iter()
+            .map(|(light, dark)| (dark.0 - light.0).abs())
+            .fold(0.0, f64::max);
+        let lift = mean(|(light, dark)| dark.2 - light.2);
+        let fall = mean(|(light, dark)| dark.1 / light.1);
+        assert!(
+            drift <= 1.5,
+            "the hue is held: the three drift by {drift:.2}°"
+        );
+        assert!(
+            (lift - 0.166).abs() < 0.0005,
+            "lightness rises by +0.166: {lift:.4}"
+        );
+        assert!(
+            (fall - 0.589).abs() < 0.0005,
+            "saturation falls to ×0.589: {fall:.4}"
+        );
+
+        let derive = |light: Colour| {
+            let (hue, saturation, lightness) = hsl(light);
+            rgb(hue, saturation * fall, lightness + lift)
+        };
+
+        // What the rule costs, run back over the three pairs it came from: the
+        // bound on how wrong the two it derives could be.
+        let miss = measured
+            .iter()
+            .map(|&(_, light, dark)| {
+                apart(
+                    derive(Colour::from_hex(light)),
+                    channels(Colour::from_hex(dark)),
+                )
+            })
+            .fold(0.0, f64::max);
+        assert!(
+            miss <= 27.0,
+            "no channel is out by more than the adjective's blue: {miss:.0} of 255"
+        );
+
+        for (role, light, dark) in [
+            (Role::SyntaxNoun, "#ca471a", "#c9866f"),
+            (Role::SyntaxConjunction, "#3f831e", "#6ba84d"),
+        ] {
+            let apart = apart(
+                derive(Colour::from_hex(light)),
+                channels(Colour::from_hex(dark)),
+            );
+            assert!(
+                apart <= 0.5,
+                "{} is its light value through the lift, which lands on {dark}: \
+                 {apart:.2} of 255 away",
+                role.key()
+            );
+            assert_eq!(
+                Colours::of(Scheme::Dark).colour(role).to_hex(),
+                dark,
+                "and that is what the DARK table commits"
+            );
+        }
     }
 
     #[test]

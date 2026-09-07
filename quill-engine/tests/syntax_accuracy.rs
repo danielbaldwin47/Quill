@@ -51,16 +51,20 @@ fn the_tagger_agrees_with_ia_on_the_words_its_stills_colour() {
     let mut report = String::new();
 
     for passage in &fixture.passage {
-        let shows: HashSet<Category> = passage.shows.iter().map(|name| named(name)).collect();
-        let expected = expected(passage, &shows);
-        let ours = ours(passage, &shows);
+        let shows: HashSet<Category> = passage
+            .shows
+            .iter()
+            .map(|name| category_named(name))
+            .collect();
+        let ia = expected(passage, &shows);
+        let quill = quill_colours(passage, &shows);
 
-        let mut offsets: BTreeSet<usize> = expected.keys().copied().collect();
-        offsets.extend(ours.keys().copied());
+        let mut offsets: BTreeSet<usize> = ia.keys().copied().collect();
+        offsets.extend(quill.keys().copied());
         let (mut passage_scored, mut passage_agreed) = (0usize, 0usize);
         for offset in offsets {
-            let theirs = expected.get(&offset).copied();
-            let ours = ours.get(&offset).copied();
+            let theirs = ia.get(&offset).copied();
+            let ours = quill.get(&offset).copied();
             passage_scored += 1;
             if theirs.map(|(category, _)| category) == ours.map(|(category, _)| category) {
                 passage_agreed += 1;
@@ -114,7 +118,7 @@ fn expected<'a>(
         .coloured
         .iter()
         .map(|coloured| {
-            let category = named(&coloured.category);
+            let category = category_named(&coloured.category);
             let end = coloured.at + coloured.word.len();
             assert_eq!(
                 passage.text.get(coloured.at..end),
@@ -136,7 +140,7 @@ fn expected<'a>(
 }
 
 /// What Quill colours, by byte offset, over the Categories the still shows on.
-fn ours<'a>(
+fn quill_colours<'a>(
     passage: &'a Passage,
     shows: &HashSet<Category>,
 ) -> BTreeMap<usize, (Category, &'a str)> {
@@ -151,7 +155,8 @@ fn describe(category: Option<Category>) -> String {
     category.map_or_else(|| "body ink".to_owned(), |category| format!("{category:?}"))
 }
 
-fn named(category: &str) -> Category {
+/// The [`Category`] a fixture line names, by the five names the fixture writes.
+fn category_named(category: &str) -> Category {
     match category {
         "Nouns" => Category::Nouns,
         "Verbs" => Category::Verbs,

@@ -41,6 +41,7 @@
 //! All offsets are UTF-8 bytes from the start of the Document, because that is
 //! what the parser emits.
 
+use std::borrow::Cow;
 use std::ops::Range;
 
 use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Tag};
@@ -519,18 +520,33 @@ fn resolve(mark: Mark, under: Look) -> Look {
 ///
 /// A Category outside `enabled` is skipped and its bytes keep the body's ink,
 /// which is why switching one off is a repaint and not a retag. No spans, or
-/// none enabled, is the master toggle off, and the runs are handed straight
-/// back.
-fn tinted(runs: &[Run], tagged: &[(Range<usize>, Category)], enabled: Categories) -> Vec<Run> {
+/// none enabled, is the master toggle off: the runs are borrowed straight
+/// back, so Syntax highlight off costs the keystroke path one branch and no
+/// allocation at all, and [`paint`] allocates exactly what it allocated before
+/// this tier existed.
+///
+/// The bound is `O((r + t) log(r + t))` in the runs `r` of the retagged range
+/// and the tokens `t` over it — one sort of the `2(r + t)` edges, then one
+/// forward walk of them with a cursor into each list — and `2(r + t)` runs out
+/// at worst, which [`push_run`] merges back down. Both are a paragraph's, not
+/// the Document's: [`paint_tagged_in`] is handed the spans and the tokens that
+/// reach `at` and no others. The bench that pins the cost is #316's, the
+/// ticket that first puts a Category on the keystroke path; until then no
+/// caller passes a token and this walk is the early return above.
+fn tinted<'a>(
+    runs: &'a [Run],
+    tagged: &[(Range<usize>, Category)],
+    enabled: Categories,
+) -> Cow<'a, [Run]> {
     if enabled.is_empty() || tagged.is_empty() {
-        return runs.to_vec();
+        return Cow::Borrowed(runs);
     }
     let tokens: Vec<&(Range<usize>, Category)> = tagged
         .iter()
         .filter(|(_, category)| enabled.contains(*category))
         .collect();
     if tokens.is_empty() {
-        return runs.to_vec();
+        return Cow::Borrowed(runs);
     }
     // Every edge of either list, so that each stretch between two of them lies
     // wholly inside or wholly outside each: a run's look and a token's Category
@@ -577,7 +593,7 @@ fn tinted(runs: &[Run], tagged: &[(Range<usize>, Category)], enabled: Categories
         };
         push_run(&mut out, at, category.map_or(look, |it| tint(look, it)));
     }
-    out
+    Cow::Owned(out)
 }
 
 /// `look` with `category`'s ink, where the body's ink on the page is what it
@@ -585,9 +601,25 @@ fn tinted(runs: &[Run], tagged: &[(Range<usize>, Category)], enabled: Categories
 ///
 /// The whole of the precedence, in one match. A marker, a link's plumbing and
 /// a code span are none of the tagger's business — the prose stream holds none
-/// of them, so no token reaches one — and the guard is here as well so that a
-/// mapping which one day hands one over anyway leaves the mark it already
-/// carries standing, rather than putting a colour on a bracket.
+/// of them, so no token reaches one — and the guard stands for the three of
+/// them a second time, so that a mapping which one day hands one over anyway
+/// leaves the mark it already carries standing rather than putting a colour on
+/// a bracket.
+///
+/// What the guard cannot stand for is a **fenced** block, and it is worth
+/// being exact about why: [`resolve`] gives [`Mark::CodeBlock`] the prose ink
+/// on the page it was already on, because the app paints that ground from the
+/// mark rather than from the run (a run property could not run past the
+/// measure). Its look is therefore the body's look exactly, and no test of
+/// `look` alone can tell a fenced line from a paragraph. An inline
+/// [`Mark::Code`] span is a different case and is guarded, because it carries
+/// [`Ground::Code`].
+///
+/// So fenced code rests on the one guarantee upstream: the prose stream
+/// excludes it, as #310 § The Annotator fixes, and #316's mapping of stream
+/// offsets back onto the Document has to keep it excluded. The alternative —
+/// handing this function the code-block spans — would put a second list on the
+/// keystroke path to re-derive something the stream already knows.
 fn tint(look: Look, category: Category) -> Look {
     match look {
         Look {
@@ -713,7 +745,10 @@ pub fn paint_tagged_in(
     focus: Focus,
     colours: &Colours,
 ) -> Vec<Painted> {
-    let runs = tinted(&flatten(spans), tagged, enabled);
+    // Bound before the tint so the untagged path can borrow it: with no
+    // Category to lay over them the flattened runs are used where they lie.
+    let flattened = flatten(spans);
+    let runs = tinted(&flattened, tagged, enabled);
     // With Focus on every byte is spoken for, because the buffer's own ink is
     // the wrong colour for most of the page and the writer must not see it
     // anywhere. With Focus off the buffer is right about plain prose, and
@@ -2395,12 +2430,19 @@ mod tests {
 
     // The third tier: Syntax highlight's Category inks over the flattening.
 
+    /// The bytes of `word` in `text`, which every Syntax test names its places
+    /// by. The first occurrence: the passages are written so that each word a
+    /// test asks about appears once.
+    fn bytes_of(text: &str, word: &str) -> Range<usize> {
+        let at = text.find(word).expect("the word is in the passage");
+        at..at + word.len()
+    }
+
     /// The bytes of `word` in `text` at `category`: one token, as
     /// [`crate::pos::categories`] would hand it over once #314 has mapped the
     /// prose stream's offsets back onto the Document.
     fn token(text: &str, word: &str, category: Category) -> (Range<usize>, Category) {
-        let at = text.find(word).expect("the word is in the passage");
-        (at..at + word.len(), category)
+        (bytes_of(text, word), category)
     }
 
     /// What `doc` draws with `tagged` coloured and `enabled` switched on, at
@@ -2429,7 +2471,7 @@ mod tests {
 
     /// The paint of the run holding the first byte of `word`.
     fn paint_at(runs: &[Painted], text: &str, word: &str) -> Paint {
-        let at = text.find(word).expect("the word is in the passage");
+        let at = bytes_of(text, word).start;
         runs.iter()
             .find(|run| run.at.contains(&at))
             .unwrap_or_else(|| panic!("{word:?} is in no run"))
@@ -2530,6 +2572,75 @@ mod tests {
                 ground: Ground::Code,
             },
             "a code span keeps the ink and the ground Markup gave it"
+        );
+    }
+
+    /// The literal case #313 names: a bold noun in body prose, not in a
+    /// heading. Emphasis sets the weight and says nothing about the ink, the
+    /// Category sets the ink and says nothing about the weight, so the word is
+    /// bold and red at once and the asterisks around it are neither.
+    #[test]
+    fn a_bold_body_noun_keeps_its_weight_and_takes_the_noun_role() {
+        let doc = document("The **rabbit** ate quickly.\n");
+        let colours = Colours::of(Scheme::Light);
+        let text = doc.text();
+        let tagged = [token(text, "rabbit", Category::Nouns)];
+
+        let runs = tagged_runs(&doc, 0..0, &tagged, Categories::ALL, Focus::Off, &colours);
+        assert_eq!(
+            paint_at(&runs, text, "rabbit"),
+            Paint {
+                colour: colours.colour(Role::SyntaxNoun),
+                weight: Weight::Bold,
+                slant: Slant::Upright,
+                ground: Ground::Page,
+            },
+            "a bold noun keeps its weight and takes the noun Role"
+        );
+        assert_eq!(
+            paint_at(&runs, text, "**").colour,
+            colours.colour(Role::Mark),
+            "and its markers stay in the body's marker ink"
+        );
+    }
+
+    /// Where [`tint`]'s guard reaches, pinned at its edge. An inline code span
+    /// carries [`Ground::Code`] and is guarded; a fenced block's text is the
+    /// body's look exactly ([`resolve`] leaves it prose ink on the page,
+    /// because the app paints that ground from the mark), so no test of `look`
+    /// alone can tell it from a paragraph and a token handed over inside one
+    /// *would* be coloured. That is not a hole to plug here but the reason the
+    /// prose stream excludes fenced code upstream (#310 § The Annotator), and
+    /// the reason #316's mapping has to keep it excluded. This test fails the
+    /// day the flattening starts guarding fenced code, which would mean the
+    /// guarantee moved.
+    #[test]
+    fn a_fenced_blocks_exclusion_is_the_prose_streams_to_keep_and_not_the_flattenings() {
+        let doc = document("Prose here.\n\n```\nlet rabbit = 1;\n```\n\nAnd `chips` inline.\n");
+        let colours = Colours::of(Scheme::Light);
+        let text = doc.text();
+        let tagged = [
+            token(text, "rabbit", Category::Nouns),
+            token(text, "chips", Category::Nouns),
+        ];
+
+        let runs = tagged_runs(&doc, 0..0, &tagged, Categories::ALL, Focus::Off, &colours);
+        assert_eq!(
+            paint_at(&runs, text, "chips"),
+            Paint {
+                colour: colours.colour(Role::Ink),
+                weight: Weight::Regular,
+                slant: Slant::Upright,
+                ground: Ground::Code,
+            },
+            "an inline code span carries the code ground, so the guard holds \
+             even when a token is handed over on top of it"
+        );
+        assert_eq!(
+            paint_at(&runs, text, "rabbit").colour,
+            colours.colour(Role::SyntaxNoun),
+            "a fenced block's text has the body's look and nothing else, so \
+             the flattening cannot guard it: only the prose stream can"
         );
     }
 
