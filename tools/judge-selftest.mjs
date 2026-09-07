@@ -1013,13 +1013,19 @@ ok('the Export dialog dims only the Editor over an unchanged pane, centred with 
   assert.match(none.why, /no dialog stands over the page/);
 
   // A second ground that runs to an edge is not a dialog standing over a page — it is the page
-  // gone, which is what a dialog opened full-window would look like.
-  const filled = assertState(spec, {
-    dim: dialogShot({ dw: 300, dh: 120, off: [-50, 0], rows: 4 }),
-    lit: reference,
-  });
-  assert.equal(filled.ours, false, filled.why);
-  assert.match(filled.why, /it reaches an edge, so it is not a dialog standing over the page/);
+  // gone, which is what a dialog opened full-window would look like. Both edges, and each alone:
+  // the box is walked out from the window's centre to the first column that is not its ground,
+  // so a dialog that reaches the pane's far edge is refused as surely as one that reaches the
+  // Editor's. Short, so that over the pane's right quarter the page still outweighs the surround
+  // the dialog is drawn in and the surround reading the rule makes first is the reference's.
+  for (const [dw, off] of [[400, [0, 0]], [300, [-50, 0]], [300, [50, 0]]]) {
+    const filled = assertState(spec, {
+      dim: dialogShot({ dw, dh: 40, off, rows: 2 }),
+      lit: reference,
+    });
+    assert.equal(filled.ours, false, filled.why);
+    assert.match(filled.why, /it reaches an edge, so it is not a dialog standing over the page/);
+  }
 
   assert.throws(() => validate({ kind: 'dialog', rows: 12 }), /the dialog assertion takes nothing but its kind, and this one names rows/);
 });

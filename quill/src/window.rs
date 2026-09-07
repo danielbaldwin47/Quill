@@ -197,7 +197,7 @@ mod imp {
         /// and dropped with it.
         pub dialog_saved: RefCell<Option<Settings>>,
         /// The lifecycle state that answers whether the Editor scrim is shown.
-        pub dialog_preview: RefCell<DialogPreviewState>,
+        pub(super) dialog_preview: RefCell<DialogPreviewState>,
         /// The one Export dialog standing over this window, so a second
         /// command presents it instead of opening another.
         pub export_dialog: RefCell<Option<glib::WeakRef<gtk::Window>>>,
@@ -3080,18 +3080,17 @@ pub(crate) struct DialogPreviewBefore {
     open: bool,
 }
 
-/// Whether a Preview-driving Export dialog stands, and whether its Editor
-/// scrim is visible in the window's current layout.
+/// Whether a Preview-driving Export dialog stands over the window, which is
+/// the one thing the Editor's scrim depends on beyond the pane's own layout.
 ///
 /// Display-free so the dialog's open, layout, close and reopen transitions are
-/// held by one lifecycle test. The window applies the answered flag to the
-/// scrim; the state never reaches the settings file.
+/// held by one lifecycle test. [`DialogPreviewState::apply`] answers whether
+/// the scrim shows and the window puts that answer on the widget; nothing here
+/// reaches the settings file.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct DialogPreviewState {
+pub(crate) struct DialogPreviewState {
     /// Whether a PDF or HTML Export dialog currently drives the pane.
     open: bool,
-    /// Whether the app's scrim currently covers the Editor.
-    editor_dimmed: bool,
 }
 
 impl DialogPreviewState {
@@ -3100,16 +3099,16 @@ impl DialogPreviewState {
         self.open = true;
     }
 
-    /// Applies the pane's current visibility and layout, answering the scrim.
-    fn apply(&mut self, previewing: bool, split: bool) -> bool {
-        self.editor_dimmed = self.open && previewing && split;
-        self.editor_dimmed
+    /// Whether the scrim covers the Editor under the pane's current
+    /// visibility and layout: while a dialog stands and the Editor half is on
+    /// screen beside a Split pane, and never in Full or with the pane away.
+    fn apply(&self, previewing: bool, split: bool) -> bool {
+        self.open && previewing && split
     }
 
-    /// Ends the dialog and takes its scrim down.
+    /// Ends the dialog, and with it the scrim.
     fn close(&mut self) {
         self.open = false;
-        self.editor_dimmed = false;
     }
 }
 
