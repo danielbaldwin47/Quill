@@ -1,0 +1,8 @@
+gate judge page: light: ours (clear, carried from round 8)
+gate judge page: light: gap: Leading is ~5% tighter: line pitch 37 CSS px on a ~22px face (1.68) vs B's 38 CSS px on ~21.5px (1.77); across the six-line opening paragraph A's block is denser and gives the eye less runway on a 61-character monospace measure.
+gate judge page: narrow: theirs (slight, carried from round 8)
+gate judge page: narrow: gap: Less air on every edge: left margin 142px vs A's 181px, so the text fills 85.2% of the 1920px viewport against A's 81.1%; and the final line's descenders land 35px above the y=1748 status hairline where A leaves 78px. The block presses toward the window rather than floating inside it, and there is no visible bottom headroom — type one more line and the caret is against the chrome.
+gate judge page: short: ours (slight, carried from round 7)
+gate judge page: short: gap: Line pitch 74px vs A's 76px (37 vs 38 CSS px, ~1.63 vs ~1.70 leading) on identical ~22.5px type, and the measure wraps three characters earlier (58–59 chars vs A's 62) — a marginally tighter, more crowded column.
+gate judge page: this Piece was won in round 7 against the Parity oracle and is lost now (docs/agents/gate.md: a Piece once won is never lost)
+gate judge page: theirs, round 9
