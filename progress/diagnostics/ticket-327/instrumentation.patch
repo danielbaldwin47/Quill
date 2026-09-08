@@ -1,0 +1,185 @@
+diff --git i/quill/src/editor.rs w/quill/src/editor.rs
+index 0cd20d6..01b67d9 100644
+--- i/quill/src/editor.rs
++++ w/quill/src/editor.rs
+@@ -880,6 +880,7 @@ impl Editor {
+ 
+     /// Captures dirty prose after the debounce, with the laid-out viewport first.
+     pub(crate) fn submit_syntax(&self, document: &Document) {
++        let _probe = crate::harness::probe_stage("submit"); // DEBUG-327
+         let at = self.furnished(document);
+         let first = document.block_at(at.start).unwrap_or(0);
+         let last = document.block_at(at.end).unwrap_or(first);
+@@ -891,6 +892,7 @@ impl Editor {
+ 
+     /// Drains a bounded idle batch and redraws only its accepted paragraphs.
+     pub(crate) fn drain_syntax(&self, document: &Document) -> bool {
++        let _probe = crate::harness::probe_stage("drain"); // DEBUG-327
+         let mut lines = self.imp().syntax.borrow_mut().drain(document);
+         if !lines.is_empty() {
+             // A fade's snapshots contain the old Category colours. Its whole
+@@ -1614,6 +1616,7 @@ impl Editor {
+     /// by the line and the byte index within it and both of those have to be
+     /// the ones the writer can now see.
+     pub fn retag(&self, document: &Document, edit: &Edit) {
++        let _probe = crate::harness::probe_stage("retag"); // DEBUG-327
+         self.imp().syntax.borrow_mut().edited(document, edit);
+         // An edit moves the caret as well as the text, so the tiers are worked
+         // out again here rather than left to the caret's own feed: the lines
+diff --git i/quill/src/harness.rs w/quill/src/harness.rs
+index 78f7760..e62aa60 100644
+--- i/quill/src/harness.rs
++++ w/quill/src/harness.rs
+@@ -47,6 +47,64 @@ use gtk::gdk;
+ use gtk::glib;
+ use gtk::prelude::*;
+ 
++// DEBUG-327: temporary observations; never used by measurement acceptance.
++thread_local! {
++    static PROBE: RefCell<Option<Probe>> = const { RefCell::new(None) };
++}
++
++struct Probe {
++    file: File,
++    lines: String,
++    watches: Vec<(gdk::FrameTimings, i64)>,
++}
++
++pub(crate) struct ProbeStage(&'static str, i64);
++
++pub(crate) fn probe_stage(name: &'static str) -> ProbeStage {
++    ProbeStage(name, glib::monotonic_time())
++}
++
++impl Drop for ProbeStage {
++    fn drop(&mut self) {
++        let end = glib::monotonic_time();
++        PROBE.with_borrow_mut(|held| {
++            if let Some(p) = held {
++                p.lines.push_str(&format!("{{\"kind\":\"stage\",\"name\":\"{}\",\"start_us\":{},\"end_us\":{end}}}\n", self.0, self.1));
++            }
++        });
++    }
++}
++
++fn probe_observe(t: &gdk::FrameTimings, consumer: &str) {
++    let before = glib::monotonic_time();
++    let present = t.presentation_time();
++    let complete = t.is_complete();
++    let after = glib::monotonic_time();
++    PROBE.with_borrow_mut(|held| {
++        if let Some(p) = held {
++            p.lines.push_str(&format!("{{\"kind\":\"accept\",\"consumer\":\"{consumer}\",\"frame\":{},\"before_us\":{before},\"after_us\":{after},\"complete\":{complete},\"present_us\":{present}}}\n", t.frame_counter()));
++            p.watches.push((t.clone(), after));
++        }
++    });
++}
++
++fn probe_drain() {
++    PROBE.with_borrow_mut(|held| {
++        if let Some(p) = held {
++            p.watches.retain(|(t, accepted)| {
++                let before = glib::monotonic_time();
++                let present = t.presentation_time();
++                let complete = t.is_complete();
++                let after = glib::monotonic_time();
++                p.lines.push_str(&format!("{{\"kind\":\"reread\",\"frame\":{},\"accepted_us\":{accepted},\"before_us\":{before},\"after_us\":{after},\"complete\":{complete},\"present_us\":{present}}}\n", t.frame_counter()));
++                after - accepted < 500_000
++            });
++            let _ = p.file.write_all(p.lines.as_bytes());
++            p.lines.clear();
++        }
++    });
++}
++
+ /// The variable the harness stamps before `exec`, in realtime nanoseconds:
+ /// what `date +%s%N` prints.
+ const T0: &str = "QUILL_T0_NS";
+@@ -104,6 +162,13 @@ thread_local! {
+ /// kept for the rest of the process: a JSONL file truncated from the outside
+ /// while its writer holds it open comes back NUL-padded.
+ pub fn capture(out: &Path) {
++    PROBE.with_borrow_mut(|held| {
++        *held = Some(Probe {
++            file: File::create(out.with_extension("probe.jsonl")).unwrap(),
++            lines: String::new(),
++            watches: Vec::new(),
++        });
++    });
+     match File::create(out) {
+         Ok(file) => CAPTURE.with_borrow_mut(|held| {
+             *held = Some(Capture {
+@@ -139,6 +204,11 @@ pub fn watch(window: &impl IsA<gtk::Widget>) {
+     widget.add_tick_callback(|widget, clock| {
+         let painted = widget.downgrade();
+         clock.connect_after_paint(move |clock| {
++            PROBE.with_borrow_mut(|held| {
++                if let Some(p) = held {
++                    p.lines.push_str(&format!("{{\"kind\":\"paint\",\"frame\":{},\"at_us\":{}}}\n", clock.frame_counter(), glib::monotonic_time()));
++                }
++            });
+             // Every key stamped since the last paint was carried by this frame.
+             mark(clock.frame_counter());
+             if let Some(widget) = painted.upgrade() {
+@@ -227,7 +297,12 @@ fn presented(clock: &gdk::FrameClock) -> Option<i64> {
+     (clock.history_start()..=clock.frame_counter())
+         .filter_map(|counter| clock.timings(counter))
+         .filter(gdk::FrameTimings::is_complete)
+-        .map(|timings| timings.presentation_time())
++        .map(|timings| {
++            if timings.presentation_time() != 0 {
++                probe_observe(&timings, "cold");
++            }
++            timings.presentation_time()
++        })
+         .find(|time| *time != 0)
+ }
+ 
+@@ -243,7 +318,12 @@ fn presented_from(clock: &gdk::FrameClock, frame: i64) -> Option<(i64, i64)> {
+     (frame..=clock.frame_counter())
+         .filter_map(|counter| clock.timings(counter))
+         .filter(gdk::FrameTimings::is_complete)
+-        .map(|timings| (timings.presentation_time(), timings.refresh_interval()))
++        .map(|timings| {
++            if timings.presentation_time() != 0 {
++                probe_observe(&timings, "key");
++            }
++            (timings.presentation_time(), timings.refresh_interval())
++        })
+         .find(|(time, _)| *time != 0)
+ }
+ 
+@@ -273,6 +353,7 @@ fn drain(clock: &gdk::FrameClock, widget: &gtk::Widget) {
+     if with_capture(|capture| capture.drain(clock, glib::monotonic_time())) {
+         widget.queue_draw();
+     }
++    probe_drain();
+ }
+ 
+ /// One key, from the moment it was seen to the moment its frame was presented.
+diff --git i/tools/bench.mjs w/tools/bench.mjs
+index 2abe9fe..798bea7 100644
+--- i/tools/bench.mjs
++++ w/tools/bench.mjs
+@@ -412,6 +412,8 @@ async function runSession(root, stage, { regime, keys, index }) {
+     // The warm-up's events lead, in order; a run that lost focus inside the warm-up sent nothing.
+     const sent = wrote.events.slice(warm.keys).map((e, i) => ({ ...e, i }));
+     const seen = before === null ? [] : capture(out).slice(before);
++    // DEBUG-327: retain the exact inputs to the unchanged production join.
++    fs.writeFileSync(path.join(stage.tmp, `joined-${index}.json`), JSON.stringify({ sent, seen }, null, 2));
+     const cold = /^cold start: ([\d.]+) ms$/m.exec(ours.said());
+ 
+     return {
+diff --git i/tools/harness.mjs w/tools/harness.mjs
+index 6e1f057..7e69272 100644
+--- i/tools/harness.mjs
++++ w/tools/harness.mjs
+@@ -686,6 +686,8 @@ function closeStage({ state, owner, tmp, disarm }, restore) {
+   try { restore(); } catch { /* ditto */ }
+   if (owner.cursor) { try { movePointer(owner.cursor); } catch { /* ditto */ } }
+   if (owner.window) { try { focusWindow(owner.window); } catch { /* ditto */ } }
++  // DEBUG-327: preserve every diagnostic attempt before the stage disappears.
++  fs.cpSync(tmp, path.join(process.env.QUILL_PROBE_ARCHIVE, path.basename(tmp)), { recursive: true });
+   try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { /* ditto */ }
+   if (state.lock !== null) { try { fs.closeSync(state.lock); } catch { /* the exit releases it anyway */ } state.lock = null; }
+   disarm();
