@@ -863,7 +863,7 @@ impl Editor {
     /// a draw that folded to a caret the fold has not moved to yet would take
     /// bytes off the page between the fold's own two passes, which is the
     /// reflow under a held button that [`Editor::released`] exists to prevent.
-    fn painting<'a>(&self, tiers: &'a [LineTiers]) -> tags::Painting<'a> {
+    fn painting<'a>(&'a self, tiers: &'a [LineTiers]) -> tags::Painting<'a> {
         let writer = self.imp().writer.borrow().clone();
         self.painting_at(&writer, tiers)
     }
@@ -874,7 +874,7 @@ impl Editor {
     /// The same reason [`Editor::retier_at`] takes one: a Document is drawn
     /// before its cursor is placed, and Live's fold is a judgement about where
     /// the writer is, so the place it opens at is named rather than read.
-    fn painting_at<'a>(&self, at: &Range<usize>, tiers: &'a [LineTiers]) -> tags::Painting<'a> {
+    fn painting_at<'a>(&'a self, at: &Range<usize>, tiers: &'a [LineTiers]) -> tags::Painting<'a> {
         tags::Painting {
             face: self.imp().face.get(),
             colours: self.colours(),
@@ -885,6 +885,8 @@ impl Editor {
                 start: at.start,
                 end: at.end,
             }),
+            page: self.imp().laid_out.get().map(|page| page.column),
+            measure: self,
         }
     }
 
@@ -1374,6 +1376,7 @@ impl Editor {
             self.imp().step.get(),
             page.column,
             std::array::from_fn(|level| self.marker_advance(level as u8 + 1)),
+            self,
             &self.colours(),
         );
     }
@@ -1449,13 +1452,24 @@ impl Editor {
     fn marker_advance(&self, level: u8) -> i32 {
         let mut run = "#".repeat(usize::from(level));
         run.push(' ');
-        let layout = self.measured_at(&run, self.heading_scale(level));
+        self.run_advance(&run, self.heading_scale(level))
+    }
+
+    /// How far `run` advances, laid out at `scale` of the body's size, in whole
+    /// pixels.
+    ///
+    /// The measuring half of [`Editor::marker_advance`], shared with the runs a
+    /// list item and a quote hang by ([`tags::Measure`]), which are not a
+    /// ladder of six but whatever the Document holds.
+    fn run_advance(&self, run: &str, scale: f64) -> i32 {
+        let layout = self.measured_at(run, scale);
         // The logical width, rounded once here, as every other horizontal
         // length this widget sets is.
         let width = f64::from(layout.size().0) / f64::from(pango::SCALE);
         #[expect(
             clippy::cast_possible_truncation,
-            reason = "seven cells of one type size, which is under a hundred pixels"
+            reason = "a marker run is a handful of cells of one type size, \
+                      which is under a hundred pixels"
         )]
         let whole = width.round().max(0.0) as i32;
         whole
@@ -3362,6 +3376,18 @@ impl Editor {
         }
         let (top, _) = self.row_of(self.bar()?);
         Some(((top - adjustment.value()) / viewport).clamp(0.0, 1.0))
+    }
+}
+
+/// The Editor is what measures a marker run for the tag table, because it is
+/// what holds the Face and the step the run will be laid out in.
+///
+/// At the body's own size and never scaled: Live grows a heading and leaves a
+/// list item and a quote where they were, so the run a wrapped item hangs by is
+/// the run the page draws.
+impl tags::Measure for Editor {
+    fn advance(&self, run: &str) -> i32 {
+        self.run_advance(run, 1.0)
     }
 }
 
