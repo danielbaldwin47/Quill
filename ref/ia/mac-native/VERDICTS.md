@@ -5,7 +5,7 @@ One row per claim in `ref/ia/REFERENCE.md` §§ 3.5, 4.1 and 4.2 and in
 [ADR 0013](../../../docs/adr/0013-caret-on-the-advance-boundary.md) and
 [ADR 0014](../../../docs/adr/0014-a-selection-is-a-fill-and-nothing-else.md), marked **confirmed**,
 **contradicted** or **still unknown**, each naming the capture that decides it. Taken from iA Writer
-8.0.6 on macOS 27.0 at backing scale 2.0; the method and the full measurements are in
+8.0.6 on macOS 27.0 at backing scale 2.0, except the dated 2026-09-09 follow-ups on macOS 26.6.1; the method and the full measurements are in
 [NOTES.md](NOTES.md).
 
 **This table is the argument, not the change.** Nothing under `quill/`, `quill-engine/`, `docs/` or
@@ -73,7 +73,7 @@ that section.
 | 4.2.11 | Selection light: "—" (no value recorded) | **now measured** | **#ccedf8** active, **#dcdcdc** idle | 08-light, 07-light |
 | 4.2.12 | Dimmed / focus tiers are plural | **contradicted** | there is **one** dim tier per theme; Sentence and Paragraph share it | 13-* |
 | 4.2.13 | Wikilink brackets, link, content-block chip, autocomplete popup, library list | **split**: the **link** is now measured; wikilink brackets, the content-block chip, the autocomplete popup and the library list are **still unknown** — not covered | link text is body ink and carries **no** rule; its `[`, `]`, `(`, `)` and destination URL are **`#7a7a78`** dark / **`#b5b3b0`** light; the 4 px rule runs under the **destination alone** — not the words, not the brackets — at **`#545452`** / **`#d5d3d1`**, and under a bare URL at its full extent | 17-dark-marks, 17-light-marks |
-| 4.2.14 | Syntax colours (verbs, adjectives, adverbs, conjunctions, nouns) | **still unknown** — not covered; Syntax was off for every state by the ticket's Method | — | — |
+| 4.2.14 | Syntax colours (verbs, adjectives, adverbs, conjunctions, nouns) | **measured, 2026-09-09**, with a cross-display colour-space qualification | Ten normalised and original values in [the follow-up table](CAPTURE-2026-09-09.md#308--syntax); dim wins and contractions split | 21-syntax-all, isolated categories, focus and tokens |
 | 4.2.15 | Authorship author colours | **still unknown** — not covered; Authors were hidden for every state | — | — |
 
 ### Marker ink, one row per mark kind
@@ -114,6 +114,10 @@ owner's ask, and they touch this section, so what they settle is listed rather t
 | 4.3.1 | The built-in Modern / Classic / Academic template CSS ships only inside the bundle and is not public (GAP) | **still unknown** — the captures render the template, they do not open it | — | 16-preview-full |
 | 4.3.2 | `Example.iatemplate`'s public `style.css` is 0 bytes; `GitHub.iatemplate` carries the real values | **still unknown** — not covered; nothing here reads the public template repo | — | — |
 | 4.3.3 | Preview classes `night-mode`, `mac`, `content-size-*` | **still unknown** — not covered; the DOM was not opened | — | — |
+| 4.3.4 | Light Modern Web paper is white | **contradicted on the 2026-09-09 rig** | `#fcfcfc` paper, `#1a1a1a` ink | 20-light-preview-modern-full/split |
+| 4.3.5 | Template switches change alignment, sizes and spacing | **measured on the 2026-09-09 rig** | Classic and Manuscript (Duo) both centre headings; body pitch 68 vs 72 px; [measured line positions](CAPTURE-2026-09-09.md#261--preview) | 20-dark-preview-classic-full, manuscript-duo-full |
+| 4.3.6 | Web Preview scales with editor text size | **confirmed** | Editor-controlled steps 0/13: body pitch 46/164 px, different wrapping | 20-dark-editor-step-00/13, preview-modern-step-00/13 |
+| 4.3.7 | Scroll synchronization is two-way and scroll-position driven | **confirmed**; exact within-block interpolation remains unmeasured | Preview scrolling changes the Editor scrollbar, with caret still at document start | 20-dark-preview-long-sync-* |
 | — | *(no claim)* the Web preview's paper | **now measured** | **#101010**, a distinctly darker ground than the editor's `#1a1a1a` | 16-preview-full |
 | — | *(no claim)* rendered heading alignment | **now measured** | **centred** — ink centre 1627.0 against a window centre of 1624.0, where the editor left-aligns a heading on the body column | 16-preview-full |
 | — | *(no claim)* PDF preview against Dark Mode | **now measured** | the **whole window goes light** with Dark Mode still on — toolbar `#ffffff`, surround `#f7f7f7` — where the Web preview stays dark | 16-preview-pdf-full |
@@ -185,3 +189,6 @@ listed so the triage can see them, not because anything asks for them.
 | The PDF preview paginates: the page is centred, 1323 px wide, with a page number at its foot (its height is clipped by the viewport and cannot be read) | page x 962 … 2284, centre 1623.0 | 16-preview-pdf-full |
 | A heading carries **no margin of its own**: heading ink to the paragraph under it across a blank line is the same two pitches as paragraph to paragraph | **146 px** = 2 × 73, twice, in two passages; 147 px the other way round, the heading's taller line box | 14-markup, 17-marks |
 | The **page top** — the first line at scroll 0, measured from the window's top edge, which is the editor's own: the text view runs to the frame under a title bar that draws nothing | line box **164 px** (the empty document's caret), a heading's ink **185 px**, at the default step | 01-dark, 01-light, 08-inline, 14-markup, 17-marks, 03-empty-document |
+| 2026-09-09: wrapped list/quote continuation rows retain the marker’s indentation, including under H6 | 2 cells for `- ` and `> `; 5 for `123. `; no repeated quote marker | 19-light/dark-wrapped-markers[-h6] |
+| 2026-09-09: the old page-top control does **not reproduce** on this rig | Default line box 132 and heading ink 153, both 32 px above the earlier full-window figures; no portable replacement established | 18-dark-page-top-*; [control analysis](CAPTURE-2026-09-09.md#231--page-top) |
+| 2026-09-09: default L adapts to window width; a 1040-point control is not the wide rig’s 25.6-pixel cell | 960 and 1040 pt both about 22.7 px/cell, 63 px pitch, 1770 px selection container; width/height controls separate the dependency | 18-light-page-narrow*, page-wide*, width/height/original-control-20-cells |
