@@ -9,7 +9,10 @@
 //! untouched, so a printer's own origin and margins are respected.
 //!
 //! The paper is the Template's **light** palette whatever ground the app is
-//! wearing: a dark theme is a screen's comfort, and paper is white.
+//! wearing: a dark theme is a screen's comfort, and a page is printed on
+//! light paper. Which light paper is the Template's to say — Modern's is
+//! #fcfcfc, not white (`ref/ia/mac-native/CAPTURE-2026-09-09.md` § "#261 —
+//! Preview").
 //!
 //! The furniture — the header, the footer and the title page's lines — is laid
 //! out here rather than by the paginator, which measures it and says where its

@@ -1,7 +1,8 @@
 # Manuscript (Quattro): the Editor's own typography with the Markup removed.
 #
 # The Mono manuscript's numbers on Quill Quattro. See `manuscript-mono.toml`
-# for where each of them comes from.
+# for where each of them comes from. Captured in no scheme: only Manuscript
+# (Duo) was rendered on the Mac (#261).
 
 id = "manuscript-quattro"
 paragraphs = "spaced"

@@ -405,7 +405,7 @@ mod tests {
         let query = page
             .find("@media (prefers-color-scheme: dark)")
             .expect("the media query");
-        let light = page.find("--paper: #ffffff;").expect("the light paper");
+        let light = page.find("--paper: #fcfcfc;").expect("the light paper");
         let dark = page.find("--paper: #101010;").expect("the dark paper");
         assert!(light < query, "the light palette stands plain");
         assert!(query < dark, "the dark palette stands under the query");
