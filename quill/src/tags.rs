@@ -7,22 +7,31 @@
 //! never removed. The table is GTK's own, keyed by name, so the Editor keeps no
 //! second copy of it to fall out of step.
 //!
-//! Paragraph tags are the third row: `heading-1` to `heading-6` hang a
-//! heading's `#` markers out into the left gutter, by exactly as far as the
-//! layout will advance them, so the first word sits on the prose's edge and
-//! `###### ` fills the seven-cell gutter [`typography::GUTTER`] was sized at.
-//! **Nothing else hangs.** A bullet, an ordinal and a quote's `>` sit on the
-//! body column and push their own words inward, and no rule is drawn beside a
-//! quote: that is what the Design oracle draws
-//! ([ADR 0016](../../docs/adr/0016-the-text-container-is-78-cells.md);
-//! `ref/ia/mac-native/` state 14, `14-gutters` and `14-blocks`).
+//! Paragraph tags are the third row, and they hang the same pair of properties
+//! in opposite directions. `heading-1` to `heading-6` hang a heading's `#`
+//! markers *out* into the left gutter, by exactly as far as the layout will
+//! advance them, so the first word sits on the prose's edge and `###### ` fills
+//! the seven-cell gutter [`typography::GUTTER`] was sized at. `hang:<run>`
+//! hangs a list item's and a blockquote's wrapped rows *in*, by exactly as far
+//! as that paragraph's own marker run advances: the `-`, the `123.` and the `>`
+//! stay on the body column, and every row under them starts where the item's
+//! first word did. A wrapped quote carries no second `>`, and no rule is drawn
+//! beside one.
+//!
+//! That is what the Design oracle draws: `mac-native-19-{light,dark}-wrapped-markers`
+//! and their `-h6` pair, measured in `ref/ia/mac-native/CAPTURE-2026-09-09.md`
+//! § #241 and `NOTES.md` § State 14 — `- ` and `> ` anchor their continuations
+//! two cells past the body column and `123. ` five, on both grounds and under
+//! the widest heading alike (`docs/design.md` row What hangs;
+//! [ADR 0016](../../docs/adr/0016-the-text-container-is-78-cells.md)).
 //!
 //! The Parity oracle could hang nothing at all — `legacy/app/css/markup.css`
 //! says why: a `<textarea>` takes no per-line horizontal shift, so the web app
 //! bought the same calm with contrast instead of position — and with no oracle
 //! for the rest, #102 read the marketing frames' `#` in the margin as a rule
-//! for every marker and hung them all. The app running on the owner's Mac
-//! hangs the heading and only the heading (#167).
+//! for every marker and hung them all. #167 read the running app and hung the
+//! heading alone, which was the whole of what the captures then held; #241 shot
+//! a wrapped item and found the other half of the rule.
 //!
 //! `ground-code-block` is the other paragraph tag, and it is one for the
 //! opposite reason: a run's background stops with the last glyph on the line,
@@ -429,8 +438,80 @@ fn hung(width: i32, side: i32) -> (i32, i32) {
     (side - width, -width)
 }
 
-/// Hangs the heading markers into the gutter `column` gives them, by the
-/// `advances` the caller measured off the layout.
+/// What every marker-hang tag's name starts with, the marker run itself
+/// following it.
+const HANG: &str = "hang:";
+
+/// The `(left margin, indent)` that holds a marker's wrapped rows `width`
+/// pixels *inside* `side`, in a measure with `room` to give.
+///
+/// [`hung`] read the other way round. Both pairs use a negative indent, which
+/// Pango applies to every row *but* the first: the first row starts at the left
+/// margin and the rest start `width` further in. A heading puts its margin a
+/// marker to the left of the prose, so its `#`s begin in the gutter and its
+/// wrapped rows come back to the body column; a list item and a quote leave
+/// their margin on the body column, so the marker begins there and the wrapped
+/// rows go in under the item's own first word. The two differ in the margin
+/// alone, which is why the hang is a pair rather than an indent.
+///
+/// The margin is set even though it is the one the view already has, so that a
+/// paragraph that stops being a list item and keeps its tag is not a paragraph
+/// whose margin nobody owns.
+///
+/// `room` is what stops this hang eating the measure. A heading's is clamped by
+/// the gutter, because a left margin cannot go below zero; this one has no such
+/// floor — what it spends is the *measure*, and a marker run as wide as the
+/// measure leaves its own wrapped rows nowhere to wrap in. So it is clamped to
+/// the measure less its last cell, and an item whose marker run is wider than
+/// that keeps what the measure can still give it, the way a window too narrow
+/// to hang a heading keeps its gutter.
+fn hung_under(width: i32, side: i32, room: i32) -> (i32, i32) {
+    (side, -width.clamp(0, room))
+}
+
+/// The most a marker may hang its own wrapped rows in: `column`'s measure less
+/// one cell.
+///
+/// The cell is counted off the gutter rather than off the type, because
+/// [`typography::Column`] holds the gutter at [`typography::GUTTER`] cells
+/// exactly and this module has no Face to ask.
+fn room(column: typography::Column) -> i32 {
+    let cell = signed(column.gutter() / typography::GUTTER);
+    (signed(column.width) - cell).max(0)
+}
+
+/// The paragraph tag that hangs the wrapped rows of a paragraph opened by the
+/// marker run `run`.
+///
+/// Keyed by the run itself, so the table holds one tag per distinct marker —
+/// `- `, `> `, `123. `, and a nested item's own indentation with it — made on
+/// the first paragraph that asks for it and never removed, as every other tag
+/// here is. The name carries the run so that [`hang_markers`] can measure it
+/// again when the type moves under it, without this module keeping a second
+/// copy of the runs to fall out of step.
+///
+/// `hang` is asked only when the tag is being made, because measuring a run is
+/// a layout and a paragraph on the keystroke path usually asks for a tag that
+/// already exists. It answers `None` before the page has been laid out at all:
+/// there is no container to hang inside yet, and the layout that gives it one
+/// hangs every tag in the table.
+fn marker_hang(
+    buffer: &gtk::TextBuffer,
+    run: &str,
+    hang: impl FnOnce() -> Option<(i32, i32)>,
+) -> gtk::TextTag {
+    tag(buffer, &format!("{HANG}{run}"), |tag| {
+        if let Some((left, indent)) = hang() {
+            tag.set_left_margin(left);
+            tag.set_indent(indent);
+        }
+    })
+}
+
+/// Hangs every marker in the table against the container `column`: the heading
+/// markers out into its gutter, by the `advances` the caller measured off the
+/// layout, and each list item's and quote's wrapped rows in under its own
+/// words, by the run `measure` is asked for.
 ///
 /// Pango's `indent` only ever shifts to the right: a positive value moves the
 /// first row of a paragraph, a negative one moves every row *after* the first.
@@ -449,20 +530,30 @@ fn hung(width: i32, side: i32) -> (i32, i32) {
 /// cell and is what sizes the gutter; it is not what the tag hangs by, because
 /// the gutter is designed once and the type is laid out per launch.
 ///
-/// Headings are the only markers hung: a bullet, an ordinal and a quote's `>`
-/// take no tag here at all and so sit where the buffer puts them, on the body
-/// column (ADR 0016).
+/// A bullet, an ordinal and a quote's `>` are hung the other way, by
+/// [`hung_under`]: their marker stays on the body column and their wrapped rows
+/// come in under the item's first word. Their runs are not a ladder of six but
+/// whatever the Document holds, so they are read back off the tags the buffer is
+/// already carrying — [`marker_hang`] named each one for its run — rather than
+/// worked out from a Document this has not got. That is the same walk
+/// [`set_face`] makes for the Italic tags and for the same reason: the Editor
+/// does not re-derive its spans when the type changes under them.
 ///
-/// Called whenever the page is laid out, because both halves of the pair move:
-/// the container with the width of the window, and the marker run with the size
-/// of the type. A window too narrow to give the marker its margin keeps what it
-/// has — the tag's left margin cannot go below zero, and a heading that cannot
-/// hang is worth less than a heading pushed off the left edge of the view.
+/// Called whenever the page is laid out, because both halves of every pair
+/// move: the container with the width of the window, and the marker run with
+/// the size of the type. So every run is measured again here, which is a layout
+/// per distinct marker in the table — the resize path, and not the keystroke
+/// path, where a paragraph asks [`marker_hang`] for a tag that already exists.
+/// A window too narrow to give a heading its margin keeps what it has — the
+/// tag's left margin cannot go below zero, and a heading that cannot hang is
+/// worth less than a heading pushed off the left edge of the view; the mirror
+/// of that guard for a marker run wider than the measure is [`room`].
 pub fn hang_markers(
     buffer: &gtk::TextBuffer,
     step: u32,
     column: typography::Column,
     advances: [i32; 6],
+    measure: &dyn Measure,
     colours: &Colours,
 ) {
     let side = signed(column.side);
@@ -472,6 +563,18 @@ pub fn hang_markers(
         tag.set_left_margin(left);
         tag.set_indent(indent);
     }
+    let room = room(column);
+    buffer.tag_table().foreach(|tag| {
+        let Some(name) = tag.name() else {
+            return;
+        };
+        let Some(run) = name.as_str().strip_prefix(HANG) else {
+            return;
+        };
+        let (left, indent) = hung_under(measure.advance(run), side, room);
+        tag.set_left_margin(left);
+        tag.set_indent(indent);
+    });
     // The well is the same pair read the other way round. A paragraph
     // background fills the line's own box, so the only way to put ground
     // outside the measure is to give the block a box wider than one: its
@@ -495,6 +598,18 @@ pub fn hang_markers(
     ground.set_left_margin(side - edge);
     ground.set_right_margin(side - edge);
     ground.set_indent(edge);
+}
+
+/// Measures how far a run of marker text advances in the type now set.
+///
+/// A capability rather than a width, because a marker run is not known until
+/// the Document is walked: `- `, `> `, and every distinct ordinal a list
+/// carries. [`Editor::marker_advance`](crate::editor::Editor::marker_advance)
+/// says why a run is measured off a layout rather than counted off the cell,
+/// and why counting it was what lost round 10.
+pub trait Measure {
+    /// How far `run` advances, in whole pixels.
+    fn advance(&self, run: &str) -> i32;
 }
 
 /// Everything but the text that decides how a Document is drawn.
@@ -528,6 +643,16 @@ pub struct Painting<'a> {
     /// judgement about the block the caret is not in, and the caret moves
     /// between two draws of the same bytes.
     pub live: Option<Writer>,
+    /// The container the page was last laid out in, and `None` before a first
+    /// allocation has given it one.
+    ///
+    /// Carried so that a marker run seen for the first time is hung on the
+    /// keystroke that made it rather than at the next allocation: the tag is
+    /// valued where it is made ([`marker_hang`]), and [`hang_markers`] hangs it
+    /// again whenever the container or the type moves.
+    pub page: Option<typography::Column>,
+    /// What measures a marker run, for the hang a list item and a quote take.
+    pub measure: &'a dyn Measure,
 }
 
 /// Where the writer stands: the selection as the buffer holds it, empty for
@@ -654,6 +779,8 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
         focus,
         tiers,
         live,
+        page,
+        measure,
     } = painting;
     // The flattening resolves the Markup mark and the Focus tier into one
     // colour, so the ink is read here rather than off the run's role: with
@@ -682,7 +809,7 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
         let tier = focus::tier_in(tiers, focus, &span.at);
         match span.mark {
             Mark::Heading(level) => {
-                paragraph(buffer, document, span, &heading(buffer, level));
+                paragraph(buffer, document, &span.at, &heading(buffer, level));
             }
             // Out of focus a code block keeps its glyphs and loses its well —
             // `legacy/app/css/focus.css:42-43` sets the background transparent
@@ -696,8 +823,8 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
             Mark::CodeBlock => {
                 let well = code_ground(buffer, &colours);
                 match tier {
-                    Tier::Bright => paragraph(buffer, document, span, &well),
-                    Tier::Dim => unparagraph(buffer, document, span, &well),
+                    Tier::Bright => paragraph(buffer, document, &span.at, &well),
+                    Tier::Dim => unparagraph(buffer, document, &span.at, &well),
                 }
             }
             Mark::Strikethrough => {
@@ -721,6 +848,13 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
             }
             _ => {}
         }
+    }
+    for run in marker_runs(document, &spans, at) {
+        let text = &document.text()[run.clone()];
+        let tag = marker_hang(buffer, text, || {
+            page.map(|column| hung_under(measure.advance(text), signed(column.side), room(column)))
+        });
+        paragraph(buffer, document, &run, &tag);
     }
     if let Some(writer) = live {
         fold(buffer, document, painting, &spans, writer, at);
@@ -767,7 +901,7 @@ fn well_edges(
     span: &Span,
     leading: typography::Leading,
 ) {
-    let (block_start, block_end) = paragraph_lines(buffer, document, span);
+    let (block_start, block_end) = paragraph_lines(buffer, document, &span.at);
     let (first, last) = (block_start.line(), block_end.line());
     let folded = folded(buffer);
     let standing = |line: i32| !line_start(buffer, line).has_tag(&folded);
@@ -895,16 +1029,68 @@ fn fold(
     }
 }
 
-/// Puts a paragraph tag on every line `span` touches.
+/// Puts a paragraph tag on every line the bytes `at` touch.
 ///
 /// The property belongs to the line, not to the span: a paragraph property is
 /// read off the tags at the start of the paragraph, and a heading's markers are
 /// not inside the text they govern. A heading touches one line; a fenced block
 /// touches all of its own, which is what puts its ground under every row rather
 /// than only the first.
-fn paragraph(buffer: &gtk::TextBuffer, document: &Document, span: &Span, tag: &gtk::TextTag) {
-    let (start, end) = paragraph_lines(buffer, document, span);
+///
+/// A byte range rather than a [`Span`] because a marker's hang is asked for by
+/// the run its line opens with, which is a range of two spans' making as often
+/// as one's.
+fn paragraph(buffer: &gtk::TextBuffer, document: &Document, at: &Range<usize>, tag: &gtk::TextTag) {
+    let (start, end) = paragraph_lines(buffer, document, at);
     buffer.apply_tag(tag, &start, &end);
+}
+
+/// The byte the line holding `at` opens at.
+fn line_opens_at(document: &Document, at: usize) -> usize {
+    document.text()[..at]
+        .rfind('\n')
+        .map_or(0, |newline| newline + 1)
+}
+
+/// The marker run of every line in `spans` that opens with one: from the line's
+/// own first byte to the end of the last marker standing on it.
+///
+/// One run per line, and never more, which is the whole reason this is gathered
+/// rather than applied a span at a time. A line can carry two markers — `> - a`
+/// is a quote's and a bullet's — and hanging both would be two tags setting one
+/// property, left to the tag table's order to choose between. The furthest of
+/// them is the one that puts the wrapped rows under the item's first word,
+/// which is the rule for a nested item as much as for a lone one.
+///
+/// It reaches back to the line's first byte because that is where the hang is
+/// measured from: the engine already cuts a list marker's span that way, "so
+/// that its width is the whole distance from the line's start to the item's
+/// first word" ([`Mark::BulletMarker`]), and a nested item hangs by its
+/// indentation too. A quote's `>` is one per line and opens its own, so for a
+/// quote the run and the mark's own span are the same bytes — and a wrapped
+/// quote is given the indent and nothing else, no second `>` of its own, which
+/// is what the Design oracle draws.
+///
+/// Spans arrive in the Document's order, so the line being gathered is always
+/// the last one and no lookup is needed.
+fn marker_runs(document: &Document, spans: &[Span], at: &Range<usize>) -> Vec<Range<usize>> {
+    let mut runs: Vec<Range<usize>> = Vec::new();
+    for span in spans {
+        if span.at.end <= at.start
+            || !matches!(
+                span.mark,
+                Mark::BulletMarker | Mark::OrderedMarker | Mark::QuoteMarker
+            )
+        {
+            continue;
+        }
+        let start = line_opens_at(document, span.at.start);
+        match runs.last_mut() {
+            Some(last) if last.start == start => last.end = last.end.max(span.at.end),
+            _ => runs.push(start..span.at.end),
+        }
+    }
+    runs
 }
 
 /// Takes a paragraph tag off every line `span` touches.
@@ -915,21 +1101,27 @@ fn paragraph(buffer: &gtk::TextBuffer, document: &Document, span: &Span, tag: &g
 /// the caret has just left is dim on all of its rows, and only some of them are
 /// in the retag — so the well has to be lifted from the block rather than left
 /// to the lines, or the rows nobody redrew keep a fragment of it.
-fn unparagraph(buffer: &gtk::TextBuffer, document: &Document, span: &Span, tag: &gtk::TextTag) {
-    let (start, end) = paragraph_lines(buffer, document, span);
+fn unparagraph(
+    buffer: &gtk::TextBuffer,
+    document: &Document,
+    at: &Range<usize>,
+    tag: &gtk::TextTag,
+) {
+    let (start, end) = paragraph_lines(buffer, document, at);
     buffer.remove_tag(tag, &start, &end);
 }
 
-/// The whole lines `span` touches, as the pair of iterators both halves use.
+/// The whole lines the bytes `at` touch, as the pair of iterators both halves
+/// use.
 fn paragraph_lines(
     buffer: &gtk::TextBuffer,
     document: &Document,
-    span: &Span,
+    at: &Range<usize>,
 ) -> (gtk::TextIter, gtk::TextIter) {
     let mut start = buffer.start_iter();
-    start.set_line(iter_at(buffer, document, span.at.start).line());
+    start.set_line(iter_at(buffer, document, at.start).line());
     let mut end = buffer.start_iter();
-    end.set_line(iter_at(buffer, document, span.at.end).line());
+    end.set_line(iter_at(buffer, document, at.end).line());
     if !end.ends_line() {
         end.forward_to_line_end();
     }
@@ -1147,6 +1339,139 @@ mod tests {
             left - indent,
             side,
             "the rows still agree: what the first row gives up, the rest get back"
+        );
+    }
+
+    /// The runs a bullet, a three-digit ordinal and a quote open with, and how
+    /// many cells past the body column each anchors its own wrapped rows.
+    ///
+    /// The Design oracle's ladder for a wrapped item, measured off
+    /// `mac-native-19-{light,dark}-wrapped-markers` and their `-h6` pair:
+    /// bullet and quote continuations start 2 × 25.6 device pixels past the
+    /// body and the ordered item's 5 × 25.6, on both grounds and under the
+    /// widest heading alike (`ref/ia/mac-native/CAPTURE-2026-09-09.md` § #241).
+    const RUNS: [(&str, f64); 3] = [("- ", 2.0), ("123. ", 5.0), ("> ", 2.0)];
+
+    /// [`RUNS`]' advances, as the layout may advance them, the two ways
+    /// [`advances`] gives the heading ladder's.
+    fn run_advances(hinted: bool) -> [i32; 3] {
+        let cell = typography::cell(Face::Duo, STEP);
+        RUNS.map(|(_, cells)| {
+            pixels(if hinted {
+                cell.round() * cells
+            } else {
+                cell * cells
+            })
+        })
+    }
+
+    /// A Document holding `text`.
+    fn document(text: &str) -> Document {
+        let mut document = Document::untitled();
+        document.insert(0, text);
+        document
+    }
+
+    #[test]
+    fn a_markers_wrapped_rows_start_under_the_items_own_first_word() {
+        // The heading's pair read the other way up. A heading takes its marker
+        // out of the gutter so that its words land on the body column; a list
+        // item and a quote leave their marker *on* that column and take the
+        // run's own advance off every row under it, so the item's second row
+        // starts where its first word did and not where its marker did. Held
+        // to both ladders for the reason the heading's is: what the first row
+        // keeps, the rest give up, exactly.
+        let column = container(Face::Duo, STEP);
+        let side = signed(column.side);
+        let room = room(column);
+        for hinted in [true, false] {
+            for ((run, _), advance) in RUNS.iter().zip(run_advances(hinted)) {
+                let (left, indent) = hung_under(advance, side, room);
+                assert_eq!(
+                    left, side,
+                    "hinted {hinted}: `{run}` must open on the body column"
+                );
+                assert_eq!(
+                    left - indent,
+                    side + advance,
+                    "hinted {hinted}: `{run}`'s wrapped rows start under its own first word"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn an_ordinal_hangs_its_own_five_cells_where_a_bullet_hangs_two() {
+        // The hang is the paragraph's own marker run and not a constant, which
+        // is the whole reason the oracle's ordered item was captured with a
+        // three-digit marker: `1. ` and `123. ` are the same kind of mark and
+        // not the same width, so a hang counted per kind would put the two
+        // items' wrapped rows on one column.
+        let column = container(Face::Duo, STEP);
+        let side = signed(column.side);
+        let room = room(column);
+        let cell = typography::cell(Face::Duo, STEP);
+        let [bullet, ordinal, quote] = run_advances(false).map(|advance| {
+            let (left, indent) = hung_under(advance, side, room);
+            left - indent - side
+        });
+        assert_eq!(bullet, pixels(2.0 * cell), "`- ` hangs its own two cells");
+        assert_eq!(quote, pixels(2.0 * cell), "`> ` hangs its own two cells");
+        assert_eq!(
+            ordinal,
+            pixels(5.0 * cell),
+            "`123. ` hangs its own five cells"
+        );
+    }
+
+    #[test]
+    fn a_marker_run_wider_than_the_measure_leaves_the_wrapped_rows_a_cell() {
+        // The guard on the other edge from
+        // [`a_window_too_narrow_to_hang_the_marker_keeps_its_gutter`]. A
+        // heading spends the gutter and cannot spend past the view's left
+        // edge; a marker spends the measure, and a run as wide as the measure
+        // would leave its own wrapped rows nowhere to wrap in. So the last
+        // cell is held back and a deeply indented item carries on in it, which
+        // is the same trade the narrow window makes: the words go somewhere
+        // wrong rather than nowhere at all.
+        let column = container(Face::Duo, STEP);
+        let side = signed(column.side);
+        let room = room(column);
+        let width = signed(column.width);
+        assert!(room < width, "a cell of the measure is held back");
+        let (left, indent) = hung_under(width * 2, side, room);
+        assert_eq!(left, side, "the marker still opens on the body column");
+        assert_eq!(
+            left - indent,
+            side + room,
+            "the wrapped rows stop at what the measure can still give them"
+        );
+    }
+
+    #[test]
+    fn a_wrapped_quote_is_given_the_indent_and_no_second_marker() {
+        // The oracle's third row: a wrapped quote carries no `>` of its own on
+        // the rows below the first. Nothing here could draw one — the hang is a
+        // paragraph property and the only run in the line is the `> ` the
+        // writer typed — and the run gathered is exactly that.
+        //
+        // The second line is why the runs are gathered rather than applied a
+        // mark at a time: `> - ` is a quote's marker and a bullet's, and
+        // hanging both would be two tags setting one property. One run a line,
+        // reaching to the further of them, puts the wrapped rows under the
+        // item's first word either way.
+        let text = "> A quoted paragraph long enough to wrap.\n\n> - A quoted item\n";
+        let document = document(text);
+        let at = 0..document.text().len();
+        let spans = document.spans_in(&at);
+        let runs: Vec<&str> = marker_runs(&document, &spans, &at)
+            .into_iter()
+            .map(|run| &document.text()[run])
+            .collect();
+        assert_eq!(
+            runs,
+            ["> ", "> - "],
+            "one run a line, reaching to the last marker standing on it"
         );
     }
 
