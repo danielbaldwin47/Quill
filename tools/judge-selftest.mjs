@@ -1107,7 +1107,7 @@ ok('every judged state that draws a determined caret is held to one, and no othe
   assert.deepEqual(exempt, [
     'caret/selection', 'caret/unfocused', 'export/dialog', 'files/library', 'files/search',
     'focus/paragraph', 'focus/sentence',
-    'markup/blocks', 'markup/gutters', 'preview/full', 'preview/pdf-full',
+    'markup/blocks', 'markup/gutters', 'markup/wrapped', 'preview/full', 'preview/pdf-full',
     'theme/dark', 'theme/light', 'type/mono',
   ]);
   // #197 came out of `theme/dark`, which has since gone `--nocaret` (#198) so that its marks can be

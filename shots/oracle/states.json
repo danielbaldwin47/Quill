@@ -117,6 +117,28 @@
             620
           ]
         }
+      },
+      "wrapped": {
+        "text": "ref/ia/mac-native/passage-wrapped.md",
+        "caret": 0,
+        "nocaret": true,
+        "chrome": "off",
+        "theme": "dark",
+        "opponent": {
+          "capture": "mac-native-19-dark-wrapped-markers.png",
+          "crop": [
+            644,
+            130,
+            1750,
+            1430
+          ],
+          "ours": [
+            593,
+            146,
+            1750,
+            1430
+          ]
+        }
       }
     },
     "caret": {

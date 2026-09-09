@@ -4,7 +4,7 @@ The editor's text container is the 64-cell measure plus a **7-cell gutter on eac
 centred in the window. Headings hang their markers into the left gutter at level + 1 cells, so
 `###### ` reaches the container's own edge — to within the pixel the last Consequence below is
 about, which is why the gutter is seven cells and not six; blockquote and list markers do not hang
-and sit on the body column. A selection's rows fill this container: a held hard newline runs to its right edge, and
+out into it and sit on the body column instead. A selection's rows fill this container: a held hard newline runs to its right edge, and
 the interior rows of a multi-row selection span it whole. Measured on the Design oracle
 (`ref/ia/mac-native/VERDICTS.md` rows 4.1.8–4.1.13 and the found-here table; captures
 `09-select-all`, `14-gutters`, `14-blocks`, `10-newline-only`). Decided 2026-08-30 with the owner
@@ -16,6 +16,17 @@ container's edges off `quill_engine::typography::Column`, and `caret::NL_TAIL` a
 are gone rather than pending. The two shapes no judged still shows are typed instead — the
 `selection-container-wide` and `selection-newline-to-edge` assertions in `tools/keys-assert.mjs`.
 Nothing else here moves.*
+
+*Narrowed on 2026-09-09 by
+[#241](https://github.com/danielbaldwin47/Quill/issues/241): "only headings hang" is only headings
+hang **out**. Four `mac-native-19-*-wrapped-markers` captures show that a wrapped list item's and a
+wrapped quote's continuation rows hang **in**, under the item's own first word, by that paragraph's
+own marker run — `- ` and `> ` two cells past the body column, `123. ` five — and that a wrapped
+quote carries no second `>` (`ref/ia/mac-native/CAPTURE-2026-09-09.md` § #241, `NOTES.md` § State
+14, `docs/design.md` row What hangs). No first row moves: every marker still sits where this ADR
+put it, the gutter is still seven cells and still sized by `###### `, no quote rule is drawn, and
+the measured-not-counted rule below now covers a marker run as well as a heading's. Nothing else
+here moves.*
 
 ## What changed the answer
 
@@ -58,7 +69,10 @@ a hang that is not what the layout will advance puts that heading's words off th
 levels on to as many columns. **Round 10 of the Markup Piece was lost to exactly that** (#167), and
 counting the cell either way would only have moved which of the two builds was wrong — the judged
 shot or the shipped app. So `quill::tags::hang_markers` is handed the six widths that
-`Editor::marker_advance` measured off the layout, and hangs by them. `typography::Column::hang` is
+`Editor::marker_advance` measured off the layout, and a `quill::tags::Measure` to ask a list item's
+or a quote's own marker run for its width the same way, and hangs by what it is given — #241 put a
+wrapped item's hang under the same rule, and a marker run counted off the cell would land its
+continuation rows on the wrong column for the same reason a heading's did. `typography::Column::hang` is
 the same rule in the ladder's own cell and stays what the seven-cell gutter is sized from: the gutter
 is designed once, and the type is laid out per launch.
 
