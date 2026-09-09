@@ -17,9 +17,23 @@
 //! ADR 0005's rule: Preview and PDF read the numbers through Pango, and HTML
 //! export generates a stylesheet from the same ones, so the two cannot drift.
 //! Sizes are absolute — a Template's base is in points and does not follow the
-//! Editor's size ladder — and the Quill-wide toggles (Center Headings, Number
-//! Headings, Indent Paragraphs) apply on top of any Template rather than
-//! living in one.
+//! Editor's size ladder. That is this app's decision, and it is not a port of
+//! iA's: `ref/ia/mac-native/CAPTURE-2026-09-09.md` § "#261 — Preview" stepped
+//! the editor's text size to 0 and to 13 with the Web preview open
+//! (`mac-native-20-dark-preview-modern-step-00` and `-13`, against the
+//! `-editor-step-` controls taken with Preview hidden) and measured a body
+//! pitch of 46 px against 164 px, with different wrapping: iA's Web preview
+//! does follow the editor's size. Quill's Preview scales by `[preview] zoom`
+//! alone (`quill::preview`, `quill::column`). #263 puts Preview outside
+//! ADR 0015, so that measurement informs this decision rather than overturning
+//! it, and any doc claiming iA as the reason for it is wrong.
+//!
+//! The Quill-wide toggles (Center Headings, Number Headings, Indent
+//! Paragraphs) apply on top of any Template rather than living in one, and
+//! [`Headings`] carries no alignment for that reason. The same capture found
+//! Modern, Classic and Manuscript (Duo) all centring their headings, which a
+//! document-wide toggle accounts for; it gives no evidence for a per-Template
+//! alignment field.
 //!
 //! A Template owns typography only. Page size, margins, the title page, the
 //! header and the footer are Export's, styled by whichever Template is
@@ -326,9 +340,14 @@ mod tests {
         assert_eq!(modern.faces.heading.family, "Inter");
         // Inter carries its own italic, so nothing names one for it.
         assert_eq!(modern.faces.body.italic, None);
-        // `ref/ia/mac-native/NOTES.md` § State 16.
+        // `ref/ia/mac-native/NOTES.md` § State 16 for the dark page,
+        // `ref/ia/mac-native/CAPTURE-2026-09-09.md` § "#261 — Preview" for the
+        // light one: #fcfcfc paper on #1a1a1a ink, neither of them the white
+        // and the Editor ink this file assumed before that capture landed.
         assert_eq!(modern.dark.paper, Colour::from_hex("#101010"));
-        assert_eq!(modern.light.paper, Colour::from_hex("#ffffff"));
+        assert_eq!(modern.dark.ink, Colour::from_hex("#cccccc"));
+        assert_eq!(modern.light.paper, Colour::from_hex("#fcfcfc"));
+        assert_eq!(modern.light.ink, Colour::from_hex("#1a1a1a"));
         assert_eq!(DEFAULT, "modern");
     }
 

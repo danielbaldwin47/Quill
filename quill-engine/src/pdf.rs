@@ -155,6 +155,17 @@ mod tests {
         template::built_in("modern").expect("a built-in Template")
     }
 
+    /// The grey a bare margin of a Modern page rasterises to.
+    ///
+    /// Read off the Template rather than written down: the light paper is a
+    /// measurement (`ref/ia/mac-native/CAPTURE-2026-09-09.md` § "#261 —
+    /// Preview" reads #fcfcfc, not the white this used to assert), and a
+    /// second measurement should move these tests' threshold by editing the
+    /// TOML alone.
+    fn paper_grey() -> u8 {
+        crate::theme::channel(modern().light.paper.red)
+    }
+
     /// The repository file `name`, as a Document.
     fn passage(name: &str) -> Document {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(name);
@@ -494,7 +505,7 @@ mod tests {
     /// The blank line in front of it is because a `---` on the first line of a
     /// file is front matter and not a rule at all.
     #[test]
-    fn the_text_block_is_centred_on_the_paper_and_the_paper_is_white() {
+    fn the_text_block_is_centred_on_the_templates_own_paper() {
         if !poppler() {
             return;
         }
@@ -506,7 +517,11 @@ mod tests {
             render::Toggles::default(),
         );
         let raster = Raster::of(&path, 1);
-        assert_eq!(raster.grey[0], 255, "the paper is white in the corner");
+        assert_eq!(
+            raster.grey[0],
+            paper_grey(),
+            "the corner is the Template's own light paper"
+        );
         let (left, right) = raster.ink(0..raster.height).expect("the rule's ink");
         let middle = (left + right + 1) as f64 / 2.0;
         assert!(
@@ -594,7 +609,7 @@ mod tests {
         );
         assert_eq!(
             raster.grey_at(x, frame.top - 4.0),
-            255,
+            paper_grey(),
             "and stops at the band, with the margin left as paper"
         );
         fs::remove_file(&path).expect("the scratch file goes");
