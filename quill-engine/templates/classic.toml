@@ -1,8 +1,22 @@
 # Classic: the Serif, on Source Serif 4.
 #
-# The book setting: paragraphs indented rather than spaced. Its ladder and
-# spacing follow iA's own description of the template until a capture of it
-# lands beside State 16's.
+# The book setting: paragraphs indented rather than spaced.
+#
+# The dark page has now been captured beside State 16's:
+# `ref/ia/mac-native/CAPTURE-2026-09-09.md` § "#261 — Preview", off
+# `mac-native-20-dark-preview-classic-full`, reads #101010 paper on #cccccc
+# ink, which is what [dark] already held. The light page was captured in
+# neither scheme, so the #ffffff below is still iA's own description of the
+# template rather than a measurement, and stays until one lands.
+#
+# That capture's rhythm is a rendered state and not the template's numbers:
+# body line pitch 68 px at backing scale 2, the first paragraph's lines at
+# y345/413/481/549/617 and the next paragraph at y750, so a paragraph advances
+# by about two pitches there. Neither number below moves for it. A pitch is
+# base × line_height and one still separates neither factor; the still records
+# no first-line indent either, so it cannot say whether that gap belongs to a
+# spaced setting or stands beside an indent, which is the one reading that
+# would bear on the paragraph_spacing here (`VERDICTS.md` § 4.3.5).
 
 id = "classic"
 paragraphs = "indented"
