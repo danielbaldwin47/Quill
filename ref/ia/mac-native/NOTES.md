@@ -11,6 +11,8 @@ Nothing here changes the spec. The evidence is put where a spec change can be ar
 
 ## The rig
 
+**Follow-up rig, 2026-09-09:** [CAPTURE-2026-09-09.md](CAPTURE-2026-09-09.md) records the Mac halves of #231, #241, #261, #308 and #328, with per-frame metadata and untouched originals. It uses the same iA version but macOS 26.6.1 and a different display; its chromatic and page-top controls are qualified there. The table below describes the earlier run.
+
 | | |
 |---|---|
 | iA Writer | 8.0.6 (build 80046), `pro.writer.mac` |
@@ -95,6 +97,8 @@ So the container is the 64-cell measure plus a **7-cell hanging-marker gutter on
 gutter is exactly the width `###### ` needs — see the ladder under state 14.
 
 ### The page top
+
+**2026-09-09 follow-up (#231):** [three steps and the visible title bar](CAPTURE-2026-09-09.md#231--page-top) were captured at verified document top. This rig reads box tops 126 / 132 / 112 at steps 0 / 5 / 13; its default is 32 px above the old control. The required old control did not reproduce, so these frames do not replace the historical measurement or establish a portable new constant.
 
 How far the first line stands below the top of the editor at scroll 0, at the default text size —
 the second figure #227 asks for.
@@ -384,6 +388,8 @@ Sentence and Paragraph, not an independent toggle.
 
 ## State 14 — markup rendering
 
+**Wrapped continuation capture (#241, 2026-09-09):** [four new frames](CAPTURE-2026-09-09.md#241--wrapped-markers) show bullet/quote continuations retaining two cells of indentation and `123.` continuations retaining five, on both grounds and under H6. A wrapped quote does not repeat `>`. The earlier single-row measurements follow.
+
 `mac-native-14-dark-markup.png` (blocks, from [`passage-blocks.md`](passage-blocks.md)),
 `mac-native-14-dark-markup-gutters.png` and `-blocks.png` (all six heading levels, from
 [`passage-markers.md`](passage-markers.md)), plus `-lower.png` and `-deep.png`.
@@ -435,6 +441,8 @@ y 912 … 984, **mid-point y = 948.0 of a 1898 px window — 49.9 %**.
 **The caret line is held at the vertical centre of the window.**
 
 ## State 16 — Preview: the rendered Markdown, and the split
+
+**Follow-up (#261, 2026-09-09):** [light paper, Template switches, editor-size controls and scroll pairs](CAPTURE-2026-09-09.md#261--preview) measure light Modern at `#fcfcfc` / `#1a1a1a`, confirm centred Classic and Manuscript headings, show Web scaling with editor size and establish two-way scrolling on the longer fixture. The original three dark frames follow.
 
 `mac-native-16-dark-preview-full.png`, `mac-native-16-dark-preview-split.png`,
 `mac-native-16-dark-preview-pdf-full.png`
@@ -607,3 +615,11 @@ the same line, which is what says the bar tracks the grid rather than happening 
 | 20 | x 1200 … 1205 | 1203.0 | 1203.0 |
 
 Steps of **exactly 256 px** between them, which is 10 cells to the pixel.
+
+## State 18 — default-size narrow windows
+
+[#328’s matched 960- and 1040-point captures](CAPTURE-2026-09-09.md#328--matched-narrow-windows) retain full Editor boundaries and selection edges. Default L adapts to width: about 22.7 px per cell and 63 px pitch at both requested widths, against 25.6 and 73–74 at 1512. The report records the geometry contradiction and a proposed full-width crop; no Gate opponent is changed.
+
+## State 21 — Syntax categories and token boundaries
+
+[#308’s ten frames](CAPTURE-2026-09-09.md#308--syntax) cover all five categories on both grounds, light isolation, Sentence dimming and contractions. The report and JSON manifest give the ten measured colours in both the original and reference profiles. Dim replaces category colour; contractions can split into differently coloured tokens. Chromatic portability is qualified by the caret control.

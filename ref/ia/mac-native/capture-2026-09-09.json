@@ -1,0 +1,2771 @@
+{
+  "date": "2026-09-09",
+  "app": "iA Writer 8.0.6 (80046)",
+  "bundle": "pro.writer.mac",
+  "macOS": "26.6.1 (25G76)",
+  "display": "DELL P2723QE; 4608x2592 device px / 2304x1296 logical pt",
+  "backing_scale": 2,
+  "settings": {
+    "face": "Mono",
+    "typography": "System \u2014 Default",
+    "default_text_size": "L (step 5); adaptive to window width",
+    "line_length": 64,
+    "library": "hidden",
+    "focus": "off except syntax-focus (Sentence)",
+    "syntax": "off except state 21",
+    "style_check": "off",
+    "preview": "off except state 20",
+    "title_bar": "Fade In/Out except title-bar controls"
+  },
+  "capture": "screencapture -x -R x,y,width,height; full frame, no shadow; no resampling",
+  "normalization": "rig/colour.py normalise(): relative colorimetric into rig/display.icc",
+  "source_profile_sha256": "aca2eadab23784ca8c5b49c280b81b069ba0030c006e73876e44946239cec5cd",
+  "destination_profile_sha256": "a0b31a47075bdf160987ef7bd1370885713348290017d592a0f8850ec946f97e",
+  "syntax_colours": {
+    "light": {
+      "noun": {
+        "normalized": "#bc512a",
+        "raw": "#c84b25",
+        "solid_pixels": 8328
+      },
+      "verb": {
+        "normalized": "#4575b4",
+        "raw": "#3776b5",
+        "solid_pixels": 6948
+      },
+      "adjective": {
+        "normalized": "#9d6822",
+        "raw": "#a4661c",
+        "solid_pixels": 3463
+      },
+      "adverb": {
+        "normalized": "#a6559e",
+        "raw": "#b0519f",
+        "solid_pixels": 1915
+      },
+      "conjunction": {
+        "normalized": "#50812f",
+        "raw": "#43822d",
+        "solid_pixels": 990
+      }
+    },
+    "dark": {
+      "noun": {
+        "normalized": "#cd896d",
+        "raw": "#d7866b",
+        "solid_pixels": 8118
+      },
+      "verb": {
+        "normalized": "#829dbf",
+        "raw": "#7c9ec0",
+        "solid_pixels": 6745
+      },
+      "adjective": {
+        "normalized": "#b99558",
+        "raw": "#bf9456",
+        "solid_pixels": 3351
+      },
+      "adverb": {
+        "normalized": "#b38fb1",
+        "raw": "#b98eb1",
+        "solid_pixels": 1854
+      },
+      "conjunction": {
+        "normalized": "#8aa474",
+        "raw": "#84a573",
+        "solid_pixels": 964
+      }
+    }
+  },
+  "captures": {
+    "mac-native-18-dark-page-top-step-05": {
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        426,
+        426,
+        0,
+        4,
+        426,
+        426,
+        0,
+        426,
+        426,
+        0,
+        0,
+        426,
+        426,
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-dark-page-top-step-05.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-dark-page-top-step-05.png",
+      "sha256": "60281b09d643f27198c6a5167896d02266a5281f99fb3f56628fff5183e477be",
+      "raw_sha256": "a1513451d58c1f046527b335558b88b4d14dc1082ce4dc19bcda0558f6edfd0b",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 231,
+      "source": "ref/sample.md",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "colour.check pass"
+    },
+    "mac-native-18-dark-page-top-empty-step-05": {
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "ref/ia/shots/mac-native/mac-native-18-dark-page-top-empty-step-05.png: no ink pixel at (204, 204, 204) \u2014 the profile conversion has drifted off the rows",
+      "burst_scores": [
+        0,
+        429,
+        429,
+        357,
+        0,
+        429,
+        429,
+        0,
+        0,
+        429,
+        429,
+        0,
+        429,
+        429
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-dark-page-top-empty-step-05.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-dark-page-top-empty-step-05.png",
+      "sha256": "99a414316777aacb116d330caab63cb9bbc900591e3bb52c1b188c620e57abd3",
+      "raw_sha256": "feb7eff5d0431ebf3b8a82df6c29f3ac3a09ecc679c98c911c8065ba6854a3b7",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 231,
+      "source": null,
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "paper and paired populated control; no body ink exists in an empty document"
+    },
+    "mac-native-18-dark-page-top-title-bar": {
+      "selection_ax": "1, 0",
+      "editor_ax": "0, 33, 1512, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        422
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-dark-page-top-title-bar.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-dark-page-top-title-bar.png",
+      "sha256": "2f4328680b156ca4c09f0d7ef2c498cf4e1f3385018b7a5e2b8300a56ac3372c",
+      "raw_sha256": "b7c219f941f9509cf8ba77a1755cbd649ba851bba5f5ffe5cf6557515d58549d",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 231,
+      "source": "ref/sample.md",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "colour.check pass"
+    },
+    "mac-native-18-dark-page-top-empty-title-bar": {
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0,
+        356,
+        429,
+        429,
+        0,
+        429,
+        429,
+        0,
+        356,
+        429,
+        429,
+        0,
+        429,
+        429
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-dark-page-top-empty-title-bar.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-dark-page-top-empty-title-bar.png",
+      "sha256": "74f61694075adbe5d061f582d465e20f36565e43d467f35bb969daff5808ff9d",
+      "raw_sha256": "c7ed546228ac46bf4e9540ba627c058d1cd318a9f2b2cfa902c1bff996093b42",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 231,
+      "source": null,
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "paper and paired populated control; no body ink exists in an empty document"
+    },
+    "mac-native-18-dark-page-top-step-00": {
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0,
+        250,
+        285,
+        285,
+        0,
+        285,
+        285,
+        0,
+        21,
+        285,
+        285,
+        0,
+        285,
+        285
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-dark-page-top-step-00.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-dark-page-top-step-00.png",
+      "sha256": "8795349e888f549e647ac03e051ca6062bcea84f70ad361c7aa0e8fd871b040c",
+      "raw_sha256": "6816b3757a6a07da5102242c4069903e548693bb2594251987fe9c1fefb6e4d7",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 231,
+      "source": "ref/sample.md",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "colour.check pass"
+    },
+    "mac-native-18-dark-page-top-empty-step-00": {
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "ref/ia/shots/mac-native/mac-native-18-dark-page-top-empty-step-00.png: no ink pixel at (204, 204, 204) \u2014 the profile conversion has drifted off the rows",
+      "burst_scores": [
+        0,
+        0,
+        241,
+        241,
+        0,
+        241,
+        241,
+        0,
+        0,
+        241,
+        241,
+        0,
+        237,
+        241
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-dark-page-top-empty-step-00.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-dark-page-top-empty-step-00.png",
+      "sha256": "f7ddc8590c5d461e57959aa686cdc6769d435f2ec3cd7a2d598ebd2c84fba6d6",
+      "raw_sha256": "6338dd7f8d3ace5427944673373cd76fd74af0ed6ca9d6d026b92146fa780399",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 231,
+      "source": null,
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "paper and paired populated control; no body ink exists in an empty document"
+    },
+    "mac-native-18-dark-page-top-step-13": {
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0,
+        1519,
+        1690,
+        1519,
+        0,
+        1690,
+        1690,
+        0,
+        1690,
+        1690,
+        0,
+        0,
+        1690,
+        1690
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-dark-page-top-step-13.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-dark-page-top-step-13.png",
+      "sha256": "8ef73a9e13c0e0171ff0d80f31de696fabdf1fa744a14170fddb214550421f2f",
+      "raw_sha256": "544b347c9eead6f8376f0c8e4e3f05dfa4d85c08cdbb602d58a51e7ddc2d0e54",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 231,
+      "source": "ref/sample.md",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "colour.check pass"
+    },
+    "mac-native-18-dark-page-top-empty-step-13": {
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "ref/ia/shots/mac-native/mac-native-18-dark-page-top-empty-step-13.png: no ink pixel at (204, 204, 204) \u2014 the profile conversion has drifted off the rows",
+      "burst_scores": [
+        0,
+        1520,
+        1525,
+        1525,
+        0,
+        1525,
+        1525,
+        0,
+        0,
+        1525,
+        1525,
+        0,
+        1520,
+        1525
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-dark-page-top-empty-step-13.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-dark-page-top-empty-step-13.png",
+      "sha256": "8fe37cec26430479bf09b8b568d2fb65f6b80dbf2bfe79a5f879ef1328f02759",
+      "raw_sha256": "30e96d92805dccd9cd7483737d1489b679a5b3bed5e96a956e1dc79248845fb4",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 231,
+      "source": null,
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "paper and paired populated control; no body ink exists in an empty document"
+    },
+    "mac-native-18-dark-page-top-step-05-return": {
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0,
+        424,
+        430,
+        424,
+        0,
+        430,
+        430,
+        0,
+        424,
+        430,
+        424,
+        0,
+        430,
+        430
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-dark-page-top-step-05-return.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-dark-page-top-step-05-return.png",
+      "sha256": "4ce3354d6dd0fb67cad976dff010118178b875a045f1411b84bfffe75ccd0f66",
+      "raw_sha256": "47976b9651f5b88c67a142ddc3ab23cffa2e746588eb958f2190c8e8c5a1b8d2",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 231,
+      "source": "ref/sample.md",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "colour.check pass"
+    },
+    "mac-native-19-dark-wrapped-markers": {
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-19-dark-wrapped-markers.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-19-dark-wrapped-markers.png",
+      "sha256": "1e90dd9a38b5c7372114df863296ca1362ae07b280f3e829ac8f8f512c6c681c",
+      "raw_sha256": "74e396df33fc98c2a7bec0110afb80b514cd61fcf85cdd3e8e6d4607fd2410e9",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 241,
+      "source": "ref/ia/mac-native/passage-wrapped.md",
+      "prefix": "",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "colour.check pass"
+    },
+    "mac-native-19-dark-wrapped-markers-h6": {
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-19-dark-wrapped-markers-h6.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-19-dark-wrapped-markers-h6.png",
+      "sha256": "9ae0de14429d172c6b1bc38bcfd24a8faf85ec36b981534633bce82176fb04af",
+      "raw_sha256": "de53286ec850528a526633871f9339169615da92fe9e4b817ea4b03e6fc64bf9",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 241,
+      "source": "ref/ia/mac-native/passage-wrapped.md",
+      "prefix": "###### A heading at the widest gutter\n\n",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "colour.check pass"
+    },
+    "mac-native-19-light-wrapped-markers": {
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-19-light-wrapped-markers.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-19-light-wrapped-markers.png",
+      "sha256": "a1e4f272a02b0e2c5389c494e615fecebb75473631ef10c7b9cfbc94e9a61e28",
+      "raw_sha256": "130cf55895886d7ea92c2fc09479d094bd79aae62c4a3002a10216d283b90004",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 241,
+      "source": "ref/ia/mac-native/passage-wrapped.md",
+      "prefix": "",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "colour.check pass"
+    },
+    "mac-native-19-light-wrapped-markers-h6": {
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-19-light-wrapped-markers-h6.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-19-light-wrapped-markers-h6.png",
+      "sha256": "50423aa9e0e5bda49098446c7d6f269295740ffe51cd1765bd6603cf2ed074d4",
+      "raw_sha256": "6e52e8733ccdd0925b72f97e3d670682ae4758043dc8ecf21ccebd8982db755b",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 241,
+      "source": "ref/ia/mac-native/passage-wrapped.md",
+      "prefix": "###### A heading at the widest gutter\n\n",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "colour.check pass"
+    },
+    "mac-native-18-light-page-narrow": {
+      "selection_ax": "1, 0",
+      "editor_ax": "0, 33, 960, 900",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        960,
+        933
+      ],
+      "region_pt": [
+        0,
+        33,
+        960,
+        900
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        1920,
+        1800
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0,
+        422,
+        422,
+        0,
+        0,
+        422,
+        422,
+        0,
+        0,
+        422,
+        422,
+        0,
+        0,
+        422
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-light-page-narrow.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-light-page-narrow.png",
+      "sha256": "717907be452249fa92103e43b6111719983a9a3cc5c9f88576a910803f4c06d7",
+      "raw_sha256": "f808a7e3f05950a51e8efe4b81bbb48d96eb31abbae2c0d3b061e030d2c2b4ce",
+      "bounds_px": [
+        0,
+        66,
+        1920,
+        1866
+      ],
+      "region_px": [
+        0,
+        66,
+        1920,
+        1800
+      ],
+      "backing_scale": 2,
+      "ticket": 328,
+      "source": "ref/sample.md",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        960,
+        900
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "colour.check pass"
+    },
+    "mac-native-18-light-page-narrow-select-all": {
+      "selection_ax": "1, 961",
+      "editor_ax": "0, 33, 960, 900",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        960,
+        933
+      ],
+      "region_pt": [
+        0,
+        33,
+        960,
+        900
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        1920,
+        1800
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-light-page-narrow-select-all.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-light-page-narrow-select-all.png",
+      "sha256": "a999986366682c602a3161438e20d0c4a5eb4aec6a6846afa63fe5b2d222e566",
+      "raw_sha256": "5ccf5dfb618739321886b70e6d66100688c7f107bd7958752afb40d92bd720a8",
+      "bounds_px": [
+        0,
+        66,
+        1920,
+        1866
+      ],
+      "region_px": [
+        0,
+        66,
+        1920,
+        1800
+      ],
+      "backing_scale": 2,
+      "ticket": 328,
+      "source": "ref/sample.md",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        960,
+        900
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "colour.check pass"
+    },
+    "mac-native-18-light-page-narrow-20-cells": {
+      "selection_ax": "19, 38",
+      "editor_ax": "0, 33, 960, 900",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        960,
+        933
+      ],
+      "region_pt": [
+        0,
+        33,
+        960,
+        900
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        1920,
+        1800
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-light-page-narrow-20-cells.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-light-page-narrow-20-cells.png",
+      "sha256": "1e827f185f6fd844bef29e52735d16c5b62252edeab64d14dfdb09d99192c021",
+      "raw_sha256": "cd42ed5ce24984e9d8a8413d6f44aaa707297cdd6e0261cb932cc6c2420f9a53",
+      "bounds_px": [
+        0,
+        66,
+        1920,
+        1866
+      ],
+      "region_px": [
+        0,
+        66,
+        1920,
+        1800
+      ],
+      "backing_scale": 2,
+      "ticket": 328,
+      "source": "ref/sample.md",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        960,
+        900
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "Preview role check (see report); editor-only colour.check is not a Preview paper/ink test"
+    },
+    "mac-native-18-light-page-narrow-headings": {
+      "selection_ax": "1, 0",
+      "editor_ax": "0, 33, 960, 900",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        960,
+        933
+      ],
+      "region_pt": [
+        0,
+        33,
+        960,
+        900
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        1920,
+        1800
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-light-page-narrow-headings.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-light-page-narrow-headings.png",
+      "sha256": "9bdf437279b96bc94204a51cfbb44da4b6cc0facdd4537475a77615afb742e4a",
+      "raw_sha256": "4f2a87e44e27d2fd3c56c4a0cd05578b55a23b0acf966941aaa9979b882385bf",
+      "bounds_px": [
+        0,
+        66,
+        1920,
+        1866
+      ],
+      "region_px": [
+        0,
+        66,
+        1920,
+        1800
+      ],
+      "backing_scale": 2,
+      "ticket": 328,
+      "source": "ref/ia/mac-native/passage-markers.md",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        960,
+        900
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "colour.check pass"
+    },
+    "mac-native-18-light-page-wide-control": {
+      "selection_ax": "1, 0",
+      "editor_ax": "0, 33, 1040, 900",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1040,
+        933
+      ],
+      "region_pt": [
+        0,
+        33,
+        1040,
+        900
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        2080,
+        1800
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0,
+        422,
+        422,
+        0,
+        0,
+        422,
+        422,
+        0,
+        0,
+        422,
+        422,
+        0,
+        299,
+        422
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-light-page-wide-control.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-light-page-wide-control.png",
+      "sha256": "d0d8c8e9523f6ae480023ed6c0df896d918d8cac7f9225a520b519e48bfd10cd",
+      "raw_sha256": "a038ffec4f36319cd24c76c3fa4a4d94dadeeac9d5c87aced38139adc73e51df",
+      "bounds_px": [
+        0,
+        66,
+        2080,
+        1866
+      ],
+      "region_px": [
+        0,
+        66,
+        2080,
+        1800
+      ],
+      "backing_scale": 2,
+      "ticket": 328,
+      "source": "ref/sample.md",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        1040,
+        900
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "colour.check pass"
+    },
+    "mac-native-18-light-page-wide-select-all": {
+      "selection_ax": "1, 961",
+      "editor_ax": "0, 33, 1040, 900",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1040,
+        933
+      ],
+      "region_pt": [
+        0,
+        33,
+        1040,
+        900
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        2080,
+        1800
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-light-page-wide-select-all.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-light-page-wide-select-all.png",
+      "sha256": "d7f2e6d0de1f8d6745a8cf29b7c51dae02a16cd9ffe853ffbcf7c5bc4003b103",
+      "raw_sha256": "6178b2f65f3558647611de31f4f0e8a8eddd99e0b211c86a7713ea2514a50a5e",
+      "bounds_px": [
+        0,
+        66,
+        2080,
+        1866
+      ],
+      "region_px": [
+        0,
+        66,
+        2080,
+        1800
+      ],
+      "backing_scale": 2,
+      "ticket": 328,
+      "source": "ref/sample.md",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        1040,
+        900
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "colour.check pass"
+    },
+    "mac-native-21-light-syntax-all": {
+      "editor_ax": "0, 33, 1512, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        9192
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-21-light-syntax-all.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-21-light-syntax-all.png",
+      "sha256": "615ca45002984f7f92e4dd0b4a7d8e385dcd90b14f8dba2a9bc100a61d661287",
+      "raw_sha256": "71e295c45b8b795b3cbe02f25012b306e866009158a3d35038aa202dc5ba7d1b",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 308,
+      "source": "ref/ia/mac-native/passage-syntax.md",
+      "validation": "colour.check pass"
+    },
+    "mac-native-21-light-syntax-focus": {
+      "editor_ax": "0, 33, 1512, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        7917
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-21-light-syntax-focus.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-21-light-syntax-focus.png",
+      "sha256": "df0b19d58491946a52d9e0f35ec8570201b7349f0639084abe3b6f3c5680c3ba",
+      "raw_sha256": "685389378119dec8260efe0a55ef46c1056be7691dd1b37249fca7d7bfae3d1d",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 308,
+      "source": "ref/ia/mac-native/passage-syntax.md",
+      "validation": "colour.check pass"
+    },
+    "mac-native-21-dark-syntax-all": {
+      "editor_ax": "0, 33, 1512, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        429
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-21-dark-syntax-all.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-21-dark-syntax-all.png",
+      "sha256": "3ab247482f839028015117a99b883b0732230b8b54c8a3a09665aa6ab0f3d612",
+      "raw_sha256": "c3b8e278f39f1cc3ec5f9f450140f0931e474fff22b64acac15333f159367cc5",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 308,
+      "source": "ref/ia/mac-native/passage-syntax.md",
+      "validation": "colour.check pass"
+    },
+    "mac-native-21-dark-syntax-focus": {
+      "editor_ax": "0, 33, 1512, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        429
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-21-dark-syntax-focus.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-21-dark-syntax-focus.png",
+      "sha256": "517a5446f82e071a361120a9d92b7e2f7493458da1a173fcce1025884ad42186",
+      "raw_sha256": "a74d993b503d4f008ca3513d9bf85dd6c83d0c087020d1731cc766e0a48ba2c1",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 308,
+      "source": "ref/ia/mac-native/passage-syntax.md",
+      "validation": "colour.check pass"
+    },
+    "mac-native-21-light-syntax-adjectives": {
+      "editor_ax": "0, 33, 1512, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        435
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-21-light-syntax-adjectives.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-21-light-syntax-adjectives.png",
+      "sha256": "adab9610196d880efbff78f63945c7c723615d99a0c75cfe6f94ec2aeadf51f8",
+      "raw_sha256": "54fafa829f03f73eb2e651de31437988e72fec53132a6247003c3d1c7c0da4ba",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 308,
+      "source": "ref/ia/mac-native/passage-syntax.md",
+      "validation": "colour.check pass"
+    },
+    "mac-native-21-light-syntax-nouns": {
+      "editor_ax": "0, 33, 1512, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        435
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-21-light-syntax-nouns.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-21-light-syntax-nouns.png",
+      "sha256": "c855c710390e6e27c397c368cfd24640ce8cbc382da7d9c7b39187d7d4bf868f",
+      "raw_sha256": "4c383bd4782234250e76b49549d6133c581676dc42a8c922bf0a6ec0b2b8d61e",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 308,
+      "source": "ref/ia/mac-native/passage-syntax.md",
+      "validation": "colour.check pass"
+    },
+    "mac-native-21-light-syntax-adverbs": {
+      "editor_ax": "0, 33, 1512, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        435
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-21-light-syntax-adverbs.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-21-light-syntax-adverbs.png",
+      "sha256": "b970a354f1bf533c02681ebf7b61d9daece073933cf192e30f12b204dd02a3fe",
+      "raw_sha256": "b3f234f167901060753503939c171569ba6a315de64258f6674362459a4ee41e",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 308,
+      "source": "ref/ia/mac-native/passage-syntax.md",
+      "validation": "colour.check pass"
+    },
+    "mac-native-21-light-syntax-verbs": {
+      "editor_ax": "0, 33, 1512, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        9192
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-21-light-syntax-verbs.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-21-light-syntax-verbs.png",
+      "sha256": "7893d76a61a81ca2dbd89ba9293d4355e9fca29c2f44545360ac14e4d5e60f78",
+      "raw_sha256": "235e292c616329f9035e323db095ba65532bbf476202d656ed98136b4f226c44",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 308,
+      "source": "ref/ia/mac-native/passage-syntax.md",
+      "validation": "colour.check pass"
+    },
+    "mac-native-21-light-syntax-conjunctions": {
+      "editor_ax": "0, 33, 1512, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        435
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-21-light-syntax-conjunctions.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-21-light-syntax-conjunctions.png",
+      "sha256": "9b0eb0d3cc30c36fcdb223e38ba4ae7867427604232fce3a5a052d17b3f46c91",
+      "raw_sha256": "887f47d373c48eb412ef67c24074817be2f4cd1c72b28de54688b7b07b68d40f",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 308,
+      "source": "ref/ia/mac-native/passage-syntax.md",
+      "validation": "colour.check pass"
+    },
+    "mac-native-21-light-syntax-tokens": {
+      "editor_ax": "0, 33, 1512, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        4252
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-21-light-syntax-tokens.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-21-light-syntax-tokens.png",
+      "sha256": "38f5698c2d7a3bc50e2a7a20e1af206e0ae24ca44626048942324d4e73be6b27",
+      "raw_sha256": "402f416ed27a41691a3f0ac76980520917e1eb445d6759cf8f21841f5e7fecd9",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 308,
+      "source": "ref/ia/mac-native/passage-syntax-tokens.md",
+      "validation": "colour.check pass"
+    },
+    "mac-native-20-light-preview-modern-full": {
+      "editor_ax": "0, 33, 1512, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "ref/ia/shots/mac-native/mac-native-20-light-preview-modern-full.png: no ink pixel at (25, 25, 25) \u2014 the profile conversion has drifted off the rows",
+      "burst_scores": [
+        838
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-20-light-preview-modern-full.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-20-light-preview-modern-full.png",
+      "sha256": "7e0c109d23048e1f67415b9bf67a4c6d4842bc2515fce433a77d82b3c91266fe",
+      "raw_sha256": "e8481f13676412b24726b4695eff0603de17fefc50836f47b688ec15a434a611",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 261,
+      "source": "ref/sample.md",
+      "validation": "Preview role check (see report); editor-only colour.check is not a Preview paper/ink test"
+    },
+    "mac-native-20-light-preview-modern-split": {
+      "editor_ax": "0, 33, 755, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        1367
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-20-light-preview-modern-split.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-20-light-preview-modern-split.png",
+      "sha256": "413ebf255a2c79cd795c70d67d94923d5070cf6ad1883f017fc8141b77b00398",
+      "raw_sha256": "1b7c4b8ed43fc547b1d559660a4de055aa9b8d0107dbd9a05082939f78ffb3d7",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 261,
+      "source": "ref/sample.md",
+      "validation": "Preview role check (see report); editor-only colour.check is not a Preview paper/ink test"
+    },
+    "mac-native-20-dark-preview-classic-full": {
+      "editor_ax": "0, 33, 1512, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        646
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-20-dark-preview-classic-full.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-20-dark-preview-classic-full.png",
+      "sha256": "0d45fbdaf6474ebec1f9d1fc5962bea7852d1f0d5699966926df5335550a3e05",
+      "raw_sha256": "8e27f9b92f37869ca6fc3ffc55b1850c3ed74a49f01a7a3bc03d01dfe529f19d",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 261,
+      "source": "ref/sample.md",
+      "validation": "Preview role check (see report); editor-only colour.check is not a Preview paper/ink test"
+    },
+    "mac-native-20-dark-preview-manuscript-duo-full": {
+      "editor_ax": "0, 33, 1512, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        646
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-20-dark-preview-manuscript-duo-full.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-20-dark-preview-manuscript-duo-full.png",
+      "sha256": "257258cb296f0bcf22ecf44a464348f9eaca2d0238b9bae84c921819209edf11",
+      "raw_sha256": "c55c8821e8f6295f53f824dd8dd63729b7d278c480277065b883b30dcddbcb62",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 261,
+      "source": "ref/sample.md",
+      "validation": "Preview role check (see report); editor-only colour.check is not a Preview paper/ink test"
+    },
+    "mac-native-20-dark-preview-modern-step-00": {
+      "selection_ax": null,
+      "editor_ax": "0, 33, 1512, 949",
+      "scroll_ax": null,
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        403
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-20-dark-preview-modern-step-00.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-20-dark-preview-modern-step-00.png",
+      "sha256": "5832ecfef3adcf14aa3adef8e53f385b3713c98f9cf33c6bc3266da7d8d87cb0",
+      "raw_sha256": "d160719e034386e9ec93633fac9d0a1677cae455fd11f2f1a5a28de31b859ee4",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 261,
+      "source": "ref/sample.md",
+      "validation": "Preview role check (see report); editor-only colour.check is not a Preview paper/ink test"
+    },
+    "mac-native-20-dark-preview-modern-step-13": {
+      "selection_ax": null,
+      "editor_ax": "0, 33, 1512, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-20-dark-preview-modern-step-13.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-20-dark-preview-modern-step-13.png",
+      "sha256": "1a4675c9ea00514c9f6f063b30e062565f51baac694bb981163035770ce0bb52",
+      "raw_sha256": "3b6d3cd2cfb6f993db9ca1915407fddf92d62b5087edffe92793a448d5e80432",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 261,
+      "source": "ref/sample.md",
+      "validation": "Preview role check (see report); editor-only colour.check is not a Preview paper/ink test"
+    },
+    "mac-native-18-light-page-wide-20-cells": {
+      "editor_ax": "0, 33, 1040, 900",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1040,
+        933
+      ],
+      "region_pt": [
+        0,
+        33,
+        1040,
+        900
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        2080,
+        1800
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-light-page-wide-20-cells.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-light-page-wide-20-cells.png",
+      "sha256": "3c3032a2fa1641c282350669c5b2f4777a5158a226511244735f7c264f82dad5",
+      "raw_sha256": "835b47db516cbd9a56a1eb8f0bc1a1fe640a55a8a30739d68ed660a89175a5fc",
+      "bounds_px": [
+        0,
+        66,
+        2080,
+        1866
+      ],
+      "region_px": [
+        0,
+        66,
+        2080,
+        1800
+      ],
+      "backing_scale": 2,
+      "ticket": 328,
+      "source": "ref/sample.md",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        1040,
+        900
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "Preview role check (see report); editor-only colour.check is not a Preview paper/ink test"
+    },
+    "mac-native-18-light-page-height-control-20-cells": {
+      "editor_ax": "0, 33, 1512, 900",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        933
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        900
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1800
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-light-page-height-control-20-cells.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-light-page-height-control-20-cells.png",
+      "sha256": "b164a90f324f9e19e32a704b670afb985ef4d751a97bdc4ad3eb0c4f78f6216c",
+      "raw_sha256": "aaa046cab502f60a1825256d6b4392e453bd46a50aabce70bf3e4b90dcdf1c05",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1866
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1800
+      ],
+      "backing_scale": 2,
+      "ticket": 328,
+      "source": "ref/sample.md",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        1512,
+        900
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "Preview role check (see report); editor-only colour.check is not a Preview paper/ink test"
+    },
+    "mac-native-18-light-page-width-control-20-cells": {
+      "editor_ax": "0, 33, 1040, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1040,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1040,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        2080,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-light-page-width-control-20-cells.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-light-page-width-control-20-cells.png",
+      "sha256": "768727103e7e6371b05f4989254d0425d0c34eede311c19ae973a564804568df",
+      "raw_sha256": "e2f71a2f0ff23be0bba7452d264757e773db7f1a7695486eb60e3dbac2c8a8f4",
+      "bounds_px": [
+        0,
+        66,
+        2080,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        2080,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 328,
+      "source": "ref/sample.md",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        1040,
+        949
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "Preview role check (see report); editor-only colour.check is not a Preview paper/ink test"
+    },
+    "mac-native-18-light-page-original-control-20-cells": {
+      "editor_ax": "0, 33, 1512, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-light-page-original-control-20-cells.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-light-page-original-control-20-cells.png",
+      "sha256": "ccb4b6b17f55893e0ff6a6e982826e680883d77d2dfe6dc6087e92cbf906c368",
+      "raw_sha256": "c90a3260d4b8cda17283359ceb1252cb3948dd592a0d677e85c05ad92af6c276",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 328,
+      "source": "ref/sample.md",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "Preview role check (see report); editor-only colour.check is not a Preview paper/ink test"
+    },
+    "mac-native-20-dark-preview-long-sync-before": {
+      "editor_ax": "0, 33, 755, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        377
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-20-dark-preview-long-sync-before.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-20-dark-preview-long-sync-before.png",
+      "sha256": "ac4da29ccf0298e6f5b631ef7e225b35dbfc20607b05b817afbdeee71f32db2c",
+      "raw_sha256": "dd07ab938b2cd5d42628d0725bf9c99d4b0a33142bb6b739505c0d6acd6cd174",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 261,
+      "source": "ref/ia/mac-native/passage-preview-scroll.md",
+      "validation": "Preview role check (see report); editor-only colour.check is not a Preview paper/ink test",
+      "suffix": "\n"
+    },
+    "mac-native-20-dark-preview-long-sync-editor-down": {
+      "editor_ax": "0, 33, 755, 949",
+      "scroll_ax": "0.13583265417",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-20-dark-preview-long-sync-editor-down.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-20-dark-preview-long-sync-editor-down.png",
+      "sha256": "30cc69509895560a136cbc529e7cea3ed908853fc66dfc398f28da3995077900",
+      "raw_sha256": "125b573e4458d8288eae2fa1888c333ebf6f1793419c47021341566003caf996",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 261,
+      "source": "ref/ia/mac-native/passage-preview-scroll.md",
+      "validation": "Preview role check (see report); editor-only colour.check is not a Preview paper/ink test",
+      "suffix": "\n"
+    },
+    "mac-native-20-dark-preview-long-sync-preview-down": {
+      "editor_ax": "0, 33, 755, 949",
+      "scroll_ax": "0.293126867699",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-20-dark-preview-long-sync-preview-down.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-20-dark-preview-long-sync-preview-down.png",
+      "sha256": "64c6bcc8a4e2106302eb76a8f1f333eec66546f0aa991498b8d385c09cdd8267",
+      "raw_sha256": "0e88a5f3a65d828135a84b8f60342ae5c6b543af1c7c2c1490dee88e19fae85a",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 261,
+      "source": "ref/ia/mac-native/passage-preview-scroll.md",
+      "validation": "Preview role check (see report); editor-only colour.check is not a Preview paper/ink test",
+      "suffix": "\n"
+    },
+    "mac-native-20-dark-preview-long-sync-preview-up": {
+      "editor_ax": "0, 33, 755, 949",
+      "scroll_ax": "0.198859005705",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-20-dark-preview-long-sync-preview-up.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-20-dark-preview-long-sync-preview-up.png",
+      "sha256": "b3dba69cfabde50b1837f782b9f67adccbc175c2409915ffe5ee0343746e21dc",
+      "raw_sha256": "c58480eafed0d07bc55d6490424a93420c67d383635a1f8c009b60f535bb73b3",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 261,
+      "source": "ref/ia/mac-native/passage-preview-scroll.md",
+      "validation": "Preview role check (see report); editor-only colour.check is not a Preview paper/ink test",
+      "suffix": "\n"
+    },
+    "mac-native-20-dark-preview-long-sync-editor-top": {
+      "editor_ax": "0, 33, 755, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        377
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-20-dark-preview-long-sync-editor-top.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-20-dark-preview-long-sync-editor-top.png",
+      "sha256": "ac4da29ccf0298e6f5b631ef7e225b35dbfc20607b05b817afbdeee71f32db2c",
+      "raw_sha256": "dd07ab938b2cd5d42628d0725bf9c99d4b0a33142bb6b739505c0d6acd6cd174",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 261,
+      "source": "ref/ia/mac-native/passage-preview-scroll.md",
+      "validation": "Preview role check (see report); editor-only colour.check is not a Preview paper/ink test",
+      "suffix": "\n"
+    },
+    "mac-native-18-light-page-narrow-10-cells": {
+      "selection_ax": "19, 28",
+      "editor_ax": "0, 33, 960, 900",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        960,
+        933
+      ],
+      "region_pt": [
+        0,
+        33,
+        960,
+        900
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        1920,
+        1800
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-light-page-narrow-10-cells.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-light-page-narrow-10-cells.png",
+      "sha256": "7bd695261b8b42ce66f5bfd0a27a7da21b51a7d65b4a3b2d4329380b22daef18",
+      "raw_sha256": "51d46f825184e2b813a7c0688875c22583409c64cd22b46697d7323235cf98c7",
+      "bounds_px": [
+        0,
+        66,
+        1920,
+        1866
+      ],
+      "region_px": [
+        0,
+        66,
+        1920,
+        1800
+      ],
+      "backing_scale": 2,
+      "ticket": 328,
+      "source": "ref/sample.md",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        960,
+        900
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "colour.check pass"
+    },
+    "mac-native-20-dark-editor-step-00": {
+      "selection_ax": "1, 0",
+      "editor_ax": "0, 33, 1512, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-20-dark-editor-step-00.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-20-dark-editor-step-00.png",
+      "sha256": "c816c1b1165c68f7884e35a148da49e24ca754658de6eb6a4479138530866983",
+      "raw_sha256": "7c1ce0801b9d18b8890e0d8301d6c82164f48e4685024dc65f6a43ecf37c8cfd",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 261,
+      "source": "ref/sample.md",
+      "validation": "colour.check pass"
+    },
+    "mac-native-20-dark-editor-step-13": {
+      "selection_ax": "1, 0",
+      "editor_ax": "0, 33, 1512, 949",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        1512,
+        982
+      ],
+      "region_pt": [
+        0,
+        33,
+        1512,
+        949
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        3024,
+        1898
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-20-dark-editor-step-13.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-20-dark-editor-step-13.png",
+      "sha256": "fc8a9f2d7d1f2584264e32c04942441b8119773d1b98de37edc2fdd3c3d13e9c",
+      "raw_sha256": "2af2dfb4d15a22e2d15d4f8c4220910add7660a4ca1bdafdf147c7dbe57369b5",
+      "bounds_px": [
+        0,
+        66,
+        3024,
+        1964
+      ],
+      "region_px": [
+        0,
+        66,
+        3024,
+        1898
+      ],
+      "backing_scale": 2,
+      "ticket": 261,
+      "source": "ref/sample.md",
+      "validation": "colour.check pass"
+    },
+    "mac-native-18-light-page-narrow-40-cells": {
+      "selection_ax": "19, 58",
+      "editor_ax": "0, 33, 960, 900",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        960,
+        933
+      ],
+      "region_pt": [
+        0,
+        33,
+        960,
+        900
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        1920,
+        1800
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-light-page-narrow-40-cells.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-light-page-narrow-40-cells.png",
+      "sha256": "d31fb4dd627775361089d7af0996951a75be6d804fba60ea0a63a4844c2ff41c",
+      "raw_sha256": "b45e91998a054482b079153c66f1c8d3befb7d3de9625d72584543bb24f06006",
+      "bounds_px": [
+        0,
+        66,
+        1920,
+        1866
+      ],
+      "region_px": [
+        0,
+        66,
+        1920,
+        1800
+      ],
+      "backing_scale": 2,
+      "ticket": 328,
+      "source": "ref/sample.md",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        960,
+        900
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "colour.check pass"
+    },
+    "mac-native-18-light-page-narrow-05-cells": {
+      "selection_ax": "19, 23",
+      "editor_ax": "0, 33, 960, 900",
+      "scroll_ax": "0.0",
+      "bounds_pt": [
+        0,
+        33,
+        960,
+        933
+      ],
+      "region_pt": [
+        0,
+        33,
+        960,
+        900
+      ],
+      "origin_px": [
+        0,
+        66
+      ],
+      "size_px": [
+        1920,
+        1800
+      ],
+      "colour_check": "pass",
+      "burst_scores": [
+        0
+      ],
+      "normalized_file": "ref/ia/shots/mac-native/mac-native-18-light-page-narrow-05-cells.png",
+      "raw_file": "ref/ia/shots/mac-native/raw-2026-09-09/mac-native-18-light-page-narrow-05-cells.png",
+      "sha256": "cd10544a2998b42fa49b101468dac37a84a46045cfc63dd69c6176e0bfe8033a",
+      "raw_sha256": "af7812af902c69e4dd601992a3745b4f4b90c3910d7c2472ac7461e4849db7cf",
+      "bounds_px": [
+        0,
+        66,
+        1920,
+        1866
+      ],
+      "region_px": [
+        0,
+        66,
+        1920,
+        1800
+      ],
+      "backing_scale": 2,
+      "ticket": 328,
+      "source": "ref/sample.md",
+      "scroll_evidence": "Home / Cmd-Up; first passage line or empty document visible; later runs also record AX scrollbar",
+      "editor_bounds_pt": [
+        0,
+        33,
+        960,
+        900
+      ],
+      "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
+      "validation": "colour.check pass"
+    }
+  }
+}
