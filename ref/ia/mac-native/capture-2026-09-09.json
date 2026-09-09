@@ -3,7 +3,7 @@
   "app": "iA Writer 8.0.6 (80046)",
   "bundle": "pro.writer.mac",
   "macOS": "26.6.1 (25G76)",
-  "display": "DELL P2723QE; 4608x2592 device px / 2304x1296 logical pt",
+  "display": "External DELL P2723QE, owner-confirmed 16:9 4K panel; macOS rendering surface 4608x2592 px / 2304x1296 logical pt",
   "backing_scale": 2,
   "settings": {
     "face": "Mono",
@@ -2767,5 +2767,10 @@
       "editor_bounds_evidence": "AX where editor_ax is present; otherwise same editor-only window layout, verified on controls",
       "validation": "colour.check pass"
     }
+  },
+  "owner_confirmed_rig_history": {
+    "previous": "Built-in screen of a 14-inch M1 MacBook Pro",
+    "current": "A different MacBook on the external monitor; its internal display is also a different size from the previous MacBook",
+    "interpretation": "Hardware/display change confirmed; cause of the 32 px page-top difference remains unisolated"
   }
 }
