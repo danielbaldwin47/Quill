@@ -1,0 +1,142 @@
+{
+  "regime": "syntax",
+  "definition": {
+    "mix": "prose",
+    "where": "end",
+    "pace_ms": 90,
+    "focus": "off",
+    "caret": "end",
+    "pause_every_keys": null,
+    "pause_ms": null,
+    "keys_per_session": 300,
+    "sessions": 1,
+    "warmup_keys": 25
+  },
+  "budget": {
+    "mean_ms": 5,
+    "worst_ms": 16,
+    "cold_ms": 250
+  },
+  "verdict": {
+    "mean_ms": 6877.21,
+    "worst_ms": 6976.62,
+    "p50_ms": 6777.8,
+    "p99_ms": 6976.62,
+    "cold_ms": 161.64,
+    "clears_mean": false,
+    "clears_worst": false,
+    "clears_cold": true,
+    "scored": true,
+    "pass": false
+  },
+  "accounting": {
+    "keys_planned": 300,
+    "keys_sent": 100,
+    "keys_seen_by_the_app": 5,
+    "keys_aligned": 2,
+    "keys_with_a_presentation_time": 2,
+    "keys_the_app_never_saw": 98,
+    "keys_the_bench_never_sent": 3,
+    "keys_sharing_a_frame": 0,
+    "every_keystroke_accounted_for": false
+  },
+  "uinput_write_to_presented_ms": {
+    "n": 2,
+    "min": 6777.8,
+    "p50": 6777.8,
+    "p90": 6976.62,
+    "p95": 6976.62,
+    "p99": 6976.62,
+    "max": 6976.62,
+    "mean": 6877.21,
+    "sd": 99.41
+  },
+  "mean_ci95": null,
+  "p99_ci95": null,
+  "first_handler_to_presented_ms": {
+    "n": 2,
+    "min": 1.33,
+    "p50": 1.33,
+    "p90": 19.75,
+    "p95": 19.75,
+    "p99": 19.75,
+    "max": 19.75,
+    "mean": 10.54,
+    "sd": 9.21
+  },
+  "samples_ms": [
+    6976.62,
+    6777.8
+  ],
+  "input_injection": {
+    "how": "real keys written to /dev/uinput, tools/uinput-keys.py",
+    "device": "quill-latency-bench (uinput, bus USB)",
+    "aligned_by": "gdk_keycode === evdev code + 8, greedily",
+    "focus_rechecks": 6,
+    "stopped_because_focus_was_lost": true
+  },
+  "cold_start_ms": {
+    "each": [
+      161.64
+    ],
+    "worst": 161.64,
+    "stage_first_client": 252.334
+  },
+  "sessions_mean_ms": [
+    6877.21
+  ],
+  "write_gaps_ms": {
+    "n": 99,
+    "min": 90.13,
+    "p50": 90.17,
+    "p90": 90.22,
+    "p95": 90.29,
+    "p99": 95.37,
+    "max": 95.37,
+    "mean": 90.31,
+    "sd": 0.75,
+    "over_a_second": 0
+  },
+  "fingerprint": {
+    "at": "2026-09-10T02:26:49.318Z",
+    "app": {
+      "binary": "target/release/quill",
+      "sha256": "5ba9dbc07d31d861",
+      "git_head": "b9e6ba3",
+      "tree_was_dirty": true,
+      "renderer": "gl"
+    },
+    "display": {
+      "output": "quill-gate-159949",
+      "mode": "3200x2000",
+      "refresh_hz": 60,
+      "scale": 2,
+      "vrr": false
+    },
+    "machine": {
+      "node": "v26.7.0",
+      "kernel": "Linux 7.2.3-arch1-3",
+      "cpu": "13th Gen Intel(R) Core(TM) i5-13600K",
+      "cpus": 20,
+      "load1": 3.89,
+      "busiest_processes": [
+        "41.3 helium",
+        "5.7 spotify",
+        "2.1 quill-real <defunct>",
+        "1.8 helium",
+        "1.4 spotify"
+      ],
+      "mem_gb": 31
+    },
+    "document": {
+      "path": "shots/latency/doc10k.md",
+      "words": 9953,
+      "chars": 53031,
+      "lines": 432
+    },
+    "window": {
+      "w": 1440,
+      "h": 900
+    }
+  }
+}

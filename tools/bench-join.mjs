@@ -41,6 +41,16 @@ export const ORACLE = { mean_ms: 2.43, worst_ms: 15.61, uinput_to_presented_ms: 
 // GDK 30. This is the whole of how a key the bench wrote is recognised in what the app saw.
 export const KEYCODE_OFFSET = 8;
 
+/// Whether the app said, on its stdout, that the pointer left its window during the launch.
+///
+/// The line is `quill/src/harness.rs`'s `pointer_left_line`, and it means the owner's mouse crossed
+/// the stage: the chrome answers with its opacity transition, and while it runs the frame clock
+/// paces every key's frame to the refresh grid — one such key waited 16.3 ms of its 17.7 (#327).
+/// A run it happened in has measured an animation, not the keystroke path, and is refused.
+export function pointerLeft(said) {
+  return /^pointer left the window at \d+ us$/m.test(said || '');
+}
+
 // ---------- statistics, as `legacy/tools/latency.mjs` computes them ----------
 //
 // Deliberately the same shapes as the legacy bench's, down to the rounding and the bootstrap's
