@@ -136,6 +136,16 @@ pub fn watch(window: &impl IsA<gtk::Widget>) {
     });
     widget.add_controller(keys);
 
+    // The pointer leaving is the owner's mouse crossing the stage mid-run.
+    // The chrome answers with its opacity transition, and while any animation
+    // runs the frame clock paces every frame to the refresh grid, so a key
+    // that lands just after one waits a whole refresh before it is painted —
+    // 16.3 ms of the 17.7 ms one such key measured (#327). Said on stdout, one
+    // line per leave, for the bench to refuse the run on rather than score.
+    let pointer = gtk::EventControllerMotion::new();
+    pointer.connect_leave(|_| println!("{}", pointer_left_line(glib::monotonic_time())));
+    widget.add_controller(pointer);
+
     widget.add_tick_callback(|widget, clock| {
         let painted = widget.downgrade();
         clock.connect_after_paint(move |clock| {
@@ -199,6 +209,12 @@ pub fn cold_start(window: &impl IsA<gtk::Widget>) {
 /// The line `--measure` prints, once, at the first presented frame.
 fn cold_start_line(milliseconds: f64) -> String {
     format!("cold start: {milliseconds:.3} ms")
+}
+
+/// The line `--measure` prints each time the pointer leaves the window, in
+/// monotonic microseconds, so a bench can put the leave beside its keys.
+fn pointer_left_line(at_us: i64) -> String {
+    format!("pointer left the window at {at_us} us")
 }
 
 /// `$QUILL_T0_NS`, in realtime nanoseconds.
@@ -481,6 +497,15 @@ mod tests {
     fn the_cold_start_line_is_one_line_of_milliseconds() {
         assert_eq!(cold_start_line(187.5), "cold start: 187.500 ms");
         assert!(!cold_start_line(0.0).contains('\n'));
+    }
+
+    #[test]
+    fn a_pointer_leave_is_one_line_the_bench_reads_by_its_opening_words() {
+        assert_eq!(
+            pointer_left_line(6_516_887_400),
+            "pointer left the window at 6516887400 us"
+        );
+        assert!(!pointer_left_line(0).contains('\n'));
     }
 
     /// A stamp with everything the join needs, as a presented key.

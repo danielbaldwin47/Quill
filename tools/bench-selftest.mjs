@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   BUDGET, KEYCODE_OFFSET, against, align, allSummary, clears, latencyMs, latencyVerdict, measure,
-  regimeLine, summary, verdict, writeGaps,
+  pointerLeft, regimeLine, summary, verdict, writeGaps,
 } from './bench-join.mjs';
 import { PANEL_WORKSPACE, panelRefusal, physicalMonitors } from './harness.mjs';
 import { DEFAULT_KEYS, hash32, regimes, scoredRegime, script, uinputPlan } from './regimes.mjs';
@@ -167,6 +167,16 @@ ok('a whole run is every keystroke accounted for', () => {
   assert.equal(decided.accounting.every_keystroke_accounted_for, true);
   assert.equal(decided.uinput_write_to_presented_ms.mean, 2);
   assert.equal(decided.uinput_write_to_presented_ms.max, 2);
+});
+
+ok('the pointer leaving the window is read from the line the app prints, and only that line', () => {
+  // The line `quill/src/harness.rs` prints per leave, among the cold start it also prints; and the
+  // words alone, or a leave the app never reported, are not one (#327).
+  assert.equal(pointerLeft('cold start: 167.061 ms\npointer left the window at 6516887400 us\n'), true);
+  assert.equal(pointerLeft('cold start: 167.061 ms\n'), false);
+  assert.equal(pointerLeft('the pointer left the window at some point'), false);
+  assert.equal(pointerLeft(''), false);
+  assert.equal(pointerLeft(undefined), false);
 });
 
 ok('a run that lost focus part-way is short against the plan, not whole against itself', () => {

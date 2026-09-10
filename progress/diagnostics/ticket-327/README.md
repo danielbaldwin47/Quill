@@ -1,5 +1,8 @@
 # #327: bounded latency investigation, 2026-09-08 UTC
 
+Round 2, 2026-09-10, captured two over-budget keys with every probe on and
+attributed one of them: [round-2/README.md](round-2/README.md).
+
 The Syntax worst-key failure remains unresolved. Two fully accounted diagnostic
 runs did not reproduce an over-budget key. A third lost focus, ending window
 testing. No production fix or acceptance change is justified by this pass, and
