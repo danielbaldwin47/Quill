@@ -1,5 +1,14 @@
 # The caret on the advance boundary — measured against iA Writer itself
 
+*Ranked on 2026-09-09 by the owner: the app measured here is iA Writer for **Windows**, run under
+Wine, and `ref/ia/mac-native/` — iA Writer for Mac running natively — decides where the two differ
+([ADR 0015](../../../docs/adr/0015-the-design-oracle-outranks-the-parity-oracle.md)). Two rows
+below are overruled there: the mark a selection moves to whichever end is active (`VERDICTS.md`
+0013.7 — the Mac app removes the caret for as long as the selection stands) and the unfocused fill
+at full strength (0014.9 — the Mac app swaps it for a neutral grey, `#464646` dark, `#dcdcdc`
+light). The rig below stays as method: it is how a running app was first driven and read, and
+`ref/ia/mac-native/rig/` is its Mac port.*
+
 Evidence for [ADR 0013](../../../docs/adr/0013-caret-on-the-advance-boundary.md), which moves the
 bar onto the advance boundary, puts the selection's opening bar in the free caret's own column, and
 paints both over the ink. It answers [#147](https://github.com/danielbaldwin47/Quill/issues/147),
