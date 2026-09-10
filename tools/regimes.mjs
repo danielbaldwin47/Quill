@@ -135,6 +135,26 @@ export const DEFAULT_KEYS = 300;
 // Keys typed into a freshly loaded page before the trace starts: the first keystrokes pay for lazy
 // compilation and first touch of the editing machinery, and no writer types only 300 keys.
 export const WARMUP_KEYS = 25;
+// One refresh interval on the 60 Hz output the bench measures on. GDK will not begin a frame until
+// this long after the last presentation, so a frame presented inside this window of a keystroke
+// takes the slot that keystroke's own frame needed.
+export const REFRESH_MS = 1000 / 60;
+// How long a paced regime's pause is, and the constraint that picks the number: a pause must not
+// end within one `REFRESH_MS` *after* any timer the app arms from the last keystroke, because the
+// key that ends the pause then measures the chrome's return rather than typing. Only *after*
+// matters: a timer that fires while the burst is already typing paints between two keys 90 ms
+// apart, and one that fires after the pause ends has already lost the slot to the key.
+// The keystroke-armed timers are `Typing::STATS_MS` and `Typing::TITLE_MS`
+// (`quill/src/chrome/typing.rs`) and `AUTOSAVE` and the Preview's `REFRESH` (`quill/src/window.rs`);
+// `tools/bench-selftest.mjs` reads all four out of the app and holds this value to them, so the
+// margins live there rather than in a table copied over here. The app's periodic timers — the
+// harness's drain, the status line's tick — are nobody's to clear: they repeat from the window's
+// creation rather than from a keystroke, so their frames can land beside any key at any pause. 1,700 ms clears the nearest of them, `TITLE_MS`, by 300 ms and
+// `AUTOSAVE` by 700, and is still a writer's think-pause. 1,400 was the old value: it *was*
+// `TITLE_MS`, so eleven keys of three hundred read 13.5–16.9 ms against a 16 ms budget and the
+// regime passed or failed on which side of a refresh the collision landed, on an unchanged build
+// (#349, from #327 round 3). Any new value is one that selftest stays green on.
+export const PAUSE_MS = 1700;
 export function regimes(pace = DEFAULT_PACE) {
   return [
     // Plain writing at the end of a draft — the most common case there is, and the one quoted.
@@ -147,7 +167,7 @@ export function regimes(pace = DEFAULT_PACE) {
     { name: 'fence_flip',            mix: 'fences',   where: 'middle', pace, focus: 'off' },
     { name: 'paste_blocks',          mix: 'paste',    where: 'end',    pace, focus: 'off' },
     { name: 'letters_only_r1',       mix: 'letters',  where: 'middle', pace, focus: 'off' },
-    { name: 'bursts_and_pauses',     mix: 'prose',    where: 'end',    pace, focus: 'off', pauseEvery: 25, pauseMs: 1400 },
+    { name: 'bursts_and_pauses',     mix: 'prose',    where: 'end',    pace, focus: 'off', pauseEvery: 25, pauseMs: PAUSE_MS },
     { name: 'fast_typist',           mix: 'prose',    where: 'middle', pace: 45,   focus: 'off' },
     // Unpaced: two keys land in every 16.7 ms frame and queue behind each other, so a per-keystroke
     // uinput → presented figure grows by construction and can never clear a 5 ms mean. Run and
@@ -185,7 +205,7 @@ export function formatPlan(r, keys) {
   out.push(`  focus        ${r.focus || 'off'}`);
   out.push(`  live         ${r.live ? 'on: the markup rendered in place' : 'off'}`);
   out.push(`  preview      ${r.preview ? `open in ${r.preview}: the rendered page beside the Editor` : 'closed'}`);
-  out.push(`  pauses       ${r.pauseEvery ? `every ${r.pauseEvery} keys, ${r.pauseMs || 1200} ms` : 'none'}`);
+  out.push(`  pauses       ${r.pauseEvery ? `every ${r.pauseEvery} keys, ${r.pauseMs || PAUSE_MS} ms` : 'none'}`);
   out.push(`  seed         ${hash32(r.name)}`);
   out.push(`  warm-up      ${WARMUP_KEYS} letter keys, outside the measurement`);
   out.push(`  keys         ${steps.length} steps, ${steps.reduce((a, s) => a + s.keydowns, 0)} keydowns`);
@@ -226,7 +246,7 @@ export function uinputPlan(steps, pace, { pauseEvery = 0, pauseMs = 0 } = {}) {
     // The pause replaces the pace after every `pauseEvery`-th key rather than being added to it,
     // which is what the bench's CDP path does: a burst is 25 keys and then the writer thinking,
     // and the key after the thinking is the one `bursts_and_pauses` exists to time.
-    if (pauseEvery && (i + 1) % pauseEvery === 0) key.pause_ms = pauseMs || 1200;
+    if (pauseEvery && (i + 1) % pauseEvery === 0) key.pause_ms = pauseMs || PAUSE_MS;
     return key;
   });
   return {
