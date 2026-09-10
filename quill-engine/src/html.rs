@@ -396,7 +396,7 @@ mod tests {
             page.contains("font-family: \"Source Serif 4\", serif;"),
             "{page}"
         );
-        assert!(page.contains("font-size: 17pt;"), "{page}");
+        assert!(page.contains("font-size: 16.68pt;"), "{page}");
     }
 
     #[test]
@@ -488,7 +488,13 @@ mod tests {
 
     #[test]
     fn an_indented_template_indents_with_the_toggle_off() {
-        let page = page(&sample(), &built("classic"), Toggles::default());
+        // No built-in is indented since `ref/ia/mac-native/NOTES.md` § State
+        // 23 read the setting off ink and found none of iA's four indenting;
+        // the file format keeps the shape, so a Template declaring it is what
+        // this asserts.
+        let mut template = built("classic");
+        template.paragraphs = crate::template::Paragraphs::Indented;
+        let page = page(&sample(), &template, Toggles::default());
         assert!(page.contains("text-indent: 1.5rem;"), "{page}");
         assert!(page.contains("margin-top: 0rem;"), "{page}");
     }

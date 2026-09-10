@@ -348,13 +348,23 @@ mod tests {
     }
 
     #[test]
-    fn classic_is_source_serif_4() {
+    fn classic_is_source_serif_4_spaced_and_derived_from_the_manuscript_em() {
         let classic = built_in("classic").expect("a built-in id");
         assert_eq!(classic.faces.body.family, "Source Serif 4");
-        assert_eq!(classic.paragraphs, Paragraphs::Indented);
-        assert_eq!(
-            classic.rhythm.paragraph_spacing, 0.0,
-            "indented paragraphs are not spaced as well"
+        // `ref/ia/mac-native/NOTES.md` § State 23: no iA Template indents a
+        // first line, and Classic's cap height wants 1.0425 × the Editor's em
+        // on Source Serif 4 (`classic.toml`, which shows the working).
+        assert_eq!(classic.paragraphs, Paragraphs::Spaced);
+        let manuscript = built_in("manuscript-mono").expect("a built-in id");
+        let ratio = classic.sizes.base / manuscript.sizes.base;
+        assert!(
+            (ratio - 1.0425).abs() < 0.0005,
+            "Classic's em is the Editor's × 1.0425, not {ratio}"
+        );
+        let pitch = classic.sizes.base * classic.rhythm.line_height * 4.0 / 3.0 * 2.0;
+        assert!(
+            (pitch - 69.3).abs() < 0.05,
+            "iA's Classic pitch is 69.3 px at backing scale 2, not {pitch}"
         );
     }
 
