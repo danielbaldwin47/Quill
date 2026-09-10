@@ -416,6 +416,11 @@ async function judgeLatency(root, note, named) {
     return refuse('latency', `${file} could not account for every keystroke in `
       + `${summary.regimes_unaccounted_for.join(', ')}`);
   }
+  // The bench refused this run itself: from the leave on, the chrome's fade paced the keys (#327).
+  if ((summary.regimes_the_pointer_left || []).length) {
+    return refuse('latency', `${file} had the pointer leave the window during `
+      + `${summary.regimes_the_pointer_left.join(', ')}`);
+  }
 
   const said = latencyVerdict(summary);
   const recorded = rounds(root, 'latency');

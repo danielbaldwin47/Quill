@@ -252,12 +252,12 @@ pub const COMMANDS: &[Command] = &[
     row("preview.web", "Web", Scope::Win, Kind::Radio { group: "preview_mode", value: "web", }, &[], &[place(VIEW, Some("Panes"), "Web")], true),
     row("preview.pdf", "PDF", Scope::Win, Kind::Radio { group: "preview_mode", value: "pdf", }, &[], &[place(VIEW, Some("Panes"), "PDF")], true),
     // View › Writing tools.
-    row("syntax.toggle", "Syntax Highlight", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Syntax Highlight")], false),
-    row("syntax.nouns", "Nouns", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Nouns")], false),
-    row("syntax.verbs", "Verbs", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Verbs")], false),
-    row("syntax.adjectives", "Adjectives", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Adjectives")], false),
-    row("syntax.adverbs", "Adverbs", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Adverbs")], false),
-    row("syntax.conjunctions", "Conjunctions", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Conjunctions")], false),
+    row("syntax.toggle", "Syntax Highlight", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Syntax Highlight")], true),
+    row("syntax.nouns", "Nouns", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Nouns")], true),
+    row("syntax.verbs", "Verbs", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Verbs")], true),
+    row("syntax.adjectives", "Adjectives", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Adjectives")], true),
+    row("syntax.adverbs", "Adverbs", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Adverbs")], true),
+    row("syntax.conjunctions", "Conjunctions", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Conjunctions")], true),
     row("style.toggle", "Style Check", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Style Check")], false),
     row("spell.toggle", "Spell Check", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Spell Check")], false),
     // View › Typeface.

@@ -52,6 +52,18 @@ const states = readStates(ROOT);
 const flagsOf = (piece) => Object.fromEntries(resolveStates(states, piece).map((s) => [s.name, s.flags]));
 
 // ---------- the command line a judged state opens ours with ----------
+ok('every state pins Syntax highlight and an override reaches the app', () => {
+  assert.equal(states.defaults.syntax, 'off');
+  for (const piece of Object.keys(states.pieces)) {
+    for (const state of resolveStates(states, piece)) {
+      const argv = quillArgv(ROOT, state.flags);
+      assert.equal(argv[argv.indexOf('--syntax') + 1], state.flags.syntax, `${piece}/${state.name}`);
+    }
+  }
+  const argv = quillArgv(ROOT, { ...states.defaults, syntax: 'nouns,adverbs' });
+  assert.equal(argv[argv.indexOf('--syntax') + 1], 'nouns,adverbs');
+});
+
 ok('a state becomes the native flags that state means', () => {
   const caret = flagsOf('caret');
   const argv = quillArgv(ROOT, caret.selection);
@@ -66,6 +78,7 @@ ok('a state becomes the native flags that state means', () => {
   assert.equal(flag('--font'), 'mono');
   assert.equal(flag('--step'), '5');
   assert.equal(flag('--focus'), 'off');
+  assert.equal(flag('--syntax'), 'off');
   // The caret Piece is judged bare (#139), so its states override the defaults' chrome; that
   // override reaching the command line is the half of this case the defaults cannot show.
   assert.equal(flag('--chrome'), 'off');
@@ -492,7 +505,7 @@ ok('the ghost is measured off ours own pixels, and the alpha is solved rather th
   for (const alpha of [3, 0, 1, '0.3', undefined]) {
     assert.throws(() => validate({ kind: 'ghost', alpha }), /between 0 and 1/, `an alpha of ${alpha} was taken`);
   }
-  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'folded', 'split', 'full', 'pdf-split', 'pdf-full', 'dialog']);
+  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'folded', 'split', 'full', 'pdf-split', 'pdf-full', 'dialog', 'syntax']);
 });
 
 ok('the ghost refuses to read a bar it cannot see the ground beside, and never guesses one', () => {
@@ -528,6 +541,156 @@ ok('the ghost refuses to read a bar it cannot see the ground beside, and never g
   const two = assertState(spec, { lit: twice, dim: doubled });
   assert.equal(two.ours, false, two.why);
   assert.match(two.why, /not one run of colour/);
+});
+
+// ---------- Syntax highlight ----------
+
+// Real GTK captures, their command-line provenance and the protected rectangles are recorded in
+// tools/syntax-fixture/README.md. Variants replace pixels in those captures, never app internals.
+const syntaxFixture = (name) => fs.readFileSync(path.join(ROOT, 'tools/syntax-fixture', name));
+const syntaxPair = (name) => ({ dim: syntaxFixture(`${name}-ours.png`), lit: syntaxFixture(`${name}-ours-lit.png`) });
+const syntaxRule = (name) => states.pieces.syntax[name].assert;
+function alteredSyntax(pair, change) {
+  const page = decodePng(pair.dim);
+  const source = decodePng(pair.lit);
+  for (let y = 0; y < page.h; y += 1) {
+    for (let x = 0; x < page.w; x += 1) {
+      const i = (y * page.w + x) * page.ch;
+      const j = (y * source.w + x) * source.ch;
+      const rgb = [...page.data.subarray(i, i + 3)];
+      const off = [...source.data.subarray(j, j + 3)];
+      const replacement = change({ x, y, rgb, off });
+      if (replacement) page.data.set(replacement, i);
+    }
+  }
+  return { ...pair, dim: encodePng(page) };
+}
+const rgbIs = (a, b) => a.every((v, i) => v === b[i]);
+
+ok('all five registered Syntax states hold on real captures and the companion pins only master off', () => {
+  assert.deepEqual(Object.keys(states.pieces.syntax), ['all-light', 'all-dark', 'adjectives-adverbs', 'focus-sentence', 'live']);
+  const began = performance.now();
+  for (const state of resolveStates(states, 'syntax')) {
+    const second = secondShot(state.assert, state);
+    assert.deepEqual(second, { state: { ...state, flags: { ...state.flags, syntax: 'off' } }, options: {} });
+    assert.equal(state.flags.theme, state.assert.theme);
+    assert.equal(state.flags.chrome, 'off');
+    assert.deepEqual(state.assert.expected, state.flags.syntax === 'on'
+      ? syntaxRule('all-light').expected : state.flags.syntax.split(','));
+    assert.equal(Boolean(state.assert.focus), state.flags.focus === 'sentence');
+    assert.equal(Boolean(state.assert.live), state.flags.live);
+    const got = assertState(state.assert, syntaxPair(state.name));
+    assert.equal(got.ours, true, `${state.name}: ${got.why}`);
+    if (state.assert.focus) assert.ok(got.brightRows.length > 0);
+    if (state.assert.live) assert.ok(got.headingPixels >= 32);
+  }
+  console.log(`judge selftest: syntax five real 2880x1800 pairs measured in ${(performance.now() - began).toFixed(0)} ms`);
+});
+
+ok('the actual syntax-off shot fails the registered all-light rule', () => {
+  const pair = syntaxPair('all-light');
+  const got = assertState(syntaxRule('all-light'), { ...pair, dim: pair.lit });
+  assert.equal(got.ours, false);
+  assert.match(got.why, /nouns has 0 opaque pixels/);
+});
+
+ok('Syntax rejects missing and unexpected Categories, wrong pigments and displaced colour', () => {
+  const pair = syntaxPair('all-light');
+  // Removing a whole Category's opaque cores must fail even though its antialiased edge remains.
+  const missing = alteredSyntax(pair, ({ rgb, off }) => rgbIs(rgb, [202, 71, 26]) ? off : null);
+  assert.match(assertState(syntaxRule('all-light'), missing).why, /nouns has 0 opaque pixels/);
+  const unexpected = assertState(syntaxRule('adjectives-adverbs'), pair);
+  assert.equal(unexpected.ours, false);
+  assert.match(unexpected.why, /unexpected|non-prose ink/);
+  let inserted = false;
+  const oneNoun = alteredSyntax(syntaxPair('adjectives-adverbs'), ({ rgb, off }) => {
+    if (!inserted && rgbIs(rgb, [25, 25, 25]) && rgbIs(off, rgb)) {
+      inserted = true;
+      return [202, 71, 26];
+    }
+    return null;
+  });
+  assert.equal(inserted, true);
+  assert.match(assertState(syntaxRule('adjectives-adverbs'), oneNoun).why, /unexpected nouns/);
+  for (const pigment of [[4, 250, 100], [202, 71, 26]]) {
+    const wrong = alteredSyntax(pair, ({ x, y }) => x === 10 && y === 100 ? pigment : null);
+    assert.equal(assertState(syntaxRule('all-light'), wrong).ours, false);
+  }
+  const odd = assertState(syntaxRule('all-light'), { ...pair, lit: painted() });
+  assert.equal(odd.ours, false);
+  assert.match(odd.why, /differ in size/);
+});
+
+ok('Syntax Focus rejects coloured dim glyphs and Live requires colour on the scaled heading', () => {
+  const focus = syntaxPair('focus-sentence');
+  let leaked = false;
+  const wrongFocus = alteredSyntax(focus, ({ rgb }) => {
+    if (!leaked && rgbIs(rgb, [198, 196, 194])) { leaked = true; return [202, 71, 26]; }
+    return null;
+  });
+  assert.equal(leaked, true, 'the captured sentence has dim glyphs to challenge');
+  assert.equal(assertState(syntaxRule('focus-sentence'), wrongFocus).ours, false);
+  leaked = false;
+  const faintLeak = alteredSyntax(focus, ({ rgb }) => {
+    if (!leaked && rgbIs(rgb, [198, 196, 194])) { leaked = true; return [237, 208, 198]; }
+    return null;
+  });
+  assert.match(assertState(syntaxRule('focus-sentence'), faintLeak).why, /outside the bright rows/);
+  const live = syntaxPair('live');
+  const { heading } = assertState(syntaxRule('live'), live);
+  const plainHeading = alteredSyntax(live, ({ y, off }) => y >= heading.top && y <= heading.bottom ? off : null);
+  const got = assertState(syntaxRule('live'), plainHeading);
+  assert.equal(got.ours, false);
+  assert.match(got.why, /Live heading has 0 Category pixels/);
+  const unscaled = assertState(syntaxRule('live'), syntaxPair('all-light'));
+  assert.equal(unscaled.ours, false);
+  assert.match(unscaled.why, /no heading taller/);
+});
+
+ok('Syntax refuses invalid configuration before a shot opens', () => {
+  const spec = syntaxRule('all-light');
+  for (const patch of [
+    { theme: 'sepia' }, { expected: [] }, { expected: ['nouns', 'nouns'] },
+    { expected: ['pronouns'] }, { expected: 'nouns' }, { focus: 'sentence' },
+    { live: 1 }, { extra: true }, { protected: [[0, 0, 0, 4]] }, { protected: [[0, 0, 1]] },
+  ]) assert.throws(() => validate({ ...spec, ...patch }), /syntax/);
+});
+
+ok('Syntax preserves captured marker, code and URL pixels, and a coloured protected glyph fails', () => {
+  const pair = { dim: syntaxFixture('protection-on.png'), lit: syntaxFixture('protection-off.png') };
+  // Device-pixel rectangles read off protection-off.png: heading #; link destination; inline
+  // code on its two wrapped rows; autolink; fenced code (including markers); indented code.
+  const protectedRegions = [
+    [570, 165, 32, 45], [1100, 450, 645, 62], [1906, 450, 320, 62],
+    [620, 532, 214, 54], [620, 675, 675, 62], [592, 815, 1695, 225],
+    [592, 1100, 1695, 90],
+  ];
+  const spec = { ...syntaxRule('all-light'), protected: protectedRegions };
+  const good = assertState(spec, pair);
+  assert.equal(good.ours, true, good.why);
+  const shifted = assertState(spec, { ...pair, dim: syntaxFixture('protection-shifted.png') });
+  assert.equal(shifted.ours, false);
+  assert.match(shifted.why, /protected marker, code or URL pixel/);
+  // Change one real opaque glyph in each protected subject. Each must independently go red,
+  // including a fenced body glyph whose uncoloured ink happens to equal ordinary prose ink.
+  for (const [rx, ry, w, h] of protectedRegions) {
+    let changed = false;
+    const wrong = alteredSyntax(pair, ({ x, y, rgb }) => {
+      if (!changed && x >= rx && x < rx + w && y >= ry && y < ry + h
+          && (rgbIs(rgb, [25, 25, 25]) || rgbIs(rgb, [181, 179, 176]))) {
+        changed = true;
+        return [202, 71, 26];
+      }
+      return null;
+    });
+    assert.equal(changed, true, `protected rectangle ${rx},${ry} contains a captured glyph`);
+    const got = assertState(spec, wrong);
+    assert.equal(got.ours, false, got.why);
+    assert.match(got.why, /protected|outside a bright source glyph/);
+  }
+  const outside = assertState({ ...spec, protected: [[3000, 0, 2, 2]] }, pair);
+  assert.equal(outside.ours, false);
+  assert.match(outside.why, /outside the shot/);
 });
 
 // ---------- the fold ----------
@@ -1325,10 +1488,19 @@ ok('an unscored regime is still one of the fourteen, and still has to account fo
   const stray = path.join(tmp, 'summary-20260901T000002.json');
   fs.writeFileSync(stray, JSON.stringify(body({ regimes_unaccounted_for: ['saturation_stress'], pass: false })));
   const unaccounted = gate('judge', 'latency', '--summary', stray);
-  fs.rmSync(tmp, { recursive: true, force: true });
   assert.equal(unaccounted.code, 3, unaccounted.out);
   assert.match(lastLine(unaccounted), /^gate judge latency: refused \(.* could not account for every keystroke in saturation_stress\)/,
     'not scored is not the same as not counted');
+
+  // A run the bench refused because the pointer left the window (#327) is whole and accounted for,
+  // and still not a verdict: the keys after the leave were paced by the chrome's fade.
+  const paced = path.join(tmp, 'summary-20260901T000003.json');
+  fs.writeFileSync(paced, JSON.stringify(body({ regimes_the_pointer_left: ['revision'], pass: false })));
+  const left = gate('judge', 'latency', '--summary', paced);
+  fs.rmSync(tmp, { recursive: true, force: true });
+  assert.equal(left.code, 3, left.out);
+  assert.match(lastLine(left), /^gate judge latency: refused \(.* had the pointer leave the window during revision\)/,
+    'accounted for is not the same as measured');
 
   // The whole body as written — fourteen regimes, saturation over every bar and marked unscored — is
   // deliberately not run: judge would take a verdict from it and write a round, and writing a round

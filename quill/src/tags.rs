@@ -40,8 +40,8 @@
 //! well.
 //!
 //! **A run arrives with its colour already resolved.** The engine's flattening
-//! takes the Markup mark and the Focus tier and answers with one colour
-//! ([`quill_engine::annotate::paint_in`]), so this module reads no palette role
+//! takes the Markup mark, Focus tier and Syntax Category and answers with one
+//! colour ([`quill_engine::annotate::paint_tagged_in`]), so this module reads no palette role
 //! for text: it asks for the tag that draws that colour at that opacity, and
 //! the roles a ground still owes it are the ones no run carries — the code
 //! well and a link's rule. Nothing here holds a colour of its own, which is
@@ -649,6 +649,8 @@ pub trait Measure {
 /// drawn in the colours of the moment it is applied.
 #[derive(Clone, Copy)]
 pub struct Painting<'a> {
+    /// Retained Category spans, read only over the range being drawn.
+    pub syntax: &'a std::cell::RefCell<crate::syntax::Syntax>,
     /// The Face the Editor is set in.
     pub face: Face,
     /// The table every colour is read off: the ground's, as the Editor holds
@@ -750,8 +752,7 @@ pub fn retag(
 
 /// Takes the colour `was` off the bytes `at` and puts `now` on them instead.
 ///
-/// One frame of a cross-fade, and the only way a colour reaches the buffer
-/// outside a [`draw`]. The old one comes off first so that exactly one
+/// One frame of a cross-fade. The old one comes off first so that exactly one
 /// foreground tag is ever on those bytes: two would leave the tag table's own
 /// order to decide which is seen, and that order is the order the tags happened
 /// to be first asked for, which is neither the fade's nor anything a reader
@@ -773,6 +774,78 @@ pub fn recolour(buffer: &gtk::TextBuffer, at: &Range<i32>, was: Colour, now: Col
     let to = buffer.iter_at_offset(at.end);
     buffer.remove_tag(&colour(buffer, &was.to_hex(), was.opacity()), &from, &to);
     buffer.apply_tag(&colour(buffer, &now.to_hex(), now.opacity()), &from, &to);
+}
+
+/// Replaces foreground colours without touching paragraph or Live properties.
+///
+/// Syntax answers and toggles change ink only. A structural retag would clear
+/// the well's spacing on neighbouring lines and could leave half of a paired
+/// gap outside the redraw. Here the existing cut, folds, scale and well tags
+/// never come off. The protected-code on/off pixel pair in the Syntax Piece
+/// pins that distinction, including the paragraph below an indented well.
+///
+/// The table walk is O(table tags * ranges), once per idle batch of at most
+/// eight answers plus any settled fade ranges, or one whole-page toggle.
+/// The painting walk is bounded to those ranges as in [`draw`]. Neither runs
+/// on a keystroke; no scan of document paragraphs is used to find a range.
+pub fn repaint(
+    buffer: &gtk::TextBuffer,
+    document: &Document,
+    painting: Painting,
+    lines: &[Range<usize>],
+) {
+    let ranges: Vec<_> = lines
+        .iter()
+        .filter(|lines| !lines.is_empty())
+        .map(|lines| {
+            document.line_bytes(lines.start).start
+                ..document.line_bytes(lines.end.saturating_sub(1)).end
+        })
+        .collect();
+    let offsets: Vec<_> = ranges
+        .iter()
+        .map(|at| {
+            (
+                iter_at(buffer, document, at.start),
+                iter_at(buffer, document, at.end),
+            )
+        })
+        .collect();
+    buffer.tag_table().foreach(|tag| {
+        if tag.name().is_some_and(|name| name.starts_with("colour-")) {
+            for (from, to) in &offsets {
+                buffer.remove_tag(tag, from, to);
+            }
+        }
+    });
+    for at in ranges {
+        let spans = document.spans_in(&at);
+        for run in painted(document, painting, &spans, &at) {
+            let from = iter_at(buffer, document, run.at.start);
+            let to = iter_at(buffer, document, run.at.end);
+            let ink = run.paint.colour;
+            buffer.apply_tag(&colour(buffer, &ink.to_hex(), ink.opacity()), &from, &to);
+        }
+    }
+}
+
+fn painted(
+    document: &Document,
+    painting: Painting,
+    spans: &[Span],
+    at: &Range<usize>,
+) -> Vec<annotate::Painted> {
+    let syntax = painting.syntax.borrow();
+    let tagged = syntax.spans_in(document, at);
+    annotate::paint_tagged_in(
+        spans,
+        &tagged,
+        syntax.categories(),
+        at,
+        painting.tiers,
+        painting.focus,
+        &painting.colours,
+    )
 }
 
 /// The offsets `buffer` counts the bytes `at` of `document` in.
@@ -809,12 +882,13 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
         live,
         page,
         measure,
+        ..
     } = painting;
     // The flattening resolves the Markup mark and the Focus tier into one
     // colour, so the ink is read here rather than off the run's role: with
     // Focus on, most of the page is drawn in a colour no role names.
     let spans = document.spans_in(at);
-    for run in annotate::paint_in(&spans, at, tiers, focus, &colours) {
+    for run in painted(document, painting, &spans, at) {
         let from = iter_at(buffer, document, run.at.start);
         let to = iter_at(buffer, document, run.at.end);
         let ink = run.paint.colour;

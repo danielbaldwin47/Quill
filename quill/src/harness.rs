@@ -15,7 +15,9 @@
 //! is written into, at startup, so that a bench can count on the file whatever
 //! the launch goes on to do — a Document that cannot be read must not take the
 //! file with it. [`watch`] stamps every key and writes one line per key once
-//! the compositor has said when the frame carrying it was presented.
+//! the compositor has said when the frame carrying it was presented, and says
+//! on stdout when the pointer leaves the window, which is a run the bench
+//! refuses (#327).
 //! [`cold_start`] answers the Gate's cold-start question, `exec` to the first
 //! complete frame the compositor says it presented, and needs a window to hang
 //! off.
@@ -119,11 +121,12 @@ pub fn capture(out: &Path) {
     }
 }
 
-/// Stamps every key `window` sees, and writes one line per key.
+/// Stamps every key `window` sees, writes one line per key, and prints one
+/// line on stdout each time the pointer leaves the window.
 ///
-/// The controller is in the capture phase because the Editor consumes keys, and
-/// the drain is hung on the first frame because a widget has a frame clock only
-/// once it is realized.
+/// The controllers are in the capture phase because the Editor consumes keys,
+/// and the drain is hung on the first frame because a widget has a frame clock
+/// only once it is realized.
 pub fn watch(window: &impl IsA<gtk::Widget>) {
     let widget: gtk::Widget = window.as_ref().clone();
 
@@ -135,6 +138,17 @@ pub fn watch(window: &impl IsA<gtk::Widget>) {
         glib::Propagation::Proceed
     });
     widget.add_controller(keys);
+
+    // The pointer leaving is the owner's mouse crossing the stage mid-run.
+    // The chrome answers with its opacity transition, and while any animation
+    // runs the frame clock paces every frame to the refresh grid, so a key
+    // that lands just after one waits a whole refresh before it is painted —
+    // 16.3 ms of the 17.97 ms one such key scored (#327). Said on stdout, one
+    // line per leave, for the bench to refuse the run on rather than score.
+    let pointer = gtk::EventControllerMotion::new();
+    pointer.set_propagation_phase(gtk::PropagationPhase::Capture);
+    pointer.connect_leave(|_| println!("{}", pointer_left_line(glib::monotonic_time())));
+    widget.add_controller(pointer);
 
     widget.add_tick_callback(|widget, clock| {
         let painted = widget.downgrade();
@@ -199,6 +213,12 @@ pub fn cold_start(window: &impl IsA<gtk::Widget>) {
 /// The line `--measure` prints, once, at the first presented frame.
 fn cold_start_line(milliseconds: f64) -> String {
     format!("cold start: {milliseconds:.3} ms")
+}
+
+/// The line `--measure` prints each time the pointer leaves the window, in
+/// monotonic microseconds, so a bench can put the leave beside its keys.
+fn pointer_left_line(at_us: i64) -> String {
+    format!("pointer left the window at {at_us} us")
 }
 
 /// `$QUILL_T0_NS`, in realtime nanoseconds.
@@ -481,6 +501,15 @@ mod tests {
     fn the_cold_start_line_is_one_line_of_milliseconds() {
         assert_eq!(cold_start_line(187.5), "cold start: 187.500 ms");
         assert!(!cold_start_line(0.0).contains('\n'));
+    }
+
+    #[test]
+    fn a_pointer_leave_is_one_line_the_bench_reads_by_its_opening_words() {
+        assert_eq!(
+            pointer_left_line(6_516_887_400),
+            "pointer left the window at 6516887400 us"
+        );
+        assert!(!pointer_left_line(0).contains('\n'));
     }
 
     /// A stamp with everything the join needs, as a presented key.

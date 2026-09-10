@@ -35,9 +35,10 @@ use gtk::glib;
 use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
 use quill_engine::library::Library;
+use quill_engine::pos::Category;
 use quill_engine::settings::{
-    Chrome, Face, FocusScope, PreviewLayout, PreviewMode, Settings, State, Template, TemplateName,
-    Theme, WindowState,
+    Chrome, Face, FocusScope, PreviewLayout, PreviewMode, Settings, State, SyntaxHighlight,
+    Template, TemplateName, Theme, WindowState,
 };
 use quill_engine::shortcuts::Refusal;
 use quill_engine::theme::{self, Palette, Scheme};
@@ -89,6 +90,42 @@ impl TemplateToggle {
             Self::CenterHeadings => template.center_headings = on,
             Self::NumberHeadings => template.number_headings = on,
             Self::IndentParagraphs => template.indent_paragraphs = on,
+        }
+    }
+}
+
+/// Which Syntax highlight setting a Command or Settings row moves.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SyntaxToggle {
+    /// The master switch, independent of the Category choices.
+    Enabled,
+    /// One Category's colour, whether the master is on or off.
+    Category(Category),
+}
+
+impl SyntaxToggle {
+    /// The current value of this switch.
+    #[must_use]
+    pub fn of(self, syntax: &SyntaxHighlight) -> bool {
+        match self {
+            Self::Enabled => syntax.enabled,
+            Self::Category(Category::Nouns) => syntax.nouns,
+            Self::Category(Category::Verbs) => syntax.verbs,
+            Self::Category(Category::Adjectives) => syntax.adjectives,
+            Self::Category(Category::Adverbs) => syntax.adverbs,
+            Self::Category(Category::Conjunctions) => syntax.conjunctions,
+        }
+    }
+
+    /// Sets this switch without changing any other key in the table.
+    pub fn set(self, syntax: &mut SyntaxHighlight, on: bool) {
+        match self {
+            Self::Enabled => syntax.enabled = on,
+            Self::Category(Category::Nouns) => syntax.nouns = on,
+            Self::Category(Category::Verbs) => syntax.verbs = on,
+            Self::Category(Category::Adjectives) => syntax.adjectives = on,
+            Self::Category(Category::Adverbs) => syntax.adverbs = on,
+            Self::Category(Category::Conjunctions) => syntax.conjunctions = on,
         }
     }
 }
@@ -157,6 +194,8 @@ pub struct Session {
     /// reason [`Session::focus`] is — the key moves it in every window, and a
     /// window opened after it was pressed opens folded.
     live: Cell<bool>,
+    /// Syntax highlight's live table, including the writer's unknown keys.
+    syntax: RefCell<SyntaxHighlight>,
     /// The face the page is set in now: the setting until the writer picks
     /// one from View › Typeface, and then the one they picked. Held live for
     /// the reason [`Session::step`] is.
@@ -320,6 +359,7 @@ impl Session {
             focus_scope: Cell::new(settings.focus_scope),
             typewriter: Cell::new(settings.typewriter),
             live: Cell::new(settings.live),
+            syntax: RefCell::new(settings.syntax_highlight.clone()),
             face: Cell::new(settings.face),
             desktop: Cell::new(portal),
             chrome: Cell::new(settings.chrome),
@@ -407,6 +447,7 @@ impl Session {
         self.focus_scope.set(settings.focus_scope);
         self.typewriter.set(settings.typewriter);
         self.live.set(settings.live);
+        self.syntax.replace(settings.syntax_highlight.clone());
         self.face.set(settings.face);
         self.chrome.set(settings.chrome);
         self.preview_layout.set(settings.preview.layout);
@@ -688,6 +729,19 @@ impl Session {
     pub fn toggle_live(&self) -> bool {
         self.live.set(!self.live.get());
         self.live.get()
+    }
+
+    /// Syntax highlight as the Commands have left it, before the watch reads it back.
+    pub fn syntax(&self) -> Ref<'_, SyntaxHighlight> {
+        self.syntax.borrow()
+    }
+
+    /// Flips one Syntax highlight key, leaving the master and Categories independent.
+    pub fn toggle_syntax(&self, toggle: SyntaxToggle) -> bool {
+        let mut syntax = self.syntax.borrow_mut();
+        let on = !toggle.of(&syntax);
+        toggle.set(&mut syntax, on);
+        on
     }
 
     /// Whether the two bars are shown now.
@@ -1022,6 +1076,7 @@ impl Session {
         settings.focus_scope = self.focus_scope.get();
         settings.typewriter = self.typewriter.get();
         settings.live = self.live.get();
+        settings.syntax_highlight = self.syntax.borrow().clone();
         settings.face = self.face.get();
         settings.chrome = self.chrome.get();
         settings.preview.layout = self.preview_layout.get();
@@ -1033,8 +1088,8 @@ impl Session {
 
     /// Writes `settings.toml` when this launch changed something in it.
     ///
-    /// The size, the ground, Focus, its scope, Typewriter, Live, the face and the bars
-    /// are what can move so far, and only a writer's launch can move any of them: the flags a
+    /// The live values in [`Session::running`] can move, and only a writer's
+    /// launch can save them to their settings file: the flags a
     /// launch of the harness's carries are this launch's alone and have no
     /// business in the writer's file, which is why a harness launch has already
     /// returned before this is reached and why `--focus` and `--typewriter`
@@ -1596,6 +1651,68 @@ mod tests {
     use quill_engine::theme::{Colour, Role};
 
     use super::*;
+
+    #[test]
+    fn every_syntax_command_writes_only_its_key_and_its_own_save_moves_nothing() {
+        let source = "theme = \"dark\"\nface = \"mono\"\nfuture = 17\n\
+            [template]\nnumber_headings = true\nfuture_template = \"kept\"\n\
+            [syntax_highlight]\nenabled = false\nnouns = false\nverbs = true\n\
+            adjectives = false\nadverbs = true\nconjunctions = false\nfuture_syntax = \"kept\"\n";
+        let (initial, notes) = Settings::parse(source);
+        assert!(notes.is_empty());
+        let path = fixture("syntax-commands");
+        let session = Session::launch(
+            Flags {
+                settings: Some(path.clone()),
+                ..Flags::default()
+            },
+            initial.clone(),
+            State::default(),
+            WindowState::default(),
+            true,
+            None,
+        );
+        for (toggle, key, was) in [
+            (SyntaxToggle::Enabled, "enabled", false),
+            (SyntaxToggle::Category(Category::Nouns), "nouns", false),
+            (SyntaxToggle::Category(Category::Verbs), "verbs", true),
+            (
+                SyntaxToggle::Category(Category::Adjectives),
+                "adjectives",
+                false,
+            ),
+            (SyntaxToggle::Category(Category::Adverbs), "adverbs", true),
+            (
+                SyntaxToggle::Category(Category::Conjunctions),
+                "conjunctions",
+                false,
+            ),
+        ] {
+            for on in [!was, was] {
+                let (expected, notes) = Settings::parse(
+                    &source.replace(&format!("\n{key} = {was}"), &format!("\n{key} = {on}")),
+                );
+                assert!(notes.is_empty());
+                assert_eq!(session.toggle_syntax(toggle), on);
+                assert_eq!(session.running(), expected, "{key}: live table");
+                assert_eq!(*session.syntax(), expected.syntax_highlight);
+                session.store_settings();
+                let (written, notes) = Settings::read_from(&path);
+                assert!(notes.is_empty());
+                assert_eq!(written, expected, "{key}: complete written table");
+                assert!(!session.apply(written), "our own write needs no repaint");
+                reread(None, &session);
+                assert_eq!(session.running(), expected);
+            }
+            assert_eq!(session.running(), initial);
+        }
+        // A saved Settings edit enters through the watch's actual read path.
+        let (edited, _) = Settings::parse(&source.replace("nouns = false", "nouns = true"));
+        edited.write_to(&path).unwrap();
+        reread(None, &session);
+        assert_eq!(session.running(), edited);
+        assert_eq!(*session.syntax(), edited.syntax_highlight);
+    }
 
     /// The state a session that ended on `last` left behind.
     ///
