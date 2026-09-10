@@ -43,7 +43,7 @@ use crate::ground::Ground;
 use crate::harness;
 use crate::menus;
 use crate::preview::DialogOverride;
-use crate::session::{Session, TemplateToggle};
+use crate::session::{Session, SyntaxToggle, TemplateToggle};
 use crate::tags;
 
 /// How long after the last keystroke autosave writes the Document out.
@@ -228,6 +228,10 @@ mod imp {
         pub typing: Cell<Typing>,
         /// The one timer the typing machine has armed, if one is coming.
         pub wake: RefCell<Option<glib::SourceId>>,
+        /// Syntax's burst debounce and bounded idle-priority result wake.
+        pub syntax_wake: RefCell<Option<glib::SourceId>>,
+        /// Sleeps between result drains, so an empty worker cannot spin GTK.
+        pub syntax_drain: RefCell<Option<glib::SourceId>>,
         /// What the edit now going through the buffer changed, left here by
         /// the handler that spliced the Document for the one that retags.
         pub pending: RefCell<Option<Edit>>,
@@ -291,6 +295,7 @@ mod imp {
         }
 
         fn dispose(&self) {
+            self.obj().cancel_syntax();
             self.bars.dispose();
             self.sidebar.dispose();
             if let Some(palette) = self.palette.get() {
@@ -368,6 +373,9 @@ impl Window {
         // first frame is meant to show, and the fold is worked out inside the
         // same draw that puts the Document on the page.
         window.imp().editor.open_live_on(session.live());
+        // Install the table while the buffer is empty; showing the Document
+        // below resets the worker and schedules its first viewport request.
+        window.set_syntax(session.syntax().clone());
         // The bars stand or not before the Document is shown, so the page is
         // laid out once, at the height it will keep.
         window
@@ -678,6 +686,18 @@ impl Window {
         });
     }
 
+    /// Moves one Syntax highlight key and applies the full table to every Editor.
+    pub(crate) fn toggle_syntax(&self, toggle: SyntaxToggle) {
+        self.move_windows(
+            |session| session.toggle_syntax(toggle),
+            |window, _| {
+                if let Some(session) = window.session() {
+                    window.set_syntax(session.syntax().clone());
+                }
+            },
+        );
+    }
+
     /// Moves Focus the way `move_it` says, and puts the answer on every window.
     ///
     /// The two Focus keys differ only in what they ask the session for, so what
@@ -787,10 +807,82 @@ impl Window {
     /// Split from [`Window::set_filed`] because a reload shows the same
     /// Document again rather than taking a new one.
     fn shown(&self) {
+        self.cancel_syntax();
         let document = self.document();
         self.show_title(&document);
         self.imp().bars.set_count(document.text());
         self.imp().editor.show_document(&document);
+        drop(document);
+        self.arm_syntax();
+    }
+
+    /// Applies the session's Syntax table; category-only changes reuse spans.
+    pub(crate) fn set_syntax(&self, settings: quill_engine::settings::SyntaxHighlight) {
+        let was = self.imp().editor.syntax_enabled();
+        self.imp().editor.set_syntax(settings, &self.document());
+        if !self.imp().editor.syntax_enabled() {
+            self.cancel_syntax();
+        } else if !was {
+            self.arm_syntax();
+        }
+    }
+
+    fn cancel_syntax(&self) {
+        if let Some(source) = self.imp().syntax_wake.take() {
+            source.remove();
+        }
+        if let Some(source) = self.imp().syntax_drain.take() {
+            source.remove();
+        }
+    }
+
+    fn arm_syntax(&self) {
+        if !self.imp().editor.syntax_enabled() {
+            return;
+        }
+        if let Some(source) = self.imp().syntax_wake.take() {
+            source.remove();
+        }
+        let weak = self.downgrade();
+        self.imp()
+            .syntax_wake
+            .replace(Some(glib::timeout_add_local_once(
+                quill_engine::worker::DEBOUNCE,
+                move || {
+                    let Some(window) = weak.upgrade() else {
+                        return;
+                    };
+                    window.imp().syntax_wake.take();
+                    window.imp().editor.submit_syntax(&window.document());
+                    window.arm_syntax_drain();
+                },
+            )));
+    }
+
+    fn arm_syntax_drain(&self) {
+        if self.imp().syntax_drain.borrow().is_some() {
+            return;
+        }
+        let weak = self.downgrade();
+        // A timed source at idle priority: at most eight paragraphs per wake,
+        // never a continuously-ready idle source while the model is loading.
+        self.imp()
+            .syntax_drain
+            .replace(Some(glib::timeout_add_local_full(
+                Duration::from_millis(16),
+                glib::Priority::DEFAULT_IDLE,
+                move || {
+                    let Some(window) = weak.upgrade() else {
+                        return glib::ControlFlow::Break;
+                    };
+                    if window.imp().editor.drain_syntax(&window.document()) {
+                        glib::ControlFlow::Continue
+                    } else {
+                        window.imp().syntax_drain.take();
+                        glib::ControlFlow::Break
+                    }
+                },
+            )));
     }
 
     /// Puts the Document's name on the window and on the top bar.
@@ -2984,6 +3076,7 @@ impl Window {
             let document = window.document();
             window.imp().editor.retag(&document, &edit);
             drop(document);
+            window.arm_syntax();
             // A keystroke, and only a keystroke: a load is skipped above and
             // a switch fills the buffer with nothing pending.
             window.typed();
@@ -3305,6 +3398,7 @@ pub fn reapply(app: &gtk::Application, session: &Session) {
         drop(document);
         window.apply_preview();
         window.refresh_preview();
+        window.set_syntax(session.syntax().clone());
     });
     // The sidebar reads the `[library]` settings as it lists — hidden files,
     // extensions — and the Library itself has already been made to say what

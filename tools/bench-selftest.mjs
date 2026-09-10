@@ -20,10 +20,10 @@ import { fileURLToPath } from 'node:url';
 
 import {
   BUDGET, KEYCODE_OFFSET, against, align, allSummary, clears, latencyMs, latencyVerdict, measure,
-  regimeLine, summary, verdict, writeGaps,
+  pointerLeft, regimeLine, summary, verdict, writeGaps,
 } from './bench-join.mjs';
 import { PANEL_WORKSPACE, panelRefusal, physicalMonitors } from './harness.mjs';
-import { DEFAULT_KEYS, PAUSE_MS, REFRESH_MS, hash32, regimes, script, uinputPlan } from './regimes.mjs';
+import { DEFAULT_KEYS, PAUSE_MS, REFRESH_MS, hash32, regimes, scoredRegime, script, uinputPlan } from './regimes.mjs';
 
 // The checkout, for the two cases that ask the app and the injector rather than a table copied here.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -173,6 +173,16 @@ ok('a whole run is every keystroke accounted for', () => {
   assert.equal(decided.uinput_write_to_presented_ms.max, 2);
 });
 
+ok('the pointer leaving the window is read from the line the app prints, and only that line', () => {
+  // The line `quill/src/harness.rs` prints per leave, among the cold start it also prints; and the
+  // words alone, or a leave the app never reported, are not one (#327).
+  assert.equal(pointerLeft('cold start: 167.061 ms\npointer left the window at 6516887400 us\n'), true);
+  assert.equal(pointerLeft('cold start: 167.061 ms\n'), false);
+  assert.equal(pointerLeft('the pointer left the window at some point'), false);
+  assert.equal(pointerLeft(''), false);
+  assert.equal(pointerLeft(undefined), false);
+});
+
 ok('a run that lost focus part-way is short against the plan, not whole against itself', () => {
   // The failure this is here for: focus is taken away after the first chunk, so the injector stops
   // at the boundary and reports only the keys it actually wrote. Those keys were all seen and all
@@ -319,7 +329,7 @@ ok("a regime's line is one line of numbers, and the run's line says how many cle
   });
   assert.match(line, /^gate bench fence_flip: pass — mean /);
   assert.ok(!line.includes('\n'), line);
-  assert.ok(!line.includes('budget'), 'the budget is said once, by the run, not fourteen times');
+  assert.ok(!line.includes('budget'), 'the budget is said once, by the run, not fifteen times');
 
   const rows = [row('prose_end_of_draft', 2, 8, 120), row('revision', 2.4, 9, 130)];
   assert.match(allSummary('--all', rows), /^gate bench --all: pass — 2 of 2 regimes clear the budget/);
@@ -428,7 +438,15 @@ ok('an unscored regime is recorded beside the verdict and decides nothing', () =
 
 // ---------- the plan, and the keyboard that has to type it ----------
 
-ok('every one of the fourteen is a plan the injector can be handed', () => {
+ok('syntax is the fifteenth regime and is scored like the headline prose', () => {
+  const all = regimes();
+  assert.equal(all.length, 15);
+  const syntax = all.find((r) => r.name === 'syntax');
+  assert.deepEqual(syntax, { ...all[0], name: 'syntax', syntax: 'on' });
+  assert.equal(scoredRegime('syntax'), true);
+});
+
+ok('every one of the fifteen is a plan the injector can be handed', () => {
   for (const r of regimes()) {
     const plan = uinputPlan(script(r.mix, DEFAULT_KEYS, hash32(r.name)), r.pace,
       { pauseEvery: r.pauseEvery, pauseMs: r.pauseMs });
@@ -490,7 +508,7 @@ ok('the pause clears every timer the app arms from the last keystroke', () => {
   }
 });
 
-ok('the injector can say every press the fourteen ask for', () => {
+ok('the injector can say every press the fifteen ask for', () => {
   const wanted = new Set();
   for (const r of regimes()) {
     for (const k of uinputPlan(script(r.mix, DEFAULT_KEYS, hash32(r.name)), r.pace).plan.keys) wanted.add(k.press);

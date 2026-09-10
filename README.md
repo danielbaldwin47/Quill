@@ -157,7 +157,8 @@ PKGBUILD        the Arch package;  packaging/  the .desktop file and the icon
 ```
 
 Licences: the native app and everything at the root are GPL-3.0-or-later (`LICENSE`); `legacy/` is ISC
-(`legacy/LICENSE`); the Faces and the iA Writer fonts are SIL OFL 1.1.
+(`legacy/LICENSE`); the Faces and the iA Writer fonts are SIL OFL 1.1; the bundled `harper-brill`
+tagger is Apache-2.0 (`packaging/harper-brill-LICENSE`).
 
 ## Known gaps the critic still named on winning rounds
 

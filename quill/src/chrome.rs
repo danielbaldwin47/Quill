@@ -40,6 +40,7 @@ use gtk::{cairo, gio, glib};
 use quill_engine::commands::{self, COMMANDS, Command, Kind, Menu, Scope};
 use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
+use quill_engine::pos::Category;
 use quill_engine::settings::{
     Choice, Chrome, FocusScope, PreviewLayout, PreviewMode, TemplateName,
 };
@@ -48,7 +49,7 @@ use quill_engine::stats::words;
 use quill_engine::theme::{Role, Scheme};
 
 use crate::ground::Ground;
-use crate::session::{Session, TemplateToggle};
+use crate::session::{Session, SyntaxToggle, TemplateToggle};
 use crate::window::Window;
 
 pub mod typing;
@@ -64,6 +65,18 @@ pub struct Modes {
     pub typewriter: bool,
     /// Live is on: the markup rendered in place.
     pub live: bool,
+    /// Syntax highlight's master check.
+    pub syntax: bool,
+    /// The Nouns check, independent of the master.
+    pub nouns: bool,
+    /// The Verbs check, independent of the master.
+    pub verbs: bool,
+    /// The Adjectives check, independent of the master.
+    pub adjectives: bool,
+    /// The Adverbs check, independent of the master.
+    pub adverbs: bool,
+    /// The Conjunctions check, independent of the master.
+    pub conjunctions: bool,
     /// The ground shown is the dark one, whatever `theme` says.
     pub dark: bool,
     /// The theme setting, `auto`, `light` or `dark`.
@@ -122,6 +135,12 @@ impl Modes {
             focus_scope,
             typewriter: matches!(session.typewriter(), Typewriter::On(_)),
             live: session.live(),
+            syntax: session.syntax().enabled,
+            nouns: session.syntax().nouns,
+            verbs: session.syntax().verbs,
+            adjectives: session.syntax().adjectives,
+            adverbs: session.syntax().adverbs,
+            conjunctions: session.syntax().conjunctions,
             dark: session.scheme() == Scheme::Dark,
             theme: session.theme().as_str(),
             face: session.face().as_str(),
@@ -357,6 +376,12 @@ pub fn reflect(map: &impl IsA<gio::ActionMap>, modes: Modes) {
     set("focus.toggle", modes.focus.to_variant());
     set("typewriter.toggle", modes.typewriter.to_variant());
     set("live.toggle", modes.live.to_variant());
+    set("syntax.toggle", modes.syntax.to_variant());
+    set("syntax.nouns", modes.nouns.to_variant());
+    set("syntax.verbs", modes.verbs.to_variant());
+    set("syntax.adjectives", modes.adjectives.to_variant());
+    set("syntax.adverbs", modes.adverbs.to_variant());
+    set("syntax.conjunctions", modes.conjunctions.to_variant());
     set("theme.toggle", modes.dark.to_variant());
     set("window.fullscreen", modes.fullscreen.to_variant());
     // The row reads "Hide Bars", so its check is on when the bars are hidden.
@@ -453,6 +478,14 @@ fn run_window(window: &Window, command: &Command) {
         "focus.swap" => window.swap_focus_scope(),
         "typewriter.toggle" => window.toggle_typewriter(),
         "live.toggle" => window.toggle_live(),
+        "syntax.toggle" => window.toggle_syntax(SyntaxToggle::Enabled),
+        "syntax.nouns" => window.toggle_syntax(SyntaxToggle::Category(Category::Nouns)),
+        "syntax.verbs" => window.toggle_syntax(SyntaxToggle::Category(Category::Verbs)),
+        "syntax.adjectives" => window.toggle_syntax(SyntaxToggle::Category(Category::Adjectives)),
+        "syntax.adverbs" => window.toggle_syntax(SyntaxToggle::Category(Category::Adverbs)),
+        "syntax.conjunctions" => {
+            window.toggle_syntax(SyntaxToggle::Category(Category::Conjunctions))
+        }
         "chrome.toggle" => window.toggle_bars(),
         "library.toggle" => window.toggle_library(),
         // Two rows, each its own layout's toggle: the chord opens the pane in
@@ -1849,6 +1882,64 @@ mod tests {
         );
     }
 
+    #[test]
+    fn all_six_syntax_commands_are_enabled_and_fire_by_their_registered_names() {
+        let (map, fired) = map(Scope::Win);
+        let commands = [
+            "syntax.toggle",
+            "syntax.nouns",
+            "syntax.verbs",
+            "syntax.adjectives",
+            "syntax.adverbs",
+            "syntax.conjunctions",
+        ];
+        for id in commands {
+            assert!(map.is_action_enabled(id), "{id}");
+            map.activate_action(id, None);
+        }
+        assert_eq!(fired.borrow().as_slice(), commands);
+    }
+
+    #[test]
+    fn syntax_checks_reflect_the_live_table_with_categories_kept_while_the_master_is_off() {
+        let (map, _) = map(Scope::Win);
+        let path =
+            std::env::temp_dir().join(format!("quill-syntax-reflect-{}.toml", std::process::id()));
+        let session = Session::open(
+            crate::flags::Flags {
+                settings: Some(path.clone()),
+                ..crate::flags::Flags::default()
+            },
+            None,
+        );
+        let (settings, notes) = quill_engine::settings::Settings::parse(
+            "[syntax_highlight]\nenabled = false\nnouns = false\nverbs = true\nadjectives = false\nadverbs = true\nconjunctions = false\n",
+        );
+        assert!(notes.is_empty());
+        session.apply(settings);
+        for on in [false, true, false] {
+            if session.syntax().enabled != on {
+                session.toggle_syntax(SyntaxToggle::Enabled);
+            }
+            reflect(&map, Modes::of(&session, false, false, false));
+            for (id, checked) in [
+                ("syntax.toggle", on),
+                ("syntax.nouns", false),
+                ("syntax.verbs", true),
+                ("syntax.adjectives", false),
+                ("syntax.adverbs", true),
+                ("syntax.conjunctions", false),
+            ] {
+                assert_eq!(
+                    map.action_state(id).unwrap().get::<bool>(),
+                    Some(checked),
+                    "{id}"
+                );
+            }
+        }
+        std::fs::remove_file(path).ok();
+    }
+
     /// The modes the two reflect tests read, with the Preview pane's pair as
     /// the case asks for them.
     fn preview_modes(preview: bool, preview_layout: &'static str) -> Modes {
@@ -1880,6 +1971,7 @@ mod tests {
             center_headings: true,
             number_headings: true,
             indent_paragraphs: false,
+            ..Modes::default()
         }
     }
 

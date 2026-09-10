@@ -5,7 +5,7 @@
     "sha256": "738f48c969965ac3"
   },
   "shoot": "239bd27db3974b27",
-  "git_head": "13d4401",
+  "git_head": "ffa30d5",
   "passages": {
     "ref/sample.md": "8005e6c57d435cea",
     "ref/short.md": "2acef065165b4fa4"
@@ -23,6 +23,7 @@
       "focus": "off",
       "typewriter": false,
       "live": false,
+      "syntax": "off",
       "chrome": "on",
       "caret": 403,
       "select": null,
@@ -50,6 +51,7 @@
       "focus": "off",
       "typewriter": false,
       "live": false,
+      "syntax": "off",
       "chrome": "on",
       "caret": 403,
       "select": null,
@@ -77,6 +79,7 @@
       "focus": "off",
       "typewriter": false,
       "live": false,
+      "syntax": "off",
       "chrome": "off",
       "caret": 10,
       "select": null,

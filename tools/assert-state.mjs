@@ -26,7 +26,7 @@
 // in.
 //
 // Everything here is a pure function of decoded PNGs, so `tools/judge-selftest.mjs` runs it over
-// pixels it paints itself and no window is needed to know whether the rule holds.
+// constructed images and recorded native captures; no window is needed to test the rules.
 
 import { decodePng, readBar } from './keys-assert.mjs';
 
@@ -55,6 +55,7 @@ export const ASSERTIONS = {
   'pdf-split': pdfSplit,
   'pdf-full': pdfFull,
   dialog: dialog,
+  syntax: syntax,
 };
 
 // How each rule wants its second shot taken: the state to shoot, and what to shoot it with.
@@ -66,6 +67,8 @@ export const ASSERTIONS = {
 // two Preview rules read one frame and take the active shot they do not read, as `ghost` does.
 // `dialog` removes the Export flag for a bare PDF Split reference: that is the independent reading
 // of the pane surround which the dialog shot must leave unchanged.
+// `syntax` removes Syntax highlight while preserving Focus and Live, so glyph coverage and the
+// bright rows are measured independently of the Category colours.
 export const SECOND = {
   ghost: (s) => ({ state: s, options: { active: true } }),
   folded: (s) => ({ state: { ...s, flags: { ...s.flags, live: false } }, options: {} }),
@@ -74,6 +77,7 @@ export const SECOND = {
   'pdf-split': (s) => ({ state: s, options: { active: true } }),
   'pdf-full': (s) => ({ state: s, options: { active: true } }),
   dialog: (s) => ({ state: { ...s, flags: { ...s.flags, export: null } }, options: { active: true } }),
+  syntax: (s) => ({ state: { ...s, flags: { ...s.flags, syntax: 'off' } }, options: {} }),
 };
 
 // The second shot one asserted state asks for: `{ state, options }` for `shootState`.
@@ -123,7 +127,137 @@ const CHECKS = {
   'pdf-split': bare('pdf-split'),
   'pdf-full': bare('pdf-full'),
   dialog: bare('dialog'),
+  syntax: syntaxSpec,
 };
+
+// Provisional built-ins, restated from quill-engine/src/theme.rs, Colours::{LIGHT,DARK}.
+// #308 replaces these alongside the theme tables; #319 supplies the Design oracle opponents.
+const SYNTAX = {
+  light: { ink: [25, 25, 25], colours: {
+    nouns: [202, 71, 26], verbs: [52, 118, 185], adjectives: [166, 101, 0],
+    adverbs: [178, 79, 162], conjunctions: [63, 131, 30],
+  } },
+  dark: { ink: [204, 204, 204], colours: {
+    nouns: [201, 134, 111], verbs: [121, 159, 194], adjectives: [193, 147, 78],
+    adverbs: [186, 142, 178], conjunctions: [107, 168, 77],
+  } },
+};
+
+function syntaxSpec(spec) {
+  const extra = Object.keys(spec).filter((k) => !['kind', 'theme', 'expected', 'focus', 'live', 'protected'].includes(k));
+  if (extra.length) throw new Error(`the syntax assertion has unknown fields: ${extra.join(', ')}`);
+  if (!Object.hasOwn(SYNTAX, spec.theme)) throw new Error(`the syntax theme is ${JSON.stringify(spec.theme)}, expected light or dark`);
+  if (!Array.isArray(spec.expected) || !spec.expected.length || spec.expected.length > 5
+      || new Set(spec.expected).size !== spec.expected.length
+      || spec.expected.some((k) => !Object.hasOwn(SYNTAX[spec.theme].colours, k))) {
+    throw new Error(`the syntax expected Categories are ${JSON.stringify(spec.expected)}, expected distinct Category names`);
+  }
+  for (const key of ['focus', 'live']) {
+    if (spec[key] !== undefined && typeof spec[key] !== 'boolean') throw new Error(`the syntax ${key} must be boolean`);
+  }
+  // A fixture can name up to sixteen protected rectangles measured from its source-off capture.
+  // The cap keeps the per-pixel membership check bounded independently of image dimensions.
+  if (spec.protected !== undefined && (!Array.isArray(spec.protected) || spec.protected.length > 16
+      || spec.protected.some((r) => !Array.isArray(r) || r.length !== 4
+        || r.some((v) => !Number.isInteger(v) || v < 0) || !r[2] || !r[3]))) {
+    throw new Error('the syntax protected regions must be at most sixteen [x, y, width, height] rectangles');
+  }
+}
+
+// One full-image scan finds the reference column and bright rows; one checks the pixels against
+// it. Each changed pixel tries at most five pigments and sixteen protected rectangles. Thus work
+// is O(width * height), with O(height) auxiliary rows; the real-frame selftest reports its cost.
+// Counts require 32 opaque pixels, well below one word in the pinned scale-2 captures, but more
+// than a stray coloured pixel. Absence has no allowance: even one opaque unexpected pixel fails.
+const SYNTAX_MIN = 32;
+// A baseline's 8-bit coverage and a repainted 8-bit channel each round once. Their composition
+// differs by at most two channel values; this is quantisation tolerance, never a spatial skirt.
+const SYNTAX_ROUNDING = 2;
+
+function syntax(spec, { lit, dim }) {
+  const source = decodePng(lit);
+  const page = decodePng(dim);
+  if (source.w !== page.w || source.h !== page.h) return no(`syntax shots differ in size: ${source.w}x${source.h} and ${page.w}x${page.h}`);
+  const paper = paperOf(source, page);
+  if (!paper) return no('syntax shots disagree about the paper at their corners');
+  const { ink, colours } = SYNTAX[spec.theme];
+  if (Math.abs(ink[0] - paper[0]) < SEPARATION) return no('syntax paper and body ink do not separate enough to read coverage');
+  const protectedRegions = spec.protected ?? [];
+  for (const [x, y, w, h] of protectedRegions) {
+    if (x + w > page.w || y + h > page.h) return no('a syntax protected rectangle runs outside the shot');
+  }
+  const bright = new Uint32Array(source.h);
+  const column = { left: source.w, right: -1, top: source.h, bottom: -1 };
+  for (let y = 0; y < source.h; y += 1) {
+    for (let x = 0; x < source.w; x += 1) {
+      if (is(source, x, y, ink)) bright[y] += 1;
+      if (!inked(source, x, y, paper)) continue;
+      column.left = Math.min(column.left, x);
+      column.right = Math.max(column.right, x);
+      column.top = Math.min(column.top, y);
+      column.bottom = Math.max(column.bottom, y);
+    }
+  }
+  if (column.right < column.left) return no('syntax reference has no text column');
+  const rows = bandsOf(source, { ...column, left: column.left - 1, right: column.right + 1 }, paper);
+  const heading = rows[0];
+  const brightRows = rows.filter((r) => {
+    for (let y = r.top; y <= r.bottom; y += 1) if (bright[y] >= SYNTAX_MIN) return true;
+    return false;
+  });
+  const allowed = new Uint8Array(source.h);
+  for (const row of brightRows) allowed.fill(1, row.top, row.bottom + 1);
+  if (spec.focus && (!brightRows.length || brightRows.length === rows.length)) return no('syntax Focus reference must contain both bright and dim text rows');
+  // A caret extends past the glyphs and can join two ink bands. Leave its band out of the body
+  // measurement, then require the heading taller than every remaining body band.
+  const caret = spec.live ? readBar(source).bar : null;
+  const bodyHeights = rows.slice(1)
+    .filter((r) => !caret || r.bottom < caret.top || r.top > caret.bottom).map(height);
+  if (spec.live && (!bodyHeights.length || height(heading) <= Math.max(...bodyHeights))) {
+    return no('syntax Live reference has no heading taller than its body rows');
+  }
+  const entries = Object.entries(colours);
+  const counts = Object.fromEntries(entries.map(([name]) => [name, 0]));
+  let headingPixels = 0;
+  let changed = 0;
+  for (let y = 0; y < page.h; y += 1) {
+    for (let x = 0; x < page.w; x += 1) {
+      const rgb = [0, 1, 2].map((c) => at(page, x, y, c));
+      const baseline = [0, 1, 2].map((c) => at(source, x, y, c));
+      const role = entries.find(([, colour]) => sameRgb(rgb, colour));
+      if (role) {
+        const [name] = role;
+        if (!spec.expected.includes(name)) return no(`syntax has unexpected ${name} ink at ${x},${y}`);
+        if (!sameRgb(baseline, ink)) return no(`syntax ${name} ink at ${x},${y} is outside a bright source glyph`);
+        counts[name] += 1;
+        if (y >= heading.top && y <= heading.bottom) headingPixels += 1;
+      }
+      if (sameRgb(rgb, baseline)) continue;
+      changed += 1;
+      if (x < column.left || x > column.right || y < column.top || y > column.bottom) return no(`syntax changed pixels outside the text column at ${x},${y}`);
+      if (spec.focus && !allowed[y]) return no(`syntax colour leaked outside the bright rows at ${x},${y}`);
+      if (protectedRegions.some(([rx, ry, w, h]) => x >= rx && x < rx + w && y >= ry && y < ry + h)) {
+        return no(`syntax changed a protected marker, code or URL pixel at ${x},${y}`);
+      }
+      const alpha = (baseline[0] - paper[0]) / (ink[0] - paper[0]);
+      const blend = (colour, value) => colour.every((v, c) => Math.abs(value[c] - Math.round(paper[c] + alpha * (v - paper[c]))) <= SYNTAX_ROUNDING);
+      if (!(alpha > 0 && alpha <= 1) || !blend(ink, baseline)
+          || !entries.some(([name, colour]) => spec.expected.includes(name) && blend(colour, rgb))) {
+        return no(`syntax changed glyph geometry or non-prose ink at ${x},${y}`);
+      }
+    }
+  }
+  for (const name of spec.expected) {
+    if (counts[name] < SYNTAX_MIN) return no(`syntax ${name} has ${counts[name]} opaque pixels, needs at least ${SYNTAX_MIN}`);
+  }
+  if (spec.live && headingPixels < SYNTAX_MIN) return no(`syntax Live heading has ${headingPixels} Category pixels, needs at least ${SYNTAX_MIN}`);
+  const why = `${Object.entries(counts).map(([name, n]) => `${name} ${n}`).join(', ')} opaque pixels; ${changed} changed pixels keep source glyph coverage`
+    + (spec.focus ? `; colour stays in ${brightRows.length} bright rows` : '')
+    + (spec.live ? `; scaled heading holds ${headingPixels} Category pixels` : '');
+  return { ours: true, why, counts, column, brightRows, heading, headingPixels, changed,
+    secondary: ['same-state syntax-off pixels supply the text column, glyph coverage and bright rows',
+      'provisional Role values: quill-engine/src/theme.rs Colours::LIGHT and Colours::DARK; no critic (ADR 0017)'] };
+}
 
 // A rule with nothing to configure, checked for an entry that thinks otherwise.
 //

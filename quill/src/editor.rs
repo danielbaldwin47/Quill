@@ -311,6 +311,8 @@ mod imp {
 
     #[derive(Default)]
     pub struct Editor {
+        /// Source-mapped Syntax highlight spans; no Document is retained here.
+        pub syntax: RefCell<crate::syntax::Syntax>,
         /// The Face this Editor is set in.
         pub face: Cell<Face>,
         /// Which of the type ladder's fourteen steps the Editor is set at.
@@ -851,6 +853,59 @@ impl Editor {
         self.imp().live.set(live);
     }
 
+    /// Changes the Syntax table and repaints retained spans without retagging.
+    pub(crate) fn set_syntax(
+        &self,
+        settings: quill_engine::settings::SyntaxHighlight,
+        document: &Document,
+    ) {
+        if !self.imp().syntax.borrow_mut().configure(settings, document) {
+            return;
+        }
+        self.imp().fade.take();
+        let tiers = self.imp().tiers.borrow();
+        let lines = 0..document.place(document.text().len()).line + 1;
+        tags::repaint(
+            &self.buffer(),
+            document,
+            self.painting(&tiers),
+            std::slice::from_ref(&lines),
+        );
+    }
+
+    /// Whether this Editor should schedule asynchronous Syntax work.
+    pub(crate) fn syntax_enabled(&self) -> bool {
+        self.imp().syntax.borrow().enabled()
+    }
+
+    /// Captures dirty prose after the debounce, with the laid-out viewport first.
+    pub(crate) fn submit_syntax(&self, document: &Document) {
+        let at = self.furnished(document);
+        let first = document.block_at(at.start).unwrap_or(0);
+        let last = document.block_at(at.end).unwrap_or(first);
+        self.imp()
+            .syntax
+            .borrow_mut()
+            .submit(document, first..last + 1);
+    }
+
+    /// Drains a bounded idle batch and redraws only its accepted paragraphs.
+    pub(crate) fn drain_syntax(&self, document: &Document) -> bool {
+        let mut lines = self.imp().syntax.borrow_mut().drain(document);
+        if !lines.is_empty() {
+            // A fade's snapshots contain the old Category colours. Its whole
+            // range reaches the current endpoint before those snapshots go.
+            if let Some(fade) = self.imp().fade.take() {
+                lines.extend(fade.lines);
+            }
+            let tiers = self.imp().tiers.borrow();
+            let buffer = self.buffer();
+            let _batch = buffer.freeze_notify();
+            tags::repaint(&buffer, document, self.painting(&tiers), &lines);
+        }
+        self.imp().syntax.borrow().pending()
+    }
+
     /// Everything but the text that decides how this Editor draws.
     ///
     /// `tiers` is borrowed rather than read from the Editor here, because every
@@ -876,6 +931,7 @@ impl Editor {
     /// the writer is, so the place it opens at is named rather than read.
     fn painting_at<'a>(&'a self, at: &Range<usize>, tiers: &'a [LineTiers]) -> tags::Painting<'a> {
         tags::Painting {
+            syntax: &self.imp().syntax,
             face: self.imp().face.get(),
             colours: self.colours(),
             leading: self.imp().leading.get(),
@@ -1271,6 +1327,7 @@ impl Editor {
     /// splice the engine's copy of the text are not listening for any of this
     /// and the text has not moved for them to hear about.
     pub fn set_ground(&self, ground: Ground, document: &Document) {
+        self.imp().fade.take();
         self.imp().ground.set(ground);
         let buffer = self.buffer();
         let batch = buffer.freeze_notify();
@@ -1537,6 +1594,7 @@ impl Editor {
     /// produce, so [`Editor::loading`] is true across it and the handlers on
     /// the buffer stand down.
     pub fn show_document(&self, document: &Document) {
+        self.imp().syntax.borrow_mut().reset(document);
         let buffer = self.buffer();
         self.imp().loading.set(true);
         buffer.set_text(document.text());
@@ -1580,6 +1638,7 @@ impl Editor {
     /// by the line and the byte index within it and both of those have to be
     /// the ones the writer can now see.
     pub fn retag(&self, document: &Document, edit: &Edit) {
+        self.imp().syntax.borrow_mut().edited(document, edit);
         // An edit moves the caret as well as the text, so the tiers are worked
         // out again here rather than left to the caret's own feed: the lines
         // the edit changed and the lines the dim moved across are drawn in the
@@ -1747,13 +1806,31 @@ impl Editor {
         let buffer = self.buffer();
         let after = self.imp().tiers.borrow();
         let mut runs = Vec::new();
+        let syntax = self.imp().syntax.borrow();
         for lines in moved {
             let at = document.line_bytes(lines.start).start
                 ..document.line_bytes(lines.end.saturating_sub(1)).end;
             let spans = document.spans_in(&at);
+            let tagged = syntax.spans_in(document, &at);
             runs.append(&mut faded(
-                &annotate::paint_in(&spans, &at, before, focus, &colours),
-                &annotate::paint_in(&spans, &at, &after, focus, &colours),
+                &annotate::paint_tagged_in(
+                    &spans,
+                    &tagged,
+                    syntax.categories(),
+                    &at,
+                    before,
+                    focus,
+                    &colours,
+                ),
+                &annotate::paint_tagged_in(
+                    &spans,
+                    &tagged,
+                    syntax.categories(),
+                    &at,
+                    &after,
+                    focus,
+                    &colours,
+                ),
                 |at| tags::offsets_of(&buffer, document, at),
             ));
         }

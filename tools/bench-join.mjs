@@ -41,6 +41,16 @@ export const ORACLE = { mean_ms: 2.43, worst_ms: 15.61, uinput_to_presented_ms: 
 // GDK 30. This is the whole of how a key the bench wrote is recognised in what the app saw.
 export const KEYCODE_OFFSET = 8;
 
+/// Whether the app said, on its stdout, that the pointer left its window during the launch.
+///
+/// The line is `quill/src/harness.rs`'s `pointer_left_line`, and it means the owner's mouse crossed
+/// the stage: the chrome answers with its opacity transition, and while it runs the frame clock
+/// paces every key's frame to the refresh grid — one such key waited 16.3 ms of its 17.97 (#327).
+/// A run it happened in has measured an animation, not the keystroke path, and is refused.
+export function pointerLeft(said) {
+  return /^pointer left the window at \d+ us$/m.test(said || '');
+}
+
 // ---------- statistics, as `legacy/tools/latency.mjs` computes them ----------
 //
 // Deliberately the same shapes as the legacy bench's, down to the rounding and the bootstrap's
@@ -279,7 +289,7 @@ const labelled = (what, panel) => (panel ? `${what} --panel` : what);
 /// On the line that carries the verdict — the last line of a single run, and the last line of a run
 /// of several — because a panel number read without it is a number somebody will hold against the
 /// budget, and it cannot be: the panel is fractional-scale, so the window's buffer is not the one
-/// the budget was set on. Not on each regime's row in a run of fourteen, which would say it fourteen
+/// the budget was set on. Not on each regime's row in a run of fifteen, which would say it fifteen
 /// times; the `--panel` in every one of those labels is what carries it there. The output, its mode
 /// and its scale are in the line for the same reason they are in the fingerprint: two panel runs are
 /// only comparable with each other, and only when those three agree.
@@ -289,9 +299,9 @@ const caveat = (panel) => ` (on ${panel.output} at ${panel.mode} scale ${panel.s
 
 /// The five numbers a bench line says, in the one order they are ever said in.
 ///
-/// One regime's line and a whole run's line are read against each other — a `--all` run is fourteen
+/// One regime's line and a whole run's line are read against each other — a `--all` run is fifteen
 /// of the second under the first — so the shape they share is written once here. What follows the
-/// numbers is what differs: a single run names the bars, a regime in a run of fourteen leaves them
+/// numbers is what differs: a single run names the bars, a regime in a run of fifteen leaves them
 /// to `allSummary`, and a panel run has no bars to name because it is not judged against any.
 const numbers = (regime, said, panel) => `gate bench ${labelled(regime, panel)}: `
   + `${panel || !scoredRow(said) ? 'informational' : (said.pass ? 'pass' : 'fail')}`
@@ -299,7 +309,7 @@ const numbers = (regime, said, panel) => `gate bench ${labelled(regime, panel)}:
   + `, p50 ${say(said.p50_ms)} ms, p99 ${say(said.p99_ms)} ms, cold ${say(said.cold_ms)} ms`;
 
 /// The clause an unscored regime's line ends in, on every line it has — a single run's and its row
-/// in a run of fourteen — because its numbers read as a fail against the budget to anyone who does
+/// in a run of fifteen — because its numbers read as a fail against the budget to anyone who does
 /// not know why they are not held to it, and the reason is one clause long.
 const unscoredClause = ` (not scored: ${NOT_SCORED})`;
 
@@ -340,7 +350,7 @@ export function summary(regime, decided) {
 
 /// One regime's line in a run of several.
 ///
-/// A run of fourteen is read down the left-hand edge, so each regime says the same five numbers in
+/// A run of fifteen is read down the left-hand edge, so each regime says the same five numbers in
 /// the same order and nothing else: the budget and the oracle are said once, at the end, by
 /// `allSummary`. The accounting is not repeated either — a regime whose keys do not add up never
 /// reaches this line, because the bench refuses it — except that a run kept for the record says so
@@ -356,10 +366,10 @@ export function regimeLine(regime, decided) {
 /// The last line of a run of several: pass only when every scored regime in it cleared the budget.
 ///
 /// `ran` is what was asked for — `--all`, or `--regimes a,b` — because a run of two that passed
-/// and a run of fourteen that passed are not the same evidence, and the line the owner reads should
+/// and a run of fifteen that passed are not the same evidence, and the line the owner reads should
 /// not need the command scrolled back to to tell them apart. A regime that is recorded and not
 /// scored (`NOT_SCORED`) is named as informational and counted in neither number, so a run of
-/// fourteen reads "13 of 13 scored regimes" rather than a fail nobody can clear.
+/// fifteen reads "14 of 14 scored regimes" rather than a fail nobody can clear.
 export function allSummary(ran, rows, panel = null) {
   // A panel run has nothing to pass or fail: the budget is set on the headless output, so counting
   // how many of these regimes cleared it would be inventing a verdict out of numbers taken

@@ -1,9 +1,9 @@
-//! The Settings window (`Ctrl+,`): the rows that have no menu home (#125).
+//! The Settings window (`Ctrl+,`): writing modes and file-backed preferences.
 //!
 //! Plain GTK4 ([ADR 0009](../../docs/adr/0009-plain-gtk4-without-libadwaita.md)):
-//! a window transient for the one it was opened from, holding one grid. Every
-//! other setting a writer can move is a menu row or a chord; these are what is
-//! left — the Typewriter anchor, which nothing else can move at all, Follow
+//! a window transient for the one it was opened from, holding a scrollable grid.
+//! Its controls write the settings file. Alongside the Template and Syntax highlight
+//! toggles shared with the menus are the Typewriter anchor, Follow
 //! System, the Spell-check language the Spell check spec will fill in, the
 //! Library's own six (#246: the Locations, Pinned, and the four switches
 //! nothing but this window and the file can reach), the `[export]` table's own
@@ -26,6 +26,7 @@ use std::rc::Rc;
 use gtk::prelude::*;
 use gtk::{gio, glib};
 
+use quill_engine::pos::Category;
 use quill_engine::settings::{
     Paper, PreviewMode, Settings, Theme, export_margins, export_text_sizes,
 };
@@ -33,7 +34,7 @@ use quill_engine::theme::Scheme;
 
 use crate::choices;
 use crate::export_dialog::{paper_at, paper_drop_down};
-use crate::session::{Session, TemplateToggle};
+use crate::session::{Session, SyntaxToggle, TemplateToggle};
 
 /// How near the top and the bottom of the window the Typewriter anchor may be
 /// dragged. The setting itself takes any fraction (`docs/architecture.md`
@@ -81,7 +82,7 @@ type WritePaths = fn(&mut Settings, Vec<PathBuf>);
 /// Opens the Settings window over `parent`.
 ///
 /// Built on every open and dropped when it closes, as the shortcuts window is,
-/// so that every row opens showing what the file says now.
+/// so that every row opens showing the current effective setting.
 pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
     let grid = gtk::Grid::builder()
         .row_spacing(ROW_GAP)
@@ -141,7 +142,14 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
         .title("Settings")
         .transient_for(parent)
         .destroy_with_parent(true)
-        .child(&grid)
+        .child(
+            &gtk::ScrolledWindow::builder()
+                .hscrollbar_policy(gtk::PolicyType::Never)
+                .propagate_natural_height(true)
+                .max_content_height(parent.height().max(240))
+                .child(&grid)
+                .build(),
+        )
         .build();
 
     row(&grid, 3, "Locations", &location_list(&window, session));
@@ -174,9 +182,8 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
 
     // The Preview pane's own group: the mode View › Panes' two rows write,
     // which is the pane's and not one window's
-    // ([`crate::window::Window::set_preview_mode`]). The three groups below
-    // the Library's rows each carry a heading, so the window reads as groups
-    // rather than as one flat list of twenty rows.
+    // ([`crate::window::Window::set_preview_mode`]). Each group below the
+    // Library's rows carries a heading.
     group_heading(&grid, 9, "Preview");
     row(
         &grid,
@@ -254,6 +261,40 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
         &switch(session, export.footer, export_footer),
     );
 
+    group_heading(&grid, 22, "Writing tools");
+    for (index, (toggle, label, on)) in syntax_rows(session).into_iter().enumerate() {
+        if toggle == SyntaxToggle::Enabled {
+            row(
+                &grid,
+                23,
+                label,
+                &switch(session, on, move |settings, on| {
+                    toggle.set(&mut settings.syntax_highlight, on);
+                }),
+            );
+            let hint = gtk::Label::builder()
+                .label("Supports English only for now.")
+                .halign(gtk::Align::Start)
+                .build();
+            grid.attach(&hint, 0, 24, 2, 1);
+        } else {
+            let check = gtk::CheckButton::builder()
+                .halign(gtk::Align::End)
+                .active(on)
+                .build();
+            check.connect_toggled(glib::clone!(
+                #[strong]
+                session,
+                move |check| {
+                    session.edit_settings(|settings| {
+                        toggle.set(&mut settings.syntax_highlight, check.is_active());
+                    });
+                }
+            ));
+            row(&grid, 24 + i32::try_from(index).unwrap(), label, &check);
+        }
+    }
+
     let button = gtk::Button::builder()
         .label("Edit settings.toml…")
         .halign(gtk::Align::End)
@@ -264,7 +305,7 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
         session,
         move |_| edit(session.settings_path(), launch.as_ref())
     ));
-    row(&grid, 22, "Keyboard shortcuts", &button);
+    row(&grid, 30, "Keyboard shortcuts", &button);
 
     if let Some(said) = refused(&session.unapplied()) {
         let label = gtk::Label::builder()
@@ -272,7 +313,7 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
             .halign(gtk::Align::Start)
             .wrap(true)
             .build();
-        grid.attach(&label, 0, 23, 2, 1);
+        grid.attach(&label, 0, 31, 2, 1);
     }
 
     window.present();
@@ -325,9 +366,30 @@ fn followed(settings: &mut Settings, on: bool, scheme: Scheme) {
     settings.theme = if on { Theme::Auto } else { scheme.setting() };
 }
 
-/// A switch that writes one `[library]` boolean, set to what the file says
+/// The Writing tools rows, projected from the live table without writing it.
+fn syntax_rows(session: &Session) -> [(SyntaxToggle, &'static str, bool); 6] {
+    let syntax = session.syntax();
+    [
+        (SyntaxToggle::Enabled, "Syntax highlight"),
+        (SyntaxToggle::Category(Category::Nouns), "Nouns"),
+        (SyntaxToggle::Category(Category::Verbs), "Verbs"),
+        (SyntaxToggle::Category(Category::Adjectives), "Adjectives"),
+        (SyntaxToggle::Category(Category::Adverbs), "Adverbs"),
+        (
+            SyntaxToggle::Category(Category::Conjunctions),
+            "Conjunctions",
+        ),
+    ]
+    .map(|(toggle, label)| (toggle, label, toggle.of(&syntax)))
+}
+
+/// A switch that writes one setting, set to the effective value
 /// now before its handler is connected, so opening the window is not a write.
-fn switch(session: &Rc<Session>, on: bool, write: fn(&mut Settings, bool)) -> gtk::Switch {
+fn switch(
+    session: &Rc<Session>,
+    on: bool,
+    write: impl Fn(&mut Settings, bool) + 'static,
+) -> gtk::Switch {
     let switch = gtk::Switch::builder().halign(gtk::Align::End).build();
     switch.set_active(on);
     switch.connect_active_notify(glib::clone!(
@@ -835,6 +897,84 @@ mod tests {
             }
         }
         std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn syntax_rows_open_from_the_live_table_without_a_write() {
+        let (session, path) = launched("syntax-rows-open");
+        let (settings, notes) = Settings::parse(
+            "[syntax_highlight]\nenabled = false\nnouns = false\nverbs = true\n\
+             adjectives = false\nadverbs = true\nconjunctions = false\nfuture = 7\n",
+        );
+        assert!(notes.is_empty());
+        session.apply(settings);
+        session.toggle_syntax(SyntaxToggle::Enabled);
+        session.store_settings();
+        let before = std::fs::read(&path).unwrap();
+        assert!(
+            !session.settings().syntax_highlight.enabled,
+            "the watch has not read the Command yet"
+        );
+        assert_eq!(
+            syntax_rows(&session),
+            [
+                (SyntaxToggle::Enabled, "Syntax highlight", true),
+                (SyntaxToggle::Category(Category::Nouns), "Nouns", false),
+                (SyntaxToggle::Category(Category::Verbs), "Verbs", true),
+                (
+                    SyntaxToggle::Category(Category::Adjectives),
+                    "Adjectives",
+                    false
+                ),
+                (SyntaxToggle::Category(Category::Adverbs), "Adverbs", true),
+                (
+                    SyntaxToggle::Category(Category::Conjunctions),
+                    "Conjunctions",
+                    false
+                ),
+            ]
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+        std::fs::remove_file(&path).unwrap();
+        syntax_rows(&session);
+        assert!(!path.exists(), "opening rows does not create a file either");
+    }
+
+    #[test]
+    fn every_syntax_row_saves_its_own_key_and_reflects_after_the_file_is_applied() {
+        let (session, path) = launched("syntax-rows-save");
+        let source = "face = \"mono\"\nfuture = 4\n[template]\nnumber_headings = true\n\
+            [syntax_highlight]\nenabled = false\nnouns = false\nverbs = true\n\
+            adjectives = false\nadverbs = true\nconjunctions = false\nfuture_syntax = 9\n";
+        let (initial, notes) = Settings::parse(source);
+        assert!(notes.is_empty());
+        session.apply(initial.clone());
+        for ((toggle, _, was), key) in syntax_rows(&session).into_iter().zip([
+            "enabled",
+            "nouns",
+            "verbs",
+            "adjectives",
+            "adverbs",
+            "conjunctions",
+        ]) {
+            for on in [!was, was] {
+                let (expected, notes) = Settings::parse(
+                    &source.replace(&format!("\n{key} = {was}"), &format!("\n{key} = {on}")),
+                );
+                assert!(notes.is_empty());
+                let written = wrote(&session, &path, |settings| {
+                    toggle.set(&mut settings.syntax_highlight, on);
+                });
+                assert_eq!(
+                    written, expected,
+                    "{key}: whole file, including unknown keys"
+                );
+                assert_eq!(session.running(), expected);
+                assert_eq!(toggle.of(&session.syntax()), on);
+            }
+            assert_eq!(session.running(), initial);
+        }
+        std::fs::remove_file(path).unwrap();
     }
 
     /// The Mode row writes `[preview] mode` and nothing else, the dropdown's

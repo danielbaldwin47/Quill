@@ -35,7 +35,8 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
-  BUDGET, NOT_SCORED, ORACLE, allSummary, measure, regimeLine, scoredRow, summary, verdict, writeGaps,
+  BUDGET, NOT_SCORED, ORACLE, allSummary, measure, pointerLeft, regimeLine, scoredRow, summary, verdict,
+  writeGaps,
 } from './bench-join.mjs';
 import { gitHead } from './fingerprint.mjs';
 import {
@@ -121,8 +122,8 @@ function usage(to = process.stderr) {
   to.write(`usage: tools/gate bench [regime] [--all] [--regimes a,b] [--keys N] [--sessions N]
                         [--panel] [--idle-window S]
 
-  regime          which of the fourteen to type; ${HEADLINE} by default
-  --all           every one of the fourteen, one line each and one line for the run
+  regime          which of the fifteen to type; ${HEADLINE} by default
+  --all           every one of the fifteen, one line each and one line for the run
   --regimes       just these, by name, separated by commas
   --keys N        keys measured per session (${DEFAULT_KEYS} by default, the oracle's count)
   --sessions N    launch and type this many times, for a run-to-run interval (1 by default)
@@ -136,7 +137,7 @@ A run of several writes ${RESULTS}/summary-<stamp>.json beside the per-regime re
 tools/gate judge latency reads. A --panel run of several writes ${RESULTS}/panel-summary-<stamp>.json
 instead, which judge does not read and never will: the panel is a fractional-scale output, its
 numbers are not the ones the budget is set on, and nothing about it decides a Piece. Every --panel
-result file, one regime or fourteen, is marked informational inside and named bench-panel-<regime>-.
+result file, one regime or fifteen, is marked informational inside and named bench-panel-<regime>-.
 `);
 }
 
@@ -325,9 +326,8 @@ function caretFor(root, where) {
 }
 
 // The command line one regime's launches use, warm-up and measured alike: the judged states'
-// window size, the 10k-word document, and the caret, Focus, Live and Preview the regime asks for,
-// because where the writer is, how much of the draft is dimmed, whether the markup is folded away
-// and whether a rendered page stands beside the Editor are four of the things a regime varies.
+// window size, the 10k-word document, and the caret, Focus, Live, Preview and Syntax highlight
+// the regime asks for. Every launch pins Syntax highlight, including when it is off.
 function launchArgv(root, out, regime) {
   const argv = [
     '--deterministic', '--measure', out,
@@ -336,6 +336,7 @@ function launchArgv(root, out, regime) {
     '--w', String(WINDOW.w), '--h', String(WINDOW.h),
   ];
   if (regime.live) argv.push('--live');
+  argv.push('--syntax', regime.syntax || 'off');
   if (regime.preview) argv.push('--preview', regime.preview);
   return argv;
 }
@@ -422,6 +423,8 @@ async function runSession(root, stage, { regime, keys, index }) {
       device: wrote.device,
       focus_rechecks: wrote.rechecks,
       stopped_because_focus_was_lost: wrote.lost,
+      // Read after the keys, before the kill: the leave the kill itself causes is never in `said`.
+      the_pointer_left_the_window: pointerLeft(ours.said()),
     };
   } finally {
     stage.kill(ours.child);
@@ -432,7 +435,7 @@ async function runSession(root, stage, { regime, keys, index }) {
 
 /// One regime, measured: its sessions, pooled, and written to its own result file.
 ///
-/// The stage is the caller's, because opening one costs a compositor output and the fourteen regimes
+/// The stage is the caller's, because opening one costs a compositor output and the fifteen regimes
 /// of a release run share it. The launch is not shared: every regime gets its own, so the caret it
 /// types at, the Focus it runs under and the cold start it reports are its own and not the last
 /// regime's.
@@ -481,6 +484,7 @@ async function benchOne(root, stage, { regime, keys, sessions, warmup, panel }) 
       aligned_by: 'gdk_keycode === evdev code + 8, greedily',
       focus_rechecks: runs.reduce((a, r) => a + r.focus_rechecks, 0),
       stopped_because_focus_was_lost: runs.some((r) => r.stopped_because_focus_was_lost),
+      the_pointer_left_the_window: runs.some((r) => r.the_pointer_left_the_window),
     },
     cold_start_ms: {
       each: runs.map((r) => r.cold),
@@ -513,11 +517,12 @@ async function benchOne(root, stage, { regime, keys, sessions, warmup, panel }) 
     result,
     said,
     // The one shape both `summary` and `regimeLine` read, built once here so that the lines a run
-    // of one prints and the lines a run of fourteen prints cannot be assembled two different ways.
+    // of one prints and the lines a run of fifteen prints cannot be assembled two different ways.
     reported: {
       accounting: decided.accounting, verdict: said, stage_first_client: warmup, panel,
     },
     lost: runs.some((r) => r.stopped_because_focus_was_lost),
+    pointerLeft: runs.some((r) => r.the_pointer_left_the_window),
   };
 }
 
@@ -584,8 +589,10 @@ async function bench(root, { ran, chosen, keys, sessions, wantsPanel, idle }) {
       // typed into whatever took the focus, and no later regime's number would be of this app. And,
       // in a run of several, a regime whose keys did not add up: the run is refused whatever the
       // rest measure and its files are not committed, so the six minutes the rest would take buy
-      // nothing. Every other kind of short run is said and carried on from.
-      if (one.lost) break;
+      // nothing. Every other kind of short run is said and carried on from. The pointer leaving
+      // is the owner at the mouse, which is the same run-ending news as focus going: the keys
+      // after it were measured under the chrome's fade (#327), and the next regime's would be too.
+      if (one.lost || one.pointerLeft) break;
       if (ran !== null && !one.reported.accounting.every_keystroke_accounted_for) break;
     }
   } catch (e) {
@@ -614,6 +621,12 @@ function oneSaid(one) {
       ? `focus was taken away mid-run; ${one.file} records where it stopped`
       : `not every keystroke is accounted for; the numbers are in ${one.file}`);
   }
+  // Accounted for, and still not a measurement of the keystroke path: from the leave on, the
+  // chrome's fade had the frame clock pacing keys to the refresh grid (#327).
+  if (one.pointerLeft) {
+    return refuse(`the pointer left the window mid-run, so the keys after it were paced by the `
+      + `chrome's fade rather than measured; ${one.file} records the run`);
+  }
   for (const line of summary(one.regime, one.reported)) console.log(line);
   // 1 is "this missed the budget", and neither the panel nor an unscored regime is held to the
   // budget. A run of either that measured every key it sent has done the whole of what it was
@@ -626,14 +639,15 @@ function oneSaid(one) {
 ///
 /// One line per regime and then one line for the run, and a summary file beside the per-regime
 /// results holding what those lines say — because the release check and `tools/gate judge latency`
-/// both ask the same question of a whole run, and neither should have to reopen fourteen files and
-/// decide for itself which fourteen they were.
+/// both ask the same question of a whole run, and neither should have to reopen fifteen files and
+/// decide for itself which fifteen they were.
 function manySaid(root, { ran, chosen, done, warmup, panel }) {
   const rows = done.map((one) => ({
     regime: one.regime,
     file: one.file,
     ...one.said,
     every_keystroke_accounted_for: one.reported.accounting.every_keystroke_accounted_for,
+    the_pointer_left_the_window: one.pointerLeft,
   }));
   // A regime that never ran is not a regime that passed. The run is short, and the summary says so
   // by name rather than by a count the reader has to do themselves.
@@ -641,12 +655,14 @@ function manySaid(root, { ran, chosen, done, warmup, panel }) {
   // Every regime accounts for its keys, scored or not: an unscored regime is recorded, and a record
   // over whichever keys survived is not one.
   const unaccounted = rows.filter((r) => !r.every_keystroke_accounted_for).map((r) => r.regime);
+  // And a regime the pointer left mid-way measured the chrome's fade, not the keys (#327).
+  const paced = rows.filter((r) => r.the_pointer_left_the_window).map((r) => r.regime);
   const cleared = (r) => !scoredRow(r) || r.pass;
 
   // Written before anything is printed, and holding the printed lines themselves, because the file
   // is the run's own record of what it said: `tools/gate judge latency` reads it rather than
-  // re-deriving a verdict from fourteen result files and hoping it phrases it the same way.
-  const whole = !missing.length && !unaccounted.length;
+  // re-deriving a verdict from fifteen result files and hoping it phrases it the same way.
+  const whole = !missing.length && !unaccounted.length && !paced.length;
   const lines = done.map((one) => regimeLine(one.regime, one.reported));
   if (whole) lines.push(allSummary(ran, rows, panel));
 
@@ -664,6 +680,7 @@ function manySaid(root, { ran, chosen, done, warmup, panel }) {
     regimes: rows,
     regimes_not_run: missing,
     regimes_unaccounted_for: unaccounted,
+    regimes_the_pointer_left: paced,
     // Recorded and not held to the budget, `NOT_SCORED`; their rows carry `scored: false` and a
     // null `pass`, and `pass` below is over the others.
     regimes_not_scored: rows.filter((r) => !scoredRow(r)).map((r) => r.regime),
@@ -684,10 +701,14 @@ function manySaid(root, { ran, chosen, done, warmup, panel }) {
   for (const line of lines) console.log(line);
   if (whole && panel) return 0;
   if (!whole) {
+    const never = missing.length ? ` and ${missing.join(', ')} never ran` : '';
     return refuse(unaccounted.length
       ? `not every keystroke is accounted for in ${unaccounted.join(', ')}, so the run stopped there`
-        + `${missing.length ? ` and ${missing.join(', ')} never ran` : ''}; the numbers are in ${file}`
-      : `${missing.join(', ')} never ran; ${file} records how far the run got`);
+        + `${never}; the numbers are in ${file}`
+      : paced.length
+        ? `the pointer left the window during ${paced.join(', ')}, so the keys after it were paced by `
+          + `the chrome's fade rather than measured and the run stopped there${never}; ${file} records it`
+        : `${missing.join(', ')} never ran; ${file} records how far the run got`);
   }
   return rows.every(cleared) ? 0 : 1;
 }
@@ -773,7 +794,7 @@ async function main(argv) {
   for (const want of choice.names ?? [name ?? HEADLINE]) {
     const found = known.find((r) => r.name === want);
     if (!found) {
-      process.stderr.write(`gate bench: ${want}: not one of the fourteen regimes `
+      process.stderr.write(`gate bench: ${want}: not one of the fifteen regimes `
         + `(${known.map((r) => r.name).join(', ')})\n`);
       usage();
       return 3;

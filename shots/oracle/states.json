@@ -12,6 +12,7 @@
     "focus": "off",
     "typewriter": false,
     "live": false,
+    "syntax": "off",
     "chrome": "on",
     "caret": 403,
     "select": null,
@@ -388,6 +389,97 @@
         "nocaret": true,
         "assert": {
           "kind": "dialog"
+        }
+      }
+    },
+    "syntax": {
+      "all-light": {
+        "theme": "light",
+        "chrome": "off",
+        "syntax": "on",
+        "focus": "off",
+        "live": false,
+        "assert": {
+          "kind": "syntax",
+          "theme": "light",
+          "expected": [
+            "nouns",
+            "verbs",
+            "adjectives",
+            "adverbs",
+            "conjunctions"
+          ]
+        }
+      },
+      "all-dark": {
+        "theme": "dark",
+        "chrome": "off",
+        "syntax": "on",
+        "focus": "off",
+        "live": false,
+        "assert": {
+          "kind": "syntax",
+          "theme": "dark",
+          "expected": [
+            "nouns",
+            "verbs",
+            "adjectives",
+            "adverbs",
+            "conjunctions"
+          ]
+        }
+      },
+      "adjectives-adverbs": {
+        "theme": "light",
+        "chrome": "off",
+        "syntax": "adjectives,adverbs",
+        "focus": "off",
+        "live": false,
+        "assert": {
+          "kind": "syntax",
+          "theme": "light",
+          "expected": [
+            "adjectives",
+            "adverbs"
+          ]
+        }
+      },
+      "focus-sentence": {
+        "theme": "light",
+        "chrome": "off",
+        "syntax": "on",
+        "focus": "sentence",
+        "live": false,
+        "assert": {
+          "kind": "syntax",
+          "theme": "light",
+          "expected": [
+            "nouns",
+            "verbs",
+            "adjectives",
+            "adverbs",
+            "conjunctions"
+          ],
+          "focus": true
+        }
+      },
+      "live": {
+        "theme": "light",
+        "chrome": "off",
+        "syntax": "on",
+        "focus": "off",
+        "live": true,
+        "assert": {
+          "kind": "syntax",
+          "theme": "light",
+          "expected": [
+            "nouns",
+            "verbs",
+            "adjectives",
+            "adverbs",
+            "conjunctions"
+          ],
+          "live": true
         }
       }
     }

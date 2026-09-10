@@ -77,6 +77,12 @@
       "title": "Export",
       "what": "The Export dialog over the page, and the file it writes",
       "judge": "nothing, and no critic is spent here either: the one state names `assert`, so it is measured off ours' own pixels by tools/assert-state.mjs and shown to nobody (ADR 0017). Neither oracle holds an Export dialog — legacy/ has none at all, and iA Writer for Mac's own is that app's dialog rather than this one's — so the state is won on arithmetic instead: the dialog standing over the page as a second ground, inside the window and centred on it, its Options expander open, and the file name seeded from the Document's own name. What a still cannot hold — the file that is written, the printer, the notification and the clipboard — is the feature's Hand test."
+    },
+    {
+      "id": "syntax",
+      "title": "Syntax highlight",
+      "what": "English words coloured by Category, with Focus and Live precedence",
+      "judge": "No critic is spent: all five states are asserted under ADR 0017 until capture ticket #308 supplies Design oracle opponents through #319. The Parity oracle has no Syntax highlight. tools/assert-state.mjs measures expected and absent Role ink, preserved glyph coverage, colour inside the bright sentence rows, and colour on the scaled Live heading. Settings persistence and typing remain the feature Hand test."
     }
   ],
   "log": [
