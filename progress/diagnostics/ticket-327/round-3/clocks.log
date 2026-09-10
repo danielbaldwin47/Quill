@@ -1,0 +1,6 @@
+capture attempt 1: clocks realtime_ns monotonic_ns 1789046783569357408 45905726871415
+control-a attempt 1: clocks realtime_ns monotonic_ns 1789047262032174415 46384189688623
+control-a attempt 2: clocks realtime_ns monotonic_ns 1789047322027076776 46444184591028
+control-b attempt 1: clocks realtime_ns monotonic_ns 1789047436211797553 46558369311548
+syntax attempt 1: clocks realtime_ns monotonic_ns 1789047658048553236 46780206067316
+revision attempt 1: clocks realtime_ns monotonic_ns 1789047734903129396 46857060643642
