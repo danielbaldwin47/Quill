@@ -361,11 +361,26 @@ mod tests {
             (ratio - 1.0425).abs() < 0.0005,
             "Classic's em is the Editor's × 1.0425, not {ratio}"
         );
-        let pitch = classic.sizes.base * classic.rhythm.line_height * 4.0 / 3.0 * 2.0;
+        let pitch = captured(classic.sizes.base * classic.rhythm.line_height);
         assert!(
             (pitch - 69.3).abs() < 0.05,
-            "iA's Classic pitch is 69.3 px at backing scale 2, not {pitch}"
+            "iA's Classic pitch is 69.3 px, not {pitch}"
         );
+        let step = pitch + captured(classic.sizes.base * classic.rhythm.paragraph_spacing);
+        assert!(
+            (step - 134.5).abs() < 0.5,
+            "iA's Classic paragraph step is 134.5 px — 1.94 pitches — not {step}"
+        );
+    }
+
+    /// A Template size in points, in the device pixels `ref/ia/mac-native`
+    /// measures and every judged shot is taken at: the 96 dpi
+    /// [`crate::render`] converts a Template's points by, over the backing
+    /// scale 2 of the judged stage.
+    fn captured(points: f64) -> f64 {
+        const DPI: f64 = 96.0;
+        const BACKING: f64 = 2.0;
+        points * DPI / 72.0 * BACKING
     }
 
     #[test]
