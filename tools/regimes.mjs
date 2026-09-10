@@ -135,17 +135,25 @@ export const DEFAULT_KEYS = 300;
 // Keys typed into a freshly loaded page before the trace starts: the first keystrokes pay for lazy
 // compilation and first touch of the editing machinery, and no writer types only 300 keys.
 export const WARMUP_KEYS = 25;
+// One refresh interval on the 60 Hz output the bench measures on. GDK will not begin a frame until
+// this long after the last presentation, so a frame presented inside this window of a keystroke
+// takes the slot that keystroke's own frame needed.
+export const REFRESH_MS = 1000 / 60;
 // How long a paced regime's pause is, and the constraint that picks the number: a pause must not
-// end within one refresh interval (16.7 ms) *after* any timer the app arms from the last
-// keystroke, because that timer's frame takes the refresh slot the key needs and the key then
-// measures the chrome's return rather than typing. The keystroke-armed timers are
-// `Typing::STATS_MS` (500 ms), `AUTOSAVE` (1 s), `Typing::TITLE_MS` (1,400 ms), the Preview's
-// `REFRESH` (200 ms) and the harness's `DRAIN_EVERY` / `TAIL` (100 / 250 ms). 1,700 ms clears the
-// nearest of them, `TITLE_MS`, by 300 ms and `AUTOSAVE` by 700, and is still a writer's
-// think-pause. 1,400 was the old value: it *was* `TITLE_MS`, so eleven keys of three hundred read
-// 13.5–16.9 ms against a 16 ms budget and the regime passed or failed on which side of a refresh
-// the collision landed, on an unchanged build (#349, from #327 round 3). Do not restore 1,400, or
-// any value within 16.7 ms after a timer above, because it is a rounder number.
+// end within one `REFRESH_MS` *after* any timer the app arms from the last keystroke, because the
+// key that ends the pause then measures the chrome's return rather than typing. Only *after*
+// matters: a timer that fires while the burst is already typing paints between two keys 90 ms
+// apart, and one that fires after the pause ends has already lost the slot to the key.
+// The keystroke-armed timers are `Typing::STATS_MS` and `Typing::TITLE_MS`
+// (`quill/src/chrome/typing.rs`) and `AUTOSAVE` and the Preview's `REFRESH` (`quill/src/window.rs`);
+// `tools/bench-selftest.mjs` reads all four out of the app and holds this value to them, so the
+// margins live there rather than in a table copied over here. The app's periodic timers — the
+// harness's drain, the status line's tick — are nobody's to clear: they repeat from the window's
+// creation rather than from a keystroke, so their frames can land beside any key at any pause. 1,700 ms clears the nearest of them, `TITLE_MS`, by 300 ms and
+// `AUTOSAVE` by 700, and is still a writer's think-pause. 1,400 was the old value: it *was*
+// `TITLE_MS`, so eleven keys of three hundred read 13.5–16.9 ms against a 16 ms budget and the
+// regime passed or failed on which side of a refresh the collision landed, on an unchanged build
+// (#349, from #327 round 3). Any new value is one that selftest stays green on.
 export const PAUSE_MS = 1700;
 export function regimes(pace = DEFAULT_PACE) {
   return [

@@ -23,7 +23,10 @@ import {
   regimeLine, summary, verdict, writeGaps,
 } from './bench-join.mjs';
 import { PANEL_WORKSPACE, panelRefusal, physicalMonitors } from './harness.mjs';
-import { DEFAULT_KEYS, PAUSE_MS, hash32, regimes, script, uinputPlan } from './regimes.mjs';
+import { DEFAULT_KEYS, PAUSE_MS, REFRESH_MS, hash32, regimes, script, uinputPlan } from './regimes.mjs';
+
+// The checkout, for the two cases that ask the app and the injector rather than a table copied here.
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 let cases = 0;
 let failures = 0;
@@ -460,35 +463,34 @@ ok('the chord regimes press chords, and bursts_and_pauses pauses every 25 keys',
 // case below asks the injector: moving `TITLE_MS`, or restoring 1,400 as a rounder pause, should be
 // a red case rather than eleven keys of three hundred quietly measuring the chrome's return (#349).
 ok('the pause clears every timer the app arms from the last keystroke', () => {
-  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-  const ms = (file, re, what) => {
+  const num = (file, re, what) => {
     const m = readFileSync(path.join(root, file), 'utf8').match(re);
-    assert.ok(m, `${what}: no longer where this case looks for it, so it can no longer be checked`);
+    assert.ok(m, `${what} is no longer where this case looks for it in ${file}, so the pause can no `
+      + 'longer be checked against it');
     return Number(m[1].replace(/_/g, ''));
   };
   const typing = 'quill/src/chrome/typing.rs';
   const window = 'quill/src/window.rs';
-  const harness = 'quill/src/harness.rs';
+  // The harness's `DRAIN_EVERY` and `TAIL` are not here: that tick repeats from the window's
+  // creation rather than from a keystroke, so its phase is not the pause's to clear and no pause
+  // value could clear it. Round 3 saw neither of them paint.
   const armed = [
-    ['Typing::STATS_MS', ms(typing, /pub const STATS_MS: i64 = ([\d_]+);/, 'STATS_MS')],
-    ['Typing::TITLE_MS', ms(typing, /pub const TITLE_MS: i64 = ([\d_]+);/, 'TITLE_MS')],
-    ['AUTOSAVE', ms(window, /const AUTOSAVE: Duration = Duration::from_secs\(([\d_]+)\)/, 'AUTOSAVE') * 1000],
-    ['Preview REFRESH', ms(window, /const REFRESH: Duration = Duration::from_millis\(([\d_]+)\)/, 'REFRESH')],
-    ['harness DRAIN_EVERY', ms(harness, /const DRAIN_EVERY: Duration = Duration::from_millis\(([\d_]+)\)/, 'DRAIN_EVERY')],
-    ['harness TAIL', ms(harness, /const TAIL: i64 = ([\d_]+);/, 'TAIL') / 1000],
+    ['Typing::STATS_MS', num(typing, /pub const STATS_MS: i64 = ([\d_]+);/, 'STATS_MS')],
+    ['Typing::TITLE_MS', num(typing, /pub const TITLE_MS: i64 = ([\d_]+);/, 'TITLE_MS')],
+    ['AUTOSAVE', num(window, /const AUTOSAVE: Duration = Duration::from_secs\(([\d_]+)\)/, 'AUTOSAVE') * 1000],
+    ['Preview REFRESH', num(window, /const REFRESH: Duration = Duration::from_millis\(([\d_]+)\)/, 'REFRESH')],
   ];
-  // One refresh interval on the 60 Hz output the bench measures on: a timer's frame inside this
-  // window of the key takes the refresh slot the key's own frame needed.
-  const REFRESH_MS = 1000 / 60;
   for (const [name, fires] of armed) {
+    // One-sided on purpose. A timer that fires *before* the pause ends takes the refresh slot the
+    // key that ends the pause needed; one that fires after has already lost that slot to the key,
+    // and paints between two keys 90 ms apart.
     assert.ok(PAUSE_MS < fires || PAUSE_MS - fires > REFRESH_MS,
       `the ${PAUSE_MS} ms pause ends ${(PAUSE_MS - fires).toFixed(1)} ms after ${name} (${fires} ms) `
-      + 'fires, inside the refresh that timer\'s frame takes');
+      + `fires, inside the ${REFRESH_MS.toFixed(1)} ms refresh that timer's frame takes`);
   }
 });
 
 ok('the injector can say every press the fourteen ask for', () => {
-  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const wanted = new Set();
   for (const r of regimes()) {
     for (const k of uinputPlan(script(r.mix, DEFAULT_KEYS, hash32(r.name)), r.pace).plan.keys) wanted.add(k.press);
