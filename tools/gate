@@ -108,7 +108,10 @@ usage: tools/gate <command> [arguments]
                 its lines say informational rather than pass or fail. A regime
                 that cannot account for its keys stops the run there, refuses
                 it, and keeps the keys as sent and the stamps as written beside
-                its result, as bench-<regime>-<stamp>.capture.json. A regime
+                its result, as bench-<regime>-<stamp>.capture.json. So does a
+                regime the pointer left the window during: the app says so on
+                stdout, and the keys after the leave were paced by the chrome's
+                fade rather than measured (#327). A regime
                 name, --all and
                 --regimes each say which regimes to run, so only one may be
                 given.

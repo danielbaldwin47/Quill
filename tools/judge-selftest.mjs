@@ -1488,10 +1488,19 @@ ok('an unscored regime is still one of the fourteen, and still has to account fo
   const stray = path.join(tmp, 'summary-20260901T000002.json');
   fs.writeFileSync(stray, JSON.stringify(body({ regimes_unaccounted_for: ['saturation_stress'], pass: false })));
   const unaccounted = gate('judge', 'latency', '--summary', stray);
-  fs.rmSync(tmp, { recursive: true, force: true });
   assert.equal(unaccounted.code, 3, unaccounted.out);
   assert.match(lastLine(unaccounted), /^gate judge latency: refused \(.* could not account for every keystroke in saturation_stress\)/,
     'not scored is not the same as not counted');
+
+  // A run the bench refused because the pointer left the window (#327) is whole and accounted for,
+  // and still not a verdict: the keys after the leave were paced by the chrome's fade.
+  const paced = path.join(tmp, 'summary-20260901T000003.json');
+  fs.writeFileSync(paced, JSON.stringify(body({ regimes_the_pointer_left: ['revision'], pass: false })));
+  const left = gate('judge', 'latency', '--summary', paced);
+  fs.rmSync(tmp, { recursive: true, force: true });
+  assert.equal(left.code, 3, left.out);
+  assert.match(lastLine(left), /^gate judge latency: refused \(.* had the pointer leave the window during revision\)/,
+    'accounted for is not the same as measured');
 
   // The whole body as written — fourteen regimes, saturation over every bar and marked unscored — is
   // deliberately not run: judge would take a verdict from it and write a round, and writing a round
