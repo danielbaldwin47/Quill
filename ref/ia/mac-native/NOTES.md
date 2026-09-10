@@ -13,6 +13,8 @@ Nothing here changes the spec. The evidence is put where a spec change can be ar
 
 **Follow-up rig, 2026-09-09:** [CAPTURE-2026-09-09.md](CAPTURE-2026-09-09.md) records the Mac halves of #231, #241, #261, #308 and #328, with per-frame metadata and untouched originals. It uses the same iA version but macOS 26.6.1 and a different display; its chromatic and page-top controls are qualified there. The table below describes the earlier run.
 
+**Later runs on the original rig:** [CAPTURE-ORIGINAL-MBP.md](CAPTURE-ORIGINAL-MBP.md) re-shoots #231 and #308 on the built-in display, and [CAPTURE-2026-09-10.md](CAPTURE-2026-09-10.md) shoots #344 (state 22) and #343 (state 23) there. Both use the same iA version on the same machine and carry their own rig tables; #344's window width is the variable of its states, so the fixed window in the table below is not theirs.
+
 | | |
 |---|---|
 | iA Writer | 8.0.6 (build 80046), `pro.writer.mac` |
@@ -35,6 +37,9 @@ Three states need markup `ref/sample.md` does not contain, so they use passages 
 file: [`passage-blocks.md`](passage-blocks.md) (heading, blockquote, list, emphasis) for states 9
 and 14, [`passage-markers.md`](passage-markers.md) (all six heading levels) for the gutter ladder,
 and [`passage-markup.md`](passage-markup.md) (every mark kind at once) for state 17.
+State 23 needs two shapes as well: [`ref/short.md`](../../short.md), whose second paragraph follows
+a body paragraph, and [`passage-template-em.md`](passage-template-em.md), whose paragraphs are
+runs of one glyph at three lengths.
 
 On the Linux box a capture is measured with `magick` or with node and `pngjs` (`tools/ink-coverage.mjs`
 is the template); `rig/`'s Python imports Quartz and runs only on the Mac.
@@ -648,3 +653,60 @@ channel of all ten colours**, of both dim greys, and on the same five token spli
 control the qualification rested on misses for a reason that reaches nothing else: it is the only
 oracle colour on the panel's gamut edge, so `colour.normalise()` clamps it, while every Category
 colour round-trips exactly. The caret's colour is **Display P3 `#00bfff`**. The ten values stand.
+
+## State 22 — the window's width picks the type, and the measure follows
+
+[#344's seventeen configurations](CAPTURE-2026-09-10.md#344--the-window-narrows) re-shoot #328's
+finding on the original rig and separate the two hypotheses it left. **The type gives first, on the
+window's width alone.** There are three size classes, breaking at **440/441 pt** and **1250/1251 pt**,
+in the same two places at text-size steps 5 and 8 and at line-length limits 64 and 80, with no
+hysteresis. At 1200 pt a full 78-cell container of the wide type needs 1997 px of a 2400 px window
+and the type shrinks anyway, so container overflow is not the trigger.
+
+**The measure gives second, and only when the limit no longer fits.** Above 440 pt the container is
+`min((limit + 14) cells, window − 20 px)` on every configuration. Where the first term wins the
+gutter is 7.00 cells and the measure is the limit exactly — 64 characters on a 22.657 px cell at 960,
+1040, 1200 and 1250 pt. Where the window wins the gutter falls to about 6 cells and the measure takes
+what is left. At 440 pt the container is 828 px where the window allows 860 and the gutter collapses
+to one cell; the narrowest class is not described by the rule.
+
+| Class | Window | Step 5 cell / pitch | Step 8 cell / pitch |
+|---|---|---|---|
+| narrowest | ≤ 440 pt | 19.920 / 53 | — / 76 |
+| middle | 441 … 1250 pt | 22.657 / 63 | 35.200 / 92 |
+| wide | ≥ 1251 pt | 25.600 / 73 | 40.714 / 109 |
+
+Each class is a ladder of its own, not a step of the wide one in § State 11: 22.657 falls between
+that ladder's steps 3 and 4 and 35.200 between its 6 and 7, `pitch / em` is tighter than the wide
+ladder's at the same em, and the wide-to-middle scale is 0.885 at step 5 against 0.865 at step 8.
+
+## State 23 — the Templates' first line and em, read off ink
+
+[#343's ten frames](CAPTURE-2026-09-10.md#343--the-templates-indent-and-em) shoot `ref/short.md`,
+whose second paragraph follows a body paragraph, and
+[`passage-template-em.md`](passage-template-em.md), whose paragraphs are runs of one glyph at three
+lengths, in Preview → Web → Full in all four Templates, each with an Editor control frame.
+
+**No Template indents a first line.** Modern, Classic and both Manuscripts start every line on the
+same column and separate paragraphs by a gap — 1.94 pitches in Classic, 1.97 in Modern, 1.99 in
+Manuscript. Quill's Classic is `indented` with no gap; iA's is the other arrangement.
+
+**Manuscript is the Editor's own grid.** Its `H` runs are pixel-identical to the Editor control's, so
+Duo and Mono both render at **em 42.667 px = 21.333 pt** with a **73 px** pitch — `base × line_height`
+= 1.711, the Editor's own. #261's 72 px Duo pitch was one pixel out.
+
+| Template | H advance | n advance | n / H | H outline | Pitch | Paragraph step |
+|---|---:|---:|---:|---:|---:|---:|
+| Modern (Sans) | 28.300 | 22.700 | 0.8021 | 29.75 | 69.0 | 136.0 |
+| Classic (Serif) | 31.450 | 25.500 | 0.8108 | 29.80 | 69.3 | 134.5 |
+| Manuscript (Duo) | 25.600 | 25.600 | 1.0000 | 29.78 | 73.3 | 145.5 |
+| Manuscript (Mono) | 25.600 | 25.600 | 1.0000 | 29.78 | 73.3 | 145.5 |
+
+`H outline` is the ink height plus the 1.29 px the Editor control shows the ink sits inside the
+outline at a known em. **All four Templates set the same cap height**, a 0.05 px spread across three
+faces; only the advance differs.
+
+**Classic's face is not Source Serif 4** — its `n`/`H` advance ratio is 0.8108 against IBM Plex
+Serif's 0.8119 and Source Serif 4's 0.7690 — so no single em puts Quill's Classic where iA's is.
+Matching the cap height needs **22.24 pt** and matching the H advance **19.96 pt**, 11 % apart. That
+choice is the Templates ticket's.
