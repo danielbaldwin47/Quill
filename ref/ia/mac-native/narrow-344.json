@@ -1,0 +1,1629 @@
+[
+ {
+  "tag": "w0440-step05",
+  "width_pt": 440,
+  "step": 5,
+  "limit": 64,
+  "region_pt": [
+   0,
+   33,
+   440,
+   500
+  ],
+  "ground": [
+   247,
+   247,
+   247
+  ],
+  "heading_ink": {
+   "x0": 46,
+   "y0": 158
+  },
+  "body_x0": [
+   46,
+   48,
+   48,
+   46,
+   48,
+   47
+  ],
+  "body_y0": [
+   264,
+   318,
+   371,
+   424,
+   477,
+   530,
+   583,
+   636
+  ],
+  "gaps": [
+   54,
+   53,
+   53,
+   53,
+   53,
+   53,
+   53
+  ],
+  "pitch": 53,
+  "band_h": 50,
+  "fills": {
+   "10": {
+    "x0": 44,
+    "x1": 245,
+    "y0": 252,
+    "y1": 301,
+    "w": 202,
+    "h": 50
+   },
+   "20": {
+    "x0": 44,
+    "x1": 443,
+    "y0": 252,
+    "y1": 301,
+    "w": 400,
+    "h": 50
+   }
+  },
+  "wrapped": [],
+  "advance": 19.8,
+  "fill_edge": 4.0,
+  "container": {
+   "x0": 26,
+   "x1": 853,
+   "y0": 146,
+   "y1": 999,
+   "w": 828,
+   "h": 854
+  },
+  "container_w": 828,
+  "container_centre": 440.0,
+  "cells_in_container": 41.82,
+  "ax": {
+   "window": "0, 33, 440, 949",
+   "scroll_area": "0, 33, 440, 949"
+  },
+  "frames": {
+   "plain": "mac-native-22-light-narrow-w0440-step05-plain.png",
+   "sel10": "mac-native-22-light-narrow-w0440-step05-sel10.png",
+   "sel20": "mac-native-22-light-narrow-w0440-step05-sel20.png",
+   "all": "mac-native-22-light-narrow-w0440-step05-all.png"
+  }
+ },
+ {
+  "tag": "w0441-step05",
+  "width_pt": 441,
+  "step": 5,
+  "limit": 64,
+  "region_pt": [
+   0,
+   33,
+   441,
+   500
+  ],
+  "ground": [
+   247,
+   247,
+   247
+  ],
+  "heading_ink": {
+   "x0": 33,
+   "y0": 181
+  },
+  "body_x0": [
+   79,
+   82,
+   81,
+   80,
+   79,
+   80
+  ],
+  "body_y0": [
+   308,
+   371,
+   434,
+   497,
+   560,
+   623,
+   686,
+   749
+  ],
+  "gaps": [
+   63,
+   63,
+   63,
+   63,
+   63,
+   63,
+   63
+  ],
+  "pitch": 63,
+  "band_h": 60,
+  "fills": {
+   "10": {
+    "x0": 78,
+    "x1": 305,
+    "y0": 292,
+    "y1": 351,
+    "w": 228,
+    "h": 60
+   },
+   "20": {
+    "x0": 78,
+    "x1": 531,
+    "y0": 292,
+    "y1": 351,
+    "w": 454,
+    "h": 60
+   }
+  },
+  "wrapped": [],
+  "advance": 22.6,
+  "fill_edge": 2.0,
+  "container": {
+   "x0": 10,
+   "x1": 871,
+   "y0": 166,
+   "y1": 999,
+   "w": 862,
+   "h": 834
+  },
+  "container_w": 862,
+  "container_centre": 441.0,
+  "cells_in_container": 38.14,
+  "ax": {
+   "window": "0, 33, 441, 949",
+   "scroll_area": "0, 33, 441, 949"
+  },
+  "frames": {
+   "plain": "mac-native-22-light-narrow-w0441-step05-plain.png",
+   "sel10": "mac-native-22-light-narrow-w0441-step05-sel10.png",
+   "sel20": "mac-native-22-light-narrow-w0441-step05-sel20.png",
+   "all": "mac-native-22-light-narrow-w0441-step05-all.png"
+  }
+ },
+ {
+  "tag": "w0960-step05",
+  "width_pt": 960,
+  "step": 5,
+  "limit": 64,
+  "region_pt": [
+   0,
+   33,
+   960,
+   500
+  ],
+  "ground": [
+   247,
+   247,
+   247
+  ],
+  "heading_ink": {
+   "x0": 187,
+   "y0": 181
+  },
+  "body_x0": [
+   233,
+   235,
+   234,
+   233,
+   234,
+   235
+  ],
+  "body_y0": [
+   308,
+   371,
+   434,
+   497,
+   560,
+   623,
+   749,
+   812
+  ],
+  "gaps": [
+   63,
+   63,
+   63,
+   63,
+   63,
+   126,
+   63
+  ],
+  "pitch": 63,
+  "band_h": 60,
+  "fills": {
+   "10": {
+    "x0": 232,
+    "x1": 459,
+    "y0": 292,
+    "y1": 351,
+    "w": 228,
+    "h": 60
+   },
+   "20": {
+    "x0": 232,
+    "x1": 687,
+    "y0": 292,
+    "y1": 351,
+    "w": 456,
+    "h": 60
+   },
+   "40": {
+    "x0": 232,
+    "x1": 1139,
+    "y0": 292,
+    "y1": 351,
+    "w": 908,
+    "h": 60
+   }
+  },
+  "wrapped": [],
+  "advance": 22.657,
+  "fill_edge": 2.0,
+  "container": {
+   "x0": 74,
+   "x1": 1843,
+   "y0": 166,
+   "y1": 999,
+   "w": 1770,
+   "h": 834
+  },
+  "container_w": 1770,
+  "container_centre": 959.0,
+  "cells_in_container": 78.12,
+  "ax": {
+   "window": "0, 33, 960, 949",
+   "scroll_area": "0, 33, 960, 949"
+  },
+  "frames": {
+   "plain": "mac-native-22-light-narrow-w0960-step05-plain.png",
+   "sel10": "mac-native-22-light-narrow-w0960-step05-sel10.png",
+   "sel20": "mac-native-22-light-narrow-w0960-step05-sel20.png",
+   "sel40": "mac-native-22-light-narrow-w0960-step05-sel40.png",
+   "all": "mac-native-22-light-narrow-w0960-step05-all.png"
+  }
+ },
+ {
+  "tag": "w1040-step05",
+  "width_pt": 1040,
+  "step": 5,
+  "limit": 64,
+  "region_pt": [
+   0,
+   33,
+   1040,
+   500
+  ],
+  "ground": [
+   247,
+   247,
+   247
+  ],
+  "heading_ink": {
+   "x0": 267,
+   "y0": 181
+  },
+  "body_x0": [
+   313,
+   315,
+   314,
+   313,
+   314,
+   315
+  ],
+  "body_y0": [
+   308,
+   371,
+   434,
+   497,
+   560,
+   623,
+   749,
+   812
+  ],
+  "gaps": [
+   63,
+   63,
+   63,
+   63,
+   63,
+   126,
+   63
+  ],
+  "pitch": 63,
+  "band_h": 60,
+  "fills": {
+   "10": {
+    "x0": 312,
+    "x1": 539,
+    "y0": 292,
+    "y1": 351,
+    "w": 228,
+    "h": 60
+   },
+   "20": {
+    "x0": 312,
+    "x1": 767,
+    "y0": 292,
+    "y1": 351,
+    "w": 456,
+    "h": 60
+   },
+   "40": {
+    "x0": 312,
+    "x1": 1219,
+    "y0": 292,
+    "y1": 351,
+    "w": 908,
+    "h": 60
+   }
+  },
+  "wrapped": [],
+  "advance": 22.657,
+  "fill_edge": 2.0,
+  "container": {
+   "x0": 154,
+   "x1": 1923,
+   "y0": 166,
+   "y1": 999,
+   "w": 1770,
+   "h": 834
+  },
+  "container_w": 1770,
+  "container_centre": 1039.0,
+  "cells_in_container": 78.12,
+  "ax": {
+   "window": "0, 33, 1040, 949",
+   "scroll_area": "0, 33, 1040, 949"
+  },
+  "frames": {
+   "plain": "mac-native-22-light-narrow-w1040-step05-plain.png",
+   "sel10": "mac-native-22-light-narrow-w1040-step05-sel10.png",
+   "sel20": "mac-native-22-light-narrow-w1040-step05-sel20.png",
+   "sel40": "mac-native-22-light-narrow-w1040-step05-sel40.png",
+   "all": "mac-native-22-light-narrow-w1040-step05-all.png"
+  }
+ },
+ {
+  "tag": "w1200-step05",
+  "width_pt": 1200,
+  "step": 5,
+  "limit": 64,
+  "region_pt": [
+   0,
+   33,
+   1200,
+   500
+  ],
+  "ground": [
+   247,
+   247,
+   247
+  ],
+  "heading_ink": {
+   "x0": 427,
+   "y0": 181
+  },
+  "body_x0": [
+   473,
+   475,
+   474,
+   473,
+   474,
+   475
+  ],
+  "body_y0": [
+   308,
+   371,
+   434,
+   497,
+   560,
+   623,
+   749,
+   812
+  ],
+  "gaps": [
+   63,
+   63,
+   63,
+   63,
+   63,
+   126,
+   63
+  ],
+  "pitch": 63,
+  "band_h": 60,
+  "fills": {
+   "10": {
+    "x0": 472,
+    "x1": 699,
+    "y0": 292,
+    "y1": 351,
+    "w": 228,
+    "h": 60
+   },
+   "20": {
+    "x0": 472,
+    "x1": 927,
+    "y0": 292,
+    "y1": 351,
+    "w": 456,
+    "h": 60
+   },
+   "40": {
+    "x0": 472,
+    "x1": 1379,
+    "y0": 292,
+    "y1": 351,
+    "w": 908,
+    "h": 60
+   }
+  },
+  "wrapped": [],
+  "advance": 22.657,
+  "fill_edge": 2.0,
+  "container": {
+   "x0": 314,
+   "x1": 2083,
+   "y0": 166,
+   "y1": 999,
+   "w": 1770,
+   "h": 834
+  },
+  "container_w": 1770,
+  "container_centre": 1199.0,
+  "cells_in_container": 78.12,
+  "ax": {
+   "window": "0, 33, 1200, 949",
+   "scroll_area": "0, 33, 1200, 949"
+  },
+  "frames": {
+   "plain": "mac-native-22-light-narrow-w1200-step05-plain.png",
+   "sel10": "mac-native-22-light-narrow-w1200-step05-sel10.png",
+   "sel20": "mac-native-22-light-narrow-w1200-step05-sel20.png",
+   "sel40": "mac-native-22-light-narrow-w1200-step05-sel40.png",
+   "all": "mac-native-22-light-narrow-w1200-step05-all.png"
+  }
+ },
+ {
+  "tag": "w1512-step05",
+  "width_pt": 1512,
+  "step": 5,
+  "limit": 64,
+  "region_pt": [
+   0,
+   33,
+   1512,
+   500
+  ],
+  "ground": [
+   247,
+   247,
+   247
+  ],
+  "heading_ink": {
+   "x0": 643,
+   "y0": 184
+  },
+  "body_x0": [
+   692,
+   695,
+   693,
+   693,
+   694,
+   695
+  ],
+  "body_y0": [
+   331,
+   405,
+   478,
+   551,
+   624,
+   697,
+   844,
+   917
+  ],
+  "gaps": [
+   74,
+   73,
+   73,
+   73,
+   73,
+   147,
+   73
+  ],
+  "pitch": 73,
+  "band_h": 70,
+  "fills": {
+   "10": {
+    "x0": 690,
+    "x1": 947,
+    "y0": 312,
+    "y1": 381,
+    "w": 258,
+    "h": 70
+   },
+   "20": {
+    "x0": 690,
+    "x1": 1203,
+    "y0": 312,
+    "y1": 381,
+    "w": 514,
+    "h": 70
+   },
+   "40": {
+    "x0": 690,
+    "x1": 1715,
+    "y0": 312,
+    "y1": 381,
+    "w": 1026,
+    "h": 70
+   }
+  },
+  "wrapped": [],
+  "advance": 25.6,
+  "fill_edge": 2.0,
+  "container": {
+   "x0": 512,
+   "x1": 2511,
+   "y0": 166,
+   "y1": 999,
+   "w": 2000,
+   "h": 834
+  },
+  "container_w": 2000,
+  "container_centre": 1512.0,
+  "cells_in_container": 78.12,
+  "ax": {
+   "window": "0, 33, 1512, 949",
+   "scroll_area": "0, 33, 1512, 949"
+  },
+  "frames": {
+   "plain": "mac-native-22-light-narrow-w1512-step05-plain.png",
+   "sel10": "mac-native-22-light-narrow-w1512-step05-sel10.png",
+   "sel20": "mac-native-22-light-narrow-w1512-step05-sel20.png",
+   "sel40": "mac-native-22-light-narrow-w1512-step05-sel40.png",
+   "all": "mac-native-22-light-narrow-w1512-step05-all.png"
+  }
+ },
+ {
+  "tag": "w1250-step05",
+  "width_pt": 1250,
+  "step": 5,
+  "limit": 64,
+  "region_pt": [
+   0,
+   33,
+   1250,
+   500
+  ],
+  "ground": [
+   247,
+   247,
+   247
+  ],
+  "heading_ink": {
+   "x0": 478,
+   "y0": 181
+  },
+  "body_x0": [
+   523,
+   525,
+   524,
+   523,
+   524,
+   525
+  ],
+  "body_y0": [
+   308,
+   371,
+   434,
+   497,
+   560,
+   623,
+   749,
+   812
+  ],
+  "gaps": [
+   63,
+   63,
+   63,
+   63,
+   63,
+   126,
+   63
+  ],
+  "pitch": 63,
+  "band_h": 60,
+  "fills": {
+   "10": {
+    "x0": 522,
+    "x1": 749,
+    "y0": 292,
+    "y1": 351,
+    "w": 228,
+    "h": 60
+   },
+   "20": {
+    "x0": 522,
+    "x1": 977,
+    "y0": 292,
+    "y1": 351,
+    "w": 456,
+    "h": 60
+   }
+  },
+  "wrapped": [],
+  "advance": 22.8,
+  "fill_edge": 0.0,
+  "container": {
+   "x0": 364,
+   "x1": 2133,
+   "y0": 166,
+   "y1": 999,
+   "w": 1770,
+   "h": 834
+  },
+  "container_w": 1770,
+  "container_centre": 1249.0,
+  "cells_in_container": 77.63,
+  "ax": {
+   "window": "0, 33, 1250, 949",
+   "scroll_area": "0, 33, 1250, 949"
+  },
+  "frames": {
+   "plain": "mac-native-22-light-narrow-w1250-step05-plain.png",
+   "sel10": "mac-native-22-light-narrow-w1250-step05-sel10.png",
+   "sel20": "mac-native-22-light-narrow-w1250-step05-sel20.png",
+   "all": "mac-native-22-light-narrow-w1250-step05-all.png"
+  }
+ },
+ {
+  "tag": "w1251-step05",
+  "width_pt": 1251,
+  "step": 5,
+  "limit": 64,
+  "region_pt": [
+   0,
+   33,
+   1251,
+   500
+  ],
+  "ground": [
+   247,
+   247,
+   247
+  ],
+  "heading_ink": {
+   "x0": 379,
+   "y0": 184
+  },
+  "body_x0": [
+   430,
+   433,
+   431,
+   431,
+   432,
+   433
+  ],
+  "body_y0": [
+   331,
+   405,
+   478,
+   551,
+   624,
+   697,
+   844,
+   917
+  ],
+  "gaps": [
+   74,
+   73,
+   73,
+   73,
+   73,
+   147,
+   73
+  ],
+  "pitch": 73,
+  "band_h": 70,
+  "fills": {
+   "10": {
+    "x0": 428,
+    "x1": 685,
+    "y0": 312,
+    "y1": 381,
+    "w": 258,
+    "h": 70
+   },
+   "20": {
+    "x0": 428,
+    "x1": 941,
+    "y0": 312,
+    "y1": 381,
+    "w": 514,
+    "h": 70
+   }
+  },
+  "wrapped": [],
+  "advance": 25.6,
+  "fill_edge": 2.0,
+  "container": {
+   "x0": 250,
+   "x1": 2249,
+   "y0": 166,
+   "y1": 999,
+   "w": 2000,
+   "h": 834
+  },
+  "container_w": 2000,
+  "container_centre": 1250.0,
+  "cells_in_container": 78.12,
+  "ax": {
+   "window": "0, 33, 1251, 949",
+   "scroll_area": "0, 33, 1251, 949"
+  },
+  "frames": {
+   "plain": "mac-native-22-light-narrow-w1251-step05-plain.png",
+   "sel10": "mac-native-22-light-narrow-w1251-step05-sel10.png",
+   "sel20": "mac-native-22-light-narrow-w1251-step05-sel20.png",
+   "all": "mac-native-22-light-narrow-w1251-step05-all.png"
+  }
+ },
+ {
+  "tag": "w0960-step08",
+  "width_pt": 960,
+  "step": 8,
+  "limit": 64,
+  "region_pt": [
+   0,
+   33,
+   960,
+   500
+  ],
+  "ground": [
+   247,
+   247,
+   247
+  ],
+  "heading_ink": {
+   "x0": 154,
+   "y0": 187
+  },
+  "body_x0": [
+   223,
+   225,
+   223,
+   223,
+   225,
+   225
+  ],
+  "body_y0": [
+   373,
+   465,
+   558,
+   650,
+   743,
+   835,
+   927
+  ],
+  "gaps": [
+   92,
+   93,
+   92,
+   93,
+   92,
+   92
+  ],
+  "pitch": 92,
+  "band_h": 90,
+  "fills": {
+   "10": {
+    "x0": 220,
+    "x1": 573,
+    "y0": 350,
+    "y1": 439,
+    "w": 354,
+    "h": 90
+   },
+   "20": {
+    "x0": 220,
+    "x1": 925,
+    "y0": 350,
+    "y1": 439,
+    "w": 706,
+    "h": 90
+   },
+   "30": {
+    "x0": 220,
+    "x1": 1277,
+    "y0": 350,
+    "y1": 439,
+    "w": 1058,
+    "h": 90
+   }
+  },
+  "wrapped": [],
+  "advance": 35.2,
+  "fill_edge": 2.0,
+  "container": {
+   "x0": 10,
+   "x1": 1909,
+   "y0": 166,
+   "y1": 999,
+   "w": 1900,
+   "h": 834
+  },
+  "container_w": 1900,
+  "container_centre": 960.0,
+  "cells_in_container": 53.98,
+  "ax": {
+   "window": "0, 33, 960, 949",
+   "scroll_area": "0, 33, 960, 949"
+  },
+  "frames": {
+   "plain": "mac-native-22-light-narrow-w0960-step08-plain.png",
+   "sel10": "mac-native-22-light-narrow-w0960-step08-sel10.png",
+   "sel20": "mac-native-22-light-narrow-w0960-step08-sel20.png",
+   "sel30": "mac-native-22-light-narrow-w0960-step08-sel30.png",
+   "all": "mac-native-22-light-narrow-w0960-step08-all.png"
+  }
+ },
+ {
+  "tag": "w1040-step08",
+  "width_pt": 1040,
+  "step": 8,
+  "limit": 64,
+  "region_pt": [
+   0,
+   33,
+   1040,
+   500
+  ],
+  "ground": [
+   247,
+   247,
+   247
+  ],
+  "heading_ink": {
+   "x0": 151,
+   "y0": 187
+  },
+  "body_x0": [
+   223,
+   227,
+   225,
+   223,
+   224,
+   226
+  ],
+  "body_y0": [
+   373,
+   465,
+   558,
+   650,
+   743,
+   835,
+   927
+  ],
+  "gaps": [
+   92,
+   93,
+   92,
+   93,
+   92,
+   92
+  ],
+  "pitch": 92,
+  "band_h": 90,
+  "fills": {
+   "10": {
+    "x0": 220,
+    "x1": 573,
+    "y0": 350,
+    "y1": 439,
+    "w": 354,
+    "h": 90
+   },
+   "20": {
+    "x0": 220,
+    "x1": 925,
+    "y0": 350,
+    "y1": 439,
+    "w": 706,
+    "h": 90
+   },
+   "30": {
+    "x0": 220,
+    "x1": 1277,
+    "y0": 350,
+    "y1": 439,
+    "w": 1058,
+    "h": 90
+   }
+  },
+  "wrapped": [],
+  "advance": 35.2,
+  "fill_edge": 2.0,
+  "container": {
+   "x0": 10,
+   "x1": 2069,
+   "y0": 166,
+   "y1": 999,
+   "w": 2060,
+   "h": 834
+  },
+  "container_w": 2060,
+  "container_centre": 1040.0,
+  "cells_in_container": 58.52,
+  "ax": {
+   "window": "0, 33, 1040, 949",
+   "scroll_area": "0, 33, 1040, 949"
+  },
+  "frames": {
+   "plain": "mac-native-22-light-narrow-w1040-step08-plain.png",
+   "sel10": "mac-native-22-light-narrow-w1040-step08-sel10.png",
+   "sel20": "mac-native-22-light-narrow-w1040-step08-sel20.png",
+   "sel30": "mac-native-22-light-narrow-w1040-step08-sel30.png",
+   "all": "mac-native-22-light-narrow-w1040-step08-all.png"
+  }
+ },
+ {
+  "tag": "w1200-step08",
+  "width_pt": 1200,
+  "step": 8,
+  "limit": 64,
+  "region_pt": [
+   0,
+   33,
+   1200,
+   500
+  ],
+  "ground": [
+   247,
+   247,
+   247
+  ],
+  "heading_ink": {
+   "x0": 151,
+   "y0": 187
+  },
+  "body_x0": [
+   223,
+   223,
+   223,
+   225,
+   224,
+   223
+  ],
+  "body_y0": [
+   373,
+   465,
+   558,
+   650,
+   743,
+   835,
+   927
+  ],
+  "gaps": [
+   92,
+   93,
+   92,
+   93,
+   92,
+   92
+  ],
+  "pitch": 92,
+  "band_h": 90,
+  "fills": {
+   "10": {
+    "x0": 220,
+    "x1": 573,
+    "y0": 350,
+    "y1": 439,
+    "w": 354,
+    "h": 90
+   },
+   "20": {
+    "x0": 220,
+    "x1": 925,
+    "y0": 350,
+    "y1": 439,
+    "w": 706,
+    "h": 90
+   },
+   "30": {
+    "x0": 220,
+    "x1": 1277,
+    "y0": 350,
+    "y1": 439,
+    "w": 1058,
+    "h": 90
+   }
+  },
+  "wrapped": [],
+  "advance": 35.2,
+  "fill_edge": 2.0,
+  "container": {
+   "x0": 10,
+   "x1": 2389,
+   "y0": 166,
+   "y1": 999,
+   "w": 2380,
+   "h": 834
+  },
+  "container_w": 2380,
+  "container_centre": 1200.0,
+  "cells_in_container": 67.61,
+  "ax": {
+   "window": "0, 33, 1200, 949",
+   "scroll_area": "0, 33, 1200, 949"
+  },
+  "frames": {
+   "plain": "mac-native-22-light-narrow-w1200-step08-plain.png",
+   "sel10": "mac-native-22-light-narrow-w1200-step08-sel10.png",
+   "sel20": "mac-native-22-light-narrow-w1200-step08-sel20.png",
+   "sel30": "mac-native-22-light-narrow-w1200-step08-sel30.png",
+   "all": "mac-native-22-light-narrow-w1200-step08-all.png"
+  }
+ },
+ {
+  "tag": "w1512-step08",
+  "width_pt": 1512,
+  "step": 8,
+  "limit": 64,
+  "region_pt": [
+   0,
+   33,
+   1512,
+   500
+  ],
+  "ground": [
+   247,
+   247,
+   247
+  ],
+  "heading_ink": {
+   "x0": 217,
+   "y0": 193
+  },
+  "body_x0": [
+   296,
+   301,
+   300,
+   297,
+   299,
+   300
+  ],
+  "body_y0": [
+   412,
+   522,
+   631,
+   741,
+   850,
+   960
+  ],
+  "gaps": [
+   110,
+   109,
+   110,
+   109,
+   110
+  ],
+  "pitch": 109,
+  "band_h": 108,
+  "fills": {
+   "10": {
+    "x0": 294,
+    "x1": 701,
+    "y0": 384,
+    "y1": 491,
+    "w": 408,
+    "h": 108
+   },
+   "20": {
+    "x0": 294,
+    "x1": 1109,
+    "y0": 384,
+    "y1": 491,
+    "w": 816,
+    "h": 108
+   },
+   "30": {
+    "x0": 294,
+    "x1": 1517,
+    "y0": 384,
+    "y1": 491,
+    "w": 1224,
+    "h": 108
+   }
+  },
+  "wrapped": [],
+  "advance": 40.8,
+  "fill_edge": 0.0,
+  "container": {
+   "x0": 10,
+   "x1": 3013,
+   "y0": 166,
+   "y1": 999,
+   "w": 3004,
+   "h": 834
+  },
+  "container_w": 3004,
+  "container_centre": 1512.0,
+  "cells_in_container": 73.63,
+  "ax": {
+   "window": "0, 33, 1512, 949",
+   "scroll_area": "0, 33, 1512, 949"
+  },
+  "frames": {
+   "plain": "mac-native-22-light-narrow-w1512-step08-plain.png",
+   "sel10": "mac-native-22-light-narrow-w1512-step08-sel10.png",
+   "sel20": "mac-native-22-light-narrow-w1512-step08-sel20.png",
+   "sel30": "mac-native-22-light-narrow-w1512-step08-sel30.png",
+   "all": "mac-native-22-light-narrow-w1512-step08-all.png"
+  }
+ },
+ {
+  "tag": "w1250-step08",
+  "width_pt": 1250,
+  "step": 8,
+  "limit": 64,
+  "region_pt": [
+   0,
+   33,
+   1250,
+   500
+  ],
+  "ground": [
+   247,
+   247,
+   247
+  ],
+  "heading_ink": {
+   "x0": 151,
+   "y0": 187
+  },
+  "body_x0": [
+   223,
+   226,
+   225,
+   226,
+   226,
+   227
+  ],
+  "body_y0": [
+   373,
+   465,
+   558,
+   650,
+   743,
+   835
+  ],
+  "gaps": [
+   92,
+   93,
+   92,
+   93,
+   92
+  ],
+  "pitch": 92,
+  "band_h": 90,
+  "fills": {
+   "10": {
+    "x0": 220,
+    "x1": 573,
+    "y0": 350,
+    "y1": 439,
+    "w": 354,
+    "h": 90
+   },
+   "20": {
+    "x0": 220,
+    "x1": 925,
+    "y0": 350,
+    "y1": 439,
+    "w": 706,
+    "h": 90
+   }
+  },
+  "wrapped": [],
+  "advance": 35.2,
+  "fill_edge": 2.0,
+  "container": {
+   "x0": 10,
+   "x1": 2489,
+   "y0": 166,
+   "y1": 999,
+   "w": 2480,
+   "h": 834
+  },
+  "container_w": 2480,
+  "container_centre": 1250.0,
+  "cells_in_container": 70.45,
+  "ax": {
+   "window": "0, 33, 1250, 949",
+   "scroll_area": "0, 33, 1250, 949"
+  },
+  "frames": {
+   "plain": "mac-native-22-light-narrow-w1250-step08-plain.png",
+   "sel10": "mac-native-22-light-narrow-w1250-step08-sel10.png",
+   "sel20": "mac-native-22-light-narrow-w1250-step08-sel20.png",
+   "all": "mac-native-22-light-narrow-w1250-step08-all.png"
+  }
+ },
+ {
+  "tag": "w1251-step08",
+  "width_pt": 1251,
+  "step": 8,
+  "limit": 64,
+  "region_pt": [
+   0,
+   33,
+   1251,
+   500
+  ],
+  "ground": [
+   247,
+   247,
+   247
+  ],
+  "heading_ink": {
+   "x0": 173,
+   "y0": 193
+  },
+  "body_x0": [
+   256,
+   261,
+   259,
+   257,
+   257,
+   260
+  ],
+  "body_y0": [
+   412,
+   522,
+   631,
+   741,
+   850,
+   960
+  ],
+  "gaps": [
+   110,
+   109,
+   110,
+   109,
+   110
+  ],
+  "pitch": 109,
+  "band_h": 108,
+  "fills": {
+   "10": {
+    "x0": 254,
+    "x1": 661,
+    "y0": 384,
+    "y1": 491,
+    "w": 408,
+    "h": 108
+   },
+   "20": {
+    "x0": 254,
+    "x1": 1069,
+    "y0": 384,
+    "y1": 491,
+    "w": 816,
+    "h": 108
+   }
+  },
+  "wrapped": [],
+  "advance": 40.8,
+  "fill_edge": 0.0,
+  "container": {
+   "x0": 10,
+   "x1": 2491,
+   "y0": 166,
+   "y1": 999,
+   "w": 2482,
+   "h": 834
+  },
+  "container_w": 2482,
+  "container_centre": 1251.0,
+  "cells_in_container": 60.83,
+  "ax": {
+   "window": "0, 33, 1251, 949",
+   "scroll_area": "0, 33, 1251, 949"
+  },
+  "frames": {
+   "plain": "mac-native-22-light-narrow-w1251-step08-plain.png",
+   "sel10": "mac-native-22-light-narrow-w1251-step08-sel10.png",
+   "sel20": "mac-native-22-light-narrow-w1251-step08-sel20.png",
+   "all": "mac-native-22-light-narrow-w1251-step08-all.png"
+  }
+ },
+ {
+  "tag": "w1040-step05-limit80",
+  "width_pt": 1040,
+  "step": 5,
+  "limit": 80,
+  "region_pt": [
+   0,
+   33,
+   1040,
+   500
+  ],
+  "ground": [
+   247,
+   247,
+   247
+  ],
+  "heading_ink": {
+   "x0": 101,
+   "y0": 178
+  },
+  "body_x0": [
+   147,
+   147,
+   147,
+   149,
+   147,
+   148
+  ],
+  "body_y0": [
+   305,
+   368,
+   431,
+   494,
+   557,
+   683,
+   746,
+   809
+  ],
+  "gaps": [
+   63,
+   63,
+   63,
+   63,
+   126,
+   63,
+   63
+  ],
+  "pitch": 63,
+  "band_h": 60,
+  "fills": {
+   "10": {
+    "x0": 146,
+    "x1": 373,
+    "y0": 288,
+    "y1": 347,
+    "w": 228,
+    "h": 60
+   },
+   "20": {
+    "x0": 146,
+    "x1": 599,
+    "y0": 288,
+    "y1": 347,
+    "w": 454,
+    "h": 60
+   },
+   "40": {
+    "x0": 146,
+    "x1": 1053,
+    "y0": 288,
+    "y1": 347,
+    "w": 908,
+    "h": 60
+   }
+  },
+  "wrapped": [],
+  "advance": 22.671,
+  "fill_edge": 1.0,
+  "container": {
+   "x0": 10,
+   "x1": 2069,
+   "y0": 162,
+   "y1": 999,
+   "w": 2060,
+   "h": 838
+  },
+  "container_w": 2060,
+  "container_centre": 1040.0,
+  "cells_in_container": 90.86,
+  "ax": {
+   "window": "0, 33, 1040, 949",
+   "scroll_area": "0, 33, 1040, 949"
+  },
+  "frames": {
+   "plain": "mac-native-22-light-narrow-w1040-step05-limit80-plain.png",
+   "sel10": "mac-native-22-light-narrow-w1040-step05-limit80-sel10.png",
+   "sel20": "mac-native-22-light-narrow-w1040-step05-limit80-sel20.png",
+   "sel40": "mac-native-22-light-narrow-w1040-step05-limit80-sel40.png",
+   "all": "mac-native-22-light-narrow-w1040-step05-limit80-all.png"
+  }
+ },
+ {
+  "tag": "w1250-step05-limit80",
+  "width_pt": 1250,
+  "step": 5,
+  "limit": 80,
+  "region_pt": [
+   0,
+   33,
+   1250,
+   500
+  ],
+  "ground": [
+   247,
+   247,
+   247
+  ],
+  "heading_ink": {
+   "x0": 295,
+   "y0": 179
+  },
+  "body_x0": [
+   341,
+   341,
+   343,
+   343,
+   342,
+   342
+  ],
+  "body_y0": [
+   306,
+   369,
+   432,
+   495,
+   558,
+   684,
+   747,
+   810
+  ],
+  "gaps": [
+   63,
+   63,
+   63,
+   63,
+   126,
+   63,
+   63
+  ],
+  "pitch": 63,
+  "band_h": 60,
+  "fills": {
+   "10": {
+    "x0": 340,
+    "x1": 567,
+    "y0": 290,
+    "y1": 349,
+    "w": 228,
+    "h": 60
+   },
+   "20": {
+    "x0": 340,
+    "x1": 795,
+    "y0": 290,
+    "y1": 349,
+    "w": 456,
+    "h": 60
+   }
+  },
+  "wrapped": [],
+  "advance": 22.8,
+  "fill_edge": 0.0,
+  "container": {
+   "x0": 182,
+   "x1": 2315,
+   "y0": 164,
+   "y1": 999,
+   "w": 2134,
+   "h": 836
+  },
+  "container_w": 2134,
+  "container_centre": 1249.0,
+  "cells_in_container": 93.6,
+  "ax": {
+   "window": "0, 33, 1250, 949",
+   "scroll_area": "0, 33, 1250, 949"
+  },
+  "frames": {
+   "plain": "mac-native-22-light-narrow-w1250-step05-limit80-plain.png",
+   "sel10": "mac-native-22-light-narrow-w1250-step05-limit80-sel10.png",
+   "sel20": "mac-native-22-light-narrow-w1250-step05-limit80-sel20.png",
+   "all": "mac-native-22-light-narrow-w1250-step05-limit80-all.png"
+  }
+ },
+ {
+  "tag": "w1251-step05-limit80",
+  "width_pt": 1251,
+  "step": 5,
+  "limit": 80,
+  "region_pt": [
+   0,
+   33,
+   1251,
+   500
+  ],
+  "ground": [
+   247,
+   247,
+   247
+  ],
+  "heading_ink": {
+   "x0": 175,
+   "y0": 184
+  },
+  "body_x0": [
+   226,
+   227,
+   228,
+   228,
+   228,
+   227
+  ],
+  "body_y0": [
+   331,
+   405,
+   478,
+   551,
+   624,
+   771,
+   844,
+   917
+  ],
+  "gaps": [
+   74,
+   73,
+   73,
+   73,
+   147,
+   73,
+   73
+  ],
+  "pitch": 73,
+  "band_h": 70,
+  "fills": {
+   "10": {
+    "x0": 224,
+    "x1": 481,
+    "y0": 312,
+    "y1": 381,
+    "w": 258,
+    "h": 70
+   },
+   "20": {
+    "x0": 224,
+    "x1": 737,
+    "y0": 312,
+    "y1": 381,
+    "w": 514,
+    "h": 70
+   }
+  },
+  "wrapped": [],
+  "advance": 25.6,
+  "fill_edge": 2.0,
+  "container": {
+   "x0": 46,
+   "x1": 2453,
+   "y0": 166,
+   "y1": 999,
+   "w": 2408,
+   "h": 834
+  },
+  "container_w": 2408,
+  "container_centre": 1250.0,
+  "cells_in_container": 94.06,
+  "ax": {
+   "window": "0, 33, 1251, 949",
+   "scroll_area": "0, 33, 1251, 949"
+  },
+  "frames": {
+   "plain": "mac-native-22-light-narrow-w1251-step05-limit80-plain.png",
+   "sel10": "mac-native-22-light-narrow-w1251-step05-limit80-sel10.png",
+   "sel20": "mac-native-22-light-narrow-w1251-step05-limit80-sel20.png",
+   "all": "mac-native-22-light-narrow-w1251-step05-limit80-all.png"
+  }
+ }
+]
