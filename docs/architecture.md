@@ -230,7 +230,8 @@ remembers nothing it could not act on.
 ## Preview and Export
 
 The engine's `render` module lays a whole Document out with Pango from the current Template ([ADR
-0005](adr/0005-native-templates.md)): one pass produces the layouts the Preview widget snapshots and
+0005](adr/0005-native-templates.md); what a Template takes from iA and what stays its own is
+[ADR 0019](adr/0019-a-template-starts-from-ia-and-is-then-quills-own.md)): one pass produces the layouts the Preview widget snapshots and
 the pages the PDF surface draws. Preview has two modes over that one pass, `[preview].mode`: Web
 draws the rendered sheet, and PDF draws the same pages Export writes, stacked as a column with the
 page under the column's top edge on the stats bar beside the counts. The mode is one setting for the
