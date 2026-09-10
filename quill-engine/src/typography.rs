@@ -701,6 +701,33 @@ mod tests {
         );
     }
 
+    /// The Editor's top margin is [`page_top`] less the paragraph's `below`
+    /// (`quill::editor`'s `restyle`), on a `u32`. Two pitches used to make
+    /// that safe by construction and a constant 30 does not, so the claim the
+    /// saturating subtraction rests on is asserted here over the whole ladder
+    /// rather than measured once.
+    ///
+    /// `below` is half the air a pitch leaves around a row of ink, so the most
+    /// of it any Face can produce is at the shortest row that Face draws. A
+    /// row of ink is never shorter than the em on the Quill Faces — Duo, Mono
+    /// and Quattro measure 19 logical px at step 0's em of 14.50 and 83 at
+    /// step 13's 62.58, the same three to the pixel — so the em is the floor,
+    /// and a step tested at it is tested for every Face that clears it.
+    #[test]
+    fn no_steps_leading_eats_the_page_top() {
+        let top = page_top(1.0);
+        for step in steps() {
+            let shortest_row = em(step).ceil() as u32;
+            let below = leading(pitch(step, 1.0), shortest_row).below;
+            assert!(
+                below < top,
+                "step {step} leaves {below} px of air under a row an em tall, \
+                 against a {top} px page top: the Editor's top margin saturates \
+                 to nothing and the page opens hard against the window"
+            );
+        }
+    }
+
     #[test]
     fn a_row_already_inside_the_band_is_left_where_it_is_at_every_viewport() {
         for (viewport, row_top) in [(900.0, 1200.0), (600.0, 1200.0), (1200.0, 1300.0)] {
