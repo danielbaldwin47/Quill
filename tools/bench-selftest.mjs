@@ -14,6 +14,7 @@
 
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -22,7 +23,10 @@ import {
   pointerLeft, regimeLine, summary, verdict, writeGaps,
 } from './bench-join.mjs';
 import { PANEL_WORKSPACE, panelRefusal, physicalMonitors } from './harness.mjs';
-import { DEFAULT_KEYS, hash32, regimes, scoredRegime, script, uinputPlan } from './regimes.mjs';
+import { DEFAULT_KEYS, PAUSE_MS, REFRESH_MS, hash32, regimes, scoredRegime, script, uinputPlan } from './regimes.mjs';
+
+// The checkout, for the two cases that ask the app and the injector rather than a table copied here.
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 let cases = 0;
 let failures = 0;
@@ -466,14 +470,45 @@ ok('the chord regimes press chords, and bursts_and_pauses pauses every 25 keys',
   const bursts = planOf('bursts_and_pauses');
   const paused = bursts.keys.map((k, i) => (k.pause_ms == null ? null : i)).filter((i) => i != null);
   assert.deepEqual(paused, [24, 49, 74, 99, 124, 149, 174, 199, 224, 249, 274, 299]);
-  assert.ok(bursts.keys.every((k) => k.pause_ms == null || k.pause_ms === 1400));
+  assert.ok(bursts.keys.every((k) => k.pause_ms == null || k.pause_ms === PAUSE_MS));
 
   assert.equal(planOf('fast_typist').pace_ms, 45);
   assert.equal(planOf('saturation_stress').pace_ms, 8, 'the injector floor stands in for a pace of 0');
 });
 
+// The pause is a number chosen against the app's own idle timers, and the app is where those
+// timers live. Asked of the Rust rather than of a table copied over here, for the same reason the
+// case below asks the injector: moving `TITLE_MS`, or restoring 1,400 as a rounder pause, should be
+// a red case rather than eleven keys of three hundred quietly measuring the chrome's return (#349).
+ok('the pause clears every timer the app arms from the last keystroke', () => {
+  const num = (file, re, what) => {
+    const m = readFileSync(path.join(root, file), 'utf8').match(re);
+    assert.ok(m, `${what} is no longer where this case looks for it in ${file}, so the pause can no `
+      + 'longer be checked against it');
+    return Number(m[1].replace(/_/g, ''));
+  };
+  const typing = 'quill/src/chrome/typing.rs';
+  const window = 'quill/src/window.rs';
+  // The harness's `DRAIN_EVERY` and `TAIL` are not here: that tick repeats from the window's
+  // creation rather than from a keystroke, so its phase is not the pause's to clear and no pause
+  // value could clear it. Round 3 saw neither of them paint.
+  const armed = [
+    ['Typing::STATS_MS', num(typing, /pub const STATS_MS: i64 = ([\d_]+);/, 'STATS_MS')],
+    ['Typing::TITLE_MS', num(typing, /pub const TITLE_MS: i64 = ([\d_]+);/, 'TITLE_MS')],
+    ['AUTOSAVE', num(window, /const AUTOSAVE: Duration = Duration::from_secs\(([\d_]+)\)/, 'AUTOSAVE') * 1000],
+    ['Preview REFRESH', num(window, /const REFRESH: Duration = Duration::from_millis\(([\d_]+)\)/, 'REFRESH')],
+  ];
+  for (const [name, fires] of armed) {
+    // One-sided on purpose. A timer that fires *before* the pause ends takes the refresh slot the
+    // key that ends the pause needed; one that fires after has already lost that slot to the key,
+    // and paints between two keys 90 ms apart.
+    assert.ok(PAUSE_MS < fires || PAUSE_MS - fires > REFRESH_MS,
+      `the ${PAUSE_MS} ms pause ends ${(PAUSE_MS - fires).toFixed(1)} ms after ${name} (${fires} ms) `
+      + `fires, inside the ${REFRESH_MS.toFixed(1)} ms refresh that timer's frame takes`);
+  }
+});
+
 ok('the injector can say every press the fifteen ask for', () => {
-  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const wanted = new Set();
   for (const r of regimes()) {
     for (const k of uinputPlan(script(r.mix, DEFAULT_KEYS, hash32(r.name)), r.pace).plan.keys) wanted.add(k.press);
