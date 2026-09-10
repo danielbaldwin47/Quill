@@ -6,53 +6,45 @@ last one was presented, so a key whose handler lands inside that interval waits
 for the slot. This buckets every key by how long before its handler the previous
 frame was painted, and prints what the keys in each bucket cost.
 
-usage: paced.py <stage dir>... [--session N]
+usage: paced.py <stage dir>... [--session N|all]
 """
 import bisect
-import json
 import sys
 
-def load(path):
-    return [json.loads(line) for line in open(path) if line.strip()]
+import evidence
 
-BUCKETS = [(0, 2), (2, 5), (5, 10), (10, 16.7), (16.7, 50), (50, 1e9)]
+BUCKETS = [(0, 2), (2, 5), (5, 10), (10, 16.7), (16.7, 50), (50, None)]
 
 def main(argv):
-    sessions = [0]
-    if '--session' in argv:
-        at = argv.index('--session')
-        said = argv[at + 1]
-        sessions = [0, 1] if said == 'all' else [int(said)]
-        argv = argv[:at] + argv[at + 2:]
-    stages = [a for a in argv if not a.startswith('--')]
+    stages, said = evidence.flags(argv, {'--session': str})
+    if not stages:
+        raise SystemExit('usage: paced.py <stage dir>... [--session N|all]')
+    asked = said.get('--session', '0')
+    sessions = [0, 1] if asked == 'all' else [int(asked)]
 
     rows = []
-    for stage, session in ((s, n) for s in stages for n in sessions):
-        keys = load(f'{stage}/capture-{session}.jsonl')
-        probe = load(f'{stage}/capture-{session}.probe.jsonl')
-        paint = {e['frame']: e['at_us'] for e in probe if e['kind'] == 'paint'}
-        before = {e['frame']: e['at_us'] for e in probe if e['kind'] == 'phase' and e['name'] == 'before'}
-        paints = sorted(e['at_us'] for e in probe if e['kind'] == 'paint')
-        for k in keys:
-            f, h, p = k['frame'], k['handler_us'], k['present_us']
-            if p is None or f not in paint:
-                continue
-            i = bisect.bisect_left(paints, h) - 1
-            since = (h - paints[i]) / 1000.0 if i >= 0 else float('inf')
-            b = before.get(f, paint[f])
-            rows.append((since, (b - h) / 1000.0, (paint[f] - b) / 1000.0,
-                         (p - paint[f]) / 1000.0, (p - h) / 1000.0))
+    for stage in stages:
+        for session in sessions:
+            run = evidence.Session(stage, session)
+            for key in run.keys:
+                split = run.split(key)
+                if split is None:
+                    continue
+                at = bisect.bisect_left(run.paints, key['handler_us']) - 1
+                since = ((key['handler_us'] - run.paints[at]) / 1000.0
+                         if at >= 0 else float('inf'))
+                rows.append((since,) + split)
 
     print(f'{len(rows)} accounted keys with a paint probe')
     print(f'{"paint was ago":>16} {"keys":>6} {"wait p50":>9} {"wait max":>9} '
           f'{"total p50":>10} {"total p99":>10} {"total max":>10}')
-    for lo, hi in BUCKETS:
-        got = [r for r in rows if lo <= r[0] < hi]
+    for low, high in BUCKETS:
+        got = [r for r in rows if low <= r[0] and (high is None or r[0] < high)]
         if not got:
             continue
         waits = sorted(r[1] for r in got)
         totals = sorted(r[4] for r in got)
-        label = f'{lo:g}-{hi:g} ms' if hi < 1e9 else f'>{lo:g} ms'
+        label = f'{low:g}-{high:g} ms' if high is not None else f'>{low:g} ms'
         print(f'{label:>16} {len(got):>6} {waits[len(waits) // 2]:>9.2f} {waits[-1]:>9.2f} '
               f'{totals[len(totals) // 2]:>10.2f} {totals[int(len(totals) * 0.99)]:>10.2f} '
               f'{totals[-1]:>10.2f}')

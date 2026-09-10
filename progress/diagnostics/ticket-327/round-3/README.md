@@ -1,7 +1,7 @@
 # #327, round 3: the pause band named, 2026-09-10 UTC
 
-`bursts_and_pauses` scores eleven keys a run at 13.5–16.9 ms while its other 289
-sit under 4 ms — the band [#347's
+`bursts_and_pauses` scores eleven keys a run at 13.5–16.9 ms while 288 of its
+other 289 sit under 4.03 ms — the band [#347's
 session](https://github.com/danielbaldwin47/Quill/issues/327#issuecomment-5612599623)
 handed to this ticket as its deterministic repro. Round 3 caught it under every
 probe on the first attempt and named it end to end:
@@ -101,7 +101,10 @@ capture rather than the eleven, bucketed by `prevpaint`:
 | 0–2 ms before | 10 | 14.03 | 14.35 | 15.59 | 16.35 |
 | 2–5 ms before | 12 | 12.21 | 14.01 | 14.08 | 16.94 |
 | 10–16.7 ms before | 1 | 6.53 | 6.53 | 7.76 | 7.76 |
-| more than 16.7 ms before | 641 | 0.37 | 0.80 | 1.75 | 9.36 |
+| 16.7–50 ms before | 3 | 0.36 | 0.59 | 2.03 | 4.19 |
+| more than 50 ms before | 638 | 0.37 | 0.80 | 1.75 | 9.36 |
+
+Those are the tool's own five rows, unmerged; the 5–10 ms bucket is empty.
 
 The wait is one refresh interval minus however long ago the last frame was
 presented, and it is nothing at all once a refresh has passed. That is GDK's
@@ -121,12 +124,12 @@ at T, read off the probe and confirmed against the wire log:
 | T+828.84 | 100 | **no** | a frame cycle that committed nothing |
 | T+1401.28 | 101 | yes | the title bar back — `TITLE_MS` |
 | T+1402.75 | 102 | **no** | a frame cycle that committed nothing |
-| T+1405.40 | — | — | **the key**, 2.70 ms after frame 101 was presented |
+| T+1405.40 | — | — | **the key**, 2.70 ms after frame 101 was *presented* (whose after-paint is the 4.12 ms row above) |
 | T+1418.31 | 103 | yes | the key's frame, one refresh after frame 101 |
 
 `STATS_MS = 500` and `TITLE_MS = 1400` are `quill/src/chrome/typing.rs:25` and
-`:28`, armed by `Window::settle` (`quill/src/window.rs:2814`) from
-`Typing::resumes_at`. They are the Parity oracle's own `chrome.js` `tA` and `tB`.
+`:28`, armed by `Window::settle` (`quill/src/window.rs:2812`, from
+`Typing::resumes_at` at `:2810`). They are the Parity oracle's own `chrome.js` `tA` and `tB`.
 The regime's `pauseMs` is 1,400 — the same number — so the title bar's return
 frame and the key that ends the pause arrive together, every pause, in both
 sessions, by construction.
@@ -137,12 +140,24 @@ On the wire (`capture/wayland-416796.log`, local stamps, UTC+4 of the GDK log):
 13:26:37.509617  -> wl_surface#44.commit()                     frame 101, the title bar
 13:26:37.511094  wp_presentation_feedback#69.presented(... 45919 668566617 ...)
 13:26:37.513724  wl_keyboard#43.key(80315, 45919670, 32, 1)    the key, 2.70 ms later
-13:26:37.526637  -> wl_surface#44.commit()                     frame 103, 12.8 ms after the key
+13:26:37.526637  -> wl_surface#44.commit()                     frame 103, 12.9 ms after the key
 13:26:37.527883  wp_presentation_feedback#70.presented(... 45919 685300700 ...)
 ```
 
 16.73 ms between the two presentations; 14.03 ms from the handler to the second.
-Nothing came in from the compositor between them but an `xdg_wm_base.ping`. The
+Nothing came in from the compositor between them but an `xdg_wm_base.ping`.
+
+**The frame callback was answered before the key arrived.** The plan asks this
+of the last commit before the key, because GDK's Wayland backend will not start
+a paint while a frame callback is outstanding, and a headless output with
+nothing to render might hold one. It does not: frame 101's callback comes back
+as `wl_callback#70.done(45919668)` at `13:26:37.511070`, **2.65 ms before** the
+key's `wl_keyboard.key`, and its `wp_presentation_feedback` says `presented`
+rather than `discarded` in the same microsecond. GDK was free to paint when the
+key landed and chose to wait; the plan's third possible outcome — the backend
+waiting on a callback the output withholds — is ruled out here, not deferred.
+
+The
 `comp` column above is the whole answer to whether the output has a vblank to
 wait for: after-paint to presented is 0.7–2.4 ms whatever the phase, so this
 headless output presents on commit and the whole 12–14 ms is GDK pacing the
@@ -219,11 +234,42 @@ Naming the line inside the layout phase needs a probe this round did not have �
 that is round 4, and it is the one thing standing between this ticket and its
 original failures.
 
-## What was changed
+## What was changed, and why the fix this outcome names was not made
 
 Nothing. No production code, no harness, no timestamp acceptance, no budget, no
 scoring, no regime. The round-3 tooling under [tools/](tools/) reads archives and
 runs nothing.
+
+This is the round-3 plan's **outcome two** — "an app source paints inside the
+pause and that paint paces the key" — and that outcome's fix is "fix that source
+(a status tick that draws nothing new should not `queue_draw`, and so on)". The
+parenthesis is the case this is not. The source here draws something new: at
+T+1,400 the title bar goes from `TITLE_FADED` to full strength, which is a
+visible change and has to reach the glass. Nor can the app hold the frame back
+for the key: at T+1,400 nothing in the process knows a key is coming at
+T+1,405 — the key has not left `/dev/uinput` — so any rule that deferred the
+chrome's return until after it would have to be clairvoyant, and any rule that
+deferred it by a fixed amount would only move the collision to a different pause
+length.
+
+What is left is `TITLE_MS` itself. 1,400 ms is the Parity oracle's own
+`chrome.js` `tB`, and moving it is a design change to what a writer sees, which
+belongs to the owner and to `docs/design.md` rather than to a latency ticket.
+Round 2 settled the same question the same way for the chrome's opacity
+transition: "it is what a writer sees, and the Gate's question is what the
+writer's keys cost, not what the owner's mouse costs."
+
+So the fix outcome two names is unavailable, and what remains is the Gate's own
+fixture. That is the question below.
+
+**Noticed in passing, not this ticket.** A `--sessions 2` result reports
+`accounting.keys_sharing_a_frame: 300` where the same regime at `--sessions 1`
+reports `0` — exactly one session's worth. Each session's frame counter starts
+again at its own launch, so pooling two sessions makes every frame number occur
+twice. The per-key numbers are unaffected (each key keeps its own handler and
+presentation stamps, and `every_keystroke_accounted_for` is `true`), but the
+field is counting launches rather than keys. It is in the production join, not
+in anything this round changed.
 
 ## The question for the owner
 
@@ -264,9 +310,14 @@ at 24.67 mean. Every regime accounted for every key; no focus loss, no pointer
 leave. `tools/gate judge latency`: **ours, round 7**
 (`progress/rounds/latency-r7.json`).
 
+`RUST_TEST_THREADS=1 tools/gate check`: **pass**, all fourteen steps, on the
+reverted tree.
+
 The band is in that run's samples as plainly as anywhere: indices 25, 50, 75 …
 275 read 14.81, 13.33, 13.42, 13.98, 13.60, 14.76, 14.06, 13.95, 14.87, 13.84,
-14.00, and the other 289 keys read 1.34–4.03.
+14.00. Of the other 289, 288 read 1.34–4.03; the one exception is index 277 at
+12.00 ms, which is not a pause-follower and is the sort of isolated key § revision's
+37.77 ms key is about.
 
 ## Reproduce and continue
 
@@ -278,6 +329,11 @@ python3 $R/tools/pause.py /tmp/r3/capture/quill-gate-6Bj9zl --session 0 --gap 10
 python3 $R/tools/paced.py /tmp/r3/capture/quill-gate-6Bj9zl --session all
 python3 $R/tools/worst.py /tmp/r3/revision/quill-gate-XsyY82 --session 0 --top 2 --window 50
 ```
+
+The three read archives and nothing else; what they share — a session's capture
+and probe files, the wait/draw/comp split, and one observation rendered as a
+line — is [tools/evidence.py](tools/evidence.py) beside them, and a mistyped flag
+is an error rather than a silently different measurement.
 
 Round 2's [timeline.py](../round-2/tools/timeline.py) and
 [split.py](../round-2/tools/split.py) read these archives too; `clocks.log`'s
