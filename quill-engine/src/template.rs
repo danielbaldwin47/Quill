@@ -397,9 +397,10 @@ mod tests {
             ] {
                 assert_eq!(ems, rhythm.line_height, "{id}'s {name} is one pitch");
             }
-            // And the shared Web paper Modern and Classic render on, in place
-            // of the Editor's ground (`CAPTURE-2026-09-09.md` § "#261 —
-            // Preview" for the dark page; the light one is Modern's).
+            // And the shared Web paper in place of the Editor's ground: the
+            // dark page Modern and Classic both render on, which
+            // `CAPTURE-2026-09-09.md` § "#261 — Preview" reads off Manuscript
+            // (Duo) too, and Modern's light page, unmeasured for a Manuscript.
             assert_eq!(manuscript.dark.paper, Colour::from_hex("#101010"));
             assert_eq!(manuscript.dark.ink, Colour::from_hex("#cccccc"));
             assert_eq!(manuscript.light.paper, Colour::from_hex("#fcfcfc"));

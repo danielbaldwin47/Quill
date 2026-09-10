@@ -17,8 +17,10 @@
 # The 1.0 em these files held gave 1 + 1/1.711 = 1.58 pitches; the 1.711 em
 # they hold now gives two, one line of type and one pitch of air, and it is
 # the Editor's own blank line rather than a port of iA's Manuscript template
-# (`VERDICTS.md` § 4.3.5), so no further capture is owed for it. A pitch is
-# still base × line_height and separates neither factor.
+# (`VERDICTS.md` § 4.3.5), so no further capture is owed for it. The pitch
+# itself is unchanged, base × line_height, and this capture separates neither
+# factor: which of them carries the 2 % between Classic's 68 px and this
+# family's 72 px waits on an em read from ink (ADR 0019).
 
 id = "manuscript-duo"
 paragraphs = "spaced"

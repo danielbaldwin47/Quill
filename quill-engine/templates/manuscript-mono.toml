@@ -8,8 +8,8 @@
 # of step 5 at 96 dpi (`typography::LADDER`), 1.711 is that step's leading
 # (a 36.5 px pitch over the em), 38.4 em is the 64-cell measure on the
 # 0.6 em cell the Quill Faces are cut on, and the three spacing fields are
-# that same 1.711 em: one pitch of air, the Editor's blank line, which is also
-# the two pitches iA's Manuscript measures between paragraphs (ADR 0019).
+# that same 1.711 em: one pitch of air, the Editor's blank line, so a paragraph
+# advances by the two pitches iA's Manuscript measures (ADR 0019).
 
 id = "manuscript-mono"
 paragraphs = "spaced"
@@ -39,7 +39,8 @@ weight = 700
 # Web page Modern and Classic render on, #101010 dark (measured off Manuscript
 # (Duo), `manuscript-duo.toml`) and #fcfcfc light (Modern's, unmeasured for a
 # Manuscript), per ADR 0019's baseline pass. The inks, the muted, the link and
-# the code ground are the Editor's own, captured in no scheme.
+# the code ground are the Editor's own, captured in no scheme except the dark
+# ink, which that Duo capture reads at the Editor's #cccccc.
 
 [light]
 paper = "#fcfcfc"
