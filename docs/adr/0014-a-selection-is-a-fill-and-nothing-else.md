@@ -13,6 +13,12 @@ states a `mac-native` opponent (the Gate's per-state key is #161), so a round is
 loss is a loss again. And its "wider question is open, not answered here" is answered there —
 `docs/design.md` decides the writing surface row by row.*
 
+*Narrowed on 2026-09-09 by [ADR 0015](0015-the-design-oracle-outranks-the-parity-oracle.md):
+§ Considered options' "one bar, at the active end only" is what iA Writer for **Windows** showed
+under Wine, which is not an oracle, so "a real iA Writer" and "the two builds genuinely differ"
+stand as unmeasured until a native Windows capture says so. The option was rejected on the owner's
+ask and nothing here moves.*
+
 A selection is drawn as its fill rows and nothing else: no bar at either end, and the caret stays
 out for as long as it stands. This supersedes the "a bar at each end" of
 [ADR 0012](0012-editor-draws-its-own-selection.md) — its opening sentence, its
