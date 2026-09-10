@@ -1,0 +1,2366 @@
+{
+ "run": "2026-09-10, original 14-inch M1 MacBook Pro, built-in display",
+ "tickets": [
+  343,
+  344
+ ],
+ "rig": {
+  "machine": "MacBook Pro 14-inch, MacBookPro18,3, Apple M1 Pro",
+  "display": "built-in Color LCD, Liquid Retina XDR, internal",
+  "display_px": "3024 x 1964",
+  "display_pt": "1512 x 982",
+  "backing_scale": 2.0,
+  "display_profile": "Display #1 2025-12-15 13-06 2.4 F-S 1xCurve+MTX (DisplayCAL)",
+  "display_profile_file": "ref/ia/mac-native/rig/display-calibrated-2025-12-15.icc",
+  "normalised_into": "ref/ia/mac-native/rig/display.icc",
+  "macos": "27.0 (26A428)",
+  "ia_writer": "8.0.6 (80046)",
+  "show_scroll_bars": "Automatic",
+  "window_bounds": "{0,33,<width>,982} \u2014 the width is the variable of #344",
+  "editor": "Mono; System - Default typography; text size and line length limit as each state names",
+  "modes": "Library hidden; Focus, Typewriter, Syntax, Style Check and Authors off; Preview hidden except the #343 Preview states",
+  "display_profile_sha256": "67b552091a3321163bc9599b6782c598bf354e6e74b121e0a8444940b9496042",
+  "normalised_into_sha256": "a0b31a47075bdf160987ef7bd1370885713348290017d592a0f8850ec946f97e"
+ },
+ "captures": {
+  "mac-native-22-light-narrow-w0440-step05-all": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w0440-step05-all.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w0440-step05-all.png",
+   "sha256": "5acab818b0e1bf32c44f6ce0adc9f1bb1fda8fcc3385eae12898c3c06e44cd17",
+   "raw_sha256": "7ed6af021ef44ea9a7019a160c698cc6839acc2f5f67575b5eed9f3913b6a298",
+   "size_px": [
+    880,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    440,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w0440-step05",
+   "kind": "all",
+   "passage": "ref/sample.md",
+   "width_pt": 440,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w0440-step05-plain": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w0440-step05-plain.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w0440-step05-plain.png",
+   "sha256": "0103932aa4ffc4c35369fc3270de6691fe5f580d356d8e7c8a65d7d43c6272ef",
+   "raw_sha256": "bec60d79a2b25a18e6503c1eddb88d4d0d606030b7647ccd5004fcdc01960f6a",
+   "size_px": [
+    880,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    440,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w0440-step05",
+   "kind": "plain",
+   "passage": "ref/sample.md",
+   "width_pt": 440,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w0440-step05-sel10": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w0440-step05-sel10.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w0440-step05-sel10.png",
+   "sha256": "6dcb4aec2f73cc9db6f4f355e5b0112137325e2f8a4041b4bb00474e40108449",
+   "raw_sha256": "b8e6d17070ad6f0b7148f29cdd678242f3ff67f9619ed906b49849b90bb770b2",
+   "size_px": [
+    880,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    440,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w0440-step05",
+   "kind": "sel10",
+   "passage": "ref/sample.md",
+   "width_pt": 440,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w0440-step05-sel20": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w0440-step05-sel20.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w0440-step05-sel20.png",
+   "sha256": "55c584519b24b2e5b4c2ff3ff9a699f3e5e5f212d68737398f06ef92984ec89f",
+   "raw_sha256": "ebe992de0aeefac8971742addc693ee1bb3c605c2bb6cda60fb568797487dc7e",
+   "size_px": [
+    880,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    440,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w0440-step05",
+   "kind": "sel20",
+   "passage": "ref/sample.md",
+   "width_pt": 440,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w0441-step05-all": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w0441-step05-all.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w0441-step05-all.png",
+   "sha256": "65a65cd8b4d38b6f9bcb7dcc3157ba3b5fd87b95e455075a2a2b3c9b064d1740",
+   "raw_sha256": "8f00e1b2e9d7352f6a64f9a571983331e2fb6d0eaed1c46d4e9a14cd870f4f44",
+   "size_px": [
+    882,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    441,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w0441-step05",
+   "kind": "all",
+   "passage": "ref/sample.md",
+   "width_pt": 441,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w0441-step05-plain": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w0441-step05-plain.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w0441-step05-plain.png",
+   "sha256": "d77a3a99d146305fc402941fca6bb322f0db8894062c945daeee46a1b80fa41f",
+   "raw_sha256": "855815db0898f523d984f9f6d90d61675046345d901864dfb39c6c819cdd3cdd",
+   "size_px": [
+    882,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    441,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w0441-step05",
+   "kind": "plain",
+   "passage": "ref/sample.md",
+   "width_pt": 441,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w0441-step05-sel10": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w0441-step05-sel10.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w0441-step05-sel10.png",
+   "sha256": "2b2517744cce954a2f46b1508a489fb0fbf336463960afe7771deb2cfccd36c9",
+   "raw_sha256": "2bc7e363a21d2ee746a0b11a9e83387d74c66042e6af41d9c68b3bbfef1ef23d",
+   "size_px": [
+    882,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    441,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w0441-step05",
+   "kind": "sel10",
+   "passage": "ref/sample.md",
+   "width_pt": 441,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w0441-step05-sel20": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w0441-step05-sel20.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w0441-step05-sel20.png",
+   "sha256": "e57a41a1466231cace342d2b6c53b5c47a5a4dd73c4d167f718469c2b3b71698",
+   "raw_sha256": "4675b677162adef32d4e44c462925c45f69fd12356144bdfe97ef5216e3936ba",
+   "size_px": [
+    882,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    441,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w0441-step05",
+   "kind": "sel20",
+   "passage": "ref/sample.md",
+   "width_pt": 441,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w0960-step05-all": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w0960-step05-all.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w0960-step05-all.png",
+   "sha256": "1dfd8716aa3cf0ae8d12bdc21d413ee3c710e661ae1ad5cd083ee2d39fda4b8b",
+   "raw_sha256": "9b7ec33740d2355c37bba3d315f84fc62ed584154cdaaf08dda87300ca6cea25",
+   "size_px": [
+    1920,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    960,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w0960-step05",
+   "kind": "all",
+   "passage": "ref/sample.md",
+   "width_pt": 960,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w0960-step05-plain": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w0960-step05-plain.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w0960-step05-plain.png",
+   "sha256": "1bcea2ecc474e543bee2264faa3459fc914825d140a171ee71ecb2406c4e341d",
+   "raw_sha256": "1f62dfc47fe00674db0c698188942cc0e2ed5becbb836be05f0bd7b90c17e30e",
+   "size_px": [
+    1920,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    960,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w0960-step05",
+   "kind": "plain",
+   "passage": "ref/sample.md",
+   "width_pt": 960,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w0960-step05-sel10": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w0960-step05-sel10.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w0960-step05-sel10.png",
+   "sha256": "f59da32baee5fc4e539c6a3ace9a985a9016bbf9d2999f0d0388e0213f7affe0",
+   "raw_sha256": "cbe40081d68e22a57e188bdc4e7bc23ff1c0fbde956a0d0538ba46abd57408d3",
+   "size_px": [
+    1920,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    960,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w0960-step05",
+   "kind": "sel10",
+   "passage": "ref/sample.md",
+   "width_pt": 960,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w0960-step05-sel20": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w0960-step05-sel20.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w0960-step05-sel20.png",
+   "sha256": "7415c5458659a9ddddaf50ea245d9753e9a45e2aee337b3c35fca0dea1eaa450",
+   "raw_sha256": "ab54961f111939385d67c4ff60a4658565f12c7fb10659288c8be046d02e6814",
+   "size_px": [
+    1920,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    960,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w0960-step05",
+   "kind": "sel20",
+   "passage": "ref/sample.md",
+   "width_pt": 960,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w0960-step05-sel40": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w0960-step05-sel40.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w0960-step05-sel40.png",
+   "sha256": "3d5231bcd2ffdc0ec685c695946a5dd166cd9c6d0b547717c1fdf9c1f329c766",
+   "raw_sha256": "296bab2a1b43c4a3fa57b12150ebbd344f9b50ed870a4404e82bb497f31a0c2c",
+   "size_px": [
+    1920,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    960,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w0960-step05",
+   "kind": "sel40",
+   "passage": "ref/sample.md",
+   "width_pt": 960,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w0960-step08-all": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w0960-step08-all.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w0960-step08-all.png",
+   "sha256": "ffeb146b76fc247bec69c82f5ffa66b0dcc64a1ef4ba9c7492c3c8e149515e78",
+   "raw_sha256": "b6efcf98aab6e902d863bf16f8dcd3b1fa5791c6af3b6cb7a3476fc2fbfc2701",
+   "size_px": [
+    1920,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    960,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w0960-step08",
+   "kind": "all",
+   "passage": "ref/sample.md",
+   "width_pt": 960,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w0960-step08-plain": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w0960-step08-plain.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w0960-step08-plain.png",
+   "sha256": "fbda001d5f80ab36ab635a746a1514d58b6f4da3797a8312b3d3a68d474c64ca",
+   "raw_sha256": "477457e9318bb2e27554cc816bfe1968dd322a7025a7dcc76c562157c7fda92b",
+   "size_px": [
+    1920,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    960,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w0960-step08",
+   "kind": "plain",
+   "passage": "ref/sample.md",
+   "width_pt": 960,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w0960-step08-sel10": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w0960-step08-sel10.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w0960-step08-sel10.png",
+   "sha256": "9420c5cec046cd09644fdab7be941beba59acb268ffbe9d81e45e669f24b7c28",
+   "raw_sha256": "0d42ec146ee9129f5b64057e2c1186fdaa36d7b8b3efc63b1cffbcba593c5c74",
+   "size_px": [
+    1920,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    960,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w0960-step08",
+   "kind": "sel10",
+   "passage": "ref/sample.md",
+   "width_pt": 960,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w0960-step08-sel20": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w0960-step08-sel20.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w0960-step08-sel20.png",
+   "sha256": "89874c1f81303752402dff981a20157c4c91266f5d2a2d08ff9a3e48c068fcb8",
+   "raw_sha256": "b460fae2615db20acfb3f1d03b2c0ccf5894122611a26ee030dc17aebe9d34e7",
+   "size_px": [
+    1920,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    960,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w0960-step08",
+   "kind": "sel20",
+   "passage": "ref/sample.md",
+   "width_pt": 960,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w0960-step08-sel30": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w0960-step08-sel30.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w0960-step08-sel30.png",
+   "sha256": "183a11c41aa360fc8b9362e5b2d0f80f126b7e8b67470fc51d679bd489c35074",
+   "raw_sha256": "3baaa395e7d252093c8d64a6fae9e7c359c2ddaa8ab197fbc7b2195f3eeabe80",
+   "size_px": [
+    1920,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    960,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w0960-step08",
+   "kind": "sel30",
+   "passage": "ref/sample.md",
+   "width_pt": 960,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1040-step05-all": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1040-step05-all.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1040-step05-all.png",
+   "sha256": "f5f94b0827dafcbed0b96d4a97818c202612558c67638344ed9e1509e954a055",
+   "raw_sha256": "5b6e052ebdd3ff6a1ef3a0de05c3710ee376a7dc5a9deb201d5a0f52779f5b2a",
+   "size_px": [
+    2080,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1040,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1040-step05",
+   "kind": "all",
+   "passage": "ref/sample.md",
+   "width_pt": 1040,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1040-step05-limit80-all": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1040-step05-limit80-all.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1040-step05-limit80-all.png",
+   "sha256": "f730a95e3a9ea74c6f300fd49a9c6f3bd2ffc6ba0db6c869b3ffd52c759bf086",
+   "raw_sha256": "240bacb16ceb71180f5e5aa1c7ddcdc3b8cba19c70b88946f0744d2f286efb8b",
+   "size_px": [
+    2080,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1040,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1040-step05-limit80",
+   "kind": "all",
+   "passage": "ref/sample.md",
+   "width_pt": 1040,
+   "text_size_step": 5,
+   "line_length_limit": 80
+  },
+  "mac-native-22-light-narrow-w1040-step05-limit80-plain": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1040-step05-limit80-plain.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1040-step05-limit80-plain.png",
+   "sha256": "23c8430f86e860a9099488a8b89e06a18e5c15508d7a29bf7dd258f785221979",
+   "raw_sha256": "4c749b3ebe5f82c8ce040710e493e4abba768dfc8c960ece224df3ac296a90dc",
+   "size_px": [
+    2080,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1040,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1040-step05-limit80",
+   "kind": "plain",
+   "passage": "ref/sample.md",
+   "width_pt": 1040,
+   "text_size_step": 5,
+   "line_length_limit": 80
+  },
+  "mac-native-22-light-narrow-w1040-step05-limit80-sel10": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1040-step05-limit80-sel10.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1040-step05-limit80-sel10.png",
+   "sha256": "6f0b8f4926cde9f2e14d1830e39dcffb46c4cd8aeccabec99e112fd86cb3bbaa",
+   "raw_sha256": "de6076be5c580ae8b611f2d794b9cfd15f94ea4e6b0223dc3c1e1ac500467cba",
+   "size_px": [
+    2080,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1040,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1040-step05-limit80",
+   "kind": "sel10",
+   "passage": "ref/sample.md",
+   "width_pt": 1040,
+   "text_size_step": 5,
+   "line_length_limit": 80
+  },
+  "mac-native-22-light-narrow-w1040-step05-limit80-sel20": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1040-step05-limit80-sel20.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1040-step05-limit80-sel20.png",
+   "sha256": "19d55bb86144e03b8e11cfd091312c69593e3d9abf8c6e3f895cbc194227061f",
+   "raw_sha256": "1f78114fa877b8f90bd0bb6a74ae39c34e5dd079c294ec6950dc719e358ebe2e",
+   "size_px": [
+    2080,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1040,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1040-step05-limit80",
+   "kind": "sel20",
+   "passage": "ref/sample.md",
+   "width_pt": 1040,
+   "text_size_step": 5,
+   "line_length_limit": 80
+  },
+  "mac-native-22-light-narrow-w1040-step05-limit80-sel40": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1040-step05-limit80-sel40.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1040-step05-limit80-sel40.png",
+   "sha256": "cd27125c2a826f5bb62c15354066a0037152c46110f569728a18733a816cca97",
+   "raw_sha256": "e06f38d3a22cf07abbe8f093e8867ea85a412bbba9eb17c043499feadc641d46",
+   "size_px": [
+    2080,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1040,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1040-step05-limit80",
+   "kind": "sel40",
+   "passage": "ref/sample.md",
+   "width_pt": 1040,
+   "text_size_step": 5,
+   "line_length_limit": 80
+  },
+  "mac-native-22-light-narrow-w1040-step05-plain": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1040-step05-plain.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1040-step05-plain.png",
+   "sha256": "43ecf80d3dcd9f83bcadbf99ad22ebf90723591bcde5e013bc08cf14637188c9",
+   "raw_sha256": "a49fb8f199518bd397a55eadff6bff4afe5b18baf7488a4cc458257285e01401",
+   "size_px": [
+    2080,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1040,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1040-step05",
+   "kind": "plain",
+   "passage": "ref/sample.md",
+   "width_pt": 1040,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1040-step05-sel10": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1040-step05-sel10.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1040-step05-sel10.png",
+   "sha256": "f5033a2de49103f9d436d2b42aa6e0db9c6995f5952979838a0cd50cf559f0f8",
+   "raw_sha256": "86cfb14cea8a9f6d72b0f9cddaf41475616dd3bf32325f13adff04c732d280ad",
+   "size_px": [
+    2080,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1040,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1040-step05",
+   "kind": "sel10",
+   "passage": "ref/sample.md",
+   "width_pt": 1040,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1040-step05-sel20": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1040-step05-sel20.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1040-step05-sel20.png",
+   "sha256": "c617ff5d001308e2a7950ab177e95be46c834206be8b5306107ac7d716827c8d",
+   "raw_sha256": "eebf4a301b7b4af06359f196cf72558c35e53b3ba93f274315a8b837b540906a",
+   "size_px": [
+    2080,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1040,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1040-step05",
+   "kind": "sel20",
+   "passage": "ref/sample.md",
+   "width_pt": 1040,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1040-step05-sel40": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1040-step05-sel40.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1040-step05-sel40.png",
+   "sha256": "9fd3d78f067d6fc955851772c17234ccff7cfe2e18c9b6d2ed14e6d55f662969",
+   "raw_sha256": "3295fb831c39631b5916c06148cd9981c8ec8bd3b74afdb63888b2e7fcd85481",
+   "size_px": [
+    2080,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1040,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1040-step05",
+   "kind": "sel40",
+   "passage": "ref/sample.md",
+   "width_pt": 1040,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1040-step08-all": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1040-step08-all.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1040-step08-all.png",
+   "sha256": "4ba88f3e9e0ff514733cbd3965898f59b3635d37ab87e14fc090fe17ad22fc67",
+   "raw_sha256": "00e90419a1c61fe0f236288c727b080ca529f3d1a2aaf37918c16218923a014d",
+   "size_px": [
+    2080,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1040,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1040-step08",
+   "kind": "all",
+   "passage": "ref/sample.md",
+   "width_pt": 1040,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1040-step08-plain": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1040-step08-plain.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1040-step08-plain.png",
+   "sha256": "4dc7d8231b651d759dac62eb7a547c6bb193e2da5ca5107329cad1800b2dda19",
+   "raw_sha256": "e00d03191cbe334abb501f2e8d149c51b774025d337c1adfdde1b309b96043dc",
+   "size_px": [
+    2080,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1040,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1040-step08",
+   "kind": "plain",
+   "passage": "ref/sample.md",
+   "width_pt": 1040,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1040-step08-sel10": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1040-step08-sel10.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1040-step08-sel10.png",
+   "sha256": "a9a30c5228819ee32ba839baeea427b735bef65be1ba157fb9b109045fc118db",
+   "raw_sha256": "328c7f68581eaf2267acbd500f4cf551119e18baadc9c19b6e1b9110db1f7169",
+   "size_px": [
+    2080,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1040,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1040-step08",
+   "kind": "sel10",
+   "passage": "ref/sample.md",
+   "width_pt": 1040,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1040-step08-sel20": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1040-step08-sel20.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1040-step08-sel20.png",
+   "sha256": "afe509697c5d42740a0a1720bac0d836cb2b5e3d0da2b35faff5b6828887e595",
+   "raw_sha256": "4aa489fe81e7911d922b81c6bdad4378a2bbdc98bb3cc63efa837fd6367ce7c8",
+   "size_px": [
+    2080,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1040,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1040-step08",
+   "kind": "sel20",
+   "passage": "ref/sample.md",
+   "width_pt": 1040,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1040-step08-sel30": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1040-step08-sel30.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1040-step08-sel30.png",
+   "sha256": "4e239ac72493c1df4496c44075d8fab51c3ae04fa68b580a284eedac3ed00aa0",
+   "raw_sha256": "b48db6fab22f1348b8176bb837cfee901569b5ef321a9c29b9fa78a46bbc1ec6",
+   "size_px": [
+    2080,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1040,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1040-step08",
+   "kind": "sel30",
+   "passage": "ref/sample.md",
+   "width_pt": 1040,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1200-step05-all": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1200-step05-all.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1200-step05-all.png",
+   "sha256": "a21853d360746aa374e5a4b8c070677d9f0e716f88bfda06c68662f84111fdcd",
+   "raw_sha256": "7cba0c189e02338af3ee841fe3529964ef44225d4b25308aae1b858ca620ad98",
+   "size_px": [
+    2400,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1200,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1200-step05",
+   "kind": "all",
+   "passage": "ref/sample.md",
+   "width_pt": 1200,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1200-step05-plain": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1200-step05-plain.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1200-step05-plain.png",
+   "sha256": "e938dc4f3461a0f53047ec5f38aa8c9bf36193e035f91533d884044e6fad7bfc",
+   "raw_sha256": "3e925939e070e74a0c419bd2d66c960c9690eb023266f67e3937452cdb15cc85",
+   "size_px": [
+    2400,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1200,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1200-step05",
+   "kind": "plain",
+   "passage": "ref/sample.md",
+   "width_pt": 1200,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1200-step05-sel10": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1200-step05-sel10.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1200-step05-sel10.png",
+   "sha256": "24a6a6644f1cc5ee3a6699e92d8f2a19a224cb8ebbaf45e025ecf2fd4c179f8d",
+   "raw_sha256": "914040adf90a4cace1977d634dcfab60ba75a6faa12ef1ed1ad9def2ff373f76",
+   "size_px": [
+    2400,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1200,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1200-step05",
+   "kind": "sel10",
+   "passage": "ref/sample.md",
+   "width_pt": 1200,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1200-step05-sel20": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1200-step05-sel20.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1200-step05-sel20.png",
+   "sha256": "05f62d2a64505d57d773fcb56a34051f56baa5ca2081c98654a9784b94798b56",
+   "raw_sha256": "36c0c722418432b3a1c9762ee1ae3303e68d856987a2640f57129534f1a3fdb2",
+   "size_px": [
+    2400,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1200,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1200-step05",
+   "kind": "sel20",
+   "passage": "ref/sample.md",
+   "width_pt": 1200,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1200-step05-sel40": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1200-step05-sel40.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1200-step05-sel40.png",
+   "sha256": "6c820e310f3b4bdfe59cc8fa7b40c2afb122f778294c818619e5eba69d0e878b",
+   "raw_sha256": "309e5ec6cc897fb46c92a2bc8ccd9e89c7b8e5d2d44312ad97ee57698524e714",
+   "size_px": [
+    2400,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1200,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1200-step05",
+   "kind": "sel40",
+   "passage": "ref/sample.md",
+   "width_pt": 1200,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1200-step08-all": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1200-step08-all.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1200-step08-all.png",
+   "sha256": "b2c955a7e2bd42ca24f5542c36a18ae740aec3b0c1d007b3b7710d811e8bb349",
+   "raw_sha256": "d23b125c877aa37d2e5640f9d844384ef773c7435564d7f7b13a06336087ffc9",
+   "size_px": [
+    2400,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1200,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1200-step08",
+   "kind": "all",
+   "passage": "ref/sample.md",
+   "width_pt": 1200,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1200-step08-plain": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1200-step08-plain.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1200-step08-plain.png",
+   "sha256": "bf0c477347aae22ae154e98148c621e5ba4e1782fbc0a2ac217457e57980f7cf",
+   "raw_sha256": "4576da04d4dd6795de6873e1fa2ee844493f8ddaa879a2b51e7ee07d22eb6d47",
+   "size_px": [
+    2400,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1200,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1200-step08",
+   "kind": "plain",
+   "passage": "ref/sample.md",
+   "width_pt": 1200,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1200-step08-sel10": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1200-step08-sel10.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1200-step08-sel10.png",
+   "sha256": "2706fc20ae8b099a58e9ad970b03a5d2daed29257e41fcd2e11caf6826e5ab2e",
+   "raw_sha256": "d7dfc61c7ff7ab741df6e99864f53fef98566c8e0fff08b01829c3afb9d06324",
+   "size_px": [
+    2400,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1200,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1200-step08",
+   "kind": "sel10",
+   "passage": "ref/sample.md",
+   "width_pt": 1200,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1200-step08-sel20": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1200-step08-sel20.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1200-step08-sel20.png",
+   "sha256": "dd20fd2c2abbe7ddb7a1930b2181dbd27861b09dc0280a8792c9be3074901ab0",
+   "raw_sha256": "57c492b250aaa7c3f99436c02fed0dc6ed6894e27a4a5fb98daf61ac28be5ce5",
+   "size_px": [
+    2400,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1200,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1200-step08",
+   "kind": "sel20",
+   "passage": "ref/sample.md",
+   "width_pt": 1200,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1200-step08-sel30": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1200-step08-sel30.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1200-step08-sel30.png",
+   "sha256": "4617039e8724e693cf39aec55b78ae114ba930d839bf65f98fb4cb2f5a1f2343",
+   "raw_sha256": "93f622bbb689e1d2d4396d870b52563fdf495be07094d69064256de9c10a8be7",
+   "size_px": [
+    2400,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1200,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1200-step08",
+   "kind": "sel30",
+   "passage": "ref/sample.md",
+   "width_pt": 1200,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1250-step05-all": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1250-step05-all.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1250-step05-all.png",
+   "sha256": "ecfc4bbfe34ac9ba0a2d74a70148a5e0fd7d83b595f8edb0b617ba4ddbf4254d",
+   "raw_sha256": "4f42d1e19b04ae76f4059b7f0ecea15c7d41ddb0a282a45550e391a048d408a6",
+   "size_px": [
+    2500,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1250,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1250-step05",
+   "kind": "all",
+   "passage": "ref/sample.md",
+   "width_pt": 1250,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1250-step05-limit80-all": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1250-step05-limit80-all.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1250-step05-limit80-all.png",
+   "sha256": "b704d1aec51e8578a6ea7e35d524e24091b835baffd334f0823a7b3977b74736",
+   "raw_sha256": "bd412707d30d0eeda08b2f662a9eed949811e21213921f2d4499df921b0711a0",
+   "size_px": [
+    2500,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1250,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1250-step05-limit80",
+   "kind": "all",
+   "passage": "ref/sample.md",
+   "width_pt": 1250,
+   "text_size_step": 5,
+   "line_length_limit": 80
+  },
+  "mac-native-22-light-narrow-w1250-step05-limit80-plain": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1250-step05-limit80-plain.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1250-step05-limit80-plain.png",
+   "sha256": "4fc6857e1f87fb048e6ddd474ebbc50c1eae119492c774c3c6f2d14ec00bb3fa",
+   "raw_sha256": "20811b8ee7ea8f4cd1bb2c1512f6c792a947691fbffd3a70c7cb3b9fef2c5094",
+   "size_px": [
+    2500,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1250,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1250-step05-limit80",
+   "kind": "plain",
+   "passage": "ref/sample.md",
+   "width_pt": 1250,
+   "text_size_step": 5,
+   "line_length_limit": 80
+  },
+  "mac-native-22-light-narrow-w1250-step05-limit80-sel10": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1250-step05-limit80-sel10.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1250-step05-limit80-sel10.png",
+   "sha256": "2e3bedb09c6dc0fea0e5c10805e4b1d1854689d35f1918f45959c7a26592040a",
+   "raw_sha256": "62d3a6273a90cb139612c6aaac07171dff6d888c0d3cf65d18be8953b6abafc4",
+   "size_px": [
+    2500,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1250,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1250-step05-limit80",
+   "kind": "sel10",
+   "passage": "ref/sample.md",
+   "width_pt": 1250,
+   "text_size_step": 5,
+   "line_length_limit": 80
+  },
+  "mac-native-22-light-narrow-w1250-step05-limit80-sel20": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1250-step05-limit80-sel20.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1250-step05-limit80-sel20.png",
+   "sha256": "ded2f19351c47b10983ee4a137a9cf679970da91a943185d57b9984799e7e14f",
+   "raw_sha256": "c62680c71ce2cf6b02d92cebc2e2b71d9c0c58e820c5439eef0027bc9b2b4732",
+   "size_px": [
+    2500,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1250,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1250-step05-limit80",
+   "kind": "sel20",
+   "passage": "ref/sample.md",
+   "width_pt": 1250,
+   "text_size_step": 5,
+   "line_length_limit": 80
+  },
+  "mac-native-22-light-narrow-w1250-step05-plain": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1250-step05-plain.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1250-step05-plain.png",
+   "sha256": "ed934a1e7597fa625bd085293d0b66901c065c230dc6d6a2694947af05962a75",
+   "raw_sha256": "a156717b3820cd39d2e407a568544a402eec1aadd3451096ded7053cb663813b",
+   "size_px": [
+    2500,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1250,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1250-step05",
+   "kind": "plain",
+   "passage": "ref/sample.md",
+   "width_pt": 1250,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1250-step05-sel10": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1250-step05-sel10.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1250-step05-sel10.png",
+   "sha256": "1b53529485ccf80188daa836c68bd458b8a4a502b1177b6b412e09f425ee5ebc",
+   "raw_sha256": "ce415b8e7adca2d3328c72b9d2d6ab857863029569eb374901c3bf6ba5c573e5",
+   "size_px": [
+    2500,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1250,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1250-step05",
+   "kind": "sel10",
+   "passage": "ref/sample.md",
+   "width_pt": 1250,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1250-step05-sel20": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1250-step05-sel20.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1250-step05-sel20.png",
+   "sha256": "619261e7cdc5fd2b2b008d7171c17524223b4c83e9fcb9c8bab28da34f507838",
+   "raw_sha256": "cedf033f57e41431c1d2ca5540e94e4aa5f743e6b884999b3f5bc3d5ee4fed5b",
+   "size_px": [
+    2500,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1250,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1250-step05",
+   "kind": "sel20",
+   "passage": "ref/sample.md",
+   "width_pt": 1250,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1250-step08-all": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1250-step08-all.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1250-step08-all.png",
+   "sha256": "10c838ff4548d1d4701b532f58376fbbeac526db82860fc9415984c8362c7f72",
+   "raw_sha256": "6e4830a3d9323b06ee293871e36286a4ec00844eb57df243de381dcf0527d1b6",
+   "size_px": [
+    2500,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1250,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1250-step08",
+   "kind": "all",
+   "passage": "ref/sample.md",
+   "width_pt": 1250,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1250-step08-plain": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1250-step08-plain.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1250-step08-plain.png",
+   "sha256": "1bb4a5bf785eb55ebce573a9e6b2add904e6ea5c02ac932064bb0fc6b6e244a1",
+   "raw_sha256": "a7f3dbf41c051ef241b68f5236704c89333b40902832ab16eb00b33317c57720",
+   "size_px": [
+    2500,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1250,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1250-step08",
+   "kind": "plain",
+   "passage": "ref/sample.md",
+   "width_pt": 1250,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1250-step08-sel10": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1250-step08-sel10.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1250-step08-sel10.png",
+   "sha256": "43f7e58303a6e096751f923635e38815274a22f19278b90e01de31b743d6b2f3",
+   "raw_sha256": "e225755c708f237d29e6d0d3836282ef413fdf1025fef9bc88174aeaac85054a",
+   "size_px": [
+    2500,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1250,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1250-step08",
+   "kind": "sel10",
+   "passage": "ref/sample.md",
+   "width_pt": 1250,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1250-step08-sel20": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1250-step08-sel20.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1250-step08-sel20.png",
+   "sha256": "c1792f1e80b5fb9562b7e0533949e459f862dafcd830b911621e71f3b130f2f3",
+   "raw_sha256": "0377153357af57b91cb0a47359bbdec3dc82696fe47763ac5e473f38e7a74aba",
+   "size_px": [
+    2500,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1250,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1250-step08",
+   "kind": "sel20",
+   "passage": "ref/sample.md",
+   "width_pt": 1250,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1251-step05-all": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1251-step05-all.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1251-step05-all.png",
+   "sha256": "5ce42780564ec552079a723c55997567d702ec1219621b7e9de6293ddb9da263",
+   "raw_sha256": "1b7177bb8b068d77670c4fc2e1d6bc3664071c977e9492c39f79128a1b764c55",
+   "size_px": [
+    2502,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1251,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1251-step05",
+   "kind": "all",
+   "passage": "ref/sample.md",
+   "width_pt": 1251,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1251-step05-limit80-all": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1251-step05-limit80-all.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1251-step05-limit80-all.png",
+   "sha256": "41152f7279aa32691df55490fa7f23246b281a8f69636d7c099f218b74d6ddf8",
+   "raw_sha256": "a3995b3039e29329cfc4f3340fa2dedbe0602a10304c12681918d5a4dd551dc0",
+   "size_px": [
+    2502,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1251,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1251-step05-limit80",
+   "kind": "all",
+   "passage": "ref/sample.md",
+   "width_pt": 1251,
+   "text_size_step": 5,
+   "line_length_limit": 80
+  },
+  "mac-native-22-light-narrow-w1251-step05-limit80-plain": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1251-step05-limit80-plain.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1251-step05-limit80-plain.png",
+   "sha256": "25b120c41be962f8a882613b1700ac70561b4260b465d79a0936f3efaf208a01",
+   "raw_sha256": "0fdcd7981c3e21048fd032d94aa8212463e6dd258813da4722abbe7f2a39acf3",
+   "size_px": [
+    2502,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1251,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1251-step05-limit80",
+   "kind": "plain",
+   "passage": "ref/sample.md",
+   "width_pt": 1251,
+   "text_size_step": 5,
+   "line_length_limit": 80
+  },
+  "mac-native-22-light-narrow-w1251-step05-limit80-sel10": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1251-step05-limit80-sel10.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1251-step05-limit80-sel10.png",
+   "sha256": "db3d016d1a3e5a56491942a5a3f1613e894d9a0f1e7c1c5e2125488d46c2c7ee",
+   "raw_sha256": "0a2e97514bdc644677c22fcbba63fc6b205cef194611bfd022c3110799609dd5",
+   "size_px": [
+    2502,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1251,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1251-step05-limit80",
+   "kind": "sel10",
+   "passage": "ref/sample.md",
+   "width_pt": 1251,
+   "text_size_step": 5,
+   "line_length_limit": 80
+  },
+  "mac-native-22-light-narrow-w1251-step05-limit80-sel20": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1251-step05-limit80-sel20.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1251-step05-limit80-sel20.png",
+   "sha256": "2ce986c832bfc99c1a24f5b6bdc0a2ff3263da4079b89f533f27146893f01b81",
+   "raw_sha256": "505c86117772366b097debde0a60599dd349feddef71b5c9805a1df9be32ad24",
+   "size_px": [
+    2502,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1251,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1251-step05-limit80",
+   "kind": "sel20",
+   "passage": "ref/sample.md",
+   "width_pt": 1251,
+   "text_size_step": 5,
+   "line_length_limit": 80
+  },
+  "mac-native-22-light-narrow-w1251-step05-plain": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1251-step05-plain.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1251-step05-plain.png",
+   "sha256": "7b0c9d826ea81db8320afc7f3aa1fe18ca7719bbd5616996e51c3d423f6fee8e",
+   "raw_sha256": "a1aeded9ad1a25db38dbe780d8613c7cd55ab821b55c442d5420b05c4d3d6102",
+   "size_px": [
+    2502,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1251,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1251-step05",
+   "kind": "plain",
+   "passage": "ref/sample.md",
+   "width_pt": 1251,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1251-step05-sel10": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1251-step05-sel10.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1251-step05-sel10.png",
+   "sha256": "77db293377861c1fea3a11ddd7f6e5b603cfd901b095e5886608d9cf397d2d9d",
+   "raw_sha256": "68aebc02c026a8039e70352b7294baca9ece6b13c281401599f5c214bc2fc5df",
+   "size_px": [
+    2502,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1251,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1251-step05",
+   "kind": "sel10",
+   "passage": "ref/sample.md",
+   "width_pt": 1251,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1251-step05-sel20": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1251-step05-sel20.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1251-step05-sel20.png",
+   "sha256": "12a361422d347987b4458a74f974deeec8afa10450d089d74bacbc90f8f93c60",
+   "raw_sha256": "e503cd7ec95b1f9870c256fa89bf140634d1e2331f01d4b3b8c6297ad16feebb",
+   "size_px": [
+    2502,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1251,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1251-step05",
+   "kind": "sel20",
+   "passage": "ref/sample.md",
+   "width_pt": 1251,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1251-step08-all": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1251-step08-all.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1251-step08-all.png",
+   "sha256": "7eecbaac49ebc149e6ddc03d5d79462730a803f75b7a9b399b230c926692a7ad",
+   "raw_sha256": "bd1d7fa5c387b8552435796efa25270b7f191bb60337aa18bdeeae009fd9127f",
+   "size_px": [
+    2502,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1251,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1251-step08",
+   "kind": "all",
+   "passage": "ref/sample.md",
+   "width_pt": 1251,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1251-step08-plain": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1251-step08-plain.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1251-step08-plain.png",
+   "sha256": "e13d7390ac7ee1c137d170b3c165a9307a5f7d1ea8816a482b18fa3257fe70e6",
+   "raw_sha256": "efa5f2b0b267dd114b7a430dd7fc703b592921ae3b35927aa5b2fdaf9414a144",
+   "size_px": [
+    2502,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1251,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1251-step08",
+   "kind": "plain",
+   "passage": "ref/sample.md",
+   "width_pt": 1251,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1251-step08-sel10": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1251-step08-sel10.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1251-step08-sel10.png",
+   "sha256": "98624dc767e1ae79daa5cea2c614af4862c7d1fdae09c2689492173e3a39d82a",
+   "raw_sha256": "5a4150adcaf51b55e5532d822e3d5c96c08888f0ce727ae0d83da8fed47d0049",
+   "size_px": [
+    2502,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1251,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1251-step08",
+   "kind": "sel10",
+   "passage": "ref/sample.md",
+   "width_pt": 1251,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1251-step08-sel20": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1251-step08-sel20.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1251-step08-sel20.png",
+   "sha256": "2a0537788d48fada16d1ab885ad4a92072fdf6d5f4e290cab0d077298cba2359",
+   "raw_sha256": "fb87c271b36400f0f35ad1a3e7dfbb87e70567a4ea9135817c89c54ac7cc6ab1",
+   "size_px": [
+    2502,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1251,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1251-step08",
+   "kind": "sel20",
+   "passage": "ref/sample.md",
+   "width_pt": 1251,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1512-step05-all": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1512-step05-all.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1512-step05-all.png",
+   "sha256": "37b56769839f83276fba9b19185415d4d6c4bca9244cd5f2470aa775cee8351e",
+   "raw_sha256": "6ae63870afdd859306c6f0b6333199bf6c5fd5e58db1b54562c2a3c07fdfb45d",
+   "size_px": [
+    3024,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1512-step05",
+   "kind": "all",
+   "passage": "ref/sample.md",
+   "width_pt": 1512,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1512-step05-plain": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1512-step05-plain.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1512-step05-plain.png",
+   "sha256": "58e14cc14f9e88e80b7143538a63d633a5fc2c469a5c31e8e4441fb48c9470e1",
+   "raw_sha256": "eff5e8326b5586775048c9438e08ce2d4fcd8bcd3169141383e11a4634bdf03a",
+   "size_px": [
+    3024,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1512-step05",
+   "kind": "plain",
+   "passage": "ref/sample.md",
+   "width_pt": 1512,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1512-step05-sel10": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1512-step05-sel10.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1512-step05-sel10.png",
+   "sha256": "8a5637d000e80ebd8296891d307b12aa8de5ff5c3a5344b91d921c0bdcc37d6e",
+   "raw_sha256": "1db10b7364d6e65d43ea33b35028e3e4828bbd188b7696b70c6419697fdb3543",
+   "size_px": [
+    3024,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1512-step05",
+   "kind": "sel10",
+   "passage": "ref/sample.md",
+   "width_pt": 1512,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1512-step05-sel20": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1512-step05-sel20.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1512-step05-sel20.png",
+   "sha256": "909e1ee2b01fd4b19417c0e509d99cba1c70a7b5c9609b7367f4d18d6108387c",
+   "raw_sha256": "35b922e9e2969e511ba47f505a33152de905395c7a4c3a1829a6f2181886f83e",
+   "size_px": [
+    3024,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1512-step05",
+   "kind": "sel20",
+   "passage": "ref/sample.md",
+   "width_pt": 1512,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1512-step05-sel40": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1512-step05-sel40.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1512-step05-sel40.png",
+   "sha256": "c6c6590082f1b9a6b2c18baf761280b747961ad64a7bc8e72b733c88b30d630e",
+   "raw_sha256": "e725e155254fe9bc0ba8843460b6cbec62f63a9c6c9de458062c4f0412414d6b",
+   "size_px": [
+    3024,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1512-step05",
+   "kind": "sel40",
+   "passage": "ref/sample.md",
+   "width_pt": 1512,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1512-step08-all": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1512-step08-all.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1512-step08-all.png",
+   "sha256": "eed1a11eff93ad15b279c00bb42902098871ac9f8c277067fc9abf8fcc4dbf79",
+   "raw_sha256": "d63c9c9fca78284f5ca4c174efdb4de66f1beb71ee095fbacaa6f2476a08da94",
+   "size_px": [
+    3024,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1512-step08",
+   "kind": "all",
+   "passage": "ref/sample.md",
+   "width_pt": 1512,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1512-step08-plain": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1512-step08-plain.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1512-step08-plain.png",
+   "sha256": "50239f42cb05c8420b2afd6f387603ec9a4ff32428a1f93e21cae0cd8edb3b59",
+   "raw_sha256": "76477747453c700a269d2de37f4cee6aa2cc7f8dc0e7d5c23abe70e7ee1207ae",
+   "size_px": [
+    3024,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1512-step08",
+   "kind": "plain",
+   "passage": "ref/sample.md",
+   "width_pt": 1512,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1512-step08-sel10": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1512-step08-sel10.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1512-step08-sel10.png",
+   "sha256": "656f5caaf3ec00be60e38bd9d724ae250e0dee7e7bdc9e8f508a770463e8fb54",
+   "raw_sha256": "8c9b827db83a61b4508b1bb522715788f678afcaa0ad5e4572156b67ef011f64",
+   "size_px": [
+    3024,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1512-step08",
+   "kind": "sel10",
+   "passage": "ref/sample.md",
+   "width_pt": 1512,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1512-step08-sel20": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1512-step08-sel20.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1512-step08-sel20.png",
+   "sha256": "a60550eb38b86c59205adf13d6632b8faf036add2099bd28de899b0978fe7bd9",
+   "raw_sha256": "08a0426981bcbabec2427584ad087782128350b9f1a77365dacfcc533bd70797",
+   "size_px": [
+    3024,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1512-step08",
+   "kind": "sel20",
+   "passage": "ref/sample.md",
+   "width_pt": 1512,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-22-light-narrow-w1512-step08-sel30": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w1512-step08-sel30.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-22-light-narrow-w1512-step08-sel30.png",
+   "sha256": "cfe4f4428d4ed04e3205a8f7a6a73ab1192c2e9222988c281aca467138400884",
+   "raw_sha256": "8f171f7f5ae6d188ed304979bf497fb760479349baf6ced5874740037b2ef0b1",
+   "size_px": [
+    3024,
+    1000
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    500
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 344,
+   "state": 22,
+   "tag": "w1512-step08",
+   "kind": "sel30",
+   "passage": "ref/sample.md",
+   "width_pt": 1512,
+   "text_size_step": 8,
+   "line_length_limit": 64
+  },
+  "mac-native-23-dark-template-classic-em": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-23-dark-template-classic-em.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-23-dark-template-classic-em.png",
+   "sha256": "389f5445bb5fad10ac9a61132af48dfa1b3d8f989dd4714603a0ce7998e764f3",
+   "raw_sha256": "f260eaa8e67834b9d919b0bd39129f086a66e37256ecd6f61c5404bb6da3e30c",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "n/a - Preview paints its own paper, the Editor control beside it is checked",
+   "ticket": 343,
+   "state": 23,
+   "passage": "ref/ia/mac-native/passage-template-em.md",
+   "surface": "preview-web-full",
+   "template": "Classic (Serif)",
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-23-dark-template-classic-short": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-23-dark-template-classic-short.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-23-dark-template-classic-short.png",
+   "sha256": "5f09178bf04c250e2a3da2f7819b4f5177e9ac95f2da1a7f938a77fc00453c7c",
+   "raw_sha256": "90b1adda5d161b768c3df5cab7b15f519afc2b7f071cdce021eaaadbd545f9dd",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "n/a - Preview paints its own paper, the Editor control beside it is checked",
+   "ticket": 343,
+   "state": 23,
+   "passage": "ref/short.md",
+   "surface": "preview-web-full",
+   "template": "Classic (Serif)",
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-23-dark-template-duo-em": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-23-dark-template-duo-em.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-23-dark-template-duo-em.png",
+   "sha256": "85297c1e4d376d8a458948396443ae4fd42ec1268061e9f1922a6a0721712f00",
+   "raw_sha256": "735bc6f650de7e2f8c32659d05b252d26287d462f38af8d44c2ad7123d71c017",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "n/a - Preview paints its own paper, the Editor control beside it is checked",
+   "ticket": 343,
+   "state": 23,
+   "passage": "ref/ia/mac-native/passage-template-em.md",
+   "surface": "preview-web-full",
+   "template": "Manuscript (Duo)",
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-23-dark-template-duo-short": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-23-dark-template-duo-short.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-23-dark-template-duo-short.png",
+   "sha256": "d77baab85cea6660228b789ab79efa39b18f03ae4135128dcfb38c5ec5d8d034",
+   "raw_sha256": "4f335f9bc243d41ff255164ce05e2a2185d193ddb7f24a853868749934f525a7",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "n/a - Preview paints its own paper, the Editor control beside it is checked",
+   "ticket": 343,
+   "state": 23,
+   "passage": "ref/short.md",
+   "surface": "preview-web-full",
+   "template": "Manuscript (Duo)",
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-23-dark-template-editor-em": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-23-dark-template-editor-em.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-23-dark-template-editor-em.png",
+   "sha256": "7b58234c9791d321d3fe33852138b58e5baa5b71d2558b05fa049f1a2837974f",
+   "raw_sha256": "835d43d14dbf95fe2b2fc3f0b8a5339ddc2e747268544eb082f172777a74d2ec",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 343,
+   "state": 23,
+   "passage": "ref/ia/mac-native/passage-template-em.md",
+   "surface": "editor",
+   "template": null,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-23-dark-template-editor-short": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-23-dark-template-editor-short.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-23-dark-template-editor-short.png",
+   "sha256": "82fb5c5ff2a82a3b40a537c34d7b28d58083012148ae4ffb36a56411bf37b5a8",
+   "raw_sha256": "1a42819f8dc4a6142608f921e39f3956c0badde272ccf56a691a8ee75d6706b4",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "colour.check pass",
+   "ticket": 343,
+   "state": 23,
+   "passage": "ref/short.md",
+   "surface": "editor",
+   "template": null,
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-23-dark-template-modern-em": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-23-dark-template-modern-em.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-23-dark-template-modern-em.png",
+   "sha256": "837206303a86aca65fb9b1cb9a220988169ff35bf119da13ab0e4bfd645950d6",
+   "raw_sha256": "426f763f0df3e72821e74f2931a21d65ecdc894dd121c22ce20cd2ecea28890e",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "n/a - Preview paints its own paper, the Editor control beside it is checked",
+   "ticket": 343,
+   "state": 23,
+   "passage": "ref/ia/mac-native/passage-template-em.md",
+   "surface": "preview-web-full",
+   "template": "Modern (Sans)",
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-23-dark-template-modern-short": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-23-dark-template-modern-short.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-23-dark-template-modern-short.png",
+   "sha256": "9839913caa7295add08b262537de3f5bef3f8fdb67984c9668aee785d89b2de9",
+   "raw_sha256": "ae76a8b29a1bef81de450c09cd74833e5411f3a9a1a91ec929de0060458b5e4e",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "n/a - Preview paints its own paper, the Editor control beside it is checked",
+   "ticket": 343,
+   "state": 23,
+   "passage": "ref/short.md",
+   "surface": "preview-web-full",
+   "template": "Modern (Sans)",
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-23-dark-template-mono-em": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-23-dark-template-mono-em.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-23-dark-template-mono-em.png",
+   "sha256": "adcbe11591dcf1783330101e177607029ea38b4064dfbb1a363426f0c65a190e",
+   "raw_sha256": "df09642dff811de3919b104cc54ac8acc29a58b6139976086b9d5a9da73c8445",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "n/a - Preview paints its own paper, the Editor control beside it is checked",
+   "ticket": 343,
+   "state": 23,
+   "passage": "ref/ia/mac-native/passage-template-em.md",
+   "surface": "preview-web-full",
+   "template": "Manuscript (Mono)",
+   "text_size_step": 5,
+   "line_length_limit": 64
+  },
+  "mac-native-23-dark-template-mono-short": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-23-dark-template-mono-short.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-23-dark-template-mono-short.png",
+   "sha256": "a9f2b69e1c6887598c3c7d9573b778f1347ec04d49609150fed8e75c18971a52",
+   "raw_sha256": "00d598897243b2677dc7451868e8ab042ac27d2f43117af8ec6ce7c7db5a462a",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "n/a - Preview paints its own paper, the Editor control beside it is checked",
+   "ticket": 343,
+   "state": 23,
+   "passage": "ref/short.md",
+   "surface": "preview-web-full",
+   "template": "Manuscript (Mono)",
+   "text_size_step": 5,
+   "line_length_limit": 64
+  }
+ }
+}
