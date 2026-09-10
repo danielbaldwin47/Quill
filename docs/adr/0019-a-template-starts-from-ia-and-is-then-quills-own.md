@@ -1,5 +1,12 @@
 # A Template starts from iA's look and is then Quill's own
 
+*The baseline pass is finished on `main` as of 2026-09-10, and the decision stands unchanged.
+[#342](https://github.com/danielbaldwin47/Quill/issues/342) closed the three things the Decision
+below left waiting on a capture: `ref/ia/mac-native/NOTES.md` § State 23 read no first-line indent
+in any of iA's four Templates, put the Manuscript family on the Editor's own em, and so gave
+Classic's gap and the reading that `base` — not `line_height` — carries the pitch difference
+between the two families. `classic.toml` holds the working; Classic is Quill's own from here.*
+
 A built-in Template takes every value the Design oracle has measured for the iA template of the
 same name, once, in one **baseline pass**; after that pass a Template is Quill's own typography,
 and a later iA measurement informs it rather than binding it. Preview and Templates stay outside

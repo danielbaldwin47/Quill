@@ -18,9 +18,16 @@
 # they hold now gives two, one line of type and one pitch of air, and it is
 # the Editor's own blank line rather than a port of iA's Manuscript template
 # (`VERDICTS.md` § 4.3.5), so no further capture is owed for it. The pitch
-# itself is unchanged, base × line_height, and this capture separates neither
-# factor: which of them carries the 2 % between Classic's 68 px and this
-# family's 72 px waits on an em read from ink (ADR 0019).
+# itself is unchanged, base × line_height, and that capture separates neither
+# factor.
+#
+# `NOTES.md` § State 23 does, off ink rather than a still: this family renders
+# at the Editor's own em, 42.667 px at backing scale 2 over a 73 px pitch,
+# with its `H` run pixel-identical to the Editor control's — so `base` and
+# `line_height` below are both right as they stand, and #261's 72 px reading
+# was one pixel out. It is `base`, then, that carries the difference between
+# this family's pitch and Classic's, and `classic.toml` derives its own from
+# this one (`VERDICTS.md` § 4.3.8, ADR 0019).
 
 id = "manuscript-duo"
 paragraphs = "spaced"

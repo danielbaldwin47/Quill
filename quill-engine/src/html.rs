@@ -391,12 +391,19 @@ mod tests {
 
     #[test]
     fn the_classic_serif_falls_back_to_serif_and_its_body_size_is_its_own() {
-        let page = page(&sample(), &built("classic"), Toggles::default());
+        let classic = built("classic");
+        let page = page(&sample(), &classic, Toggles::default());
         assert!(
             page.contains("font-family: \"Source Serif 4\", serif;"),
             "{page}"
         );
-        assert!(page.contains("font-size: 17pt;"), "{page}");
+        let base = format!("font-size: {}pt;", classic.sizes.base);
+        assert!(page.contains(&base), "{base} is not in {page}");
+        assert_ne!(
+            classic.sizes.base,
+            built("modern").sizes.base,
+            "and it is the Template's own, not the Editor's"
+        );
     }
 
     #[test]
@@ -488,7 +495,13 @@ mod tests {
 
     #[test]
     fn an_indented_template_indents_with_the_toggle_off() {
-        let page = page(&sample(), &built("classic"), Toggles::default());
+        // No built-in is indented since `ref/ia/mac-native/NOTES.md` § State
+        // 23 read the setting off ink and found none of iA's four indenting;
+        // the file format keeps the shape, so a Template declaring it is what
+        // this asserts.
+        let mut classic = built("classic");
+        classic.paragraphs = template::Paragraphs::Indented;
+        let page = page(&sample(), &classic, Toggles::default());
         assert!(page.contains("text-indent: 1.5rem;"), "{page}");
         assert!(page.contains("margin-top: 0rem;"), "{page}");
     }

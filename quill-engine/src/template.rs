@@ -348,14 +348,39 @@ mod tests {
     }
 
     #[test]
-    fn classic_is_source_serif_4() {
+    fn classic_is_source_serif_4_spaced_and_derived_from_the_manuscript_em() {
         let classic = built_in("classic").expect("a built-in id");
         assert_eq!(classic.faces.body.family, "Source Serif 4");
-        assert_eq!(classic.paragraphs, Paragraphs::Indented);
-        assert_eq!(
-            classic.rhythm.paragraph_spacing, 0.0,
-            "indented paragraphs are not spaced as well"
+        // `ref/ia/mac-native/NOTES.md` § State 23: no iA Template indents a
+        // first line, and Classic's cap height wants 1.0425 × the Editor's em
+        // on Source Serif 4 (`classic.toml`, which shows the working).
+        assert_eq!(classic.paragraphs, Paragraphs::Spaced);
+        let manuscript = built_in("manuscript-mono").expect("a built-in id");
+        let ratio = classic.sizes.base / manuscript.sizes.base;
+        assert!(
+            (ratio - 1.0425).abs() < 0.0005,
+            "Classic's em is the Editor's × 1.0425, not {ratio}"
         );
+        let pitch = captured(classic.sizes.base * classic.rhythm.line_height);
+        assert!(
+            (pitch - 69.3).abs() < 0.05,
+            "iA's Classic pitch is 69.3 px, not {pitch}"
+        );
+        let step = pitch + captured(classic.sizes.base * classic.rhythm.paragraph_spacing);
+        assert!(
+            (step - 134.5).abs() < 0.5,
+            "iA's Classic paragraph step is 134.5 px — 1.94 pitches — not {step}"
+        );
+    }
+
+    /// A Template size in points, in the device pixels `ref/ia/mac-native`
+    /// measures and every judged shot is taken at: the 96 dpi
+    /// [`crate::render`] converts a Template's points by, over the backing
+    /// scale 2 of the judged stage.
+    fn captured(points: f64) -> f64 {
+        const DPI: f64 = 96.0;
+        const BACKING: f64 = 2.0;
+        points * DPI / 72.0 * BACKING
     }
 
     #[test]

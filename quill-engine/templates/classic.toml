@@ -1,25 +1,56 @@
 # Classic: the Serif, on Source Serif 4.
 #
-# The book setting: paragraphs indented rather than spaced.
-#
-# The dark page has now been captured beside State 16's:
+# The dark page has been captured beside State 16's:
 # `ref/ia/mac-native/CAPTURE-2026-09-09.md` § "#261 — Preview", off
 # `mac-native-20-dark-preview-classic-full`, reads #101010 paper on #cccccc
 # ink, which is what [dark] already held. The light page was captured in
 # neither scheme, so the #ffffff below is still iA's own description of the
 # template rather than a measurement, and stays until one lands.
 #
-# That capture's rhythm is a rendered state and not the template's numbers:
-# body line pitch 68 px at backing scale 2, the first paragraph's lines at
-# y345/413/481/549/617 and the next paragraph at y750, so a paragraph advances
-# by about two pitches there. Neither number below moves for it. A pitch is
-# base × line_height and one still separates neither factor; the still records
-# no first-line indent either, so it cannot say whether that gap belongs to a
-# spaced setting or stands beside an indent, which is the one reading that
-# would bear on the paragraph_spacing here (`VERDICTS.md` § 4.3.5).
+# The rhythm and the em below are `ref/ia/mac-native/NOTES.md` § State 23,
+# read off ink rather than off a rendered still (`VERDICTS.md` § 4.3.5b and
+# § 4.3.8 … 4.3.10). Its figures are device pixels at backing scale 2, and its
+# points are the Mac's, one to a CSS pixel; `base` here is a CSS point, so
+# 22.24 of iA's is 16.68 of these.
+#
+# **No Template indents a first line.** iA's Classic starts every line on the
+# same column and separates paragraphs by a gap of 1.94 pitches — a 134.5 px
+# step over a 69.3 px pitch. So this file is spaced rather than the book
+# setting it assumed while #261's stills, which showed no paragraph after a
+# paragraph, were the only reading; and `paragraph_spacing` is that gap's air,
+# 65.2 px over the 44.48 px em, 1.466 ems.
+#
+# **`base` carries the pitch difference, not `line_height`.** The same capture
+# reads Manuscript at the Editor's own em — 42.667 px, `line_height` 1.711 —
+# so that family's 16 pt base is already right and Classic's is set relative
+# to it (ADR 0019: the Manuscript family derives from the Editor's ladder).
+#
+# **iA's Classic is not on Source Serif 4.** Its n/H advance ratio is 0.8108,
+# against IBM Plex Serif's 0.8119 and Source Serif 4's 0.7690, and the bundle
+# ships `IBMPlexSerif-Regular.ttf`. All four of iA's Templates set one cap
+# height, 28.46 … 28.51 px of ink, and let the advance fall where each face
+# puts it; so no single em puts this file's Source Serif 4 both where iA's cap
+# height is (22.24 pt) and where its H advance is (19.96 pt), and the two are
+# 11 % apart.
+#
+# This Template matches the cap height (owner's call, #342): under ADR 0019 a
+# Template starts from iA's look, and the look is the size the type reads at,
+# not where its lines wrap. The capture names both ems, so the ratio is theirs
+# and derived here: 22.24 px of Source Serif 4 over the 21.333 px the Editor
+# and iA's Classic are both set at, 1.0425. It is more than 1 because Source
+# Serif 4 puts less cap in an em than IBM Plex Serif does — roughly 0.670
+# against 0.698, which is the ratio to within the 0.05 px the four cap
+# heights spread over. `base` is that 1.0425 over the Manuscripts' 16 pt, and
+# the 69.3 px pitch over the em is `line_height` 1.558.
+#
+# A page here wraps about 11 % sooner than iA's,
+# which is what the advance costs and what the other em would have bought at
+# a cap height of ~26.7 px against 29.8, reading smaller than Modern and
+# Manuscript. Giving this Template a different face would dissolve the ratio
+# and this derivation would want redoing; that is nobody's work today.
 
 id = "classic"
-paragraphs = "indented"
+paragraphs = "spaced"
 
 [faces]
 body = { family = "Source Serif 4" }
@@ -27,16 +58,20 @@ heading = { family = "Source Serif 4" }
 code = { family = "Quill Mono", italic = "Quill Mono Italic" }
 
 [sizes]
-base = 17.0
+base = 16.68
 headings = [1.9, 1.5, 1.25, 1.125, 1.0, 1.0]
 code = 0.85
 
-# An indented Template names no space between paragraphs: the indent is what
-# marks the break, and the two together would mark it twice.
 [rhythm]
-line_height = 1.55
+line_height = 1.558
 measure = 32.0
-paragraph_spacing = 0.0
+# The measured gap's air: a 134.5 px paragraph step less the 69.3 px pitch,
+# over the 44.48 px em (`NOTES.md` § State 23). A rendered page steps by
+# about 136 px rather than 134.5, because Pango's last line box in a
+# paragraph stands ~2 px taller than the pitch; the Manuscripts' one-pitch
+# gap carries the same residual (148 px rendered against 146 arithmetic), so
+# it is the line box and not this number.
+paragraph_spacing = 1.466
 space_before_heading = 1.75
 space_after_heading = 0.5
 
