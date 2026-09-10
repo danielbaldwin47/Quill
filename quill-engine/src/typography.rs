@@ -45,6 +45,12 @@ pub const GUTTER: u32 = 7;
 /// The text container, in cells: the [`MEASURE`] plus a [`GUTTER`] each side.
 pub const CONTAINER: u32 = MEASURE + 2 * GUTTER;
 
+/// The air above the first row of text, in device pixels at scale 2.
+///
+/// A constant rather than a multiple of the pitch, and the derivation is
+/// [`page_top`].
+const PAGE_TOP: u32 = 60;
+
 /// The air below the last row of text: `--page-bottom: 30vh`.
 const PAGE_BOTTOM: f64 = 0.30;
 
@@ -322,20 +328,38 @@ pub fn column(view: u32, cell: f64) -> Column {
     }
 }
 
-/// The air above the first row of text: two pitches (`--page-top`).
+/// The air above the first row of text on a display of `scale`: a constant
+/// [`PAGE_TOP`] device pixels at scale 2, 30 points.
 ///
-/// The Parity oracle settled on two pitches from an 85 point reading of iA of
-/// unrecorded provenance. The Design oracle has since been measured (#227): at
-/// the default step its first line box stands 164 device pixels below the
-/// editor's top edge, above what two pitches give here
-/// (`ref/ia/mac-native/NOTES.md` § The page top). Two pitches is kept, and
-/// `docs/design.md` row Page top says why — the 164 is measured from a window
-/// whose title bar is drawn over the text, which a window with opaque chrome
-/// has no counterpart for, and no capture at a second step is at the document
-/// top to say whether the band scales with the pitch.
+/// Ask it at scale 1 for logical pixels, which is what the widget lays out in,
+/// the way [`pitch`] is asked.
+///
+/// The Design oracle opens an empty document's caret box **164 device pixels**
+/// below its window's top edge (#227). #231 re-shot that window on the original
+/// 14-inch M1 MacBook Pro and settled the two things one point could not say
+/// (`ref/ia/mac-native/CAPTURE-ORIGINAL-MBP.md` § #231 — the page top,
+/// `VERDICTS.md` § Found here):
+///
+/// - **It does not scale with the pitch.** The box top is 164 at steps 0, 5 and
+///   13 alike — pitches 49, 73 and 172 — and 164 again on the default re-shot
+///   after the excursion. Three points that far apart tell a constant from a
+///   multiple of the pitch.
+/// - **104 of the 164 belongs to the title bar.** Shown, the bar is a real
+///   opaque band: `#222222` over rows 2 … 103, a `#292929` separator at 104,
+///   paper from 105, and AX puts the toolbar's bottom 52 points — 104 pixels —
+///   below the window's top edge. The text does not move when the bar is
+///   shown, so that band is room the editor leaves for chrome drawn over it.
+///
+/// What is left, 164 − 104 = **60 device pixels at scale 2 = 30 points**, is
+/// the editor's own page top: the half of the figure a window whose chrome is
+/// opaque, as Quill's is, has a counterpart to. ADR 0015 gives the row to the
+/// Design oracle, and `docs/design.md` row Page top carries the derivation.
+///
+/// This replaces the two pitches the Parity oracle held, which came from an 85
+/// point reading of iA of unrecorded provenance.
 #[must_use]
-pub fn page_top(pitch: u32) -> u32 {
-    2 * pitch
+pub fn page_top(scale: f64) -> u32 {
+    device(PAGE_TOP, scale)
 }
 
 /// The air below the last row of text in a view `view` pixels tall: 30 % of it
@@ -659,11 +683,16 @@ mod tests {
     }
 
     #[test]
-    fn the_page_starts_two_pitches_down_and_ends_well_clear_of_the_bottom() {
+    fn the_page_opens_on_a_constant_and_ends_well_clear_of_the_bottom() {
         assert_eq!(
-            page_top(pitch(default_step(), 1.0)),
-            74,
-            "the first row at the default step does not start two pitches down"
+            page_top(2.0),
+            60,
+            "the page does not open on the oracle's 164 px less its 104 px title bar"
+        );
+        assert_eq!(
+            page_top(1.0),
+            30,
+            "the constant does not come back through the scale as 30 logical px"
         );
         assert_eq!(
             page_bottom(900),

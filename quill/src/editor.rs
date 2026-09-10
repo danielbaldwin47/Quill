@@ -1308,16 +1308,26 @@ impl Editor {
         // Every glyph row stays where it was, because every box keeps its
         // height and each one starts `below` higher: the page's top margin
         // gives that much back, and [`Editor::lay_out`]'s bottom margin gives
-        // back what the last paragraph no longer carries. The subtraction
-        // never goes negative — `page_top` is two pitches and `below` is under
-        // half of one row's worth of air. The code well is a paragraph
+        // back what the last paragraph no longer carries. The page top no
+        // longer covers that give-back by construction: since #231 it is a
+        // constant 30 logical pixels, where two pitches was 72 at the default
+        // step, so the subtraction saturates rather than trusting the
+        // arithmetic. It does not bite on the shipped ladder — `below` is half
+        // the air a pitch leaves around a row of ink, which peaks at 5 pixels
+        // over steps 7 … 10 and is the same on all three Quill Faces, so at
+        // least 25 pixels of margin survive at every step. Saturating is for a
+        // Face whose rows leave more air than the whole page top: the margin
+        // goes to nothing rather than wrapping a `u32`. The code well is a
+        // paragraph
         // background, which GTK paints over the whole line box, leading
         // included, so its boundary rows and their neighbours are given
         // `below` back through tags.
         self.set_pixels_above_lines(signed(leading.above + leading.below));
         self.set_pixels_inside_wrap(signed(leading.inside_wrap));
         self.set_pixels_below_lines(0);
-        self.set_top_margin(signed(typography::page_top(pitch) - leading.below));
+        self.set_top_margin(signed(
+            typography::page_top(LAYOUT_SCALE).saturating_sub(leading.below),
+        ));
         tags::well_leading(&self.buffer(), leading);
         // The cell a heading's markers hang by moves with the size, so the
         // page is laid out from scratch rather than compared with the last
@@ -2369,11 +2379,12 @@ impl Editor {
     /// adjustment counts logical pixels from the top of the page, which is
     /// the page's top margin above the buffer's first row
     /// ([`typography::page_top`]). Measured with `--typewriter` on
-    /// `ref/sample.md`: the bar the machine held was 148 device pixels above
-    /// where the shot drew it, at scale 2 with a pitch of 37 — the two pitches
-    /// of air the page opens with. So the row comes back through the scale
-    /// and down by the margin, and a band or a hold reads it where the writer
-    /// sees it.
+    /// `ref/sample.md`: the bar the machine held stood the page's whole top
+    /// margin above where the shot drew it — 148 device pixels at scale 2,
+    /// back when that margin was two pitches of a 37 pixel pitch. The page top
+    /// is the constant #231 measured now, and the arithmetic does not care
+    /// which it is: the row comes back through the scale and down by whatever
+    /// the margin is, and a band or a hold reads it where the writer sees it.
     fn row_of(&self, bar: caret::Bar) -> (f64, f64) {
         let scale = self.scale();
         (bar.y / scale + f64::from(self.top_margin()), bar.h / scale)
