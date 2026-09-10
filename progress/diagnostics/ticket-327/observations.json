@@ -1,0 +1,765 @@
+[
+  {
+    "directory": "quill-gate-rliPve",
+    "accounted_keys": 300,
+    "maximum": {
+      "pair": {
+        "sent": {
+          "i": 297,
+          "code": 18,
+          "shift": 0,
+          "t_ns": 2871266873018
+        },
+        "seen": {
+          "keycode": 26,
+          "evdev_ms": 2871266,
+          "handler_us": 2871267340,
+          "frame": 398,
+          "present_us": 2871273012,
+          "refresh_us": 16666
+        }
+      },
+      "write_to_presented_ms": 6.138982,
+      "handler_to_presented_ms": 5.672,
+      "paint": {
+        "kind": "paint",
+        "frame": 398,
+        "at_us": 2871268504
+      },
+      "overlapping_stages": [
+        {
+          "kind": "stage",
+          "name": "retag",
+          "start_us": 2871267432,
+          "end_us": 2871267436
+        }
+      ]
+    },
+    "future": [
+      {
+        "accepted": {
+          "kind": "accept",
+          "consumer": "cold",
+          "frame": 0,
+          "before_us": 2840117688,
+          "after_us": 2840117688,
+          "complete": true,
+          "present_us": 2840134306
+        },
+        "reads": [
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840119029,
+            "after_us": 2840119029,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840134254,
+            "after_us": 2840134254,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840150632,
+            "after_us": 2840150632,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840169321,
+            "after_us": 2840169322,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840184645,
+            "after_us": 2840184646,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840199687,
+            "after_us": 2840199687,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840203109,
+            "after_us": 2840203109,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840217225,
+            "after_us": 2840217225,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840234259,
+            "after_us": 2840234259,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840251335,
+            "after_us": 2840251335,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840267376,
+            "after_us": 2840267377,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840284416,
+            "after_us": 2840284416,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840300484,
+            "after_us": 2840300484,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840303161,
+            "after_us": 2840303161,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840317579,
+            "after_us": 2840317579,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840334601,
+            "after_us": 2840334601,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840350682,
+            "after_us": 2840350682,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840367712,
+            "after_us": 2840367712,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840383814,
+            "after_us": 2840383814,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840400868,
+            "after_us": 2840400869,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840403223,
+            "after_us": 2840403224,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840417869,
+            "after_us": 2840417869,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840433989,
+            "after_us": 2840433989,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840451004,
+            "after_us": 2840451005,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840467054,
+            "after_us": 2840467054,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840484092,
+            "after_us": 2840484092,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840501184,
+            "after_us": 2840501184,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840503274,
+            "after_us": 2840503274,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840517299,
+            "after_us": 2840517299,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840534385,
+            "after_us": 2840534385,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840550418,
+            "after_us": 2840550418,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840567475,
+            "after_us": 2840567475,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840584580,
+            "after_us": 2840584580,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840600603,
+            "after_us": 2840600603,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840603328,
+            "after_us": 2840603328,
+            "complete": true,
+            "present_us": 2840134306
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2840117688,
+            "before_us": 2840617723,
+            "after_us": 2840617723,
+            "complete": true,
+            "present_us": 2840134306
+          }
+        ]
+      }
+    ],
+    "revisions": []
+  },
+  {
+    "directory": "quill-gate-JcJdlB",
+    "accounted_keys": 300,
+    "maximum": {
+      "pair": {
+        "sent": {
+          "i": 215,
+          "code": 20,
+          "shift": 0,
+          "t_ns": 2925012324378
+        },
+        "seen": {
+          "keycode": 28,
+          "evdev_ms": 2925012,
+          "handler_us": 2925012686,
+          "frame": 313,
+          "present_us": 2925025587,
+          "refresh_us": 16666
+        }
+      },
+      "write_to_presented_ms": 13.262622,
+      "handler_to_presented_ms": 12.901,
+      "paint": {
+        "kind": "paint",
+        "frame": 313,
+        "at_us": 2925013487
+      },
+      "overlapping_stages": [
+        {
+          "kind": "stage",
+          "name": "retag",
+          "start_us": 2925012777,
+          "end_us": 2925012780
+        }
+      ]
+    },
+    "future": [
+      {
+        "accepted": {
+          "kind": "accept",
+          "consumer": "cold",
+          "frame": 0,
+          "before_us": 2901290304,
+          "after_us": 2901290304,
+          "complete": true,
+          "present_us": 2901305919
+        },
+        "reads": [
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901291563,
+            "after_us": 2901291564,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901299754,
+            "after_us": 2901299754,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901316459,
+            "after_us": 2901316459,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901332498,
+            "after_us": 2901332499,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901353530,
+            "after_us": 2901353530,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901365785,
+            "after_us": 2901365785,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901375577,
+            "after_us": 2901375578,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901385469,
+            "after_us": 2901385469,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901401506,
+            "after_us": 2901401506,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901418549,
+            "after_us": 2901418549,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901435582,
+            "after_us": 2901435583,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901451623,
+            "after_us": 2901451623,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901468741,
+            "after_us": 2901468741,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901475629,
+            "after_us": 2901475629,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901484750,
+            "after_us": 2901484750,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901501802,
+            "after_us": 2901501802,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901518864,
+            "after_us": 2901518864,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901534913,
+            "after_us": 2901534913,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901551977,
+            "after_us": 2901551977,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901569019,
+            "after_us": 2901569019,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901575680,
+            "after_us": 2901575680,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901585044,
+            "after_us": 2901585044,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901602109,
+            "after_us": 2901602109,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901618164,
+            "after_us": 2901618164,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901635220,
+            "after_us": 2901635220,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901652287,
+            "after_us": 2901652287,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901668334,
+            "after_us": 2901668335,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901675734,
+            "after_us": 2901675735,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901685434,
+            "after_us": 2901685435,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901701448,
+            "after_us": 2901701448,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901718482,
+            "after_us": 2901718482,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901735590,
+            "after_us": 2901735590,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901751697,
+            "after_us": 2901751697,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901768751,
+            "after_us": 2901768751,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901775787,
+            "after_us": 2901775787,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901784807,
+            "after_us": 2901784807,
+            "complete": true,
+            "present_us": 2901305919
+          },
+          {
+            "kind": "reread",
+            "frame": 0,
+            "accepted_us": 2901290304,
+            "before_us": 2901801859,
+            "after_us": 2901801859,
+            "complete": true,
+            "present_us": 2901305919
+          }
+        ]
+      }
+    ],
+    "revisions": []
+  }
+]
