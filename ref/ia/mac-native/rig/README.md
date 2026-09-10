@@ -25,6 +25,10 @@ in **logical points** (the way `screencapture -R` takes them) while every number
 | `marks.py` | a glyph run's ink — the colour furthest from the paper it holds at least six times |
 | `inks.py` | a line's runs grouped by the ink each carries, so a change of ink prints as one row |
 | `colour.py`, `display.icc` | a capture put back into the profile the committed captures were taken in |
+| `run_narrow.py` | #344, state 22: the Editor at seventeen window widths, text sizes and line-length limits — plain, three selection fills and select-all each, and the advance fitted over the fills. `--remeasure` re-reads the numbers off the committed frames without shooting |
+| `sweep_narrow.py` | #344: bisects the window width the type changes at. The pitch alone separates the size classes, so one frame a width is enough; its frames are scratch, and the two sides of each break are shot as states by `run_narrow.py` |
+| `run_templates.py` | #343, state 23: two passages in all four Preview Templates, each with an Editor control frame, for the first-line indent and the em |
+| `manifest_2026_09_10.py`, `measure_2026_09_10.py` | the 2026-09-10 manifest, and the reader that verifies it and re-reads every number in [`../CAPTURE-2026-09-10.md`](../CAPTURE-2026-09-10.md) off the frames |
 | `display-calibrated-2025-12-15.icc` | the DisplayCAL profile the built-in display carries now, so the two can be compared rather than assumed equal |
 
 ## Running it
