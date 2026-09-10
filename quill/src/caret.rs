@@ -516,38 +516,46 @@ impl Caret {
 
     /// Whether the Editor has to ask for another frame.
     ///
-    /// True only while a blink or a glide is in progress, so a caret with
-    /// nothing to animate — unfocused, frozen, not drawn, or held on by a hand
-    /// that is still moving — costs the frame clock nothing. The Latency Piece
-    /// rests on that (#41 § Frame clock).
+    /// True only while something is actually moving: a glide in flight, or one
+    /// of the blink's two ramps ([`ramping`]). A caret with nothing to animate
+    /// — unfocused, frozen, not drawn, held on by a hand that is still moving,
+    /// or sitting on either of the blink's plateaus — costs the frame clock
+    /// nothing. The Latency Piece rests on that (#41 § Frame clock), and on
+    /// more than the quiet after a key: a tick callback keeps GDK's frame clock
+    /// requesting a phase, so a redraw asked for while one is attached joins
+    /// the next slot on the refresh grid rather than painting at once (#327).
+    /// Off the ramps there is no callback to pace it.
     #[must_use]
     pub fn wants_tick(&self) -> bool {
         if self.mode != Mode::Live || !self.focused || self.selected {
             return false;
         }
         self.glide.is_some_and(|g| self.now < g.at + g.len)
-            || self.active_at.is_some_and(|a| self.now >= a + ON)
+            || self.active_at.is_some_and(|a| ramping(self.now - a))
     }
 
     /// When the Editor has to come back, if not on the very next frame.
     ///
-    /// [`Caret::wants_tick`] is false through the [`ON`] a move or an edit
-    /// puts the cycle back to, because there is nothing to animate inside it —
-    /// the bar is at full strength for the whole of it — and the
-    /// Latency Piece is paid for in the frames that are never asked for. The
-    /// blink does come back at the end of it, though, and a widget that let
-    /// its tick source go there would have nothing left to ask for the frame
-    /// that resumes it. This is that instant, on the caller's own clock. It is
-    /// `None` whenever `wants_tick` is already true, and whenever there is no
-    /// blink coming at all.
+    /// [`Caret::wants_tick`] is false on both of the blink's plateaus — the
+    /// [`ON`] a move or an edit puts the cycle back to and every later one,
+    /// and the [`OFF`] the bar is dark for — because the alpha does not change
+    /// inside either, and the Latency Piece is paid for in the frames that are
+    /// never asked for. A ramp does come after each of them, though, and a
+    /// widget that let its tick source go with nothing to ask for the frame
+    /// that resumes it would blink no further. This is that instant
+    /// ([`next_ramp`]), on the caller's own clock. It is `None` whenever
+    /// `wants_tick` is already true, and whenever there is no blink coming at
+    /// all.
+    ///
+    /// The last tick of a ramp draws the plateau's own alpha — 0.0 at the foot
+    /// of [`FADE_OUT`], 1.0 at the head of [`FADE_IN`] — so nothing is missed
+    /// between the source going and coming back.
     #[must_use]
     pub fn resumes_at(&self) -> Option<i64> {
         if self.mode != Mode::Live || !self.focused || self.selected || self.wants_tick() {
             return None;
         }
-        self.active_at
-            .map(|a| a + ON)
-            .filter(|&when| self.now < when)
+        self.active_at.map(|a| a + next_ramp(self.now - a))
     }
 
     /// Whether the move from `at` to `to`, of this kind at `t`, is one to be
@@ -661,15 +669,87 @@ pub fn snap(x: f64) -> f64 {
 /// bar on.
 fn blink(elapsed: i64) -> f64 {
     let p = elapsed.rem_euclid(CYCLE);
-    if p < ON {
-        1.0
-    } else if p < ON + FADE_OUT {
-        1.0 - (p - ON) as f64 / FADE_OUT as f64
-    } else if p < ON + FADE_OUT + OFF {
-        0.0
-    } else {
-        (p - (ON + FADE_OUT + OFF)) as f64 / FADE_IN as f64
+    match Phase::at(p) {
+        Phase::Lit => 1.0,
+        Phase::FadeOut => 1.0 - (p - Phase::Lit.ends_at()) as f64 / FADE_OUT as f64,
+        Phase::Dark => 0.0,
+        Phase::FadeIn => (p - Phase::Dark.ends_at()) as f64 / FADE_IN as f64,
     }
+}
+
+/// The four phases one turn of the blink runs, in the order it runs them.
+///
+/// The turn is [`ON`], [`FADE_OUT`], [`OFF`], [`FADE_IN`], and the three things
+/// asked of it — how opaque the bar is, whether that is changing, and where the
+/// phase ends — are all read off this one walk, so that a boundary moved in
+/// [`CYCLE`]'s four constants moves in all three answers at once.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Phase {
+    /// The bar solid, at the top of the turn.
+    Lit,
+    /// The ramp down.
+    FadeOut,
+    /// The bar dark.
+    Dark,
+    /// The ramp back up.
+    FadeIn,
+}
+
+impl Phase {
+    /// The phase at `p`, an offset inside one [`CYCLE`].
+    fn at(p: i64) -> Self {
+        if p < ON {
+            Self::Lit
+        } else if p < ON + FADE_OUT {
+            Self::FadeOut
+        } else if p < ON + FADE_OUT + OFF {
+            Self::Dark
+        } else {
+            Self::FadeIn
+        }
+    }
+
+    /// Whether the bar's alpha changes through it, which is the whole of what
+    /// a blink has to be drawn for: the two ramps, and neither plateau.
+    fn changes(self) -> bool {
+        matches!(self, Self::FadeOut | Self::FadeIn)
+    }
+
+    /// Where it ends, as an offset into the turn — which is where the next
+    /// phase begins.
+    fn ends_at(self) -> i64 {
+        match self {
+            Self::Lit => ON,
+            Self::FadeOut => ON + FADE_OUT,
+            Self::Dark => ON + FADE_OUT + OFF,
+            Self::FadeIn => CYCLE,
+        }
+    }
+}
+
+/// Whether the bar's alpha is changing `elapsed` microseconds into a cycle
+/// that began with the bar on.
+///
+/// The predicate [`Caret::wants_tick`] answers with. A negative `elapsed` is a
+/// caller whose clock is behind the move that put the cycle back to its top:
+/// the top has not been reached, so nothing is changing yet.
+fn ramping(elapsed: i64) -> bool {
+    elapsed >= 0 && Phase::at(elapsed.rem_euclid(CYCLE)).changes()
+}
+
+/// The start of the next ramp after `elapsed`, as an elapsed time of its own.
+///
+/// Asked only where [`ramping`] is false, which is on one of the two plateaus,
+/// and the end of the plateau is the start of the ramp. Strictly later than
+/// `elapsed` on either — a phase ends after every offset inside it — so the
+/// instant [`Caret::resumes_at`] hands back is always still to come. A
+/// negative `elapsed` has the whole of the first [`ON`] still ahead of it.
+fn next_ramp(elapsed: i64) -> i64 {
+    if elapsed < 0 {
+        return ON;
+    }
+    let p = elapsed.rem_euclid(CYCLE);
+    elapsed - p + Phase::at(p).ends_at()
 }
 
 /// The eased share of a glide at `p`, its share of the way through in time.
@@ -1281,6 +1361,89 @@ mod tests {
             assert!(!still.wants_tick(), "{mode:?} wants no frame");
             assert_eq!(still.resumes_at(), None, "{mode:?} wants none later");
         }
+    }
+
+    /// A ramp asks for frames, a plateau asks for none and names the ramp that
+    /// ends it, and each boundary between them belongs to the phase it opens.
+    ///
+    /// The quiet a key buys is the first plateau and
+    /// [`the_quiet_asks_for_one_frame_at_its_end`] is its case; this is every
+    /// plateau after it — the dark one, and each later lit one — because the
+    /// bar is as still on those, and a tick source held across them paces the
+    /// next key by the refresh grid rather than painting it at once. The move
+    /// is at an hour of no significance, so that a plateau's answer is read
+    /// against the cycle's own top rather than against zero.
+    #[test]
+    fn a_plateau_asks_for_no_frames_and_names_the_ramp_that_ends_it() {
+        let top = 3 * CYCLE + 137 * MS;
+        let mut c = live();
+        c.edited(top);
+        c.moved(bar(100.0, 0.0), Move::FollowsEdit, top);
+
+        // Down the first ramp: frames, and nothing to come back for.
+        c.tick(top + ON + FADE_OUT / 2);
+        assert!(c.wants_tick(), "the fade down is drawn");
+        assert_eq!(c.resumes_at(), None, "it is already being drawn");
+
+        // Its foot is the dark plateau's first instant, not the ramp's last.
+        c.tick(top + ON + FADE_OUT);
+        assert!(!c.wants_tick(), "the fade down is over at its foot");
+        assert_eq!(
+            c.resumes_at(),
+            Some(top + ON + FADE_OUT + OFF),
+            "and the fade back up is where it comes back"
+        );
+
+        // The dark plateau, which the bar sits out at alpha 0.
+        c.tick(top + ON + FADE_OUT + OFF / 2);
+        assert!(!c.wants_tick(), "a dark bar has nothing to draw");
+        assert_eq!(
+            c.resumes_at(),
+            Some(top + ON + FADE_OUT + OFF),
+            "still the fade back up, from the middle of the dark"
+        );
+
+        // Up the second ramp.
+        c.tick(top + ON + FADE_OUT + OFF + FADE_IN / 2);
+        assert!(c.wants_tick(), "the fade up is drawn");
+        assert_eq!(c.resumes_at(), None, "it is already being drawn");
+
+        // Its head is the second lit plateau's first instant: as still as the
+        // hold a key buys, and as free.
+        c.tick(top + CYCLE);
+        assert!(!c.wants_tick(), "the fade up is over at its head");
+        assert_eq!(
+            c.resumes_at(),
+            Some(top + CYCLE + ON),
+            "and the next fade down is where it comes back"
+        );
+
+        c.tick(top + CYCLE + ON / 2);
+        assert!(!c.wants_tick(), "a solid bar has nothing to draw");
+        assert_eq!(
+            c.resumes_at(),
+            Some(top + CYCLE + ON),
+            "still that fade down, from the middle of the lit"
+        );
+
+        // The ramps' end states are drawn by the ramps themselves, so the
+        // plateaus the source is dropped over begin already correct.
+        assert_eq!(
+            c.alpha(top + ON + FADE_OUT),
+            0.0,
+            "the foot of the fade down"
+        );
+        assert_eq!(c.alpha(top + CYCLE), 1.0, "the head of the fade up");
+
+        // A move is told a frame time the caret has not been ticked to yet, so
+        // the cycle's top can still be ahead of the machine's own clock. The
+        // whole of the first on-phase is ahead of it there.
+        let mut ahead = live();
+        ahead.tick(2 * CYCLE);
+        ahead.edited(3 * CYCLE);
+        ahead.moved(bar(100.0, 0.0), Move::FollowsEdit, 3 * CYCLE);
+        assert!(!ahead.wants_tick(), "the top has not been reached");
+        assert_eq!(ahead.resumes_at(), Some(3 * CYCLE + ON));
     }
 
     /// The band hangs from the baseline at iA's own share, which is what keeps
