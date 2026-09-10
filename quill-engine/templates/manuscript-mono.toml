@@ -6,8 +6,10 @@
 # One face throughout, at the Editor's default size, headings bold at body
 # size. The numbers are the Editor's, converted once: 16 pt is the 21.33 px em
 # of step 5 at 96 dpi (`typography::LADDER`), 1.711 is that step's leading
-# (a 36.5 px pitch over the em), and 38.4 em is the 64-cell measure on the
-# 0.6 em cell the Quill Faces are cut on.
+# (a 36.5 px pitch over the em), 38.4 em is the 64-cell measure on the
+# 0.6 em cell the Quill Faces are cut on, and the three spacing fields are
+# that same 1.711 em: one pitch of air, the Editor's blank line, so a paragraph
+# advances by the two pitches iA's Manuscript measures (ADR 0019).
 
 id = "manuscript-mono"
 paragraphs = "spaced"
@@ -25,26 +27,30 @@ code = 1.0
 [rhythm]
 line_height = 1.711
 measure = 38.4
-paragraph_spacing = 1.0
-space_before_heading = 1.0
-space_after_heading = 1.0
+# One pitch: the Editor's own blank line (ADR 0019).
+paragraph_spacing = 1.711
+space_before_heading = 1.711
+space_after_heading = 1.711
 
 [headings]
 weight = 700
 
-# The Editor's own grounds: a Manuscript is the page the writer is typing on,
-# so it keeps the paper it was typed on rather than the darker one State 16
-# measured under Modern.
+# The family keeps the Editor's type, not its ground: the paper is the shared
+# Web page Modern and Classic render on, #101010 dark (measured off Manuscript
+# (Duo), `manuscript-duo.toml`) and #fcfcfc light (Modern's, unmeasured for a
+# Manuscript), per ADR 0019's baseline pass. The inks, the muted, the link and
+# the code ground are the Editor's own, captured in no scheme except the dark
+# ink, which that Duo capture reads at the Editor's #cccccc.
 
 [light]
-paper = "#f7f7f7"
+paper = "#fcfcfc"
 ink = "#191919"
 muted = "#8c8c8c"
 link = "#1a5fb4"
 code_ground = "#eeeeee"
 
 [dark]
-paper = "#1a1a1a"
+paper = "#101010"
 ink = "#cccccc"
 muted = "#7e7e7e"
 link = "#78aeed"
