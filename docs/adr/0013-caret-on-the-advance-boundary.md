@@ -30,15 +30,16 @@ against a `mac-native` crop from here on; `caret/unfocused` still shows a free c
 judged against the Parity oracle, whose column this change overrules, and it lost on that column in
 `progress/rounds/caret-r8.json`.*
 
-*Ranked on 2026-09-10 by the owner: the table below measured **iA Writer for Windows 2.1.9644
-running under Wine**, and a Wine-run Windows build is not an oracle. Where it and iA Writer for Mac
-running natively differ, the Mac app decides ([ADR 0015](0015-the-design-oracle-outranks-the-parity-oracle.md)).
-Nothing here moves: every row of this ADR was re-measured on the Mac app under #154 and stands
-confirmed in [`VERDICTS.md`](../../ref/ia/mac-native/VERDICTS.md) § ADR 0013, the single divergence
-— 0013.7's "one mark, which a selection moves to whichever end is active" — already resolved to the
-Mac app, which removes the caret for as long as the selection stands. The Wine rig under
-`shots/caret/ia/wine/` keeps its method and its vocabulary; it no longer carries a verdict of its
-own.*
+*Ranked on 2026-09-09 by the owner: the table below measured **iA Writer for Windows 2.1.9644**
+under Wine, the build [ADR 0015](0015-the-design-oracle-outranks-the-parity-oracle.md) ranks below
+iA Writer for Mac running natively. Nothing here moves. Every claim
+[`VERDICTS.md`](../../ref/ia/mac-native/VERDICTS.md) § ADR 0013 lists, 0013.1 … 0013.8, was
+re-measured on the Mac app under #154: six stand confirmed, 0013.6's paint order is equally
+unreadable there — the bar meets no ink on either build — and 0013.7 is contradicted, the one
+divergence, resolved in the Mac app's favour by
+[ADR 0014](0014-a-selection-is-a-fill-and-nothing-else.md) before the captures found it. The Wine
+rig under `shots/caret/ia/wine/` keeps its method and its vocabulary; its verdicts are
+`VERDICTS.md`'s.*
 
 The bar — the free caret and both of the selection's end bars — stands on the advance boundary
 between two cells, offset from it by nothing, and is painted over the ink rather than under it. The
