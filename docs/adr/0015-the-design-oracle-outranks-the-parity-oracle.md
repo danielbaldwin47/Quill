@@ -1,10 +1,11 @@
 # The Design oracle outranks the Parity oracle where the design doc says so
 
-*Sharpened on 2026-09-10 by the owner: **running natively** is the whole of it. iA Writer for
-Windows under Wine — the rig ADR 0013's table was measured on — may be showing Wine's rendering
-rather than iA's, so it is not the Design oracle and not an oracle at all. Where a Wine capture and
-a `mac-native` one differ, `mac-native` decides; a claim resting on a Wine capture alone is
-unmeasured until a native capture confirms it.*
+*Sharpened on 2026-09-09 by the owner: the Design oracle is iA Writer for Mac **running
+natively**, and nothing else. iA Writer for Windows under Wine — the build
+[ADR 0013](0013-caret-on-the-advance-boundary.md)'s table measured — may be showing Wine's
+rendering rather than iA's. Where a Wine capture and a `mac-native` one differ, `mac-native`
+decides, and a claim resting on a Wine capture alone stands as unmeasured until a native capture
+confirms it.*
 
 iA Writer for Mac running natively is the **Design oracle**, evidenced by `ref/ia/mac-native/`
 (captured and measured under #154, PRs #155 and #156). `legacy/` stays the **Parity oracle**: what
