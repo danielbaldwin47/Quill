@@ -132,10 +132,13 @@ const CHECKS = {
 
 // The built-ins, restated from quill-engine/src/theme.rs, Colours::{LIGHT,DARK}, which #308
 // measured off the Design oracle and #319 ported (docs/design.md row Syntax colours). Restated
-// rather than read, so a hand that changes one table and not the other goes red here; the two
-// tables that hold the app's own copy are theme.rs's, and this is a third statement of them on
-// purpose, the way tools/keys-assert.mjs states the accent.
-const SYNTAX = {
+// rather than read, because nothing here can call into the engine and a Category is judged by the
+// hex it lands on rather than by a property of it — where the caret has a chroma test to lean on
+// (tools/keys-assert.mjs, WHY A CHROMA TEST AND NOT THE ACCENT ITSELF), five hues on two grounds
+// have none, and telling them apart is the whole of the rule. So a hand that changes theme.rs and
+// not this goes red here, which is what the restatement buys. Exported so that a selftest derives
+// its pigments from this rather than copying them a fourth time.
+export const SYNTAX = {
   light: { ink: [25, 25, 25], colours: {
     nouns: [187, 81, 42], verbs: [70, 117, 181], adjectives: [157, 103, 34],
     adverbs: [166, 85, 159], conjunctions: [81, 129, 47],

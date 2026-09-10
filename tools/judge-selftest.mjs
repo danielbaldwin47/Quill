@@ -18,7 +18,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ASSERTIONS, assertState, secondShot, validate } from './assert-state.mjs';
+import { ASSERTIONS, SYNTAX, assertState, secondShot, validate } from './assert-state.mjs';
 import { pair, pairDir, reveal } from './blind.mjs';
 import { CAPTURES, cropPng, encodePng, overlaid, resolveOpponent } from './crop.mjs';
 import {
@@ -556,16 +556,17 @@ const syntaxRule = (name) => states.pieces.syntax[name].assert;
 // still registered rather than written out again: `live`'s is all five Categories on the light
 // ground with the Live arm, so dropping that arm is what `all-light` held and adding the Focus arm
 // is what `focus-sentence` held. Derived, so a Category added to the Piece reaches all four.
-const syntaxPlain = (() => { const { live, ...rest } = syntaxRule('live'); return rest; })();
+const syntaxAllLight = (() => { const { live, ...rest } = syntaxRule('live'); return rest; })();
 // The focused sentence of `passage-syntax.md` — the passage the Design oracle's own focus frame was
 // shot on, and now ours — holds no conjunction, so four Categories are all a Focus Sentence shot of
 // it can show. That is the capture's own reading: CAPTURE-ORIGINAL-MBP.md § Dim wins over colour
 // lists the focused row as carrying noun, verb, adjective and adverb, on both grounds.
-const syntaxFocus = { ...syntaxPlain, expected: syntaxPlain.expected.filter((c) => c !== 'conjunctions'), focus: true };
-const syntaxDark = { ...syntaxPlain, theme: 'dark' };
+const syntaxFocus = { ...syntaxAllLight, expected: syntaxAllLight.expected.filter((c) => c !== 'conjunctions'), focus: true };
+const syntaxDark = { ...syntaxAllLight, theme: 'dark' };
 // The Design oracle's light noun, which is the pigment every variant below paints with: the one
-// Category that is in `all-light`'s five and not in `adjectives-adverbs`' two.
-const NOUN = [187, 81, 42];
+// Category that is in `all-light`'s five and not in `adjectives-adverbs`' two. Read out of the
+// production table rather than written down again, so a repalette reaches the variants too.
+const NOUN = SYNTAX.light.colours.nouns;
 function alteredSyntax(pair, change) {
   const page = decodePng(pair.dim);
   const source = decodePng(pair.lit);
@@ -597,7 +598,7 @@ ok('all five Syntax states hold on real captures and the companion pins only mas
   assert.deepEqual(Object.keys(states.pieces.syntax), ['all-light', 'all-dark', 'adjectives-adverbs', 'focus-sentence', 'live']);
   // Which of the five carry a rule and which a `mac-native` opponent, and that no state carries
   // both — the judge refuses that pairing, and this is where the Piece's own shape is held to it.
-  const rules = { 'all-light': syntaxPlain, 'all-dark': syntaxDark, 'adjectives-adverbs': syntaxRule('adjectives-adverbs'), 'focus-sentence': syntaxFocus, live: syntaxRule('live') };
+  const rules = { 'all-light': syntaxAllLight, 'all-dark': syntaxDark, 'adjectives-adverbs': syntaxRule('adjectives-adverbs'), 'focus-sentence': syntaxFocus, live: syntaxRule('live') };
   assert.deepEqual(Object.keys(states.pieces.syntax).filter((n) => states.pieces.syntax[n].opponent),
     ['all-light', 'all-dark', 'focus-sentence']);
   const began = performance.now();
@@ -614,9 +615,9 @@ ok('all five Syntax states hold on real captures and the companion pins only mas
     // A state whose flag names Categories shows exactly those. A state on `on` shows all five,
     // except under Focus Sentence, where only the bright sentence is coloured and what it holds is
     // the passage's business rather than the flag's.
-    assert.ok(rule.expected.every((c) => syntaxPlain.expected.includes(c)), `${state.name} colours only the five`);
+    assert.ok(rule.expected.every((c) => syntaxAllLight.expected.includes(c)), `${state.name} colours only the five`);
     if (state.flags.syntax !== 'on') assert.deepEqual(rule.expected, state.flags.syntax.split(','));
-    else if (!rule.focus) assert.deepEqual(rule.expected, syntaxPlain.expected);
+    else if (!rule.focus) assert.deepEqual(rule.expected, syntaxAllLight.expected);
     assert.equal(Boolean(rule.focus), state.flags.focus === 'sentence');
     assert.equal(Boolean(rule.live), state.flags.live);
     const got = assertState(rule, syntaxPair(state.name));
@@ -629,7 +630,7 @@ ok('all five Syntax states hold on real captures and the companion pins only mas
 
 ok('the actual syntax-off shot fails the all-light rule', () => {
   const pair = syntaxPair('all-light');
-  const got = assertState(syntaxPlain, { ...pair, dim: pair.lit });
+  const got = assertState(syntaxAllLight, { ...pair, dim: pair.lit });
   assert.equal(got.ours, false);
   assert.match(got.why, /nouns has 0 opaque pixels/);
 });
@@ -638,7 +639,7 @@ ok('Syntax rejects missing and unexpected Categories, wrong pigments and displac
   const pair = syntaxPair('all-light');
   // Removing a whole Category's opaque cores must fail even though its antialiased edge remains.
   const missing = alteredSyntax(pair, ({ rgb, off }) => rgbIs(rgb, NOUN) ? off : null);
-  assert.match(assertState(syntaxPlain, missing).why, /nouns has 0 opaque pixels/);
+  assert.match(assertState(syntaxAllLight, missing).why, /nouns has 0 opaque pixels/);
   const unexpected = assertState(syntaxRule('adjectives-adverbs'), pair);
   assert.equal(unexpected.ours, false);
   assert.match(unexpected.why, /unexpected|non-prose ink/);
@@ -654,9 +655,9 @@ ok('Syntax rejects missing and unexpected Categories, wrong pigments and displac
   assert.match(assertState(syntaxRule('adjectives-adverbs'), oneNoun).why, /unexpected nouns/);
   for (const pigment of [[4, 250, 100], NOUN]) {
     const wrong = alteredSyntax(pair, ({ x, y }) => x === 10 && y === 100 ? pigment : null);
-    assert.equal(assertState(syntaxPlain, wrong).ours, false);
+    assert.equal(assertState(syntaxAllLight, wrong).ours, false);
   }
-  const odd = assertState(syntaxPlain, { ...pair, lit: painted() });
+  const odd = assertState(syntaxAllLight, { ...pair, lit: painted() });
   assert.equal(odd.ours, false);
   assert.match(odd.why, /differ in size/);
 });
@@ -688,7 +689,7 @@ ok('Syntax Focus rejects coloured dim glyphs and Live requires colour on the sca
 });
 
 ok('Syntax refuses invalid configuration before a shot opens', () => {
-  const spec = syntaxPlain;
+  const spec = syntaxAllLight;
   for (const patch of [
     { theme: 'sepia' }, { expected: [] }, { expected: ['nouns', 'nouns'] },
     { expected: ['pronouns'] }, { expected: 'nouns' }, { focus: 'sentence' },
@@ -707,7 +708,7 @@ ok('Syntax preserves captured marker, code and URL pixels, and a coloured protec
     [620, 444, 214, 54], [620, 587, 675, 62], [592, 727, 1695, 225],
     [592, 1012, 1695, 90],
   ];
-  const spec = { ...syntaxPlain, protected: protectedRegions };
+  const spec = { ...syntaxAllLight, protected: protectedRegions };
   const good = assertState(spec, pair);
   assert.equal(good.ours, true, good.why);
   // The defect `protection-shifted.png` preserved — a full retag after a worker result moved the
@@ -1318,16 +1319,16 @@ ok('every judged state that draws a determined caret is held to one, and no othe
   // when it is asked, one shot in three, and those states are about the sidebar beside the page.
   // `export/dialog` takes it for a reason of its own: the dialog is a surface over the page and the
   // keyboard is the dialog's while it is up, so the Editor under it draws the ghost by rights.
-  // The three Syntax states that took a `mac-native` opponent in #319 take it for the Focus states'
-  // reason exactly: they are crops of the Design oracle, whose captures carry no bar, and each is
-  // about which words are coloured rather than where the caret is. The two that stayed asserted
-  // draw the bar, because nothing in their pixels is measured against a capture.
+  // The two all-Category Syntax states that took a `mac-native` opponent in #319 take it because
+  // their captures carry no bar to pair against — measured, not assumed: zero accent pixels in
+  // both `308-original-mbp-{light,dark}-syntax-all`. Their sibling `syntax/focus-sentence` draws
+  // one, because its capture does, at the same word: 430 accent pixels standing after `more`.
   const exempt = Object.entries(wants).filter(([, held]) => !held).map(([name]) => name).sort();
   assert.deepEqual(exempt, [
     'caret/selection', 'caret/unfocused', 'export/dialog', 'files/library', 'files/search',
     'focus/paragraph', 'focus/sentence',
     'markup/blocks', 'markup/gutters', 'markup/wrapped', 'preview/full', 'preview/pdf-full',
-    'syntax/all-dark', 'syntax/all-light', 'syntax/focus-sentence',
+    'syntax/all-dark', 'syntax/all-light',
     'theme/dark', 'theme/light', 'type/mono',
   ]);
   // #197 came out of `theme/dark`, which has since gone `--nocaret` (#198) so that its marks can be

@@ -460,8 +460,7 @@
       },
       "focus-sentence": {
         "text": "ref/ia/mac-native/passage-syntax.md",
-        "caret": 150,
-        "nocaret": true,
+        "caret": 177,
         "theme": "light",
         "chrome": "off",
         "syntax": "on",
