@@ -43,7 +43,7 @@ import {
   openPanelStage, openStage, panelBlocked,
 } from './harness.mjs';
 import {
-  DEFAULT_KEYS, PASTE_TEXT, WARMUP_KEYS, hash32, regimes, scoredRegime, script, uinputPlan,
+  DEFAULT_KEYS, PASTE_TEXT, PAUSE_MS, WARMUP_KEYS, hash32, regimes, scoredRegime, script, uinputPlan,
 } from './regimes.mjs';
 
 // The binary a bench is of. Release rather than debug, for the reason a judged shot is: the Gate
@@ -469,7 +469,7 @@ async function benchOne(root, stage, { regime, keys, sessions, warmup, panel }) 
     definition: {
       mix: regime.mix, where: regime.where, pace_ms: regime.pace, focus: regime.focus,
       caret: caretFor(root, regime.where),
-      pause_every_keys: regime.pauseEvery ?? null, pause_ms: regime.pauseEvery ? (regime.pauseMs || 1200) : null,
+      pause_every_keys: regime.pauseEvery ?? null, pause_ms: regime.pauseEvery ? (regime.pauseMs || PAUSE_MS) : null,
       keys_per_session: keys, sessions, warmup_keys: WARMUP_KEYS,
     },
     budget: BUDGET,

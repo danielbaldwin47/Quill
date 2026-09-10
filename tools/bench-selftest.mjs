@@ -14,6 +14,7 @@
 
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -22,7 +23,7 @@ import {
   regimeLine, summary, verdict, writeGaps,
 } from './bench-join.mjs';
 import { PANEL_WORKSPACE, panelRefusal, physicalMonitors } from './harness.mjs';
-import { DEFAULT_KEYS, hash32, regimes, script, uinputPlan } from './regimes.mjs';
+import { DEFAULT_KEYS, PAUSE_MS, hash32, regimes, script, uinputPlan } from './regimes.mjs';
 
 let cases = 0;
 let failures = 0;
@@ -448,10 +449,42 @@ ok('the chord regimes press chords, and bursts_and_pauses pauses every 25 keys',
   const bursts = planOf('bursts_and_pauses');
   const paused = bursts.keys.map((k, i) => (k.pause_ms == null ? null : i)).filter((i) => i != null);
   assert.deepEqual(paused, [24, 49, 74, 99, 124, 149, 174, 199, 224, 249, 274, 299]);
-  assert.ok(bursts.keys.every((k) => k.pause_ms == null || k.pause_ms === 1400));
+  assert.ok(bursts.keys.every((k) => k.pause_ms == null || k.pause_ms === PAUSE_MS));
 
   assert.equal(planOf('fast_typist').pace_ms, 45);
   assert.equal(planOf('saturation_stress').pace_ms, 8, 'the injector floor stands in for a pace of 0');
+});
+
+// The pause is a number chosen against the app's own idle timers, and the app is where those
+// timers live. Asked of the Rust rather than of a table copied over here, for the same reason the
+// case below asks the injector: moving `TITLE_MS`, or restoring 1,400 as a rounder pause, should be
+// a red case rather than eleven keys of three hundred quietly measuring the chrome's return (#349).
+ok('the pause clears every timer the app arms from the last keystroke', () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const ms = (file, re, what) => {
+    const m = readFileSync(path.join(root, file), 'utf8').match(re);
+    assert.ok(m, `${what}: no longer where this case looks for it, so it can no longer be checked`);
+    return Number(m[1].replace(/_/g, ''));
+  };
+  const typing = 'quill/src/chrome/typing.rs';
+  const window = 'quill/src/window.rs';
+  const harness = 'quill/src/harness.rs';
+  const armed = [
+    ['Typing::STATS_MS', ms(typing, /pub const STATS_MS: i64 = ([\d_]+);/, 'STATS_MS')],
+    ['Typing::TITLE_MS', ms(typing, /pub const TITLE_MS: i64 = ([\d_]+);/, 'TITLE_MS')],
+    ['AUTOSAVE', ms(window, /const AUTOSAVE: Duration = Duration::from_secs\(([\d_]+)\)/, 'AUTOSAVE') * 1000],
+    ['Preview REFRESH', ms(window, /const REFRESH: Duration = Duration::from_millis\(([\d_]+)\)/, 'REFRESH')],
+    ['harness DRAIN_EVERY', ms(harness, /const DRAIN_EVERY: Duration = Duration::from_millis\(([\d_]+)\)/, 'DRAIN_EVERY')],
+    ['harness TAIL', ms(harness, /const TAIL: i64 = ([\d_]+);/, 'TAIL') / 1000],
+  ];
+  // One refresh interval on the 60 Hz output the bench measures on: a timer's frame inside this
+  // window of the key takes the refresh slot the key's own frame needed.
+  const REFRESH_MS = 1000 / 60;
+  for (const [name, fires] of armed) {
+    assert.ok(PAUSE_MS < fires || PAUSE_MS - fires > REFRESH_MS,
+      `the ${PAUSE_MS} ms pause ends ${(PAUSE_MS - fires).toFixed(1)} ms after ${name} (${fires} ms) `
+      + 'fires, inside the refresh that timer\'s frame takes');
+  }
 });
 
 ok('the injector can say every press the fourteen ask for', () => {
