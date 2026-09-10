@@ -125,14 +125,17 @@ pub fn categories(prose: &str) -> Vec<(Range<usize>, Category)> {
         .into_iter()
         .enumerate()
         .filter_map(|(index, word)| {
-            let before = index.checked_sub(1).and_then(|previous| tags[previous]);
-            if is_possessive(&sentence[index], before) {
+            // `get` rather than an index: the tagger answers one tag per word
+            // it was handed, and a build that ever answered short would drop
+            // the tail here rather than panic on the worker thread.
+            let tag = |at: usize| tags.get(at).copied().flatten();
+            if is_possessive(&sentence[index], index.checked_sub(1).and_then(tag)) {
                 return None;
             }
             if is_negation(&sentence[index]) {
                 return Some((word, Category::Adverbs));
             }
-            Some((word, category(tags[index]?)?))
+            Some((word, category(tag(index)?)?))
         })
         .collect()
 }
@@ -257,24 +260,22 @@ fn is_possessive(word: &str, before: Option<UPOS>) -> bool {
 /// `not` written out is left where the tagger puts it, which is `PART` too and
 /// so plain. No capture holds it, and a row is written on a capture.
 fn is_negation(word: &str) -> bool {
-    let mut characters = word.chars();
-    match (
-        characters.next(),
-        characters.next(),
-        characters.next(),
-        characters.next(),
-    ) {
-        (Some('n' | 'N'), Some(second), Some('t' | 'T'), None) => is_apostrophe(second),
-        _ => false,
-    }
+    starts_nt(word.chars()) && word.chars().nth(3).is_none()
 }
 
-/// Whether `n't` starts at `at`: the `n` of a negated auxiliary, the
-/// apostrophe, and the `t`.
+/// Whether `n't` starts at `at`, which is what [`words`] breaks a word before.
 fn is_nt(chars: &[(usize, char)], at: usize) -> bool {
-    matches!(chars.get(at), Some(&(_, 'n' | 'N')))
-        && chars.get(at + 1).is_some_and(|&(_, c)| is_apostrophe(c))
-        && matches!(chars.get(at + 2), Some(&(_, 't' | 'T')))
+    starts_nt(chars[at..].iter().map(|&(_, character)| character))
+}
+
+/// Whether the first three characters are the `n` of a negated auxiliary, the
+/// apostrophe and the `t` — the one place that shape is spelt, so the boundary
+/// [`words`] cuts on and the token [`is_negation`] colours cannot drift apart.
+fn starts_nt(mut characters: impl Iterator<Item = char>) -> bool {
+    matches!(
+        (characters.next(), characters.next(), characters.next()),
+        (Some('n' | 'N'), Some(second), Some('t' | 'T')) if is_apostrophe(second)
+    )
 }
 
 /// The two characters prose writes an apostrophe with: the typewriter one, and
