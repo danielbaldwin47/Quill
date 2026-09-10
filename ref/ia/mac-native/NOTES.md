@@ -155,8 +155,9 @@ section:
   from #165.) Shot at steps 0, 5 and 13 at verified document top, the box holds at **164 at all
   three**: a constant.
 
-The numbers are measured; porting them is #319's, and `docs/design.md` row Page top holds Quill at
-two pitches until that lands.
+The numbers are measured, and **#231's own second half ported them**: `docs/design.md` row Page top
+and `typography::page_top` now open Quill's page on the editor's own **60 device px at scale 2 —
+30 logical px**, a constant at every step, in place of the two pitches the Parity oracle held.
 
 ---
 
