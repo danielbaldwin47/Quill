@@ -2755,7 +2755,7 @@ impl Editor {
     }
 
     /// Asks for frames while the machine wants them, and for the one frame
-    /// that ends the quiet when it does not.
+    /// that ends the plateau it is standing on when it does not.
     ///
     /// One of the two places [`caret::Caret::wants_tick`] is read and the tick
     /// source stands or falls by it; the other is the callback's own tail in
@@ -2799,10 +2799,12 @@ impl Editor {
 
     /// Asks for one frame at `when`, on the frame clock's clock.
     ///
-    /// The quiet after a move or an edit is the one stretch in which the
-    /// caret has something coming and wants no frames until it comes, so it
-    /// is the one place a timer belongs — as it does in the oracle, whose
-    /// `setTimeout` covers the same 480 ms. All this one does is put the tick
+    /// A plateau of the blink — the quiet after a move or an edit, the stretch
+    /// the bar is dark for, and every lit stretch after the first — is a
+    /// stretch in which the caret has something coming and wants no frames
+    /// until it comes, so it is where a timer belongs, as it does in the
+    /// oracle, whose `setTimeout` covers the quiet. All this one does is put
+    /// the tick
     /// source back; whether the quiet is really over is settled by the frame
     /// times the callback is then handed, so a timer that fires early costs a
     /// frame rather than a wrong blink, and a window with no frames at all

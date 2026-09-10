@@ -5,21 +5,22 @@
 #
 # The only Manuscript captured: `ref/ia/mac-native/CAPTURE-2026-09-09.md`
 # § "#261 — Preview", off `mac-native-20-dark-preview-manuscript-duo-full`,
-# reads #101010 paper on #cccccc ink. The ink is what [dark] holds. The paper
-# is not, and is left alone deliberately — `manuscript-mono.toml` says a
-# Manuscript keeps the paper it was typed on rather than the darker page
-# Modern renders on, and #263 puts Preview outside ADR 0015, so what iA does
-# here informs that decision rather than overriding it. The light page was
-# captured in neither scheme, so #f7f7f7 is still the Editor's ground rather
-# than a measurement.
+# reads #101010 paper on #cccccc ink, and [dark] holds both since ADR 0019's
+# baseline pass: the family keeps the Editor's type, not its ground, and
+# renders on the shared Web paper Modern and Classic use. The light page was
+# captured in neither scheme, so #fcfcfc is Modern's light paper rather than
+# a Manuscript measurement.
 #
 # That capture's rhythm, again a rendered state rather than the numbers: body
 # line pitch 72 px at backing scale 2, lines at y295/367/439/511/583/655 and
-# the next paragraph at y799 — a paragraph advancing by exactly two pitches,
-# against the 1 + 1/1.711 pitches these numbers give. Nothing below moves for
-# it: a pitch is base × line_height and one still separates neither factor,
-# and this family's rhythm is the Editor's own ladder rather than a port of
-# iA's Manuscript template (`VERDICTS.md` § 4.3.5).
+# the next paragraph at y799 — a paragraph advancing by exactly two pitches.
+# The 1.0 em these files held gave 1 + 1/1.711 = 1.58 pitches; the 1.711 em
+# they hold now gives two, one line of type and one pitch of air, and it is
+# the Editor's own blank line rather than a port of iA's Manuscript template
+# (`VERDICTS.md` § 4.3.5), so no further capture is owed for it. The pitch
+# itself is unchanged, base × line_height, and this capture separates neither
+# factor: which of them carries the 2 % between Classic's 68 px and this
+# family's 72 px waits on an em read from ink (ADR 0019).
 
 id = "manuscript-duo"
 paragraphs = "spaced"
@@ -37,22 +38,23 @@ code = 1.0
 [rhythm]
 line_height = 1.711
 measure = 38.4
-paragraph_spacing = 1.0
-space_before_heading = 1.0
-space_after_heading = 1.0
+# One pitch: the Editor's own blank line (ADR 0019).
+paragraph_spacing = 1.711
+space_before_heading = 1.711
+space_after_heading = 1.711
 
 [headings]
 weight = 700
 
 [light]
-paper = "#f7f7f7"
+paper = "#fcfcfc"
 ink = "#191919"
 muted = "#8c8c8c"
 link = "#1a5fb4"
 code_ground = "#eeeeee"
 
 [dark]
-paper = "#1a1a1a"
+paper = "#101010"
 ink = "#cccccc"
 muted = "#7e7e7e"
 link = "#78aeed"

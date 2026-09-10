@@ -17,16 +17,12 @@
 //! ADR 0005's rule: Preview and PDF read the numbers through Pango, and HTML
 //! export generates a stylesheet from the same ones, so the two cannot drift.
 //! Sizes are absolute — a Template's base is in points and does not follow the
-//! Editor's size ladder. That is this app's decision, and it is not a port of
-//! iA's: `ref/ia/mac-native/CAPTURE-2026-09-09.md` § "#261 — Preview" stepped
-//! the editor's text size to 0 and to 13 with the Web preview open
-//! (`mac-native-20-dark-preview-modern-step-00` and `-13`, against the
-//! `-editor-step-` controls taken with Preview hidden) and measured a body
-//! pitch of 46 px against 164 px, with different wrapping: iA's Web preview
-//! does follow the editor's size. Quill's Preview scales by `[preview] zoom`
-//! alone (`quill::preview`, `quill::column`). #263 puts Preview outside
-//! ADR 0015, so that measurement informs this decision rather than overturning
-//! it, and any doc claiming iA as the reason for it is wrong.
+//! Editor's size ladder, and Quill's Preview scales by `[preview] zoom` alone
+//! (`quill::preview`, `quill::column`). That is
+//! [ADR 0019](https://github.com/danielbaldwin47/Quill/blob/main/docs/adr/0019-a-template-starts-from-ia-and-is-then-quills-own.md)'s
+//! rule, and it is not a port of iA's: `ref/ia/mac-native/CAPTURE-2026-09-09.md`
+//! § "#261 — Preview" measured that iA's Web preview does follow the editor's
+//! size, so nobody need measure it again.
 //!
 //! The Quill-wide toggles (Center Headings, Number Headings, Indent
 //! Paragraphs) apply on top of any Template rather than living in one, and
@@ -390,6 +386,24 @@ mod tests {
             // Headings bold at body size.
             assert_eq!(manuscript.sizes.headings, [1.0; 6]);
             assert_eq!(manuscript.headings.weight, 700);
+            // ADR 0019's baseline pass: one pitch of air between blocks, the
+            // Editor's own blank line, so each spacing field is the leading.
+            let rhythm = &manuscript.rhythm;
+            assert_eq!(rhythm.line_height, 1.711);
+            for (name, ems) in [
+                ("paragraph_spacing", rhythm.paragraph_spacing),
+                ("space_before_heading", rhythm.space_before_heading),
+                ("space_after_heading", rhythm.space_after_heading),
+            ] {
+                assert_eq!(ems, rhythm.line_height, "{id}'s {name} is one pitch");
+            }
+            // And the shared Web paper in place of the Editor's ground: the
+            // dark page Modern and Classic both render on, which
+            // `CAPTURE-2026-09-09.md` § "#261 — Preview" reads off Manuscript
+            // (Duo) too, and Modern's light page, unmeasured for a Manuscript.
+            assert_eq!(manuscript.dark.paper, Colour::from_hex("#101010"));
+            assert_eq!(manuscript.dark.ink, Colour::from_hex("#cccccc"));
+            assert_eq!(manuscript.light.paper, Colour::from_hex("#fcfcfc"));
         }
     }
 
