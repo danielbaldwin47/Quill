@@ -35,10 +35,15 @@
 #
 # This Template matches the cap height (owner's call, #342): under ADR 0019 a
 # Template starts from iA's look, and the look is the size the type reads at,
-# not where its lines wrap. Source Serif 4's cap is 0.670 em against IBM Plex
-# Serif's 0.698, so the same reading height is 0.698 / 0.670 = 1.0425 × the
-# Editor's em — 22.24 px, the 16.68 pt below — and the 69.3 px pitch over that
-# em is `line_height` 1.558. A page here wraps about 11 % sooner than iA's,
+# not where its lines wrap. The capture names both ems, so the ratio is theirs
+# and derived here: 22.24 px of Source Serif 4 over the 21.333 px the Editor
+# and iA's Classic are both set at, 1.0425. It is more than 1 because Source
+# Serif 4 puts less cap in an em than IBM Plex Serif does — roughly 0.670
+# against 0.698, which is the ratio to within the 0.05 px the four cap
+# heights spread over. `base` is that 1.0425 over the Manuscripts' 16 pt, and
+# the 69.3 px pitch over the em is `line_height` 1.558.
+#
+# A page here wraps about 11 % sooner than iA's,
 # which is what the advance costs and what the other em would have bought at
 # a cap height of ~26.7 px against 29.8, reading smaller than Modern and
 # Manuscript. Giving this Template a different face would dissolve the ratio
