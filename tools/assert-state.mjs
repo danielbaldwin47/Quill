@@ -130,16 +130,19 @@ const CHECKS = {
   syntax: syntaxSpec,
 };
 
-// Provisional built-ins, restated from quill-engine/src/theme.rs, Colours::{LIGHT,DARK}.
-// #308 replaces these alongside the theme tables; #319 supplies the Design oracle opponents.
+// The built-ins, restated from quill-engine/src/theme.rs, Colours::{LIGHT,DARK}, which #308
+// measured off the Design oracle and #319 ported (docs/design.md row Syntax colours). Restated
+// rather than read, so a hand that changes one table and not the other goes red here; the two
+// tables that hold the app's own copy are theme.rs's, and this is a third statement of them on
+// purpose, the way tools/keys-assert.mjs states the accent.
 const SYNTAX = {
   light: { ink: [25, 25, 25], colours: {
-    nouns: [202, 71, 26], verbs: [52, 118, 185], adjectives: [166, 101, 0],
-    adverbs: [178, 79, 162], conjunctions: [63, 131, 30],
+    nouns: [187, 81, 42], verbs: [70, 117, 181], adjectives: [157, 103, 34],
+    adverbs: [166, 85, 159], conjunctions: [81, 129, 47],
   } },
   dark: { ink: [204, 204, 204], colours: {
-    nouns: [201, 134, 111], verbs: [121, 159, 194], adjectives: [193, 147, 78],
-    adverbs: [186, 142, 178], conjunctions: [107, 168, 77],
+    nouns: [206, 137, 109], verbs: [130, 158, 191], adjectives: [186, 150, 89],
+    adverbs: [180, 144, 176], conjunctions: [137, 164, 116],
   } },
 };
 

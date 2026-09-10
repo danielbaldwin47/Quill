@@ -394,38 +394,52 @@
     },
     "syntax": {
       "all-light": {
+        "text": "ref/ia/mac-native/passage-syntax.md",
+        "caret": 0,
+        "nocaret": true,
         "theme": "light",
         "chrome": "off",
         "syntax": "on",
         "focus": "off",
         "live": false,
-        "assert": {
-          "kind": "syntax",
-          "theme": "light",
-          "expected": [
-            "nouns",
-            "verbs",
-            "adjectives",
-            "adverbs",
-            "conjunctions"
+        "opponent": {
+          "capture": "mac-native-308-original-mbp-light-syntax-all.png",
+          "crop": [
+            640,
+            140,
+            1700,
+            340
+          ],
+          "ours": [
+            571,
+            36,
+            1700,
+            340
           ]
         }
       },
       "all-dark": {
+        "text": "ref/ia/mac-native/passage-syntax.md",
+        "caret": 0,
+        "nocaret": true,
         "theme": "dark",
         "chrome": "off",
         "syntax": "on",
         "focus": "off",
         "live": false,
-        "assert": {
-          "kind": "syntax",
-          "theme": "dark",
-          "expected": [
-            "nouns",
-            "verbs",
-            "adjectives",
-            "adverbs",
-            "conjunctions"
+        "opponent": {
+          "capture": "mac-native-308-original-mbp-dark-syntax-all.png",
+          "crop": [
+            640,
+            140,
+            1700,
+            340
+          ],
+          "ours": [
+            571,
+            36,
+            1700,
+            340
           ]
         }
       },
@@ -445,22 +459,28 @@
         }
       },
       "focus-sentence": {
+        "text": "ref/ia/mac-native/passage-syntax.md",
+        "caret": 150,
+        "nocaret": true,
         "theme": "light",
         "chrome": "off",
         "syntax": "on",
         "focus": "sentence",
         "live": false,
-        "assert": {
-          "kind": "syntax",
-          "theme": "light",
-          "expected": [
-            "nouns",
-            "verbs",
-            "adjectives",
-            "adverbs",
-            "conjunctions"
+        "opponent": {
+          "capture": "mac-native-308-original-mbp-light-syntax-focus.png",
+          "crop": [
+            640,
+            743,
+            1700,
+            340
           ],
-          "focus": true
+          "ours": [
+            571,
+            36,
+            1700,
+            340
+          ]
         }
       },
       "live": {

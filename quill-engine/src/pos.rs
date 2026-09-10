@@ -10,10 +10,14 @@
 //! first use.
 //!
 //! The tokenizer is Quill's own rather than the tagger crate's, because the
-//! word Syntax highlight colours is the word iA colours: a contraction's
-//! suffix is a word of its own (`'ll` is blue where `I` beside it is plain), a
-//! hyphenated compound is one word taking one colour, and a possessive `'s` is
-//! a word that takes no colour at all, so only the noun before it is red. The
+//! word Syntax highlight colours is the word iA colours, and
+//! `ref/ia/mac-native/CAPTURE-ORIGINAL-MBP.md` § A contraction splits reads
+//! that boundary off the running app, cell by cell, in five places at once: a
+//! contraction's suffix is a word of its own (`'ll` is blue where `I` beside
+//! it is plain), `n't` takes the `n` with it (`ca` blue, `n't` purple), a
+//! hyphenated compound is **two** words either side of a plain hyphen (`well`
+//! purple, `known` blue), and a `'s` is plain after a noun and a verb after
+//! anything else (`writer's` red then plain, `it's` plain then blue). The
 //! tagger is handed the numbers and the punctuation too, because its patch
 //! rules read the tokens on either side of the one they are deciding; it
 //! colours neither.
@@ -119,12 +123,16 @@ pub fn categories(prose: &str) -> Vec<(Range<usize>, Category)> {
     let tags = brill_tagger().tag_sentence(&sentence);
     words
         .into_iter()
-        .zip(tags)
-        .filter_map(|(word, tag)| {
-            if is_possessive(&prose[word.clone()]) {
+        .enumerate()
+        .filter_map(|(index, word)| {
+            let before = index.checked_sub(1).and_then(|previous| tags[previous]);
+            if is_possessive(&sentence[index], before) {
                 return None;
             }
-            Some((word, category(tag?)?))
+            if is_negation(&sentence[index]) {
+                return Some((word, Category::Adverbs));
+            }
+            Some((word, category(tags[index]?)?))
         })
         .collect()
 }
@@ -147,10 +155,19 @@ fn words(prose: &str) -> Vec<Range<usize>> {
         let (start, character) = chars[at];
         if character.is_whitespace() {
             at += 1;
+        } else if is_nt(&chars, at) {
+            // `n't` is one token and its `n` belongs to it rather than to the
+            // word in front: `can't` is `ca` and `n't`, `won't` is `wo` and
+            // `n't`. The Design oracle colours the two halves differently —
+            // the stem a verb, the `n't` an adverb — so the boundary falls
+            // where iA puts it (`CAPTURE-ORIGINAL-MBP.md` § A contraction
+            // splits).
+            words.push(start..end_of(at + 2));
+            at += 3;
         } else if is_apostrophe(character) {
-            // A contraction splits at the apostrophe and the suffix is a token
-            // of its own: `I'll` is `I` and `'ll`, and iA colours only the
-            // second of them.
+            // Every other contraction splits at the apostrophe and the suffix
+            // is a token of its own: `I'll` is `I` and `'ll`, and iA colours
+            // only the second of them.
             let mut end = end_of(at);
             at += 1;
             while at < chars.len() && chars[at].1.is_alphabetic() {
@@ -161,23 +178,9 @@ fn words(prose: &str) -> Vec<Range<usize>> {
         } else if character.is_alphanumeric() {
             let mut end = end_of(at);
             at += 1;
-            loop {
-                if at < chars.len() && chars[at].1.is_alphanumeric() {
-                    end = end_of(at);
-                    at += 1;
-                } else if at + 1 < chars.len()
-                    && chars[at].1 == '-'
-                    && chars[at + 1].1.is_alphanumeric()
-                {
-                    // A hyphenated compound is one word taking one colour:
-                    // `so-called` is one adjective, as iA's own still shows it.
-                    // The hyphen has to be followed by more word for that, or
-                    // an em-dash-as-hyphen would swallow the next sentence.
-                    end = end_of(at + 1);
-                    at += 2;
-                } else {
-                    break;
-                }
+            while at < chars.len() && chars[at].1.is_alphanumeric() && !is_nt(&chars, at) {
+                end = end_of(at);
+                at += 1;
             }
             words.push(start..end);
         } else {
@@ -213,18 +216,65 @@ fn category(tag: UPOS) -> Option<Category> {
     }
 }
 
-/// Whether a token is a possessive `'s`, which takes no colour: `Alice's` is
-/// one red noun and a plain suffix, never two red words.
+/// Whether a token is a bare `'s`, the suffix that is a possessive after a
+/// noun and a contracted verb after anything else.
 ///
-/// `he's` is spelt the same way, and this rule costs that one the blue the
-/// tagger would give it. Telling the two apart wants the sentence, and the
-/// possessive is much the commoner of them in prose.
-fn is_possessive(word: &str) -> bool {
+/// The Design oracle draws both, in the same passage: `writer's` is a red noun
+/// and a plain `'s`, and `it's` is a plain `it` and a **blue** `'s`
+/// (`CAPTURE-ORIGINAL-MBP.md` § A contraction splits). What tells them apart
+/// is the word in front, which is why [`is_possessive`] takes the tag of that
+/// word rather than only these three characters.
+fn is_bare_s(word: &str) -> bool {
     let mut characters = word.chars();
     match (characters.next(), characters.next(), characters.next()) {
         (Some(first), Some('s' | 'S'), None) => is_apostrophe(first),
         _ => false,
     }
+}
+
+/// Whether a `'s` is the possessive rather than a contracted verb, which is
+/// decided by what stands in front of it: a noun owns, and everything else —
+/// a pronoun, an adverb, a name the tagger could not place — contracts.
+///
+/// So `Alice's` is one red noun and a plain suffix, never two red words, and
+/// `it's` keeps the blue the tagger gives its `'s`. The one this costs is a
+/// possessive after a pronoun (`its` is spelt without the apostrophe, so that
+/// is rarer than it sounds) and a contraction after a noun (`the writer's
+/// gone`), which wants the sentence rather than the neighbour.
+fn is_possessive(word: &str, before: Option<UPOS>) -> bool {
+    is_bare_s(word) && matches!(before, Some(UPOS::NOUN | UPOS::PROPN))
+}
+
+/// Whether a token is the `n't` of a negated auxiliary, which the Design
+/// oracle colours purple and the tagger does not colour at all.
+///
+/// `CAPTURE-ORIGINAL-MBP.md` § A contraction splits reads `can't` as a blue
+/// `ca` and a **purple** `n't`. Universal POS calls `n't` a `PART`, which
+/// [`category`] leaves in the body's ink, so the reading is put back here — a
+/// measured word, not a tag — rather than in [`category`], which is the
+/// tagger's whole vocabulary and no place for one word.
+///
+/// `not` written out is left where the tagger puts it, which is `PART` too and
+/// so plain. No capture holds it, and a row is written on a capture.
+fn is_negation(word: &str) -> bool {
+    let mut characters = word.chars();
+    match (
+        characters.next(),
+        characters.next(),
+        characters.next(),
+        characters.next(),
+    ) {
+        (Some('n' | 'N'), Some(second), Some('t' | 'T'), None) => is_apostrophe(second),
+        _ => false,
+    }
+}
+
+/// Whether `n't` starts at `at`: the `n` of a negated auxiliary, the
+/// apostrophe, and the `t`.
+fn is_nt(chars: &[(usize, char)], at: usize) -> bool {
+    matches!(chars.get(at), Some(&(_, 'n' | 'N')))
+        && chars.get(at + 1).is_some_and(|&(_, c)| is_apostrophe(c))
+        && matches!(chars.get(at + 2), Some(&(_, 't' | 'T')))
 }
 
 /// The two characters prose writes an apostrophe with: the typewriter one, and
@@ -253,21 +303,86 @@ mod tests {
     #[test]
     fn a_contraction_splits_at_the_apostrophe_and_the_suffix_is_a_token_of_its_own() {
         assert_eq!(tokens("I'll"), ["I", "'ll"]);
-        assert_eq!(tokens("can't"), ["can", "'t"]);
         assert_eq!(tokens("I\u{2019}ll"), ["I", "\u{2019}ll"]);
     }
 
     #[test]
-    fn a_hyphenated_compound_is_one_token() {
-        assert_eq!(tokens("rabbit-hole"), ["rabbit-hole"]);
-        assert_eq!(tokens("so-called centre"), ["so-called", "centre"]);
-        // A dash with no word after it is punctuation, not a joint.
+    fn a_negated_auxiliary_keeps_its_n_with_the_t() {
+        assert_eq!(tokens("can't"), ["ca", "n't"]);
+        assert_eq!(tokens("won't"), ["wo", "n't"]);
+        assert_eq!(tokens("isn't"), ["is", "n't"]);
+        assert_eq!(tokens("can\u{2019}t"), ["ca", "n\u{2019}t"]);
+        // A lone `n` before an apostrophe that is not a `t` is an ordinary
+        // suffix, and a word ending in `n` is left whole.
+        assert_eq!(tokens("Ann's"), ["Ann", "'s"]);
+        assert_eq!(tokens("then"), ["then"]);
+    }
+
+    #[test]
+    fn a_hyphenated_compound_is_two_tokens_around_a_plain_hyphen() {
+        assert_eq!(tokens("rabbit-hole"), ["rabbit", "-", "hole"]);
+        assert_eq!(tokens("so-called centre"), ["so", "-", "called", "centre"]);
         assert_eq!(tokens("well- known"), ["well", "-", "known"]);
     }
 
     #[test]
     fn a_possessive_is_its_own_token_after_the_noun() {
         assert_eq!(tokens("Alice's"), ["Alice", "'s"]);
+    }
+
+    /// The Design oracle's own line, read cell by cell off
+    /// `mac-native-308-original-mbp-light-syntax-tokens.png`
+    /// (`ref/ia/mac-native/CAPTURE-ORIGINAL-MBP.md` § A contraction splits).
+    /// Five splits, and the colour on each side of each of them.
+    #[test]
+    fn the_five_splits_the_design_oracle_shows_are_the_five_this_tokenizer_makes() {
+        let line = "I'll write, but I can't stop. it's a well-known writer's book.";
+        assert_eq!(
+            tokens(line),
+            [
+                "I", "'ll", "write", ",", "but", "I", "ca", "n't", "stop", ".", "it", "'s", "a",
+                "well", "-", "known", "writer", "'s", "book", "."
+            ]
+        );
+        let split = coloured(line);
+        for (word, category) in [
+            ("'ll", Some(Category::Verbs)),
+            ("ca", Some(Category::Verbs)),
+            ("n't", Some(Category::Adverbs)),
+            ("well", Some(Category::Adverbs)),
+            ("known", Some(Category::Verbs)),
+            ("writer", Some(Category::Nouns)),
+            ("-", None),
+        ] {
+            assert_eq!(
+                split
+                    .iter()
+                    .find(|(token, _)| *token == word)
+                    .map(|(_, category)| *category),
+                category,
+                "{word:?} is not what the oracle colours it: {split:?}"
+            );
+        }
+        // Two `I`s and two `'s`s, and the pairs differ: the second `'s` is the
+        // possessive and takes no colour, the first is a verb.
+        assert_eq!(
+            categories(line)
+                .into_iter()
+                .filter(|(span, _)| &line[span.clone()] == "'s")
+                .map(|(_, category)| category)
+                .collect::<Vec<_>>(),
+            [Category::Verbs],
+            "only the `'s` of `it's` is coloured: {split:?}"
+        );
+        // `not` written out is the tagger's own answer and no capture holds
+        // it, so it is left where the tagger puts it — a `PART`, which colours
+        // nothing. Only the `n't` the oracle was read on is overridden.
+        assert!(
+            !coloured("I can not stop.")
+                .iter()
+                .any(|(word, _)| *word == "not"),
+            "`not` written out is the tagger's, not the oracle's"
+        );
     }
 
     #[test]
