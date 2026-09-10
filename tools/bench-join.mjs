@@ -45,7 +45,7 @@ export const KEYCODE_OFFSET = 8;
 ///
 /// The line is `quill/src/harness.rs`'s `pointer_left_line`, and it means the owner's mouse crossed
 /// the stage: the chrome answers with its opacity transition, and while it runs the frame clock
-/// paces every key's frame to the refresh grid — one such key waited 16.3 ms of its 17.7 (#327).
+/// paces every key's frame to the refresh grid — one such key waited 16.3 ms of its 17.97 (#327).
 /// A run it happened in has measured an animation, not the keystroke path, and is refused.
 export function pointerLeft(said) {
   return /^pointer left the window at \d+ us$/m.test(said || '');

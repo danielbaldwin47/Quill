@@ -8,7 +8,7 @@ if [ "$1" = build ] && [ $rc -eq 0 ]; then
   if ! grep -q DEBUG-327 "$W/target/release/quill" 2>/dev/null; then
     cp "$W/target/release/quill" "$W/target/release/quill-real.new" \
       && mv "$W/target/release/quill-real.new" "$W/target/release/quill-real"
-    cp /home/diggle/.claude/jobs/dd9717c1/tmp/quill-wrapper.sh "$W/target/release/quill"
+    cp "$W/progress/diagnostics/ticket-327/round-2/tools/quill-wrapper.sh" "$W/target/release/quill"
     chmod +x "$W/target/release/quill"
   fi
 fi
