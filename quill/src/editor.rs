@@ -1310,18 +1310,18 @@ impl Editor {
         // gives that much back, and [`Editor::lay_out`]'s bottom margin gives
         // back what the last paragraph no longer carries. The page top no
         // longer covers that give-back by construction: since #231 it is a
-        // constant 30 logical pixels, where two pitches was 72 at the default
-        // step, so the subtraction saturates rather than trusting the
-        // arithmetic. It does not bite on the shipped ladder — `below` is half
-        // the air a pitch leaves around a row of ink, which peaks at 5 pixels
-        // over steps 7 … 10 and is the same on all three Quill Faces, so at
-        // least 25 pixels of margin survive at every step. Saturating is for a
-        // Face whose rows leave more air than the whole page top: the margin
+        // constant 30 logical pixels, where two pitches was 74 at the
+        // default step, so the subtraction saturates rather than trusting
+        // the arithmetic. It does not bite on any Face whose row of ink is
+        // at least an em tall, which every Quill Face is: `typography`'s
+        // `no_steps_leading_eats_the_page_top` asserts that over all
+        // fourteen steps, and the worst of them leaves 12 pixels under a
+        // row against the 30 above it, where the three shipped Faces
+        // measure 5. Saturating is for the Face that is not, so the margin
         // goes to nothing rather than wrapping a `u32`. The code well is a
-        // paragraph
-        // background, which GTK paints over the whole line box, leading
-        // included, so its boundary rows and their neighbours are given
-        // `below` back through tags.
+        // paragraph background, which GTK paints over the whole line box,
+        // leading included, so its boundary rows and their neighbours are
+        // given `below` back through tags.
         self.set_pixels_above_lines(signed(leading.above + leading.below));
         self.set_pixels_inside_wrap(signed(leading.inside_wrap));
         self.set_pixels_below_lines(0);
