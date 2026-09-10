@@ -2,6 +2,24 @@
 #
 # The Mono manuscript's numbers on Quill Duo. See `manuscript-mono.toml` for
 # where each of them comes from.
+#
+# The only Manuscript captured: `ref/ia/mac-native/CAPTURE-2026-09-09.md`
+# § "#261 — Preview", off `mac-native-20-dark-preview-manuscript-duo-full`,
+# reads #101010 paper on #cccccc ink. The ink is what [dark] holds. The paper
+# is not, and is left alone deliberately — `manuscript-mono.toml` says a
+# Manuscript keeps the paper it was typed on rather than the darker page
+# Modern renders on, and #263 puts Preview outside ADR 0015, so what iA does
+# here informs that decision rather than overriding it. The light page was
+# captured in neither scheme, so #f7f7f7 is still the Editor's ground rather
+# than a measurement.
+#
+# That capture's rhythm, again a rendered state rather than the numbers: body
+# line pitch 72 px at backing scale 2, lines at y295/367/439/511/583/655 and
+# the next paragraph at y799 — a paragraph advancing by exactly two pitches,
+# against the 1 + 1/1.711 pitches these numbers give. Nothing below moves for
+# it: a pitch is base × line_height and one still separates neither factor,
+# and this family's rhythm is the Editor's own ladder rather than a port of
+# iA's Manuscript template (`VERDICTS.md` § 4.3.5).
 
 id = "manuscript-duo"
 paragraphs = "spaced"

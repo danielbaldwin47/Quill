@@ -11,6 +11,8 @@ Nothing here changes the spec. The evidence is put where a spec change can be ar
 
 ## The rig
 
+**Follow-up rig, 2026-09-09:** [CAPTURE-2026-09-09.md](CAPTURE-2026-09-09.md) records the Mac halves of #231, #241, #261, #308 and #328, with per-frame metadata and untouched originals. It uses the same iA version but macOS 26.6.1 and a different display; its chromatic and page-top controls are qualified there. The table below describes the earlier run.
+
 | | |
 |---|---|
 | iA Writer | 8.0.6 (build 80046), `pro.writer.mac` |
@@ -96,6 +98,23 @@ gutter is exactly the width `###### ` needs — see the ladder under state 14.
 
 ### The page top
 
+**Settled on the original rig (#231).** [The re-capture](CAPTURE-ORIGINAL-MBP.md#231--the-page-top)
+ran on the built-in screen of the 14-inch M1 MacBook Pro and reproduces the control to the pixel,
+so both questions below are now answered:
+
+- **The band does not scale with the pitch.** The empty document's caret box top is **164 px at
+  every step** — pitches 49, 73 and 172 at steps 0, 5 and 13 — and holds at 164 when the default is
+  re-shot after the excursion. It is a constant, not `k × pitch`.
+- **The title bar is 104 px of it.** With Title Bar → Always Show the bar is an opaque `#222222`
+  band over rows 2 … 103, a `#292929` separator at 104, and paper from 105; AX reports the toolbar
+  bottom at 52 pt = **104 px** below the window's top edge, agreeing to the pixel. The text does not
+  move when the bar is shown. So the editor's own page top, the part a window with opaque chrome has
+  a counterpart to, is **164 − 104 = 60 px = 30 pt**.
+
+The 2026-09-09 follow-up read box tops 126 / 132 / 112 at those steps, 32 px above the old control,
+and did not reproduce it. That run was a different machine driving an external monitor; the
+original rig moved nothing, so those figures describe that rig alone.
+
 How far the first line stands below the top of the editor at scroll 0, at the default text size —
 the second figure #227 asks for.
 
@@ -121,21 +140,24 @@ whose caret is the pitch tall (134 … 206) and has no glyph to be read instead.
 figure another app can hold to; the ink is what a shot shows. **The page top is 164 device px
 (82 pt)**, at the default step and at scale 2.
 
-Two things these captures cannot say, and a port wants both:
+Two things *these* captures cannot say, both answered by the re-capture at the head of this
+section:
 
 - **How much of the band is the title bar's.** The text runs to the frame, so the 164 px is measured
   from there; how much of it is room left for the invisible title bar over the text cannot be read
-  out of a capture that never draws one. A window whose chrome is opaque has no counterpart to that
-  room, so the figure is not yet a number another app can take.
+  out of a capture that never draws one. Shown, the bar is an opaque band **104 px** deep, leaving
+  **60 px = 30 pt** of the editor's own page top.
 - **Whether it scales with the pitch.** 164 px is 2.25 × the 73 px pitch, which one point cannot tell
   from a constant. No committed capture at another step is at the document top: every one of the
   fourteen `11-*` frames opens its first line near y 900, some 750 px below where four captures at
   the same step and the same region origin put it, so the sweep was not shot at the top of the
   document. (Its origin was never recorded either — `shots/oracle/states.json` § `opponent` says so,
-  from #165.) One scroll-0 capture at a second step settles it.
+  from #165.) Shot at steps 0, 5 and 13 at verified document top, the box holds at **164 at all
+  three**: a constant.
 
-**#231 is the capture that closes both**, and `docs/design.md` row Page top holds Quill at two
-pitches until it lands.
+The numbers are measured, and **#231's own second half ported them**: `docs/design.md` row Page top
+and `typography::page_top` now open Quill's page on the editor's own **60 device px at scale 2 —
+30 logical px**, a constant at every step, in place of the two pitches the Parity oracle held.
 
 ---
 
@@ -384,6 +406,8 @@ Sentence and Paragraph, not an independent toggle.
 
 ## State 14 — markup rendering
 
+**Wrapped continuation capture (#241, 2026-09-09):** [four new frames](CAPTURE-2026-09-09.md#241--wrapped-markers) show bullet/quote continuations retaining two cells of indentation and `123.` continuations retaining five, on both grounds and under H6. A wrapped quote does not repeat `>`. The earlier single-row measurements follow.
+
 `mac-native-14-dark-markup.png` (blocks, from [`passage-blocks.md`](passage-blocks.md)),
 `mac-native-14-dark-markup-gutters.png` and `-blocks.png` (all six heading levels, from
 [`passage-markers.md`](passage-markers.md)), plus `-lower.png` and `-deep.png`.
@@ -435,6 +459,8 @@ y 912 … 984, **mid-point y = 948.0 of a 1898 px window — 49.9 %**.
 **The caret line is held at the vertical centre of the window.**
 
 ## State 16 — Preview: the rendered Markdown, and the split
+
+**Follow-up (#261, 2026-09-09):** [light paper, Template switches, editor-size controls and scroll pairs](CAPTURE-2026-09-09.md#261--preview) measure light Modern at `#fcfcfc` / `#1a1a1a`, confirm centred Classic and Manuscript headings, show Web scaling with editor size and establish two-way scrolling on the longer fixture. The original three dark frames follow.
 
 `mac-native-16-dark-preview-full.png`, `mac-native-16-dark-preview-split.png`,
 `mac-native-16-dark-preview-pdf-full.png`
@@ -607,3 +633,18 @@ the same line, which is what says the bar tracks the grid rather than happening 
 | 20 | x 1200 … 1205 | 1203.0 | 1203.0 |
 
 Steps of **exactly 256 px** between them, which is 10 cells to the pixel.
+
+## State 18 — default-size narrow windows
+
+[#328’s matched 960- and 1040-point captures](CAPTURE-2026-09-09.md#328--matched-narrow-windows) retain full Editor boundaries and selection edges. Default L adapts to width: about 22.7 px per cell and 63 px pitch at both requested widths, against 25.6 and 73–74 at 1512. The report records the geometry contradiction and a proposed full-width crop; no Gate opponent is changed.
+
+## State 21 — Syntax categories and token boundaries
+
+[#308’s ten frames](CAPTURE-2026-09-09.md#308--syntax) cover all five categories on both grounds, light isolation, Sentence dimming and contractions. The report and JSON manifest give the ten measured colours in both the original and reference profiles. Dim replaces category colour; contractions can split into differently coloured tokens. Chromatic portability is qualified by the caret control.
+
+**Anchored on the original rig.** [The re-capture](CAPTURE-ORIGINAL-MBP.md#308--syntax) shoots the
+same four states on the built-in screen of the 14-inch M1 MacBook Pro and lands **within 1 unit per
+channel of all ten colours**, of both dim greys, and on the same five token splits. The caret
+control the qualification rested on misses for a reason that reaches nothing else: it is the only
+oracle colour on the panel's gamut edge, so `colour.normalise()` clamps it, while every Category
+colour round-trips exactly. The caret's colour is **Display P3 `#00bfff`**. The ten values stand.

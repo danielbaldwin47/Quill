@@ -25,6 +25,7 @@ in **logical points** (the way `screencapture -R` takes them) while every number
 | `marks.py` | a glyph run's ink — the colour furthest from the paper it holds at least six times |
 | `inks.py` | a line's runs grouped by the ink each carries, so a change of ink prints as one row |
 | `colour.py`, `display.icc` | a capture put back into the profile the committed captures were taken in |
+| `display-calibrated-2025-12-15.icc` | the DisplayCAL profile the built-in display carries now, so the two can be compared rather than assumed equal |
 
 ## Running it
 
@@ -36,12 +37,14 @@ cannot reach the app). Paths are relative to the repository root:
 
 Set `IA_SAMPLE` to shoot a passage other than `ref/sample.md`.
 
-Three cautions learned the hard way, all recorded in `../NOTES.md`:
+Three cautions learned the hard way, all recorded in `../NOTES.md`, and three more for a Syntax
+state in [`../CAPTURE-ORIGINAL-MBP.md` § Repeating the run](../CAPTURE-ORIGINAL-MBP.md#repeating-the-run):
 
 - **A capture carries the display's profile**, so a frame shot today does not hold the same numbers
   as one shot for states 1–16 unless it is converted (`colour.py`). Every new capture goes through
   `normalise()` and then `check()`, which fails unless the paper and the body ink land back on the
-  values the § 4.2 rows hold.
+  values the § 4.2 rows hold. `check()` covers neutrals only: it passes on a frame whose saturated
+  colours are clamped, which is what the caret does — see the report above.
 
 - **`screencapture -l <windowid>` returns a black frame** for an occluded window on macOS 27, so the
   deactivated states (6 and 7) close Finder's windows and activate Finder instead — focus moves and

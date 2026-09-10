@@ -941,6 +941,8 @@ impl Editor {
                 start: at.start,
                 end: at.end,
             }),
+            page: self.imp().laid_out.get().map(|page| page.column),
+            measure: self,
         }
     }
 
@@ -1363,16 +1365,26 @@ impl Editor {
         // Every glyph row stays where it was, because every box keeps its
         // height and each one starts `below` higher: the page's top margin
         // gives that much back, and [`Editor::lay_out`]'s bottom margin gives
-        // back what the last paragraph no longer carries. The subtraction
-        // never goes negative — `page_top` is two pitches and `below` is under
-        // half of one row's worth of air. The code well is a paragraph
-        // background, which GTK paints over the whole line box, leading
-        // included, so its boundary rows and their neighbours are given
-        // `below` back through tags.
+        // back what the last paragraph no longer carries. The page top no
+        // longer covers that give-back by construction: since #231 it is a
+        // constant 30 logical pixels, where two pitches was 74 at the
+        // default step, so the subtraction saturates rather than trusting
+        // the arithmetic. It does not bite on any Face whose row of ink is
+        // at least an em tall, which every Quill Face is: `typography`'s
+        // `no_steps_leading_eats_the_page_top` asserts that over all
+        // fourteen steps, and the worst of them leaves 12 pixels under a
+        // row against the 30 above it, where the three shipped Faces
+        // measure 5. Saturating is for the Face that is not, so the margin
+        // goes to nothing rather than wrapping a `u32`. The code well is a
+        // paragraph background, which GTK paints over the whole line box,
+        // leading included, so its boundary rows and their neighbours are
+        // given `below` back through tags.
         self.set_pixels_above_lines(signed(leading.above + leading.below));
         self.set_pixels_inside_wrap(signed(leading.inside_wrap));
         self.set_pixels_below_lines(0);
-        self.set_top_margin(signed(typography::page_top(pitch) - leading.below));
+        self.set_top_margin(signed(
+            typography::page_top(LAYOUT_SCALE).saturating_sub(leading.below),
+        ));
         tags::well_leading(&self.buffer(), leading);
         // The cell a heading's markers hang by moves with the size, so the
         // page is laid out from scratch rather than compared with the last
@@ -1431,6 +1443,7 @@ impl Editor {
             self.imp().step.get(),
             page.column,
             std::array::from_fn(|level| self.marker_advance(level as u8 + 1)),
+            self,
             &self.colours(),
         );
     }
@@ -1506,13 +1519,24 @@ impl Editor {
     fn marker_advance(&self, level: u8) -> i32 {
         let mut run = "#".repeat(usize::from(level));
         run.push(' ');
-        let layout = self.measured_at(&run, self.heading_scale(level));
+        self.run_advance(&run, self.heading_scale(level))
+    }
+
+    /// How far `run` advances, laid out at `scale` of the body's size, in whole
+    /// pixels.
+    ///
+    /// The measuring half of [`Editor::marker_advance`], shared with the runs a
+    /// list item and a quote hang by ([`tags::Measure`]), which are not a
+    /// ladder of six but whatever the Document holds.
+    fn run_advance(&self, run: &str, scale: f64) -> i32 {
+        let layout = self.measured_at(run, scale);
         // The logical width, rounded once here, as every other horizontal
         // length this widget sets is.
         let width = f64::from(layout.size().0) / f64::from(pango::SCALE);
         #[expect(
             clippy::cast_possible_truncation,
-            reason = "seven cells of one type size, which is under a hundred pixels"
+            reason = "a marker run is a handful of cells of one type size, \
+                      which is under a hundred pixels"
         )]
         let whole = width.round().max(0.0) as i32;
         whole
@@ -2432,11 +2456,12 @@ impl Editor {
     /// adjustment counts logical pixels from the top of the page, which is
     /// the page's top margin above the buffer's first row
     /// ([`typography::page_top`]). Measured with `--typewriter` on
-    /// `ref/sample.md`: the bar the machine held was 148 device pixels above
-    /// where the shot drew it, at scale 2 with a pitch of 37 — the two pitches
-    /// of air the page opens with. So the row comes back through the scale
-    /// and down by the margin, and a band or a hold reads it where the writer
-    /// sees it.
+    /// `ref/sample.md`: the bar the machine held stood the page's whole top
+    /// margin above where the shot drew it — 148 device pixels at scale 2,
+    /// back when that margin was two pitches of a 37 pixel pitch. The page top
+    /// is the constant #231 measured now, and the arithmetic does not care
+    /// which it is: the row comes back through the scale and down by whatever
+    /// the margin is, and a band or a hold reads it where the writer sees it.
     fn row_of(&self, bar: caret::Bar) -> (f64, f64) {
         let scale = self.scale();
         (bar.y / scale + f64::from(self.top_margin()), bar.h / scale)
@@ -3439,6 +3464,18 @@ impl Editor {
         }
         let (top, _) = self.row_of(self.bar()?);
         Some(((top - adjustment.value()) / viewport).clamp(0.0, 1.0))
+    }
+}
+
+/// The Editor is what measures a marker run for the tag table, because it is
+/// what holds the Face and the step the run will be laid out in.
+///
+/// At the body's own size and never scaled: Live grows a heading and leaves a
+/// list item and a quote where they were, so the run a wrapped item hangs by is
+/// the run the page draws.
+impl tags::Measure for Editor {
+    fn advance(&self, run: &str) -> i32 {
+        self.run_advance(run, 1.0)
     }
 }
 
