@@ -1,8 +1,9 @@
 # Manuscript (Quattro): the Editor's own typography with the Markup removed.
 #
 # The Mono manuscript's numbers on Quill Quattro. See `manuscript-mono.toml`
-# for where each of them comes from. Captured in no scheme: only Manuscript
-# (Duo) was rendered on the Mac (#261).
+# for where each of them comes from, and `manuscript-duo.toml` for the one
+# capture the family has: only Manuscript (Duo) was rendered on the Mac
+# (#261), and its paper and one-pitch gaps are this file's too (ADR 0019).
 
 id = "manuscript-quattro"
 paragraphs = "spaced"
@@ -20,22 +21,23 @@ code = 1.0
 [rhythm]
 line_height = 1.711
 measure = 38.4
-paragraph_spacing = 1.0
-space_before_heading = 1.0
-space_after_heading = 1.0
+# One pitch: the Editor's own blank line (ADR 0019).
+paragraph_spacing = 1.711
+space_before_heading = 1.711
+space_after_heading = 1.711
 
 [headings]
 weight = 700
 
 [light]
-paper = "#f7f7f7"
+paper = "#fcfcfc"
 ink = "#191919"
 muted = "#8c8c8c"
 link = "#1a5fb4"
 code_ground = "#eeeeee"
 
 [dark]
-paper = "#1a1a1a"
+paper = "#101010"
 ink = "#cccccc"
 muted = "#7e7e7e"
 link = "#78aeed"
