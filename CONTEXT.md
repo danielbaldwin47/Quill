@@ -59,8 +59,8 @@ Coloring words by part of speech (noun, verb, adjective, adverb, conjunction) to
 _Avoid_: code highlighting, grammar coloring
 
 **Style check**:
-Underlining clichés, fillers and redundancies in prose.
-_Avoid_: grammar check, linting
+Striking through fillers, redundancies and clichés in prose, from Quill's own phrase lists; the strike is the whole interaction, with no suggestion offered.
+_Avoid_: grammar check, linting, underlining (that is Spell check's mark)
 
 **Spell check**:
 Underlining misspellings against a system dictionary, with suggestions; a toggle, on by default.
@@ -95,6 +95,10 @@ _Avoid_: highlighter, linter, decorator
 **Category**:
 One of the five parts of speech Syntax highlight colours, each behind its own toggle: Nouns, Verbs, Adjectives, Adverbs, Conjunctions. Syntax highlight is the master toggle over all five; the two are separate state.
 _Avoid_: part-of-speech class, tag (that is the tagger's output, of which a Category groups several)
+
+**List**:
+One of the three phrase lists Style check matches, each behind its own toggle: Fillers, Redundancies, Clichés. Style check is the master toggle over all three; the two are separate state. Each ships as a plain-text file under `data/style/`.
+_Avoid_: dictionary, ruleset, pattern
 
 **Well**:
 The ground a code block is drawn on, run past both edges of the measure so the block reads as sunk into the page rather than as a stripe the width of the prose. A code span has the same ground without being a Well: it is padded, not sunk.
