@@ -593,7 +593,19 @@ mod tests {
                     .and_then(|value| value.get::<String>())
             })
             .collect();
-        assert_eq!(loose, ["Syntax Highlight", "Style Check", "Spell Check"]);
+        // The three Lists are loose beside Style Check until #362 makes the
+        // head a table and folds them under it.
+        assert_eq!(
+            loose,
+            [
+                "Syntax Highlight",
+                "Style Check",
+                "Fillers",
+                "Redundancies",
+                "Clichés",
+                "Spell Check"
+            ]
+        );
         let submenu = tools.item_link(0, "submenu").expect("the submenu");
         let inside: Vec<String> = rows_of(&submenu)
             .into_iter()

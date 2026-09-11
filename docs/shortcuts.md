@@ -80,10 +80,14 @@ Export writes. Neither opens the pane and neither closes it. The pair is a radio
 |---|---|---|---|
 | `syntax.toggle` | Syntax Highlight (submenu head, check) | — | |
 | `syntax.nouns` … `syntax.conjunctions` | Nouns, Verbs, Adjectives, Adverbs, Conjunctions (checks in the submenu) | — | |
-| `style.toggle` | Style Check | — | |
+| `style.toggle` | Style Check (submenu head, check) | — | |
+| `style.fillers`, `style.redundancies`, `style.cliches` | Fillers, Redundancies, Clichés (checks in the submenu) | — | |
 | `spell.toggle` | Spell Check | — | |
 
-These three are set once and left; a chord they could be hit by accident on is worse than a trip to
+Each head is a check over its own submenu, and the head and the rows under it are separate state: a
+row switched off is still off when its head comes back on.
+
+Every row here is set once and left; a chord one could be hit by accident on is worse than a trip to
 the menu. The Palette reaches them in two keystrokes.
 
 **Typeface**

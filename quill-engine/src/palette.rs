@@ -332,6 +332,10 @@ mod tests {
         assert!(ids.contains(&"settings.open"));
         assert!(ids.contains(&"shortcuts.open"));
         assert!(ids.contains(&"syntax.toggle"));
+        assert!(ids.contains(&"style.toggle"));
+        assert!(ids.contains(&"style.fillers"));
+        assert!(ids.contains(&"style.redundancies"));
+        assert!(ids.contains(&"style.cliches"));
         assert!(ids.contains(&"chrome.view"));
         assert!(ids.contains(&"focus.swap"));
         let table: Vec<usize> = ids
