@@ -13,7 +13,7 @@ Nothing here changes the spec. The evidence is put where a spec change can be ar
 
 **Follow-up rig, 2026-09-09:** [CAPTURE-2026-09-09.md](CAPTURE-2026-09-09.md) records the Mac halves of #231, #241, #261, #308 and #328, with per-frame metadata and untouched originals. It uses the same iA version but macOS 26.6.1 and a different display; its chromatic and page-top controls are qualified there. The table below describes the earlier run.
 
-**Later runs on the original rig:** [CAPTURE-ORIGINAL-MBP.md](CAPTURE-ORIGINAL-MBP.md) re-shoots #231 and #308 on the built-in display, and [CAPTURE-2026-09-10.md](CAPTURE-2026-09-10.md) shoots #344 (state 22) and #343 (state 23) there. Both use the same iA version on the same machine and carry their own rig tables; #344's window width is the variable of its states, so the fixed window in the table below is not theirs.
+**Later runs on the original rig:** [CAPTURE-ORIGINAL-MBP.md](CAPTURE-ORIGINAL-MBP.md) re-shoots #231 and #308 on the built-in display, [CAPTURE-2026-09-10.md](CAPTURE-2026-09-10.md) shoots #344 (state 22) and #343 (state 23) there, and [CAPTURE-2026-09-10-STYLE.md](CAPTURE-2026-09-10-STYLE.md) shoots #354 (state 24), the one run that has Style Check **on**. Both use the same iA version on the same machine and carry their own rig tables; #344's window width is the variable of its states, so the fixed window in the table below is not theirs.
 
 | | |
 |---|---|
@@ -25,10 +25,10 @@ Nothing here changes the spec. The evidence is put where a spec change can be ar
 | Typeface | **Mono** throughout, so the grid can be fitted (Duo is duospaced and no cell pitch fits it) |
 | Typography | System — Default |
 | Line length limit | 64 characters (the app's default; the menu offers 64 / 72 / 80) |
-| Style Check | **off** for every state |
-| Syntax highlight | **off** for every state |
+| Style Check | **off** for every state except state 24, which is the state of it |
+| Syntax highlight | **off** except states 21 and 24, which name it |
 | Authors | **hidden** for every state |
-| Focus Mode | **off** except states 13 and 15, which name it |
+| Focus Mode | **off** except states 13, 15 and 24, which name it |
 | Passage | `ref/sample.md`, except where a state needs a block `sample.md` has not got |
 
 **Every number below is in device pixels at scale 2.0.** Divide by two for logical points.
@@ -40,6 +40,8 @@ and [`passage-markup.md`](passage-markup.md) (every mark kind at once) for state
 State 23 needs two shapes as well: [`ref/short.md`](../../short.md), whose second paragraph follows
 a body paragraph, and [`passage-template-em.md`](passage-template-em.md), whose paragraphs are
 runs of one glyph at three lengths.
+State 24 needs a passage every Style Check list matches: [`ref/style.md`](../../style.md), which is
+also the `style` Piece's judged state and the engine test's fixture, so the three cannot drift.
 
 On the Linux box a capture is measured with `magick` or with node and `pngjs` (`tools/ink-coverage.mjs`
 is the template); `rig/`'s Python imports Quartz and runs only on the Mac.
@@ -710,3 +712,97 @@ faces; only the advance differs.
 Serif's 0.8119 and Source Serif 4's 0.7690 — so no single em puts Quill's Classic where iA's is.
 Matching the cap height needs **22.24 pt** and matching the H advance **19.96 pt**, 11 % apart. That
 choice is the Templates ticket's.
+
+## State 24 — the Style Check mark
+
+`mac-native-24-{dark,light}-style-*.png` and the `-nostyle` controls beside them, from
+[`ref/style.md`](../../style.md), shot by `rig/run_style.py` and read by
+`rig/measure_style_354.py`. Region `[0, 33, 1512, 949]` — the whole window. The full report is
+[CAPTURE-2026-09-10-STYLE.md](CAPTURE-2026-09-10-STYLE.md); this is the part the rest of the file
+needs.
+
+**Every state was shot twice**, once with Style Check on and once with it off and nothing else
+changed, so every number is a difference between two frames. The mark is read in the **gap
+columns** — the columns a row's control frame leaves blank between two glyphs — where the only
+thing drawn is the mark.
+
+### The mark itself
+
+| | dark | light |
+|---|---|---|
+| Struck ink — **the glyphs and the rule alike** | **`#7a7a78`** | **`#b5b3b0`** |
+| Rule thickness | **2 px** = 1 pt = 0.047 em | the same |
+| Rule, above the baseline | bottom edge **9–10 px**, top edge **11–12 px**; centre 10–11 | the same |
+
+**Style Check does not draw a line over body ink; it re-inks the run and rules it.** A struck run's
+glyph stems, sampled with the rule's rows excluded, carry the same value as the rule sampled between
+two glyphs, on every struck phrase in both grounds.
+
+**The value is the quiet marker tier already measured in state 17** — the ink a link's `[`, `]`,
+`(`, `)` and destination URL carry (§ Found here, and VERDICTS 4.2.13). It is not a tint of the body
+ink: the alpha that would flatten `#cccccc` onto it is 0.53 on dark and 0.30 on light, and the
+selection state below shows it opaque.
+
+**The rule is centred on the x-height, not set by the face.** `iAWriterMonoS-Regular.ttf` asks for
+`yStrikeoutSize` 60/1000 em (2.56 px here) and `yStrikeoutPosition` 309/1000 em (13.18 px); the rule
+is 2 px with its centre 10–11 px above the baseline, which is half the face's x-height (516/1000 em
+= 22.02 px) to within a pixel; the row-to-row pixel of difference is the 73 px pitch not landing on
+whole rows.
+
+**The rule covers the matched phrase's own cells and stops at the space either side** — `Basically,`
+9.92 cells of 10, comma included; `get down to brass tacks` 22.93 of 23 — and a phrase broken by a
+wrap is ruled on each row over its own cells only.
+
+**One mark for all three lists.** Fillers, Clichés and Redundancies draw the same colour, thickness
+and rows.
+
+### What each list owns, and which word of a redundancy is struck
+
+| List | struck in this passage |
+|---|---|
+| Fillers | `Basically,` · `pretty much` · `sort of` · `very` · `a little` · `only` · `too` |
+| Clichés | `get down to brass tacks` · `Against all odds` · `long and short of it` · `past history` |
+| Redundancies | `together` · `basic` · `down` · `past` |
+
+**iA strikes the word that can be deleted**, not a fixed one of the pair: `basic` and `past` are the
+first word of their redundancy, `together` and `down` the second. **iA's own marketing page bolds
+`fundamentals`; the app strikes `basic`.**
+
+Where two lists overlap the **longer match wins**: `past history` is a cliché to the whole phrase
+and a redundancy to `past` alone, and with both lists on the rule runs the cliché's 12 cells. Where
+two struck spans abut across a single space — `down` a redundancy, `only` a filler — **the rule is
+continuous across that space**, so the mark is drawn per contiguous struck range, not per word.
+
+### Under Focus, under Syntax, over a selection
+
+| | dark | light |
+|---|---|---|
+| Focus Sentence, **inside** the sentence, struck | `#7a7a78` | `#b5b3b0` |
+| Focus Sentence, **outside**, struck | **`#707070`** | **`#c6c4c2`** |
+| Focus Sentence, **outside**, unstruck | `#707070` | `#c6c4c2` |
+
+A struck word outside the focused sentence is drawn at exactly the state 13 dim, the same value as
+every unstruck word beside it: **the two dims do not compound, and there is still one dim tier**
+(VERDICTS 4.2.12 holds). Only the rule survives out there, drawn in the dim too. On both grounds the
+Focus dim is the further of the two from the body ink, so this run cannot separate "Focus replaces"
+from "the dimmer wins".
+
+Under **Syntax highlight** a struck word **loses its Category colour outright** and is drawn at the
+struck ink — `basic` from `#ba9659`/`#9d6722`, `history` from `#ce896d`/`#bb512a`, `very` from
+`#b490b0`/`#a6559f`, all to `#7a7a78`/`#b5b3b0`. The control is `long`: the bare adverb `long.` keeps
+its colour while the same word inside `long and short of it` is grey. Unstruck words keep their
+Category colour, and the ten values reproduce #308's table.
+
+Over a **selection** the fill is unchanged (`#143c52` / `#cbedf7`), the struck ink and its rule are
+drawn over it, and the rule's value over the fill is the same as over paper — which is what shows
+the struck ink opaque rather than a tint, since flattening `#cccccc` at 0.53 over `#143c52` would
+give `#778a94`.
+
+### The menu will not say which lists are on
+
+The four list items carry **no `AXMenuItemMarkChar` in either state**, and the menu drawn open shows
+no check beside them. Their parents are verbs and can be read: `Enable`/`Disable Style Check`,
+`Enable`/`Disable Focus Mode`, `Show`/`Hide Syntax`, `Show`/`Hide Authors`. `run_style.py` therefore
+measures a list's state — it clicks, shoots, and keeps the click only if the frame moved the way the
+click should move it. **Custom is empty**: it moves nothing either way, which is the one state that
+method cannot name, and it is recorded as left-as-found.
