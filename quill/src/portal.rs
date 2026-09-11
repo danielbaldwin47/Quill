@@ -196,7 +196,9 @@ fn ground(value: &Variant) -> Option<Scheme> {
 mod tests {
     use std::cell::{Cell, RefCell};
     use std::rc::Rc;
-    use std::sync::Mutex;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{Arc, Mutex};
+    use std::time::Duration;
 
     use quill_engine::settings::Theme;
     use quill_engine::theme;
@@ -314,36 +316,115 @@ mod tests {
         /// only the name it was pointed at, and a signal from anyone else on
         /// the bus is somebody else's business.
         fn announce(&self, namespace: &str, key: &str) {
+            self.listening();
             for stub in self.stubs.borrow().iter() {
                 stub.announce(namespace, key);
             }
         }
 
-        /// Runs the main context until `done`.
+        /// Waits until every subscription Quill's connection has asked for is
+        /// one the bus knows about.
+        ///
+        /// A subscription is an `AddMatch` the connection sends and does not
+        /// wait for, and a proxy pointed at a *unique* name — which every
+        /// stub here has — has no round trip of its own to put behind it, so
+        /// nothing but timing keeps the rule ahead of the signal. A signal the
+        /// bus routes before it has read that rule is not late but gone, and
+        /// no deadline can rescue it: that is the other half of #376, and it
+        /// is what a loaded machine was hitting two runs in twenty.
+        ///
+        /// One synchronous call on the same connection is the barrier. A bus
+        /// reads one connection's messages in the order they were sent, so an
+        /// answer to a question asked after the rule means the rule is in
+        /// place.
+        fn listening(&self) {
+            self.connection
+                .call_sync(
+                    Some("org.freedesktop.DBus"),
+                    "/org/freedesktop/DBus",
+                    "org.freedesktop.DBus",
+                    "GetId",
+                    None,
+                    None,
+                    gio::DBusCallFlags::NONE,
+                    -1,
+                    gio::Cancellable::NONE,
+                )
+                .expect("the bus answers for itself");
+        }
+
+        /// Runs the main context until `done`, or until [`DEADLINE`].
         ///
         /// A signal is delivered by the main loop rather than by the call that
         /// emitted it, so a test that asserts without running one asserts on
-        /// nothing.
+        /// nothing. Each turn *blocks*, so the wait costs nothing while the
+        /// round trip is in flight and ends the moment it lands; a blocking
+        /// turn with nothing pending would never come back, so the deadline is
+        /// a source on the same context — the thing that wakes it — rather
+        /// than a clock read between turns.
         fn until(&self, done: impl Fn() -> bool) {
-            for _ in 0..ROUNDS {
-                if done() {
-                    return;
-                }
-                self.context.iteration(false);
+            let expired = Arc::new(AtomicBool::new(false));
+            let deadline = self.deadline(DEADLINE, &expired);
+            while !done() && !expired.load(Ordering::Relaxed) {
+                self.context.iteration(true);
             }
+            deadline.destroy();
         }
 
-        /// Runs the main context long enough that anything on its way has
-        /// arrived — which is how a test proves something did *not* arrive.
+        /// Runs the main context for [`QUIET`], which is long enough that
+        /// anything on its way has arrived — which is how a test proves
+        /// something did *not* arrive.
+        ///
+        /// Nothing can end this early, so it is the deadline itself that is
+        /// waited out, blocking turn by blocking turn.
         fn settle(&self) {
-            for _ in 0..ROUNDS {
-                self.context.iteration(false);
+            let expired = Arc::new(AtomicBool::new(false));
+            let deadline = self.deadline(QUIET, &expired);
+            while !expired.load(Ordering::Relaxed) {
+                self.context.iteration(true);
             }
+            deadline.destroy();
+        }
+
+        /// A source on *this* context that raises `expired` once `after` has
+        /// passed, returned so the caller can drop it where it ends early.
+        ///
+        /// Built and attached by hand rather than taken from
+        /// `timeout_add_local`, which attaches to the default context —
+        /// the one this stage's context is deliberately not, and the one no
+        /// test here ever iterates, so a deadline left on it never fires and
+        /// the blocking turn below it never comes back.
+        fn deadline(&self, after: Duration, expired: &Arc<AtomicBool>) -> glib::Source {
+            let rang = Arc::clone(expired);
+            let source =
+                glib::timeout_source_new(after, None, glib::Priority::DEFAULT, move || {
+                    rang.store(true, Ordering::Relaxed);
+                    glib::ControlFlow::Break
+                });
+            source.attach(Some(&self.context));
+            source
         }
     }
 
-    /// How many turns of a main context count as "everything pending".
-    const ROUNDS: usize = 500;
+    /// How long a signal the desktop announced has to arrive.
+    ///
+    /// A deadline rather than a count of main-context turns (#376): the stub
+    /// answers from a thread of its own over a real bus, so how long the round
+    /// trip takes is a property of the machine's load and not of the code
+    /// under test, and a fixed count of turns spent under load runs out before
+    /// the signal lands and reads a late signal as no signal. Generous,
+    /// because the wait ends the moment the signal arrives and the whole of it
+    /// is paid only when the signal is absent — which is a failing test, and a
+    /// failing test may take ten seconds.
+    const DEADLINE: Duration = Duration::from_secs(10);
+
+    /// How long "nothing arrived" is given to be wrong.
+    ///
+    /// Paid in full on every run, since nothing ends it early: short enough
+    /// to keep the suite well under a second, and long enough that a signal
+    /// the bus does route arrives inside it with room to spare — the one the
+    /// test above waits for takes a millisecond of a loaded machine.
+    const QUIET: Duration = Duration::from_millis(250);
 
     impl Stub {
         /// Brings a portal up on the bus at `address` and waits for it to be there.
@@ -515,7 +596,11 @@ mod tests {
 
             stage.announce(APPEARANCE, COLOUR_SCHEME);
             stage.until(|| heard.get().is_some());
-            assert_eq!(heard.get(), Some(Scheme::Dark));
+            assert_eq!(
+                heard.get(),
+                Some(Scheme::Dark),
+                "the announced change had {DEADLINE:?} to arrive"
+            );
         });
     }
 
