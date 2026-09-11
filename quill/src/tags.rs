@@ -323,9 +323,15 @@ const STYLE_MARK: &str = "decoration-style-";
 /// thickness or a position — is one edit to this function and a
 /// `docs/design.md` row; until then no row is written.
 fn style_mark(buffer: &gtk::TextBuffer, list: List) -> gtk::TextTag {
-    tag(buffer, &format!("{STYLE_MARK}{}", list.key()), |tag| {
+    tag(buffer, &style_mark_name(list), |tag| {
         tag.set_strikethrough(true);
     })
+}
+
+/// The name of the tag that strikes `list`: the List's own settings key under
+/// [`STYLE_MARK`], and the one place a List and its tag are tied together.
+fn style_mark_name(list: List) -> String {
+    format!("{STYLE_MARK}{}", list.key())
 }
 
 /// Strikes every enabled List's spans through, over the bytes `at`.
@@ -1400,6 +1406,33 @@ mod tests {
             &crate::ground::Ground::of(scheme).colours,
         )
         .to_hex()
+    }
+
+    /// Each List is struck through a tag named for that List's own settings
+    /// key, and no two Lists share a name.
+    ///
+    /// A tag wired to the wrong key would strike one List's phrases when
+    /// another's switch moved, and the `style` Piece cannot catch it: its nine
+    /// states shoot two of the eight List combinations, every List on and
+    /// Fillers alone (#356).
+    #[test]
+    fn every_list_is_struck_through_a_tag_named_for_its_own_key() {
+        let names = List::ALL.map(style_mark_name);
+        assert_eq!(
+            names,
+            [
+                "decoration-style-fillers",
+                "decoration-style-redundancies",
+                "decoration-style-cliches",
+            ]
+            .map(String::from)
+        );
+        for name in &names {
+            assert!(
+                name.starts_with(STYLE_MARK),
+                "{name} is not one `repaint` takes off",
+            );
+        }
     }
 
     /// The judged step: the ladder's default, whose em is 21.33 logical

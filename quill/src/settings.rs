@@ -269,74 +269,28 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
     );
 
     group_heading(&grid, 22, "Writing tools");
-    for (index, (toggle, label, on)) in syntax_rows(session).into_iter().enumerate() {
-        if toggle == SyntaxToggle::Enabled {
-            row(
-                &grid,
-                23,
-                label,
-                &switch(session, on, move |settings, on| {
-                    toggle.set(&mut settings.syntax_highlight, on);
-                }),
-            );
-            let hint = gtk::Label::builder()
-                .label(ENGLISH_ONLY)
-                .halign(gtk::Align::Start)
-                .build();
-            grid.attach(&hint, 0, 24, 2, 1);
-        } else {
-            let check = gtk::CheckButton::builder()
-                .halign(gtk::Align::End)
-                .active(on)
-                .build();
-            check.connect_toggled(glib::clone!(
-                #[strong]
-                session,
-                move |check| {
-                    session.edit_settings(|settings| {
-                        toggle.set(&mut settings.syntax_highlight, check.is_active());
-                    });
-                }
-            ));
-            row(&grid, 24 + i32::try_from(index).unwrap(), label, &check);
-        }
-    }
+    annotator_group(
+        &grid,
+        session,
+        syntax_rows(session),
+        SyntaxToggle::Enabled,
+        23,
+        ENGLISH_ONLY,
+        |settings, toggle: SyntaxToggle, on| toggle.set(&mut settings.syntax_highlight, on),
+    );
     // Style check's four under Syntax highlight's six, in the same group and
     // the same shape: the master a switch with its own line of text under it,
     // the three Lists checks. Its own line, because the two Annotators are
     // English-only for different reasons — the tagger's, and the lists' (#356).
-    for (index, (toggle, label, on)) in style_rows(session).into_iter().enumerate() {
-        if toggle == StyleToggle::Enabled {
-            row(
-                &grid,
-                30,
-                label,
-                &switch(session, on, move |settings, on| {
-                    toggle.set(&mut settings.style_check, on);
-                }),
-            );
-            let hint = gtk::Label::builder()
-                .label(ENGLISH_ONLY)
-                .halign(gtk::Align::Start)
-                .build();
-            grid.attach(&hint, 0, 31, 2, 1);
-        } else {
-            let check = gtk::CheckButton::builder()
-                .halign(gtk::Align::End)
-                .active(on)
-                .build();
-            check.connect_toggled(glib::clone!(
-                #[strong]
-                session,
-                move |check| {
-                    session.edit_settings(|settings| {
-                        toggle.set(&mut settings.style_check, check.is_active());
-                    });
-                }
-            ));
-            row(&grid, 31 + i32::try_from(index).unwrap(), label, &check);
-        }
-    }
+    annotator_group(
+        &grid,
+        session,
+        style_rows(session),
+        StyleToggle::Enabled,
+        30,
+        ENGLISH_ONLY,
+        |settings, toggle: StyleToggle, on| toggle.set(&mut settings.style_check, on),
+    );
 
     let button = gtk::Button::builder()
         .label("Edit settings.toml…")
@@ -407,6 +361,60 @@ fn anchored(settings: &mut Settings, anchor: f64) {
 /// `Ctrl+Shift+L` toggle makes).
 fn followed(settings: &mut Settings, on: bool, scheme: Scheme) {
     settings.theme = if on { Theme::Auto } else { scheme.setting() };
+}
+
+/// One Annotator's rows of the Writing tools group: the master's switch at
+/// `first` with `hint` on the line under it, then one check per kind or List,
+/// in the order the rows come.
+///
+/// Both Annotators draw the same four shapes and write their tables the same
+/// way, so they draw through one helper and a third will too; what differs is
+/// the table each `write` reaches and where the group starts (#356).
+fn annotator_group<T: Copy + PartialEq + 'static>(
+    grid: &gtk::Grid,
+    session: &Rc<Session>,
+    rows: impl IntoIterator<Item = (T, &'static str, bool)>,
+    master: T,
+    first: i32,
+    hint: &str,
+    write: impl Fn(&mut Settings, T, bool) + Copy + 'static,
+) {
+    for (index, (toggle, label, on)) in rows.into_iter().enumerate() {
+        if toggle == master {
+            row(
+                grid,
+                first,
+                label,
+                &switch(session, on, move |settings, on| {
+                    write(settings, toggle, on);
+                }),
+            );
+            let said = gtk::Label::builder()
+                .label(hint)
+                .halign(gtk::Align::Start)
+                .build();
+            grid.attach(&said, 0, first + 1, 2, 1);
+        } else {
+            let check = gtk::CheckButton::builder()
+                .halign(gtk::Align::End)
+                .active(on)
+                .build();
+            check.connect_toggled(glib::clone!(
+                #[strong]
+                session,
+                move |check| {
+                    let on = check.is_active();
+                    session.edit_settings(|settings| write(settings, toggle, on));
+                }
+            ));
+            row(
+                grid,
+                first + 1 + i32::try_from(index).unwrap(),
+                label,
+                &check,
+            );
+        }
+    }
 }
 
 /// The Writing tools rows, projected from the live table without writing it.
