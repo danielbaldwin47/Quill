@@ -1473,13 +1473,40 @@ const fn slot(menu: Menu) -> usize {
 /// A bar's hairline (`transform: scaleY(.5)` of a 1 px rule), in the rule's
 /// colour, hidden until the page scrolls under it.
 fn rule(edge: gtk::Align) -> gtk::DrawingArea {
-    hairline("chrome-rule", edge, false)
+    hairline("chrome-rule", edge, false, Hair::Device)
 }
 
-/// A hairline one device pixel high along `edge` of the widget it is put
-/// in, taking its colour from `class`'s CSS `color`: the bars' rules and the
-/// Palette's line under its field.
-pub(crate) fn hairline(class: &str, edge: gtk::Align, visible: bool) -> gtk::DrawingArea {
+/// How thick a [`hairline`] lays its row down: the bars' half a logical
+/// pixel, which is one device pixel at the Gate's scale, or the whole
+/// logical pixel a CSS border of the same colour would lay down, which is
+/// the weight the Palette's panel border carries (#374).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Hair {
+    /// One device pixel: `transform: scaleY(.5)` of a 1 px rule.
+    Device,
+    /// One logical pixel, the weight of `border: 1px`.
+    Logical,
+}
+
+impl Hair {
+    /// The row's height in logical pixels.
+    const fn weight(self) -> f64 {
+        match self {
+            Self::Device => 0.5,
+            Self::Logical => 1.0,
+        }
+    }
+}
+
+/// A hairline `hair` high along `edge` of the widget it is put in, taking
+/// its colour from `class`'s CSS `color`: the bars' rules and the Palette's
+/// line under its field.
+pub(crate) fn hairline(
+    class: &str,
+    edge: gtk::Align,
+    visible: bool,
+    hair: Hair,
+) -> gtk::DrawingArea {
     let rule = gtk::DrawingArea::builder()
         .css_classes([class])
         .content_height(1)
@@ -1490,15 +1517,17 @@ pub(crate) fn hairline(class: &str, edge: gtk::Align, visible: bool) -> gtk::Dra
         .build();
     rule.set_draw_func(move |area, cr, width, height| {
         // Half a logical pixel is one device pixel at the Gate's scale, and
-        // with no antialiasing it is exactly one row.
+        // with no antialiasing it is exactly one row; a whole one is the two
+        // rows a 1 px border lays down beside it.
         cr.set_antialias(cairo::Antialias::None);
         source(area, cr, 1.0);
+        let weight = hair.weight();
         let top = if edge == gtk::Align::Start {
             0.0
         } else {
-            f64::from(height) - 0.5
+            f64::from(height) - weight
         };
-        cr.rectangle(0.0, top, f64::from(width), 0.5);
+        cr.rectangle(0.0, top, f64::from(width), weight);
         let _ = cr.fill();
     });
     rule
