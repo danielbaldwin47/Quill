@@ -10,6 +10,7 @@
 #   tools/gate shoot <piece>      shoot ours as judge would, and say whether the pixels moved; no critic
 #   tools/gate judge <piece>      shoot ours, pair it blind, judge it, record the round
 #   tools/gate keys <piece>       type real keys into ours, then read the assertions off the pixels
+#   tools/gate brief <piece>      the Piece's brief and its judged states, before a judge
 #   tools/gate --help             the commands there are, and what each runs
 #
 # The owner does not read Rust, so every command here ends in one line the owner
@@ -239,6 +240,23 @@ usage: tools/gate <command> [arguments]
                 a binary that would not build, or focus taken away mid-run.
                 Everything said on the way is target/gate/keys-<piece>.log,
                 printed when the run refuses.
+
+  brief <piece>   The two files a judge reads, for the one Piece and nothing
+                else: its brief from progress/state.json — the id, the title,
+                what the Piece is, and the `judge` string wrapped to 100
+                columns — then one block per judged state from
+                shots/oracle/states.json, naming the state's flag overrides
+                over `defaults`, the oracle that arbitrates it (a `mac-native`
+                capture with the crop and ours' matching rectangle, ours' own
+                pixels where the state carries an `assert`, or the frozen
+                Parity shot), and whether the state is typed; the Piece's
+                `keys` script, when it has one, is the last block. Both files
+                hold a Piece's brief as one long line, so a `grep` for one
+                returns its neighbours with it — 25k characters for two hits,
+                which is why this exists (docs/agents/context.md). Reads the
+                two files and does nothing else: no build, no window, no
+                browser. Ends in `gate brief <piece>: <N> states`, or
+                `... refused (no such Piece)` with exit 3.
 
 The tiers these commands serve are docs/agents/gate.md.
 EOF
@@ -584,6 +602,9 @@ case "${1-}" in
     # binary and /dev/uinput as the bench does, and reads the pixels as judging
     # does. Node for the same reason, and ends in its own line in the same shape.
     keys) shift; exec node "$ROOT/tools/keys.mjs" "$@" ;;
+    # Neither oracle nor critic: the two judging files, read for one Piece.
+    # Node because they are JSON, and it ends in its own line like the rest.
+    brief) shift; exec node "$ROOT/tools/brief.mjs" "$@" ;;
     -h | --help | help) usage ;;
     "") usage >&2; exit 2 ;;
     *) echo "gate: ${1}: not a command this Gate has yet" >&2; usage >&2; exit 2 ;;
