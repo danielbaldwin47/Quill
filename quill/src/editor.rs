@@ -1837,11 +1837,7 @@ impl Editor {
                 ..document.line_bytes(lines.end.saturating_sub(1)).end;
             let spans = document.spans_in(&at);
             let tagged = syntax.spans_in(document, &at);
-            let struck: Vec<Range<usize>> = syntax
-                .struck_in(document, &at)
-                .into_iter()
-                .map(|(span, _)| span)
-                .collect();
+            let struck = syntax.struck_ranges_in(document, &at);
             let annotated = Annotated {
                 tagged: &tagged,
                 enabled: syntax.categories(),

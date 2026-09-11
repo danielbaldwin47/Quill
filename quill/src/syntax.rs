@@ -405,6 +405,23 @@ impl Syntax {
         out
     }
 
+    /// [`Syntax::struck_in`]'s spans with their Lists dropped, which is what
+    /// both halves of the mark ask for.
+    ///
+    /// All three Lists draw the same mark (#356 § The mark), so the ink and the
+    /// rule want the extents alone; reading them through one method keeps the
+    /// two from drifting apart from each other or from the merge above.
+    pub(crate) fn struck_ranges_in(
+        &self,
+        document: &Document,
+        at: &Range<usize>,
+    ) -> Vec<Range<usize>> {
+        self.struck_in(document, at)
+            .into_iter()
+            .map(|(span, _)| span)
+            .collect()
+    }
+
     /// The retained spans one store holds over the drawn range, in the
     /// Document's own bytes.
     fn stored_in<K: Copy>(

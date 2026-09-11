@@ -1295,9 +1295,15 @@ mod tests {
             );
         }
         assert_eq!(Role::LinkRule.key(), "link_rule");
+        // Derived from the same position the text above was written from, so
+        // that inserting a Role ahead of `LinkRule` is not an edit here.
+        let at = Role::ALL
+            .iter()
+            .position(|role| *role == Role::LinkRule)
+            .expect("LinkRule among the roles");
         assert_eq!(
             palette.colour(Scheme::Light, Role::LinkRule),
-            Some(Colour::from_hex("#070707"))
+            Some(Colour::from_hex(&format!("#{at:02x}{at:02x}{at:02x}")))
         );
     }
 

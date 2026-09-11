@@ -223,19 +223,28 @@ def pin_advance(font):
 #
 # iA's own files ask for a 60-unit rule 309 above the baseline, and neither
 # number is what the Design oracle draws: it rules **2 device px centred on the
-# x-height** at the default size, which is 0.047 em over a 516-unit x-height
-# (#354, `ref/ia/mac-native/VERDICTS.md` § The Style Check mark;
-# `docs/design.md` § Rows, Style check mark). macOS ignores the metric and
-# draws its own rule; Pango obeys the metric and has no API to override it, so
-# the oracle's rule is written into the Faces here — the one place a
-# strikethrough's geometry can be set at all.
+# x-height** at the default size (#354, `ref/ia/mac-native/VERDICTS.md` § The
+# Style Check mark; `docs/design.md` § Rows, Style check mark). macOS ignores
+# the metric and draws its own rule; Pango obeys the metric and has no API to
+# override it, so the oracle's rule is written into the Faces here — the one
+# place a strikethrough's geometry can be set at all.
 #
-# These are the numbers that land the rule where the oracle draws it, measured
-# off a judged shot rather than derived. Pango draws the rule downward from
-# `yStrikeoutPosition` and thickens it by `yStrikeoutSize`, so a 60-unit rule
-# at 309 came out 4 device px with its top 2 px above the x-height centre: the
-# size is halved to the oracle's 2 px, and the position drops 47 units — 2
-# device px at the judged size — to centre what is left.
+# These two numbers are measured off a judged shot, not converted from the
+# oracle's own em fraction. The oracle's 2 px is 0.047 em in the face and at
+# the size it was measured in; 30 per 1000 units is 0.030 em, and what it is
+# calibrated against is our own rasterisation at the judged text size. Pango
+# draws the rule downward from `yStrikeoutPosition` and thickens it by
+# `yStrikeoutSize`, and iA's 60 at 309 came out 4 device px with its top 2 px
+# above the x-height centre, so the size is halved to the oracle's 2 px and the
+# position drops 47 units — 2 device px at the judged size — to centre what is
+# left.
+#
+# The position is the sounder of the two: 262 is the x-height centre (516 / 2 =
+# 258) to within four units, which is #354's own reading of what a second
+# capture would leave standing. The thickness has no such rule behind it —
+# #354 leaves "whether the thickness is a fixed device value or a rounded
+# fraction of the em" for a second step to separate — so it is right at the one
+# text step the `style` Piece shoots and may part from the oracle at others.
 STRIKEOUT_SIZE = 30
 STRIKEOUT_POSITION = 262
 
