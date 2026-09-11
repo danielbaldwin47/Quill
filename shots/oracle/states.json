@@ -514,9 +514,20 @@
         "syntax": "off",
         "focus": "off",
         "style": "on",
-        "assert": {
-          "kind": "style",
-          "runs": 13
+        "opponent": {
+          "capture": "mac-native-24-light-style-all.png",
+          "crop": [
+            680,
+            317,
+            1174,
+            66
+          ],
+          "ours": [
+            610,
+            214,
+            1174,
+            66
+          ]
         }
       },
       "on-dark": {
@@ -529,9 +540,20 @@
         "syntax": "off",
         "focus": "off",
         "style": "on",
-        "assert": {
-          "kind": "style",
-          "runs": 13
+        "opponent": {
+          "capture": "mac-native-24-dark-style-all.png",
+          "crop": [
+            680,
+            317,
+            1174,
+            66
+          ],
+          "ours": [
+            610,
+            214,
+            1174,
+            66
+          ]
         }
       },
       "fillers-light": {
@@ -544,9 +566,20 @@
         "syntax": "off",
         "focus": "off",
         "style": "fillers",
-        "assert": {
-          "kind": "style",
-          "runs": 6
+        "opponent": {
+          "capture": "mac-native-24-light-style-list-fillers.png",
+          "crop": [
+            680,
+            317,
+            1174,
+            66
+          ],
+          "ours": [
+            610,
+            214,
+            1174,
+            66
+          ]
         }
       },
       "focus-light": {
@@ -559,9 +592,20 @@
         "syntax": "off",
         "focus": "sentence",
         "style": "on",
-        "assert": {
-          "kind": "style",
-          "runs": 13
+        "opponent": {
+          "capture": "mac-native-24-light-style-focus-sentence.png",
+          "crop": [
+            680,
+            846,
+            1174,
+            66
+          ],
+          "ours": [
+            610,
+            214,
+            1174,
+            66
+          ]
         }
       },
       "focus-dark": {
@@ -574,9 +618,20 @@
         "syntax": "off",
         "focus": "sentence",
         "style": "on",
-        "assert": {
-          "kind": "style",
-          "runs": 13
+        "opponent": {
+          "capture": "mac-native-24-dark-style-focus-sentence.png",
+          "crop": [
+            680,
+            846,
+            1174,
+            66
+          ],
+          "ours": [
+            610,
+            214,
+            1174,
+            66
+          ]
         }
       },
       "syntax-light": {
@@ -589,9 +644,20 @@
         "syntax": "on",
         "focus": "off",
         "style": "on",
-        "assert": {
-          "kind": "style",
-          "runs": 13
+        "opponent": {
+          "capture": "mac-native-24-light-style-syntax.png",
+          "crop": [
+            680,
+            317,
+            1174,
+            66
+          ],
+          "ours": [
+            610,
+            214,
+            1174,
+            66
+          ]
         }
       },
       "syntax-dark": {
@@ -604,9 +670,20 @@
         "syntax": "on",
         "focus": "off",
         "style": "on",
-        "assert": {
-          "kind": "style",
-          "runs": 13
+        "opponent": {
+          "capture": "mac-native-24-dark-style-syntax.png",
+          "crop": [
+            680,
+            317,
+            1174,
+            66
+          ],
+          "ours": [
+            610,
+            214,
+            1174,
+            66
+          ]
         }
       },
       "select-light": {
@@ -623,9 +700,20 @@
         "syntax": "off",
         "focus": "off",
         "style": "on",
-        "assert": {
-          "kind": "style",
-          "runs": 13
+        "opponent": {
+          "capture": "mac-native-24-light-style-selection.png",
+          "crop": [
+            1572,
+            380,
+            490,
+            80
+          ],
+          "ours": [
+            1686,
+            280,
+            490,
+            80
+          ]
         }
       },
       "select-dark": {
@@ -642,9 +730,20 @@
         "syntax": "off",
         "focus": "off",
         "style": "on",
-        "assert": {
-          "kind": "style",
-          "runs": 13
+        "opponent": {
+          "capture": "mac-native-24-dark-style-selection.png",
+          "crop": [
+            1572,
+            380,
+            490,
+            80
+          ],
+          "ours": [
+            1686,
+            280,
+            490,
+            80
+          ]
         }
       }
     }
