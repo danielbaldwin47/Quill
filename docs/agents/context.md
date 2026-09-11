@@ -8,7 +8,7 @@ The smart zone is about 120k tokens. A session is near 60k once `CLAUDE.md`, the
 
 ## What the steps cost when skipped
 
-Measured over eighteen sessions on 2026-09-10 and 2026-09-11 (`/retro`, 2026-09-11):
+Measured over eighteen sessions on 2026-09-10 and 2026-09-11, in a retrospective on 2026-09-11:
 
 - **Orientation inline instead of in a fork.** None of eight `/implement` sessions forked before its first edit; inline orientation cost 25k–61k tokens and up to 30 calls each, and #319 peaked at 370k. The fork's report costs this context a page. A session that let the rule lapse mid-way made 45 greps and compacted twice.
 - **The LSP tool loaded and unused.** Twelve sessions paid the `ToolSearch` call and made zero LSP calls; four got the empty first answer while rust-analyzer indexed and fell back to `grep` for good. A fork does get the tool (re-measured 2026-09-11: `sleep 20`, and the second call answered); the built-in agent types (Explore, general-purpose, `claude`) and a custom agent definition never do.
