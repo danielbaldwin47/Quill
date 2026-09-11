@@ -836,27 +836,26 @@ impl Window {
 
     /// Applies the session's Syntax table; category-only changes reuse spans.
     pub(crate) fn set_syntax(&self, settings: quill_engine::settings::SyntaxHighlight) {
-        let was = self.imp().editor.annotating();
         self.imp().editor.set_syntax(settings, &self.document());
-        self.rearm(was);
+        self.rearm();
     }
 
     /// Applies the session's Style check table; a List alone reuses spans.
     pub(crate) fn set_style(&self, style: quill_engine::settings::StyleCheck) {
-        let was = self.imp().editor.annotating();
         self.imp().editor.set_style(style, &self.document());
-        self.rearm(was);
+        self.rearm();
     }
 
     /// Starts or stops the one wake both Annotators share.
     ///
-    /// `was` is whether either was on before the table moved: the pair is
-    /// armed when the first arrives and cancelled when the last leaves, so a
-    /// master switched off under the other still leaves the wake running.
-    fn rearm(&self, was: bool) {
+    /// Armed whenever either is on, and not only as the first arrives: a
+    /// master joining the other has paragraphs to match and no keystroke
+    /// coming to ask for them. A table change that dirties nothing arms a
+    /// wake whose request is `None`, which costs one idle turn and no work.
+    fn rearm(&self) {
         if !self.imp().editor.annotating() {
             self.cancel_syntax();
-        } else if !was {
+        } else {
             self.arm_syntax();
         }
     }
