@@ -1,6 +1,7 @@
-//! Style check: clichés, fillers and redundancies.
+//! Style check: fillers, redundancies and clichés.
 //!
-//! The Annotator that underlines matches from Quill's shipped lists, one
-//! decoration per list so a writer can tell which list caught a phrase. It
-//! reads the prose stream and matches over it; the lists are data files
-//! resolved from the one data directory, not compiled in.
+//! The Annotator that strikes through matches from Quill's shipped lists, one
+//! decoration per list so a list's toggle drops its marks without a re-match
+//! (#29). It reads the prose stream and matches over it; the lists are data
+//! files resolved from the one data directory, not compiled in
+//! ([`crate::data::style`]).

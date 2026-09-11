@@ -347,11 +347,14 @@ window twice, and a bench at 1440×900 is not a writer resizing anything.
 
 `PKGBUILD` builds the workspace with `cargo build --release --locked` from the working tree
 (`cargo fetch` in `prepare`, so `makepkg` needs the network only there), `arch=('x86_64')`,
-`license=('GPL-3.0-or-later' 'OFL-1.1' 'Apache-2.0')`, `depends=('gtk4' 'enchant' 'hicolor-icon-theme')`,
+`license=('GPL-3.0-or-later' 'OFL-1.1' 'Apache-2.0' 'BSD-3-Clause' 'MIT' 'CC0-1.0')`,
+`depends=('gtk4' 'enchant' 'hicolor-icon-theme')`,
 `makedepends=('cargo')`, `optdepends=('hunspell-en_us: English spell checking')`. It installs the
-binary as `/usr/bin/quill`, data under `/usr/share/quill/`, the `.desktop` file and icon under the
-application id, `fonts/OFL.txt` beside the fonts and under `/usr/share/licenses/quill/`, and
-`packaging/harper-brill-LICENSE` under that licence directory for the embedded model. With no
+binary as `/usr/bin/quill`, data under `/usr/share/quill/` (the fonts, and the Style check lists
+under `data/style/` with their `SOURCES.md`), the `.desktop` file and icon under the
+application id, `fonts/OFL.txt` beside the fonts and under `/usr/share/licenses/quill/`,
+`packaging/harper-brill-LICENSE` under that licence directory for the embedded model, and the
+lists' four licence texts there too. With no
 dictionary installed, Spell check shows a "no dictionary" state rather than failing.
 
 Flatpak comes later (the map's fog) and this design keeps it cheap: fonts are private, enchant and

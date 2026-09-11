@@ -91,6 +91,18 @@ pub fn fonts() -> PathBuf {
     dir().join("fonts")
 }
 
+/// The directory holding the three Style check lists, their `SOURCES.md` and
+/// the licence texts those sources require.
+///
+/// A second name under the data directory rather than a second directory beside
+/// it: the lists are data files like the Faces, so an installed Quill and a
+/// `cargo run` find them by one path. Which three files sit there is the style
+/// module's to say — this module only says where.
+#[must_use]
+pub fn style() -> PathBuf {
+    dir().join("data").join("style")
+}
+
 /// The precedence itself, with its three inputs handed in.
 ///
 /// Separated from [`dir`] because the environment, the compiled-in path and the
@@ -153,6 +165,36 @@ mod tests {
     #[test]
     fn the_fonts_directory_is_the_data_directory_plus_one_name() {
         assert_eq!(fonts(), dir().join("fonts"));
+    }
+
+    #[test]
+    fn the_style_directory_is_the_data_directory_plus_two_names() {
+        assert_eq!(style(), dir().join("data").join("style"));
+    }
+
+    #[test]
+    fn the_checkout_holds_the_three_lists_and_what_licenses_them() {
+        // Against `checkout()` for the reason the Faces are, and spelled out
+        // here rather than read from a table: three file names one test can
+        // hold is the whole of what ships, and a list renamed without its
+        // `SOURCES.md` row is what this catches.
+        for file in [
+            "fillers.txt",
+            "redundancies.txt",
+            "cliches.txt",
+            "SOURCES.md",
+            "LICENSE-MIT-wooorm.txt",
+            "LICENSE-MIT-duereg.txt",
+            "LICENSE-BSD-3-Clause-proselint.txt",
+            "LICENSE-CC0-plainlanguage.txt",
+        ] {
+            let path = checkout().join("data").join("style").join(file);
+            assert!(
+                path.is_file(),
+                "no {} in the data directory: the lists are committed, not built",
+                path.display()
+            );
+        }
     }
 
     #[test]
