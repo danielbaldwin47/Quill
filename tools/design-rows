@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+"""The rows of docs/design.md, by name and line.
+
+  tools/design-rows
+
+A row of `docs/design.md` decides what the writing surface does where the Design oracle
+and the Parity oracle disagree, and a caret, selection, palette, focus, markup or type
+ticket reads its row before it starts. The rows are table rows, each one line and several
+hundred characters wide, so listing them by `grep` costs 11-16k characters
+(`docs/agents/context.md` § What the steps cost when skipped). This prints the first
+column and the line number instead, one row per line, so a row is found by name and then
+read on its own with `sed -n '<line>p' docs/design.md`.
+
+Ends in `design-rows: <N> rows`. A pure function of one file: no window, no network.
+"""
+import os
+import re
+import sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+DESIGN = os.path.join(ROOT, "docs/design.md")
+DELIMITER = re.compile(r"^\|[\s|:-]+\|\s*$")
+
+
+def rows(text):
+    """Every row of every pipe table in `text`, as `(line number, name)` in file order.
+
+    A table's header is the line above its delimiter (`|---|---|`), and its rows are the
+    pipe lines after that delimiter, up to the first line that is not one.
+    """
+    found = []
+    in_table = False
+    for number, line in enumerate(text.split("\n"), 1):
+        if DELIMITER.match(line):
+            in_table = True  # the delimiter; the line above it was the header
+        elif not line.startswith("|"):
+            in_table = False
+        elif in_table:
+            found.append((number, line.split("|")[1].strip()))
+    return found
+
+
+def main():
+    with open(DESIGN, encoding="utf-8") as design:
+        found = rows(design.read())
+    for number, name in found:
+        print(f"{number}: {name}")
+    print(f"design-rows: {len(found)} rows")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
