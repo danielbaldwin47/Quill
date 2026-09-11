@@ -196,23 +196,29 @@ what ADR 0013 said of the Windows build and is equally true here.
 
 ### The ends are capped, not square
 
-Read row by row over the bar's own columns, both frames, through the reader `tools/keys-assert.mjs`
-uses (`decodePng` and `readBar`, which take the bar as x 816 … 822 y 280 … 353 on its blue lean).
-Each row below is the six columns x 816 … 821 of the bar, and the count is how many of them carry
-the core's chroma in full:
+Read row by row through the reader `tools/keys-assert.mjs` uses (`decodePng` and `readBar`, which
+take the bar as x 816 … 822, y 280 … 353 on its blue lean). Each row below is the six columns
+x 816 … 821 the table above calls the bar, left to right, and **full** counts the columns that are
+exactly `#00bfff` — which the core row itself holds five of, its left column carrying the bar's own
+antialiased edge:
 
-| row | dark | light | of the bar's 6 columns |
+| row | dark | light | full of 6 |
 |---|---|---|---|
-| y 280, the end row | `#144353 #0d7091 #0b7ba0 #115870` over x 817 … 820, x 816 and 821 paper | `#bbe9f9 #77dafc #66d6fc #9be2f9` over x 817 … 820, x 816 and 821 paper | **4 columns, all blended, none full** |
-| y 281 | `#13495c #059dcf #00bfff #00bfff #01b7f3 #0d6f90` | `#b0e7f9 #34cbfd #00bfff #00bfff #0dc2ff #79dbfb` | all 6, the two outer ones blended, **2 full** |
-| y 282 | `#0a80a7 #00bfff #00bfff #00bfff #00bfff #00bdfb` | `#5fd5fc #00bfff #00bfff #00bfff #00bfff #04c0ff` | all 6, only the two corners short, **5 full** |
-| y 283 onward | `#0793c1` then flat `#00bfff` | `#43cefd` then flat `#00bfff` | the core row's own reading |
+| y 280, the end row | `#1b1b1a #144353 #0d7091 #0b7ba0 #115870 #1a1b1b` | `#f7f7f7 #bbe9f9 #77dafc #66d6fc #9be2f9 #f7f7f7` | **0** — x 816 and x 821 are the paper, and the four between them are blends |
+| y 281 | `#13495c #059dcf #00bfff #00bfff #01b7f3 #0d6f90` | `#b0e7f9 #34cbfd #00bfff #00bfff #0dc2ff #79dbfb` | **2** — no paper left, and four blends around them |
+| y 282 | `#0a80a7 #00bfff #00bfff #00bfff #00bfff #00bdfb` | `#5fd5fc #00bfff #00bfff #00bfff #00bfff #04c0ff` | **4** — only the two outer columns short |
+| y 283, and the core row at y 317 | `#0793c1` / `#059ed2`, then `#00bfff` ×5 | `#43cefd` / `#31cafe`, then `#00bfff` ×5 | **5** — the core's own reading |
 
 The bottom end mirrors it exactly in both themes: y 353 is y 280's row, y 352 is y 281's, y 351 is
-y 282's. So the bar narrows over three rows at each end, four columns wide at the last one — an
-antialiased **semicircular cap of radius 3 px on a 6 px bar**, a stadium and not a rectangle. The
-caps are inside the measured height: the 72 (dark) and 74 (light) above **include** them, so the
-column, width and centre rows are unchanged by this reading.
+y 282's. So the bar narrows over three rows at each end, holding four columns at the last of them
+and none of the core's five — an antialiased **semicircular cap of radius 3 px on a 6 px bar**, a
+stadium and not a rectangle.
+
+The caps are the bar's own ends and not ink added past them: the flat core runs y 284 … 349 and the
+taper rows lie between it and the extent the table above records, y 280 … 353. Dark's h 72 against
+light's h 74 is the outermost cap row at each end, which the accent threshold catches over a pale
+ground and not over a dark one — which is what the note above already says of those two rows. So
+the column, width and centre rows are unchanged by this reading.
 
 This re-reads `VERDICTS.md` 3.5.7, which took the same rows as "1 px of corner antialiasing" and a
 square end; at 3 px of radius on a 72 px bar the claim it confirms — no rounding *visible* at these
