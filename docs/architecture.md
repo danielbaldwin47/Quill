@@ -67,8 +67,9 @@ Markup (from the parser: which bytes are Markup, which are heading, emphasis, st
 quote, list marker), Live (from the Markup spans and the caret: which marker bytes are folded away,
 which bytes are a heading's and at what level, and what furniture stands in a folded marker's
 cells), Syntax highlight (a Category per word — Nouns, Verbs, Adjectives, Adverbs or Conjunctions;
-the Universal POS tag it reads them from never leaves `quill_engine::pos`), Style check (a list name
-per match) and Spell check (a misspelling per word, suggestions fetched on demand). Syntax
+the Universal POS tag it reads them from never leaves `quill_engine::pos`), Style check (a List per
+match — Fillers, Redundancies or Clichés, matched over the union of the three shipped phrase lists
+whatever a toggle says, and a redundancy emitting only the words it strikes) and Spell check (a misspelling per word, suggestions fetched on demand). Syntax
 highlight, Style check and Spell check consume the **prose stream**: the parser's `Text` events with
 Markup, code spans, fenced code, URLs and front matter removed. They never see a `#` or a `*`.
 
