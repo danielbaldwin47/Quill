@@ -912,11 +912,7 @@ fn painted(
 ) -> Vec<annotate::Painted> {
     let syntax = painting.syntax.borrow();
     let tagged = syntax.spans_in(document, at);
-    let struck: Vec<Range<usize>> = syntax
-        .struck_in(document, at)
-        .into_iter()
-        .map(|(span, _)| span)
-        .collect();
+    let struck = syntax.struck_ranges_in(document, at);
     annotate::paint_tagged_in(
         spans,
         Annotated {

@@ -212,6 +212,63 @@ mod tests {
         }
     }
 
+    /// The strikeout rule `tools/fontbuild.py` pins, read back out of the
+    /// files that ship.
+    ///
+    /// Pango draws a strikethrough from the face's own `OS/2` fields and takes
+    /// neither a thickness nor a position from a text tag, so these two numbers
+    /// are the whole of the Style check rule's geometry, and Markdown's `~~`
+    /// moves with them (#354; `docs/design.md` § Rows, Style check mark). A
+    /// rebuild that dropped `pin_strikeout` would pass every other test in the
+    /// tree and be caught only by a judged round; this is what stands in for
+    /// that round.
+    #[test]
+    fn every_face_carries_the_pinned_strikeout_rule() {
+        for (family, file) in FACES {
+            let path = checkout().join("fonts").join(file);
+            let font = std::fs::read(&path).expect("a Face to read");
+            let os2 = table(&font, b"OS/2");
+            assert_eq!(
+                (
+                    be16(&font, table(&font, b"head") + 18),
+                    be16(&font, os2 + 26),
+                    be16(&font, os2 + 28)
+                ),
+                (1000, 30, 262),
+                "{family} at {}: units per em, `yStrikeoutSize` and \
+                 `yStrikeoutPosition` — `python3 tools/fontbuild.py` writes them",
+                path.display()
+            );
+        }
+    }
+
+    /// Where one table of a TrueType file starts, by its four-byte tag.
+    ///
+    /// Twelve bytes of header, then a directory of sixteen-byte records — tag,
+    /// checksum, offset, length. Enough of the format to read three numbers,
+    /// and less than a font crate would cost the engine for one test.
+    fn table(font: &[u8], tag: &[u8; 4]) -> usize {
+        let tables = usize::from(be16(font, 4));
+        (0..tables)
+            .map(|at| 12 + at * 16)
+            .find(|record| &font[*record..*record + 4] == tag)
+            .map(|record| {
+                usize::try_from(u32::from_be_bytes(
+                    font[record + 8..record + 12]
+                        .try_into()
+                        .expect("four bytes of offset"),
+                ))
+                .expect("an offset inside the file")
+            })
+            .unwrap_or_else(|| panic!("no {} table", String::from_utf8_lossy(tag)))
+    }
+
+    /// The two pinned values and the units per em are all positive, so an
+    /// unsigned read is enough: a dropped pin reads iA's own 60 and 309.
+    fn be16(bytes: &[u8], at: usize) -> u16 {
+        u16::from_be_bytes(bytes[at..at + 2].try_into().expect("two bytes"))
+    }
+
     #[test]
     fn the_checkout_holds_the_bundled_families_and_every_licence() {
         // Against `checkout()` for the same reason the Faces are.
