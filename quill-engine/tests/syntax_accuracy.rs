@@ -13,9 +13,17 @@
 //! we colour and iA leaves plain does. Both stills have Nouns off, so red is
 //! not scored at all — the gap is the fixture's, not the tagger's, and it
 //! closes when a still with Nouns on turns up.
+//!
+//! Both stills are marketing frames, and a `mac-native` capture outranks one
+//! ([ADR 0015](../../docs/adr/0015-the-design-oracle-outranks-the-parity-oracle.md)).
+//! Where a capture has since read the running app and disagreed with a frame,
+//! the word is `unscored` in the fixture and counts on neither side — the same
+//! move `shows` makes for a Category a frame cannot answer. One word is, and
+//! the fixture says which and why.
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs;
+use std::ops::Range;
 
 use quill_engine::pos::{Category, categories};
 
@@ -34,6 +42,15 @@ struct Passage {
     shows: Vec<String>,
     text: String,
     coloured: Vec<Coloured>,
+    /// Words this still is no longer evidence about, scored on neither side.
+    ///
+    /// `shows` drops a whole Category a still cannot answer for; this drops one
+    /// word a `mac-native` capture has since overruled the still on, which
+    /// [ADR 0015](../../docs/adr/0015-the-design-oracle-outranks-the-parity-oracle.md)
+    /// says is the app measured against a marketing frame. Each names why, and
+    /// the fixture's own comment carries the reading.
+    #[serde(default)]
+    unscored: Vec<Unscored>,
 }
 
 #[derive(serde::Deserialize)]
@@ -41,6 +58,16 @@ struct Coloured {
     at: usize,
     word: String,
     category: String,
+}
+
+#[derive(serde::Deserialize)]
+struct Unscored {
+    at: usize,
+    word: String,
+    /// What overruled the still here, so a bare offset never sits in the
+    /// fixture without its reason. It reaches the failure message, which is
+    /// where a reader who has just been surprised by the count will look.
+    why: String,
 }
 
 #[test]
@@ -58,9 +85,11 @@ fn the_tagger_agrees_with_ia_on_the_words_its_stills_colour() {
             .collect();
         let ia = expected(passage, &shows);
         let quill = quill_colours(passage, &shows);
+        let unscored = unscored(passage);
 
         let mut offsets: BTreeSet<usize> = ia.keys().copied().collect();
         offsets.extend(quill.keys().copied());
+        offsets.retain(|offset| !unscored.iter().any(|word| word.contains(offset)));
         let (mut passage_scored, mut passage_agreed) = (0usize, 0usize);
         for offset in offsets {
             let theirs = ia.get(&offset).copied();
@@ -135,6 +164,29 @@ fn expected<'a>(
                 coloured.word
             );
             (coloured.at, (category, coloured.word.as_str()))
+        })
+        .collect()
+}
+
+/// The byte ranges neither side is scored over, checked against the passage
+/// the way [`expected`] checks a coloured word.
+fn unscored(passage: &Passage) -> Vec<Range<usize>> {
+    passage
+        .unscored
+        .iter()
+        .map(|word| {
+            let end = word.at + word.word.len();
+            assert_eq!(
+                passage.text.get(word.at..end),
+                Some(word.word.as_str()),
+                "{}: the fixture leaves {:?} unscored at byte {} ({}), and the passage does not \
+                 hold it there",
+                passage.name,
+                word.word,
+                word.at,
+                word.why
+            );
+            word.at..end
         })
         .collect()
 }

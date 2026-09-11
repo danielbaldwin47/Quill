@@ -62,7 +62,22 @@ still = "ref/ia/shots/appstore-mac-03-dark-syntax-highlight.png"
 # `actually` is body ink in the still while `never` and `somewhere` beside it
 # are purple. That is iA's own tagger declining an adverb, and it is left in:
 # it is one of the disagreements the 86 % floor is there to bound.
+#
+# `so-called` is `unscored`, and it is the only word in either passage that is.
+# The still paints all nine of its glyphs brown, the hyphen with them — read
+# again in pixels for #319, so the transcription is not the doubt. What is
+# overruled is the still: `ref/ia/mac-native/CAPTURE-ORIGINAL-MBP.md` § A
+# contraction splits shoots the running app at 8.0.6 and reads `well-known` as
+# a purple `well`, a **plain** hyphen and a blue `known`. Both are iA and they
+# cannot both be this app's answer, so ADR 0015 decides it: the Design oracle
+# is the app measured, a marketing frame is history, and `pos.rs` splits at the
+# hyphen. Scoring the frame's reading against a tokenizer the capture wrote
+# would be scoring the older of two iA's, which is what `shows` already refuses
+# to do for a Category a still cannot answer.
 shows = ["Verbs", "Adjectives", "Adverbs"]
+unscored = [
+  { at = 104, word = "so-called", why = "the Design oracle splits a hyphenated compound; CAPTURE-ORIGINAL-MBP.md § A contraction splits" },
+]
 text = "Down, down, down. Would the fall never come to an end? “I must actually be getting somewhere near the so-called centre of the earth"
 coloured = [
   { at = 0, word = "Down", category = "Adverbs" },
@@ -76,5 +91,4 @@ coloured = [
   { at = 74, word = "be", category = "Verbs" },
   { at = 77, word = "getting", category = "Verbs" },
   { at = 85, word = "somewhere", category = "Adverbs" },
-  { at = 104, word = "so-called", category = "Adjectives" },
 ]

@@ -1,0 +1,202 @@
+{
+  "piece": "syntax",
+  "round": 4,
+  "winner": "theirs",
+  "margin": "clear",
+  "gap": "Four words carry the wrong Category or none at all: 'spot' is red #BB512A (noun) where A has it blue #4675B5 (verb, matching 'can/employ/helps/eliminate'); 'Check' is blue where A has red; and 'repetitions' and 'clutter' sit in plain body ink #191919 with no Category at all — B's red ink totals 5,548px vs A's 8,999px, a 38% shortfall, with black body ink up 69% (5,883 vs 3,484px) to absorb it.",
+  "gapTheirs": "Type sets ~7% smaller against the same rhythm: cap height of 'T' in 'Trim' is 28px in A vs 30px in B, on line pitch 73px vs 74px — a leading ratio of ~2.61x cap in A against ~2.47x in B, so A's block reads slightly smaller and looser in an identical 1700x340 window.",
+  "verdict": "Same five colours, same paper, same ink — B just can't tell a noun from a verb. It paints 'spot' red inside 'helps you spot weak verbs' while colouring every other bare infinitive on the page blue, then drops 'repetitions' and 'clutter' into body ink entirely and calls 'Check' a verb. A writer scanning for noun density gets a lie from B: two of the four nouns in that sentence simply aren't there, and one verb is dressed as a noun. A costs you two pixels of cap height; B costs you the reason you turned the feature on.",
+  "oursShot": "shots/syntax/r4-all-light-ours-crop.png",
+  "theirsShot": "shots/syntax/r4-all-light-theirs-crop.png",
+  "refSource": "ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in ref/ia/mac-native/ (ADR 0015), cropped per state: all-light from mac-native-308-original-mbp-light-syntax-all.png, all-dark from mac-native-308-original-mbp-dark-syntax-all.png, focus-sentence from mac-native-308-original-mbp-light-syntax-focus.png; no opponent for adjectives-adverbs (syntax), live (syntax) — measured off ours' own pixels by tools/assert-state.mjs, because neither oracle holds the state (ADR 0017)",
+  "builderNote": "",
+  "secondary": [
+    "Contraction row works identically on both: 'it' in #191919, apostrophe + 'll' in #4675B5, split at the same boundary",
+    "Punctuation stays plain on both — colon after 'tighten', commas after 'verbs'/'repetitions'/'Check', period after 'clutter' all #191919",
+    "Palette hues match to within 1/255: red BB512A vs BB512B, blue 4675B5 both, green 51812F both, brown 9D6722 both, purple A6559F both",
+    "Page top within 1px (first ink band y45 in A, y44 in B) — framing, not a gap",
+    "B's inconsistency is internal, not just cross-image: it colours 'verbs' and 'writer' red as nouns while leaving 'repetitions' and 'clutter' plain in the same paragraph",
+    "Left text inset identical at x=52 in both"
+  ],
+  "opponent": "mixed",
+  "build": {
+    "git": "ec9d8f7",
+    "binary": "6304a47bac8ca88f",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "all-light",
+      "ours": "shots/syntax/r4-all-light-ours-crop.png",
+      "theirs": "shots/syntax/r4-all-light-theirs-crop.png",
+      "opponent": {
+        "capture": "ref/ia/shots/mac-native/mac-native-308-original-mbp-light-syntax-all.png",
+        "crop": [
+          640,
+          140,
+          1700,
+          340
+        ],
+        "ours": [
+          571,
+          36,
+          1700,
+          340
+        ]
+      },
+      "oursWhole": "shots/syntax/r4-all-light-ours.png",
+      "blind": "shots/blind/syntax/all-light",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "Four words carry the wrong Category or none at all: 'spot' is red #BB512A (noun) where A has it blue #4675B5 (verb, matching 'can/employ/helps/eliminate'); 'Check' is blue where A has red; and 'repetitions' and 'clutter' sit in plain body ink #191919 with no Category at all — B's red ink totals 5,548px vs A's 8,999px, a 38% shortfall, with black body ink up 69% (5,883 vs 3,484px) to absorb it.",
+      "gapTheirs": "Type sets ~7% smaller against the same rhythm: cap height of 'T' in 'Trim' is 28px in A vs 30px in B, on line pitch 73px vs 74px — a leading ratio of ~2.61x cap in A against ~2.47x in B, so A's block reads slightly smaller and looser in an identical 1700x340 window.",
+      "verdict": "Same five colours, same paper, same ink — B just can't tell a noun from a verb. It paints 'spot' red inside 'helps you spot weak verbs' while colouring every other bare infinitive on the page blue, then drops 'repetitions' and 'clutter' into body ink entirely and calls 'Check' a verb. A writer scanning for noun density gets a lie from B: two of the four nouns in that sentence simply aren't there, and one verb is dressed as a noun. A costs you two pixels of cap height; B costs you the reason you turned the feature on.",
+      "secondary": [
+        "Contraction row works identically on both: 'it' in #191919, apostrophe + 'll' in #4675B5, split at the same boundary",
+        "Punctuation stays plain on both — colon after 'tighten', commas after 'verbs'/'repetitions'/'Check', period after 'clutter' all #191919",
+        "Palette hues match to within 1/255: red BB512A vs BB512B, blue 4675B5 both, green 51812F both, brown 9D6722 both, purple A6559F both",
+        "Page top within 1px (first ink band y45 in A, y44 in B) — framing, not a gap",
+        "B's inconsistency is internal, not just cross-image: it colours 'verbs' and 'writer' red as nouns while leaving 'repetitions' and 'clutter' plain in the same paragraph",
+        "Left text inset identical at x=52 in both"
+      ]
+    },
+    {
+      "name": "all-dark",
+      "ours": "shots/syntax/r4-all-dark-ours-crop.png",
+      "theirs": "shots/syntax/r4-all-dark-theirs-crop.png",
+      "opponent": {
+        "capture": "ref/ia/shots/mac-native/mac-native-308-original-mbp-dark-syntax-all.png",
+        "crop": [
+          640,
+          140,
+          1700,
+          340
+        ],
+        "ours": [
+          571,
+          36,
+          1700,
+          340
+        ]
+      },
+      "oursWhole": "shots/syntax/r4-all-dark-ours.png",
+      "blind": "shots/blind/syntax/all-dark",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "Four words carry the wrong Category ink: 'repetitions' and 'clutter' are left in body grey #CCCCCC instead of noun red #CE896D; 'spot' — a verb in 'helps you spot weak verbs' — is painted noun red #CE896D where A gives it verb blue #829EBF; and in the proper noun 'Style Check', 'Style' is red but 'Check' is blue #829EBF, splitting one name across two Categories one line after B itself painted 'Syntax Highlight' red in full.",
+      "gapTheirs": "Line pitch is not constant: baselines land at y=74/147/220/294, i.e. 73px, 73px, then 74px, so the fourth line sits 1px off the grid, where B holds a uniform 74px advance on all three gaps (x-height identical at 22px in both).",
+      "verdict": "Both apps draw from the same five hexes — red CE896D, blue 829EBF, yellow B99558, green 89A474, purple B490B0 — so this is not a palette argument, it is a parsing argument, and B loses it. On the one line that matters B calls the verb 'spot' a noun and then fails to call the nouns 'repetitions' and 'clutter' anything at all, which is worse than no highlighting: a writer scanning for weak verbs is handed a red word that is a verb and a grey word that is a noun. B then breaks its own rule inside a line, painting 'Style' red and 'Check' blue after having painted 'Syntax Highlight' red end to end. A's only sin is a 1px stagger in the leading that nobody will notice; B's sins are the ones the feature exists to avoid.",
+      "secondary": [
+        "Both 1700x340, background #1A1A1A, left text edge x=52 in both",
+        "Palette hexes match exactly across all five Categories; no hue or depth divergence",
+        "Contraction split is correct in both: 'it' body grey, ''ll' verb blue",
+        "Line 1 is byte-identical in Category assignment; all divergence is on lines 2-3",
+        "A's advance is 25.92px/char vs B's 26.34 (~1.6% tighter) at equal 22px x-height — typeface, not a gap",
+        "A lays down ~10-20% more lit ink per coloured word (481 vs 395 px on 'and', 610 vs 553 on 'more'); B renders marginally thinner stems",
+        "B's line 1 runs to x=1659, leaving a 41px right gutter against a 52px left inset; A ends at 1633 (67px)",
+        "B's body-ink pixel count is 6293 vs A's 3676, and red 5521 vs 8759 — the arithmetic signature of nouns left unpainted"
+      ]
+    },
+    {
+      "name": "adjectives-adverbs",
+      "ours": "shots/syntax/r4-adjectives-adverbs-ours.png",
+      "theirs": null,
+      "lit": "shots/syntax/r4-adjectives-adverbs-ours-lit.png",
+      "assert": {
+        "kind": "syntax",
+        "theme": "light",
+        "expected": [
+          "adjectives",
+          "adverbs"
+        ],
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "nouns 0, verbs 0, adjectives 6916, adverbs 5029, conjunctions 0 opaque pixels; 22719 changed pixels keep source glyph coverage",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)",
+      "verdict": "nouns 0, verbs 0, adjectives 6916, adverbs 5029, conjunctions 0 opaque pixels; 22719 changed pixels keep source glyph coverage",
+      "secondary": [
+        "same-state syntax-off pixels supply the text column, glyph coverage and bright rows",
+        "provisional Role values: quill-engine/src/theme.rs Colours::LIGHT and Colours::DARK; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "focus-sentence",
+      "ours": "shots/syntax/r4-focus-sentence-ours-crop.png",
+      "theirs": "shots/syntax/r4-focus-sentence-theirs-crop.png",
+      "opponent": {
+        "capture": "ref/ia/shots/mac-native/mac-native-308-original-mbp-light-syntax-focus.png",
+        "crop": [
+          640,
+          743,
+          1700,
+          340
+        ],
+        "ours": [
+          571,
+          36,
+          1700,
+          340
+        ]
+      },
+      "oursWhole": "shots/syntax/r4-focus-sentence-ours.png",
+      "blind": "shots/blind/syntax/focus-sentence",
+      "oursWas": "A",
+      "pick": "B",
+      "winner": "theirs",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "A miscategorises 'Check' in the focus sentence: it paints it verb-blue #4776B5 — pixel-identical to the blue on 'll and 'make' — while B paints it noun-red #BC542E, the same red as the 'Style' beside it. Same word, same sentence, a whole Category apart, and it splits the capitalised pair 'Style Check' into red+blue mid-phrase; 1 of 8 coloured tokens (12.5%) is wrong. A also shows no caret anywhere in the frame — zero insertion-point pixels against B's 6x74px bar.",
+      "gapTheirs": "B's caret is a 6px-wide, 74px-tall slab of #36BFFA that fills the entire line box (y169-242, i.e. the full 73px leading, not the text height) and butts flush against the 'e' of 'more' with 0px sidebearing. That cyan is more chromatic than any of the five Category colours on the page — it out-shouts the #BC542E noun red it sits three words from — so the loudest thing in a colour-coded sentence is a piece of furniture. B's type is also 1.4% tighter (advance 25.7px vs 26.0, line pitch 73px vs 74).",
+      "verdict": "Everything that matters here is identical — same 52px left margin, same first-cap top at y=44, same five hues within 2/255, same dead-neutral #C4C4C4 dim on the two faded rows (max channel spread 4-5, no colour leaking through), same clean contraction split with the apostrophe of it'll carried into verb blue — so the whole judgement lands on one word. A calls the noun 'Check' a verb and tears a capitalised feature name in half, red then blue, which is exactly the lie that kills Syntax Highlight: if it invents a verb inside a proper name, you stop trusting it to find your real weak ones. B gets the word right and hands you a caret you can actually see, even if that caret is a fat cyan slab jammed against the 'e'. A garish caret you can retune in an afternoon; a tagger that colours nouns blue makes the whole feature furniture.",
+      "secondary": [
+        "Only two visible differences exist between the frames: the colour of 'Check' and the presence of a caret",
+        "Category hues match to within 1-2/255 on both: adverb #A859A1/#A757A0, noun #BC552F/#BC542E, verb #4776B5/#4675B5, adjective #9E6824 on both",
+        "Dim rows are correctly one flat grey on both sides (darkest ink 196, channel spread <=5) - no faint Category colour surviving the dim",
+        "Contraction handling identical and correct on both: 'it' in body ink, apostrophe + 'll' in verb blue #4675B5",
+        "Punctuation plain on both: comma after 'Check' and final period sit at ~#252525 body ink, not the adjacent Category colour",
+        "Metrics differ by ~1.4% overall (A advance 26.0px / pitch 74px; B 25.7px / 73px) - same ratio, no design consequence",
+        "Both are set in a strictly uniform monospace here - 'm' and 'w' take the same advance as every other glyph on both sides, so the two faces are not distinguishable in this crop",
+        "A's caret absence may be an unfocused capture rather than a missing feature, but as shown there is no insertion point"
+      ]
+    },
+    {
+      "name": "live",
+      "ours": "shots/syntax/r4-live-ours.png",
+      "theirs": null,
+      "lit": "shots/syntax/r4-live-ours-lit.png",
+      "assert": {
+        "kind": "syntax",
+        "theme": "light",
+        "expected": [
+          "nouns",
+          "verbs",
+          "adjectives",
+          "adverbs",
+          "conjunctions"
+        ],
+        "live": true,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "nouns 32101, verbs 20164, adjectives 6880, adverbs 5029, conjunctions 5175 opaque pixels; 126410 changed pixels keep source glyph coverage; scaled heading holds 7177 Category pixels",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)",
+      "verdict": "nouns 32101, verbs 20164, adjectives 6880, adverbs 5029, conjunctions 5175 opaque pixels; 126410 changed pixels keep source glyph coverage; scaled heading holds 7177 Category pixels",
+      "secondary": [
+        "same-state syntax-off pixels supply the text column, glyph coverage and bright rows",
+        "provisional Role values: quill-engine/src/theme.rs Colours::LIGHT and Colours::DARK; no critic (ADR 0017)"
+      ]
+    }
+  ],
+  "at": "2026-09-10T23:27:45.548Z"
+}
