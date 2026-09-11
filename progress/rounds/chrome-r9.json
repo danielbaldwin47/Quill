@@ -1,0 +1,146 @@
+{
+  "piece": "chrome",
+  "round": 9,
+  "winner": "theirs",
+  "margin": "slight",
+  "gap": "The palette's search field has no contrast and no floor: placeholder ink is #BABABA on #F2F2F2 (~1.75:1) against A's #8C8C8C (~3.4:1, the same secondary grey B itself uses for its section caps, chords, title and stats labels), and the rule under the field is 1 device px #D6D6D6 where B's own panel border is 2 device px #D5D5D5 — a half-weight hairline under the only thing you type into.",
+  "gapTheirs": "Title bar reads \"Untitled.md\" — the extension is printed in the one line the bar exists to carry, and it is an invented extension for a file that has never been saved; B reads \"sample\", the name and nothing else. Three characters of filesystem noise in permanently-visible chrome.",
+  "verdict": "B keeps its title honest and A does not, but B then breaks its own grey system twice inside the panel that is the whole point of this shot: the search prompt sits at 1.75:1 and the rule beneath it is half the weight of the border two centimetres away, so the field reads as an empty grey strip with no bottom edge. A holds one secondary grey — #8C8C8C — across title, section caps, chords, stats labels and placeholder, and every rule in the panel is 1 logical px. That consistency is worth more than the three characters A wastes on \".md\", though a writer will notice the \".md\" every single session and should not have to.",
+  "oursShot": "shots/chrome/r9-palette-ours.png",
+  "theirsShot": "shots/oracle/chrome/palette.png",
+  "refSource": "shots/oracle/chrome/ — the Parity oracle frozen by tools/gate oracle chrome from legacy/app 738f48c969965ac3 with legacy/tools/shoot.mjs 239bd27db3974b27",
+  "builderNote": "",
+  "secondary": [
+    "Palette geometry identical: panel inner edge x=980, 2 px border, #F2F2F2 fill, 48 device px rows, selected row inset 10 px each side, accent #0A94D6 in both",
+    "Stats bar identical in both: 52 device px tall, #DFDFDF rule at y=1748, number #4A4A4A against label #8C8C8C, group centred on the window axis",
+    "Both clip the last row mid-glyph at the panel's bottom edge — \"Dark or Light Appearance\" (A), \"Dark Mode\" (B) — with no fade, no scrollbar and the chord sliced in half; neither tells you the list continues",
+    "View button in both: the four icon bars are ~#D0D0D0 while the chevron beside them is ~#8C8C8C — the icon and its own disclosure arrow do not share ink",
+    "Neither dims or scrims the page behind the open palette; body text sits at full ink a pixel outside the panel border in both",
+    "Neither draws a hairline under the 32 px title bar — the bar's background is the page's own grey (A #F9F9F9, B #F7F7F7), so the bar has no edge at all",
+    "A's chord label \"Ctrl++\" reads as a stutter where B's is \"Ctrl+=\"; wording, but the doubled plus is the kind of thing you cannot unsee"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "c549181",
+    "binary": "98b99c0f7ac63f51",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "bars",
+      "ours": "shots/chrome/r9-bars-ours.png",
+      "theirs": "shots/oracle/chrome/bars.png",
+      "blind": "shots/blind/chrome/bars",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "A's title bar gets no quiet band: its fill is the page's exact #F7F7F7 with no rule beneath it, and the first heading's cap sits only 80 device px (40 logical) below the 64 px bar, versus B's 174 device px (87 logical) — so the bar and its two icons stay inside peripheral vision at the top of the column. At the other end A's last visible line stops 33 device px (16 logical) short of the stats hairline against B's 48 (24). Both are the settled Page-top row, which is why this is the smaller of the two gaps.",
+      "gapTheirs": "B's title reads 'Untitled.md' where A's reads 'sample' — 11 characters that identify nothing against 6 that name the file. It spends three of them on an extension a markdown-only editor already implies, and offers 'Untitled' for a document with a 188-word first draft in it. The title bar is the only element in this chrome carrying information rather than an affordance, and B's performs none of that job while costing the same 32 logical px.",
+      "verdict": "Put these side by side and you are looking at the same chrome twice: same 32 px title bar, same 26 px stats bar, same 1-device-px #DFDFDF hairline running the full 2880, same #4a4a4a number against #8c8c8c label, same 26×22 Library toggle at a 34 px margin. The one place they diverge is the one place the bar has to say something, and B says 'Untitled.md' — a placeholder plus a file extension, which is a bar reserving space and then declining to use it. A names the document; that is the entire argument, and it is enough. Neither shot shows the chrome receding, so the promise that this all steps back once you start typing is untested here.",
+      "secondary": [
+        "Stats bars are a dead tie: identical greys (number 74, label 140 of 255), identical 17 px ink height, hairline #DFDFDF 1 device px across the full width in both",
+        "Shared flaw: both stats runs centre to the pixel at x=1440, but both title strings centre at x≈1428 — 11 device px (5.5 logical) left of the window centre, so the two bars disagree with each other in both apps",
+        "A's '188' is fractionally heavier in stroke (ink mean 200 vs 208 across the number's box); the colour step between number and label is identical, so the weight step reads a touch firmer in A",
+        "Library toggle (26×22 at +34,+21) and View button (52×24, 34 px right margin) are pixel-identical in both — no separation to judge there",
+        "Neither draws a rule under the title bar; bar fill equals page fill, so the title band is defined only by the air around it",
+        "Surface tint differs by 2/255 (A #F7F7F7, B #F9F9F9) — below the threshold of noticing",
+        "Stats run widths differ 440 vs 408 device px; that is the font stack and I discounted it",
+        "Neither shot shows the typing-receded state, the View menu or the Palette, so menu typography, tick alignment, key labels and panel proportions could not be assessed from these two frames",
+        "Marker colour and page top differ visibly but are settled rows, excluded from this judgement"
+      ]
+    },
+    {
+      "name": "empty",
+      "ours": "shots/chrome/r9-empty-ours.png",
+      "theirs": "shots/oracle/chrome/empty.png",
+      "blind": "shots/blind/chrome/empty",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "A's stats figures are semibold at #4A4A4A — its '0' carries ~25% more ink (~217 vs ~173 units) than B's regular-weight zero at the same 16px digit height — so on an untouched page the heaviest, darkest mark in the whole 2880x1800 window is a bold '0', outweighing the document's own title, which is set two-thirds lighter at #8C8C8C regular.",
+      "gapTheirs": "B's title bar prints 'Untitled.md' where A prints 'Untitled' — 46 device px (~23 logical) of file extension occupying the chrome's single naming line, and on a never-saved document it names a .md file that does not exist on disk.",
+      "verdict": "These two bars are the same bar: toggle 26x24 at the same offset in the same #8C8C8C, View button 52x24 in the same #C1C1C1, stats block centred on the same half-pixel, neither drawing the hairline the layout implies. A wins on the one thing a title bar is for — it says what you are writing, not what the filesystem calls it; '.md' on an unsaved file is bookkeeping leaking through the skin. A's payment for that is a semibold zero that is the loudest ink on an empty page, which is the counter shouting a score before the game starts; B's figure is quieter but leans on grey alone, so number and label read as one texture at a glance.",
+      "secondary": [
+        "Both invert hierarchy: stats number #4A4A4A is darker than the document title #8C8C8C — the count outranks the name",
+        "Both set the View button at #C1C1C1 against the Library toggle's #8C8C8C: two affordances of equal rank at visibly unequal weight",
+        "Neither draws a rule between bar and page; a 1px column scan at x=2600 returns a single flat value for all 1800 rows",
+        "Title ink centres at x=1427.5 (A) and 1429.5 (B), both ~11px left of the window centre, while both stats blocks land exactly on 1439.5",
+        "Caret colour differs trivially: #00BFFF (A) vs #00B5FF (B); page field #F7F7F7 (A) vs #F9F9F9 (B)",
+        "Stats type size matches exactly in both — 16/15px digits, 12px x-height — so the only stats difference is weight, not scale",
+        "Excluded per brief: B's 'Start writing…' placeholder, and B's first line sitting ~92px lower (page-top row)"
+      ]
+    },
+    {
+      "name": "typing",
+      "ours": "shots/chrome/r9-typing-ours.png",
+      "theirs": "shots/oracle/chrome/typing.png",
+      "blind": "shots/blind/chrome/typing",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "No bottom gutter under the chrome: B's last line's descenders stop 10 device px (5 logical) above the stats rule at y=1748, against A's 34 px (17 logical). The line the caret is on ends up sitting on the hairline instead of above it, so the bottom of the window is crowded exactly where a writer is working.",
+      "gapTheirs": "The stats bar has no weight step: A's \"961\" is drawn at the same 2 px stem as \"characters\" — number and label are the same face at the same weight, separated only by a 25-level grey step (#B6B6B6 vs #CFCFCF on a #F9F9F9 ground, ~10%). B sets the number at a true semibold, 3 px stem against the label's 2 px, at the same two greys. A's count is not glanceable; you have to stop and focus on the bar to find the number in it, which is the one thing the bar exists to do.",
+      "verdict": "The two bars are otherwise the same bar — 26 logical px, one 0.5 px rule at y=1748 at Δ9 grey, text centred on 1439.5 against a 1440 window centre, both sets riding 1.5 logical px high of the bar's optical centre, no title bar in either while typing. So the whole decision falls on the number: B steps the weight as well as the grey and you read 188 / 961 / 1 min out of the corner of your eye; A steps only the grey and the bar becomes a smear of six near-identical words you have to squint at. A also breaks its own left edge — markers sit inline so heading text starts one and two characters right of the 623 px body spine, while B hangs # and ## into the margin and keeps one spine down the page. A's bar is quieter, but it is quiet the way an unreadable sign is quiet.",
+      "secondary": [
+        "Marker hang: B pulls # left 53 px and ## left 79 px into the margin, holding one left spine at 623; A leaves both inline at 622 so heading words kick right by 1–2 characters",
+        "B's hang rule is inconsistent — the list '-' sits at 628, not hung, so B's left spine still breaks at list blocks",
+        "Both bars: rule is a single device pixel, full width, Δ9 from the page; no fill behind the bar on either side",
+        "Stats greys are effectively identical: number #B6B6B6 / #B5B5B5, label #CFCFCF / #CECECE",
+        "Inter-group gaps identical at 33 px on both; total run width 407 px (A) vs 439 px (B), which is the font stack and not a gap",
+        "Page grey #F9F9F9 (A) vs #F7F7F7 (B); caret 3 logical px and full line-pitch tall in both, #00B5FF vs #00BFFF",
+        "Line pitch 38 logical px (A) vs 37 (B); blank line costs exactly one pitch on both, heading gets no extra margin on either"
+      ]
+    },
+    {
+      "name": "view-menu",
+      "ours": "shots/chrome/r9-view-menu-ours.png",
+      "theirs": "shots/oracle/chrome/view-menu.png",
+      "blind": "shots/blind/chrome/view-menu",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "The chord column degenerates in three consecutive rows — 'Shift+Ctrl++', 'Shift+Ctrl+_', 'Shift+Ctrl+)' — where the separator plus and the key glyph are the same mark at the same #8C8C8C, so the reader has to parse punctuation to find the key; A's longest chord ('Ctrl+Shift+L') never collides with itself.",
+      "gapTheirs": "The open View menu has three left rails instead of one: nine labels (Sentence, Paragraph, Typewriter, Quattro, Mono, Dark Mode) set their text 48 device px (24 logical) in from the panel fill edge, the tick gutter sits at 16, but the selected row 'Enable Focus Mode' starts at 26 and 'Hide Bars' / 'All Commands…' at 26 and 24 — three of twelve rows hang ~22 device px (11 logical px) left of the rest, a visible rag down a 186 pt-wide panel that B never once breaks across 31 rows.",
+      "verdict": "The two bars are the same object twice over — 32 px title, 26 px stats, a 1 px #DFDFDF hairline at y=1748 in both, the count at #4A4A4A against its label at #8C8C8C, identical Library and View buttons — so the whole contest is inside the one menu that's open, and A loses it on the first glance. A menu is a column of type; A sets that column to three different left edges, and the worst offender is the row under the cursor, which slides 22 px left of the nine rows beneath it — you see the rag before you read a single label. B's sin is the opposite kind, a chord column that produces 'Shift+Ctrl++' and 'Shift+Ctrl+)' and expects you to work out which plus is grammar and which is a key, but that is three rows you squint at once, not a spine that wobbles every time you open the thing. A also puts '.md' in the title bar, which is the filesystem talking, not the document.",
+      "secondary": [
+        "A title reads 'Untitled.md' — the extension is plumbing; B reads 'sample', the document's name",
+        "B greys its unbuilt rows (Style Check, Spell Check) to #8C8C8C — the exact grey of the chord column and the TYPEFACE heading — and leaves their chord cells empty, so 'unavailable' and 'secondary' are the same colour",
+        "Identical where it counts: #F2F2F2 panel, 19 logical px row pitch, 8 px-inset #0A94D6 selection, 1 px separators inset 8 left / 7 right, same 24 logical px label rail (B's only rail; A's majority rail)",
+        "Panel widths 186 vs 242 logical px — B's is wider only because its chords are longer; neither panel encroaches on the measure",
+        "Outside this piece's row, but visible: B hangs '#' and '##' into the margin so heading text aligns to the body rail; A sets the marker on the rail and pushes the heading text 36 device px right"
+      ]
+    },
+    {
+      "name": "palette",
+      "ours": "shots/chrome/r9-palette-ours.png",
+      "theirs": "shots/oracle/chrome/palette.png",
+      "blind": "shots/blind/chrome/palette",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "The palette's search field has no contrast and no floor: placeholder ink is #BABABA on #F2F2F2 (~1.75:1) against A's #8C8C8C (~3.4:1, the same secondary grey B itself uses for its section caps, chords, title and stats labels), and the rule under the field is 1 device px #D6D6D6 where B's own panel border is 2 device px #D5D5D5 — a half-weight hairline under the only thing you type into.",
+      "gapTheirs": "Title bar reads \"Untitled.md\" — the extension is printed in the one line the bar exists to carry, and it is an invented extension for a file that has never been saved; B reads \"sample\", the name and nothing else. Three characters of filesystem noise in permanently-visible chrome.",
+      "verdict": "B keeps its title honest and A does not, but B then breaks its own grey system twice inside the panel that is the whole point of this shot: the search prompt sits at 1.75:1 and the rule beneath it is half the weight of the border two centimetres away, so the field reads as an empty grey strip with no bottom edge. A holds one secondary grey — #8C8C8C — across title, section caps, chords, stats labels and placeholder, and every rule in the panel is 1 logical px. That consistency is worth more than the three characters A wastes on \".md\", though a writer will notice the \".md\" every single session and should not have to.",
+      "secondary": [
+        "Palette geometry identical: panel inner edge x=980, 2 px border, #F2F2F2 fill, 48 device px rows, selected row inset 10 px each side, accent #0A94D6 in both",
+        "Stats bar identical in both: 52 device px tall, #DFDFDF rule at y=1748, number #4A4A4A against label #8C8C8C, group centred on the window axis",
+        "Both clip the last row mid-glyph at the panel's bottom edge — \"Dark or Light Appearance\" (A), \"Dark Mode\" (B) — with no fade, no scrollbar and the chord sliced in half; neither tells you the list continues",
+        "View button in both: the four icon bars are ~#D0D0D0 while the chevron beside them is ~#8C8C8C — the icon and its own disclosure arrow do not share ink",
+        "Neither dims or scrims the page behind the open palette; body text sits at full ink a pixel outside the panel border in both",
+        "Neither draws a hairline under the 32 px title bar — the bar's background is the page's own grey (A #F9F9F9, B #F7F7F7), so the bar has no edge at all",
+        "A's chord label \"Ctrl++\" reads as a stutter where B's is \"Ctrl+=\"; wording, but the doubled plus is the kind of thing you cannot unsee"
+      ]
+    }
+  ],
+  "at": "2026-09-11T04:46:18.827Z"
+}
