@@ -132,7 +132,10 @@ impl Syntax {
     }
 
     /// Whether any state is kept at all: neither Annotator on keeps none.
-    fn working(&self) -> bool {
+    ///
+    /// The Editor's arming question, because the wake and the drain feed both
+    /// Annotators: Style check alone on is asynchronous work to schedule.
+    pub(crate) fn working(&self) -> bool {
         let wanted = self.wanted();
         wanted.syntax || wanted.style
     }
@@ -183,7 +186,6 @@ impl Syntax {
 
     /// The same for Style check's table: a List switched off is a repaint, and
     /// only the master joining or leaving the request resets the work.
-    #[allow(dead_code)] // the Editor calls it when #364 wires the table to the Annotator
     pub(crate) fn configure_style(&mut self, style: StyleCheck, document: &Document) -> bool {
         if self.style == style {
             return false;

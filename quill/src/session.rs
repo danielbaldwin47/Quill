@@ -37,8 +37,8 @@ use quill_engine::focus::typewriter::Typewriter;
 use quill_engine::library::Library;
 use quill_engine::pos::Category;
 use quill_engine::settings::{
-    Chrome, Face, FocusScope, PreviewLayout, PreviewMode, Settings, State, SyntaxHighlight,
-    Template, TemplateName, Theme, WindowState,
+    Chrome, Face, FocusScope, PreviewLayout, PreviewMode, Settings, State, StyleCheck,
+    SyntaxHighlight, Template, TemplateName, Theme, WindowState,
 };
 use quill_engine::shortcuts::Refusal;
 use quill_engine::theme::{self, Palette, Scheme};
@@ -196,6 +196,10 @@ pub struct Session {
     live: Cell<bool>,
     /// Syntax highlight's live table, including the writer's unknown keys.
     syntax: RefCell<SyntaxHighlight>,
+    /// Style check's live table, held beside Syntax highlight's and for the
+    /// same reason: the master and the three Lists are separate state, and a
+    /// window opened after a toggle opens with the Lists the writer chose.
+    style: RefCell<StyleCheck>,
     /// The face the page is set in now: the setting until the writer picks
     /// one from View › Typeface, and then the one they picked. Held live for
     /// the reason [`Session::step`] is.
@@ -360,6 +364,7 @@ impl Session {
             typewriter: Cell::new(settings.typewriter),
             live: Cell::new(settings.live),
             syntax: RefCell::new(settings.syntax_highlight.clone()),
+            style: RefCell::new(settings.style_check.clone()),
             face: Cell::new(settings.face),
             desktop: Cell::new(portal),
             chrome: Cell::new(settings.chrome),
@@ -448,6 +453,7 @@ impl Session {
         self.typewriter.set(settings.typewriter);
         self.live.set(settings.live);
         self.syntax.replace(settings.syntax_highlight.clone());
+        self.style.replace(settings.style_check.clone());
         self.face.set(settings.face);
         self.chrome.set(settings.chrome);
         self.preview_layout.set(settings.preview.layout);
@@ -734,6 +740,11 @@ impl Session {
     /// Syntax highlight as the Commands have left it, before the watch reads it back.
     pub fn syntax(&self) -> Ref<'_, SyntaxHighlight> {
         self.syntax.borrow()
+    }
+
+    /// Style check as the Commands have left it, before the watch reads it back.
+    pub fn style(&self) -> Ref<'_, StyleCheck> {
+        self.style.borrow()
     }
 
     /// Flips one Syntax highlight key, leaving the master and Categories independent.
@@ -1712,6 +1723,47 @@ mod tests {
         reread(None, &session);
         assert_eq!(session.running(), edited);
         assert_eq!(*session.syntax(), edited.syntax_highlight);
+    }
+
+    /// The table the window installs on open and again on a settings save.
+    ///
+    /// The read half of Style check's wiring, which is what [`reapply`] hands
+    /// to the Annotator: the Commands' half is the toggles' (#366).
+    ///
+    /// [`reapply`]: crate::window::reapply
+    #[test]
+    fn the_style_check_table_is_live_on_the_session_and_moves_with_the_file() {
+        let source = "theme = \"light\"\n\
+            [style_check]\nenabled = true\nfillers = false\n\
+            redundancies = true\ncliches = true\nfuture_style = \"kept\"\n";
+        let (initial, notes) = Settings::parse(source);
+        assert!(notes.is_empty());
+        let path = fixture("style-check-table");
+        let session = Session::launch(
+            Flags {
+                settings: Some(path.clone()),
+                ..Flags::default()
+            },
+            initial.clone(),
+            State::default(),
+            WindowState::default(),
+            true,
+            None,
+        );
+        assert_eq!(*session.style(), initial.style_check);
+        assert!(session.style().enabled);
+        assert!(!session.style().fillers);
+        // A List switched off in the file while Quill is running: the writer
+        // sees the strikes go on the save, so the session must have moved.
+        let (edited, _) = Settings::parse(&source.replace("cliches = true", "cliches = false"));
+        edited.write_to(&path).unwrap();
+        reread(None, &session);
+        assert_eq!(*session.style(), edited.style_check);
+        assert!(
+            !session.style().cliches,
+            "the file's switch is the session's"
+        );
+        assert!(session.style().redundancies, "and moves nothing else");
     }
 
     /// The state a session that ended on `last` left behind.
