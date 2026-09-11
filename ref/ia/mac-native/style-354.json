@@ -1,0 +1,424 @@
+{
+ "rig": {
+  "region_pt": [
+   0,
+   33,
+   1512,
+   949
+  ],
+  "passage": "ref/style.md",
+  "state": 24,
+  "ticket": 354,
+  "window_bounds": "{0,33,1512,982}",
+  "editor": "Mono, System - Default, Normal text size"
+ },
+ "lists": {
+  "walk_to_off": [
+   {
+    "list": "Fillers",
+    "want": false,
+    "px_before": 35191,
+    "px_after": 22970,
+    "clicks": 1
+   },
+   {
+    "list": "Clich\u00e9s",
+    "want": false,
+    "px_before": 22972,
+    "px_after": 6209,
+    "clicks": 1
+   },
+   {
+    "list": "Redundancies",
+    "want": false,
+    "px_before": 6211,
+    "px_after": 80,
+    "clicks": 1
+   },
+   {
+    "list": "Custom",
+    "want": false,
+    "px_before": 82,
+    "px_after": 80,
+    "clicks": 2,
+    "ambiguous": "no visible change either way \u2014 left as found"
+   },
+   {
+    "all_off_residual_px": 80
+   }
+  ],
+  "dark-on-Fillers": {
+   "list": "Fillers",
+   "want": true,
+   "px_before": 0,
+   "px_after": 12245,
+   "clicks": 1
+  },
+  "dark-on-Clich\u00e9s": {
+   "list": "Clich\u00e9s",
+   "want": true,
+   "px_before": 12247,
+   "px_after": 30145,
+   "clicks": 1
+  },
+  "dark-on-Redundancies": {
+   "list": "Redundancies",
+   "want": true,
+   "px_before": 30147,
+   "px_after": 35109,
+   "clicks": 1
+  },
+  "dark-three-on-px": 35191,
+  "dark-after-S3-px": 35191,
+  "dark-after-S4-px": 35191,
+  "walk_to_off_light": [
+   {
+    "list": "Fillers",
+    "want": false,
+    "px_before": 34880,
+    "px_after": 22743,
+    "clicks": 1
+   },
+   {
+    "list": "Clich\u00e9s",
+    "want": false,
+    "px_before": 22745,
+    "px_after": 6141,
+    "clicks": 1
+   },
+   {
+    "list": "Redundancies",
+    "want": false,
+    "px_before": 6143,
+    "px_after": 72,
+    "clicks": 1
+   },
+   {
+    "list": "Custom",
+    "want": false,
+    "px_before": 74,
+    "px_after": 72,
+    "clicks": 2,
+    "ambiguous": "no visible change either way \u2014 left as found"
+   },
+   {
+    "all_off_residual_px": 74
+   }
+  ],
+  "on-Fillers": {
+   "list": "Fillers",
+   "want": true,
+   "px_before": 0,
+   "px_after": 12153,
+   "clicks": 1
+  },
+  "off-Fillers": {
+   "list": "Fillers",
+   "want": false,
+   "px_before": 12155,
+   "px_after": 72,
+   "clicks": 1
+  },
+  "on-Clich\u00e9s": {
+   "list": "Clich\u00e9s",
+   "want": true,
+   "px_before": 74,
+   "px_after": 17821,
+   "clicks": 1
+  },
+  "off-Clich\u00e9s": {
+   "list": "Clich\u00e9s",
+   "want": false,
+   "px_before": 17823,
+   "px_after": 72,
+   "clicks": 1
+  },
+  "on-Redundancies": {
+   "list": "Redundancies",
+   "want": true,
+   "px_before": 74,
+   "px_after": 6141,
+   "clicks": 1
+  },
+  "off-Redundancies": {
+   "list": "Redundancies",
+   "want": false,
+   "px_before": 6143,
+   "px_after": 72,
+   "clicks": 1
+  },
+  "light-on-Fillers": {
+   "list": "Fillers",
+   "want": true,
+   "px_before": 74,
+   "px_after": 12153,
+   "clicks": 1
+  },
+  "light-on-Clich\u00e9s": {
+   "list": "Clich\u00e9s",
+   "want": true,
+   "px_before": 12155,
+   "px_after": 29902,
+   "clicks": 1
+  },
+  "light-on-Redundancies": {
+   "list": "Redundancies",
+   "want": true,
+   "px_before": 29904,
+   "px_after": 34878,
+   "clicks": 1
+  },
+  "light-three-on-px": 34880,
+  "light-after-S3-px": 34880,
+  "light-after-S4-px": 34880
+ },
+ "frames": {
+  "mac-native-24-dark-style-off.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S0 control",
+   "style_check": false,
+   "lists": [],
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-24-dark-style-all.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S1 all three lists",
+   "style_check": true,
+   "lists": [
+    "Fillers",
+    "Clich\u00e9s",
+    "Redundancies"
+   ],
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-24-dark-focus-sentence-nostyle.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S3 Focus Sentence",
+   "style_check": false,
+   "lists": [],
+   "focus": "Sentence",
+   "syntax": false,
+   "selection": null,
+   "caret": "second sentence, in 'the' of 'the team'"
+  },
+  "mac-native-24-dark-style-focus-sentence.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S3 Focus Sentence",
+   "style_check": true,
+   "lists": [
+    "Fillers",
+    "Clich\u00e9s",
+    "Redundancies"
+   ],
+   "focus": "Sentence",
+   "syntax": false,
+   "selection": null,
+   "caret": "second sentence, in 'the' of 'the team'"
+  },
+  "mac-native-24-dark-syntax-nostyle.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S4 Syntax highlight",
+   "style_check": false,
+   "lists": [],
+   "focus": false,
+   "syntax": "all five Categories",
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-24-dark-style-syntax.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S4 Syntax highlight",
+   "style_check": true,
+   "lists": [
+    "Fillers",
+    "Clich\u00e9s",
+    "Redundancies"
+   ],
+   "focus": false,
+   "syntax": "all five Categories",
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-24-dark-selection-nostyle.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S5 selection",
+   "style_check": false,
+   "lists": [],
+   "focus": false,
+   "syntax": false,
+   "selection": "Against all odds",
+   "caret": "held selection"
+  },
+  "mac-native-24-dark-style-selection.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S5 selection",
+   "style_check": true,
+   "lists": [
+    "Fillers",
+    "Clich\u00e9s",
+    "Redundancies"
+   ],
+   "focus": false,
+   "syntax": false,
+   "selection": "Against all odds",
+   "caret": "held selection"
+  },
+  "mac-native-24-light-style-off.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S0 control",
+   "style_check": false,
+   "lists": [],
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-24-light-style-list-fillers.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S2 one list",
+   "style_check": true,
+   "lists": [
+    "Fillers"
+   ],
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-24-light-style-list-cliches.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S2 one list",
+   "style_check": true,
+   "lists": [
+    "Clich\u00e9s"
+   ],
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-24-light-style-list-redundancies.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S2 one list",
+   "style_check": true,
+   "lists": [
+    "Redundancies"
+   ],
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-24-light-style-all.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S1 all three lists",
+   "style_check": true,
+   "lists": [
+    "Fillers",
+    "Clich\u00e9s",
+    "Redundancies"
+   ],
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-24-light-focus-sentence-nostyle.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S3 Focus Sentence",
+   "style_check": false,
+   "lists": [],
+   "focus": "Sentence",
+   "syntax": false,
+   "selection": null,
+   "caret": "second sentence, in 'the' of 'the team'"
+  },
+  "mac-native-24-light-style-focus-sentence.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S3 Focus Sentence",
+   "style_check": true,
+   "lists": [
+    "Fillers",
+    "Clich\u00e9s",
+    "Redundancies"
+   ],
+   "focus": "Sentence",
+   "syntax": false,
+   "selection": null,
+   "caret": "second sentence, in 'the' of 'the team'"
+  },
+  "mac-native-24-light-syntax-nostyle.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S4 Syntax highlight",
+   "style_check": false,
+   "lists": [],
+   "focus": false,
+   "syntax": "all five Categories",
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-24-light-style-syntax.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S4 Syntax highlight",
+   "style_check": true,
+   "lists": [
+    "Fillers",
+    "Clich\u00e9s",
+    "Redundancies"
+   ],
+   "focus": false,
+   "syntax": "all five Categories",
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-24-light-selection-nostyle.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S5 selection",
+   "style_check": false,
+   "lists": [],
+   "focus": false,
+   "syntax": false,
+   "selection": "Against all odds",
+   "caret": "held selection"
+  },
+  "mac-native-24-light-style-selection.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S5 selection",
+   "style_check": true,
+   "lists": [
+    "Fillers",
+    "Clich\u00e9s",
+    "Redundancies"
+   ],
+   "focus": false,
+   "syntax": false,
+   "selection": "Against all odds",
+   "caret": "held selection"
+  }
+ }
+}
