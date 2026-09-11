@@ -1,0 +1,764 @@
+{
+ "run": "2026-09-10, original 14-inch M1 MacBook Pro, built-in display",
+ "tickets": [
+  354
+ ],
+ "rig": {
+  "machine": "MacBook Pro 14-inch, MacBookPro18,3, Apple M1 Pro",
+  "display": "built-in Color LCD, Liquid Retina XDR, internal",
+  "display_px": "3024 x 1964",
+  "display_pt": "1512 x 982",
+  "backing_scale": 2.0,
+  "display_profile": "Display #1 2025-12-15 13-06 2.4 F-S 1xCurve+MTX (DisplayCAL)",
+  "display_profile_file": "ref/ia/mac-native/rig/display-calibrated-2025-12-15.icc",
+  "normalised_into": "ref/ia/mac-native/rig/display.icc",
+  "macos": "27.0 (26A428)",
+  "ia_writer": "8.0.6",
+  "show_scroll_bars": "Automatic",
+  "window_bounds": "{0,33,1512,982}",
+  "editor": "Mono; System - Default typography; Normal text size; 64-cell line length limit",
+  "modes": "Library and Preview hidden; Typewriter and Authors off; Focus, Syntax and Style Check as each state names",
+  "passage": "ref/style.md",
+  "document": "a scratch library document — the app's own sample files were not written to",
+  "region_pt": [
+   0,
+   33,
+   1512,
+   949
+  ],
+  "display_profile_sha256": "67b552091a3321163bc9599b6782c598bf354e6e74b121e0a8444940b9496042",
+  "normalised_into_sha256": "a0b31a47075bdf160987ef7bd1370885713348290017d592a0f8850ec946f97e"
+ },
+ "lists": {
+  "walk_to_off": [
+   {
+    "list": "Fillers",
+    "want": false,
+    "px_before": 35191,
+    "px_after": 22970,
+    "clicks": 1
+   },
+   {
+    "list": "Clichés",
+    "want": false,
+    "px_before": 22972,
+    "px_after": 6209,
+    "clicks": 1
+   },
+   {
+    "list": "Redundancies",
+    "want": false,
+    "px_before": 6211,
+    "px_after": 80,
+    "clicks": 1
+   },
+   {
+    "list": "Custom",
+    "want": false,
+    "px_before": 82,
+    "px_after": 80,
+    "clicks": 2,
+    "ambiguous": "no visible change either way — left as found"
+   },
+   {
+    "all_off_residual_px": 80
+   }
+  ],
+  "dark-on-Fillers": {
+   "list": "Fillers",
+   "want": true,
+   "px_before": 0,
+   "px_after": 12245,
+   "clicks": 1
+  },
+  "dark-on-Clichés": {
+   "list": "Clichés",
+   "want": true,
+   "px_before": 12247,
+   "px_after": 30145,
+   "clicks": 1
+  },
+  "dark-on-Redundancies": {
+   "list": "Redundancies",
+   "want": true,
+   "px_before": 30147,
+   "px_after": 35109,
+   "clicks": 1
+  },
+  "dark-three-on-px": 35191,
+  "dark-after-S3-px": 35191,
+  "dark-after-S4-px": 35191,
+  "walk_to_off_light": [
+   {
+    "list": "Fillers",
+    "want": false,
+    "px_before": 34880,
+    "px_after": 22743,
+    "clicks": 1
+   },
+   {
+    "list": "Clichés",
+    "want": false,
+    "px_before": 22745,
+    "px_after": 6141,
+    "clicks": 1
+   },
+   {
+    "list": "Redundancies",
+    "want": false,
+    "px_before": 6143,
+    "px_after": 72,
+    "clicks": 1
+   },
+   {
+    "list": "Custom",
+    "want": false,
+    "px_before": 74,
+    "px_after": 72,
+    "clicks": 2,
+    "ambiguous": "no visible change either way — left as found"
+   },
+   {
+    "all_off_residual_px": 74
+   }
+  ],
+  "on-Fillers": {
+   "list": "Fillers",
+   "want": true,
+   "px_before": 0,
+   "px_after": 12153,
+   "clicks": 1
+  },
+  "off-Fillers": {
+   "list": "Fillers",
+   "want": false,
+   "px_before": 12155,
+   "px_after": 72,
+   "clicks": 1
+  },
+  "on-Clichés": {
+   "list": "Clichés",
+   "want": true,
+   "px_before": 74,
+   "px_after": 17821,
+   "clicks": 1
+  },
+  "off-Clichés": {
+   "list": "Clichés",
+   "want": false,
+   "px_before": 17823,
+   "px_after": 72,
+   "clicks": 1
+  },
+  "on-Redundancies": {
+   "list": "Redundancies",
+   "want": true,
+   "px_before": 74,
+   "px_after": 6141,
+   "clicks": 1
+  },
+  "off-Redundancies": {
+   "list": "Redundancies",
+   "want": false,
+   "px_before": 6143,
+   "px_after": 72,
+   "clicks": 1
+  },
+  "light-on-Fillers": {
+   "list": "Fillers",
+   "want": true,
+   "px_before": 74,
+   "px_after": 12153,
+   "clicks": 1
+  },
+  "light-on-Clichés": {
+   "list": "Clichés",
+   "want": true,
+   "px_before": 12155,
+   "px_after": 29902,
+   "clicks": 1
+  },
+  "light-on-Redundancies": {
+   "list": "Redundancies",
+   "want": true,
+   "px_before": 29904,
+   "px_after": 34878,
+   "clicks": 1
+  },
+  "light-three-on-px": 34880,
+  "light-after-S3-px": 34880,
+  "light-after-S4-px": 34880
+ },
+ "captures": {
+  "mac-native-24-dark-focus-sentence-nostyle": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-24-dark-focus-sentence-nostyle.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-24-dark-focus-sentence-nostyle.png",
+   "sha256": "5d4e6748379c70e4188ce33455c42745b204d83bebf994b4e5bf507e8787c88e",
+   "raw_sha256": "a7ccff324f229b810077c3cd06481e8376ed713362c8aa3897bc69a9e4f8e0ef",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 354,
+   "state_number": 24,
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S3 Focus Sentence",
+   "style_check": false,
+   "lists": [],
+   "focus": "Sentence",
+   "syntax": false,
+   "selection": null,
+   "caret": "second sentence, in 'the' of 'the team'"
+  },
+  "mac-native-24-dark-selection-nostyle": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-24-dark-selection-nostyle.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-24-dark-selection-nostyle.png",
+   "sha256": "53c3a10020d9f978046658dff8177db8278706c42c48f69ccc76d420fd0ffad6",
+   "raw_sha256": "99db98f815160d2fd5cf6f121f2ca9494fc8c2dac838bf28becb28088bf57d38",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 354,
+   "state_number": 24,
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S5 selection",
+   "style_check": false,
+   "lists": [],
+   "focus": false,
+   "syntax": false,
+   "selection": "Against all odds",
+   "caret": "held selection"
+  },
+  "mac-native-24-dark-style-all": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-24-dark-style-all.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-24-dark-style-all.png",
+   "sha256": "7cde642a35e01abcbcf3f371df7f70ec582110b21820da83ff94fa355c951da4",
+   "raw_sha256": "292d9bae62d0237ac8b9942e050bffaed39079e5f073da600664e56f68771e1f",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 354,
+   "state_number": 24,
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S1 all three lists",
+   "style_check": true,
+   "lists": [
+    "Fillers",
+    "Clichés",
+    "Redundancies"
+   ],
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-24-dark-style-focus-sentence": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-24-dark-style-focus-sentence.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-24-dark-style-focus-sentence.png",
+   "sha256": "423eef5865009582c043f1e08f836d4925cb216001d2071d8169b6ca84b6bf5e",
+   "raw_sha256": "3fae43f4deefe7df99e77965ba3f39859b048664629b9b915f36a52f3c8bd22b",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 354,
+   "state_number": 24,
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S3 Focus Sentence",
+   "style_check": true,
+   "lists": [
+    "Fillers",
+    "Clichés",
+    "Redundancies"
+   ],
+   "focus": "Sentence",
+   "syntax": false,
+   "selection": null,
+   "caret": "second sentence, in 'the' of 'the team'"
+  },
+  "mac-native-24-dark-style-off": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-24-dark-style-off.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-24-dark-style-off.png",
+   "sha256": "470316758255050495e4f2b08e311a453aa2b6931121d7959e7dbd63b3874378",
+   "raw_sha256": "f843332aaa471c649fba126fd5b175105e16688a6f33a94861a2bd8361b58faf",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 354,
+   "state_number": 24,
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S0 control",
+   "style_check": false,
+   "lists": [],
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-24-dark-style-selection": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-24-dark-style-selection.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-24-dark-style-selection.png",
+   "sha256": "ef0dd17fe173cf2ac6bc0fcc70e0d556a1c895e25f62b7f6ab9b0a77a8d8d95d",
+   "raw_sha256": "5b6ec686c0244514c2c416f8cf455268423c511022bc8f7a29e9ceeef3afdbd5",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 354,
+   "state_number": 24,
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S5 selection",
+   "style_check": true,
+   "lists": [
+    "Fillers",
+    "Clichés",
+    "Redundancies"
+   ],
+   "focus": false,
+   "syntax": false,
+   "selection": "Against all odds",
+   "caret": "held selection"
+  },
+  "mac-native-24-dark-style-syntax": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-24-dark-style-syntax.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-24-dark-style-syntax.png",
+   "sha256": "f96f7104e8be08caad5140df87b2e6e212971d2c44c71c888edc02db36cbbd95",
+   "raw_sha256": "acc3af246f8fde6f539215e567d664d19afff5f0d426be1441fe9c4921316f5d",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 354,
+   "state_number": 24,
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S4 Syntax highlight",
+   "style_check": true,
+   "lists": [
+    "Fillers",
+    "Clichés",
+    "Redundancies"
+   ],
+   "focus": false,
+   "syntax": "all five Categories",
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-24-dark-syntax-nostyle": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-24-dark-syntax-nostyle.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-24-dark-syntax-nostyle.png",
+   "sha256": "438659449dbdd614bdbce33ac58b155b048f41984425ecaaad6d2bb5acab39f4",
+   "raw_sha256": "3e1efc7718ddb434a7c7579cbc3e0b5aaeb53bdbf6e02276dd66342c80733bf1",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 354,
+   "state_number": 24,
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "S4 Syntax highlight",
+   "style_check": false,
+   "lists": [],
+   "focus": false,
+   "syntax": "all five Categories",
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-24-light-focus-sentence-nostyle": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-24-light-focus-sentence-nostyle.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-24-light-focus-sentence-nostyle.png",
+   "sha256": "bdc6ea94137e893e292a96398006e5f976dac8f2a1fcd0c662bcc181aad96a18",
+   "raw_sha256": "01208a15b7e2f4be8141ca3a83c0fe647ca00d950af0811ad100054772854d4d",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 354,
+   "state_number": 24,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S3 Focus Sentence",
+   "style_check": false,
+   "lists": [],
+   "focus": "Sentence",
+   "syntax": false,
+   "selection": null,
+   "caret": "second sentence, in 'the' of 'the team'"
+  },
+  "mac-native-24-light-selection-nostyle": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-24-light-selection-nostyle.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-24-light-selection-nostyle.png",
+   "sha256": "4ef5d0599be3778c4f8946177c959289979c5272c574f84b85c7dae6b113f8b7",
+   "raw_sha256": "7448f6aa70cacee70d1f0e9f7993e5145a5db8ac03a6000c288e9532438dd612",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 354,
+   "state_number": 24,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S5 selection",
+   "style_check": false,
+   "lists": [],
+   "focus": false,
+   "syntax": false,
+   "selection": "Against all odds",
+   "caret": "held selection"
+  },
+  "mac-native-24-light-style-all": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-24-light-style-all.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-24-light-style-all.png",
+   "sha256": "cf14e8bdb67fba31ffe791865d57bd1c04dc5303845ce58f23330dd8c1e8b494",
+   "raw_sha256": "898ba752cbab9a615606c3f01e1da0f38f63cf0a08aedaa2f0f2066c10fbd367",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 354,
+   "state_number": 24,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S1 all three lists",
+   "style_check": true,
+   "lists": [
+    "Fillers",
+    "Clichés",
+    "Redundancies"
+   ],
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-24-light-style-focus-sentence": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-24-light-style-focus-sentence.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-24-light-style-focus-sentence.png",
+   "sha256": "a881474007d5b064cf8b1b14ac532464c22858eb76807d9f121479707d780aaf",
+   "raw_sha256": "eb5412e9dfaf4067a31972f5b517fe4c9110feaa7af95179e752de03cddd0c1e",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 354,
+   "state_number": 24,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S3 Focus Sentence",
+   "style_check": true,
+   "lists": [
+    "Fillers",
+    "Clichés",
+    "Redundancies"
+   ],
+   "focus": "Sentence",
+   "syntax": false,
+   "selection": null,
+   "caret": "second sentence, in 'the' of 'the team'"
+  },
+  "mac-native-24-light-style-list-cliches": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-24-light-style-list-cliches.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-24-light-style-list-cliches.png",
+   "sha256": "757417f87561dff9604b585db8d7341fa7483e1423e2f633d92c7c9acfb112a5",
+   "raw_sha256": "50963713f1ff76fae3b19f15971f690885dd1e8b68954277b0c867a474d0b9c7",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 354,
+   "state_number": 24,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S2 one list",
+   "style_check": true,
+   "lists": [
+    "Clichés"
+   ],
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-24-light-style-list-fillers": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-24-light-style-list-fillers.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-24-light-style-list-fillers.png",
+   "sha256": "fc9d8073dee7336ffe342720d0b2fa35c5198ce53b582d8d31e1ea4c07544fa2",
+   "raw_sha256": "273db2867a6c11c13009f5bae0d8e76ae9907755b5d660c7d62a073507441fbc",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 354,
+   "state_number": 24,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S2 one list",
+   "style_check": true,
+   "lists": [
+    "Fillers"
+   ],
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-24-light-style-list-redundancies": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-24-light-style-list-redundancies.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-24-light-style-list-redundancies.png",
+   "sha256": "86c549f529dc87270d92c4d41d9bc309fe4d58aaceeed91160f071ca38e06a8c",
+   "raw_sha256": "5b6be84d077a816c19e7c4de95f06662c56e142b15b8e05b8c751a3ec33251eb",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 354,
+   "state_number": 24,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S2 one list",
+   "style_check": true,
+   "lists": [
+    "Redundancies"
+   ],
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-24-light-style-off": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-24-light-style-off.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-24-light-style-off.png",
+   "sha256": "dc6647a1ed57f0774b941728b5718c52898e8f4d16361f2346621f00b3ed8f17",
+   "raw_sha256": "cced61b440c2f1a419ebf113d4a49749607e0bc44fb56e616750c3ccbcc2d021",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 354,
+   "state_number": 24,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S0 control",
+   "style_check": false,
+   "lists": [],
+   "focus": false,
+   "syntax": false,
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-24-light-style-selection": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-24-light-style-selection.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-24-light-style-selection.png",
+   "sha256": "41a5ccdbdcf41aaa7be6a72b48cd23fff5a76f6c3b2e5799caef8c84881a09a5",
+   "raw_sha256": "82d111a620c1b7e9d6442ddd6cb702c3a2cc25bea712078bf79143571bb4cd6b",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 354,
+   "state_number": 24,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S5 selection",
+   "style_check": true,
+   "lists": [
+    "Fillers",
+    "Clichés",
+    "Redundancies"
+   ],
+   "focus": false,
+   "syntax": false,
+   "selection": "Against all odds",
+   "caret": "held selection"
+  },
+  "mac-native-24-light-style-syntax": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-24-light-style-syntax.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-24-light-style-syntax.png",
+   "sha256": "d70c80e76ecda415de8903aabb9fd068e716d9199f56c0bfbad215f3d3852806",
+   "raw_sha256": "07eaed6d4cba018161eb5c4fcad0da62bfce2635bd0355142ed52dec2d3443a9",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 354,
+   "state_number": 24,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S4 Syntax highlight",
+   "style_check": true,
+   "lists": [
+    "Fillers",
+    "Clichés",
+    "Redundancies"
+   ],
+   "focus": false,
+   "syntax": "all five Categories",
+   "selection": null,
+   "caret": "end of document"
+  },
+  "mac-native-24-light-syntax-nostyle": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-24-light-syntax-nostyle.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-10/mac-native-24-light-syntax-nostyle.png",
+   "sha256": "8ea2a1b3a39d2665f1c57fab8e8c130825cd1d5aafab0fb7081098db589a3cf7",
+   "raw_sha256": "8cf0fbe89e46037eed45e5c267bc35dda62b569fc01cbe85b90d58226d9b153a",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 354,
+   "state_number": 24,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "S4 Syntax highlight",
+   "style_check": false,
+   "lists": [],
+   "focus": false,
+   "syntax": "all five Categories",
+   "selection": null,
+   "caret": "end of document"
+  }
+ }
+}
