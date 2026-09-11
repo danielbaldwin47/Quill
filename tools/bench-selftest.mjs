@@ -329,7 +329,7 @@ ok("a regime's line is one line of numbers, and the run's line says how many cle
   });
   assert.match(line, /^gate bench fence_flip: pass — mean /);
   assert.ok(!line.includes('\n'), line);
-  assert.ok(!line.includes('budget'), 'the budget is said once, by the run, not fifteen times');
+  assert.ok(!line.includes('budget'), 'the budget is said once, by the run, not sixteen times');
 
   const rows = [row('prose_end_of_draft', 2, 8, 120), row('revision', 2.4, 9, 130)];
   assert.match(allSummary('--all', rows), /^gate bench --all: pass — 2 of 2 regimes clear the budget/);
@@ -440,13 +440,21 @@ ok('an unscored regime is recorded beside the verdict and decides nothing', () =
 
 ok('syntax is the fifteenth regime and is scored like the headline prose', () => {
   const all = regimes();
-  assert.equal(all.length, 15);
+  assert.equal(all.length, 16);
   const syntax = all.find((r) => r.name === 'syntax');
   assert.deepEqual(syntax, { ...all[0], name: 'syntax', syntax: 'on' });
   assert.equal(scoredRegime('syntax'), true);
 });
 
-ok('every one of the fifteen is a plan the injector can be handed', () => {
+ok('style is the sixteenth regime and is scored like the headline prose', () => {
+  const all = regimes();
+  assert.equal(all.length, 16);
+  const style = all.find((r) => r.name === 'style');
+  assert.deepEqual(style, { ...all[0], name: 'style', style: 'on' });
+  assert.equal(scoredRegime('style'), true);
+});
+
+ok('every one of the sixteen is a plan the injector can be handed', () => {
   for (const r of regimes()) {
     const plan = uinputPlan(script(r.mix, DEFAULT_KEYS, hash32(r.name)), r.pace,
       { pauseEvery: r.pauseEvery, pauseMs: r.pauseMs });
@@ -508,7 +516,7 @@ ok('the pause clears every timer the app arms from the last keystroke', () => {
   }
 });
 
-ok('the injector can say every press the fifteen ask for', () => {
+ok('the injector can say every press the sixteen ask for', () => {
   const wanted = new Set();
   for (const r of regimes()) {
     for (const k of uinputPlan(script(r.mix, DEFAULT_KEYS, hash32(r.name)), r.pace).plan.keys) wanted.add(k.press);
