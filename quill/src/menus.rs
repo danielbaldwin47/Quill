@@ -613,7 +613,7 @@ mod tests {
     /// check first, then its kinds or Lists, and none of them loose in the
     /// section. Spell check, which no head claims yet, stays a loose row.
     #[test]
-    fn the_syntax_rows_are_a_submenu_under_their_head() {
+    fn every_head_takes_its_own_rows_into_a_submenu() {
         let model = model(Menu::View, &Modes::default(), &[]);
         let tools = model.item_link(2, "section").expect("Writing tools");
         let loose: Vec<String> = (0..tools.n_items())

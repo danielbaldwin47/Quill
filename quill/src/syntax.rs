@@ -15,6 +15,8 @@ use quill_engine::settings::{StyleCheck, SyntaxHighlight};
 use quill_engine::style::List;
 use quill_engine::worker::{Annotators, Paragraph, ParagraphResult, Request, SpanStore, Worker};
 
+use crate::session::StyleToggle;
+
 type Tokens = Vec<(Range<usize>, Category)>;
 type Struck = Vec<(Range<usize>, List)>;
 
@@ -146,12 +148,7 @@ impl Syntax {
     /// holds: the matcher emits every List whatever the toggles say, so
     /// switching one off is a repaint and never a re-match (#356).
     pub(crate) fn paints(&self, list: List) -> bool {
-        self.style.enabled
-            && match list {
-                List::Fillers => self.style.fillers,
-                List::Redundancies => self.style.redundancies,
-                List::Cliches => self.style.cliches,
-            }
+        self.style.enabled && StyleToggle::List(list).of(&self.style)
     }
 
     /// The table's category mask, independent of retained tokens.
@@ -548,6 +545,29 @@ mod tests {
         // Syntax highlight is off, so its spans are kept and not painted.
         assert!(syntax.spans_in(&document, &whole).is_empty());
         assert!(syntax.request(&document, 0..1).is_none());
+    }
+
+    /// One List on under the master paints that List and no other.
+    ///
+    /// The other side of the tag's name (`tags::style_mark_name`): a switch
+    /// wired to the wrong field would paint a List whose check is off, and the
+    /// `style` Piece shoots only two of the eight combinations, so the six it
+    /// never sees are caught here (#356).
+    #[test]
+    fn one_list_on_is_that_list_and_no_other_painted() {
+        let document = document("Basically Alice reads.");
+        for (index, only) in List::ALL.into_iter().enumerate() {
+            let mut lists = [false; 3];
+            lists[index] = true;
+            let syntax = striking(&document, lists);
+            for list in List::ALL {
+                assert_eq!(
+                    syntax.paints(list),
+                    list == only,
+                    "{only:?} alone on, asked about {list:?}",
+                );
+            }
+        }
     }
 
     #[test]

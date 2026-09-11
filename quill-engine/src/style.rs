@@ -233,11 +233,7 @@ impl Shadow {
                 text.push(' ');
                 source.push((at, end));
             } else {
-                for folded in fold(character) {
-                    let was = text.len();
-                    text.push(folded);
-                    source.extend(std::iter::repeat_n((at, end), text.len() - was));
-                }
+                push_folded(&mut text, &mut source, character, (at, end));
             }
         }
         Self { text, source }
@@ -304,13 +300,7 @@ fn phrase(line: &str, list: List) -> Result<Phrase, &'static str> {
                     bracketed.push(inside);
                 }
             }
-            _ => {
-                for folded in fold(character) {
-                    let was = needle.len();
-                    needle.push(folded);
-                    bracketed.extend(std::iter::repeat_n(inside, needle.len() - was));
-                }
-            }
+            _ => push_folded(&mut needle, &mut bracketed, character, inside),
         }
     }
     if inside {
@@ -357,6 +347,20 @@ fn groups(needle: &str, bracketed: &[bool]) -> Vec<Range<usize>> {
         }
     }
     groups
+}
+
+/// Pushes `character` folded onto `text`, extending `beside` with `each` once
+/// for every byte pushed, so the two stay one entry per byte.
+///
+/// The shadow the automaton searches and the needles it searches for must fold
+/// the same way byte for byte or a phrase never matches the prose it was
+/// written for, so both fold through here (#356).
+fn push_folded<T: Copy>(text: &mut String, beside: &mut Vec<T>, character: char, each: T) {
+    for folded in fold(character) {
+        let was = text.len();
+        text.push(folded);
+        beside.extend(std::iter::repeat_n(each, text.len() - was));
+    }
 }
 
 /// What a character matches as: lower case, with the right single quote a
@@ -497,7 +501,11 @@ mod tests {
     fn a_phrase_inside_a_longer_word_is_not_struck() {
         assert_eq!(marks("the tool was too heavy"), [("too", List::Fillers)]);
         assert_eq!(marks("overtoo"), []);
-        assert!(marks("it's").len() == 1, "a whole word is still struck");
+        assert_eq!(
+            marks("it's"),
+            [("it's", List::Fillers)],
+            "a whole word is still struck"
+        );
         assert_eq!(marks("bits of it"), [], "`sort of` is not `s of`");
     }
 
