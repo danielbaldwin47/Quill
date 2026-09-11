@@ -64,6 +64,18 @@ ok('every state pins Syntax highlight and an override reaches the app', () => {
   assert.equal(argv[argv.indexOf('--syntax') + 1], 'nouns,adverbs');
 });
 
+ok('every state pins Style check and an override reaches the app', () => {
+  assert.equal(states.defaults.style, 'off');
+  for (const piece of Object.keys(states.pieces)) {
+    for (const state of resolveStates(states, piece)) {
+      const argv = quillArgv(ROOT, state.flags);
+      assert.equal(argv[argv.indexOf('--style') + 1], state.flags.style, `${piece}/${state.name}`);
+    }
+  }
+  const argv = quillArgv(ROOT, { ...states.defaults, style: 'fillers,cliches' });
+  assert.equal(argv[argv.indexOf('--style') + 1], 'fillers,cliches');
+});
+
 ok('a state becomes the native flags that state means', () => {
   const caret = flagsOf('caret');
   const argv = quillArgv(ROOT, caret.selection);
@@ -79,6 +91,7 @@ ok('a state becomes the native flags that state means', () => {
   assert.equal(flag('--step'), '5');
   assert.equal(flag('--focus'), 'off');
   assert.equal(flag('--syntax'), 'off');
+  assert.equal(flag('--style'), 'off');
   // The caret Piece is judged bare (#139), so its states override the defaults' chrome; that
   // override reaching the command line is the half of this case the defaults cannot show.
   assert.equal(flag('--chrome'), 'off');
