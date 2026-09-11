@@ -29,11 +29,14 @@ in **logical points** (the way `screencapture -R` takes them) while every number
 | `sweep_narrow.py` | #344: bisects the window width the type changes at. The pitch alone separates the size classes, so one frame a width is enough; its frames are scratch, and the two sides of each break are shot as states by `run_narrow.py` |
 | `run_templates.py` | #343, state 23: two passages in all four Preview Templates, each with an Editor control frame, for the first-line indent and the em |
 | `manifest_2026_09_10.py`, `measure_2026_09_10.py` | the 2026-09-10 manifest, and the reader that verifies it and re-reads every number in [`../CAPTURE-2026-09-10.md`](../CAPTURE-2026-09-10.md) off the frames |
+| `run_style.py` | #354, state 24: the Style Check mark on both grounds, per list, under Focus, under Syntax highlight and over a selection — each state shot twice, once with Style Check off, so every reading is a difference between two frames. The four list items carry no check the menu can be asked for, so it measures a list's state instead: a click is kept only if the frame moved the way the click should move it |
+| `measure_style_354.py`, `manifest_style_354.py` | #354's reader — the mark's colour, thickness and position, read in the columns a row's control frame leaves blank between two glyphs, plus the face's own strikeout metrics straight out of the `OS/2` table — and the manifest beside it |
 | `display-calibrated-2025-12-15.icc` | the DisplayCAL profile the built-in display carries now, so the two can be compared rather than assumed equal |
 
 ## Running it
 
-Needs Python with `Pillow`, `numpy` and `pyobjc-framework-Quartz`, and the terminal must hold both
+Needs Python with `Pillow`, `numpy` and `pyobjc-framework-Quartz` — on this machine they live in
+`.venv-rig/` at the repository root, not in the system Python — and the terminal must hold both
 **Screen Recording** (or `screencapture` returns a black frame) and **Accessibility** (or `osascript`
 cannot reach the app). Paths are relative to the repository root:
 
@@ -41,7 +44,7 @@ cannot reach the app). Paths are relative to the repository root:
 
 Set `IA_SAMPLE` to shoot a passage other than `ref/sample.md`.
 
-Three cautions learned the hard way, all recorded in `../NOTES.md`, and three more for a Syntax
+Six cautions learned the hard way, all recorded in `../NOTES.md`, and three more for a Syntax
 state in [`../CAPTURE-ORIGINAL-MBP.md` § Repeating the run](../CAPTURE-ORIGINAL-MBP.md#repeating-the-run):
 
 - **A capture carries the display's profile**, so a frame shot today does not hold the same numbers
@@ -54,5 +57,13 @@ state in [`../CAPTURE-ORIGINAL-MBP.md` § Repeating the run](../CAPTURE-ORIGINAL
   deactivated states (6 and 7) close Finder's windows and activate Finder instead — focus moves and
   nothing is drawn over the editor.
 - **Measure boundaries off a selection fill, never off a character count**, and turn Style Check off
-  before shooting anything. Reading a style-check marker as a selection is the mistake
+  before shooting anything but state 24, which is the state of Style Check itself. Reading a
+  style-check marker as a selection is the mistake
   [#154](https://github.com/danielbaldwin47/Quill/issues/154) exists to stop repeating.
+- **`screencapture` will not write a dotted filename.** A scratch frame named `.scratch-00.png`
+  fails with "cannot write file to intended destination"; the same name without the dot writes.
+- **The Focus menu's item names are read lazily, and the first read of a session can be stale** —
+  it came back with `Enable Style Sheck` and `Other` where every later read gives
+  `Enable Style Check` and `Reference`. Read the menu before trusting a name.
+- **Do not paste over the app's own sample documents.** `states.reset()` is Select-All then paste;
+  make a scratch document with File -> New in Library first.
