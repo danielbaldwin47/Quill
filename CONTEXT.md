@@ -59,8 +59,8 @@ Coloring words by part of speech (noun, verb, adjective, adverb, conjunction) to
 _Avoid_: code highlighting, grammar coloring
 
 **Style check**:
-Underlining clichés, fillers and redundancies in prose.
-_Avoid_: grammar check, linting
+Striking through fillers, redundancies and clichés in prose, from Quill's own phrase lists; the strike is the whole interaction, with no suggestion offered.
+_Avoid_: grammar check, linting, underlining (that is Spell check's mark)
 
 **Spell check**:
 Underlining misspellings against a system dictionary, with suggestions; a toggle, on by default.
