@@ -104,6 +104,29 @@ is `#cccccc` dark / `#191919` light, 10.84:1 and 16.41:1 against those papers.
 | — | *(no claim)* code ground, inline and fenced | **now measured** | **`#252525`** dark, **`#eeeeee`** light — one ground for both | 17-*-marks |
 | — | *(no claim)* does the caret's own line lift a marker? | **contradicted** | the caret parked on the H1 reads ink for ink the same as the caret parked away | 17-*-marks-caret-on-heading |
 
+### The Style Check mark
+
+No § 4.2 claim covers it, and no committed capture held it until
+[#354](https://github.com/danielbaldwin47/Quill/issues/354) — every state before this one was shot
+with Style Check off. Read off state 24, both grounds, each frame against a control shot with Style
+Check off and nothing else changed. The full report is
+[CAPTURE-2026-09-10-STYLE.md](CAPTURE-2026-09-10-STYLE.md).
+
+**The mark is not a rule over body ink.** The struck run is re-inked and then ruled, both in one
+colour — the same shape as the completed-task row above, and the same value.
+
+| # | Claim | Verdict | Measured | Capture |
+|---|---|---|---|---|
+| — | *(no claim)* struck run's ink | **the quiet marker tier, not a colour of its own** | **`#7a7a78`** dark / **`#b5b3b0`** light — glyphs and rule alike, and the same value a link's brackets and destination carry (4.2.13) and a faded completed task carries | 24-{dark,light}-style-all |
+| — | *(no claim)* rule thickness | **now measured** | **2 px** = 1 pt = 0.047 em, both grounds, all three lists | 24-{dark,light}-style-all |
+| — | *(no claim)* rule position | **centred on the x-height, not the face's strikeout metric** | bottom edge **9–10 px above the baseline**, top edge **11–12 px**; centre 10–11 = half the 22 px x-height to within a pixel. The face asks for a 2.56 px rule 13.18 px up and does not get it | 24-{dark,light}-style-all |
+| — | *(no claim)* rule extent | **the matched phrase's own cells** | 9.92 cells of 10 for `Basically,`, comma included; nothing ruled in the spaces either side; a wrapped phrase ruled per row; **two abutting struck spans ruled as one unbroken line** | 24-{dark,light}-style-all, 24-light-style-list-* |
+| — | *(no claim)* per-list difference | **contradicted** | Fillers, Clichés and Redundancies draw the same colour, thickness and rows | 24-light-style-list-{fillers,cliches,redundancies} |
+| — | *(no claim)* struck under Focus | **it dims with the word, and the dims do not compound** | outside the focused sentence a struck word is drawn at the state 13 dim exactly — `#707070` / `#c6c4c2` — the same as the unstruck words beside it; 4.2.12's single dim tier holds | 24-{dark,light}-style-focus-sentence |
+| — | *(no claim)* struck under Syntax highlight | **the word takes the strike's colour, not the other way round** | a struck word loses its Category colour outright and reads as it does with Syntax off; unstruck words keep theirs, and the ten values reproduce #308 | 24-{dark,light}-style-syntax |
+| — | *(no claim)* struck over a selection | **the fill sits under the mark** | fill unchanged (`#143c52` / `#cbedf7`), struck ink and rule over it at the same values they have over paper — which shows the struck ink **opaque**, not a tint | 24-{dark,light}-style-selection |
+| — | *(no claim)* which word of a redundancy | **the one that can be deleted**, not a fixed position | `basic` fundamentals, combined `together`, fell `down`, `past` history — **iA's marketing page bolds `fundamentals`; the app strikes `basic`** | 24-light-style-list-redundancies |
+
 ## REFERENCE.md § 4.3 — Preview template
 
 Beyond the sections #154 asks for. Three Preview frames were added after the fifteen states, at the
@@ -203,6 +226,9 @@ listed so the triage can see them, not because anything asks for them.
 | **The window's width picks the type**, in three size classes with breaks at **440/441 pt** and **1250/1251 pt** — the same two breaks at text-size steps 5 and 8 and at limits 64 and 80, with no hysteresis | step 5: 19.920 / 22.657 / 25.600 px cell and 53 / 63 / 73 px pitch; step 8: 92 / 109 px pitch either side of the upper break | 22-light-narrow-w{0440,0441,1250,1251}-step{05,08} |
 | **Container overflow is not the trigger.** At 1200 pt a full 78-cell container of the wide type wants 1997 px of a 2400 px window, and the type shrinks anyway | cell 22.657, container 1770, measure a full 64.09 cells | 22-light-narrow-w1200-step05-* |
 | **The measure gives second**, and only when the limit no longer fits: above 440 pt the container is `min((limit + 14) cells, window − 20 px)` | holds on all sixteen configurations; where the first term wins the gutter is 7.00 cells and the measure the limit exactly | 22-light-narrow-* |
+| The **quiet marker tier is one tier with three users**: a link's brackets and destination, a faded completed task, and a Style Check struck run | `#7a7a78` dark / `#b5b3b0` light in all three | 17-*-marks, 24-*-style-all |
+| Style Check's four **list items cannot be asked which are on** — no `AXMenuItemMarkChar` in either state, and no check drawn in the open menu; their parents are verbs and can be | `Enable`/`Disable Style Check` and its three siblings | the Focus menu |
+| **Custom is an empty list** on this machine: toggling it moves no pixel either way | 80 px of caret fringe, before and after | 24-* list walk |
 | The **shrink tracks the window, not the measure**: moving the limit to 80 characters does not move either break | 1040 pt at limit 80 keeps the 22.638 px cell and the 63 px pitch of limit 64 | 22-light-narrow-w1040-step05-limit80-* |
 | Under window limitation the gutter falls from 7 cells to about **6**, and the measure takes what is left | 42, 47, 56, 58 cells at step 8 and 960 … 1250 pt; 7.00 cells again at 1512 pt step 8, which is measured and unexplained | 22-light-narrow-*-step08-* |
 | The narrowest class is **not** described by that container rule | at 440 pt the container is 828 px where the window allows 860, and the gutter collapses to one cell | 22-light-narrow-w0440-step05-* |
