@@ -7,14 +7,14 @@ use quill_engine::document::{Document, Edit, Splice};
 use quill_engine::markdown;
 use quill_engine::pos::{Categories, Category};
 use quill_engine::settings::SyntaxHighlight;
-use quill_engine::worker::{Paragraph, ParagraphResult, Request, SpanStore, Worker};
+use quill_engine::worker::{Annotators, Paragraph, ParagraphResult, Request, SpanStore, Worker};
 
 type Tokens = Vec<(Range<usize>, Category)>;
 
 #[derive(Default)]
 struct ParagraphState {
     length: usize,
-    spans: SpanStore,
+    spans: SpanStore<Category>,
     dirty: bool,
     mapping: Mapping,
 }
@@ -227,6 +227,11 @@ impl Syntax {
             .collect::<Vec<_>>();
         (!paragraphs.is_empty()).then_some(Request {
             generation: document.generation(),
+            // Style check joins this request when the app holds its spans.
+            wanted: Annotators {
+                syntax: true,
+                style: false,
+            },
             paragraphs,
             viewport,
         })
@@ -243,12 +248,15 @@ impl Syntax {
         }
     }
 
-    fn accept(&mut self, result: ParagraphResult, document: &Document) -> Option<Range<usize>> {
+    fn accept(&mut self, mut result: ParagraphResult, document: &Document) -> Option<Range<usize>> {
         let paragraph = result.paragraph;
         let entry = self.paragraphs.get_mut(paragraph)?;
-        if !entry.spans.apply(result, document.generation(), |spans| {
-            entry.mapping.source_spans(spans)
-        }) {
+        if !entry
+            .spans
+            .apply(&mut result, document.generation(), |spans| {
+                entry.mapping.source_spans(spans)
+            })
+        {
             return None;
         }
         entry.dirty = false;
@@ -361,7 +369,8 @@ mod tests {
                 ParagraphResult {
                     generation: request.generation,
                     paragraph: paragraph.index,
-                    spans: quill_engine::pos::categories(&paragraph.prose),
+                    categories: quill_engine::pos::categories(&paragraph.prose),
+                    lists: Vec::new(),
                 },
                 document,
             );
@@ -470,7 +479,8 @@ mod tests {
                     ParagraphResult {
                         generation: request.generation,
                         paragraph: paragraph.index,
-                        spans: vec![(0.."éléphant".len(), Category::Nouns)],
+                        categories: vec![(0.."éléphant".len(), Category::Nouns)],
+                        lists: Vec::new(),
                     },
                     &document
                 )
@@ -539,7 +549,7 @@ mod tests {
                     ParagraphResult {
                         generation: old.generation,
                         paragraph: 0,
-                        spans: vec![]
+                        ..ParagraphResult::default()
                     },
                     &document
                 )
