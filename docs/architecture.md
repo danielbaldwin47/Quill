@@ -84,18 +84,21 @@ Two lanes, and the budget is the Gate's ≤ 5 ms mean, ≤ 16 ms worst from keys
 - **Asynchronous, on one worker thread**: Syntax highlight, Style check and Spell check re-run for the
   changed paragraphs only, debounced, viewport first. Each result carries the Document generation it
   was computed against; the main thread applies a result whose generation is current and discards the
-  rest. Dictionary and tagger loading happen on that thread at first use, never on a keystroke or at
-  startup. `quill_engine::worker::Worker` starts the thread on its first request and reuses it;
+  rest. Dictionary, tagger and Style check list loading happen on that thread at first use, never on
+  a keystroke or at startup. `quill_engine::worker::Worker` starts the thread on its first request and reuses it;
   dropping it closes its channels without joining on the main loop.
 
-The worker's `Request` carries the Document `generation`, the changed `Paragraph`s (each an
-`index` and its `prose` text), and the `viewport` paragraph-index range. It answers one
-`ParagraphResult` per paragraph: the same `generation`, the `paragraph` index and Category
-`spans` whose byte ranges address that paragraph's requested prose. Viewport paragraphs arrive
-first, with request order kept within each group. The app's `Syntax::accept` delegates to the
-paragraph's engine `SpanStore::apply`, which checks the current Document generation before
-mapping the result into source-relative spans; pending or stale answers leave its last spans in
-place. The app owns the prose-to-source mapping and paragraph-index changes after structural
+The worker's `Request` carries the Document `generation`, the Annotators `wanted` (Syntax
+highlight, Style check, either or both), the changed `Paragraph`s (each an `index` and its `prose`
+text), and the `viewport` paragraph-index range. It answers one `ParagraphResult` per paragraph:
+the same `generation`, the `paragraph` index, and both span sets whose byte ranges address that
+paragraph's requested prose — `categories` for Syntax highlight, `lists` for Style check, the set
+of an Annotator the request did not want left empty, so a paragraph is sent once and tagged once
+whichever Annotators are on. Viewport paragraphs arrive first, with request order kept within each
+group. The app's `Syntax::accept` delegates to the paragraph's engine `SpanStore::apply`, generic
+over the span's kind: it checks the current Document generation, then takes its own kind out of the
+answer and maps it into source-relative spans, leaving the other kind for its own store; pending or
+stale answers leave its last spans in place. The app owns the prose-to-source mapping and paragraph-index changes after structural
 edits. Dirty-block extraction uses the Document's resolved link marks to omit reference labels
 whose definitions live in other blocks. Document insert, delete and reload advance the
 generation; equality compares the Document's content and indexes, excluding that edit history.
