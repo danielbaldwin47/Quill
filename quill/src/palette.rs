@@ -127,6 +127,14 @@ const EMPTY: Empty = Empty {
 /// The popover's `contents` is the panel; the field's entry is flattened to
 /// the oracle's bare input; each `row` of the list is one of the oracle's
 /// `li`, selected or a heading.
+///
+/// The placeholder is the menus' dim at `opacity: 1` because the dim alone
+/// did not survive. The shot that lost round 9 — measured in #374's body,
+/// from the round the #371 branch carries — reads the prompt at `#BABABA`
+/// against the `#8C8C8C` of the caps, the magnifier and the chords beside
+/// it: `#8c8c8c` at alpha 0.55 over the panel's `#f2f2f2`, and 0.55 is the
+/// opacity GTK's Default theme gives the `placeholder` node along with
+/// `.dim-label`. One grey for all four now.
 pub fn stylesheet(scheme: Scheme) -> String {
     let chrome::MenuInk {
         ground,
@@ -177,8 +185,8 @@ pub fn stylesheet(scheme: Scheme) -> String {
          \x20 font-size: {ENTRY_PX}px; letter-spacing: {tracking}px;\n\
          \x20 color: {ink}; caret-color: {ink};\n\
          }}\n\
-         popover.chrome-palette entry text > placeholder {{ color: {dim}; }}\n\
-         popover.chrome-palette .palette-mag, popover.chrome-palette .palette-rule {{ color: {dim}; }}\n\
+         popover.chrome-palette entry text > placeholder {{ color: {dim}; opacity: 1; }}\n\
+         popover.chrome-palette .palette-mag {{ color: {dim}; }}\n\
          popover.chrome-palette .palette-rule {{ color: {border}; }}\n\
          popover.chrome-palette scrolledwindow, popover.chrome-palette list {{ background: none; }}\n\
          popover.chrome-palette list > row {{\n\
@@ -320,7 +328,14 @@ impl Palette {
             .width_request(WIDTH - 2)
             .build();
         panel.append(&field);
-        panel.append(&chrome::hairline("palette-rule", gtk::Align::Start, true));
+        // The panel's own border's weight, not the bars' half pixel: the
+        // line under the field is the same edge, two centimetres in (#374).
+        panel.append(&chrome::hairline(
+            "palette-rule",
+            gtk::Align::Start,
+            true,
+            chrome::Weight::Whole,
+        ));
         panel.append(&scroller);
 
         let popover = gtk::Popover::builder()
@@ -758,6 +773,41 @@ mod tests {
         assert!(sheet.contains("font-size: 11.5px"));
         assert!(sheet.contains("background-color: #0a94d6"));
         assert!(stylesheet(Scheme::Dark).contains("background-color: #2e2e2e"));
+    }
+
+    /// Round 9 of the `chrome` Piece lost the panel on two greys doing one
+    /// job: GTK's theme dims the `placeholder` node to 0.55, which turned
+    /// the menus' dim into a second, paler grey under the field, and the
+    /// rule under it was declared twice, `{dim}` then `{border}`.
+    #[test]
+    fn the_prompt_is_the_menus_dim_at_full_strength_and_the_rule_is_declared_once() {
+        for scheme in [Scheme::Light, Scheme::Dark] {
+            let sheet = stylesheet(scheme);
+            let dim = chrome::menu_ink(scheme).dim;
+            let rule = sheet
+                .split_once("placeholder")
+                .expect("no placeholder rule at all")
+                .1;
+            let rule = rule.split_once('}').expect("unclosed placeholder rule").0;
+            assert!(
+                rule.contains(&format!("color: {dim}")),
+                "{scheme:?}: the prompt is not the menus' dim:\n{sheet}"
+            );
+            assert!(
+                rule.contains("opacity: 1"),
+                "{scheme:?}: GTK's theme is still halving the prompt:\n{sheet}"
+            );
+            assert_eq!(
+                sheet.matches(".palette-rule").count(),
+                1,
+                "{scheme:?}: the rule under the field takes two colours:\n{sheet}"
+            );
+            let border = chrome::menu_ink(scheme).border;
+            assert!(
+                sheet.contains(&format!(".palette-rule {{ color: {border}; }}")),
+                "{scheme:?}: the rule is not the panel border's colour:\n{sheet}"
+            );
+        }
     }
 
     #[test]

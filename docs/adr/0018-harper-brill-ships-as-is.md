@@ -96,3 +96,16 @@ beside `fonts/OFL.txt` under `/usr/share/licenses/quill/`. Packaging owns that b
 **If the reading ever changes**, the seam is one module: `quill_engine::pos` hands out
 `(byte range, Category)` and nothing downstream knows a tagger exists. A replacement changes the
 accuracy figure and this ADR, and no other file.
+
+**The same exposure, accepted the same way, in Style check's data** (decided 2026-09-10 from
+[#353](https://github.com/danielbaldwin47/Quill/issues/353), the lists research). The largest block
+of `data/style/redundancies.txt` — 500 of its 530 entries — is taken under proselint's
+BSD-3-Clause grant but originates in Automattic's After the Deadline, whose server repository
+carries the GPL version 2 text with no "or later", a licence GPL-3.0-or-later cannot combine with.
+A short phrase carries no copyright; what a list can carry is a thin compilation right over its
+selection, which proselint has redistributed under BSD-3 for years unchallenged and which Quill's
+re-curation (a subset, bracketed, inflected, in its own order) does not copy. The owner carries
+that question knowingly, as above. The block sits between its own `# ---` comment lines, so
+withdrawing it is one edit, to a list of 30; `data/style/SOURCES.md` and
+`git show research/style-lists:docs/research/style-lists.md` § Provenance caveats hold the
+detail.

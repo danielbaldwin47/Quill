@@ -11,7 +11,7 @@ pkgrel=1
 pkgdesc="A long-form writing environment for Linux: plain Markdown, typography first"
 arch=('x86_64')
 url="https://github.com/danielbaldwin47/Quill"
-license=('GPL-3.0-or-later' 'OFL-1.1' 'Apache-2.0')
+license=('GPL-3.0-or-later' 'OFL-1.1' 'Apache-2.0' 'BSD-3-Clause' 'MIT' 'CC0-1.0')
 depends=('gtk4' 'enchant' 'hicolor-icon-theme')
 makedepends=('cargo')
 optdepends=('hunspell-en_us: English spell checking')
@@ -45,15 +45,20 @@ package() {
 
   install -Dm755 "$startdir/target/release/$pkgname" "$pkgdir/usr/bin/$pkgname"
 
-  # The data directory: the fonts today, the Style check lists as their Piece
-  # lands. One directory, so an installed build and a development build differ
-  # in one path rather than in every lookup. Templates are not here: they are
-  # compiled into the binary (`quill_engine::template`).
-  install -dm755 "$data/fonts" "$data/data"
+  # The data directory: the fonts and the Style check lists. One directory, so
+  # an installed build and a development build differ in one path rather than
+  # in every lookup. Templates are not here: they are compiled into the binary
+  # (`quill_engine::template`).
+  install -dm755 "$data/fonts" "$data/data/style"
   install -m644 "$startdir"/fonts/*.ttf "$data/fonts/"
   # One licence per set of files in there: the Faces' own, then Inter's and
   # Source Serif 4's, which ship unmodified and carry their own.
   install -m644 "$startdir"/fonts/OFL*.txt "$data/fonts/"
+
+  # The three lists `quill_engine::data::style()` reads, with the SOURCES.md
+  # that says where each entry came from and the licence texts its sources
+  # require to travel with the data.
+  install -m644 "$startdir"/data/style/*.txt "$startdir/data/style/SOURCES.md" "$data/data/style/"
 
   # The Omarchy template (README.md § Theme Quill with the desktop): a writer
   # copies it into their own themed/ directory, so it is installed where the
@@ -67,5 +72,8 @@ package() {
   install -Dm644 "$startdir/LICENSE" "$share/licenses/$pkgname/LICENSE"
   install -Dm644 "$startdir/packaging/harper-brill-LICENSE" "$share/licenses/$pkgname/harper-brill-LICENSE"
   install -m644 "$startdir"/fonts/OFL*.txt "$share/licenses/$pkgname/"
+  # The Style check lists' four, by the Licence rule (docs/architecture.md,
+  # "Packaging"): every licence a shipped file carries is readable here.
+  install -m644 "$startdir"/data/style/LICENSE-*.txt "$share/licenses/$pkgname/"
   install -Dm644 "$startdir/README.md" "$share/doc/$pkgname/README.md"
 }

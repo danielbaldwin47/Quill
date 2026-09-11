@@ -600,26 +600,51 @@ impl SyntaxHighlight {
 
 /// Style check: the master switch, and one toggle per list.
 ///
-/// The list names are still open ([#29](https://github.com/danielbaldwin47/Quill/issues/29)),
-/// so the toggles are carried exactly as they are written rather than named
-/// here. A Quill that guessed at them would rewrite a file it does not
-/// understand.
-#[derive(Clone, Debug, Default, PartialEq)]
+/// The lists default to on so that turning the master on strikes every phrase
+/// Quill knows; a writer revising for clichés alone turns two off. The master
+/// and the lists are separate state: a list switched off is still off when the
+/// master comes back on.
+#[derive(Clone, Debug, PartialEq)]
 pub struct StyleCheck {
     /// The master switch.
     pub enabled: bool,
-    /// One entry per list, as written.
-    pub lists: toml::Table,
+    /// Strike fillers.
+    pub fillers: bool,
+    /// Strike redundancies.
+    pub redundancies: bool,
+    /// Strike clichés.
+    pub cliches: bool,
+    /// Anything else in the table, carried through a write.
+    rest: toml::Table,
+}
+
+impl Default for StyleCheck {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            fillers: true,
+            redundancies: true,
+            cliches: true,
+            rest: toml::Table::new(),
+        }
+    }
 }
 
 impl StyleCheck {
     /// Reads the `[style_check]` table.
     fn read(table: toml::Table, notes: &mut Vec<String>) -> Self {
+        let defaults = Self::default();
         let mut reading = Reading::new(table, "style_check.", notes);
-        let enabled = reading.boolean("enabled", false);
+        let enabled = reading.boolean("enabled", defaults.enabled);
+        let fillers = reading.boolean("fillers", defaults.fillers);
+        let redundancies = reading.boolean("redundancies", defaults.redundancies);
+        let cliches = reading.boolean("cliches", defaults.cliches);
         Self {
             enabled,
-            lists: reading.rest(),
+            fillers,
+            redundancies,
+            cliches,
+            rest: reading.rest(),
         }
     }
 
@@ -627,7 +652,10 @@ impl StyleCheck {
     fn to_table(&self) -> toml::Table {
         let mut writing = Writing::new();
         writing.boolean("enabled", self.enabled);
-        writing.rest(self.lists.clone());
+        writing.boolean("fillers", self.fillers);
+        writing.boolean("redundancies", self.redundancies);
+        writing.boolean("cliches", self.cliches);
+        writing.rest(self.rest.clone());
         writing.finish()
     }
 }
@@ -1329,6 +1357,35 @@ mod tests {
     }
 
     #[test]
+    fn the_three_style_check_lists_are_on_under_a_master_that_is_off() {
+        let style = StyleCheck::default();
+        assert!(!style.enabled);
+        assert!(style.fillers && style.redundancies && style.cliches);
+    }
+
+    #[test]
+    fn a_list_switched_off_survives_the_master_going_off_and_back() {
+        // Story 3: the master and the lists are separate state, so a pass
+        // spent on clichés alone is still waiting when Style check comes back.
+        let (mut settings, _) = Settings::parse("[style_check]\nenabled = true\nfillers = false\n");
+        assert!(!settings.style_check.fillers);
+
+        settings.style_check.enabled = false;
+        let (off, notes) = Settings::parse(&settings.to_toml());
+        assert!(notes.is_empty(), "{notes:?}");
+        assert!(!off.style_check.enabled);
+        assert!(!off.style_check.fillers, "the list is remembered while off");
+
+        let mut back = off;
+        back.style_check.enabled = true;
+        let (on, notes) = Settings::parse(&back.to_toml());
+        assert!(notes.is_empty(), "{notes:?}");
+        assert!(on.style_check.enabled);
+        assert!(!on.style_check.fillers, "and is still off when it returns");
+        assert!(on.style_check.redundancies && on.style_check.cliches);
+    }
+
+    #[test]
     fn what_is_written_reads_back_as_itself() {
         let (read, notes) = Settings::parse(&Settings::default().to_toml());
         assert_eq!(read, Settings::default());
@@ -1814,6 +1871,7 @@ proper_nouns = true
 enabled = true
 cliches = true
 fillers = false
+jargon = true
 
 [shortcuts]
 \"library.toggle\" = [\"F9\"]
@@ -1830,7 +1888,8 @@ margin = 3
             "the palette line is read with its `~` expanded"
         );
         assert!(settings.syntax_highlight.enabled && settings.style_check.enabled);
-        assert_eq!(settings.style_check.lists.len(), 2, "the lists are carried");
+        assert!(!settings.style_check.fillers, "the named list is read");
+        assert!(settings.style_check.cliches && settings.style_check.redundancies);
         assert_eq!(settings.shortcuts.len(), 1, "the shortcuts are carried");
 
         let written: toml::Table = settings.to_toml().parse().expect("writes TOML");
@@ -1841,6 +1900,7 @@ margin = 3
             Some(true)
         );
         assert_eq!(written["style_check"]["cliches"].as_bool(), Some(true));
+        assert_eq!(written["style_check"]["jargon"].as_bool(), Some(true));
         assert_eq!(
             written["shortcuts"]["library.toggle"][0].as_str(),
             Some("F9")

@@ -46,10 +46,11 @@ use quill_engine::settings::{
 };
 use quill_engine::shortcuts::{Chord, Refusal};
 use quill_engine::stats::words;
+use quill_engine::style::List;
 use quill_engine::theme::{Role, Scheme};
 
 use crate::ground::Ground;
-use crate::session::{Session, SyntaxToggle, TemplateToggle};
+use crate::session::{Session, StyleToggle, SyntaxToggle, TemplateToggle};
 use crate::window::Window;
 
 pub mod typing;
@@ -77,6 +78,14 @@ pub struct Modes {
     pub adverbs: bool,
     /// The Conjunctions check, independent of the master.
     pub conjunctions: bool,
+    /// Style check's master check.
+    pub style: bool,
+    /// The Fillers check, independent of the master.
+    pub fillers: bool,
+    /// The Redundancies check, independent of the master.
+    pub redundancies: bool,
+    /// The Clichés check, independent of the master.
+    pub cliches: bool,
     /// The ground shown is the dark one, whatever `theme` says.
     pub dark: bool,
     /// The theme setting, `auto`, `light` or `dark`.
@@ -141,6 +150,10 @@ impl Modes {
             adjectives: session.syntax().adjectives,
             adverbs: session.syntax().adverbs,
             conjunctions: session.syntax().conjunctions,
+            style: session.style().enabled,
+            fillers: session.style().fillers,
+            redundancies: session.style().redundancies,
+            cliches: session.style().cliches,
             dark: session.scheme() == Scheme::Dark,
             theme: session.theme().as_str(),
             face: session.face().as_str(),
@@ -382,6 +395,10 @@ pub fn reflect(map: &impl IsA<gio::ActionMap>, modes: Modes) {
     set("syntax.adjectives", modes.adjectives.to_variant());
     set("syntax.adverbs", modes.adverbs.to_variant());
     set("syntax.conjunctions", modes.conjunctions.to_variant());
+    set("style.toggle", modes.style.to_variant());
+    set("style.fillers", modes.fillers.to_variant());
+    set("style.redundancies", modes.redundancies.to_variant());
+    set("style.cliches", modes.cliches.to_variant());
     set("theme.toggle", modes.dark.to_variant());
     set("window.fullscreen", modes.fullscreen.to_variant());
     // The row reads "Hide Bars", so its check is on when the bars are hidden.
@@ -486,6 +503,10 @@ fn run_window(window: &Window, command: &Command) {
         "syntax.conjunctions" => {
             window.toggle_syntax(SyntaxToggle::Category(Category::Conjunctions))
         }
+        "style.toggle" => window.toggle_style(StyleToggle::Enabled),
+        "style.fillers" => window.toggle_style(StyleToggle::List(List::Fillers)),
+        "style.redundancies" => window.toggle_style(StyleToggle::List(List::Redundancies)),
+        "style.cliches" => window.toggle_style(StyleToggle::List(List::Cliches)),
         "chrome.toggle" => window.toggle_bars(),
         "library.toggle" => window.toggle_library(),
         // Two rows, each its own layout's toggle: the chord opens the pane in
@@ -1452,13 +1473,40 @@ const fn slot(menu: Menu) -> usize {
 /// A bar's hairline (`transform: scaleY(.5)` of a 1 px rule), in the rule's
 /// colour, hidden until the page scrolls under it.
 fn rule(edge: gtk::Align) -> gtk::DrawingArea {
-    hairline("chrome-rule", edge, false)
+    hairline("chrome-rule", edge, false, Weight::Half)
 }
 
-/// A hairline one device pixel high along `edge` of the widget it is put
-/// in, taking its colour from `class`'s CSS `color`: the bars' rules and the
-/// Palette's line under its field.
-pub(crate) fn hairline(class: &str, edge: gtk::Align, visible: bool) -> gtk::DrawingArea {
+/// How thick a [`hairline`] lays its row down, in logical pixels: the bars'
+/// half, which is the `transform: scaleY(.5)` of the oracle's 1 px rule, or
+/// the whole one a CSS `border: 1px` of the same colour lays down, which is
+/// what the Palette's panel border carries (#374).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Weight {
+    /// Half a logical pixel: the bars' rules.
+    Half,
+    /// A whole logical pixel: the Palette's line under its field.
+    Whole,
+}
+
+impl Weight {
+    /// The row's height in logical pixels.
+    const fn pixels(self) -> f64 {
+        match self {
+            Self::Half => 0.5,
+            Self::Whole => 1.0,
+        }
+    }
+}
+
+/// A hairline `weight` logical pixels high along `edge` of the widget it is
+/// put in, taking its colour from `class`'s CSS `color`: the bars' rules and
+/// the Palette's line under its field.
+pub(crate) fn hairline(
+    class: &str,
+    edge: gtk::Align,
+    visible: bool,
+    weight: Weight,
+) -> gtk::DrawingArea {
     let rule = gtk::DrawingArea::builder()
         .css_classes([class])
         .content_height(1)
@@ -1469,15 +1517,17 @@ pub(crate) fn hairline(class: &str, edge: gtk::Align, visible: bool) -> gtk::Dra
         .build();
     rule.set_draw_func(move |area, cr, width, height| {
         // Half a logical pixel is one device pixel at the Gate's scale, and
-        // with no antialiasing it is exactly one row.
+        // with no antialiasing it is exactly one row; a whole one is the two
+        // rows a 1 px border lays down beside it.
         cr.set_antialias(cairo::Antialias::None);
         source(area, cr, 1.0);
+        let pixels = weight.pixels();
         let top = if edge == gtk::Align::Start {
             0.0
         } else {
-            f64::from(height) - 0.5
+            f64::from(height) - pixels
         };
-        cr.rectangle(0.0, top, f64::from(width), 0.5);
+        cr.rectangle(0.0, top, f64::from(width), pixels);
         let _ = cr.fill();
     });
     rule
@@ -1653,6 +1703,17 @@ mod tests {
             Rc::new(move |command| log.borrow_mut().push(command.id)),
         );
         (map, fired)
+    }
+
+    /// The bars' rule is the oracle's 1 px rule at `scaleY(.5)`, which is
+    /// one device pixel at the Gate's scale 2; the Palette's line under its
+    /// field is the whole logical pixel its panel border is drawn at, so
+    /// that the two edges in one panel read as one weight (#374).
+    #[test]
+    fn a_bars_hairline_is_half_a_logical_pixel_and_the_palettes_is_a_whole_one() {
+        assert!((Weight::Half.pixels() - 0.5).abs() < f64::EPSILON);
+        assert!((Weight::Whole.pixels() - 1.0).abs() < f64::EPSILON);
+        assert_eq!(Weight::Whole.pixels(), 2.0 * Weight::Half.pixels());
     }
 
     #[test]
@@ -1929,6 +1990,62 @@ mod tests {
                 ("syntax.adjectives", false),
                 ("syntax.adverbs", true),
                 ("syntax.conjunctions", false),
+            ] {
+                assert_eq!(
+                    map.action_state(id).unwrap().get::<bool>(),
+                    Some(checked),
+                    "{id}"
+                );
+            }
+        }
+        std::fs::remove_file(path).ok();
+    }
+
+    #[test]
+    fn all_four_style_commands_are_enabled_and_fire_by_their_registered_names() {
+        let (map, fired) = map(Scope::Win);
+        let commands = [
+            "style.toggle",
+            "style.fillers",
+            "style.redundancies",
+            "style.cliches",
+        ];
+        for id in commands {
+            assert!(map.is_action_enabled(id), "{id}");
+            map.activate_action(id, None);
+        }
+        assert_eq!(fired.borrow().as_slice(), commands);
+    }
+
+    /// The master and the three Lists are separate state: the master off and
+    /// on again leaves every List where the writer left it (#356).
+    #[test]
+    fn style_checks_reflect_the_live_table_with_lists_kept_while_the_master_is_off() {
+        let (map, _) = map(Scope::Win);
+        let path =
+            std::env::temp_dir().join(format!("quill-style-reflect-{}.toml", std::process::id()));
+        let session = Session::open(
+            crate::flags::Flags {
+                settings: Some(path.clone()),
+                ..crate::flags::Flags::default()
+            },
+            None,
+        );
+        let (settings, notes) = quill_engine::settings::Settings::parse(
+            "[style_check]\nenabled = false\nfillers = false\nredundancies = true\ncliches = false\n",
+        );
+        assert!(notes.is_empty());
+        session.apply(settings);
+        for on in [false, true, false] {
+            if session.style().enabled != on {
+                session.toggle_style(StyleToggle::Enabled);
+            }
+            reflect(&map, Modes::of(&session, false, false, false));
+            for (id, checked) in [
+                ("style.toggle", on),
+                ("style.fillers", false),
+                ("style.redundancies", true),
+                ("style.cliches", false),
             ] {
                 assert_eq!(
                     map.action_state(id).unwrap().get::<bool>(),

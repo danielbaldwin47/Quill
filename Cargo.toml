@@ -16,6 +16,11 @@ quill-engine = { path = "quill-engine" }
 # `gtk` belongs to the app crate alone (ADR 0008); the engine must stay
 # buildable and testable with no display attached.
 gtk = { package = "gtk4", version = "0.11", features = ["v4_22"] }
+# Style check matches its three lists over one automaton (`style`). Already in
+# the lockfile — `regex-automata` under `notify` pulls it — so naming it here
+# compiles nothing new, and no other crate does what it does at a paragraph's
+# scale: a phrase list is not a regex.
+aho-corasick = "1"
 # `pdf` is the surface Export writes a file on and `v1_16` what puts the
 # document metadata and the heading bookmarks on it (`docs/architecture.md`
 # § Preview and Export); the app crate reaches the same crate through `gtk`.

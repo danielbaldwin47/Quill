@@ -5,8 +5,10 @@
 //! A model is a pure function of the registry and the modes: the rows are
 //! the Commands placed in that menu, in the table's order; the View menu's
 //! sections are `GMenu` sections, which `GtkPopoverMenu` draws with a
-//! separator between them; the Syntax highlight rows are a nested submenu
-//! under their head, and the Template section is a nested submenu of its own
+//! separator between them; a Writing tools head named in [`SUBMENU_HEADS`]
+//! draws the rows of its own Command prefix as a nested submenu under it, the
+//! Syntax highlight rows being the one such head today, and the Template
+//! section is a nested submenu of its own
 //! name. The Document menu's five `export.` rows are a nested submenu of
 //! their own name too, and Print… stands in a section of its own beneath it,
 //! which is the separator on each side of it. A row's action is the Command's,
@@ -30,9 +32,12 @@ use quill_engine::document::shown_name;
 
 use crate::chrome::{self, Modes, RECENT_OPEN};
 
-/// The head of the Syntax highlight submenu, whose five rows are the
-/// `syntax.` Commands that follow it in the table.
-const SYNTAX_HEAD: &str = "syntax.toggle";
+/// The View menu's submenu heads, each keyed by the Command prefix that folds
+/// under it: a head is itself a Command, and every other Command sharing its
+/// prefix is one of the submenu's rows, in the table's order. Syntax
+/// highlight and Style check are the two Annotators with a head, and a third
+/// is a third row here and no other edit in this module (#362).
+const SUBMENU_HEADS: &[(&str, &str)] = &[("syntax.", "syntax.toggle"), ("style.", "style.toggle")];
 /// The section the Parity oracle heads with a label; the rest read as groups
 /// between separators.
 const HEADED: &str = "Typeface";
@@ -178,23 +183,40 @@ fn mnemonic_free(name: &str) -> String {
     name.replace('_', "__")
 }
 
-/// The View menu's rows of one section, the Syntax highlight rows folded
-/// into their submenu.
+/// The View menu's rows of one section, each [`SUBMENU_HEADS`] head's rows
+/// folded into its submenu.
 fn view_section(rows: &[(&'static Command, &'static Placement)], modes: &Modes) -> gio::Menu {
+    section_with_heads(SUBMENU_HEADS, rows, modes)
+}
+
+/// The same against a head table of the caller's, which is how the tests read
+/// a second head without a second Annotator's Commands.
+///
+/// A head draws its own check first, then its rows in the table's order; a row
+/// whose head has not been drawn yet, and a row under no head at all, stays
+/// where the Commands table put it.
+fn section_with_heads(
+    heads: &'static [(&'static str, &'static str)],
+    rows: &[(&'static Command, &'static Placement)],
+    modes: &Modes,
+) -> gio::Menu {
     let section = gio::Menu::new();
-    let mut folded = false;
+    let mut folded: Vec<&'static str> = Vec::new();
     for (command, placement) in rows {
-        if command.id == SYNTAX_HEAD {
+        if let Some((prefix, _)) = heads.iter().find(|(_, head)| command.id == *head) {
             let submenu = gio::Menu::new();
             submenu.append_item(&item(command, placement, modes));
             let kinds = gio::Menu::new();
-            for (member, placement) in rows.iter().filter(|(member, _)| is_syntax_kind(member)) {
+            for (member, placement) in rows
+                .iter()
+                .filter(|(member, _)| folds_under(member, heads) == Some(*prefix))
+            {
                 kinds.append_item(&item(member, placement, modes));
             }
             submenu.append_section(None, &kinds);
             section.append_item(&gio::MenuItem::new_submenu(Some(placement.label), &submenu));
-            folded = true;
-        } else if !(folded && is_syntax_kind(command)) {
+            folded.push(prefix);
+        } else if !folds_under(command, heads).is_some_and(|prefix| folded.contains(&prefix)) {
             section.append_item(&item(command, placement, modes));
         }
     }
@@ -204,9 +226,9 @@ fn view_section(rows: &[(&'static Command, &'static Placement)], modes: &Modes) 
 /// The [`SUBMENU`] section as one row that opens a submenu: the five Template
 /// radios, a separator, then the three toggles that bend the one chosen.
 ///
-/// The Syntax highlight submenu hangs off a head row that is itself a Command
-/// ([`SYNTAX_HEAD`]); this one has no head — the section's own name is the row
-/// — because a Template is not a thing to switch on and off.
+/// A Writing tools submenu hangs off a head row that is itself a Command
+/// ([`SUBMENU_HEADS`]); this one has no head — the section's own name is the
+/// row — because a Template is not a thing to switch on and off.
 fn template_section(
     name: &'static str,
     rows: &[(&'static Command, &'static Placement)],
@@ -235,9 +257,17 @@ fn is_export(command: &Command) -> bool {
     command.id.starts_with(EXPORT_PREFIX)
 }
 
-/// A `syntax.` Command other than the head: one of the submenu's rows.
-fn is_syntax_kind(command: &Command) -> bool {
-    command.id != SYNTAX_HEAD && command.id.starts_with("syntax.")
+/// The prefix of the `heads` head `command` folds under: the prefix it shares
+/// with a head without being that head. A head itself, and a Command of no
+/// head's prefix, fold under nothing.
+fn folds_under(
+    command: &Command,
+    heads: &'static [(&'static str, &'static str)],
+) -> Option<&'static str> {
+    heads
+        .iter()
+        .find(|(prefix, head)| command.id != *head && command.id.starts_with(*prefix))
+        .map(|(prefix, _)| *prefix)
 }
 
 /// The Commands placed in `menu`, each with that placement, in the table's
@@ -579,11 +609,11 @@ mod tests {
         }
     }
 
-    /// The Syntax highlight rows are a submenu under their head: the head's
-    /// own check first, then the five kinds, and none of them loose in the
-    /// section.
+    /// Each Annotator's rows are a submenu under their head: the head's own
+    /// check first, then its kinds or Lists, and none of them loose in the
+    /// section. Spell check, which no head claims yet, stays a loose row.
     #[test]
-    fn the_syntax_rows_are_a_submenu_under_their_head() {
+    fn every_head_takes_its_own_rows_into_a_submenu() {
         let model = model(Menu::View, &Modes::default(), &[]);
         let tools = model.item_link(2, "section").expect("Writing tools");
         let loose: Vec<String> = (0..tools.n_items())
@@ -594,14 +624,16 @@ mod tests {
             })
             .collect();
         assert_eq!(loose, ["Syntax Highlight", "Style Check", "Spell Check"]);
-        let submenu = tools.item_link(0, "submenu").expect("the submenu");
-        let inside: Vec<String> = rows_of(&submenu)
-            .into_iter()
-            .flatten()
-            .map(|row| row.label)
-            .collect();
+        let inside = |at: i32| -> Vec<String> {
+            let submenu = tools.item_link(at, "submenu").expect("the submenu");
+            rows_of(&submenu)
+                .into_iter()
+                .flatten()
+                .map(|row| row.label)
+                .collect()
+        };
         assert_eq!(
-            inside,
+            inside(0),
             [
                 "Syntax Highlight",
                 "Nouns",
@@ -611,6 +643,50 @@ mod tests {
                 "Conjunctions"
             ]
         );
+        assert_eq!(
+            inside(1),
+            ["Style Check", "Fillers", "Redundancies", "Clichés"]
+        );
+    }
+
+    /// A second head in the table folds its own prefix's rows under it and
+    /// leaves a row of neither prefix where the Commands table put it, which
+    /// is the shape a second Annotator's toggles land in (#362). Read on the
+    /// Focus section, whose `focus.` rows no head claims on the page: under a
+    /// table that heads them, Sentence and Paragraph draw inside the head's
+    /// submenu and Typewriter and Live stay loose beneath it.
+    #[test]
+    fn a_second_head_folds_its_own_rows_and_leaves_a_headless_row_in_place() {
+        const HEADS: &[(&str, &str)] = &[("syntax.", "syntax.toggle"), ("focus.", "focus.toggle")];
+        let focus: Vec<_> = rows(Menu::View)
+            .filter(|(_, placement)| placement.section == Some("Focus"))
+            .collect();
+        let section = section_with_heads(HEADS, &focus, &Modes::default());
+        let loose: Vec<String> = (0..section.n_items())
+            .filter_map(|i| {
+                section
+                    .item_attribute_value(i, "label", Some(glib::VariantTy::STRING))
+                    .and_then(|value| value.get::<String>())
+            })
+            .collect();
+        // The row that opens a submenu carries the placement's label whole,
+        // which is why a head whose label is a pair reads as both halves; no
+        // head the table names is written as a pair.
+        assert_eq!(
+            loose,
+            [
+                "Enable Focus Mode / Disable Focus Mode",
+                "Typewriter",
+                "Live"
+            ]
+        );
+        let submenu = section.item_link(0, "submenu").expect("the submenu");
+        let inside: Vec<String> = rows_of(&submenu)
+            .into_iter()
+            .flatten()
+            .map(|row| row.label)
+            .collect();
+        assert_eq!(inside, ["Enable Focus Mode", "Sentence", "Paragraph"]);
     }
 
     /// The Template section is one row that opens a submenu named for it: the
