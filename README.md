@@ -48,10 +48,10 @@ tools/gate check                          # what every commit must pass: format,
 display in its environment — stopping at the first failure, and ending in one line the owner can read,
 `gate check: pass` or `gate check: fail (<step>)`.
 
-Data files — the six Quill Faces, Inter and Source Serif 4, their `OFL` licences — resolve from one
-directory: `$QUILL_DATA_DIR` if it is set, else the path the package build compiled in
-(`/usr/share/quill`), else this checkout. Templates are not data files: they are compiled into the
-binary (`quill-engine/templates/`).
+Data files — the six Quill Faces, Inter and Source Serif 4, their `OFL` licences, and the three
+Style check lists under `data/style/` — resolve from one directory: `$QUILL_DATA_DIR` if it is set,
+else the path the package build compiled in (`/usr/share/quill`), else this checkout. Templates are
+not data files: they are compiled into the binary (`quill-engine/templates/`).
 
 ### Theme Quill with the desktop
 
@@ -145,6 +145,8 @@ quill/          the app crate: GtkApplication, window, editor, flags, harness
 quill-engine/   the display-free half: text model, Markdown, Annotators, Library, settings, rendering
 fonts/          the six Quill Faces, Inter and Source Serif 4 (private, loaded at startup) + their
                 OFL licences
+data/style/     the three Style check lists (fillers, redundancies, clichés) + SOURCES.md and the
+                licence texts its sources require
 tools/          the Gate: `gate check`, and its helpers — blind pairs, progress page, uinput keys,
                 idle check, font build (`npm i` at the root once, for the three that drive a browser)
 legacy/         the JavaScript app as it won, and the Parity oracle (bin/quill, app/, tools/, BRIEF.md, NOTES.md)
@@ -158,7 +160,8 @@ PKGBUILD        the Arch package;  packaging/  the .desktop file and the icon
 
 Licences: the native app and everything at the root are GPL-3.0-or-later (`LICENSE`); `legacy/` is ISC
 (`legacy/LICENSE`); the Faces and the iA Writer fonts are SIL OFL 1.1; the bundled `harper-brill`
-tagger is Apache-2.0 (`packaging/harper-brill-LICENSE`).
+tagger is Apache-2.0 (`packaging/harper-brill-LICENSE`); the Style check lists carry entries under
+MIT, BSD-3-Clause and CC0-1.0 beside Quill's own (`data/style/SOURCES.md`).
 
 ## Known gaps the critic still named on winning rounds
 
