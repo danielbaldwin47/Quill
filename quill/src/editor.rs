@@ -877,6 +877,11 @@ impl Editor {
         self.repaint_spans(document);
     }
 
+    /// Whether an Annotator has a paragraph still to ask the worker about.
+    pub(crate) fn asking(&self) -> bool {
+        self.imp().syntax.borrow().asking()
+    }
+
     /// Draws every line again from the spans the state already holds.
     fn repaint_spans(&self, document: &Document) {
         self.imp().fade.take();
