@@ -1473,39 +1473,39 @@ const fn slot(menu: Menu) -> usize {
 /// A bar's hairline (`transform: scaleY(.5)` of a 1 px rule), in the rule's
 /// colour, hidden until the page scrolls under it.
 fn rule(edge: gtk::Align) -> gtk::DrawingArea {
-    hairline("chrome-rule", edge, false, Hair::Device)
+    hairline("chrome-rule", edge, false, Weight::Half)
 }
 
-/// How thick a [`hairline`] lays its row down: the bars' half a logical
-/// pixel, which is one device pixel at the Gate's scale, or the whole
-/// logical pixel a CSS border of the same colour would lay down, which is
-/// the weight the Palette's panel border carries (#374).
+/// How thick a [`hairline`] lays its row down, in logical pixels: the bars'
+/// half, which is the `transform: scaleY(.5)` of the oracle's 1 px rule, or
+/// the whole one a CSS `border: 1px` of the same colour lays down, which is
+/// what the Palette's panel border carries (#374).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum Hair {
-    /// One device pixel: `transform: scaleY(.5)` of a 1 px rule.
-    Device,
-    /// One logical pixel, the weight of `border: 1px`.
-    Logical,
+pub(crate) enum Weight {
+    /// Half a logical pixel: the bars' rules.
+    Half,
+    /// A whole logical pixel: the Palette's line under its field.
+    Whole,
 }
 
-impl Hair {
+impl Weight {
     /// The row's height in logical pixels.
-    const fn weight(self) -> f64 {
+    const fn pixels(self) -> f64 {
         match self {
-            Self::Device => 0.5,
-            Self::Logical => 1.0,
+            Self::Half => 0.5,
+            Self::Whole => 1.0,
         }
     }
 }
 
-/// A hairline `hair` high along `edge` of the widget it is put in, taking
-/// its colour from `class`'s CSS `color`: the bars' rules and the Palette's
-/// line under its field.
+/// A hairline `weight` logical pixels high along `edge` of the widget it is
+/// put in, taking its colour from `class`'s CSS `color`: the bars' rules and
+/// the Palette's line under its field.
 pub(crate) fn hairline(
     class: &str,
     edge: gtk::Align,
     visible: bool,
-    hair: Hair,
+    weight: Weight,
 ) -> gtk::DrawingArea {
     let rule = gtk::DrawingArea::builder()
         .css_classes([class])
@@ -1521,13 +1521,13 @@ pub(crate) fn hairline(
         // rows a 1 px border lays down beside it.
         cr.set_antialias(cairo::Antialias::None);
         source(area, cr, 1.0);
-        let weight = hair.weight();
+        let pixels = weight.pixels();
         let top = if edge == gtk::Align::Start {
             0.0
         } else {
-            f64::from(height) - weight
+            f64::from(height) - pixels
         };
-        cr.rectangle(0.0, top, f64::from(width), weight);
+        cr.rectangle(0.0, top, f64::from(width), pixels);
         let _ = cr.fill();
     });
     rule
@@ -1703,6 +1703,17 @@ mod tests {
             Rc::new(move |command| log.borrow_mut().push(command.id)),
         );
         (map, fired)
+    }
+
+    /// The bars' rule is the oracle's 1 px rule at `scaleY(.5)`, which is
+    /// one device pixel at the Gate's scale 2; the Palette's line under its
+    /// field is the whole logical pixel its panel border is drawn at, so
+    /// that the two edges in one panel read as one weight (#374).
+    #[test]
+    fn a_bars_hairline_is_half_a_logical_pixel_and_the_palettes_is_a_whole_one() {
+        assert!((Weight::Half.pixels() - 0.5).abs() < f64::EPSILON);
+        assert!((Weight::Whole.pixels() - 1.0).abs() < f64::EPSILON);
+        assert_eq!(Weight::Whole.pixels(), 2.0 * Weight::Half.pixels());
     }
 
     #[test]

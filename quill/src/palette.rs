@@ -128,11 +128,13 @@ const EMPTY: Empty = Empty {
 /// the oracle's bare input; each `row` of the list is one of the oracle's
 /// `li`, selected or a heading.
 ///
-/// The placeholder is the menus' dim at `opacity: 1` because GTK's own
-/// theme dims that node the way it dims a `.dim-label`, and the dim at 0.55
-/// over the panel is a second, paler grey under the one thing here a writer
-/// types into: one grey for the prompt, the magnifier, the caps and the
-/// chords (#374).
+/// The placeholder is the menus' dim at `opacity: 1` because the dim alone
+/// did not survive. The shot that lost round 9 — measured in #374's body,
+/// from the round the #371 branch carries — reads the prompt at `#BABABA`
+/// against the `#8C8C8C` of the caps, the magnifier and the chords beside
+/// it: `#8c8c8c` at alpha 0.55 over the panel's `#f2f2f2`, and 0.55 is the
+/// opacity GTK's Default theme gives the `placeholder` node along with
+/// `.dim-label`. One grey for all four now.
 pub fn stylesheet(scheme: Scheme) -> String {
     let chrome::MenuInk {
         ground,
@@ -332,7 +334,7 @@ impl Palette {
             "palette-rule",
             gtk::Align::Start,
             true,
-            chrome::Hair::Logical,
+            chrome::Weight::Whole,
         ));
         panel.append(&scroller);
 
