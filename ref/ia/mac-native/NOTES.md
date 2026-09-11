@@ -194,6 +194,31 @@ The bar covers the whole left side bearing of the glyph that follows and stops e
 starts. Because the two abut and never overlap, **iA's paint order still cannot be read** — which is
 what ADR 0013 said of the Windows build and is equally true here.
 
+### The ends are capped, not square
+
+Read row by row over the bar's own columns, both frames, through the reader `tools/keys-assert.mjs`
+uses (`decodePng` and `readBar`, which take the bar as x 816 … 822 y 280 … 353 on its blue lean).
+Each row below is the six columns x 816 … 821 of the bar, and the count is how many of them carry
+the core's chroma in full:
+
+| row | dark | light | of the bar's 6 columns |
+|---|---|---|---|
+| y 280, the end row | `#144353 #0d7091 #0b7ba0 #115870` over x 817 … 820, x 816 and 821 paper | `#bbe9f9 #77dafc #66d6fc #9be2f9` over x 817 … 820, x 816 and 821 paper | **4 columns, all blended, none full** |
+| y 281 | `#13495c #059dcf #00bfff #00bfff #01b7f3 #0d6f90` | `#b0e7f9 #34cbfd #00bfff #00bfff #0dc2ff #79dbfb` | all 6, the two outer ones blended, **2 full** |
+| y 282 | `#0a80a7 #00bfff #00bfff #00bfff #00bfff #00bdfb` | `#5fd5fc #00bfff #00bfff #00bfff #00bfff #04c0ff` | all 6, only the two corners short, **5 full** |
+| y 283 onward | `#0793c1` then flat `#00bfff` | `#43cefd` then flat `#00bfff` | the core row's own reading |
+
+The bottom end mirrors it exactly in both themes: y 353 is y 280's row, y 352 is y 281's, y 351 is
+y 282's. So the bar narrows over three rows at each end, four columns wide at the last one — an
+antialiased **semicircular cap of radius 3 px on a 6 px bar**, a stadium and not a rectangle. The
+caps are inside the measured height: the 72 (dark) and 74 (light) above **include** them, so the
+column, width and centre rows are unchanged by this reading.
+
+This re-reads `VERDICTS.md` 3.5.7, which took the same rows as "1 px of corner antialiasing" and a
+square end; at 3 px of radius on a 72 px bar the claim it confirms — no rounding *visible* at these
+sizes — still holds, and the row stays as written. `docs/design.md` row **Caret ends** is what the
+port takes from this measurement.
+
 ## State 2 — caret at the end of a line
 
 `mac-native-02-dark-caret-line-end.png`, `mac-native-02-light-caret-line-end.png`

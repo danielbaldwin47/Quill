@@ -207,6 +207,7 @@ listed so the triage can see them, not because anything asks for them.
 | In a multi-row selection, interior rows fill the **whole container**, the first row starts at the anchor, the last runs from the container's left edge to the focus | 512 … 2511 / 920 … 2511 / 512 … 921 | 09-dark |
 | A multi-row band is **vertically continuous** — a lone held row is 70 px, stacked rows abut at the full 73 px pitch with no gap | 292 px = 4 × 73 | 09-dark |
 | The selection fill is **under the ink**: glyphs interrupt the band at their own columns | column scan | 09-dark |
+| The caret's two **ends are capped**, not square: the bar narrows over three rows at each end and is four columns wide at the last one, in both themes and mirrored top to bottom — a semicircular cap of radius half the width. 3.5.7 read the same rows as corner antialiasing on a square end and stays as written; what it confirms, no rounding *visible* at these sizes, holds at 3 px of radius on a 72 px bar | end row x 817 … 820 blended, none full; the next all 6 with 2 full; the third all 6 with 5 full; NOTES § State 1 § The ends are capped, not square | 01-dark, 01-light |
 | The blink is **suppressed while typing** and resumes 0.633 s after the last keystroke | solid on for 3.448 s | 05-*, `blink-typing.tsv` |
 | Typewriter mode holds the caret line at the **vertical centre** of the window | mid-point 948.0 of 1898 = 49.9 % | 15-dark |
 | **Typewriter is a value of the Focus scope popup**, alongside Sentence and Paragraph — not a separate mode | Settings → Editor | Settings |
