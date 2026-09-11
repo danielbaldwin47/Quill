@@ -68,7 +68,7 @@ on its first launch, and TOML refuses a key named twice. The template is in Omar
 the ground the theme's `mode` names; the other ground stays Quill's own.
 
 Any tool that writes TOML can theme Quill the same way: the file holds a `[light]` and a `[dark]` table
-whose keys are the nineteen roles in `docs/design.md` § The palette is a file (`paper`, `ink`, `accent`,
+whose keys are the twenty roles in `docs/design.md` § The palette is a file (`paper`, `ink`, `accent`,
 …) and whose values are `#rrggbb` or `#rrggbbaa`; whatever it leaves out stays the built-in, and
 `quill --theme light|dark` shows the built-in ground whatever the file says.
 

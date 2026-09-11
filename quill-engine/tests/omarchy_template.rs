@@ -14,7 +14,9 @@
 //! the theme's `mode` names, the other ground untouched, and each role the
 //! colour its mapping promises: the thirteen #159 § The template names,
 //! `link_rule`, which that list left out and the template chose for itself
-//! (#238), and the five Syntax highlight roles, which take the theme's own
+//! (#238), `quiet`, which takes the theme's `muted` because a struck run is
+//! quieted rather than coloured (#354), and the five Syntax highlight roles,
+//! which take the theme's own
 //! `red`, `blue`, `brown`, `magenta` and `green` (#312). The rules are a
 //! re-statement, so the Hand test on the owner's desktop (#159) is the check
 //! that they are Omarchy's; what this test guards is the template drifting
@@ -34,17 +36,19 @@ const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/omarchy-colors.
 
 /// Which theme key, or which blend, each role takes: the thirteen #159 § The
 /// template names, `link_rule` as the template's own choice, because the
-/// spec's list left it out (#238), and the five Syntax highlight roles, which
+/// spec's list left it out (#238), `quiet` for the same reason (#354), and the
+/// five Syntax highlight roles, which
 /// take the theme's named hues rather than a blend so that a desktop theme
 /// colours a Category the way it colours everything else (#312). A role
 /// missing here fails the test below by name.
-const MAPPING: [(Role, Source); 19] = [
+const MAPPING: [(Role, Source); 20] = [
     (Role::Paper, Source::Key("background")),
     (Role::Ink, Source::Key("foreground")),
     (Role::InkDim, Source::Key("dark_foreground")),
     (Role::Mark, Source::Key("muted")),
     (Role::Accent, Source::Key("accent")),
     (Role::Link, Source::Key("accent")),
+    (Role::Quiet, Source::Key("muted")),
     (Role::LinkRule, Source::Mix("accent", "background", 50)),
     (Role::Selection, Source::Key("selection")),
     (

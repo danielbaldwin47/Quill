@@ -181,6 +181,18 @@ pub enum Ink {
     /// stays in [`Ink::role`] with the other three. Only a token of the prose
     /// stream ever takes it, and only while its Category is switched on.
     Category(Category),
+    /// Style check's ink: the quiet tier a struck phrase is re-inked to,
+    /// glyphs and rule alike.
+    ///
+    /// The mark is not a line over the body's ink. The Design oracle re-inks
+    /// the run and rules it in the one colour, which is why this is an ink
+    /// here and not a decoration in the app's tag table (#354,
+    /// `ref/ia/mac-native/VERDICTS.md` § The Style Check mark). A struck
+    /// phrase therefore **loses** a Category it was carrying — Style check
+    /// outranks Syntax highlight on the same bytes, an ordering rather than a
+    /// layering — and out of focus it loses this in turn, because the dim is
+    /// one tier over everything ([`colour`]).
+    Struck,
 }
 
 impl Ink {
@@ -200,7 +212,43 @@ impl Ink {
             Self::Category(Category::Adjectives) => Role::SyntaxAdjective,
             Self::Category(Category::Adverbs) => Role::SyntaxAdverb,
             Self::Category(Category::Conjunctions) => Role::SyntaxConjunction,
+            Self::Struck => Role::Quiet,
         }
+    }
+}
+
+/// What the Annotators have to say about the bytes being painted.
+///
+/// Two Annotators reach the paint — Syntax highlight as `tagged` and the five
+/// switches that enable it, Style check as `struck` — and both arrive per
+/// paragraph from the same worker result, so they travel together rather than
+/// as five arguments through four call sites.
+#[derive(Clone, Copy)]
+pub struct Annotated<'a> {
+    /// Syntax highlight's tokens: a paragraph's Categories, in Document bytes.
+    pub tagged: &'a [(Range<usize>, Category)],
+    /// The writer's five Category switches. A Category switched off colours
+    /// nothing even where a token carries it.
+    pub enabled: Categories,
+    /// Style check's struck ranges, in Document bytes: the spans of the Lists
+    /// the writer has on, already merged across the whitespace between two
+    /// abutting spans so the rule the app draws over them is one unbroken line
+    /// (`docs/design.md` § Rows, Style check mark).
+    pub struck: &'a [Range<usize>],
+}
+
+impl Annotated<'_> {
+    /// Neither Annotator: what Markup alone paints.
+    pub const NONE: Self = Self {
+        tagged: &[],
+        enabled: Categories::NONE,
+        struck: &[],
+    };
+
+    /// Whether both Annotators have nothing to add, so the flattened runs can
+    /// be painted where they lie.
+    const fn is_empty(&self) -> bool {
+        (self.tagged.is_empty() || self.enabled.is_empty()) && self.struck.is_empty()
     }
 }
 
@@ -532,20 +580,20 @@ fn resolve(mark: Mark, under: Look) -> Look {
 /// `2(r + t + s)` runs emerge before [`push_run`] merges them. All three
 /// inputs are bounded by the blocks reaching the painted range, not the
 /// Document. #316's `syntax` keystroke benches pin this sweep's cost.
-fn tinted<'a>(
-    runs: &'a [Run],
-    spans: &[Span],
-    tagged: &[(Range<usize>, Category)],
-    enabled: Categories,
-) -> Cow<'a, [Run]> {
-    if enabled.is_empty() || tagged.is_empty() {
+fn tinted<'a>(runs: &'a [Run], spans: &[Span], annotated: Annotated) -> Cow<'a, [Run]> {
+    if annotated.is_empty() {
         return Cow::Borrowed(runs);
     }
+    let Annotated {
+        tagged,
+        enabled,
+        struck,
+    } = annotated;
     let tokens: Vec<&(Range<usize>, Category)> = tagged
         .iter()
         .filter(|(_, category)| enabled.contains(*category))
         .collect();
-    if tokens.is_empty() {
+    if tokens.is_empty() && struck.is_empty() {
         return Cow::Borrowed(runs);
     }
     let mut excluded: Vec<_> = spans
@@ -593,11 +641,15 @@ fn tinted<'a>(
         cuts.push(at.start);
         cuts.push(at.end);
     }
+    for at in struck {
+        cuts.push(at.start);
+        cuts.push(at.end);
+    }
     cuts.sort_unstable();
     cuts.dedup();
 
     let mut out = Vec::with_capacity(cuts.len());
-    let (mut run, mut token, mut barrier) = (0, 0, 0);
+    let (mut run, mut token, mut barrier, mut mark) = (0, 0, 0, 0);
     for edges in cuts.windows(2) {
         let at = edges[0]..edges[1];
         while runs.get(run).is_some_and(|open| open.at.end <= at.start) {
@@ -615,6 +667,9 @@ fn tinted<'a>(
         {
             barrier += 1;
         }
+        while struck.get(mark).is_some_and(|open| open.end <= at.start) {
+            mark += 1;
+        }
         let look = runs
             .get(run)
             .filter(|open| open.at.start <= at.start)
@@ -628,15 +683,52 @@ fn tinted<'a>(
                     .is_some_and(|open| open.start <= at.start)
             })
             .map(|&&(_, category)| category);
+        let marked = struck
+            .get(mark)
+            .is_some_and(|open| open.start <= at.start && at.end <= open.end);
         // Bytes in neither list are the plain prose Markup had no reason to
         // speak for, and [`paint_tagged_in`] is still the one that decides
         // whether they are drawn at all.
-        let Some(look) = look.or_else(|| category.map(|_| Look::PROSE)) else {
+        let Some(look) = look.or_else(|| (category.is_some() || marked).then_some(Look::PROSE))
+        else {
             continue;
         };
-        push_run(&mut out, at, category.map_or(look, |it| tint(look, it)));
+        // Style check last, and over the Category rather than beside it: a
+        // struck word loses the colour a Category gave it, which is the
+        // ordering #354 measured.
+        let look = category.map_or(look, |it| tint(look, it));
+        push_run(&mut out, at, if marked { strike(look) } else { look });
     }
     Cow::Owned(out)
+}
+
+/// `look` re-inked to the quiet tier, where the prose it strikes is on the
+/// page.
+///
+/// Style check's half of the precedence. It runs after [`tint`] and takes a
+/// Category's ink with the body's, because the Design oracle draws a struck
+/// word at the struck ink whether or not a Category had coloured it (#354,
+/// `ref/ia/mac-native/VERDICTS.md` § The Style Check mark). The same guard
+/// [`tint`] carries stands here for the same reason: a marker, a link's
+/// plumbing and a code span are not in the prose stream, so no span reaches
+/// one, and if a mapping ever hands one over it keeps the mark it has.
+///
+/// Weight, slant and ground are untouched, so a struck bold word stays bold,
+/// and the dim needs no arm: [`colour`] answers the dim tier before it
+/// consults the ink, so out of focus a struck word is the one grey with the
+/// rest of the row — the dims do not compound.
+fn strike(look: Look) -> Look {
+    match look {
+        Look {
+            ink: Ink::Prose | Ink::Category(_),
+            ground: Ground::Page,
+            ..
+        } => Look {
+            ink: Ink::Struck,
+            ..look
+        },
+        _ => look,
+    }
 }
 
 /// `look` with `category`'s ink, where the body's ink on the page is what it
@@ -678,6 +770,7 @@ fn tint(look: Look, category: Category) -> Look {
 /// | marker | `mark` | `ink_dim` |
 /// | link | `link` | `ink_dim` |
 /// | category | `syntax_*` | `ink_dim` |
+/// | struck | `quiet` | `ink_dim` |
 ///
 /// The bright column is the Markup colour untouched — Focus lights what the
 /// writer is in by leaving it alone — and the dim column is one grey, because
@@ -718,7 +811,7 @@ pub fn paint(
     focus: Focus,
     colours: &Colours,
 ) -> Vec<Painted> {
-    paint_tagged(spans, &[], Categories::NONE, len, tiers, focus, colours)
+    paint_tagged(spans, Annotated::NONE, len, tiers, focus, colours)
 }
 
 /// [`paint`], with Syntax highlight's tokens coloured into it.
@@ -733,14 +826,13 @@ pub fn paint(
 #[must_use]
 pub fn paint_tagged(
     spans: &[Span],
-    tagged: &[(Range<usize>, Category)],
-    enabled: Categories,
+    annotated: Annotated,
     len: usize,
     tiers: &[LineTiers],
     focus: Focus,
     colours: &Colours,
 ) -> Vec<Painted> {
-    paint_tagged_in(spans, tagged, enabled, &(0..len), tiers, focus, colours)
+    paint_tagged_in(spans, annotated, &(0..len), tiers, focus, colours)
 }
 
 /// [`paint`], over the bytes `at` and no others.
@@ -759,7 +851,7 @@ pub fn paint_in(
     focus: Focus,
     colours: &Colours,
 ) -> Vec<Painted> {
-    paint_tagged_in(spans, &[], Categories::NONE, at, tiers, focus, colours)
+    paint_tagged_in(spans, Annotated::NONE, at, tiers, focus, colours)
 }
 
 /// [`paint_tagged`], over the bytes `at` and no others: what a retag draws
@@ -771,8 +863,7 @@ pub fn paint_in(
 #[must_use]
 pub fn paint_tagged_in(
     spans: &[Span],
-    tagged: &[(Range<usize>, Category)],
-    enabled: Categories,
+    annotated: Annotated,
     at: &Range<usize>,
     tiers: &[LineTiers],
     focus: Focus,
@@ -781,7 +872,7 @@ pub fn paint_tagged_in(
     // Bound before the tint so the untagged path can borrow it: with no
     // Category to lay over them the flattened runs are used where they lie.
     let flattened = flatten(spans);
-    let runs = tinted(&flattened, spans, tagged, enabled);
+    let runs = tinted(&flattened, spans, annotated);
     // With Focus on every byte is spoken for, because the buffer's own ink is
     // the wrong colour for most of the page and the writer must not see it
     // anywhere. With Focus off the buffer is right about plain prose, and
@@ -2493,8 +2584,11 @@ mod tests {
         let tiers = tiers_of(doc, at, focus);
         paint_tagged(
             &markup(text),
-            tagged,
-            enabled,
+            Annotated {
+                tagged,
+                enabled,
+                struck: &[],
+            },
             text.len(),
             &tiers,
             focus,

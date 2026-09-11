@@ -53,7 +53,7 @@ use gtk::gdk;
 use gtk::pango;
 use gtk::prelude::*;
 use quill_engine::annotate::live::{self, Fold, Furniture, LiveLook};
-use quill_engine::annotate::{self, Ink, Look, Mark, Slant, Span, Weight};
+use quill_engine::annotate::{self, Annotated, Ink, Look, Mark, Slant, Span, Weight};
 use quill_engine::document::Document;
 use quill_engine::focus::{self, Focus, LineTiers, Tier};
 use quill_engine::settings::Face;
@@ -308,20 +308,20 @@ const STYLE_MARK: &str = "decoration-style-";
 /// takes that tag off the page and leaves the other two where they are, and
 /// the mark itself is one mark whichever List asked for it (#356).
 ///
-/// A decoration, layered over the flattened runs like [`underline`] rather
-/// than resolved into them, so a strike costs a run no colour, weight or
-/// slant: `docs/architecture.md` § Annotators fixes that for decorations, and
-/// it is why the same bytes can carry a Category's colour and this line at
-/// once.
+/// A Pango strikethrough and nothing else, because the colour is already
+/// there: the mark re-inks its run to [`Role::Quiet`] in the flattening
+/// ([`quill_engine::annotate::Ink::Struck`]), and a strikethrough with no
+/// colour of its own is drawn in the run's foreground. So the glyphs and the
+/// rule come out the one colour the Design oracle draws them in, the strike
+/// follows the run into the Focus dim, and a Category the word was carrying is
+/// gone before this tag is asked for (#354, `ref/ia/mac-native/VERDICTS.md`
+/// § The Style Check mark; `docs/design.md` § Rows, Style check mark).
 ///
-/// **Provisional** (#354, the capture that measures the mark against the
-/// Design oracle). A Pango strikethrough and nothing else: with no colour of
-/// its own the line takes the run's resolved colour, so it dims with Focus,
-/// goes red over a red noun under Syntax highlight and is the body's ink
-/// otherwise, at Pango's default thickness and position for the Face. What the
-/// capture finds — a colour, a [`Role`] if the colour is not the ink's, a
-/// thickness or a position — is one edit to this function and a
-/// `docs/design.md` row; until then no row is written.
+/// **The one departure**, noted in that row: the oracle rules 2 px centred on
+/// the x-height and Pango rules at the face's own `yStrikeoutPosition`, 2 px
+/// higher and 2.56 px thick at this size. A `gtk::TextTag` has no thickness or
+/// position to set, so this is Pango's line until the Face's metric is rebuilt
+/// or the Editor draws the rule itself.
 fn style_mark(buffer: &gtk::TextBuffer, list: List) -> gtk::TextTag {
     tag(buffer, &style_mark_name(list), |tag| {
         tag.set_strikethrough(true);
@@ -334,14 +334,17 @@ fn style_mark_name(list: List) -> String {
     format!("{STYLE_MARK}{}", list.key())
 }
 
-/// Strikes every enabled List's spans through, over the bytes `at`.
+/// Rules every mark Style check draws through, over the bytes `at`.
 ///
-/// After the colour runs and over them, because the mark is a decoration and
-/// the colour is the run's: a retag, a recolour or a repaint of those bytes
-/// changes what the words are drawn in and leaves the line across them alone.
-/// The spans the store holds are every List's; [`crate::syntax::Syntax::paints`]
-/// answers which of them are drawn, so a List switched off is a repaint and
-/// never a re-match.
+/// After the colour runs, which have already re-inked these same bytes to the
+/// struck ink: the rule takes that colour by carrying none of its own. The
+/// ranges are [`crate::syntax::Syntax::struck_in`]'s — the enabled Lists only,
+/// merged across the whitespace between two abutting spans so the line is
+/// unbroken — which is the same list the flattening inked, so the rule and the
+/// glyphs under it can never disagree about where a mark begins.
+///
+/// The spans the store holds are every List's, enabled or not, so a List
+/// switched off is a repaint and never a re-match.
 fn strike_lists(
     buffer: &gtk::TextBuffer,
     document: &Document,
@@ -349,10 +352,7 @@ fn strike_lists(
     at: &Range<usize>,
 ) {
     let syntax = painting.syntax.borrow();
-    for (span, list) in syntax.lists_in(document, at) {
-        if !syntax.paints(list) {
-            continue;
-        }
+    for (span, list) in syntax.struck_in(document, at) {
         let from = iter_at(buffer, document, span.start);
         let to = iter_at(buffer, document, span.end);
         buffer.apply_tag(&style_mark(buffer, list), &from, &to);
@@ -911,10 +911,18 @@ fn painted(
 ) -> Vec<annotate::Painted> {
     let syntax = painting.syntax.borrow();
     let tagged = syntax.spans_in(document, at);
+    let struck: Vec<Range<usize>> = syntax
+        .struck_in(document, at)
+        .into_iter()
+        .map(|(span, _)| span)
+        .collect();
     annotate::paint_tagged_in(
         spans,
-        &tagged,
-        syntax.categories(),
+        Annotated {
+            tagged: &tagged,
+            enabled: syntax.categories(),
+            struck: &struck,
+        },
         at,
         painting.tiers,
         painting.focus,
