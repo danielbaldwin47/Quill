@@ -56,6 +56,7 @@ export const ASSERTIONS = {
   'pdf-full': pdfFull,
   dialog: dialog,
   syntax: syntax,
+  style: style,
 };
 
 // How each rule wants its second shot taken: the state to shoot, and what to shoot it with.
@@ -69,6 +70,9 @@ export const ASSERTIONS = {
 // of the pane surround which the dialog shot must leave unchanged.
 // `syntax` removes Syntax highlight while preserving Focus and Live, so glyph coverage and the
 // bright rows are measured independently of the Category colours.
+// `style` removes Style check and leaves every other flag standing — the theme, Focus, Syntax
+// highlight and the selection all stay — so the reshoot is the same page without its marks, and
+// the difference between the two shots is the marks themselves.
 export const SECOND = {
   ghost: (s) => ({ state: s, options: { active: true } }),
   folded: (s) => ({ state: { ...s, flags: { ...s.flags, live: false } }, options: {} }),
@@ -78,6 +82,7 @@ export const SECOND = {
   'pdf-full': (s) => ({ state: s, options: { active: true } }),
   dialog: (s) => ({ state: { ...s, flags: { ...s.flags, export: null } }, options: { active: true } }),
   syntax: (s) => ({ state: { ...s, flags: { ...s.flags, syntax: 'off' } }, options: {} }),
+  style: (s) => ({ state: { ...s, flags: { ...s.flags, style: 'off' } }, options: {} }),
 };
 
 // The second shot one asserted state asks for: `{ state, options }` for `shootState`.
@@ -128,6 +133,7 @@ const CHECKS = {
   'pdf-full': bare('pdf-full'),
   dialog: bare('dialog'),
   syntax: syntaxSpec,
+  style: styleSpec,
 };
 
 // The built-ins, restated from quill-engine/src/theme.rs, Colours::{LIGHT,DARK}, which #308
@@ -279,6 +285,225 @@ function bare(kind) {
       throw new Error(`the ${kind} assertion takes nothing but its kind, and this one names ${extra.join(', ')}`);
     }
   };
+}
+
+// ---------- Style check ----------
+
+// The strikes, measured against the same page with the lists switched off.
+//
+// Nothing on the page moves when Style check comes on: colour, weight, slant and glyph geometry
+// belong to the flattened runs, and a strike is a decoration drawn over them (`docs/architecture.md`
+// § Annotators and the keystroke path). So the difference between the state's own shot and the same
+// state shot `--style off` is the marks and nothing else, and that difference is all this reads.
+//
+// Three facts, and they are three a still can hold:
+//
+//   * how many marks there are — thirteen with every List on `ref/style.md`, six with Fillers
+//     alone — which is the matcher's answer arriving on the page, and the count the engine's own
+//     fixture test names phrase by phrase;
+//   * that every mark is a thin rule lying along a line of prose, over columns that line has ink
+//     in, and that nothing outside the text column changed at all: a mark on paper, one in the
+//     margin, or a mark the height of a word is a span that reached the page in the wrong place;
+//   * that every ink a mark is drawn in is an ink the line it lies on is drawn in. That is what
+//     "the strike takes the word's own colour" means, and it is one sentence on every ground:
+//     dimmed with its word under Focus, red on a red noun under Syntax highlight, the body's ink
+//     over a selection fill, and the dark theme's ink on the dark ground. A mark the line has no
+//     such ink for — the light ground's ink after a theme switch, a mark still in the body's ink
+//     on a line Focus has dimmed whole — is the defect this catches.
+//
+// The inks are the line's rather than the struck columns' own, because a mark crosses the spaces
+// inside its phrase as well as the words, and a space is its own run: under Syntax highlight the
+// gap between two coloured words carries the body's ink, and a mark drawn across it carries that
+// ink too, with no coloured word under those columns to vouch for it. The line is the smallest
+// thing that holds every ink a mark may honestly take. The cost is named: a mark drawn in an ink
+// that belongs to another word on its own line passes, and so does a body-ink mark on a line Focus
+// has dimmed only half of. What turns this into a colour the rule can name outright is the capture.
+//
+// The phrases' rectangles are read off the reshoot rather than written into the state, because
+// where a phrase lands is the wrap's answer and not a fact about Style check: a passage reflowed
+// by a pixel would restate thirteen rectangles and prove nothing about the marks. What the state
+// names is how many marks it expects.
+//
+// What this does not read: which List a mark belongs to. All three draw the same mark by design
+// (#356 § The mark), so the pixels cannot tell them apart and neither can this — the Lists are
+// told apart by the count under `--style fillers` and by quill-engine/tests/style_fixture.rs.
+// The mark is provisional until the capture in
+// [#354](https://github.com/danielbaldwin47/Quill/issues/354) lands, and what a still can say
+// about a strikethrough with no colour of its own is what is written above.
+
+// How far apart two changed pixels may sit and still be one mark, in device px.
+//
+// A strike crossing a vertical stem leaves that stem unchanged — full ink under full ink is the
+// same pixel in both shots — so a mark arrives as a row of fragments with stem-wide gaps in it. A
+// stem at the judged scale is a few device px and the space between two words is sixteen, so ten
+// bridges every stem and joins no two phrases. A phrase's own inner spaces are struck through and
+// never a gap at all: Pango draws the rule across the whole run.
+const STYLE_GAP = 10;
+// The narrowest mark worth the name, in device px: `too`, the shortest struck phrase in the
+// fixture, is wider than this at every judged type size. Below it a mark is a speck.
+const STYLE_RUN = 10;
+// The thickest a rule may be before it is a fill rather than a strike, in device px.
+const STYLE_THICK = 8;
+// The share of a mark's columns the prose under it must carry ink in. A struck phrase is letters
+// and the spaces between them; a quarter is far under any line of type and far over bare paper.
+const STYLE_COVER = 0.25;
+// An 8-bit channel rounds once on its way to the page, the same allowance the syntax rule makes.
+const STYLE_ROUNDING = 2;
+
+function styleSpec(spec) {
+  const extra = Object.keys(spec).filter((k) => !['kind', 'runs'].includes(k));
+  if (extra.length) throw new Error(`the style assertion has unknown fields: ${extra.join(', ')}`);
+  if (!Number.isInteger(spec.runs) || spec.runs < 1 || spec.runs > 64) {
+    throw new Error(`the style runs are ${JSON.stringify(spec.runs)}, and a count of marks is a whole number from 1 to 64`);
+  }
+}
+
+// One full-image scan finds the changed pixels and the reference's text column and lines; the marks
+// are grown from the changed runs, which are far fewer than the pixels. Each mark then reads the
+// line of prose beneath it once. Work is O(width * height) with O(marks) auxiliary state.
+function style(spec, { lit, dim }) {
+  const source = decodePng(lit);
+  const page = decodePng(dim);
+  if (source.w !== page.w || source.h !== page.h) return no(`style shots differ in size: ${source.w}x${source.h} and ${page.w}x${page.h}`);
+  const paper = paperOf(source, page);
+  if (!paper) return no('style shots disagree about the paper at their corners');
+  const column = { left: source.w, right: -1, top: source.h, bottom: -1 };
+  for (let y = 0; y < source.h; y += 1) {
+    for (let x = 0; x < source.w; x += 1) {
+      if (!inked(source, x, y, paper)) continue;
+      column.left = Math.min(column.left, x);
+      column.right = Math.max(column.right, x);
+      column.top = Math.min(column.top, y);
+      column.bottom = Math.max(column.bottom, y);
+    }
+  }
+  if (column.right < column.left) return no('style reference has no text column');
+  const lines = bandsOf(source, { ...column, left: column.left - 1, right: column.right + 1 }, paper);
+  if (!lines.length) return no('style reference has no line of prose');
+
+  // The changed pixels, gathered per row into runs that bridge a stem.
+  const runs = [];
+  let changed = 0;
+  for (let y = 0; y < page.h; y += 1) {
+    let start = -1;
+    let last = -1;
+    for (let x = 0; x <= page.w; x += 1) {
+      const hit = x < page.w && !sameRgb([0, 1, 2].map((c) => at(page, x, y, c)), [0, 1, 2].map((c) => at(source, x, y, c)));
+      if (hit) {
+        changed += 1;
+        if (x < column.left || x > column.right || y < column.top || y > column.bottom) {
+          return no(`style changed a pixel outside the text column at ${x},${y}`);
+        }
+        if (start < 0) start = x;
+        last = x;
+        continue;
+      }
+      if (start >= 0 && (x >= page.w || x - last > STYLE_GAP)) {
+        runs.push({ y, left: start, right: last });
+        start = -1;
+      }
+    }
+  }
+  if (!changed) return no('style changed no pixel at all: the page carries no mark');
+
+  // The marks: runs that touch, row to row, are one mark. Grown in row order and then settled,
+  // because a mark whose first row is narrower than its second joins two groups on that second row.
+  const marks = [];
+  for (const run of runs) {
+    const found = marks.find((m) => run.y <= m.bottom + 1 && run.left <= m.right + STYLE_GAP && run.right >= m.left - STYLE_GAP);
+    if (found) {
+      found.bottom = Math.max(found.bottom, run.y);
+      found.left = Math.min(found.left, run.left);
+      found.right = Math.max(found.right, run.right);
+    } else marks.push({ top: run.y, bottom: run.y, left: run.left, right: run.right });
+  }
+  for (let joined = true; joined;) {
+    joined = false;
+    for (let i = 0; i < marks.length && !joined; i += 1) {
+      for (let j = i + 1; j < marks.length && !joined; j += 1) {
+        const a = marks[i];
+        const b = marks[j];
+        if (a.top > b.bottom + 1 || b.top > a.bottom + 1) continue;
+        if (a.left > b.right + STYLE_GAP || b.left > a.right + STYLE_GAP) continue;
+        a.top = Math.min(a.top, b.top);
+        a.bottom = Math.max(a.bottom, b.bottom);
+        a.left = Math.min(a.left, b.left);
+        a.right = Math.max(a.right, b.right);
+        marks.splice(j, 1);
+        joined = true;
+      }
+    }
+  }
+  if (marks.length !== spec.runs) {
+    return no(`style holds ${marks.length} marks and the state expects ${spec.runs}`);
+  }
+
+  // Each mark: a thin rule, along a line of prose, in that line's own inks.
+  const rowsUnder = new Set();
+  const inksOf = new Map();
+  for (const mark of marks) {
+    const where = box(mark);
+    if (mark.bottom - mark.top + 1 > STYLE_THICK) return no(`a style mark is ${mark.bottom - mark.top + 1} device px thick at ${where}, and a strike is a rule`);
+    if (mark.right - mark.left + 1 < STYLE_RUN) return no(`a style mark is ${mark.right - mark.left + 1} device px wide at ${where}, narrower than any struck phrase`);
+    const middle = (mark.top + mark.bottom) / 2;
+    const line = lines.find((l) => middle >= l.top && middle <= l.bottom);
+    if (!line) return no(`a style mark at ${where} lies where the page has no line of prose`);
+    rowsUnder.add(line.top);
+    if (!inksOf.has(line.top)) inksOf.set(line.top, inksAlong(source, line, paper));
+    const inks = inksOf.get(line.top);
+    let inkedColumns = 0;
+    for (let x = mark.left; x <= mark.right; x += 1) {
+      for (let y = line.top; y <= line.bottom; y += 1) {
+        if (!inked(source, x, y, paper)) continue;
+        inkedColumns += 1;
+        break;
+      }
+    }
+    const width = mark.right - mark.left + 1;
+    if (inkedColumns < width * STYLE_COVER) {
+      return no(`a style mark at ${where} crosses ink in ${inkedColumns} of its ${width} columns, and a strike lies on words`);
+    }
+    for (let y = mark.top; y <= mark.bottom; y += 1) {
+      for (let x = mark.left; x <= mark.right; x += 1) {
+        const rgb = [0, 1, 2].map((c) => at(page, x, y, c));
+        if (sameRgb(rgb, [0, 1, 2].map((c) => at(source, x, y, c)))) continue;
+        if (!among(inks, rgb)) return no(`a style mark is drawn in ${hex(rgb)} at ${x},${y}, an ink the line it lies on has not got`);
+      }
+    }
+  }
+  const why = `${marks.length} marks along ${rowsUnder.size} lines of prose, each in the inks of its own line; ${changed} changed pixels, none outside the text column`;
+  return { ours: true, why, marks, changed, lines: rowsUnder.size,
+    secondary: ['same-state --style off pixels supply the text column, the lines of prose and their inks',
+      'the mark is provisional until the capture in #354 lands; no critic (ADR 0017)'] };
+}
+
+// Every colour one line of prose is drawn in, packed.
+function inksAlong(png, line, paper) {
+  const inks = new Set();
+  for (let y = line.top; y <= line.bottom; y += 1) {
+    for (let x = line.left; x <= line.right; x += 1) {
+      if (!inked(png, x, y, paper)) continue;
+      inks.add((at(png, x, y, 0) << 16) | (at(png, x, y, 1) << 8) | at(png, x, y, 2));
+    }
+  }
+  return inks;
+}
+
+// Whether a colour is one of a line's inks, to the rounding an 8-bit channel allows.
+//
+// The neighbourhood is searched rather than the set scanned: a line of prose carries thousands of
+// antialiased colours and a mark a few hundred, and the answer is the same either way.
+function among(inks, rgb) {
+  for (let r = -STYLE_ROUNDING; r <= STYLE_ROUNDING; r += 1) {
+    for (let g = -STYLE_ROUNDING; g <= STYLE_ROUNDING; g += 1) {
+      for (let b = -STYLE_ROUNDING; b <= STYLE_ROUNDING; b += 1) {
+        const v = [rgb[0] + r, rgb[1] + g, rgb[2] + b];
+        if (v.some((n) => n < 0 || n > 255)) continue;
+        if (inks.has((v[0] << 16) | (v[1] << 8) | v[2])) return true;
+      }
+    }
+  }
+  return false;
 }
 
 // ---------- the ghost ----------

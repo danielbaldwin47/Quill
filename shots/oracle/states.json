@@ -502,6 +502,151 @@
           "live": true
         }
       }
+    },
+    "style": {
+      "on-light": {
+        "text": "ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 0,
+        "nocaret": true,
+        "theme": "light",
+        "syntax": "off",
+        "focus": "off",
+        "style": "on",
+        "assert": {
+          "kind": "style",
+          "runs": 13
+        }
+      },
+      "on-dark": {
+        "text": "ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 0,
+        "nocaret": true,
+        "theme": "dark",
+        "syntax": "off",
+        "focus": "off",
+        "style": "on",
+        "assert": {
+          "kind": "style",
+          "runs": 13
+        }
+      },
+      "fillers-light": {
+        "text": "ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 0,
+        "nocaret": true,
+        "theme": "light",
+        "syntax": "off",
+        "focus": "off",
+        "style": "fillers",
+        "assert": {
+          "kind": "style",
+          "runs": 6
+        }
+      },
+      "focus-light": {
+        "text": "ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 150,
+        "nocaret": true,
+        "theme": "light",
+        "syntax": "off",
+        "focus": "sentence",
+        "style": "on",
+        "assert": {
+          "kind": "style",
+          "runs": 13
+        }
+      },
+      "focus-dark": {
+        "text": "ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 150,
+        "nocaret": true,
+        "theme": "dark",
+        "syntax": "off",
+        "focus": "sentence",
+        "style": "on",
+        "assert": {
+          "kind": "style",
+          "runs": 13
+        }
+      },
+      "syntax-light": {
+        "text": "ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 0,
+        "nocaret": true,
+        "theme": "light",
+        "syntax": "on",
+        "focus": "off",
+        "style": "on",
+        "assert": {
+          "kind": "style",
+          "runs": 13
+        }
+      },
+      "syntax-dark": {
+        "text": "ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 0,
+        "nocaret": true,
+        "theme": "dark",
+        "syntax": "on",
+        "focus": "off",
+        "style": "on",
+        "assert": {
+          "kind": "style",
+          "runs": 13
+        }
+      },
+      "select-light": {
+        "text": "ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "select": [
+          115,
+          131
+        ],
+        "caret": 131,
+        "nocaret": true,
+        "theme": "light",
+        "syntax": "off",
+        "focus": "off",
+        "style": "on",
+        "assert": {
+          "kind": "style",
+          "runs": 13
+        }
+      },
+      "select-dark": {
+        "text": "ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "select": [
+          115,
+          131
+        ],
+        "caret": 131,
+        "nocaret": true,
+        "theme": "dark",
+        "syntax": "off",
+        "focus": "off",
+        "style": "on",
+        "assert": {
+          "kind": "style",
+          "runs": 13
+        }
+      }
     }
   },
   "keys": {

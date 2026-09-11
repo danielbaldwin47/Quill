@@ -518,7 +518,7 @@ ok('the ghost is measured off ours own pixels, and the alpha is solved rather th
   for (const alpha of [3, 0, 1, '0.3', undefined]) {
     assert.throws(() => validate({ kind: 'ghost', alpha }), /between 0 and 1/, `an alpha of ${alpha} was taken`);
   }
-  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'folded', 'split', 'full', 'pdf-split', 'pdf-full', 'dialog', 'syntax']);
+  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'folded', 'split', 'full', 'pdf-split', 'pdf-full', 'dialog', 'syntax', 'style']);
 });
 
 ok('the ghost refuses to read a bar it cannot see the ground beside, and never guesses one', () => {
@@ -757,6 +757,142 @@ ok('Syntax preserves captured marker, code and URL pixels, and a coloured protec
   const outside = assertState({ ...spec, protected: [[3000, 0, 2, 2]] }, pair);
   assert.equal(outside.ours, false);
   assert.match(outside.why, /outside the shot/);
+});
+
+// ---------- Style check ----------
+
+// A page of prose as the style rule reads one: lines of stems with paper between them.
+//
+// The stems are the point. A solid block of ink would hide every mark — full ink under full ink is
+// the same pixel in both shots, so a strike across it changes nothing — and it is the paper between
+// the stems that a strike is seen in, exactly as it is on the page. The gaps are also what the rule
+// has to bridge to count a mark once rather than once per letter, which is why the stems stand a
+// stem's width apart here.
+const STYLE_TOPS = [12, 34];
+const STYLE_ROW = 14;
+const STYLE_INK = [25, 25, 25];
+const STYLE_DIM = [150, 150, 150];
+
+// `words` and `marks` are `[line, left, right]` with an optional ink and, for a mark, a thickness.
+// A word is stems; a mark is a rule drawn through the middle of its line.
+function prose({ words = [], marks = [], w = 200, h = 60, paper = GROUND } = {}) {
+  const data = Buffer.alloc(w * h * 3);
+  for (let i = 0; i < w * h; i += 1) for (let c = 0; c < 3; c += 1) data[i * 3 + c] = paper[c];
+  const fill = (x, y, ink) => { for (let c = 0; c < 3; c += 1) data[(y * w + x) * 3 + c] = ink[c]; };
+  for (const [line, left, right, ink = STYLE_INK] of words) {
+    for (let x = left; x <= right; x += 1) {
+      if ((x - left) % 6 >= 2) continue;
+      for (let y = STYLE_TOPS[line]; y < STYLE_TOPS[line] + STYLE_ROW; y += 1) fill(x, y, ink);
+    }
+  }
+  for (const [line, left, right, ink = STYLE_INK, thick = 3] of marks) {
+    const top = (line === null ? 26 : STYLE_TOPS[line] + 6);
+    for (let y = top; y < top + thick; y += 1) for (let x = left; x <= right; x += 1) fill(x, y, ink);
+  }
+  return encodePng({ w, h, ch: 3, data });
+}
+
+const STYLE_WORDS = [[0, 20, 60], [0, 80, 120], [1, 20, 60], [1, 80, 160]];
+// The last stem of the widest word, and so the right edge of the text column: a mark may not
+// run past it, because a changed pixel outside that column is a defect of its own.
+const STYLE_EDGE = 159;
+const styleShots = (marks, words = STYLE_WORDS) => ({ lit: prose({ words }), dim: prose({ words, marks }) });
+const TWO = { kind: 'style', runs: 2 };
+
+ok('the marks are counted off ours own pixels, and each is held to the line it lies on', () => {
+  const held = assertState(TWO, styleShots([[0, 20, 60], [1, 80, STYLE_EDGE]]));
+  assert.equal(held.ours, true, held.why);
+  assert.equal(held.marks.length, 2);
+  assert.equal(held.lines, 2, held.why);
+  assert.match(held.why, /2 marks along 2 lines of prose/);
+
+  // A mark is one mark however many stems break it up: the count is the phrase, not the letters.
+  assert.equal(assertState({ kind: 'style', runs: 1 }, styleShots([[0, 20, 120]])).ours, true);
+
+  // Two marks on one line stay two, because a word's space is wider than a stem.
+  const pair = assertState(TWO, styleShots([[0, 20, 60], [0, 80, 120]]));
+  assert.equal(pair.ours, true, pair.why);
+});
+
+ok('a phrase left unstruck and a plain word struck are each the count going wrong', () => {
+  // The defect a writer would report as "it missed one": the matcher answered, the page did not.
+  const missing = assertState(TWO, styleShots([[0, 20, 60]]));
+  assert.equal(missing.ours, false);
+  assert.match(missing.why, /holds 1 marks and the state expects 2/);
+
+  // And its opposite: a mark over a word no list has in it.
+  const extra = assertState(TWO, styleShots([[0, 20, 60], [1, 80, STYLE_EDGE], [1, 20, 60]]));
+  assert.equal(extra.ours, false);
+  assert.match(extra.why, /holds 3 marks and the state expects 2/);
+
+  // A page with no mark at all is its own answer and never a silent pass.
+  const none = assertState(TWO, styleShots([]));
+  assert.equal(none.ours, false);
+  assert.match(none.why, /carries no mark/);
+});
+
+ok('a mark off the prose, mis-shapen or in an ink the line has not got is refused', () => {
+  // Between the lines: a span that reached the page in the wrong place.
+  const between = assertState({ kind: 'style', runs: 1 }, styleShots([[null, 20, 60]]));
+  assert.equal(between.ours, false);
+  assert.match(between.why, /no line of prose/);
+
+  // On a line, but over paper: the first line ends at 120 and the second runs to 160.
+  const paper = assertState({ kind: 'style', runs: 1 }, styleShots([[0, 130, STYLE_EDGE]]));
+  assert.equal(paper.ours, false);
+  assert.match(paper.why, /a strike lies on words/);
+
+  // A fill rather than a rule, and a speck rather than a mark.
+  const thick = assertState({ kind: 'style', runs: 1 }, styleShots([[0, 20, 60, STYLE_INK, 10]]));
+  assert.equal(thick.ours, false);
+  assert.match(thick.why, /a strike is a rule/);
+  const speck = assertState({ kind: 'style', runs: 1 }, styleShots([[0, 20, 26]]));
+  assert.equal(speck.ours, false);
+  assert.match(speck.why, /narrower than any struck phrase/);
+
+  // The ink. A mark in a colour its line has not got is the theme switch that repainted the runs
+  // and left the marks behind, and the body's ink on a line Focus has dimmed whole is the other
+  // half of the same fact: the strike takes the word's own colour or it is a defect.
+  const red = assertState({ kind: 'style', runs: 1 }, styleShots([[0, 20, 60, [187, 81, 42]]]));
+  assert.equal(red.ours, false);
+  assert.match(red.why, /an ink the line it lies on has not got/);
+  const dimmed = STYLE_WORDS.map(([line, left, right]) => [line, left, right, STYLE_DIM]);
+  const undimmed = assertState({ kind: 'style', runs: 1 }, styleShots([[0, 20, 60]], dimmed));
+  assert.equal(undimmed.ours, false);
+  assert.match(undimmed.why, /an ink the line it lies on has not got/);
+  // The same mark drawn in the dim ink is the page working, and passes.
+  const withIt = assertState({ kind: 'style', runs: 1 }, styleShots([[0, 20, 60, STYLE_DIM]], dimmed));
+  assert.equal(withIt.ours, true, withIt.why);
+});
+
+ok('Style refuses a count that is not one, and a shot that is not of the same page', () => {
+  for (const runs of [0, 65, 1.5, '2', undefined, null]) {
+    assert.throws(() => validate({ kind: 'style', runs }), /a count of marks/, `runs of ${runs} was taken`);
+  }
+  assert.throws(() => validate({ kind: 'style', runs: 2, theme: 'light' }), /unknown fields: theme/);
+  const odd = assertState(TWO, { lit: prose({ words: STYLE_WORDS }), dim: prose({ words: STYLE_WORDS, w: 201 }) });
+  assert.equal(odd.ours, false);
+  assert.match(odd.why, /differ in size/);
+
+  // Ink that arrives past the last glyph on the page is not a mark, whatever its shape.
+  const past = assertState({ kind: 'style', runs: 1 }, styleShots([[0, 130, STYLE_EDGE + 4]]));
+  assert.equal(past.ours, false);
+  assert.match(past.why, /outside the text column/);
+});
+
+ok('the nine style states are asserted, and the companion shot is the same page with the lists off', () => {
+  assert.deepEqual(Object.keys(states.pieces.style), ['on-light', 'on-dark', 'fillers-light',
+    'focus-light', 'focus-dark', 'syntax-light', 'syntax-dark', 'select-light', 'select-dark']);
+  for (const state of resolveStates(states, 'style')) {
+    assert.equal(Boolean(state.opponent), false, `${state.name} is answered by arithmetic alone`);
+    validate(state.assert);
+    // The passage is the one the engine's fixture test and the capture in #354 use, so the three
+    // cannot drift; the count is the thirteen phrases it holds, or the six Fillers among them.
+    assert.equal(state.flags.text, 'ref/style.md', state.name);
+    assert.equal(state.assert.runs, state.flags.style === 'fillers' ? 6 : 13, state.name);
+    assert.deepEqual(secondShot(state.assert, state),
+      { state: { ...state, flags: { ...state.flags, style: 'off' } }, options: {} });
+  }
 });
 
 // ---------- the fold ----------
@@ -1332,6 +1468,10 @@ ok('every judged state that draws a determined caret is held to one, and no othe
   // when it is asked, one shot in three, and those states are about the sidebar beside the page.
   // `export/dialog` takes it for a reason of its own: the dialog is a surface over the page and the
   // keyboard is the dialog's while it is up, so the Editor under it draws the ghost by rights.
+  // Every `style` state takes it, and for the Piece's own reason: the marks are read as lines of
+  // ink, and a bar standing in a line of prose joins its band to the strikes' — what the caret is
+  // made of is the caret Piece's rows, not this one's. The two Focus states still place the caret,
+  // because that is what Focus scopes its sentence from; they only decline to draw it.
   // The two all-Category Syntax states that took a `mac-native` opponent in #319 take it because
   // their captures carry no bar to pair against — measured, not assumed: zero accent pixels in
   // both `308-original-mbp-{light,dark}-syntax-all`. Their sibling `syntax/focus-sentence` draws
@@ -1341,6 +1481,9 @@ ok('every judged state that draws a determined caret is held to one, and no othe
     'caret/selection', 'caret/unfocused', 'export/dialog', 'files/library', 'files/search',
     'focus/paragraph', 'focus/sentence',
     'markup/blocks', 'markup/gutters', 'markup/wrapped', 'preview/full', 'preview/pdf-full',
+    'style/fillers-light', 'style/focus-dark', 'style/focus-light', 'style/on-dark',
+    'style/on-light', 'style/select-dark', 'style/select-light', 'style/syntax-dark',
+    'style/syntax-light',
     'syntax/all-dark', 'syntax/all-light',
     'theme/dark', 'theme/light', 'type/mono',
   ]);
