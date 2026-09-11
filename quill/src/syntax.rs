@@ -168,7 +168,8 @@ impl Syntax {
         .collect()
     }
 
-    /// Changes masks without discarding categories; a master change rewants.
+    /// Changes masks without discarding categories; only a master change
+    /// moves the work.
     pub(crate) fn configure(&mut self, settings: SyntaxHighlight, document: &Document) -> bool {
         if self.settings == settings {
             return false;
@@ -202,8 +203,11 @@ impl Syntax {
     /// index to keep, the last has no work to hold. Between them a joiner
     /// dirties every paragraph, because a request carries only the Annotators
     /// wanted when it was made and the spans it wants were never matched; a
-    /// leaver needs nothing, since painting reads the master switch and its
-    /// spans may stay held against a return.
+    /// leaver needs nothing: painting reads the master switch, so its spans
+    /// are simply unpainted, and they are held until the next answer for
+    /// their paragraph arrives with an empty set for a kind nobody wants.
+    /// That is the kept-spans rule the Annotators already follow — the marks
+    /// a writer can see outlive the switch and go when newer ones land.
     fn rewant(&mut self, was: Annotators, document: &Document) {
         let wanted = self.wanted();
         if wanted == was {
@@ -213,11 +217,23 @@ impl Syntax {
             self.reset(document);
             return;
         }
+        // Whole index on a master join only, never on a keystroke or a List:
+        // the next request re-extracts every block's prose, the cost a master
+        // enable already paid through reset.
         if (wanted.syntax && !was.syntax) || (wanted.style && !was.style) {
             for entry in &mut self.paragraphs {
                 entry.dirty = true;
             }
         }
+    }
+
+    /// Whether a paragraph is waiting to be asked about.
+    ///
+    /// One pass over the block headers, on a table change only: the wake is
+    /// worth arming for work that exists, and a Category or a List moves no
+    /// paragraph, so it must not restart a keystroke's debounce (#356).
+    pub(crate) fn asking(&self) -> bool {
+        self.working() && self.paragraphs.iter().any(|entry| entry.dirty)
     }
 
     /// Isolates a new or reloaded Document, even if its generation repeats.
@@ -724,6 +740,9 @@ mod tests {
         // page, and the strikes are asked for without waiting on a keystroke.
         assert!(syntax.configure_style(style([true; 3]), &document));
         assert_eq!(syntax.spans_in(&document, &whole), coloured);
+        // The joiner has work, so the wake is armed for it; a List alone has
+        // none, and must not restart a keystroke's debounce.
+        assert!(syntax.asking());
         let request = syntax.request(&document, 0..1).unwrap();
         syntax.accept(
             ParagraphResult {
@@ -735,6 +754,9 @@ mod tests {
             &document,
         );
         assert_eq!(syntax.lists_in(&document, &whole), [(0..9, List::Fillers)]);
+        assert!(!syntax.asking());
+        assert!(syntax.configure_style(style([false, true, true]), &document));
+        assert!(!syntax.asking());
         // The one that leaves takes nothing with it: the strikes outlive
         // Syntax highlight's departure, and its own spans are merely unpainted.
         assert!(syntax.configure(SyntaxHighlight::default(), &document));

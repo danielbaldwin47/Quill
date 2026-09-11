@@ -850,12 +850,14 @@ impl Window {
     ///
     /// Armed whenever either is on, and not only as the first arrives: a
     /// master joining the other has paragraphs to match and no keystroke
-    /// coming to ask for them. A table change that dirties nothing arms a
-    /// wake whose request is `None`, which costs one idle turn and no work.
+    /// coming to ask for them. A table change that dirties nothing — a
+    /// Category or a List — is a repaint the Editor has already done, and
+    /// arming for it would push a pending keystroke's re-match back by
+    /// another debounce, so the wake follows the work rather than the table.
     fn rearm(&self) {
         if !self.imp().editor.annotating() {
             self.cancel_syntax();
-        } else {
+        } else if self.imp().editor.asking() {
             self.arm_syntax();
         }
     }
