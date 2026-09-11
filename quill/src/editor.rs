@@ -2841,7 +2841,7 @@ impl Editor {
         if alpha <= 0.0 {
             return;
         }
-        draw_box(
+        draw_capped_box(
             snapshot,
             &paint(&self.colours(), Role::Accent, alpha),
             caret.rect(now),
@@ -3800,7 +3800,8 @@ fn paint(colours: &Colours, role: Role, alpha: f64) -> gdk::RGBA {
     )
 }
 
-/// Draws one box of the caret's layer, back in the widget's own pixels.
+/// Draws one square box of the caret's layer, back in the widget's own
+/// pixels: the selection's fills, which ADR 0014 leaves square.
 ///
 /// A box with no area is not drawn: an empty row of a selection is a real
 /// place in the text — the end of a line whose newline is not held — and it
@@ -3809,15 +3810,46 @@ fn draw_box(snapshot: &gtk::Snapshot, colour: &gdk::RGBA, bar: caret::Bar, scale
     if bar.w <= 0.0 || bar.h <= 0.0 {
         return;
     }
-    snapshot.append_color(
-        colour,
-        &graphene::Rect::new(
-            logical(bar.x, scale),
-            logical(bar.y, scale),
-            logical(bar.w, scale),
-            logical(bar.h, scale),
-        ),
-    );
+    snapshot.append_color(colour, &box_rect(bar, scale));
+}
+
+/// Draws the caret's bar with its two ends capped, back in the widget's own
+/// pixels.
+///
+/// `docs/design.md` row Caret ends: the Design oracle's bar is a stadium, the
+/// caps semicircles of radius half the width. They sit inside the bar's own
+/// rectangle — the same rectangle [`draw_box`] would have filled — so the
+/// Caret column, Caret width and Caret height rows keep their measurements
+/// and only the four rows at each end change.
+///
+/// The radius is read off the bar as painted rather than held beside the
+/// width ladder, so every step of the ladder and every scale is the oracle's
+/// shape without a second constant to keep in step. A bar shorter than it is
+/// wide has no room for two caps, and the radius each end could have is what
+/// it gets.
+///
+/// The rounded clip is the one [`Editor::draw_bullet`]'s disc already paints
+/// through.
+fn draw_capped_box(snapshot: &gtk::Snapshot, colour: &gdk::RGBA, bar: caret::Bar, scale: f64) {
+    if bar.w <= 0.0 || bar.h <= 0.0 {
+        return;
+    }
+    let rect = box_rect(bar, scale);
+    let radius = (rect.width() / 2.0).min(rect.height() / 2.0);
+    snapshot.push_rounded_clip(&gsk::RoundedRect::from_rect(rect, radius));
+    snapshot.append_color(colour, &rect);
+    snapshot.pop();
+}
+
+/// A bar's rectangle in the widget's own pixels, which is the one thing the
+/// square box and the capped one share.
+fn box_rect(bar: caret::Bar, scale: f64) -> graphene::Rect {
+    graphene::Rect::new(
+        logical(bar.x, scale),
+        logical(bar.y, scale),
+        logical(bar.w, scale),
+        logical(bar.h, scale),
+    )
 }
 
 /// A count of pixels as a GTK widget takes it.
