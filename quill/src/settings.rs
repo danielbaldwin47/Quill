@@ -2,8 +2,9 @@
 //!
 //! Plain GTK4 ([ADR 0009](../../docs/adr/0009-plain-gtk4-without-libadwaita.md)):
 //! a window transient for the one it was opened from, holding a scrollable grid.
-//! Its controls write the settings file. Alongside the Template and Syntax highlight
-//! toggles shared with the menus are the Typewriter anchor, Follow
+//! Its controls write the settings file. Alongside the Template, Syntax
+//! highlight and Style check toggles shared with the menus are the
+//! Typewriter anchor, Follow
 //! System, the Spell-check language the Spell check spec will fill in, the
 //! Library's own six (#246: the Locations, Pinned, and the four switches
 //! nothing but this window and the file can reach), the `[export]` table's own
@@ -30,11 +31,17 @@ use quill_engine::pos::Category;
 use quill_engine::settings::{
     Paper, PreviewMode, Settings, Theme, export_margins, export_text_sizes,
 };
+use quill_engine::style::List;
 use quill_engine::theme::Scheme;
 
 use crate::choices;
 use crate::export_dialog::{paper_at, paper_drop_down};
-use crate::session::{Session, SyntaxToggle, TemplateToggle};
+use crate::session::{Session, StyleToggle, SyntaxToggle, TemplateToggle};
+
+/// The line under each Annotator's master switch. Both are English-only, for
+/// different reasons — the tagger's training and the lists' own — and a writer
+/// reading a French draft is owed the same sentence under either (#356).
+const ENGLISH_ONLY: &str = "Supports English only for now.";
 
 /// How near the top and the bottom of the window the Typewriter anchor may be
 /// dragged. The setting itself takes any fraction (`docs/architecture.md`
@@ -273,7 +280,7 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
                 }),
             );
             let hint = gtk::Label::builder()
-                .label("Supports English only for now.")
+                .label(ENGLISH_ONLY)
                 .halign(gtk::Align::Start)
                 .build();
             grid.attach(&hint, 0, 24, 2, 1);
@@ -294,6 +301,42 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
             row(&grid, 24 + i32::try_from(index).unwrap(), label, &check);
         }
     }
+    // Style check's four under Syntax highlight's six, in the same group and
+    // the same shape: the master a switch with its own line of text under it,
+    // the three Lists checks. Its own line, because the two Annotators are
+    // English-only for different reasons — the tagger's, and the lists' (#356).
+    for (index, (toggle, label, on)) in style_rows(session).into_iter().enumerate() {
+        if toggle == StyleToggle::Enabled {
+            row(
+                &grid,
+                30,
+                label,
+                &switch(session, on, move |settings, on| {
+                    toggle.set(&mut settings.style_check, on);
+                }),
+            );
+            let hint = gtk::Label::builder()
+                .label(ENGLISH_ONLY)
+                .halign(gtk::Align::Start)
+                .build();
+            grid.attach(&hint, 0, 31, 2, 1);
+        } else {
+            let check = gtk::CheckButton::builder()
+                .halign(gtk::Align::End)
+                .active(on)
+                .build();
+            check.connect_toggled(glib::clone!(
+                #[strong]
+                session,
+                move |check| {
+                    session.edit_settings(|settings| {
+                        toggle.set(&mut settings.style_check, check.is_active());
+                    });
+                }
+            ));
+            row(&grid, 31 + i32::try_from(index).unwrap(), label, &check);
+        }
+    }
 
     let button = gtk::Button::builder()
         .label("Edit settings.toml…")
@@ -305,7 +348,7 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
         session,
         move |_| edit(session.settings_path(), launch.as_ref())
     ));
-    row(&grid, 30, "Keyboard shortcuts", &button);
+    row(&grid, 35, "Keyboard shortcuts", &button);
 
     if let Some(said) = refused(&session.unapplied()) {
         let label = gtk::Label::builder()
@@ -313,7 +356,7 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
             .halign(gtk::Align::Start)
             .wrap(true)
             .build();
-        grid.attach(&label, 0, 31, 2, 1);
+        grid.attach(&label, 0, 36, 2, 1);
     }
 
     window.present();
@@ -381,6 +424,18 @@ fn syntax_rows(session: &Session) -> [(SyntaxToggle, &'static str, bool); 6] {
         ),
     ]
     .map(|(toggle, label)| (toggle, label, toggle.of(&syntax)))
+}
+
+/// The Style check rows, projected from the live table without writing it.
+fn style_rows(session: &Session) -> [(StyleToggle, &'static str, bool); 4] {
+    let style = session.style();
+    [
+        (StyleToggle::Enabled, "Style check"),
+        (StyleToggle::List(List::Fillers), "Fillers"),
+        (StyleToggle::List(List::Redundancies), "Redundancies"),
+        (StyleToggle::List(List::Cliches), "Clichés"),
+    ]
+    .map(|(toggle, label)| (toggle, label, toggle.of(&style)))
 }
 
 /// A switch that writes one setting, set to the effective value
@@ -971,6 +1026,78 @@ mod tests {
                 );
                 assert_eq!(session.running(), expected);
                 assert_eq!(toggle.of(&session.syntax()), on);
+            }
+            assert_eq!(session.running(), initial);
+        }
+        std::fs::remove_file(path).unwrap();
+    }
+
+    /// The four Style check rows open from the live table, in the order and
+    /// under the labels the group draws them, and the line under the master
+    /// says what the lists cover (#356).
+    #[test]
+    fn style_rows_open_from_the_live_table_without_a_write() {
+        let (session, path) = launched("style-rows-open");
+        let (settings, notes) = Settings::parse(
+            "[style_check]\nenabled = false\nfillers = false\nredundancies = true\n\
+             cliches = false\nfuture = 7\n",
+        );
+        assert!(notes.is_empty());
+        session.apply(settings);
+        session.toggle_style(StyleToggle::Enabled);
+        session.store_settings();
+        let before = std::fs::read(&path).unwrap();
+        assert!(
+            !session.settings().style_check.enabled,
+            "the watch has not read the Command yet"
+        );
+        assert_eq!(
+            style_rows(&session),
+            [
+                (StyleToggle::Enabled, "Style check", true),
+                (StyleToggle::List(List::Fillers), "Fillers", false),
+                (StyleToggle::List(List::Redundancies), "Redundancies", true),
+                (StyleToggle::List(List::Cliches), "Clichés", false),
+            ]
+        );
+        assert_eq!(
+            ENGLISH_ONLY, "Supports English only for now.",
+            "the line under the Style check switch"
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+        std::fs::remove_file(&path).unwrap();
+        style_rows(&session);
+        assert!(!path.exists(), "opening rows does not create a file either");
+    }
+
+    #[test]
+    fn every_style_row_saves_its_own_key_and_reflects_after_the_file_is_applied() {
+        let (session, path) = launched("style-rows-save");
+        let source = "face = \"mono\"\nfuture = 4\n[template]\nnumber_headings = true\n\
+            [style_check]\nenabled = false\nfillers = false\nredundancies = true\n\
+            cliches = false\nfuture_style = 9\n";
+        let (initial, notes) = Settings::parse(source);
+        assert!(notes.is_empty());
+        session.apply(initial.clone());
+        for ((toggle, _, was), key) in
+            style_rows(&session)
+                .into_iter()
+                .zip(["enabled", "fillers", "redundancies", "cliches"])
+        {
+            for on in [!was, was] {
+                let (expected, notes) = Settings::parse(
+                    &source.replace(&format!("\n{key} = {was}"), &format!("\n{key} = {on}")),
+                );
+                assert!(notes.is_empty());
+                let written = wrote(&session, &path, |settings| {
+                    toggle.set(&mut settings.style_check, on);
+                });
+                assert_eq!(
+                    written, expected,
+                    "{key}: whole file, including unknown keys"
+                );
+                assert_eq!(session.running(), expected);
+                assert_eq!(toggle.of(&session.style()), on);
             }
             assert_eq!(session.running(), initial);
         }

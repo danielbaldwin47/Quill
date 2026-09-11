@@ -43,7 +43,7 @@ use crate::ground::Ground;
 use crate::harness;
 use crate::menus;
 use crate::preview::DialogOverride;
-use crate::session::{Session, SyntaxToggle, TemplateToggle};
+use crate::session::{Session, StyleToggle, SyntaxToggle, TemplateToggle};
 use crate::tags;
 
 /// How long after the last keystroke autosave writes the Document out.
@@ -695,6 +695,22 @@ impl Window {
             |window, _| {
                 if let Some(session) = window.session() {
                     window.set_syntax(session.syntax().clone());
+                }
+            },
+        );
+    }
+
+    /// Moves one Style check key and applies the full table to every Editor.
+    ///
+    /// The master and the three Lists take the same path, because a List is a
+    /// repaint of spans already held and the master is a request to send or
+    /// not: [`Window::set_style`] tells the two apart ([`crate::syntax`]).
+    pub(crate) fn toggle_style(&self, toggle: StyleToggle) {
+        self.move_windows(
+            |session| session.toggle_style(toggle),
+            |window, _| {
+                if let Some(session) = window.session() {
+                    window.set_style(session.style().clone());
                 }
             },
         );

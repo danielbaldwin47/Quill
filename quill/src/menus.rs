@@ -35,9 +35,9 @@ use crate::chrome::{self, Modes, RECENT_OPEN};
 /// The View menu's submenu heads, each keyed by the Command prefix that folds
 /// under it: a head is itself a Command, and every other Command sharing its
 /// prefix is one of the submenu's rows, in the table's order. Syntax
-/// highlight is the one head today, and a second Annotator's toggles are a
-/// second row here and no other edit in this module (#362).
-const SUBMENU_HEADS: &[(&str, &str)] = &[("syntax.", "syntax.toggle")];
+/// highlight and Style check are the two Annotators with a head, and a third
+/// is a third row here and no other edit in this module (#362).
+const SUBMENU_HEADS: &[(&str, &str)] = &[("syntax.", "syntax.toggle"), ("style.", "style.toggle")];
 /// The section the Parity oracle heads with a label; the rest read as groups
 /// between separators.
 const HEADED: &str = "Typeface";
@@ -609,9 +609,9 @@ mod tests {
         }
     }
 
-    /// The Syntax highlight rows are a submenu under their head: the head's
-    /// own check first, then the five kinds, and none of them loose in the
-    /// section.
+    /// Each Annotator's rows are a submenu under their head: the head's own
+    /// check first, then its kinds or Lists, and none of them loose in the
+    /// section. Spell check, which no head claims yet, stays a loose row.
     #[test]
     fn the_syntax_rows_are_a_submenu_under_their_head() {
         let model = model(Menu::View, &Modes::default(), &[]);
@@ -623,27 +623,17 @@ mod tests {
                     .and_then(|value| value.get::<String>())
             })
             .collect();
-        // The three Lists are loose beside Style Check until #362 makes the
-        // head a table and folds them under it.
+        assert_eq!(loose, ["Syntax Highlight", "Style Check", "Spell Check"]);
+        let inside = |at: i32| -> Vec<String> {
+            let submenu = tools.item_link(at, "submenu").expect("the submenu");
+            rows_of(&submenu)
+                .into_iter()
+                .flatten()
+                .map(|row| row.label)
+                .collect()
+        };
         assert_eq!(
-            loose,
-            [
-                "Syntax Highlight",
-                "Style Check",
-                "Fillers",
-                "Redundancies",
-                "Clichés",
-                "Spell Check"
-            ]
-        );
-        let submenu = tools.item_link(0, "submenu").expect("the submenu");
-        let inside: Vec<String> = rows_of(&submenu)
-            .into_iter()
-            .flatten()
-            .map(|row| row.label)
-            .collect();
-        assert_eq!(
-            inside,
+            inside(0),
             [
                 "Syntax Highlight",
                 "Nouns",
@@ -652,6 +642,10 @@ mod tests {
                 "Adverbs",
                 "Conjunctions"
             ]
+        );
+        assert_eq!(
+            inside(1),
+            ["Style Check", "Fillers", "Redundancies", "Clichés"]
         );
     }
 
