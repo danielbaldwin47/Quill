@@ -317,11 +317,12 @@ const STYLE_MARK: &str = "decoration-style-";
 /// gone before this tag is asked for (#354, `ref/ia/mac-native/VERDICTS.md`
 /// § The Style Check mark; `docs/design.md` § Rows, Style check mark).
 ///
-/// **The one departure**, noted in that row: the oracle rules 2 px centred on
-/// the x-height and Pango rules at the face's own `yStrikeoutPosition`, 2 px
-/// higher and 2.56 px thick at this size. A `gtk::TextTag` has no thickness or
-/// position to set, so this is Pango's line until the Face's metric is rebuilt
-/// or the Editor draws the rule itself.
+/// The rule's **thickness and position** are not set here either, because a
+/// `gtk::TextTag` has neither: Pango draws what the Face asks for, so the
+/// oracle's 2 px on the x-height centre is pinned into the six Faces by
+/// `tools/fontbuild.py` (`docs/design.md` § Rows, Style check mark). Only a
+/// strikethrough reads those two metrics, so Markdown's `~~` takes the same
+/// rule and nothing else on the page moves.
 fn style_mark(buffer: &gtk::TextBuffer, list: List) -> gtk::TextTag {
     tag(buffer, &style_mark_name(list), |tag| {
         tag.set_strikethrough(true);
