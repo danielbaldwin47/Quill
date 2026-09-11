@@ -310,13 +310,16 @@ mod tests {
             portal
         }
 
-        /// Every stub on this bus saying that key is now 1.
+        /// Every stub on this bus saying that key is now 1, once the bus is
+        /// ready to route it.
         ///
         /// From the stubs, not from the test's own connection: a proxy hears
         /// only the name it was pointed at, and a signal from anyone else on
-        /// the bus is somebody else's business.
+        /// the bus is somebody else's business. The wait comes first because a
+        /// signal the bus routes before it has read the proxy's match rule is
+        /// gone rather than late, which is the other half of #376.
         fn announce(&self, namespace: &str, key: &str) {
-            self.listening();
+            self.wait_until_listening();
             for stub in self.stubs.borrow().iter() {
                 stub.announce(namespace, key);
             }
@@ -337,7 +340,7 @@ mod tests {
         /// reads one connection's messages in the order they were sent, so an
         /// answer to a question asked after the rule means the rule is in
         /// place.
-        fn listening(&self) {
+        fn wait_until_listening(&self) {
             self.connection
                 .call_sync(
                     Some("org.freedesktop.DBus"),
@@ -357,18 +360,9 @@ mod tests {
         ///
         /// A signal is delivered by the main loop rather than by the call that
         /// emitted it, so a test that asserts without running one asserts on
-        /// nothing. Each turn *blocks*, so the wait costs nothing while the
-        /// round trip is in flight and ends the moment it lands; a blocking
-        /// turn with nothing pending would never come back, so the deadline is
-        /// a source on the same context — the thing that wakes it — rather
-        /// than a clock read between turns.
+        /// nothing.
         fn until(&self, done: impl Fn() -> bool) {
-            let expired = Arc::new(AtomicBool::new(false));
-            let deadline = self.deadline(DEADLINE, &expired);
-            while !done() && !expired.load(Ordering::Relaxed) {
-                self.context.iteration(true);
-            }
-            deadline.destroy();
+            self.within(DEADLINE, done);
         }
 
         /// Runs the main context for [`QUIET`], which is long enough that
@@ -376,33 +370,43 @@ mod tests {
         /// something did *not* arrive.
         ///
         /// Nothing can end this early, so it is the deadline itself that is
-        /// waited out, blocking turn by blocking turn.
+        /// waited out.
         fn settle(&self) {
-            let expired = Arc::new(AtomicBool::new(false));
-            let deadline = self.deadline(QUIET, &expired);
-            while !expired.load(Ordering::Relaxed) {
-                self.context.iteration(true);
-            }
-            deadline.destroy();
+            self.within(QUIET, || false);
         }
 
-        /// A source on *this* context that raises `expired` once `after` has
-        /// passed, returned so the caller can drop it where it ends early.
+        /// The walk both waits are: blocking turns of this context until
+        /// `done` or until `after` has passed.
+        ///
+        /// Each turn *blocks*, so the wait costs nothing while a round trip is
+        /// in flight and ends the moment it lands; a blocking turn with
+        /// nothing pending would never come back, so the deadline is a source
+        /// on the same context — the thing that wakes it — rather than a clock
+        /// read between turns.
+        fn within(&self, after: Duration, done: impl Fn() -> bool) {
+            let deadline = self.deadline(after);
+            while !done() && !deadline.expired() {
+                self.context.iteration(true);
+            }
+        }
+
+        /// A [`Deadline`] on *this* context, `after` from now.
         ///
         /// Built and attached by hand rather than taken from
-        /// `timeout_add_local`, which attaches to the default context —
-        /// the one this stage's context is deliberately not, and the one no
-        /// test here ever iterates, so a deadline left on it never fires and
-        /// the blocking turn below it never comes back.
-        fn deadline(&self, after: Duration, expired: &Arc<AtomicBool>) -> glib::Source {
-            let rang = Arc::clone(expired);
+        /// `timeout_add_local`, which attaches to the default context — the
+        /// one this stage's context is deliberately not, and the one no test
+        /// here ever iterates, so a deadline left on it never fires and the
+        /// blocking turn waiting for it never comes back.
+        fn deadline(&self, after: Duration) -> Deadline {
+            let expired = Arc::new(AtomicBool::new(false));
+            let rang = Arc::clone(&expired);
             let source =
                 glib::timeout_source_new(after, None, glib::Priority::DEFAULT, move || {
                     rang.store(true, Ordering::Relaxed);
                     glib::ControlFlow::Break
                 });
             source.attach(Some(&self.context));
-            source
+            Deadline { source, expired }
         }
     }
 
@@ -425,6 +429,30 @@ mod tests {
     /// the bus does route arrives inside it with room to spare — the one the
     /// test above waits for takes a millisecond of a loaded machine.
     const QUIET: Duration = Duration::from_millis(250);
+
+    /// A timeout armed on a stage's context, and off it again when dropped.
+    ///
+    /// The flag is an `Arc` because the source's closure has to be `Send`,
+    /// though it is this thread that runs it; the `Drop` is so that no caller
+    /// has to remember to take the source off the context, and so that a
+    /// panic in the middle of a wait leaves nothing attached to it.
+    struct Deadline {
+        source: glib::Source,
+        expired: Arc<AtomicBool>,
+    }
+
+    impl Deadline {
+        /// Whether the time it was armed with has passed.
+        fn expired(&self) -> bool {
+            self.expired.load(Ordering::Relaxed)
+        }
+    }
+
+    impl Drop for Deadline {
+        fn drop(&mut self) {
+            self.source.destroy();
+        }
+    }
 
     impl Stub {
         /// Brings a portal up on the bus at `address` and waits for it to be there.
