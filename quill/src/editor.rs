@@ -862,6 +862,28 @@ impl Editor {
         if !self.imp().syntax.borrow_mut().configure(settings, document) {
             return;
         }
+        self.repaint_spans(document);
+    }
+
+    /// Changes the Style check table the same way, and for the same reason.
+    ///
+    /// A List switched off is this repaint and nothing else: the matcher emits
+    /// every List whatever the toggles say, so the spans are already held and
+    /// the page answers the switch without waiting on the worker (#356).
+    pub(crate) fn set_style(&self, style: quill_engine::settings::StyleCheck, document: &Document) {
+        if !self
+            .imp()
+            .syntax
+            .borrow_mut()
+            .configure_style(style, document)
+        {
+            return;
+        }
+        self.repaint_spans(document);
+    }
+
+    /// Draws every line again from the spans the state already holds.
+    fn repaint_spans(&self, document: &Document) {
         self.imp().fade.take();
         let tiers = self.imp().tiers.borrow();
         let lines = 0..document.place(document.text().len()).line + 1;
@@ -873,9 +895,12 @@ impl Editor {
         );
     }
 
-    /// Whether this Editor should schedule asynchronous Syntax work.
-    pub(crate) fn syntax_enabled(&self) -> bool {
-        self.imp().syntax.borrow().enabled()
+    /// Whether this Editor should schedule asynchronous Annotator work.
+    ///
+    /// Either Annotator: one wake and one drain feed both, so Style check on
+    /// with Syntax highlight off is work to schedule just the same (#356).
+    pub(crate) fn annotating(&self) -> bool {
+        self.imp().syntax.borrow().working()
     }
 
     /// Captures dirty prose after the debounce, with the laid-out viewport first.

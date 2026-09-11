@@ -373,9 +373,11 @@ impl Window {
         // first frame is meant to show, and the fold is worked out inside the
         // same draw that puts the Document on the page.
         window.imp().editor.open_live_on(session.live());
-        // Install the table while the buffer is empty; showing the Document
+        // Install the tables while the buffer is empty; showing the Document
         // below resets the worker and schedules its first viewport request.
+        // Both Annotators, because either one alone is work to schedule.
         window.set_syntax(session.syntax().clone());
+        window.set_style(session.style().clone());
         // The bars stand or not before the Document is shown, so the page is
         // laid out once, at the height it will keep.
         window
@@ -818,9 +820,25 @@ impl Window {
 
     /// Applies the session's Syntax table; category-only changes reuse spans.
     pub(crate) fn set_syntax(&self, settings: quill_engine::settings::SyntaxHighlight) {
-        let was = self.imp().editor.syntax_enabled();
+        let was = self.imp().editor.annotating();
         self.imp().editor.set_syntax(settings, &self.document());
-        if !self.imp().editor.syntax_enabled() {
+        self.rearm(was);
+    }
+
+    /// Applies the session's Style check table; a List alone reuses spans.
+    pub(crate) fn set_style(&self, style: quill_engine::settings::StyleCheck) {
+        let was = self.imp().editor.annotating();
+        self.imp().editor.set_style(style, &self.document());
+        self.rearm(was);
+    }
+
+    /// Starts or stops the one wake both Annotators share.
+    ///
+    /// `was` is whether either was on before the table moved: the pair is
+    /// armed when the first arrives and cancelled when the last leaves, so a
+    /// master switched off under the other still leaves the wake running.
+    fn rearm(&self, was: bool) {
+        if !self.imp().editor.annotating() {
             self.cancel_syntax();
         } else if !was {
             self.arm_syntax();
@@ -837,7 +855,7 @@ impl Window {
     }
 
     fn arm_syntax(&self) {
-        if !self.imp().editor.syntax_enabled() {
+        if !self.imp().editor.annotating() {
             return;
         }
         if let Some(source) = self.imp().syntax_wake.take() {
@@ -3399,6 +3417,7 @@ pub fn reapply(app: &gtk::Application, session: &Session) {
         window.apply_preview();
         window.refresh_preview();
         window.set_syntax(session.syntax().clone());
+        window.set_style(session.style().clone());
     });
     // The sidebar reads the `[library]` settings as it lists — hidden files,
     // extensions — and the Library itself has already been made to say what
