@@ -368,6 +368,43 @@ impl Syntax {
         self.stored_in(document, at, |entry| entry.lists.spans())
     }
 
+    /// What Style check draws over the drawn range: the enabled Lists' spans,
+    /// merged where only whitespace lies between two of them.
+    ///
+    /// The two things the mark is made of read this rather than
+    /// [`Syntax::lists_in`] — the ink, through
+    /// [`quill_engine::annotate::Annotated`], and the rule, through
+    /// [`crate::tags`] — so a merged mark is one colour under one line.
+    ///
+    /// The merge is the Design oracle's: two struck phrases either side of one
+    /// space are ruled straight through, `down only` in the capture's passage,
+    /// and a rule per span would draw two with a gap (#354,
+    /// `ref/ia/mac-native/VERDICTS.md` § The Style Check mark, rule extent).
+    /// The merged range keeps the earlier span's List, so switching that List
+    /// off takes the joined rule with it and leaves the later span its own.
+    pub(crate) fn struck_in(&self, document: &Document, at: &Range<usize>) -> Struck {
+        let mut out: Struck = Vec::new();
+        for (span, list) in self.lists_in(document, at) {
+            if !self.paints(list) {
+                continue;
+            }
+            match out.last_mut() {
+                Some((last, _))
+                    if document
+                        .text()
+                        .get(last.end..span.start)
+                        .is_some_and(|between| {
+                            !between.is_empty() && between.chars().all(char::is_whitespace)
+                        }) =>
+                {
+                    last.end = span.end;
+                }
+                _ => out.push((span, list)),
+            }
+        }
+        out
+    }
+
     /// The retained spans one store holds over the drawn range, in the
     /// Document's own bytes.
     fn stored_in<K: Copy>(
@@ -466,7 +503,7 @@ fn rebased(at: &Range<usize>, splice: &Splice) -> Range<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use quill_engine::annotate;
+    use quill_engine::annotate::{self, Annotated};
     use quill_engine::focus::Focus;
     use quill_engine::theme::{Colours, Scheme};
 
@@ -690,8 +727,11 @@ mod tests {
         let colours = Colours::of(Scheme::Light);
         let drawn = annotate::paint_tagged_in(
             &[],
-            &tokens,
-            syntax.categories(),
+            Annotated {
+                tagged: &tokens,
+                enabled: syntax.categories(),
+                struck: &[],
+            },
             &(0..document.text().len()),
             &[],
             Focus::Off,

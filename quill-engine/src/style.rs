@@ -159,12 +159,28 @@ impl Lists {
 /// reading Markdown.
 ///
 /// Every List is matched whatever the writer has switched on; a List switched
-/// off has its spans emitted here and left unpainted downstream. Where two
-/// phrases could match at one place the leftmost wins and, among those starting
-/// together, the longest, so `very unique` is one redundancy rather than a
-/// filler with a redundancy under it. A redundancy emits one span per bracketed
-/// group — `together` alone out of `combine together` — while the whole phrase
-/// still claims its extent, so nothing else matches inside it.
+/// off has its spans emitted here and left unpainted downstream. A redundancy
+/// emits one span per bracketed group — `together` alone out of `combine
+/// together` — while the whole phrase still claims its extent, so nothing else
+/// matches inside it.
+///
+/// **The longest mark wins.** Where two phrases could match at one place the
+/// leftmost wins; among those starting together, the one covering the most
+/// prose; and among those covering the same prose, the one that *strikes* the
+/// most of it. The last of the three is the Design oracle's, not a tidiness:
+/// `past history` is a cliché in its own right and `[past] history` a
+/// redundancy, the same twelve characters either way, and iA strikes all
+/// twelve rather than the redundancy's four (#354,
+/// `ref/ia/mac-native/VERDICTS.md` § The Style Check mark). File order is the
+/// last tiebreak and decides nothing a reader can see: it is there so that the
+/// same prose strikes the same way twice.
+///
+/// A mark runs on over a **comma** that follows it, so `Basically,` is one
+/// rule and not a word with a comma left outside — the oracle's `Basically,`
+/// is 9.92 cells of ten. It runs on over nothing else: the same passage leaves
+/// the full stop after `get down to brass tacks` and the colon after `long and
+/// short of it` outside the rule, so this is the comma's rule and not
+/// punctuation's.
 #[must_use]
 pub fn struck(prose: &str, lists: &Lists) -> Vec<(Range<usize>, List)> {
     let shadow = Shadow::of(prose);
@@ -174,13 +190,23 @@ pub fn struck(prose: &str, lists: &Lists) -> Vec<(Range<usize>, List)> {
         .filter(|hit| is_whole_word(&shadow.text, hit.start(), hit.end()))
         .map(|hit| (hit.start(), hit.end(), hit.pattern().as_usize()))
         .collect();
-    // Leftmost, then longest, then the earlier list: the third is only for a
-    // phrase two lists both carry, and it is there so the same prose strikes
-    // the same way twice.
+    // Leftmost, then the longest match, then the one that strikes the most of
+    // it, then the earlier list. The third is what `past history` turns on —
+    // the cliché strikes twelve characters where the redundancy strikes four,
+    // and the oracle draws twelve.
     candidates.sort_unstable_by(|left, right| {
+        let struck = |&(start, end, pattern): &(usize, usize, usize)| {
+            let phrase = &lists.phrases[pattern];
+            if phrase.struck.is_empty() {
+                end - start
+            } else {
+                phrase.struck.iter().map(Range::len).sum()
+            }
+        };
         left.0
             .cmp(&right.0)
             .then(right.1.cmp(&left.1))
+            .then(struck(right).cmp(&struck(left)))
             .then(left.2.cmp(&right.2))
     });
     let mut spans = Vec::new();
@@ -200,6 +226,11 @@ pub fn struck(prose: &str, lists: &Lists) -> Vec<(Range<usize>, List)> {
                     phrase.list,
                 ));
             }
+        }
+    }
+    for (span, _) in &mut spans {
+        if prose[span.end..].starts_with(',') {
+            span.end += 1;
         }
     }
     spans
@@ -577,8 +608,10 @@ mod tests {
         assert_eq!(
             marks("very, against all odds, we combine together"),
             [
-                ("very", List::Fillers),
-                ("against all odds", List::Cliches),
+                // Each mark carries the comma that follows it, the oracle's
+                // `Basically,` rule; `struck`'s doc says why.
+                ("very,", List::Fillers),
+                ("against all odds,", List::Cliches),
                 ("together", List::Redundancies),
             ],
             "nothing here knows a toggle: the spans are emitted and painted \

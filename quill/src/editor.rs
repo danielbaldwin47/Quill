@@ -29,7 +29,7 @@ use gtk::pango;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use quill_engine::annotate::live::{self, Furniture, LiveLook, LiveSpan};
-use quill_engine::annotate::{self, Painted};
+use quill_engine::annotate::{self, Annotated, Painted};
 use quill_engine::document::{Document, Edit};
 use quill_engine::focus::typewriter::{self, Glide, Hold, Typewriter};
 use quill_engine::focus::{self, Focus, LineTiers};
@@ -1837,25 +1837,19 @@ impl Editor {
                 ..document.line_bytes(lines.end.saturating_sub(1)).end;
             let spans = document.spans_in(&at);
             let tagged = syntax.spans_in(document, &at);
+            let struck: Vec<Range<usize>> = syntax
+                .struck_in(document, &at)
+                .into_iter()
+                .map(|(span, _)| span)
+                .collect();
+            let annotated = Annotated {
+                tagged: &tagged,
+                enabled: syntax.categories(),
+                struck: &struck,
+            };
             runs.append(&mut faded(
-                &annotate::paint_tagged_in(
-                    &spans,
-                    &tagged,
-                    syntax.categories(),
-                    &at,
-                    before,
-                    focus,
-                    &colours,
-                ),
-                &annotate::paint_tagged_in(
-                    &spans,
-                    &tagged,
-                    syntax.categories(),
-                    &at,
-                    &after,
-                    focus,
-                    &colours,
-                ),
+                &annotate::paint_tagged_in(&spans, annotated, &at, before, focus, &colours),
+                &annotate::paint_tagged_in(&spans, annotated, &at, &after, focus, &colours),
                 |at| tags::offsets_of(&buffer, document, at),
             ));
         }

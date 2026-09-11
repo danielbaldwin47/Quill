@@ -541,5 +541,5 @@ yakitori [chicken]
 yerba mate [tea]
 
 # --- Quill, from iA Writer's published examples — 1 entries ---
-basic [fundamentals]
+[basic] fundamentals
 

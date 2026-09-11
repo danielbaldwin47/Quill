@@ -2,10 +2,11 @@
 //!
 //! `ref/style.md` is one passage carrying a filler, a redundancy and a cliché
 //! of every shape the spec names, and it is the same file three ways: the
-//! engine's fixture here, the `style` Piece's Document, and the capture ticket's
+//! engine's fixture here, the `style` Piece's Document, and the capture's own
 //! state (#354). So this test is what keeps the three from drifting — a list
 //! edit that stops striking `brass tacks`, or starts striking a word of the
-//! heading, fails `cargo test` rather than turning up in a shot.
+//! heading, fails `cargo test` rather than turning up in a shot. Since the
+//! capture landed, what it asserts is what iA itself struck in this passage.
 //!
 //! It reads the three files through [`quill_engine::data::style`], which is the
 //! resolution an installed Quill uses, so it also proves the checkout's copy is
@@ -20,24 +21,39 @@ use quill_engine::style::{List, Lists, struck};
 /// Every phrase the passage is written to catch, in order: its byte range into
 /// the file, the text struck, and the List that struck it.
 ///
-/// A redundancy names the word it strikes, not the whole phrase — `together`
-/// out of `combined together`, `past` out of `past history`. The ranges are
-/// spelt out rather than searched for because two of these words appear twice
-/// in the passage: the `down` struck is the one in `fell down`, and the `down`
-/// of `get down to brass tacks` is ordinary prose.
+/// **This table is the Design oracle's own marks**, read off iA Writer striking
+/// this passage (#354, `ref/ia/mac-native/style-354-read.json`), so a list edit
+/// that drifts from what iA draws fails here. It says four things the lists
+/// alone would not:
+///
+/// - `Basically,` carries its comma, which is the rendering rule in
+///   [`struck`] and not a list entry; the full stop after `tacks` and the colon
+///   after `it` stay outside their marks.
+/// - `get down to brass tacks` is struck whole, not the bare `brass tacks`.
+/// - a redundancy names the word it strikes — `together` out of `combined
+///   together`, `basic` out of `basic fundamentals`, which is the word iA
+///   strikes where its own marketing page bolds the other one.
+/// - `past history` is the cliché's twelve characters rather than the
+///   redundancy's four: the longest mark wins.
+///
+/// The one mark the oracle draws that we do not is `only` in `fell down only
+/// where`, which no flat list can catch without striking every `only` on the
+/// page (#354 § 3, recommendation 5). The ranges are spelt out rather than
+/// searched for because `down` appears twice: the one struck is in `fell down`,
+/// and the `down` of `get down to brass tacks` is inside a cliché's mark.
 const STRUCK: [(usize, usize, &str, List); 13] = [
-    (15, 24, "Basically", List::Fillers),
+    (15, 25, "Basically,", List::Fillers),
     (39, 50, "pretty much", List::Fillers),
     (73, 80, "sort of", List::Fillers),
-    (102, 113, "brass tacks", List::Cliches),
+    (90, 113, "get down to brass tacks", List::Cliches),
     (115, 131, "Against all odds", List::Cliches),
     (150, 158, "together", List::Redundancies),
-    (169, 181, "fundamentals", List::Redundancies),
+    (163, 168, "basic", List::Redundancies),
     (191, 195, "very", List::Fillers),
     (213, 233, "long and short of it", List::Cliches),
     (249, 257, "a little", List::Fillers),
     (277, 281, "down", List::Redundancies),
-    (297, 301, "past", List::Redundancies),
+    (297, 309, "past history", List::Cliches),
     (314, 317, "too", List::Fillers),
 ];
 

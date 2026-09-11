@@ -28,7 +28,7 @@ The full findings, including the sources that were rejected and why, are in
 | proselint | `dbed789`, 2026-06-22 | BSD-3-Clause | `LICENSE-BSD-3-Clause-proselint.txt` | 20 redundancies (RAS syndrome, Nordquist, Wallace) |
 | proselint, `redundancy/after-the-deadline` | `dbed789`, 2026-06-22 | BSD-3-Clause | `LICENSE-BSD-3-Clause-proselint.txt` | 500 redundancies |
 | plainlanguage.gov | `fd76947`, 2025-09-23 | Public domain / CC0 1.0 | `LICENSE-CC0-plainlanguage.txt` | 9 redundancies |
-| Quill | — | GPL-3.0-or-later | root `LICENSE` | 97 fillers, 1 redundancy, 5 clichés |
+| Quill | — | GPL-3.0-or-later | root `LICENSE` | 97 fillers, 1 redundancy, 7 clichés |
 
 ## Attribution
 
@@ -54,7 +54,11 @@ are the notices:
   `basic fundamentals`, `combine together`, `fall down`; `against all odds`,
   `brass tacks`, `long and short of it`) are quoted from
   <https://ia.net/writer/support/editor/style-check> as the floor the spec's
-  fixture passage sets, not copied as a list.
+  fixture passage sets, not copied as a list. Two more — `get down to brass
+  tacks` and `past history` — are what the running app struck in that passage
+  where the published examples did not say it would (#354), and
+  `basic fundamentals` is marked `[basic] fundamentals` for the same reason:
+  the page bolds the noun and the app strikes the adjective.
 
 ## The one provenance caveat
 

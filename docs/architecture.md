@@ -109,13 +109,18 @@ Whole-document passes (link-reference and footnote definitions, Stats, the headi
 idle after the synchronous lane, never inside it.
 
 **Tags.** Overlapping `GtkTextTag`s override a property by priority; they do not blend. So colour is
-flattened: Markup tier × Focus tier × Syntax highlight resolve into non-overlapping runs, one
-precomputed colour and alpha each, and the tag table holds one tag per distinct `(colour, alpha)`
-and one per `(weight, slant)`, created lazily and never removed. Decorations are separate tags
+flattened: Markup tier × Focus tier × Syntax highlight × Style check resolve into non-overlapping
+runs, one precomputed colour and alpha each, and the tag table holds one tag per distinct
+`(colour, alpha)` and one per `(weight, slant)`, created lazily and never removed. **Style check is
+in the flattening and not over it**: the Design oracle re-inks a struck run to the quiet tier rather
+than ruling a line over the ink it had, so a struck word loses the Category it was carrying — an
+ordering between the two Annotators, Style check last — and takes the Focus dim like any other run
+(#354, `ref/ia/mac-native/VERDICTS.md` § The Style Check mark). Decorations are separate tags
 layered over the runs: one `underline: error` tag for Spell check, one per Style check List — three
 identical strikes, split so that a List switched off takes its own tag off the page and leaves the
-other two, never so that the Lists read differently — one for selection-independent things such as
-the transparent underline a dim URL takes (`focus.css:41`).
+other two, never so that the Lists read differently, and each carrying no colour of its own so the
+rule is drawn in the run's — one for selection-independent things such as the transparent underline
+a dim URL takes (`focus.css:41`).
 Focus's own dim is not among them: it is a colour, so it resolves into the run rather than layering
 over it (`quill_engine::annotate::paint`, #126). Syntax highlight is the third tier and enters the
 same flattening as an ink laid over the Markup runs rather than a mark resolved with them
