@@ -73,8 +73,10 @@ install_state() {
   # wine          - drives iA Writer for Mac-parity questions (memory: ia-writer-is-drivable)
   # grim slurp    - screenshots (Omarchy ships these; --needed makes it a no-op)
   # mise-bin      - version manager; the old machine ran node, gh and claude from it
+  # python-pillow - reading a capture's pixels from a one-off script (three sessions
+  #                 crashed on `import PIL` in two days and fell back to imagemagick)
   sudo pacman -S --needed rustup gtk4 enchant hunspell-en_us base-devel \
-    nodejs npm chromium imagemagick python-fonttools wine grim slurp mise-bin
+    nodejs npm chromium imagemagick python-fonttools python-pillow wine grim slurp mise-bin
 
   # --- Rust toolchain --------------------------------------------------------
   rustup default stable
