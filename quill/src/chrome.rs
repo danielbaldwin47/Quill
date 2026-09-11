@@ -46,10 +46,11 @@ use quill_engine::settings::{
 };
 use quill_engine::shortcuts::{Chord, Refusal};
 use quill_engine::stats::words;
+use quill_engine::style::List;
 use quill_engine::theme::{Role, Scheme};
 
 use crate::ground::Ground;
-use crate::session::{Session, SyntaxToggle, TemplateToggle};
+use crate::session::{Session, StyleToggle, SyntaxToggle, TemplateToggle};
 use crate::window::Window;
 
 pub mod typing;
@@ -77,6 +78,14 @@ pub struct Modes {
     pub adverbs: bool,
     /// The Conjunctions check, independent of the master.
     pub conjunctions: bool,
+    /// Style check's master check.
+    pub style: bool,
+    /// The Fillers check, independent of the master.
+    pub fillers: bool,
+    /// The Redundancies check, independent of the master.
+    pub redundancies: bool,
+    /// The Clichés check, independent of the master.
+    pub cliches: bool,
     /// The ground shown is the dark one, whatever `theme` says.
     pub dark: bool,
     /// The theme setting, `auto`, `light` or `dark`.
@@ -141,6 +150,10 @@ impl Modes {
             adjectives: session.syntax().adjectives,
             adverbs: session.syntax().adverbs,
             conjunctions: session.syntax().conjunctions,
+            style: session.style().enabled,
+            fillers: session.style().fillers,
+            redundancies: session.style().redundancies,
+            cliches: session.style().cliches,
             dark: session.scheme() == Scheme::Dark,
             theme: session.theme().as_str(),
             face: session.face().as_str(),
@@ -382,6 +395,10 @@ pub fn reflect(map: &impl IsA<gio::ActionMap>, modes: Modes) {
     set("syntax.adjectives", modes.adjectives.to_variant());
     set("syntax.adverbs", modes.adverbs.to_variant());
     set("syntax.conjunctions", modes.conjunctions.to_variant());
+    set("style.toggle", modes.style.to_variant());
+    set("style.fillers", modes.fillers.to_variant());
+    set("style.redundancies", modes.redundancies.to_variant());
+    set("style.cliches", modes.cliches.to_variant());
     set("theme.toggle", modes.dark.to_variant());
     set("window.fullscreen", modes.fullscreen.to_variant());
     // The row reads "Hide Bars", so its check is on when the bars are hidden.
@@ -486,6 +503,10 @@ fn run_window(window: &Window, command: &Command) {
         "syntax.conjunctions" => {
             window.toggle_syntax(SyntaxToggle::Category(Category::Conjunctions))
         }
+        "style.toggle" => window.toggle_style(StyleToggle::Enabled),
+        "style.fillers" => window.toggle_style(StyleToggle::List(List::Fillers)),
+        "style.redundancies" => window.toggle_style(StyleToggle::List(List::Redundancies)),
+        "style.cliches" => window.toggle_style(StyleToggle::List(List::Cliches)),
         "chrome.toggle" => window.toggle_bars(),
         "library.toggle" => window.toggle_library(),
         // Two rows, each its own layout's toggle: the chord opens the pane in
@@ -1929,6 +1950,62 @@ mod tests {
                 ("syntax.adjectives", false),
                 ("syntax.adverbs", true),
                 ("syntax.conjunctions", false),
+            ] {
+                assert_eq!(
+                    map.action_state(id).unwrap().get::<bool>(),
+                    Some(checked),
+                    "{id}"
+                );
+            }
+        }
+        std::fs::remove_file(path).ok();
+    }
+
+    #[test]
+    fn all_four_style_commands_are_enabled_and_fire_by_their_registered_names() {
+        let (map, fired) = map(Scope::Win);
+        let commands = [
+            "style.toggle",
+            "style.fillers",
+            "style.redundancies",
+            "style.cliches",
+        ];
+        for id in commands {
+            assert!(map.is_action_enabled(id), "{id}");
+            map.activate_action(id, None);
+        }
+        assert_eq!(fired.borrow().as_slice(), commands);
+    }
+
+    /// The master and the three Lists are separate state: the master off and
+    /// on again leaves every List where the writer left it (#356).
+    #[test]
+    fn style_checks_reflect_the_live_table_with_lists_kept_while_the_master_is_off() {
+        let (map, _) = map(Scope::Win);
+        let path =
+            std::env::temp_dir().join(format!("quill-style-reflect-{}.toml", std::process::id()));
+        let session = Session::open(
+            crate::flags::Flags {
+                settings: Some(path.clone()),
+                ..crate::flags::Flags::default()
+            },
+            None,
+        );
+        let (settings, notes) = quill_engine::settings::Settings::parse(
+            "[style_check]\nenabled = false\nfillers = false\nredundancies = true\ncliches = false\n",
+        );
+        assert!(notes.is_empty());
+        session.apply(settings);
+        for on in [false, true, false] {
+            if session.style().enabled != on {
+                session.toggle_style(StyleToggle::Enabled);
+            }
+            reflect(&map, Modes::of(&session, false, false, false));
+            for (id, checked) in [
+                ("style.toggle", on),
+                ("style.fillers", false),
+                ("style.redundancies", true),
+                ("style.cliches", false),
             ] {
                 assert_eq!(
                     map.action_state(id).unwrap().get::<bool>(),
