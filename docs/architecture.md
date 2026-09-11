@@ -112,8 +112,10 @@ idle after the synchronous lane, never inside it.
 flattened: Markup tier × Focus tier × Syntax highlight resolve into non-overlapping runs, one
 precomputed colour and alpha each, and the tag table holds one tag per distinct `(colour, alpha)`
 and one per `(weight, slant)`, created lazily and never removed. Decorations are separate tags
-layered over the runs: one `underline: error` tag for Spell check, one per Style check list, one for
-selection-independent things such as the transparent underline a dim URL takes (`focus.css:41`).
+layered over the runs: one `underline: error` tag for Spell check, one per Style check List — three
+identical strikes, split so that a List switched off takes its own tag off the page and leaves the
+other two, never so that the Lists read differently — one for selection-independent things such as
+the transparent underline a dim URL takes (`focus.css:41`).
 Focus's own dim is not among them: it is a colour, so it resolves into the run rather than layering
 over it (`quill_engine::annotate::paint`, #126). Syntax highlight is the third tier and enters the
 same flattening as an ink laid over the Markup runs rather than a mark resolved with them
