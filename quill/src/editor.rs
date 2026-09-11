@@ -3800,8 +3800,9 @@ fn paint(colours: &Colours, role: Role, alpha: f64) -> gdk::RGBA {
     )
 }
 
-/// Draws one square box of the caret's layer, back in the widget's own
-/// pixels: the selection's fills, which ADR 0014 leaves square.
+/// Draws one square box of the caret's layer, back in the widget's own pixels
+/// — the selection's fills, which ADR 0014 leaves square, and the checkbox's
+/// and the thematic break's own straight edges.
 ///
 /// A box with no area is not drawn: an empty row of a selection is a real
 /// place in the text — the end of a line whose newline is not held — and it
@@ -3822,11 +3823,9 @@ fn draw_box(snapshot: &gtk::Snapshot, colour: &gdk::RGBA, bar: caret::Bar, scale
 /// Caret column, Caret width and Caret height rows keep their measurements
 /// and only the four rows at each end change.
 ///
-/// The radius is read off the bar as painted rather than held beside the
-/// width ladder, so every step of the ladder and every scale is the oracle's
-/// shape without a second constant to keep in step. A bar shorter than it is
-/// wide has no room for two caps, and the radius each end could have is what
-/// it gets.
+/// The radius is [`cap_radius`]'s, read off the bar as painted rather than
+/// held beside the width ladder, so every step of the ladder and every scale
+/// is the oracle's shape without a second constant to keep in step.
 ///
 /// The rounded clip is the one [`Editor::draw_bullet`]'s disc already paints
 /// through.
@@ -3835,10 +3834,25 @@ fn draw_capped_box(snapshot: &gtk::Snapshot, colour: &gdk::RGBA, bar: caret::Bar
         return;
     }
     let rect = box_rect(bar, scale);
-    let radius = (rect.width() / 2.0).min(rect.height() / 2.0);
-    snapshot.push_rounded_clip(&gsk::RoundedRect::from_rect(rect, radius));
+    snapshot.push_rounded_clip(&gsk::RoundedRect::from_rect(
+        rect,
+        cap_radius(rect.width(), rect.height()),
+    ));
     snapshot.append_color(colour, &rect);
     snapshot.pop();
+}
+
+/// The radius a capped box's four corners take: half the width, which is what
+/// makes each end a semicircle.
+///
+/// Bounded by half the height as well, because a box shorter than it is wide
+/// has no room for two caps and a corner larger than the box is a rounded
+/// rectangle GSK would have to normalise itself. The caret never reaches that
+/// bound — its height is the line pitch and its width the ladder's, an order
+/// apart — so what the bound covers is a box the caret machine could only
+/// hand over mid-glide, not a shape the oracle holds.
+fn cap_radius(w: f32, h: f32) -> f32 {
+    (w / 2.0).min(h / 2.0)
 }
 
 /// A bar's rectangle in the widget's own pixels, which is the one thing the
@@ -4084,6 +4098,41 @@ mod tests {
             refolded(None, 7..9),
             Some(std::iter::once(7..9).collect::<Vec<_>>()),
             "the first fold has no lines to close"
+        );
+    }
+
+    /// `docs/design.md` row Caret ends: the cap's radius is half the bar's own
+    /// width at every step of the ladder and every scale, never a constant
+    /// standing beside the ladder — so the ladder is what the case is walked
+    /// over, rather than a copy of its values.
+    #[test]
+    fn a_caps_radius_is_half_the_width_at_every_step_of_the_ladder() {
+        for step in typography::steps() {
+            for scale in [1.0, 1.5, 2.0, 3.0] {
+                let w = logical(f64::from(typography::caret_width(step, scale)), scale);
+                let h = logical(f64::from(typography::pitch(step, scale)), scale);
+                assert!(
+                    w < h,
+                    "step {step} at scale {scale}: a bar is taller than it is wide"
+                );
+                assert_eq!(
+                    cap_radius(w, h),
+                    w / 2.0,
+                    "step {step} at scale {scale}: the cap is not half the bar"
+                );
+            }
+        }
+    }
+
+    /// A box with no room for two caps takes the radius each end can have,
+    /// rather than handing GSK a corner larger than the box it rounds.
+    #[test]
+    fn a_box_shorter_than_it_is_wide_is_capped_by_its_height() {
+        assert_eq!(cap_radius(10.0, 4.0), 2.0);
+        assert_eq!(
+            cap_radius(10.0, 10.0),
+            5.0,
+            "a square is capped into a disc"
         );
     }
 
