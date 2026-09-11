@@ -1,6 +1,6 @@
-// The fifteen latency regimes and the typist behind them: what a bench types, for both benches.
+// The sixteen latency regimes and the typist behind them: what a bench types, for both benches.
 //
-//   node tools/regimes.mjs                                  the fifteen regimes, one line each
+//   node tools/regimes.mjs                                  the sixteen regimes, one line each
 //   node tools/regimes.mjs prose_end_of_draft --keys 300    the regime and every step it types
 //   node tools/regimes.mjs revision --uinput                the plan line tools/uinput-keys.py reads
 //
@@ -125,12 +125,12 @@ const SHIFTED_CHARS = new Set('!@#$%^&*()_+{}:"~|<>?'.split(''));
 export const needsShift = (ch) => /[A-Z]/.test(ch) || SHIFTED_CHARS.has(ch);
 export const pressChar = (st) => (st.press === 'Space' ? ' ' : st.press === 'Enter' ? '\n' : st.press === 'Backspace' ? '\b' : st.press);
 
-// ---------- the fifteen regimes ----------
+// ---------- the sixteen regimes ----------
 // `pace` is the wait between keystrokes: 90 ms is about 133 wpm, and three regimes fix their own
 // pace because that is the thing they measure.
 export const DEFAULT_PACE = 90;
 // Keys measured per regime. 300 at 90 ms is 27 seconds of typing, which is enough samples for a
-// p99 with an interval and short enough that fifteen regimes are one sitting.
+// p99 with an interval and short enough that sixteen regimes are one sitting.
 export const DEFAULT_KEYS = 300;
 // Keys typed into a freshly loaded page before the trace starts: the first keystrokes pay for lazy
 // compilation and first touch of the editing machinery, and no writer types only 300 keys.
@@ -188,11 +188,16 @@ export function regimes(pace = DEFAULT_PACE) {
     // Worker results land between keys, under the headline budget. Only the native bench reads
     // `syntax`; the Parity oracle has no Syntax highlight and types this as more prose.
     { name: 'syntax',                mix: 'prose',    where: 'end',    pace, focus: 'off', syntax: 'on' },
+    // The headline regime's own typing with Style check on, every List: the matcher runs on the
+    // same worker thread the tagger does, off the keystroke lane, and its spans land between keys
+    // like the tagger's, so this is what says the strike costs the keystroke nothing. Only the
+    // native bench reads `style`; the Parity oracle has no Style check and types this as prose.
+    { name: 'style',                 mix: 'prose',    where: 'end',    pace, focus: 'off', style: 'on' },
   ];
 }
 
 /// Whether a regime, by name, is held to the budget. Every regime is unless its definition says
-/// `scored: false`; a name the fifteen do not include is scored, so a misspelling cannot exempt a run.
+/// `scored: false`; a name the sixteen do not include is scored, so a misspelling cannot exempt a run.
 export const scoredRegime = (name) => !regimes().some((r) => r.name === name && r.scored === false);
 
 // ---------- one regime, written out ----------
@@ -208,6 +213,7 @@ export function formatPlan(r, keys) {
   out.push(`  focus        ${r.focus || 'off'}`);
   out.push(`  live         ${r.live ? 'on: the markup rendered in place' : 'off'}`);
   out.push(`  syntax       ${r.syntax || 'off'}`);
+  out.push(`  style        ${r.style || 'off'}`);
   out.push(`  preview      ${r.preview ? `open in ${r.preview}: the rendered page beside the Editor` : 'closed'}`);
   out.push(`  pauses       ${r.pauseEvery ? `every ${r.pauseEvery} keys, ${r.pauseMs || PAUSE_MS} ms` : 'none'}`);
   out.push(`  seed         ${hash32(r.name)}`);

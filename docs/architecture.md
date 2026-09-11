@@ -67,8 +67,9 @@ Markup (from the parser: which bytes are Markup, which are heading, emphasis, st
 quote, list marker), Live (from the Markup spans and the caret: which marker bytes are folded away,
 which bytes are a heading's and at what level, and what furniture stands in a folded marker's
 cells), Syntax highlight (a Category per word — Nouns, Verbs, Adjectives, Adverbs or Conjunctions;
-the Universal POS tag it reads them from never leaves `quill_engine::pos`), Style check (a list name
-per match) and Spell check (a misspelling per word, suggestions fetched on demand). Syntax
+the Universal POS tag it reads them from never leaves `quill_engine::pos`), Style check (a List per
+match — Fillers, Redundancies or Clichés, matched over the union of the three shipped phrase lists
+whatever a toggle says, and a redundancy emitting only the words it strikes) and Spell check (a misspelling per word, suggestions fetched on demand). Syntax
 highlight, Style check and Spell check consume the **prose stream**: the parser's `Text` events with
 Markup, code spans, fenced code, URLs and front matter removed. They never see a `#` or a `*`.
 
@@ -83,18 +84,21 @@ Two lanes, and the budget is the Gate's ≤ 5 ms mean, ≤ 16 ms worst from keys
 - **Asynchronous, on one worker thread**: Syntax highlight, Style check and Spell check re-run for the
   changed paragraphs only, debounced, viewport first. Each result carries the Document generation it
   was computed against; the main thread applies a result whose generation is current and discards the
-  rest. Dictionary and tagger loading happen on that thread at first use, never on a keystroke or at
-  startup. `quill_engine::worker::Worker` starts the thread on its first request and reuses it;
+  rest. Dictionary, tagger and Style check list loading happen on that thread at first use, never on
+  a keystroke or at startup. `quill_engine::worker::Worker` starts the thread on its first request and reuses it;
   dropping it closes its channels without joining on the main loop.
 
-The worker's `Request` carries the Document `generation`, the changed `Paragraph`s (each an
-`index` and its `prose` text), and the `viewport` paragraph-index range. It answers one
-`ParagraphResult` per paragraph: the same `generation`, the `paragraph` index and Category
-`spans` whose byte ranges address that paragraph's requested prose. Viewport paragraphs arrive
-first, with request order kept within each group. The app's `Syntax::accept` delegates to the
-paragraph's engine `SpanStore::apply`, which checks the current Document generation before
-mapping the result into source-relative spans; pending or stale answers leave its last spans in
-place. The app owns the prose-to-source mapping and paragraph-index changes after structural
+The worker's `Request` carries the Document `generation`, the Annotators `wanted` (Syntax
+highlight, Style check, either or both), the changed `Paragraph`s (each an `index` and its `prose`
+text), and the `viewport` paragraph-index range. It answers one `ParagraphResult` per paragraph:
+the same `generation`, the `paragraph` index, and both span sets whose byte ranges address that
+paragraph's requested prose — `categories` for Syntax highlight, `lists` for Style check, the set
+of an Annotator the request did not want left empty, so a paragraph is sent once and tagged once
+whichever Annotators are on. Viewport paragraphs arrive first, with request order kept within each
+group. The app's `Syntax::accept` delegates to the paragraph's engine `SpanStore::apply`, generic
+over the span's kind: it checks the current Document generation, then takes its own kind out of the
+answer and maps it into source-relative spans, leaving the other kind for its own store; pending or
+stale answers leave its last spans in place. The app owns the prose-to-source mapping and paragraph-index changes after structural
 edits. Dirty-block extraction uses the Document's resolved link marks to omit reference labels
 whose definitions live in other blocks. Document insert, delete and reload advance the
 generation; equality compares the Document's content and indexes, excluding that edit history.
@@ -105,11 +109,18 @@ Whole-document passes (link-reference and footnote definitions, Stats, the headi
 idle after the synchronous lane, never inside it.
 
 **Tags.** Overlapping `GtkTextTag`s override a property by priority; they do not blend. So colour is
-flattened: Markup tier × Focus tier × Syntax highlight resolve into non-overlapping runs, one
-precomputed colour and alpha each, and the tag table holds one tag per distinct `(colour, alpha)`
-and one per `(weight, slant)`, created lazily and never removed. Decorations are separate tags
-layered over the runs: one `underline: error` tag for Spell check, one per Style check list, one for
-selection-independent things such as the transparent underline a dim URL takes (`focus.css:41`).
+flattened: Markup tier × Focus tier × Syntax highlight × Style check resolve into non-overlapping
+runs, one precomputed colour and alpha each, and the tag table holds one tag per distinct
+`(colour, alpha)` and one per `(weight, slant)`, created lazily and never removed. **Style check is
+in the flattening and not over it**: the Design oracle re-inks a struck run to the quiet tier rather
+than ruling a line over the ink it had, so a struck word loses the Category it was carrying — an
+ordering between the two Annotators, Style check last — and takes the Focus dim like any other run
+(#354, `ref/ia/mac-native/VERDICTS.md` § The Style Check mark). Decorations are separate tags
+layered over the runs: one `underline: error` tag for Spell check, one per Style check List — three
+identical strikes, split so that a List switched off takes its own tag off the page and leaves the
+other two, never so that the Lists read differently, and each carrying no colour of its own so the
+rule is drawn in the run's — one for selection-independent things such as the transparent underline
+a dim URL takes (`focus.css:41`).
 Focus's own dim is not among them: it is a colour, so it resolves into the run rather than layering
 over it (`quill_engine::annotate::paint`, #126). Syntax highlight is the third tier and enters the
 same flattening as an ink laid over the Markup runs rather than a mark resolved with them
@@ -294,7 +305,9 @@ and the determinism settings, this document names the flags:
   `--deterministic` it pins Live off, so every state judged before Live existed is shot with the
   markup written out), `--syntax off|on|nouns,verbs,adjectives,adverbs,conjunctions` (pin the whole
   `[syntax_highlight]` table: off, every Category on, or only the comma-separated Categories on;
-  absent under `--deterministic` the table takes its defaults with the master off), `--chrome on|off`, `--caret <offset>|end`,
+  absent under `--deterministic` the table takes its defaults with the master off),
+  `--style off|on|fillers,redundancies,cliches` (pin the whole `[style_check]` table the same way,
+  by List), `--chrome on|off`, `--caret <offset>|end`,
   `--select <from>,<to>`, `--scroll <fraction>`, `--nocaret`, `--typing` (the chrome as it is
   inside the 500 ms after a keystroke: the title bar gone, the stats bar dimmed), `--menu
   view|document|stats|palette` (that menu, or the Palette, open with its first row selected),
@@ -347,11 +360,14 @@ window twice, and a bench at 1440×900 is not a writer resizing anything.
 
 `PKGBUILD` builds the workspace with `cargo build --release --locked` from the working tree
 (`cargo fetch` in `prepare`, so `makepkg` needs the network only there), `arch=('x86_64')`,
-`license=('GPL-3.0-or-later' 'OFL-1.1' 'Apache-2.0')`, `depends=('gtk4' 'enchant' 'hicolor-icon-theme')`,
+`license=('GPL-3.0-or-later' 'OFL-1.1' 'Apache-2.0' 'BSD-3-Clause' 'MIT' 'CC0-1.0')`,
+`depends=('gtk4' 'enchant' 'hicolor-icon-theme')`,
 `makedepends=('cargo')`, `optdepends=('hunspell-en_us: English spell checking')`. It installs the
-binary as `/usr/bin/quill`, data under `/usr/share/quill/`, the `.desktop` file and icon under the
-application id, `fonts/OFL.txt` beside the fonts and under `/usr/share/licenses/quill/`, and
-`packaging/harper-brill-LICENSE` under that licence directory for the embedded model. With no
+binary as `/usr/bin/quill`, data under `/usr/share/quill/` (the fonts, and the Style check lists
+under `data/style/` with their `SOURCES.md`), the `.desktop` file and icon under the
+application id, `fonts/OFL.txt` beside the fonts and under `/usr/share/licenses/quill/`,
+`packaging/harper-brill-LICENSE` under that licence directory for the embedded model, and the
+lists' four licence texts there too. With no
 dictionary installed, Spell check shows a "no dictionary" state rather than failing.
 
 Flatpak comes later (the map's fog) and this design keeps it cheap: fonts are private, enchant and

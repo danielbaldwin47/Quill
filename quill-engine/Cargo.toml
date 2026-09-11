@@ -11,6 +11,8 @@ publish.workspace = true
 # No `gtk` here, ever: the engine/UI boundary is held by Cargo rather than by
 # convention (ADR 0008), and `tests/boundary.rs` fails the build if it slips.
 [dependencies]
+# The one automaton Style check matches its three phrase lists over (`style`).
+aho-corasick.workspace = true
 cairo-rs.workspace = true
 # The tagger behind Syntax highlight (`pos`). It brings a chunker and a neural
 # network Quill never calls, because the crate makes neither optional; ADR 0018
