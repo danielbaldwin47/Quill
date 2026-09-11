@@ -18,7 +18,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ASSERTIONS, assertState, secondShot, validate } from './assert-state.mjs';
+import { ASSERTIONS, SYNTAX, assertState, secondShot, validate } from './assert-state.mjs';
 import { pair, pairDir, reveal } from './blind.mjs';
 import { CAPTURES, cropPng, encodePng, overlaid, resolveOpponent } from './crop.mjs';
 import {
@@ -550,6 +550,23 @@ ok('the ghost refuses to read a bar it cannot see the ground beside, and never g
 const syntaxFixture = (name) => fs.readFileSync(path.join(ROOT, 'tools/syntax-fixture', name));
 const syntaxPair = (name) => ({ dim: syntaxFixture(`${name}-ours.png`), lit: syntaxFixture(`${name}-ours-lit.png`) });
 const syntaxRule = (name) => states.pieces.syntax[name].assert;
+// Since #319 three of the five states name a `mac-native` opponent instead of a rule, and a state
+// is answered one way (ADR 0017). Their pairs are still shot, and the rules they carried are still
+// the rules to exercise the production one with, so they are derived from the two rules that are
+// still registered rather than written out again: `live`'s is all five Categories on the light
+// ground with the Live arm, so dropping that arm is what `all-light` held and adding the Focus arm
+// is what `focus-sentence` held. Derived, so a Category added to the Piece reaches all four.
+const syntaxAllLight = (() => { const { live, ...rest } = syntaxRule('live'); return rest; })();
+// The focused sentence of `passage-syntax.md` — the passage the Design oracle's own focus frame was
+// shot on, and now ours — holds no conjunction, so four Categories are all a Focus Sentence shot of
+// it can show. That is the capture's own reading: CAPTURE-ORIGINAL-MBP.md § Dim wins over colour
+// lists the focused row as carrying noun, verb, adjective and adverb, on both grounds.
+const syntaxFocus = { ...syntaxAllLight, expected: syntaxAllLight.expected.filter((c) => c !== 'conjunctions'), focus: true };
+const syntaxDark = { ...syntaxAllLight, theme: 'dark' };
+// The Design oracle's light noun, which is the pigment every variant below paints with: the one
+// Category that is in `all-light`'s five and not in `adjectives-adverbs`' two. Read out of the
+// production table rather than written down again, so a repalette reaches the variants too.
+const NOUN = SYNTAX.light.colours.nouns;
 function alteredSyntax(pair, change) {
   const page = decodePng(pair.dim);
   const source = decodePng(pair.lit);
@@ -567,29 +584,53 @@ function alteredSyntax(pair, change) {
 }
 const rgbIs = (a, b) => a.every((v, i) => v === b[i]);
 
-ok('all five registered Syntax states hold on real captures and the companion pins only master off', () => {
+// One pixel of an encoded shot, for a variant that moves ink rather than recolouring it. The shot
+// is decoded once and kept, because the caller asks per pixel.
+const decoded = new Map();
+function readPixel(png, x, y) {
+  if (!decoded.has(png)) decoded.set(png, decodePng(png));
+  const image = decoded.get(png);
+  const i = (y * image.w + x) * image.ch;
+  return [...image.data.subarray(i, i + 3)];
+}
+
+ok('all five Syntax states hold on real captures and the companion pins only master off', () => {
   assert.deepEqual(Object.keys(states.pieces.syntax), ['all-light', 'all-dark', 'adjectives-adverbs', 'focus-sentence', 'live']);
+  // Which of the five carry a rule and which a `mac-native` opponent, and that no state carries
+  // both — the judge refuses that pairing, and this is where the Piece's own shape is held to it.
+  const rules = { 'all-light': syntaxAllLight, 'all-dark': syntaxDark, 'adjectives-adverbs': syntaxRule('adjectives-adverbs'), 'focus-sentence': syntaxFocus, live: syntaxRule('live') };
+  assert.deepEqual(Object.keys(states.pieces.syntax).filter((n) => states.pieces.syntax[n].opponent),
+    ['all-light', 'all-dark', 'focus-sentence']);
   const began = performance.now();
   for (const state of resolveStates(states, 'syntax')) {
-    const second = secondShot(state.assert, state);
-    assert.deepEqual(second, { state: { ...state, flags: { ...state.flags, syntax: 'off' } }, options: {} });
-    assert.equal(state.flags.theme, state.assert.theme);
+    const rule = rules[state.name];
+    assert.equal(Boolean(state.assert) && Boolean(state.opponent), false, `${state.name} is answered one way`);
+    if (state.assert) {
+      assert.deepEqual(state.assert, rule);
+      const second = secondShot(state.assert, state);
+      assert.deepEqual(second, { state: { ...state, flags: { ...state.flags, syntax: 'off' } }, options: {} });
+    }
+    assert.equal(state.flags.theme, rule.theme);
     assert.equal(state.flags.chrome, 'off');
-    assert.deepEqual(state.assert.expected, state.flags.syntax === 'on'
-      ? syntaxRule('all-light').expected : state.flags.syntax.split(','));
-    assert.equal(Boolean(state.assert.focus), state.flags.focus === 'sentence');
-    assert.equal(Boolean(state.assert.live), state.flags.live);
-    const got = assertState(state.assert, syntaxPair(state.name));
+    // A state whose flag names Categories shows exactly those. A state on `on` shows all five,
+    // except under Focus Sentence, where only the bright sentence is coloured and what it holds is
+    // the passage's business rather than the flag's.
+    assert.ok(rule.expected.every((c) => syntaxAllLight.expected.includes(c)), `${state.name} colours only the five`);
+    if (state.flags.syntax !== 'on') assert.deepEqual(rule.expected, state.flags.syntax.split(','));
+    else if (!rule.focus) assert.deepEqual(rule.expected, syntaxAllLight.expected);
+    assert.equal(Boolean(rule.focus), state.flags.focus === 'sentence');
+    assert.equal(Boolean(rule.live), state.flags.live);
+    const got = assertState(rule, syntaxPair(state.name));
     assert.equal(got.ours, true, `${state.name}: ${got.why}`);
-    if (state.assert.focus) assert.ok(got.brightRows.length > 0);
-    if (state.assert.live) assert.ok(got.headingPixels >= 32);
+    if (rule.focus) assert.ok(got.brightRows.length > 0);
+    if (rule.live) assert.ok(got.headingPixels >= 32);
   }
   console.log(`judge selftest: syntax five real 2880x1800 pairs measured in ${(performance.now() - began).toFixed(0)} ms`);
 });
 
-ok('the actual syntax-off shot fails the registered all-light rule', () => {
+ok('the actual syntax-off shot fails the all-light rule', () => {
   const pair = syntaxPair('all-light');
-  const got = assertState(syntaxRule('all-light'), { ...pair, dim: pair.lit });
+  const got = assertState(syntaxAllLight, { ...pair, dim: pair.lit });
   assert.equal(got.ours, false);
   assert.match(got.why, /nouns has 0 opaque pixels/);
 });
@@ -597,8 +638,8 @@ ok('the actual syntax-off shot fails the registered all-light rule', () => {
 ok('Syntax rejects missing and unexpected Categories, wrong pigments and displaced colour', () => {
   const pair = syntaxPair('all-light');
   // Removing a whole Category's opaque cores must fail even though its antialiased edge remains.
-  const missing = alteredSyntax(pair, ({ rgb, off }) => rgbIs(rgb, [202, 71, 26]) ? off : null);
-  assert.match(assertState(syntaxRule('all-light'), missing).why, /nouns has 0 opaque pixels/);
+  const missing = alteredSyntax(pair, ({ rgb, off }) => rgbIs(rgb, NOUN) ? off : null);
+  assert.match(assertState(syntaxAllLight, missing).why, /nouns has 0 opaque pixels/);
   const unexpected = assertState(syntaxRule('adjectives-adverbs'), pair);
   assert.equal(unexpected.ours, false);
   assert.match(unexpected.why, /unexpected|non-prose ink/);
@@ -606,17 +647,17 @@ ok('Syntax rejects missing and unexpected Categories, wrong pigments and displac
   const oneNoun = alteredSyntax(syntaxPair('adjectives-adverbs'), ({ rgb, off }) => {
     if (!inserted && rgbIs(rgb, [25, 25, 25]) && rgbIs(off, rgb)) {
       inserted = true;
-      return [202, 71, 26];
+      return NOUN;
     }
     return null;
   });
   assert.equal(inserted, true);
   assert.match(assertState(syntaxRule('adjectives-adverbs'), oneNoun).why, /unexpected nouns/);
-  for (const pigment of [[4, 250, 100], [202, 71, 26]]) {
+  for (const pigment of [[4, 250, 100], NOUN]) {
     const wrong = alteredSyntax(pair, ({ x, y }) => x === 10 && y === 100 ? pigment : null);
-    assert.equal(assertState(syntaxRule('all-light'), wrong).ours, false);
+    assert.equal(assertState(syntaxAllLight, wrong).ours, false);
   }
-  const odd = assertState(syntaxRule('all-light'), { ...pair, lit: painted() });
+  const odd = assertState(syntaxAllLight, { ...pair, lit: painted() });
   assert.equal(odd.ours, false);
   assert.match(odd.why, /differ in size/);
 });
@@ -625,17 +666,17 @@ ok('Syntax Focus rejects coloured dim glyphs and Live requires colour on the sca
   const focus = syntaxPair('focus-sentence');
   let leaked = false;
   const wrongFocus = alteredSyntax(focus, ({ rgb }) => {
-    if (!leaked && rgbIs(rgb, [198, 196, 194])) { leaked = true; return [202, 71, 26]; }
+    if (!leaked && rgbIs(rgb, [198, 196, 194])) { leaked = true; return NOUN; }
     return null;
   });
   assert.equal(leaked, true, 'the captured sentence has dim glyphs to challenge');
-  assert.equal(assertState(syntaxRule('focus-sentence'), wrongFocus).ours, false);
+  assert.equal(assertState(syntaxFocus, wrongFocus).ours, false);
   leaked = false;
   const faintLeak = alteredSyntax(focus, ({ rgb }) => {
     if (!leaked && rgbIs(rgb, [198, 196, 194])) { leaked = true; return [237, 208, 198]; }
     return null;
   });
-  assert.match(assertState(syntaxRule('focus-sentence'), faintLeak).why, /outside the bright rows/);
+  assert.match(assertState(syntaxFocus, faintLeak).why, /outside the bright rows/);
   const live = syntaxPair('live');
   const { heading } = assertState(syntaxRule('live'), live);
   const plainHeading = alteredSyntax(live, ({ y, off }) => y >= heading.top && y <= heading.bottom ? off : null);
@@ -648,7 +689,7 @@ ok('Syntax Focus rejects coloured dim glyphs and Live requires colour on the sca
 });
 
 ok('Syntax refuses invalid configuration before a shot opens', () => {
-  const spec = syntaxRule('all-light');
+  const spec = syntaxAllLight;
   for (const patch of [
     { theme: 'sepia' }, { expected: [] }, { expected: ['nouns', 'nouns'] },
     { expected: ['pronouns'] }, { expected: 'nouns' }, { focus: 'sentence' },
@@ -659,16 +700,28 @@ ok('Syntax refuses invalid configuration before a shot opens', () => {
 ok('Syntax preserves captured marker, code and URL pixels, and a coloured protected glyph fails', () => {
   const pair = { dim: syntaxFixture('protection-on.png'), lit: syntaxFixture('protection-off.png') };
   // Device-pixel rectangles read off protection-off.png: heading #; link destination; inline
-  // code on its two wrapped rows; autolink; fenced code (including markers); indented code.
+  // code on its two wrapped rows; autolink; fenced code (including markers); indented code. Each
+  // is 88 px higher than the rectangles #317 measured, which is the page top #241 made a constant
+  // (docs/design.md row Page top): the pair was re-shot for #319 and every band moved by it.
   const protectedRegions = [
-    [570, 165, 32, 45], [1100, 450, 645, 62], [1906, 450, 320, 62],
-    [620, 532, 214, 54], [620, 675, 675, 62], [592, 815, 1695, 225],
-    [592, 1100, 1695, 90],
+    [570, 77, 32, 45], [1100, 362, 645, 62], [1906, 362, 320, 62],
+    [620, 444, 214, 54], [620, 587, 675, 62], [592, 727, 1695, 225],
+    [592, 1012, 1695, 90],
   ];
-  const spec = { ...syntaxRule('all-light'), protected: protectedRegions };
+  const spec = { ...syntaxAllLight, protected: protectedRegions };
   const good = assertState(spec, pair);
   assert.equal(good.ours, true, good.why);
-  const shifted = assertState(spec, { ...pair, dim: syntaxFixture('protection-shifted.png') });
+  // The defect `protection-shifted.png` preserved — a full retag after a worker result moved the
+  // indented code and the prose under it — put back on the current capture rather than read out of
+  // that file. The file is two palettes and one page top old: #319 measured the Categories off the
+  // Design oracle, so its pixels are colours the rule no longer knows, and the production rule
+  // rejects it at the first of them rather than at the moved block, which is the wrong red. The
+  // defect is geometry, so it survives the move; the capture did not.
+  const moved = alteredSyntax(pair, ({ x, y }) => {
+    const [rx, ry, w, h] = protectedRegions.at(-1);
+    return x >= rx && x < rx + w && y >= ry && y < ry + h ? readPixel(pair.dim, x, y - 4) : null;
+  });
+  const shifted = assertState(spec, moved);
   assert.equal(shifted.ours, false);
   assert.match(shifted.why, /protected marker, code or URL pixel/);
   // Change one real opaque glyph in each protected subject. Each must independently go red,
@@ -679,7 +732,7 @@ ok('Syntax preserves captured marker, code and URL pixels, and a coloured protec
       if (!changed && x >= rx && x < rx + w && y >= ry && y < ry + h
           && (rgbIs(rgb, [25, 25, 25]) || rgbIs(rgb, [181, 179, 176]))) {
         changed = true;
-        return [202, 71, 26];
+        return NOUN;
       }
       return null;
     });
@@ -1266,11 +1319,16 @@ ok('every judged state that draws a determined caret is held to one, and no othe
   // when it is asked, one shot in three, and those states are about the sidebar beside the page.
   // `export/dialog` takes it for a reason of its own: the dialog is a surface over the page and the
   // keyboard is the dialog's while it is up, so the Editor under it draws the ghost by rights.
+  // The two all-Category Syntax states that took a `mac-native` opponent in #319 take it because
+  // their captures carry no bar to pair against — measured, not assumed: zero accent pixels in
+  // both `308-original-mbp-{light,dark}-syntax-all`. Their sibling `syntax/focus-sentence` draws
+  // one, because its capture does, at the same word: 430 accent pixels standing after `more`.
   const exempt = Object.entries(wants).filter(([, held]) => !held).map(([name]) => name).sort();
   assert.deepEqual(exempt, [
     'caret/selection', 'caret/unfocused', 'export/dialog', 'files/library', 'files/search',
     'focus/paragraph', 'focus/sentence',
     'markup/blocks', 'markup/gutters', 'markup/wrapped', 'preview/full', 'preview/pdf-full',
+    'syntax/all-dark', 'syntax/all-light',
     'theme/dark', 'theme/light', 'type/mono',
   ]);
   // #197 came out of `theme/dark`, which has since gone `--nocaret` (#198) so that its marks can be

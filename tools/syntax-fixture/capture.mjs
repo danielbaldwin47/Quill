@@ -20,10 +20,16 @@ try {
     await stage.shoot({ bin, argv, w: flags.w, h: flags.h, out: path.join(out, name) });
     captures.push({ file: name, flags });
   };
-  // Exactly five states, each with its rule's own companion; two extra protection fixtures.
+  // Exactly five states, each with its companion; two extra protection fixtures. A state that
+  // names an `assert` is asked for its rule's own second shot, so the fixture and the rule cannot
+  // drift; the three that name a `mac-native` `opponent` since #319 have no rule to ask, and their
+  // companion is the same shot with Syntax off, which is what the syntax rule's second shot is.
   for (const state of resolveStates(states, 'syntax')) {
     await shoot(`${state.name}-ours.png`, state.flags);
-    await shoot(`${state.name}-ours-lit.png`, secondShot(state.assert, state).state.flags);
+    const lit = state.assert
+      ? secondShot(state.assert, state).state.flags
+      : { ...state.flags, syntax: 'off' };
+    await shoot(`${state.name}-ours-lit.png`, lit);
   }
   for (const syntax of ['on', 'off']) {
     await shoot(`protection-${syntax}.png`, { ...states.defaults,
