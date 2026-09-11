@@ -68,7 +68,7 @@ Running one ticket on two or more models and comparing the results — the ticke
 ### Triage labels
 
 Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
-
+Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. A capture ticket (the one a spec names under **Waits on captures**, `docs/agents/tickets.md`) carries `ready-for-capture` in place of `ready-for-agent`: its work is a capture on the Mac. See `docs/agents/triage-labels.md`.
 ### Domain docs
 
 Single-context: `CONTEXT.md` and `docs/adr/` at the repo root, created lazily by `/domain-modeling`. See `docs/agents/domain.md`.
