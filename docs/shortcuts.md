@@ -143,16 +143,16 @@ the other pane.
 
 ## Stats menu
 
-Clicking the stats bar opens it. Radios pick what the bar shows; the last row hides the bar.
+Clicking the stats bar opens it. Checks pick what the bar shows, any number of them at once; the last row hides the bar.
 
 | Id | Title | Default | Alias |
 |---|---|---|---|
-| `stats.words` | Words (radio) | — | |
-| `stats.characters` | Characters (radio) | — | |
-| `stats.charactersNoSpaces` | Characters Without Spaces (radio) | — | |
-| `stats.sentences` | Sentences (radio) | — | |
-| `stats.paragraphs` | Paragraphs (radio) | — | |
-| `stats.readingTime` | Reading Time (radio) | — | |
+| `stats.words` | Words (check) | — | |
+| `stats.characters` | Characters (check) | — | |
+| `stats.charactersNoSpaces` | Characters Without Spaces (check) | — | |
+| `stats.sentences` | Sentences (check) | — | |
+| `stats.paragraphs` | Paragraphs (check) | — | |
+| `stats.readingTime` | Reading Time (check) | — | |
 | `chrome.stats` | Hide Statistics | — | |
 
 ## Palette and keyboard only
