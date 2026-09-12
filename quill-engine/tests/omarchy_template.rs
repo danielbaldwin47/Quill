@@ -17,7 +17,8 @@
 //! (#238), `quiet`, which takes the theme's `muted` because a struck run is
 //! quieted rather than coloured (#354), and the five Syntax highlight roles,
 //! which take the theme's own
-//! `red`, `blue`, `brown`, `magenta` and `green` (#312). The rules are a
+//! `red`, `blue`, `brown`, `magenta` and `green` (#312), and `spell`, which
+//! takes the theme's `red` as its warning colour (#407). The rules are a
 //! re-statement, so the Hand test on the owner's desktop (#159) is the check
 //! that they are Omarchy's; what this test guards is the template drifting
 //! from the roles or from the contract without anyone noticing.
@@ -39,9 +40,10 @@ const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/omarchy-colors.
 /// spec's list left it out (#238), `quiet` for the same reason (#354), and the
 /// five Syntax highlight roles, which
 /// take the theme's named hues rather than a blend so that a desktop theme
-/// colours a Category the way it colours everything else (#312). A role
-/// missing here fails the test below by name.
-const MAPPING: [(Role, Source); 20] = [
+/// colours a Category the way it colours everything else (#312), and `spell`
+/// on the theme's `red`, the one warning colour every Omarchy theme names
+/// (#407). A role missing here fails the test below by name.
+const MAPPING: [(Role, Source); 21] = [
     (Role::Paper, Source::Key("background")),
     (Role::Ink, Source::Key("foreground")),
     (Role::InkDim, Source::Key("dark_foreground")),
@@ -65,6 +67,7 @@ const MAPPING: [(Role, Source); 20] = [
     (Role::SyntaxAdjective, Source::Key("brown")),
     (Role::SyntaxAdverb, Source::Key("magenta")),
     (Role::SyntaxConjunction, Source::Key("green")),
+    (Role::Spell, Source::Key("red")),
 ];
 
 /// Where a role's colour comes from in the theme.

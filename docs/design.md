@@ -62,7 +62,9 @@ A writer who wants the desktop's colours sets one key, `palette = "<path>"`, in 
 Quill loads a file of `[light]` and `[dark]` tables whose keys are the `Role` names in snake case
 (`paper`, `ink`, `ink_dim`, `mark`, `accent`, `link`, `quiet`, `link_rule`, `selection`, `selection_idle`,
 `code_bg`, `rule`, `shadow`, `chrome_fg`, `chrome_fg_strong`, and Syntax highlight's `syntax_noun`,
-`syntax_verb`, `syntax_adjective`, `syntax_adverb`, `syntax_conjunction`); a slot the file omits, a
+`syntax_verb`, `syntax_adjective`, `syntax_adverb`, `syntax_conjunction`, and Spell check's `spell`,
+provisional — a red chosen at 3:1 or better per ground, not measured, until the capture ticket #400
+replaces it); a slot the file omits, a
 scheme it omits, or a file that is missing is the built-in, and unknown keys are ignored. The watch
 is on the file's directory, because a desktop theme switch replaces the directory rather than
 rewriting it.
