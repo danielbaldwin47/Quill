@@ -1,17 +1,14 @@
-//! The Spell check seam against the fixture dictionary, `ref/spell/`, read through a temporary
-//! copy so no test reads the machine's dictionaries or writes the checkout.
-//!
-//! `ENCHANT_CONFIG_DIR` is process-wide and enchant reads it when a broker is made, so every
-//! test here first calls [`fixture`], which copies the fixture and sets the variable once, before
-//! the first broker. That is why these tests live in their own test binary: the variable is set
-//! while no other test in the process can be reading the environment.
+//! The Spell check seam against the fixture dictionary, `ref/spell/`, read through the temporary
+//! copy [`fixture`] makes, so no test reads the machine's dictionaries or writes the checkout.
+
+mod spell_fixture;
 
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
+use std::path::Path;
 
 use quill_engine::markdown;
 use quill_engine::spell::{self, Enchant, Position, SUGGESTIONS, SpellChecker};
+use spell_fixture::fixture;
 
 /// The passage's eight misspellings, as #400 lists them.
 const MISSPELLINGS: [&str; 8] = [
@@ -141,23 +138,4 @@ fn the_prose_stream_marks_exactly_the_passage_s_eight_misspellings() {
 fn en_us() -> Enchant {
     fixture();
     Enchant::new("en_US").expect("the fixture serves en_US")
-}
-
-/// The temporary copy of `ref/spell/`, made and pointed at once per test process.
-fn fixture() -> &'static Path {
-    static COPY: OnceLock<PathBuf> = OnceLock::new();
-    COPY.get_or_init(|| {
-        let copy = std::env::temp_dir().join(format!("quill-spell-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&copy);
-        let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../ref/spell/hunspell");
-        let target = copy.join("hunspell");
-        fs::create_dir_all(&target).expect("the copy's hunspell directory is made");
-        for name in ["en_US.aff", "en_US.dic"] {
-            fs::copy(source.join(name), target.join(name)).expect("the fixture pair copies");
-        }
-        // SAFETY: set once, under the `OnceLock`, before any broker reads it; this binary's only
-        // other environment readers are these tests, each of which waits on this lock first.
-        unsafe { std::env::set_var("ENCHANT_CONFIG_DIR", &copy) };
-        copy
-    })
 }
