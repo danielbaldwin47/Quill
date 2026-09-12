@@ -66,7 +66,11 @@ _Avoid_: grammar check, linting, underlining (that is Spell check's mark)
 Underlining misspellings against a system dictionary, with suggestions; a toggle, on by default.
 
 **Stats**:
-Word count, character count and reading time for the Document or the selection.
+The Statistics the stats bar reads over the Document, or over the selection while one stands, counted on the prose stream. Not an Annotator: it marks nothing.
+
+**Statistic**:
+One number Stats counts, each behind its own check in the Stats menu: Words, Characters, Characters Without Spaces, Sentences, Paragraphs, Reading Time.
+_Avoid_: stat, metric, count (a Statistic's value)
 
 **Heading navigation**:
 The outline of a Document's headings, used to jump between sections.
