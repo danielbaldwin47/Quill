@@ -31,7 +31,7 @@
 //! beside the bars'. The Palette (#122) is [`crate::palette`], one popover
 //! over the page that `palette.open` toggles.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::path::Path;
 use std::rc::Rc;
 
@@ -42,7 +42,7 @@ use quill_engine::focus::Focus;
 use quill_engine::focus::typewriter::Typewriter;
 use quill_engine::pos::Category;
 use quill_engine::settings::{
-    Choice, Chrome, FocusScope, PreviewLayout, PreviewMode, TemplateName,
+    Choice, Chrome, FocusScope, PreviewLayout, PreviewMode, Stats, TemplateName,
 };
 use quill_engine::shortcuts::{Chord, Refusal};
 use quill_engine::stats::{self, Counts, Statistic};
@@ -165,7 +165,7 @@ impl Modes {
             fullscreen,
             bars: session.chrome() == Chrome::Shown,
             stats: session.stats_shown(),
-            statistics: Statistic::ALL.map(|statistic| session.stats().show.contains(&statistic)),
+            statistics: checked(&session.stats().show),
             library,
             preview,
             preview_layout: session.preview_layout().as_str(),
@@ -630,6 +630,8 @@ const TITLE_PX: f64 = 16.0;
 const TITLE_GAP: i32 = 4;
 /// The stats' type: `font: 11px/1`, tabular figures.
 const STAT_PX: f64 = 11.0;
+/// What leads the row while a selection stands (`.stat.sel-label`).
+const SELECTION_LABEL: &str = "Selection";
 /// Between the stats (`.bar { gap: 15px }`).
 const STAT_GAP: i32 = 15;
 /// Between the View button's icon and its chevron (`gap: 2px`).
@@ -970,7 +972,18 @@ pub struct Bars {
     top: gtk::Overlay,
     bottom: gtk::Overlay,
     title: gtk::Label,
-    stats: [gtk::Label; 3],
+    /// The stats bar's row, in the order it reads: the `Selection` label, one
+    /// cell per checked Statistic, then the Page cell.
+    line: gtk::Box,
+    /// The `Selection` label leading the row while a selection stands
+    /// (`chrome.css` `.stat.sel-label`), in the theme's accent so a selection
+    /// readout is told from the Document's at a glance.
+    selection_label: gtk::Label,
+    /// One cell per checked Statistic, in [`Statistic::ALL`]'s order, rebuilt
+    /// when the checked set changes. Zero to six of them: unchecking every
+    /// Statistic leaves the bar standing and empty, which is not the same
+    /// choice as hiding it.
+    stats: Rc<RefCell<Vec<gtk::Label>>>,
     /// The page the Preview's column stands over, beside the three counts and
     /// away while the pane is showing anything else (#299). A cell of its own
     /// rather than a fourth count: the words are the engine's whole answer
@@ -1000,8 +1013,20 @@ pub struct Bars {
     /// from the stylesheet.
     ground: Rc<Cell<Ground>>,
     /// The Document's counts, kept so a ground change can re-ink the cells
-    /// without counting again.
+    /// without counting again, and so clearing a selection restores them at
+    /// once rather than waiting for the next idle pass.
     counts: Rc<Cell<Counts>>,
+    /// Which Statistics are checked, in [`Statistic::ALL`]'s order. The cells
+    /// are built from this and never from the order they were checked in, so
+    /// the bar reads the same on every Document.
+    statistics: Rc<Cell<[bool; Statistic::ALL.len()]>>,
+    /// The held run's counts while a selection stands, which the cells read in
+    /// the Document's place.
+    selection: Rc<Cell<Option<Counts>>>,
+    /// The two alphas the typing machine last gave, so a selection arriving or
+    /// clearing can put the bars back where the machine has them without
+    /// asking it again.
+    fade: Rc<Cell<(f64, f64)>>,
 }
 
 /// The bars' two switches: whether they are shown at all, and whether the
@@ -1079,13 +1104,8 @@ impl Bars {
         let over = rule(gtk::Align::End);
         let top = bar(&["chrome", "chrome-top"], &top_bar, &over);
 
-        let stats: [gtk::Label; 3] = std::array::from_fn(|_| {
-            gtk::Label::builder()
-                .css_classes(["chrome-stat"])
-                .use_markup(true)
-                .valign(gtk::Align::Center)
-                .build()
-        });
+        let selection_label = cell_label();
+        selection_label.set_visible(false);
         let page = gtk::Label::builder()
             .css_classes(["chrome-stat"])
             .valign(gtk::Align::Center)
@@ -1094,14 +1114,15 @@ impl Bars {
         let line = gtk::Box::new(gtk::Orientation::Horizontal, STAT_GAP);
         // Half a pixel up, for the reason the title's margin gives.
         line.set_margin_bottom(1);
-        for stat in &stats {
-            line.append(stat);
-        }
+        // The row's two fixed ends: the `Selection` label leads it and the
+        // Page cell closes it, so a selection readout never displaces the
+        // page (#299) and the cells are built between the two.
+        line.append(&selection_label);
         line.append(&page);
         // No Command opens the Stats menu — the oracle's bar opens it on a
         // click and nothing else does — so the click asks the window
         // directly, the way `chrome.doc` and `chrome.view` reach it.
-        let stats_button = button(&[], line, None);
+        let stats_button = button(&[], line.clone(), None);
         stats_button.connect_clicked(|button| {
             if let Some(window) = button.root().and_downcast::<Window>() {
                 window.open_menu(Menu::Stats);
@@ -1130,7 +1151,9 @@ impl Bars {
             top,
             bottom,
             title,
-            stats,
+            line,
+            selection_label,
+            stats: Rc::new(RefCell::new(Vec::new())),
             page,
             over,
             under,
@@ -1144,7 +1167,14 @@ impl Bars {
             focus,
             ground,
             counts: Rc::new(Cell::new(Counts::default())),
+            // The settings' own default rather than three names written out
+            // again, so a `Bars` built with no session reads as a fresh
+            // install's does.
+            statistics: Rc::new(Cell::new(checked(&Stats::default().show))),
+            selection: Rc::new(Cell::new(None)),
+            fade: Rc::new(Cell::new((1.0, 1.0))),
         };
+        bars.build_cells();
         bars.set_count("");
         bars
     }
@@ -1265,6 +1295,20 @@ impl Bars {
     /// on or already off is left alone, so a keystroke inside the window
     /// changes nothing on the widget.
     pub fn set_fade(&self, title: f64, stats: f64) {
+        self.fade.set((title, stats));
+        self.apply_fade();
+    }
+
+    /// Puts the held alphas on the bars, with the one thing that outranks the
+    /// typing machine: a selection readout never steps back, so the numbers
+    /// the writer is watching while they drag do not fade under them (#387).
+    fn apply_fade(&self) {
+        let (title, held) = self.fade.get();
+        let stats = if self.selection.get().is_some() {
+            1.0
+        } else {
+            held
+        };
         for (bar, alpha) in [(&self.top, title), (&self.bottom, stats)] {
             let faded = alpha < 1.0;
             if bar.has_css_class("faded") != faded {
@@ -1287,16 +1331,80 @@ impl Bars {
     }
 
     /// Counts `text` into the stats bar: all six Statistics, of which the bar
-    /// shows the oracle's default three.
+    /// shows the ones the writer has checked.
     ///
     /// Counted as the Document is shown, and again on idle 500 ms after the
     /// last keystroke of a run ([`typing::Typing::takes_recount`]); never on
     /// the keystroke path. The six cost one walk of the parser's events
     /// together ([`stats::count`]), so counting all of them is what counting
-    /// one costs.
+    /// one costs. Cached, so a ground change, a check and a selection
+    /// clearing all re-ink the cells without counting again.
     pub fn set_count(&self, text: &str) {
         self.counts.set(stats::count(text));
         self.ink_counts();
+    }
+
+    /// Reads the held run into the cells, or gives them back to the Document.
+    ///
+    /// `Some` puts a `Selection` label at the head of the row and counts the
+    /// run; `None` takes the label away and restores the Document's cached
+    /// counts at once, so a click never leaves a stale `Selection`. Driven by
+    /// the window's `mark-set` hook at most once a frame, and outside the
+    /// typing hold: a selection readout is never stepped back.
+    pub fn set_selection(&self, run: Option<&str>) {
+        let held = run.map(stats::count);
+        // A caret move with no selection on either side of it is most of what
+        // `mark-set` reports; re-inking six cells for it would be work for no
+        // change on the widget.
+        if held.is_none() && self.selection.get().is_none() {
+            return;
+        }
+        self.selection.set(held);
+        self.ink_counts();
+        self.apply_fade();
+    }
+
+    /// Whether the bar is reading a selection rather than the Document.
+    #[must_use]
+    pub fn selection_shown(&self) -> bool {
+        self.selection_label.is_visible()
+    }
+
+    /// Builds the row from the checked set: one cell per checked Statistic,
+    /// in [`Statistic::ALL`]'s order whatever order they were checked in.
+    ///
+    /// The Stats menu's six checks reach the bar through here. A set already
+    /// built is left alone, so a check on some other menu costs no widgets.
+    pub fn set_statistics(&self, statistics: [bool; Statistic::ALL.len()]) {
+        if self.statistics.get() == statistics {
+            return;
+        }
+        self.statistics.set(statistics);
+        self.build_cells();
+        self.ink_counts();
+    }
+
+    /// The Statistics the bar shows, in the order its cells read.
+    #[must_use]
+    pub fn statistics(&self) -> Vec<Statistic> {
+        shown(self.statistics.get())
+    }
+
+    /// Lays one label per checked Statistic between the row's two fixed ends.
+    fn build_cells(&self) {
+        let mut stats = self.stats.borrow_mut();
+        for label in stats.drain(..) {
+            self.line.remove(&label);
+        }
+        // Each goes after the label that leads the row, in turn, which leaves
+        // the Page cell where it was: last.
+        let mut after: gtk::Widget = self.selection_label.clone().upcast();
+        for _ in 0..shown(self.statistics.get()).len() {
+            let label = cell_label();
+            self.line.insert_child_after(&label, Some(&after));
+            after = label.clone().upcast();
+            stats.push(label);
+        }
     }
 
     /// Says which page the Preview's column stands over, or takes the cell
@@ -1317,19 +1425,21 @@ impl Bars {
         }
     }
 
-    /// The stats bar's three cells, as `("188", "words")`.
+    /// The stats bar's cells, as `("188", "words")`: zero to six of them, in
+    /// [`Statistic::ALL`]'s order.
     ///
-    /// The three the oracle shows by default, picked out of the six
-    /// [`stats::count`] answers with.
+    /// Over the held run while a selection stands, and over the Document
+    /// otherwise — the same Statistics either way, so the readout answers the
+    /// same questions.
     #[must_use]
-    pub fn count(&self) -> [(String, &'static str); 3] {
-        let counts = self.counts.get();
-        [
-            Statistic::Words,
-            Statistic::Characters,
-            Statistic::ReadingTime,
-        ]
-        .map(|stat| counts.cell(stat))
+    pub fn count(&self) -> Vec<(String, &'static str)> {
+        cells(self.reading(), self.statistics.get())
+    }
+
+    /// Whose counts the cells read: the held run's while a selection stands,
+    /// the Document's otherwise.
+    fn reading(&self) -> Counts {
+        self.selection.get().unwrap_or_else(|| self.counts.get())
     }
 
     /// Lights the View button's rows the way Focus lights the page.
@@ -1379,19 +1489,65 @@ impl Bars {
     /// Writes the counts into the labels: the number strong and the label in
     /// the chrome's grey (`.stat b`).
     fn ink_counts(&self) {
-        let strong = self
-            .ground
-            .get()
-            .colours
-            .colour(Role::ChromeFgStrong)
-            .to_hex();
-        for (label, (number, name)) in self.stats.iter().zip(self.count()) {
+        let colours = self.ground.get().colours;
+        let strong = colours.colour(Role::ChromeFgStrong).to_hex();
+        for (label, (number, name)) in self.stats.borrow().iter().zip(self.count()) {
             let number = glib::markup_escape_text(&number);
             label.set_markup(&format!(
                 "<span weight=\"500\" foreground=\"{strong}\">{number}</span> {name}"
             ));
         }
+        // The label is inked here rather than in the stylesheet because the
+        // accent is the theme's and the sheet is the scheme's: a theme change
+        // re-inks the numbers through this same pass.
+        let accent = colours.colour(Role::Accent).to_hex();
+        self.selection_label.set_markup(&format!(
+            "<span weight=\"500\" foreground=\"{accent}\">{SELECTION_LABEL}</span>"
+        ));
+        self.selection_label
+            .set_visible(self.selection.get().is_some());
     }
+}
+
+/// A stats bar cell: the row's type, centred on it.
+fn cell_label() -> gtk::Label {
+    gtk::Label::builder()
+        .css_classes(["chrome-stat"])
+        .use_markup(true)
+        .valign(gtk::Align::Center)
+        .build()
+}
+
+/// Which of [`Statistic::ALL`] `show` carries, in `ALL`'s order.
+///
+/// The one place the settings' list becomes the bar's order, read by both
+/// the menu's checks ([`Modes`]) and the cells ([`Bars::set_statistics`]).
+pub(crate) fn checked(show: &[Statistic]) -> [bool; Statistic::ALL.len()] {
+    Statistic::ALL.map(|statistic| show.contains(&statistic))
+}
+
+/// The Statistics `checked` carries, in [`Statistic::ALL`]'s order.
+///
+/// The bar's one fixed order, whatever order the writer checked them in, so
+/// the cells read the same on every Document.
+fn shown(checked: [bool; Statistic::ALL.len()]) -> Vec<Statistic> {
+    Statistic::ALL
+        .into_iter()
+        .zip(checked)
+        .filter(|(_, on)| *on)
+        .map(|(statistic, _)| statistic)
+        .collect()
+}
+
+/// The cells a bar shows: one per checked Statistic, over `counts`.
+///
+/// Zero to six of them — unchecking every Statistic leaves the bar standing
+/// and empty, which is a different choice from hiding it.
+fn cells(counts: Counts, checked: [bool; Statistic::ALL.len()]) -> Vec<(String, &'static str)> {
+    shown(checked)
+        .into_iter()
+        .map(|statistic| counts.cell(statistic))
+        .collect()
 }
 
 /// A bar: its content with a hairline laid over one edge.
@@ -2279,6 +2435,62 @@ mod tests {
             empty.cell(Statistic::ReadingTime),
             ("< 1 min".to_owned(), "read")
         );
+    }
+
+    /// The cells stand in [`Statistic::ALL`]'s order whatever order they were
+    /// checked in, so the bar reads the same on every Document.
+    #[test]
+    fn the_cells_stand_in_the_bars_order_and_not_the_order_they_were_checked() {
+        let backwards = vec![Statistic::Paragraphs, Statistic::Sentences];
+        assert_eq!(
+            shown(checked(&backwards)),
+            [Statistic::Sentences, Statistic::Paragraphs]
+        );
+        assert_eq!(
+            shown(checked(&Stats::default().show)),
+            [
+                Statistic::Words,
+                Statistic::Characters,
+                Statistic::ReadingTime
+            ]
+        );
+    }
+
+    /// Zero to six cells: nothing checked leaves the bar standing and empty,
+    /// which is not the same choice as hiding it, and all six read from the
+    /// one count the setter took.
+    #[test]
+    fn the_bar_shows_a_cell_for_each_checked_statistic_and_none_for_none() {
+        let sample =
+            std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../ref/sample.md"))
+                .expect("ref/sample.md");
+        let counts = stats::count(&sample);
+        assert_eq!(cells(counts, checked(&[])), []);
+        assert_eq!(
+            cells(counts, checked(&Statistic::ALL)),
+            [
+                ("188".to_owned(), "words"),
+                ("929".to_owned(), "characters"),
+                ("749".to_owned(), "without spaces"),
+                ("16".to_owned(), "sentences"),
+                ("9".to_owned(), "paragraphs"),
+                ("1 min".to_owned(), "read"),
+            ]
+        );
+    }
+
+    /// A selection readout reads the held run through the same cells, and the
+    /// Document's counts come back the moment it clears.
+    #[test]
+    fn the_cells_read_the_held_run_while_a_selection_stands() {
+        let document = stats::count("One sentence here. And a second one after it.\n");
+        let run = stats::count("And a second one after it.");
+        let three = checked(&Stats::default().show);
+        assert_eq!(cells(document, three)[0], ("9".to_owned(), "words"));
+        assert_eq!(cells(run, three)[0], ("6".to_owned(), "words"));
+        // The same Statistics either way: the readout answers the same
+        // questions the Document's does.
+        assert_eq!(cells(run, three).len(), cells(document, three).len());
     }
 
     /// The typing state's opacities are in the sheet as the two `faded`
