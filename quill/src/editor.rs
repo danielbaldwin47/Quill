@@ -324,6 +324,10 @@ mod imp {
         /// ([`Editor::correct`](super::Editor::correct)). `None` while the
         /// section is empty.
         pub correcting: RefCell<Option<super::Correcting>>,
+        /// The menu a misspelled word opens, made at the first one and kept:
+        /// the corrections section above GTK's own rows
+        /// ([`crate::corrections::menu`]).
+        pub corrections: RefCell<Option<gtk::PopoverMenu>>,
         /// The Face this Editor is set in.
         pub face: Cell<Face>,
         /// Which of the type ladder's fourteen steps the Editor is set at.
@@ -499,6 +503,9 @@ mod imp {
             if let Some(resume) = self.resume.take() {
                 resume.remove();
             }
+            if let Some(menu) = self.corrections.take() {
+                gtk::prelude::WidgetExt::unparent(&menu);
+            }
         }
     }
 
@@ -508,6 +515,11 @@ mod imp {
         /// answered here rather than guessed before the window has a size.
         fn size_allocate(&self, width: i32, height: i32, baseline: i32) {
             self.parent_size_allocate(width, height, baseline);
+            // A popover parented on a widget is placed in its parent's
+            // allocation, as `GtkTextView` places its own menu.
+            if let Some(menu) = self.corrections.borrow().as_ref() {
+                gtk::prelude::PopoverExt::present(menu);
+            }
             self.obj().lay_out(width, height);
             // The bar's row is the row the text wrapped to, and where the text
             // wrapped is not known until there is a width to wrap it in. A
@@ -958,18 +970,20 @@ impl Editor {
         tags::repaint(&self.buffer(), document, self.painting(&tiers), &lines);
     }
 
-    /// Builds the corrections section for the misspelled word at the caret
-    /// and sets it as the text view's extra menu.
+    /// Opens the corrections menu for the misspelled word at the caret, and
+    /// answers whether it did.
     ///
     /// Called at the two moments [`crate::corrections`] names and no other. A
     /// secondary press hands its point: the caret goes there first, and a
-    /// point inside a misspelled word selects the word, so the menu GTK then
-    /// opens reads it and Cut and Copy act on it. A point inside a selection
-    /// that is not a misspelling leaves the selection be, as GTK's own press
-    /// does. The chord hands none and reads the caret where it stands. A caret
-    /// in no misspelled word, and a press before the worker has loaded a
-    /// dictionary, leave GTK's menu as it is.
-    pub(crate) fn correct(&self, document: &Document, press: Option<(f64, f64)>) {
+    /// point inside a misspelled word selects the word, so the menu reads it
+    /// and Cut and Copy act on it. A point inside a selection that is not a
+    /// misspelling leaves the selection be, as GTK's own press does. The
+    /// chord hands none and reads the caret where it stands. The menu is the
+    /// section above GTK's own rows, pointed at the press or at the caret; a
+    /// caret in no misspelled word, and a press before the worker has loaded a
+    /// dictionary, open nothing, and the caller leaves the press or the chord
+    /// to GTK's own menu.
+    pub(crate) fn correct(&self, document: &Document, press: Option<(f64, f64)>) -> bool {
         let buffer = self.buffer();
         let syntax = self.imp().syntax.borrow();
         if let Some((x, y)) = press {
@@ -1006,14 +1020,39 @@ impl Editor {
         drop(syntax);
         let Some((word, text, suggestions)) = found else {
             self.imp().correcting.take();
-            self.set_extra_menu(None::<&gio::MenuModel>);
-            return;
+            return false;
         };
-        self.set_extra_menu(Some(&corrections::section(&text, &suggestions)));
+        let model = corrections::menu(&text, &suggestions);
         self.imp().correcting.replace(Some(Correcting {
             at: tags::offsets_of(&buffer, document, &word),
             word: text,
         }));
+        let at = match press {
+            Some((x, y)) => gdk::Rectangle::new(buffer_px(x), buffer_px(y), 1, 1),
+            None => {
+                let caret = self.iter_location(&buffer.iter_at_mark(&buffer.get_insert()));
+                let (x, y) =
+                    self.buffer_to_window_coords(gtk::TextWindowType::Widget, caret.x(), caret.y());
+                gdk::Rectangle::new(x, y, 1, caret.height())
+            }
+        };
+        let menu = self
+            .imp()
+            .corrections
+            .borrow_mut()
+            .get_or_insert_with(|| {
+                let menu = gtk::PopoverMenu::from_model(None::<&gio::MenuModel>);
+                menu.set_parent(self);
+                menu.set_has_arrow(false);
+                menu.set_halign(gtk::Align::Start);
+                menu.set_position(gtk::PositionType::Bottom);
+                menu
+            })
+            .clone();
+        menu.set_menu_model(Some(&model));
+        menu.set_pointing_to(Some(&at));
+        menu.popup();
+        true
     }
 
     /// Replaces the word the section was built for with `suggestion`, as one
@@ -1037,7 +1076,6 @@ impl Editor {
         buffer.insert(&mut from, suggestion);
         buffer.end_user_action();
         buffer.place_cursor(&from);
-        self.set_extra_menu(None::<&gio::MenuModel>);
     }
 
     /// Hands the worker an Add or an Ignore and asks for the Document again,
@@ -1045,7 +1083,6 @@ impl Editor {
     /// mark in the same answer.
     pub(crate) fn edit_dictionary(&self, edit: quill_engine::worker::Edit, document: &Document) {
         self.imp().correcting.take();
-        self.set_extra_menu(None::<&gio::MenuModel>);
         let viewport = self.viewport(document);
         self.imp()
             .syntax

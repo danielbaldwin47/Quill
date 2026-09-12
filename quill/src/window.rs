@@ -3366,8 +3366,9 @@ impl Window {
     ///
     /// Here rather than in the Editor because both halves want the Document,
     /// and Add and Ignore want the wake that drains the answer. Both
-    /// controllers run in the capture phase and take nothing: the press is
-    /// still GTK's to open its menu with, and the chord still GTK's binding.
+    /// controllers run in the capture phase, before GTK's own menu: a press or
+    /// a chord that opened the corrections menu is taken, and any other is
+    /// left to GTK, which opens its own.
     fn watch_corrections(&self) {
         let replace = self.downgrade();
         let add = self.downgrade();
@@ -3397,12 +3398,17 @@ impl Window {
         presses.set_button(gdk::BUTTON_SECONDARY);
         presses.set_propagation_phase(gtk::PropagationPhase::Capture);
         let watcher = self.downgrade();
-        presses.connect_pressed(move |_, _, x, y| {
+        presses.connect_pressed(move |presses, _, x, y| {
             let Some(window) = watcher.upgrade() else {
                 return;
             };
-            if let Ok(filed) = window.imp().filed.try_borrow() {
-                window.imp().editor.correct(filed.document(), Some((x, y)));
+            let Ok(filed) = window.imp().filed.try_borrow() else {
+                return;
+            };
+            let opened = window.imp().editor.correct(filed.document(), Some((x, y)));
+            drop(filed);
+            if opened {
+                presses.set_state(gtk::EventSequenceState::Claimed);
             }
         });
         self.imp().editor.add_controller(presses);
@@ -3413,12 +3419,17 @@ impl Window {
         keys.connect_key_pressed(move |_, key, _, state| {
             let menu = key == gdk::Key::Menu
                 || (key == gdk::Key::F10 && state.contains(gdk::ModifierType::SHIFT_MASK));
-            if let Some(window) = watcher.upgrade().filter(|_| menu)
-                && let Ok(filed) = window.imp().filed.try_borrow()
-            {
-                window.imp().editor.correct(filed.document(), None);
+            let Some(window) = watcher.upgrade().filter(|_| menu) else {
+                return glib::Propagation::Proceed;
+            };
+            let Ok(filed) = window.imp().filed.try_borrow() else {
+                return glib::Propagation::Proceed;
+            };
+            if window.imp().editor.correct(filed.document(), None) {
+                glib::Propagation::Stop
+            } else {
+                glib::Propagation::Proceed
             }
-            glib::Propagation::Proceed
         });
         self.imp().editor.add_controller(keys);
     }
