@@ -63,7 +63,20 @@ Striking through fillers, redundancies and clichés in prose, from Quill's own p
 _Avoid_: grammar check, linting, underlining (that is Spell check's mark)
 
 **Spell check**:
-Underlining misspellings against a system dictionary, with suggestions; a toggle, on by default.
+Underlining, on the prose stream, every word the writer's dictionary does not hold, once the caret has left it; the dictionary is the desktop's own, through enchant. A toggle, on by default. Corrections are offered on a right-click: Suggestions, Add to Dictionary, Ignore.
+_Avoid_: autocorrect (a replacement the app makes; Spell check marks and never edits), grammar check, squiggle (the mark's shape is the capture's to settle)
+
+**Suggestion**:
+One of up to five words the dictionary offers for a misspelling, each a row of the context menu; choosing one replaces the word in one Undo step.
+_Avoid_: correction (the act, not the word), fix, autocorrect
+
+**Personal dictionary**:
+The words the writer has added, kept in enchant's own per-language file under the desktop's config, so every enchant application shares them. Add to Dictionary writes it; nothing in Quill reads it directly.
+_Avoid_: custom dictionary, user wordlist, learned words (iA's word for the same file)
+
+**Ignore**:
+Leaving a misspelled word unmarked for the rest of this process, every instance at once, and nowhere else: nothing is written. The session list, not the Personal dictionary.
+_Avoid_: ignore permanently (enchant's exclude file, which Quill never writes), suppress, mute
 
 **Stats**:
 The Statistics the stats bar reads over the Document, or over the selection while one stands, counted on the prose stream. Not an Annotator: it marks nothing.
