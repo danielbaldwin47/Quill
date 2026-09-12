@@ -187,6 +187,7 @@ export function quillArgv(root, flags, { live = false } = {}) {
   if (flags.live) argv.push('--live');
   if (flags.syntax) argv.push('--syntax', flags.syntax);
   if (flags.style) argv.push('--style', flags.style);
+  if (flags.spell) argv.push('--spell', flags.spell);
   if (flags.stats) argv.push('--stats', flags.stats);
   if (flags.nocaret) argv.push('--nocaret');
   // The two chrome states the bars alone do not reach: `--typing` is the chrome stepped back, and
@@ -248,10 +249,24 @@ export function quillArgv(root, flags, { live = false } = {}) {
 // process and every child, which is the thing that ADR rejected. What is left — a system font
 // drawing a glyph the Faces do not have — is what `--deterministic`'s pinned rendering and the
 // judged passages between them keep out.
-export function launchEnv(env = process.env) {
+//
+// `ENCHANT_CONFIG_DIR` is the fixture dictionary's copy when `spell` names one, and every launch
+// through a stage names one (`Stage.launch`), whatever `--spell` says: enchant searches that
+// directory's `hunspell/` before the system's, so no shot reads the machine's dictionaries, and an
+// Add during a keys run writes the copy, never the checkout.
+export function launchEnv(env = process.env, spell = null) {
   const out = { ...env, GSK_RENDERER: 'gl', GDK_BACKEND: 'wayland', GTK_A11Y: 'none' };
   delete out.GDK_SCALE;
+  if (spell) out.ENCHANT_CONFIG_DIR = spell;
   return out;
+}
+
+// A fresh copy of `ref/spell/` under `tmp`, one per launch, so a word one launch added is not in
+// the dictionary the next launch reads.
+export function spellFixture(root, tmp) {
+  const copy = fs.mkdtempSync(path.join(tmp, 'spell-'));
+  fs.cpSync(path.join(root, 'ref/spell'), copy, { recursive: true });
+  return copy;
 }
 
 // ---------- the window rules ----------
@@ -896,7 +911,8 @@ class Stage {
     // the number: enumerating the toplevels above costs a process and a Wayland round trip, and a
     // t0 taken before that would put both of them inside the app's cold start. Every launch carries
     // it; only a launch under `--measure` reads it.
-    const env = { ...launchEnv(), QUILL_T0_NS: nowRealtimeNs() };
+    const spell = spellFixture(this.root, this.tmp);
+    const env = { ...launchEnv(process.env, spell), QUILL_T0_NS: nowRealtimeNs() };
     const child = spawn(bin, argv, { cwd: this.root, env, stdio: ['ignore', 'pipe', 'pipe'] });
     this.state.children.add(child);
     let stderr = '';

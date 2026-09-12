@@ -374,7 +374,9 @@ and the determinism settings, this document names the flags:
   `[syntax_highlight]` table: off, every Category on, or only the comma-separated Categories on;
   absent under `--deterministic` the table takes its defaults with the master off),
   `--style off|on|fillers,redundancies,cliches` (pin the whole `[style_check]` table the same way,
-  by List), `--stats <names>|hidden` (pin the whole `[stats]` table: the comma-separated Statistics
+  by List), `--spell off|on|on:<tag>` (pin both `spell_check` and `spell_language`: off, on in
+  the desktop's language, or on in the dictionary the tag names; absent under `--deterministic` it
+  pins off), `--stats <names>|hidden` (pin the whole `[stats]` table: the comma-separated Statistics
   checked with the bar shown, or the bar hidden; there is no `off`, which means the master switch on
   the two flags above and would have to mean either of two different states here, so absent under
   `--deterministic` the table takes its defaults — the three cells every judged state carrying the
