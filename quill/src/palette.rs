@@ -8,9 +8,13 @@
 //! the selection, Enter runs it and closes, Esc closes. `file.recent` opens
 //! the same panel on a second list — the state's recent Documents, newest
 //! first, narrowed by [`quill_engine::palette::recents`] — where Enter opens
-//! the Document in this window instead (#246). Its look is the
-//! Parity oracle's palette rules (`legacy/app/css/chrome.css`), as constants
-//! beside the menus'.
+//! the Document in this window instead (#246). `outline.open` opens it on a
+//! third, the open Document's Outline — its headings indented by level with
+//! the caret's section selected, narrowed by
+//! [`quill_engine::palette::outline`] with the Library's Documents appended
+//! by name — where Enter jumps the caret to the heading or opens the
+//! Document (#397). Its look is the Parity oracle's palette rules
+//! (`legacy/app/css/chrome.css`), as constants beside the menus'.
 
 use std::cell::{Cell, RefCell};
 use std::path::{Path, PathBuf};
@@ -22,7 +26,7 @@ use quill_engine::commands::Command;
 use quill_engine::palette::{self as engine, Recent, Row};
 use quill_engine::theme::Scheme;
 
-use crate::chrome::{self, CHROME_FONT, Modes, RECENT_OPEN};
+use crate::chrome::{self, CHROME_FONT, Modes, OUTLINE_JUMP, RECENT_OPEN};
 use crate::menus;
 use crate::tags::pixels;
 
@@ -212,12 +216,13 @@ pub fn stylesheet(scheme: Scheme) -> String {
     )
 }
 
-/// What the Palette is listing: every Command, or the writer's recent
-/// Documents (`file.recent`, #246 story 41).
+/// What the Palette is listing: every Command, the writer's recent
+/// Documents (`file.recent`, #246 story 41), or the open Document's Outline
+/// (`outline.open`, #397).
 ///
-/// One popover in two modes rather than two popovers, because the panel, the
-/// field, the keys and the look are the same list either way; only what fills
-/// it and what Enter does with a row differ.
+/// One popover in three modes rather than three popovers, because the panel,
+/// the field, the keys and the look are the same list any way; only what
+/// fills it and what Enter does with a row differ.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 enum Listing {
     /// The registry, in the oracle's sections: `palette.open`.
@@ -225,6 +230,9 @@ enum Listing {
     Commands,
     /// The state's recents, newest first: `file.recent`.
     Recents,
+    /// The open Document's headings, then Documents by name once something
+    /// is typed: `outline.open`.
+    Outline,
 }
 
 impl Listing {
@@ -233,6 +241,7 @@ impl Listing {
         match self {
             Self::Commands => "Search commands",
             Self::Recents => "Search recent documents",
+            Self::Outline => "Search headings and documents",
         }
     }
 
@@ -241,6 +250,7 @@ impl Listing {
         match self {
             Self::Commands => "No commands",
             Self::Recents => "No recent documents",
+            Self::Outline => "No headings",
         }
     }
 }
@@ -250,8 +260,30 @@ impl Listing {
 enum Item {
     /// A Command, activated through its action as a menu row would.
     Command(&'static Command),
-    /// A recent Document, opened in this window through [`RECENT_OPEN`].
+    /// A recent Document, or one of the Library's under the Outline, opened
+    /// in this window through [`RECENT_OPEN`].
     Recent(PathBuf),
+    /// A heading of the open Document, jumped to through [`OUTLINE_JUMP`]:
+    /// the byte its words start at.
+    Heading(u64),
+}
+
+/// What answers the Outline listing's Documents: a query to the Library's
+/// name matches, in the Library's rank, handed in by the window so the
+/// Palette knows no Session.
+pub type Finder = Box<dyn Fn(&str) -> Vec<PathBuf>>;
+
+/// What the Outline listing is built from, held from the opening until the
+/// panel closes and never longer: there is no cache to go stale (#397).
+struct Outline {
+    /// The open Document's headings, off its block index.
+    headings: Vec<quill_engine::outline::Heading>,
+    /// The caret's section among them, the row the listing opens on.
+    section: Option<usize>,
+    /// The open Document, which the Documents leave out.
+    open: Option<PathBuf>,
+    /// The Library's Documents by name for a query, in the Library's rank.
+    finder: Finder,
 }
 
 /// The Palette popover, parented on its window.
@@ -270,6 +302,8 @@ pub struct Palette {
     listing: Rc<Cell<Listing>>,
     /// The recents the last opening was handed, narrowed as the writer types.
     recents: Rc<RefCell<Vec<PathBuf>>>,
+    /// The Outline the last opening was handed, dropped as the panel closes.
+    outline: Rc<RefCell<Option<Outline>>>,
 }
 
 impl Palette {
@@ -356,6 +390,7 @@ impl Palette {
             modes: Rc::new(Cell::new(Modes::default())),
             listing: Rc::new(Cell::new(Listing::default())),
             recents: Rc::new(RefCell::new(Vec::new())),
+            outline: Rc::new(RefCell::new(None)),
         };
         palette.wire();
         palette
@@ -421,8 +456,12 @@ impl Palette {
         });
         self.list.add_controller(motion);
         let closed = self.clone();
-        self.popover
-            .connect_closed(move |_| closed.entry.set_text(""));
+        self.popover.connect_closed(move |_| {
+            closed.entry.set_text("");
+            // The Outline is the opening's and no longer: nothing is kept
+            // to go stale under the next edit.
+            closed.outline.replace(None);
+        });
     }
 
     /// Opens the Palette over `window`'s page with the map at rest and its
@@ -449,6 +488,29 @@ impl Palette {
     pub fn open_recents(&self, window: &gtk::Window, modes: Modes, recents: Vec<PathBuf>) {
         self.recents.replace(recents);
         self.show(window, modes, Listing::Recents);
+    }
+
+    /// Opens the Palette over `window`'s page on the Outline: `headings`
+    /// alone with `section` selected and nothing typed, `finder` answering
+    /// the Documents as the writer types, `open` left out of them
+    /// (`outline.open`, #397). Not a toggle, as [`Palette::open_recents`] is
+    /// not.
+    pub fn open_outline(
+        &self,
+        window: &gtk::Window,
+        modes: Modes,
+        headings: Vec<quill_engine::outline::Heading>,
+        section: Option<usize>,
+        open: Option<PathBuf>,
+        finder: Finder,
+    ) {
+        self.outline.replace(Some(Outline {
+            headings,
+            section,
+            open,
+            finder,
+        }));
+        self.show(window, modes, Listing::Outline);
     }
 
     /// Puts the panel over `window`'s page with `listing` in it and its first
@@ -504,13 +566,18 @@ impl Palette {
         self.popover.unparent();
     }
 
-    /// Fills the list for `query` and selects its first row.
+    /// Fills the list for `query` and selects its first row — or, on the
+    /// Outline with nothing typed, the caret's section.
     fn render(&self, query: &str) {
         while let Some(child) = self.list.first_child() {
             self.list.remove(&child);
         }
         let listing = self.listing.get();
         let mut rows = Vec::new();
+        let mut selected = 0;
+        // Whether the list already says it is empty, as the Outline's dim
+        // line does where the headings would stand.
+        let mut said = false;
         match listing {
             Listing::Commands => {
                 let modes = self.modes.get();
@@ -527,17 +594,63 @@ impl Palette {
             }
             Listing::Recents => {
                 for row in engine::recents(&self.recents.borrow(), query) {
-                    let widget = recent(&row);
-                    self.list.append(&widget);
-                    rows.push((widget, Item::Recent(row.path.to_path_buf())));
+                    self.append_recent(&row, &mut rows);
+                }
+            }
+            Listing::Outline => {
+                if let Some(source) = self.outline.borrow().as_ref() {
+                    // The Library is asked only once something is typed:
+                    // at rest the list is the headings alone.
+                    let found = if query.trim().is_empty() {
+                        Vec::new()
+                    } else {
+                        (source.finder)(query)
+                    };
+                    let list = engine::outline(
+                        &source.headings,
+                        source.section,
+                        &found,
+                        source.open.as_deref(),
+                        query,
+                    );
+                    selected = list.selected;
+                    for row in list.rows {
+                        match row {
+                            engine::Outlined::Heading {
+                                start,
+                                level,
+                                text,
+                                hits,
+                            } => {
+                                let widget = entry(text, &hits, level);
+                                self.list.append(&widget);
+                                let start = u64::try_from(start).unwrap_or(u64::MAX);
+                                rows.push((widget, Item::Heading(start)));
+                            }
+                            engine::Outlined::Head(head) => self.list.append(&heading(head)),
+                            engine::Outlined::Document(row) => self.append_recent(&row, &mut rows),
+                            engine::Outlined::NoHeadings => {
+                                self.list.append(&dim(listing.nothing()));
+                                said = true;
+                            }
+                        }
+                    }
                 }
             }
         }
-        if rows.is_empty() {
+        if rows.is_empty() && !said {
             self.list.append(&nothing(query.trim(), listing));
         }
         *self.rows.borrow_mut() = rows;
-        self.select(0);
+        self.select(selected);
+    }
+
+    /// Appends one Document's row — a recent, or one of the Library's under
+    /// the Outline — and records it as opening that Document.
+    fn append_recent(&self, row: &Recent<'_>, rows: &mut Vec<(gtk::ListBoxRow, Item)>) {
+        let widget = recent(row);
+        self.list.append(&widget);
+        rows.push((widget, Item::Recent(row.path.to_path_buf())));
     }
 
     /// Moves the selection `by` rows, wrapping at either end.
@@ -593,6 +706,7 @@ impl Palette {
                 let target = path.to_string_lossy().into_owned();
                 (format!("win.{RECENT_OPEN}"), Some(target.to_variant()))
             }
+            Item::Heading(start) => (format!("win.{OUTLINE_JUMP}"), Some(start.to_variant())),
         };
         self.close();
         let _ = self.popover.activate_action(&action, target.as_ref());
@@ -633,16 +747,42 @@ fn heading(text: &str) -> gtk::ListBoxRow {
 /// typed — that there was nothing to list, which is what a writer who has
 /// opened no Document yet sees under Open Recent….
 fn nothing(query: &str, listing: Listing) -> gtk::ListBoxRow {
-    let said = if query.is_empty() {
-        listing.nothing().to_string()
-    } else {
-        format!("Nothing matches “{query}”")
-    };
+    if query.is_empty() {
+        return dim(listing.nothing());
+    }
+    dim(&format!("Nothing matches “{query}”"))
+}
+
+/// One dim line that is neither selected nor run: what an empty list says,
+/// and what stands where a Document with no headings would list them.
+fn dim(said: &str) -> gtk::ListBoxRow {
     let label = gtk::Label::builder().label(said).xalign(0.0).build();
     gtk::ListBoxRow::builder()
         .css_classes(["palette-empty"])
         .selectable(false)
         .activatable(false)
+        .can_focus(false)
+        .child(&label)
+        .build()
+}
+
+/// One heading's row of the Outline: its words, the letters a query matched
+/// set heavier, stepped in one em of the row's type per level below the
+/// first, so the Document's shape reads down the list as it does down the
+/// page.
+fn entry(text: &str, hits: &[(usize, usize)], level: u8) -> gtk::ListBoxRow {
+    let label = gtk::Label::builder()
+        .label(marked(text, hits))
+        .use_markup(true)
+        .xalign(0.0)
+        .hexpand(true)
+        .ellipsize(gtk::pango::EllipsizeMode::End)
+        .css_classes(["palette-label"])
+        .build();
+    let step = pixels(ROW.px) * i32::from(level.saturating_sub(1));
+    label.set_margin_start(step);
+    gtk::ListBoxRow::builder()
+        .css_classes(["palette-row"])
         .can_focus(false)
         .child(&label)
         .build()

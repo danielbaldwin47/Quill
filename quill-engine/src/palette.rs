@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 
 use crate::commands::{COMMANDS, Command, Kind};
 use crate::document::shown_name;
+use crate::outline::Heading;
 
 /// The oracle's four sections, by the registry's ids in the oracle's order
 /// and membership (`chrome.js:364-368`; the oracle's one `file.export` is
@@ -68,6 +69,7 @@ pub const SECTIONS: [(&str, &[&str]); 4] = [
             "file.next",
             "file.prev",
             "file.follow",
+            "outline.open",
             "file.delete",
         ],
     ),
@@ -224,6 +226,113 @@ pub fn recents<'a>(opened: &'a [PathBuf], query: &str) -> Vec<Recent<'a>> {
         .collect();
     ranked.sort_by_key(|(rank, _)| *rank);
     ranked.into_iter().map(|(_, row)| row).collect()
+}
+
+/// The head the Outline listing draws over its Documents.
+pub const DOCUMENTS: &str = "Documents";
+
+/// The most Documents the Outline listing appends under [`DOCUMENTS`].
+pub const DOCUMENTS_CAP: usize = 10;
+
+/// One row of the Palette's Outline listing (#397, `outline.open`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Outlined<'a> {
+    /// A heading of the open Document, which Enter jumps to.
+    Heading {
+        /// The byte its words start at, where the jump puts the caret.
+        start: usize,
+        /// Its level, 1 to 6, which the row indents by.
+        level: u8,
+        /// Its words, as the Editor shows them.
+        text: &'a str,
+        /// The byte ranges of those words the query matched; none at rest.
+        hits: Vec<(usize, usize)>,
+    },
+    /// The head over the Documents, [`DOCUMENTS`]: neither selected nor run.
+    Head(&'static str),
+    /// A Document of the Library by name, which Enter opens; drawn as a
+    /// recents row is.
+    Document(Recent<'a>),
+    /// The dim line standing where the headings would be, for a Document
+    /// with none: neither selected nor run.
+    NoHeadings,
+}
+
+/// The Outline listing for one query: its rows and which of the rows that
+/// can be selected is.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OutlineList<'a> {
+    /// The rows, top to bottom, heads and the dim line among them.
+    pub rows: Vec<Outlined<'a>>,
+    /// The index, among the rows that can be selected — headings and
+    /// Documents, top to bottom — of the selected one.
+    pub selected: usize,
+}
+
+/// The Outline listing for `query`: with nothing typed, `headings` alone in
+/// reading order with `section` — the caret's, from
+/// [`crate::outline::section`] — selected, or the first row when the caret
+/// stands above every heading; once something is typed, the headings it
+/// matched by [`score`], ranked, then under [`DOCUMENTS`] the first
+/// [`DOCUMENTS_CAP`] of `documents` — the Library's name matches, in the
+/// Library's own rank — that are not `open`, the first matched heading
+/// selected. A Document with no headings lists [`Outlined::NoHeadings`]
+/// where they would stand, and its Documents beneath as ever.
+#[must_use]
+pub fn outline<'a>(
+    headings: &'a [Heading],
+    section: Option<usize>,
+    documents: &'a [PathBuf],
+    open: Option<&Path>,
+    query: &str,
+) -> OutlineList<'a> {
+    let query = query.trim().to_lowercase();
+    let entry = |heading: &'a Heading, hits| Outlined::Heading {
+        start: heading.source.start,
+        level: heading.level,
+        text: &heading.text,
+        hits,
+    };
+    let mut rows = Vec::new();
+    if headings.is_empty() {
+        rows.push(Outlined::NoHeadings);
+    } else if query.is_empty() {
+        rows.extend(headings.iter().map(|heading| entry(heading, Vec::new())));
+    } else {
+        let mut ranked: Vec<(Rank, Outlined<'a>)> = headings
+            .iter()
+            .filter_map(|heading| {
+                let (rank, hits) = score(&heading.text, &query)?;
+                Some((rank, entry(heading, hits)))
+            })
+            .collect();
+        ranked.sort_by_key(|(rank, _)| *rank);
+        rows.extend(ranked.into_iter().map(|(_, row)| row));
+    }
+    if !query.is_empty() {
+        let mut listed = documents
+            .iter()
+            .filter(|path| open.is_none_or(|open| open != path.as_path()))
+            .take(DOCUMENTS_CAP)
+            .map(|path| {
+                Outlined::Document(Recent {
+                    path,
+                    name: shown_name(path),
+                    hits: Vec::new(),
+                })
+            })
+            .peekable();
+        if listed.peek().is_some() {
+            rows.push(Outlined::Head(DOCUMENTS));
+            rows.extend(listed);
+        }
+    }
+    let selected = if query.is_empty() {
+        section.unwrap_or(0)
+    } else {
+        0
+    };
+    OutlineList { rows, selected }
 }
 
 /// Quill's own fallback (#229): `query`, already lower-cased, against a radio
@@ -550,5 +659,123 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// The Outline of the shared passage as `of_blocks` reads it, with a
+    /// third heading so a query can rank two matches.
+    fn headings() -> Vec<Heading> {
+        [
+            (1, "The Lighthouse", 0),
+            (2, "What the sea keeps", 4),
+            (2, "Sea glass", 8),
+        ]
+        .iter()
+        .map(|&(level, text, block)| Heading {
+            level,
+            text: text.to_string(),
+            block,
+            source: block..block + text.len(),
+        })
+        .collect()
+    }
+
+    /// Twelve Documents of the Library, the open one among them.
+    fn library() -> Vec<PathBuf> {
+        (1..=12)
+            .map(|n| PathBuf::from(format!("/w/sea-{n}.md")))
+            .collect()
+    }
+
+    /// What each row of `list` reads: a heading's words, a Document's name,
+    /// a head's word, or the dim line's.
+    fn read(list: &OutlineList<'_>) -> Vec<String> {
+        list.rows
+            .iter()
+            .map(|row| match row {
+                Outlined::Heading { text, .. } => (*text).to_string(),
+                Outlined::Head(head) => format!("[{head}]"),
+                Outlined::Document(recent) => recent.name.to_string(),
+                Outlined::NoHeadings => "(no headings)".to_string(),
+            })
+            .collect()
+    }
+
+    /// Nothing typed lists the headings alone, in reading order, with the
+    /// caret's section selected — or the first row above every heading.
+    #[test]
+    fn at_rest_the_outline_lists_the_headings_with_the_carets_section_selected() {
+        let headings = headings();
+        let library = library();
+        let list = outline(&headings, Some(1), &library, None, "");
+        assert_eq!(
+            read(&list),
+            ["The Lighthouse", "What the sea keeps", "Sea glass"]
+        );
+        assert_eq!(list.selected, 1);
+        assert!(matches!(
+            list.rows[1],
+            Outlined::Heading {
+                start: 4,
+                level: 2,
+                ..
+            }
+        ));
+        assert_eq!(outline(&headings, None, &library, None, "  ").selected, 0);
+    }
+
+    /// Typing ranks the matched headings first, then up to ten Documents
+    /// under their head, the open Document left out, the first heading
+    /// selected.
+    #[test]
+    fn typing_ranks_the_headings_then_caps_the_documents_at_ten() {
+        let headings = headings();
+        let library = library();
+        let list = outline(
+            &headings,
+            Some(2),
+            &library,
+            Some(Path::new("/w/sea-3.md")),
+            "sea",
+        );
+        let rows = read(&list);
+        assert_eq!(
+            &rows[..3],
+            ["Sea glass", "What the sea keeps", "[Documents]"]
+        );
+        assert_eq!(rows.len(), 3 + DOCUMENTS_CAP);
+        assert!(!rows.contains(&"sea-3".to_string()));
+        assert_eq!(rows[3], "sea-1");
+        assert_eq!(list.selected, 0);
+        let Outlined::Heading { hits, start, .. } = &list.rows[0] else {
+            panic!("a heading leads");
+        };
+        assert_eq!((*start, hits.as_slice()), (8, &[(0, 3)][..]));
+        // A query no heading matches lists the Documents alone.
+        assert_eq!(
+            read(&outline(&headings, None, &library, None, "zzq"))[0],
+            "[Documents]"
+        );
+        // And one no Document matches lists the headings alone, no head.
+        assert_eq!(
+            read(&outline(&headings, None, &[], None, "light")),
+            ["The Lighthouse"]
+        );
+    }
+
+    /// A Document with no headings shows the dim line where they would be,
+    /// and typing lists Documents beneath it.
+    #[test]
+    fn no_headings_is_one_dim_line_with_the_documents_beneath_it() {
+        let library = library();
+        assert_eq!(
+            read(&outline(&[], None, &library, None, "")),
+            ["(no headings)"]
+        );
+        let typed = outline(&[], None, &library[..2], None, "sea");
+        assert_eq!(
+            read(&typed),
+            ["(no headings)", "[Documents]", "sea-1", "sea-2"]
+        );
+        assert_eq!(typed.selected, 0);
     }
 }

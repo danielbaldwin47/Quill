@@ -111,7 +111,9 @@ The app uses `worker::DEBOUNCE` for the quiet period after the last keystroke an
 `Worker::try_recv` on idle. The engine owns neither a timer nor a main-loop source (ADR 0008).
 
 Whole-document passes (link-reference and footnote definitions, Stats, the heading outline) run on
-idle after the synchronous lane, never inside it.
+idle after the synchronous lane, never inside it. Heading navigation reads the outline off the block
+index when the Palette opens on it and drops it as the panel closes; PDF bookmarks read it off the
+rendered page, whose words carry Number Headings' numbers; neither runs on a keystroke.
 
 **Tags.** Overlapping `GtkTextTag`s override a property by priority; they do not blend. So colour is
 flattened: Markup tier × Focus tier × Syntax highlight × Style check resolve into non-overlapping
@@ -323,7 +325,8 @@ and the determinism settings, this document names the flags:
   chrome was frozen at), `--chrome on|off`, `--caret <offset>|end`,
   `--select <from>,<to>`, `--scroll <fraction>`, `--nocaret`, `--typing` (the chrome as it is
   inside the 500 ms after a keystroke: the title bar gone, the stats bar dimmed), `--menu
-  view|document|stats|palette` (that menu, or the Palette, open with its first row selected),
+  view|document|stats|palette|outline` (that menu, the Palette, or the Palette on the Outline, open
+  with its first row selected — the caret's section, on the Outline),
   `--library <dir>` (take the Library from the fixture tree at `<dir>`: the launch copies it to a
   folder of its own, stamps each file with the mtime the fixture's `manifest.json` names, and walks
   that copy as its one Location, so a judged shot of the Library is the same rows in the same order
