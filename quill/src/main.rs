@@ -60,6 +60,9 @@ use session::Session;
 /// The application id, also the `.desktop` file's and the icon's name.
 const APP_ID: &str = "io.github.danielbaldwin47.Quill";
 
+/// The GLib log domain libenchant's provider warnings are raised under.
+const ENCHANT_DOMAIN: &str = "libenchant";
+
 fn main() -> glib::ExitCode {
     // The command line first, because everything below reads it. A flag Quill
     // does not know is one line and no window: a harness that misspelled a
@@ -75,6 +78,22 @@ fn main() -> glib::ExitCode {
         println!("{}", flags::USAGE);
         return glib::ExitCode::SUCCESS;
     }
+
+    // Before any enchant broker, which is every Document opening with Spell
+    // check on: libenchant warns once per provider it cannot load — aspell,
+    // nuspell, voikko, whichever this machine lacks — on every broker, and a
+    // desktop launch's stderr is the journal. Kept, at debug level, so
+    // `G_MESSAGES_DEBUG=libenchant` still shows them (#401 § libenchant's
+    // noise).
+    glib::log_set_handler(
+        Some(ENCHANT_DOMAIN),
+        glib::LogLevels::LEVEL_WARNING | glib::LogLevels::LEVEL_MESSAGE,
+        false,
+        false,
+        |domain, _, message| {
+            glib::log_default_handler(domain, glib::LogLevel::Debug, Some(message))
+        },
+    );
 
     // And the fixture Library before the settings, because the Locations are
     // walked as the session opens: `--library` names a tree in the checkout
