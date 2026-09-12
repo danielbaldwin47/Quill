@@ -33,6 +33,7 @@ use quill_engine::outline;
 use quill_engine::settings::{
     Chrome, PreviewLayout, PreviewMode, Settings, WindowState, library_width,
 };
+use quill_engine::spell::Resolved;
 use quill_engine::stats::Statistic;
 use quill_engine::sync;
 
@@ -87,6 +88,11 @@ const DIALOG_PAD: i32 = 12;
 /// Hyprland's default modal dim is the source of this strength; moving it to
 /// the Editor preserves the old visual hierarchy while leaving the pane readable.
 const EXPORT_EDITOR_DIM: f64 = 0.5;
+
+/// Whether a Document has already opened with no dictionary for Spell check
+/// and said so ([`Window::say_no_dictionary`]).
+static SAID_NO_DICTIONARY: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
 
 /// The non-targetable black wash an Export dialog puts over the Editor.
 fn editor_scrim() -> gtk::DrawingArea {
@@ -814,6 +820,7 @@ impl Window {
         // that the row a writer opened is the row they can see they are in.
         self.imp().sidebar.set_open(self.path().as_deref());
         self.show_standing();
+        self.say_no_dictionary();
         let (Some(path), Some(session)) = (self.path(), self.session()) else {
             return;
         };
@@ -1211,6 +1218,22 @@ impl Window {
     /// export's confirmation is ([`crate::export::confirm`]).
     pub(crate) fn notice(&self, words: &str) {
         self.imp().sidebar.set_status(words);
+    }
+
+    /// Says, once per process, that Spell check has no dictionary for the
+    /// language it wants: the first Document to open in that state carries
+    /// the Settings window's line as a notice, and no Document after it does.
+    ///
+    /// Process-wide rather than per window, because the notice is a window's
+    /// and a writer opening a second file has already been told (#401 § The
+    /// "no dictionary" state).
+    fn say_no_dictionary(&self) {
+        let Some(Resolved::Missing { wanted }) = self.imp().editor.spell_resolution() else {
+            return;
+        };
+        if !SAID_NO_DICTIONARY.swap(true, std::sync::atomic::Ordering::Relaxed) {
+            self.notice(&crate::settings::no_dictionary(&wanted));
+        }
     }
 
     /// `file.saveAs`: the writer names the file, and the Document is that file
@@ -3074,7 +3097,11 @@ impl Window {
         let Some(session) = self.session() else {
             return;
         };
-        crate::settings::open(self.upcast_ref(), &session);
+        crate::settings::open(
+            self.upcast_ref(),
+            &session,
+            self.imp().editor.spell_resolution().as_ref(),
+        );
     }
 
     /// Opens the shortcuts window over this one: `shortcuts.open`, `Ctrl+?`

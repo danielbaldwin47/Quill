@@ -912,6 +912,12 @@ impl Editor {
         }
     }
 
+    /// What Spell check's language last resolved to: `None` until a Document
+    /// has opened with Spell check on.
+    pub(crate) fn spell_resolution(&self) -> Option<quill_engine::spell::Resolved> {
+        self.imp().syntax.borrow().resolution().cloned()
+    }
+
     /// Resolves the held `spell_language` and hands the worker its dictionary.
     fn resolve_spell(&self, document: &Document) {
         let language = self.imp().spell_language.borrow().clone();
