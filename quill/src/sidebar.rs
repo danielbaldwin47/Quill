@@ -2205,6 +2205,10 @@ fn foot(status: &gtk::Label, offer: &gtk::Box) -> gtk::Box {
     status.set_hexpand(true);
     status.set_xalign(0.0);
     status.set_ellipsize(gtk::pango::EllipsizeMode::End);
+    // An ellipsizing label still asks for its whole sentence as its natural width, and the pane
+    // grows to it: the "no dictionary" notice doubled the Library's width (#415). One character
+    // is its natural width now, and `hexpand` hands it the foot's slack.
+    status.set_max_width_chars(1);
     foot.append(status);
     foot.append(offer);
     // Where the manuscripts are, at the foot's right (`.lib-where`), because a
