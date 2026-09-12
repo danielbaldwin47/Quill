@@ -359,7 +359,7 @@ allow_reasons() {
 ROUND_ONCE=(
     quill/src/tags.rs:pixels               # the shape itself: a length as whole pixels, for the whole app crate
     quill/src/editor.rs:buffer_px          # a pointer or a viewport coordinate in the whole pixels GtkTextView counts in
-    quill/src/chrome.rs:reading_time       # seconds to the nearest minute, for the word count's bar
+    quill-engine/src/stats.rs:reading_time  # seconds to the nearest minute, for the stats bar's Reading Time
     quill-engine/src/theme.rs:channel      # a colour channel in 0.0–1.0 to a byte, for both crates
     quill-engine/src/typography.rs:measure # the 64-cell measure in whole pixels
     quill-engine/src/typography.rs:hang    # a heading's hang in whole pixels

@@ -73,6 +73,11 @@ whatever a toggle says, and a redundancy emitting only the words it strikes) and
 highlight, Style check and Spell check consume the **prose stream**: the parser's `Text` events with
 Markup, code spans, fenced code, URLs and front matter removed. They never see a `#` or a `*`.
 
+Stats is not an Annotator and not on the worker: `quill_engine::stats` counts its six Statistics in
+one walk of the parser's events — the prose plus the code the writer typed, which is the prose
+stream widened by code spans and fenced blocks — on the main thread, on the idle pass after typing
+stops and synchronously on a selection change.
+
 Two lanes, and the budget is the Gate's ≤ 5 ms mean, ≤ 16 ms worst from keystroke to presented frame:
 
 - **Synchronous, on the keystroke**: splice the text and advance the Document generation, find the

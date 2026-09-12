@@ -45,7 +45,7 @@ use quill_engine::settings::{
     Choice, Chrome, FocusScope, PreviewLayout, PreviewMode, TemplateName,
 };
 use quill_engine::shortcuts::{Chord, Refusal};
-use quill_engine::stats::words;
+use quill_engine::stats::{self, Counts, Statistic};
 use quill_engine::style::List;
 use quill_engine::theme::{Role, Scheme};
 
@@ -628,9 +628,6 @@ fn fade_ms() -> u32 {
         gtk::Settings::default().is_none_or(|settings| settings.is_gtk_enable_animations());
     if animated { FADE_MS } else { 0 }
 }
-/// The reading pace the stats bar counts at (`chrome.js` `WPM`).
-const WORDS_PER_MINUTE: f64 = 238.0;
-
 /// A bar button's hover ground (`--hit`), per scheme. Not in the engine's
 /// table: it is a widget's ground and no annotator paints it.
 const fn hit(scheme: Scheme) -> &'static str {
@@ -971,9 +968,9 @@ pub struct Bars {
     /// The ground the counts are inked for; the rest of the bars take theirs
     /// from the stylesheet.
     ground: Rc<Cell<Ground>>,
-    /// The three counts the stats bar shows, kept so a ground change can
-    /// re-ink them.
-    counts: Rc<Cell<[(usize, &'static str); 3]>>,
+    /// The Document's counts, kept so a ground change can re-ink the cells
+    /// without counting again.
+    counts: Rc<Cell<Counts>>,
 }
 
 /// The bars' two switches: whether they are shown at all, and whether the
@@ -1115,7 +1112,7 @@ impl Bars {
             })),
             focus,
             ground,
-            counts: Rc::new(Cell::new([(0, "words"), (0, "characters"), (0, "read")])),
+            counts: Rc::new(Cell::new(Counts::default())),
         };
         bars.set_count("");
         bars
@@ -1258,20 +1255,16 @@ impl Bars {
         }
     }
 
-    /// Counts `text` into the stats bar: words, characters and reading time,
-    /// the oracle's default three fields.
+    /// Counts `text` into the stats bar: all six Statistics, of which the bar
+    /// shows the oracle's default three.
     ///
     /// Counted as the Document is shown, and again on idle 500 ms after the
     /// last keystroke of a run ([`typing::Typing::takes_recount`]); never on
-    /// the keystroke path.
+    /// the keystroke path. The six cost one walk of the parser's events
+    /// together ([`stats::count`]), so counting all of them is what counting
+    /// one costs.
     pub fn set_count(&self, text: &str) {
-        let words = words(text);
-        let characters = text.chars().count();
-        self.counts.set([
-            (words, if words == 1 { "word" } else { "words" }),
-            (characters, "characters"),
-            (words, "read"),
-        ]);
+        self.counts.set(stats::count(text));
         self.ink_counts();
     }
 
@@ -1294,14 +1287,18 @@ impl Bars {
     }
 
     /// The stats bar's three cells, as `("188", "words")`.
+    ///
+    /// The three the oracle shows by default, picked out of the six
+    /// [`stats::count`] answers with.
     #[must_use]
     pub fn count(&self) -> [(String, &'static str); 3] {
-        let [(words, word), (characters, characters_label), (_, read)] = self.counts.get();
+        let counts = self.counts.get();
         [
-            (grouped(words), word),
-            (grouped(characters), characters_label),
-            (reading_time(words), read),
+            Statistic::Words,
+            Statistic::Characters,
+            Statistic::ReadingTime,
         ]
+        .map(|stat| counts.cell(stat))
     }
 
     /// Lights the View button's rows the way Focus lights the page.
@@ -1649,39 +1646,6 @@ fn scrolled(adjustment: &gtk::Adjustment, over: &gtk::DrawingArea, under: &gtk::
     let value = adjustment.value();
     over.set_visible(value > 2.0);
     under.set_visible(value + adjustment.page_size() < adjustment.upper() - 2.0);
-}
-
-/// `n` with thousands separated, as `toLocaleString` writes it.
-fn grouped(n: usize) -> String {
-    let digits = n.to_string();
-    let mut out = String::with_capacity(digits.len() + digits.len() / 3);
-    for (i, digit) in digits.chars().enumerate() {
-        if i > 0 && (digits.len() - i).is_multiple_of(3) {
-            out.push(',');
-        }
-        out.push(digit);
-    }
-    out
-}
-
-/// How long `words` take to read at [`WORDS_PER_MINUTE`], as the oracle's
-/// `readTime` writes it: under 45 seconds is `< 1 min`, then whole minutes,
-/// then hours and minutes.
-fn reading_time(words: usize) -> String {
-    let seconds = (words as f64 / WORDS_PER_MINUTE * 60.0).round();
-    if seconds < 45.0 {
-        return "< 1 min".to_owned();
-    }
-    let minutes = (seconds / 60.0).round() as u64;
-    if minutes < 60 {
-        return format!("{minutes} min");
-    }
-    let (hours, minutes) = (minutes / 60, minutes % 60);
-    if minutes == 0 {
-        format!("{hours} h")
-    } else {
-        format!("{hours} h {minutes} min")
-    }
 }
 
 #[cfg(test)]
@@ -2211,20 +2175,38 @@ mod tests {
         }
     }
 
-    /// The stats bar's three cells for `ref/sample.md` are the numbers the
-    /// oracle's frozen `bars` shot shows, and its empty Document's are the
-    /// `empty` shot's.
+    /// The stats bar's three cells for `ref/sample.md`, and for nothing.
+    ///
+    /// The counting and the formatting are both `quill_engine::stats`' tests;
+    /// this one holds the three cells the bar picks out of them, in the
+    /// oracle's default order. The Characters cell reads the prose stream's
+    /// 929 where the frozen `bars` shot shows the file's raw 961: the stream
+    /// is what Stats counts (#387), and the chrome brief names that cell.
     #[test]
-    fn the_count_is_the_oracles_for_the_sample_and_for_nothing() {
+    fn the_bars_three_cells_are_the_oracles_fields_for_the_sample_and_for_nothing() {
         let sample =
             std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../ref/sample.md"))
                 .expect("ref/sample.md");
-        // The count itself is `quill_engine::stats`' test; this one holds
-        // the two cells the bar makes of it.
-        assert_eq!(sample.chars().count(), 961);
-        assert_eq!(reading_time(words(&sample)), "1 min");
-        assert_eq!(words(""), 0);
-        assert_eq!(reading_time(0), "< 1 min");
+        let counts = stats::count(&sample);
+        assert_eq!(
+            [
+                Statistic::Words,
+                Statistic::Characters,
+                Statistic::ReadingTime,
+            ]
+            .map(|stat| counts.cell(stat)),
+            [
+                ("188".to_owned(), "words"),
+                ("929".to_owned(), "characters"),
+                ("1 min".to_owned(), "read"),
+            ]
+        );
+        let empty = stats::count("");
+        assert_eq!(empty.cell(Statistic::Words), ("0".to_owned(), "words"));
+        assert_eq!(
+            empty.cell(Statistic::ReadingTime),
+            ("< 1 min".to_owned(), "read")
+        );
     }
 
     /// The typing state's opacities are in the sheet as the two `faded`
@@ -2235,19 +2217,5 @@ mod tests {
         assert!(sheet.contains(".chrome-top.faded { opacity: 0; }"));
         assert!(sheet.contains(".chrome-bottom.faded { opacity: 0.38; }"));
         assert!(sheet.contains("transition: opacity"));
-    }
-
-    #[test]
-    fn numbers_are_grouped_and_times_written_the_way_the_oracle_writes_them() {
-        assert_eq!(grouped(0), "0");
-        assert_eq!(grouped(961), "961");
-        assert_eq!(grouped(1_234), "1,234");
-        assert_eq!(grouped(1_234_567), "1,234,567");
-        // 176 words are 44 seconds at 238 a minute; 177 are 45.
-        assert_eq!(reading_time(176), "< 1 min");
-        assert_eq!(reading_time(177), "1 min");
-        assert_eq!(reading_time(2_380), "10 min");
-        assert_eq!(reading_time(14_280), "1 h");
-        assert_eq!(reading_time(15_470), "1 h 5 min");
     }
 }
