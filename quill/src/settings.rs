@@ -465,41 +465,125 @@ fn spell_group(
     installed: &[String],
     spelling: Option<&Resolved>,
 ) -> i32 {
-    row(
-        grid,
-        first,
-        "Spell check",
-        &switch(session, session.spell(), spell_checked),
-    );
+    let checking = switch(session, session.spell(), spell_checked);
+    row(grid, first, "Spell check", &checking);
 
-    let (rows, selected) = language_rows(installed, &session.settings().spell_language, spelling);
+    let current = Rc::new(RefCell::new(session.settings().spell_language.clone()));
+    let (rows, selected) = language_rows(installed, &current.borrow(), spelling);
     let words: Vec<&str> = rows.iter().map(String::as_str).collect();
     let language = gtk::DropDown::from_strings(&words);
     language.set_halign(gtk::Align::End);
     // Stood on before the handler is connected, so opening the window is not
     // itself a write.
     language.set_selected(selected);
-    language.connect_selected_notify(glib::clone!(
-        #[strong]
-        session,
-        move |language| {
-            if let Some(chosen) = language_at(&rows, language.selected()) {
-                session.edit_settings(|settings| chose_language(settings, chosen));
-            }
-        }
-    ));
     row(grid, first + 1, "Language", &language);
 
-    let Some(Resolved::Missing { wanted }) = spelling else {
-        return first + 2;
-    };
+    // Attached whatever the state, and shown only while it holds: a row with
+    // nothing visible in it takes no space, so the rows below stand still.
     let said = gtk::Label::builder()
-        .label(no_dictionary(wanted))
         .halign(gtk::Align::Start)
         .wrap(true)
         .build();
+    show_unserved(
+        &said,
+        match spelling {
+            Some(Resolved::Missing { wanted }) => Some(wanted.clone()),
+            _ => None,
+        },
+    );
     grid.attach(&said, 0, first + 2, 2, 1);
+
+    // What the window opened on is the Editor's resolution; a choice made here
+    // is resolved here, by the same ladder over the same listing, because the
+    // Editor hears of it only once the settings watch has read the file back
+    // (#412's Hand test: the line outlived the dictionary that ended it).
+    let installed = Rc::new(installed.to_vec());
+    let rows = Rc::new(RefCell::new(rows));
+    language.connect_selected_notify(glib::clone!(
+        #[strong]
+        session,
+        #[strong]
+        current,
+        #[strong]
+        installed,
+        #[strong]
+        rows,
+        #[strong]
+        checking,
+        #[strong]
+        said,
+        move |language| {
+            let Some(chosen) = language_at(&rows.borrow(), language.selected()) else {
+                return;
+            };
+            current.replace(chosen.clone());
+            session.edit_settings(|settings| chose_language(settings, chosen));
+            // The "No dictionary installed" row was a state, and the state
+            // has moved on: it goes, and it is after every other row, so the
+            // row stood on keeps its place.
+            if let Some(at) = served_rows(&mut rows.borrow_mut())
+                && let Some(model) = language.model().and_downcast::<gtk::StringList>()
+            {
+                model.remove(at);
+            }
+            show_unserved(
+                &said,
+                unserved_now(&checking, &current.borrow(), &installed),
+            );
+        }
+    ));
+    checking.connect_active_notify(move |checking| {
+        show_unserved(&said, unserved_now(checking, &current.borrow(), &installed));
+    });
     first + 3
+}
+
+/// The wanted tag with no dictionary, for Spell check as `checking` and
+/// `language` stand now, with the locale read from this process.
+fn unserved_now(checking: &gtk::Switch, language: &str, installed: &[String]) -> Option<String> {
+    unserved(checking.is_active(), language, installed, |name| {
+        std::env::var(name).ok()
+    })
+}
+
+/// The tag `language` wants when no installed dictionary serves it and Spell
+/// check is `on`; `None` when a dictionary serves it or Spell check is off,
+/// since the state is Spell check's and not the language's.
+///
+/// The ladder [`crate::editor::Editor`] resolves a Document's language by:
+/// empty is the locale's tag, read through `locale`.
+fn unserved(
+    on: bool,
+    language: &str,
+    installed: &[String],
+    locale: impl Fn(&str) -> Option<String>,
+) -> Option<String> {
+    if !on {
+        return None;
+    }
+    let wanted = if language.is_empty() {
+        quill_engine::spell::locale_tag(locale)
+    } else {
+        language.to_owned()
+    };
+    match quill_engine::spell::resolve(&wanted, installed) {
+        Resolved::Missing { wanted } => Some(wanted),
+        _ => None,
+    }
+}
+
+/// Puts the "no dictionary" line for `wanted` under the dropdown, or takes it
+/// away.
+fn show_unserved(said: &gtk::Label, wanted: Option<String>) {
+    said.set_visible(wanted.is_some());
+    said.set_label(&wanted.as_deref().map(no_dictionary).unwrap_or_default());
+}
+
+/// Takes the [`NO_DICTIONARY`] row out of `rows`, and says where it stood.
+fn served_rows(rows: &mut Vec<String>) -> Option<u32> {
+    let at = rows.iter().position(|row| row == NO_DICTIONARY)?;
+    rows.remove(at);
+    u32::try_from(at).ok()
 }
 
 /// The language dropdown's rows and the one it stands on: System default,
@@ -1324,6 +1408,41 @@ mod tests {
         assert_eq!(language_at(&rows, 0).as_deref(), Some(""));
         assert_eq!(language_at(&rows, 3).as_deref(), Some("en_GB"));
         assert_eq!(language_at(&rows, 9), None);
+    }
+
+    /// The line follows the resolution as the writer changes it: a language
+    /// with no dictionary shows it, a served one takes it away, System default
+    /// is the locale's, and Spell check off shows none. And the stale row goes
+    /// with it, leaving the rows before it where they stood.
+    #[test]
+    fn the_no_dictionary_line_follows_a_changed_resolution() {
+        let installed = ["en_US", "de_DE"].map(str::to_owned);
+        let english = |_: &str| Some("en_US.UTF-8".to_owned());
+        let unknown = |_: &str| Some("xx_XX.UTF-8".to_owned());
+        assert_eq!(
+            unserved(true, "xx_XX", &installed, english).as_deref(),
+            Some("xx_XX")
+        );
+        assert_eq!(unserved(true, "en_US", &installed, english), None);
+        assert_eq!(
+            unserved(true, "de_AT", &installed, english),
+            None,
+            "falls back"
+        );
+        assert_eq!(unserved(true, "", &installed, english), None);
+        assert_eq!(
+            unserved(true, "", &installed, unknown).as_deref(),
+            Some("xx_XX")
+        );
+        assert_eq!(unserved(false, "xx_XX", &installed, english), None);
+
+        let missing = Resolved::Missing {
+            wanted: "xx_XX".into(),
+        };
+        let (mut rows, _) = language_rows(&installed, "xx_XX", Some(&missing));
+        assert_eq!(served_rows(&mut rows), Some(3));
+        assert_eq!(rows, ["System default", "en_US", "de_DE"]);
+        assert_eq!(served_rows(&mut rows), None, "gone once");
     }
 
     #[test]
