@@ -15,7 +15,7 @@ use quill_engine::settings::{StyleCheck, SyntaxHighlight};
 use quill_engine::spell::{self, Misspelling, Resolved};
 use quill_engine::style::List;
 use quill_engine::worker::{
-    Annotators, Edit as Dictionary, Paragraph, ParagraphResult, Request, SpanStore, Worker,
+    Annotators, Checker, Edit as Dictionary, Paragraph, ParagraphResult, Request, SpanStore, Worker,
 };
 
 use crate::session::StyleToggle;
@@ -445,6 +445,13 @@ impl Syntax {
         self.spell
     }
 
+    /// The worker's dictionary handle, asked for at each use: a reset starts
+    /// a new worker with a handle of its own, so a handle held across one
+    /// would suggest from a dictionary nothing loads into any more.
+    pub(crate) fn checker(&self) -> Checker {
+        self.worker.checker()
+    }
+
     /// Forwards a dictionary edit — an Add, an Ignore or a language — and asks
     /// for the whole Document again, viewport first.
     ///
@@ -454,10 +461,6 @@ impl Syntax {
     /// kept for [`Syntax::reset`] to hand the next worker. With Spell check off
     /// the edit still goes, so the dictionary is right when it comes on, and
     /// nothing is asked.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the corrections menu calls it from #411")
-    )]
     pub(crate) fn edit_dictionary(
         &mut self,
         edit: Dictionary,
