@@ -266,42 +266,75 @@ export function readSelectionRows(png) {
   return { bands, pixels };
 }
 
-// ---------- the stats bar, as the band below its own rule ----------
+// ---------- the stats bar, as the band the chrome reserves at the foot ----------
 
-// How much of a row the bar's top rule has to cross before it is that rule and not something on
-// the page. It spans the window edge to edge — 2880 of 2880 columns in every chrome shot committed,
-// ours and the Parity oracle's alike — and nothing on the page can: the container is centred with a
-// gutter either side, so the widest ink a Document puts on one row stops well short of both edges.
-// 0.99 is there for a compositor that rounds an edge column, not for a margin of judgement.
-const RULE_SHARE = 0.99;
+// The stats bar's height in logical pixels, as the chrome lays it out. Measured off the committed
+// shots: where a Document scrolls, the chrome draws a full-width `#dfdfdf` separator along the
+// bar's top edge, at device row 1748 of an 1800-row window in ours and in the Parity oracle's
+// alike — 52 device rows at `defaults.scale` 2, which is also the rectangle `stats-bar-*.png` were
+// cut at. The height is written in logical pixels and multiplied by the scale the shot was taken
+// at, so it holds at every scale rather than at the one it was measured from.
+const BAR_HEIGHT = 26;
 
-// How far a pixel's luminance must run from the paper's before it is not paper. The rule is
-// `#dfdfdf` on `#f9f9f9`, 26 apart, and the bar's own ink is further still; 6 clears the dither a
-// scaled shot can leave on a flat ground without reaching either.
+// The scale a shot with nothing to say about it was taken at: `defaults.scale` in
+// `shots/oracle/states.json`, which every judged shot and both fixture crops use. `keys.mjs`
+// passes the running state's own scale rather than leaning on this.
+const SCALE = 2;
+
+// How far a pixel's luminance must run from the paper's before it is not paper. The bar's ink is
+// far past it; 6 clears the dither a scaled shot can leave on a flat ground, and the 2 luminance
+// between our `#f7f7f7` paper and the oracle's `#f9f9f9`, without reaching either.
 const PAPER_MARGIN = 6;
 
-/// The stats bar's band: the bar's own top rule and every row below it, `{ top, bottom }` — or
-/// `null` when no row above the foot crosses the window, which is what the chrome turned off looks
-/// like from here.
+/// The stats bar's band: the rows the chrome reserves for the bar at the foot of the window,
+/// `{ top, bottom }` — or `null` when the shot has no bar in it.
 ///
-/// WHY THE RULE AND NOT A HEIGHT
+/// WHY A LOGICAL HEIGHT AND NOT THE SEPARATOR
+///
+/// #391 took the band from the full-width `#dfdfdf` rule along the bar's top edge, on the reading
+/// that the chrome draws it and so it moves with the chrome. It does not: the rule is a *scroll*
+/// separator, drawn only while the Document overflows its view. The oracle's `bars` state has it
+/// and the oracle's `selection` state, over the shorter passage, has none — and neither does ours,
+/// in any state that does not scroll. `tools/gate keys chrome` types on `ref/short.md`, which never
+/// scrolls, so both of #391's rules refused before asserting anything and its selftest could not
+/// catch it: every fixture it pinned was cut from a scrolling shot.
 ///
 /// The band has to be tight, because the accent is not rare on this page: a selection's fill leans
 /// the same blue the `Selection` label is drawn in — `leansBlue` covers both, and one predicate for
 /// both is the point of having it — so a band generous enough to be safe at another window size
 /// would answer yes to the selection the burst had just made and say nothing about the bar at all.
-/// A device-pixel height written down here would be a pin on the chrome's layout at one scale and
-/// wrong at the next. The rule is drawn by the chrome itself, moves with it, and is the one
-/// full-width thing on the glass.
-export function readStatsBand(png, { paper = PAPER } = {}) {
+/// A *device*-pixel height would be a pin on the chrome's layout at one scale and wrong at the
+/// next, which is what #391 rightly refused; a *logical* height taken times the shot's own scale is
+/// the same measurement written so that it survives the scale changing. At scale 2 it is the rows
+/// the separator marks when there is one, and the rows the bar occupies when there is not.
+///
+/// WHAT `null` MEANS
+///
+/// Two readings, and neither can be told from "a bar showing nothing" by geometry alone, so both
+/// are refusals rather than passes. The band is **all paper**: the chrome is off over a Document
+/// that does not reach the foot, or the bar is there with nothing checked. Ink reaches the
+/// window's **last row**: the bar never draws there — it keeps a clear 20 rows of padding beneath
+/// its text in every committed shot — but a page with the chrome off is clipped by the window edge
+/// and does, which is what every caret, focus and markup shot looks like from here.
+///
+/// What neither test catches is the chrome off over a Document whose last line happens to stop
+/// inside the band without touching the edge. No committed shot does that, and the one script that
+/// names these rules opens with `"chrome": "on"`, but it is the gap in what pixels can say.
+export function readStatsBand(png, { paper = PAPER, scale = SCALE } = {}) {
   const ground = lum(paper);
-  const wanted = png.w * RULE_SHARE;
-  for (let y = png.h - 1; y >= 0; y -= 1) {
-    let n = 0;
+  const rows = Math.round(BAR_HEIGHT * scale);
+  // A crop no taller than the bar is the bar, already cut from a shot — which is what the fixtures
+  // are, and what lets the same finder read them and the windows they came from.
+  const top = png.h <= rows ? 0 : png.h - rows;
+  const inked = (y) => {
     for (let x = 0; x < png.w; x += 1) {
-      if (Math.abs(pixel(png, x, y).lum - ground) > PAPER_MARGIN) n += 1;
+      if (Math.abs(pixel(png, x, y).lum - ground) > PAPER_MARGIN) return true;
     }
-    if (n >= wanted) return { top: y, bottom: png.h - 1 };
+    return false;
+  };
+  if (inked(png.h - 1)) return null;
+  for (let y = top; y < png.h - 1; y += 1) {
+    if (inked(y)) return { top, bottom: png.h - 1 };
   }
   return null;
 }
@@ -531,7 +564,7 @@ export function judgeSelectionNewline(png, { rows } = {}) {
 ///
 /// Text is not read. Whether the numbers beside the label are the selection's is
 /// `stats-bar-changed`'s question, and neither rule ever asks a crop what it says.
-export function judgeStatsBarAccent(png, { accent, colours } = {}) {
+export function judgeStatsBarAccent(png, { accent, colours, scale } = {}) {
   if (typeof accent !== 'boolean') {
     return {
       pass: false,
@@ -539,12 +572,12 @@ export function judgeStatsBarAccent(png, { accent, colours } = {}) {
         + `this one says ${JSON.stringify(accent)}`,
     };
   }
-  const band = readStatsBand(png, colours);
+  const band = readStatsBand(png, { ...colours, scale });
   if (!band) {
     return {
       pass: false,
-      said: "no stats bar on the page: no row above the foot crosses the window, so the bar's own "
-        + 'top rule is not there to measure from',
+      said: 'no stats bar on the page: the band the chrome reserves at the foot is bare, or the '
+        + 'page is drawn into the window\'s last row, which the bar never is',
     };
   }
   let pixels = 0;
@@ -590,9 +623,9 @@ export function judgeMove(before, after) {
 /// It takes the two pages rather than the two bars, because a burst that ends in a selection puts
 /// the caret out entirely (ADR 0014) and so leaves no bar to compare — and that pair is the whole
 /// reason this rule exists. [`BETWEEN_BURSTS`] is what carries the difference.
-export function judgeStatsBarChanged(before, after, colours) {
-  const a = readStatsBand(before, colours);
-  const b = readStatsBand(after, colours);
+export function judgeStatsBarChanged(before, after, { colours, scale } = {}) {
+  const a = readStatsBand(before, { ...colours, scale });
+  const b = readStatsBand(after, { ...colours, scale });
   if (!a || !b) {
     const which = !a && !b ? 'neither page' : (a ? 'the second page' : 'the first page');
     return { pass: false, said: `no stats bar on ${which}, so there is no band to compare` };

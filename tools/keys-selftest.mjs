@@ -333,20 +333,64 @@ ok('a burst asserting selection-rows without saying how many rows is refused, no
 // both, which is the whole reason it is a chroma test: `b - r` is 255 for each, against `CHROMA`'s
 // 40. A palette change on either side is therefore not a reason to re-cut these crops.
 
-ok('the band is the bar’s own rule and everything under it, on a whole judged page', () => {
-  // Ours and the oracle draw the same full-width hairline at the same row, which is what makes one
-  // finder serve both sides of a judged pair.
+ok('the band is the rows the chrome reserves at the foot, on a whole judged page', () => {
+  // Ours and the oracle reserve the bar the same 26 logical pixels, which is what makes one finder
+  // serve both sides of a judged pair.
   for (const rel of ['shots/chrome/r10-bars-ours.png', 'shots/oracle/chrome/bars.png']) {
     const png = committed(rel);
-    assert.deepEqual(readStatsBand(png), { top: 1748, bottom: 1799 }, rel);
+    assert.deepEqual(readStatsBand(png, { scale: 2 }), { top: 1748, bottom: 1799 }, rel);
   }
+});
+
+ok('the band is found on a page that does not scroll, where there is no separator to find', () => {
+  // The case #391 could not see and `tools/gate keys chrome` ran straight into. The full-width
+  // `#dfdfdf` rule it took the band from is the *scroll* separator: `bars` is the long sample and
+  // has it, `selection` is `ref/short.md` and has none — in ours and in the oracle's alike. A
+  // finder that needs it answers `null` on every shot the keys script actually takes.
+  for (const rel of ['shots/chrome/r11-selection-ours.png', 'shots/oracle/chrome/selection.png']) {
+    const png = committed(rel);
+    let fullWidth = null;
+    for (let y = png.h - 1; y >= 0 && fullWidth === null; y -= 1) {
+      let n = 0;
+      for (let x = 0; x < png.w; x += 1) {
+        const i = (y * png.w + x) * png.ch;
+        if (Math.abs((png.data[i] + png.data[i + 1] + png.data[i + 2]) / 3 - 249) > 6) n += 1;
+      }
+      if (n >= png.w * 0.99) fullWidth = y;
+    }
+    assert.equal(fullWidth, null, `${rel} has no full-width rule anywhere`);
+    assert.deepEqual(readStatsBand(png, { scale: 2 }), { top: 1748, bottom: 1799 }, rel);
+  }
+});
+
+ok('the band is read off a shot of ours, and the Selection label in it is the accent', () => {
+  // Every fixture #391 pinned was cut from the Parity oracle, so nothing held the rules to our own
+  // window. These two are ours, from the round the chrome Piece was last judged at.
+  const under = judgeStatsBarAccent(committed('shots/chrome/r11-selection-ours.png'), {
+    accent: true, scale: 2,
+  });
+  assert.equal(under.pass, true, under.said);
+  assert.equal(under.pixels, 672);
+  const plain = judgeStatsBarAccent(committed('shots/chrome/r11-bars-ours.png'), {
+    accent: false, scale: 2,
+  });
+  assert.equal(plain.pass, true, plain.said);
+  assert.equal(plain.pixels, 0);
+});
+
+ok('the band is the same rows at another window width, the height being what sets it', () => {
+  // 1920 px wide rather than 2880, the same 1800 tall: the bar is the foot of the window, so its
+  // band follows the height and nothing else.
+  const png = committed('shots/page/r8-narrow-ours.png');
+  assert.equal(png.w, 1920);
+  assert.deepEqual(readStatsBand(png, { scale: 2 }), { top: 1748, bottom: 1799 });
 });
 
 ok('the band stops above the page, which is what keeps the selection out of it', () => {
   // The lowest ink the Document puts on the glass in this shot is y 1738 — ten rows above the
-  // rule. A band reaching it would answer `stats-bar-accent` with the selection's own fill.
+  // band. A band reaching it would answer `stats-bar-accent` with the selection's own fill.
   const png = committed('shots/chrome/r10-bars-ours.png');
-  const { top } = readStatsBand(png);
+  const { top } = readStatsBand(png, { scale: 2 });
   let lowest = null;
   for (let y = top - 1; y >= 0 && lowest === null; y -= 1) {
     for (let x = 0; x < png.w; x += 1) {
@@ -358,15 +402,15 @@ ok('the band stops above the page, which is what keeps the selection out of it',
     }
   }
   assert.equal(lowest, 1738);
-  assert.ok(lowest < top, 'the page ends above the bar’s rule');
+  assert.ok(lowest < top, 'the page ends above the band the chrome reserves');
 });
 
-ok('a crop of the band is read as the band, its rule being its first row', () => {
+ok('a crop no taller than the bar is the bar, which is what the fixtures are', () => {
   for (const name of ['stats-bar-document', 'stats-bar-selection']) {
     const png = shot(name);
     assert.equal(png.w, 2880, name);
     assert.equal(png.h, 52, name);
-    assert.deepEqual(readStatsBand(png), { top: 0, bottom: 51 }, name);
+    assert.deepEqual(readStatsBand(png, { scale: 2 }), { top: 0, bottom: 51 }, name);
   }
 });
 
@@ -416,14 +460,19 @@ ok('a burst asserting stats-bar-accent without saying which way is refused, not 
 });
 
 ok('a page with no bar on it says so rather than reading the page as one', () => {
-  // The chrome turned off: nothing crosses the window, so there is no rule and no band. Saying so
-  // is the difference between "the bar showed nothing" and "there was no bar".
-  const bare = page(200, 60, (fill) => fill(20, 20, 100, 30, INK_PX));
-  assert.equal(readStatsBand(bare), null);
-  const v = judgeStatsBarAccent(bare, { accent: false });
-  assert.equal(v.pass, false, 'no bar is not the same answer as a bar showing no accent');
-  assert.match(v.said, /no stats bar on the page/);
-  const between = judgeStatsBarChanged(bare, shot('stats-bar-document'));
+  // Real chrome-off shots rather than a page built here, because what the chrome off looks like
+  // from the foot is the thing being asserted and a synthetic page would only assert what this
+  // file already believes. The two shapes it comes in are both here: a Document clipped by the
+  // window edge, which the bar never is, and one that stops short and leaves the band bare.
+  const clipped = committed('shots/caret/r9-caret-ours.png');
+  const short = committed('tools/keys-fixture/fill-select-all.png');
+  for (const [what, png] of [['clipped', clipped], ['short', short]]) {
+    assert.equal(readStatsBand(png, { scale: 2 }), null, what);
+    const v = judgeStatsBarAccent(png, { accent: false, scale: 2 });
+    assert.equal(v.pass, false, 'no bar is not the same answer as a bar showing no accent');
+    assert.match(v.said, /no stats bar on the page/);
+  }
+  const between = judgeStatsBarChanged(clipped, shot('stats-bar-document'), { scale: 2 });
   assert.equal(between.pass, false);
   assert.match(between.said, /no stats bar on the first page/);
 });
