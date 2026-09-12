@@ -10,6 +10,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
+use quill_engine::markdown;
 use quill_engine::spell::{self, Enchant, Position, SUGGESTIONS, SpellChecker};
 
 /// The passage's eight misspellings, as #400 lists them.
@@ -118,6 +119,22 @@ fn the_passage_misspellings_fail_and_its_other_words_pass() {
     for word in correct {
         assert!(checker.check(word), "`{word}` is held");
     }
+}
+
+#[test]
+fn the_prose_stream_marks_exactly_the_passage_s_eight_misspellings() {
+    let checker = en_us();
+    let passage = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../ref/spell.md"))
+        .expect("ref/spell.md is readable");
+    let marked: Vec<&str> = markdown::prose(&passage)
+        .iter()
+        .flat_map(|prose| {
+            spell::misspelled(prose.text, &checker)
+                .into_iter()
+                .map(|word| &passage[prose.at.start + word.start..prose.at.start + word.end])
+        })
+        .collect();
+    assert_eq!(marked, MISSPELLINGS);
 }
 
 /// The fixture's `en_US`, loaded under the temporary copy.
