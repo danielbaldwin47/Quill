@@ -12,7 +12,7 @@ use quill_engine::document::{Document, Edit, Splice};
 use quill_engine::markdown;
 use quill_engine::pos::{Categories, Category};
 use quill_engine::settings::{StyleCheck, SyntaxHighlight};
-use quill_engine::spell::Misspelling;
+use quill_engine::spell::{self, Misspelling, Resolved};
 use quill_engine::style::List;
 use quill_engine::worker::{
     Annotators, Edit as Dictionary, Paragraph, ParagraphResult, Request, SpanStore, Worker,
@@ -120,6 +120,9 @@ pub struct Syntax {
     /// language, then the words ignored under it. An Add is the dictionary's
     /// own file and is not kept.
     dictionary: Vec<Dictionary>,
+    /// What the `spell_language` setting last resolved to among the installed
+    /// dictionaries, and `None` before it has been resolved.
+    resolution: Option<Resolved>,
     paragraphs: Vec<ParagraphState>,
     worker: Worker,
     outstanding: usize,
@@ -140,7 +143,9 @@ impl Syntax {
         Annotators {
             syntax: self.settings.enabled,
             style: self.style.enabled,
-            spell: self.spell,
+            // The "no dictionary" state keeps the setting on and asks for
+            // nothing (#401 § The "no dictionary" state).
+            spell: self.spell && !matches!(self.resolution, Some(Resolved::Missing { .. })),
         }
     }
 
@@ -206,10 +211,6 @@ impl Syntax {
     /// The same for the `spell_check` setting: joining asks for every
     /// paragraph again, and leaving keeps the other two Annotators' spans and
     /// takes the wave off at the repaint that follows.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the Editor's setter calls it from #409")
-    )]
     pub(crate) fn configure_spell(&mut self, on: bool, document: &Document) -> bool {
         if self.spell == on {
             return false;
@@ -391,6 +392,59 @@ impl Syntax {
         }
     }
 
+    /// Resolves the `spell_language` setting over the `installed` tags and
+    /// hands the worker the dictionary it names, or none.
+    ///
+    /// Empty is System default, the desktop locale's tag read through
+    /// `locale`; then the engine's ladder (#401 § Language resolution). The
+    /// resolution is kept, the tag it wanted included, for the Settings window
+    /// to name; a resolution to no dictionary stops the Spell requests and
+    /// leaves the setting on.
+    ///
+    /// Nothing is asked for here: a Document being opened is about to be
+    /// indexed afresh, and a language moving under a Document already shown is
+    /// the caller's [`Syntax::ask_again`].
+    pub(crate) fn resolve_language(
+        &mut self,
+        language: &str,
+        installed: &[String],
+        locale: impl Fn(&str) -> Option<String>,
+        document: &Document,
+    ) {
+        let wanted = if language.is_empty() {
+            spell::locale_tag(locale)
+        } else {
+            language.to_owned()
+        };
+        let resolved = spell::resolve(&wanted, installed);
+        let was = self.wanted();
+        let edit = Dictionary::Language(resolved.tag().map(str::to_owned));
+        self.resolution = Some(resolved);
+        // The same language keeps the words ignored under it; another drops
+        // them, as the worker's own handle does.
+        if self.dictionary.first() != Some(&edit) {
+            self.dictionary = vec![edit.clone()];
+        }
+        if let Err(error) = self.worker.edit(edit) {
+            eprintln!("Spell check worker: {error}");
+        }
+        self.rewant(was, document);
+    }
+
+    /// What Spell check's language last resolved to, for the Settings window.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "the Settings window reads it from #412")
+    )]
+    pub(crate) fn resolution(&self) -> Option<&Resolved> {
+        self.resolution.as_ref()
+    }
+
+    /// The `spell_check` setting as this state holds it.
+    pub(crate) fn spell(&self) -> bool {
+        self.spell
+    }
+
     /// Forwards a dictionary edit — an Add, an Ignore or a language — and asks
     /// for the whole Document again, viewport first.
     ///
@@ -402,10 +456,7 @@ impl Syntax {
     /// nothing is asked.
     #[cfg_attr(
         not(test),
-        expect(
-            dead_code,
-            reason = "the Editor and the corrections menu call it from #409 and #411"
-        )
+        expect(dead_code, reason = "the corrections menu calls it from #411")
     )]
     pub(crate) fn edit_dictionary(
         &mut self,
@@ -423,9 +474,15 @@ impl Syntax {
         if let Err(error) = self.worker.edit(edit) {
             eprintln!("Spell check worker: {error}");
         }
-        if !self.spell {
+        if !self.wanted().spell {
             return;
         }
+        self.ask_again(document, viewport);
+    }
+
+    /// Asks for every paragraph again, viewport first: what a dictionary that
+    /// changed under the spans makes of every one of them.
+    pub(crate) fn ask_again(&mut self, document: &Document, viewport: Range<usize>) {
         for entry in &mut self.paragraphs {
             entry.dirty = true;
         }
@@ -566,7 +623,7 @@ impl Syntax {
         document: &Document,
         at: &Range<usize>,
     ) -> Vec<Range<usize>> {
-        if !self.spell {
+        if !self.wanted().spell {
             return Vec::new();
         }
         self.stored_in(document, at, |entry| entry.misspellings.spans())
@@ -1057,6 +1114,32 @@ mod tests {
         syntax.edit_dictionary(Dictionary::Language(None), &document, 0..1);
         assert_eq!(syntax.dictionary, [Dictionary::Language(None)]);
         assert!(syntax.request(&document, 0..1).is_none());
+    }
+
+    #[test]
+    fn the_language_resolves_to_the_fixture_s_tag_or_to_no_dictionary_with_the_wanted_tag_kept() {
+        let document = document("Teh cat.\n\nA dgo.");
+        // The fixture's listing: `ref/spell/hunspell/` serves `en_US` alone.
+        let installed = ["en_US".to_owned()];
+        let locale = |name: &str| (name == "LANG").then(|| "en_US.UTF-8".to_owned());
+        let mut syntax = spelling(&document);
+        syntax.resolve_language("", &installed, locale, &document);
+        assert_eq!(
+            syntax.dictionary,
+            [Dictionary::Language(Some("en_US".into()))]
+        );
+        assert_eq!(syntax.resolution(), Some(&Resolved::Exact("en_US".into())));
+        assert!(syntax.wanted().spell);
+        // `--spell on:xx_XX`: no provider serves it, so the worker is handed
+        // no dictionary, nothing is asked and the tag it wanted is kept.
+        syntax.resolve_language("xx_XX", &installed, locale, &document);
+        assert_eq!(syntax.dictionary, [Dictionary::Language(None)]);
+        assert_eq!(syntax.resolution().map(Resolved::wanted), Some("xx_XX"));
+        assert!(syntax.spell(), "the setting stays on");
+        assert!(!syntax.wanted().spell);
+        assert!(syntax.request(&document, 0..1).is_none());
+        let whole = 0..document.text().len();
+        assert!(syntax.misspelled_in(&document, &whole).is_empty());
     }
 
     #[test]
