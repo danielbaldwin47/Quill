@@ -120,7 +120,7 @@ pub fn model(menu: Menu, modes: &Modes, recents: &[PathBuf]) -> gio::Menu {
             model.append_section(None, &closing);
         }
         Menu::Stats => {
-            // The table's § Stats menu: the radios, then "the last row hides
+            // The table's § Stats menu: the checks, then "the last row hides
             // the bar". The registry keeps `chrome.stats` where the table
             // first names it, under View › Window, so its Stats row is
             // taken out of the table's order here and put last, in a
@@ -395,7 +395,7 @@ mod tests {
     fn resting() -> Modes {
         Modes {
             bars: true,
-            stats: true,
+            stats_bar: true,
             ..Modes::default()
         }
     }
@@ -732,7 +732,7 @@ mod tests {
         );
     }
 
-    /// The Stats menu is the six radios, a separator, then Hide Statistics —
+    /// The Stats menu is the six checks, a separator, then Hide Statistics —
     /// the table's § Stats menu order, though the registry names
     /// `chrome.stats` first.
     #[test]

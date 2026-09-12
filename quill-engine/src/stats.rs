@@ -22,6 +22,12 @@
 //! writer would reach by counting — so `&amp;` is one character here and a
 //! code span's backticks are none.
 //!
+//! A definition list's title and definition each count one prose block, where
+//! the spec names six block kinds and not these (#387 § Counting). They are
+//! prose blocks by the same reading the other six are, and counting them zero
+//! would be the worse answer: a definition list would add words to a Document
+//! with no paragraph to hold them.
+//!
 //! A whole-Document pass runs on idle after the synchronous keystroke lane,
 //! never inside it: the caller counts from a timer, not from the keystroke. A
 //! selection's pass runs on the selection change, over the held slice.
@@ -199,7 +205,7 @@ pub fn count(text: &str) -> Counts {
                 if kind.is_block() {
                     flush(&mut counts, &mut block);
                 }
-                if kind.opens_a_paragraph(open.last().map(|frame| frame.kind)) {
+                if kind.opens_a_paragraph(&open) {
                     counts.paragraphs += 1;
                 }
                 let hides = markdown::hides_words(&tag);
@@ -283,16 +289,24 @@ impl Kind {
         self != Self::Inline
     }
 
-    /// Whether this tag is one prose block, given the tag it opened inside.
+    /// Whether this tag is one prose block, given the tags it opened inside,
+    /// innermost last.
     ///
-    /// A paragraph is one, except inside a list item or a footnote
-    /// definition, which already counted: a loose list's item holds a
-    /// paragraph and a tight one's does not, and a list of two items counts
-    /// two either way.
-    fn opens_a_paragraph(self, within: Option<Self>) -> bool {
+    /// A paragraph is one, except where something already standing open has
+    /// counted for it: a loose list's item holds a paragraph and a tight one's
+    /// does not, and a list of two items counts two either way.
+    ///
+    /// The search is for the innermost *enclosing block*, not merely the tag
+    /// one level out, because a quote or a list may sit between the two:
+    /// `- > quoted prose.` opens List, Item, BlockQuote, Paragraph, and the
+    /// item three frames out is what counted.
+    fn opens_a_paragraph(self, open: &[Frame]) -> bool {
         match self {
             Self::Block | Self::Item => true,
-            Self::Paragraph => !matches!(within, Some(Self::Item | Self::FootnoteDefinition)),
+            Self::Paragraph => !open
+                .iter()
+                .rev()
+                .any(|frame| matches!(frame.kind, Self::Item | Self::FootnoteDefinition)),
             Self::FootnoteDefinition | Self::Container | Self::Inline => false,
         }
     }
@@ -510,6 +524,22 @@ mod tests {
     }
 
     #[test]
+    fn a_container_between_a_block_and_its_paragraph_does_not_add_one() {
+        // The item counted; the quote it holds is a container, and the
+        // paragraph inside that is still the item's. Reading only the tag one
+        // level out saw `Container` here and counted a second.
+        assert_eq!(count("- > quoted prose.\n").paragraphs, 1);
+        assert_eq!(count("- > one\n- > two\n").paragraphs, 2);
+        // The same shape under a footnote definition, which counts none
+        // itself: its words count where its label does not.
+        let footnote = count("[^a]: > quoted prose.\n");
+        assert_eq!(footnote.paragraphs, 0);
+        assert_eq!(footnote.words, 2);
+        // A list nested in a quote nested in an item: two items, two blocks.
+        assert_eq!(count("- outer\n  > - inner\n").paragraphs, 2);
+    }
+
+    #[test]
     fn the_empty_document_counts_nothing() {
         assert_eq!(count(""), Counts::default());
         assert_eq!(count("").cell(Statistic::Words), ("0".to_owned(), "words"));
@@ -610,11 +640,15 @@ mod tests {
     /// The budget the cost bound holds the count to.
     ///
     /// 5 ms is the Gate's keystroke mean, and the count has to fit inside one
-    /// idle frame. A debug build is not what ships and not what the budget is
-    /// written for, so it is given the order of magnitude the optimiser is
-    /// worth rather than a pass.
+    /// idle frame. That is the bound that matters and the one the spec names.
+    ///
+    /// A debug build is not what ships, but `tools/gate` runs `cargo test` in
+    /// debug, so the debug bound is the only one the Gate ever asserts and it
+    /// has to bite: twice the slowest of three measured debug runs (22.2,
+    /// 28.6, 30.1 ms on the bench's longest draft), which leaves room for a
+    /// loaded machine and none for a rule twice as slow.
     #[cfg(debug_assertions)]
-    const BUDGET: std::time::Duration = std::time::Duration::from_millis(100);
+    const BUDGET: std::time::Duration = std::time::Duration::from_millis(60);
     #[cfg(not(debug_assertions))]
     const BUDGET: std::time::Duration = std::time::Duration::from_millis(5);
 }
