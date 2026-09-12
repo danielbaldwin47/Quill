@@ -496,7 +496,8 @@ fn spell_group(
     // What the window opened on is the Editor's resolution; a choice made here
     // is resolved here, by the same ladder over the same listing, because the
     // Editor hears of it only once the settings watch has read the file back
-    // (#412's Hand test: the line outlived the dictionary that ended it).
+    // (#401's Hand test, step 12: the line outlived the dictionary that ended
+    // it).
     let installed = Rc::new(installed.to_vec());
     let rows = Rc::new(RefCell::new(rows));
     language.connect_selected_notify(glib::clone!(
@@ -550,8 +551,9 @@ fn unserved_now(checking: &gtk::Switch, language: &str, installed: &[String]) ->
 /// check is `on`; `None` when a dictionary serves it or Spell check is off,
 /// since the state is Spell check's and not the language's.
 ///
-/// The ladder [`crate::editor::Editor`] resolves a Document's language by:
-/// empty is the locale's tag, read through `locale`.
+/// The same ladder [`crate::editor::Editor`] resolves a Document's language
+/// by, [`quill_engine::spell::resolve_setting`], with the locale read through
+/// `locale`.
 fn unserved(
     on: bool,
     language: &str,
@@ -561,12 +563,7 @@ fn unserved(
     if !on {
         return None;
     }
-    let wanted = if language.is_empty() {
-        quill_engine::spell::locale_tag(locale)
-    } else {
-        language.to_owned()
-    };
-    match quill_engine::spell::resolve(&wanted, installed) {
+    match quill_engine::spell::resolve_setting(language, installed, locale) {
         Resolved::Missing { wanted } => Some(wanted),
         _ => None,
     }

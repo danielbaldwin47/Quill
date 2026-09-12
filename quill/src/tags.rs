@@ -418,12 +418,9 @@ fn dimmed(colours: &Colours, colour: Colour) -> Colour {
     } else {
         left / whole
     };
-    let towards = |from: f64, to: f64| to + (from - to) * share;
     Colour {
-        red: towards(colour.red, paper.red),
-        green: towards(colour.green, paper.green),
-        blue: towards(colour.blue, paper.blue),
         alpha: colour.alpha,
+        ..Colour::over(colour, paper, share)
     }
 }
 
@@ -436,7 +433,7 @@ fn dimmed(colours: &Colours, colour: Colour) -> Colour {
 /// word character was just typed withholds anything. A selection withholds
 /// nothing: a word selected by a right-click keeps its wave under the menu
 /// (#401 § Corrections).
-pub fn withheld(
+pub fn unwaved_word(
     buffer: &gtk::TextBuffer,
     document: &Document,
     syntax: &crate::syntax::Syntax,
@@ -468,7 +465,7 @@ fn mark_misspellings(
     if words.is_empty() {
         return;
     }
-    let held = withheld(buffer, document, &syntax, painting.typed);
+    let held = unwaved_word(buffer, document, &syntax, painting.typed);
     for word in words {
         if held.as_ref() == Some(&word) {
             continue;

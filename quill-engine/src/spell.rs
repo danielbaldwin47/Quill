@@ -213,6 +213,20 @@ pub fn resolve<S: AsRef<str>>(wanted: &str, installed: &[S]) -> Resolved {
     }
 }
 
+/// Resolves the `spell_language` setting against `installed`: empty is System default, the tag
+/// [`locale_tag`] reads through `locale`; any other value is the tag itself; then [`resolve`].
+pub fn resolve_setting<S: AsRef<str>>(
+    language: &str,
+    installed: &[S],
+    locale: impl Fn(&str) -> Option<String>,
+) -> Resolved {
+    if language.is_empty() {
+        resolve(&locale_tag(locale), installed)
+    } else {
+        resolve(language, installed)
+    }
+}
+
 /// A tag's bare language: `en` from `en_US` or `en_US-large`.
 fn language_of(tag: &str) -> &str {
     tag.split(['_', '-']).next().unwrap_or(tag)
@@ -603,6 +617,26 @@ mod tests {
         let missing = resolve("fr_FR", &installed);
         assert_eq!(missing.tag(), None);
         assert_eq!(missing.wanted(), "fr_FR");
+    }
+
+    #[test]
+    fn an_empty_setting_resolves_the_locale_s_tag_and_any_other_names_its_own() {
+        let installed = ["en_US", "de_DE"];
+        let lang = |value: &'static str| move |var: &str| (var == "LANG").then(|| value.to_owned());
+        assert_eq!(
+            resolve_setting("", &installed, lang("de_DE.UTF-8")),
+            Resolved::Exact("de_DE".into())
+        );
+        assert_eq!(
+            resolve_setting("en_US", &installed, lang("de_DE.UTF-8")),
+            Resolved::Exact("en_US".into())
+        );
+        assert_eq!(
+            resolve_setting("", &installed, lang("xx_XX.UTF-8")),
+            Resolved::Missing {
+                wanted: "xx_XX".into()
+            }
+        );
     }
 
     #[test]
