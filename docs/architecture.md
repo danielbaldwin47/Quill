@@ -117,20 +117,24 @@ re-request, viewport first. A pure engine function walks a paragraph's prose int
 dictionary's word-character rule (start, middle, end), so the dictionary decides whether an
 apostrophe or a hyphen is inside a word; a token holding a digit is skipped, and all-caps and
 CamelCase are checked. The engine's spans are complete: the **caret rule** is the Editor's, applied
-at paint by a second pure function — the span the caret stands inside is withheld while the
-character before the caret is a word character, and returns when the caret leaves the span or a
-non-word character is typed after it — so the painting carries the caret's paragraph offset always,
-Live or not, and moving the caret out of a withheld word repaints that paragraph's decorations. The
+at paint by a second pure function — the span the caret stands inside is withheld while the writer
+is typing it, the last edit having inserted a word character that left the caret there, and returns
+on a non-word character typed after it, a deletion or any caret move, so a caret parked or
+backspaced into a misspelled word leaves its wave standing. The painting carries that arming and
+reads the caret off the buffer, Live or not, and moving the caret out of a withheld word repaints
+that paragraph's decorations. The
 language resolves on the main thread (§ Settings). `spell_check` off sends no Spell request and
 takes the tag off the buffer at once; on re-requests the Document.
 
-**Corrections** extend GTK's own context menu through the text view's extra menu: one section at its
-top — up to five suggestions, then Add to Dictionary, then Ignore — backed by a `spell` action group
-on the Editor with three actions, replace (the suggestion as a string target), add and ignore. A
+**Corrections** open on a misspelled word as a menu of the Editor's own, because the text view's
+extra menu only appends below Insert Emoji: one section at its top — up to five suggestions, then Add
+to Dictionary, then Ignore — then GTK's own rows in GTK's order on the text view's own actions (Cut,
+Copy, Paste, Delete; Undo, Redo; Select All, Insert Emoji). The section is backed by a `spell` action
+group on the Editor with three actions, replace (the suggestion as a string target), add and ignore. A
 secondary press first puts the caret at the press point and selects the misspelled span it lies in,
 and the section is built for the word at the caret, so a menu opened by the Menu key or `Shift+F10`
-reads the same word as the pointer's; a caret in no misspelled span leaves the extra menu empty, and
-GTK shows Cut, Copy and Paste alone. Replace substitutes the span inside one user-action pair, so it
+reads the same word as the pointer's; with the caret in no misspelled span GTK opens its own menu,
+Cut, Copy and Paste alone. Replace substitutes the span inside one user-action pair, so it
 is one Undo step, through the window's ordinary splice, retag, furniture and autosave, and leaves the
 caret after the new word. Add writes enchant's personal list for the current tag
 (`~/.config/enchant/<tag>.dic`, shared with every enchant application), Ignore enchant's session
