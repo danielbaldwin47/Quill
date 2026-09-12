@@ -204,6 +204,10 @@ default 5 = 21.33 logical px; an old `size` in px becomes the nearest step at or
 it is not being typed in), `chrome` (shown/hidden), `spell_check` (on/off, default on)
 and `spell_language`, `[syntax_highlight]` (a table: `enabled` is the master, and the five category
 toggles sit beside it), `[style_check]` (the same shape, one toggle per list beside `enabled`),
+a `[stats]` table (`show`, the Statistics the stats bar shows as a list of their names in any order,
+default `["words", "characters", "readingTime"]`, a name Quill does not know dropped with a note and
+an empty list an empty bar; and `bar`, shown or hidden, default shown — hiding the bar is a separate
+choice from checking none of them),
 a `[template]` table (`name`, one of the five Templates, default `modern`; and `center_headings`,
 default true and the only input to heading alignment, `number_headings` and `indent_paragraphs`,
 the three toggles that bend one), a
