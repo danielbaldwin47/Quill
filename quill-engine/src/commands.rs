@@ -304,7 +304,8 @@ pub const COMMANDS: &[Command] = &[
     row("stats.paragraphs", "Paragraphs", Scope::Win, Kind::Check, &[], &[place(STATS, None, "Paragraphs")], true),
     row("stats.readingTime", "Reading Time", Scope::Win, Kind::Check, &[], &[place(STATS, None, "Reading Time")], true),
     // Palette and keyboard only.
-    row("library.search", "Find a Document…", Scope::Win, Kind::Plain, &["Ctrl+Shift+O"], &[], true),
+    row("outline.open", "Go to Heading…", Scope::Win, Kind::Plain, &["Ctrl+Shift+O"], &[], true),
+    row("library.search", "Find a Document…", Scope::Win, Kind::Plain, &[], &[], true),
     row("file.next", "Next Document", Scope::Win, Kind::Plain, &["Ctrl+Page Down"], &[], true),
     row("file.prev", "Previous Document", Scope::Win, Kind::Plain, &["Ctrl+Page Up"], &[], true),
     row("file.follow", "Open Linked Document", Scope::Win, Kind::Plain, &["Ctrl+Enter"], &[], false),

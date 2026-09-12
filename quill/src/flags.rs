@@ -78,9 +78,10 @@ Judged state — the states the Gate shoots and benches at:
   --nocaret              Draw no caret.
   --typing               Open inside the 500 ms after a keystroke: the title
                          bar gone and the stats bar dimmed.
-  --menu view|document|stats|palette
+  --menu view|document|stats|palette|outline
                          Open with that menu or the Palette up, its first row
-                         selected.
+                         selected; outline is the Palette on the Outline, the
+                         caret's section selected.
   --library <dir>        Take the Library from the fixture tree at <dir>: a
                          copy of it, each file stamped with the mtime its
                          manifest.json names, as the one Location, with the
@@ -133,13 +134,14 @@ const THEMES: [(&str, Scheme); 2] = [("light", Scheme::Light), ("dark", Scheme::
 /// which is how a writer describes a bar.
 const CHROMES: [(&str, Chrome); 2] = [("on", Chrome::Shown), ("off", Chrome::Hidden)];
 
-/// What `--menu` takes: the three menus and the Palette, by the names
-/// `shots/oracle/states.json` uses for them.
-const MENUS: [(&str, Menu); 4] = [
+/// What `--menu` takes: the three menus, the Palette and the Palette on the
+/// Outline, by the names `shots/oracle/states.json` uses for them.
+const MENUS: [(&str, Menu); 5] = [
     ("view", Menu::Bar(commands::Menu::View)),
     ("document", Menu::Bar(commands::Menu::Document)),
     ("stats", Menu::Bar(commands::Menu::Stats)),
     ("palette", Menu::Palette),
+    ("outline", Menu::Outline),
 ];
 
 /// What `--preview` takes: where the pane opens and what it draws there, in
@@ -160,7 +162,8 @@ const PREVIEWS: [(&str, (PreviewLayout, PreviewMode)); 4] = [
 ];
 
 /// What `--menu` opens before the first frame, its first row selected: one
-/// of the bars' three menus, or the Palette.
+/// of the bars' three menus, the Palette, or the Palette on the Outline with
+/// the caret's section selected.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Menu {
     /// A menu under a bar button: the View menu (`F10`), the Document menu
@@ -168,6 +171,8 @@ pub enum Menu {
     Bar(commands::Menu),
     /// The Palette, which `Ctrl+K` opens.
     Palette,
+    /// The Palette on the Outline, which `Ctrl+Shift+O` opens (#397).
+    Outline,
 }
 
 /// What `--focus` takes: one flag for the two settings behind it.

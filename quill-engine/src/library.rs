@@ -676,6 +676,25 @@ impl Library {
         files.into_iter()
     }
 
+    /// Every shown file whose name `query` matched, best first: the name
+    /// half of [`Library::search`] alone, by the same fuzzy rule, for a list
+    /// that never reads a file's text (the Palette's Outline, #397). An
+    /// empty query matches nothing, as it does there.
+    #[must_use]
+    pub fn names(&self, query: &str, view: &View) -> Vec<&File> {
+        let letters: String = query.split_whitespace().map(str::to_lowercase).collect();
+        if letters.is_empty() {
+            return Vec::new();
+        }
+        let mut found: Vec<(i32, &File)> = self
+            .files(view)
+            .filter_map(|file| Some((fuzzy(&letters, &file.name.to_lowercase())?, file)))
+            .collect();
+        // A stable sort, so names that scored alike stay in the view's order.
+        found.sort_by_key(|(score, _)| Reverse(*score));
+        found.into_iter().map(|(_, file)| file).collect()
+    }
+
     /// Every shown file `query` matched, name hits first and each kind by
     /// score.
     ///
