@@ -302,6 +302,7 @@ pub fn install_window(window: &Window) {
         }),
     );
     install_recent(window);
+    install_jump(window);
     // The compositor can fill the screen without `F11` being pressed, so the
     // check follows the window rather than the Command.
     window.connect_fullscreened_notify(|window| reflect(window, window.modes()));
@@ -319,6 +320,28 @@ pub fn install_window(window: &Window) {
 /// [`register`] because it is outside the registry, and it carries no chord
 /// and no menu row of its own: `file.recent` is the Command a writer reaches.
 pub const RECENT_OPEN: &str = "file.recentOpen";
+
+/// The action a heading row of the Palette's Outline activates, with the
+/// byte the heading's words start at as its parameter: the jump, outside the
+/// registry as [`RECENT_OPEN`] is, because it carries a target no chord and
+/// no menu row could name. `outline.open` is the Command a writer reaches.
+pub const OUTLINE_JUMP: &str = "outline.jump";
+
+/// Registers [`OUTLINE_JUMP`] on `window`.
+fn install_jump(window: &Window) {
+    let action = gio::SimpleAction::new(OUTLINE_JUMP, Some(glib::VariantTy::UINT64));
+    let jumped = window.downgrade();
+    action.connect_activate(move |_, target| {
+        let (Some(window), Some(offset)) = (
+            jumped.upgrade(),
+            target.and_then(|target| target.get::<u64>()),
+        ) else {
+            return;
+        };
+        window.jump_to(offset);
+    });
+    window.add_action(&action);
+}
 
 /// Registers [`RECENT_OPEN`] on `window`.
 fn install_recent(window: &Window) {
@@ -542,6 +565,7 @@ fn run_window(window: &Window, command: &Command) {
         "preview.web" => window.set_preview_mode(PreviewMode::Web),
         "preview.pdf" => window.set_preview_mode(PreviewMode::Pdf),
         "library.search" => window.search_library(),
+        "outline.open" => window.open_outline(),
         "chrome.stats" => window.toggle_stats(),
         // The Stats menu's six checks. Each moves only its own name in
         // `[stats] show`. The id's last segment is the Statistic's settings
