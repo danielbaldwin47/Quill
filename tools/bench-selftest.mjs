@@ -329,7 +329,7 @@ ok("a regime's line is one line of numbers, and the run's line says how many cle
   });
   assert.match(line, /^gate bench fence_flip: pass — mean /);
   assert.ok(!line.includes('\n'), line);
-  assert.ok(!line.includes('budget'), 'the budget is said once, by the run, not seventeen times');
+  assert.ok(!line.includes('budget'), 'the budget is said once, by the run, not nineteen times');
 
   const rows = [row('prose_end_of_draft', 2, 8, 120), row('revision', 2.4, 9, 130)];
   assert.match(allSummary('--all', rows), /^gate bench --all: pass — 2 of 2 regimes clear the budget/);
@@ -440,7 +440,7 @@ ok('an unscored regime is recorded beside the verdict and decides nothing', () =
 
 ok('syntax is the fifteenth regime and is scored like the headline prose', () => {
   const all = regimes();
-  assert.equal(all.length, 17);
+  assert.equal(all.length, 19);
   const syntax = all.find((r) => r.name === 'syntax');
   assert.deepEqual(syntax, { ...all[0], name: 'syntax', syntax: 'on' });
   assert.equal(scoredRegime('syntax'), true);
@@ -448,7 +448,7 @@ ok('syntax is the fifteenth regime and is scored like the headline prose', () =>
 
 ok('style is the sixteenth regime and is scored like the headline prose', () => {
   const all = regimes();
-  assert.equal(all.length, 17);
+  assert.equal(all.length, 19);
   const style = all.find((r) => r.name === 'style');
   assert.deepEqual(style, { ...all[0], name: 'style', style: 'on' });
   assert.equal(scoredRegime('style'), true);
@@ -458,9 +458,9 @@ ok('style is the sixteenth regime and is scored like the headline prose', () => 
 // count it measures is armed by the typing hold, so it has to pause the hold out, which makes it
 // bursts_and_pauses plus a flag instead. A regime that quietly lost its pauses would still run,
 // still pass, and measure a recount that never fired.
-ok('stats is the seventeenth regime, and pauses like bursts_and_pauses rather than typing straight through', () => {
+ok('stats is the nineteenth regime, and pauses like bursts_and_pauses rather than typing straight through', () => {
   const all = regimes();
-  assert.equal(all.length, 17);
+  assert.equal(all.length, 19);
   const bursty = all.find((r) => r.name === 'bursts_and_pauses');
   const stats = all.find((r) => r.name === 'stats');
   assert.deepEqual(stats, {
@@ -472,7 +472,25 @@ ok('stats is the seventeenth regime, and pauses like bursts_and_pauses rather th
   assert.equal(scoredRegime('stats'), true);
 });
 
-ok('every one of the seventeen is a plan the injector can be handed', () => {
+ok('spell is the eighteenth regime and is scored like the headline prose', () => {
+  const all = regimes();
+  assert.equal(all.length, 19);
+  const spell = all.find((r) => r.name === 'spell');
+  assert.deepEqual(spell, { ...all[0], name: 'spell', spell: 'on' });
+  assert.equal(scoredRegime('spell'), true);
+});
+
+// A writer runs the three worker Annotators together, and the worker serialises them per paragraph,
+// so the regime is the headline prose with all three flags rather than any one of them.
+ok('annotators is the nineteenth regime, with Syntax highlight, Style check and Spell check all on', () => {
+  const all = regimes();
+  assert.equal(all.length, 19);
+  const annotators = all.find((r) => r.name === 'annotators');
+  assert.deepEqual(annotators, { ...all[0], name: 'annotators', syntax: 'on', style: 'on', spell: 'on' });
+  assert.equal(scoredRegime('annotators'), true);
+});
+
+ok('every one of the nineteen is a plan the injector can be handed', () => {
   for (const r of regimes()) {
     const plan = uinputPlan(script(r.mix, DEFAULT_KEYS, hash32(r.name)), r.pace,
       { pauseEvery: r.pauseEvery, pauseMs: r.pauseMs });
@@ -534,7 +552,7 @@ ok('the pause clears every timer the app arms from the last keystroke', () => {
   }
 });
 
-ok('the injector can say every press the seventeen ask for', () => {
+ok('the injector can say every press the nineteen ask for', () => {
   const wanted = new Set();
   for (const r of regimes()) {
     for (const k of uinputPlan(script(r.mix, DEFAULT_KEYS, hash32(r.name)), r.pace).plan.keys) wanted.add(k.press);
