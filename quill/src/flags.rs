@@ -68,6 +68,9 @@ Judged state — the states the Gate shoots and benches at:
                          Pin Syntax highlight off, all on, or to named Categories.
   --style off|on|fillers,redundancies,cliches
                          Pin Style check off, all on, or to named Lists.
+  --spell off|on|on:<tag>
+                         Pin Spell check off, on in the desktop's language,
+                         or on in the dictionary a language tag names.
   --stats <names>|hidden Pin the stats bar to a comma list of Statistic names,
                          or hide it: words, characters, charactersNoSpaces,
                          sentences, paragraphs, readingTime.
@@ -244,6 +247,10 @@ pub struct Flags {
     pub syntax: Option<SyntaxHighlight>,
     /// The whole Style check table pinned by `--style`.
     pub style: Option<StyleCheck>,
+    /// Spell check and its dictionary as `--spell` pins them: `Some(None)`
+    /// is off, and `Some(Some(tag))` is on in the language the tag names,
+    /// empty for the desktop's own.
+    pub spell: Option<Option<String>>,
     /// The whole Stats table pinned by `--stats`.
     pub stats: Option<Stats>,
     /// What `--chrome` asks of the bars around the Editor.
@@ -367,6 +374,7 @@ impl Flags {
                 "--live" => flags.live = true,
                 "--syntax" => flags.syntax = Some(syntax(flag, &text(&mut args, flag)?)?),
                 "--style" => flags.style = Some(style(flag, &text(&mut args, flag)?)?),
+                "--spell" => flags.spell = Some(spell(flag, &text(&mut args, flag)?)?),
                 "--stats" => flags.stats = Some(stats_table(flag, &text(&mut args, flag)?)?),
                 "--chrome" => flags.chrome = Some(one_of(flag, &text(&mut args, flag)?, &CHROMES)?),
                 "--caret" => flags.caret = Some(caret(flag, &text(&mut args, flag)?)?),
@@ -501,6 +509,16 @@ impl Flags {
             settings.style_check = style.clone();
         } else if self.deterministic {
             settings.style_check = StyleCheck::default();
+        }
+        // Spell check is pinned by both its keys, the dictionary with the
+        // switch: a writer who chose another language would otherwise shoot
+        // a page checked against a dictionary the fixture does not carry.
+        if let Some(spell) = &self.spell {
+            settings.spell_check = spell.is_some();
+            settings.spell_language = spell.clone().unwrap_or_default();
+        } else if self.deterministic {
+            settings.spell_check = false;
+            settings.spell_language = String::new();
         }
         // Stats is pinned whole for the third time over: a writer who had
         // checked Sentences, or hidden the bar altogether, would otherwise
@@ -721,6 +739,19 @@ fn style(flag: &str, written: &str) -> Result<StyleCheck, Error> {
     Ok(style)
 }
 
+/// Pins the switch and the dictionary together: `off`, `on` for the
+/// desktop's own language, or `on:<tag>` for the dictionary the tag names.
+fn spell(flag: &str, written: &str) -> Result<Option<String>, Error> {
+    match written {
+        "off" => Ok(None),
+        "on" => Ok(Some(String::new())),
+        _ => match written.strip_prefix("on:") {
+            Some(tag) if !tag.is_empty() => Ok(Some(tag.to_owned())),
+            _ => Err(not(flag, written, "off, on, or on:<language tag>")),
+        },
+    }
+}
+
 /// Pins which Statistics the bar shows, or hides the bar.
 ///
 /// No `off`: it is the master switch everywhere else on this command line, and
@@ -825,7 +856,7 @@ mod tests {
 
     /// Every flag `docs/architecture.md` names, with a value it takes and —
     /// where it has a domain — one it does not.
-    const FLAGS: [(&str, &str, Option<&str>); 29] = [
+    const FLAGS: [(&str, &str, Option<&str>); 30] = [
         ("--text", "ref/sample.md", None),
         ("--theme", "dark", Some("purple")),
         ("--font", "mono", Some("comic")),
@@ -835,6 +866,7 @@ mod tests {
         ("--live", "", None),
         ("--syntax", "nouns,adverbs", Some("pronouns")),
         ("--style", "fillers,cliches", Some("jargon")),
+        ("--spell", "on:de", Some("en_US")),
         ("--stats", "words,sentences", Some("syllables")),
         // The file says shown and hidden; the flag says on and off.
         ("--chrome", "off", Some("shown")),
@@ -978,6 +1010,7 @@ mod tests {
             "--measure",
             "--syntax",
             "--style",
+            "--spell",
             "--stats",
         ] {
             let err = parse(flag).expect_err("nothing follows it");
@@ -1101,6 +1134,31 @@ mod tests {
             .expect("two flags")
             .over(writers);
         assert!(asked.live);
+    }
+
+    #[test]
+    fn spell_pins_the_switch_and_the_dictionary_over_the_writers_choices() {
+        let mut writers = Settings::default();
+        writers.spell_check = true;
+        writers.spell_language = "fr_FR".to_owned();
+        assert_eq!(parse("").unwrap().over(writers.clone()), writers);
+        let pinned = |flags: &str| {
+            let settings = parse(flags).unwrap().over(writers.clone());
+            (settings.spell_check, settings.spell_language)
+        };
+        assert_eq!(pinned("--spell off"), (false, String::new()));
+        assert_eq!(pinned("--deterministic"), (false, String::new()));
+        assert_eq!(pinned("--spell on"), (true, String::new()));
+        assert_eq!(pinned("--spell on:de"), (true, "de".to_owned()));
+        assert_eq!(
+            pinned("--deterministic --spell on:en_US"),
+            (true, "en_US".to_owned())
+        );
+        for bad in ["on:", "yes", "de", "off:de"] {
+            let error = parse(&format!("--spell {bad}")).unwrap_err().to_string();
+            assert!(error.starts_with("--spell: "));
+            assert!(!error.contains('\n'));
+        }
     }
 
     #[test]

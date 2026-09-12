@@ -22,7 +22,7 @@ import { ASSERTIONS, SYNTAX, assertState, secondShot, validate } from './assert-
 import { pair, pairDir, reveal } from './blind.mjs';
 import { CAPTURES, cropPng, encodePng, overlaid, resolveOpponent } from './crop.mjs';
 import {
-  ACCENT, ACCENT_HEX, APP_ID, DIALOG_APP_ID, accentPixels, appeared, carriesAccent, classPattern, launchEnv,
+  ACCENT, ACCENT_HEX, APP_ID, DIALOG_APP_ID, accentPixels, appeared, carriesAccent, classPattern, launchEnv, spellFixture,
   parseToplevels, pngSize, quillArgv, rulesLua, wantsLitCaret,
 } from './harness.mjs';
 import { VERDICT_KEYS, carriedFrom, criticAnswer, criticPrompt, opponentOf, oursArgv, refusedFlag, shotPaths } from './judge.mjs';
@@ -76,6 +76,18 @@ ok('every state pins Style check and an override reaches the app', () => {
   assert.equal(argv[argv.indexOf('--style') + 1], 'fillers,cliches');
 });
 
+ok('every state pins Spell check and an override reaches the app', () => {
+  assert.equal(states.defaults.spell, 'off');
+  for (const piece of Object.keys(states.pieces)) {
+    for (const state of resolveStates(states, piece)) {
+      const argv = quillArgv(ROOT, state.flags);
+      assert.equal(argv[argv.indexOf('--spell') + 1], state.flags.spell, `${piece}/${state.name}`);
+    }
+  }
+  const argv = quillArgv(ROOT, { ...states.defaults, spell: 'on:xx_XX' });
+  assert.equal(argv[argv.indexOf('--spell') + 1], 'on:xx_XX');
+});
+
 ok('a state becomes the native flags that state means', () => {
   const caret = flagsOf('caret');
   const argv = quillArgv(ROOT, caret.selection);
@@ -92,6 +104,7 @@ ok('a state becomes the native flags that state means', () => {
   assert.equal(flag('--focus'), 'off');
   assert.equal(flag('--syntax'), 'off');
   assert.equal(flag('--style'), 'off');
+  assert.equal(flag('--spell'), 'off');
   // The caret Piece is judged bare (#139), so its states override the defaults' chrome; that
   // override reaching the command line is the half of this case the defaults cannot show.
   assert.equal(flag('--chrome'), 'off');
@@ -173,6 +186,24 @@ ok('the launch environment is the one the research pinned', () => {
   assert.equal(env.GDK_BACKEND, 'wayland');
   assert.equal(env.GTK_A11Y, 'none');
   assert.equal(env.PATH, '/usr/bin', 'and nothing else about the environment is touched');
+});
+
+ok('every launch reads a fresh copy of the fixture dictionary, never the machine\'s', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'quill-spell-selftest-'));
+  try {
+    const first = spellFixture(ROOT, tmp);
+    const second = spellFixture(ROOT, tmp);
+    assert.notEqual(first, second, 'a word one launch added must not reach the next');
+    assert.ok(first.startsWith(tmp + path.sep), 'the copy lives under the run\'s temporary directory');
+    for (const file of ['en_US.aff', 'en_US.dic']) {
+      assert.deepEqual(fs.readFileSync(path.join(first, 'hunspell', file)),
+        fs.readFileSync(path.join(ROOT, 'ref/spell/hunspell', file)), file);
+    }
+    const env = launchEnv({ PATH: '/usr/bin', ENCHANT_CONFIG_DIR: '/home/writer/.config/enchant' }, first);
+    assert.equal(env.ENCHANT_CONFIG_DIR, first, 'the writer\'s own enchant directory is not the one read');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });
 
 // ---------- the rules that pin the window ----------
