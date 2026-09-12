@@ -259,23 +259,27 @@ async function run(root, piece, { shotsDir }) {
     for (const { burst, shot } of seen) {
       for (const name of burst.assert || []) {
         const verdict = AFTER_BURST[name](shot.png, {
-          chars: burst.chars, rows: burst.rows, colours, read: shot.read,
+          chars: burst.chars, rows: burst.rows, accent: burst.accent, colours, read: shot.read,
         });
         say(`gate keys: ${burst.name} ${name}: ${verdict.pass ? 'ok' : 'FAILED'} — ${verdict.said}`);
         if (!verdict.pass) failures.push(`${name} after ${burst.name}: ${verdict.said}`);
       }
     }
-    // Every between-bursts assertion there is compares two bars, and a burst that leaves no caret
-    // on the page has none to compare — so a pair with a `still` burst at either end is passed
-    // over rather than failed, and the log says which pair and why.
+    // A between-bursts assertion that compares two bars has none to compare when either burst left
+    // no caret on the page — so a pair with a `still` burst at either end is passed over rather
+    // than failed, and the log says which pair and why. One that compares the two pages is asked
+    // of every pair, that pair above all: `BETWEEN_BURSTS` is where a rule says which it is.
     for (const name of script.between || []) {
+      const rule = BETWEEN_BURSTS[name];
       for (let i = 1; i < seen.length; i += 1) {
         const where = `${seen[i - 1].burst.name} to ${seen[i].burst.name}`;
-        if (seen[i - 1].settle !== 'caret' || seen[i].settle !== 'caret') {
+        if (rule.reads === 'bar' && (seen[i - 1].settle !== 'caret' || seen[i].settle !== 'caret')) {
           say(`gate keys: ${where} ${name}: not asked (a burst with no caret on the page)`);
           continue;
         }
-        const verdict = BETWEEN_BURSTS[name](seen[i - 1].shot.read, seen[i].shot.read);
+        const verdict = rule.reads === 'bar'
+          ? rule.judge(seen[i - 1].shot.read, seen[i].shot.read)
+          : rule.judge(seen[i - 1].shot.png, seen[i].shot.png, colours);
         say(`gate keys: ${where} ${name}: ${verdict.pass ? 'ok' : 'FAILED'} — ${verdict.said}`);
         if (!verdict.pass) failures.push(`${name} from ${where}: ${verdict.said}`);
       }
