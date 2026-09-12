@@ -14,6 +14,8 @@ use std::ffi::{CStr, CString, c_char, c_void};
 use std::ops::Range;
 use std::ptr::NonNull;
 
+use crate::document::Splice;
+
 /// The most corrections [`SpellChecker::suggest`] hands back, the context menu's section size.
 pub const SUGGESTIONS: usize = 5;
 
@@ -101,13 +103,25 @@ pub fn misspelled(prose: &str, checker: &dyn SpellChecker) -> Vec<Range<usize>> 
 /// The one misspelling span to leave unmarked while the writer is still typing its word, or `None`.
 ///
 /// `spans` are a paragraph's misspellings, `caret` the caret's byte offset into `prose`, the
-/// same paragraph. While the character before the caret is a word character, the span the caret
-/// stands inside or at the end of is withheld — and so is a span the word being typed has grown
-/// past, since the spans may predate the last keystroke. A space typed after the word, a caret at
-/// a span's start or a caret outside every word withholds nothing. The rule is a fixed one,
-/// letters, digits, apostrophes and hyphens, because the Editor applies it at paint, where no
-/// dictionary is at hand.
-pub fn withheld(spans: &[Range<usize>], caret: usize, prose: &str) -> Option<Range<usize>> {
+/// same paragraph, and `typed` where the last edit left a word being typed ([`typed_to`]), or
+/// `None` once a deletion or a caret move has come since. Only a caret still standing where a
+/// word character was just typed withholds anything, so a caret moved into a misspelling, or a
+/// Backspace into one, leaves its wave standing (#401 § The tokeniser and the rules).
+///
+/// While the character before that caret is a word character, the span the caret stands inside
+/// or at the end of is withheld — and so is a span the word being typed has grown past, since the
+/// spans may predate the last keystroke. A caret at a span's start or outside every word
+/// withholds nothing. The rule is a fixed one, letters, digits, apostrophes and hyphens, because
+/// the Editor applies it at paint, where no dictionary is at hand.
+pub fn withheld(
+    spans: &[Range<usize>],
+    caret: usize,
+    prose: &str,
+    typed: Option<usize>,
+) -> Option<Range<usize>> {
+    if typed != Some(caret) {
+        return None;
+    }
     let before = prose.get(..caret)?;
     let word_start = before
         .char_indices()
@@ -120,6 +134,17 @@ pub fn withheld(spans: &[Range<usize>], caret: usize, prose: &str) -> Option<Ran
         .rev()
         .find(|span| span.start < caret && span.end > word_start)
         .cloned()
+}
+
+/// Where `splice` leaves a word being typed in `text`, the text after it: the end of what it
+/// put in when the last character it put in is a word character, and `None` for a deletion or
+/// an insertion ending in anything else.
+///
+/// What arms [`withheld`]: typing a word character is the one edit that hides a wave.
+pub fn typed_to(text: &str, splice: &Splice) -> Option<usize> {
+    let end = splice.at.start + splice.inserted;
+    let last = text.get(splice.at.start..end)?.chars().next_back()?;
+    is_typed_word_character(last).then_some(end)
 }
 
 /// The characters [`withheld`] reads as the word under the caret.
@@ -498,25 +523,66 @@ mod tests {
     fn the_caret_at_a_misspelling_s_end_withholds_that_span_alone() {
         let prose = "Teh misteak";
         let spans = [0..3, 4..11];
-        assert_eq!(withheld(&spans, 11, prose), Some(4..11));
-        assert_eq!(withheld(&spans, 7, prose), Some(4..11));
-        assert_eq!(withheld(&spans, 3, prose), Some(0..3));
+        assert_eq!(withheld(&spans, 11, prose, Some(11)), Some(4..11));
+        assert_eq!(withheld(&spans, 7, prose, Some(7)), Some(4..11));
+        assert_eq!(withheld(&spans, 3, prose, Some(3)), Some(0..3));
     }
 
     #[test]
     fn a_space_a_span_s_start_or_no_span_withholds_nothing() {
         let prose = "misteak and more";
         let spans = [Range { start: 0, end: 7 }];
-        assert_eq!(withheld(&spans, 8, "misteak  and more"), None);
-        assert_eq!(withheld(&spans, 0, prose), None);
-        assert_eq!(withheld(&spans, 11, prose), None);
-        assert_eq!(withheld(&[], 7, prose), None);
+        assert_eq!(withheld(&spans, 8, "misteak  and more", Some(8)), None);
+        assert_eq!(withheld(&spans, 0, prose, Some(0)), None);
+        assert_eq!(withheld(&spans, 11, prose, Some(11)), None);
+        assert_eq!(withheld(&[], 7, prose, Some(7)), None);
     }
 
     #[test]
     fn a_word_typed_past_its_stale_span_is_still_withheld() {
         let spans = [Range { start: 0, end: 6 }];
-        assert_eq!(withheld(&spans, 7, "misteak"), Some(0..6));
+        let typed = typed_to(
+            "misteak",
+            &Splice {
+                at: 6..6,
+                inserted: 1,
+            },
+        );
+        assert_eq!(typed, Some(7));
+        assert_eq!(withheld(&spans, 7, "misteak", typed), Some(0..6));
+    }
+
+    #[test]
+    fn a_caret_moved_into_a_misspelling_not_typed_withholds_nothing() {
+        let prose = "the comittee met";
+        let spans = [Range { start: 4, end: 12 }];
+        // Placed at its end by a click or an arrow: no edit armed the rule.
+        assert_eq!(withheld(&spans, 12, prose, None), None);
+        // Typed there, then moved away and back: the move disarmed it.
+        assert_eq!(withheld(&spans, 8, prose, Some(12)), None);
+    }
+
+    #[test]
+    fn a_backspace_into_a_misspelling_leaves_its_wave_standing() {
+        // ` misteak` typed, then Space, then Backspace over the space.
+        let space = typed_to(
+            "misteak ",
+            &Splice {
+                at: 7..7,
+                inserted: 1,
+            },
+        );
+        assert_eq!(space, None, "a space arms nothing");
+        let backspace = typed_to(
+            "misteak",
+            &Splice {
+                at: 7..8,
+                inserted: 0,
+            },
+        );
+        assert_eq!(backspace, None, "a deletion arms nothing");
+        let spans = [Range { start: 0, end: 7 }];
+        assert_eq!(withheld(&spans, 7, "misteak", backspace), None);
     }
 
     #[test]
