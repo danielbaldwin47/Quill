@@ -538,11 +538,11 @@ mod tests {
     #[test]
     fn a_command_with_no_group_is_matched_by_no_group_name() {
         assert_eq!(score_group(command("app.quit"), "theme"), None);
-        assert_eq!(score_group(command("palette.open"), "stats"), None);
+        assert_eq!(score_group(command("palette.open"), "face"), None);
         // A check is not a radio, whatever its id shares with a group.
         assert_eq!(score_group(command("theme.toggle"), "theme"), None);
         // So every row the group tier brings in is a radio.
-        for query in ["theme", "stats", "focus", "face"] {
+        for query in ["theme", "preview", "focus", "face"] {
             for id in group_rows(query) {
                 assert!(
                     matches!(command(id).kind, Kind::Radio { .. }),
