@@ -728,6 +728,19 @@ impl Window {
         );
     }
 
+    /// Turns Spell check on or off, in every window.
+    ///
+    /// Off drops every wave at once and sends no Spell request; on asks for
+    /// the Document again ([`Window::set_spell`]).
+    pub(crate) fn toggle_spell(&self) {
+        self.move_windows(Session::toggle_spell, |window, _| {
+            if let Some(session) = window.session() {
+                let (spell, language) = spelling(&session);
+                window.set_spell(spell, &language);
+            }
+        });
+    }
+
     /// Moves Focus the way `move_it` says, and puts the answer on every window.
     ///
     /// The two Focus keys differ only in what they ask the session for, so what
@@ -3540,10 +3553,10 @@ pub fn repaint(app: &gtk::Application, session: &Session) {
     chrome::reflect_windows(app);
 }
 
-/// The `spell_check` and `spell_language` settings as the session holds them.
+/// The `spell_check` and `spell_language` settings as the session holds them:
+/// the check live, as the Commands leave it, and the language from the file.
 fn spelling(session: &Session) -> (bool, String) {
-    let settings = session.settings();
-    (settings.spell_check, settings.spell_language.clone())
+    (session.spell(), session.settings().spell_language.clone())
 }
 
 /// Puts a settings file saved while Quill is running on to every window.
