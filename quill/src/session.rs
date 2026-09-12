@@ -37,10 +37,11 @@ use quill_engine::focus::typewriter::Typewriter;
 use quill_engine::library::Library;
 use quill_engine::pos::Category;
 use quill_engine::settings::{
-    Chrome, Face, FocusScope, PreviewLayout, PreviewMode, Settings, State, SyntaxHighlight,
-    Template, TemplateName, Theme, WindowState,
+    Chrome, Face, FocusScope, PreviewLayout, PreviewMode, Settings, State, StyleCheck,
+    SyntaxHighlight, Template, TemplateName, Theme, WindowState,
 };
 use quill_engine::shortcuts::Refusal;
+use quill_engine::style::List;
 use quill_engine::theme::{self, Palette, Scheme};
 use quill_engine::watch::{Placed, Watch, unsaid};
 
@@ -130,6 +131,42 @@ impl SyntaxToggle {
     }
 }
 
+/// Which Style check setting a Command or Settings row moves.
+///
+/// Shaped like [`SyntaxToggle`], and for the same reason: the master and the
+/// three Lists are separate state, so a List switched off survives the master
+/// going off and coming back (#356).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StyleToggle {
+    /// The master switch, independent of the List choices.
+    Enabled,
+    /// One List's strikes, whether the master is on or off.
+    List(List),
+}
+
+impl StyleToggle {
+    /// The current value of this switch.
+    #[must_use]
+    pub fn of(self, style: &StyleCheck) -> bool {
+        match self {
+            Self::Enabled => style.enabled,
+            Self::List(List::Fillers) => style.fillers,
+            Self::List(List::Redundancies) => style.redundancies,
+            Self::List(List::Cliches) => style.cliches,
+        }
+    }
+
+    /// Sets this switch without changing any other key in the table.
+    pub fn set(self, style: &mut StyleCheck, on: bool) {
+        match self {
+            Self::Enabled => style.enabled = on,
+            Self::List(List::Fillers) => style.fillers = on,
+            Self::List(List::Redundancies) => style.redundancies = on,
+            Self::List(List::Cliches) => style.cliches = on,
+        }
+    }
+}
+
 /// The settings and state of one run of Quill.
 pub struct Session {
     /// What this launch was asked for.
@@ -196,6 +233,10 @@ pub struct Session {
     live: Cell<bool>,
     /// Syntax highlight's live table, including the writer's unknown keys.
     syntax: RefCell<SyntaxHighlight>,
+    /// Style check's live table, held beside Syntax highlight's and for the
+    /// same reason: the master and the three Lists are separate state, and a
+    /// window opened after a toggle opens with the Lists the writer chose.
+    style: RefCell<StyleCheck>,
     /// The face the page is set in now: the setting until the writer picks
     /// one from View › Typeface, and then the one they picked. Held live for
     /// the reason [`Session::step`] is.
@@ -360,6 +401,7 @@ impl Session {
             typewriter: Cell::new(settings.typewriter),
             live: Cell::new(settings.live),
             syntax: RefCell::new(settings.syntax_highlight.clone()),
+            style: RefCell::new(settings.style_check.clone()),
             face: Cell::new(settings.face),
             desktop: Cell::new(portal),
             chrome: Cell::new(settings.chrome),
@@ -448,6 +490,7 @@ impl Session {
         self.typewriter.set(settings.typewriter);
         self.live.set(settings.live);
         self.syntax.replace(settings.syntax_highlight.clone());
+        self.style.replace(settings.style_check.clone());
         self.face.set(settings.face);
         self.chrome.set(settings.chrome);
         self.preview_layout.set(settings.preview.layout);
@@ -736,11 +779,24 @@ impl Session {
         self.syntax.borrow()
     }
 
+    /// Style check as the Commands have left it, before the watch reads it back.
+    pub fn style(&self) -> Ref<'_, StyleCheck> {
+        self.style.borrow()
+    }
+
     /// Flips one Syntax highlight key, leaving the master and Categories independent.
     pub fn toggle_syntax(&self, toggle: SyntaxToggle) -> bool {
         let mut syntax = self.syntax.borrow_mut();
         let on = !toggle.of(&syntax);
         toggle.set(&mut syntax, on);
+        on
+    }
+
+    /// Flips one Style check key, leaving the master and Lists independent.
+    pub fn toggle_style(&self, toggle: StyleToggle) -> bool {
+        let mut style = self.style.borrow_mut();
+        let on = !toggle.of(&style);
+        toggle.set(&mut style, on);
         on
     }
 
@@ -1077,6 +1133,7 @@ impl Session {
         settings.typewriter = self.typewriter.get();
         settings.live = self.live.get();
         settings.syntax_highlight = self.syntax.borrow().clone();
+        settings.style_check = self.style.borrow().clone();
         settings.face = self.face.get();
         settings.chrome = self.chrome.get();
         settings.preview.layout = self.preview_layout.get();
@@ -1712,6 +1769,103 @@ mod tests {
         reread(None, &session);
         assert_eq!(session.running(), edited);
         assert_eq!(*session.syntax(), edited.syntax_highlight);
+    }
+
+    #[test]
+    fn every_style_command_writes_only_its_key_and_its_own_save_moves_nothing() {
+        let source = "theme = \"dark\"\nface = \"mono\"\nfuture = 17\n\
+            [style_check]\nenabled = false\nfillers = false\nredundancies = true\n\
+            cliches = false\nfuture_style = \"kept\"\n";
+        let (initial, notes) = Settings::parse(source);
+        assert!(notes.is_empty());
+        let path = fixture("style-commands");
+        let session = Session::launch(
+            Flags {
+                settings: Some(path.clone()),
+                ..Flags::default()
+            },
+            initial.clone(),
+            State::default(),
+            WindowState::default(),
+            true,
+            None,
+        );
+        for (toggle, key, was) in [
+            (StyleToggle::Enabled, "enabled", false),
+            (StyleToggle::List(List::Fillers), "fillers", false),
+            (StyleToggle::List(List::Redundancies), "redundancies", true),
+            (StyleToggle::List(List::Cliches), "cliches", false),
+        ] {
+            for on in [!was, was] {
+                let (expected, notes) = Settings::parse(
+                    &source.replace(&format!("\n{key} = {was}"), &format!("\n{key} = {on}")),
+                );
+                assert!(notes.is_empty());
+                assert_eq!(session.toggle_style(toggle), on);
+                assert_eq!(session.running(), expected, "{key}: live table");
+                assert_eq!(*session.style(), expected.style_check);
+                session.store_settings();
+                let (written, notes) = Settings::read_from(&path);
+                assert!(notes.is_empty());
+                assert_eq!(written, expected, "{key}: complete written table");
+                assert!(!session.apply(written), "our own write needs no repaint");
+                reread(None, &session);
+                assert_eq!(session.running(), expected, "{key}: read back");
+            }
+            assert_eq!(session.running(), initial);
+        }
+        // The master off and on again is the writer's own Lists coming back,
+        // which is what keeps the two states apart (#356).
+        session.toggle_style(StyleToggle::List(List::Fillers));
+        session.toggle_style(StyleToggle::Enabled);
+        session.toggle_style(StyleToggle::Enabled);
+        session.store_settings();
+        let (written, _) = Settings::read_from(&path);
+        assert!(!written.style_check.enabled, "the master is back off");
+        assert!(written.style_check.fillers, "and the List it never touched");
+        assert!(written.style_check.redundancies);
+        assert!(!written.style_check.cliches);
+    }
+
+    /// The table the window installs on open and again on a settings save.
+    ///
+    /// The read half of Style check's wiring, which is what [`reapply`] hands
+    /// to the Annotator: the Commands' half is the toggles' (#366).
+    ///
+    /// [`reapply`]: crate::window::reapply
+    #[test]
+    fn the_style_check_table_is_live_on_the_session_and_moves_with_the_file() {
+        let source = "theme = \"light\"\n\
+            [style_check]\nenabled = true\nfillers = false\n\
+            redundancies = true\ncliches = true\nfuture_style = \"kept\"\n";
+        let (initial, notes) = Settings::parse(source);
+        assert!(notes.is_empty());
+        let path = fixture("style-check-table");
+        let session = Session::launch(
+            Flags {
+                settings: Some(path.clone()),
+                ..Flags::default()
+            },
+            initial.clone(),
+            State::default(),
+            WindowState::default(),
+            true,
+            None,
+        );
+        assert_eq!(*session.style(), initial.style_check);
+        assert!(session.style().enabled);
+        assert!(!session.style().fillers);
+        // A List switched off in the file while Quill is running: the writer
+        // sees the strikes go on the save, so the session must have moved.
+        let (edited, _) = Settings::parse(&source.replace("cliches = true", "cliches = false"));
+        edited.write_to(&path).unwrap();
+        reread(None, &session);
+        assert_eq!(*session.style(), edited.style_check);
+        assert!(
+            !session.style().cliches,
+            "the file's switch is the session's"
+        );
+        assert!(session.style().redundancies, "and moves nothing else");
     }
 
     /// The state a session that ended on `last` left behind.

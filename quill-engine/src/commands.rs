@@ -258,7 +258,10 @@ pub const COMMANDS: &[Command] = &[
     row("syntax.adjectives", "Adjectives", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Adjectives")], true),
     row("syntax.adverbs", "Adverbs", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Adverbs")], true),
     row("syntax.conjunctions", "Conjunctions", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Conjunctions")], true),
-    row("style.toggle", "Style Check", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Style Check")], false),
+    row("style.toggle", "Style Check", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Style Check")], true),
+    row("style.fillers", "Fillers", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Fillers")], true),
+    row("style.redundancies", "Redundancies", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Redundancies")], true),
+    row("style.cliches", "Clichés", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Clichés")], true),
     row("spell.toggle", "Spell Check", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Writing tools"), "Spell Check")], false),
     // View › Typeface.
     row("font.duo", "Duo", Scope::Win, Kind::Radio { group: "face", value: "duo", }, &[], &[place(VIEW, Some("Typeface"), "Duo")], true),

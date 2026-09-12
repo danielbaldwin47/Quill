@@ -1,0 +1,276 @@
+# Fillers — words and phrases that add nothing to a sentence.
+#
+# Quill Style check list. One phrase per line, lower case, ASCII apostrophes,
+# inflected forms spelled out as their own lines. Blank lines and lines starting
+# with '#' are ignored. Matching is case-insensitive on whole-word boundaries
+# (see the Style check spec, issue #29). Provenance and licences: SOURCES.md.
+
+# --- npm `fillers` 2.0.1 (MIT, Titus Wormer) — 63 entries ---
+absolutely
+actual
+actually
+amazing
+anyway
+apparently
+approximately
+badly
+basically
+certainly
+clearly
+completely
+definitely
+easily
+effectively
+entirely
+especially
+essentially
+exactly
+extremely
+fairly
+frankly
+frequently
+fully
+generally
+hardly
+heavily
+highly
+hopefully
+just
+largely
+literally
+maybe
+mostly
+necessarily
+nicely
+obviously
+particularly
+perhaps
+possibly
+practically
+precisely
+primarily
+probably
+quite
+really
+relatively
+seriously
+significantly
+simply
+slightly
+specifically
+strongly
+surely
+too
+totally
+truly
+typically
+ultimately
+usually
+very
+virtually
+widely
+
+# --- npm `hedges` 2.0.1 (MIT, Titus Wormer) — 41 entries ---
+a bit
+almost
+almost never
+and so forth
+apparent
+appear to be
+around
+at least
+conceivably
+definite
+et cetera
+evidently
+if i'm understanding you correctly
+in general
+in my mind
+in my opinion
+in my understanding
+in my view
+inconclusive
+kind of
+mainly
+more or less
+my impression
+my thinking is
+my understanding is
+occasionally
+often
+overall
+partially
+presumably
+quite clearly
+rarely
+roughly
+seldom
+so far
+somehow
+something or other
+sometimes
+somewhat
+sort of
+supposedly
+
+# --- npm `weasels` 2.0.1 (MIT, Titus Wormer) — 8 entries ---
+a lot
+arguably
+exceedingly
+interestingly
+remarkably
+reportedly
+substantially
+surprisingly
+
+# --- npm `too-wordy` 0.3.6 (MIT, Matt Blair) - multi-word entries only — 50 entries ---
+a number of
+all of
+all things considered
+along the lines of
+as a matter of fact
+as a means of
+as far as i'm concerned
+as of yet
+as yet
+at the present time
+at this time
+because of the fact that
+by virtue of
+by virtue of the fact that
+due to the fact that
+for the duration of
+for the most part
+for the purpose of
+have a tendency to
+if and when
+in a manner of speaking
+in a timely manner
+in a very real sense
+in all likelihood
+in light of the fact that
+in many cases
+in some instances
+in the affirmative
+in the case of
+in the course of
+in the event that
+in the final analysis
+in the midst of
+in the nature of
+in the near future
+in the negative
+in the process of
+it is essential
+it seems that
+make an effort
+null and void
+of late
+of the fact that
+owing to the fact that
+put simply
+readily apparent
+sooner rather than later
+the point i am trying to make
+what i mean to say is
+with the exception of
+
+# --- Quill, from iA Writer's published examples — 97 entries ---
+a bit of a
+a little
+a tad
+a touch
+amazingly
+as a general rule
+as it happens
+as it were
+as we all know
+as you may know
+at any rate
+awfully
+basically speaking
+broadly speaking
+by and large
+curiously
+downright
+dreadfully
+enormously
+extraordinarily
+for all practical purposes
+for my part
+fundamentally
+funnily enough
+generally speaking
+honestly
+horribly
+hugely
+i mean
+if you like
+if you will
+immensely
+importantly
+in a sense
+in a way
+in actuality
+in certain respects
+in effect
+in essence
+in my humble opinion
+in point of fact
+in reality
+in some ways
+incredibly
+indeed
+insanely
+it could be argued that
+it is important to note that
+it should be noted that
+kind of a
+let me be clear
+more than a little
+naturally
+notably
+obviously enough
+oddly enough
+of course
+of sorts
+on a personal note
+one could argue
+one might say
+or so
+or something
+ostensibly
+outright
+personally
+pretty much
+purportedly
+reputedly
+ridiculously
+roughly speaking
+seemingly
+so to speak
+some would say
+sort of a
+strangely enough
+strictly speaking
+terribly
+that said
+the fact of the matter is
+the thing is
+thoroughly
+to a certain extent
+to be honest
+to some degree
+to some extent
+to tell the truth
+tremendously
+truth be told
+unbelievably
+up to a point
+utterly
+when you think about it
+wholly
+wildly
+with that said
+you know
+

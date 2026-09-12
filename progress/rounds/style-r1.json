@@ -1,0 +1,215 @@
+{
+  "piece": "style",
+  "round": 1,
+  "winner": "ours",
+  "margin": "asserted",
+  "gap": "13 marks along 5 lines of prose, each in the inks of its own line; 10120 changed pixels, none outside the text column",
+  "gapTheirs": "no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)",
+  "verdict": "13 marks along 5 lines of prose, each in the inks of its own line; 10120 changed pixels, none outside the text column",
+  "oursShot": "shots/style/r1-on-light-ours.png",
+  "theirsShot": null,
+  "refSource": "no opponent for on-light (style), on-dark (style), fillers-light (style), focus-light (style), focus-dark (style), syntax-light (style), syntax-dark (style), select-light (style), select-dark (style) — measured off ours' own pixels by tools/assert-state.mjs, because neither oracle holds the state (ADR 0017)",
+  "builderNote": "",
+  "secondary": [
+    "same-state --style off pixels supply the text column, the lines of prose and their inks",
+    "the mark is provisional until the capture in #354 lands; no critic (ADR 0017)"
+  ],
+  "opponent": "asserted",
+  "build": {
+    "git": "e10b1ff",
+    "binary": "24a5511cf4957e11",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "on-light",
+      "ours": "shots/style/r1-on-light-ours.png",
+      "theirs": null,
+      "lit": "shots/style/r1-on-light-ours-lit.png",
+      "assert": {
+        "kind": "style",
+        "runs": 13,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "13 marks along 5 lines of prose, each in the inks of its own line; 10120 changed pixels, none outside the text column",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)",
+      "verdict": "13 marks along 5 lines of prose, each in the inks of its own line; 10120 changed pixels, none outside the text column",
+      "secondary": [
+        "same-state --style off pixels supply the text column, the lines of prose and their inks",
+        "the mark is provisional until the capture in #354 lands; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "on-dark",
+      "ours": "shots/style/r1-on-dark-ours.png",
+      "theirs": null,
+      "lit": "shots/style/r1-on-dark-ours-lit.png",
+      "assert": {
+        "kind": "style",
+        "runs": 13,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "13 marks along 5 lines of prose, each in the inks of its own line; 10120 changed pixels, none outside the text column",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)",
+      "verdict": "13 marks along 5 lines of prose, each in the inks of its own line; 10120 changed pixels, none outside the text column",
+      "secondary": [
+        "same-state --style off pixels supply the text column, the lines of prose and their inks",
+        "the mark is provisional until the capture in #354 lands; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "fillers-light",
+      "ours": "shots/style/r1-fillers-light-ours.png",
+      "theirs": null,
+      "lit": "shots/style/r1-fillers-light-ours-lit.png",
+      "assert": {
+        "kind": "style",
+        "runs": 6,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "6 marks along 5 lines of prose, each in the inks of its own line; 3650 changed pixels, none outside the text column",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)",
+      "verdict": "6 marks along 5 lines of prose, each in the inks of its own line; 3650 changed pixels, none outside the text column",
+      "secondary": [
+        "same-state --style off pixels supply the text column, the lines of prose and their inks",
+        "the mark is provisional until the capture in #354 lands; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "focus-light",
+      "ours": "shots/style/r1-focus-light-ours.png",
+      "theirs": null,
+      "lit": "shots/style/r1-focus-light-ours-lit.png",
+      "assert": {
+        "kind": "style",
+        "runs": 13,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "13 marks along 5 lines of prose, each in the inks of its own line; 10101 changed pixels, none outside the text column",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)",
+      "verdict": "13 marks along 5 lines of prose, each in the inks of its own line; 10101 changed pixels, none outside the text column",
+      "secondary": [
+        "same-state --style off pixels supply the text column, the lines of prose and their inks",
+        "the mark is provisional until the capture in #354 lands; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "focus-dark",
+      "ours": "shots/style/r1-focus-dark-ours.png",
+      "theirs": null,
+      "lit": "shots/style/r1-focus-dark-ours-lit.png",
+      "assert": {
+        "kind": "style",
+        "runs": 13,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "13 marks along 5 lines of prose, each in the inks of its own line; 10113 changed pixels, none outside the text column",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)",
+      "verdict": "13 marks along 5 lines of prose, each in the inks of its own line; 10113 changed pixels, none outside the text column",
+      "secondary": [
+        "same-state --style off pixels supply the text column, the lines of prose and their inks",
+        "the mark is provisional until the capture in #354 lands; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "syntax-light",
+      "ours": "shots/style/r1-syntax-light-ours.png",
+      "theirs": null,
+      "lit": "shots/style/r1-syntax-light-ours-lit.png",
+      "assert": {
+        "kind": "style",
+        "runs": 13,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "13 marks along 5 lines of prose, each in the inks of its own line; 10120 changed pixels, none outside the text column",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)",
+      "verdict": "13 marks along 5 lines of prose, each in the inks of its own line; 10120 changed pixels, none outside the text column",
+      "secondary": [
+        "same-state --style off pixels supply the text column, the lines of prose and their inks",
+        "the mark is provisional until the capture in #354 lands; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "syntax-dark",
+      "ours": "shots/style/r1-syntax-dark-ours.png",
+      "theirs": null,
+      "lit": "shots/style/r1-syntax-dark-ours-lit.png",
+      "assert": {
+        "kind": "style",
+        "runs": 13,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "13 marks along 5 lines of prose, each in the inks of its own line; 10120 changed pixels, none outside the text column",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)",
+      "verdict": "13 marks along 5 lines of prose, each in the inks of its own line; 10120 changed pixels, none outside the text column",
+      "secondary": [
+        "same-state --style off pixels supply the text column, the lines of prose and their inks",
+        "the mark is provisional until the capture in #354 lands; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "select-light",
+      "ours": "shots/style/r1-select-light-ours.png",
+      "theirs": null,
+      "lit": "shots/style/r1-select-light-ours-lit.png",
+      "assert": {
+        "kind": "style",
+        "runs": 13,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "13 marks along 5 lines of prose, each in the inks of its own line; 10110 changed pixels, none outside the text column",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)",
+      "verdict": "13 marks along 5 lines of prose, each in the inks of its own line; 10110 changed pixels, none outside the text column",
+      "secondary": [
+        "same-state --style off pixels supply the text column, the lines of prose and their inks",
+        "the mark is provisional until the capture in #354 lands; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "select-dark",
+      "ours": "shots/style/r1-select-dark-ours.png",
+      "theirs": null,
+      "lit": "shots/style/r1-select-dark-ours-lit.png",
+      "assert": {
+        "kind": "style",
+        "runs": 13,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "13 marks along 5 lines of prose, each in the inks of its own line; 10109 changed pixels, none outside the text column",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)",
+      "verdict": "13 marks along 5 lines of prose, each in the inks of its own line; 10109 changed pixels, none outside the text column",
+      "secondary": [
+        "same-state --style off pixels supply the text column, the lines of prose and their inks",
+        "the mark is provisional until the capture in #354 lands; no critic (ADR 0017)"
+      ]
+    }
+  ],
+  "at": "2026-09-11T03:19:31.679Z"
+}

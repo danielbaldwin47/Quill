@@ -64,6 +64,18 @@ ok('every state pins Syntax highlight and an override reaches the app', () => {
   assert.equal(argv[argv.indexOf('--syntax') + 1], 'nouns,adverbs');
 });
 
+ok('every state pins Style check and an override reaches the app', () => {
+  assert.equal(states.defaults.style, 'off');
+  for (const piece of Object.keys(states.pieces)) {
+    for (const state of resolveStates(states, piece)) {
+      const argv = quillArgv(ROOT, state.flags);
+      assert.equal(argv[argv.indexOf('--style') + 1], state.flags.style, `${piece}/${state.name}`);
+    }
+  }
+  const argv = quillArgv(ROOT, { ...states.defaults, style: 'fillers,cliches' });
+  assert.equal(argv[argv.indexOf('--style') + 1], 'fillers,cliches');
+});
+
 ok('a state becomes the native flags that state means', () => {
   const caret = flagsOf('caret');
   const argv = quillArgv(ROOT, caret.selection);
@@ -79,6 +91,7 @@ ok('a state becomes the native flags that state means', () => {
   assert.equal(flag('--step'), '5');
   assert.equal(flag('--focus'), 'off');
   assert.equal(flag('--syntax'), 'off');
+  assert.equal(flag('--style'), 'off');
   // The caret Piece is judged bare (#139), so its states override the defaults' chrome; that
   // override reaching the command line is the half of this case the defaults cannot show.
   assert.equal(flag('--chrome'), 'off');
@@ -746,6 +759,29 @@ ok('Syntax preserves captured marker, code and URL pixels, and a coloured protec
   assert.match(outside.why, /outside the shot/);
 });
 
+// ---------- Style check ----------
+
+ok('the nine style states are judged against mac-native crops of the capture in #354', () => {
+  assert.deepEqual(Object.keys(states.pieces.style), ['on-light', 'on-dark', 'fillers-light',
+    'focus-light', 'focus-dark', 'syntax-light', 'syntax-dark', 'select-light', 'select-dark']);
+  for (const state of resolveStates(states, 'style')) {
+    // The passage is the one the engine's fixture test and the capture use, so the three cannot
+    // drift, and every state is answered by a crop of the frame the capture shot for it rather
+    // than by arithmetic over ours: the mark has a Design oracle now (#367, ADR 0015).
+    assert.equal(state.flags.text, 'ref/style.md', state.name);
+    assert.equal(state.assert ?? null, null, `${state.name} is judged, not asserted`);
+    assert.match(state.opponent.capture, /^mac-native-24-(light|dark)-style-/, state.name);
+    assert.equal(state.opponent.capture.includes(state.flags.theme), true,
+      `${state.name} is judged against its own ground`);
+    for (const rect of [state.opponent.crop, state.opponent.ours]) {
+      assert.equal(rect.length, 4, state.name);
+      assert.equal(rect.every((n) => Number.isInteger(n) && n >= 0), true, state.name);
+    }
+    // Both rectangles are the same size, because the two crops are read side by side.
+    assert.deepEqual(state.opponent.crop.slice(2), state.opponent.ours.slice(2), state.name);
+  }
+});
+
 // ---------- the fold ----------
 
 // The leading and the row the fold's fixtures are painted on, in the pixels of a shot.
@@ -1319,6 +1355,10 @@ ok('every judged state that draws a determined caret is held to one, and no othe
   // when it is asked, one shot in three, and those states are about the sidebar beside the page.
   // `export/dialog` takes it for a reason of its own: the dialog is a surface over the page and the
   // keyboard is the dialog's while it is up, so the Editor under it draws the ghost by rights.
+  // Every `style` state takes it, and for the Piece's own reason: the marks are read as lines of
+  // ink, and a bar standing in a line of prose joins its band to the strikes' — what the caret is
+  // made of is the caret Piece's rows, not this one's. The two Focus states still place the caret,
+  // because that is what Focus scopes its sentence from; they only decline to draw it.
   // The two all-Category Syntax states that took a `mac-native` opponent in #319 take it because
   // their captures carry no bar to pair against — measured, not assumed: zero accent pixels in
   // both `308-original-mbp-{light,dark}-syntax-all`. Their sibling `syntax/focus-sentence` draws
@@ -1328,6 +1368,9 @@ ok('every judged state that draws a determined caret is held to one, and no othe
     'caret/selection', 'caret/unfocused', 'export/dialog', 'files/library', 'files/search',
     'focus/paragraph', 'focus/sentence',
     'markup/blocks', 'markup/gutters', 'markup/wrapped', 'preview/full', 'preview/pdf-full',
+    'style/fillers-light', 'style/focus-dark', 'style/focus-light', 'style/on-dark',
+    'style/on-light', 'style/select-dark', 'style/select-light', 'style/syntax-dark',
+    'style/syntax-light',
     'syntax/all-dark', 'syntax/all-light',
     'theme/dark', 'theme/light', 'type/mono',
   ]);

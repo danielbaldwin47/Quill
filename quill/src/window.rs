@@ -43,7 +43,7 @@ use crate::ground::Ground;
 use crate::harness;
 use crate::menus;
 use crate::preview::DialogOverride;
-use crate::session::{Session, SyntaxToggle, TemplateToggle};
+use crate::session::{Session, StyleToggle, SyntaxToggle, TemplateToggle};
 use crate::tags;
 
 /// How long after the last keystroke autosave writes the Document out.
@@ -373,9 +373,11 @@ impl Window {
         // first frame is meant to show, and the fold is worked out inside the
         // same draw that puts the Document on the page.
         window.imp().editor.open_live_on(session.live());
-        // Install the table while the buffer is empty; showing the Document
+        // Install the tables while the buffer is empty; showing the Document
         // below resets the worker and schedules its first viewport request.
+        // Both Annotators, because either one alone is work to schedule.
         window.set_syntax(session.syntax().clone());
+        window.set_style(session.style().clone());
         // The bars stand or not before the Document is shown, so the page is
         // laid out once, at the height it will keep.
         window
@@ -698,6 +700,22 @@ impl Window {
         );
     }
 
+    /// Moves one Style check key and applies the full table to every Editor.
+    ///
+    /// The master and the three Lists take the same path, because a List is a
+    /// repaint of spans already held and the master is a request to send or
+    /// not: [`Window::set_style`] tells the two apart ([`crate::syntax`]).
+    pub(crate) fn toggle_style(&self, toggle: StyleToggle) {
+        self.move_windows(
+            |session| session.toggle_style(toggle),
+            |window, _| {
+                if let Some(session) = window.session() {
+                    window.set_style(session.style().clone());
+                }
+            },
+        );
+    }
+
     /// Moves Focus the way `move_it` says, and puts the answer on every window.
     ///
     /// The two Focus keys differ only in what they ask the session for, so what
@@ -818,11 +836,28 @@ impl Window {
 
     /// Applies the session's Syntax table; category-only changes reuse spans.
     pub(crate) fn set_syntax(&self, settings: quill_engine::settings::SyntaxHighlight) {
-        let was = self.imp().editor.syntax_enabled();
         self.imp().editor.set_syntax(settings, &self.document());
-        if !self.imp().editor.syntax_enabled() {
+        self.rearm();
+    }
+
+    /// Applies the session's Style check table; a List alone reuses spans.
+    pub(crate) fn set_style(&self, style: quill_engine::settings::StyleCheck) {
+        self.imp().editor.set_style(style, &self.document());
+        self.rearm();
+    }
+
+    /// Starts or stops the one wake both Annotators share.
+    ///
+    /// Armed whenever either is on, and not only as the first arrives: a
+    /// master joining the other has paragraphs to match and no keystroke
+    /// coming to ask for them. A table change that dirties nothing — a
+    /// Category or a List — is a repaint the Editor has already done, and
+    /// arming for it would push a pending keystroke's re-match back by
+    /// another debounce, so the wake follows the work rather than the table.
+    fn rearm(&self) {
+        if !self.imp().editor.annotating() {
             self.cancel_syntax();
-        } else if !was {
+        } else if self.imp().editor.asking() {
             self.arm_syntax();
         }
     }
@@ -837,7 +872,7 @@ impl Window {
     }
 
     fn arm_syntax(&self) {
-        if !self.imp().editor.syntax_enabled() {
+        if !self.imp().editor.annotating() {
             return;
         }
         if let Some(source) = self.imp().syntax_wake.take() {
@@ -3399,6 +3434,7 @@ pub fn reapply(app: &gtk::Application, session: &Session) {
         window.apply_preview();
         window.refresh_preview();
         window.set_syntax(session.syntax().clone());
+        window.set_style(session.style().clone());
     });
     // The sidebar reads the `[library]` settings as it lists — hidden files,
     // extensions — and the Library itself has already been made to say what

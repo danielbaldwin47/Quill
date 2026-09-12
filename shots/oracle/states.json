@@ -13,6 +13,7 @@
     "typewriter": false,
     "live": false,
     "syntax": "off",
+    "style": "off",
     "chrome": "on",
     "caret": 403,
     "select": null,
@@ -499,6 +500,250 @@
             "conjunctions"
           ],
           "live": true
+        }
+      }
+    },
+    "style": {
+      "on-light": {
+        "text": "ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 0,
+        "nocaret": true,
+        "theme": "light",
+        "syntax": "off",
+        "focus": "off",
+        "style": "on",
+        "opponent": {
+          "capture": "mac-native-24-light-style-all.png",
+          "crop": [
+            680,
+            317,
+            1186,
+            66
+          ],
+          "ours": [
+            610,
+            214,
+            1186,
+            66
+          ]
+        }
+      },
+      "on-dark": {
+        "text": "ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 0,
+        "nocaret": true,
+        "theme": "dark",
+        "syntax": "off",
+        "focus": "off",
+        "style": "on",
+        "opponent": {
+          "capture": "mac-native-24-dark-style-all.png",
+          "crop": [
+            680,
+            317,
+            1186,
+            66
+          ],
+          "ours": [
+            610,
+            214,
+            1186,
+            66
+          ]
+        }
+      },
+      "fillers-light": {
+        "text": "ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 0,
+        "nocaret": true,
+        "theme": "light",
+        "syntax": "off",
+        "focus": "off",
+        "style": "fillers",
+        "opponent": {
+          "capture": "mac-native-24-light-style-list-fillers.png",
+          "crop": [
+            680,
+            317,
+            1186,
+            66
+          ],
+          "ours": [
+            610,
+            214,
+            1186,
+            66
+          ]
+        }
+      },
+      "focus-light": {
+        "text": "ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 150,
+        "nocaret": true,
+        "theme": "light",
+        "syntax": "off",
+        "focus": "sentence",
+        "style": "on",
+        "opponent": {
+          "capture": "mac-native-24-light-style-focus-sentence.png",
+          "crop": [
+            680,
+            846,
+            1186,
+            66
+          ],
+          "ours": [
+            610,
+            214,
+            1186,
+            66
+          ]
+        }
+      },
+      "focus-dark": {
+        "text": "ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 150,
+        "nocaret": true,
+        "theme": "dark",
+        "syntax": "off",
+        "focus": "sentence",
+        "style": "on",
+        "opponent": {
+          "capture": "mac-native-24-dark-style-focus-sentence.png",
+          "crop": [
+            680,
+            846,
+            1186,
+            66
+          ],
+          "ours": [
+            610,
+            214,
+            1186,
+            66
+          ]
+        }
+      },
+      "syntax-light": {
+        "text": "ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 0,
+        "nocaret": true,
+        "theme": "light",
+        "syntax": "on",
+        "focus": "off",
+        "style": "on",
+        "opponent": {
+          "capture": "mac-native-24-light-style-syntax.png",
+          "crop": [
+            680,
+            317,
+            1186,
+            66
+          ],
+          "ours": [
+            610,
+            214,
+            1186,
+            66
+          ]
+        }
+      },
+      "syntax-dark": {
+        "text": "ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "caret": 0,
+        "nocaret": true,
+        "theme": "dark",
+        "syntax": "on",
+        "focus": "off",
+        "style": "on",
+        "opponent": {
+          "capture": "mac-native-24-dark-style-syntax.png",
+          "crop": [
+            680,
+            317,
+            1186,
+            66
+          ],
+          "ours": [
+            610,
+            214,
+            1186,
+            66
+          ]
+        }
+      },
+      "select-light": {
+        "text": "ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "select": [
+          115,
+          131
+        ],
+        "caret": 131,
+        "nocaret": true,
+        "theme": "light",
+        "syntax": "off",
+        "focus": "off",
+        "style": "on",
+        "opponent": {
+          "capture": "mac-native-24-light-style-selection.png",
+          "crop": [
+            1572,
+            380,
+            490,
+            80
+          ],
+          "ours": [
+            1686,
+            280,
+            490,
+            80
+          ]
+        }
+      },
+      "select-dark": {
+        "text": "ref/style.md",
+        "chrome": "off",
+        "live": false,
+        "select": [
+          115,
+          131
+        ],
+        "caret": 131,
+        "nocaret": true,
+        "theme": "dark",
+        "syntax": "off",
+        "focus": "off",
+        "style": "on",
+        "opponent": {
+          "capture": "mac-native-24-dark-style-selection.png",
+          "crop": [
+            1572,
+            380,
+            490,
+            80
+          ],
+          "ours": [
+            1686,
+            280,
+            490,
+            80
+          ]
         }
       }
     }

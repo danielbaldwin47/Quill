@@ -219,6 +219,48 @@ def pin_advance(font):
     return pinned
 
 
+# What the strikeout metric is pinned to, in the Faces' 1000-unit em.
+#
+# iA's own files ask for a 60-unit rule 309 above the baseline, and neither
+# number is what the Design oracle draws: it rules **2 device px centred on the
+# x-height** at the default size (#354, `ref/ia/mac-native/VERDICTS.md` § The
+# Style Check mark; `docs/design.md` § Rows, Style check mark). macOS ignores
+# the metric and draws its own rule; Pango obeys the metric and has no API to
+# override it, so the oracle's rule is written into the Faces here — the one
+# place a strikethrough's geometry can be set at all.
+#
+# These two numbers are measured off a judged shot, not converted from the
+# oracle's own em fraction. The oracle's 2 px is 0.047 em in the face and at
+# the size it was measured in; 30 per 1000 units is 0.030 em, and what it is
+# calibrated against is our own rasterisation at the judged text size. Pango
+# draws the rule downward from `yStrikeoutPosition` and thickens it by
+# `yStrikeoutSize`, and iA's 60 at 309 came out 4 device px with its top 2 px
+# above the x-height centre, so the size is halved to the oracle's 2 px and the
+# position drops 47 units — 2 device px at the judged size — to centre what is
+# left.
+#
+# The position is the sounder of the two: 262 is the x-height centre (516 / 2 =
+# 258) to within four units, which is #354's own reading of what a second
+# capture would leave standing. The thickness has no such rule behind it —
+# #354 leaves "whether the thickness is a fixed device value or a rounded
+# fraction of the em" for a second step to separate — so it is right at the one
+# text step the `style` Piece shoots and may part from the oracle at others.
+STRIKEOUT_SIZE = 30
+STRIKEOUT_POSITION = 262
+
+
+def pin_strikeout(font):
+    """Sets `font`'s strikeout rule to the one the Design oracle draws.
+
+    Only strikethroughs read these two fields, so this moves Style check's
+    mark and Markdown's `~~` and nothing else on the page.
+    """
+    os2 = font["OS/2"]
+    os2.yStrikeoutSize = STRIKEOUT_SIZE
+    os2.yStrikeoutPosition = STRIKEOUT_POSITION
+    return f"  strikeout {STRIKEOUT_SIZE}/{STRIKEOUT_POSITION}"
+
+
 def roman(face):
     """The upright source file of `face`, which its Italic is measured against."""
     for directory, filename, name, italic in FACES:
@@ -252,6 +294,7 @@ def build():
         if face == "Quattro" and italic:
             note = f"  word space {regularise_space(font, roman(face))}"
         note += f"  {pin_advance(font)} advances pinned"
+        note += pin_strikeout(font)
         # A signature over bytes we have just changed is worse than none.
         if "DSIG" in font:
             del font["DSIG"]
