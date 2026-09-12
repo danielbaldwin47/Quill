@@ -10,7 +10,9 @@
 //! texts — are the Parity oracle's, role for role out of
 //! `legacy/app/css/theme.css`, until they are measured in their turn
 //! (4.2.15 is still unknown), which is the split `design.md` § The palette is
-//! a file states.
+//! a file states. The last, [`Role::Spell`], is neither oracle's: a provisional
+//! red per ground, held to 3:1 against its paper, until the capture ticket #400
+//! measures the mark.
 //!
 //! The markers are the ink. #198 shot iA Writer at every mark kind on both
 //! grounds and found no resting marker grey at all: a heading's `#`, a quote's
@@ -391,6 +393,12 @@ pub enum Role {
     /// A conjunction under Syntax highlight. Measured; see
     /// [`Role::SyntaxNoun`].
     SyntaxConjunction,
+    /// The wave under a misspelled word, drawn by Spell check.
+    ///
+    /// Provisional: a red per ground chosen for at least 3:1 against its
+    /// paper, not measured, until the capture ticket #400 reads the Design
+    /// oracle's mark and replaces both values.
+    Spell,
 }
 
 impl Role {
@@ -401,7 +409,7 @@ impl Role {
     /// arm, so the table stays total either way; this list is the one place
     /// kept by hand, and what a role missing from it costs is the tests below
     /// quietly stopping short of it.
-    pub const ALL: [Self; 20] = [
+    pub const ALL: [Self; 21] = [
         Self::Paper,
         Self::Ink,
         Self::InkDim,
@@ -422,6 +430,7 @@ impl Role {
         Self::SyntaxAdjective,
         Self::SyntaxAdverb,
         Self::SyntaxConjunction,
+        Self::Spell,
     ];
 
     /// The key a `palette` file writes this role under: the variant's name in
@@ -450,6 +459,7 @@ impl Role {
             Self::SyntaxAdjective => "syntax_adjective",
             Self::SyntaxAdverb => "syntax_adverb",
             Self::SyntaxConjunction => "syntax_conjunction",
+            Self::Spell => "spell",
         }
     }
 }
@@ -480,6 +490,7 @@ pub struct Colours {
     syntax_adjective: Colour,
     syntax_adverb: Colour,
     syntax_conjunction: Colour,
+    spell: Colour,
 }
 
 impl Colours {
@@ -518,6 +529,9 @@ impl Colours {
         syntax_adjective: Colour::from_hex("#9d6722"),
         syntax_adverb: Colour::from_hex("#a6559f"),
         syntax_conjunction: Colour::from_hex("#51812f"),
+        // Provisional until the capture ticket #400: a red chosen, not
+        // measured, at 3.99:1 against this paper.
+        spell: Colour::from_hex("#e5372b"),
     };
 
     /// The dark ground: the same ten measured, then
@@ -555,6 +569,9 @@ impl Colours {
         syntax_adjective: Colour::from_hex("#ba9659"),
         syntax_adverb: Colour::from_hex("#b490b0"),
         syntax_conjunction: Colour::from_hex("#89a474"),
+        // Provisional until the capture ticket #400: a red chosen, not
+        // measured, at 4.70:1 against this paper.
+        spell: Colour::from_hex("#e5534b"),
     };
 
     /// The colours of one ground.
@@ -613,6 +630,7 @@ impl Colours {
             Role::SyntaxAdjective => &mut self.syntax_adjective,
             Role::SyntaxAdverb => &mut self.syntax_adverb,
             Role::SyntaxConjunction => &mut self.syntax_conjunction,
+            Role::Spell => &mut self.spell,
         }
     }
 
@@ -644,6 +662,7 @@ impl Colours {
             Role::SyntaxAdjective => self.syntax_adjective,
             Role::SyntaxAdverb => self.syntax_adverb,
             Role::SyntaxConjunction => self.syntax_conjunction,
+            Role::Spell => self.spell,
         }
     }
 }
@@ -827,11 +846,12 @@ mod tests {
     /// marker rows, which are the ink's value said a second time rather than a
     /// reference to it, so that a hand that unpicks the two grounds fails here.
     ///
-    /// The last ten rows are the Syntax highlight roles, and all ten are the
-    /// Design oracle's own: the capture ticket #308 measured them off the
-    /// running app on both grounds, as [`Colours::LIGHT`] and
-    /// [`Colours::DARK`] say.
-    const ORACLE: [(Scheme, Role, &str); 40] = [
+    /// The Syntax highlight rows, ten in all, are the Design oracle's own: the
+    /// capture ticket #308 measured them off the running app on both grounds,
+    /// as [`Colours::LIGHT`] and [`Colours::DARK`] say. The two `Spell` rows
+    /// are no oracle's: they are the provisional reds the capture ticket #400
+    /// replaces.
+    const ORACLE: [(Scheme, Role, &str); 42] = [
         (Scheme::Light, Role::Paper, "#f7f7f7"),
         (Scheme::Light, Role::Ink, "#191919"),
         (Scheme::Light, Role::InkDim, "#c6c4c2"),
@@ -856,6 +876,7 @@ mod tests {
         (Scheme::Light, Role::SyntaxAdjective, "#9d6722"),
         (Scheme::Light, Role::SyntaxAdverb, "#a6559f"),
         (Scheme::Light, Role::SyntaxConjunction, "#51812f"),
+        (Scheme::Light, Role::Spell, "#e5372b"),
         (Scheme::Dark, Role::Paper, "#1a1a1a"),
         (Scheme::Dark, Role::Ink, "#cccccc"),
         (Scheme::Dark, Role::InkDim, "#707070"),
@@ -880,6 +901,7 @@ mod tests {
         (Scheme::Dark, Role::SyntaxAdjective, "#ba9659"),
         (Scheme::Dark, Role::SyntaxAdverb, "#b490b0"),
         (Scheme::Dark, Role::SyntaxConjunction, "#89a474"),
+        (Scheme::Dark, Role::Spell, "#e5534b"),
     ];
 
     /// WCAG 2.1 relative luminance.
@@ -966,6 +988,22 @@ mod tests {
                 "{scheme:?} link {link:.2}"
             );
             assert!((dim - dim_ratio).abs() < 0.01, "{scheme:?} dim {dim:.2}");
+        }
+    }
+
+    /// The provisional Spell reds hold the one rule they were chosen by, at
+    /// least 3:1 against their own ground's paper by the WCAG ratio, until the
+    /// capture ticket #400 replaces them with measured values.
+    #[test]
+    fn the_spell_red_clears_three_to_one_against_each_ground_s_paper() {
+        for (scheme, ratio) in [(Scheme::Light, 3.99), (Scheme::Dark, 4.70)] {
+            let colours = Colours::of(scheme);
+            let spell = contrast(colours.colour(Role::Spell), colours.colour(Role::Paper));
+            assert!(spell >= 3.0, "{scheme:?} spell over paper is {spell:.2}:1");
+            assert!(
+                (spell - ratio).abs() < 0.01,
+                "{scheme:?} spell {spell:.2}:1"
+            );
         }
     }
 
