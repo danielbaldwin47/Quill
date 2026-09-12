@@ -2788,6 +2788,21 @@ mod tests {
         );
     }
 
+    /// The Hand test's ninth step (#397): `outline.open` rebound under
+    /// `[shortcuts]` takes the new chord, and `Ctrl+Shift+O` is bound to
+    /// nothing.
+    #[test]
+    fn outline_open_rebinds_from_the_shortcuts_table() {
+        let session = writing(Settings::default());
+        assert_eq!(bound(&session, "outline.open"), ["<Control><Shift>o"]);
+        session.apply(rebound("\"outline.open\" = [\"<Control><Shift>h\"]"));
+        assert_eq!(bound(&session, "outline.open"), ["<Control><Shift>h"]);
+        assert!(
+            !every_chord(&session).contains(&"<Control><Shift>o".to_owned()),
+            "the default it replaced is bound to nothing"
+        );
+    }
+
     /// An entry taken out of the file puts the default back, because the map
     /// is computed on every read and nothing is remembered between two.
     #[test]

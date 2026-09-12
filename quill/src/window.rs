@@ -29,7 +29,6 @@ use quill_engine::commands;
 use quill_engine::disk::{Filed, Kept, Line, Noticed, OnDisk, Saved, first_save_name};
 use quill_engine::document::{Document, full_name};
 use quill_engine::focus::Focus;
-use quill_engine::library::View;
 use quill_engine::outline;
 use quill_engine::settings::{
     Chrome, PreviewLayout, PreviewMode, Settings, WindowState, library_width,
@@ -3006,18 +3005,19 @@ impl Window {
             let section = outline::section(&document, &headings, self.caret_offset());
             (headings, section, document.path().map(Path::to_path_buf))
         };
+        // The Library is read through the sidebar's own view, so the
+        // Documents fall in the order the sidebar shows them.
         let session = self.session();
-        let finder: crate::palette::Finder = Rc::new(move |query| {
-            let Some(session) = &session else {
+        let view = session
+            .as_ref()
+            .map(|session| self.imp().sidebar.view(session));
+        let finder: crate::palette::Finder = Box::new(move |query| {
+            let (Some(session), Some(view)) = (&session, &view) else {
                 return Vec::new();
-            };
-            let view = View {
-                show_hidden: session.settings().library.show_hidden,
-                ..View::default()
             };
             session
                 .library()
-                .names(query, &view)
+                .names(query, view)
                 .into_iter()
                 .map(|file| file.path().to_path_buf())
                 .collect()

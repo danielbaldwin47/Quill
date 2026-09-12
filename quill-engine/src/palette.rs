@@ -239,8 +239,8 @@ pub const DOCUMENTS_CAP: usize = 10;
 pub enum Outlined<'a> {
     /// A heading of the open Document, which Enter jumps to.
     Heading {
-        /// Its index in the Outline the listing was built from.
-        at: usize,
+        /// The byte its words start at, where the jump puts the caret.
+        start: usize,
         /// Its level, 1 to 6, which the row indents by.
         level: u8,
         /// Its words, as the Editor shows them.
@@ -282,41 +282,28 @@ pub struct OutlineList<'a> {
 pub fn outline<'a>(
     headings: &'a [Heading],
     section: Option<usize>,
-    documents: &[&'a Path],
+    documents: &'a [PathBuf],
     open: Option<&Path>,
     query: &str,
 ) -> OutlineList<'a> {
     let query = query.trim().to_lowercase();
+    let entry = |heading: &'a Heading, hits| Outlined::Heading {
+        start: heading.source.start,
+        level: heading.level,
+        text: &heading.text,
+        hits,
+    };
     let mut rows = Vec::new();
     if headings.is_empty() {
         rows.push(Outlined::NoHeadings);
     } else if query.is_empty() {
-        rows.extend(
-            headings
-                .iter()
-                .enumerate()
-                .map(|(at, heading)| Outlined::Heading {
-                    at,
-                    level: heading.level,
-                    text: &heading.text,
-                    hits: Vec::new(),
-                }),
-        );
+        rows.extend(headings.iter().map(|heading| entry(heading, Vec::new())));
     } else {
         let mut ranked: Vec<(Rank, Outlined<'a>)> = headings
             .iter()
-            .enumerate()
-            .filter_map(|(at, heading)| {
+            .filter_map(|heading| {
                 let (rank, hits) = score(&heading.text, &query)?;
-                Some((
-                    rank,
-                    Outlined::Heading {
-                        at,
-                        level: heading.level,
-                        text: &heading.text,
-                        hits,
-                    },
-                ))
+                Some((rank, entry(heading, hits)))
             })
             .collect();
         ranked.sort_by_key(|(rank, _)| *rank);
@@ -325,7 +312,7 @@ pub fn outline<'a>(
     if !query.is_empty() {
         let mut listed = documents
             .iter()
-            .filter(|path| open.is_none_or(|open| open != **path))
+            .filter(|path| open.is_none_or(|open| open != path.as_path()))
             .take(DOCUMENTS_CAP)
             .map(|path| {
                 Outlined::Document(Recent {
@@ -687,7 +674,7 @@ mod tests {
             level,
             text: text.to_string(),
             block,
-            source: 0..0,
+            source: block..block + text.len(),
         })
         .collect()
     }
@@ -719,8 +706,7 @@ mod tests {
     fn at_rest_the_outline_lists_the_headings_with_the_carets_section_selected() {
         let headings = headings();
         let library = library();
-        let paths: Vec<&Path> = library.iter().map(PathBuf::as_path).collect();
-        let list = outline(&headings, Some(1), &paths, None, "");
+        let list = outline(&headings, Some(1), &library, None, "");
         assert_eq!(
             read(&list),
             ["The Lighthouse", "What the sea keeps", "Sea glass"]
@@ -729,12 +715,12 @@ mod tests {
         assert!(matches!(
             list.rows[1],
             Outlined::Heading {
-                at: 1,
+                start: 4,
                 level: 2,
                 ..
             }
         ));
-        assert_eq!(outline(&headings, None, &paths, None, "  ").selected, 0);
+        assert_eq!(outline(&headings, None, &library, None, "  ").selected, 0);
     }
 
     /// Typing ranks the matched headings first, then up to ten Documents
@@ -744,11 +730,10 @@ mod tests {
     fn typing_ranks_the_headings_then_caps_the_documents_at_ten() {
         let headings = headings();
         let library = library();
-        let paths: Vec<&Path> = library.iter().map(PathBuf::as_path).collect();
         let list = outline(
             &headings,
             Some(2),
-            &paths,
+            &library,
             Some(Path::new("/w/sea-3.md")),
             "sea",
         );
@@ -761,13 +746,13 @@ mod tests {
         assert!(!rows.contains(&"sea-3".to_string()));
         assert_eq!(rows[3], "sea-1");
         assert_eq!(list.selected, 0);
-        let Outlined::Heading { hits, at, .. } = &list.rows[0] else {
+        let Outlined::Heading { hits, start, .. } = &list.rows[0] else {
             panic!("a heading leads");
         };
-        assert_eq!((*at, hits.as_slice()), (2, &[(0, 3)][..]));
+        assert_eq!((*start, hits.as_slice()), (8, &[(0, 3)][..]));
         // A query no heading matches lists the Documents alone.
         assert_eq!(
-            read(&outline(&headings, None, &paths, None, "zzq"))[0],
+            read(&outline(&headings, None, &library, None, "zzq"))[0],
             "[Documents]"
         );
         // And one no Document matches lists the headings alone, no head.
@@ -782,12 +767,11 @@ mod tests {
     #[test]
     fn no_headings_is_one_dim_line_with_the_documents_beneath_it() {
         let library = library();
-        let paths: Vec<&Path> = library.iter().map(PathBuf::as_path).collect();
         assert_eq!(
-            read(&outline(&[], None, &paths, None, "")),
+            read(&outline(&[], None, &library, None, "")),
             ["(no headings)"]
         );
-        let typed = outline(&[], None, &paths[..2], None, "sea");
+        let typed = outline(&[], None, &library[..2], None, "sea");
         assert_eq!(
             read(&typed),
             ["(no headings)", "[Documents]", "sea-1", "sea-2"]
