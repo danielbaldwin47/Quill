@@ -285,8 +285,9 @@ function syntax(spec, { lit, dim }) {
 //
 // Three facts a still can hold:
 //
-//   * how many waves there are — eight on `ref/spell.md`, seven with the caret parked at the end of
-//     `comittee`, whose wave the caret rule withholds — which is the tokeniser and the dictionary's
+//   * how many waves there are — eight on `ref/spell.md`, with the caret parked at the end of
+//     `comittee` too, because a parked caret keeps its word's wave and only a word being typed
+//     withholds it (that case is `tools/gate keys spell`'s) — which is the tokeniser and the dictionary's
 //     answer arriving on the page, the count `quill-engine/tests/spell_checker.rs` names word by
 //     word;
 //   * that every wave is a thin band lying under a line of prose, over columns that line has ink
