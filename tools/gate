@@ -194,6 +194,9 @@ usage: tools/gate <command> [arguments]
                 the rule off ours' own pixels and the state is won or lost on
                 that (ADR 0017). The round records what it measured where a
                 critic's reasoning would be, and names no opponent for it.
+                The rules are ASSERTIONS in that file — ghost, folded, split,
+                full, pdf-split, pdf-full, dialog, syntax, outline and spell —
+                and states.json's `assert` note says what each reads.
                 --note records what changed this round. The Piece is ours only
                 when every state is. Ends in `gate judge <piece>: ours|theirs,
                 round <N>`: 0 for ours, 1 for theirs, 2 for theirs after this
