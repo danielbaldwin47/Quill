@@ -23,8 +23,7 @@ use std::rc::Rc;
 use gtk::prelude::*;
 use gtk::{cairo, gdk, glib};
 use quill_engine::commands::Command;
-use quill_engine::outline::Heading;
-use quill_engine::palette::{self as engine, Outlined, Recent, Row};
+use quill_engine::palette::{self as engine, Recent, Row};
 use quill_engine::theme::Scheme;
 
 use crate::chrome::{self, CHROME_FONT, Modes, OUTLINE_JUMP, RECENT_OPEN};
@@ -272,13 +271,13 @@ enum Item {
 /// What answers the Outline listing's Documents: a query to the Library's
 /// name matches, in the Library's rank, handed in by the window so the
 /// Palette knows no Session.
-pub type Finder = Rc<dyn Fn(&str) -> Vec<PathBuf>>;
+pub type Finder = Box<dyn Fn(&str) -> Vec<PathBuf>>;
 
 /// What the Outline listing is built from, held from the opening until the
 /// panel closes and never longer: there is no cache to go stale (#397).
 struct Outline {
     /// The open Document's headings, off its block index.
-    headings: Vec<Heading>,
+    headings: Vec<quill_engine::outline::Heading>,
     /// The caret's section among them, the row the listing opens on.
     section: Option<usize>,
     /// The open Document, which the Documents leave out.
@@ -500,7 +499,7 @@ impl Palette {
         &self,
         window: &gtk::Window,
         modes: Modes,
-        headings: Vec<Heading>,
+        headings: Vec<quill_engine::outline::Heading>,
         section: Option<usize>,
         open: Option<PathBuf>,
         finder: Finder,
@@ -595,9 +594,7 @@ impl Palette {
             }
             Listing::Recents => {
                 for row in engine::recents(&self.recents.borrow(), query) {
-                    let widget = recent(&row);
-                    self.list.append(&widget);
-                    rows.push((widget, Item::Recent(row.path.to_path_buf())));
+                    self.append_recent(&row, &mut rows);
                 }
             }
             Listing::Outline => {
@@ -609,36 +606,30 @@ impl Palette {
                     } else {
                         (source.finder)(query)
                     };
-                    let paths: Vec<&Path> = found.iter().map(PathBuf::as_path).collect();
                     let list = engine::outline(
                         &source.headings,
                         source.section,
-                        &paths,
+                        &found,
                         source.open.as_deref(),
                         query,
                     );
                     selected = list.selected;
                     for row in list.rows {
                         match row {
-                            Outlined::Heading {
-                                at,
+                            engine::Outlined::Heading {
+                                start,
                                 level,
                                 text,
                                 hits,
                             } => {
-                                let widget = outlined(text, &hits, level);
+                                let widget = entry(text, &hits, level);
                                 self.list.append(&widget);
-                                let start = source.headings[at].source.start;
                                 let start = u64::try_from(start).unwrap_or(u64::MAX);
                                 rows.push((widget, Item::Heading(start)));
                             }
-                            Outlined::Head(head) => self.list.append(&heading(head)),
-                            Outlined::Document(row) => {
-                                let widget = recent(&row);
-                                self.list.append(&widget);
-                                rows.push((widget, Item::Recent(row.path.to_path_buf())));
-                            }
-                            Outlined::NoHeadings => {
+                            engine::Outlined::Head(head) => self.list.append(&heading(head)),
+                            engine::Outlined::Document(row) => self.append_recent(&row, &mut rows),
+                            engine::Outlined::NoHeadings => {
                                 self.list.append(&dim(listing.nothing()));
                                 said = true;
                             }
@@ -652,6 +643,14 @@ impl Palette {
         }
         *self.rows.borrow_mut() = rows;
         self.select(selected);
+    }
+
+    /// Appends one Document's row — a recent, or one of the Library's under
+    /// the Outline — and records it as opening that Document.
+    fn append_recent(&self, row: &Recent<'_>, rows: &mut Vec<(gtk::ListBoxRow, Item)>) {
+        let widget = recent(row);
+        self.list.append(&widget);
+        rows.push((widget, Item::Recent(row.path.to_path_buf())));
     }
 
     /// Moves the selection `by` rows, wrapping at either end.
@@ -771,7 +770,7 @@ fn dim(said: &str) -> gtk::ListBoxRow {
 /// set heavier, stepped in one em of the row's type per level below the
 /// first, so the Document's shape reads down the list as it does down the
 /// page.
-fn outlined(text: &str, hits: &[(usize, usize)], level: u8) -> gtk::ListBoxRow {
+fn entry(text: &str, hits: &[(usize, usize)], level: u8) -> gtk::ListBoxRow {
     let label = gtk::Label::builder()
         .label(marked(text, hits))
         .use_markup(true)

@@ -953,6 +953,17 @@ impl Sidebar {
         self.highlight();
     }
 
+    /// What the tree is read through: the writer's `[library] show_hidden`
+    /// and the sort this pane stands at. The Palette's Outline reads the
+    /// Library through the same view, so its Documents fall in the order the
+    /// sidebar shows them (#397).
+    pub(crate) fn view(&self, session: &crate::session::Session) -> View {
+        View {
+            show_hidden: session.settings().library.show_hidden,
+            sort: self.sort.get(),
+        }
+    }
+
     /// Draws the Library as it is now: every section, in order, from the tree
     /// the session holds.
     ///
@@ -969,10 +980,7 @@ impl Sidebar {
         self.rows.borrow_mut().clear();
         self.heads.borrow_mut().clear();
         let library = session.library();
-        let view = View {
-            show_hidden: session.settings().library.show_hidden,
-            sort: self.sort.get(),
-        };
+        let view = self.view(&session);
         let now = glib::DateTime::now_local().ok();
         self.read_heads(library.files(&view));
         let read = self.read.borrow();
