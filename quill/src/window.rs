@@ -384,6 +384,8 @@ impl Window {
         // Both Annotators, because either one alone is work to schedule.
         window.set_syntax(session.syntax().clone());
         window.set_style(session.style().clone());
+        let (spell, language) = spelling(session);
+        window.set_spell(spell, &language);
         // The bars stand or not before the Document is shown, so the page is
         // laid out once, at the height it will keep.
         window
@@ -857,6 +859,13 @@ impl Window {
     /// Applies the session's Style check table; a List alone reuses spans.
     pub(crate) fn set_style(&self, style: quill_engine::settings::StyleCheck) {
         self.imp().editor.set_style(style, &self.document());
+        self.rearm();
+    }
+
+    /// Applies the `spell_check` and `spell_language` settings; a language
+    /// that did not move is not resolved again.
+    pub(crate) fn set_spell(&self, on: bool, language: &str) {
+        self.imp().editor.set_spell(on, language, &self.document());
         self.rearm();
     }
 
@@ -3272,6 +3281,9 @@ impl Window {
                 return;
             };
             window.imp().editor.refocus(filed.document());
+            // And the caret rule: a caret leaving a word it was typing gives
+            // the word its wave.
+            window.imp().editor.rewithhold(filed.document());
             drop(filed);
             // A caret move takes the caret rule, as an edit does: the block
             // being written is what the rendered page is kept on (#263
@@ -3528,6 +3540,12 @@ pub fn repaint(app: &gtk::Application, session: &Session) {
     chrome::reflect_windows(app);
 }
 
+/// The `spell_check` and `spell_language` settings as the session holds them.
+fn spelling(session: &Session) -> (bool, String) {
+    let settings = session.settings();
+    (settings.spell_check, settings.spell_language.clone())
+}
+
 /// Puts a settings file saved while Quill is running on to every window.
 ///
 /// The whole of what the file carries at once — the ground, the type, Focus,
@@ -3564,6 +3582,8 @@ pub fn reapply(app: &gtk::Application, session: &Session) {
         window.refresh_preview();
         window.set_syntax(session.syntax().clone());
         window.set_style(session.style().clone());
+        let (spell, language) = spelling(session);
+        window.set_spell(spell, &language);
     });
     // The sidebar reads the `[library]` settings as it lists — hidden files,
     // extensions — and the Library itself has already been made to say what
