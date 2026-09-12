@@ -40,6 +40,7 @@ use quill_engine::theme::{self, Colour, Colours, Role, Scheme};
 use quill_engine::typography;
 
 use crate::caret;
+use crate::corrections;
 use crate::flags;
 use crate::ground::Ground;
 use crate::tags;
@@ -318,6 +319,11 @@ mod imp {
         /// The misspelled word the caret rule last left unwaved, so that the
         /// caret leaving it repaints it.
         pub withheld: RefCell<Option<std::ops::Range<usize>>>,
+        /// The misspelled word the corrections section was last built for, so
+        /// that a Suggestion chosen from it replaces that word
+        /// ([`Editor::correct`](super::Editor::correct)). `None` while the
+        /// section is empty.
+        pub correcting: RefCell<Option<super::Correcting>>,
         /// The Face this Editor is set in.
         pub face: Cell<Face>,
         /// Which of the type ladder's fourteen steps the Editor is set at.
@@ -944,6 +950,101 @@ impl Editor {
             .collect();
         let tiers = self.imp().tiers.borrow();
         tags::repaint(&self.buffer(), document, self.painting(&tiers), &lines);
+    }
+
+    /// Builds the corrections section for the misspelled word at the caret
+    /// and sets it as the text view's extra menu.
+    ///
+    /// Called at the two moments [`crate::corrections`] names and no other. A
+    /// secondary press hands its point: the caret goes there first, and a
+    /// point inside a misspelled word selects the word, so the menu GTK then
+    /// opens reads it and Cut and Copy act on it. A point inside a selection
+    /// that is not a misspelling leaves the selection be, as GTK's own press
+    /// does. The chord hands none and reads the caret where it stands. A caret
+    /// in no misspelled word, and a press before the worker has loaded a
+    /// dictionary, leave GTK's menu as it is.
+    pub(crate) fn correct(&self, document: &Document, press: Option<(f64, f64)>) {
+        let buffer = self.buffer();
+        let syntax = self.imp().syntax.borrow();
+        if let Some((x, y)) = press {
+            let (bx, by) = self.window_to_buffer_coords(
+                gtk::TextWindowType::Widget,
+                buffer_px(x),
+                buffer_px(y),
+            );
+            if let Some(point) = self.iter_at_location(bx, by) {
+                match misspelling_at(&syntax, document, tags::offset_of(document, &point)) {
+                    Some(word) => buffer.select_range(
+                        &tags::iter_at(&buffer, document, word.end),
+                        &tags::iter_at(&buffer, document, word.start),
+                    ),
+                    None => {
+                        let selected = buffer
+                            .selection_bounds()
+                            .is_some_and(|(start, end)| point.in_range(&start, &end));
+                        if !selected {
+                            buffer.place_cursor(&point);
+                        }
+                    }
+                }
+            }
+        }
+        let caret = tags::offset_of(document, &buffer.iter_at_mark(&buffer.get_insert()));
+        let found = misspelling_at(&syntax, document, caret).and_then(|word| {
+            let text = document.text().get(word.clone())?.to_owned();
+            let suggestions = quill_engine::worker::lock(&syntax.checker())
+                .as_ref()?
+                .suggest(&text);
+            Some((word, text, suggestions))
+        });
+        drop(syntax);
+        let Some((word, text, suggestions)) = found else {
+            self.imp().correcting.take();
+            self.set_extra_menu(None::<&gio::MenuModel>);
+            return;
+        };
+        self.set_extra_menu(Some(&corrections::section(&text, &suggestions)));
+        self.imp().correcting.replace(Some(Correcting {
+            at: tags::offsets_of(&buffer, document, &word),
+            word: text,
+        }));
+    }
+
+    /// Replaces the word the section was built for with `suggestion`, as one
+    /// Undo step, and leaves the caret after it.
+    ///
+    /// The buffer's own edit, so the window's insert and delete hooks splice,
+    /// retag, furnish and autosave it as they would a keystroke. A word that
+    /// is no longer where the section found it is left alone.
+    pub(crate) fn replace(&self, suggestion: &str) {
+        let Some(target) = self.imp().correcting.take() else {
+            return;
+        };
+        let buffer = self.buffer();
+        let mut from = buffer.iter_at_offset(target.at.start);
+        let mut to = buffer.iter_at_offset(target.at.end);
+        if buffer.text(&from, &to, true) != target.word {
+            return;
+        }
+        buffer.begin_user_action();
+        buffer.delete(&mut from, &mut to);
+        buffer.insert(&mut from, suggestion);
+        buffer.end_user_action();
+        buffer.place_cursor(&from);
+        self.set_extra_menu(None::<&gio::MenuModel>);
+    }
+
+    /// Hands the worker an Add or an Ignore and asks for the Document again,
+    /// the page on the glass first, so every instance of the word loses its
+    /// mark in the same answer.
+    pub(crate) fn edit_dictionary(&self, edit: quill_engine::worker::Edit, document: &Document) {
+        self.imp().correcting.take();
+        self.set_extra_menu(None::<&gio::MenuModel>);
+        let viewport = self.viewport(document);
+        self.imp()
+            .syntax
+            .borrow_mut()
+            .edit_dictionary(edit, document, viewport);
     }
 
     /// Whether an Annotator has a paragraph still to ask the worker about.
@@ -3754,6 +3855,28 @@ fn tick(buffer: &gtk::TextBuffer, box_at: &Range<i32>, checked: bool) {
     buffer.delete(&mut from, &mut to);
     buffer.insert(&mut from, state);
     buffer.end_user_action();
+}
+
+/// The misspelled word a corrections section was built for.
+pub struct Correcting {
+    /// Where the word stands, in the buffer's own offsets.
+    at: Range<i32>,
+    /// The word as it read then, so a Replace can tell it is still there.
+    word: String,
+}
+
+/// The misspelled word `at` stands in, its last byte's far edge included, so
+/// a caret just after the word is in it.
+fn misspelling_at(
+    syntax: &crate::syntax::Syntax,
+    document: &Document,
+    at: usize,
+) -> Option<Range<usize>> {
+    let end = document.text().len();
+    syntax
+        .misspelled_in(document, &(at.saturating_sub(1)..(at + 1).min(end)))
+        .into_iter()
+        .find(|word| word.start <= at && at <= word.end)
 }
 
 /// The lines a fold that has just moved from `was` to `now` draws again, or

@@ -25,6 +25,7 @@ mod choices;
 mod chrome;
 mod column;
 mod conflict;
+mod corrections;
 mod editor;
 mod export;
 mod export_dialog;
