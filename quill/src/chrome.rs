@@ -98,6 +98,11 @@ pub struct Modes {
     pub bars: bool,
     /// The stats bar is shown, while the bars are.
     pub stats: bool,
+    /// Which Statistics are checked, in [`Statistic::ALL`]'s order — one flag
+    /// per variant rather than six named fields, so that the pairing of a
+    /// check to its Statistic is taken from that array and cannot be mistyped
+    /// here or drift when a seventh is added (#387).
+    pub statistics: [bool; Statistic::ALL.len()],
     /// The Library stands beside the page. Per window rather than per session,
     /// as the fullscreen above it is: the Library is the application's, the
     /// pane showing it is the window's.
@@ -159,7 +164,8 @@ impl Modes {
             face: session.face().as_str(),
             fullscreen,
             bars: session.chrome() == Chrome::Shown,
-            stats: session.stats(),
+            stats: session.stats_shown(),
+            statistics: Statistic::ALL.map(|statistic| session.stats().show.contains(&statistic)),
             library,
             preview,
             preview_layout: session.preview_layout().as_str(),
@@ -169,6 +175,15 @@ impl Modes {
             number_headings: session.template().number_headings,
             indent_paragraphs: session.template().indent_paragraphs,
         }
+    }
+
+    /// Whether `statistic`'s check is on.
+    #[must_use]
+    pub fn shows(&self, statistic: Statistic) -> bool {
+        Statistic::ALL
+            .iter()
+            .position(|held| *held == statistic)
+            .is_some_and(|at| self.statistics[at])
     }
 }
 
@@ -404,6 +419,14 @@ pub fn reflect(map: &impl IsA<gio::ActionMap>, modes: Modes) {
     // The row reads "Hide Bars", so its check is on when the bars are hidden.
     set("chrome.toggle", (!modes.bars).to_variant());
     set("chrome.stats", modes.stats.to_variant());
+    // Six independent checks, each id's last segment its Statistic's settings
+    // name, so the rows are set from `Statistic::ALL` rather than one by one.
+    for statistic in Statistic::ALL {
+        set(
+            &format!("stats.{}", statistic.name()),
+            modes.shows(statistic).to_variant(),
+        );
+    }
     set("library.toggle", modes.library.to_variant());
     // Each row is its own layout's toggle, so it is ticked only while the
     // pane is open in that layout and the pane away leaves both clear: the
@@ -520,6 +543,14 @@ fn run_window(window: &Window, command: &Command) {
         "preview.pdf" => window.set_preview_mode(PreviewMode::Pdf),
         "library.search" => window.search_library(),
         "chrome.stats" => window.toggle_stats(),
+        // The Stats menu's six checks. Each moves only its own name in
+        // `[stats] show`; the bar's cells follow the checked set in #393.
+        "stats.words" => window.toggle_statistic(Statistic::Words),
+        "stats.characters" => window.toggle_statistic(Statistic::Characters),
+        "stats.charactersNoSpaces" => window.toggle_statistic(Statistic::CharactersNoSpaces),
+        "stats.sentences" => window.toggle_statistic(Statistic::Sentences),
+        "stats.paragraphs" => window.toggle_statistic(Statistic::Paragraphs),
+        "stats.readingTime" => window.toggle_statistic(Statistic::ReadingTime),
         "chrome.doc" | "chrome.view" => {
             if let Some(menu) = opens(command.id) {
                 window.open_menu(menu);
@@ -1703,6 +1734,50 @@ mod tests {
         }
     }
 
+    /// Each Statistic's row is its own enabled check, so the Palette and the
+    /// menu reach all six by name and none of them is a group's member.
+    #[test]
+    fn every_statistic_has_its_own_enabled_check_that_fires_its_id() {
+        let (map, fired) = map(Scope::Win);
+        for statistic in Statistic::ALL {
+            let id = format!("stats.{}", statistic.name());
+            assert!(map.is_action_enabled(&id), "{id}");
+            fired.borrow_mut().clear();
+            map.activate_action(&id, None);
+            assert_eq!(fired.borrow().as_slice(), [id.as_str()], "{id}");
+        }
+        assert!(map.lookup_action("stats").is_none(), "no `stats` group");
+    }
+
+    /// The six Stats rows are independent checks, so the menu shows exactly
+    /// the set `[stats] show` holds — not one ticked row out of six (#387).
+    #[test]
+    fn reflect_ticks_every_checked_statistic_and_clears_the_rest() {
+        let (map, _) = map(Scope::Win);
+        let checked = [Statistic::Words, Statistic::Sentences];
+        reflect(
+            &map,
+            Modes {
+                statistics: Statistic::ALL.map(|stat| checked.contains(&stat)),
+                ..Modes::default()
+            },
+        );
+        for statistic in Statistic::ALL {
+            let name = format!("stats.{}", statistic.name());
+            let state = map
+                .lookup_action(&name)
+                .and_downcast::<gio::SimpleAction>()
+                .unwrap_or_else(|| panic!("{name} is not on the map"))
+                .state()
+                .unwrap_or_else(|| panic!("{name} carries no state, so it is not a check"));
+            assert_eq!(
+                state.get::<bool>(),
+                Some(checked.contains(&statistic)),
+                "{name}"
+            );
+        }
+    }
+
     #[test]
     fn an_alias_reaches_the_same_action_as_its_labelled_chord() {
         for (alias, labelled) in [("F9", "Ctrl+E"), ("Alt+Shift+N", "Ctrl+Shift+L")] {
@@ -1845,9 +1920,6 @@ mod tests {
         assert!(!commands::by_id("file.follow").unwrap().built);
         assert!(!map.is_action_enabled("file.follow"));
         map.activate_action("file.follow", None);
-        // The Stats menu's fields are the Stats spec's (#30), so the whole
-        // radio group is disabled.
-        map.activate_action("stats", Some(&"words".to_variant()));
         assert!(fired.borrow().is_empty());
         map.activate_action("focus.toggle", None);
         assert_eq!(fired.borrow().as_slice(), ["focus.toggle"]);

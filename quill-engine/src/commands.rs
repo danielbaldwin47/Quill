@@ -293,12 +293,16 @@ pub const COMMANDS: &[Command] = &[
     row("shortcuts.open", "Keyboard Shortcuts", Scope::Win, Kind::Plain, &["Ctrl+?"], &[place(VIEW, Some("Window"), "Keyboard Shortcuts")], true),
     row("palette.open", "All Commands…", Scope::Win, Kind::Plain, &["Ctrl+K"], &[place(VIEW, Some("Window"), "All Commands…")], true),
     // Stats menu.
-    row("stats.words", "Words", Scope::Win, Kind::Radio { group: "stats", value: "words", }, &[], &[place(STATS, None, "Words")], false),
-    row("stats.characters", "Characters", Scope::Win, Kind::Radio { group: "stats", value: "characters", }, &[], &[place(STATS, None, "Characters")], false),
-    row("stats.charactersNoSpaces", "Characters Without Spaces", Scope::Win, Kind::Radio { group: "stats", value: "charactersNoSpaces", }, &[], &[place(STATS, None, "Characters Without Spaces")], false),
-    row("stats.sentences", "Sentences", Scope::Win, Kind::Radio { group: "stats", value: "sentences", }, &[], &[place(STATS, None, "Sentences")], false),
-    row("stats.paragraphs", "Paragraphs", Scope::Win, Kind::Radio { group: "stats", value: "paragraphs", }, &[], &[place(STATS, None, "Paragraphs")], false),
-    row("stats.readingTime", "Reading Time", Scope::Win, Kind::Radio { group: "stats", value: "readingTime", }, &[], &[place(STATS, None, "Reading Time")], false),
+    // Six independent checks, not a group: the bar shows every Statistic
+    // checked, so several stand at once and unchecking the last leaves an
+    // empty bar rather than falling back on one (#387). Each id's last
+    // segment is its `Statistic`'s settings name.
+    row("stats.words", "Words", Scope::Win, Kind::Check, &[], &[place(STATS, None, "Words")], true),
+    row("stats.characters", "Characters", Scope::Win, Kind::Check, &[], &[place(STATS, None, "Characters")], true),
+    row("stats.charactersNoSpaces", "Characters Without Spaces", Scope::Win, Kind::Check, &[], &[place(STATS, None, "Characters Without Spaces")], true),
+    row("stats.sentences", "Sentences", Scope::Win, Kind::Check, &[], &[place(STATS, None, "Sentences")], true),
+    row("stats.paragraphs", "Paragraphs", Scope::Win, Kind::Check, &[], &[place(STATS, None, "Paragraphs")], true),
+    row("stats.readingTime", "Reading Time", Scope::Win, Kind::Check, &[], &[place(STATS, None, "Reading Time")], true),
     // Palette and keyboard only.
     row("library.search", "Find a Document…", Scope::Win, Kind::Plain, &["Ctrl+Shift+O"], &[], true),
     row("file.next", "Next Document", Scope::Win, Kind::Plain, &["Ctrl+Page Down"], &[], true),
@@ -489,6 +493,7 @@ pub fn distinct<T: PartialEq>(items: impl Iterator<Item = T>) -> Vec<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::stats::Statistic;
     use std::collections::{BTreeMap, BTreeSet};
 
     const DOC_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../docs/shortcuts.md");
@@ -921,14 +926,31 @@ mod tests {
         assert_eq!(by_id("chrome.stats").unwrap().placements.len(), 2);
         assert_eq!(
             radio_groups(),
-            [
-                "focus_scope",
-                "preview_mode",
-                "face",
-                "template",
-                "stats",
-                "theme"
-            ]
+            ["focus_scope", "preview_mode", "face", "template", "theme"]
+        );
+    }
+
+    #[test]
+    fn every_statistic_has_a_built_check_in_the_stats_menu() {
+        for statistic in Statistic::ALL {
+            let id = format!("stats.{}", statistic.name());
+            let command = by_id(&id).unwrap_or_else(|| panic!("{id} is not in the table"));
+            assert_eq!(command.kind, Kind::Check, "{id}");
+            assert!(command.built, "{id}");
+            assert_eq!(
+                command.placements,
+                &[place(STATS, None, command.title)],
+                "{id}"
+            );
+        }
+        // Seven rows in the menu: the six Statistics and Hide Statistics.
+        assert_eq!(
+            COMMANDS
+                .iter()
+                .filter(|c| c.placements.iter().any(|p| p.menu == Menu::Stats))
+                .filter(|c| c.built)
+                .count(),
+            7
         );
     }
 }
