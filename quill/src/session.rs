@@ -37,10 +37,11 @@ use quill_engine::focus::typewriter::Typewriter;
 use quill_engine::library::Library;
 use quill_engine::pos::Category;
 use quill_engine::settings::{
-    Chrome, Face, FocusScope, PreviewLayout, PreviewMode, Settings, State, StyleCheck,
-    SyntaxHighlight, Template, TemplateName, Theme, WindowState,
+    Chrome, Face, FocusScope, PreviewLayout, PreviewMode, Settings, State, Stats, StatsBar,
+    StyleCheck, SyntaxHighlight, Template, TemplateName, Theme, WindowState,
 };
 use quill_engine::shortcuts::Refusal;
+use quill_engine::stats::Statistic;
 use quill_engine::style::List;
 use quill_engine::theme::{self, Palette, Scheme};
 use quill_engine::watch::{Placed, Watch, unsaid};
@@ -275,10 +276,15 @@ pub struct Session {
     /// values so that a `[template]` key this Quill does not know is carried
     /// through a write with the rest of the table.
     template: RefCell<Template>,
-    /// Whether the stats bar is shown while the bars are: `chrome.stats`.
-    /// Live only — no settings key holds it until the Stats spec (#30)
-    /// decides what the bar remembers — so every launch shows it.
-    stats: Cell<bool>,
+    /// Stats' live table: the Statistics checked, and whether the bar is shown
+    /// while the bars are (`chrome.stats`).
+    ///
+    /// Held whole beside [`Session::settings`], as Syntax highlight's and
+    /// Style check's tables are and for the same reasons: a window opened
+    /// after a check opens with the set the writer chose, and a `[stats]` key
+    /// this Quill does not know is carried through a write with the rest of
+    /// the table (#387).
+    stats: RefCell<Stats>,
     /// The ground this launch is painting on, resolved once before the first
     /// window: the flag, then the setting, then — once #111 wires it — the
     /// desktop, then what the last session left.
@@ -409,7 +415,7 @@ impl Session {
             preview_mode: Cell::new(settings.preview.mode),
             preview_zoom: Cell::new(settings.preview.zoom),
             template: RefCell::new(settings.template.clone()),
-            stats: Cell::new(true),
+            stats: RefCell::new(settings.stats.clone()),
             scheme: Cell::new(scheme),
             settings: RefCell::new(settings),
             notes: RefCell::new(Vec::new()),
@@ -497,6 +503,7 @@ impl Session {
         self.preview_mode.set(settings.preview.mode);
         self.preview_zoom.set(settings.preview.zoom);
         self.template.replace(settings.template.clone());
+        self.stats.replace(settings.stats.clone());
         let theme = settings.theme;
         self.settings.replace(settings);
         self.set_theme(theme);
@@ -820,17 +827,50 @@ impl Session {
         chrome
     }
 
+    /// Stats as the Commands have left it, before the watch reads it back.
+    pub fn stats(&self) -> Ref<'_, Stats> {
+        self.stats.borrow()
+    }
+
     /// Whether the stats bar is shown now, while the bars are.
-    pub fn stats(&self) -> bool {
-        self.stats.get()
+    pub fn stats_shown(&self) -> bool {
+        self.stats.borrow().bar == StatsBar::Shown
     }
 
     /// Hides the stats bar, or shows it again: `docs/shortcuts.md`'s
     /// `chrome.stats` row, the View menu's Statistics check and the Stats
-    /// menu's Hide Statistics.
+    /// menu's Hide Statistics. Answers whether it is shown now.
+    ///
+    /// The checked set is left alone, so the bar comes back reading what it
+    /// read before it went (#387).
     pub fn toggle_stats(&self) -> bool {
-        self.stats.set(!self.stats.get());
-        self.stats.get()
+        let mut stats = self.stats.borrow_mut();
+        stats.bar = match stats.bar {
+            StatsBar::Shown => StatsBar::Hidden,
+            StatsBar::Hidden => StatsBar::Shown,
+        };
+        stats.bar == StatsBar::Shown
+    }
+
+    /// Checks one Statistic, or unchecks it, leaving the other five and the
+    /// bar's own state alone. Answers whether it is checked now.
+    ///
+    /// A check appends, so the file keeps the order the writer built the set
+    /// in; the bar lays its cells out in [`Statistic::ALL`]'s order whatever
+    /// that was, and unchecking the last leaves an empty bar rather than
+    /// falling back on one (#387).
+    pub fn toggle_statistic(&self, statistic: Statistic) -> bool {
+        let mut stats = self.stats.borrow_mut();
+        match stats.show.iter().position(|shown| *shown == statistic) {
+            Some(at) => {
+                stats.show.remove(at);
+                false
+            }
+            None => {
+                stats.show.push(statistic);
+                true
+            }
+        }
     }
 
     /// The ground this launch is painting on.
@@ -1140,6 +1180,7 @@ impl Session {
         settings.preview.mode = self.preview_mode.get();
         settings.preview.zoom = self.preview_zoom.get();
         settings.template = self.template.borrow().clone();
+        settings.stats = self.stats.borrow().clone();
         settings
     }
 
@@ -1769,6 +1810,98 @@ mod tests {
         reread(None, &session);
         assert_eq!(session.running(), edited);
         assert_eq!(*session.syntax(), edited.syntax_highlight);
+    }
+
+    /// The Stats menu's seven rows, each writing only its own key.
+    ///
+    /// A check moves `show` alone and Hide Statistics moves `bar` alone, so
+    /// the bar comes back to the set the writer left and an unchecked
+    /// Statistic survives the bar going and returning (#387).
+    #[test]
+    fn the_stats_checks_write_show_hide_statistics_writes_bar_and_a_reopen_reads_both() {
+        let source = "theme = \"dark\"\nfuture = 17\n\
+            [stats]\nshow = [\"words\", \"characters\", \"readingTime\"]\n\
+            bar = \"shown\"\nfuture_stats = \"kept\"\n";
+        let (initial, notes) = Settings::parse(source);
+        assert!(notes.is_empty());
+        let path = fixture("stats-commands");
+        let session = Session::launch(
+            Flags {
+                settings: Some(path.clone()),
+                ..Flags::default()
+            },
+            initial.clone(),
+            State::default(),
+            WindowState::default(),
+            true,
+            None,
+        );
+        // Every step names the whole file it expects, so a key moved beside
+        // the one the Command owns fails here rather than in the bar.
+        let lands = |show: &str, bar: &str| {
+            let (expected, notes) = Settings::parse(
+                &source
+                    .replace("[\"words\", \"characters\", \"readingTime\"]", show)
+                    .replace("bar = \"shown\"", &format!("bar = {bar}")),
+            );
+            assert!(notes.is_empty());
+            assert_eq!(session.running(), expected, "live table");
+            session.store_settings();
+            let (written, notes) = Settings::read_from(&path);
+            assert!(notes.is_empty());
+            assert_eq!(written, expected, "complete written table");
+            assert!(!session.apply(written), "our own write needs no repaint");
+            reread(None, &session);
+            assert_eq!(session.running(), expected, "after a reopen");
+        };
+
+        // A check appends its name; `future_stats` and `bar` do not move.
+        assert!(session.toggle_statistic(Statistic::Sentences));
+        lands(
+            "[\"words\", \"characters\", \"readingTime\", \"sentences\"]",
+            "\"shown\"",
+        );
+        // Unchecking takes only that name out.
+        assert!(!session.toggle_statistic(Statistic::Words));
+        lands(
+            "[\"characters\", \"readingTime\", \"sentences\"]",
+            "\"shown\"",
+        );
+        // Hide Statistics moves `bar` and leaves the checked set standing.
+        assert!(!session.toggle_stats());
+        assert!(!session.stats_shown());
+        lands(
+            "[\"characters\", \"readingTime\", \"sentences\"]",
+            "\"hidden\"",
+        );
+        assert_eq!(
+            session.stats().show,
+            [
+                Statistic::Characters,
+                Statistic::ReadingTime,
+                Statistic::Sentences
+            ],
+            "the bar hidden keeps the set to come back to"
+        );
+        // Showing it again restores the bar, still on that set.
+        assert!(session.toggle_stats());
+        lands(
+            "[\"characters\", \"readingTime\", \"sentences\"]",
+            "\"shown\"",
+        );
+        // A saved Settings edit enters through the watch's actual read path.
+        let (edited, _) = Settings::parse(&source.replace("\"readingTime\"", "\"paragraphs\""));
+        edited.write_to(&path).unwrap();
+        reread(None, &session);
+        assert_eq!(session.running(), edited);
+        assert_eq!(
+            session.stats().show,
+            [
+                Statistic::Words,
+                Statistic::Characters,
+                Statistic::Paragraphs
+            ]
+        );
     }
 
     #[test]

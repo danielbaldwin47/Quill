@@ -34,6 +34,7 @@ use std::path::{Path, PathBuf};
 pub use state::{STATE_FILE, State, WindowState, library_width, window_sizes};
 
 use crate::shortcuts;
+use crate::stats::Statistic;
 use reading::Reading;
 use writing::Writing;
 
@@ -427,6 +428,23 @@ choice! {
     }
 }
 
+choice! {
+    /// Whether the stats bar is there at all.
+    ///
+    /// The same two values as [`Chrome`] and a separate setting, because the
+    /// bar is hidden by Hide Statistics rather than by the chrome's own
+    /// switch. Separate again from which Statistics are checked: unchecking
+    /// every one leaves an empty bar rather than hiding it, and hiding the bar
+    /// leaves the checked set as the writer left it (#387).
+    StatsBar {
+        /// Shown, with one cell per checked Statistic.
+        #[default]
+        Shown => "shown",
+        /// Hidden until the writer asks for it back.
+        Hidden => "hidden",
+    }
+}
+
 /// The territories whose paper is US Letter (`ISO 3166-1 alpha-2`); every
 /// other locale, and no locale at all, is A4.
 const LETTER_TERRITORIES: [&str; 8] = ["US", "CA", "MX", "PH", "CL", "CO", "VE", "PR"];
@@ -655,6 +673,84 @@ impl StyleCheck {
         writing.boolean("fillers", self.fillers);
         writing.boolean("redundancies", self.redundancies);
         writing.boolean("cliches", self.cliches);
+        writing.rest(self.rest.clone());
+        writing.finish()
+    }
+}
+
+/// Stats: which of the six Statistics the stats bar shows, and whether the bar
+/// is there at all.
+///
+/// `show` is a list of names rather than six booleans because it is the set a
+/// writer checks, and a set reads as the names in it; the file's order is
+/// kept, though the bar lays its cells out in [`Statistic::ALL`]'s order
+/// whatever order they were named in, so that a Document reads the same on
+/// every install. A name repeated is one cell, not two.
+///
+/// Which Statistics are checked and whether the bar is there are separate
+/// state, the way Style check's master and its lists are: unchecking every
+/// Statistic leaves an empty bar, and hiding the bar leaves the checked set to
+/// come back to (#387).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Stats {
+    /// The Statistics the bar shows, in the order the file names them.
+    pub show: Vec<Statistic>,
+    /// Whether the bar is there at all.
+    pub bar: StatsBar,
+    /// Anything else in the table, carried through a write.
+    rest: toml::Table,
+}
+
+impl Default for Stats {
+    fn default() -> Self {
+        Self {
+            show: vec![
+                Statistic::Words,
+                Statistic::Characters,
+                Statistic::ReadingTime,
+            ],
+            bar: StatsBar::default(),
+            rest: toml::Table::new(),
+        }
+    }
+}
+
+impl Stats {
+    /// Reads the `[stats]` table.
+    fn read(table: toml::Table, notes: &mut Vec<String>) -> Self {
+        let defaults = Self::default();
+        let mut reading = Reading::new(table, "stats.", notes);
+        let named = reading.names("show");
+        let show = match named {
+            None => defaults.show,
+            Some(names) => {
+                let wanted = format!("one of {}", Statistic::ALL.map(Statistic::name).join(", "));
+                let mut show = Vec::with_capacity(names.len());
+                for name in names {
+                    match Statistic::from_name(&name) {
+                        // A name repeated is the same cell asked for twice.
+                        Some(statistic) if show.contains(&statistic) => {}
+                        Some(statistic) => show.push(statistic),
+                        None => reading.dropped("show", &name, &wanted),
+                    }
+                }
+                show
+            }
+        };
+        let bar = reading.choice("bar");
+        Self {
+            show,
+            bar,
+            rest: reading.rest(),
+        }
+    }
+
+    /// The `[stats]` table as it is written.
+    fn to_table(&self) -> toml::Table {
+        let mut writing = Writing::new();
+        let show: Vec<&str> = self.show.iter().map(|statistic| statistic.name()).collect();
+        writing.names("show", &show);
+        writing.choice("bar", self.bar);
         writing.rest(self.rest.clone());
         writing.finish()
     }
@@ -970,6 +1066,8 @@ pub struct Settings {
     pub syntax_highlight: SyntaxHighlight,
     /// Style check and its lists.
     pub style_check: StyleCheck,
+    /// The Statistics the stats bar shows, and whether the bar is there.
+    pub stats: Stats,
     /// The Template a Document is laid out in, and its three toggles.
     pub template: Template,
     /// Where Preview opens, and how large it draws.
@@ -1006,6 +1104,7 @@ impl Default for Settings {
             spell_language: String::new(),
             syntax_highlight: SyntaxHighlight::default(),
             style_check: StyleCheck::default(),
+            stats: Stats::default(),
             template: Template::default(),
             preview: Preview::default(),
             export: Export::default(),
@@ -1135,6 +1234,7 @@ impl Settings {
         writing.table("library", self.library.to_table());
         writing.table("syntax_highlight", self.syntax_highlight.to_table());
         writing.table("style_check", self.style_check.to_table());
+        writing.table("stats", self.stats.to_table());
         // Written only when there is an entry to write: an empty `[shortcuts]`
         // header at the foot of the file is where a writer adding their first
         // table, as `docs/shortcuts.md` § Rebinding tells them to, puts a
@@ -1173,6 +1273,7 @@ impl Settings {
         let library = reading.table("library");
         let syntax_highlight = reading.table("syntax_highlight");
         let style_check = reading.table("style_check");
+        let stats = reading.table("stats");
         let shortcuts = reading.table("shortcuts");
         let rest = reading.rest();
         Self {
@@ -1189,6 +1290,7 @@ impl Settings {
             spell_language,
             syntax_highlight: SyntaxHighlight::read(syntax_highlight, notes),
             style_check: StyleCheck::read(style_check, notes),
+            stats: Stats::read(stats, notes),
             template: Template::read(template, notes),
             preview: Preview::read(preview, notes),
             export: Export::read(export, notes),
@@ -1210,7 +1312,7 @@ mod tests {
     /// empty table is written as nothing, so that a writer adding their first
     /// `[shortcuts]` header at the foot of the file is not adding a second
     /// ([`Settings::to_toml`]).
-    const KEYS: [&str; 18] = [
+    const KEYS: [&str; 19] = [
         "theme",
         "face",
         "step",
@@ -1224,6 +1326,7 @@ mod tests {
         "spell_language",
         "syntax_highlight",
         "style_check",
+        "stats",
         "template",
         "preview",
         "export",
@@ -1845,6 +1948,99 @@ mod tests {
             settings.to_toml().contains("palette = \"\"\n"),
             "{}",
             settings.to_toml()
+        );
+    }
+
+    #[test]
+    fn the_defaults_show_three_statistics_on_a_bar_that_is_there() {
+        let stats = Stats::default();
+        assert_eq!(
+            stats.show,
+            [
+                Statistic::Words,
+                Statistic::Characters,
+                Statistic::ReadingTime
+            ],
+            "the three the bar has always read"
+        );
+        assert_eq!(stats.bar, StatsBar::Shown);
+
+        let written = Settings::default().to_toml();
+        assert!(
+            written.contains("show = [\"words\", \"characters\", \"readingTime\"]\n"),
+            "{written}"
+        );
+        assert!(written.contains("bar = \"shown\"\n"), "{written}");
+        assert_eq!(
+            Settings::parse(&written).0.stats,
+            stats,
+            "and read back as themselves"
+        );
+    }
+
+    #[test]
+    fn a_hand_written_show_keeps_its_order_and_drops_only_what_it_misnamed() {
+        let (settings, notes) =
+            Settings::parse("[stats]\nshow = [\"sentences\", \"words\", \"nonsense\"]\n");
+        assert_eq!(
+            settings.stats.show,
+            [Statistic::Sentences, Statistic::Words],
+            "the two it named, in the order it named them"
+        );
+        assert_eq!(
+            notes,
+            ["stats.show: \"nonsense\" is not one of words, characters, \
+                 charactersNoSpaces, sentences, paragraphs, readingTime; dropping it"]
+        );
+        assert_eq!(
+            settings.stats.bar,
+            StatsBar::Shown,
+            "a `show` the writer typed says nothing about the bar"
+        );
+    }
+
+    #[test]
+    fn an_empty_show_is_an_empty_bar_and_not_the_default_three() {
+        let (settings, notes) = Settings::parse("[stats]\nshow = []\n");
+        assert!(
+            notes.is_empty(),
+            "checking none of them is an answer: {notes:?}"
+        );
+        assert!(settings.stats.show.is_empty());
+        assert_eq!(
+            Settings::parse(&settings.to_toml()).0.stats.show,
+            Vec::new(),
+            "and survives the write that follows it"
+        );
+    }
+
+    #[test]
+    fn hiding_the_bar_leaves_the_checked_set_to_come_back_to() {
+        let (settings, notes) = Settings::parse("[stats]\nbar = \"hidden\"\n");
+        assert!(notes.is_empty(), "{notes:?}");
+        assert_eq!(settings.stats.bar, StatsBar::Hidden);
+        assert_eq!(
+            settings.stats.show,
+            Stats::default().show,
+            "a `bar` the writer typed says nothing about the set"
+        );
+        assert_eq!(Settings::parse(&settings.to_toml()).0, settings);
+    }
+
+    #[test]
+    fn a_hand_added_key_under_stats_survives_a_write() {
+        let (settings, notes) =
+            Settings::parse("[stats]\nshow = [\"paragraphs\"]\nwayfinder = \"fog\"\n");
+        assert!(
+            notes.is_empty(),
+            "an unknown key is kept, not complained of: {notes:?}"
+        );
+        let written: toml::Table = settings.to_toml().parse().expect("writes TOML");
+        assert_eq!(written["stats"]["wayfinder"].as_str(), Some("fog"));
+        assert_eq!(
+            written["stats"]["show"][0].as_str(),
+            Some("paragraphs"),
+            "beside the key it came in with"
         );
     }
 

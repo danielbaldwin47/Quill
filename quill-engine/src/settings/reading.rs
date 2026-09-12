@@ -141,6 +141,33 @@ impl<'a> Reading<'a> {
             .collect()
     }
 
+    /// A list of the names of one of Quill's own sets, or `None` when the key
+    /// is absent or is not a list at all.
+    ///
+    /// `None` rather than an empty list, because a set has a default and an
+    /// empty list is not it: `[stats]`'s `show` defaults to three Statistics
+    /// and `show = []` is a writer asking for none of them, and the two have
+    /// to be told apart. Entries that are not strings are skipped, as they are
+    /// in [`Reading::paths`].
+    ///
+    /// What a name may be is the caller's set, not this module's: the caller
+    /// parses each and notes what it could not place with [`Reading::dropped`].
+    pub fn names(&mut self, key: &str) -> Option<Vec<String>> {
+        let value = self.take(key)?;
+        let Some(entries) = value.as_array() else {
+            self.wrong(key, &value, "a list of names", "the default");
+            return None;
+        };
+        Some(
+            entries
+                .iter()
+                .filter_map(|entry| entry.as_str())
+                .filter(|name| !name.is_empty())
+                .map(str::to_string)
+                .collect(),
+        )
+    }
+
     /// A table of its own, empty when the key is absent, so that the caller
     /// reads it with a [`Reading`] of its own or carries it as data.
     pub fn table(&mut self, key: &str) -> toml::Table {
@@ -178,6 +205,19 @@ impl<'a> Reading<'a> {
     /// Takes `key` out of the table, so what is left is what is unknown.
     fn take(&mut self, key: &str) -> Option<Value> {
         self.table.remove(key)
+    }
+
+    /// Notes one entry of a list ([`Reading::names`]) that names nothing Quill
+    /// knows, and so is dropped while the rest of the list stands.
+    ///
+    /// A list is the writer's to type into, and an entry Quill cannot place is
+    /// no reason to refuse the others: `show = ["sentences", "nonsense"]` is a
+    /// writer who wants Sentences and mistyped something (#387).
+    pub fn dropped(&mut self, key: &str, entry: &str, wanted: &str) {
+        let within = self.within;
+        self.notes.push(format!(
+            "{within}{key}: \"{entry}\" is not {wanted}; dropping it"
+        ));
     }
 
     /// Notes a value that could not be applied, in one line a writer can act
@@ -331,6 +371,45 @@ mod tests {
                 PathBuf::from("/home/writer/one.md"),
                 PathBuf::from("/home/writer/two.md")
             ]
+        );
+    }
+
+    #[test]
+    fn a_list_of_names_skips_what_is_not_a_name_and_an_absent_key_is_no_list() {
+        let mut notes = Vec::new();
+        let mut reading = Reading::new(
+            table("show = [\"words\", 4, \"\", \"sentences\"]\nbroken = 4\n"),
+            "stats.",
+            &mut notes,
+        );
+        assert_eq!(
+            reading.names("show").as_deref(),
+            Some(["words".to_string(), "sentences".to_string()].as_slice())
+        );
+        assert_eq!(
+            reading.names("absent"),
+            None,
+            "an absent key leaves the caller its default"
+        );
+        assert_eq!(
+            reading.names("broken"),
+            None,
+            "and so does a key that is not a list at all"
+        );
+        assert_eq!(
+            notes,
+            ["stats.broken: integer is not a list of names; keeping the default"]
+        );
+    }
+
+    #[test]
+    fn a_name_that_is_not_one_of_a_set_is_dropped_by_name() {
+        let mut notes = Vec::new();
+        let mut reading = Reading::new(table(""), "stats.", &mut notes);
+        reading.dropped("show", "nonsense", "one of words, sentences");
+        assert_eq!(
+            notes,
+            ["stats.show: \"nonsense\" is not one of words, sentences; dropping it"]
         );
     }
 

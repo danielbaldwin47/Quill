@@ -73,6 +73,11 @@ whatever a toggle says, and a redundancy emitting only the words it strikes) and
 highlight, Style check and Spell check consume the **prose stream**: the parser's `Text` events with
 Markup, code spans, fenced code, URLs and front matter removed. They never see a `#` or a `*`.
 
+Stats is not an Annotator and not on the worker: `quill_engine::stats` counts its six Statistics in
+one walk of the parser's events — the prose plus the code the writer typed, which is the prose
+stream widened by code spans and fenced blocks — on the main thread, on the idle pass after typing
+stops and synchronously on a selection change.
+
 Two lanes, and the budget is the Gate's ≤ 5 ms mean, ≤ 16 ms worst from keystroke to presented frame:
 
 - **Synchronous, on the keystroke**: splice the text and advance the Document generation, find the
@@ -199,6 +204,10 @@ default 5 = 21.33 logical px; an old `size` in px becomes the nearest step at or
 it is not being typed in), `chrome` (shown/hidden), `spell_check` (on/off, default on)
 and `spell_language`, `[syntax_highlight]` (a table: `enabled` is the master, and the five category
 toggles sit beside it), `[style_check]` (the same shape, one toggle per list beside `enabled`),
+a `[stats]` table (`show`, the Statistics the stats bar shows as a list of their names in any order,
+default `["words", "characters", "readingTime"]`, a name Quill does not know dropped with a note and
+an empty list an empty bar; and `bar`, shown or hidden, default shown — hiding the bar is a separate
+choice from checking none of them),
 a `[template]` table (`name`, one of the five Templates, default `modern`; and `center_headings`,
 default true and the only input to heading alignment, `number_headings` and `indent_paragraphs`,
 the three toggles that bend one), a
@@ -307,7 +316,11 @@ and the determinism settings, this document names the flags:
   `[syntax_highlight]` table: off, every Category on, or only the comma-separated Categories on;
   absent under `--deterministic` the table takes its defaults with the master off),
   `--style off|on|fillers,redundancies,cliches` (pin the whole `[style_check]` table the same way,
-  by List), `--chrome on|off`, `--caret <offset>|end`,
+  by List), `--stats <names>|hidden` (pin the whole `[stats]` table: the comma-separated Statistics
+  checked with the bar shown, or the bar hidden; there is no `off`, which means the master switch on
+  the two flags above and would have to mean either of two different states here, so absent under
+  `--deterministic` the table takes its defaults — the three cells every judged state carrying the
+  chrome was frozen at), `--chrome on|off`, `--caret <offset>|end`,
   `--select <from>,<to>`, `--scroll <fraction>`, `--nocaret`, `--typing` (the chrome as it is
   inside the 500 ms after a keystroke: the title bar gone, the stats bar dimmed), `--menu
   view|document|stats|palette` (that menu, or the Palette, open with its first row selected),

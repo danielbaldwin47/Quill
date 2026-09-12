@@ -14,6 +14,7 @@
     "live": false,
     "syntax": "off",
     "style": "off",
+    "stats": "words,characters,readingTime",
     "chrome": "on",
     "caret": 403,
     "select": null,
@@ -307,6 +308,17 @@
       },
       "palette": {
         "menu": "palette"
+      },
+      "stats-menu": {
+        "menu": "stats"
+      },
+      "selection": {
+        "text": "ref/short.md",
+        "select": [
+          25,
+          149
+        ],
+        "caret": 149
       }
     },
     "files": {
@@ -749,7 +761,7 @@
     }
   },
   "keys": {
-    "_about": "The scripts tools/gate keys <piece> types, beside the states tools/gate judge shoots, so a Piece is one entry to find. A Piece may carry none, and most do not. `state` overrides `defaults` exactly as a judged state does, but the app is opened Live rather than --deterministic: a still wants the blink frozen and the glide gone, and a typed condition wants the caret machine running, because that machine is what it is there to test. Each burst is typed in full, then shot, then its `assert` list is evaluated from the pixels; `between` is evaluated across consecutive bursts, and skips a pair with a burst that left no caret on the page. A burst types its `text` and then its `keys`, which is the form that can spell a chord and the only one that can; `settle` says which still it is shot at (`caret`, the default, or `still` for a page a selection has taken the caret off), and `chars` and `rows` are what the assertions measure against. The assertion and settle names are tools/keys-assert.mjs's.",
+    "_about": "The scripts tools/gate keys <piece> types, beside the states tools/gate judge shoots, so a Piece is one entry to find. A Piece may carry none, and most do not. `state` overrides `defaults` exactly as a judged state does, but the app is opened Live rather than --deterministic: a still wants the blink frozen and the glide gone, and a typed condition wants the caret machine running, because that machine is what it is there to test. Each burst is typed in full, then shot, then its `assert` list is evaluated from the pixels; `between` is evaluated across consecutive bursts, and skips a pair with a burst that left no caret on the page. A burst types its `text` and then its `keys`, which is the form that can spell a chord and the only one that can; `settle` says which still it is shot at (`caret`, the default, or `still` for a page a selection has taken the caret off), and `chars`, `rows` and `accent` are what the assertions measure against — `accent` being a boolean, because a burst that expects the accent gone is asserting as much as one that expects it there. The assertion and settle names are tools/keys-assert.mjs's.",
     "caret": {
       "_about": "Four bursts on a Document that starts empty. The first two are tools/keys-fixture's, which is what #108's defect was found by hand with: the Document is empty so the first glyph starts at the left margin and the bar has nowhere to hide. The third adds two more rows and selects the lot with Control+a, which is #146's defect — the last row of a Document left unpainted by the selection — and it needs the rows to be of different lengths, because that is what tells one row band from the next (`readSelectionRows` in tools/keys-assert.mjs). So by the end of it the Document is three rows of 38, 4 and 10 characters, all selected, and the caret is out; its second assertion is #168's, that the middle row fills the container and not its own four characters of ink. The fourth types over that selection, replacing the Document with two short rows and a trailing newline, and selects the lot: the selection then ends past a newline rather than past a glyph, which is the shape no still shows — a held newline filling to the container's right edge rather than to a stub past the last glyph. The empty row the trailing newline opens is inside the selection and holds none of it, so it is a fill of no width and there are two bands rather than three. The chrome is off both because the caret Piece is judged bare (#139) and because the chrome's fade-on-typing is an animation, which is one more thing for `steady` to wait out inside the caret's idle hold — the on-phase an edit puts the blink back to the top of, which is `ON` in quill/src/caret.rs and where the number is kept.",
       "state": {
@@ -808,6 +820,46 @@
       ],
       "between": [
         "bar-moved-right"
+      ]
+    },
+    "chrome": {
+      "_about": "Two bursts on ref/short.md with the chrome on, for the one thing about the stats bar that no still can show: that the bar answered a selection the writer made rather than a selection the harness pinned. The judged `selection` state proves the bar can be drawn that way; this proves it gets there from the keyboard. The caret opens at byte 25, where the passage's second paragraph starts, and the first burst holds Shift+Control+End to the end of the Document — a partial selection on purpose, so the cells under the Selection label are a different set of numbers from the Document's and not the same ones relabelled. It settles at `still`, because a selection takes the caret off the page entirely (ADR 0014). The second burst presses Control+Home, which clears the selection without editing a byte: the caret comes back, so it settles at `caret`, and the bar is the Document's again. `stats-bar-accent` is asserted after both, true then false, and `stats-bar-changed` across the pair, which is the assertion that the bar did not simply sit there. The chrome is on, where the caret Piece's script has it off, because the bar is the whole subject here.",
+      "state": {
+        "text": "ref/short.md",
+        "caret": 25,
+        "chrome": "on"
+      },
+      "bursts": [
+        {
+          "name": "select-to-end",
+          "chars": 0,
+          "keys": [
+            {
+              "press": "Shift+Control+End"
+            }
+          ],
+          "settle": "still",
+          "accent": true,
+          "assert": [
+            "stats-bar-accent"
+          ]
+        },
+        {
+          "name": "clear",
+          "chars": 0,
+          "keys": [
+            {
+              "press": "Control+Home"
+            }
+          ],
+          "accent": false,
+          "assert": [
+            "stats-bar-accent"
+          ]
+        }
+      ],
+      "between": [
+        "stats-bar-changed"
       ]
     }
   },

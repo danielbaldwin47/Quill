@@ -32,6 +32,7 @@ use quill_engine::focus::Focus;
 use quill_engine::settings::{
     Chrome, PreviewLayout, PreviewMode, Settings, WindowState, library_width,
 };
+use quill_engine::stats::Statistic;
 use quill_engine::sync;
 
 use crate::caret;
@@ -228,6 +229,10 @@ mod imp {
         pub typing: Cell<Typing>,
         /// The one timer the typing machine has armed, if one is coming.
         pub wake: RefCell<Option<glib::SourceId>>,
+        /// Whether a count of the held run is already waiting on the next
+        /// frame, so a drag that moves the selection a dozen times inside one
+        /// frame counts it once ([`super::Window::arm_selection_count`]).
+        pub selecting: Cell<bool>,
         /// Syntax's burst debounce and bounded idle-priority result wake.
         pub syntax_wake: RefCell<Option<glib::SourceId>>,
         /// Sleeps between result drains, so an empty worker cannot spin GTK.
@@ -384,7 +389,11 @@ impl Window {
             .imp()
             .bars
             .set_shown(session.chrome() == Chrome::Shown);
-        window.imp().bars.set_stats_shown(session.stats());
+        window.imp().bars.set_stats_shown(session.stats_shown());
+        window
+            .imp()
+            .bars
+            .set_statistics(chrome::checked_set(&session.stats().show));
         window
             .imp()
             .bars
@@ -828,6 +837,10 @@ impl Window {
         self.cancel_syntax();
         let document = self.document();
         self.show_title(&document);
+        // A Document arriving carries no selection with it, and the `mark-set`
+        // the fill fires is skipped while the Editor is loading, so the bar is
+        // told here rather than left reading the last Document's run.
+        self.imp().bars.set_selection(None);
         self.imp().bars.set_count(document.text());
         self.imp().editor.show_document(&document);
         drop(document);
@@ -2865,6 +2878,44 @@ impl Window {
         self.imp().bars.set_count(document.text());
     }
 
+    /// Asks for the held run to be counted on the next frame, once however
+    /// many times the selection has moved since the last one.
+    ///
+    /// A drag moves the selection bound on every motion event, and the count
+    /// walks the run; coalescing to the frame clock is what keeps dragging
+    /// across a long Document free, as the oracle's `requestAnimationFrame`
+    /// does (`legacy/app/js/chrome.js`). Adding the callback queues the frame,
+    /// so a selection that moves and then stands still is still counted.
+    fn arm_selection_count(&self) {
+        if self.imp().selecting.replace(true) {
+            return;
+        }
+        self.add_tick_callback(|window, _| {
+            window.imp().selecting.set(false);
+            window.count_selection();
+            glib::ControlFlow::Break
+        });
+    }
+
+    /// Counts the run the buffer holds into the stats bar, or gives the bar
+    /// back to the Document where no run is held.
+    ///
+    /// The buffer's own text rather than a slice of the Document: the two
+    /// carry the same bytes ([`crate::editor::Editor::show_document`] fills
+    /// one from the other and every edit is spliced back), and asking the
+    /// buffer for the run spares both the char-to-byte arithmetic its offsets
+    /// would need and a copy of the whole Document to slice.
+    fn count_selection(&self) {
+        let buffer = self.imp().editor.buffer();
+        match buffer.selection_bounds() {
+            Some((from, to)) => {
+                let run = buffer.text(&from, &to, true);
+                self.imp().bars.set_selection(Some(run.as_str()));
+            }
+            None => self.imp().bars.set_selection(None),
+        }
+    }
+
     /// Watches the pointer for the typing machine: any motion over the
     /// window is [`Window::woken`].
     fn watch_pointer(&self) {
@@ -2883,6 +2934,23 @@ impl Window {
         self.move_windows(Session::toggle_stats, |window, stats| {
             window.imp().bars.set_stats_shown(stats);
         });
+    }
+
+    /// Checks one Statistic, or unchecks it: the Stats menu's six rows.
+    ///
+    /// The bar rebuilds its cells from the checked set, which is why the
+    /// closure takes the whole set rather than the one Statistic that moved:
+    /// the cells stand in [`Statistic::ALL`]'s order and not the order they
+    /// were checked in. The write is [`Window::move_windows`]', as every
+    /// other check's is.
+    pub(crate) fn toggle_statistic(&self, statistic: Statistic) {
+        self.move_windows(
+            |session| {
+                session.toggle_statistic(statistic);
+                chrome::checked_set(&session.stats().show)
+            },
+            |window, checked| window.imp().bars.set_statistics(checked),
+        );
     }
 
     /// Opens `menu` under its bar button, its rows reading the modes as they
@@ -3136,6 +3204,10 @@ impl Window {
             if mark != &buffer.get_insert() && mark != &buffer.selection_bound() {
                 return;
             }
+            // The stats bar's own feed. Armed rather than counted here: a
+            // drag moves the bound on every motion event and the count is
+            // O(run), so the frame is what it is paid once per.
+            window.arm_selection_count();
             // `changed` fires before this for an edit, and its retag has
             // already moved the dim: taking the Document here would be a
             // second borrow of one the splice may still hold.
