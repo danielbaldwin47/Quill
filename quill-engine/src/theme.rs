@@ -341,8 +341,22 @@ pub enum Role {
     Accent,
     /// A link's plumbing: its `[`, `]`, `(` and `)` and the destination between
     /// them. The link's *words* are the writer's and take [`Role::Ink`]; this
-    /// is the grey the Design oracle quiets the machinery around them to.
+    /// is the grey the Design oracle quiets the machinery around them to — the
+    /// same quiet tier [`Role::Quiet`] names, said a second time here so a
+    /// `palette` file can move a link's machinery without moving a struck
+    /// phrase.
     Link,
+    /// The quiet tier: what the Design oracle drops a run to when it is still
+    /// on the page but no longer the writer's voice. Style check's struck runs
+    /// take it — glyphs and rule alike, because the mark re-inks the run rather
+    /// than ruling over its ink (#354, `ref/ia/mac-native/VERDICTS.md` § The
+    /// Style Check mark).
+    ///
+    /// One value per ground with three users — this, a link's plumbing
+    /// ([`Role::Link`]) and a faded completed task — so it is named for the
+    /// tier rather than for any one of them, the way [`Role::Mark`] is named
+    /// for the markers that rest at [`Role::Ink`]'s value.
+    Quiet,
     /// The hairline under a link's destination.
     LinkRule,
     /// The selection.
@@ -387,13 +401,14 @@ impl Role {
     /// arm, so the table stays total either way; this list is the one place
     /// kept by hand, and what a role missing from it costs is the tests below
     /// quietly stopping short of it.
-    pub const ALL: [Self; 19] = [
+    pub const ALL: [Self; 20] = [
         Self::Paper,
         Self::Ink,
         Self::InkDim,
         Self::Mark,
         Self::Accent,
         Self::Link,
+        Self::Quiet,
         Self::LinkRule,
         Self::Selection,
         Self::SelectionIdle,
@@ -421,6 +436,7 @@ impl Role {
             Self::Mark => "mark",
             Self::Accent => "accent",
             Self::Link => "link",
+            Self::Quiet => "quiet",
             Self::LinkRule => "link_rule",
             Self::Selection => "selection",
             Self::SelectionIdle => "selection_idle",
@@ -450,6 +466,7 @@ pub struct Colours {
     mark: Colour,
     accent: Colour,
     link: Colour,
+    quiet: Colour,
     link_rule: Colour,
     selection: Colour,
     selection_idle: Colour,
@@ -481,6 +498,7 @@ impl Colours {
         mark: Colour::from_hex("#191919"),
         accent: Colour::from_hex("#00bfff"),
         link: Colour::from_hex("#b5b3b0"),
+        quiet: Colour::from_hex("#b5b3b0"),
         link_rule: Colour::from_hex("#d5d3d1"),
         selection: Colour::from_hex("#ccedf8"),
         selection_idle: Colour::rgba(25, 25, 25, 0.122),
@@ -517,6 +535,7 @@ impl Colours {
         mark: Colour::from_hex("#cccccc"),
         accent: Colour::from_hex("#00bfff"),
         link: Colour::from_hex("#7a7a78"),
+        quiet: Colour::from_hex("#7a7a78"),
         link_rule: Colour::from_hex("#545452"),
         selection: Colour::from_hex("#113d52"),
         selection_idle: Colour::rgba(204, 204, 204, 0.247),
@@ -578,6 +597,7 @@ impl Colours {
             Role::Ink => &mut self.ink,
             Role::InkDim => &mut self.ink_dim,
             Role::Mark => &mut self.mark,
+            Role::Quiet => &mut self.quiet,
             Role::Accent => &mut self.accent,
             Role::Link => &mut self.link,
             Role::LinkRule => &mut self.link_rule,
@@ -608,6 +628,7 @@ impl Colours {
             Role::Ink => self.ink,
             Role::InkDim => self.ink_dim,
             Role::Mark => self.mark,
+            Role::Quiet => self.quiet,
             Role::Accent => self.accent,
             Role::Link => self.link,
             Role::LinkRule => self.link_rule,
@@ -810,13 +831,14 @@ mod tests {
     /// Design oracle's own: the capture ticket #308 measured them off the
     /// running app on both grounds, as [`Colours::LIGHT`] and
     /// [`Colours::DARK`] say.
-    const ORACLE: [(Scheme, Role, &str); 38] = [
+    const ORACLE: [(Scheme, Role, &str); 40] = [
         (Scheme::Light, Role::Paper, "#f7f7f7"),
         (Scheme::Light, Role::Ink, "#191919"),
         (Scheme::Light, Role::InkDim, "#c6c4c2"),
         (Scheme::Light, Role::Mark, "#191919"),
         (Scheme::Light, Role::Accent, "#00bfff"),
         (Scheme::Light, Role::Link, "#b5b3b0"),
+        (Scheme::Light, Role::Quiet, "#b5b3b0"),
         (Scheme::Light, Role::LinkRule, "#d5d3d1"),
         (Scheme::Light, Role::Selection, "#ccedf8"),
         (
@@ -840,6 +862,7 @@ mod tests {
         (Scheme::Dark, Role::Mark, "#cccccc"),
         (Scheme::Dark, Role::Accent, "#00bfff"),
         (Scheme::Dark, Role::Link, "#7a7a78"),
+        (Scheme::Dark, Role::Quiet, "#7a7a78"),
         (Scheme::Dark, Role::LinkRule, "#545452"),
         (Scheme::Dark, Role::Selection, "#113d52"),
         (
@@ -1272,9 +1295,15 @@ mod tests {
             );
         }
         assert_eq!(Role::LinkRule.key(), "link_rule");
+        // Derived from the same position the text above was written from, so
+        // that inserting a Role ahead of `LinkRule` is not an edit here.
+        let at = Role::ALL
+            .iter()
+            .position(|role| *role == Role::LinkRule)
+            .expect("LinkRule among the roles");
         assert_eq!(
             palette.colour(Scheme::Light, Role::LinkRule),
-            Some(Colour::from_hex("#060606"))
+            Some(Colour::from_hex(&format!("#{at:02x}{at:02x}{at:02x}")))
         );
     }
 

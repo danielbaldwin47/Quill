@@ -196,7 +196,9 @@ fn ground(value: &Variant) -> Option<Scheme> {
 mod tests {
     use std::cell::{Cell, RefCell};
     use std::rc::Rc;
-    use std::sync::Mutex;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{Arc, Mutex};
+    use std::time::Duration;
 
     use quill_engine::settings::Theme;
     use quill_engine::theme;
@@ -308,42 +310,149 @@ mod tests {
             portal
         }
 
-        /// Every stub on this bus saying that key is now 1.
+        /// Every stub on this bus saying that key is now 1, once the bus is
+        /// ready to route it.
         ///
         /// From the stubs, not from the test's own connection: a proxy hears
         /// only the name it was pointed at, and a signal from anyone else on
-        /// the bus is somebody else's business.
+        /// the bus is somebody else's business. The wait comes first because a
+        /// signal the bus routes before it has read the proxy's match rule is
+        /// gone rather than late, which is the other half of #376.
         fn announce(&self, namespace: &str, key: &str) {
+            self.wait_until_listening();
             for stub in self.stubs.borrow().iter() {
                 stub.announce(namespace, key);
             }
         }
 
-        /// Runs the main context until `done`.
+        /// Waits until every subscription Quill's connection has asked for is
+        /// one the bus knows about.
+        ///
+        /// A subscription is an `AddMatch` the connection sends and does not
+        /// wait for, and a proxy pointed at a *unique* name — which every
+        /// stub here has — has no round trip of its own to put behind it, so
+        /// nothing but timing keeps the rule ahead of the signal. A signal the
+        /// bus routes before it has read that rule is not late but gone, and
+        /// no deadline can rescue it: that is the other half of #376, and it
+        /// is what a loaded machine was hitting two runs in twenty.
+        ///
+        /// One synchronous call on the same connection is the barrier. A bus
+        /// reads one connection's messages in the order they were sent, so an
+        /// answer to a question asked after the rule means the rule is in
+        /// place.
+        fn wait_until_listening(&self) {
+            self.connection
+                .call_sync(
+                    Some("org.freedesktop.DBus"),
+                    "/org/freedesktop/DBus",
+                    "org.freedesktop.DBus",
+                    "GetId",
+                    None,
+                    None,
+                    gio::DBusCallFlags::NONE,
+                    -1,
+                    gio::Cancellable::NONE,
+                )
+                .expect("the bus answers for itself");
+        }
+
+        /// Runs the main context until `done`, or until [`DEADLINE`].
         ///
         /// A signal is delivered by the main loop rather than by the call that
         /// emitted it, so a test that asserts without running one asserts on
         /// nothing.
         fn until(&self, done: impl Fn() -> bool) {
-            for _ in 0..ROUNDS {
-                if done() {
-                    return;
-                }
-                self.context.iteration(false);
+            self.within(DEADLINE, done);
+        }
+
+        /// Runs the main context for [`QUIET`], which is long enough that
+        /// anything on its way has arrived — which is how a test proves
+        /// something did *not* arrive.
+        ///
+        /// Nothing can end this early, so it is the deadline itself that is
+        /// waited out.
+        fn settle(&self) {
+            self.within(QUIET, || false);
+        }
+
+        /// The walk both waits are: blocking turns of this context until
+        /// `done` or until `after` has passed.
+        ///
+        /// Each turn *blocks*, so the wait costs nothing while a round trip is
+        /// in flight and ends the moment it lands; a blocking turn with
+        /// nothing pending would never come back, so the deadline is a source
+        /// on the same context — the thing that wakes it — rather than a clock
+        /// read between turns.
+        fn within(&self, after: Duration, done: impl Fn() -> bool) {
+            let deadline = self.deadline(after);
+            while !done() && !deadline.expired() {
+                self.context.iteration(true);
             }
         }
 
-        /// Runs the main context long enough that anything on its way has
-        /// arrived — which is how a test proves something did *not* arrive.
-        fn settle(&self) {
-            for _ in 0..ROUNDS {
-                self.context.iteration(false);
-            }
+        /// A [`Deadline`] on *this* context, `after` from now.
+        ///
+        /// Built and attached by hand rather than taken from
+        /// `timeout_add_local`, which attaches to the default context — the
+        /// one this stage's context is deliberately not, and the one no test
+        /// here ever iterates, so a deadline left on it never fires and the
+        /// blocking turn waiting for it never comes back.
+        fn deadline(&self, after: Duration) -> Deadline {
+            let expired = Arc::new(AtomicBool::new(false));
+            let rang = Arc::clone(&expired);
+            let source =
+                glib::timeout_source_new(after, None, glib::Priority::DEFAULT, move || {
+                    rang.store(true, Ordering::Relaxed);
+                    glib::ControlFlow::Break
+                });
+            source.attach(Some(&self.context));
+            Deadline { source, expired }
         }
     }
 
-    /// How many turns of a main context count as "everything pending".
-    const ROUNDS: usize = 500;
+    /// How long a signal the desktop announced has to arrive.
+    ///
+    /// A deadline rather than a count of main-context turns (#376): the stub
+    /// answers from a thread of its own over a real bus, so how long the round
+    /// trip takes is a property of the machine's load and not of the code
+    /// under test, and a fixed count of turns spent under load runs out before
+    /// the signal lands and reads a late signal as no signal. Generous,
+    /// because the wait ends the moment the signal arrives and the whole of it
+    /// is paid only when the signal is absent — which is a failing test, and a
+    /// failing test may take ten seconds.
+    const DEADLINE: Duration = Duration::from_secs(10);
+
+    /// How long "nothing arrived" is given to be wrong.
+    ///
+    /// Paid in full on every run, since nothing ends it early: short enough
+    /// to keep the suite well under a second, and long enough that a signal
+    /// the bus does route arrives inside it with room to spare — the one the
+    /// test above waits for takes a millisecond of a loaded machine.
+    const QUIET: Duration = Duration::from_millis(250);
+
+    /// A timeout armed on a stage's context, and off it again when dropped.
+    ///
+    /// The flag is an `Arc` because the source's closure has to be `Send`,
+    /// though it is this thread that runs it; the `Drop` is so that no caller
+    /// has to remember to take the source off the context, and so that a
+    /// panic in the middle of a wait leaves nothing attached to it.
+    struct Deadline {
+        source: glib::Source,
+        expired: Arc<AtomicBool>,
+    }
+
+    impl Deadline {
+        /// Whether the time it was armed with has passed.
+        fn expired(&self) -> bool {
+            self.expired.load(Ordering::Relaxed)
+        }
+    }
+
+    impl Drop for Deadline {
+        fn drop(&mut self) {
+            self.source.destroy();
+        }
+    }
 
     impl Stub {
         /// Brings a portal up on the bus at `address` and waits for it to be there.
@@ -515,7 +624,11 @@ mod tests {
 
             stage.announce(APPEARANCE, COLOUR_SCHEME);
             stage.until(|| heard.get().is_some());
-            assert_eq!(heard.get(), Some(Scheme::Dark));
+            assert_eq!(
+                heard.get(),
+                Some(Scheme::Dark),
+                "the announced change had {DEADLINE:?} to arrive"
+            );
         });
     }
 

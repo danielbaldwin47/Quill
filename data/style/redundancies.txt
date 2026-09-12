@@ -1,0 +1,545 @@
+# Redundancies — the words in [brackets] are the ones to strike.
+#
+# Quill Style check list. One phrase per line, lower case, ASCII apostrophes,
+# inflected forms spelled out as their own lines. Blank lines and lines starting
+# with '#' are ignored. Matching is case-insensitive on whole-word boundaries
+# (see the Style check spec, issue #29). Provenance and licences: SOURCES.md.
+
+# --- plainlanguage.gov (US federal work, CC0 1.0) — 9 entries ---
+[in an effort] to
+[in order] to
+[set forth] in
+arrive [onboard]
+combat [environment]
+during [the period]
+for [a period of]
+under [the provisions of]
+until [such time as]
+
+# --- proselint (BSD-3-Clause) - its own RAS, Nordquist and Wallace sets — 20 entries ---
+[absolutely] essential
+[absolutely] necessary
+abm [missile]
+abs [braking system]
+act [test]
+atm [machine]
+audible [to the ear]
+cd [disc]
+cpi [index]
+gps [system]
+gui [interface]
+hiv [virus]
+isbn [number]
+lcd [display]
+pdf [format]
+pin [number]
+ras [syndrome]
+rectangular [in shape]
+sat [test]
+upc [codes]
+
+# --- proselint (BSD-3-Clause), `redundancy/after-the-deadline` - see SOURCES.md — 500 entries ---
+[absolute] guarantee
+[absolutely] sure
+[actual] experience
+[actual] facts
+[added] bonus
+[advance] planning
+[advance] preview
+[advance] reservations
+[advance] warning
+[affirmative] yes
+[all] inclusive
+[annual] anniversary
+[anonymous] stranger
+[armed] gunman
+[armed] gunmen
+[artificial] prosthesis
+[as] for example
+[boat] marina
+[brief] cameo
+[brief] moment
+[burning] embers
+[burning] hot
+[careful] scrutiny
+[close] scrutiny
+[closed] fist
+[common] bond
+[complete] monopoly
+[completely] annihilate
+[completely] destroyed
+[completely] eliminate
+[completely] engulfed
+[completely] filled
+[completely] surround
+[constantly] maintained
+[continue to] remain
+[definite] decision
+[desirable] benefits
+[difficult] dilemma
+[direct] confrontation
+[duplicate] copy
+[each and] every
+[empty] hole
+[entirely] eliminate
+[equally] as
+[established] fact
+[exact] opposite
+[exact] opposites
+[exact] replica
+[exact] same
+[exposed] opening
+[extra] bonus
+[fellow] classmates
+[fellow] colleague
+[final] conclusion
+[final] end
+[final] outcome
+[final] ultimatum
+[first] conceived
+[for] free
+[foreign] imports
+[former] veteran
+[forward] planning
+[free] gift
+[free] gifts
+[frozen] ice
+[frozen] tundra
+[full] satisfaction
+[future] plan
+[future] plans
+[future] recurrence
+[general] consensus
+[glowing] ember
+[hard] facts
+[harmful] injuries
+[high] noon
+[honest] truth
+[hot] water heater
+[illustrated] drawing
+[in a] confused [state]
+[inner] core
+[inner] feelings
+[joint] collaboration
+[knowledgeable] experts
+[live] studio audience
+[live] witness
+[main] focus
+[major] breakthrough
+[major] feat
+[mental] telepathy
+[mutual] cooperation
+[mutually] interdependent
+[native] habitat
+[natural] instinct
+[naturally] instinct
+[new] bride
+[new] innovation
+[new] innovative
+[new] invention
+[now] currently
+[now] pending
+[old] adage
+[old] cliche
+[old] custom
+[old] pioneer
+[old] proverb
+[open] trench
+[oral] conversation
+[originally] created
+[originally] discovered
+[outside] in the yard
+[over and] done [with]
+[over] exaggerate
+[overused] cliche
+[passing] fad
+[past] experience
+[past] history
+[past] memories
+[perfect] ideal
+[personal] belongings
+[personal] charm
+[personal] friend
+[personal] friendship
+[polar] opposite
+[polar] opposites
+[positive] identification
+[precise] same
+[present] incumbent
+[private] industry
+[proposed] plan
+[random] chance
+[rate of] speed
+[rough] rule of thumb
+[round] circle
+[safe] haven
+[safe] sanctuary
+[same] identical
+[sand] dune
+[serious] danger
+[sharp] point
+[small] speck
+[specific] details
+[still] lingers
+[still] persists
+[still] remains
+[sudden] impulse
+[time] clock
+[tiny] bit
+[total] destruction
+[totally] destroy
+[true] facts
+[truly] sincere
+[twelve] midnight
+[twelve] noon
+[two equal] halves
+[ultimate] goal
+[unconfirmed] rumor
+[underground] subway
+[unexpected] emergency
+[unexpected] surprise
+[universal] panacea
+[unnamed] anonymous
+[unsolved] mystery
+[usual] custom
+[wall] mural
+add [a further]
+add [an additional]
+advance [forward]
+advanced [forward]
+advances [forward]
+advancing [forward]
+alternative [choice]
+amaretto [almond]
+ascend [up]
+ascended [up]
+ascending [up]
+ascends [up]
+ask [the question]
+assemble [together]
+assembled [together]
+assembles [together]
+assembling [together]
+at [the] present [time] the
+at this point [in time]
+attach [together]
+attached [together]
+attaches [together]
+attaching [together]
+autumn [season]
+balsa [wood]
+bento [box]
+best [ever]
+blend [together]
+blended [together]
+blending [together]
+blends [together]
+bouquet [of flowers]
+brief [in duration]
+bruin [bear]
+cacophony [of sound]
+cameo [appearance]
+cancel [out]
+canceled [out]
+canceling [out]
+cancelled [out]
+cancelling [out]
+cancels [out]
+cash [money]
+chai [tea]
+challah [bread]
+circle [around]
+circulate [around]
+classify [into groups]
+climb [up]
+climbed [up]
+climbing [up]
+climbs [up]
+collaborate [together]
+collaborated [together]
+collaborates [together]
+collaborating [together]
+combine [together]
+combined [together]
+combines [together]
+combining [together]
+commute [back and forth]
+compete [with each other]
+comprise [of]
+comprises [of]
+confer [together]
+conferred [together]
+conferring [together]
+confers [together]
+connect [together]
+connect [up]
+connected [together]
+connected [up]
+connecting [together]
+connecting [up]
+connects [together]
+connects [up]
+consensus [of opinion]
+consult [with]
+cool [down]
+cooled [down]
+cooling [down]
+cools [down]
+cooperate [together]
+cooperated [together]
+cooperates [together]
+cooperating [together]
+cost [the sum of]
+could [possibly]
+crisis [situation]
+crouch [down]
+crouched [down]
+crouches [down]
+crouching [down]
+date [back]
+dated [back]
+dates [back]
+dating [back]
+depreciate [in value]
+descend [down]
+descended [down]
+descending [down]
+descends [down]
+disappear [from sight]
+dive [down]
+dived [down]
+dives [down]
+diving [down]
+dove [down]
+drop [down]
+dropped [down]
+dropping [down]
+drops [down]
+during [the course of]
+dwindle [down]
+dwindled [down]
+dwindles [down]
+dwindling [down]
+earlier [in time]
+eliminate [altogether]
+emergency [situation]
+emptied [out]
+empties [out]
+empty [out]
+emptying [out]
+enclosed [herein]
+enter [in]
+enter [into]
+entered [in]
+entering [in]
+enters [in]
+equal [to one another]
+eradicate [completely]
+estimated at [about]
+estimated at [approximately]
+estimated at [around]
+evolve [over time]
+exited [from]
+extradite [back]
+extradited [back]
+extradites [back]
+extraditing [back]
+face [up to] the challenge
+face [up to] the consequences
+face [up to] the fact
+face [up to] the problem
+facilitate [easier]
+fall [down]
+fall [season]
+fallen [down]
+falling [down]
+falls [down]
+feel [inside]
+fell [down]
+few [in number]
+filled [to capacity]
+first [of all]
+first time [ever]
+fly [through the air]
+focus [in]
+focused [in]
+focuses [in]
+focusing [in]
+focussed [in]
+focussing [in]
+follow [after]
+forever [and ever]
+full [to capacity]
+fuse [together]
+fused [together]
+fuses [together]
+fusing [together]
+gather [together]
+gather [up]
+gathered [together]
+gathered [up]
+gathering [together]
+gathering [up]
+gathers [together]
+gathers [up]
+get up [on his feet]
+get up [on your feet]
+grow [in size]
+had done [previously]
+hallah [bread]
+heat [up]
+heated [up]
+heating [up]
+heats [up]
+hoist [up]
+hoisted [up]
+hoisting [up]
+hoists [up]
+i [myself]
+i [personally]
+in [actual] fact
+in which we live [in]
+incredible [to believe]
+innovative [new]
+integrate [together]
+integrate [with each other]
+integrated [together]
+integrates [together]
+integrating [together]
+interdependent [on each other]
+introduced [for the first time]
+kneel [down]
+kneeled [down]
+kneeling [down]
+kneels [down]
+knelt [down]
+knots [per hour]
+lift [up]
+lifted [up]
+lifting [up]
+lifts [up]
+look [ahead] to the future
+manually [by hand]
+may [possibly]
+meet [together]
+meet [with each other]
+meeting [together]
+meets [together]
+merge [together]
+merged [together]
+merges [together]
+merging [together]
+mesh [together]
+meshed [together]
+meshes [together]
+meshing [together]
+met [together]
+migraine [headache]
+milky way [galaxy]
+minestrone [soup]
+mix [together]
+mixed [together]
+mixes [together]
+mixing [together]
+moment [in time]
+mutual respect [for each other]
+mutually dependent [on each other]
+my [personal] opinion
+nape [of her neck]
+never [at any time]
+nostalgia [for the past]
+number of [different]
+orbits [around]
+penetrate [through]
+plan [ahead]
+plan [in advance]
+planned [ahead]
+planned [in advance]
+planning [ahead]
+planning [in advance]
+plans [ahead]
+plans [in advance]
+point [in time]
+postpone [until later]
+pouring [down] rain
+previously listed [above]
+probed [into]
+proceed [ahead]
+proceeded [ahead]
+proceeding [ahead]
+proceeds [ahead]
+put off [until later]
+reason is [because]
+recur [again]
+refer [back]
+referred [back]
+referring [back]
+refers [back]
+reflect [back]
+reflected [back]
+reflecting [back]
+reflects [back]
+replied [back]
+replies [back]
+reply [back]
+replying [back]
+retreat [back]
+retreated [back]
+retreating [back]
+retreats [back]
+revert [back]
+reverted [back]
+reverting [back]
+reverts [back]
+rio grande [river]
+round [in shape]
+rustic [country]
+same [exact]
+sank [down]
+scrutinize [in detail]
+secret [that cannot be told]
+seek [to find]
+separated [apart from each other]
+share [together]
+shared [together]
+shares [together]
+sharing [together]
+shiny [in appearance]
+sink [down]
+sinking [down]
+sinks [down]
+skip [over]
+skipped [over]
+skipping [over]
+skips [over]
+soft [in texture]
+soft [to the touch]
+sole [of the foot]
+some time [to come]
+spell out [in detail]
+spiked [upward]
+spiked [upwards]
+spring [season]
+sufficient [enough]
+summer [season]
+sunk [down]
+surrounded [on all sides]
+tall [in height]
+tall [in stature]
+ten [in number]
+these [ones]
+those [ones]
+undergraduate [student]
+vacillate [back and forth]
+visible [to the eye]
+warn [in advance]
+warned [in advance]
+warning [in advance]
+warns [in advance]
+winter [season]
+yakitori [chicken]
+yerba mate [tea]
+
+# --- Quill, from iA Writer's published examples — 1 entries ---
+[basic] fundamentals
+

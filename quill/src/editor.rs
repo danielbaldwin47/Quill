@@ -29,7 +29,7 @@ use gtk::pango;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use quill_engine::annotate::live::{self, Furniture, LiveLook, LiveSpan};
-use quill_engine::annotate::{self, Painted};
+use quill_engine::annotate::{self, Annotated, Painted};
 use quill_engine::document::{Document, Edit};
 use quill_engine::focus::typewriter::{self, Glide, Hold, Typewriter};
 use quill_engine::focus::{self, Focus, LineTiers};
@@ -138,10 +138,6 @@ const FEATURES: [&str; 4] = ["liga", "clig", "calt", "kern"];
 
 /// How many frames `--scroll` holds the view where it was asked for.
 const SCROLL_FRAMES: u32 = 8;
-
-/// What the empty page says on its first line, in the oracle's words
-/// (`legacy/app/css/page.css` `content: "Start writing…"`).
-const PLACEHOLDER: &str = "Start writing…";
 
 /// The most frames a `--caret` reveal is asked again for while GTK validates
 /// the layout it is resolved against ([`Editor::reveal_caret`]). A bound, not
@@ -544,7 +540,6 @@ mod imp {
         /// `iter_location` answers in, so nothing is translated on the way.
         fn snapshot_layer(&self, layer: gtk::TextViewLayer, snapshot: gtk::Snapshot) {
             if layer == gtk::TextViewLayer::BelowText {
-                self.obj().draw_placeholder(&snapshot);
                 self.obj().draw_selection_fill(&snapshot);
             }
             if layer == gtk::TextViewLayer::AboveText {
@@ -862,6 +857,33 @@ impl Editor {
         if !self.imp().syntax.borrow_mut().configure(settings, document) {
             return;
         }
+        self.repaint_spans(document);
+    }
+
+    /// Changes the Style check table the same way, and for the same reason.
+    ///
+    /// A List switched off is this repaint and nothing else: the matcher emits
+    /// every List whatever the toggles say, so the spans are already held and
+    /// the page answers the switch without waiting on the worker (#356).
+    pub(crate) fn set_style(&self, style: quill_engine::settings::StyleCheck, document: &Document) {
+        if !self
+            .imp()
+            .syntax
+            .borrow_mut()
+            .configure_style(style, document)
+        {
+            return;
+        }
+        self.repaint_spans(document);
+    }
+
+    /// Whether an Annotator has a paragraph still to ask the worker about.
+    pub(crate) fn asking(&self) -> bool {
+        self.imp().syntax.borrow().asking()
+    }
+
+    /// Draws every line again from the spans the state already holds.
+    fn repaint_spans(&self, document: &Document) {
         self.imp().fade.take();
         let tiers = self.imp().tiers.borrow();
         let lines = 0..document.place(document.text().len()).line + 1;
@@ -873,9 +895,12 @@ impl Editor {
         );
     }
 
-    /// Whether this Editor should schedule asynchronous Syntax work.
-    pub(crate) fn syntax_enabled(&self) -> bool {
-        self.imp().syntax.borrow().enabled()
+    /// Whether this Editor should schedule asynchronous Annotator work.
+    ///
+    /// Either Annotator: one wake and one drain feed both, so Style check on
+    /// with Syntax highlight off is work to schedule just the same (#356).
+    pub(crate) fn annotating(&self) -> bool {
+        self.imp().syntax.borrow().working()
     }
 
     /// Captures dirty prose after the debounce, with the laid-out viewport first.
@@ -1812,25 +1837,15 @@ impl Editor {
                 ..document.line_bytes(lines.end.saturating_sub(1)).end;
             let spans = document.spans_in(&at);
             let tagged = syntax.spans_in(document, &at);
+            let struck = syntax.struck_ranges_in(document, &at);
+            let annotated = Annotated {
+                tagged: &tagged,
+                enabled: syntax.categories(),
+                struck: &struck,
+            };
             runs.append(&mut faded(
-                &annotate::paint_tagged_in(
-                    &spans,
-                    &tagged,
-                    syntax.categories(),
-                    &at,
-                    before,
-                    focus,
-                    &colours,
-                ),
-                &annotate::paint_tagged_in(
-                    &spans,
-                    &tagged,
-                    syntax.categories(),
-                    &at,
-                    &after,
-                    focus,
-                    &colours,
-                ),
+                &annotate::paint_tagged_in(&spans, annotated, &at, before, focus, &colours),
+                &annotate::paint_tagged_in(&spans, annotated, &at, &after, focus, &colours),
                 |at| tags::offsets_of(&buffer, document, at),
             ));
         }
@@ -3148,32 +3163,6 @@ impl Editor {
         })
     }
 
-    /// The empty page's one whisper: [`PLACEHOLDER`] on the first line, where
-    /// the first glyph will land, in the grey Focus dims prose to.
-    ///
-    /// The Parity oracle sets it there (`legacy/app/css/page.css`, the
-    /// `#mirror` rule for a Document with nothing in it) and it is gone the
-    /// moment there is a character in the Document. It is the chrome Piece's
-    /// to paint — #43 moved `empty` there — and the Editor's to place, because
-    /// only the Editor knows where its first line is. Under the glyphs, so
-    /// the caret is drawn over it like over any text.
-    fn draw_placeholder(&self, snapshot: &gtk::Snapshot) {
-        let buffer = self.buffer();
-        if buffer.char_count() != 0 {
-            return;
-        }
-        let at = self.iter_location(&buffer.start_iter());
-        let layout = self.create_pango_layout(Some(PLACEHOLDER));
-        snapshot.save();
-        // Buffer coordinates are whole logical pixels, which `f32` holds.
-        snapshot.translate(&graphene::Point::new(
-            logical(f64::from(at.x()), 1.0),
-            logical(f64::from(at.y()), 1.0),
-        ));
-        snapshot.append_layout(&layout, &paint(&self.colours(), Role::InkDim, 1.0));
-        snapshot.restore();
-    }
-
     /// The mode `--deterministic` and `--nocaret` asked for.
     ///
     /// A whole machine rather than a mode set on the one there is, because
@@ -4133,21 +4122,6 @@ mod tests {
             cap_radius(10.0, 10.0),
             5.0,
             "a square is capped into a disc"
-        );
-    }
-
-    /// The empty page's words are the oracle's, read from the rule that sets
-    /// them, so the two sides of `chrome/empty` say the same thing.
-    #[test]
-    fn the_placeholder_is_the_oracles_words() {
-        let css = std::fs::read_to_string(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../legacy/app/css/page.css"
-        ))
-        .expect("legacy/app/css/page.css");
-        assert!(
-            css.contains(&format!("content: \"{PLACEHOLDER}\";")),
-            "page.css sets a different placeholder than {PLACEHOLDER:?}"
         );
     }
 

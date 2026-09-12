@@ -41,8 +41,8 @@ use std::path::{Path, PathBuf};
 use quill_engine::commands;
 use quill_engine::settings::{
     Choice, Chrome, Export, Face, FocusScope, Paper, Preview, PreviewLayout, PreviewMode, Settings,
-    SyntaxHighlight, Template as TemplateSettings, TemplateName, WindowState, preview_zooms,
-    window_sizes,
+    StyleCheck, SyntaxHighlight, Template as TemplateSettings, TemplateName, WindowState,
+    preview_zooms, window_sizes,
 };
 use quill_engine::theme::Scheme;
 use quill_engine::typography;
@@ -65,6 +65,8 @@ Judged state — the states the Gate shoots and benches at:
   --live                 Turn Live on: the markup rendered in place.
   --syntax off|on|nouns,verbs,adjectives,adverbs,conjunctions
                          Pin Syntax highlight off, all on, or to named Categories.
+  --style off|on|fillers,redundancies,cliches
+                         Pin Style check off, all on, or to named Lists.
   --chrome on|off        Show or hide the bars around the Editor.
   --caret <offset>|end   Put the caret at a byte offset, or at the end.
   --select <from>,<to>   Select from one byte offset to another.
@@ -231,6 +233,8 @@ pub struct Flags {
     pub live: bool,
     /// The whole Syntax highlight table pinned by `--syntax`.
     pub syntax: Option<SyntaxHighlight>,
+    /// The whole Style check table pinned by `--style`.
+    pub style: Option<StyleCheck>,
     /// What `--chrome` asks of the bars around the Editor.
     pub chrome: Option<Chrome>,
     /// Where `--caret` puts the caret.
@@ -351,6 +355,7 @@ impl Flags {
                 "--typewriter" => flags.typewriter = true,
                 "--live" => flags.live = true,
                 "--syntax" => flags.syntax = Some(syntax(flag, &text(&mut args, flag)?)?),
+                "--style" => flags.style = Some(style(flag, &text(&mut args, flag)?)?),
                 "--chrome" => flags.chrome = Some(one_of(flag, &text(&mut args, flag)?, &CHROMES)?),
                 "--caret" => flags.caret = Some(caret(flag, &text(&mut args, flag)?)?),
                 "--select" => flags.select = Some(select(flag, &text(&mut args, flag)?)?),
@@ -476,6 +481,14 @@ impl Flags {
             settings.syntax_highlight = syntax.clone();
         } else if self.deterministic {
             settings.syntax_highlight = SyntaxHighlight::default();
+        }
+        // Style check is pinned whole for the same reason: a writer who left
+        // Clichés off would otherwise shoot a page with two Lists struck on
+        // every state that names `on`.
+        if let Some(style) = &self.style {
+            settings.style_check = style.clone();
+        } else if self.deterministic {
+            settings.style_check = StyleCheck::default();
         }
         if let Some(chrome) = self.chrome {
             settings.chrome = chrome;
@@ -655,6 +668,36 @@ fn syntax(flag: &str, written: &str) -> Result<SyntaxHighlight, Error> {
     Ok(syntax)
 }
 
+/// Pins every List as well as the master switch, including for `off`.
+fn style(flag: &str, written: &str) -> Result<StyleCheck, Error> {
+    let mut style = StyleCheck::default();
+    if written == "off" {
+        return Ok(style);
+    }
+    style.enabled = true;
+    if written == "on" {
+        return Ok(style);
+    }
+    style.fillers = false;
+    style.redundancies = false;
+    style.cliches = false;
+    for list in written.split(',') {
+        match list {
+            "fillers" => style.fillers = true,
+            "redundancies" => style.redundancies = true,
+            "cliches" => style.cliches = true,
+            _ => {
+                return Err(not(
+                    flag,
+                    written,
+                    "off, on, or comma-separated fillers, redundancies, cliches",
+                ));
+            }
+        }
+    }
+    Ok(style)
+}
+
 /// One of the values a flag takes, by the name it is written under.
 fn one_of<T: Copy>(flag: &str, written: &str, values: &[(&str, T)]) -> Result<T, Error> {
     values
@@ -718,7 +761,7 @@ mod tests {
 
     /// Every flag `docs/architecture.md` names, with a value it takes and —
     /// where it has a domain — one it does not.
-    const FLAGS: [(&str, &str, Option<&str>); 27] = [
+    const FLAGS: [(&str, &str, Option<&str>); 28] = [
         ("--text", "ref/sample.md", None),
         ("--theme", "dark", Some("purple")),
         ("--font", "mono", Some("comic")),
@@ -727,6 +770,7 @@ mod tests {
         ("--typewriter", "", None),
         ("--live", "", None),
         ("--syntax", "nouns,adverbs", Some("pronouns")),
+        ("--style", "fillers,cliches", Some("jargon")),
         // The file says shown and hidden; the flag says on and off.
         ("--chrome", "off", Some("shown")),
         ("--caret", "end", Some("middle")),
@@ -862,7 +906,14 @@ mod tests {
 
     #[test]
     fn a_flag_with_nothing_after_it_says_what_is_missing() {
-        for flag in ["--text", "--theme", "--step", "--measure", "--syntax"] {
+        for flag in [
+            "--text",
+            "--theme",
+            "--step",
+            "--measure",
+            "--syntax",
+            "--style",
+        ] {
             let err = parse(flag).expect_err("nothing follows it");
             assert_eq!(err.to_string(), format!("{flag}: needs a value after it"));
         }
@@ -1028,6 +1079,50 @@ mod tests {
         for bad in ["nouns,", ",adverbs", "on,nouns", "nouns,pronouns"] {
             let error = parse(&format!("--syntax {bad}")).unwrap_err().to_string();
             assert!(error.starts_with("--syntax: "));
+            assert!(!error.contains('\n'));
+        }
+    }
+
+    #[test]
+    fn style_pins_the_whole_table_over_the_writers_choices() {
+        let mut writers = Settings::default();
+        writers.style_check.enabled = true;
+        writers.style_check.fillers = false;
+        writers.style_check.cliches = false;
+        assert_eq!(parse("").unwrap().over(writers.clone()), writers);
+        for flags in ["--style off", "--deterministic"] {
+            assert_eq!(
+                parse(flags).unwrap().over(writers.clone()).style_check,
+                StyleCheck::default()
+            );
+        }
+        let mut all = StyleCheck::default();
+        all.enabled = true;
+        assert_eq!(
+            parse("--style on")
+                .unwrap()
+                .over(writers.clone())
+                .style_check,
+            all
+        );
+        assert_eq!(
+            parse("--style fillers,redundancies,cliches")
+                .unwrap()
+                .over(writers.clone())
+                .style_check,
+            all
+        );
+        all.redundancies = false;
+        assert_eq!(
+            parse("--deterministic --style fillers,cliches")
+                .unwrap()
+                .over(writers)
+                .style_check,
+            all
+        );
+        for bad in ["fillers,", ",cliches", "on,fillers", "fillers,jargon"] {
+            let error = parse(&format!("--style {bad}")).unwrap_err().to_string();
+            assert!(error.starts_with("--style: "));
             assert!(!error.contains('\n'));
         }
     }

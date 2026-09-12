@@ -53,10 +53,11 @@ use gtk::gdk;
 use gtk::pango;
 use gtk::prelude::*;
 use quill_engine::annotate::live::{self, Fold, Furniture, LiveLook};
-use quill_engine::annotate::{self, Ink, Look, Mark, Slant, Span, Weight};
+use quill_engine::annotate::{self, Annotated, Ink, Look, Mark, Slant, Span, Weight};
 use quill_engine::document::Document;
 use quill_engine::focus::{self, Focus, LineTiers, Tier};
 use quill_engine::settings::Face;
+use quill_engine::style::List;
 use quill_engine::theme::{Colour, Colours, Role};
 use quill_engine::typography;
 
@@ -294,6 +295,69 @@ fn struck(buffer: &gtk::TextBuffer) -> gtk::TextTag {
     tag(buffer, "decoration-strike", |tag| {
         tag.set_strikethrough(true);
     })
+}
+
+/// What every Style check tag's name begins with, so that [`repaint`] can take
+/// the three off a range without naming them one by one.
+const STYLE_MARK: &str = "decoration-style-";
+
+/// The tag that strikes a phrase `list` matched through.
+///
+/// Three tags, one per List, identical in every property. The split is for the
+/// toggle and not for telling the Lists apart: a writer switching Clichés off
+/// takes that tag off the page and leaves the other two where they are, and
+/// the mark itself is one mark whichever List asked for it (#356).
+///
+/// A Pango strikethrough and nothing else, because the colour is already
+/// there: the mark re-inks its run to [`Role::Quiet`] in the flattening
+/// ([`quill_engine::annotate::Ink::Struck`]), and a strikethrough with no
+/// colour of its own is drawn in the run's foreground. So the glyphs and the
+/// rule come out the one colour the Design oracle draws them in, the strike
+/// follows the run into the Focus dim, and a Category the word was carrying is
+/// gone before this tag is asked for (#354, `ref/ia/mac-native/VERDICTS.md`
+/// § The Style Check mark; `docs/design.md` § Rows, Style check mark).
+///
+/// The rule's **thickness and position** are not set here either, because a
+/// `gtk::TextTag` has neither: Pango draws what the Face asks for, so the
+/// oracle's 2 px on the x-height centre is pinned into the six Faces by
+/// `tools/fontbuild.py` (`docs/design.md` § Rows, Style check mark). Only a
+/// strikethrough reads those two metrics, so Markdown's `~~` takes the same
+/// rule and nothing else on the page moves.
+fn style_mark(buffer: &gtk::TextBuffer, list: List) -> gtk::TextTag {
+    tag(buffer, &style_mark_name(list), |tag| {
+        tag.set_strikethrough(true);
+    })
+}
+
+/// The name of the tag that strikes `list`: the List's own settings key under
+/// [`STYLE_MARK`], and the one place a List and its tag are tied together.
+fn style_mark_name(list: List) -> String {
+    format!("{STYLE_MARK}{}", list.key())
+}
+
+/// Rules every mark Style check draws through, over the bytes `at`.
+///
+/// After the colour runs, which have already re-inked these same bytes to the
+/// struck ink: the rule takes that colour by carrying none of its own. The
+/// ranges are [`crate::syntax::Syntax::struck_in`]'s — the enabled Lists only,
+/// merged across the whitespace between two abutting spans so the line is
+/// unbroken — which is the same list the flattening inked, so the rule and the
+/// glyphs under it can never disagree about where a mark begins.
+///
+/// The spans the store holds are every List's, enabled or not, so a List
+/// switched off is a repaint and never a re-match.
+fn strike_lists(
+    buffer: &gtk::TextBuffer,
+    document: &Document,
+    painting: Painting,
+    at: &Range<usize>,
+) {
+    let syntax = painting.syntax.borrow();
+    for (span, list) in syntax.struck_in(document, at) {
+        let from = iter_at(buffer, document, span.start);
+        let to = iter_at(buffer, document, span.end);
+        buffer.apply_tag(&style_mark(buffer, list), &from, &to);
+    }
 }
 
 /// The tag that closes a folded inline delimiter up.
@@ -649,7 +713,9 @@ pub trait Measure {
 /// drawn in the colours of the moment it is applied.
 #[derive(Clone, Copy)]
 pub struct Painting<'a> {
-    /// Retained Category spans, read only over the range being drawn.
+    /// Both Annotators' retained spans and their tables, read only over the
+    /// range being drawn: the Categories that colour it and the List spans
+    /// struck across it.
     pub syntax: &'a std::cell::RefCell<crate::syntax::Syntax>,
     /// The Face the Editor is set in.
     pub face: Face,
@@ -776,7 +842,8 @@ pub fn recolour(buffer: &gtk::TextBuffer, at: &Range<i32>, was: Colour, now: Col
     buffer.apply_tag(&colour(buffer, &now.to_hex(), now.opacity()), &from, &to);
 }
 
-/// Replaces foreground colours without touching paragraph or Live properties.
+/// Replaces foreground colours and Style check marks without touching
+/// paragraph or Live properties.
 ///
 /// Syntax answers and toggles change ink only. A structural retag would clear
 /// the well's spacing on neighbouring lines and could leave half of a paired
@@ -811,8 +878,15 @@ pub fn repaint(
             )
         })
         .collect();
+    // The Style check marks come off with the colours and go back on with
+    // them: a List switched off answers the switch here, at once and without
+    // the matcher running again, and the two tags a still-enabled List's
+    // neighbours carry go back exactly where they were.
     buffer.tag_table().foreach(|tag| {
-        if tag.name().is_some_and(|name| name.starts_with("colour-")) {
+        if tag
+            .name()
+            .is_some_and(|name| name.starts_with("colour-") || name.starts_with(STYLE_MARK))
+        {
             for (from, to) in &offsets {
                 buffer.remove_tag(tag, from, to);
             }
@@ -826,6 +900,7 @@ pub fn repaint(
             let ink = run.paint.colour;
             buffer.apply_tag(&colour(buffer, &ink.to_hex(), ink.opacity()), &from, &to);
         }
+        strike_lists(buffer, document, painting, &at);
     }
 }
 
@@ -837,10 +912,14 @@ fn painted(
 ) -> Vec<annotate::Painted> {
     let syntax = painting.syntax.borrow();
     let tagged = syntax.spans_in(document, at);
+    let struck = syntax.struck_ranges_in(document, at);
     annotate::paint_tagged_in(
         spans,
-        &tagged,
-        syntax.categories(),
+        Annotated {
+            tagged: &tagged,
+            enabled: syntax.categories(),
+            struck: &struck,
+        },
         at,
         painting.tiers,
         painting.focus,
@@ -861,10 +940,16 @@ pub fn offsets_of(buffer: &gtk::TextBuffer, document: &Document, at: &Range<usiz
 /// Puts every tag the bytes `at` ask for on to `buffer`.
 ///
 /// Several tags land on the same bytes, which is safe here for one reason and
-/// only one: no two of them set the same property. The colour, the cut, the
-/// ground and the two decorations are five disjoint sets, so priority never
-/// has to decide between them — and priority is what the flattening exists to
-/// keep out of the colour, where they *would* collide.
+/// only one: no two of them set the same property to different values. The
+/// colour, the cut, the ground and the decorations are disjoint sets, so
+/// priority never has to decide between them — and priority is what the
+/// flattening exists to keep out of the colour, where they *would* collide.
+///
+/// The one pair that meets is a `~~` strike and a Style check mark over the
+/// same phrase: both set `strikethrough` and both set it `true`, so whichever
+/// priority picks draws the same line, and the two are told apart on the page
+/// by the colour under it — Markup's ink for the `~~` run, the body's for the
+/// prose (#356).
 ///
 /// A run is clipped to `at` and a paragraph tag is not, because the two are
 /// different kinds of thing: a run draws the bytes it covers, and the caller
@@ -902,6 +987,7 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
             buffer.apply_tag(&ground(buffer, &colours), &from, &to);
         }
     }
+    strike_lists(buffer, document, painting, at);
     for span in &spans {
         if span.at.end <= at.start {
             continue;
@@ -1325,6 +1411,33 @@ mod tests {
             &crate::ground::Ground::of(scheme).colours,
         )
         .to_hex()
+    }
+
+    /// Each List is struck through a tag named for that List's own settings
+    /// key, and no two Lists share a name.
+    ///
+    /// A tag wired to the wrong key would strike one List's phrases when
+    /// another's switch moved, and the `style` Piece cannot catch it: its nine
+    /// states shoot two of the eight List combinations, every List on and
+    /// Fillers alone (#356).
+    #[test]
+    fn every_list_is_struck_through_a_tag_named_for_its_own_key() {
+        let names = List::ALL.map(style_mark_name);
+        assert_eq!(
+            names,
+            [
+                "decoration-style-fillers",
+                "decoration-style-redundancies",
+                "decoration-style-cliches",
+            ]
+            .map(String::from)
+        );
+        for name in &names {
+            assert!(
+                name.starts_with(STYLE_MARK),
+                "{name} is not one `repaint` takes off",
+            );
+        }
     }
 
     /// The judged step: the ladder's default, whose em is 21.33 logical
