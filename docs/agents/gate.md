@@ -70,7 +70,7 @@ names it). `tools/gate bench` runs the headline regime, `prose_end_of_draft` at 
 10,062-word `shots/latency/doc10k.md`, with real keys through `/dev/uinput` and presentation from
 `GdkFrameTimings` on the dedicated scale-2 headless output. Hard budget, uinput `write(2)` →
 presented: **≤ 5 ms mean, ≤ 16 ms worst**. Cold start, `exec` → first complete frame with a non-zero
-presentation time, the same document open: **≤ 250 ms**. `--all` runs all sixteen regimes of
+presentation time, the same document open: **≤ 250 ms**. `--all` runs all seventeen regimes of
 `tools/regimes.mjs` instead — each on its own launch, at its own caret, Focus and pace — and
 `--regimes a,b` runs only the subset named; both print one line per regime and write one summary
 beside the per-regime results, and — when every regime ran and accounted for its keys — a last line

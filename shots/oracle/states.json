@@ -14,6 +14,7 @@
     "live": false,
     "syntax": "off",
     "style": "off",
+    "stats": "words,characters,readingTime",
     "chrome": "on",
     "caret": 403,
     "select": null,
@@ -307,6 +308,17 @@
       },
       "palette": {
         "menu": "palette"
+      },
+      "stats-menu": {
+        "menu": "stats"
+      },
+      "selection": {
+        "text": "ref/short.md",
+        "select": [
+          25,
+          149
+        ],
+        "caret": 149
       }
     },
     "files": {
