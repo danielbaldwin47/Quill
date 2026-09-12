@@ -39,6 +39,7 @@ use quill_engine::sync;
 use crate::caret;
 use crate::chrome;
 use crate::conflict;
+use crate::corrections;
 use crate::files::{self, Leaving, Standing, Where};
 use crate::flags;
 use crate::ground::Ground;
@@ -440,6 +441,7 @@ impl Window {
         chrome::install_window(&window);
         window.imp().editor.grab_focus();
         window.watch_active();
+        window.watch_corrections();
         // A window is remembered as it closes rather than at shutdown, so that
         // the last window a writer sized is the first one the next launch
         // reads, whichever of its windows they closed first. What its Document
@@ -3317,6 +3319,77 @@ impl Window {
             glib::Propagation::Proceed
         });
         self.imp().editor.add_controller(releases);
+    }
+
+    /// Puts Spell check's corrections on the Editor: the `spell` action group
+    /// and the two moments the section is built at ([`crate::corrections`]).
+    ///
+    /// Here rather than in the Editor because both halves want the Document,
+    /// and Add and Ignore want the wake that drains the answer. Both
+    /// controllers run in the capture phase and take nothing: the press is
+    /// still GTK's to open its menu with, and the chord still GTK's binding.
+    fn watch_corrections(&self) {
+        let replace = self.downgrade();
+        let add = self.downgrade();
+        let ignore = self.downgrade();
+        let actions = corrections::actions(
+            move |suggestion| {
+                if let Some(window) = replace.upgrade() {
+                    window.imp().editor.replace(suggestion);
+                }
+            },
+            move |word| {
+                if let Some(window) = add.upgrade() {
+                    window.edit_dictionary(quill_engine::worker::Edit::Add(word.to_owned()));
+                }
+            },
+            move |word| {
+                if let Some(window) = ignore.upgrade() {
+                    window.edit_dictionary(quill_engine::worker::Edit::Ignore(word.to_owned()));
+                }
+            },
+        );
+        self.imp()
+            .editor
+            .insert_action_group(corrections::GROUP, Some(&actions));
+
+        let presses = gtk::GestureClick::new();
+        presses.set_button(gdk::BUTTON_SECONDARY);
+        presses.set_propagation_phase(gtk::PropagationPhase::Capture);
+        let watcher = self.downgrade();
+        presses.connect_pressed(move |_, _, x, y| {
+            let Some(window) = watcher.upgrade() else {
+                return;
+            };
+            if let Ok(filed) = window.imp().filed.try_borrow() {
+                window.imp().editor.correct(filed.document(), Some((x, y)));
+            }
+        });
+        self.imp().editor.add_controller(presses);
+
+        let keys = gtk::EventControllerKey::new();
+        keys.set_propagation_phase(gtk::PropagationPhase::Capture);
+        let watcher = self.downgrade();
+        keys.connect_key_pressed(move |_, key, _, state| {
+            let menu = key == gdk::Key::Menu
+                || (key == gdk::Key::F10 && state.contains(gdk::ModifierType::SHIFT_MASK));
+            if let Some(window) = watcher.upgrade().filter(|_| menu)
+                && let Ok(filed) = window.imp().filed.try_borrow()
+            {
+                window.imp().editor.correct(filed.document(), None);
+            }
+            glib::Propagation::Proceed
+        });
+        self.imp().editor.add_controller(keys);
+    }
+
+    /// Sends an Add or an Ignore and wakes the drain for the Document it
+    /// asks for again.
+    fn edit_dictionary(&self, edit: quill_engine::worker::Edit) {
+        if let Ok(filed) = self.imp().filed.try_borrow() {
+            self.imp().editor.edit_dictionary(edit, filed.document());
+        }
+        self.rearm();
     }
 }
 
