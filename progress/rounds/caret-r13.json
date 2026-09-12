@@ -1,0 +1,129 @@
+{
+  "piece": "caret",
+  "round": 13,
+  "winner": "ours",
+  "margin": "slight",
+  "gap": "The caret has zero clear background pixels on either side: its left column (x=357) butts the 'l' foot bar's last ink at x=356 and its right column (x=362) butts the 'a' at x=363, so at the baseline the blue bar fuses to the letterforms; A keeps one clear column at the foot. It also fills 73.89 of the 74 px line pitch (99.9%), leaving no gap between stacked line boxes, vs A's 73.04 (98.7%).",
+  "gapTheirs": "The caret is not snapped to the device pixel grid: it lands at x 357.20–363.20 and y 93.48–166.52, so instead of B's six solid columns of #00BFFF it renders as five solid columns flanked by an 80%-alpha column at x=357 and a 19%-alpha pale-blue ghost at x=363, with its top and bottom rows at 52% opacity. Same 6.0 px width, ~30% less edge contrast — a caret with a halo instead of an edge.",
+  "verdict": "These are the same caret — same deepskyblue, same 3 CSS px width, same rounded caps, same full-line-box height — except that B's lands on the pixel grid and A's misses it by a fifth of a pixel and half a pixel vertically. That fifth of a pixel is the whole argument: A's caret has an 80%-opacity left edge, a 19%-opacity ghost column on its right, and half-lit tips, so when it blinks it fades in as a smudge rather than switching on as a blade. B's is six columns of solid ink, off or on, nothing in between. Neither app earns any credit for the caret itself: a saturated #00BFFF bar overshooting the capline by 18–20 px and hanging 16 px past the 'p' descender is the loudest object on a near-white page, and with no selection in either shot the selection colour is simply unjudgeable.",
+  "oursShot": "shots/caret/r13-caret-ours-crop.png",
+  "theirsShot": "shots/caret/r13-caret-theirs-crop.png",
+  "refSource": "ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in ref/ia/mac-native/ (ADR 0015), cropped per state: caret from mac-native-01-light-caret-midword.png, selection from mac-native-08-light-selection-inline.png; no opponent for unfocused (ghost) — measured off ours' own pixels by tools/assert-state.mjs, because neither oracle holds the state (ADR 0017)",
+  "builderNote": "",
+  "secondary": [
+    "Identical caret hue #00BFFF on #F7F7F7 background in both — neither derives the caret from the body ink or a muted accent",
+    "Both carets are full-line-box height (~74 device px = exactly the 74 px line pitch), hanging ~16 px below the deepest descender",
+    "Both have ~1 px rounded caps; neither renders a flat-ended rule",
+    "No selection present in either screenshot — selection colour, band height and edge treatment cannot be assessed",
+    "A's tips at 52% opacity make the caret read ~1 px shorter than B's despite only a 0.85 px measured difference",
+    "A overshoots the capline by 68% of cap height (20.5/30) vs B's 56% (18.0/32) — B's caret is marginally better tied to the type",
+    "Blink cadence and caret motion are not observable from stills; only the static rendering was judged"
+  ],
+  "opponent": "mixed",
+  "build": {
+    "git": "9c06da9",
+    "binary": "ddbd9dd506db4295",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "caret",
+      "ours": "shots/caret/r13-caret-ours-crop.png",
+      "theirs": "shots/caret/r13-caret-theirs-crop.png",
+      "opponent": {
+        "capture": "ref/ia/shots/mac-native/mac-native-01-light-caret-midword.png",
+        "crop": [
+          459,
+          187,
+          720,
+          260
+        ],
+        "ours": [
+          392,
+          205,
+          720,
+          260
+        ]
+      },
+      "oursWhole": "shots/caret/r13-caret-ours.png",
+      "blind": "shots/blind/caret/caret",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "The caret has zero clear background pixels on either side: its left column (x=357) butts the 'l' foot bar's last ink at x=356 and its right column (x=362) butts the 'a' at x=363, so at the baseline the blue bar fuses to the letterforms; A keeps one clear column at the foot. It also fills 73.89 of the 74 px line pitch (99.9%), leaving no gap between stacked line boxes, vs A's 73.04 (98.7%).",
+      "gapTheirs": "The caret is not snapped to the device pixel grid: it lands at x 357.20–363.20 and y 93.48–166.52, so instead of B's six solid columns of #00BFFF it renders as five solid columns flanked by an 80%-alpha column at x=357 and a 19%-alpha pale-blue ghost at x=363, with its top and bottom rows at 52% opacity. Same 6.0 px width, ~30% less edge contrast — a caret with a halo instead of an edge.",
+      "verdict": "These are the same caret — same deepskyblue, same 3 CSS px width, same rounded caps, same full-line-box height — except that B's lands on the pixel grid and A's misses it by a fifth of a pixel and half a pixel vertically. That fifth of a pixel is the whole argument: A's caret has an 80%-opacity left edge, a 19%-opacity ghost column on its right, and half-lit tips, so when it blinks it fades in as a smudge rather than switching on as a blade. B's is six columns of solid ink, off or on, nothing in between. Neither app earns any credit for the caret itself: a saturated #00BFFF bar overshooting the capline by 18–20 px and hanging 16 px past the 'p' descender is the loudest object on a near-white page, and with no selection in either shot the selection colour is simply unjudgeable.",
+      "secondary": [
+        "Identical caret hue #00BFFF on #F7F7F7 background in both — neither derives the caret from the body ink or a muted accent",
+        "Both carets are full-line-box height (~74 device px = exactly the 74 px line pitch), hanging ~16 px below the deepest descender",
+        "Both have ~1 px rounded caps; neither renders a flat-ended rule",
+        "No selection present in either screenshot — selection colour, band height and edge treatment cannot be assessed",
+        "A's tips at 52% opacity make the caret read ~1 px shorter than B's despite only a 0.85 px measured difference",
+        "A overshoots the capline by 68% of cap height (20.5/30) vs B's 56% (18.0/32) — B's caret is marginally better tied to the type",
+        "Blink cadence and caret motion are not observable from stills; only the static rendering was judged"
+      ]
+    },
+    {
+      "name": "selection",
+      "ours": "shots/caret/r13-selection-ours-crop.png",
+      "theirs": "shots/caret/r13-selection-theirs-crop.png",
+      "opponent": {
+        "capture": "ref/ia/shots/mac-native/mac-native-08-light-selection-inline.png",
+        "crop": [
+          470,
+          187,
+          800,
+          260
+        ],
+        "ours": [
+          402,
+          203,
+          800,
+          260
+        ]
+      },
+      "oursWhole": "shots/caret/r13-selection-ours.png",
+      "blind": "shots/blind/caret/selection",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "The band is the full 74px pitch carrying roughly 40px of ink (32px ascender-to-baseline plus a 9px descender) — 1.85x the ink height, so the slab of blue visually outweighs the four words inside it; A's 70px is 4px less bulk for the same #ccedf8.",
+      "gapTheirs": "Selection band is 70px tall on a 74px line pitch (94.6%), so consecutive selected rows cannot tile — a 4px unselected f7f7f7 stripe combs through every multi-line selection; B's band is exactly 74px and tiles gapless. The band is also off-centre on the ink: 19px of blue above the ascenders vs 13px below the descenders, a 3px upward bias against B's 1.5px.",
+      "verdict": "Neither app will show me a caret — there is no vertical bar of any width, any tone, anywhere in either frame, which for a caret-and-cursor judgement is both sides failing the actual question. Given only the selection to go on, A's band is 70px inside a 74px line: drag down three paragraphs and you get hairline gutters striping the block, the combed look that reads as a rendering bug rather than a decision. B's band is the exact line pitch and sits 1.5px off the ink centre instead of 3px, so it tiles clean and doesn't lean. That 4px is the whole of it, and it is the only thing either image gives me to decide on.",
+      "secondary": [
+        "selection colour identical in both: #ccedf8, exact same hex, no difference to judge",
+        "both selection rects have hard 1px edges, no antialiased feathering on either",
+        "no caret visible in either image — caret width, colour, height and blink state are all unjudgeable here",
+        "A's background carries +/-1 RGB dither: 26 unique colours in a blank 200x30 region vs B's single f7f7f7 — grain under and around the band",
+        "A's type is ~7% smaller at the same 74px pitch (h ascender 30px vs B's 32px), so A's band holds less ink in nearly the same air",
+        "both bands stop mid-trailing-space after 'been' with ~12px before the 'l' of 'lit' — same focus behaviour"
+      ]
+    },
+    {
+      "name": "unfocused",
+      "ours": "shots/caret/r13-unfocused-ours.png",
+      "theirs": null,
+      "lit": "shots/caret/r13-unfocused-ours-lit.png",
+      "assert": {
+        "kind": "ghost",
+        "alpha": 0.3,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "the ghost is the lit bar at alpha 0.302 over the paper, against the 0.3 docs/design.md row Caret on window deactivation names; the bar is x 1943..1948, y 728..801 lit and ghosted alike — deactivating the window moves it by nothing",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)",
+      "verdict": "the ghost is the lit bar at alpha 0.302 over the paper, against the 0.3 docs/design.md row Caret on window deactivation names; the bar is x 1943..1948, y 728..801 lit and ghosted alike — deactivating the window moves it by nothing",
+      "secondary": [
+        "the bar is x 1943..1948, y 728..801 lit and ghosted alike — deactivating the window moves it by nothing",
+        "alpha solved per channel from the two shots, not from a hex written down here"
+      ]
+    }
+  ],
+  "at": "2026-09-11T04:41:19.772Z"
+}
