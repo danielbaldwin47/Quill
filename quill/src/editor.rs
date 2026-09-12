@@ -318,7 +318,7 @@ mod imp {
         pub opened: Cell<bool>,
         /// The misspelled word the caret rule last left unwaved, so that the
         /// caret leaving it repaints it.
-        pub withheld: RefCell<Option<std::ops::Range<usize>>>,
+        pub unwaved: RefCell<Option<std::ops::Range<usize>>>,
         /// Where the last edit left a word being typed, the caret rule's
         /// arming: set by an insert ending in a word character, cleared by any
         /// other edit and by a caret move away from it.
@@ -929,7 +929,7 @@ impl Editor {
         }
         let switched = self.imp().syntax.borrow_mut().configure_spell(on, document);
         if resolving || switched {
-            self.imp().withheld.take();
+            self.imp().unwaved.take();
             self.repaint_spans(document);
         }
     }
@@ -964,13 +964,13 @@ impl Editor {
         if self.imp().typed.get() != Some(caret) {
             self.imp().typed.set(None);
         }
-        let now = tags::withheld(
+        let now = tags::unwaved_word(
             &buffer,
             document,
             &self.imp().syntax.borrow(),
             self.imp().typed.get(),
         );
-        let was = self.imp().withheld.replace(now.clone());
+        let was = self.imp().unwaved.replace(now.clone());
         if was == now {
             return;
         }
@@ -1861,7 +1861,7 @@ impl Editor {
             self.resolve_spell(document);
         }
         self.imp().opened.set(true);
-        self.imp().withheld.take();
+        self.imp().unwaved.take();
         self.imp().typed.take();
         let buffer = self.buffer();
         self.imp().loading.set(true);
@@ -1914,13 +1914,13 @@ impl Editor {
         self.imp()
             .typed
             .set(quill_engine::spell::typed_to(document.text(), &edit.splice));
-        let held = tags::withheld(
+        let held = tags::unwaved_word(
             &self.buffer(),
             document,
             &self.imp().syntax.borrow(),
             self.imp().typed.get(),
         );
-        self.imp().withheld.replace(held);
+        self.imp().unwaved.replace(held);
         // An edit moves the caret as well as the text, so the tiers are worked
         // out again here rather than left to the caret's own feed: the lines
         // the edit changed and the lines the dim moved across are drawn in the

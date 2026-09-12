@@ -15,7 +15,8 @@ use quill_engine::settings::{StyleCheck, SyntaxHighlight};
 use quill_engine::spell::{self, Misspelling, Resolved};
 use quill_engine::style::List;
 use quill_engine::worker::{
-    Annotators, Checker, Edit as Dictionary, Paragraph, ParagraphResult, Request, SpanStore, Worker,
+    Annotators, Checker, Edit as DictionaryEdit, Paragraph, ParagraphResult, Request, SpanStore,
+    Worker,
 };
 
 use crate::session::StyleToggle;
@@ -119,7 +120,7 @@ pub struct Syntax {
     /// The dictionary edits a new worker is handed before anything else: the
     /// language, then the words ignored under it. An Add is the dictionary's
     /// own file and is not kept.
-    dictionary: Vec<Dictionary>,
+    dictionary: Vec<DictionaryEdit>,
     /// What the `spell_language` setting last resolved to among the installed
     /// dictionaries, and `None` before it has been resolved.
     resolution: Option<Resolved>,
@@ -411,14 +412,9 @@ impl Syntax {
         locale: impl Fn(&str) -> Option<String>,
         document: &Document,
     ) {
-        let wanted = if language.is_empty() {
-            spell::locale_tag(locale)
-        } else {
-            language.to_owned()
-        };
-        let resolved = spell::resolve(&wanted, installed);
+        let resolved = spell::resolve_setting(language, installed, locale);
         let was = self.wanted();
-        let edit = Dictionary::Language(resolved.tag().map(str::to_owned));
+        let edit = DictionaryEdit::Language(resolved.tag().map(str::to_owned));
         self.resolution = Some(resolved);
         // The same language keeps the words ignored under it; another drops
         // them, as the worker's own handle does.
@@ -459,16 +455,16 @@ impl Syntax {
     /// nothing is asked.
     pub(crate) fn edit_dictionary(
         &mut self,
-        edit: Dictionary,
+        edit: DictionaryEdit,
         document: &Document,
         viewport: Range<usize>,
     ) {
         match &edit {
-            Dictionary::Language(_) if self.dictionary.first() != Some(&edit) => {
+            DictionaryEdit::Language(_) if self.dictionary.first() != Some(&edit) => {
                 self.dictionary = vec![edit.clone()];
             }
-            Dictionary::Ignore(_) => self.dictionary.push(edit.clone()),
-            Dictionary::Language(_) | Dictionary::Add(_) => {}
+            DictionaryEdit::Ignore(_) => self.dictionary.push(edit.clone()),
+            DictionaryEdit::Language(_) | DictionaryEdit::Add(_) => {}
         }
         if let Err(error) = self.worker.edit(edit) {
             eprintln!("Spell check worker: {error}");
@@ -1088,12 +1084,12 @@ mod tests {
         assert!(syntax.request(&document, 0..3).is_none());
         // A tag no provider serves, so the thread loads and writes nothing
         // whatever dictionaries this machine has.
-        let language = Dictionary::Language(Some("zz_QUILL".into()));
-        let ignore = Dictionary::Ignore("dgo".into());
+        let language = DictionaryEdit::Language(Some("zz_QUILL".into()));
+        let ignore = DictionaryEdit::Ignore("dgo".into());
         for edit in [
             language.clone(),
             ignore.clone(),
-            Dictionary::Add("Teh".into()),
+            DictionaryEdit::Add("Teh".into()),
         ] {
             syntax.edit_dictionary(edit.clone(), &document, 1..2);
             assert!(syntax.worker.is_running(), "{edit:?} reached no worker");
@@ -1110,8 +1106,8 @@ mod tests {
         // Off, an edit still goes and nothing is asked; a new language drops
         // the words ignored under the old one.
         assert!(syntax.configure_spell(false, &document));
-        syntax.edit_dictionary(Dictionary::Language(None), &document, 0..1);
-        assert_eq!(syntax.dictionary, [Dictionary::Language(None)]);
+        syntax.edit_dictionary(DictionaryEdit::Language(None), &document, 0..1);
+        assert_eq!(syntax.dictionary, [DictionaryEdit::Language(None)]);
         assert!(syntax.request(&document, 0..1).is_none());
     }
 
@@ -1125,14 +1121,14 @@ mod tests {
         syntax.resolve_language("", &installed, locale, &document);
         assert_eq!(
             syntax.dictionary,
-            [Dictionary::Language(Some("en_US".into()))]
+            [DictionaryEdit::Language(Some("en_US".into()))]
         );
         assert_eq!(syntax.resolution(), Some(&Resolved::Exact("en_US".into())));
         assert!(syntax.wanted().spell);
         // `--spell on:xx_XX`: no provider serves it, so the worker is handed
         // no dictionary, nothing is asked and the tag it wanted is kept.
         syntax.resolve_language("xx_XX", &installed, locale, &document);
-        assert_eq!(syntax.dictionary, [Dictionary::Language(None)]);
+        assert_eq!(syntax.dictionary, [DictionaryEdit::Language(None)]);
         assert_eq!(syntax.resolution().map(Resolved::wanted), Some("xx_XX"));
         assert!(syntax.spell(), "the setting stays on");
         assert!(!syntax.wanted().spell);

@@ -28,7 +28,7 @@
 // Everything here is a pure function of decoded PNGs, so `tools/judge-selftest.mjs` runs it over
 // constructed images and recorded native captures; no window is needed to test the rules.
 
-import { SPELL, SPELL_DARK, decodePng, readBar } from './keys-assert.mjs';
+import { SPELL, SPELL_DARK, decodePng, isSpellInk, readBar } from './keys-assert.mjs';
 
 // How far the measured alpha may sit from the one the state names.
 //
@@ -326,19 +326,10 @@ const SPELL_BELOW = 16;
 // `(r - g) / (r - b)` may stray from the Role's. Lower than `isSpellInk`'s chroma floor, because a
 // wave dimmed with its sentence under Focus on the light ground leads by less than that one's 40;
 // the paper is neutral, so a dimmed or antialiased wave keeps the Role's ratio.
-const SPELL_CHROMA = 12;
-const SPELL_HUE = 0.25;
+const WAVE_HUED = { chroma: 12, hue: 0.25 };
 // The tallest the status line's band may be, in device px, and the share of the window above it.
 const STATUS_TALL = 120;
 const STATUS_FOOT = 0.75;
-
-// Whether the pixel at (x, y) is `role`'s hue, at any strength over a neutral ground.
-function spellHued(png, x, y, role) {
-  const [r, g, b] = [0, 1, 2].map((c) => at(png, x, y, c));
-  if (r - Math.max(g, b) < SPELL_CHROMA) return false;
-  const want = (role.r - role.g) / (role.r - role.b);
-  return Math.abs((r - g) / (r - b) - want) <= SPELL_HUE;
-}
 
 function spellSpec(spec) {
   const extra = Object.keys(spec).filter((k) => !['kind', 'theme', 'words', 'status'].includes(k));
@@ -369,7 +360,7 @@ function spell(spec, { lit, dim }) {
       const hit = x < page.w && !sameRgb([0, 1, 2].map((c) => at(page, x, y, c)), [0, 1, 2].map((c) => at(source, x, y, c)));
       if (hit) {
         changed += 1;
-        if (spellHued(page, x, y, role)) hued += 1;
+        if (isSpellInk(page, x, y, role, WAVE_HUED)) hued += 1;
         changedBox.left = Math.min(changedBox.left, x);
         changedBox.right = Math.max(changedBox.right, x);
         changedBox.top = Math.min(changedBox.top, y);
@@ -476,7 +467,7 @@ function spell(spec, { lit, dim }) {
       for (let x = wave.left; x <= wave.right; x += 1) {
         if (sameRgb([0, 1, 2].map((c) => at(page, x, y, c)), [0, 1, 2].map((c) => at(source, x, y, c)))) continue;
         all += 1;
-        if (spellHued(page, x, y, role)) own += 1;
+        if (isSpellInk(page, x, y, role, WAVE_HUED)) own += 1;
       }
     }
     if (own < all * SPELL_SHARE) return no(`a spell wave at ${where} is the spell Role in ${own} of its ${all} changed pixels`);
