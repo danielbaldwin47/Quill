@@ -380,15 +380,72 @@ const SPELL_MARK: &str = "decoration-spell";
 /// The rule that two underline tags never meet holds against [`underline`]:
 /// the link-rule tag underlines a destination, never a prose word, and only
 /// prose words are checked. [`link_rule`] is the one that can meet it, on a
-/// misspelled link word under Live, where priority picks which underline is
-/// drawn.
-fn misspelling(buffer: &gtk::TextBuffer, colours: &Colours) -> gtk::TextTag {
-    let mark = tag(buffer, SPELL_MARK, |tag| {
+/// misspelled link word under Live, and the wave is the one drawn there, with
+/// no rule beside it (#401 § Further Notes): both set `underline`, so the tag
+/// is lifted to the top of the table each time it is asked for, as [`hidden`]
+/// is.
+///
+/// Out of focus the wave dims with the words over it. `underline-rgba` is the
+/// tag's own colour, which the run's dim never reaches, so a dimmed word takes
+/// a second tag whose red is dimmed the way the body's ink is ([`dimmed`]).
+fn misspelling(buffer: &gtk::TextBuffer, colours: &Colours, tier: Tier) -> gtk::TextTag {
+    let red = colours.colour(Role::Spell);
+    let (name, red) = match tier {
+        Tier::Bright => (SPELL_MARK.to_owned(), red),
+        Tier::Dim => (format!("{SPELL_MARK}-dim"), dimmed(colours, red)),
+    };
+    let mark = tag(buffer, &name, |tag| {
         tag.set_underline(pango::Underline::Error);
     });
-    let red = colours.colour(Role::Spell).to_hex();
-    mark.set_underline_rgba(Some(&shaded(&red, Look::OPAQUE)));
+    mark.set_underline_rgba(Some(&shaded(&red.to_hex(), Look::OPAQUE)));
+    let top = buffer.tag_table().size() - 1;
+    if mark.priority() < top {
+        mark.set_priority(top);
+    }
     mark
+}
+
+/// `colour` dimmed as Focus dims the body: moved towards the paper by the
+/// share of the way [`Role::InkDim`] has moved from [`Role::Ink`].
+fn dimmed(colours: &Colours, colour: Colour) -> Colour {
+    let ink = colours.colour(Role::Ink);
+    let dim = colours.colour(Role::InkDim);
+    let paper = colours.colour(Role::Paper);
+    let whole = (ink.red - paper.red) + (ink.green - paper.green) + (ink.blue - paper.blue);
+    let left = (dim.red - paper.red) + (dim.green - paper.green) + (dim.blue - paper.blue);
+    let share = if whole.abs() < f64::EPSILON {
+        1.0
+    } else {
+        left / whole
+    };
+    let towards = |from: f64, to: f64| to + (from - to) * share;
+    Colour {
+        red: towards(colour.red, paper.red),
+        green: towards(colour.green, paper.green),
+        blue: towards(colour.blue, paper.blue),
+        alpha: colour.alpha,
+    }
+}
+
+/// The misspelled word the caret rule leaves unwaved, for the caret where the
+/// buffer now holds it, or `None`.
+///
+/// Read off the buffer at paint rather than carried, so that every draw —
+/// a keystroke's retag, a worker answer, a toggle — withholds the same word.
+/// A selection withholds nothing: a word selected by a right-click keeps its
+/// wave under the menu (#401 § Corrections).
+pub fn withheld(
+    buffer: &gtk::TextBuffer,
+    document: &Document,
+    syntax: &crate::syntax::Syntax,
+) -> Option<Range<usize>> {
+    if buffer.has_selection() {
+        return None;
+    }
+    let caret = offset_of(document, &buffer.iter_at_mark(&buffer.get_insert()));
+    let line = document.line_bytes(document.place(caret).line);
+    let words = syntax.misspelled_in(document, &line);
+    quill_engine::spell::withheld(&words, caret, document.text())
 }
 
 /// Waves under every word Spell check marks over the bytes `at`.
@@ -403,15 +460,20 @@ fn mark_misspellings(
     painting: Painting,
     at: &Range<usize>,
 ) {
-    let words = painting.syntax.borrow().misspelled_in(document, at);
+    let syntax = painting.syntax.borrow();
+    let words = syntax.misspelled_in(document, at);
     if words.is_empty() {
         return;
     }
-    let mark = misspelling(buffer, &painting.colours);
+    let held = withheld(buffer, document, &syntax);
     for word in words {
+        if held.as_ref() == Some(&word) {
+            continue;
+        }
+        let tier = focus::tier_in(painting.tiers, painting.focus, &word);
         let from = iter_at(buffer, document, word.start);
         let to = iter_at(buffer, document, word.end);
-        buffer.apply_tag(&mark, &from, &to);
+        buffer.apply_tag(&misspelling(buffer, &painting.colours, tier), &from, &to);
     }
 }
 
@@ -939,7 +1001,9 @@ pub fn repaint(
     // neighbours carry go back exactly where they were.
     buffer.tag_table().foreach(|tag| {
         if tag.name().is_some_and(|name| {
-            name.starts_with("colour-") || name.starts_with(STYLE_MARK) || name == SPELL_MARK
+            name.starts_with("colour-")
+                || name.starts_with(STYLE_MARK)
+                || name.starts_with(SPELL_MARK)
         }) {
             for (from, to) in &offsets {
                 buffer.remove_tag(tag, from, to);
