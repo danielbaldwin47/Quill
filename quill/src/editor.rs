@@ -309,6 +309,15 @@ mod imp {
     pub struct Editor {
         /// Source-mapped Syntax highlight spans; no Document is retained here.
         pub syntax: RefCell<crate::syntax::Syntax>,
+        /// The `spell_language` setting, held for the resolution a Document's
+        /// opening makes ([`Editor::show_document`](super::Editor::show_document)).
+        pub spell_language: RefCell<String>,
+        /// Whether a Document has been shown: before one is, a language is
+        /// resolved by the showing rather than by the setter.
+        pub opened: Cell<bool>,
+        /// The misspelled word the caret rule last left unwaved, so that the
+        /// caret leaving it repaints it.
+        pub withheld: RefCell<Option<std::ops::Range<usize>>>,
         /// The Face this Editor is set in.
         pub face: Cell<Face>,
         /// Which of the type ladder's fourteen steps the Editor is set at.
@@ -877,6 +886,66 @@ impl Editor {
         self.repaint_spans(document);
     }
 
+    /// Switches Spell check and its language.
+    ///
+    /// The language is resolved — the installed dictionaries listed through a
+    /// throwaway broker — when a Document opens ([`Editor::show_document`]),
+    /// when Spell check comes on, so a dictionary installed meanwhile is found,
+    /// and when the setting moves; never on a save that moved neither. Off
+    /// takes the wave off the buffer at once and asks for nothing; on asks for
+    /// the Document again (#401 § Toggle, Commands and state).
+    pub(crate) fn set_spell(&self, on: bool, language: &str, document: &Document) {
+        let moved = self.imp().spell_language.replace(language.to_owned()) != language;
+        let was = self.imp().syntax.borrow().spell();
+        let resolving = on && self.imp().opened.get() && (moved || !was);
+        if resolving {
+            self.resolve_spell(document);
+            if was && self.imp().syntax.borrow().wanted().spell {
+                let viewport = self.viewport(document);
+                self.imp().syntax.borrow_mut().ask_again(document, viewport);
+            }
+        }
+        let switched = self.imp().syntax.borrow_mut().configure_spell(on, document);
+        if resolving || switched {
+            self.imp().withheld.take();
+            self.repaint_spans(document);
+        }
+    }
+
+    /// Resolves the held `spell_language` and hands the worker its dictionary.
+    fn resolve_spell(&self, document: &Document) {
+        let language = self.imp().spell_language.borrow().clone();
+        self.imp().syntax.borrow_mut().resolve_language(
+            &language,
+            &quill_engine::spell::installed_languages(),
+            |name| std::env::var(name).ok(),
+            document,
+        );
+    }
+
+    /// Repaints the misspelled word the caret has just released, and the one
+    /// it has just stepped into.
+    ///
+    /// Called on a caret move. An edit's own redraw has already painted the
+    /// caret's line by the rule, so there it only takes the note.
+    pub(crate) fn rewithhold(&self, document: &Document) {
+        let now = tags::withheld(&self.buffer(), document, &self.imp().syntax.borrow());
+        let was = self.imp().withheld.replace(now.clone());
+        if was == now {
+            return;
+        }
+        let end = document.text().len();
+        let lines: Vec<_> = [was, now]
+            .into_iter()
+            .flatten()
+            .map(|word| {
+                document.place(word.start.min(end)).line..document.place(word.end.min(end)).line + 1
+            })
+            .collect();
+        let tiers = self.imp().tiers.borrow();
+        tags::repaint(&self.buffer(), document, self.painting(&tiers), &lines);
+    }
+
     /// Whether an Annotator has a paragraph still to ask the worker about.
     pub(crate) fn asking(&self) -> bool {
         self.imp().syntax.borrow().asking()
@@ -905,13 +974,16 @@ impl Editor {
 
     /// Captures dirty prose after the debounce, with the laid-out viewport first.
     pub(crate) fn submit_syntax(&self, document: &Document) {
+        let viewport = self.viewport(document);
+        self.imp().syntax.borrow_mut().submit(document, viewport);
+    }
+
+    /// The laid-out blocks, by index, that a request asks about first.
+    fn viewport(&self, document: &Document) -> Range<usize> {
         let at = self.furnished(document);
         let first = document.block_at(at.start).unwrap_or(0);
         let last = document.block_at(at.end).unwrap_or(first);
-        self.imp()
-            .syntax
-            .borrow_mut()
-            .submit(document, first..last + 1);
+        first..last + 1
     }
 
     /// Drains a bounded idle batch and redraws only its accepted paragraphs.
@@ -1620,6 +1692,15 @@ impl Editor {
     /// the buffer stand down.
     pub fn show_document(&self, document: &Document) {
         self.imp().syntax.borrow_mut().reset(document);
+        // After the reset, which indexes this Document, so the language edit
+        // follows the kept ones to the new worker and the first request after
+        // it is checked in the language resolved now (#401 § Language
+        // resolution).
+        if self.imp().syntax.borrow().spell() {
+            self.resolve_spell(document);
+        }
+        self.imp().opened.set(true);
+        self.imp().withheld.take();
         let buffer = self.buffer();
         self.imp().loading.set(true);
         buffer.set_text(document.text());
@@ -1664,6 +1745,10 @@ impl Editor {
     /// the ones the writer can now see.
     pub fn retag(&self, document: &Document, edit: &Edit) {
         self.imp().syntax.borrow_mut().edited(document, edit);
+        // The edit's redraw below paints the caret's line by the caret rule;
+        // the word it withholds is noted so a later move repaints it.
+        let held = tags::withheld(&self.buffer(), document, &self.imp().syntax.borrow());
+        self.imp().withheld.replace(held);
         // An edit moves the caret as well as the text, so the tiers are worked
         // out again here rather than left to the caret's own feed: the lines
         // the edit changed and the lines the dim moved across are drawn in the
