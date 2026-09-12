@@ -8,7 +8,12 @@ that comment alone. The section opens with the install step, written for the bra
 the native app, then `pacman -Q quill` — `makepkg` packages the checkout it runs in, so the worktree
 builds the branch and `pacman -Q` names the commit installed (#167). The worktree stays until
 `hand test: pass`. The earlier shape, `git checkout <branch>` in `~/repos/quill`, fails on a dirty
-tree, and #318's owner built and tested `main` (2026-09-11).
+tree, and #318's owner built and tested `main` (2026-09-11). The install step travels with the
+steps wherever they are handed over — the spec's section, the PR body, the comment or report an
+`/implement` session ends on — spelled out in full for that session's worktree each time, never as
+"the spec's steps, on the installed package": the owner walks the steps from the message in front
+of them, and a message without the install lines is walked on whatever `quill` was installed last
+(#397, 2026-09-12).
 
 **Page**: 1. Open `ref/sample.md`; the text sits in a measure of about 64 characters, centred, with
 calm margins. 2. Resize the window narrower and wider; the measure adapts and the text never touches
