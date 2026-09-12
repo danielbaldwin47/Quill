@@ -868,6 +868,38 @@
       "between": [
         "stats-bar-changed"
       ]
+    },
+    "spell": {
+      "_about": "Two bursts on ref/spell.md under --spell on, for the one Spell check rule a still cannot show: the caret rule. The caret opens at byte 257, the end of the passage before its trailing newline, so what is typed joins the last paragraph. The first burst types ` comittee` as characters — the space is a character in the text rather than the named key, because a bare named key cannot be pressed without a modifier — and leaves the caret after the misspelling with a word character before it, so the Editor withholds that word’s wave: `spell-wave` with `wave: false`. The second types one space, which releases it: `spell-wave` with `wave: true`. The rule looks only under the word the bar stands after, never its whole row, because the row is the wrapped paragraph and holds `accomodate` to its left. The chrome is off, as the caret Piece’s script has it, so no fade is waited out inside the caret’s idle hold. The fixture dictionary every launch reads (ref/spell/) holds `committee`, so `comittee` is a misspelling there and not on the machine’s word.",
+      "state": {
+        "text": "ref/spell.md",
+        "caret": 257,
+        "chrome": "off",
+        "spell": "on"
+      },
+      "bursts": [
+        {
+          "name": "typing",
+          "text": " comittee",
+          "chars": 9,
+          "wave": false,
+          "assert": [
+            "spell-wave"
+          ]
+        },
+        {
+          "name": "space",
+          "text": " ",
+          "chars": 10,
+          "wave": true,
+          "assert": [
+            "spell-wave"
+          ]
+        }
+      ],
+      "between": [
+        "bar-moved-right"
+      ]
     }
   },
   "library": "The `files` states open a Library on `shots/oracle/library`, the fixture committed beside this file: eight documents in the four extensions, one Collection, one dot-folder that must not show, and `manifest.json`, the mtime each is stamped with so the Date sort is the same on every machine. `text` names one of those files rather than the shared passage, so both sides show the document the sidebar has selected; the Parity oracle's Library is the browser's, seeded from the fixture by `legacy/tools/shoot.mjs --library` (its folder location wants a picker and cannot be driven headless). Both states are shot with `nocaret`: the oracle places the bar of a Library-opened document three logical pixels either side of the first glyph depending on when it is measured, which is one shot in three, and the caret is the caret Piece's to judge rather than this one's."
