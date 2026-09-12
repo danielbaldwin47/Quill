@@ -97,7 +97,7 @@ pub struct Modes {
     /// The two bars are shown.
     pub bars: bool,
     /// The stats bar is shown, while the bars are.
-    pub stats: bool,
+    pub stats_bar: bool,
     /// Which Statistics are checked, in [`Statistic::ALL`]'s order — one flag
     /// per variant rather than six named fields, so that the pairing of a
     /// check to its Statistic is taken from that array and cannot be mistyped
@@ -164,8 +164,8 @@ impl Modes {
             face: session.face().as_str(),
             fullscreen,
             bars: session.chrome() == Chrome::Shown,
-            stats: session.stats_shown(),
-            statistics: checked(&session.stats().show),
+            stats_bar: session.stats_shown(),
+            statistics: checked_set(&session.stats().show),
             library,
             preview,
             preview_layout: session.preview_layout().as_str(),
@@ -418,7 +418,7 @@ pub fn reflect(map: &impl IsA<gio::ActionMap>, modes: Modes) {
     set("window.fullscreen", modes.fullscreen.to_variant());
     // The row reads "Hide Bars", so its check is on when the bars are hidden.
     set("chrome.toggle", (!modes.bars).to_variant());
-    set("chrome.stats", modes.stats.to_variant());
+    set("chrome.stats", modes.stats_bar.to_variant());
     // Six independent checks, each id's last segment its Statistic's settings
     // name, so the rows are set from `Statistic::ALL` rather than one by one.
     for statistic in Statistic::ALL {
@@ -544,13 +544,14 @@ fn run_window(window: &Window, command: &Command) {
         "library.search" => window.search_library(),
         "chrome.stats" => window.toggle_stats(),
         // The Stats menu's six checks. Each moves only its own name in
-        // `[stats] show`; the bar's cells follow the checked set in #393.
-        "stats.words" => window.toggle_statistic(Statistic::Words),
-        "stats.characters" => window.toggle_statistic(Statistic::Characters),
-        "stats.charactersNoSpaces" => window.toggle_statistic(Statistic::CharactersNoSpaces),
-        "stats.sentences" => window.toggle_statistic(Statistic::Sentences),
-        "stats.paragraphs" => window.toggle_statistic(Statistic::Paragraphs),
-        "stats.readingTime" => window.toggle_statistic(Statistic::ReadingTime),
+        // `[stats] show`. The id's last segment is the Statistic's settings
+        // name, so the pairing is `Statistic::from_name`'s and is never
+        // written out a second time here.
+        id if id.starts_with(STATS_PREFIX) => {
+            if let Some(statistic) = statistic_of(id) {
+                window.toggle_statistic(statistic);
+            }
+        }
         "chrome.doc" | "chrome.view" => {
             if let Some(menu) = opens(command.id) {
                 window.open_menu(menu);
@@ -983,7 +984,7 @@ pub struct Bars {
     /// when the checked set changes. Zero to six of them: unchecking every
     /// Statistic leaves the bar standing and empty, which is not the same
     /// choice as hiding it.
-    stats: Rc<RefCell<Vec<gtk::Label>>>,
+    cells: Rc<RefCell<Vec<gtk::Label>>>,
     /// The page the Preview's column stands over, beside the three counts and
     /// away while the pane is showing anything else (#299). A cell of its own
     /// rather than a fourth count: the words are the engine's whole answer
@@ -1153,7 +1154,7 @@ impl Bars {
             title,
             line,
             selection_label,
-            stats: Rc::new(RefCell::new(Vec::new())),
+            cells: Rc::new(RefCell::new(Vec::new())),
             page,
             over,
             under,
@@ -1170,7 +1171,7 @@ impl Bars {
             // The settings' own default rather than three names written out
             // again, so a `Bars` built with no session reads as a fresh
             // install's does.
-            statistics: Rc::new(Cell::new(checked(&Stats::default().show))),
+            statistics: Rc::new(Cell::new(checked_set(&Stats::default().show))),
             selection: Rc::new(Cell::new(None)),
             fade: Rc::new(Cell::new((1.0, 1.0))),
         };
@@ -1364,12 +1365,6 @@ impl Bars {
         self.apply_fade();
     }
 
-    /// Whether the bar is reading a selection rather than the Document.
-    #[must_use]
-    pub fn selection_shown(&self) -> bool {
-        self.selection_label.is_visible()
-    }
-
     /// Builds the row from the checked set: one cell per checked Statistic,
     /// in [`Statistic::ALL`]'s order whatever order they were checked in.
     ///
@@ -1384,26 +1379,20 @@ impl Bars {
         self.ink_counts();
     }
 
-    /// The Statistics the bar shows, in the order its cells read.
-    #[must_use]
-    pub fn statistics(&self) -> Vec<Statistic> {
-        shown(self.statistics.get())
-    }
-
     /// Lays one label per checked Statistic between the row's two fixed ends.
     fn build_cells(&self) {
-        let mut stats = self.stats.borrow_mut();
-        for label in stats.drain(..) {
+        let mut cells = self.cells.borrow_mut();
+        for label in cells.drain(..) {
             self.line.remove(&label);
         }
         // Each goes after the label that leads the row, in turn, which leaves
         // the Page cell where it was: last.
         let mut after: gtk::Widget = self.selection_label.clone().upcast();
-        for _ in 0..shown(self.statistics.get()).len() {
+        for _ in 0..statistics_shown(self.statistics.get()).len() {
             let label = cell_label();
             self.line.insert_child_after(&label, Some(&after));
             after = label.clone().upcast();
-            stats.push(label);
+            cells.push(label);
         }
     }
 
@@ -1491,7 +1480,7 @@ impl Bars {
     fn ink_counts(&self) {
         let colours = self.ground.get().colours;
         let strong = colours.colour(Role::ChromeFgStrong).to_hex();
-        for (label, (number, name)) in self.stats.borrow().iter().zip(self.count()) {
+        for (label, (number, name)) in self.cells.borrow().iter().zip(self.count()) {
             let number = glib::markup_escape_text(&number);
             label.set_markup(&format!(
                 "<span weight=\"500\" foreground=\"{strong}\">{number}</span> {name}"
@@ -1518,11 +1507,23 @@ fn cell_label() -> gtk::Label {
         .build()
 }
 
+/// What every Stats-menu check's Command id begins with.
+const STATS_PREFIX: &str = "stats.";
+
+/// The Statistic a Stats-menu check's Command id names, if it names one.
+///
+/// The id's last segment *is* the settings name ([`Statistic::name`]), so the
+/// pairing of a check to its Statistic is read from the engine rather than
+/// written out a second time here: a seventh variant needs no arm.
+fn statistic_of(id: &str) -> Option<Statistic> {
+    id.strip_prefix(STATS_PREFIX).and_then(Statistic::from_name)
+}
+
 /// Which of [`Statistic::ALL`] `show` carries, in `ALL`'s order.
 ///
 /// The one place the settings' list becomes the bar's order, read by both
 /// the menu's checks ([`Modes`]) and the cells ([`Bars::set_statistics`]).
-pub(crate) fn checked(show: &[Statistic]) -> [bool; Statistic::ALL.len()] {
+pub(crate) fn checked_set(show: &[Statistic]) -> [bool; Statistic::ALL.len()] {
     Statistic::ALL.map(|statistic| show.contains(&statistic))
 }
 
@@ -1530,7 +1531,7 @@ pub(crate) fn checked(show: &[Statistic]) -> [bool; Statistic::ALL.len()] {
 ///
 /// The bar's one fixed order, whatever order the writer checked them in, so
 /// the cells read the same on every Document.
-fn shown(checked: [bool; Statistic::ALL.len()]) -> Vec<Statistic> {
+fn statistics_shown(checked: [bool; Statistic::ALL.len()]) -> Vec<Statistic> {
     Statistic::ALL
         .into_iter()
         .zip(checked)
@@ -1544,7 +1545,7 @@ fn shown(checked: [bool; Statistic::ALL.len()]) -> Vec<Statistic> {
 /// Zero to six of them — unchecking every Statistic leaves the bar standing
 /// and empty, which is a different choice from hiding it.
 fn cells(counts: Counts, checked: [bool; Statistic::ALL.len()]) -> Vec<(String, &'static str)> {
-    shown(checked)
+    statistics_shown(checked)
         .into_iter()
         .map(|statistic| counts.cell(statistic))
         .collect()
@@ -2271,7 +2272,7 @@ mod tests {
             face: "quattro",
             fullscreen: false,
             bars: false,
-            stats: false,
+            stats_bar: false,
             library: true,
             preview,
             preview_layout,
@@ -2443,11 +2444,11 @@ mod tests {
     fn the_cells_stand_in_the_bars_order_and_not_the_order_they_were_checked() {
         let backwards = vec![Statistic::Paragraphs, Statistic::Sentences];
         assert_eq!(
-            shown(checked(&backwards)),
+            statistics_shown(checked_set(&backwards)),
             [Statistic::Sentences, Statistic::Paragraphs]
         );
         assert_eq!(
-            shown(checked(&Stats::default().show)),
+            statistics_shown(checked_set(&Stats::default().show)),
             [
                 Statistic::Words,
                 Statistic::Characters,
@@ -2465,9 +2466,9 @@ mod tests {
             std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../ref/sample.md"))
                 .expect("ref/sample.md");
         let counts = stats::count(&sample);
-        assert_eq!(cells(counts, checked(&[])), []);
+        assert_eq!(cells(counts, checked_set(&[])), []);
         assert_eq!(
-            cells(counts, checked(&Statistic::ALL)),
+            cells(counts, checked_set(&Statistic::ALL)),
             [
                 ("188".to_owned(), "words"),
                 ("929".to_owned(), "characters"),
@@ -2485,7 +2486,7 @@ mod tests {
     fn the_cells_read_the_held_run_while_a_selection_stands() {
         let document = stats::count("One sentence here. And a second one after it.\n");
         let run = stats::count("And a second one after it.");
-        let three = checked(&Stats::default().show);
+        let three = checked_set(&Stats::default().show);
         assert_eq!(cells(document, three)[0], ("9".to_owned(), "words"));
         assert_eq!(cells(run, three)[0], ("6".to_owned(), "words"));
         // The same Statistics either way: the readout answers the same
