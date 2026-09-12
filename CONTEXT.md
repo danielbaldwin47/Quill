@@ -72,9 +72,13 @@ The Statistics the stats bar reads over the Document, or over the selection whil
 One number Stats counts, each behind its own check in the Stats menu: Words, Characters, Characters Without Spaces, Sentences, Paragraphs, Reading Time.
 _Avoid_: stat, metric, count (a Statistic's value)
 
+**Outline**:
+A Document's headings in reading order, each with its level, as the Editor shows them.
+_Avoid_: table of contents (that is `{{TOC}}`, a Preview/Export feature), tree, structure
+
 **Heading navigation**:
-The outline of a Document's headings, used to jump between sections.
-_Avoid_: table of contents (that is a Preview/Export feature)
+Jumping the caret to a heading chosen from the Outline; it moves the caret and nothing else.
+_Avoid_: outline view, folding (iA Windows' hiding of a section, which Quill does not do)
 
 **Chrome**:
 The two bars around the Editor: the title bar (Library toggle, Document title and menu, View menu) and the stats bar. Both step back while the writer types.
