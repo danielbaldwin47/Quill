@@ -316,7 +316,11 @@ and the determinism settings, this document names the flags:
   `[syntax_highlight]` table: off, every Category on, or only the comma-separated Categories on;
   absent under `--deterministic` the table takes its defaults with the master off),
   `--style off|on|fillers,redundancies,cliches` (pin the whole `[style_check]` table the same way,
-  by List), `--chrome on|off`, `--caret <offset>|end`,
+  by List), `--stats <names>|hidden` (pin the whole `[stats]` table: the comma-separated Statistics
+  checked with the bar shown, or the bar hidden; there is no `off`, which means the master switch on
+  the two flags above and would have to mean either of two different states here, so absent under
+  `--deterministic` the table takes its defaults — the three cells every judged state carrying the
+  chrome was frozen at), `--chrome on|off`, `--caret <offset>|end`,
   `--select <from>,<to>`, `--scroll <fraction>`, `--nocaret`, `--typing` (the chrome as it is
   inside the 500 ms after a keystroke: the title bar gone, the stats bar dimmed), `--menu
   view|document|stats|palette` (that menu, or the Palette, open with its first row selected),

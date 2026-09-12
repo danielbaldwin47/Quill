@@ -41,9 +41,10 @@ use std::path::{Path, PathBuf};
 use quill_engine::commands;
 use quill_engine::settings::{
     Choice, Chrome, Export, Face, FocusScope, Paper, Preview, PreviewLayout, PreviewMode, Settings,
-    StyleCheck, SyntaxHighlight, Template as TemplateSettings, TemplateName, WindowState,
-    preview_zooms, window_sizes,
+    Stats, StatsBar, StyleCheck, SyntaxHighlight, Template as TemplateSettings, TemplateName,
+    WindowState, preview_zooms, window_sizes,
 };
+use quill_engine::stats::Statistic;
 use quill_engine::theme::Scheme;
 use quill_engine::typography;
 
@@ -67,6 +68,9 @@ Judged state — the states the Gate shoots and benches at:
                          Pin Syntax highlight off, all on, or to named Categories.
   --style off|on|fillers,redundancies,cliches
                          Pin Style check off, all on, or to named Lists.
+  --stats <names>|hidden Pin the stats bar to a comma list of Statistic names,
+                         or hide it: words, characters, charactersNoSpaces,
+                         sentences, paragraphs, readingTime.
   --chrome on|off        Show or hide the bars around the Editor.
   --caret <offset>|end   Put the caret at a byte offset, or at the end.
   --select <from>,<to>   Select from one byte offset to another.
@@ -235,6 +239,8 @@ pub struct Flags {
     pub syntax: Option<SyntaxHighlight>,
     /// The whole Style check table pinned by `--style`.
     pub style: Option<StyleCheck>,
+    /// The whole Stats table pinned by `--stats`.
+    pub stats: Option<Stats>,
     /// What `--chrome` asks of the bars around the Editor.
     pub chrome: Option<Chrome>,
     /// Where `--caret` puts the caret.
@@ -356,6 +362,7 @@ impl Flags {
                 "--live" => flags.live = true,
                 "--syntax" => flags.syntax = Some(syntax(flag, &text(&mut args, flag)?)?),
                 "--style" => flags.style = Some(style(flag, &text(&mut args, flag)?)?),
+                "--stats" => flags.stats = Some(stats(flag, &text(&mut args, flag)?)?),
                 "--chrome" => flags.chrome = Some(one_of(flag, &text(&mut args, flag)?, &CHROMES)?),
                 "--caret" => flags.caret = Some(caret(flag, &text(&mut args, flag)?)?),
                 "--select" => flags.select = Some(select(flag, &text(&mut args, flag)?)?),
@@ -489,6 +496,17 @@ impl Flags {
             settings.style_check = style.clone();
         } else if self.deterministic {
             settings.style_check = StyleCheck::default();
+        }
+        // Stats is pinned whole for the third time over: a writer who had
+        // checked Sentences, or hidden the bar altogether, would otherwise
+        // shoot a different row of cells at every state that carries the
+        // chrome. There is no `off` to pin it with, so a `--deterministic`
+        // launch that names no `--stats` reads the table's own defaults —
+        // the three cells every judged state was frozen at (#387).
+        if let Some(stats) = &self.stats {
+            settings.stats = stats.clone();
+        } else if self.deterministic {
+            settings.stats = Stats::default();
         }
         if let Some(chrome) = self.chrome {
             settings.chrome = chrome;
@@ -698,6 +716,38 @@ fn style(flag: &str, written: &str) -> Result<StyleCheck, Error> {
     Ok(style)
 }
 
+/// Pins which Statistics the bar shows, or hides the bar.
+///
+/// No `off`: it is the master switch everywhere else on this command line, and
+/// there is no master switch here — hiding the bar and checking nothing are
+/// two different states, and `off` would have to be one of them and read as
+/// the other. `hidden` says the one and an empty checked set is unreachable
+/// from a command line, which is what leaves `--stats` unambiguous.
+///
+/// A name repeated is one cell, as the table's reader has it.
+fn stats(flag: &str, written: &str) -> Result<Stats, Error> {
+    let mut stats = Stats::default();
+    if written == "hidden" {
+        stats.bar = StatsBar::Hidden;
+        return Ok(stats);
+    }
+    stats.show = Vec::new();
+    for name in written.split(',') {
+        let Some(statistic) = Statistic::from_name(name) else {
+            let names: Vec<&str> = Statistic::ALL.iter().map(|s| s.name()).collect();
+            return Err(not(
+                flag,
+                written,
+                &format!("hidden, or comma-separated {}", names.join(", ")),
+            ));
+        };
+        if !stats.show.contains(&statistic) {
+            stats.show.push(statistic);
+        }
+    }
+    Ok(stats)
+}
+
 /// One of the values a flag takes, by the name it is written under.
 fn one_of<T: Copy>(flag: &str, written: &str, values: &[(&str, T)]) -> Result<T, Error> {
     values
@@ -761,7 +811,7 @@ mod tests {
 
     /// Every flag `docs/architecture.md` names, with a value it takes and —
     /// where it has a domain — one it does not.
-    const FLAGS: [(&str, &str, Option<&str>); 28] = [
+    const FLAGS: [(&str, &str, Option<&str>); 29] = [
         ("--text", "ref/sample.md", None),
         ("--theme", "dark", Some("purple")),
         ("--font", "mono", Some("comic")),
@@ -771,6 +821,7 @@ mod tests {
         ("--live", "", None),
         ("--syntax", "nouns,adverbs", Some("pronouns")),
         ("--style", "fillers,cliches", Some("jargon")),
+        ("--stats", "words,sentences", Some("syllables")),
         // The file says shown and hidden; the flag says on and off.
         ("--chrome", "off", Some("shown")),
         ("--caret", "end", Some("middle")),
@@ -913,6 +964,7 @@ mod tests {
             "--measure",
             "--syntax",
             "--style",
+            "--stats",
         ] {
             let err = parse(flag).expect_err("nothing follows it");
             assert_eq!(err.to_string(), format!("{flag}: needs a value after it"));
@@ -1123,6 +1175,49 @@ mod tests {
         for bad in ["fillers,", ",cliches", "on,fillers", "fillers,jargon"] {
             let error = parse(&format!("--style {bad}")).unwrap_err().to_string();
             assert!(error.starts_with("--style: "));
+            assert!(!error.contains('\n'));
+        }
+    }
+
+    #[test]
+    fn stats_pins_the_whole_table_over_the_writers_choices() {
+        let mut writers = Settings::default();
+        writers.stats.show = vec![Statistic::Paragraphs];
+        writers.stats.bar = StatsBar::Hidden;
+        assert_eq!(parse("").unwrap().over(writers.clone()), writers);
+        // No flag under `--deterministic` is the defaults: the three cells
+        // every judged state carrying the chrome was frozen at.
+        assert_eq!(
+            parse("--deterministic")
+                .unwrap()
+                .over(writers.clone())
+                .stats,
+            Stats::default()
+        );
+        let two = parse("--stats words,sentences")
+            .unwrap()
+            .over(writers.clone())
+            .stats;
+        assert_eq!(two.show, [Statistic::Words, Statistic::Sentences]);
+        assert_eq!(two.bar, StatsBar::Shown, "naming Statistics shows the bar");
+        // `hidden` hides the bar and leaves the checked set at the defaults,
+        // there being no set to read off a command line that named none.
+        let hidden = parse("--deterministic --stats hidden")
+            .unwrap()
+            .over(writers.clone())
+            .stats;
+        assert_eq!(hidden.bar, StatsBar::Hidden);
+        assert_eq!(hidden.show, Stats::default().show);
+        // The cells are laid out in `Statistic::ALL`'s order whatever order
+        // the flag named them in, so the flag keeps the order it was given
+        // and the bar is what sorts it.
+        let named = parse("--stats readingTime,words").unwrap().stats.unwrap();
+        assert_eq!(named.show, [Statistic::ReadingTime, Statistic::Words]);
+        let twice = parse("--stats words,words").unwrap().stats.unwrap();
+        assert_eq!(twice.show, [Statistic::Words], "a repeat is one cell");
+        for bad in ["words,", ",words", "off", "on", "words,syllables"] {
+            let error = parse(&format!("--stats {bad}")).unwrap_err().to_string();
+            assert!(error.starts_with("--stats: "), "{error}");
             assert!(!error.contains('\n'));
         }
     }

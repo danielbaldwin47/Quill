@@ -1363,9 +1363,13 @@ ok('every judged state that draws a determined caret is held to one, and no othe
   // their captures carry no bar to pair against — measured, not assumed: zero accent pixels in
   // both `308-original-mbp-{light,dark}-syntax-all`. Their sibling `syntax/focus-sentence` draws
   // one, because its capture does, at the same word: 430 accent pixels standing after `more`.
+  // `chrome/selection` takes the selection way out alongside `caret/selection`: it is the state
+  // that reads the stats bar under a held run, so the selection is the whole point of it and the
+  // band it paints stands where the bar would be (#387).
   const exempt = Object.entries(wants).filter(([, held]) => !held).map(([name]) => name).sort();
   assert.deepEqual(exempt, [
-    'caret/selection', 'caret/unfocused', 'export/dialog', 'files/library', 'files/search',
+    'caret/selection', 'caret/unfocused', 'chrome/selection',
+    'export/dialog', 'files/library', 'files/search',
     'focus/paragraph', 'focus/sentence',
     'markup/blocks', 'markup/gutters', 'markup/wrapped', 'preview/full', 'preview/pdf-full',
     'style/fillers-light', 'style/focus-dark', 'style/focus-light', 'style/on-dark',
