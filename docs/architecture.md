@@ -32,7 +32,7 @@ paper under Export's geometry), `html` (the standalone export page and the body 
 HTML carries), `draw` (one page of paper painted onto a cairo context, for both of Export's page
 sinks), `pdf` (the PDF file: the surface, the metadata and the bookmarks), `stats`, `outline` (the
 heading list a bookmark and Heading navigation are made of), `spell` (the `SpellChecker`
-trait and the enchant and `spellbook` implementations), `pos` (Syntax highlight), `worker` (the
+trait and its enchant implementation), `pos` (Syntax highlight), `worker` (the
 asynchronous Annotators' thread and generation-checked results), `style` (Style
 check), `typography` (the pitch, the measure, the 78-cell text container and its gutters —
 [ADR 0016](adr/0016-the-text-container-is-78-cells.md) — and the page margins), `theme` (the two
