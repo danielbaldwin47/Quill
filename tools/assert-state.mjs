@@ -28,7 +28,7 @@
 // Everything here is a pure function of decoded PNGs, so `tools/judge-selftest.mjs` runs it over
 // constructed images and recorded native captures; no window is needed to test the rules.
 
-import { decodePng, readBar } from './keys-assert.mjs';
+import { SPELL, SPELL_DARK, decodePng, readBar } from './keys-assert.mjs';
 
 // How far the measured alpha may sit from the one the state names.
 //
@@ -57,6 +57,7 @@ export const ASSERTIONS = {
   dialog: dialog,
   syntax: syntax,
   outline: outline,
+  spell: spell,
 };
 
 // How each rule wants its second shot taken: the state to shoot, and what to shoot it with.
@@ -71,6 +72,8 @@ export const ASSERTIONS = {
 // `syntax` removes Syntax highlight while preserving Focus and Live, so glyph coverage and the
 // bright rows are measured independently of the Category colours.
 // `outline` removes the menu for the bare page: where the Outline shot differs from it is the panel.
+// `spell` switches Spell check off and leaves every other flag standing, so the difference between
+// the two shots is the waves — or, with no dictionary, the status line's one line.
 export const SECOND = {
   ghost: (s) => ({ state: s, options: { active: true } }),
   folded: (s) => ({ state: { ...s, flags: { ...s.flags, live: false } }, options: {} }),
@@ -81,6 +84,7 @@ export const SECOND = {
   dialog: (s) => ({ state: { ...s, flags: { ...s.flags, export: null } }, options: { active: true } }),
   syntax: (s) => ({ state: { ...s, flags: { ...s.flags, syntax: 'off' } }, options: {} }),
   outline: (s) => ({ state: { ...s, flags: { ...s.flags, menu: null } }, options: {} }),
+  spell: (s) => ({ state: { ...s, flags: { ...s.flags, spell: 'off' } }, options: {} }),
 };
 
 // The second shot one asserted state asks for: `{ state, options }` for `shootState`.
@@ -132,6 +136,7 @@ const CHECKS = {
   dialog: bare('dialog'),
   syntax: syntaxSpec,
   outline: bare('outline'),
+  spell: spellSpec,
 };
 
 // The built-ins, restated from quill-engine/src/theme.rs, Colours::{LIGHT,DARK}, which #308
@@ -267,6 +272,218 @@ function syntax(spec, { lit, dim }) {
   return { ours: true, why, counts, column, brightRows, heading, headingPixels, changed,
     secondary: ['same-state syntax-off pixels supply the text column, glyph coverage and bright rows',
       'provisional Role values: quill-engine/src/theme.rs Colours::LIGHT and Colours::DARK; no critic (ADR 0017)'] };
+}
+
+// ---------- Spell check ----------
+
+// The waves, measured against the same page with Spell check switched off.
+//
+// Nothing on the page moves when Spell check comes on: the mark is a decoration over the flattened
+// runs, Pango's `error` underline in the `spell` Role (`docs/architecture.md` § Annotators and the
+// keystroke path). So the difference between the state's own shot and the same state shot
+// `--spell off` is the waves and nothing else, and that difference is all this reads.
+//
+// Three facts a still can hold:
+//
+//   * how many waves there are — eight on `ref/spell.md`, seven with the caret parked at the end of
+//     `comittee`, whose wave the caret rule withholds — which is the tokeniser and the dictionary's
+//     answer arriving on the page, the count `quill-engine/tests/spell_checker.rs` names word by
+//     word;
+//   * that every wave is a thin band lying under a line of prose, over columns that line has ink
+//     in, and that nothing outside the text column changed: a wave on paper or in the margin is a
+//     span that reached the page in the wrong place;
+//   * that a wave is drawn in the `spell` Role, at any strength: the Role's hue on the paper,
+//     antialiased or dimmed with its word under Focus, over a Category colour or a selection fill.
+//     The hue test is `isSpellInk`'s, the keys rule's, and the two Role values are that file's
+//     `SPELL` and `SPELL_DARK`, which its selftest holds to `quill-engine/src/theme.rs`.
+//
+// The "no dictionary" state is the fourth: Spell check on with no dictionary for the wanted tag
+// marks nothing, and the one thing its shot adds is the status line's line. So the difference is
+// one band of pixels at the foot of the window, and none of it is the Role's.
+//
+// The words' rectangles are read off the difference rather than written into the state, because
+// where a word lands is the wrap's answer and not a fact about Spell check. The mark is provisional
+// until the capture in [#400](https://github.com/danielbaldwin47/Quill/issues/400) lands.
+
+// How far apart two changed pixels may sit and still be one wave, in device px. A wave crossing a
+// descender can leave a few columns unchanged; the space between two words is about 25.
+const SPELL_GAP = 10;
+// The narrowest wave worth the name, in device px: `Teh`, the shortest misspelling in the passage,
+// is three cells, about 75 device px at the judged step.
+const SPELL_RUN = 40;
+// The tallest a wave may be before it is a fill rather than an underline, in device px.
+const SPELL_THICK = 16;
+// The share of a wave's changed pixels that must be the Role's hue. The rest are where the wave's
+// antialiased edge blends with a Category colour or a selection fill rather than the neutral paper,
+// which moves the hue.
+const SPELL_SHARE = 0.5;
+// The share of a wave's columns the prose above it must carry ink in: a word, not paper.
+const SPELL_COVER = 0.25;
+// How far below a line of prose's ink a wave may lie and still be that line's, in device px.
+const SPELL_BELOW = 16;
+// The least a pixel's red must lead its green and blue by to be read as the wave, and how far its
+// `(r - g) / (r - b)` may stray from the Role's. Lower than `isSpellInk`'s chroma floor, because a
+// wave dimmed with its sentence under Focus on the light ground leads by less than that one's 40;
+// the paper is neutral, so a dimmed or antialiased wave keeps the Role's ratio.
+const SPELL_CHROMA = 12;
+const SPELL_HUE = 0.25;
+// The tallest the status line's band may be, in device px, and the share of the window above it.
+const STATUS_TALL = 120;
+const STATUS_FOOT = 0.75;
+
+// Whether the pixel at (x, y) is `role`'s hue, at any strength over a neutral ground.
+function spellHued(png, x, y, role) {
+  const [r, g, b] = [0, 1, 2].map((c) => at(png, x, y, c));
+  if (r - Math.max(g, b) < SPELL_CHROMA) return false;
+  const want = (role.r - role.g) / (role.r - role.b);
+  return Math.abs((r - g) / (r - b) - want) <= SPELL_HUE;
+}
+
+function spellSpec(spec) {
+  const extra = Object.keys(spec).filter((k) => !['kind', 'theme', 'words', 'status'].includes(k));
+  if (extra.length) throw new Error(`the spell assertion has unknown fields: ${extra.join(', ')}`);
+  if (!['light', 'dark'].includes(spec.theme)) throw new Error(`the spell theme is ${JSON.stringify(spec.theme)}, expected light or dark`);
+  if (!Number.isInteger(spec.words) || spec.words < 0 || spec.words > 64) {
+    throw new Error(`the spell words are ${JSON.stringify(spec.words)}, and a count of waves is a whole number from 0 to 64`);
+  }
+  if (spec.status !== undefined && typeof spec.status !== 'boolean') throw new Error('the spell status must be boolean');
+  if (spec.status && spec.words) throw new Error('the spell status state marks nothing, so its words are 0');
+}
+
+// One full-image scan finds the changed pixels, gathered per row into runs; the waves are grown
+// from those runs. Work is O(width * height) with O(waves) auxiliary state.
+function spell(spec, { lit, dim }) {
+  const source = decodePng(lit);
+  const page = decodePng(dim);
+  if (source.w !== page.w || source.h !== page.h) return no(`spell shots differ in size: ${source.w}x${source.h} and ${page.w}x${page.h}`);
+  const role = spec.theme === 'dark' ? SPELL_DARK : SPELL;
+  const runs = [];
+  const changedBox = { left: page.w, right: -1, top: page.h, bottom: -1 };
+  let changed = 0;
+  let hued = 0;
+  for (let y = 0; y < page.h; y += 1) {
+    let start = -1;
+    let last = -1;
+    for (let x = 0; x <= page.w; x += 1) {
+      const hit = x < page.w && !sameRgb([0, 1, 2].map((c) => at(page, x, y, c)), [0, 1, 2].map((c) => at(source, x, y, c)));
+      if (hit) {
+        changed += 1;
+        if (spellHued(page, x, y, role)) hued += 1;
+        changedBox.left = Math.min(changedBox.left, x);
+        changedBox.right = Math.max(changedBox.right, x);
+        changedBox.top = Math.min(changedBox.top, y);
+        changedBox.bottom = Math.max(changedBox.bottom, y);
+        if (start < 0) start = x;
+        last = x;
+        continue;
+      }
+      if (start >= 0 && (x >= page.w || x - last > SPELL_GAP)) {
+        runs.push({ y, left: start, right: last });
+        start = -1;
+      }
+    }
+  }
+
+  if (spec.status) {
+    if (!changed) return no('spell with no dictionary changed no pixel: the status line carries no line');
+    if (hued) return no(`spell with no dictionary drew ${hued} pixels of the spell Role at ${box(changedBox)}`);
+    const tall = changedBox.bottom - changedBox.top + 1;
+    if (tall > STATUS_TALL) return no(`spell with no dictionary changed a band ${tall} device px tall at ${box(changedBox)}, taller than one status line`);
+    if (changedBox.top < page.h * STATUS_FOOT) return no(`spell with no dictionary changed pixels at ${box(changedBox)}, above the window's foot`);
+    return { ours: true, why: `no wave; the status line's ${changed} changed pixels in one band at ${box(changedBox)}`, changed, band: changedBox,
+      secondary: ['same-state --spell off pixels supply the page without the status line', 'no critic (ADR 0017)'] };
+  }
+  if (!spec.words) {
+    return changed ? no(`spell expects no wave and changed ${changed} pixels at ${box(changedBox)}`)
+      : { ours: true, why: 'no wave and no changed pixel', changed, secondary: ['no critic (ADR 0017)'] };
+  }
+  if (!changed) return no('spell changed no pixel at all: the page carries no wave');
+
+  const paper = paperOf(source, page);
+  if (!paper) return no('spell shots disagree about the paper at their corners');
+  const column = { left: source.w, right: -1, top: source.h, bottom: -1 };
+  for (let y = 0; y < source.h; y += 1) {
+    for (let x = 0; x < source.w; x += 1) {
+      if (!inked(source, x, y, paper)) continue;
+      column.left = Math.min(column.left, x);
+      column.right = Math.max(column.right, x);
+      column.top = Math.min(column.top, y);
+      column.bottom = Math.max(column.bottom, y);
+    }
+  }
+  if (column.right < column.left) return no('spell reference has no text column');
+  const lines = bandsOf(source, { ...column, left: column.left - 1, right: column.right + 1 }, paper);
+  // A wave's last period can run a few px past its word's last ink, so the column is widened by a gap.
+  if (changedBox.left < column.left - SPELL_GAP || changedBox.right > column.right + SPELL_GAP
+      || changedBox.top < column.top || changedBox.bottom > column.bottom + SPELL_BELOW) {
+    return no(`spell changed pixels at ${box(changedBox)}, outside the text column at ${box(column)}`);
+  }
+
+  // The waves: runs that touch, row to row, are one wave, grown in row order and then settled.
+  const waves = [];
+  for (const run of runs) {
+    const found = waves.find((m) => run.y <= m.bottom + 1 && run.left <= m.right + SPELL_GAP && run.right >= m.left - SPELL_GAP);
+    if (found) {
+      found.bottom = Math.max(found.bottom, run.y);
+      found.left = Math.min(found.left, run.left);
+      found.right = Math.max(found.right, run.right);
+    } else waves.push({ top: run.y, bottom: run.y, left: run.left, right: run.right });
+  }
+  for (let joined = true; joined;) {
+    joined = false;
+    for (let i = 0; i < waves.length && !joined; i += 1) {
+      for (let j = i + 1; j < waves.length && !joined; j += 1) {
+        const a = waves[i];
+        const b = waves[j];
+        if (a.top > b.bottom + 1 || b.top > a.bottom + 1) continue;
+        if (a.left > b.right + SPELL_GAP || b.left > a.right + SPELL_GAP) continue;
+        a.top = Math.min(a.top, b.top);
+        a.bottom = Math.max(a.bottom, b.bottom);
+        a.left = Math.min(a.left, b.left);
+        a.right = Math.max(a.right, b.right);
+        waves.splice(j, 1);
+        joined = true;
+      }
+    }
+  }
+  if (waves.length !== spec.words) {
+    return no(`spell holds ${waves.length} waves (${waves.map(box).join('; ')}) and the state expects ${spec.words}`);
+  }
+
+  for (const wave of waves) {
+    const where = box(wave);
+    const tall = wave.bottom - wave.top + 1;
+    const wide = wave.right - wave.left + 1;
+    if (tall > SPELL_THICK) return no(`a spell wave is ${tall} device px tall at ${where}, and an underline is a band`);
+    if (wide < SPELL_RUN) return no(`a spell wave is ${wide} device px wide at ${where}, narrower than any misspelled word`);
+    const line = lines.find((l) => wave.top <= l.bottom + SPELL_BELOW && wave.bottom >= l.top);
+    if (!line) return no(`a spell wave at ${where} lies under no line of prose`);
+    let inkedColumns = 0;
+    for (let x = wave.left; x <= wave.right; x += 1) {
+      for (let y = line.top; y <= line.bottom; y += 1) {
+        if (!inked(source, x, y, paper)) continue;
+        inkedColumns += 1;
+        break;
+      }
+    }
+    if (inkedColumns < wide * SPELL_COVER) {
+      return no(`a spell wave at ${where} lies under ink in ${inkedColumns} of its ${wide} columns, and a wave lies under a word`);
+    }
+    let own = 0;
+    let all = 0;
+    for (let y = wave.top; y <= wave.bottom; y += 1) {
+      for (let x = wave.left; x <= wave.right; x += 1) {
+        if (sameRgb([0, 1, 2].map((c) => at(page, x, y, c)), [0, 1, 2].map((c) => at(source, x, y, c)))) continue;
+        all += 1;
+        if (spellHued(page, x, y, role)) own += 1;
+      }
+    }
+    if (own < all * SPELL_SHARE) return no(`a spell wave at ${where} is the spell Role in ${own} of its ${all} changed pixels`);
+  }
+  const why = `${waves.length} waves under their lines of prose, ${hued} of ${changed} changed pixels in the spell Role, none outside the text column`;
+  return { ours: true, why, waves, changed, hued,
+    secondary: ['same-state --spell off pixels supply the text column and the lines of prose',
+      'the mark is provisional until the capture in #400 lands; no critic (ADR 0017)'] };
 }
 
 // A rule with nothing to configure, checked for an entry that thinks otherwise.
