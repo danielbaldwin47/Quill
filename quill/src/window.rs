@@ -32,6 +32,7 @@ use quill_engine::focus::Focus;
 use quill_engine::settings::{
     Chrome, PreviewLayout, PreviewMode, Settings, WindowState, library_width,
 };
+use quill_engine::stats::Statistic;
 use quill_engine::sync;
 
 use crate::caret;
@@ -384,7 +385,7 @@ impl Window {
             .imp()
             .bars
             .set_shown(session.chrome() == Chrome::Shown);
-        window.imp().bars.set_stats_shown(session.stats());
+        window.imp().bars.set_stats_shown(session.stats_shown());
         window
             .imp()
             .bars
@@ -2883,6 +2884,18 @@ impl Window {
         self.move_windows(Session::toggle_stats, |window, stats| {
             window.imp().bars.set_stats_shown(stats);
         });
+    }
+
+    /// Checks one Statistic, or unchecks it: the Stats menu's six rows.
+    ///
+    /// Nothing on the widget moves yet — the bar still builds the three cells
+    /// it always did, and #393 is what makes the cells follow the checked set.
+    /// The write is [`Window::move_windows`]'s, as every other check's is.
+    pub(crate) fn toggle_statistic(&self, statistic: Statistic) {
+        self.move_windows(
+            |session| session.toggle_statistic(statistic),
+            |_window, _checked| {},
+        );
     }
 
     /// Opens `menu` under its bar button, its rows reading the modes as they

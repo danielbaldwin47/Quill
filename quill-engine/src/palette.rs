@@ -421,31 +421,28 @@ mod tests {
 
     #[test]
     fn a_group_match_ranks_below_every_title_match_and_keeps_the_registrys_order() {
-        // "Statistics" holds s-t-a-t-s in order, so it matches by title and
-        // outranks the six rows the `stats` group brings in.
+        // "Preview Full" holds the query in its title, so it outranks the two
+        // rows the `preview_mode` group brings in on their group alone.
         assert!(
-            score("Statistics", "stats").unwrap().0
-                < score_group(command("stats.words"), "stats").unwrap()
+            score("Preview Full", "preview").unwrap().0
+                < score_group(command("preview.web"), "preview").unwrap()
         );
-        let (_, rows) = &list("stats")[0];
+        let (_, rows) = &list("preview")[0];
         let ids: Vec<&str> = rows.iter().map(|row| row.command.id).collect();
-        assert_eq!(ids[0], "chrome.stats");
-        assert!(!rows[0].hits.is_empty());
-        assert_eq!(
-            &ids[1..],
-            &group_rows("stats")[..],
-            "every row under the title match is a group match"
+        let group = group_rows("preview");
+        let titled = ids.len() - group.len();
+        assert!(
+            rows[..titled].iter().all(|row| !row.hits.is_empty()),
+            "every row above the group tier matched by title"
         );
         assert_eq!(
-            group_rows("stats"),
-            [
-                "stats.words",
-                "stats.characters",
-                "stats.charactersNoSpaces",
-                "stats.sentences",
-                "stats.paragraphs",
-                "stats.readingTime",
-            ],
+            &ids[titled..],
+            &group[..],
+            "every row below them is a group match"
+        );
+        assert_eq!(
+            group,
+            ["preview.web", "preview.pdf"],
             "the group tier keeps the registry's order, not the alphabet"
         );
     }
