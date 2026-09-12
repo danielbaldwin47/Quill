@@ -11,6 +11,7 @@
 //! Like every prose Annotator it sees the prose stream, never a `#` or a `*`.
 
 use std::ffi::{CStr, CString, c_char, c_void};
+use std::ops::Range;
 use std::ptr::NonNull;
 
 /// The most corrections [`SpellChecker::suggest`] hands back, the context menu's section size.
@@ -47,6 +48,161 @@ pub trait SpellChecker: Send {
 
     /// Whether `c` may stand at `position` in a word of this dictionary's language.
     fn is_word_character(&self, c: char, position: Position) -> bool;
+}
+
+/// The words of `prose`, as ascending byte ranges into it, by `is_word_character`.
+///
+/// A word starts at a character admitted at [`Position::Start`], runs on over every character
+/// admitted at [`Position::Middle`], and gives back whatever trailing characters are refused at
+/// [`Position::End`], so the dictionary's apostrophe and hyphen rules decide what a word is:
+/// `don't` is one word where `'` may stand mid-word and two where it may not, and a closing `'`
+/// stays outside. A token containing a digit (`2b`, `Q3`) is dropped, since no dictionary spells
+/// it; all-caps and CamelCase tokens are words like any other.
+pub fn words(prose: &str, is_word_character: impl Fn(char, Position) -> bool) -> Vec<Range<usize>> {
+    let chars: Vec<(usize, char)> = prose.char_indices().collect();
+    let end_of = |at: usize| chars.get(at).map_or(prose.len(), |&(offset, _)| offset);
+    let mut words = Vec::new();
+    let mut at = 0;
+    while at < chars.len() {
+        if !is_word_character(chars[at].1, Position::Start) {
+            at += 1;
+            continue;
+        }
+        let start = at;
+        let mut next = at + 1;
+        while next < chars.len() && is_word_character(chars[next].1, Position::Middle) {
+            next += 1;
+        }
+        let mut last = next - 1;
+        while last > start && !is_word_character(chars[last].1, Position::End) {
+            last -= 1;
+        }
+        let word = chars[start].0..end_of(last + 1);
+        if !prose[word.clone()].chars().any(char::is_numeric) {
+            words.push(word);
+        }
+        at = next;
+    }
+    words
+}
+
+/// The words of `prose` that `checker` does not hold, as ascending byte ranges into it.
+pub fn misspelled(prose: &str, checker: &dyn SpellChecker) -> Vec<Range<usize>> {
+    words(prose, |c, position| checker.is_word_character(c, position))
+        .into_iter()
+        .filter(|word| !checker.check(&prose[word.clone()]))
+        .collect()
+}
+
+/// The one misspelling span to leave unmarked while the writer is still typing its word, or `None`.
+///
+/// `spans` are a paragraph's misspellings, `caret` the caret's byte offset into `prose`, the
+/// same paragraph. While the character before the caret is a word character, the span the caret
+/// stands inside or at the end of is withheld — and so is a span the word being typed has grown
+/// past, since the spans may predate the last keystroke. A space typed after the word, a caret at
+/// a span's start or a caret outside every word withholds nothing. The rule is a fixed one,
+/// letters, digits, apostrophes and hyphens, because the Editor applies it at paint, where no
+/// dictionary is at hand.
+pub fn withheld(spans: &[Range<usize>], caret: usize, prose: &str) -> Option<Range<usize>> {
+    let before = prose.get(..caret)?;
+    let word_start = before
+        .char_indices()
+        .rev()
+        .take_while(|&(_, c)| is_typed_word_character(c))
+        .last()?
+        .0;
+    spans
+        .iter()
+        .rev()
+        .find(|span| span.start < caret && span.end > word_start)
+        .cloned()
+}
+
+/// The characters [`withheld`] reads as the word under the caret.
+fn is_typed_word_character(c: char) -> bool {
+    c.is_alphanumeric() || matches!(c, '\'' | '’' | '-')
+}
+
+/// The dictionary a wanted language resolves to among the installed ones.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Resolved {
+    /// The wanted tag itself is installed.
+    Exact(String),
+    /// Another tag of the wanted language stands in for it.
+    Fallback {
+        /// The installed tag to load.
+        tag: String,
+        /// The tag that was asked for.
+        wanted: String,
+    },
+    /// No installed dictionary serves the language: the "no dictionary" state.
+    Missing {
+        /// The tag that was asked for, for Settings to name.
+        wanted: String,
+    },
+}
+
+impl Resolved {
+    /// The tag to load, or `None` in the "no dictionary" state.
+    pub fn tag(&self) -> Option<&str> {
+        match self {
+            Self::Exact(tag) | Self::Fallback { tag, .. } => Some(tag),
+            Self::Missing { .. } => None,
+        }
+    }
+
+    /// The tag that was asked for.
+    pub fn wanted(&self) -> &str {
+        match self {
+            Self::Exact(wanted) | Self::Fallback { wanted, .. } | Self::Missing { wanted } => {
+                wanted
+            }
+        }
+    }
+}
+
+/// Resolves `wanted` against `installed`, listed in the backend's own order: the exact tag, else
+/// the bare language (`en` for `en_US`), else the first installed tag of that language, else
+/// [`Resolved::Missing`].
+pub fn resolve<S: AsRef<str>>(wanted: &str, installed: &[S]) -> Resolved {
+    let installed = || installed.iter().map(AsRef::as_ref);
+    if installed().any(|tag| tag == wanted) {
+        return Resolved::Exact(wanted.to_owned());
+    }
+    let language = language_of(wanted);
+    let fallback = installed()
+        .find(|&tag| tag == language)
+        .or_else(|| installed().find(|&tag| language_of(tag) == language));
+    match fallback {
+        Some(tag) => Resolved::Fallback {
+            tag: tag.to_owned(),
+            wanted: wanted.to_owned(),
+        },
+        None => Resolved::Missing {
+            wanted: wanted.to_owned(),
+        },
+    }
+}
+
+/// A tag's bare language: `en` from `en_US` or `en_US-large`.
+fn language_of(tag: &str) -> &str {
+    tag.split(['_', '-']).next().unwrap_or(tag)
+}
+
+/// The dictionary tag the process locale wants: the first set of `LC_ALL`, `LC_MESSAGES` and
+/// `LANG`, read through `var`, up to any `.` or `@` (`en_US` from `en_US.UTF-8`). `C`, `POSIX`
+/// and no value at all want `en_US`, the dictionary the package depends on.
+pub fn locale_tag(var: impl Fn(&str) -> Option<String>) -> String {
+    let value = ["LC_ALL", "LC_MESSAGES", "LANG"]
+        .into_iter()
+        .filter_map(var)
+        .find(|value| !value.is_empty())
+        .unwrap_or_default();
+    let tag = value.split(['.', '@']).next().unwrap_or_default();
+    match tag {
+        "" | "C" | "POSIX" => "en_US".to_owned(),
+        tag => tag.to_owned(),
+    }
 }
 
 /// The tags of every installed dictionary, listed through a throwaway broker that loads no
@@ -282,5 +438,123 @@ mod ffi {
         pub fn enchant_dict_add(dict: *mut EnchantDict, word: *const c_char, len: isize);
         pub fn enchant_dict_add_to_session(dict: *mut EnchantDict, word: *const c_char, len: isize);
         pub fn enchant_dict_is_word_character(dict: *mut EnchantDict, uc: u32, n: usize) -> c_int;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Letters and digits anywhere, and `'` and `-` between two of them.
+    fn joining(c: char, position: Position) -> bool {
+        c.is_alphanumeric() || (position == Position::Middle && matches!(c, '\'' | '-'))
+    }
+
+    /// Letters and digits alone.
+    fn splitting(c: char, _: Position) -> bool {
+        c.is_alphanumeric()
+    }
+
+    fn texts<'a>(prose: &'a str, spans: &[Range<usize>]) -> Vec<&'a str> {
+        spans.iter().map(|span| &prose[span.clone()]).collect()
+    }
+
+    #[test]
+    fn an_apostrophe_or_hyphen_joins_a_word_only_where_the_rule_admits_it_mid_word() {
+        let prose = "don't well-known";
+        assert_eq!(
+            texts(prose, &words(prose, joining)),
+            ["don't", "well-known"]
+        );
+        assert_eq!(
+            texts(prose, &words(prose, splitting)),
+            ["don", "t", "well", "known"]
+        );
+    }
+
+    #[test]
+    fn a_token_with_a_digit_is_dropped_and_capitals_are_kept() {
+        let prose = "2b ships in Q3 as v3, DRAFFT and CamelCase.";
+        assert_eq!(
+            texts(prose, &words(prose, joining)),
+            ["ships", "in", "as", "DRAFFT", "and", "CamelCase"]
+        );
+    }
+
+    #[test]
+    fn a_trailing_apostrophe_refused_at_the_end_stays_outside_the_word() {
+        let prose = "the writers' notes";
+        assert_eq!(
+            texts(prose, &words(prose, joining)),
+            ["the", "writers", "notes"]
+        );
+    }
+
+    #[test]
+    fn the_caret_at_a_misspelling_s_end_withholds_that_span_alone() {
+        let prose = "Teh misteak";
+        let spans = [0..3, 4..11];
+        assert_eq!(withheld(&spans, 11, prose), Some(4..11));
+        assert_eq!(withheld(&spans, 7, prose), Some(4..11));
+        assert_eq!(withheld(&spans, 3, prose), Some(0..3));
+    }
+
+    #[test]
+    fn a_space_a_span_s_start_or_no_span_withholds_nothing() {
+        let prose = "misteak and more";
+        let spans = [Range { start: 0, end: 7 }];
+        assert_eq!(withheld(&spans, 8, "misteak  and more"), None);
+        assert_eq!(withheld(&spans, 0, prose), None);
+        assert_eq!(withheld(&spans, 11, prose), None);
+        assert_eq!(withheld(&[], 7, prose), None);
+    }
+
+    #[test]
+    fn a_word_typed_past_its_stale_span_is_still_withheld() {
+        let spans = [Range { start: 0, end: 6 }];
+        assert_eq!(withheld(&spans, 7, "misteak"), Some(0..6));
+    }
+
+    #[test]
+    fn the_ladder_takes_the_exact_tag_then_the_language_then_none() {
+        let installed = ["en_US-large", "en_GB", "de_DE"];
+        assert_eq!(
+            resolve("en_GB", &installed),
+            Resolved::Exact("en_GB".into())
+        );
+        assert_eq!(
+            resolve("en_US", &installed),
+            Resolved::Fallback {
+                tag: "en_US-large".into(),
+                wanted: "en_US".into()
+            }
+        );
+        assert_eq!(resolve("de", &installed).tag(), Some("de_DE"));
+        let missing = resolve("fr_FR", &installed);
+        assert_eq!(missing.tag(), None);
+        assert_eq!(missing.wanted(), "fr_FR");
+    }
+
+    #[test]
+    fn the_bare_language_outranks_a_regional_tag_of_it() {
+        assert_eq!(resolve("en_AU", &["en_GB", "en"]).tag(), Some("en"));
+    }
+
+    #[test]
+    fn the_locale_tag_is_the_first_set_variable_up_to_its_codeset() {
+        let only = |name: &'static str, value: &'static str| {
+            move |var: &str| (var == name).then(|| value.to_owned())
+        };
+        assert_eq!(locale_tag(only("LANG", "en_US.UTF-8")), "en_US");
+        assert_eq!(locale_tag(only("LC_MESSAGES", "de_DE@euro")), "de_DE");
+        assert_eq!(locale_tag(only("LC_ALL", "C")), "en_US");
+        assert_eq!(locale_tag(only("LANG", "POSIX")), "en_US");
+        assert_eq!(locale_tag(|_| None), "en_US");
+        let all = |var: &str| match var {
+            "LC_ALL" => Some(String::new()),
+            "LC_MESSAGES" => Some("fr_FR.UTF-8".into()),
+            _ => Some("de_DE.UTF-8".into()),
+        };
+        assert_eq!(locale_tag(all), "fr_FR");
     }
 }
