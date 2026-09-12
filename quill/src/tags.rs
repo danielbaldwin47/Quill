@@ -430,22 +430,25 @@ fn dimmed(colours: &Colours, colour: Colour) -> Colour {
 /// The misspelled word the caret rule leaves unwaved, for the caret where the
 /// buffer now holds it, or `None`.
 ///
-/// Read off the buffer at paint rather than carried, so that every draw —
-/// a keystroke's retag, a worker answer, a toggle — withholds the same word.
-/// A selection withholds nothing: a word selected by a right-click keeps its
-/// wave under the menu (#401 § Corrections).
+/// The caret is read off the buffer at paint rather than carried, so that
+/// every draw — a keystroke's retag, a worker answer, a toggle — withholds the
+/// same word; `typed` is the Editor's arming, and only a caret still where a
+/// word character was just typed withholds anything. A selection withholds
+/// nothing: a word selected by a right-click keeps its wave under the menu
+/// (#401 § Corrections).
 pub fn withheld(
     buffer: &gtk::TextBuffer,
     document: &Document,
     syntax: &crate::syntax::Syntax,
+    typed: Option<usize>,
 ) -> Option<Range<usize>> {
-    if buffer.has_selection() {
+    if typed.is_none() || buffer.has_selection() {
         return None;
     }
     let caret = offset_of(document, &buffer.iter_at_mark(&buffer.get_insert()));
     let line = document.line_bytes(document.place(caret).line);
     let words = syntax.misspelled_in(document, &line);
-    quill_engine::spell::withheld(&words, caret, document.text())
+    quill_engine::spell::withheld(&words, caret, document.text(), typed)
 }
 
 /// Waves under every word Spell check marks over the bytes `at`.
@@ -465,7 +468,7 @@ fn mark_misspellings(
     if words.is_empty() {
         return;
     }
-    let held = withheld(buffer, document, &syntax);
+    let held = withheld(buffer, document, &syntax, painting.typed);
     for word in words {
         if held.as_ref() == Some(&word) {
             continue;
@@ -856,6 +859,10 @@ pub struct Painting<'a> {
     /// judgement about the block the caret is not in, and the caret moves
     /// between two draws of the same bytes.
     pub live: Option<Writer>,
+    /// Where the writer's last edit left a word being typed, and `None` once
+    /// a deletion or a caret move has come since: the caret rule's arming
+    /// ([`quill_engine::spell::typed_to`]).
+    pub typed: Option<usize>,
     /// The container the page was last laid out in, and `None` before a first
     /// allocation has given it one.
     ///

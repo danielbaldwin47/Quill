@@ -319,6 +319,10 @@ mod imp {
         /// The misspelled word the caret rule last left unwaved, so that the
         /// caret leaving it repaints it.
         pub withheld: RefCell<Option<std::ops::Range<usize>>>,
+        /// Where the last edit left a word being typed, the caret rule's
+        /// arming: set by an insert ending in a word character, cleared by any
+        /// other edit and by a caret move away from it.
+        pub typed: Cell<Option<usize>>,
         /// The misspelled word the corrections section was last built for, so
         /// that a Suggestion chosen from it replaces that word
         /// ([`Editor::correct`](super::Editor::correct)). `None` while the
@@ -939,9 +943,21 @@ impl Editor {
     /// it has just stepped into.
     ///
     /// Called on a caret move. An edit's own redraw has already painted the
-    /// caret's line by the rule, so there it only takes the note.
+    /// caret's line by the rule, so there it only takes the note. A move that
+    /// leaves the place a word was being typed disarms the rule, so coming
+    /// back to it by another move withholds nothing.
     pub(crate) fn rewithhold(&self, document: &Document) {
-        let now = tags::withheld(&self.buffer(), document, &self.imp().syntax.borrow());
+        let buffer = self.buffer();
+        let caret = tags::offset_of(document, &buffer.iter_at_mark(&buffer.get_insert()));
+        if self.imp().typed.get() != Some(caret) {
+            self.imp().typed.set(None);
+        }
+        let now = tags::withheld(
+            &buffer,
+            document,
+            &self.imp().syntax.borrow(),
+            self.imp().typed.get(),
+        );
         let was = self.imp().withheld.replace(now.clone());
         if was == now {
             return;
@@ -1141,6 +1157,7 @@ impl Editor {
             leading: self.imp().leading.get(),
             focus: self.imp().focus.get(),
             tiers,
+            typed: self.imp().typed.get(),
             live: self.imp().live.get().then_some(tags::Writer {
                 start: at.start,
                 end: at.end,
@@ -1808,6 +1825,7 @@ impl Editor {
         }
         self.imp().opened.set(true);
         self.imp().withheld.take();
+        self.imp().typed.take();
         let buffer = self.buffer();
         self.imp().loading.set(true);
         buffer.set_text(document.text());
@@ -1852,9 +1870,19 @@ impl Editor {
     /// the ones the writer can now see.
     pub fn retag(&self, document: &Document, edit: &Edit) {
         self.imp().syntax.borrow_mut().edited(document, edit);
-        // The edit's redraw below paints the caret's line by the caret rule;
-        // the word it withholds is noted so a later move repaints it.
-        let held = tags::withheld(&self.buffer(), document, &self.imp().syntax.borrow());
+        // The edit's redraw below paints the caret's line by the caret rule,
+        // armed by a word character typed and disarmed by anything else — a
+        // Backspace into a misspelling leaves its wave standing; the word it
+        // withholds is noted so a later move repaints it.
+        self.imp()
+            .typed
+            .set(quill_engine::spell::typed_to(document.text(), &edit.splice));
+        let held = tags::withheld(
+            &self.buffer(),
+            document,
+            &self.imp().syntax.borrow(),
+            self.imp().typed.get(),
+        );
         self.imp().withheld.replace(held);
         // An edit moves the caret as well as the text, so the tiers are worked
         // out again here rather than left to the caret's own feed: the lines
