@@ -168,31 +168,72 @@ impl Syntax {
         .collect()
     }
 
-    /// Changes masks without discarding categories; a master change resets work.
+    /// Changes masks without discarding categories; only a master change
+    /// moves the work.
     pub(crate) fn configure(&mut self, settings: SyntaxHighlight, document: &Document) -> bool {
         if self.settings == settings {
             return false;
         }
         let was = self.wanted();
         self.settings = settings;
-        if self.wanted() != was {
-            self.reset(document);
-        }
+        self.rewant(was, document);
         true
     }
 
     /// The same for Style check's table: a List switched off is a repaint, and
-    /// only the master joining or leaving the request resets the work.
+    /// only the master joining or leaving the request changes the work.
     pub(crate) fn configure_style(&mut self, style: StyleCheck, document: &Document) -> bool {
         if self.style == style {
             return false;
         }
         let was = self.wanted();
         self.style = style;
-        if self.wanted() != was {
-            self.reset(document);
-        }
+        self.rewant(was, document);
         true
+    }
+
+    /// Answers a master switch without taking the other Annotator down with it.
+    ///
+    /// The pair shares one index and one store walk, so a [`Syntax::reset`]
+    /// here empties the store of the Annotator that did not move as well as
+    /// the one that did, and the page loses every mark until the next
+    /// keystroke dirties a paragraph and asks again (#356).
+    ///
+    /// Only the first arrival and the last departure reset: the first has no
+    /// index to keep, the last has no work to hold. Between them a joiner
+    /// dirties every paragraph, because a request carries only the Annotators
+    /// wanted when it was made and the spans it wants were never matched; a
+    /// leaver needs nothing: painting reads the master switch, so its spans
+    /// are simply unpainted, and they are held until the next answer for
+    /// their paragraph arrives with an empty set for a kind nobody wants.
+    /// That is the kept-spans rule the Annotators already follow — the marks
+    /// a writer can see outlive the switch and go when newer ones land.
+    fn rewant(&mut self, was: Annotators, document: &Document) {
+        let wanted = self.wanted();
+        if wanted == was {
+            return;
+        }
+        if !(was.syntax || was.style) || !self.working() {
+            self.reset(document);
+            return;
+        }
+        // Whole index on a master join only, never on a keystroke or a List:
+        // the next request re-extracts every block's prose, the cost a master
+        // enable already paid through reset.
+        if (wanted.syntax && !was.syntax) || (wanted.style && !was.style) {
+            for entry in &mut self.paragraphs {
+                entry.dirty = true;
+            }
+        }
+    }
+
+    /// Whether a paragraph is waiting to be asked about.
+    ///
+    /// One pass over the block headers, on a table change only: the wake is
+    /// worth arming for work that exists, and a Category or a List moves no
+    /// paragraph, so it must not restart a keystroke's debounce (#356).
+    pub(crate) fn asking(&self) -> bool {
+        self.working() && self.paragraphs.iter().any(|entry| entry.dirty)
     }
 
     /// Isolates a new or reloaded Document, even if its generation repeats.
@@ -685,6 +726,42 @@ mod tests {
         );
         assert_eq!(syntax.lists_in(&document, &whole), [(0..9, List::Fillers)]);
         assert!(syntax.request(&document, 0..1).is_none());
+    }
+
+    #[test]
+    fn a_master_joining_keeps_the_others_spans_and_asks_for_its_own() {
+        let document = document("Basically Alice reads.");
+        let mut syntax = enabled(&document);
+        answer(&mut syntax, &document);
+        let whole = 0..document.text().len();
+        let coloured = syntax.spans_in(&document, &whole);
+        assert!(!coloured.is_empty());
+        // Style check joins under Syntax highlight: the colours stay on the
+        // page, and the strikes are asked for without waiting on a keystroke.
+        assert!(syntax.configure_style(style([true; 3]), &document));
+        assert_eq!(syntax.spans_in(&document, &whole), coloured);
+        // The joiner has work, so the wake is armed for it; a List alone has
+        // none, and must not restart a keystroke's debounce.
+        assert!(syntax.asking());
+        let request = syntax.request(&document, 0..1).unwrap();
+        syntax.accept(
+            ParagraphResult {
+                generation: request.generation,
+                paragraph: 0,
+                categories: vec![(10..15, Category::Nouns)],
+                lists: vec![(0..9, List::Fillers)],
+            },
+            &document,
+        );
+        assert_eq!(syntax.lists_in(&document, &whole), [(0..9, List::Fillers)]);
+        assert!(!syntax.asking());
+        assert!(syntax.configure_style(style([false, true, true]), &document));
+        assert!(!syntax.asking());
+        // The one that leaves takes nothing with it: the strikes outlive
+        // Syntax highlight's departure, and its own spans are merely unpainted.
+        assert!(syntax.configure(SyntaxHighlight::default(), &document));
+        assert_eq!(syntax.lists_in(&document, &whole), [(0..9, List::Fillers)]);
+        assert!(syntax.spans_in(&document, &whole).is_empty());
     }
 
     #[test]

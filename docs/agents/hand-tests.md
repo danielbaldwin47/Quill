@@ -19,14 +19,14 @@ about 1.7×. 2. Switch to Quattro, then Mono; each renders in its own face, none
 size up and down; the leading scales with it. 4. A bold and an italic word sit on the same baseline
 as their neighbours.
 
-**Cursor and caret**: 1. Click into text; the caret is a single blue bar the full line height. 2.
-Type; the bar moves with the text, and the blink pauses while typing and resumes after. 3. Select a
-word by drag and by Shift+arrows; the selection is one continuous band beneath the glyphs, with no
-bar at either end and no caret anywhere while it stands (ADR 0014). 4. Click another window; the
-caret shows its unfocused state. 5. Hold a key down and watch the bar through the repeat; it stays
-solid the whole time and never blinks under the hand. 6. Let go and watch it; it fades out about
-half a second later and is blinking on a turn of about a second, lit about as long as it is dark. A
-bar still solid a second after the last key is the defect.
+**Cursor and caret**: 1. Click into text; the caret is a single blue bar with rounded ends, the full
+line height. 2. Type; the bar moves with the text, and the blink pauses while typing and resumes
+after. 3. Select a word by drag and by Shift+arrows; the selection is one continuous band beneath
+the glyphs, with no bar at either end and no caret anywhere while it stands (ADR 0014). 4. Click
+another window; the caret shows its unfocused state. 5. Hold a key down and watch the bar through
+the repeat; it stays solid the whole time and never blinks under the hand. 6. Let go and watch it;
+it fades out about half a second later and is blinking on a turn of about a second, lit about as
+long as it is dark. A bar still solid a second after the last key is the defect.
 
 **Focus and typewriter**: 1. Turn Focus on; everything outside the current sentence dims, the caret
 sentence stays full ink. 2. Type past a full stop; the dim moves with the sentence. 3. Switch scope
