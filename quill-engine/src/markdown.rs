@@ -164,10 +164,24 @@ pub fn references(text: &str) -> BTreeMap<String, String> {
 
 /// Whether the text inside `tag` is something other than the writer's prose.
 fn hides_prose(tag: &Tag<'_>) -> bool {
+    matches!(tag, Tag::CodeBlock(_)) || hides_words(tag)
+}
+
+/// Whether the text inside `tag` is not the writer's words at all.
+///
+/// The half of [`hides_prose`] that holds however the words are being read:
+/// front matter is the writer's metadata and an autolink's destination is an
+/// address, and neither is a word to spell-check, to strike or to count. A
+/// code block is the other half and is not here, because [`crate::stats`]
+/// counts the code a writer typed even though no Annotator reads it.
+///
+/// URLs need saying twice, for the reason [`prose`] gives: an inline link's
+/// destination is part of its tag and falls out for free, where an autolink's
+/// *is* its text and has to be suppressed by name.
+pub(crate) fn hides_words(tag: &Tag<'_>) -> bool {
     matches!(
         tag,
-        Tag::CodeBlock(_)
-            | Tag::MetadataBlock(_)
+        Tag::MetadataBlock(_)
             | Tag::Link {
                 link_type: LinkType::Autolink | LinkType::Email,
                 ..
