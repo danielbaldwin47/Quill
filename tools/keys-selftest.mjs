@@ -12,7 +12,8 @@
 // it for #108's caret, `fixed-select-all.png` and `broken-select-all.png` for #146's selection, and
 // `fill-select-all.png` and `fill-newline-held.png` from the build that fills the container for
 // #168's, against `fixed-select-all.png` as the build that filled each row to its ink, and
-// `stats-bar-{document,selection}.png` for the stats bar's two rules — so the
+// `stats-bar-{document,selection}.png` for the stats bar's two rules, and `spell-{typing,space}.png`
+// for the Spell check wave's — so the
 // whole assertion is exercised here with no window, no compositor and no keyboard, which is what
 // lets `tools/gate check` run it.
 
@@ -22,10 +23,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  BETWEEN_BURSTS, CHROMA, INK_DARK, PAPER, PAPER_DARK, PAPER_MARGIN, decodePng, glyphAdvance,
-  judgeBurst, judgeMove, judgeSelectionFill, judgeSelectionNewline, judgeSelectionRows,
-  judgeStatsBarAccent, judgeStatsBarChanged, leansBlue, lum, pixel, readBar, readSelectionRows,
-  readStatsBand, resolveScript,
+  AFTER_BURST, BETWEEN_BURSTS, CHROMA, INK_DARK, PAPER, PAPER_DARK, PAPER_MARGIN, SPELL, SPELL_DARK,
+  decodePng, glyphAdvance, judgeBurst, judgeMove, judgeSelectionFill, judgeSelectionNewline,
+  judgeSelectionRows, judgeSpellWave, judgeStatsBarAccent, judgeStatsBarChanged, leansBlue, lum,
+  pixel, readBar, readSelectionRows, readStatsBand, resolveScript,
 } from './keys-assert.mjs';
 
 // Whether the pixel at (x, y) is something other than the paper the bar is drawn on. The rule is
@@ -647,6 +648,68 @@ ok('a burst that only presses a chord types no characters, and its chars say so'
   const wrong = { ...states, keys: { caret: { ...states.keys.caret } } };
   wrong.keys.caret.bursts = [{ name: 'a', keys: [{ press: 'Control+a' }], chars: 0 }];
   assert.deepEqual(resolveScript(wrong, 'caret').bursts[0].chars, 0);
+});
+
+// ---------- the Spell check wave, withheld until the space: #414 ----------
+//
+// WHERE THESE TWO CROPS CAME FROM
+//
+// Ours, from `tools/gate keys spell --shots` on the spec-401 branch with #409's caret rule in it:
+// the script's two bursts, each page cut by `cropPng` in `tools/crop.mjs` to [560, 500, 360, 150].
+// That rectangle holds the caret's row — `comittee` at the start of a wrapped row, the bar after it
+// in `spell-typing` and after the space in `spell-space` — and the foot of the row above, whose
+// `mispelled` wears its own wave outside the bar's rows. The two crops differ in the bar's column
+// and the wave under the typed word, and in nothing else.
+
+ok('the pinned spell inks quote the theme module’s two Role::Spell lines', () => {
+  const theme = fs.readFileSync(path.join(ROOT, 'quill-engine/src/theme.rs'), 'utf8');
+  const hex = ({ r, g, b }) => `#${[r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+  assert.ok(theme.includes(`(Scheme::Light, Role::Spell, "${hex(SPELL)}")`), hex(SPELL));
+  assert.ok(theme.includes(`(Scheme::Dark, Role::Spell, "${hex(SPELL_DARK)}")`), hex(SPELL_DARK));
+});
+
+ok('the word being typed wears no wave, and wears it once the space releases it', () => {
+  const typing = judgeSpellWave(shot('spell-typing'), { wave: false });
+  assert.equal(typing.pass, true, typing.said);
+  const space = judgeSpellWave(shot('spell-space'), { wave: true });
+  assert.equal(space.pass, true, space.said);
+  // The same word both times: the bar moved one space right and the walk left found `comittee`.
+  assert.deepEqual(typing.word, space.word);
+});
+
+ok('each crop fails the other burst’s expectation, which is the rule going red', () => {
+  const early = judgeSpellWave(shot('spell-space'), { wave: false });
+  assert.equal(early.pass, false, 'a wave under the word while the caret is in it is caught');
+  assert.match(early.said, /expected none of it/);
+  const never = judgeSpellWave(shot('spell-typing'), { wave: true });
+  assert.equal(never.pass, false, 'a word the space did not release is caught');
+  assert.match(never.said, /^0 px of the spell Role/);
+});
+
+ok('a burst asserting spell-wave without saying which way is refused, not passed', () => {
+  const v = judgeSpellWave(shot('spell-space'), {});
+  assert.equal(v.pass, false);
+  assert.match(v.said, /has to say whether it expects the wave/);
+});
+
+ok('the spell script types the misspelling as characters, then the space that releases it', () => {
+  const script = resolveScript(states, 'spell');
+  assert.equal(AFTER_BURST['spell-wave'], judgeSpellWave);
+  assert.deepEqual(script.bursts.map((b) => b.text), [' comittee', ' ']);
+  assert.deepEqual(script.bursts.map((b) => b.wave), [false, true]);
+  assert.deepEqual(script.bursts.map((b) => b.assert), [['spell-wave'], ['spell-wave']]);
+  // A bare named key cannot be pressed without a modifier, so the space is a character.
+  assert.equal(script.bursts.some((b) => b.keys), false);
+  assert.equal(script.flags.spell, 'on');
+  assert.equal(script.flags.chrome, 'off');
+  // The caret opens at the passage's end, before its trailing newline, so the typing joins the
+  // last paragraph.
+  const passage = fs.readFileSync(path.join(ROOT, script.flags.text), 'utf8');
+  assert.equal(script.flags.caret, Buffer.byteLength(passage.trimEnd()));
+  // The fixture dictionary every launch reads is what makes `comittee` a misspelling.
+  const words = fs.readFileSync(path.join(ROOT, 'ref/spell/hunspell/en_US.dic'), 'utf8').split('\n');
+  assert.ok(words.includes('committee'));
+  assert.ok(!words.includes('comittee'));
 });
 
 if (failures === 0) {
