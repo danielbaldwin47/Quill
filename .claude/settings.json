@@ -15,8 +15,11 @@
       "Bash(gh pr comment:*)",
       "Bash(gh pr ready:*)",
       "Bash(gh pr diff:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(git worktree remove:*)",
       "Bash(tools/ticket:*)",
-      "Bash(tools/context-report:*)"
+      "Bash(tools/context-report:*)",
+      "Bash(tools/land:*)"
     ]
   },
   "env": {
