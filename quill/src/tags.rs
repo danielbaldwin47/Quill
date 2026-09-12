@@ -360,6 +360,61 @@ fn strike_lists(
     }
 }
 
+/// The name of Spell check's one tag, so that [`repaint`] can take it off a
+/// range by name.
+const SPELL_MARK: &str = "decoration-spell";
+
+/// The tag that waves under a word the dictionary refused.
+///
+/// Pango's `error` underline, coloured through `underline-rgba` from
+/// [`Role::Spell`], and no other property: the run under it keeps its ink, so
+/// the Focus dim, a Category colour and a Style check strike on the same word
+/// all still show, and the Editor's selection fills sit under it (#401 § The
+/// mark). The colour is set each time the tag is asked for, as [`underline`]'s
+/// is, so the redraw a theme switch makes carries the other ground's red.
+///
+/// Provisional in all three things it decides — the colour, the wave and where
+/// it sits — until the Design oracle's capture (#400) measures them; a dotted
+/// line there would swap the wave.
+///
+/// The rule that two underline tags never meet holds against [`underline`]:
+/// the link-rule tag underlines a destination, never a prose word, and only
+/// prose words are checked. [`link_rule`] is the one that can meet it, on a
+/// misspelled link word under Live, where priority picks which underline is
+/// drawn.
+fn misspelling(buffer: &gtk::TextBuffer, colours: &Colours) -> gtk::TextTag {
+    let mark = tag(buffer, SPELL_MARK, |tag| {
+        tag.set_underline(pango::Underline::Error);
+    });
+    let red = colours.colour(Role::Spell).to_hex();
+    mark.set_underline_rgba(Some(&shaded(&red, Look::OPAQUE)));
+    mark
+}
+
+/// Waves under every word Spell check marks over the bytes `at`.
+///
+/// After the colour runs and the strikes, over
+/// [`crate::syntax::Syntax::misspelled_in`]'s spans, which are empty with
+/// Spell check off: switching it off is a [`repaint`] that takes this tag off
+/// and puts nothing back, and leaves every other tag where it was.
+fn mark_misspellings(
+    buffer: &gtk::TextBuffer,
+    document: &Document,
+    painting: Painting,
+    at: &Range<usize>,
+) {
+    let words = painting.syntax.borrow().misspelled_in(document, at);
+    if words.is_empty() {
+        return;
+    }
+    let mark = misspelling(buffer, &painting.colours);
+    for word in words {
+        let from = iter_at(buffer, document, word.start);
+        let to = iter_at(buffer, document, word.end);
+        buffer.apply_tag(&mark, &from, &to);
+    }
+}
+
 /// The tag that closes a folded inline delimiter up.
 ///
 /// `invisible` takes the bytes out of the layout altogether: they advance
@@ -713,9 +768,9 @@ pub trait Measure {
 /// drawn in the colours of the moment it is applied.
 #[derive(Clone, Copy)]
 pub struct Painting<'a> {
-    /// Both Annotators' retained spans and their tables, read only over the
-    /// range being drawn: the Categories that colour it and the List spans
-    /// struck across it.
+    /// The prose Annotators' retained spans and their settings, read only over
+    /// the range being drawn: the Categories that colour it, the List spans
+    /// struck across it and the misspelled words waved under it.
     pub syntax: &'a std::cell::RefCell<crate::syntax::Syntax>,
     /// The Face the Editor is set in.
     pub face: Face,
@@ -842,8 +897,8 @@ pub fn recolour(buffer: &gtk::TextBuffer, at: &Range<i32>, was: Colour, now: Col
     buffer.apply_tag(&colour(buffer, &now.to_hex(), now.opacity()), &from, &to);
 }
 
-/// Replaces foreground colours and Style check marks without touching
-/// paragraph or Live properties.
+/// Replaces foreground colours, Style check marks and Spell check's wave
+/// without touching paragraph or Live properties.
 ///
 /// Syntax answers and toggles change ink only. A structural retag would clear
 /// the well's spacing on neighbouring lines and could leave half of a paired
@@ -883,10 +938,9 @@ pub fn repaint(
     // the matcher running again, and the two tags a still-enabled List's
     // neighbours carry go back exactly where they were.
     buffer.tag_table().foreach(|tag| {
-        if tag
-            .name()
-            .is_some_and(|name| name.starts_with("colour-") || name.starts_with(STYLE_MARK))
-        {
+        if tag.name().is_some_and(|name| {
+            name.starts_with("colour-") || name.starts_with(STYLE_MARK) || name == SPELL_MARK
+        }) {
             for (from, to) in &offsets {
                 buffer.remove_tag(tag, from, to);
             }
@@ -901,6 +955,7 @@ pub fn repaint(
             buffer.apply_tag(&colour(buffer, &ink.to_hex(), ink.opacity()), &from, &to);
         }
         strike_lists(buffer, document, painting, &at);
+        mark_misspellings(buffer, document, painting, &at);
     }
 }
 
@@ -988,6 +1043,7 @@ fn draw(buffer: &gtk::TextBuffer, document: &Document, painting: Painting, at: &
         }
     }
     strike_lists(buffer, document, painting, at);
+    mark_misspellings(buffer, document, painting, at);
     for span in &spans {
         if span.at.end <= at.start {
             continue;
