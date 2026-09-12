@@ -362,7 +362,7 @@ impl Flags {
                 "--live" => flags.live = true,
                 "--syntax" => flags.syntax = Some(syntax(flag, &text(&mut args, flag)?)?),
                 "--style" => flags.style = Some(style(flag, &text(&mut args, flag)?)?),
-                "--stats" => flags.stats = Some(stats(flag, &text(&mut args, flag)?)?),
+                "--stats" => flags.stats = Some(stats_table(flag, &text(&mut args, flag)?)?),
                 "--chrome" => flags.chrome = Some(one_of(flag, &text(&mut args, flag)?, &CHROMES)?),
                 "--caret" => flags.caret = Some(caret(flag, &text(&mut args, flag)?)?),
                 "--select" => flags.select = Some(select(flag, &text(&mut args, flag)?)?),
@@ -725,7 +725,11 @@ fn style(flag: &str, written: &str) -> Result<StyleCheck, Error> {
 /// neither spelling is ever a claim about both.
 ///
 /// A name repeated is one cell, as the table's reader has it.
-fn stats(flag: &str, written: &str) -> Result<Stats, Error> {
+///
+/// Named for the table where `syntax` and `style` beside it are named for
+/// their flag: `Stats` is a type this module imports, and a private fn does
+/// not share a name with one (`CODING_STANDARDS.md` § Shape).
+fn stats_table(flag: &str, written: &str) -> Result<Stats, Error> {
     let mut stats = Stats::default();
     if written == "hidden" {
         stats.bar = StatsBar::Hidden;

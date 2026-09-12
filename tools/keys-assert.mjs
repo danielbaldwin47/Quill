@@ -56,7 +56,7 @@ export const PAPER_DARK = { r: 26, g: 26, b: 26 };
 // the caret is the one instrument the writer watches, so it is the same blue either way. Every grey
 // on the page has `b - r === 0`; the bar comes out 114 over paper and 113 over ink in the green
 // fixture, so 40 sits far from both answers and needs no revisiting if the alpha is ever retuned.
-const CHROMA = 40;
+export const CHROMA = 40;
 
 // Where between paper and ink a pixel starts counting as a glyph. 0.45 puts it at 127.5 on the
 // light scheme, a little to the ink's side of halfway, so an antialiased skirt is not read as ink
@@ -158,12 +158,12 @@ export function decodePng(buf) {
 
 // ---------- the bar, and the ink it stands after ----------
 
-const lum = ({ r, g, b }) => (r + g + b) / 3;
+export const lum = ({ r, g, b }) => (r + g + b) / 3;
 
 // One pixel, in the two terms both scans below ask it for. `chroma` leans one way only, because
 // the accent leans one way only: `Role::Accent` is a single colour in `theme.rs` — the same blue on
 // paper and on the dark ground — so there is no second direction to carry.
-function pixel(png, x, y) {
+export function pixel(png, x, y) {
   const i = (y * png.w + x) * png.ch;
   const r = png.data[i];
   const g = png.data[i + 1];
@@ -176,7 +176,7 @@ function pixel(png, x, y) {
 // One predicate covers both because both are `Role::Accent`: the bar is it at full alpha and the
 // selection's fill is it at .22, which over paper comes out `#c2eafa` — chroma 56, on the same
 // side of `CHROMA` as the bar's own 113 and 114.
-const leansBlue = (p) => p.chroma >= CHROMA && p.b > p.g;
+export const leansBlue = (p) => p.chroma >= CHROMA && p.b > p.g;
 
 /// Where the caret's bar is, and where the ink on its rows ends.
 ///
@@ -284,7 +284,7 @@ const SCALE = 2;
 // How far a pixel's luminance must run from the paper's before it is not paper. The bar's ink is
 // far past it; 6 clears the dither a scaled shot can leave on a flat ground, and the 2 luminance
 // between our `#f7f7f7` paper and the oracle's `#f9f9f9`, without reaching either.
-const PAPER_MARGIN = 6;
+export const PAPER_MARGIN = 6;
 
 /// The stats bar's band: the rows the chrome reserves for the bar at the foot of the window,
 /// `{ top, bottom }` — or `null` when the shot has no bar in it.

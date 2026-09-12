@@ -22,10 +22,20 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  BETWEEN_BURSTS, INK_DARK, PAPER_DARK, decodePng, glyphAdvance, judgeBurst, judgeMove,
-  judgeSelectionFill, judgeSelectionNewline, judgeSelectionRows, judgeStatsBarAccent,
-  judgeStatsBarChanged, readBar, readSelectionRows, readStatsBand, resolveScript,
+  BETWEEN_BURSTS, CHROMA, INK_DARK, PAPER, PAPER_DARK, PAPER_MARGIN, decodePng, glyphAdvance,
+  judgeBurst, judgeMove, judgeSelectionFill, judgeSelectionNewline, judgeSelectionRows,
+  judgeStatsBarAccent, judgeStatsBarChanged, leansBlue, lum, pixel, readBar, readSelectionRows,
+  readStatsBand, resolveScript,
 } from './keys-assert.mjs';
+
+// Whether the pixel at (x, y) is something other than the paper the bar is drawn on. The rule is
+// `readStatsBand`'s own, imported rather than restated: a test that copies the threshold it checks
+// goes green when the threshold moves (CODING_STANDARDS.md § Tools).
+const offPaper = (png, x, y) => {
+  const i = (y * png.w + x) * png.ch;
+  const there = { r: png.data[i], g: png.data[i + 1], b: png.data[i + 2] };
+  return Math.abs(lum(there) - lum(PAPER)) > PAPER_MARGIN;
+};
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FIXTURE = path.join(ROOT, 'tools/keys-fixture');
@@ -353,8 +363,7 @@ ok('the band is found on a page that does not scroll, where there is no separato
     for (let y = png.h - 1; y >= 0 && fullWidth === null; y -= 1) {
       let n = 0;
       for (let x = 0; x < png.w; x += 1) {
-        const i = (y * png.w + x) * png.ch;
-        if (Math.abs((png.data[i] + png.data[i + 1] + png.data[i + 2]) / 3 - 249) > 6) n += 1;
+        if (offPaper(png, x, y)) n += 1;
       }
       if (n >= png.w * 0.99) fullWidth = y;
     }
@@ -394,8 +403,7 @@ ok('the band stops above the page, which is what keeps the selection out of it',
   let lowest = null;
   for (let y = top - 1; y >= 0 && lowest === null; y -= 1) {
     for (let x = 0; x < png.w; x += 1) {
-      const i = (y * png.w + x) * png.ch;
-      if (Math.abs((png.data[i] + png.data[i + 1] + png.data[i + 2]) / 3 - 249) > 6) {
+      if (offPaper(png, x, y)) {
         lowest = y;
         break;
       }
@@ -441,13 +449,13 @@ ok('the accent pinned here is the oracle’s, and passes the chroma test ours do
     for (let x = 0; x < png.w; x += 1) {
       const i = (y * png.w + x) * png.ch;
       const [r, g, b] = [png.data[i], png.data[i + 1], png.data[i + 2]];
-      if (b - r >= 40 && b > g) seen.add(`${r},${g},${b}`);
+      if (leansBlue(pixel(png, x, y))) seen.add(`${r},${g},${b}`);
     }
   }
   assert.ok(seen.has('0,181,255'), `the oracle's accent at full strength (saw ${[...seen].length} hues)`);
   for (const hue of seen) {
     const [r, , b] = hue.split(',').map(Number);
-    assert.ok(b - r >= 40, `${hue} leans blue`);
+    assert.ok(b - r >= CHROMA, `${hue} leans blue`);
   }
 });
 

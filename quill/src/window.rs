@@ -393,7 +393,7 @@ impl Window {
         window
             .imp()
             .bars
-            .set_statistics(chrome::checked(&session.stats().show));
+            .set_statistics(chrome::checked_set(&session.stats().show));
         window
             .imp()
             .bars
@@ -2947,7 +2947,7 @@ impl Window {
         self.move_windows(
             |session| {
                 session.toggle_statistic(statistic);
-                chrome::checked(&session.stats().show)
+                chrome::checked_set(&session.stats().show)
             },
             |window, checked| window.imp().bars.set_statistics(checked),
         );
