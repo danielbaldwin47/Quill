@@ -63,7 +63,7 @@ Striking through fillers, redundancies and clichés in prose, from Quill's own p
 _Avoid_: grammar check, linting, underlining (that is Spell check's mark)
 
 **Spell check**:
-Underlining, on the prose stream, every word the writer's dictionary does not hold, once the caret has left it; the dictionary is the desktop's own, through enchant. A toggle, on by default. Corrections are offered on a right-click: Suggestions, Add to Dictionary, Ignore.
+Underlining, on the prose stream, every word the writer's dictionary does not hold, except the word the writer is still typing; the dictionary is the desktop's own, through enchant. A toggle, on by default. Corrections are offered on a right-click: Suggestions, Add to Dictionary, Ignore.
 _Avoid_: autocorrect (a replacement the app makes; Spell check marks and never edits), grammar check, squiggle (the mark's shape is the capture's to settle)
 
 **Suggestion**:

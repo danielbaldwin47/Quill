@@ -668,7 +668,7 @@ export const SPELL = { r: 0xe5, g: 0x37, b: 0x2b };
 export const SPELL_DARK = { r: 0xe5, g: 0x53, b: 0x4b };
 
 // How far a pixel's `(r - g) / (r - b)` may stray from the Role's own before it is not the wave.
-const SPELL_HUE = 0.2;
+const SPELL_INK_HUE = 0.2;
 
 // The gap, as a share of the caret bar's height, that ends a word when walking left from the bar.
 // Measured off `tools/keys-fixture/spell-*.png` at the judged defaults: the bar is 74 device px
@@ -688,11 +688,14 @@ function rgb(png, x, y) {
 /// it by the same share: `r - g` and `r - b` shrink together, so their ratio is the Role's own at
 /// every strength and a chroma floor is all that tells a faint skirt from the paper. No grey and no
 /// accent pixel leans red, so nothing else on a keys page answers it.
-export function isSpellInk(png, x, y, spell = SPELL) {
+///
+/// `chroma` is how far red must lead green and blue, and `hue` how far the ratio may stray; a
+/// caller reading a fainter wave than a keys page carries passes its own.
+export function isSpellInk(png, x, y, spell = SPELL, { chroma = CHROMA, hue = SPELL_INK_HUE } = {}) {
   const { r, g, b } = rgb(png, x, y);
-  if (r - Math.max(g, b) < CHROMA) return false;
+  if (r - Math.max(g, b) < chroma) return false;
   const want = (spell.r - spell.g) / (spell.r - spell.b);
-  return Math.abs((r - g) / (r - b) - want) <= SPELL_HUE;
+  return Math.abs((r - g) / (r - b) - want) <= hue;
 }
 
 /// The ink of the word the caret's bar stands after, on the bar's rows: `{ left, right }` in device

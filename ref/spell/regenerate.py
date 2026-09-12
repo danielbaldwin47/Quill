@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Regenerate the Spell check fixture dictionary, ref/spell/hunspell/en_US.dic.
 
-The word list is every correctly spelled word of ref/spell.md and of the prose
-passage the bench regimes type (the PROSE constant in tools/regimes.mjs), plus
-the corrections of the passage's eight misspellings, so a suggestion has a word
-to offer. A token carrying a digit is left out, since the tokeniser never checks
+The word list is every correctly spelled word of ref/spell.md, of the prose
+passage the bench regimes type (the PROSE constant in tools/regimes.mjs) and of
+the document they type it into (shots/latency/doc10k.md, tools/bench.mjs's DOC),
+plus the corrections of the passage's eight misspellings, so a suggestion has a
+word to offer. A word joined by an apostrophe or a hyphen goes in whole and as
+its parts, since whether the dictionary splits it is its own word-character
+rule. A token carrying a digit is left out, since the tokeniser never checks
 one, and so is every misspelling. Run from anywhere: python3 ref/spell/regenerate.py
 """
 
@@ -44,11 +47,13 @@ def words(text: str):
 
 def main() -> None:
     passage = (ROOT / "ref/spell.md").read_text(encoding="utf-8")
+    bench = (ROOT / "shots/latency/doc10k.md").read_text(encoding="utf-8")
     held = set(MISSPELLINGS.values())
-    for word in words(passage) + words(prose()):
-        if word in MISSPELLINGS or any(c.isdigit() for c in word):
-            continue
-        held.add(word if word in NAMES else word.lower())
+    for token in words(passage) + words(prose()) + words(bench):
+        for word in {token, *re.split(r"['’-]", token)}:
+            if not word or word in MISSPELLINGS or any(c.isdigit() for c in word):
+                continue
+            held.add(word if word in NAMES else word.lower())
     listing = sorted(held, key=lambda w: (w.lower(), w))
     out = ROOT / "ref/spell/hunspell/en_US.dic"
     out.write_text(f"{len(listing)}\n" + "".join(f"{w}\n" for w in listing), encoding="utf-8")
