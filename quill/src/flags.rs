@@ -721,8 +721,8 @@ fn style(flag: &str, written: &str) -> Result<StyleCheck, Error> {
 /// No `off`: it is the master switch everywhere else on this command line, and
 /// there is no master switch here — hiding the bar and checking nothing are
 /// two different states, and `off` would have to be one of them and read as
-/// the other. `hidden` says the one and an empty checked set is unreachable
-/// from a command line, which is what leaves `--stats` unambiguous.
+/// the other. `hidden` says the one and the empty list says the other, so
+/// neither spelling is ever a claim about both.
 ///
 /// A name repeated is one cell, as the table's reader has it.
 fn stats(flag: &str, written: &str) -> Result<Stats, Error> {
@@ -732,6 +732,11 @@ fn stats(flag: &str, written: &str) -> Result<Stats, Error> {
         return Ok(stats);
     }
     stats.show = Vec::new();
+    // The empty list is the bar shown with no cells, which is what unchecking
+    // every Statistic leaves; splitting it would look for a Statistic named "".
+    if written.is_empty() {
+        return Ok(stats);
+    }
     for name in written.split(',') {
         let Some(statistic) = Statistic::from_name(name) else {
             let names: Vec<&str> = Statistic::ALL.iter().map(|s| s.name()).collect();
@@ -1215,6 +1220,18 @@ mod tests {
         assert_eq!(named.show, [Statistic::ReadingTime, Statistic::Words]);
         let twice = parse("--stats words,words").unwrap().stats.unwrap();
         assert_eq!(twice.show, [Statistic::Words], "a repeat is one cell");
+        // The empty list is the bar shown with no cells — what unchecking
+        // every Statistic leaves, and the only spelling that reaches it.
+        let empty = Flags::parse(["--stats", ""].iter().map(OsString::from))
+            .unwrap()
+            .stats
+            .unwrap();
+        assert!(empty.show.is_empty());
+        assert_eq!(
+            empty.bar,
+            StatsBar::Shown,
+            "an empty bar is not a hidden one"
+        );
         for bad in ["words,", ",words", "off", "on", "words,syllables"] {
             let error = parse(&format!("--stats {bad}")).unwrap_err().to_string();
             assert!(error.starts_with("--stats: "), "{error}");
