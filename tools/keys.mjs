@@ -259,7 +259,14 @@ async function run(root, piece, { shotsDir }) {
     for (const { burst, shot } of seen) {
       for (const name of burst.assert || []) {
         const verdict = AFTER_BURST[name](shot.png, {
-          chars: burst.chars, rows: burst.rows, accent: burst.accent, colours, read: shot.read,
+          chars: burst.chars,
+          rows: burst.rows,
+          accent: burst.accent,
+          colours,
+          // The state's own scale, so the band the stats rules read is the bar's height in logical
+          // pixels taken times what this shot was actually captured at.
+          scale: flags.scale,
+          read: shot.read,
         });
         say(`gate keys: ${burst.name} ${name}: ${verdict.pass ? 'ok' : 'FAILED'} — ${verdict.said}`);
         if (!verdict.pass) failures.push(`${name} after ${burst.name}: ${verdict.said}`);
@@ -279,7 +286,7 @@ async function run(root, piece, { shotsDir }) {
         }
         const verdict = rule.reads === 'bar'
           ? rule.judge(seen[i - 1].shot.read, seen[i].shot.read)
-          : rule.judge(seen[i - 1].shot.png, seen[i].shot.png, colours);
+          : rule.judge(seen[i - 1].shot.png, seen[i].shot.png, { colours, scale: flags.scale });
         say(`gate keys: ${where} ${name}: ${verdict.pass ? 'ok' : 'FAILED'} — ${verdict.said}`);
         if (!verdict.pass) failures.push(`${name} from ${where}: ${verdict.said}`);
       }
