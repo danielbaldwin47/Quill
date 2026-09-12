@@ -187,6 +187,7 @@ export function quillArgv(root, flags, { live = false } = {}) {
   if (flags.live) argv.push('--live');
   if (flags.syntax) argv.push('--syntax', flags.syntax);
   if (flags.style) argv.push('--style', flags.style);
+  if (flags.stats) argv.push('--stats', flags.stats);
   if (flags.nocaret) argv.push('--nocaret');
   // The two chrome states the bars alone do not reach: `--typing` is the chrome stepped back, and
   // `--menu` is one popover open with its first row selected. Both are states the app is put in
