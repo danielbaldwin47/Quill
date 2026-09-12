@@ -56,6 +56,7 @@ export const ASSERTIONS = {
   'pdf-full': pdfFull,
   dialog: dialog,
   syntax: syntax,
+  outline: outline,
 };
 
 // How each rule wants its second shot taken: the state to shoot, and what to shoot it with.
@@ -69,6 +70,7 @@ export const ASSERTIONS = {
 // of the pane surround which the dialog shot must leave unchanged.
 // `syntax` removes Syntax highlight while preserving Focus and Live, so glyph coverage and the
 // bright rows are measured independently of the Category colours.
+// `outline` removes the menu for the bare page: where the Outline shot differs from it is the panel.
 export const SECOND = {
   ghost: (s) => ({ state: s, options: { active: true } }),
   folded: (s) => ({ state: { ...s, flags: { ...s.flags, live: false } }, options: {} }),
@@ -78,6 +80,7 @@ export const SECOND = {
   'pdf-full': (s) => ({ state: s, options: { active: true } }),
   dialog: (s) => ({ state: { ...s, flags: { ...s.flags, export: null } }, options: { active: true } }),
   syntax: (s) => ({ state: { ...s, flags: { ...s.flags, syntax: 'off' } }, options: {} }),
+  outline: (s) => ({ state: { ...s, flags: { ...s.flags, menu: null } }, options: {} }),
 };
 
 // The second shot one asserted state asks for: `{ state, options }` for `shootState`.
@@ -128,6 +131,7 @@ const CHECKS = {
   'pdf-full': bare('pdf-full'),
   dialog: bare('dialog'),
   syntax: syntaxSpec,
+  outline: bare('outline'),
 };
 
 // The built-ins, restated from quill-engine/src/theme.rs, Colours::{LIGHT,DARK}, which #308
@@ -1077,6 +1081,172 @@ function dialog(_spec, { dim, lit }) {
       `the pane surround is held to bare PDF Split and every ground is read from the pair, not compared against a hex written down here`,
     ],
   };
+}
+
+// ---------- the Outline in the Palette ----------
+
+// The least a channel moves, between the Outline shot and the bare page, for a pixel to count as
+// the panel's: a popover's shadow fades into the paper, and its last steps are a unit or two that
+// would push the panel's box out to where nothing is drawn.
+const OUTLINE_CHANGED = 8;
+
+// A band shorter than this is a rule, not a row: the hairline under the field is two pixels at the
+// judged scale, and no row of type is under four.
+const OUTLINE_RULE = 4;
+
+// The Palette on the Outline (#397): a panel over the page holding the open Document's headings,
+// the second stepped in under the first.
+//
+// Two facts, and they are the two a still can hold. A panel stands over the page, wholly inside
+// the window — found as where the Outline shot differs from the bare page, which is the second
+// shot [`SECOND`] asks for, so no colour written down here says what a panel is. And under its
+// field the panel carries at least two bands of ink, the second's starting to the right of the
+// first's: ref/sample.md's two headings are a level 1 and a level 2, and the step is the indent.
+// Each band's ink is read against the band's own ground, because the selected row is drawn on the
+// accent with its words in white: against the panel's ground the highlight would be the ink and
+// its left edge the row's margin rather than its words.
+//
+// A still cannot read a word, and this rule does not pretend to: which row is selected, and what
+// the rows say, is the Hand test's.
+function outline(_spec, { dim, lit }) {
+  const png = decodePng(dim);
+  const page = decodePng(lit);
+  const { w, h } = png;
+  if (page.w !== w || page.h !== h) {
+    return no(`the Outline shot is ${w}x${h} and its bare page is ${page.w}x${page.h}`);
+  }
+  const changed = changedBox(png, page);
+  if (changed.right < changed.left) {
+    return no(`the Outline shot is the bare page pixel for pixel: no panel stands over it`);
+  }
+  const inside = changed.left > 0 && changed.right < w - 1 && changed.top > 0 && changed.bottom < h - 1;
+  if (!inside) {
+    return no(`what differs from the bare page runs ${box(changed)} of a ${w}x${h} window: it reaches an edge, so it is not a panel standing over the page`);
+  }
+  const ground = groundOf(png, changed.left, changed.right + 1, changed.top, changed.bottom + 1);
+  const panel = mostlyBox(png, ground, changed);
+  if (panel.right < panel.left || panel.bottom < panel.top) {
+    return no(`no rectangle of the ${hex(ground)} ground stands inside ${box(changed)}, where the shot differs from the bare page`);
+  }
+  // The corners are rounded: the ground's first column on the panel's top row is the radius, and
+  // the bands are read inside it so a corner's curve is not a row.
+  let radius = 0;
+  while (panel.left + radius < panel.right && !is(png, panel.left + radius, panel.top, ground)) radius += 1;
+  const scanned = { ...panel, left: panel.left + radius, right: panel.right - radius };
+  const bands = bandsOf(png, scanned, ground).filter((band) => band.bottom - band.top + 1 >= OUTLINE_RULE);
+  const rows = bands.map((band) => ({ ...band, left: inkLeft(png, scanned, ground, band) }));
+  const field = rows.shift();
+  const where = `the panel is ${hex(ground)}, ${box(panel)} of a ${w}x${h} window, its corners ${radius} px`;
+  const firsts = rows.slice(0, 2).map((row, k) => `the ${k === 0 ? 'first' : 'second'}'s ink from x ${row.left}`);
+  const read = `${rows.length} row${rows.length === 1 ? '' : 's'} under its field${firsts.length ? `, ${firsts.join(', ')}` : ''}`;
+  const missed = [];
+  if (!field) {
+    missed.push(`it carries no band of ink at all`);
+  } else if (rows.length < 2) {
+    missed.push(`it carries ${rows.length} row${rows.length === 1 ? '' : 's'} under its field, and the sample's two headings are two`);
+  } else if (rows[1].left <= rows[0].left) {
+    missed.push(`the second row's ink starts at x ${rows[1].left}, not right of the first's at x ${rows[0].left}, so the level-2 heading is not stepped in under the level-1`);
+  }
+  return {
+    ours: missed.length === 0,
+    panel: [panel.left, panel.top, panel.right - panel.left + 1, panel.bottom - panel.top + 1],
+    ground: hex(ground),
+    rows: rows.map((row) => [row.left, row.top]),
+    why: missed.length === 0 ? `${where}; ${read}` : `${where}; ${read} — ${missed.join(', and ')}`,
+    secondary: [
+      read,
+      `the panel is where the shot differs from the bare page, and its ground is read off the pair rather than compared against a hex written down here`,
+    ],
+  };
+}
+
+// The bounding box of every pixel where `a` and `b` differ by [`OUTLINE_CHANGED`] on a channel.
+function changedBox(a, b) {
+  const { w, h } = a;
+  let left = w;
+  let right = -1;
+  let top = h;
+  let bottom = -1;
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      let moved = false;
+      for (let c = 0; c < 3 && !moved; c += 1) moved = Math.abs(at(a, x, y, c) - at(b, x, y, c)) >= OUTLINE_CHANGED;
+      if (!moved) continue;
+      if (x < left) left = x;
+      if (x > right) right = x;
+      if (y < top) top = y;
+      if (y > bottom) bottom = y;
+    }
+  }
+  return { left, right, top, bottom };
+}
+
+// The rectangle inside `box` whose rows and columns are mostly `ground`: the panel proper, with the
+// shadow round it left out, and a page paper that happens to be the panel's colour left out too,
+// since under the shadow it is not that colour.
+function mostlyBox(png, ground, box) {
+  const width = box.right - box.left + 1;
+  let top = png.h;
+  let bottom = -1;
+  for (let y = box.top; y <= box.bottom; y += 1) {
+    let held = 0;
+    for (let x = box.left; x <= box.right; x += 1) if (is(png, x, y, ground)) held += 1;
+    if (held * 2 <= width) continue;
+    if (top === png.h) top = y;
+    bottom = y;
+  }
+  if (bottom < top) return { left: png.w, right: -1, top: png.h, bottom: -1 };
+  const height = bottom - top + 1;
+  let left = png.w;
+  let right = -1;
+  for (let x = box.left; x <= box.right; x += 1) {
+    let held = 0;
+    for (let y = top; y <= bottom; y += 1) if (is(png, x, y, ground)) held += 1;
+    if (held * 2 <= height) continue;
+    if (left === png.w) left = x;
+    right = x;
+  }
+  return { left, right, top, bottom };
+}
+
+// The first column of `band` carrying ink: over the accent a selected row is drawn on, inside
+// that row's own span, where the band holds one; over the panel's `ground` everywhere else. A
+// selected row's words are white, which on a light panel is the panel's own colour, so they are
+// ink only against the accent under them.
+function inkLeft(png, panel, ground, band) {
+  const x0 = panel.left + 1;
+  const x1 = panel.right;
+  const highlight = highlightOf(png, ground, band, x0, x1);
+  const [from, to, over] = highlight === null
+    ? [x0, x1, ground]
+    : [highlight.left, highlight.right + 1, highlight.rgb];
+  for (let x = from; x < to; x += 1) {
+    for (let y = band.top; y <= band.bottom; y += 1) if (inked(png, x, y, over)) return x;
+  }
+  return x1;
+}
+
+// The colour a selected row stands on and the columns it spans, or `null` for a row on the panel's
+// own ground: the one colour other than `ground` that runs unbroken over more than half the
+// panel's width on some row of the band, which words never do.
+function highlightOf(png, ground, band, x0, x1) {
+  for (let y = band.top; y <= band.bottom; y += 1) {
+    let x = x0;
+    while (x < x1) {
+      const rgb = [at(png, x, y, 0), at(png, x, y, 1), at(png, x, y, 2)];
+      let end = x;
+      while (end < x1 && is(png, end, y, rgb)) end += 1;
+      if (!sameRgb(rgb, ground) && (end - x) * 2 > x1 - x0) {
+        let left = x0;
+        while (left < x && !is(png, left, y, rgb)) left += 1;
+        let right = x1 - 1;
+        while (right > end && !is(png, right, y, rgb)) right -= 1;
+        return { rgb, left, right };
+      }
+      x = end;
+    }
+  }
+  return null;
 }
 
 // The dialog rectangle made by `ground`, where that colour is also the pane's surround.

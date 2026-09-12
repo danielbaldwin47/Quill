@@ -161,7 +161,8 @@ No menu row; the Palette lists them under their section.
 
 | Id | Title | Default | Alias |
 |---|---|---|---|
-| `library.search` | Find a Document… | `Ctrl+Shift+O` | |
+| `outline.open` | Go to Heading… | `Ctrl+Shift+O` | |
+| `library.search` | Find a Document… | — | |
 | `file.next` | Next Document | `Ctrl+Page Down` | |
 | `file.prev` | Previous Document | `Ctrl+Page Up` | |
 | `file.follow` | Open Linked Document | `Ctrl+Enter` | |
@@ -173,8 +174,10 @@ No menu row; the Palette lists them under their section.
 | `chrome.doc` | Document Menu | — | |
 | `chrome.view` | View Menu | `F10` | |
 
-`Ctrl+Shift+O` is the one "jump" chord. The Heading navigation spec, in the light of the Library
-spec, decides whether it opens Documents, headings or one merged list; the id may change with it.
+`Ctrl+Shift+O` is the one "jump" chord, and it is `outline.open`'s: the Palette on the open
+Document's Outline, where typing narrows the headings and appends Documents by name, so one list
+reaches either (#397). `library.search` keeps the Library's own field and has no default chord; a
+writer who wants one binds it under `[shortcuts]`.
 
 ## Reserved chords
 

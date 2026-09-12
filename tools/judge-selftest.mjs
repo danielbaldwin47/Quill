@@ -518,7 +518,7 @@ ok('the ghost is measured off ours own pixels, and the alpha is solved rather th
   for (const alpha of [3, 0, 1, '0.3', undefined]) {
     assert.throws(() => validate({ kind: 'ghost', alpha }), /between 0 and 1/, `an alpha of ${alpha} was taken`);
   }
-  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'folded', 'split', 'full', 'pdf-split', 'pdf-full', 'dialog', 'syntax']);
+  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'folded', 'split', 'full', 'pdf-split', 'pdf-full', 'dialog', 'syntax', 'outline']);
 });
 
 ok('the ghost refuses to read a bar it cannot see the ground beside, and never guesses one', () => {
@@ -1280,6 +1280,93 @@ ok('the Export dialog dims only the Editor over an unchanged pane, centred with 
   }
 
   assert.throws(() => validate({ kind: 'dialog', rows: 12 }), /the dialog assertion takes nothing but its kind, and this one names rows/);
+});
+
+// ---------- the Outline in the Palette ----------
+
+const OUTLINE_PAPER = [247, 247, 247];
+const OUTLINE_PANEL = [255, 255, 255];
+const OUTLINE_BORDER = [200, 200, 200];
+const OUTLINE_SELECTED = [0, 120, 255];
+const OUTLINE_INK = [30, 30, 30];
+
+// A window of page paper with the Palette standing on it on the Outline, or the bare page.
+//
+// `panel` is null for the bare page; otherwise its rectangle, drawn as a ground inside a hairline
+// border with a shadow of one darker row and column under it. Inside it, top to bottom: the field's
+// placeholder as one band of glyphs set in from the magnifier, the hairline under the field, then
+// one row per entry of `rows` — each a band of glyphs starting `left` pixels in from the panel's
+// edge, the `selected` one drawn on the accent in white — with air between them, as the popover
+// lays them.
+function outlineShot({
+  w = 400, h = 300, panel = { left: 100, top: 40, width: 200, height: 140 },
+  rows = [14, 27], selected = 0,
+} = {}) {
+  const data = Buffer.alloc(w * h * 3);
+  const put = (x, y, rgb) => { for (let c = 0; c < 3; c += 1) data[((y * w) + x) * 3 + c] = rgb[c]; };
+  const fill = (x0, y0, x1, y1, rgb) => { for (let y = y0; y < y1; y += 1) for (let x = x0; x < x1; x += 1) put(x, y, rgb); };
+  fill(0, 0, w, h, OUTLINE_PAPER);
+  if (panel !== null) {
+    const { left, top, width, height } = panel;
+    const right = left + width;
+    const bottom = top + height;
+    fill(left + 1, top + 1, Math.min(w, right + 1), Math.min(h, bottom + 1), [230, 230, 230]);
+    fill(left, top, right, bottom, OUTLINE_BORDER);
+    fill(left + 1, top + 1, right - 1, bottom - 1, OUTLINE_PANEL);
+    fill(left + 34, top + 14, left + 34 + 80, top + 22, OUTLINE_INK);
+    fill(left + 1, top + 42, right - 1, top + 43, OUTLINE_BORDER);
+    rows.forEach((inset, k) => {
+      const y0 = top + 48 + k * 24;
+      const ink = k === selected ? [255, 255, 255] : OUTLINE_INK;
+      if (k === selected) fill(left + 5, y0, right - 5, y0 + 24, OUTLINE_SELECTED);
+      fill(left + inset, y0 + 7, left + inset + 60, y0 + 17, ink);
+    });
+  }
+  return encodePng({ w, h, ch: 3, data });
+}
+
+ok('the Outline stands over the page with its second heading stepped in under the first', () => {
+  const spec = { kind: 'outline' };
+  const second = secondShot(spec, { flags: { menu: 'outline', theme: 'light', caret: 403 } });
+  assert.equal(second.state.flags.menu, null, 'the reference opens no panel');
+  assert.equal(second.state.flags.caret, 403, 'the reference keeps every unrelated flag');
+  const page = outlineShot({ panel: null });
+  const held = assertState(spec, { dim: outlineShot(), lit: page });
+  assert.equal(held.ours, true, held.why);
+  assert.equal(held.ground, '#ffffff', 'the panel ground is read off the shot');
+  assert.deepEqual(held.panel, [101, 41, 198, 138], 'the panel is where its ground runs inside what changed');
+  assert.deepEqual(held.rows.map(([x]) => x), [114, 127], 'two rows under the field, the second stepped in');
+
+  // The selected row is on the accent, and its words are read against it: swapping which row is
+  // selected moves no band's ink.
+  const other = assertState(spec, { dim: outlineShot({ selected: 1 }), lit: page });
+  assert.equal(other.ours, true, other.why);
+  assert.deepEqual(other.rows.map(([x]) => x), [114, 127]);
+
+  // One heading is the sample with its second heading gone.
+  const one = assertState(spec, { dim: outlineShot({ rows: [14] }), lit: page });
+  assert.equal(one.ours, false, one.why);
+  assert.match(one.why, /carries 1 row under its field/);
+
+  // Two headings flush with each other are a list with no levels in it.
+  const flush = assertState(spec, { dim: outlineShot({ rows: [14, 14] }), lit: page });
+  assert.equal(flush.ours, false, flush.why);
+  assert.match(flush.why, /not stepped in under the level-1/);
+
+  // No panel at all is its own answer and never a silent pass.
+  const none = assertState(spec, { dim: page, lit: page });
+  assert.equal(none.ours, false, none.why);
+  assert.match(none.why, /no panel stands over it/);
+
+  // A panel reaching the window's edge is not one standing over the page.
+  const edge = assertState(spec, {
+    dim: outlineShot({ panel: { left: 0, top: 40, width: 200, height: 140 } }),
+    lit: page,
+  });
+  assert.equal(edge.ours, false, edge.why);
+  assert.match(edge.why, /reaches an edge/);
+
+  assert.throws(() => validate({ kind: 'outline', rows: 2 }), /the outline assertion takes nothing but its kind, and this one names rows/);
 });
 
 // ---------- the caret a judged shot proves it took focus by ----------

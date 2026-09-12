@@ -29,6 +29,8 @@ use quill_engine::commands;
 use quill_engine::disk::{Filed, Kept, Line, Noticed, OnDisk, Saved, first_save_name};
 use quill_engine::document::{Document, full_name};
 use quill_engine::focus::Focus;
+use quill_engine::library::View;
+use quill_engine::outline;
 use quill_engine::settings::{
     Chrome, PreviewLayout, PreviewMode, Settings, WindowState, library_width,
 };
@@ -2990,6 +2992,60 @@ impl Window {
             .open_recents(self.upcast_ref(), self.modes(), session.recents());
     }
 
+    /// `outline.open`, `Ctrl+Shift+O`: the Palette over the page on the open
+    /// Document's Outline, read off the block index now and held only while
+    /// the panel is up (#397). Typing narrows the headings and appends the
+    /// Library's Documents by name, the open Document left out; Enter jumps
+    /// through [`Window::jump_to`] or opens as a recents row does.
+    ///
+    /// Never a toggle, for the reason `file.recent` is not one.
+    pub(crate) fn open_outline(&self) {
+        let (headings, section, open) = {
+            let document = self.document();
+            let headings = outline::of_blocks(&document);
+            let section = outline::section(&document, &headings, self.caret_offset());
+            (headings, section, document.path().map(Path::to_path_buf))
+        };
+        let session = self.session();
+        let finder: crate::palette::Finder = Rc::new(move |query| {
+            let Some(session) = &session else {
+                return Vec::new();
+            };
+            let view = View {
+                show_hidden: session.settings().library.show_hidden,
+                ..View::default()
+            };
+            session
+                .library()
+                .names(query, &view)
+                .into_iter()
+                .map(|file| file.path().to_path_buf())
+                .collect()
+        });
+        self.bring_bars_back();
+        self.imp().bars.close_menus();
+        self.palette().open_outline(
+            self.upcast_ref(),
+            self.modes(),
+            headings,
+            section,
+            open,
+            finder,
+        );
+    }
+
+    /// A jump from the Outline: the caret to `offset`, the first byte of a
+    /// heading's words, revealed as a placed caret is — Typewriter's anchor
+    /// honoured, Preview following by the caret rule — with no selection
+    /// made and the keyboard back on the page. A jump is not typing, so the
+    /// bars stay where they are.
+    pub(crate) fn jump_to(&self, offset: u64) {
+        self.imp()
+            .editor
+            .place_caret(&self.document(), flags::Caret::At(offset), true);
+        self.imp().editor.grab_focus();
+    }
+
     /// Opens the Settings window over this one: `settings.open`, `Ctrl+,` and
     /// View › Window "Settings…".
     pub(crate) fn open_settings(&self) {
@@ -3054,6 +3110,7 @@ impl Window {
             match window.imp().flagged.take() {
                 Some(flags::Menu::Bar(menu)) => window.open_menu(menu),
                 Some(flags::Menu::Palette) => window.open_palette(),
+                Some(flags::Menu::Outline) => window.open_outline(),
                 None => {}
             }
         });
