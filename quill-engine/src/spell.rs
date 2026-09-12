@@ -17,6 +17,10 @@ use std::ptr::NonNull;
 /// The most corrections [`SpellChecker::suggest`] hands back, the context menu's section size.
 pub const SUGGESTIONS: usize = 5;
 
+/// A misspelled word's span kind in the worker's answer; the range is the whole mark.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Misspelling;
+
 /// Where a character stands in a word, as enchant's word-character rule reads it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Position {
