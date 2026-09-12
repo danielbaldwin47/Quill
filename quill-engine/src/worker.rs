@@ -301,7 +301,10 @@ impl Dictionary {
 }
 
 /// The handle's guard; a panic under the lock leaves the dictionary usable.
-fn lock(checker: &Checker) -> MutexGuard<'_, Option<Box<dyn SpellChecker>>> {
+///
+/// Public so the main thread's one call on the handle, a right-click's
+/// `suggest`, treats a poisoned lock as the worker does.
+pub fn lock(checker: &Checker) -> MutexGuard<'_, Option<Box<dyn SpellChecker>>> {
     checker.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
