@@ -12,9 +12,8 @@ pkgdesc="A long-form writing environment for Linux: plain Markdown, typography f
 arch=('x86_64')
 url="https://github.com/danielbaldwin47/Quill"
 license=('GPL-3.0-or-later' 'OFL-1.1' 'Apache-2.0' 'BSD-3-Clause' 'MIT' 'CC0-1.0')
-depends=('gtk4' 'enchant' 'hicolor-icon-theme')
+depends=('gtk4' 'enchant' 'hunspell-en_us' 'hicolor-icon-theme')
 makedepends=('cargo')
-optdepends=('hunspell-en_us: English spell checking')
 source=()
 
 # The version the workspace names, plus the commit count: 0.1.0.rN.gHASH.
