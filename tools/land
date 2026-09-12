@@ -1,0 +1,216 @@
+#!/usr/bin/env bash
+# Landing a green ticket pull request, in one command — the sequence CLAUDE.md
+# § Gate names and § Context in an `/implement` session ends in.
+#
+#   tools/land <PR> <ticket>
+#   tools/land <PR> <ticket> --dry-run
+#   tools/land --help
+#
+# By hand the sequence is six to nine calls, and two of them failed at every one
+# of five landings in two days (docs/agents/context.md § What the steps cost
+# when skipped): `git worktree remove` refuses while an untracked
+# shots/latency/bench-*.json sits in the worktree, and `git push origin --delete`
+# fails because `gh pr merge --delete-branch` has already deleted the branch.
+# Neither can fail here, because both are decided by looking first — the removal
+# passes --force after its line has named every file that discards, and the push
+# runs only when `git ls-remote` still shows the branch.
+#
+# The owner does not read shell, so every step prints one line and the tool ends
+# in one line: `land <PR>: done`, `land <PR>: fail (<step>)`, or `land <PR>:
+# refused (<reason>)`. The exit code agrees with the line. What the commands
+# themselves print goes to target/land/land-<PR>.log and is shown only when a
+# step fails, which is how tools/gate treats its own steps.
+#
+# The main checkout is found from this script's own location — the common git
+# directory of whatever checkout ran it — and everything runs from there, so a
+# session standing inside the PR's own worktree lands from it without naming a
+# path, and that worktree is removed out from under it.
+set -euo pipefail
+
+usage() {
+    cat <<'EOF'
+usage: tools/land <PR> <ticket> [--dry-run]
+
+  Lands a green ticket pull request: merges it, brings main up to date, runs the
+  Commit tier there, clears the branch away, and posts what the session cost on
+  the ticket. Each step prints one line.
+
+    check     `gh pr view <PR>` — open, MERGEABLE, CLEAN and against main, or
+              the tool refuses before touching anything.
+    merge     `gh pr merge <PR> --merge --delete-branch`; the PR body's
+              `Closes #N` closes the ticket.
+    pull      `git pull --ff-only` in the main checkout.
+    gate      `tools/gate check` on main; its output goes to
+              target/land/gate-check.log and only its last line is printed.
+    worktree  the worktree holding the PR's branch, removed with --force after
+              the line has named every file that discards.
+    branch    the local branch deleted if it is still there, the remote one only
+              if `git ls-remote --heads` still shows it.
+    report    `tools/context-report <ticket>` posted on the ticket with
+              `gh issue comment --body-file`. When it finds no session the
+              comment says so in one line rather than stopping the land.
+
+  --dry-run   Print every command that would change something as a `would: ...`
+              line, and run none of them. The read-only steps the tool decides
+              by — `gh pr view`, `git worktree list`, `git status`, `git branch
+              --list`, `git ls-remote`, `tools/context-report` — still run, so
+              the step lines and the ending are the real ones. The comment body
+              is still written under target/land/, so the `gh issue comment`
+              line printed can be read.
+
+  Ends in `land <PR>: done`, exit 0; `land <PR>: fail (<step>)`, exit 1, naming
+  the step that stopped it; or `land <PR>: refused (<reason>)`, exit 3, when the
+  PR is not one to land. A command line this does not understand is exit 2.
+EOF
+}
+
+PR=""
+TICKET=""
+DRY=0
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -h | --help | help) usage; exit 0 ;;
+        --dry-run) DRY=1 ;;
+        -*) echo "land: ${1}: not a flag this takes" >&2; usage >&2; exit 2 ;;
+        *)
+            if ! [[ $1 =~ ^[0-9]+$ ]]; then
+                echo "land: ${1}: not a number" >&2; usage >&2; exit 2
+            fi
+            if [ -z "$PR" ]; then PR=$1
+            elif [ -z "$TICKET" ]; then TICKET=$1
+            else echo "land: ${1}: one PR and one ticket, no more" >&2; usage >&2; exit 2
+            fi ;;
+    esac
+    shift
+done
+if [ -z "$PR" ] || [ -z "$TICKET" ]; then usage >&2; exit 2; fi
+
+# One step, one line.
+say() { printf '%s: %s\n' "$1" "$2"; }
+
+# The two endings that stop the run. `refused` is for a PR that was never this
+# tool's to land and leaves everything as it was; `fail` is a step that broke,
+# and shows the tail of the trail, because by then something has moved.
+refuse() { echo "land ${PR}: refused (${1})"; exit 3; }
+fail() {
+    if [ -s "$TRAIL" ]; then tail -n 5 "$TRAIL"; fi
+    echo "land ${PR}: fail (${1})"
+    exit 1
+}
+
+# Every command that changes something goes through here: printed and not run
+# under --dry-run, and otherwise run with its own output to the trail, so a step
+# is one line whatever git and gh feel like saying.
+run() {
+    if [ "$DRY" = 1 ]; then
+        printf 'would: %s\n' "$*"
+        return 0
+    fi
+    mkdir -p "$(dirname "$TRAIL")"
+    "$@" >>"$TRAIL" 2>&1
+}
+
+# The main checkout, from this script rather than from the caller's directory:
+# the common git directory is the same one for every worktree of the repository,
+# and its parent is the checkout the worktrees hang off.
+HERE=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+COMMON=$(git -C "$HERE" rev-parse --path-format=absolute --git-common-dir) ||
+    refuse "${HERE} is not inside a git repository"
+MAIN=$(dirname "$COMMON")
+TRAIL=$MAIN/target/land/land-${PR}.log
+cd "$MAIN"
+
+# check — the whole refusal, before anything moves.
+FIELDS=$(gh pr view "$PR" --json state,mergeable,mergeStateStatus,baseRefName,headRefName \
+    -q '[.state,.mergeable,.mergeStateStatus,.baseRefName,.headRefName]|@tsv') ||
+    refuse "gh could not read PR #${PR}"
+IFS=$'\t' read -r STATE MERGEABLE MERGESTATE BASE HEAD <<<"$FIELDS"
+if [ "$STATE" != OPEN ]; then refuse "PR #${PR} is ${STATE}"; fi
+if [ "$BASE" != main ]; then refuse "PR #${PR} is against ${BASE}, not main"; fi
+if [ "$MERGEABLE" != MERGEABLE ]; then refuse "PR #${PR} is ${MERGEABLE}"; fi
+if [ "$MERGESTATE" != CLEAN ]; then refuse "PR #${PR} is ${MERGESTATE}, not CLEAN"; fi
+say check "PR #${PR} ${HEAD} -> ${BASE}, ${MERGEABLE}, ${MERGESTATE}"
+
+# merge — the PR body's `Closes #<ticket>` is what closes the ticket.
+if ! run gh pr merge "$PR" --merge --delete-branch; then fail merge; fi
+if [ "$DRY" = 1 ]; then
+    say merge "would merge PR #${PR} and delete origin/${HEAD}"
+else
+    say merge "PR #${PR} merged, origin/${HEAD} deleted"
+fi
+
+# pull — the merge is only landed once main in the checkout has it.
+if ! run git -C "$MAIN" pull --ff-only -q; then fail pull; fi
+if [ "$DRY" = 1 ]; then
+    say pull "would fast-forward main in ${MAIN}"
+else
+    say pull "main up to date in ${MAIN}"
+fi
+
+# gate — the Commit tier on main itself, which is the tree the next session opens.
+if [ "$DRY" = 1 ]; then
+    printf 'would: %s\n' "${MAIN}/tools/gate check"
+    say gate "would run the Commit tier on main"
+else
+    GATELOG=$MAIN/target/land/gate-check.log
+    mkdir -p "$(dirname "$GATELOG")"
+    if "$MAIN/tools/gate" check >"$GATELOG" 2>&1; then
+        say gate "$(tail -n 1 "$GATELOG")"
+    else
+        say gate "$(tail -n 1 "$GATELOG") — ${GATELOG}"
+        exit 1
+    fi
+fi
+
+# worktree — the one holding the PR's branch, if the landing session made one.
+# --force is the point: a bench run leaves untracked shots/latency/bench-*.json
+# behind and a plain remove refuses on them, so the line names what goes.
+WT=$(git -C "$MAIN" worktree list --porcelain |
+    awk -v b="branch refs/heads/${HEAD}" '/^worktree /{p=$2} $0==b{print p; exit}')
+if [ -z "$WT" ]; then
+    say worktree "no worktree holds ${HEAD}"
+elif [ "$WT" = "$MAIN" ]; then
+    say worktree "${HEAD} is checked out in the main checkout; nothing to remove"
+else
+    DIRT=$(git -C "$WT" status --porcelain | cut -c4- | paste -sd'|' - | sed 's/|/, /g')
+    if ! run git -C "$MAIN" worktree remove --force "$WT"; then fail worktree; fi
+    if [ "$DRY" = 1 ]; then
+        say worktree "would remove ${WT} with --force, discarding ${DIRT:-nothing}"
+    else
+        say worktree "removed ${WT} with --force, discarding ${DIRT:-nothing}"
+    fi
+fi
+
+# branch — both sides looked at first. `gh pr merge --delete-branch` has usually
+# taken the remote one already, and `git push origin --delete` on a branch that
+# is gone is an error, not a no-op.
+if [ -n "$(git -C "$MAIN" branch --list "$HEAD")" ]; then
+    if ! run git -C "$MAIN" branch -D "$HEAD"; then fail branch; fi
+    LOCAL="local deleted"
+else
+    LOCAL="no local branch"
+fi
+if [ -n "$(git -C "$MAIN" ls-remote --heads origin "$HEAD")" ]; then
+    if ! run git -C "$MAIN" push origin --delete "$HEAD"; then fail branch; fi
+    REMOTE="remote deleted"
+else
+    REMOTE="remote already gone"
+fi
+say branch "${HEAD}: ${LOCAL}, ${REMOTE}"
+
+# report — what the session cost, on the ticket. context-report reads this
+# machine's transcripts and can find no session for the ticket (a leg run under
+# another skill, a transcript rotated away); that is a line in the comment, not
+# a reason to leave a landed ticket without one.
+BODY=$MAIN/target/land/comment-${TICKET}.md
+mkdir -p "$(dirname "$BODY")"
+if REPORT=$("$MAIN/tools/context-report" "$TICKET" 2>/dev/null) && [ -n "$REPORT" ]; then
+    :
+else
+    REPORT="context: tools/context-report found no session for #${TICKET}"
+fi
+printf '%s\n' "$REPORT" >"$BODY"
+if ! run gh issue comment "$TICKET" --body-file "$BODY"; then fail report; fi
+say report "#${TICKET} <- ${REPORT%%$'\n'*}"
+
+echo "land ${PR}: done"

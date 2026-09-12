@@ -5,6 +5,9 @@
 //   import { decodePng, readBar, readSelectionRows, judgeBurst, judgeSelectionRows, judgeMove,
 //     resolveScript } from './keys-assert.mjs'
 //
+// `decodePng(buf)` returns `{ w, h, ch, data }` — not `width`/`height`/`channels`, which three
+// one-off scripts guessed and crashed on in two days (2026-09-11).
+//
 // The split is `tools/bench-selftest.mjs` and `tools/bench-join.mjs`'s: the half with the compositor
 // in it is `keys.mjs`, and nothing here reaches for one, so `tools/gate check` runs the selftest
 // over this file on every commit with no display attached.
