@@ -76,7 +76,23 @@ link; the browser opens it. Click the link's words; the caret lands there and th
 stats return. 3. Open each menu; every in-scope feature is reachable with its shortcut shown. 4.
 Open an empty Document; both bars stand, the stats bar reads zero words, the page between them is
 bare but for the caret — no placeholder, no prompt (`docs/design.md` row Empty document) — and
-nothing in the frame is waiting on text to fill in.
+nothing in the frame is waiting on text to fill in. 5. Open `ref/sample.md`; the stats bar reads
+words, characters and reading time, and the word count is lower than `wc -w` gives, by the Markup
+the passage carries. 6. Click the bar; the Stats menu shows six checks with Words, Characters and
+Reading Time checked and Hide Statistics last. Check Sentences and Paragraphs; two cells appear in
+the bar in the menu's order. Uncheck Characters; its cell goes. 7. Select a paragraph with the
+mouse; the bar leads with `Selection` in the accent and the cells read that paragraph's numbers, at
+full strength. Drag the selection longer; the numbers follow. Click to clear it; the bar reads the
+Document again with no label. 8. Type a line ending in `one more sentence here.`; the bar dims as
+you type and, a moment after the last key, the Sentences and Words cells have moved up. 9. Type a
+fenced code block holding three words, then a line with `[link](https://example.com/a/b/c)`; the
+words rose by three for the code and by one for the link's text, not its URL. 10. Open Settings and
+confirm there is no Stats row. Open Preview PDF mode; the Page cell sits after the counts, and
+after a selection it still does. 11. Choose Hide Statistics from the Stats menu; the bar hides. Quit
+and reopen Quill; the bar is still hidden. Show it from View › Window › Statistics; the checked set
+is Words, Sentences, Paragraphs and Reading Time, as left. 12. Open the Library sidebar; the
+sample's row shows the same word count as the bar (the sidebar counts a file's first 4 KB; the
+sample is under 1 KB).
 
 **File handling**: 1. Open a folder as the Library; its Documents list in the sidebar. 2. Create a
 new Document, type, wait; it is on disk as plain Markdown with nothing else written beside it. 3.

@@ -76,6 +76,21 @@ impl Writing {
         self.plain.insert(key.to_string(), Value::Array(written));
     }
 
+    /// A list of the names of one of Quill's own sets, as [`Reading::names`]
+    /// reads them back.
+    ///
+    /// Always written, empty list and all: `show = []` is a writer's answer
+    /// and has to survive the write that follows it.
+    ///
+    /// [`Reading::names`]: super::reading::Reading::names
+    pub fn names(&mut self, key: &str, values: &[&str]) {
+        let written = values
+            .iter()
+            .map(|name| Value::String((*name).to_string()))
+            .collect();
+        self.plain.insert(key.to_string(), Value::Array(written));
+    }
+
     /// A table of its own, under its own header.
     pub fn table(&mut self, key: &str, table: toml::Table) {
         self.tabled.insert(key.to_string(), Value::Table(table));
