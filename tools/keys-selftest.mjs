@@ -11,7 +11,8 @@
 // {16,38}.png` from the build with `45d1434` and `broken-typing-{16,38}.png` from the one without
 // it for #108's caret, `fixed-select-all.png` and `broken-select-all.png` for #146's selection, and
 // `fill-select-all.png` and `fill-newline-held.png` from the build that fills the container for
-// #168's, against `fixed-select-all.png` as the build that filled each row to its ink — so the
+// #168's, against `fixed-select-all.png` as the build that filled each row to its ink, and
+// `stats-bar-{document,selection}.png` for the stats bar's two rules — so the
 // whole assertion is exercised here with no window, no compositor and no keyboard, which is what
 // lets `tools/gate check` run it.
 
@@ -21,8 +22,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  INK_DARK, PAPER_DARK, decodePng, glyphAdvance, judgeBurst, judgeMove, judgeSelectionFill,
-  judgeSelectionNewline, judgeSelectionRows, readBar, readSelectionRows, resolveScript,
+  BETWEEN_BURSTS, INK_DARK, PAPER_DARK, decodePng, glyphAdvance, judgeBurst, judgeMove,
+  judgeSelectionFill, judgeSelectionNewline, judgeSelectionRows, judgeStatsBarAccent,
+  judgeStatsBarChanged, readBar, readSelectionRows, readStatsBand, resolveScript,
 } from './keys-assert.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -43,6 +45,10 @@ function ok(name, body) {
 }
 
 const shot = (name) => decodePng(fs.readFileSync(path.join(FIXTURE, `${name}.png`)));
+// A shot committed elsewhere in the repo, by its path from the root: the stats band's two rules are
+// the only ones that need a *whole* judged page rather than a fixture of their own, because finding
+// the band at all is half of what they do.
+const committed = (rel) => decodePng(fs.readFileSync(path.join(ROOT, rel)));
 
 // ---------- a page, by hand ----------
 //
@@ -304,6 +310,147 @@ ok('a burst asserting selection-rows without saying how many rows is refused, no
   const v = judgeSelectionRows(shot('fixed-select-all'), {});
   assert.equal(v.pass, false);
   assert.match(v.said, /has to say how many rows it selects/);
+});
+
+// ---------- the stats bar under a selection: #391 ----------
+//
+// WHERE THESE TWO CROPS CAME FROM
+//
+// From the Parity oracle, not from ours, and deliberately: ours has no `Selection` readout until
+// #393 builds one, so there is no shot of ours that could pin what the rule has to catch. The
+// legacy app has had it all along and is what ours is judged against, so it is the right thing to
+// measure. Both were shot by `legacy/tools/shoot.mjs` at the judged `defaults` — 1440x900 at scale
+// 2, light, Duo, step 5's size 20, `ref/sample.md`, chrome on — one with `--caret 403` and the
+// other with `--select 18,403 --caret 403`, and each cut to the bar's band by `cropPng` in
+// `tools/crop.mjs` at the rectangle `readStatsBand` itself found: [0, 1748, 2880, 52] in both.
+// So the two crops differ in the bar and in nothing else, which is what `stats-bar-changed` is.
+//
+// WHAT IS PINNED TO THEM
+//
+// The accent's pixels, as `INK` and `PAPER` are pinned: 615 of them in the selection crop and none
+// in the document crop, at `#00b5ff` — the *oracle's* accent. Ours is `#00bfff` (`theme.rs`,
+// `Role::Accent`, the same on both grounds). The two are not the same colour and the rule passes on
+// both, which is the whole reason it is a chroma test: `b - r` is 255 for each, against `CHROMA`'s
+// 40. A palette change on either side is therefore not a reason to re-cut these crops.
+
+ok('the band is the bar’s own rule and everything under it, on a whole judged page', () => {
+  // Ours and the oracle draw the same full-width hairline at the same row, which is what makes one
+  // finder serve both sides of a judged pair.
+  for (const rel of ['shots/chrome/r10-bars-ours.png', 'shots/oracle/chrome/bars.png']) {
+    const png = committed(rel);
+    assert.deepEqual(readStatsBand(png), { top: 1748, bottom: 1799 }, rel);
+  }
+});
+
+ok('the band stops above the page, which is what keeps the selection out of it', () => {
+  // The lowest ink the Document puts on the glass in this shot is y 1738 — ten rows above the
+  // rule. A band reaching it would answer `stats-bar-accent` with the selection's own fill.
+  const png = committed('shots/chrome/r10-bars-ours.png');
+  const { top } = readStatsBand(png);
+  let lowest = null;
+  for (let y = top - 1; y >= 0 && lowest === null; y -= 1) {
+    for (let x = 0; x < png.w; x += 1) {
+      const i = (y * png.w + x) * png.ch;
+      if (Math.abs((png.data[i] + png.data[i + 1] + png.data[i + 2]) / 3 - 249) > 6) {
+        lowest = y;
+        break;
+      }
+    }
+  }
+  assert.equal(lowest, 1738);
+  assert.ok(lowest < top, 'the page ends above the bar’s rule');
+});
+
+ok('a crop of the band is read as the band, its rule being its first row', () => {
+  for (const name of ['stats-bar-document', 'stats-bar-selection']) {
+    const png = shot(name);
+    assert.equal(png.w, 2880, name);
+    assert.equal(png.h, 52, name);
+    assert.deepEqual(readStatsBand(png), { top: 0, bottom: 51 }, name);
+  }
+});
+
+ok('the selection crop carries the accent and the document crop carries none', () => {
+  const under = judgeStatsBarAccent(shot('stats-bar-selection'), { accent: true });
+  assert.equal(under.pass, true, under.said);
+  assert.equal(under.pixels, 615);
+  const plain = judgeStatsBarAccent(shot('stats-bar-document'), { accent: false });
+  assert.equal(plain.pass, true, plain.said);
+  assert.equal(plain.pixels, 0);
+});
+
+ok('each crop fails the other’s reading, and the line says how much accent it found', () => {
+  const missing = judgeStatsBarAccent(shot('stats-bar-document'), { accent: true });
+  assert.equal(missing.pass, false);
+  assert.match(missing.said, /^0 px of the accent in the bar's band .*expected the accent$/);
+  const stale = judgeStatsBarAccent(shot('stats-bar-selection'), { accent: false });
+  assert.equal(stale.pass, false);
+  assert.match(stale.said, /615 px of the accent .*expected none of it/);
+});
+
+ok('the accent pinned here is the oracle’s, and passes the chroma test ours does', () => {
+  // Read off the committed crop rather than written down, then held to what it is. `#00b5ff` is
+  // the oracle's; ours is `#00bfff`. Both lean 255 past `CHROMA`, so one rule covers both.
+  const png = shot('stats-bar-selection');
+  const seen = new Set();
+  for (let y = 0; y < png.h; y += 1) {
+    for (let x = 0; x < png.w; x += 1) {
+      const i = (y * png.w + x) * png.ch;
+      const [r, g, b] = [png.data[i], png.data[i + 1], png.data[i + 2]];
+      if (b - r >= 40 && b > g) seen.add(`${r},${g},${b}`);
+    }
+  }
+  assert.ok(seen.has('0,181,255'), `the oracle's accent at full strength (saw ${[...seen].length} hues)`);
+  for (const hue of seen) {
+    const [r, , b] = hue.split(',').map(Number);
+    assert.ok(b - r >= 40, `${hue} leans blue`);
+  }
+});
+
+ok('a burst asserting stats-bar-accent without saying which way is refused, not passed', () => {
+  for (const said of [{}, { accent: 'yes' }, { accent: null }]) {
+    const v = judgeStatsBarAccent(shot('stats-bar-selection'), said);
+    assert.equal(v.pass, false, JSON.stringify(said));
+    assert.match(v.said, /has to say whether it expects the accent/);
+  }
+});
+
+ok('a page with no bar on it says so rather than reading the page as one', () => {
+  // The chrome turned off: nothing crosses the window, so there is no rule and no band. Saying so
+  // is the difference between "the bar showed nothing" and "there was no bar".
+  const bare = page(200, 60, (fill) => fill(20, 20, 100, 30, INK_PX));
+  assert.equal(readStatsBand(bare), null);
+  const v = judgeStatsBarAccent(bare, { accent: false });
+  assert.equal(v.pass, false, 'no bar is not the same answer as a bar showing no accent');
+  assert.match(v.said, /no stats bar on the page/);
+  const between = judgeStatsBarChanged(bare, shot('stats-bar-document'));
+  assert.equal(between.pass, false);
+  assert.match(between.said, /no stats bar on the first page/);
+});
+
+ok('the band changed between the two crops, and did not between a crop and itself', () => {
+  const changed = judgeStatsBarChanged(shot('stats-bar-document'), shot('stats-bar-selection'));
+  assert.equal(changed.pass, true, changed.said);
+  assert.ok(changed.differing > 0);
+  const same = judgeStatsBarChanged(shot('stats-bar-document'), shot('stats-bar-document'));
+  assert.equal(same.pass, false);
+  assert.equal(same.differing, 0);
+  assert.match(same.said, /^0 of 149760 px of the bar's band differ/);
+});
+
+ok('a band that moved is a change by that alone, with no pixels compared across two shapes', () => {
+  const v = judgeStatsBarChanged(shot('stats-bar-document'), committed('shots/chrome/r10-bars-ours.png'));
+  assert.equal(v.pass, true, v.said);
+  assert.match(v.said, /the band itself moved: 2880x52 px at y 0\.\.51, then 2880x1800 px at y 1748\.\.1799/);
+});
+
+ok('the stats rules read the page and the caret’s rule reads the bar, and the table says which', () => {
+  // What lets `stats-bar-changed` be asked of the pair `bar-moved-right` is passed over for: a
+  // burst that ends in a selection leaves no caret to compare (ADR 0014), and two pages all the same.
+  assert.equal(BETWEEN_BURSTS['bar-moved-right'].reads, 'bar');
+  assert.equal(BETWEEN_BURSTS['stats-bar-changed'].reads, 'page');
+  assert.equal(BETWEEN_BURSTS['bar-moved-right'].judge, judgeMove);
+  assert.equal(BETWEEN_BURSTS['stats-bar-changed'].judge, judgeStatsBarChanged);
 });
 
 // ---------- what is not a defect ----------
