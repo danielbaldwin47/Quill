@@ -2,7 +2,8 @@
 // the pixels it is judged on — decode the PNG, find the caret's bar and the ink beside it, say
 // whether the bar stands where the writing left it, and count the rows a selection was painted on.
 //
-//   import { decodePng, readBar, readSelectionRows, judgeBurst, judgeSelectionRows, judgeMove,
+//   import { decodePng, readBar, readSelectionRows, readStatsBand, judgeBurst,
+//     judgeSelectionRows, judgeStatsBarAccent, judgeMove, judgeStatsBarChanged,
 //     resolveScript } from './keys-assert.mjs'
 //
 // `decodePng(buf)` returns `{ w, h, ch, data }` — not `width`/`height`/`channels`, which three
@@ -265,6 +266,46 @@ export function readSelectionRows(png) {
   return { bands, pixels };
 }
 
+// ---------- the stats bar, as the band below its own rule ----------
+
+// How much of a row the bar's top rule has to cross before it is that rule and not something on
+// the page. It spans the window edge to edge — 2880 of 2880 columns in every chrome shot committed,
+// ours and the Parity oracle's alike — and nothing on the page can: the container is centred with a
+// gutter either side, so the widest ink a Document puts on one row stops well short of both edges.
+// 0.99 is there for a compositor that rounds an edge column, not for a margin of judgement.
+const RULE_SHARE = 0.99;
+
+// How far a pixel's luminance must run from the paper's before it is not paper. The rule is
+// `#dfdfdf` on `#f9f9f9`, 26 apart, and the bar's own ink is further still; 6 clears the dither a
+// scaled shot can leave on a flat ground without reaching either.
+const PAPER_MARGIN = 6;
+
+/// The stats bar's band: the bar's own top rule and every row below it, `{ top, bottom }` — or
+/// `null` when no row above the foot crosses the window, which is what the chrome turned off looks
+/// like from here.
+///
+/// WHY THE RULE AND NOT A HEIGHT
+///
+/// The band has to be tight, because the accent is not rare on this page: a selection's fill leans
+/// the same blue the `Selection` label is drawn in — `leansBlue` covers both, and one predicate for
+/// both is the point of having it — so a band generous enough to be safe at another window size
+/// would answer yes to the selection the burst had just made and say nothing about the bar at all.
+/// A device-pixel height written down here would be a pin on the chrome's layout at one scale and
+/// wrong at the next. The rule is drawn by the chrome itself, moves with it, and is the one
+/// full-width thing on the glass.
+export function readStatsBand(png, { paper = PAPER } = {}) {
+  const ground = lum(paper);
+  const wanted = png.w * RULE_SHARE;
+  for (let y = png.h - 1; y >= 0; y -= 1) {
+    let n = 0;
+    for (let x = 0; x < png.w; x += 1) {
+      if (Math.abs(pixel(png, x, y).lum - ground) > PAPER_MARGIN) n += 1;
+    }
+    if (n >= wanted) return { top: y, bottom: png.h - 1 };
+  }
+  return null;
+}
+
 // ---------- the assertions ----------
 
 /// After a burst, the bar stands just right of the ink.
@@ -476,6 +517,56 @@ export function judgeSelectionNewline(png, { rows } = {}) {
   return { ...answer, read };
 }
 
+/// After a burst, the stats bar is showing the accent — or is showing none of it.
+///
+/// The burst says which with `accent`, because both readings are assertions the script makes: the
+/// burst that selects asserts the `Selection` label is there, and the one that clears the selection
+/// asserts it is gone. A burst that says neither is refused rather than passed, as a burst
+/// asserting rows without a count is.
+///
+/// Only the band is looked at, never the page. The accent in the bar is one word of a label and
+/// the accent on the page is the fill of the very selection that put it there, so a page-wide count
+/// would answer yes to the selection alone and never once to the bar — which would leave the rule
+/// green on a bar that never noticed.
+///
+/// Text is not read. Whether the numbers beside the label are the selection's is
+/// `stats-bar-changed`'s question, and neither rule ever asks a crop what it says.
+export function judgeStatsBarAccent(png, { accent, colours } = {}) {
+  if (typeof accent !== 'boolean') {
+    return {
+      pass: false,
+      said: 'a burst asserting stats-bar-accent has to say whether it expects the accent, and '
+        + `this one says ${JSON.stringify(accent)}`,
+    };
+  }
+  const band = readStatsBand(png, colours);
+  if (!band) {
+    return {
+      pass: false,
+      said: "no stats bar on the page: no row above the foot crosses the window, so the bar's own "
+        + 'top rule is not there to measure from',
+    };
+  }
+  let pixels = 0;
+  let left = null;
+  let right = null;
+  for (let y = band.top; y <= band.bottom; y += 1) {
+    for (let x = 0; x < png.w; x += 1) {
+      if (!leansBlue(pixel(png, x, y))) continue;
+      pixels += 1;
+      if (left === null || x < left) left = x;
+      if (right === null || x > right) right = x;
+    }
+  }
+  return {
+    pass: accent ? pixels > 0 : pixels === 0,
+    band,
+    pixels,
+    said: `${pixels} px of the accent in the bar's band (y ${band.top}..${band.bottom}`
+      + `${pixels ? `, x ${left}..${right}` : ''}); expected ${accent ? 'the accent' : 'none of it'}`,
+  };
+}
+
 /// Between the bursts, the bar moved right.
 export function judgeMove(before, after) {
   if (!before.bar || !after.bar) {
@@ -485,6 +576,51 @@ export function judgeMove(before, after) {
   return {
     pass,
     said: `bar.left ${before.bar.left} then ${after.bar.left}; expected the second to be greater`,
+  };
+}
+
+/// Between the bursts, the stats bar's band is not the band it was.
+///
+/// What a selection does to the bar is text — a label and the numbers beside it — and text is the
+/// one thing a crop is never read for here. So what is asserted is that the band changed: a bar
+/// that ignored the selection leaves every pixel of it where it was, and one that answered cannot.
+/// Paired with `stats-bar-accent`, which says the label appeared, that is as close to "the numbers
+/// followed" as ink alone gets, and the two together are what a keys run has that a still does not.
+///
+/// It takes the two pages rather than the two bars, because a burst that ends in a selection puts
+/// the caret out entirely (ADR 0014) and so leaves no bar to compare — and that pair is the whole
+/// reason this rule exists. [`BETWEEN_BURSTS`] is what carries the difference.
+export function judgeStatsBarChanged(before, after, colours) {
+  const a = readStatsBand(before, colours);
+  const b = readStatsBand(after, colours);
+  if (!a || !b) {
+    const which = !a && !b ? 'neither page' : (a ? 'the second page' : 'the first page');
+    return { pass: false, said: `no stats bar on ${which}, so there is no band to compare` };
+  }
+  // A band that moved or changed shape has changed by that alone, and comparing two rectangles of
+  // different sizes pixel for pixel would be meaningless rather than merely wrong.
+  if (before.w !== after.w || before.h !== after.h || a.top !== b.top) {
+    return {
+      pass: true,
+      said: `the band itself moved: ${before.w}x${before.h} px at y ${a.top}..${a.bottom}, then `
+        + `${after.w}x${after.h} px at y ${b.top}..${b.bottom}`,
+    };
+  }
+  let differing = 0;
+  for (let y = a.top; y <= a.bottom; y += 1) {
+    for (let x = 0; x < before.w; x += 1) {
+      const i = (y * before.w + x) * before.ch;
+      const j = (y * after.w + x) * after.ch;
+      if (before.data[i] !== after.data[j]
+        || before.data[i + 1] !== after.data[j + 1]
+        || before.data[i + 2] !== after.data[j + 2]) differing += 1;
+    }
+  }
+  const total = before.w * (a.bottom - a.top + 1);
+  return {
+    pass: differing > 0,
+    differing,
+    said: `${differing} of ${total} px of the bar's band differ (y ${a.top}..${a.bottom})`,
   };
 }
 
@@ -499,8 +635,20 @@ export const AFTER_BURST = {
   'selection-rows': judgeSelectionRows,
   'selection-container-wide': judgeSelectionFill,
   'selection-newline-to-edge': judgeSelectionNewline,
+  'stats-bar-accent': judgeStatsBarAccent,
 };
-export const BETWEEN_BURSTS = { 'bar-moved-right': judgeMove };
+
+/// The between-bursts assertions, each with what it reads.
+///
+/// `reads` is `'bar'` for a rule that compares the two [`readBar`] readings and `'page'` for one
+/// that compares the two pages. The difference is not bookkeeping: a burst that ends in a selection
+/// puts the caret out (ADR 0014), so a `'bar'` rule has nothing to compare across such a pair and
+/// is passed over with a line in the log, while a `'page'` rule is asked for exactly those pairs.
+/// Until `stats-bar-changed` there was one rule and the skip was the loop's; it is the rule's now.
+export const BETWEEN_BURSTS = {
+  'bar-moved-right': { judge: judgeMove, reads: 'bar' },
+  'stats-bar-changed': { judge: judgeStatsBarChanged, reads: 'page' },
+};
 
 /// How a burst's shot is waited for, by the name a burst may say in `settle`.
 ///
