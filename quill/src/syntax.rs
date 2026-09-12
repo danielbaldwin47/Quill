@@ -432,10 +432,6 @@ impl Syntax {
     }
 
     /// What Spell check's language last resolved to, for the Settings window.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the Settings window reads it from #412")
-    )]
     pub(crate) fn resolution(&self) -> Option<&Resolved> {
         self.resolution.as_ref()
     }
