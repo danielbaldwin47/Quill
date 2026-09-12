@@ -1,6 +1,6 @@
-//! Spell check's corrections: the section at the top of GTK's own context
-//! menu for the misspelled word at the caret, and the `spell` action group its
-//! rows fire.
+//! Spell check's corrections: the section at the top of the context menu for
+//! the misspelled word at the caret, and the `spell` action group its rows
+//! fire.
 //!
 //! The section is built at two moments and no other: a secondary press on the
 //! Editor, captured before the text view's own handling, and the keyboard's
@@ -11,6 +11,11 @@
 //! § Corrections). What it is built from is the Editor's to find
 //! ([`crate::editor::Editor::correct`]); this module is the model and the
 //! actions, and needs no display.
+//!
+//! The section opens at the top of a menu of the Editor's own that repeats
+//! GTK's rows beneath it ([`menu`]), because GTK only ever appends an extra
+//! menu at the bottom. A word that is not misspelled opens GTK's menu, as
+//! GTK draws it.
 
 use gtk::gio;
 use gtk::glib;
@@ -46,6 +51,56 @@ pub fn section(word: &str, suggestions: &[String]) -> gio::Menu {
     }
     menu.append_item(&row(ADD_LABEL, ADD, word));
     menu.append_item(&row(IGNORE_LABEL, IGNORE, word));
+    menu
+}
+
+/// GTK's own context menu for a text view as GTK 4.22 draws it — Cut, Copy,
+/// Paste and Delete, then Undo and Redo, then Select All and Insert Emoji —
+/// each row on the text view's own action and accelerator label.
+const EDITING: &[&[(&str, &str, Option<&str>)]] = &[
+    &[
+        ("Cu_t", "clipboard.cut", None),
+        ("_Copy", "clipboard.copy", None),
+        ("_Paste", "clipboard.paste", None),
+        ("_Delete", "selection.delete", None),
+    ],
+    &[
+        ("_Undo", "text.undo", Some("<Control>z")),
+        ("_Redo", "text.redo", Some("<Shift><Control>z")),
+    ],
+    &[
+        ("Select _All", "selection.select-all", None),
+        (
+            "Insert _Emoji",
+            "misc.insert-emoji",
+            Some("<Control>semicolon"),
+        ),
+    ],
+];
+
+/// The whole menu a misspelled word opens: its section on top, then GTK's
+/// own rows beneath it.
+///
+/// `GtkTextView`'s extra menu is only ever appended below Insert Emoji, and
+/// the section belongs above Cut, Copy and Paste (#401 § Further Notes, Hand
+/// test step 3), so a misspelled word is given this menu in GTK's place. The
+/// rows fire the text view's own actions, so each does and greys exactly as
+/// it does in GTK's menu. A word that is not misspelled never reaches here:
+/// GTK's own menu opens for it.
+pub fn menu(word: &str, suggestions: &[String]) -> gio::Menu {
+    let menu = gio::Menu::new();
+    menu.append_section(None, &section(word, suggestions));
+    for rows in EDITING {
+        let part = gio::Menu::new();
+        for (label, action, accel) in *rows {
+            let item = gio::MenuItem::new(Some(label), Some(action));
+            if let Some(accel) = accel {
+                item.set_attribute_value("accel", Some(&accel.to_variant()));
+            }
+            part.append_item(&item);
+        }
+        menu.append_section(None, &part);
+    }
     menu
 }
 
@@ -148,6 +203,57 @@ mod tests {
             .map(|(label, ..)| label)
             .collect();
         assert_eq!(labels, ["Add to Dictionary", "Ignore"]);
+    }
+
+    /// The menu a misspelled word opens: its section first, then GTK's own
+    /// rows in GTK's order and on GTK's actions — the section above Cut.
+    #[test]
+    fn the_section_stands_above_cut_copy_and_paste() {
+        let model = menu("recieved", &owned(&["received"]));
+        let sections: Vec<Vec<(String, String)>> = (0..model.n_items())
+            .map(|i| {
+                let section = model
+                    .item_link(i, "section")
+                    .expect("every item is a section");
+                (0..section.n_items())
+                    .map(|j| {
+                        let string = |attribute: &str| {
+                            section
+                                .item_attribute_value(j, attribute, Some(glib::VariantTy::STRING))
+                                .and_then(|value| value.get::<String>())
+                                .unwrap_or_default()
+                        };
+                        (string("label"), string("action"))
+                    })
+                    .collect()
+            })
+            .collect();
+        let pairs = |rows: &[(&str, &str)]| -> Vec<(String, String)> {
+            rows.iter()
+                .map(|(label, action)| ((*label).to_owned(), (*action).to_owned()))
+                .collect()
+        };
+        assert_eq!(
+            sections,
+            [
+                pairs(&[
+                    ("received", "spell.replace"),
+                    ("Add to Dictionary", "spell.add"),
+                    ("Ignore", "spell.ignore"),
+                ]),
+                pairs(&[
+                    ("Cu_t", "clipboard.cut"),
+                    ("_Copy", "clipboard.copy"),
+                    ("_Paste", "clipboard.paste"),
+                    ("_Delete", "selection.delete"),
+                ]),
+                pairs(&[("_Undo", "text.undo"), ("_Redo", "text.redo")]),
+                pairs(&[
+                    ("Select _All", "selection.select-all"),
+                    ("Insert _Emoji", "misc.insert-emoji"),
+                ]),
+            ]
+        );
     }
 
     #[test]
