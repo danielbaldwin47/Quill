@@ -130,6 +130,7 @@ impl Syntax {
         Annotators {
             syntax: self.settings.enabled,
             style: self.style.enabled,
+            spell: false,
         }
     }
 
@@ -588,6 +589,7 @@ mod tests {
                     paragraph: paragraph.index,
                     categories: quill_engine::pos::categories(&paragraph.prose),
                     lists: Vec::new(),
+                    misspellings: Vec::new(),
                 },
                 document,
             );
@@ -615,7 +617,8 @@ mod tests {
             syntax.wanted(),
             Annotators {
                 syntax: false,
-                style: true
+                style: true,
+                spell: false
             }
         );
         let request = syntax.request(&document, 0..1).unwrap();
@@ -630,6 +633,7 @@ mod tests {
                         paragraph: 0,
                         categories: vec![(10..15, Category::Nouns)],
                         lists: vec![(0..9, List::Fillers)],
+                        misspellings: Vec::new(),
                     },
                     &document
                 )
@@ -705,7 +709,8 @@ mod tests {
             syntax.wanted(),
             Annotators {
                 syntax: true,
-                style: true
+                style: true,
+                spell: false
             }
         );
         let request = syntax.request(&document, 0..1).unwrap();
@@ -716,6 +721,7 @@ mod tests {
                 paragraph: 0,
                 categories: vec![(10..15, Category::Nouns)],
                 lists: vec![(0..9, List::Fillers)],
+                misspellings: Vec::new(),
             },
             &document,
         );
@@ -750,6 +756,7 @@ mod tests {
                 paragraph: 0,
                 categories: vec![(10..15, Category::Nouns)],
                 lists: vec![(0..9, List::Fillers)],
+                misspellings: Vec::new(),
             },
             &document,
         );
@@ -776,6 +783,7 @@ mod tests {
                 paragraph: 0,
                 categories: vec![(10..15, Category::Nouns)],
                 lists: vec![(0..9, List::Fillers)],
+                misspellings: Vec::new(),
             },
             &document,
         );
@@ -896,6 +904,7 @@ mod tests {
                         paragraph: paragraph.index,
                         categories: vec![(0.."éléphant".len(), Category::Nouns)],
                         lists: Vec::new(),
+                        misspellings: Vec::new(),
                     },
                     &document
                 )

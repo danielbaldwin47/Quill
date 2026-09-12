@@ -97,11 +97,13 @@ The worker's `Request` carries the Document `generation`, the Annotators `wanted
 highlight, Style check and Spell check), the changed `Paragraph`s (each an `index` and its `prose`
 text), and the `viewport` paragraph-index range. It answers one `ParagraphResult` per paragraph:
 the same `generation`, the `paragraph` index, and three span sets whose byte ranges address that
-paragraph's requested prose — `categories` for Syntax highlight, `lists` for Style check, the
-misspelled words for Spell check, the set of an Annotator the request did not want left empty, so a
-paragraph is sent once and tagged once whichever Annotators are on. The channel carries two kinds of
-message, a request and a dictionary edit (Add, Ignore, a language change); an edit is applied in
-order before the next request, so a re-request after an Add checks against the list it just grew.
+paragraph's requested prose — `categories` for Syntax highlight, `lists` for Style check,
+`misspellings` for Spell check, the set of an Annotator the request did not want left empty, so a
+paragraph is sent once and tagged once whichever Annotators are on. `wanted` has a flag per
+Annotator: `syntax`, `style` and `spell`. The channel carries two kinds of message, a request
+(`Worker::request`) and an `Edit` (`Worker::edit`: `Add`, `Ignore`, or `Language` with an exact tag
+or none); an edit is applied in order before the next request, so a re-request after an Add checks
+against the list it just grew.
 
 **Spell check** holds one `SpellChecker` (`quill_engine::spell`, enchant behind Quill's own `extern
 "C"` block) in a mutex shared by the worker and the main thread. The worker creates it at first use
