@@ -86,6 +86,8 @@ pub struct Modes {
     pub redundancies: bool,
     /// The Clichés check, independent of the master.
     pub cliches: bool,
+    /// Spell check's check.
+    pub spell: bool,
     /// The ground shown is the dark one, whatever `theme` says.
     pub dark: bool,
     /// The theme setting, `auto`, `light` or `dark`.
@@ -159,6 +161,7 @@ impl Modes {
             fillers: session.style().fillers,
             redundancies: session.style().redundancies,
             cliches: session.style().cliches,
+            spell: session.spell(),
             dark: session.scheme() == Scheme::Dark,
             theme: session.theme().as_str(),
             face: session.face().as_str(),
@@ -437,6 +440,7 @@ pub fn reflect(map: &impl IsA<gio::ActionMap>, modes: Modes) {
     set("style.fillers", modes.fillers.to_variant());
     set("style.redundancies", modes.redundancies.to_variant());
     set("style.cliches", modes.cliches.to_variant());
+    set("spell.toggle", modes.spell.to_variant());
     set("theme.toggle", modes.dark.to_variant());
     set("window.fullscreen", modes.fullscreen.to_variant());
     // The row reads "Hide Bars", so its check is on when the bars are hidden.
@@ -553,6 +557,7 @@ fn run_window(window: &Window, command: &Command) {
         "style.fillers" => window.toggle_style(StyleToggle::List(List::Fillers)),
         "style.redundancies" => window.toggle_style(StyleToggle::List(List::Redundancies)),
         "style.cliches" => window.toggle_style(StyleToggle::List(List::Cliches)),
+        "spell.toggle" => window.toggle_spell(),
         "chrome.toggle" => window.toggle_bars(),
         "library.toggle" => window.toggle_library(),
         // Two rows, each its own layout's toggle: the chord opens the pane in
@@ -2270,6 +2275,39 @@ mod tests {
                     "{id}"
                 );
             }
+        }
+        std::fs::remove_file(path).ok();
+    }
+
+    /// Spell check's one check fires by its registered name, and its tick is
+    /// the session's live `spell_check`, moving as the toggle does.
+    #[test]
+    fn spell_toggle_fires_and_reflects_the_live_spell_check() {
+        let (map, fired) = map(Scope::Win);
+        assert!(map.is_action_enabled("spell.toggle"));
+        map.activate_action("spell.toggle", None);
+        assert_eq!(fired.borrow().as_slice(), ["spell.toggle"]);
+        let path =
+            std::env::temp_dir().join(format!("quill-spell-reflect-{}.toml", std::process::id()));
+        let session = Session::open(
+            crate::flags::Flags {
+                settings: Some(path.clone()),
+                ..crate::flags::Flags::default()
+            },
+            None,
+        );
+        let (settings, notes) = quill_engine::settings::Settings::parse("spell_check = false\n");
+        assert!(notes.is_empty());
+        session.apply(settings);
+        for on in [false, true, false] {
+            if session.spell() != on {
+                session.toggle_spell();
+            }
+            reflect(&map, Modes::of(&session, false, false, false));
+            assert_eq!(
+                map.action_state("spell.toggle").unwrap().get::<bool>(),
+                Some(on)
+            );
         }
         std::fs::remove_file(path).ok();
     }
