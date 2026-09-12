@@ -146,7 +146,7 @@ mod tests {
     use super::*;
 
     /// Every row of `model` as (label, action, target).
-    fn rows(model: &gio::Menu) -> Vec<(String, String, String)> {
+    fn rows(model: &impl IsA<gio::MenuModel>) -> Vec<(String, String, String)> {
         (0..model.n_items())
             .map(|i| {
                 let string = |attribute: &str| {
@@ -215,16 +215,9 @@ mod tests {
                 let section = model
                     .item_link(i, "section")
                     .expect("every item is a section");
-                (0..section.n_items())
-                    .map(|j| {
-                        let string = |attribute: &str| {
-                            section
-                                .item_attribute_value(j, attribute, Some(glib::VariantTy::STRING))
-                                .and_then(|value| value.get::<String>())
-                                .unwrap_or_default()
-                        };
-                        (string("label"), string("action"))
-                    })
+                rows(&section)
+                    .into_iter()
+                    .map(|(label, action, _)| (label, action))
                     .collect()
             })
             .collect();

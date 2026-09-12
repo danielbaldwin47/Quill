@@ -269,18 +269,17 @@ impl Dictionary {
                     drop(old);
                 }
             }
-            Edit::Add(word) => {
-                self.load();
-                if let Some(checker) = lock(&self.checker).as_mut() {
-                    checker.add(&word);
-                }
-            }
-            Edit::Ignore(word) => {
-                self.load();
-                if let Some(checker) = lock(&self.checker).as_mut() {
-                    checker.ignore(&word);
-                }
-            }
+            Edit::Add(word) => self.change(|checker| checker.add(&word)),
+            Edit::Ignore(word) => self.change(|checker| checker.ignore(&word)),
+        }
+    }
+
+    /// Hands the current language's dictionary to `change` under the lock,
+    /// loading it first; with no dictionary for the language, nothing changes.
+    fn change(&mut self, change: impl FnOnce(&mut dyn SpellChecker)) {
+        self.load();
+        if let Some(checker) = lock(&self.checker).as_mut() {
+            change(checker.as_mut());
         }
     }
 

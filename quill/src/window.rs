@@ -388,7 +388,7 @@ impl Window {
         window.imp().editor.open_live_on(session.live());
         // Install the tables while the buffer is empty; showing the Document
         // below resets the worker and schedules its first viewport request.
-        // Both Annotators, because either one alone is work to schedule.
+        // All three Annotators, because any one alone is work to schedule.
         window.set_syntax(session.syntax().clone());
         window.set_style(session.style().clone());
         let (spell, language) = spelling(session);
@@ -891,10 +891,10 @@ impl Window {
         self.rearm();
     }
 
-    /// Starts or stops the one wake both Annotators share.
+    /// Starts or stops the one wake the three worker Annotators share.
     ///
-    /// Armed whenever either is on, and not only as the first arrives: a
-    /// master joining the other has paragraphs to match and no keystroke
+    /// Armed whenever any is on, and not only as the first arrives: a
+    /// master joining the others has paragraphs to match and no keystroke
     /// coming to ask for them. A table change that dirties nothing — a
     /// Category or a List — is a repaint the Editor has already done, and
     /// arming for it would push a pending keystroke's re-match back by
