@@ -413,6 +413,31 @@ pub fn accel(chord: &str) -> Option<String> {
     Some(out)
 }
 
+/// A US layout's shifted keys: the key as the table writes it, and GDK's name
+/// for the keyval Shift produces on it.
+///
+/// Read in both directions — [`shifted`] installs a chord from it and
+/// [`unshifted`] labels one — so the chord a press makes and the key a label
+/// shows cannot drift apart.
+const SHIFTED: [(&str, &str); 16] = [
+    ("1", "exclam"),
+    ("2", "at"),
+    ("3", "numbersign"),
+    ("4", "dollar"),
+    ("5", "percent"),
+    ("6", "asciicircum"),
+    ("7", "ampersand"),
+    ("8", "asterisk"),
+    ("9", "parenleft"),
+    ("0", "parenright"),
+    ("-", "underscore"),
+    ("=", "plus"),
+    (",", "less"),
+    (".", "greater"),
+    (";", "colon"),
+    ("/", "question"),
+];
+
 /// GDK's name for the keyval a US layout's Shift produces for `key`, where
 /// Shift produces another one.
 ///
@@ -420,28 +445,50 @@ pub fn accel(chord: &str) -> Option<String> {
 /// matches a consumed modifier as a don't-care, so `Ctrl+Shift+=` arrives as
 /// keyval `plus` with Shift consumed and an accelerator written
 /// `<Control><Shift>equal` never matches it. Letters are their own answer and
-/// are left to [`key_name`]. The table is the US layout's, as the rest of the
-/// registry is.
+/// are left to [`key_name`]. The table is [`SHIFTED`], the US layout's, as the
+/// rest of the registry is.
 fn shifted(key: &str) -> Option<&'static str> {
-    match key {
-        "1" => Some("exclam"),
-        "2" => Some("at"),
-        "3" => Some("numbersign"),
-        "4" => Some("dollar"),
-        "5" => Some("percent"),
-        "6" => Some("asciicircum"),
-        "7" => Some("ampersand"),
-        "8" => Some("asterisk"),
-        "9" => Some("parenleft"),
-        "0" => Some("parenright"),
-        "-" => Some("underscore"),
-        "=" => Some("plus"),
-        "," => Some("less"),
-        "." => Some("greater"),
-        ";" => Some("colon"),
-        "/" => Some("question"),
-        _ => None,
+    SHIFTED
+        .iter()
+        .find(|(key_, _)| *key_ == key)
+        .map(|(_, name)| *name)
+}
+
+/// The key a US layout's Shift produces GDK's `name` from, where one does:
+/// [`SHIFTED`] read the other way.
+fn unshifted(name: &str) -> Option<&'static str> {
+    SHIFTED
+        .iter()
+        .find(|(_, name_)| *name_ == name)
+        .map(|(key, _)| *key)
+}
+
+/// A chord in GTK's accelerator syntax as a label shows it: the unshifted key
+/// where the chord names the keyval Shift produces on it.
+///
+/// The chord installed stays the one GDK matches — `<Control><Shift>plus` —
+/// but every place a writer reads it shows `Ctrl+Shift+=`, the key they press
+/// and the way `docs/shortcuts.md` spells it, because GTK renders the keyval
+/// itself and would otherwise draw the bare `+`, `_` and `)`. Display only:
+/// the three callers ([`Command::accels`] is what is installed) hand the
+/// answer to a menu row's `accel` attribute, to the Palette's right column and
+/// to the `Ctrl+?` window's rows, so a chord the writer rebound is labelled
+/// from what it is bound to now.
+///
+/// Anything else — a chord with no `Shift`, a key Shift does not change, a
+/// bare key — comes back as it went in.
+#[must_use]
+pub fn label_accel(accel: &str) -> String {
+    let Some(cut) = accel.rfind('>') else {
+        return accel.to_owned();
+    };
+    let (modifiers, key) = accel.split_at(cut + 1);
+    if !modifiers.contains("<Shift>") {
+        return accel.to_owned();
     }
+    unshifted(key)
+        .and_then(key_name)
+        .map_or_else(|| accel.to_owned(), |name| format!("{modifiers}{name}"))
 }
 
 /// GDK's name for a key as the table writes it.
@@ -880,6 +927,36 @@ mod tests {
         assert_eq!(accel("Ctrl+Shift+L").as_deref(), Some("<Control><Shift>l"));
         assert_eq!(accel("Ctrl+=").as_deref(), Some("<Control>equal"));
         assert_eq!(accel("Ctrl+0").as_deref(), Some("<Control>0"));
+    }
+
+    /// A label shows the key the table writes, where the chord names the
+    /// keyval Shift makes of it: every pair in [`SHIFTED`] comes back as its
+    /// own key, and the three chords the registry is on read the way
+    /// `docs/shortcuts.md` spells them, as they did not before #428.
+    #[test]
+    fn a_shift_chord_is_labelled_with_the_key_the_table_writes() {
+        for (key, name) in SHIFTED {
+            let installed = format!("<Control><Shift>{name}");
+            // A key GDK's names are asked for through [`key_name`] and which
+            // it has none of — `/`, whose own chord is written `Ctrl+?` — is
+            // labelled as it is installed rather than labelled wrong.
+            let expected = key_name(key)
+                .map_or_else(|| installed.clone(), |key| format!("<Control><Shift>{key}"));
+            assert_eq!(label_accel(&installed), expected, "Ctrl+Shift+{key}");
+        }
+        for (id, shown) in [
+            ("preview.bigger", "<Control><Shift>equal"),
+            ("preview.smaller", "<Control><Shift>minus"),
+            ("preview.reset", "<Control><Shift>0"),
+        ] {
+            let installed = by_id(id).expect(id).accels().first().cloned().expect(id);
+            assert_eq!(label_accel(&installed), shown, "{id}");
+        }
+        // A key Shift does not change, a chord with no Shift in it, and a
+        // chord with no modifier at all are labelled as they are installed.
+        assert_eq!(label_accel("<Control><Shift>l"), "<Control><Shift>l");
+        assert_eq!(label_accel("<Control>plus"), "<Control>plus");
+        assert_eq!(label_accel("F10"), "F10");
     }
 
     #[test]
