@@ -27,3 +27,10 @@ __pycache__/
 # Library and what that Library held first — a run artefact, and it
 # names their documents, so it stays out of the history.
 ref/ia/mac-native/library-379-added.json
+
+# Quick Export writes a PDF beside its document, so exporting `ref/sample.md`
+# drops `ref/sample.pdf` next to the shared test passage; the exports stay out.
+ref/*.pdf
+# Generated image candidates (the app icon's, 2026-09-12) land here; the repo
+# keeps only what `packaging/` renders from them.
+/output/
