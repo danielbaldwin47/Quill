@@ -878,27 +878,36 @@ class's 1.73 → 1.374: the same falling curve, tighter the narrower the class.
 
 The side margin of the narrowest class, in points, at every width and step measured:
 
-**`margin = max(5 pt, round(K − advance))`**, with **K = 17.5 pt** in a window of 240 … 390 pt and
+**`margin = max(5 pt, round(K − advance_pt))`**, with **K = 17.5 pt** in a window of 240 … 390 pt and
 **K = 22.5 pt** in one of 391 … 440 pt.
 
-It fits all 56 rows — four widths across fourteen steps — exactly. The break at **390/391 pt** was
+**Every term of that is in points**, this file's one departure from device pixels and the reason the
+advance is written `advance_pt`: it is the class's cell at that step halved, 6.81 pt at step 0 and
+9.93 pt at step 5. Read in device pixels the rule collapses to a flat 5 pt and says nothing.
+
+It fits all 56 rows — 240, 320, 400 and 440 pt across fourteen steps — exactly, and
+`rig/measure_419.py` refits it on every run rather than quoting this. The break at **390/391 pt** was
 bisected at steps 0, 5 and 8 and falls between the same two widths each time, so like the class
-breaks it is the window's width alone. **240 pt is the narrowest window the app allows**: asked for
-less, it returns 240.
+breaks it is the window's width alone. **240 pt is the narrowest window the app allows** — asked for
+150, 180, 200 or 220 it hands back 240, which `sweep_narrow.py` assumed for #344 and this run records
+from the bounds the app answers with.
 
 So the container rule of § State 22 holds everywhere once the margin is the class's own:
 
 **container = `min((limit + 14) cells, window − 2 × margin)`**, the margin **5 pt** in the middle and
-the wide class and `max(5 pt, round(K − advance))` in the narrowest.
+the wide class and `max(5 pt, round(K − advance_pt))` in the narrowest.
 
 In the narrowest class the first term never wins — 78 cells of even the smallest type wants 1062 px
-where the widest window of the class allows 860 — so the whole class is the window term. That is why
+of the 880 px the class's widest window, 440 pt, has at all — so the whole class is the window term.
+That is why
 § State 22 read a container 32 px inside what it expected at 440 pt: it was applying a 5 pt margin
 where the app keeps 13.
 
-**The container is centred to the half pixel**, and where the leftover is odd the extra device pixel
-falls on the right: 20 px left against 22 right at step 1 in a 480 px window, 74 against 76 at
-step 5 in a 1920 px one.
+**The container is centred to the point, not to the pixel.** Both margins are whole points, and
+where the leftover is an odd number of points the extra **point** — two device pixels — falls on the
+right: 20 px left against 22 right at step 1 in a 480 px window, where the leftover is 42 px = 21 pt,
+and 74 against 76 at step 5 in a 1920 px one, where it is 150 px = 75 pt. Where the leftover is an
+even number of points the margins are equal.
 
 ### What the run could not settle
 

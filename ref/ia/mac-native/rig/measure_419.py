@@ -27,21 +27,106 @@ WIDE = {0: (17.4, 49), 1: (18.3, 52), 2: (19.4, 56), 3: (20.6, 59), 4: (23.1, 66
         10: (53.1, 135), 11: (60.4, 149), 12: (67.8, 161), 13: (75.1, 172)}
 
 
-# The ladders `ladder_419.py` walked one click at a time, pitch per step. A
-# configuration whose plain frame does not sit on its width's rung was shot at
-# the wrong text size, which is how the first run's step 1 and the second run's
-# steps 10 to 12 were caught.
-LADDER = {960: [43, 46, 49, 53, 56, 63, 69, 81, 92, 103, 113, 126, 139, 150],
-          400: [37, 40, 44, 47, 50, 53, 59, 65, 76, 86, 96, 105, 118, 129]}
+DATA = os.path.join("ref", "ia", "mac-native")
+MARGINS = os.path.join(DATA, "narrow-419-margins-steps.json")
+
+
+def ladders():
+    """The pitch per step of each class, off `ladder_419.py`'s continuous walks.
+
+    Read rather than transcribed, so the guard below cannot drift from the
+    evidence it guards. Default is step 5: the walk's `smaller-n` is step 5 − n
+    and its `bigger+n` step 5 + n, and the rungs past the floor and the ceiling
+    are repeats the walk takes to prove it has reached them.
+    """
+    out = {}
+    for w in (960, 400):
+        path = os.path.join(DATA, f"narrow-419-ladder-{w}.json")
+        if not os.path.exists(path):
+            continue
+        by = {}
+        for r in json.load(open(path)):
+            lab = r["label"]
+            step = (5 if lab.startswith("normal") else
+                    5 - int(lab.split("-")[1]) if lab.startswith("smaller") else
+                    5 + int(lab.split("+")[1]))
+            if 0 <= step <= 13:
+                by[step] = r["pitch"]
+        out[w] = [by.get(s) for s in range(14)]
+    return out
+
+
+LADDER = ladders()
+
+
+def ladder_for(width):
+    """The class's ladder, since a class is one ladder at every width in it.
+
+    440 pt and below is the narrowest class, walked at 400; 441 to 1250 is the
+    middle class, walked at 960. A width outside both is the wide class, whose
+    ladder is § State 11's and not this run's to guard.
+    """
+    return LADDER.get(400) if width <= 440 else LADDER.get(960) if width <= 1250 else None
+
+
+SLACK = 1                            # a fractional pitch lands on two whole numbers
+
+
+def off_ladder(readings):
+    """Rows whose plain frame does not sit on its class's rung.
+
+    A state runner that reaches a text size by counting menu clicks drops one
+    now and then — it is how the first run's step 1 and the second run's steps
+    10 to 12 went out — so nothing here prints until every row is on its rung.
+
+    Within a pixel, because a pitch of 43.5 is read as 43 off one frame and 44
+    off another. The rungs are three pixels apart at their closest, so a pixel
+    of slack still catches every dropped click.
+    """
+    off = []
+    for label, width, step, pitch in readings:
+        lad = ladder_for(width)
+        want = lad[step] if lad else None
+        if want is not None and abs(pitch - want) > SLACK:
+            off.append(f"{label} pitch {pitch} wants {want}")
+    return off
+
+
+def margin_rule(advance_px, K):
+    """The narrowest class's side margin in device px: max(5, round(K − advance)) pt."""
+    return max(5, round(K - advance_px / 2)) * 2
+
+
+def check_margins(rs):
+    """The published rule against every narrowest-class margin measured.
+
+    The advance is the class's own at that step, off the 400 pt states; K is
+    17.5 pt in a window up to 390 pt and 22.5 pt from 391 to 440.
+    """
+    if not os.path.exists(MARGINS):
+        return []
+    adv = {r["step"]: r["advance"] for r in rs if r["width_pt"] == 400}
+    seen = [(r["width_pt"], r["step"], r["container"]["x0"]) for r in rs if r["width_pt"] <= 440]
+    seen += [(m["width_pt"], m["step"], m["margin"]) for m in json.load(open(MARGINS))
+             if m["width_pt"] <= 440]
+    bad = []
+    for w, s, got in seen:
+        want = margin_rule(adv[s], 17.5 if w <= 390 else 22.5)
+        if got != want:
+            bad.append(f"w{w} step{s} margin {got} wants {want}")
+    print(f"\nmargin rule checked on {len(seen)} narrowest-class readings: "
+          f"{'all fit' if not bad else '; '.join(bad)}")
+    return bad
 
 
 def rows(path):
     rs = [r for r in json.load(open(path)) if "error" not in r]
-    off = [(r["tag"], r["pitch"], LADDER[r["width_pt"]][r["step"]]) for r in rs
-           if r["width_pt"] in LADDER and r["pitch"] != LADDER[r["width_pt"]][r["step"]]]
+    off = off_ladder([(r["tag"], r["width_pt"], r["step"], r["pitch"]) for r in rs])
+    if os.path.exists(MARGINS):
+        off += off_ladder([(f"margins w{m['width_pt']} step{m['step']}", m["width_pt"],
+                            m["step"], m["pitch"]) for m in json.load(open(MARGINS))])
     if off:
-        raise SystemExit("off the ladder: " +
-                         "; ".join(f"{t} pitch {got} wants {want}" for t, got, want in off))
+        raise SystemExit("off the ladder: " + "; ".join(off))
     return rs
 
 
@@ -78,6 +163,25 @@ def margins(rs):
               f"{f(r['container_w'] / r['window_px'] if r['container_w'] else None, 4)} |")
 
 
+def margin_ladder(rs):
+    """The table the report publishes: the margin at every width and step, against the rule."""
+    if not os.path.exists(MARGINS):
+        return
+    by = {(m["width_pt"], m["step"]): m["margin"] for m in json.load(open(MARGINS))}
+    by.update({(r["width_pt"], r["step"]): r["container"]["x0"] for r in rs
+               if r["width_pt"] <= 440 and r["container"]})
+    adv = {r["step"]: r["advance"] for r in rs if r["width_pt"] == 400}
+    ws = [240, 320, 400, 440]
+    print("\n### The narrowest class's margin at every width and step\n")
+    print("| step | " + " | ".join(f"{w} pt" for w in ws) +
+          " | `max(5, round(17.5 − advance_pt))` | `max(5, round(22.5 − advance_pt))` |")
+    print("|---:|" + "---:|" * (len(ws) + 2))
+    for s in range(14):
+        cells = [str(by.get((w, s), "—")) for w in ws]
+        print(f"| {s} | " + " | ".join(cells) +
+              f" | {margin_rule(adv[s], 17.5)} | {margin_rule(adv[s], 22.5)} |")
+
+
 def wrapped(rs):
     bad = [(r["tag"], r["wrapped"]) for r in rs if r["wrapped"]]
     print("\n### Fills that wrapped (dropped from the fit)\n")
@@ -95,7 +199,10 @@ def main():
     ladder(rs, 960)
     ladder(rs, 400)
     margins(rs)
+    margin_ladder(rs)
     wrapped(rs)
+    if check_margins(rs):
+        raise SystemExit("the margin rule does not fit every reading")
 
 
 if __name__ == "__main__":
