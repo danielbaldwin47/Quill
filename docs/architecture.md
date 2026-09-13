@@ -32,7 +32,7 @@ paper under Export's geometry), `html` (the standalone export page and the body 
 HTML carries), `draw` (one page of paper painted onto a cairo context, for both of Export's page
 sinks), `pdf` (the PDF file: the surface, the metadata and the bookmarks), `stats`, `outline` (the
 heading list a bookmark and Heading navigation are made of), `spell` (the `SpellChecker`
-trait and the enchant and `spellbook` implementations), `pos` (Syntax highlight), `worker` (the
+trait and its enchant implementation), `pos` (Syntax highlight), `worker` (the
 asynchronous Annotators' thread and generation-checked results), `style` (Style
 check), `typography` (the pitch, the measure, the 78-cell text container and its gutters —
 [ADR 0016](adr/0016-the-text-container-is-78-cells.md) — and the page margins), `theme` (the two
@@ -93,13 +93,52 @@ Two lanes, and the budget is the Gate's ≤ 5 ms mean, ≤ 16 ms worst from keys
   a keystroke or at startup. `quill_engine::worker::Worker` starts the thread on its first request and reuses it;
   dropping it closes its channels without joining on the main loop.
 
-The worker's `Request` carries the Document `generation`, the Annotators `wanted` (Syntax
-highlight, Style check, either or both), the changed `Paragraph`s (each an `index` and its `prose`
+The worker's `Request` carries the Document `generation`, the Annotators `wanted` (any of Syntax
+highlight, Style check and Spell check), the changed `Paragraph`s (each an `index` and its `prose`
 text), and the `viewport` paragraph-index range. It answers one `ParagraphResult` per paragraph:
-the same `generation`, the `paragraph` index, and both span sets whose byte ranges address that
-paragraph's requested prose — `categories` for Syntax highlight, `lists` for Style check, the set
-of an Annotator the request did not want left empty, so a paragraph is sent once and tagged once
-whichever Annotators are on. Viewport paragraphs arrive first, with request order kept within each
+the same `generation`, the `paragraph` index, and three span sets whose byte ranges address that
+paragraph's requested prose — `categories` for Syntax highlight, `lists` for Style check,
+`misspellings` for Spell check, the set of an Annotator the request did not want left empty, so a
+paragraph is sent once and tagged once whichever Annotators are on. `wanted` has a flag per
+Annotator: `syntax`, `style` and `spell`. The channel carries two kinds of message, a request
+(`Worker::request`) and an `Edit` (`Worker::edit`: `Add`, `Ignore`, or `Language` with an exact tag
+or none); an edit is applied in order before the next request, so a re-request after an Add checks
+against the list it just grew.
+
+**Spell check** holds one `SpellChecker` (`quill_engine::spell`, enchant behind Quill's own `extern
+"C"` block) in a mutex shared by the worker and the main thread. The worker creates it at first use
+and replaces it whole on a language change, and locks it per paragraph, never across a request, so
+the main thread waits for one paragraph at most. The worker's constructor makes the handle empty and
+a getter shares it, since the app reaches the thread only through requests. Suggestions are the one
+main-thread call, under that lock, on a right-click or the menu chord and never on the keystroke
+lane; a right-click before the first load finds the handle empty and shows no corrections. Add,
+Ignore and a language change go to the worker as edits, each followed by a whole-Document
+re-request, viewport first. A pure engine function walks a paragraph's prose into words by the
+dictionary's word-character rule (start, middle, end), so the dictionary decides whether an
+apostrophe or a hyphen is inside a word; a token holding a digit is skipped, and all-caps and
+CamelCase are checked. The engine's spans are complete: the **caret rule** is the Editor's, applied
+at paint by a second pure function — the span the caret stands inside is withheld while the writer
+is typing it, the last edit having inserted a word character that left the caret there, and returns
+on a non-word character typed after it, a deletion or any caret move, so a caret parked or
+backspaced into a misspelled word leaves its wave standing. The painting carries that arming and
+reads the caret off the buffer, Live or not, and moving the caret out of a withheld word repaints
+that paragraph's decorations. The
+language resolves on the main thread (§ Settings). `spell_check` off sends no Spell request and
+takes the tag off the buffer at once; on re-requests the Document.
+
+**Corrections** open on a misspelled word as a menu of the Editor's own, because the text view's
+extra menu only appends below Insert Emoji: one section at its top — up to five suggestions, then Add
+to Dictionary, then Ignore — then GTK's own rows in GTK's order on the text view's own actions (Cut,
+Copy, Paste, Delete; Undo, Redo; Select All, Insert Emoji). The section is backed by a `spell` action
+group on the Editor with three actions, replace (the suggestion as a string target), add and ignore. A
+secondary press first puts the caret at the press point and selects the misspelled span it lies in,
+and the section is built for the word at the caret, so a menu opened by the Menu key or `Shift+F10`
+reads the same word as the pointer's; with the caret in no misspelled span GTK opens its own menu,
+Cut, Copy and Paste alone. Replace substitutes the span inside one user-action pair, so it
+is one Undo step, through the window's ordinary splice, retag, furniture and autosave, and leaves the
+caret after the new word. Add writes enchant's personal list for the current tag
+(`~/.config/enchant/<tag>.dic`, shared with every enchant application), Ignore enchant's session
+list; there is no permanent Ignore and no stored replacement. Viewport paragraphs arrive first, with request order kept within each
 group. The app's `Syntax::accept` delegates to the paragraph's engine `SpanStore::apply`, generic
 over the span's kind: it checks the current Document generation, then takes its own kind out of the
 answer and maps it into source-relative spans, leaving the other kind for its own store; pending or
@@ -123,7 +162,9 @@ in the flattening and not over it**: the Design oracle re-inks a struck run to t
 than ruling a line over the ink it had, so a struck word loses the Category it was carrying — an
 ordering between the two Annotators, Style check last — and takes the Focus dim like any other run
 (#354, `ref/ia/mac-native/VERDICTS.md` § The Style Check mark). Decorations are separate tags
-layered over the runs: one `underline: error` tag for Spell check, one per Style check List — three
+layered over the runs: one `underline: error` tag for Spell check, coloured through
+`underline-rgba` from the `spell` Role and carrying no ink of its own, so a Focus dim, a Category
+and a strike on the same word all still show and the Editor's selection fills sit under it; one per Style check List — three
 identical strikes, split so that a List switched off takes its own tag off the page and leaves the
 other two, never so that the Lists read differently, and each carrying no colour of its own so the
 rule is drawn in the run's — one for selection-independent things such as the transparent underline
@@ -204,7 +245,7 @@ default 5 = 21.33 logical px; an old `size` in px becomes the nearest step at or
 `focus` (on/off) and `focus_scope` (sentence, paragraph), `typewriter` (on/off) and
 `typewriter_anchor` (0–1, default 0.5), `live` (on/off, default off: the Editor rendering the markup
 it is not being typed in), `chrome` (shown/hidden), `spell_check` (on/off, default on)
-and `spell_language`, `[syntax_highlight]` (a table: `enabled` is the master, and the five category
+and `spell_language` (an enchant tag, `en_US` or `de`, or empty for System default), `[syntax_highlight]` (a table: `enabled` is the master, and the five category
 toggles sit beside it), `[style_check]` (the same shape, one toggle per list beside `enabled`),
 a `[stats]` table (`show`, the Statistics the stats bar shows as a list of their names in any order,
 default `["words", "characters", "readingTime"]`, a name Quill does not know dropped with a note and
@@ -230,6 +271,27 @@ write), and a `[shortcuts]` table of Command id → chords that
 replaces the defaults in [`shortcuts.md`](shortcuts.md) ([ADR 0011](adr/0011-shortcut-precedence-on-linux.md)).
 A path — `palette`, or an entry in `locations` or `pinned` — written with a leading `~/` is read as
 under the home directory, because that is how a hand writes one, and is written back expanded.
+
+**Spell check's language** resolves on the main thread when a Document opens and on a language
+change, over the installed tags enchant lists through a throwaway broker with no dictionary load;
+the worker is handed the exact tag, or none, and loads it at first use. System default wants the
+locale's tag (`LC_ALL`, then `LC_MESSAGES`, then `LANG`; `en_US` from `en_US.UTF-8`, and `C`,
+`POSIX` or empty want `en_US`); an explicit `spell_language` wants itself. The ladder, one pure
+engine function over a given tag list: the wanted tag exactly, else its bare language, else the
+first installed tag of that language in enchant's listing order, else the **"no dictionary"
+state**, which remembers the tag it wanted. In that state Spell check stays on, no request is sent
+and nothing is underlined; the View › Writing tools row and the Palette row stay sensitive; the
+status line carries one line once per process, when the first Document opens, in Export's transient
+confirmation shape behind a process-wide flag. Installing a dictionary and toggling Spell check, or
+changing the language, leaves it. libenchant's provider warnings go through a GLib log handler for
+the `libenchant` domain at debug level, so a launch writes nothing to the journal.
+
+The Settings window's Writing tools group carries Spell check under Style check's rows: a switch
+bound to `spell_check`, the language dropdown bound to `spell_language` listing System default and
+every installed tag (filled when the window opens, so a dictionary installed mid-session appears on
+the next open), and, in the "no dictionary" state, the dropdown reading "No dictionary installed"
+with one line under it naming the wanted tag and the package to install (`hunspell-en_us` on Arch,
+`README.md` § Spell check in other languages for the rest).
 
 The settings file is watched with `notify` and a debouncer whose window is
 `quill_engine::watch::DEBOUNCE`, the
@@ -318,7 +380,9 @@ and the determinism settings, this document names the flags:
   `[syntax_highlight]` table: off, every Category on, or only the comma-separated Categories on;
   absent under `--deterministic` the table takes its defaults with the master off),
   `--style off|on|fillers,redundancies,cliches` (pin the whole `[style_check]` table the same way,
-  by List), `--stats <names>|hidden` (pin the whole `[stats]` table: the comma-separated Statistics
+  by List), `--spell off|on|on:<tag>` (pin both `spell_check` and `spell_language`: off, on in
+  the desktop's language, or on in the dictionary the tag names; absent under `--deterministic` it
+  pins off), `--stats <names>|hidden` (pin the whole `[stats]` table: the comma-separated Statistics
   checked with the bar shown, or the bar hidden; there is no `off`, which means the master switch on
   the two flags above and would have to mean either of two different states here, so absent under
   `--deterministic` the table takes its defaults — the three cells every judged state carrying the
@@ -377,14 +441,32 @@ window twice, and a bench at 1440×900 is not a writer resizing anything.
 `PKGBUILD` builds the workspace with `cargo build --release --locked` from the working tree
 (`cargo fetch` in `prepare`, so `makepkg` needs the network only there), `arch=('x86_64')`,
 `license=('GPL-3.0-or-later' 'OFL-1.1' 'Apache-2.0' 'BSD-3-Clause' 'MIT' 'CC0-1.0')`,
-`depends=('gtk4' 'enchant' 'hicolor-icon-theme')`,
-`makedepends=('cargo')`, `optdepends=('hunspell-en_us: English spell checking')`. It installs the
+`depends=('gtk4' 'enchant' 'hunspell-en_us' 'hicolor-icon-theme')`,
+`makedepends=('cargo')`. It installs the
 binary as `/usr/bin/quill`, data under `/usr/share/quill/` (the fonts, and the Style check lists
 under `data/style/` with their `SOURCES.md`), the `.desktop` file and icon under the
 application id, `fonts/OFL.txt` beside the fonts and under `/usr/share/licenses/quill/`,
 `packaging/harper-brill-LICENSE` under that licence directory for the embedded model, and the
-lists' four licence texts there too. With no
-dictionary installed, Spell check shows a "no dictionary" state rather than failing.
+lists' four licence texts there too.
+
+`hunspell-en_us` is a hard dependency, so a fresh install checks spelling out of the box, and
+`en_US` is the tag a `C`, `POSIX` or empty locale resolves to. Quill links `libenchant-2` itself
+(§ Workspace), so `enchant` is a build dependency of the workspace as well as a runtime one: `cargo
+test -p quill-engine` and the Commit tier need `libenchant-2.so` on the machine. Other languages are
+the writer's to install — `README.md` § Spell check in other languages. On Arch the "no dictionary"
+state (§ Settings) is reached only by a non-English locale with no dictionary of its language or a
+removed package; it is built in full anyway, because a Flatpak's non-English dictionaries live
+behind the locale extension and dangle when the subset excludes them, and enchant reports them
+absent exactly as it would here.
+
+The Gate never reads the machine's dictionaries. `ref/spell/` holds a small `en_US` `.aff`/`.dic`
+pair with every correctly spelled word of `ref/spell.md` and of the bench passages, and none of the
+passage's misspellings; the harness (every `--deterministic` launch, whatever `--spell` says), the
+bench and the engine tests point `ENCHANT_CONFIG_DIR` at a fresh temporary copy of that directory
+per run. enchant searches the config directory's `hunspell/` before the system's, so the fixture
+wins over an installed `hunspell-en_us`, and an Add during a keys run writes the copy, never the
+checkout. A launch that forgets the variable reads whatever the machine has, and the `spell` states
+go red on a word the real dictionary knows.
 
 Flatpak comes later (the map's fog) and this design keeps it cheap: fonts are private, enchant and
 its English dictionary are in `org.gnome.Platform`, data resolves through one directory, and nothing

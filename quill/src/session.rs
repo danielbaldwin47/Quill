@@ -238,6 +238,11 @@ pub struct Session {
     /// same reason: the master and the three Lists are separate state, and a
     /// window opened after a toggle opens with the Lists the writer chose.
     style: RefCell<StyleCheck>,
+    /// Whether Spell check is on now, held live beside Style check's table so
+    /// the menu, the Palette and a window opened after the toggle agree before
+    /// the watch reads the write back. The language is not: only the Settings
+    /// window moves it, and it moves the file.
+    spell: Cell<bool>,
     /// The face the page is set in now: the setting until the writer picks
     /// one from View › Typeface, and then the one they picked. Held live for
     /// the reason [`Session::step`] is.
@@ -408,6 +413,7 @@ impl Session {
             live: Cell::new(settings.live),
             syntax: RefCell::new(settings.syntax_highlight.clone()),
             style: RefCell::new(settings.style_check.clone()),
+            spell: Cell::new(settings.spell_check),
             face: Cell::new(settings.face),
             desktop: Cell::new(portal),
             chrome: Cell::new(settings.chrome),
@@ -497,6 +503,7 @@ impl Session {
         self.live.set(settings.live);
         self.syntax.replace(settings.syntax_highlight.clone());
         self.style.replace(settings.style_check.clone());
+        self.spell.set(settings.spell_check);
         self.face.set(settings.face);
         self.chrome.set(settings.chrome);
         self.preview_layout.set(settings.preview.layout);
@@ -805,6 +812,17 @@ impl Session {
         let on = !toggle.of(&style);
         toggle.set(&mut style, on);
         on
+    }
+
+    /// Whether Spell check is on, as the Commands have left it.
+    pub fn spell(&self) -> bool {
+        self.spell.get()
+    }
+
+    /// Flips Spell check. `docs/shortcuts.md`'s `spell.toggle` row.
+    pub fn toggle_spell(&self) -> bool {
+        self.spell.set(!self.spell.get());
+        self.spell.get()
     }
 
     /// Whether the two bars are shown now.
@@ -1174,6 +1192,7 @@ impl Session {
         settings.live = self.live.get();
         settings.syntax_highlight = self.syntax.borrow().clone();
         settings.style_check = self.style.borrow().clone();
+        settings.spell_check = self.spell.get();
         settings.face = self.face.get();
         settings.chrome = self.chrome.get();
         settings.preview.layout = self.preview_layout.get();
@@ -1958,6 +1977,46 @@ mod tests {
         assert!(written.style_check.fillers, "and the List it never touched");
         assert!(written.style_check.redundancies);
         assert!(!written.style_check.cliches);
+    }
+
+    /// `spell.toggle` writes `spell_check` and nothing else, reads it back,
+    /// and a file that says off opens with the check off.
+    #[test]
+    fn the_spell_toggle_writes_only_spell_check_and_its_own_save_moves_nothing() {
+        let source =
+            "theme = \"dark\"\nspell_check = false\nspell_language = \"de\"\nfuture = 17\n";
+        let (initial, notes) = Settings::parse(source);
+        assert!(notes.is_empty());
+        let path = fixture("spell-command");
+        let session = Session::launch(
+            Flags {
+                settings: Some(path.clone()),
+                ..Flags::default()
+            },
+            initial.clone(),
+            State::default(),
+            WindowState::default(),
+            true,
+            None,
+        );
+        assert!(!session.spell(), "the file's off is the session's");
+        for on in [true, false] {
+            let (expected, notes) = Settings::parse(
+                &source.replace("spell_check = false", &format!("spell_check = {on}")),
+            );
+            assert!(notes.is_empty());
+            assert_eq!(session.toggle_spell(), on);
+            assert_eq!(session.running(), expected, "live");
+            session.store_settings();
+            let (written, notes) = Settings::read_from(&path);
+            assert!(notes.is_empty());
+            assert_eq!(written, expected, "complete written table");
+            assert!(!session.apply(written), "our own write needs no repaint");
+            reread(None, &session);
+            assert_eq!(session.running(), expected, "read back");
+            assert_eq!(session.spell(), on);
+        }
+        assert_eq!(session.running(), initial);
     }
 
     /// The table the window installs on open and again on a settings save.

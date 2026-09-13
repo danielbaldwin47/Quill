@@ -31,8 +31,9 @@ The package's name carries the commit it was built from — `quill-0.1.0.r126.g9
 so `pacman -Q quill` says which build is installed. Build from the checkout you mean to test: a
 branch's work is not in a package built from `main`.
 
-`makepkg` needs the network only to fetch crates; the build itself runs offline. Runtime needs `gtk4`
-and `enchant`, plus `hunspell-en_us` for spell checking. The application menu launches it too: the
+`makepkg` needs the network only to fetch crates; the build itself runs offline. Runtime needs `gtk4`,
+`enchant` and `hunspell-en_us`, all three in the package's `depends`, and building or testing from
+the checkout needs `enchant` too, because Quill links `libenchant-2` itself. The application menu launches it too: the
 `.desktop` file and the icon install under the application id `io.github.danielbaldwin47.Quill`.
 
 From the checkout, without installing:
@@ -68,9 +69,28 @@ on its first launch, and TOML refuses a key named twice. The template is in Omar
 the ground the theme's `mode` names; the other ground stays Quill's own.
 
 Any tool that writes TOML can theme Quill the same way: the file holds a `[light]` and a `[dark]` table
-whose keys are the twenty roles in `docs/design.md` § The palette is a file (`paper`, `ink`, `accent`,
+whose keys are the twenty-one roles in `docs/design.md` § The palette is a file (`paper`, `ink`, `accent`,
 …) and whose values are `#rrggbb` or `#rrggbbaa`; whatever it leaves out stays the built-in, and
 `quill --theme light|dark` shows the built-in ground whatever the file says.
+
+### Spell check in other languages
+
+Quill checks spelling through enchant, so any dictionary enchant can load works, and the package
+brings English (`hunspell-en_us`). For another language:
+
+1. On Arch, install its Hunspell dictionary: `sudo pacman -S hunspell-de` (the packages are named
+   `hunspell-<lang>`; `pacman -Ss hunspell-` lists them).
+2. Or use an Aspell or Nuspell dictionary instead (`aspell-<lang>`, or a Hunspell pair Nuspell
+   reads) — enchant serves all three.
+3. Or put a hand-downloaded Hunspell pair in your own enchant directory, named for its tag:
+   `~/.config/enchant/hunspell/<tag>.dic` and `~/.config/enchant/hunspell/<tag>.aff` (for example
+   `de_AT.dic` and `de_AT.aff`).
+4. Open Settings › Writing tools and choose the dictionary under Spell check. System default follows
+   the desktop locale; a language with no dictionary installed reads "No dictionary installed" there,
+   naming the tag it wanted.
+
+A word you Add to Dictionary goes to `~/.config/enchant/<tag>.dic`, which every enchant application
+shares.
 
 ## Run the Parity oracle
 
@@ -151,6 +171,8 @@ tools/          the Gate: `gate check`, and its helpers — blind pairs, progres
                 idle check, font build (`npm i` at the root once, for the three that drive a browser)
 legacy/         the JavaScript app as it won, and the Parity oracle (bin/quill, app/, tools/, BRIEF.md, NOTES.md)
 ref/ia/         iA Writer reference: screenshots, fonts, spec sheet, sources;  ref/sample.md  the test passage
+ref/spell.md    the Spell check passage;  ref/spell/  the en_US fixture dictionary the Gate and the
+                engine tests read through ENCHANT_CONFIG_DIR, never the machine's
                 mac-native/  the Design oracle as measured; its captures are under ref/ia/shots/mac-native/
 progress/       state, per-round verdicts, latency report, generated live page
 shots/          every round's screenshots, blind pairs, and the states the oracle is shot at

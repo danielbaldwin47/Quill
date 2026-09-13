@@ -657,6 +657,129 @@ export function judgeStatsBarChanged(before, after, { colours, scale } = {}) {
   };
 }
 
+// ---------- the Spell check wave, under the word the caret stands after ----------
+
+/// `Role::Spell` on the two grounds, as `quill-engine/src/theme.rs` pins it:
+/// `(Scheme::Light, Role::Spell, "#e5372b")` and `(Scheme::Dark, Role::Spell, "#e5534b")`.
+///
+/// Provisional until the capture #400 measures the mark, like the Role itself; the day the theme's
+/// two lines move, these two move with them.
+export const SPELL = { r: 0xe5, g: 0x37, b: 0x2b };
+export const SPELL_DARK = { r: 0xe5, g: 0x53, b: 0x4b };
+
+// How far a pixel's `(r - g) / (r - b)` may stray from the Role's own before it is not the wave.
+const SPELL_INK_HUE = 0.2;
+
+// The gap, as a share of the caret bar's height, that ends a word when walking left from the bar.
+// Measured off `tools/keys-fixture/spell-*.png` at the judged defaults: the bar is 74 device px
+// tall, the widest gap between two letters of `comittee` is 8 px and one advance is about 25 px,
+// so a space's gap is at least an advance. A quarter of the bar, 18 px, sits between the two.
+const WORD_GAP = 0.25;
+
+// A pixel's three channels, which `pixel` does not carry red of.
+function rgb(png, x, y) {
+  const i = (y * png.w + x) * png.ch;
+  return { r: png.data[i], g: png.data[i + 1], b: png.data[i + 2] };
+}
+
+/// Whether the pixel at (x, y) is `spell`'s ink, at any strength.
+///
+/// The wave is antialiased onto a neutral grey, and a blend with a grey moves every channel toward
+/// it by the same share: `r - g` and `r - b` shrink together, so their ratio is the Role's own at
+/// every strength and a chroma floor is all that tells a faint skirt from the paper. No grey and no
+/// accent pixel leans red, so nothing else on a keys page answers it.
+///
+/// `chroma` is how far red must lead green and blue, and `hue` how far the ratio may stray; a
+/// caller reading a fainter wave than a keys page carries passes its own.
+export function isSpellInk(png, x, y, spell = SPELL, { chroma = CHROMA, hue = SPELL_INK_HUE } = {}) {
+  const { r, g, b } = rgb(png, x, y);
+  if (r - Math.max(g, b) < chroma) return false;
+  const want = (spell.r - spell.g) / (spell.r - spell.b);
+  return Math.abs((r - g) / (r - b) - want) <= hue;
+}
+
+/// The ink of the word the caret's bar stands after, on the bar's rows: `{ left, right }` in device
+/// columns, or `null` when there is no ink left of the bar.
+///
+/// Walks left from the bar over the space the caret may sit after, then over the word's ink until
+/// a gap as wide as a space. The gap is a share of the bar's height rather than a glyph advance,
+/// because the row is a wrapped paragraph and no advance can be derived from it. A red pixel is not
+/// ink here, though it is darker than the edge: it is the thing being looked for.
+export function readWordBeforeBar(png, read, { ink = INK, paper = PAPER } = {}) {
+  const { bar } = read;
+  const edge = lum(ink) + (lum(paper) - lum(ink)) * INK_SHARE;
+  const inkIsDarker = lum(paper) > lum(ink);
+  const inked = (x) => {
+    for (let y = bar.top; y <= bar.bottom; y += 1) {
+      const p = rgb(png, x, y);
+      if (Math.abs(p.r - p.g) >= CHROMA || Math.abs(p.b - p.r) >= CHROMA) continue;
+      if (inkIsDarker ? lum(p) < edge : lum(p) > edge) return true;
+    }
+    return false;
+  };
+  const gap = Math.max(1, Math.round((bar.bottom - bar.top + 1) * WORD_GAP));
+  let x = bar.left - 1;
+  while (x >= 0 && !inked(x)) x -= 1;
+  if (x < 0) return null;
+  const right = x;
+  let left = x;
+  let run = 0;
+  for (x -= 1; x >= 0; x -= 1) {
+    if (inked(x)) {
+      left = x;
+      run = 0;
+    } else {
+      run += 1;
+      if (run >= gap) break;
+    }
+  }
+  return { left, right };
+}
+
+/// After a burst, the word the caret stands after wears the Spell wave — or wears none of it.
+///
+/// The burst says which with `wave`, as `stats-bar-accent` is told with `accent`: typing a
+/// misspelling asserts no wave while the caret is still in the word, and the space after it
+/// asserts the wave. Only the columns of that one word are looked at, never its row: the row is a
+/// wrapped paragraph that can hold another misspelling left of it, and the rule is about the word
+/// being typed.
+export function judgeSpellWave(png, { wave, colours, read } = {}) {
+  if (typeof wave !== 'boolean') {
+    return {
+      pass: false,
+      said: 'a burst asserting spell-wave has to say whether it expects the wave, and this one '
+        + `says ${JSON.stringify(wave)}`,
+    };
+  }
+  const reading = read || readBar(png, colours);
+  if (!reading.bar) return { pass: false, said: 'no caret bar on the page to find the word by' };
+  const word = readWordBeforeBar(png, reading, colours);
+  if (!word) return { pass: false, said: 'no ink left of the caret bar, so no word to look under' };
+  const spell = colours && colours.paper === PAPER_DARK ? SPELL_DARK : SPELL;
+  // The bar's rows are the row's whole pitch, and the wave is drawn inside them: y 590..593 under a
+  // bar at 536..609 in `spell-space.png`'s page.
+  const { bar } = reading;
+  let pixels = 0;
+  let top = null;
+  let bottom = null;
+  for (let y = bar.top; y <= bar.bottom; y += 1) {
+    for (let x = word.left; x <= word.right; x += 1) {
+      if (!isSpellInk(png, x, y, spell)) continue;
+      pixels += 1;
+      if (top === null) top = y;
+      bottom = y;
+    }
+  }
+  return {
+    pass: wave ? pixels > 0 : pixels === 0,
+    word,
+    pixels,
+    said: `${pixels} px of the spell Role under the word at x ${word.left}..${word.right} `
+      + `(y ${bar.top}..${bar.bottom}${pixels ? `, wave at y ${top}..${bottom}` : ''}); `
+      + `expected ${wave ? 'the wave' : 'none of it'}`,
+  };
+}
+
 // ---------- the script a Piece is typed by ----------
 //
 // The assertions a script may name, by the phrase the failing line prints. They live beside the
@@ -669,6 +792,7 @@ export const AFTER_BURST = {
   'selection-container-wide': judgeSelectionFill,
   'selection-newline-to-edge': judgeSelectionNewline,
   'stats-bar-accent': judgeStatsBarAccent,
+  'spell-wave': judgeSpellWave,
 };
 
 /// The between-bursts assertions, each with what it reads.

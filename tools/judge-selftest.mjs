@@ -22,7 +22,7 @@ import { ASSERTIONS, SYNTAX, assertState, secondShot, validate } from './assert-
 import { pair, pairDir, reveal } from './blind.mjs';
 import { CAPTURES, cropPng, encodePng, overlaid, resolveOpponent } from './crop.mjs';
 import {
-  ACCENT, ACCENT_HEX, APP_ID, DIALOG_APP_ID, accentPixels, appeared, carriesAccent, classPattern, launchEnv,
+  ACCENT, ACCENT_HEX, APP_ID, DIALOG_APP_ID, accentPixels, appeared, carriesAccent, classPattern, launchEnv, spellFixture,
   parseToplevels, pngSize, quillArgv, rulesLua, wantsLitCaret,
 } from './harness.mjs';
 import { VERDICT_KEYS, carriedFrom, criticAnswer, criticPrompt, opponentOf, oursArgv, refusedFlag, shotPaths } from './judge.mjs';
@@ -76,6 +76,18 @@ ok('every state pins Style check and an override reaches the app', () => {
   assert.equal(argv[argv.indexOf('--style') + 1], 'fillers,cliches');
 });
 
+ok('every state pins Spell check and an override reaches the app', () => {
+  assert.equal(states.defaults.spell, 'off');
+  for (const piece of Object.keys(states.pieces)) {
+    for (const state of resolveStates(states, piece)) {
+      const argv = quillArgv(ROOT, state.flags);
+      assert.equal(argv[argv.indexOf('--spell') + 1], state.flags.spell, `${piece}/${state.name}`);
+    }
+  }
+  const argv = quillArgv(ROOT, { ...states.defaults, spell: 'on:xx_XX' });
+  assert.equal(argv[argv.indexOf('--spell') + 1], 'on:xx_XX');
+});
+
 ok('a state becomes the native flags that state means', () => {
   const caret = flagsOf('caret');
   const argv = quillArgv(ROOT, caret.selection);
@@ -92,6 +104,7 @@ ok('a state becomes the native flags that state means', () => {
   assert.equal(flag('--focus'), 'off');
   assert.equal(flag('--syntax'), 'off');
   assert.equal(flag('--style'), 'off');
+  assert.equal(flag('--spell'), 'off');
   // The caret Piece is judged bare (#139), so its states override the defaults' chrome; that
   // override reaching the command line is the half of this case the defaults cannot show.
   assert.equal(flag('--chrome'), 'off');
@@ -173,6 +186,24 @@ ok('the launch environment is the one the research pinned', () => {
   assert.equal(env.GDK_BACKEND, 'wayland');
   assert.equal(env.GTK_A11Y, 'none');
   assert.equal(env.PATH, '/usr/bin', 'and nothing else about the environment is touched');
+});
+
+ok('every launch reads a fresh copy of the fixture dictionary, never the machine\'s', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'quill-spell-selftest-'));
+  try {
+    const first = spellFixture(ROOT, tmp);
+    const second = spellFixture(ROOT, tmp);
+    assert.notEqual(first, second, 'a word one launch added must not reach the next');
+    assert.ok(first.startsWith(tmp + path.sep), 'the copy lives under the run\'s temporary directory');
+    for (const file of ['en_US.aff', 'en_US.dic']) {
+      assert.deepEqual(fs.readFileSync(path.join(first, 'hunspell', file)),
+        fs.readFileSync(path.join(ROOT, 'ref/spell/hunspell', file)), file);
+    }
+    const env = launchEnv({ PATH: '/usr/bin', ENCHANT_CONFIG_DIR: '/home/writer/.config/enchant' }, first);
+    assert.equal(env.ENCHANT_CONFIG_DIR, first, 'the writer\'s own enchant directory is not the one read');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });
 
 // ---------- the rules that pin the window ----------
@@ -518,7 +549,7 @@ ok('the ghost is measured off ours own pixels, and the alpha is solved rather th
   for (const alpha of [3, 0, 1, '0.3', undefined]) {
     assert.throws(() => validate({ kind: 'ghost', alpha }), /between 0 and 1/, `an alpha of ${alpha} was taken`);
   }
-  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'folded', 'split', 'full', 'pdf-split', 'pdf-full', 'dialog', 'syntax', 'outline']);
+  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'folded', 'split', 'full', 'pdf-split', 'pdf-full', 'dialog', 'syntax', 'outline', 'spell']);
 });
 
 ok('the ghost refuses to read a bar it cannot see the ground beside, and never guesses one', () => {
@@ -639,6 +670,62 @@ ok('all five Syntax states hold on real captures and the companion pins only mas
     if (rule.live) assert.ok(got.headingPixels >= 32);
   }
   console.log(`judge selftest: syntax five real 2880x1800 pairs measured in ${(performance.now() - began).toFixed(0)} ms`);
+});
+
+// ---------- Spell check ----------
+
+// Round 2's own pairs: each state's shot and its `--spell off` reshoot, as `tools/gate judge spell`
+// committed them — round 2 because #409's fix gave `caret-light` back its eighth wave. Variants
+// replace pixels in those shots, never app internals.
+const SPELL_ROUND = 'r2';
+const spellPair = (name) => ({
+  dim: fs.readFileSync(path.join(ROOT, 'shots/spell', `${SPELL_ROUND}-${name}-ours.png`)),
+  lit: fs.readFileSync(path.join(ROOT, 'shots/spell', `${SPELL_ROUND}-${name}-ours-lit.png`)),
+});
+const spellRule = (name) => states.pieces.spell[name].assert;
+
+ok('all ten Spell states hold on their round-1 pairs and the reshoot pins only Spell check off', () => {
+  assert.deepEqual(Object.keys(states.pieces.spell), ['on-light', 'on-dark', 'focus-light', 'focus-dark', 'syntax-light',
+    'syntax-dark', 'select-light', 'select-dark', 'caret-light', 'missing-light']);
+  for (const state of resolveStates(states, 'spell')) {
+    const rule = state.assert;
+    assert.equal(rule.kind, 'spell', state.name);
+    assert.ok(!state.opponent, `${state.name} is answered one way`);
+    assert.equal(state.flags.theme, rule.theme);
+    assert.equal(state.flags.text, 'ref/spell.md');
+    assert.deepEqual(secondShot(rule, state), { state: { ...state, flags: { ...state.flags, spell: 'off' } }, options: {} });
+    // Eight misspellings on the passage — a parked caret withholds none — and none with no dictionary.
+    const words = { 'missing-light': 0 }[state.name] ?? 8;
+    assert.equal(rule.words, words, state.name);
+    assert.equal(Boolean(rule.status), state.flags.spell === 'on:xx_XX', state.name);
+    const got = assertState(rule, spellPair(state.name));
+    assert.equal(got.ours, true, `${state.name}: ${got.why}`);
+  }
+});
+
+ok('a missing wave, a wave where none is wanted and a wave in another colour are each refused', () => {
+  const on = spellPair('on-light');
+  // No wave at all: the reshoot against itself.
+  assert.match(assertState(spellRule('on-light'), { dim: on.lit, lit: on.lit }).why, /changed no pixel/);
+  // A parked caret that hid its word's wave: the caret state's page with one wave fewer than the count.
+  assert.match(assertState({ ...spellRule('caret-light'), words: 9 }, on).why, /holds 8 waves \(.*\) and the state expects 9/);
+  // Waves on a page with no dictionary.
+  assert.match(assertState(spellRule('missing-light'), on).why, /drew \d+ pixels of the spell Role/);
+  // The waves repainted in the link rule's blue: the tag coloured from the wrong Role.
+  const dim = decodePng(on.dim);
+  const lit = decodePng(on.lit);
+  for (let i = 0; i < dim.w * dim.h; i += 1) {
+    const o = i * dim.ch;
+    if ([0, 1, 2].every((c) => dim.data[o + c] === lit.data[o + c])) continue;
+    [dim.data[o], dim.data[o + 1], dim.data[o + 2]] = [70, 117, 181];
+  }
+  assert.match(assertState(spellRule('on-light'), { ...on, dim: encodePng(dim) }).why, /spell Role in 0 of/);
+  // The status line widening the Library reflows the whole page, which is no status line (#415).
+  const missing = spellPair('missing-light');
+  assert.match(assertState(spellRule('missing-light'), { dim: on.dim, lit: missing.lit }).why, /spell Role|taller than one status line|differ in size/);
+  for (const bad of [{ words: -1 }, { words: 1.5 }, { theme: 'sepia' }, { status: 'yes' }, { status: true }, { runs: 2 }]) {
+    assert.throws(() => validate({ kind: 'spell', theme: 'light', words: 8, ...bad }), /spell/, JSON.stringify(bad));
+  }
 });
 
 ok('the actual syntax-off shot fails the all-light rule', () => {
@@ -1459,6 +1546,11 @@ ok('every judged state that draws a determined caret is held to one, and no othe
     'export/dialog', 'files/library', 'files/search',
     'focus/paragraph', 'focus/sentence',
     'markup/blocks', 'markup/gutters', 'markup/wrapped', 'preview/full', 'preview/pdf-full',
+    // Every `spell` state takes it for the `style` states' reason: the waves are read as the
+    // difference from a `--spell off` reshoot, and a bar is ink that difference need not reason
+    // about. `spell/caret-light` still places the caret, because it proves a parked caret keeps its word's wave.
+    'spell/caret-light', 'spell/focus-dark', 'spell/focus-light', 'spell/missing-light', 'spell/on-dark',
+    'spell/on-light', 'spell/select-dark', 'spell/select-light', 'spell/syntax-dark', 'spell/syntax-light',
     'style/fillers-light', 'style/focus-dark', 'style/focus-light', 'style/on-dark',
     'style/on-light', 'style/select-dark', 'style/select-light', 'style/syntax-dark',
     'style/syntax-light',

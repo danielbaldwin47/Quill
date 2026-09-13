@@ -5,7 +5,7 @@
     "sha256": "738f48c969965ac3"
   },
   "shoot": "239bd27db3974b27",
-  "git_head": "6640cd3",
+  "git_head": "8b8bc90",
   "passages": {
     "ref/sample.md": "8005e6c57d435cea"
   },
@@ -24,6 +24,7 @@
       "live": false,
       "syntax": "off",
       "style": "off",
+      "spell": "off",
       "stats": "words,characters,readingTime",
       "chrome": "off",
       "caret": 403,

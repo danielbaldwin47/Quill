@@ -262,6 +262,7 @@ async function run(root, piece, { shotsDir }) {
           chars: burst.chars,
           rows: burst.rows,
           accent: burst.accent,
+          wave: burst.wave,
           colours,
           // The state's own scale, so the band the stats rules read is the bar's height in logical
           // pixels taken times what this shot was actually captured at.

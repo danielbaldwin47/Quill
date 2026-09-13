@@ -33,12 +33,14 @@ use quill_engine::outline;
 use quill_engine::settings::{
     Chrome, PreviewLayout, PreviewMode, Settings, WindowState, library_width,
 };
+use quill_engine::spell::Resolved;
 use quill_engine::stats::Statistic;
 use quill_engine::sync;
 
 use crate::caret;
 use crate::chrome;
 use crate::conflict;
+use crate::corrections;
 use crate::files::{self, Leaving, Standing, Where};
 use crate::flags;
 use crate::ground::Ground;
@@ -87,6 +89,11 @@ const DIALOG_PAD: i32 = 12;
 /// Hyprland's default modal dim is the source of this strength; moving it to
 /// the Editor preserves the old visual hierarchy while leaving the pane readable.
 const EXPORT_EDITOR_DIM: f64 = 0.5;
+
+/// Whether a Document has already opened with no dictionary for Spell check
+/// and said so ([`Window::say_no_dictionary`]).
+static SAID_NO_DICTIONARY: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
 
 /// The non-targetable black wash an Export dialog puts over the Editor.
 fn editor_scrim() -> gtk::DrawingArea {
@@ -381,9 +388,11 @@ impl Window {
         window.imp().editor.open_live_on(session.live());
         // Install the tables while the buffer is empty; showing the Document
         // below resets the worker and schedules its first viewport request.
-        // Both Annotators, because either one alone is work to schedule.
+        // All three Annotators, because any one alone is work to schedule.
         window.set_syntax(session.syntax().clone());
         window.set_style(session.style().clone());
+        let (spell, language) = spelling(session);
+        window.set_spell(spell, &language);
         // The bars stand or not before the Document is shown, so the page is
         // laid out once, at the height it will keep.
         window
@@ -438,6 +447,7 @@ impl Window {
         chrome::install_window(&window);
         window.imp().editor.grab_focus();
         window.watch_active();
+        window.watch_corrections();
         // A window is remembered as it closes rather than at shutdown, so that
         // the last window a writer sized is the first one the next launch
         // reads, whichever of its windows they closed first. What its Document
@@ -726,6 +736,19 @@ impl Window {
         );
     }
 
+    /// Turns Spell check on or off, in every window.
+    ///
+    /// Off drops every wave at once and sends no Spell request; on asks for
+    /// the Document again ([`Window::set_spell`]).
+    pub(crate) fn toggle_spell(&self) {
+        self.move_windows(Session::toggle_spell, |window, _| {
+            if let Some(session) = window.session() {
+                let (spell, language) = spelling(&session);
+                window.set_spell(spell, &language);
+            }
+        });
+    }
+
     /// Moves Focus the way `move_it` says, and puts the answer on every window.
     ///
     /// The two Focus keys differ only in what they ask the session for, so what
@@ -799,6 +822,7 @@ impl Window {
         // that the row a writer opened is the row they can see they are in.
         self.imp().sidebar.set_open(self.path().as_deref());
         self.show_standing();
+        self.say_no_dictionary();
         let (Some(path), Some(session)) = (self.path(), self.session()) else {
             return;
         };
@@ -860,10 +884,17 @@ impl Window {
         self.rearm();
     }
 
-    /// Starts or stops the one wake both Annotators share.
+    /// Applies the `spell_check` and `spell_language` settings; a language
+    /// that did not move is not resolved again.
+    pub(crate) fn set_spell(&self, on: bool, language: &str) {
+        self.imp().editor.set_spell(on, language, &self.document());
+        self.rearm();
+    }
+
+    /// Starts or stops the one wake the three worker Annotators share.
     ///
-    /// Armed whenever either is on, and not only as the first arrives: a
-    /// master joining the other has paragraphs to match and no keystroke
+    /// Armed whenever any is on, and not only as the first arrives: a
+    /// master joining the others has paragraphs to match and no keystroke
     /// coming to ask for them. A table change that dirties nothing — a
     /// Category or a List — is a repaint the Editor has already done, and
     /// arming for it would push a pending keystroke's re-match back by
@@ -1189,6 +1220,22 @@ impl Window {
     /// export's confirmation is ([`crate::export::confirm`]).
     pub(crate) fn notice(&self, words: &str) {
         self.imp().sidebar.set_status(words);
+    }
+
+    /// Says, once per process, that Spell check has no dictionary for the
+    /// language it wants: the first Document to open in that state carries
+    /// the Settings window's line as a notice, and no Document after it does.
+    ///
+    /// Process-wide rather than per window, because the notice is a window's
+    /// and a writer opening a second file has already been told (#401 § The
+    /// "no dictionary" state).
+    fn say_no_dictionary(&self) {
+        let Some(Resolved::Missing { wanted }) = self.imp().editor.spell_resolution() else {
+            return;
+        };
+        if !SAID_NO_DICTIONARY.swap(true, std::sync::atomic::Ordering::Relaxed) {
+            self.notice(&crate::settings::no_dictionary(&wanted));
+        }
     }
 
     /// `file.saveAs`: the writer names the file, and the Document is that file
@@ -3052,7 +3099,11 @@ impl Window {
         let Some(session) = self.session() else {
             return;
         };
-        crate::settings::open(self.upcast_ref(), &session);
+        crate::settings::open(
+            self.upcast_ref(),
+            &session,
+            self.imp().editor.spell_resolution().as_ref(),
+        );
     }
 
     /// Opens the shortcuts window over this one: `shortcuts.open`, `Ctrl+?`
@@ -3272,6 +3323,9 @@ impl Window {
                 return;
             };
             window.imp().editor.refocus(filed.document());
+            // And the caret rule: a caret leaving a word it was typing gives
+            // the word its wave.
+            window.imp().editor.rewithhold(filed.document());
             drop(filed);
             // A caret move takes the caret rule, as an edit does: the block
             // being written is what the rendered page is kept on (#263
@@ -3305,6 +3359,88 @@ impl Window {
             glib::Propagation::Proceed
         });
         self.imp().editor.add_controller(releases);
+    }
+
+    /// Puts Spell check's corrections on the Editor: the `spell` action group
+    /// and the two moments the section is built at ([`crate::corrections`]).
+    ///
+    /// Here rather than in the Editor because both halves want the Document,
+    /// and Add and Ignore want the wake that drains the answer. Both
+    /// controllers run in the capture phase, before GTK's own menu: a press or
+    /// a chord that opened the corrections menu is taken, and any other is
+    /// left to GTK, which opens its own.
+    fn watch_corrections(&self) {
+        let replace = self.downgrade();
+        let add = self.downgrade();
+        let ignore = self.downgrade();
+        let actions = corrections::actions(
+            move |suggestion| {
+                if let Some(window) = replace.upgrade() {
+                    window.imp().editor.replace(suggestion);
+                }
+            },
+            move |word| {
+                if let Some(window) = add.upgrade() {
+                    window.edit_dictionary(quill_engine::worker::Edit::Add(word.to_owned()));
+                }
+            },
+            move |word| {
+                if let Some(window) = ignore.upgrade() {
+                    window.edit_dictionary(quill_engine::worker::Edit::Ignore(word.to_owned()));
+                }
+            },
+        );
+        self.imp()
+            .editor
+            .insert_action_group(corrections::GROUP, Some(&actions));
+
+        let presses = gtk::GestureClick::new();
+        presses.set_button(gdk::BUTTON_SECONDARY);
+        presses.set_propagation_phase(gtk::PropagationPhase::Capture);
+        let watcher = self.downgrade();
+        presses.connect_pressed(move |presses, _, x, y| {
+            let Some(window) = watcher.upgrade() else {
+                return;
+            };
+            let Ok(filed) = window.imp().filed.try_borrow() else {
+                return;
+            };
+            let opened = window.imp().editor.correct(filed.document(), Some((x, y)));
+            drop(filed);
+            if opened {
+                presses.set_state(gtk::EventSequenceState::Claimed);
+            }
+        });
+        self.imp().editor.add_controller(presses);
+
+        let keys = gtk::EventControllerKey::new();
+        keys.set_propagation_phase(gtk::PropagationPhase::Capture);
+        let watcher = self.downgrade();
+        keys.connect_key_pressed(move |_, key, _, state| {
+            let menu = key == gdk::Key::Menu
+                || (key == gdk::Key::F10 && state.contains(gdk::ModifierType::SHIFT_MASK));
+            let Some(window) = watcher.upgrade().filter(|_| menu) else {
+                return glib::Propagation::Proceed;
+            };
+            let Ok(filed) = window.imp().filed.try_borrow() else {
+                return glib::Propagation::Proceed;
+            };
+            if window.imp().editor.correct(filed.document(), None) {
+                glib::Propagation::Stop
+            } else {
+                glib::Propagation::Proceed
+            }
+        });
+        self.imp().editor.add_controller(keys);
+    }
+
+    /// Sends an Add or an Ignore and wakes the drain for the Document it
+    /// asks for again.
+    fn edit_dictionary(&self, edit: quill_engine::worker::Edit) {
+        if let Ok(filed) = self.imp().filed.try_borrow() {
+            self.imp().editor.edit_dictionary(edit, filed.document());
+        }
+        self.rearm();
     }
 }
 
@@ -3528,6 +3664,12 @@ pub fn repaint(app: &gtk::Application, session: &Session) {
     chrome::reflect_windows(app);
 }
 
+/// The `spell_check` and `spell_language` settings as the session holds them:
+/// the check live, as the Commands leave it, and the language from the file.
+fn spelling(session: &Session) -> (bool, String) {
+    (session.spell(), session.settings().spell_language.clone())
+}
+
 /// Puts a settings file saved while Quill is running on to every window.
 ///
 /// The whole of what the file carries at once — the ground, the type, Focus,
@@ -3564,6 +3706,8 @@ pub fn reapply(app: &gtk::Application, session: &Session) {
         window.refresh_preview();
         window.set_syntax(session.syntax().clone());
         window.set_style(session.style().clone());
+        let (spell, language) = spelling(session);
+        window.set_spell(spell, &language);
     });
     // The sidebar reads the `[library]` settings as it lists — hidden files,
     // extensions — and the Library itself has already been made to say what

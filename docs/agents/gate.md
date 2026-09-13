@@ -70,7 +70,7 @@ names it). `tools/gate bench` runs the headline regime, `prose_end_of_draft` at 
 10,062-word `shots/latency/doc10k.md`, with real keys through `/dev/uinput` and presentation from
 `GdkFrameTimings` on the dedicated scale-2 headless output. Hard budget, uinput `write(2)` →
 presented: **≤ 5 ms mean, ≤ 16 ms worst**. Cold start, `exec` → first complete frame with a non-zero
-presentation time, the same document open: **≤ 250 ms**. `--all` runs all seventeen regimes of
+presentation time, the same document open: **≤ 250 ms**. `--all` runs all nineteen regimes of
 `tools/regimes.mjs` instead — each on its own launch, at its own caret, Focus and pace — and
 `--regimes a,b` runs only the subset named; both print one line per regime and write one summary
 beside the per-regime results, and — when every regime ran and accounted for its keys — a last line
@@ -81,9 +81,11 @@ the chrome's return rather than typing, and the regime then passes or fails on w
 refresh the collision lands on an unchanged build
 ([#349](https://github.com/danielbaldwin47/Quill/issues/349)); `PAUSE_MS` in `tools/regimes.mjs`
 carries the value with the timers it clears, and `tools/bench-selftest.mjs` reads those timers out
-of the app and holds it to them. Fifteen regimes are scored, including the headline regime's own
+of the app and holds it to them. Seventeen regimes are scored, including the headline regime's own
 typing with Live on (`live_end_of_draft`), with the rendered page open in Split (`preview`), with
-every Syntax highlight Category on (`syntax`), and with Style check on and every List (`style`).
+every Syntax highlight Category on (`syntax`), with Style check on and every List (`style`), with
+Spell check on against the fixture dictionary (`spell`), and with all three of those Annotators on
+at once (`annotators`).
 `saturation_stress` is unpaced, so two keys land in every 16.7 ms frame and a per-keystroke figure
 grows by construction; it runs, is recorded and must account for its keys like the rest, but its
 lines say informational rather than pass or fail, as the oracle's own report kept it out of the
@@ -168,6 +170,9 @@ arbitrate names `assert` in `states.json` instead of an opponent, and is measure
 to anybody ([ADR 0017](../adr/0017-a-judged-state-neither-oracle-can-arbitrate.md)):
 `tools/assert-state.mjs` reads the rule off ours' own pixels, the round records what it measured
 where a critic's reasoning would be, and the state is won or lost on that answer like any other. The
+rules are that file's `ASSERTIONS` — ghost, folded, split, full, pdf-split, pdf-full, dialog, syntax,
+outline and spell, as `tools/gate --help` lists them — and `states.json`'s `assert` note says what
+each reads. The
 bar for it is that neither oracle holds the subject — `caret/unfocused`, because iA draws no caret
 on a deactivated window and `legacy/` draws one at a column `docs/design.md` has overruled, and the
 two `preview` states, because `legacy/` has no rendered page at all and iA Writer for Mac's own

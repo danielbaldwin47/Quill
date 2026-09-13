@@ -445,6 +445,7 @@ mod tests {
         assert!(ids.contains(&"style.fillers"));
         assert!(ids.contains(&"style.redundancies"));
         assert!(ids.contains(&"style.cliches"));
+        assert!(ids.contains(&"spell.toggle"));
         assert!(ids.contains(&"chrome.view"));
         assert!(ids.contains(&"focus.swap"));
         let table: Vec<usize> = ids
