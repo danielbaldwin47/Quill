@@ -361,7 +361,7 @@ fn strike_lists(
 }
 
 /// The name of Spell check's one tag, so that [`repaint`] can take it off a
-/// range by name and [`marked`] can find the words it stands on.
+/// range by name and [`spell_marked`] can find the words it stands on.
 pub(crate) const SPELL_MARK: &str = "decoration-spell";
 
 /// The tag that says a word is misspelled, and nothing else.
@@ -403,7 +403,7 @@ fn misspelling(buffer: &gtk::TextBuffer) -> gtk::TextTag {
 /// Empty before the first misspelling of the session, when the tag is not in
 /// the table yet, and empty with Spell check off, when [`repaint`] has taken it
 /// off every range.
-pub(crate) fn marked(buffer: &gtk::TextBuffer, at: &Range<i32>) -> Vec<Range<i32>> {
+pub(crate) fn spell_marked(buffer: &gtk::TextBuffer, at: &Range<i32>) -> Vec<Range<i32>> {
     let Some(tag) = buffer.tag_table().lookup(SPELL_MARK) else {
         return Vec::new();
     };
@@ -1594,7 +1594,7 @@ mod tests {
 
     /// The container `face` at `step` lays out in that window.
     fn container(face: Face, step: u32) -> typography::Column {
-        typography::column(VIEW, face, step)
+        typography::column(VIEW, CLASS, face, step)
     }
 
     /// The marker runs a level 1 to 6 heading opens with, as the layout may
@@ -1671,11 +1671,7 @@ mod tests {
         // and two adjacent ems of the ladder's small end — 15.25 and 16.17 —
         // round to the same whole pixel.
         let ladder = quill_engine::settings::type_steps();
-        for class in [
-            typography::SizeClass::Narrowest,
-            typography::SizeClass::Middle,
-            typography::SizeClass::Wide,
-        ] {
+        for class in typography::SizeClass::ALL {
             for step in ladder.clone().skip(1) {
                 assert!(
                     well(class, step - 1) <= well(class, step),

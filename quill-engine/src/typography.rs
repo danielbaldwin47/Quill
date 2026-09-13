@@ -54,9 +54,9 @@ pub const CONTAINER: u32 = MEASURE + 2 * GUTTER;
 /// [`page_top`].
 const PAGE_TOP: u32 = 60;
 
-/// The air below the last row of text, as a share of the view: the derivation
-/// is [`page_bottom`].
-const PAGE_BOTTOM: f64 = 0.485;
+/// The air below the last row of text, as a share of the **text area**: the
+/// derivation is [`page_bottom`].
+const PAGE_BOTTOM: f64 = 460.0 / 857.0;
 
 /// How much of the view is kept above the caret's row, and how much below:
 /// `scroll-padding: 10vh 0 28vh` in `legacy/app/css/page.css`.
@@ -198,6 +198,12 @@ pub enum SizeClass {
     Wide,
 }
 
+impl SizeClass {
+    /// Every class there is, narrowest first: what a caller that has to hold
+    /// for all three walks, so that a fourth class is added in one place.
+    pub const ALL: [Self; 3] = [Self::Narrowest, Self::Middle, Self::Wide];
+}
+
 /// The widest window in the narrowest class, in logical pixels.
 ///
 /// The two breaks are exact and have no hysteresis: approached from either
@@ -291,10 +297,11 @@ pub fn caret_width(class: SizeClass, step: u32, scale: f64) -> u32 {
 /// did not ask for; a size above the whole ladder takes the top rung. The old
 /// default, 20 px, lands that way on step 5 — which is the ladder's own
 /// default, and the size iA Writer opens at.
-#[must_use]
+///
 /// Read off the wide ladder, which is the one a `settings.toml` written
 /// before the ladder was laid out on: the size classes came later, and a
 /// stored size is a size the writer chose at whatever width, not at one.
+#[must_use]
 pub fn step_for_size(size: u32) -> u32 {
     let size = f64::from(size);
     let step = WIDE.iter().position(|rung| rung.em >= size);
@@ -469,17 +476,26 @@ fn margin(view: u32, class: SizeClass, cell: f64) -> f64 {
     }
 }
 
-/// Where the container sits in a view `view` pixels wide, for `face` at
-/// `step`.
+/// Where the container sits in a view `view` pixels wide laid out in `class`,
+/// for `face` at `step`.
 ///
-/// The view picks the [`SizeClass`], the class and the step pick the cell
-/// ([`cell`]) and the margin ([`margin`]), and the container is the smaller of
-/// [`CONTAINER`] cells and the view less a margin each side — the Design
-/// oracle's rule, `docs/design.md` row Window limitation. Asking for the view
-/// rather than for a cell is what keeps the three from disagreeing: a cell
-/// from one class and a margin from another is not a page anything draws.
+/// The class and the step pick the cell ([`cell`]) and the margin
+/// ([`margin`]), and the container is the smaller of [`CONTAINER`] cells and
+/// the view less a margin each side — the Design oracle's rule,
+/// `docs/design.md` row Window limitation. Asking for a class rather than for
+/// a cell is what keeps the two from disagreeing: a cell from one class and a
+/// margin from another is not a page anything draws.
 ///
-/// The container is centred, and the gutters hold at [`GUTTER`] cells each
+/// The class is the caller's rather than `size_class(view)`'s because the two
+/// are not always the same view: the class is the **window's**, and the view
+/// the container is centred in is whatever room the window left the text — the
+/// window less the Library pane, where one is shown (NOTES § State 22,
+/// [`size_class`]).
+///
+/// The container is centred with an odd leftover's extra pixel on the
+/// **right** — NOTES § State 25 read 20 px left against 22 right, and 74
+/// against 76, where the leftover was an odd number of points — and the
+/// gutters hold at [`GUTTER`] cells each
 /// while the measure takes what they leave, so the text never reaches an edge
 /// and a heading never hangs off the window (ADR 0016). The oracle lets its
 /// own gutters narrow to about 6 cells where the window wins and gives the
@@ -488,16 +504,15 @@ fn margin(view: u32, class: SizeClass, cell: f64) -> f64 {
 /// seat the two gutters the measure is nothing rather than negative, and the
 /// caller has a column it can still lay out.
 #[must_use]
-pub fn column(view: u32, face: Face, step: u32) -> Column {
-    let class = size_class(view);
-    let cell = cell(face, class, step);
-    let room = f64::from(view) - 2.0 * margin(view, class, cell);
+pub fn column(view: u32, class: SizeClass, face: Face, step: u32) -> Column {
+    let advance = cell(face, class, step);
+    let room = f64::from(view) - 2.0 * margin(view, class, advance);
     let view = f64::from(view);
     // The three lengths every edge below is counted off, rounded here and only
     // here; each edge is then whole-pixel arithmetic on them.
-    let gutter = (cell * f64::from(GUTTER)).round().max(0.0);
-    let container = (cell * f64::from(CONTAINER)).min(room).max(0.0).round();
-    let left = ((view - container) / 2.0).round();
+    let gutter = (advance * f64::from(GUTTER)).round().max(0.0);
+    let container = (advance * f64::from(CONTAINER)).min(room).max(0.0).round();
+    let left = ((view - container) / 2.0).floor();
     Column {
         left: left as u32,
         right: (left + container) as u32,
@@ -540,16 +555,24 @@ pub fn page_top(scale: f64) -> u32 {
     device(PAGE_TOP, scale)
 }
 
-/// The air below the last row of text in a view `view` pixels tall, so that
-/// the end of a draft stops well clear of the bottom edge rather than against
-/// it.
+/// The air below the last row of text in a text area `view` pixels tall, so
+/// that the end of a draft stops well clear of the bottom edge rather than
+/// against it.
 ///
 /// The Design oracle scrolled to the end of `ref/sample.md` keeps **460 pt**
-/// of air under the last row of a 949 pt window — 48.5 % of it — where the
-/// Parity oracle keeps 30 % (`page.css` `--page-bottom`).
+/// of air under the last row of a 949 pt window — 48.5 % of the whole window —
+/// where the Parity oracle keeps 30 % (`page.css` `--page-bottom`).
 /// `ref/ia/mac-native/NOTES.md` § State 27 is the measurement and
-/// `docs/design.md` row Page bottom carries the derivation. A share of the
-/// view rather than a constant, because that is what both oracles hold it as.
+/// `docs/design.md` row Page bottom carries the derivation. A share rather
+/// than a constant, because that is what both oracles hold it as.
+///
+/// The share is taken against the **text area** and not the window, because
+/// `view` is what the Editor was allocated and Quill's own bars are already
+/// off it. The oracle's window is 949 pt tall with a 52 pt title bar and its
+/// 40 pt Toolbar under the text (NOTES § The grid at the default text size for
+/// the one, § State 27 § The bar for the other), so the
+/// 460 pt sits in an **857 pt** text area: [`PAGE_BOTTOM`] is `460/857`, and
+/// asking it for 857 gives the 460 the capture read.
 #[must_use]
 pub fn page_bottom(view: u32) -> u32 {
     (PAGE_BOTTOM * f64::from(view)).round() as u32
@@ -817,7 +840,7 @@ mod tests {
 
     #[test]
     fn a_step_past_the_top_of_the_ladder_draws_the_largest_type_there_is() {
-        for class in [SizeClass::Narrowest, SizeClass::Middle, SizeClass::Wide] {
+        for class in SizeClass::ALL {
             assert!((em(class, STEPS) - em(class, STEPS - 1)).abs() < f64::EPSILON);
             assert_eq!(pitch(class, 99, 2.0), pitch(class, STEPS - 1, 2.0));
         }
@@ -883,7 +906,7 @@ mod tests {
     fn every_face_is_measured_on_the_same_cell_and_it_follows_the_ladders_em() {
         for name in Face::VALUES {
             let face = Face::parse(name).expect("every Face `settings.toml` writes is a Face");
-            for class in [SizeClass::Narrowest, SizeClass::Middle, SizeClass::Wide] {
+            for class in SizeClass::ALL {
                 for step in steps() {
                     assert!(
                         (cell(face, class, step) - 0.6 * em(class, step)).abs() < f64::EPSILON,
@@ -911,7 +934,7 @@ mod tests {
         // class's 11.3265 in the 960 px `narrow` state — which seats a full
         // measure at the smaller type where the wide type did not.
         assert_eq!(
-            column(1440, Face::Duo, default_step()),
+            column(1440, SizeClass::Wide, Face::Duo, default_step()),
             Column {
                 left: 221,
                 right: 1219,
@@ -921,21 +944,56 @@ mod tests {
             "a judged 1440 px window does not centre the 78-cell container with the measure a gutter inside it"
         );
         assert_eq!(
-            column(960, Face::Duo, default_step()),
+            column(960, SizeClass::Middle, Face::Duo, default_step()),
             Column {
-                left: 39,
-                right: 922,
-                side: 118,
+                left: 38,
+                right: 921,
+                side: 117,
                 width: 725
             },
             "the `narrow` judged state does not centre the middle class's 78 cells"
+        );
+        // 960 less an 883 px container leaves 77, and the odd one falls on
+        // the right: 38 against 39, the way NOTES § State 25 read 20 against
+        // 22 and 74 against 76.
+        let odd = column(960, SizeClass::Middle, Face::Duo, default_step());
+        assert_eq!(
+            (odd.left, 960 - odd.right),
+            (38, 39),
+            "an odd leftover's extra pixel does not fall on the right of the container"
+        );
+    }
+
+    #[test]
+    fn a_pane_beside_the_text_narrows_the_page_and_leaves_the_windows_class_on_it() {
+        // The Design oracle picks the class on the window's own width and
+        // nothing else (NOTES § State 22), so a 1440 px window showing the
+        // 368 px Library lays its remaining 1072 px out in the **wide** class
+        // and not in the middle one that width alone reads as.
+        // `quill::editor`'s `lay_out` is the caller that keeps the two apart:
+        // the window's width here, the Editor's own below.
+        assert_eq!(
+            size_class(1072),
+            SizeClass::Middle,
+            "the room left beside the Library is not in a class of its own, so this proves nothing"
+        );
+        let beside = column(1072, size_class(1440), Face::Duo, default_step());
+        assert_eq!(
+            beside.gutter(),
+            column(1440, SizeClass::Wide, Face::Duo, default_step()).gutter(),
+            "opening the Library took the type off the class its window is in"
+        );
+        assert_eq!(
+            beside.left + beside.right,
+            1072,
+            "the container is not centred in the room the Editor was actually left"
         );
     }
 
     #[test]
     fn a_window_too_narrow_for_the_container_holds_its_gutters_and_shrinks_the_measure() {
         assert_eq!(
-            column(600, Face::Duo, default_step()),
+            column(600, SizeClass::Middle, Face::Duo, default_step()),
             Column {
                 left: 5,
                 right: 595,
@@ -951,7 +1009,7 @@ mod tests {
         // Where the first term wins the measure is the whole limit and the
         // gutter is 7 cells: 960 pt at step 5 holds all 64 characters on the
         // middle class's cell, as NOTES § State 22 reads off the app.
-        let full = column(960, Face::Mono, 5);
+        let full = column(960, SizeClass::Middle, Face::Mono, 5);
         assert_eq!(
             full.gutter(),
             79,
@@ -966,7 +1024,7 @@ mod tests {
         // side. The four widths are § State 22's own, at the step where 78
         // cells no longer fit any of them.
         for view in [960, 1040, 1200, 1250] {
-            let clipped = column(view, Face::Mono, 8);
+            let clipped = column(view, size_class(view), Face::Mono, 8);
             assert_eq!(
                 clipped.right - clipped.left,
                 view - 2 * (MARGIN as u32),
@@ -976,7 +1034,7 @@ mod tests {
         // 440 pt is the class break, and the class's own margin — 13 px at
         // this step, not 5 — is why § State 22 read a container 32 device
         // pixels inside what it expected: 414 logical px is its 828.
-        let narrowest = column(440, Face::Mono, 5);
+        let narrowest = column(440, SizeClass::Narrowest, Face::Mono, 5);
         assert_eq!(
             narrowest.right - narrowest.left,
             414,
@@ -1040,7 +1098,7 @@ mod tests {
 
     #[test]
     fn the_deepest_heading_hangs_to_the_container_edge() {
-        let column = column(1440, Face::Duo, default_step());
+        let column = column(1440, SizeClass::Wide, Face::Duo, default_step());
         assert_eq!(
             column.hang(6),
             column.gutter(),
@@ -1061,7 +1119,7 @@ mod tests {
         // deepest heading on the container's edge. Every rung of the ladder
         // is fractional this way — that is what a ladder measured off an app
         // gives, where a range of whole pixels did not.
-        let column = column(1440, Face::Duo, 4);
+        let column = column(1440, SizeClass::Wide, Face::Duo, 4);
         assert_eq!(
             column.right - column.side - column.width,
             column.gutter(),
@@ -1087,14 +1145,15 @@ mod tests {
             "the constant does not come back through the scale as 30 logical px"
         );
         assert_eq!(
-            page_bottom(949),
+            page_bottom(857),
             460,
-            "the oracle's 949 pt window does not leave its measured 460 pt of air"
+            "the text area of the oracle's 949 pt window — its 52 pt title bar and its 40 pt \
+             Toolbar off it — does not leave the measured 460 pt of air"
         );
         assert_eq!(
             page_bottom(900),
-            437,
-            "a judged 900 px window leaves 48.5 % of itself below the last row"
+            483,
+            "a judged 900 px text area does not leave the same share below the last row"
         );
     }
 
@@ -1113,7 +1172,7 @@ mod tests {
     #[test]
     fn no_steps_leading_eats_the_page_top() {
         let top = page_top(1.0);
-        for class in [SizeClass::Narrowest, SizeClass::Middle, SizeClass::Wide] {
+        for class in SizeClass::ALL {
             for step in steps() {
                 let shortest_row = em(class, step).ceil() as u32;
                 let below = leading(pitch(class, step, 1.0), shortest_row).below;
