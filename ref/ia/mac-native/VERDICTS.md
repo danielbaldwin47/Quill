@@ -76,6 +76,14 @@ that section.
 | 4.2.14 | Syntax colours (verbs, adjectives, adverbs, conjunctions, nouns) | **measured and anchored** — the colour-space qualification is lifted | Ten values in [the re-capture table](CAPTURE-ORIGINAL-MBP.md#the-ten-category-colours), reproduced on the original rig within Δ1 per channel; dim wins (`#c6c4c2` light, `#707070` dark) and contractions split | 308-original-mbp-*-syntax-{all,focus,tokens}, five isolated categories |
 | 4.2.15 | Authorship author colours | **still unknown** — not covered; Authors were hidden for every state | — | — |
 
+### The misspelling mark
+
+No § 4.2 claim covers it: no state before #400 held a misspelling, and `REFERENCE.md` never asked. It is measured here because the spec needs it, and because the mark is **macOS's own** rather than iA's — the one thing on the page iA does not draw.
+
+| Claim | Verdict | Measured | Capture |
+|---|---|---|---|
+| — | **now measured** | **`#ed766b`** light, **`#cf807e`** dark; **dots**, 6 px lit on an 8 px period; **6 px** thick, **12 … 17 px** below the baseline; the word's own cells exactly. The two grounds do not share one ink — no coverage flattens either onto the other's paper | 26-light-spell-s1-rest, 26-dark-spell-s1-rest |
+
 ### Marker ink, one row per mark kind
 
 No § 4.2 claim covers a marker's colour, which is why
@@ -242,3 +250,11 @@ listed so the triage can see them, not because anything asks for them.
 | With the margin the class's own, the container rule holds **everywhere**: `min((limit + 14) cells, window − 2 × margin)`, the margin 5 pt in the middle and wide classes | in the narrowest class the first term never wins — 78 cells of the smallest type wants 1062 px of the 880 px the class's widest window, 440 pt, has at all | 25-light-narrow-* |
 | The container is **centred to the point, not to the pixel**: both margins are whole points, and where the leftover is an odd number of points the extra **point** — two device pixels — falls on the right | 20 px left against 22 right at step 1 in a 480 px window, leftover 42 px = 21 pt; 74 against 76 at step 5 in a 1920 px one, leftover 150 px = 75 pt | 25-light-narrow-* |
 | **Whether the class breaks are points or device pixels is still unknown** — not decidable on this rig | no external display was connected and the built-in one offers no scale-1 mode, so #419's scale question could not be run | — |
+| The misspelling mark **does not dim under Focus** while its word does | the word falls to `#c6c4c2` light / `#707070` dark, the § 4.2 dim tier; the mark holds `#ed766b` / `#cf807e`, same hex, same rows, same dots | 26-*-spell-s2-focus |
+| Under Syntax highlight the **Category colour stays and the mark is unchanged** | words at `#a6559f`, `#4675b5`, `#bb512a`, `#9d6722` on light, marks exactly as at rest | 26-*-spell-s3-syntax |
+| Over a held selection the **fill is under the mark, and shows through it** | the mark renders `#e2726b` over the light fill `#cbedf7` against `#ed766b` on paper, and `#cd8486` over the dark fill `#143c52`; the composite is about 0.7 coverage light and 0.85 dark and does not close to one number | 26-*-spell-s4-selection |
+| The mark is **not the face's underline** | `iAWriterMonoS-Regular.ttf` asks for 2.56 px at 4.69 px below the baseline; the mark is 6 px at 12 px below | `post` table + 26-light-spell-s1-rest |
+| **An all-caps word the dictionary does not hold is not marked**, and neither is a token carrying a digit | `DRAFFT`, `2b` and `Q3` are all left alone; seven words of `ref/spell.md` are marked, not eight | 26-light-spell-s1-rest |
+| **A word is marked when a boundary ends it**, not while it is being typed | typed with no space the word carries a pale blue pending-correction fill and a suggestion pill and no dots; a space brings the dots up at once, the caret still beside it | 26-light-spell-s5-* |
+| **Autocorrect's own mark is a solid pale-blue rule**, which is not the misspelling mark | `teh ` becomes `Teh` (capitalised, not corrected), `recieve ` becomes `Receive`; one Backspace deletes the space and offers `recieve ↺` in the pill rather than reverting | 26-light-spell-o2-* |
+| The **correction menu** offers two suggestions, then Report a Concern, then Ignore and Learn Spelling, over macOS's own context menu; the right-clicked word is selected and keeps its dots over the fill | `definitely`, `defiantly` for `definately` | 26-light-spell-s6-menu |
