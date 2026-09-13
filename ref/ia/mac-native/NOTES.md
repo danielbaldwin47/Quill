@@ -1111,3 +1111,104 @@ closed, the same with the menu walked open, `perform action "AXPress"`, and an a
 open menu — all report success, leave `Default` checked and **change no pixel** of the bar. #354's
 Style Check lists at least moved the frame when clicked; this one gives nothing to read. It is the
 one state #381 named that this run does not hold.
+
+## State 28 — the Library pane
+
+`mac-native-28-{light,dark}-library-*.png`, shot by `rig/run_library_379.py` and its two
+follow-on passes and read by `rig/measure_library_379.py`. Region `[0, 33, 1512, 949]` — the whole
+window. The full report is [CAPTURE-2026-09-13-LIBRARY.md](CAPTURE-2026-09-13-LIBRARY.md); this is
+the part the rest of the file needs.
+
+No state before this one showed the Library: § The rig reads *Library hidden* for every one, and
+`VERDICTS.md` 4.2.13 has the library list down as **still unknown**. The Library held a copy of
+`shots/oracle/library/` without its `manifest.json`, **added** to what it already had rather than
+swapped in, with `sea-storm.md` open; the four documents already there are in every frame.
+
+### The pane is two columns and three grounds
+
+| | light | dark |
+|---|---|---|
+| Pane, total | **360 pt** — device columns 0 … 719 | the same |
+| **Organizer**, the left column | **129.5 pt**, ground **`#eaebeb`** | ground **`#1a1c1b`** |
+| **File List**, the right column | **230.5 pt**, ground **`#fcfcfc`** | ground **`#151515`** |
+| The page beside it | `#f7f7f7` | `#1a1a1a` |
+| The divider | **2 px**, and it is a **change of ground**, not a drawn rule | the same |
+
+**Three grounds, not one.** On light the Organizer is *darker* than the paper and the File List
+*lighter*; on dark the Organizer sits at the paper and the List goes darker. Quill draws the whole
+pane on one paper.
+
+**The pane drags.** From the column the pane's own ground gives way at — 360 pt — it goes to **500 pt**
+and comes back. Two earlier passes aimed 8 pt and 915 pt off the divider and reported that it does
+not; a drag that misses says nothing.
+
+### A file row
+
+| | measured |
+|---|---|
+| Pitch, excerpts on | **136 px = 68 pt** |
+| Pitch, excerpts off | **64 px = 32 pt** |
+| Name ink | **`#191919`** light, **`#b9b9b9`** dark — the body ink |
+| Date ink | **`#999999`** light, **`#757575`** dark |
+| Excerpt ink | **the same as the date**: `#999999` / `#757575` |
+| Separator | **`#ededed`** light, **`#212121`** dark; x 340 … 691, **inset 74 px left and 19 px right** within the list |
+| Excerpt | **two lines**, the file's title run into its first words |
+
+**The date and the excerpt share one grey**, and it is **darker** than the editor's own dim tier
+(`#c6c4c2` light, `#707070` dark, 4.2.5 and 4.2.6) rather than paler. The `files` round-6 critic
+preferred a paler pane to the editor's chrome; the oracle goes the other way.
+
+### The selected row is a bar, not a fill
+
+**A 6 px = 3 pt accent bar at the File List's left edge**, `#36bffa`, running the row's full height
+— 128 px with excerpts on, 56 px without. No fill, no tint: the row's ground is the list's.
+
+### The Organizer
+
+Four sections, headed **`Locations`**, **`Favorites`**, **`Smart Folders`** and **`Hashtags`** in
+**`#7f8080`** light, **`#393b3a`** dark. Under Locations the current one — `☁ iCloud` — stands on a rounded grey pill. An
+empty section carries prose rather than nothing: *Drag folders and files here for quick access*
+under Favorites, *Write #tags to group files* under Hashtags. Smart Folders holds `Recents`.
+
+### The search field is at the **foot**, and its prompt is `#7e7e7e`
+
+The field sits under the list, not over it, reads **`Filter`** beside a magnifier, and is reached
+by `Edit > Find > Filter Library...`. **Its prompt is `#7e7e7e`** light and **`#757575`** dark, on a field whose ground is the list's own.
+Quill's lands at `#BCBCBC` — the question that filed #379 — so the oracle's prompt is far darker
+than Quill's, not paler.
+
+### A hovered row draws nothing, and what the search matches
+
+With the pointer on a row the row is **unchanged**; the pane differs from its resting frame only at
+the search field, which lifts to `#a1d5f5` with its prompt at `#777777`. Selection is a bar and
+hover is nothing.
+
+`sea` leaves **three rows of twelve** — one matched by name, two by contents — and `the`, which no
+name holds, leaves **eleven**: the field searches **names and contents together**. The sort pill
+becomes **`Sort by Search Relevance`** while a query stands. A result row is an ordinary row: no
+snippet around the match and **no mark on the match**.
+
+### A file could not be made a Favorite
+
+So the Favorites row — the half of L4 #379 asked for — is **unmeasured**, and the section is only
+ever seen carrying its empty-state prose. A Favorite is made from a row's context menu, and that
+menu is **not in the accessibility tree**: with it open the process reports zero menus, a click and
+an `AXPress` both fail, and an arrow-key walk left the Organizer's ink unchanged to the pixel.
+
+### A folder expands in place
+
+Under `Navigation: Tree` a click on `Drafts` turns its `›` into `⌄` and puts its two files
+**indented** below it, in the same row shape. There is no stepping-in and no way back to find.
+
+### The Sort control's menu carries the settings
+
+The pill under the title bar — `Sort by Date Modified ⌄` — opens ✓`Date Modified`, `Date Created`,
+`Name`, `Extension`; `Oldest on Top`, ✓`Newest on Top`; `Pin Folders to Top`; `Show Date ›`,
+✓`Show Text Excerpts`, `Navigation ›`. It is the Library pane of Settings, on the pane.
+
+### A row's own menu is where a Favorite is made
+
+A right-click outlines the row with a **focus ring** rather than filling it, and opens `Open in New
+Tab`, `Open in New Window` | `Get Info`, **`Favorite`**, `Duplicate`, `Rename`, `Move to Trash` |
+`Show in Finder` | `Share ›`, `Export…`, `Print ›` | `Copy ›` | `New File`, `New Folder` |
+`Sort By ›`, `View Options ›`.

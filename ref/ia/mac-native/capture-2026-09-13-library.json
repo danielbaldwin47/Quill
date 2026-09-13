@@ -1,0 +1,682 @@
+{
+ "run": "2026-09-13, original 14-inch M1 MacBook Pro, built-in display",
+ "tickets": [
+  379
+ ],
+ "rig": {
+  "machine": "MacBook Pro 14-inch, MacBookPro18,3, Apple M1 Pro",
+  "display": "built-in Color LCD, Liquid Retina XDR, internal",
+  "display_px": "3024 x 1964",
+  "display_pt": "1512 x 982",
+  "backing_scale": 2.0,
+  "display_profile": "Display #1 2025-12-15 13-06 2.4 F-S 1xCurve+MTX (DisplayCAL)",
+  "display_profile_file": "ref/ia/mac-native/rig/display-calibrated-2025-12-15.icc",
+  "normalised_into": "ref/ia/mac-native/rig/display.icc",
+  "macos": "27.0 (26A428)",
+  "ia_writer": "8.0.6 (80046)",
+  "show_scroll_bars": "Automatic",
+  "window_bounds": "{0,33,1512,982}",
+  "editor": "Mono; System - Default; Normal text size; line length limit 64",
+  "modes": "Preview hidden; Focus, Typewriter, Syntax, Style Check and Authors off; Library shown for every state but the L1 control",
+  "library_settings": "Organizer: Favorites, Smart Folders and Hashtags all on; Files: Sort bar, Filter bar and Text excerpts on, Pin folders to top off; Sort by Date Modified, Newest on Top; Navigation: Tree - the app's own, as found",
+  "fixture": "shots/oracle/library without manifest.json, ADDED to whatever the Library already held rather than swapped in: the four documents already there are in every frame, and the readings name the fixture's rows rather than counting all of them",
+  "open_document": "sea-storm.md",
+  "display_profile_sha256": "67b552091a3321163bc9599b6782c598bf354e6e74b121e0a8444940b9496042",
+  "normalised_into_sha256": "a0b31a47075bdf160987ef7bd1370885713348290017d592a0f8850ec946f97e"
+ },
+ "observations": {
+  "hover_at_pt": [
+   180,
+   300
+  ],
+  "l3_note": "Drafts opened by a click on its row",
+  "list_bands": [
+   [
+    38,
+    64
+   ],
+   [
+    80,
+    88
+   ],
+   [
+    170,
+    170
+   ],
+   [
+    212,
+    227
+   ],
+   [
+    276,
+    295
+   ],
+   [
+    311,
+    331
+   ],
+   [
+    352,
+    366
+   ],
+   [
+    412,
+    431
+   ],
+   [
+    448,
+    466
+   ],
+   [
+    483,
+    502
+   ],
+   [
+    548,
+    567
+   ],
+   [
+    583,
+    607
+   ],
+   [
+    624,
+    638
+   ],
+   [
+    684,
+    703
+   ],
+   [
+    724,
+    743
+   ],
+   [
+    755,
+    774
+   ],
+   [
+    820,
+    839
+   ],
+   [
+    860,
+    874
+   ],
+   [
+    891,
+    910
+   ],
+   [
+    956,
+    975
+   ]
+  ],
+  "drafts_row_y_px": 51.0,
+  "settings_off": {
+   "Text excerpts": "0",
+   "Sort bar": "0",
+   "Filter bar": "0"
+  },
+  "settings_back": {
+   "Text excerpts": "1",
+   "Sort bar": "1",
+   "Filter bar": "1"
+  },
+  "pane_cols_px": [
+   0,
+   2549
+  ],
+  "pane_width_pt": 360.0,
+  "name_rows_px": [
+   [
+    211,
+    230
+   ],
+   [
+    275,
+    295
+   ],
+   [
+    311,
+    330
+   ],
+   [
+    347,
+    371
+   ],
+   [
+    411,
+    431
+   ],
+   [
+    448,
+    502
+   ],
+   [
+    547,
+    641
+   ],
+   [
+    684,
+    703
+   ],
+   [
+    719,
+    774
+   ],
+   [
+    819,
+    915
+   ],
+   [
+    955,
+    975
+   ],
+   [
+    991,
+    1010
+   ],
+   [
+    1027,
+    1051
+   ],
+   [
+    1091,
+    1182
+   ]
+  ],
+  "drafts_row_px": 220.5,
+  "row_menu_at_px": 475.0,
+  "pane_cols_after_drag_px": [
+   0,
+   2757
+  ],
+  "pane_width_after_drag_pt": 500.0,
+  "divider_drags": true,
+  "divider_pt": 360.0,
+  "favorite_click": "64:112: execution error: System Events got an error: Can\u2019t get menu 1 of window 1 of process \"iA Writer\". (-1728)",
+  "pane_width_restored_pt": 360.0,
+  "organiser_ink_before": 9809,
+  "organiser_ink_after": 9809,
+  "favorite_took": false
+ },
+ "captures": {
+  "mac-native-28-dark-library-l1-rest": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-dark-library-l1-rest.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-dark-library-l1-rest.png",
+   "sha256": "53a5955a37b52d42110a23766d2aff82bf069115dbce69a0e516e8c8cf61b497",
+   "raw_sha256": "b21ab3e012a0d1e6c8772de85a6de2f546f44fd7cfc24751203e0801ac46a1df",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "L1 the pane at rest",
+   "library": "shown",
+   "caret": "document start",
+   "search": "empty"
+  },
+  "mac-native-28-dark-library-l1-rest-nolib": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-dark-library-l1-rest-nolib.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-dark-library-l1-rest-nolib.png",
+   "sha256": "90d4aba77f46dcc3693cf33d5bec8d8135c245a6ebc10ae0a90f822f0e65e7ad",
+   "raw_sha256": "d7dffc718d751a1d5424a28c072878692a8a02453ac4be28c28d8b845adf4b94",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "L1 control, the pane hidden",
+   "library": "hidden",
+   "caret": "document start"
+  },
+  "mac-native-28-dark-library-l2-search": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-dark-library-l2-search.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-dark-library-l2-search.png",
+   "sha256": "d3d3c2b61ed6cf0d31a0a3ca91f62ddd228a01c013903721c5b7b9cc783d6f09",
+   "raw_sha256": "0c097bd7cece1371ba7bc15fe60df90ccbbcd556044f8bcc5db0c3280822dd04",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "L2 the query 'sea'",
+   "library": "shown",
+   "search": "sea"
+  },
+  "mac-native-28-dark-library-l5-hover": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-dark-library-l5-hover.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-dark-library-l5-hover.png",
+   "sha256": "aaeef8ee468715885fca0bf6303eb15fb09c66b7d5a6a8f6357c52595fe3b756",
+   "raw_sha256": "db266bce31097654aa34c60f2e772552da0a5f7dcdb5abe08268691ed1717e24",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "L5 a row selected and another hovered",
+   "library": "shown",
+   "pointer": "on a row of the list"
+  },
+  "mac-native-28-light-library-l1-rest": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-light-library-l1-rest.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-light-library-l1-rest.png",
+   "sha256": "33560a0f3a308dce20fdf341c0e63e04c897466d3dc9bce6dc0c120f71bda67c",
+   "raw_sha256": "5c6e5ac7ae7c88f8c45c07a78e1d1f3822a4efe3e7b001e24881498b27d42615",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L1 the pane at rest",
+   "library": "shown",
+   "caret": "document start",
+   "search": "empty"
+  },
+  "mac-native-28-light-library-l1-rest-nolib": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-light-library-l1-rest-nolib.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-light-library-l1-rest-nolib.png",
+   "sha256": "e1aeb08606d1b0c47916384b96c88c27986eb878eb183174c5bde066d9cf49df",
+   "raw_sha256": "9db68a57baf25db5e37c736bda0a80e45f0f49637bb2bd94044b5ee595f8b282",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L1 control, the pane hidden",
+   "library": "hidden",
+   "caret": "document start"
+  },
+  "mac-native-28-light-library-l2-search": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-light-library-l2-search.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-light-library-l2-search.png",
+   "sha256": "3eddb5a88a180eed582d01b414cecb3c8f7c4dfe9d050a829d04d7c70387dc42",
+   "raw_sha256": "8fec40bd62e0d7c6b1223055836939131672b7fcb43767db04a8293d44875705",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L2 the query 'sea'",
+   "library": "shown",
+   "search": "sea"
+  },
+  "mac-native-28-light-library-l3-back": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-light-library-l3-back.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-light-library-l3-back.png",
+   "sha256": "f087d4ae737ce92d8a44aee56e9b48705f4e3ba84a575a5f46ee19146f683729",
+   "raw_sha256": "bf1201ddf1df86c6a30c806c3096a86a1f918ba023544e142e9a96ccbb12a420",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L3 the way back out of the folder",
+   "library": "shown"
+  },
+  "mac-native-28-light-library-l3-folder": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-light-library-l3-folder.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-light-library-l3-folder.png",
+   "sha256": "fe79f5066ac0b867e246b63c497e8687f3b9cf4a57c278f515f05fed3be66f69",
+   "raw_sha256": "5c94f8aa316f3b1308fdaaf90305fa559f8ae5249efbcdbb68c6b5a4df795529",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L3 the Drafts folder opened",
+   "library": "shown",
+   "clicked": "first name row, y 220.5"
+  },
+  "mac-native-28-light-library-l3-folder-before": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-light-library-l3-folder-before.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-light-library-l3-folder-before.png",
+   "sha256": "04b7efe9ae1e0c7389bb4863dfcfe8537ae11daa1db6656118bf1265097b3070",
+   "raw_sha256": "34f2d1f207b488f4f04be41b97b17c02daed932b166334bcf477033f1c22165e",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L3 before the folder is opened",
+   "library": "shown"
+  },
+  "mac-native-28-light-library-l4-favorite": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-light-library-l4-favorite.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-light-library-l4-favorite.png",
+   "sha256": "8e732c903392da377daa848552993ac54178e248158160933733c0d1b910bd8a",
+   "raw_sha256": "0d1f9851eabf3f4d8b13754548f94f843990e669d3255e589e8ed622c26c67a7",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L4 harbour-lights.md made a Favorite",
+   "library": "shown",
+   "favorited": "the sixth name row, through its context menu by keyboard"
+  },
+  "mac-native-28-light-library-l4-row-menu": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-light-library-l4-row-menu.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-light-library-l4-row-menu.png",
+   "sha256": "14c04b5286791b66e09005974afa715c0aca754c875351745d5e6f530a5a5d55",
+   "raw_sha256": "bddffc820869cde3c7624842ba25491f3fb3f9cba4fc3475b7f8a37f871097d4",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L4 a file row's own context menu",
+   "library": "shown",
+   "clicked": "right-click on a name row, y 475.0"
+  },
+  "mac-native-28-light-library-l5-hover": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-light-library-l5-hover.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-light-library-l5-hover.png",
+   "sha256": "f063b7cb3205ec5e746bad39234f0bbaf5fdccbfa23fa9fac9c8db9b55e4691a",
+   "raw_sha256": "f174fb71a3168dda287cee87d25d18e490169851e2b217e2cb323aef034f208c",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L5 a row selected and another hovered",
+   "library": "shown",
+   "pointer": "on a row of the list"
+  },
+  "mac-native-28-light-library-l6-sort-menu": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-light-library-l6-sort-menu.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-light-library-l6-sort-menu.png",
+   "sha256": "e9107ba0d3e66aa7fa12b2cd0dffee2c4c2eb2e092d7b77842d2882a46e7dc31",
+   "raw_sha256": "b25b69a8e4accc66feac86985ed00cc73fe9de7e8cdfb09491cb4b88c509a3fe",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L6 the Sort control's menu",
+   "library": "shown"
+  },
+  "mac-native-28-light-library-l7-bare": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-light-library-l7-bare.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-light-library-l7-bare.png",
+   "sha256": "c34904c643fa24ead85b1e53579bcee996e468197a5135da66b259e3ddad759f",
+   "raw_sha256": "bf02ecf089216a58fe2ae25715791ab52f6ef4307da716bcda63d39d92a7086b",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L7 excerpts off, Sort and Filter bars hidden",
+   "library": "shown"
+  },
+  "mac-native-28-light-library-l8-quick-search": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-light-library-l8-quick-search.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-light-library-l8-quick-search.png",
+   "sha256": "f7d88ee515b6972014792ab32912db150f07b250e85876b8a2b40f222371c39a",
+   "raw_sha256": "f7b68070cf23b735cec9d92b3c1650e112402c5b1cb8f182c62d80d59e79beef",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L8 Quick Search on 'sea'",
+   "library": "shown",
+   "search": "sea"
+  },
+  "mac-native-28-light-library-o1-dragged": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-light-library-o1-dragged.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-light-library-o1-dragged.png",
+   "sha256": "7b6638fbe059db1a8483339f480347d84a4ce80f927c01eb5646fd5175809af4",
+   "raw_sha256": "81d84dacdd6821191ba035f6ca8cdbcff7e0a0594cfbd9bcf80317ed892c662d",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "O1 the divider dragged 140 pt right",
+   "library": "shown",
+   "dragged_from_pt": 360.0
+  },
+  "mac-native-28-light-library-o1-dragged-nolib": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-light-library-o1-dragged-nolib.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-light-library-o1-dragged-nolib.png",
+   "sha256": "040f82634623fc47793da79bb232f7a9ac093022576e01658897ecbcfce38e30",
+   "raw_sha256": "35eccc72ca743cda5367a98797a4ea3f5a6d0683d07fb4676d25f09bb91cc803",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "O1 control, the pane hidden after the drag",
+   "library": "hidden"
+  },
+  "mac-native-28-light-library-o1-restored": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-light-library-o1-restored.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-light-library-o1-restored.png",
+   "sha256": "dc987eb162d3efc3832fa4cc64463187cf548e0f4d32277620f51e4a0c05f1d9",
+   "raw_sha256": "2093dc9e617fbd33b6f65590ab3e51e0c1c00ea43ea18a209f2ea1d99f4d188a",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "O1 the divider dragged back",
+   "library": "shown"
+  },
+  "mac-native-28-light-library-o2-search-the": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-light-library-o2-search-the.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-light-library-o2-search-the.png",
+   "sha256": "f286ee8c2d518a9ba816a7576c7eaac9688e4cd6751d8f59465f66d86d0d03a2",
+   "raw_sha256": "936c66f9a04ea55f2f6015c1faae257b9735488016188c99d4fcaf2a86bdc30c",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "O2 the query 'the', which no name holds",
+   "library": "shown",
+   "search": "the"
+  }
+ }
+}
