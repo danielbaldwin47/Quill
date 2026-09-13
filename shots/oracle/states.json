@@ -68,7 +68,24 @@
     "page": {
       "light": {},
       "narrow": {
-        "w": 960
+        "w": 960,
+        "font": "mono",
+        "chrome": "off",
+        "opponent": {
+          "capture": "mac-native-22-light-narrow-w0960-step05-plain.png",
+          "crop": [
+            0,
+            0,
+            1920,
+            1000
+          ],
+          "ours": [
+            0,
+            0,
+            1920,
+            1000
+          ]
+        }
       },
       "short": {
         "text": "ref/short.md",
