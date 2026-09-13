@@ -837,3 +837,77 @@ no check beside them. Their parents are verbs and can be read: `Enable`/`Disable
 measures a list's state — it clicks, shoots, and keeps the click only if the frame moved the way the
 click should move it. **Custom is empty**: it moves nothing either way, which is the one state that
 method cannot name, and it is recorded as left-as-found.
+
+## State 27 — the bar at the foot of the window, and the counts on it
+
+`mac-native-27-{light,dark}-stats-*.png` and the `-nobar` controls beside them, from
+`ref/sample.md`, shot by `rig/run_stats_381.py` and read by `rig/measure_stats_381.py`. Region
+`[0, 33, 1512, 949]` — the whole window. The full report is
+[CAPTURE-2026-09-13-STATS.md](CAPTURE-2026-09-13-STATS.md); this is the part the rest of the file
+needs.
+
+**iA has no stats bar.** What stands at the foot of the window is the **Toolbar**, a format bar of
+thirteen labels — `Body`, `Heading 1 ⌃`, `List ⌃`, `Blockquote`, `Bold`, `Italic`, `Strikethrough`,
+`Link`, `Wikilink`, `Footnote`, `Table`, `TOC` — with the counts as **one popup at its right end**.
+And by default it is not on the screen: the app ships on `View > Toolbar > **Fade In/Out**`, and
+with the pointer away from the foot of the window there is paper to the window's edge, at rest and
+while the keys move alike.
+
+Every state was shot with the bar and again with `View > Toolbar > Hide`, because the gutter above
+the bar cannot be read off one frame: there is no way to say where the page's last row would have
+fallen with no bar under it.
+
+### The bar
+
+| | light | dark |
+|---|---|---|
+| Height, rule to the window's foot | **80 px = 40 pt** | the same |
+| Ground | **the paper itself**, `#f7f7f7` | **`#1a1a1a`** |
+| Rule above it | **2 px = 1 pt**, `#dbdbdb` | `#2e2e2e` |
+| Counts' ink at rest | **`#191919`** | **`#cccccc`** |
+| Counts on hover | **the accent** — `#36bffa` off the glyph | not shot |
+
+**The ground is the paper, not a tint**: the band's median is the § 4.2 paper exactly, and only the
+hairline separates the bar from the page. **The counts are body ink** (4.2.3, 4.2.4), not a quieter
+tier — iA lets the fade carry the quietness instead. **Hover lifts them to the accent** rather than
+darkening them.
+
+### There is no gutter above it
+
+At the document top the last visible row's ink ends **one device pixel** above the hairline, and the
+control frame puts that same row in the same place with no bar under it. The bar does not push the
+text up, does not mask it and leaves no padding: **the page runs to the rule and scrolls under it.**
+
+### The end of a draft keeps 460 pt of air
+
+Scrolled to the end, the last row's ink is at row 898 and the rule at 1818: **920 px = 460 pt**, or
+**48.5 % of the 949 pt window**. The rule stands in the document-top frame and the document-end
+frame alike, so it is the bar's own edge rather than a "more below" signal.
+
+### The counts' menu is a choice of one
+
+A click opens ten counts, each showing its value, with a single ✓ against the one displayed:
+`941 Characters`, `752 Without Spaces`, **`188 Words`**, `16 Sentences`, `00:00:56 Reading Time`,
+`00:01:26 Speaking Time`, `0 of 0 Tasks`, `0% Human`, `0% AI`, `0% Reference`. The bar shows one
+count and the menu picks which.
+
+### A selection is counted, and marked as counted
+
+With the first sentence held the counts read **`13 Words`** — the selection's own — and the figure
+carries the **selection fill** `#cbedf7` behind it.
+
+### While the keys move
+
+Under the app's own **Fade In/Out** there is no bar to watch. Pinned with **Always Show** the bar
+**does not dim**: a frame taken mid-burst holds the same thirteen labels and the same `#191919`
+counts as at rest. **The counts update after a pause of about 1.2 s** — typing took 0.144 s and the
+counts' strip, sampled through Quartz at 10 Hz, first moved **1.176 s after the last key** — so they
+do not tick per keystroke.
+
+### What could not be shot
+
+**`View > Toolbar > Stats Only`.** Four ways of pressing it — `click menu item` with the menu
+closed, the same with the menu walked open, `perform action "AXPress"`, and an arrow-key walk of the
+open menu — all report success, leave `Default` checked and **change no pixel** of the bar. #354's
+Style Check lists at least moved the frame when clicked; this one gives nothing to read. It is the
+one state #381 named that this run does not hold.

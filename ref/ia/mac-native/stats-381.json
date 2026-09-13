@@ -1,0 +1,264 @@
+{
+ "rig": {
+  "region_pt": [
+   0,
+   33,
+   1512,
+   949
+  ],
+  "passage": "ref/sample.md",
+  "state": 27,
+  "ticket": 381,
+  "window_bounds": "{0,33,1512,982}",
+  "editor": "Mono, System - Default, Normal text size, limit 64",
+  "toolbar_at_rest": {
+   "Fade In/Out": false,
+   "Always Show": true,
+   "Hide": false,
+   "Default": true,
+   "Stats Only": false
+  },
+  "stats_at": {
+   "band": [
+    1818,
+    1886
+   ],
+   "height_px": 69,
+   "ground": [
+    247,
+    247,
+    247
+   ],
+   "groups": [
+    [
+     52,
+     110
+    ],
+    [
+     148,
+     285
+    ],
+    [
+     322,
+     383
+    ],
+    [
+     426,
+     559
+    ],
+    [
+     630,
+     684
+    ],
+    [
+     729,
+     784
+    ],
+    [
+     826,
+     992
+    ],
+    [
+     1060,
+     1106
+    ],
+    [
+     1149,
+     1240
+    ],
+    [
+     1284,
+     1389
+    ],
+    [
+     1433,
+     1495
+    ],
+    [
+     1539,
+     1590
+    ],
+    [
+     2825,
+     2973
+    ]
+   ],
+   "stats_cols": [
+    2825,
+    2973
+   ],
+   "x_pt": 1449.5,
+   "y_pt": 959.0
+  }
+ },
+ "frames": {
+  "mac-native-27-light-stats-c1-top.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "C1 at the document top",
+   "toolbar": "Always Show, Default",
+   "caret": "document start",
+   "scroll": "top"
+  },
+  "mac-native-27-light-stats-c1-top-nobar.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "C1 at the document top",
+   "toolbar": "Hide",
+   "caret": "document start",
+   "scroll": "top"
+  },
+  "mac-native-27-light-stats-c2-end.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "C2 at the document end",
+   "toolbar": "Always Show, Default",
+   "caret": "document end",
+   "scroll": "end"
+  },
+  "mac-native-27-light-stats-c2-end-nobar.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "C2 at the document end",
+   "toolbar": "Hide",
+   "caret": "document end",
+   "scroll": "end"
+  },
+  "mac-native-27-dark-stats-c1-top.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "C1 at the document top",
+   "toolbar": "Always Show, Default",
+   "caret": "document start",
+   "scroll": "top"
+  },
+  "mac-native-27-dark-stats-c1-top-nobar.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "C1 at the document top",
+   "toolbar": "Hide",
+   "caret": "document start",
+   "scroll": "top"
+  },
+  "mac-native-27-dark-stats-c2-end.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "C2 at the document end",
+   "toolbar": "Always Show, Default",
+   "caret": "document end",
+   "scroll": "end"
+  },
+  "mac-native-27-dark-stats-c2-end-nobar.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "C2 at the document end",
+   "toolbar": "Hide",
+   "caret": "document end",
+   "scroll": "end"
+  },
+  "mac-native-27-light-stats-c3-empty.png": {
+   "ground": "light",
+   "colour_check": "n/a - an empty page holds no body ink",
+   "state": "C3 an empty document",
+   "toolbar": "Always Show, Default",
+   "caret": "empty document",
+   "scroll": "top"
+  },
+  "mac-native-27-light-stats-c3-empty-nobar.png": {
+   "ground": "light",
+   "colour_check": "n/a - an empty page holds no body ink",
+   "state": "C3 an empty document",
+   "toolbar": "Hide",
+   "caret": "empty document",
+   "scroll": "top"
+  },
+  "mac-native-27-light-stats-c6-selection.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "C6 a selection over the first sentence",
+   "toolbar": "Always Show, Default",
+   "caret": "held selection",
+   "selection": "the first sentence"
+  },
+  "mac-native-27-light-stats-c6-selection-nobar.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "C6 a selection over the first sentence",
+   "toolbar": "Hide",
+   "caret": "held selection",
+   "selection": "the first sentence"
+  },
+  "mac-native-27-light-stats-c5-hover.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "C5 the pointer on the counts",
+   "toolbar": "Always Show, Default",
+   "caret": "document start",
+   "pointer": "on the counts"
+  },
+  "mac-native-27-light-stats-c4-menu.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "C4 the counts' menu open",
+   "toolbar": "Always Show, Default",
+   "caret": "document start",
+   "pointer": "clicked the counts"
+  },
+  "mac-native-27-light-stats-c4-menu-scrolled.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "C4 the counts' menu, scrolled to its foot",
+   "toolbar": "Always Show, Default",
+   "caret": "document start",
+   "pointer": "clicked the counts, then six Down presses"
+  },
+  "mac-native-27-dark-stats-c7-typewriter.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "C7 Typewriter",
+   "toolbar": "Always Show, Default",
+   "caret": "document end",
+   "typewriter": true
+  },
+  "mac-native-27-light-stats-fade-at-rest.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "Fade In/Out, at rest, the pointer away from the bar",
+   "toolbar": "Fade In/Out, Default",
+   "caret": "document end",
+   "pointer": "away"
+  },
+  "mac-native-27-light-stats-fade-typing.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "Fade In/Out, a frame taken while the keys move",
+   "toolbar": "Fade In/Out, Default",
+   "caret": "document end",
+   "pointer": "away"
+  },
+  "mac-native-27-light-stats-o1-typing.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "O1 Always Show, a frame taken while the keys move",
+   "toolbar": "Always Show, Default",
+   "caret": "document end",
+   "pointer": "away"
+  }
+ },
+ "observations": {
+  "strip_pt": [
+   1402.5,
+   947.0,
+   94.0,
+   24
+  ],
+  "counts_update_s": 1.263,
+  "counts_settled_s": 5.74,
+  "counts_samples": 40,
+  "counts_changed_frames": 32,
+  "typing_took_s": 0.144,
+  "counts_update_after_keys_s": 1.176,
+  "counts_update_after_start_s": 1.321,
+  "counts_settled_after_keys_s": 5.897
+ }
+}

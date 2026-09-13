@@ -1,0 +1,1091 @@
+{
+ "observations": {
+  "strip_pt": [
+   1402.5,
+   947.0,
+   94.0,
+   24
+  ],
+  "counts_update_s": 1.263,
+  "counts_settled_s": 5.74,
+  "counts_samples": 40,
+  "counts_changed_frames": 32,
+  "typing_took_s": 0.144,
+  "counts_update_after_keys_s": 1.176,
+  "counts_update_after_start_s": 1.321,
+  "counts_settled_after_keys_s": 5.897
+ },
+ "states": {
+  "light/c1-top": {
+   "tag": "c1-top",
+   "ground": "light",
+   "bar": {
+    "rows": [
+     1818,
+     1886
+    ],
+    "height_px": 69,
+    "height_pt": 34.5,
+    "ground": "#f7f7f7",
+    "ground_is_paper": true
+   },
+   "rule_above": [
+    [
+     1812,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1813,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1814,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1815,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1816,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1817,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1818,
+     "#dbdbdb",
+     true
+    ],
+    [
+     1819,
+     "#dbdbdb",
+     true
+    ],
+    [
+     1820,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1821,
+     "#f7f7f7",
+     false
+    ]
+   ],
+   "labels": [
+    {
+     "cols": [
+      52,
+      110
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      148,
+      285
+     ],
+     "ink": "#36bffa"
+    },
+    {
+     "cols": [
+      322,
+      383
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      426,
+      559
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      630,
+      684
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      729,
+      784
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      826,
+      992
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      1060,
+      1106
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      1149,
+      1240
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      1284,
+      1389
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      1433,
+      1495
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      1539,
+      1590
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      2825,
+      2973
+     ],
+     "ink": "#191919"
+    }
+   ],
+   "counts": {
+    "cols": [
+     2825,
+     2973
+    ],
+    "ink": "#191919"
+   },
+   "last_ink_row": {
+    "with_bar": 1817,
+    "without_bar": 1817
+   },
+   "gutter_px": 1,
+   "air_below_last_row_px": 69
+  },
+  "light/c2-end": {
+   "tag": "c2-end",
+   "ground": "light",
+   "bar": {
+    "rows": [
+     1818,
+     1886
+    ],
+    "height_px": 69,
+    "height_pt": 34.5,
+    "ground": "#f7f7f7",
+    "ground_is_paper": true
+   },
+   "rule_above": [
+    [
+     1812,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1813,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1814,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1815,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1816,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1817,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1818,
+     "#dbdbdb",
+     true
+    ],
+    [
+     1819,
+     "#dbdbdb",
+     true
+    ],
+    [
+     1820,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1821,
+     "#f7f7f7",
+     false
+    ]
+   ],
+   "labels": [
+    {
+     "cols": [
+      52,
+      110
+     ],
+     "ink": "#36bffa"
+    },
+    {
+     "cols": [
+      148,
+      285
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      322,
+      383
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      426,
+      559
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      630,
+      684
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      729,
+      784
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      826,
+      992
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      1060,
+      1106
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      1149,
+      1240
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      1284,
+      1389
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      1433,
+      1495
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      1539,
+      1590
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      2825,
+      2973
+     ],
+     "ink": "#191919"
+    }
+   ],
+   "counts": {
+    "cols": [
+     2825,
+     2973
+    ],
+    "ink": "#191919"
+   },
+   "last_ink_row": {
+    "with_bar": 898,
+    "without_bar": 898
+   },
+   "gutter_px": 920,
+   "air_below_last_row_px": 988
+  },
+  "light/c3-empty": {
+   "tag": "c3-empty",
+   "ground": "light",
+   "bar": {
+    "rows": [
+     1818,
+     1886
+    ],
+    "height_px": 69,
+    "height_pt": 34.5,
+    "ground": "#f7f7f7",
+    "ground_is_paper": true
+   },
+   "rule_above": [
+    [
+     1812,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1813,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1814,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1815,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1816,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1817,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1818,
+     "#dbdbdb",
+     true
+    ],
+    [
+     1819,
+     "#dbdbdb",
+     true
+    ],
+    [
+     1820,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1821,
+     "#f7f7f7",
+     false
+    ]
+   ],
+   "labels": [
+    {
+     "cols": [
+      52,
+      110
+     ],
+     "ink": "#36bffa"
+    },
+    {
+     "cols": [
+      148,
+      285
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      322,
+      383
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      426,
+      559
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      630,
+      684
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      729,
+      784
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      826,
+      992
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      1060,
+      1106
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      1149,
+      1240
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      1284,
+      1389
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      1433,
+      1495
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      1539,
+      1590
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      2853,
+      2973
+     ],
+     "ink": "#191919"
+    }
+   ],
+   "counts": {
+    "cols": [
+     2853,
+     2973
+    ],
+    "ink": "#191919"
+   },
+   "last_ink_row": {
+    "with_bar": 984,
+    "without_bar": null
+   },
+   "gutter_px": 834,
+   "air_below_last_row_px": null
+  },
+  "light/c6-selection": {
+   "tag": "c6-selection",
+   "ground": "light",
+   "bar": {
+    "rows": [
+     1818,
+     1886
+    ],
+    "height_px": 69,
+    "height_pt": 34.5,
+    "ground": "#f7f7f7",
+    "ground_is_paper": true
+   },
+   "rule_above": [
+    [
+     1812,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1813,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1814,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1815,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1816,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1817,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1818,
+     "#dbdbdb",
+     true
+    ],
+    [
+     1819,
+     "#dbdbdb",
+     true
+    ],
+    [
+     1820,
+     "#f7f7f7",
+     false
+    ],
+    [
+     1821,
+     "#f7f7f7",
+     false
+    ]
+   ],
+   "labels": [
+    {
+     "cols": [
+      52,
+      110
+     ],
+     "ink": "#36bffa"
+    },
+    {
+     "cols": [
+      148,
+      285
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      322,
+      383
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      426,
+      559
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      630,
+      684
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      729,
+      784
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      826,
+      992
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      1060,
+      1106
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      1149,
+      1240
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      1284,
+      1389
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      1433,
+      1495
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      1539,
+      1590
+     ],
+     "ink": "#191919"
+    },
+    {
+     "cols": [
+      2841,
+      2973
+     ],
+     "ink": "#191919"
+    }
+   ],
+   "counts": {
+    "cols": [
+     2841,
+     2973
+    ],
+    "ink": "#191919"
+   },
+   "last_ink_row": {
+    "with_bar": 1817,
+    "without_bar": 1817
+   },
+   "gutter_px": 1,
+   "air_below_last_row_px": 69
+  },
+  "dark/c1-top": {
+   "tag": "c1-top",
+   "ground": "dark",
+   "bar": {
+    "rows": [
+     1818,
+     1882
+    ],
+    "height_px": 65,
+    "height_pt": 32.5,
+    "ground": "#1a1a1a",
+    "ground_is_paper": true
+   },
+   "rule_above": [
+    [
+     1812,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1813,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1814,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1815,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1816,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1817,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1818,
+     "#2e2e2e",
+     true
+    ],
+    [
+     1819,
+     "#2e2e2e",
+     true
+    ],
+    [
+     1820,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1821,
+     "#1a1a1a",
+     false
+    ]
+   ],
+   "labels": [
+    {
+     "cols": [
+      52,
+      110
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      148,
+      285
+     ],
+     "ink": "#36bffa"
+    },
+    {
+     "cols": [
+      322,
+      383
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      426,
+      559
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      630,
+      685
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      728,
+      784
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      826,
+      992
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      1060,
+      1106
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      1149,
+      1240
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      1284,
+      1389
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      1433,
+      1495
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      1539,
+      1590
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      2825,
+      2973
+     ],
+     "ink": "#cccccc"
+    }
+   ],
+   "counts": {
+    "cols": [
+     2825,
+     2973
+    ],
+    "ink": "#cccccc"
+   },
+   "last_ink_row": {
+    "with_bar": 1817,
+    "without_bar": 1817
+   },
+   "gutter_px": 1,
+   "air_below_last_row_px": 65
+  },
+  "dark/c2-end": {
+   "tag": "c2-end",
+   "ground": "dark",
+   "bar": {
+    "rows": [
+     1831,
+     1882
+    ],
+    "height_px": 52,
+    "height_pt": 26.0,
+    "ground": "#1a1a1a",
+    "ground_is_paper": true
+   },
+   "rule_above": [
+    [
+     1825,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1826,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1827,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1828,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1829,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1830,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1831,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1832,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1833,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1834,
+     "#1a1a1a",
+     false
+    ]
+   ],
+   "labels": [
+    {
+     "cols": [
+      52,
+      110
+     ],
+     "ink": "#36bffa"
+    },
+    {
+     "cols": [
+      148,
+      285
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      322,
+      383
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      426,
+      559
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      630,
+      685
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      728,
+      784
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      826,
+      992
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      1060,
+      1106
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      1149,
+      1240
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      1284,
+      1389
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      1433,
+      1495
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      1539,
+      1590
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      2825,
+      2973
+     ],
+     "ink": "#cccccc"
+    }
+   ],
+   "counts": {
+    "cols": [
+     2825,
+     2973
+    ],
+    "ink": "#cccccc"
+   },
+   "last_ink_row": {
+    "with_bar": 898,
+    "without_bar": 898
+   },
+   "gutter_px": 933,
+   "air_below_last_row_px": 984
+  },
+  "mac-native-27-light-stats-c5-hover": {
+   "bar_ground": "#f7f7f7",
+   "labels": 13,
+   "counts_ink": "#36bffa",
+   "counts_cols": [
+    2825,
+    2973
+   ]
+  },
+  "mac-native-27-dark-stats-c7-typewriter": {
+   "bar_ground": "#1a1a1a",
+   "labels": 13,
+   "counts_ink": "#cccccc",
+   "counts_cols": [
+    2825,
+    2973
+   ]
+  },
+  "mac-native-27-light-stats-o1-typing": {
+   "bar_ground": "#f7f7f7",
+   "labels": 13,
+   "counts_ink": "#191919",
+   "counts_cols": [
+    2825,
+    2973
+   ]
+  },
+  "mac-native-27-light-stats-fade-at-rest": {
+   "bar_ground": "#f7f7f7",
+   "labels": 0,
+   "counts_ink": null,
+   "counts_cols": null
+  },
+  "mac-native-27-light-stats-fade-typing": {
+   "bar_ground": "#f7f7f7",
+   "labels": 0,
+   "counts_ink": null,
+   "counts_cols": null
+  }
+ }
+}
