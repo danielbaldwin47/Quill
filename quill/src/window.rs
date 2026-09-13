@@ -3628,7 +3628,11 @@ pub(crate) enum Step {
 /// ([`Session::ground`]).
 fn reset(app: &gtk::Application, session: &Session, each: impl Fn(&Window, Ground)) {
     let ground = session.ground();
-    crate::editor::install_type(ground, session.face(), class_in_use(app), session.step());
+    crate::editor::install_type(
+        ground,
+        session.face(),
+        quill_engine::typography::Size::new(class_in_use(app), session.step()),
+    );
     for window in app.windows() {
         if let Ok(window) = window.downcast::<Window>() {
             each(&window, ground);
