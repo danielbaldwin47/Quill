@@ -1591,6 +1591,11 @@ mod tests {
     /// The size class [`VIEW`] is in.
     const CLASS: typography::SizeClass = typography::SizeClass::Wide;
 
+    /// The judged size: [`STEP`] of [`CLASS`].
+    fn size() -> typography::Size {
+        typography::Size::new(CLASS, STEP)
+    }
+
     /// The container `face` at `step` lays out in that window.
     fn container(face: Face, step: u32) -> typography::Column {
         typography::column(VIEW, face, typography::Size::new(CLASS, step))
@@ -1605,7 +1610,7 @@ mod tests {
     /// step the same six runs advance 13 px a cell in a judged shot and 12.798
     /// in the app — and `Editor::marker_advance` measures which it is.
     fn advances(hinted: bool) -> [i32; 6] {
-        let cell = typography::cell(Face::Duo, typography::Size::new(CLASS, STEP));
+        let cell = typography::cell(Face::Duo, size());
         std::array::from_fn(|level| {
             let cells = level as f64 + 2.0;
             pixels(if hinted {
@@ -1649,9 +1654,9 @@ mod tests {
     fn the_code_ground_runs_past_both_edges_of_the_measure() {
         // The oracle's ±0.7em, which at the default step's 21.33 px em is 15
         // px on each side.
-        assert_eq!(well(typography::Size::new(CLASS, STEP)), 15);
+        assert_eq!(well(size()), 15);
         let side = 240;
-        let edge = well(typography::Size::new(CLASS, STEP)).min(side);
+        let edge = well(size()).min(side);
         assert!(
             edge > 0 && side - edge < side,
             "the block's box has to start left of the prose for its ground to"
@@ -1729,7 +1734,7 @@ mod tests {
     /// [`RUNS`]' advances, as the layout may advance them, the two ways
     /// [`advances`] gives the heading ladder's.
     fn run_advances(hinted: bool) -> [i32; 3] {
-        let cell = typography::cell(Face::Duo, typography::Size::new(CLASS, STEP));
+        let cell = typography::cell(Face::Duo, size());
         RUNS.map(|(_, cells)| {
             pixels(if hinted {
                 cell.round() * cells
@@ -1793,7 +1798,7 @@ mod tests {
         let column = container(Face::Duo, STEP);
         let side = signed(column.side);
         let ceiling = indent_ceiling(column);
-        let cell = typography::cell(Face::Duo, typography::Size::new(CLASS, STEP));
+        let cell = typography::cell(Face::Duo, size());
         let [bullet, ordinal, quote] =
             run_advances(false).map(|advance| wrapped(hung_under(advance, side, ceiling)) - side);
         assert_eq!(bullet, pixels(2.0 * cell), "`- ` hangs its own two cells");

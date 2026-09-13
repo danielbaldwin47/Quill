@@ -342,9 +342,9 @@ pub fn caret_width(size: Size, scale: f64) -> u32 {
 /// before the ladder was laid out on: the size classes came later, and a
 /// stored size is a size the writer chose at whatever width, not at one.
 #[must_use]
-pub fn step_for_size(size: u32) -> u32 {
-    let size = f64::from(size);
-    let step = WIDE.iter().position(|rung| rung.em >= size);
+pub fn step_for_size(px: u32) -> u32 {
+    let px = f64::from(px);
+    let step = WIDE.iter().position(|rung| rung.em >= px);
     step.unwrap_or(WIDE.len() - 1) as u32
 }
 
