@@ -839,6 +839,92 @@ measures a list's state — it clicks, shoots, and keeps the click only if the f
 click should move it. **Custom is empty**: it moves nothing either way, which is the one state that
 method cannot name, and it is recorded as left-as-found.
 
+## State 25 — the two narrower ladders, and what the narrowest class's margins follow
+
+`mac-native-25-light-narrow-*.png`, from [`ref/sample.md`](../../sample.md), shot by
+`rig/run_narrow_419.py` and read by `rig/measure_419.py`. Region `[0, 33, W, 500]`, light, Mono,
+limit 64; W and the text size are the variables. The full report is
+[CAPTURE-2026-09-13.md](CAPTURE-2026-09-13.md); this is the part the rest of the file needs.
+
+[§ State 22](#state-22--the-windows-width-picks-the-type-and-the-measure-follows) found the three
+size classes and measured the two narrower ones at steps 5 and 8 only. Both are now walked in full —
+**960 pt and 400 pt at every step 0 … 13** — with the margins read at 240, 320, 400 and 440 pt as
+well.
+
+### Each class is fourteen sizes, and neither narrow one is the wide one scaled
+
+`rig/ladder_419.py` walks the Text Size menu one click at a time, and its readings are kept as
+[`narrow-419-ladder-960.json`](narrow-419-ladder-960.json) and
+[`narrow-419-ladder-400.json`](narrow-419-ladder-400.json); its frames are scratch. Both narrow
+classes run out of ladder after **five Smaller clicks and eight Bigger ones**, so each holds the
+wide class's fourteen sizes with Default sixth.
+
+| step | 0 | 1 | 2 | 3 | 4 | **5** | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| wide cell (§ 11) | 17.4 | 18.3 | 19.4 | 20.6 | 23.1 | **25.6** | 30.7 | 35.7 | 40.7 | 45.7 | 53.1 | 60.4 | 67.8 | 75.1 |
+| middle cell | 16.000 | 17.112 | 18.117 | 19.117 | 20.265 | **22.653** | 25.209 | 30.235 | 35.215 | 40.080 | 45.000 | 52.230 | 59.500 | 66.750 |
+| middle pitch | 43 | 46 | 49 | 53 | 56 | **63** | 69 | 81 | 92 | 103 | 113 | 126 | 139 | 150 |
+| narrowest cell | 13.623 | 14.908 | 16.080 | 17.367 | 18.633 | **19.863** | 22.500 | 25.000 | 29.770 | 34.679 | 39.500 | 44.250 | 51.500 | 58.500 |
+| narrowest pitch | 37 | 40 | 44 | 47 | 50 | **53** | 59 | 65 | 76 | 86 | 96 | 105 | 118 | 129 |
+
+**The scale against the wide ladder wanders and has no trend.** 0.9195 … 0.8888 across the middle
+class with a dip to 0.8211 at step 6, and 0.7829 … 0.7790 across the narrowest with a dip to 0.7003
+at step 7. § State 22's two readings — 0.885 and 0.865 — sit inside that wander, so **no step
+between them was derivable and each class has to be carried as its own ladder.**
+
+`pitch / em` runs 1.61 → 1.35 in the middle class and 1.63 → 1.32 in the narrowest, against the wide
+class's 1.73 → 1.374: the same falling curve, tighter the narrower the class.
+
+### The narrowest class's margin is a rule, and it hides a fourth break
+
+The side margin of the narrowest class, in points, at every width and step measured:
+
+**`margin = max(5 pt, round(K − advance_pt))`**, with **K = 17.5 pt** in a window of 240 … 390 pt and
+**K = 22.5 pt** in one of 391 … 440 pt.
+
+**Every term of that is in points**, this file's one departure from device pixels and the reason the
+advance is written `advance_pt`: it is the class's cell at that step halved, 6.81 pt at step 0 and
+9.93 pt at step 5. Read in device pixels the rule collapses to a flat 5 pt and says nothing.
+
+It fits all 56 rows — 240, 320, 400 and 440 pt across fourteen steps — exactly, and
+`rig/measure_419.py` refits it on every run rather than quoting this. The break at **390/391 pt** was
+bisected at steps 0, 5 and 8 and falls between the same two widths each time, so like the class
+breaks it is the window's width alone. **240 pt is the narrowest window the app allows** — asked for
+150, 180, 200 or 220 it hands back 240, which `sweep_narrow.py` assumed for #344 and this run records
+from the bounds the app answers with.
+
+So the container rule of § State 22 holds everywhere once the margin is the class's own:
+
+**container = `min((limit + 14) cells, window − 2 × margin)`**, the margin **5 pt** in the middle and
+the wide class and `max(5 pt, round(K − advance_pt))` in the narrowest.
+
+In the narrowest class the first term never wins — 78 cells of even the smallest type wants 1062 px
+of the 880 px the class's widest window, 440 pt, has at all — so the whole class is the window term.
+That is why
+§ State 22 read a container 32 px inside what it expected at 440 pt: it was applying a 5 pt margin
+where the app keeps 13.
+
+**The container is centred to the point, not to the pixel.** Both margins are whole points, and
+where the leftover is an odd number of points the extra **point** — two device pixels — falls on the
+right: 20 px left against 22 right at step 1 in a 480 px window, where the leftover is 42 px = 21 pt,
+and 74 against 76 at step 5 in a 1920 px one, where it is 150 px = 75 pt. Where the leftover is an
+even number of points the margins are equal.
+
+### What the run could not settle
+
+**Whether the class breaks are points or device pixels.** #419 asked for 1250 and 1251 pt at step 5
+on a display at backing scale 1. No external display was connected and this Mac's built-in display
+offers no scale-1 mode, so the breaks stay recorded in points, the unit the window is set in.
+
+### The driver dropped clicks twice, and a control caught both
+
+Reaching a step out from Make Text Normal Size landed step 1 on step 2's size at both widths;
+walking up from the floor with eight Smaller clicks is not enough to reach the floor of a
+fourteen-step ladder from its top, and put steps 10 to 12 of the 400 pt run one and two rungs high.
+`rig/ladder_419.py`'s continuous walk fixes each width's ladder independently, and
+`rig/measure_419.py` now refuses to print a table unless every frame's pitch sits on its width's
+rung. **A state runner that reaches a menu step by counting clicks needs a control that does not.**
+
 ## State 26 — the misspelling mark
 
 `mac-native-26-{light,dark}-spell-*.png` and the `-nospell` controls beside them, from
