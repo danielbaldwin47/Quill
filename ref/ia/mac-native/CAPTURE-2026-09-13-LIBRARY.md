@@ -15,8 +15,12 @@ answered with a number.
 
 All numbers are **device pixels** at backing scale 2 unless labelled pt. The region is the whole
 window, `[0, 33, 1512, 949]` in logical points.
-[The manifest](capture-2026-09-13-library.json) names all 18 frames, their originals, both hashes
-and the state each was shot in; `rig/measure_library_379.py` re-reads every number below off them.
+[The manifest](capture-2026-09-13-library.json) names all 20 frames, their originals, both hashes
+and the state each was shot in, and it is built from the frames on disk rather than from a list, so
+a frame shot and not written down cannot slip out of it. Every colour, width, pitch and inset
+below is `rig/measure_library_379.py`'s output — the reader was rewritten for this, because the
+first version of it read the light rows only and left the prompt, the separators and every dark
+value to a scratch probe that nothing committed.
 
 ## Rig and method
 
@@ -30,10 +34,13 @@ Favorites, Smart Folders and Hashtags on; Files with Sort bar, Filter bar and Te
 **The fixture was added, not swapped in.** The Library holds `shots/oracle/library/` without its
 `manifest.json` — six files, a `Drafts` folder with two, `.archive` with one — beside the four
 documents it already had, which are in every frame. Nothing already in the Library was moved,
-renamed or removed; the copy is reversible to the file.
+renamed or removed; the copy is `rig/`'s to add and to take away again, and it was taken away when
+the run ended — the Library holds exactly what it held before.
 
-L1 is the only state with a control. The rest each change what the pane holds, so a second frame of
-the same pane is not a thing that exists.
+**L1 and the O1 drag have controls**; the rest each change what the pane holds, so a second frame of
+the same pane is not a thing that exists. The pane's own width is read off its ground rather than
+off the L1 pair: showing the pane reflows the page, so the pair differs nearly everywhere, and a box
+drawn round that difference is the window.
 
 ## The pane
 
@@ -51,8 +58,12 @@ draws the whole pane on the page's own paper.
 
 **360 pt against Quill's 368.** Close, and not the same — and the 368 was second-hand.
 
-**The pane does not drag.** The divider was dragged 120 pt right with a synthetic mouse: the pane
-measured 360 pt before, 360 after, and 360 after dragging back.
+**The pane drags, and the first two answers to that were wrong.** Dragged from the column the
+pane's own ground gives way at — **360 pt** — it goes to **500 pt** and comes back to 360. The
+second pass dragged from 368 pt, 8 pt past the edge; the third took the divider from the L1 pair's
+difference, which is nearly the whole window because showing the pane reflows the page, and so
+dragged from **1275 pt**, the middle of the text. Neither touched the divider, and both reported
+"it does not drag" from a drag that never happened.
 
 ## A file row
 
@@ -63,7 +74,7 @@ measured 360 pt before, 360 after, and 360 after dragging back.
 | Name ink | **`#191919`** light, **`#b9b9b9`** dark |
 | Date ink | **`#999999`** light, **`#757575`** dark |
 | Excerpt ink | **the same as the date** |
-| Separator | **`#ededed`** light, **`#212121`** dark, inset from the list's right edge |
+| Separator | **`#ededed`** light, **`#212121`** dark; it runs x 340 … 691, **inset 74 px from the list's left edge and 19 px from its right** |
 | Excerpt | **two lines**, the file's title run into its first words |
 
 **The date and the excerpt share one grey**, and it is **darker** than the editor's own dim tier —
@@ -85,7 +96,7 @@ ground is the list's own.
 ## The Organizer
 
 Four sections, headed **`Locations`**, **`Favorites`**, **`Smart Folders`**, **`Hashtags`** in
-**`#7f8080`**. Under Locations the current one — `☁ iCloud` — stands on a rounded grey pill.
+**`#7f8080`** light and **`#393b3a`** dark. Under Locations the current one — `☁ iCloud` — stands on a rounded grey pill.
 
 **An empty section carries prose, not nothing**: *Drag folders and files here for quick access*
 under Favorites, *Write #tags to group files* under Hashtags. Smart Folders holds `Recents`.
@@ -95,7 +106,8 @@ under Favorites, *Write #tags to group files* under Hashtags. Smart Folders hold
 **It is at the foot of the File List**, under the rows rather than over them; it reads **`Filter`**
 beside a magnifier; and `Edit > Find > Filter Library...` is what puts the caret in it.
 
-**Its prompt is `#7e7e7e`** on the list's `#fcfcfc` ground. Quill's is `#BCBCBC` — the palest thing
+**Its prompt is `#7e7e7e`** light and **`#757575`** dark, on a field whose ground is the list's own
+(`#fcfcfc` / `#161616`) rather than a well of its own. Quill's is `#BCBCBC` — the palest thing
 in the pane, 1.73:1 on the paper, "a field that looks switched off", which is the report that filed
 #379. The oracle's prompt is **far darker** than Quill's, not paler, and darker than the pane's own
 secondary grey.
@@ -121,6 +133,47 @@ the pane** — the same switches, reachable without leaving the window.
 
 **Favorites are made from the row**, not dragged — though the empty section's own prose says
 dragging works too.
+
+
+## A hovered row draws nothing
+
+With the pointer resting on a row, **the row is unchanged** — the pane differs from its resting
+frame only at the **search field**, which lifts to `#a1d5f5` with its prompt at `#777777`. Selection
+is a bar; hover is nothing.
+
+## What the search matches, and how it orders
+
+The query `sea` leaves **three rows** of twelve: `The Lighthouse.txt`, `sea-storm.md` and
+`harbour-lights.md`. Only one of those has `sea` in its **name**; the other two have it in their
+**contents**. The query `the`, which no name holds, leaves **eleven** — so the field searches
+**names and contents together**.
+
+**The sort control changes with it.** `Sort by Date Modified ⌄` becomes **`Sort by Search
+Relevance ⌄`** while a query stands, and goes back when it is cleared.
+
+**A result row is an ordinary row.** Same icon, name, date and two-line excerpt, the excerpt still
+the file's opening rather than a snippet around the match, and **no mark on the match at all**.
+
+## What could not be done from this rig
+
+**A file could not be made a Favorite**, so the Favorites section is only ever seen carrying its
+empty-state prose, and **the Favorites row is unmeasured** — which is the half of L4 that #379 asked
+for. A Favorite is made from a row's own context menu, and that menu is **not in the accessibility
+tree**: with it open the process reports **zero menus**, `click menu item "Favorite" of …` fails
+whatever it is asked of, `perform action "AXPress"` has nothing to press, and an arrow-key walk of
+the open menu left the Organizer's ink unchanged to the pixel. The menu itself is on record
+(`l4-row-menu`), so *where* a Favorite is made is answered; what the section looks like with one in
+it is not.
+
+## What this capture does not measure
+
+Named in #379's *What the spec needs* and not answered here: the **title bar over the pane** (the
+Library toggle, the ‹ › history, what the title shows while the pane is open); the **Sort and Filter
+bar's own** height, type, grey and count wording; whether the pane has a **status line** at its foot
+beyond the search field; the **row's left inset** from the pane's edge and a **folder row's pitch**
+against a file row's; and **folders-at-top against interleaved** (the app's *Pin folders to top* is
+off, and `Drafts` sorted to the top on its date alone). Each is readable off the frames this branch
+commits; none is read here.
 
 ## What the spec still has to decide
 

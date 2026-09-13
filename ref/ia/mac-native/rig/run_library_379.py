@@ -6,17 +6,21 @@ No committed capture shows the Library at all: `NOTES.md` § The rig reads
 down as **still unknown**. Quill's own pane is drawn to numbers the JavaScript
 app measured off iA's once, second-hand, and never checked against a frame.
 
-The Library holds a copy of `shots/oracle/library/` without its `manifest.json`
-— six files, a `Drafts` folder with two, `.archive` with one — so a judged state
-can pair against a frame by name, and `sea-storm.md` is the open document. The
-fixture is **added** to the Library rather than swapped in: whatever the Library
-already held is still there, so the frames carry those rows too and the readings
-below name the fixture's rows rather than counting all of them.
+`library_fixture_379.py --add` puts `shots/oracle/library/` without its
+`manifest.json` into the Library first — six files, a `Drafts` folder with two,
+`.archive` with one — so a judged state can pair against a frame by name, and
+`sea-storm.md` is the open document. It is **added**, never swapped in: whatever
+the Library already held is left where it is, the frames carry those rows too,
+and `--remove` takes away the list `--add` wrote and nothing else.
 
-L1 is shot twice, once with the Library hidden, because the pane's width and the
-divider are read as the difference between a window with the pane and the same
-window without it. The rest are single frames: each of them changes what the
-pane holds, so a control of the same pane is not a thing that exists.
+L1 is shot twice, once with the Library hidden. **Not for the pane's width** —
+showing the pane reflows the page, so the pair differs nearly everywhere and a
+box drawn round that difference is the window; `measure_library_379.py` reads
+the width off the pane's own ground instead, and an earlier pass that took it
+off this pair aimed its drag 900 pt wrong. The control is here because a state
+with no pane is worth having beside one with it. The rest are single frames:
+each of them changes what the pane holds, so a control of the same pane is not
+a thing that exists.
 
     .venv-rig/bin/python3 ref/ia/mac-native/rig/run_library_379.py <raw-dir> <norm-dir>
 
@@ -140,14 +144,12 @@ def shoot(name):
     return norm
 
 
-def frame(out, name, ground, check=True, **extra):
+def frame(out, name, ground, **extra):
     norm = shoot(name)
-    if check:
-        colour.check(norm, ground)
+    colour.check(norm, ground)
     im = Image.open(norm)
     assert im.size == (2 * REGION[2], 2 * REGION[3]), (name, im.size)
-    out["frames"][name] = dict(
-        ground=ground, colour_check="pass" if check else "n/a", **extra)
+    out["frames"][name] = dict(ground=ground, colour_check="pass", **extra)
     print(f"  {name}", flush=True)
     return norm
 
@@ -238,13 +240,9 @@ def main():
     open_doc()
 
     # L3: a folder opened, which under Navigation > Tree expands in place.
-    out["observations"]["l3_note"] = "Drafts opened by a click on its row"
     frame(out, f"{PREFIX}-light-library-l3-folder-before.png", "light",
           state="L3 before the folder is opened", library="shown")
 
-    # L6: the Sort control's own menu.
-    # L7: excerpts off and the two bars hidden.
-    # L8: Quick Search.
     json.dump(out, open(os.path.join("ref", "ia", "mac-native", "library-379.json"), "w"), indent=1)
     print(f"{len(out['frames'])} frames", flush=True)
 

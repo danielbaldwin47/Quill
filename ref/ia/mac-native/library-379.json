@@ -128,15 +128,28 @@
   "mac-native-28-light-library-o1-dragged.png": {
    "ground": "light",
    "colour_check": "pass",
-   "state": "O1 the divider dragged 120 pt right",
+   "state": "O1 the divider dragged 140 pt right",
    "library": "shown",
-   "dragged_from_pt": 1275.0
+   "dragged_from_pt": 360.0
   },
   "mac-native-28-light-library-o1-restored.png": {
    "ground": "light",
    "colour_check": "pass",
    "state": "O1 the divider dragged back",
    "library": "shown"
+  },
+  "mac-native-28-light-library-l4-favorite.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L4 harbour-lights.md made a Favorite",
+   "library": "shown",
+   "favorited": "the sixth name row, through its context menu by keyboard"
+  },
+  "mac-native-28-light-library-o1-dragged-nolib.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "O1 control, the pane hidden after the drag",
+   "library": "hidden"
   }
  },
  "observations": {
@@ -242,7 +255,7 @@
    0,
    2549
   ],
-  "pane_width_pt": 1275.0,
+  "pane_width_pt": 360.0,
   "name_rows_px": [
    [
     211,
@@ -307,7 +320,13 @@
    0,
    2757
   ],
-  "pane_width_after_drag_pt": 1379.0,
-  "divider_drags": true
+  "pane_width_after_drag_pt": 500.0,
+  "divider_drags": true,
+  "divider_pt": 360.0,
+  "favorite_click": "64:112: execution error: System Events got an error: Can\u2019t get menu 1 of window 1 of process \"iA Writer\". (-1728)",
+  "pane_width_restored_pt": 360.0,
+  "organiser_ink_before": 9809,
+  "organiser_ink_after": 9809,
+  "favorite_took": false
  }
 }

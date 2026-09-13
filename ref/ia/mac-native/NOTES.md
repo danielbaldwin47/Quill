@@ -864,8 +864,9 @@ swapped in, with `sea-storm.md` open; the four documents already there are in ev
 *lighter*; on dark the Organizer sits at the paper and the List goes darker. Quill draws the whole
 pane on one paper.
 
-**The pane does not drag.** The divider was dragged 120 pt right with a synthetic mouse and the
-pane measured 360 pt before, after and after dragging back.
+**The pane drags.** From the column the pane's own ground gives way at — 360 pt — it goes to **500 pt**
+and comes back. Two earlier passes aimed 8 pt and 915 pt off the divider and reported that it does
+not; a drag that misses says nothing.
 
 ### A file row
 
@@ -876,7 +877,7 @@ pane measured 360 pt before, after and after dragging back.
 | Name ink | **`#191919`** light, **`#b9b9b9`** dark — the body ink |
 | Date ink | **`#999999`** light, **`#757575`** dark |
 | Excerpt ink | **the same as the date**: `#999999` / `#757575` |
-| Separator | **`#ededed`** light, **`#212121`** dark, inset from the list's right edge |
+| Separator | **`#ededed`** light, **`#212121`** dark; x 340 … 691, **inset 74 px left and 19 px right** within the list |
 | Excerpt | **two lines**, the file's title run into its first words |
 
 **The date and the excerpt share one grey**, and it is **darker** than the editor's own dim tier
@@ -891,16 +892,34 @@ preferred a paler pane to the editor's chrome; the oracle goes the other way.
 ### The Organizer
 
 Four sections, headed **`Locations`**, **`Favorites`**, **`Smart Folders`** and **`Hashtags`** in
-**`#7f8080`**. Under Locations the current one — `☁ iCloud` — stands on a rounded grey pill. An
+**`#7f8080`** light, **`#393b3a`** dark. Under Locations the current one — `☁ iCloud` — stands on a rounded grey pill. An
 empty section carries prose rather than nothing: *Drag folders and files here for quick access*
 under Favorites, *Write #tags to group files* under Hashtags. Smart Folders holds `Recents`.
 
 ### The search field is at the **foot**, and its prompt is `#7e7e7e`
 
 The field sits under the list, not over it, reads **`Filter`** beside a magnifier, and is reached
-by `Edit > Find > Filter Library...`. **Its prompt is `#7e7e7e`** on the list's `#fcfcfc` ground.
+by `Edit > Find > Filter Library...`. **Its prompt is `#7e7e7e`** light and **`#757575`** dark, on a field whose ground is the list's own.
 Quill's lands at `#BCBCBC` — the question that filed #379 — so the oracle's prompt is far darker
 than Quill's, not paler.
+
+### A hovered row draws nothing, and what the search matches
+
+With the pointer on a row the row is **unchanged**; the pane differs from its resting frame only at
+the search field, which lifts to `#a1d5f5` with its prompt at `#777777`. Selection is a bar and
+hover is nothing.
+
+`sea` leaves **three rows of twelve** — one matched by name, two by contents — and `the`, which no
+name holds, leaves **eleven**: the field searches **names and contents together**. The sort pill
+becomes **`Sort by Search Relevance`** while a query stands. A result row is an ordinary row: no
+snippet around the match and **no mark on the match**.
+
+### A file could not be made a Favorite
+
+So the Favorites row — the half of L4 #379 asked for — is **unmeasured**, and the section is only
+ever seen carrying its empty-state prose. A Favorite is made from a row's context menu, and that
+menu is **not in the accessibility tree**: with it open the process reports zero menus, a click and
+an `AXPress` both fail, and an arrow-key walk left the Organizer's ink unchanged to the pixel.
 
 ### A folder expands in place
 
