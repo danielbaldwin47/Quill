@@ -3,9 +3,8 @@
 //! Plain GTK4 ([ADR 0009](../../docs/adr/0009-plain-gtk4-without-libadwaita.md)):
 //! a window transient for the one it was opened from, holding a scrollable grid.
 //! Its controls write the settings file. Alongside the Template, Syntax
-//! highlight and Style check toggles shared with the menus are the
-//! Typewriter anchor, Follow
-//! System, the Spell-check language the Spell check spec will fill in, the
+//! highlight, Style check and Spell check toggles shared with the menus, and
+//! Spell check's language, are the Typewriter anchor, Follow System, the
 //! Library's own six (#246: the Locations, Pinned, and the four switches
 //! nothing but this window and the file can reach), the `[export]` table's own
 //! six (#290 built them: the page every export and every print is laid out on,
@@ -31,6 +30,7 @@ use quill_engine::pos::Category;
 use quill_engine::settings::{
     Paper, PreviewMode, Settings, Theme, export_margins, export_text_sizes,
 };
+use quill_engine::spell::Resolved;
 use quill_engine::style::List;
 use quill_engine::theme::Scheme;
 
@@ -64,11 +64,25 @@ const ANCHOR_DIGITS: i32 = 2;
 const PREVIEW_MODES: [(PreviewMode, &str); 2] =
     [(PreviewMode::Web, "Web"), (PreviewMode::Pdf, "PDF")];
 
-/// What the Spell-check row says for as long as the Spell check spec has not
-/// landed.
-const SPELL_TOOLTIP: &str = "Spell check: not yet built";
-/// The one entry its dropdown carries meanwhile, so that the row is a row.
-const SPELL_LANGUAGE: &str = "System default";
+/// The language dropdown's first row, which writes an empty `spell_language`:
+/// the desktop locale's dictionary, resolved when a Document opens.
+const SYSTEM_DEFAULT: &str = "System default";
+/// The row the language dropdown stands on when the language it wants has no
+/// dictionary: a state rather than a choice, so choosing it writes nothing.
+const NO_DICTIONARY: &str = "No dictionary installed";
+
+/// The Writing tools group's heading: the first row under the Export group.
+const WRITING_TOOLS: i32 = 21;
+/// Syntax highlight's master switch, the first row under that heading.
+const SYNTAX_FIRST: i32 = WRITING_TOOLS + 1;
+/// Syntax highlight's toggles: the master and its five Categories.
+const SYNTAX_ROWS: usize = 6;
+/// Style check's master switch, the first row under Syntax highlight's.
+const STYLE_FIRST: i32 = below(SYNTAX_FIRST, SYNTAX_ROWS);
+/// Style check's toggles: the master and its three Lists.
+const STYLE_ROWS: usize = 4;
+/// Spell check's switch, the first row under Style check's.
+const SPELL_FIRST: i32 = below(STYLE_FIRST, STYLE_ROWS);
 
 /// The window's margin and the space between its rows and its two columns.
 const MARGIN: i32 = 18;
@@ -89,8 +103,10 @@ type WritePaths = fn(&mut Settings, Vec<PathBuf>);
 /// Opens the Settings window over `parent`.
 ///
 /// Built on every open and dropped when it closes, as the shortcuts window is,
-/// so that every row opens showing the current effective setting.
-pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
+/// so that every row opens showing the current effective setting. `spelling`
+/// is what the parent window's Spell check language last resolved to, for the
+/// "no dictionary" line.
+pub fn open(parent: &gtk::Window, session: &Rc<Session>, spelling: Option<&Resolved>) {
     let grid = gtk::Grid::builder()
         .row_spacing(ROW_GAP)
         .column_spacing(COLUMN_GAP)
@@ -137,12 +153,6 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
     ));
     row(&grid, 1, "Follow System", &follow);
 
-    let language = gtk::DropDown::from_strings(&[SPELL_LANGUAGE]);
-    language.set_halign(gtk::Align::End);
-    language.set_sensitive(false);
-    language.set_tooltip_text(Some(SPELL_TOOLTIP));
-    row(&grid, 2, "Spell-check language", &language);
-
     // Built before the rows so that the Add… dialog has a window to open
     // over; nothing is on screen until it is presented at the end.
     let window = gtk::Window::builder()
@@ -159,30 +169,30 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
         )
         .build();
 
-    row(&grid, 3, "Locations", &location_list(&window, session));
-    row(&grid, 4, "Pinned", &pinned_list(session));
+    row(&grid, 2, "Locations", &location_list(&window, session));
+    row(&grid, 3, "Pinned", &pinned_list(session));
     let library = session.settings().library.clone();
     row(
         &grid,
-        5,
+        4,
         "Show hidden folders",
         &switch(session, library.show_hidden, showed_hidden),
     );
     row(
         &grid,
-        6,
+        5,
         "Show file extensions",
         &switch(session, library.show_extensions, showed_extensions),
     );
     row(
         &grid,
-        7,
+        6,
         "Confirm before moving files",
         &switch(session, library.confirm_move, confirmed_move),
     );
     row(
         &grid,
-        8,
+        7,
         "Always ask where to save",
         &switch(session, library.ask_where_to_save, asked_where_to_save),
     );
@@ -191,10 +201,10 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
     // which is the pane's and not one window's
     // ([`crate::window::Window::set_preview_mode`]). Each group below the
     // Library's rows carries a heading.
-    group_heading(&grid, 9, "Preview");
+    group_heading(&grid, 8, "Preview");
     row(
         &grid,
-        10,
+        9,
         "Mode",
         &preview_modes(session, session.preview_mode()),
     );
@@ -204,22 +214,22 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
     // ([`crate::window::reapply`]), and a check flipped there is the file
     // moving this row the next time the window is opened (#263).
     let template = session.template().clone();
-    group_heading(&grid, 11, "Template");
+    group_heading(&grid, 10, "Template");
     row(
         &grid,
-        12,
+        11,
         "Center headings",
         &switch(session, template.center_headings, centered_headings),
     );
     row(
         &grid,
-        13,
+        12,
         "Number headings",
         &switch(session, template.number_headings, numbered_headings),
     );
     row(
         &grid,
-        14,
+        13,
         "Indent paragraphs",
         &switch(session, template.indent_paragraphs, indented_paragraphs),
     );
@@ -230,17 +240,17 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
     // and neither writes anything back — so this group and Save as defaults
     // are the two ways a default moves.
     let export = session.settings().export.clone();
-    group_heading(&grid, 15, "Export");
-    row(&grid, 16, "Paper", &export_papers(session, export.paper));
+    group_heading(&grid, 14, "Export");
+    row(&grid, 15, "Paper", &export_papers(session, export.paper));
     row(
         &grid,
-        17,
+        16,
         "Margin (mm)",
         &export_spin(session, export.margin, &export_margins(), export_margin),
     );
     row(
         &grid,
-        18,
+        17,
         "Text size (pt)",
         &export_spin(
             session,
@@ -251,30 +261,30 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
     );
     row(
         &grid,
-        19,
+        18,
         "Title page",
         &switch(session, export.title_page, export_title_page),
     );
     row(
         &grid,
-        20,
+        19,
         "Header",
         &switch(session, export.header, export_header),
     );
     row(
         &grid,
-        21,
+        20,
         "Footer",
         &switch(session, export.footer, export_footer),
     );
 
-    group_heading(&grid, 22, "Writing tools");
+    group_heading(&grid, WRITING_TOOLS, "Writing tools");
     annotator_group(
         &grid,
         session,
         syntax_rows(session),
         SyntaxToggle::Enabled,
-        23,
+        SYNTAX_FIRST,
         ENGLISH_ONLY,
         |settings, toggle: SyntaxToggle, on| toggle.set(&mut settings.syntax_highlight, on),
     );
@@ -287,9 +297,20 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
         session,
         style_rows(session),
         StyleToggle::Enabled,
-        30,
+        STYLE_FIRST,
         ENGLISH_ONLY,
         |settings, toggle: StyleToggle, on| toggle.set(&mut settings.style_check, on),
+    );
+    // Spell check's under Style check's, in a shape of its own: a switch, the
+    // language, and a line only when that language has no dictionary. The
+    // dictionaries are listed as the window opens, so one installed since the
+    // last open is offered on this one.
+    let below_spell = spell_group(
+        &grid,
+        session,
+        SPELL_FIRST,
+        &quill_engine::spell::installed_languages(),
+        spelling,
     );
 
     let button = gtk::Button::builder()
@@ -302,7 +323,7 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
         session,
         move |_| edit(session.settings_path(), launch.as_ref())
     ));
-    row(&grid, 35, "Keyboard shortcuts", &button);
+    row(&grid, below_spell, "Keyboard shortcuts", &button);
 
     if let Some(said) = refused(&session.unapplied()) {
         let label = gtk::Label::builder()
@@ -310,7 +331,7 @@ pub fn open(parent: &gtk::Window, session: &Rc<Session>) {
             .halign(gtk::Align::Start)
             .wrap(true)
             .build();
-        grid.attach(&label, 0, 36, 2, 1);
+        grid.attach(&label, 0, below_spell + 1, 2, 1);
     }
 
     window.present();
@@ -417,8 +438,218 @@ fn annotator_group<T: Copy + PartialEq + 'static>(
     }
 }
 
+/// The first row under an [`annotator_group`] of `rows` toggles starting at
+/// `first`: the master and the line under it take two rows, and each other
+/// toggle one.
+#[expect(
+    clippy::cast_possible_wrap,
+    clippy::cast_possible_truncation,
+    reason = "a group of a handful of rows; `i32::try_from` is not const"
+)]
+const fn below(first: i32, rows: usize) -> i32 {
+    first + rows as i32 + 1
+}
+
+/// Spell check's rows of the Writing tools group from `first`: its switch,
+/// the language dropdown over the `installed` dictionaries, and the "no
+/// dictionary" line when `spelling` found none. Returns the first row under
+/// them, so the rows after the group stand on the next row and none is empty.
+///
+/// A helper of its own rather than [`annotator_group`]: Spell check has no
+/// kinds to check, and has a dropdown and a line that comes and goes instead
+/// (#401 § Settings window).
+fn spell_group(
+    grid: &gtk::Grid,
+    session: &Rc<Session>,
+    first: i32,
+    installed: &[String],
+    spelling: Option<&Resolved>,
+) -> i32 {
+    let checking = switch(session, session.spell(), spell_checked);
+    row(grid, first, "Spell check", &checking);
+
+    let current = Rc::new(RefCell::new(session.settings().spell_language.clone()));
+    let (rows, selected) = language_rows(installed, &current.borrow(), spelling);
+    let words: Vec<&str> = rows.iter().map(String::as_str).collect();
+    let language = gtk::DropDown::from_strings(&words);
+    language.set_halign(gtk::Align::End);
+    // Stood on before the handler is connected, so opening the window is not
+    // itself a write.
+    language.set_selected(selected);
+    row(grid, first + 1, "Language", &language);
+
+    // Attached whatever the state, and shown only while it holds: a row with
+    // nothing visible in it takes no space, so the rows below stand still.
+    let said = gtk::Label::builder()
+        .halign(gtk::Align::Start)
+        .wrap(true)
+        .build();
+    show_unserved(
+        &said,
+        match spelling {
+            Some(Resolved::Missing { wanted }) => Some(wanted.clone()),
+            _ => None,
+        },
+    );
+    grid.attach(&said, 0, first + 2, 2, 1);
+
+    // What the window opened on is the Editor's resolution; a choice made here
+    // is resolved here, by the same ladder over the same listing, because the
+    // Editor hears of it only once the settings watch has read the file back
+    // (#401's Hand test, step 12: the line outlived the dictionary that ended
+    // it).
+    let installed = Rc::new(installed.to_vec());
+    let rows = Rc::new(RefCell::new(rows));
+    language.connect_selected_notify(glib::clone!(
+        #[strong]
+        session,
+        #[strong]
+        current,
+        #[strong]
+        installed,
+        #[strong]
+        rows,
+        #[strong]
+        checking,
+        #[strong]
+        said,
+        move |language| {
+            let Some(chosen) = language_at(&rows.borrow(), language.selected()) else {
+                return;
+            };
+            current.replace(chosen.clone());
+            session.edit_settings(|settings| chose_language(settings, chosen));
+            // The "No dictionary installed" row was a state, and the state
+            // has moved on: it goes, and it is after every other row, so the
+            // row stood on keeps its place.
+            if let Some(at) = served_rows(&mut rows.borrow_mut())
+                && let Some(model) = language.model().and_downcast::<gtk::StringList>()
+            {
+                model.remove(at);
+            }
+            show_unserved(
+                &said,
+                unserved_now(&checking, &current.borrow(), &installed),
+            );
+        }
+    ));
+    checking.connect_active_notify(move |checking| {
+        show_unserved(&said, unserved_now(checking, &current.borrow(), &installed));
+    });
+    first + 3
+}
+
+/// The wanted tag with no dictionary, for Spell check as `checking` and
+/// `language` stand now, with the locale read from this process.
+fn unserved_now(checking: &gtk::Switch, language: &str, installed: &[String]) -> Option<String> {
+    unserved(checking.is_active(), language, installed, |name| {
+        std::env::var(name).ok()
+    })
+}
+
+/// The tag `language` wants when no installed dictionary serves it and Spell
+/// check is `on`; `None` when a dictionary serves it or Spell check is off,
+/// since the state is Spell check's and not the language's.
+///
+/// The same ladder [`crate::editor::Editor`] resolves a Document's language
+/// by, [`quill_engine::spell::resolve_setting`], with the locale read through
+/// `locale`.
+fn unserved(
+    on: bool,
+    language: &str,
+    installed: &[String],
+    locale: impl Fn(&str) -> Option<String>,
+) -> Option<String> {
+    if !on {
+        return None;
+    }
+    match quill_engine::spell::resolve_setting(language, installed, locale) {
+        Resolved::Missing { wanted } => Some(wanted),
+        _ => None,
+    }
+}
+
+/// Puts the "no dictionary" line for `wanted` under the dropdown, or takes it
+/// away.
+fn show_unserved(said: &gtk::Label, wanted: Option<String>) {
+    said.set_visible(wanted.is_some());
+    said.set_label(&wanted.as_deref().map(no_dictionary).unwrap_or_default());
+}
+
+/// Takes the [`NO_DICTIONARY`] row out of `rows`, and says where it stood.
+fn served_rows(rows: &mut Vec<String>) -> Option<u32> {
+    let at = rows.iter().position(|row| row == NO_DICTIONARY)?;
+    rows.remove(at);
+    u32::try_from(at).ok()
+}
+
+/// The language dropdown's rows and the one it stands on: System default,
+/// then every installed tag in the listing's own order.
+///
+/// A language with no dictionary stands on a last row saying so; an explicit
+/// language the listing lacks but another dictionary serves stands on a last
+/// row naming it, so the dropdown never reads as a choice the writer did not
+/// make.
+fn language_rows(
+    installed: &[String],
+    language: &str,
+    spelling: Option<&Resolved>,
+) -> (Vec<String>, u32) {
+    let mut rows: Vec<String> = std::iter::once(SYSTEM_DEFAULT.to_owned())
+        .chain(installed.iter().cloned())
+        .collect();
+    let at = if matches!(spelling, Some(Resolved::Missing { .. })) {
+        rows.push(NO_DICTIONARY.to_owned());
+        rows.len() - 1
+    } else if language.is_empty() {
+        0
+    } else if let Some(at) = installed.iter().position(|tag| tag == language) {
+        at + 1
+    } else {
+        rows.push(language.to_owned());
+        rows.len() - 1
+    };
+    (rows, u32::try_from(at).unwrap_or(0))
+}
+
+/// What choosing the dropdown's row `at` writes to `spell_language`: empty for
+/// System default, the tag for a dictionary, and nothing for
+/// [`NO_DICTIONARY`].
+fn language_at(rows: &[String], at: u32) -> Option<String> {
+    let row = rows.get(usize::try_from(at).ok()?)?;
+    if at == 0 {
+        Some(String::new())
+    } else if row == NO_DICTIONARY {
+        None
+    } else {
+        Some(row.clone())
+    }
+}
+
+/// The line under the language dropdown when `wanted` has no dictionary, and
+/// the notice the first Document to open in that state carries
+/// ([`crate::window::Window`]): the tag, the Arch package that serves it, and
+/// where every other system is told.
+pub(crate) fn no_dictionary(wanted: &str) -> String {
+    format!(
+        "No dictionary installed for {wanted}: install hunspell-{}, or see the \
+         README's Spell check in other languages.",
+        wanted.to_lowercase()
+    )
+}
+
+/// What the Spell check switch writes.
+fn spell_checked(settings: &mut Settings, on: bool) {
+    settings.spell_check = on;
+}
+
+/// What choosing a language writes.
+fn chose_language(settings: &mut Settings, language: String) {
+    settings.spell_language = language;
+}
+
 /// The Writing tools rows, projected from the live table without writing it.
-fn syntax_rows(session: &Session) -> [(SyntaxToggle, &'static str, bool); 6] {
+fn syntax_rows(session: &Session) -> [(SyntaxToggle, &'static str, bool); SYNTAX_ROWS] {
     let syntax = session.syntax();
     [
         (SyntaxToggle::Enabled, "Syntax highlight"),
@@ -435,7 +666,7 @@ fn syntax_rows(session: &Session) -> [(SyntaxToggle, &'static str, bool); 6] {
 }
 
 /// The Style check rows, projected from the live table without writing it.
-fn style_rows(session: &Session) -> [(StyleToggle, &'static str, bool); 4] {
+fn style_rows(session: &Session) -> [(StyleToggle, &'static str, bool); STYLE_ROWS] {
     let style = session.style();
     [
         (StyleToggle::Enabled, "Style check"),
@@ -1108,6 +1339,143 @@ mod tests {
                 assert_eq!(toggle.of(&session.style()), on);
             }
             assert_eq!(session.running(), initial);
+        }
+        std::fs::remove_file(path).unwrap();
+    }
+
+    /// The top group lost the language row, so every group under it moved up
+    /// by one and none left a gap; Spell check's rows stand under Style
+    /// check's last and the button under Spell check's last, whether or not
+    /// the "no dictionary" line is there.
+    #[test]
+    fn spell_check_s_rows_follow_style_check_s_with_no_empty_row() {
+        let (session, path) = launched("spell-rows-layout");
+        assert_eq!(WRITING_TOOLS, 21, "the Export group's Footer is row 20");
+        assert_eq!(SYNTAX_FIRST, WRITING_TOOLS + 1);
+        assert_eq!(
+            syntax_rows(&session).len(),
+            SYNTAX_ROWS,
+            "Syntax highlight: switch, line, five checks"
+        );
+        assert_eq!(STYLE_FIRST, SYNTAX_FIRST + 7);
+        assert_eq!(style_rows(&session).len(), STYLE_ROWS);
+        assert_eq!(
+            SPELL_FIRST,
+            STYLE_FIRST + 5,
+            "under Style check's switch, line and three checks"
+        );
+        std::fs::remove_file(path).ok();
+    }
+
+    /// System default, then the listing in its own order; the row the
+    /// setting names is the one stood on, and a language with no dictionary
+    /// stands on a row saying so that writes nothing.
+    #[test]
+    fn the_language_dropdown_lists_system_default_then_the_listing_in_order() {
+        let installed = ["en_US", "de_DE", "en_GB"].map(str::to_owned);
+        let (rows, at) = language_rows(&installed, "", None);
+        assert_eq!(rows, ["System default", "en_US", "de_DE", "en_GB"]);
+        assert_eq!(at, 0);
+        assert_eq!(language_rows(&installed, "de_DE", None).1, 2);
+
+        let fallback = Resolved::Fallback {
+            tag: "de_DE".into(),
+            wanted: "de_AT".into(),
+        };
+        let (rows, at) = language_rows(&installed, "de_AT", Some(&fallback));
+        assert_eq!(rows.last().map(String::as_str), Some("de_AT"));
+        assert_eq!(language_at(&rows, at).as_deref(), Some("de_AT"));
+
+        let missing = Resolved::Missing {
+            wanted: "xx_XX".into(),
+        };
+        let (rows, at) = language_rows(&installed, "", Some(&missing));
+        assert_eq!(
+            rows,
+            [
+                "System default",
+                "en_US",
+                "de_DE",
+                "en_GB",
+                "No dictionary installed"
+            ]
+        );
+        assert_eq!(at, 4);
+        assert_eq!(language_at(&rows, at), None, "a state, not a choice");
+        assert_eq!(language_at(&rows, 0).as_deref(), Some(""));
+        assert_eq!(language_at(&rows, 3).as_deref(), Some("en_GB"));
+        assert_eq!(language_at(&rows, 9), None);
+    }
+
+    /// The line follows the resolution as the writer changes it: a language
+    /// with no dictionary shows it, a served one takes it away, System default
+    /// is the locale's, and Spell check off shows none. And the stale row goes
+    /// with it, leaving the rows before it where they stood.
+    #[test]
+    fn the_no_dictionary_line_follows_a_changed_resolution() {
+        let installed = ["en_US", "de_DE"].map(str::to_owned);
+        let english = |_: &str| Some("en_US.UTF-8".to_owned());
+        let unknown = |_: &str| Some("xx_XX.UTF-8".to_owned());
+        assert_eq!(
+            unserved(true, "xx_XX", &installed, english).as_deref(),
+            Some("xx_XX")
+        );
+        assert_eq!(unserved(true, "en_US", &installed, english), None);
+        assert_eq!(
+            unserved(true, "de_AT", &installed, english),
+            None,
+            "falls back"
+        );
+        assert_eq!(unserved(true, "", &installed, english), None);
+        assert_eq!(
+            unserved(true, "", &installed, unknown).as_deref(),
+            Some("xx_XX")
+        );
+        assert_eq!(unserved(false, "xx_XX", &installed, english), None);
+
+        let missing = Resolved::Missing {
+            wanted: "xx_XX".into(),
+        };
+        let (mut rows, _) = language_rows(&installed, "xx_XX", Some(&missing));
+        assert_eq!(served_rows(&mut rows), Some(3));
+        assert_eq!(rows, ["System default", "en_US", "de_DE"]);
+        assert_eq!(served_rows(&mut rows), None, "gone once");
+    }
+
+    #[test]
+    fn the_no_dictionary_line_names_the_tag_and_its_arch_package() {
+        let said = no_dictionary("xx_XX");
+        assert!(said.contains("xx_XX"), "{said}");
+        assert!(said.contains("hunspell-xx_xx"), "{said}");
+        assert!(said.contains("Spell check in other languages"), "{said}");
+    }
+
+    /// The switch writes `spell_check` and the dropdown `spell_language`, each
+    /// alone and beside what the file already said, and the session reads
+    /// both back once the file is applied.
+    #[test]
+    fn the_spell_rows_write_their_own_keys_and_reflect_after_the_file_is_applied() {
+        let (session, path) = launched("spell-rows-save");
+        let source = "face = \"mono\"\nfuture = 4\nspell_check = true\nspell_language = \"\"\n";
+        let (initial, notes) = Settings::parse(source);
+        assert!(notes.is_empty());
+        session.apply(initial);
+        let installed = ["en_US", "de_DE"].map(str::to_owned);
+        let (rows, _) = language_rows(&installed, "", None);
+        for (at, language) in [(2, "de_DE"), (0, "")] {
+            let chosen = language_at(&rows, at).expect("a dictionary row");
+            let written = wrote(&session, &path, |settings| chose_language(settings, chosen));
+            let (expected, _) = Settings::parse(&source.replace(
+                "spell_language = \"\"",
+                &format!("spell_language = \"{language}\""),
+            ));
+            assert_eq!(written, expected, "whole file, including unknown keys");
+            assert_eq!(session.settings().spell_language, language);
+        }
+        for on in [false, true] {
+            let written = wrote(&session, &path, |settings| spell_checked(settings, on));
+            assert_eq!(written.spell_check, on);
+            assert_eq!(session.spell(), on);
         }
         std::fs::remove_file(path).unwrap();
     }

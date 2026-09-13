@@ -40,6 +40,7 @@ use quill_engine::theme::{self, Colour, Colours, Role, Scheme};
 use quill_engine::typography;
 
 use crate::caret;
+use crate::corrections;
 use crate::flags;
 use crate::ground::Ground;
 use crate::tags;
@@ -309,6 +310,28 @@ mod imp {
     pub struct Editor {
         /// Source-mapped Syntax highlight spans; no Document is retained here.
         pub syntax: RefCell<crate::syntax::Syntax>,
+        /// The `spell_language` setting, held for the resolution a Document's
+        /// opening makes ([`Editor::show_document`](super::Editor::show_document)).
+        pub spell_language: RefCell<String>,
+        /// Whether a Document has been shown: before one is, a language is
+        /// resolved by the showing rather than by the setter.
+        pub opened: Cell<bool>,
+        /// The misspelled word the caret rule last left unwaved, so that the
+        /// caret leaving it repaints it.
+        pub unwaved: RefCell<Option<std::ops::Range<usize>>>,
+        /// Where the last edit left a word being typed, the caret rule's
+        /// arming: set by an insert ending in a word character, cleared by any
+        /// other edit and by a caret move away from it.
+        pub typed: Cell<Option<usize>>,
+        /// The misspelled word the corrections section was last built for, so
+        /// that a Suggestion chosen from it replaces that word
+        /// ([`Editor::correct`](super::Editor::correct)). `None` while the
+        /// section is empty.
+        pub correcting: RefCell<Option<super::Correcting>>,
+        /// The menu a misspelled word opens, made at the first one and kept:
+        /// the corrections section above GTK's own rows
+        /// ([`crate::corrections::menu`]).
+        pub corrections: RefCell<Option<gtk::PopoverMenu>>,
         /// The Face this Editor is set in.
         pub face: Cell<Face>,
         /// Which of the type ladder's fourteen steps the Editor is set at.
@@ -484,6 +507,9 @@ mod imp {
             if let Some(resume) = self.resume.take() {
                 resume.remove();
             }
+            if let Some(menu) = self.corrections.take() {
+                gtk::prelude::WidgetExt::unparent(&menu);
+            }
         }
     }
 
@@ -493,6 +519,11 @@ mod imp {
         /// answered here rather than guessed before the window has a size.
         fn size_allocate(&self, width: i32, height: i32, baseline: i32) {
             self.parent_size_allocate(width, height, baseline);
+            // A popover parented on a widget is placed in its parent's
+            // allocation, as `GtkTextView` places its own menu.
+            if let Some(menu) = self.corrections.borrow().as_ref() {
+                gtk::prelude::PopoverExt::present(menu);
+            }
             self.obj().lay_out(width, height);
             // The bar's row is the row the text wrapped to, and where the text
             // wrapped is not known until there is a width to wrap it in. A
@@ -877,6 +908,204 @@ impl Editor {
         self.repaint_spans(document);
     }
 
+    /// Switches Spell check and its language.
+    ///
+    /// The language is resolved — the installed dictionaries listed through a
+    /// throwaway broker — when a Document opens ([`Editor::show_document`]),
+    /// when Spell check comes on, so a dictionary installed meanwhile is found,
+    /// and when the setting moves; never on a save that moved neither. Off
+    /// takes the wave off the buffer at once and asks for nothing; on asks for
+    /// the Document again (#401 § Toggle, Commands and state).
+    pub(crate) fn set_spell(&self, on: bool, language: &str, document: &Document) {
+        let moved = self.imp().spell_language.replace(language.to_owned()) != language;
+        let was = self.imp().syntax.borrow().spell();
+        let resolving = on && self.imp().opened.get() && (moved || !was);
+        if resolving {
+            self.resolve_spell(document);
+            if was && self.imp().syntax.borrow().wanted().spell {
+                let viewport = self.viewport(document);
+                self.imp().syntax.borrow_mut().ask_again(document, viewport);
+            }
+        }
+        let switched = self.imp().syntax.borrow_mut().configure_spell(on, document);
+        if resolving || switched {
+            self.imp().unwaved.take();
+            self.repaint_spans(document);
+        }
+    }
+
+    /// What Spell check's language last resolved to: `None` until a Document
+    /// has opened with Spell check on.
+    pub(crate) fn spell_resolution(&self) -> Option<quill_engine::spell::Resolved> {
+        self.imp().syntax.borrow().resolution().cloned()
+    }
+
+    /// Resolves the held `spell_language` and hands the worker its dictionary.
+    fn resolve_spell(&self, document: &Document) {
+        let language = self.imp().spell_language.borrow().clone();
+        self.imp().syntax.borrow_mut().resolve_language(
+            &language,
+            &quill_engine::spell::installed_languages(),
+            |name| std::env::var(name).ok(),
+            document,
+        );
+    }
+
+    /// Repaints the misspelled word the caret has just released, and the one
+    /// it has just stepped into.
+    ///
+    /// Called on a caret move. An edit's own redraw has already painted the
+    /// caret's line by the rule, so there it only takes the note. A move that
+    /// leaves the place a word was being typed disarms the rule, so coming
+    /// back to it by another move withholds nothing.
+    pub(crate) fn rewithhold(&self, document: &Document) {
+        let buffer = self.buffer();
+        let caret = tags::offset_of(document, &buffer.iter_at_mark(&buffer.get_insert()));
+        if self.imp().typed.get() != Some(caret) {
+            self.imp().typed.set(None);
+        }
+        let now = tags::unwaved_word(
+            &buffer,
+            document,
+            &self.imp().syntax.borrow(),
+            self.imp().typed.get(),
+        );
+        let was = self.imp().unwaved.replace(now.clone());
+        if was == now {
+            return;
+        }
+        let end = document.text().len();
+        let lines: Vec<_> = [was, now]
+            .into_iter()
+            .flatten()
+            .map(|word| {
+                document.place(word.start.min(end)).line..document.place(word.end.min(end)).line + 1
+            })
+            .collect();
+        let tiers = self.imp().tiers.borrow();
+        tags::repaint(&self.buffer(), document, self.painting(&tiers), &lines);
+    }
+
+    /// Opens the corrections menu for the misspelled word at the caret, and
+    /// answers whether it did.
+    ///
+    /// Called at the two moments [`crate::corrections`] names and no other. A
+    /// secondary press hands its point: the caret goes there first, and a
+    /// point inside a misspelled word selects the word, so the menu reads it
+    /// and Cut and Copy act on it. A point inside a selection that is not a
+    /// misspelling leaves the selection be, as GTK's own press does. The
+    /// chord hands none and reads the caret where it stands. The menu is the
+    /// section above GTK's own rows, pointed at the press or at the caret; a
+    /// caret in no misspelled word, and a press before the worker has loaded a
+    /// dictionary, open nothing, and the caller leaves the press or the chord
+    /// to GTK's own menu.
+    pub(crate) fn correct(&self, document: &Document, press: Option<(f64, f64)>) -> bool {
+        let buffer = self.buffer();
+        let syntax = self.imp().syntax.borrow();
+        if let Some((x, y)) = press {
+            let (bx, by) = self.window_to_buffer_coords(
+                gtk::TextWindowType::Widget,
+                buffer_px(x),
+                buffer_px(y),
+            );
+            if let Some(point) = self.iter_at_location(bx, by) {
+                match misspelling_at(&syntax, document, tags::offset_of(document, &point)) {
+                    Some(word) => buffer.select_range(
+                        &tags::iter_at(&buffer, document, word.end),
+                        &tags::iter_at(&buffer, document, word.start),
+                    ),
+                    None => {
+                        let selected = buffer
+                            .selection_bounds()
+                            .is_some_and(|(start, end)| point.in_range(&start, &end));
+                        if !selected {
+                            buffer.place_cursor(&point);
+                        }
+                    }
+                }
+            }
+        }
+        let caret = tags::offset_of(document, &buffer.iter_at_mark(&buffer.get_insert()));
+        let found = misspelling_at(&syntax, document, caret).and_then(|word| {
+            let text = document.text().get(word.clone())?.to_owned();
+            let suggestions = quill_engine::worker::lock(&syntax.checker())
+                .as_ref()?
+                .suggest(&text);
+            Some((word, text, suggestions))
+        });
+        drop(syntax);
+        let Some((word, text, suggestions)) = found else {
+            self.imp().correcting.take();
+            return false;
+        };
+        let model = corrections::menu(&text, &suggestions);
+        self.imp().correcting.replace(Some(Correcting {
+            at: tags::offsets_of(&buffer, document, &word),
+            word: text,
+        }));
+        let at = match press {
+            Some((x, y)) => gdk::Rectangle::new(buffer_px(x), buffer_px(y), 1, 1),
+            None => {
+                let caret = self.iter_location(&buffer.iter_at_mark(&buffer.get_insert()));
+                let (x, y) =
+                    self.buffer_to_window_coords(gtk::TextWindowType::Widget, caret.x(), caret.y());
+                gdk::Rectangle::new(x, y, 1, caret.height())
+            }
+        };
+        let menu = self
+            .imp()
+            .corrections
+            .borrow_mut()
+            .get_or_insert_with(|| {
+                let menu = gtk::PopoverMenu::from_model(None::<&gio::MenuModel>);
+                menu.set_parent(self);
+                menu.set_has_arrow(false);
+                menu.set_halign(gtk::Align::Start);
+                menu.set_position(gtk::PositionType::Bottom);
+                menu
+            })
+            .clone();
+        menu.set_menu_model(Some(&model));
+        menu.set_pointing_to(Some(&at));
+        menu.popup();
+        true
+    }
+
+    /// Replaces the word the section was built for with `suggestion`, as one
+    /// Undo step, and leaves the caret after it.
+    ///
+    /// The buffer's own edit, so the window's insert and delete hooks splice,
+    /// retag, furnish and autosave it as they would a keystroke. A word that
+    /// is no longer where the section found it is left alone.
+    pub(crate) fn replace(&self, suggestion: &str) {
+        let Some(target) = self.imp().correcting.take() else {
+            return;
+        };
+        let buffer = self.buffer();
+        let mut from = buffer.iter_at_offset(target.at.start);
+        let mut to = buffer.iter_at_offset(target.at.end);
+        if buffer.text(&from, &to, true) != target.word {
+            return;
+        }
+        buffer.begin_user_action();
+        buffer.delete(&mut from, &mut to);
+        buffer.insert(&mut from, suggestion);
+        buffer.end_user_action();
+        buffer.place_cursor(&from);
+    }
+
+    /// Hands the worker an Add or an Ignore and asks for the Document again,
+    /// the page on the glass first, so every instance of the word loses its
+    /// mark in the same answer.
+    pub(crate) fn edit_dictionary(&self, edit: quill_engine::worker::Edit, document: &Document) {
+        self.imp().correcting.take();
+        let viewport = self.viewport(document);
+        self.imp()
+            .syntax
+            .borrow_mut()
+            .edit_dictionary(edit, document, viewport);
+    }
+
     /// Whether an Annotator has a paragraph still to ask the worker about.
     pub(crate) fn asking(&self) -> bool {
         self.imp().syntax.borrow().asking()
@@ -905,13 +1134,16 @@ impl Editor {
 
     /// Captures dirty prose after the debounce, with the laid-out viewport first.
     pub(crate) fn submit_syntax(&self, document: &Document) {
+        let viewport = self.viewport(document);
+        self.imp().syntax.borrow_mut().submit(document, viewport);
+    }
+
+    /// The laid-out blocks, by index, that a request asks about first.
+    fn viewport(&self, document: &Document) -> Range<usize> {
         let at = self.furnished(document);
         let first = document.block_at(at.start).unwrap_or(0);
         let last = document.block_at(at.end).unwrap_or(first);
-        self.imp()
-            .syntax
-            .borrow_mut()
-            .submit(document, first..last + 1);
+        first..last + 1
     }
 
     /// Drains a bounded idle batch and redraws only its accepted paragraphs.
@@ -962,6 +1194,7 @@ impl Editor {
             leading: self.imp().leading.get(),
             focus: self.imp().focus.get(),
             tiers,
+            typed: self.imp().typed.get(),
             live: self.imp().live.get().then_some(tags::Writer {
                 start: at.start,
                 end: at.end,
@@ -1620,6 +1853,16 @@ impl Editor {
     /// the buffer stand down.
     pub fn show_document(&self, document: &Document) {
         self.imp().syntax.borrow_mut().reset(document);
+        // After the reset, which indexes this Document, so the language edit
+        // follows the kept ones to the new worker and the first request after
+        // it is checked in the language resolved now (#401 § Language
+        // resolution).
+        if self.imp().syntax.borrow().spell() {
+            self.resolve_spell(document);
+        }
+        self.imp().opened.set(true);
+        self.imp().unwaved.take();
+        self.imp().typed.take();
         let buffer = self.buffer();
         self.imp().loading.set(true);
         buffer.set_text(document.text());
@@ -1664,6 +1907,20 @@ impl Editor {
     /// the ones the writer can now see.
     pub fn retag(&self, document: &Document, edit: &Edit) {
         self.imp().syntax.borrow_mut().edited(document, edit);
+        // The edit's redraw below paints the caret's line by the caret rule,
+        // armed by a word character typed and disarmed by anything else — a
+        // Backspace into a misspelling leaves its wave standing; the word it
+        // withholds is noted so a later move repaints it.
+        self.imp()
+            .typed
+            .set(quill_engine::spell::typed_to(document.text(), &edit.splice));
+        let held = tags::unwaved_word(
+            &self.buffer(),
+            document,
+            &self.imp().syntax.borrow(),
+            self.imp().typed.get(),
+        );
+        self.imp().unwaved.replace(held);
         // An edit moves the caret as well as the text, so the tiers are worked
         // out again here rather than left to the caret's own feed: the lines
         // the edit changed and the lines the dim moved across are drawn in the
@@ -3669,6 +3926,28 @@ fn tick(buffer: &gtk::TextBuffer, box_at: &Range<i32>, checked: bool) {
     buffer.delete(&mut from, &mut to);
     buffer.insert(&mut from, state);
     buffer.end_user_action();
+}
+
+/// The misspelled word a corrections section was built for.
+pub struct Correcting {
+    /// Where the word stands, in the buffer's own offsets.
+    at: Range<i32>,
+    /// The word as it read then, so a Replace can tell it is still there.
+    word: String,
+}
+
+/// The misspelled word `at` stands in, its last byte's far edge included, so
+/// a caret just after the word is in it.
+fn misspelling_at(
+    syntax: &crate::syntax::Syntax,
+    document: &Document,
+    at: usize,
+) -> Option<Range<usize>> {
+    let end = document.text().len();
+    syntax
+        .misspelled_in(document, &(at.saturating_sub(1)..(at + 1).min(end)))
+        .into_iter()
+        .find(|word| word.start <= at && at <= word.end)
 }
 
 /// The lines a fold that has just moved from `was` to `now` draws again, or

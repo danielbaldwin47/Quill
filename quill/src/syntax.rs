@@ -1,9 +1,9 @@
-//! Both prose Annotators' source mapping and retained, block-relative spans.
+//! The prose Annotators' source mapping and retained, block-relative spans.
 //!
-//! Syntax highlight and Style check read the same prose, are answered by the
-//! same Worker and are mapped back to the same source, so one module holds both
-//! settings tables, both span stores and the one request that names which of
-//! the two a paragraph is wanted for (#356).
+//! Syntax highlight, Style check and Spell check read the same prose, are
+//! answered by the same Worker and are mapped back to the same source, so one
+//! module holds their settings, their span stores and the one request that
+//! names which of the three a paragraph is wanted for (#356, #401).
 
 use std::ops::Range;
 
@@ -12,8 +12,12 @@ use quill_engine::document::{Document, Edit, Splice};
 use quill_engine::markdown;
 use quill_engine::pos::{Categories, Category};
 use quill_engine::settings::{StyleCheck, SyntaxHighlight};
+use quill_engine::spell::{self, Misspelling, Resolved};
 use quill_engine::style::List;
-use quill_engine::worker::{Annotators, Paragraph, ParagraphResult, Request, SpanStore, Worker};
+use quill_engine::worker::{
+    Annotators, Checker, Edit as DictionaryEdit, Paragraph, ParagraphResult, Request, SpanStore,
+    Worker,
+};
 
 use crate::session::StyleToggle;
 
@@ -25,6 +29,7 @@ struct ParagraphState {
     length: usize,
     categories: SpanStore<Category>,
     lists: SpanStore<List>,
+    misspellings: SpanStore<Misspelling>,
     dirty: bool,
     mapping: Mapping,
 }
@@ -110,6 +115,15 @@ impl Mapping {
 pub struct Syntax {
     settings: SyntaxHighlight,
     style: StyleCheck,
+    /// The `spell_check` setting.
+    spell: bool,
+    /// The dictionary edits a new worker is handed before anything else: the
+    /// language, then the words ignored under it. An Add is the dictionary's
+    /// own file and is not kept.
+    dictionary: Vec<DictionaryEdit>,
+    /// What the `spell_language` setting last resolved to among the installed
+    /// dictionaries, and `None` before it has been resolved.
+    resolution: Option<Resolved>,
     paragraphs: Vec<ParagraphState>,
     worker: Worker,
     outstanding: usize,
@@ -124,22 +138,25 @@ impl Syntax {
 
     /// Which Annotators the writer has on, as a request names them.
     ///
-    /// The per-Annotator answer: the Editor arms its wake on either, and a
-    /// paragraph is sent once and tagged once whichever of the two is wanted.
+    /// The per-Annotator answer: the Editor arms its wake on any, and a
+    /// paragraph is sent once and tagged once whichever of the three is wanted.
     pub(crate) fn wanted(&self) -> Annotators {
         Annotators {
             syntax: self.settings.enabled,
             style: self.style.enabled,
+            // The "no dictionary" state keeps the setting on and asks for
+            // nothing (#401 § The "no dictionary" state).
+            spell: self.spell && !matches!(self.resolution, Some(Resolved::Missing { .. })),
         }
     }
 
-    /// Whether any state is kept at all: neither Annotator on keeps none.
+    /// Whether any state is kept at all: no Annotator on keeps none.
     ///
-    /// The Editor's arming question, because the wake and the drain feed both
-    /// Annotators: Style check alone on is asynchronous work to schedule.
+    /// The Editor's arming question, because the wake and the drain feed all
+    /// three: Style check or Spell check alone on is asynchronous work to
+    /// schedule.
     pub(crate) fn working(&self) -> bool {
-        let wanted = self.wanted();
-        wanted.syntax || wanted.style
+        any(self.wanted())
     }
 
     /// Whether `list`'s spans are painted.
@@ -192,6 +209,19 @@ impl Syntax {
         true
     }
 
+    /// The same for the `spell_check` setting: joining asks for every
+    /// paragraph again, and leaving keeps the other two Annotators' spans and
+    /// takes the wave off at the repaint that follows.
+    pub(crate) fn configure_spell(&mut self, on: bool, document: &Document) -> bool {
+        if self.spell == on {
+            return false;
+        }
+        let was = self.wanted();
+        self.spell = on;
+        self.rewant(was, document);
+        true
+    }
+
     /// Answers a master switch without taking the other Annotator down with it.
     ///
     /// The pair shares one index and one store walk, so a [`Syntax::reset`]
@@ -213,14 +243,17 @@ impl Syntax {
         if wanted == was {
             return;
         }
-        if !(was.syntax || was.style) || !self.working() {
+        if !any(was) || !self.working() {
             self.reset(document);
             return;
         }
         // Whole index on a master join only, never on a keystroke or a List:
         // the next request re-extracts every block's prose, the cost a master
         // enable already paid through reset.
-        if (wanted.syntax && !was.syntax) || (wanted.style && !was.style) {
+        if (wanted.syntax && !was.syntax)
+            || (wanted.style && !was.style)
+            || (wanted.spell && !was.spell)
+        {
             for entry in &mut self.paragraphs {
                 entry.dirty = true;
             }
@@ -239,6 +272,14 @@ impl Syntax {
     /// Isolates a new or reloaded Document, even if its generation repeats.
     pub(crate) fn reset(&mut self, document: &Document) {
         self.worker = Worker::default();
+        // A new worker knows no language: the edits that still hold go to it
+        // first, so a reopened Document or a master's first arrival checks
+        // against the list the writer left.
+        for edit in self.dictionary.clone() {
+            if let Err(error) = self.worker.edit(edit) {
+                eprintln!("Spell check worker: {error}");
+            }
+        }
         self.outstanding = 0;
         self.paragraphs.clear();
         if self.working() {
@@ -290,6 +331,7 @@ impl Syntax {
             first,
             |paragraph| paragraph.categories.spans(),
             |target| target.categories.spans_mut(),
+            |at| Some(rebased(at, &edit.splice)),
         );
         carry(
             document,
@@ -299,6 +341,20 @@ impl Syntax {
             first,
             |paragraph| paragraph.lists.spans(),
             |target| target.lists.spans_mut(),
+            |at| Some(rebased(at, &edit.splice)),
+        );
+        carry(
+            document,
+            edit,
+            kept,
+            &mut replacements,
+            first,
+            |paragraph| paragraph.misspellings.spans(),
+            |target| target.misspellings.spans_mut(),
+            // A colour or a strike rides a changed word until its answer, and
+            // grows over what is typed at its end; a wave on either would be a
+            // verdict on letters nobody checked.
+            |at| quill_engine::spell::carried(at, &edit.splice, document.text()),
         );
         self.paragraphs.splice(first..old_end, replacements);
     }
@@ -343,11 +399,102 @@ impl Syntax {
         }
     }
 
+    /// Resolves the `spell_language` setting over the `installed` tags and
+    /// hands the worker the dictionary it names, or none.
+    ///
+    /// Empty is System default, the desktop locale's tag read through
+    /// `locale`; then the engine's ladder (#401 § Language resolution). The
+    /// resolution is kept, the tag it wanted included, for the Settings window
+    /// to name; a resolution to no dictionary stops the Spell requests and
+    /// leaves the setting on.
+    ///
+    /// Nothing is asked for here: a Document being opened is about to be
+    /// indexed afresh, and a language moving under a Document already shown is
+    /// the caller's [`Syntax::ask_again`].
+    pub(crate) fn resolve_language(
+        &mut self,
+        language: &str,
+        installed: &[String],
+        locale: impl Fn(&str) -> Option<String>,
+        document: &Document,
+    ) {
+        let resolved = spell::resolve_setting(language, installed, locale);
+        let was = self.wanted();
+        let edit = DictionaryEdit::Language(resolved.tag().map(str::to_owned));
+        self.resolution = Some(resolved);
+        // The same language keeps the words ignored under it; another drops
+        // them, as the worker's own handle does.
+        if self.dictionary.first() != Some(&edit) {
+            self.dictionary = vec![edit.clone()];
+        }
+        if let Err(error) = self.worker.edit(edit) {
+            eprintln!("Spell check worker: {error}");
+        }
+        self.rewant(was, document);
+    }
+
+    /// What Spell check's language last resolved to, for the Settings window.
+    pub(crate) fn resolution(&self) -> Option<&Resolved> {
+        self.resolution.as_ref()
+    }
+
+    /// The `spell_check` setting as this state holds it.
+    pub(crate) fn spell(&self) -> bool {
+        self.spell
+    }
+
+    /// The worker's dictionary handle, asked for at each use: a reset starts
+    /// a new worker with a handle of its own, so a handle held across one
+    /// would suggest from a dictionary nothing loads into any more.
+    pub(crate) fn checker(&self) -> Checker {
+        self.worker.checker()
+    }
+
+    /// Forwards a dictionary edit — an Add, an Ignore or a language — and asks
+    /// for the whole Document again, viewport first.
+    ///
+    /// The worker applies the edit before the request sent after it, so the
+    /// re-request checks against the list the edit just changed (#401 § Who
+    /// holds the checker). The language and the words ignored under it are
+    /// kept for [`Syntax::reset`] to hand the next worker. With Spell check off
+    /// the edit still goes, so the dictionary is right when it comes on, and
+    /// nothing is asked.
+    pub(crate) fn edit_dictionary(
+        &mut self,
+        edit: DictionaryEdit,
+        document: &Document,
+        viewport: Range<usize>,
+    ) {
+        match &edit {
+            DictionaryEdit::Language(_) if self.dictionary.first() != Some(&edit) => {
+                self.dictionary = vec![edit.clone()];
+            }
+            DictionaryEdit::Ignore(_) => self.dictionary.push(edit.clone()),
+            DictionaryEdit::Language(_) | DictionaryEdit::Add(_) => {}
+        }
+        if let Err(error) = self.worker.edit(edit) {
+            eprintln!("Spell check worker: {error}");
+        }
+        if !self.wanted().spell {
+            return;
+        }
+        self.ask_again(document, viewport);
+    }
+
+    /// Asks for every paragraph again, viewport first: what a dictionary that
+    /// changed under the spans makes of every one of them.
+    pub(crate) fn ask_again(&mut self, document: &Document, viewport: Range<usize>) {
+        for entry in &mut self.paragraphs {
+            entry.dirty = true;
+        }
+        self.submit(document, viewport);
+    }
+
     fn accept(&mut self, mut result: ParagraphResult, document: &Document) -> Option<Range<usize>> {
         let paragraph = result.paragraph;
         let entry = self.paragraphs.get_mut(paragraph)?;
-        // One answer, both stores: each takes out its own spans and both read
-        // the same generation, so a stale answer changes neither and a current
+        // One answer, three stores: each takes out its own spans and all read
+        // the same generation, so a stale answer changes none and a current
         // one lands as one redraw of the paragraph.
         let generation = document.generation();
         let categories = entry.categories.apply(&mut result, generation, |spans| {
@@ -356,7 +503,10 @@ impl Syntax {
         let lists = entry.lists.apply(&mut result, generation, |spans| {
             entry.mapping.source_spans(spans)
         });
-        if !categories && !lists {
+        let misspellings = entry.misspellings.apply(&mut result, generation, |spans| {
+            entry.mapping.source_spans(spans)
+        });
+        if !categories && !lists && !misspellings {
             return None;
         }
         entry.dirty = false;
@@ -463,6 +613,26 @@ impl Syntax {
             .collect()
     }
 
+    /// The words Spell check marks over the drawn range, and none while it is
+    /// off.
+    ///
+    /// Every word the dictionary refused, the one the caret stands in among
+    /// them: the store is complete, and the caret rule is the Editor's, applied
+    /// at paint (#401 § The tokeniser and the rules).
+    pub(crate) fn misspelled_in(
+        &self,
+        document: &Document,
+        at: &Range<usize>,
+    ) -> Vec<Range<usize>> {
+        if !self.wanted().spell {
+            return Vec::new();
+        }
+        self.stored_in(document, at, |entry| entry.misspellings.spans())
+            .into_iter()
+            .map(|(span, _)| span)
+            .collect()
+    }
+
     /// The retained spans one store holds over the drawn range, in the
     /// Document's own bytes.
     fn stored_in<K: Copy>(
@@ -501,9 +671,12 @@ impl Syntax {
 
 /// Carries one store's spans across `edit`'s splice into `replacements`.
 ///
-/// Both stores go through this walk, so a Category and a List are rebased by
-/// the same rule and split across the same block boundaries; only the store
-/// read and the store written differ.
+/// Every store goes through this walk, so a Category, a List and a
+/// misspelling are rebased by the same rule and split across the same block
+/// boundaries; only the store read, the store written and `rebase` — which
+/// takes each span in the bytes before the splice to its bytes after it, or
+/// drops it — differ.
+#[allow(clippy::too_many_arguments)] // the one walk three stores share: each passes its reader, writer and rebase
 fn carry<K: Copy>(
     document: &Document,
     edit: &Edit,
@@ -512,11 +685,14 @@ fn carry<K: Copy>(
     first: usize,
     from: impl Fn(&ParagraphState) -> &[(Range<usize>, K)],
     into: impl Fn(&mut ParagraphState) -> &mut Vec<(Range<usize>, K)>,
+    rebase: impl Fn(&Range<usize>) -> Option<Range<usize>>,
 ) {
     let mut origin = edit.scope.bytes.start;
     for paragraph in kept {
         for (at, carried) in from(paragraph) {
-            let at = rebased(&(origin + at.start..origin + at.end), &edit.splice);
+            let Some(at) = rebase(&(origin + at.start..origin + at.end)) else {
+                continue;
+            };
             if at.is_empty() {
                 continue;
             }
@@ -537,6 +713,11 @@ fn carry<K: Copy>(
         }
         origin += paragraph.length;
     }
+}
+
+/// Whether a request naming `wanted` would be sent at all.
+fn any(wanted: Annotators) -> bool {
+    wanted.syntax || wanted.style || wanted.spell
 }
 
 fn block_count(document: &Document) -> usize {
@@ -588,6 +769,7 @@ mod tests {
                     paragraph: paragraph.index,
                     categories: quill_engine::pos::categories(&paragraph.prose),
                     lists: Vec::new(),
+                    misspellings: Vec::new(),
                 },
                 document,
             );
@@ -615,7 +797,8 @@ mod tests {
             syntax.wanted(),
             Annotators {
                 syntax: false,
-                style: true
+                style: true,
+                spell: false
             }
         );
         let request = syntax.request(&document, 0..1).unwrap();
@@ -630,6 +813,7 @@ mod tests {
                         paragraph: 0,
                         categories: vec![(10..15, Category::Nouns)],
                         lists: vec![(0..9, List::Fillers)],
+                        misspellings: Vec::new(),
                     },
                     &document
                 )
@@ -705,7 +889,8 @@ mod tests {
             syntax.wanted(),
             Annotators {
                 syntax: true,
-                style: true
+                style: true,
+                spell: false
             }
         );
         let request = syntax.request(&document, 0..1).unwrap();
@@ -716,6 +901,7 @@ mod tests {
                 paragraph: 0,
                 categories: vec![(10..15, Category::Nouns)],
                 lists: vec![(0..9, List::Fillers)],
+                misspellings: Vec::new(),
             },
             &document,
         );
@@ -750,6 +936,7 @@ mod tests {
                 paragraph: 0,
                 categories: vec![(10..15, Category::Nouns)],
                 lists: vec![(0..9, List::Fillers)],
+                misspellings: Vec::new(),
             },
             &document,
         );
@@ -776,6 +963,7 @@ mod tests {
                 paragraph: 0,
                 categories: vec![(10..15, Category::Nouns)],
                 lists: vec![(0..9, List::Fillers)],
+                misspellings: Vec::new(),
             },
             &document,
         );
@@ -787,6 +975,227 @@ mod tests {
             syntax.spans_in(&document, &whole),
             [(10..15, Category::Nouns)]
         );
+    }
+
+    fn spelling(document: &Document) -> Syntax {
+        let mut syntax = Syntax::default();
+        syntax.configure_spell(true, document);
+        syntax
+    }
+
+    #[test]
+    fn spell_check_alone_asks_for_spell_only_and_all_three_off_ask_for_nothing() {
+        let document = document("Teh cat reads.");
+        let mut syntax = spelling(&document);
+        assert_eq!(
+            syntax.wanted(),
+            Annotators {
+                syntax: false,
+                style: false,
+                spell: true
+            }
+        );
+        assert!(syntax.working());
+        let request = syntax.request(&document, 0..1).unwrap();
+        assert_eq!(request.wanted, syntax.wanted());
+        assert!(syntax.configure_spell(false, &document));
+        assert!(!syntax.working());
+        assert!(syntax.request(&document, 0..1).is_none());
+        assert!(Syntax::default().request(&document, 0..1).is_none());
+    }
+
+    #[test]
+    fn three_sets_land_from_one_answer_under_one_generation() {
+        let document = document("Basically Teh cat reads.");
+        let mut syntax = enabled(&document);
+        syntax.configure_style(style([true; 3]), &document);
+        syntax.configure_spell(true, &document);
+        let request = syntax.request(&document, 0..1).unwrap();
+        assert_eq!(request.paragraphs.len(), 1);
+        let answer = |generation| ParagraphResult {
+            generation,
+            paragraph: 0,
+            categories: vec![(14..17, Category::Nouns)],
+            lists: vec![(0..9, List::Fillers)],
+            misspellings: vec![(10..13, Misspelling)],
+        };
+        let whole = 0..document.text().len();
+        // A stale answer changes none of the three.
+        assert!(
+            syntax
+                .accept(answer(request.generation + 1), &document)
+                .is_none()
+        );
+        assert!(syntax.misspelled_in(&document, &whole).is_empty());
+        assert!(
+            syntax
+                .accept(answer(request.generation), &document)
+                .is_some()
+        );
+        assert_eq!(
+            syntax.spans_in(&document, &whole),
+            [(14..17, Category::Nouns)]
+        );
+        assert_eq!(syntax.lists_in(&document, &whole), [(0..9, List::Fillers)]);
+        assert_eq!(
+            syntax.misspelled_in(&document, &whole),
+            std::slice::from_ref(&(10..13))
+        );
+        assert!(syntax.request(&document, 0..1).is_none());
+    }
+
+    #[test]
+    fn misspelled_in_answers_the_painting_only_while_spell_check_is_on() {
+        let mut document = document("Teh cat reads.");
+        let mut syntax = enabled(&document);
+        syntax.configure_spell(true, &document);
+        let request = syntax.request(&document, 0..1).unwrap();
+        syntax.accept(
+            ParagraphResult {
+                generation: request.generation,
+                paragraph: 0,
+                misspellings: vec![(0..3, Misspelling)],
+                ..ParagraphResult::default()
+            },
+            &document,
+        );
+        // Carried over a keystroke like a colour, so the wave never flashes
+        // off between an edit and its answer.
+        let edit = document.insert(0, "So ");
+        syntax.edited(&document, &edit);
+        let whole = 0..document.text().len();
+        assert_eq!(
+            syntax.misspelled_in(&document, &whole),
+            std::slice::from_ref(&(3..6))
+        );
+        // Leaving under Syntax highlight keeps the spans and paints none.
+        assert!(syntax.configure_spell(false, &document));
+        assert!(syntax.misspelled_in(&document, &whole).is_empty());
+        assert!(syntax.configure_spell(true, &document));
+        assert_eq!(
+            syntax.misspelled_in(&document, &whole),
+            std::slice::from_ref(&(3..6))
+        );
+    }
+
+    /// The #401 Hand test: a mark answered on a half-typed word is not carried
+    /// onto the word it becomes, so the space that ends it paints no wave; and
+    /// a real misspelling's mark keeps to its letters when a space follows it.
+    #[test]
+    fn a_mark_on_a_half_typed_word_is_dropped_when_the_word_grows() {
+        let mut document = document("How wou");
+        let mut syntax = enabled(&document);
+        syntax.configure_spell(true, &document);
+        let request = syntax.request(&document, 0..1).unwrap();
+        syntax.accept(
+            ParagraphResult {
+                generation: request.generation,
+                paragraph: 0,
+                misspellings: vec![(4..7, Misspelling)],
+                ..ParagraphResult::default()
+            },
+            &document,
+        );
+        for (at, typed) in [(7, "l"), (8, "d"), (9, " ")] {
+            let edit = document.insert(at, typed);
+            syntax.edited(&document, &edit);
+            let whole = 0..document.text().len();
+            assert!(
+                syntax.misspelled_in(&document, &whole).is_empty(),
+                "{typed:?}"
+            );
+        }
+        let mut document = self::document("How teh");
+        let mut syntax = enabled(&document);
+        syntax.configure_spell(true, &document);
+        let request = syntax.request(&document, 0..1).unwrap();
+        syntax.accept(
+            ParagraphResult {
+                generation: request.generation,
+                paragraph: 0,
+                misspellings: vec![(4..7, Misspelling)],
+                ..ParagraphResult::default()
+            },
+            &document,
+        );
+        let edit = document.insert(7, " ");
+        syntax.edited(&document, &edit);
+        let whole = 0..document.text().len();
+        assert_eq!(
+            syntax.misspelled_in(&document, &whole),
+            std::slice::from_ref(&(4..7))
+        );
+    }
+
+    #[test]
+    fn each_dictionary_edit_is_forwarded_and_asks_for_the_whole_document_viewport_first() {
+        let document = document("Teh cat.\n\nA dgo.\n\nThe end.");
+        let mut syntax = spelling(&document);
+        let request = syntax.request(&document, 0..3).unwrap();
+        for paragraph in request.paragraphs {
+            syntax.accept(
+                ParagraphResult {
+                    generation: request.generation,
+                    paragraph: paragraph.index,
+                    ..ParagraphResult::default()
+                },
+                &document,
+            );
+        }
+        assert!(syntax.request(&document, 0..3).is_none());
+        // A tag no provider serves, so the thread loads and writes nothing
+        // whatever dictionaries this machine has.
+        let language = DictionaryEdit::Language(Some("zz_QUILL".into()));
+        let ignore = DictionaryEdit::Ignore("dgo".into());
+        for edit in [
+            language.clone(),
+            ignore.clone(),
+            DictionaryEdit::Add("Teh".into()),
+        ] {
+            syntax.edit_dictionary(edit.clone(), &document, 1..2);
+            assert!(syntax.worker.is_running(), "{edit:?} reached no worker");
+            assert!(syntax.pending(), "{edit:?} was followed by no request");
+            let again = syntax.request(&document, 1..2).unwrap();
+            assert_eq!(again.paragraphs.len(), syntax.paragraphs.len());
+            assert_eq!(again.viewport, 1..2);
+        }
+        // The language and the word ignored under it outlive the worker; the
+        // Add is the dictionary's own file.
+        assert_eq!(syntax.dictionary, [language.clone(), ignore]);
+        syntax.reset(&document);
+        assert!(syntax.worker.is_running());
+        // Off, an edit still goes and nothing is asked; a new language drops
+        // the words ignored under the old one.
+        assert!(syntax.configure_spell(false, &document));
+        syntax.edit_dictionary(DictionaryEdit::Language(None), &document, 0..1);
+        assert_eq!(syntax.dictionary, [DictionaryEdit::Language(None)]);
+        assert!(syntax.request(&document, 0..1).is_none());
+    }
+
+    #[test]
+    fn the_language_resolves_to_the_fixture_s_tag_or_to_no_dictionary_with_the_wanted_tag_kept() {
+        let document = document("Teh cat.\n\nA dgo.");
+        // The fixture's listing: `ref/spell/hunspell/` serves `en_US` alone.
+        let installed = ["en_US".to_owned()];
+        let locale = |name: &str| (name == "LANG").then(|| "en_US.UTF-8".to_owned());
+        let mut syntax = spelling(&document);
+        syntax.resolve_language("", &installed, locale, &document);
+        assert_eq!(
+            syntax.dictionary,
+            [DictionaryEdit::Language(Some("en_US".into()))]
+        );
+        assert_eq!(syntax.resolution(), Some(&Resolved::Exact("en_US".into())));
+        assert!(syntax.wanted().spell);
+        // `--spell on:xx_XX`: no provider serves it, so the worker is handed
+        // no dictionary, nothing is asked and the tag it wanted is kept.
+        syntax.resolve_language("xx_XX", &installed, locale, &document);
+        assert_eq!(syntax.dictionary, [DictionaryEdit::Language(None)]);
+        assert_eq!(syntax.resolution().map(Resolved::wanted), Some("xx_XX"));
+        assert!(syntax.spell(), "the setting stays on");
+        assert!(!syntax.wanted().spell);
+        assert!(syntax.request(&document, 0..1).is_none());
+        let whole = 0..document.text().len();
+        assert!(syntax.misspelled_in(&document, &whole).is_empty());
     }
 
     #[test]
@@ -896,6 +1305,7 @@ mod tests {
                         paragraph: paragraph.index,
                         categories: vec![(0.."éléphant".len(), Category::Nouns)],
                         lists: Vec::new(),
+                        misspellings: Vec::new(),
                     },
                     &document
                 )

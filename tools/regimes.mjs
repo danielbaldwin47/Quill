@@ -1,6 +1,6 @@
-// The seventeen latency regimes and the typist behind them: what a bench types, for both benches.
+// The nineteen latency regimes and the typist behind them: what a bench types, for both benches.
 //
-//   node tools/regimes.mjs                                  the seventeen regimes, one line each
+//   node tools/regimes.mjs                                  the nineteen regimes, one line each
 //   node tools/regimes.mjs prose_end_of_draft --keys 300    the regime and every step it types
 //   node tools/regimes.mjs revision --uinput                the plan line tools/uinput-keys.py reads
 //
@@ -125,12 +125,12 @@ const SHIFTED_CHARS = new Set('!@#$%^&*()_+{}:"~|<>?'.split(''));
 export const needsShift = (ch) => /[A-Z]/.test(ch) || SHIFTED_CHARS.has(ch);
 export const pressChar = (st) => (st.press === 'Space' ? ' ' : st.press === 'Enter' ? '\n' : st.press === 'Backspace' ? '\b' : st.press);
 
-// ---------- the seventeen regimes ----------
+// ---------- the nineteen regimes ----------
 // `pace` is the wait between keystrokes: 90 ms is about 133 wpm, and three regimes fix their own
 // pace because that is the thing they measure.
 export const DEFAULT_PACE = 90;
 // Keys measured per regime. 300 at 90 ms is 27 seconds of typing, which is enough samples for a
-// p99 with an interval and short enough that seventeen regimes are one sitting.
+// p99 with an interval and short enough that nineteen regimes are one sitting.
 export const DEFAULT_KEYS = 300;
 // Keys typed into a freshly loaded page before the trace starts: the first keystrokes pay for lazy
 // compilation and first touch of the editing machinery, and no writer types only 300 keys.
@@ -193,6 +193,13 @@ export function regimes(pace = DEFAULT_PACE) {
     // like the tagger's, so this is what says the strike costs the keystroke nothing. Only the
     // native bench reads `style`; the Parity oracle has no Style check and types this as prose.
     { name: 'style',                 mix: 'prose',    where: 'end',    pace, focus: 'off', style: 'on' },
+    // The headline regime's own typing with Spell check on against the fixture dictionary: the
+    // checker runs on the worker thread too, and its spans land between keys. Only the native bench
+    // reads `spell`; the Parity oracle's spell check was off, and it types this as prose.
+    { name: 'spell',                 mix: 'prose',    where: 'end',    pace, focus: 'off', spell: 'on' },
+    // All three worker Annotators on at once, as a writer will run them: the worker serialises them
+    // per paragraph, so this is what says the three together still cost the keystroke nothing.
+    { name: 'annotators',            mix: 'prose',    where: 'end',    pace, focus: 'off', syntax: 'on', style: 'on', spell: 'on' },
     // The headline regime's typing with all six Statistics checked, in the
     // bursts-and-pauses shape rather than the plain one: the whole-Document
     // count is an idle pass armed by the typing hold, so a regime that never
@@ -206,7 +213,7 @@ export function regimes(pace = DEFAULT_PACE) {
 }
 
 /// Whether a regime, by name, is held to the budget. Every regime is unless its definition says
-/// `scored: false`; a name the seventeen do not include is scored, so a misspelling cannot exempt a run.
+/// `scored: false`; a name the nineteen do not include is scored, so a misspelling cannot exempt a run.
 export const scoredRegime = (name) => !regimes().some((r) => r.name === name && r.scored === false);
 
 // ---------- one regime, written out ----------
@@ -223,6 +230,7 @@ export function formatPlan(r, keys) {
   out.push(`  live         ${r.live ? 'on: the markup rendered in place' : 'off'}`);
   out.push(`  syntax       ${r.syntax || 'off'}`);
   out.push(`  style        ${r.style || 'off'}`);
+  out.push(`  spell        ${r.spell || 'off'}`);
   out.push(`  stats        ${r.stats || 'words,characters,readingTime (the defaults)'}`);
   out.push(`  preview      ${r.preview ? `open in ${r.preview}: the rendered page beside the Editor` : 'closed'}`);
   out.push(`  pauses       ${r.pauseEvery ? `every ${r.pauseEvery} keys, ${r.pauseMs || PAUSE_MS} ms` : 'none'}`);

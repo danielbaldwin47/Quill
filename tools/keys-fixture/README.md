@@ -112,9 +112,28 @@ see any of this, which is why `selection-rows` passes on both builds.
 inside the selection and holds none of it, so it is a fill of no width and nothing is painted for
 it.
 
+## The Spell check wave withheld until the space
+
+- `spell-typing.png` — after the spell script's first burst: ` comittee` typed at the end of
+  `ref/spell.md` under `--spell on`, the caret still after the word.
+- `spell-space.png` — after its second: one space, which releases the word.
+
+Taken by #414 with `tools/gate keys spell --shots` on the build with #409's caret rule, and cut by
+`cropPng` in `tools/crop.mjs` to [560, 500, 360, 150] of the 2880×1800 pages.
+
+| | bar | word's ink | spell Role under the word |
+|---|---|---|---|
+| after ` comittee` | x 837..842, y 536..609 | x 626..836 | none |
+| after the space | x 863..868, y 536..609 | x 626..836 | 544 px, y 590..593 |
+
+Page coordinates; the crop subtracts 560 and 500. The row above ends in `mispelled`, whose own wave
+sits at y 517..519, above the bar's rows, which is why `spell-wave` reads the bar's rows and the
+typed word's columns and never the paragraph.
+
 ## What runs over them
 
-`tools/gate check` runs `tools/keys-selftest.mjs` over all ten shots on every commit, with no
+`tools/gate check` runs `tools/keys-selftest.mjs` over all fourteen shots on every commit, with no
 display attached: green on the two fixed caret pairs, on `fixed-select-all` for the row count and
 on `fill-*` for the container, red on `broken-typing-*`, on `broken-select-all`, and on
-`fixed-select-all` for the container it does not fill.
+`fixed-select-all` for the container it does not fill; each `spell-*` crop green on its own
+burst's expectation and red on the other's.
