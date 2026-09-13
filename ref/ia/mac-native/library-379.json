@@ -1,0 +1,313 @@
+{
+ "rig": {
+  "region_pt": [
+   0,
+   33,
+   1512,
+   949
+  ],
+  "state": 28,
+  "ticket": 379,
+  "window_bounds": "{0,33,1512,982}",
+  "editor": "Mono, System - Default, Normal text size, limit 64",
+  "library_folder": "/Users/daniel/Library/Mobile Documents/27N4MQEA55~pro~writer/Documents",
+  "open_document": "sea-storm.md",
+  "fixture": "shots/oracle/library without manifest.json, added to whatever the Library already held"
+ },
+ "frames": {
+  "mac-native-28-light-library-l1-rest.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L1 the pane at rest",
+   "library": "shown",
+   "caret": "document start",
+   "search": "empty"
+  },
+  "mac-native-28-light-library-l1-rest-nolib.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L1 control, the pane hidden",
+   "library": "hidden",
+   "caret": "document start"
+  },
+  "mac-native-28-light-library-l2-search.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L2 the query 'sea'",
+   "library": "shown",
+   "search": "sea"
+  },
+  "mac-native-28-light-library-l5-hover.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L5 a row selected and another hovered",
+   "library": "shown",
+   "pointer": "on a row of the list"
+  },
+  "mac-native-28-dark-library-l1-rest.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "L1 the pane at rest",
+   "library": "shown",
+   "caret": "document start",
+   "search": "empty"
+  },
+  "mac-native-28-dark-library-l1-rest-nolib.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "L1 control, the pane hidden",
+   "library": "hidden",
+   "caret": "document start"
+  },
+  "mac-native-28-dark-library-l2-search.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "L2 the query 'sea'",
+   "library": "shown",
+   "search": "sea"
+  },
+  "mac-native-28-dark-library-l5-hover.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "L5 a row selected and another hovered",
+   "library": "shown",
+   "pointer": "on a row of the list"
+  },
+  "mac-native-28-light-library-l3-folder-before.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L3 before the folder is opened",
+   "library": "shown"
+  },
+  "mac-native-28-light-library-l3-folder.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L3 the Drafts folder opened",
+   "library": "shown",
+   "clicked": "first name row, y 220.5"
+  },
+  "mac-native-28-light-library-l3-back.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L3 the way back out of the folder",
+   "library": "shown"
+  },
+  "mac-native-28-light-library-l4-row-menu.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L4 a file row's own context menu",
+   "library": "shown",
+   "clicked": "right-click on a name row, y 475.0"
+  },
+  "mac-native-28-light-library-l6-sort-menu.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L6 the Sort control's menu",
+   "library": "shown"
+  },
+  "mac-native-28-light-library-l8-quick-search.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L8 Quick Search on 'sea'",
+   "library": "shown",
+   "search": "sea"
+  },
+  "mac-native-28-light-library-o2-search-the.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "O2 the query 'the', which no name holds",
+   "library": "shown",
+   "search": "the"
+  },
+  "mac-native-28-light-library-l7-bare.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L7 excerpts off, Sort and Filter bars hidden",
+   "library": "shown"
+  },
+  "mac-native-28-light-library-o1-dragged.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "O1 the divider dragged 120 pt right",
+   "library": "shown",
+   "dragged_from_pt": 1275.0
+  },
+  "mac-native-28-light-library-o1-restored.png": {
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "O1 the divider dragged back",
+   "library": "shown"
+  }
+ },
+ "observations": {
+  "hover_at_pt": [
+   180,
+   300
+  ],
+  "l3_note": "Drafts opened by a click on its row",
+  "list_bands": [
+   [
+    38,
+    64
+   ],
+   [
+    80,
+    88
+   ],
+   [
+    170,
+    170
+   ],
+   [
+    212,
+    227
+   ],
+   [
+    276,
+    295
+   ],
+   [
+    311,
+    331
+   ],
+   [
+    352,
+    366
+   ],
+   [
+    412,
+    431
+   ],
+   [
+    448,
+    466
+   ],
+   [
+    483,
+    502
+   ],
+   [
+    548,
+    567
+   ],
+   [
+    583,
+    607
+   ],
+   [
+    624,
+    638
+   ],
+   [
+    684,
+    703
+   ],
+   [
+    724,
+    743
+   ],
+   [
+    755,
+    774
+   ],
+   [
+    820,
+    839
+   ],
+   [
+    860,
+    874
+   ],
+   [
+    891,
+    910
+   ],
+   [
+    956,
+    975
+   ]
+  ],
+  "drafts_row_y_px": 51.0,
+  "settings_off": {
+   "Text excerpts": "0",
+   "Sort bar": "0",
+   "Filter bar": "0"
+  },
+  "settings_back": {
+   "Text excerpts": "1",
+   "Sort bar": "1",
+   "Filter bar": "1"
+  },
+  "pane_cols_px": [
+   0,
+   2549
+  ],
+  "pane_width_pt": 1275.0,
+  "name_rows_px": [
+   [
+    211,
+    230
+   ],
+   [
+    275,
+    295
+   ],
+   [
+    311,
+    330
+   ],
+   [
+    347,
+    371
+   ],
+   [
+    411,
+    431
+   ],
+   [
+    448,
+    502
+   ],
+   [
+    547,
+    641
+   ],
+   [
+    684,
+    703
+   ],
+   [
+    719,
+    774
+   ],
+   [
+    819,
+    915
+   ],
+   [
+    955,
+    975
+   ],
+   [
+    991,
+    1010
+   ],
+   [
+    1027,
+    1051
+   ],
+   [
+    1091,
+    1182
+   ]
+  ],
+  "drafts_row_px": 220.5,
+  "row_menu_at_px": 475.0,
+  "pane_cols_after_drag_px": [
+   0,
+   2757
+  ],
+  "pane_width_after_drag_pt": 1379.0,
+  "divider_drags": true
+ }
+}
