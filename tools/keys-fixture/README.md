@@ -112,7 +112,7 @@ see any of this, which is why `selection-rows` passes on both builds.
 inside the selection and holds none of it, so it is a fill of no width and nothing is painted for
 it.
 
-## The Spell check wave withheld until the space
+## The Spell check mark withheld until the space
 
 - `spell-typing.png` — after the spell script's first burst: ` comittee` typed at the end of
   `ref/spell.md` under `--spell on`, the caret still after the word.
@@ -126,8 +126,8 @@ Taken by #414 with `tools/gate keys spell --shots` on the build with #409's care
 | after ` comittee` | x 837..842, y 536..609 | x 626..836 | none |
 | after the space | x 863..868, y 536..609 | x 626..836 | 544 px, y 590..593 |
 
-Page coordinates; the crop subtracts 560 and 500. The row above ends in `mispelled`, whose own wave
-sits at y 517..519, above the bar's rows, which is why `spell-wave` reads the bar's rows and the
+Page coordinates; the crop subtracts 560 and 500. The row above ends in `mispelled`, whose own mark
+sits at y 517..519, above the bar's rows, which is why `spell-mark` reads the bar's rows and the
 typed word's columns and never the paragraph.
 
 ## What runs over them

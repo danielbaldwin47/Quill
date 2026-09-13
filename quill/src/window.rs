@@ -3628,7 +3628,7 @@ pub(crate) enum Step {
 /// ([`Session::ground`]).
 fn reset(app: &gtk::Application, session: &Session, each: impl Fn(&Window, Ground)) {
     let ground = session.ground();
-    crate::editor::install_type(ground, session.face(), session.step());
+    crate::editor::install_type(ground, session.face(), class_in_use(app), session.step());
     for window in app.windows() {
         if let Ok(window) = window.downcast::<Window>() {
             each(&window, ground);
@@ -3662,6 +3662,19 @@ pub fn repaint(app: &gtk::Application, session: &Session) {
         window.refresh_preview();
     });
     chrome::reflect_windows(app);
+}
+
+/// The size class the type's stylesheet is loaded at.
+///
+/// The sheet is one per display and a class is per window, so a pass over
+/// every window takes the first one's and the rest follow when they next lay
+/// out ([`crate::editor::install_type`]). A pass before any window exists —
+/// the one `main` runs — takes the class a window with no width yet is in.
+fn class_in_use(app: &gtk::Application) -> quill_engine::typography::SizeClass {
+    app.windows()
+        .into_iter()
+        .find_map(|window| window.downcast::<Window>().ok())
+        .map_or_else(Default::default, |window| window.imp().editor.size_class())
 }
 
 /// The `spell_check` and `spell_language` settings as the session holds them:

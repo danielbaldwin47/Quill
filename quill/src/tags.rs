@@ -98,8 +98,8 @@ pub const LADDER: [f64; 6] = [1.6, 1.4, 1.2, 1.0, 1.0, 1.0];
 /// than as a stripe the exact width of the prose. Ems rather than cells,
 /// because that is what the oracle measured it in and the two are not the same
 /// thing: a cell is 0.6em on these Faces.
-fn well(step: u32) -> i32 {
-    pixels(0.7 * typography::em(step))
+fn well(class: typography::SizeClass, step: u32) -> i32 {
+    pixels(0.7 * typography::em(class, step))
 }
 
 /// `length` as whole pixels.
@@ -361,70 +361,81 @@ fn strike_lists(
 }
 
 /// The name of Spell check's one tag, so that [`repaint`] can take it off a
-/// range by name.
-const SPELL_MARK: &str = "decoration-spell";
+/// range by name and [`spell_marked`] can find the words it stands on.
+pub(crate) const SPELL_MARK: &str = "decoration-spell";
 
-/// The tag that waves under a word the dictionary refused.
+/// The tag that says a word is misspelled, and nothing else.
 ///
-/// Pango's `error` underline, coloured through `underline-rgba` from
-/// [`Role::Spell`], and no other property: the run under it keeps its ink, so
-/// the Focus dim, a Category colour and a Style check strike on the same word
-/// all still show, and the Editor's selection fills sit under it (#401 § The
-/// mark). The colour is set each time the tag is asked for, as [`underline`]'s
-/// is, so the redraw a theme switch makes carries the other ground's red.
+/// **No property at all.** The mark the Design oracle draws is a row of round
+/// dots — 3 pt across on a 4 pt pitch, 6 pt under the baseline
+/// (`ref/ia/mac-native/NOTES.md` § State 26 § The mark itself, `docs/design.md`
+/// row *Spell mark*) — and no Pango underline is that shape: its seven values
+/// are none, single, double, low, error and the two line variants, of which
+/// `error` is a wave and the rest are rules, each drawn at the face's own
+/// `underlineThickness` at its own `underlinePosition` — 2.56 px at 4.69 px
+/// down where the oracle draws 6 px at 12 px down. So the dots are the
+/// Editor's own draw ([`crate::editor::Editor::draw_spell_marks`]), and this
+/// tag is only where they are: the paint walks the buffer for it rather than
+/// carrying a second copy of the spans.
 ///
-/// Provisional in all three things it decides — the colour, the wave and where
-/// it sits — until the Design oracle's capture (#400) measures them; a dotted
-/// line there would swap the wave.
+/// Carrying no property is also what keeps the run underneath whole — its
+/// Focus dim, its Category colour, a Style check strike on the same word —
+/// and what takes this tag out of the "two underline tags never meet" rule
+/// [`link_rule`] used to share with it: a misspelled link word under Live now
+/// wears the rule and the dots, each drawn by whoever owns it.
 ///
-/// The rule that two underline tags never meet holds against [`underline`]:
-/// the link-rule tag underlines a destination, never a prose word, and only
-/// prose words are checked. [`link_rule`] is the one that can meet it, on a
-/// misspelled link word under Live, and the wave is the one drawn there, with
-/// no rule beside it (#401 § Further Notes): both set `underline`, so the tag
-/// is lifted to the top of the table each time it is asked for, as [`hidden`]
-/// is.
-///
-/// Out of focus the wave dims with the words over it. `underline-rgba` is the
-/// tag's own colour, which the run's dim never reaches, so a dimmed word takes
-/// a second tag whose red is dimmed the way the body's ink is ([`dimmed`]).
-fn misspelling(buffer: &gtk::TextBuffer, colours: &Colours, tier: Tier) -> gtk::TextTag {
-    let red = colours.colour(Role::Spell);
-    let (name, red) = match tier {
-        Tier::Bright => (SPELL_MARK.to_owned(), red),
-        Tier::Dim => (format!("{SPELL_MARK}-dim"), dimmed(colours, red)),
-    };
-    let mark = tag(buffer, &name, |tag| {
-        tag.set_underline(pango::Underline::Error);
-    });
-    mark.set_underline_rgba(Some(&shaded(&red.to_hex(), Look::OPAQUE)));
-    let top = buffer.tag_table().size() - 1;
-    if mark.priority() < top {
-        mark.set_priority(top);
-    }
-    mark
+/// One tag and not two, because **the mark does not dim**: out of focus the
+/// word falls to the dim tier and the dots hold `Role::Spell` at full strength
+/// (`docs/design.md` row *Spell mark under Focus, Syntax and a selection*).
+/// Its colour is read at the draw, so a theme switch needs nothing here.
+fn misspelling(buffer: &gtk::TextBuffer) -> gtk::TextTag {
+    tag(buffer, SPELL_MARK, |_| {})
 }
 
-/// `colour` dimmed as Focus dims the body: moved towards the paper by the
-/// share of the way [`Role::InkDim`] has moved from [`Role::Ink`].
-fn dimmed(colours: &Colours, colour: Colour) -> Colour {
-    let ink = colours.colour(Role::Ink);
-    let dim = colours.colour(Role::InkDim);
-    let paper = colours.colour(Role::Paper);
-    let whole = (ink.red - paper.red) + (ink.green - paper.green) + (ink.blue - paper.blue);
-    let left = (dim.red - paper.red) + (dim.green - paper.green) + (dim.blue - paper.blue);
-    let share = if whole.abs() < f64::EPSILON {
-        1.0
-    } else {
-        left / whole
+/// The buffer offsets of every word [`misspelling`] stands on inside `at`.
+///
+/// What [`crate::editor::Editor::draw_spell_marks`] draws its dots over. The
+/// buffer is the one copy of the spans: they are applied paragraph by
+/// paragraph as the worker answers ([`mark_misspellings`]) and taken off again
+/// by [`repaint`], so a second list held beside the Editor would be a second
+/// thing to keep in step.
+///
+/// Empty before the first misspelling of the session, when the tag is not in
+/// the table yet, and empty with Spell check off, when [`repaint`] has taken it
+/// off every range.
+pub(crate) fn spell_marked(buffer: &gtk::TextBuffer, at: &Range<i32>) -> Vec<Range<i32>> {
+    let Some(tag) = buffer.tag_table().lookup(SPELL_MARK) else {
+        return Vec::new();
     };
-    Colour {
-        alpha: colour.alpha,
-        ..Colour::over(colour, paper, share)
+    let end = buffer.iter_at_offset(at.end);
+    let mut word = buffer.iter_at_offset(at.start);
+    // A word the range opens inside starts before it: the toggle walk only
+    // ever finds the ones that start after `at.start`, so the first is taken
+    // back to where it began before the walk starts. A word that starts
+    // exactly here is already whole, and stepping back would fetch the one
+    // before it.
+    if word.has_tag(&tag) && !word.starts_tag(Some(&tag)) {
+        word.backward_to_tag_toggle(Some(&tag));
     }
+    let mut words = Vec::new();
+    while word < end {
+        if !word.has_tag(&tag) && !word.forward_to_tag_toggle(Some(&tag)) {
+            break;
+        }
+        if word >= end {
+            break;
+        }
+        let mut stop = word;
+        if !stop.forward_to_tag_toggle(Some(&tag)) {
+            break;
+        }
+        words.push(word.offset()..stop.offset());
+        word = stop;
+    }
+    words
 }
 
-/// The misspelled word the caret rule leaves unwaved, for the caret where the
+/// The misspelled word the caret rule leaves unmarked, for the caret where the
 /// buffer now holds it, or `None`.
 ///
 /// The caret is read off the buffer at paint rather than carried, so that
@@ -433,7 +444,7 @@ fn dimmed(colours: &Colours, colour: Colour) -> Colour {
 /// word character was just typed withholds anything. A selection withholds
 /// nothing: a word selected by a right-click keeps its wave under the menu
 /// (#401 § Corrections).
-pub fn unwaved_word(
+pub fn unmarked_word(
     buffer: &gtk::TextBuffer,
     document: &Document,
     syntax: &crate::syntax::Syntax,
@@ -448,12 +459,15 @@ pub fn unwaved_word(
     quill_engine::spell::withheld(&words, caret, document.text(), typed)
 }
 
-/// Waves under every word Spell check marks over the bytes `at`.
+/// Marks every word Spell check has refused over the bytes `at`.
 ///
 /// After the colour runs and the strikes, over
 /// [`crate::syntax::Syntax::misspelled_in`]'s spans, which are empty with
 /// Spell check off: switching it off is a [`repaint`] that takes this tag off
 /// and puts nothing back, and leaves every other tag where it was.
+///
+/// The tier the run is drawn in is not asked for: the dots hold their ink
+/// wherever the word is, and the Editor draws them from the tag alone.
 fn mark_misspellings(
     buffer: &gtk::TextBuffer,
     document: &Document,
@@ -465,15 +479,14 @@ fn mark_misspellings(
     if words.is_empty() {
         return;
     }
-    let held = unwaved_word(buffer, document, &syntax, painting.typed);
+    let held = unmarked_word(buffer, document, &syntax, painting.typed);
     for word in words {
         if held.as_ref() == Some(&word) {
             continue;
         }
-        let tier = focus::tier_in(painting.tiers, painting.focus, &word);
         let from = iter_at(buffer, document, word.start);
         let to = iter_at(buffer, document, word.end);
-        buffer.apply_tag(&misspelling(buffer, &painting.colours, tier), &from, &to);
+        buffer.apply_tag(&misspelling(buffer), &from, &to);
     }
 }
 
@@ -764,6 +777,7 @@ fn opened_by(
 /// [`indent_ceiling`].
 pub fn hang_markers(
     buffer: &gtk::TextBuffer,
+    class: typography::SizeClass,
     step: u32,
     column: typography::Column,
     advances: [i32; 6],
@@ -802,7 +816,7 @@ pub fn hang_markers(
     //
     // Deliberately not `min(side)`-ed away to nothing: a window too narrow to
     // give the well its margin is one the prose has no gutter in either.
-    let edge = well(step).min(side);
+    let edge = well(class, step).min(side);
     let ground = code_ground(buffer, colours);
     ground.set_left_margin(side - edge);
     ground.set_right_margin(side - edge);
@@ -832,7 +846,7 @@ pub trait Measure {
 pub struct Painting<'a> {
     /// The prose Annotators' retained spans and their settings, read only over
     /// the range being drawn: the Categories that colour it, the List spans
-    /// struck across it and the misspelled words waved under it.
+    /// struck across it and the misspelled words marked under it.
     pub syntax: &'a std::cell::RefCell<crate::syntax::Syntax>,
     /// The Face the Editor is set in.
     pub face: Face,
@@ -963,7 +977,7 @@ pub fn recolour(buffer: &gtk::TextBuffer, at: &Range<i32>, was: Colour, now: Col
     buffer.apply_tag(&colour(buffer, &now.to_hex(), now.opacity()), &from, &to);
 }
 
-/// Replaces foreground colours, Style check marks and Spell check's wave
+/// Replaces foreground colours, Style check marks and Spell check's mark
 /// without touching paragraph or Live properties.
 ///
 /// Syntax answers and toggles change ink only. A structural retag would clear
@@ -1569,11 +1583,18 @@ mod tests {
     const STEP: u32 = 5;
 
     /// The window the judged states are shot in, in logical pixels.
+    ///
+    /// Wide enough to be in the wide size class, which is the class this
+    /// module's own numbers — the heading runs, the well — are written at
+    /// ([`typography::size_class`]).
     const VIEW: u32 = 1440;
+
+    /// The size class [`VIEW`] is in.
+    const CLASS: typography::SizeClass = typography::SizeClass::Wide;
 
     /// The container `face` at `step` lays out in that window.
     fn container(face: Face, step: u32) -> typography::Column {
-        typography::column(VIEW, typography::cell(face, step))
+        typography::column(VIEW, CLASS, face, step)
     }
 
     /// The marker runs a level 1 to 6 heading opens with, as the layout may
@@ -1585,7 +1606,7 @@ mod tests {
     /// step the same six runs advance 13 px a cell in a judged shot and 12.798
     /// in the app — and `Editor::marker_advance` measures which it is.
     fn advances(hinted: bool) -> [i32; 6] {
-        let cell = typography::cell(Face::Duo, STEP);
+        let cell = typography::cell(Face::Duo, CLASS, STEP);
         std::array::from_fn(|level| {
             let cells = level as f64 + 2.0;
             pixels(if hinted {
@@ -1629,9 +1650,9 @@ mod tests {
     fn the_code_ground_runs_past_both_edges_of_the_measure() {
         // The oracle's ±0.7em, which at the default step's 21.33 px em is 15
         // px on each side.
-        assert_eq!(well(STEP), 15);
+        assert_eq!(well(CLASS, STEP), 15);
         let side = 240;
-        let edge = well(STEP).min(side);
+        let edge = well(CLASS, STEP).min(side);
         assert!(
             edge > 0 && side - edge < side,
             "the block's box has to start left of the prose for its ground to"
@@ -1650,20 +1671,22 @@ mod tests {
         // and two adjacent ems of the ladder's small end — 15.25 and 16.17 —
         // round to the same whole pixel.
         let ladder = quill_engine::settings::type_steps();
-        for step in ladder.clone().skip(1) {
+        for class in typography::SizeClass::ALL {
+            for step in ladder.clone().skip(1) {
+                assert!(
+                    well(class, step - 1) <= well(class, step),
+                    "a well is 0.7 of an em, so it must never shrink as the type grows: \
+                     step {} of {class:?} wells by {} and step {step} by {}",
+                    step - 1,
+                    well(class, step - 1),
+                    well(class, step)
+                );
+            }
             assert!(
-                well(step - 1) <= well(step),
-                "a well is 0.7 of an em, so it must never shrink as the type grows: \
-                 step {} wells by {} and step {step} by {}",
-                step - 1,
-                well(step - 1),
-                well(step)
+                well(class, *ladder.end()) > 4 * well(class, *ladder.start()),
+                "{class:?}'s top em is more than four times its bottom one"
             );
         }
-        assert!(
-            well(*ladder.end()) > 4 * well(*ladder.start()),
-            "the ladder's top em is more than four times its bottom one"
-        );
     }
 
     #[test]
@@ -1706,7 +1729,7 @@ mod tests {
     /// [`RUNS`]' advances, as the layout may advance them, the two ways
     /// [`advances`] gives the heading ladder's.
     fn run_advances(hinted: bool) -> [i32; 3] {
-        let cell = typography::cell(Face::Duo, STEP);
+        let cell = typography::cell(Face::Duo, CLASS, STEP);
         RUNS.map(|(_, cells)| {
             pixels(if hinted {
                 cell.round() * cells
@@ -1770,7 +1793,7 @@ mod tests {
         let column = container(Face::Duo, STEP);
         let side = signed(column.side);
         let ceiling = indent_ceiling(column);
-        let cell = typography::cell(Face::Duo, STEP);
+        let cell = typography::cell(Face::Duo, CLASS, STEP);
         let [bullet, ordinal, quote] =
             run_advances(false).map(|advance| wrapped(hung_under(advance, side, ceiling)) - side);
         assert_eq!(bullet, pixels(2.0 * cell), "`- ` hangs its own two cells");

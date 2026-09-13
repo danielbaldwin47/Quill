@@ -28,12 +28,15 @@ put it, the gutter is still seven cells and still sized by `###### `, no quote r
 the measured-not-counted rule below now covers a marker run as well as a heading's. Nothing else
 here moves.*
 
-*Waits on [#419](https://github.com/danielbaldwin47/Quill/issues/419) and
-[#420](https://github.com/danielbaldwin47/Quill/issues/420) since 2026-09-12, by
-[#344](https://github.com/danielbaldwin47/Quill/issues/344): the `column()` Consequence below
-stands on `main`, but the question it left is measured. The oracle's type gives first, on the
-window's width alone, and the measure gives only once the limit no longer fits (`NOTES.md` § State
-22). `docs/design.md` row Window limitation holds that rule. Nothing else here moves.*
+*Narrowed on 2026-09-13 by [#420](https://github.com/danielbaldwin47/Quill/issues/420), off
+[#419](https://github.com/danielbaldwin47/Quill/issues/419)'s captures: the `column()` Consequence
+below no longer says the type is the step's at every width, which was the half of it that waited.
+The window's own width picks one of three size classes, the class and the step pick the cell and the
+pitch, and the container is `min(78 cells, window − 2 × the class's margin)` on that cell
+(`docs/design.md` row Window limitation, `NOTES.md` §§ State 22 and State 25). **The seven cells
+stand**: where the window wins, Quill's gutters still hold at 7 and the measure alone gives, which
+is a measure about two cells shorter than the oracle's, whose gutters narrow to about 6 instead. The
+gutter is what `###### ` needs, and the whole of this ADR rests on it. Nothing else here moves.*
 
 ## What changed the answer
 
@@ -97,9 +100,10 @@ container and the text are counted in two different cells. That is the Typograph
 one's, and wants a ticket.
 
 **`quill-engine::typography::column()` centres 78 cells, not 64 inside a clamp.** Where 78 cells
-exceed the window the container is the window and the gutters hold at 7 cells while the measure
-shrinks, so `###### ` still hangs and a selection's edges stay the container's; the oracle is
-window-limited past its step 7, and which of its two gives was not measured (NOTES § 11).
+exceed the window less its margins the container is what is left of the window and the gutters hold
+at 7 cells while the measure shrinks, so `###### ` still hangs and a selection's edges stay the
+container's. The 78 cells are the class's, not one ladder's: the status line above has what #420
+landed.
 
 **The selection painter fills the container.** `caret::NL_TAIL` and the per-row ink extent were
 replaced by the container's edges in #168: `Editor::selection` measures only the anchor and the

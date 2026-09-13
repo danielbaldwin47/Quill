@@ -881,9 +881,11 @@ fn marked(title: &str, hits: &[(usize, usize)]) -> String {
 
 /// The Command's first chord as GTK writes it, the way the menus' rows do:
 /// the one it is installed with now ([`chrome::accels`]), so a Command the
-/// writer rebound in `settings.toml` reads as they rebound it.
+/// writer rebound in `settings.toml` reads as they rebound it, written for a
+/// label ([`quill_engine::commands::label_accel`]) so that a `Shift` chord on
+/// a symbol shows the key the writer presses.
 fn key_label(command: &Command) -> Option<String> {
-    let accel = chrome::accels(command).into_iter().next()?;
+    let accel = quill_engine::commands::label_accel(&chrome::accels(command).into_iter().next()?);
     let (key, modifiers) = gtk::accelerator_parse(&accel)?;
     Some(gtk::accelerator_get_label(key, modifiers).to_string())
 }

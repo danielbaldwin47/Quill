@@ -123,6 +123,29 @@ const X_HEIGHT: f64 = 0.25;
 /// the line's letters rather than as a panel dropped into it.
 const CHECKBOX: f64 = 0.58;
 
+/// How wide one dot of a Spell check mark is drawn, as a share of the em.
+///
+/// The Design oracle's mark, measured: `ref/ia/mac-native/NOTES.md` § State 26
+/// § The mark itself reads 6 device px of ink, 6 rows deep — round to the
+/// pixel — at the capture's 42.67 device px em, which is the ladder's own step
+/// 5 ([`typography`]). 6/42.67 is this, and it is written as a share of the em
+/// rather than as 3 pt so that the mark grows with the type the way every
+/// other piece of drawn furniture does; at the judged step the two are the same
+/// number. See [`Editor::draw_spell_marks`].
+const SPELL_DOT: f64 = 0.140_625;
+
+/// How far apart two dots of a Spell check mark are drawn, as a share of the
+/// em: the same capture's 8 device px period — 6 of ink and 2 of paper.
+const SPELL_PITCH: f64 = 0.187_5;
+
+/// How far under the baseline a Spell check mark's dots start, as a share of
+/// the em: the same capture's 12 device px, the top of a band that runs to 17.
+///
+/// Not the face's own underline, which `iAWriterMonoS-Regular.ttf` puts 4.69
+/// device px down at 2.56 px thick — the mark macOS draws is its own, at its
+/// own size, and so is this one.
+const SPELL_DROP: f64 = 0.281_25;
+
 /// The weight ink is set at on paper: `--ink-weight: 415` in
 /// `legacy/app/css/type.css`, a little heavier than Regular because a light
 /// ground eats stems. The Faces are variable, and none of the three moves a
@@ -316,9 +339,9 @@ mod imp {
         /// Whether a Document has been shown: before one is, a language is
         /// resolved by the showing rather than by the setter.
         pub opened: Cell<bool>,
-        /// The misspelled word the caret rule last left unwaved, so that the
+        /// The misspelled word the caret rule last left unmarked, so that the
         /// caret leaving it repaints it.
-        pub unwaved: RefCell<Option<std::ops::Range<usize>>>,
+        pub unmarked: RefCell<Option<std::ops::Range<usize>>>,
         /// Where the last edit left a word being typed, the caret rule's
         /// arming: set by an insert ending in a word character, cleared by any
         /// other edit and by a caret move away from it.
@@ -336,6 +359,16 @@ mod imp {
         pub face: Cell<Face>,
         /// Which of the type ladder's fourteen steps the Editor is set at.
         pub step: Cell<u32>,
+        /// Which of the three type ladders the window's own width picks
+        /// ([`typography::size_class`]).
+        ///
+        /// Held with the step because everything the step names — the em, the
+        /// pitch, the cell — is named by the pair and not by the step alone.
+        /// The window has no width before its first allocation, so an Editor
+        /// starts in the class a full-size window is in and
+        /// [`Editor::lay_out`](super::Editor::lay_out) moves it to the one it
+        /// turns out to be in.
+        pub class: Cell<typography::SizeClass>,
         /// The ground this Editor is painting on, with the table every colour
         /// it draws is read off. Held here rather than asked of the session
         /// per frame because the caret asks for it on every frame it is
@@ -577,6 +610,12 @@ mod imp {
                 // First, and under everything else this layer holds: the runs
                 // GTK drew in the selection's ink rather than their own (#375).
                 self.obj().draw_selected_inks(&snapshot);
+                // Then Spell check's dots, over the selection's fill and over
+                // the cover the pass above lays on a selected run, which is
+                // the oracle's own order: the fill is under the mark and shows
+                // through it (`docs/design.md` row Spell mark under Focus,
+                // Syntax and a selection).
+                self.obj().draw_spell_marks(&snapshot);
                 // Over the glyphs, with the caret and under it: furniture is
                 // ink standing in the cells a marker left, so it takes the
                 // ink's own side of the selection's fill, and the caret is
@@ -847,6 +886,15 @@ impl Editor {
         self.restyle();
     }
 
+    /// The size class this Editor's window is laid out in.
+    ///
+    /// Asked for by whoever loads the type's stylesheet, which is one sheet
+    /// per display where the class is per window ([`install_type`]).
+    #[must_use]
+    pub fn size_class(&self) -> typography::SizeClass {
+        self.imp().class.get()
+    }
+
     /// The ground this Editor opens on.
     ///
     /// Set while the window is being built and before it is realised, so that
@@ -932,7 +980,7 @@ impl Editor {
         }
         let switched = self.imp().syntax.borrow_mut().configure_spell(on, document);
         if resolving || switched {
-            self.imp().unwaved.take();
+            self.imp().unmarked.take();
             self.repaint_spans(document);
         }
     }
@@ -967,13 +1015,13 @@ impl Editor {
         if self.imp().typed.get() != Some(caret) {
             self.imp().typed.set(None);
         }
-        let now = tags::unwaved_word(
+        let now = tags::unmarked_word(
             &buffer,
             document,
             &self.imp().syntax.borrow(),
             self.imp().typed.get(),
         );
-        let was = self.imp().unwaved.replace(now.clone());
+        let was = self.imp().unmarked.replace(now.clone());
         if was == now {
             return;
         }
@@ -986,7 +1034,7 @@ impl Editor {
             })
             .collect();
         let tiers = self.imp().tiers.borrow();
-        tags::repaint(&self.buffer(), document, self.painting(&tiers), &lines);
+        self.repaint_tags(&self.buffer(), document, self.painting(&tiers), &lines);
     }
 
     /// Opens the corrections menu for the misspelled word at the caret, and
@@ -1119,7 +1167,7 @@ impl Editor {
         self.imp().fade.take();
         let tiers = self.imp().tiers.borrow();
         let lines = 0..document.place(document.text().len()).line + 1;
-        tags::repaint(
+        self.repaint_tags(
             &self.buffer(),
             document,
             self.painting(&tiers),
@@ -1161,7 +1209,7 @@ impl Editor {
             let tiers = self.imp().tiers.borrow();
             let buffer = self.buffer();
             let _batch = buffer.freeze_notify();
-            tags::repaint(&buffer, document, self.painting(&tiers), &lines);
+            self.repaint_tags(&buffer, document, self.painting(&tiers), &lines);
         }
         self.imp().syntax.borrow().pending()
     }
@@ -1181,6 +1229,26 @@ impl Editor {
     fn painting<'a>(&'a self, tiers: &'a [LineTiers]) -> tags::Painting<'a> {
         let writer = self.imp().writer.borrow().clone();
         self.painting_at(&writer, tiers)
+    }
+
+    /// [`tags::repaint`] and the redraw it always owes.
+    ///
+    /// The two are one call because Spell check's tag carries no property of
+    /// its own, so GTK has nothing to invalidate when it goes on or comes off:
+    /// the mark it stands for is [`Editor::draw_spell_marks`]'s, asked for at
+    /// the snapshot, and a `repaint` that did not ask for one would take a
+    /// range's dots off the buffer and leave them on the screen. `buffer` is
+    /// passed rather than read off `self` because a caller inside a
+    /// `freeze_notify` already holds it.
+    fn repaint_tags(
+        &self,
+        buffer: &gtk::TextBuffer,
+        document: &Document,
+        painting: tags::Painting,
+        lines: &[Range<usize>],
+    ) {
+        tags::repaint(buffer, document, painting, lines);
+        self.queue_draw();
     }
 
     /// [`Editor::painting`], for a writer whose place the buffer does not hold
@@ -1607,7 +1675,7 @@ impl Editor {
         // be moved to the new one; the rest of the type is CSS the widget
         // picks up on its own.
         tags::set_face(&self.buffer(), self.imp().face.get());
-        let pitch = typography::pitch(self.imp().step.get(), LAYOUT_SCALE);
+        let pitch = typography::pitch(self.imp().class.get(), self.imp().step.get(), LAYOUT_SCALE);
         let leading = typography::leading(pitch, self.row_height());
         // The caret's band and its unit, kept with the type: a bar placed on
         // the keystroke path must not cost a row measured all over again.
@@ -1658,6 +1726,24 @@ impl Editor {
         self.caret_settled();
     }
 
+    /// The width of the window this Editor is in, or `wide` where it is in
+    /// none yet.
+    ///
+    /// The size class is the window's and nothing else's
+    /// ([`typography::size_class`]), and the Editor is only as wide as the
+    /// window left it: the Library pane, a future second pane, and the
+    /// window's own frame all come off it. GTK has allocated the root by the
+    /// time it allocates a child, so this is the width of the same frame the
+    /// Editor is being laid out in. Before the Editor is in a window at all —
+    /// a `restyle` while the widget is being built — there is no root to ask
+    /// and the caller's own width is the best there is.
+    fn window_width(&self, wide: i32) -> i32 {
+        self.root().map_or(wide, |root| match root.width() {
+            0 => wide,
+            width => width,
+        })
+    }
+
     /// Centres the measure in a view this wide and leaves the page its air.
     ///
     /// A view with no size yet is not laid out at all: `size_allocate` asks
@@ -1667,9 +1753,36 @@ impl Editor {
         if width <= 0 || height <= 0 {
             return;
         }
-        let cell = typography::cell(self.imp().face.get(), self.imp().step.get());
+        // The window's own width picks the size class, and the class picks the
+        // type: a resize across one of the two breaks is a change of type and
+        // not only a re-centring, so the sheet is loaded and the leading and
+        // the pitch are worked out again before the page is measured. The
+        // `restyle` below ends by laying the page out at the new class; this
+        // call carries on and finds the page it left, or corrects it where the
+        // widget's own width has not caught up with the allocation yet.
+        //
+        // The window's width and not this widget's: with the Library shown the
+        // Editor is the window less a 368 px pane, which would drop a 1440 px
+        // window a whole class on a pane the oracle's own class does not read
+        // (`ref/ia/mac-native/NOTES.md` § State 22). The centring and the
+        // measure below stay on the room the Editor actually got.
+        let class = typography::size_class(unsigned(self.window_width(width)));
+        if self.imp().class.replace(class) != class {
+            install_type(
+                self.imp().ground.get(),
+                self.imp().face.get(),
+                class,
+                self.imp().step.get(),
+            );
+            self.restyle();
+        }
         let page = Page {
-            column: typography::column(unsigned(width), cell),
+            column: typography::column(
+                unsigned(width),
+                class,
+                self.imp().face.get(),
+                self.imp().step.get(),
+            ),
             bottom: signed(typography::page_bottom(unsigned(height))),
         };
         if self.imp().laid_out.get() == Some(page) {
@@ -1701,6 +1814,7 @@ impl Editor {
         };
         tags::hang_markers(
             &self.buffer(),
+            self.imp().class.get(),
             self.imp().step.get(),
             page.column,
             std::array::from_fn(|level| self.marker_advance(level as u8 + 1)),
@@ -1823,7 +1937,7 @@ impl Editor {
         let layout = self.create_pango_layout(Some(text));
         layout.set_font_description(Some(&body_font(
             self.imp().face.get(),
-            typography::em(self.imp().step.get()) * scale,
+            typography::em(self.imp().class.get(), self.imp().step.get()) * scale,
         )));
         let features = pango::AttrList::new();
         features.insert(pango::AttrFontFeatures::new(&pango_features()));
@@ -1864,7 +1978,7 @@ impl Editor {
             self.resolve_spell(document);
         }
         self.imp().opened.set(true);
-        self.imp().unwaved.take();
+        self.imp().unmarked.take();
         self.imp().typed.take();
         let buffer = self.buffer();
         self.imp().loading.set(true);
@@ -1917,13 +2031,13 @@ impl Editor {
         self.imp()
             .typed
             .set(quill_engine::spell::typed_to(document.text(), &edit.splice));
-        let held = tags::unwaved_word(
+        let held = tags::unmarked_word(
             &self.buffer(),
             document,
             &self.imp().syntax.borrow(),
             self.imp().typed.get(),
         );
-        self.imp().unwaved.replace(held);
+        self.imp().unmarked.replace(held);
         // An edit moves the caret as well as the text, so the tiers are worked
         // out again here rather than left to the caret's own feed: the lines
         // the edit changed and the lines the dim moved across are drawn in the
@@ -2244,7 +2358,7 @@ impl Editor {
 
     /// One em in the device pixels the machine measures its gates in.
     fn em(&self) -> f64 {
-        typography::em(self.imp().step.get()) * self.scale()
+        typography::em(self.imp().class.get(), self.imp().step.get()) * self.scale()
     }
 
     /// The surface's scale factor, which is the machine's unit.
@@ -2292,7 +2406,7 @@ impl Editor {
         let step = self.imp().step.get();
         let scale = self.scale();
         let (y, h) = self.band(&row);
-        let w = f64::from(typography::caret_width(step, scale));
+        let w = f64::from(typography::caret_width(self.imp().class.get(), step, scale));
         Some(caret::Bar {
             x: caret::left(f64::from(row.x()) * scale, w),
             y,
@@ -3293,6 +3407,103 @@ impl Editor {
         let mut next = *at;
         self.forward_display_line(&mut next);
         (next > *at).then_some(next)
+    }
+
+    /// Paints Spell check's mark under every word the dictionary refused: a
+    /// row of round dots, at full strength wherever the word is.
+    ///
+    /// The Design oracle's mark is macOS's own and no toolkit underline is its
+    /// shape ([`tags::misspelling`] says why Pango cannot draw it), so the
+    /// dots are drawn here: [`SPELL_DOT`] across on a [`SPELL_PITCH`] pitch,
+    /// starting [`SPELL_DROP`] under the row's baseline, in [`Role::Spell`]
+    /// and nothing else. `docs/design.md` rows *Spell mark* and *Spell mark
+    /// under Focus, Syntax and a selection*: the mark **never dims and never
+    /// changes colour** — out of focus the word falls to the dim tier and its
+    /// mark holds — so there is no tier to ask for and no fade to join, which
+    /// is why one colour is read once for the whole pass.
+    ///
+    /// Over the selection's fill and under the caret, which is the oracle's
+    /// order: the fill is beneath the dots and shows through their antialiased
+    /// edges. Drawn after [`Editor::draw_selected_inks`] so that the cover that
+    /// pass lays over a selected run does not erase a mark under it.
+    ///
+    /// Bounded by [`Editor::seen`], so a manuscript of a thousand misspellings
+    /// pays for the rows on the glass, and with Spell check off the walk is a
+    /// tag lookup and a return.
+    ///
+    /// A row with text folded away before the word is left unmarked, for the
+    /// reason [`Editor::draw_row_inks`] leaves one alone: `iter_location`
+    /// answers past a fold as though it were not there (#274), so the cells it
+    /// gives for a word after a folded `**` are the wrong ones, and a mark in
+    /// the wrong place is worse than none. No judged state is Live.
+    ///
+    /// Every length is device pixels and every edge is snapped onto one, as
+    /// [`caret::Bar`]'s are and for its reason: a dot is six pixels across, and
+    /// one laid at a fractional column loses a third of its core to the
+    /// antialiaser and a row of them reads as an uneven smudge — which is what
+    /// round 3 lost `on-dark` on, three of the first mark's dots split across
+    /// column pairs before the row settled onto the 8 px grid.
+    fn draw_spell_marks(&self, snapshot: &gtk::Snapshot) {
+        let buffer = self.buffer();
+        let seen = self.seen();
+        let words = tags::spell_marked(&buffer, &seen);
+        if words.is_empty() {
+            return;
+        }
+        let scale = self.scale();
+        let em = self.em();
+        let ink = paint(&self.colours(), Role::Spell, 1.0);
+        let side = caret::snap(em * SPELL_DOT).max(2.0);
+        let pitch = caret::snap(em * SPELL_PITCH).max(side);
+        let drop = caret::snap(em * SPELL_DROP);
+        for word in words {
+            if folded_before(&buffer.iter_at_offset(word.end)) {
+                continue;
+            }
+            let Some(cell) = self.cells(&word) else {
+                continue;
+            };
+            let (_, baseline) = self.row_pitch(&cell.row);
+            // The capture measured its drop from the last row of ink of a
+            // flat-bottomed glyph — `NOTES` § State 26 has the baseline at row
+            // 360 and the band at 372…377, and row 360 is the row `The` ends
+            // on. GTK's baseline is the row under that ink, so the drop is
+            // taken from the row above it; without that the mark lands 13
+            // pixels under the word where the oracle's lands 12, which round 3
+            // read as the mark sitting loose (`on-light`, both `select`s).
+            let top = caret::snap((cell.y + baseline) * scale - 1.0 + drop);
+            let right = caret::snap((cell.x + cell.w) * scale);
+            let mut at = caret::snap(cell.x * scale);
+            while at + side <= right {
+                self.draw_dot(snapshot, &ink, at, top, side);
+                at += pitch;
+            }
+        }
+    }
+
+    /// One dot of a Spell check mark: a disc `side` across at `at`, `top`.
+    ///
+    /// A rounded clip and not a cut square, because the oracle's dot is a disc
+    /// with an antialiased rim — over its 32 dots the capture's middle rows
+    /// read 128 pixels at full ink and 64 at part of it, and its first and last
+    /// rows 128 at part of it and none at full, which is a circle rasterised
+    /// and not a shape cut to the pixel. The four lengths are whole device
+    /// pixels by the time they arrive, so every dot of a mark is the same disc:
+    /// only the rim is antialiased, never the core.
+    fn draw_dot(&self, snapshot: &gtk::Snapshot, ink: &gdk::RGBA, at: f64, top: f64, side: f64) {
+        let scale = self.scale();
+        let rect = graphene::Rect::new(
+            logical(at, scale),
+            logical(top, scale),
+            logical(side, scale),
+            logical(side, scale),
+        );
+        snapshot.push_rounded_clip(&gsk::RoundedRect::from_rect(
+            rect,
+            logical(side, scale) / 2.0,
+        ));
+        snapshot.append_color(ink, &rect);
+        snapshot.pop();
     }
 
     /// Paints what Live left standing in the cells its fold emptied.
@@ -4483,8 +4694,14 @@ const GTK_THEME: &str = "Default";
 /// that a blank line, which carries no tag, sits on exactly the same metrics
 /// as a written one — a page whose empty lines are a different height is not a
 /// page. It is installed once, before the first window, and reloaded whenever
-/// the writer steps the size.
-pub fn install_type(ground: Ground, face: Face, step: u32) {
+/// the writer steps the size or a window crosses a size-class break.
+///
+/// The em is the class's as well as the step's, and the sheet is one per
+/// display where a class is per window: two windows of different classes on
+/// one display carry the sheet of whichever laid out last
+/// ([`Editor::lay_out`]). The writer looks at one window, and the one that
+/// last laid out is the one they moved.
+pub fn install_type(ground: Ground, face: Face, class: typography::SizeClass, step: u32) {
     let Some(display) = gtk::gdk::Display::default() else {
         // No display: nothing to style, and nothing that will draw text.
         return;
@@ -4513,7 +4730,7 @@ pub fn install_type(ground: Ground, face: Face, step: u32) {
         });
         // The bars' sheet rides with the type's, so the two grounds — the
         // page's and the chrome's — change in the one reload.
-        let mut sheet = stylesheet(&ground.colours, face, typography::em(step));
+        let mut sheet = stylesheet(&ground.colours, face, typography::em(class, step));
         sheet.push_str(&crate::chrome::stylesheet(ground));
         provider.load_from_string(&sheet);
     });
@@ -4664,8 +4881,12 @@ mod tests {
     fn a_caps_radius_is_half_the_width_at_every_step_of_the_ladder() {
         for step in typography::steps() {
             for scale in [1.0, 1.5, 2.0, 3.0] {
-                let w = logical(f64::from(typography::caret_width(step, scale)), scale);
-                let h = logical(f64::from(typography::pitch(step, scale)), scale);
+                let class = typography::SizeClass::default();
+                let w = logical(
+                    f64::from(typography::caret_width(class, step, scale)),
+                    scale,
+                );
+                let h = logical(f64::from(typography::pitch(class, step, scale)), scale);
                 assert!(
                     w < h,
                     "step {step} at scale {scale}: a bar is taller than it is wide"
@@ -4842,7 +5063,10 @@ mod tests {
     /// the one the oracles are frozen at.
     #[test]
     fn the_type_is_set_at_the_ladders_fractional_em() {
-        let em = typography::em(quill_engine::settings::default_step());
+        let em = typography::em(
+            typography::SizeClass::default(),
+            quill_engine::settings::default_step(),
+        );
         assert!((em - 21.33).abs() < 0.001, "the default step's em is {em}");
         assert!(
             stylesheet(&Ground::default().colours, Face::Duo, em).contains("font-size: 21.33px"),
@@ -5002,7 +5226,10 @@ mod tests {
         stylesheet(
             &Ground::of(scheme).colours,
             Face::Duo,
-            typography::em(quill_engine::settings::default_step()),
+            typography::em(
+                typography::SizeClass::default(),
+                quill_engine::settings::default_step(),
+            ),
         )
     }
 
