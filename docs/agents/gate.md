@@ -125,8 +125,11 @@ window during (`regimes_the_pointer_left` in the summary).
 
 **Blind judging** (every other Piece). `tools/gate judge <piece>` shoots ours at the Piece's judged
 states (identical theme, font, size, focus, caret, passage; 1440×900 at scale 2, captured with
-`grim -T` per `docs/research/native-harness.md` on `research/native-harness`), pairs each shot with
-the opponent's through `tools/blind.mjs`, runs one fresh-context critic per pair (`tools/critic.md`,
+`grim -T` per `docs/research/native-harness.md` on `research/native-harness`; font metrics hinted by
+`harness::determine()`, so Mono sets 26.0 device px per cell where the shipped app and a
+`mac-native` frame both set the ladder's 25.600 — a gap naming the advance or a line's width against
+a `mac-native` opponent is the stage's, not the Piece's, the way `spell` lost round 7 on #416),
+pairs each shot with the opponent's through `tools/blind.mjs`, runs one fresh-context critic per pair (`tools/critic.md`,
 the gauntlet's critic prompt, Opus at high effort) — every state shot first, then every critic at
 once — reveals, and writes `progress/rounds/<piece>-r<N>.json` in the existing shape plus
 `opponent`, `build` (the commit and the binary's hash) and `states` (each state's shots, pick,
