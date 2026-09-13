@@ -837,3 +837,98 @@ no check beside them. Their parents are verbs and can be read: `Enable`/`Disable
 measures a list's state — it clicks, shoots, and keeps the click only if the frame moved the way the
 click should move it. **Custom is empty**: it moves nothing either way, which is the one state that
 method cannot name, and it is recorded as left-as-found.
+
+## State 26 — the misspelling mark
+
+`mac-native-26-{light,dark}-spell-*.png` and the `-nospell` controls beside them, from
+[`ref/spell.md`](../../spell.md), shot by `rig/run_spell_400.py` and read by
+`rig/measure_spell_400.py`. Region `[0, 33, 1512, 949]` — the whole window. The full report is
+[CAPTURE-2026-09-13-SPELL.md](CAPTURE-2026-09-13-SPELL.md); this is the part the rest of the file
+needs.
+
+No state before this one showed a misspelling — every one was shot on `ref/sample.md`, which has
+none. The mark is **macOS's own**, drawn by the text system rather than by iA.
+
+**Every state was shot twice**, once with *Check Spelling While Typing* on and once with it off and
+nothing else changed, so every number is a difference between two frames — § State 24's method, for
+§ State 24's reason. Setting the switch does not re-check a document already on the screen, and
+*Check Document Now* finds the **next** misspelling rather than marking them all, so the passage is
+pasted again under each setting.
+
+### The mark itself
+
+| | light | dark |
+|---|---|---|
+| Ink on the paper | **`#ed766b`** | **`#cf807e`** |
+| Shape | **dots** — 6 px lit, 2 px paper, an 8 px period | the same |
+| Thickness | **6 px** = 3 pt | the same |
+| Below the baseline | **12 … 17 px** = 6 … 8.5 pt | the same |
+| Extent | the word's own cells — 9.92 of 10 for `definately`, 3.05 of 3 for `Teh` | the same |
+
+**It is a row of round dots, not a wave and not a line**: six columns lit, two of paper, six rows
+deep, identical on every mark of every state.
+
+**It is not the face's underline.** `iAWriterMonoS-Regular.ttf` asks for `underlineThickness`
+60/1000 em — 2.56 px here — at `underlinePosition` −110/1000 em, 4.69 px down. The mark is 6 px thick
+12 px down. macOS draws its own at its own size.
+
+**The two grounds do not share one ink.** No coverage flattens `#ed766b` onto the dark paper to give
+`#cf807e`: it is a dynamic system colour with a value per appearance, and a port carries two values
+rather than one with an alpha.
+
+### Under Focus the word dims and the mark does not
+
+The caret stood in the second sentence. `definately`, `recieved`, `comittee` and `accomodate` fell
+to the dim tier § 4.2 holds — **`#c6c4c2`** light, **`#707070`** dark (4.2.5, 4.2.6) — while
+`Teh`, `seperate` and `mispelled` kept the body ink. **Every mark stayed at full strength**, same
+hex, same rows, same dots.
+
+### Under Syntax the Category stays and the mark is unchanged
+
+The marked words carry their Category colours — `#a6559f`, `#4675b5`, `#bb512a`, `#9d6722` on light —
+and the mark is exactly what it is at rest.
+
+### Over a selection the fill is under it, and shows through
+
+| ground | mark |
+|---|---|
+| light paper `#f7f7f7` | `#ed766b` |
+| light fill `#cbedf7` | **`#e2726b`** |
+| dark paper `#1a1a1a` | `#cf807e` |
+| dark fill `#143c52` | **`#cd8486`** |
+
+The fill is unbroken under the dots in the control frame, so it is beneath the mark; the mark is
+**not opaque**, and the composite that accounts for it is about 0.7 coverage on light and 0.85 on
+dark — it does not close to one number, so the dots are antialiased rather than painted flat.
+
+### What is marked
+
+Seven words: `definately`, `recieved`, `comittee`, `Teh`, `seperate`, `mispelled`, `accomodate`.
+
+**`DRAFFT` is not marked** — an all-caps word the dictionary does not hold is left alone. **`2b` and
+`Q3` are not marked** — a token carrying a digit is left alone.
+
+### The word being typed is not marked; a boundary brings the mark up
+
+Typed with no space, `comittee` carries a pale blue pending-correction fill and a rounded pill
+reading `Comittee ×`, and **no dots**. A space ends the word and the dots appear at once, with the
+caret still beside it — so it is the boundary and not the caret leaving that marks it.
+
+**Escape and ⌘↑ do not end it**: while the pill is up it takes both, and this state was shot twice
+with the caret still in the word before a mouse click was used instead.
+
+### Autocorrect, for the map's fog entry
+
+`teh ` becomes **`Teh`** — capitalised, not corrected — and `recieve ` becomes **`Receive`**,
+corrected and capitalised. **The replacement carries a solid pale-blue rule**, which is a different
+mark from the red dots and tells the two apart at a glance. One Backspace after the replacement
+deletes the space and re-opens the pending-correction state, the pill then offering `recieve ↺` —
+the revert is offered, not taken.
+
+### The correction menu
+
+A right-click on `definately` selects the word, which **keeps its dots over the fill**, and opens
+two suggestions — `definitely`, `defiantly` — then `Report a Concern`, then `Ignore Spelling` and
+`Learn Spelling`, then macOS's own Look Up / Translate, Cut / Copy / Paste, Paste As, Paste Edits
+From, Mark As and Writing Tools. The menu is chrome and Quill's own; it is on record rather than to
+be copied.
