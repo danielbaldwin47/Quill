@@ -1,0 +1,149 @@
+[
+ {
+  "label": "normal+0",
+  "pitch": 63,
+  "heading_h": 35,
+  "body_h": 34,
+  "body_x0": 233
+ },
+ {
+  "label": "smaller-1",
+  "pitch": 56,
+  "heading_h": 31,
+  "body_h": 30,
+  "body_x0": 309
+ },
+ {
+  "label": "smaller-2",
+  "pitch": 53,
+  "heading_h": 29,
+  "body_h": 29,
+  "body_x0": 346
+ },
+ {
+  "label": "smaller-3",
+  "pitch": 49,
+  "heading_h": 27,
+  "body_h": 22,
+  "body_x0": 381
+ },
+ {
+  "label": "smaller-4",
+  "pitch": 46,
+  "heading_h": 26,
+  "body_h": 21,
+  "body_x0": 412
+ },
+ {
+  "label": "smaller-5",
+  "pitch": 43,
+  "heading_h": 23,
+  "body_h": 19,
+  "body_x0": 448
+ },
+ {
+  "label": "smaller-6",
+  "pitch": 43,
+  "heading_h": 23,
+  "body_h": 19,
+  "body_x0": 448
+ },
+ {
+  "label": "smaller-7",
+  "pitch": 43,
+  "heading_h": 23,
+  "body_h": 19,
+  "body_x0": 448
+ },
+ {
+  "label": "smaller-8",
+  "pitch": 43,
+  "heading_h": 23,
+  "body_h": 19,
+  "body_x0": 448
+ },
+ {
+  "label": "normal+0b",
+  "pitch": 63,
+  "heading_h": 35,
+  "body_h": 34,
+  "body_x0": 233
+ },
+ {
+  "label": "bigger+1",
+  "pitch": 69,
+  "heading_h": 40,
+  "body_h": 38,
+  "body_x0": 162
+ },
+ {
+  "label": "bigger+2",
+  "pitch": 81,
+  "heading_h": 47,
+  "body_h": 46,
+  "body_x0": 192
+ },
+ {
+  "label": "bigger+3",
+  "pitch": 92,
+  "heading_h": 55,
+  "body_h": 53,
+  "body_x0": 223
+ },
+ {
+  "label": "bigger+4",
+  "pitch": 103,
+  "heading_h": 63,
+  "body_h": 61,
+  "body_x0": 212
+ },
+ {
+  "label": "bigger+5",
+  "pitch": 113,
+  "heading_h": 70,
+  "body_h": 69,
+  "body_x0": 191
+ },
+ {
+  "label": "bigger+6",
+  "pitch": 126,
+  "heading_h": 81,
+  "body_h": 80,
+  "body_x0": 220
+ },
+ {
+  "label": "bigger+7",
+  "pitch": 139,
+  "heading_h": 93,
+  "body_h": 91,
+  "body_x0": 191
+ },
+ {
+  "label": "bigger+8",
+  "pitch": 150,
+  "heading_h": 104,
+  "body_h": 103,
+  "body_x0": 213
+ },
+ {
+  "label": "bigger+9",
+  "pitch": 150,
+  "heading_h": 104,
+  "body_h": 103,
+  "body_x0": 213
+ },
+ {
+  "label": "bigger+10",
+  "pitch": 150,
+  "heading_h": 104,
+  "body_h": 103,
+  "body_x0": 213
+ },
+ {
+  "label": "bigger+11",
+  "pitch": 150,
+  "heading_h": 104,
+  "body_h": 103,
+  "body_x0": 213
+ }
+]
