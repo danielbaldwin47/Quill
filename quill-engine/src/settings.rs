@@ -1400,7 +1400,10 @@ mod tests {
         assert_eq!(settings.face, Face::Duo);
         assert_eq!(settings.step, 5, "the ladder's default is step 5");
         assert!(
-            (crate::typography::em(crate::typography::SizeClass::Wide, settings.step) - 21.33)
+            (crate::typography::em(crate::typography::Size::new(
+                crate::typography::SizeClass::Wide,
+                settings.step,
+            )) - 21.33)
                 .abs()
                 < 0.005,
             "and step 5's em is the 21.33 logical px iA Writer opens at"

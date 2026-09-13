@@ -175,8 +175,10 @@ fn main() -> glib::ExitCode {
         editor::install_type(
             starting.ground(),
             starting.settings().face,
-            quill_engine::typography::SizeClass::default(),
-            starting.step(),
+            quill_engine::typography::Size::new(
+                quill_engine::typography::SizeClass::default(),
+                starting.step(),
+            ),
         );
         // The chords every Command is bound to: the registry's, with the
         // writer's `[shortcuts]` table over the top. Here rather than beside
