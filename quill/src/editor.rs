@@ -2455,22 +2455,7 @@ impl Editor {
         // contributes no rectangles, with `lastEdge` taken from it. The row is
         // empty, so it costs a zero-width fill that [`draw_box`] drops.
         while at <= end && rows.len() < MAX_ROWS {
-            let mut stop = at;
-            // The iterator is the answer here, never the boolean. Neither of
-            // GTK's two display-line moves reports whether it moved: each
-            // reports whether the place it arrived at is something other than
-            // the buffer's end iterator, and the last row of a Document ends
-            // exactly there. Read as "it did not move", that false put `stop`
-            // back at the row's start, and the row then measured no width and
-            // never satisfied `stop >= end` — so the Document's last row drew
-            // no fill and the walk left no bar on it, whatever the selection
-            // really ended at. Every row but the last one was painted (#146).
-            //
-            // A move that has nowhere to go leaves the iterator alone, which
-            // is the empty row and the row a selection starts at the end of,
-            // and both of those want `stop == at` anyway.
-            self.forward_display_line_end(&mut stop);
-            stop = stop.max(at).min(end);
+            let stop = self.row_stop(&at, &end);
             let box_of_first = self.iter_location(&at);
             if f64::from(box_of_first.y()) > bottom {
                 break;
@@ -2516,16 +2501,9 @@ impl Editor {
             if stop >= end {
                 break;
             }
-            // The same false, for the same reason: stepping onto a last row
-            // that is empty — a Document ending in a newline — arrives at the
-            // end iterator and is reported as a failure to step. `next <= at`
-            // is the honest stop, and it is the one a move with nowhere to go
-            // leaves behind.
-            let mut next = at;
-            self.forward_display_line(&mut next);
-            if next <= at {
+            let Some(next) = self.next_row(&at) else {
                 break;
-            }
+            };
             at = next;
         }
         if rows.is_empty() {
@@ -3152,19 +3130,13 @@ impl Editor {
     /// colour off the rule does not help (#367): the node then inherits the text
     /// node's, which is the same ink. So GTK's pass stays and is covered: each
     /// such run's cells are painted with the paper and the fill again, exactly
-    /// what [`Editor::draw_selection_fill`] left under them, and the run is laid
-    /// out on top in its own inks — the shape of #108's fix, the selection taken
-    /// away from GTK one layer further.
-    ///
-    /// Registered the way [`Editor::draw_number`] is: the run's first cell from
-    /// `iter_location`, hung on the row's baseline. The Faces are set with every
-    /// contextual feature off ([`FEATURES`]), so a run laid out alone advances
-    /// exactly as it does inside GTK's line.
+    /// what [`Editor::draw_selection_fill`] left under them, and the run is
+    /// drawn on top in its own inks — the shape of #108's fix, the selection
+    /// taken away from GTK one layer further.
     ///
     /// Bounded by [`Editor::seen`], so a selection of the whole Document costs
-    /// the rows on the glass. Under Live a row with a fold before the run is
-    /// left to GTK, because `iter_location` answers past a fold as though it
-    /// were not there (#274) and the cover would land in the wrong cells.
+    /// the rows on the glass, and a row whose selected runs are all the body's
+    /// ink costs its tag toggles and no layout.
     fn draw_selected_inks(&self, snapshot: &gtk::Snapshot) {
         let buffer = self.buffer();
         let Some((start, end)) = buffer.selection_bounds() else {
@@ -3177,106 +3149,150 @@ impl Editor {
             return;
         }
         let colours = self.colours();
-        let ink = paint(&colours, Role::Ink, 1.0);
-        let paper = paint(&colours, Role::Paper, 1.0);
-        let fill = selection_fill(&colours, self.imp().caret.get().focused());
-        let live = self.imp().live.get();
+        let cover = Cover {
+            body: paint(&colours, Role::Ink, 1.0),
+            paper: paint(&colours, Role::Paper, 1.0),
+            fill: selection_fill(&colours, self.imp().caret.get().focused()),
+        };
         let end = buffer.iter_at_offset(to);
         let mut at = buffer.iter_at_offset(from);
-        // Row by row, as [`Editor::selection`] walks, so that no run is laid
-        // out across a wrap; and within a row, run by run between toggles.
         while at < end {
-            let mut stop = at;
-            self.forward_display_line_end(&mut stop);
-            stop = stop.max(at).min(end);
-            let mut run = at;
-            while run < stop {
-                let mut next = run;
-                next.forward_to_tag_toggle(None::<&gtk::TextTag>);
-                let next = next.min(stop);
-                if next <= run {
-                    break;
-                }
-                if let Some(inked) = inked(&run.tags(), &ink)
-                    && !(live && folded_before(&next))
-                {
-                    let cover = [&paper, &fill];
-                    self.draw_inked(snapshot, &run, &next, &inked, cover);
-                }
-                run = next;
-            }
-            // The iterator, not the boolean, for #146's reason.
-            let mut next = at;
-            self.forward_display_line(&mut next);
-            if next <= at {
+            let stop = self.row_stop(&at, &end);
+            self.draw_row_inks(snapshot, &at, &stop, &cover);
+            let Some(next) = self.next_row(&at) else {
                 break;
-            }
+            };
             at = next;
         }
     }
 
-    /// Covers the cells `from..to` with `cover`, bottom first, and lays the run
-    /// out over them as `inked` says it is drawn.
-    fn draw_inked(
+    /// [`Editor::draw_selected_inks`] for the selected part `from..to` of one
+    /// display row.
+    ///
+    /// The whole row is laid out, from its first character, and drawn once per
+    /// run clipped to that run's cells. Laid out from the row's start, every
+    /// glyph lands at the fractional advance GTK's own line gives it — a run
+    /// laid out alone and placed at `iter_location`'s whole pixel would be up to
+    /// half a pixel off wherever the type is not hinted, and GTK's body-ink
+    /// glyphs would show at its edges. It also puts back what the cover erased
+    /// of a neighbour's ink reaching into the run's cells.
+    ///
+    /// A row with text folded away before `to` is left to GTK: `iter_location`
+    /// answers past a fold as though it were not there (#274), and a layout of
+    /// the row's bytes would set the fold's bytes as well.
+    fn draw_row_inks(
         &self,
         snapshot: &gtk::Snapshot,
         from: &gtk::TextIter,
         to: &gtk::TextIter,
-        inked: &Inked,
-        cover: [&gdk::RGBA; 2],
+        cover: &Cover,
     ) {
-        let Some(cell) = self.cells(&(from.offset()..to.offset())) else {
+        let mut head = *from;
+        if !self.starts_display_line(&head) {
+            self.backward_display_line_start(&mut head);
+        }
+        if folded_before(to) {
             return;
-        };
-        let scale = self.scale();
-        let (y, h) = self.band(&cell.row);
-        let x = caret::snap(cell.x * scale);
-        let bar = caret::Bar {
-            x,
-            y,
-            w: (caret::snap((cell.x + cell.w) * scale) - x).max(0.0),
-            h,
-        };
-        for colour in cover {
-            draw_box(snapshot, colour, bar, scale);
         }
-        let text = self.buffer().text(from, to, false);
-        let layout = self.create_pango_layout(Some(&text));
-        let mut font = layout
-            .context()
-            .font_description()
-            .unwrap_or_else(|| body_font(self.imp().face.get(), self.em() / scale));
-        if let Some(weight) = inked.weight {
-            font.set_weight(pango::Weight::__Unknown(weight));
-            font.set_variations(Some(&format!("wght={weight}")));
-        }
-        if let Some(family) = &inked.family {
-            font.set_family(family);
-        }
-        if let Some(by) = inked.scale {
-            let size = pango::units_from_double(pango::units_to_double(font.size()) * by);
-            if font.is_size_absolute() {
-                font.set_absolute_size(f64::from(size));
-            } else {
-                font.set_size(size);
+        let mut runs: Vec<(gtk::TextIter, gtk::TextIter, RunLook)> = Vec::new();
+        let mut run = head;
+        while run < *to {
+            let mut next = run;
+            next.forward_to_tag_toggle(None::<&gtk::TextTag>);
+            let mut next = next.min(*to);
+            if run < *from && next > *from {
+                next = *from;
             }
+            if next <= run {
+                break;
+            }
+            runs.push((run, next, run_look(&run.tags(), &cover.body)));
+            run = next;
         }
-        layout.set_font_description(Some(&font));
+        let redrawn = |run: &gtk::TextIter, look: &RunLook| *run >= *from && look.redrawn;
+        if !runs.iter().any(|(run, _, look)| redrawn(run, look)) {
+            return;
+        }
+        let buffer = self.buffer();
+        let layout = self.create_pango_layout(Some(&buffer.text(&head, to, true)));
         let attributes = pango::AttrList::new();
         attributes.insert(pango::AttrFontFeatures::new(&pango_features()));
-        if inked.strike {
-            attributes.insert(pango::AttrInt::new_strikethrough(true));
+        let mut index = 0;
+        for (run, next, look) in &runs {
+            let bytes = u32::try_from(buffer.text(run, next, true).len()).unwrap_or(u32::MAX);
+            look.attribute(&attributes, index..index.saturating_add(bytes));
+            index = index.saturating_add(bytes);
         }
         layout.set_attributes(Some(&attributes));
-        let (_, baseline) = self.row_pitch(&cell.row);
+        let row = self.iter_location(&head);
+        let (_, baseline) = self.row_pitch(&row);
         let hung = f64::from(layout.baseline()) / f64::from(pango::SCALE);
-        snapshot.save();
-        snapshot.translate(&graphene::Point::new(
-            logical(cell.x, 1.0),
-            logical(cell.y + baseline - hung, 1.0),
-        ));
-        snapshot.append_layout(&layout, &inked.ink);
-        snapshot.restore();
+        let origin = graphene::Point::new(
+            logical(f64::from(row.x()), 1.0),
+            logical(f64::from(row.y()) + baseline - hung, 1.0),
+        );
+        let scale = self.scale();
+        for (run, next, look) in runs.iter().filter(|(run, _, look)| redrawn(run, look)) {
+            let Some(cell) = self.cells(&(run.offset()..next.offset())) else {
+                continue;
+            };
+            let (y, h) = self.band(&cell.row);
+            let x = caret::snap(cell.x * scale);
+            let bar = caret::Bar {
+                x,
+                y,
+                w: (caret::snap((cell.x + cell.w) * scale) - x).max(0.0),
+                h,
+            };
+            if bar.w <= 0.0 || bar.h <= 0.0 {
+                continue;
+            }
+            draw_box(snapshot, &cover.paper, bar, scale);
+            draw_box(snapshot, &cover.fill, bar, scale);
+            // A marker Live hides by inking it in the paper is hidden on the
+            // fill as well, by drawing nothing over it.
+            if same_ink(&look.ink, &cover.paper) {
+                continue;
+            }
+            snapshot.push_clip(&box_rect(bar, scale));
+            snapshot.save();
+            snapshot.translate(&origin);
+            snapshot.append_layout(&layout, &look.ink);
+            snapshot.restore();
+            snapshot.pop();
+        }
+    }
+
+    /// Where the display row `at` is on ends, but never past `end`.
+    ///
+    /// The iterator is the answer here, never the boolean. Neither of GTK's
+    /// two display-line moves reports whether it moved: each reports whether
+    /// the place it arrived at is something other than the buffer's end
+    /// iterator, and the last row of a Document ends exactly there. Read as "it
+    /// did not move", that false put the stop back at the row's start, and the
+    /// row then measured no width — so the Document's last row drew no fill,
+    /// whatever the selection really ended at (#146).
+    ///
+    /// A move that has nowhere to go leaves the iterator alone, which is the
+    /// empty row and the row a selection starts at the end of, and both of
+    /// those want the stop at `at` anyway.
+    fn row_stop(&self, at: &gtk::TextIter, end: &gtk::TextIter) -> gtk::TextIter {
+        let mut stop = *at;
+        self.forward_display_line_end(&mut stop);
+        stop.max(*at).min(*end)
+    }
+
+    /// The start of the display row after the one `at` is on, if there is one.
+    ///
+    /// The same false as [`Editor::row_stop`]'s, for the same reason: stepping
+    /// onto a last row that is empty — a Document ending in a newline — arrives
+    /// at the end iterator and is reported as a failure to step. An iterator
+    /// that did not move forward is the honest stop, and it is the one a move
+    /// with nowhere to go leaves behind.
+    fn next_row(&self, at: &gtk::TextIter) -> Option<gtk::TextIter> {
+        let mut next = *at;
+        self.forward_display_line(&mut next);
+        (next > *at).then_some(next)
     }
 
     /// Paints what Live left standing in the cells its fold emptied.
@@ -4191,65 +4207,119 @@ fn selection_fill(colours: &Colours, focused: bool) -> gdk::RGBA {
     }
 }
 
-/// How a selected run is drawn when its own tags say, rather than the
-/// selection's ink: what [`Editor::draw_selected_inks`] lays it out in.
+/// The three colours [`Editor::draw_selected_inks`] reads: the body's ink,
+/// which tells a run GTK draws right from one it does not, and the paper and
+/// the fill a redrawn run's cells are covered with, bottom first.
+struct Cover {
+    body: gdk::RGBA,
+    paper: gdk::RGBA,
+    fill: gdk::RGBA,
+}
+
+/// What a run's tags make of it, as far as laying it out again goes.
 #[derive(Debug)]
-struct Inked {
+struct RunLook {
     /// The foreground its tags give it, which the strike takes as well.
     ink: gdk::RGBA,
+    /// Whether GTK draws it wrong under a selection and it is drawn again.
+    redrawn: bool,
     /// Whether it is struck through.
     strike: bool,
     /// The weight a cut asks for.
     weight: Option<i32>,
     /// The family an italic cut asks for.
     family: Option<glib::GString>,
-    /// The size a heading on the Live ladder is scaled by.
-    scale: Option<f64>,
+    /// What a heading on the Live ladder multiplies the type size by.
+    size_by: Option<f64>,
 }
 
-/// How GTK would have drawn a selected run carrying `tags`, in their ascending
-/// priority as `TextIter::tags` hands them over, when the selection's `ink`
-/// is not the answer — `None` when it is.
+impl RunLook {
+    /// Puts this run's look on the bytes `at` of a row's layout: what moves
+    /// its advances, and its strike. The ink is the draw's, not an attribute.
+    fn attribute(&self, attributes: &pango::AttrList, at: Range<u32>) {
+        let put = |mut attribute: pango::Attribute| {
+            attribute.set_start_index(at.start);
+            attribute.set_end_index(at.end);
+            attributes.insert(attribute);
+        };
+        if self.strike {
+            put(pango::AttrInt::new_strikethrough(true).into());
+        }
+        if let Some(weight) = self.weight {
+            put(pango::AttrInt::new_weight(pango::Weight::__Unknown(weight)).into());
+        }
+        if let Some(family) = &self.family {
+            put(pango::AttrString::new_family(family).into());
+        }
+        if let Some(by) = self.size_by {
+            put(pango::AttrFloat::new_scale(by).into());
+        }
+    }
+}
+
+/// What `tags`, in their ascending priority as `TextIter::tags` hands them
+/// over, make of a run: its look, and whether a selection over it is drawn
+/// again because GTK would draw it in `body` rather than its own ink.
 ///
 /// A run inked in the body's own colour is GTK's to draw, which is every word
-/// that is neither marked nor dimmed nor tinted. So is a run with a ground under
-/// it, text folded away in it or a rule under it: the cover would paint over a
-/// code ground, a fold is nothing to lay out, and an underline carries a colour
-/// of its own that GTK already keeps under a selection.
-fn inked(tags: &[gtk::TextTag], ink: &gdk::RGBA) -> Option<Inked> {
-    let mut inked = Inked {
-        ink: *ink,
+/// that is neither marked nor dimmed nor tinted — to within [`same_ink`], since
+/// a colour tag spelled from the table's hex need not be the table's floats
+/// exactly. So is a run with a ground under it or a rule under it: the cover
+/// would paint over a code ground, and an underline carries a colour of its own
+/// that GTK already keeps under a selection.
+fn run_look(tags: &[gtk::TextTag], body: &gdk::RGBA) -> RunLook {
+    let mut refused = false;
+    let mut look = RunLook {
+        ink: *body,
+        redrawn: false,
         strike: false,
         weight: None,
         family: None,
-        scale: None,
+        size_by: None,
     };
     for tag in tags {
-        if tag.is_background_set() || tag.is_invisible() || tag.is_underline_set() {
-            return None;
-        }
+        refused |=
+            tag.is_background_set() || tag.is_paragraph_background_set() || tag.is_underline_set();
         if tag.is_foreground_set()
             && let Some(colour) = tag.foreground_rgba()
         {
-            inked.ink = colour;
+            look.ink = colour;
         }
         if tag.is_strikethrough_set() {
-            inked.strike = tag.is_strikethrough();
+            look.strike = tag.is_strikethrough();
         }
         if tag.is_weight_set() {
-            inked.weight = Some(tag.weight());
+            look.weight = Some(tag.weight());
         }
         if tag.is_family_set() {
-            inked.family = tag.family();
+            look.family = tag.family();
         }
         if tag.is_scale_set() {
-            inked.scale = Some(tag.scale());
+            look.size_by = Some(tag.scale());
         }
     }
-    (inked.ink != *ink).then_some(inked)
+    look.redrawn = !refused && !same_ink(&look.ink, body);
+    look
+}
+
+/// Whether `a` and `b` are one colour on an 8-bit channel: within half a
+/// step of each other on every channel.
+fn same_ink(a: &gdk::RGBA, b: &gdk::RGBA) -> bool {
+    let half_step = 0.5 / 255.0;
+    [
+        (a.red(), b.red()),
+        (a.green(), b.green()),
+        (a.blue(), b.blue()),
+        (a.alpha(), b.alpha()),
+    ]
+    .iter()
+    .all(|(x, y)| (x - y).abs() < half_step)
 }
 
 /// Whether any text is folded away on `to`'s line before `to`.
+///
+/// Walks the line's tag toggles from its start, so a row costs at most its
+/// paragraph's toggles once.
 fn folded_before(to: &gtk::TextIter) -> bool {
     let mut at = *to;
     at.set_line_offset(0);
@@ -4828,31 +4898,61 @@ mod tests {
     /// quiet tier and its rule — and a run in the body's ink stays GTK's.
     #[test]
     fn a_selected_run_keeps_its_tags_ink_and_the_body_ink_stays_gtks() {
+        let tag = glib::Object::new::<gtk::TextTag>;
         let dark = Ground::of(Scheme::Dark).colours;
         let ink = paint(&dark, Role::Ink, 1.0);
         let quiet = paint(&dark, Role::Quiet, 1.0);
-        let colour = glib::Object::new::<gtk::TextTag>();
+        let colour = tag();
         colour.set_foreground_rgba(Some(&quiet));
-        let strike = glib::Object::new::<gtk::TextTag>();
+        let strike = tag();
         strike.set_strikethrough(true);
 
-        let held = inked(&[colour.clone(), strike], &ink).expect("a struck run went to GTK");
-        assert_eq!(held.ink, quiet, "the mark lost its quiet tier");
-        assert!(held.strike, "the mark lost its rule");
+        let mark = run_look(&[colour.clone(), strike], &ink);
+        assert!(mark.redrawn, "a struck run was left to GTK's body ink");
+        assert_eq!(mark.ink, quiet, "the mark lost its quiet tier");
+        assert!(mark.strike, "the mark lost its rule");
 
-        let bold = glib::Object::new::<gtk::TextTag>();
-        bold.set_weight(700);
-        assert!(inked(&[bold], &ink).is_none(), "body ink redrawn");
-        let body = glib::Object::new::<gtk::TextTag>();
-        body.set_foreground_rgba(Some(&ink));
-        assert!(inked(&[colour.clone(), body], &ink).is_none(), "priority");
-
-        let ground = glib::Object::new::<gtk::TextTag>();
-        ground.set_background(Some("#ff0000"));
+        // The body's ink as the tag table spells it, from the hex, is GTK's.
+        let body = tag();
+        body.set_foreground(Some(&dark.colour(Role::Ink).to_hex()));
         assert!(
-            inked(&[colour, ground], &ink).is_none(),
-            "cover over a ground"
+            !run_look(std::slice::from_ref(&body), &ink).redrawn,
+            "a body-ink run is redrawn: the hex and the table's floats disagree"
         );
+        assert!(
+            !run_look(&[colour.clone(), body], &ink).redrawn,
+            "a lower-priority tag's ink outranked the one above it"
+        );
+
+        // A bold italic heading word, dimmed: its cut and size go on the row.
+        let cut = tag();
+        cut.set_weight(700);
+        cut.set_family(Some("Quill Duo Italic"));
+        cut.set_scale(1.5);
+        let dimmed = run_look(&[colour.clone(), cut], &ink);
+        assert!(dimmed.redrawn, "a dimmed run was left to GTK");
+        assert_eq!(
+            (dimmed.weight, dimmed.family.as_deref(), dimmed.size_by),
+            (Some(700), Some("Quill Duo Italic"), Some(1.5)),
+            "the redrawn run would advance unlike GTK's"
+        );
+
+        for (name, refuse) in [
+            ("a code ground", "background"),
+            ("a fenced block's well", "paragraph-background"),
+            ("an underline", "underline"),
+        ] {
+            let other = tag();
+            if refuse == "underline" {
+                other.set_underline(pango::Underline::Single);
+            } else {
+                other.set_property(refuse, "#ff0000");
+            }
+            assert!(
+                !run_look(&[colour.clone(), other], &ink).redrawn,
+                "the cover would paint over {name}"
+            );
+        }
     }
 
     /// Each ground's own paper and ink, and nothing of the other's.
