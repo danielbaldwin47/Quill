@@ -21,7 +21,7 @@
 
 use std::ops::RangeInclusive;
 
-use crate::settings::Face;
+use crate::settings::{Face, default_step};
 
 /// The measure, in characters: iA's default line-length limit, `--measure:
 /// 64ch` in `legacy/app/css/type.css`.
@@ -237,19 +237,60 @@ pub fn steps() -> RangeInclusive<u32> {
     0..=(STEPS - 1)
 }
 
-/// The rung at `step` of `class`'s ladder, or the top one when the ladder
-/// does not go that high.
+/// A size of type: which of the three ladders, and which rung of it.
 ///
-/// Clamped rather than checked: [`crate::settings`] is where a step is held
-/// to [`steps`], and a painter asking for type it can no longer reach should
-/// draw the largest there is rather than stop drawing.
-fn rung(class: SizeClass, step: u32) -> Rung {
-    let ladder = match class {
+/// One value because everything a step names — the em, the pitch, the caret's
+/// width, the cell — is named by the pair and not by the step alone, so the
+/// two travel together or not at all.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Size {
+    class: SizeClass,
+    step: u32,
+}
+
+impl Size {
+    /// `step` of `class`'s ladder, or its top rung when the ladder does not go
+    /// that high.
+    ///
+    /// Clamped rather than checked: [`crate::settings`] is where a step is
+    /// held to [`steps`], and a painter asking for type it can no longer reach
+    /// should draw the largest there is rather than stop drawing.
+    #[must_use]
+    pub fn new(class: SizeClass, step: u32) -> Self {
+        Self {
+            class,
+            step: step.min(STEPS - 1),
+        }
+    }
+
+    /// The ladder this size is on.
+    #[must_use]
+    pub fn class(self) -> SizeClass {
+        self.class
+    }
+
+    /// The rung of it, always one of [`steps`].
+    #[must_use]
+    pub fn step(self) -> u32 {
+        self.step
+    }
+}
+
+impl Default for Size {
+    /// The default step of the class a window with no size yet is laid out in.
+    fn default() -> Self {
+        Self::new(SizeClass::default(), default_step())
+    }
+}
+
+/// The rung `size` names.
+fn rung(size: Size) -> Rung {
+    let ladder = match size.class {
         SizeClass::Narrowest => &NARROWEST,
         SizeClass::Middle => &MIDDLE,
         SizeClass::Wide => &WIDE,
     };
-    ladder[step.min(STEPS - 1) as usize]
+    ladder[size.step as usize]
 }
 
 /// A ladder number, measured in device pixels at scale 2, in the device
@@ -261,32 +302,31 @@ fn device(at_scale_2: u32, scale: f64) -> u32 {
     ((f64::from(at_scale_2) * scale / 2.0).round().max(1.0)) as u32
 }
 
-/// The em at `step` of `class`, in logical pixels.
+/// The em at `size`, in logical pixels.
 #[must_use]
-pub fn em(class: SizeClass, step: u32) -> f64 {
-    rung(class, step).em
+pub fn em(size: Size) -> f64 {
+    rung(size).em
 }
 
-/// The line pitch at `step` of `class` on a display of `scale`, in device
-/// pixels.
+/// The line pitch at `size` on a display of `scale`, in device pixels.
 ///
 /// Ask it at scale 1 for logical pixels, which is what anything GTK lays the
 /// page out from wants: GTK applies the surface's scale factor itself, and
 /// only the caret is placed in device pixels.
 #[must_use]
-pub fn pitch(class: SizeClass, step: u32, scale: f64) -> u32 {
-    device(rung(class, step).pitch, scale)
+pub fn pitch(size: Size, scale: f64) -> u32 {
+    device(rung(size).pitch, scale)
 }
 
-/// The caret's width at `step` of `class` on a display of `scale`, in device
-/// pixels — logical pixels at scale 1, as [`pitch`] explains.
+/// The caret's width at `size` on a display of `scale`, in device pixels —
+/// logical pixels at scale 1, as [`pitch`] explains.
 ///
 /// An odd bar's extra pixel falls right of the advance boundary the bar is
 /// centred on; that is the painter's, and `docs/design.md` § Caret width says
 /// so.
 #[must_use]
-pub fn caret_width(class: SizeClass, step: u32, scale: f64) -> u32 {
-    device(rung(class, step).caret_width, scale)
+pub fn caret_width(size: Size, scale: f64) -> u32 {
+    device(rung(size).caret_width, scale)
 }
 
 /// The step an old `size` in logical pixels becomes.
@@ -302,9 +342,9 @@ pub fn caret_width(class: SizeClass, step: u32, scale: f64) -> u32 {
 /// before the ladder was laid out on: the size classes came later, and a
 /// stored size is a size the writer chose at whatever width, not at one.
 #[must_use]
-pub fn step_for_size(size: u32) -> u32 {
-    let size = f64::from(size);
-    let step = WIDE.iter().position(|rung| rung.em >= size);
+pub fn step_for_size(px: u32) -> u32 {
+    let px = f64::from(px);
+    let step = WIDE.iter().position(|rung| rung.em >= px);
     step.unwrap_or(WIDE.len() - 1) as u32
 }
 
@@ -352,7 +392,7 @@ pub fn leading(pitch: u32, row: u32) -> Leading {
     }
 }
 
-/// One cell of `face` at `step` of `class`, in logical pixels.
+/// One cell of `face` at `size`, in logical pixels.
 ///
 /// The cell follows the em, and the em is the class's ladder's: VERDICTS
 /// 4.1.7 read 0.6 em per cell off the app itself, which is the grid the Quill
@@ -360,18 +400,18 @@ pub fn leading(pitch: u32, row: u32) -> Leading {
 /// a Face cut to another grid has somewhere to say so; the three shipped today
 /// share [`CELL`].
 #[must_use]
-pub fn cell(face: Face, class: SizeClass, step: u32) -> f64 {
+pub fn cell(face: Face, size: Size) -> f64 {
     let per_em = match face {
         Face::Duo | Face::Quattro | Face::Mono => CELL,
     };
-    per_em * em(class, step)
+    per_em * em(size)
 }
 
-/// The measure at `step` of `class` in `face`, in logical pixels: [`MEASURE`]
-/// cells of it.
+/// The measure at `size` in `face`, in logical pixels: [`MEASURE`] cells of
+/// it.
 #[must_use]
-pub fn measure(face: Face, class: SizeClass, step: u32) -> u32 {
-    (cell(face, class, step) * f64::from(MEASURE)).round() as u32
+pub fn measure(face: Face, size: Size) -> u32 {
+    (cell(face, size) * f64::from(MEASURE)).round() as u32
 }
 
 /// The text container, and where the measure sits inside it.
@@ -504,9 +544,9 @@ fn margin(view: u32, class: SizeClass, cell: f64) -> f64 {
 /// seat the two gutters the measure is nothing rather than negative, and the
 /// caller has a column it can still lay out.
 #[must_use]
-pub fn column(view: u32, class: SizeClass, face: Face, step: u32) -> Column {
-    let advance = cell(face, class, step);
-    let room = f64::from(view) - 2.0 * margin(view, class, advance);
+pub fn column(view: u32, face: Face, size: Size) -> Column {
+    let advance = cell(face, size);
+    let room = f64::from(view) - 2.0 * margin(view, size.class, advance);
     let view = f64::from(view);
     // The three lengths every edge below is counted off, rounded here and only
     // here; each edge is then whole-pixel arithmetic on them.
@@ -667,18 +707,19 @@ mod tests {
             "the steps a writer may ask for are not the ladder's own"
         );
         for (step, em_px, pitch_px, width_px) in NOTES {
+            let size = Size::new(SizeClass::Wide, step);
             assert!(
-                (em(SizeClass::Wide, step) - em_px).abs() < 0.005,
+                (em(size) - em_px).abs() < 0.005,
                 "step {step}'s em is {} logical px, not NOTES § 11's {em_px}",
-                em(SizeClass::Wide, step)
+                em(size)
             );
             assert_eq!(
-                pitch(SizeClass::Wide, step, 2.0),
+                pitch(size, 2.0),
                 pitch_px,
                 "step {step}'s pitch at scale 2 is not NOTES § 11's"
             );
             assert_eq!(
-                caret_width(SizeClass::Wide, step, 2.0),
+                caret_width(size, 2.0),
                 width_px,
                 "step {step}'s caret is not NOTES § 11's width at scale 2"
             );
@@ -756,13 +797,13 @@ mod tests {
             ] {
                 // The table is in the device pixels it was read in, and the
                 // ladder is in logical ones.
-                let got = 2.0 * cell(Face::Mono, class, step);
+                let got = 2.0 * cell(Face::Mono, Size::new(class, step));
                 assert!(
                     (got - want_cell).abs() < tolerance,
                     "{class:?} at step {step} is a {got} px cell at scale 2, not NOTES § State 25's {want_cell}"
                 );
                 assert_eq!(
-                    pitch(class, step, 2.0),
+                    pitch(Size::new(class, step), 2.0),
                     want_pitch,
                     "{class:?} at step {step} is not NOTES § State 25's pitch at scale 2"
                 );
@@ -775,7 +816,7 @@ mod tests {
             (SizeClass::Middle, 22.653),
             (SizeClass::Wide, 25.596),
         ] {
-            let got = 2.0 * cell(Face::Mono, class, default_step());
+            let got = 2.0 * cell(Face::Mono, Size::new(class, default_step()));
             assert!(
                 (got - want).abs() < 0.001,
                 "{class:?} opens on a {got} px cell at scale 2, not {want}"
@@ -787,26 +828,26 @@ mod tests {
     fn a_display_at_another_scale_gets_the_ladder_scaled_and_never_nothing() {
         // The ladder was measured at scale 2, so scale 1 is half of it and
         // scale 3 half again as much, each rounded once.
-        let wide = SizeClass::Wide;
-        assert_eq!(pitch(wide, 5, 1.0), 37, "step 5 is 73 device px at scale 2");
-        assert_eq!(pitch(wide, 5, 3.0), 110, "and 109.5 at scale 3, rounded up");
+        let wide = |step| Size::new(SizeClass::Wide, step);
+        assert_eq!(pitch(wide(5), 1.0), 37, "step 5 is 73 device px at scale 2");
+        assert_eq!(pitch(wide(5), 3.0), 110, "and 109.5 at scale 3, rounded up");
         assert_eq!(
-            caret_width(wide, 0, 1.0),
+            caret_width(wide(0), 1.0),
             3,
             "5 device px at scale 2 is 2.5"
         );
         assert_eq!(
-            caret_width(wide, 13, 4.0),
+            caret_width(wide(13), 4.0),
             20,
             "and 10 at scale 2 is 20 at 4"
         );
         assert_eq!(
-            caret_width(wide, 0, 0.25),
+            caret_width(wide(0), 0.25),
             1,
             "a caret rounded away is a writer with no caret"
         );
         assert_eq!(
-            pitch(wide, 0, 0.01),
+            pitch(wide(0), 0.01),
             1,
             "and a pitch rounded away is one row"
         );
@@ -817,8 +858,10 @@ mod tests {
         // What the linear clamp could not do: the bigger the type, the
         // tighter the leading, proportionally. `docs/design.md` § Line pitch
         // reads the curve off the ends of the ladder.
-        let ratio =
-            |step| f64::from(pitch(SizeClass::Wide, step, 2.0)) / (2.0 * em(SizeClass::Wide, step));
+        let ratio = |step| {
+            let size = Size::new(SizeClass::Wide, step);
+            f64::from(pitch(size, 2.0)) / (2.0 * em(size))
+        };
         assert!((ratio(2) - 1.732).abs() < 0.001, "{}", ratio(2));
         assert!((ratio(5) - 1.711).abs() < 0.001, "{}", ratio(5));
         assert!((ratio(13) - 1.374).abs() < 0.001, "{}", ratio(13));
@@ -841,9 +884,21 @@ mod tests {
     #[test]
     fn a_step_past_the_top_of_the_ladder_draws_the_largest_type_there_is() {
         for class in SizeClass::ALL {
-            assert!((em(class, STEPS) - em(class, STEPS - 1)).abs() < f64::EPSILON);
-            assert_eq!(pitch(class, 99, 2.0), pitch(class, STEPS - 1, 2.0));
+            let top = Size::new(class, STEPS - 1);
+            assert_eq!(Size::new(class, STEPS), top);
+            assert_eq!(Size::new(class, 99).step(), STEPS - 1);
+            assert!((em(Size::new(class, STEPS)) - em(top)).abs() < f64::EPSILON);
+            assert_eq!(pitch(Size::new(class, 99), 2.0), pitch(top, 2.0));
         }
+    }
+
+    #[test]
+    fn a_size_with_nothing_asked_of_it_is_the_default_step_of_the_wide_class() {
+        assert_eq!(
+            Size::default(),
+            Size::new(SizeClass::Wide, default_step()),
+            "a window with no size yet is not laid out at the ladder's default"
+        );
     }
 
     #[test]
@@ -865,7 +920,7 @@ mod tests {
     #[test]
     fn a_wrapped_row_and_a_new_paragraph_both_sit_one_pitch_below_the_last_row() {
         for step in type_steps() {
-            let pitch = pitch(SizeClass::Wide, step, 2.0);
+            let pitch = pitch(Size::new(SizeClass::Wide, step), 2.0);
             // Every row of ink a Face could give at this step, since the split
             // has to hold whatever Pango measures: at 20 px the spike measured
             // a 36 px pitch over a row of 26 (`spike/gtk4-editor/RESULTS.txt`,
@@ -908,18 +963,19 @@ mod tests {
             let face = Face::parse(name).expect("every Face `settings.toml` writes is a Face");
             for class in SizeClass::ALL {
                 for step in steps() {
+                    let size = Size::new(class, step);
                     assert!(
-                        (cell(face, class, step) - 0.6 * em(class, step)).abs() < f64::EPSILON,
+                        (cell(face, size) - 0.6 * em(size)).abs() < f64::EPSILON,
                         "{name} at step {step} of {class:?} is not on the 0.6 em cell VERDICTS 4.1.7 read"
                     );
                 }
             }
             assert!(
-                (cell(face, SizeClass::Wide, default_step()) - 12.798).abs() < 0.001,
+                (cell(face, Size::default()) - 12.798).abs() < 0.001,
                 "{name} at the default step is not 0.6 of its 21.33 px em"
             );
             assert_eq!(
-                measure(face, SizeClass::Wide, default_step()),
+                measure(face, Size::default()),
                 819,
                 "{name}'s 64-character measure at the default step is not 819 px"
             );
@@ -934,7 +990,7 @@ mod tests {
         // class's 11.3265 in the 960 px `narrow` state — which seats a full
         // measure at the smaller type where the wide type did not.
         assert_eq!(
-            column(1440, SizeClass::Wide, Face::Duo, default_step()),
+            column(1440, Face::Duo, Size::default()),
             Column {
                 left: 221,
                 right: 1219,
@@ -944,7 +1000,7 @@ mod tests {
             "a judged 1440 px window does not centre the 78-cell container with the measure a gutter inside it"
         );
         assert_eq!(
-            column(960, SizeClass::Middle, Face::Duo, default_step()),
+            column(960, Face::Duo, Size::new(SizeClass::Middle, default_step())),
             Column {
                 left: 38,
                 right: 921,
@@ -956,7 +1012,7 @@ mod tests {
         // 960 less an 883 px container leaves 77, and the odd one falls on
         // the right: 38 against 39, the way NOTES § State 25 read 20 against
         // 22 and 74 against 76.
-        let odd = column(960, SizeClass::Middle, Face::Duo, default_step());
+        let odd = column(960, Face::Duo, Size::new(SizeClass::Middle, default_step()));
         assert_eq!(
             (odd.left, 960 - odd.right),
             (38, 39),
@@ -977,10 +1033,10 @@ mod tests {
             SizeClass::Middle,
             "the room left beside the Library is not in a class of its own, so this proves nothing"
         );
-        let beside = column(1072, size_class(1440), Face::Duo, default_step());
+        let beside = column(1072, Face::Duo, Size::new(size_class(1440), default_step()));
         assert_eq!(
             beside.gutter(),
-            column(1440, SizeClass::Wide, Face::Duo, default_step()).gutter(),
+            column(1440, Face::Duo, Size::default()).gutter(),
             "opening the Library took the type off the class its window is in"
         );
         assert_eq!(
@@ -993,7 +1049,7 @@ mod tests {
     #[test]
     fn a_window_too_narrow_for_the_container_holds_its_gutters_and_shrinks_the_measure() {
         assert_eq!(
-            column(600, SizeClass::Middle, Face::Duo, default_step()),
+            column(600, Face::Duo, Size::new(SizeClass::Middle, default_step())),
             Column {
                 left: 5,
                 right: 595,
@@ -1009,7 +1065,8 @@ mod tests {
         // Where the first term wins the measure is the whole limit and the
         // gutter is 7 cells: 960 pt at step 5 holds all 64 characters on the
         // middle class's cell, as NOTES § State 22 reads off the app.
-        let full = column(960, SizeClass::Middle, Face::Mono, 5);
+        let middle = Size::new(SizeClass::Middle, 5);
+        let full = column(960, Face::Mono, middle);
         assert_eq!(
             full.gutter(),
             79,
@@ -1017,14 +1074,14 @@ mod tests {
         );
         assert_eq!(
             full.width,
-            measure(Face::Mono, SizeClass::Middle, 5),
+            measure(Face::Mono, middle),
             "960 pt at step 5 does not hold a full 64-character measure"
         );
         // Where the window wins, the container is the window less 5 px each
         // side. The four widths are § State 22's own, at the step where 78
         // cells no longer fit any of them.
         for view in [960, 1040, 1200, 1250] {
-            let clipped = column(view, size_class(view), Face::Mono, 8);
+            let clipped = column(view, Face::Mono, Size::new(size_class(view), 8));
             assert_eq!(
                 clipped.right - clipped.left,
                 view - 2 * (MARGIN as u32),
@@ -1034,7 +1091,7 @@ mod tests {
         // 440 pt is the class break, and the class's own margin — 13 px at
         // this step, not 5 — is why § State 22 read a container 32 device
         // pixels inside what it expected: 414 logical px is its 828.
-        let narrowest = column(440, SizeClass::Narrowest, Face::Mono, 5);
+        let narrowest = column(440, Face::Mono, Size::new(SizeClass::Narrowest, 5));
         assert_eq!(
             narrowest.right - narrowest.left,
             414,
@@ -1066,7 +1123,7 @@ mod tests {
             (13, 5.0, 5.0),
         ];
         for (step, tight, wide) in MEASURED {
-            let cell = cell(Face::Mono, SizeClass::Narrowest, step);
+            let cell = cell(Face::Mono, Size::new(SizeClass::Narrowest, step));
             for (view, want) in [(240, tight), (320, tight), (440, wide)] {
                 assert!(
                     (margin(view, SizeClass::Narrowest, cell) - want).abs() < f64::EPSILON,
@@ -1077,7 +1134,7 @@ mod tests {
         // The fourth break, bisected at steps 0, 5 and 8: it moves the margin
         // and nothing else, and it is the window's width alone.
         for (step, below, above) in [(0, 11.0, 16.0), (5, 8.0, 13.0), (8, 5.0, 8.0)] {
-            let cell = cell(Face::Mono, SizeClass::Narrowest, step);
+            let cell = cell(Face::Mono, Size::new(SizeClass::Narrowest, step));
             assert!(
                 (margin(390, SizeClass::Narrowest, cell) - below).abs() < f64::EPSILON
                     && (margin(391, SizeClass::Narrowest, cell) - above).abs() < f64::EPSILON,
@@ -1088,7 +1145,7 @@ mod tests {
         for class in [SizeClass::Middle, SizeClass::Wide] {
             for step in steps() {
                 assert!(
-                    (margin(1440, class, cell(Face::Mono, class, step)) - MARGIN).abs()
+                    (margin(1440, class, cell(Face::Mono, Size::new(class, step))) - MARGIN).abs()
                         < f64::EPSILON,
                     "{class:?} at step {step} does not keep the flat 5 px margin"
                 );
@@ -1098,7 +1155,7 @@ mod tests {
 
     #[test]
     fn the_deepest_heading_hangs_to_the_container_edge() {
-        let column = column(1440, SizeClass::Wide, Face::Duo, default_step());
+        let column = column(1440, Face::Duo, Size::default());
         assert_eq!(
             column.hang(6),
             column.gutter(),
@@ -1119,7 +1176,7 @@ mod tests {
         // deepest heading on the container's edge. Every rung of the ladder
         // is fractional this way — that is what a ladder measured off an app
         // gives, where a range of whole pixels did not.
-        let column = column(1440, SizeClass::Wide, Face::Duo, 4);
+        let column = column(1440, Face::Duo, Size::new(SizeClass::Wide, 4));
         assert_eq!(
             column.right - column.side - column.width,
             column.gutter(),
@@ -1174,8 +1231,9 @@ mod tests {
         let top = page_top(1.0);
         for class in SizeClass::ALL {
             for step in steps() {
-                let shortest_row = em(class, step).ceil() as u32;
-                let below = leading(pitch(class, step, 1.0), shortest_row).below;
+                let size = Size::new(class, step);
+                let shortest_row = em(size).ceil() as u32;
+                let below = leading(pitch(size, 1.0), shortest_row).below;
                 assert!(
                     below < top,
                     "step {step} of {class:?} leaves {below} px of air under a row an em tall, \
