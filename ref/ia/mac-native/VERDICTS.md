@@ -75,7 +75,14 @@ that section.
 | 4.2.13 | Wikilink brackets, link, content-block chip, autocomplete popup, library list | **split**: the **link** is now measured; wikilink brackets, the content-block chip, the autocomplete popup and the library list are **still unknown** — not covered | link text is body ink and carries **no** rule; its `[`, `]`, `(`, `)` and destination URL are **`#7a7a78`** dark / **`#b5b3b0`** light; the 4 px rule runs under the **destination alone** — not the words, not the brackets — at **`#545452`** / **`#d5d3d1`**, and under a bare URL at its full extent | 17-dark-marks, 17-light-marks |
 | 4.2.14 | Syntax colours (verbs, adjectives, adverbs, conjunctions, nouns) | **measured and anchored** — the colour-space qualification is lifted | Ten values in [the re-capture table](CAPTURE-ORIGINAL-MBP.md#the-ten-category-colours), reproduced on the original rig within Δ1 per channel; dim wins (`#c6c4c2` light, `#707070` dark) and contractions split | 308-original-mbp-*-syntax-{all,focus,tokens}, five isolated categories |
 | 4.2.15 | Authorship author colours | **still unknown** — not covered; Authors were hidden for every state | — | — |
-| 4.2.16 | The **misspelling mark** — no claim; no state before #400 held a misspelling | **now measured**, and it is macOS's own rather than iA's | **`#ed766b`** light, **`#cf807e`** dark; **dots**, 6 px lit on an 8 px period; **6 px** thick, **12 … 17 px** below the baseline; the word's own cells exactly. The two grounds do not share one ink — no coverage flattens either onto the other's paper | 26-light-spell-s1-rest, 26-dark-spell-s1-rest |
+
+### The misspelling mark
+
+No § 4.2 claim covers it: no state before #400 held a misspelling, and `REFERENCE.md` never asked. It is measured here because the spec needs it, and because the mark is **macOS's own** rather than iA's — the one thing on the page iA does not draw.
+
+| Claim | Verdict | Measured | Capture |
+|---|---|---|---|
+| — | **now measured** | **`#ed766b`** light, **`#cf807e`** dark; **dots**, 6 px lit on an 8 px period; **6 px** thick, **12 … 17 px** below the baseline; the word's own cells exactly. The two grounds do not share one ink — no coverage flattens either onto the other's paper | 26-light-spell-s1-rest, 26-dark-spell-s1-rest |
 
 ### Marker ink, one row per mark kind
 

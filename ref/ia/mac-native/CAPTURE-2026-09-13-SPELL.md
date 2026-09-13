@@ -25,12 +25,15 @@ Mono, System — Default, Normal text size, limit 64, Library and Preview hidden
 `{0,33,1512,982}`, on [`ref/spell.md`](../../spell.md) — which is also the `spell` Piece's judged
 state and the engine test's fixture, so the capture, the Piece and the test cannot drift.
 
-**Every state was shot twice**, once with *Check Spelling While Typing* on and once with it off and
-nothing else changed, so every number is a difference between two frames and nothing is assumed
-about what the paper under a mark would otherwise hold. That is
-[#354](CAPTURE-2026-09-10-STYLE.md)'s method, and the same reason stands: the mark is drawn under
-the glyphs, so a reading off the marked frame alone cannot tell the mark's ink from a descender
-crossing it.
+**Eight states were shot as pairs** — S1 to S4 on both grounds — each once with *Check Spelling
+While Typing* on and once with it off and nothing else changed, so every colour, row and dot below
+is a difference between two frames and nothing is assumed about what the paper under a mark would
+otherwise hold. That is [#354](CAPTURE-2026-09-10-STYLE.md)'s method, and the same reason stands:
+the mark is drawn under the glyphs, so a reading off the marked frame alone cannot tell the mark's
+ink from a descender crossing it. **S5, S6 and the autocorrect run carry no control** and none is
+possible: each of them changes the text, so there is no second frame of the same page to difference
+against. They are read as behaviour — what the frame shows — and nothing in the mark's measurements
+rests on them.
 
 **Setting the switch is not enough.** A document already on the screen is not re-checked when the
 switch changes, and *Check Document Now* is no substitute — it finds the **next** misspelling rather

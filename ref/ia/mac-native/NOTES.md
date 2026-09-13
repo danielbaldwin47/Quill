@@ -13,7 +13,7 @@ Nothing here changes the spec. The evidence is put where a spec change can be ar
 
 **Follow-up rig, 2026-09-09:** [CAPTURE-2026-09-09.md](CAPTURE-2026-09-09.md) records the Mac halves of #231, #241, #261, #308 and #328, with per-frame metadata and untouched originals. It uses the same iA version but macOS 26.6.1 and a different display; its chromatic and page-top controls are qualified there. The table below describes the earlier run.
 
-**Later runs on the original rig:** [CAPTURE-ORIGINAL-MBP.md](CAPTURE-ORIGINAL-MBP.md) re-shoots #231 and #308 on the built-in display, [CAPTURE-2026-09-10.md](CAPTURE-2026-09-10.md) shoots #344 (state 22) and #343 (state 23) there, and [CAPTURE-2026-09-10-STYLE.md](CAPTURE-2026-09-10-STYLE.md) shoots #354 (state 24), the one run that has Style Check **on**. Both use the same iA version on the same machine and carry their own rig tables; #344's window width is the variable of its states, so the fixed window in the table below is not theirs.
+**Later runs on the original rig:** [CAPTURE-ORIGINAL-MBP.md](CAPTURE-ORIGINAL-MBP.md) re-shoots #231 and #308 on the built-in display, [CAPTURE-2026-09-10.md](CAPTURE-2026-09-10.md) shoots #344 (state 22) and #343 (state 23) there, [CAPTURE-2026-09-10-STYLE.md](CAPTURE-2026-09-10-STYLE.md) shoots #354 (state 24), the one run that has Style Check **on**, and [CAPTURE-2026-09-13.md](CAPTURE-2026-09-13.md) and [CAPTURE-2026-09-13-SPELL.md](CAPTURE-2026-09-13-SPELL.md) shoot #419 (state 25) and #400 (state 26), the one run that has spell check **on**. Both use the same iA version on the same machine and carry their own rig tables; #344's window width is the variable of its states, so the fixed window in the table below is not theirs.
 
 | | |
 |---|---|
@@ -26,6 +26,7 @@ Nothing here changes the spec. The evidence is put where a spec change can be ar
 | Typography | System — Default |
 | Line length limit | 64 characters (the app's default; the menu offers 64 / 72 / 80) |
 | Style Check | **off** for every state except state 24, which is the state of it |
+| Spell check | **off** for every state except state 26, which is the state of it; it is `Edit > Spelling and Grammar > Check Spelling While Typing`, and `ref/sample.md` holds no misspelling in any case |
 | Syntax highlight | **off** except states 21 and 24, which name it |
 | Authors | **hidden** for every state |
 | Focus Mode | **off** except states 13, 15 and 24, which name it |
@@ -849,9 +850,12 @@ needs.
 No state before this one showed a misspelling — every one was shot on `ref/sample.md`, which has
 none. The mark is **macOS's own**, drawn by the text system rather than by iA.
 
-**Every state was shot twice**, once with *Check Spelling While Typing* on and once with it off and
-nothing else changed, so every number is a difference between two frames — § State 24's method, for
-§ State 24's reason. Setting the switch does not re-check a document already on the screen, and
+**The four measured states were shot as pairs on both grounds** — eight pairs — each once with
+*Check Spelling While Typing* on and once with it off and nothing else changed, so every colour,
+row and dot below is a difference between two frames — § State 24's method, for § State 24's
+reason. **S5, S6 and the autocorrect run carry no control and none is possible**: each of them
+changes the text, so there is no second frame of the same page to difference against. They are
+read as behaviour, and no measurement rests on them. Setting the switch does not re-check a document already on the screen, and
 *Check Document Now* finds the **next** misspelling rather than marking them all, so the passage is
 pasted again under each setting.
 
