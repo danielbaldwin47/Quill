@@ -31,52 +31,56 @@
    ],
    "groups": [
     [
-     52,
-     110
+     294,
+     385
     ],
     [
-     148,
-     285
+     774,
+     832
     ],
     [
-     322,
-     383
+     870,
+     1007
     ],
     [
-     426,
-     559
+     1044,
+     1105
     ],
     [
-     630,
-     684
+     1148,
+     1281
     ],
     [
-     729,
-     784
+     1352,
+     1406
     ],
     [
-     826,
-     992
+     1451,
+     1506
     ],
     [
-     1060,
-     1106
+     1548,
+     1714
     ],
     [
-     1149,
-     1240
+     1782,
+     1828
     ],
     [
-     1284,
-     1389
+     1871,
+     1962
     ],
     [
-     1433,
-     1495
+     2006,
+     2111
     ],
     [
-     1539,
-     1590
+     2155,
+     2217
+    ],
+    [
+     2261,
+     2312
     ],
     [
      2825,
@@ -215,8 +219,16 @@
   "mac-native-27-dark-stats-c7-typewriter.png": {
    "ground": "dark",
    "colour_check": "pass",
-   "state": "C7 Typewriter",
+   "state": "C7 Typewriter, the caret at the end",
    "toolbar": "Always Show, Default",
+   "caret": "document end",
+   "typewriter": true
+  },
+  "mac-native-27-dark-stats-c7-typewriter-nobar.png": {
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "C7 Typewriter, the caret at the end",
+   "toolbar": "Hide",
    "caret": "document end",
    "typewriter": true
   },
@@ -252,13 +264,11 @@
    94.0,
    24
   ],
-  "counts_update_s": 1.263,
-  "counts_settled_s": 5.74,
+  "typing_took_s": 0.165,
+  "counts_update_after_keys_s": 1.174,
+  "counts_update_after_start_s": 1.339,
+  "counts_settled_after_keys_s": 5.796,
   "counts_samples": 40,
-  "counts_changed_frames": 32,
-  "typing_took_s": 0.144,
-  "counts_update_after_keys_s": 1.176,
-  "counts_update_after_start_s": 1.321,
-  "counts_settled_after_keys_s": 5.897
+  "counts_changed_frames": 32
  }
 }

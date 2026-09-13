@@ -6,11 +6,15 @@ neither `NOTES.md` nor `VERDICTS.md` contained the word, and the only picture of
 marketing still, which is not evidence.
 
 **The first thing the frames say is that iA has no stats bar.** What stands at the foot of the
-window is the **Toolbar** — a format bar of thirteen labels, `Body`, `Heading 1 ⌃`, `List ⌃`,
+window is the **Toolbar** — a format bar of twelve labels, `Body`, `Heading 1 ⌃`, `List ⌃`,
 `Blockquote`, `Bold`, `Italic`, `Strikethrough`, `Link`, `Wikilink`, `Footnote`, `Table`, `TOC` —
-and the counts are **one popup at its right end**. And by default it is **not there at all**: the
-app ships on `View > Toolbar > Fade In/Out`, and with the pointer away from the foot of the window
-the bar is gone, paper to the window's edge, whether the writer is resting or typing.
+with the counts as a **thirteenth group at its right end**, a popup rather than a label.
+
+**And on this machine it was not there at all.** `View > Toolbar` was found on **Fade In/Out** when
+the rig first read it, and under that setting, with the pointer away from the foot of the window,
+the bar is gone — paper to the window's edge, resting and typing alike. Whether Fade In/Out is what
+the app *ships* on or what this Mac had been left on, one machine cannot say, and the rig changed
+the setting itself before the states were shot.
 
 So the question #381 asked — what does iA's stats bar look like — has an answer the chrome spec has
 to decide about rather than copy: **iA does not keep one.**
@@ -43,12 +47,16 @@ thing the ticket named that is still unshot.
 
 | | light | dark |
 |---|---|---|
-| Height, rule to the window's foot | **80 px = 40 pt** | the same |
+| Height, rule to the window's foot | **80 px = 40 pt** — the rule at 1818, the window's last row at 1897 | the same |
 | Ground | **the paper itself** — `#f7f7f7` | **`#1a1a1a`** |
 | Rule above it | **2 px = 1 pt**, `#dbdbdb` | `#2e2e2e` |
 | Counts' ink at rest | **`#191919`** — the body ink | **`#cccccc`** — the body ink |
 | Counts on hover | **the accent**, `#36bffa` read off the glyph | not shot |
-| Labels | 13 groups, the leftmost at x 52 and the counts at **x 2825 … 2973** | the same |
+| Labels | **twelve**, with the counts at **x 2825 … 2973** | the same |
+
+The reader prints the bar's **difference band**, 69 px on light, which is where the two frames stop differing rather than where the bar stops: its last rows are paper either way. The bar's box is the rule to the window's foot, and both edges are in the data — `rule_above` puts the rule at rows 1818–1819 and the frame's last row is 1897.
+
+**Counting the bar's ink.** `measure_stats_381.py` finds **fourteen** groups of ink in the band, not thirteen: a pop-up's chevron separates from its own label by more than the 30 px the reader joins across, so `Heading 1 ⌃` reads as two. The bar carries **twelve labels and the counts**.
 
 **The bar's ground is the paper.** Not a tint, not a translucency over the text: the median of the
 band is `#f7f7f7` and `#1a1a1a` exactly, the § 4.2 papers. Only the hairline separates it from the
@@ -85,6 +93,11 @@ Parity oracle **31 … 34**. The Design oracle keeps **one**.
 | The rule | row 1818 |
 | Air between them | **920 px = 460 pt** |
 
+And the zero: **C3**, an empty document, carries `0 Words` in the same `#191919` as a full one — the
+counts do not go quiet when there is nothing to count, and the figure is body ink whatever it
+reads. Quill's own `0` is `#4A4A4A`, the heaviest ink on that screen; iA's is the body's, under a
+bar that is not there at all unless asked for.
+
 **460 pt of air below the last row**, in a 949 pt window: **48.5 % of the view**. Quill's
 `--page-bottom` is 30 vh and the Parity oracle's Typewriter counterpart 62 vh; the oracle's own
 figure is between them.
@@ -119,22 +132,28 @@ reader knows it is counting the selection rather than the page.
 rest, no labels mid-burst. The bar does not dim while typing, because there is no bar.
 
 **Pinned with `Always Show` it does not dim either.** A frame taken while the keys move reads the
-same thirteen labels and the same `#191919` counts as at rest. The Parity oracle dims its bar to
+same groups and the same `#191919` counts as at rest. The Parity oracle dims its bar to
 0.38 while typing; iA's does not move.
 
 **The counts update after a pause of about 1.2 s.** Typing `wordcountprobe` took 0.144 s; the
 counts' own strip, sampled through Quartz at 10 Hz, first changed **1.176 s after the last key
-landed** and went on settling to 5.9 s. They do not tick per keystroke.
+landed**. Every later sample of the four-second window differs from the one before the keys, which says the count had moved and stayed moved; it does **not** say the bar went on settling, and the window ended before anything could. They do not tick per keystroke.
 
 ## Typewriter
 
-The dark Typewriter frame carries the same bar, the same thirteen labels and the same `#cccccc`
-counts. Typewriter moves the caret line, not the bar.
+**C7 was re-shot as a pair**, because the question is where the last row rests against the bar with
+the caret at the window's centre, and one frame cannot say where that row would have fallen with
+no bar under it. **It rests exactly where it does at rest: one device pixel above the rule.** The
+bar itself is unchanged — same groups, same `#cccccc` counts. Typewriter moves the caret line and
+nothing at the foot of the window.
+
+The Parity oracle's Typewriter counterpart is `--page-bottom: 62vh`; the oracle keeps no gutter
+under Typewriter any more than it does at rest.
 
 ## What this leaves the chrome spec
 
 Everything above is the chrome spec's own decision rather than a `docs/design.md` row — the chrome
-is outside [ADR 0015](../../docs/adr/0015-the-design-oracle-outranks-the-parity-oracle.md)'s reach —
+is outside [ADR 0015](../../../docs/adr/0015-the-design-oracle-outranks-the-parity-oracle.md)'s reach —
 but it is measured the same way, and a `chrome` state may name a `mac-native` opponent once the
 spec has decided. `defaults.font` in `shots/oracle/states.json` is `duo` and these frames are Mono,
 so a state that names one names Mono and is re-shot first (#344's shape).
