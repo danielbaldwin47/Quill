@@ -94,6 +94,38 @@ def accent_bar(a, x0, x1, ground):
                                     axis=0)))
 
 
+def separator(a, y0, y1, x0, x1, ground):
+    """The rule between two rows: its row, its value and the inset it runs in.
+
+    Read between the last row of one and the first of the next, as a row whose
+    median across the list differs from the list's own ground — so a descender
+    reaching into it cannot be taken for a rule.
+    """
+    for y in range(y0 + 1, y1):
+        med = np.median(a[y, x0:x1], axis=0)
+        if np.abs(med - ground).sum() > 4:
+            cols = np.where(np.abs(a[y, x0:x1] - ground).sum(axis=1) > 4)[0]
+            return dict(row=int(y), ink=hexof(med),
+                        cols=[int(x0 + cols.min()), int(x0 + cols.max())],
+                        inset_left_px=int(cols.min()), inset_right_px=int(x1 - x0 - cols.max() - 1))
+    return None
+
+
+def search_field(a, x0, x1, ground):
+    """The field at the foot of the File List: its own ground, and its prompt.
+
+    The prompt is the one number #379 was filed over, so it is read here rather
+    than off a crop: the field is the bottom of the list's column, and the prompt
+    the ink standing on the field's ground.
+    """
+    h = a.shape[0]
+    band = a[h - 80:h - 8, x0:x1]
+    fg = np.median(band.reshape(-1, 3), axis=0)
+    return dict(rows=[h - 80, h - 9], ground=hexof(fg),
+                prompt_ink=ink_of(a, h - 70, h - 18, x0 + 30, x1, fg, thresh=25),
+                is_list_ground=bool(np.abs(fg - ground).sum() <= 4))
+
+
 def pane_of(name):
     """One frame's pane: its two columns, their grounds, and where each ends.
 
@@ -143,12 +175,13 @@ def main():
 
     # The list's rows, its inks and the selected row's bar, on the state at rest
     # and on the one with its excerpts and bars off.
-    for tag in ("l1-rest", "l7-bare"):
-        name = f"{PREFIX}-light-library-{tag}.png"
+    for theme, tag in (("light", "l1-rest"), ("light", "l7-bare"),
+                       ("dark", "l1-rest")):
+        name = f"{PREFIX}-{theme}-library-{tag}.png"
         if not os.path.exists(os.path.join(SHOTS, name)):
             continue
         a = arr(name)
-        p = out["panes"][tag]
+        p = out["panes"][tag if theme == "light" else "dark/" + tag]
         lx = p["organiser_right_px"] + 8
         rx = p["pane_right_px"] - 8
         ground = np.array([int(p["list_ground"][i:i + 2], 16) for i in (1, 3, 5)])
@@ -157,7 +190,8 @@ def main():
         org = np.array([int(p["organiser_ground"][i:i + 2], 16) for i in (1, 3, 5)])
         # Below the window's own traffic lights, which are ink on no ground.
         heads = rows_in(a, 20, p["organiser_right_px"] - 10, org, thresh=90, top=120)
-        out["rows"][tag] = dict(
+        key = tag if theme == "light" else "dark/" + tag
+        out["rows"][key] = dict(
             name_rows=names[:12], pitches=pitches[:10],
             median_pitch=int(np.median(pitches)) if pitches else None,
             name_ink=ink_of(a, names[1][0], names[1][1], lx + 60, rx, ground) if len(names) > 1
@@ -168,10 +202,15 @@ def main():
             organiser_head_ink=ink_of(a, heads[0][0], heads[0][1], 20,
                                       p["organiser_right_px"] - 10, org) if heads else None,
             accent=accent_bar(a, p["organiser_right_px"], p["organiser_right_px"] + 1, ground))
-        if tag == "l1-rest" and len(names) > 2:
-            # The excerpt is the band under a name, in the same column.
-            out["rows"][tag]["excerpt_ink"] = ink_of(a, names[1][1] + 6, names[1][1] + 40,
+        out["rows"][key]["search_field"] = search_field(a, lx, rx, ground_px := np.array([int(p["list_ground"][i:i + 2], 16) for i in (1, 3, 5)]))
+        if len(names) > 2:
+            # A joined row is the name and its excerpt together, so the excerpt
+            # is the lower two thirds of the band — not the rows under it, which
+            # are the separator, and which is what an earlier reading caught.
+            y0, y1 = names[1]
+            out["rows"][key]["excerpt_ink"] = ink_of(a, y0 + (y1 - y0) // 3, y1,
                                                      lx + 60, rx, ground, thresh=30)
+            out["rows"][key]["separator"] = separator(a, names[1][1], names[2][0], lx, rx, ground)
 
     before = out["panes"].get("l1-rest", {}).get("pane_width_pt")
     after = out["panes"].get("o1-dragged", {}).get("pane_width_pt")

@@ -167,8 +167,10 @@
    0,
    2757
   ],
-  "pane_width_after_drag_pt": 360.0,
-  "divider_drags": false,
+  "pane_width_after_drag_pt": 500.0,
+  "divider_drags": true,
+  "divider_pt": 360.0,
+  "favorite_click": "64:112: execution error: System Events got an error: Can\u2019t get menu 1 of window 1 of process \"iA Writer\". (-1728)",
   "pane_width_restored_pt": 360.0
  },
  "panes": {
@@ -233,18 +235,18 @@
    "frame": "mac-native-28-light-library-o1-dragged.png",
    "steps": [
     258,
-    719
+    999
    ],
    "organiser_ground": "#eaebeb",
    "organiser_right_px": 258,
    "organiser_width_pt": 129.5,
    "list_ground": "#fcfcfc",
-   "list_width_pt": 230.5,
-   "pane_right_px": 719,
-   "pane_width_pt": 360.0,
+   "list_width_pt": 370.5,
+   "pane_right_px": 999,
+   "pane_width_pt": 500.0,
    "divider_px": [
-    719,
-    720
+    999,
+    1000
    ],
    "page_ground": "#f7f7f7"
   },
@@ -395,7 +397,26 @@
     "width_px": 6,
     "ink": "#36bffa"
    },
-   "excerpt_ink": "#ededed"
+   "search_field": {
+    "rows": [
+     1818,
+     1889
+    ],
+    "ground": "#fcfcfc",
+    "prompt_ink": "#7e7e7e",
+    "is_list_ground": true
+   },
+   "excerpt_ink": "#999999",
+   "separator": {
+    "row": 387,
+    "ink": "#ededed",
+    "cols": [
+     340,
+     691
+    ],
+    "inset_left_px": 74,
+    "inset_right_px": 19
+   }
   },
   "l7-bare": {
    "name_rows": [
@@ -493,6 +514,149 @@
     ],
     "width_px": 6,
     "ink": "#36bffa"
+   },
+   "search_field": {
+    "rows": [
+     1818,
+     1889
+    ],
+    "ground": "#fcfcfc",
+    "prompt_ink": null,
+    "is_list_ground": true
+   },
+   "excerpt_ink": "#191919",
+   "separator": {
+    "row": 313,
+    "ink": "#ededed",
+    "cols": [
+     340,
+     691
+    ],
+    "inset_left_px": 74,
+    "inset_right_px": 19
+   }
+  },
+  "dark/l1-rest": {
+   "name_rows": [
+    [
+     211,
+     230
+    ],
+    [
+     275,
+     371
+    ],
+    [
+     411,
+     502
+    ],
+    [
+     547,
+     641
+    ],
+    [
+     683,
+     774
+    ],
+    [
+     819,
+     915
+    ],
+    [
+     955,
+     1051
+    ],
+    [
+     1091,
+     1182
+    ],
+    [
+     1227,
+     1287
+    ],
+    [
+     1363,
+     1423
+    ],
+    [
+     1499,
+     1559
+    ],
+    [
+     1828,
+     1887
+    ]
+   ],
+   "pitches": [
+    64,
+    136,
+    136,
+    136,
+    136,
+    136,
+    136,
+    136,
+    136,
+    136
+   ],
+   "median_pitch": 136,
+   "name_ink": "#b9b9b9",
+   "date_ink": "#757575",
+   "organiser_bands": [
+    [
+     120,
+     211
+    ],
+    [
+     249,
+     403
+    ],
+    [
+     457,
+     473
+    ],
+    [
+     510,
+     533
+    ],
+    [
+     592,
+     686
+    ]
+   ],
+   "organiser_head_ink": "#393b3a",
+   "accent": {
+    "rows": [
+     665,
+     792
+    ],
+    "height_px": 128,
+    "cols": [
+     276,
+     281
+    ],
+    "width_px": 6,
+    "ink": "#36bffa"
+   },
+   "search_field": {
+    "rows": [
+     1818,
+     1889
+    ],
+    "ground": "#161616",
+    "prompt_ink": "#757575",
+    "is_list_ground": true
+   },
+   "excerpt_ink": "#757575",
+   "separator": {
+    "row": 387,
+    "ink": "#212121",
+    "cols": [
+     340,
+     691
+    ],
+    "inset_left_px": 74,
+    "inset_right_px": 19
    }
   }
  }

@@ -127,7 +127,7 @@
    0,
    2549
   ],
-  "pane_width_pt": 1275.0,
+  "pane_width_pt": 360.0,
   "name_rows_px": [
    [
     211,
@@ -192,8 +192,14 @@
    0,
    2757
   ],
-  "pane_width_after_drag_pt": 1379.0,
-  "divider_drags": true
+  "pane_width_after_drag_pt": 500.0,
+  "divider_drags": true,
+  "divider_pt": 360.0,
+  "favorite_click": "64:112: execution error: System Events got an error: Can\u2019t get menu 1 of window 1 of process \"iA Writer\". (-1728)",
+  "pane_width_restored_pt": 360.0,
+  "organiser_ink_before": 9809,
+  "organiser_ink_after": 9809,
+  "favorite_took": false
  },
  "captures": {
   "mac-native-28-dark-library-l1-rest": {
@@ -436,6 +442,30 @@
    "state": "L3 before the folder is opened",
    "library": "shown"
   },
+  "mac-native-28-light-library-l4-favorite": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-light-library-l4-favorite.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-light-library-l4-favorite.png",
+   "sha256": "8e732c903392da377daa848552993ac54178e248158160933733c0d1b910bd8a",
+   "raw_sha256": "0d1f9851eabf3f4d8b13754548f94f843990e669d3255e589e8ed622c26c67a7",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "L4 harbour-lights.md made a Favorite",
+   "library": "shown",
+   "favorited": "the sixth name row, through its context menu by keyboard"
+  },
   "mac-native-28-light-library-l4-row-menu": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-28-light-library-l4-row-menu.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-light-library-l4-row-menu.png",
@@ -557,8 +587,8 @@
   "mac-native-28-light-library-o1-dragged": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-28-light-library-o1-dragged.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-light-library-o1-dragged.png",
-   "sha256": "662997ce59169ac73e57eba112ef14dd84b2f1e49de91243591b3caddb9b5a56",
-   "raw_sha256": "9e703aa9e1ff0ac5161f9d6d42249bdff850c38ebca7f03d29dbc90e3a535880",
+   "sha256": "7b6638fbe059db1a8483339f480347d84a4ce80f927c01eb5646fd5175809af4",
+   "raw_sha256": "81d84dacdd6821191ba035f6ca8cdbcff7e0a0594cfbd9bcf80317ed892c662d",
    "size_px": [
     3024,
     1898
@@ -574,15 +604,38 @@
    "notes_state": 28,
    "ground": "light",
    "colour_check": "pass",
-   "state": "O1 the divider dragged 120 pt right",
+   "state": "O1 the divider dragged 140 pt right",
    "library": "shown",
-   "dragged_from_pt": 1275.0
+   "dragged_from_pt": 360.0
+  },
+  "mac-native-28-light-library-o1-dragged-nolib": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-28-light-library-o1-dragged-nolib.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-light-library-o1-dragged-nolib.png",
+   "sha256": "040f82634623fc47793da79bb232f7a9ac093022576e01658897ecbcfce38e30",
+   "raw_sha256": "35eccc72ca743cda5367a98797a4ea3f5a6d0683d07fb4676d25f09bb91cc803",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 379,
+   "notes_state": 28,
+   "ground": "light",
+   "colour_check": "pass",
+   "state": "O1 control, the pane hidden after the drag",
+   "library": "hidden"
   },
   "mac-native-28-light-library-o1-restored": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-28-light-library-o1-restored.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-library/mac-native-28-light-library-o1-restored.png",
-   "sha256": "7626843a974abf13bdb7903fed813632b813cab71be64742b24277c4012e5bdc",
-   "raw_sha256": "071911da5756e067fe060184c1ee65ff35deacad6afb7212520d1c8dcb394f07",
+   "sha256": "dc987eb162d3efc3832fa4cc64463187cf548e0f4d32277620f51e4a0c05f1d9",
+   "raw_sha256": "2093dc9e617fbd33b6f65590ab3e51e0c1c00ea43ea18a209f2ea1d99f4d188a",
    "size_px": [
     3024,
     1898
