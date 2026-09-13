@@ -847,11 +847,13 @@ method cannot name, and it is recorded as left-as-found.
 needs.
 
 **iA has no stats bar.** What stands at the foot of the window is the **Toolbar**, a format bar of
-thirteen labels — `Body`, `Heading 1 ⌃`, `List ⌃`, `Blockquote`, `Bold`, `Italic`, `Strikethrough`,
-`Link`, `Wikilink`, `Footnote`, `Table`, `TOC` — with the counts as **one popup at its right end**.
-And by default it is not on the screen: the app ships on `View > Toolbar > **Fade In/Out**`, and
-with the pointer away from the foot of the window there is paper to the window's edge, at rest and
-while the keys move alike.
+twelve labels — `Body`, `Heading 1 ⌃`, `List ⌃`, `Blockquote`, `Bold`, `Italic`, `Strikethrough`,
+`Link`, `Wikilink`, `Footnote`, `Table`, `TOC` — with the counts as a **thirteenth group at its
+right end**, a popup rather than a label. And on this machine it was not on the screen at all:
+`View > Toolbar` was found on **Fade In/Out** when the rig first read it, and under that setting,
+with the pointer away from the foot of the window, there is paper to the window's edge, at rest and
+while the keys move alike. Whether that is what the app ships on or what this Mac had been left
+on, one machine cannot say.
 
 Every state was shot with the bar and again with `View > Toolbar > Hide`, because the gutter above
 the bar cannot be read off one frame: there is no way to say where the page's last row would have
@@ -861,7 +863,7 @@ fallen with no bar under it.
 
 | | light | dark |
 |---|---|---|
-| Height, rule to the window's foot | **80 px = 40 pt** | the same |
+| Height, rule to the window's foot | **80 px = 40 pt** — rule at row 1818, window's last row 1897 | the same |
 | Ground | **the paper itself**, `#f7f7f7` | **`#1a1a1a`** |
 | Rule above it | **2 px = 1 pt**, `#dbdbdb` | `#2e2e2e` |
 | Counts' ink at rest | **`#191919`** | **`#cccccc`** |
@@ -891,6 +893,17 @@ A click opens ten counts, each showing its value, with a single ✓ against the 
 `00:01:26 Speaking Time`, `0 of 0 Tasks`, `0% Human`, `0% AI`, `0% Reference`. The bar shows one
 count and the menu picks which.
 
+### Typewriter moves the caret line and nothing at the foot
+
+C7 is a pair, because the question is where the last row rests against the bar with the caret at
+the window's centre. **It rests where it does at rest: one device pixel above the rule.** The bar
+is unchanged.
+
+### An empty document still carries a count, in body ink
+
+C3's empty page reads `0 Words` in the same `#191919` as a full one: the counts do not go quiet
+when there is nothing to count. Quill's own `0` is `#4A4A4A`, the heaviest ink on that screen.
+
 ### A selection is counted, and marked as counted
 
 With the first sentence held the counts read **`13 Words`** — the selection's own — and the figure
@@ -900,9 +913,11 @@ carries the **selection fill** `#cbedf7` behind it.
 
 Under the app's own **Fade In/Out** there is no bar to watch. Pinned with **Always Show** the bar
 **does not dim**: a frame taken mid-burst holds the same thirteen labels and the same `#191919`
-counts as at rest. **The counts update after a pause of about 1.2 s** — typing took 0.144 s and the
-counts' strip, sampled through Quartz at 10 Hz, first moved **1.176 s after the last key** — so they
-do not tick per keystroke.
+counts as at rest. **The counts update after a pause of about 1.2 s** — typing took 0.165 s and the
+counts' strip, sampled through Quartz at 10 Hz, first moved **1.174 s after the last key** — so they
+do not tick per keystroke. Every later sample differs from the one before the keys too, which says
+the count moved and stayed moved; the four-second window ended before it could say anything about
+settling.
 
 ### What could not be shot
 

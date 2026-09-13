@@ -6,19 +6,25 @@
    94.0,
    24
   ],
-  "counts_update_s": 1.263,
-  "counts_settled_s": 5.74,
+  "typing_took_s": 0.165,
+  "counts_update_after_keys_s": 1.174,
+  "counts_update_after_start_s": 1.339,
+  "counts_settled_after_keys_s": 5.796,
   "counts_samples": 40,
-  "counts_changed_frames": 32,
-  "typing_took_s": 0.144,
-  "counts_update_after_keys_s": 1.176,
-  "counts_update_after_start_s": 1.321,
-  "counts_settled_after_keys_s": 5.897
+  "counts_changed_frames": 32
  },
  "states": {
   "light/c1-top": {
    "tag": "c1-top",
    "ground": "light",
+   "box": {
+    "rows": [
+     1818,
+     1897
+    ],
+    "height_px": 80,
+    "height_pt": 40.0
+   },
    "bar": {
     "rows": [
      1818,
@@ -84,85 +90,92 @@
    "labels": [
     {
      "cols": [
-      52,
-      110
+      294,
+      385
+     ],
+     "ink": "#7e7e7e"
+    },
+    {
+     "cols": [
+      774,
+      832
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      148,
-      285
+      870,
+      1007
      ],
      "ink": "#36bffa"
     },
     {
      "cols": [
-      322,
-      383
+      1044,
+      1105
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      426,
-      559
+      1148,
+      1281
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      630,
-      684
+      1352,
+      1406
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      729,
-      784
+      1451,
+      1506
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      826,
-      992
+      1548,
+      1714
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      1060,
-      1106
+      1782,
+      1828
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      1149,
-      1240
+      1871,
+      1962
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      1284,
-      1389
+      2006,
+      2111
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      1433,
-      1495
+      2155,
+      2217
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      1539,
-      1590
+      2261,
+      2312
      ],
      "ink": "#191919"
     },
@@ -191,6 +204,14 @@
   "light/c2-end": {
    "tag": "c2-end",
    "ground": "light",
+   "box": {
+    "rows": [
+     1818,
+     1897
+    ],
+    "height_px": 80,
+    "height_pt": 40.0
+   },
    "bar": {
     "rows": [
      1818,
@@ -256,85 +277,92 @@
    "labels": [
     {
      "cols": [
-      52,
-      110
+      294,
+      385
+     ],
+     "ink": "#7e7e7e"
+    },
+    {
+     "cols": [
+      774,
+      832
      ],
      "ink": "#36bffa"
     },
     {
      "cols": [
-      148,
-      285
+      870,
+      1007
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      322,
-      383
+      1044,
+      1105
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      426,
-      559
+      1148,
+      1281
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      630,
-      684
+      1352,
+      1406
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      729,
-      784
+      1451,
+      1506
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      826,
-      992
+      1548,
+      1714
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      1060,
-      1106
+      1782,
+      1828
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      1149,
-      1240
+      1871,
+      1962
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      1284,
-      1389
+      2006,
+      2111
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      1433,
-      1495
+      2155,
+      2217
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      1539,
-      1590
+      2261,
+      2312
      ],
      "ink": "#191919"
     },
@@ -354,15 +382,23 @@
     "ink": "#191919"
    },
    "last_ink_row": {
-    "with_bar": 898,
-    "without_bar": 898
+    "with_bar": 1817,
+    "without_bar": 1817
    },
-   "gutter_px": 920,
-   "air_below_last_row_px": 988
+   "gutter_px": 1,
+   "air_below_last_row_px": 69
   },
   "light/c3-empty": {
    "tag": "c3-empty",
    "ground": "light",
+   "box": {
+    "rows": [
+     1818,
+     1897
+    ],
+    "height_px": 80,
+    "height_pt": 40.0
+   },
    "bar": {
     "rows": [
      1818,
@@ -428,85 +464,92 @@
    "labels": [
     {
      "cols": [
-      52,
-      110
+      294,
+      385
+     ],
+     "ink": "#777777"
+    },
+    {
+     "cols": [
+      774,
+      832
      ],
      "ink": "#36bffa"
     },
     {
      "cols": [
-      148,
-      285
+      870,
+      1007
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      322,
-      383
+      1044,
+      1105
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      426,
-      559
+      1148,
+      1281
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      630,
-      684
+      1352,
+      1406
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      729,
-      784
+      1451,
+      1506
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      826,
-      992
+      1548,
+      1714
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      1060,
-      1106
+      1782,
+      1828
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      1149,
-      1240
+      1871,
+      1962
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      1284,
-      1389
+      2006,
+      2111
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      1433,
-      1495
+      2155,
+      2217
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      1539,
-      1590
+      2261,
+      2312
      ],
      "ink": "#191919"
     },
@@ -526,15 +569,23 @@
     "ink": "#191919"
    },
    "last_ink_row": {
-    "with_bar": 984,
-    "without_bar": null
+    "with_bar": 1817,
+    "without_bar": 1817
    },
-   "gutter_px": 834,
-   "air_below_last_row_px": null
+   "gutter_px": 1,
+   "air_below_last_row_px": 69
   },
   "light/c6-selection": {
    "tag": "c6-selection",
    "ground": "light",
+   "box": {
+    "rows": [
+     1818,
+     1897
+    ],
+    "height_px": 80,
+    "height_pt": 40.0
+   },
    "bar": {
     "rows": [
      1818,
@@ -600,85 +651,92 @@
    "labels": [
     {
      "cols": [
-      52,
-      110
+      294,
+      385
+     ],
+     "ink": "#777777"
+    },
+    {
+     "cols": [
+      774,
+      832
      ],
      "ink": "#36bffa"
     },
     {
      "cols": [
-      148,
-      285
+      870,
+      1007
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      322,
-      383
+      1044,
+      1105
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      426,
-      559
+      1148,
+      1281
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      630,
-      684
+      1352,
+      1406
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      729,
-      784
+      1451,
+      1506
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      826,
-      992
+      1548,
+      1714
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      1060,
-      1106
+      1782,
+      1828
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      1149,
-      1240
+      1871,
+      1962
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      1284,
-      1389
+      2006,
+      2111
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      1433,
-      1495
+      2155,
+      2217
      ],
      "ink": "#191919"
     },
     {
      "cols": [
-      1539,
-      1590
+      2261,
+      2312
      ],
      "ink": "#191919"
     },
@@ -707,6 +765,14 @@
   "dark/c1-top": {
    "tag": "c1-top",
    "ground": "dark",
+   "box": {
+    "rows": [
+     1818,
+     1897
+    ],
+    "height_px": 80,
+    "height_pt": 40.0
+   },
    "bar": {
     "rows": [
      1818,
@@ -772,85 +838,92 @@
    "labels": [
     {
      "cols": [
-      52,
-      110
+      294,
+      385
+     ],
+     "ink": "#939393"
+    },
+    {
+     "cols": [
+      774,
+      832
      ],
      "ink": "#cccccc"
     },
     {
      "cols": [
-      148,
-      285
+      870,
+      1007
      ],
      "ink": "#36bffa"
     },
     {
      "cols": [
-      322,
-      383
+      1044,
+      1105
      ],
      "ink": "#cccccc"
     },
     {
      "cols": [
-      426,
-      559
+      1148,
+      1281
      ],
      "ink": "#cccccc"
     },
     {
      "cols": [
-      630,
-      685
+      1352,
+      1407
      ],
      "ink": "#cccccc"
     },
     {
      "cols": [
-      728,
-      784
+      1450,
+      1506
      ],
      "ink": "#cccccc"
     },
     {
      "cols": [
-      826,
-      992
+      1548,
+      1714
      ],
      "ink": "#cccccc"
     },
     {
      "cols": [
-      1060,
-      1106
+      1782,
+      1828
      ],
      "ink": "#cccccc"
     },
     {
      "cols": [
-      1149,
-      1240
+      1871,
+      1962
      ],
      "ink": "#cccccc"
     },
     {
      "cols": [
-      1284,
-      1389
+      2006,
+      2111
      ],
      "ink": "#cccccc"
     },
     {
      "cols": [
-      1433,
-      1495
+      2155,
+      2217
      ],
      "ink": "#cccccc"
     },
     {
      "cols": [
-      1539,
-      1590
+      2261,
+      2312
      ],
      "ink": "#cccccc"
     },
@@ -879,6 +952,14 @@
   "dark/c2-end": {
    "tag": "c2-end",
    "ground": "dark",
+   "box": {
+    "rows": [
+     1831,
+     1897
+    ],
+    "height_px": 67,
+    "height_pt": 33.5
+   },
    "bar": {
     "rows": [
      1831,
@@ -944,85 +1025,92 @@
    "labels": [
     {
      "cols": [
-      52,
-      110
+      294,
+      385
+     ],
+     "ink": "#939393"
+    },
+    {
+     "cols": [
+      774,
+      832
      ],
      "ink": "#36bffa"
     },
     {
      "cols": [
-      148,
-      285
+      870,
+      1007
      ],
      "ink": "#cccccc"
     },
     {
      "cols": [
-      322,
-      383
+      1044,
+      1105
      ],
      "ink": "#cccccc"
     },
     {
      "cols": [
-      426,
-      559
+      1148,
+      1281
      ],
      "ink": "#cccccc"
     },
     {
      "cols": [
-      630,
-      685
+      1352,
+      1407
      ],
      "ink": "#cccccc"
     },
     {
      "cols": [
-      728,
-      784
+      1450,
+      1506
      ],
      "ink": "#cccccc"
     },
     {
      "cols": [
-      826,
-      992
+      1548,
+      1714
      ],
      "ink": "#cccccc"
     },
     {
      "cols": [
-      1060,
-      1106
+      1782,
+      1828
      ],
      "ink": "#cccccc"
     },
     {
      "cols": [
-      1149,
-      1240
+      1871,
+      1962
      ],
      "ink": "#cccccc"
     },
     {
      "cols": [
-      1284,
-      1389
+      2006,
+      2111
      ],
      "ink": "#cccccc"
     },
     {
      "cols": [
-      1433,
-      1495
+      2155,
+      2217
      ],
      "ink": "#cccccc"
     },
     {
      "cols": [
-      1539,
-      1590
+      2261,
+      2312
      ],
      "ink": "#cccccc"
     },
@@ -1042,25 +1130,203 @@
     "ink": "#cccccc"
    },
    "last_ink_row": {
-    "with_bar": 898,
-    "without_bar": 898
+    "with_bar": 1830,
+    "without_bar": 1830
    },
-   "gutter_px": 933,
-   "air_below_last_row_px": 984
+   "gutter_px": 1,
+   "air_below_last_row_px": 52
+  },
+  "dark/c7-typewriter": {
+   "tag": "c7-typewriter",
+   "ground": "dark",
+   "box": {
+    "rows": [
+     1831,
+     1897
+    ],
+    "height_px": 67,
+    "height_pt": 33.5
+   },
+   "bar": {
+    "rows": [
+     1831,
+     1882
+    ],
+    "height_px": 52,
+    "height_pt": 26.0,
+    "ground": "#1a1a1a",
+    "ground_is_paper": true
+   },
+   "rule_above": [
+    [
+     1825,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1826,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1827,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1828,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1829,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1830,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1831,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1832,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1833,
+     "#1a1a1a",
+     false
+    ],
+    [
+     1834,
+     "#1a1a1a",
+     false
+    ]
+   ],
+   "labels": [
+    {
+     "cols": [
+      294,
+      385
+     ],
+     "ink": "#939393"
+    },
+    {
+     "cols": [
+      774,
+      832
+     ],
+     "ink": "#36bffa"
+    },
+    {
+     "cols": [
+      870,
+      1007
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      1044,
+      1105
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      1148,
+      1281
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      1352,
+      1407
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      1450,
+      1506
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      1548,
+      1714
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      1782,
+      1828
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      1871,
+      1962
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      2006,
+      2111
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      2155,
+      2217
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      2261,
+      2312
+     ],
+     "ink": "#cccccc"
+    },
+    {
+     "cols": [
+      2825,
+      2973
+     ],
+     "ink": "#cccccc"
+    }
+   ],
+   "counts": {
+    "cols": [
+     2825,
+     2973
+    ],
+    "ink": "#cccccc"
+   },
+   "last_ink_row": {
+    "with_bar": 1830,
+    "without_bar": 1830
+   },
+   "gutter_px": 1,
+   "air_below_last_row_px": 52
   },
   "mac-native-27-light-stats-c5-hover": {
    "bar_ground": "#f7f7f7",
-   "labels": 13,
+   "labels": 14,
    "counts_ink": "#36bffa",
-   "counts_cols": [
-    2825,
-    2973
-   ]
-  },
-  "mac-native-27-dark-stats-c7-typewriter": {
-   "bar_ground": "#1a1a1a",
-   "labels": 13,
-   "counts_ink": "#cccccc",
    "counts_cols": [
     2825,
     2973
@@ -1068,7 +1334,7 @@
   },
   "mac-native-27-light-stats-o1-typing": {
    "bar_ground": "#f7f7f7",
-   "labels": 13,
+   "labels": 14,
    "counts_ink": "#191919",
    "counts_cols": [
     2825,
@@ -1077,15 +1343,21 @@
   },
   "mac-native-27-light-stats-fade-at-rest": {
    "bar_ground": "#f7f7f7",
-   "labels": 0,
-   "counts_ink": null,
-   "counts_cols": null
+   "labels": 1,
+   "counts_ink": "#777777",
+   "counts_cols": [
+    294,
+    385
+   ]
   },
   "mac-native-27-light-stats-fade-typing": {
    "bar_ground": "#f7f7f7",
-   "labels": 0,
-   "counts_ink": null,
-   "counts_cols": null
+   "labels": 1,
+   "counts_ink": "#777777",
+   "counts_cols": [
+    294,
+    385
+   ]
   }
  }
 }

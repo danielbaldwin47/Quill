@@ -368,7 +368,7 @@ def main():
         print(f"{len(kept['frames'])} frames", flush=True)
         return
 
-    for ground in () if only_observe else ("light", "dark"):
+    for ground in ("light", "dark"):
         print(ground, flush=True)
         appearance(ground)
         typewriter(False)
@@ -436,14 +436,13 @@ def main():
     dismiss()
     mouse(700, 400)
 
-    # C7: Typewriter, dark, the caret at the end.
+    # C7: Typewriter, dark, the caret at the end — as a pair, because the
+    # question is where the last row rests against the bar, and one frame cannot
+    # say where that row would have fallen with no bar under it.
     appearance("dark")
     typewriter(True)
-    S.reset()
-    at_end()
-    toolbar("Always Show")
-    frame(out, f"{PREFIX}-dark-stats-c7-typewriter.png", "dark", state="C7 Typewriter",
-          toolbar="Always Show, Default", caret="document end", typewriter=True)
+    pair(out, "dark", "c7-typewriter", "C7 Typewriter, the caret at the end",
+         lambda: (S.reset(), at_end()), caret="document end", typewriter=True)
     typewriter(False)
     appearance("light")
 

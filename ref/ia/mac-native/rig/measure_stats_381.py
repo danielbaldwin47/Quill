@@ -21,6 +21,7 @@ SHOTS = os.path.join("ref", "ia", "shots", "mac-native")
 PREFIX = "mac-native-27"
 STATE = os.path.join("ref", "ia", "mac-native", "stats-381.json")
 PAPER = {"light": (0xf7, 0xf7, 0xf7), "dark": (0x1a, 0x1a, 0x1a)}
+RULE_ROW = 1818                      # the hairline over the bar, off the light pair
 
 
 def arr(name):
@@ -110,8 +111,14 @@ def read(tag, ground):
     left, right = 512, 2512
     with_bar = last_ink_row(a, y0, ground_px, left, right)
     without = last_ink_row(b, y0, ground_px, left, right)
+    last = a.shape[0] - 1
     return dict(
         tag=tag, ground=ground,
+        # `box` is the bar itself — the rule to the window's last row — and
+        # `bar` the difference band, which is where the two frames stop
+        # differing rather than where the bar stops: its last rows are paper
+        # either way, so the band is the shorter of the two.
+        box=dict(rows=[y0, last], height_px=last - y0 + 1, height_pt=(last - y0 + 1) / 2),
         bar=dict(rows=[y0, y1], height_px=y1 - y0 + 1, height_pt=(y1 - y0 + 1) / 2,
                  ground=hexof(bar_ground),
                  ground_is_paper=bool(np.abs(bar_ground - ground_px).sum() <= 3)),
@@ -128,20 +135,23 @@ def main():
     state = json.load(open(STATE)) if os.path.exists(STATE) else {}
     out = {"observations": state.get("observations", {}), "states": {}}
     for ground in ("light", "dark"):
-        for tag in ("c1-top", "c2-end", "c3-empty", "c6-selection"):
+        for tag in ("c1-top", "c2-end", "c3-empty", "c6-selection", "c7-typewriter"):
             got = read(tag, ground)
             if got:
                 out["states"][f"{ground}/{tag}"] = got
     # The counts alone, on the frames that carry no control beside them.
     for name, ground in ((f"{PREFIX}-light-stats-c5-hover.png", "light"),
-                         (f"{PREFIX}-dark-stats-c7-typewriter.png", "dark"),
                          (f"{PREFIX}-light-stats-o1-typing.png", "light"),
                          (f"{PREFIX}-light-stats-fade-at-rest.png", "light"),
                          (f"{PREFIX}-light-stats-fade-typing.png", "light")):
         if not os.path.exists(os.path.join(SHOTS, name)):
             continue
         a = arr(name)
-        y0, y1 = 1818, 1886
+        # The bar's box, not one frame's difference band: the rule is where
+        # `rule_above` finds it on the pair, and the bar runs to the window's
+        # last row. A band borrowed from another frame reads the wrong rows —
+        # the dark Typewriter frame's own band ends at 1882, not 1886.
+        y0, y1 = RULE_ROW, a.shape[0] - 1
         bar_ground = np.median(a[y0 + 6:y1 - 5].reshape(-1, 3), axis=0)
         runs = ink_runs(a, y0, y1, bar_ground)
         out["states"][name[:-4]] = dict(
@@ -153,11 +163,12 @@ def main():
 
     for key, s in out["states"].items():
         if "bar" in s:
-            b = s["bar"]
+            b, box = s["bar"], s["box"]
             if not b:
                 print(f"{key}: no bar")
                 continue
-            print(f"{key}: bar rows {b['rows']} h {b['height_px']} px ({b['height_pt']} pt) "
+            print(f"{key}: box {box['height_px']} px ({box['height_pt']} pt); band "
+                  f"{b['rows']} h {b['height_px']} px ({b['height_pt']} pt) "
                   f"ground {b['ground']} paper={b['ground_is_paper']} "
                   f"labels {len(s['labels'])} counts {s['counts']['ink']} "
                   f"gutter {s['gutter_px']} air {s['air_below_last_row_px']}")

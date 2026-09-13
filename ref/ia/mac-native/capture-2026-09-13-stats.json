@@ -37,52 +37,56 @@
    ],
    "groups": [
     [
-     52,
-     110
+     294,
+     385
     ],
     [
-     148,
-     285
+     774,
+     832
     ],
     [
-     322,
-     383
+     870,
+     1007
     ],
     [
-     426,
-     559
+     1044,
+     1105
     ],
     [
-     630,
-     684
+     1148,
+     1281
     ],
     [
-     729,
-     784
+     1352,
+     1406
     ],
     [
-     826,
-     992
+     1451,
+     1506
     ],
     [
-     1060,
-     1106
+     1548,
+     1714
     ],
     [
-     1149,
-     1240
+     1782,
+     1828
     ],
     [
-     1284,
-     1389
+     1871,
+     1962
     ],
     [
-     1433,
-     1495
+     2006,
+     2111
     ],
     [
-     1539,
-     1590
+     2155,
+     2217
+    ],
+    [
+     2261,
+     2312
     ],
     [
      2825,
@@ -104,21 +108,19 @@
    94.0,
    24
   ],
-  "counts_update_s": 1.263,
-  "counts_settled_s": 5.74,
+  "typing_took_s": 0.165,
+  "counts_update_after_keys_s": 1.174,
+  "counts_update_after_start_s": 1.339,
+  "counts_settled_after_keys_s": 5.796,
   "counts_samples": 40,
-  "counts_changed_frames": 32,
-  "typing_took_s": 0.144,
-  "counts_update_after_keys_s": 1.176,
-  "counts_update_after_start_s": 1.321,
-  "counts_settled_after_keys_s": 5.897
+  "counts_changed_frames": 32
  },
  "captures": {
   "mac-native-27-dark-stats-c1-top": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-27-dark-stats-c1-top.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-stats/mac-native-27-dark-stats-c1-top.png",
-   "sha256": "f958c985eac156035d938e18601fc70c1e958411c47a0b81324251cae642034f",
-   "raw_sha256": "8db41121b57de22ce6f607d7f3f56ce51284b51690ca0d24e9ab71ad35b52dea",
+   "sha256": "3577f8ae184f0b23261e37d2382a3d2961ca96cb5f0dfadb44dcd77e48ed947d",
+   "raw_sha256": "3d871202f818d7c202a17885ee3cad8b16d45e59f7f8ba1fa5dd4374c48a627b",
    "size_px": [
     3024,
     1898
@@ -143,8 +145,8 @@
   "mac-native-27-dark-stats-c1-top-nobar": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-27-dark-stats-c1-top-nobar.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-stats/mac-native-27-dark-stats-c1-top-nobar.png",
-   "sha256": "021b064783bbedb7315fb95e8844455be8b1402fc0d85a9828c1e5221257a553",
-   "raw_sha256": "7ba9a0dcd7a0c68c18aa3921a8519afddd5d1ec4f46cb6fb98d96bd1a1199550",
+   "sha256": "8263b90e1a897dc29261fd03f75892977412b128ff3aedb36d4c217922fd59b9",
+   "raw_sha256": "5efde30a8537abec46a6201b0211aab2803efd1298e4fe31dbb56ea09ae76c4f",
    "size_px": [
     3024,
     1898
@@ -169,8 +171,8 @@
   "mac-native-27-dark-stats-c2-end": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-27-dark-stats-c2-end.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-stats/mac-native-27-dark-stats-c2-end.png",
-   "sha256": "b3e28cd817673b5cf08d9adfff5754ae1982d045d0887ebf9e24bfe6d90144c8",
-   "raw_sha256": "ec882978a873f4f4a59406580d10037ebbb39934fb5ca1ceeb84a2c52438f7cd",
+   "sha256": "8abc053280d7c286aeb2aa752fd7519760a10bfccd2f5317840cc3d4e6e772c2",
+   "raw_sha256": "cc37410b5c442b90f25a136e91a0daa714a8b42a74066e0a238c39095a3c2f99",
    "size_px": [
     3024,
     1898
@@ -195,8 +197,8 @@
   "mac-native-27-dark-stats-c2-end-nobar": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-27-dark-stats-c2-end-nobar.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-stats/mac-native-27-dark-stats-c2-end-nobar.png",
-   "sha256": "5b0e90ab63b6f94568f9954a1c15e5dff6623a8c9d99c1dc3750dcf503845d85",
-   "raw_sha256": "8da426002a8ab515bd3afde0de05284708839136848c576851abc2dbbe5edc3c",
+   "sha256": "bd3735477fbd85d93ef0ee1dbaf666a2f101394ab9f2c78768dfba08e47c147e",
+   "raw_sha256": "dc372de02d3b6761455f6e96fb25b424bbc055c1fc0aed77b0cb01512b7144da",
    "size_px": [
     3024,
     1898
@@ -221,8 +223,8 @@
   "mac-native-27-dark-stats-c7-typewriter": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-27-dark-stats-c7-typewriter.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-stats/mac-native-27-dark-stats-c7-typewriter.png",
-   "sha256": "1ba45a1f1104170b1ad88a03884573c2af8b6caf5a8f5eb30dc3228214ee8bce",
-   "raw_sha256": "0aae724f08e3fb53d48718dec562da6d46b78a741da4a1fd3d8993d220ed74ea",
+   "sha256": "ebb2458d6bb7dc7bfe3c1528e7f486e3c2773d19c2f4f06ca57885258b279c33",
+   "raw_sha256": "188b45b45753ab1c4afca183163b164be1ec0165fa67e69f57447989006b3d4b",
    "size_px": [
     3024,
     1898
@@ -239,16 +241,42 @@
    "passage": "ref/sample.md",
    "ground": "dark",
    "colour_check": "pass",
-   "state": "C7 Typewriter",
+   "state": "C7 Typewriter, the caret at the end",
    "toolbar": "Always Show, Default",
+   "caret": "document end",
+   "typewriter": true
+  },
+  "mac-native-27-dark-stats-c7-typewriter-nobar": {
+   "normalised_file": "ref/ia/shots/mac-native/mac-native-27-dark-stats-c7-typewriter-nobar.png",
+   "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-stats/mac-native-27-dark-stats-c7-typewriter-nobar.png",
+   "sha256": "bd3735477fbd85d93ef0ee1dbaf666a2f101394ab9f2c78768dfba08e47c147e",
+   "raw_sha256": "48e701dff802b70f1db25b9e41563c1e7e58fe36dabbbea19430d185c1baf66c",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "icc": "a0b31a47075bdf16",
+   "ticket": 381,
+   "notes_state": 27,
+   "passage": "ref/sample.md",
+   "ground": "dark",
+   "colour_check": "pass",
+   "state": "C7 Typewriter, the caret at the end",
+   "toolbar": "Hide",
    "caret": "document end",
    "typewriter": true
   },
   "mac-native-27-light-stats-c1-top": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-27-light-stats-c1-top.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-stats/mac-native-27-light-stats-c1-top.png",
-   "sha256": "19d165fb7b1d7fec5659cb4950bb7a06ea01fdd1c142ec8272f40d716d8d7bce",
-   "raw_sha256": "774c7a8616e5020e02493e21b31501d61ab511fc1667ec3d7ab5ad6e993fa8e2",
+   "sha256": "9a6cdb0d3a8b5fcc0102615c78a73209fdbe67fcf187dd7aa34b45fd4340d383",
+   "raw_sha256": "bbcf681d9cb8249e39139f27011fd48df7e2e620139346b010d67881fb1ba16d",
    "size_px": [
     3024,
     1898
@@ -273,8 +301,8 @@
   "mac-native-27-light-stats-c1-top-nobar": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-27-light-stats-c1-top-nobar.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-stats/mac-native-27-light-stats-c1-top-nobar.png",
-   "sha256": "8334a7fb2bba2b83b87ac5e94f369e4e4b90c0f7bd6ed0665cb66b6c41b404d9",
-   "raw_sha256": "5356bb0ee0b61d1c3b702fa26b41a8580ad02d806bd0556ac3f9cba06442d8f9",
+   "sha256": "f40a7a138f60e2bee654003b73e6350b838629552dcac91cc132cb7e1b24347d",
+   "raw_sha256": "68d1bdc4b23397460a6b0a61d96d683d6079971be24be460fa1198b9396782de",
    "size_px": [
     3024,
     1898
@@ -299,8 +327,8 @@
   "mac-native-27-light-stats-c2-end": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-27-light-stats-c2-end.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-stats/mac-native-27-light-stats-c2-end.png",
-   "sha256": "13245482733460f7325931334ef0d1fd1b442e792ea396051197598fb87d620c",
-   "raw_sha256": "a003b32c3561055ca15fbf6a1917c855be06894e34ec8a65bf9fa2a03785f9d3",
+   "sha256": "17a1fba5cbb287c929df128d5be1c577cc75ffc358b8987d35b4ef7a1f0dbfa4",
+   "raw_sha256": "b31282575b7aebd0edb0332e08c60be800545f97fb8ee4782e948731e2e5c7a8",
    "size_px": [
     3024,
     1898
@@ -325,8 +353,8 @@
   "mac-native-27-light-stats-c2-end-nobar": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-27-light-stats-c2-end-nobar.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-stats/mac-native-27-light-stats-c2-end-nobar.png",
-   "sha256": "8d2dd76954159fe59a18f9cc28e2f26024a2c1844373d940c681ec8c866397d4",
-   "raw_sha256": "276f8eac611ba80d34bc6c25aa6b5313e3d45de651a71d4f45f718715ae3a9a5",
+   "sha256": "384072bd98ce3b070999dc5660ffbafb54c197f5c3afc0c240e00a998b86c964",
+   "raw_sha256": "cd9ff8048702acecd1231eb9e0da25dc24676b15e526bf5e8e42ea17bf923462",
    "size_px": [
     3024,
     1898
@@ -351,8 +379,8 @@
   "mac-native-27-light-stats-c3-empty": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-27-light-stats-c3-empty.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-stats/mac-native-27-light-stats-c3-empty.png",
-   "sha256": "2f3a1cef6e8f0c1974a8b3221b7f7c0aade983d0e95134a512a4bf901327bff1",
-   "raw_sha256": "191727c191070d628bdb0d1a3992bb1578173d4239cce6fd287cacaaa5598d90",
+   "sha256": "a0fe17ee3dcfb7a7f6e407f53c12db6b9e7cdd61d984d7fe6daf7b5e5602a8f8",
+   "raw_sha256": "a22dff252a547952e32a27836984269689b787d11f0c7776c694f26413e74324",
    "size_px": [
     3024,
     1898
@@ -377,8 +405,8 @@
   "mac-native-27-light-stats-c3-empty-nobar": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-27-light-stats-c3-empty-nobar.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-stats/mac-native-27-light-stats-c3-empty-nobar.png",
-   "sha256": "ef5452e12823925db24fb543548cc5522b1310e83627d224c67dc949eb625c50",
-   "raw_sha256": "65c9a27cda5b0ded1a7f57f72469b672486f622ad77efe3aad38950addc27d6d",
+   "sha256": "b3c9b9e6d32fcc4f92e7b02c4a81bd7e74dce5626d7288e8c37807e576518b9a",
+   "raw_sha256": "4c61d20bf6ca3c2d08108fc11596f8aa583ef045739c14a36d70481c5a30debf",
    "size_px": [
     3024,
     1898
@@ -403,8 +431,8 @@
   "mac-native-27-light-stats-c4-menu": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-27-light-stats-c4-menu.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-stats/mac-native-27-light-stats-c4-menu.png",
-   "sha256": "17f8efd47740d537d1fc60bd4fd0e5cf1446c1dc774845fb0ee759cf837dc3f6",
-   "raw_sha256": "e0b67d404c221ed0f80064cdd3f2e7f1b886d2b9a0185a2e3ba613aca647fea7",
+   "sha256": "77c77f7d2ef3e19ae70fa25d3008fa68c252a24f15bd428db38149615d5391be",
+   "raw_sha256": "f72691260c87db8984d66523263b288598792a53d20312526567968ba6d7a958",
    "size_px": [
     3024,
     1898
@@ -429,8 +457,8 @@
   "mac-native-27-light-stats-c4-menu-scrolled": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-27-light-stats-c4-menu-scrolled.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-stats/mac-native-27-light-stats-c4-menu-scrolled.png",
-   "sha256": "90eadd945ef7dd538d54c8226725eeee8cda02707e2bdd050f9276753a884301",
-   "raw_sha256": "b91245d9439428c021a038bb1f08f025750b78c33a81a6b683b1677805f2a964",
+   "sha256": "97a06990421fbf4f4268f112b79159f35260d385a7945c8149a6c6af5b24759c",
+   "raw_sha256": "551abdd3ce65860c6e8d5e453b2b0cde87c64cb1da6e0e039a68cd6924e5af80",
    "size_px": [
     3024,
     1898
@@ -455,8 +483,8 @@
   "mac-native-27-light-stats-c5-hover": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-27-light-stats-c5-hover.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-stats/mac-native-27-light-stats-c5-hover.png",
-   "sha256": "3bd0fba0dcc69f6bfb09c5636bd348dec84207040ddb09c47d94f7ed8a9d0c0b",
-   "raw_sha256": "411253fb878a9388d6041ccebe528e5e6130f0ff0107adfdf698f01fc0dc3fe0",
+   "sha256": "f626a781a8e7b8413ab70f31ea9332e35ecfd8b72e7da34cb2e433cda6ec2d38",
+   "raw_sha256": "135146042ca2df70fd241f2a66e14b4b37c3aa17618cd86e98a2e3e68d8feffb",
    "size_px": [
     3024,
     1898
@@ -481,8 +509,8 @@
   "mac-native-27-light-stats-c6-selection": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-27-light-stats-c6-selection.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-stats/mac-native-27-light-stats-c6-selection.png",
-   "sha256": "295989e37513452a29b676102bcc3e1e4ace38cf476dcef6234a7f002612c0bc",
-   "raw_sha256": "98f413411293fb6471a8c415c5081c1b3e13d6736fe9d46123e537a6262b488a",
+   "sha256": "67d57fee0684a207e4a6681ff8f3d192225209703c3d67971f80d9d77c243a76",
+   "raw_sha256": "35530e9a02d2fa7df3e984815c69d2f6340a7076d4c23a17481ff6dc946accba",
    "size_px": [
     3024,
     1898
@@ -507,8 +535,8 @@
   "mac-native-27-light-stats-c6-selection-nobar": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-27-light-stats-c6-selection-nobar.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-stats/mac-native-27-light-stats-c6-selection-nobar.png",
-   "sha256": "0643211b6712914d22a6d4796bdcef33bf9e71036366e544d613d4f2bd6e3cf4",
-   "raw_sha256": "3040017dd282b8fbec6d7fec7a1aa96055a9e18a7b16f8c4d21ab3c6502088fa",
+   "sha256": "5395d938870e12c2ed88ff830c9155d8344560b4b406fca09ff8fc529478cf1d",
+   "raw_sha256": "0eaf1bf1a22a7015fadf0c212d4a2fa9da163a40e723254909174a53b3fbec6f",
    "size_px": [
     3024,
     1898
@@ -533,8 +561,8 @@
   "mac-native-27-light-stats-fade-at-rest": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-27-light-stats-fade-at-rest.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-stats/mac-native-27-light-stats-fade-at-rest.png",
-   "sha256": "31a41430fb0b89f45f860a626a37dea0dd76ae790c216da02ade2488a629312e",
-   "raw_sha256": "a86d1c7260fac215de42e3a37433ab4af2c19f1635514a9b2a252640ad53628b",
+   "sha256": "e8ca35a522b02523de340eecd3c6c30b6d8743f1659bfc356da597bd6ad920e4",
+   "raw_sha256": "df53c1ce5d08f85b19c941295107a35b3e4358aa704ff62385f6bd61bbff0fc1",
    "size_px": [
     3024,
     1898
@@ -559,8 +587,8 @@
   "mac-native-27-light-stats-fade-typing": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-27-light-stats-fade-typing.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-stats/mac-native-27-light-stats-fade-typing.png",
-   "sha256": "300e92e89d39c19510bc90b6a511a508fbcdde347f26ea94a0b4d75a12547f5c",
-   "raw_sha256": "019728075803a6955e0e2965aa7493765765642b5ea69fde996b127c02c55ed1",
+   "sha256": "ec4909cd0ebdf992cf35ec85a9bcafc09bc4620f6a55a6c48dc801488bf12e7f",
+   "raw_sha256": "d365dfd5d6092cf8d0d35ad0b65dc9a6246bd8f67e85269a1da411e9f56d5219",
    "size_px": [
     3024,
     1898
@@ -585,8 +613,8 @@
   "mac-native-27-light-stats-o1-typing": {
    "normalised_file": "ref/ia/shots/mac-native/mac-native-27-light-stats-o1-typing.png",
    "raw_file": "ref/ia/shots/mac-native/raw-2026-09-13-stats/mac-native-27-light-stats-o1-typing.png",
-   "sha256": "2d280cfbf2b7b5a6a5e767018d9a0276d6246e04cedb4140c4ac0935e4218e55",
-   "raw_sha256": "2f5e9fc3697911780a909bd366876f7d6919cf70298e9052f5ef8b4381951afe",
+   "sha256": "652867acd9c84ac32d16d8a7ba17cc563bc5be95227e40153ddbc54d44074343",
+   "raw_sha256": "7da2944f355d00db256e29819163b13855cd446895252598b9be691f1de60c4f",
    "size_px": [
     3024,
     1898
