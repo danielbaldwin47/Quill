@@ -8,7 +8,10 @@
 //! the writer asks for it.
 //!
 //! `GtkShortcutsWindow` is GTK's own table of sections, groups and rows, and
-//! it draws a chord the way the platform draws one. It is deprecated in 4.18
+//! it draws a chord the way the platform draws one — so each row's chord is
+//! written for a label ([`quill_engine::commands::label_accel`]) before it is
+//! handed over, and a `Shift` chord on a symbol shows the key the writer
+//! presses rather than the glyph Shift makes of it. It is deprecated in 4.18
 //! with nothing to replace it before GTK 5, which is why the two functions
 //! below carry `#[allow(deprecated)]`.
 
@@ -63,7 +66,7 @@ fn grouped(group: &Group) -> gtk::ShortcutsGroup {
         built.add_shortcut(
             &gtk::ShortcutsShortcut::builder()
                 .title(shortcut.title)
-                .accelerator(&shortcut.accelerator)
+                .accelerator(quill_engine::commands::label_accel(&shortcut.accelerator))
                 .build(),
         );
     }
