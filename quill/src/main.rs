@@ -169,7 +169,15 @@ fn main() -> glib::ExitCode {
         // The ground is in the stylesheet, and the stylesheet is loaded here:
         // before any window exists, so the first frame a writer sees is
         // already on the paper they asked for and never flashes the other one.
-        editor::install_type(starting.ground(), starting.settings().face, starting.step());
+        // At the class a window with no width yet is in: the first allocation
+        // loads the sheet again if the window turns out to be narrower
+        // ([`editor::install_type`]).
+        editor::install_type(
+            starting.ground(),
+            starting.settings().face,
+            quill_engine::typography::SizeClass::default(),
+            starting.step(),
+        );
         // The chords every Command is bound to: the registry's, with the
         // writer's `[shortcuts]` table over the top. Here rather than beside
         // the actions below, because reading a chord is

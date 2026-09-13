@@ -1,0 +1,205 @@
+{
+  "piece": "chrome",
+  "round": 13,
+  "winner": "theirs",
+  "margin": "clear",
+  "gap": "The stats bar has no step between a number and its label, and its text is set almost at body ink. '188' and 'words' both measure about #191919 at their darkest. A sets the number at #4a4a4a and the label at #8c8c8c, so its bar is two clear steps lighter and reads number-first. B's bar reads as a flat line of near-black text that competes with the prose right above the rule.",
+  "gapTheirs": "The title bar shows the file name with its extension, 'Untitled.md', at #8c8c8c, where B shows the bare name 'sample'. The '.md' is three characters of file-system noise in the one place that should just name the work.",
+  "verdict": "B's stats bar is too loud: '188 words  929 characters  1 min read' is set in the same near-black as the body text, so the eye drops to it at the end of every line instead of letting it fade. A does what a writer needs from that bar. The counts sit a step up from their labels and the whole row stays pale grey, so you only see it when you look for it. A's '.md' in the title is a real blemish, but a much smaller one than a bar that won't recede.",
+  "oursShot": "shots/chrome/r13-bars-ours.png",
+  "theirsShot": "shots/oracle/chrome/bars.png",
+  "refSource": "shots/oracle/chrome/ — the Parity oracle frozen by tools/gate oracle chrome from legacy/app 738f48c969965ac3 with legacy/tools/shoot.mjs 239bd27db3974b27; no opponent for outline (outline) — measured off ours' own pixels by tools/assert-state.mjs, because neither oracle holds the state (ADR 0017)",
+  "builderNote": "counts in the body's own ink with the figure's weight step kept, the accent on hover, the selection fill behind a held run's figure, the end of a draft at 48.5 % of the view (docs/design.md row Page bottom), and the three Shift chord labels showing the key that is pressed (#428)",
+  "secondary": [
+    "Both have a #dfdfdf hairline rule at device row 1748 that runs the full width",
+    "Bar background: A is #f9f9f9 and B is #f7f7f7, each matching its own page",
+    "Both titles are the same #8c8c8c grey and centred; the Library and View icons match in size and position",
+    "Stats text is 17 device px tall on both; B's row is about 440 px wide against A's 408 px, which is the typeface difference",
+    "Characters reads 929 in B and 961 in A. This is the agreed counting rule, not a gap",
+    "B's text runs to the rule at the foot. This is the State 27 decision, not a gap"
+  ],
+  "opponent": "mixed",
+  "build": {
+    "git": "61e2636",
+    "binary": "aea8a30e2fde67c5",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "bars",
+      "ours": "shots/chrome/r13-bars-ours.png",
+      "theirs": "shots/oracle/chrome/bars.png",
+      "blind": "shots/blind/chrome/bars",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "The stats bar has no step between a number and its label, and its text is set almost at body ink. '188' and 'words' both measure about #191919 at their darkest. A sets the number at #4a4a4a and the label at #8c8c8c, so its bar is two clear steps lighter and reads number-first. B's bar reads as a flat line of near-black text that competes with the prose right above the rule.",
+      "gapTheirs": "The title bar shows the file name with its extension, 'Untitled.md', at #8c8c8c, where B shows the bare name 'sample'. The '.md' is three characters of file-system noise in the one place that should just name the work.",
+      "verdict": "B's stats bar is too loud: '188 words  929 characters  1 min read' is set in the same near-black as the body text, so the eye drops to it at the end of every line instead of letting it fade. A does what a writer needs from that bar. The counts sit a step up from their labels and the whole row stays pale grey, so you only see it when you look for it. A's '.md' in the title is a real blemish, but a much smaller one than a bar that won't recede.",
+      "secondary": [
+        "Both have a #dfdfdf hairline rule at device row 1748 that runs the full width",
+        "Bar background: A is #f9f9f9 and B is #f7f7f7, each matching its own page",
+        "Both titles are the same #8c8c8c grey and centred; the Library and View icons match in size and position",
+        "Stats text is 17 device px tall on both; B's row is about 440 px wide against A's 408 px, which is the typeface difference",
+        "Characters reads 929 in B and 961 in A. This is the agreed counting rule, not a gap",
+        "B's text runs to the rule at the foot. This is the State 27 decision, not a gap"
+      ]
+    },
+    {
+      "name": "empty",
+      "ours": "shots/chrome/r13-empty-ours.png",
+      "theirs": "shots/oracle/chrome/empty.png",
+      "blind": "shots/blind/chrome/empty",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "The stats bar has no weight or grey step between number and label. '0' and 'words', '0' and 'characters', '< 1 min' and 'read' are all set in the same near-black (#191919 to #232323, the main ink in that strip) at the same weight. The bar reads as one flat string and is far darker than its own title, which is #8C8C8C, so the bottom chrome shouts louder than the top.",
+      "gapTheirs": "The stats bar is set quiet overall: numbers at #4A4A4A and labels at #8C8C8C on #F9F9F9 paper. The number-to-label step is there, but at 0 words the whole bar is so pale that the number only just reads, around 7:1 contrast for the digits against about 3.3:1 for the labels.",
+      "verdict": "In B the footer is the darkest ink in the window and the page is empty, so on a blank page your eye goes straight to '0 words' in solid black. That is chrome demanding attention exactly when it should step back. A keeps both bars in the same muted grey family and lets the number sit a step above its label, which is the whole point of the bar. B's title and icons are fine, but its stats bar is typeset like body text, not like chrome.",
+      "secondary": [
+        "Both 2880x1800; title bars both have the Library toggle at left, name centred in #8C8C8C, and View button at right, matching in position and grey",
+        "The title in A reads 'Untitled.md' with the extension; in B it reads 'Untitled'",
+        "Paper #F9F9F9 in A vs #F7F7F7 in B, a 2-level difference and imperceptible",
+        "No hairline rule was detected above the stats bar or below the title bar in either capture (column scan at x=200)",
+        "Stats text in B is a few px wider (Adwaita/Inter-like face vs Liberation-like in A); this is the fonts, not a gap",
+        "The placeholder in A, the caret in B sitting higher up, and B's rounded caret ends are all excluded as decisions already taken"
+      ]
+    },
+    {
+      "name": "typing",
+      "ours": "shots/chrome/r13-typing-ours.png",
+      "theirs": "shots/oracle/chrome/typing.png",
+      "blind": "shots/blind/chrome/typing",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "The dimmed stats bar doesn't separate number from label by colour. '188' and 'words' are both #A2A2A2 on #F7F7F7 (about 2.4:1), where A uses two greys, #B6 and #CF. Any step between number and label here is only a slight weight difference. The bar is also roughly 20 grey levels darker than A's numbers, so in the typing state it steps back less than A's does.",
+      "gapTheirs": "The dimmed stats bar is close to invisible. Its numbers are #B6B6B6 and its labels #CFCFCF on #F9F9F9 paper, about 1.9:1 and 1.4:1 contrast. 'words' and 'characters' nearly vanish, so a glance down doesn't give a count without squinting.",
+      "verdict": "Both hide the title bar while you type and leave only a hairline and a centred row of counts, which is the right amount of chrome. A's bar really fades: its figures sit one grey above their labels, so the eye finds the number and skips the word. B leaves the whole row in one mid grey that is too loud, and '929 characters' reads as a single grey smudge that draws the eye away from the line being written. The difference is small, but A's bar stays out of the way better.",
+      "secondary": [
+        "Hairline rule: A #F0F0F0 on #F9F9F9, B #EEEEEE on #F7F7F7. Same weight of rule, both full width at about y=1748 device px.",
+        "Stats row set width: A 408 px, B 440 px. That is the two faces (Liberation vs Adwaita Sans), not a gap.",
+        "Cell spacing looks similar, about 20 logical px between cells on both.",
+        "Neither shot shows a title bar, which fits the typing state on both sides.",
+        "The characters count differs (961 vs 929) under the counting rule already decided, so it isn't counted as a gap."
+      ]
+    },
+    {
+      "name": "view-menu",
+      "ours": "shots/chrome/r13-view-menu-ours.png",
+      "theirs": "shots/oracle/chrome/view-menu.png",
+      "blind": "shots/blind/chrome/view-menu",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "The stats bar is set almost entirely in body-ink black: numbers and labels are both #191919 on #F7F7F7, and only weight tells '188' apart from 'words'. B uses #4A4A4A numbers over #8C8C8C labels, so A's always-visible bar is about 2.5× darker in its labels and shouts at the same level as the prose.",
+      "gapTheirs": "The View menu's left edge is broken. 'Hide Bars', 'All Commands…' and the highlighted 'Enable Focus Mode' start at x≈34 px in the crop, but 'Sentence', 'Duo', 'Dark Mode' and 'Statistics' start at x≈57 px. That is a ~23 px (device) ragged edge in one column, and the thin ticks sit ~4 px below their labels' baseline instead of on it.",
+      "verdict": "B's menu looks like a first draft: half the rows leave room for a tick and half don't, so your eye catches on the ragged edge every time you open View. A's menu holds one clean text edge, with a heavy but baseline-true tick and quiet greyed key labels, which is what a menu you reach for a hundred times a day needs. A then gives it back at the foot, where the word count sits in near-black like a second line of manuscript instead of fading into the margin. A is the one to write in, but only just, and its bar needs its labels dropped to a real grey.",
+      "secondary": [
+        "Both 2880x1800; menus open under the View button at top right with the first row in accent blue (#0A8FD8-ish), same highlight radius",
+        "A menu row pitch ≈38 px device, B ≈38 px; both have the same pitch, so spacing is not the differentiator",
+        "A tick glyph is a heavy filled ✔, B's is a hairline ✓ that sits low; B's is lighter but misplaced",
+        "B's key labels ride ~3 px high against their row's baseline (Ctrl+D, Ctrl+Shift+H); A's sit on the baseline",
+        "A section heading 'TYPEFACE' in small caps grey matches B's in size and grey",
+        "Stats bar hairline rule present on both; bar height matches",
+        "Title grey is comparable on both (~#8x8x8x); A reads 'sample', B 'Untitled.md' (title convention, not judged)",
+        "A's chord order 'Shift+Ctrl+L' vs B's 'Ctrl+Shift+L' is wording, not judged"
+      ]
+    },
+    {
+      "name": "palette",
+      "ours": "shots/chrome/r13-palette-ours.png",
+      "theirs": "shots/oracle/chrome/palette.png",
+      "blind": "shots/blind/chrome/palette",
+      "oursWas": "A",
+      "pick": "B",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "In A's stats bar the labels are as dark as the numbers: 'words', 'characters' and 'read' measure #191919, the same as '188', '929' and '1'. The only difference between number and label is weight, so the bar prints in near-black ink, about as dark as the body text, where it should sit back. In B the numbers are #4A4A4A and the labels #8C8C8C.",
+      "gapTheirs": "B's title bar shows 'Untitled.md', file extension included, in #8C8C8C. That puts about 11 characters of system clutter in the middle of the bar where a bare Document name ('sample' in A, 6 characters) should be.",
+      "verdict": "The palettes are nearly identical: same panel position, same accent on the selected row, same small-caps headings, same 24 px rows with chords at the right. So the decision comes down to the two bars. A's word-count bar is set in the same near-black as the prose, and at the foot of the page it reads like a second line of text you keep catching out of the corner of your eye. B puts the numbers in a mid-grey and their labels a clear step lighter, which is how a bar steps back, even though its title still shows a file extension nobody asked to see.",
+      "secondary": [
+        "Both images are 2880x1800. The hairline rule over the stats bar is the same #DFDFDF on both sides, and the title grey is the same #8C8C8C.",
+        "Palette row labels in A are shorter and lose their context ('Sentence', 'Duo') where B has 'Focus: Sentence' and 'Typeface: Duo'. A's wording is harder to scan, but wording belongs to the registry.",
+        "A's key label for Bigger Text is 'Ctrl+=' and B's is 'Ctrl++'. A names the key you actually press.",
+        "In both palettes the last row ('Dark Mode' / 'Dark or Light Appearance') is cut off mid-glyph at the panel's bottom edge, with no fade.",
+        "The panel's top edge sits 2 px higher in B (search field baseline ~191 vs ~194 at 2000 px display width), which is negligible.",
+        "The Characters cell reads 929 in A and 961 in B. That is the counting-rule difference already decided, not a gap."
+      ]
+    },
+    {
+      "name": "outline",
+      "ours": "shots/chrome/r13-outline-ours.png",
+      "theirs": null,
+      "lit": "shots/chrome/r13-outline-ours-lit.png",
+      "assert": {
+        "kind": "outline",
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "the panel is #f2f2f2, x 982..1897, y 238..439 of a 2880x1800 window, its corners 17 px; 2 rows under its field, the first's ink from x 1011, the second's ink from x 1036",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)",
+      "verdict": "the panel is #f2f2f2, x 982..1897, y 238..439 of a 2880x1800 window, its corners 17 px; 2 rows under its field, the first's ink from x 1011, the second's ink from x 1036",
+      "secondary": [
+        "2 rows under its field, the first's ink from x 1011, the second's ink from x 1036",
+        "the panel is where the shot differs from the bare page, and its ground is read off the pair rather than compared against a hex written down here"
+      ]
+    },
+    {
+      "name": "stats-menu",
+      "ours": "shots/chrome/r13-stats-menu-ours.png",
+      "theirs": "shots/oracle/chrome/stats-menu.png",
+      "blind": "shots/blind/chrome/stats-menu",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "The menu puts a tick beside 'Hide Statistics', an action and not a setting, so the menu claims statistics are hidden while the bar shows them right below. The bar's colours are also wrong: labels ('words', 'characters', 'read') are near-black #171717, the same ink as the numbers, where A sets numbers at #4A4A4A and labels at #8C8C8C. The bar also sits on a #E7E7E7 pressed pill, so it gets louder instead of quieter.",
+      "gapTheirs": "The Stats menu doesn't sit over the bar it came from. Its left edge is at about x=2045 device px, but the stats bar's cells are centred around x=1440, so the panel sits about 600 px right of where the click happened. It also stops about 10 px above the rule, with nothing linking it to the bar.",
+      "verdict": "B puts its menu in the right place, right above the bar that opened it, and then undoes that with a tick on 'Hide Statistics', which reads as a contradiction the moment you look at it. B's bar is black on grey with the numbers only a weight step above their labels, so the footer shouts while you are trying to write. A keeps a real grey step between number and label, and its ticks and separator are clean, but its menu opens off at the right edge, far from the word count you clicked. Of the two, I would put up with a menu in the wrong spot sooner than one that tells me something false.",
+      "secondary": [
+        "B's tick glyphs are heavy filled checks about 22 px wide, larger than A's thin check marks, which also sit low against their row's baseline",
+        "A's selected row has its tick below the label's x-height, so the tick and text are misaligned",
+        "B's menu overlaps the top of its bar pill by a few px, so the panel's shadow runs into the bar",
+        "Both menu backgrounds are #F2F2F2; the separators match; row pitch is about 38 device px on both",
+        "The difference in title (Untitled.md vs sample) and character count (961 vs 929) comes from already-decided rules and is not a gap",
+        "B's heading markers hang in the left margin while A's sit inline; this belongs to another row and is not judged here"
+      ]
+    },
+    {
+      "name": "selection",
+      "ours": "shots/chrome/r13-selection-ours.png",
+      "theirs": "shots/oracle/chrome/selection.png",
+      "blind": "shots/blind/chrome/selection",
+      "oursWas": "A",
+      "pick": "B",
+      "winner": "theirs",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "The stats bar has lost its hierarchy while a run is selected. Every number and every label is the same #191919 near-black, so '25' and 'words' carry equal weight where B steps from #4A4A4A numbers to #8C8C8C labels. Worse, each number ('25', '124', '< 1 min') sits in a pale #CCEDF8 box the full height of the bar: the page's selection fill has leaked into the chrome. At the bottom of the window the bar reads as highlighted search hits, not a quiet count.",
+      "gapTheirs": "The title bar reads 'Untitled.md' and keeps the '.md' extension, where A's title drops it ('short'). That is about 110 px of #8C8C8C centred in the chrome saying 'this is a file' rather than naming the Document. It is the only chrome defect B shows.",
+      "verdict": "A's stats bar looks broken the moment you select something: the numbers sit in selection-blue boxes, and the labels are as black as the numbers they describe, so your eye goes straight to the bottom of the window. B does what a writer wants here: 'Selection' in the accent, then counts at mid-grey with lighter labels, nothing competing with the prose. The file extension in B's title is a small wart. A's bar is a rendering fault you would notice on every selection.",
+      "secondary": [
+        "Selection label accent: A #00BFFF vs B #00B5FF, close enough at the same size",
+        "Both title bars use #8C8C8C for the title and have the same glyphs left and right (sidebar icon, list/chevron) at the same positions",
+        "Paper: A #F7F7F7 vs B #F9F9F9, both bars sit on the page colour with no visible rule in either shot",
+        "Stats row spacing: A's cells are about 20 px further apart because of the fill boxes; B is tighter and more even",
+        "Outside this piece: A's selection fill is ragged, running to x≈1693 on line 1 and bleeding left to x≈307 on line 2; B's fill is clean, with visible selection-end bars",
+        "Characters count is 124 in both, so the counting rule matches for the held run"
+      ]
+    }
+  ],
+  "at": "2026-09-13T14:56:13.812Z"
+}

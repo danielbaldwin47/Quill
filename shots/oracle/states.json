@@ -32,7 +32,7 @@
     "template": "modern",
     "export": null
   },
-  "assert": "A state that names `assert` instead is judged against nobody: neither oracle holds what it is about, so it is measured off ours' own pixels by tools/assert-state.mjs and the Piece takes that answer the way it takes a critic's (ADR 0017). { kind, ... } — the rule's name, and whatever that rule reads. `ghost` shoots the state a second time with the window active and holds the bar to the same column, width and band lit or ghosted, and to `alpha` of the lit bar over the paper; the alpha is solved out of the two shots rather than compared against a hex, and the state names it because docs/design.md is where it is decided. Like `opponent` it never reaches a command line, and tools/gate oracle passes such a state over. `split` and `full` are the Preview's, and neither oracle holds it either: legacy/ shows Markdown as source and has no rendered page at all, and iA Writer for Mac's own preview is that app's design rather than this one's, so #263 puts Preview outside ADR 0015's reach and makes its look the spec's own. `split` reads the divider between the two papers, holds it to half the window, and holds the heading at the top of the rendered page to the centre of the pane it is drawn in; `full` holds the window to one paper and that heading to the window's own centre. Both take nothing but their kind: every number they compare — the window's width, the paper either side of the divider, the pane's centre — is read off the shot, and the 3 px they are read to is the glyph rounding NOTES § State 16 measures its own rendered heading against. Both are shot bare, `chrome` off: the bars are the chrome Piece's to judge, and at the dark palette the top bar is drawn in the Editor's own paper, so a shot carrying them has that paper above the pane as well as beside it and neither the pane's topmost ink nor \"one paper across the window\" is a thing the still can say. `pdf-split` and `pdf-full` are the same pane in its PDF mode, where the Preview draws the pages Export writes instead of the rendered sheet, and they are outside both oracles for the reason `split` and `full` are. `pdf-split` reads the Editor's paper off the left of the window, the pages' paper off the half the pane fills, and the surround off what the rest of that half is made of, and holds four things: the divider between the two at half the window, as `split` does; the surround lighter than the paper beside it, the pages being drawn in the Template's light palette whatever the theme is wearing, so a dark theme's Editor stands beside a light pane; the page standing in the column with a gutter each side rather than filling it; and the page centred in the pane it is drawn in, to the same 3 px. `pdf-full` holds that page to the centre of the window with the Editor gone, and holds the air over it to the gap the column stacks its pages with — every gap between two pages the window is tall enough to show is held to that one, and at the width of the judged window a page fitted to it stands taller than the window, so the still carries the head of the first page and the air over it. Both take nothing but their kind, and both are shot bare for the reasons `split` and `full` are. `pdf-full` is shot at the light theme, where the surround and the Editor's paper are one colour: what a rule reads there is the page's own white and the gutter either side of it, not an edge between the pane and a paper. `dialog` is the Export dialog's, and neither oracle holds that either: legacy/ has no Export dialog at all, and iA Writer for Mac's own is that app's dialog rather than this one's, so #282 puts it where the Preview pair are. The app dims the Editor under the dialog and leaves the Preview pane readable. Its second shot removes the Export flag to capture bare PDF Split, then the rule holds four facts from the pair: the Editor's ground is darker than the pane surround; the pane surround is exactly the colour it has in bare PDF Split; a lighter page stands on that surround; and a dialog rectangle lies wholly inside the window, centred to 8 px, with at least eight bands of ink proving its Options are open. The dialog and pane surround share the light ground, so the rectangle is read by the majority of its rows and columns rather than by asking that shared colour for one global extent. It takes nothing but its kind and is shot bare, `chrome` off, for the reason the other Preview assertions are. `outline` is the Palette on the open Document's Outline (#397), and neither oracle holds it: legacy/'s Palette has no Outline listing, and no capture under ref/ia/shots/mac-native/ holds iA Writer for Mac's outline, whose home in that app is its own design rather than this one's. Its second shot removes the menu for the bare page, and the panel is where the Outline shot differs from it, so no colour written down anywhere says what a panel is; the rule holds two facts: a panel stands wholly inside the window, and under its field it carries at least two bands of ink with the second's starting to the right of the first's — ref/sample.md's two headings are a level 1 and a level 2, and the step is the indent. Each band's ink is read against the band's own ground, because the selected row is drawn on the accent with its words in white. It takes nothing but its kind. `spell` is Spell check (#401), and neither oracle holds it: legacy/ had spell check off, and its mark when on was the browser's own, while iA Writer for Mac's mark has not been captured yet (#400), so the mark is provisional and its states are measured. Its second shot switches Spell check off and leaves every other flag standing, so the difference is the waves: { kind, theme, words, status } — `theme` picks the `spell` Role's value on that ground (tools/keys-assert.mjs SPELL and SPELL_DARK, held to quill-engine/src/theme.rs), `words` is how many waves the page carries, eight on ref/spell.md, the caret parked at the end of `comittee` included, because a parked caret keeps its word's wave and only a word being typed withholds it — that case is `tools/gate keys spell`'s, and the rule holds each to a thin band under a line of prose, over columns that line has ink in, mostly in the Role's hue at any strength — dimmed under Focus, over a Category colour, over the selection fill — with nothing changed outside the text column. `status: true` is the \"no dictionary\" state, pinned by `--spell on:xx_XX`: no wave, and the difference one band at the window's foot, the status line's one line, none of it the Role's. The words' rectangles are read off the difference rather than written here, because where a word lands is the wrap's answer.",
+  "assert": "A state that names `assert` instead is judged against nobody: neither oracle holds what it is about, so it is measured off ours' own pixels by tools/assert-state.mjs and the Piece takes that answer the way it takes a critic's (ADR 0017). { kind, ... } — the rule's name, and whatever that rule reads. `ghost` shoots the state a second time with the window active and holds the bar to the same column, width and band lit or ghosted, and to `alpha` of the lit bar over the paper; the alpha is solved out of the two shots rather than compared against a hex, and the state names it because docs/design.md is where it is decided. Like `opponent` it never reaches a command line, and tools/gate oracle passes such a state over. `split` and `full` are the Preview's, and neither oracle holds it either: legacy/ shows Markdown as source and has no rendered page at all, and iA Writer for Mac's own preview is that app's design rather than this one's, so #263 puts Preview outside ADR 0015's reach and makes its look the spec's own. `split` reads the divider between the two papers, holds it to half the window, and holds the heading at the top of the rendered page to the centre of the pane it is drawn in; `full` holds the window to one paper and that heading to the window's own centre. Both take nothing but their kind: every number they compare — the window's width, the paper either side of the divider, the pane's centre — is read off the shot, and the 3 px they are read to is the glyph rounding NOTES § State 16 measures its own rendered heading against. Both are shot bare, `chrome` off: the bars are the chrome Piece's to judge, and at the dark palette the top bar is drawn in the Editor's own paper, so a shot carrying them has that paper above the pane as well as beside it and neither the pane's topmost ink nor \"one paper across the window\" is a thing the still can say. `pdf-split` and `pdf-full` are the same pane in its PDF mode, where the Preview draws the pages Export writes instead of the rendered sheet, and they are outside both oracles for the reason `split` and `full` are. `pdf-split` reads the Editor's paper off the left of the window, the pages' paper off the half the pane fills, and the surround off what the rest of that half is made of, and holds four things: the divider between the two at half the window, as `split` does; the surround lighter than the paper beside it, the pages being drawn in the Template's light palette whatever the theme is wearing, so a dark theme's Editor stands beside a light pane; the page standing in the column with a gutter each side rather than filling it; and the page centred in the pane it is drawn in, to the same 3 px. `pdf-full` holds that page to the centre of the window with the Editor gone, and holds the air over it to the gap the column stacks its pages with — every gap between two pages the window is tall enough to show is held to that one, and at the width of the judged window a page fitted to it stands taller than the window, so the still carries the head of the first page and the air over it. Both take nothing but their kind, and both are shot bare for the reasons `split` and `full` are. `pdf-full` is shot at the light theme, where the surround and the Editor's paper are one colour: what a rule reads there is the page's own white and the gutter either side of it, not an edge between the pane and a paper. `dialog` is the Export dialog's, and neither oracle holds that either: legacy/ has no Export dialog at all, and iA Writer for Mac's own is that app's dialog rather than this one's, so #282 puts it where the Preview pair are. The app dims the Editor under the dialog and leaves the Preview pane readable. Its second shot removes the Export flag to capture bare PDF Split, then the rule holds four facts from the pair: the Editor's ground is darker than the pane surround; the pane surround is exactly the colour it has in bare PDF Split; a lighter page stands on that surround; and a dialog rectangle lies wholly inside the window, centred to 8 px, with at least eight bands of ink proving its Options are open. The dialog and pane surround share the light ground, so the rectangle is read by the majority of its rows and columns rather than by asking that shared colour for one global extent. It takes nothing but its kind and is shot bare, `chrome` off, for the reason the other Preview assertions are. `outline` is the Palette on the open Document's Outline (#397), and neither oracle holds it: legacy/'s Palette has no Outline listing, and no capture under ref/ia/shots/mac-native/ holds iA Writer for Mac's outline, whose home in that app is its own design rather than this one's. Its second shot removes the menu for the bare page, and the panel is where the Outline shot differs from it, so no colour written down anywhere says what a panel is; the rule holds two facts: a panel stands wholly inside the window, and under its field it carries at least two bands of ink with the second's starting to the right of the first's — ref/sample.md's two headings are a level 1 and a level 2, and the step is the indent. Each band's ink is read against the band's own ground, because the selected row is drawn on the accent with its words in white. It takes nothing but its kind. `spell` is Spell check (#401), and the two states left to it are the two the Design oracle's capture (#400) shot no frame of: the caret parked in a marked word, and the \"no dictionary\" state. The Piece's other eight name a `mac-native` crop and are judged against it (ADR 0015); legacy/ had spell check off and its mark when on was the browser's own, so these two have no opponent of either kind. The second shot switches Spell check off and leaves every other flag standing, so the difference is the marks: { kind, theme, words, status } — `theme` picks the `spell` Role's value on that ground (tools/keys-assert.mjs SPELL and SPELL_DARK, held to quill-engine/src/theme.rs), `words` is how many marks the page carries, seven on ref/spell.md — `DRAFFT` is an all-caps word the dictionary does not hold and is left alone — the caret parked at the end of `comittee` included, because a parked caret keeps its word's mark and only a word being typed withholds it — that case is `tools/gate keys spell`'s, and the rule holds each to a thin band of dots under a line of prose, over columns that line has ink in, mostly in the Role's hue at any strength — over a Category colour, over the selection fill, and at full strength under Focus, where the word dims and the mark does not — with nothing changed outside the text column. `status: true` is the \"no dictionary\" state, pinned by `--spell on:xx_XX`: no wave, and the difference one band at the window's foot, the status line's one line, none of it the Role's. The words' rectangles are read off the difference rather than written here, because where a word lands is the wrap's answer.",
   "reference": "A state that names no `opponent` is judged against the Parity oracle while legacy/ stands. When legacy/ is gone the opponent for every state is a mac-native crop, named the way `opponent` above says; the gauntlet's own crop recipes, recorded as refSource in progress/rounds/<piece>-r1.json, were read off marketing frames and are history rather than an opponent (ADR 0015).",
   "pieces": {
     "type": {
@@ -68,7 +68,24 @@
     "page": {
       "light": {},
       "narrow": {
-        "w": 960
+        "w": 960,
+        "font": "mono",
+        "chrome": "off",
+        "opponent": {
+          "capture": "mac-native-22-light-narrow-w0960-step05-plain.png",
+          "crop": [
+            0,
+            0,
+            1920,
+            1000
+          ],
+          "ours": [
+            0,
+            0,
+            1920,
+            1000
+          ]
+        }
       },
       "short": {
         "text": "ref/short.md",
@@ -778,10 +795,20 @@
         "style": "off",
         "spell": "on",
         "theme": "light",
-        "assert": {
-          "kind": "spell",
-          "theme": "light",
-          "words": 8
+        "opponent": {
+          "capture": "mac-native-26-light-spell-s1-rest.png",
+          "crop": [
+            692,
+            325,
+            1638,
+            130
+          ],
+          "ours": [
+            622,
+            224,
+            1664,
+            130
+          ]
         }
       },
       "on-dark": {
@@ -795,10 +822,20 @@
         "style": "off",
         "spell": "on",
         "theme": "dark",
-        "assert": {
-          "kind": "spell",
-          "theme": "dark",
-          "words": 8
+        "opponent": {
+          "capture": "mac-native-26-dark-spell-s1-rest.png",
+          "crop": [
+            692,
+            325,
+            1638,
+            130
+          ],
+          "ours": [
+            622,
+            224,
+            1664,
+            130
+          ]
         }
       },
       "focus-light": {
@@ -812,10 +849,20 @@
         "style": "off",
         "spell": "on",
         "theme": "light",
-        "assert": {
-          "kind": "spell",
-          "theme": "light",
-          "words": 8
+        "opponent": {
+          "capture": "mac-native-26-light-spell-s2-focus.png",
+          "crop": [
+            692,
+            781,
+            1638,
+            130
+          ],
+          "ours": [
+            622,
+            224,
+            1664,
+            130
+          ]
         }
       },
       "focus-dark": {
@@ -829,10 +876,20 @@
         "style": "off",
         "spell": "on",
         "theme": "dark",
-        "assert": {
-          "kind": "spell",
-          "theme": "dark",
-          "words": 8
+        "opponent": {
+          "capture": "mac-native-26-dark-spell-s2-focus.png",
+          "crop": [
+            692,
+            781,
+            1638,
+            130
+          ],
+          "ours": [
+            622,
+            224,
+            1664,
+            130
+          ]
         }
       },
       "syntax-light": {
@@ -846,10 +903,20 @@
         "style": "off",
         "spell": "on",
         "theme": "light",
-        "assert": {
-          "kind": "spell",
-          "theme": "light",
-          "words": 8
+        "opponent": {
+          "capture": "mac-native-26-light-spell-s3-syntax.png",
+          "crop": [
+            692,
+            325,
+            1638,
+            130
+          ],
+          "ours": [
+            622,
+            224,
+            1664,
+            130
+          ]
         }
       },
       "syntax-dark": {
@@ -863,10 +930,20 @@
         "style": "off",
         "spell": "on",
         "theme": "dark",
-        "assert": {
-          "kind": "spell",
-          "theme": "dark",
-          "words": 8
+        "opponent": {
+          "capture": "mac-native-26-dark-spell-s3-syntax.png",
+          "crop": [
+            692,
+            325,
+            1638,
+            130
+          ],
+          "ours": [
+            622,
+            224,
+            1664,
+            130
+          ]
         }
       },
       "select-light": {
@@ -884,10 +961,20 @@
           68,
           86
         ],
-        "assert": {
-          "kind": "spell",
-          "theme": "light",
-          "words": 8
+        "opponent": {
+          "capture": "mac-native-26-light-spell-s4-selection.png",
+          "crop": [
+            692,
+            325,
+            1638,
+            130
+          ],
+          "ours": [
+            622,
+            224,
+            1664,
+            130
+          ]
         }
       },
       "select-dark": {
@@ -905,10 +992,20 @@
           68,
           86
         ],
-        "assert": {
-          "kind": "spell",
-          "theme": "dark",
-          "words": 8
+        "opponent": {
+          "capture": "mac-native-26-dark-spell-s4-selection.png",
+          "crop": [
+            692,
+            325,
+            1638,
+            130
+          ],
+          "ours": [
+            622,
+            224,
+            1664,
+            130
+          ]
         }
       },
       "caret-light": {
@@ -925,7 +1022,7 @@
         "assert": {
           "kind": "spell",
           "theme": "light",
-          "words": 8
+          "words": 7
         }
       },
       "missing-light": {
@@ -1053,7 +1150,7 @@
       ]
     },
     "spell": {
-      "_about": "Two bursts on ref/spell.md under --spell on, for the one Spell check rule a still cannot show: the caret rule. The caret opens at byte 257, the end of the passage before its trailing newline, so what is typed joins the last paragraph. The first burst types ` comittee` as characters — the space is a character in the text rather than the named key, because a bare named key cannot be pressed without a modifier — and leaves the caret after the misspelling with a word character before it, so the Editor withholds that word’s wave: `spell-wave` with `wave: false`. The second types one space, which releases it: `spell-wave` with `wave: true`. The rule looks only under the word the bar stands after, never its whole row, because the row is the wrapped paragraph and holds `accomodate` to its left. The chrome is off, as the caret Piece’s script has it, so no fade is waited out inside the caret’s idle hold. The fixture dictionary every launch reads (ref/spell/) holds `committee`, so `comittee` is a misspelling there and not on the machine’s word.",
+      "_about": "Two bursts on ref/spell.md under --spell on, for the one Spell check rule a still cannot show: the caret rule. The caret opens at byte 257, the end of the passage before its trailing newline, so what is typed joins the last paragraph. The first burst types ` comittee` as characters — the space is a character in the text rather than the named key, because a bare named key cannot be pressed without a modifier — and leaves the caret after the misspelling with a word character before it, so the Editor withholds that word’s mark: `spell-mark` with `mark: false`. The second types one space, which releases it: `spell-mark` with `mark: true`. The rule looks only under the word the bar stands after, never its whole row, because the row is the wrapped paragraph and holds `accomodate` to its left. The chrome is off, as the caret Piece’s script has it, so no fade is waited out inside the caret’s idle hold. The fixture dictionary every launch reads (ref/spell/) holds `committee`, so `comittee` is a misspelling there and not on the machine’s word.",
       "state": {
         "text": "ref/spell.md",
         "caret": 257,
@@ -1065,19 +1162,19 @@
           "name": "typing",
           "text": " comittee",
           "chars": 9,
-          "wave": false,
           "assert": [
-            "spell-wave"
-          ]
+            "spell-mark"
+          ],
+          "mark": false
         },
         {
           "name": "space",
           "text": " ",
           "chars": 10,
-          "wave": true,
           "assert": [
-            "spell-wave"
-          ]
+            "spell-mark"
+          ],
+          "mark": true
         }
       ],
       "between": [

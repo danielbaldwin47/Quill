@@ -1,0 +1,77 @@
+{
+  "piece": "files",
+  "round": 8,
+  "winner": "theirs",
+  "margin": "slight",
+  "gap": "The pane has no header of its own. The section title 'library' is lowercase, set at regular weight (about 400), and has no disclosure chevron, where B's 'Library' is semibold (about 600) with a ▾. The pane's paper is also exactly the editor's #f7f7f7 on both sides of a #dfdfdf hairline, where B's pane is #fdfdfd against #f9f9f9. Together this makes A's library read as a column that got split off the page, not as a separate place where manuscripts are kept.",
+  "gapTheirs": "The secondary text is lighter. The excerpt, the date, the sort label and the '2 of 8 documents' count all bottom out at grey #999999 (153), where A's are #8c8c8c (140). At 2880×1800 the two-line snippets in B are noticeably weaker against #fdfdfd paper, so a writer skimming by opening lines has to work harder.",
+  "verdict": "Both panes show the same rows: a selected-row bar, a date, two lines of excerpt and 'All changes saved' at the foot. In A the section heading is a whispered lowercase folder name with no affordance to open or close it, and the pane dissolves into the page because both are #f7f7f7, split only by a hairline. B labels the collection with weight and a chevron and gives the pane its own brighter paper, which feels like a shelf you can trust with manuscripts. B loses points for its washed-out #999 snippets, but that is a tuning problem, while A's is a structural one.",
+  "oursShot": "shots/files/r8-search-ours.png",
+  "theirsShot": "shots/oracle/files/search.png",
+  "refSource": "shots/oracle/files/ — the Parity oracle frozen by tools/gate oracle files from legacy/app 738f48c969965ac3 with legacy/tools/shoot.mjs 239bd27db3974b27",
+  "builderNote": "the Library search prompt takes chrome_fg at opacity 1, so the prompt and the magnifier beside it are one grey (#429)",
+  "secondary": [
+    "Both images are 2880×1800.",
+    "Row pitch is about 150 device px in A and about 155 in B, which is close enough to ignore.",
+    "Hairline down the pane's right edge: A #dfdfdf, B #e7e7e7. A's hairline has to do all the separating because the two papers match.",
+    "A's selected row is filled #f2f2f2 on #f7f7f7 paper, a difference of only about 5 levels.",
+    "Both lists already show '2 of 8' with the query highlighted, even though the search state isn't this round's to judge.",
+    "B's extensions and the 'In this browser' foot label are settings and oracle wording, not gaps."
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "61e2636",
+    "binary": "c5191110ab95bd0a",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "library",
+      "ours": "shots/files/r8-library-ours.png",
+      "theirs": "shots/oracle/files/library.png",
+      "blind": "shots/blind/files/library",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "The Location header 'library' has no dropdown chevron, where A has one after 'Library' (≈10 px wide at x≈245 in the 2× crop). B gives no visible way to switch or manage the Location, so the one control that says where the manuscripts live looks like a static label.",
+      "gapTheirs": "The pane is a different sheet of paper from the page. Its column is #FDFDFD against the editor's #F9F9F9, so a brighter slab 4 levels lighter sits beside the manuscript, and its right-edge hairline is a weaker #E7E7E7. B puts pane and page on the same #F7F7F7 with a #DFDFDF hairline, so the library reads as part of the theme's paper and not a pasted-on panel.",
+      "verdict": "B's library looks like it belongs to the page: one paper tone, a firmer hairline, preview text a notch darker (~#8C8C8C vs ~#999999) so the two-line snippets are readable without squinting. A's pane floats on its own whiter ground and its greys wash out, so the list feels like a file picker bolted to the editor. B still hides how you change where your files live behind a bare lowercase label, and a writer with more than one folder will notice that on day one. It's close, but B is the pane I'd trust to be part of the tool.",
+      "secondary": [
+        "Both 2880x1800",
+        "Row pitch A ≈154 px vs B ≈150 px device, both one name line plus two preview lines with an inset rule",
+        "B truncates previews with three periods and sometimes a space before them ('fourth ...'); A uses a single ellipsis glyph",
+        "Preview/date grey minimum A 153 vs B 140 (0–255)",
+        "Selection accent bar is the same width and cyan on both; B's selected-row tint is slightly darker against its paper",
+        "Status line wording differs, 'In this browser' vs 'On this device'; both put 'All changes saved' at the foot with a grey dot",
+        "Differences the brief rules out were not counted: extensions, section naming, folder order and collapse, UI face, page top"
+      ],
+      "carried": 7
+    },
+    {
+      "name": "search",
+      "ours": "shots/files/r8-search-ours.png",
+      "theirs": "shots/oracle/files/search.png",
+      "blind": "shots/blind/files/search",
+      "oursWas": "A",
+      "pick": "B",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "The pane has no header of its own. The section title 'library' is lowercase, set at regular weight (about 400), and has no disclosure chevron, where B's 'Library' is semibold (about 600) with a ▾. The pane's paper is also exactly the editor's #f7f7f7 on both sides of a #dfdfdf hairline, where B's pane is #fdfdfd against #f9f9f9. Together this makes A's library read as a column that got split off the page, not as a separate place where manuscripts are kept.",
+      "gapTheirs": "The secondary text is lighter. The excerpt, the date, the sort label and the '2 of 8 documents' count all bottom out at grey #999999 (153), where A's are #8c8c8c (140). At 2880×1800 the two-line snippets in B are noticeably weaker against #fdfdfd paper, so a writer skimming by opening lines has to work harder.",
+      "verdict": "Both panes show the same rows: a selected-row bar, a date, two lines of excerpt and 'All changes saved' at the foot. In A the section heading is a whispered lowercase folder name with no affordance to open or close it, and the pane dissolves into the page because both are #f7f7f7, split only by a hairline. B labels the collection with weight and a chevron and gives the pane its own brighter paper, which feels like a shelf you can trust with manuscripts. B loses points for its washed-out #999 snippets, but that is a tuning problem, while A's is a structural one.",
+      "secondary": [
+        "Both images are 2880×1800.",
+        "Row pitch is about 150 device px in A and about 155 in B, which is close enough to ignore.",
+        "Hairline down the pane's right edge: A #dfdfdf, B #e7e7e7. A's hairline has to do all the separating because the two papers match.",
+        "A's selected row is filled #f2f2f2 on #f7f7f7 paper, a difference of only about 5 levels.",
+        "Both lists already show '2 of 8' with the query highlighted, even though the search state isn't this round's to judge.",
+        "B's extensions and the 'In this browser' foot label are settings and oracle wording, not gaps."
+      ],
+      "carried": 7
+    }
+  ],
+  "at": "2026-09-13T14:46:38.127Z"
+}

@@ -117,8 +117,9 @@ export function byteToChar(text, byte) {
 // A judged state names a step of the type ladder. `legacy/tools/shoot.mjs` predates the ladder and
 // counts in pixels, so the oracle's command line is the one place left that turns a step back into
 // a size: the em in logical pixels, fractional, which is what the legacy app's `fontSize` takes.
-// The numbers are `LADDER` in `quill-engine/src/typography.rs`, and `tools/oracle-selftest.mjs`
-// reads that file to prove the two have not drifted apart.
+// The numbers are `WIDE` in `quill-engine/src/typography.rs` — the wide size class's ladder, which
+// is the one the legacy app has, having no classes — and `tools/oracle-selftest.mjs` reads that
+// file to prove the two have not drifted apart.
 export const LADDER_EM = [14.50, 15.25, 16.17, 17.17, 19.25, 21.33, 25.58, 29.75, 33.92, 38.08, 44.25, 50.33, 56.50, 62.58];
 
 // The em at `step`, in logical pixels. A step off the ladder is said rather than clamped: an oracle
