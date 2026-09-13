@@ -40,9 +40,13 @@ import fast
 import iarig as R
 import states as S
 
-RAW, NORM, ONLY = sys.argv[1], sys.argv[2], set(sys.argv[3:])
+# Set by main(); left unset so that the three scripts beside this one can import
+# it for the driver and the readings without standing in for its arguments.
+RAW = NORM = None
+ONLY = set()
 HEIGHT_PT = 500
 FILL = (204, 237, 248)
+CHROME = 120                         # device rows of window chrome, never a fill
 LIMIT = 64
 OUT_JSON = os.path.join("ref", "ia", "mac-native", "narrow-419.json")
 PREFIX = "mac-native-25-light-narrow"
@@ -64,9 +68,21 @@ def submenu(bar, parent, item):
         f'of menu bar 1')
 
 
+def size(item, settle=0.45):
+    """One click of the Text Size menu."""
+    submenu("View", "Text Size", item)
+    time.sleep(settle)
+
+
 def width(w):
+    """Set the window that wide, and answer the bounds the app gave back.
+
+    The app refuses to go below 240 pt, so the answer is not always the ask —
+    `sweep_narrow.py` already assumed that and #419 records it.
+    """
     osa(f'tell application "iA Writer" to set bounds of window 1 to {{0, 33, {w}, 982}}')
     time.sleep(0.9)
+    return osa('tell application "iA Writer" to get bounds of window 1')
 
 
 def step(n):
@@ -84,11 +100,9 @@ def step(n):
     one and two rungs high.
     """
     for _ in range(16):
-        submenu("View", "Text Size", "Make Text Smaller")
-        time.sleep(0.35)
+        size("Make Text Smaller", 0.35)
     for _ in range(n):
-        submenu("View", "Text Size", "Make Text Bigger")
-        time.sleep(0.5)
+        size("Make Text Bigger", 0.5)
 
 
 def ax():
@@ -106,9 +120,14 @@ def shoot(name, region):
 
 
 def fill_box(png):
-    """The selection fill's box, ignoring stray pixels and the window chrome."""
+    """The selection fill's box, ignoring stray pixels and the window chrome.
+
+    `fast.fill_box` reads the whole frame; the window's own chrome can hold a
+    pixel near the band's colour, so the top rows are cut and a column has to
+    carry four of them before it counts.
+    """
     m = fast.near_mask(fast.arr(png), FILL, 12)
-    m[:120] = False
+    m[:CHROME] = False
     rows = np.where(m.sum(axis=1) >= 4)[0]
     cols = np.where(m.sum(axis=0) >= 4)[0]
     if not len(rows) or not len(cols):
@@ -122,6 +141,34 @@ def body_lines(png):
     g, lines = fast.ink_lines(png)
     wide = 0.9 * fast.arr(png).shape[1]
     return g, [l for l in lines if not (l["y0"] < 30 and l["x1"] - l["x0"] > wide)]
+
+
+JOIN = 8                             # device rows: narrower than any line separation
+
+
+def pitch_of(png):
+    """The body line pitch off a plain frame: the shortest gap between line tops.
+
+    Two things have to be undone first, and both of them put a wrong rung in an
+    earlier run. A row of ascender tips can fall away from its own line's body
+    for two or three rows, and `fast.ink_lines` reads that as two lines, which
+    moves the line's top down and shortens the gap before it — so bands closer
+    than `JOIN` rows are rejoined. Anything left under 9 px tall is antialiasing
+    rather than a line, and letting one through gives a pitch of five or six.
+
+    The shortest gap, not the median: a fractional pitch lands alternately on
+    two whole numbers, and the ladders are written in the lower one.
+    """
+    _, lines = body_lines(png)
+    joined = []
+    for l in lines:
+        if joined and l["y0"] - joined[-1]["y1"] <= JOIN:
+            joined[-1] = dict(joined[-1], y1=l["y1"], h=l["y1"] - joined[-1]["y0"] + 1)
+        else:
+            joined.append(dict(l))
+    tops = [l["y0"] for l in joined[1:] if l["h"] > 8]
+    gaps = [b - a for a, b in zip(tops, tops[1:])]
+    return min(gaps) if gaps else None
 
 
 def fit(fills):
@@ -142,7 +189,7 @@ def name_for(tag, kind):
 
 
 def counts_for(container_w, advance, gutter_px):
-    """Two more fills inside the row the container leaves, the widest first.
+    """Two more fills inside the row the container leaves, the wider one last.
 
     The room is the container less its two gutters, which the 4-cell fill's own
     left edge measures: the narrowest class holds a one-cell gutter where the
@@ -172,7 +219,7 @@ def read(tag, w, st, cells, probe, ax_geometry):
     body = [l for l in lines[1:] if l["h"] > 8]
     tops = [l["y0"] for l in body]
     gaps = [b - a for a, b in zip(tops, tops[1:])]
-    pitch = min(gaps) if gaps else None
+    pitch = pitch_of(frames["plain"])
     single = {n: b for n, b in fills.items()
               if b and pitch and b["h"] <= 1.4 * pitch}
     advance, edge = fit(single)
@@ -210,9 +257,7 @@ def run(w, st):
     plain = shoot(name_for(tag, "plain"), region)
     g, lines = body_lines(plain)
     heading_y1 = lines[0]["y1"]
-    tops = [l["y0"] for l in lines[1:] if l["h"] > 8]
-    gaps = [b - a for a, b in zip(tops, tops[1:])]
-    pitch = min(gaps) if gaps else 60
+    pitch = pitch_of(plain) or 60
 
     S.keys("a", "command down")
     time.sleep(0.6)
@@ -233,13 +278,11 @@ def run(w, st):
         print(json.dumps(dict(tag=tag, error="no body row found")), flush=True)
         return dict(tag=tag, width_pt=w, step=st, error="no body row found")
 
-    cells = [4]
-    for n in (8,):
-        home()
-        S.goto(downs=probe, shift_rights=n)
-        time.sleep(0.4)
-        shoot(name_for(tag, f"sel{n:02d}"), region)
-        cells.append(n)
+    cells = [4, 8]
+    home()
+    S.goto(downs=probe, shift_rights=8)
+    time.sleep(0.4)
+    shoot(name_for(tag, "sel08"), region)
     b4 = fill_box(os.path.join(NORM, name_for(tag, "sel04")))
     b8 = fill_box(os.path.join(NORM, name_for(tag, "sel08")))
     a0 = (b8["w"] - b4["w"]) / 4.0 if b4 and b8 else None
@@ -257,6 +300,8 @@ def run(w, st):
 
 
 def main():
+    global RAW, NORM, ONLY
+    RAW, NORM, ONLY = sys.argv[1], sys.argv[2], set(sys.argv[3:])
     os.makedirs(RAW, exist_ok=True)
     os.makedirs(NORM, exist_ok=True)
     kept = {r["tag"]: r for r in (json.load(open(OUT_JSON)) if os.path.exists(OUT_JSON) else [])}
