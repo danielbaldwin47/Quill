@@ -657,17 +657,18 @@ export function judgeStatsBarChanged(before, after, { colours, scale } = {}) {
   };
 }
 
-// ---------- the Spell check wave, under the word the caret stands after ----------
+// ---------- the Spell check mark, under the word the caret stands after ----------
 
 /// `Role::Spell` on the two grounds, as `quill-engine/src/theme.rs` pins it:
-/// `(Scheme::Light, Role::Spell, "#e5372b")` and `(Scheme::Dark, Role::Spell, "#e5534b")`.
+/// `(Scheme::Light, Role::Spell, "#ed766b")` and `(Scheme::Dark, Role::Spell, "#cf807e")`.
 ///
-/// Provisional until the capture #400 measures the mark, like the Role itself; the day the theme's
-/// two lines move, these two move with them.
-export const SPELL = { r: 0xe5, g: 0x37, b: 0x2b };
-export const SPELL_DARK = { r: 0xe5, g: 0x53, b: 0x4b };
+/// The Design oracle's own two values, measured off the mark macOS draws under a misspelling
+/// (`ref/ia/mac-native/NOTES.md` § State 26 § The mark itself); the day the theme's two lines move,
+/// these two move with them.
+export const SPELL = { r: 0xed, g: 0x76, b: 0x6b };
+export const SPELL_DARK = { r: 0xcf, g: 0x80, b: 0x7e };
 
-// How far a pixel's `(r - g) / (r - b)` may stray from the Role's own before it is not the wave.
+// How far a pixel's `(r - g) / (r - b)` may stray from the Role's own before it is not the mark.
 const SPELL_INK_HUE = 0.2;
 
 // The gap, as a share of the caret bar's height, that ends a word when walking left from the bar.
@@ -684,13 +685,13 @@ function rgb(png, x, y) {
 
 /// Whether the pixel at (x, y) is `spell`'s ink, at any strength.
 ///
-/// The wave is antialiased onto a neutral grey, and a blend with a grey moves every channel toward
+/// The dots are antialiased onto a neutral grey, and a blend with a grey moves every channel toward
 /// it by the same share: `r - g` and `r - b` shrink together, so their ratio is the Role's own at
 /// every strength and a chroma floor is all that tells a faint skirt from the paper. No grey and no
 /// accent pixel leans red, so nothing else on a keys page answers it.
 ///
 /// `chroma` is how far red must lead green and blue, and `hue` how far the ratio may stray; a
-/// caller reading a fainter wave than a keys page carries passes its own.
+/// caller reading a fainter mark than a keys page carries passes its own.
 export function isSpellInk(png, x, y, spell = SPELL, { chroma = CHROMA, hue = SPELL_INK_HUE } = {}) {
   const { r, g, b } = rgb(png, x, y);
   if (r - Math.max(g, b) < chroma) return false;
@@ -736,19 +737,22 @@ export function readWordBeforeBar(png, read, { ink = INK, paper = PAPER } = {}) 
   return { left, right };
 }
 
-/// After a burst, the word the caret stands after wears the Spell wave — or wears none of it.
+/// After a burst, the word the caret stands after wears the Spell mark — or wears none of it.
 ///
-/// The burst says which with `wave`, as `stats-bar-accent` is told with `accent`: typing a
-/// misspelling asserts no wave while the caret is still in the word, and the space after it
-/// asserts the wave. Only the columns of that one word are looked at, never its row: the row is a
+/// The burst says which with `mark`, as `stats-bar-accent` is told with `accent`: typing a
+/// misspelling asserts no mark while the caret is still in the word, and the space after it
+/// asserts the mark. Only the columns of that one word are looked at, never its row: the row is a
 /// wrapped paragraph that can hold another misspelling left of it, and the rule is about the word
 /// being typed.
-export function judgeSpellWave(png, { wave, colours, read } = {}) {
-  if (typeof wave !== 'boolean') {
+///
+/// The mark is a row of round dots since #416 read the Design oracle's own, and the rule is the one
+/// it was: the dots are the Role's hue at any strength, and nothing here counts on their shape.
+export function judgeSpellMark(png, { mark, colours, read } = {}) {
+  if (typeof mark !== 'boolean') {
     return {
       pass: false,
-      said: 'a burst asserting spell-wave has to say whether it expects the wave, and this one '
-        + `says ${JSON.stringify(wave)}`,
+      said: 'a burst asserting spell-mark has to say whether it expects the mark, and this one '
+        + `says ${JSON.stringify(mark)}`,
     };
   }
   const reading = read || readBar(png, colours);
@@ -756,7 +760,7 @@ export function judgeSpellWave(png, { wave, colours, read } = {}) {
   const word = readWordBeforeBar(png, reading, colours);
   if (!word) return { pass: false, said: 'no ink left of the caret bar, so no word to look under' };
   const spell = colours && colours.paper === PAPER_DARK ? SPELL_DARK : SPELL;
-  // The bar's rows are the row's whole pitch, and the wave is drawn inside them: y 590..593 under a
+  // The bar's rows are the row's whole pitch, and the mark is drawn inside them: y 590..593 under a
   // bar at 536..609 in `spell-space.png`'s page.
   const { bar } = reading;
   let pixels = 0;
@@ -771,12 +775,12 @@ export function judgeSpellWave(png, { wave, colours, read } = {}) {
     }
   }
   return {
-    pass: wave ? pixels > 0 : pixels === 0,
+    pass: mark ? pixels > 0 : pixels === 0,
     word,
     pixels,
     said: `${pixels} px of the spell Role under the word at x ${word.left}..${word.right} `
-      + `(y ${bar.top}..${bar.bottom}${pixels ? `, wave at y ${top}..${bottom}` : ''}); `
-      + `expected ${wave ? 'the wave' : 'none of it'}`,
+      + `(y ${bar.top}..${bar.bottom}${pixels ? `, mark at y ${top}..${bottom}` : ''}); `
+      + `expected ${mark ? 'the mark' : 'none of it'}`,
   };
 }
 
@@ -792,7 +796,7 @@ export const AFTER_BURST = {
   'selection-container-wide': judgeSelectionFill,
   'selection-newline-to-edge': judgeSelectionNewline,
   'stats-bar-accent': judgeStatsBarAccent,
-  'spell-wave': judgeSpellWave,
+  'spell-mark': judgeSpellMark,
 };
 
 /// The between-bursts assertions, each with what it reads.

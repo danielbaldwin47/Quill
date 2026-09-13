@@ -115,12 +115,13 @@ lane; a right-click before the first load finds the handle empty and shows no co
 Ignore and a language change go to the worker as edits, each followed by a whole-Document
 re-request, viewport first. A pure engine function walks a paragraph's prose into words by the
 dictionary's word-character rule (start, middle, end), so the dictionary decides whether an
-apostrophe or a hyphen is inside a word; a token holding a digit is skipped, and all-caps and
-CamelCase are checked. The engine's spans are complete: the **caret rule** is the Editor's, applied
+apostrophe or a hyphen is inside a word; a token holding a digit is skipped and so is an all-caps
+one, as the Design oracle skips both (`docs/design.md` row *What a spell mark covers*), and
+CamelCase is checked. The engine's spans are complete: the **caret rule** is the Editor's, applied
 at paint by a second pure function — the span the caret stands inside is withheld while the writer
 is typing it, the last edit having inserted a word character that left the caret there, and returns
 on a non-word character typed after it, a deletion or any caret move, so a caret parked or
-backspaced into a misspelled word leaves its wave standing. The painting carries that arming and
+backspaced into a misspelled word leaves its mark standing. The painting carries that arming and
 reads the caret off the buffer, Live or not, and moving the caret out of a withheld word repaints
 that paragraph's decorations. The
 language resolves on the main thread (§ Settings). `spell_check` off sends no Spell request and
@@ -162,9 +163,11 @@ in the flattening and not over it**: the Design oracle re-inks a struck run to t
 than ruling a line over the ink it had, so a struck word loses the Category it was carrying — an
 ordering between the two Annotators, Style check last — and takes the Focus dim like any other run
 (#354, `ref/ia/mac-native/VERDICTS.md` § The Style Check mark). Decorations are separate tags
-layered over the runs: one `underline: error` tag for Spell check, coloured through
-`underline-rgba` from the `spell` Role and carrying no ink of its own, so a Focus dim, a Category
-and a strike on the same word all still show and the Editor's selection fills sit under it; one per Style check List — three
+layered over the runs: one property-free tag for Spell check, which says only that a word is
+misspelled — its mark is a row of round dots no Pango underline can draw, so the Editor paints them
+itself over the glyphs in the `spell` Role (`docs/design.md` row *Spell mark*), and the tag carries
+no ink of its own, so a Focus dim, a Category and a strike on the same word all still show and the
+Editor's selection fills sit under it; one per Style check List — three
 identical strikes, split so that a List switched off takes its own tag off the page and leaves the
 other two, never so that the Lists read differently, and each carrying no colour of its own so the
 rule is drawn in the run's — one for selection-independent things such as the transparent underline

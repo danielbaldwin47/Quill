@@ -25,7 +25,7 @@ import { fileURLToPath } from 'node:url';
 import {
   AFTER_BURST, BETWEEN_BURSTS, CHROMA, INK_DARK, PAPER, PAPER_DARK, PAPER_MARGIN, SPELL, SPELL_DARK,
   decodePng, glyphAdvance, judgeBurst, judgeMove, judgeSelectionFill, judgeSelectionNewline,
-  judgeSelectionRows, judgeSpellWave, judgeStatsBarAccent, judgeStatsBarChanged, leansBlue, lum,
+  judgeSelectionRows, judgeSpellMark, judgeStatsBarAccent, judgeStatsBarChanged, leansBlue, lum,
   pixel, readBar, readSelectionRows, readStatsBand, resolveScript,
 } from './keys-assert.mjs';
 
@@ -650,7 +650,7 @@ ok('a burst that only presses a chord types no characters, and its chars say so'
   assert.deepEqual(resolveScript(wrong, 'caret').bursts[0].chars, 0);
 });
 
-// ---------- the Spell check wave, withheld until the space: #414 ----------
+// ---------- the Spell check mark, withheld until the space: #414 ----------
 //
 // WHERE THESE TWO CROPS CAME FROM
 //
@@ -658,8 +658,11 @@ ok('a burst that only presses a chord types no characters, and its chars say so'
 // the script's two bursts, each page cut by `cropPng` in `tools/crop.mjs` to [560, 500, 360, 150].
 // That rectangle holds the caret's row — `comittee` at the start of a wrapped row, the bar after it
 // in `spell-typing` and after the space in `spell-space` — and the foot of the row above, whose
-// `mispelled` wears its own wave outside the bar's rows. The two crops differ in the bar's column
-// and the wave under the typed word, and in nothing else.
+// `mispelled` wears its own mark outside the bar's rows. The two crops differ in the bar's column
+// and the mark under the typed word, and in nothing else.
+//
+// The two crops are the wave #401 drew, and the rule reads their hue and not their shape: the pixels
+// under the word are the spell Role at some strength either way, which is what `spell-mark` asks.
 
 ok('the pinned spell inks quote the theme module’s two Role::Spell lines', () => {
   const theme = fs.readFileSync(path.join(ROOT, 'quill-engine/src/theme.rs'), 'utf8');
@@ -668,36 +671,36 @@ ok('the pinned spell inks quote the theme module’s two Role::Spell lines', () 
   assert.ok(theme.includes(`(Scheme::Dark, Role::Spell, "${hex(SPELL_DARK)}")`), hex(SPELL_DARK));
 });
 
-ok('the word being typed wears no wave, and wears it once the space releases it', () => {
-  const typing = judgeSpellWave(shot('spell-typing'), { wave: false });
+ok('the word being typed wears no mark, and wears it once the space releases it', () => {
+  const typing = judgeSpellMark(shot('spell-typing'), { mark: false });
   assert.equal(typing.pass, true, typing.said);
-  const space = judgeSpellWave(shot('spell-space'), { wave: true });
+  const space = judgeSpellMark(shot('spell-space'), { mark: true });
   assert.equal(space.pass, true, space.said);
   // The same word both times: the bar moved one space right and the walk left found `comittee`.
   assert.deepEqual(typing.word, space.word);
 });
 
 ok('each crop fails the other burst’s expectation, which is the rule going red', () => {
-  const early = judgeSpellWave(shot('spell-space'), { wave: false });
-  assert.equal(early.pass, false, 'a wave under the word while the caret is in it is caught');
+  const early = judgeSpellMark(shot('spell-space'), { mark: false });
+  assert.equal(early.pass, false, 'a mark under the word while the caret is in it is caught');
   assert.match(early.said, /expected none of it/);
-  const never = judgeSpellWave(shot('spell-typing'), { wave: true });
+  const never = judgeSpellMark(shot('spell-typing'), { mark: true });
   assert.equal(never.pass, false, 'a word the space did not release is caught');
   assert.match(never.said, /^0 px of the spell Role/);
 });
 
-ok('a burst asserting spell-wave without saying which way is refused, not passed', () => {
-  const v = judgeSpellWave(shot('spell-space'), {});
+ok('a burst asserting spell-mark without saying which way is refused, not passed', () => {
+  const v = judgeSpellMark(shot('spell-space'), {});
   assert.equal(v.pass, false);
-  assert.match(v.said, /has to say whether it expects the wave/);
+  assert.match(v.said, /has to say whether it expects the mark/);
 });
 
 ok('the spell script types the misspelling as characters, then the space that releases it', () => {
   const script = resolveScript(states, 'spell');
-  assert.equal(AFTER_BURST['spell-wave'], judgeSpellWave);
+  assert.equal(AFTER_BURST['spell-mark'], judgeSpellMark);
   assert.deepEqual(script.bursts.map((b) => b.text), [' comittee', ' ']);
-  assert.deepEqual(script.bursts.map((b) => b.wave), [false, true]);
-  assert.deepEqual(script.bursts.map((b) => b.assert), [['spell-wave'], ['spell-wave']]);
+  assert.deepEqual(script.bursts.map((b) => b.mark), [false, true]);
+  assert.deepEqual(script.bursts.map((b) => b.assert), [['spell-mark'], ['spell-mark']]);
   // A bare named key cannot be pressed without a modifier, so the space is a character.
   assert.equal(script.bursts.some((b) => b.keys), false);
   assert.equal(script.flags.spell, 'on');

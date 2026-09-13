@@ -1,18 +1,16 @@
 //! The two designed grounds: the colour table, and the rule that picks a ground.
 //!
-//! Fifteen roles are the **Design oracle**'s, measured off iA Writer for Mac
-//! (`ref/ia/mac-native/VERDICTS.md` 4.2.1–4.2.14 and § Marker ink) and carried
+//! Sixteen roles are the **Design oracle**'s, measured off iA Writer for Mac
+//! (`ref/ia/mac-native/VERDICTS.md` 4.2.1–4.2.16 and § Marker ink) and carried
 //! by [`docs/design.md`](../../../docs/design.md) rows Paper · ink · dim,
-//! Accent, Active fill, Idle fill, Markers, Link and Syntax colours: paper,
-//! ink, the dimmed grey, the accent, the selection's two fills, the markers,
-//! the link's two greys, the code ground and the five Syntax highlight
-//! Categories. The other four — the rule, the shadow and the chrome's two
-//! texts — are the Parity oracle's, role for role out of
-//! `legacy/app/css/theme.css`, until they are measured in their turn
-//! (4.2.15 is still unknown), which is the split `design.md` § The palette is
-//! a file states. The last, [`Role::Spell`], is neither oracle's: a provisional
-//! red per ground, held to 3:1 against its paper, until the capture ticket #400
-//! measures the mark.
+//! Accent, Active fill, Idle fill, Markers, Link, Syntax colours and Spell
+//! mark: paper, ink, the dimmed grey, the accent, the selection's two fills,
+//! the markers, the link's two greys, the code ground, the five Syntax
+//! highlight Categories and the misspelling mark. The other four — the rule,
+//! the shadow and the chrome's two texts — are the Parity oracle's, role for
+//! role out of `legacy/app/css/theme.css`, until they are measured in their
+//! turn (4.2.15 is still unknown), which is the split `design.md` § The
+//! palette is a file states.
 //!
 //! The markers are the ink. #198 shot iA Writer at every mark kind on both
 //! grounds and found no resting marker grey at all: a heading's `#`, a quote's
@@ -393,11 +391,13 @@ pub enum Role {
     /// A conjunction under Syntax highlight. Measured; see
     /// [`Role::SyntaxNoun`].
     SyntaxConjunction,
-    /// The wave under a misspelled word, drawn by Spell check.
+    /// The dots under a misspelled word, drawn by Spell check.
     ///
-    /// Provisional: a red per ground chosen for at least 3:1 against its
-    /// paper, not measured, until the capture ticket #400 reads the Design
-    /// oracle's mark and replaces both values.
+    /// Measured off the Design oracle: `ref/ia/mac-native/NOTES.md` § State 26
+    /// § The mark itself, the *Ink on the paper* row. Two values and not one
+    /// with an alpha — macOS draws the mark in a dynamic system colour with a
+    /// value per appearance, and no coverage flattens either onto the other's
+    /// paper.
     Spell,
 }
 
@@ -529,9 +529,9 @@ impl Colours {
         syntax_adjective: Colour::from_hex("#9d6722"),
         syntax_adverb: Colour::from_hex("#a6559f"),
         syntax_conjunction: Colour::from_hex("#51812f"),
-        // Provisional until the capture ticket #400: a red chosen, not
-        // measured, at 3.99:1 against this paper.
-        spell: Colour::from_hex("#e5372b"),
+        // `ref/ia/mac-native/NOTES.md` § State 26 § The mark itself, the
+        // *Ink on the paper* row, light column.
+        spell: Colour::from_hex("#ed766b"),
     };
 
     /// The dark ground: the same ten measured, then
@@ -569,9 +569,9 @@ impl Colours {
         syntax_adjective: Colour::from_hex("#ba9659"),
         syntax_adverb: Colour::from_hex("#b490b0"),
         syntax_conjunction: Colour::from_hex("#89a474"),
-        // Provisional until the capture ticket #400: a red chosen, not
-        // measured, at 4.70:1 against this paper.
-        spell: Colour::from_hex("#e5534b"),
+        // `ref/ia/mac-native/NOTES.md` § State 26 § The mark itself, the
+        // *Ink on the paper* row, dark column.
+        spell: Colour::from_hex("#cf807e"),
     };
 
     /// The colours of one ground.
@@ -849,8 +849,8 @@ mod tests {
     /// The Syntax highlight rows, ten in all, are the Design oracle's own: the
     /// capture ticket #308 measured them off the running app on both grounds,
     /// as [`Colours::LIGHT`] and [`Colours::DARK`] say. The two `Spell` rows
-    /// are no oracle's: they are the provisional reds the capture ticket #400
-    /// replaces.
+    /// are the Design oracle's too: the capture ticket #400 read them off the
+    /// mark macOS draws under a misspelling, `NOTES.md` § State 26.
     const ORACLE: [(Scheme, Role, &str); 42] = [
         (Scheme::Light, Role::Paper, "#f7f7f7"),
         (Scheme::Light, Role::Ink, "#191919"),
@@ -876,7 +876,7 @@ mod tests {
         (Scheme::Light, Role::SyntaxAdjective, "#9d6722"),
         (Scheme::Light, Role::SyntaxAdverb, "#a6559f"),
         (Scheme::Light, Role::SyntaxConjunction, "#51812f"),
-        (Scheme::Light, Role::Spell, "#e5372b"),
+        (Scheme::Light, Role::Spell, "#ed766b"),
         (Scheme::Dark, Role::Paper, "#1a1a1a"),
         (Scheme::Dark, Role::Ink, "#cccccc"),
         (Scheme::Dark, Role::InkDim, "#707070"),
@@ -901,7 +901,7 @@ mod tests {
         (Scheme::Dark, Role::SyntaxAdjective, "#ba9659"),
         (Scheme::Dark, Role::SyntaxAdverb, "#b490b0"),
         (Scheme::Dark, Role::SyntaxConjunction, "#89a474"),
-        (Scheme::Dark, Role::Spell, "#e5534b"),
+        (Scheme::Dark, Role::Spell, "#cf807e"),
     ];
 
     /// WCAG 2.1 relative luminance.
@@ -991,20 +991,34 @@ mod tests {
         }
     }
 
-    /// The provisional Spell reds hold the one rule they were chosen by, at
-    /// least 3:1 against their own ground's paper by the WCAG ratio, until the
-    /// capture ticket #400 replaces them with measured values.
+    /// The two Spell reds are two measured values and not one with an alpha.
+    ///
+    /// `ref/ia/mac-native/NOTES.md` § State 26 § The mark itself: *no coverage
+    /// flattens `#ed766b` onto the dark paper to give `#cf807e`*, which is how
+    /// the capture told a dynamic system colour from a single ink laid over
+    /// two papers. Every coverage is tried here, a hundredth at a time, and the
+    /// closest any of them comes is held to more than a channel step away — so
+    /// a hand that replaced the dark row with an alpha of the light one fails
+    /// here rather than at a critic.
     #[test]
-    fn the_spell_red_clears_three_to_one_against_each_ground_s_paper() {
-        for (scheme, ratio) in [(Scheme::Light, 3.99), (Scheme::Dark, 4.70)] {
-            let colours = Colours::of(scheme);
-            let spell = contrast(colours.colour(Role::Spell), colours.colour(Role::Paper));
-            assert!(spell >= 3.0, "{scheme:?} spell over paper is {spell:.2}:1");
-            assert!(
-                (spell - ratio).abs() < 0.01,
-                "{scheme:?} spell {spell:.2}:1"
-            );
-        }
+    fn the_two_spell_reds_are_not_one_ink_over_two_papers() {
+        let light = Colours::of(Scheme::Light).colour(Role::Spell);
+        let dark = Colours::of(Scheme::Dark);
+        let (wanted, paper) = (dark.colour(Role::Spell), dark.colour(Role::Paper));
+        let nearest = (0..=100)
+            .map(|step| {
+                let over = Colour::over(light, paper, f64::from(step) / 100.0);
+                (over.red - wanted.red)
+                    .abs()
+                    .max((over.green - wanted.green).abs())
+                    .max((over.blue - wanted.blue).abs())
+            })
+            .fold(f64::INFINITY, f64::min);
+        assert!(
+            nearest > 1.0 / 255.0,
+            "the light spell red over the dark paper comes within {:.1} of 255 of the dark one",
+            nearest * 255.0
+        );
     }
 
     #[test]
