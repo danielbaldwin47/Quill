@@ -1,0 +1,115 @@
+{
+  "piece": "page",
+  "round": 11,
+  "winner": "ours",
+  "margin": "slight",
+  "gap": "B's lines are slightly more cramped and its paper slightly darker. Body lines are 74 device px apart against A's 76 (about 1.80× against 1.85× the ~41 px glyph height, a 2.6% tighter leading), and the paper is #F7F7F7 against A's #F9F9F9. On a long screen the text block reads a little denser and greyer.",
+  "gapTheirs": "A puts the heading hashes inside the text column instead of hanging them in the margin. The body's left edge is at x≈622 device px, but A's H1 words start at ≈672 px and its H2 words at ≈698 px, 50 and 76 px to the right of it. So the one vertical line the page is built on breaks at every heading. B hangs '#' and '##' to the left, starting at ≈545 px, so its heading words sit exactly on the 622 px body edge.",
+  "verdict": "The two pages measure almost the same: body text starts at 622 px and wraps at about 2245 px on both, both are near-white, and both have generous side margins. That leaves the left edge as the deciding difference. A lets its heading markers push the headings out of line with the body, so the column wobbles at every section break. B hangs the markers in the gutter, and its left edge runs straight from top to bottom. A's extra 2 px of leading and slightly brighter paper don't make up for that.",
+  "oursShot": "shots/page/r11-light-ours.png",
+  "theirsShot": "shots/oracle/page/light.png",
+  "refSource": "shots/oracle/page/ — the Parity oracle frozen by tools/gate oracle page from legacy/app 738f48c969965ac3 with legacy/tools/shoot.mjs 239bd27db3974b27; ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in ref/ia/mac-native/ (ADR 0015), cropped per state: narrow from mac-native-22-light-narrow-w0960-step05-plain.png",
+  "builderNote": "page/narrow is shot bare, as every mac-native pair is: round 10 lost it on the chrome bar the oracle's capture has not got, with the geometry already within a pixel of pitch",
+  "secondary": [
+    "Both screenshots are 2880x1800 device px, displayed at 1.44x.",
+    "The text column is the same width on both: left edge ≈622 px, right edge ≈2245–2260 px, roughly 62–64 monospace characters per line.",
+    "Paper: A #F9F9F9, B #F7F7F7. The difference is barely visible, and neither is tinted.",
+    "Line spacing: A 76 px, B 74 px, measured top to top across consecutive body lines.",
+    "B fits one more block (the list item) into the window, mostly because its page starts higher, which is out of scope under the Page top row.",
+    "The status bar and title bar are the same on both, with a hairline rule above the footer."
+  ],
+  "opponent": "mixed",
+  "build": {
+    "git": "61e2636",
+    "binary": "438a8a79ccd19ed5",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "light",
+      "ours": "shots/page/r11-light-ours.png",
+      "theirs": "shots/oracle/page/light.png",
+      "blind": "shots/blind/page/light",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "B's lines are slightly more cramped and its paper slightly darker. Body lines are 74 device px apart against A's 76 (about 1.80× against 1.85× the ~41 px glyph height, a 2.6% tighter leading), and the paper is #F7F7F7 against A's #F9F9F9. On a long screen the text block reads a little denser and greyer.",
+      "gapTheirs": "A puts the heading hashes inside the text column instead of hanging them in the margin. The body's left edge is at x≈622 device px, but A's H1 words start at ≈672 px and its H2 words at ≈698 px, 50 and 76 px to the right of it. So the one vertical line the page is built on breaks at every heading. B hangs '#' and '##' to the left, starting at ≈545 px, so its heading words sit exactly on the 622 px body edge.",
+      "verdict": "The two pages measure almost the same: body text starts at 622 px and wraps at about 2245 px on both, both are near-white, and both have generous side margins. That leaves the left edge as the deciding difference. A lets its heading markers push the headings out of line with the body, so the column wobbles at every section break. B hangs the markers in the gutter, and its left edge runs straight from top to bottom. A's extra 2 px of leading and slightly brighter paper don't make up for that.",
+      "secondary": [
+        "Both screenshots are 2880x1800 device px, displayed at 1.44x.",
+        "The text column is the same width on both: left edge ≈622 px, right edge ≈2245–2260 px, roughly 62–64 monospace characters per line.",
+        "Paper: A #F9F9F9, B #F7F7F7. The difference is barely visible, and neither is tinted.",
+        "Line spacing: A 76 px, B 74 px, measured top to top across consecutive body lines.",
+        "B fits one more block (the list item) into the window, mostly because its page starts higher, which is out of scope under the Page top row.",
+        "The status bar and title bar are the same on both, with a hairline rule above the footer."
+      ],
+      "carried": 10
+    },
+    {
+      "name": "narrow",
+      "ours": "shots/page/r11-narrow-ours-crop.png",
+      "theirs": "shots/page/r11-narrow-theirs-crop.png",
+      "opponent": {
+        "capture": "ref/ia/shots/mac-native/mac-native-22-light-narrow-w0960-step05-plain.png",
+        "crop": [
+          0,
+          0,
+          1920,
+          1000
+        ],
+        "ours": [
+          0,
+          0,
+          1920,
+          1000
+        ]
+      },
+      "oursWhole": "shots/page/r11-narrow-ours.png",
+      "blind": "shots/blind/page/narrow",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "B's text block runs lower down the page. The paragraph ends at y≈862 and the next '## What the sea keeps' heading is cut off at the bottom edge (y≈970–1000), so there is no clean bottom margin and the frame feels cropped. A still has about 47 px of paper below its last line.",
+      "gapTheirs": "A's body text is set looser: each character takes about 24.6 px across (57 characters over 233→1637 px) against B's 23.8 px (60 characters over 236→1666). So A's first line breaks after 'boat.' where B fits 'It'. The whole passage wraps one word earlier per line, and the page reads as spaced-out typewriter type rather than an even grey block.",
+      "verdict": "Both use the same #F7F7F7 paper, the same ~63–64 px line spacing and nearly the same ~1450 px text width, so the fight is over texture and framing. A's wider character spacing and heavier strokes turn the paragraph into a coarse typewriter texture, and its rounded window corners with a blue-grey edge pull the eye off the page. B's tighter, lighter setting gives a steadier grey block that is easier to read for an hour, even though it lets the next heading fall off the bottom of the window. I'd write in B, but not by much.",
+      "secondary": [
+        "Paper is identical in both: srgb(247,247,247); darkest ink is 25 in both",
+        "Line pitch: A ~63 px, B ~64 px, effectively the same",
+        "Body left edge: A x=233, B x=236; right edge of the widest line: A ~1685, B ~1666, so A's right margin (~235) mirrors its left more evenly than B's (~254)",
+        "Heading markers hang out into the left margin in both: '#' at x≈188 in A and x≈193 in B; B's '##' hangs further, to x≈171",
+        "A shows the window's rounded corner and a blue-grey edge in the top-right, which intrudes on the page",
+        "A's body strokes look slightly heavier or darker than B's thinner, lighter strokes",
+        "A's caret is a pale, washed-out cyan at the heading's start and hard to see; B's caret is a saturated cyan mid-line (caret colour is outside this piece)"
+      ]
+    },
+    {
+      "name": "short",
+      "ours": "shots/page/r11-short-ours.png",
+      "theirs": "shots/oracle/page/short.png",
+      "blind": "shots/blind/page/short",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "The measure is a little tighter and the lines sit a little closer. Glyph advance is ≈26.8 vs 26.4 device px per character (1134 vs 1118 display px over the same 61-character line), so a paragraph line wraps one word sooner ('empty,' / 'and'). Line pitch is ≈74 vs 76 device px, which makes the paragraphs look slightly more packed.",
+      "gapTheirs": "The heading marker isn't hung in the margin. '# ' starts at x≈622 device px, on the same edge as the body text, so the heading words start about 51 px to the right of the body's left edge (≈673 vs 622). The text column's left edge breaks at every heading, and the left margin reads as 622 px for the body but 673 px for heading words.",
+      "verdict": "Both pages use the same near-white paper and a centred column of about 1630 px with roughly 625 px of margin on each side. The real difference is the left edge. B hangs the '#' out in the margin, so heading and body share one straight edge at x=622. A pushes the heading words in by a marker's width, so the column's left edge jogs at every heading, and you notice it every time your eye goes back to the start of a line. B pays for that with slightly tighter lines and a wider advance that wraps a word early, but a crooked left edge is harder to ignore than 2 px of leading.",
+      "secondary": [
+        "Paper: A #F9F9F9 vs B #F7F7F7, too close to matter",
+        "Right margin about 625 px on both; both columns are centred",
+        "Paragraph gap is 3 line pitches on both (A 159 vs B 154 display px from one paragraph's first line to the next)",
+        "Where the page opens (B higher up the window) is excluded by the Page top row",
+        "B's heading marker is full ink and A's is grey; excluded by the Markers row",
+        "About 64–65 characters per line on both, a comfortable measure for monospace"
+      ],
+      "carried": 10
+    }
+  ],
+  "at": "2026-09-13T15:08:36.998Z"
+}
