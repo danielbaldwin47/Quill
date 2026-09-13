@@ -1034,12 +1034,7 @@ impl Editor {
             })
             .collect();
         let tiers = self.imp().tiers.borrow();
-        tags::repaint(&self.buffer(), document, self.painting(&tiers), &lines);
-        // Spell check's tag carries no property of its own, so GTK has nothing
-        // to invalidate when it goes on or comes off: the mark it stands for
-        // is [`Editor::draw_spell_marks`]'s, and the snapshot is asked for
-        // here. Every tags::repaint in this file does the same.
-        self.queue_draw();
+        self.repaint_tags(&self.buffer(), document, self.painting(&tiers), &lines);
     }
 
     /// Opens the corrections menu for the misspelled word at the caret, and
@@ -1172,13 +1167,12 @@ impl Editor {
         self.imp().fade.take();
         let tiers = self.imp().tiers.borrow();
         let lines = 0..document.place(document.text().len()).line + 1;
-        tags::repaint(
+        self.repaint_tags(
             &self.buffer(),
             document,
             self.painting(&tiers),
             std::slice::from_ref(&lines),
         );
-        self.queue_draw();
     }
 
     /// Whether this Editor should schedule asynchronous Annotator work.
@@ -1215,8 +1209,7 @@ impl Editor {
             let tiers = self.imp().tiers.borrow();
             let buffer = self.buffer();
             let _batch = buffer.freeze_notify();
-            tags::repaint(&buffer, document, self.painting(&tiers), &lines);
-            self.queue_draw();
+            self.repaint_tags(&buffer, document, self.painting(&tiers), &lines);
         }
         self.imp().syntax.borrow().pending()
     }
@@ -1236,6 +1229,26 @@ impl Editor {
     fn painting<'a>(&'a self, tiers: &'a [LineTiers]) -> tags::Painting<'a> {
         let writer = self.imp().writer.borrow().clone();
         self.painting_at(&writer, tiers)
+    }
+
+    /// [`tags::repaint`] and the redraw it always owes.
+    ///
+    /// The two are one call because Spell check's tag carries no property of
+    /// its own, so GTK has nothing to invalidate when it goes on or comes off:
+    /// the mark it stands for is [`Editor::draw_spell_marks`]'s, asked for at
+    /// the snapshot, and a `repaint` that did not ask for one would take a
+    /// range's dots off the buffer and leave them on the screen. `buffer` is
+    /// passed rather than read off `self` because a caller inside a
+    /// `freeze_notify` already holds it.
+    fn repaint_tags(
+        &self,
+        buffer: &gtk::TextBuffer,
+        document: &Document,
+        painting: tags::Painting,
+        lines: &[Range<usize>],
+    ) {
+        tags::repaint(buffer, document, painting, lines);
+        self.queue_draw();
     }
 
     /// [`Editor::painting`], for a writer whose place the buffer does not hold
@@ -1713,6 +1726,24 @@ impl Editor {
         self.caret_settled();
     }
 
+    /// The width of the window this Editor is in, or `wide` where it is in
+    /// none yet.
+    ///
+    /// The size class is the window's and nothing else's
+    /// ([`typography::size_class`]), and the Editor is only as wide as the
+    /// window left it: the Library pane, a future second pane, and the
+    /// window's own frame all come off it. GTK has allocated the root by the
+    /// time it allocates a child, so this is the width of the same frame the
+    /// Editor is being laid out in. Before the Editor is in a window at all —
+    /// a `restyle` while the widget is being built — there is no root to ask
+    /// and the caller's own width is the best there is.
+    fn window_width(&self, wide: i32) -> i32 {
+        self.root().map_or(wide, |root| match root.width() {
+            0 => wide,
+            width => width,
+        })
+    }
+
     /// Centres the measure in a view this wide and leaves the page its air.
     ///
     /// A view with no size yet is not laid out at all: `size_allocate` asks
@@ -1729,7 +1760,13 @@ impl Editor {
         // `restyle` below ends by laying the page out at the new class; this
         // call carries on and finds the page it left, or corrects it where the
         // widget's own width has not caught up with the allocation yet.
-        let class = typography::size_class(unsigned(width));
+        //
+        // The window's width and not this widget's: with the Library shown the
+        // Editor is the window less a 368 px pane, which would drop a 1440 px
+        // window a whole class on a pane the oracle's own class does not read
+        // (`ref/ia/mac-native/NOTES.md` § State 22). The centring and the
+        // measure below stay on the room the Editor actually got.
+        let class = typography::size_class(unsigned(self.window_width(width)));
         if self.imp().class.replace(class) != class {
             install_type(
                 self.imp().ground.get(),
@@ -1742,6 +1779,7 @@ impl Editor {
         let page = Page {
             column: typography::column(
                 unsigned(width),
+                class,
                 self.imp().face.get(),
                 self.imp().step.get(),
             ),
@@ -3408,7 +3446,7 @@ impl Editor {
     fn draw_spell_marks(&self, snapshot: &gtk::Snapshot) {
         let buffer = self.buffer();
         let seen = self.seen();
-        let words = tags::marked(&buffer, &seen);
+        let words = tags::spell_marked(&buffer, &seen);
         if words.is_empty() {
             return;
         }
