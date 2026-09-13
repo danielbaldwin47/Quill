@@ -955,6 +955,11 @@ pub fn stylesheet(ground: Ground) -> String {
     let Ground { scheme, colours } = ground;
     let fg = colours.colour(Role::ChromeFg).to_hex();
     let strong = colours.colour(Role::ChromeFgStrong).to_hex();
+    // The counts are the body's own ink and lift to the accent under the
+    // pointer, where the rest of the bars are the chrome's greys: the Design
+    // oracle's foot, `ref/ia/mac-native/NOTES.md` § State 27.
+    let ink = colours.colour(Role::Ink).to_hex();
+    let accent = colours.colour(Role::Accent).to_hex();
     let rule = colours.colour(Role::Rule).to_css();
     let hit = hit(scheme);
     let Pad { y: pad_y, x: pad_x } = BUTTON_PAD;
@@ -980,8 +985,9 @@ pub fn stylesheet(ground: Ground) -> String {
          }}\n\
          .chrome label.chrome-stat {{\n\
          \x20 font-family: {CHROME_FONT}; font-size: {STAT_PX}px;\n\
-         \x20 font-feature-settings: \"tnum\"; color: {fg};\n\
+         \x20 font-feature-settings: \"tnum\"; color: {ink};\n\
          }}\n\
+         .chrome button:hover label.chrome-stat {{ color: {accent}; }}\n\
          .chrome .chrome-rule {{ color: {rule}; }}\n{}{}",
         menu_stylesheet(scheme),
         crate::palette::stylesheet(scheme)
@@ -1504,20 +1510,25 @@ impl Bars {
         }
     }
 
-    /// Writes the counts into the labels: the number strong and the label in
-    /// the chrome's grey (`.stat b`).
+    /// Writes the counts into the labels: the figure a weight above its name,
+    /// and the selection fill behind the figure while a selection stands.
+    ///
+    /// The cells' ink itself is the stylesheet's (`.chrome
+    /// label.chrome-stat`), so figure and name read at the body's own ink and
+    /// lift to the accent together under the pointer.
     fn ink_counts(&self) {
         let colours = self.ground.get().colours;
-        let strong = colours.colour(Role::ChromeFgStrong).to_hex();
+        let fill = self
+            .selection
+            .get()
+            .map(|_| colours.colour(Role::Selection).to_hex());
         for (label, (number, name)) in self.cells.borrow().iter().zip(self.count()) {
-            let number = glib::markup_escape_text(&number);
-            label.set_markup(&format!(
-                "<span weight=\"500\" foreground=\"{strong}\">{number}</span> {name}"
-            ));
+            label.set_markup(&cell_markup(&number, name, fill.as_deref()));
         }
-        // The label is inked here rather than in the stylesheet because the
-        // accent is the theme's and the sheet is the scheme's: a theme change
-        // re-inks the numbers through this same pass.
+        // The `Selection` label takes the accent where the cells beside it
+        // take the body's ink, and it wears their class: the sheet cannot
+        // single out one label of a class, so it is inked in markup here,
+        // through the same pass a ground change already makes.
         let accent = colours.colour(Role::Accent).to_hex();
         self.selection_label.set_markup(&format!(
             "<span weight=\"500\" foreground=\"{accent}\">{SELECTION_LABEL}</span>"
@@ -1525,6 +1536,20 @@ impl Bars {
         self.selection_label
             .set_visible(self.selection.get().is_some());
     }
+}
+
+/// One cell's markup: the figure a weight above its name, over `fill` while a
+/// selection stands and over the paper otherwise.
+///
+/// The two things a stylesheet cannot say about half a label, and nothing
+/// else: the ink is `.chrome label.chrome-stat`'s ([`stylesheet`]). The fill
+/// is the Design oracle's mark that a count is the held run's rather than the
+/// Document's (`ref/ia/mac-native/NOTES.md` § State 27), and it sits behind
+/// the figure alone, not its name.
+fn cell_markup(number: &str, name: &str, fill: Option<&str>) -> String {
+    let number = glib::markup_escape_text(number);
+    let fill = fill.map_or_else(String::new, |fill| format!(" background=\"{fill}\""));
+    format!("<span weight=\"500\"{fill}>{number}</span> {name}")
 }
 
 /// A stats bar cell: the row's type, centred on it.
@@ -2464,6 +2489,45 @@ mod tests {
             assert!(sheet.contains(&format!("{TITLE_PX}px")));
             assert!(sheet.contains(&format!("{STAT_PX}px")));
         }
+    }
+
+    /// The counts are the body's own ink, they lift to the accent under the
+    /// pointer, and a held run's figure carries the selection fill behind it
+    /// — the Design oracle's foot, `ref/ia/mac-native/NOTES.md` § State 27.
+    ///
+    /// The ink and the hover are read off the sheet and the fill off the
+    /// markup, because that is where each is written: a cell's colour is the
+    /// stylesheet's and the fill is the one thing a class shared by every cell
+    /// cannot carry.
+    #[test]
+    fn the_counts_are_the_bodys_ink_lift_to_the_accent_and_fill_behind_a_held_run() {
+        for scheme in [Scheme::Light, Scheme::Dark] {
+            let ground = Ground::of(scheme);
+            let sheet = stylesheet(ground);
+            let ink = ground.colours.colour(Role::Ink).to_hex();
+            assert!(
+                sheet.contains(&format!("font-feature-settings: \"tnum\"; color: {ink};")),
+                "{scheme:?}: the cells are not the body's ink {ink}\n{sheet}"
+            );
+            let accent = ground.colours.colour(Role::Accent).to_hex();
+            assert!(
+                sheet.contains(&format!(
+                    ".chrome button:hover label.chrome-stat {{ color: {accent}; }}"
+                )),
+                "{scheme:?}: the cells do not lift to the accent {accent}\n{sheet}"
+            );
+            let fill = ground.colours.colour(Role::Selection).to_hex();
+            assert_eq!(
+                cell_markup("13", "words", Some(&fill)),
+                format!("<span weight=\"500\" background=\"{fill}\">13</span> words")
+            );
+        }
+        // An empty Document's `0` is a cell like any other: the same weight,
+        // the same ink from the sheet, and no fill while nothing is held.
+        assert_eq!(
+            cell_markup("0", "words", None),
+            "<span weight=\"500\">0</span> words"
+        );
     }
 
     /// The stats bar's three cells for `ref/sample.md`, and for nothing.

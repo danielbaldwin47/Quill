@@ -51,8 +51,9 @@ pub const CONTAINER: u32 = MEASURE + 2 * GUTTER;
 /// [`page_top`].
 const PAGE_TOP: u32 = 60;
 
-/// The air below the last row of text: `--page-bottom: 30vh`.
-const PAGE_BOTTOM: f64 = 0.30;
+/// The air below the last row of text, as a share of the view: the derivation
+/// is [`page_bottom`].
+const PAGE_BOTTOM: f64 = 0.485;
 
 /// How much of the view is kept above the caret's row, and how much below:
 /// `scroll-padding: 10vh 0 28vh` in `legacy/app/css/page.css`.
@@ -362,9 +363,16 @@ pub fn page_top(scale: f64) -> u32 {
     device(PAGE_TOP, scale)
 }
 
-/// The air below the last row of text in a view `view` pixels tall: 30 % of it
-/// (`--page-bottom`), so that the end of a draft stops well clear of the
-/// bottom edge rather than against it.
+/// The air below the last row of text in a view `view` pixels tall, so that
+/// the end of a draft stops well clear of the bottom edge rather than against
+/// it.
+///
+/// The Design oracle scrolled to the end of `ref/sample.md` keeps **460 pt**
+/// of air under the last row of a 949 pt window — 48.5 % of it — where the
+/// Parity oracle keeps 30 % (`page.css` `--page-bottom`).
+/// `ref/ia/mac-native/NOTES.md` § State 27 is the measurement and
+/// `docs/design.md` row Page bottom carries the derivation. A share of the
+/// view rather than a constant, because that is what both oracles hold it as.
 #[must_use]
 pub fn page_bottom(view: u32) -> u32 {
     (PAGE_BOTTOM * f64::from(view)).round() as u32
@@ -695,9 +703,14 @@ mod tests {
             "the constant does not come back through the scale as 30 logical px"
         );
         assert_eq!(
+            page_bottom(949),
+            460,
+            "the oracle's 949 pt window does not leave its measured 460 pt of air"
+        );
+        assert_eq!(
             page_bottom(900),
-            270,
-            "a judged 900 px window leaves 30 % of itself below the last row"
+            437,
+            "a judged 900 px window leaves 48.5 % of itself below the last row"
         );
     }
 

@@ -21,7 +21,11 @@
 //! label is GTK's own rendering of the first chord the Command is
 //! installed with now ([`chrome::accels`]) rather than of the registry's own,
 //! handed over in GTK's syntax as the row's `accel`, so a row rebound in
-//! `settings.toml` is labelled the way the writer rebound it (#124).
+//! `settings.toml` is labelled the way the writer rebound it (#124). The
+//! `accel` is display-only, so it is written for a label
+//! ([`quill_engine::commands::label_accel`]): a `Shift` chord on a symbol
+//! shows the key the writer presses where GTK would draw the glyph Shift
+//! makes of it.
 
 use std::path::PathBuf;
 
@@ -289,7 +293,8 @@ fn item(command: &Command, placement: &Placement, modes: &Modes) -> gio::MenuIte
     let (action, target) = command.action_and_target();
     item.set_action_and_target_value(Some(&action), target.map(ToVariant::to_variant).as_ref());
     if let Some(accel) = chrome::accels(command).first() {
-        item.set_attribute_value("accel", Some(&accel.to_variant()));
+        let shown = quill_engine::commands::label_accel(accel);
+        item.set_attribute_value("accel", Some(&shown.to_variant()));
     }
     item
 }
@@ -751,7 +756,7 @@ mod tests {
 
     /// Every row's action is its Command's, a radio's the group with the
     /// member's value as target, and its accel the first chord in GTK's
-    /// syntax — from the table and nowhere else.
+    /// syntax written for a label — from the table and nowhere else.
     #[test]
     fn every_row_names_its_commands_action_and_first_chord() {
         for menu in [Menu::Document, Menu::View, Menu::Stats] {
@@ -778,11 +783,54 @@ mod tests {
                 assert_eq!(row.target, target, "{}", command.id);
                 assert_eq!(
                     row.accel,
-                    chrome::accels(command).first().cloned(),
+                    chrome::accels(command)
+                        .first()
+                        .map(|accel| quill_engine::commands::label_accel(accel)),
                     "{}",
                     command.id
                 );
             }
+        }
+    }
+
+    /// The View menu's three `Shift` chords on a symbol or a digit show the
+    /// key the writer presses, not the glyph Shift makes of it (#428): the
+    /// row's `accel` is `<Control><Shift>equal` where the installed chord is
+    /// `<Control><Shift>plus`.
+    #[test]
+    fn a_shifted_chords_row_shows_the_key_that_is_pressed() {
+        let drawn: Vec<Row> = rows_of(model(Menu::View, &resting(), &[]).upcast_ref())
+            .into_iter()
+            .flatten()
+            .collect();
+        for (id, installed, shown) in [
+            (
+                "preview.bigger",
+                "<Control><Shift>plus",
+                "<Control><Shift>equal",
+            ),
+            (
+                "preview.smaller",
+                "<Control><Shift>underscore",
+                "<Control><Shift>minus",
+            ),
+            (
+                "preview.reset",
+                "<Control><Shift>parenright",
+                "<Control><Shift>0",
+            ),
+        ] {
+            let command = by_id(id).expect(id);
+            assert_eq!(
+                command.accels().first().map(String::as_str),
+                Some(installed),
+                "{id}'s installed chord moved"
+            );
+            let row = drawn
+                .iter()
+                .find(|row| row.label == command.title)
+                .unwrap_or_else(|| panic!("{id} has a View menu row"));
+            assert_eq!(row.accel.as_deref(), Some(shown), "{id}");
         }
     }
 
