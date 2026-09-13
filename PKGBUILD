@@ -65,8 +65,14 @@ package() {
   install -m644 "$startdir/packaging/quill.toml.tpl" "$data/quill.toml.tpl"
 
   install -Dm644 "$startdir/packaging/$_appid.desktop" "$share/applications/$_appid.desktop"
-  install -Dm644 "$startdir/packaging/$_appid.svg" \
-    "$share/icons/hicolor/scalable/apps/$_appid.svg"
+  # The icon is pixels, committed at the nine hicolor sizes under
+  # packaging/icons/ rather than rendered here, so the build needs no image
+  # tool and two builds lay down the same icon.
+  local size
+  for size in 16 22 24 32 48 64 128 256 512; do
+    install -Dm644 "$startdir/packaging/icons/${size}x${size}/$_appid.png" \
+      "$share/icons/hicolor/${size}x${size}/apps/$_appid.png"
+  done
 
   install -Dm644 "$startdir/LICENSE" "$share/licenses/$pkgname/LICENSE"
   install -Dm644 "$startdir/packaging/harper-brill-LICENSE" "$share/licenses/$pkgname/harper-brill-LICENSE"
