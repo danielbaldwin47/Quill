@@ -147,30 +147,36 @@ pub fn typed_to(text: &str, splice: &Splice) -> Option<usize> {
     is_typed_word_character(last).then_some(end)
 }
 
-/// Whether a misspelling at `span`, in the text as it stood before `splice`, is still a
-/// verdict on the same word in `text`, the text after it.
+/// Where a misspelling at `span`, in the text as it stood before `splice`, lies in `text`, the
+/// text after it, or `None` once it is no longer a verdict on the same word.
 ///
 /// A mark is carried across an edit until the worker's answer lands, and a mark carried onto a
 /// word whose letters changed paints a verdict nobody gave: a stale `wou` grown by `l`, `d` and
 /// a space waved a correctly spelled `would` for the length of one debounce (#401 Hand test).
 /// So the splice kills it when it takes out a byte of the word, or leaves a word character
 /// against either of its edges — typed or pasted there, or brought there by deleting what lay
-/// between. A space typed after it, or the space after it deleted, leaves the word as it was
-/// and its wave standing.
-pub fn survives(span: &Range<usize>, splice: &Splice, text: &str) -> bool {
+/// between. Anything else leaves the word as it was, and the mark keeps exactly its letters: a
+/// space typed after it does not widen the wave under that space while the answer is on its
+/// way (#401 Hand test), which the colours' carry, growing a span over what is typed at its end,
+/// would.
+pub fn carried(span: &Range<usize>, splice: &Splice, text: &str) -> Option<Range<usize>> {
     let at = &splice.at;
     if at.start < span.end && at.end > span.start {
-        return false;
+        return None;
     }
     let joined = |c: Option<char>| c.is_some_and(is_typed_word_character);
-    if at.start == span.end {
-        return !joined(text.get(at.start..).and_then(|after| after.chars().next()));
+    if at.start == span.end && joined(text.get(at.start..).and_then(|after| after.chars().next())) {
+        return None;
     }
-    if at.end == span.start {
-        let before = text.get(..at.start + splice.inserted);
-        return !joined(before.and_then(|before| before.chars().next_back()));
+    let before = text.get(..at.start + splice.inserted);
+    if at.end == span.start && joined(before.and_then(|before| before.chars().next_back())) {
+        return None;
     }
-    true
+    if span.end <= at.start {
+        return Some(span.clone());
+    }
+    let shift = |offset: usize| offset - at.len() + splice.inserted;
+    Some(shift(span.start)..shift(span.end))
 }
 
 /// The characters [`withheld`] reads as the word under the caret.
@@ -666,28 +672,29 @@ mod tests {
     }
 
     #[test]
-    fn a_mark_survives_an_edit_only_while_its_word_keeps_its_letters() {
+    fn a_mark_is_carried_only_while_its_word_keeps_its_letters_and_never_widens() {
         let insert = |at: usize, inserted: usize| Splice {
             at: at..at,
             inserted,
         };
         let delete = |at: Range<usize>| Splice { at, inserted: 0 };
         // `wou` marked, then `l` typed against its end: another word.
-        assert!(!survives(&(0..3), &insert(3, 1), "woul"));
-        // A space after it, or before it, leaves the word as it was.
-        assert!(survives(&(0..3), &insert(3, 1), "wou "));
-        assert!(survives(&(0..3), &insert(0, 3), "So wou"));
+        assert_eq!(carried(&(0..3), &insert(3, 1), "woul"), None);
+        // A space after it stays out of the mark; one before it moves it.
+        assert_eq!(carried(&(0..3), &insert(3, 1), "wou "), Some(0..3));
+        assert_eq!(carried(&(0..3), &insert(0, 3), "So wou"), Some(3..6));
         // A letter typed before it, inside it, or taken out of it.
-        assert!(!survives(&(0..3), &insert(0, 1), "swou"));
-        assert!(!survives(&(0..3), &insert(1, 1), "wxou"));
-        assert!(!survives(&(0..3), &delete(2..3), "wo"));
+        assert_eq!(carried(&(0..3), &insert(0, 1), "swou"), None);
+        assert_eq!(carried(&(0..3), &insert(1, 1), "wxou"), None);
+        assert_eq!(carried(&(0..3), &delete(2..3), "wo"), None);
         // Deleting the space after it joins the next word to it; at the
         // text's end, or before a full stop, it is the same word.
-        assert!(!survives(&(0..3), &delete(3..4), "woux"));
-        assert!(survives(&(0..3), &delete(3..4), "wou"));
-        assert!(survives(&(0..3), &delete(3..4), "wou."));
-        // An edit elsewhere on the line.
-        assert!(survives(&(4..7), &insert(0, 1), "Xa teh"));
+        assert_eq!(carried(&(0..3), &delete(3..4), "woux"), None);
+        assert_eq!(carried(&(0..3), &delete(3..4), "wou"), Some(0..3));
+        assert_eq!(carried(&(0..3), &delete(3..4), "wou."), Some(0..3));
+        // Edits elsewhere on the line, before and after it.
+        assert_eq!(carried(&(4..7), &insert(0, 1), "Xa teh"), Some(5..8));
+        assert_eq!(carried(&(0..3), &delete(4..6), "teh b"), Some(0..3));
     }
 
     #[test]
