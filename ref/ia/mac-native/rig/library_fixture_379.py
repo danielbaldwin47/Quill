@@ -16,7 +16,9 @@ would stop the folder going with it.
     .venv-rig/bin/python3 ref/ia/mac-native/rig/library_fixture_379.py --remove
 
 Run from the repository root. **`--remove` deletes files from the writer's own
-Library**, which is why it removes a named list rather than a pattern.
+Library**, which is why it removes a named list rather than a pattern. The list
+it writes between the two is gitignored: it names what that Library held, which
+is the writer's and not the repository's.
 """
 import json
 import os
