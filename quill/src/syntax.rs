@@ -331,6 +331,7 @@ impl Syntax {
             first,
             |paragraph| paragraph.categories.spans(),
             |target| target.categories.spans_mut(),
+            |_| true,
         );
         carry(
             document,
@@ -340,6 +341,7 @@ impl Syntax {
             first,
             |paragraph| paragraph.lists.spans(),
             |target| target.lists.spans_mut(),
+            |_| true,
         );
         carry(
             document,
@@ -349,6 +351,9 @@ impl Syntax {
             first,
             |paragraph| paragraph.misspellings.spans(),
             |target| target.misspellings.spans_mut(),
+            // A colour or a strike rides a changed word until its answer; a
+            // wave on one would be a verdict on letters nobody checked.
+            |at| quill_engine::spell::survives(at, &edit.splice, document.text()),
         );
         self.paragraphs.splice(first..old_end, replacements);
     }
@@ -665,9 +670,11 @@ impl Syntax {
 
 /// Carries one store's spans across `edit`'s splice into `replacements`.
 ///
-/// Both stores go through this walk, so a Category and a List are rebased by
-/// the same rule and split across the same block boundaries; only the store
-/// read and the store written differ.
+/// Every store goes through this walk, so a Category, a List and a
+/// misspelling are rebased by the same rule and split across the same block
+/// boundaries; only the store read, the store written and which spans
+/// `stands` keeps — asked of each span in the bytes before the splice — differ.
+#[allow(clippy::too_many_arguments)] // the one walk three stores share: each passes its reader, writer and rule
 fn carry<K: Copy>(
     document: &Document,
     edit: &Edit,
@@ -676,11 +683,16 @@ fn carry<K: Copy>(
     first: usize,
     from: impl Fn(&ParagraphState) -> &[(Range<usize>, K)],
     into: impl Fn(&mut ParagraphState) -> &mut Vec<(Range<usize>, K)>,
+    stands: impl Fn(&Range<usize>) -> bool,
 ) {
     let mut origin = edit.scope.bytes.start;
     for paragraph in kept {
         for (at, carried) in from(paragraph) {
-            let at = rebased(&(origin + at.start..origin + at.end), &edit.splice);
+            let before = origin + at.start..origin + at.end;
+            if !stands(&before) {
+                continue;
+            }
+            let at = rebased(&before, &edit.splice);
             if at.is_empty() {
                 continue;
             }
@@ -1064,6 +1076,34 @@ mod tests {
             syntax.misspelled_in(&document, &whole),
             std::slice::from_ref(&(3..6))
         );
+    }
+
+    /// The #401 Hand test: a mark answered on a half-typed word is not carried
+    /// onto the word it becomes, so the space that ends it paints no wave.
+    #[test]
+    fn a_mark_on_a_half_typed_word_is_dropped_when_the_word_grows() {
+        let mut document = document("How wou");
+        let mut syntax = enabled(&document);
+        syntax.configure_spell(true, &document);
+        let request = syntax.request(&document, 0..1).unwrap();
+        syntax.accept(
+            ParagraphResult {
+                generation: request.generation,
+                paragraph: 0,
+                misspellings: vec![(4..7, Misspelling)],
+                ..ParagraphResult::default()
+            },
+            &document,
+        );
+        for (at, typed) in [(7, "l"), (8, "d"), (9, " ")] {
+            let edit = document.insert(at, typed);
+            syntax.edited(&document, &edit);
+            let whole = 0..document.text().len();
+            assert!(
+                syntax.misspelled_in(&document, &whole).is_empty(),
+                "{typed:?}"
+            );
+        }
     }
 
     #[test]
