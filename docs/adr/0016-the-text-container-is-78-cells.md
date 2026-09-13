@@ -93,6 +93,10 @@ one's, and wants a ticket.
 exceed the window the container is the window and the gutters hold at 7 cells while the measure
 shrinks, so `###### ` still hangs and a selection's edges stay the container's; the oracle is
 window-limited past its step 7, and which of its two gives was not measured (NOTES § 11).
+*Measured on 2026-09-10 by [#344](https://github.com/danielbaldwin47/Quill/issues/344): the type
+gives first, on the window's width alone, and the measure only once the limit no longer fits (NOTES
+§ State 22). `docs/design.md` row Window limitation holds the rule and what its port waits on; this
+Consequence stands until that port lands.*
 
 **The selection painter fills the container.** `caret::NL_TAIL` and the per-row ink extent were
 replaced by the container's edges in #168: `Editor::selection` measures only the anchor and the
