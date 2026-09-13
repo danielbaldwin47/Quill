@@ -302,7 +302,10 @@ ok('ours is the toplevel that appeared, not the one that matches', () => {
 ok('a PNG says how big it is, and something that is not one says so', () => {
   const png = fs.readFileSync(path.join(ROOT, 'shots/oracle/type/duo.png'));
   assert.deepEqual(pngSize(png), { w: 2880, h: 1800 }, '1440x900 at scale 2 is what every judged state is');
-  assert.deepEqual(pngSize(fs.readFileSync(path.join(ROOT, 'shots/oracle/page/narrow.png'))), { w: 1920, h: 1800 });
+  // And a shot of another size reads as that size: the crop `page/narrow` is judged against since
+  // #420, which is a region of a 960 pt window rather than a whole 1440 x 900 one.
+  const crop = 'ref/ia/shots/mac-native/mac-native-22-light-narrow-w0960-step05-plain.png';
+  assert.deepEqual(pngSize(fs.readFileSync(path.join(ROOT, crop))), { w: 1920, h: 1000 });
   assert.throws(() => pngSize(Buffer.alloc(64)), /not a PNG/);
 });
 
