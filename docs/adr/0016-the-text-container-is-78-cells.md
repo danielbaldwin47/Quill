@@ -28,6 +28,13 @@ put it, the gutter is still seven cells and still sized by `###### `, no quote r
 the measured-not-counted rule below now covers a marker run as well as a heading's. Nothing else
 here moves.*
 
+*Waits on [#419](https://github.com/danielbaldwin47/Quill/issues/419) and
+[#420](https://github.com/danielbaldwin47/Quill/issues/420) since 2026-09-12, by
+[#344](https://github.com/danielbaldwin47/Quill/issues/344): the `column()` Consequence below
+stands on `main`, but the question it left is measured. The oracle's type gives first, on the
+window's width alone, and the measure gives only once the limit no longer fits (`NOTES.md` § State
+22). `docs/design.md` row Window limitation holds that rule. Nothing else here moves.*
+
 ## What changed the answer
 
 The Markup Piece was won (#86, #89, #102) hanging every marker — bullets, numbers and a quote's
@@ -93,10 +100,6 @@ one's, and wants a ticket.
 exceed the window the container is the window and the gutters hold at 7 cells while the measure
 shrinks, so `###### ` still hangs and a selection's edges stay the container's; the oracle is
 window-limited past its step 7, and which of its two gives was not measured (NOTES § 11).
-*Measured on 2026-09-10 by [#344](https://github.com/danielbaldwin47/Quill/issues/344): the type
-gives first, on the window's width alone, and the measure only once the limit no longer fits (NOTES
-§ State 22). `docs/design.md` row Window limitation holds the rule and what its port waits on; this
-Consequence stands until that port lands.*
 
 **The selection painter fills the container.** `caret::NL_TAIL` and the per-row ink extent were
 replaced by the container's edges in #168: `Editor::selection` measures only the anchor and the
