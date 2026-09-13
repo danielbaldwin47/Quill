@@ -62,8 +62,11 @@ pub trait SpellChecker: Send {
 /// admitted at [`Position::Middle`], and gives back whatever trailing characters are refused at
 /// [`Position::End`], so the dictionary's apostrophe and hyphen rules decide what a word is:
 /// `don't` is one word where `'` may stand mid-word and two where it may not, and a closing `'`
-/// stays outside. A token containing a digit (`2b`, `Q3`) is dropped, since no dictionary spells
-/// it; all-caps and CamelCase tokens are words like any other.
+/// stays outside. Two kinds of token are dropped rather than checked, as the Design oracle drops
+/// them (`ref/ia/mac-native/NOTES.md` § State 26 § What is marked, and `docs/design.md` row *What a
+/// spell mark covers*): one containing a digit (`2b`, `Q3`), since no dictionary spells it, and an
+/// **all-caps** one (`DRAFFT`), since an acronym or a shout is not a spelling a dictionary can
+/// answer for. A CamelCase token is a word like any other — it has lower-case letters in it.
 pub fn words(prose: &str, is_word_character: impl Fn(char, Position) -> bool) -> Vec<Range<usize>> {
     let chars: Vec<(usize, char)> = prose.char_indices().collect();
     let end_of = |at: usize| chars.get(at).map_or(prose.len(), |&(offset, _)| offset);
@@ -84,12 +87,27 @@ pub fn words(prose: &str, is_word_character: impl Fn(char, Position) -> bool) ->
             last -= 1;
         }
         let word = chars[start].0..end_of(last + 1);
-        if !prose[word.clone()].chars().any(char::is_numeric) {
+        if checkable(&prose[word.clone()]) {
             words.push(word);
         }
         at = next;
     }
     words
+}
+
+/// Whether `token` is a word a dictionary is asked about at all.
+///
+/// The two skips [`words`] names: a token carrying a digit, and one whose letters are all capitals.
+/// "All capitals" is *no lower-case letter and at least one upper-case* rather than "every
+/// character is upper-case", so `DRAFFT`'s own apostrophes and hyphens do not save it and a token
+/// of no letters at all — left by a dictionary whose `is_word_character` admits more than letters —
+/// is not mistaken for a shout.
+fn checkable(token: &str) -> bool {
+    if token.chars().any(char::is_numeric) {
+        return false;
+    }
+    let shouted = token.chars().any(char::is_uppercase) && !token.chars().any(char::is_lowercase);
+    !shouted
 }
 
 /// The words of `prose` that `checker` does not hold, as ascending byte ranges into it.
@@ -548,11 +566,22 @@ mod tests {
     }
 
     #[test]
-    fn a_token_with_a_digit_is_dropped_and_capitals_are_kept() {
+    fn a_token_with_a_digit_or_all_in_capitals_is_dropped_and_camel_case_is_kept() {
         let prose = "2b ships in Q3 as v3, DRAFFT and CamelCase.";
         assert_eq!(
             texts(prose, &words(prose, joining)),
-            ["ships", "in", "as", "DRAFFT", "and", "CamelCase"]
+            ["ships", "in", "as", "and", "CamelCase"]
+        );
+    }
+
+    /// The all-caps skip is the letters' case and not the token's every character: a hyphen or an
+    /// apostrophe inside a shout is no lower-case letter, and a token of neither case is a word.
+    #[test]
+    fn a_shout_is_dropped_through_its_punctuation_and_a_caseless_token_is_not() {
+        let prose = "DRAFFT-TWO and DON'T and \u{4e2d}\u{6587}";
+        assert_eq!(
+            texts(prose, &words(prose, joining)),
+            ["and", "and", "\u{4e2d}\u{6587}"]
         );
     }
 

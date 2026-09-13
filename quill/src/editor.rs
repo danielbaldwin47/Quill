@@ -123,6 +123,29 @@ const X_HEIGHT: f64 = 0.25;
 /// the line's letters rather than as a panel dropped into it.
 const CHECKBOX: f64 = 0.58;
 
+/// How wide one dot of a Spell check mark is drawn, as a share of the em.
+///
+/// The Design oracle's mark, measured: `ref/ia/mac-native/NOTES.md` § State 26
+/// § The mark itself reads 6 device px of ink, 6 rows deep — round to the
+/// pixel — at the capture's 42.67 device px em, which is the ladder's own step
+/// 5 ([`typography`]). 6/42.67 is this, and it is written as a share of the em
+/// rather than as 3 pt so that the mark grows with the type the way every
+/// other piece of drawn furniture does; at the judged step the two are the same
+/// number. See [`Editor::draw_spell_marks`].
+const SPELL_DOT: f64 = 0.140_625;
+
+/// How far apart two dots of a Spell check mark are drawn, as a share of the
+/// em: the same capture's 8 device px period — 6 of ink and 2 of paper.
+const SPELL_PITCH: f64 = 0.187_5;
+
+/// How far under the baseline a Spell check mark's dots start, as a share of
+/// the em: the same capture's 12 device px, the top of a band that runs to 17.
+///
+/// Not the face's own underline, which `iAWriterMonoS-Regular.ttf` puts 4.69
+/// device px down at 2.56 px thick — the mark macOS draws is its own, at its
+/// own size, and so is this one.
+const SPELL_DROP: f64 = 0.281_25;
+
 /// The weight ink is set at on paper: `--ink-weight: 415` in
 /// `legacy/app/css/type.css`, a little heavier than Regular because a light
 /// ground eats stems. The Faces are variable, and none of the three moves a
@@ -316,9 +339,9 @@ mod imp {
         /// Whether a Document has been shown: before one is, a language is
         /// resolved by the showing rather than by the setter.
         pub opened: Cell<bool>,
-        /// The misspelled word the caret rule last left unwaved, so that the
+        /// The misspelled word the caret rule last left unmarked, so that the
         /// caret leaving it repaints it.
-        pub unwaved: RefCell<Option<std::ops::Range<usize>>>,
+        pub unmarked: RefCell<Option<std::ops::Range<usize>>>,
         /// Where the last edit left a word being typed, the caret rule's
         /// arming: set by an insert ending in a word character, cleared by any
         /// other edit and by a caret move away from it.
@@ -587,6 +610,12 @@ mod imp {
                 // First, and under everything else this layer holds: the runs
                 // GTK drew in the selection's ink rather than their own (#375).
                 self.obj().draw_selected_inks(&snapshot);
+                // Then Spell check's dots, over the selection's fill and over
+                // the cover the pass above lays on a selected run, which is
+                // the oracle's own order: the fill is under the mark and shows
+                // through it (`docs/design.md` row Spell mark under Focus,
+                // Syntax and a selection).
+                self.obj().draw_spell_marks(&snapshot);
                 // Over the glyphs, with the caret and under it: furniture is
                 // ink standing in the cells a marker left, so it takes the
                 // ink's own side of the selection's fill, and the caret is
@@ -951,7 +980,7 @@ impl Editor {
         }
         let switched = self.imp().syntax.borrow_mut().configure_spell(on, document);
         if resolving || switched {
-            self.imp().unwaved.take();
+            self.imp().unmarked.take();
             self.repaint_spans(document);
         }
     }
@@ -986,13 +1015,13 @@ impl Editor {
         if self.imp().typed.get() != Some(caret) {
             self.imp().typed.set(None);
         }
-        let now = tags::unwaved_word(
+        let now = tags::unmarked_word(
             &buffer,
             document,
             &self.imp().syntax.borrow(),
             self.imp().typed.get(),
         );
-        let was = self.imp().unwaved.replace(now.clone());
+        let was = self.imp().unmarked.replace(now.clone());
         if was == now {
             return;
         }
@@ -1006,6 +1035,11 @@ impl Editor {
             .collect();
         let tiers = self.imp().tiers.borrow();
         tags::repaint(&self.buffer(), document, self.painting(&tiers), &lines);
+        // Spell check's tag carries no property of its own, so GTK has nothing
+        // to invalidate when it goes on or comes off: the mark it stands for
+        // is [`Editor::draw_spell_marks`]'s, and the snapshot is asked for
+        // here. Every tags::repaint in this file does the same.
+        self.queue_draw();
     }
 
     /// Opens the corrections menu for the misspelled word at the caret, and
@@ -1144,6 +1178,7 @@ impl Editor {
             self.painting(&tiers),
             std::slice::from_ref(&lines),
         );
+        self.queue_draw();
     }
 
     /// Whether this Editor should schedule asynchronous Annotator work.
@@ -1181,6 +1216,7 @@ impl Editor {
             let buffer = self.buffer();
             let _batch = buffer.freeze_notify();
             tags::repaint(&buffer, document, self.painting(&tiers), &lines);
+            self.queue_draw();
         }
         self.imp().syntax.borrow().pending()
     }
@@ -1904,7 +1940,7 @@ impl Editor {
             self.resolve_spell(document);
         }
         self.imp().opened.set(true);
-        self.imp().unwaved.take();
+        self.imp().unmarked.take();
         self.imp().typed.take();
         let buffer = self.buffer();
         self.imp().loading.set(true);
@@ -1957,13 +1993,13 @@ impl Editor {
         self.imp()
             .typed
             .set(quill_engine::spell::typed_to(document.text(), &edit.splice));
-        let held = tags::unwaved_word(
+        let held = tags::unmarked_word(
             &self.buffer(),
             document,
             &self.imp().syntax.borrow(),
             self.imp().typed.get(),
         );
-        self.imp().unwaved.replace(held);
+        self.imp().unmarked.replace(held);
         // An edit moves the caret as well as the text, so the tiers are worked
         // out again here rather than left to the caret's own feed: the lines
         // the edit changed and the lines the dim moved across are drawn in the
@@ -3333,6 +3369,103 @@ impl Editor {
         let mut next = *at;
         self.forward_display_line(&mut next);
         (next > *at).then_some(next)
+    }
+
+    /// Paints Spell check's mark under every word the dictionary refused: a
+    /// row of round dots, at full strength wherever the word is.
+    ///
+    /// The Design oracle's mark is macOS's own and no toolkit underline is its
+    /// shape ([`tags::misspelling`] says why Pango cannot draw it), so the
+    /// dots are drawn here: [`SPELL_DOT`] across on a [`SPELL_PITCH`] pitch,
+    /// starting [`SPELL_DROP`] under the row's baseline, in [`Role::Spell`]
+    /// and nothing else. `docs/design.md` rows *Spell mark* and *Spell mark
+    /// under Focus, Syntax and a selection*: the mark **never dims and never
+    /// changes colour** — out of focus the word falls to the dim tier and its
+    /// mark holds — so there is no tier to ask for and no fade to join, which
+    /// is why one colour is read once for the whole pass.
+    ///
+    /// Over the selection's fill and under the caret, which is the oracle's
+    /// order: the fill is beneath the dots and shows through their antialiased
+    /// edges. Drawn after [`Editor::draw_selected_inks`] so that the cover that
+    /// pass lays over a selected run does not erase a mark under it.
+    ///
+    /// Bounded by [`Editor::seen`], so a manuscript of a thousand misspellings
+    /// pays for the rows on the glass, and with Spell check off the walk is a
+    /// tag lookup and a return.
+    ///
+    /// A row with text folded away before the word is left unmarked, for the
+    /// reason [`Editor::draw_row_inks`] leaves one alone: `iter_location`
+    /// answers past a fold as though it were not there (#274), so the cells it
+    /// gives for a word after a folded `**` are the wrong ones, and a mark in
+    /// the wrong place is worse than none. No judged state is Live.
+    ///
+    /// Every length is device pixels and every edge is snapped onto one, as
+    /// [`caret::Bar`]'s are and for its reason: a dot is six pixels across, and
+    /// one laid at a fractional column loses a third of its core to the
+    /// antialiaser and a row of them reads as an uneven smudge — which is what
+    /// round 3 lost `on-dark` on, three of the first mark's dots split across
+    /// column pairs before the row settled onto the 8 px grid.
+    fn draw_spell_marks(&self, snapshot: &gtk::Snapshot) {
+        let buffer = self.buffer();
+        let seen = self.seen();
+        let words = tags::marked(&buffer, &seen);
+        if words.is_empty() {
+            return;
+        }
+        let scale = self.scale();
+        let em = self.em();
+        let ink = paint(&self.colours(), Role::Spell, 1.0);
+        let side = caret::snap(em * SPELL_DOT).max(2.0);
+        let pitch = caret::snap(em * SPELL_PITCH).max(side);
+        let drop = caret::snap(em * SPELL_DROP);
+        for word in words {
+            if folded_before(&buffer.iter_at_offset(word.end)) {
+                continue;
+            }
+            let Some(cell) = self.cells(&word) else {
+                continue;
+            };
+            let (_, baseline) = self.row_pitch(&cell.row);
+            // The capture measured its drop from the last row of ink of a
+            // flat-bottomed glyph — `NOTES` § State 26 has the baseline at row
+            // 360 and the band at 372…377, and row 360 is the row `The` ends
+            // on. GTK's baseline is the row under that ink, so the drop is
+            // taken from the row above it; without that the mark lands 13
+            // pixels under the word where the oracle's lands 12, which round 3
+            // read as the mark sitting loose (`on-light`, both `select`s).
+            let top = caret::snap((cell.y + baseline) * scale - 1.0 + drop);
+            let right = caret::snap((cell.x + cell.w) * scale);
+            let mut at = caret::snap(cell.x * scale);
+            while at + side <= right {
+                self.draw_dot(snapshot, &ink, at, top, side);
+                at += pitch;
+            }
+        }
+    }
+
+    /// One dot of a Spell check mark: a disc `side` across at `at`, `top`.
+    ///
+    /// A rounded clip and not a cut square, because the oracle's dot is a disc
+    /// with an antialiased rim — over its 32 dots the capture's middle rows
+    /// read 128 pixels at full ink and 64 at part of it, and its first and last
+    /// rows 128 at part of it and none at full, which is a circle rasterised
+    /// and not a shape cut to the pixel. The four lengths are whole device
+    /// pixels by the time they arrive, so every dot of a mark is the same disc:
+    /// only the rim is antialiased, never the core.
+    fn draw_dot(&self, snapshot: &gtk::Snapshot, ink: &gdk::RGBA, at: f64, top: f64, side: f64) {
+        let scale = self.scale();
+        let rect = graphene::Rect::new(
+            logical(at, scale),
+            logical(top, scale),
+            logical(side, scale),
+            logical(side, scale),
+        );
+        snapshot.push_rounded_clip(&gsk::RoundedRect::from_rect(
+            rect,
+            logical(side, scale) / 2.0,
+        ));
+        snapshot.append_color(ink, &rect);
+        snapshot.pop();
     }
 
     /// Paints what Live left standing in the cells its fold emptied.

@@ -10,13 +10,17 @@ use quill_engine::markdown;
 use quill_engine::spell::{self, Enchant, Position, SUGGESTIONS, SpellChecker};
 use spell_fixture::fixture;
 
-/// The passage's eight misspellings, as #400 lists them.
-const MISSPELLINGS: [&str; 8] = [
+/// The passage's seven marked misspellings, as the capture reads them off the Design oracle
+/// (`ref/ia/mac-native/NOTES.md` § State 26 § What is marked).
+///
+/// `DRAFFT` is misspelled and is not here: an all-caps word the dictionary does not hold is left
+/// alone, as `2b` and `Q3` are, and [`quill_engine::spell::words`] drops both kinds before the
+/// dictionary is asked.
+const MISSPELLINGS: [&str; 7] = [
     "definately",
     "recieved",
     "comittee",
     "Teh",
-    "DRAFFT",
     "seperate",
     "mispelled",
     "accomodate",
@@ -104,10 +108,16 @@ fn the_passage_misspellings_fail_and_its_other_words_pass() {
         );
         assert!(!checker.check(misspelling), "`{misspelling}` is misspelled");
     }
+    // The two kinds `spell::words` never asks about are not "correct" — `DRAFFT` is misspelled and
+    // unmarked, and `2b` and `Q3` are not spellings at all.
     let correct: Vec<&str> = words
         .iter()
         .copied()
-        .filter(|word| !MISSPELLINGS.contains(word) && !word.chars().any(|c| c.is_ascii_digit()))
+        .filter(|word| {
+            !MISSPELLINGS.contains(word)
+                && !word.chars().any(|c| c.is_ascii_digit())
+                && word.chars().any(char::is_lowercase)
+        })
         .collect();
     assert!(
         correct.len() >= 12,
@@ -119,7 +129,7 @@ fn the_passage_misspellings_fail_and_its_other_words_pass() {
 }
 
 #[test]
-fn the_prose_stream_marks_exactly_the_passage_s_eight_misspellings() {
+fn the_prose_stream_marks_exactly_the_passage_s_seven_misspellings() {
     let checker = en_us();
     let passage = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../ref/spell.md"))
         .expect("ref/spell.md is readable");
