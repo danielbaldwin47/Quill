@@ -357,18 +357,15 @@ mod imp {
         pub corrections: RefCell<Option<gtk::PopoverMenu>>,
         /// The Face this Editor is set in.
         pub face: Cell<Face>,
-        /// Which of the type ladder's fourteen steps the Editor is set at.
-        pub step: Cell<u32>,
-        /// Which of the three type ladders the window's own width picks
+        /// The size the Editor is set at: which of the type ladder's fourteen
+        /// steps, on which of the three ladders the window's own width picks
         /// ([`typography::size_class`]).
         ///
-        /// Held with the step because everything the step names — the em, the
-        /// pitch, the cell — is named by the pair and not by the step alone.
         /// The window has no width before its first allocation, so an Editor
-        /// starts in the class a full-size window is in and
-        /// [`Editor::lay_out`](super::Editor::lay_out) moves it to the one it
-        /// turns out to be in.
-        pub class: Cell<typography::SizeClass>,
+        /// starts at the default step of the class a full-size window is in
+        /// and [`Editor::lay_out`](super::Editor::lay_out) moves it to the
+        /// class it turns out to be in.
+        pub size: Cell<typography::Size>,
         /// The ground this Editor is painting on, with the table every colour
         /// it draws is read off. Held here rather than asked of the session
         /// per frame because the caret asks for it on every frame it is
@@ -753,10 +750,6 @@ impl Editor {
         // of the insert mark, and the arrows, Home, End and Shift with any of
         // them stop doing anything (#220). Its blink is off as well, on the
         // display's settings at startup, so the unseen bar asks for no frames.
-        editor
-            .imp()
-            .step
-            .set(quill_engine::settings::default_step());
         editor.watch_caret();
         editor
     }
@@ -882,7 +875,8 @@ impl Editor {
     /// rather than a curve fitted to it.
     pub fn set_type(&self, face: Face, step: u32) {
         self.imp().face.set(face);
-        self.imp().step.set(step);
+        let class = self.imp().size.get().class();
+        self.imp().size.set(typography::Size::new(class, step));
         self.restyle();
     }
 
@@ -892,7 +886,7 @@ impl Editor {
     /// per display where the class is per window ([`install_type`]).
     #[must_use]
     pub fn size_class(&self) -> typography::SizeClass {
-        self.imp().class.get()
+        self.imp().size.get().class()
     }
 
     /// The ground this Editor opens on.
@@ -1675,7 +1669,7 @@ impl Editor {
         // be moved to the new one; the rest of the type is CSS the widget
         // picks up on its own.
         tags::set_face(&self.buffer(), self.imp().face.get());
-        let pitch = typography::pitch(self.imp().class.get(), self.imp().step.get(), LAYOUT_SCALE);
+        let pitch = typography::pitch(self.imp().size.get(), LAYOUT_SCALE);
         let leading = typography::leading(pitch, self.row_height());
         // The caret's band and its unit, kept with the type: a bar placed on
         // the keystroke path must not cost a row measured all over again.
@@ -1766,23 +1760,16 @@ impl Editor {
         // window a whole class on a pane the oracle's own class does not read
         // (`ref/ia/mac-native/NOTES.md` § State 22). The centring and the
         // measure below stay on the room the Editor actually got.
-        let class = typography::size_class(unsigned(self.window_width(width)));
-        if self.imp().class.replace(class) != class {
-            install_type(
-                self.imp().ground.get(),
-                self.imp().face.get(),
-                class,
-                self.imp().step.get(),
-            );
+        let size = typography::Size::new(
+            typography::size_class(unsigned(self.window_width(width))),
+            self.imp().size.get().step(),
+        );
+        if self.imp().size.replace(size) != size {
+            install_type(self.imp().ground.get(), self.imp().face.get(), size);
             self.restyle();
         }
         let page = Page {
-            column: typography::column(
-                unsigned(width),
-                class,
-                self.imp().face.get(),
-                self.imp().step.get(),
-            ),
+            column: typography::column(unsigned(width), self.imp().face.get(), size),
             bottom: signed(typography::page_bottom(unsigned(height))),
         };
         if self.imp().laid_out.get() == Some(page) {
@@ -1814,8 +1801,7 @@ impl Editor {
         };
         tags::hang_markers(
             &self.buffer(),
-            self.imp().class.get(),
-            self.imp().step.get(),
+            self.imp().size.get(),
             page.column,
             std::array::from_fn(|level| self.marker_advance(level as u8 + 1)),
             self,
@@ -1937,7 +1923,7 @@ impl Editor {
         let layout = self.create_pango_layout(Some(text));
         layout.set_font_description(Some(&body_font(
             self.imp().face.get(),
-            typography::em(self.imp().class.get(), self.imp().step.get()) * scale,
+            typography::em(self.imp().size.get()) * scale,
         )));
         let features = pango::AttrList::new();
         features.insert(pango::AttrFontFeatures::new(&pango_features()));
@@ -2358,7 +2344,7 @@ impl Editor {
 
     /// One em in the device pixels the machine measures its gates in.
     fn em(&self) -> f64 {
-        typography::em(self.imp().class.get(), self.imp().step.get()) * self.scale()
+        typography::em(self.imp().size.get()) * self.scale()
     }
 
     /// The surface's scale factor, which is the machine's unit.
@@ -2403,10 +2389,9 @@ impl Editor {
         }
         let buffer = self.buffer();
         let row = self.iter_location(&buffer.iter_at_mark(&buffer.get_insert()));
-        let step = self.imp().step.get();
         let scale = self.scale();
         let (y, h) = self.band(&row);
-        let w = f64::from(typography::caret_width(self.imp().class.get(), step, scale));
+        let w = f64::from(typography::caret_width(self.imp().size.get(), scale));
         Some(caret::Bar {
             x: caret::left(f64::from(row.x()) * scale, w),
             y,
@@ -4701,7 +4686,7 @@ const GTK_THEME: &str = "Default";
 /// one display carry the sheet of whichever laid out last
 /// ([`Editor::lay_out`]). The writer looks at one window, and the one that
 /// last laid out is the one they moved.
-pub fn install_type(ground: Ground, face: Face, class: typography::SizeClass, step: u32) {
+pub fn install_type(ground: Ground, face: Face, size: typography::Size) {
     let Some(display) = gtk::gdk::Display::default() else {
         // No display: nothing to style, and nothing that will draw text.
         return;
@@ -4730,7 +4715,7 @@ pub fn install_type(ground: Ground, face: Face, class: typography::SizeClass, st
         });
         // The bars' sheet rides with the type's, so the two grounds — the
         // page's and the chrome's — change in the one reload.
-        let mut sheet = stylesheet(&ground.colours, face, typography::em(class, step));
+        let mut sheet = stylesheet(&ground.colours, face, typography::em(size));
         sheet.push_str(&crate::chrome::stylesheet(ground));
         provider.load_from_string(&sheet);
     });
@@ -4881,12 +4866,9 @@ mod tests {
     fn a_caps_radius_is_half_the_width_at_every_step_of_the_ladder() {
         for step in typography::steps() {
             for scale in [1.0, 1.5, 2.0, 3.0] {
-                let class = typography::SizeClass::default();
-                let w = logical(
-                    f64::from(typography::caret_width(class, step, scale)),
-                    scale,
-                );
-                let h = logical(f64::from(typography::pitch(class, step, scale)), scale);
+                let size = typography::Size::new(typography::SizeClass::default(), step);
+                let w = logical(f64::from(typography::caret_width(size, scale)), scale);
+                let h = logical(f64::from(typography::pitch(size, scale)), scale);
                 assert!(
                     w < h,
                     "step {step} at scale {scale}: a bar is taller than it is wide"
@@ -5063,10 +5045,7 @@ mod tests {
     /// the one the oracles are frozen at.
     #[test]
     fn the_type_is_set_at_the_ladders_fractional_em() {
-        let em = typography::em(
-            typography::SizeClass::default(),
-            quill_engine::settings::default_step(),
-        );
+        let em = typography::em(typography::Size::default());
         assert!((em - 21.33).abs() < 0.001, "the default step's em is {em}");
         assert!(
             stylesheet(&Ground::default().colours, Face::Duo, em).contains("font-size: 21.33px"),
@@ -5226,10 +5205,7 @@ mod tests {
         stylesheet(
             &Ground::of(scheme).colours,
             Face::Duo,
-            typography::em(
-                typography::SizeClass::default(),
-                quill_engine::settings::default_step(),
-            ),
+            typography::em(typography::Size::default()),
         )
     }
 
