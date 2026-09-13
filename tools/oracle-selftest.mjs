@@ -177,7 +177,11 @@ ok('the library fixture is the tree the files states are judged on', () => {
 // ---------- the ladder, on both sides of the port ----------
 ok('the ems a step is converted with are the ladder the engine holds', () => {
   const source = fs.readFileSync(path.join(ROOT, 'quill-engine/src/typography.rs'), 'utf8');
-  const ems = [...source.matchAll(/Rung \{ em: ([0-9.]+)/g)].map((m) => Number(m[1]));
+  // The wide class's ladder alone: the engine carries one per size class since #420, and the
+  // legacy shooter this table is for has no classes and is shot at full width.
+  const wide = source.match(/const WIDE: \[Rung; STEPS as usize\] = \[([^\]]*)\]/);
+  assert.ok(wide, 'no WIDE ladder in quill-engine/src/typography.rs to check against');
+  const ems = [...wide[1].matchAll(/Rung \{ em: ([0-9.]+)/g)].map((m) => Number(m[1]));
   assert.ok(ems.length > 0, 'no ladder in quill-engine/src/typography.rs to check against');
   assert.deepEqual(ems, LADDER_EM, 'the ladder moved in the engine and the oracle was left behind');
   assert.equal(emForStep(5), 21.33, "the default step's em is the size iA Writer opens at");

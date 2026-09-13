@@ -98,8 +98,8 @@ pub const LADDER: [f64; 6] = [1.6, 1.4, 1.2, 1.0, 1.0, 1.0];
 /// than as a stripe the exact width of the prose. Ems rather than cells,
 /// because that is what the oracle measured it in and the two are not the same
 /// thing: a cell is 0.6em on these Faces.
-fn well(step: u32) -> i32 {
-    pixels(0.7 * typography::em(step))
+fn well(class: typography::SizeClass, step: u32) -> i32 {
+    pixels(0.7 * typography::em(class, step))
 }
 
 /// `length` as whole pixels.
@@ -764,6 +764,7 @@ fn opened_by(
 /// [`indent_ceiling`].
 pub fn hang_markers(
     buffer: &gtk::TextBuffer,
+    class: typography::SizeClass,
     step: u32,
     column: typography::Column,
     advances: [i32; 6],
@@ -802,7 +803,7 @@ pub fn hang_markers(
     //
     // Deliberately not `min(side)`-ed away to nothing: a window too narrow to
     // give the well its margin is one the prose has no gutter in either.
-    let edge = well(step).min(side);
+    let edge = well(class, step).min(side);
     let ground = code_ground(buffer, colours);
     ground.set_left_margin(side - edge);
     ground.set_right_margin(side - edge);
@@ -1569,11 +1570,18 @@ mod tests {
     const STEP: u32 = 5;
 
     /// The window the judged states are shot in, in logical pixels.
+    ///
+    /// Wide enough to be in the wide size class, which is the class this
+    /// module's own numbers — the heading runs, the well — are written at
+    /// ([`typography::size_class`]).
     const VIEW: u32 = 1440;
+
+    /// The size class [`VIEW`] is in.
+    const CLASS: typography::SizeClass = typography::SizeClass::Wide;
 
     /// The container `face` at `step` lays out in that window.
     fn container(face: Face, step: u32) -> typography::Column {
-        typography::column(VIEW, typography::cell(face, step))
+        typography::column(VIEW, face, step)
     }
 
     /// The marker runs a level 1 to 6 heading opens with, as the layout may
@@ -1585,7 +1593,7 @@ mod tests {
     /// step the same six runs advance 13 px a cell in a judged shot and 12.798
     /// in the app — and `Editor::marker_advance` measures which it is.
     fn advances(hinted: bool) -> [i32; 6] {
-        let cell = typography::cell(Face::Duo, STEP);
+        let cell = typography::cell(Face::Duo, CLASS, STEP);
         std::array::from_fn(|level| {
             let cells = level as f64 + 2.0;
             pixels(if hinted {
@@ -1629,9 +1637,9 @@ mod tests {
     fn the_code_ground_runs_past_both_edges_of_the_measure() {
         // The oracle's ±0.7em, which at the default step's 21.33 px em is 15
         // px on each side.
-        assert_eq!(well(STEP), 15);
+        assert_eq!(well(CLASS, STEP), 15);
         let side = 240;
-        let edge = well(STEP).min(side);
+        let edge = well(CLASS, STEP).min(side);
         assert!(
             edge > 0 && side - edge < side,
             "the block's box has to start left of the prose for its ground to"
@@ -1650,20 +1658,26 @@ mod tests {
         // and two adjacent ems of the ladder's small end — 15.25 and 16.17 —
         // round to the same whole pixel.
         let ladder = quill_engine::settings::type_steps();
-        for step in ladder.clone().skip(1) {
+        for class in [
+            typography::SizeClass::Narrowest,
+            typography::SizeClass::Middle,
+            typography::SizeClass::Wide,
+        ] {
+            for step in ladder.clone().skip(1) {
+                assert!(
+                    well(class, step - 1) <= well(class, step),
+                    "a well is 0.7 of an em, so it must never shrink as the type grows: \
+                     step {} of {class:?} wells by {} and step {step} by {}",
+                    step - 1,
+                    well(class, step - 1),
+                    well(class, step)
+                );
+            }
             assert!(
-                well(step - 1) <= well(step),
-                "a well is 0.7 of an em, so it must never shrink as the type grows: \
-                 step {} wells by {} and step {step} by {}",
-                step - 1,
-                well(step - 1),
-                well(step)
+                well(class, *ladder.end()) > 4 * well(class, *ladder.start()),
+                "{class:?}'s top em is more than four times its bottom one"
             );
         }
-        assert!(
-            well(*ladder.end()) > 4 * well(*ladder.start()),
-            "the ladder's top em is more than four times its bottom one"
-        );
     }
 
     #[test]
@@ -1706,7 +1720,7 @@ mod tests {
     /// [`RUNS`]' advances, as the layout may advance them, the two ways
     /// [`advances`] gives the heading ladder's.
     fn run_advances(hinted: bool) -> [i32; 3] {
-        let cell = typography::cell(Face::Duo, STEP);
+        let cell = typography::cell(Face::Duo, CLASS, STEP);
         RUNS.map(|(_, cells)| {
             pixels(if hinted {
                 cell.round() * cells
@@ -1770,7 +1784,7 @@ mod tests {
         let column = container(Face::Duo, STEP);
         let side = signed(column.side);
         let ceiling = indent_ceiling(column);
-        let cell = typography::cell(Face::Duo, STEP);
+        let cell = typography::cell(Face::Duo, CLASS, STEP);
         let [bullet, ordinal, quote] =
             run_advances(false).map(|advance| wrapped(hung_under(advance, side, ceiling)) - side);
         assert_eq!(bullet, pixels(2.0 * cell), "`- ` hangs its own two cells");
