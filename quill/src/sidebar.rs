@@ -303,6 +303,18 @@ const DAYS: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 /// change is a stylesheet change and nothing else: the paper it stands on, the
 /// ink its names are set in, the grey of its dates and excerpts, the hairline
 /// between its rows and the accent down the selected one.
+///
+/// The search prompt is [`Role::ChromeFg`] at `opacity: 1`, the grey the
+/// magnifier beside it already wears, so the field and its prompt are one
+/// grey. The `opacity` is what makes them one: GTK's Default theme halves the
+/// `placeholder` node (0.55), which left the prompt at `#BCBCBC`, 1.73:1 on
+/// the paper — the bug #379 was filed as, and the one #374 fixed on the
+/// Palette. Which grey it should be is the Design oracle's
+/// (`ref/ia/mac-native/NOTES.md` § State 28, *The search field is at the foot,
+/// and its prompt is `#7e7e7e`*): the oracle's prompt is `#7e7e7e` light and
+/// `#757575` dark, darker than Quill's rather than paler, and `chrome_fg` is
+/// the nearest role to that pair. A role of the prompt's own waits for the
+/// pane's greys to be ported together.
 #[must_use]
 pub fn stylesheet(ground: Ground) -> String {
     let Ground { scheme, colours } = ground;
@@ -373,7 +385,7 @@ pub fn stylesheet(ground: Ground) -> String {
          \x20 padding: 0; margin: 0; min-height: 0; min-width: 0;\n\
          \x20 font-size: {FIELD_PX}px; color: {ink}; caret-color: {accent};\n\
          }}\n\
-         .library entry text > placeholder {{ color: {dim}; }}\n\
+         .library entry text > placeholder {{ color: {dim}; opacity: 1; }}\n\
          .library entry.lib-rename {{ font-size: {NAME_PX}px; }}\n\
          .library scrolledwindow, .library list {{ background: none; }}\n\
          .library list > row {{\n\
@@ -2801,5 +2813,34 @@ mod tests {
             sheet.contains("list > row:selected .lib-bar { background-color: #00bfff; }"),
             "{sheet}"
         );
+    }
+
+    /// The prompt under the search field was the palest thing in the pane —
+    /// `#BCBCBC`, 1.73:1 on the paper — because GTK's Default theme halves the
+    /// `placeholder` node to 0.55, the same defect #374 fixed on the Palette.
+    #[test]
+    fn the_search_prompt_is_the_panes_chrome_grey_at_full_strength() {
+        for scheme in [Scheme::Light, Scheme::Dark] {
+            let ground = Ground::of(scheme);
+            let sheet = stylesheet(ground);
+            let dim = ground.colours.colour(Role::ChromeFg).to_hex();
+            let rule = sheet
+                .split_once("placeholder")
+                .expect("no placeholder rule at all")
+                .1;
+            let rule = rule.split_once('}').expect("unclosed placeholder rule").0;
+            assert!(
+                rule.contains(&format!("color: {dim}")),
+                "{scheme:?}: the prompt is not the pane's chrome grey:\n{sheet}"
+            );
+            assert!(
+                rule.contains("opacity: 1"),
+                "{scheme:?}: GTK's theme is still halving the prompt:\n{sheet}"
+            );
+            assert!(
+                sheet.contains(&format!(".lib-icon {{ color: {dim}; }}")),
+                "{scheme:?}: the magnifier is not the prompt's grey:\n{sheet}"
+            );
+        }
     }
 }
