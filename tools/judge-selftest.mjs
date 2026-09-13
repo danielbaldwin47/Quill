@@ -677,28 +677,54 @@ ok('all five Syntax states hold on real captures and the companion pins only mas
 
 // ---------- Spell check ----------
 
-// Round 2's own pairs: each state's shot and its `--spell off` reshoot, as `tools/gate judge spell`
-// committed them — round 2 because #409's fix gave `caret-light` back its eighth wave. Variants
-// replace pixels in those shots, never app internals.
-const SPELL_ROUND = 'r2';
+// Round 7's own pairs for the two states that are still measured: each one's shot and its
+// `--spell off` reshoot, as `tools/gate judge spell` committed them — round 7 because #416 changed
+// what is on the page, the dots for the wave and seven marks for eight. Variants replace pixels in
+// those shots, never app internals. The eight states judged on a `mac-native` crop have no reshoot
+// to pair, so none is read here.
+const SPELL_ROUND = 'r7';
 const spellPair = (name) => ({
   dim: fs.readFileSync(path.join(ROOT, 'shots/spell', `${SPELL_ROUND}-${name}-ours.png`)),
   lit: fs.readFileSync(path.join(ROOT, 'shots/spell', `${SPELL_ROUND}-${name}-ours-lit.png`)),
 });
 const spellRule = (name) => states.pieces.spell[name].assert;
 
-ok('all ten Spell states hold on their round-1 pairs and the reshoot pins only Spell check off', () => {
+// The eight states #400's capture holds a frame of, and the frame each names. The other two — the
+// caret parked in a marked word, and the "no dictionary" state — are the two it shot no frame of,
+// and they stay measured off ours' own pixels (ADR 0017).
+const SPELL_FRAMES = {
+  'on-light': 'mac-native-26-light-spell-s1-rest.png',
+  'on-dark': 'mac-native-26-dark-spell-s1-rest.png',
+  'focus-light': 'mac-native-26-light-spell-s2-focus.png',
+  'focus-dark': 'mac-native-26-dark-spell-s2-focus.png',
+  'syntax-light': 'mac-native-26-light-spell-s3-syntax.png',
+  'syntax-dark': 'mac-native-26-dark-spell-s3-syntax.png',
+  'select-light': 'mac-native-26-light-spell-s4-selection.png',
+  'select-dark': 'mac-native-26-dark-spell-s4-selection.png',
+};
+
+ok('eight Spell states are judged on #400’s frames and the two it shot none of are measured', () => {
   assert.deepEqual(Object.keys(states.pieces.spell), ['on-light', 'on-dark', 'focus-light', 'focus-dark', 'syntax-light',
     'syntax-dark', 'select-light', 'select-dark', 'caret-light', 'missing-light']);
   for (const state of resolveStates(states, 'spell')) {
+    assert.equal(state.flags.text, 'ref/spell.md');
+    const frame = SPELL_FRAMES[state.name];
+    if (frame) {
+      assert.ok(!state.assert, `${state.name} is answered one way`);
+      assert.equal(state.opponent.capture, frame, state.name);
+      // The capture is Mono, and a state naming one is shot in Mono whatever the defaults say, so
+      // the two grids compare cell for cell.
+      assert.equal(state.flags.font, 'mono', state.name);
+      continue;
+    }
     const rule = state.assert;
     assert.equal(rule.kind, 'spell', state.name);
     assert.ok(!state.opponent, `${state.name} is answered one way`);
     assert.equal(state.flags.theme, rule.theme);
-    assert.equal(state.flags.text, 'ref/spell.md');
     assert.deepEqual(secondShot(rule, state), { state: { ...state, flags: { ...state.flags, spell: 'off' } }, options: {} });
-    // Eight misspellings on the passage — a parked caret withholds none — and none with no dictionary.
-    const words = { 'missing-light': 0 }[state.name] ?? 8;
+    // Seven marks on the passage — a parked caret withholds none, and `DRAFFT` is an all-caps word
+    // the dictionary does not hold and is left alone — and none with no dictionary.
+    const words = { 'missing-light': 0 }[state.name] ?? 7;
     assert.equal(rule.words, words, state.name);
     assert.equal(Boolean(rule.status), state.flags.spell === 'on:xx_XX', state.name);
     const got = assertState(rule, spellPair(state.name));
@@ -706,15 +732,15 @@ ok('all ten Spell states hold on their round-1 pairs and the reshoot pins only S
   }
 });
 
-ok('a missing wave, a wave where none is wanted and a wave in another colour are each refused', () => {
-  const on = spellPair('on-light');
-  // No wave at all: the reshoot against itself.
-  assert.match(assertState(spellRule('on-light'), { dim: on.lit, lit: on.lit }).why, /changed no pixel/);
-  // A parked caret that hid its word's wave: the caret state's page with one wave fewer than the count.
-  assert.match(assertState({ ...spellRule('caret-light'), words: 9 }, on).why, /holds 8 waves \(.*\) and the state expects 9/);
-  // Waves on a page with no dictionary.
+ok('a missing mark, a mark where none is wanted and a mark in another colour are each refused', () => {
+  const on = spellPair('caret-light');
+  // No mark at all: the reshoot against itself.
+  assert.match(assertState(spellRule('caret-light'), { dim: on.lit, lit: on.lit }).why, /changed no pixel/);
+  // A parked caret that hid its word's mark: the caret state's page with one mark fewer than the count.
+  assert.match(assertState({ ...spellRule('caret-light'), words: 9 }, on).why, /holds 7 marks \(.*\) and the state expects 9/);
+  // Marks on a page with no dictionary.
   assert.match(assertState(spellRule('missing-light'), on).why, /drew \d+ pixels of the spell Role/);
-  // The waves repainted in the link rule's blue: the tag coloured from the wrong Role.
+  // The marks repainted in the link rule's blue: the dots drawn from the wrong Role.
   const dim = decodePng(on.dim);
   const lit = decodePng(on.lit);
   for (let i = 0; i < dim.w * dim.h; i += 1) {
@@ -722,12 +748,12 @@ ok('a missing wave, a wave where none is wanted and a wave in another colour are
     if ([0, 1, 2].every((c) => dim.data[o + c] === lit.data[o + c])) continue;
     [dim.data[o], dim.data[o + 1], dim.data[o + 2]] = [70, 117, 181];
   }
-  assert.match(assertState(spellRule('on-light'), { ...on, dim: encodePng(dim) }).why, /spell Role in 0 of/);
+  assert.match(assertState(spellRule('caret-light'), { ...on, dim: encodePng(dim) }).why, /spell Role in 0 of/);
   // The status line widening the Library reflows the whole page, which is no status line (#415).
   const missing = spellPair('missing-light');
   assert.match(assertState(spellRule('missing-light'), { dim: on.dim, lit: missing.lit }).why, /spell Role|taller than one status line|differ in size/);
   for (const bad of [{ words: -1 }, { words: 1.5 }, { theme: 'sepia' }, { status: 'yes' }, { status: true }, { runs: 2 }]) {
-    assert.throws(() => validate({ kind: 'spell', theme: 'light', words: 8, ...bad }), /spell/, JSON.stringify(bad));
+    assert.throws(() => validate({ kind: 'spell', theme: 'light', words: 7, ...bad }), /spell/, JSON.stringify(bad));
   }
 });
 
@@ -1549,9 +1575,11 @@ ok('every judged state that draws a determined caret is held to one, and no othe
     'export/dialog', 'files/library', 'files/search',
     'focus/paragraph', 'focus/sentence',
     'markup/blocks', 'markup/gutters', 'markup/wrapped', 'preview/full', 'preview/pdf-full',
-    // Every `spell` state takes it for the `style` states' reason: the waves are read as the
+    // Every `spell` state takes it for the `style` states' reason: the marks are read as the
     // difference from a `--spell off` reshoot, and a bar is ink that difference need not reason
-    // about. `spell/caret-light` still places the caret, because it proves a parked caret keeps its word's wave.
+    // about — and the eight judged on a `mac-native` crop take it for `theme/dark`'s reason too,
+    // since #400's captures carry no bar. `spell/caret-light` still places the caret, because it
+    // proves a parked caret keeps its word's mark.
     'spell/caret-light', 'spell/focus-dark', 'spell/focus-light', 'spell/missing-light', 'spell/on-dark',
     'spell/on-light', 'spell/select-dark', 'spell/select-light', 'spell/syntax-dark', 'spell/syntax-light',
     'style/fillers-light', 'style/focus-dark', 'style/focus-light', 'style/on-dark',
