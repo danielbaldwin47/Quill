@@ -28,6 +28,13 @@ put it, the gutter is still seven cells and still sized by `###### `, no quote r
 the measured-not-counted rule below now covers a marker run as well as a heading's. Nothing else
 here moves.*
 
+*Waits on [#419](https://github.com/danielbaldwin47/Quill/issues/419) and
+[#420](https://github.com/danielbaldwin47/Quill/issues/420) since 2026-09-12, by
+[#344](https://github.com/danielbaldwin47/Quill/issues/344): the `column()` Consequence below
+stands on `main`, but the question it left is measured. The oracle's type gives first, on the
+window's width alone, and the measure gives only once the limit no longer fits (`NOTES.md` § State
+22). `docs/design.md` row Window limitation holds that rule. Nothing else here moves.*
+
 ## What changed the answer
 
 The Markup Piece was won (#86, #89, #102) hanging every marker — bullets, numbers and a quote's
