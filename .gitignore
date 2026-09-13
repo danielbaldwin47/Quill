@@ -22,3 +22,8 @@ target/
 /spike/
 # Python bytecode caches, wherever they land.
 __pycache__/
+
+# `library_fixture_379.py`'s own note of what it put in the writer's
+# Library and what that Library held first — a run artefact, and it
+# names their documents, so it stays out of the history.
+ref/ia/mac-native/library-379-added.json
