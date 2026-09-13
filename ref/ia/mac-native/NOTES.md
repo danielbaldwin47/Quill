@@ -13,7 +13,7 @@ Nothing here changes the spec. The evidence is put where a spec change can be ar
 
 **Follow-up rig, 2026-09-09:** [CAPTURE-2026-09-09.md](CAPTURE-2026-09-09.md) records the Mac halves of #231, #241, #261, #308 and #328, with per-frame metadata and untouched originals. It uses the same iA version but macOS 26.6.1 and a different display; its chromatic and page-top controls are qualified there. The table below describes the earlier run.
 
-**Later runs on the original rig:** [CAPTURE-ORIGINAL-MBP.md](CAPTURE-ORIGINAL-MBP.md) re-shoots #231 and #308 on the built-in display, [CAPTURE-2026-09-10.md](CAPTURE-2026-09-10.md) shoots #344 (state 22) and #343 (state 23) there, and [CAPTURE-2026-09-10-STYLE.md](CAPTURE-2026-09-10-STYLE.md) shoots #354 (state 24), the one run that has Style Check **on**. Both use the same iA version on the same machine and carry their own rig tables; #344's window width is the variable of its states, so the fixed window in the table below is not theirs.
+**Later runs on the original rig:** [CAPTURE-ORIGINAL-MBP.md](CAPTURE-ORIGINAL-MBP.md) re-shoots #231 and #308 on the built-in display, [CAPTURE-2026-09-10.md](CAPTURE-2026-09-10.md) shoots #344 (state 22) and #343 (state 23) there, [CAPTURE-2026-09-10-STYLE.md](CAPTURE-2026-09-10-STYLE.md) shoots #354 (state 24), the one run that has Style Check **on**, and [CAPTURE-2026-09-13.md](CAPTURE-2026-09-13.md) and [CAPTURE-2026-09-13-SPELL.md](CAPTURE-2026-09-13-SPELL.md) shoot #419 (state 25) and #400 (state 26), the one run that has spell check **on**. Both use the same iA version on the same machine and carry their own rig tables; #344's window width is the variable of its states, so the fixed window in the table below is not theirs.
 
 | | |
 |---|---|
@@ -26,6 +26,7 @@ Nothing here changes the spec. The evidence is put where a spec change can be ar
 | Typography | System — Default |
 | Line length limit | 64 characters (the app's default; the menu offers 64 / 72 / 80) |
 | Style Check | **off** for every state except state 24, which is the state of it |
+| Spell check | **off** for every state except state 26, which is the state of it; it is `Edit > Spelling and Grammar > Check Spelling While Typing`, and `ref/sample.md` holds no misspelling in any case |
 | Syntax highlight | **off** except states 21 and 24, which name it |
 | Authors | **hidden** for every state |
 | Focus Mode | **off** except states 13, 15 and 24, which name it |
@@ -837,6 +838,279 @@ no check beside them. Their parents are verbs and can be read: `Enable`/`Disable
 measures a list's state — it clicks, shoots, and keeps the click only if the frame moved the way the
 click should move it. **Custom is empty**: it moves nothing either way, which is the one state that
 method cannot name, and it is recorded as left-as-found.
+
+## State 25 — the two narrower ladders, and what the narrowest class's margins follow
+
+`mac-native-25-light-narrow-*.png`, from [`ref/sample.md`](../../sample.md), shot by
+`rig/run_narrow_419.py` and read by `rig/measure_419.py`. Region `[0, 33, W, 500]`, light, Mono,
+limit 64; W and the text size are the variables. The full report is
+[CAPTURE-2026-09-13.md](CAPTURE-2026-09-13.md); this is the part the rest of the file needs.
+
+[§ State 22](#state-22--the-windows-width-picks-the-type-and-the-measure-follows) found the three
+size classes and measured the two narrower ones at steps 5 and 8 only. Both are now walked in full —
+**960 pt and 400 pt at every step 0 … 13** — with the margins read at 240, 320, 400 and 440 pt as
+well.
+
+### Each class is fourteen sizes, and neither narrow one is the wide one scaled
+
+`rig/ladder_419.py` walks the Text Size menu one click at a time, and its readings are kept as
+[`narrow-419-ladder-960.json`](narrow-419-ladder-960.json) and
+[`narrow-419-ladder-400.json`](narrow-419-ladder-400.json); its frames are scratch. Both narrow
+classes run out of ladder after **five Smaller clicks and eight Bigger ones**, so each holds the
+wide class's fourteen sizes with Default sixth.
+
+| step | 0 | 1 | 2 | 3 | 4 | **5** | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| wide cell (§ 11) | 17.4 | 18.3 | 19.4 | 20.6 | 23.1 | **25.6** | 30.7 | 35.7 | 40.7 | 45.7 | 53.1 | 60.4 | 67.8 | 75.1 |
+| middle cell | 16.000 | 17.112 | 18.117 | 19.117 | 20.265 | **22.653** | 25.209 | 30.235 | 35.215 | 40.080 | 45.000 | 52.230 | 59.500 | 66.750 |
+| middle pitch | 43 | 46 | 49 | 53 | 56 | **63** | 69 | 81 | 92 | 103 | 113 | 126 | 139 | 150 |
+| narrowest cell | 13.623 | 14.908 | 16.080 | 17.367 | 18.633 | **19.863** | 22.500 | 25.000 | 29.770 | 34.679 | 39.500 | 44.250 | 51.500 | 58.500 |
+| narrowest pitch | 37 | 40 | 44 | 47 | 50 | **53** | 59 | 65 | 76 | 86 | 96 | 105 | 118 | 129 |
+
+**The scale against the wide ladder wanders and has no trend.** 0.9195 … 0.8888 across the middle
+class with a dip to 0.8211 at step 6, and 0.7829 … 0.7790 across the narrowest with a dip to 0.7003
+at step 7. § State 22's two readings — 0.885 and 0.865 — sit inside that wander, so **no step
+between them was derivable and each class has to be carried as its own ladder.**
+
+`pitch / em` runs 1.61 → 1.35 in the middle class and 1.63 → 1.32 in the narrowest, against the wide
+class's 1.73 → 1.374: the same falling curve, tighter the narrower the class.
+
+### The narrowest class's margin is a rule, and it hides a fourth break
+
+The side margin of the narrowest class, in points, at every width and step measured:
+
+**`margin = max(5 pt, round(K − advance_pt))`**, with **K = 17.5 pt** in a window of 240 … 390 pt and
+**K = 22.5 pt** in one of 391 … 440 pt.
+
+**Every term of that is in points**, this file's one departure from device pixels and the reason the
+advance is written `advance_pt`: it is the class's cell at that step halved, 6.81 pt at step 0 and
+9.93 pt at step 5. Read in device pixels the rule collapses to a flat 5 pt and says nothing.
+
+It fits all 56 rows — 240, 320, 400 and 440 pt across fourteen steps — exactly, and
+`rig/measure_419.py` refits it on every run rather than quoting this. The break at **390/391 pt** was
+bisected at steps 0, 5 and 8 and falls between the same two widths each time, so like the class
+breaks it is the window's width alone. **240 pt is the narrowest window the app allows** — asked for
+150, 180, 200 or 220 it hands back 240, which `sweep_narrow.py` assumed for #344 and this run records
+from the bounds the app answers with.
+
+So the container rule of § State 22 holds everywhere once the margin is the class's own:
+
+**container = `min((limit + 14) cells, window − 2 × margin)`**, the margin **5 pt** in the middle and
+the wide class and `max(5 pt, round(K − advance_pt))` in the narrowest.
+
+In the narrowest class the first term never wins — 78 cells of even the smallest type wants 1062 px
+of the 880 px the class's widest window, 440 pt, has at all — so the whole class is the window term.
+That is why
+§ State 22 read a container 32 px inside what it expected at 440 pt: it was applying a 5 pt margin
+where the app keeps 13.
+
+**The container is centred to the point, not to the pixel.** Both margins are whole points, and
+where the leftover is an odd number of points the extra **point** — two device pixels — falls on the
+right: 20 px left against 22 right at step 1 in a 480 px window, where the leftover is 42 px = 21 pt,
+and 74 against 76 at step 5 in a 1920 px one, where it is 150 px = 75 pt. Where the leftover is an
+even number of points the margins are equal.
+
+### What the run could not settle
+
+**Whether the class breaks are points or device pixels.** #419 asked for 1250 and 1251 pt at step 5
+on a display at backing scale 1. No external display was connected and this Mac's built-in display
+offers no scale-1 mode, so the breaks stay recorded in points, the unit the window is set in.
+
+### The driver dropped clicks twice, and a control caught both
+
+Reaching a step out from Make Text Normal Size landed step 1 on step 2's size at both widths;
+walking up from the floor with eight Smaller clicks is not enough to reach the floor of a
+fourteen-step ladder from its top, and put steps 10 to 12 of the 400 pt run one and two rungs high.
+`rig/ladder_419.py`'s continuous walk fixes each width's ladder independently, and
+`rig/measure_419.py` now refuses to print a table unless every frame's pitch sits on its width's
+rung. **A state runner that reaches a menu step by counting clicks needs a control that does not.**
+
+## State 26 — the misspelling mark
+
+`mac-native-26-{light,dark}-spell-*.png` and the `-nospell` controls beside them, from
+[`ref/spell.md`](../../spell.md), shot by `rig/run_spell_400.py` and read by
+`rig/measure_spell_400.py`. Region `[0, 33, 1512, 949]` — the whole window. The full report is
+[CAPTURE-2026-09-13-SPELL.md](CAPTURE-2026-09-13-SPELL.md); this is the part the rest of the file
+needs.
+
+No state before this one showed a misspelling — every one was shot on `ref/sample.md`, which has
+none. The mark is **macOS's own**, drawn by the text system rather than by iA.
+
+**The four measured states were shot as pairs on both grounds** — eight pairs — each once with
+*Check Spelling While Typing* on and once with it off and nothing else changed, so every colour,
+row and dot below is a difference between two frames — § State 24's method, for § State 24's
+reason. **S5, S6 and the autocorrect run carry no control and none is possible**: each of them
+changes the text, so there is no second frame of the same page to difference against. They are
+read as behaviour, and no measurement rests on them. Setting the switch does not re-check a document already on the screen, and
+*Check Document Now* finds the **next** misspelling rather than marking them all, so the passage is
+pasted again under each setting.
+
+### The mark itself
+
+| | light | dark |
+|---|---|---|
+| Ink on the paper | **`#ed766b`** | **`#cf807e`** |
+| Shape | **dots** — 6 px lit, 2 px paper, an 8 px period | the same |
+| Thickness | **6 px** = 3 pt | the same |
+| Below the baseline | **12 … 17 px** = 6 … 8.5 pt | the same |
+| Extent | the word's own cells — 9.92 of 10 for `definately`, 3.05 of 3 for `Teh` | the same |
+
+**It is a row of round dots, not a wave and not a line**: six columns lit, two of paper, six rows
+deep, identical on every mark of every state.
+
+**It is not the face's underline.** `iAWriterMonoS-Regular.ttf` asks for `underlineThickness`
+60/1000 em — 2.56 px here — at `underlinePosition` −110/1000 em, 4.69 px down. The mark is 6 px thick
+12 px down. macOS draws its own at its own size.
+
+**The two grounds do not share one ink.** No coverage flattens `#ed766b` onto the dark paper to give
+`#cf807e`: it is a dynamic system colour with a value per appearance, and a port carries two values
+rather than one with an alpha.
+
+### Under Focus the word dims and the mark does not
+
+The caret stood in the second sentence. `definately`, `recieved`, `comittee` and `accomodate` fell
+to the dim tier § 4.2 holds — **`#c6c4c2`** light, **`#707070`** dark (4.2.5, 4.2.6) — while
+`Teh`, `seperate` and `mispelled` kept the body ink. **Every mark stayed at full strength**, same
+hex, same rows, same dots.
+
+### Under Syntax the Category stays and the mark is unchanged
+
+The marked words carry their Category colours — `#a6559f`, `#4675b5`, `#bb512a`, `#9d6722` on light —
+and the mark is exactly what it is at rest.
+
+### Over a selection the fill is under it, and shows through
+
+| ground | mark |
+|---|---|
+| light paper `#f7f7f7` | `#ed766b` |
+| light fill `#cbedf7` | **`#e2726b`** |
+| dark paper `#1a1a1a` | `#cf807e` |
+| dark fill `#143c52` | **`#cd8486`** |
+
+The fill is unbroken under the dots in the control frame, so it is beneath the mark; the mark is
+**not opaque**, and the composite that accounts for it is about 0.7 coverage on light and 0.85 on
+dark — it does not close to one number, so the dots are antialiased rather than painted flat.
+
+### What is marked
+
+Seven words: `definately`, `recieved`, `comittee`, `Teh`, `seperate`, `mispelled`, `accomodate`.
+
+**`DRAFFT` is not marked** — an all-caps word the dictionary does not hold is left alone. **`2b` and
+`Q3` are not marked** — a token carrying a digit is left alone.
+
+### The word being typed is not marked; a boundary brings the mark up
+
+Typed with no space, `comittee` carries a pale blue pending-correction fill and a rounded pill
+reading `Comittee ×`, and **no dots**. A space ends the word and the dots appear at once, with the
+caret still beside it — so it is the boundary and not the caret leaving that marks it.
+
+**Escape and ⌘↑ do not end it**: while the pill is up it takes both, and this state was shot twice
+with the caret still in the word before a mouse click was used instead.
+
+### Autocorrect, for the map's fog entry
+
+`teh ` becomes **`Teh`** — capitalised, not corrected — and `recieve ` becomes **`Receive`**,
+corrected and capitalised. **The replacement carries a solid pale-blue rule**, which is a different
+mark from the red dots and tells the two apart at a glance. One Backspace after the replacement
+deletes the space and re-opens the pending-correction state, the pill then offering `recieve ↺` —
+the revert is offered, not taken.
+
+### The correction menu
+
+A right-click on `definately` selects the word, which **keeps its dots over the fill**, and opens
+two suggestions — `definitely`, `defiantly` — then `Report a Concern`, then `Ignore Spelling` and
+`Learn Spelling`, then macOS's own Look Up / Translate, Cut / Copy / Paste, Paste As, Paste Edits
+From, Mark As and Writing Tools. The menu is chrome and Quill's own; it is on record rather than to
+be copied.
+
+## State 27 — the bar at the foot of the window, and the counts on it
+
+`mac-native-27-{light,dark}-stats-*.png` and the `-nobar` controls beside them, from
+`ref/sample.md`, shot by `rig/run_stats_381.py` and read by `rig/measure_stats_381.py`. Region
+`[0, 33, 1512, 949]` — the whole window. The full report is
+[CAPTURE-2026-09-13-STATS.md](CAPTURE-2026-09-13-STATS.md); this is the part the rest of the file
+needs.
+
+**iA has no stats bar.** What stands at the foot of the window is the **Toolbar**, a format bar of
+twelve labels — `Body`, `Heading 1 ⌃`, `List ⌃`, `Blockquote`, `Bold`, `Italic`, `Strikethrough`,
+`Link`, `Wikilink`, `Footnote`, `Table`, `TOC` — with the counts as a **thirteenth group at its
+right end**, a popup rather than a label. And on this machine it was not on the screen at all:
+`View > Toolbar` was found on **Fade In/Out** when the rig first read it, and under that setting,
+with the pointer away from the foot of the window, there is paper to the window's edge, at rest and
+while the keys move alike. Whether that is what the app ships on or what this Mac had been left
+on, one machine cannot say.
+
+Every state was shot with the bar and again with `View > Toolbar > Hide`, because the gutter above
+the bar cannot be read off one frame: there is no way to say where the page's last row would have
+fallen with no bar under it.
+
+### The bar
+
+| | light | dark |
+|---|---|---|
+| Height, rule to the window's foot | **80 px = 40 pt** — rule at row 1818, window's last row 1897 | the same |
+| Ground | **the paper itself**, `#f7f7f7` | **`#1a1a1a`** |
+| Rule above it | **2 px = 1 pt**, `#dbdbdb` | `#2e2e2e` |
+| Counts' ink at rest | **`#191919`** | **`#cccccc`** |
+| Counts on hover | **the accent** — `#36bffa` off the glyph | not shot |
+
+**The ground is the paper, not a tint**: the band's median is the § 4.2 paper exactly, and only the
+hairline separates the bar from the page. **The counts are body ink** (4.2.3, 4.2.4), not a quieter
+tier — iA lets the fade carry the quietness instead. **Hover lifts them to the accent** rather than
+darkening them.
+
+### There is no gutter above it
+
+At the document top the last visible row's ink ends **one device pixel** above the hairline, and the
+control frame puts that same row in the same place with no bar under it. The bar does not push the
+text up, does not mask it and leaves no padding: **the page runs to the rule and scrolls under it.**
+
+### The end of a draft keeps 460 pt of air
+
+Scrolled to the end, the last row's ink is at row 898 and the rule at 1818: **920 px = 460 pt**, or
+**48.5 % of the 949 pt window**. The rule stands in the document-top frame and the document-end
+frame alike, so it is the bar's own edge rather than a "more below" signal.
+
+### The counts' menu is a choice of one
+
+A click opens ten counts, each showing its value, with a single ✓ against the one displayed:
+`941 Characters`, `752 Without Spaces`, **`188 Words`**, `16 Sentences`, `00:00:56 Reading Time`,
+`00:01:26 Speaking Time`, `0 of 0 Tasks`, `0% Human`, `0% AI`, `0% Reference`. The bar shows one
+count and the menu picks which.
+
+### Typewriter moves the caret line and nothing at the foot
+
+C7 is a pair, because the question is where the last row rests against the bar with the caret at
+the window's centre. **It rests where it does at rest: one device pixel above the rule.** The bar
+is unchanged.
+
+### An empty document still carries a count, in body ink
+
+C3's empty page reads `0 Words` in the same `#191919` as a full one: the counts do not go quiet
+when there is nothing to count. Quill's own `0` is `#4A4A4A`, the heaviest ink on that screen.
+
+### A selection is counted, and marked as counted
+
+With the first sentence held the counts read **`13 Words`** — the selection's own — and the figure
+carries the **selection fill** `#cbedf7` behind it.
+
+### While the keys move
+
+Under the app's own **Fade In/Out** there is no bar to watch. Pinned with **Always Show** the bar
+**does not dim**: a frame taken mid-burst holds the same thirteen labels and the same `#191919`
+counts as at rest. **The counts update after a pause of about 1.2 s** — typing took 0.165 s and the
+counts' strip, sampled through Quartz at 10 Hz, first moved **1.174 s after the last key** — so they
+do not tick per keystroke. Every later sample differs from the one before the keys too, which says
+the count moved and stayed moved; the four-second window ended before it could say anything about
+settling.
+
+### What could not be shot
+
+**`View > Toolbar > Stats Only`.** Four ways of pressing it — `click menu item` with the menu
+closed, the same with the menu walked open, `perform action "AXPress"`, and an arrow-key walk of the
+open menu — all report success, leave `Default` checked and **change no pixel** of the bar. #354's
+Style Check lists at least moved the frame when clicked; this one gives nothing to read. It is the
+one state #381 named that this run does not hold.
 
 ## State 28 — the Library pane
 
