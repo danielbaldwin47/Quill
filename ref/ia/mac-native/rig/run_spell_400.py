@@ -8,11 +8,13 @@ thickness and where it sits against the baseline have never been measured, and
 neither has what the app does around it. `quill-engine`'s `spell` Role ships a
 provisional red under Pango's `error` underline until this lands (ADR 0017).
 
-It follows [#354](../CAPTURE-2026-09-10-STYLE.md)'s shape exactly, because the
-question is the same shape: **every state is shot twice**, once with Check
+It follows [#354](../CAPTURE-2026-09-10-STYLE.md)'s shape, because the question
+is the same shape: **the four measured states are shot as pairs**, once with Check
 Spelling While Typing on and once with it off and nothing else changed, so every
 number is a difference between two frames and nothing has to be assumed about
-what the paper under a mark would otherwise hold.
+what the paper under a mark would otherwise hold. S5, S6 and the autocorrect run
+carry no control and none is possible: each of them changes the text, so there is
+no second frame of the same page to difference against.
 
     .venv-rig/bin/python3 ref/ia/mac-native/rig/run_spell_400.py <raw-dir> <norm-dir>
 
@@ -107,7 +109,7 @@ def spell(on):
     The switch alone does not re-check a document that is already on the screen,
     and `Check Document Now` is no substitute: it finds the *next* misspelling
     rather than marking them all, which left the first run of this capture with
-    one mark on the page instead of eight. Pasting the passage while the switch
+    one mark on the page instead of seven. Pasting the passage while the switch
     is set is what marks every word — which is also how a writer meets the mark.
     """
     set_checked(*SPELL_MENU, on)

@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 """#400's reader: the misspelling mark, read off the pairs `run_spell_400.py` shot.
 
-Every state was shot twice, once with Check Spelling While Typing on and once
-with it off, so the mark is exactly where the two frames differ and nothing has
-to be assumed about what the paper under it would otherwise hold. That is
+The four measured states were shot as pairs on both grounds — eight pairs — once
+with Check Spelling While Typing on and once with it off, so the mark is exactly
+where the two frames differ and nothing has to be assumed about what the paper
+under it would otherwise hold. That is
 [#354](../CAPTURE-2026-09-10-STYLE.md)'s method, and the same reason stands: the
 mark is drawn under the glyphs, so a reading taken off the marked frame alone
 cannot tell the mark's ink from the descender crossing it.
+
+S5, S6 and the autocorrect run have no pair and none is possible — each of them
+changes the text — so this reads none of them: they are behaviour, and what they
+show is written down rather than measured.
 
     .venv-rig/bin/python3 ref/ia/mac-native/rig/measure_spell_400.py
 
@@ -25,7 +30,6 @@ PREFIX = "mac-native-26"
 FONT = os.path.join("ref", "ia", "fonts", "Mono", "iAWriterMonoS-Regular.ttf")
 CELL = 25.6                          # § The grid, at the default text size
 X0 = 691.0                           # the body column's own left edge
-PAPER = {"light": (0xf7, 0xf7, 0xf7), "dark": (0x1a, 0x1a, 0x1a)}
 GAP = 6                              # blank rows that separate two marked lines
 
 
