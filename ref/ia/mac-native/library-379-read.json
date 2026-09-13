@@ -1,0 +1,499 @@
+{
+ "observations": {
+  "hover_at_pt": [
+   180,
+   300
+  ],
+  "l3_note": "Drafts opened by a click on its row",
+  "list_bands": [
+   [
+    38,
+    64
+   ],
+   [
+    80,
+    88
+   ],
+   [
+    170,
+    170
+   ],
+   [
+    212,
+    227
+   ],
+   [
+    276,
+    295
+   ],
+   [
+    311,
+    331
+   ],
+   [
+    352,
+    366
+   ],
+   [
+    412,
+    431
+   ],
+   [
+    448,
+    466
+   ],
+   [
+    483,
+    502
+   ],
+   [
+    548,
+    567
+   ],
+   [
+    583,
+    607
+   ],
+   [
+    624,
+    638
+   ],
+   [
+    684,
+    703
+   ],
+   [
+    724,
+    743
+   ],
+   [
+    755,
+    774
+   ],
+   [
+    820,
+    839
+   ],
+   [
+    860,
+    874
+   ],
+   [
+    891,
+    910
+   ],
+   [
+    956,
+    975
+   ]
+  ],
+  "drafts_row_y_px": 51.0,
+  "settings_off": {
+   "Text excerpts": "0",
+   "Sort bar": "0",
+   "Filter bar": "0"
+  },
+  "settings_back": {
+   "Text excerpts": "1",
+   "Sort bar": "1",
+   "Filter bar": "1"
+  },
+  "pane_cols_px": [
+   0,
+   2549
+  ],
+  "pane_width_pt": 360.0,
+  "name_rows_px": [
+   [
+    211,
+    230
+   ],
+   [
+    275,
+    295
+   ],
+   [
+    311,
+    330
+   ],
+   [
+    347,
+    371
+   ],
+   [
+    411,
+    431
+   ],
+   [
+    448,
+    502
+   ],
+   [
+    547,
+    641
+   ],
+   [
+    684,
+    703
+   ],
+   [
+    719,
+    774
+   ],
+   [
+    819,
+    915
+   ],
+   [
+    955,
+    975
+   ],
+   [
+    991,
+    1010
+   ],
+   [
+    1027,
+    1051
+   ],
+   [
+    1091,
+    1182
+   ]
+  ],
+  "drafts_row_px": 220.5,
+  "row_menu_at_px": 475.0,
+  "pane_cols_after_drag_px": [
+   0,
+   2757
+  ],
+  "pane_width_after_drag_pt": 360.0,
+  "divider_drags": false,
+  "pane_width_restored_pt": 360.0
+ },
+ "panes": {
+  "l1-rest": {
+   "frame": "mac-native-28-light-library-l1-rest.png",
+   "steps": [
+    258,
+    719
+   ],
+   "organiser_ground": "#eaebeb",
+   "organiser_right_px": 258,
+   "organiser_width_pt": 129.5,
+   "list_ground": "#fcfcfc",
+   "list_width_pt": 230.5,
+   "pane_right_px": 719,
+   "pane_width_pt": 360.0,
+   "divider_px": [
+    719,
+    720
+   ],
+   "page_ground": "#f7f7f7"
+  },
+  "l7-bare": {
+   "frame": "mac-native-28-light-library-l7-bare.png",
+   "steps": [
+    258,
+    719
+   ],
+   "organiser_ground": "#eaebeb",
+   "organiser_right_px": 258,
+   "organiser_width_pt": 129.5,
+   "list_ground": "#fcfcfc",
+   "list_width_pt": 230.5,
+   "pane_right_px": 719,
+   "pane_width_pt": 360.0,
+   "divider_px": [
+    719,
+    720
+   ],
+   "page_ground": "#f7f7f7"
+  },
+  "l3-folder": {
+   "frame": "mac-native-28-light-library-l3-folder.png",
+   "steps": [
+    258,
+    719
+   ],
+   "organiser_ground": "#eaebeb",
+   "organiser_right_px": 258,
+   "organiser_width_pt": 129.5,
+   "list_ground": "#fcfcfc",
+   "list_width_pt": 230.5,
+   "pane_right_px": 719,
+   "pane_width_pt": 360.0,
+   "divider_px": [
+    719,
+    720
+   ],
+   "page_ground": "#f7f7f7"
+  },
+  "o1-dragged": {
+   "frame": "mac-native-28-light-library-o1-dragged.png",
+   "steps": [
+    258,
+    719
+   ],
+   "organiser_ground": "#eaebeb",
+   "organiser_right_px": 258,
+   "organiser_width_pt": 129.5,
+   "list_ground": "#fcfcfc",
+   "list_width_pt": 230.5,
+   "pane_right_px": 719,
+   "pane_width_pt": 360.0,
+   "divider_px": [
+    719,
+    720
+   ],
+   "page_ground": "#f7f7f7"
+  },
+  "o1-restored": {
+   "frame": "mac-native-28-light-library-o1-restored.png",
+   "steps": [
+    258,
+    719
+   ],
+   "organiser_ground": "#eaebeb",
+   "organiser_right_px": 258,
+   "organiser_width_pt": 129.5,
+   "list_ground": "#fcfcfc",
+   "list_width_pt": 230.5,
+   "pane_right_px": 719,
+   "pane_width_pt": 360.0,
+   "divider_px": [
+    719,
+    720
+   ],
+   "page_ground": "#f7f7f7"
+  },
+  "dark/l1-rest": {
+   "frame": "mac-native-28-dark-library-l1-rest.png",
+   "steps": [
+    258,
+    719,
+    3021
+   ],
+   "organiser_ground": "#1a1c1b",
+   "organiser_right_px": 258,
+   "organiser_width_pt": 129.5,
+   "list_ground": "#151515",
+   "list_width_pt": 230.5,
+   "pane_right_px": 719,
+   "pane_width_pt": 360.0,
+   "divider_px": [
+    719,
+    720
+   ],
+   "page_ground": "#1a1a1a"
+  }
+ },
+ "rows": {
+  "l1-rest": {
+   "name_rows": [
+    [
+     211,
+     231
+    ],
+    [
+     275,
+     371
+    ],
+    [
+     411,
+     502
+    ],
+    [
+     547,
+     641
+    ],
+    [
+     684,
+     774
+    ],
+    [
+     819,
+     915
+    ],
+    [
+     955,
+     1051
+    ],
+    [
+     1091,
+     1182
+    ],
+    [
+     1227,
+     1287
+    ],
+    [
+     1363,
+     1423
+    ],
+    [
+     1499,
+     1559
+    ],
+    [
+     1848,
+     1867
+    ]
+   ],
+   "pitches": [
+    64,
+    136,
+    136,
+    137,
+    135,
+    136,
+    136,
+    136,
+    136,
+    136
+   ],
+   "median_pitch": 136,
+   "name_ink": "#191919",
+   "date_ink": "#999999",
+   "organiser_bands": [
+    [
+     120,
+     131
+    ],
+    [
+     169,
+     191
+    ],
+    [
+     249,
+     403
+    ],
+    [
+     457,
+     473
+    ],
+    [
+     510,
+     533
+    ],
+    [
+     591,
+     686
+    ]
+   ],
+   "organiser_head_ink": "#7f8080",
+   "accent": {
+    "rows": [
+     665,
+     792
+    ],
+    "height_px": 128,
+    "cols": [
+     276,
+     281
+    ],
+    "width_px": 6,
+    "ink": "#36bffa"
+   },
+   "excerpt_ink": "#ededed"
+  },
+  "l7-bare": {
+   "name_rows": [
+    [
+     209,
+     229
+    ],
+    [
+     273,
+     293
+    ],
+    [
+     337,
+     361
+    ],
+    [
+     402,
+     421
+    ],
+    [
+     465,
+     489
+    ],
+    [
+     529,
+     549
+    ],
+    [
+     593,
+     617
+    ],
+    [
+     657,
+     681
+    ],
+    [
+     721,
+     745
+    ],
+    [
+     785,
+     809
+    ]
+   ],
+   "pitches": [
+    64,
+    64,
+    65,
+    63,
+    64,
+    64,
+    64,
+    64,
+    64
+   ],
+   "median_pitch": 64,
+   "name_ink": "#191919",
+   "date_ink": "#999999",
+   "organiser_bands": [
+    [
+     120,
+     131
+    ],
+    [
+     169,
+     191
+    ],
+    [
+     249,
+     403
+    ],
+    [
+     457,
+     473
+    ],
+    [
+     510,
+     533
+    ],
+    [
+     591,
+     686
+    ]
+   ],
+   "organiser_head_ink": "#7f8080",
+   "accent": {
+    "rows": [
+     383,
+     438
+    ],
+    "height_px": 56,
+    "cols": [
+     276,
+     281
+    ],
+    "width_px": 6,
+    "ink": "#36bffa"
+   }
+  }
+ }
+}
