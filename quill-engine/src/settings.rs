@@ -838,7 +838,7 @@ impl Default for Library {
             ask_where_to_save: false,
             sort: Sort::default(),
             order: Order::default(),
-            pin_folders: true,
+            pin_folders: crate::library::View::default().pin_folders,
             show_date: ShowDate::default(),
             show_excerpts: true,
             mark: Mark::default(),
@@ -859,7 +859,8 @@ impl Library {
         let ask_where_to_save = reading.boolean("ask_where_to_save", false);
         let sort = reading.choice("sort");
         let order = reading.choice("order");
-        let pin_folders = reading.boolean("pin_folders", true);
+        let pin_folders =
+            reading.boolean("pin_folders", crate::library::View::default().pin_folders);
         let show_date = reading.choice("show_date");
         let show_excerpts = reading.boolean("show_excerpts", true);
         let mark = reading.choice("mark");
