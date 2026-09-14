@@ -319,6 +319,246 @@
    "w": 760,
    "h": 640,
    "title": "F A rail \u00b7 Search \u00b7 dark"
+  },
+  {
+   "file": "GRestLight.dc.html",
+   "x": 0,
+   "y": 4680,
+   "w": 760,
+   "h": 640,
+   "title": "G A, dark Organizer lifted \u00b7 Rest \u00b7 light"
+  },
+  {
+   "file": "GRestDark.dc.html",
+   "x": 840,
+   "y": 4680,
+   "w": 760,
+   "h": 640,
+   "title": "G A, dark Organizer lifted \u00b7 Rest \u00b7 dark"
+  },
+  {
+   "file": "GPinnedLight.dc.html",
+   "x": 1680,
+   "y": 4680,
+   "w": 760,
+   "h": 640,
+   "title": "G A, dark Organizer lifted \u00b7 Pinned \u00b7 light"
+  },
+  {
+   "file": "GPinnedDark.dc.html",
+   "x": 2520,
+   "y": 4680,
+   "w": 760,
+   "h": 640,
+   "title": "G A, dark Organizer lifted \u00b7 Pinned \u00b7 dark"
+  },
+  {
+   "file": "GSearchLight.dc.html",
+   "x": 3360,
+   "y": 4680,
+   "w": 760,
+   "h": 640,
+   "title": "G A, dark Organizer lifted \u00b7 Search \u00b7 light"
+  },
+  {
+   "file": "GSearchDark.dc.html",
+   "x": 4200,
+   "y": 4680,
+   "w": 760,
+   "h": 640,
+   "title": "G A, dark Organizer lifted \u00b7 Search \u00b7 dark"
+  },
+  {
+   "file": "HRestLight.dc.html",
+   "x": 0,
+   "y": 5460,
+   "w": 760,
+   "h": 640,
+   "title": "H A, warm \u00b7 Rest \u00b7 light"
+  },
+  {
+   "file": "HRestDark.dc.html",
+   "x": 840,
+   "y": 5460,
+   "w": 760,
+   "h": 640,
+   "title": "H A, warm \u00b7 Rest \u00b7 dark"
+  },
+  {
+   "file": "HPinnedLight.dc.html",
+   "x": 1680,
+   "y": 5460,
+   "w": 760,
+   "h": 640,
+   "title": "H A, warm \u00b7 Pinned \u00b7 light"
+  },
+  {
+   "file": "HPinnedDark.dc.html",
+   "x": 2520,
+   "y": 5460,
+   "w": 760,
+   "h": 640,
+   "title": "H A, warm \u00b7 Pinned \u00b7 dark"
+  },
+  {
+   "file": "HSearchLight.dc.html",
+   "x": 3360,
+   "y": 5460,
+   "w": 760,
+   "h": 640,
+   "title": "H A, warm \u00b7 Search \u00b7 light"
+  },
+  {
+   "file": "HSearchDark.dc.html",
+   "x": 4200,
+   "y": 5460,
+   "w": 760,
+   "h": 640,
+   "title": "H A, warm \u00b7 Search \u00b7 dark"
+  },
+  {
+   "file": "IRestLight.dc.html",
+   "x": 0,
+   "y": 6240,
+   "w": 760,
+   "h": 640,
+   "title": "I The desk \u00b7 Rest \u00b7 light"
+  },
+  {
+   "file": "IRestDark.dc.html",
+   "x": 840,
+   "y": 6240,
+   "w": 760,
+   "h": 640,
+   "title": "I The desk \u00b7 Rest \u00b7 dark"
+  },
+  {
+   "file": "IPinnedLight.dc.html",
+   "x": 1680,
+   "y": 6240,
+   "w": 760,
+   "h": 640,
+   "title": "I The desk \u00b7 Pinned \u00b7 light"
+  },
+  {
+   "file": "IPinnedDark.dc.html",
+   "x": 2520,
+   "y": 6240,
+   "w": 760,
+   "h": 640,
+   "title": "I The desk \u00b7 Pinned \u00b7 dark"
+  },
+  {
+   "file": "ISearchLight.dc.html",
+   "x": 3360,
+   "y": 6240,
+   "w": 760,
+   "h": 640,
+   "title": "I The desk \u00b7 Search \u00b7 light"
+  },
+  {
+   "file": "ISearchDark.dc.html",
+   "x": 4200,
+   "y": 6240,
+   "w": 760,
+   "h": 640,
+   "title": "I The desk \u00b7 Search \u00b7 dark"
+  },
+  {
+   "file": "JRestLight.dc.html",
+   "x": 0,
+   "y": 7020,
+   "w": 760,
+   "h": 640,
+   "title": "J Air \u00b7 Rest \u00b7 light"
+  },
+  {
+   "file": "JRestDark.dc.html",
+   "x": 840,
+   "y": 7020,
+   "w": 760,
+   "h": 640,
+   "title": "J Air \u00b7 Rest \u00b7 dark"
+  },
+  {
+   "file": "JPinnedLight.dc.html",
+   "x": 1680,
+   "y": 7020,
+   "w": 760,
+   "h": 640,
+   "title": "J Air \u00b7 Pinned \u00b7 light"
+  },
+  {
+   "file": "JPinnedDark.dc.html",
+   "x": 2520,
+   "y": 7020,
+   "w": 760,
+   "h": 640,
+   "title": "J Air \u00b7 Pinned \u00b7 dark"
+  },
+  {
+   "file": "JSearchLight.dc.html",
+   "x": 3360,
+   "y": 7020,
+   "w": 760,
+   "h": 640,
+   "title": "J Air \u00b7 Search \u00b7 light"
+  },
+  {
+   "file": "JSearchDark.dc.html",
+   "x": 4200,
+   "y": 7020,
+   "w": 760,
+   "h": 640,
+   "title": "J Air \u00b7 Search \u00b7 dark"
+  },
+  {
+   "file": "KRestLight.dc.html",
+   "x": 0,
+   "y": 7800,
+   "w": 760,
+   "h": 640,
+   "title": "K Mono \u00b7 Rest \u00b7 light"
+  },
+  {
+   "file": "KRestDark.dc.html",
+   "x": 840,
+   "y": 7800,
+   "w": 760,
+   "h": 640,
+   "title": "K Mono \u00b7 Rest \u00b7 dark"
+  },
+  {
+   "file": "KPinnedLight.dc.html",
+   "x": 1680,
+   "y": 7800,
+   "w": 760,
+   "h": 640,
+   "title": "K Mono \u00b7 Pinned \u00b7 light"
+  },
+  {
+   "file": "KPinnedDark.dc.html",
+   "x": 2520,
+   "y": 7800,
+   "w": 760,
+   "h": 640,
+   "title": "K Mono \u00b7 Pinned \u00b7 dark"
+  },
+  {
+   "file": "KSearchLight.dc.html",
+   "x": 3360,
+   "y": 7800,
+   "w": 760,
+   "h": 640,
+   "title": "K Mono \u00b7 Search \u00b7 light"
+  },
+  {
+   "file": "KSearchDark.dc.html",
+   "x": 4200,
+   "y": 7800,
+   "w": 760,
+   "h": 640,
+   "title": "K Mono \u00b7 Search \u00b7 dark"
   }
  ],
  "annotations": [
@@ -363,6 +603,41 @@
    "y": 3920,
    "w": 260,
    "text": "F. A rail\n\nLocations, Pinned and Recents as a 56 px icon rail with the list taking the width. Motivation: the Organizer's job in a fifth of its width. Tradeoff: Locations become initials with no names in view, and the empty-Pinned prose has nowhere to live."
+  },
+  {
+   "id": "dir-G",
+   "x": -300,
+   "y": 4700,
+   "w": 260,
+   "text": "G. A, dark Organizer lifted\n\nA on light, unchanged. On dark the Organizer steps lighter (#232524) than both the list (#151515) and the page (#1a1a1a), so the pane chunks on dark the way A's light does and iA's own dark pane does. Motivation: round 3 \u2014 A's dark was less distinct than its light. Tradeoff: the Organizer is the brightest ground in a dark window, so it draws the eye at rest."
+  },
+  {
+   "id": "dir-H",
+   "x": -300,
+   "y": 5480,
+   "w": 260,
+   "text": "H. A, warm\n\nA's structure and every measured value on warm grounds \u2014 the paper stays #f7f7f7, the pane goes cream \u2014 with warm greys and the sans throughout; E's warmth without its serif. Motivation: round 3 liked the warmth and not the face. Tradeoff: a warm pane beside a neutral page shows the seam, and a writer's palette file has to carry the warmth or lose it."
+  },
+  {
+   "id": "dir-I",
+   "x": -300,
+   "y": 6260,
+   "w": 260,
+   "text": "I. The desk\n\nThe whole pane is dark on both grounds \u2014 Organizer #1e1f1f, list #262727 \u2014 and only the page is paper. The pane is the desk, the document is the sheet on it. Motivation: the strongest chunking on offer, and one pane for both themes. Tradeoff: on light the window is half dark, which is loud, and the pane's ink can never follow the page's palette."
+  },
+  {
+   "id": "dir-J",
+   "x": -300,
+   "y": 7040,
+   "w": 260,
+   "text": "J. Air\n\nNo separators, 80 pt rows, the selected row a soft tint rather than a bar, secondary text a step lighter, more inset, a bare underlined Filter. Motivation: whether polish is space rather than lines. Tradeoff: fewer rows in view, and a tint does what iA's bar deliberately does not \u2014 fill the row."
+  },
+  {
+   "id": "dir-K",
+   "x": -300,
+   "y": 7820,
+   "w": 260,
+   "text": "K. Mono\n\nThe pane set in the editor's monospace face with letterspaced small-caps heads and line icons, on A's grounds and pitch. Motivation: chrome and page in one voice, the way a typewriter's is. Tradeoff: monospace is wide, so names and excerpts hold fewer characters, and the pane stops reading as furniture."
   }
  ],
  "launch": {
