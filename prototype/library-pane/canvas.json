@@ -1,0 +1,371 @@
+{
+ "artboards": [
+  {
+   "file": "Main.dc.html",
+   "x": 0,
+   "y": 0,
+   "w": 760,
+   "h": 640,
+   "title": "A iA, faithfully \u00b7 Rest \u00b7 light"
+  },
+  {
+   "file": "ARestDark.dc.html",
+   "x": 840,
+   "y": 0,
+   "w": 760,
+   "h": 640,
+   "title": "A iA, faithfully \u00b7 Rest \u00b7 dark"
+  },
+  {
+   "file": "APinnedLight.dc.html",
+   "x": 1680,
+   "y": 0,
+   "w": 760,
+   "h": 640,
+   "title": "A iA, faithfully \u00b7 Pinned \u00b7 light"
+  },
+  {
+   "file": "APinnedDark.dc.html",
+   "x": 2520,
+   "y": 0,
+   "w": 760,
+   "h": 640,
+   "title": "A iA, faithfully \u00b7 Pinned \u00b7 dark"
+  },
+  {
+   "file": "ASearchLight.dc.html",
+   "x": 3360,
+   "y": 0,
+   "w": 760,
+   "h": 640,
+   "title": "A iA, faithfully \u00b7 Search \u00b7 light"
+  },
+  {
+   "file": "ASearchDark.dc.html",
+   "x": 4200,
+   "y": 0,
+   "w": 760,
+   "h": 640,
+   "title": "A iA, faithfully \u00b7 Search \u00b7 dark"
+  },
+  {
+   "file": "ABareLight.dc.html",
+   "x": 5040,
+   "y": 0,
+   "w": 760,
+   "h": 640,
+   "title": "A iA, faithfully \u00b7 Bare \u00b7 light"
+  },
+  {
+   "file": "ANoBarLight.dc.html",
+   "x": 5880,
+   "y": 0,
+   "w": 760,
+   "h": 640,
+   "title": "A iA, faithfully \u00b7 NoBar \u00b7 light"
+  },
+  {
+   "file": "BRestLight.dc.html",
+   "x": 0,
+   "y": 780,
+   "w": 760,
+   "h": 640,
+   "title": "B iA's structure in Quill's greys \u00b7 Rest \u00b7 light"
+  },
+  {
+   "file": "BRestDark.dc.html",
+   "x": 840,
+   "y": 780,
+   "w": 760,
+   "h": 640,
+   "title": "B iA's structure in Quill's greys \u00b7 Rest \u00b7 dark"
+  },
+  {
+   "file": "BPinnedLight.dc.html",
+   "x": 1680,
+   "y": 780,
+   "w": 760,
+   "h": 640,
+   "title": "B iA's structure in Quill's greys \u00b7 Pinned \u00b7 light"
+  },
+  {
+   "file": "BPinnedDark.dc.html",
+   "x": 2520,
+   "y": 780,
+   "w": 760,
+   "h": 640,
+   "title": "B iA's structure in Quill's greys \u00b7 Pinned \u00b7 dark"
+  },
+  {
+   "file": "BSearchLight.dc.html",
+   "x": 3360,
+   "y": 780,
+   "w": 760,
+   "h": 640,
+   "title": "B iA's structure in Quill's greys \u00b7 Search \u00b7 light"
+  },
+  {
+   "file": "BSearchDark.dc.html",
+   "x": 4200,
+   "y": 780,
+   "w": 760,
+   "h": 640,
+   "title": "B iA's structure in Quill's greys \u00b7 Search \u00b7 dark"
+  },
+  {
+   "file": "BBareLight.dc.html",
+   "x": 5040,
+   "y": 780,
+   "w": 760,
+   "h": 640,
+   "title": "B iA's structure in Quill's greys \u00b7 Bare \u00b7 light"
+  },
+  {
+   "file": "BNoBarLight.dc.html",
+   "x": 5880,
+   "y": 780,
+   "w": 760,
+   "h": 640,
+   "title": "B iA's structure in Quill's greys \u00b7 NoBar \u00b7 light"
+  },
+  {
+   "file": "CRestLight.dc.html",
+   "x": 0,
+   "y": 1560,
+   "w": 760,
+   "h": 640,
+   "title": "C One column with a Location head \u00b7 Rest \u00b7 light"
+  },
+  {
+   "file": "CRestDark.dc.html",
+   "x": 840,
+   "y": 1560,
+   "w": 760,
+   "h": 640,
+   "title": "C One column with a Location head \u00b7 Rest \u00b7 dark"
+  },
+  {
+   "file": "CPinnedLight.dc.html",
+   "x": 1680,
+   "y": 1560,
+   "w": 760,
+   "h": 640,
+   "title": "C One column with a Location head \u00b7 Pinned \u00b7 light"
+  },
+  {
+   "file": "CPinnedDark.dc.html",
+   "x": 2520,
+   "y": 1560,
+   "w": 760,
+   "h": 640,
+   "title": "C One column with a Location head \u00b7 Pinned \u00b7 dark"
+  },
+  {
+   "file": "CSearchLight.dc.html",
+   "x": 3360,
+   "y": 1560,
+   "w": 760,
+   "h": 640,
+   "title": "C One column with a Location head \u00b7 Search \u00b7 light"
+  },
+  {
+   "file": "CSearchDark.dc.html",
+   "x": 4200,
+   "y": 1560,
+   "w": 760,
+   "h": 640,
+   "title": "C One column with a Location head \u00b7 Search \u00b7 dark"
+  },
+  {
+   "file": "DRestLight.dc.html",
+   "x": 0,
+   "y": 2340,
+   "w": 760,
+   "h": 640,
+   "title": "D A drawer \u00b7 Rest \u00b7 light"
+  },
+  {
+   "file": "DRestDark.dc.html",
+   "x": 840,
+   "y": 2340,
+   "w": 760,
+   "h": 640,
+   "title": "D A drawer \u00b7 Rest \u00b7 dark"
+  },
+  {
+   "file": "DPinnedLight.dc.html",
+   "x": 1680,
+   "y": 2340,
+   "w": 760,
+   "h": 640,
+   "title": "D A drawer \u00b7 Pinned \u00b7 light"
+  },
+  {
+   "file": "DPinnedDark.dc.html",
+   "x": 2520,
+   "y": 2340,
+   "w": 760,
+   "h": 640,
+   "title": "D A drawer \u00b7 Pinned \u00b7 dark"
+  },
+  {
+   "file": "DSearchLight.dc.html",
+   "x": 3360,
+   "y": 2340,
+   "w": 760,
+   "h": 640,
+   "title": "D A drawer \u00b7 Search \u00b7 light"
+  },
+  {
+   "file": "DSearchDark.dc.html",
+   "x": 4200,
+   "y": 2340,
+   "w": 760,
+   "h": 640,
+   "title": "D A drawer \u00b7 Search \u00b7 dark"
+  },
+  {
+   "file": "ERestLight.dc.html",
+   "x": 0,
+   "y": 3120,
+   "w": 760,
+   "h": 640,
+   "title": "E Editorial \u00b7 Rest \u00b7 light"
+  },
+  {
+   "file": "ERestDark.dc.html",
+   "x": 840,
+   "y": 3120,
+   "w": 760,
+   "h": 640,
+   "title": "E Editorial \u00b7 Rest \u00b7 dark"
+  },
+  {
+   "file": "EPinnedLight.dc.html",
+   "x": 1680,
+   "y": 3120,
+   "w": 760,
+   "h": 640,
+   "title": "E Editorial \u00b7 Pinned \u00b7 light"
+  },
+  {
+   "file": "EPinnedDark.dc.html",
+   "x": 2520,
+   "y": 3120,
+   "w": 760,
+   "h": 640,
+   "title": "E Editorial \u00b7 Pinned \u00b7 dark"
+  },
+  {
+   "file": "ESearchLight.dc.html",
+   "x": 3360,
+   "y": 3120,
+   "w": 760,
+   "h": 640,
+   "title": "E Editorial \u00b7 Search \u00b7 light"
+  },
+  {
+   "file": "ESearchDark.dc.html",
+   "x": 4200,
+   "y": 3120,
+   "w": 760,
+   "h": 640,
+   "title": "E Editorial \u00b7 Search \u00b7 dark"
+  },
+  {
+   "file": "FRestLight.dc.html",
+   "x": 0,
+   "y": 3900,
+   "w": 760,
+   "h": 640,
+   "title": "F A rail \u00b7 Rest \u00b7 light"
+  },
+  {
+   "file": "FRestDark.dc.html",
+   "x": 840,
+   "y": 3900,
+   "w": 760,
+   "h": 640,
+   "title": "F A rail \u00b7 Rest \u00b7 dark"
+  },
+  {
+   "file": "FPinnedLight.dc.html",
+   "x": 1680,
+   "y": 3900,
+   "w": 760,
+   "h": 640,
+   "title": "F A rail \u00b7 Pinned \u00b7 light"
+  },
+  {
+   "file": "FPinnedDark.dc.html",
+   "x": 2520,
+   "y": 3900,
+   "w": 760,
+   "h": 640,
+   "title": "F A rail \u00b7 Pinned \u00b7 dark"
+  },
+  {
+   "file": "FSearchLight.dc.html",
+   "x": 3360,
+   "y": 3900,
+   "w": 760,
+   "h": 640,
+   "title": "F A rail \u00b7 Search \u00b7 light"
+  },
+  {
+   "file": "FSearchDark.dc.html",
+   "x": 4200,
+   "y": 3900,
+   "w": 760,
+   "h": 640,
+   "title": "F A rail \u00b7 Search \u00b7 dark"
+  }
+ ],
+ "annotations": [
+  {
+   "id": "dir-A",
+   "x": -300,
+   "y": 20,
+   "w": 260,
+   "text": "A. iA, faithfully\n\nTwo columns on three grounds at every measured value. Motivation: the quality bar itself, and the drag range, grounds, bar and foot field all belong to this shape. Tradeoff: it is a Mac look, and the two-section Organizer is sparse where iA's four are not."
+  },
+  {
+   "id": "dir-B",
+   "x": -300,
+   "y": 800,
+   "w": 260,
+   "text": "B. iA's structure in Quill's greys\n\nTwo columns, two grounds: the Organizer stepped off the paper, the list on the paper, hierarchy by weight and spacing, Quill's accent and chrome grey. Motivation: the structure without importing the look. Tradeoff: the list still sits on the page's ground, which is the round-11 gap."
+  },
+  {
+   "id": "dir-C",
+   "x": -300,
+   "y": 1580,
+   "w": 260,
+   "text": "C. One column with a Location head\n\nOne list on its own ground, the current Location as a switcher head, Pinned as a section, the oracle's rows and foot. Motivation: the honest control; if this reads as well, the Organizer is not earning its width. Tradeoff: Locations and Pinned are a menu away, not in view."
+  },
+  {
+   "id": "dir-D",
+   "x": -300,
+   "y": 2360,
+   "w": 260,
+   "text": "D. A drawer\n\nTwo columns where the Organizer is dark furniture on light and lighter than the paper on dark, so the pane reads as pulled out beside the page. Motivation: a bolder identity that is not a Mac look. Tradeoff: a dark column beside a light page is loud at rest, and it needs its own ink tier."
+  },
+  {
+   "id": "dir-E",
+   "x": -300,
+   "y": 3140,
+   "w": 260,
+   "text": "E. Editorial\n\nA manuscript index: serif names in Source Serif 4, small-caps dates, no icons, hairlines the row's full width, italic section heads, warm grounds. Motivation: Quill's own voice, from the Template family it already ships. Tradeoff: a second face in the chrome, and warm grounds fight a writer's palette file."
+  },
+  {
+   "id": "dir-F",
+   "x": -300,
+   "y": 3920,
+   "w": 260,
+   "text": "F. A rail\n\nLocations, Pinned and Recents as a 56 px icon rail with the list taking the width. Motivation: the Organizer's job in a fifth of its width. Tradeoff: Locations become initials with no names in view, and the empty-Pinned prose has nowhere to live."
+  }
+ ],
+ "launch": {
+  "view": "canvas"
+ }
+}
