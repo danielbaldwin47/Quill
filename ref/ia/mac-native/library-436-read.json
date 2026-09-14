@@ -1,0 +1,1683 @@
+{
+ "light": {
+  "frame": "mac-native-28-light-library-l1-rest.png",
+  "grounds": {
+   "list": "#fcfcfc",
+   "organizer": "#eaebeb",
+   "page": "#f7f7f7",
+   "title_bar_over_organizer": "#eaebeb",
+   "title_bar_over_list": "#fcfcfc",
+   "title_bar_over_page": "#fcfcfc"
+  },
+  "title_bar": {
+   "height_px": 105,
+   "bottom_rule_over_page": {
+    "row": 104,
+    "rows": [
+     104,
+     109
+    ],
+    "thickness": 6,
+    "ink": "#dddddd",
+    "x": [
+     900,
+     2900
+    ]
+   },
+   "rule_under_pane_toolbar": {
+    "row": 170,
+    "rows": [
+     170,
+     170
+    ],
+    "thickness": 1,
+    "ink": "#e0e0e0",
+    "x": [
+     259,
+     719
+    ]
+   },
+   "toggle": {
+    "y": [
+     15,
+     88
+    ],
+    "x": [
+     171,
+     244
+    ],
+    "h": 74,
+    "w": 74,
+    "h_pt": 37.0,
+    "w_pt": 37.0
+   },
+   "toggle_nolib": {
+    "y": [
+     15,
+     88
+    ],
+    "x": [
+     187,
+     260
+    ],
+    "h": 74,
+    "w": 74,
+    "h_pt": 37.0,
+    "w_pt": 37.0
+   },
+   "back_button": {
+    "y": [
+     15,
+     88
+    ],
+    "x": [
+     275,
+     348
+    ],
+    "h": 74,
+    "w": 74,
+    "h_pt": 37.0,
+    "w_pt": 37.0
+   },
+   "new_file_pill": {
+    "y": [
+     15,
+     88
+    ],
+    "x": [
+     547,
+     706
+    ],
+    "h": 74,
+    "w": 160,
+    "h_pt": 37.0,
+    "w_pt": 80.0
+   },
+   "history_pill": {
+    "y": [
+     15,
+     88
+    ],
+    "x": [
+     733,
+     878
+    ],
+    "h": 74,
+    "w": 146,
+    "h_pt": 37.0,
+    "w_pt": 73.0
+   },
+   "history_pill_nolib": {
+    "y": [
+     15,
+     88
+    ],
+    "x": [
+     275,
+     420
+    ],
+    "h": 74,
+    "w": 146,
+    "h_pt": 37.0,
+    "w_pt": 73.0
+   },
+   "location_icon": {
+    "y": [
+     42,
+     64
+    ],
+    "x": [
+     383,
+     412
+    ],
+    "h": 23,
+    "w": 30,
+    "h_pt": 11.5,
+    "w_pt": 15.0
+   },
+   "title_text": {
+    "y": [
+     41,
+     63
+    ],
+    "x": [
+     423,
+     506
+    ],
+    "h": 23,
+    "w": 84,
+    "h_pt": 11.5,
+    "w_pt": 42.0
+   },
+   "title_cap_C": {
+    "px": 22,
+    "pt": 11.0,
+    "kind": "cap height, the C of iCloud",
+    "y": [
+     42,
+     63
+    ],
+    "x": [
+     434,
+     452
+    ]
+   },
+   "title_ink": "#545454",
+   "document_title": {
+    "y": [
+     37,
+     66
+    ],
+    "x": [
+     1740,
+     1964
+    ],
+    "h": 30,
+    "w": 225,
+    "h_pt": 15.0,
+    "w_pt": 112.5
+   },
+   "document_title_nolib": {
+    "y": [
+     37,
+     66
+    ],
+    "x": [
+     1378,
+     1602
+    ],
+    "h": 30,
+    "w": 225,
+    "h_pt": 15.0,
+    "w_pt": 112.5
+   },
+   "page_centre": 1871,
+   "window_centre": 1511,
+   "document_title_centre": 1852,
+   "document_title_nolib_centre": 1490
+  },
+  "sort_bar": {
+   "pill": {
+    "y": [
+     103,
+     152
+    ],
+    "h": 50,
+    "h_pt": 25.0,
+    "x": [
+     275,
+     564
+    ],
+    "w": 290,
+    "w_pt": 145.0,
+    "corner_inset": 20
+   },
+   "pill_ground": "#f6f6f6",
+   "pill_border": "#e8e8e8",
+   "text_ink": "#767676",
+   "cap_S": {
+    "px": 17,
+    "pt": 8.5,
+    "kind": "cap height, the S of Sort",
+    "y": [
+     120,
+     136
+    ],
+    "x": [
+     295,
+     306
+    ]
+   },
+   "x_height_o": {
+    "px": 12,
+    "pt": 6.0,
+    "kind": "x-height, the o of Sort",
+    "y": [
+     124,
+     135
+    ],
+    "x": [
+     309,
+     319
+    ]
+   },
+   "anything_right_of_pill": null,
+   "band_rows": [
+    105,
+    170
+   ],
+   "band_height_px": 66,
+   "pane_toolbar_height_px": 171
+  },
+  "foot": {
+   "rule_above": [
+    {
+     "row": 1818,
+     "rows": [
+      1818,
+      1819
+     ],
+     "thickness": 2,
+     "ink": "#dbdbdb",
+     "x": [
+      259,
+      719
+     ]
+    }
+   ],
+   "field": {
+    "y": [
+     1832,
+     1883
+    ],
+    "h": 52,
+    "h_pt": 26.0,
+    "x": [
+     278,
+     701
+    ],
+    "w": 424,
+    "w_pt": 212.0,
+    "corner_inset": 21
+   },
+   "field_ground": "#fcfcfc",
+   "field_border": "#e8e8e8",
+   "icon": {
+    "y": [
+     1847,
+     1872
+    ],
+    "x": [
+     294,
+     319
+    ],
+    "h": 26,
+    "w": 26,
+    "h_pt": 13.0,
+    "w_pt": 13.0
+   },
+   "icon_ink": "#7e7e7e",
+   "prompt": {
+    "y": [
+     1848,
+     1867
+    ],
+    "x": [
+     327,
+     385
+    ],
+    "h": 20,
+    "w": 59,
+    "h_pt": 10.0,
+    "w_pt": 29.5
+   },
+   "prompt_ink": "#999999",
+   "prompt_cap_F": {
+    "px": 19,
+    "pt": 9.5,
+    "kind": "cap height, the F of Filter",
+    "y": [
+     1849,
+     1867
+    ],
+    "x": [
+     327,
+     338
+    ]
+   },
+   "pane_bottom_row": 1897,
+   "field_left_inset_px": 19,
+   "field_right_inset_px": 18,
+   "gap_below_field_px": 14,
+   "anything_below_field": null
+  },
+  "rows": {
+   "separators": [
+    251,
+    387,
+    523,
+    659,
+    795,
+    931,
+    1067,
+    1203,
+    1339,
+    1475
+   ],
+   "separator_thickness": 2,
+   "separator_ink": "#ededed",
+   "separator_x": [
+    340,
+    691
+   ],
+   "list_top_rule": 170,
+   "file_row_pitch_px": 136,
+   "separator_left_inset_px": 81,
+   "separator_right_inset_px": 28,
+   "icon": {
+    "y": [
+     270,
+     299
+    ],
+    "x": [
+     302,
+     325
+    ],
+    "h": 30,
+    "w": 24,
+    "h_pt": 15.0,
+    "w_pt": 12.0
+   },
+   "icon_body_ink": "#dbdbdb",
+   "name": {
+    "y": [
+     275,
+     295
+    ],
+    "x": [
+     340,
+     504
+    ],
+    "h": 21,
+    "w": 165,
+    "h_pt": 10.5,
+    "w_pt": 82.5
+   },
+   "name_ink": "#191919",
+   "date": {
+    "y": [
+     276,
+     295
+    ],
+    "x": [
+     593,
+     684
+    ],
+    "h": 20,
+    "w": 92,
+    "h_pt": 10.0,
+    "w_pt": 46.0
+   },
+   "date_ink": "#999999",
+   "icon_left_inset_px": 43,
+   "name_left_inset_px": 81,
+   "date_right_inset_px": 35,
+   "name_x_height_n": {
+    "px": 15,
+    "pt": 7.5,
+    "kind": "x-height, the n of winter-list.md",
+    "y": [
+     280,
+     294
+    ],
+    "x": [
+     368,
+     382
+    ]
+   },
+   "name_ascender_l": {
+    "px": 20,
+    "pt": 10.0,
+    "kind": "ascender, the l of winter-list.md",
+    "y": [
+     275,
+     294
+    ],
+    "x": [
+     427,
+     429
+    ]
+   },
+   "name_cap_T": {
+    "px": 20,
+    "pt": 10.0,
+    "kind": "cap height, the T of The Lighthouse.txt",
+    "y": [
+     1091,
+     1110
+    ],
+    "x": [
+     341,
+     363
+    ]
+   },
+   "date_digit_3": {
+    "px": 20,
+    "pt": 10.0,
+    "kind": "digit height, the 3 of 3:16 AM",
+    "y": [
+     276,
+     295
+    ],
+    "x": [
+     593,
+     610
+    ]
+   },
+   "date_cap_A": {
+    "px": 19,
+    "pt": 9.5,
+    "kind": "cap height, the A of AM",
+    "y": [
+     276,
+     294
+    ],
+    "x": [
+     648,
+     668
+    ]
+   },
+   "excerpt_cap_W": {
+    "px": 20,
+    "pt": 10.0,
+    "kind": "cap height, the W of Winter",
+    "y": [
+     311,
+     330
+    ],
+    "x": [
+     341,
+     378
+    ]
+   },
+   "excerpt_x_height_n": {
+    "px": 16,
+    "pt": 8.0,
+    "kind": "x-height, the n of Winter",
+    "y": [
+     316,
+     331
+    ],
+    "x": [
+     397,
+     411
+    ]
+   },
+   "excerpt_ink": "#999999",
+   "folder_icon": {
+    "y": [
+     208,
+     233
+    ],
+    "x": [
+     299,
+     328
+    ],
+    "h": 26,
+    "w": 30,
+    "h_pt": 13.0,
+    "w_pt": 15.0
+   },
+   "folder_icon_ink": "#dbdbdb",
+   "folder_name": {
+    "y": [
+     211,
+     231
+    ],
+    "x": [
+     342,
+     412
+    ],
+    "h": 21,
+    "w": 71,
+    "h_pt": 10.5,
+    "w_pt": 35.5
+   },
+   "folder_cap_D": {
+    "px": 19,
+    "pt": 9.5,
+    "kind": "cap height, the D of Drafts",
+    "y": [
+     212,
+     230
+    ],
+    "x": [
+     342,
+     364
+    ]
+   },
+   "folder_chevron": {
+    "y": [
+     212,
+     228
+    ],
+    "x": [
+     671,
+     680
+    ],
+    "h": 17,
+    "w": 10,
+    "h_pt": 8.5,
+    "w_pt": 5.0
+   },
+   "folder_date": null,
+   "folder_text_centre": 221,
+   "list_top_inset_px": 20
+  },
+  "organizer": {
+   "location_pill": {
+    "y": [
+     148,
+     211
+    ],
+    "h": 64,
+    "h_pt": 32.0,
+    "x": [
+     20,
+     239
+    ],
+    "w": 220,
+    "w_pt": 110.0,
+    "corner_inset": 11
+   },
+   "location_pill_ground": "#d2d3d3",
+   "pill_left_inset_px": 20,
+   "pill_right_inset_px": 19,
+   "head_Locations": {
+    "y": [
+     115,
+     131
+    ],
+    "x": [
+     33,
+     136
+    ],
+    "h": 17,
+    "w": 104,
+    "h_pt": 8.5,
+    "w_pt": 52.0
+   },
+   "head_cap_L": {
+    "px": 16,
+    "pt": 8.0,
+    "kind": "cap height, the L of Locations",
+    "y": [
+     116,
+     131
+    ],
+    "x": [
+     33,
+     47
+    ]
+   },
+   "head_ink": "#7f8080",
+   "head_Favorites": {
+    "y": [
+     249,
+     265
+    ],
+    "x": [
+     33,
+     130
+    ],
+    "h": 17,
+    "w": 98,
+    "h_pt": 8.5,
+    "w_pt": 49.0
+   },
+   "head_SmartFolders": {
+    "y": [
+     457,
+     474
+    ],
+    "x": [
+     33,
+     183
+    ],
+    "h": 18,
+    "w": 151,
+    "h_pt": 9.0,
+    "w_pt": 75.5
+   },
+   "head_Hashtags": {
+    "y": [
+     591,
+     611
+    ],
+    "x": [
+     33,
+     133
+    ],
+    "h": 21,
+    "w": 101,
+    "h_pt": 10.5,
+    "w_pt": 50.5
+   },
+   "pill_icon": {
+    "y": [
+     169,
+     191
+    ],
+    "x": [
+     39,
+     71
+    ],
+    "h": 23,
+    "w": 33,
+    "h_pt": 11.5,
+    "w_pt": 16.5
+   },
+   "pill_label": {
+    "y": [
+     169,
+     190
+    ],
+    "x": [
+     84,
+     160
+    ],
+    "h": 22,
+    "w": 77,
+    "h_pt": 11.0,
+    "w_pt": 38.5
+   },
+   "pill_label_cap_C": {
+    "px": 21,
+    "pt": 10.5,
+    "kind": "cap height, the C of iCloud",
+    "y": [
+     170,
+     190
+    ],
+    "x": [
+     96,
+     112
+    ]
+   },
+   "pill_label_ink": "#262626",
+   "row_icon": {
+    "y": [
+     510,
+     533
+    ],
+    "x": [
+     41,
+     69
+    ],
+    "h": 24,
+    "w": 29,
+    "h_pt": 12.0,
+    "w_pt": 14.5
+   },
+   "row_text": {
+    "y": [
+     513,
+     532
+    ],
+    "x": [
+     84,
+     178
+    ],
+    "h": 20,
+    "w": 95,
+    "h_pt": 10.0,
+    "w_pt": 47.5
+   },
+   "row_cap_R": {
+    "px": 19,
+    "pt": 9.5,
+    "kind": "cap height, the R of Recents",
+    "y": [
+     513,
+     531
+    ],
+    "x": [
+     84,
+     104
+    ]
+   },
+   "row_ink": "#262626",
+   "prose": {
+    "y": [
+     288,
+     403
+    ],
+    "x": [
+     32,
+     193
+    ],
+    "h": 116,
+    "w": 162,
+    "h_pt": 58.0,
+    "w_pt": 81.0
+   },
+   "prose_ink": "#7f8080",
+   "prose_x_height_r": {
+    "px": 17,
+    "pt": 8.5,
+    "kind": "x-height, the r of Drag",
+    "y": [
+     293,
+     309
+    ],
+    "x": [
+     62,
+     76
+    ]
+   }
+  },
+  "bare": {
+   "frame": "mac-native-28-light-library-l7-bare.png",
+   "separators": [
+    185,
+    249,
+    313,
+    377,
+    441,
+    505,
+    569,
+    633,
+    697,
+    761
+   ],
+   "toolbar_rules": [],
+   "filter_field": null,
+   "file_row_pitch_px": 64,
+   "folder_text_centre": 155,
+   "first_file_text_centre": 219,
+   "folder_row": [
+    105,
+    185
+   ],
+   "icon": {
+    "y": [
+     204,
+     233
+    ],
+    "x": [
+     302,
+     325
+    ],
+    "h": 30,
+    "w": 24,
+    "h_pt": 15.0,
+    "w_pt": 12.0
+   }
+  },
+  "folder_open": {
+   "frame": "mac-native-28-light-library-l3-folder.png",
+   "separators": [
+    251,
+    387,
+    523,
+    659
+   ],
+   "separator_x_parent": [
+    340,
+    691
+   ],
+   "separator_x_child": [
+    364,
+    691
+   ],
+   "parent_chevron": {
+    "y": [
+     217,
+     226
+    ],
+    "x": [
+     667,
+     683
+    ],
+    "h": 10,
+    "w": 17,
+    "h_pt": 5.0,
+    "w_pt": 8.5
+   },
+   "child_icon": {
+    "y": [
+     252,
+     387
+    ],
+    "x": [
+     326,
+     364
+    ],
+    "h": 136,
+    "w": 39,
+    "h_pt": 68.0,
+    "w_pt": 19.5
+   },
+   "child_name": {
+    "y": [
+     275,
+     299
+    ],
+    "x": [
+     365,
+     600
+    ],
+    "h": 25,
+    "w": 236,
+    "h_pt": 12.5,
+    "w_pt": 118.0
+   },
+   "child_date": {
+    "y": [
+     276,
+     295
+    ],
+    "x": [
+     600,
+     684
+    ],
+    "h": 20,
+    "w": 85,
+    "h_pt": 10.0,
+    "w_pt": 42.5
+   }
+  },
+  "dragged": {
+   "frame": "mac-native-28-light-library-o1-dragged.png",
+   "column_edges": [
+    258,
+    259,
+    999,
+    1001
+   ],
+   "pane_width_pt": 500.0,
+   "icon": {
+    "y": [
+     270,
+     299
+    ],
+    "x": [
+     302,
+     325
+    ],
+    "h": 30,
+    "w": 24,
+    "h_pt": 15.0,
+    "w_pt": 12.0
+   },
+   "name": {
+    "y": [
+     275,
+     295
+    ],
+    "x": [
+     340,
+     515
+    ],
+    "h": 21,
+    "w": 176,
+    "h_pt": 10.5,
+    "w_pt": 88.0
+   },
+   "date": {
+    "y": [
+     276,
+     295
+    ],
+    "x": [
+     869,
+     965
+    ],
+    "h": 20,
+    "w": 97,
+    "h_pt": 10.0,
+    "w_pt": 48.5
+   },
+   "date_right_inset_px": 34,
+   "name_left_inset_px": 81
+  }
+ },
+ "dark": {
+  "frame": "mac-native-28-dark-library-l1-rest.png",
+  "grounds": {
+   "list": "#151515",
+   "organizer": "#1a1c1b",
+   "page": "#1a1a1a",
+   "title_bar_over_organizer": "#1a1c1b",
+   "title_bar_over_list": "#1c1c1c",
+   "title_bar_over_page": "#222222"
+  },
+  "title_bar": {
+   "height_px": 105,
+   "bottom_rule_over_page": {
+    "row": 104,
+    "rows": [
+     104,
+     109
+    ],
+    "thickness": 6,
+    "ink": "#292929",
+    "x": [
+     900,
+     2900
+    ]
+   },
+   "rule_under_pane_toolbar": {
+    "row": 170,
+    "rows": [
+     170,
+     174
+    ],
+    "thickness": 5,
+    "ink": "#252525",
+    "x": [
+     259,
+     719
+    ]
+   },
+   "toggle": {
+    "y": [
+     16,
+     87
+    ],
+    "x": [
+     171,
+     244
+    ],
+    "h": 72,
+    "w": 74,
+    "h_pt": 36.0,
+    "w_pt": 37.0
+   },
+   "toggle_nolib": {
+    "y": [
+     16,
+     87
+    ],
+    "x": [
+     187,
+     260
+    ],
+    "h": 72,
+    "w": 74,
+    "h_pt": 36.0,
+    "w_pt": 37.0
+   },
+   "back_button": {
+    "y": [
+     16,
+     87
+    ],
+    "x": [
+     275,
+     348
+    ],
+    "h": 72,
+    "w": 74,
+    "h_pt": 36.0,
+    "w_pt": 37.0
+   },
+   "new_file_pill": {
+    "y": [
+     16,
+     87
+    ],
+    "x": [
+     547,
+     706
+    ],
+    "h": 72,
+    "w": 160,
+    "h_pt": 36.0,
+    "w_pt": 80.0
+   },
+   "history_pill": {
+    "y": [
+     16,
+     87
+    ],
+    "x": [
+     733,
+     878
+    ],
+    "h": 72,
+    "w": 146,
+    "h_pt": 36.0,
+    "w_pt": 73.0
+   },
+   "history_pill_nolib": {
+    "y": [
+     16,
+     87
+    ],
+    "x": [
+     275,
+     420
+    ],
+    "h": 72,
+    "w": 146,
+    "h_pt": 36.0,
+    "w_pt": 73.0
+   },
+   "location_icon": {
+    "y": [
+     42,
+     61
+    ],
+    "x": [
+     383,
+     412
+    ],
+    "h": 20,
+    "w": 30,
+    "h_pt": 10.0,
+    "w_pt": 15.0
+   },
+   "title_text": {
+    "y": [
+     41,
+     63
+    ],
+    "x": [
+     423,
+     506
+    ],
+    "h": 23,
+    "w": 84,
+    "h_pt": 11.5,
+    "w_pt": 42.0
+   },
+   "title_cap_C": {
+    "px": 23,
+    "pt": 11.5,
+    "kind": "cap height, the C of iCloud",
+    "y": [
+     41,
+     63
+    ],
+    "x": [
+     434,
+     452
+    ]
+   },
+   "title_ink": "#c6c4c7",
+   "document_title": {
+    "y": [
+     38,
+     65
+    ],
+    "x": [
+     1741,
+     1964
+    ],
+    "h": 28,
+    "w": 224,
+    "h_pt": 14.0,
+    "w_pt": 112.0
+   },
+   "document_title_nolib": {
+    "y": [
+     38,
+     65
+    ],
+    "x": [
+     1379,
+     1602
+    ],
+    "h": 28,
+    "w": 224,
+    "h_pt": 14.0,
+    "w_pt": 112.0
+   },
+   "page_centre": 1871,
+   "window_centre": 1511,
+   "document_title_centre": 1852,
+   "document_title_nolib_centre": 1490
+  },
+  "sort_bar": {
+   "pill": {
+    "y": [
+     104,
+     151
+    ],
+    "h": 48,
+    "h_pt": 24.0,
+    "x": [
+     275,
+     564
+    ],
+    "w": 290,
+    "w_pt": 145.0,
+    "corner_inset": 20
+   },
+   "pill_ground": "#3a3a3a",
+   "pill_border": "#686868",
+   "text_ink": "#9c9c9c",
+   "cap_S": {
+    "px": 17,
+    "pt": 8.5,
+    "kind": "cap height, the S of Sort",
+    "y": [
+     119,
+     135
+    ],
+    "x": [
+     295,
+     306
+    ]
+   },
+   "x_height_o": {
+    "px": 13,
+    "pt": 6.5,
+    "kind": "x-height, the o of Sort",
+    "y": [
+     123,
+     135
+    ],
+    "x": [
+     309,
+     319
+    ]
+   },
+   "anything_right_of_pill": null,
+   "band_rows": [
+    105,
+    170
+   ],
+   "band_height_px": 66,
+   "pane_toolbar_height_px": 171
+  },
+  "foot": {
+   "rule_above": [
+    {
+     "row": 1818,
+     "rows": [
+      1818,
+      1819
+     ],
+     "thickness": 2,
+     "ink": "#2e2e2e",
+     "x": [
+      259,
+      719
+     ]
+    }
+   ],
+   "field": {
+    "y": [
+     1828,
+     1887
+    ],
+    "h": 60,
+    "h_pt": 30.0,
+    "x": [
+     274,
+     705
+    ],
+    "w": 432,
+    "w_pt": 216.0,
+    "corner_inset": 24
+   },
+   "field_ground": "#161616",
+   "field_border": "#428284",
+   "icon": {
+    "y": [
+     1836,
+     1876
+    ],
+    "x": [
+     288,
+     319
+    ],
+    "h": 41,
+    "w": 32,
+    "h_pt": 20.5,
+    "w_pt": 16.0
+   },
+   "icon_ink": "#939393",
+   "prompt": {
+    "y": [
+     1842,
+     1873
+    ],
+    "x": [
+     323,
+     385
+    ],
+    "h": 32,
+    "w": 63,
+    "h_pt": 16.0,
+    "w_pt": 31.5
+   },
+   "prompt_ink": "#757575",
+   "prompt_cap_F": {
+    "px": 32,
+    "pt": 16.0,
+    "kind": "cap height, the F of Filter",
+    "y": [
+     1842,
+     1873
+    ],
+    "x": [
+     326,
+     338
+    ]
+   },
+   "pane_bottom_row": 1897,
+   "field_left_inset_px": 15,
+   "field_right_inset_px": 14,
+   "gap_below_field_px": 10,
+   "anything_below_field": null
+  },
+  "rows": {
+   "separators": [
+    251,
+    387,
+    523,
+    659,
+    795,
+    931,
+    1067,
+    1203,
+    1339,
+    1475
+   ],
+   "separator_thickness": 2,
+   "separator_ink": "#212121",
+   "separator_x": [
+    340,
+    691
+   ],
+   "list_top_rule": 174,
+   "file_row_pitch_px": 136,
+   "separator_left_inset_px": 81,
+   "separator_right_inset_px": 28,
+   "icon": {
+    "y": [
+     271,
+     298
+    ],
+    "x": [
+     303,
+     324
+    ],
+    "h": 28,
+    "w": 22,
+    "h_pt": 14.0,
+    "w_pt": 11.0
+   },
+   "icon_body_ink": "#f5f5f5",
+   "name": {
+    "y": [
+     275,
+     294
+    ],
+    "x": [
+     340,
+     504
+    ],
+    "h": 20,
+    "w": 165,
+    "h_pt": 10.0,
+    "w_pt": 82.5
+   },
+   "name_ink": "#b9b9b9",
+   "date": {
+    "y": [
+     276,
+     295
+    ],
+    "x": [
+     593,
+     684
+    ],
+    "h": 20,
+    "w": 92,
+    "h_pt": 10.0,
+    "w_pt": 46.0
+   },
+   "date_ink": "#757575",
+   "icon_left_inset_px": 44,
+   "name_left_inset_px": 81,
+   "date_right_inset_px": 35,
+   "name_x_height_n": {
+    "px": 15,
+    "pt": 7.5,
+    "kind": "x-height, the n of winter-list.md",
+    "y": [
+     280,
+     294
+    ],
+    "x": [
+     368,
+     382
+    ]
+   },
+   "name_ascender_l": {
+    "px": 20,
+    "pt": 10.0,
+    "kind": "ascender, the l of winter-list.md",
+    "y": [
+     275,
+     294
+    ],
+    "x": [
+     427,
+     429
+    ]
+   },
+   "name_cap_T": {
+    "px": 20,
+    "pt": 10.0,
+    "kind": "cap height, the T of The Lighthouse.txt",
+    "y": [
+     1091,
+     1110
+    ],
+    "x": [
+     341,
+     363
+    ]
+   },
+   "date_digit_3": {
+    "px": 20,
+    "pt": 10.0,
+    "kind": "digit height, the 3 of 3:16 AM",
+    "y": [
+     276,
+     295
+    ],
+    "x": [
+     593,
+     610
+    ]
+   },
+   "date_cap_A": {
+    "px": 19,
+    "pt": 9.5,
+    "kind": "cap height, the A of AM",
+    "y": [
+     276,
+     294
+    ],
+    "x": [
+     648,
+     668
+    ]
+   },
+   "excerpt_cap_W": {
+    "px": 20,
+    "pt": 10.0,
+    "kind": "cap height, the W of Winter",
+    "y": [
+     311,
+     330
+    ],
+    "x": [
+     341,
+     378
+    ]
+   },
+   "excerpt_x_height_n": {
+    "px": 16,
+    "pt": 8.0,
+    "kind": "x-height, the n of Winter",
+    "y": [
+     316,
+     331
+    ],
+    "x": [
+     397,
+     411
+    ]
+   },
+   "excerpt_ink": "#757575",
+   "folder_icon": {
+    "y": [
+     209,
+     232
+    ],
+    "x": [
+     300,
+     327
+    ],
+    "h": 24,
+    "w": 28,
+    "h_pt": 12.0,
+    "w_pt": 14.0
+   },
+   "folder_icon_ink": "#70b7e3",
+   "folder_name": {
+    "y": [
+     211,
+     230
+    ],
+    "x": [
+     342,
+     412
+    ],
+    "h": 20,
+    "w": 71,
+    "h_pt": 10.0,
+    "w_pt": 35.5
+   },
+   "folder_cap_D": {
+    "px": 19,
+    "pt": 9.5,
+    "kind": "cap height, the D of Drafts",
+    "y": [
+     212,
+     230
+    ],
+    "x": [
+     342,
+     364
+    ]
+   },
+   "folder_chevron": {
+    "y": [
+     212,
+     228
+    ],
+    "x": [
+     671,
+     680
+    ],
+    "h": 17,
+    "w": 10,
+    "h_pt": 8.5,
+    "w_pt": 5.0
+   },
+   "folder_date": null,
+   "folder_text_centre": 220,
+   "list_top_inset_px": 14
+  },
+  "organizer": {
+   "location_pill": {
+    "y": [
+     148,
+     211
+    ],
+    "h": 64,
+    "h_pt": 32.0,
+    "x": [
+     20,
+     239
+    ],
+    "w": 220,
+    "w_pt": 110.0,
+    "corner_inset": 11
+   },
+   "location_pill_ground": "#393b3a",
+   "pill_left_inset_px": 20,
+   "pill_right_inset_px": 19,
+   "head_Locations": {
+    "y": [
+     115,
+     131
+    ],
+    "x": [
+     34,
+     136
+    ],
+    "h": 17,
+    "w": 103,
+    "h_pt": 8.5,
+    "w_pt": 51.5
+   },
+   "head_cap_L": {
+    "px": 16,
+    "pt": 8.0,
+    "kind": "cap height, the L of Locations",
+    "y": [
+     116,
+     131
+    ],
+    "x": [
+     34,
+     47
+    ]
+   },
+   "head_ink": "#6a6c6b",
+   "head_Favorites": {
+    "y": [
+     249,
+     265
+    ],
+    "x": [
+     34,
+     130
+    ],
+    "h": 17,
+    "w": 97,
+    "h_pt": 8.5,
+    "w_pt": 48.5
+   },
+   "head_SmartFolders": {
+    "y": [
+     457,
+     473
+    ],
+    "x": [
+     33,
+     183
+    ],
+    "h": 17,
+    "w": 151,
+    "h_pt": 8.5,
+    "w_pt": 75.5
+   },
+   "head_Hashtags": {
+    "y": [
+     591,
+     611
+    ],
+    "x": [
+     34,
+     133
+    ],
+    "h": 21,
+    "w": 100,
+    "h_pt": 10.5,
+    "w_pt": 50.0
+   },
+   "pill_icon": {
+    "y": [
+     169,
+     191
+    ],
+    "x": [
+     39,
+     71
+    ],
+    "h": 23,
+    "w": 33,
+    "h_pt": 11.5,
+    "w_pt": 16.5
+   },
+   "pill_label": {
+    "y": [
+     169,
+     190
+    ],
+    "x": [
+     84,
+     160
+    ],
+    "h": 22,
+    "w": 77,
+    "h_pt": 11.0,
+    "w_pt": 38.5
+   },
+   "pill_label_cap_C": {
+    "px": 21,
+    "pt": 10.5,
+    "kind": "cap height, the C of iCloud",
+    "y": [
+     170,
+     190
+    ],
+    "x": [
+     96,
+     112
+    ]
+   },
+   "pill_label_ink": "#cacaca",
+   "row_icon": {
+    "y": [
+     510,
+     533
+    ],
+    "x": [
+     41,
+     70
+    ],
+    "h": 24,
+    "w": 30,
+    "h_pt": 12.0,
+    "w_pt": 15.0
+   },
+   "row_text": {
+    "y": [
+     513,
+     532
+    ],
+    "x": [
+     84,
+     178
+    ],
+    "h": 20,
+    "w": 95,
+    "h_pt": 10.0,
+    "w_pt": 47.5
+   },
+   "row_cap_R": {
+    "px": 19,
+    "pt": 9.5,
+    "kind": "cap height, the R of Recents",
+    "y": [
+     513,
+     531
+    ],
+    "x": [
+     84,
+     104
+    ]
+   },
+   "row_ink": "#c2c3c3",
+   "prose": {
+    "y": [
+     288,
+     403
+    ],
+    "x": [
+     32,
+     193
+    ],
+    "h": 116,
+    "w": 162,
+    "h_pt": 58.0,
+    "w_pt": 81.0
+   },
+   "prose_ink": "#6a6c6b",
+   "prose_x_height_r": {
+    "px": 16,
+    "pt": 8.0,
+    "kind": "x-height, the r of Drag",
+    "y": [
+     294,
+     309
+    ],
+    "x": [
+     62,
+     76
+    ]
+   }
+  }
+ }
+}
