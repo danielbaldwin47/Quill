@@ -23,8 +23,9 @@
 //!
 //! Typing in the Filter field puts the engine's results in place of the tree:
 //! the files whose names matched first, then the files whose texts did, each
-//! of those with the one snippet around its match and the match marked
-//! ([`quill_engine::library::Library::search`]). Enter opens the highlighted
+//! of those with the one snippet around its match, set as plainly as any
+//! excerpt ([`quill_engine::library::Library::search`]); the Sort pill reads
+//! Search Relevance and is off while the query stands. Enter opens the highlighted
 //! hit and Esc clears the field and hands the keyboard back to the page.
 //!
 //! A row can be acted on as well as opened (#256): a second click or `F2` puts
@@ -66,7 +67,7 @@ use gtk::{cairo, gdk, gio, glib, graphene};
 use quill_engine::document::full_name;
 use quill_engine::library::{Contents, File, Found, Library, Row, Snippet, Sort, View};
 use quill_engine::settings::{self, Choice, Mark, Order, ShowDate, library_width};
-use quill_engine::theme::{self, Colour, Role, Scheme};
+use quill_engine::theme::{Colour, Role, Scheme};
 
 use crate::chrome::{self, CHROME_FONT};
 use crate::files::{self, Dropped, Onto};
@@ -122,6 +123,9 @@ const NOTHING_PINNED: &str = "Pin a document or folder from its row menu";
 /// What the Sort pill reads over Recents, whose order is the order they were
 /// opened in and no sort's.
 const LAST_OPENED: &str = "Sort by Last Opened";
+/// What the Sort pill reads while a query stands, whose order is the engine's
+/// relevance and no sort's.
+const SEARCH_RELEVANCE: &str = "Sort by Search Relevance";
 
 /// The action group the Sort pill's items fire: the pane's own, as `row.` is
 /// ([`Sidebar::install_row_actions`]), and no Command's.
@@ -361,13 +365,6 @@ const SEPARATOR: &str = "·";
 /// What the Filter field says while it is empty.
 const PLACEHOLDER: &str = "Filter";
 
-/// How much of the accent stands behind a matched word in a snippet
-/// (`.lib-row .ex mark { background: color-mix(in srgb, var(--accent) 28%,
-/// transparent) }`), over the paper the row is drawn on. The words themselves
-/// go to the ink the same rule sets them in (`color: var(--fg)`), which is
-/// what makes a match visible in a line of grey.
-const MARK_TINT: f64 = 0.28;
-
 /// How much of the accent stands behind a row a dragged row would land on,
 /// over the paper beneath it.
 ///
@@ -573,10 +570,6 @@ struct Drawing<'a> {
     now: Option<&'a glib::DateTime>,
     /// The head of every shown file, by path.
     read: &'a BTreeMap<PathBuf, Head>,
-    /// What a matched word in a snippet is marked with, over the paper.
-    mark: Colour,
-    /// What a matched word itself is set in, out of the excerpt's grey.
-    marked: Colour,
 }
 
 /// One file's row, and what it is drawn from.
@@ -597,7 +590,7 @@ struct FileRow<'a> {
     /// birth time.
     created: Option<SystemTime>,
     /// The snippet around a content hit's match, drawn in place of the file's
-    /// own excerpt and with the match marked. A tree row and a name hit have
+    /// own excerpt and as plainly. A tree row and a name hit have
     /// none, and show the excerpt.
     snippet: Option<&'a Snippet>,
 }
@@ -1211,7 +1204,6 @@ impl Sidebar {
         let now = glib::DateTime::now_local().ok();
         self.read_heads(library.files(&view));
         let read = self.read.borrow();
-        let ground = session.ground();
         sync_pill(&self.sort_actions, &session.settings().library);
         let drawing = Drawing {
             extensions: session.settings().library.show_extensions,
@@ -1219,12 +1211,6 @@ impl Sidebar {
             excerpts: session.settings().library.show_excerpts,
             now: now.as_ref(),
             read: &read,
-            mark: Colour::over(
-                ground.colours.colour(Role::Accent),
-                ground.colours.colour(Role::FileListBg),
-                MARK_TINT,
-            ),
-            marked: ground.colours.colour(Role::Ink),
         };
         let shown = library.shown(&view);
         let pinned_rows = library.pinned_rows(&view);
@@ -1257,14 +1243,11 @@ impl Sidebar {
             _ => None,
         });
         self.head_as_location();
-        let recents = showing == Some(Showing::Recents);
-        self.sort_label.set_text(if recents {
-            LAST_OPENED
-        } else {
-            sort_title(view.sort)
-        });
-        self.sort_button.set_sensitive(!recents);
         let query = self.query();
+        let (label, enabled) = pill_reads(showing.as_ref(), &query, view.sort);
+        self.sort_label.set_text(label);
+        self.sort_button.set_sensitive(enabled);
+        enable_pill(&self.sort_actions, enabled);
         match &showing {
             Some(Showing::Recents) => {
                 let opened = session.recents();
@@ -1570,7 +1553,7 @@ impl Sidebar {
 
     /// The list narrowed to what `query` found, in the engine's order: the
     /// files whose names matched, then the files whose texts did, each of
-    /// those with its snippet and the match marked in it.
+    /// those with its snippet, unmarked.
     ///
     /// Flat, with no sections and no folders: what a writer asked for is the
     /// Documents that answer the query, and where each one lies is the tree's
@@ -1729,7 +1712,7 @@ impl Sidebar {
             excerpt.set_yalign(0.0);
             excerpt.set_wrap(true);
             excerpt.set_wrap_mode(gtk::pango::WrapMode::WordChar);
-            excerpt.set_attributes(Some(&marks(row.snippet, drawing)));
+            excerpt.set_attributes(Some(&excerpt_leading()));
             // One character of natural width, so that the row's width decides
             // where the lines break rather than the sentence deciding the row's.
             excerpt.set_max_width_chars(1);
@@ -2822,6 +2805,29 @@ fn pill_actions(
     }
 }
 
+/// What the Sort pill reads over what the File List shows, and whether its
+/// menu can be opened: Recents keep the order they were opened in and a query
+/// the engine's relevance, and neither is a sort a writer can choose.
+fn pill_reads(showing: Option<&Showing>, query: &str, sort: Sort) -> (&'static str, bool) {
+    match showing {
+        Some(Showing::Recents) => (LAST_OPENED, false),
+        _ if !query.is_empty() => (SEARCH_RELEVANCE, false),
+        _ => (sort_title(sort), true),
+    }
+}
+
+/// Turns every item of the pill's menu in `group` on or off together.
+fn enable_pill(group: &gio::SimpleActionGroup, enabled: bool) {
+    for name in group.list_actions() {
+        if let Some(action) = group
+            .lookup_action(&name)
+            .and_downcast::<gio::SimpleAction>()
+        {
+            action.set_enabled(enabled);
+        }
+    }
+}
+
 /// Puts what `library` holds on to the pill's actions in `group`.
 fn sync_pill(group: &gio::SimpleActionGroup, library: &settings::Library) {
     for (name, state) in pill_states(library) {
@@ -2947,56 +2953,17 @@ fn band(notice: &gtk::Label, offer: &gtk::Box) -> gtk::Box {
     band
 }
 
-/// The excerpt's two lines, set on the leading the oracle gives them, and the
-/// mark behind what a query matched in them.
+/// The excerpt's two lines, set on the leading the oracle gives them.
 ///
-/// The leading is through Pango rather than through the stylesheet: GTK's CSS
-/// has no `line-height`, and two lines of 13.5 px type on their own natural
-/// leading stand a pixel and a half tighter than iA's. The mark is through
-/// Pango because it stands behind a range of the text and a stylesheet can
-/// only reach the whole label.
-fn marks(snippet: Option<&Snippet>, drawing: &Drawing<'_>) -> gtk::pango::AttrList {
+/// Through Pango rather than through the stylesheet: GTK's CSS has no
+/// `line-height`, and two lines of 13.5 px type on their own natural leading
+/// stand a pixel and a half tighter than iA's. A content hit's snippet is set
+/// as plainly as any excerpt, since iA marks nothing a query matched (#441).
+fn excerpt_leading() -> gtk::pango::AttrList {
     let attributes = gtk::pango::AttrList::new();
     let height = pixels(EXCERPT_LEADING * f64::from(gtk::pango::SCALE));
     attributes.insert(gtk::pango::AttrInt::new_line_height_absolute(height));
-    let Some(snippet) = snippet else {
-        return attributes;
-    };
-    let at = snippet.at();
-    let (from, to) = (index(at.start), index(at.end));
-    let mut ground = gtk::pango::AttrColor::new_background(
-        marked(drawing.mark.red),
-        marked(drawing.mark.green),
-        marked(drawing.mark.blue),
-    );
-    ground.set_start_index(from);
-    ground.set_end_index(to);
-    attributes.insert(ground);
-    let mut ink = gtk::pango::AttrColor::new_foreground(
-        marked(drawing.marked.red),
-        marked(drawing.marked.green),
-        marked(drawing.marked.blue),
-    );
-    ink.set_start_index(from);
-    ink.set_end_index(to);
-    attributes.insert(ink);
     attributes
-}
-
-/// A byte offset into a snippet as Pango counts them.
-fn index(at: usize) -> u32 {
-    u32::try_from(at).unwrap_or(u32::MAX)
-}
-
-/// One channel of a colour as Pango marks a range in: the byte
-/// [`quill_engine::theme::channel`] rounds it to, widened to the sixteen bits
-/// Pango holds a channel in.
-///
-/// The rounding is the engine's and happens once there; the widening is exact
-/// — a byte in both halves of the sixteen — and what the screen is given is
-/// that byte either way.
-fn marked(amount: f64) -> u16 {
-    u16::from(theme::channel(amount)) * 257
 }
 
 /// A section's name: the folder's own, or the path where it has none.
@@ -3353,7 +3320,7 @@ mod tests {
     }
 
     #[test]
-    fn a_content_hits_snippet_is_marked_where_the_match_is() {
+    fn a_content_hits_snippet_is_set_as_plain_text() {
         // Its own folder, named for this process, because the worktrees test
         // at the same time.
         let root = std::env::temp_dir().join(format!("quill-sidebar-{}", std::process::id()));
@@ -3369,38 +3336,37 @@ mod tests {
             .expect("the file's text holds the word")
             .snippet()
             .expect("a content hit carries a snippet");
-        assert_eq!(snippet.matched(), "sea");
-        let read = BTreeMap::new();
-        let drawing = Drawing {
-            extensions: false,
-            date: ShowDate::Modified,
-            excerpts: true,
-            now: None,
-            read: &read,
-            mark: Colour::rgba(0, 191, 255, 1.0),
-            marked: Colour::rgba(28, 28, 28, 1.0),
-        };
-        let at = snippet.at();
-        let coloured = |over: &gtk::pango::AttrList, kind| {
-            over.attributes()
-                .into_iter()
-                .filter(|attribute| attribute.type_() == kind)
-                .map(|attribute| (attribute.start_index(), attribute.end_index()))
-                .collect::<Vec<_>>()
-        };
-        // The match stands in the mark's ground and in the ink, out of the
-        // grey the words either side of it are set in.
-        let over = marks(Some(snippet), &drawing);
-        let range = vec![(index(at.start), index(at.end))];
-        assert_eq!(coloured(&over, gtk::pango::AttrType::Background), range);
-        assert_eq!(coloured(&over, gtk::pango::AttrType::Foreground), range);
-        let plain = marks(None, &drawing);
-        assert!(
-            coloured(&plain, gtk::pango::AttrType::Background).is_empty()
-                && coloured(&plain, gtk::pango::AttrType::Foreground).is_empty(),
-            "a row with no query is unmarked"
-        );
+        assert!(snippet.text().contains("sea"));
+        // The match is set as the words either side of it are: the excerpt's
+        // attributes carry its leading and no colour at all.
+        let kinds: Vec<_> = excerpt_leading()
+            .attributes()
+            .into_iter()
+            .map(|attribute| attribute.type_())
+            .collect();
+        assert_eq!(kinds, vec![gtk::pango::AttrType::AbsoluteLineHeight]);
         std::fs::remove_dir_all(&root).expect("the folder to go");
+    }
+
+    #[test]
+    fn the_pill_reads_search_relevance_and_is_off_while_a_query_stands() {
+        let group = gio::SimpleActionGroup::new();
+        pill_actions(&group, |_| {});
+        for (query, reads, on) in [
+            ("sea", SEARCH_RELEVANCE, false),
+            ("", "Sort by Date Modified", true),
+        ] {
+            let (label, enabled) = pill_reads(None, query, Sort::Modified);
+            assert_eq!((label, enabled), (reads, on), "under {query:?}");
+            enable_pill(&group, enabled);
+            for name in group.list_actions() {
+                assert_eq!(group.is_action_enabled(&name), on, "{name} under {query:?}");
+            }
+        }
+        assert_eq!(
+            pill_reads(Some(&Showing::Recents), "sea", Sort::Modified),
+            (LAST_OPENED, false)
+        );
     }
 
     #[test]
