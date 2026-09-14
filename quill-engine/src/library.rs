@@ -225,7 +225,7 @@ impl Folder {
         }
     }
 
-    ///The child folder named `name`, where the walk found one.
+    /// The child folder named `name`, where the walk found one.
     fn folder(&self, name: &std::ffi::OsStr) -> Option<&Folder> {
         self.folders
             .iter()

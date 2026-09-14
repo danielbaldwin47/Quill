@@ -1756,7 +1756,7 @@ impl Editor {
         // widget's own width has not caught up with the allocation yet.
         //
         // The window's width and not this widget's: with the Library shown the
-        // Editor is the window less a 368 px pane, which would drop a 1440 px
+        // Editor is the window less a [`crate::sidebar::WIDTH`] pane, which would drop a 1440 px
         // window a whole class on a pane the oracle's own class does not read
         // (`ref/ia/mac-native/NOTES.md` § State 22). The centring and the
         // measure below stay on the room the Editor actually got.

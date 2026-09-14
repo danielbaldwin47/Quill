@@ -631,7 +631,7 @@ impl Colours {
     /// palette that moves the paper moves the pane's two grounds with it, by
     /// the ratio each built-in ground bears to the built-in paper (on light
     /// the Organizer darker and the File List lighter, on dark the Organizer
-    /// at the paper and the File List darker), and one that moves the paper
+    /// within a step of the paper and the File List darker), and one that moves the paper
     /// or the chrome grey steps [`Role::Secondary`] from the chrome grey
     /// toward the paper by the built-in step. A palette that moves neither
     /// keeps the measured values.

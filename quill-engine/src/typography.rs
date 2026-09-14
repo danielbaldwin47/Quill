@@ -1023,8 +1023,8 @@ mod tests {
     #[test]
     fn a_pane_beside_the_text_narrows_the_page_and_leaves_the_windows_class_on_it() {
         // The Design oracle picks the class on the window's own width and
-        // nothing else (NOTES § State 22), so a 1440 px window showing the
-        // 368 px Library lays its remaining 1072 px out in the **wide** class
+        // nothing else (NOTES § State 22), so a 1440 px window showing a
+        // Library pane lays its remaining 1072 px out in the **wide** class
         // and not in the middle one that width alone reads as.
         // `quill::editor`'s `lay_out` is the caller that keeps the two apart:
         // the window's width here, the Editor's own below.
