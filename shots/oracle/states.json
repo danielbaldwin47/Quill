@@ -351,7 +351,22 @@
         "sidebar": true,
         "text": "shots/oracle/library/sea-storm.md",
         "caret": 0,
-        "nocaret": true
+        "nocaret": true,
+        "opponent": {
+          "capture": "mac-native-28-light-library-l1-rest.png",
+          "crop": [
+            0,
+            0,
+            720,
+            1898
+          ],
+          "ours": [
+            0,
+            0,
+            720,
+            1800
+          ]
+        }
       },
       "search": {
         "library": "shots/oracle/library",
@@ -359,7 +374,22 @@
         "search": "sea",
         "text": "shots/oracle/library/sea-storm.md",
         "caret": 0,
-        "nocaret": true
+        "nocaret": true,
+        "opponent": {
+          "capture": "mac-native-28-light-library-l2-search.png",
+          "crop": [
+            0,
+            0,
+            720,
+            1898
+          ],
+          "ours": [
+            0,
+            0,
+            720,
+            1800
+          ]
+        }
       }
     },
     "latency": {},
@@ -1182,5 +1212,5 @@
       ]
     }
   },
-  "library": "The `files` states open a Library on `shots/oracle/library`, the fixture committed beside this file: eight documents in the four extensions, one Collection, one dot-folder that must not show, and `manifest.json`, the mtime each is stamped with so the Date sort is the same on every machine. `text` names one of those files rather than the shared passage, so both sides show the document the sidebar has selected; the Parity oracle's Library is the browser's, seeded from the fixture by `legacy/tools/shoot.mjs --library` (its folder location wants a picker and cannot be driven headless). Both states are shot with `nocaret`: the oracle places the bar of a Library-opened document three logical pixels either side of the first glyph depending on when it is measured, which is one shot in three, and the caret is the caret Piece's to judge rather than this one's."
+  "library": "Both `files` states are judged on a `mac-native` crop of the Library pane alone (#448): device columns 0 to 719 of State 28's whole-window frames, top to bottom, against the same 720 columns of ours, the pane and its head, so the legacy frozen shots are gone. The `files` states open a Library on `shots/oracle/library`, the fixture committed beside this file: eight documents in the four extensions, one Collection, one dot-folder that must not show, and `manifest.json`, the mtime each is stamped with so the Date sort is the same on every machine. `text` names one of those files rather than the shared passage, so both sides show the document the sidebar has selected; the Parity oracle's Library is the browser's, seeded from the fixture by `legacy/tools/shoot.mjs --library` (its folder location wants a picker and cannot be driven headless). Both states are shot with `nocaret`: the oracle places the bar of a Library-opened document three logical pixels either side of the first glyph depending on when it is measured, which is one shot in three, and the caret is the caret Piece's to judge rather than this one's."
 }
