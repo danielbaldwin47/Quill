@@ -1,6 +1,7 @@
 //! The data directory: the one place the files Quill ships are found.
 //!
-//! The Faces, the Templates, the Style check lists and `OFL.txt` all resolve
+//! The Faces, the Templates, the Style check lists, the Selection Mark's
+//! glyphs and `OFL.txt` all resolve
 //! through it, so an installed package and a development build differ in one
 //! path rather than in every lookup (`docs/architecture.md`, "Fonts and data
 //! files"). Nothing is downloaded and nothing is searched for: there is one
@@ -103,6 +104,14 @@ pub fn style() -> PathBuf {
     dir().join("data").join("style")
 }
 
+/// The directory holding the Selection Mark's glyph files, beside the Style
+/// check lists and for the same reason: which four files sit there is the mark
+/// module's to say.
+#[must_use]
+pub fn marks() -> PathBuf {
+    dir().join("data").join("marks")
+}
+
 /// The precedence itself, with its three inputs handed in.
 ///
 /// Separated from [`dir`] because the environment, the compiled-in path and the
@@ -170,6 +179,29 @@ mod tests {
     #[test]
     fn the_style_directory_is_the_data_directory_plus_two_names() {
         assert_eq!(style(), dir().join("data").join("style"));
+    }
+
+    #[test]
+    fn the_marks_directory_is_the_data_directory_plus_two_names() {
+        assert_eq!(marks(), dir().join("data").join("marks"));
+    }
+
+    #[test]
+    fn the_checkout_holds_the_four_mark_glyphs() {
+        // Against `checkout()` for the reason the lists are.
+        for file in [
+            "feather.svg",
+            "feather-short.svg",
+            "pen.svg",
+            "pen-short.svg",
+        ] {
+            let path = checkout().join("data").join("marks").join(file);
+            assert!(
+                path.is_file(),
+                "no {} in the data directory: the glyphs are committed, not built",
+                path.display()
+            );
+        }
     }
 
     #[test]

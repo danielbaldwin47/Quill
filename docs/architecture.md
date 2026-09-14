@@ -405,7 +405,7 @@ and the determinism settings, this document names the flags:
   that copy as its one Location, so a judged shot of the Library is the same rows in the same order
   on every machine — a `--text` named inside the fixture is opened from the copy with it; the rest
   of the `[library]` table is pinned to its defaults for the launch, nothing Pinned, all four
-  booleans off and the six sort-menu keys at their defaults, so a writer who turned on hidden files or extensions does not change the shot),
+  booleans off and the six sort-menu keys at their defaults, so a writer who turned on hidden files or extensions does not change the shot; the override form `--library <dir>:key=value,…` then sets `sort`, `order`, `pin_folders`, `show_date`, `show_excerpts` or `mark` over those defaults as `settings.toml` writes them, and each `pinned=<path>` pins that file of the fixture, so a shot can show a switched Selection Mark or a pinned Document),
   `--sidebar` (open with the Library beside the page), `--search <query>` (put `<query>` in the
   Library's search field and narrow the list to what it finds; refused without `--sidebar`, which is
   the pane the field stands in), `--preview split|full|pdf-split|pdf-full` (open with the Preview
