@@ -1,0 +1,109 @@
+{
+  "piece": "files",
+  "round": 12,
+  "winner": "theirs",
+  "margin": "slight",
+  "gap": "The open-Document accent bar is in the wrong place. It runs x 260–265 (#00BFFF), touching the Organizer's #EAEBEB edge with 0 px of white between them, where A's bar (#38C3FA, x≈275–281) sits about 15 px inside the List. B's bar is also only 110 px tall (y 222–331) in a 136 px row, leaving 14/13 px gaps top and bottom where A's is 128 px (5/4 px gaps). So it looks like a stripe on the sidebar's border, not a mark on the sea-storm row.",
+  "gapTheirs": "The header takes more height before the first row: the Drafts row's baseline sits at y≈222 against y≈176 in B, so about 46 device px of window chrome (the back button, the title capsule and the +/▾ group at 72 px tall, against B's bare 60 px title) come before any document. It also shortens long names in the middle ('Writing T...riters.txt', 'This is a...lection.txt'), so a writer can't read the title they're looking for.",
+  "verdict": "The two panes almost match: the same #EAEBEB Organizer, the same #FCFCFC List, the same #999 grey for dates and excerpts, and the same 136 px row pitch, so any trust lost here comes down to details. In A the blue bar clearly belongs to the row you're writing in. In B it's glued to the sidebar's border and cut short, which reads as an off-by-15px layout bug the first time you glance over to find your manuscript. B's excerpt lines are also packed slightly tighter, and that's enough to tip it.",
+  "oursShot": "shots/files/r12-library-ours-crop.png",
+  "theirsShot": "shots/files/r12-library-theirs-crop.png",
+  "refSource": "ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in ref/ia/mac-native/ (ADR 0015), cropped per state: library from mac-native-28-light-library-l1-rest.png, search from mac-native-28-light-library-l2-search.png",
+  "builderNote": "",
+  "secondary": [
+    "Image sizes differ: A is 720x1898, B is 720x1800",
+    "Excerpt line pitch: B ≈34 px (281→315) vs A ≈36 px (730→766), so B's two-line excerpts look slightly cramped",
+    "B's bar colour is more saturated (#00BFFF) than A's softer #38C3FA",
+    "B's document icon is a flat outline glyph at a lighter weight than the row name; A uses a page thumbnail",
+    "B's Organizer title 'library' is bold and centred with no location icon; the header looks bare next to A's capsule",
+    "B's Sort pill (y≈65–113) is roughly the same size as A's; no gap there",
+    "The date column's right edges line up to within a couple of px on both"
+  ],
+  "opponent": "mac-native",
+  "build": {
+    "git": "ff9bc6a",
+    "binary": "39b62b2d0809f3dd",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "library",
+      "ours": "shots/files/r12-library-ours-crop.png",
+      "theirs": "shots/files/r12-library-theirs-crop.png",
+      "opponent": {
+        "capture": "ref/ia/shots/mac-native/mac-native-28-light-library-l1-rest.png",
+        "crop": [
+          0,
+          0,
+          720,
+          1898
+        ],
+        "ours": [
+          0,
+          0,
+          720,
+          1800
+        ]
+      },
+      "oursWhole": "shots/files/r12-library-ours.png",
+      "blind": "shots/blind/files/library",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": false,
+      "gap": "The open-Document accent bar is in the wrong place. It runs x 260–265 (#00BFFF), touching the Organizer's #EAEBEB edge with 0 px of white between them, where A's bar (#38C3FA, x≈275–281) sits about 15 px inside the List. B's bar is also only 110 px tall (y 222–331) in a 136 px row, leaving 14/13 px gaps top and bottom where A's is 128 px (5/4 px gaps). So it looks like a stripe on the sidebar's border, not a mark on the sea-storm row.",
+      "gapTheirs": "The header takes more height before the first row: the Drafts row's baseline sits at y≈222 against y≈176 in B, so about 46 device px of window chrome (the back button, the title capsule and the +/▾ group at 72 px tall, against B's bare 60 px title) come before any document. It also shortens long names in the middle ('Writing T...riters.txt', 'This is a...lection.txt'), so a writer can't read the title they're looking for.",
+      "verdict": "The two panes almost match: the same #EAEBEB Organizer, the same #FCFCFC List, the same #999 grey for dates and excerpts, and the same 136 px row pitch, so any trust lost here comes down to details. In A the blue bar clearly belongs to the row you're writing in. In B it's glued to the sidebar's border and cut short, which reads as an off-by-15px layout bug the first time you glance over to find your manuscript. B's excerpt lines are also packed slightly tighter, and that's enough to tip it.",
+      "secondary": [
+        "Image sizes differ: A is 720x1898, B is 720x1800",
+        "Excerpt line pitch: B ≈34 px (281→315) vs A ≈36 px (730→766), so B's two-line excerpts look slightly cramped",
+        "B's bar colour is more saturated (#00BFFF) than A's softer #38C3FA",
+        "B's document icon is a flat outline glyph at a lighter weight than the row name; A uses a page thumbnail",
+        "B's Organizer title 'library' is bold and centred with no location icon; the header looks bare next to A's capsule",
+        "B's Sort pill (y≈65–113) is roughly the same size as A's; no gap there",
+        "The date column's right edges line up to within a couple of px on both"
+      ]
+    },
+    {
+      "name": "search",
+      "ours": "shots/files/r12-search-ours-crop.png",
+      "theirs": "shots/files/r12-search-theirs-crop.png",
+      "opponent": {
+        "capture": "ref/ia/shots/mac-native/mac-native-28-light-library-l2-search.png",
+        "crop": [
+          0,
+          0,
+          720,
+          1898
+        ],
+        "ours": [
+          0,
+          0,
+          720,
+          1800
+        ]
+      },
+      "oursWhole": "shots/files/r12-search-ours.png",
+      "blind": "shots/blind/files/search",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": false,
+      "gap": "B's accent bar for the open document doesn't line up with its row. It is 6×110 px at x=260–266, y=158–268: pressed right against the Organizer's edge, starting about 22 px above the row's name line and stopping short of the row's 136 px pitch. A's bar is 6×128 px, set 16 px in from the edge (x=276), and runs the full height of its row (y=330–458). B's bar also loses touch with the Organizer's edge, and the filter field has no focus ring while 'sea' is typed in it: its border is flat #DBDBDB, where A's is a blue ring (151,202,235).",
+      "gapTheirs": "Very little separates A from B once the agreed differences are set aside. The grounds match (#EAEBEB and #FCFCFC), the excerpt and date grey matches (min 153), and the row pitch is the same 136 device px. A's only real extra is the macOS window furniture: traffic lights and back/forward buttons in a 52 px toolbar. That pushes its first row to y≈200 against B's y≈160, and the brief already rules this out as a gap.",
+      "verdict": "Both are the same two-pane library: a darker Organizer, a lighter list and one grey for dates and excerpts. B copies it closely on grounds, greys and row pitch. B still fails in the one place a writer looks to find where they are: the bar marking the open manuscript floats off its row, shifted up and too short, and sits against the Organizer's edge instead of inside the list. The search field also stops looking active while it's filtering, so a list cut down to two rows looks like a normal list rather than a search result. It's small, but it's the kind of half-finished detail that makes you check the file twice before you trust it.",
+      "secondary": [
+        "Image sizes differ: A is 720×1898, B is 720×1800.",
+        "A lists 3 results (The Lighthouse.txt ranked first as a content match); B lists 2. This could be the Mac copy's extra documents, so it's not counted as a gap.",
+        "B's list header ('library' title plus a + button) takes about 118 px before the Sort pill ends; A's toolbar plus pill take about 155 px.",
+        "B's Sort pill is 370 px wide against A's 330 px, with the same label. That fits the Adwaita Sans vs SF Pro Text difference.",
+        "B's filter field uses a magnifier glyph where A uses a filter glyph. B has no clear (×) button while text is in the field; A has one.",
+        "B's row icons are a single-weight outline page; A's are a shaded document thumbnail. Both are 16 px from the list's left edge.",
+        "Neither side marks the match inside a row, as specified."
+      ]
+    }
+  ],
+  "at": "2026-09-14T21:41:39.017Z"
+}

@@ -252,8 +252,9 @@ const FOLDER: (i32, i32) = (15, 13);
 const ROW_PX: f64 = 13.5;
 /// The title over the File List, bold, with capitals 22 device pixels tall.
 const TITLE_PX: f64 = 15.0;
-/// The excerpt's leading.
-const EXCERPT_LEADING: f64 = 17.0;
+/// The excerpt's leading: 36 device pixels between its two lines in State
+/// 28's frames (#448's round 12).
+const EXCERPT_LEADING: f64 = 18.0;
 /// How many lines of the excerpt a row shows, clipped at the last with no
 /// ellipsis.
 const EXCERPT_LINES: i32 = 2;
@@ -271,14 +272,15 @@ const CHANGED: &str = "Changed on disk";
 /// The dot's side (`.lib-status .dot { width: 6px }`), which marks the row of
 /// a file changed on disk.
 const DOT: i32 = 6;
-/// The selection's bar: 3 points with rounded ends at the File List's left
-/// edge, about 6 points in from the row's top and bottom (#441 § The selected
-/// row and the Selection Mark).
+/// The selection's bar: 3 points with rounded ends, 8 points in from the File
+/// List's left edge and 2 from the row's top and bottom, as State 28's frames
+/// stand it — device columns 276…281 and 128 of a row's 136 rows (#448's
+/// round 12; #441 § The selected row and the Selection Mark).
 const BAR: Bar = Bar {
     width: 3,
-    left: 0,
-    top: 6,
-    bottom: 6,
+    left: 8,
+    top: 2,
+    bottom: 2,
     radius: 2,
 };
 
@@ -311,6 +313,17 @@ struct Inks {
     foot_rule: &'static str,
     /// The Filter capsule's border at rest; the dark one is assumed until #440.
     field_border: &'static str,
+    /// The ring the Filter capsule wears while a query stands in it: State
+    /// 28's search frame lifts it to a blue about 3 points wide; the dark one is
+    /// assumed until #440.
+    field_focus: &'static str,
+    /// The round clear button at the capsule's right end while a query stands.
+    field_clear: &'static str,
+    /// The 1 px rule down the Organizer's right edge, where it meets the File
+    /// List: device column 259 of State 28's frames (#448's round 13).
+    seam: &'static str,
+    /// The 1 px rule under the File List's head and Sort pill.
+    head_rule: &'static str,
     /// The magnifier in the capsule.
     field_icon: &'static str,
     /// The Organizer's section heads and its empty-Pinned prose.
@@ -329,6 +342,10 @@ const LIGHT_INKS: Inks = Inks {
     sort_ink: "#767676",
     foot_rule: "#dbdbdb",
     field_border: "#dbdbdb",
+    field_focus: "#a1d5f5",
+    field_clear: "#7e7e7e",
+    seam: "#cbcccc",
+    head_rule: "#e1e1e1",
     field_icon: "#7e7e7e",
     org_head: "#7f8080",
     org_ink: "#262626",
@@ -343,6 +360,10 @@ const DARK_INKS: Inks = Inks {
     sort_ink: "#9c9c9c",
     foot_rule: "#2e2e2e",
     field_border: "#2e2e2e",
+    field_focus: "#2f5e7a",
+    field_clear: "#939393",
+    seam: "#2e2e2e",
+    head_rule: "#212121",
     field_icon: "#939393",
     org_head: "#6a6c6b",
     org_ink: "#c2c3c3",
@@ -366,6 +387,13 @@ const SEPARATOR: &str = "·";
 
 /// What the Filter field says while it is empty.
 const PLACEHOLDER: &str = "Filter";
+
+/// The class the Filter capsule wears while a query stands in it, which rings
+/// it and shows its clear button (State 28's search frame, #448).
+const LIVE_CLASS: &str = "lib-live";
+
+/// The clear button's side at the capsule's right end.
+const CLEAR: i32 = 14;
 
 /// How much of the accent stands behind a row a dragged row would land on,
 /// over the paper beneath it.
@@ -456,6 +484,10 @@ pub fn stylesheet(ground: Ground) -> String {
         sort_ink,
         foot_rule,
         field_border,
+        field_focus,
+        field_clear,
+        seam,
+        head_rule,
         field_icon,
         org_head,
         org_ink,
@@ -479,7 +511,10 @@ pub fn stylesheet(ground: Ground) -> String {
          \x20 background-color: {list}; color: {ink};\n\
          \x20 font-family: {CHROME_FONT}; font-size: {ROW_PX}px;\n\
          }}\n\
-         .library .lib-org {{ background-color: {organizer}; }}\n\
+         .library .lib-org {{\n\
+         \x20 background-color: {organizer}; box-shadow: inset -1px 0 {seam};\n\
+         }}\n\
+         .library .lib-head-rule {{ background-color: {head_rule}; }}\n\
          .library label.lib-org-head {{\n\
          \x20 font-size: {ORG_HEAD_PX}px; font-weight: bold; color: {org_head};\n\
          }}\n\
@@ -529,6 +564,10 @@ pub fn stylesheet(ground: Ground) -> String {
          \x20 background-color: {list}; border: 1px solid {field_border};\n\
          \x20 border-radius: {filter_radius}px;\n\
          }}\n\
+         .library .lib-filter.{LIVE_CLASS} {{\n\
+         \x20 border-color: {field_focus}; box-shadow: 0 0 0 2px {field_focus};\n\
+         }}\n\
+         .library .lib-filter .lib-clear {{ color: {field_clear}; }}\n\
          .library .lib-filter .lib-icon {{ color: {field_icon}; }}\n\
          .library entry {{\n\
          \x20 background: none; border: none; box-shadow: none; outline: none;\n\
@@ -777,6 +816,10 @@ impl Sidebar {
         let sort_label = gtk::Label::new(Some(sort_title(Sort::Modified)));
         let sort_button = sort_button(&sort_label);
         file_list.append(&sort_row(&sort_button));
+        let head_rule = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        head_rule.add_css_class("lib-head-rule");
+        head_rule.set_height_request(1);
+        file_list.append(&head_rule);
 
         let list = gtk::ListBox::new();
         list.set_selection_mode(gtk::SelectionMode::Browse);
@@ -1802,15 +1845,15 @@ impl Sidebar {
         let stacked = gtk::Box::new(gtk::Orientation::Vertical, 0);
         // The separator starts under the name rather than at the List's edge
         // (State 28: 40.5 points in from the left and 14 from the right),
-        // follows the row's indent, and is left off the first row.
+        // follows the row's indent, and closes every row, the last included,
+        // so a list ends on a rule rather than in empty space (#448's round 14).
         let rule = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         rule.add_css_class("lib-rule");
         rule.set_height_request(1);
         rule.set_margin_start(NAME_LEFT + indent);
         rule.set_margin_end(SEPARATOR_RIGHT);
-        rule.set_visible(!self.at_section_head());
-        stacked.append(&rule);
         stacked.append(&beside);
+        stacked.append(&rule);
         let row = gtk::ListBoxRow::new();
         row.set_child(Some(&stacked));
         // Every row of the pane can be dragged: a file into a folder or onto
@@ -1822,18 +1865,6 @@ impl Sidebar {
             folder,
             name: name.clone(),
             dot,
-        }
-    }
-
-    /// Whether the row now being built is the first of its section, and so
-    /// draws no hairline above it.
-    ///
-    /// A list with nothing in it yet counts: its first row stands under the
-    /// Sort band, and a line there would divide it from nothing.
-    fn at_section_head(&self) -> bool {
-        match self.list.last_child().and_downcast::<gtk::ListBoxRow>() {
-            Some(row) => !row.is_selectable(),
-            None => true,
         }
     }
 
@@ -2706,6 +2737,28 @@ fn filter(entry: &gtk::Entry) -> gtk::Box {
     field.append(&mag);
     entry.set_margin_end(FILTER_END);
     field.append(entry);
+    // Shown while a query stands, and a click on it empties the field, which
+    // clears the search as deleting the query by hand does.
+    let clear = icon((CLEAR, CLEAR), clear_icon);
+    clear.add_css_class("lib-clear");
+    clear.set_valign(gtk::Align::Center);
+    clear.set_margin_end(FILTER_END);
+    clear.set_visible(false);
+    let click = gtk::GestureClick::new();
+    let emptied = entry.clone();
+    click.connect_released(move |_, _, _, _| emptied.set_text(""));
+    clear.add_controller(click);
+    field.append(&clear);
+    let (ringed, shown) = (field.clone(), clear.clone());
+    entry.connect_changed(move |entry| {
+        let live = !entry.text().is_empty();
+        if live {
+            ringed.add_css_class(LIVE_CLASS);
+        } else {
+            ringed.remove_css_class(LIVE_CLASS);
+        }
+        shown.set_visible(live);
+    });
     foot.append(&field);
     foot
 }
@@ -3297,6 +3350,25 @@ fn magnifier_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
     let _ = cr.stroke();
 }
 
+/// The Filter capsule's clear button: a disc in the widget's colour with a
+/// cross cut out of it, as State 28's search frame draws it.
+fn clear_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
+    chrome::source(area, cr, 1.0);
+    let side = f64::from(area.content_width());
+    let half = side / 2.0;
+    cr.arc(half, half, half, 0.0, std::f64::consts::TAU);
+    let _ = cr.fill();
+    cr.set_operator(cairo::Operator::Clear);
+    cr.set_line_width(side * 0.12);
+    cr.set_line_cap(cairo::LineCap::Round);
+    let arm = side * 0.2;
+    cr.move_to(half - arm, half - arm);
+    cr.line_to(half + arm, half + arm);
+    cr.move_to(half + arm, half - arm);
+    cr.line_to(half - arm, half + arm);
+    let _ = cr.stroke();
+}
+
 /// The dot that marks a row whose file changed on disk: the same circle at
 /// full strength, as the oracle's warning dot is (`files.css` line 212).
 fn warned_dot(area: &gtk::DrawingArea, cr: &cairo::Context) {
@@ -3797,7 +3869,7 @@ mod tests {
             let sheet = stylesheet(ground);
             let hex = |role| ground.colours.colour(role).to_hex();
             for (rule, role) in [
-                (".lib-org { background-color: ", Role::OrganizerBg),
+                (".lib-org {\n  background-color: ", Role::OrganizerBg),
                 (".lib-list { background-color: ", Role::FileListBg),
                 (
                     "label.lib-excerpt { font-size: 13.5px; color: ",
