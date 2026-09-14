@@ -15,6 +15,12 @@
 //! § Type), so the pane belongs to the same window as the page rather than to
 //! a file manager.
 //!
+//! The Organizer chooses what the File List shows (#445): a Location's tree, a
+//! pinned folder's, or the Documents last opened, flat and newest first, the
+//! open Document left where it is whichever is chosen. Pinned lists the pins
+//! of every Location, and is the one place in the column a dragged row can be
+//! let go.
+//!
 //! Typing in the Filter field puts the engine's results in place of the tree:
 //! the files whose names matched first, then the files whose texts did, each
 //! of those with the one snippet around its match and the match marked
@@ -30,8 +36,8 @@
 //!
 //! A row can also be dragged (#257). Let go over a folder's row or the File
 //! List's head it moves into that folder, asked about first where the writer
-//! asked to be asked (`library.confirm_move`); let go over the Organizer it is
-//! pinned, and the column lights as the one target it is. What each drop would
+//! asked to be asked (`library.confirm_move`); let go over the Organizer's
+//! Pinned section it is pinned, and the section lights as the one target it is. What each drop would
 //! do is [`crate::files::dropped`], a decision over paths, and a drop it would
 //! do nothing with — a folder onto itself, a file into the folder it is already
 //! in, a row already pinned — is refused while the drag is still in the air.
@@ -58,7 +64,7 @@ use std::time::{Duration, SystemTime};
 use gtk::prelude::*;
 use gtk::{cairo, gdk, gio, glib, graphene};
 use quill_engine::document::full_name;
-use quill_engine::library::{Contents, File, Library, Row, Section, Snippet, Sort, View};
+use quill_engine::library::{Contents, File, Found, Library, Row, Snippet, Sort, View};
 use quill_engine::settings::library_width;
 use quill_engine::theme::{self, Colour, Role, Scheme};
 
@@ -74,6 +80,48 @@ pub const WIDTH: i32 = 360;
 /// The Organizer's width, which a drag on the divider leaves alone: State 28's
 /// 129.5 points, at the whole point a widget is asked for in.
 const ORGANIZER: i32 = 130;
+/// The Organizer's section heads, bold (#441 § Type: cap 16 device px).
+const ORG_HEAD_PX: f64 = 11.0;
+/// Where a head's ink begins across the column (16.5 points, #441 § The
+/// Organizer).
+const ORG_HEAD_LEFT: i32 = 16;
+/// The air under a head's line, which leaves 8.5 points between its ink and
+/// the top of the first row under it: the line keeps the rest under its
+/// baseline, as the stub measured it on GTK (#437).
+const ORG_HEAD_GAP: i32 = 5;
+/// The air above every head but the first, between one section and the next.
+const ORG_SECTION_AIR: i32 = 18;
+/// An Organizer row's height, and the current Location's pill's; the pitch is
+/// assumed until #440.
+const ORG_ROW: i32 = 32;
+/// How far in from either side of the column the pill stands, which leaves it
+/// 110 points wide.
+const ORG_PILL_INSET: i32 = 10;
+/// The pill's corner.
+const ORG_PILL_RADIUS: f64 = 5.5;
+/// Where a row's icon begins across the column.
+const ORG_ICON_LEFT: i32 = 20;
+/// Where a row's text begins across the column.
+const ORG_TEXT_LEFT: i32 = 42;
+/// The air a name keeps from the pill's right end before it is ellipsised.
+const ORG_TEXT_END: i32 = 6;
+/// An Organizer row's type (#441 § Type).
+const ORG_ROW_PX: f64 = 13.0;
+/// The current Location's label on its pill, bold (#441 § Type).
+const ORG_PILL_PX: f64 = 14.0;
+/// The Recents mark's box.
+const CLOCK: (i32, i32) = (14, 12);
+/// The Organizer's first section head.
+const LOCATIONS: &str = "Locations";
+/// The Organizer's second section head.
+const PINNED: &str = "Pinned";
+/// The Organizer's third section head, and its one row.
+const RECENTS: &str = "Recents";
+/// What an empty Pinned section says in its place.
+const NOTHING_PINNED: &str = "Pin a document or folder from its row menu";
+/// What the Sort pill reads over Recents, whose order is the order they were
+/// opened in and no sort's.
+const LAST_OPENED: &str = "Sort by Last Opened";
 /// How wide the divider is to a pointer: the last logical pixels of the pane,
 /// lying over its right edge rather than beside it, so that the page stands
 /// where it stood and the strip has room to be caught.
@@ -243,6 +291,12 @@ struct Inks {
     field_border: &'static str,
     /// The magnifier in the capsule.
     field_icon: &'static str,
+    /// The Organizer's section heads and its empty-Pinned prose.
+    org_head: &'static str,
+    /// An Organizer row's name and icon.
+    org_ink: &'static str,
+    /// The pill under the current Location.
+    org_pill: &'static str,
 }
 
 /// The pane's own inks on the light ground.
@@ -254,6 +308,9 @@ const LIGHT_INKS: Inks = Inks {
     foot_rule: "#dbdbdb",
     field_border: "#dbdbdb",
     field_icon: "#7e7e7e",
+    org_head: "#7f8080",
+    org_ink: "#262626",
+    org_pill: "#d2d3d3",
 };
 
 /// The pane's own inks on the dark ground.
@@ -265,6 +322,9 @@ const DARK_INKS: Inks = Inks {
     foot_rule: "#2e2e2e",
     field_border: "#2e2e2e",
     field_icon: "#939393",
+    org_head: "#6a6c6b",
+    org_ink: "#c2c3c3",
+    org_pill: "#393b3a",
 };
 
 /// What marks the row of a Document whose file changed under unsaved edits.
@@ -384,6 +444,9 @@ pub fn stylesheet(ground: Ground) -> String {
         foot_rule,
         field_border,
         field_icon,
+        org_head,
+        org_ink,
+        org_pill,
     } = match scheme {
         Scheme::Light => LIGHT_INKS,
         Scheme::Dark => DARK_INKS,
@@ -404,6 +467,18 @@ pub fn stylesheet(ground: Ground) -> String {
          \x20 font-family: {CHROME_FONT}; font-size: {ROW_PX}px;\n\
          }}\n\
          .library .lib-org {{ background-color: {organizer}; }}\n\
+         .library label.lib-org-head {{\n\
+         \x20 font-size: {ORG_HEAD_PX}px; font-weight: bold; color: {org_head};\n\
+         }}\n\
+         .library label.lib-org-prose {{ font-size: {ORG_ROW_PX}px; color: {org_head}; }}\n\
+         .library label.lib-org-row {{ font-size: {ORG_ROW_PX}px; color: {org_ink}; }}\n\
+         .library .lib-org-icon {{ color: {org_ink}; }}\n\
+         .library .lib-pill {{\n\
+         \x20 background-color: {org_pill}; border-radius: {ORG_PILL_RADIUS}px;\n\
+         }}\n\
+         .library .lib-pill label.lib-org-row {{\n\
+         \x20 font-size: {ORG_PILL_PX}px; font-weight: bold;\n\
+         }}\n\
          .library .lib-list {{ background-color: {list}; }}\n\
          .library .lib-rule {{ background-color: {separator}; }}\n\
          .library .lib-foot-rule {{ background-color: {foot_rule}; }}\n\
@@ -460,7 +535,7 @@ pub fn stylesheet(ground: Ground) -> String {
          \x20 min-width: {bar_width}px; margin: {bar_top}px 0 {bar_bottom}px {bar_left}px;\n\
          }}\n\
          .library list > row:selected .lib-bar {{ background-color: {accent}; }}\n\
-         .library list > row.{DROP_CLASS}, .library .lib-org.{DROP_CLASS} {{\n\
+         .library list > row.{DROP_CLASS} {{\n\
          \x20 background-color: {drop};\n\
          }}\n"
     )
@@ -556,9 +631,17 @@ pub struct Sidebar {
     entry: gtk::Entry,
     sort_label: gtk::Label,
     list: gtk::ListBox,
-    /// The Organizer's column, where a dragged row is let go to pin it until
-    /// the Organizer draws a Pinned section of its own (#445).
-    organizer: gtk::Box,
+    /// The Sort pill, which Recents disables.
+    sort_button: gtk::Button,
+    /// The Organizer's rows: the three section heads and what stands under
+    /// each.
+    org: gtk::ListBox,
+    /// Each Organizer row now drawn, with what it stands for.
+    organized: Rc<RefCell<Vec<(gtk::ListBoxRow, Organized)>>>,
+    /// What the File List shows, as the Organizer last chose it; `None` where
+    /// the Library has no Location. Settled against the Library at every
+    /// [`Sidebar::refresh`].
+    showing: Rc<RefCell<Option<Showing>>>,
     /// The band's line above the Filter field: a notice, hidden while there is
     /// none ([`Sidebar::set_notice`]).
     notice: gtk::Label,
@@ -576,9 +659,9 @@ pub struct Sidebar {
     /// The rows now drawn, top to bottom, for the highlight and the arrows.
     rows: Rc<RefCell<Vec<Listed>>>,
     /// The Location rows now drawn, each with the Location it names, so that a
-    /// right-click on one can offer to drop that Location: none until the
-    /// Organizer draws its Locations (#445), the File List's head carrying its
-    /// own ([`Sidebar::head_as_location`]).
+    /// right-click on one can offer to drop that Location: the Organizer's
+    /// Location rows, the File List's head carrying its own
+    /// ([`Sidebar::head_as_location`]).
     heads: Rc<RefCell<Vec<(gtk::ListBoxRow, PathBuf)>>>,
     /// The folders the writer has opened. Everything else is closed, which is
     /// what the spec asks a section to open at.
@@ -646,6 +729,14 @@ impl Sidebar {
         organizer.set_width_request(ORGANIZER);
         organizer.set_hexpand(false);
         organizer.append(&organizer_head());
+        let org = gtk::ListBox::new();
+        org.set_selection_mode(gtk::SelectionMode::None);
+        let org_scroller = gtk::ScrolledWindow::builder()
+            .vexpand(true)
+            .hscrollbar_policy(gtk::PolicyType::Never)
+            .child(&org)
+            .build();
+        organizer.append(&org_scroller);
         root.append(&organizer);
         let file_list = gtk::Box::new(gtk::Orientation::Vertical, 0);
         file_list.add_css_class("lib-list");
@@ -716,7 +807,10 @@ impl Sidebar {
             entry,
             sort_label,
             list,
-            organizer,
+            sort_button: sort_button.clone(),
+            org,
+            organized: Rc::new(RefCell::new(Vec::new())),
+            showing: Rc::new(RefCell::new(None)),
             notice,
             offer,
             reload,
@@ -856,16 +950,21 @@ impl Sidebar {
         });
         self.head.add_controller(heading);
         self.install_row_actions();
-        // A row let go over the Organizer is pinned, the whole column lighting
-        // as the one target it is, until the Organizer draws the Pinned
-        // section that takes the drop itself (#445).
-        let organizer: gtk::Widget = self.organizer.clone().upcast();
-        self.drop_onto(
-            &self.organizer,
-            &Onto::Pinned,
-            &Rc::new(vec![organizer]),
-            &Rc::new(Cell::new(0)),
-        );
+        // A click in the Organizer changes what the File List shows or opens a
+        // pinned Document, and the right button on a Location's row offers
+        // what the File List's head does.
+        let chosen = self.clone();
+        self.org
+            .connect_row_activated(move |_, row| chosen.choose(row));
+        let org_menued = gtk::GestureClick::new();
+        org_menued.set_button(gdk::BUTTON_SECONDARY);
+        org_menued.set_propagation_phase(gtk::PropagationPhase::Capture);
+        let org_opening = self.clone();
+        org_menued.connect_pressed(move |gesture, _, x, y| {
+            gesture.set_state(gtk::EventSequenceState::Claimed);
+            org_opening.org_menu_at(x, y);
+        });
+        self.org.add_controller(org_menued);
         // The two words of "Changed on disk · Reload · Keep": each opens the
         // diff view of what it would do, in the window this pane belongs to.
         let reloading = self.clone();
@@ -1046,6 +1145,12 @@ impl Sidebar {
     /// The Document the window is showing, whose row is highlighted.
     pub fn set_open(&self, path: Option<&Path>) {
         self.open.replace(path.map(Path::to_path_buf));
+        // Over Recents the Document just opened is the newest of them, so the
+        // list is drawn again, once the opening has been taken in.
+        if self.showing.borrow().as_ref() == Some(&Showing::Recents) {
+            let drawing = self.clone();
+            glib::idle_add_local_once(move || drawing.refresh());
+        }
         self.highlight();
     }
 
@@ -1096,23 +1201,61 @@ impl Sidebar {
             marked: ground.colours.colour(Role::Ink),
         };
         let shown = library.shown(&view);
-        // The File List shows one Location under a head that names it and is
-        // its header: what its menu offers, and what a row let go over it
-        // moves into (#246, stories 3 and 38). Which Location is the
-        // Organizer's to choose (#445); until it can, the first.
-        let section = shown.first();
-        self.title
-            .set_text(&section.map_or_else(|| TITLE.to_string(), section_name));
-        self.header
-            .replace(section.map(|section| section.path.to_path_buf()));
+        let pinned_rows = library.pinned_rows(&view);
+        let locations: Vec<&Path> = shown.iter().map(|section| section.path).collect();
+        // A pinned entry's own row stands at depth zero, a folder's subtree
+        // under it.
+        let pinned: Vec<(&Path, bool)> = pinned_rows
+            .iter()
+            .filter(|row| row.depth() == 0)
+            .map(|row| (row.path(), matches!(row, Row::Folder { .. })))
+            .collect();
+        let showing = settled(self.showing.borrow().as_ref(), &locations, &pinned);
+        self.showing.replace(showing.clone());
+        self.organize(&organized(
+            &locations,
+            &pinned,
+            showing.as_ref(),
+            drawing.extensions,
+        ));
+        // The File List's head names what it shows, and is the header of a
+        // Location's tree alone: what its menu offers, and what a row let go
+        // over it moves into (#246, stories 3 and 38).
+        self.title.set_text(&match &showing {
+            Some(Showing::Location(path) | Showing::Folder(path)) => place_name(path),
+            Some(Showing::Recents) => RECENTS.to_string(),
+            None => TITLE.to_string(),
+        });
+        self.header.replace(match &showing {
+            Some(Showing::Location(path)) => Some(path.clone()),
+            _ => None,
+        });
         self.head_as_location();
-        let query = self.query();
-        if query.is_empty() {
-            if let Some(section) = section {
-                self.tree(section, &drawing);
-            }
+        let recents = showing == Some(Showing::Recents);
+        self.sort_label.set_text(if recents {
+            LAST_OPENED
         } else {
-            self.results(&query, &library, &view, &drawing);
+            sort_title(self.sort.get())
+        });
+        self.sort_button.set_sensitive(!recents);
+        let query = self.query();
+        match &showing {
+            Some(Showing::Recents) => {
+                let opened = session.recents();
+                if query.is_empty() {
+                    for file in recent_files(&library, &opened) {
+                        self.found_row(file, None, &drawing);
+                    }
+                } else {
+                    let found = library.search(&query, &view, &mut self.contents.borrow_mut());
+                    self.hits(&recent_found(found, &opened), &drawing);
+                }
+            }
+            _ if !query.is_empty() => self.results(&query, &library, &view, &drawing),
+            Some(Showing::Location(path) | Showing::Folder(path)) => {
+                self.tree(&library.rows(path, &view), &drawing);
+            }
+            None => {}
         }
         self.highlight();
     }
@@ -1139,11 +1282,12 @@ impl Sidebar {
         }
     }
 
-    /// One Location's tree, its rows alone under the File List's head, each of
-    /// its folders a place a dragged row can be moved into.
-    fn tree(&self, section: &Section<'_>, drawing: &Drawing<'_>) {
+    /// One tree — a Location's or a pinned folder's — its rows alone under the
+    /// File List's head, each of its folders a place a dragged row can be
+    /// moved into.
+    fn tree(&self, rows: &[Row<'_>], drawing: &Drawing<'_>) {
         let first = self.rows.borrow().len();
-        self.rows_of(&section.rows, drawing);
+        self.rows_of(rows, drawing);
         for listed in self.drawn_since(first) {
             if listed.folder {
                 self.folder_target(&listed.row, &listed.path);
@@ -1155,6 +1299,108 @@ impl Sidebar {
     /// built, in the order it was built.
     fn drawn_since(&self, first: usize) -> Vec<Listed> {
         self.rows.borrow()[first..].to_vec()
+    }
+
+    /// Draws the Organizer's `rows`: each Location's row one of the heads its
+    /// menu is found by, and the whole Pinned section, head and prose and
+    /// rows, the one target a dragged row is pinned by.
+    fn organize(&self, rows: &[Organized]) {
+        while let Some(child) = self.org.first_child() {
+            self.org.remove(&child);
+        }
+        let mut organized = self.organized.borrow_mut();
+        organized.clear();
+        let mut pinned: Vec<gtk::Widget> = Vec::new();
+        let mut in_pinned = false;
+        for (at, row) in rows.iter().enumerate() {
+            let drawn = match row {
+                Organized::Head(name) => {
+                    in_pinned = *name == PINNED;
+                    org_head_row(name, at > 0)
+                }
+                Organized::Location { path, name, on } => {
+                    let drawn = org_row(org_folder(), name, *on);
+                    self.heads.borrow_mut().push((drawn.clone(), path.clone()));
+                    drawn
+                }
+                Organized::Pinned {
+                    name, folder, on, ..
+                } => {
+                    let mark = if *folder {
+                        org_folder()
+                    } else {
+                        let page = icon(DOC, document_icon);
+                        page.add_css_class("lib-org-icon");
+                        page
+                    };
+                    org_row(mark, name, *on)
+                }
+                Organized::NothingPinned => org_prose(NOTHING_PINNED),
+                Organized::Recents { on } => {
+                    let clock = icon(CLOCK, clock_icon);
+                    clock.add_css_class("lib-org-icon");
+                    org_row(clock, RECENTS, *on)
+                }
+            };
+            if in_pinned {
+                pinned.push(drawn.clone().upcast());
+            }
+            self.org.append(&drawn);
+            organized.push((drawn, row.clone()));
+        }
+        drop(organized);
+        let lit = Rc::new(pinned);
+        let over = Rc::new(Cell::new(0));
+        for widget in lit.iter() {
+            self.drop_onto(widget, &Onto::Pinned, &lit, &over);
+        }
+    }
+
+    /// A click on an Organizer row: a Location, a pinned folder or Recents
+    /// fills the File List and leaves the open Document where it is; a pinned
+    /// Document opens.
+    fn choose(&self, row: &gtk::ListBoxRow) {
+        let chosen = self
+            .organized
+            .borrow()
+            .iter()
+            .find(|(drawn, _)| drawn == row)
+            .map(|(_, organized)| organized.clone());
+        let showing = match chosen {
+            Some(Organized::Location { path, .. }) => Showing::Location(path),
+            Some(Organized::Pinned {
+                path, folder: true, ..
+            }) => Showing::Folder(path),
+            Some(Organized::Recents { .. }) => Showing::Recents,
+            Some(Organized::Pinned {
+                path,
+                folder: false,
+                ..
+            }) => {
+                if let Some(window) = self.owner() {
+                    window.open_path(&path);
+                }
+                return;
+            }
+            Some(Organized::Head(_) | Organized::NothingPinned) | None => return,
+        };
+        self.showing.replace(Some(showing));
+        self.refresh();
+    }
+
+    /// The right button over the Organizer: a Location's row offers what the
+    /// File List's head does.
+    fn org_menu_at(&self, x: f64, y: f64) {
+        let Some(location) = self
+            .org
+            .row_at_y(pixels(y))
+            .and_then(|row| self.head_at(&row))
+        else {
+            return;
+        };
+        let on_pane = self.org.compute_point(&self.root, &place(x, y));
+        let (x, y) = on_pane.map_or((x, y), |point| (f64::from(point.x()), f64::from(point.y())));
+        self.popup(&location_menu(&location), &self.menu, x, y);
     }
 
     /// A folder's row, a Location's head or the pane's own head as a place a
@@ -1304,23 +1550,33 @@ impl Sidebar {
     /// Documents that answer the query, and where each one lies is the tree's
     /// answer to a different question.
     fn results(&self, query: &str, library: &Library, view: &View, drawing: &Drawing<'_>) {
-        let mut contents = self.contents.borrow_mut();
-        let found = library.search(query, view, &mut contents);
-        for hit in &found {
-            let file = hit.file();
-            let listed = self.file_row(
-                &FileRow {
-                    name: file.name(),
-                    path: file.path(),
-                    depth: 0,
-                    modified: file.modified(),
-                    snippet: hit.snippet(),
-                },
-                drawing,
-            );
-            self.list.append(&listed.row);
-            self.rows.borrow_mut().push(listed);
+        let found = library.search(query, view, &mut self.contents.borrow_mut());
+        self.hits(&found, drawing);
+    }
+
+    /// What a search found, flat and in its order, each hit with its snippet
+    /// where its text matched.
+    fn hits(&self, found: &[Found<'_>], drawing: &Drawing<'_>) {
+        for hit in found {
+            self.found_row(hit.file(), hit.snippet(), drawing);
         }
+    }
+
+    /// One file drawn flat, as a hit or a recent is: no depth, and `snippet`
+    /// in place of its excerpt where a query matched its text.
+    fn found_row(&self, file: &File, snippet: Option<&Snippet>, drawing: &Drawing<'_>) {
+        let listed = self.file_row(
+            &FileRow {
+                name: file.name(),
+                path: file.path(),
+                depth: 0,
+                modified: file.modified(),
+                snippet,
+            },
+            drawing,
+        );
+        self.list.append(&listed.row);
+        self.rows.borrow_mut().push(listed);
     }
 
     /// The rows of one section, in the order the tree hands them over, less
@@ -2138,6 +2394,209 @@ fn organizer_head() -> gtk::Box {
     head
 }
 
+/// What the File List shows, as the Organizer chose it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Showing {
+    /// A Location's tree.
+    Location(PathBuf),
+    /// A pinned folder's tree.
+    Folder(PathBuf),
+    /// The Documents last opened, flat and newest first.
+    Recents,
+}
+
+/// One row of the Organizer, and what a click on it does.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Organized {
+    /// A section head.
+    Head(&'static str),
+    /// A Location, on its pill while the File List shows it.
+    Location {
+        path: PathBuf,
+        name: String,
+        on: bool,
+    },
+    /// A pinned Document or folder, marked while the File List shows the
+    /// folder.
+    Pinned {
+        path: PathBuf,
+        name: String,
+        folder: bool,
+        on: bool,
+    },
+    /// The prose an empty Pinned section says.
+    NothingPinned,
+    /// The one Recents row, marked while the File List shows the recents.
+    Recents { on: bool },
+}
+
+/// The Organizer's rows for a Library of `locations` and `pinned` — each pin
+/// with whether it is a folder — in section order, with what the File List is
+/// `showing` marked (#441 § The Organizer).
+///
+/// A pinned Document's name drops its extension as the File List's rows do
+/// (`library.show_extensions`), and every name is ellipsised by its row
+/// ([`org_row`]); a folder's name is its whole name.
+fn organized(
+    locations: &[&Path],
+    pinned: &[(&Path, bool)],
+    showing: Option<&Showing>,
+    extensions: bool,
+) -> Vec<Organized> {
+    let mut rows = vec![Organized::Head(LOCATIONS)];
+    rows.extend(locations.iter().map(|path| Organized::Location {
+        path: path.to_path_buf(),
+        name: place_name(path),
+        on: showing == Some(&Showing::Location(path.to_path_buf())),
+    }));
+    rows.push(Organized::Head(PINNED));
+    if pinned.is_empty() {
+        rows.push(Organized::NothingPinned);
+    }
+    rows.extend(pinned.iter().map(|&(path, folder)| Organized::Pinned {
+        path: path.to_path_buf(),
+        name: if folder {
+            place_name(path)
+        } else {
+            row_name(&place_name(path), extensions)
+        },
+        folder,
+        on: folder && showing == Some(&Showing::Folder(path.to_path_buf())),
+    }));
+    rows.push(Organized::Head(RECENTS));
+    rows.push(Organized::Recents {
+        on: showing == Some(&Showing::Recents),
+    });
+    rows
+}
+
+/// What the File List shows now: what the Organizer last `chosen`, while the
+/// Library still holds it, and otherwise the first Location, or nothing where
+/// there is none.
+fn settled(
+    chosen: Option<&Showing>,
+    locations: &[&Path],
+    pinned: &[(&Path, bool)],
+) -> Option<Showing> {
+    let held = match chosen {
+        Some(Showing::Location(path)) => locations.contains(&path.as_path()),
+        Some(Showing::Folder(path)) => pinned.contains(&(path.as_path(), true)),
+        Some(Showing::Recents) => true,
+        None => false,
+    };
+    if held {
+        return chosen.cloned();
+    }
+    locations
+        .first()
+        .map(|path| Showing::Location(path.to_path_buf()))
+}
+
+/// The recents the Library holds, newest first: the files `opened` names that
+/// a Location's tree has a row for, in the order the state keeps them.
+fn recent_files<'a>(library: &'a Library, opened: &[PathBuf]) -> Vec<&'a File> {
+    opened
+        .iter()
+        .filter_map(|path| match library.at(path) {
+            Some(Row::File { file, .. }) => Some(file),
+            _ => None,
+        })
+        .collect()
+}
+
+/// What a query over Recents finds: the Library's search, name hits first,
+/// narrowed to the files `opened` names.
+fn recent_found<'a>(found: Vec<Found<'a>>, opened: &[PathBuf]) -> Vec<Found<'a>> {
+    found
+        .into_iter()
+        .filter(|hit| opened.iter().any(|path| path == hit.file().path()))
+        .collect()
+}
+
+/// An Organizer section head: bold, in the head grey, with a section's air
+/// above it where it is not the first.
+fn org_head_row(name: &str, after: bool) -> gtk::ListBoxRow {
+    let label = gtk::Label::new(Some(name));
+    label.add_css_class("lib-org-head");
+    label.set_xalign(0.0);
+    label.set_margin_start(ORG_HEAD_LEFT);
+    label.set_margin_top(if after { ORG_SECTION_AIR } else { 0 });
+    label.set_margin_bottom(ORG_HEAD_GAP);
+    still_row(&label)
+}
+
+/// What an empty Pinned section says, wrapped to the column in the head grey.
+fn org_prose(words: &str) -> gtk::ListBoxRow {
+    let prose = gtk::Label::new(Some(words));
+    prose.add_css_class("lib-org-prose");
+    prose.set_xalign(0.0);
+    prose.set_wrap(true);
+    prose.set_wrap_mode(gtk::pango::WrapMode::WordChar);
+    // One character of natural width, so that the column decides where the
+    // lines break rather than the sentence deciding the column's width.
+    prose.set_max_width_chars(1);
+    prose.set_margin_start(ORG_HEAD_LEFT);
+    prose.set_margin_end(ORG_PILL_INSET);
+    still_row(&prose)
+}
+
+/// An Organizer row that does nothing when clicked.
+fn still_row(child: &impl IsA<gtk::Widget>) -> gtk::ListBoxRow {
+    let row = gtk::ListBoxRow::new();
+    row.set_selectable(false);
+    row.set_activatable(false);
+    row.set_child(Some(child));
+    row
+}
+
+/// An Organizer row: its icon and its name, ellipsised short of the column's
+/// edge, on the pill where it is what the File List shows.
+fn org_row(mark: gtk::DrawingArea, name: &str, on: bool) -> gtk::ListBoxRow {
+    let line = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    line.set_height_request(ORG_ROW);
+    line.set_margin_start(ORG_PILL_INSET);
+    line.set_margin_end(ORG_PILL_INSET);
+    mark.set_margin_start(ORG_ICON_LEFT - ORG_PILL_INSET);
+    mark.set_valign(gtk::Align::Center);
+    let label = gtk::Label::new(Some(name));
+    label.add_css_class("lib-org-row");
+    label.set_xalign(0.0);
+    label.set_hexpand(true);
+    label.set_margin_start(ORG_TEXT_LEFT - ORG_ICON_LEFT - mark.content_width());
+    label.set_margin_end(ORG_TEXT_END);
+    label.set_ellipsize(gtk::pango::EllipsizeMode::End);
+    line.append(&mark);
+    line.append(&label);
+    if on {
+        line.add_css_class("lib-pill");
+    }
+    let row = gtk::ListBoxRow::new();
+    row.set_selectable(false);
+    row.set_child(Some(&line));
+    row
+}
+
+/// A folder's icon in the Organizer, in the accent as the File List's folders
+/// are (#441 § Grounds and roles).
+fn org_folder() -> gtk::DrawingArea {
+    let mark = icon(FOLDER, folder_icon);
+    mark.add_css_class("lib-folder-icon");
+    mark
+}
+
+/// The Recents mark: a clock face.
+fn clock_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
+    chrome::source(area, cr, 1.0);
+    cr.set_line_width(1.2);
+    cr.set_line_cap(cairo::LineCap::Round);
+    cr.arc(7.0, 6.0, 5.2, 0.0, std::f64::consts::TAU);
+    let _ = cr.stroke();
+    cr.move_to(7.0, 3.2);
+    cr.line_to(7.0, 6.2);
+    cr.line_to(9.2, 7.6);
+    let _ = cr.stroke();
+}
+
 /// A head button: a mark in a 26 px square that fires a Command by name.
 fn button(
     draw: impl Fn(&gtk::DrawingArea, &cairo::Context) + 'static,
@@ -2323,10 +2782,10 @@ fn marked(amount: f64) -> u16 {
 }
 
 /// A section's name: the folder's own, or the path where it has none.
-fn section_name(section: &Section<'_>) -> String {
-    match section.path.file_name() {
+fn place_name(path: &Path) -> String {
+    match path.file_name() {
         Some(name) => name.to_string_lossy().into_owned(),
-        None => section.path.display().to_string(),
+        None => path.display().to_string(),
     }
 }
 
@@ -2773,6 +3232,155 @@ mod tests {
         assert_eq!(days(2000, 3, 1), 11_017);
         assert_eq!(days(2026, 3, 4) - days(2026, 3, 3), 1);
         assert_eq!(days(2026, 1, 1) - days(2025, 12, 31), 1);
+    }
+
+    /// The Organizer lists its three sections in order: every Location, the
+    /// one the File List shows on its pill; the pins of every Location, a
+    /// Document's extension dropped; and Recents (#441 § The Organizer).
+    #[test]
+    fn the_organizer_lists_its_sections_in_order_with_what_the_list_shows_marked() {
+        let novel = Path::new("/w/novel");
+        let essays = Path::new("/w/essays");
+        let draft = Path::new("/w/novel/draft.md");
+        let notes = Path::new("/w/essays/notes");
+        let locations = [novel, essays];
+        let pinned = [(draft, false), (notes, true)];
+        let on_essays = Showing::Location(essays.to_path_buf());
+        assert_eq!(
+            organized(&locations, &pinned, Some(&on_essays), false),
+            vec![
+                Organized::Head(LOCATIONS),
+                Organized::Location {
+                    path: novel.to_path_buf(),
+                    name: "novel".into(),
+                    on: false,
+                },
+                Organized::Location {
+                    path: essays.to_path_buf(),
+                    name: "essays".into(),
+                    on: true,
+                },
+                Organized::Head(PINNED),
+                Organized::Pinned {
+                    path: draft.to_path_buf(),
+                    name: "draft".into(),
+                    folder: false,
+                    on: false,
+                },
+                Organized::Pinned {
+                    path: notes.to_path_buf(),
+                    name: "notes".into(),
+                    folder: true,
+                    on: false,
+                },
+                Organized::Head(RECENTS),
+                Organized::Recents { on: false },
+            ]
+        );
+        let marked = |showing: &Showing| {
+            organized(&locations, &pinned, Some(showing), false)
+                .into_iter()
+                .filter(|row| {
+                    matches!(
+                        row,
+                        Organized::Location { on: true, .. }
+                            | Organized::Pinned { on: true, .. }
+                            | Organized::Recents { on: true }
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            marked(&Showing::Recents),
+            vec![Organized::Recents { on: true }]
+        );
+        assert_eq!(
+            marked(&Showing::Folder(notes.to_path_buf())),
+            vec![Organized::Pinned {
+                path: notes.to_path_buf(),
+                name: "notes".into(),
+                folder: true,
+                on: true,
+            }]
+        );
+        assert!(
+            organized(&locations, &[], None, false).contains(&Organized::NothingPinned),
+            "an empty Pinned section says how to pin"
+        );
+    }
+
+    /// What the File List shows holds while the Library holds it, and falls
+    /// back to the first Location once it does not.
+    #[test]
+    fn a_choice_the_library_no_longer_holds_falls_back_to_the_first_location() {
+        let novel = Path::new("/w/novel");
+        let essays = Path::new("/w/essays");
+        let notes = Path::new("/w/essays/notes");
+        let first = Some(Showing::Location(novel.to_path_buf()));
+        assert_eq!(settled(None, &[novel, essays], &[]), first);
+        let chosen = Showing::Location(essays.to_path_buf());
+        assert_eq!(
+            settled(Some(&chosen), &[novel, essays], &[]),
+            Some(chosen.clone())
+        );
+        assert_eq!(settled(Some(&chosen), &[novel], &[]), first);
+        let folder = Showing::Folder(notes.to_path_buf());
+        assert_eq!(
+            settled(Some(&folder), &[novel, essays], &[(notes, true)]),
+            Some(folder.clone())
+        );
+        assert_eq!(settled(Some(&folder), &[novel, essays], &[]), first);
+        assert_eq!(
+            settled(Some(&Showing::Recents), &[novel], &[]),
+            Some(Showing::Recents)
+        );
+        assert_eq!(settled(None, &[], &[]), None);
+    }
+
+    /// Recents are the state's recents the Library holds, newest first, and
+    /// the Filter narrows them by name and by text as the Library's search
+    /// does (#441 story 29).
+    #[test]
+    fn recents_are_the_states_newest_first_and_the_filter_narrows_them_as_search_does() {
+        let root =
+            std::env::temp_dir().join(format!("quill-sidebar-recents-{}", std::process::id()));
+        std::fs::create_dir_all(&root).expect("a folder of recents");
+        for (name, text) in [
+            ("sea-wall.md", "Stone.\n"),
+            ("harbour.md", "The sea was flat.\n"),
+            ("lamps.md", "Dark.\n"),
+            ("storm.md", "The sea rose.\n"),
+        ] {
+            std::fs::write(root.join(name), text).expect("a file to open");
+        }
+        let library = Library::open(std::slice::from_ref(&root), &[]);
+        let opened = vec![
+            root.join("lamps.md"),
+            root.join("harbour.md"),
+            root.join("sea-wall.md"),
+            PathBuf::from("/nowhere/else.md"),
+        ];
+        let names = |files: Vec<&File>| {
+            files
+                .iter()
+                .map(|file| file.name().to_string())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            names(recent_files(&library, &opened)),
+            ["lamps.md", "harbour.md", "sea-wall.md"]
+        );
+        let mut contents = Contents::new();
+        let found = recent_found(
+            library.search("sea", &View::default(), &mut contents),
+            &opened,
+        );
+        assert_eq!(
+            names(found.iter().map(Found::file).collect()),
+            ["sea-wall.md", "harbour.md"],
+            "the name hit first, then the text hit, and never storm.md, which was not opened"
+        );
+        std::fs::remove_dir_all(&root).expect("the folder to go");
     }
 
     /// The pane's grounds and its grey are the theme's three roles on both
