@@ -412,7 +412,7 @@ impl Flags {
                 "--typing" => flags.typing = true,
                 "--menu" => flags.menu = Some(one_of(flag, &text(&mut args, flag)?, &MENUS)?),
                 "--library" => {
-                    let (fixture, keys) = library(flag, &text(&mut args, flag)?)?;
+                    let (fixture, keys) = fixture_and_keys(flag, &text(&mut args, flag)?)?;
                     flags.library = Some(fixture);
                     flags.library_keys = keys;
                 }
@@ -734,7 +734,7 @@ fn choice<C: Choice>(flag: &str, written: &str) -> Result<C, Error> {
 ///
 /// The first colon divides the two, so a fixture's path holds none; the
 /// fixtures are the checkout's, where none does.
-fn library(flag: &str, written: &str) -> Result<(PathBuf, Vec<LibraryKey>), Error> {
+fn fixture_and_keys(flag: &str, written: &str) -> Result<(PathBuf, Vec<LibraryKey>), Error> {
     let Some((fixture, keys)) = written.split_once(':') else {
         return Ok((PathBuf::from(written), Vec::new()));
     };

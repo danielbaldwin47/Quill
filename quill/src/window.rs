@@ -1772,7 +1772,8 @@ impl Window {
             Noticed::Unchanged => {}
             Noticed::Reloaded(kept) => self.reloaded(kept),
             // The two conflicts: nothing is written and nothing is thrown
-            // away, and the status line asks the writer which it is to be.
+            // away, and the band above the Filter field asks the writer which
+            // it is to be.
             Noticed::Changed | Noticed::Deleted => self.show_standing(),
         }
     }
