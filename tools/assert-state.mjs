@@ -58,6 +58,7 @@ export const ASSERTIONS = {
   syntax: syntax,
   outline: outline,
   spell: spell,
+  pinned: pinned,
 };
 
 // How each rule wants its second shot taken: the state to shoot, and what to shoot it with.
@@ -85,7 +86,17 @@ export const SECOND = {
   syntax: (s) => ({ state: { ...s, flags: { ...s.flags, syntax: 'off' } }, options: {} }),
   outline: (s) => ({ state: { ...s, flags: { ...s.flags, menu: null } }, options: {} }),
   spell: (s) => ({ state: { ...s, flags: { ...s.flags, spell: 'off' } }, options: {} }),
+  pinned: (s) => ({ state: { ...s, flags: { ...s.flags, library: unpinned(s.flags.library) } }, options: {} }),
 };
+
+// A `--library` value with its `pinned=` overrides taken out and every other override left standing:
+// `shots/oracle/library:mark=pen,pinned=sea-storm.md` is `shots/oracle/library:mark=pen`.
+export function unpinned(library) {
+  const colon = library.indexOf(':');
+  if (colon < 0) return library;
+  const kept = library.slice(colon + 1).split(',').filter((pair) => !pair.startsWith('pinned='));
+  return kept.length ? `${library.slice(0, colon)}:${kept.join(',')}` : library.slice(0, colon);
+}
 
 // The second shot one asserted state asks for: `{ state, options }` for `shootState`.
 export function secondShot(spec, s) {
@@ -137,6 +148,7 @@ const CHECKS = {
   syntax: syntaxSpec,
   outline: bare('outline'),
   spell: spellSpec,
+  pinned: pinnedSpec,
 };
 
 // The built-ins, restated from quill-engine/src/theme.rs, Colours::{LIGHT,DARK}, which #308
@@ -1297,6 +1309,91 @@ function dialog(_spec, { dim, lit }) {
       `the pane surround is held to bare PDF Split and every ground is read from the pair, not compared against a hex written down here`,
     ],
   };
+}
+
+// ---------- the pinned page ----------
+
+// Pinning one Document changes two places in the Library pane and nothing else (#450): the
+// Organizer's Pinned section takes the Document's row, and the Document's own row in the File List
+// takes the pin through its page icon. The second shot is the same state with its `pinned=`
+// override taken out, so where the pair differ is those two places. The state names the two
+// numbers the spec decides and the shot cannot say — the Organizer's width in device px, left of
+// which is its column, and the page icon's cell, which every change right of that column must fit
+// inside.
+const PINNED_CHANGED = 8;
+
+function pinnedSpec(spec) {
+  const extra = Object.keys(spec).filter((k) => !['kind', 'organizer', 'icon'].includes(k));
+  if (extra.length) throw new Error(`the pinned assertion has unknown fields: ${extra.join(', ')}`);
+  if (!Number.isInteger(spec.organizer) || spec.organizer < 1) {
+    throw new Error(`the pinned organizer is ${JSON.stringify(spec.organizer)}, and a column's width is a whole number of device px`);
+  }
+  const icon = spec.icon;
+  if (!Array.isArray(icon) || icon.length !== 2 || !icon.every((side) => Number.isInteger(side) && side > 0)) {
+    throw new Error(`the pinned icon is ${JSON.stringify(icon)}, and a cell is [width, height] in whole device px`);
+  }
+}
+
+function pinned(spec, { dim, lit }) {
+  const png = decodePng(dim);
+  const page = decodePng(lit);
+  const { w, h } = png;
+  if (page.w !== w || page.h !== h) {
+    return no(`the pinned shot is ${w}x${h} and its unpinned one is ${page.w}x${page.h}`);
+  }
+  const organizer = changedWithin(png, page, 0, Math.min(spec.organizer, w));
+  const list = changedWithin(png, page, spec.organizer, w);
+  const [iconW, iconH] = spec.icon;
+  const column = `the Organizer's column, x 0..${spec.organizer - 1}`;
+  if (organizer.right < organizer.left && list.right < list.left) {
+    return no(`the pinned shot is the unpinned one pixel for pixel: nothing was pinned`);
+  }
+  const read = [
+    organizer.right < organizer.left ? `${column}, unchanged` : `${column}, changed at ${box(organizer)}`,
+    list.right < list.left ? `the File List unchanged` : `the File List changed at ${box(list)}`,
+  ].join('; ');
+  const missed = [];
+  if (organizer.right < organizer.left) missed.push(`no Pinned row came into ${column}`);
+  if (list.right < list.left) {
+    missed.push(`the pinned Document's page took no pin`);
+  } else {
+    const wide = list.right - list.left + 1;
+    const tall = list.bottom - list.top + 1;
+    if (wide > iconW || tall > iconH) {
+      missed.push(`what changed in the File List is ${wide}x${tall}, which no ${iconW}x${iconH} icon cell holds`);
+    }
+  }
+  return {
+    ours: missed.length === 0,
+    organizer: organizer.right < organizer.left ? null : [organizer.left, organizer.top, organizer.right, organizer.bottom],
+    icon: list.right < list.left ? null : [list.left, list.top, list.right, list.bottom],
+    why: missed.length === 0 ? read : `${read} — ${missed.join(', and ')}`,
+    secondary: [
+      read,
+      `the pair differ by the pin alone: a Pinned row in the Organizer's column and a pin inside one ${iconW}x${iconH} icon cell of the File List`,
+    ],
+  };
+}
+
+// The bounding box of every pixel in columns `x0`..`x1 - 1` where `a` and `b` differ by
+// [`PINNED_CHANGED`] on a channel; `right < left` where none does.
+function changedWithin(a, b, x0, x1) {
+  let left = x1;
+  let right = x0 - 1;
+  let top = a.h;
+  let bottom = -1;
+  for (let y = 0; y < a.h; y += 1) {
+    for (let x = x0; x < x1; x += 1) {
+      let moved = false;
+      for (let c = 0; c < 3 && !moved; c += 1) moved = Math.abs(at(a, x, y, c) - at(b, x, y, c)) >= PINNED_CHANGED;
+      if (!moved) continue;
+      if (x < left) left = x;
+      if (x > right) right = x;
+      if (y < top) top = y;
+      if (y > bottom) bottom = y;
+    }
+  }
+  return { left, right, top, bottom };
 }
 
 // ---------- the Outline in the Palette ----------
