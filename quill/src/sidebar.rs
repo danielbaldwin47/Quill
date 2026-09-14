@@ -612,6 +612,8 @@ struct Drawing<'a> {
     excerpts: bool,
     /// What marks the open Document's row (`library.mark`).
     mark: Mark,
+    /// The Library's Pinned list, whose Documents' rows draw the pinned page.
+    pinned: &'a [PathBuf],
     /// Now, as the dates are said against it. `None` where the clock could not
     /// be asked, which is a row with no date rather than no row.
     now: Option<&'a glib::DateTime>,
@@ -767,6 +769,15 @@ pub struct Sidebar {
     /// The keystroke the field is waiting out before it searches
     /// ([`SETTLE_MS`]).
     settle: Rc<RefCell<Option<glib::SourceId>>>,
+    /// The pin a menu or a drop has just asked for, which the next
+    /// [`Sidebar::refresh`] starts on the rows it draws for it.
+    pinning: Rc<RefCell<Option<Pinning>>>,
+    /// Each pinned page now drawn, with where its pin stands, so that a pin can
+    /// be run in or out on the rows that show it ([`Sidebar::run_pin`]).
+    pins: Rc<RefCell<Vec<PinnedPage>>>,
+    /// Where the row being dragged was grabbed, in the pane's coordinates,
+    /// which a drop reads the row's travel from.
+    grabbed: Rc<Cell<Option<(f64, f64)>>>,
 }
 
 impl Default for Sidebar {
@@ -902,6 +913,9 @@ impl Sidebar {
             contents: Rc::new(RefCell::new(Contents::new())),
             read: Rc::new(RefCell::new(BTreeMap::new())),
             settle: Rc::new(RefCell::new(None)),
+            pinning: Rc::new(RefCell::new(None)),
+            pins: Rc::new(RefCell::new(Vec::new())),
+            grabbed: Rc::new(Cell::new(None)),
         };
         let sorting = sidebar.clone();
         sort_button.connect_clicked(move |_| sorting.sort_menu.popup());
@@ -1250,6 +1264,7 @@ impl Sidebar {
         }
         self.rows.borrow_mut().clear();
         self.heads.borrow_mut().clear();
+        self.pins.borrow_mut().clear();
         let library = session.library();
         let view = self.view(&session);
         let now = glib::DateTime::now_local().ok();
@@ -1261,6 +1276,7 @@ impl Sidebar {
             date: session.settings().library.show_date,
             excerpts: session.settings().library.show_excerpts,
             mark: session.settings().library.mark,
+            pinned: library.pinned(),
             now: now.as_ref(),
             read: &read,
         };
@@ -1319,6 +1335,7 @@ impl Sidebar {
             None => {}
         }
         self.highlight();
+        self.start_pinning();
     }
 
     /// Reads the head of every shown file, keeping the ones already read.
@@ -1384,15 +1401,14 @@ impl Sidebar {
                     self.heads.borrow_mut().push((drawn.clone(), path.clone()));
                     drawn
                 }
-                Organized::Pinned {
-                    name, folder, on, ..
-                } => {
-                    let mark = if *folder {
-                        org_folder()
-                    } else {
-                        let page = icon(DOC, document_icon);
-                        page.add_css_class("lib-org-icon");
-                        page
+                Organized::Pinned { path, name, on, .. } => {
+                    let mark = match org_page(row) {
+                        Some(page) => {
+                            let page = self.page_mark(path, page);
+                            page.add_css_class("lib-org-icon");
+                            page
+                        }
+                        None => org_folder(),
                     };
                     org_row(mark, name, *on)
                 }
@@ -1539,7 +1555,7 @@ impl Sidebar {
         let pane = self.clone();
         let asked = onto.clone();
         let counted = Rc::clone(over);
-        target.connect_drop(move |_, value, _, _| {
+        target.connect_drop(move |target, value, x, y| {
             counted.set(0);
             light(false);
             let Ok(from) = value.get::<String>() else {
@@ -1549,7 +1565,8 @@ impl Sidebar {
             let Some(done) = files::dropped(&from, &asked, &pane.pinned_now()) else {
                 return false;
             };
-            pane.let_go(&from, &done);
+            let travel = pane.travel(target, x, y);
+            pane.let_go(&from, &done, travel);
             true
         });
         on.add_controller(target.clone());
@@ -1573,13 +1590,38 @@ impl Sidebar {
     /// Does what the drop decided, which is the window's to do: a pin goes
     /// through the settings and a move through the engine, each after asking
     /// whatever it has to ask.
-    fn let_go(&self, from: &Path, done: &Dropped) {
+    ///
+    /// A pin comes in from the way the row travelled to the drop, `travel`.
+    fn let_go(&self, from: &Path, done: &Dropped, travel: (f64, f64)) {
         let Some(window) = self.owner() else {
             return;
         };
         match done {
-            Dropped::Pin => window.set_pinned(from, true),
+            Dropped::Pin => {
+                self.pinning.replace(Some(Pinning {
+                    path: from.to_path_buf(),
+                    along: approach(Gesture::Drop { travel }),
+                }));
+                window.set_pinned(from, true);
+                // A pin the Library already held drew nothing to run.
+                self.pinning.take();
+            }
             Dropped::Into(folder) => window.move_path(from, folder),
+        }
+    }
+
+    /// How far and which way the row let go of at (`x`, `y`) over `target`'s
+    /// widget travelled from where it was grabbed, in the pane's coordinates:
+    /// nothing where either end cannot be placed.
+    fn travel(&self, target: &gtk::DropTarget, x: f64, y: f64) -> (f64, f64) {
+        let dropped = target
+            .widget()
+            .and_then(|widget| widget.compute_point(&self.root, &place(x, y)));
+        match (self.grabbed.take(), dropped) {
+            (Some((from_x, from_y)), Some(at)) => {
+                (f64::from(at.x()) - from_x, f64::from(at.y()) - from_y)
+            }
+            _ => (0.0, 0.0),
         }
     }
 
@@ -1593,7 +1635,16 @@ impl Sidebar {
         let source = gtk::DragSource::new();
         source.set_actions(gdk::DragAction::MOVE);
         let carried = path.to_string_lossy().into_owned();
-        source.connect_prepare(move |_, _, _| {
+        // Where the row was grabbed, which a pin dropped from it comes in
+        // along ([`Sidebar::travel`]).
+        let grabbed = Rc::clone(&self.grabbed);
+        let pane = self.root.downgrade();
+        source.connect_prepare(move |source, x, y| {
+            let at = pane
+                .upgrade()
+                .zip(source.widget())
+                .and_then(|(root, row)| row.compute_point(&root, &place(x, y)));
+            grabbed.set(at.map(|at| (f64::from(at.x()), f64::from(at.y()))));
             Some(gdk::ContentProvider::for_value(&carried.to_value()))
         });
         let dragged = row.clone();
@@ -1726,7 +1777,7 @@ impl Sidebar {
         let indent = INDENT * i32::try_from(row.depth).unwrap_or(0);
         let line = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         line.set_height_request(if tall { ROW_PITCH } else { FOLDER_PITCH } - 1);
-        let mark = icon(DOC, document_icon);
+        let mark = self.page_mark(row.path, page_of(row.path, drawing.pinned));
         mark.add_css_class("lib-icon");
         mark.set_margin_start(ICON_LEFT + indent);
         mark.set_margin_top(ICON_TOP - lift);
@@ -2227,11 +2278,117 @@ impl Sidebar {
     }
 
     /// `row.pin` and `row.unpin`, on the selected row.
+    ///
+    /// A pin comes in down and into the paper; an unpin runs it backwards on
+    /// the rows as they stand, and the Library lets go of the pin once it is
+    /// out.
     fn set_pinned(&self, pinned: bool) {
         let (Some(window), Some(path)) = (self.owner(), self.selected_path()) else {
             return;
         };
-        window.set_pinned(&path, pinned);
+        let along = approach(Gesture::Menu);
+        if pinned {
+            self.pinning.replace(Some(Pinning {
+                path: path.clone(),
+                along,
+            }));
+            window.set_pinned(&path, true);
+            // A pin the Library already held drew nothing to run.
+            self.pinning.take();
+        } else if animated() {
+            let unpinned = path.clone();
+            self.run_pin(&path, along, false, move || {
+                window.set_pinned(&unpinned, false);
+            });
+        } else {
+            window.set_pinned(&path, false);
+        }
+    }
+
+    /// A page's icon for the row of `path`: the page, or the page with a pin
+    /// through it, whose pin is kept where [`Sidebar::run_pin`] finds it.
+    fn page_mark(&self, path: &Path, page: Page) -> gtk::DrawingArea {
+        if page == Page::Plain {
+            return icon(DOC, document_icon);
+        }
+        let pose = Rc::new(Cell::new(PinPose::HOME));
+        let posed = Rc::clone(&pose);
+        let mark = icon(DOC, move |area, cr| {
+            let _ = cr.save();
+            document_icon(area, cr);
+            let _ = cr.restore();
+            pin_icon(area, cr, posed.get());
+        });
+        self.pins
+            .borrow_mut()
+            .push((path.to_path_buf(), mark.clone(), pose));
+        mark
+    }
+
+    /// Starts the pin a menu or a drop asked for on the rows this refresh drew
+    /// for it. Where animations are off ([`animated`]) those rows are already
+    /// drawn as the pin ends.
+    fn start_pinning(&self) {
+        let Some(pinning) = self.pinning.take() else {
+            return;
+        };
+        if animated() {
+            self.run_pin(&pinning.path, pinning.along, true, || {});
+        }
+    }
+
+    /// Runs the pin of every page drawn for `path` in along `along`, or back
+    /// out of it, over [`PIN_MS`] eased out, the Organizer's Pinned row for
+    /// `path` fading with it; `done` runs on the last frame.
+    fn run_pin(
+        &self,
+        path: &Path,
+        along: (f64, f64),
+        going_in: bool,
+        done: impl FnOnce() + 'static,
+    ) {
+        let pages: Vec<(gtk::DrawingArea, Rc<Cell<PinPose>>)> = self
+            .pins
+            .borrow()
+            .iter()
+            .filter(|(pinned, _, _)| pinned == path)
+            .map(|(_, area, pose)| (area.clone(), Rc::clone(pose)))
+            .collect();
+        let rows: Vec<gtk::ListBoxRow> = self
+            .organized
+            .borrow()
+            .iter()
+            .filter_map(|(row, organized)| match organized {
+                Organized::Pinned { path: pinned, .. } if pinned == path => Some(row.clone()),
+                _ => None,
+            })
+            .collect();
+        let pose_at = move |at: f64| {
+            for (area, pose) in &pages {
+                pose.set(PinPose { along, at });
+                area.queue_draw();
+            }
+            for row in &rows {
+                row.set_opacity(at);
+            }
+        };
+        pose_at(if going_in { 0.0 } else { 1.0 });
+        let started = Cell::new(None);
+        let done = Cell::new(Some(done));
+        self.root.add_tick_callback(move |_, clock| {
+            let now = clock.frame_time();
+            let start = started.get().unwrap_or(now);
+            started.set(Some(start));
+            let eased = eased(now - start);
+            pose_at(if going_in { eased } else { 1.0 - eased });
+            if eased < 1.0 {
+                return glib::ControlFlow::Continue;
+            }
+            if let Some(done) = done.take() {
+                done();
+            }
+            glib::ControlFlow::Break
+        });
     }
 
     /// `row.remove`: the Location the menu item names leaves the Library.
@@ -3264,6 +3421,125 @@ fn document_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
     let _ = cr.stroke();
 }
 
+/// How long a pin takes to go in or come out (#441 § The pinned icon and its
+/// animation).
+const PIN_MS: i64 = 240;
+/// How far back along its path a pin starts from, in the page icon's own
+/// units: far enough that it comes in from outside the icon's cell.
+const PIN_TRAVEL: f64 = 6.0;
+
+/// What a page's row draws: the page, or the page with a pin through it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Page {
+    Plain,
+    Pinned,
+}
+
+/// The page the File List's row for `path` draws, `pinned` being the
+/// Library's Pinned list.
+fn page_of(path: &Path, pinned: &[PathBuf]) -> Page {
+    if pinned.iter().any(|pin| pin == path) {
+        Page::Pinned
+    } else {
+        Page::Plain
+    }
+}
+
+/// The page an Organizer row draws, where it draws one: a pinned Document's is
+/// the pinned page, and nothing else in the Organizer is a page.
+fn org_page(row: &Organized) -> Option<Page> {
+    match row {
+        Organized::Pinned { folder: false, .. } => Some(Page::Pinned),
+        _ => None,
+    }
+}
+
+/// How a pin was asked for, which is where it comes in from.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Gesture {
+    /// The row's menu.
+    Menu,
+    /// A drop on the Pinned section, with how far and which way the row
+    /// travelled from where it was grabbed, in the pane's coordinates.
+    Drop { travel: (f64, f64) },
+}
+
+/// The diagonal a pin travels along going in, a unit vector with y down.
+///
+/// The menu's is down and to the left, into the paper from the page's folded
+/// corner; a drop's is the diagonal nearest the row's own travel, a travel with
+/// no sideways part or no upward part taking the menu's for that part.
+fn approach(gesture: Gesture) -> (f64, f64) {
+    let (x, y) = match gesture {
+        Gesture::Menu => (-1.0, 1.0),
+        Gesture::Drop { travel: (dx, dy) } => (
+            if dx > 0.0 { 1.0 } else { -1.0 },
+            if dy < 0.0 { -1.0 } else { 1.0 },
+        ),
+    };
+    let unit = std::f64::consts::FRAC_1_SQRT_2;
+    (x * unit, y * unit)
+}
+
+/// How far along its [`PIN_MS`] a pin is `elapsed` microseconds in, eased out
+/// (cubic): 0 at the start, and 1 from the end on.
+fn eased(elapsed: i64) -> f64 {
+    let t = (elapsed as f64 / (PIN_MS * 1000) as f64).clamp(0.0, 1.0);
+    1.0 - (1.0 - t).powi(3)
+}
+
+/// Whether the pin moves: GTK's animations setting, which `--deterministic`
+/// turns off ([`crate::harness::determine`]) as a desktop asking for no motion
+/// does, so a shot is of the pin where it ends.
+fn animated() -> bool {
+    gtk::is_initialized()
+        && gtk::Settings::default().is_some_and(|settings| settings.is_gtk_enable_animations())
+}
+
+/// Where a page's pin stands: `at` 1 is home, through the paper, and 0 is
+/// [`PIN_TRAVEL`] back along `along` and unseen.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct PinPose {
+    along: (f64, f64),
+    at: f64,
+}
+
+impl PinPose {
+    const HOME: Self = Self {
+        along: (0.0, 0.0),
+        at: 1.0,
+    };
+}
+
+/// A pinned page drawn on a row: the pinned path, its icon, and where its pin
+/// stands.
+type PinnedPage = (PathBuf, gtk::DrawingArea, Rc<Cell<PinPose>>);
+
+/// A pin asked for and not yet drawn: whose, and which way it comes in.
+#[derive(Clone, Debug, PartialEq)]
+struct Pinning {
+    path: PathBuf,
+    along: (f64, f64),
+}
+
+/// A pin through the page [`document_icon`] draws: a round head over the
+/// folded corner and its needle down and to the left into the paper, in the
+/// row's icon ink at the pose's strength and set back along its path.
+fn pin_icon(area: &gtk::DrawingArea, cr: &cairo::Context, pose: PinPose) {
+    let scale = f64::from(area.content_width()) / f64::from(DOC_DRAWN);
+    let back = (1.0 - pose.at) * PIN_TRAVEL;
+    chrome::source(area, cr, pose.at);
+    cr.scale(scale, scale);
+    cr.translate(-pose.along.0 * back, -pose.along.1 * back);
+    cr.set_line_width(1.1);
+    cr.set_line_cap(cairo::LineCap::Round);
+    cr.move_to(9.4, 4.6);
+    cr.line_to(5.4, 8.6);
+    let _ = cr.stroke();
+    cr.arc(10.4, 3.6, 2.2, 0.0, std::f64::consts::TAU);
+    let _ = cr.fill();
+}
+
 /// The panel mark in the head (`files.js` `I.panel`), the same one the title
 /// bar's Library toggle carries: a rounded frame with a divider a third of the
 /// way across.
@@ -3784,6 +4060,72 @@ mod tests {
             organized(&locations, &[], None, false).contains(&Organized::NothingPinned),
             "an empty Pinned section says how to pin"
         );
+    }
+
+    /// A pinned Document's page carries the pin in the File List and in the
+    /// Organizer, and nothing else's does.
+    #[test]
+    fn a_pinned_documents_page_carries_the_pin_in_both_places() {
+        let essays = Path::new("/w/essays");
+        let draft = Path::new("/w/essays/draft.md");
+        let notes = Path::new("/w/essays/notes");
+        let other = Path::new("/w/essays/other.md");
+        let pinned = [draft.to_path_buf(), notes.to_path_buf()];
+        assert_eq!(page_of(draft, &pinned), Page::Pinned);
+        assert_eq!(page_of(other, &pinned), Page::Plain);
+        let rows = organized(&[essays], &[(draft, false), (notes, true)], None, false);
+        let paged: Vec<(&Organized, Page)> = rows
+            .iter()
+            .filter_map(|row| org_page(row).map(|page| (row, page)))
+            .collect();
+        assert_eq!(
+            paged,
+            vec![(
+                &Organized::Pinned {
+                    path: draft.to_path_buf(),
+                    name: "draft".into(),
+                    folder: false,
+                    on: false,
+                },
+                Page::Pinned
+            )],
+            "the pinned Document alone draws a page, and it is the pinned one"
+        );
+    }
+
+    /// A pin comes in along the diagonal of the gesture that asked for it, and
+    /// settles in 240 ms, eased out.
+    #[test]
+    fn a_pin_comes_in_along_its_gesture() {
+        let unit = std::f64::consts::FRAC_1_SQRT_2;
+        assert_eq!(
+            approach(Gesture::Menu),
+            (-unit, unit),
+            "from the menu, down and into the paper"
+        );
+        assert_eq!(
+            approach(Gesture::Drop {
+                travel: (-40.0, 120.0)
+            }),
+            (-unit, unit),
+            "a row dragged down and left"
+        );
+        assert_eq!(
+            approach(Gesture::Drop {
+                travel: (30.0, -200.0)
+            }),
+            (unit, -unit),
+            "a row dragged up and right"
+        );
+        assert_eq!(
+            approach(Gesture::Drop { travel: (0.0, 0.0) }),
+            approach(Gesture::Menu),
+            "a drop that went nowhere comes in as the menu's does"
+        );
+        assert!(eased(0).abs() < f64::EPSILON);
+        assert!(eased(60_000) > 0.25, "eased out: most of the way early");
+        assert!((eased(PIN_MS * 1000) - 1.0).abs() < f64::EPSILON);
+        assert!((eased(PIN_MS * 2000) - 1.0).abs() < f64::EPSILON);
     }
 
     /// What the File List shows holds while the Library holds it, and falls
