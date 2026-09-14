@@ -31,7 +31,7 @@ use std::io;
 use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 
-pub use state::{STATE_FILE, State, WindowState, library_width, window_sizes};
+pub use state::{STATE_FILE, State, WindowState, library_width, library_widths, window_sizes};
 
 use crate::shortcuts;
 use crate::stats::Statistic;
