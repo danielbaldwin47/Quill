@@ -142,6 +142,21 @@ P["J"] = {
 }
 # K: mono — the pane set in the editor's monospace voice, small-caps heads, A's grounds.
 P["K"] = {"light": dict(P["A"]["light"], icon="#8c8c8c"), "dark": dict(P["A"]["dark"])}
+# L: G on the desk — the pane one surface a step below the paper on both themes, a 1 px edge before the page,
+# the selection bar with rounded ends stopping short of the separators (the owner's crop of iA dark).
+P["L"] = {
+  "light": dict(P["G"]["light"], org="#e4e5e5", list="#efefef", title_list="#efefef", rule="#dedede", sep="#e3e3e3",
+                fieldbg="#f6f6f6", fieldbd="#d6d6d6", sortbg="#f4f4f4", sortbd="#dedede", pill="#d3d4d4",
+                docfill="#f7f7f7", docedge="#cfcfcf", edge="#dcdcdc"),
+  "dark":  dict(P["G"]["dark"], title_list="#151515", edge="#111111"),
+}
+# M: L, cohesive — the current Location's pill in the list ground's family, plus five presentation moves (POLISH).
+P["M"] = {"light": dict(P["L"]["light"], pill="#efefef"), "dark": dict(P["L"]["dark"], pill="#313332")}
+
+# M's polish moves, switched on per artboard: one radius (6) for pill, Filter and sort control; one glyph stroke
+# (1.4); the foot's rule in the toolbar rule's tone; the title's back glyph on the icon column and its label on
+# the name column; the sort control holding its width under search.
+POLISH = False
 
 # ---------- icons (stroke SVG, 16-grid) ----------
 def svg(body, w=16, h=16, stroke="currentColor", fill="none", sw=1.4):
@@ -212,11 +227,14 @@ def text(s, style, tag="span"):
 def file_row(c, name, date, excerpt, selected, *, bare=False, indent=0, serif=False, icons=True,
              name_px=13, sec_px=13, pitch=ROW, name_inset=40, icon_inset=22, date_right=17, sep_right=14,
              bar_w=3, bar=None, sep_from_name=True, font=None, sep=True, tint=False, icon_style="page",
-             row_pad=7, tracking="-0.01em"):
+             row_pad=7, tracking="-0.01em", bar_round=False):
     h = ROW_BARE if bare else pitch
     bar = bar or c["bar"]
     if selected and tint:
         barbox = f'<div style="position: absolute; left: 8px; right: 8px; top: 3px; bottom: 3px; border-radius: 6px; background: {c["tint"]};"></div>'
+    elif selected and bar_round:
+        # iA's bar: rounded ends, and it stops short of the separators above and below.
+        barbox = f'<div style="position: absolute; left: 0; top: 6px; width: {bar_w}px; height: {h - 12}px; border-radius: 1.5px; background: {bar};"></div>'
     elif selected:
         barbox = f'<div style="position: absolute; left: 0; top: 0; width: {bar_w}px; height: {h}px; background: {bar};"></div>'
     else:
@@ -253,8 +271,14 @@ def folder_row(c, name, *, open_=False, serif=False, icons=True, name_inset=40, 
     nfont = font or (SERIF if serif else SANS)
     name_ = text(name, f"position: absolute; left: {name_inset}px; top: 7px; font-family: {nfont}; font-size: {13 if not serif else 15}px; font-weight: 500; letter-spacing: -0.01em; color: {c['ink']}; line-height: 18px;")
     chev = f'<div style="position: absolute; right: {chev_right}px; top: {10 if not open_ else 12}px;">{ic_chev_down(c["sec"]) if open_ else ic_chev_right(c["sec"])}</div>'
+    if POLISH:
+        chev = chev.replace('stroke-width="1.25"', 'stroke-width="1.4"').replace('stroke-width="1.5"', 'stroke-width="1.4"')
     sepdiv = f'<div style="position: absolute; left: {name_inset}px; right: {sep_right}px; bottom: 0; height: 1px; background: {c["sep"]};"></div>' if sep else ""
     return f'<div style="position: relative; height: {FOLDER}px; flex: none;">{icon}{name_}{chev}{sepdiv}</div>'
+
+def unify_strokes(markup):
+    """M: every glyph at one stroke weight."""
+    return markup.replace('stroke-width="1.25"', 'stroke-width="1.4"').replace('stroke-width="1.5"', 'stroke-width="1.4"').replace('stroke-width="1.6"', 'stroke-width="1.4"')
 
 def sort_pill(c, label, *, capsule=True, font=None):
     f = font or SANS
@@ -262,13 +286,15 @@ def sort_pill(c, label, *, capsule=True, font=None):
         return flex(f"align-items: center; gap: 5px; height: 25px; padding: 0 2px;",
                     text(label, f"font-family: {f}; font-size: 11.5px; color: {c['sortink']}; white-space: nowrap;"),
                     ic_chev_down(c["sortink"], 8, 6))
-    return flex(f"align-items: center; gap: 6px; height: 25px; padding: 0 10px; border-radius: 12.5px; "
-                f"background: {c['sortbg']}; border: 1px solid {c['sortbd']}; box-sizing: border-box;",
+    radius = "6px" if POLISH else "12.5px"
+    hold = " min-width: 150px; justify-content: space-between;" if POLISH else ""
+    return flex(f"align-items: center; gap: 6px; height: 25px; padding: 0 10px; border-radius: {radius}; "
+                f"background: {c['sortbg']}; border: 1px solid {c['sortbd']}; box-sizing: border-box;{hold}",
                 text(label, f"font-family: {f}; font-size: 11.5px; color: {c['sortink']}; white-space: nowrap;"),
                 ic_chev_down(c["sortink"], 8, 6))
 
 def filter_field(c, query=None, *, capsule=True, prompt="Filter", font=None, underline=False):
-    r = "13px" if capsule else "4px"
+    r = "6px" if POLISH else "13px" if capsule else "4px"
     f = font or SANS
     inner = (text(query, f"font-family: {f}; font-size: 12.5px; color: {c['ink']};") if query
              else text(prompt, f"font-family: {f}; font-size: 12.5px; color: {c['sec']};"))
@@ -280,7 +306,7 @@ def filter_field(c, query=None, *, capsule=True, prompt="Filter", font=None, und
                 ic_mag(c["icon"]), inner)
 
 def foot(c, query=None, *, capsule=True, prompt="Filter", show_rule=True, font=None, underline=False):
-    rule = f"border-top: 1px solid {c['fieldbd']};" if show_rule else ""
+    rule = f"border-top: 1px solid {c['rule'] if POLISH else c['fieldbd']};" if show_rule else ""
     pad = "12px 16px 9px 16px" if underline else "12px 9px 7px 9.5px"
     return flex(f"align-items: center; padding: {pad}; {rule} flex: none;", filter_field(c, query, capsule=capsule, prompt=prompt, font=font, underline=underline))
 
@@ -337,7 +363,7 @@ def org_row(c, label, icon, *, current=False, style="ia", empty_prose=False, fon
     if style in ("ia", "smallcaps", "air") and c.get("pill"):
         bg = f"background: {c['pill']};" if current else ""
         ink = c["pill_ink"] if current else c.get("org_ink", c["ink"])
-        return flex(f"align-items: center; gap: 6px; height: 32px; margin: 0 8px; padding: 0 7px; border-radius: 5.5px; {bg} flex: none;",
+        return flex(f"align-items: center; gap: 6px; height: 32px; margin: 0 8px; padding: 0 7px; border-radius: {'6px' if POLISH else '5.5px'}; {bg} flex: none;",
                     icon(ink), text(label, f"font-family: {f}; font-size: 12.5px; font-weight: {600 if current else 400}; letter-spacing: -0.01em; color: {ink}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;"))
     # quiet: weight only
     ink = c["ink"] if current else c["sec"]
@@ -382,7 +408,8 @@ def rail(c, state):
 # ---------- the pane's title row over the list ----------
 def list_title(c, label, *, width, bg, icon_left=True, plus=True, chevron=False, serif=False, ink=None, font=None):
     ink = ink or c["title_ink"]
-    left = f'<div style="display: flex; align-items: center; margin-right: 10px;">{ic_back(c["sec"])}</div>' if icon_left else ""
+    # M: the back glyph stands on the row icons' column (22) and the label on the names' column (40).
+    left = f'<div style="display: flex; align-items: center; margin-right: {8 if POLISH else 10}px;">{ic_back(c["sec"])}</div>' if icon_left else ""
     f = font or (SERIF if serif else SANS)
     lab = flex("align-items: center; gap: 6px; flex-grow: 1; min-width: 0;",
                text(label, f"font-family: {f}; font-size: {14 if not serif else 16}px; font-weight: {700 if not serif else 600}; letter-spacing: -0.01em; color: {ink}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"),
@@ -393,7 +420,7 @@ def list_title(c, label, *, width, bg, icon_left=True, plus=True, chevron=False,
                  ic_plus(c["sec"], 13, 13),
                  f'<div style="width: 1px; height: 12px; background: {c["sep"]}; flex: none;"></div>',
                  ic_chev_down(c["sec"], 8, 6)) if plus else ""
-    return flex(f"align-items: center; width: {width}px; height: {TITLE_H}px; padding: 0 12px 0 16px; background: {bg}; flex: none; box-sizing: border-box;", left, lab, right)
+    return flex(f"align-items: center; width: {width}px; height: {TITLE_H}px; padding: 0 12px 0 {22 if POLISH else 16}px; background: {bg}; flex: none; box-sizing: border-box;", left, lab, right)
 
 def toggle_cell(c, width, bg):
     return flex(f"align-items: center; justify-content: flex-end; height: {TITLE_H}px; width: {width}px; padding-right: 8px; background: {bg}; flex: none; box-sizing: border-box;",
@@ -404,7 +431,8 @@ def sort_label(state):
     return "Sort by Relevance" if state == "search" else "Sort by Date Modified"
 
 def two_column(c, state, *, serif=False, icons=True, org_style="ia", capsule=True, query=None, rail_mode=False,
-               font=None, sep=True, tint=False, pitch=None, underline=False, icon_style="page", inset=0, row_pad=None):
+               font=None, sep=True, tint=False, pitch=None, underline=False, icon_style="page", inset=0, row_pad=None,
+               bar_round=False):
     org_w = 56 if rail_mode else ORG
     list_w = PANE - org_w
     query = "sea" if state == "search" else None
@@ -416,7 +444,7 @@ def two_column(c, state, *, serif=False, icons=True, org_style="ia", capsule=Tru
     bars = flex(f"align-items: center; height: {SORT_H}px; padding: 0 {8 + inset}px; background: {c['title_list']}; border-bottom: 1px solid {c['rule']}; flex: none; box-sizing: border-box;", sort_pill(c, sort_label(state), capsule=capsule, font=font))
     pitch = pitch or (76 if serif else ROW)
     rowkw = dict(serif=serif, icons=icons, name_inset=(40 if icons else 22) + inset, icon_inset=22 + inset, sep_right=14 + inset,
-                 pitch=pitch, sep_from_name=icons, font=font, sep=sep, tint=tint, icon_style=icon_style)
+                 pitch=pitch, sep_from_name=icons, font=font, sep=sep, tint=tint, icon_style=icon_style, bar_round=bar_round)
     if row_pad is not None:
         rowkw["row_pad"] = row_pad
     rows = doc_rows(c, state, **rowkw)
@@ -451,6 +479,8 @@ def one_column(c, state):
     return f'<div style="position: relative; width: {PANE}px; height: {H}px; display: flex; flex: none;">{listcol}{title}</div>'
 
 def artboard(direction, state, ground):
+    global POLISH
+    POLISH = direction == "M"
     c = P[direction][ground]
     fonts = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Source+Serif+4:ital,wght@0,400;0,500;0,600;1,400&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">'
     if direction == "A":
@@ -473,7 +503,15 @@ def artboard(direction, state, ground):
         pane = two_column(c, state, org_style="air", capsule=False, sep=False, tint=True, pitch=80, underline=True, inset=6, row_pad=13)
     elif direction == "K":
         pane = two_column(c, state, org_style="smallcaps", font=MONO, icon_style="line")
-    divider = f'<div style="width: 1px; height: {H}px; background: {c["rule"]}; flex: none;"></div>' if direction in ("B",) else ""
+    elif direction in ("L", "M"):
+        pane = two_column(c, state, bar_round=True)
+        if POLISH:
+            pane = unify_strokes(pane)
+    divider = ""
+    if direction == "B":
+        divider = f'<div style="width: 1px; height: {H}px; background: {c["rule"]}; flex: none;"></div>'
+    elif direction in ("L", "M"):
+        divider = f'<div style="width: 1px; height: {H}px; background: {c["edge"]}; flex: none;"></div>'
     pc = dict(c, ink=c.get("page_ink", c["ink"]), title_ink=c.get("page_title_ink", c["title_ink"]),
               rule=("#dddddd" if ground == "light" else "#292929") if direction == "I" else c["rule"],
               sec=("#8c8c8c" if ground == "light" else "#7e7e7e") if direction == "I" else c["sec"])
@@ -512,6 +550,8 @@ DIRS = [
     ("I", "The desk", "The whole pane is dark on both grounds — Organizer #1e1f1f, list #262727 — and only the page is paper. The pane is the desk, the document is the sheet on it. Motivation: the strongest chunking on offer, and one pane for both themes. Tradeoff: on light the window is half dark, which is loud, and the pane's ink can never follow the page's palette."),
     ("J", "Air", "No separators, 80 pt rows, the selected row a soft tint rather than a bar, secondary text a step lighter, more inset, a bare underlined Filter. Motivation: whether polish is space rather than lines. Tradeoff: fewer rows in view, and a tint does what iA's bar deliberately does not — fill the row."),
     ("K", "Mono", "The pane set in the editor's monospace face with letterspaced small-caps heads and line icons, on A's grounds and pitch. Motivation: chrome and page in one voice, the way a typewriter's is. Tradeoff: monospace is wide, so names and excerpts hold fewer characters, and the pane stops reading as furniture."),
+    ("L", "G, on the desk", "G's values, with I's idea and light kept light: the pane is one surface a step below the paper on both themes — light Organizer #e4e5e5 and list #efefef under the page's #f7f7f7, dark G's #232524 / #151515 / #1a1a1a — with a 1 px edge (#dcdcdc / #111111) before the page so the sheet reads as lying on the desk. The selection bar has rounded ends and stops 6 px short of the separators, as iA's does. Motivation: round 4 — the desk's separation without a dark light mode. Tradeoff: on light the list is no longer the brightest surface, so its rows sit a touch lower in contrast than A's."),
+    ("M", "L, cohesive", "L plus six presentation moves, every measured pitch, inset and ground untouched: one corner radius (6 px) for the Location pill, the Filter field and the sort control; the current Location's pill in the list ground's own family (#efefef light, #313332 dark) so the chosen Location and its list read as one surface; one stroke weight (1.4) for every glyph; the foot's rule in the toolbar rule's tone; the title's back glyph on the row icons' column and its label on the names' column; the sort control holding one width under search. Motivation: the seams between controls are where 'not yet polished' lives. Tradeoff: the capsule field and pill are iA's own shapes, and a 6 px family is a step away from the oracle."),
 ]
 STATES = [("Rest", "rest"), ("Pinned", "pinned"), ("Search", "search")]
 EXTRA = [("Bare", "bare"), ("NoBar", "nobar")]
@@ -526,6 +566,8 @@ def main():
         cells = [(s, g) for s, _ in [(st, 0) for st in STATES] for g in ("light", "dark")]
         if d in ("A", "B"):
             cells += [(e, "light") for e in EXTRA]
+        elif d in ("L", "M"):
+            cells += [(EXTRA[0], "light")]
         for (label, state), g in cells:
             stem = "Main" if (d == "A" and state == "rest" and g == "light") else f"{d}{label}{g.capitalize()}"
             fn = f"{stem}.dc.html"

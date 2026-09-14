@@ -559,6 +559,118 @@
    "w": 760,
    "h": 640,
    "title": "K Mono \u00b7 Search \u00b7 dark"
+  },
+  {
+   "file": "LRestLight.dc.html",
+   "x": 0,
+   "y": 8580,
+   "w": 760,
+   "h": 640,
+   "title": "L G, on the desk \u00b7 Rest \u00b7 light"
+  },
+  {
+   "file": "LRestDark.dc.html",
+   "x": 840,
+   "y": 8580,
+   "w": 760,
+   "h": 640,
+   "title": "L G, on the desk \u00b7 Rest \u00b7 dark"
+  },
+  {
+   "file": "LPinnedLight.dc.html",
+   "x": 1680,
+   "y": 8580,
+   "w": 760,
+   "h": 640,
+   "title": "L G, on the desk \u00b7 Pinned \u00b7 light"
+  },
+  {
+   "file": "LPinnedDark.dc.html",
+   "x": 2520,
+   "y": 8580,
+   "w": 760,
+   "h": 640,
+   "title": "L G, on the desk \u00b7 Pinned \u00b7 dark"
+  },
+  {
+   "file": "LSearchLight.dc.html",
+   "x": 3360,
+   "y": 8580,
+   "w": 760,
+   "h": 640,
+   "title": "L G, on the desk \u00b7 Search \u00b7 light"
+  },
+  {
+   "file": "LSearchDark.dc.html",
+   "x": 4200,
+   "y": 8580,
+   "w": 760,
+   "h": 640,
+   "title": "L G, on the desk \u00b7 Search \u00b7 dark"
+  },
+  {
+   "file": "LBareLight.dc.html",
+   "x": 5040,
+   "y": 8580,
+   "w": 760,
+   "h": 640,
+   "title": "L G, on the desk \u00b7 Bare \u00b7 light"
+  },
+  {
+   "file": "MRestLight.dc.html",
+   "x": 0,
+   "y": 9360,
+   "w": 760,
+   "h": 640,
+   "title": "M L, cohesive \u00b7 Rest \u00b7 light"
+  },
+  {
+   "file": "MRestDark.dc.html",
+   "x": 840,
+   "y": 9360,
+   "w": 760,
+   "h": 640,
+   "title": "M L, cohesive \u00b7 Rest \u00b7 dark"
+  },
+  {
+   "file": "MPinnedLight.dc.html",
+   "x": 1680,
+   "y": 9360,
+   "w": 760,
+   "h": 640,
+   "title": "M L, cohesive \u00b7 Pinned \u00b7 light"
+  },
+  {
+   "file": "MPinnedDark.dc.html",
+   "x": 2520,
+   "y": 9360,
+   "w": 760,
+   "h": 640,
+   "title": "M L, cohesive \u00b7 Pinned \u00b7 dark"
+  },
+  {
+   "file": "MSearchLight.dc.html",
+   "x": 3360,
+   "y": 9360,
+   "w": 760,
+   "h": 640,
+   "title": "M L, cohesive \u00b7 Search \u00b7 light"
+  },
+  {
+   "file": "MSearchDark.dc.html",
+   "x": 4200,
+   "y": 9360,
+   "w": 760,
+   "h": 640,
+   "title": "M L, cohesive \u00b7 Search \u00b7 dark"
+  },
+  {
+   "file": "MBareLight.dc.html",
+   "x": 5040,
+   "y": 9360,
+   "w": 760,
+   "h": 640,
+   "title": "M L, cohesive \u00b7 Bare \u00b7 light"
   }
  ],
  "annotations": [
@@ -638,6 +750,20 @@
    "y": 7820,
    "w": 260,
    "text": "K. Mono\n\nThe pane set in the editor's monospace face with letterspaced small-caps heads and line icons, on A's grounds and pitch. Motivation: chrome and page in one voice, the way a typewriter's is. Tradeoff: monospace is wide, so names and excerpts hold fewer characters, and the pane stops reading as furniture."
+  },
+  {
+   "id": "dir-L",
+   "x": -300,
+   "y": 8600,
+   "w": 260,
+   "text": "L. G, on the desk\n\nG's values, with I's idea and light kept light: the pane is one surface a step below the paper on both themes \u2014 light Organizer #e4e5e5 and list #efefef under the page's #f7f7f7, dark G's #232524 / #151515 / #1a1a1a \u2014 with a 1 px edge (#dcdcdc / #111111) before the page so the sheet reads as lying on the desk. The selection bar has rounded ends and stops 6 px short of the separators, as iA's does. Motivation: round 4 \u2014 the desk's separation without a dark light mode. Tradeoff: on light the list is no longer the brightest surface, so its rows sit a touch lower in contrast than A's."
+  },
+  {
+   "id": "dir-M",
+   "x": -300,
+   "y": 9380,
+   "w": 260,
+   "text": "M. L, cohesive\n\nL plus six presentation moves, every measured pitch, inset and ground untouched: one corner radius (6 px) for the Location pill, the Filter field and the sort control; the current Location's pill in the list ground's own family (#efefef light, #313332 dark) so the chosen Location and its list read as one surface; one stroke weight (1.4) for every glyph; the foot's rule in the toolbar rule's tone; the title's back glyph on the row icons' column and its label on the names' column; the sort control holding one width under search. Motivation: the seams between controls are where 'not yet polished' lives. Tradeoff: the capsule field and pill are iA's own shapes, and a 6 px family is a step away from the oracle."
   }
  ],
  "launch": {
