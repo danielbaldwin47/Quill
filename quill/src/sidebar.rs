@@ -864,7 +864,6 @@ impl Sidebar {
         let menu = menu_popover(&root);
         let head_menu = menu_popover(&head);
         let sort_menu = menu_popover(&sort_button);
-        sort_menu.set_menu_model(Some(&pill_menu()));
         // The divider lies over the pane's last [`GRAB`] pixels rather than
         // standing beside them: an overlay child is given room without taking
         // any, so the page begins where it always did and a state judged at
@@ -917,8 +916,15 @@ impl Sidebar {
             pins: Rc::new(RefCell::new(Vec::new())),
             grabbed: Rc::new(Cell::new(None)),
         };
+        // The model is handed over as the menu opens, as the row menu's is
+        // ([`Sidebar::popup`]): a popover given its model before the pane's
+        // [`PILL_GROUP`] is inserted tracks every row as an action missing
+        // from the start, and draws each one greyed for good.
         let sorting = sidebar.clone();
-        sort_button.connect_clicked(move |_| sorting.sort_menu.popup());
+        sort_button.connect_clicked(move |_| {
+            sorting.sort_menu.set_menu_model(Some(&pill_menu()));
+            sorting.sort_menu.popup();
+        });
         sidebar.wire();
         sidebar
     }
