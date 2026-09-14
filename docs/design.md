@@ -69,7 +69,9 @@ Quill loads a file of `[light]` and `[dark]` tables whose keys are the `Role` na
 `code_bg`, `rule`, `shadow`, `chrome_fg`, `chrome_fg_strong`, and Syntax highlight's `syntax_noun`,
 `syntax_verb`, `syntax_adjective`, `syntax_adverb`, `syntax_conjunction`, and Spell check's `spell`,
 measured off the Design oracle's own mark by the capture ticket #400 — `#ed766b` light and `#cf807e`
-dark, two values rather than one with an alpha); a slot the file omits, a
+dark, two values rather than one with an alpha — and the Library pane's `organizer_bg`, `file_list_bg`
+and `secondary`, measured off State 28, which a file naming its paper or chrome grey but not them
+derives from those); a slot the file omits, a
 scheme it omits, or a file that is missing is the built-in, and unknown keys are ignored. The watch
 is on the file's directory, because a desktop theme switch replaces the directory rather than
 rewriting it.

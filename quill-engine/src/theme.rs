@@ -399,6 +399,20 @@ pub enum Role {
     /// value per appearance, and no coverage flattens either onto the other's
     /// paper.
     Spell,
+    /// The Library's Organizer column: the Locations and Pinned beside the
+    /// File List.
+    ///
+    /// The three Library roles are the Design oracle's, measured off the pane
+    /// on both grounds: `ref/ia/mac-native/NOTES.md` § State 28 § The pane is
+    /// two columns and three grounds. A `palette` file that names none of them
+    /// derives them from its paper and chrome grey ([`Colours::overlaid`]).
+    OrganizerBg,
+    /// The Library's File List column. Measured; see [`Role::OrganizerBg`].
+    FileListBg,
+    /// The pane's secondary grey: a row's date and excerpt, the Filter
+    /// prompt and the empty-Pinned prose (`NOTES.md` § State 28, the *Date
+    /// ink* and *Excerpt ink* rows). Measured; see [`Role::OrganizerBg`].
+    Secondary,
 }
 
 impl Role {
@@ -409,7 +423,7 @@ impl Role {
     /// arm, so the table stays total either way; this list is the one place
     /// kept by hand, and what a role missing from it costs is the tests below
     /// quietly stopping short of it.
-    pub const ALL: [Self; 21] = [
+    pub const ALL: [Self; 24] = [
         Self::Paper,
         Self::Ink,
         Self::InkDim,
@@ -431,6 +445,9 @@ impl Role {
         Self::SyntaxAdverb,
         Self::SyntaxConjunction,
         Self::Spell,
+        Self::OrganizerBg,
+        Self::FileListBg,
+        Self::Secondary,
     ];
 
     /// The key a `palette` file writes this role under: the variant's name in
@@ -460,6 +477,9 @@ impl Role {
             Self::SyntaxAdverb => "syntax_adverb",
             Self::SyntaxConjunction => "syntax_conjunction",
             Self::Spell => "spell",
+            Self::OrganizerBg => "organizer_bg",
+            Self::FileListBg => "file_list_bg",
+            Self::Secondary => "secondary",
         }
     }
 }
@@ -491,6 +511,9 @@ pub struct Colours {
     syntax_adverb: Colour,
     syntax_conjunction: Colour,
     spell: Colour,
+    organizer_bg: Colour,
+    file_list_bg: Colour,
+    secondary: Colour,
 }
 
 impl Colours {
@@ -532,6 +555,11 @@ impl Colours {
         // `ref/ia/mac-native/NOTES.md` § State 26 § The mark itself, the
         // *Ink on the paper* row, light column.
         spell: Colour::from_hex("#ed766b"),
+        // `ref/ia/mac-native/NOTES.md` § State 28 § The pane is two columns
+        // and three grounds, light column, and its *Date ink* row.
+        organizer_bg: Colour::from_hex("#eaebeb"),
+        file_list_bg: Colour::from_hex("#fcfcfc"),
+        secondary: Colour::from_hex("#999999"),
     };
 
     /// The dark ground: the same ten measured, then
@@ -572,6 +600,11 @@ impl Colours {
         // `ref/ia/mac-native/NOTES.md` § State 26 § The mark itself, the
         // *Ink on the paper* row, dark column.
         spell: Colour::from_hex("#cf807e"),
+        // `ref/ia/mac-native/NOTES.md` § State 28 § The pane is two columns
+        // and three grounds, dark column, and its *Date ink* row.
+        organizer_bg: Colour::from_hex("#1a1c1b"),
+        file_list_bg: Colour::from_hex("#151515"),
+        secondary: Colour::from_hex("#757575"),
     };
 
     /// The colours of one ground.
@@ -592,6 +625,16 @@ impl Colours {
     /// flattening — are read off this table by the code that derives them, so
     /// a writer's paper carries them with it. A translucent value stays
     /// translucent here and flattens where the built-in does.
+    ///
+    /// The Library's three roles are the one derivation the table does itself,
+    /// after the overlay and only for the slots the palette left empty: a
+    /// palette that moves the paper moves the pane's two grounds with it, by
+    /// the ratio each built-in ground bears to the built-in paper (on light
+    /// the Organizer darker and the File List lighter, on dark the Organizer
+    /// at the paper and the File List darker), and one that moves the paper
+    /// or the chrome grey steps [`Role::Secondary`] from the chrome grey
+    /// toward the paper by the built-in step. A palette that moves neither
+    /// keeps the measured values.
     #[must_use]
     pub fn overlaid(scheme: Scheme, palette: &Palette) -> Self {
         let mut colours = Self::of(scheme);
@@ -599,6 +642,22 @@ impl Colours {
             if let Some(colour) = palette.colour(scheme, role) {
                 *colours.slot(role) = colour;
             }
+        }
+        let named = |role| palette.colour(scheme, role).is_some();
+        let built_in = Self::of(scheme);
+        if named(Role::Paper) {
+            for role in [Role::OrganizerBg, Role::FileListBg] {
+                if !named(role) {
+                    let ratio = lightness(built_in.colour(role)) / lightness(built_in.paper);
+                    *colours.slot(role) = scaled(colours.paper, ratio);
+                }
+            }
+        }
+        if (named(Role::Paper) || named(Role::ChromeFg)) && !named(Role::Secondary) {
+            let chrome = lightness(built_in.chrome_fg);
+            let step =
+                (chrome - lightness(built_in.secondary)) / (chrome - lightness(built_in.paper));
+            colours.secondary = Colour::over(colours.paper, colours.chrome_fg, step);
         }
         colours
     }
@@ -631,6 +690,9 @@ impl Colours {
             Role::SyntaxAdverb => &mut self.syntax_adverb,
             Role::SyntaxConjunction => &mut self.syntax_conjunction,
             Role::Spell => &mut self.spell,
+            Role::OrganizerBg => &mut self.organizer_bg,
+            Role::FileListBg => &mut self.file_list_bg,
+            Role::Secondary => &mut self.secondary,
         }
     }
 
@@ -663,7 +725,28 @@ impl Colours {
             Role::SyntaxAdverb => self.syntax_adverb,
             Role::SyntaxConjunction => self.syntax_conjunction,
             Role::Spell => self.spell,
+            Role::OrganizerBg => self.organizer_bg,
+            Role::FileListBg => self.file_list_bg,
+            Role::Secondary => self.secondary,
         }
+    }
+}
+
+/// A colour's lightness as the pane's derivation reads it: the mean of its
+/// three channels, so that a ratio taken off iA's faintly tinted greys is one
+/// number and a writer's paper keeps its own hue when scaled by it.
+fn lightness(colour: Colour) -> f64 {
+    (colour.red + colour.green + colour.blue) / 3.0
+}
+
+/// `colour` with every channel scaled by `ratio`, held inside the channel's
+/// range and at its own opacity.
+fn scaled(colour: Colour, ratio: f64) -> Colour {
+    Colour {
+        red: (colour.red * ratio).clamp(0.0, 1.0),
+        green: (colour.green * ratio).clamp(0.0, 1.0),
+        blue: (colour.blue * ratio).clamp(0.0, 1.0),
+        alpha: colour.alpha,
     }
 }
 
@@ -850,8 +933,10 @@ mod tests {
     /// capture ticket #308 measured them off the running app on both grounds,
     /// as [`Colours::LIGHT`] and [`Colours::DARK`] say. The two `Spell` rows
     /// are the Design oracle's too: the capture ticket #400 read them off the
-    /// mark macOS draws under a misspelling, `NOTES.md` § State 26.
-    const ORACLE: [(Scheme, Role, &str); 42] = [
+    /// mark macOS draws under a misspelling, `NOTES.md` § State 26. The six
+    /// Library rows are the Design oracle's pane, `NOTES.md` § State 28 § The
+    /// pane is two columns and three grounds and its *Date ink* row.
+    const ORACLE: [(Scheme, Role, &str); 48] = [
         (Scheme::Light, Role::Paper, "#f7f7f7"),
         (Scheme::Light, Role::Ink, "#191919"),
         (Scheme::Light, Role::InkDim, "#c6c4c2"),
@@ -877,6 +962,9 @@ mod tests {
         (Scheme::Light, Role::SyntaxAdverb, "#a6559f"),
         (Scheme::Light, Role::SyntaxConjunction, "#51812f"),
         (Scheme::Light, Role::Spell, "#ed766b"),
+        (Scheme::Light, Role::OrganizerBg, "#eaebeb"),
+        (Scheme::Light, Role::FileListBg, "#fcfcfc"),
+        (Scheme::Light, Role::Secondary, "#999999"),
         (Scheme::Dark, Role::Paper, "#1a1a1a"),
         (Scheme::Dark, Role::Ink, "#cccccc"),
         (Scheme::Dark, Role::InkDim, "#707070"),
@@ -902,6 +990,9 @@ mod tests {
         (Scheme::Dark, Role::SyntaxAdverb, "#b490b0"),
         (Scheme::Dark, Role::SyntaxConjunction, "#89a474"),
         (Scheme::Dark, Role::Spell, "#cf807e"),
+        (Scheme::Dark, Role::OrganizerBg, "#1a1c1b"),
+        (Scheme::Dark, Role::FileListBg, "#151515"),
+        (Scheme::Dark, Role::Secondary, "#757575"),
     ];
 
     /// WCAG 2.1 relative luminance.
@@ -1216,8 +1307,13 @@ mod tests {
         let built_in = Colours::of(Scheme::Light);
         assert_eq!(overlaid.colour(Role::Paper).to_hex(), "#ff0000");
         assert_eq!(overlaid.colour(Role::Ink).to_hex(), "#00ff00");
+        // The Library's three roles follow the paper, as the derivation tests
+        // below hold; every other role the file left out is the built-in.
         for role in Role::ALL {
-            if !matches!(role, Role::Paper | Role::Ink) {
+            if !matches!(
+                role,
+                Role::Paper | Role::Ink | Role::OrganizerBg | Role::FileListBg | Role::Secondary
+            ) {
                 assert_eq!(
                     overlaid.colour(role),
                     built_in.colour(role),
@@ -1439,6 +1535,95 @@ mod tests {
             "#e30303",
             "so does the idle fill"
         );
+    }
+
+    #[test]
+    fn a_library_role_the_palette_names_is_read_as_written_and_the_rest_derive() {
+        let palette = palette(
+            "[light]\npaper = \"#ffffff\"\nsecondary = \"#070809\"\n\n\
+             [dark]\npaper = \"#282828\"\norganizer_bg = \"#010203\"\n\
+             file_list_bg = \"#040506\"\nsecondary = \"#0a0b0c\"\n",
+        );
+        let light = Colours::overlaid(Scheme::Light, &palette);
+        assert_eq!(light.colour(Role::Secondary).to_hex(), "#070809");
+        assert_eq!(
+            light.colour(Role::OrganizerBg).to_hex(),
+            "#f2f2f2",
+            "a white paper darkens by the built-in ratio"
+        );
+        assert_eq!(
+            light.colour(Role::FileListBg).to_hex(),
+            "#ffffff",
+            "and a List lighter than white is white"
+        );
+        let dark = Colours::overlaid(Scheme::Dark, &palette);
+        assert_eq!(dark.colour(Role::OrganizerBg).to_hex(), "#010203");
+        assert_eq!(dark.colour(Role::FileListBg).to_hex(), "#040506");
+        assert_eq!(dark.colour(Role::Secondary).to_hex(), "#0a0b0c");
+    }
+
+    #[test]
+    fn a_palette_naming_no_library_role_derives_all_three_from_its_paper_and_chrome_grey() {
+        let papers = palette("[light]\npaper = \"#ffffff\"\n\n[dark]\npaper = \"#282828\"\n");
+        let light = Colours::overlaid(Scheme::Light, &papers);
+        assert_eq!(light.colour(Role::OrganizerBg).to_hex(), "#f2f2f2");
+        assert_eq!(light.colour(Role::FileListBg).to_hex(), "#ffffff");
+        assert_eq!(
+            light.colour(Role::Secondary).to_hex(),
+            "#9a9a9a",
+            "the chrome grey stepped toward a white paper"
+        );
+        let dark = Colours::overlaid(Scheme::Dark, &papers);
+        assert_eq!(
+            dark.colour(Role::OrganizerBg).to_hex(),
+            "#2a2a2a",
+            "on dark the Organizer holds at the paper"
+        );
+        assert_eq!(
+            dark.colour(Role::FileListBg).to_hex(),
+            "#202020",
+            "and the List goes darker"
+        );
+        assert_eq!(dark.colour(Role::Secondary).to_hex(), "#767676");
+
+        // A palette that moves neither the paper nor the chrome grey keeps the
+        // measured values exactly.
+        let inked = Colours::overlaid(Scheme::Light, &palette("[light]\nink = \"#000000\"\n"));
+        for role in [Role::OrganizerBg, Role::FileListBg, Role::Secondary] {
+            assert_eq!(inked.colour(role), Colours::LIGHT.colour(role), "{role:?}");
+        }
+    }
+
+    #[test]
+    fn the_derivation_over_the_built_in_paper_and_chrome_grey_lands_on_the_measured_values() {
+        // Within one eight-bit step a channel: a ratio of means taken off iA's
+        // faintly tinted greys lands a grey paper beside them, not on them.
+        let within = |got: Colour, want: Colour| {
+            [
+                (got.red, want.red),
+                (got.green, want.green),
+                (got.blue, want.blue),
+            ]
+            .iter()
+            .all(|(got, want)| (got - want).abs() * 255.0 <= 1.0 + 1e-9)
+        };
+        for (scheme, table) in [(Scheme::Light, "light"), (Scheme::Dark, "dark")] {
+            let built = Colours::of(scheme);
+            let palette = palette(&format!(
+                "[{table}]\npaper = \"{}\"\nchrome_fg = \"{}\"\n",
+                built.paper.to_hex(),
+                built.chrome_fg.to_hex()
+            ));
+            let derived = Colours::overlaid(scheme, &palette);
+            for role in [Role::OrganizerBg, Role::FileListBg, Role::Secondary] {
+                assert!(
+                    within(derived.colour(role), built.colour(role)),
+                    "{scheme:?} {role:?} derived {} against {}",
+                    derived.colour(role).to_hex(),
+                    built.colour(role).to_hex()
+                );
+            }
+        }
     }
 
     #[test]

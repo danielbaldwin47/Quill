@@ -18,7 +18,9 @@
 //! quieted rather than coloured (#354), and the five Syntax highlight roles,
 //! which take the theme's own
 //! `red`, `blue`, `brown`, `magenta` and `green` (#312), and `spell`, which
-//! takes the theme's `red` as its warning colour (#407). The rules are a
+//! takes the theme's `red` as its warning colour (#407); the Library pane's
+//! three roles the template leaves out, for the engine to derive from the
+//! paper and chrome grey the way the theme's `mode` wants (#442). The rules are a
 //! re-statement, so the Hand test on the owner's desktop (#159) is the check
 //! that they are Omarchy's; what this test guards is the template drifting
 //! from the roles or from the contract without anyone noticing.
@@ -26,7 +28,7 @@
 use std::collections::BTreeMap;
 use std::fs;
 
-use quill_engine::theme::{Colour, Palette, Role, Scheme};
+use quill_engine::theme::{Colour, Colours, Palette, Role, Scheme};
 
 /// The template the package installs and the README's copy step names.
 const TEMPLATE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../packaging/quill.toml.tpl");
@@ -42,8 +44,9 @@ const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/omarchy-colors.
 /// take the theme's named hues rather than a blend so that a desktop theme
 /// colours a Category the way it colours everything else (#312), and `spell`
 /// on the theme's `red`, the one warning colour every Omarchy theme names
-/// (#407). A role missing here fails the test below by name.
-const MAPPING: [(Role, Source); 21] = [
+/// (#407), and the Library pane's three roles derived rather than written
+/// (#442). A role missing here fails the test below by name.
+const MAPPING: [(Role, Source); 24] = [
     (Role::Paper, Source::Key("background")),
     (Role::Ink, Source::Key("foreground")),
     (Role::InkDim, Source::Key("dark_foreground")),
@@ -68,6 +71,9 @@ const MAPPING: [(Role, Source); 21] = [
     (Role::SyntaxAdverb, Source::Key("magenta")),
     (Role::SyntaxConjunction, Source::Key("green")),
     (Role::Spell, Source::Key("red")),
+    (Role::OrganizerBg, Source::Derived),
+    (Role::FileListBg, Source::Derived),
+    (Role::Secondary, Source::Derived),
 ];
 
 /// Where a role's colour comes from in the theme.
@@ -77,6 +83,17 @@ enum Source {
     Key(&'static str),
     /// Omarchy's `mix a b N%`: N per cent of `b` laid over `a`.
     Mix(&'static str, &'static str, u32),
+    /// Not written: the engine derives it from the rendered `paper` and
+    /// `chrome_fg`, because whether it is lighter or darker than the paper
+    /// turns on the theme's `mode`, which one template line cannot.
+    Derived,
+}
+
+/// Whether the template leaves `role` for the engine to derive.
+fn derived(role: Role) -> bool {
+    MAPPING
+        .iter()
+        .any(|(mapped, source)| *mapped == role && matches!(source, Source::Derived))
 }
 
 #[test]
@@ -96,9 +113,10 @@ fn the_template_renders_to_a_palette_the_engine_reads_without_a_note() {
     let written = written(&theme);
     let untouched = written.other();
     for role in Role::ALL {
-        assert!(
+        assert_eq!(
             palette.colour(written, role).is_some(),
-            "`{}` is not in the rendered `[{}]` table",
+            !derived(role),
+            "`{}` is not as the mapping says in the rendered `[{}]` table",
             role.key(),
             theme["mode"]
         );
@@ -127,10 +145,21 @@ fn every_role_takes_the_theme_colour_the_mapping_promises() {
     all.sort_by_key(|role| role.key());
     assert_eq!(promised, all, "the mapping names every role once");
 
+    let overlaid = Colours::overlaid(scheme, &palette);
     for (role, source) in MAPPING {
         let expected = match source {
             Source::Key(key) => theme[key].clone(),
             Source::Mix(a, b, percent) => mix(&theme[a], &theme[b], percent),
+            Source::Derived => {
+                assert_eq!(palette.colour(scheme, role), None, "`{}`", role.key());
+                assert_ne!(
+                    overlaid.colour(role),
+                    Colours::of(scheme).colour(role),
+                    "`{}` follows the theme's paper rather than holding the built-in",
+                    role.key()
+                );
+                continue;
+            }
         };
         assert_eq!(
             palette.colour(scheme, role),
