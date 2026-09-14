@@ -40,9 +40,9 @@ use std::path::{Path, PathBuf};
 
 use quill_engine::commands;
 use quill_engine::settings::{
-    Choice, Chrome, Export, Face, FocusScope, Paper, Preview, PreviewLayout, PreviewMode, Settings,
-    Stats, StatsBar, StyleCheck, SyntaxHighlight, Template as TemplateSettings, TemplateName,
-    WindowState, preview_zooms, window_sizes,
+    Choice, Chrome, Export, Face, FocusScope, Library, Paper, Preview, PreviewLayout, PreviewMode,
+    Settings, Stats, StatsBar, StyleCheck, SyntaxHighlight, Template as TemplateSettings,
+    TemplateName, WindowState, preview_zooms, window_sizes,
 };
 use quill_engine::stats::Statistic;
 use quill_engine::theme::Scheme;
@@ -553,15 +553,23 @@ impl Flags {
         // is rows in the shot — the dot-folder the fixture holds, every name's
         // extension — and a writer who turned one on in their own settings
         // would otherwise be shooting a different Library than round 6 judged.
-        // The sort is Date already: the pane opens at it and no setting
-        // carries it (`crate::sidebar::Sidebar`).
+        // The six keys of the pane's sort menu are pinned at their defaults
+        // for the same reason: a writer's Name sort or feather mark is not the
+        // pane the Piece judged.
         if let Some(library) = &self.library {
+            let defaults = Library::default();
             settings.library.locations = vec![library.clone()];
             settings.library.pinned = Vec::new();
             settings.library.show_hidden = false;
             settings.library.show_extensions = false;
             settings.library.confirm_move = false;
             settings.library.ask_where_to_save = false;
+            settings.library.sort = defaults.sort;
+            settings.library.order = defaults.order;
+            settings.library.pin_folders = defaults.pin_folders;
+            settings.library.show_date = defaults.show_date;
+            settings.library.show_excerpts = defaults.show_excerpts;
+            settings.library.mark = defaults.mark;
         }
         // A judged shot of the pane names where it opens and nothing else
         // about it, so the rest of the table is pinned to its defaults with
@@ -1321,6 +1329,12 @@ mod tests {
         writers.library.show_extensions = true;
         writers.library.confirm_move = true;
         writers.library.ask_where_to_save = true;
+        writers.library.sort = quill_engine::settings::Sort::Extension;
+        writers.library.order = quill_engine::settings::Order::Oldest;
+        writers.library.pin_folders = false;
+        writers.library.show_date = quill_engine::settings::ShowDate::None;
+        writers.library.show_excerpts = false;
+        writers.library.mark = quill_engine::settings::Mark::Feather;
         let judged = parse("--library shots/oracle/library")
             .expect("one flag")
             .over(writers.clone());
@@ -1334,6 +1348,26 @@ mod tests {
         assert!(!judged.library.show_extensions);
         assert!(!judged.library.confirm_move);
         assert!(!judged.library.ask_where_to_save);
+        let defaults = Library::default();
+        assert_eq!(
+            (
+                judged.library.sort,
+                judged.library.order,
+                judged.library.pin_folders,
+                judged.library.show_date,
+                judged.library.show_excerpts,
+                judged.library.mark,
+            ),
+            (
+                defaults.sort,
+                defaults.order,
+                defaults.pin_folders,
+                defaults.show_date,
+                defaults.show_excerpts,
+                defaults.mark,
+            ),
+            "the sort menu's six keys at their defaults, whatever the writer chose"
+        );
         assert_eq!(
             parse("--sidebar")
                 .expect("one flag")
