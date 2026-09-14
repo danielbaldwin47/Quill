@@ -18,7 +18,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ASSERTIONS, SYNTAX, assertState, secondShot, validate } from './assert-state.mjs';
+import { ASSERTIONS, SYNTAX, assertState, secondShot, unpinned, validate } from './assert-state.mjs';
 import { pair, pairDir, reveal } from './blind.mjs';
 import { CAPTURES, cropPng, encodePng, overlaid, resolveOpponent } from './crop.mjs';
 import {
@@ -552,7 +552,7 @@ ok('the ghost is measured off ours own pixels, and the alpha is solved rather th
   for (const alpha of [3, 0, 1, '0.3', undefined]) {
     assert.throws(() => validate({ kind: 'ghost', alpha }), /between 0 and 1/, `an alpha of ${alpha} was taken`);
   }
-  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'folded', 'split', 'full', 'pdf-split', 'pdf-full', 'dialog', 'syntax', 'outline', 'spell']);
+  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'folded', 'split', 'full', 'pdf-split', 'pdf-full', 'dialog', 'syntax', 'outline', 'spell', 'pinned']);
 });
 
 ok('the ghost refuses to read a bar it cannot see the ground beside, and never guesses one', () => {
@@ -1485,6 +1485,59 @@ ok('the Outline stands over the page with its second heading stepped in under th
   assert.throws(() => validate({ kind: 'outline', rows: 2 }), /the outline assertion takes nothing but its kind, and this one names rows/);
 });
 
+// A Library pane 300 px wide with a 100 px Organizer: `pin` puts a Pinned row in the Organizer's
+// column and a pin on the File List's page icon, and `stray` changes a name beside it.
+function pinnedShot({ row = true, pin = true, stray = false, pinSize = [20, 25] } = {}) {
+  const w = 300;
+  const h = 200;
+  const data = Buffer.alloc(w * h * 3, 250);
+  const fill = (x0, y0, x1, y1, rgb) => {
+    for (let y = y0; y < y1; y += 1) for (let x = x0; x < x1; x += 1) for (let c = 0; c < 3; c += 1) data[((y * w) + x) * 3 + c] = rgb[c];
+  };
+  fill(0, 0, 100, h, [234, 235, 235]);
+  if (row) fill(10, 60, 90, 72, [38, 38, 38]);
+  if (pin) fill(130, 20, 130 + pinSize[0], 20 + pinSize[1], [153, 153, 153]);
+  if (stray) fill(170, 20, 220, 30, [38, 38, 38]);
+  return encodePng({ w, h, ch: 3, data });
+}
+
+ok('a pin changes the Organizer\'s column and one icon cell of the File List, and nothing else', () => {
+  const spec = { kind: 'pinned', organizer: 100, icon: [24, 30] };
+  const second = secondShot(spec, { flags: { library: 'shots/oracle/library:pinned=sea-storm.md', caret: 0 } });
+  assert.equal(second.state.flags.library, 'shots/oracle/library', 'the reference pins nothing');
+  assert.equal(second.state.flags.caret, 0, 'the reference keeps every unrelated flag');
+  assert.equal(unpinned('shots/oracle/library:mark=pen,pinned=a.md'), 'shots/oracle/library:mark=pen');
+  assert.equal(unpinned('shots/oracle/library'), 'shots/oracle/library');
+  const bare = pinnedShot({ row: false, pin: false });
+
+  const held = assertState(spec, { dim: pinnedShot(), lit: bare });
+  assert.equal(held.ours, true, held.why);
+  assert.deepEqual(held.organizer, [10, 60, 89, 71]);
+  assert.deepEqual(held.icon, [130, 20, 149, 44]);
+
+  const same = assertState(spec, { dim: bare, lit: bare });
+  assert.equal(same.ours, false, same.why);
+  assert.match(same.why, /nothing was pinned/);
+
+  const noRow = assertState(spec, { dim: pinnedShot({ row: false }), lit: bare });
+  assert.equal(noRow.ours, false, noRow.why);
+  assert.match(noRow.why, /no Pinned row came/);
+
+  const noPin = assertState(spec, { dim: pinnedShot({ pin: false }), lit: bare });
+  assert.equal(noPin.ours, false, noPin.why);
+  assert.match(noPin.why, /took no pin/);
+
+  const stray = assertState(spec, { dim: pinnedShot({ stray: true }), lit: bare });
+  assert.equal(stray.ours, false, stray.why);
+  assert.match(stray.why, /90x25, which no 24x30 icon cell holds/);
+
+  const big = assertState(spec, { dim: pinnedShot({ pinSize: [24, 31] }), lit: bare });
+  assert.equal(big.ours, false, big.why);
+
+  assert.throws(() => validate({ kind: 'pinned', organizer: 260 }), /the pinned icon is undefined/);
+  assert.throws(() => validate({ kind: 'pinned', organizer: 260, icon: [24, 30], rows: 1 }), /unknown fields: rows/);
+});
+
 // ---------- the caret a judged shot proves it took focus by ----------
 
 // One colour out of `quill-engine/src/theme.rs`'s own palette table.
@@ -1553,7 +1606,7 @@ ok('every judged state that draws a determined caret is held to one, and no othe
   // both Split states — which keep their Editor — included.
   // The two Focus states take the `--nocaret` way out for the reason `theme/dark` does: they are
   // crops of the Design oracle, whose own captures carry no bar, and the state is about which
-  // words are dim rather than where the caret is (#113). The two `files` states take it because the
+  // words are dim rather than where the caret is (#113). The three `files` states take it because the
   // Parity oracle measures the bar of a Library-opened document at one of two places depending on
   // when it is asked, one shot in three, and those states are about the sidebar beside the page.
   // `export/dialog` takes it for a reason of its own: the dialog is a surface over the page and the
@@ -1572,7 +1625,7 @@ ok('every judged state that draws a determined caret is held to one, and no othe
   const exempt = Object.entries(wants).filter(([, held]) => !held).map(([name]) => name).sort();
   assert.deepEqual(exempt, [
     'caret/selection', 'caret/unfocused', 'chrome/selection',
-    'export/dialog', 'files/library', 'files/search',
+    'export/dialog', 'files/library', 'files/pinned', 'files/search',
     'focus/paragraph', 'focus/sentence',
     'markup/blocks', 'markup/gutters', 'markup/wrapped', 'preview/full', 'preview/pdf-full',
     // Every `spell` state takes it for the `style` states' reason: the marks are read as the
