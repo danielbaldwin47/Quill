@@ -65,7 +65,7 @@ use gtk::prelude::*;
 use gtk::{cairo, gdk, gio, glib, graphene};
 use quill_engine::document::full_name;
 use quill_engine::library::{Contents, File, Found, Library, Row, Snippet, Sort, View};
-use quill_engine::settings::library_width;
+use quill_engine::settings::{self, Choice, Mark, Order, ShowDate, library_width};
 use quill_engine::theme::{self, Colour, Role, Scheme};
 
 use crate::chrome::{self, CHROME_FONT};
@@ -122,6 +122,22 @@ const NOTHING_PINNED: &str = "Pin a document or folder from its row menu";
 /// What the Sort pill reads over Recents, whose order is the order they were
 /// opened in and no sort's.
 const LAST_OPENED: &str = "Sort by Last Opened";
+
+/// The action group the Sort pill's items fire: the pane's own, as `row.` is
+/// ([`Sidebar::install_row_actions`]), and no Command's.
+const PILL_GROUP: &str = "lib";
+/// The pill's radio over `[library] sort`.
+const SORT_ACTION: &str = "sort";
+/// The pill's radio over `[library] order`.
+const ORDER_ACTION: &str = "order";
+/// The pill's check over `[library] pin_folders`.
+const PIN_FOLDERS_ACTION: &str = "pin-folders";
+/// The pill's radio over `[library] show_date`.
+const SHOW_DATE_ACTION: &str = "show-date";
+/// The pill's check over `[library] show_excerpts`.
+const SHOW_EXCERPTS_ACTION: &str = "show-excerpts";
+/// The pill's radio over `[library] mark`.
+const MARK_ACTION: &str = "mark";
 /// How wide the divider is to a pointer: the last logical pixels of the pane,
 /// lying over its right edge rather than beside it, so that the page stands
 /// where it stood and the strip has room to be caught.
@@ -395,8 +411,6 @@ const EXCERPT_CHARS: usize = 1200;
 const MONTHS: [&str; 12] = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
-/// The days a recent date is named by, Sunday first.
-const DAYS: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /// The sidebar's stylesheet, appended to the bars' ([`crate::chrome::stylesheet`]).
 ///
@@ -549,6 +563,11 @@ pub fn stylesheet(ground: Ground) -> String {
 struct Drawing<'a> {
     /// Whether a name keeps its extension (`library.show_extensions`).
     extensions: bool,
+    /// Which date a file's row says, or none (`library.show_date`).
+    date: ShowDate,
+    /// Whether a file's row carries two lines of what its file says
+    /// (`library.show_excerpts`); without them it is the short row.
+    excerpts: bool,
     /// Now, as the dates are said against it. `None` where the clock could not
     /// be asked, which is a row with no date rather than no row.
     now: Option<&'a glib::DateTime>,
@@ -574,6 +593,9 @@ struct FileRow<'a> {
     depth: usize,
     /// When it was last written.
     modified: Option<SystemTime>,
+    /// When it was made, or last written where the file system keeps no
+    /// birth time.
+    created: Option<SystemTime>,
     /// The snippet around a content hit's match, drawn in place of the file's
     /// own excerpt and with the match marked. A tree row and a name hit have
     /// none, and show the excerpt.
@@ -666,9 +688,13 @@ pub struct Sidebar {
     /// The folders the writer has opened. Everything else is closed, which is
     /// what the spec asks a section to open at.
     expanded: Rc<RefCell<BTreeSet<PathBuf>>>,
-    /// What the list is sorted by. Date, newest first, until a writer says
-    /// otherwise; not a setting, because nothing persists it yet.
-    sort: Rc<Cell<Sort>>,
+    /// The Sort pill's menu, parented once on the pill and kept for the reason
+    /// [`Sidebar::menu`] is.
+    sort_menu: gtk::PopoverMenu,
+    /// The pill's [`PILL_GROUP`] actions, whose states are put back to what
+    /// `[library]` holds at every [`Sidebar::refresh`], so the radios and the
+    /// checks read the file rather than the last click.
+    sort_actions: gio::SimpleActionGroup,
     /// The Document the window is showing, whose row is the highlighted one.
     open: Rc<RefCell<Option<PathBuf>>>,
     /// The File List's head, which is the header of the Location it shows
@@ -782,6 +808,8 @@ impl Sidebar {
         // own column is unmoved by it.
         let menu = menu_popover(&root);
         let head_menu = menu_popover(&head);
+        let sort_menu = menu_popover(&sort_button);
+        sort_menu.set_menu_model(Some(&pill_menu()));
         // The divider lies over the pane's last [`GRAB`] pixels rather than
         // standing beside them: an overlay child is given room without taking
         // any, so the page begins where it always did and a state judged at
@@ -820,7 +848,8 @@ impl Sidebar {
             rows: Rc::new(RefCell::new(Vec::new())),
             heads: Rc::new(RefCell::new(Vec::new())),
             expanded: Rc::new(RefCell::new(BTreeSet::new())),
-            sort: Rc::new(Cell::new(Sort::Modified)),
+            sort_menu,
+            sort_actions: gio::SimpleActionGroup::new(),
             open: Rc::new(RefCell::new(None)),
             header: Rc::new(RefCell::new(None)),
             head_drop: Rc::new(RefCell::new(None)),
@@ -830,8 +859,8 @@ impl Sidebar {
             read: Rc::new(RefCell::new(BTreeMap::new())),
             settle: Rc::new(RefCell::new(None)),
         };
-        let cycling = sidebar.clone();
-        sort_button.connect_clicked(move |_| cycling.cycle_sort());
+        let sorting = sidebar.clone();
+        sort_button.connect_clicked(move |_| sorting.sort_menu.popup());
         sidebar.wire();
         sidebar
     }
@@ -950,6 +979,7 @@ impl Sidebar {
         });
         self.head.add_controller(heading);
         self.install_row_actions();
+        self.install_pill_actions();
         // A click in the Organizer changes what the File List shows or opens a
         // pinned Document, and the right button on a Location's row offers
         // what the File List's head does.
@@ -1154,18 +1184,11 @@ impl Sidebar {
         self.highlight();
     }
 
-    /// What the tree is read through: the writer's `[library] show_hidden`,
-    /// `order` and `pin_folders`, and the sort this pane stands at. The
-    /// Palette's Outline reads the Library through the same view, so its
-    /// Documents fall in the order the sidebar shows them (#397).
+    /// What the tree is read through: the writer's `[library]` table
+    /// ([`view_of`]). The Palette's Outline reads the Library through the same
+    /// view, so its Documents fall in the order the sidebar shows them (#397).
     pub(crate) fn view(&self, session: &crate::session::Session) -> View {
-        let library = &session.settings().library;
-        View {
-            show_hidden: library.show_hidden,
-            sort: self.sort.get(),
-            order: library.order,
-            pin_folders: library.pin_folders,
-        }
+        view_of(&session.settings().library)
     }
 
     /// Draws the Library as it is now: every section, in order, from the tree
@@ -1189,8 +1212,11 @@ impl Sidebar {
         self.read_heads(library.files(&view));
         let read = self.read.borrow();
         let ground = session.ground();
+        sync_pill(&self.sort_actions, &session.settings().library);
         let drawing = Drawing {
             extensions: session.settings().library.show_extensions,
+            date: session.settings().library.show_date,
+            excerpts: session.settings().library.show_excerpts,
             now: now.as_ref(),
             read: &read,
             mark: Colour::over(
@@ -1235,7 +1261,7 @@ impl Sidebar {
         self.sort_label.set_text(if recents {
             LAST_OPENED
         } else {
-            sort_title(self.sort.get())
+            sort_title(view.sort)
         });
         self.sort_button.set_sensitive(!recents);
         let query = self.query();
@@ -1571,6 +1597,7 @@ impl Sidebar {
                 path: file.path(),
                 depth: 0,
                 modified: file.modified(),
+                created: file.created(),
                 snippet,
             },
             drawing,
@@ -1605,6 +1632,7 @@ impl Sidebar {
                         path: row.path(),
                         depth: *depth,
                         modified: file.modified(),
+                        created: file.created(),
                         snippet: None,
                     },
                     drawing,
@@ -1645,13 +1673,18 @@ impl Sidebar {
     /// A file: its name, when it was last written, and two lines of what it
     /// says — its own beginning, or the snippet a query found in it — on a row
     /// of [`ROW_PITCH`], or of [`FOLDER_PITCH`] where it says nothing.
+    ///
+    /// Show Text Excerpts off takes a file's own beginning away and leaves the
+    /// short row, the bar shortening with it; a content hit keeps its snippet,
+    /// which is the reason the file is in the results at all.
     fn file_row(&self, row: &FileRow<'_>, drawing: &Drawing<'_>) -> Listed {
         let said = match row.snippet {
             Some(snippet) => snippet.text(),
-            None => drawing
+            None if drawing.excerpts => drawing
                 .read
                 .get(row.path)
                 .map_or("", |head| head.excerpt.as_str()),
+            None => "",
         };
         let tall = !said.is_empty();
         let lift = i32::from(!tall);
@@ -1678,8 +1711,13 @@ impl Sidebar {
         title.set_xalign(0.0);
         title.set_ellipsize(gtk::pango::EllipsizeMode::End);
         top.append(&title);
-        if let (Some(modified), Some(now)) = (row.modified, drawing.now) {
-            let date = gtk::Label::new(Some(&stamp(modified, now)));
+        let when = match drawing.date {
+            ShowDate::Modified => row.modified,
+            ShowDate::Created => row.created,
+            ShowDate::None => None,
+        };
+        if let (Some(when), Some(now)) = (when, drawing.now) {
+            let date = gtk::Label::new(Some(&stamp(when, now)));
             date.add_css_class("lib-date");
             top.append(&date);
         }
@@ -2111,6 +2149,27 @@ impl Sidebar {
         self.root.insert_action_group("row", Some(&actions));
     }
 
+    /// The Sort pill's [`PILL_GROUP`] actions ([`pill_actions`]), each writing
+    /// its `[library]` key through the session's settings write.
+    ///
+    /// Nothing here sets a live value: the watch reads the file back and
+    /// re-lists every window's pane ([`crate::window::reapply`]), the one path
+    /// a moved Settings row and a key edited by hand already share
+    /// ([`crate::session::Session::edit_settings`]).
+    fn install_pill_actions(&self) {
+        let writing = self.clone();
+        pill_actions(
+            &self.sort_actions,
+            move |edit: &dyn Fn(&mut settings::Library)| {
+                if let Some(session) = writing.session() {
+                    session.edit_settings(|settings| edit(&mut settings.library));
+                }
+            },
+        );
+        self.root
+            .insert_action_group(PILL_GROUP, Some(&self.sort_actions));
+    }
+
     /// `row.open`: the selected row, opened as a click on it would.
     fn open_selected(&self) {
         if let Some(row) = self.list.selected_row() {
@@ -2246,17 +2305,6 @@ impl Sidebar {
             self.list.select_row(Some(&first));
         }
         self.list.grab_focus();
-    }
-
-    /// The next sort order, and the list drawn in it.
-    fn cycle_sort(&self) {
-        let next = match self.sort.get() {
-            Sort::Modified => Sort::Name,
-            Sort::Created | Sort::Name | Sort::Extension => Sort::Modified,
-        };
-        self.sort.set(next);
-        self.sort_label.set_text(sort_title(next));
-        self.refresh();
     }
 
     /// The window this pane belongs to, while it is still open.
@@ -2644,6 +2692,176 @@ fn filter(entry: &gtk::Entry) -> gtk::Box {
     foot
 }
 
+/// The view `[library]` reads the tree through: hidden folders, the sort, its
+/// order, and whether folders stand first.
+fn view_of(library: &settings::Library) -> View {
+    View {
+        show_hidden: library.show_hidden,
+        sort: library.sort,
+        order: library.order,
+        pin_folders: library.pin_folders,
+    }
+}
+
+/// The Sort pill's menu: iA's groups as shot, less Navigation, and the one
+/// group Quill adds (#441 § The Sort pill and its menu).
+///
+/// Every row is a radio or a check on the pane's [`PILL_GROUP`] and none is a
+/// Command, so `docs/shortcuts.md` has nothing to say about it; which row is
+/// checked is its action's state ([`sync_pill`]).
+fn pill_menu() -> gio::Menu {
+    let menu = gio::Menu::new();
+    let fields = gio::Menu::new();
+    for (label, sort) in [
+        ("Date Modified", Sort::Modified),
+        ("Date Created", Sort::Created),
+        ("Name", Sort::Name),
+        ("Extension", Sort::Extension),
+    ] {
+        fields.append_item(&radio(label, SORT_ACTION, sort.as_str()));
+    }
+    menu.append_section(None, &fields);
+    let orders = gio::Menu::new();
+    for (label, order) in [
+        ("Oldest on Top", Order::Oldest),
+        ("Newest on Top", Order::Newest),
+    ] {
+        orders.append_item(&radio(label, ORDER_ACTION, order.as_str()));
+    }
+    menu.append_section(None, &orders);
+    let placing = gio::Menu::new();
+    placing.append(Some("Pin Folders to Top"), Some(&pill(PIN_FOLDERS_ACTION)));
+    menu.append_section(None, &placing);
+    let showing = gio::Menu::new();
+    let dates = gio::Menu::new();
+    for (label, date) in [
+        ("Date Modified", ShowDate::Modified),
+        ("Date Created", ShowDate::Created),
+        ("None", ShowDate::None),
+    ] {
+        dates.append_item(&radio(label, SHOW_DATE_ACTION, date.as_str()));
+    }
+    showing.append_submenu(Some("Show Date"), &dates);
+    showing.append(
+        Some("Show Text Excerpts"),
+        Some(&pill(SHOW_EXCERPTS_ACTION)),
+    );
+    menu.append_section(None, &showing);
+    let marking = gio::Menu::new();
+    let glyphs = gio::Menu::new();
+    for (label, mark) in [
+        ("Bar", Mark::Bar),
+        ("Feather", Mark::Feather),
+        ("Fountain Pen", Mark::Pen),
+    ] {
+        glyphs.append_item(&radio(label, MARK_ACTION, mark.as_str()));
+    }
+    marking.append_submenu(Some("Selection Mark"), &glyphs);
+    menu.append_section(None, &marking);
+    menu
+}
+
+/// The detailed name of the pill's action `action`.
+fn pill(action: &str) -> String {
+    format!("{PILL_GROUP}.{action}")
+}
+
+/// A radio row of the pill's menu: `label`, firing `action` with `target`.
+fn radio(label: &str, action: &str, target: &str) -> gio::MenuItem {
+    let item = gio::MenuItem::new(Some(label), None);
+    item.set_action_and_target_value(Some(&pill(action)), Some(&target.to_variant()));
+    item
+}
+
+/// The state each of the pill's actions stands at for `library`: a radio's
+/// the value its key holds, a check's whether its key is on.
+fn pill_states(library: &settings::Library) -> [(&'static str, glib::Variant); 6] {
+    [
+        (SORT_ACTION, library.sort.as_str().to_variant()),
+        (ORDER_ACTION, library.order.as_str().to_variant()),
+        (PIN_FOLDERS_ACTION, library.pin_folders.to_variant()),
+        (SHOW_DATE_ACTION, library.show_date.as_str().to_variant()),
+        (SHOW_EXCERPTS_ACTION, library.show_excerpts.to_variant()),
+        (MARK_ACTION, library.mark.as_str().to_variant()),
+    ]
+}
+
+/// Adds the pill's six actions to `group`, each at its `[library]` default
+/// until [`sync_pill`] says what the file holds.
+///
+/// An activation that names a value its key has — a radio's target, or a
+/// check turned over — takes that state at once, so the menu reads the click,
+/// and hands `write` the edit that moves the key. Anything else moves nothing.
+fn pill_actions(
+    group: &gio::SimpleActionGroup,
+    write: impl Fn(&dyn Fn(&mut settings::Library)) + 'static,
+) {
+    let write = Rc::new(write);
+    for (name, state) in pill_states(&settings::Library::default()) {
+        let parameter = state.str().map(|_| glib::VariantTy::STRING);
+        let action = gio::SimpleAction::new_stateful(name, parameter, &state);
+        let writing = Rc::clone(&write);
+        action.connect_activate(move |action, parameter| {
+            let value = match parameter {
+                Some(value) => value.clone(),
+                None => {
+                    let on = action.state().and_then(|state| state.get::<bool>());
+                    (!on.unwrap_or(false)).to_variant()
+                }
+            };
+            let name = action.name();
+            if !set_key(&mut settings::Library::default(), &name, &value) {
+                return;
+            }
+            action.set_state(&value);
+            writing(&|library| {
+                set_key(library, &name, &value);
+            });
+        });
+        group.add_action(&action);
+    }
+}
+
+/// Puts what `library` holds on to the pill's actions in `group`.
+fn sync_pill(group: &gio::SimpleActionGroup, library: &settings::Library) {
+    for (name, state) in pill_states(library) {
+        let Some(action) = group
+            .lookup_action(name)
+            .and_downcast::<gio::SimpleAction>()
+        else {
+            continue;
+        };
+        if action.state().as_ref() != Some(&state) {
+            action.set_state(&state);
+        }
+    }
+}
+
+/// Puts `value` into the `[library]` key the pill's action `name` moves,
+/// answering whether it did: a string the key's choice does not name, or an
+/// action the pill does not have, moves nothing.
+fn set_key(library: &mut settings::Library, name: &str, value: &glib::Variant) -> bool {
+    match (name, value.str(), value.get::<bool>()) {
+        (SORT_ACTION, Some(text), _) => Sort::parse(text).map(|sort| library.sort = sort).is_some(),
+        (ORDER_ACTION, Some(text), _) => Order::parse(text)
+            .map(|order| library.order = order)
+            .is_some(),
+        (SHOW_DATE_ACTION, Some(text), _) => ShowDate::parse(text)
+            .map(|date| library.show_date = date)
+            .is_some(),
+        (MARK_ACTION, Some(text), _) => Mark::parse(text).map(|mark| library.mark = mark).is_some(),
+        (PIN_FOLDERS_ACTION, _, Some(on)) => {
+            library.pin_folders = on;
+            true
+        }
+        (SHOW_EXCERPTS_ACTION, _, Some(on)) => {
+            library.show_excerpts = on;
+            true
+        }
+        _ => false,
+    }
+}
+
 /// The Sort band under the head, the pill at its left.
 fn sort_row(button: &gtk::Button) -> gtk::Box {
     let row = gtk::Box::new(gtk::Orientation::Horizontal, 0);
@@ -2884,12 +3102,12 @@ fn prose(text: &str) -> String {
     said
 }
 
-/// When a file was last written, as its row says it.
+/// A file's date, as its row says it.
 ///
-/// The oracle's rule (`files.js` `fmtDate`), in English rather than in the
-/// machine's locale: the time of day for today, Yesterday, the weekday inside
-/// a week, the month and day inside the year, and the year with it beyond
-/// that.
+/// Today is a time in the locale's short form, this year the month and day
+/// (`Mar 14`), and older the month, day and two-digit year (`Mar 14, 25`);
+/// the oracle's Yesterday and weekday forms went with #441 (D7). The month
+/// stays English, as the rest of the pane is.
 fn stamp(modified: SystemTime, now: &glib::DateTime) -> String {
     let Ok(since) = modified.duration_since(SystemTime::UNIX_EPOCH) else {
         return String::new();
@@ -2902,38 +3120,38 @@ fn stamp(modified: SystemTime, now: &glib::DateTime) -> String {
 }
 
 /// [`stamp`] with both dates already resolved, so a test can name them.
+///
+/// Which day a file was written decides the form, not how many hours ago: a
+/// file written last night is a date at nine this morning.
 fn dated(when: &glib::DateTime, now: &glib::DateTime) -> String {
-    let day = days(when.year(), when.month(), when.day_of_month());
-    let today = days(now.year(), now.month(), now.day_of_month());
+    if (when.year(), when.day_of_year()) == (now.year(), now.day_of_year()) {
+        return short_time(when);
+    }
     let month = MONTHS[usize::try_from(when.month() - 1).unwrap_or(0).min(11)];
-    match today - day {
-        0 => {
-            let hour = when.hour();
-            let (twelve, half) = (hour % 12, if hour < 12 { "AM" } else { "PM" });
-            let twelve = if twelve == 0 { 12 } else { twelve };
-            format!("{twelve}:{:02} {half}", when.minute())
-        }
-        1 => "Yesterday".to_string(),
-        2..=5 => DAYS[usize::try_from((day + 4).rem_euclid(7)).unwrap_or(0)].to_string(),
-        _ if when.year() == now.year() => format!("{month} {}", when.day_of_month()),
-        _ => format!("{month} {}, {:02}", when.day_of_month(), when.year() % 100),
+    if when.year() == now.year() {
+        format!("{month} {}", when.day_of_month())
+    } else {
+        format!("{month} {}, {:02}", when.day_of_month(), when.year() % 100)
     }
 }
 
-/// The day number of a civil date, counting from 1970-01-01.
+/// The hour and minute of `when` in the locale's short form.
 ///
-/// Days rather than seconds, because what the row says depends on which day a
-/// file was written and not on how many hours ago it was: a file written last
-/// night is Yesterday at nine this morning. Howard Hinnant's `days_from_civil`.
-fn days(year: i32, month: i32, day: i32) -> i64 {
-    let year = i64::from(if month <= 2 { year - 1 } else { year });
-    let era = if year >= 0 { year } else { year - 399 } / 400;
-    let year_of_era = year - era * 400;
-    let month = i64::from(month);
-    let day = i64::from(day);
-    let day_of_year = (153 * (if month > 2 { month - 3 } else { month + 9 }) + 2) / 5 + day - 1;
-    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
-    era * 146_097 + day_of_era - 719_468
+/// `%p` names the half of the day only in a locale that tells the time on
+/// twelve hours, so its being empty is the twenty-four-hour clock.
+fn short_time(when: &glib::DateTime) -> String {
+    let half = when
+        .format("%p")
+        .map(|half| half.to_string())
+        .unwrap_or_default();
+    let form = if half.trim().is_empty() {
+        "%H:%M"
+    } else {
+        "%l:%M %p"
+    };
+    when.format(form)
+        .map(|time| time.trim().to_string())
+        .unwrap_or_default()
 }
 
 /// The page mark: a page with its corner turned and two lines of text on it,
@@ -3155,6 +3373,8 @@ mod tests {
         let read = BTreeMap::new();
         let drawing = Drawing {
             extensions: false,
+            date: ShowDate::Modified,
+            excerpts: true,
             now: None,
             read: &read,
             mark: Colour::rgba(0, 191, 255, 1.0),
@@ -3205,16 +3425,183 @@ mod tests {
     }
 
     #[test]
-    fn a_date_is_the_time_today_yesterday_the_weekday_then_the_month() {
-        // 2026-03-04 was a Wednesday.
+    fn a_date_is_a_time_today_the_month_and_day_this_year_then_the_year() {
         let now = at(2026, 3, 4, 15);
-        assert_eq!(dated(&at(2026, 3, 4, 9), &now), "9:00 AM");
-        assert_eq!(dated(&at(2026, 3, 4, 0), &now), "12:00 AM");
-        assert_eq!(dated(&at(2026, 3, 4, 13), &now), "1:00 PM");
-        assert_eq!(dated(&at(2026, 3, 3, 9), &now), "Yesterday");
-        assert_eq!(dated(&at(2026, 3, 1, 9), &now), "Sun");
+        // Today: a time, on whichever clock the test's locale keeps.
+        for (hour, forms) in [
+            (9, ["9:00 AM", "09:00"]),
+            (0, ["12:00 AM", "00:00"]),
+            (13, ["1:00 PM", "13:00"]),
+        ] {
+            let said = dated(&at(2026, 3, 4, hour), &now);
+            assert!(forms.contains(&said.as_str()), "{hour} h today said {said}");
+        }
+        // This year: the month and day, yesterday and last week included.
+        assert_eq!(dated(&at(2026, 3, 3, 23), &now), "Mar 3");
+        assert_eq!(dated(&at(2026, 3, 1, 9), &now), "Mar 1");
         assert_eq!(dated(&at(2026, 1, 9, 9), &now), "Jan 9");
+        // Older: with the two-digit year, the same day a year ago too.
+        assert_eq!(dated(&at(2025, 3, 4, 9), &now), "Mar 4, 25");
         assert_eq!(dated(&at(2025, 3, 14, 9), &now), "Mar 14, 25");
+        assert_eq!(dated(&at(2009, 12, 31, 9), &now), "Dec 31, 09");
+    }
+
+    /// What `model` offers, submenus flattened into their rows: each row's
+    /// label (a submenu's under its head, `Head › Row`), action and target,
+    /// the target empty for a check.
+    fn pill_rows(model: &gio::MenuModel, head: &str, into: &mut Vec<(String, String, String)>) {
+        for at in 0..model.n_items() {
+            let string = |attribute: &str| {
+                model
+                    .item_attribute_value(at, attribute, None)
+                    .and_then(|value| value.str().map(String::from))
+                    .unwrap_or_default()
+            };
+            if let Some(submenu) = model.item_link(at, "submenu") {
+                pill_rows(&submenu, &format!("{} › ", string("label")), into);
+                continue;
+            }
+            into.push((
+                format!("{head}{}", string("label")),
+                string("action"),
+                string("target"),
+            ));
+        }
+    }
+
+    /// The pill's menu is iA's five groups in order, each row carrying its
+    /// action and target, and the rows a writer who has never opened it sees
+    /// checked are the `[library]` defaults (#446).
+    #[test]
+    fn the_sort_pills_menu_is_five_groups_with_the_defaults_checked() {
+        let model = pill_menu();
+        let groups: Vec<Vec<(String, String, String)>> = (0..model.n_items())
+            .map(|at| {
+                let mut rows = Vec::new();
+                let section = model.item_link(at, "section").expect("a group");
+                pill_rows(&section, "", &mut rows);
+                rows
+            })
+            .collect();
+        let row = |label: &str, action: &str, target: &str| {
+            (
+                label.to_string(),
+                format!("lib.{action}"),
+                target.to_string(),
+            )
+        };
+        assert_eq!(
+            groups,
+            vec![
+                vec![
+                    row("Date Modified", "sort", "modified"),
+                    row("Date Created", "sort", "created"),
+                    row("Name", "sort", "name"),
+                    row("Extension", "sort", "extension"),
+                ],
+                vec![
+                    row("Oldest on Top", "order", "oldest"),
+                    row("Newest on Top", "order", "newest"),
+                ],
+                vec![row("Pin Folders to Top", "pin-folders", "")],
+                vec![
+                    row("Show Date › Date Modified", "show-date", "modified"),
+                    row("Show Date › Date Created", "show-date", "created"),
+                    row("Show Date › None", "show-date", "none"),
+                    row("Show Text Excerpts", "show-excerpts", ""),
+                ],
+                vec![
+                    row("Selection Mark › Bar", "mark", "bar"),
+                    row("Selection Mark › Feather", "mark", "feather"),
+                    row("Selection Mark › Fountain Pen", "mark", "pen"),
+                ],
+            ]
+        );
+        let group = gio::SimpleActionGroup::new();
+        pill_actions(&group, |_: &dyn Fn(&mut settings::Library)| {});
+        let checked: Vec<&str> = groups
+            .iter()
+            .flatten()
+            .filter(|(_, action, target)| {
+                let name = action.trim_start_matches("lib.");
+                let state = group.action_state(name).expect("a stateful action");
+                match state.str() {
+                    Some(value) => value == target,
+                    None => state.get::<bool>() == Some(true),
+                }
+            })
+            .map(|(label, _, _)| label.as_str())
+            .collect();
+        assert_eq!(
+            checked,
+            [
+                "Date Modified",
+                "Newest on Top",
+                "Pin Folders to Top",
+                "Show Date › Date Modified",
+                "Show Text Excerpts",
+                "Selection Mark › Bar",
+            ]
+        );
+    }
+
+    /// Each of the pill's actions writes its one `[library]` key, a target no
+    /// key names writes nothing, and the view the pane lists through, built
+    /// from the table read back, carries the field, order and placement.
+    #[test]
+    fn each_pill_item_writes_its_key_and_the_view_reads_it_back() {
+        let written = Rc::new(RefCell::new(settings::Settings::default()));
+        let group = gio::SimpleActionGroup::new();
+        let into = Rc::clone(&written);
+        pill_actions(&group, move |edit: &dyn Fn(&mut settings::Library)| {
+            edit(&mut into.borrow_mut().library);
+        });
+        group.activate_action("sort", Some(&"name".to_variant()));
+        group.activate_action("order", Some(&"oldest".to_variant()));
+        group.activate_action("pin-folders", None);
+        group.activate_action("show-date", Some(&"none".to_variant()));
+        group.activate_action("show-excerpts", None);
+        group.activate_action("mark", Some(&"pen".to_variant()));
+        group.activate_action("sort", Some(&"birthday".to_variant()));
+        assert_eq!(
+            group
+                .action_state("sort")
+                .and_then(|state| state.get::<String>()),
+            Some("name".to_string()),
+            "a target no key names leaves the radio where it was"
+        );
+
+        let path =
+            std::env::temp_dir().join(format!("quill-sidebar-pill-{}.toml", std::process::id()));
+        written
+            .borrow()
+            .write_to(&path)
+            .expect("the settings are written");
+        let (read, _) = settings::Settings::read_from(&path);
+        std::fs::remove_file(&path).ok();
+        let library = &read.library;
+        assert_eq!(
+            (library.sort, library.order, library.pin_folders),
+            (Sort::Name, Order::Oldest, false)
+        );
+        assert_eq!(
+            (library.show_date, library.show_excerpts, library.mark),
+            (ShowDate::None, false, Mark::Pen)
+        );
+        let view = view_of(library);
+        assert_eq!(
+            (view.sort, view.order, view.pin_folders),
+            (Sort::Name, Order::Oldest, false)
+        );
+
+        sync_pill(&group, &settings::Library::default());
+        assert_eq!(
+            group
+                .action_state("pin-folders")
+                .and_then(|state| state.get::<bool>()),
+            Some(true),
+            "a refresh puts the checks back to what the file holds"
+        );
     }
 
     #[test]
@@ -3223,15 +3610,6 @@ mod tests {
         // 1741942800, which the frozen shot dates `Mar 14, 25`.
         let stamped = SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1_741_942_800);
         assert_eq!(stamp(stamped, &at(2026, 9, 3, 12)), "Mar 14, 25");
-    }
-
-    #[test]
-    fn the_day_number_counts_from_the_epoch() {
-        assert_eq!(days(1970, 1, 1), 0);
-        assert_eq!(days(1970, 1, 2), 1);
-        assert_eq!(days(2000, 3, 1), 11_017);
-        assert_eq!(days(2026, 3, 4) - days(2026, 3, 3), 1);
-        assert_eq!(days(2026, 1, 1) - days(2025, 12, 31), 1);
     }
 
     /// The Organizer lists its three sections in order: every Location, the
