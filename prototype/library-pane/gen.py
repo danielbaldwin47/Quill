@@ -341,14 +341,14 @@ def two_column(c, state, *, serif=False, icons=True, org_style="ia", capsule=Tru
     title = flex(f"position: absolute; left: 0; top: 0; width: {PANE}px; height: {TITLE_H}px;",
                  toggle_cell(c, org_w, c["org"]),
                  list_title(c, LOCATIONS[0], width=list_w, bg=c["title_list"], serif=serif))
-    bars = "" if state == "bare" else flex(f"align-items: center; height: {SORT_H}px; padding: 0 8px; background: {c['title_list']}; border-bottom: 1px solid {c['rule']}; flex: none; box-sizing: border-box;", sort_pill(c, sort_label(state), capsule=capsule))
+    bars = flex(f"align-items: center; height: {SORT_H}px; padding: 0 8px; background: {c['title_list']}; border-bottom: 1px solid {c['rule']}; flex: none; box-sizing: border-box;", sort_pill(c, sort_label(state), capsule=capsule))
     rows = doc_rows(c, state, serif=serif, icons=icons,
                     name_inset=(40 if icons else 22), icon_inset=22, sep_right=14,
                     pitch=(76 if serif else ROW), sep_from_name=icons)
     listcol = (f'<div style="width: {list_w}px; height: {H}px; background: {c["list"]}; display: flex; flex-direction: column; flex: none; box-sizing: border-box; padding-top: {TITLE_H}px;">'
                f'{bars}<div style="height: 8px; flex: none;"></div>'
                f'<div style="display: flex; flex-direction: column; flex-grow: 1; overflow: hidden;">{rows}</div>'
-               f'{"" if state == "bare" else foot(c, query, capsule=capsule)}</div>')
+               f'{foot(c, query, capsule=capsule)}</div>')
     pane = f'<div style="position: relative; width: {PANE}px; height: {H}px; display: flex; flex: none;">{left}{listcol}{title}</div>'
     return pane
 
