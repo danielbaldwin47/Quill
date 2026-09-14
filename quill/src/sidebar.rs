@@ -10,7 +10,8 @@
 //! points, and the File List beside it showing one Location's tree — folders
 //! first and closed until they are opened, expanding in place — under that
 //! Location's name. Each stands on its own ground a step off the paper, and
-//! the one gives way to the other with no rule between them. The type is the
+//! a 1 px rule down the Organizer's right edge closes the one against the
+//! other (#448's round 13). The type is the
 //! GTK UI face the bars are set in, sized to the capture's ink heights (#441
 //! § Type), so the pane belongs to the same window as the page rather than to
 //! a file manager.
@@ -382,7 +383,7 @@ const WARN: &str = "#e0a030";
 /// rather than at the row's top edge.
 const DOT_TOP: i32 = 5;
 
-/// The "·" the status line's words are separated by.
+/// The "·" the Reload / Keep band's words are separated by.
 const SEPARATOR: &str = "·";
 
 /// What the Filter field says while it is empty.
@@ -2914,6 +2915,10 @@ fn filter(entry: &gtk::Entry) -> gtk::Box {
     let field = gtk::Box::new(gtk::Orientation::Horizontal, FILTER_GAP);
     field.add_css_class("lib-filter");
     field.set_height_request(FILTER_HEIGHT);
+    // The capsule keeps the width it has at the pane's narrowest however far
+    // the divider widens the pane (#441 § The Sort pill and its menu).
+    field.set_width_request(WIDTH - ORGANIZER - FILTER_LEFT - FILTER_RIGHT);
+    field.set_halign(gtk::Align::Start);
     field.set_margin_start(FILTER_LEFT);
     field.set_margin_end(FILTER_RIGHT);
     field.set_margin_top(FILTER_AIR);
@@ -3952,7 +3957,9 @@ mod tests {
 
     /// Each of the pill's actions writes its one `[library]` key, a target no
     /// key names writes nothing, and the view the pane lists through, built
-    /// from the table read back, carries the field, order and placement.
+    /// from the table read back, carries the field, order and placement. The
+    /// popover's reach to the `lib` group needs a window, so only the Hand test
+    /// covers that path.
     #[test]
     fn each_pill_item_writes_its_key_and_the_view_reads_it_back() {
         let written = Rc::new(RefCell::new(settings::Settings::default()));
