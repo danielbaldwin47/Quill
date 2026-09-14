@@ -1,23 +1,21 @@
-//! The Library beside the page: sections, rows, the search field and the
-//! status line (#253), and what the field finds (#254).
+//! The Library beside the page: the Organizer and the File List on grounds of
+//! their own (#253, #441), and what the Filter field finds (#254).
 //!
 //! One sidebar per window, all of them showing the one Library the session
 //! holds (`docs/architecture.md` § Library, § Windows). It stands left of the
-//! page and pushes it right rather than covering it, which is the Parity
-//! oracle's model (`legacy/app/css/files.css`: `#app { padding-left:
-//! var(--lib-w) }`), at the 368 logical pixels that file measured off iA's
-//! own Library.
+//! page and pushes it right rather than covering it, at the 360 points the
+//! Design oracle's pane measures (`ref/ia/mac-native/NOTES.md` § State 28).
 //!
-//! What it draws is the spec's rather than the oracle's where the two differ
-//! (#246 § The sidebar and the Piece): a Pinned section, hidden while nothing
-//! is pinned, then one section per Location headed by that folder's name with
-//! its tree beneath, folders first and collapsed until they are opened, and a
-//! gap between sections. The oracle has one browser Location and heads it
-//! "Library". The type is the GTK UI face the bars are set in and the ground
-//! is the theme's paper, so the pane belongs to the same window as the page
-//! rather than to a file manager.
+//! Two columns, as ADR 0020 has them: the Organizer at a fixed [`ORGANIZER`]
+//! points, and the File List beside it showing one Location's tree — folders
+//! first and closed until they are opened, expanding in place — under that
+//! Location's name. Each stands on its own ground a step off the paper, and
+//! the one gives way to the other with no rule between them. The type is the
+//! GTK UI face the bars are set in, sized to the capture's ink heights (#441
+//! § Type), so the pane belongs to the same window as the page rather than to
+//! a file manager.
 //!
-//! Typing in the search field puts the engine's results in place of the tree:
+//! Typing in the Filter field puts the engine's results in place of the tree:
 //! the files whose names matched first, then the files whose texts did, each
 //! of those with the one snippet around its match and the match marked
 //! ([`quill_engine::library::Library::search`]). Enter opens the highlighted
@@ -30,25 +28,25 @@
 //! is the window's ([`crate::window`]) and, under that, the engine's, which
 //! does the disk before the pane is drawn again.
 //!
-//! A row can also be dragged (#257). Let go over a folder's row or a Location's
-//! head it moves into that folder, asked about first where the writer asked to
-//! be asked (`library.confirm_move`); let go anywhere over the Pinned section
-//! it is pinned, and the section lights as the one target it is rather than the
-//! row under the pointer. What each drop would do is [`crate::files::dropped`],
-//! a decision over paths, and a drop it would do nothing with — a folder onto
-//! itself, a file into the folder it is already in, a row already pinned — is
-//! refused while the drag is still in the air.
+//! A row can also be dragged (#257). Let go over a folder's row or the File
+//! List's head it moves into that folder, asked about first where the writer
+//! asked to be asked (`library.confirm_move`); let go over the Organizer it is
+//! pinned, and the column lights as the one target it is. What each drop would
+//! do is [`crate::files::dropped`], a decision over paths, and a drop it would
+//! do nothing with — a folder onto itself, a file into the folder it is already
+//! in, a row already pinned — is refused while the drag is still in the air.
 //!
 //! Its right edge is the divider (#260): a [`GRAB`]-pixel strip lying over the
-//! edge, which paints nothing at all — the hairline there is the pane's own
-//! border — so that the states judged at [`WIDTH`] are the pixels they were.
-//! A drag on it sets the pane's width for the app, every window at once
-//! ([`crate::window::Window::resize_library`]), and a double-click puts it
+//! edge, which paints nothing at all — the File List's ground giving way to the
+//! paper is the edge. A drag on it sets the pane's width for the app, every
+//! window at once ([`crate::window::Window::resize_library`]), between 360 and
+//! 500 points with the Organizer holding its width, and a double-click puts it
 //! back to [`WIDTH`].
 //!
-//! Its measurements are `files.css`'s, as constants below; its colours are the
-//! theme's roles, through [`stylesheet`], which rides with the bars' sheet so
-//! that one ground change repaints both.
+//! Its measurements are State 28's, as the stub checked them on GTK (#437),
+//! in constants below; its grounds and its grey are the theme's roles and its
+//! other inks the capture's, through [`stylesheet`], which rides with the bars'
+//! sheet so that one ground change repaints both.
 
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet};
@@ -65,7 +63,7 @@ use quill_engine::settings::library_width;
 use quill_engine::theme::{self, Colour, Role, Scheme};
 
 use crate::chrome::{self, CHROME_FONT};
-use crate::files::{self, Dropped, Onto, Standing};
+use crate::files::{self, Dropped, Onto};
 use crate::ground::Ground;
 use crate::tags::pixels;
 use crate::window::Window;
@@ -73,6 +71,9 @@ use crate::window::Window;
 /// The pane's width until a writer drags the divider (`ref/ia/mac-native/NOTES.md`
 /// § State 28, *Pane, total*), and the width a double-click on the divider puts back.
 pub const WIDTH: i32 = 360;
+/// The Organizer's width, which a drag on the divider leaves alone: State 28's
+/// 129.5 points, at the whole point a widget is asked for in.
+const ORGANIZER: i32 = 130;
 /// How wide the divider is to a pointer: the last logical pixels of the pane,
 /// lying over its right edge rather than beside it, so that the page stands
 /// where it stood and the strip has room to be caught.
@@ -80,9 +81,8 @@ const GRAB: i32 = 6;
 /// What the pointer becomes over the divider: the name a desktop's cursor
 /// theme keeps its two-headed horizontal arrow under.
 const RESIZE_CURSOR: &str = "col-resize";
-/// The pane's own head, the title bar's height so that what the pane is called
-/// and the Document's name stand on one line across the window
-/// (`.lib-head { height: var(--bar-top) }`).
+/// A column's head, the title bar's height, so that the Location's name and
+/// the Document's stand on one line across the window.
 const HEAD_HEIGHT: i32 = chrome::TOP_HEIGHT;
 /// The head's insets and the air between its buttons (`.lib-head { padding: 0
 /// 6px 0 8px; gap: 2px }`).
@@ -98,125 +98,125 @@ const BUTTON_RADIUS: i32 = 5;
 /// The panel and plus marks in the head (`I.panel`, `I.plus`, fifteen by
 /// fifteen).
 const MARK: i32 = 15;
-/// What the pane is called, above the Locations it holds. The oracle names its
-/// one browser Location here; a Location of ours is named by its own section
-/// head, so what stands here is the pane.
+/// What the File List's head says where the Library has no Location to name.
 const TITLE: &str = "Library";
-/// Below the search field, before the sort row (`.lib-find { padding: 0 10px
-/// 8px }`).
-const FIELD_BELOW: i32 = 8;
-/// Where the manuscripts are, at the status line's right. The counterpart of
-/// the oracle's "In this browser": ours are plain Markdown files in the
-/// writer's own folders (ADR 0002), which is the fact that decides whether a
-/// writer trusts a Library with a manuscript.
-const WHERE: &str = "On this device";
-/// The field's height (`#lib-q { height: 26px }`).
-const FIELD_HEIGHT: i32 = 26;
-/// What the field keeps clear of the pane's right edge (`.lib-find { padding:
-/// 0 10px }`; its left is [`PANE_LEFT`], which every left edge in the pane is).
-const FIELD_PAD: i32 = 10;
-/// Between the magnifier and the text (`#lib-q { padding-left: 26px }` less
-/// the magnifier's own place).
-const FIELD_GAP: i32 = 6;
-/// The magnifier's side (`I.search`, twelve by twelve).
-const MAG: i32 = 12;
-/// The field's type (`#lib-q { font-size: 13px }`).
-const FIELD_PX: f64 = 13.0;
-/// The sort row's height (`.lib-sort { height: 26px }`).
-const SORT_HEIGHT: i32 = 26;
-/// The sort row's type, which the count and the status line share
-/// (`font-size: 11.5px`).
-const META_PX: f64 = 11.5;
-/// The sort button's own padding (`#lib-sortb { padding: 0 4px }`).
-const SORT_BUTTON_PAD: i32 = 4;
-/// What the count keeps clear of the right edge (`padding-right: 14px`).
-const SORT_RIGHT: i32 = 14;
+/// The band the Sort pill stands in under the head (#441 § The Sort pill and
+/// its menu).
+const SORT_BAND: i32 = 33;
+/// The Sort pill's least width and its height. It grows past the width to its
+/// label: `Sort by Date Modified ⌄` is 161 points in Adwaita Sans (#437).
+const SORT_PILL: (i32, i32) = (145, 25);
+/// The Sort pill's type, which sets its capitals 17 device pixels tall.
+const SORT_PX: f64 = 12.0;
+/// The Sort pill's padding before its label and after its chevron.
+const SORT_PAD: (i32, i32) = (12, 10);
+/// Between the Sort pill's label and its chevron.
+const SORT_GAP: i32 = 3;
 /// A chevron's side (`I.chev`, eleven by eleven).
 const CHEV: i32 = 11;
-/// A row's inset from the pane's left edge (`.lib-row { padding-left: 16px }`).
-const ROW_LEFT: i32 = 16;
-/// The pane's one left margin: where the ink of the search field, of the sort
-/// control and of a row's icon column all begins.
-///
-/// `files.css` reaches the same edge through three paddings, each of them
-/// answering the inset its own mark is drawn with; ours are drawn to their
-/// edges, so the margin is said once, here, and every one of the three is set
-/// from it. The round that asked for it read the pane's left edges as
-/// 10.5/10.5/14/24.5 px against the oracle's 14.5/15/16.5/20
-/// (`progress/rounds/files-r3.json`, the `search` state).
-const PANE_LEFT: i32 = ROW_LEFT;
-/// A row's inset from the right (`padding-right: 14px`).
-const ROW_RIGHT: i32 = 14;
-/// Above a row's first line (`padding-top: 10px`).
-const ROW_TOP: i32 = 10;
-/// Below a file row's excerpt (`padding-bottom: 7px`).
-const ROW_BOTTOM: i32 = 7;
-/// Below a folder row (`.lib-row.folder { padding-bottom: 10px }`).
-const FOLDER_BOTTOM: i32 = 10;
-/// The icon column's width (`grid-template-columns: 18px`).
-const ICON_COLUMN: i32 = 18;
-/// Between the icon column and the name (`column-gap: 12px`).
-const ICON_GAP: i32 = 12;
-/// What one folder of depth indents a row by (`.lib-row.in { padding-left:
-/// 32px }`, sixteen past [`ROW_LEFT`]).
-const INDENT: i32 = 16;
-/// A document icon's size (`I.doc`, thirteen by sixteen).
-const DOC: (i32, i32) = (13, 16);
+/// The Filter capsule's height (#441 § Search: 212 × 26 points).
+const FILTER_HEIGHT: i32 = 26;
+/// The Filter field's type, which sets its capitals 19 device pixels tall.
+const FILTER_PX: f64 = 13.0;
+/// Above the capsule, under its rule, and below it, over the pane's foot.
+const FILTER_AIR: i32 = 7;
+/// The capsule's inset from the File List's left edge: 9.5 points, at the
+/// whole point the stub landed on the oracle's pixel with (#437).
+const FILTER_LEFT: i32 = 10;
+/// The capsule's inset from the pane's right edge.
+const FILTER_RIGHT: i32 = 9;
+/// The magnifier's side in the capsule.
+const FILTER_ICON: i32 = 13;
+/// The magnifier's inset from the capsule's rounded end.
+const FILTER_ICON_LEFT: i32 = 8;
+/// Between the magnifier and the prompt.
+const FILTER_GAP: i32 = 4;
+/// What the field's text keeps clear of the capsule's right end.
+const FILTER_END: i32 = 10;
+/// The magnifier as it is drawn (`I.search`, twelve by twelve), which
+/// [`magnifier_icon`] scales to the side it is asked for.
+const MAG: i32 = 12;
+/// Above the File List's first row.
+const LIST_TOP: i32 = 8;
+/// A file row with its excerpt (State 28: 136 device pixels).
+const ROW_PITCH: i32 = 68;
+/// A folder row, and a file row with no excerpt to show (64 device pixels).
+const FOLDER_PITCH: i32 = 32;
+/// A page icon's inset from the File List's left edge.
+const ICON_LEFT: i32 = 22;
+/// How much further left a folder icon stands than a page, for the bearing its
+/// wider mark leaves: an inset of 19 points.
+const FOLDER_BEARING: i32 = 3;
+/// Where a name's ink begins: 40.5 points, asked for at 40 so that the ink
+/// lands on the oracle's 81 device pixels (#437).
+const NAME_LEFT: i32 = 40;
+/// Above a file row's name. A row with no excerpt stands it a point higher.
+const NAME_TOP: i32 = 8;
+/// Above a file row's page icon, a point under the name's top. A row with no
+/// excerpt stands it a point higher.
+const ICON_TOP: i32 = 9;
+/// Between a name and the excerpt under it.
+const EXCERPT_TOP: i32 = 1;
+/// What the date's label keeps clear of the right edge, which stands its ink
+/// 17.5 points in (#437).
+const DATE_RIGHT: i32 = 15;
+/// The least air between a name and its date.
+const DATE_GAP: i32 = 12;
+/// What a folder's chevron keeps clear of the right edge.
+const CHEVRON_RIGHT: i32 = 16;
+/// What the separator between two rows keeps clear of the right edge; its left
+/// is the name's, [`NAME_LEFT`].
+const SEPARATOR_RIGHT: i32 = 14;
+/// What one folder of depth indents a row by.
+const INDENT: i32 = 12;
+/// A page icon's size in its row.
+const DOC: (i32, i32) = (12, 15);
+/// The page icon's width as it is drawn, which [`document_icon`] scales to the
+/// width it is asked for.
+const DOC_DRAWN: i32 = 13;
 /// A folder icon's size (`I.folder`, fifteen by thirteen).
 const FOLDER: (i32, i32) = (15, 13);
-/// A row's name (`.lib-row { font-size: 14px }`).
-const NAME_PX: f64 = 14.0;
-/// A file row's date (`.lib-row .dt { font-size: 13px }`).
-const DATE_PX: f64 = 13.0;
-/// A folder row's name, and a section head's (`.lib-row.folder .nm`,
-/// `.lib-loc { font-size: 13.5px }`).
-const HEAD_PX: f64 = 13.5;
-/// A file row's excerpt (`.lib-row .ex { font-size: 13.5px }`).
-const EXCERPT_PX: f64 = 13.5;
-/// The excerpt's leading (`line-height: 19.5px`).
-const EXCERPT_LEADING: f64 = 19.5;
-/// How many lines of the excerpt a row shows (`-webkit-line-clamp: 2`).
+/// A row's type: the name, the date, the excerpt and a folder's name are one
+/// size and differ only in ink, with capitals 20 device pixels tall and an
+/// x-height of 15, the oracle's own (#441 § Type).
+const ROW_PX: f64 = 13.5;
+/// The title over the File List, bold, with capitals 22 device pixels tall.
+const TITLE_PX: f64 = 15.0;
+/// The excerpt's leading.
+const EXCERPT_LEADING: f64 = 17.0;
+/// How many lines of the excerpt a row shows, clipped at the last with no
+/// ellipsis.
 const EXCERPT_LINES: i32 = 2;
-/// A section head's height (`.lib-loc { height: 26px }`).
-const SECTION_HEIGHT: i32 = 26;
-/// A section head's inset, and the gap between its icon and its name
-/// (`.lib-loc { padding: 0 6px; margin-left: 2px; gap: 6px }` against the
-/// pane's own 8 px edge).
-const SECTION_LEFT: i32 = 12;
-/// Between a section head's icon and its name.
-const SECTION_GAP: i32 = 6;
-/// The air between one section and the next. The spec asks for "a visible gap
-/// between sections", which the oracle — having one Location — has nowhere to
-/// show; this is the sort row's height, so a section head stands as far from
-/// the section above it as the first row does from the sort rule.
-const SECTION_AIR: i32 = 14;
-/// The status line's height, the stats bar's own (`--bar-bottom`), so the
-/// pane's foot and the page's stand on one line.
-const FOOT_HEIGHT: i32 = chrome::BOTTOM_HEIGHT;
-/// The status dot's side (`.lib-status .dot { width: 6px }`).
+/// The type of the band's words above the Filter field.
+const META_PX: f64 = 11.5;
+/// Above and below a line of the band.
+const BAND_AIR: i32 = 4;
+/// Between the band's words.
+const BAND_GAP: i32 = 7;
+/// A button of the band's padding either side of its word.
+const OFFER_PAD: i32 = 4;
+/// What the band says of a Document changed on disk under unsaved edits,
+/// before the two words it offers.
+const CHANGED: &str = "Changed on disk";
+/// The dot's side (`.lib-status .dot { width: 6px }`), which marks the row of
+/// a file changed on disk.
 const DOT: i32 = 6;
-/// How much of the ink the dot is drawn in at rest (`opacity: .45`).
-const DOT_ALPHA: f64 = 0.45;
-/// Between the dot and its text (`.lib-status { gap: 7px }`).
-const DOT_GAP: i32 = 7;
-/// Where the status line starts (`.lib-foot { padding-left: 12px }`).
-const FOOT_LEFT: i32 = 12;
-/// The selection's bar (`.lib-row.file.sel::after { width: 3.5px; left: 4px;
-/// top: 4px; bottom: 5px }`), rounded at 2.
+/// The selection's bar: 3 points with rounded ends at the File List's left
+/// edge, about 6 points in from the row's top and bottom (#441 § The selected
+/// row and the Selection Mark).
 const BAR: Bar = Bar {
-    width: 4,
-    left: 4,
-    top: 4,
-    bottom: 5,
+    width: 3,
+    left: 0,
+    top: 6,
+    bottom: 6,
     radius: 2,
 };
 
 /// The accent bar down the selected row's left edge.
 struct Bar {
-    /// Its width. The oracle's 3.5 rounds to the whole pixel a widget is
-    /// asked for in, and lands on the same two device pixels at scale 2.
+    /// Its width.
     width: i32,
-    /// How far in from the pane's edge it stands.
+    /// How far in from the File List's edge it stands.
     left: i32,
     /// The air above it inside the row.
     top: i32,
@@ -225,6 +225,47 @@ struct Bar {
     /// Its corner.
     radius: i32,
 }
+
+/// The pane's inks that are not the theme's roles: constants of the pane, each
+/// cited from State 28's capture (#441 § Grounds and roles).
+struct Inks {
+    /// The separator between two rows.
+    separator: &'static str,
+    /// The Sort pill's ground.
+    sort_ground: &'static str,
+    /// The Sort pill's 1 px border.
+    sort_border: &'static str,
+    /// The Sort pill's label and chevron, as the stub read them (#437).
+    sort_ink: &'static str,
+    /// The rule above the Filter field.
+    foot_rule: &'static str,
+    /// The Filter capsule's border at rest; the dark one is assumed until #440.
+    field_border: &'static str,
+    /// The magnifier in the capsule.
+    field_icon: &'static str,
+}
+
+/// The pane's own inks on the light ground.
+const LIGHT_INKS: Inks = Inks {
+    separator: "#ededed",
+    sort_ground: "#f6f6f6",
+    sort_border: "#e8e8e8",
+    sort_ink: "#767676",
+    foot_rule: "#dbdbdb",
+    field_border: "#dbdbdb",
+    field_icon: "#7e7e7e",
+};
+
+/// The pane's own inks on the dark ground.
+const DARK_INKS: Inks = Inks {
+    separator: "#212121",
+    sort_ground: "#3a3a3a",
+    sort_border: "#686868",
+    sort_ink: "#9c9c9c",
+    foot_rule: "#2e2e2e",
+    field_border: "#2e2e2e",
+    field_icon: "#939393",
+};
 
 /// What marks the row of a Document whose file changed under unsaved edits.
 ///
@@ -241,8 +282,8 @@ const DOT_TOP: i32 = 5;
 /// The "·" the status line's words are separated by.
 const SEPARATOR: &str = "·";
 
-/// What the search field says while it is empty.
-const PLACEHOLDER: &str = "Search documents";
+/// What the Filter field says while it is empty.
+const PLACEHOLDER: &str = "Filter";
 
 /// How much of the accent stands behind a matched word in a snippet
 /// (`.lib-row .ex mark { background: color-mix(in srgb, var(--accent) 28%,
@@ -299,43 +340,53 @@ const DAYS: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /// The sidebar's stylesheet, appended to the bars' ([`crate::chrome::stylesheet`]).
 ///
-/// Every colour the pane draws is a role of the theme's table, so a ground
-/// change is a stylesheet change and nothing else: the paper it stands on, the
-/// ink its names are set in, the grey of its dates and excerpts, the hairline
-/// between its rows and the accent down the selected one.
+/// Every ground and grey the pane draws is a role of the theme's table — the
+/// Organizer's ground, the File List's, the secondary grey of its dates, its
+/// excerpts and its prompt, the ink its names are set in and the accent of its
+/// bar — so a ground change is a stylesheet change and nothing else; its other
+/// inks are [`Inks`], the capture's.
 ///
-/// The search prompt is [`Role::ChromeFg`] at `opacity: 1`, the grey the
-/// magnifier beside it already wears, so the field and its prompt are one
-/// grey. The `opacity` is what makes them one: GTK's Default theme halves the
-/// `placeholder` node (0.55), which left the prompt at `#BCBCBC`, 1.73:1 on
-/// the paper — the bug #379 was filed as, and the one #374 fixed on the
-/// Palette. Which grey it should be is the Design oracle's
-/// (`ref/ia/mac-native/NOTES.md` § State 28, *The search field is at the foot,
-/// and its prompt is `#7e7e7e`*): the oracle's prompt is `#7e7e7e` light and
-/// `#757575` dark, darker than Quill's rather than paler, and `chrome_fg` is
-/// the nearest role to that pair. A role of the prompt's own waits for the
-/// pane's greys to be ported together.
+/// Hover draws nothing and a selected row takes no fill (State 28, *A hovered
+/// row draws nothing*), so the rules on a row's state clear GTK's own. The
+/// Sort pill clears its background image as well as its colour, because GTK's
+/// Default theme paints a gradient on a button that a colour alone does not
+/// remove (#437). The Filter prompt stands at `opacity: 1`, because the same
+/// theme halves the `placeholder` node (0.55), which left Quill's prompt at
+/// `#BCBCBC` — the bug #379 was filed as.
 #[must_use]
 pub fn stylesheet(ground: Ground) -> String {
     let Ground { scheme, colours } = ground;
-    let paper = colours.colour(Role::Paper).to_hex();
+    let organizer = colours.colour(Role::OrganizerBg).to_hex();
+    let list = colours.colour(Role::FileListBg).to_hex();
+    let secondary = colours.colour(Role::Secondary).to_hex();
     let ink = colours.colour(Role::Ink).to_hex();
     let dim = colours.colour(Role::ChromeFg).to_hex();
-    let rule = colours.colour(Role::Rule).to_css();
+    let strong = colours.colour(Role::ChromeFgStrong).to_hex();
     let accent = colours.colour(Role::Accent).to_hex();
     let drop = Colour::over(
         colours.colour(Role::Accent),
-        colours.colour(Role::Paper),
+        colours.colour(Role::FileListBg),
         DROP_TINT,
     )
     .to_hex();
-    // The row a click would take, and the row the open Document is on: the
-    // oracle's `--lib-hover` and `--lib-sel`, which are steps off whatever
-    // ground they land on rather than colours of their own, and so are ink on
-    // the light ground and paper on the dark one.
-    let (hit, selected) = match scheme {
-        Scheme::Light => ("rgba(0, 0, 0, 0.035)", "rgba(0, 0, 0, 0.02)"),
-        Scheme::Dark => ("rgba(255, 255, 255, 0.045)", "rgba(255, 255, 255, 0.028)"),
+    // A head button under the pointer: a step off whatever ground it lands
+    // on rather than a colour of its own, and so ink on the light ground and
+    // paper on the dark one.
+    let hit = match scheme {
+        Scheme::Light => "rgba(0, 0, 0, 0.035)",
+        Scheme::Dark => "rgba(255, 255, 255, 0.045)",
+    };
+    let Inks {
+        separator,
+        sort_ground,
+        sort_border,
+        sort_ink,
+        foot_rule,
+        field_border,
+        field_icon,
+    } = match scheme {
+        Scheme::Light => LIGHT_INKS,
+        Scheme::Dark => DARK_INKS,
     };
     let Bar {
         width: bar_width,
@@ -344,25 +395,29 @@ pub fn stylesheet(ground: Ground) -> String {
         bottom: bar_bottom,
         radius: bar_radius,
     } = BAR;
+    let sort_radius = f64::from(SORT_PILL.1) / 2.0;
+    let filter_radius = f64::from(FILTER_HEIGHT) / 2.0;
+    let (sort_left, sort_right) = SORT_PAD;
     format!(
         ".library {{\n\
-         \x20 background-color: {paper}; color: {ink};\n\
-         \x20 border-right: 1px solid {rule};\n\
-         \x20 font-family: {CHROME_FONT}; font-size: {NAME_PX}px;\n\
+         \x20 background-color: {list}; color: {ink};\n\
+         \x20 font-family: {CHROME_FONT}; font-size: {ROW_PX}px;\n\
          }}\n\
-         .library .lib-sort {{ border-bottom: 1px solid {rule}; }}\n\
-         .library .lib-foot {{ border-top: 1px solid {rule}; }}\n\
-         .library .lib-rule {{ background-color: {rule}; }}\n\
-         .library label.lib-name {{ font-size: {NAME_PX}px; color: {ink}; }}\n\
-         .library label.lib-head {{ font-size: {HEAD_PX}px; font-weight: 500; color: {ink}; }}\n\
+         .library .lib-org {{ background-color: {organizer}; }}\n\
+         .library .lib-list {{ background-color: {list}; }}\n\
+         .library .lib-rule {{ background-color: {separator}; }}\n\
+         .library .lib-foot-rule {{ background-color: {foot_rule}; }}\n\
+         .library label.lib-name {{ font-size: {ROW_PX}px; color: {ink}; }}\n\
+         .library label.lib-head {{ font-size: {ROW_PX}px; color: {ink}; }}\n\
+         .library label.lib-title {{\n\
+         \x20 font-size: {TITLE_PX}px; font-weight: bold; color: {strong};\n\
+         }}\n\
          .library label.lib-date {{\n\
-         \x20 font-size: {DATE_PX}px; color: {dim}; font-feature-settings: \"tnum\";\n\
+         \x20 font-size: {ROW_PX}px; color: {secondary}; font-feature-settings: \"tnum\";\n\
          }}\n\
-         .library label.lib-excerpt {{ font-size: {EXCERPT_PX}px; color: {dim}; }}\n\
-         .library label.lib-meta {{\n\
-         \x20 font-size: {META_PX}px; color: {dim}; font-feature-settings: \"tnum\";\n\
-         }}\n\
-         .library .lib-icon {{ color: {dim}; }}\n\
+         .library label.lib-excerpt {{ font-size: {ROW_PX}px; color: {secondary}; }}\n\
+         .library label.lib-meta {{ font-size: {META_PX}px; color: {secondary}; }}\n\
+         .library .lib-icon {{ color: {secondary}; }}\n\
          .library .lib-folder-icon {{ color: {accent}; }}\n\
          .library .lib-changed {{ color: {WARN}; }}\n\
          .library button.lib-btn {{\n\
@@ -372,35 +427,42 @@ pub fn stylesheet(ground: Ground) -> String {
          }}\n\
          .library button.lib-btn:hover {{ background-color: {hit}; color: {ink}; }}\n\
          .library button.lib-offer {{\n\
-         \x20 font-size: {META_PX}px; padding: 0 {SORT_BUTTON_PAD}px;\n\
+         \x20 font-size: {META_PX}px; padding: 0 {OFFER_PAD}px;\n\
          }}\n\
          .library button.lib-sortb {{\n\
-         \x20 background: none; border: none; box-shadow: none; outline: none;\n\
-         \x20 min-height: 0; min-width: 0; padding: 0 {SORT_BUTTON_PAD}px;\n\
-         \x20 border-radius: 4px; color: {dim};\n\
+         \x20 background-color: {sort_ground}; background-image: none;\n\
+         \x20 border: 1px solid {sort_border}; box-shadow: none; outline: none;\n\
+         \x20 min-height: 0; min-width: 0; padding: 0 {sort_right}px 0 {sort_left}px;\n\
+         \x20 border-radius: {sort_radius}px; color: {sort_ink};\n\
          }}\n\
-         .library button.lib-sortb:hover {{ background-color: {hit}; color: {ink}; }}\n\
+         .library button.lib-sortb label {{ font-size: {SORT_PX}px; color: {sort_ink}; }}\n\
+         .library button.lib-sortb .lib-icon {{ color: {sort_ink}; }}\n\
+         .library .lib-filter {{\n\
+         \x20 background-color: {list}; border: 1px solid {field_border};\n\
+         \x20 border-radius: {filter_radius}px;\n\
+         }}\n\
+         .library .lib-filter .lib-icon {{ color: {field_icon}; }}\n\
          .library entry {{\n\
          \x20 background: none; border: none; box-shadow: none; outline: none;\n\
          \x20 padding: 0; margin: 0; min-height: 0; min-width: 0;\n\
-         \x20 font-size: {FIELD_PX}px; color: {ink}; caret-color: {accent};\n\
+         \x20 font-size: {FILTER_PX}px; color: {ink}; caret-color: {accent};\n\
          }}\n\
-         .library entry text > placeholder {{ color: {dim}; opacity: 1; }}\n\
-         .library entry.lib-rename {{ font-size: {NAME_PX}px; }}\n\
+         .library entry text > placeholder {{ color: {secondary}; opacity: 1; }}\n\
+         .library entry.lib-rename {{ font-size: {ROW_PX}px; }}\n\
          .library scrolledwindow, .library list {{ background: none; }}\n\
          .library list > row {{\n\
          \x20 background: none; padding: 0; min-height: 0; outline: none;\n\
          }}\n\
-         .library list > row:hover {{ background-color: {hit}; }}\n\
-         .library list > row:selected {{ background-color: {selected}; }}\n\
-         .library list > row:selected label.lib-name {{ color: {ink}; }}\n\
-         .library list > row:selected .lib-icon {{ color: {accent}; }}\n\
+         .library list > row:hover {{ background: none; }}\n\
+         .library list > row:selected {{ background: none; }}\n\
          .library .lib-bar {{\n\
          \x20 background: none; border-radius: {bar_radius}px;\n\
          \x20 min-width: {bar_width}px; margin: {bar_top}px 0 {bar_bottom}px {bar_left}px;\n\
          }}\n\
          .library list > row:selected .lib-bar {{ background-color: {accent}; }}\n\
-         .library list > row.{DROP_CLASS} {{ background-color: {drop}; }}\n"
+         .library list > row.{DROP_CLASS}, .library .lib-org.{DROP_CLASS} {{\n\
+         \x20 background-color: {drop};\n\
+         }}\n"
     )
 }
 
@@ -488,17 +550,20 @@ pub struct Sidebar {
     /// nothing in it and nothing drawn, which a drag widens the pane by and a
     /// double-click puts back to [`WIDTH`].
     divider: gtk::Box,
-    /// What the pane's head calls it: the one Location's folder, where that is
-    /// the whole Library, and [`TITLE`] where there is more than one thing
-    /// under it.
+    /// What the File List's head calls it: the name of the Location it shows,
+    /// or [`TITLE`] where the Library has none.
     title: gtk::Label,
     entry: gtk::Entry,
     sort_label: gtk::Label,
-    count: gtk::Label,
     list: gtk::ListBox,
-    status: gtk::Label,
-    /// "· Reload · Keep" beside the status line, hidden until there is a
-    /// conflict to resolve.
+    /// The Organizer's column, where a dragged row is let go to pin it until
+    /// the Organizer draws a Pinned section of its own (#445).
+    organizer: gtk::Box,
+    /// The band's line above the Filter field: a notice, hidden while there is
+    /// none ([`Sidebar::set_notice`]).
+    notice: gtk::Label,
+    /// "Changed on disk · Reload · Keep" in the band above the Filter field,
+    /// hidden until there is a conflict to resolve.
     offer: gtk::Box,
     reload: gtk::Button,
     keep: gtk::Button,
@@ -510,9 +575,10 @@ pub struct Sidebar {
     window: Rc<RefCell<Option<glib::WeakRef<Window>>>>,
     /// The rows now drawn, top to bottom, for the highlight and the arrows.
     rows: Rc<RefCell<Vec<Listed>>>,
-    /// The section heads now drawn, each with the Location it names, so that a
-    /// right-click on one can offer to drop that Location. The Pinned head
-    /// names no Location and is not among them.
+    /// The Location rows now drawn, each with the Location it names, so that a
+    /// right-click on one can offer to drop that Location: none until the
+    /// Organizer draws its Locations (#445), the File List's head carrying its
+    /// own ([`Sidebar::head_as_location`]).
     heads: Rc<RefCell<Vec<(gtk::ListBoxRow, PathBuf)>>>,
     /// The folders the writer has opened. Everything else is closed, which is
     /// what the spec asks a section to open at.
@@ -522,8 +588,7 @@ pub struct Sidebar {
     sort: Rc<Cell<Sort>>,
     /// The Document the window is showing, whose row is the highlighted one.
     open: Rc<RefCell<Option<PathBuf>>>,
-    /// The pane's own head. Where the Library is one Location with nothing
-    /// Pinned beside it, the head is that Location's header as well
+    /// The File List's head, which is the header of the Location it shows
     /// ([`Sidebar::head_as_location`]).
     head: gtk::Box,
     /// The Location the head is heading, or `None` where it is only saying
@@ -544,11 +609,6 @@ pub struct Sidebar {
     /// one Location's header where the Library has only the one
     /// ([`Sidebar::head_as_location`]). Kept for the same reason [`Sidebar::menu`] is.
     head_menu: gtk::PopoverMenu,
-    /// The Locations whose trees are folded away, which a click on a section
-    /// head puts one into and takes it out of again. Held for as long as the
-    /// window is and no longer: nothing persists it, because what a writer
-    /// folded to see past is not what they want the Library to open at.
-    folded: Rc<RefCell<BTreeSet<PathBuf>>>,
     /// The file texts search has read, kept for as long as the window is, so
     /// that a query over a tree nothing has touched reads nothing.
     contents: Rc<RefCell<Contents>>,
@@ -570,7 +630,7 @@ impl Sidebar {
     /// Builds the pane, empty and hidden.
     #[must_use]
     pub fn new() -> Self {
-        let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        let root = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         root.add_css_class("library");
         root.set_width_request(WIDTH);
         // The pane is exactly its width and the page takes the rest of the
@@ -578,37 +638,51 @@ impl Sidebar {
         // inside it expands and a box takes its children's answer.
         root.set_hexpand(false);
 
+        // Two columns, the one a change of ground from the other (ADR 0020):
+        // the Organizer at a width the divider never changes, with the toggle
+        // that shuts the pane in its head, and the File List taking the rest.
+        let organizer = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        organizer.add_css_class("lib-org");
+        organizer.set_width_request(ORGANIZER);
+        organizer.set_hexpand(false);
+        organizer.append(&organizer_head());
+        root.append(&organizer);
+        let file_list = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        file_list.add_css_class("lib-list");
+        file_list.set_hexpand(true);
+        root.append(&file_list);
+
         let title = gtk::Label::new(Some(TITLE));
         let head = head(&title);
-        root.append(&head);
-        let entry = gtk::Entry::builder()
-            .hexpand(true)
-            .has_frame(false)
-            .placeholder_text(PLACEHOLDER)
-            .build();
-        root.append(&find(&entry));
+        file_list.append(&head);
 
         let sort_label = gtk::Label::new(Some(sort_title(Sort::Modified)));
-        let count = gtk::Label::new(None);
-        count.add_css_class("lib-meta");
         let sort_button = sort_button(&sort_label);
-        root.append(&sort_row(&sort_button, &count));
+        file_list.append(&sort_row(&sort_button));
 
         let list = gtk::ListBox::new();
         list.set_selection_mode(gtk::SelectionMode::Browse);
+        list.set_margin_top(LIST_TOP);
         let scroller = gtk::ScrolledWindow::builder()
             .vexpand(true)
             .hscrollbar_policy(gtk::PolicyType::Never)
             .child(&list)
             .build();
-        root.append(&scroller);
+        file_list.append(&scroller);
 
-        let status = gtk::Label::new(Some(&files::said(Standing::AtRest)));
-        status.add_css_class("lib-meta");
+        // The foot: the band a notice or a conflict stands in, empty at rest,
+        // over the rule and the Filter field.
+        let notice = gtk::Label::new(None);
         let reload = offer_word("Reload");
         let keep = offer_word("Keep");
         let offer = offered(&reload, &keep);
-        root.append(&foot(&status, &offer));
+        file_list.append(&band(&notice, &offer));
+        let entry = gtk::Entry::builder()
+            .hexpand(true)
+            .has_frame(false)
+            .placeholder_text(PLACEHOLDER)
+            .build();
+        file_list.append(&filter(&entry));
 
         // On the pane and not on the list: a `GtkListBox` takes only rows
         // away, so a popover parented on it is a child [`Sidebar::refresh`]
@@ -641,9 +715,9 @@ impl Sidebar {
             title,
             entry,
             sort_label,
-            count,
             list,
-            status,
+            organizer,
+            notice,
             offer,
             reload,
             keep,
@@ -658,7 +732,6 @@ impl Sidebar {
             head_drop: Rc::new(RefCell::new(None)),
             menu,
             head_menu,
-            folded: Rc::new(RefCell::new(BTreeSet::new())),
             contents: Rc::new(RefCell::new(Contents::new())),
             read: Rc::new(RefCell::new(BTreeMap::new())),
             settle: Rc::new(RefCell::new(None)),
@@ -783,6 +856,16 @@ impl Sidebar {
         });
         self.head.add_controller(heading);
         self.install_row_actions();
+        // A row let go over the Organizer is pinned, the whole column lighting
+        // as the one target it is, until the Organizer draws the Pinned
+        // section that takes the drop itself (#445).
+        let organizer: gtk::Widget = self.organizer.clone().upcast();
+        self.drop_onto(
+            &self.organizer,
+            &Onto::Pinned,
+            &Rc::new(vec![organizer]),
+            &Rc::new(Cell::new(0)),
+        );
         // The two words of "Changed on disk · Reload · Keep": each opens the
         // diff view of what it would do, in the window this pane belongs to.
         let reloading = self.clone();
@@ -935,20 +1018,21 @@ impl Sidebar {
         self.search_now();
     }
 
-    /// What the status line says ([`crate::files::said`]).
-    pub fn set_status(&self, said: &str) {
-        self.status.set_text(said);
+    /// Stands `words` in the band above the Filter field, or takes the line
+    /// down where they are empty.
+    ///
+    /// A notice rather than a state — a trash, an export's confirmation, the
+    /// missing dictionary — because the saved states say nothing any more
+    /// (#441 § The foot and the title bar).
+    pub fn set_notice(&self, words: &str) {
+        self.notice.set_text(words);
+        self.notice.set_visible(!words.is_empty());
     }
 
-    /// Whether the status line offers Reload and Keep beside what it says.
-    ///
-    /// The slack in the foot goes to whichever of the two is expanding, so
-    /// that the words stand beside the line they belong to and where the
-    /// manuscripts are stays at the pane's edge: the label holds the slack at
-    /// rest, and the offer holds it while there is a conflict.
+    /// Whether the band above the Filter field offers Reload and Keep, which it
+    /// does while the Document the window holds changed on disk under unsaved
+    /// edits.
     pub fn set_offer(&self, offered: bool) {
-        self.status.set_hexpand(!offered);
-        self.offer.set_hexpand(offered);
         self.offer.set_visible(offered);
     }
 
@@ -1006,31 +1090,27 @@ impl Sidebar {
             read: &read,
             mark: Colour::over(
                 ground.colours.colour(Role::Accent),
-                ground.colours.colour(Role::Paper),
+                ground.colours.colour(Role::FileListBg),
                 MARK_TINT,
             ),
             marked: ground.colours.colour(Role::Ink),
         };
         let shown = library.shown(&view);
-        let pinned = library.pinned_rows(&view);
-        // One Location and nothing pinned is one thing to name, and the head
-        // names it: a pane called Library over a section called library says
-        // the same word twice. Anything else is the pane over its parts.
-        let parts = !pinned.is_empty() || library.locations().len() > 1;
-        let alone = (!parts).then(|| shown.first()).flatten();
+        // The File List shows one Location under a head that names it and is
+        // its header: what its menu offers, and what a row let go over it
+        // moves into (#246, stories 3 and 38). Which Location is the
+        // Organizer's to choose (#445); until it can, the first.
+        let section = shown.first();
         self.title
-            .set_text(&alone.map_or_else(|| TITLE.to_string(), section_name));
-        // No section head is drawn for it, so the pane's head is its header:
-        // what it is called, what its menu offers, and what a row let go over
-        // it moves into (#246, stories 3 and 38).
+            .set_text(&section.map_or_else(|| TITLE.to_string(), section_name));
         self.header
-            .replace(alone.map(|section| section.path.to_path_buf()));
+            .replace(section.map(|section| section.path.to_path_buf()));
         self.head_as_location();
         let query = self.query();
         if query.is_empty() {
-            self.tree(&shown, &pinned, parts, &drawing);
-            let words = read.values().map(|head| head.words).sum();
-            self.count.set_text(&counted(read.len(), words));
+            if let Some(section) = section {
+                self.tree(section, &drawing);
+            }
         } else {
             self.results(&query, &library, &view, &drawing);
         }
@@ -1039,8 +1119,8 @@ impl Sidebar {
 
     /// Reads the head of every shown file, keeping the ones already read.
     ///
-    /// A row shows two lines of what its file says and the count adds up their
-    /// words, so every shown file has to be read; a file whose write time has
+    /// A row shows two lines of what its file says, so every shown file has to
+    /// be read; a file whose write time has
     /// not moved since the last refresh is not read again, which is the shape
     /// [`quill_engine::library::Contents`] gives search. The bound is one read
     /// of at most [`EXCERPT_BYTES`] per shown file that has been written since
@@ -1059,48 +1139,15 @@ impl Sidebar {
         }
     }
 
-    /// The Library as it stands: the Pinned section, then one section per
-    /// Location, or the one Location's rows alone under the pane's own head.
-    fn tree(&self, shown: &[Section<'_>], pinned: &[Row<'_>], parts: bool, drawing: &Drawing<'_>) {
-        let mut sections = 0;
-        if !pinned.is_empty() {
-            let first = self.rows.borrow().len();
-            let head = self.section(None, "Pinned", sections, pinned, drawing);
-            // One target, however many rows it draws: the whole section lights
-            // and every row of it takes the drop (#246 story 11).
-            let mut group: Vec<gtk::Widget> = vec![head.upcast()];
-            group.extend(
-                self.drawn_since(first)
-                    .into_iter()
-                    .map(|listed| listed.row.upcast()),
-            );
-            let group = Rc::new(group);
-            let over = Rc::new(Cell::new(0));
-            for row in group.iter() {
-                self.drop_onto(row, &Onto::Pinned, &group, &over);
+    /// One Location's tree, its rows alone under the File List's head, each of
+    /// its folders a place a dragged row can be moved into.
+    fn tree(&self, section: &Section<'_>, drawing: &Drawing<'_>) {
+        let first = self.rows.borrow().len();
+        self.rows_of(&section.rows, drawing);
+        for listed in self.drawn_since(first) {
+            if listed.folder {
+                self.folder_target(&listed.row, &listed.path);
             }
-            sections += 1;
-        }
-        for section in shown {
-            let first = self.rows.borrow().len();
-            if parts {
-                let head = self.section(
-                    Some(section.path),
-                    &section_name(section),
-                    sections,
-                    &section.rows,
-                    drawing,
-                );
-                self.folder_target(&head, section.path);
-            } else {
-                self.rows_of(&section.rows, drawing);
-            }
-            for listed in self.drawn_since(first) {
-                if listed.folder {
-                    self.folder_target(&listed.row, &listed.path);
-                }
-            }
-            sections += 1;
         }
     }
 
@@ -1259,8 +1306,6 @@ impl Sidebar {
     fn results(&self, query: &str, library: &Library, view: &View, drawing: &Drawing<'_>) {
         let mut contents = self.contents.borrow_mut();
         let found = library.search(query, view, &mut contents);
-        self.count
-            .set_text(&narrowed(found.len(), drawing.read.len()));
         for hit in &found {
             let file = hit.file();
             let listed = self.file_row(
@@ -1278,57 +1323,6 @@ impl Sidebar {
         }
     }
 
-    /// One section: its head, then the rows of it that are not inside a closed
-    /// folder. The head is answered, because it is what a drop over the section
-    /// lands on ([`Sidebar::drop_onto`]).
-    ///
-    /// A Location's head is also what folds its tree away: a click on it puts
-    /// the Location in [`Sidebar::folded`] and the section draws its head
-    /// alone, and the next click brings the tree back. The head says which way
-    /// it stands by what is under it and by nothing drawn on the head itself,
-    /// because the head's pixels are the judged `library` state's. The pane's
-    /// own head is not one of these: where it is heading the one Location
-    /// ([`Sidebar::head_as_location`]) it carries the buttons that shut the
-    /// pane and start a Document, and a click on it is one of those.
-    fn section(
-        &self,
-        root: Option<&Path>,
-        name: &str,
-        above: usize,
-        rows: &[Row<'_>],
-        drawing: &Drawing<'_>,
-    ) -> gtk::ListBoxRow {
-        let head = gtk::ListBoxRow::new();
-        head.set_selectable(false);
-        head.set_activatable(false);
-        head.set_child(Some(&section_head(name, root.is_some())));
-        if above > 0 {
-            head.set_margin_top(SECTION_AIR);
-        }
-        if let Some(root) = root {
-            self.heads
-                .borrow_mut()
-                .push((head.clone(), root.to_path_buf()));
-            let folding = gtk::GestureClick::new();
-            folding.set_button(gdk::BUTTON_PRIMARY);
-            let location = root.to_path_buf();
-            let pane = self.clone();
-            folding.connect_pressed(move |_, _, _, _| pane.fold(&location));
-            head.add_controller(folding);
-        }
-        self.list.append(&head);
-        if !root.is_some_and(|root| self.folded.borrow().contains(root)) {
-            self.rows_of(rows, drawing);
-        }
-        head
-    }
-
-    /// A click on a Location's head: its tree folds away, or comes back.
-    fn fold(&self, location: &Path) {
-        files::flipped(&mut self.folded.borrow_mut(), location);
-        self.refresh();
-    }
-
     /// The rows of one section, in the order the tree hands them over, less
     /// whatever is inside a folder that is closed.
     fn rows_of(&self, rows: &[Row<'_>], drawing: &Drawing<'_>) {
@@ -1336,7 +1330,7 @@ impl Sidebar {
         // flattened, deepest last, so everything below a closed folder is
         // everything after it that is deeper than it is.
         let mut closed: Option<usize> = None;
-        for (at, row) in rows.iter().enumerate() {
+        for row in rows {
             if closed.is_some_and(|depth| row.depth() > depth) {
                 continue;
             }
@@ -1347,7 +1341,7 @@ impl Sidebar {
                     if !open {
                         closed = Some(*depth);
                     }
-                    self.folder_row(folder.name(), row.path(), *depth, open, held(rows, at))
+                    self.folder_row(folder.name(), row.path(), *depth, open)
                 }
                 Row::File { file, depth } => self.file_row(
                     &FileRow {
@@ -1365,45 +1359,63 @@ impl Sidebar {
         }
     }
 
-    /// A folder: its name, how many entries it holds, and a chevron that says
-    /// whether it is open.
-    fn folder_row(&self, name: &str, path: &Path, depth: usize, open: bool, held: usize) -> Listed {
-        let line = gtk::Box::new(gtk::Orientation::Horizontal, ICON_GAP);
-        line.set_margin_start(ROW_LEFT + INDENT * i32::try_from(depth).unwrap_or(0));
-        line.set_margin_end(ROW_RIGHT - SORT_BUTTON_PAD);
-        line.set_margin_top(ROW_TOP);
-        line.set_margin_bottom(FOLDER_BOTTOM);
-        line.append(&column(icon(FOLDER, folder_icon), "lib-folder-icon"));
+    /// A folder: its name and a chevron that says whether it is open, on a row
+    /// as short as a file's with no excerpt, and no count and no date.
+    fn folder_row(&self, name: &str, path: &Path, depth: usize, open: bool) -> Listed {
+        let indent = INDENT * i32::try_from(depth).unwrap_or(0);
+        let line = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        // A pixel short of the pitch, the separator above the row being the
+        // last of it.
+        line.set_height_request(FOLDER_PITCH - 1);
+        let mark = icon(FOLDER, folder_icon);
+        mark.add_css_class("lib-folder-icon");
+        mark.set_margin_start(ICON_LEFT - FOLDER_BEARING + indent);
+        mark.set_valign(gtk::Align::Center);
+        line.append(&mark);
         let label = gtk::Label::new(Some(name));
         label.add_css_class("lib-head");
         label.set_hexpand(true);
         label.set_xalign(0.0);
+        label.set_margin_start(NAME_LEFT - (ICON_LEFT - FOLDER_BEARING) - FOLDER.0);
         label.set_ellipsize(gtk::pango::EllipsizeMode::End);
         line.append(&label);
-        let count = gtk::Label::new(Some(&held.to_string()));
-        count.add_css_class("lib-meta");
-        line.append(&count);
         let chevron = icon((CHEV, CHEV), move |area, cr| chevron_icon(area, cr, open));
         chevron.add_css_class("lib-icon");
+        chevron.set_margin_end(CHEVRON_RIGHT);
         line.append(&chevron);
-        self.listed(line, &label, path, true)
+        self.listed(line, &label, path, true, indent)
     }
 
     /// A file: its name, when it was last written, and two lines of what it
-    /// says — its own beginning, or the snippet a query found in it.
+    /// says — its own beginning, or the snippet a query found in it — on a row
+    /// of [`ROW_PITCH`], or of [`FOLDER_PITCH`] where it says nothing.
     fn file_row(&self, row: &FileRow<'_>, drawing: &Drawing<'_>) -> Listed {
-        let line = gtk::Box::new(gtk::Orientation::Horizontal, ICON_GAP);
-        line.set_margin_start(ROW_LEFT + INDENT * i32::try_from(row.depth).unwrap_or(0));
-        line.set_margin_end(ROW_RIGHT);
-        line.set_margin_top(ROW_TOP);
-        line.set_margin_bottom(ROW_BOTTOM);
+        let said = match row.snippet {
+            Some(snippet) => snippet.text(),
+            None => drawing
+                .read
+                .get(row.path)
+                .map_or("", |head| head.excerpt.as_str()),
+        };
+        let tall = !said.is_empty();
+        let lift = i32::from(!tall);
+        let indent = INDENT * i32::try_from(row.depth).unwrap_or(0);
+        let line = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        line.set_height_request(if tall { ROW_PITCH } else { FOLDER_PITCH } - 1);
         let mark = icon(DOC, document_icon);
+        mark.add_css_class("lib-icon");
+        mark.set_margin_start(ICON_LEFT + indent);
+        mark.set_margin_top(ICON_TOP - lift);
         mark.set_valign(gtk::Align::Start);
-        line.append(&column(mark, "lib-icon"));
+        line.append(&mark);
 
         let body = gtk::Box::new(gtk::Orientation::Vertical, 0);
         body.set_hexpand(true);
-        let top = gtk::Box::new(gtk::Orientation::Horizontal, ICON_GAP);
+        body.set_valign(gtk::Align::Start);
+        body.set_margin_top(NAME_TOP - lift);
+        body.set_margin_start(NAME_LEFT - ICON_LEFT - DOC.0);
+        body.set_margin_end(DATE_RIGHT);
+        let top = gtk::Box::new(gtk::Orientation::Horizontal, DATE_GAP);
         let title = gtk::Label::new(Some(&row_name(row.name, drawing.extensions)));
         title.add_css_class("lib-name");
         title.set_hexpand(true);
@@ -1416,31 +1428,48 @@ impl Sidebar {
             top.append(&date);
         }
         body.append(&top);
-        let said = match row.snippet {
-            Some(snippet) => snippet.text(),
-            None => drawing
-                .read
-                .get(row.path)
-                .map_or("", |head| head.excerpt.as_str()),
-        };
-        if !said.is_empty() {
+        if tall {
             let excerpt = gtk::Label::new(Some(said));
             excerpt.add_css_class("lib-excerpt");
             excerpt.set_xalign(0.0);
+            excerpt.set_yalign(0.0);
             excerpt.set_wrap(true);
             excerpt.set_wrap_mode(gtk::pango::WrapMode::WordChar);
             excerpt.set_attributes(Some(&marks(row.snippet, drawing)));
-            excerpt.set_lines(EXCERPT_LINES);
-            excerpt.set_ellipsize(gtk::pango::EllipsizeMode::End);
-            body.append(&excerpt);
+            // One character of natural width, so that the row's width decides
+            // where the lines break rather than the sentence deciding the row's.
+            excerpt.set_max_width_chars(1);
+            excerpt.set_valign(gtk::Align::Start);
+            // Clipped at the last line with no ellipsis. A box asks for its
+            // child's whole height whatever it is asked to be itself — a height
+            // request is a floor — so the clip is a scrolled window that shows
+            // no scrollbar and never passes its child's height on. It takes no
+            // pointer, so that a wheel over an excerpt scrolls the List.
+            let clip = gtk::ScrolledWindow::builder()
+                .hscrollbar_policy(gtk::PolicyType::Never)
+                .vscrollbar_policy(gtk::PolicyType::External)
+                .propagate_natural_height(false)
+                .height_request(pixels(EXCERPT_LEADING * f64::from(EXCERPT_LINES)))
+                .can_target(false)
+                .child(&excerpt)
+                .build();
+            clip.set_margin_top(EXCERPT_TOP);
+            body.append(&clip);
         }
         line.append(&body);
-        self.listed(line, &title, row.path, false)
+        self.listed(line, &title, row.path, false, indent)
     }
 
-    /// A row of the list: the hairline above it, the accent bar down its left
-    /// edge, and the line itself.
-    fn listed(&self, line: gtk::Box, name: &gtk::Label, path: &Path, folder: bool) -> Listed {
+    /// A row of the list: the separator above it, the accent bar at its left
+    /// edge, and the line itself, which is indented `indent` for its depth.
+    fn listed(
+        &self,
+        line: gtk::Box,
+        name: &gtk::Label,
+        path: &Path,
+        folder: bool,
+        indent: i32,
+    ) -> Listed {
         // At the row's right edge, inside the row's own margin, and hidden
         // until the window says this Document is the one in a conflict.
         let dot = icon((DOT, DOT), warned_dot);
@@ -1452,22 +1481,21 @@ impl Sidebar {
         let bar = gtk::Box::new(gtk::Orientation::Vertical, 0);
         bar.add_css_class("lib-bar");
         bar.set_halign(gtk::Align::Start);
-        // Over the row rather than beside it, as `.lib-row.file.sel::after`
-        // is: a bar that takes a column of its own pushes the icon and the
-        // name eight pixels right of the padding they are set from, which is
-        // how the pane came to have four left edges (#254, [`PANE_LEFT`]).
+        // Over the row rather than beside it: a bar that takes a column of its
+        // own pushes the icon and the name right of the insets they are set
+        // from.
         let beside = gtk::Overlay::new();
         beside.set_child(Some(&line));
         beside.add_overlay(&bar);
         let stacked = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        // The hairline starts under the name rather than at the pane's edge,
-        // as iA's does (`.lib-row + .lib-row::before { left: 46px; right: 14px }`),
-        // and is left off the first row of a section.
+        // The separator starts under the name rather than at the List's edge
+        // (State 28: 40.5 points in from the left and 14 from the right),
+        // follows the row's indent, and is left off the first row.
         let rule = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         rule.add_css_class("lib-rule");
         rule.set_height_request(1);
-        rule.set_margin_start(ROW_LEFT + ICON_COLUMN + ICON_GAP);
-        rule.set_margin_end(ROW_RIGHT);
+        rule.set_margin_start(NAME_LEFT + indent);
+        rule.set_margin_end(SEPARATOR_RIGHT);
         rule.set_visible(!self.at_section_head());
         stacked.append(&rule);
         stacked.append(&beside);
@@ -1488,9 +1516,8 @@ impl Sidebar {
     /// Whether the row now being built is the first of its section, and so
     /// draws no hairline above it.
     ///
-    /// A list with nothing in it yet counts: the first row of a result list
-    /// stands under the sort row, whose own border is already the line
-    /// between them.
+    /// A list with nothing in it yet counts: its first row stands under the
+    /// Sort band, and a line there would divide it from nothing.
     fn at_section_head(&self) -> bool {
         match self.list.last_child().and_downcast::<gtk::ListBoxRow>() {
             Some(row) => !row.is_selectable(),
@@ -1776,15 +1803,15 @@ impl Sidebar {
         self.head_menu.unparent();
     }
 
-    /// Puts the one Location's header on the pane's own head, or takes it off
-    /// again.
+    /// Puts the header of the Location the File List shows on the File List's
+    /// head, or takes it off again.
     ///
-    /// A Library of one Location with nothing Pinned draws no section head —
-    /// the pane's head is already saying that Location's name — so the head is
-    /// where Remove from Library and a drop on to the Location's top level
-    /// have to live, or neither is reachable at all. The target goes on and
-    /// comes off as the Library changes, because one left behind would answer
-    /// for a Location the pane has stopped showing.
+    /// The File List draws no Location head of its own — its head is already
+    /// saying that Location's name — so the head is where Remove from Library
+    /// and a drop on to the Location's top level have to live, or neither is
+    /// reachable from the List at all. The target goes on and comes off as the
+    /// Library changes, because one left behind would answer for a Location
+    /// the pane has stopped showing.
     fn head_as_location(&self) {
         if let Some(target) = self.head_drop.take() {
             self.head.remove_controller(&target);
@@ -2000,20 +2027,6 @@ fn action(allowed: bool) -> gdk::DragAction {
     }
 }
 
-/// How many entries the folder at `at` holds, as its row says.
-///
-/// What lies directly inside it and not what lies under that: the tree arrives
-/// flattened and deepest last, so its own entries are the rows after it that
-/// are one deeper, up to the first that is not deeper at all.
-fn held(rows: &[Row<'_>], at: usize) -> usize {
-    let depth = rows[at].depth();
-    rows[at + 1..]
-        .iter()
-        .take_while(|row| row.depth() > depth)
-        .filter(|row| row.depth() == depth + 1)
-        .count()
-}
-
 /// A place in a widget, as `graphene` takes it.
 ///
 /// The narrowing is where the pointer is: the pane is [`WIDTH`] wide and a
@@ -2091,29 +2104,37 @@ fn location_menu(location: &Path) -> gio::Menu {
     menu
 }
 
-/// The pane's head: what it is called, the toggle that shuts it, and the
-/// button that starts a Document in it.
+/// The File List's head: the name of the Location it shows, bold and centred
+/// over the List, and New as a bare `+` at the right (#441 § The foot and the
+/// title bar).
 ///
-/// Both buttons fire their Commands by name, as the bars' buttons do
-/// ([`crate::chrome::Bars`]). Where the head is naming the one Location of the
-/// whole Library it is that Location's header too, and carries its menu and
-/// its drop target ([`Sidebar::head_location`]).
+/// New fires its Command by name, as the bars' buttons do
+/// ([`crate::chrome::Bars`]). The head is the shown Location's header too, and
+/// carries its menu and its drop target ([`Sidebar::head_as_location`]).
 fn head(title: &gtk::Label) -> gtk::Box {
     let head = gtk::Box::new(gtk::Orientation::Horizontal, HEAD_GAP);
     head.set_height_request(HEAD_HEIGHT);
     head.set_margin_start(HEAD_LEFT);
     head.set_margin_end(HEAD_RIGHT);
-    head.append(&button(panel_icon, "win.library.toggle"));
-    let name = gtk::Box::new(gtk::Orientation::Horizontal, SECTION_GAP);
-    name.set_margin_start(HEAD_GAP);
-    name.set_hexpand(true);
-    name.append(&column(icon(FOLDER, folder_icon), "lib-icon"));
-    title.add_css_class("lib-head");
-    title.set_xalign(0.0);
+    // As wide as New, so that the name is centred on the List rather than on
+    // what New leaves of it.
+    let balance = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    balance.set_width_request(BUTTON);
+    head.append(&balance);
+    title.add_css_class("lib-title");
+    title.set_hexpand(true);
     title.set_ellipsize(gtk::pango::EllipsizeMode::End);
-    name.append(title);
-    head.append(&name);
+    head.append(title);
     head.append(&button(plus_icon, "win.file.new"));
+    head
+}
+
+/// The Organizer's head: the toggle that shuts the pane, alone.
+fn organizer_head() -> gtk::Box {
+    let head = gtk::Box::new(gtk::Orientation::Horizontal, HEAD_GAP);
+    head.set_height_request(HEAD_HEIGHT);
+    head.set_margin_start(HEAD_LEFT);
+    head.append(&button(panel_icon, "win.library.toggle"));
     head
 }
 
@@ -2139,47 +2160,58 @@ fn button(
     button
 }
 
-/// The search field, under the head.
-fn find(entry: &gtk::Entry) -> gtk::Box {
-    let field = gtk::Box::new(gtk::Orientation::Horizontal, FIELD_GAP);
-    field.set_height_request(FIELD_HEIGHT);
-    field.set_margin_start(PANE_LEFT);
-    field.set_margin_end(FIELD_PAD);
-    field.set_margin_bottom(FIELD_BELOW);
-    let mag = icon((MAG, MAG), magnifier_icon);
+/// The Filter field at the File List's foot: the rule, and under it the capsule
+/// with its magnifier and its prompt (#441 § Search).
+fn filter(entry: &gtk::Entry) -> gtk::Box {
+    let foot = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    let rule = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    rule.add_css_class("lib-foot-rule");
+    rule.set_height_request(1);
+    foot.append(&rule);
+    let field = gtk::Box::new(gtk::Orientation::Horizontal, FILTER_GAP);
+    field.add_css_class("lib-filter");
+    field.set_height_request(FILTER_HEIGHT);
+    field.set_margin_start(FILTER_LEFT);
+    field.set_margin_end(FILTER_RIGHT);
+    field.set_margin_top(FILTER_AIR);
+    field.set_margin_bottom(FILTER_AIR);
+    let mag = icon((FILTER_ICON, FILTER_ICON), magnifier_icon);
     mag.add_css_class("lib-icon");
+    mag.set_margin_start(FILTER_ICON_LEFT);
     field.append(&mag);
+    entry.set_margin_end(FILTER_END);
     field.append(entry);
-    field
+    foot.append(&field);
+    foot
 }
 
-/// The sort row: what the list is ordered by, and how much of it there is.
-fn sort_row(button: &gtk::Button, count: &gtk::Label) -> gtk::Box {
+/// The Sort band under the head, the pill at its left.
+fn sort_row(button: &gtk::Button) -> gtk::Box {
     let row = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-    row.add_css_class("lib-sort");
-    row.set_height_request(SORT_HEIGHT);
-    button.set_margin_start(PANE_LEFT - SORT_BUTTON_PAD);
-    button.set_hexpand(true);
+    row.set_height_request(SORT_BAND);
+    button.set_margin_start(HEAD_LEFT);
     button.set_halign(gtk::Align::Start);
-    count.set_margin_end(SORT_RIGHT);
+    button.set_valign(gtk::Align::Start);
+    button.set_size_request(SORT_PILL.0, SORT_PILL.1);
     row.append(button);
-    row.append(count);
     row
 }
 
-/// The sort control: the order it is in now, and a chevron for the rest.
+/// The Sort pill: the field the List is sorted by, and a chevron for the rest.
 fn sort_button(label: &gtk::Label) -> gtk::Button {
-    let line = gtk::Box::new(gtk::Orientation::Horizontal, 2);
+    let line = gtk::Box::new(gtk::Orientation::Horizontal, SORT_GAP);
+    label.set_hexpand(true);
+    label.set_xalign(0.0);
     line.append(label);
     let chevron = icon((CHEV, CHEV), move |area, cr| chevron_icon(area, cr, true));
+    chevron.add_css_class("lib-icon");
     line.append(&chevron);
     let button = gtk::Button::builder().child(&line).build();
     button.add_css_class("lib-sortb");
-    label.add_css_class("lib-meta");
     button
 }
 
-/// One of the two words a conflict offers: a word in the status line that
+/// One of the two words a conflict offers: a word in the band that
 /// happens to be clicked rather than read, so it is a button with the pane's
 /// own flat look on it.
 fn offer_word(word: &str) -> gtk::Button {
@@ -2189,11 +2221,18 @@ fn offer_word(word: &str) -> gtk::Button {
     button
 }
 
-/// "· Reload · Keep", hidden until there is a conflict to resolve.
+/// "Changed on disk · Reload · Keep", hidden until there is a conflict to
+/// resolve.
 fn offered(reload: &gtk::Button, keep: &gtk::Button) -> gtk::Box {
-    let offer = gtk::Box::new(gtk::Orientation::Horizontal, DOT_GAP);
+    let offer = gtk::Box::new(gtk::Orientation::Horizontal, BAND_GAP);
     offer.set_visible(false);
-    offer.set_halign(gtk::Align::Start);
+    offer.set_margin_start(FILTER_LEFT);
+    offer.set_margin_end(FILTER_RIGHT);
+    offer.set_margin_top(BAND_AIR);
+    offer.set_margin_bottom(BAND_AIR);
+    let said = gtk::Label::new(Some(CHANGED));
+    said.add_css_class("lib-meta");
+    offer.append(&said);
     offer.append(&separator());
     offer.append(reload);
     offer.append(&separator());
@@ -2201,39 +2240,34 @@ fn offered(reload: &gtk::Button, keep: &gtk::Button) -> gtk::Box {
     offer
 }
 
-/// The "·" between two of the status line's words.
+/// The "·" between two of the band's words.
 fn separator() -> gtk::Label {
     let separator = gtk::Label::new(Some(SEPARATOR));
     separator.add_css_class("lib-meta");
     separator
 }
 
-/// The status line at the pane's foot.
-fn foot(status: &gtk::Label, offer: &gtk::Box) -> gtk::Box {
-    let foot = gtk::Box::new(gtk::Orientation::Horizontal, DOT_GAP);
-    foot.add_css_class("lib-foot");
-    foot.set_height_request(FOOT_HEIGHT);
-    let dot = icon((DOT, DOT), dot_icon);
-    dot.add_css_class("lib-icon");
-    dot.set_margin_start(FOOT_LEFT);
-    foot.append(&dot);
-    status.set_hexpand(true);
-    status.set_xalign(0.0);
-    status.set_ellipsize(gtk::pango::EllipsizeMode::End);
+/// The band above the Filter field: a notice's line, and the offer a Document
+/// changed on disk under unsaved edits makes. Each is hidden until it has
+/// something to say, so that at rest nothing stands between the last row and
+/// the rule (#441 § The foot and the title bar).
+fn band(notice: &gtk::Label, offer: &gtk::Box) -> gtk::Box {
+    let band = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    notice.add_css_class("lib-meta");
+    notice.set_xalign(0.0);
+    notice.set_ellipsize(gtk::pango::EllipsizeMode::End);
     // An ellipsizing label still asks for its whole sentence as its natural width, and the pane
     // grows to it: the "no dictionary" notice doubled the Library's width (#415). One character
-    // is its natural width now, and `hexpand` hands it the foot's slack.
-    status.set_max_width_chars(1);
-    foot.append(status);
-    foot.append(offer);
-    // Where the manuscripts are, at the foot's right (`.lib-where`), because a
-    // status line that says the work is saved without saying where has not
-    // said the half that matters.
-    let device = gtk::Label::new(Some(WHERE));
-    device.add_css_class("lib-meta");
-    device.set_margin_end(ROW_RIGHT);
-    foot.append(&device);
-    foot
+    // is its natural width now.
+    notice.set_max_width_chars(1);
+    notice.set_margin_start(FILTER_LEFT);
+    notice.set_margin_end(FILTER_RIGHT);
+    notice.set_margin_top(BAND_AIR);
+    notice.set_margin_bottom(BAND_AIR);
+    notice.set_visible(false);
+    band.append(notice);
+    band.append(offer);
+    band
 }
 
 /// The excerpt's two lines, set on the leading the oracle gives them, and the
@@ -2296,37 +2330,6 @@ fn section_name(section: &Section<'_>) -> String {
     }
 }
 
-/// A section's head: the folder's name, or Pinned.
-fn section_head(name: &str, folder: bool) -> gtk::Box {
-    let head = gtk::Box::new(gtk::Orientation::Horizontal, SECTION_GAP);
-    head.set_height_request(SECTION_HEIGHT);
-    head.set_margin_start(SECTION_LEFT);
-    head.set_margin_end(ROW_RIGHT);
-    if folder {
-        // In the grey rather than the folder colour, which the oracle keeps
-        // for a folder inside a Location (`#library[data-loc="device"]
-        // .lib-loc .fold { color: var(--lib-2) }`): a Location is what the
-        // pane is made of, not a folder inside one.
-        head.append(&column(icon(FOLDER, folder_icon), "lib-icon"));
-    }
-    let label = gtk::Label::new(Some(name));
-    label.add_css_class("lib-head");
-    label.set_xalign(0.0);
-    label.set_ellipsize(gtk::pango::EllipsizeMode::End);
-    head.append(&label);
-    head
-}
-
-/// An icon in the row's icon column, so that names line up whatever they are
-/// marked with.
-fn column(mark: gtk::DrawingArea, class: &str) -> gtk::Box {
-    mark.add_css_class(class);
-    let column = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-    column.set_width_request(ICON_COLUMN);
-    column.append(&mark);
-    column
-}
-
 /// A drawing of `size`, left where the row puts it.
 fn icon(
     size: (i32, i32),
@@ -2347,37 +2350,13 @@ fn row_name(name: &str, extensions: bool) -> String {
     }
 }
 
-/// The count beside the sort control: how much there is to write with.
-fn counted(documents: usize, words: usize) -> String {
-    let documents = if documents == 1 {
-        "1 document".to_string()
-    } else {
-        format!("{documents} documents")
-    };
-    let words = if words == 1 {
-        "1 word".to_string()
-    } else {
-        format!("{words} words")
-    };
-    format!("{documents} · {words}")
-}
-
-/// The count while a query narrows the list: how much of the Library answered
-/// it (`files.js` `renderCount`: `${shown} of ${list.length} documents`).
-fn narrowed(found: usize, of: usize) -> String {
-    format!("{found} of {of} documents")
-}
-
-/// The head of one file: what its row shows of it, and how much of it there is.
+/// The head of one file: what its row shows of it.
 ///
-/// Read once per refresh and shared by the row and the count, so that a Library
-/// of a thousand Documents is a thousand bounded reads and not two thousand.
+/// Read at most once per refresh, so that a Library of a thousand Documents is
+/// a thousand bounded reads.
 struct Head {
     /// Two lines of what the file says.
     excerpt: String,
-    /// How many words the read holds ([`quill_engine::stats::words`], the same
-    /// count the stats bar shows).
-    words: usize,
     /// When the file was last written, as the read found it: what says whether
     /// a later refresh has to read it again ([`Sidebar::read_heads`]).
     modified: Option<SystemTime>,
@@ -2394,12 +2373,10 @@ impl Head {
         let Some(read) = beginning(path) else {
             return Self {
                 excerpt: String::new(),
-                words: 0,
                 modified,
             };
         };
         Self {
-            words: quill_engine::stats::words(&read),
             excerpt: prose(&read),
             modified,
         }
@@ -2409,7 +2386,7 @@ impl Head {
 /// What the sort control reads in each order.
 fn sort_title(sort: Sort) -> &'static str {
     match sort {
-        Sort::Modified => "Sort by Date",
+        Sort::Modified => "Sort by Date Modified",
         Sort::Created => "Sort by Date Created",
         Sort::Name => "Sort by Name",
         Sort::Extension => "Sort by Extension",
@@ -2500,10 +2477,18 @@ fn days(year: i32, month: i32, day: i32) -> i64 {
     era * 146_097 + day_of_era - 719_468
 }
 
-/// The document mark (`files.js` `I.doc`): a page with its corner turned.
+/// The page mark: a page with its corner turned and two lines of text on it,
+/// drawn at the width its row asked for.
 fn document_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
     chrome::source(area, cr, 1.0);
+    let scale = f64::from(area.content_width()) / f64::from(DOC_DRAWN);
+    cr.scale(scale, scale);
     cr.set_line_width(1.1);
+    cr.move_to(3.4, 8.6);
+    cr.line_to(10.6, 8.6);
+    cr.move_to(3.4, 11.4);
+    cr.line_to(10.6, 11.4);
+    let _ = cr.stroke();
     cr.move_to(1.1, 1.6);
     cr.curve_to(1.1, 1.05, 1.55, 0.6, 2.1, 0.6);
     cr.line_to(8.1, 0.6);
@@ -2592,9 +2577,12 @@ fn chevron_icon(area: &gtk::DrawingArea, cr: &cairo::Context, open: bool) {
     let _ = cr.stroke();
 }
 
-/// The magnifier beside the search field (`files.js` `I.search`).
+/// The magnifier in the Filter field (`files.js` `I.search`), drawn at the side
+/// it is asked for.
 fn magnifier_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
     chrome::source(area, cr, 1.0);
+    let scale = f64::from(area.content_width()) / f64::from(MAG);
+    cr.scale(scale, scale);
     cr.set_line_width(1.3);
     cr.set_line_cap(cairo::LineCap::Round);
     cr.arc(5.15, 5.15, 3.7, 0.0, std::f64::consts::TAU);
@@ -2602,11 +2590,6 @@ fn magnifier_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
     cr.move_to(7.9, 7.9);
     cr.line_to(10.8, 10.8);
     let _ = cr.stroke();
-}
-
-/// The status dot (`.lib-status .dot`), at rest.
-fn dot_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
-    dot_at(area, cr, DOT_ALPHA);
 }
 
 /// The dot that marks a row whose file changed on disk: the same circle at
@@ -2690,19 +2673,6 @@ mod tests {
         assert_eq!(row_name("sea-storm.md", true), "sea-storm.md");
         assert_eq!(row_name("letters.txt", false), "letters");
         assert_eq!(row_name("notes", false), "notes");
-    }
-
-    #[test]
-    fn the_count_says_documents_and_words_and_says_one_of_each_singly() {
-        assert_eq!(counted(0, 0), "0 documents · 0 words");
-        assert_eq!(counted(1, 1), "1 document · 1 word");
-        assert_eq!(counted(8, 239), "8 documents · 239 words");
-    }
-
-    #[test]
-    fn the_count_says_how_much_of_the_library_a_query_left() {
-        assert_eq!(narrowed(2, 8), "2 of 8 documents");
-        assert_eq!(narrowed(0, 8), "0 of 8 documents");
     }
 
     #[test]
@@ -2805,44 +2775,68 @@ mod tests {
         assert_eq!(days(2026, 1, 1) - days(2025, 12, 31), 1);
     }
 
+    /// The pane's grounds and its grey are the theme's three roles on both
+    /// grounds, and its bar is the accent (#441 § Grounds and roles).
     #[test]
-    fn the_sheet_names_the_panes_ground_its_hairline_and_its_accent_bar() {
-        let sheet = stylesheet(Ground::default());
-        assert!(sheet.contains(".library {"), "{sheet}");
-        assert!(sheet.contains("border-right: 1px solid"), "{sheet}");
-        assert!(sheet.contains("font-size: 13.5px"), "{sheet}");
-        assert!(
-            sheet.contains("list > row:selected .lib-bar { background-color: #00bfff; }"),
-            "{sheet}"
-        );
-    }
-
-    /// The prompt under the search field was the palest thing in the pane —
-    /// `#BCBCBC`, 1.73:1 on the paper — because GTK's Default theme halves the
-    /// `placeholder` node to 0.55, the same defect #374 fixed on the Palette.
-    #[test]
-    fn the_search_prompt_is_the_panes_chrome_grey_at_full_strength() {
+    fn the_panes_grounds_and_grey_are_their_roles_and_the_bar_is_the_accent() {
         for scheme in [Scheme::Light, Scheme::Dark] {
             let ground = Ground::of(scheme);
             let sheet = stylesheet(ground);
-            let dim = ground.colours.colour(Role::ChromeFg).to_hex();
-            let rule = sheet
-                .split_once("placeholder")
-                .expect("no placeholder rule at all")
+            let hex = |role| ground.colours.colour(role).to_hex();
+            for (rule, role) in [
+                (".lib-org { background-color: ", Role::OrganizerBg),
+                (".lib-list { background-color: ", Role::FileListBg),
+                (
+                    "label.lib-excerpt { font-size: 13.5px; color: ",
+                    Role::Secondary,
+                ),
+                ("placeholder { color: ", Role::Secondary),
+                ("row:selected .lib-bar { background-color: ", Role::Accent),
+            ] {
+                let wanted = hex(role);
+                assert!(
+                    sheet.contains(&format!("{rule}{wanted};")),
+                    "{scheme:?}: no `{rule}{wanted}` for {role:?} in\n{sheet}"
+                );
+            }
+            let date = sheet
+                .split_once("label.lib-date {")
+                .expect("no date rule")
                 .1;
-            let rule = rule.split_once('}').expect("unclosed placeholder rule").0;
+            let date = date.split_once('}').expect("an unclosed date rule").0;
             assert!(
-                rule.contains(&format!("color: {dim}")),
-                "{scheme:?}: the prompt is not the pane's chrome grey:\n{sheet}"
-            );
-            assert!(
-                rule.contains("opacity: 1"),
-                "{scheme:?}: GTK's theme is still halving the prompt:\n{sheet}"
-            );
-            assert!(
-                sheet.contains(&format!(".lib-icon {{ color: {dim}; }}")),
-                "{scheme:?}: the magnifier is not the prompt's grey:\n{sheet}"
+                date.contains(&format!("color: {};", hex(Role::Secondary))),
+                "{scheme:?}: the date is not the secondary grey:\n{sheet}"
             );
         }
+    }
+
+    /// Hover draws nothing and a selected row takes no fill (State 28), so the
+    /// rules on a row's state only clear GTK's own; the Sort pill clears the
+    /// Default theme's gradient as well as its colour (#437); the Filter prompt
+    /// stands at full strength, where the theme's 0.55 left Quill's at
+    /// `#BCBCBC` (#379); and no rule is drawn at the pane's edge.
+    #[test]
+    fn a_row_takes_no_hover_and_no_fill_and_the_theme_paints_nothing_of_its_own() {
+        let sheet = stylesheet(Ground::default());
+        let rule = |selector: &str| {
+            sheet
+                .split_once(selector)
+                .unwrap_or_else(|| panic!("no `{selector}` rule in\n{sheet}"))
+                .1
+                .split_once('}')
+                .expect("an unclosed rule")
+                .0
+                .trim()
+                .to_string()
+        };
+        assert_eq!(rule("list > row:hover {"), "background: none;");
+        assert_eq!(rule("list > row:selected {"), "background: none;");
+        assert!(
+            rule("button.lib-sortb {").contains("background-image: none;"),
+            "{sheet}"
+        );
+        assert!(rule("placeholder {").contains("opacity: 1;"), "{sheet}");
+        assert!(!sheet.contains("border-right"), "{sheet}");
     }
 }
