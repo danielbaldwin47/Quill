@@ -70,9 +70,9 @@ use crate::ground::Ground;
 use crate::tags::pixels;
 use crate::window::Window;
 
-/// The pane's width until a writer drags the divider (`files.css`
-/// `--lib-w: 368px`), and the width a double-click on the divider puts back.
-pub const WIDTH: i32 = 368;
+/// The pane's width until a writer drags the divider (`ref/ia/mac-native/NOTES.md`
+/// § State 28, *Pane, total*), and the width a double-click on the divider puts back.
+pub const WIDTH: i32 = 360;
 /// How wide the divider is to a pointer: the last logical pixels of the pane,
 /// lying over its right edge rather than beside it, so that the page stands
 /// where it stood and the strip has room to be caught.
