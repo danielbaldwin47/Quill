@@ -48,7 +48,7 @@ package() {
   # an installed build and a development build differ in one path rather than
   # in every lookup. Templates are not here: they are compiled into the binary
   # (`quill_engine::template`).
-  install -dm755 "$data/fonts" "$data/data/style"
+  install -dm755 "$data/fonts" "$data/data/style" "$data/data/marks"
   install -m644 "$startdir"/fonts/*.ttf "$data/fonts/"
   # One licence per set of files in there: the Faces' own, then Inter's and
   # Source Serif 4's, which ship unmodified and carry their own.
@@ -58,6 +58,8 @@ package() {
   # that says where each entry came from and the licence texts its sources
   # require to travel with the data.
   install -m644 "$startdir"/data/style/*.txt "$startdir/data/style/SOURCES.md" "$data/data/style/"
+  # The Selection Mark's four glyphs `quill_engine::data::marks()` reads.
+  install -m644 "$startdir"/data/marks/*.svg "$data/data/marks/"
 
   # The Omarchy template (README.md § Theme Quill with the desktop): a writer
   # copies it into their own themed/ directory, so it is installed where the

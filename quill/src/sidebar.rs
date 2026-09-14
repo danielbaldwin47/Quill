@@ -60,12 +60,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::sync::OnceLock;
 use std::time::{Duration, SystemTime};
 
 use gtk::prelude::*;
 use gtk::{cairo, gdk, gio, glib, graphene};
 use quill_engine::document::full_name;
 use quill_engine::library::{Contents, File, Found, Library, Row, Snippet, Sort, View};
+use quill_engine::mark::Glyph;
 use quill_engine::settings::{self, Choice, Mark, Order, ShowDate, library_width};
 use quill_engine::theme::{Colour, Role, Scheme};
 
@@ -546,6 +548,10 @@ pub fn stylesheet(ground: Ground) -> String {
          \x20 min-width: {bar_width}px; margin: {bar_top}px 0 {bar_bottom}px {bar_left}px;\n\
          }}\n\
          .library list > row:selected .lib-bar {{ background-color: {accent}; }}\n\
+         .library .lib-mark {{\n\
+         \x20 color: transparent; margin: {bar_top}px 0 {bar_bottom}px {bar_left}px;\n\
+         }}\n\
+         .library list > row:selected .lib-mark {{ color: {accent}; }}\n\
          .library list > row.{DROP_CLASS} {{\n\
          \x20 background-color: {drop};\n\
          }}\n"
@@ -565,6 +571,8 @@ struct Drawing<'a> {
     /// Whether a file's row carries two lines of what its file says
     /// (`library.show_excerpts`); without them it is the short row.
     excerpts: bool,
+    /// What marks the open Document's row (`library.mark`).
+    mark: Mark,
     /// Now, as the dates are said against it. `None` where the clock could not
     /// be asked, which is a row with no date rather than no row.
     now: Option<&'a glib::DateTime>,
@@ -1209,6 +1217,7 @@ impl Sidebar {
             extensions: session.settings().library.show_extensions,
             date: session.settings().library.show_date,
             excerpts: session.settings().library.show_excerpts,
+            mark: session.settings().library.mark,
             now: now.as_ref(),
             read: &read,
         };
@@ -1650,7 +1659,7 @@ impl Sidebar {
         chevron.add_css_class("lib-icon");
         chevron.set_margin_end(CHEVRON_RIGHT);
         line.append(&chevron);
-        self.listed(line, &label, path, true, indent)
+        self.listed(line, &label, path, true, indent, None)
     }
 
     /// A file: its name, when it was last written, and two lines of what it
@@ -1734,11 +1743,17 @@ impl Sidebar {
             body.append(&clip);
         }
         line.append(&body);
-        self.listed(line, &title, row.path, false, indent)
+        // The short glyph on the short row, whether excerpts are off or this
+        // file has nothing to show of itself.
+        let pitch = if tall { ROW_PITCH } else { FOLDER_PITCH };
+        let mark = glyph(drawing.mark, !tall).map(|glyph| (glyph, pitch));
+        self.listed(line, &title, row.path, false, indent, mark)
     }
 
     /// A row of the list: the separator above it, the accent bar at its left
-    /// edge, and the line itself, which is indented `indent` for its depth.
+    /// edge — or the Selection Mark's glyph where the bar stands, drawn for a
+    /// row `pitch` tall — and the line itself, which is indented `indent` for
+    /// its depth.
     fn listed(
         &self,
         line: gtk::Box,
@@ -1746,6 +1761,7 @@ impl Sidebar {
         path: &Path,
         folder: bool,
         indent: i32,
+        mark: Option<(&'static Glyph, i32)>,
     ) -> Listed {
         // At the row's right edge, inside the row's own margin, and hidden
         // until the window says this Document is the one in a conflict.
@@ -1755,8 +1771,27 @@ impl Sidebar {
         dot.set_margin_top(DOT_TOP);
         dot.set_visible(false);
         line.append(&dot);
-        let bar = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        bar.add_css_class("lib-bar");
+        let bar: gtk::Widget = match mark {
+            // The glyph takes the bar's insets from the stylesheet and its
+            // width from its own aspect at the height they leave, and draws in
+            // the accent only on the selected row, as the bar does.
+            Some((glyph, pitch)) => {
+                let height = f64::from(pitch - 1 - BAR.top - BAR.bottom);
+                let drawn = gtk::DrawingArea::new();
+                drawn.set_content_width(pixels(glyph.width_at(height).ceil()));
+                drawn.set_draw_func(move |area, cr, _, height| {
+                    chrome::source(area, cr, 1.0);
+                    glyph.draw(cr, f64::from(height));
+                });
+                drawn.add_css_class("lib-mark");
+                drawn.upcast()
+            }
+            None => {
+                let bar = gtk::Box::new(gtk::Orientation::Vertical, 0);
+                bar.add_css_class("lib-bar");
+                bar.upcast()
+            }
+        };
         bar.set_halign(gtk::Align::Start);
         // Over the row rather than beside it: a bar that takes a column of its
         // own pushes the icon and the name right of the insets they are set
@@ -2972,6 +3007,32 @@ fn place_name(path: &Path) -> String {
         Some(name) => name.to_string_lossy().into_owned(),
         None => path.display().to_string(),
     }
+}
+
+/// The glyph `mark` is drawn with, tall or short, or `None` for the bar.
+///
+/// The four files are read once a process. One that cannot be read is said on
+/// stderr that once and leaves its rows the bar, which is a row still marked
+/// rather than a pane that will not open.
+fn glyph(mark: Mark, short: bool) -> Option<&'static Glyph> {
+    static GLYPHS: OnceLock<Vec<((Mark, bool), Glyph)>> = OnceLock::new();
+    let glyphs = GLYPHS.get_or_init(|| {
+        [Mark::Feather, Mark::Pen]
+            .into_iter()
+            .flat_map(|drawn| [(drawn, false), (drawn, true)])
+            .filter_map(|(drawn, short)| {
+                let path = quill_engine::mark::file(drawn, short)?;
+                Glyph::read(&path)
+                    .map_err(|error| eprintln!("quill: the {} mark: {error}", drawn.as_str()))
+                    .ok()
+                    .map(|glyph| ((drawn, short), glyph))
+            })
+            .collect()
+    });
+    glyphs
+        .iter()
+        .find(|(key, _)| *key == (mark, short))
+        .map(|(_, glyph)| glyph)
 }
 
 /// A drawing of `size`, left where the row puts it.
