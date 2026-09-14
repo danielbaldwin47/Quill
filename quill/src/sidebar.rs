@@ -863,7 +863,7 @@ impl Sidebar {
         // own column is unmoved by it.
         let menu = menu_popover(&root);
         let head_menu = menu_popover(&head);
-        let sort_menu = menu_popover(&sort_button);
+        let sort_menu = menu_popover(&root);
         // The divider lies over the pane's last [`GRAB`] pixels rather than
         // standing beside them: an overlay child is given room without taking
         // any, so the page begins where it always did and a state judged at
@@ -917,13 +917,21 @@ impl Sidebar {
             grabbed: Rc::new(Cell::new(None)),
         };
         // The model is handed over as the menu opens, as the row menu's is
-        // ([`Sidebar::popup`]): a popover given its model before the pane's
-        // [`PILL_GROUP`] is inserted tracks every row as an action missing
-        // from the start, and draws each one greyed for good.
+        // ([`Sidebar::popup`]), on the pane's root where the row menu stands:
+        // a popover parented on the pill, or given its model before the pane's
+        // [`PILL_GROUP`] is inserted, tracks every row as an action missing
+        // from the start and draws each one greyed and inert (#446).
         let sorting = sidebar.clone();
-        sort_button.connect_clicked(move |_| {
-            sorting.sort_menu.set_menu_model(Some(&pill_menu()));
-            sorting.sort_menu.popup();
+        sort_button.connect_clicked(move |button| {
+            let under = button
+                .compute_bounds(&sorting.root)
+                .map_or((0.0, 0.0), |at| (at.x(), at.y() + at.height()));
+            sorting.popup(
+                &pill_menu(),
+                &sorting.sort_menu,
+                f64::from(under.0),
+                f64::from(under.1),
+            );
         });
         sidebar.wire();
         sidebar
@@ -2201,6 +2209,7 @@ impl Sidebar {
     pub fn dispose(&self) {
         self.menu.unparent();
         self.head_menu.unparent();
+        self.sort_menu.unparent();
     }
 
     /// Puts the header of the Location the File List shows on the File List's
