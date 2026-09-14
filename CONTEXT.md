@@ -9,15 +9,23 @@ One Markdown file on disk. The file is the only source of truth; Quill stores no
 _Avoid_: note, page, buffer
 
 **Library**:
-The Locations the writer has added, browsed from the sidebar.
-_Avoid_: workspace, vault, project
+The Locations the writer has added, browsed from the pane beside the page: an Organizer beside a File List.
+_Avoid_: workspace, vault, project, sidebar
+
+**Organizer**:
+The Library pane's left column: the Locations, the Pinned Documents and folders, and the Recents. Choosing one fills the File List.
+_Avoid_: sidebar, navigator, tree
+
+**File List**:
+The Library pane's right column: one Location's tree, a folder expanding in place, or the Pinned or Recents list.
+_Avoid_: sidebar, document list, browser
 
 **Location**:
-One folder the writer has added to the Library; the sidebar shows each with its full tree.
+One folder the writer has added to the Library; the Organizer names each, and the File List shows one at a time.
 _Avoid_: root, workspace, vault, project
 
 **Pinned**:
-A Document or folder the writer has pinned; the sidebar lists them above the Locations.
+A Document or folder the writer has pinned; one list across every Location, a section of the Organizer.
 _Avoid_: favourite, starred
 
 **Editor**:
