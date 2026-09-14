@@ -406,6 +406,15 @@ const DROP_TINT: f64 = 0.16;
 /// The class a row wears while it is the target a drop would land on.
 const DROP_CLASS: &str = "lib-drop";
 
+/// The class the row of the Document the window holds wears, which is what
+/// the bar and the Selection Mark are drawn on.
+///
+/// A class of its own rather than the list's selection: a click selects a
+/// folder's row, and Enter and the arrows move the selection over rows that
+/// are not open, while the bar marks the open Document and nothing else
+/// (#441 § The selected row and the Selection Mark).
+const OPEN_CLASS: &str = "lib-open";
+
 /// How long the field waits after a keystroke before it searches.
 ///
 /// A content search reads every shown file whose name did not match, so the
@@ -586,11 +595,11 @@ pub fn stylesheet(ground: Ground) -> String {
          \x20 background: none; border-radius: {bar_radius}px;\n\
          \x20 min-width: {bar_width}px; margin: {bar_top}px 0 {bar_bottom}px {bar_left}px;\n\
          }}\n\
-         .library list > row:selected .lib-bar {{ background-color: {accent}; }}\n\
+         .library list > row.{OPEN_CLASS} .lib-bar {{ background-color: {accent}; }}\n\
          .library .lib-mark {{\n\
          \x20 color: transparent; margin: {bar_top}px 0 {bar_bottom}px {bar_left}px;\n\
          }}\n\
-         .library list > row:selected .lib-mark {{ color: {accent}; }}\n\
+         .library list > row.{OPEN_CLASS} .lib-mark {{ color: {accent}; }}\n\
          .library list > row.{DROP_CLASS} {{\n\
          \x20 background-color: {drop};\n\
          }}\n"
@@ -1919,14 +1928,15 @@ impl Sidebar {
         }
     }
 
-    /// Highlights the row of the Document the window is showing, and no row at
-    /// all where it is showing something the Library does not hold; the dot
-    /// goes on that same row while that Document is in a conflict.
+    /// Marks the row of the Document the window is showing, and no row at all
+    /// where it is showing something the Library does not hold; the dot goes
+    /// on that same row while that Document is in a conflict.
     ///
-    /// Under a query, a result list with the open Document nowhere in it
-    /// highlights its first hit instead, because the highlight is what Enter
-    /// opens. One walk of the rows now drawn, which is what the pane shows
-    /// and not what the tree holds.
+    /// The mark is [`OPEN_CLASS`] and the selection is what Enter opens: the
+    /// open row is selected too, and under a query a result list with the open
+    /// Document nowhere in it selects its first hit instead, with no mark on
+    /// it. One walk of the rows now drawn, which is what the pane shows and
+    /// not what the tree holds.
     fn highlight(&self) {
         let open = self.open.borrow();
         let conflicted = self.conflicted.get();
@@ -1934,6 +1944,11 @@ impl Sidebar {
         for listed in rows.iter() {
             let is_open = open.as_deref() == Some(listed.path.as_path());
             listed.dot.set_visible(is_open && conflicted);
+            if is_open {
+                listed.row.add_css_class(OPEN_CLASS);
+            } else {
+                listed.row.remove_css_class(OPEN_CLASS);
+            }
         }
         let found = rows
             .iter()
@@ -4218,7 +4233,8 @@ mod tests {
                     Role::Secondary,
                 ),
                 ("placeholder { color: ", Role::Secondary),
-                ("row:selected .lib-bar { background-color: ", Role::Accent),
+                ("row.lib-open .lib-bar { background-color: ", Role::Accent),
+                ("row.lib-open .lib-mark { color: ", Role::Accent),
             ] {
                 let wanted = hex(role);
                 assert!(
@@ -4259,6 +4275,9 @@ mod tests {
         };
         assert_eq!(rule("list > row:hover {"), "background: none;");
         assert_eq!(rule("list > row:selected {"), "background: none;");
+        // The bar and the mark follow the open Document, never the selection a
+        // click on a folder's row moves (Hand test step 2).
+        assert_eq!(sheet.matches(":selected").count(), 1, "{sheet}");
         assert!(
             rule("button.lib-sortb {").contains("background-image: none;"),
             "{sheet}"
