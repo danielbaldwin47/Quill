@@ -31,6 +31,7 @@ use std::io;
 use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 
+pub use crate::library::{Order, Sort};
 pub use state::{STATE_FILE, State, WindowState, library_width, window_sizes};
 
 use crate::shortcuts;
@@ -756,15 +757,44 @@ impl Stats {
     }
 }
 
+choice! {
+    /// Which date a File List row shows at its right.
+    ShowDate {
+        /// When the Document was last written.
+        #[default]
+        Modified => "modified",
+        /// When the Document was made, where the file system says.
+        Created => "created",
+        /// No date column.
+        None => "none",
+    }
+}
+
+choice! {
+    /// What marks the open Document's row in the File List.
+    Mark {
+        /// The accent bar at the List's left edge.
+        #[default]
+        Bar => "bar",
+        /// The feather glyph where the bar sits.
+        Feather => "feather",
+        /// The fountain pen glyph where the bar sits.
+        Pen => "pen",
+    }
+}
+
 /// The Library: the folders Quill was pointed at, and how it shows what is in
 /// them.
 ///
-/// Everything here defaults to nothing chosen — no Location, nothing Pinned,
-/// and four questions answered no — because a first launch has been pointed at
-/// no folder, and dot-entries, file extensions, a confirmation before a move
-/// and a dialog before a first save are each something a writer asks for
-/// rather than something Quill decides for them.
-#[derive(Clone, Debug, Default, PartialEq)]
+/// The Locations and the four questions default to nothing chosen — no
+/// Location, nothing Pinned, and four questions answered no — because a first
+/// launch has been pointed at no folder, and dot-entries, file extensions, a
+/// confirmation before a move and a dialog before a first save are each
+/// something a writer asks for rather than something Quill decides for them.
+/// The six keys of the pane's sort menu default to iA's pane as shot: newest
+/// modified on top, folders first, the modified date and excerpts shown, and
+/// the bar.
+#[derive(Clone, Debug, PartialEq)]
 pub struct Library {
     /// The folders the Library is walked from, in the order they were added.
     pub locations: Vec<PathBuf>,
@@ -780,8 +810,41 @@ pub struct Library {
     /// Whether the first save of an untitled Document asks where it goes even
     /// when there is a Location to put it in.
     pub ask_where_to_save: bool,
+    /// What the File List is ordered by.
+    pub sort: Sort,
+    /// Which end of the sort is on top.
+    pub order: Order,
+    /// Whether folders precede the files beside them, or interleave with them
+    /// by the same key.
+    pub pin_folders: bool,
+    /// Which date a row shows, if any.
+    pub show_date: ShowDate,
+    /// Whether a Document's row carries its first words under its name.
+    pub show_excerpts: bool,
+    /// What marks the open Document's row.
+    pub mark: Mark,
     /// Anything else in the table, carried through a write.
     rest: toml::Table,
+}
+
+impl Default for Library {
+    fn default() -> Self {
+        Self {
+            locations: Vec::new(),
+            pinned: Vec::new(),
+            show_hidden: false,
+            show_extensions: false,
+            confirm_move: false,
+            ask_where_to_save: false,
+            sort: Sort::default(),
+            order: Order::default(),
+            pin_folders: true,
+            show_date: ShowDate::default(),
+            show_excerpts: true,
+            mark: Mark::default(),
+            rest: toml::Table::new(),
+        }
+    }
 }
 
 impl Library {
@@ -794,6 +857,12 @@ impl Library {
         let show_extensions = reading.boolean("show_extensions", false);
         let confirm_move = reading.boolean("confirm_move", false);
         let ask_where_to_save = reading.boolean("ask_where_to_save", false);
+        let sort = reading.choice("sort");
+        let order = reading.choice("order");
+        let pin_folders = reading.boolean("pin_folders", true);
+        let show_date = reading.choice("show_date");
+        let show_excerpts = reading.boolean("show_excerpts", true);
+        let mark = reading.choice("mark");
         Self {
             locations,
             pinned,
@@ -801,6 +870,12 @@ impl Library {
             show_extensions,
             confirm_move,
             ask_where_to_save,
+            sort,
+            order,
+            pin_folders,
+            show_date,
+            show_excerpts,
+            mark,
             rest: reading.rest(),
         }
     }
@@ -814,6 +889,12 @@ impl Library {
         writing.boolean("show_extensions", self.show_extensions);
         writing.boolean("confirm_move", self.confirm_move);
         writing.boolean("ask_where_to_save", self.ask_where_to_save);
+        writing.choice("sort", self.sort);
+        writing.choice("order", self.order);
+        writing.boolean("pin_folders", self.pin_folders);
+        writing.choice("show_date", self.show_date);
+        writing.boolean("show_excerpts", self.show_excerpts);
+        writing.choice("mark", self.mark);
         writing.rest(self.rest.clone());
         writing.finish()
     }
@@ -1516,7 +1597,7 @@ mod tests {
     }
 
     #[test]
-    fn the_six_library_keys_are_read_from_the_table() {
+    fn the_twelve_library_keys_are_read_from_the_table() {
         let (settings, notes) = Settings::parse(
             "[library]\n\
              locations = [\"/home/writer/Writing\", \"/home/writer/Notes\"]\n\
@@ -1524,7 +1605,13 @@ mod tests {
              show_hidden = true\n\
              show_extensions = true\n\
              confirm_move = true\n\
-             ask_where_to_save = true\n",
+             ask_where_to_save = true\n\
+             sort = \"extension\"\n\
+             order = \"oldest\"\n\
+             pin_folders = false\n\
+             show_date = \"none\"\n\
+             show_excerpts = false\n\
+             mark = \"pen\"\n",
         );
         assert_eq!(notes, Vec::<String>::new());
         assert_eq!(
@@ -1539,11 +1626,49 @@ mod tests {
                 show_extensions: true,
                 confirm_move: true,
                 ask_where_to_save: true,
+                sort: Sort::Extension,
+                order: Order::Oldest,
+                pin_folders: false,
+                show_date: ShowDate::None,
+                show_excerpts: false,
+                mark: Mark::Pen,
                 rest: toml::Table::new(),
             }
         );
         let (again, _) = Settings::parse(&settings.to_toml());
         assert_eq!(again, settings, "and round-trips through a write");
+    }
+
+    /// Every value each of the four `[library]` choices takes is read as
+    /// itself and written back as the same word.
+    #[test]
+    fn every_value_of_the_library_choices_round_trips() {
+        fn round_trips<C: Choice + std::fmt::Debug>(key: &str, read: fn(&Library) -> C) {
+            for &value in C::VALUES {
+                let (settings, notes) =
+                    Settings::parse(&format!("[library]\n{key} = \"{value}\"\n"));
+                assert!(notes.is_empty(), "{key} = {value}: {notes:?}");
+                assert_eq!(read(&settings.library).as_str(), value, "{key}");
+                let written: toml::Table = settings.to_toml().parse().expect("writes TOML");
+                assert_eq!(written["library"][key].as_str(), Some(value), "{key}");
+                assert_eq!(Settings::parse(&settings.to_toml()).0, settings, "{key}");
+            }
+        }
+        round_trips("sort", |library| library.sort);
+        round_trips("order", |library| library.order);
+        round_trips("show_date", |library| library.show_date);
+        round_trips("mark", |library| library.mark);
+    }
+
+    /// A word none of the four choices knows reads as that choice's default,
+    /// with a note each, as every other choice does.
+    #[test]
+    fn an_unknown_library_choice_reads_as_its_default() {
+        let (settings, notes) = Settings::parse(
+            "[library]\nsort = \"size\"\norder = \"sideways\"\nshow_date = \"weekday\"\nmark = \"quill\"\n",
+        );
+        assert_eq!(settings.library, Library::default());
+        assert_eq!(notes.len(), 4, "{notes:?}");
     }
 
     #[test]
@@ -1554,6 +1679,12 @@ mod tests {
         assert!(library.locations.is_empty() && library.pinned.is_empty());
         assert!(!library.show_hidden && !library.show_extensions);
         assert!(!library.confirm_move && !library.ask_where_to_save);
+        assert_eq!(
+            (library.sort, library.order, library.show_date, library.mark),
+            (Sort::Modified, Order::Newest, ShowDate::Modified, Mark::Bar),
+            "the sort menu's defaults"
+        );
+        assert!(library.pin_folders && library.show_excerpts);
         assert_eq!(library, Library::default());
     }
 
@@ -1610,11 +1741,12 @@ mod tests {
     /// as one at the top level does.
     #[test]
     fn a_hand_added_library_key_survives_a_write() {
-        let (settings, notes) = Settings::parse("[library]\nshow_hidden = true\nsort = \"name\"\n");
+        let (settings, notes) =
+            Settings::parse("[library]\nshow_hidden = true\nlayout = \"grid\"\n");
         assert!(notes.is_empty(), "{notes:?}");
         assert!(settings.library.show_hidden);
         let written: toml::Table = settings.to_toml().parse().expect("writes TOML");
-        assert_eq!(written["library"]["sort"].as_str(), Some("name"));
+        assert_eq!(written["library"]["layout"].as_str(), Some("grid"));
         assert_eq!(Settings::parse(&settings.to_toml()).0, settings);
     }
 

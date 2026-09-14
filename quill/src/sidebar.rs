@@ -588,7 +588,7 @@ impl Sidebar {
             .build();
         root.append(&find(&entry));
 
-        let sort_label = gtk::Label::new(Some(sort_title(Sort::Date)));
+        let sort_label = gtk::Label::new(Some(sort_title(Sort::Modified)));
         let count = gtk::Label::new(None);
         count.add_css_class("lib-meta");
         let sort_button = sort_button(&sort_label);
@@ -652,7 +652,7 @@ impl Sidebar {
             rows: Rc::new(RefCell::new(Vec::new())),
             heads: Rc::new(RefCell::new(Vec::new())),
             expanded: Rc::new(RefCell::new(BTreeSet::new())),
-            sort: Rc::new(Cell::new(Sort::Date)),
+            sort: Rc::new(Cell::new(Sort::Modified)),
             open: Rc::new(RefCell::new(None)),
             header: Rc::new(RefCell::new(None)),
             head_drop: Rc::new(RefCell::new(None)),
@@ -965,14 +965,17 @@ impl Sidebar {
         self.highlight();
     }
 
-    /// What the tree is read through: the writer's `[library] show_hidden`
-    /// and the sort this pane stands at. The Palette's Outline reads the
-    /// Library through the same view, so its Documents fall in the order the
-    /// sidebar shows them (#397).
+    /// What the tree is read through: the writer's `[library] show_hidden`,
+    /// `order` and `pin_folders`, and the sort this pane stands at. The
+    /// Palette's Outline reads the Library through the same view, so its
+    /// Documents fall in the order the sidebar shows them (#397).
     pub(crate) fn view(&self, session: &crate::session::Session) -> View {
+        let library = &session.settings().library;
         View {
-            show_hidden: session.settings().library.show_hidden,
+            show_hidden: library.show_hidden,
             sort: self.sort.get(),
+            order: library.order,
+            pin_folders: library.pin_folders,
         }
     }
 
@@ -1965,8 +1968,8 @@ impl Sidebar {
     /// The next sort order, and the list drawn in it.
     fn cycle_sort(&self) {
         let next = match self.sort.get() {
-            Sort::Date => Sort::Name,
-            Sort::Name => Sort::Date,
+            Sort::Modified => Sort::Name,
+            Sort::Created | Sort::Name | Sort::Extension => Sort::Modified,
         };
         self.sort.set(next);
         self.sort_label.set_text(sort_title(next));
@@ -2406,8 +2409,10 @@ impl Head {
 /// What the sort control reads in each order.
 fn sort_title(sort: Sort) -> &'static str {
     match sort {
-        Sort::Date => "Sort by Date",
+        Sort::Modified => "Sort by Date",
+        Sort::Created => "Sort by Date Created",
         Sort::Name => "Sort by Name",
+        Sort::Extension => "Sort by Extension",
     }
 }
 
@@ -2709,10 +2714,7 @@ mod tests {
         std::fs::write(root.join("harbour.md"), "The lamps. The sea was flat.\n")
             .expect("a file to find");
         let library = Library::open(std::slice::from_ref(&root), &[]);
-        let view = View {
-            show_hidden: false,
-            sort: Sort::Date,
-        };
+        let view = View::default();
         let mut contents = Contents::new();
         let found = library.search("sea", &view, &mut contents);
         let snippet = found

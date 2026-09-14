@@ -56,6 +56,7 @@ use std::time::SystemTime;
 
 use crate::disk;
 use crate::document::full_name;
+use crate::settings::{Choice, choice};
 
 /// The file names the Library lists, without their dot.
 ///
@@ -72,12 +73,24 @@ pub(crate) fn listed(path: &Path) -> bool {
     EXTENSIONS.iter().any(|listed| same_name(extension, listed))
 }
 
-/// When `path` was last written, where the file system says, and `None` where
-/// it will not say.
-fn modified(path: &Path) -> Option<SystemTime> {
-    fs::metadata(path)
-        .ok()
-        .and_then(|metadata| metadata.modified().ok())
+/// When `path` was last written and when it was made ([`stamps_of`]), from the
+/// one `stat`; both `None` where the file system will not say.
+fn stamps(path: &Path) -> (Option<SystemTime>, Option<SystemTime>) {
+    fs::metadata(path).map_or((None, None), |metadata| stamps_of(&metadata))
+}
+
+/// The write time `metadata` carries, and its birth time where the file
+/// system keeps one ([`born`]).
+fn stamps_of(metadata: &fs::Metadata) -> (Option<SystemTime>, Option<SystemTime>) {
+    let modified = metadata.modified().ok();
+    (modified, born(metadata.created().ok(), modified))
+}
+
+/// When an entry was made: its birth time, or its write time where the file
+/// system reports no birth time, so that a Date Created sort on such a file
+/// system is the Date Modified sort rather than no order at all.
+fn born(created: Option<SystemTime>, modified: Option<SystemTime>) -> Option<SystemTime> {
+    created.or(modified)
 }
 
 /// One file under a Location, as the tree holds it.
@@ -88,14 +101,24 @@ pub struct File {
     /// Its name on disk, extension and all.
     name: String,
     /// When it was last written; `None` where the file system would not say,
-    /// which sorts last under [`Sort::Date`].
+    /// which sorts last under [`Sort::Modified`] newest on top.
     modified: Option<SystemTime>,
+    /// When it was made, or `modified` where the file system keeps no birth
+    /// time ([`born`]).
+    created: Option<SystemTime>,
     /// Whether it is hidden: its own name, or any folder between it and the
     /// Location's own folder, begins with a dot.
     hidden: bool,
 }
 
 impl File {
+    /// When it was made, or last written where the file system will not say
+    /// when it was made.
+    #[must_use]
+    pub fn created(&self) -> Option<SystemTime> {
+        self.created
+    }
+
     /// Where it is.
     #[must_use]
     pub fn path(&self) -> &Path {
@@ -125,7 +148,12 @@ impl File {
     fn key(&self) -> Key<'_> {
         Key {
             name: &self.name,
+            extension: Path::new(&self.name)
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .unwrap_or(""),
             modified: self.modified,
+            created: self.created,
         }
     }
 }
@@ -140,6 +168,9 @@ pub struct Folder {
     name: String,
     /// When it was last written.
     modified: Option<SystemTime>,
+    /// When it was made, or `modified` where the file system keeps no birth
+    /// time ([`born`]).
+    created: Option<SystemTime>,
     /// Whether it is hidden: its own name, or any folder between it and the
     /// Location's own folder, begins with a dot.
     hidden: bool,
@@ -150,6 +181,13 @@ pub struct Folder {
 }
 
 impl Folder {
+    /// When it was made, or last written where the file system will not say
+    /// when it was made.
+    #[must_use]
+    pub fn created(&self) -> Option<SystemTime> {
+        self.created
+    }
+
     /// Where it is.
     #[must_use]
     pub fn path(&self) -> &Path {
@@ -175,15 +213,19 @@ impl Folder {
         self.hidden
     }
 
-    /// What a sort compares it by.
+    /// What a sort compares it by. A folder has no extension, whatever dot its
+    /// name carries, so under [`Sort::Extension`] it groups with the files
+    /// that have none.
     fn key(&self) -> Key<'_> {
         Key {
             name: &self.name,
+            extension: "",
             modified: self.modified,
+            created: self.created,
         }
     }
 
-    /// The child folder named `name`, where the walk found one.
+    ///The child folder named `name`, where the walk found one.
     fn folder(&self, name: &std::ffi::OsStr) -> Option<&Folder> {
         self.folders
             .iter()
@@ -215,25 +257,60 @@ impl Location {
     }
 }
 
-/// How the files of a folder are ordered.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum Sort {
-    /// By when each was last written, newest first. The default, and the
-    /// oracle's.
-    #[default]
-    Date,
-    /// By name, case-insensitively.
-    Name,
+choice! {
+    /// What the files and folders of a folder are ordered by: `[library] sort`.
+    Sort {
+        /// When each was last written. The default, and the oracle's.
+        #[default]
+        Modified => "modified",
+        /// When each was made, or last written where the file system keeps
+        /// no birth time.
+        Created => "created",
+        /// By name, case-insensitively.
+        Name => "name",
+        /// By extension, then by name, case-insensitively.
+        Extension => "extension",
+    }
+}
+
+choice! {
+    /// Which end of the sort is on top: `[library] order`.
+    Order {
+        /// The newest on top under a date, A to Z under a name. The default.
+        #[default]
+        Newest => "newest",
+        /// The same order upside down: the oldest on top under a date, Z to A
+        /// under a name.
+        Oldest => "oldest",
+    }
 }
 
 /// What the tree is read through: the settings that decide what is shown and
 /// in what order, which the writer moves without the tree being walked again.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct View {
     /// Whether dot-entries are shown; they are held either way.
     pub show_hidden: bool,
-    /// The order files and folders are drawn in.
+    /// What files and folders are ordered by.
     pub sort: Sort,
+    /// Which end of the sort is on top.
+    pub order: Order,
+    /// Whether a folder's folders precede its files (Pin Folders to Top), or
+    /// interleave with them by the same key.
+    pub pin_folders: bool,
+}
+
+impl Default for View {
+    /// The `[library]` table's defaults: newest modified on top, folders
+    /// first.
+    fn default() -> Self {
+        Self {
+            show_hidden: false,
+            sort: Sort::default(),
+            order: Order::default(),
+            pin_folders: true,
+        }
+    }
 }
 
 impl View {
@@ -243,14 +320,18 @@ impl View {
     }
 }
 
-/// What a sort compares: the display name and the write time of one entry,
-/// travelling together because either sort falls back on the other.
+/// What a sort compares: the name, extension and two times of one entry,
+/// travelling together because every sort falls back on another.
 #[derive(Clone, Copy, Debug)]
 struct Key<'a> {
     /// The entry's name on disk.
     name: &'a str,
+    /// The name's extension without its dot; empty for a folder.
+    extension: &'a str,
     /// When it was last written.
     modified: Option<SystemTime>,
+    /// When it was made ([`born`]).
+    created: Option<SystemTime>,
 }
 
 /// Orders two names case-insensitively, without a lower-cased copy of either.
@@ -271,17 +352,28 @@ fn same_name(one: &str, other: &str) -> bool {
     folded(one, other) == Ordering::Equal
 }
 
-/// Orders two entries under `sort`: [`Sort::Name`] is case-insensitive, and
-/// [`Sort::Date`] is newest first with an unreadable write time last. Either
-/// falls back on the other, so that the order is total and two files saved in
-/// the same second do not swap between two queries.
-fn order(sort: Sort, one: Key<'_>, other: Key<'_>) -> Ordering {
-    match sort {
-        Sort::Name => folded(one.name, other.name).then_with(|| other.modified.cmp(&one.modified)),
-        Sort::Date => other
-            .modified
-            .cmp(&one.modified)
-            .then_with(|| folded(one.name, other.name)),
+/// Orders two entries under `view`'s sort and order.
+///
+/// [`Order::Newest`]: a date sort is newest first with an unreadable time
+/// last, falling back on the name; [`Sort::Name`] is case-insensitive A to Z,
+/// falling back on the write time; [`Sort::Extension`] groups by extension A
+/// to Z, then by name, then by write time. Every sort falls back on another,
+/// so that the order is total and two files saved in the same second do not
+/// swap between two queries. [`Order::Oldest`] is that whole order reversed.
+fn order(view: &View, one: Key<'_>, other: Key<'_>) -> Ordering {
+    let names = || folded(one.name, other.name);
+    let newest = || other.modified.cmp(&one.modified);
+    let ordering = match view.sort {
+        Sort::Modified => newest().then_with(names),
+        Sort::Created => other.created.cmp(&one.created).then_with(names),
+        Sort::Name => names().then_with(newest),
+        Sort::Extension => folded(one.extension, other.extension)
+            .then_with(names)
+            .then_with(newest),
+    };
+    match view.order {
+        Order::Newest => ordering,
+        Order::Oldest => ordering.reverse(),
     }
 }
 
@@ -329,6 +421,14 @@ impl<'a> Row<'a> {
     pub fn depth(&self) -> usize {
         match self {
             Row::Folder { depth, .. } | Row::File { depth, .. } => *depth,
+        }
+    }
+
+    /// What a sort compares the entry by.
+    fn key(&self) -> Key<'a> {
+        match self {
+            Row::Folder { folder, .. } => folder.key(),
+            Row::File { file, .. } => file.key(),
         }
     }
 }
@@ -912,11 +1012,13 @@ fn walk(directory: &Path, hidden: bool, reads: &mut usize) -> Folder {
     let mut folder = Folder {
         path: directory.to_path_buf(),
         name: full_name(directory),
-        modified: modified(directory),
+        modified: None,
+        created: None,
         hidden,
         folders: Vec::new(),
         files: Vec::new(),
     };
+    (folder.modified, folder.created) = stamps(directory);
     let Ok(entries) = fs::read_dir(directory) else {
         return folder;
     };
@@ -930,8 +1032,10 @@ fn walk(directory: &Path, hidden: bool, reads: &mut usize) -> Folder {
         if kind.is_dir() {
             folder.folders.push(walk(&path, hidden, reads));
         } else if listed(&path) {
+            let (modified, created) = stamps(&path);
             folder.files.push(File {
-                modified: modified(&path),
+                modified,
+                created,
                 path,
                 name,
                 hidden,
@@ -966,33 +1070,45 @@ fn descend<'a>(folder: &'a Folder, rest: &Path) -> Option<Row<'a>> {
     }
 }
 
-/// What is shown under `folder`, at `depth` and deeper: the folders it holds
-/// before the files beside them, each folder followed by its own rows, each
-/// group in `view`'s order.
+/// What is shown under `folder`, at `depth` and deeper, in `view`'s order,
+/// each folder followed by its own rows: under [`View::pin_folders`] the
+/// folders it holds before the files beside them, and otherwise the two
+/// interleaved by the same key.
 ///
 /// The walk is over the shown entries, and sorts each shown folder once.
 fn rows_of<'a>(folder: &'a Folder, view: &View, depth: usize) -> Vec<Row<'a>> {
-    let mut folders: Vec<&Folder> = folder
+    let mut entries: Vec<Row<'a>> = folder
         .folders
         .iter()
         .filter(|below| view.shows(below.hidden))
-        .collect();
-    folders.sort_by(|one, other| order(view.sort, one.key(), other.key()));
-    let mut files: Vec<&File> = folder
-        .files
-        .iter()
-        .filter(|file| view.shows(file.hidden))
-        .collect();
-    files.sort_by(|one, other| order(view.sort, one.key(), other.key()));
-    let mut rows = Vec::new();
-    for below in folders {
-        rows.push(Row::Folder {
+        .map(|below| Row::Folder {
             folder: below,
             depth,
-        });
-        rows.extend(rows_of(below, view, depth + 1));
+        })
+        .chain(
+            folder
+                .files
+                .iter()
+                .filter(|file| view.shows(file.hidden))
+                .map(|file| Row::File { file, depth }),
+        )
+        .collect();
+    let is_file = |row: &Row<'_>| matches!(row, Row::File { .. });
+    entries.sort_by(|one, other| {
+        let placed = if view.pin_folders {
+            is_file(one).cmp(&is_file(other))
+        } else {
+            Ordering::Equal
+        };
+        placed.then_with(|| order(view, one.key(), other.key()))
+    });
+    let mut rows = Vec::new();
+    for entry in entries {
+        rows.push(entry);
+        if let Row::Folder { folder: below, .. } = entry {
+            rows.extend(rows_of(below, view, depth + 1));
+        }
     }
-    rows.extend(files.into_iter().map(|file| Row::File { file, depth }));
     rows
 }
 
@@ -1050,14 +1166,15 @@ fn patch_entry(folder: &mut Folder, name: &std::ffi::OsStr) -> bool {
             true
         }
         Ok(metadata) if listed(&path) => {
-            let modified = metadata.modified().ok();
+            let (modified, created) = stamps_of(&metadata);
             if let Some(file) = folder
                 .files
                 .iter_mut()
                 .find(|file| file.path.file_name() == Some(name))
             {
-                let moved = file.modified != modified;
+                let moved = file.modified != modified || file.created != created;
                 file.modified = modified;
+                file.created = created;
                 return moved;
             }
             drop_entry(folder, name);
@@ -1065,6 +1182,7 @@ fn patch_entry(folder: &mut Folder, name: &std::ffi::OsStr) -> bool {
                 path,
                 name: name.to_string_lossy().into_owned(),
                 modified,
+                created,
                 hidden,
             });
             true
@@ -1379,7 +1497,8 @@ mod tests {
                 &library,
                 &View {
                     show_hidden: false,
-                    sort: Sort::Name
+                    sort: Sort::Name,
+                    ..View::default()
                 }
             ),
             [
@@ -1405,7 +1524,8 @@ mod tests {
                 &library,
                 &View {
                     show_hidden: false,
-                    sort: Sort::Name
+                    sort: Sort::Name,
+                    ..View::default()
                 }
             ),
             ["quiet.Markdown", "SHOUTED.MD"]
@@ -1425,7 +1545,8 @@ mod tests {
                 &library,
                 &View {
                     show_hidden: true,
-                    sort: Sort::Name
+                    sort: Sort::Name,
+                    ..View::default()
                 }
             ),
             [".git", "HEAD.md", "one.md"]
@@ -1448,7 +1569,8 @@ mod tests {
                 &library,
                 &View {
                     show_hidden: true,
-                    sort: Sort::Name
+                    sort: Sort::Name,
+                    ..View::default()
                 }
             ),
             [".git", "HEAD.md"]
@@ -1482,11 +1604,158 @@ mod tests {
                 &library,
                 &View {
                     show_hidden: false,
-                    sort: Sort::Name
+                    sort: Sort::Name,
+                    ..View::default()
                 }
             ),
             ["alpha.md", "Beta.md", "Gamma.md"]
         );
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    /// A time `seconds` after the epoch.
+    fn at(seconds: u64) -> Option<SystemTime> {
+        Some(SystemTime::UNIX_EPOCH + Duration::from_secs(seconds))
+    }
+
+    /// A folder of the tree as a test states it, with no walk: two folders and
+    /// three files whose write and birth times interleave with the folders',
+    /// because the fixture on disk can stamp a write time and never a birth
+    /// time.
+    fn stated() -> Folder {
+        let folder = |name: &str, modified, created| Folder {
+            path: PathBuf::from(name),
+            name: name.to_string(),
+            modified: at(modified),
+            created: at(created),
+            hidden: false,
+            folders: Vec::new(),
+            files: Vec::new(),
+        };
+        let file = |name: &str, modified, created| File {
+            path: PathBuf::from(name),
+            name: name.to_string(),
+            modified: at(modified),
+            created: at(created),
+            hidden: false,
+        };
+        Folder {
+            folders: vec![folder("Drafts", 250, 150), folder("archive", 50, 350)],
+            files: vec![
+                file("b.md", 300, 100),
+                file("a.txt", 100, 400),
+                file("c.md", 200, 200),
+            ],
+            ..folder("", 0, 0)
+        }
+    }
+
+    /// Each of the four sorts in both orders, folders first under Pin Folders
+    /// to Top and interleaved by the same key without. Oldest on Top is the
+    /// Newest order upside down within each group, so each case states its
+    /// Newest order and how many folders lead it.
+    #[test]
+    fn each_sort_orders_both_ways_with_folders_pinned_or_interleaved() {
+        let tree = stated();
+        let cases: [(Sort, bool, [&str; 5]); 8] = [
+            (
+                Sort::Modified,
+                true,
+                ["Drafts", "archive", "b.md", "c.md", "a.txt"],
+            ),
+            (
+                Sort::Modified,
+                false,
+                ["b.md", "Drafts", "c.md", "a.txt", "archive"],
+            ),
+            (
+                Sort::Created,
+                true,
+                ["archive", "Drafts", "a.txt", "c.md", "b.md"],
+            ),
+            (
+                Sort::Created,
+                false,
+                ["a.txt", "archive", "c.md", "Drafts", "b.md"],
+            ),
+            (
+                Sort::Name,
+                true,
+                ["archive", "Drafts", "a.txt", "b.md", "c.md"],
+            ),
+            (
+                Sort::Name,
+                false,
+                ["a.txt", "archive", "b.md", "c.md", "Drafts"],
+            ),
+            // Grouped by extension before name: the two `md` files ahead of
+            // `a.txt`, and the folders, which have none, ahead of both.
+            (
+                Sort::Extension,
+                true,
+                ["archive", "Drafts", "b.md", "c.md", "a.txt"],
+            ),
+            (
+                Sort::Extension,
+                false,
+                ["archive", "Drafts", "b.md", "c.md", "a.txt"],
+            ),
+        ];
+        for (sort, pin_folders, newest) in cases {
+            let shown = |order| {
+                let view = View {
+                    sort,
+                    order,
+                    pin_folders,
+                    ..View::default()
+                };
+                rows_of(&tree, &view, 0)
+                    .iter()
+                    .map(Row::name)
+                    .collect::<Vec<_>>()
+            };
+            assert_eq!(
+                shown(Order::Newest),
+                newest,
+                "{sort:?}, pinned {pin_folders}"
+            );
+            let leading = if pin_folders { 2 } else { 0 };
+            let (folders, rest) = newest.split_at(leading);
+            let oldest: Vec<&str> = folders
+                .iter()
+                .rev()
+                .chain(rest.iter().rev())
+                .copied()
+                .collect();
+            assert_eq!(
+                shown(Order::Oldest),
+                oldest,
+                "{sort:?} oldest, pinned {pin_folders}"
+            );
+        }
+    }
+
+    /// Date Created is the birth time where the file system keeps one, and the
+    /// write time where it keeps none.
+    #[test]
+    fn created_is_the_birth_time_or_the_write_time_where_there_is_none() {
+        assert_eq!(born(None, at(100)), at(100), "the fallback");
+        assert_eq!(born(at(50), at(100)), at(50));
+        let directory = scratch("created");
+        stamped(&written(&directory, "dated.md", "one"), 100);
+        let library = walked(&directory);
+        let file = library
+            .files(&View::default())
+            .next()
+            .expect("the one file is listed");
+        assert_eq!(file.modified(), at(100));
+        match fs::metadata(file.path()).and_then(|metadata| metadata.created()) {
+            Ok(birth) => assert_eq!(file.created(), Some(birth), "the walk reads the birth time"),
+            Err(error) => {
+                eprintln!("skipped: the temp dir keeps no birth time ({error})");
+                assert_eq!(file.created(), file.modified(), "and falls back");
+            }
+        }
         fs::remove_dir_all(&directory).ok();
     }
 
@@ -1512,6 +1781,7 @@ mod tests {
         let view = View {
             show_hidden: false,
             sort: Sort::Name,
+            ..View::default()
         };
         // Written behind the tree's back. A patch of a folder the tree already
         // holds reads nothing, because reading a folder is itself an event
@@ -1585,7 +1855,8 @@ mod tests {
                 &library,
                 &View {
                     show_hidden: false,
-                    sort: Sort::Name
+                    sort: Sort::Name,
+                    ..View::default()
                 }
             ),
             ["chapters", "one.md"]
@@ -1607,6 +1878,7 @@ mod tests {
         let view = View {
             show_hidden: false,
             sort: Sort::Name,
+            ..View::default()
         };
         let rows = library.pinned_rows(&view);
         assert_eq!(rows.first().map(Row::path), Some(chapters.as_path()));
@@ -1668,12 +1940,14 @@ mod tests {
         let view = View {
             show_hidden: false,
             sort: Sort::Name,
+            ..View::default()
         };
         let shown: Vec<&str> = library.files(&view).map(File::name).collect();
         assert_eq!(shown, ["deep.md", "top.md"]);
         let everything = View {
             show_hidden: true,
             sort: Sort::Name,
+            ..View::default()
         };
         let all: Vec<&str> = library.files(&everything).map(File::name).collect();
         assert_eq!(all, ["deep.md", ".hidden.md", "top.md"]);
@@ -1844,6 +2118,7 @@ mod tests {
         let everything = View {
             show_hidden: true,
             sort: Sort::Name,
+            ..View::default()
         };
         assert_eq!(
             hits(&library.search("sst", &everything, &mut contents)),
