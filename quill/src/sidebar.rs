@@ -62,7 +62,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::sync::OnceLock;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, OnceLock, PoisonError, mpsc};
 use std::time::{Duration, SystemTime};
 
 use gtk::prelude::*;
@@ -356,8 +357,13 @@ const ORG_LINE_CLASS: &str = "lib-org-line";
 /// field answers the writer's pause rather than the writer's typing; the
 /// engine's cache then holds those texts, and the query after this one reads
 /// nothing ([`Contents`]). Re-armed by each keystroke, so a word typed at
-/// speed is one search.
+/// speed is one search. The search itself runs off the main thread
+/// ([`Searching`]), so the wait only spares it work, never the window a hang.
 const SETTLE_MS: u64 = 150;
+
+/// How often the main thread looks for the search thread's answer while one is
+/// owed, which is about a frame: the answer is drawn at the next look.
+const ANSWER_POLL_MS: u64 = 16;
 
 /// How much of a file the excerpt is taken from.
 ///
@@ -721,9 +727,10 @@ pub struct Sidebar {
     /// one Location's header where the Library has only the one
     /// ([`Sidebar::head_as_location`]). Kept for the same reason [`Sidebar::menu`] is.
     head_menu: gtk::PopoverMenu,
-    /// The file texts search has read, kept for as long as the window is, so
-    /// that a query over a tree nothing has touched reads nothing.
-    contents: Rc<RefCell<Contents>>,
+    /// The query's search, run on its own thread, with the file texts it has
+    /// read kept for as long as the window is, so that a query over a tree
+    /// nothing has touched reads nothing.
+    searching: Rc<RefCell<Searching>>,
     /// What each shown file's first lines said, by path, so that a refresh
     /// over files nothing has written reads nothing ([`Sidebar::refresh`]).
     read: Rc<RefCell<BTreeMap<PathBuf, Head>>>,
@@ -875,7 +882,7 @@ impl Sidebar {
             head_drop: Rc::new(RefCell::new(None)),
             menu,
             head_menu,
-            contents: Rc::new(RefCell::new(Contents::new())),
+            searching: Rc::new(RefCell::new(Searching::new())),
             read: Rc::new(RefCell::new(BTreeMap::new())),
             picture: Rc::new(RefCell::new(None)),
             settle: Rc::new(RefCell::new(None)),
@@ -1243,7 +1250,16 @@ impl Sidebar {
     /// settings save the pane does not read — moves the highlight alone. What
     /// is read and sorted is the listed section's, never the whole Library's
     /// (#453).
+    ///
+    /// A query lists its name hits at once and its content hits when the
+    /// search thread answers, which draws the list again (#454).
     pub fn refresh(&self) {
+        self.draw(false);
+    }
+
+    /// [`Sidebar::refresh`], with a query's content search run here and now
+    /// where `at_once`, rather than on the search thread.
+    fn draw(&self, at_once: bool) {
         let Some(session) = self.session() else {
             return;
         };
@@ -1299,13 +1315,14 @@ impl Sidebar {
             Some(Showing::Recents) => session.recents(),
             _ => Vec::new(),
         };
+        let matches = self.matches(&library, &query, view, at_once);
         let listing = listing(
             &library,
             showing.as_ref(),
             &query,
             &view,
             &opened,
-            &mut self.contents.borrow_mut(),
+            matches.as_deref(),
             &self.expanded.borrow(),
         );
         let now = glib::DateTime::now_local().ok();
@@ -2441,10 +2458,67 @@ impl Sidebar {
     }
 
     /// Draws the list for what the field says now, without waiting the
-    /// keystrokes out.
+    /// keystrokes out, and with its content hits in it: the search runs on
+    /// this thread, which is what a harness launch shooting its first frame
+    /// needs ([`Sidebar::set_query`]).
     fn search_now(&self) {
         self.wake();
-        self.refresh();
+        self.draw(true);
+    }
+
+    /// What `query`'s content search has answered, asking it where the
+    /// standing question is not this one: on this thread where `at_once`, and
+    /// otherwise on the search thread, whose answer draws the list again.
+    /// `None` while the answer is owed, which lists the names alone; and for an
+    /// empty query, which lists no search at all.
+    fn matches(
+        &self,
+        library: &Library,
+        query: &str,
+        view: View,
+        at_once: bool,
+    ) -> Option<Vec<Match>> {
+        let mut searching = self.searching.borrow_mut();
+        if query.is_empty() {
+            searching.forget();
+            return None;
+        }
+        if let Some(question) = searching.ask(query, view, library) {
+            if at_once {
+                searching.answer_now(&question);
+            } else {
+                searching.spawn(question);
+                self.poll_answers(&mut searching);
+            }
+        }
+        searching.matches(query, view).map(<[Match]>::to_vec)
+    }
+
+    /// Looks for the search thread's answer each [`ANSWER_POLL_MS`] while one
+    /// is owed, and draws the list again when it comes; one poll at a time.
+    fn poll_answers(&self, searching: &mut Searching) {
+        if searching.polling {
+            return;
+        }
+        searching.polling = true;
+        let pane = self.clone();
+        glib::timeout_add_local(Duration::from_millis(ANSWER_POLL_MS), move || {
+            let (answered, owed) = {
+                let mut searching = pane.searching.borrow_mut();
+                let answered = searching.receive();
+                let owed = searching.owed();
+                searching.polling = owed;
+                (answered, owed)
+            };
+            if answered {
+                pane.refresh();
+            }
+            if owed {
+                glib::ControlFlow::Continue
+            } else {
+                glib::ControlFlow::Break
+            }
+        });
     }
 
     /// Drops the wait a keystroke armed, so that nothing searches twice.
@@ -2745,13 +2819,248 @@ fn recent_files<'a>(library: &'a Library, opened: &[PathBuf]) -> Vec<&'a File> {
         .collect()
 }
 
-/// What a query over Recents finds: the Library's search, name hits first,
-/// narrowed to the files `opened` names.
-fn recent_found<'a>(found: Vec<Found<'a>>, opened: &[PathBuf]) -> Vec<Found<'a>> {
+/// What a query over Recents finds: what it found over the Library, name hits
+/// first, narrowed to the files `opened` names.
+fn recent_found<'a>(
+    found: Vec<(&'a File, Option<Snippet>)>,
+    opened: &[PathBuf],
+) -> Vec<(&'a File, Option<Snippet>)> {
     found
         .into_iter()
-        .filter(|hit| opened.iter().any(|path| path == hit.file().path()))
+        .filter(|(file, _)| opened.iter().any(|path| path == file.path()))
         .collect()
+}
+
+/// What `query` lists over the Library: `matches`, the search thread's
+/// answer, for each path the tree still holds; or, while the answer is owed,
+/// the files whose names the query matched, which wants no file read and is
+/// the answer's own first group ([`Library::names`]).
+fn found_files<'a>(
+    library: &'a Library,
+    query: &str,
+    view: &View,
+    matches: Option<&[Match]>,
+) -> Vec<(&'a File, Option<Snippet>)> {
+    let Some(matches) = matches else {
+        return library
+            .names(query, view)
+            .into_iter()
+            .map(|file| (file, None))
+            .collect();
+    };
+    matches
+        .iter()
+        .filter_map(|(path, snippet)| match library.at(path) {
+            Some(Row::File { file, .. }) => Some((file, snippet.clone())),
+            _ => None,
+        })
+        .collect()
+}
+
+/// One file a query matched, as it crosses back from the search thread: its
+/// path, which the tree answers for again on the main thread, and the snippet
+/// a content match carries ([`Found`]).
+type Match = (PathBuf, Option<Snippet>);
+
+/// `found` in the form that crosses a thread.
+fn owned(found: &[Found<'_>]) -> Vec<Match> {
+    found
+        .iter()
+        .map(|hit| (hit.file().path().to_path_buf(), hit.snippet().cloned()))
+        .collect()
+}
+
+/// One content search asked of the search thread: the query, over the view
+/// and a copy of the Library as they stood when it was asked.
+#[derive(Clone)]
+struct Question {
+    /// Which question this is, counting up from the first; an answer carries
+    /// it back, so that an answer to a question since replaced is known.
+    number: u64,
+    query: String,
+    view: View,
+    library: Library,
+}
+
+impl Question {
+    /// Whether this is the question `query` over `view` and `library` asks.
+    fn asks(&self, query: &str, view: View, library: &Library) -> bool {
+        self.query == query && self.view == view && self.library == *library
+    }
+
+    /// Searches, reading through `contents` what the engine's search reads.
+    fn answer(&self, contents: &mut Contents) -> Answer {
+        Answer {
+            number: self.number,
+            matches: owned(&self.library.search(&self.query, &self.view, contents)),
+        }
+    }
+}
+
+/// What the search thread found for one [`Question`].
+struct Answer {
+    number: u64,
+    matches: Vec<Match>,
+}
+
+/// A query's content search, run off the main thread (#454).
+///
+/// The engine's [`Library::search`] reads every shown file whose name did not
+/// match, which over a folder of a few hundred Documents is seconds; on the
+/// main thread that was a window not responding on a query's first letter.
+/// Each question goes to a thread of its own with a copy of the Library, the
+/// text cache goes with it behind a lock, and the answer comes back over a
+/// channel the main thread polls ([`Sidebar::poll_answers`]). Questions queue
+/// at the lock one at a time, so the cache keeps its write-time rule and the
+/// second query over an untouched tree still reads nothing; and a question a
+/// newer one replaced while it queued is never searched, which is what spares
+/// a word typed letter by letter one read per letter.
+struct Searching {
+    /// The file texts search has read ([`Contents`]).
+    contents: Arc<Mutex<Contents>>,
+    /// The number of the newest question asked, which a queued thread reads to
+    /// learn it has been replaced.
+    newest: Arc<AtomicU64>,
+    /// The question standing: the last asked, answered or not.
+    asked: Option<Question>,
+    /// The answer to the standing question, or to the question before it
+    /// while that one's query and view are still the standing one's, so that
+    /// a tree that moves under a query keeps its hits while they are found
+    /// again.
+    answered: Option<Answered>,
+    sender: mpsc::Sender<Answer>,
+    answers: mpsc::Receiver<Answer>,
+    /// Whether a poll for answers is running ([`Sidebar::poll_answers`]).
+    polling: bool,
+}
+
+/// An answer the pane lists, with the query and view it answered.
+struct Answered {
+    number: u64,
+    query: String,
+    view: View,
+    matches: Vec<Match>,
+}
+
+impl Searching {
+    /// Nothing asked and no text read.
+    fn new() -> Self {
+        let (sender, answers) = mpsc::channel();
+        Self {
+            contents: Arc::new(Mutex::new(Contents::new())),
+            newest: Arc::new(AtomicU64::new(0)),
+            asked: None,
+            answered: None,
+            sender,
+            answers,
+            polling: false,
+        }
+    }
+
+    /// The question `query` over `view` and `library` asks, where it is not
+    /// the one already standing; `None` where it is, asked or answered.
+    fn ask(&mut self, query: &str, view: View, library: &Library) -> Option<Question> {
+        if self
+            .asked
+            .as_ref()
+            .is_some_and(|asked| asked.asks(query, view, library))
+        {
+            return None;
+        }
+        let question = Question {
+            number: self.newest.fetch_add(1, Ordering::Relaxed) + 1,
+            query: query.to_string(),
+            view,
+            library: library.clone(),
+        };
+        self.asked = Some(question.clone());
+        Some(question)
+    }
+
+    /// Answers `question` on this thread.
+    fn answer_now(&mut self, question: &Question) {
+        let answer =
+            question.answer(&mut self.contents.lock().unwrap_or_else(PoisonError::into_inner));
+        self.take(answer);
+    }
+
+    /// Answers `question` on a thread of its own, sending the answer back;
+    /// on this thread where no thread can be started, so that an answer is
+    /// never owed forever.
+    fn spawn(&mut self, question: Question) {
+        let contents = Arc::clone(&self.contents);
+        let newest = Arc::clone(&self.newest);
+        let sender = self.sender.clone();
+        let asked = question.clone();
+        let started = std::thread::Builder::new()
+            .name("quill-search".to_string())
+            .spawn(move || {
+                let mut contents = contents.lock().unwrap_or_else(PoisonError::into_inner);
+                // Replaced while it waited for the cache: the newer question
+                // reads whatever this one would have.
+                if newest.load(Ordering::Relaxed) != question.number {
+                    return;
+                }
+                sender.send(question.answer(&mut contents)).ok();
+            });
+        if started.is_err() {
+            self.answer_now(&asked);
+        }
+    }
+
+    /// Takes in `answer`, answering whether it answered the standing question;
+    /// an answer to a question since replaced is dropped.
+    fn take(&mut self, answer: Answer) -> bool {
+        let Some(asked) = self
+            .asked
+            .as_ref()
+            .filter(|asked| asked.number == answer.number)
+        else {
+            return false;
+        };
+        self.answered = Some(Answered {
+            number: answer.number,
+            query: asked.query.clone(),
+            view: asked.view,
+            matches: answer.matches,
+        });
+        true
+    }
+
+    /// Takes in every answer the search thread has sent, answering whether one
+    /// answered the standing question. Only one can, since a question is
+    /// answered once, so the rest are dropped unread.
+    fn receive(&mut self) -> bool {
+        let answers: Vec<Answer> = self.answers.try_iter().collect();
+        answers.into_iter().any(|answer| self.take(answer))
+    }
+
+    /// Whether the standing question's answer is still to come.
+    fn owed(&self) -> bool {
+        self.asked.as_ref().is_some_and(|asked| {
+            self.answered
+                .as_ref()
+                .is_none_or(|answered| answered.number != asked.number)
+        })
+    }
+
+    /// The hits to list for `query` over `view`: the standing question's
+    /// answer, or the last one given for the same query and view.
+    fn matches(&self, query: &str, view: View) -> Option<&[Match]> {
+        self.answered
+            .as_ref()
+            .filter(|answered| answered.query == query && answered.view == view)
+            .map(|answered| answered.matches.as_slice())
+    }
+
+    /// Stands no question: the query is gone, and a question still queued is
+    /// not searched.
+    fn forget(&mut self) {
+        if self.asked.take().is_some() {
+            self.newest.fetch_add(1, Ordering::Relaxed);
+        }
+        self.answered = None;
+    }
 }
 
 /// What one refresh lists in the File List, before a row of it is built.
@@ -2786,28 +3095,21 @@ impl<'a> Listing<'a> {
 
 /// What the File List lists for `showing` and `query`: the Recents `opened`
 /// names, narrowed by the query where there is one; a query's hits over the
-/// Library; or the chosen tree, sorted once and with what `expanded` leaves
-/// closed left out.
+/// Library, `matches` where the search has answered and its name hits alone
+/// where it has not ([`found_files`]); or the chosen tree, sorted once and
+/// with what `expanded` leaves closed left out.
 ///
-/// Only the tree listed is sorted and walked. The search reads what it reads
-/// ([`Library::search`]).
+/// Only the tree listed is sorted and walked, and no file's text is read here:
+/// the search reads on its own thread ([`Searching`]).
 fn listing<'a>(
     library: &'a Library,
     showing: Option<&Showing>,
     query: &str,
     view: &View,
     opened: &[PathBuf],
-    contents: &mut Contents,
+    matches: Option<&[Match]>,
     expanded: &BTreeSet<PathBuf>,
 ) -> Listing<'a> {
-    let flat = |found: Vec<Found<'a>>| {
-        Listing::Flat(
-            found
-                .iter()
-                .map(|hit| (hit.file(), hit.snippet().cloned()))
-                .collect(),
-        )
-    };
     match showing {
         Some(Showing::Recents) if query.is_empty() => Listing::Flat(
             recent_files(library, opened)
@@ -2815,8 +3117,11 @@ fn listing<'a>(
                 .map(|file| (file, None))
                 .collect(),
         ),
-        Some(Showing::Recents) => flat(recent_found(library.search(query, view, contents), opened)),
-        _ if !query.is_empty() => flat(library.search(query, view, contents)),
+        Some(Showing::Recents) => Listing::Flat(recent_found(
+            found_files(library, query, view, matches),
+            opened,
+        )),
+        _ if !query.is_empty() => Listing::Flat(found_files(library, query, view, matches)),
         Some(Showing::Location(path) | Showing::Folder(path)) => {
             Listing::Tree(open_rows(&library.rows(path, view), expanded))
         }
@@ -4425,14 +4730,116 @@ mod tests {
             ["lamps.md", "harbour.md", "sea-wall.md"]
         );
         let mut contents = Contents::new();
-        let found = recent_found(
-            library.search("sea", &View::default(), &mut contents),
-            &opened,
-        );
+        let view = View::default();
+        let matches = owned(&library.search("sea", &view, &mut contents));
+        let found = recent_found(found_files(&library, "sea", &view, Some(&matches)), &opened);
         assert_eq!(
-            names(found.iter().map(Found::file).collect()),
+            names(found.iter().map(|(file, _)| *file).collect()),
             ["sea-wall.md", "harbour.md"],
             "the name hit first, then the text hit, and never storm.md, which was not opened"
+        );
+        std::fs::remove_dir_all(&root).expect("the folder to go");
+    }
+
+    /// A search's answer to a query the writer has since typed past is
+    /// dropped; until the standing query's answer comes its names are listed
+    /// alone, and then its name hits first and its content hits after, in the
+    /// engine's order (#454).
+    #[test]
+    fn a_superseded_answer_is_dropped_and_the_standing_one_lists_names_then_texts() {
+        let root = std::env::temp_dir().join(format!("quill-sidebar-ask-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::create_dir_all(&root).expect("a folder to search");
+        std::fs::write(root.join("sea-wall.md"), "Stones.\n").expect("a name hit");
+        std::fs::write(root.join("harbour.md"), "The lamps. The sea was flat.\n")
+            .expect("a text hit");
+        std::fs::write(root.join("storm.md"), "Rain.\n").expect("no hit");
+        let library = Library::open(std::slice::from_ref(&root), &[]);
+        let view = View::default();
+        let listed = |searching: &Searching| {
+            found_files(&library, "sea", &view, searching.matches("sea", view))
+                .iter()
+                .map(|(file, snippet)| (file.name().to_string(), snippet.is_some()))
+                .collect::<Vec<_>>()
+        };
+        let answered = |searching: &Searching, question: &Question| {
+            question.answer(&mut searching.contents.lock().expect("the cache"))
+        };
+
+        let mut searching = Searching::new();
+        let typed_past = searching
+            .ask("se", view, &library)
+            .expect("a first question");
+        let standing = searching
+            .ask("sea", view, &library)
+            .expect("a second question");
+        assert!(
+            searching.ask("sea", view, &library).is_none(),
+            "the standing question is not asked again"
+        );
+        assert!(!searching.take(answered(&searching, &typed_past)));
+        assert!(searching.owed());
+        assert_eq!(listed(&searching), [("sea-wall.md".to_string(), false)]);
+        assert!(searching.take(answered(&searching, &standing)));
+        assert!(!searching.owed());
+        assert_eq!(
+            listed(&searching),
+            [
+                ("sea-wall.md".to_string(), false),
+                ("harbour.md".to_string(), true)
+            ]
+        );
+        std::fs::remove_dir_all(&root).expect("the folder to go");
+    }
+
+    /// The search thread answers the standing question over the channel, a
+    /// queued question since replaced is never searched, and the second
+    /// query over an untouched tree reads nothing (#454).
+    #[test]
+    fn the_search_thread_answers_the_standing_question_alone() {
+        let root =
+            std::env::temp_dir().join(format!("quill-sidebar-thread-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::create_dir_all(&root).expect("a folder to search");
+        std::fs::write(root.join("harbour.md"), "The lamps. The sea was flat.\n")
+            .expect("a text hit");
+        let library = Library::open(std::slice::from_ref(&root), &[]);
+        let view = View::default();
+        let mut searching = Searching::new();
+        // Holding the cache queues the first question behind the second.
+        let held = Arc::clone(&searching.contents);
+        let guard = held.lock().expect("the cache");
+        let first = searching.ask("lamps", view, &library).expect("a question");
+        searching.spawn(first);
+        let second = searching.ask("sea", view, &library).expect("a question");
+        searching.spawn(second);
+        drop(guard);
+        let answer = searching
+            .answers
+            .recv_timeout(Duration::from_secs(10))
+            .expect("the search thread answers");
+        assert!(searching.take(answer), "the standing question's answer");
+        assert!(
+            searching
+                .answers
+                .recv_timeout(Duration::from_millis(200))
+                .is_err(),
+            "the replaced question is never searched"
+        );
+        assert_eq!(held.lock().expect("the cache").reads(), 1);
+        let again = searching
+            .ask("the sea", view, &library)
+            .expect("a question");
+        searching.spawn(again);
+        let answer = searching
+            .answers
+            .recv_timeout(Duration::from_secs(10))
+            .expect("the search thread answers");
+        assert!(searching.take(answer));
+        assert_eq!(
+            held.lock().expect("the cache").reads(),
+            1,
+            "an untouched tree is not read again"
         );
         std::fs::remove_dir_all(&root).expect("the folder to go");
     }
@@ -4466,7 +4873,7 @@ mod tests {
                 "",
                 &View::default(),
                 &[],
-                &mut Contents::new(),
+                None,
                 expanded,
             );
             read_heads(read, listing.files())
