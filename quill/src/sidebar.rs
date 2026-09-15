@@ -375,12 +375,13 @@ const ANSWER_POLL_MS: u64 = 16;
 /// of them.
 const EXCERPT_BYTES: u64 = 4096;
 /// How many characters of it a row keeps. The label ellipsizes at two lines
-/// long before this at any width the divider can be dragged to: a pane as
-/// wide as a maximized window on a 3840 px screen leaves it is 3520 logical
-/// px, and two lines of it hold around a thousand characters at [`EXCERPT_PX`]
-/// (#260). The cap is what stops a one-line file of 4 KB being laid out in
-/// full to find that out.
-const EXCERPT_CHARS: usize = 1200;
+/// long before this at any width the divider can be dragged to: the pane
+/// stops at 500 pt, which leaves the File List 300 (#459), and two lines of
+/// that hold under a hundred characters of excerpt type. The cap is what the
+/// label is laid out in full to find that out, once per row per rebuild:
+/// 1200 characters cost about 12 ms a row, so a Location of 400 Documents
+/// took five seconds to open (#441's second Hand test).
+const EXCERPT_CHARS: usize = 300;
 
 /// The months a date is named in, January first.
 ///
@@ -3418,7 +3419,7 @@ fn filter(entry: &gtk::Entry) -> gtk::Box {
     field.append(&clear);
     let (ringed, shown) = (field.clone(), clear.clone());
     entry.connect_changed(move |entry| {
-        let live = !entry.text().is_empty();
+        let live = live(&entry.text());
         if live {
             ringed.add_css_class(LIVE_CLASS);
         } else {
@@ -3428,6 +3429,13 @@ fn filter(entry: &gtk::Entry) -> gtk::Box {
     });
     foot.append(&field);
     foot
+}
+
+/// Whether the Filter field's `text` is a query, which is what rings the
+/// capsule and shows its ✕: the same trimmed text [`Sidebar::query`] searches,
+/// so a field holding only spaces reads as empty in both places.
+fn live(text: &str) -> bool {
+    !text.trim().is_empty()
 }
 
 /// The view `[library]` reads the tree through: hidden folders, the sort, its
@@ -4369,6 +4377,29 @@ mod tests {
             "{} characters",
             said.chars().count()
         );
+    }
+
+    #[test]
+    fn the_excerpt_cap_outlasts_two_lines_of_the_widest_file_list() {
+        // The widest File List, and the most characters two lines of it could
+        // hold if every one were as narrow as an `i` (a fifth of the type size):
+        // the cap stays past that, so a long excerpt still ends in an ellipsis.
+        let pane = *settings::library_widths().end() as i32;
+        let list = f64::from(pane - organizer_width(pane));
+        let most = 2.0 * list / (ROW_PX * 0.2);
+        assert!(
+            EXCERPT_CHARS as f64 > most,
+            "{EXCERPT_CHARS} characters against {most:.0} that two lines hold"
+        );
+    }
+
+    #[test]
+    fn the_filter_rings_for_a_query_and_not_for_spaces() {
+        assert!(!live(""));
+        assert!(!live("   "));
+        assert!(!live("\t"));
+        assert!(live("sea"));
+        assert!(live("  sea "));
     }
 
     #[test]
