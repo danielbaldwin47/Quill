@@ -606,7 +606,7 @@ pub fn stylesheet(ground: Ground) -> String {
          }}\n\
          .library list > row.{OPEN_CLASS} .lib-bar {{ background-color: {accent}; }}\n\
          .library .lib-mark {{\n\
-         \x20 color: transparent; margin: {bar_top}px 0 {bar_bottom}px {bar_left}px;\n\
+         \x20 color: transparent; margin: {bar_top}px 0 {bar_bottom}px 0;\n\
          }}\n\
          .library list > row.{OPEN_CLASS} .lib-mark {{ color: {accent}; }}\n\
          .library list > row.{DROP_CLASS} {{\n\
@@ -1900,13 +1900,15 @@ impl Sidebar {
         dot.set_visible(false);
         line.append(&dot);
         let bar: gtk::Widget = match mark {
-            // The glyph takes the bar's insets from the stylesheet and its
-            // width from its own aspect at the height they leave, and draws in
+            // The glyph takes the bar's top and bottom insets from the
+            // stylesheet, its width from its own aspect at the height they
+            // leave and its left edge from the bar's centre line, and draws in
             // the accent only on the selected row, as the bar does.
             Some((glyph, pitch)) => {
-                let height = f64::from(pitch - 1 - BAR.top - BAR.bottom);
+                let (width, left) = mark_place(glyph, pitch);
                 let drawn = gtk::DrawingArea::new();
-                drawn.set_content_width(pixels(glyph.width_at(height).ceil()));
+                drawn.set_content_width(pixels(width.ceil()));
+                drawn.set_margin_start(left);
                 drawn.set_draw_func(move |area, cr, _, height| {
                     chrome::source(area, cr, 1.0);
                     glyph.draw(cr, f64::from(height));
@@ -3278,6 +3280,16 @@ fn place_name(path: &Path) -> String {
     }
 }
 
+/// How wide a glyph is drawn on a row `pitch` tall, and how far in from the
+/// List's edge it stands: centred on the bar's centre line, since the glyph is
+/// several times the bar's width and a shared left edge reads as pushed right
+/// (#457), and never past the List's edge.
+fn mark_place(glyph: &Glyph, pitch: i32) -> (f64, i32) {
+    let width = glyph.width_at(f64::from(pitch - 1 - BAR.top - BAR.bottom));
+    let centre = f64::from(BAR.left) + f64::from(BAR.width) / 2.0;
+    (width, pixels((centre - width / 2.0).round().max(0.0)))
+}
+
 /// The glyph `mark` is drawn with, tall or short, or `None` for the bar.
 ///
 /// The four files are read once a process. One that cannot be read is said on
@@ -4367,6 +4379,26 @@ mod tests {
                 !sheet.contains(".lib-org row:hover") && !sheet.contains("lib-org-line:hover"),
                 "{scheme:?}: an Organizer hover rule in\n{sheet}"
             );
+        }
+    }
+
+    /// Each of the four glyphs stands centred on the bar's centre line, 9.5 px
+    /// in, within a pixel, and never left of the List's edge (#457).
+    #[test]
+    fn every_selection_mark_is_centred_on_the_bars_centre_line() {
+        let centre = f64::from(BAR.left) + f64::from(BAR.width) / 2.0;
+        assert!((centre - 9.5).abs() < f64::EPSILON);
+        for mark in [Mark::Feather, Mark::Pen] {
+            for (short, pitch) in [(false, ROW_PITCH), (true, FOLDER_PITCH)] {
+                let drawn = glyph(mark, short).expect("the mark's file reads");
+                let (width, left) = mark_place(drawn, pitch);
+                assert!(left >= 0, "{mark:?} short={short}: {left}");
+                let off = (f64::from(left) + width / 2.0 - centre).abs();
+                assert!(
+                    left == 0 || off <= 0.5,
+                    "{mark:?} short={short}: {width} wide at {left} is {off} off centre"
+                );
+            }
         }
     }
 }
