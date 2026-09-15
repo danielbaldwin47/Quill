@@ -416,6 +416,10 @@ const DROP_CLASS: &str = "lib-drop";
 /// (#441 § The selected row and the Selection Mark).
 const OPEN_CLASS: &str = "lib-open";
 
+/// The line inside an Organizer row that answers a click, and so the shape the
+/// press's hit step is drawn on; heads and the empty-Pinned prose carry none.
+const ORG_LINE_CLASS: &str = "lib-org-line";
+
 /// How long the field waits after a keystroke before it searches.
 ///
 /// A content search reads every shown file whose name did not match, so the
@@ -533,6 +537,10 @@ pub fn stylesheet(ground: Ground) -> String {
          .library .lib-org-icon {{ color: {org_ink}; }}\n\
          .library .lib-pill {{\n\
          \x20 background-color: {org_pill}; border-radius: {ORG_PILL_RADIUS}px;\n\
+         }}\n\
+         .library .lib-org row:active > .{ORG_LINE_CLASS} {{\n\
+         \x20 background-image: linear-gradient({hit}, {hit});\n\
+         \x20 border-radius: {ORG_PILL_RADIUS}px;\n\
          }}\n\
          .library .lib-pill label.lib-org-row {{\n\
          \x20 font-size: {ORG_PILL_PX}px; font-weight: bold;\n\
@@ -2851,6 +2859,7 @@ fn still_row(child: &impl IsA<gtk::Widget>) -> gtk::ListBoxRow {
 /// edge, on the pill where it is what the File List shows.
 fn org_row(mark: gtk::DrawingArea, name: &str, on: bool) -> gtk::ListBoxRow {
     let line = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    line.add_css_class(ORG_LINE_CLASS);
     line.set_height_request(ORG_ROW);
     line.set_margin_start(ORG_PILL_INSET);
     line.set_margin_end(ORG_PILL_INSET);
@@ -4325,5 +4334,39 @@ mod tests {
         // theme's inset box on the one widget holding the drop (Hand test
         // step 3).
         assert_eq!(rule(":drop(active) {"), "box-shadow: none; outline: none;");
+    }
+
+    /// An Organizer row that answers a click takes the head buttons' hit step
+    /// on its pill's shape while pressed, and nothing under the pointer alone
+    /// (#458).
+    #[test]
+    fn an_organizer_row_answers_a_press_with_the_hit_step_and_takes_no_hover() {
+        for (scheme, hit) in [
+            (Scheme::Light, "rgba(0, 0, 0, 0.035)"),
+            (Scheme::Dark, "rgba(255, 255, 255, 0.045)"),
+        ] {
+            let sheet = stylesheet(Ground::of(scheme));
+            let pressed = format!(".lib-org row:active > .{ORG_LINE_CLASS} {{");
+            assert_eq!(sheet.matches(":active").count(), 1, "{sheet}");
+            let rule = sheet
+                .split_once(&pressed)
+                .unwrap_or_else(|| panic!("{scheme:?}: no `{pressed}` rule in\n{sheet}"))
+                .1
+                .split_once('}')
+                .expect("an unclosed rule")
+                .0;
+            assert!(
+                rule.contains(&format!("linear-gradient({hit}, {hit})")),
+                "{scheme:?}: {rule}"
+            );
+            assert!(
+                rule.contains(&format!("border-radius: {ORG_PILL_RADIUS}px;")),
+                "{scheme:?}: {rule}"
+            );
+            assert!(
+                !sheet.contains(".lib-org row:hover") && !sheet.contains("lib-org-line:hover"),
+                "{scheme:?}: an Organizer hover rule in\n{sheet}"
+            );
+        }
     }
 }
