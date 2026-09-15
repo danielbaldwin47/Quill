@@ -226,7 +226,7 @@ lives in the feature spec, in this shape:
 
 The ported Pieces' checklists are `docs/agents/hand-tests.md`, one per Piece.
 
-Done when: the owner comments `hand test: pass` with the `pacman -Q quill` output on the feature
+Done when: the owner comments `hand test: pass` with the `pacman -Q quill-writer` output on the feature
 ticket. That comment closes the ticket.
 
 Before a release, additionally: every scored latency regime clears the budget and
