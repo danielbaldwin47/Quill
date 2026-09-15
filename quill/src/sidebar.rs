@@ -6,8 +6,9 @@
 //! page and pushes it right rather than covering it, at the 360 points the
 //! Design oracle's pane measures (`ref/ia/mac-native/NOTES.md` § State 28).
 //!
-//! Two columns, as ADR 0020 has them: the Organizer at a fixed [`ORGANIZER`]
-//! points, and the File List beside it showing one Location's tree — folders
+//! Two columns, as ADR 0020 has them: the Organizer at [`ORGANIZER`] points
+//! in the narrowest pane and half of any width dragged past it (#459), and the
+//! File List beside it showing one Location's tree — folders
 //! first and closed until they are opened, expanding in place — under that
 //! Location's name. Each stands on its own ground a step off the paper, and
 //! a 1 px rule down the Organizer's right edge closes the one against the
@@ -81,8 +82,9 @@ use crate::window::Window;
 /// The pane's width until a writer drags the divider (`ref/ia/mac-native/NOTES.md`
 /// § State 28, *Pane, total*), and the width a double-click on the divider puts back.
 pub const WIDTH: i32 = 360;
-/// The Organizer's width, which a drag on the divider leaves alone: State 28's
-/// 129.5 points, at the whole point a widget is asked for in.
+/// The Organizer's width at the pane's [`WIDTH`]: State 28's 129.5 points, at
+/// the whole point a widget is asked for in. A drag on the divider widens it by
+/// half of what it widens the pane ([`organizer_width`], #459).
 const ORGANIZER: i32 = 130;
 /// The Organizer's section heads, bold (#441 § Type: cap 16 device px).
 const ORG_HEAD_PX: f64 = 11.0;
@@ -695,6 +697,9 @@ pub struct Sidebar {
     /// overlay whose pane is away would still take the divider's room.
     frame: gtk::Overlay,
     root: gtk::Box,
+    /// The Organizer's column, whose width [`Sidebar::set_width`] keeps at
+    /// [`organizer_width`] of the pane's.
+    organizer: gtk::Box,
     /// The divider: a strip of [`GRAB`] pixels on the pane's right edge with
     /// nothing in it and nothing drawn, which a drag widens the pane by and a
     /// double-click puts back to [`WIDTH`].
@@ -809,7 +814,7 @@ impl Sidebar {
         root.set_hexpand(false);
 
         // Two columns, the one a change of ground from the other (ADR 0020):
-        // the Organizer at a width the divider never changes, with the toggle
+        // the Organizer taking half of what the divider adds, with the toggle
         // that shuts the pane in its head, and the File List taking the rest.
         let organizer = gtk::Box::new(gtk::Orientation::Vertical, 0);
         organizer.add_css_class("lib-org");
@@ -894,6 +899,7 @@ impl Sidebar {
             frame,
             divider,
             root,
+            organizer,
             head,
             title,
             entry,
@@ -1204,10 +1210,12 @@ impl Sidebar {
     /// The width the drag arrived at, already pulled into range by the window
     /// that took the drag ([`crate::window::Window::resize_library`]); the
     /// pane asks for it and the page takes what is left, which is how the
-    /// pane has always been sized.
+    /// pane has always been sized. The Organizer takes its share of it
+    /// ([`organizer_width`]) and the File List the rest.
     pub fn set_width(&self, width: u32) {
-        self.root
-            .set_width_request(i32::try_from(width).unwrap_or(WIDTH));
+        let width = i32::try_from(width).unwrap_or(WIDTH);
+        self.root.set_width_request(width);
+        self.organizer.set_width_request(organizer_width(width));
     }
 
     /// Puts the keyboard in the search field: the second half of
@@ -2904,6 +2912,14 @@ fn button(
     button
 }
 
+/// The Organizer's width in a pane `pane` points wide: [`ORGANIZER`] at
+/// [`WIDTH`], and half of every point the divider adds past it, so a name in
+/// either column gets room as the pane widens (#459). A pane narrower than
+/// [`WIDTH`] leaves the Organizer at [`ORGANIZER`].
+fn organizer_width(pane: i32) -> i32 {
+    ORGANIZER + (pane.max(WIDTH) - WIDTH) / 2
+}
+
 /// The Filter field at the File List's foot: the rule, and under it the capsule
 /// with its magnifier and its prompt (#441 § Search).
 fn filter(entry: &gtk::Entry) -> gtk::Box {
@@ -3697,6 +3713,25 @@ fn dot_at(area: &gtk::DrawingArea, cr: &cairo::Context, alpha: f64) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_organizer_takes_half_of_what_the_divider_adds() {
+        let widths = settings::library_widths();
+        let (narrowest, widest) = (*widths.start(), *widths.end());
+        let narrowest = i32::try_from(narrowest).expect("a width");
+        let widest = i32::try_from(widest).expect("a width");
+        assert_eq!(narrowest, WIDTH, "the pane's floor is its default");
+        assert_eq!(organizer_width(WIDTH), ORGANIZER, "State 28 at the floor");
+        assert_eq!(organizer_width(WIDTH - 120), ORGANIZER, "never narrower");
+        assert_eq!(organizer_width(WIDTH + 2), ORGANIZER + 1);
+        let wide = organizer_width(widest);
+        assert_eq!(wide, ORGANIZER + (widest - WIDTH) / 2);
+        assert_eq!(
+            widest - wide,
+            WIDTH - ORGANIZER + (widest - WIDTH) / 2,
+            "the File List takes the other half"
+        );
+    }
 
     /// A date the tests measure from: a Wednesday.
     fn at(year: i32, month: i32, day: i32, hour: i32) -> glib::DateTime {
