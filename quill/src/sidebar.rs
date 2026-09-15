@@ -346,6 +346,10 @@ const DROP_CLASS: &str = "lib-drop";
 /// (#441 § The selected row and the Selection Mark).
 const OPEN_CLASS: &str = "lib-open";
 
+/// The line inside an Organizer row that answers a click, and so the shape the
+/// press's hit step is drawn on; heads and the empty-Pinned prose carry none.
+const ORG_LINE_CLASS: &str = "lib-org-line";
+
 /// How long the field waits after a keystroke before it searches.
 ///
 /// A content search reads every shown file whose name did not match, so the
@@ -473,6 +477,10 @@ pub fn stylesheet(ground: Ground) -> String {
          .library .lib-pill {{\n\
          \x20 background-color: {org_pill}; border-radius: {ORG_PILL_RADIUS}px;\n\
          }}\n\
+         .library .lib-org row:active > .{ORG_LINE_CLASS} {{\n\
+         \x20 background-image: linear-gradient({hit}, {hit});\n\
+         \x20 border-radius: {ORG_PILL_RADIUS}px;\n\
+         }}\n\
          .library .lib-pill label.lib-org-row {{\n\
          \x20 font-size: {ORG_PILL_PX}px; font-weight: bold;\n\
          }}\n\
@@ -537,12 +545,13 @@ pub fn stylesheet(ground: Ground) -> String {
          }}\n\
          .library list > row.{OPEN_CLASS} .lib-bar {{ background-color: {accent}; }}\n\
          .library .lib-mark {{\n\
-         \x20 color: transparent; margin: {bar_top}px 0 {bar_bottom}px {bar_left}px;\n\
+         \x20 color: transparent; margin: {bar_top}px 0 {bar_bottom}px 0;\n\
          }}\n\
          .library list > row.{OPEN_CLASS} .lib-mark {{ color: {accent}; }}\n\
          .library list > row.{DROP_CLASS} {{\n\
          \x20 background-color: {drop};\n\
-         }}\n"
+         }}\n\
+         .library :drop(active) {{ box-shadow: none; outline: none; }}\n"
     )
 }
 
@@ -962,7 +971,8 @@ impl Sidebar {
             glib::Propagation::Proceed
         });
         self.list.add_controller(keys);
-        // A second click on a row renames it where it stands, and the right
+        // A second click on a file's row renames it where it stands, and on a
+        // folder's opens or closes it again, and the right
         // button opens what can be done to it. Both watch the list in the
         // capture phase, so that the press they take is one the list itself
         // never sees: the first click has already opened the row, and opening
@@ -977,7 +987,7 @@ impl Sidebar {
                 return;
             }
             gesture.set_state(gtk::EventSequenceState::Claimed);
-            renaming.rename_at(y);
+            renaming.second_press_at(y);
         });
         self.list.add_controller(doubles);
         let menued = gtk::GestureClick::new();
@@ -1835,13 +1845,15 @@ impl Sidebar {
         dot.set_visible(false);
         line.append(&dot);
         let bar: gtk::Widget = match mark {
-            // The glyph takes the bar's insets from the stylesheet and its
-            // width from its own aspect at the height they leave, and draws in
+            // The glyph takes the bar's top and bottom insets from the
+            // stylesheet, its width from its own aspect at the height they
+            // leave and its left edge from the bar's centre line, and draws in
             // the accent only on the selected row, as the bar does.
             Some((glyph, pitch)) => {
-                let height = f64::from(pitch - 1 - BAR.top - BAR.bottom);
+                let (width, left) = mark_place(glyph, pitch);
                 let drawn = gtk::DrawingArea::new();
-                drawn.set_content_width(pixels(glyph.width_at(height).ceil()));
+                drawn.set_content_width(pixels(width.ceil()));
+                drawn.set_margin_start(left);
                 drawn.set_draw_func(move |area, cr, _, height| {
                     chrome::source(area, cr, 1.0);
                     glyph.draw(cr, f64::from(height));
@@ -2020,12 +2032,23 @@ impl Sidebar {
         self.rename_row(&row)
     }
 
-    /// A double click at `y`: that row is selected and its name becomes a
-    /// field.
-    fn rename_at(&self, y: f64) {
+    /// A second click at `y` inside the double-click time: a file's row is
+    /// selected and its name becomes a field; a folder's row opens or closes
+    /// again, since a folder is not renamed from the list and the list itself
+    /// never sees the press to do it (#441's Hand test, step 2).
+    fn second_press_at(&self, y: f64) {
         let Some(row) = self.list.row_at_y(pixels(y)) else {
             return;
         };
+        let folder = self
+            .rows
+            .borrow()
+            .iter()
+            .any(|listed| listed.row == row && listed.folder);
+        if folder {
+            self.activate(&row);
+            return;
+        }
         if row.is_selectable() {
             self.list.select_row(Some(&row));
         }
@@ -2783,6 +2806,7 @@ fn still_row(child: &impl IsA<gtk::Widget>) -> gtk::ListBoxRow {
 /// edge, on the pill where it is what the File List shows.
 fn org_row(mark: gtk::DrawingArea, name: &str, on: bool) -> gtk::ListBoxRow {
     let line = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    line.add_css_class(ORG_LINE_CLASS);
     line.set_height_request(ORG_ROW);
     line.set_margin_start(ORG_PILL_INSET);
     line.set_margin_end(ORG_PILL_INSET);
@@ -2889,6 +2913,8 @@ fn filter(entry: &gtk::Entry) -> gtk::Box {
     clear.set_valign(gtk::Align::Center);
     clear.set_margin_end(FILTER_END);
     clear.set_visible(false);
+    // An icon takes no pointer, so the ✕ is given it back for its click.
+    clear.set_can_target(true);
     let click = gtk::GestureClick::new();
     let emptied = entry.clone();
     click.connect_released(move |_, _, _, _| emptied.set_text(""));
@@ -3205,6 +3231,16 @@ fn place_name(path: &Path) -> String {
         Some(name) => name.to_string_lossy().into_owned(),
         None => path.display().to_string(),
     }
+}
+
+/// How wide a glyph is drawn on a row `pitch` tall, and how far in from the
+/// List's edge it stands: centred on the bar's centre line, since the glyph is
+/// several times the bar's width and a shared left edge reads as pushed right
+/// (#457), and never past the List's edge.
+fn mark_place(glyph: &Glyph, pitch: i32) -> (f64, i32) {
+    let width = glyph.width_at(f64::from(pitch - 1 - BAR.top - BAR.bottom));
+    let centre = f64::from(BAR.left) + f64::from(BAR.width) / 2.0;
+    (width, pixels((centre - width / 2.0).round().max(0.0)))
 }
 
 /// The glyph `mark` is drawn with, tall or short, or `None` for the bar.
@@ -4311,5 +4347,63 @@ mod tests {
         );
         assert!(rule("placeholder {").contains("opacity: 1;"), "{sheet}");
         assert!(!sheet.contains("border-right"), "{sheet}");
+        // A row a drag hovers takes the pane's own tint, never the Default
+        // theme's inset box on the one widget holding the drop (Hand test
+        // step 3).
+        assert_eq!(rule(":drop(active) {"), "box-shadow: none; outline: none;");
+    }
+
+    /// An Organizer row that answers a click takes the head buttons' hit step
+    /// on its pill's shape while pressed, and nothing under the pointer alone
+    /// (#458).
+    #[test]
+    fn an_organizer_row_answers_a_press_with_the_hit_step_and_takes_no_hover() {
+        for (scheme, hit) in [
+            (Scheme::Light, "rgba(0, 0, 0, 0.035)"),
+            (Scheme::Dark, "rgba(255, 255, 255, 0.045)"),
+        ] {
+            let sheet = stylesheet(Ground::of(scheme));
+            let pressed = format!(".lib-org row:active > .{ORG_LINE_CLASS} {{");
+            assert_eq!(sheet.matches(":active").count(), 1, "{sheet}");
+            let rule = sheet
+                .split_once(&pressed)
+                .unwrap_or_else(|| panic!("{scheme:?}: no `{pressed}` rule in\n{sheet}"))
+                .1
+                .split_once('}')
+                .expect("an unclosed rule")
+                .0;
+            assert!(
+                rule.contains(&format!("linear-gradient({hit}, {hit})")),
+                "{scheme:?}: {rule}"
+            );
+            assert!(
+                rule.contains(&format!("border-radius: {ORG_PILL_RADIUS}px;")),
+                "{scheme:?}: {rule}"
+            );
+            assert!(
+                !sheet.contains(".lib-org row:hover") && !sheet.contains("lib-org-line:hover"),
+                "{scheme:?}: an Organizer hover rule in\n{sheet}"
+            );
+        }
+    }
+
+    /// Each of the four glyphs stands centred on the bar's centre line, 9.5 px
+    /// in, within a pixel, and never left of the List's edge (#457).
+    #[test]
+    fn every_selection_mark_is_centred_on_the_bars_centre_line() {
+        let centre = f64::from(BAR.left) + f64::from(BAR.width) / 2.0;
+        assert!((centre - 9.5).abs() < f64::EPSILON);
+        for mark in [Mark::Feather, Mark::Pen] {
+            for (short, pitch) in [(false, ROW_PITCH), (true, FOLDER_PITCH)] {
+                let drawn = glyph(mark, short).expect("the mark's file reads");
+                let (width, left) = mark_place(drawn, pitch);
+                assert!(left >= 0, "{mark:?} short={short}: {left}");
+                let off = (f64::from(left) + width / 2.0 - centre).abs();
+                assert!(
+                    left == 0 || off <= 0.5,
+                    "{mark:?} short={short}: {width} wide at {left} is {off} off centre"
+                );
+            }
+        }
     }
 }
