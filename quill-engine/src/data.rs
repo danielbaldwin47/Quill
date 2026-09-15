@@ -68,7 +68,7 @@ pub const FAMILIES: [(&str, &str, &str); 8] = [
 ///
 /// `OFL.txt` is the Faces' (ADR 0007), and the other two are Inter's and Source
 /// Serif's own, copied out of their releases unchanged. The package installs
-/// all three beside the fonts and under `/usr/share/licenses/quill/`.
+/// all three beside the fonts and under `/usr/share/licenses/quill-writer/`.
 pub const LICENCES: [&str; 3] = ["OFL.txt", "OFL-Inter.txt", "OFL-SourceSerif4.txt"];
 
 /// The variable that names the data directory, read at run time here and set by
