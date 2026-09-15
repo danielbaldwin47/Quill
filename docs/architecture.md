@@ -451,10 +451,11 @@ window twice, and a bench at 1440×900 is not a writer resizing anything.
 (`cargo fetch` in `prepare`, so `makepkg` needs the network only there), `arch=('x86_64')`,
 `license=('GPL-3.0-or-later' 'OFL-1.1' 'Apache-2.0' 'BSD-3-Clause' 'MIT' 'CC0-1.0')`,
 `depends=('gtk4' 'enchant' 'hunspell-en_us' 'hicolor-icon-theme')`,
-`makedepends=('cargo')`. It installs the
+`makedepends=('cargo')`, under the package name `quill-writer` (`extra/quill` is another
+project). It installs the
 binary as `/usr/bin/quill`, data under `/usr/share/quill/` (the fonts, and the Style check lists
 under `data/style/` with their `SOURCES.md`), the `.desktop` file and icon under the
-application id, `fonts/OFL.txt` beside the fonts and under `/usr/share/licenses/quill/`,
+application id, `fonts/OFL.txt` beside the fonts and under `/usr/share/licenses/quill-writer/`,
 `packaging/harper-brill-LICENSE` under that licence directory for the embedded model, and the
 lists' four licence texts there too.
 

@@ -5,7 +5,7 @@ Each ported Piece is its own feature ticket, closed by the owner's `hand test: p
 checklist with the spec's additions into the spec's **Hand test** section, so the owner tests from
 that comment alone. The section opens with the install step, written for the branch's own worktree:
 `cd <the worktree's absolute path>`, then the three lines of `README.md` § Build, install and run
-the native app, then `pacman -Q quill` — `makepkg` packages the checkout it runs in, so the worktree
+the native app, then `pacman -Q quill-writer` — `makepkg` packages the checkout it runs in, so the worktree
 builds the branch and `pacman -Q` names the commit installed (#167). The worktree stays until
 `hand test: pass`. The earlier shape, `git checkout <branch>` in `~/repos/quill`, fails on a dirty
 tree, and #318's owner built and tested `main` (2026-09-11). The install step travels with the
