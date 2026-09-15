@@ -4,7 +4,10 @@
 # The Rust workspace is built straight from the working tree: nothing is
 # downloaded except in prepare(), so `makepkg -f` needs the network once and
 # build() runs offline (docs/architecture.md, "Packaging").
-pkgname=quill
+# quill-writer, not quill: extra/quill is a C++ logging library. The command and
+# the data directory keep the application's own name, which no package claims.
+pkgname=quill-writer
+_name=quill
 _appid=io.github.danielbaldwin47.Quill
 pkgver=0.1.0.r80.g105c39f
 pkgrel=1
@@ -35,14 +38,14 @@ build() {
   cd "$startdir"
   # Compiled in by `quill-engine`'s `data` module: an installed Quill finds its
   # Faces, Templates and OFL.txt under /usr/share/quill with no variable set.
-  QUILL_DATA_DIR="/usr/share/$pkgname" cargo build --release --locked --offline
+  QUILL_DATA_DIR="/usr/share/$_name" cargo build --release --locked --offline
 }
 
 package() {
   local share="$pkgdir/usr/share"
-  local data="$share/$pkgname"
+  local data="$share/$_name"
 
-  install -Dm755 "$startdir/target/release/$pkgname" "$pkgdir/usr/bin/$pkgname"
+  install -Dm755 "$startdir/target/release/$_name" "$pkgdir/usr/bin/$_name"
 
   # The data directory: the fonts and the Style check lists. One directory, so
   # an installed build and a development build differ in one path rather than
