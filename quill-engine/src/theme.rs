@@ -750,6 +750,166 @@ fn scaled(colour: Colour, ratio: f64) -> Colour {
     }
 }
 
+/// `from` moved `step` of the way toward `toward`, every channel held inside
+/// its range and at `from`'s opacity: a step outside 0–1 goes past either end.
+fn stepped(from: Colour, toward: Colour, step: f64) -> Colour {
+    let channel = |from: f64, toward: f64| (from + (toward - from) * step).clamp(0.0, 1.0);
+    Colour {
+        red: channel(from.red, toward.red),
+        green: channel(from.green, toward.green),
+        blue: channel(from.blue, toward.blue),
+        alpha: from.alpha,
+    }
+}
+
+/// The Library pane's inks that are not roles of the table: its rules, its
+/// pills, its Organizer's type and the Filter field's ring and icons.
+///
+/// On the built-in grounds each is the value State 28's capture measured
+/// (#441 § Grounds and roles). On a writer's palette each is derived from the
+/// overlaid table: a step from one role toward another, the step the
+/// built-in value takes between the built-in two ([`lightness`]), so that a
+/// palette's hue carries into every ink the pane draws (#456). An ink whose
+/// two roles are the built-ins keeps its measured value exactly, which a
+/// ratio of means off iA's faintly tinted greys would land a step beside.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PaneInks {
+    /// The separator between two rows: the File List's ground toward the ink.
+    pub separator: Colour,
+    /// The Sort pill's ground: the File List's ground toward the ink.
+    pub sort_ground: Colour,
+    /// The Sort pill's 1 px border: the File List's ground toward the ink.
+    pub sort_border: Colour,
+    /// The Sort pill's label and chevron, as the stub read them (#437): the
+    /// secondary grey toward the ink.
+    pub sort_ink: Colour,
+    /// The rule above the Filter field: the File List's ground toward the ink.
+    pub foot_rule: Colour,
+    /// The Filter capsule's border at rest, the dark one assumed until #440:
+    /// the File List's ground toward the ink.
+    pub field_border: Colour,
+    /// The ring the Filter capsule wears while a query stands in it: State
+    /// 28's search frame lifts it to a blue about 3 points wide, the dark one
+    /// assumed until #440. The accent toward the File List's ground.
+    pub field_focus: Colour,
+    /// The round clear button at the capsule's right end while a query
+    /// stands: the secondary grey toward the ink.
+    pub field_clear: Colour,
+    /// The 1 px rule down the Organizer's right edge, where it meets the File
+    /// List (#448's round 13): the Organizer's ground toward the ink.
+    pub seam: Colour,
+    /// The 1 px rule under the File List's head and Sort pill: the File
+    /// List's ground toward the ink.
+    pub head_rule: Colour,
+    /// The magnifier in the capsule: the secondary grey toward the ink.
+    pub field_icon: Colour,
+    /// The Organizer's section heads and its empty-Pinned prose: the
+    /// Organizer's ground toward the ink.
+    pub org_head: Colour,
+    /// An Organizer row's name and icon: the ink toward the Organizer's
+    /// ground.
+    pub org_ink: Colour,
+    /// The pill under the current Location: the Organizer's ground toward the
+    /// ink.
+    pub org_pill: Colour,
+}
+
+impl PaneInks {
+    /// The light ground's, as measured.
+    const LIGHT: Self = Self {
+        separator: Colour::from_hex("#ededed"),
+        sort_ground: Colour::from_hex("#f6f6f6"),
+        sort_border: Colour::from_hex("#e8e8e8"),
+        sort_ink: Colour::from_hex("#767676"),
+        foot_rule: Colour::from_hex("#dbdbdb"),
+        field_border: Colour::from_hex("#dbdbdb"),
+        field_focus: Colour::from_hex("#a1d5f5"),
+        field_clear: Colour::from_hex("#7e7e7e"),
+        seam: Colour::from_hex("#cbcccc"),
+        head_rule: Colour::from_hex("#e1e1e1"),
+        field_icon: Colour::from_hex("#7e7e7e"),
+        org_head: Colour::from_hex("#7f8080"),
+        org_ink: Colour::from_hex("#262626"),
+        org_pill: Colour::from_hex("#d2d3d3"),
+    };
+
+    /// The dark ground's, as measured.
+    const DARK: Self = Self {
+        separator: Colour::from_hex("#212121"),
+        sort_ground: Colour::from_hex("#3a3a3a"),
+        sort_border: Colour::from_hex("#686868"),
+        sort_ink: Colour::from_hex("#9c9c9c"),
+        foot_rule: Colour::from_hex("#2e2e2e"),
+        field_border: Colour::from_hex("#2e2e2e"),
+        field_focus: Colour::from_hex("#2f5e7a"),
+        field_clear: Colour::from_hex("#939393"),
+        seam: Colour::from_hex("#2e2e2e"),
+        head_rule: Colour::from_hex("#212121"),
+        field_icon: Colour::from_hex("#939393"),
+        org_head: Colour::from_hex("#6a6c6b"),
+        org_ink: Colour::from_hex("#c2c3c3"),
+        org_pill: Colour::from_hex("#393b3a"),
+    };
+
+    /// The pane's inks on `scheme`'s ground painted in `colours`, the table
+    /// [`Colours::overlaid`] answers.
+    #[must_use]
+    pub fn of(scheme: Scheme, colours: &Colours) -> Self {
+        Self::derived(scheme, colours, false)
+    }
+
+    /// [`PaneInks::of`], or with `always` every ink derived even where its two
+    /// roles are the built-ins: how a test reads how near the steps land.
+    fn derived(scheme: Scheme, colours: &Colours, always: bool) -> Self {
+        let built_in = Colours::of(scheme);
+        let measured = match scheme {
+            Scheme::Light => Self::LIGHT,
+            Scheme::Dark => Self::DARK,
+        };
+        let ink = |measured: Colour, from: Role, toward: Role| {
+            let moved = |role| colours.colour(role) != built_in.colour(role);
+            if !always && !moved(from) && !moved(toward) {
+                return measured;
+            }
+            let base = lightness(built_in.colour(from));
+            let step = (lightness(measured) - base) / (lightness(built_in.colour(toward)) - base);
+            stepped(colours.colour(from), colours.colour(toward), step)
+        };
+        let Self {
+            separator,
+            sort_ground,
+            sort_border,
+            sort_ink,
+            foot_rule,
+            field_border,
+            field_focus,
+            field_clear,
+            seam,
+            head_rule,
+            field_icon,
+            org_head,
+            org_ink,
+            org_pill,
+        } = measured;
+        Self {
+            separator: ink(separator, Role::FileListBg, Role::Ink),
+            sort_ground: ink(sort_ground, Role::FileListBg, Role::Ink),
+            sort_border: ink(sort_border, Role::FileListBg, Role::Ink),
+            sort_ink: ink(sort_ink, Role::Secondary, Role::Ink),
+            foot_rule: ink(foot_rule, Role::FileListBg, Role::Ink),
+            field_border: ink(field_border, Role::FileListBg, Role::Ink),
+            field_focus: ink(field_focus, Role::Accent, Role::FileListBg),
+            field_clear: ink(field_clear, Role::Secondary, Role::Ink),
+            seam: ink(seam, Role::OrganizerBg, Role::Ink),
+            head_rule: ink(head_rule, Role::FileListBg, Role::Ink),
+            field_icon: ink(field_icon, Role::Secondary, Role::Ink),
+            org_head: ink(org_head, Role::OrganizerBg, Role::Ink),
+            org_ink: ink(org_ink, Role::Ink, Role::OrganizerBg),
+            org_pill: ink(org_pill, Role::OrganizerBg, Role::Ink),
+        }
+    }
+}
+
 /// What a writer's `palette` file names: for each ground, the roles it colours
 /// and the colours it gives them, and nothing for the rest.
 ///
@@ -1591,6 +1751,120 @@ mod tests {
         let inked = Colours::overlaid(Scheme::Light, &palette("[light]\nink = \"#000000\"\n"));
         for role in [Role::OrganizerBg, Role::FileListBg, Role::Secondary] {
             assert_eq!(inked.colour(role), Colours::LIGHT.colour(role), "{role:?}");
+        }
+    }
+
+    /// Every ink of `inks` with its name, for the tests to walk.
+    fn pane_inks(inks: PaneInks) -> [(&'static str, Colour); 14] {
+        let PaneInks {
+            separator,
+            sort_ground,
+            sort_border,
+            sort_ink,
+            foot_rule,
+            field_border,
+            field_focus,
+            field_clear,
+            seam,
+            head_rule,
+            field_icon,
+            org_head,
+            org_ink,
+            org_pill,
+        } = inks;
+        [
+            ("separator", separator),
+            ("sort_ground", sort_ground),
+            ("sort_border", sort_border),
+            ("sort_ink", sort_ink),
+            ("foot_rule", foot_rule),
+            ("field_border", field_border),
+            ("field_focus", field_focus),
+            ("field_clear", field_clear),
+            ("seam", seam),
+            ("head_rule", head_rule),
+            ("field_icon", field_icon),
+            ("org_head", org_head),
+            ("org_ink", org_ink),
+            ("org_pill", org_pill),
+        ]
+    }
+
+    #[test]
+    fn the_pane_inks_on_the_built_in_grounds_are_the_captures_exactly() {
+        for (scheme, table) in [(Scheme::Light, "light"), (Scheme::Dark, "dark")] {
+            let measured = match scheme {
+                Scheme::Light => PaneInks::LIGHT,
+                Scheme::Dark => PaneInks::DARK,
+            };
+            assert_eq!(PaneInks::of(scheme, &Colours::of(scheme)), measured);
+            // A palette that names an ink's roles at their built-in values, or
+            // only roles no ink steps between, moves nothing either. (Naming
+            // the paper at all derives the two grounds, which then land a step
+            // off their measured values, and the inks with them.)
+            let built = Colours::of(scheme);
+            let named = palette(&format!(
+                "[{table}]\nink = \"{}\"\naccent = \"{}\"\nspell = \"#123456\"\n",
+                built.ink.to_hex(),
+                built.accent.to_hex(),
+            ));
+            assert_eq!(
+                PaneInks::of(scheme, &Colours::overlaid(scheme, &named)),
+                measured,
+                "{scheme:?}"
+            );
+        }
+        assert_eq!(
+            PaneInks::LIGHT.org_pill.to_hex(),
+            "#d2d3d3",
+            "the Location pill as #441 cites it"
+        );
+        assert_eq!(PaneInks::DARK.org_pill.to_hex(), "#393b3a");
+    }
+
+    #[test]
+    fn the_pane_inks_stepped_over_the_built_in_roles_land_beside_the_captures() {
+        for scheme in [Scheme::Light, Scheme::Dark] {
+            let measured = pane_inks(PaneInks::of(scheme, &Colours::of(scheme)));
+            let derived = pane_inks(PaneInks::derived(scheme, &Colours::of(scheme), true));
+            for ((name, want), (_, got)) in measured.into_iter().zip(derived) {
+                let lightness_off = (lightness(got) - lightness(want)).abs() * 255.0;
+                assert!(
+                    lightness_off <= 1.0 + 1e-9,
+                    "{scheme:?} {name} derived {} against {}",
+                    got.to_hex(),
+                    want.to_hex()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_palette_naming_paper_ink_and_accent_carries_its_hue_into_every_pane_ink() {
+        // A brown palette with an orange accent: every ink it derives is warm,
+        // red above blue, where every measured ink is a grey or a blue.
+        let brown = palette(
+            "[light]\npaper = \"#f0e0c0\"\nink = \"#402000\"\naccent = \"#ff8000\"\n\n\
+             [dark]\npaper = \"#2a2016\"\nink = \"#e0c8a0\"\naccent = \"#ff8000\"\n",
+        );
+        for scheme in [Scheme::Light, Scheme::Dark] {
+            let colours = Colours::overlaid(scheme, &brown);
+            let measured = pane_inks(PaneInks::of(scheme, &Colours::of(scheme)));
+            let derived = pane_inks(PaneInks::of(scheme, &colours));
+            for ((name, was), (_, ink)) in measured.into_iter().zip(derived) {
+                assert_ne!(ink, was, "{scheme:?} {name} moved off the capture");
+                assert!(
+                    ink.red > ink.blue,
+                    "{scheme:?} {name} is {}, not the palette's hue",
+                    ink.to_hex()
+                );
+            }
+            let inks = PaneInks::of(scheme, &colours);
+            assert!(
+                (lightness(inks.org_pill) < lightness(colours.organizer_bg))
+                    != (scheme == Scheme::Dark),
+                "{scheme:?}: the pill steps from its ground toward the ink"
+            );
         }
     }
 

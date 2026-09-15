@@ -71,7 +71,7 @@ use quill_engine::document::full_name;
 use quill_engine::library::{Contents, File, Found, Library, Row, Snippet, Sort, View};
 use quill_engine::mark::Glyph;
 use quill_engine::settings::{self, Choice, Mark, Order, ShowDate, library_width};
-use quill_engine::theme::{Colour, Role, Scheme};
+use quill_engine::theme::{Colour, PaneInks, Role, Scheme};
 
 use crate::chrome::{self, CHROME_FONT};
 use crate::files::{self, Dropped, Onto};
@@ -301,78 +301,6 @@ struct Bar {
     radius: i32,
 }
 
-/// The pane's inks that are not the theme's roles: constants of the pane, each
-/// cited from State 28's capture (#441 § Grounds and roles).
-struct Inks {
-    /// The separator between two rows.
-    separator: &'static str,
-    /// The Sort pill's ground.
-    sort_ground: &'static str,
-    /// The Sort pill's 1 px border.
-    sort_border: &'static str,
-    /// The Sort pill's label and chevron, as the stub read them (#437).
-    sort_ink: &'static str,
-    /// The rule above the Filter field.
-    foot_rule: &'static str,
-    /// The Filter capsule's border at rest; the dark one is assumed until #440.
-    field_border: &'static str,
-    /// The ring the Filter capsule wears while a query stands in it: State
-    /// 28's search frame lifts it to a blue about 3 points wide; the dark one is
-    /// assumed until #440.
-    field_focus: &'static str,
-    /// The round clear button at the capsule's right end while a query stands.
-    field_clear: &'static str,
-    /// The 1 px rule down the Organizer's right edge, where it meets the File
-    /// List: device column 259 of State 28's frames (#448's round 13).
-    seam: &'static str,
-    /// The 1 px rule under the File List's head and Sort pill.
-    head_rule: &'static str,
-    /// The magnifier in the capsule.
-    field_icon: &'static str,
-    /// The Organizer's section heads and its empty-Pinned prose.
-    org_head: &'static str,
-    /// An Organizer row's name and icon.
-    org_ink: &'static str,
-    /// The pill under the current Location.
-    org_pill: &'static str,
-}
-
-/// The pane's own inks on the light ground.
-const LIGHT_INKS: Inks = Inks {
-    separator: "#ededed",
-    sort_ground: "#f6f6f6",
-    sort_border: "#e8e8e8",
-    sort_ink: "#767676",
-    foot_rule: "#dbdbdb",
-    field_border: "#dbdbdb",
-    field_focus: "#a1d5f5",
-    field_clear: "#7e7e7e",
-    seam: "#cbcccc",
-    head_rule: "#e1e1e1",
-    field_icon: "#7e7e7e",
-    org_head: "#7f8080",
-    org_ink: "#262626",
-    org_pill: "#d2d3d3",
-};
-
-/// The pane's own inks on the dark ground.
-const DARK_INKS: Inks = Inks {
-    separator: "#212121",
-    sort_ground: "#3a3a3a",
-    sort_border: "#686868",
-    sort_ink: "#9c9c9c",
-    foot_rule: "#2e2e2e",
-    field_border: "#2e2e2e",
-    field_focus: "#2f5e7a",
-    field_clear: "#939393",
-    seam: "#2e2e2e",
-    head_rule: "#212121",
-    field_icon: "#939393",
-    org_head: "#6a6c6b",
-    org_ink: "#c2c3c3",
-    org_pill: "#393b3a",
-};
-
 /// What marks the row of a Document whose file changed under unsaved edits.
 ///
 /// The oracle's warning colour, which it puts on the status dot
@@ -457,7 +385,8 @@ const MONTHS: [&str; 12] = [
 /// Organizer's ground, the File List's, the secondary grey of its dates, its
 /// excerpts and its prompt, the ink its names are set in and the accent of its
 /// bar — so a ground change is a stylesheet change and nothing else; its other
-/// inks are [`Inks`], the capture's.
+/// inks are [`PaneInks`], the capture's on the built-in grounds and derived
+/// from the table on a writer's palette (#456).
 ///
 /// Hover draws nothing and a selected row takes no fill (State 28, *A hovered
 /// row draws nothing*), so the rules on a row's state clear GTK's own. The
@@ -489,25 +418,33 @@ pub fn stylesheet(ground: Ground) -> String {
         Scheme::Light => "rgba(0, 0, 0, 0.035)",
         Scheme::Dark => "rgba(255, 255, 255, 0.045)",
     };
-    let Inks {
+    let inks = PaneInks::of(scheme, &colours);
+    let [
         separator,
         sort_ground,
         sort_border,
         sort_ink,
         foot_rule,
         field_border,
-        field_focus,
-        field_clear,
-        seam,
-        head_rule,
-        field_icon,
-        org_head,
-        org_ink,
-        org_pill,
-    } = match scheme {
-        Scheme::Light => LIGHT_INKS,
-        Scheme::Dark => DARK_INKS,
-    };
+    ] = [
+        inks.separator,
+        inks.sort_ground,
+        inks.sort_border,
+        inks.sort_ink,
+        inks.foot_rule,
+        inks.field_border,
+    ]
+    .map(Colour::to_hex);
+    let [field_focus, field_clear, seam, head_rule, field_icon] = [
+        inks.field_focus,
+        inks.field_clear,
+        inks.seam,
+        inks.head_rule,
+        inks.field_icon,
+    ]
+    .map(Colour::to_hex);
+    let [org_head, org_ink, org_pill] =
+        [inks.org_head, inks.org_ink, inks.org_pill].map(Colour::to_hex);
     let Bar {
         width: bar_width,
         left: bar_left,
@@ -4307,6 +4244,39 @@ mod tests {
             assert!(
                 date.contains(&format!("color: {};", hex(Role::Secondary))),
                 "{scheme:?}: the date is not the secondary grey:\n{sheet}"
+            );
+        }
+    }
+
+    /// Every ink the pane draws follows a writer's palette (#456): a file
+    /// naming only a paper, an ink and an accent moves the Location pill, the
+    /// Sort pill, the Filter ring and its icons off the capture's greys and
+    /// blue, to what [`PaneInks`] derives from that table.
+    #[test]
+    fn a_palettes_paper_ink_and_accent_reach_the_pills_the_ring_and_the_icons() {
+        let (palette, notes) = quill_engine::theme::Palette::parse(
+            "[light]\npaper = \"#f0e0c0\"\nink = \"#402000\"\naccent = \"#ff8000\"\n",
+        );
+        assert!(notes.is_empty(), "{notes:?}");
+        let ground = Ground::overlaid(Scheme::Light, &palette);
+        let sheet = stylesheet(ground);
+        let built_in = stylesheet(Ground::of(Scheme::Light));
+        let inks = PaneInks::of(Scheme::Light, &ground.colours);
+        for (rule, ink) in [
+            (".lib-pill {\n  background-color: ", inks.org_pill),
+            (
+                "button.lib-sortb label { font-size: 12px; color: ",
+                inks.sort_ink,
+            ),
+            ("border-color: ", inks.field_focus),
+            (".lib-filter .lib-clear { color: ", inks.field_clear),
+            (".lib-filter .lib-icon { color: ", inks.field_icon),
+        ] {
+            let wanted = format!("{rule}{};", ink.to_hex());
+            assert!(sheet.contains(&wanted), "no `{wanted}` in\n{sheet}");
+            assert!(
+                !built_in.contains(&wanted),
+                "`{wanted}` is still the capture's"
             );
         }
     }
