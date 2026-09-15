@@ -2445,7 +2445,7 @@ impl Sidebar {
     /// What the field says, with the spaces around it dropped; empty where it
     /// says nothing, which is the pane drawing its tree.
     fn query(&self) -> String {
-        self.entry.text().trim().to_string()
+        query_of(&self.entry.text()).to_string()
     }
 
     /// Searches once the keystrokes stop, re-arming the wait at each one.
@@ -3435,7 +3435,14 @@ fn filter(entry: &gtk::Entry) -> gtk::Box {
 /// capsule and shows its ✕: the same trimmed text [`Sidebar::query`] searches,
 /// so a field holding only spaces reads as empty in both places.
 fn live(text: &str) -> bool {
-    !text.trim().is_empty()
+    !query_of(text).is_empty()
+}
+
+/// The query the Filter field's `text` stands for: the text without the
+/// spaces around it, so a field of spaces lists what an empty one does —
+/// the chosen tree, or Recents whole.
+fn query_of(text: &str) -> &str {
+    text.trim()
 }
 
 /// The view `[library]` reads the tree through: hidden folders, the sort, its
@@ -4803,6 +4810,54 @@ mod tests {
             ["sea-wall.md", "harbour.md"],
             "the name hit first, then the text hit, and never storm.md, which was not opened"
         );
+        std::fs::remove_dir_all(&root).expect("the folder to go");
+    }
+
+    /// Recents chosen under a Filter of spaces lists every recent, as under an
+    /// empty one; under a word it lists the recents the word finds. Either way
+    /// the pill reads Last Opened and cannot be opened (#441 step 4).
+    #[test]
+    fn recents_under_a_blank_filter_list_whole_and_under_a_word_narrow() {
+        let root = std::env::temp_dir().join(format!(
+            "quill-sidebar-recents-blank-{}",
+            std::process::id()
+        ));
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::create_dir_all(&root).expect("a folder of recents");
+        for (name, text) in [("sea-wall.md", "Stone.\n"), ("lamps.md", "Dark.\n")] {
+            std::fs::write(root.join(name), text).expect("a file to open");
+        }
+        let library = Library::open(std::slice::from_ref(&root), &[]);
+        let opened = vec![root.join("lamps.md"), root.join("sea-wall.md")];
+        let view = View::default();
+        let expanded = BTreeSet::new();
+        let listed = |typed: &str| {
+            let query = query_of(typed);
+            let matches = owned(&library.search(query, &view, &mut Contents::new()));
+            listing(
+                &library,
+                Some(&Showing::Recents),
+                query,
+                &view,
+                &opened,
+                Some(&matches),
+                &expanded,
+            )
+            .files()
+            .into_iter()
+            .map(|file| file.name().to_string())
+            .collect::<Vec<_>>()
+        };
+        assert_eq!(listed(""), ["lamps.md", "sea-wall.md"]);
+        assert_eq!(listed("   "), listed(""), "spaces are no query");
+        assert_eq!(listed(" sea "), ["sea-wall.md"]);
+        for typed in ["", "   ", " sea "] {
+            assert_eq!(
+                pill_reads(Some(&Showing::Recents), query_of(typed), Sort::Modified),
+                (LAST_OPENED, false),
+                "{typed:?}"
+            );
+        }
         std::fs::remove_dir_all(&root).expect("the folder to go");
     }
 
