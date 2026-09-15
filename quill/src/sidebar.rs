@@ -603,7 +603,8 @@ pub fn stylesheet(ground: Ground) -> String {
          .library list > row.{OPEN_CLASS} .lib-mark {{ color: {accent}; }}\n\
          .library list > row.{DROP_CLASS} {{\n\
          \x20 background-color: {drop};\n\
-         }}\n"
+         }}\n\
+         .library :drop(active) {{ box-shadow: none; outline: none; }}\n"
     )
 }
 
@@ -1019,7 +1020,8 @@ impl Sidebar {
             glib::Propagation::Proceed
         });
         self.list.add_controller(keys);
-        // A second click on a row renames it where it stands, and the right
+        // A second click on a file's row renames it where it stands, and on a
+        // folder's opens or closes it again, and the right
         // button opens what can be done to it. Both watch the list in the
         // capture phase, so that the press they take is one the list itself
         // never sees: the first click has already opened the row, and opening
@@ -1034,7 +1036,7 @@ impl Sidebar {
                 return;
             }
             gesture.set_state(gtk::EventSequenceState::Claimed);
-            renaming.rename_at(y);
+            renaming.second_press_at(y);
         });
         self.list.add_controller(doubles);
         let menued = gtk::GestureClick::new();
@@ -2075,12 +2077,23 @@ impl Sidebar {
         self.rename_row(&row)
     }
 
-    /// A double click at `y`: that row is selected and its name becomes a
-    /// field.
-    fn rename_at(&self, y: f64) {
+    /// A second click at `y` inside the double-click time: a file's row is
+    /// selected and its name becomes a field; a folder's row opens or closes
+    /// again, since a folder is not renamed from the list and the list itself
+    /// never sees the press to do it (#441's Hand test, step 2).
+    fn second_press_at(&self, y: f64) {
         let Some(row) = self.list.row_at_y(pixels(y)) else {
             return;
         };
+        let folder = self
+            .rows
+            .borrow()
+            .iter()
+            .any(|listed| listed.row == row && listed.folder);
+        if folder {
+            self.activate(&row);
+            return;
+        }
         if row.is_selectable() {
             self.list.select_row(Some(&row));
         }
@@ -2936,6 +2949,8 @@ fn filter(entry: &gtk::Entry) -> gtk::Box {
     clear.set_valign(gtk::Align::Center);
     clear.set_margin_end(FILTER_END);
     clear.set_visible(false);
+    // An icon takes no pointer, so the ✕ is given it back for its click.
+    clear.set_can_target(true);
     let click = gtk::GestureClick::new();
     let emptied = entry.clone();
     click.connect_released(move |_, _, _, _| emptied.set_text(""));
@@ -4306,5 +4321,9 @@ mod tests {
         );
         assert!(rule("placeholder {").contains("opacity: 1;"), "{sheet}");
         assert!(!sheet.contains("border-right"), "{sheet}");
+        // A row a drag hovers takes the pane's own tint, never the Default
+        // theme's inset box on the one widget holding the drop (Hand test
+        // step 3).
+        assert_eq!(rule(":drop(active) {"), "box-shadow: none; outline: none;");
     }
 }
