@@ -727,6 +727,10 @@ pub struct Sidebar {
     /// What each shown file's first lines said, by path, so that a refresh
     /// over files nothing has written reads nothing ([`Sidebar::refresh`]).
     read: Rc<RefCell<BTreeMap<PathBuf, Head>>>,
+    /// What the File List's rows were last built from, so that a refresh that
+    /// would build the same rows again leaves them standing and only moves the
+    /// highlight ([`Sidebar::refresh`]).
+    picture: Rc<RefCell<Option<Picture>>>,
     /// The keystroke the field is waiting out before it searches
     /// ([`SETTLE_MS`]).
     settle: Rc<RefCell<Option<glib::SourceId>>>,
@@ -873,6 +877,7 @@ impl Sidebar {
             head_menu,
             contents: Rc::new(RefCell::new(Contents::new())),
             read: Rc::new(RefCell::new(BTreeMap::new())),
+            picture: Rc::new(RefCell::new(None)),
             settle: Rc::new(RefCell::new(None)),
             pinning: Rc::new(RefCell::new(None)),
             pins: Rc::new(RefCell::new(Vec::new())),
@@ -1228,55 +1233,50 @@ impl Sidebar {
         view_of(&session.settings().library)
     }
 
-    /// Draws the Library as it is now: every section, in order, from the tree
-    /// the session holds.
+    /// Draws the Library as it is now: the Organizer, and in the File List
+    /// the one section it chose, from the tree the session holds.
     ///
-    /// The whole list is built rather than patched, because a watch event can
-    /// have moved a row from one folder to another and the pane is bounded by
-    /// what a writer can see at once, not by the tree's size.
+    /// The rows are built rather than patched, because a watch event can have
+    /// moved a row from one folder to another; but only where what they would
+    /// be built from moved ([`Picture`]), so that a refresh which changes
+    /// nothing a row shows — a save of a Document the list does not show, a
+    /// settings save the pane does not read — moves the highlight alone. What
+    /// is read and sorted is the listed section's, never the whole Library's
+    /// (#453).
     pub fn refresh(&self) {
         let Some(session) = self.session() else {
             return;
         };
-        while let Some(child) = self.list.first_child() {
-            self.list.remove(&child);
-        }
-        self.rows.borrow_mut().clear();
-        self.heads.borrow_mut().clear();
-        self.pins.borrow_mut().clear();
         let library = session.library();
         let view = self.view(&session);
-        let now = glib::DateTime::now_local().ok();
-        self.read_heads(library.files(&view));
-        let read = self.read.borrow();
-        sync_pill(&self.sort_actions, &session.settings().library);
-        let drawing = Drawing {
-            extensions: session.settings().library.show_extensions,
-            date: session.settings().library.show_date,
-            excerpts: session.settings().library.show_excerpts,
-            mark: session.settings().library.mark,
-            pinned: library.pinned(),
-            now: now.as_ref(),
-            read: &read,
-        };
-        let shown = library.shown(&view);
-        let pinned_rows = library.pinned_rows(&view);
-        let locations: Vec<&Path> = shown.iter().map(|section| section.path).collect();
-        // A pinned entry's own row stands at depth zero, a folder's subtree
-        // under it.
-        let pinned: Vec<(&Path, bool)> = pinned_rows
+        let shown = session.settings().library.clone();
+        sync_pill(&self.sort_actions, &shown);
+        let locations: Vec<&Path> = library.locations().iter().map(|at| at.path()).collect();
+        // Each pinned entry's own row, which is all the Organizer draws of it:
+        // a folder's subtree is the File List's to sort, once it is chosen.
+        let pinned: Vec<(&Path, bool)> = library
+            .pinned()
             .iter()
-            .filter(|row| row.depth() == 0)
+            .filter_map(|path| library.at(path))
             .map(|row| (row.path(), matches!(row, Row::Folder { .. })))
             .collect();
         let showing = settled(self.showing.borrow().as_ref(), &locations, &pinned);
         self.showing.replace(showing.clone());
-        self.organize(&organized(
-            &locations,
-            &pinned,
-            showing.as_ref(),
-            drawing.extensions,
-        ));
+        let organizer = organized(&locations, &pinned, showing.as_ref(), shown.show_extensions);
+        let same = self
+            .organized
+            .borrow()
+            .iter()
+            .map(|(_, row)| row)
+            .eq(organizer.iter());
+        if !same {
+            self.heads.borrow_mut().clear();
+            let org = self.org.clone().upcast::<gtk::Widget>();
+            self.pins
+                .borrow_mut()
+                .retain(|(_, page, _)| !page.is_ancestor(&org));
+            self.organize(&organizer);
+        }
         // The File List's head names what it shows, and is the header of a
         // Location's tree alone: what its menu offers, and what a row let go
         // over it moves into (#246, stories 3 and 38).
@@ -1295,48 +1295,61 @@ impl Sidebar {
         self.sort_label.set_text(label);
         self.sort_button.set_sensitive(enabled);
         enable_pill(&self.sort_actions, enabled);
-        match &showing {
-            Some(Showing::Recents) => {
-                let opened = session.recents();
-                if query.is_empty() {
-                    for file in recent_files(&library, &opened) {
-                        self.found_row(file, None, &drawing);
+        let opened = match showing {
+            Some(Showing::Recents) => session.recents(),
+            _ => Vec::new(),
+        };
+        let listing = listing(
+            &library,
+            showing.as_ref(),
+            &query,
+            &view,
+            &opened,
+            &mut self.contents.borrow_mut(),
+            &self.expanded.borrow(),
+        );
+        let now = glib::DateTime::now_local().ok();
+        let picture = Picture::of(
+            &listing,
+            &query,
+            &shown,
+            library.pinned(),
+            now.as_ref(),
+            &self.expanded.borrow(),
+        );
+        if self.picture.borrow().as_ref() != Some(&picture) {
+            read_heads(&mut self.read.borrow_mut(), listing.files());
+            while let Some(child) = self.list.first_child() {
+                self.list.remove(&child);
+            }
+            self.rows.borrow_mut().clear();
+            let list = self.list.clone().upcast::<gtk::Widget>();
+            self.pins
+                .borrow_mut()
+                .retain(|(_, page, _)| !page.is_ancestor(&list));
+            let read = self.read.borrow();
+            let drawing = Drawing {
+                extensions: shown.show_extensions,
+                date: shown.show_date,
+                excerpts: shown.show_excerpts,
+                mark: shown.mark,
+                pinned: library.pinned(),
+                now: now.as_ref(),
+                read: &read,
+            };
+            match &listing {
+                Listing::Tree(rows) => self.tree(rows, &drawing),
+                Listing::Flat(files) => {
+                    for (file, snippet) in files {
+                        self.found_row(file, snippet.as_ref(), &drawing);
                     }
-                } else {
-                    let found = library.search(&query, &view, &mut self.contents.borrow_mut());
-                    self.hits(&recent_found(found, &opened), &drawing);
                 }
+                Listing::Nothing => {}
             }
-            _ if !query.is_empty() => self.results(&query, &library, &view, &drawing),
-            Some(Showing::Location(path) | Showing::Folder(path)) => {
-                self.tree(&library.rows(path, &view), &drawing);
-            }
-            None => {}
+            self.picture.replace(Some(picture));
         }
         self.highlight();
         self.start_pinning();
-    }
-
-    /// Reads the head of every shown file, keeping the ones already read.
-    ///
-    /// A row shows two lines of what its file says, so every shown file has to
-    /// be read; a file whose write time has
-    /// not moved since the last refresh is not read again, which is the shape
-    /// [`quill_engine::library::Contents`] gives search. The bound is one read
-    /// of at most [`EXCERPT_BYTES`] per shown file that has been written since
-    /// the pane last drew, and what is held is one head per shown file: the
-    /// map is built again from the files the view shows, so a file that has
-    /// left the Library leaves the map with it.
-    fn read_heads<'a>(&self, files: impl Iterator<Item = &'a File>) {
-        let mut read = self.read.borrow_mut();
-        let mut before = std::mem::take(&mut *read);
-        for file in files {
-            let head = match before.remove(file.path()) {
-                Some(head) if head.modified == file.modified() => head,
-                _ => Head::of(file.path(), file.modified()),
-            };
-            read.insert(file.path().to_path_buf(), head);
-        }
     }
 
     /// One tree — a Location's or a pinned folder's — its rows alone under the
@@ -1633,26 +1646,6 @@ impl Sidebar {
         row.add_controller(source);
     }
 
-    /// The list narrowed to what `query` found, in the engine's order: the
-    /// files whose names matched, then the files whose texts did, each of
-    /// those with its snippet, unmarked.
-    ///
-    /// Flat, with no sections and no folders: what a writer asked for is the
-    /// Documents that answer the query, and where each one lies is the tree's
-    /// answer to a different question.
-    fn results(&self, query: &str, library: &Library, view: &View, drawing: &Drawing<'_>) {
-        let found = library.search(query, view, &mut self.contents.borrow_mut());
-        self.hits(&found, drawing);
-    }
-
-    /// What a search found, flat and in its order, each hit with its snippet
-    /// where its text matched.
-    fn hits(&self, found: &[Found<'_>], drawing: &Drawing<'_>) {
-        for hit in found {
-            self.found_row(hit.file(), hit.snippet(), drawing);
-        }
-    }
-
     /// One file drawn flat, as a hit or a recent is: no depth, and `snippet`
     /// in place of its excerpt where a query matched its text.
     fn found_row(&self, file: &File, snippet: Option<&Snippet>, drawing: &Drawing<'_>) {
@@ -1671,24 +1664,13 @@ impl Sidebar {
         self.rows.borrow_mut().push(listed);
     }
 
-    /// The rows of one section, in the order the tree hands them over, less
-    /// whatever is inside a folder that is closed.
+    /// The rows of one section, in the order the tree hands them over, a
+    /// closed folder's subtree already left out ([`open_rows`]).
     fn rows_of(&self, rows: &[Row<'_>], drawing: &Drawing<'_>) {
-        // A closed folder takes its subtree with it: the tree arrives
-        // flattened, deepest last, so everything below a closed folder is
-        // everything after it that is deeper than it is.
-        let mut closed: Option<usize> = None;
         for row in rows {
-            if closed.is_some_and(|depth| row.depth() > depth) {
-                continue;
-            }
-            closed = None;
             let open = self.expanded.borrow().contains(row.path());
             let listed = match row {
                 Row::Folder { folder, depth } => {
-                    if !open {
-                        closed = Some(*depth);
-                    }
                     self.folder_row(folder.name(), row.path(), *depth, open)
                 }
                 Row::File { file, depth } => self.file_row(
@@ -2251,17 +2233,23 @@ impl Sidebar {
     /// The Sort pill's [`PILL_GROUP`] actions ([`pill_actions`]), each writing
     /// its `[library]` key through the session's settings write.
     ///
-    /// Nothing here sets a live value: the watch reads the file back and
-    /// re-lists every window's pane ([`crate::window::reapply`]), the one path
-    /// a moved Settings row and a key edited by hand already share
-    /// ([`crate::session::Session::edit_settings`]).
+    /// The choice is put on to the session as it is written and every window's
+    /// pane is listed again in the same frame
+    /// ([`crate::session::Session::edit_library`]), so a sort lands at the
+    /// click rather than after the watch has read the file back; that read
+    /// finds the table already applied and re-lists nothing (#453).
     fn install_pill_actions(&self) {
         let writing = self.clone();
         pill_actions(
             &self.sort_actions,
             move |edit: &dyn Fn(&mut settings::Library)| {
-                if let Some(session) = writing.session() {
-                    session.edit_settings(|settings| edit(&mut settings.library));
+                let Some(session) = writing.session() else {
+                    return;
+                };
+                session.edit_library(|settings| edit(&mut settings.library));
+                match writing.owner().and_then(|window| window.application()) {
+                    Some(app) => crate::window::relist(&app),
+                    None => writing.refresh(),
                 }
             },
         );
@@ -2764,6 +2752,208 @@ fn recent_found<'a>(found: Vec<Found<'a>>, opened: &[PathBuf]) -> Vec<Found<'a>>
         .into_iter()
         .filter(|hit| opened.iter().any(|path| path == hit.file().path()))
         .collect()
+}
+
+/// What one refresh lists in the File List, before a row of it is built.
+enum Listing<'a> {
+    /// A Location's or a pinned folder's tree, less what lies inside a closed
+    /// folder.
+    Tree(Vec<Row<'a>>),
+    /// A search's hits or the recents, flat, each with the snippet its text
+    /// matched where it did.
+    Flat(Vec<(&'a File, Option<Snippet>)>),
+    /// Nothing to list: a Library with no Location.
+    Nothing,
+}
+
+impl<'a> Listing<'a> {
+    /// The files listed, in the order they are drawn: every file whose head a
+    /// row may show, and no other.
+    fn files(&self) -> Vec<&'a File> {
+        match self {
+            Self::Tree(rows) => rows
+                .iter()
+                .filter_map(|row| match row {
+                    Row::File { file, .. } => Some(*file),
+                    Row::Folder { .. } => None,
+                })
+                .collect(),
+            Self::Flat(files) => files.iter().map(|(file, _)| *file).collect(),
+            Self::Nothing => Vec::new(),
+        }
+    }
+}
+
+/// What the File List lists for `showing` and `query`: the Recents `opened`
+/// names, narrowed by the query where there is one; a query's hits over the
+/// Library; or the chosen tree, sorted once and with what `expanded` leaves
+/// closed left out.
+///
+/// Only the tree listed is sorted and walked. The search reads what it reads
+/// ([`Library::search`]).
+fn listing<'a>(
+    library: &'a Library,
+    showing: Option<&Showing>,
+    query: &str,
+    view: &View,
+    opened: &[PathBuf],
+    contents: &mut Contents,
+    expanded: &BTreeSet<PathBuf>,
+) -> Listing<'a> {
+    let flat = |found: Vec<Found<'a>>| {
+        Listing::Flat(
+            found
+                .iter()
+                .map(|hit| (hit.file(), hit.snippet().cloned()))
+                .collect(),
+        )
+    };
+    match showing {
+        Some(Showing::Recents) if query.is_empty() => Listing::Flat(
+            recent_files(library, opened)
+                .into_iter()
+                .map(|file| (file, None))
+                .collect(),
+        ),
+        Some(Showing::Recents) => flat(recent_found(library.search(query, view, contents), opened)),
+        _ if !query.is_empty() => flat(library.search(query, view, contents)),
+        Some(Showing::Location(path) | Showing::Folder(path)) => {
+            Listing::Tree(open_rows(&library.rows(path, view), expanded))
+        }
+        None => Listing::Nothing,
+    }
+}
+
+/// `rows` less whatever lies inside a folder `expanded` does not hold.
+///
+/// A closed folder takes its subtree with it: the tree arrives flattened,
+/// deepest last, so everything below a closed folder is everything after it
+/// that is deeper than it is.
+fn open_rows<'a>(rows: &[Row<'a>], expanded: &BTreeSet<PathBuf>) -> Vec<Row<'a>> {
+    let mut closed: Option<usize> = None;
+    let mut open = Vec::new();
+    for row in rows {
+        if closed.is_some_and(|depth| row.depth() > depth) {
+            continue;
+        }
+        closed = match row {
+            Row::Folder { depth, .. } if !expanded.contains(row.path()) => Some(*depth),
+            _ => None,
+        };
+        open.push(*row);
+    }
+    open
+}
+
+/// Reads into `read` the head of each of `files`, keeping the heads already
+/// read of files whose write time has not moved, and answers how many it read.
+///
+/// A row shows two lines of what its file says, so every listed file has to
+/// be read; a file whose write time has not moved since the last refresh is
+/// not read again, which is the shape [`Contents`] gives search. The bound is
+/// one read of at most [`EXCERPT_BYTES`] per listed file written since the
+/// pane last drew, and what is held is one head per listed file: the map is
+/// built again from `files`, so a file that has left the list leaves the map.
+fn read_heads<'a>(
+    read: &mut BTreeMap<PathBuf, Head>,
+    files: impl IntoIterator<Item = &'a File>,
+) -> usize {
+    let mut before = std::mem::take(read);
+    let mut reads = 0;
+    for file in files {
+        let head = match before.remove(file.path()) {
+            Some(head) if head.modified == file.modified() => head,
+            _ => {
+                reads += 1;
+                Head::of(file.path(), file.modified())
+            }
+        };
+        read.insert(file.path().to_path_buf(), head);
+    }
+    reads
+}
+
+/// Everything the File List's rows are built from, so that two refreshes can
+/// be told apart without building either ([`Sidebar::refresh`]).
+///
+/// A file's head is read again only when its write time moves, and its write
+/// time is here, so the excerpt a row shows is too. The day stands for the
+/// clock, since a date is said to the day ([`stamp`]).
+#[derive(Debug, PartialEq, Eq)]
+struct Picture {
+    rows: Vec<Pictured>,
+    query: String,
+    extensions: bool,
+    date: ShowDate,
+    excerpts: bool,
+    mark: Mark,
+    pinned: Vec<PathBuf>,
+    day: Option<(i32, i32)>,
+}
+
+/// One row of a [`Picture`].
+#[derive(Debug, PartialEq, Eq)]
+struct Pictured {
+    path: PathBuf,
+    depth: usize,
+    /// Whether a folder is open; `None` for a file.
+    open: Option<bool>,
+    modified: Option<SystemTime>,
+    created: Option<SystemTime>,
+    snippet: Option<Snippet>,
+}
+
+impl Picture {
+    /// What `listing` would be built into under `query`, the `[library]`
+    /// table `shown`, `pinned` and the clock `now`.
+    fn of(
+        listing: &Listing<'_>,
+        query: &str,
+        shown: &settings::Library,
+        pinned: &[PathBuf],
+        now: Option<&glib::DateTime>,
+        expanded: &BTreeSet<PathBuf>,
+    ) -> Self {
+        let file = |file: &File, depth, snippet: Option<Snippet>| Pictured {
+            path: file.path().to_path_buf(),
+            depth,
+            open: None,
+            modified: file.modified(),
+            created: file.created(),
+            snippet,
+        };
+        let rows = match listing {
+            Listing::Tree(rows) => rows
+                .iter()
+                .map(|row| match row {
+                    Row::File { file: of, depth } => file(of, *depth, None),
+                    Row::Folder { folder, depth } => Pictured {
+                        path: row.path().to_path_buf(),
+                        depth: *depth,
+                        open: Some(expanded.contains(row.path())),
+                        modified: folder.modified(),
+                        created: folder.created(),
+                        snippet: None,
+                    },
+                })
+                .collect(),
+            Listing::Flat(files) => files
+                .iter()
+                .map(|(of, snippet)| file(of, 0, snippet.clone()))
+                .collect(),
+            Listing::Nothing => Vec::new(),
+        };
+        Self {
+            rows,
+            query: query.to_string(),
+            extensions: shown.show_extensions,
+            date: shown.show_date,
+            excerpts: shown.show_excerpts,
+            mark: shown.mark,
+            pinned: pinned.to_vec(),
+            day: now.map(|now| (now.year(), now.day_of_year())),
+        }
+    }
 }
 
 /// An Organizer section head: bold, in the head grey, with a section's air
@@ -4244,6 +4434,54 @@ mod tests {
             ["sea-wall.md", "harbour.md"],
             "the name hit first, then the text hit, and never storm.md, which was not opened"
         );
+        std::fs::remove_dir_all(&root).expect("the folder to go");
+    }
+
+    /// A refresh over two Locations reads the heads of the one it lists and
+    /// no other, none inside a closed folder, and nothing it has read before
+    /// that nothing has written since (#453).
+    #[test]
+    fn a_refresh_reads_the_heads_of_the_listed_location_alone() {
+        let root = std::env::temp_dir().join(format!("quill-sidebar-heads-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let (listed, other) = (root.join("listed"), root.join("other"));
+        std::fs::create_dir_all(listed.join("inner")).expect("the listed Location");
+        std::fs::create_dir_all(&other).expect("the other Location");
+        for path in [
+            listed.join("sea.md"),
+            listed.join("storm.md"),
+            listed.join("inner/harbour.md"),
+            other.join("lamps.md"),
+            other.join("wall.md"),
+            other.join("tide.md"),
+        ] {
+            std::fs::write(path, "The sea.\n").expect("a file to list");
+        }
+        let library = Library::open(&[listed.clone(), other.clone()], &[]);
+        let showing = Showing::Location(listed.clone());
+        let heads = |expanded: &BTreeSet<PathBuf>, read: &mut BTreeMap<PathBuf, Head>| {
+            let listing = listing(
+                &library,
+                Some(&showing),
+                "",
+                &View::default(),
+                &[],
+                &mut Contents::new(),
+                expanded,
+            );
+            read_heads(read, listing.files())
+        };
+        let mut read = BTreeMap::new();
+        let closed = BTreeSet::new();
+        assert_eq!(heads(&closed, &mut read), 2, "the listed Location's two");
+        assert!(read.keys().all(|path| path.starts_with(&listed)));
+        assert_eq!(
+            heads(&closed, &mut read),
+            0,
+            "nothing written, nothing read"
+        );
+        let open = BTreeSet::from([listed.join("inner")]);
+        assert_eq!(heads(&open, &mut read), 1, "the opened folder's one");
         std::fs::remove_dir_all(&root).expect("the folder to go");
     }
 
