@@ -60,6 +60,7 @@
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
+use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -1793,7 +1794,7 @@ impl Sidebar {
             excerpt.set_yalign(0.0);
             excerpt.set_wrap(true);
             excerpt.set_wrap_mode(gtk::pango::WrapMode::WordChar);
-            excerpt.set_attributes(Some(&excerpt_leading()));
+            excerpt.set_attributes(Some(&excerpt_attributes(row.snippet.map(Snippet::at))));
             // One character of natural width, so that the row's width decides
             // where the lines break rather than the sentence deciding the row's.
             excerpt.set_max_width_chars(1);
@@ -3707,16 +3708,25 @@ fn band(notice: &gtk::Label, offer: &gtk::Box) -> gtk::Box {
     band
 }
 
-/// The excerpt's two lines, set on the leading the oracle gives them.
+/// The excerpt's two lines, set on the leading the oracle gives them, with
+/// the words a query matched, `matched` bytes into the text, set bold.
 ///
 /// Through Pango rather than through the stylesheet: GTK's CSS has no
 /// `line-height`, and two lines of 13.5 px type on their own natural leading
-/// stand a pixel and a half tighter than iA's. A content hit's snippet is set
-/// as plainly as any excerpt, since iA marks nothing a query matched (#441).
-fn excerpt_leading() -> gtk::pango::AttrList {
+/// stand a pixel and a half tighter than iA's. The match is bold in the
+/// excerpt's own grey and nothing else, so that a writer sees why the row is
+/// here while it still reads as a row; iA marks nothing, and the bold is
+/// Quill's own (#455).
+fn excerpt_attributes(matched: Option<Range<usize>>) -> gtk::pango::AttrList {
     let attributes = gtk::pango::AttrList::new();
     let height = pixels(EXCERPT_LEADING * f64::from(gtk::pango::SCALE));
     attributes.insert(gtk::pango::AttrInt::new_line_height_absolute(height));
+    if let Some(matched) = matched {
+        let mut bold = gtk::pango::AttrInt::new_weight(gtk::pango::Weight::Bold);
+        bold.set_start_index(u32::try_from(matched.start).unwrap_or(u32::MAX));
+        bold.set_end_index(u32::try_from(matched.end).unwrap_or(u32::MAX));
+        attributes.insert(bold);
+    }
     attributes
 }
 
@@ -4267,7 +4277,7 @@ mod tests {
     }
 
     #[test]
-    fn a_content_hits_snippet_is_set_as_plain_text() {
+    fn a_content_hits_match_is_bold_and_nothing_else_is_marked() {
         // Its own folder, named for this process, because the worktrees test
         // at the same time.
         let root = std::env::temp_dir().join(format!("quill-sidebar-{}", std::process::id()));
@@ -4283,15 +4293,39 @@ mod tests {
             .expect("the file's text holds the word")
             .snippet()
             .expect("a content hit carries a snippet");
-        assert!(snippet.text().contains("sea"));
-        // The match is set as the words either side of it are: the excerpt's
-        // attributes carry its leading and no colour at all.
-        let kinds: Vec<_> = excerpt_leading()
+        assert_eq!(snippet.matched(), "sea");
+        // The match is bold over exactly its own bytes, in the excerpt's own
+        // grey: the attributes carry the leading and the weight, no colour.
+        let attributes = excerpt_attributes(Some(snippet.at())).attributes();
+        let kinds: Vec<_> = attributes
+            .iter()
+            .map(|attribute| attribute.type_())
+            .collect();
+        assert_eq!(
+            kinds,
+            vec![
+                gtk::pango::AttrType::AbsoluteLineHeight,
+                gtk::pango::AttrType::Weight
+            ]
+        );
+        let weight = &attributes[1];
+        let span = usize::try_from(weight.start_index()).expect("an index")
+            ..usize::try_from(weight.end_index()).expect("an index");
+        assert_eq!(span, snippet.at());
+        // Pango's bold is weight 700.
+        assert_eq!(
+            weight
+                .downcast_ref::<gtk::pango::AttrInt>()
+                .map(|bold| bold.value()),
+            Some(700)
+        );
+        // A name hit, or any file's own beginning, carries no weight at all.
+        let plain: Vec<_> = excerpt_attributes(None)
             .attributes()
             .into_iter()
             .map(|attribute| attribute.type_())
             .collect();
-        assert_eq!(kinds, vec![gtk::pango::AttrType::AbsoluteLineHeight]);
+        assert_eq!(plain, vec![gtk::pango::AttrType::AbsoluteLineHeight]);
         std::fs::remove_dir_all(&root).expect("the folder to go");
     }
 
