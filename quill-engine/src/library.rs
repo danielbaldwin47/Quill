@@ -2000,6 +2000,16 @@ mod tests {
         fs::remove_dir_all(&directory).ok();
     }
 
+    /// The app searches off its main thread with a copy of the Library and the
+    /// cache (#454), which is what both being `Send` promises; this fails to
+    /// compile rather than to run.
+    #[test]
+    fn the_cache_and_the_library_can_cross_to_a_search_thread() {
+        fn crosses<T: Send + 'static>() {}
+        crosses::<Contents>();
+        crosses::<Library>();
+    }
+
     #[test]
     fn every_word_of_the_query_must_be_in_the_text() {
         let directory = scratch("words");
