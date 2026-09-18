@@ -73,8 +73,21 @@ pub fn window_sizes() -> RangeInclusive<u32> {
 }
 
 /// The width the Library pane stands at until a writer drags the divider:
-/// `quill::sidebar::WIDTH`, the pane as the Parity oracle measures it.
-const LIBRARY: u32 = 368;
+/// `quill::sidebar::WIDTH`, the pane as the Design oracle measures it
+/// (`ref/ia/mac-native/NOTES.md` § State 28, *Pane, total*), and the narrowest
+/// a saved width is read back at.
+const LIBRARY: u32 = 360;
+
+/// The widest a saved pane width is read back at: the File List alone widens
+/// between [`LIBRARY`] and this (#441 § The pane).
+const WIDEST: u32 = 500;
+
+/// The widths the Library pane is dragged between, which a saved width is
+/// pulled into on the way in before [`library_width`] fits it to the window.
+#[must_use]
+pub const fn library_widths() -> RangeInclusive<u32> {
+    LIBRARY..=WIDEST
+}
 
 /// The narrowest the pane may be dragged. Below this a row is a truncated
 /// name rather than a Document.
@@ -284,7 +297,8 @@ impl State {
         // range, rather than read at the range: the width is one Quill wrote
         // itself, so a value outside it is a monitor that has gone away and
         // not a writer's typo, and the pane opens at the nearest width it can
-        // stand at.
+        // stand at: inside [`library_widths`] first, so the old pane's 240
+        // opens as 360, and then inside the window.
         let width = reading.whole("library_width", LIBRARY, &(0..=LARGEST));
         // Read at every whole number for the reason above, and not pulled into
         // range at all: the range a Preview pane stands in is the pair's, and
@@ -307,7 +321,7 @@ impl State {
             recents,
             carets: read_carets(&carets),
             last_scheme,
-            library_width: library_width(width, LARGEST),
+            library_width: library_width(width.clamp(LIBRARY, WIDEST), LARGEST),
             preview_width,
             rest,
         }
@@ -567,33 +581,35 @@ mod tests {
     fn the_width_the_pane_was_dragged_to_comes_back_and_anything_else_is_clamped() {
         let path = scratch("library_width").join(STATE_FILE);
         let left = State {
-            library_width: 512,
+            library_width: 480,
             ..State::default()
         };
         left.write_to(&path).expect("writes the state file");
         let (back, notes) = State::read_from(&path);
         assert!(notes.is_empty(), "{notes:?}");
-        assert_eq!(back.library_width, 512);
+        assert_eq!(back.library_width, 480);
 
         let (fresh, notes) = State::parse("recents = []\n");
         assert!(notes.is_empty(), "{notes:?}");
         assert_eq!(
-            fresh.library_width, LIBRARY,
+            fresh.library_width, 360,
             "a file with no width opens the pane at the default"
         );
-        assert_eq!(State::default().library_width, LIBRARY);
+        assert_eq!(State::default().library_width, 360);
+        assert_eq!(library_widths(), 360..=500);
 
-        let (narrow, notes) = State::parse("library_width = 12\n");
-        assert!(notes.is_empty(), "{notes:?}");
-        assert_eq!(narrow.library_width, NARROWEST, "12 is not a pane");
-
-        let (wide, notes) = State::parse(&format!("library_width = {LARGEST}\n"));
-        assert!(notes.is_empty(), "{notes:?}");
-        assert_eq!(
-            wide.library_width,
-            LARGEST - PAGE,
-            "a pane as wide as the widest window leaves the page nothing"
-        );
+        for (saved, opens, why) in [
+            (12, 360, "12 is not a pane"),
+            (240, 360, "the old pane's narrowest opens at the new one's"),
+            (368, 368, "the old pane's default is inside the range"),
+            (500, 500, "the widest stands"),
+            (600, 500, "past the widest opens at it"),
+            (LARGEST, 500, "a width a monitor held opens at the widest"),
+        ] {
+            let (read, notes) = State::parse(&format!("library_width = {saved}\n"));
+            assert!(notes.is_empty(), "{notes:?}");
+            assert_eq!(read.library_width, opens, "{saved}: {why}");
+        }
     }
 
     /// The Preview pane's width is the other half of the same story, with one

@@ -31,7 +31,7 @@ use quill_engine::document::{Document, full_name};
 use quill_engine::focus::Focus;
 use quill_engine::outline;
 use quill_engine::settings::{
-    Chrome, PreviewLayout, PreviewMode, Settings, WindowState, library_width,
+    Chrome, PreviewLayout, PreviewMode, Settings, WindowState, library_width, library_widths,
 };
 use quill_engine::spell::Resolved;
 use quill_engine::stats::Statistic;
@@ -41,7 +41,7 @@ use crate::caret;
 use crate::chrome;
 use crate::conflict;
 use crate::corrections;
-use crate::files::{self, Leaving, Standing, Where};
+use crate::files::{self, Leaving, Where};
 use crate::flags;
 use crate::ground::Ground;
 use crate::harness;
@@ -66,13 +66,6 @@ const REFRESH: Duration = Duration::from_millis(200);
 /// How much one press of `preview.bigger` or `preview.smaller` moves the zoom,
 /// in percentage points ([`Window::step_zoom`]).
 const ZOOM_STEP: u32 = 10;
-
-/// How often the status line is drawn again while it is saying how long ago
-/// the last save was, in seconds.
-///
-/// Half a minute, so that "Saved · 1 min ago" is on screen within thirty
-/// seconds of being true. It is the only line in the app that ages on its own.
-const STATUS_TICK: u32 = 30;
 
 /// How wide the rename dialog is, and how much air stands around the one field
 /// in it ([`Window::rename_dialog`]).
@@ -146,13 +139,6 @@ mod imp {
         pub edited: Cell<i64>,
         /// The one autosave timer, armed by the first edit of a burst.
         pub saving: RefCell<Option<glib::SourceId>>,
-        /// When this window last wrote its Document out, on the same monotonic
-        /// clock; `None` until it has written one, which is what the status
-        /// line says "All changes saved" for rather than "Saved · just now".
-        pub wrote: Cell<Option<i64>>,
-        /// The timer that keeps "Saved · 2 min ago" true, armed by the first
-        /// write and taken down when the window goes.
-        pub ticking: RefCell<Option<glib::SourceId>>,
         /// Set once the writer has answered the prompt a close asked, so the
         /// close that follows the answer goes through instead of asking again.
         pub answered: Cell<bool>,
@@ -814,9 +800,6 @@ impl Window {
         self.imp().dirty.set(false);
         // Where the last `file.new` was going is nothing to this Document.
         self.imp().new_in.replace(None);
-        // A Document this window has not written yet, whatever it wrote of the
-        // one before it.
-        self.imp().wrote.set(None);
         self.shown();
         // The sidebar's highlight follows the Document this window shows, so
         // that the row a writer opened is the row they can see they are in.
@@ -1105,9 +1088,6 @@ impl Window {
         if !self.writes() {
             return false;
         }
-        self.imp()
-            .sidebar
-            .set_status(&files::said(Standing::Saving));
         let written = match folder {
             Some(folder) => self.imp().filed.borrow_mut().save_in(folder),
             None => self.imp().filed.borrow_mut().save(),
@@ -1156,9 +1136,7 @@ impl Window {
     /// watch and the recents, and autosave has nothing left to do.
     fn write_landed(&self) {
         self.imp().dirty.set(false);
-        self.imp().wrote.set(Some(Self::now()));
         self.show_standing();
-        self.tick_standing();
         self.show_title(&self.document());
         let (Some(path), Some(session)) = (self.path(), self.session()) else {
             return;
@@ -1212,14 +1190,13 @@ impl Window {
         }
     }
 
-    /// Puts `words` on the status line at the foot of the Library over
-    /// whatever it now says.
+    /// Stands `words` in the band above the Library's Filter field.
     ///
     /// A notice rather than a state: the next [`Window::show_standing`] takes
     /// it back down, which is what the trash notice is and what a file
     /// export's confirmation is ([`crate::export::confirm`]).
     pub(crate) fn notice(&self, words: &str) {
-        self.imp().sidebar.set_status(words);
+        self.imp().sidebar.set_notice(words);
     }
 
     /// Says, once per process, that Spell check has no dictionary for the
@@ -1588,9 +1565,7 @@ impl Window {
         self.redraw_library();
         // After the redraw, because what the pane has just been told about the
         // file is the last thing it should say about it.
-        self.imp()
-            .sidebar
-            .set_status(&files::moved_to_trash(&full_name(path)));
+        self.notice(&files::moved_to_trash(&full_name(path)));
     }
 
     /// Moves the file at `path` into `folder`, which is what letting a row go
@@ -1662,9 +1637,7 @@ impl Window {
         self.follow_to(&session, path, &to);
         self.redraw_library();
         // After the redraw, for the reason [`Window::trash_path`] gives.
-        self.imp()
-            .sidebar
-            .set_status(&files::moved_into(&full_name(path), &full_name(folder)));
+        self.notice(&files::moved_into(&full_name(path), &full_name(folder)));
     }
 
     /// Follows the Document this window holds from `from` to `to`, where a
@@ -1789,7 +1762,7 @@ impl Window {
     /// it was in; a Document with unsaved edits enters
     /// [`OnDisk::ChangedOnDisk`] and autosave pauses for it
     /// ([`quill_engine::disk::Filed::autosaves`]), the row takes a dot and the
-    /// status line offers Reload and Keep ([`Window::show_standing`]). A file
+    /// band above the Filter field offers Reload and Keep ([`Window::show_standing`]). A file
     /// that is gone is the other conflict, and says so.
     fn heard(&self) {
         let caret = self.caret_offset();
@@ -1799,7 +1772,8 @@ impl Window {
             Noticed::Unchanged => {}
             Noticed::Reloaded(kept) => self.reloaded(kept),
             // The two conflicts: nothing is written and nothing is thrown
-            // away, and the status line asks the writer which it is to be.
+            // away, and the band above the Filter field asks the writer which
+            // it is to be.
             Noticed::Changed | Noticed::Deleted => self.show_standing(),
         }
     }
@@ -1827,49 +1801,17 @@ impl Window {
         self.show_standing();
     }
 
-    /// Where this window's file stands, as the status line says it.
-    fn standing(&self) -> Standing {
-        match self.imp().filed.borrow().state() {
-            OnDisk::ChangedOnDisk => Standing::Changed,
-            OnDisk::DeletedOnDisk => Standing::Deleted,
-            OnDisk::Untitled | OnDisk::Named => match self.imp().wrote.get() {
-                Some(wrote) => Standing::Saved(Duration::from_micros(
-                    u64::try_from(Self::now() - wrote).unwrap_or(0),
-                )),
-                None => Standing::AtRest,
-            },
-        }
-    }
-
-    /// Says where the file stands, at the foot of the Library and on the row:
-    /// the words, the two of them the writer can click, and the dot.
+    /// Says where the file stands, in the band above the Library's Filter
+    /// field and on its row: a Document changed on disk under unsaved edits is
+    /// offered Reload and Keep and its row takes the dot. The saved states say
+    /// nothing (#441 § The foot and the title bar), and a notice the band held
+    /// comes down.
     fn show_standing(&self) {
-        let standing = self.standing();
-        let conflict = standing == Standing::Changed;
+        let conflict = matches!(self.imp().filed.borrow().state(), OnDisk::ChangedOnDisk);
         let sidebar = &self.imp().sidebar;
-        sidebar.set_status(&files::said(standing));
+        sidebar.set_notice("");
         sidebar.set_offer(conflict);
         sidebar.set_conflicted(conflict);
-    }
-
-    /// Keeps "Saved · 2 min ago" true as the minutes pass.
-    ///
-    /// One timer per window, armed by the first write and left running: it
-    /// draws a label every [`STATUS_TICK`] seconds and stops itself when the
-    /// window it belongs to is gone.
-    fn tick_standing(&self) {
-        if self.imp().ticking.borrow().is_some() {
-            return;
-        }
-        let ticking = self.downgrade();
-        let id = glib::timeout_add_seconds_local(STATUS_TICK, move || {
-            let Some(window) = ticking.upgrade() else {
-                return glib::ControlFlow::Break;
-            };
-            window.show_standing();
-            glib::ControlFlow::Continue
-        });
-        self.imp().ticking.replace(Some(id));
     }
 
     /// The Reload of "Changed on disk · Reload · Keep": what taking the disk's
@@ -1972,9 +1914,6 @@ impl Window {
     fn go(&self) -> glib::Propagation {
         if let Some(armed) = self.imp().saving.take() {
             armed.remove();
-        }
-        if let Some(ticking) = self.imp().ticking.take() {
-            ticking.remove();
         }
         if let Some(refresh) = self.imp().refresh.take() {
             refresh.remove();
@@ -2092,8 +2031,13 @@ impl Window {
         let Some(session) = self.session() else {
             return;
         };
+        // Held to the pane's own range first, then to what this window can
+        // give it.
+        let (narrowest, widest) = (*library_widths().start(), *library_widths().end());
         let width = library_width(
-            u32::try_from(wanted).unwrap_or_default(),
+            u32::try_from(wanted)
+                .unwrap_or_default()
+                .clamp(narrowest, widest),
             u32::try_from(self.width()).unwrap_or(u32::MAX),
         );
         session.set_library_width(width);

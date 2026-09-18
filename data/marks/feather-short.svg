@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 100" fill="currentColor" fill-rule="evenodd">
+  <!-- The feather, for the short row: the same glyph with fewer, wider features. -->
+  <path d="M 11 0 C 14.5 8 17.5 16 18 23 C 16.5 28 13.5 33 11 38 C 8.5 33 5.5 28 4 23 C 4.5 16 7.5 8 11 0 Z"/>
+  <path d="M 3.2 28 L 11 42 L 11 62 C 7 57 2 52 1.4 46 C 1.4 39 2 33 3.2 28 Z"/>
+  <path d="M 1.2 51 L 11 66 L 11 84 C 7 79 2.5 72 1.6 65 C 1.1 60 1 55 1.2 51 Z"/>
+  <path d="M 18.8 28 L 11 42 L 11 62 C 15 57 20 52 20.6 46 C 20.6 39 20 33 18.8 28 Z"/>
+  <path d="M 20.8 51 L 11 66 L 11 84 C 15 79 19.5 72 20.4 65 C 20.9 60 21 55 20.8 51 Z"/>
+  <path d="M 9.9 80 L 12.1 80 L 12.1 86 C 12.1 92 11.6 96 10.6 99.6 C 10.4 100 9.8 100 9.9 99.4 C 10.3 95 9.9 91 9.9 86 Z"/>
+</svg>
