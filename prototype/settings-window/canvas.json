@@ -1,0 +1,314 @@
+{
+ "artboards": [
+  {
+   "file": "Main.dc.html",
+   "x": 0,
+   "y": 0,
+   "w": 700,
+   "h": 520,
+   "title": "A1 sidebar \u00b7 Library \u00b7 light"
+  },
+  {
+   "file": "A1LibraryDark.dc.html",
+   "x": 780,
+   "y": 0,
+   "w": 700,
+   "h": 520,
+   "title": "A1 sidebar \u00b7 Library \u00b7 dark"
+  },
+  {
+   "file": "A1ExportLight.dc.html",
+   "x": 1560,
+   "y": 0,
+   "w": 700,
+   "h": 520,
+   "title": "A1 sidebar \u00b7 Export \u00b7 light"
+  },
+  {
+   "file": "A1ExportDark.dc.html",
+   "x": 2340,
+   "y": 0,
+   "w": 700,
+   "h": 520,
+   "title": "A1 sidebar \u00b7 Export \u00b7 dark"
+  },
+  {
+   "file": "A1GeneralLight.dc.html",
+   "x": 0,
+   "y": 660,
+   "w": 700,
+   "h": 520,
+   "title": "A1 sidebar \u00b7 General \u00b7 light"
+  },
+  {
+   "file": "A1TemplateLight.dc.html",
+   "x": 780,
+   "y": 660,
+   "w": 700,
+   "h": 520,
+   "title": "A1 sidebar \u00b7 Template \u00b7 light"
+  },
+  {
+   "file": "A1WritingLight.dc.html",
+   "x": 1560,
+   "y": 660,
+   "w": 700,
+   "h": 520,
+   "title": "A1 sidebar \u00b7 Writing \u00b7 light"
+  },
+  {
+   "file": "A1WritingNoDictionaryLight.dc.html",
+   "x": 2340,
+   "y": 660,
+   "w": 700,
+   "h": 520,
+   "title": "A1 sidebar \u00b7 WritingNoDictionary \u00b7 light"
+  },
+  {
+   "file": "A1AdvancedLight.dc.html",
+   "x": 3120,
+   "y": 660,
+   "w": 700,
+   "h": 520,
+   "title": "A1 sidebar \u00b7 Advanced \u00b7 light"
+  },
+  {
+   "file": "A1ContextLight.dc.html",
+   "x": 0,
+   "y": 1320,
+   "w": 1120,
+   "h": 720,
+   "title": "A1 sidebar \u00b7 floating over the main window \u00b7 light"
+  },
+  {
+   "file": "A1ContextDark.dc.html",
+   "x": 1200,
+   "y": 1320,
+   "w": 1120,
+   "h": 720,
+   "title": "A1 sidebar \u00b7 floating over the main window \u00b7 dark"
+  },
+  {
+   "file": "A2LibraryLight.dc.html",
+   "x": 0,
+   "y": 2180,
+   "w": 640,
+   "h": 560,
+   "title": "A2 switcher \u00b7 Library \u00b7 light"
+  },
+  {
+   "file": "A2LibraryDark.dc.html",
+   "x": 720,
+   "y": 2180,
+   "w": 640,
+   "h": 560,
+   "title": "A2 switcher \u00b7 Library \u00b7 dark"
+  },
+  {
+   "file": "A2ExportLight.dc.html",
+   "x": 1440,
+   "y": 2180,
+   "w": 640,
+   "h": 560,
+   "title": "A2 switcher \u00b7 Export \u00b7 light"
+  },
+  {
+   "file": "A2ExportDark.dc.html",
+   "x": 2160,
+   "y": 2180,
+   "w": 640,
+   "h": 560,
+   "title": "A2 switcher \u00b7 Export \u00b7 dark"
+  },
+  {
+   "file": "A2GeneralLight.dc.html",
+   "x": 2880,
+   "y": 2180,
+   "w": 640,
+   "h": 560,
+   "title": "A2 switcher \u00b7 General \u00b7 light"
+  },
+  {
+   "file": "B1LibraryLight.dc.html",
+   "x": 0,
+   "y": 2880,
+   "w": 1120,
+   "h": 720,
+   "title": "B1 \u00b7 Library \u00b7 light"
+  },
+  {
+   "file": "B1LibraryDark.dc.html",
+   "x": 1200,
+   "y": 2880,
+   "w": 1120,
+   "h": 720,
+   "title": "B1 \u00b7 Library \u00b7 dark"
+  },
+  {
+   "file": "B1ExportLight.dc.html",
+   "x": 2400,
+   "y": 2880,
+   "w": 1120,
+   "h": 720,
+   "title": "B1 \u00b7 Export \u00b7 light"
+  },
+  {
+   "file": "B1ExportDark.dc.html",
+   "x": 3600,
+   "y": 2880,
+   "w": 1120,
+   "h": 720,
+   "title": "B1 \u00b7 Export \u00b7 dark"
+  },
+  {
+   "file": "B2RootLight.dc.html",
+   "x": 0,
+   "y": 3740,
+   "w": 1120,
+   "h": 720,
+   "title": "B2 \u00b7 root list \u00b7 light"
+  },
+  {
+   "file": "B2LibraryLight.dc.html",
+   "x": 1200,
+   "y": 3740,
+   "w": 1120,
+   "h": 720,
+   "title": "B2 \u00b7 Library \u00b7 light"
+  },
+  {
+   "file": "B2LibraryDark.dc.html",
+   "x": 2400,
+   "y": 3740,
+   "w": 1120,
+   "h": 720,
+   "title": "B2 \u00b7 Library \u00b7 dark"
+  },
+  {
+   "file": "B2ExportLight.dc.html",
+   "x": 3600,
+   "y": 3740,
+   "w": 1120,
+   "h": 720,
+   "title": "B2 \u00b7 Export \u00b7 light"
+  },
+  {
+   "file": "B2ExportDark.dc.html",
+   "x": 4800,
+   "y": 3740,
+   "w": 1120,
+   "h": 720,
+   "title": "B2 \u00b7 Export \u00b7 dark"
+  },
+  {
+   "file": "C1Light.dc.html",
+   "x": 0,
+   "y": 4600,
+   "w": 560,
+   "h": 1823,
+   "title": "C1 stock GTK4 \u00b7 light"
+  },
+  {
+   "file": "C2Light.dc.html",
+   "x": 640,
+   "y": 4600,
+   "w": 560,
+   "h": 1627,
+   "title": "C2 Quill CSS \u00b7 light"
+  },
+  {
+   "file": "C1Dark.dc.html",
+   "x": 1280,
+   "y": 4600,
+   "w": 560,
+   "h": 1823,
+   "title": "C1 stock GTK4 \u00b7 dark"
+  },
+  {
+   "file": "C2Dark.dc.html",
+   "x": 1920,
+   "y": 4600,
+   "w": 560,
+   "h": 1627,
+   "title": "C2 Quill CSS \u00b7 dark"
+  },
+  {
+   "file": "DRestLight.dc.html",
+   "x": 0,
+   "y": 6563,
+   "w": 1120,
+   "h": 720,
+   "title": "D searchable list \u00b7 rest \u00b7 light"
+  },
+  {
+   "file": "DQueryLight.dc.html",
+   "x": 1200,
+   "y": 6563,
+   "w": 1120,
+   "h": 720,
+   "title": "D searchable list \u00b7 query \u00b7 light"
+  },
+  {
+   "file": "DQueryDark.dc.html",
+   "x": 2400,
+   "y": 6563,
+   "w": 1120,
+   "h": 720,
+   "title": "D searchable list \u00b7 query \u00b7 dark"
+  }
+ ],
+ "annotations": [
+  {
+   "id": "dir-A1",
+   "x": -320,
+   "y": 20,
+   "w": 280,
+   "text": "A1. A separate window, sidebar of panes\n\ngtk::Window + Stack + StackSidebar (or a ListBox driving the Stack). Six panes: General, Library, Template, Export, Writing tools, Advanced. Rows are short; nothing scrolls at 700 x 520. Template's five are radio CheckButtons. The sidebar takes the Library Organizer's ground and pill. Tradeoff: a second window to place and lose; on a tiling compositor it needs a float rule."
+  },
+  {
+   "id": "dir-A2",
+   "x": -320,
+   "y": 2200,
+   "w": 280,
+   "text": "A2. A separate window, switcher on top\n\ngtk::Window + Stack + StackSwitcher, drawn as a plain linked row in the content (no GtkHeaderBar). Tabs want fewer names, so Advanced folds into the foot of General and Writing tools shortens to Writing: five tabs. Hairlines between rows. Tradeoff: a sixth pane has nowhere to go; the window is as wide as its tabs."
+  },
+  {
+   "id": "dir-B1",
+   "x": -320,
+   "y": 2900,
+   "w": 280,
+   "text": "B1. A sheet over a dimmed Editor\n\ngtk::Overlay on the window: a dimming box plus a centred box with the menu's ground, border, radius and shadow; text tabs over a Stack; boxed rows are a ListBox with CSS; Esc or Done closes. No second window, so nothing to float or lose, and it is the same on every platform. Tradeoff: it hides the page, so Typewriter anchor and the Template cannot be judged while changing them."
+  },
+  {
+   "id": "dir-B2",
+   "x": -320,
+   "y": 3760,
+   "w": 280,
+   "text": "B2. A side pane over the Editor\n\nOverlay + Revealer sliding from the right, 360 px, the menu's ground. Drill-in: a root list of panes, then one pane with a back row (a Stack with a slide transition). The page stays visible and live, so Template and anchor changes show as they are made. Tradeoff: one more level of navigation, long paths ellipsize at 360 px, and it competes with Preview Split for the right edge."
+  },
+  {
+   "id": "dir-C1",
+   "x": -320,
+   "y": 4620,
+   "w": 280,
+   "text": "C1. One scrolling window, regrouped, stock GTK4\n\nToday's window with #463's rows under six headings, in the default theme exactly as sampled from today's shots: 14.67 px type, 38 px pitch, 50 x 26 switches, #3584e4 (light) and #15539e (dark). The honest baseline: regrouping only, no CSS. Shown unrolled; the dashed line is where a 640 px window ends."
+  },
+  {
+   "id": "dir-C2",
+   "x": -320,
+   "y": 5020,
+   "w": 280,
+   "text": "C2. The identical layout, Quill's CSS\n\nSame rows, same order, same widgets, same 560 px width as C1. Only a stylesheet differs: 13 px chrome type, 32 px pitch, 32 x 18 switches in the menu's selection blue, flat hairline buttons, the View menu's small-caps heads, the Library's list ground. Everything here is reachable with a CssProvider on Switch, Button, DropDown, SpinButton, Scale, CheckButton and a framed ListBox."
+  },
+  {
+   "id": "dir-D",
+   "x": -320,
+   "y": 6583,
+   "w": 280,
+   "text": "D. A searchable settings list\n\nThe Palette's shape: an Entry over one flat ListBox of every row, the group as a dim prefix, the control inline, filtered as you type. No panes to name or learn. Tradeoff: path lists and the refused lines cannot sit inline, so they become drill-in rows; browsing 27 rows is worse than six panes; keyboard focus moves between the Entry and inline controls need care."
+  }
+ ],
+ "launch": {
+  "view": "canvas"
+ }
+}
