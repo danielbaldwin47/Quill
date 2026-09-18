@@ -1257,6 +1257,19 @@ impl Session {
         settings
     }
 
+    /// Writes the edit `edit` makes and puts its `[library]` table on to the
+    /// running settings at once, under the flags as a read would be: the Sort
+    /// pill's choice, which the pane draws in the frame it was made rather
+    /// than after the watch has read the write back (#453). The watch's read
+    /// then finds the table already applied, and moves nothing.
+    ///
+    /// The Locations and Pinned are not moved here; no pill edit touches them,
+    /// and [`Session::apply`] is the one path that walks a Location.
+    pub fn edit_library(&self, edit: impl FnOnce(&mut Settings)) {
+        let written = self.edit_settings(edit);
+        self.settings.borrow_mut().library = self.flags.over(written).library;
+    }
+
     /// Writes `settings` to this launch's settings file, saying so on stderr
     /// where it cannot be written, as every file here does.
     ///
@@ -1768,6 +1781,40 @@ mod tests {
     use quill_engine::theme::{Colour, Role};
 
     use super::*;
+
+    /// A Sort pill choice is the session's `[library]` as it is written,
+    /// before any watch has read the file, and the watch's read of that write
+    /// then moves nothing (#453).
+    #[test]
+    fn a_library_edit_is_running_before_the_watch_reads_it_and_the_read_moves_nothing() {
+        use quill_engine::library::{Order, Sort};
+
+        let path = fixture("library-edit");
+        let session = Session::launch(
+            Flags {
+                settings: Some(path.clone()),
+                ..Flags::default()
+            },
+            Settings::default(),
+            State::default(),
+            WindowState::default(),
+            false,
+            None,
+        );
+        session.edit_library(|settings| {
+            settings.library.sort = Sort::Name;
+            settings.library.order = Order::Oldest;
+        });
+        let running = session.settings().library.clone();
+        assert_eq!((running.sort, running.order), (Sort::Name, Order::Oldest));
+        let (written, _) = Settings::read_from(&path);
+        assert_eq!(written.library.sort, Sort::Name, "the file carries it too");
+        assert!(
+            !session.apply(written),
+            "the watch's read finds the table already applied"
+        );
+        std::fs::remove_dir_all(path.parent().expect("a scratch directory")).ok();
+    }
 
     #[test]
     fn every_syntax_command_writes_only_its_key_and_its_own_save_moves_nothing() {

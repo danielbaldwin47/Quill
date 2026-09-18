@@ -268,7 +268,13 @@ default 12; and `title_page`, `header` and `footer`, the three pieces of furnitu
 all default false), `palette` (the file the grounds take their colours from, `design.md` § The palette is a
 file; empty is the built-ins), a `[library]` table (`locations` and `pinned`, two lists of paths,
 and `show_hidden`, `show_extensions`, `confirm_move` and `ask_where_to_save`, four booleans that
-default to false; a scalar `library` naming one folder, which is how the Library was written before
+default to false; and the pane's sort menu: `sort`, one of `modified`, `created`, `name` and
+`extension`, default `modified`; `order`, `newest` or `oldest`, default `newest`, the other the
+same order upside down; `pin_folders`, default true, folders before files or, off, interleaved by
+the same key; `show_date`, one of `modified`, `created` and `none`, default `modified`;
+`show_excerpts`, default true; and `mark`, one of `bar`, `feather` and `pen`, default `bar`; Date
+Created is the file's birth time where the file system keeps one and its write time where it does
+not; a scalar `library` naming one folder, which is how the Library was written before
 it was a set of Locations, is read as its first Location and rewritten as the table on the next
 write), and a `[shortcuts]` table of Command id → chords that
 replaces the defaults in [`shortcuts.md`](shortcuts.md) ([ADR 0011](adr/0011-shortcut-precedence-on-linux.md)).
@@ -398,8 +404,8 @@ and the determinism settings, this document names the flags:
   folder of its own, stamps each file with the mtime the fixture's `manifest.json` names, and walks
   that copy as its one Location, so a judged shot of the Library is the same rows in the same order
   on every machine — a `--text` named inside the fixture is opened from the copy with it; the rest
-  of the `[library]` table is pinned to its defaults for the launch, nothing Pinned and all four
-  booleans off, so a writer who turned on hidden files or extensions does not change the shot),
+  of the `[library]` table is pinned to its defaults for the launch, nothing Pinned, all four
+  booleans off and the six sort-menu keys at their defaults, so a writer who turned on hidden files or extensions does not change the shot; the override form `--library <dir>:key=value,…` then sets `sort`, `order`, `pin_folders`, `show_date`, `show_excerpts` or `mark` over those defaults as `settings.toml` writes them, and each `pinned=<path>` pins that file of the fixture, so a shot can show a switched Selection Mark or a pinned Document),
   `--sidebar` (open with the Library beside the page), `--search <query>` (put `<query>` in the
   Library's search field and narrow the list to what it finds; refused without `--sidebar`, which is
   the pane the field stands in), `--preview split|full|pdf-split|pdf-full` (open with the Preview

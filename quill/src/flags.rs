@@ -40,9 +40,9 @@ use std::path::{Path, PathBuf};
 
 use quill_engine::commands;
 use quill_engine::settings::{
-    Choice, Chrome, Export, Face, FocusScope, Paper, Preview, PreviewLayout, PreviewMode, Settings,
-    Stats, StatsBar, StyleCheck, SyntaxHighlight, Template as TemplateSettings, TemplateName,
-    WindowState, preview_zooms, window_sizes,
+    Choice, Chrome, Export, Face, FocusScope, Library, Mark, Order, Paper, Preview, PreviewLayout,
+    PreviewMode, Settings, ShowDate, Sort, Stats, StatsBar, StyleCheck, SyntaxHighlight,
+    Template as TemplateSettings, TemplateName, WindowState, preview_zooms, window_sizes,
 };
 use quill_engine::stats::Statistic;
 use quill_engine::theme::Scheme;
@@ -85,10 +85,14 @@ Judged state — the states the Gate shoots and benches at:
                          Open with that menu or the Palette up, its first row
                          selected; outline is the Palette on the Outline, the
                          caret's section selected.
-  --library <dir>        Take the Library from the fixture tree at <dir>: a
+  --library <dir>[:key=value,...]
+                         Take the Library from the fixture tree at <dir>: a
                          copy of it, each file stamped with the mtime its
                          manifest.json names, as the one Location, with the
-                         rest of [library] at its defaults.
+                         rest of [library] at its defaults. After the colon,
+                         sort, order, pin_folders, show_date, show_excerpts
+                         and mark are set as settings.toml writes them, and
+                         each pinned=<path> pins that file of the fixture.
   --sidebar              Open with the Library beside the page.
   --preview split|full|pdf-split|pdf-full
                          Open with the Preview pane beside the Editor, or in
@@ -205,6 +209,27 @@ pub enum Caret {
     End,
 }
 
+/// One `[library]` key that `--library <fixture>:key=value,…` sets over the
+/// defaults the flag pins, so that a shot can show a switched Selection Mark
+/// or a pinned Document without reading the writer's table.
+#[derive(Clone, Debug, PartialEq)]
+pub enum LibraryKey {
+    /// `sort`.
+    Sort(Sort),
+    /// `order`.
+    Order(Order),
+    /// `pin_folders`.
+    PinFolders(bool),
+    /// `show_date`.
+    ShowDate(ShowDate),
+    /// `show_excerpts`.
+    ShowExcerpts(bool),
+    /// `mark`.
+    Mark(Mark),
+    /// `pinned`: one path inside the fixture, and the key may come again.
+    Pinned(PathBuf),
+}
+
 /// Why a command line could not be read: one line, naming the flag.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Error(String);
@@ -277,6 +302,9 @@ pub struct Flags {
     /// judged shot walks a tree whose mtimes it stamped and never the one in
     /// the checkout.
     pub library: Option<PathBuf>,
+    /// The keys `--library`'s override form set over the defaults it pins, in
+    /// the order they were written.
+    pub library_keys: Vec<LibraryKey>,
     /// Whether `--sidebar` asked for the Library beside the page.
     pub sidebar: bool,
     /// The query `--search` puts in the Library's search field.
@@ -383,7 +411,11 @@ impl Flags {
                 "--nocaret" => flags.nocaret = true,
                 "--typing" => flags.typing = true,
                 "--menu" => flags.menu = Some(one_of(flag, &text(&mut args, flag)?, &MENUS)?),
-                "--library" => flags.library = Some(file(&mut args, flag)?),
+                "--library" => {
+                    let (fixture, keys) = fixture_and_keys(flag, &text(&mut args, flag)?)?;
+                    flags.library = Some(fixture);
+                    flags.library_keys = keys;
+                }
                 "--sidebar" => flags.sidebar = true,
                 "--search" => flags.search = Some(text(&mut args, flag)?),
                 "--preview" => {
@@ -553,15 +585,37 @@ impl Flags {
         // is rows in the shot — the dot-folder the fixture holds, every name's
         // extension — and a writer who turned one on in their own settings
         // would otherwise be shooting a different Library than round 6 judged.
-        // The sort is Date already: the pane opens at it and no setting
-        // carries it (`crate::sidebar::Sidebar`).
+        // The six keys of the pane's sort menu are pinned at their defaults
+        // for the same reason: a writer's Name sort or feather mark is not the
+        // pane the Piece judged.
         if let Some(library) = &self.library {
+            let defaults = Library::default();
             settings.library.locations = vec![library.clone()];
             settings.library.pinned = Vec::new();
             settings.library.show_hidden = false;
             settings.library.show_extensions = false;
             settings.library.confirm_move = false;
             settings.library.ask_where_to_save = false;
+            settings.library.sort = defaults.sort;
+            settings.library.order = defaults.order;
+            settings.library.pin_folders = defaults.pin_folders;
+            settings.library.show_date = defaults.show_date;
+            settings.library.show_excerpts = defaults.show_excerpts;
+            settings.library.mark = defaults.mark;
+            // Then what the override form named, over those defaults. A
+            // pinned path is the fixture's, so it is joined to the copy this
+            // launch walks rather than to the checkout.
+            for key in &self.library_keys {
+                match key {
+                    LibraryKey::Sort(sort) => settings.library.sort = *sort,
+                    LibraryKey::Order(order) => settings.library.order = *order,
+                    LibraryKey::PinFolders(on) => settings.library.pin_folders = *on,
+                    LibraryKey::ShowDate(date) => settings.library.show_date = *date,
+                    LibraryKey::ShowExcerpts(on) => settings.library.show_excerpts = *on,
+                    LibraryKey::Mark(mark) => settings.library.mark = *mark,
+                    LibraryKey::Pinned(path) => settings.library.pinned.push(library.join(path)),
+                }
+            }
         }
         // A judged shot of the pane names where it opens and nothing else
         // about it, so the rest of the table is pinned to its defaults with
@@ -673,6 +727,50 @@ fn not(flag: &str, found: &str, wanted: &str) -> Error {
 /// engine already knows how to read one.
 fn choice<C: Choice>(flag: &str, written: &str) -> Result<C, Error> {
     C::parse(written).ok_or_else(|| not(flag, written, &format!("one of {}", C::VALUES.join(", "))))
+}
+
+/// `--library`'s value: the fixture, and the `[library]` keys its override
+/// form sets, `<fixture>:key=value,…`, each value as `settings.toml` writes it.
+///
+/// The first colon divides the two, so a fixture's path holds none; the
+/// fixtures are the checkout's, where none does.
+fn fixture_and_keys(flag: &str, written: &str) -> Result<(PathBuf, Vec<LibraryKey>), Error> {
+    let Some((fixture, keys)) = written.split_once(':') else {
+        return Ok((PathBuf::from(written), Vec::new()));
+    };
+    let keys = keys
+        .split(',')
+        .map(|pair| {
+            let Some((key, value)) = pair.split_once('=') else {
+                return Err(not(flag, pair, "key=value"));
+            };
+            Ok(match key {
+                "sort" => LibraryKey::Sort(choice(flag, value)?),
+                "order" => LibraryKey::Order(choice(flag, value)?),
+                "pin_folders" => LibraryKey::PinFolders(library_switch(flag, value)?),
+                "show_date" => LibraryKey::ShowDate(choice(flag, value)?),
+                "show_excerpts" => LibraryKey::ShowExcerpts(library_switch(flag, value)?),
+                "mark" => LibraryKey::Mark(choice(flag, value)?),
+                "pinned" if !value.is_empty() => LibraryKey::Pinned(PathBuf::from(value)),
+                "pinned" => return Err(not(flag, pair, "a path inside the fixture")),
+                _ => {
+                    return Err(not(
+                        flag,
+                        key,
+                        "one of sort, order, pin_folders, show_date, show_excerpts, mark, pinned",
+                    ));
+                }
+            })
+        })
+        .collect::<Result<_, _>>()?;
+    Ok((PathBuf::from(fixture), keys))
+}
+
+/// A `[library]` switch, as `settings.toml` writes it.
+fn library_switch(flag: &str, written: &str) -> Result<bool, Error> {
+    written
+        .parse()
+        .map_err(|_| not(flag, written, "true or false"))
 }
 
 /// Pins every Category as well as the master switch, including for `off`.
@@ -917,6 +1015,73 @@ mod tests {
                 said.contains(bad),
                 "the line quotes what was written: {said}"
             );
+            assert!(!said.contains('\n'), "one line, not a stack: {said}");
+        }
+    }
+
+    /// The override form sets what it names over the defaults the flag pins
+    /// and leaves every other key at them; a key or a value it cannot read is
+    /// the flag's one-line error.
+    #[test]
+    fn the_library_override_sets_the_named_keys_and_leaves_the_rest_at_their_defaults() {
+        let mut writers = Settings::default();
+        writers.library.sort = Sort::Extension;
+        writers.library.show_date = ShowDate::None;
+        writers.library.pin_folders = false;
+        let flags = parse(
+            "--library shots/oracle/library:mark=feather,show_excerpts=false,\
+             pinned=sea-storm.md,pinned=notes/list.md",
+        )
+        .expect("the override form");
+        assert_eq!(
+            flags.library.as_deref(),
+            Some(Path::new("shots/oracle/library"))
+        );
+        let shot = flags.over(writers);
+        let defaults = Library::default();
+        assert_eq!(shot.library.mark, Mark::Feather);
+        assert!(!shot.library.show_excerpts);
+        assert_eq!(
+            shot.library.pinned,
+            [
+                PathBuf::from("shots/oracle/library/sea-storm.md"),
+                PathBuf::from("shots/oracle/library/notes/list.md"),
+            ]
+        );
+        assert_eq!(
+            (
+                shot.library.sort,
+                shot.library.order,
+                shot.library.pin_folders,
+                shot.library.show_date,
+            ),
+            (
+                defaults.sort,
+                defaults.order,
+                defaults.pin_folders,
+                defaults.show_date,
+            ),
+            "the keys the form did not name stay at their defaults, not the writer's"
+        );
+        let pen = parse("--library shots/oracle/library:mark=pen,sort=name,order=oldest")
+            .expect("choices by the names the file writes")
+            .over(Settings::default());
+        assert_eq!(
+            (pen.library.mark, pen.library.sort, pen.library.order),
+            (Mark::Pen, Sort::Name, Order::Oldest)
+        );
+        for bad in [
+            "shots/oracle/library:",
+            "shots/oracle/library:mark",
+            "shots/oracle/library:mark=quill",
+            "shots/oracle/library:colour=red",
+            "shots/oracle/library:show_excerpts=no",
+            "shots/oracle/library:pinned=",
+        ] {
+            let said = parse(&format!("--library {bad}"))
+                .expect_err(bad)
+                .to_string();
+            assert!(said.starts_with("--library: "), "{bad}: {said}");
             assert!(!said.contains('\n'), "one line, not a stack: {said}");
         }
     }
@@ -1321,6 +1486,12 @@ mod tests {
         writers.library.show_extensions = true;
         writers.library.confirm_move = true;
         writers.library.ask_where_to_save = true;
+        writers.library.sort = quill_engine::settings::Sort::Extension;
+        writers.library.order = quill_engine::settings::Order::Oldest;
+        writers.library.pin_folders = false;
+        writers.library.show_date = quill_engine::settings::ShowDate::None;
+        writers.library.show_excerpts = false;
+        writers.library.mark = quill_engine::settings::Mark::Feather;
         let judged = parse("--library shots/oracle/library")
             .expect("one flag")
             .over(writers.clone());
@@ -1334,6 +1505,26 @@ mod tests {
         assert!(!judged.library.show_extensions);
         assert!(!judged.library.confirm_move);
         assert!(!judged.library.ask_where_to_save);
+        let defaults = Library::default();
+        assert_eq!(
+            (
+                judged.library.sort,
+                judged.library.order,
+                judged.library.pin_folders,
+                judged.library.show_date,
+                judged.library.show_excerpts,
+                judged.library.mark,
+            ),
+            (
+                defaults.sort,
+                defaults.order,
+                defaults.pin_folders,
+                defaults.show_date,
+                defaults.show_excerpts,
+                defaults.mark,
+            ),
+            "the sort menu's six keys at their defaults, whatever the writer chose"
+        );
         assert_eq!(
             parse("--sidebar")
                 .expect("one flag")

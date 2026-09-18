@@ -18,7 +18,6 @@
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 use quill_engine::disk::OnDisk;
 use quill_engine::library::Library;
@@ -229,73 +228,6 @@ pub fn leaving(state: OnDisk, has_text: bool) -> Leaving {
         OnDisk::Named => Leaving::Flush,
         OnDisk::ChangedOnDisk | OnDisk::DeletedOnDisk => Leaving::Ask,
     }
-}
-
-/// What the status line at the foot of the sidebar has to say about the file.
-///
-/// The states the File handling spec's status line shows, rather than a string
-/// built wherever the file is written: a window knows which of these it is in
-/// and [`said`] is the one place the words live.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Standing {
-    /// Nothing has been written from this window yet.
-    AtRest,
-    /// A write is going out now.
-    Saving,
-    /// The file holds what the writer typed, this long ago.
-    Saved(Duration),
-    /// The file changed under unsaved edits: the writer chooses Reload or
-    /// Keep, which the sidebar offers beside these words.
-    Changed,
-    /// The file is gone. Save or Keep recreates it.
-    Deleted,
-}
-
-/// The status line at rest: the file is on disk as the writer left it.
-const AT_REST: &str = "All changes saved";
-
-/// A minute in seconds: the first step [`ago`] coarsens a save's age to.
-const MINUTE: u64 = 60;
-/// An hour in seconds: the step after that.
-const HOUR: u64 = 60 * MINUTE;
-/// A day in seconds: the last step, which every older save is said in.
-const DAY: u64 = 24 * HOUR;
-
-/// What the status line says while the Document is `standing`.
-///
-/// The conflict's line reads "Changed on disk · Reload · Keep" on screen: the
-/// two words after these are buttons the sidebar stands beside the label
-/// ([`crate::sidebar::Sidebar::set_offer`]), because they are clicked rather
-/// than read.
-#[must_use]
-pub fn said(standing: Standing) -> String {
-    match standing {
-        Standing::AtRest => AT_REST.to_string(),
-        Standing::Saving => "Saving…".to_string(),
-        Standing::Saved(since) => format!("Saved · {}", ago(since)),
-        Standing::Changed => "Changed on disk".to_string(),
-        Standing::Deleted => "Deleted on disk".to_string(),
-    }
-}
-
-/// How long ago a save was, as the status line says it.
-///
-/// The spec's shape ("Saved · 2 min ago"), coarsening as it ages: seconds are
-/// "just now", then whole minutes, then hours, then days. A writer reading the
-/// foot of the Library is asking whether their work is on disk, not what
-/// second it landed.
-fn ago(since: Duration) -> String {
-    let seconds = since.as_secs();
-    if seconds < MINUTE {
-        return "just now".to_string();
-    }
-    if seconds < HOUR {
-        return format!("{} min ago", seconds / MINUTE);
-    }
-    if seconds < DAY {
-        return format!("{} hr ago", seconds / HOUR);
-    }
-    format!("{} d ago", seconds / DAY)
 }
 
 /// The folder a Document opened at `path` adds to the Library, or `None` where
@@ -804,29 +736,6 @@ mod tests {
     fn a_conflicted_document_is_asked_about() {
         assert_eq!(leaving(OnDisk::ChangedOnDisk, true), Leaving::Ask);
         assert_eq!(leaving(OnDisk::DeletedOnDisk, true), Leaving::Ask);
-    }
-
-    #[test]
-    fn the_status_line_names_which_of_the_five_the_file_is_in() {
-        assert_eq!(said(Standing::AtRest), "All changes saved");
-        assert_eq!(said(Standing::Saving), "Saving…");
-        assert_eq!(
-            said(Standing::Saved(Duration::from_secs(2 * MINUTE))),
-            "Saved · 2 min ago"
-        );
-        assert_eq!(said(Standing::Changed), "Changed on disk");
-        assert_eq!(said(Standing::Deleted), "Deleted on disk");
-    }
-
-    #[test]
-    fn a_save_ages_from_just_now_through_minutes_and_hours_to_days() {
-        assert_eq!(ago(Duration::from_secs(0)), "just now");
-        assert_eq!(ago(Duration::from_secs(MINUTE - 1)), "just now");
-        assert_eq!(ago(Duration::from_secs(MINUTE)), "1 min ago");
-        assert_eq!(ago(Duration::from_secs(HOUR - 1)), "59 min ago");
-        assert_eq!(ago(Duration::from_secs(HOUR)), "1 hr ago");
-        assert_eq!(ago(Duration::from_secs(DAY - 1)), "23 hr ago");
-        assert_eq!(ago(Duration::from_secs(DAY)), "1 d ago");
     }
 
     #[test]

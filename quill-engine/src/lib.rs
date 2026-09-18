@@ -23,6 +23,7 @@ pub mod focus;
 pub mod front_matter;
 pub mod html;
 pub mod library;
+pub mod mark;
 pub mod markdown;
 mod offsets;
 pub mod outline;
