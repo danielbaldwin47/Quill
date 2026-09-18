@@ -348,6 +348,16 @@ const DROP_CLASS: &str = "lib-drop";
 /// (#441 § The selected row and the Selection Mark).
 const OPEN_CLASS: &str = "lib-open";
 
+/// The class on a File List row's own box, which [`OPEN_CLASS`] and
+/// [`DROP_CLASS`] go on: the view's row around it is GTK's, and is bound to
+/// whichever item scrolls into it (#460).
+const ROW_CLASS: &str = "lib-row";
+
+/// What a drop target is a place for, asked as a drag arrives over it: a
+/// File List row answers for whichever folder is bound in it, and nothing for
+/// a file ([`Sidebar::drop_onto`]).
+type Aim = Rc<dyn Fn() -> Option<Onto>>;
+
 /// The line inside an Organizer row that answers a click, and so the shape the
 /// press's hit step is drawn on; heads and the empty-Pinned prose carry none.
 const ORG_LINE_CLASS: &str = "lib-org-line";
@@ -541,95 +551,112 @@ pub fn stylesheet(ground: Ground) -> String {
          }}\n\
          .library entry text > placeholder {{ color: {secondary}; opacity: 1; }}\n\
          .library entry.lib-rename {{ font-size: {ROW_PX}px; }}\n\
-         .library scrolledwindow, .library list {{ background: none; }}\n\
+         .library scrolledwindow, .library list, .library listview {{ background: none; }}\n\
          .library list > row {{\n\
          \x20 background: none; padding: 0; min-height: 0; outline: none;\n\
          }}\n\
          .library list > row:hover {{ background: none; }}\n\
          .library list > row:selected {{ background: none; }}\n\
+         .library listview > row {{\n\
+         \x20 background: none; padding: 0; min-height: 0; outline: none;\n\
+         }}\n\
+         .library listview > row:hover {{ background: none; }}\n\
+         .library listview > row:selected {{ background: none; }}\n\
          .library .lib-bar {{\n\
          \x20 background: none; border-radius: {bar_radius}px;\n\
          \x20 min-width: {bar_width}px; margin: {bar_top}px 0 {bar_bottom}px {bar_left}px;\n\
          }}\n\
-         .library list > row.{OPEN_CLASS} .lib-bar {{ background-color: {accent}; }}\n\
+         .library .{ROW_CLASS}.{OPEN_CLASS} .lib-bar {{ background-color: {accent}; }}\n\
          .library .lib-mark {{\n\
          \x20 color: transparent; margin: {bar_top}px 0 {bar_bottom}px 0;\n\
          }}\n\
-         .library list > row.{OPEN_CLASS} .lib-mark {{ color: {accent}; }}\n\
-         .library list > row.{DROP_CLASS} {{\n\
+         .library .{ROW_CLASS}.{OPEN_CLASS} .lib-mark {{ color: {accent}; }}\n\
+         .library list > row.{DROP_CLASS}, .library .{ROW_CLASS}.{DROP_CLASS} {{\n\
          \x20 background-color: {drop};\n\
          }}\n\
          .library :drop(active) {{ box-shadow: none; outline: none; }}\n"
     )
 }
 
-/// What every row of one refresh is drawn against.
+/// One row the File List lists, and everything its row says but the file's
+/// head, which is read when the row is first bound ([`head_of`]).
 ///
-/// The three things that are the same for all of them and none of which the
-/// tree holds: the setting a name is shown under, the clock a date is measured
-/// from, and what was read of the files.
-struct Drawing<'a> {
-    /// Whether a name keeps its extension (`library.show_extensions`).
-    extensions: bool,
-    /// Which date a file's row says, or none (`library.show_date`).
-    date: ShowDate,
-    /// Whether a file's row carries two lines of what its file says
-    /// (`library.show_excerpts`); without them it is the short row.
-    excerpts: bool,
-    /// What marks the open Document's row (`library.mark`).
-    mark: Mark,
-    /// The Library's Pinned list, whose Documents' rows draw the pinned page.
-    pinned: &'a [PathBuf],
-    /// Now, as the dates are said against it. `None` where the clock could not
-    /// be asked, which is a row with no date rather than no row.
-    now: Option<&'a glib::DateTime>,
-    /// The head of every shown file, by path.
-    read: &'a BTreeMap<PathBuf, Head>,
-}
-
-/// One file's row, and what it is drawn from.
-///
-/// The tree's rows and a search's results are the same row built from
-/// different places: the tree knows how deep the file lies, a result knows
-/// what the query matched in it.
-struct FileRow<'a> {
-    /// The file's name on disk, extension and all.
-    name: &'a str,
-    /// Where it is.
-    path: &'a Path,
-    /// How many folders below its section it lies; a result is drawn flat.
-    depth: usize,
-    /// When it was last written.
-    modified: Option<SystemTime>,
-    /// When it was made, or last written where the file system keeps no
-    /// birth time.
-    created: Option<SystemTime>,
-    /// The snippet around a content hit's match, drawn in place of the file's
-    /// own excerpt and as plainly. A tree row and a name hit have
-    /// none, and show the excerpt.
-    snippet: Option<&'a Snippet>,
-}
-
-/// One row of the list, and what it stands for.
-///
-/// Clonable so that the rows of one section can be taken out of the list
-/// ([`Sidebar::drawn_since`]) and handed a drop target between them: every
-/// field of it is a handle on the one widget or a path.
-#[derive(Clone)]
-struct Listed {
-    row: gtk::ListBoxRow,
+/// A refresh that changes the listing builds one of these for every listed
+/// file and folder, which is a few strings each; the widgets are built only
+/// for the rows in view, once a slot, and each is bound to whichever item
+/// scrolls into it ([`Sidebar::bind`], #460).
+#[derive(Clone, Debug, PartialEq)]
+struct Item {
     /// The file or folder it draws.
     path: PathBuf,
     /// Whether it is a folder, which opens and closes rather than opening a
     /// Document.
     folder: bool,
-    /// The label its name is drawn in, which a rename hides and puts a field
-    /// in the place of ([`Sidebar::start_rename`]).
-    name: gtk::Label,
+    /// How many folders below its section it lies; a result is drawn flat.
+    depth: usize,
+    /// The name the row shows: a file's without its extension unless the
+    /// writer asked for them ([`row_name`]).
+    name: String,
+    /// Whether a folder is open; `false` for a file.
+    open: bool,
+    /// The date a file's row says, where `library.show_date` asks for one and
+    /// the clock could be asked.
+    date: Option<String>,
+    /// When the file was last written, which says whether the head held for
+    /// it is still the one on disk.
+    modified: Option<SystemTime>,
+    /// A content hit's snippet, drawn in place of the file's own excerpt, and
+    /// the bytes of it the query matched. A tree row and a name hit have none,
+    /// and show the excerpt.
+    snippet: Option<(String, Range<usize>)>,
+    /// Whether a file's page carries a pin.
+    page: Page,
+}
+
+/// The widgets of one row in view, built once and bound to whichever
+/// [`Item`] the File List puts in the slot.
+///
+/// Both lines are built, a folder's and a file's, and the one the item is not
+/// is hidden; every field is a handle on a widget or on what a drawing reads,
+/// so a clone is the same slot.
+#[derive(Clone)]
+struct Slot {
+    /// The row: the line under the bar, and the separator under both. What a
+    /// drag carries and a drop lights, and what [`OPEN_CLASS`] goes on.
+    root: gtk::Box,
+    /// A folder's line: its icon, its name and its chevron.
+    folder_line: gtk::Box,
+    folder_icon: gtk::DrawingArea,
+    folder_name: gtk::Label,
+    chevron: gtk::DrawingArea,
+    /// Whether the chevron draws open.
+    chevron_open: Rc<Cell<bool>>,
+    /// A file's line: the page, the name and the date over the excerpt, and
+    /// the dot.
+    file_line: gtk::Box,
+    page: gtk::DrawingArea,
+    /// Whether the page draws its pin, and where the pin stands.
+    page_is: Rc<Cell<Page>>,
+    pose: Rc<Cell<PinPose>>,
+    body: gtk::Box,
+    /// The name and the date: where a rename's field stands in for the name.
+    top: gtk::Box,
+    /// The label the file's name is drawn in, which a rename hides and puts
+    /// a field in the place of ([`Sidebar::start_rename`]).
+    title: gtk::Label,
+    date: gtk::Label,
+    excerpt: gtk::Inscription,
     /// The dot that says this row's file changed on disk. Shown only while
     /// this is the row of the Document the window holds and that Document is
     /// in a conflict ([`Sidebar::set_conflicted`]).
     dot: gtk::DrawingArea,
+    bar: gtk::Box,
+    /// The Selection Mark's glyph where one stands in for the bar, and which.
+    mark: gtk::DrawingArea,
+    glyph: Rc<Cell<Option<&'static Glyph>>>,
+    rule: gtk::Box,
+    /// Which of the pane's items is bound here, by its place in the list.
+    bound: Rc<Cell<Option<usize>>>,
 }
 
 /// Where a drag on the divider began: the pane's width then, and where the
@@ -663,7 +690,25 @@ pub struct Sidebar {
     title: gtk::Label,
     entry: gtk::Entry,
     sort_label: gtk::Label,
-    list: gtk::ListBox,
+    /// The File List: a view over [`Sidebar::store`], which builds the rows in
+    /// view and binds each to an item as it scrolls in (#460).
+    list: gtk::ListView,
+    /// One object per listed item, in order; the item itself is
+    /// [`Sidebar::items`] at the object's place.
+    store: gio::ListStore,
+    /// What Enter opens and a row operation acts on, which the open
+    /// Document's row is and the arrows move.
+    selection: gtk::SingleSelection,
+    /// What each listed row says, in the order the list draws them.
+    items: Rc<RefCell<Vec<Item>>>,
+    /// Every row's widgets the list has asked for, bound or waiting.
+    slots: Rc<RefCell<Vec<Slot>>>,
+    /// Whether a file's row carries its excerpt, and what marks the open
+    /// Document's row: the two settings a bind reads that no item holds.
+    shown: Rc<Cell<(bool, Mark)>>,
+    /// The pin being run, and where it stands, so that a page bound part-way
+    /// through takes the pose the others have ([`Sidebar::run_pin`]).
+    pin_now: Rc<RefCell<Option<(PathBuf, PinPose)>>>,
     /// The Sort pill, which Recents disables.
     sort_button: gtk::Button,
     /// The Organizer's rows: the three section heads and what stands under
@@ -689,8 +734,6 @@ pub struct Sidebar {
     /// The window this sidebar belongs to, so a row can open a Document in
     /// it. Weak, because the window owns the sidebar.
     window: Rc<RefCell<Option<glib::WeakRef<Window>>>>,
-    /// The rows now drawn, top to bottom, for the highlight and the arrows.
-    rows: Rc<RefCell<Vec<Listed>>>,
     /// The Location rows now drawn, each with the Location it names, so that a
     /// right-click on one can offer to drop that Location: the Organizer's
     /// Location rows, the File List's head carrying its own
@@ -806,9 +849,17 @@ impl Sidebar {
         head_rule.set_height_request(1);
         file_list.append(&head_rule);
 
-        let list = gtk::ListBox::new();
-        list.set_selection_mode(gtk::SelectionMode::Browse);
-        list.set_margin_top(LIST_TOP);
+        // A view rather than a box of rows: a Location of four hundred files
+        // built every row's widgets at each refresh, 1–2.4 ms a row, where the
+        // view builds a screenful and binds each to the item scrolled into it
+        // (#460). The list's air above its first row is that row's margin
+        // ([`Sidebar::bind`]), so that it scrolls away with the rows as a box's
+        // margin inside a scrolled window did.
+        let store = gio::ListStore::new::<glib::BoxedAnyObject>();
+        let selection = gtk::SingleSelection::new(Some(store.clone()));
+        selection.set_autoselect(false);
+        selection.set_can_unselect(true);
+        let list = gtk::ListView::new(Some(selection.clone()), None::<gtk::ListItemFactory>);
         let scroller = gtk::ScrolledWindow::builder()
             .vexpand(true)
             .hscrollbar_policy(gtk::PolicyType::Never)
@@ -864,6 +915,12 @@ impl Sidebar {
             entry,
             sort_label,
             list,
+            store,
+            selection,
+            items: Rc::new(RefCell::new(Vec::new())),
+            slots: Rc::new(RefCell::new(Vec::new())),
+            shown: Rc::new(Cell::new((true, Mark::default()))),
+            pin_now: Rc::new(RefCell::new(None)),
             sort_button: sort_button.clone(),
             org,
             organized: Rc::new(RefCell::new(Vec::new())),
@@ -874,7 +931,6 @@ impl Sidebar {
             keep,
             conflicted: Rc::new(Cell::new(false)),
             window: Rc::new(RefCell::new(None)),
-            rows: Rc::new(RefCell::new(Vec::new())),
             heads: Rc::new(RefCell::new(Vec::new())),
             expanded: Rc::new(RefCell::new(BTreeSet::new())),
             sort_menu,
@@ -920,6 +976,7 @@ impl Sidebar {
     /// the page, and Down steps into the list, where the arrows walk the rows
     /// (`legacy/app/js/files.js`, the field's `keydown`).
     fn wire(&self) {
+        self.list.set_factory(Some(&self.slots_factory()));
         let typed = self.clone();
         self.entry.connect_changed(move |_| typed.settle());
         let entered = self.clone();
@@ -968,9 +1025,15 @@ impl Sidebar {
             ));
         }
         self.watch_divider();
+        // Enter on a row. A click is the row's own ([`Sidebar::slot`]), since a
+        // view activates on a double click and would open a Document the
+        // writer only meant to rename.
         let activated = self.clone();
-        self.list
-            .connect_row_activated(move |_, row| activated.activate(row));
+        self.list.connect_activate(move |_, position| {
+            if let Ok(at) = usize::try_from(position) {
+                activated.activate(at);
+            }
+        });
         // Esc drops the query and hands the keyboard back to the page, which
         // is where a writer who came to the pane looking for a Document leaves
         // it — the same thing Esc in the field does, because a writer who
@@ -996,12 +1059,12 @@ impl Sidebar {
         doubles.set_button(gdk::BUTTON_PRIMARY);
         doubles.set_propagation_phase(gtk::PropagationPhase::Capture);
         let renaming = self.clone();
-        doubles.connect_pressed(move |gesture, presses, _, y| {
+        doubles.connect_pressed(move |gesture, presses, x, y| {
             if presses < 2 {
                 return;
             }
             gesture.set_state(gtk::EventSequenceState::Claimed);
-            renaming.second_press_at(y);
+            renaming.second_press_at(x, y);
         });
         self.list.add_controller(doubles);
         let menued = gtk::GestureClick::new();
@@ -1337,57 +1400,34 @@ impl Sidebar {
             &self.expanded.borrow(),
         );
         if self.picture.borrow().as_ref() != Some(&picture) {
-            read_heads(&mut self.read.borrow_mut(), listing.files());
-            while let Some(child) = self.list.first_child() {
-                self.list.remove(&child);
-            }
-            self.rows.borrow_mut().clear();
-            let list = self.list.clone().upcast::<gtk::Widget>();
-            self.pins
-                .borrow_mut()
-                .retain(|(_, page, _)| !page.is_ancestor(&list));
-            let read = self.read.borrow();
-            let drawing = Drawing {
-                extensions: shown.show_extensions,
-                date: shown.show_date,
-                excerpts: shown.show_excerpts,
-                mark: shown.mark,
-                pinned: library.pinned(),
-                now: now.as_ref(),
-                read: &read,
-            };
-            match &listing {
-                Listing::Tree(rows) => self.tree(rows, &drawing),
-                Listing::Flat(files) => {
-                    for (file, snippet) in files {
-                        self.found_row(file, snippet.as_ref(), &drawing);
-                    }
-                }
-                Listing::Nothing => {}
-            }
+            prune_heads(&mut self.read.borrow_mut(), listing.files());
+            let items = items_of(
+                &listing,
+                &shown,
+                library.pinned(),
+                now.as_ref(),
+                &self.expanded.borrow(),
+            );
+            self.shown.set((shown.show_excerpts, shown.mark));
+            self.relist(items);
             self.picture.replace(Some(picture));
         }
         self.highlight();
         self.start_pinning();
     }
 
-    /// One tree — a Location's or a pinned folder's — its rows alone under the
-    /// File List's head, each of its folders a place a dragged row can be
-    /// moved into.
-    fn tree(&self, rows: &[Row<'_>], drawing: &Drawing<'_>) {
-        let first = self.rows.borrow().len();
-        self.rows_of(rows, drawing);
-        for listed in self.drawn_since(first) {
-            if listed.folder {
-                self.folder_target(&listed.row, &listed.path);
-            }
+    /// Puts `items` in the File List in place of what it held. Every slot lets
+    /// go of its row, and the view binds the slots in view to the new items as
+    /// it lays them out, which is all that is built (#460).
+    fn relist(&self, items: Vec<Item>) {
+        for slot in self.slots.borrow().iter() {
+            self.unbind(slot);
         }
-    }
-
-    /// The rows drawn since the list held `first` of them: the section just
-    /// built, in the order it was built.
-    fn drawn_since(&self, first: usize) -> Vec<Listed> {
-        self.rows.borrow()[first..].to_vec()
+        let count = items.len();
+        self.items.replace(items);
+        let objects: Vec<glib::BoxedAnyObject> =
+            (0..count).map(glib::BoxedAnyObject::new).collect();
+        self.store.splice(0, self.store.n_items(), &objects);
     }
 
     /// Draws the Organizer's `rows`: each Location's row one of the heads its
@@ -1440,7 +1480,7 @@ impl Sidebar {
         let lit = Rc::new(pinned);
         let over = Rc::new(Cell::new(0));
         for widget in lit.iter() {
-            self.drop_onto(widget, &Onto::Pinned, &lit, &over);
+            self.drop_onto(widget, Rc::new(|| Some(Onto::Pinned)), &lit, &over);
         }
     }
 
@@ -1496,12 +1536,36 @@ impl Sidebar {
     fn folder_target(&self, on: &impl IsA<gtk::Widget>, folder: &Path) -> gtk::DropTarget {
         let lit = Rc::new(vec![on.clone().upcast()]);
         let over = Rc::new(Cell::new(0));
-        self.drop_onto(on, &Onto::Folder(folder.to_path_buf()), &lit, &over)
+        let folder = folder.to_path_buf();
+        self.drop_onto(
+            on,
+            Rc::new(move || Some(Onto::Folder(folder.clone()))),
+            &lit,
+            &over,
+        )
     }
 
-    /// Puts `onto` under `row`: what letting a dragged row go there does, and
-    /// which rows light while the pointer is over it.
+    /// A File List row as a place a dragged row can be moved into, answering
+    /// for whichever folder the list has bound in `slot`; a file's row takes
+    /// nothing.
+    fn slot_target(&self, slot: &Slot) {
+        let lit = Rc::new(vec![slot.root.clone().upcast()]);
+        let over = Rc::new(Cell::new(0));
+        let items = Rc::clone(&self.items);
+        let bound = Rc::clone(&slot.bound);
+        let aim: Aim = Rc::new(move || {
+            let items = items.borrow();
+            let item = items.get(bound.get()?)?;
+            item.folder.then(|| Onto::Folder(item.path.clone()))
+        });
+        self.drop_onto(&slot.root, aim, &lit, &over);
+    }
+
+    /// Puts what `onto` answers under `row`: what letting a dragged row go
+    /// there does, and which rows light while the pointer is over it.
     ///
+    /// `onto` is asked as the drag arrives rather than once, because a File
+    /// List row is bound to whatever the list scrolls into it ([`Aim`]).
     /// `lit` is every row of the target — the Pinned section is one target
     /// however many rows it draws — and `over` counts how many of them the
     /// pointer is inside, so that crossing from one row of a section to the
@@ -1511,7 +1575,7 @@ impl Sidebar {
     fn drop_onto(
         &self,
         on: &impl IsA<gtk::Widget>,
-        onto: &Onto,
+        onto: Aim,
         lit: &Rc<Vec<gtk::Widget>>,
         over: &Rc<Cell<usize>>,
     ) -> gtk::DropTarget {
@@ -1534,21 +1598,21 @@ impl Sidebar {
         // the first `enter`; the answers agree, so the later one is the same
         // light rather than a second one.
         let pane = self.clone();
-        let asked = onto.clone();
+        let asked = Rc::clone(&onto);
         let entering = light.clone();
         let counted = Rc::clone(over);
         target.connect_enter(move |target, _, _| {
             counted.set(counted.get() + 1);
-            let allowed = pane.would(target, &asked).is_some();
+            let allowed = asked().and_then(|onto| pane.would(target, &onto)).is_some();
             entering(allowed);
             action(allowed)
         });
 
         let pane = self.clone();
-        let asked = onto.clone();
+        let asked = Rc::clone(&onto);
         let moving = light.clone();
         target.connect_motion(move |target, _, _| {
-            let allowed = pane.would(target, &asked).is_some();
+            let allowed = asked().and_then(|onto| pane.would(target, &onto)).is_some();
             moving(allowed);
             action(allowed)
         });
@@ -1564,12 +1628,11 @@ impl Sidebar {
         });
 
         let pane = self.clone();
-        let asked = onto.clone();
         let counted = Rc::clone(over);
         target.connect_drop(move |target, value, x, y| {
             counted.set(0);
             light(false);
-            let Ok(from) = value.get::<String>() else {
+            let (Ok(from), Some(asked)) = (value.get::<String>(), onto()) else {
                 return false;
             };
             let from = PathBuf::from(from);
@@ -1636,21 +1699,29 @@ impl Sidebar {
         }
     }
 
-    /// Makes `row` draggable, carrying `path` as the plain text of it.
+    /// Makes `slot`'s row draggable, carrying the path of the row bound in it
+    /// as the plain text of it.
     ///
     /// A string rather than a type of Quill's own, because the drag never
     /// leaves this pane and a path is what both targets want; the icon under
     /// the pointer is the row itself, so what is being dragged is what was
     /// grabbed.
-    fn drag_from(&self, row: &gtk::ListBoxRow, path: &Path) {
+    fn drag_from(&self, slot: &Slot) {
         let source = gtk::DragSource::new();
         source.set_actions(gdk::DragAction::MOVE);
-        let carried = path.to_string_lossy().into_owned();
+        let items = Rc::clone(&self.items);
+        let bound = Rc::clone(&slot.bound);
         // Where the row was grabbed, which a pin dropped from it comes in
         // along ([`Sidebar::travel`]).
         let grabbed = Rc::clone(&self.grabbed);
         let pane = self.root.downgrade();
         source.connect_prepare(move |source, x, y| {
+            let carried = bound.get().and_then(|at| {
+                items
+                    .borrow()
+                    .get(at)
+                    .map(|item| item.path.to_string_lossy().into_owned())
+            })?;
             let at = pane
                 .upgrade()
                 .zip(source.widget())
@@ -1658,185 +1729,186 @@ impl Sidebar {
             grabbed.set(at.map(|at| (f64::from(at.x()), f64::from(at.y()))));
             Some(gdk::ContentProvider::for_value(&carried.to_value()))
         });
-        let dragged = row.clone();
+        let dragged = slot.root.clone();
         source.connect_drag_begin(move |source, _| {
             source.set_icon(Some(&gtk::WidgetPaintable::new(Some(&dragged))), 0, 0);
         });
-        row.add_controller(source);
+        slot.root.add_controller(source);
     }
 
-    /// One file drawn flat, as a hit or a recent is: no depth, and `snippet`
-    /// in place of its excerpt where a query matched its text.
-    fn found_row(&self, file: &File, snippet: Option<&Snippet>, drawing: &Drawing<'_>) {
-        let listed = self.file_row(
-            &FileRow {
-                name: file.name(),
-                path: file.path(),
-                depth: 0,
-                modified: file.modified(),
-                created: file.created(),
-                snippet,
-            },
-            drawing,
-        );
-        self.list.append(&listed.row);
-        self.rows.borrow_mut().push(listed);
-    }
-
-    /// The rows of one section, in the order the tree hands them over, a
-    /// closed folder's subtree already left out ([`open_rows`]).
-    fn rows_of(&self, rows: &[Row<'_>], drawing: &Drawing<'_>) {
-        for row in rows {
-            let open = self.expanded.borrow().contains(row.path());
-            let listed = match row {
-                Row::Folder { folder, depth } => {
-                    self.folder_row(folder.name(), row.path(), *depth, open)
-                }
-                Row::File { file, depth } => self.file_row(
-                    &FileRow {
-                        name: file.name(),
-                        path: row.path(),
-                        depth: *depth,
-                        modified: file.modified(),
-                        created: file.created(),
-                        snippet: None,
-                    },
-                    drawing,
-                ),
+    /// A click on `slot`'s row opens what is bound there: a folder opens or
+    /// closes, a file opens in this window.
+    ///
+    /// On the release of a single press, as a list box's row activated, and
+    /// once the view has taken the press into its selection: a folder's click
+    /// lists the rows again, and the view's own answer to the press would
+    /// otherwise select whatever the row's place holds by then.
+    fn slot_click(&self, slot: &Slot) {
+        let click = gtk::GestureClick::new();
+        click.set_button(gdk::BUTTON_PRIMARY);
+        let pane = self.clone();
+        let bound = Rc::clone(&slot.bound);
+        click.connect_released(move |_, presses, _, _| {
+            let Some(at) = bound.get().filter(|_| presses == 1) else {
+                return;
             };
-            self.list.append(&listed.row);
-            self.rows.borrow_mut().push(listed);
-        }
+            let pane = pane.clone();
+            glib::idle_add_local_once(move || pane.activate(at));
+        });
+        slot.root.add_controller(click);
     }
 
-    /// A folder: its name and a chevron that says whether it is open, on a row
-    /// as short as a file's with no excerpt, and no count and no date.
-    fn folder_row(&self, name: &str, path: &Path, depth: usize, open: bool) -> Listed {
-        let indent = INDENT * i32::try_from(depth).unwrap_or(0);
-        let line = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    /// The File List's factory: a [`Slot`] built for each row the view asks
+    /// for, bound to the item at its place as it scrolls in and let go of as
+    /// it scrolls out.
+    fn slots_factory(&self) -> gtk::SignalListItemFactory {
+        let factory = gtk::SignalListItemFactory::new();
+        let building = self.clone();
+        factory.connect_setup(move |_, object| {
+            let Some(item) = object.downcast_ref::<gtk::ListItem>() else {
+                return;
+            };
+            let slot = building.slot();
+            item.set_child(Some(&slot.root));
+            building.slots.borrow_mut().push(slot);
+        });
+        let binding = self.clone();
+        factory.connect_bind(move |_, object| {
+            let Some(item) = object.downcast_ref::<gtk::ListItem>() else {
+                return;
+            };
+            let at = item
+                .item()
+                .and_downcast::<glib::BoxedAnyObject>()
+                .map(|at| *at.borrow::<usize>());
+            if let (Some(slot), Some(at)) = (binding.slot_of(item), at) {
+                binding.bind(&slot, at);
+            }
+        });
+        let unbinding = self.clone();
+        factory.connect_unbind(move |_, object| {
+            if let Some(slot) = object
+                .downcast_ref::<gtk::ListItem>()
+                .and_then(|item| unbinding.slot_of(item))
+            {
+                unbinding.unbind(&slot);
+            }
+        });
+        let tearing = self.clone();
+        factory.connect_teardown(move |_, object| {
+            let Some(item) = object.downcast_ref::<gtk::ListItem>() else {
+                return;
+            };
+            if let Some(slot) = tearing.slot_of(item) {
+                tearing.unbind(&slot);
+                tearing
+                    .slots
+                    .borrow_mut()
+                    .retain(|held| held.root != slot.root);
+            }
+        });
+        factory
+    }
+
+    /// The slot whose row `item` holds.
+    fn slot_of(&self, item: &gtk::ListItem) -> Option<Slot> {
+        let child = item.child()?;
+        self.slots
+            .borrow()
+            .iter()
+            .find(|slot| slot.root.upcast_ref::<gtk::Widget>() == &child)
+            .cloned()
+    }
+
+    /// The widgets of one row, bound to nothing yet: a folder's line and a
+    /// file's, the bar and the glyph over them, the separator under them, and
+    /// what a click, a drag and a drop on the row do.
+    fn slot(&self) -> Slot {
+        // A folder: its name and a chevron that says whether it is open, on a
+        // row as short as a file's with no excerpt, and no count and no date.
+        let folder_line = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         // A pixel short of the pitch, the separator above the row being the
         // last of it.
-        line.set_height_request(FOLDER_PITCH - 1);
-        let mark = icon(FOLDER, folder_icon);
-        mark.add_css_class("lib-folder-icon");
-        mark.set_margin_start(ICON_LEFT - FOLDER_BEARING + indent);
-        mark.set_valign(gtk::Align::Center);
-        line.append(&mark);
-        let label = gtk::Label::new(Some(name));
-        label.add_css_class("lib-head");
-        label.set_hexpand(true);
-        label.set_xalign(0.0);
-        label.set_margin_start(NAME_LEFT - (ICON_LEFT - FOLDER_BEARING) - FOLDER.0);
-        label.set_ellipsize(gtk::pango::EllipsizeMode::End);
-        line.append(&label);
-        let chevron = icon((CHEV, CHEV), move |area, cr| chevron_icon(area, cr, open));
+        folder_line.set_height_request(FOLDER_PITCH - 1);
+        let folder_mark = icon(FOLDER, folder_icon);
+        folder_mark.add_css_class("lib-folder-icon");
+        folder_mark.set_valign(gtk::Align::Center);
+        folder_line.append(&folder_mark);
+        let folder_name = gtk::Label::new(None);
+        folder_name.add_css_class("lib-head");
+        folder_name.set_hexpand(true);
+        folder_name.set_xalign(0.0);
+        folder_name.set_margin_start(NAME_LEFT - (ICON_LEFT - FOLDER_BEARING) - FOLDER.0);
+        folder_name.set_ellipsize(gtk::pango::EllipsizeMode::End);
+        folder_line.append(&folder_name);
+        let chevron_open = Rc::new(Cell::new(false));
+        let open = Rc::clone(&chevron_open);
+        let chevron = icon((CHEV, CHEV), move |area, cr| {
+            chevron_icon(area, cr, open.get());
+        });
         chevron.add_css_class("lib-icon");
         chevron.set_margin_end(CHEVRON_RIGHT);
-        line.append(&chevron);
-        self.listed(line, &label, path, true, indent, None)
-    }
+        folder_line.append(&chevron);
 
-    /// A file: its name, when it was last written, and two lines of what it
-    /// says — its own beginning, or the snippet a query found in it — on a row
-    /// of [`ROW_PITCH`], or of [`FOLDER_PITCH`] where it says nothing.
-    ///
-    /// Show Text Excerpts off takes a file's own beginning away and leaves the
-    /// short row, the bar shortening with it; a content hit keeps its snippet,
-    /// which is the reason the file is in the results at all.
-    fn file_row(&self, row: &FileRow<'_>, drawing: &Drawing<'_>) -> Listed {
-        let said = match row.snippet {
-            Some(snippet) => snippet.text(),
-            None if drawing.excerpts => drawing
-                .read
-                .get(row.path)
-                .map_or("", |head| head.excerpt.as_str()),
-            None => "",
-        };
-        let tall = !said.is_empty();
-        let lift = i32::from(!tall);
-        let indent = INDENT * i32::try_from(row.depth).unwrap_or(0);
-        let line = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-        line.set_height_request(if tall { ROW_PITCH } else { FOLDER_PITCH } - 1);
-        let mark = self.page_mark(row.path, page_of(row.path, drawing.pinned));
-        mark.add_css_class("lib-icon");
-        mark.set_margin_start(ICON_LEFT + indent);
-        mark.set_margin_top(ICON_TOP - lift);
-        mark.set_valign(gtk::Align::Start);
-        line.append(&mark);
-
+        // A file: its name, when it was last written, and two lines of what it
+        // says — its own beginning, or the snippet a query found in it — on a
+        // row of [`ROW_PITCH`], or of [`FOLDER_PITCH`] where it says nothing.
+        let file_line = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        let page_is = Rc::new(Cell::new(Page::Plain));
+        let pose = Rc::new(Cell::new(PinPose::HOME));
+        let (drawn, posed) = (Rc::clone(&page_is), Rc::clone(&pose));
+        let page = icon(DOC, move |area, cr| {
+            let _ = cr.save();
+            document_icon(area, cr);
+            let _ = cr.restore();
+            if drawn.get() != Page::Plain {
+                pin_icon(area, cr, posed.get());
+            }
+        });
+        page.add_css_class("lib-icon");
+        page.set_valign(gtk::Align::Start);
+        file_line.append(&page);
         let body = gtk::Box::new(gtk::Orientation::Vertical, 0);
         body.set_hexpand(true);
         body.set_valign(gtk::Align::Start);
-        body.set_margin_top(NAME_TOP - lift);
         body.set_margin_start(NAME_LEFT - ICON_LEFT - DOC.0);
         body.set_margin_end(DATE_RIGHT);
         let top = gtk::Box::new(gtk::Orientation::Horizontal, DATE_GAP);
-        let title = gtk::Label::new(Some(&row_name(row.name, drawing.extensions)));
+        let title = gtk::Label::new(None);
         title.add_css_class("lib-name");
         title.set_hexpand(true);
         title.set_xalign(0.0);
         title.set_ellipsize(gtk::pango::EllipsizeMode::End);
         top.append(&title);
-        let when = match drawing.date {
-            ShowDate::Modified => row.modified,
-            ShowDate::Created => row.created,
-            ShowDate::None => None,
-        };
-        if let (Some(when), Some(now)) = (when, drawing.now) {
-            let date = gtk::Label::new(Some(&stamp(when, now)));
-            date.add_css_class("lib-date");
-            top.append(&date);
-        }
+        let date = gtk::Label::new(None);
+        date.add_css_class("lib-date");
+        top.append(&date);
         body.append(&top);
-        if tall {
-            let excerpt = gtk::Label::new(Some(said));
-            excerpt.add_css_class("lib-excerpt");
-            excerpt.set_xalign(0.0);
-            excerpt.set_yalign(0.0);
-            excerpt.set_wrap(true);
-            excerpt.set_wrap_mode(gtk::pango::WrapMode::WordChar);
-            excerpt.set_attributes(Some(&excerpt_attributes(row.snippet.map(Snippet::at))));
-            // One character of natural width, so that the row's width decides
-            // where the lines break rather than the sentence deciding the row's.
-            excerpt.set_max_width_chars(1);
-            excerpt.set_valign(gtk::Align::Start);
-            // Clipped at the last line with no ellipsis. A box asks for its
-            // child's whole height whatever it is asked to be itself — a height
-            // request is a floor — so the clip is a scrolled window that shows
-            // no scrollbar and never passes its child's height on. It takes no
-            // pointer, so that a wheel over an excerpt scrolls the List.
-            let clip = gtk::ScrolledWindow::builder()
-                .hscrollbar_policy(gtk::PolicyType::Never)
-                .vscrollbar_policy(gtk::PolicyType::External)
-                .propagate_natural_height(false)
-                .height_request(pixels(EXCERPT_LEADING * f64::from(EXCERPT_LINES)))
-                .can_target(false)
-                .child(&excerpt)
-                .build();
-            clip.set_margin_top(EXCERPT_TOP);
-            body.append(&clip);
-        }
-        line.append(&body);
-        // The short glyph on the short row, whether excerpts are off or this
-        // file has nothing to show of itself.
-        let pitch = if tall { ROW_PITCH } else { FOLDER_PITCH };
-        let mark = glyph(drawing.mark, !tall).map(|glyph| (glyph, pitch));
-        self.listed(line, &title, row.path, false, indent, mark)
-    }
-
-    /// A row of the list: the separator above it, the accent bar at its left
-    /// edge — or the Selection Mark's glyph where the bar stands, drawn for a
-    /// row `pitch` tall — and the line itself, which is indented `indent` for
-    /// its depth.
-    fn listed(
-        &self,
-        line: gtk::Box,
-        name: &gtk::Label,
-        path: &Path,
-        folder: bool,
-        indent: i32,
-        mark: Option<(&'static Glyph, i32)>,
-    ) -> Listed {
+        // Two lines, clipped at the last with no ellipsis, in an inscription
+        // rather than a label: a wrapping label answers every question about
+        // its size by laying its whole text out at no width at all, a line a
+        // character, which was 2.7 ms a row of the two hundred the view keeps
+        // built (#460). An inscription is asked for no size but the one it is
+        // given — no characters of width, so that the row's width decides where
+        // the lines break, and the two lines' height — and lays its text out
+        // once, at that width. It takes no pointer, so that a wheel over an
+        // excerpt scrolls the List.
+        let excerpt = gtk::Inscription::new(None);
+        excerpt.add_css_class("lib-excerpt");
+        excerpt.set_xalign(0.0);
+        excerpt.set_yalign(0.0);
+        excerpt.set_wrap_mode(gtk::pango::WrapMode::WordChar);
+        excerpt.set_text_overflow(gtk::InscriptionOverflow::Clip);
+        excerpt.set_min_chars(0);
+        excerpt.set_nat_chars(0);
+        excerpt.set_min_lines(0);
+        excerpt.set_nat_lines(0);
+        excerpt.set_height_request(pixels(EXCERPT_LEADING * f64::from(EXCERPT_LINES)));
+        excerpt.set_valign(gtk::Align::Start);
+        excerpt.set_can_target(false);
+        excerpt.set_margin_top(EXCERPT_TOP);
+        body.append(&excerpt);
+        file_line.append(&body);
         // At the row's right edge, inside the row's own margin, and hidden
         // until the window says this Document is the one in a conflict.
         let dot = icon((DOT, DOT), warned_dot);
@@ -1844,38 +1916,38 @@ impl Sidebar {
         dot.set_valign(gtk::Align::Start);
         dot.set_margin_top(DOT_TOP);
         dot.set_visible(false);
-        line.append(&dot);
-        let bar: gtk::Widget = match mark {
-            // The glyph takes the bar's top and bottom insets from the
-            // stylesheet, its width from its own aspect at the height they
-            // leave and its left edge from the bar's centre line, and draws in
-            // the accent only on the selected row, as the bar does.
-            Some((glyph, pitch)) => {
-                let (width, left) = mark_place(glyph, pitch);
-                let drawn = gtk::DrawingArea::new();
-                drawn.set_content_width(pixels(width.ceil()));
-                drawn.set_margin_start(left);
-                drawn.set_draw_func(move |area, cr, _, height| {
-                    chrome::source(area, cr, 1.0);
-                    glyph.draw(cr, f64::from(height));
-                });
-                drawn.add_css_class("lib-mark");
-                drawn.upcast()
-            }
-            None => {
-                let bar = gtk::Box::new(gtk::Orientation::Vertical, 0);
-                bar.add_css_class("lib-bar");
-                bar.upcast()
-            }
-        };
+        file_line.append(&dot);
+        let lines = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        lines.append(&folder_line);
+        lines.append(&file_line);
+
+        // The accent bar at the row's left edge, or the Selection Mark's glyph
+        // where the bar stands. The glyph takes the bar's top and bottom insets
+        // from the stylesheet, its width from its own aspect at the height they
+        // leave and its left edge from the bar's centre line, and draws in the
+        // accent only on the open Document's row, as the bar does.
+        let bar = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        bar.add_css_class("lib-bar");
         bar.set_halign(gtk::Align::Start);
+        let glyph_drawn: Rc<Cell<Option<&'static Glyph>>> = Rc::new(Cell::new(None));
+        let drawing = Rc::clone(&glyph_drawn);
+        let mark = gtk::DrawingArea::new();
+        mark.set_draw_func(move |area, cr, _, height| {
+            if let Some(glyph) = drawing.get() {
+                chrome::source(area, cr, 1.0);
+                glyph.draw(cr, f64::from(height));
+            }
+        });
+        mark.add_css_class("lib-mark");
+        mark.set_halign(gtk::Align::Start);
+        mark.set_visible(false);
         // Over the row rather than beside it: a bar that takes a column of its
         // own pushes the icon and the name right of the insets they are set
         // from.
         let beside = gtk::Overlay::new();
-        beside.set_child(Some(&line));
+        beside.set_child(Some(&lines));
         beside.add_overlay(&bar);
-        let stacked = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        beside.add_overlay(&mark);
         // The separator starts under the name rather than at the List's edge
         // (State 28: 40.5 points in from the left and 14 from the right),
         // follows the row's indent, and closes every row, the last included,
@@ -1883,21 +1955,164 @@ impl Sidebar {
         let rule = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         rule.add_css_class("lib-rule");
         rule.set_height_request(1);
-        rule.set_margin_start(NAME_LEFT + indent);
         rule.set_margin_end(SEPARATOR_RIGHT);
-        stacked.append(&beside);
-        stacked.append(&rule);
-        let row = gtk::ListBoxRow::new();
-        row.set_child(Some(&stacked));
-        // Every row of the pane can be dragged: a file into a folder or onto
-        // Pinned, a folder either way too.
-        self.drag_from(&row, path);
-        Listed {
-            row,
-            path: path.to_path_buf(),
-            folder,
-            name: name.clone(),
+        let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        root.add_css_class(ROW_CLASS);
+        root.append(&beside);
+        root.append(&rule);
+        let slot = Slot {
+            root,
+            folder_line,
+            folder_icon: folder_mark,
+            folder_name,
+            chevron,
+            chevron_open,
+            file_line,
+            page,
+            page_is,
+            pose,
+            body,
+            top,
+            title,
+            date,
+            excerpt,
             dot,
+            bar,
+            mark,
+            glyph: glyph_drawn,
+            rule,
+            bound: Rc::new(Cell::new(None)),
+        };
+        // Every row of the pane can be dragged: a file into a folder or onto
+        // Pinned, a folder either way too; and a folder's row takes a drop.
+        self.drag_from(&slot);
+        self.slot_target(&slot);
+        self.slot_click(&slot);
+        slot
+    }
+
+    /// Binds `slot` to the item at `at`: the line its kind draws, indented for
+    /// its depth, and whether it is the open Document's row.
+    fn bind(&self, slot: &Slot, at: usize) {
+        let Some(item) = self.items.borrow().get(at).cloned() else {
+            return;
+        };
+        slot.bound.set(Some(at));
+        // The list's air above its first row, which scrolls away with it.
+        slot.root.set_margin_top(if at == 0 { LIST_TOP } else { 0 });
+        let indent = INDENT * i32::try_from(item.depth).unwrap_or(0);
+        slot.rule.set_margin_start(NAME_LEFT + indent);
+        slot.folder_line.set_visible(item.folder);
+        slot.file_line.set_visible(!item.folder);
+        if item.folder {
+            slot.folder_icon
+                .set_margin_start(ICON_LEFT - FOLDER_BEARING + indent);
+            slot.folder_name.set_text(&item.name);
+            slot.chevron_open.set(item.open);
+            slot.chevron.queue_draw();
+            slot.glyph.set(None);
+            slot.mark.set_visible(false);
+            slot.bar.set_visible(true);
+            self.pins
+                .borrow_mut()
+                .retain(|(_, area, _)| *area != slot.page);
+        } else {
+            self.bind_file(slot, &item, indent);
+        }
+        self.mark_open(slot, &item);
+    }
+
+    /// The file half of [`Sidebar::bind`]: the page and its pin, the name and
+    /// the date, the excerpt, and the bar or the glyph.
+    ///
+    /// Show Text Excerpts off takes a file's own beginning away and leaves the
+    /// short row, the bar shortening with it; a content hit keeps its snippet,
+    /// which is the reason the file is in the results at all.
+    fn bind_file(&self, slot: &Slot, item: &Item, indent: i32) {
+        let (excerpts, mark) = self.shown.get();
+        let (said, matched) = match &item.snippet {
+            Some((text, at)) => (text.clone(), Some(at.clone())),
+            None if excerpts => (self.excerpt_of(&item.path, item.modified), None),
+            None => (String::new(), None),
+        };
+        let tall = !said.is_empty();
+        let lift = i32::from(!tall);
+        let pitch = if tall { ROW_PITCH } else { FOLDER_PITCH };
+        slot.file_line.set_height_request(pitch - 1);
+        slot.page.set_margin_start(ICON_LEFT + indent);
+        slot.page.set_margin_top(ICON_TOP - lift);
+        slot.page_is.set(item.page);
+        // A page bound while its pin runs takes the pose the others have.
+        slot.pose.set(match &*self.pin_now.borrow() {
+            Some((path, pose)) if *path == item.path => *pose,
+            _ => PinPose::HOME,
+        });
+        slot.page.queue_draw();
+        {
+            let mut pins = self.pins.borrow_mut();
+            pins.retain(|(_, area, _)| *area != slot.page);
+            if item.page != Page::Plain {
+                pins.push((item.path.clone(), slot.page.clone(), Rc::clone(&slot.pose)));
+            }
+        }
+        slot.body.set_margin_top(NAME_TOP - lift);
+        clear_rename(slot);
+        slot.title.set_text(&item.name);
+        slot.date.set_text(item.date.as_deref().unwrap_or(""));
+        slot.date.set_visible(item.date.is_some());
+        slot.excerpt.set_visible(tall);
+        if tall {
+            slot.excerpt.set_text(Some(&said));
+            slot.excerpt
+                .set_attributes(Some(&excerpt_attributes(matched)));
+        }
+        // The short glyph on the short row, whether excerpts are off or this
+        // file has nothing to show of itself.
+        match glyph(mark, !tall) {
+            Some(drawn) => {
+                let (width, left) = mark_place(drawn, pitch);
+                slot.mark.set_content_width(pixels(width.ceil()));
+                slot.mark.set_margin_start(left);
+                slot.glyph.set(Some(drawn));
+                slot.mark.set_visible(true);
+                slot.bar.set_visible(false);
+                slot.mark.queue_draw();
+            }
+            None => {
+                slot.glyph.set(None);
+                slot.mark.set_visible(false);
+                slot.bar.set_visible(true);
+            }
+        }
+    }
+
+    /// Lets go of whatever `slot` was bound to: its page, if it drew a pin, is
+    /// no longer one [`Sidebar::run_pin`] moves.
+    fn unbind(&self, slot: &Slot) {
+        slot.bound.set(None);
+        self.pins
+            .borrow_mut()
+            .retain(|(_, area, _)| *area != slot.page);
+    }
+
+    /// What the file at `path`, as written at `modified`, shows of itself:
+    /// read now where the pane holds no head of it or an older one.
+    fn excerpt_of(&self, path: &Path, modified: Option<SystemTime>) -> String {
+        head_of(&mut self.read.borrow_mut(), path, modified)
+            .0
+            .excerpt
+            .clone()
+    }
+
+    /// Puts [`OPEN_CLASS`] on `slot`'s row where `item` is the Document the
+    /// window is showing, with the dot while that Document is in a conflict.
+    fn mark_open(&self, slot: &Slot, item: &Item) {
+        let open = self.open.borrow().as_deref() == Some(item.path.as_path());
+        slot.dot.set_visible(open && self.conflicted.get());
+        if open {
+            slot.root.add_css_class(OPEN_CLASS);
+        } else {
+            slot.root.remove_css_class(OPEN_CLASS);
         }
     }
 
@@ -1908,40 +2123,45 @@ impl Sidebar {
     /// The mark is [`OPEN_CLASS`] and the selection is what Enter opens: the
     /// open row is selected too, and under a query a result list with the open
     /// Document nowhere in it selects its first hit instead, with no mark on
-    /// it. One walk of the rows now drawn, which is what the pane shows and
-    /// not what the tree holds.
+    /// it. The class goes on the rows in view and the selection on the item,
+    /// which is what the pane lists and not what the tree holds.
     fn highlight(&self) {
-        let open = self.open.borrow();
-        let conflicted = self.conflicted.get();
-        let rows = self.rows.borrow();
-        for listed in rows.iter() {
-            let is_open = open.as_deref() == Some(listed.path.as_path());
-            listed.dot.set_visible(is_open && conflicted);
-            if is_open {
-                listed.row.add_css_class(OPEN_CLASS);
-            } else {
-                listed.row.remove_css_class(OPEN_CLASS);
+        let items = self.items.borrow();
+        for slot in self.slots.borrow().iter() {
+            match slot.bound.get().and_then(|at| items.get(at)) {
+                Some(item) => self.mark_open(slot, item),
+                None => {
+                    slot.root.remove_css_class(OPEN_CLASS);
+                    slot.dot.set_visible(false);
+                }
             }
         }
-        let found = rows
-            .iter()
-            .find(|listed| open.as_deref() == Some(listed.path.as_path()))
-            .or_else(|| {
-                (!self.query().is_empty()).then(|| rows.iter().find(|listed| !listed.folder))?
-            })
-            .map(|listed| listed.row.clone());
-        self.list.select_row(found.as_ref());
+        let found = {
+            let open = self.open.borrow();
+            items
+                .iter()
+                .position(|item| open.as_deref() == Some(item.path.as_path()))
+                .or_else(|| {
+                    (!self.query().is_empty())
+                        .then(|| items.iter().position(|item| !item.folder))?
+                })
+        };
+        drop(items);
+        self.selection.set_selected(
+            found
+                .and_then(|at| u32::try_from(at).ok())
+                .unwrap_or(gtk::INVALID_LIST_POSITION),
+        );
     }
 
-    /// A row was clicked, or Enter was pressed on it: a folder opens or
-    /// closes, a file opens in this window.
-    fn activate(&self, row: &gtk::ListBoxRow) {
-        let found = {
-            let rows = self.rows.borrow();
-            rows.iter()
-                .find(|listed| listed.row == *row)
-                .map(|listed| (listed.path.clone(), listed.folder))
-        };
+    /// The row at `at` was clicked, or Enter was pressed on it: a folder opens
+    /// or closes, a file opens in this window.
+    fn activate(&self, at: usize) {
+        let found = self
+            .items
+            .borrow()
+            .get(at)
+            .map(|item| (item.path.clone(), item.folder));
         let Some((path, folder)) = found else {
             return;
         };
@@ -1963,24 +2183,32 @@ impl Sidebar {
     /// list still draws one.
     fn focus_row(&self, path: &Path) {
         let found = self
-            .rows
+            .items
             .borrow()
             .iter()
-            .find(|listed| listed.path == path)
-            .map(|listed| listed.row.clone());
-        if let Some(row) = found {
-            self.list.select_row(Some(&row));
-            row.grab_focus();
+            .position(|item| item.path == path);
+        if let Some(at) = found.and_then(|at| u32::try_from(at).ok()) {
+            self.list.scroll_to(
+                at,
+                gtk::ListScrollFlags::FOCUS | gtk::ListScrollFlags::SELECT,
+                None,
+            );
         }
     }
 
     // ------------------------------------------------------ row operations
 
+    /// The row the pane has selected, and its place in the list.
+    fn selected(&self) -> Option<(usize, Item)> {
+        let at = usize::try_from(self.selection.selected()).ok()?;
+        let item = self.items.borrow().get(at).cloned()?;
+        Some((at, item))
+    }
+
     /// The path of the row the pane has selected, whether file or folder.
     #[must_use]
     pub fn selected_path(&self) -> Option<PathBuf> {
-        let row = self.list.selected_row()?;
-        self.listed_at(&row).map(|(path, _)| path)
+        self.selected().map(|(_, item)| item.path)
     }
 
     /// The file the selected row is, and `None` where it is a folder or there
@@ -1988,36 +2216,35 @@ impl Sidebar {
     /// (`Window::target`).
     #[must_use]
     pub fn selected_file(&self) -> Option<PathBuf> {
-        let row = self.list.selected_row()?;
-        let (path, folder) = self.listed_at(&row)?;
-        (!folder).then_some(path)
+        let (_, item) = self.selected()?;
+        (!item.folder).then_some(item.path)
     }
 
     /// The folder a Document started from this pane goes into: the selected
     /// folder row itself, or the folder the selected file stands in.
     #[must_use]
     pub fn selected_folder(&self) -> Option<PathBuf> {
-        let row = self.list.selected_row()?;
-        let (path, folder) = self.listed_at(&row)?;
-        if folder {
-            Some(path)
+        let (_, item) = self.selected()?;
+        if item.folder {
+            Some(item.path)
         } else {
-            path.parent().map(Path::to_path_buf)
+            item.path.parent().map(Path::to_path_buf)
         }
     }
 
     /// The files the pane is showing, top to bottom, which is the list
     /// `file.next` and `file.prev` walk ([`crate::files::stepped`]).
     ///
-    /// The rows now drawn and not the tree: a file inside a closed folder is
-    /// not a row a writer can step to, and under a query the list is the hits.
+    /// The rows the list holds and not the tree: a file inside a closed folder
+    /// is not a row a writer can step to, and under a query the list is the
+    /// hits.
     #[must_use]
     pub fn listed_files(&self) -> Vec<PathBuf> {
-        self.rows
+        self.items
             .borrow()
             .iter()
-            .filter(|listed| !listed.folder)
-            .map(|listed| listed.path.clone())
+            .filter(|item| !item.folder)
+            .map(|item| item.path.clone())
             .collect()
     }
 
@@ -2025,52 +2252,73 @@ impl Sidebar {
     /// whether there was a file row to put one in.
     ///
     /// `false` is what sends `file.rename` to the dialog instead
-    /// (`Window::rename_document`): a folder row, or no row at all.
+    /// (`Window::rename_document`): a folder row, no row at all, or a row
+    /// scrolled out of view.
     pub fn start_rename(&self) -> bool {
-        let Some(row) = self.list.selected_row() else {
-            return false;
-        };
-        self.rename_row(&row)
+        self.selected().is_some_and(|(at, _)| self.rename_row(at))
     }
 
-    /// A second click at `y` inside the double-click time: a file's row is
-    /// selected and its name becomes a field; a folder's row opens or closes
-    /// again, since a folder is not renamed from the list and the list itself
-    /// never sees the press to do it (#441's Hand test, step 2).
-    fn second_press_at(&self, y: f64) {
-        let Some(row) = self.list.row_at_y(pixels(y)) else {
+    /// The place in the list of the row under (`x`, `y`) of the list's own
+    /// pixels, where a row is bound there.
+    fn index_at(&self, x: f64, y: f64) -> Option<usize> {
+        let list = self.list.upcast_ref::<gtk::Widget>();
+        let slots = self.slots.borrow();
+        let mut under = self.list.pick(x, y, gtk::PickFlags::DEFAULT);
+        while let Some(widget) = under {
+            if &widget == list {
+                return None;
+            }
+            if let Some(slot) = slots
+                .iter()
+                .find(|slot| slot.root.upcast_ref::<gtk::Widget>() == &widget)
+            {
+                return slot.bound.get();
+            }
+            under = widget.parent();
+        }
+        None
+    }
+
+    /// A second click at (`x`, `y`) inside the double-click time: a file's row
+    /// is selected and its name becomes a field; a folder's row opens or
+    /// closes again, since a folder is not renamed from the list and the list
+    /// itself never sees the press to do it (#441's Hand test, step 2).
+    fn second_press_at(&self, x: f64, y: f64) {
+        let Some(at) = self.index_at(x, y) else {
             return;
         };
-        let folder = self
-            .rows
-            .borrow()
-            .iter()
-            .any(|listed| listed.row == row && listed.folder);
+        let folder = self.items.borrow().get(at).is_some_and(|item| item.folder);
         if folder {
-            self.activate(&row);
+            self.activate(at);
             return;
         }
-        if row.is_selectable() {
-            self.list.select_row(Some(&row));
+        if let Ok(position) = u32::try_from(at) {
+            self.selection.set_selected(position);
         }
-        self.rename_row(&row);
+        self.rename_row(at);
     }
 
-    /// Puts a field in the place of `row`'s name, and answers whether it took.
+    /// Puts a field in the place of the name of the row at `at`, and answers
+    /// whether it took: a file's row, and one in view.
     ///
     /// The oracle's field (`legacy/app/js/files.js` `startRename`): the name
     /// as it stands with everything before the extension selected, Enter
     /// renaming, Esc leaving it, and clicking away renaming — because a writer
     /// who typed a name and looked elsewhere meant the name.
-    fn rename_row(&self, row: &gtk::ListBoxRow) -> bool {
-        let found = {
-            let rows = self.rows.borrow();
-            rows.iter()
-                .find(|listed| listed.row == *row)
-                .filter(|listed| !listed.folder)
-                .map(|listed| (listed.path.clone(), listed.name.clone()))
-        };
-        let Some((path, label)) = found else {
+    fn rename_row(&self, at: usize) -> bool {
+        let path = self
+            .items
+            .borrow()
+            .get(at)
+            .filter(|item| !item.folder)
+            .map(|item| item.path.clone());
+        let label = self
+            .slots
+            .borrow()
+            .iter()
+            .find(|slot| slot.bound.get() == Some(at))
+            .map(|slot| slot.title.clone());
+        let (Some(path), Some(label)) = (path, label) else {
             return false;
         };
         if !label.is_visible() {
@@ -2150,29 +2398,37 @@ impl Sidebar {
             && !typed.is_empty()
             && let Some(window) = self.owner()
         {
-            window.rename_path(path, &typed);
+            // Once the field is down and whatever took the keyboard from it
+            // is done: a rename lists the rows again, and a field taken down
+            // because its row was bound elsewhere is inside the list's own
+            // binding ([`clear_rename`]).
+            let path = path.to_path_buf();
+            glib::idle_add_local_once(move || window.rename_path(&path, &typed));
         }
     }
 
     /// The right button at (`x`, `y`): the row under the pointer is selected
     /// and the menu of what can be done to it opens where the pointer is.
     ///
-    /// A section head has a menu of its own — a Location is dropped from the
-    /// Library, and nothing on disk is touched — and the Pinned head, which
-    /// names no Location, has none.
+    /// The File List draws no section head — its own head is the Location's
+    /// header ([`Sidebar::head_as_location`]) — so every row's menu is a
+    /// row's.
     fn menu_at(&self, x: f64, y: f64) {
-        let Some(row) = self.list.row_at_y(pixels(y)) else {
+        let Some(at) = self.index_at(x, y) else {
             return;
         };
-        let model = if let Some(location) = self.head_at(&row) {
-            location_menu(&location)
-        } else {
-            let Some((path, folder)) = self.listed_at(&row) else {
-                return;
-            };
-            self.list.select_row(Some(&row));
-            row_menu(folder, self.is_pinned(&path))
+        let Some((path, folder)) = self
+            .items
+            .borrow()
+            .get(at)
+            .map(|item| (item.path.clone(), item.folder))
+        else {
+            return;
         };
+        if let Ok(position) = u32::try_from(at) {
+            self.selection.set_selected(position);
+        }
+        let model = row_menu(folder, self.is_pinned(&path));
         // The gesture counts from the list's top left and the menu stands on
         // the pane, which the list is scrolled inside.
         let on_pane = self.list.compute_point(&self.root, &place(x, y));
@@ -2278,8 +2534,8 @@ impl Sidebar {
 
     /// `row.open`: the selected row, opened as a click on it would.
     fn open_selected(&self) {
-        if let Some(row) = self.list.selected_row() {
-            self.activate(&row);
+        if let Some((at, _)) = self.selected() {
+            self.activate(at);
         }
     }
 
@@ -2346,6 +2602,11 @@ impl Sidebar {
     /// Runs the pin of every page drawn for `path` in along `along`, or back
     /// out of it, over [`PIN_MS`] eased out, the Organizer's Pinned row for
     /// `path` fading with it; `done` runs on the last frame.
+    ///
+    /// The pages are looked for at every frame rather than once: the File
+    /// List binds a row as the view lays it out, which can be after the pin
+    /// has begun, and a page bound part-way through takes the pose the others
+    /// stand at ([`Sidebar::pin_now`]).
     fn run_pin(
         &self,
         path: &Path,
@@ -2353,13 +2614,6 @@ impl Sidebar {
         going_in: bool,
         done: impl FnOnce() + 'static,
     ) {
-        let pages: Vec<(gtk::DrawingArea, Rc<Cell<PinPose>>)> = self
-            .pins
-            .borrow()
-            .iter()
-            .filter(|(pinned, _, _)| pinned == path)
-            .map(|(_, area, pose)| (area.clone(), Rc::clone(pose)))
-            .collect();
         let rows: Vec<gtk::ListBoxRow> = self
             .organized
             .borrow()
@@ -2369,10 +2623,17 @@ impl Sidebar {
                 _ => None,
             })
             .collect();
+        let pins = Rc::clone(&self.pins);
+        let standing = Rc::clone(&self.pin_now);
+        let pinned = path.to_path_buf();
         let pose_at = move |at: f64| {
-            for (area, pose) in &pages {
-                pose.set(PinPose { along, at });
-                area.queue_draw();
+            let pose = PinPose { along, at };
+            standing.replace(Some((pinned.clone(), pose)));
+            for (page, area, held) in pins.borrow().iter() {
+                if *page == pinned {
+                    held.set(pose);
+                    area.queue_draw();
+                }
             }
             for row in &rows {
                 row.set_opacity(at);
@@ -2381,6 +2642,7 @@ impl Sidebar {
         pose_at(if going_in { 0.0 } else { 1.0 });
         let started = Cell::new(None);
         let done = Cell::new(Some(done));
+        let ended = Rc::clone(&self.pin_now);
         self.root.add_tick_callback(move |_, clock| {
             let now = clock.frame_time();
             let start = started.get().unwrap_or(now);
@@ -2390,6 +2652,7 @@ impl Sidebar {
             if eased < 1.0 {
                 return glib::ControlFlow::Continue;
             }
+            ended.replace(None);
             if let Some(done) = done.take() {
                 done();
             }
@@ -2402,16 +2665,6 @@ impl Sidebar {
         if let Some(window) = self.owner() {
             window.drop_location(location);
         }
-    }
-
-    /// What `row` stands for — its path, and whether it is a folder — or
-    /// `None` where it is a section head.
-    fn listed_at(&self, row: &gtk::ListBoxRow) -> Option<(PathBuf, bool)> {
-        self.rows
-            .borrow()
-            .iter()
-            .find(|listed| listed.row == *row)
-            .map(|listed| (listed.path.clone(), listed.folder))
     }
 
     /// The Location `row` heads, where it is a Location's head.
@@ -2556,24 +2809,28 @@ impl Sidebar {
     /// Enter in the field: the highlighted hit opens, or the first row where
     /// nothing is highlighted.
     fn open_highlighted(&self) {
-        let row = self
-            .list
-            .selected_row()
-            .or_else(|| self.list.row_at_index(0));
-        if let Some(row) = row {
-            self.activate(&row);
+        let listed = !self.items.borrow().is_empty();
+        let at = self
+            .selected()
+            .map(|(at, _)| at)
+            .or_else(|| listed.then_some(0));
+        if let Some(at) = at {
+            self.activate(at);
         }
     }
 
     /// Down in the field: the keyboard steps into the list, where the arrows
     /// walk the rows.
     fn step_into_list(&self) {
-        if self.list.selected_row().is_none()
-            && let Some(first) = self.list.row_at_index(0)
-        {
-            self.list.select_row(Some(&first));
+        if self.items.borrow().is_empty() {
+            self.list.grab_focus();
+            return;
         }
-        self.list.grab_focus();
+        if self.selected().is_none() {
+            self.selection.set_selected(0);
+        }
+        self.list
+            .scroll_to(self.selection.selected(), gtk::ListScrollFlags::FOCUS, None);
     }
 
     /// The window this pane belongs to, while it is still open.
@@ -3152,32 +3409,106 @@ fn open_rows<'a>(rows: &[Row<'a>], expanded: &BTreeSet<PathBuf>) -> Vec<Row<'a>>
     open
 }
 
-/// Reads into `read` the head of each of `files`, keeping the heads already
-/// read of files whose write time has not moved, and answers how many it read.
-///
-/// A row shows two lines of what its file says, so every listed file has to
-/// be read; a file whose write time has not moved since the last refresh is
-/// not read again, which is the shape [`Contents`] gives search. The bound is
-/// one read of at most [`EXCERPT_BYTES`] per listed file written since the
-/// pane last drew, and what is held is one head per listed file: the map is
-/// built again from `files`, so a file that has left the list leaves the map.
-fn read_heads<'a>(
-    read: &mut BTreeMap<PathBuf, Head>,
-    files: impl IntoIterator<Item = &'a File>,
-) -> usize {
-    let mut before = std::mem::take(read);
-    let mut reads = 0;
-    for file in files {
-        let head = match before.remove(file.path()) {
-            Some(head) if head.modified == file.modified() => head,
-            _ => {
-                reads += 1;
-                Head::of(file.path(), file.modified())
-            }
+/// The rows `listing` lists, as the File List draws them under the
+/// `[library]` table `shown`, the Pinned list `pinned` and the clock `now`, a
+/// folder open where `expanded` holds it: one [`Item`] each, in order, and no
+/// file read.
+fn items_of(
+    listing: &Listing<'_>,
+    shown: &settings::Library,
+    pinned: &[PathBuf],
+    now: Option<&glib::DateTime>,
+    expanded: &BTreeSet<PathBuf>,
+) -> Vec<Item> {
+    let file = |file: &File, depth: usize, snippet: Option<&Snippet>| {
+        let when = match shown.show_date {
+            ShowDate::Modified => file.modified(),
+            ShowDate::Created => file.created(),
+            ShowDate::None => None,
         };
-        read.insert(file.path().to_path_buf(), head);
+        Item {
+            path: file.path().to_path_buf(),
+            folder: false,
+            depth,
+            name: row_name(file.name(), shown.show_extensions),
+            open: false,
+            date: when.zip(now).map(|(when, now)| stamp(when, now)),
+            modified: file.modified(),
+            snippet: snippet.map(|snippet| (snippet.text().to_string(), snippet.at())),
+            page: page_of(file.path(), pinned),
+        }
+    };
+    match listing {
+        Listing::Tree(rows) => rows
+            .iter()
+            .map(|row| match row {
+                Row::File { file: of, depth } => file(of, *depth, None),
+                Row::Folder { folder, depth } => Item {
+                    path: row.path().to_path_buf(),
+                    folder: true,
+                    depth: *depth,
+                    name: folder.name().to_string(),
+                    open: expanded.contains(row.path()),
+                    date: None,
+                    modified: folder.modified(),
+                    snippet: None,
+                    page: Page::Plain,
+                },
+            })
+            .collect(),
+        Listing::Flat(files) => files
+            .iter()
+            .map(|(of, snippet)| file(of, 0, snippet.as_ref()))
+            .collect(),
+        Listing::Nothing => Vec::new(),
     }
-    reads
+}
+
+/// Lets go of every head in `read` of a file not among `files`, reading
+/// nothing: what is held is at most one head per listed file.
+fn prune_heads<'a>(read: &mut BTreeMap<PathBuf, Head>, files: impl IntoIterator<Item = &'a File>) {
+    let listed: BTreeSet<&Path> = files.into_iter().map(File::path).collect();
+    read.retain(|path, _| listed.contains(path.as_path()));
+}
+
+/// The head of the file at `path` as written at `modified`, and whether it
+/// was read for this: a head `read` already holds of that write is not read
+/// again, which is the shape [`Contents`] gives search.
+///
+/// Asked as a row is bound rather than for every listed file, so a Location of
+/// four hundred Documents is read only as far as it is seen, one read of at
+/// most [`EXCERPT_BYTES`] a row (#460).
+fn head_of<'m>(
+    read: &'m mut BTreeMap<PathBuf, Head>,
+    path: &Path,
+    modified: Option<SystemTime>,
+) -> (&'m Head, bool) {
+    match read.entry(path.to_path_buf()) {
+        std::collections::btree_map::Entry::Occupied(held) if held.get().modified == modified => {
+            (held.into_mut(), false)
+        }
+        std::collections::btree_map::Entry::Occupied(mut held) => {
+            held.insert(Head::of(path, modified));
+            (held.into_mut(), true)
+        }
+        std::collections::btree_map::Entry::Vacant(empty) => {
+            (empty.insert(Head::of(path, modified)), true)
+        }
+    }
+}
+
+/// Takes down a rename's field left standing in `slot` when the list binds
+/// the slot to another row, and puts the name back; the field's own ending
+/// renames the file it was opened on ([`Sidebar::end_rename`]).
+fn clear_rename(slot: &Slot) {
+    let mut child = slot.top.first_child();
+    while let Some(widget) = child {
+        child = widget.next_sibling();
+        if widget.is::<gtk::Entry>() {
+            slot.top.remove(&widget);
+        }
+    }
+    slot.title.set_visible(true);
 }
 
 /// Everything the File List's rows are built from, so that two refreshes can
@@ -4964,11 +5295,94 @@ mod tests {
         std::fs::remove_dir_all(&root).expect("the folder to go");
     }
 
-    /// A refresh over two Locations reads the heads of the one it lists and
-    /// no other, none inside a closed folder, and nothing it has read before
-    /// that nothing has written since (#453).
+    /// The File List's items are the listing's rows in the order the listing
+    /// hands them over — a tree's folders and files at their depths, a query's
+    /// hits and the recents flat — each named as its row names it (#460).
     #[test]
-    fn a_refresh_reads_the_heads_of_the_listed_location_alone() {
+    fn the_lists_items_are_the_listings_rows_in_order() {
+        let root = std::env::temp_dir().join(format!("quill-sidebar-items-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::create_dir_all(root.join("inner")).expect("the Location");
+        for (path, says) in [
+            (root.join("sea.md"), "The sea.\n"),
+            (root.join("storm.md"), "The storm.\n"),
+            (root.join("inner/harbour.md"), "The harbour.\n"),
+        ] {
+            std::fs::write(path, says).expect("a file to list");
+        }
+        let library = Library::open(std::slice::from_ref(&root), &[]);
+        let showing = Showing::Location(root.clone());
+        let view = View::default();
+        let shown = settings::Library::default();
+        let open = BTreeSet::from([root.join("inner")]);
+        let paths = |items: &[Item]| {
+            items
+                .iter()
+                .map(|item| item.path.clone())
+                .collect::<Vec<_>>()
+        };
+
+        let tree = listing(&library, Some(&showing), "", &view, &[], None, &open);
+        let Listing::Tree(rows) = &tree else {
+            panic!("a Location lists its tree");
+        };
+        let items = items_of(&tree, &shown, &[], None, &open);
+        assert_eq!(
+            items
+                .iter()
+                .map(|item| (item.path.clone(), item.folder, item.depth))
+                .collect::<Vec<_>>(),
+            rows.iter()
+                .map(|row| (
+                    row.path().to_path_buf(),
+                    matches!(row, Row::Folder { .. }),
+                    row.depth()
+                ))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(items.len(), 4, "the open folder's file is listed");
+        assert!(items.iter().any(|item| item.folder && item.open));
+        assert!(
+            items
+                .iter()
+                .filter(|item| !item.folder)
+                .all(|item| !item.name.ends_with(".md")),
+            "{items:?}"
+        );
+
+        let hits = listing(&library, Some(&showing), "sea", &view, &[], None, &open);
+        let Listing::Flat(found) = &hits else {
+            panic!("a query lists its hits");
+        };
+        let items = items_of(&hits, &shown, &[], None, &open);
+        assert_eq!(
+            paths(&items),
+            found
+                .iter()
+                .map(|(file, _)| file.path().to_path_buf())
+                .collect::<Vec<_>>()
+        );
+        assert!(items.iter().all(|item| item.depth == 0 && !item.folder));
+
+        let opened = vec![root.join("storm.md"), root.join("sea.md")];
+        let recents = listing(
+            &library,
+            Some(&Showing::Recents),
+            "",
+            &view,
+            &opened,
+            None,
+            &open,
+        );
+        assert_eq!(paths(&items_of(&recents, &shown, &[], None, &open)), opened);
+        std::fs::remove_dir_all(&root).expect("the folder to go");
+    }
+
+    /// A refresh reads no head; a head is read as its row is bound, once, and
+    /// not again until its file is written; and a head of a file the listing
+    /// no longer holds — the other Location's — is let go of (#453, #460).
+    #[test]
+    fn a_head_is_read_as_its_row_is_bound_and_only_the_listed_are_held() {
         let root = std::env::temp_dir().join(format!("quill-sidebar-heads-{}", std::process::id()));
         std::fs::remove_dir_all(&root).ok();
         let (listed, other) = (root.join("listed"), root.join("other"));
@@ -4986,29 +5400,40 @@ mod tests {
         }
         let library = Library::open(&[listed.clone(), other.clone()], &[]);
         let showing = Showing::Location(listed.clone());
-        let heads = |expanded: &BTreeSet<PathBuf>, read: &mut BTreeMap<PathBuf, Head>| {
-            let listing = listing(
-                &library,
-                Some(&showing),
-                "",
-                &View::default(),
-                &[],
-                None,
-                expanded,
-            );
-            read_heads(read, listing.files())
-        };
-        let mut read = BTreeMap::new();
         let closed = BTreeSet::new();
-        assert_eq!(heads(&closed, &mut read), 2, "the listed Location's two");
-        assert!(read.keys().all(|path| path.starts_with(&listed)));
-        assert_eq!(
-            heads(&closed, &mut read),
-            0,
+        let listing = listing(
+            &library,
+            Some(&showing),
+            "",
+            &View::default(),
+            &[],
+            None,
+            &closed,
+        );
+        let items = items_of(&listing, &settings::Library::default(), &[], None, &closed);
+        assert_eq!(items.len(), 3, "the listed Location's folder and two files");
+        assert!(items.iter().all(|item| item.path.starts_with(&listed)));
+
+        let mut read = BTreeMap::new();
+        let lamps = other.join("lamps.md");
+        assert!(head_of(&mut read, &lamps, None).1, "a head from before");
+        prune_heads(&mut read, listing.files());
+        assert!(read.is_empty(), "the other Location's head is let go of");
+
+        let bound = items.iter().find(|item| !item.folder).expect("a file row");
+        assert!(
+            head_of(&mut read, &bound.path, bound.modified).1,
+            "read as bound"
+        );
+        assert!(
+            !head_of(&mut read, &bound.path, bound.modified).1,
             "nothing written, nothing read"
         );
-        let open = BTreeSet::from([listed.join("inner")]);
-        assert_eq!(heads(&open, &mut read), 1, "the opened folder's one");
+        assert_eq!(read.len(), 1, "only the bound row's head is held");
+        assert!(
+            head_of(&mut read, &bound.path, Some(SystemTime::UNIX_EPOCH)).1,
+            "a write is read again"
+        );
         std::fs::remove_dir_all(&root).expect("the folder to go");
     }
 
@@ -5103,9 +5528,13 @@ mod tests {
         };
         assert_eq!(rule("list > row:hover {"), "background: none;");
         assert_eq!(rule("list > row:selected {"), "background: none;");
+        assert_eq!(rule("listview > row:hover {"), "background: none;");
+        assert_eq!(rule("listview > row:selected {"), "background: none;");
         // The bar and the mark follow the open Document, never the selection a
-        // click on a folder's row moves (Hand test step 2).
-        assert_eq!(sheet.matches(":selected").count(), 1, "{sheet}");
+        // click on a folder's row moves (Hand test step 2): the only rules on a
+        // selected row are the Organizer's and the File List's clearing GTK's
+        // own fill.
+        assert_eq!(sheet.matches(":selected").count(), 2, "{sheet}");
         assert!(
             rule("button.lib-sortb {").contains("background-image: none;"),
             "{sheet}"
