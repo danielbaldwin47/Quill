@@ -67,10 +67,11 @@ ok('a state may only name flags the defaults name', () => {
     assert.ok(Object.prototype.hasOwnProperty.call(states.defaults, flag), `${flag} is a flag the files states name, so the defaults must name it`);
   }
   // `pane` is served and never a default: a key in `defaults` is in every state's flags and so in
-  // every Piece's fingerprint, and only the `settings` states name it (#477).
-  assert.deepEqual(unservable(states.defaults, { ...states.defaults, pane: 'general' }), []);
-  assert.ok(!Object.prototype.hasOwnProperty.call(states.defaults, 'pane'));
-  assert.deepEqual(STATE_ONLY, ['pane']);
+  // every Piece's fingerprint, and only the `settings` states name it (#477). `query` likewise, named
+  // by `chrome/palette-settings` alone (#478).
+  assert.deepEqual(unservable(states.defaults, { ...states.defaults, pane: 'general', query: 'ln' }), []);
+  for (const flag of ['pane', 'query']) assert.ok(!Object.prototype.hasOwnProperty.call(states.defaults, flag));
+  assert.deepEqual(STATE_ONLY, ['pane', 'query']);
 });
 
 // ---------- bytes to characters ----------
