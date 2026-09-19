@@ -67,10 +67,11 @@ page; the Editor follows. 4. Drag the divider between them, then open a second w
 the dragged width. 5. Press `Ctrl+R` from the Split; the page fills the window and the arrow and
 Page keys scroll it. Press `Ctrl+Shift+R`; the Split is back. Press `Ctrl+Shift+R` again; the pane
 closes with the caret where it was, and `Ctrl+R` with no pane open fills the window. 6. Pick another
-Template from View › Template, then turn one of its three toggles on; the page follows both, in
+Template from the Palette, then turn one of its three toggles on there; the page follows both, in
 every open pane. 7. Press `Ctrl+Shift+=` twice, then `Ctrl+Shift+0`; the page grows and comes back,
-and the Editor's own text never moves. 8. Open Settings (`Ctrl+,`); its three Template switches read
-what the menu's checks read, and flipping one flips the other.
+and the Editor's own text never moves. 8. Open Settings (`Ctrl+,`) on the Template pane; its radios
+and three switches read what step 6 left. Pick another Template and flip a switch there; every open
+Preview follows.
 
 **Live**: 1. Press `Ctrl+L`; the markers fold, the caret's block shows its source, and a heading is
 larger than the body. 2. Move the caret into another block; it unfolds and the one you left folds. 3.
@@ -78,7 +79,8 @@ Click a task item's checkbox; it checks, and the caret in that block shows `[x]`
 link; the browser opens it. Click the link's words; the caret lands there and the block unfolds.
 
 **Chrome and menus**: 1. Start typing; the chrome fades. 2. Stop, move the mouse; the title and the
-stats return. 3. Open each menu; every in-scope feature is reachable with its shortcut shown. 4.
+stats return. 3. Open each menu, the Settings window and the Palette; every in-scope feature is
+reachable from a menu, Settings or the Palette, with its shortcut shown. 4.
 Open an empty Document; both bars stand, the stats bar reads zero words, the page between them is
 bare but for the caret — no placeholder, no prompt (`docs/design.md` row Empty document) — and
 nothing in the frame is waiting on text to fill in. 5. Open `ref/sample.md`; the stats bar reads
