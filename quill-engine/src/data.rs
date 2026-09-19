@@ -122,12 +122,16 @@ pub fn marks() -> PathBuf {
 /// name ending `-symbolic.svg` so that GTK recolours it to the widget's CSS
 /// `color` — through `-gtk-recolor(url(…))` in a stylesheet, or a
 /// `gio::FileIcon` in an image — and loads it at the output's scale.
-pub const ICONS: [&str; 4] = [
-    "chevron-symbolic.svg",
-    "minus-symbolic.svg",
-    "plus-symbolic.svg",
-    "clear-symbolic.svg",
-];
+pub const ICONS: [&str; 4] = [CHEVRON, MINUS, PLUS, CLEAR];
+
+/// The dropdowns' chevron, drawn by the Settings window's stylesheet.
+pub const CHEVRON: &str = "chevron-symbolic.svg";
+/// A spin button's step down.
+pub const MINUS: &str = "minus-symbolic.svg";
+/// A spin button's step up.
+pub const PLUS: &str = "plus-symbolic.svg";
+/// The search field's clear.
+pub const CLEAR: &str = "clear-symbolic.svg";
 
 /// The directory holding [`ICONS`], beside the Selection Mark's glyphs.
 #[must_use]

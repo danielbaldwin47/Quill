@@ -359,9 +359,9 @@ fn install_pane(window: &Window) {
     let opened = window.downgrade();
     action.connect_activate(move |_, target| {
         let name = target.and_then(|target| target.get::<String>());
-        let pane = quill_engine::palette::Pane::ALL
-            .into_iter()
-            .find(|pane| Some(pane.name()) == name.as_deref());
+        let pane = name
+            .as_deref()
+            .and_then(quill_engine::palette::Pane::from_name);
         let (Some(window), Some(pane)) = (opened.upgrade(), pane) else {
             return;
         };
