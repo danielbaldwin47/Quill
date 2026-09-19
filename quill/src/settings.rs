@@ -38,6 +38,10 @@ use crate::choices;
 use crate::export_dialog::{paper_at, paper_drop_down};
 use crate::session::{Session, StyleToggle, SyntaxToggle, TemplateToggle};
 
+mod sheet;
+
+pub(crate) use sheet::stylesheet;
+
 /// The line under each Annotator's master switch. Both are English-only, for
 /// different reasons — the tagger's training and the lists' own — and a writer
 /// reading a French draft is owed the same sentence under either (#356).
