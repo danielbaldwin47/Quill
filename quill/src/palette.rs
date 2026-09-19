@@ -673,6 +673,13 @@ impl Palette {
         }
     }
 
+    /// Puts `query` in the field of the Palette that is up, which narrows
+    /// the list as typing it would: `--query`, set in code because under
+    /// `--deterministic` the field cannot take the keyboard.
+    pub fn fill(&self, query: &str) {
+        self.entry.set_text(query);
+    }
+
     /// Closes the Palette; nothing if it is not up.
     pub fn close(&self) {
         if self.popover.is_visible() {

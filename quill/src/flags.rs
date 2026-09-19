@@ -39,6 +39,7 @@ use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 
 use quill_engine::commands;
+use quill_engine::palette::Pane;
 use quill_engine::settings::{
     Choice, Chrome, Export, Face, FocusScope, Library, Mark, Order, Paper, Preview, PreviewLayout,
     PreviewMode, Settings, ShowDate, Sort, Stats, StatsBar, StyleCheck, SyntaxHighlight,
@@ -108,6 +109,11 @@ Judged state — the states the Gate shoots and benches at:
   --export-dialog pdf|html|markdown
                          Open that format's Export dialog over the page, its
                          Options expander open, once the window has painted.
+  --pane general|library|template|export|advanced
+                         Open the Settings window on that pane over the page,
+                         once the window has painted.
+  --query <text>         Put <text> in the Palette's field and narrow its list
+                         to what it finds. Wants --menu palette.
   --w <px>               Open the window this wide.
   --h <px>               Open the window this tall.
 
@@ -149,6 +155,16 @@ const MENUS: [(&str, Menu); 5] = [
     ("stats", Menu::Bar(commands::Menu::Stats)),
     ("palette", Menu::Palette),
     ("outline", Menu::Outline),
+];
+
+/// What `--pane` takes: the Settings window's five panes, by the names its
+/// sidebar shows, lower-cased.
+const PANES: [(&str, Pane); 5] = [
+    ("general", Pane::General),
+    ("library", Pane::Library),
+    ("template", Pane::Template),
+    ("export", Pane::Export),
+    ("advanced", Pane::Advanced),
 ];
 
 /// What `--preview` takes: where the pane opens and what it draws there, in
@@ -332,6 +348,14 @@ pub struct Flags {
     /// open at all is this flag having been given: nothing else opens one
     /// unasked.
     pub export_dialog: Option<Format>,
+    /// The pane `--pane` asks the Settings window to be opened on over the
+    /// page, once the window has painted its first frame
+    /// ([`crate::window::Window::open_flagged_settings`]). Nothing about the
+    /// settings file: that is `--settings`.
+    pub pane: Option<Pane>,
+    /// The text `--query` puts in the Palette's field once `--menu palette`
+    /// has opened it.
+    pub query: Option<String>,
     /// The window width `--w` names, in pixels.
     pub width: Option<u32>,
     /// The window height `--h` names, in pixels.
@@ -370,7 +394,8 @@ impl Flags {
     ///
     /// One [`Error`], one line long, naming the flag: a flag Quill does not
     /// know, a flag with nothing after it, a value outside what the flag
-    /// takes, or `--search` with no `--sidebar` beside it.
+    /// takes, `--search` with no `--sidebar` beside it, or `--query` with no
+    /// `--menu palette`.
     pub fn parse<A: IntoIterator<Item = OsString>>(args: A) -> Result<Self, Error> {
         let mut flags = Self::default();
         let mut args = args.into_iter();
@@ -435,6 +460,8 @@ impl Flags {
                         )
                     })?);
                 }
+                "--pane" => flags.pane = Some(one_of(flag, &text(&mut args, flag)?, &PANES)?),
+                "--query" => flags.query = Some(text(&mut args, flag)?),
                 "--w" => flags.width = Some(whole(flag, &text(&mut args, flag)?, &window_sizes())?),
                 "--h" => {
                     flags.height = Some(whole(flag, &text(&mut args, flag)?, &window_sizes())?)
@@ -457,6 +484,13 @@ impl Flags {
         if flags.search.is_some() && !flags.sidebar {
             return Err(Error(
                 "--search: --sidebar too: there is no field to type a query into".to_string(),
+            ));
+        }
+        // The Palette's field is the one `--query` fills, for the reason
+        // above: without the Palette up there is nothing to type it into.
+        if flags.query.is_some() && flags.menu != Some(Menu::Palette) {
+            return Err(Error(
+                "--query: --menu palette too: there is no field to type a query into".to_string(),
             ));
         }
         Ok(flags)
@@ -518,6 +552,12 @@ impl Flags {
             settings.typewriter = true;
         } else if self.deterministic {
             settings.typewriter = false;
+        }
+        // The anchor with it, for the Settings window's General pane shows
+        // it and a Typewriter shot scrolls by it: a writer's own anchor
+        // reaches neither.
+        if self.typewriter || self.deterministic {
+            settings.typewriter_anchor = Settings::default().typewriter_anchor;
         }
         // Live is pinned the same way and for the same reason: every judged
         // state but `live/folded` is shot with the markers on the page, and a
@@ -954,7 +994,7 @@ mod tests {
 
     /// Every flag `docs/architecture.md` names, with a value it takes and —
     /// where it has a domain — one it does not.
-    const FLAGS: [(&str, &str, Option<&str>); 30] = [
+    const FLAGS: [(&str, &str, Option<&str>); 32] = [
         ("--text", "ref/sample.md", None),
         ("--theme", "dark", Some("purple")),
         ("--font", "mono", Some("comic")),
@@ -982,6 +1022,9 @@ mod tests {
         ("--preview", "split", Some("beside")),
         ("--template", "classic", Some("gothic")),
         ("--export-dialog", "pdf", Some("docx")),
+        ("--pane", "export", Some("spelling")),
+        // With the Palette up, as `--search` wants the sidebar.
+        ("--query", "paper --menu palette", None),
         ("--w", "1440", Some("0")),
         ("--h", "900", Some("tall")),
         ("--deterministic", "", None),
@@ -1100,12 +1143,57 @@ mod tests {
     }
 
     #[test]
+    fn a_query_with_no_palette_to_type_it_into_is_refused() {
+        for line in ["--query paper", "--query paper --menu view"] {
+            let err = parse(line).expect_err("a query with the Palette away");
+            assert_eq!(
+                err.to_string(),
+                "--query: --menu palette too: there is no field to type a query into"
+            );
+        }
+        let flags = parse("--menu palette --query paper").expect("the Palette up");
+        assert_eq!(flags.query.as_deref(), Some("paper"));
+    }
+
+    #[test]
+    fn the_pane_flag_takes_the_five_panes_by_their_sidebar_names() {
+        for pane in Pane::ALL {
+            let flags = parse(&format!("--pane {}", pane.name().to_lowercase()))
+                .expect("every pane the sidebar lists");
+            assert_eq!(flags.pane, Some(pane));
+            assert!(flags.settings.is_none(), "--pane names no settings file");
+        }
+    }
+
+    /// The anchor is pinned where Typewriter is, so `settings/general` shows
+    /// the default whatever a writer set theirs to.
+    #[test]
+    fn a_harness_launch_runs_at_the_default_typewriter_anchor() {
+        let mut writers = Settings::default();
+        writers.typewriter_anchor = 0.7;
+        let default = Settings::default().typewriter_anchor;
+        for line in [
+            "--deterministic",
+            "--deterministic --typewriter",
+            "--typewriter",
+        ] {
+            let judged = parse(line).expect("flags").over(writers.clone());
+            assert!(
+                (judged.typewriter_anchor - default).abs() < f64::EPSILON,
+                "{line}"
+            );
+        }
+        let live = parse("--theme dark").expect("one flag").over(writers);
+        assert!((live.typewriter_anchor - 0.7).abs() < f64::EPSILON);
+    }
+
+    #[test]
     fn the_whole_judged_state_and_the_harness_parse_together() {
         let flags = parse(
             "--text ref/sample.md --theme dark --font mono --step 6 --focus paragraph \
              --typewriter --live --chrome off --caret end --select 10,20 --scroll 0.25 --nocaret \
              --typing --menu palette --library shots/oracle/library --sidebar --search sea \
-             --preview full --template classic --export-dialog pdf \
+             --preview full --template classic --export-dialog pdf --pane export --query sea \
              --w 1440 --h 900 --deterministic --measure out.jsonl \
              --palette quill.toml",
         )
@@ -1119,6 +1207,8 @@ mod tests {
         assert_eq!(flags.preview, Some((PreviewLayout::Full, PreviewMode::Web)));
         assert_eq!(flags.template, Some(TemplateName::Classic));
         assert_eq!(flags.export_dialog, Some(Format::Pdf));
+        assert_eq!(flags.pane, Some(Pane::Export));
+        assert_eq!(flags.query.as_deref(), Some("sea"));
         assert!(flags.typing);
         assert_eq!(flags.menu, Some(Menu::Palette));
         assert_eq!(flags.text.as_deref(), Some(Path::new("ref/sample.md")));
