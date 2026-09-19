@@ -988,9 +988,10 @@ pub fn stylesheet(ground: Ground) -> String {
          \x20 font-feature-settings: \"tnum\"; color: {ink};\n\
          }}\n\
          .chrome button:hover label.chrome-stat {{ color: {accent}; }}\n\
-         .chrome .chrome-rule {{ color: {rule}; }}\n{}{}",
+         .chrome .chrome-rule {{ color: {rule}; }}\n{}{}{}",
         menu_stylesheet(scheme),
-        crate::palette::stylesheet(scheme)
+        crate::palette::stylesheet(scheme),
+        crate::settings::stylesheet(scheme)
     ) + &crate::sidebar::stylesheet(ground)
 }
 
