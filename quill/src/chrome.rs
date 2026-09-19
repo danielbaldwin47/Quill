@@ -992,6 +992,7 @@ pub fn stylesheet(ground: Ground) -> String {
         menu_stylesheet(scheme),
         crate::palette::stylesheet(scheme)
     ) + &crate::sidebar::stylesheet(ground)
+        + &crate::settings::stylesheet(scheme)
 }
 
 /// The two bars: the title bar above the page and the stats bar below it.

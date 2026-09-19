@@ -26,17 +26,21 @@ use std::rc::Rc;
 use gtk::prelude::*;
 use gtk::{gio, glib};
 
+#[cfg(test)]
 use quill_engine::pos::Category;
-use quill_engine::settings::{
-    Paper, PreviewMode, Settings, Theme, export_margins, export_text_sizes,
-};
+#[cfg(test)]
+use quill_engine::settings::PreviewMode;
+use quill_engine::settings::{Paper, Settings, Theme};
 use quill_engine::spell::Resolved;
 use quill_engine::style::List;
 use quill_engine::theme::Scheme;
 
-use crate::choices;
 use crate::export_dialog::{paper_at, paper_drop_down};
-use crate::session::{Session, StyleToggle, SyntaxToggle, TemplateToggle};
+#[cfg(test)]
+use crate::session::SyntaxToggle;
+use crate::session::{Session, StyleToggle, TemplateToggle};
+
+mod stub;
 
 /// The line under each Annotator's master switch. Both are English-only, for
 /// different reasons — the tagger's training and the lists' own — and a writer
@@ -61,6 +65,7 @@ const ANCHOR_DIGITS: i32 = 2;
 /// The value beside the words as [`crate::export_dialog`]'s paper table has
 /// them, so that the row a mode stands on is never a second thing to keep in
 /// step ([`choices`]).
+#[cfg(test)]
 const PREVIEW_MODES: [(PreviewMode, &str); 2] =
     [(PreviewMode::Web, "Web"), (PreviewMode::Pdf, "PDF")];
 
@@ -72,24 +77,22 @@ const SYSTEM_DEFAULT: &str = "System default";
 const NO_DICTIONARY: &str = "No dictionary installed";
 
 /// The Writing tools group's heading: the first row under the Export group.
+#[cfg(test)]
 const WRITING_TOOLS: i32 = 21;
 /// Syntax highlight's master switch, the first row under that heading.
+#[cfg(test)]
 const SYNTAX_FIRST: i32 = WRITING_TOOLS + 1;
 /// Syntax highlight's toggles: the master and its five Categories.
+#[cfg(test)]
 const SYNTAX_ROWS: usize = 6;
 /// Style check's master switch, the first row under Syntax highlight's.
+#[cfg(test)]
 const STYLE_FIRST: i32 = below(SYNTAX_FIRST, SYNTAX_ROWS);
 /// Style check's toggles: the master and its three Lists.
 const STYLE_ROWS: usize = 4;
 /// Spell check's switch, the first row under Style check's.
+#[cfg(test)]
 const SPELL_FIRST: i32 = below(STYLE_FIRST, STYLE_ROWS);
-
-/// The window's margin and the space between its rows and its two columns.
-const MARGIN: i32 = 18;
-/// Between one row and the next.
-const ROW_GAP: i32 = 12;
-/// Between a row's label and its control.
-const COLUMN_GAP: i32 = 24;
 
 /// What the "Edit settings.toml…" button does with the file's URI: hands it to
 /// the desktop's default handler, or — under a test — to a stub that takes
@@ -107,265 +110,13 @@ type WritePaths = fn(&mut Settings, Vec<PathBuf>);
 /// is what the parent window's Spell check language last resolved to, for the
 /// "no dictionary" line.
 pub fn open(parent: &gtk::Window, session: &Rc<Session>, spelling: Option<&Resolved>) {
-    let grid = gtk::Grid::builder()
-        .row_spacing(ROW_GAP)
-        .column_spacing(COLUMN_GAP)
-        .margin_top(MARGIN)
-        .margin_bottom(MARGIN)
-        .margin_start(MARGIN)
-        .margin_end(MARGIN)
-        .build();
-
-    let anchor = gtk::Scale::with_range(
-        gtk::Orientation::Horizontal,
-        ANCHOR_LOW,
-        ANCHOR_HIGH,
-        ANCHOR_STEP,
-    );
-    anchor.set_digits(ANCHOR_DIGITS);
-    // The number beside the slider, so that a writer reading the row and a
-    // writer reading the file are reading the same value.
-    anchor.set_draw_value(true);
-    anchor.set_hexpand(true);
-    // Set before the handler is connected, so that opening the window is not
-    // itself a write.
-    anchor.set_value(session.settings().typewriter_anchor);
-    anchor.connect_value_changed(glib::clone!(
-        #[strong]
-        session,
-        move |anchor| {
-            let value = anchor.value();
-            session.edit_settings(|settings| anchored(settings, value));
-        }
-    ));
-    row(&grid, 0, "Typewriter anchor", &anchor);
-
-    let follow = gtk::Switch::builder().halign(gtk::Align::End).build();
-    follow.set_active(session.settings().theme == Theme::Auto);
-    follow.connect_active_notify(glib::clone!(
-        #[strong]
-        session,
-        move |follow| {
-            let on = follow.is_active();
-            let scheme = session.scheme();
-            session.edit_settings(|settings| followed(settings, on, scheme));
-        }
-    ));
-    row(&grid, 1, "Follow System", &follow);
-
-    // Built before the rows so that the Add… dialog has a window to open
-    // over; nothing is on screen until it is presented at the end.
-    let window = gtk::Window::builder()
-        .title("Settings")
-        .transient_for(parent)
-        .destroy_with_parent(true)
-        .child(
-            &gtk::ScrolledWindow::builder()
-                .hscrollbar_policy(gtk::PolicyType::Never)
-                .propagate_natural_height(true)
-                .max_content_height(parent.height().max(240))
-                .child(&grid)
-                .build(),
-        )
-        .build();
-
-    row(&grid, 2, "Locations", &location_list(&window, session));
-    row(&grid, 3, "Pinned", &pinned_list(session));
-    let library = session.settings().library.clone();
-    row(
-        &grid,
-        4,
-        "Show hidden folders",
-        &switch(session, library.show_hidden, showed_hidden),
-    );
-    row(
-        &grid,
-        5,
-        "Show file extensions",
-        &switch(session, library.show_extensions, showed_extensions),
-    );
-    row(
-        &grid,
-        6,
-        "Confirm before moving files",
-        &switch(session, library.confirm_move, confirmed_move),
-    );
-    row(
-        &grid,
-        7,
-        "Always ask where to save",
-        &switch(session, library.ask_where_to_save, asked_where_to_save),
-    );
-
-    // The Preview pane's own group: the mode View › Panes' two rows write,
-    // which is the pane's and not one window's
-    // ([`crate::window::Window::set_preview_mode`]). Each group below the
-    // Library's rows carries a heading.
-    group_heading(&grid, 8, "Preview");
-    row(
-        &grid,
-        9,
-        "Mode",
-        &preview_modes(session, session.preview_mode()),
-    );
-
-    // The Template's three toggles, the same keys View › Template's checks
-    // flip: a row moved here is the file moving every open pane
-    // ([`crate::window::reapply`]), and a check flipped there is the file
-    // moving this row the next time the window is opened (#263).
-    let template = session.template().clone();
-    group_heading(&grid, 10, "Template");
-    row(
-        &grid,
-        11,
-        "Center headings",
-        &switch(session, template.center_headings, centered_headings),
-    );
-    row(
-        &grid,
-        12,
-        "Number headings",
-        &switch(session, template.number_headings, numbered_headings),
-    );
-    row(
-        &grid,
-        13,
-        "Indent paragraphs",
-        &switch(session, template.indent_paragraphs, indented_paragraphs),
-    );
-
-    // The `[export]` table, which #282 built: the page every export and every
-    // print is laid out on. The Export dialog offers one job's worth of the
-    // same table, and the print dialog's Quill tab all of it but the paper,
-    // and neither writes anything back — so this group and Save as defaults
-    // are the two ways a default moves.
-    let export = session.settings().export.clone();
-    group_heading(&grid, 14, "Export");
-    row(&grid, 15, "Paper", &export_papers(session, export.paper));
-    row(
-        &grid,
-        16,
-        "Margin (mm)",
-        &export_spin(session, export.margin, &export_margins(), export_margin),
-    );
-    row(
-        &grid,
-        17,
-        "Text size (pt)",
-        &export_spin(
-            session,
-            export.text_size,
-            &export_text_sizes(),
-            export_text_size,
-        ),
-    );
-    row(
-        &grid,
-        18,
-        "Title page",
-        &switch(session, export.title_page, export_title_page),
-    );
-    row(
-        &grid,
-        19,
-        "Header",
-        &switch(session, export.header, export_header),
-    );
-    row(
-        &grid,
-        20,
-        "Footer",
-        &switch(session, export.footer, export_footer),
-    );
-
-    group_heading(&grid, WRITING_TOOLS, "Writing tools");
-    annotator_group(
-        &grid,
-        session,
-        syntax_rows(session),
-        SyntaxToggle::Enabled,
-        SYNTAX_FIRST,
-        ENGLISH_ONLY,
-        |settings, toggle: SyntaxToggle, on| toggle.set(&mut settings.syntax_highlight, on),
-    );
-    // Style check's four under Syntax highlight's six, in the same group and
-    // the same shape: the master a switch with its own line of text under it,
-    // the three Lists checks. Its own line, because the two Annotators are
-    // English-only for different reasons — the tagger's, and the lists' (#356).
-    annotator_group(
-        &grid,
-        session,
-        style_rows(session),
-        StyleToggle::Enabled,
-        STYLE_FIRST,
-        ENGLISH_ONLY,
-        |settings, toggle: StyleToggle, on| toggle.set(&mut settings.style_check, on),
-    );
-    // Spell check's under Style check's, in a shape of its own: a switch, the
-    // language, and a line only when that language has no dictionary. The
-    // dictionaries are listed as the window opens, so one installed since the
-    // last open is offered on this one.
-    let below_spell = spell_group(
-        &grid,
-        session,
-        SPELL_FIRST,
-        &quill_engine::spell::installed_languages(),
-        spelling,
-    );
-
-    let button = gtk::Button::builder()
-        .label("Edit settings.toml…")
-        .halign(gtk::Align::End)
-        .build();
-    let launch = launcher();
-    button.connect_clicked(glib::clone!(
-        #[strong]
-        session,
-        move |_| edit(session.settings_path(), launch.as_ref())
-    ));
-    row(&grid, below_spell, "Keyboard shortcuts", &button);
-
-    if let Some(said) = refused(&session.unapplied()) {
-        let label = gtk::Label::builder()
-            .label(said)
-            .halign(gtk::Align::Start)
-            .wrap(true)
-            .build();
-        grid.attach(&label, 0, below_spell + 1, 2, 1);
-    }
-
-    window.present();
+    stub::open(parent, session, spelling);
 }
 
-/// A group's heading, across both columns: the label in bold with a row's air
-/// above it, so the rows under it read as one group.
-///
-/// Bold by a Pango attribute rather than a CSS class: Quill's own stylesheet
-/// dresses the chrome by the `chrome-*` classes its widgets carry
-/// ([`crate::editor::install_type`] holds the provider), and this grid carries none
-/// of them, so a class named here would style nothing and leave the heading
-/// looking like a row.
-fn group_heading(grid: &gtk::Grid, at: i32, said: &str) {
-    let bold = gtk::pango::AttrList::new();
-    bold.insert(gtk::pango::AttrInt::new_weight(gtk::pango::Weight::Bold));
-    let label = gtk::Label::builder()
-        .label(said)
-        .halign(gtk::Align::Start)
-        .margin_top(ROW_GAP)
-        .attributes(&bold)
-        .build();
-    grid.attach(&label, 0, at, 2, 1);
-}
-
-/// One row of the grid: its label in the first column, its control in the
-/// second.
-fn row(grid: &gtk::Grid, at: i32, label: &str, control: &impl IsA<gtk::Widget>) {
-    let label = gtk::Label::builder()
-        .label(label)
-        .halign(gtk::Align::Start)
-        .build();
-    grid.attach(&label, 0, at, 1, 1);
-    grid.attach(control, 1, at, 1, 1);
+/// The Settings window's stylesheet (the #464 prototype's), for the chrome's
+/// provider to load beside its own.
+pub(crate) fn stylesheet(scheme: Scheme) -> String {
+    stub::stylesheet(scheme)
 }
 
 /// What dragging the anchor scale writes.
@@ -384,63 +135,10 @@ fn followed(settings: &mut Settings, on: bool, scheme: Scheme) {
     settings.theme = if on { Theme::Auto } else { scheme.setting() };
 }
 
-/// One Annotator's rows of the Writing tools group: the master's switch at
-/// `first` with `hint` on the line under it, then one check per kind or List,
-/// in the order the rows come.
-///
-/// Both Annotators draw the same four shapes and write their tables the same
-/// way, so they draw through one helper and a third will too; what differs is
-/// the table each `write` reaches and where the group starts (#356).
-fn annotator_group<T: Copy + PartialEq + 'static>(
-    grid: &gtk::Grid,
-    session: &Rc<Session>,
-    rows: impl IntoIterator<Item = (T, &'static str, bool)>,
-    master: T,
-    first: i32,
-    hint: &str,
-    write: impl Fn(&mut Settings, T, bool) + Copy + 'static,
-) {
-    for (index, (toggle, label, on)) in rows.into_iter().enumerate() {
-        if toggle == master {
-            row(
-                grid,
-                first,
-                label,
-                &switch(session, on, move |settings, on| {
-                    write(settings, toggle, on);
-                }),
-            );
-            let said = gtk::Label::builder()
-                .label(hint)
-                .halign(gtk::Align::Start)
-                .build();
-            grid.attach(&said, 0, first + 1, 2, 1);
-        } else {
-            let check = gtk::CheckButton::builder()
-                .halign(gtk::Align::End)
-                .active(on)
-                .build();
-            check.connect_toggled(glib::clone!(
-                #[strong]
-                session,
-                move |check| {
-                    let on = check.is_active();
-                    session.edit_settings(|settings| write(settings, toggle, on));
-                }
-            ));
-            row(
-                grid,
-                first + 1 + i32::try_from(index).unwrap(),
-                label,
-                &check,
-            );
-        }
-    }
-}
-
 /// The first row under an [`annotator_group`] of `rows` toggles starting at
 /// `first`: the master and the line under it take two rows, and each other
 /// toggle one.
+#[cfg(test)]
 #[expect(
     clippy::cast_possible_wrap,
     clippy::cast_possible_truncation,
@@ -450,99 +148,10 @@ const fn below(first: i32, rows: usize) -> i32 {
     first + rows as i32 + 1
 }
 
-/// Spell check's rows of the Writing tools group from `first`: its switch,
-/// the language dropdown over the `installed` dictionaries, and the "no
-/// dictionary" line when `spelling` found none. Returns the first row under
-/// them, so the rows after the group stand on the next row and none is empty.
-///
-/// A helper of its own rather than [`annotator_group`]: Spell check has no
-/// kinds to check, and has a dropdown and a line that comes and goes instead
-/// (#401 § Settings window).
-fn spell_group(
-    grid: &gtk::Grid,
-    session: &Rc<Session>,
-    first: i32,
-    installed: &[String],
-    spelling: Option<&Resolved>,
-) -> i32 {
-    let checking = switch(session, session.spell(), spell_checked);
-    row(grid, first, "Spell check", &checking);
-
-    let current = Rc::new(RefCell::new(session.settings().spell_language.clone()));
-    let (rows, selected) = language_rows(installed, &current.borrow(), spelling);
-    let words: Vec<&str> = rows.iter().map(String::as_str).collect();
-    let language = gtk::DropDown::from_strings(&words);
-    language.set_halign(gtk::Align::End);
-    // Stood on before the handler is connected, so opening the window is not
-    // itself a write.
-    language.set_selected(selected);
-    row(grid, first + 1, "Language", &language);
-
-    // Attached whatever the state, and shown only while it holds: a row with
-    // nothing visible in it takes no space, so the rows below stand still.
-    let said = gtk::Label::builder()
-        .halign(gtk::Align::Start)
-        .wrap(true)
-        .build();
-    show_unserved(
-        &said,
-        match spelling {
-            Some(Resolved::Missing { wanted }) => Some(wanted.clone()),
-            _ => None,
-        },
-    );
-    grid.attach(&said, 0, first + 2, 2, 1);
-
-    // What the window opened on is the Editor's resolution; a choice made here
-    // is resolved here, by the same ladder over the same listing, because the
-    // Editor hears of it only once the settings watch has read the file back
-    // (#401's Hand test, step 12: the line outlived the dictionary that ended
-    // it).
-    let installed = Rc::new(installed.to_vec());
-    let rows = Rc::new(RefCell::new(rows));
-    language.connect_selected_notify(glib::clone!(
-        #[strong]
-        session,
-        #[strong]
-        current,
-        #[strong]
-        installed,
-        #[strong]
-        rows,
-        #[strong]
-        checking,
-        #[strong]
-        said,
-        move |language| {
-            let Some(chosen) = language_at(&rows.borrow(), language.selected()) else {
-                return;
-            };
-            current.replace(chosen.clone());
-            session.edit_settings(|settings| chose_language(settings, chosen));
-            // The "No dictionary installed" row was a state, and the state
-            // has moved on: it goes, and it is after every other row, so the
-            // row stood on keeps its place.
-            if let Some(at) = served_rows(&mut rows.borrow_mut())
-                && let Some(model) = language.model().and_downcast::<gtk::StringList>()
-            {
-                model.remove(at);
-            }
-            show_unserved(
-                &said,
-                unserved_now(&checking, &current.borrow(), &installed),
-            );
-        }
-    ));
-    checking.connect_active_notify(move |checking| {
-        show_unserved(&said, unserved_now(checking, &current.borrow(), &installed));
-    });
-    first + 3
-}
-
 /// The wanted tag with no dictionary, for Spell check as `checking` and
 /// `language` stand now, with the locale read from this process.
-fn unserved_now(checking: &gtk::Switch, language: &str, installed: &[String]) -> Option<String> {
-    unserved(checking.is_active(), language, installed, |name| {
+fn unserved_now(checking: bool, language: &str, installed: &[String]) -> Option<String> {
+    unserved(checking, language, installed, |name| {
         std::env::var(name).ok()
     })
 }
@@ -567,13 +176,6 @@ fn unserved(
         Resolved::Missing { wanted } => Some(wanted),
         _ => None,
     }
-}
-
-/// Puts the "no dictionary" line for `wanted` under the dropdown, or takes it
-/// away.
-fn show_unserved(said: &gtk::Label, wanted: Option<String>) {
-    said.set_visible(wanted.is_some());
-    said.set_label(&wanted.as_deref().map(no_dictionary).unwrap_or_default());
 }
 
 /// Takes the [`NO_DICTIONARY`] row out of `rows`, and says where it stood.
@@ -639,6 +241,7 @@ pub(crate) fn no_dictionary(wanted: &str) -> String {
 }
 
 /// What the Spell check switch writes.
+#[cfg(test)]
 fn spell_checked(settings: &mut Settings, on: bool) {
     settings.spell_check = on;
 }
@@ -649,6 +252,7 @@ fn chose_language(settings: &mut Settings, language: String) {
 }
 
 /// The Writing tools rows, projected from the live table without writing it.
+#[cfg(test)]
 fn syntax_rows(session: &Session) -> [(SyntaxToggle, &'static str, bool); SYNTAX_ROWS] {
     let syntax = session.syntax();
     [
@@ -697,27 +301,8 @@ fn switch(
     switch
 }
 
-/// The Mode dropdown of the Preview group, standing on `mode` before its
-/// handler is connected so that opening the window is not a write.
-///
-/// The mode is one setting for the app, so the row is the same key View ›
-/// Panes' two rows write and the check there reads back what is picked here,
-/// once the file is applied (#299).
-fn preview_modes(session: &Rc<Session>, mode: PreviewMode) -> gtk::DropDown {
-    let modes = choices::drop_down(&PREVIEW_MODES, mode);
-    modes.set_halign(gtk::Align::End);
-    modes.connect_selected_notify(glib::clone!(
-        #[strong]
-        session,
-        move |modes| {
-            let mode = choices::at(&PREVIEW_MODES, modes.selected());
-            session.edit_settings(|settings| preview_mode(settings, mode));
-        }
-    ));
-    modes
-}
-
 /// What the Mode row writes.
+#[cfg(test)]
 fn preview_mode(settings: &mut Settings, mode: PreviewMode) {
     settings.preview.mode = mode;
 }
@@ -812,8 +397,9 @@ fn paths(
 ) -> (gtk::Box, Rc<RefCell<Vec<PathBuf>>>) {
     let list = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
-        .spacing(ROW_GAP)
         .hexpand(true)
+        .overflow(gtk::Overflow::Hidden)
+        .css_classes(["settings-paths"])
         .build();
     let held = Rc::new(RefCell::new(held));
     for path in held.borrow().clone() {
@@ -831,16 +417,20 @@ fn line(
     path: &Path,
     write: WritePaths,
 ) -> gtk::Box {
-    let line = gtk::Box::new(gtk::Orientation::Horizontal, COLUMN_GAP);
+    let line = gtk::Box::new(gtk::Orientation::Horizontal, 12);
     let label = gtk::Label::builder()
-        .label(path.display().to_string())
+        .label(stub::tilde(path))
         .halign(gtk::Align::Start)
         .hexpand(true)
         // A long path is cut at the front: the folder it ends in is the half
         // that says which one it is.
         .ellipsize(gtk::pango::EllipsizeMode::Start)
         .build();
-    let remove = gtk::Button::builder().label("Remove").build();
+    let remove = gtk::Button::builder()
+        .label("Remove")
+        .valign(gtk::Align::Center)
+        .css_classes(["settings-small"])
+        .build();
     let gone = path.to_path_buf();
     remove.connect_clicked(glib::clone!(
         #[strong]
@@ -913,7 +503,7 @@ fn location_list(window: &gtk::Window, session: &Rc<Session>) -> gtk::Box {
     ));
     let column = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
-        .spacing(ROW_GAP)
+        .spacing(8)
         .hexpand(true)
         .build();
     column.append(&list);
@@ -984,6 +574,7 @@ fn indented_paragraphs(settings: &mut Settings, on: bool) {
 /// and a refused `[shortcuts]` entry is the entry as the writer wrote it and
 /// why none of it was applied — the same sentences the app warns under
 /// `quill-settings`.
+#[cfg(test)]
 fn refused(unapplied: &[String]) -> Option<String> {
     (!unapplied.is_empty()).then(|| unapplied.join("\n"))
 }

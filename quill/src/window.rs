@@ -3752,6 +3752,13 @@ pub fn present_launch(app: &gtk::Application, session: &Rc<Session>) {
 fn present(app: &gtk::Application, filed: Filed, session: &Rc<Session>) -> Window {
     let window = Window::new(app, filed, session);
     window.present();
+    // THROWAWAY (#464): the prototype's Settings window opens itself for a shot.
+    if std::env::var_os("QUILL_STUB_OPEN").is_some() {
+        let opening = window.clone();
+        glib::timeout_add_local_once(std::time::Duration::from_millis(700), move || {
+            opening.open_settings();
+        });
+    }
     window
 }
 
