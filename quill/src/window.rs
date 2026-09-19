@@ -3094,7 +3094,7 @@ impl Window {
             return;
         };
         if let Some(open) = self.imp().settings.borrow().as_ref() {
-            open.refresh(&session.running());
+            open.refresh(&session, self.imp().editor.spell_resolution().as_ref());
         }
     }
 

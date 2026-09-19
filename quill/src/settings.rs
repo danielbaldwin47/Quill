@@ -157,6 +157,12 @@ pub(crate) struct Open {
     window: glib::WeakRef<gtk::Window>,
     nav: gtk::ListBox,
     rows: Vec<Row>,
+    /// The Spell check language's dropdown and the "no dictionary" line
+    /// under it, whose rows hang on what the Editor resolved.
+    language: Option<(gtk::DropDown, gtk::Label)>,
+    /// The refused lines under their head, drawn whether or not a line is
+    /// refused and shown only while one is.
+    refused: Option<gtk::Box>,
 }
 
 impl Open {
@@ -178,16 +184,25 @@ impl Open {
     /// write, a drag on the anchor among them — is not touched, so the pane,
     /// its scroll and the focus stay where they are.
     ///
-    /// `settings` is what the launch is running ([`Session::running`]), the
-    /// live values with the file's.
-    pub(crate) fn refresh(&self, settings: &Settings) {
+    /// The Spell check language is stood on the file's language and on
+    /// `spelling`, what the parent's Editor has resolved it to by now, and
+    /// the refused lines on the last read of the file; the search lists the
+    /// refused lines only while they are shown.
+    pub(crate) fn refresh(&self, session: &Session, spelling: Option<&Resolved>) {
         if self.window().is_none() {
             return;
         }
+        let settings = session.running();
         QUIET.with(|quiet| quiet.set(true));
+        if let Some((language, said)) = &self.language {
+            stand_language(language, said, &settings.spell_language, spelling);
+        }
+        if let Some(refused) = &self.refused {
+            fill_refused(refused, session);
+        }
         for row in self.rows.iter() {
             let Some(now) =
-                shown(&row.control).and_then(|shown| moved(settings, row.setting, shown))
+                shown(&row.control).and_then(|shown| moved(&settings, row.setting, shown))
             else {
                 continue;
             };
@@ -357,6 +372,8 @@ pub fn open_on(
     let panes = gtk::Stack::builder().hexpand(true).vexpand(true).build();
     let mut rows = Vec::new();
     let mut places = Vec::new();
+    let mut language = None;
+    let mut refused = None;
     for each in Pane::ALL {
         let body = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
@@ -369,11 +386,23 @@ pub fn open_on(
             let Some((block, control)) = block(&window, session, spelling, setting) else {
                 continue;
             };
-            if let Some(said) = head(setting) {
+            // The refused lines carry their head inside them, so that it
+            // goes with them while no line is refused.
+            if let Some(said) = head(setting).filter(|_| setting.control != Control::Jump) {
                 body.append(&group_head(said, first));
             }
             first = false;
             body.append(&block);
+            match (setting.key, setting.control) {
+                (None, Control::Jump) => refused = block.clone().downcast::<gtk::Box>().ok(),
+                (Some("spell_language"), _) => {
+                    language = control
+                        .as_ref()
+                        .and_then(|c| c.clone().downcast::<gtk::DropDown>().ok())
+                        .zip(block.last_child().and_downcast::<gtk::Label>());
+                }
+                _ => {}
+            }
             drawn.push((setting, block));
             // The Template's five radios are one group, the first its leader.
             if let Some(radio) = control
@@ -455,6 +484,8 @@ pub fn open_on(
         window: window.downgrade(),
         nav,
         rows,
+        language,
+        refused,
     }
 }
 
@@ -466,9 +497,9 @@ fn select(nav: &gtk::ListBox, pane: Pane) {
 
 /// What a pane shows for `setting`, and the control on it: its row, or for
 /// Locations and Pinned the path list under their head, or for the refused
-/// lines the lines, neither with a control the refresh stands; `None` where
-/// there is nothing to show — no line refused, or a row [`control`] has no
-/// control for.
+/// lines the lines under theirs, hidden while none is refused, neither with a
+/// control the refresh stands; `None` for a row [`control`] has no control
+/// for.
 fn block(
     window: &gtk::Window,
     session: &Rc<Session>,
@@ -478,7 +509,7 @@ fn block(
     match (setting.key, setting.control) {
         (Some("library.locations"), _) => Some((location_list(window, session).upcast(), None)),
         (Some("library.pinned"), _) => Some((pinned_list(session).upcast(), None)),
-        (None, Control::Jump) => Some((refused_lines(session)?, None)),
+        (None, Control::Jump) => Some((refused_lines(session, setting.label).upcast(), None)),
         (Some("spell_language"), _) => {
             let language = control(session, setting, spelling)?;
             let said = language_line(language.downcast_ref()?, session, spelling);
@@ -775,19 +806,24 @@ fn language(
     let language = gtk::DropDown::from_strings(&words);
     language.set_selected(selected);
     ticked(&language);
-    let rows = Rc::new(RefCell::new(rows));
     language.connect_selected_notify(glib::clone!(
         #[strong]
         session,
         move |language| {
-            let Some(chosen) = language_at(&rows.borrow(), language.selected()) else {
+            // A refresh stands the rows as well as the pick, so the rows are
+            // read off the dropdown rather than kept beside it.
+            let mut rows = words_of(language);
+            let Some(chosen) = language_at(&rows, language.selected()) else {
                 return;
             };
-            session.edit_settings(|settings| chose_language(settings, chosen));
+            if QUIET.with(Cell::get) {
+                return;
+            }
+            put(&session, |settings| chose_language(settings, chosen));
             // The "No dictionary installed" row was a state, and the state
             // has moved on: it goes, and it is after every other row, so the
             // row stood on keeps its place.
-            if let Some(at) = served_rows(&mut rows.borrow_mut())
+            if let Some(at) = served_rows(&mut rows)
                 && let Some(model) = language.model().and_downcast::<gtk::StringList>()
             {
                 model.remove(at);
@@ -795,6 +831,35 @@ fn language(
         }
     ));
     language
+}
+
+/// Stands the language dropdown on `wanted`, the file's language, by what
+/// `spelling` resolved it to — its rows as well as its pick, since the "No
+/// dictionary installed" row is a state — and the line under it with them.
+fn stand_language(
+    language: &gtk::DropDown,
+    said: &gtk::Label,
+    wanted: &str,
+    spelling: Option<&Resolved>,
+) {
+    let installed = quill_engine::spell::installed_languages();
+    let (rows, selected) = language_rows(&installed, wanted, spelling);
+    if words_of(language) != rows
+        && let Some(model) = language.model().and_downcast::<gtk::StringList>()
+    {
+        let words: Vec<&str> = rows.iter().map(String::as_str).collect();
+        model.splice(0, model.n_items(), &words);
+    }
+    if language.selected() != selected {
+        language.set_selected(selected);
+    }
+    show_unserved(
+        said,
+        match spelling {
+            Some(Resolved::Missing { wanted }) => Some(wanted.clone()),
+            _ => None,
+        },
+    );
 }
 
 /// The "no dictionary" line under the language row, shown only while it
@@ -903,17 +968,18 @@ fn stand(tick: &impl IsA<gtk::Widget>, on: bool) {
     tick.set_opacity(if on { 1.0 } else { 0.0 });
 }
 
-/// The refused lines of the last read of the settings file, and `None` where
-/// all of it applied.
-fn refused_lines(session: &Session) -> Option<gtk::Widget> {
-    let said = refused(&session.unapplied())?;
+/// The refused lines of the last read of the settings file under `said`,
+/// drawn always and shown only while a line is refused, so that an open
+/// window follows a file that gains or loses one ([`Open::refresh`]).
+fn refused_lines(session: &Session, said: &str) -> gtk::Box {
+    let slot = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    slot.append(&group_head(said, false));
     let lines = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
         .css_classes(["settings-refused"])
         .build();
     lines.append(
         &gtk::Label::builder()
-            .label(said)
             .halign(gtk::Align::Start)
             .xalign(0.0)
             .wrap(true)
@@ -921,7 +987,23 @@ fn refused_lines(session: &Session) -> Option<gtk::Widget> {
             .selectable(true)
             .build(),
     );
-    Some(lines.upcast())
+    slot.append(&lines);
+    fill_refused(&slot, session);
+    slot
+}
+
+/// Says in `slot` what the last read of the file refused, and shows it only
+/// while something was.
+fn fill_refused(slot: &gtk::Box, session: &Session) {
+    let said = refused(&session.unapplied());
+    if let Some(label) = slot
+        .last_child()
+        .and_then(|lines| lines.first_child())
+        .and_downcast::<gtk::Label>()
+    {
+        label.set_label(said.as_deref().unwrap_or_default());
+    }
+    slot.set_visible(said.is_some());
 }
 
 /// What dragging the anchor scale writes.
