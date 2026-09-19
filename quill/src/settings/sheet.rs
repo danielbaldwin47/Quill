@@ -223,19 +223,17 @@ window.settings list.settings-results { background: none; padding: 6px 0; }
 window.settings list.settings-results > row {
   min-height: 34px; margin: 0 6px; padding: 0 10px; border-radius: 5px; outline: none; color: @ink@; background: none;
 }
-window.settings list.settings-results > row .settings-row,
-window.settings list.settings-results > row .settings-row.tall,
-window.settings list.settings-results > row .settings-check { min-height: 0; }
 window.settings list.settings-results > row:selected { background-color: @accent@; color: white; }
-window.settings list.settings-results > row:focus-visible { box-shadow: inset 0 0 0 2px alpha(@ink@, 0.55); }
-window.settings list.settings-results > row:selected .settings-group,
-window.settings list.settings-results > row:selected .settings-jump { color: rgba(255,255,255,0.8); }
-window.settings list.settings-results > row:selected switch { background: rgba(255,255,255,0.35); }
-window.settings list.settings-results > row:selected checkbutton > check:not(:checked),
-window.settings list.settings-results > row:selected checkbutton > radio:not(:checked) { border-color: rgba(255,255,255,0.8); }
+window.settings list.settings-results > row:selected .settings-group { color: rgba(255,255,255,0.8); }
 window.settings .settings-group { font-size: 11.5px; color: @dim@; }
-window.settings .settings-jump { font-size: 12px; color: @dim@; }
-window.settings .settings-jump.warn { color: @danger@; }
+
+window.settings .settings-lit {
+  border-radius: 3px; transition-property: background-color, box-shadow;
+  transition-duration: @fade@; transition-timing-function: ease-out;
+}
+window.settings .settings-lit.settings-hit {
+  background-color: alpha(@accent@, 0.16); box-shadow: 0 0 0 5px alpha(@accent@, 0.16); transition-duration: 0s;
+}
 "#;
 
 /// The chevron's file as the `file://` URI a stylesheet's `url()` takes.
@@ -259,7 +257,8 @@ pub(crate) fn stylesheet(scheme: Scheme) -> String {
     let mut sheet = SHEET
         .replace("@font@", CHROME_FONT)
         .replace("@tick@", TICK)
-        .replace("@chevron@", &chevron());
+        .replace("@chevron@", &chevron())
+        .replace("@fade@", &format!("{}ms", super::search::FADE_MS));
     for (name, value) in skin.pairs {
         sheet = sheet.replace(name, value);
     }
