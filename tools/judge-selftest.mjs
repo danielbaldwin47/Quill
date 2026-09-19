@@ -552,7 +552,7 @@ ok('the ghost is measured off ours own pixels, and the alpha is solved rather th
   for (const alpha of [3, 0, 1, '0.3', undefined]) {
     assert.throws(() => validate({ kind: 'ghost', alpha }), /between 0 and 1/, `an alpha of ${alpha} was taken`);
   }
-  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'folded', 'split', 'full', 'pdf-split', 'pdf-full', 'dialog', 'syntax', 'outline', 'spell', 'pinned']);
+  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'folded', 'split', 'full', 'pdf-split', 'pdf-full', 'dialog', 'syntax', 'outline', 'spell', 'pinned', 'menu']);
 });
 
 ok('the ghost refuses to read a bar it cannot see the ground beside, and never guesses one', () => {
@@ -1483,6 +1483,88 @@ ok('the Outline stands over the page with its second heading stepped in under th
   assert.match(edge.why, /reaches an edge/);
 
   assert.throws(() => validate({ kind: 'outline', rows: 2 }), /the outline assertion takes nothing but its kind, and this one names rows/);
+});
+
+// A window of page paper with the View menu standing on it, or the bare page.
+//
+// `sections` is the rows under each head, top to bottom, and `foot` the rows under none: each head
+// a short band in the dim ink, each row a taller band in the body ink, the first row on the accent
+// in white, and a hairline a few units off the ground between every two runs, as GTK lays them.
+// `panel` false is the bare page. The heads and rows are drawn from the counts alone, so a head
+// gone or a row added is a different description rather than a restated rule.
+function menuShot({ sections = [5, 5, 3, 3, 3], foot = 2, headless = [], panel = true } = {}) {
+  const w = 400;
+  const h = 700;
+  const data = Buffer.alloc(w * h * 3);
+  const fill = (x0, y0, x1, y1, rgb) => {
+    for (let y = y0; y < y1; y += 1) for (let x = x0; x < x1; x += 1) for (let c = 0; c < 3; c += 1) data[((y * w) + x) * 3 + c] = rgb[c];
+  };
+  fill(0, 0, w, h, OUTLINE_PAPER);
+  if (panel) {
+    const left = 180;
+    const right = 380;
+    const runs = [...sections.map((rows, k) => ({ head: !headless.includes(k), rows })), { head: false, rows: foot }];
+    let y = 30;
+    const tops = [];
+    for (const [k, run] of runs.entries()) {
+      if (k > 0) { tops.push(['rule', y + 4]); y += 10; }
+      if (run.head) { tops.push(['head', y]); y += 18; }
+      for (let r = 0; r < run.rows; r += 1) { tops.push(['row', y]); y += 20; }
+    }
+    fill(left, 20, right, y + 10, OUTLINE_BORDER);
+    fill(left + 1, 21, right - 1, y + 9, OUTLINE_PANEL);
+    let first = true;
+    for (const [kind, top] of tops) {
+      if (kind === 'rule') fill(left + 6, top, right - 6, top + 1, [226, 226, 226]);
+      if (kind === 'head') fill(left + 10, top + 5, left + 60, top + 11, [150, 150, 150]);
+      if (kind === 'row') {
+        if (first) fill(left + 4, top, right - 4, top + 20, OUTLINE_SELECTED);
+        fill(left + 20, top + 5, left + 110, top + 15, first ? [255, 255, 255] : OUTLINE_INK);
+        first = false;
+      }
+    }
+  }
+  return encodePng({ w, h, ch: 3, data });
+}
+
+ok('the View menu is five heads over their rows in order and an unheaded foot', () => {
+  const spec = { kind: 'menu', sections: [5, 5, 3, 3, 3], foot: 2 };
+  const second = secondShot(spec, { flags: { menu: 'view', caret: 403 } });
+  assert.equal(second.state.flags.menu, null, 'the reference opens no menu');
+  assert.equal(second.state.flags.caret, 403, 'the reference keeps every unrelated flag');
+  const page = menuShot({ panel: false });
+
+  const held = assertState(spec, { dim: menuShot(), lit: page });
+  assert.equal(held.ours, true, held.why);
+  assert.deepEqual(held.sections, [5, 5, 3, 3, 3]);
+  assert.equal(held.foot, 2);
+
+  // A head gone runs its rows into nobody's section.
+  const headless = assertState(spec, { dim: menuShot({ headless: [2] }), lit: page });
+  assert.equal(headless.ours, false, headless.why);
+  assert.match(headless.why, /neither a head over its rows nor the foot/);
+
+  // A row added lands under some head, and the order read off the counts moves.
+  const added = assertState(spec, { dim: menuShot({ sections: [5, 5, 4, 3, 3] }), lit: page });
+  assert.equal(added.ours, false, added.why);
+  assert.match(added.why, /stand over 5, 5, 4, 3, 3 rows/);
+
+  // Two sections swapped keep the count and lose the order.
+  const swapped = assertState(spec, { dim: menuShot({ sections: [5, 3, 5, 3, 3] }), lit: page });
+  assert.equal(swapped.ours, false, swapped.why);
+
+  // A foot given a head is a sixth section and no foot.
+  const headed = assertState(spec, { dim: menuShot({ sections: [5, 5, 3, 3, 3, 2], foot: 0 }), lit: page });
+  assert.equal(headed.ours, false, headed.why);
+  assert.match(headed.why, /the unheaded foot is 0 rows/);
+
+  const none = assertState(spec, { dim: page, lit: page });
+  assert.equal(none.ours, false, none.why);
+  assert.match(none.why, /no menu stands over it/);
+
+  assert.throws(() => validate({ kind: 'menu', sections: [5], foot: 2, rows: 21 }), /unknown fields: rows/);
+  assert.throws(() => validate({ kind: 'menu', sections: [], foot: 2 }), /the rows under each head/);
+  assert.throws(() => validate({ kind: 'menu', sections: [5], foot: -1 }), /a count of rows/);
 });
 
 // A Library pane 300 px wide with a 100 px Organizer: `pin` puts a Pinned row in the Organizer's
