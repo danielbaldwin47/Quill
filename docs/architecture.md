@@ -422,12 +422,19 @@ and the determinism settings, this document names the flags:
   a still cannot pull an expander, and a second surface over a toplevel the compositor has no frame
   of yet keeps the toplevel from ever mapping; `[export]` itself has no flag, and is pinned to its
   defaults under `--deterministic` with `paper` past its own default, because `auto` is the host's
-  locale and a judged shot is the same on every machine), `--w <px> --h <px>`. Both `--typing` and
+  locale and a judged shot is the same on every machine), `--pane
+  general|library|template|export|advanced` (open the Settings window on that pane over the page,
+  once the window has painted its first frame, for the Export dialog's reason; it names nothing
+  about the settings file, which is `--settings`), `--query <text>` (put `<text>` in the Palette's
+  field and narrow the list to what it finds, set in code because under `--deterministic` the field
+  cannot take the keyboard; refused without `--menu palette`, as `--search` is without `--sidebar`),
+  `--w <px> --h <px>`. Both `--typing` and
   `--menu` name a state the app is
   put in before the first frame, never one it is driven into after it.
 - Harness: `--deterministic` (animations off, blink off, manual font rendering with pinned antialias,
   slight hinting, no subpixel, 96 dpi, hinted metrics, no client-side decorations; and Typewriter
-  off unless `--typewriter` is given, so the writer's `settings.toml` reaches no judged shot),
+  off unless `--typewriter` is given, and its anchor at the default under either, so the writer's
+  `settings.toml` reaches no judged shot),
   `--measure <out.jsonl>` (key capture in the capture phase, `GdkFrameTimings` presentation times,
   cold start against `QUILL_T0_NS`), `--settings <path>` (read and write settings in `<path>`, so a
   run drives a fixture — a `[shortcuts]` table, a theme — without touching the writer's file),

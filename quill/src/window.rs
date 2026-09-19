@@ -3058,7 +3058,8 @@ impl Window {
     }
 
     /// Opens the Settings window over this one, on `pane` or on the pane last
-    /// shown; a window already open is presented as it stands.
+    /// shown; a window already open is presented on `pane`, or as it stands
+    /// when none is asked for.
     fn present_settings(&self, pane: Option<quill_engine::palette::Pane>) {
         let Some(session) = self.session() else {
             return;
@@ -3070,6 +3071,9 @@ impl Window {
             .as_ref()
             .and_then(crate::settings::Open::window);
         if let Some(standing) = standing {
+            if let (Some(pane), Some(open)) = (pane, self.imp().settings.borrow().as_ref()) {
+                open.show(pane);
+            }
             standing.present();
             return;
         }
@@ -3148,7 +3152,12 @@ impl Window {
             };
             match window.imp().flagged.take() {
                 Some(flags::Menu::Bar(menu)) => window.open_menu(menu),
-                Some(flags::Menu::Palette) => window.open_palette(),
+                Some(flags::Menu::Palette) => {
+                    window.open_palette();
+                    if let Some(query) = window.session().and_then(|s| s.flags().query.clone()) {
+                        window.palette().fill(&query);
+                    }
+                }
                 Some(flags::Menu::Outline) => window.open_outline(),
                 None => {}
             }
@@ -3178,6 +3187,23 @@ impl Window {
                 return;
             };
             crate::export_dialog::open_expanded(&window, format);
+        });
+    }
+
+    /// Opens the Settings window `--pane` named on its pane, once the window
+    /// has painted its first frame, as [`Self::open_flagged_export`] opens
+    /// the Export dialog and for its reason.
+    fn open_flagged_settings(&self, pane: quill_engine::palette::Pane) {
+        let Some(clock) = self.frame_clock() else {
+            return;
+        };
+        let window = self.downgrade();
+        let asked = std::cell::Cell::new(Some(pane));
+        clock.connect_after_paint(move |_| {
+            let (Some(window), Some(pane)) = (window.upgrade(), asked.take()) else {
+                return;
+            };
+            window.open_settings_on(pane);
         });
     }
 
@@ -3782,6 +3808,10 @@ pub fn present_launch(app: &gtk::Application, session: &Rc<Session>) {
         // Document that was shown above.
         if let Some(format) = session.flags().export_dialog {
             window.open_flagged_export(format);
+        }
+        // The Settings window `--pane` names, for the Export dialog's reason.
+        if let Some(pane) = session.flags().pane {
+            window.open_flagged_settings(pane);
         }
     }
     if let Some(window) = first

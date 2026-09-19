@@ -155,6 +155,7 @@ struct Row {
 /// it.
 pub(crate) struct Open {
     window: glib::WeakRef<gtk::Window>,
+    nav: gtk::ListBox,
     rows: Vec<Row>,
 }
 
@@ -162,6 +163,12 @@ impl Open {
     /// The window, while it is open.
     pub(crate) fn window(&self) -> Option<gtk::Window> {
         self.window.upgrade()
+    }
+
+    /// Shows `pane`, as picking it in the sidebar does: a Palette jump row or
+    /// `--pane` reaching a window already open.
+    pub(crate) fn show(&self, pane: Pane) {
+        select(&self.nav, pane);
     }
 
     /// Stands every row whose control no longer shows what `settings` holds
@@ -442,13 +449,19 @@ pub fn open_on(
     root.append(&search::wire(&window, &entry, &panes, &nav, places));
     window.set_child(Some(&root));
 
-    let at = Pane::ALL.iter().position(|each| *each == pane).unwrap_or(0);
-    nav.select_row(nav.row_at_index(i32::try_from(at).unwrap_or(0)).as_ref());
+    select(&nav, pane);
     window.present();
     Open {
         window: window.downgrade(),
+        nav,
         rows,
     }
+}
+
+/// Selects `pane`'s row in the sidebar, which shows the pane.
+fn select(nav: &gtk::ListBox, pane: Pane) {
+    let at = Pane::ALL.iter().position(|each| *each == pane).unwrap_or(0);
+    nav.select_row(nav.row_at_index(i32::try_from(at).unwrap_or(0)).as_ref());
 }
 
 /// What a pane shows for `setting`, and the control on it: its row, or for
