@@ -35,13 +35,16 @@ The title button in the top bar opens it.
 | `app.quit` | Quit | `Ctrl+Q` | |
 
 The five `export.` rows draw as one **Export** submenu rather than as five rows of the menu, the
-way the View menu's Template section does; `print` is a row of its own beneath it, a separator on
+way the View menu's Syntax Highlight rows do; `print` is a row of its own beneath it, a separator on
 each side, because printing a Document is not exporting one.
 
 ## View menu
 
 The button at the right of the top bar opens it; `F10` opens it too (GNOME's primary-menu key).
-Sections in this order, separators between them.
+Sections in this order, separators between them. The menu heads the first five with their names in
+capitals, FOCUS to WINDOW; Quill is its foot and has no head, and the `Ctrl+?` window heads it by
+name. The menu holds what a writer changes while writing: a setting lives here or in one Settings
+pane, never both, and the Palette reaches either.
 
 **Focus** (the order ADR 0006 fixes: toggle, the two scope radios, then Typewriter)
 
@@ -98,47 +101,19 @@ the menu. The Palette reaches them in two keystrokes.
 | `font.quattro` | Quattro (radio) | — | |
 | `font.mono` | Mono (radio) | — | |
 
-**Template** (a submenu: the five Templates Preview and Export lay a Document out in, then the three
-toggles that bend one)
-
-| Id | Title | Default | Alias |
-|---|---|---|---|
-| `template.modern` | Modern (radio) | — | |
-| `template.classic` | Classic (radio) | — | |
-| `template.manuscriptMono` | Manuscript Mono (radio) | — | |
-| `template.manuscriptDuo` | Manuscript Duo (radio) | — | |
-| `template.manuscriptQuattro` | Manuscript Quattro (radio) | — | |
-| `template.centerHeadings` | Center Headings (check) | — | |
-| `template.numberHeadings` | Number Headings (check) | — | |
-| `template.indentParagraphs` | Indent Paragraphs (check) | — | |
-
-A Template is chosen once and left, as a Face is, so none of the eight has a chord; the Palette
-reaches them in two keystrokes.
-
-**Appearance**
-
-| Id | Title | Default | Alias |
-|---|---|---|---|
-| `theme.toggle` | Dark Mode | `Ctrl+Shift+L` | `Alt+Shift+N` |
-| `font.bigger` | Bigger Text | `Ctrl+=` | |
-| `font.smaller` | Smaller Text | `Ctrl+-` | |
-| `font.reset` | Default Text Size | `Ctrl+0` | |
-| `preview.bigger` | Bigger Preview Text | `Ctrl+Shift+=` | |
-| `preview.smaller` | Smaller Preview Text | `Ctrl+Shift+-` | |
-| `preview.reset` | Default Preview Size | `Ctrl+Shift+0` | |
-
-The `font.*` ladder is the Editor's text and the `preview.*` one is Preview's zoom; neither reaches
-the other pane.
-
 **Window**
 
 | Id | Title | Default | Alias |
 |---|---|---|---|
+| `theme.toggle` | Dark Mode | `Ctrl+Shift+L` | `Alt+Shift+N` |
 | `chrome.stats` | Statistics (check) | — | |
-| `chrome.toggle` | Hide Bars / Show Bars | `Ctrl+Shift+H` | |
 | `window.fullscreen` | Full Screen | `F11` | |
+
+**Quill**
+
+| Id | Title | Default | Alias |
+|---|---|---|---|
 | `settings.open` | Settings… | `Ctrl+,` | |
-| `shortcuts.open` | Keyboard Shortcuts | `Ctrl+?` | |
 | `palette.open` | All Commands… | `Ctrl+K` | |
 
 ## Stats menu
@@ -171,13 +146,36 @@ No menu row; the Palette lists them under their section.
 | `file.delete` | Move to Trash | — | |
 | `file.pin` | Pin / Unpin | — | |
 | `theme.light`, `theme.dark`, `theme.auto` | Light Theme, Dark Theme, Follow System | — | |
+| `font.bigger` | Bigger Text | `Ctrl+=` | |
+| `font.smaller` | Smaller Text | `Ctrl+-` | |
+| `font.reset` | Default Text Size | `Ctrl+0` | |
+| `preview.bigger` | Bigger Preview Text | `Ctrl+Shift+=` | |
+| `preview.smaller` | Smaller Preview Text | `Ctrl+Shift+-` | |
+| `preview.reset` | Default Preview Size | `Ctrl+Shift+0` | |
+| `template.modern` | Modern (radio) | — | |
+| `template.classic` | Classic (radio) | — | |
+| `template.manuscriptMono` | Manuscript Mono (radio) | — | |
+| `template.manuscriptDuo` | Manuscript Duo (radio) | — | |
+| `template.manuscriptQuattro` | Manuscript Quattro (radio) | — | |
+| `template.centerHeadings` | Center Headings (check) | — | |
+| `template.numberHeadings` | Number Headings (check) | — | |
+| `template.indentParagraphs` | Indent Paragraphs (check) | — | |
+| `chrome.toggle` | Hide Bars / Show Bars | `Ctrl+Shift+H` | |
 | `chrome.doc` | Document Menu | — | |
 | `chrome.view` | View Menu | `F10` | |
+| `shortcuts.open` | Keyboard Shortcuts | `Ctrl+?` | |
 
 `Ctrl+Shift+O` is the one "jump" chord, and it is `outline.open`'s: the Palette on the open
 Document's Outline, where typing narrows the headings and appends Documents by name, so one list
 reaches either (#397). `library.search` keeps the Library's own field and has no default chord; a
 writer who wants one binds it under `[shortcuts]`.
+
+The `font.*` ladder is the Editor's text and the `preview.*` one is Preview's zoom; neither reaches
+the other pane. The five Templates are the ones Preview and Export lay a Document out in, one radio
+group, and the three checks bend the one chosen; a Template is chosen once and left, as a Face is,
+so none of the eight has a chord, and the Settings window's Template pane holds them too. Hide Bars
+and Keyboard Shortcuts are reached by their chords; the text sizes, the Templates, Hide Bars and
+Keyboard Shortcuts left the View menu in #467.
 
 ## Reserved chords
 
