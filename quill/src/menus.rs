@@ -8,8 +8,9 @@
 //! separator between them; a Writing tools head named in [`SUBMENU_HEADS`]
 //! draws the rows of its own Command prefix as a nested submenu under it,
 //! Syntax highlight and Style check being the two such heads today. Every
-//! section but the foot, Quill, is headed with its name in capitals
-//! ([`HEADED`]). The Document menu's five `export.` rows are a nested submenu
+//! section but the foot ([`VIEW_FOOT`]) is headed with its name in capitals,
+//! as the Parity oracle heads Typeface; the foot reads as a group under a
+//! separator. The Document menu's five `export.` rows are a nested submenu
 //! of their own name, and Print… stands in a section of its own beneath it,
 //! which is the separator on each side of it. A row's action is the Command's,
 //! so the check or the radio the popover draws reads the stateful action the
@@ -31,7 +32,7 @@ use std::path::PathBuf;
 
 use gtk::gio;
 use gtk::prelude::*;
-use quill_engine::commands::{COMMANDS, Command, Menu, Placement, VIEW_SECTIONS};
+use quill_engine::commands::{COMMANDS, Command, Menu, Placement, VIEW_FOOT, VIEW_SECTIONS};
 use quill_engine::document::shown_name;
 
 use crate::chrome::{self, Modes, RECENT_OPEN};
@@ -42,9 +43,6 @@ use crate::chrome::{self, Modes, RECENT_OPEN};
 /// highlight and Style check are the two Annotators with a head, and a third
 /// is a third row here and no other edit in this module (#362).
 const SUBMENU_HEADS: &[(&str, &str)] = &[("syntax.", "syntax.toggle"), ("style.", "style.toggle")];
-/// The sections headed with their names in capitals, as the Parity oracle
-/// heads Typeface; Quill, the foot, reads as a group under a separator.
-const HEADED: [&str; 5] = ["Focus", "Panes", "Writing tools", "Typeface", "Window"];
 /// The Document menu's rows that fold into a submenu of their own name the
 /// same way, by the prefix their ids share: five sinks is a menu's worth, and
 /// a writer reaches for the File menu to save far oftener than to export
@@ -143,7 +141,7 @@ pub fn model(menu: Menu, modes: &Modes, recents: &[PathBuf]) -> gio::Menu {
                 let rows: Vec<_> = rows(menu)
                     .filter(|(_, placement)| placement.section == Some(section))
                     .collect();
-                let heading = HEADED.contains(&section).then(|| section.to_uppercase());
+                let heading = (section != VIEW_FOOT).then(|| section.to_uppercase());
                 model.append_section(heading.as_deref(), &view_section(&rows, modes));
             }
         }
@@ -560,8 +558,8 @@ mod tests {
     }
 
     /// The View menu's sections come in the table's order, each headed with
-    /// its name in capitals but the foot, and none is a Template submenu: 26
-    /// rows counting the heads (#467).
+    /// its name in capitals but the foot, and none is a Template submenu: a
+    /// row for every View placement that folds under no submenu head (#467).
     #[test]
     fn the_view_sections_are_the_tables_headed_in_capitals_over_an_unheaded_foot() {
         let model = model(Menu::View, &Modes::default(), &[]);
@@ -571,7 +569,7 @@ mod tests {
             let heading = model
                 .item_attribute_value(i, "label", Some(glib::VariantTy::STRING))
                 .and_then(|value| value.get::<String>());
-            let expected = (*section != "Quill").then(|| section.to_uppercase());
+            let expected = (*section != VIEW_FOOT).then(|| section.to_uppercase());
             assert_eq!(heading, expected, "section {section}");
             assert!(model.item_link(i, "section").is_some(), "section {section}");
         }
@@ -586,11 +584,14 @@ mod tests {
             heads,
             ["FOCUS", "PANES", "WRITING TOOLS", "TYPEFACE", "WINDOW"]
         );
-        let rows: usize = (0..model.n_items())
+        let drawn: usize = (0..model.n_items())
             .map(|i| model.item_link(i, "section").expect("a section").n_items())
             .map(|n| usize::try_from(n).unwrap())
             .sum();
-        assert_eq!(rows + heads.len(), 26);
+        let placed = rows(Menu::View)
+            .filter(|(command, _)| folds_under(command, SUBMENU_HEADS).is_none())
+            .count();
+        assert_eq!(drawn, placed);
         let labels: Vec<String> = rows_of(model.upcast_ref())
             .into_iter()
             .flatten()

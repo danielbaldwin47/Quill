@@ -3045,7 +3045,7 @@ impl Window {
     }
 
     /// Opens the Settings window over this one: `settings.open`, `Ctrl+,` and
-    /// View › Window "Settings…".
+    /// "Settings…" in the View menu's Quill foot.
     pub(crate) fn open_settings(&self) {
         self.present_settings(None);
     }
@@ -3177,16 +3177,8 @@ impl Window {
     /// dialog, so a writer looking at a judged shot is not looking at a stack
     /// of them.
     fn open_flagged_export(&self, format: crate::export_dialog::Format) {
-        let Some(clock) = self.frame_clock() else {
-            return;
-        };
-        let window = self.downgrade();
-        let asked = std::cell::Cell::new(Some(format));
-        clock.connect_after_paint(move |_| {
-            let (Some(window), Some(format)) = (window.upgrade(), asked.take()) else {
-                return;
-            };
-            crate::export_dialog::open_expanded(&window, format);
+        self.after_first_paint(move |window| {
+            crate::export_dialog::open_expanded(window, format);
         });
     }
 
@@ -3194,16 +3186,24 @@ impl Window {
     /// has painted its first frame, as [`Self::open_flagged_export`] opens
     /// the Export dialog and for its reason.
     fn open_flagged_settings(&self, pane: quill_engine::palette::Pane) {
+        self.after_first_paint(move |window| window.open_settings_on(pane));
+    }
+
+    /// Runs `open` once, on the frame after the window's first paint: the
+    /// shared half of [`Self::open_flagged_export`] and
+    /// [`Self::open_flagged_settings`]. The callback lives in a [`Cell`] the
+    /// first frame empties, since `after-paint` runs on every frame.
+    fn after_first_paint(&self, open: impl FnOnce(&Window) + 'static) {
         let Some(clock) = self.frame_clock() else {
             return;
         };
         let window = self.downgrade();
-        let asked = std::cell::Cell::new(Some(pane));
+        let asked = std::cell::Cell::new(Some(open));
         clock.connect_after_paint(move |_| {
-            let (Some(window), Some(pane)) = (window.upgrade(), asked.take()) else {
+            let (Some(window), Some(open)) = (window.upgrade(), asked.take()) else {
                 return;
             };
-            window.open_settings_on(pane);
+            open(&window);
         });
     }
 

@@ -157,16 +157,6 @@ const MENUS: [(&str, Menu); 5] = [
     ("outline", Menu::Outline),
 ];
 
-/// What `--pane` takes: the Settings window's five panes, by the names its
-/// sidebar shows, lower-cased.
-const PANES: [(&str, Pane); 5] = [
-    ("general", Pane::General),
-    ("library", Pane::Library),
-    ("template", Pane::Template),
-    ("export", Pane::Export),
-    ("advanced", Pane::Advanced),
-];
-
 /// What `--preview` takes: where the pane opens and what it draws there, in
 /// one word.
 ///
@@ -460,7 +450,7 @@ impl Flags {
                         )
                     })?);
                 }
-                "--pane" => flags.pane = Some(one_of(flag, &text(&mut args, flag)?, &PANES)?),
+                "--pane" => flags.pane = Some(pane(flag, &text(&mut args, flag)?)?),
                 "--query" => flags.query = Some(text(&mut args, flag)?),
                 "--w" => flags.width = Some(whole(flag, &text(&mut args, flag)?, &window_sizes())?),
                 "--h" => {
@@ -941,6 +931,18 @@ fn one_of<T: Copy>(flag: &str, written: &str, values: &[(&str, T)]) -> Result<T,
             let names: Vec<&str> = values.iter().map(|&(name, _)| name).collect();
             not(flag, written, &format!("one of {}", names.join(", ")))
         })
+}
+
+/// What `--pane` takes: one of the Settings window's five panes, by the name
+/// its sidebar shows ([`Pane::from_name`]).
+fn pane(flag: &str, written: &str) -> Result<Pane, Error> {
+    Pane::from_name(written).ok_or_else(|| {
+        let names: Vec<String> = Pane::ALL
+            .iter()
+            .map(|pane| pane.name().to_lowercase())
+            .collect();
+        not(flag, written, &format!("one of {}", names.join(", ")))
+    })
 }
 
 /// A whole number inside `range`.
