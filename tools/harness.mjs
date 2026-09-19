@@ -67,12 +67,13 @@ export const APP_ID = 'io.github.danielbaldwin47.Quill';
 // The `app_id` a window of ours that is not the application window carries.
 //
 // GTK gives a `GtkApplicationWindow` the application id and every other `GtkWindow` the program
-// name, which for this binary is `quill`. The Export dialog `--export-dialog` opens is a plain
-// `gtk::Window` (ADR 0009, plain GTK), so it maps as a toplevel of its own under this second class
-// — which is what lets the stage rule it apart from the window it stands over ([`rulesLua`]) and
-// what makes it findable in the toplevel list. Measured on the stage, not read out of GTK: a
-// `--export-dialog` shoot says so at once if it ever moves, because there is no second toplevel to
-// find and the shot refuses rather than coming back without the dialog in it.
+// name, which for this binary is `quill`. The Export dialog `--export-dialog` opens and the
+// Settings window `--pane` opens are plain `gtk::Window`s (ADR 0009, plain GTK), so each maps as a
+// toplevel of its own under this second class — which is what lets the stage rule it apart from
+// the window it stands over ([`rulesLua`]) and what makes it findable in the toplevel list.
+// Measured on the stage, not read out of GTK: a `--export-dialog` or `--pane` shoot says so at
+// once if it ever moves, because there is no second toplevel to find and the shot refuses rather
+// than coming back without the window in it.
 export const DIALOG_APP_ID = 'quill';
 
 // The stage's own numbers. The mode is the widest judged state (1440 logical) plus margin, at the
@@ -219,6 +220,11 @@ export function quillArgv(root, flags, { live = false } = {}) {
   // surface of its own over the page, which is why the state is shot with the caret away
   // ([`wantsLitCaret`]) — the keyboard is the dialog's while it is up.
   if (flags.export) argv.push('--export-dialog', flags.export);
+  // The Settings window the `settings` states open, on the pane named. It is shot as the Export
+  // dialog is, a second toplevel over the page ([`opensSecondWindow`]). The key is a state's own and
+  // never a default's: a key in `defaults` is in every state's flags, and so in every Piece's
+  // fingerprint.
+  if (flags.pane) argv.push('--pane', flags.pane);
   // An empty Document has no passage, and so has no offset into one either.
   if (flags.text) {
     argv.push('--text', path.join(root, flags.text));
@@ -310,7 +316,8 @@ export function rulesLua(appId, { workspace, w, h, x = MARGIN.x, y = MARGIN.y, i
     `rule({ name = "quill-gate-size", size = "${w} ${h}" })`,
     `rule({ name = "quill-gate-move", move = "${x} ${y}" })`,
     `rule({ name = "quill-gate-decoration", ${decoration} })`,
-    // The dialog a `--export-dialog` state opens is a toplevel of its own under a second class
+    // The dialog a `--export-dialog` state opens, and the Settings window a `--pane` state opens,
+    // is a toplevel of its own under a second class
     // ([`DIALOG_APP_ID`]), and it is ruled separately for two reasons. It wants what ours wants:
     // the stage's workspace, so it is not put on the owner's, and Omarchy's compositing undone. And
     // it must not be given ours' size and position — a dialog is placed by the compositor against
@@ -441,6 +448,13 @@ export function wantsLitCaret(argv, { active = true } = {}) {
     && !argv.includes('--nocaret')
     && !argv.includes('--select')
     && !(preview === 'full' || preview === 'pdf-full');
+}
+
+/// Whether a launch of `argv` puts a second toplevel of ours over the page: the Export dialog
+/// `--export-dialog` opens, or the Settings window `--pane` opens. Read off the command line for the
+/// reason [`wantsLitCaret`] is.
+export function opensSecondWindow(argv) {
+  return argv.includes('--export-dialog') || argv.includes('--pane');
 }
 
 // ---------- the compositor ----------
@@ -953,7 +967,8 @@ class Stage {
     throw new Error(`the launch put no window on the compositor${why}${stderr.trim() ? `\n${stderr.trim()}` : ''}`);
   }
 
-  /// The second toplevel a `--export-dialog` launch puts on the stage: the dialog over the page.
+  /// The second toplevel a launch puts on the stage ([`opensSecondWindow`]): the Export dialog or
+  /// the Settings window over the page.
   ///
   /// Found by the process rather than by the class, because the class is shared with every other
   /// Quill and the process is this launch's alone: the one client of ours' pid that is not ours is
@@ -962,7 +977,7 @@ class Stage {
   ///
   /// `at` is where the compositor put it, in the device pixels of ours' own capture: the offset of
   /// its top left from ours', doubled by the scale every judged shot is taken at. Nothing here
-  /// places the dialog — Hyprland centres it against the window it is transient for, and that
+  /// places the window — Hyprland centres it against the window it is transient for, and that
   /// placement is what the `export/dialog` rule measures.
   async dialogOver(ours) {
     for (let waited = 0; waited < MAP_TIMEOUT_MS; waited += POLL_MS) {
@@ -982,7 +997,7 @@ class Stage {
       };
     }
     throw new Error(`the launch opened no second window within ${MAP_TIMEOUT_MS / 1000}s, and the state`
-      + ` names a dialog: the shot would be the page with nothing over it`);
+      + ` names a dialog or a Settings pane: the shot would be the page with nothing over it`);
   }
 
   kill(child) {
@@ -1086,7 +1101,7 @@ class Stage {
       // read-back, the shutter, the frame that is written — is about the pair rather than about
       // ours alone. Read out of `argv` for the reason [`wantsLitCaret`] is: the flags a state names
       // are what the state is, and a second channel saying the same thing could disagree with them.
-      const over = argv.includes('--export-dialog') ? await this.dialogOver(ours) : null;
+      const over = opensSecondWindow(argv) ? await this.dialogOver(ours) : null;
       // Read back rather than dispatched and hoped for. The compositor answers the dispatch before
       // it has finished acting on it, and an unfocused Quill still paints — it paints the ghost
       // caret the `unfocused` state is judged on. `steady()` cannot catch that: it proves two

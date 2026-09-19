@@ -60,6 +60,7 @@ export const ASSERTIONS = {
   spell: spell,
   pinned: pinned,
   menu: menu,
+  settings: settings,
 };
 
 // How each rule wants its second shot taken: the state to shoot, and what to shoot it with.
@@ -90,6 +91,7 @@ export const SECOND = {
   spell: (s) => ({ state: { ...s, flags: { ...s.flags, spell: 'off' } }, options: {} }),
   pinned: (s) => ({ state: { ...s, flags: { ...s.flags, library: unpinned(s.flags.library) } }, options: {} }),
   menu: (s) => ({ state: { ...s, flags: { ...s.flags, menu: null } }, options: {} }),
+  settings: (s) => ({ state: { ...s, flags: { ...s.flags, pane: null } }, options: {} }),
 };
 
 // A `--library` value with its `pinned=` overrides taken out and every other override left standing:
@@ -153,6 +155,7 @@ const CHECKS = {
   spell: spellSpec,
   pinned: pinnedSpec,
   menu: menuSpec,
+  settings: settingsSpec,
 };
 
 // The built-ins, restated from quill-engine/src/theme.rs, Colours::{LIGHT,DARK}, which #308
@@ -1591,6 +1594,107 @@ function ruledBetween(png, panel, ground, y0, y1) {
     if (off * 2 > width) return true;
   }
   return false;
+}
+
+// ---------- the Settings window ----------
+
+// The sidebar's rows, one per pane, in the order the window lists them: General, Library, Template,
+// Export and Advanced (`quill_engine::palette::Pane::ALL`). They are the sidebar's last bands of
+// ink, under its head and its search field.
+const SETTINGS_PANES = 5;
+
+// The share of the pane's width, at its right end, that the controls stand in: every switch,
+// dropdown, spin button, slider and button is right-aligned there, and no label reaches it.
+const SETTINGS_CONTROLS = 0.25;
+
+// The Settings window (#467): a sidebar of five panes beside the pane it has selected.
+//
+// Three facts a still can hold, read off the shot and the bare page under it. Where the two differ
+// is the window, as the Outline's panel is found; the sidebar is the run of columns from its left
+// edge that are mostly one ground, and the pane is everything right of the hairline that ends it.
+// The selected pane is the one of the sidebar's five rows drawn on a fill: the pixel just left of
+// the row's words is the sidebar's ground on every row but that one. The pane's bands of ink are
+// then split by the control column at its right end: a band reaching into it is a row with its
+// control — a two-line row is one band, its switch spanning both lines — and a band that does not
+// is a group head, since a head is the one row a pane draws with nothing to operate.
+//
+// `pane` is the selected row's index, `heads` the pane's group heads, and `controls` its rows that
+// carry a control. What each row says is the Hand test's.
+function settings(spec, { dim, lit }) {
+  const png = decodePng(dim);
+  const page = decodePng(lit);
+  const { w, h } = png;
+  if (page.w !== w || page.h !== h) {
+    return no(`the Settings shot is ${w}x${h} and its bare page is ${page.w}x${page.h}`);
+  }
+  const changed = changedBox(png, page);
+  if (changed.right < changed.left) {
+    return no('the Settings shot is the bare page pixel for pixel: no window stands over it');
+  }
+  const height = changed.bottom - changed.top + 1;
+  const side = groundOf(png, changed.left, Math.min(changed.left + 8, changed.right + 1), changed.top, changed.bottom + 1);
+  let sideRight = changed.left - 1;
+  for (let x = changed.left; x <= changed.right; x += 1) {
+    let held = 0;
+    for (let y = changed.top; y <= changed.bottom; y += 1) if (is(png, x, y, side)) held += 1;
+    if (held * 2 <= height) break;
+    sideRight = x;
+  }
+  const where = `a ${w}x${h} window`;
+  if (sideRight <= changed.left || sideRight >= changed.right - 8) {
+    return no(`no sidebar of one ground stands at the left of ${box(changed)}, where the shot differs from the bare page, in ${where}`);
+  }
+  const sidebar = { left: changed.left, right: sideRight, top: changed.top, bottom: changed.bottom };
+  const rows = bandsOf(png, sidebar, side).slice(-SETTINGS_PANES);
+  if (rows.length < SETTINGS_PANES) {
+    return no(`the ${hex(side)} sidebar at ${box(sidebar)} carries ${rows.length} bands of ink, and it lists ${SETTINGS_PANES} panes`);
+  }
+  const chosen = rows.map((row, k) => ({ row, k })).filter(({ row }) => {
+    const x = Math.max(sidebar.left + 1, row.left - 8);
+    return !is(png, x, Math.round((row.top + row.bottom) / 2), side);
+  }).map(({ k }) => k);
+
+  // The hairline between the two is stepped over: the pane starts at the first column of its own
+  // ground, which is read off the rest of the window.
+  const ground = groundOf(png, sideRight + 8, changed.right + 1, changed.top, changed.bottom + 1);
+  let paneLeft = sideRight + 1;
+  while (paneLeft < changed.right && !is(png, paneLeft, changed.bottom, ground)) paneLeft += 1;
+  const pane = { left: paneLeft, right: changed.right, top: changed.top, bottom: changed.bottom };
+  const column = pane.right - Math.round((pane.right - pane.left) * SETTINGS_CONTROLS);
+  const bands = bandsOf(png, pane, ground).filter((band) => band.bottom - band.top + 1 >= OUTLINE_RULE);
+  const heads = bands.filter((band) => band.right < column).length;
+  const controls = bands.length - heads;
+
+  const said = `the sidebar selects row ${chosen.length === 1 ? chosen[0] : `${chosen.join(', ') || 'none'}`} of ${SETTINGS_PANES}, and the pane carries ${heads} head${heads === 1 ? '' : 's'} and ${controls} row${controls === 1 ? '' : 's'} with a control`;
+  const told = `the window is ${hex(side)} beside ${hex(ground)}, ${box(changed)} of ${where}`;
+  const missed = [];
+  if (chosen.length !== 1 || chosen[0] !== spec.pane) missed.push(`the pane selected is row ${spec.pane}`);
+  if (heads !== spec.heads) missed.push(`the pane has ${spec.heads} group head${spec.heads === 1 ? '' : 's'}`);
+  if (controls !== spec.controls) missed.push(`the pane has ${spec.controls} rows with a control`);
+  return {
+    ours: missed.length === 0,
+    window: [changed.left, changed.top, changed.right - changed.left + 1, height],
+    selected: chosen,
+    heads,
+    controls,
+    why: missed.length === 0 ? `${told}; ${said}` : `${told}; ${said} — and ${missed.join(', and ')}`,
+    secondary: [
+      said,
+      'the selected row is the sidebar row drawn on a fill, a head is a pane band short of the control column, and a control row one reaching into it',
+    ],
+  };
+}
+
+function settingsSpec(spec) {
+  const extra = Object.keys(spec).filter((k) => !['kind', 'pane', 'heads', 'controls'].includes(k));
+  if (extra.length) throw new Error(`the settings assertion has unknown fields: ${extra.join(', ')}`);
+  const { pane, heads, controls } = spec;
+  if (!Number.isInteger(pane) || pane < 0 || pane >= SETTINGS_PANES) {
+    throw new Error(`the settings pane is ${JSON.stringify(pane)}, and it is a sidebar row from 0 to ${SETTINGS_PANES - 1}`);
+  }
+  for (const [name, n] of [['heads', heads], ['controls', controls]]) {
+    if (!Number.isInteger(n) || n < 0) throw new Error(`the settings ${name} is ${JSON.stringify(n)}, and it is a count`);
+  }
 }
 
 // The bounding box of every pixel where `a` and `b` differ by [`OUTLINE_CHANGED`] on a channel.

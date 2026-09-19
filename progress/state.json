@@ -79,6 +79,12 @@
       "judge": "nothing, and no critic is spent here either: the one state names `assert`, so it is measured off ours' own pixels by tools/assert-state.mjs and shown to nobody (ADR 0017). Neither oracle holds an Export dialog — legacy/ has none at all, and iA Writer for Mac's own is that app's dialog rather than this one's — so the state is won on arithmetic instead: the dialog standing over the page as a second ground, inside the window and centred on it, its Options expander open, and the file name seeded from the Document's own name. What a still cannot hold — the file that is written, the printer, the notification and the clipboard — is the feature's Hand test."
     },
     {
+      "id": "settings",
+      "title": "Settings",
+      "what": "The Settings window over the page, a sidebar of five panes beside the pane it has selected",
+      "judge": "nothing, and no critic is spent here: every state names `assert`, so it is measured off ours' own pixels by tools/assert-state.mjs and shown to nobody (ADR 0017). Neither oracle holds the window — legacy/ has the grid the spec left behind, and iA Writer for Mac's own settings are that app's design rather than this one's — so the states are won on arithmetic instead: the window standing over the page on the pane the state opened, the sidebar's row for that pane the one drawn on a fill, and the pane's group heads and control rows counted. What a still cannot hold — what each row says, the writes to settings.toml, the search and the Palette's rows — is the feature's Hand test."
+    },
+    {
       "id": "syntax",
       "title": "Syntax highlight",
       "what": "English words coloured by Category, with Focus and Live precedence",

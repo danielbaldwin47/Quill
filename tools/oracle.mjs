@@ -94,11 +94,18 @@ export function resolveStates(states, piece) {
   });
 }
 
-// The flags in this state that this tool cannot serve: the ones the defaults do not name. The
-// defaults are the state vocabulary — a state that reaches past them is asking for a flag the
-// harness has not learnt yet.
+// The flags a state may name that the defaults never do. A key in `defaults` is in every state's
+// flags and so in every Piece's fingerprint, which restales every frozen oracle; a flag only one
+// asserted-only Piece names — `pane`, the Settings window's (#477) — is learnt here instead.
+export const STATE_ONLY = ['pane'];
+
+// The flags in this state that this tool cannot serve: the ones neither the defaults nor
+// [`STATE_ONLY`] name. The defaults are the state vocabulary — a state that reaches past them is
+// asking for a flag the harness has not learnt yet.
 export function unservable(defaults, flags) {
-  return Object.keys(flags).filter((k) => !Object.prototype.hasOwnProperty.call(defaults, k)).sort();
+  return Object.keys(flags)
+    .filter((k) => !Object.prototype.hasOwnProperty.call(defaults, k) && !STATE_ONLY.includes(k))
+    .sort();
 }
 
 // ---------- offsets ----------
