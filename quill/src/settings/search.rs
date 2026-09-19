@@ -212,7 +212,9 @@ impl Search {
             return;
         }
         let found = results(text, |setting| {
-            self.places.iter().any(|place| place.setting == setting)
+            self.places
+                .iter()
+                .any(|place| place.setting == setting && place.block.is_visible())
         });
         for setting in &found {
             self.list.append(&result_row(setting));
