@@ -41,6 +41,7 @@ use quill_engine::theme::Scheme;
 use crate::export_dialog::{paper_at, paper_drop_down};
 use crate::session::{Session, TemplateToggle};
 
+mod search;
 mod sheet;
 
 pub(crate) use sheet::stylesheet;
@@ -348,6 +349,7 @@ pub fn open_on(
 
     let panes = gtk::Stack::builder().hexpand(true).vexpand(true).build();
     let mut rows = Vec::new();
+    let mut places = Vec::new();
     for each in Pane::ALL {
         let body = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
@@ -355,6 +357,7 @@ pub fn open_on(
             .build();
         let mut first = true;
         let mut leader: Option<gtk::CheckButton> = None;
+        let mut drawn = Vec::new();
         for setting in rows_of(each) {
             let Some((block, control)) = block(&window, session, spelling, setting) else {
                 continue;
@@ -364,6 +367,7 @@ pub fn open_on(
             }
             first = false;
             body.append(&block);
+            drawn.push((setting, block));
             // The Template's five radios are one group, the first its leader.
             if let Some(radio) = control
                 .as_ref()
@@ -378,13 +382,16 @@ pub fn open_on(
                 rows.push(Row { setting, control });
             }
         }
-        panes.add_named(
-            &gtk::ScrolledWindow::builder()
-                .hscrollbar_policy(gtk::PolicyType::Never)
-                .child(&body)
-                .build(),
-            Some(each.name()),
-        );
+        let scroller = gtk::ScrolledWindow::builder()
+            .hscrollbar_policy(gtk::PolicyType::Never)
+            .child(&body)
+            .build();
+        places.extend(drawn.into_iter().map(|(setting, block)| search::Place {
+            setting,
+            block,
+            scroller: scroller.clone(),
+        }));
+        panes.add_named(&scroller, Some(each.name()));
     }
 
     let nav = gtk::ListBox::builder()
@@ -426,12 +433,13 @@ pub fn open_on(
             .css_classes(["settings-side-head"])
             .build(),
     );
-    side.append(&field());
+    let (field, entry) = field();
+    side.append(&field);
     side.append(&nav);
 
     let root = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     root.append(&side);
-    root.append(&panes);
+    root.append(&search::wire(&window, &entry, &panes, &nav, places));
     window.set_child(Some(&root));
 
     let at = Pane::ALL.iter().position(|each| *each == pane).unwrap_or(0);
@@ -648,8 +656,9 @@ fn mark_row(setting: &Setting, radio: &gtk::CheckButton) -> gtk::Box {
 
 /// The sidebar's search field: a plain entry, the Palette's drawn magnifier
 /// over its left end and Quill's own ✕ at its right while it holds text, so
-/// nothing in it comes from the icon theme (#467 § Icons are Quill's own).
-fn field() -> gtk::Overlay {
+/// nothing in it comes from the icon theme (#467 § Icons are Quill's own);
+/// and the entry, which [`search::wire`] wires.
+fn field() -> (gtk::Overlay, gtk::Entry) {
     let entry = gtk::Entry::builder()
         .placeholder_text("Search")
         .width_chars(FIELD_CHARS)
@@ -673,7 +682,7 @@ fn field() -> gtk::Overlay {
     mag.set_margin_bottom(FIELD_BELOW);
     let field = gtk::Overlay::builder().child(&entry).build();
     field.add_overlay(&mag);
-    field
+    (field, entry)
 }
 
 /// One of Quill's own icons under [`quill_engine::data::icons`], as the
