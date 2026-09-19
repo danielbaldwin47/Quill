@@ -195,8 +195,8 @@ usage: tools/gate <command> [arguments]
                 that (ADR 0017). The round records what it measured where a
                 critic's reasoning would be, and names no opponent for it.
                 The rules are ASSERTIONS in that file — ghost, folded, split,
-                full, pdf-split, pdf-full, dialog, syntax, outline, spell and
-                pinned —
+                full, pdf-split, pdf-full, dialog, syntax, outline, spell,
+                pinned and menu —
                 and states.json's `assert` note says what each reads.
                 --note records what changed this round. The Piece is ours only
                 when every state is. Ends in `gate judge <piece>: ours|theirs,

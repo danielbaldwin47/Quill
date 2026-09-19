@@ -59,6 +59,7 @@ export const ASSERTIONS = {
   outline: outline,
   spell: spell,
   pinned: pinned,
+  menu: menu,
 };
 
 // How each rule wants its second shot taken: the state to shoot, and what to shoot it with.
@@ -73,6 +74,7 @@ export const ASSERTIONS = {
 // `syntax` removes Syntax highlight while preserving Focus and Live, so glyph coverage and the
 // bright rows are measured independently of the Category colours.
 // `outline` removes the menu for the bare page: where the Outline shot differs from it is the panel.
+// `menu` does the same for the View menu, for the same reason.
 // `spell` switches Spell check off and leaves every other flag standing, so the difference between
 // the two shots is the marks — or, with no dictionary, the status line's one line.
 export const SECOND = {
@@ -87,6 +89,7 @@ export const SECOND = {
   outline: (s) => ({ state: { ...s, flags: { ...s.flags, menu: null } }, options: {} }),
   spell: (s) => ({ state: { ...s, flags: { ...s.flags, spell: 'off' } }, options: {} }),
   pinned: (s) => ({ state: { ...s, flags: { ...s.flags, library: unpinned(s.flags.library) } }, options: {} }),
+  menu: (s) => ({ state: { ...s, flags: { ...s.flags, menu: null } }, options: {} }),
 };
 
 // A `--library` value with its `pinned=` overrides taken out and every other override left standing:
@@ -149,6 +152,7 @@ const CHECKS = {
   outline: bare('outline'),
   spell: spellSpec,
   pinned: pinnedSpec,
+  menu: menuSpec,
 };
 
 // The built-ins, restated from quill-engine/src/theme.rs, Colours::{LIGHT,DARK}, which #308
@@ -1471,6 +1475,122 @@ function outline(_spec, { dim, lit }) {
       `the panel is where the shot differs from the bare page, and its ground is read off the pair rather than compared against a hex written down here`,
     ],
   };
+}
+
+// ---------- the View menu ----------
+
+// A row of the gap between two bands is a separator when more than half the menu's width differs
+// from its ground by this much on a channel: the hairline GTK draws between sections is a few units
+// off the ground, too faint for the ink the bands are read at and far from a glyph's.
+const MENU_RULE = 8;
+
+// The View menu (#467): five headed sections over an unheaded foot.
+//
+// A still cannot read a word, so "the five heads in order" is read as the one thing the order
+// leaves on the pixels: how many rows stand under each head, top to bottom. The heads are the
+// small-caps rows set in the dim ink, so a head is a band whose strongest ink sits nearer the
+// ground than a row's: bands are split at the midpoint between the faintest band's and the
+// strongest's, which is no split at all when every band is one ink. The sections are the runs
+// between the separators found in the gaps, each a head over its rows or, for the foot, rows alone.
+// The panel is found as the Outline's is, where the menu shot differs from the bare page.
+//
+// `sections` is the rows under each head in order and `foot` the rows under no head, the last run.
+// What each row says, and which is checked, is the Hand test's.
+function menu(spec, { dim, lit }) {
+  const png = decodePng(dim);
+  const page = decodePng(lit);
+  const { w, h } = png;
+  if (page.w !== w || page.h !== h) {
+    return no(`the menu shot is ${w}x${h} and its bare page is ${page.w}x${page.h}`);
+  }
+  const changed = changedBox(png, page);
+  if (changed.right < changed.left) {
+    return no(`the menu shot is the bare page pixel for pixel: no menu stands over it`);
+  }
+  const ground = groundOf(png, changed.left, changed.right + 1, changed.top, changed.bottom + 1);
+  const panel = mostlyBox(png, ground, changed);
+  if (panel.right < panel.left || panel.bottom < panel.top) {
+    return no(`no rectangle of the ${hex(ground)} ground stands inside ${box(changed)}, where the shot differs from the bare page`);
+  }
+  let radius = 0;
+  while (panel.left + radius < panel.right && !is(png, panel.left + radius, panel.top, ground)) radius += 1;
+  const scanned = { ...panel, left: panel.left + radius, right: panel.right - radius };
+  const bands = bandsOf(png, scanned, ground)
+    .filter((band) => band.bottom - band.top + 1 >= OUTLINE_RULE)
+    .map((band) => ({ ...band, ink: strongest(png, scanned, ground, band) }));
+  if (!bands.length) return no(`the menu's ${hex(ground)} panel at ${box(panel)} carries no band of ink`);
+  const faint = Math.min(...bands.map((band) => band.ink));
+  const strong = Math.max(...bands.map((band) => band.ink));
+  const split = (faint + strong) / 2;
+  const runs = [[]];
+  bands.forEach((band, k) => {
+    if (k > 0 && ruledBetween(png, scanned, ground, bands[k - 1].bottom + 1, band.top)) runs.push([]);
+    runs[runs.length - 1].push(band.ink < split ? 'head' : 'row');
+  });
+  const read = runs.map((run) => {
+    const rows = run.filter((kind) => kind === 'row').length;
+    const heads = run.length - rows;
+    return { headed: heads === 1 && run[0] === 'head', heads, rows };
+  });
+  const sections = read.filter((run) => run.headed).map((run) => run.rows);
+  const last = read[read.length - 1];
+  const foot = last.heads === 0 ? last.rows : 0;
+  const said = `${read.length} run${read.length === 1 ? '' : 's'} between separators, ${sections.length} headed with ${sections.join(', ') || 'no'} rows${foot ? `, and an unheaded foot of ${foot}` : ''}`;
+  const where = `the menu is ${hex(ground)}, ${box(panel)} of a ${w}x${h} window`;
+  const missed = [];
+  const stray = read.filter((run, k) => !run.headed && !(k === read.length - 1 && run.heads === 0));
+  if (stray.length) missed.push(`${stray.length} run${stray.length === 1 ? ' is' : 's are'} neither a head over its rows nor the foot`);
+  if (sections.join(',') !== spec.sections.join(',')) missed.push(`the heads stand over ${sections.join(', ') || 'no'} rows, and the menu's order is ${spec.sections.join(', ')}`);
+  if (foot !== spec.foot) missed.push(`the unheaded foot is ${foot} rows, and it is ${spec.foot}`);
+  return {
+    ours: missed.length === 0,
+    panel: [panel.left, panel.top, panel.right - panel.left + 1, panel.bottom - panel.top + 1],
+    sections,
+    foot,
+    why: missed.length === 0 ? `${where}; ${said}` : `${where}; ${said} — ${missed.join(', and ')}`,
+    secondary: [
+      said,
+      `a head is a band in the dim ink, a section the run between two separators, and the order is read as the rows under each head`,
+    ],
+  };
+}
+
+function menuSpec(spec) {
+  const extra = Object.keys(spec).filter((k) => !['kind', 'sections', 'foot'].includes(k));
+  if (extra.length) throw new Error(`the menu assertion has unknown fields: ${extra.join(', ')}`);
+  const { sections, foot } = spec;
+  if (!Array.isArray(sections) || !sections.length || !sections.every((n) => Number.isInteger(n) && n > 0)) {
+    throw new Error(`the menu's sections are ${JSON.stringify(sections)}, and they are the rows under each head, in order`);
+  }
+  if (!Number.isInteger(foot) || foot < 0) {
+    throw new Error(`the menu's foot is ${JSON.stringify(foot)}, and it is a count of rows`);
+  }
+}
+
+// How far the band's strongest pixel sits from `ground`, the largest channel difference.
+function strongest(png, panel, ground, band) {
+  let most = 0;
+  for (let y = band.top; y <= band.bottom; y += 1) {
+    for (let x = panel.left + 1; x < panel.right; x += 1) {
+      for (let c = 0; c < 3; c += 1) most = Math.max(most, Math.abs(at(png, x, y, c) - ground[c]));
+    }
+  }
+  return most;
+}
+
+// Whether a row in `y0`..`y1 - 1` is a separator: over half the panel's width off its ground.
+function ruledBetween(png, panel, ground, y0, y1) {
+  const width = panel.right - panel.left - 1;
+  for (let y = y0; y < y1; y += 1) {
+    let off = 0;
+    for (let x = panel.left + 1; x < panel.right; x += 1) {
+      let moved = false;
+      for (let c = 0; c < 3 && !moved; c += 1) moved = Math.abs(at(png, x, y, c) - ground[c]) >= MENU_RULE;
+      if (moved) off += 1;
+    }
+    if (off * 2 > width) return true;
+  }
+  return false;
 }
 
 // The bounding box of every pixel where `a` and `b` differ by [`OUTLINE_CHANGED`] on a channel.
