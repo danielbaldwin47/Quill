@@ -186,7 +186,7 @@ window.settings scale > value { color: @dim@; font-size: 12px; font-feature-sett
 window.settings scale > trough {
   min-height: 3px; margin: 0; border: none; border-radius: 3px; background: @track@; box-shadow: none; outline: none;
 }
-window.settings scale > trough > highlight { min-height: 3px; border: none; border-radius: 3px; background: @accent@; }
+window.settings scale > trough > highlight { min-height: 3px; margin: 0; border: none; border-radius: 3px; background: @accent@; }
 window.settings scale > trough > slider {
   min-width: 14px; min-height: 14px; margin: -6px -7px -5px -7px; border: none; border-radius: 50%; background: @knob@;
   box-shadow: 0 0 0 1px @knob_bd@, 0 1px 2px rgba(0,0,0,0.25);
