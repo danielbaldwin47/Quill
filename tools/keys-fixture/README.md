@@ -137,3 +137,20 @@ display attached: green on the two fixed caret pairs, on `fixed-select-all` for 
 on `fill-*` for the container, red on `broken-typing-*`, on `broken-select-all`, and on
 `fixed-select-all` for the container it does not fill; each `spell-*` crop green on its own
 burst's expectation and red on the other's.
+
+## Enter on a Palette settings row
+
+Three shots for `chrome`'s Palette script (#479), whose rules are `palette-up` and
+`switch-flipped` in `tools/keys-assert.mjs`:
+
+- `palette-query.png`, `palette-enter.png` — one run of `tools/gate keys chrome --shots` on the
+  spec-467 branch (#475's Palette rows), the Palette's two bursts: `ask` typed into the Palette
+  opened by `--menu palette` on an empty Document with the bars off, which lists the one settings
+  row Always ask where to save with its switch off; then a newline, which is Enter, after which the
+  switch is on and the Palette still up. The knob's centre goes from x 1816 to 1852.
+- `palette-closed.png` — `palette-query.png` with the panel and its shadow (x 938..1942,
+  y 209..496) painted over in the page's paper, `#f7f7f7`: the page a Palette that closed on Enter
+  leaves, derived rather than taken because the build under test never closes it.
+
+The red pairs are the knob that did not move (`palette-query` against itself) and the Palette gone
+(`palette-query` against `palette-closed`).
