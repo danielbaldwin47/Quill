@@ -1223,46 +1223,81 @@
         "bar-moved-right"
       ]
     },
-    "chrome": {
-      "_about": "Two bursts on ref/short.md with the chrome on, for the one thing about the stats bar that no still can show: that the bar answered a selection the writer made rather than a selection the harness pinned. The judged `selection` state proves the bar can be drawn that way; this proves it gets there from the keyboard. The caret opens at byte 25, where the passage's second paragraph starts, and the first burst holds Shift+Control+End to the end of the Document — a partial selection on purpose, so the cells under the Selection label are a different set of numbers from the Document's and not the same ones relabelled. It settles at `still`, because a selection takes the caret off the page entirely (ADR 0014). The second burst presses Control+Home, which clears the selection without editing a byte: the caret comes back, so it settles at `caret`, and the bar is the Document's again. `stats-bar-accent` is asserted after both, true then false, and `stats-bar-changed` across the pair, which is the assertion that the bar did not simply sit there. The chrome is on, where the caret Piece's script has it off, because the bar is the whole subject here.",
-      "state": {
-        "text": "ref/short.md",
-        "caret": 25,
-        "chrome": "on"
-      },
-      "bursts": [
-        {
-          "name": "select-to-end",
-          "chars": 0,
-          "keys": [
-            {
-              "press": "Shift+Control+End"
-            }
-          ],
-          "settle": "still",
-          "accent": true,
-          "assert": [
-            "stats-bar-accent"
-          ]
+    "chrome": [
+      {
+        "_about": "Two bursts on ref/short.md with the chrome on, for the one thing about the stats bar that no still can show: that the bar answered a selection the writer made rather than a selection the harness pinned. The judged `selection` state proves the bar can be drawn that way; this proves it gets there from the keyboard. The caret opens at byte 25, where the passage's second paragraph starts, and the first burst holds Shift+Control+End to the end of the Document — a partial selection on purpose, so the cells under the Selection label are a different set of numbers from the Document's and not the same ones relabelled. It settles at `still`, because a selection takes the caret off the page entirely (ADR 0014). The second burst presses Control+Home, which clears the selection without editing a byte: the caret comes back, so it settles at `caret`, and the bar is the Document's again. `stats-bar-accent` is asserted after both, true then false, and `stats-bar-changed` across the pair, which is the assertion that the bar did not simply sit there. The chrome is on, where the caret Piece's script has it off, because the bar is the whole subject here.",
+        "state": {
+          "text": "ref/short.md",
+          "caret": 25,
+          "chrome": "on"
         },
-        {
-          "name": "clear",
-          "chars": 0,
-          "keys": [
-            {
-              "press": "Control+Home"
-            }
-          ],
-          "accent": false,
-          "assert": [
-            "stats-bar-accent"
-          ]
-        }
-      ],
-      "between": [
-        "stats-bar-changed"
-      ]
-    },
+        "bursts": [
+          {
+            "name": "select-to-end",
+            "chars": 0,
+            "keys": [
+              {
+                "press": "Shift+Control+End"
+              }
+            ],
+            "settle": "still",
+            "accent": true,
+            "assert": [
+              "stats-bar-accent"
+            ]
+          },
+          {
+            "name": "clear",
+            "chars": 0,
+            "keys": [
+              {
+                "press": "Control+Home"
+              }
+            ],
+            "accent": false,
+            "assert": [
+              "stats-bar-accent"
+            ]
+          }
+        ],
+        "between": [
+          "stats-bar-changed"
+        ]
+      },
+      {
+        "_about": "The Palette's settings rows (#467), for the one thing about them a still cannot show: that Enter on a settings row operates its control and leaves the Palette up, where Enter on a Command runs it and closes. The Palette is opened by `--menu palette` on an empty Document with the bars off, so that every column it does not cover is paper and `palette-up` finds the panel against that paper alone. The first burst types `ask`, which lists no Command and one settings row, Always ask where to save, a switch — so it is the selected row. The second types a newline, which is Enter: the injector presses no bare Enter (a named key needs a modifier), and a newline inside `text` is the keyboard's Return. `palette-up` is asked after both, and `switch-flipped` across the pair: the widest run of columns that changed is a switch's width, not the Palette's, and the knob in it travelled. `settings` names the file the launch opens on, copied fresh for the run, so the flip is written to the copy and never to the writer's `settings.toml`. Enter on the Settings window's search is Hand test step 9: `gate keys` shoots the main toplevel only.",
+        "state": {
+          "text": null,
+          "caret": 0,
+          "chrome": "off",
+          "menu": "palette",
+          "settings": "tools/keys-fixture/settings.toml"
+        },
+        "bursts": [
+          {
+            "name": "palette-query",
+            "text": "ask",
+            "chars": 3,
+            "settle": "still",
+            "assert": [
+              "palette-up"
+            ]
+          },
+          {
+            "name": "palette-enter",
+            "text": "\n",
+            "chars": 4,
+            "settle": "still",
+            "assert": [
+              "palette-up"
+            ]
+          }
+        ],
+        "between": [
+          "switch-flipped"
+        ]
+      }
+    ],
     "spell": {
       "_about": "Two bursts on ref/spell.md under --spell on, for the one Spell check rule a still cannot show: the caret rule. The caret opens at byte 257, the end of the passage before its trailing newline, so what is typed joins the last paragraph. The first burst types ` comittee` as characters — the space is a character in the text rather than the named key, because a bare named key cannot be pressed without a modifier — and leaves the caret after the misspelling with a word character before it, so the Editor withholds that word’s mark: `spell-mark` with `mark: false`. The second types one space, which releases it: `spell-mark` with `mark: true`. The rule looks only under the word the bar stands after, never its whole row, because the row is the wrapped paragraph and holds `accomodate` to its left. The chrome is off, as the caret Piece’s script has it, so no fade is waited out inside the caret’s idle hold. The fixture dictionary every launch reads (ref/spell/) holds `committee`, so `comittee` is a misspelling there and not on the machine’s word.",
       "state": {

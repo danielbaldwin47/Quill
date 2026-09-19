@@ -657,6 +657,161 @@ export function judgeStatsBarChanged(before, after, { colours, scale } = {}) {
   };
 }
 
+// ---------- a switch in the Palette's settings rows, flipped by Enter ----------
+
+// How far a pixel's lightness may stand from the page's paper and still be paper. The Palette's
+// panel is `#f2f2f2` over a `#f7f7f7` page on the light ground, five apart, so three tells the one
+// from the other and no rasterisation of a flat page reaches it.
+const PANEL_FROM_PAPER = 3;
+
+// A column is the panel's when this share of the window's height, or more, stands off the paper in
+// it, and the panel is found when a run of such columns spans this share of the window's width.
+// The Palette on one settings row is about 480 logical px of a 1440 window, its shadow in, and 100
+// tall of 900; an empty page's caret is three columns of a line's height, and nothing else on a
+// bare page stands off its paper at all.
+const PANEL_TALL = 0.05;
+const PANEL_WIDE = 0.25;
+
+// A switch, in logical px: the smallest and largest run of columns that may have changed between
+// the two shots for the change to be a switch's. The Palette's track is 34 wide, all of it changed
+// by a flip once the knob's two ends are joined (`SWITCH_GAP`); the field's caret, which blinks
+// between any two shots of an open Palette, is under 2; a Palette that closed is about 480.
+const SWITCH_LEAST = 16;
+const SWITCH_MOST = 120;
+
+// Two runs of changed columns this close, in logical px, are one switch: the knob leaves one end
+// of the track and arrives at the other, and the track between the two stands the same in both
+// shots on a selected row, so a flip changes two runs a knob's width apart and not one.
+const SWITCH_GAP = 24;
+
+// How much of a pixel's channel may move before it counts as changed between the two shots.
+const SWITCH_CHANGED = 8;
+
+// The knob is the white disc on the track, whichever side it stands: nothing else inside a
+// switch's columns is this light, the panel being `#f2f2f2` and a selected row the accent.
+const KNOB_LUM = 252;
+
+// How far the knob's centre must travel, as a share of the switch's width, for it to have moved.
+// A flip carries it most of the track's length; a focus ring drawn round an unmoved switch moves
+// no white at all.
+const KNOB_TRAVEL = 0.25;
+
+function rgbAt(png, x, y) {
+  const i = (y * png.w + x) * png.ch;
+  return [png.data[i], png.data[i + 1], png.data[i + 2]];
+}
+
+/// After the burst, the Palette's panel stands on the page.
+///
+/// Read against the page's own paper, taken at the window's bottom-left corner, which is why the
+/// script that asks this opens an empty Document with the bars off: every column the panel does not
+/// cover is then paper from top to bottom. A run of columns standing off that paper for a tenth of
+/// the window's height, a quarter of its width across, is the panel; a page the Palette closed on
+/// has none.
+export function judgePaletteUp(png) {
+  const paper = pixel(png, 2, png.h - 3).lum;
+  const tall = Math.round(png.h * PANEL_TALL);
+  let best = { left: 0, width: 0 };
+  let run = null;
+  for (let x = 0; x < png.w; x += 1) {
+    let off = 0;
+    for (let y = 0; y < png.h && off < tall; y += 1) {
+      if (Math.abs(pixel(png, x, y).lum - paper) >= PANEL_FROM_PAPER) off += 1;
+    }
+    if (off >= tall) {
+      if (!run) run = { left: x, width: 0 };
+      run.width += 1;
+      if (run.width > best.width) best = { ...run };
+    } else {
+      run = null;
+    }
+  }
+  const wide = Math.round(png.w * PANEL_WIDE);
+  return {
+    pass: best.width >= wide,
+    panel: best,
+    said: best.width
+      ? `the widest run of columns standing off the paper is ${best.width} px from x ${best.left}, `
+        + `expected ${wide} or more`
+      : `nothing stands off the paper (lightness ${paper.toFixed(0)}) for ${tall} px of a column`,
+  };
+}
+
+/// Between the bursts, one switch flipped and nothing the size of the Palette went.
+///
+/// The two shots are compared column by column. The widest run of changed columns is the switch
+/// when it is a switch's width — a Palette that closed on Enter changes a run its whole width
+/// across, and Enter that flipped nothing leaves only the field's blinking caret — and within that
+/// run the knob, the lightest thing there, has to have travelled a quarter of the run's width or
+/// more, either way, since which way it goes is the settings file's and not the Palette's.
+export function judgeSwitchFlipped(before, after, { scale = SCALE } = {}) {
+  if (before.w !== after.w || before.h !== after.h) {
+    return { pass: false, said: `the shots are ${before.w}x${before.h} and ${after.w}x${after.h}` };
+  }
+  const { w, h } = before;
+  const changedAt = (x, y) => {
+    const a = rgbAt(before, x, y);
+    const b = rgbAt(after, x, y);
+    return a.some((v, c) => Math.abs(v - b[c]) >= SWITCH_CHANGED);
+  };
+  const columns = [];
+  for (let x = 0; x < w; x += 1) {
+    let top = -1;
+    let bottom = -1;
+    for (let y = 0; y < h; y += 1) {
+      if (!changedAt(x, y)) continue;
+      if (top < 0) top = y;
+      bottom = y;
+    }
+    if (top >= 0) columns.push({ x, top, bottom });
+  }
+  if (!columns.length) return { pass: false, said: 'the two shots are the same pixels: nothing moved' };
+  const runs = [];
+  for (const col of columns) {
+    const last = runs[runs.length - 1];
+    if (last && col.x - last.right <= SWITCH_GAP * scale) {
+      last.right = col.x;
+      last.top = Math.min(last.top, col.top);
+      last.bottom = Math.max(last.bottom, col.bottom);
+    } else {
+      runs.push({ left: col.x, right: col.x, top: col.top, bottom: col.bottom });
+    }
+  }
+  const run = runs.reduce((a, b) => (b.right - b.left > a.right - a.left ? b : a));
+  const width = run.right - run.left + 1;
+  const where = `the widest change is ${width} px from x ${run.left}, y ${run.top}..${run.bottom}`;
+  if (width < SWITCH_LEAST * scale) {
+    return { pass: false, said: `${where}, narrower than a switch (${SWITCH_LEAST * scale} px): no switch flipped` };
+  }
+  if (width > SWITCH_MOST * scale) {
+    return { pass: false, said: `${where}, wider than a switch (${SWITCH_MOST * scale} px): more than a switch changed` };
+  }
+  const knob = (png) => {
+    let sum = 0;
+    let n = 0;
+    for (let y = run.top; y <= run.bottom; y += 1) {
+      for (let x = run.left; x <= run.right; x += 1) {
+        if (pixel(png, x, y).lum >= KNOB_LUM) {
+          sum += x;
+          n += 1;
+        }
+      }
+    }
+    return n ? sum / n : null;
+  };
+  const from = knob(before);
+  const to = knob(after);
+  if (from === null || to === null) {
+    return { pass: false, said: `${where}, and no knob stands in it ${from === null ? 'before' : 'after'}` };
+  }
+  const travel = Math.abs(to - from);
+  return {
+    pass: travel >= width * KNOB_TRAVEL,
+    said: `${where}; the knob's centre went from x ${from.toFixed(0)} to ${to.toFixed(0)}, `
+      + `${travel.toFixed(0)} px where ${(width * KNOB_TRAVEL).toFixed(0)} is a flip`,
+  };
+}
+
 // ---------- the Spell check mark, under the word the caret stands after ----------
 
 /// `Role::Spell` on the two grounds, as `quill-engine/src/theme.rs` pins it:
@@ -797,6 +952,7 @@ export const AFTER_BURST = {
   'selection-newline-to-edge': judgeSelectionNewline,
   'stats-bar-accent': judgeStatsBarAccent,
   'spell-mark': judgeSpellMark,
+  'palette-up': judgePaletteUp,
 };
 
 /// The between-bursts assertions, each with what it reads.
@@ -809,6 +965,7 @@ export const AFTER_BURST = {
 export const BETWEEN_BURSTS = {
   'bar-moved-right': { judge: judgeMove, reads: 'bar' },
   'stats-bar-changed': { judge: judgeStatsBarChanged, reads: 'page' },
+  'switch-flipped': { judge: judgeSwitchFlipped, reads: 'page' },
 };
 
 /// How a burst's shot is waited for, by the name a burst may say in `settle`.
@@ -833,6 +990,16 @@ export const STATES = 'shots/oracle/states.json';
 /// Pure, and here rather than in `keys.mjs`, so that the selftest can hold the scripts to their
 /// shape without importing the half that opens a window.
 export function resolveScript(states, piece) {
+  return resolveScripts(states, piece)[0];
+}
+
+/// Every script a Piece carries, in the order they run, each resolved as [`resolveScript`] says.
+///
+/// A Piece's entry is one script or a list of them. A list is for two conditions that want two
+/// launches: `chrome`'s stats-bar script opens on `ref/short.md` with the bars on, and its Palette
+/// script on an empty page with the Palette up, and a `between` rule is asked of every pair in its
+/// own script, so the two could not share one run without comparing a stats bar with a Palette.
+export function resolveScripts(states, piece) {
   const scripts = states.keys || {};
   // `_about` and its kind are prose for whoever opens the file, not Pieces.
   const named = Object.keys(scripts).filter((k) => !k.startsWith('_'));
@@ -840,7 +1007,11 @@ export function resolveScript(states, piece) {
     throw new Error(`no keys script for ${piece}`
       + `${named.length ? ` (${STATES} names ${named.join(', ')})` : ''}`);
   }
-  const script = scripts[piece];
+  const entry = scripts[piece];
+  return (Array.isArray(entry) ? entry : [entry]).map((script) => resolveOne(states, piece, script));
+}
+
+function resolveOne(states, piece, script) {
   const bursts = script.bursts || [];
   if (!bursts.length) throw new Error(`no keys script for ${piece}`);
 

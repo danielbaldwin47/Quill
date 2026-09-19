@@ -25,8 +25,9 @@ import { fileURLToPath } from 'node:url';
 import {
   AFTER_BURST, BETWEEN_BURSTS, CHROMA, INK_DARK, PAPER, PAPER_DARK, PAPER_MARGIN, SPELL, SPELL_DARK,
   decodePng, glyphAdvance, judgeBurst, judgeMove, judgeSelectionFill, judgeSelectionNewline,
-  judgeSelectionRows, judgeSpellMark, judgeStatsBarAccent, judgeStatsBarChanged, leansBlue, lum,
-  pixel, readBar, readSelectionRows, readStatsBand, resolveScript,
+  judgePaletteUp, judgeSelectionRows, judgeSpellMark, judgeStatsBarAccent, judgeStatsBarChanged,
+  judgeSwitchFlipped, leansBlue, lum, pixel, readBar, readSelectionRows, readStatsBand,
+  resolveScript, resolveScripts,
 } from './keys-assert.mjs';
 
 // Whether the pixel at (x, y) is something other than the paper the bar is drawn on. The rule is
@@ -713,6 +714,58 @@ ok('the spell script types the misspelling as characters, then the space that re
   const words = fs.readFileSync(path.join(ROOT, 'ref/spell/hunspell/en_US.dic'), 'utf8').split('\n');
   assert.ok(words.includes('committee'));
   assert.ok(!words.includes('comittee'));
+});
+
+// ---------- Enter on a Palette settings row (#479) ----------
+//
+// `palette-query` and `palette-enter` are one run of `tools/gate keys chrome --shots`, the
+// Palette script's two bursts; `palette-closed` is `palette-query` with the panel and its shadow
+// painted over in the page's own paper, which is the page a Palette that closed on Enter leaves
+// (tools/keys-fixture/README.md § Enter on a Palette settings row).
+
+ok('chrome carries two scripts, the Palette one on a copy of a committed settings file', () => {
+  const [bars, palette] = resolveScripts(states, 'chrome');
+  assert.equal(bars.flags.text, 'ref/short.md');
+  assert.equal(palette.flags.menu, 'palette');
+  assert.equal(palette.flags.chrome, 'off');
+  assert.equal(palette.flags.text, null);
+  assert.deepEqual(palette.bursts.map((b) => b.text), ['ask', '\n']);
+  assert.deepEqual(palette.between, ['switch-flipped']);
+  assert.equal(AFTER_BURST['palette-up'], judgePaletteUp);
+  assert.equal(BETWEEN_BURSTS['switch-flipped'].judge, judgeSwitchFlipped);
+  assert.equal(BETWEEN_BURSTS['switch-flipped'].reads, 'page');
+  assert.match(fs.readFileSync(path.join(ROOT, palette.flags.settings), 'utf8'), /ask_where_to_save/);
+  // The single-script form still answers for the Piece's first.
+  assert.equal(resolveScript(states, 'chrome').flags.text, 'ref/short.md');
+});
+
+ok('the Palette stands on the page before and after Enter', () => {
+  for (const name of ['palette-query', 'palette-enter']) {
+    const v = judgePaletteUp(shot(name));
+    assert.equal(v.pass, true, `${name}: ${v.said}`);
+  }
+});
+
+ok('a page the Palette closed on has no panel on it', () => {
+  const v = judgePaletteUp(shot('palette-closed'));
+  assert.equal(v.pass, false, v.said);
+});
+
+ok('Enter flipped the switch: the knob crossed the track and nothing wider changed', () => {
+  const v = judgeSwitchFlipped(shot('palette-query'), shot('palette-enter'), { scale: 2 });
+  assert.equal(v.pass, true, v.said);
+});
+
+ok('a knob that did not move is red', () => {
+  const v = judgeSwitchFlipped(shot('palette-query'), shot('palette-query'), { scale: 2 });
+  assert.equal(v.pass, false, v.said);
+  assert.match(v.said, /nothing moved/);
+});
+
+ok('a Palette gone after Enter is red, both after the burst and across the pair', () => {
+  const v = judgeSwitchFlipped(shot('palette-query'), shot('palette-closed'), { scale: 2 });
+  assert.equal(v.pass, false, v.said);
+  assert.match(v.said, /wider than a switch/);
 });
 
 if (failures === 0) {
