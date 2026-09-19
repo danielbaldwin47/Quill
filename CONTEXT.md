@@ -110,7 +110,7 @@ One named thing Quill can do (`focus.toggle`, `file.save`); its id is how the me
 _Avoid_: action (GTK's term), function
 
 **Palette**:
-The searchable list of every Command, opened from the View menu; the way to a Command that has no shortcut.
+The searchable list of every Command and every setting, opened from the View menu; the way to a Command that has no shortcut, and to a setting with its live control in the row. A setting's other home is its Settings pane (written so, since a bare pane is the Library's or the Preview's).
 _Avoid_: command palette, launcher, quick open
 
 **Shortcut**:

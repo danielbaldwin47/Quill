@@ -1,0 +1,95 @@
+{
+  "piece": "settings",
+  "round": 2,
+  "winner": "ours",
+  "margin": "asserted",
+  "gap": "the window is #eaebeb beside #f7f7f7, x 740..2139, y 380..1419 of a 2880x1800 window; the sidebar selects row 0 of 5, and the pane carries 0 heads and 4 rows with a control",
+  "gapTheirs": "no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)",
+  "verdict": "the window is #eaebeb beside #f7f7f7, x 740..2139, y 380..1419 of a 2880x1800 window; the sidebar selects row 0 of 5, and the pane carries 0 heads and 4 rows with a control",
+  "oursShot": "shots/settings/r2-general-ours.png",
+  "theirsShot": null,
+  "refSource": "no opponent for general (settings), export (settings), library (settings) — measured off ours' own pixels by tools/assert-state.mjs, because neither oracle holds the state (ADR 0017)",
+  "builderNote": "",
+  "secondary": [
+    "the sidebar selects row 0 of 5, and the pane carries 0 heads and 4 rows with a control",
+    "the selected row is the sidebar row drawn on a fill, a head is a pane band short of the control column, and a control row one reaching into it"
+  ],
+  "opponent": "asserted",
+  "build": {
+    "git": "092c9f2",
+    "binary": "080a99309953d5d6",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "general",
+      "ours": "shots/settings/r2-general-ours.png",
+      "theirs": null,
+      "lit": "shots/settings/r2-general-ours-lit.png",
+      "assert": {
+        "kind": "settings",
+        "pane": 0,
+        "heads": 0,
+        "controls": 4,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "the window is #eaebeb beside #f7f7f7, x 740..2139, y 380..1419 of a 2880x1800 window; the sidebar selects row 0 of 5, and the pane carries 0 heads and 4 rows with a control",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)",
+      "verdict": "the window is #eaebeb beside #f7f7f7, x 740..2139, y 380..1419 of a 2880x1800 window; the sidebar selects row 0 of 5, and the pane carries 0 heads and 4 rows with a control",
+      "secondary": [
+        "the sidebar selects row 0 of 5, and the pane carries 0 heads and 4 rows with a control",
+        "the selected row is the sidebar row drawn on a fill, a head is a pane band short of the control column, and a control row one reaching into it"
+      ]
+    },
+    {
+      "name": "export",
+      "ours": "shots/settings/r2-export-ours.png",
+      "theirs": null,
+      "lit": "shots/settings/r2-export-ours-lit.png",
+      "assert": {
+        "kind": "settings",
+        "pane": 3,
+        "heads": 0,
+        "controls": 6,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "the window is #141615 beside #1a1a1a, x 740..2139, y 380..1419 of a 2880x1800 window; the sidebar selects row 3 of 5, and the pane carries 0 heads and 6 rows with a control",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)",
+      "verdict": "the window is #141615 beside #1a1a1a, x 740..2139, y 380..1419 of a 2880x1800 window; the sidebar selects row 3 of 5, and the pane carries 0 heads and 6 rows with a control",
+      "secondary": [
+        "the sidebar selects row 3 of 5, and the pane carries 0 heads and 6 rows with a control",
+        "the selected row is the sidebar row drawn on a fill, a head is a pane band short of the control column, and a control row one reaching into it"
+      ]
+    },
+    {
+      "name": "library",
+      "ours": "shots/settings/r2-library-ours.png",
+      "theirs": null,
+      "lit": "shots/settings/r2-library-ours-lit.png",
+      "assert": {
+        "kind": "settings",
+        "pane": 1,
+        "heads": 3,
+        "controls": 6,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "the window is #eaebeb beside #f7f7f7, x 740..2139, y 380..1419 of a 2880x1800 window; the sidebar selects row 1 of 5, and the pane carries 3 heads and 6 rows with a control",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)",
+      "verdict": "the window is #eaebeb beside #f7f7f7, x 740..2139, y 380..1419 of a 2880x1800 window; the sidebar selects row 1 of 5, and the pane carries 3 heads and 6 rows with a control",
+      "secondary": [
+        "the sidebar selects row 1 of 5, and the pane carries 3 heads and 6 rows with a control",
+        "the selected row is the sidebar row drawn on a fill, a head is a pane band short of the control column, and a control row one reaching into it"
+      ]
+    }
+  ],
+  "at": "2026-09-19T03:50:41.515Z"
+}
