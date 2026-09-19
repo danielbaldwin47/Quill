@@ -1745,6 +1745,9 @@ fn reread(app: Option<&gtk::Application>, session: &Rc<Session>) {
         // is running on and they stay, and so does what the last good read
         // refused; the writer hears what happened once.
         session.warn_unread();
+        if let Some(app) = app {
+            crate::chrome::reflect_windows(app);
+        }
         return;
     };
     let moved = session.apply(settings);
@@ -1756,8 +1759,13 @@ fn reread(app: Option<&gtk::Application>, session: &Rc<Session>) {
         None => session.settings().shortcuts().refusals,
     };
     session.warn(refusals);
-    if let Some(app) = app.filter(|_| moved) {
-        crate::window::reapply(app, session);
+    // A read that moved nothing may still have refused a line, which an open
+    // Settings window shows: its rows are stood again either way, as
+    // `reapply` ends by doing.
+    match app {
+        Some(app) if moved => crate::window::reapply(app, session),
+        Some(app) => crate::chrome::reflect_windows(app),
+        None => {}
     }
 }
 
