@@ -77,7 +77,8 @@ const DARK: Skin = Skin {
 };
 
 /// The checks' tick: GTK's own resource, as the menus' is, recoloured white.
-const TICK: &str = "resource:///org/gtk/libgtk/theme/Default/assets/check-symbolic.svg";
+/// The dropdowns' popups tick their row with it too.
+pub(super) const TICK: &str = "resource:///org/gtk/libgtk/theme/Default/assets/check-symbolic.svg";
 
 /// The chevron's file under the data directory.
 const CHEVRON: &str = "chevron-symbolic.svg";
@@ -105,7 +106,10 @@ window.settings entry.search {
 }
 window.settings entry.search:focus-within { border-color: @accent@; }
 window.settings entry.search > image { -gtk-icon-size: 12px; color: @dim@; margin: 0 4px 0 0; }
+window.settings entry.search > image.right { margin: 0; }
+window.settings entry.search > text { margin-left: 17px; }
 window.settings entry.search > text > placeholder { color: @dim@; }
+window.settings .settings-mag { color: @dim@; }
 
 window.settings list.settings-nav { background: none; }
 window.settings list.settings-nav > row {
