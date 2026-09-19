@@ -891,7 +891,7 @@ fn key_label(command: &Command) -> Option<String> {
 }
 
 /// The magnifier (`chrome.js` `MAG`): a circle and a handle, stroked 1.4.
-fn magnifier_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
+pub(crate) fn magnifier_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
     chrome::source(area, cr, 1.0);
     cr.set_line_width(1.4);
     cr.set_line_cap(cairo::LineCap::Round);
