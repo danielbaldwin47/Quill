@@ -43,7 +43,7 @@ use crate::session::{Session, TemplateToggle};
 
 mod sheet;
 
-pub(crate) use sheet::stylesheet;
+pub(crate) use sheet::{controls, stylesheet};
 
 /// How near the top and the bottom of the window the Typewriter anchor may be
 /// dragged. The setting itself takes any fraction (`docs/architecture.md`

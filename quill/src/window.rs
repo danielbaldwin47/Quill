@@ -2969,7 +2969,11 @@ impl Window {
     pub(crate) fn open_palette(&self) {
         self.bring_bars_back();
         self.imp().bars.close_menus();
-        self.palette().toggle(self.upcast_ref(), self.modes());
+        let hand = self.session().map(|session| crate::palette::Hand {
+            session,
+            spelling: self.imp().editor.spell_resolution(),
+        });
+        self.palette().toggle(self.upcast_ref(), self.modes(), hand);
     }
 
     /// `file.recent`: the Palette over the page on this writer's recent
@@ -3043,6 +3047,19 @@ impl Window {
     /// Opens the Settings window over this one: `settings.open`, `Ctrl+,` and
     /// View › Window "Settings…".
     pub(crate) fn open_settings(&self) {
+        self.present_settings(None);
+    }
+
+    /// Opens the Settings window over this one on `pane`, as
+    /// [`Window::open_settings`] does: a jump row of the Palette's settings
+    /// group (#467).
+    pub(crate) fn open_settings_on(&self, pane: quill_engine::palette::Pane) {
+        self.present_settings(Some(pane));
+    }
+
+    /// Opens the Settings window over this one, on `pane` or on the pane last
+    /// shown; a window already open is presented as it stands.
+    fn present_settings(&self, pane: Option<quill_engine::palette::Pane>) {
         let Some(session) = self.session() else {
             return;
         };
@@ -3056,11 +3073,13 @@ impl Window {
             standing.present();
             return;
         }
-        let open = crate::settings::open(
-            self.upcast_ref(),
-            &session,
-            self.imp().editor.spell_resolution().as_ref(),
-        );
+        let spelling = self.imp().editor.spell_resolution();
+        let open = match pane {
+            Some(pane) => {
+                crate::settings::open_on(self.upcast_ref(), &session, spelling.as_ref(), pane)
+            }
+            None => crate::settings::open(self.upcast_ref(), &session, spelling.as_ref()),
+        };
         self.imp().settings.replace(Some(open));
     }
 

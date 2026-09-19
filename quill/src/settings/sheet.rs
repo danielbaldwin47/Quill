@@ -266,6 +266,29 @@ pub(crate) fn stylesheet(scheme: Scheme) -> String {
     sheet
 }
 
+/// The window's rules for its controls alone — the switch, the spin button,
+/// the scale, the dropdown and its popup, the buttons and the checks — scoped
+/// to `scope` instead of the window, for the Palette's settings rows, whose
+/// controls are the window's own and must look it (#467).
+///
+/// The window's frame, its sidebar, its rows and its search results are left
+/// behind: a rule is taken when its selector names a control and no
+/// `settings-` class.
+pub(crate) fn controls(scheme: Scheme, scope: &str) -> String {
+    const CONTROLS: [&str; 5] = ["switch", "spinbutton", "scale", "dropdown", " button"];
+    stylesheet(scheme)
+        .split_inclusive("}\n")
+        .map(str::trim_start)
+        .filter(|rule| {
+            let selector = rule.split('{').next().unwrap_or_default();
+            !selector.contains("settings-")
+                && (selector.contains("checkbutton")
+                    || CONTROLS.iter().any(|control| selector.contains(control)))
+        })
+        .map(|rule| rule.replace("window.settings", scope))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
