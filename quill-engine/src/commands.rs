@@ -213,8 +213,11 @@ pub const VIEW_SECTIONS: [&str; 6] = [
     "Writing tools",
     "Typeface",
     "Window",
-    "Quill",
+    VIEW_FOOT,
 ];
+
+/// The View menu's foot, the one section the menu draws with no head.
+pub const VIEW_FOOT: &str = "Quill";
 
 /// Every Command, in the table's order: the Document menu, the View menu
 /// section by section, the Stats menu, then the Palette-only rows.
@@ -275,8 +278,8 @@ pub const COMMANDS: &[Command] = &[
     row("chrome.stats", "Statistics", Scope::Win, Kind::Check, &[], &[ place(VIEW, Some("Window"), "Statistics"), place(STATS, None, "Hide Statistics"), ], true),
     row("window.fullscreen", "Full Screen", Scope::Win, Kind::Check, &["F11"], &[place(VIEW, Some("Window"), "Full Screen")], true),
     // View › Quill, the foot the menu draws with no head.
-    row("settings.open", "Settings…", Scope::Win, Kind::Plain, &["Ctrl+,"], &[place(VIEW, Some("Quill"), "Settings…")], true),
-    row("palette.open", "All Commands…", Scope::Win, Kind::Plain, &["Ctrl+K"], &[place(VIEW, Some("Quill"), "All Commands…")], true),
+    row("settings.open", "Settings…", Scope::Win, Kind::Plain, &["Ctrl+,"], &[place(VIEW, Some(VIEW_FOOT), "Settings…")], true),
+    row("palette.open", "All Commands…", Scope::Win, Kind::Plain, &["Ctrl+K"], &[place(VIEW, Some(VIEW_FOOT), "All Commands…")], true),
     // Stats menu.
     // Six independent checks, not a group: the bar shows every Statistic
     // checked, so several stand at once and unchecking the last leaves an

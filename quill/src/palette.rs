@@ -357,7 +357,7 @@ fn lines(query: &str) -> Vec<Line> {
     }
     let found: Vec<Found> = engine::settings(query)
         .into_iter()
-        .filter(|found| found.setting.command.is_none())
+        .filter(Found::in_palette)
         .collect();
     if !found.is_empty() {
         lines.push(Line::Head(engine::SETTINGS));
@@ -927,36 +927,28 @@ impl Palette {
         let Some(item) = self.selected_item() else {
             return;
         };
-        match (item.enter(), &item) {
-            (Enter::Operate, Item::Setting(_, Some(control))) => {
+        let (action, target) = match (&item, item.enter()) {
+            (Item::Setting(_, Some(control)), Enter::Operate) => {
                 operate(control);
                 return;
             }
-            (Enter::Open, Item::Setting(setting, _)) => {
-                self.close();
-                let pane = setting.pane.name().to_variant();
-                let _ = self
-                    .popover
-                    .activate_action(&format!("win.{SETTINGS_PANE}"), Some(&pane));
-                return;
-            }
-            (Enter::Run, _) => {}
-            _ => return,
-        }
-        let (action, target) = match &item {
-            Item::Command(command) => {
+            (Item::Setting(setting, _), Enter::Open) => (
+                format!("win.{SETTINGS_PANE}"),
+                Some(setting.pane.name().to_variant()),
+            ),
+            (Item::Setting(..), _) => return,
+            (Item::Command(command), _) => {
                 if !command.built {
                     return;
                 }
                 let (action, target) = command.action_and_target();
                 (action, target.map(ToVariant::to_variant))
             }
-            Item::Recent(path) => {
+            (Item::Recent(path), _) => {
                 let target = path.to_string_lossy().into_owned();
                 (format!("win.{RECENT_OPEN}"), Some(target.to_variant()))
             }
-            Item::Heading(start) => (format!("win.{OUTLINE_JUMP}"), Some(start.to_variant())),
-            Item::Setting(..) => return,
+            (Item::Heading(start), _) => (format!("win.{OUTLINE_JUMP}"), Some(start.to_variant())),
         };
         self.close();
         let _ = self.popover.activate_action(&action, target.as_ref());

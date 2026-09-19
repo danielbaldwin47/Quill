@@ -259,12 +259,7 @@ impl Search {
             return;
         };
         self.entry.set_text("");
-        let pane = palette::Pane::ALL
-            .iter()
-            .position(|pane| *pane == setting.pane)
-            .and_then(|at| i32::try_from(at).ok())
-            .and_then(|at| self.nav.row_at_index(at));
-        self.nav.select_row(pane.as_ref());
+        super::select(&self.nav, setting.pane);
         light(&place.scroller, &place.block);
     }
 

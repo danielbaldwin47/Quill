@@ -179,7 +179,7 @@ impl Open {
 
     /// Stands every row whose control no longer shows what `settings` holds
     /// on the value it holds, writing nothing ([`QUIET`]): `Ctrl+Shift+H`, a
-    /// Template picked from the menu or a hand's edit of the file reaching
+    /// Template picked from the Palette or a hand's edit of the file reaching
     /// the window. A row that already shows it — the echo of the window's own
     /// write, a drag on the anchor among them — is not touched, so the pane,
     /// its scroll and the focus stay where they are.
@@ -709,7 +709,7 @@ fn field() -> (gtk::Overlay, gtk::Entry) {
         .max_width_chars(FIELD_CHARS)
         .css_classes(["search"])
         .build();
-    let clear = quill_icon("clear-symbolic.svg");
+    let clear = quill_icon(quill_engine::data::CLEAR);
     entry.connect_changed(move |entry| {
         let gone = entry.text().is_empty();
         entry.set_secondary_icon_gicon((!gone).then_some(&clear));
@@ -853,13 +853,16 @@ fn stand_language(
     if language.selected() != selected {
         language.set_selected(selected);
     }
-    show_unserved(
-        said,
-        match spelling {
-            Some(Resolved::Missing { wanted }) => Some(wanted.clone()),
-            _ => None,
-        },
-    );
+    show_unserved(said, missing(spelling));
+}
+
+/// The language `spelling` wanted and found no dictionary for, if that is
+/// what it resolved to.
+fn missing(spelling: Option<&Resolved>) -> Option<String> {
+    match spelling {
+        Some(Resolved::Missing { wanted }) => Some(wanted.clone()),
+        _ => None,
+    }
 }
 
 /// The "no dictionary" line under the language row, shown only while it
@@ -879,13 +882,7 @@ fn language_line(
         .wrap(true)
         .css_classes(["settings-hint"])
         .build();
-    show_unserved(
-        &said,
-        match spelling {
-            Some(Resolved::Missing { wanted }) => Some(wanted.clone()),
-            _ => None,
-        },
-    );
+    show_unserved(&said, missing(spelling));
     let installed = quill_engine::spell::installed_languages();
     language.connect_selected_notify(glib::clone!(
         #[strong]
@@ -1183,9 +1180,9 @@ fn export_spin(
     while let Some(widget) = child {
         if let Some(button) = widget.downcast_ref::<gtk::Button>() {
             let glyph = if button.has_css_class("down") {
-                "minus-symbolic.svg"
+                quill_engine::data::MINUS
             } else {
-                "plus-symbolic.svg"
+                quill_engine::data::PLUS
             };
             button.set_child(Some(&gtk::Image::from_gicon(&quill_icon(glyph))));
         }
@@ -1530,10 +1527,10 @@ mod tests {
     }
 
     /// The panes are the table's: five in the sidebar's order, each holding
-    /// its rows in the table's order, and none of the rows the View menu
-    /// holds now.
+    /// its rows in the table's order (the engine's table test holds the rows
+    /// to none the View menu holds).
     #[test]
-    fn the_panes_are_the_tables_rows_and_hold_nothing_the_menus_do() {
+    fn the_panes_are_the_tables_rows() {
         let labels = |pane| {
             rows_of(pane)
                 .map(|setting| setting.label)
@@ -1591,17 +1588,6 @@ mod tests {
             labels(Pane::Advanced),
             ["Edit settings.toml…", "Not applied from settings.toml"]
         );
-        for setting in SETTINGS_ROWS {
-            let key = setting.key.unwrap_or_default();
-            assert!(
-                !key.starts_with("preview")
-                    && !key.starts_with("syntax_highlight")
-                    && !key.starts_with("style_check")
-                    && key != "spell_check",
-                "{} is the menus' now",
-                setting.label
-            );
-        }
         // Every head stands over a row the table has.
         let heads: Vec<_> = SETTINGS_ROWS.iter().filter_map(head).collect();
         assert_eq!(
@@ -1626,14 +1612,13 @@ mod tests {
         let switches = SETTINGS_ROWS
             .iter()
             .filter(|setting| setting.control == Control::Switch);
-        let mut built = 0;
+        let mut unbuilt = Vec::new();
         for setting in switches {
             let key = setting.key.unwrap();
             let Some((read, write)) = toggle(key) else {
-                assert!(matches!(key, "theme" | "chrome"), "{key} has no switch");
+                unbuilt.push(key);
                 continue;
             };
-            built += 1;
             for on in [true, false] {
                 let mut settings = session.settings().clone();
                 write(&mut settings, on);
@@ -1642,7 +1627,7 @@ mod tests {
                 assert_eq!(read(&session.running()), on, "{key}");
             }
         }
-        assert_eq!(built, 10);
+        assert_eq!(unbuilt, ["theme", "chrome"], "every other switch is built");
         std::fs::remove_file(path).ok();
     }
 

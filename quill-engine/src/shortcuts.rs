@@ -778,7 +778,7 @@ mod tests {
         );
         assert_eq!(
             view.groups.last().and_then(|group| group.title),
-            Some("Quill")
+            Some(commands::VIEW_FOOT)
         );
         // The Commands that left the View menu (#467) are listed with no menu.
         let keyboard_only = labelled(&sections[3..]);
