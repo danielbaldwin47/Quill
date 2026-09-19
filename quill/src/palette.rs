@@ -228,8 +228,8 @@ pub fn stylesheet(scheme: Scheme) -> String {
          popover.chrome-palette list > row:selected, popover.chrome-palette list > row:selected:hover {{\n\
          \x20 background-color: {selected};\n\
          }}\n\
-         popover.chrome-palette list > row:selected label {{ color: white; }}\n\
-         popover.chrome-palette list > row:selected label.palette-keys {{ color: rgba(255, 255, 255, 0.82); }}\n\
+         popover.chrome-palette list > row:selected > label, popover.chrome-palette list > row:selected > box > label {{ color: white; }}\n\
+         popover.chrome-palette list > row:selected > box > label.palette-keys {{ color: rgba(255, 255, 255, 0.82); }}\n\
          popover.chrome-palette label.palette-keys {{ {keys} }}\n\
          popover.chrome-palette list > row.palette-head {{\n\
          \x20 min-height: 0; margin: 0; padding: {head_top}px {head_x}px {head_bottom}px; border-radius: 0;\n\
@@ -242,8 +242,8 @@ pub fn stylesheet(scheme: Scheme) -> String {
          {controls}\
          popover.chrome-palette list > row.palette-setting {{ min-height: {setting_height}px; }}\n\
          popover.chrome-palette list > row.palette-setting label.palette-pane {{ color: {dim}; }}\n\
-         popover.chrome-palette list > row:selected label.palette-pane {{ color: rgba(255, 255, 255, 0.82); }}\n\
-         popover.chrome-palette list > row:selected button label {{ color: {ink}; }}\n\
+         popover.chrome-palette list > row:selected > box > label.palette-pane {{ color: rgba(255, 255, 255, 0.82); }}\n\
+         popover.chrome-palette list > row:selected scale > value {{ color: rgba(255, 255, 255, 0.82); }}\n\
          popover.chrome-palette list > row:selected switch {{ background: rgba(255, 255, 255, 0.35); }}\n"
     )
 }
@@ -843,14 +843,15 @@ impl Palette {
                 if !control.is::<gtk::SpinButton>() && !control.is::<gtk::Scale>() {
                     control.set_focus_on_click(false);
                 }
-                if let Some(drop_down) = control.downcast_ref::<gtk::DropDown>() {
-                    let picked = self.entry.clone();
-                    drop_down.connect_selected_notify(move |_| {
-                        let picked = picked.clone();
-                        // After the popup has put the keyboard back on its
-                        // button, which it does as it closes.
+                if let Some(popup) = control.downcast_ref::<gtk::DropDown>().and_then(popup_of) {
+                    let back = self.entry.clone();
+                    // A pick or an Esc closes the popup and puts the keyboard
+                    // back on the dropdown's button; it goes to the field
+                    // once the popup has done so.
+                    popup.connect_closed(move |_| {
+                        let back = back.clone();
                         glib::idle_add_local_once(move || {
-                            picked.grab_focus_without_selecting();
+                            back.grab_focus_without_selecting();
                         });
                     });
                 }
@@ -985,16 +986,21 @@ fn operate(control: &gtk::Widget) {
     }
 }
 
-/// Whether `drop_down`'s popup is up: a visible popover among its children.
+/// Whether `drop_down`'s popup is up.
 fn has_popup_up(drop_down: &gtk::DropDown) -> bool {
+    popup_of(drop_down).is_some_and(|popup| popup.is_visible())
+}
+
+/// `drop_down`'s popup: the popover among its children.
+fn popup_of(drop_down: &gtk::DropDown) -> Option<gtk::Popover> {
     let mut child = drop_down.first_child();
     while let Some(widget) = child {
-        if widget.is::<gtk::Popover>() && widget.is_visible() {
-            return true;
+        if let Ok(popup) = widget.clone().downcast::<gtk::Popover>() {
+            return Some(popup);
         }
         child = widget.next_sibling();
     }
-    false
+    None
 }
 
 /// A section's heading, which is neither selected nor run.
