@@ -199,7 +199,10 @@ condition tests — on a headless output of the Gate's own, takes keyboard focus
 read-back, writes the Piece's scripted bursts through `/dev/uinput` with focus asked again between
 every chunk as `bench` has it, and after each burst reads the Piece's assertions off the pixels. The
 scripts are the `keys` entries of `shots/oracle/states.json`, beside the judged states; most Pieces
-carry none, and a ticket naming one that does runs it. Arithmetic rather than a critic, and no
+carry none, and a ticket naming one that does runs it. An entry may be a list of scripts, each on
+its own launch: `chrome` types the stats bar's and the Palette's, where Enter on a settings row
+flips its switch with the Palette still up, on a fresh copy of the `settings` file the script
+names so the writer's own is never written. Arithmetic rather than a critic, and no
 oracle: it ends in `gate keys <piece>: pass` or
 `gate keys <piece>: fail (<the assertion, measured against what it expected>)`, exit **0** and
 **1**, and **3** with `refused (...)` when nothing was typed or nothing could be read — no script

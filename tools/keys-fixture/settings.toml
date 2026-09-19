@@ -1,0 +1,4 @@
+# The settings file `tools/gate keys chrome` opens its Palette script on, copied fresh for each run
+# so the switch Enter flips is written to the copy and never to this file or the writer's own.
+[library]
+ask_where_to_save = false
