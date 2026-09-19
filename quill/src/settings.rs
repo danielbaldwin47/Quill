@@ -17,6 +17,11 @@
 //! edit of the file takes — so there is one way a setting reaches the page and
 //! not two. What the last read of the file refused is on the Advanced pane,
 //! the one place a writer is shown a refusal without a terminal.
+//!
+//! The window follows the file back: the window that opened it holds it
+//! ([`Open`]), and every pass that puts the settings on to the windows stands
+//! its rows on them again ([`Open::refresh`]), so a key pressed elsewhere or a
+//! hand's edit of the file is what the rows show.
 
 use std::cell::{Cell, RefCell};
 use std::ops::RangeInclusive;
@@ -27,7 +32,9 @@ use gtk::prelude::*;
 use gtk::{gio, glib};
 
 use quill_engine::palette::{Control, Pane, SETTINGS_ROWS, Setting};
-use quill_engine::settings::{Paper, Settings, Theme, export_margins, export_text_sizes};
+use quill_engine::settings::{
+    Choice, Chrome, Paper, Settings, TemplateName, Theme, export_margins, export_text_sizes,
+};
 use quill_engine::spell::Resolved;
 use quill_engine::theme::Scheme;
 
@@ -103,12 +110,25 @@ const FILE_HINT: &str = "Shortcut rebinds and the palette file are set in the fi
 
 /// A switch row's read and write: what it stands on as the window opens, and
 /// what flipping it writes.
-type Toggle = (fn(&Session) -> bool, fn(&mut Settings, bool));
+type Toggle = (fn(&Settings) -> bool, fn(&mut Settings, bool));
 
 thread_local! {
     /// The pane last shown in this process, which the next open shows: held
     /// here and written nowhere, so a relaunch opens on General (#467).
     static LAST: Cell<Pane> = const { Cell::new(Pane::General) };
+
+    /// Whether a refresh is standing the controls on the file's values, which
+    /// is the file moving a control rather than a writer moving it: no row
+    /// writes while it holds ([`put`]).
+    static QUIET: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Puts one row's edit into the file ([`Session::edit_settings`]), unless the
+/// control moved because a refresh stood it on what the file already holds.
+fn put(session: &Session, edit: impl FnOnce(&mut Settings)) {
+    if !QUIET.with(Cell::get) {
+        session.edit_settings(edit);
+    }
 }
 
 /// The pane the next [`open`] shows: the one last shown in this process, and
@@ -120,6 +140,151 @@ pub(crate) fn last_pane() -> Pane {
 /// Takes down that `pane` is the one shown.
 fn showed(pane: Pane) {
     LAST.with(|last| last.set(pane));
+}
+
+/// One row on a pane with a control of its own: the table's setting and the
+/// control that stands on it.
+struct Row {
+    setting: &'static Setting,
+    control: gtk::Widget,
+}
+
+/// An open Settings window and its rows, held by the window that opened it as
+/// that window holds its Export dialog: weakly, so closing it is the end of
+/// it.
+pub(crate) struct Open {
+    window: glib::WeakRef<gtk::Window>,
+    rows: Vec<Row>,
+}
+
+impl Open {
+    /// The window, while it is open.
+    pub(crate) fn window(&self) -> Option<gtk::Window> {
+        self.window.upgrade()
+    }
+
+    /// Stands every row whose control no longer shows what `settings` holds
+    /// on the value it holds, writing nothing ([`QUIET`]): `Ctrl+Shift+H`, a
+    /// Template picked from the menu or a hand's edit of the file reaching
+    /// the window. A row that already shows it — the echo of the window's own
+    /// write, a drag on the anchor among them — is not touched, so the pane,
+    /// its scroll and the focus stay where they are.
+    ///
+    /// `settings` is what the launch is running ([`Session::running`]), the
+    /// live values with the file's.
+    pub(crate) fn refresh(&self, settings: &Settings) {
+        if self.window().is_none() {
+            return;
+        }
+        QUIET.with(|quiet| quiet.set(true));
+        for row in self.rows.iter() {
+            let Some(now) =
+                shown(&row.control).and_then(|shown| moved(settings, row.setting, shown))
+            else {
+                continue;
+            };
+            stand_on(&row.control, now);
+        }
+        QUIET.with(|quiet| quiet.set(false));
+    }
+}
+
+/// What a row's control stands on, in the terms the refresh compares a pane
+/// with the settings in.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Standing {
+    /// A switch, or a Template's radio.
+    On(bool),
+    /// The Paper dropdown.
+    Paper(Paper),
+    /// A spin button.
+    Whole(u32),
+    /// The Typewriter anchor's scale.
+    Fraction(f64),
+}
+
+/// What `setting`'s control stands on under `settings`, or `None` for a row
+/// the refresh leaves as it opened: the Spell check language, whose rows
+/// hang on what the Editor resolved, and a row with no control.
+fn standing(settings: &Settings, setting: &Setting) -> Option<Standing> {
+    let standing = match (setting.key?, setting.control) {
+        ("chrome", _) => Standing::On(settings.chrome == Chrome::Hidden),
+        ("template.name", Control::Radio { value }) => {
+            Standing::On(settings.template.name.as_str() == value)
+        }
+        ("theme", _) => Standing::On(settings.theme == Theme::Auto),
+        ("typewriter_anchor", _) => Standing::Fraction(settings.typewriter_anchor),
+        ("export.paper", _) => Standing::Paper(settings.export.paper),
+        ("export.margin", _) => Standing::Whole(settings.export.margin),
+        ("export.text_size", _) => Standing::Whole(settings.export.text_size),
+        (key, Control::Switch) => Standing::On(toggle(key)?.0(settings)),
+        _ => return None,
+    };
+    Some(standing)
+}
+
+/// What `setting`'s control, showing `shown`, is to be stood on now that the
+/// launch runs `settings`, or `None` where it shows that already. The anchor
+/// is the same within half a step, since the scale rounds what it is given.
+fn moved(settings: &Settings, setting: &Setting, shown: Standing) -> Option<Standing> {
+    let now = standing(settings, setting)?;
+    let same = match (now, shown) {
+        (Standing::Fraction(now), Standing::Fraction(shown)) => {
+            (now - shown).abs() < ANCHOR_STEP / 2.0
+        }
+        _ => now == shown,
+    };
+    (!same).then_some(now)
+}
+
+/// What `control` shows, read off the widget.
+fn shown(control: &gtk::Widget) -> Option<Standing> {
+    if let Some(switch) = control.downcast_ref::<gtk::Switch>() {
+        Some(Standing::On(switch.is_active()))
+    } else if let Some(radio) = control.downcast_ref::<gtk::CheckButton>() {
+        Some(Standing::On(radio.is_active()))
+    } else if let Some(spin) = control.downcast_ref::<gtk::SpinButton>() {
+        u32::try_from(spin.value_as_int()).ok().map(Standing::Whole)
+    } else if let Some(scale) = control.downcast_ref::<gtk::Scale>() {
+        Some(Standing::Fraction(scale.value()))
+    } else {
+        let papers = control.downcast_ref::<gtk::DropDown>()?;
+        Some(Standing::Paper(paper_at(papers.selected())))
+    }
+}
+
+/// Stands `control` on `now`. A radio is only ever switched on: its group
+/// switches the one it leaves off.
+fn stand_on(control: &gtk::Widget, now: Standing) {
+    match now {
+        Standing::On(on) => {
+            if let Some(switch) = control.downcast_ref::<gtk::Switch>() {
+                switch.set_active(on);
+            } else if let Some(radio) = control.downcast_ref::<gtk::CheckButton>()
+                && on
+            {
+                radio.set_active(true);
+            }
+        }
+        Standing::Whole(value) => {
+            if let Some(spin) = control.downcast_ref::<gtk::SpinButton>() {
+                spin.set_value(f64::from(value));
+            }
+        }
+        Standing::Fraction(value) => {
+            if let Some(scale) = control.downcast_ref::<gtk::Scale>() {
+                scale.set_value(value);
+            }
+        }
+        Standing::Paper(paper) => {
+            if let Some(papers) = control.downcast_ref::<gtk::DropDown>() {
+                let count = papers.model().map_or(0, |model| model.n_items());
+                if let Some(at) = (0..count).find(|at| paper_at(*at) == paper) {
+                    papers.set_selected(at);
+                }
+            }
+        }
+    }
 }
 
 /// The table's rows under `pane`, in the table's order: the pane's own rows,
@@ -155,14 +320,11 @@ fn hint(setting: &Setting) -> Option<&'static str> {
 /// Opens the Settings window over `parent` on the pane last shown.
 ///
 /// Built on every open and dropped when it closes, as the shortcuts window is,
-/// so that every row opens showing the current effective setting. `spelling`
+/// so that every row opens showing the current effective setting, and stood
+/// on the settings again by [`Open::refresh`] while it is open. `spelling`
 /// is what the parent window's Spell check language last resolved to, for the
 /// "no dictionary" line.
-pub fn open(
-    parent: &gtk::Window,
-    session: &Rc<Session>,
-    spelling: Option<&Resolved>,
-) -> gtk::Window {
+pub fn open(parent: &gtk::Window, session: &Rc<Session>, spelling: Option<&Resolved>) -> Open {
     open_on(parent, session, spelling, last_pane())
 }
 
@@ -172,7 +334,7 @@ pub fn open_on(
     session: &Rc<Session>,
     spelling: Option<&Resolved>,
     pane: Pane,
-) -> gtk::Window {
+) -> Open {
     // Built before the rows so that the Add… dialog has a window to open
     // over; nothing is on screen until it is presented at the end.
     let window = gtk::Window::builder()
@@ -185,14 +347,16 @@ pub fn open_on(
         .build();
 
     let panes = gtk::Stack::builder().hexpand(true).vexpand(true).build();
+    let mut rows = Vec::new();
     for each in Pane::ALL {
         let body = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
             .css_classes(["settings-pane"])
             .build();
         let mut first = true;
+        let mut leader: Option<gtk::CheckButton> = None;
         for setting in rows_of(each) {
-            let Some(block) = block(&window, session, spelling, setting) else {
+            let Some((block, control)) = block(&window, session, spelling, setting) else {
                 continue;
             };
             if let Some(said) = head(setting) {
@@ -200,6 +364,19 @@ pub fn open_on(
             }
             first = false;
             body.append(&block);
+            // The Template's five radios are one group, the first its leader.
+            if let Some(radio) = control
+                .as_ref()
+                .and_then(|c| c.downcast_ref::<gtk::CheckButton>())
+            {
+                match &leader {
+                    Some(leader) => radio.set_group(Some(leader)),
+                    None => leader = Some(radio.clone()),
+                }
+            }
+            if let Some(control) = control {
+                rows.push(Row { setting, control });
+            }
         }
         panes.add_named(
             &gtk::ScrolledWindow::builder()
@@ -260,32 +437,46 @@ pub fn open_on(
     let at = Pane::ALL.iter().position(|each| *each == pane).unwrap_or(0);
     nav.select_row(nav.row_at_index(i32::try_from(at).unwrap_or(0)).as_ref());
     window.present();
-    window
+    Open {
+        window: window.downgrade(),
+        rows,
+    }
 }
 
-/// What a pane shows for `setting`: its row, or for Locations and Pinned the
-/// path list under their head, or for the refused lines the lines; `None`
-/// where there is nothing to show — no line refused, or a row
-/// [`control`] has no control for yet.
+/// What a pane shows for `setting`, and the control on it: its row, or for
+/// Locations and Pinned the path list under their head, or for the refused
+/// lines the lines, neither with a control the refresh stands; `None` where
+/// there is nothing to show — no line refused, or a row [`control`] has no
+/// control for.
 fn block(
     window: &gtk::Window,
     session: &Rc<Session>,
     spelling: Option<&Resolved>,
     setting: &'static Setting,
-) -> Option<gtk::Widget> {
+) -> Option<(gtk::Widget, Option<gtk::Widget>)> {
     match (setting.key, setting.control) {
-        (Some("library.locations"), _) => Some(location_list(window, session).upcast()),
-        (Some("library.pinned"), _) => Some(pinned_list(session).upcast()),
-        (None, Control::Jump) => refused_lines(session),
+        (Some("library.locations"), _) => Some((location_list(window, session).upcast(), None)),
+        (Some("library.pinned"), _) => Some((pinned_list(session).upcast(), None)),
+        (None, Control::Jump) => Some((refused_lines(session)?, None)),
         (Some("spell_language"), _) => {
             let language = control(session, setting, spelling)?;
             let said = language_line(language.downcast_ref()?, session, spelling);
             let block = gtk::Box::new(gtk::Orientation::Vertical, 0);
             block.append(&setting_row(setting, &language));
             block.append(&said);
-            Some(block.upcast())
+            Some((block.upcast(), Some(language)))
         }
-        _ => Some(setting_row(setting, &control(session, setting, spelling)?).upcast()),
+        (_, Control::Radio { .. }) => {
+            let radio = control(session, setting, spelling)?;
+            Some((
+                mark_row(setting, radio.downcast_ref()?).upcast(),
+                Some(radio),
+            ))
+        }
+        _ => {
+            let control = control(session, setting, spelling)?;
+            Some((setting_row(setting, &control).upcast(), Some(control)))
+        }
     }
 }
 
@@ -295,8 +486,8 @@ fn block(
 /// the table.
 ///
 /// `None` for a row with no control of its own here: the path lists and the
-/// refused lines, which the window draws whole, and Hide Bars and the
-/// Template radios, which have no write function yet.
+/// refused lines, which the window draws whole. A Template's radio comes
+/// back alone; the window puts the five in one group ([`open_on`]).
 pub(crate) fn control(
     session: &Rc<Session>,
     setting: &Setting,
@@ -326,9 +517,17 @@ pub(crate) fn control(
             let size = session.settings().export.text_size;
             export_spin(session, size, &export_text_sizes(), export_text_size).upcast()
         }
+        "chrome" => switch(session, session.chrome() == Chrome::Hidden, hid_bars).upcast(),
+        "template.name" => {
+            let Control::Radio { value } = setting.control else {
+                return None;
+            };
+            let name = TemplateName::parse(value)?;
+            template_radio(session, session.template().name == name, name).upcast()
+        }
         key => {
             let (read, write) = toggle(key)?;
-            switch(session, read(session), write).upcast()
+            switch(session, read(&session.running()), write).upcast()
         }
     };
     Some(control)
@@ -338,40 +537,31 @@ pub(crate) fn control(
 /// Follow System, whose write needs the ground on screen.
 fn toggle(key: &str) -> Option<Toggle> {
     let toggle: Toggle = match key {
-        "library.show_hidden" => (
-            |session| session.settings().library.show_hidden,
-            showed_hidden,
-        ),
+        "library.show_hidden" => (|settings| settings.library.show_hidden, showed_hidden),
         "library.show_extensions" => (
-            |session| session.settings().library.show_extensions,
+            |settings| settings.library.show_extensions,
             showed_extensions,
         ),
-        "library.confirm_move" => (
-            |session| session.settings().library.confirm_move,
-            confirmed_move,
-        ),
+        "library.confirm_move" => (|settings| settings.library.confirm_move, confirmed_move),
         "library.ask_where_to_save" => (
-            |session| session.settings().library.ask_where_to_save,
+            |settings| settings.library.ask_where_to_save,
             asked_where_to_save,
         ),
         "template.center_headings" => (
-            |session| session.template().center_headings,
+            |settings| settings.template.center_headings,
             centered_headings,
         ),
         "template.number_headings" => (
-            |session| session.template().number_headings,
+            |settings| settings.template.number_headings,
             numbered_headings,
         ),
         "template.indent_paragraphs" => (
-            |session| session.template().indent_paragraphs,
+            |settings| settings.template.indent_paragraphs,
             indented_paragraphs,
         ),
-        "export.title_page" => (
-            |session| session.settings().export.title_page,
-            export_title_page,
-        ),
-        "export.header" => (|session| session.settings().export.header, export_header),
-        "export.footer" => (|session| session.settings().export.footer, export_footer),
+        "export.title_page" => (|settings| settings.export.title_page, export_title_page),
+        "export.header" => (|settings| settings.export.header, export_header),
+        "export.footer" => (|settings| settings.export.footer, export_footer),
         _ => return None,
     };
     Some(toggle)
@@ -442,6 +632,20 @@ fn setting_row(setting: &Setting, control: &gtk::Widget) -> gtk::Box {
     row
 }
 
+/// A radio's row: the radio with `setting`'s words as its own label, so a
+/// click on the words picks it, at the left of the row as the stub drew it.
+fn mark_row(setting: &Setting, radio: &gtk::CheckButton) -> gtk::Box {
+    radio.set_label(Some(setting.label));
+    radio.set_hexpand(true);
+    let row = gtk::Box::builder()
+        .orientation(gtk::Orientation::Horizontal)
+        .hexpand(true)
+        .css_classes(["settings-check"])
+        .build();
+    row.append(radio);
+    row
+}
+
 /// The sidebar's search field: a plain entry, the Palette's drawn magnifier
 /// over its left end and Quill's own ✕ at its right while it holds text, so
 /// nothing in it comes from the icon theme (#467 § Icons are Quill's own).
@@ -489,7 +693,7 @@ fn follow_switch(session: &Rc<Session>) -> gtk::Switch {
         move |follow| {
             let on = follow.is_active();
             let scheme = session.scheme();
-            session.edit_settings(|settings| followed(settings, on, scheme));
+            put(&session, |settings| followed(settings, on, scheme));
         }
     ));
     follow
@@ -517,7 +721,7 @@ fn anchor_scale(session: &Rc<Session>) -> gtk::Scale {
         session,
         move |anchor| {
             let value = anchor.value();
-            session.edit_settings(|settings| anchored(settings, value));
+            put(&session, |settings| anchored(settings, value));
         }
     ));
     anchor
@@ -830,7 +1034,7 @@ fn switch(
         session,
         move |switch| {
             let on = switch.is_active();
-            session.edit_settings(|settings| write(settings, on));
+            put(&session, |settings| write(settings, on));
         }
     ));
     switch
@@ -850,7 +1054,7 @@ fn export_papers(session: &Rc<Session>, paper: Paper) -> gtk::DropDown {
         session,
         move |papers| {
             let paper = paper_at(papers.selected());
-            session.edit_settings(|settings| export_paper(settings, paper));
+            put(&session, |settings| export_paper(settings, paper));
         }
     ));
     papers
@@ -891,7 +1095,7 @@ fn export_spin(
             // The button was built over the range, so its value is inside it;
             // the floor is the answer for a value no `u32` can hold.
             let value = u32::try_from(spin.value_as_int()).unwrap_or(low);
-            session.edit_settings(|settings| write(settings, value));
+            put(&session, |settings| write(settings, value));
         }
     ));
     spin
@@ -1124,6 +1328,35 @@ fn indented_paragraphs(settings: &mut Settings, on: bool) {
     TemplateToggle::IndentParagraphs.set(&mut settings.template, on);
 }
 
+/// What Hide Bars writes: the key `chrome.toggle` moves, which the watch puts
+/// on to every window's bars.
+fn hid_bars(settings: &mut Settings, on: bool) {
+    settings.chrome = if on { Chrome::Hidden } else { Chrome::Shown };
+}
+
+/// What a Template's radio writes: the name the `template.*` radios pick.
+fn named_template(settings: &mut Settings, name: TemplateName) {
+    settings.template.name = name;
+}
+
+/// One Template's radio, on while the page is laid out in `name` and set so
+/// before its handler is connected, so opening the window is not a write;
+/// picking it writes `name`, and the one it leaves writes nothing.
+fn template_radio(session: &Rc<Session>, on: bool, name: TemplateName) -> gtk::CheckButton {
+    let radio = gtk::CheckButton::new();
+    radio.set_active(on);
+    radio.connect_toggled(glib::clone!(
+        #[strong]
+        session,
+        move |radio| {
+            if radio.is_active() {
+                put(&session, |settings| named_template(settings, name));
+            }
+        }
+    ));
+    radio
+}
+
 /// What the window says at the bottom about the last read of the settings
 /// file, and `None` where all of it applied.
 ///
@@ -1155,7 +1388,6 @@ fn launcher() -> Box<Launch> {
 
 #[cfg(test)]
 mod tests {
-    use quill_engine::settings::{Chrome, TemplateName};
     use quill_engine::shortcuts::Refusal;
 
     use super::*;
@@ -1303,7 +1535,7 @@ mod tests {
                 write(&mut settings, on);
                 assert_eq!(written(&settings, key), Some(on.to_string()), "{key}");
                 session.apply(settings);
-                assert_eq!(read(&session), on, "{key}");
+                assert_eq!(read(&session.running()), on, "{key}");
             }
         }
         assert_eq!(built, 10);
@@ -1494,6 +1726,89 @@ mod tests {
             }
         }
         std::fs::remove_file(&path).ok();
+    }
+
+    /// The table's row labelled `label`.
+    fn row(label: &str) -> &'static Setting {
+        SETTINGS_ROWS
+            .iter()
+            .find(|setting| setting.label == label)
+            .unwrap()
+    }
+
+    /// Hide Bars writes the key `chrome.toggle` moves, and a Template's radio
+    /// the name the `template.*` radios pick; each is read back from the file
+    /// and put on to the launch, beside the checks it leaves where they were.
+    #[test]
+    fn hide_bars_and_the_template_name_round_trip_through_the_file() {
+        let (session, path) = launched("bars-and-template");
+        for on in [true, false] {
+            let written = wrote(&session, &path, |settings| hid_bars(settings, on));
+            let chrome = if on { Chrome::Hidden } else { Chrome::Shown };
+            assert_eq!(written.chrome, chrome);
+            assert_eq!(session.chrome(), chrome, "the bars follow the file");
+        }
+        wrote(&session, &path, |settings| {
+            numbered_headings(settings, true)
+        });
+        for name in [TemplateName::Classic, TemplateName::ManuscriptQuattro] {
+            let written = wrote(&session, &path, |settings| named_template(settings, name));
+            assert_eq!(written.template.name, name);
+            assert_eq!(session.template().name, name, "the page follows the file");
+            assert!(written.template.number_headings, "the check stays on");
+        }
+        std::fs::remove_file(&path).ok();
+    }
+
+    /// The refresh stands a row again only where the settings moved from
+    /// what it shows: Hide Bars under a pressed `Ctrl+Shift+H`, the radios
+    /// under another Template, the anchor past half a step — and nothing
+    /// where the pane already shows the settings, the echo of its own write.
+    #[test]
+    fn the_refresh_moves_only_the_rows_the_settings_moved_from() {
+        let mut settings = Settings::default();
+        let bars = row("Hide Bars");
+        let modern = row("Modern");
+        let classic = row("Classic");
+        let anchor = row("Typewriter anchor");
+        let paper = row("Paper");
+        let showing = |settings: &Settings, setting: &Setting| standing(settings, setting).unwrap();
+        for setting in [bars, modern, classic, anchor, paper] {
+            let shown = showing(&settings, setting);
+            assert_eq!(moved(&settings, setting, shown), None, "{}", setting.label);
+        }
+
+        let before = settings.clone();
+        settings.chrome = Chrome::Hidden;
+        assert_eq!(
+            moved(&settings, bars, showing(&before, bars)),
+            Some(Standing::On(true))
+        );
+        settings.template.name = TemplateName::Classic;
+        assert_eq!(
+            moved(&settings, classic, showing(&before, classic)),
+            Some(Standing::On(true))
+        );
+        assert_eq!(
+            moved(&settings, modern, showing(&before, modern)),
+            Some(Standing::On(false))
+        );
+        assert_eq!(moved(&settings, paper, showing(&before, paper)), None);
+
+        let dragged = Standing::Fraction(settings.typewriter_anchor + ANCHOR_STEP / 4.0);
+        assert_eq!(
+            moved(&settings, anchor, dragged),
+            None,
+            "within the scale's rounding"
+        );
+        settings.typewriter_anchor += ANCHOR_STEP * 10.0;
+        assert_eq!(
+            moved(&settings, anchor, showing(&before, anchor)),
+            Some(Standing::Fraction(settings.typewriter_anchor))
+        );
+
+        let language = row("Spell check language");
+        assert_eq!(standing(&settings, language), None, "left as it opened");
     }
 
     /// System default, then the listing in its own order; the row the

@@ -362,7 +362,8 @@ fn install_recent(window: &Window) {
     window.add_action(&action);
 }
 
-/// Puts what the session now shows on to every window's stateful actions.
+/// Puts what the session now shows on to every window's stateful actions, and
+/// on to the rows of any Settings window open over one.
 ///
 /// One pass for every window, as `repaint` and the mode keys are, because a
 /// mode moving in one window moves it in all of them.
@@ -370,6 +371,7 @@ pub fn reflect_windows(app: &gtk::Application) {
     for window in app.windows() {
         if let Ok(window) = window.downcast::<Window>() {
             reflect(&window, window.modes());
+            window.refresh_settings();
         }
     }
 }
