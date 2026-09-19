@@ -23,7 +23,7 @@ import { pair, pairDir, reveal } from './blind.mjs';
 import { CAPTURES, cropPng, encodePng, overlaid, resolveOpponent } from './crop.mjs';
 import {
   ACCENT, ACCENT_HEX, APP_ID, DIALOG_APP_ID, accentPixels, appeared, carriesAccent, classPattern, launchEnv, spellFixture,
-  parseToplevels, pngSize, quillArgv, rulesLua, wantsLitCaret,
+  opensSecondWindow, parseToplevels, pngSize, quillArgv, rulesLua, wantsLitCaret,
 } from './harness.mjs';
 import { VERDICT_KEYS, carriedFrom, criticAnswer, criticPrompt, opponentOf, oursArgv, refusedFlag, shotPaths } from './judge.mjs';
 import { decodePng } from './keys-assert.mjs';
@@ -177,6 +177,18 @@ ok('a state becomes the native flags that state means', () => {
   assert.equal(opened[opened.indexOf('--export-dialog') + 1], 'pdf');
   assert.ok(opened.includes('--nocaret'), 'the keyboard is the dialog\'s while it is up, so the Editor draws no caret');
   assert.ok(!plain.includes('--export-dialog'), 'a state that says nothing about a dialog opens none');
+  assert.ok(opensSecondWindow(opened), 'the dialog is shot as a second window over the page');
+
+  // The Settings window's pane, named only by the `settings` states, and shot as the dialog is.
+  const settings = flagsOf('settings');
+  for (const [name, pane] of [['general', 'general'], ['export', 'export'], ['library', 'library']]) {
+    const argv = quillArgv(ROOT, settings[name]);
+    assert.equal(argv[argv.indexOf('--pane') + 1], pane, `settings/${name}`);
+    assert.ok(argv.includes('--nocaret'), `settings/${name}: the keyboard is the window's, so the Editor draws no caret`);
+    assert.ok(opensSecondWindow(argv), `settings/${name} is shot as a second window over the page`);
+  }
+  assert.ok(!plain.includes('--pane') && !opensSecondWindow(plain), 'a state that says nothing about Settings opens no window');
+  assert.ok(!Object.prototype.hasOwnProperty.call(states.defaults, 'pane'), 'the pane is a state key, never a default: a default restales every Piece');
 });
 
 ok('the launch environment is the one the research pinned', () => {
@@ -552,7 +564,7 @@ ok('the ghost is measured off ours own pixels, and the alpha is solved rather th
   for (const alpha of [3, 0, 1, '0.3', undefined]) {
     assert.throws(() => validate({ kind: 'ghost', alpha }), /between 0 and 1/, `an alpha of ${alpha} was taken`);
   }
-  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'folded', 'split', 'full', 'pdf-split', 'pdf-full', 'dialog', 'syntax', 'outline', 'spell', 'pinned', 'menu']);
+  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'folded', 'split', 'full', 'pdf-split', 'pdf-full', 'dialog', 'syntax', 'outline', 'spell', 'pinned', 'menu', 'settings']);
 });
 
 ok('the ghost refuses to read a bar it cannot see the ground beside, and never guesses one', () => {
@@ -1567,6 +1579,96 @@ ok('the View menu is five heads over their rows in order and an unheaded foot', 
   assert.throws(() => validate({ kind: 'menu', sections: [5], foot: -1 }), /a count of rows/);
 });
 
+// A page of prose with the Settings window standing on it, or the bare page.
+//
+// The window is a sidebar of `SETTINGS_ROWS` rows, the `selected` one drawn on a fill, beside a
+// pane in the page's own paper — as the real window's pane is — holding `pane`, top to bottom:
+// `head` a short band of dim ink, `row` a label with its control at the pane's right end, `bare` a
+// row whose control is missing. `window` false is the bare page, its prose running under where the
+// window stands so the two differ over the whole of it. Drawn from the description alone, so a
+// control gone or another pane selected is a different description rather than a restated rule.
+const SETTINGS_ROWS = 5;
+const SETTINGS_SIDE = [234, 235, 235];
+const SETTINGS_FILL = [216, 217, 217];
+function settingsShot({ selected = 0, pane = ['head', 'row', 'row', 'head', 'row'], window = true } = {}) {
+  const w = 800;
+  const h = 500;
+  const data = Buffer.alloc(w * h * 3);
+  const fill = (x0, y0, x1, y1, rgb) => {
+    for (let y = y0; y < y1; y += 1) for (let x = x0; x < x1; x += 1) for (let c = 0; c < 3; c += 1) data[((y * w) + x) * 3 + c] = rgb[c];
+  };
+  fill(0, 0, w, h, OUTLINE_PAPER);
+  for (let y = 20; y < h - 20; y += 30) fill(40, y, w - 40, y + 12, OUTLINE_INK);
+  if (window) {
+    const [left, top, right, bottom] = [100, 50, 700, 450];
+    const side = 250;
+    fill(left, top, side, bottom, SETTINGS_SIDE);
+    fill(side, top, side + 1, bottom, [211, 212, 212]);
+    fill(side + 1, top, right, bottom, OUTLINE_PAPER);
+    fill(left + 15, top + 12, left + 60, top + 18, [150, 150, 150]);
+    fill(left + 8, top + 28, side - 8, top + 46, [200, 200, 200]);
+    fill(left + 9, top + 29, side - 9, top + 45, [255, 255, 255]);
+    for (let k = 0; k < SETTINGS_ROWS; k += 1) {
+      const y = top + 60 + k * 28;
+      if (k === selected) fill(left + 8, y - 6, side - 8, y + 16, SETTINGS_FILL);
+      fill(left + 20, y, left + 80, y + 10, OUTLINE_INK);
+    }
+    let y = top + 20;
+    for (const kind of pane) {
+      if (kind === 'head') fill(side + 30, y, side + 90, y + 8, [150, 150, 150]);
+      else {
+        fill(side + 30, y, side + 150, y + 12, OUTLINE_INK);
+        if (kind === 'row') fill(right - 80, y - 4, right - 30, y + 16, [0, 150, 220]);
+      }
+      y += 34;
+    }
+  }
+  return encodePng({ w, h, ch: 3, data });
+}
+
+ok('the Settings window stands over the page on its pane, with that pane\'s heads and controls', () => {
+  const spec = { kind: 'settings', pane: 0, heads: 2, controls: 3 };
+  const second = secondShot(spec, { flags: { pane: 'general', caret: 0 } });
+  assert.equal(second.state.flags.pane, null, 'the reference opens no Settings window');
+  assert.equal(second.state.flags.caret, 0, 'the reference keeps every unrelated flag');
+  const page = settingsShot({ window: false });
+
+  const held = assertState(spec, { dim: settingsShot(), lit: page });
+  assert.equal(held.ours, true, held.why);
+  assert.deepEqual(held.selected, [0]);
+  assert.equal(held.heads, 2);
+  assert.equal(held.controls, 3);
+  assert.deepEqual(held.window, [100, 50, 600, 400]);
+
+  // The same window selected on another pane is not the pane the state opened.
+  for (let other = 1; other < SETTINGS_ROWS; other += 1) {
+    const wrong = assertState(spec, { dim: settingsShot({ selected: other }), lit: page });
+    assert.equal(wrong.ours, false, wrong.why);
+    assert.deepEqual(wrong.selected, [other]);
+    assert.match(wrong.why, /the pane selected is row 0/);
+  }
+
+  // A control missing leaves its label a band short of the control column: one control fewer.
+  const bare = assertState(spec, { dim: settingsShot({ pane: ['head', 'row', 'bare', 'head', 'row'] }), lit: page });
+  assert.equal(bare.ours, false, bare.why);
+  assert.equal(bare.controls, 2);
+  assert.match(bare.why, /the pane has 3 rows with a control/);
+
+  // A head gone is read as a head gone, and the controls still stand.
+  const headless = assertState(spec, { dim: settingsShot({ pane: ['row', 'row', 'head', 'row'] }), lit: page });
+  assert.equal(headless.ours, false, headless.why);
+  assert.equal(headless.heads, 1);
+  assert.equal(headless.controls, 3);
+
+  const none = assertState(spec, { dim: page, lit: page });
+  assert.equal(none.ours, false, none.why);
+  assert.match(none.why, /no window stands over it/);
+
+  assert.throws(() => validate({ kind: 'settings', pane: 0, heads: 0, controls: 4, rows: 4 }), /unknown fields: rows/);
+  assert.throws(() => validate({ kind: 'settings', pane: 5, heads: 0, controls: 4 }), /a sidebar row from 0 to 4/);
+  assert.throws(() => validate({ kind: 'settings', pane: 0, heads: -1, controls: 4 }), /heads is -1, and it is a count/);
+});
+
 // A Library pane 300 px wide with a 100 px Organizer: `pin` puts a Pinned row in the Organizer's
 // column and a pin on the File List's page icon, and `stray` changes a name beside it.
 function pinnedShot({ row = true, pin = true, stray = false, pinSize = [20, 25] } = {}) {
@@ -1692,7 +1794,8 @@ ok('every judged state that draws a determined caret is held to one, and no othe
   // Parity oracle measures the bar of a Library-opened document at one of two places depending on
   // when it is asked, one shot in three, and those states are about the sidebar beside the page.
   // `export/dialog` takes it for a reason of its own: the dialog is a surface over the page and the
-  // keyboard is the dialog's while it is up, so the Editor under it draws the ghost by rights.
+  // keyboard is the dialog's while it is up, so the Editor under it draws the ghost by rights. The
+  // three `settings` states take it for the same reason: the Settings window is the surface there.
   // Every `style` state takes it, and for the Piece's own reason: the marks are read as lines of
   // ink, and a bar standing in a line of prose joins its band to the strikes' — what the caret is
   // made of is the caret Piece's rows, not this one's. The two Focus states still place the caret,
@@ -1710,6 +1813,7 @@ ok('every judged state that draws a determined caret is held to one, and no othe
     'export/dialog', 'files/library', 'files/pinned', 'files/search',
     'focus/paragraph', 'focus/sentence',
     'markup/blocks', 'markup/gutters', 'markup/wrapped', 'preview/full', 'preview/pdf-full',
+    'settings/export', 'settings/general', 'settings/library',
     // Every `spell` state takes it for the `style` states' reason: the marks are read as the
     // difference from a `--spell off` reshoot, and a bar is ink that difference need not reason
     // about — and the eight judged on a `mac-native` crop take it for `theme/dark`'s reason too,
