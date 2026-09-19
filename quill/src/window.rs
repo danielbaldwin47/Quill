@@ -196,6 +196,9 @@ mod imp {
         /// The one Export dialog standing over this window, so a second
         /// command presents it instead of opening another.
         pub export_dialog: RefCell<Option<glib::WeakRef<gtk::Window>>>,
+        /// The Settings window standing over this one, so a second `Ctrl+,`
+        /// presents it and a change made elsewhere reaches its rows.
+        pub(crate) settings: RefCell<Option<crate::settings::Open>>,
         /// The one Preview refresh timer, armed by the first edit of a burst
         /// and re-armed by every edit after it, so the render pass runs once
         /// when the writer stops rather than once per keystroke.
@@ -3043,11 +3046,33 @@ impl Window {
         let Some(session) = self.session() else {
             return;
         };
-        crate::settings::open(
+        let standing = self
+            .imp()
+            .settings
+            .borrow()
+            .as_ref()
+            .and_then(crate::settings::Open::window);
+        if let Some(standing) = standing {
+            standing.present();
+            return;
+        }
+        let open = crate::settings::open(
             self.upcast_ref(),
             &session,
             self.imp().editor.spell_resolution().as_ref(),
         );
+        self.imp().settings.replace(Some(open));
+    }
+
+    /// Stands the rows of the Settings window over this one on what the
+    /// launch is running now, when one is open.
+    pub(crate) fn refresh_settings(&self) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        if let Some(open) = self.imp().settings.borrow().as_ref() {
+            open.refresh(&session.running());
+        }
     }
 
     /// Opens the shortcuts window over this one: `shortcuts.open`, `Ctrl+?`
