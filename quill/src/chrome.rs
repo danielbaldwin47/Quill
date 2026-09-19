@@ -306,6 +306,7 @@ pub fn install_window(window: &Window) {
     );
     install_recent(window);
     install_jump(window);
+    install_pane(window);
     // The compositor can fill the screen without `F11` being pressed, so the
     // check follows the window rather than the Command.
     window.connect_fullscreened_notify(|window| reflect(window, window.modes()));
@@ -342,6 +343,29 @@ fn install_jump(window: &Window) {
             return;
         };
         window.jump_to(offset);
+    });
+    window.add_action(&action);
+}
+
+/// The action a jump row of the Palette's settings group activates, with the
+/// name of the Settings pane the row sits in as its parameter: the window
+/// opened on that pane (#467), outside the registry as [`RECENT_OPEN`] is.
+/// `settings.open` is the Command a writer reaches.
+pub const SETTINGS_PANE: &str = "settings.pane";
+
+/// Registers [`SETTINGS_PANE`] on `window`.
+fn install_pane(window: &Window) {
+    let action = gio::SimpleAction::new(SETTINGS_PANE, Some(glib::VariantTy::STRING));
+    let opened = window.downgrade();
+    action.connect_activate(move |_, target| {
+        let name = target.and_then(|target| target.get::<String>());
+        let pane = quill_engine::palette::Pane::ALL
+            .into_iter()
+            .find(|pane| Some(pane.name()) == name.as_deref());
+        let (Some(window), Some(pane)) = (opened.upgrade(), pane) else {
+            return;
+        };
+        window.open_settings_on(pane);
     });
     window.add_action(&action);
 }

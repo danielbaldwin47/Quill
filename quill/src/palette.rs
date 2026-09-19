@@ -15,6 +15,14 @@
 //! by name — where Enter jumps the caret to the heading or opens the
 //! Document (#397). Its look is the Parity oracle's palette rules
 //! (`legacy/app/css/chrome.css`), as constants beside the menus'.
+//!
+//! Once something is typed, the Commands are followed by the Settings rows
+//! no Command answers, under a SETTINGS head (#467): each carries the
+//! Settings window's own live control, built by
+//! [`crate::settings::control`] on the same write, so the two cannot
+//! disagree. Enter on one operates its control and leaves the Palette up;
+//! Enter on a jump row — the path lists and the refused lines — opens the
+//! window on the row's pane.
 
 use std::cell::{Cell, RefCell};
 use std::path::{Path, PathBuf};
@@ -23,11 +31,13 @@ use std::rc::Rc;
 use gtk::prelude::*;
 use gtk::{cairo, gdk, glib};
 use quill_engine::commands::Command;
-use quill_engine::palette::{self as engine, Recent, Row};
+use quill_engine::palette::{self as engine, Control, Found, Recent, Row, Setting};
+use quill_engine::spell::Resolved;
 use quill_engine::theme::Scheme;
 
-use crate::chrome::{self, CHROME_FONT, Modes, OUTLINE_JUMP, RECENT_OPEN};
+use crate::chrome::{self, CHROME_FONT, Modes, OUTLINE_JUMP, RECENT_OPEN, SETTINGS_PANE};
 use crate::menus;
+use crate::session::Session;
 use crate::tags::pixels;
 
 /// How far down the window the panel's top sits (`.palette { top: 13vh }`).
@@ -97,6 +107,20 @@ const ROW: RowRule = RowRule {
     pad: 9,
     radius: 5,
     px: 12.5,
+};
+
+/// A settings row (#467): taller than a Command's, for the window's
+/// controls, with its pane's name in a column of its own before the label,
+/// as the canvas's direction D has it.
+struct SettingRule {
+    height: i32,
+    /// The pane's column.
+    pane: i32,
+}
+
+const SETTING: SettingRule = SettingRule {
+    height: 30,
+    pane: 76,
 };
 
 /// A section heading: `padding: 9px 14px 3px` (the first `3px` above), the
@@ -176,6 +200,8 @@ pub fn stylesheet(scheme: Scheme) -> String {
         x: empty_x,
         bottom: empty_bottom,
     } = EMPTY;
+    let setting_height = SETTING.height;
+    let controls = crate::settings::controls(scheme, "popover.chrome-palette");
     format!(
         "popover.chrome-palette {{ font-family: {CHROME_FONT}; font-size: {row_px}px; }}\n\
          popover.chrome-palette > contents {{\n\
@@ -212,7 +238,13 @@ pub fn stylesheet(scheme: Scheme) -> String {
          popover.chrome-palette list > row.palette-head label {{ {head} }}\n\
          popover.chrome-palette list > row.palette-empty {{\n\
          \x20 min-height: 0; margin: 0; padding: {empty_top}px {empty_x}px {empty_bottom}px; border-radius: 0; color: {dim};\n\
-         }}\n"
+         }}\n\
+         {controls}\
+         popover.chrome-palette list > row.palette-setting {{ min-height: {setting_height}px; }}\n\
+         popover.chrome-palette list > row.palette-setting label.palette-pane {{ color: {dim}; }}\n\
+         popover.chrome-palette list > row:selected label.palette-pane {{ color: rgba(255, 255, 255, 0.82); }}\n\
+         popover.chrome-palette list > row:selected button label {{ color: {ink}; }}\n\
+         popover.chrome-palette list > row:selected switch {{ background: rgba(255, 255, 255, 0.35); }}\n"
     )
 }
 
@@ -266,6 +298,81 @@ enum Item {
     /// A heading of the open Document, jumped to through [`OUTLINE_JUMP`]:
     /// the byte its words start at.
     Heading(u64),
+    /// A Settings row and its live control, which a jump row has none of.
+    Setting(&'static Setting, Option<gtk::Widget>),
+}
+
+impl Item {
+    /// What Enter does with the row ([`enter`]).
+    fn enter(&self) -> Enter {
+        match self {
+            Self::Setting(setting, _) => enter(Some(setting.control)),
+            _ => enter(None),
+        }
+    }
+}
+
+/// What Enter does with the selected row.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Enter {
+    /// Runs it and closes: a Command, a recent Document, a heading.
+    Run,
+    /// Operates its control and leaves the Palette up: a switch flips, a
+    /// dropdown opens its popup, a spin button or a scale takes the keyboard.
+    Operate,
+    /// Closes the Palette and opens the Settings window on the row's pane.
+    Open,
+}
+
+/// What Enter does with a row carrying `control`, or with a row carrying no
+/// Settings row at all.
+fn enter(control: Option<Control>) -> Enter {
+    match control {
+        None => Enter::Run,
+        Some(Control::Jump) => Enter::Open,
+        Some(_) => Enter::Operate,
+    }
+}
+
+/// One line of the Commands listing, top to bottom.
+#[derive(Debug)]
+enum Line {
+    /// A section's head.
+    Head(&'static str),
+    /// A Command.
+    Command(Row),
+    /// A Settings row no Command answers.
+    Setting(Found),
+}
+
+/// The Commands listing for `query`: [`engine::list`] as it always was, and
+/// once something is typed the Settings rows it matches under
+/// [`engine::SETTINGS`] — the ones no Command answers, since those are
+/// listed as the Commands they are (#467).
+fn lines(query: &str) -> Vec<Line> {
+    let mut lines = Vec::new();
+    for (head, group) in engine::list(query) {
+        lines.extend(head.map(Line::Head));
+        lines.extend(group.into_iter().map(Line::Command));
+    }
+    let found: Vec<Found> = engine::settings(query)
+        .into_iter()
+        .filter(|found| found.setting.command.is_none())
+        .collect();
+    if !found.is_empty() {
+        lines.push(Line::Head(engine::SETTINGS));
+        lines.extend(found.into_iter().map(Line::Setting));
+    }
+    lines
+}
+
+/// What the settings rows are built from, handed in by the window as it
+/// opens the Palette, which knows no Session otherwise, and dropped as the
+/// panel closes: the session every control writes through, and what the
+/// window's Spell check language last resolved to.
+pub struct Hand {
+    pub session: Rc<Session>,
+    pub spelling: Option<Resolved>,
 }
 
 /// What answers the Outline listing's Documents: a query to the Library's
@@ -304,6 +411,9 @@ pub struct Palette {
     recents: Rc<RefCell<Vec<PathBuf>>>,
     /// The Outline the last opening was handed, dropped as the panel closes.
     outline: Rc<RefCell<Option<Outline>>>,
+    /// What the settings rows are built from, as of the last opening on the
+    /// Commands; dropped as the panel closes.
+    hand: Rc<RefCell<Option<Hand>>>,
 }
 
 impl Palette {
@@ -344,7 +454,9 @@ impl Palette {
         let list = gtk::ListBox::builder()
             .selection_mode(gtk::SelectionMode::Single)
             .activate_on_single_click(true)
-            .can_focus(false)
+            // Unfocusable itself, and not `can_focus(false)`, which would
+            // bar a settings row's control from the keyboard too.
+            .focusable(false)
             .margin_top(list_top)
             .margin_bottom(list_bottom)
             .build();
@@ -391,6 +503,7 @@ impl Palette {
             listing: Rc::new(Cell::new(Listing::default())),
             recents: Rc::new(RefCell::new(Vec::new())),
             outline: Rc::new(RefCell::new(None)),
+            hand: Rc::new(RefCell::new(None)),
         };
         palette.wire();
         palette
@@ -423,6 +536,20 @@ impl Palette {
             _ => glib::Propagation::Proceed,
         });
         self.entry.add_controller(keys);
+        // Esc inside a settings row's control gives the keyboard back to the
+        // field rather than closing the panel; a dropdown's own popup, which
+        // sits under the row, is left to close itself.
+        let controls = gtk::EventControllerKey::new();
+        controls.set_propagation_phase(gtk::PropagationPhase::Capture);
+        let escaped = self.clone();
+        controls.connect_key_pressed(move |_, key, _, _| {
+            if key != gdk::Key::Escape || escaped.popped() {
+                return glib::Propagation::Proceed;
+            }
+            escaped.entry.grab_focus_without_selecting();
+            glib::Propagation::Stop
+        });
+        self.scroller.add_controller(controls);
 
         let clicked = self.clone();
         self.list.connect_row_activated(move |_, row| {
@@ -461,6 +588,7 @@ impl Palette {
             // The Outline is the opening's and no longer: nothing is kept
             // to go stale under the next edit.
             closed.outline.replace(None);
+            closed.hand.replace(None);
         });
     }
 
@@ -471,11 +599,15 @@ impl Palette {
     /// how a writer opens it; under `--deterministic` it holds none and the
     /// keyboard stays on the page, so the caret behind the panel is lit in
     /// the shot as the oracle's is.
-    pub fn toggle(&self, window: &gtk::Window, modes: Modes) {
+    ///
+    /// `hand` is what the settings rows a query finds are built from; with
+    /// none, they are left out.
+    pub fn toggle(&self, window: &gtk::Window, modes: Modes, hand: Option<Hand>) {
         if self.popover.is_visible() {
             self.close();
             return;
         }
+        self.hand.replace(hand);
         self.show(window, modes, Listing::Commands);
     }
 
@@ -581,14 +713,33 @@ impl Palette {
         match listing {
             Listing::Commands => {
                 let modes = self.modes.get();
-                for (head, group) in engine::list(query) {
-                    if let Some(head) = head {
-                        self.list.append(&heading(head));
-                    }
-                    for row in group {
-                        let widget = item(&row, &modes);
-                        self.list.append(&widget);
-                        rows.push((widget, Item::Command(row.command)));
+                let lines = lines(query);
+                let hand = self.hand.borrow();
+                for line in lines {
+                    match line {
+                        Line::Head(head) => {
+                            if head != engine::SETTINGS || hand.is_some() {
+                                self.list.append(&heading(head));
+                            }
+                        }
+                        Line::Command(row) => {
+                            let widget = item(&row, &modes);
+                            self.list.append(&widget);
+                            rows.push((widget, Item::Command(row.command)));
+                        }
+                        Line::Setting(found) => {
+                            let Some(hand) = hand.as_ref() else {
+                                continue;
+                            };
+                            let control = crate::settings::control(
+                                &hand.session,
+                                found.setting,
+                                hand.spelling.as_ref(),
+                            );
+                            let widget = self.setting(&found, control.as_ref());
+                            self.list.append(&widget);
+                            rows.push((widget, Item::Setting(found.setting, control)));
+                        }
                     }
                 }
             }
@@ -653,6 +804,76 @@ impl Palette {
         rows.push((widget, Item::Recent(row.path.to_path_buf())));
     }
 
+    /// One Settings row: its pane's name, its label with the letters a query
+    /// matched set heavier, and its live `control` at the right end — or,
+    /// for a jump row, where Enter takes the writer.
+    ///
+    /// The row takes no keyboard itself but its control can, for a spin
+    /// button or a scale to be stepped; a click on a switch, a dropdown or a
+    /// button leaves the keyboard in the field, and so does a pick from a
+    /// dropdown's popup.
+    fn setting(&self, found: &Found, control: Option<&gtk::Widget>) -> gtk::ListBoxRow {
+        let pane = gtk::Label::builder()
+            .label(found.setting.pane.name())
+            .xalign(0.0)
+            .width_request(SETTING.pane)
+            .css_classes(["palette-pane"])
+            .build();
+        let label = gtk::Label::builder()
+            .label(marked(found.setting.label, &found.hits))
+            .use_markup(true)
+            .xalign(0.0)
+            .hexpand(true)
+            .ellipsize(gtk::pango::EllipsizeMode::End)
+            .css_classes(["palette-label"])
+            .build();
+        let line = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        line.append(&pane);
+        line.append(&label);
+        match control {
+            Some(control) => {
+                control.set_valign(gtk::Align::Center);
+                if !control.is::<gtk::SpinButton>() && !control.is::<gtk::Scale>() {
+                    control.set_focus_on_click(false);
+                }
+                if let Some(drop_down) = control.downcast_ref::<gtk::DropDown>() {
+                    let picked = self.entry.clone();
+                    drop_down.connect_selected_notify(move |_| {
+                        let picked = picked.clone();
+                        // After the popup has put the keyboard back on its
+                        // button, which it does as it closes.
+                        glib::idle_add_local_once(move || {
+                            picked.grab_focus_without_selecting();
+                        });
+                    });
+                }
+                line.append(control);
+            }
+            None => {
+                let opens = gtk::Label::builder()
+                    .label("Opens Settings")
+                    .css_classes(["palette-keys"])
+                    .build();
+                line.append(&opens);
+            }
+        }
+        gtk::ListBoxRow::builder()
+            .css_classes(["palette-row", "palette-setting"])
+            .focusable(false)
+            .child(&line)
+            .build()
+    }
+
+    /// Whether a settings row's dropdown has its popup up.
+    fn popped(&self) -> bool {
+        self.rows.borrow().iter().any(|(_, item)| match item {
+            Item::Setting(_, Some(control)) => control
+                .downcast_ref::<gtk::DropDown>()
+                .is_some_and(has_popup_up),
+            _ => false,
+        })
+    }
+
     /// Moves the selection `by` rows, wrapping at either end.
     fn step(&self, by: i32) {
         let count = self.rows.borrow().len();
@@ -690,10 +911,30 @@ impl Palette {
     /// recent Document through [`RECENT_OPEN`], which opens it in this
     /// window. A Command not built does nothing at all, as its chord does
     /// nothing, and the Palette stays up.
+    ///
+    /// A settings row is not run: Enter operates its control and the
+    /// Palette stays ([`operate`]), or, on a jump row, closes it and opens
+    /// the Settings window on the row's pane through [`SETTINGS_PANE`].
     fn run_selected(&self) {
         let Some(item) = self.selected_item() else {
             return;
         };
+        match (item.enter(), &item) {
+            (Enter::Operate, Item::Setting(_, Some(control))) => {
+                operate(control);
+                return;
+            }
+            (Enter::Open, Item::Setting(setting, _)) => {
+                self.close();
+                let pane = setting.pane.name().to_variant();
+                let _ = self
+                    .popover
+                    .activate_action(&format!("win.{SETTINGS_PANE}"), Some(&pane));
+                return;
+            }
+            (Enter::Run, _) => {}
+            _ => return,
+        }
         let (action, target) = match &item {
             Item::Command(command) => {
                 if !command.built {
@@ -707,6 +948,7 @@ impl Palette {
                 (format!("win.{RECENT_OPEN}"), Some(target.to_variant()))
             }
             Item::Heading(start) => (format!("win.{OUTLINE_JUMP}"), Some(start.to_variant())),
+            Item::Setting(..) => return,
         };
         self.close();
         let _ = self.popover.activate_action(&action, target.as_ref());
@@ -719,6 +961,33 @@ impl Palette {
             .get(self.selected.get())
             .map(|(_, item)| item.clone())
     }
+}
+
+/// Operates a settings row's control as Enter does: a switch flips, a
+/// dropdown opens its popup, a button is clicked, and a spin button or a scale
+/// takes the keyboard, which Esc gives back to the field.
+fn operate(control: &gtk::Widget) {
+    if let Some(switch) = control.downcast_ref::<gtk::Switch>() {
+        switch.set_active(!switch.is_active());
+    } else if let Some(drop_down) = control.downcast_ref::<gtk::DropDown>() {
+        drop_down.emit_activate();
+    } else if let Some(button) = control.downcast_ref::<gtk::Button>() {
+        button.emit_clicked();
+    } else {
+        control.grab_focus();
+    }
+}
+
+/// Whether `drop_down`'s popup is up: a visible popover among its children.
+fn has_popup_up(drop_down: &gtk::DropDown) -> bool {
+    let mut child = drop_down.first_child();
+    while let Some(widget) = child {
+        if widget.is::<gtk::Popover>() && widget.is_visible() {
+            return true;
+        }
+        child = widget.next_sibling();
+    }
+    false
 }
 
 /// A section's heading, which is neither selected nor run.
@@ -960,5 +1229,112 @@ mod tests {
         );
         assert_eq!(marked("Show Library", &[(20, 24)]), "Show Library");
         assert_eq!(marked("A & B", &[]), "A &amp; B");
+    }
+
+    /// The listing's lines as the kinds the Palette draws them as, the
+    /// settings rows by label.
+    fn shape(query: &str) -> Vec<String> {
+        lines(query)
+            .into_iter()
+            .map(|line| match line {
+                Line::Head(head) => format!("head {head}"),
+                Line::Command(_) => "command".to_owned(),
+                Line::Setting(found) => format!("setting {}", found.setting.label),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn with_nothing_typed_the_listing_is_the_commands_row_for_row() {
+        let mut expected = Vec::new();
+        for (head, group) in engine::list("") {
+            expected.extend(head.map(|head| format!("head {head}")));
+            expected.extend(group.iter().map(|_| "command".to_owned()));
+        }
+        assert_eq!(shape(""), expected);
+        assert!(!shape("").contains(&format!("head {}", engine::SETTINGS)));
+    }
+
+    #[test]
+    fn title_finds_the_commands_then_title_page_as_a_switch_under_settings() {
+        let shape = shape("title");
+        let head = shape
+            .iter()
+            .position(|line| *line == format!("head {}", engine::SETTINGS))
+            .expect("a SETTINGS head");
+        // No Command's title holds "title" today; whatever does is above.
+        assert!(shape[..head].iter().all(|line| line == "command"));
+        assert_eq!(shape[head + 1], "setting Title page");
+        let Some(Line::Setting(found)) = lines("title").into_iter().nth(head + 1) else {
+            panic!("no settings row after the head");
+        };
+        assert_eq!(found.setting.control, Control::Switch);
+    }
+
+    #[test]
+    fn manuscript_finds_the_three_templates_as_commands_and_no_settings_row() {
+        let lines = lines("manuscript");
+        let commands: Vec<&str> = lines
+            .iter()
+            .filter_map(|line| match line {
+                Line::Command(row) => Some(row.command.id),
+                _ => None,
+            })
+            .collect();
+        for id in [
+            "template.manuscriptMono",
+            "template.manuscriptDuo",
+            "template.manuscriptQuattro",
+        ] {
+            assert!(commands.contains(&id), "{id} in {commands:?}");
+        }
+        assert!(
+            lines
+                .iter()
+                .all(|line| !matches!(line, Line::Setting(_) | Line::Head(_))),
+            "{:?}",
+            lines
+        );
+    }
+
+    #[test]
+    fn enter_runs_a_command_and_closes() {
+        assert_eq!(enter(None), Enter::Run);
+    }
+
+    #[test]
+    fn enter_operates_a_control_and_stays() {
+        for control in [
+            Control::Switch,
+            Control::Dropdown,
+            Control::Spin,
+            Control::Scale,
+            Control::Button,
+        ] {
+            assert_eq!(enter(Some(control)), Enter::Operate, "{control:?}");
+        }
+    }
+
+    #[test]
+    fn enter_on_a_jump_row_closes_and_opens_settings() {
+        assert_eq!(enter(Some(Control::Jump)), Enter::Open);
+    }
+
+    #[test]
+    fn the_settings_rows_take_the_windows_controls_and_not_its_frame() {
+        for scheme in [Scheme::Light, Scheme::Dark] {
+            let sheet = stylesheet(scheme);
+            for rule in [
+                "popover.chrome-palette switch {",
+                "popover.chrome-palette spinbutton {",
+                "popover.chrome-palette scale > trough {",
+                "popover.chrome-palette dropdown popover > contents {",
+            ] {
+                assert!(sheet.contains(rule), "{scheme:?}: {rule}");
+            }
+            assert!(!sheet.contains("window.settings"), "{scheme:?}");
+            assert!(!sheet.contains("popover.chrome-palette {\n  background"));
+            assert!(!sheet.contains("settings-"), "{scheme:?}");
+        }
     }
 }
