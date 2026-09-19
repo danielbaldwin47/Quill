@@ -61,6 +61,7 @@ export const ASSERTIONS = {
   pinned: pinned,
   menu: menu,
   settings: settings,
+  'palette-control': paletteControl,
 };
 
 // How each rule wants its second shot taken: the state to shoot, and what to shoot it with.
@@ -92,6 +93,7 @@ export const SECOND = {
   pinned: (s) => ({ state: { ...s, flags: { ...s.flags, library: unpinned(s.flags.library) } }, options: {} }),
   menu: (s) => ({ state: { ...s, flags: { ...s.flags, menu: null } }, options: {} }),
   settings: (s) => ({ state: { ...s, flags: { ...s.flags, pane: null } }, options: {} }),
+  'palette-control': (s) => ({ state: { ...s, flags: { ...s.flags, menu: null, query: null } }, options: {} }),
 };
 
 // A `--library` value with its `pinned=` overrides taken out and every other override left standing:
@@ -156,6 +158,7 @@ const CHECKS = {
   pinned: pinnedSpec,
   menu: menuSpec,
   settings: settingsSpec,
+  'palette-control': paletteControlSpec,
 };
 
 // The built-ins, restated from quill-engine/src/theme.rs, Colours::{LIGHT,DARK}, which #308
@@ -1694,6 +1697,148 @@ function settingsSpec(spec) {
   }
   for (const [name, n] of [['heads', heads], ['controls', controls]]) {
     if (!Number.isInteger(n) || n < 0) throw new Error(`the settings ${name} is ${JSON.stringify(n)}, and it is a count`);
+  }
+}
+
+// ---------- the Palette's settings rows ----------
+
+// The share of the panel's width, at its right end, that a row's trailing element ends in: a
+// Command's chord, a settings row's control, and a jump row's "Opens Settings" are all set flush
+// right there, and no label reaches it.
+const PALETTE_END = 0.25;
+
+// Two runs of drawn columns closer than this are one element: the space between two words of
+// "Opens Settings", or between a dropdown's word and its chevron, and never the air between a
+// label and what stands at the row's end.
+const PALETTE_GAP = 16;
+
+// How much taller than the row's words its trailing element stands for it to be a control. A
+// switch's track and a dropdown's frame are about twice the height of a line of the Palette's type;
+// "Opens Settings" is that line itself.
+const PALETTE_TALL = 1.4;
+
+// The Palette on a query that lists settings rows (#467): a SETTINGS head over rows each carrying a
+// live control at its right end, or, for a jump row, the words that say it opens Settings.
+//
+// The panel is found as the Outline's is, where the shot differs from the bare page, and its bands
+// of ink split into heads and rows as the View menu's are, by how strong their ink is — which also
+// puts a disabled Command among the heads, harmlessly, since the settings rows are the rows under
+// the last head, and the Commands are listed above it. A head is told from a disabled Command by
+// carrying nothing at the row's end, where a Command's chord stands. Each settings row is then
+// read at its right end: the element there — the run of drawn columns ending in the panel's right
+// quarter, read at any difference from the ground so a dropdown's faint frame counts — is a control
+// when it stands [`PALETTE_TALL`] times the height of the row's words, the words that say "Opens
+// Settings" when it does not, and nothing at all when the row's words are the last thing drawn.
+//
+// `rows` is what stands at the end of each settings row in turn, `control` or `jump`. Which
+// control, and what it does on Enter, is the Hand test's and `tools/gate keys`'.
+function paletteControl(spec, { dim, lit }) {
+  const png = decodePng(dim);
+  const page = decodePng(lit);
+  const { w, h } = png;
+  if (page.w !== w || page.h !== h) {
+    return no(`the Palette shot is ${w}x${h} and its bare page is ${page.w}x${page.h}`);
+  }
+  const changed = changedBox(png, page);
+  if (changed.right < changed.left) {
+    return no('the Palette shot is the bare page pixel for pixel: no panel stands over it');
+  }
+  const ground = groundOf(png, changed.left, changed.right + 1, changed.top, changed.bottom + 1);
+  const panel = mostlyBox(png, ground, changed);
+  if (panel.right < panel.left || panel.bottom < panel.top) {
+    return no(`no rectangle of the ${hex(ground)} ground stands inside ${box(changed)}, where the shot differs from the bare page`);
+  }
+  let radius = 0;
+  while (panel.left + radius < panel.right && !is(png, panel.left + radius, panel.top, ground)) radius += 1;
+  const scanned = { ...panel, left: panel.left + radius, right: panel.right - radius };
+  const end = scanned.right - Math.round((scanned.right - scanned.left) * PALETTE_END);
+  const bands = bandsOf(png, scanned, ground)
+    .filter((band) => band.bottom - band.top + 1 >= OUTLINE_RULE)
+    .map((band) => ({ ...band, ink: strongest(png, scanned, ground, band) }));
+  const where = `the Palette is ${hex(ground)}, ${box(panel)} of a ${w}x${h} window`;
+  if (bands.length < 2) return no(`${where}, and it carries ${bands.length} band${bands.length === 1 ? '' : 's'} of ink`);
+  // The field is the first band, and neither a head nor a row.
+  const listed = bands.slice(1);
+  const split = (Math.min(...listed.map((band) => band.ink)) + Math.max(...listed.map((band) => band.ink))) / 2;
+  const heads = listed
+    .map((band, k) => ({ band, k }))
+    .filter(({ band }) => band.ink < split && band.right < end);
+  if (!heads.length) return no(`${where}; no band under its field is a head in the dim ink with nothing at its end, so there is no SETTINGS head`);
+  const head = heads[heads.length - 1];
+  const under = listed.slice(head.k + 1);
+  const read = under.map((band, k) => {
+    const above = k === 0 ? head.band.bottom : under[k - 1].bottom;
+    const below = k === under.length - 1 ? scanned.bottom : under[k + 1].top;
+    const span = { top: Math.ceil((above + band.top) / 2), bottom: Math.floor((band.bottom + below) / 2) };
+    return endOf(png, scanned, ground, span, end);
+  });
+  const said = `${under.length} row${under.length === 1 ? '' : 's'} under the last head, at their ends ${read.map((row) => row.what).join(', ') || 'nothing'}`;
+  const missed = [];
+  if (read.map((row) => row.what).join(',') !== spec.rows.join(',')) {
+    missed.push(`the rows end in ${spec.rows.join(', ')}`);
+  }
+  return {
+    ours: missed.length === 0,
+    panel: [panel.left, panel.top, panel.right - panel.left + 1, panel.bottom - panel.top + 1],
+    head: [head.band.top, head.band.bottom],
+    rows: read.map(({ what, tall, words }) => ({ what, tall, words })),
+    why: missed.length === 0 ? `${where}; ${said}` : `${where}; ${said} — and ${missed.join(', and ')}`,
+    secondary: [
+      said,
+      'a settings row is a row under the last head, a control the element at its end standing well over its words, and a jump row the words that stand there instead',
+    ],
+  };
+}
+
+// What stands at the end of one settings row, the rows `span` of the panel: `{ what, tall, words }`,
+// `what` being `control`, `jump` or `none`, `tall` the end element's height and `words` the height
+// of what is drawn left of it, both in device px.
+function endOf(png, panel, ground, span, end) {
+  const drawn = (x) => {
+    for (let y = span.top; y <= span.bottom; y += 1) {
+      for (let c = 0; c < 3; c += 1) if (Math.abs(at(png, x, y, c) - ground[c]) >= OUTLINE_CHANGED) return true;
+    }
+    return false;
+  };
+  let right = panel.right - 1;
+  while (right > panel.left && !drawn(right)) right -= 1;
+  if (right < end) return { what: 'none', tall: 0, words: 0 };
+  let left = right;
+  for (let gap = 0; left - gap - 1 > panel.left && gap < PALETTE_GAP;) {
+    if (drawn(left - gap - 1)) {
+      left -= gap + 1;
+      gap = 0;
+    } else {
+      gap += 1;
+    }
+  }
+  const tall = heightOf(png, ground, span, left, right + 1);
+  const words = heightOf(png, ground, span, panel.left + 1, left - PALETTE_GAP);
+  return { what: tall >= words * PALETTE_TALL ? 'control' : 'jump', tall, words };
+}
+
+// How many rows of `span`, between columns `x0` and `x1`, from the first drawn to the last.
+function heightOf(png, ground, span, x0, x1) {
+  let top = -1;
+  let bottom = -1;
+  for (let y = span.top; y <= span.bottom; y += 1) {
+    let any = false;
+    for (let x = x0; x < x1 && !any; x += 1) {
+      for (let c = 0; c < 3 && !any; c += 1) any = Math.abs(at(png, x, y, c) - ground[c]) >= OUTLINE_CHANGED;
+    }
+    if (!any) continue;
+    if (top < 0) top = y;
+    bottom = y;
+  }
+  return top < 0 ? 0 : bottom - top + 1;
+}
+
+function paletteControlSpec(spec) {
+  const extra = Object.keys(spec).filter((k) => !['kind', 'rows'].includes(k));
+  if (extra.length) throw new Error(`the palette-control assertion has unknown fields: ${extra.join(', ')}`);
+  const { rows } = spec;
+  if (!Array.isArray(rows) || !rows.length || !rows.every((row) => row === 'control' || row === 'jump')) {
+    throw new Error(`the palette-control rows are ${JSON.stringify(rows)}, and they are what ends each settings row in turn, control or jump`);
   }
 }
 
