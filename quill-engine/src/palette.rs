@@ -9,6 +9,10 @@
 //! The match on a title is the oracle's, ported from `chrome.js`; the match
 //! on a radio Command's group below it is Quill's own (#229), so that
 //! `theme` reaches Follow System, whose title holds no word of the query.
+//!
+//! Beside the Commands sits the table of the Settings window's rows
+//! ([`SETTINGS_ROWS`]) and the one match over it ([`settings`]) that both the
+//! window's search and the Palette's settings group read (#467).
 
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
@@ -92,8 +96,8 @@ pub enum Tier {
     /// The title has the query's letters in order, with gaps.
     Letters,
     /// The title did not match at all and the Command's radio group did
-    /// (#229, not the oracle's). Last, so an invisible match never outranks
-    /// a visible one.
+    /// (#229, not the oracle's), or a Settings row's pane name did (#467).
+    /// Last, so an invisible match never outranks a visible one.
     Group,
 }
 
@@ -226,6 +230,186 @@ pub fn recents<'a>(opened: &'a [PathBuf], query: &str) -> Vec<Recent<'a>> {
         .collect();
     ranked.sort_by_key(|(rank, _)| *rank);
     ranked.into_iter().map(|(_, row)| row).collect()
+}
+
+/// The head the Palette draws over its settings rows, below the Commands.
+pub const SETTINGS: &str = "Settings";
+
+/// One of the Settings window's five panes, in the sidebar's order.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Pane {
+    /// The theme, the bars, Typewriter's anchor and Spell check's language.
+    General,
+    /// Locations, Pinned and the sidebar's four file toggles.
+    Library,
+    /// The five Templates and their three toggles.
+    Template,
+    /// The page an export is laid out on.
+    Export,
+    /// The file itself, and the lines of it the last read refused.
+    Advanced,
+}
+
+impl Pane {
+    /// Every pane, in the sidebar's order.
+    pub const ALL: [Self; 5] = [
+        Self::General,
+        Self::Library,
+        Self::Template,
+        Self::Export,
+        Self::Advanced,
+    ];
+
+    /// What the sidebar and a search result call the pane.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::General => "General",
+            Self::Library => "Library",
+            Self::Template => "Template",
+            Self::Export => "Export",
+            Self::Advanced => "Advanced",
+        }
+    }
+}
+
+/// The control a Settings row carries.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Control {
+    /// On or off.
+    Switch,
+    /// One of a list, in a popup.
+    Dropdown,
+    /// A whole number stepped by − and +.
+    Spin,
+    /// A fraction dragged along a trough.
+    Scale,
+    /// One of a group of rows sharing the key, each writing its own value.
+    Radio {
+        /// What the row writes to its key, as the file spells it.
+        value: &'static str,
+    },
+    /// A button that acts on the file rather than setting a key.
+    Button,
+    /// No control that fits a row: the Palette opens the window on the
+    /// row's pane, and the window's search scrolls to it.
+    Jump,
+}
+
+/// One row of the Settings window, which the window builds and which both
+/// its search and the Palette find (#467).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Setting {
+    /// What the row reads.
+    pub label: &'static str,
+    /// The pane it sits in.
+    pub pane: Pane,
+    /// The `settings.toml` key it writes, dotted under its table; none for
+    /// the rows that set no key.
+    pub key: Option<&'static str>,
+    /// The control it carries.
+    pub control: Control,
+    /// The Command that already sets it, where one does. The Palette lists
+    /// such a row as that Command and leaves it out of its settings group.
+    pub command: Option<&'static str>,
+}
+
+const fn row(
+    label: &'static str,
+    pane: Pane,
+    key: &'static str,
+    control: Control,
+    command: Option<&'static str>,
+) -> Setting {
+    Setting {
+        label,
+        pane,
+        key: Some(key),
+        control,
+        command,
+    }
+}
+
+/// Every row of the Settings window once, pane by pane in the sidebar's
+/// order and in each pane's own order.
+#[rustfmt::skip]
+pub const SETTINGS_ROWS: &[Setting] = &[
+    row("Follow System", Pane::General, "theme", Control::Switch, Some("theme.auto")),
+    row("Hide Bars", Pane::General, "chrome", Control::Switch, Some("chrome.toggle")),
+    row("Typewriter anchor", Pane::General, "typewriter_anchor", Control::Scale, None),
+    row("Spell check language", Pane::General, "spell_language", Control::Dropdown, None),
+    row("Locations", Pane::Library, "library.locations", Control::Jump, None),
+    row("Pinned", Pane::Library, "library.pinned", Control::Jump, None),
+    row("Show hidden folders", Pane::Library, "library.show_hidden", Control::Switch, None),
+    row("Show file extensions", Pane::Library, "library.show_extensions", Control::Switch, None),
+    row("Confirm before moving files", Pane::Library, "library.confirm_move", Control::Switch, None),
+    row("Always ask where to save", Pane::Library, "library.ask_where_to_save", Control::Switch, None),
+    row("Modern", Pane::Template, "template.name", Control::Radio { value: "modern" }, Some("template.modern")),
+    row("Classic", Pane::Template, "template.name", Control::Radio { value: "classic" }, Some("template.classic")),
+    row("Manuscript Mono", Pane::Template, "template.name", Control::Radio { value: "manuscript-mono" }, Some("template.manuscriptMono")),
+    row("Manuscript Duo", Pane::Template, "template.name", Control::Radio { value: "manuscript-duo" }, Some("template.manuscriptDuo")),
+    row("Manuscript Quattro", Pane::Template, "template.name", Control::Radio { value: "manuscript-quattro" }, Some("template.manuscriptQuattro")),
+    row("Center headings", Pane::Template, "template.center_headings", Control::Switch, Some("template.centerHeadings")),
+    row("Number headings", Pane::Template, "template.number_headings", Control::Switch, Some("template.numberHeadings")),
+    row("Indent paragraphs", Pane::Template, "template.indent_paragraphs", Control::Switch, Some("template.indentParagraphs")),
+    row("Paper", Pane::Export, "export.paper", Control::Dropdown, None),
+    row("Margin (mm)", Pane::Export, "export.margin", Control::Spin, None),
+    row("Text size (pt)", Pane::Export, "export.text_size", Control::Spin, None),
+    row("Title page", Pane::Export, "export.title_page", Control::Switch, None),
+    row("Header", Pane::Export, "export.header", Control::Switch, None),
+    row("Footer", Pane::Export, "export.footer", Control::Switch, None),
+    Setting {
+        label: "Edit settings.toml…",
+        pane: Pane::Advanced,
+        key: None,
+        control: Control::Button,
+        command: None,
+    },
+    Setting {
+        label: "Not applied from settings.toml",
+        pane: Pane::Advanced,
+        key: None,
+        control: Control::Jump,
+        command: None,
+    },
+];
+
+/// One match of the settings listing.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Found {
+    /// The row matched.
+    pub setting: &'static Setting,
+    /// The byte ranges of its label the query matched; none when only its
+    /// pane's name did.
+    pub hits: Vec<(usize, usize)>,
+}
+
+/// The Settings rows for `query`: none when the query is blank, so the
+/// Palette opens as it always has; otherwise every row whose label, or
+/// failing that whose pane's name, [`score`] matches, by [`Rank`] and then
+/// in the table's order. A pane-name match ranks at [`Tier::Group`], below
+/// every label match, as it has no highlight to show.
+///
+/// Two readers: the window's search takes every match, and the Palette the
+/// ones whose [`Setting::command`] is none, since it lists the rest as the
+/// Commands they are.
+#[must_use]
+pub fn settings(query: &str) -> Vec<Found> {
+    let query = query.trim().to_lowercase();
+    if query.is_empty() {
+        return Vec::new();
+    }
+    let mut ranked: Vec<(Rank, Found)> = SETTINGS_ROWS
+        .iter()
+        .filter_map(|setting| {
+            let (rank, hits) = score(setting.label, &query).or_else(|| {
+                score(setting.pane.name(), &query).map(|_| (Rank(Tier::Group, 0), Vec::new()))
+            })?;
+            Some((rank, Found { setting, hits }))
+        })
+        .collect();
+    ranked.sort_by_key(|(rank, _)| *rank);
+    ranked.into_iter().map(|(_, found)| found).collect()
 }
 
 /// The head the Outline listing draws over its Documents.
@@ -778,5 +962,176 @@ mod tests {
             ["(no headings)", "[Documents]", "sea-1", "sea-2"]
         );
         assert_eq!(typed.selected, 0);
+    }
+
+    /// The value `key`, dotted under its table, has in `table`.
+    fn lookup<'t>(table: &'t toml::Table, key: &str) -> Option<&'t toml::Value> {
+        let (head, rest) = key.split_once('.').unwrap_or((key, ""));
+        let value = table.get(head)?;
+        if rest.is_empty() {
+            return Some(value);
+        }
+        lookup(value.as_table()?, rest)
+    }
+
+    /// `settings.toml` with `key` set to `value`, as a writer would type it.
+    fn file_with(key: &str, value: &toml::Value) -> String {
+        match key.split_once('.') {
+            Some((table, key)) => format!("[{table}]\n{key} = {value}\n"),
+            None => format!("{key} = {value}\n"),
+        }
+    }
+
+    #[test]
+    fn every_settings_row_writes_a_key_the_settings_read() {
+        use crate::settings::Settings;
+        let defaults = Settings::default();
+        let written: toml::Table = defaults.to_toml().parse().unwrap();
+        for setting in SETTINGS_ROWS {
+            let Some(key) = setting.key else {
+                assert_eq!(setting.pane, Pane::Advanced, "{}", setting.label);
+                continue;
+            };
+            let value = lookup(&written, key)
+                .unwrap_or_else(|| panic!("{key} ({}) is not a settings key", setting.label));
+            // A switch on a plain boolean, and a radio's value, are read back
+            // without a note and move the settings off their defaults.
+            let changed = match (setting.control, value) {
+                (Control::Switch, toml::Value::Boolean(on)) => Some(toml::Value::Boolean(!on)),
+                (Control::Radio { value }, _) => Some(toml::Value::String(value.to_string())),
+                _ => None,
+            };
+            if let Some(changed) = changed {
+                let (read, notes) = Settings::parse(&file_with(key, &changed));
+                assert!(notes.is_empty(), "{}: {notes:?}", setting.label);
+                let reread: toml::Table = read.to_toml().parse().unwrap();
+                assert_eq!(lookup(&reread, key), Some(&changed), "{}", setting.label);
+            }
+        }
+        // A radio group shares a key, and every other row has its own.
+        let mut keys: Vec<(&str, Option<&str>)> = SETTINGS_ROWS
+            .iter()
+            .filter_map(|setting| {
+                let value = match setting.control {
+                    Control::Radio { value } => Some(value),
+                    _ => None,
+                };
+                setting.key.map(|key| (key, value))
+            })
+            .collect();
+        let count = keys.len();
+        keys.sort_unstable();
+        keys.dedup();
+        assert_eq!(keys.len(), count, "a key written by two rows");
+    }
+
+    #[test]
+    fn every_settings_row_is_named_once_under_a_pane_and_names_a_real_command() {
+        let mut labels: Vec<&str> = SETTINGS_ROWS.iter().map(|setting| setting.label).collect();
+        let count = labels.len();
+        labels.sort_unstable();
+        labels.dedup();
+        assert_eq!(labels.len(), count);
+        let panes: Vec<Pane> = SETTINGS_ROWS.iter().map(|setting| setting.pane).collect();
+        let mut order: Vec<Pane> = panes.clone();
+        order.dedup();
+        assert_eq!(order, Pane::ALL, "the table runs pane by pane");
+        for setting in SETTINGS_ROWS {
+            if let Some(id) = setting.command {
+                assert!(
+                    COMMANDS.iter().any(|command| command.id == id),
+                    "{id} is not a Command"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn no_setting_the_view_menu_holds_is_a_settings_row() {
+        for setting in SETTINGS_ROWS {
+            let key = setting.key.unwrap_or("");
+            for gone in ["syntax_highlight", "style_check", "preview", "spell_check"] {
+                assert!(
+                    key != gone && !key.starts_with(&format!("{gone}.")),
+                    "{} writes {key}",
+                    setting.label
+                );
+            }
+        }
+    }
+
+    fn labels(found: &[Found]) -> Vec<&'static str> {
+        found.iter().map(|found| found.setting.label).collect()
+    }
+
+    /// What the Palette's reader keeps: the rows no Command already sets.
+    fn in_palette(found: &[Found]) -> Vec<&'static str> {
+        found
+            .iter()
+            .filter(|found| found.setting.command.is_none())
+            .map(|found| found.setting.label)
+            .collect()
+    }
+
+    #[test]
+    fn a_blank_query_finds_no_settings_and_leaves_the_commands_as_they_were() {
+        assert!(settings("").is_empty());
+        assert!(settings("   ").is_empty());
+        assert_eq!(list(""), list("  "));
+    }
+
+    #[test]
+    fn a_query_finds_a_settings_row_by_its_label_with_its_control() {
+        let paper = settings("paper");
+        assert_eq!(labels(&paper)[0], "Paper");
+        assert_eq!(paper[0].setting.control, Control::Dropdown);
+        assert_eq!(paper[0].hits, [(0, 5)]);
+        let margin = settings("margin");
+        assert_eq!(labels(&margin)[0], "Margin (mm)");
+        assert_eq!(margin[0].setting.control, Control::Spin);
+        let locations = settings("locations");
+        assert_eq!(labels(&locations)[0], "Locations");
+        assert_eq!(locations[0].setting.control, Control::Jump);
+        assert_eq!(locations[0].setting.pane, Pane::Library);
+    }
+
+    #[test]
+    fn a_query_finds_a_panes_rows_by_its_name_below_every_label_match() {
+        let export: Vec<&str> = SETTINGS_ROWS
+            .iter()
+            .filter(|setting| setting.pane == Pane::Export)
+            .map(|setting| setting.label)
+            .collect();
+        assert_eq!(labels(&settings("export")), export);
+        assert!(settings("export").iter().all(|found| found.hits.is_empty()));
+        // "Template" names a pane and is inside no label, so the pane's eight
+        // rows follow in the table's order.
+        let template = settings("template");
+        assert_eq!(template.len(), 8);
+        assert!(
+            template
+                .iter()
+                .all(|found| found.setting.pane == Pane::Template)
+        );
+    }
+
+    #[test]
+    fn the_palette_leaves_out_the_rows_its_commands_already_list() {
+        // The window's search finds Hide Bars and the Manuscript Templates.
+        assert_eq!(labels(&settings("hide"))[0], "Hide Bars");
+        assert_eq!(
+            labels(&settings("manuscript")),
+            ["Manuscript Mono", "Manuscript Duo", "Manuscript Quattro"]
+        );
+        // The Palette finds them as the Commands they are, and only a row no
+        // Command sets is left under its settings head: "hide" still reaches
+        // Show hidden folders by its letters.
+        assert!(in_palette(&settings("manuscript")).is_empty());
+        assert_eq!(in_palette(&settings("hide")), ["Show hidden folders"]);
+        let ids = |query: &str| -> Vec<&'static str> {
+            list(query)[0].1.iter().map(|row| row.command.id).collect()
+        };
+        assert!(ids("hide").contains(&"chrome.toggle"));
+        assert!(ids("manuscript").contains(&"template.manuscriptMono"));
     }
 }
