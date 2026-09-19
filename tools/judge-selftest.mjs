@@ -189,6 +189,13 @@ ok('a state becomes the native flags that state means', () => {
   }
   assert.ok(!plain.includes('--pane') && !opensSecondWindow(plain), 'a state that says nothing about Settings opens no window');
   assert.ok(!Object.prototype.hasOwnProperty.call(states.defaults, 'pane'), 'the pane is a state key, never a default: a default restales every Piece');
+  // The Palette's field, named only by `chrome/palette-settings`, and only beside the Palette the
+  // app refuses `--query` without.
+  const typed = quillArgv(ROOT, flagsOf('chrome')['palette-settings']);
+  assert.equal(typed[typed.indexOf('--query') + 1], 'ln');
+  assert.equal(typed[typed.indexOf('--menu') + 1], 'palette');
+  assert.ok(!plain.includes('--query'), 'a state that says nothing about a query types none');
+  assert.ok(!Object.prototype.hasOwnProperty.call(states.defaults, 'query'), 'the query is a state key, never a default: a default restales every Piece');
 });
 
 ok('the launch environment is the one the research pinned', () => {
@@ -564,7 +571,7 @@ ok('the ghost is measured off ours own pixels, and the alpha is solved rather th
   for (const alpha of [3, 0, 1, '0.3', undefined]) {
     assert.throws(() => validate({ kind: 'ghost', alpha }), /between 0 and 1/, `an alpha of ${alpha} was taken`);
   }
-  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'folded', 'split', 'full', 'pdf-split', 'pdf-full', 'dialog', 'syntax', 'outline', 'spell', 'pinned', 'menu', 'settings']);
+  assert.deepEqual(Object.keys(ASSERTIONS), ['ghost', 'folded', 'split', 'full', 'pdf-split', 'pdf-full', 'dialog', 'syntax', 'outline', 'spell', 'pinned', 'menu', 'settings', 'palette-control']);
 });
 
 ok('the ghost refuses to read a bar it cannot see the ground beside, and never guesses one', () => {
@@ -1577,6 +1584,87 @@ ok('the View menu is five heads over their rows in order and an unheaded foot', 
   assert.throws(() => validate({ kind: 'menu', sections: [5], foot: 2, rows: 21 }), /unknown fields: rows/);
   assert.throws(() => validate({ kind: 'menu', sections: [], foot: 2 }), /the rows under each head/);
   assert.throws(() => validate({ kind: 'menu', sections: [5], foot: -1 }), /a count of rows/);
+});
+
+// The Palette standing on a page of paper, on a query that lists settings rows, or the bare page.
+//
+// Top to bottom inside the panel: the field as one band of glyphs, then one row per entry of
+// `rows` — `command` a Command's words in the body ink with its chord at the right end, `disabled`
+// the same in the dim ink, `head` a short band of dim ink with nothing at its end, and a settings
+// row, dim pane name and body-ink label, ending in `control` (a block twice the words' height at the
+// right end, a switch or a dropdown), `jump` (a band of dim words there, "Opens Settings") or `bare`
+// (nothing). Drawn from the description alone, so a control gone is a different description.
+function paletteShot({
+  rows = ['command', 'command', 'disabled', 'head', 'jump', 'control', 'control', 'jump'],
+  panel = true,
+} = {}) {
+  const w = 500;
+  const h = 400;
+  const data = Buffer.alloc(w * h * 3);
+  const fill = (x0, y0, x1, y1, rgb) => {
+    for (let y = y0; y < y1; y += 1) for (let x = x0; x < x1; x += 1) for (let c = 0; c < 3; c += 1) data[((y * w) + x) * 3 + c] = rgb[c];
+  };
+  const dimInk = [150, 150, 150];
+  fill(0, 0, w, h, OUTLINE_PAPER);
+  if (panel) {
+    const [left, right, top] = [60, 460, 20];
+    const bottom = top + 50 + rows.length * 30;
+    fill(left - 1, top - 1, right + 1, bottom + 1, OUTLINE_BORDER);
+    fill(left, top, right, bottom, OUTLINE_PANEL);
+    fill(left + 20, top + 12, left + 60, top + 22, OUTLINE_INK);
+    for (const [k, kind] of rows.entries()) {
+      const y = top + 50 + k * 30;
+      if (kind === 'command' || kind === 'disabled') {
+        fill(left + 20, y, left + 120, y + 10, kind === 'command' ? OUTLINE_INK : dimInk);
+        fill(right - 60, y, right - 15, y + 10, dimInk);
+      } else if (kind === 'head') {
+        fill(left + 20, y + 3, left + 70, y + 10, dimInk);
+      } else {
+        fill(left + 20, y, left + 60, y + 10, dimInk);
+        fill(left + 90, y, left + 200, y + 10, OUTLINE_INK);
+        if (kind === 'control') fill(right - 70, y - 6, right - 15, y + 16, OUTLINE_SELECTED);
+        if (kind === 'jump') fill(right - 80, y, right - 15, y + 10, dimInk);
+      }
+    }
+  }
+  return encodePng({ w, h, ch: 3, data });
+}
+
+ok('the Palette lists settings rows under a SETTINGS head, each ending in its control or in a jump', () => {
+  const spec = { kind: 'palette-control', rows: ['jump', 'control', 'control', 'jump'] };
+  const second = secondShot(spec, { flags: { menu: 'palette', query: 'ln', caret: 403 } });
+  assert.equal(second.state.flags.menu, null, 'the reference opens no Palette');
+  assert.equal(second.state.flags.query, null, 'and types no query, which the app refuses without the Palette');
+  assert.equal(second.state.flags.caret, 403, 'the reference keeps every unrelated flag');
+  const page = paletteShot({ panel: false });
+
+  const held = assertState(spec, { dim: paletteShot(), lit: page });
+  assert.equal(held.ours, true, held.why);
+  assert.deepEqual(held.rows.map((row) => row.what), ['jump', 'control', 'control', 'jump']);
+
+  // A settings row without its control ends in nothing: the row the selftest must go red on.
+  const bare = assertState(spec, { dim: paletteShot({ rows: ['command', 'disabled', 'head', 'jump', 'bare', 'control', 'jump'] }), lit: page });
+  assert.equal(bare.ours, false, bare.why);
+  assert.deepEqual(bare.rows.map((row) => row.what), ['jump', 'none', 'control', 'jump']);
+  assert.match(bare.why, /the rows end in jump, control, control, jump/);
+
+  // A jump row where a control should stand is words, not a control.
+  const worded = assertState(spec, { dim: paletteShot({ rows: ['command', 'head', 'jump', 'jump', 'control', 'jump'] }), lit: page });
+  assert.equal(worded.ours, false, worded.why);
+  assert.deepEqual(worded.rows.map((row) => row.what), ['jump', 'jump', 'control', 'jump']);
+
+  // With no head, the disabled Command's chord keeps it from passing for one.
+  const headless = assertState(spec, { dim: paletteShot({ rows: ['command', 'disabled', 'jump', 'control', 'control', 'jump'] }), lit: page });
+  assert.equal(headless.ours, false, headless.why);
+  assert.match(headless.why, /there is no SETTINGS head/);
+
+  const none = assertState(spec, { dim: page, lit: page });
+  assert.equal(none.ours, false, none.why);
+  assert.match(none.why, /no panel stands over it/);
+
+  assert.throws(() => validate({ kind: 'palette-control', rows: ['control'], heads: 1 }), /unknown fields: heads/);
+  assert.throws(() => validate({ kind: 'palette-control', rows: [] }), /control or jump/);
+  assert.throws(() => validate({ kind: 'palette-control', rows: ['switch'] }), /control or jump/);
 });
 
 // A page of prose with the Settings window standing on it, or the bare page.

@@ -96,8 +96,9 @@ export function resolveStates(states, piece) {
 
 // The flags a state may name that the defaults never do. A key in `defaults` is in every state's
 // flags and so in every Piece's fingerprint, which restales every frozen oracle; a flag only one
-// asserted-only Piece names — `pane`, the Settings window's (#477) — is learnt here instead.
-export const STATE_ONLY = ['pane'];
+// asserted state names — `pane`, the Settings window's (#477), and `query`, the Palette field's
+// (#478) — is learnt here instead.
+export const STATE_ONLY = ['pane', 'query'];
 
 // The flags in this state that this tool cannot serve: the ones neither the defaults nor
 // [`STATE_ONLY`] name. The defaults are the state vocabulary — a state that reaches past them is

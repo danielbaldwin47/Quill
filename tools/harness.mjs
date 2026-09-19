@@ -196,6 +196,10 @@ export function quillArgv(root, flags, { live = false } = {}) {
   // before its first frame, so they are flags and not a script of keystrokes.
   if (flags.typing) argv.push('--typing');
   if (flags.menu) argv.push('--menu', flags.menu);
+  // What the Palette's field holds as it opens: `chrome/palette-settings` types a query that lists
+  // settings rows under the Commands. A state's own key and never a default's, as `pane` is, and
+  // only beside `menu: palette`, since the app refuses it anywhere else.
+  if (flags.query) argv.push('--query', flags.query);
   // The Library the `files` states open. `--library` is the fixture folder — joined to the root the
   // way `--text` is, because ours is launched from wherever the harness happens to be — `--sidebar`
   // shows the pane, and `--search` puts the query in its field. The app copies the tree and stamps
