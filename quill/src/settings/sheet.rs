@@ -80,9 +80,6 @@ const DARK: Skin = Skin {
 /// The dropdowns' popups tick their row with it too.
 pub(super) const TICK: &str = "resource:///org/gtk/libgtk/theme/Default/assets/check-symbolic.svg";
 
-/// The chevron's file under the data directory.
-const CHEVRON: &str = "chevron-symbolic.svg";
-
 /// The window's rules, each colour a placeholder a [`Skin`] fills in.
 ///
 /// The values are the stub README's findings: the switch is 36 × 18 with a
@@ -243,7 +240,7 @@ window.settings .settings-lit.settings-hit {
 /// soft on a 2x output. Empty when the path cannot be a URI, which leaves the
 /// arrow undrawn rather than the sheet unparsed.
 fn chevron() -> String {
-    let path = quill_engine::data::icons().join(CHEVRON);
+    let path = quill_engine::data::icons().join(quill_engine::data::CHEVRON);
     glib::filename_to_uri(&path, None).map_or_else(|_| String::new(), |uri| uri.to_string())
 }
 
@@ -439,7 +436,10 @@ mod tests {
     fn the_chevron_is_quills_own_file_and_the_tick_gtks_own_resource() {
         let uri = chevron();
         let (path, _) = glib::filename_from_uri(&uri).expect("the chevron is a file URI");
-        assert_eq!(path, quill_engine::data::icons().join(CHEVRON));
+        assert_eq!(
+            path,
+            quill_engine::data::icons().join(quill_engine::data::CHEVRON)
+        );
         assert!(path.is_file(), "no chevron at {}", path.display());
         assert!(!path.starts_with(std::env::temp_dir()));
         let sheet = stylesheet(Scheme::Dark);

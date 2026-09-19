@@ -271,6 +271,15 @@ impl Pane {
             Self::Advanced => "Advanced",
         }
     }
+
+    /// The pane the sidebar calls `name`, in any case, or nothing: `--pane`
+    /// writes it lower-cased, the Palette's jump rows as the sidebar shows it.
+    #[must_use]
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|pane| pane.name().eq_ignore_ascii_case(name))
+    }
 }
 
 /// The control a Settings row carries.
@@ -384,6 +393,16 @@ pub struct Found {
     pub hits: Vec<(usize, usize)>,
 }
 
+impl Found {
+    /// Whether the Palette lists this match as a settings row: only when no
+    /// Command already sets it, since the Palette lists those as the Commands
+    /// they are. The window's search lists every match.
+    #[must_use]
+    pub fn in_palette(&self) -> bool {
+        self.setting.command.is_none()
+    }
+}
+
 /// The Settings rows for `query`: none when the query is blank, so the
 /// Palette opens as it always has; otherwise every row whose label, or
 /// failing that whose pane's name, [`score`] matches, by [`Rank`] and then
@@ -391,8 +410,7 @@ pub struct Found {
 /// every label match, as it has no highlight to show.
 ///
 /// Two readers: the window's search takes every match, and the Palette the
-/// ones whose [`Setting::command`] is none, since it lists the rest as the
-/// Commands they are.
+/// ones [`Found::in_palette`] keeps.
 #[must_use]
 pub fn settings(query: &str) -> Vec<Found> {
     let query = query.trim().to_lowercase();
@@ -1068,7 +1086,7 @@ mod tests {
     fn in_palette(found: &[Found]) -> Vec<&'static str> {
         found
             .iter()
-            .filter(|found| found.setting.command.is_none())
+            .filter(|found| found.in_palette())
             .map(|found| found.setting.label)
             .collect()
     }
