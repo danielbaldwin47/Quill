@@ -174,14 +174,15 @@ to anybody ([ADR 0017](../adr/0017-a-judged-state-neither-oracle-can-arbitrate.m
 `tools/assert-state.mjs` reads the rule off ours' own pixels, the round records what it measured
 where a critic's reasoning would be, and the state is won or lost on that answer like any other. The
 rules are that file's `ASSERTIONS` — ghost, folded, split, full, pdf-split, pdf-full, dialog, syntax,
-outline, spell and pinned, as `tools/gate --help` lists them — and `states.json`'s `assert` note says what
+outline, spell, pinned, menu, settings and palette-control, as `tools/gate --help` lists them — and `states.json`'s `assert` note says what
 each reads. The
 bar for it is that neither oracle holds the subject — `caret/unfocused`, because iA draws no caret
 on a deactivated window and `legacy/` draws one at a column `docs/design.md` has overruled, and the
 two `preview` states, because `legacy/` has no rendered page at all and iA Writer for Mac's own
 preview is that app's design rather than this one's
 ([#263](https://github.com/danielbaldwin47/Quill/issues/263) § Out of Scope puts Preview outside ADR
-0015's reach) — and not that a round was lost. `tools/gate oracle` passes such a state over, as it
+0015's reach) — and not that a round was lost. Four Pieces are asserted-only, every state naming
+`assert` and none shown to a critic: `live`, `preview`, `export` and `settings`. `tools/gate oracle` passes such a state over, as it
 does one carrying `opponent`. **A Piece once won is never lost**: a ticket naming a won Piece
 re-judges it, and a loss blocks the ticket. Won means won natively — the rounds carrying `opponent`;
 the gauntlet's r1 verdicts are the JavaScript app's against iA Writer, which is the reference era
@@ -198,7 +199,10 @@ condition tests — on a headless output of the Gate's own, takes keyboard focus
 read-back, writes the Piece's scripted bursts through `/dev/uinput` with focus asked again between
 every chunk as `bench` has it, and after each burst reads the Piece's assertions off the pixels. The
 scripts are the `keys` entries of `shots/oracle/states.json`, beside the judged states; most Pieces
-carry none, and a ticket naming one that does runs it. Arithmetic rather than a critic, and no
+carry none, and a ticket naming one that does runs it. An entry may be a list of scripts, each on
+its own launch: `chrome` types the stats bar's and the Palette's, where Enter on a settings row
+flips its switch with the Palette still up, on a fresh copy of the `settings` file the script
+names so the writer's own is never written. Arithmetic rather than a critic, and no
 oracle: it ends in `gate keys <piece>: pass` or
 `gate keys <piece>: fail (<the assertion, measured against what it expected>)`, exit **0** and
 **1**, and **3** with `refused (...)` when nothing was typed or nothing could be read — no script

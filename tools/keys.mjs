@@ -25,14 +25,15 @@
 
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { typeKeys } from './bench.mjs';
-import { compositorAvailable, openStage, quillArgv } from './harness.mjs';
+import { activeWindow, compositorAvailable, openStage, quillArgv } from './harness.mjs';
 import {
   AFTER_BURST, BETWEEN_BURSTS, INK_DARK, PAPER_DARK, SETTLES, STATES, decodePng, readBar,
-  resolveScript,
+  resolveScripts,
 } from './keys-assert.mjs';
 
 const BINARY = 'target/release/quill';
@@ -164,9 +165,9 @@ async function run(root, piece, { shotsDir }) {
   // Asked first, and before the build, because whether a Piece has a script at all is a fact about
   // the command line: a Piece that carries none should hear so at once rather than after two
   // minutes of `cargo build` and a window it never needed.
-  let script;
+  let scripts;
   try {
-    script = resolveScript(JSON.parse(fs.readFileSync(path.join(root, STATES), 'utf8')), piece);
+    scripts = resolveScripts(JSON.parse(fs.readFileSync(path.join(root, STATES), 'utf8')), piece);
   } catch (e) {
     return refuse(piece, e.message);
   }
@@ -188,24 +189,60 @@ async function run(root, piece, { shotsDir }) {
     return refuse(piece, 'the binary would not build');
   }
 
+  const stage = await openStage({ root });
+  try {
+    const failures = [];
+    for (const script of scripts) {
+      const ran = await runScript(root, stage, script, { shotsDir });
+      if (ran.refused) return refuse(piece, ran.refused);
+      failures.push(...ran.failures);
+    }
+    if (failures.length) {
+      console.log(`gate keys ${piece}: fail (${failures[0]})`);
+      return 1;
+    }
+    console.log(`gate keys ${piece}: pass`);
+    return 0;
+  } finally {
+    stage.close();
+  }
+}
+
+// One script on its own launch: `{ failures }` with every assertion that failed, or `{ refused }`
+// with why nothing could be read.
+async function runScript(root, stage, script, { shotsDir }) {
   const { flags } = script;
   // Which pair the ink test is looking for, taken from the theme the script opens rather than
   // asked for separately: a script that says `--theme dark` has already said which way round its
   // page is.
   const colours = flags.theme === 'dark' ? { ink: INK_DARK, paper: PAPER_DARK } : undefined;
-  const stage = await openStage({ root });
+  // A script that flips a setting opens on a copy of the file it names, made fresh for the run, so
+  // the writer's `settings.toml` is never the one written and the committed file never moves.
+  let scratch = null;
+  const argv = quillArgv(root, flags, { live: true });
+  if (flags.settings) {
+    scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'quill-keys-'));
+    const copy = path.join(scratch, 'settings.toml');
+    fs.copyFileSync(path.join(root, flags.settings), copy);
+    argv.push('--settings', copy);
+  }
   let ours = null;
   try {
     stage.rules({ w: flags.w, h: flags.h, initialFocus: true });
-    ours = await stage.launch(path.join(root, BINARY), quillArgv(root, flags, { live: true }));
+    ours = await stage.launch(path.join(root, BINARY), argv);
+    // A script that opens a popover at launch waits for it to stand before focus is proved: the app
+    // opens it after its first frame, and focus proved on the bare window before that is proved on
+    // a window about to change under it.
+    if (flags.menu && !(await captureStill(stage, ours.toplevel.id))) {
+      return { refused: `the ${flags.menu} popover never settled, so no keys typed` };
+    }
 
     // The one thing the typist cannot check for itself: `uinput-keys.py` writes to the kernel and
     // has no idea which window the kernel's keys reach. Proving focus here, and asking `holds`
     // between every chunk below, is the whole of the defence.
     if (!(await stage.focused(ours.address))) {
-      return refuse(piece, 'keyboard focus would not stay on ours, so no keys typed');
+      return { refused: 'keyboard focus would not stay on ours, so no keys typed' };
     }
-
     const seen = [];
     for (const burst of script.bursts) {
       // A burst's `text` is what a keyboard spells straight, and its `keys` is what `text` cannot
@@ -227,23 +264,27 @@ async function run(root, piece, { shotsDir }) {
       say(`gate keys: burst ${burst.name}: ${wanted} keys`);
       const wrote = await typeKeys(root, plan, () => stage.holds(ours.address));
       if (wrote.lost) {
-        return refuse(piece, `focus was taken away during ${burst.name}, so typing stopped there`);
+        const active = activeWindow();
+        say(`gate keys: focus went to ${active.class || 'nothing'} at ${active.address || 'no address'}`);
+        return { refused: `focus was taken away during ${burst.name}, so typing stopped there` };
       }
       if (wrote.events.length !== wanted) {
-        return refuse(piece, `${burst.name} asked for ${wanted} keys and the typist `
-          + `wrote ${wrote.events.length}`);
+        return {
+          refused: `${burst.name} asked for ${wanted} keys and the typist wrote ${wrote.events.length}`,
+        };
       }
 
       const settle = burst.settle || 'caret';
       const shot = await CAPTURE[settle](stage, ours.toplevel.id, colours);
-      if (!shot) return refuse(piece, `no capture of ${burst.name} ever settled`);
+      if (!shot) return { refused: `no capture of ${burst.name} ever settled` };
       // A shot with no bar in it is nothing read, not a bar in the wrong place, so it refuses
       // rather than condemning the build: after `BLINK_TRIES` turns of a 1,055 ms cycle the honest
       // thing to say is that the caret was never caught lit, and 3 is the code for that. Asked
       // only of a burst that left a caret on the page: a `still` burst is a page with none.
       if (settle === 'caret' && !shot.read.bar) {
-        return refuse(piece, `the caret was never caught lit after ${burst.name}, so there was `
-          + 'no bar to measure');
+        return {
+          refused: `the caret was never caught lit after ${burst.name}, so there was no bar to measure`,
+        };
       }
       if (shotsDir) {
         fs.mkdirSync(shotsDir, { recursive: true });
@@ -293,15 +334,10 @@ async function run(root, piece, { shotsDir }) {
       }
     }
 
-    if (failures.length) {
-      console.log(`gate keys ${piece}: fail (${failures[0]})`);
-      return 1;
-    }
-    console.log(`gate keys ${piece}: pass`);
-    return 0;
+    return { failures };
   } finally {
     if (ours) stage.kill(ours.child);
-    stage.close();
+    if (scratch) fs.rmSync(scratch, { recursive: true, force: true });
   }
 }
 
