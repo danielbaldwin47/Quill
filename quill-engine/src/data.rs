@@ -1,7 +1,7 @@
 //! The data directory: the one place the files Quill ships are found.
 //!
 //! The Faces, the Templates, the Style check lists, the Selection Mark's
-//! glyphs and `OFL.txt` all resolve
+//! glyphs, the Settings window's icons and `OFL.txt` all resolve
 //! through it, so an installed package and a development build differ in one
 //! path rather than in every lookup (`docs/architecture.md`, "Fonts and data
 //! files"). Nothing is downloaded and nothing is searched for: there is one
@@ -112,6 +112,33 @@ pub fn marks() -> PathBuf {
     dir().join("data").join("marks")
 }
 
+/// The icons the Settings window draws that GTK would otherwise take from
+/// the icon theme: the dropdown's chevron, the spin button's minus and plus,
+/// and the search field's clear.
+///
+/// Files rather than a compiled resource, for the reason the Selection Mark's
+/// glyphs are: one data directory, so an installed Quill and a `cargo run`
+/// load the same file, and no build script. Each is a filled symbolic SVG, its
+/// name ending `-symbolic.svg` so that GTK recolours it to the widget's CSS
+/// `color` — through `-gtk-recolor(url(…))` in a stylesheet, or a
+/// `gio::FileIcon` in an image — and loads it at the output's scale.
+pub const ICONS: [&str; 4] = [CHEVRON, MINUS, PLUS, CLEAR];
+
+/// The dropdowns' chevron, drawn by the Settings window's stylesheet.
+pub const CHEVRON: &str = "chevron-symbolic.svg";
+/// A spin button's step down.
+pub const MINUS: &str = "minus-symbolic.svg";
+/// A spin button's step up.
+pub const PLUS: &str = "plus-symbolic.svg";
+/// The search field's clear.
+pub const CLEAR: &str = "clear-symbolic.svg";
+
+/// The directory holding [`ICONS`], beside the Selection Mark's glyphs.
+#[must_use]
+pub fn icons() -> PathBuf {
+    dir().join("data").join("icons")
+}
+
 /// The precedence itself, with its three inputs handed in.
 ///
 /// Separated from [`dir`] because the environment, the compiled-in path and the
@@ -201,6 +228,29 @@ mod tests {
                 "no {} in the data directory: the glyphs are committed, not built",
                 path.display()
             );
+        }
+    }
+
+    #[test]
+    fn the_icons_directory_is_the_data_directory_plus_two_names() {
+        assert_eq!(icons(), dir().join("data").join("icons"));
+    }
+
+    #[test]
+    fn the_checkout_holds_every_icon_as_a_filled_symbolic_svg() {
+        // Against `checkout()` for the reason the marks are.
+        for file in ICONS {
+            let path = checkout().join("data").join("icons").join(file);
+            let svg = std::fs::read_to_string(&path).unwrap_or_else(|_| {
+                panic!(
+                    "no {} in the data directory: the icons are committed, not built",
+                    path.display()
+                )
+            });
+            assert!(file.ends_with("-symbolic.svg"), "{file} is not recoloured");
+            assert!(svg.contains("<path d="), "{file} draws no path");
+            // `-gtk-recolor` fills every path, so a stroke comes out a wedge.
+            assert!(!svg.contains("stroke"), "{file} is stroked, not filled");
         }
     }
 

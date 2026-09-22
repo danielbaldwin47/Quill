@@ -306,6 +306,7 @@ pub fn install_window(window: &Window) {
     );
     install_recent(window);
     install_jump(window);
+    install_pane(window);
     // The compositor can fill the screen without `F11` being pressed, so the
     // check follows the window rather than the Command.
     window.connect_fullscreened_notify(|window| reflect(window, window.modes()));
@@ -346,6 +347,29 @@ fn install_jump(window: &Window) {
     window.add_action(&action);
 }
 
+/// The action a jump row of the Palette's settings group activates, with the
+/// name of the Settings pane the row sits in as its parameter: the window
+/// opened on that pane (#467), outside the registry as [`RECENT_OPEN`] is.
+/// `settings.open` is the Command a writer reaches.
+pub const SETTINGS_PANE: &str = "settings.pane";
+
+/// Registers [`SETTINGS_PANE`] on `window`.
+fn install_pane(window: &Window) {
+    let action = gio::SimpleAction::new(SETTINGS_PANE, Some(glib::VariantTy::STRING));
+    let opened = window.downgrade();
+    action.connect_activate(move |_, target| {
+        let name = target.and_then(|target| target.get::<String>());
+        let pane = name
+            .as_deref()
+            .and_then(quill_engine::palette::Pane::from_name);
+        let (Some(window), Some(pane)) = (opened.upgrade(), pane) else {
+            return;
+        };
+        window.open_settings_on(pane);
+    });
+    window.add_action(&action);
+}
+
 /// Registers [`RECENT_OPEN`] on `window`.
 fn install_recent(window: &Window) {
     let action = gio::SimpleAction::new(RECENT_OPEN, Some(glib::VariantTy::STRING));
@@ -362,7 +386,8 @@ fn install_recent(window: &Window) {
     window.add_action(&action);
 }
 
-/// Puts what the session now shows on to every window's stateful actions.
+/// Puts what the session now shows on to every window's stateful actions, and
+/// on to the rows of any Settings window open over one.
 ///
 /// One pass for every window, as `repaint` and the mode keys are, because a
 /// mode moving in one window moves it in all of them.
@@ -370,6 +395,7 @@ pub fn reflect_windows(app: &gtk::Application) {
     for window in app.windows() {
         if let Ok(window) = window.downcast::<Window>() {
             reflect(&window, window.modes());
+            window.refresh_settings();
         }
     }
 }
@@ -988,9 +1014,10 @@ pub fn stylesheet(ground: Ground) -> String {
          \x20 font-feature-settings: \"tnum\"; color: {ink};\n\
          }}\n\
          .chrome button:hover label.chrome-stat {{ color: {accent}; }}\n\
-         .chrome .chrome-rule {{ color: {rule}; }}\n{}{}",
+         .chrome .chrome-rule {{ color: {rule}; }}\n{}{}{}",
         menu_stylesheet(scheme),
-        crate::palette::stylesheet(scheme)
+        crate::palette::stylesheet(scheme),
+        crate::settings::stylesheet(scheme)
     ) + &crate::sidebar::stylesheet(ground)
 }
 
@@ -1679,8 +1706,16 @@ fn popover(
     });
     let opened = button.clone();
     popover.connect_show(move |_| opened.add_css_class("open"));
+    // Closing also takes the hover off: a row picked with the pointer leaves
+    // it over the page, but GTK sends the button no leave for it, so the
+    // button stayed lit (`:hover`, and the stats bar's accent cells) until
+    // the pointer crossed it again. A pointer that is on the button gets its
+    // hover back when it next enters.
     let closed = button.clone();
-    popover.connect_closed(move |_| closed.remove_css_class("open"));
+    popover.connect_closed(move |_| {
+        closed.remove_css_class("open");
+        closed.unset_state_flags(gtk::StateFlags::PRELIGHT);
+    });
     popover
 }
 

@@ -776,6 +776,23 @@ mod tests {
                 .collect::<Vec<_>>(),
             commands::VIEW_SECTIONS.map(Some)
         );
+        assert_eq!(
+            view.groups.last().and_then(|group| group.title),
+            Some(commands::VIEW_FOOT)
+        );
+        // The Commands that left the View menu (#467) are listed with no menu.
+        let keyboard_only = labelled(&sections[3..]);
+        for title in [
+            "Bigger Text",
+            "Modern",
+            "Hide Bars / Show Bars",
+            "Keyboard Shortcuts",
+        ] {
+            assert!(
+                keyboard_only.iter().any(|(row, _)| *row == title),
+                "{title}"
+            );
+        }
         for section in sections.iter().filter(|section| section.title != "View") {
             assert_eq!(section.groups.len(), 1, "{}", section.title);
             assert_eq!(section.groups[0].title, None, "{}", section.title);

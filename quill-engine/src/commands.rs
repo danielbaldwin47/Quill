@@ -203,15 +203,21 @@ const VIEW: Menu = Menu::View;
 const STATS: Menu = Menu::Stats;
 
 /// The View menu's sections in the table's order, separators between them.
-pub const VIEW_SECTIONS: [&str; 7] = [
+///
+/// Quill is the foot, Settings… and All Commands…: a section the table names,
+/// because every View row sits under a named section, which the menu draws
+/// with no head and the `Ctrl+?` window heads by name.
+pub const VIEW_SECTIONS: [&str; 6] = [
     "Focus",
     "Panes",
     "Writing tools",
     "Typeface",
-    "Template",
-    "Appearance",
     "Window",
+    VIEW_FOOT,
 ];
+
+/// The View menu's foot, the one section the menu draws with no head.
+pub const VIEW_FOOT: &str = "Quill";
 
 /// Every Command, in the table's order: the Document menu, the View menu
 /// section by section, the Stats menu, then the Palette-only rows.
@@ -267,31 +273,13 @@ pub const COMMANDS: &[Command] = &[
     row("font.duo", "Duo", Scope::Win, Kind::Radio { group: "face", value: "duo", }, &[], &[place(VIEW, Some("Typeface"), "Duo")], true),
     row("font.quattro", "Quattro", Scope::Win, Kind::Radio { group: "face", value: "quattro", }, &[], &[place(VIEW, Some("Typeface"), "Quattro")], true),
     row("font.mono", "Mono", Scope::Win, Kind::Radio { group: "face", value: "mono", }, &[], &[place(VIEW, Some("Typeface"), "Mono")], true),
-    // View › Template. The five Templates are one radio group whose value is
-    // the `[template]` table's `name`; the three toggles are its other keys.
-    row("template.modern", "Modern", Scope::Win, Kind::Radio { group: "template", value: "modern", }, &[], &[place(VIEW, Some("Template"), "Modern")], true),
-    row("template.classic", "Classic", Scope::Win, Kind::Radio { group: "template", value: "classic", }, &[], &[place(VIEW, Some("Template"), "Classic")], true),
-    row("template.manuscriptMono", "Manuscript Mono", Scope::Win, Kind::Radio { group: "template", value: "manuscript-mono", }, &[], &[place(VIEW, Some("Template"), "Manuscript Mono")], true),
-    row("template.manuscriptDuo", "Manuscript Duo", Scope::Win, Kind::Radio { group: "template", value: "manuscript-duo", }, &[], &[place(VIEW, Some("Template"), "Manuscript Duo")], true),
-    row("template.manuscriptQuattro", "Manuscript Quattro", Scope::Win, Kind::Radio { group: "template", value: "manuscript-quattro", }, &[], &[place(VIEW, Some("Template"), "Manuscript Quattro")], true),
-    row("template.centerHeadings", "Center Headings", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Template"), "Center Headings")], true),
-    row("template.numberHeadings", "Number Headings", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Template"), "Number Headings")], true),
-    row("template.indentParagraphs", "Indent Paragraphs", Scope::Win, Kind::Check, &[], &[place(VIEW, Some("Template"), "Indent Paragraphs")], true),
-    // View › Appearance.
-    row("theme.toggle", "Dark Mode", Scope::Win, Kind::Check, &["Ctrl+Shift+L", "Alt+Shift+N"], &[place(VIEW, Some("Appearance"), "Dark Mode")], true),
-    row("font.bigger", "Bigger Text", Scope::Win, Kind::Plain, &["Ctrl+="], &[place(VIEW, Some("Appearance"), "Bigger Text")], true),
-    row("font.smaller", "Smaller Text", Scope::Win, Kind::Plain, &["Ctrl+-"], &[place(VIEW, Some("Appearance"), "Smaller Text")], true),
-    row("font.reset", "Default Text Size", Scope::Win, Kind::Plain, &["Ctrl+0"], &[place(VIEW, Some("Appearance"), "Default Text Size")], true),
-    row("preview.bigger", "Bigger Preview Text", Scope::Win, Kind::Plain, &["Ctrl+Shift+="], &[place(VIEW, Some("Appearance"), "Bigger Preview Text")], true),
-    row("preview.smaller", "Smaller Preview Text", Scope::Win, Kind::Plain, &["Ctrl+Shift+-"], &[place(VIEW, Some("Appearance"), "Smaller Preview Text")], true),
-    row("preview.reset", "Default Preview Size", Scope::Win, Kind::Plain, &["Ctrl+Shift+0"], &[place(VIEW, Some("Appearance"), "Default Preview Size")], true),
     // View › Window.
+    row("theme.toggle", "Dark Mode", Scope::Win, Kind::Check, &["Ctrl+Shift+L", "Alt+Shift+N"], &[place(VIEW, Some("Window"), "Dark Mode")], true),
     row("chrome.stats", "Statistics", Scope::Win, Kind::Check, &[], &[ place(VIEW, Some("Window"), "Statistics"), place(STATS, None, "Hide Statistics"), ], true),
-    row("chrome.toggle", "Hide Bars / Show Bars", Scope::Win, Kind::Check, &["Ctrl+Shift+H"], &[place(VIEW, Some("Window"), "Hide Bars / Show Bars")], true),
     row("window.fullscreen", "Full Screen", Scope::Win, Kind::Check, &["F11"], &[place(VIEW, Some("Window"), "Full Screen")], true),
-    row("settings.open", "Settings…", Scope::Win, Kind::Plain, &["Ctrl+,"], &[place(VIEW, Some("Window"), "Settings…")], true),
-    row("shortcuts.open", "Keyboard Shortcuts", Scope::Win, Kind::Plain, &["Ctrl+?"], &[place(VIEW, Some("Window"), "Keyboard Shortcuts")], true),
-    row("palette.open", "All Commands…", Scope::Win, Kind::Plain, &["Ctrl+K"], &[place(VIEW, Some("Window"), "All Commands…")], true),
+    // View › Quill, the foot the menu draws with no head.
+    row("settings.open", "Settings…", Scope::Win, Kind::Plain, &["Ctrl+,"], &[place(VIEW, Some(VIEW_FOOT), "Settings…")], true),
+    row("palette.open", "All Commands…", Scope::Win, Kind::Plain, &["Ctrl+K"], &[place(VIEW, Some(VIEW_FOOT), "All Commands…")], true),
     // Stats menu.
     // Six independent checks, not a group: the bar shows every Statistic
     // checked, so several stand at once and unchecking the last leaves an
@@ -316,8 +304,26 @@ pub const COMMANDS: &[Command] = &[
     row("theme.light", "Light Theme", Scope::Win, Kind::Radio { group: "theme", value: "light", }, &[], &[], true),
     row("theme.dark", "Dark Theme", Scope::Win, Kind::Radio { group: "theme", value: "dark", }, &[], &[], true),
     row("theme.auto", "Follow System", Scope::Win, Kind::Radio { group: "theme", value: "auto", }, &[], &[], true),
+    row("font.bigger", "Bigger Text", Scope::Win, Kind::Plain, &["Ctrl+="], &[], true),
+    row("font.smaller", "Smaller Text", Scope::Win, Kind::Plain, &["Ctrl+-"], &[], true),
+    row("font.reset", "Default Text Size", Scope::Win, Kind::Plain, &["Ctrl+0"], &[], true),
+    row("preview.bigger", "Bigger Preview Text", Scope::Win, Kind::Plain, &["Ctrl+Shift+="], &[], true),
+    row("preview.smaller", "Smaller Preview Text", Scope::Win, Kind::Plain, &["Ctrl+Shift+-"], &[], true),
+    row("preview.reset", "Default Preview Size", Scope::Win, Kind::Plain, &["Ctrl+Shift+0"], &[], true),
+    // The five Templates are one radio group whose value is the `[template]`
+    // table's `name`; the three toggles are its other keys.
+    row("template.modern", "Modern", Scope::Win, Kind::Radio { group: "template", value: "modern", }, &[], &[], true),
+    row("template.classic", "Classic", Scope::Win, Kind::Radio { group: "template", value: "classic", }, &[], &[], true),
+    row("template.manuscriptMono", "Manuscript Mono", Scope::Win, Kind::Radio { group: "template", value: "manuscript-mono", }, &[], &[], true),
+    row("template.manuscriptDuo", "Manuscript Duo", Scope::Win, Kind::Radio { group: "template", value: "manuscript-duo", }, &[], &[], true),
+    row("template.manuscriptQuattro", "Manuscript Quattro", Scope::Win, Kind::Radio { group: "template", value: "manuscript-quattro", }, &[], &[], true),
+    row("template.centerHeadings", "Center Headings", Scope::Win, Kind::Check, &[], &[], true),
+    row("template.numberHeadings", "Number Headings", Scope::Win, Kind::Check, &[], &[], true),
+    row("template.indentParagraphs", "Indent Paragraphs", Scope::Win, Kind::Check, &[], &[], true),
+    row("chrome.toggle", "Hide Bars / Show Bars", Scope::Win, Kind::Check, &["Ctrl+Shift+H"], &[], true),
     row("chrome.doc", "Document Menu", Scope::Win, Kind::Plain, &[], &[], true),
     row("chrome.view", "View Menu", Scope::Win, Kind::Plain, &["F10"], &[], true),
+    row("shortcuts.open", "Keyboard Shortcuts", Scope::Win, Kind::Plain, &["Ctrl+?"], &[], true),
 ];
 
 /// Chords with no Command yet, held so nothing else takes them
@@ -1004,8 +1010,43 @@ mod tests {
         assert_eq!(by_id("chrome.stats").unwrap().placements.len(), 2);
         assert_eq!(
             radio_groups(),
-            ["focus_scope", "preview_mode", "face", "template", "theme"]
+            ["focus_scope", "preview_mode", "face", "theme", "template"]
         );
+    }
+
+    /// The Commands the View menu gave up (#467) keep their chords and their
+    /// Palette rows: the Templates, the two text-size ladders, Hide Bars and
+    /// Keyboard Shortcuts.
+    #[test]
+    fn the_commands_that_left_the_view_menu_keep_their_chords_and_palette_rows() {
+        let palette: Vec<&str> = crate::palette::sections()
+            .into_iter()
+            .flat_map(|(_, rows)| rows)
+            .map(|command| command.id)
+            .collect();
+        for (id, chord) in [
+            ("template.modern", None),
+            ("template.classic", None),
+            ("template.manuscriptMono", None),
+            ("template.manuscriptDuo", None),
+            ("template.manuscriptQuattro", None),
+            ("template.centerHeadings", None),
+            ("template.numberHeadings", None),
+            ("template.indentParagraphs", None),
+            ("font.bigger", Some("Ctrl+=")),
+            ("font.smaller", Some("Ctrl+-")),
+            ("font.reset", Some("Ctrl+0")),
+            ("preview.bigger", Some("Ctrl+Shift+=")),
+            ("preview.smaller", Some("Ctrl+Shift+-")),
+            ("preview.reset", Some("Ctrl+Shift+0")),
+            ("chrome.toggle", Some("Ctrl+Shift+H")),
+            ("shortcuts.open", Some("Ctrl+?")),
+        ] {
+            let command = by_id(id).unwrap_or_else(|| panic!("{id} is not in the table"));
+            assert!(command.hidden(), "{id} has a menu row");
+            assert_eq!(command.default(), chord, "{id}");
+            assert!(palette.contains(&id), "{id} is not in the Palette");
+        }
     }
 
     #[test]

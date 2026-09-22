@@ -92,11 +92,14 @@ for (const name of names) {
 }
 
 // The typed script is the Piece's rather than a state's: `keys.<piece>` in
-// states.json, its own flags and its own bursts, run by `tools/gate keys`.
-const script = states.keys?.[piece];
-if (script) {
+// states.json, its own flags and its own bursts, run by `tools/gate keys`. A
+// Piece may carry a list of them, each on its own launch.
+const scripts = states.keys?.[piece];
+if (scripts) {
   console.log('');
-  console.log(`keys script: ${script.bursts.length} bursts, at ${flags(script.state)}`);
+  for (const script of [scripts].flat()) {
+    console.log(`keys script: ${script.bursts.length} bursts, at ${flags(script.state)}`);
+  }
 }
 
 console.log('');

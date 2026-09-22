@@ -6,11 +6,12 @@
 //! the Commands placed in that menu, in the table's order; the View menu's
 //! sections are `GMenu` sections, which `GtkPopoverMenu` draws with a
 //! separator between them; a Writing tools head named in [`SUBMENU_HEADS`]
-//! draws the rows of its own Command prefix as a nested submenu under it, the
-//! Syntax highlight rows being the one such head today, and the Template
-//! section is a nested submenu of its own
-//! name. The Document menu's five `export.` rows are a nested submenu of
-//! their own name too, and Print… stands in a section of its own beneath it,
+//! draws the rows of its own Command prefix as a nested submenu under it,
+//! Syntax highlight and Style check being the two such heads today. Every
+//! section but the foot ([`VIEW_FOOT`]) is headed with its name in capitals,
+//! as the Parity oracle heads Typeface; the foot reads as a group under a
+//! separator. The Document menu's five `export.` rows are a nested submenu
+//! of their own name, and Print… stands in a section of its own beneath it,
 //! which is the separator on each side of it. A row's action is the Command's,
 //! so the check or the radio the popover draws reads the stateful action the
 //! chord fires, and a Command not built yet has a disabled action, which is
@@ -31,7 +32,7 @@ use std::path::PathBuf;
 
 use gtk::gio;
 use gtk::prelude::*;
-use quill_engine::commands::{COMMANDS, Command, Kind, Menu, Placement, VIEW_SECTIONS};
+use quill_engine::commands::{COMMANDS, Command, Menu, Placement, VIEW_FOOT, VIEW_SECTIONS};
 use quill_engine::document::shown_name;
 
 use crate::chrome::{self, Modes, RECENT_OPEN};
@@ -42,13 +43,6 @@ use crate::chrome::{self, Modes, RECENT_OPEN};
 /// highlight and Style check are the two Annotators with a head, and a third
 /// is a third row here and no other edit in this module (#362).
 const SUBMENU_HEADS: &[(&str, &str)] = &[("syntax.", "syntax.toggle"), ("style.", "style.toggle")];
-/// The section the Parity oracle heads with a label; the rest read as groups
-/// between separators.
-const HEADED: &str = "Typeface";
-/// The section that is a submenu of its own name rather than rows between
-/// separators: eight rows is a menu's worth, and a Template is picked once and
-/// left (`docs/shortcuts.md` § View menu).
-const SUBMENU: &str = "Template";
 /// The Document menu's rows that fold into a submenu of their own name the
 /// same way, by the prefix their ids share: five sinks is a menu's worth, and
 /// a writer reaches for the File menu to save far oftener than to export
@@ -147,13 +141,8 @@ pub fn model(menu: Menu, modes: &Modes, recents: &[PathBuf]) -> gio::Menu {
                 let rows: Vec<_> = rows(menu)
                     .filter(|(_, placement)| placement.section == Some(section))
                     .collect();
-                let heading = (section == HEADED).then(|| section.to_uppercase());
-                let built = if section == SUBMENU {
-                    template_section(section, &rows, modes)
-                } else {
-                    view_section(&rows, modes)
-                };
-                model.append_section(heading.as_deref(), &built);
+                let heading = (section != VIEW_FOOT).then(|| section.to_uppercase());
+                model.append_section(heading.as_deref(), &view_section(&rows, modes));
             }
         }
     }
@@ -224,35 +213,6 @@ fn section_with_heads(
             section.append_item(&item(command, placement, modes));
         }
     }
-    section
-}
-
-/// The [`SUBMENU`] section as one row that opens a submenu: the five Template
-/// radios, a separator, then the three toggles that bend the one chosen.
-///
-/// A Writing tools submenu hangs off a head row that is itself a Command
-/// ([`SUBMENU_HEADS`]); this one has no head — the section's own name is the
-/// row — because a Template is not a thing to switch on and off.
-fn template_section(
-    name: &'static str,
-    rows: &[(&'static Command, &'static Placement)],
-    modes: &Modes,
-) -> gio::Menu {
-    let section = gio::Menu::new();
-    let submenu = gio::Menu::new();
-    let templates = gio::Menu::new();
-    let toggles = gio::Menu::new();
-    for (command, placement) in rows {
-        let into = if matches!(command.kind, Kind::Radio { .. }) {
-            &templates
-        } else {
-            &toggles
-        };
-        into.append_item(&item(command, placement, modes));
-    }
-    submenu.append_section(None, &templates);
-    submenu.append_section(None, &toggles);
-    section.append_item(&gio::MenuItem::new_submenu(Some(name), &submenu));
     section
 }
 
@@ -597,10 +557,11 @@ mod tests {
         assert_eq!(labels.last().map(String::as_str), Some("All Commands…"));
     }
 
-    /// The View menu's sections come in the table's order, and only the
-    /// Typeface section carries a heading, as the oracle's does.
+    /// The View menu's sections come in the table's order, each headed with
+    /// its name in capitals but the foot, and none is a Template submenu: a
+    /// row for every View placement that folds under no submenu head (#467).
     #[test]
-    fn the_view_sections_are_the_tables_and_typeface_alone_is_headed() {
+    fn the_view_sections_are_the_tables_headed_in_capitals_over_an_unheaded_foot() {
         let model = model(Menu::View, &Modes::default(), &[]);
         assert_eq!(model.n_items(), i32::try_from(VIEW_SECTIONS.len()).unwrap());
         for (i, section) in VIEW_SECTIONS.iter().enumerate() {
@@ -608,9 +569,44 @@ mod tests {
             let heading = model
                 .item_attribute_value(i, "label", Some(glib::VariantTy::STRING))
                 .and_then(|value| value.get::<String>());
-            let expected = (*section == HEADED).then(|| section.to_uppercase());
+            let expected = (*section != VIEW_FOOT).then(|| section.to_uppercase());
             assert_eq!(heading, expected, "section {section}");
             assert!(model.item_link(i, "section").is_some(), "section {section}");
+        }
+        let heads: Vec<String> = (0..model.n_items())
+            .filter_map(|i| {
+                model
+                    .item_attribute_value(i, "label", Some(glib::VariantTy::STRING))
+                    .and_then(|value| value.get::<String>())
+            })
+            .collect();
+        assert_eq!(
+            heads,
+            ["FOCUS", "PANES", "WRITING TOOLS", "TYPEFACE", "WINDOW"]
+        );
+        let drawn: usize = (0..model.n_items())
+            .map(|i| model.item_link(i, "section").expect("a section").n_items())
+            .map(|n| usize::try_from(n).unwrap())
+            .sum();
+        let placed = rows(Menu::View)
+            .filter(|(command, _)| folds_under(command, SUBMENU_HEADS).is_none())
+            .count();
+        assert_eq!(drawn, placed);
+        let labels: Vec<String> = rows_of(model.upcast_ref())
+            .into_iter()
+            .flatten()
+            .map(|row| row.label)
+            .collect();
+        for gone in [
+            "Template",
+            "Modern",
+            "Bigger Text",
+            "Default Preview Size",
+            "Hide Bars",
+            "Show Bars",
+            "Keyboard Shortcuts",
+        ] {
+            assert!(!labels.iter().any(|label| label == gone), "{gone}");
         }
     }
 
@@ -694,49 +690,6 @@ mod tests {
         assert_eq!(inside, ["Enable Focus Mode", "Sentence", "Paragraph"]);
     }
 
-    /// The Template section is one row that opens a submenu named for it: the
-    /// five Templates, then the three toggles, and none of the eight loose in
-    /// the View menu.
-    #[test]
-    fn the_template_rows_are_a_submenu_named_for_their_section() {
-        let model = model(Menu::View, &Modes::default(), &[]);
-        let at = i32::try_from(
-            VIEW_SECTIONS
-                .iter()
-                .position(|section| *section == SUBMENU)
-                .expect("the table has the section"),
-        )
-        .unwrap();
-        let section = model.item_link(at, "section").expect("the section");
-        assert_eq!(section.n_items(), 1, "one row, which opens the submenu");
-        let label = section
-            .item_attribute_value(0, "label", Some(glib::VariantTy::STRING))
-            .and_then(|value| value.get::<String>());
-        assert_eq!(label.as_deref(), Some(SUBMENU));
-        let submenu = section.item_link(0, "submenu").expect("the submenu");
-        // Two sections inside it, so the popover draws a separator between
-        // the Templates and the toggles that bend one.
-        assert_eq!(submenu.n_items(), 2);
-        let inside: Vec<String> = rows_of(&submenu)
-            .into_iter()
-            .flatten()
-            .map(|row| row.label)
-            .collect();
-        assert_eq!(
-            inside,
-            [
-                "Modern",
-                "Classic",
-                "Manuscript Mono",
-                "Manuscript Duo",
-                "Manuscript Quattro",
-                "Center Headings",
-                "Number Headings",
-                "Indent Paragraphs"
-            ]
-        );
-    }
-
     /// The Stats menu is the six checks, a separator, then Hide Statistics —
     /// the table's § Stats menu order, though the registry names
     /// `chrome.stats` first.
@@ -793,16 +746,13 @@ mod tests {
         }
     }
 
-    /// The View menu's three `Shift` chords on a symbol or a digit show the
-    /// key the writer presses, not the glyph Shift makes of it (#428): the
-    /// row's `accel` is `<Control><Shift>equal` where the installed chord is
-    /// `<Control><Shift>plus`.
+    /// The three `Shift` chords on a symbol or a digit show the key the
+    /// writer presses, not the glyph Shift makes of it (#428): a row's `accel`
+    /// is `<Control><Shift>equal` where the installed chord is
+    /// `<Control><Shift>plus`. No menu places the three since #467, so each is
+    /// read off a row built for it.
     #[test]
     fn a_shifted_chords_row_shows_the_key_that_is_pressed() {
-        let drawn: Vec<Row> = rows_of(model(Menu::View, &resting(), &[]).upcast_ref())
-            .into_iter()
-            .flatten()
-            .collect();
         for (id, installed, shown) in [
             (
                 "preview.bigger",
@@ -826,11 +776,15 @@ mod tests {
                 Some(installed),
                 "{id}'s installed chord moved"
             );
-            let row = drawn
-                .iter()
-                .find(|row| row.label == command.title)
-                .unwrap_or_else(|| panic!("{id} has a View menu row"));
-            assert_eq!(row.accel.as_deref(), Some(shown), "{id}");
+            let placement = Placement {
+                menu: Menu::View,
+                section: None,
+                label: command.title,
+            };
+            let accel = item(command, &placement, &resting())
+                .attribute_value("accel", Some(glib::VariantTy::STRING))
+                .and_then(|value| value.get::<String>());
+            assert_eq!(accel.as_deref(), Some(shown), "{id}");
         }
     }
 
@@ -854,8 +808,8 @@ mod tests {
             label(focus, &focus.placements[0], &on),
             "Disable Focus Mode"
         );
-        assert_eq!(label(bars, &bars.placements[0], &off), "Show Bars");
-        assert_eq!(label(bars, &bars.placements[0], &on), "Hide Bars");
+        assert_eq!(title(bars, &off), "Show Bars");
+        assert_eq!(title(bars, &on), "Hide Bars");
         let quit = by_id("app.quit").unwrap();
         assert_eq!(quit.scope, Scope::App);
         assert_eq!(label(quit, &quit.placements[0], &off), "Quit");

@@ -196,6 +196,9 @@ mod imp {
         /// The one Export dialog standing over this window, so a second
         /// command presents it instead of opening another.
         pub export_dialog: RefCell<Option<glib::WeakRef<gtk::Window>>>,
+        /// The Settings window standing over this one, so a second `Ctrl+,`
+        /// presents it and a change made elsewhere reaches its rows.
+        pub(crate) settings: RefCell<Option<crate::settings::Open>>,
         /// The one Preview refresh timer, armed by the first edit of a burst
         /// and re-armed by every edit after it, so the render pass runs once
         /// when the writer stops rather than once per keystroke.
@@ -2966,7 +2969,11 @@ impl Window {
     pub(crate) fn open_palette(&self) {
         self.bring_bars_back();
         self.imp().bars.close_menus();
-        self.palette().toggle(self.upcast_ref(), self.modes());
+        let hand = self.session().map(|session| crate::palette::Hand {
+            session,
+            spelling: self.imp().editor.spell_resolution(),
+        });
+        self.palette().toggle(self.upcast_ref(), self.modes(), hand);
     }
 
     /// `file.recent`: the Palette over the page on this writer's recent
@@ -3038,16 +3045,57 @@ impl Window {
     }
 
     /// Opens the Settings window over this one: `settings.open`, `Ctrl+,` and
-    /// View › Window "Settings…".
+    /// "Settings…" in the View menu's Quill foot.
     pub(crate) fn open_settings(&self) {
+        self.present_settings(None);
+    }
+
+    /// Opens the Settings window over this one on `pane`, as
+    /// [`Window::open_settings`] does: a jump row of the Palette's settings
+    /// group (#467).
+    pub(crate) fn open_settings_on(&self, pane: quill_engine::palette::Pane) {
+        self.present_settings(Some(pane));
+    }
+
+    /// Opens the Settings window over this one, on `pane` or on the pane last
+    /// shown; a window already open is presented on `pane`, or as it stands
+    /// when none is asked for.
+    fn present_settings(&self, pane: Option<quill_engine::palette::Pane>) {
         let Some(session) = self.session() else {
             return;
         };
-        crate::settings::open(
-            self.upcast_ref(),
-            &session,
-            self.imp().editor.spell_resolution().as_ref(),
-        );
+        let standing = self
+            .imp()
+            .settings
+            .borrow()
+            .as_ref()
+            .and_then(crate::settings::Open::window);
+        if let Some(standing) = standing {
+            if let (Some(pane), Some(open)) = (pane, self.imp().settings.borrow().as_ref()) {
+                open.show(pane);
+            }
+            standing.present();
+            return;
+        }
+        let spelling = self.imp().editor.spell_resolution();
+        let open = match pane {
+            Some(pane) => {
+                crate::settings::open_on(self.upcast_ref(), &session, spelling.as_ref(), pane)
+            }
+            None => crate::settings::open(self.upcast_ref(), &session, spelling.as_ref()),
+        };
+        self.imp().settings.replace(Some(open));
+    }
+
+    /// Stands the rows of the Settings window over this one on what the
+    /// launch is running now, when one is open.
+    pub(crate) fn refresh_settings(&self) {
+        let Some(session) = self.session() else {
+            return;
+        };
+        if let Some(open) = self.imp().settings.borrow().as_ref() {
+            open.refresh(&session, self.imp().editor.spell_resolution().as_ref());
+        }
     }
 
     /// Opens the shortcuts window over this one: `shortcuts.open`, `Ctrl+?`
@@ -3104,7 +3152,12 @@ impl Window {
             };
             match window.imp().flagged.take() {
                 Some(flags::Menu::Bar(menu)) => window.open_menu(menu),
-                Some(flags::Menu::Palette) => window.open_palette(),
+                Some(flags::Menu::Palette) => {
+                    window.open_palette();
+                    if let Some(query) = window.session().and_then(|s| s.flags().query.clone()) {
+                        window.palette().fill(&query);
+                    }
+                }
                 Some(flags::Menu::Outline) => window.open_outline(),
                 None => {}
             }
@@ -3124,16 +3177,33 @@ impl Window {
     /// dialog, so a writer looking at a judged shot is not looking at a stack
     /// of them.
     fn open_flagged_export(&self, format: crate::export_dialog::Format) {
+        self.after_first_paint(move |window| {
+            crate::export_dialog::open_expanded(window, format);
+        });
+    }
+
+    /// Opens the Settings window `--pane` named on its pane, once the window
+    /// has painted its first frame, as [`Self::open_flagged_export`] opens
+    /// the Export dialog and for its reason.
+    fn open_flagged_settings(&self, pane: quill_engine::palette::Pane) {
+        self.after_first_paint(move |window| window.open_settings_on(pane));
+    }
+
+    /// Runs `open` once, on the frame after the window's first paint: the
+    /// shared half of [`Self::open_flagged_export`] and
+    /// [`Self::open_flagged_settings`]. The callback lives in a [`Cell`] the
+    /// first frame empties, since `after-paint` runs on every frame.
+    fn after_first_paint(&self, open: impl FnOnce(&Window) + 'static) {
         let Some(clock) = self.frame_clock() else {
             return;
         };
         let window = self.downgrade();
-        let asked = std::cell::Cell::new(Some(format));
+        let asked = std::cell::Cell::new(Some(open));
         clock.connect_after_paint(move |_| {
-            let (Some(window), Some(format)) = (window.upgrade(), asked.take()) else {
+            let (Some(window), Some(open)) = (window.upgrade(), asked.take()) else {
                 return;
             };
-            crate::export_dialog::open_expanded(&window, format);
+            open(&window);
         });
     }
 
@@ -3738,6 +3808,10 @@ pub fn present_launch(app: &gtk::Application, session: &Rc<Session>) {
         // Document that was shown above.
         if let Some(format) = session.flags().export_dialog {
             window.open_flagged_export(format);
+        }
+        // The Settings window `--pane` names, for the Export dialog's reason.
+        if let Some(pane) = session.flags().pane {
+            window.open_flagged_settings(pane);
         }
     }
     if let Some(window) = first

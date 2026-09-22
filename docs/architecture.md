@@ -227,12 +227,53 @@ theme `auto` follows the settings portal's colour scheme.
 
 Two windows besides: `Ctrl+?` is a `GtkShortcutsWindow` listing every Command with the chord the
 effective map leaves it on, grouped as the menus are and built afresh on every open; `Ctrl+,` is a
-Settings window, one grid of the rows that have no menu home — the Typewriter anchor, Follow System,
-the Spell-check language, the Library's own rows, the Preview pane's Mode, the `[export]` group a printed or exported page is
-laid out on, a button that opens `settings.toml` in the system editor, and whatever the
-last read of that file could not apply — a file that is not TOML says so there, above the entries it
-refused. Both are transient for the window they were opened from, and no row
+Settings window. Both are transient for the window they were opened from, and no row
 of either sets a value on the session: a row writes the file and the watch below applies it.
+
+**The Settings window** is one pane per setting, and the Palette reaches it too: a setting lives in
+the View menu or in one Settings pane, and the Palette finds either. Dark Mode alone is in both,
+beside Follow System on General, since the two answer one question (the owner's #467 Hand test). A 168 px sidebar —
+a search field over a `ListBox` of five Settings panes — sits beside a stack of them, 700 × 520, in
+Quill's own stylesheet on both grounds (`quill/src/settings/sheet.rs`, appended to the chrome's so
+it reloads with the ground) with Quill's own icons from the data directory, never the icon theme.
+Every row is built from one table, `quill_engine::palette::SETTINGS_ROWS`, which the Palette reads
+too:
+
+- **General**: Dark Mode, Follow System, Hide Bars, the Typewriter anchor, the Spell check language
+  (with the "no dictionary" line under it, § Settings). Dark Mode stands on the ground on screen and
+  writes a pinned ground, which stops Follow System as `Ctrl+Shift+L` does.
+- **Library**: Locations as a path list with Add… and Remove, Pinned as one with Remove, then Show
+  hidden folders, Show file extensions, Confirm before moving files and Always ask where to save.
+- **Template**: the five Templates as radios, then Center headings, Number headings and Indent
+  paragraphs.
+- **Export**: the `[export]` group a printed or exported page is laid out on — Paper, Margin (mm),
+  Text size (pt), Title page, Header, Footer.
+- **Advanced**: a button that opens `settings.toml` in the system editor, and whatever the last
+  read of that file could not apply — a file that is not TOML says so there, above the entries it
+  refused.
+
+The window is built afresh on every open, so every row opens on the effective setting, and on the
+pane last shown in the process (General on a run's first open; written nowhere). A second `Ctrl+,`
+presents the window already open, and a Palette jump row or `--pane` turns it to the pane asked
+for. The window that opened it holds it weakly, and every pass that puts the settings on the
+windows stands its rows again on what the file now holds — `Ctrl+Shift+H`, a Template picked from
+the Palette, a hand's edit of the file — writing nothing back and leaving a row that already shows
+the value alone, so the pane, its scroll and the focus stay put.
+
+The sidebar's search jumps and never operates: typing anywhere in the window reaches the field,
+which lists every matching row by the Palette's fuzzy match with its pane's name beside it; Down
+and Up move the selection with focus kept in the field, and Enter clears the field, shows the
+pane, scrolls the row into view and lights it for a moment. Esc clears a non-empty field first and
+closes the window second.
+
+**The Palette's settings rows.** With a query, matching Settings rows follow the matching Commands
+under a SETTINGS head, each with its live control at its right end, built by the window's own
+control builder so the two surfaces write through the same functions. A row a Command already sets
+— Dark Mode, Follow System, Hide Bars, the Templates and their three switches — is left to that Command, so
+nothing is listed twice. Enter on a settings row operates its control and leaves the Palette open
+(a switch flips, a dropdown opens its popup, a spin button or scale takes focus and Esc returns to
+the field); Enter on a Command runs it and closes, as before. Locations, Pinned and the refused
+lines are jump rows: Enter closes the Palette and opens Settings on their pane.
 
 ## Settings
 
@@ -295,12 +336,13 @@ confirmation shape behind a process-wide flag. Installing a dictionary and toggl
 changing the language, leaves it. libenchant's provider warnings go through a GLib log handler for
 the `libenchant` domain at debug level, so a launch writes nothing to the journal.
 
-The Settings window's Writing tools group carries Spell check under Style check's rows: a switch
-bound to `spell_check`, the language dropdown bound to `spell_language` listing System default and
-every installed tag (filled when the window opens, so a dictionary installed mid-session appears on
-the next open), and, in the "no dictionary" state, the dropdown reading "No dictionary installed"
-with one line under it naming the wanted tag and the package to install (`hunspell-en_us` on Arch,
-`README.md` § Spell check in other languages for the rest).
+The Settings window's General pane carries the language: a dropdown bound to `spell_language`
+listing System default and every installed tag (filled when the window opens, so a dictionary
+installed mid-session appears on the next open), and, in the "no dictionary" state, the dropdown
+reading "No dictionary installed" with one line under it naming the wanted tag and the package to
+install (`hunspell-en_us` on Arch, `README.md` § Spell check in other languages for the rest).
+Spell check's own switch is the View menu's Writing tools row, and the line reads the session's
+Spell check.
 
 The settings file is watched with `notify` and a debouncer whose window is
 `quill_engine::watch::DEBOUNCE`, the
@@ -345,7 +387,7 @@ The engine's `render` module lays a whole Document out with Pango from the curre
 the pages the PDF surface draws. Preview has two modes over that one pass, `[preview].mode`: Web
 draws the rendered sheet, and PDF draws the same pages Export writes, stacked as a column with the
 page under the column's top edge on the stats bar beside the counts. The mode is one setting for the
-app: View › Panes' Web and PDF rows and the Settings window's Mode row write it, and every open pane
+app: View › Panes' Web and PDF rows write it, and every open pane
 reads it on the refresh that follows. Preview re-renders on idle after edits, debounced, and restores its
 scroll to the block the caret is in. `paginate` cuts that one tall rendered page into pages of paper
 under the page geometry (size, margins, header, footer, title page) owned by Export, not the
@@ -422,12 +464,19 @@ and the determinism settings, this document names the flags:
   a still cannot pull an expander, and a second surface over a toplevel the compositor has no frame
   of yet keeps the toplevel from ever mapping; `[export]` itself has no flag, and is pinned to its
   defaults under `--deterministic` with `paper` past its own default, because `auto` is the host's
-  locale and a judged shot is the same on every machine), `--w <px> --h <px>`. Both `--typing` and
+  locale and a judged shot is the same on every machine), `--pane
+  general|library|template|export|advanced` (open the Settings window on that pane over the page,
+  once the window has painted its first frame, for the Export dialog's reason; it names nothing
+  about the settings file, which is `--settings`), `--query <text>` (put `<text>` in the Palette's
+  field and narrow the list to what it finds, set in code because under `--deterministic` the field
+  cannot take the keyboard; refused without `--menu palette`, as `--search` is without `--sidebar`),
+  `--w <px> --h <px>`. Both `--typing` and
   `--menu` name a state the app is
   put in before the first frame, never one it is driven into after it.
 - Harness: `--deterministic` (animations off, blink off, manual font rendering with pinned antialias,
   slight hinting, no subpixel, 96 dpi, hinted metrics, no client-side decorations; and Typewriter
-  off unless `--typewriter` is given, so the writer's `settings.toml` reaches no judged shot),
+  off unless `--typewriter` is given, and its anchor at the default under either, so the writer's
+  `settings.toml` reaches no judged shot),
   `--measure <out.jsonl>` (key capture in the capture phase, `GdkFrameTimings` presentation times,
   cold start against `QUILL_T0_NS`), `--settings <path>` (read and write settings in `<path>`, so a
   run drives a fixture — a `[shortcuts]` table, a theme — without touching the writer's file),
