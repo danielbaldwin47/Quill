@@ -1706,8 +1706,16 @@ fn popover(
     });
     let opened = button.clone();
     popover.connect_show(move |_| opened.add_css_class("open"));
+    // Closing also takes the hover off: a row picked with the pointer leaves
+    // it over the page, but GTK sends the button no leave for it, so the
+    // button stayed lit (`:hover`, and the stats bar's accent cells) until
+    // the pointer crossed it again. A pointer that is on the button gets its
+    // hover back when it next enters.
     let closed = button.clone();
-    popover.connect_closed(move |_| closed.remove_css_class("open"));
+    popover.connect_closed(move |_| {
+        closed.remove_css_class("open");
+        closed.unset_state_flags(gtk::StateFlags::PRELIGHT);
+    });
     popover
 }
 
