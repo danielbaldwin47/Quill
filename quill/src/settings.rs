@@ -193,6 +193,7 @@ impl Open {
             return;
         }
         let settings = session.running();
+        let scheme = session.scheme();
         QUIET.with(|quiet| quiet.set(true));
         if let Some((language, said)) = &self.language {
             stand_language(language, said, &settings.spell_language, spelling);
@@ -202,7 +203,7 @@ impl Open {
         }
         for row in self.rows.iter() {
             let Some(now) =
-                shown(&row.control).and_then(|shown| moved(&settings, row.setting, shown))
+                shown(&row.control).and_then(|shown| moved(&settings, scheme, row.setting, shown))
             else {
                 continue;
             };
@@ -226,14 +227,19 @@ enum Standing {
     Fraction(f64),
 }
 
-/// What `setting`'s control stands on under `settings`, or `None` for a row
-/// the refresh leaves as it opened: the Spell check language, whose rows
-/// hang on what the Editor resolved, and a row with no control.
-fn standing(settings: &Settings, setting: &Setting) -> Option<Standing> {
+/// What `setting`'s control stands on under `settings` with `scheme` on
+/// screen, or `None` for a row the refresh leaves as it opened: the Spell
+/// check language, whose rows hang on what the Editor resolved, and a row
+/// with no control. Dark Mode reads the ground on screen, which under
+/// Follow System is the desktop's and in no key.
+fn standing(settings: &Settings, scheme: Scheme, setting: &Setting) -> Option<Standing> {
     let standing = match (setting.key?, setting.control) {
         ("chrome", _) => Standing::On(settings.chrome == Chrome::Hidden),
         ("template.name", Control::Radio { value }) => {
             Standing::On(settings.template.name.as_str() == value)
+        }
+        ("theme", _) if setting.command == Some("theme.toggle") => {
+            Standing::On(scheme == Scheme::Dark)
         }
         ("theme", _) => Standing::On(settings.theme == Theme::Auto),
         ("typewriter_anchor", _) => Standing::Fraction(settings.typewriter_anchor),
@@ -249,8 +255,13 @@ fn standing(settings: &Settings, setting: &Setting) -> Option<Standing> {
 /// What `setting`'s control, showing `shown`, is to be stood on now that the
 /// launch runs `settings`, or `None` where it shows that already. The anchor
 /// is the same within half a step, since the scale rounds what it is given.
-fn moved(settings: &Settings, setting: &Setting, shown: Standing) -> Option<Standing> {
-    let now = standing(settings, setting)?;
+fn moved(
+    settings: &Settings,
+    scheme: Scheme,
+    setting: &Setting,
+    shown: Standing,
+) -> Option<Standing> {
+    let now = standing(settings, scheme, setting)?;
     let same = match (now, shown) {
         (Standing::Fraction(now), Standing::Fraction(shown)) => {
             (now - shown).abs() < ANCHOR_STEP / 2.0
@@ -335,7 +346,7 @@ fn head(setting: &Setting) -> Option<&'static str> {
 fn hint(setting: &Setting) -> Option<&'static str> {
     match setting.control {
         Control::Button => Some(FILE_HINT),
-        _ if setting.key == Some("theme") => Some("Light and dark follow the desktop"),
+        _ if setting.command == Some("theme.auto") => Some("Light and dark follow the desktop"),
         _ => None,
     }
 }
@@ -387,8 +398,10 @@ pub fn open_on(
                 continue;
             };
             // The refused lines carry their head inside them, so that it
-            // goes with them while no line is refused.
-            if let Some(said) = head(setting).filter(|_| setting.control != Control::Jump) {
+            // goes with them while no line is refused; they are the one jump
+            // row with no key, Locations and Pinned being jump rows too.
+            let refused_lines = setting.key.is_none() && setting.control == Control::Jump;
+            if let Some(said) = head(setting).filter(|_| !refused_lines) {
                 body.append(&group_head(said, first));
             }
             first = false;
@@ -549,6 +562,9 @@ pub(crate) fn control(
         return Some(edit_button(session).upcast());
     }
     let control: gtk::Widget = match setting.key? {
+        "theme" if setting.command == Some("theme.toggle") => {
+            switch(session, session.scheme() == Scheme::Dark, darkened).upcast()
+        }
         "theme" => follow_switch(session).upcast(),
         "typewriter_anchor" => anchor_scale(session).upcast(),
         "spell_language" => language(
@@ -1435,6 +1451,13 @@ fn hid_bars(settings: &mut Settings, on: bool) {
     settings.chrome = if on { Chrome::Hidden } else { Chrome::Shown };
 }
 
+/// What Dark Mode writes: the ground it asks for, pinned, which stops Follow
+/// System as `Ctrl+Shift+L` does ([`Scheme::setting`]).
+fn darkened(settings: &mut Settings, on: bool) {
+    let scheme = if on { Scheme::Dark } else { Scheme::Light };
+    settings.theme = scheme.setting();
+}
+
 /// What a Template's radio writes: the name the `template.*` radios pick.
 fn named_template(settings: &mut Settings, name: TemplateName) {
     settings.template.name = name;
@@ -1543,6 +1566,7 @@ mod tests {
         assert_eq!(
             labels(Pane::General),
             [
+                "Dark Mode",
                 "Follow System",
                 "Hide Bars",
                 "Typewriter anchor",
@@ -1603,7 +1627,7 @@ mod tests {
         );
     }
 
-    /// Every switch but Follow System's and Hide Bars' reads the key it
+    /// Every switch but the ground's two and Hide Bars' reads the key it
     /// writes: flipped in the file and applied, the row reads the flip, and
     /// its write puts each value back under that key alone.
     #[test]
@@ -1627,7 +1651,11 @@ mod tests {
                 assert_eq!(read(&session.running()), on, "{key}");
             }
         }
-        assert_eq!(unbuilt, ["theme", "chrome"], "every other switch is built");
+        assert_eq!(
+            unbuilt,
+            ["theme", "theme", "chrome"],
+            "every other switch is built"
+        );
         std::fs::remove_file(path).ok();
     }
 
@@ -1666,6 +1694,38 @@ mod tests {
             written.typewriter_anchor
         );
         assert_eq!(written.chrome, Chrome::Hidden, "and what the key moved");
+        std::fs::remove_file(&path).ok();
+    }
+
+    /// Dark Mode pins the ground it asks for, which stops Follow System, and
+    /// stands on the ground on screen: under Follow System that is the
+    /// desktop's, so a dark desktop shows it on with `auto` in the file.
+    #[test]
+    fn dark_mode_pins_a_ground_and_stands_on_the_one_on_screen() {
+        let (session, path) = launched("dark-mode");
+        session.edit_settings(|settings| darkened(settings, true));
+        assert_eq!(Settings::read_from(&path).0.theme, Theme::Dark);
+        session.edit_settings(|settings| darkened(settings, false));
+        assert_eq!(Settings::read_from(&path).0.theme, Theme::Light);
+
+        let dark = row("Dark Mode");
+        let follow = row("Follow System");
+        let mut settings = Settings::default();
+        settings.theme = Theme::Auto;
+        assert_eq!(
+            standing(&settings, Scheme::Dark, dark),
+            Some(Standing::On(true))
+        );
+        assert_eq!(
+            standing(&settings, Scheme::Dark, follow),
+            Some(Standing::On(true)),
+            "the two switches are on together"
+        );
+        assert_eq!(
+            moved(&settings, Scheme::Light, dark, Standing::On(true)),
+            Some(Standing::On(false)),
+            "the desktop going light turns it off"
+        );
         std::fs::remove_file(&path).ok();
     }
 
@@ -1861,43 +1921,57 @@ mod tests {
         let classic = row("Classic");
         let anchor = row("Typewriter anchor");
         let paper = row("Paper");
-        let showing = |settings: &Settings, setting: &Setting| standing(settings, setting).unwrap();
+        let light = Scheme::Light;
+        let showing =
+            |settings: &Settings, setting: &Setting| standing(settings, light, setting).unwrap();
         for setting in [bars, modern, classic, anchor, paper] {
             let shown = showing(&settings, setting);
-            assert_eq!(moved(&settings, setting, shown), None, "{}", setting.label);
+            assert_eq!(
+                moved(&settings, light, setting, shown),
+                None,
+                "{}",
+                setting.label
+            );
         }
 
         let before = settings.clone();
         settings.chrome = Chrome::Hidden;
         assert_eq!(
-            moved(&settings, bars, showing(&before, bars)),
+            moved(&settings, light, bars, showing(&before, bars)),
             Some(Standing::On(true))
         );
         settings.template.name = TemplateName::Classic;
         assert_eq!(
-            moved(&settings, classic, showing(&before, classic)),
+            moved(&settings, light, classic, showing(&before, classic)),
             Some(Standing::On(true))
         );
         assert_eq!(
-            moved(&settings, modern, showing(&before, modern)),
+            moved(&settings, light, modern, showing(&before, modern)),
             Some(Standing::On(false))
         );
-        assert_eq!(moved(&settings, paper, showing(&before, paper)), None);
+        assert_eq!(
+            moved(&settings, light, paper, showing(&before, paper)),
+            None
+        );
 
         let dragged = Standing::Fraction(settings.typewriter_anchor + ANCHOR_STEP / 4.0);
         assert_eq!(
-            moved(&settings, anchor, dragged),
+            moved(&settings, light, anchor, dragged),
             None,
             "within the scale's rounding"
         );
         settings.typewriter_anchor += ANCHOR_STEP * 10.0;
         assert_eq!(
-            moved(&settings, anchor, showing(&before, anchor)),
+            moved(&settings, light, anchor, showing(&before, anchor)),
             Some(Standing::Fraction(settings.typewriter_anchor))
         );
 
         let language = row("Spell check language");
-        assert_eq!(standing(&settings, language), None, "left as it opened");
+        assert_eq!(
+            standing(&settings, light, language),
+            None,
+            "left as it opened"
+        );
     }
 
     /// System default, then the listing in its own order; the row the

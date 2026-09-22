@@ -231,15 +231,17 @@ Settings window. Both are transient for the window they were opened from, and no
 of either sets a value on the session: a row writes the file and the watch below applies it.
 
 **The Settings window** is one pane per setting, and the Palette reaches it too: a setting lives in
-the View menu or in one Settings pane, never both, and the Palette finds either. A 168 px sidebar —
+the View menu or in one Settings pane, and the Palette finds either. Dark Mode alone is in both,
+beside Follow System on General, since the two answer one question (the owner's #467 Hand test). A 168 px sidebar —
 a search field over a `ListBox` of five Settings panes — sits beside a stack of them, 700 × 520, in
 Quill's own stylesheet on both grounds (`quill/src/settings/sheet.rs`, appended to the chrome's so
 it reloads with the ground) with Quill's own icons from the data directory, never the icon theme.
 Every row is built from one table, `quill_engine::palette::SETTINGS_ROWS`, which the Palette reads
 too:
 
-- **General**: Follow System, Hide Bars, the Typewriter anchor, the Spell check language (with the
-  "no dictionary" line under it, § Settings).
+- **General**: Dark Mode, Follow System, Hide Bars, the Typewriter anchor, the Spell check language
+  (with the "no dictionary" line under it, § Settings). Dark Mode stands on the ground on screen and
+  writes a pinned ground, which stops Follow System as `Ctrl+Shift+L` does.
 - **Library**: Locations as a path list with Add… and Remove, Pinned as one with Remove, then Show
   hidden folders, Show file extensions, Confirm before moving files and Always ask where to save.
 - **Template**: the five Templates as radios, then Center headings, Number headings and Indent
@@ -267,7 +269,7 @@ closes the window second.
 **The Palette's settings rows.** With a query, matching Settings rows follow the matching Commands
 under a SETTINGS head, each with its live control at its right end, built by the window's own
 control builder so the two surfaces write through the same functions. A row a Command already sets
-— Follow System, Hide Bars, the Templates and their three switches — is left to that Command, so
+— Dark Mode, Follow System, Hide Bars, the Templates and their three switches — is left to that Command, so
 nothing is listed twice. Enter on a settings row operates its control and leaves the Palette open
 (a switch flips, a dropdown opens its popup, a spin button or scale takes focus and Esc returns to
 the field); Enter on a Command runs it and closes, as before. Locations, Pinned and the refused

@@ -343,6 +343,7 @@ const fn row(
 /// order and in each pane's own order.
 #[rustfmt::skip]
 pub const SETTINGS_ROWS: &[Setting] = &[
+    row("Dark Mode", Pane::General, "theme", Control::Switch, Some("theme.toggle")),
     row("Follow System", Pane::General, "theme", Control::Switch, Some("theme.auto")),
     row("Hide Bars", Pane::General, "chrome", Control::Switch, Some("chrome.toggle")),
     row("Typewriter anchor", Pane::General, "typewriter_anchor", Control::Scale, None),
@@ -1026,12 +1027,15 @@ mod tests {
                 assert_eq!(lookup(&reread, key), Some(&changed), "{}", setting.label);
             }
         }
-        // A radio group shares a key, and every other row has its own.
+        // A radio group shares a key, as the ground's two switches do (Dark
+        // Mode pins a ground, Follow System asks for `auto`), and every other
+        // row has its own.
         let mut keys: Vec<(&str, Option<&str>)> = SETTINGS_ROWS
             .iter()
             .filter_map(|setting| {
                 let value = match setting.control {
                     Control::Radio { value } => Some(value),
+                    _ if setting.key == Some("theme") => setting.command,
                     _ => None,
                 };
                 setting.key.map(|key| (key, value))
