@@ -10,7 +10,7 @@ so against the **Design oracle**, iA Writer for Mac as measured in `dev/ref/ia/m
 `docs/architecture.md` is the native design; `CONTEXT.md` is the vocabulary.
 
 ```
-dev/ref/ia/         iA Writer reference: screenshots, fonts, templates, spec sheet, sources
+dev/ref/ia/         iA Writer reference: fonts, spec sheet; screenshots, templates, sources (evidence, below)
                     mac-native/  the Design oracle as measured; its captures are under dev/ref/ia/shots/mac-native/
 dev/ref/sample.md   the shared test passage;  dev/ref/short.md  the one that fits in a window
 dev/ref/spell.md    the Spell check passage;  dev/ref/spell/  the en_US fixture dictionary the Gate and
@@ -18,6 +18,23 @@ dev/ref/spell.md    the Spell check passage;  dev/ref/spell/  the en_US fixture 
 dev/progress/       state, per-round verdicts, latency report, generated live page
 dev/shots/          every round's screenshots, blind pairs, and the states the oracle is shot at
 ```
+
+## Judging evidence
+
+The round shots, the Design oracle's full captures, iA's stills, templates and article copies, and
+the diagnostics archives are **evidence**: ignored by git (`.gitignore` § Judging evidence) and kept
+in the main checkout alone, because they were nine tenths of a clone and none of what builds Quill.
+History was rewritten without them on 2026-09-23; the whole pre-rewrite repository, evidence
+included, is the mirror `~/repos/quill-backup-2026-09-23.git`, and a fresh clone has no evidence at
+all. What the Gate needs to pass stays committed: the frozen oracle shots under
+`dev/shots/oracle/`, the captures `states.json` crops, and the round shots a selftest reads. A
+capture a new state crops, or a shot a new selftest reads, goes in with `git add -f`.
+
+A worktree starts without the evidence. `tools/gate` links it in before `oracle`, `bench`,
+`judge`, `shoot` and `keys` (`node tools/assets.mjs link`), so a judge there carries from earlier
+rounds, and `tools/land` copies the shots a worktree wrote back into the main checkout before it
+removes the worktree (`node tools/assets.mjs sync <worktree>`); a worktree removed any other way
+runs that `sync` first.
 
 `dev/shots/oracle/library/manifest.json` still names `ref/…` and `shots/…` at the root, from before
 these folders moved under `dev/`: every frozen oracle's fingerprint hashes it, so it was left as it
@@ -59,7 +76,7 @@ the binary (`quill-engine/templates/`).
 ## The Parity oracle
 
 The JavaScript app left the tree once every Piece was ported; the last commit holding it is
-`37c186a`, where it is `dev/legacy/` under its own ISC licence. Its frozen shots under
+tagged `legacy-last`, where it is `dev/legacy/` under its own ISC licence. Its frozen shots under
 `dev/shots/oracle/<piece>/` stay the opponent: `tools/gate oracle` reads them `unchanged` while the
 states, passages and fixtures under them hold, and fails a state that moves under its shot, which
 then takes a `mac-native` crop or an `assert` (`docs/architecture.md` § Repo migration).
@@ -71,7 +88,7 @@ Quattro / Mono bundled (SIL OFL 1.1). Needs Chromium (`/usr/bin/chromium`) and N
 frozen fingerprint hashes those bytes as they are.
 
 ```
-git archive 37c186a dev/legacy | tar -x   # from the checkout root
+git archive legacy-last dev/legacy | tar -x   # from the checkout root
 echo /dev/legacy/ >> .git/info/exclude    # keep it out of git status
 (cd dev/legacy && npm i)                  # once, for its tooling (playwright-core)
 

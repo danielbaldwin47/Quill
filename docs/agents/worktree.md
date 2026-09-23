@@ -52,8 +52,10 @@ checkout's.
 
 ## Leaving one
 
-`ExitWorktree` with `keep`, then `git worktree remove <path>`. A refusal there is the dirty check:
-shots, logs and round files are committed or deleted first, and `--force` is passed only when
+`ExitWorktree` with `keep`, then `node tools/assets.mjs sync <path>` (the round shots are ignored
+evidence the main checkout keeps, `dev/README.md` § Judging evidence), then
+`git worktree remove <path>`. A refusal there is the dirty check: logs and round files are
+committed or deleted first, and `--force` is passed only when
 `git status --short` shows nothing but the two `node_modules` links. Cleanup runs as its own chain,
 after every `gh` call that cannot be undone has returned. A worktree the owner builds a Hand test
 from (`docs/agents/hand-tests.md`, the install step) stays until `hand test: pass`. A branch merged

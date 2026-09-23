@@ -4372,7 +4372,7 @@ fn document_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
 
 /// How long the pane takes to slide in or out (#485), and a pin to go in or
 /// come out (#441 § The pinned icon and its animation): the oracle's `.24s`
-/// (`dev/legacy/app/css/files.css` at `37c186a`, `#library` and `#app`:
+/// (`dev/legacy/app/css/files.css` at `legacy-last`, `#library` and `#app`:
 /// `transition: .24s cubic-bezier(.22, .61, .36, 1)`). Both motions ease out
 /// cubic: the pin through [`eased`], the pane through GTK's Revealer.
 const MOTION_MS: u32 = 240;

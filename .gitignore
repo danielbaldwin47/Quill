@@ -34,3 +34,21 @@ dev/ref/*.pdf
 # Generated image candidates (the app icon's, 2026-09-12) land here; the repo
 # keeps only what `packaging/` renders from them.
 /output/
+
+# Judging evidence: round shots, the Design oracle's full captures, iA's stills,
+# templates and article copies, and the diagnostics archives. They were most of
+# the clone and none of what builds Quill, so they live in the main checkout only
+# (`tools/assets.mjs` links them into a worktree and copies a worktree's new ones
+# back; dev/README.md § Judging evidence). What the Gate reads to pass stays
+# committed: the frozen oracle shots below, the captures states.json crops and the
+# round shots the selftests read. A capture a new state crops, or a shot a new
+# selftest reads, is committed with `git add -f`.
+/dev/shots/**/*.png
+/dev/shots/**/*.webp
+!/dev/shots/oracle/**/*.png
+/dev/progress/diagnostics/**/*.gz
+/dev/progress/diagnostics/**/*.tar
+/dev/ref/ia/shots/**/*.png
+/dev/ref/ia/shots/**/*.webp
+/dev/ref/ia/templates/
+/dev/ref/ia/sources/

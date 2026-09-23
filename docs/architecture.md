@@ -559,7 +559,7 @@ so the move finds Rust already at the root rather than clearing the ground for i
 
 `dev/legacy/` was the Parity oracle: `dev/shots/oracle/<piece>/<state>.png` was generated from it with
 `dev/legacy/tools/shoot.mjs`. **Retirement** came at the owner's word once every Piece was ported:
-`dev/legacy/` left the tree, and `37c186a` is the last commit holding it. The frozen shots stay the
+`dev/legacy/` left the tree, and the tag `legacy-last` is the last commit holding it. The frozen shots stay the
 opponent for the states still paired with them, and `tools/gate oracle` and `tools/gate judge` check
 them against the states, passages and fixtures alone, the app's own hashes having nothing left to
 hash. A state that moves under its shot, or follows a `docs/design.md` row, takes a `mac-native` crop

@@ -173,6 +173,9 @@ elif [ "$WT" = "$MAIN" ]; then
     say worktree "${HEAD} is checked out in the main checkout; nothing to remove"
 else
     DIRT=$(git -C "$WT" status --porcelain | cut -c4- | paste -sd'|' - | sed 's/|/, /g')
+    # The shots a judge wrote in the worktree are ignored by git and would go with
+    # it; they are the evidence the next round carries from (tools/assets.mjs).
+    if ! run node "$MAIN/tools/assets.mjs" sync "$WT"; then fail worktree; fi
     if ! run git -C "$MAIN" worktree remove --force "$WT"; then fail worktree; fi
     if [ "$DRY" = 1 ]; then
         say worktree "would remove ${WT} with --force, discarding ${DIRT:-nothing}"

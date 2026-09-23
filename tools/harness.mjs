@@ -535,7 +535,7 @@ function focusMonitor(name) {
 // Hyprland 0.56 dropped the old string dispatcher: `hyprctl dispatch workspace N` is now parsed as
 // Lua, fails, and changes nothing — which would leave a window measuring on a workspace nobody is
 // looking at, the one thing the panel mode exists to avoid. `hl.dsp.focus{workspace=N}` is the form
-// that works (`dev/legacy/bin/quill:168-185` at 37c186a records the search that found it), and every caller reads
+// that works (`dev/legacy/bin/quill:168-185` at legacy-last records the search that found it), and every caller reads
 // the switch back rather than trusting this return.
 function gotoWorkspace(id) {
   return lua(`return hl.dispatch(hl.dsp.focus{workspace=${id}})`);

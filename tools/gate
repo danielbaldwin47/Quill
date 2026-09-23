@@ -587,6 +587,14 @@ check() {
     echo "gate check: pass"
 }
 
+# The judging evidence is ignored by git and kept in the main checkout alone
+# (tools/assets.mjs), so a worktree gets its links before any command that shoots,
+# judges or reads a round. Its line goes to stderr: stdout is the command's own
+# one line.
+case "${1-}" in
+    oracle | bench | judge | shoot | keys) node "$ROOT/tools/assets.mjs" link "$ROOT" >&2 ;;
+esac
+
 case "${1-}" in
     check) shift; check "$@" ;;
     # The oracle reads a JSON state file, converts offsets and drives a browser
