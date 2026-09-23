@@ -1,0 +1,69 @@
+gate bench — 2026-09-23T18:16:07.146Z
+@6 start
+gate bench: building target/release/quill
+@148 built
+@246 stage open
+@2620 stage warmed
+gate bench: the stage's first client cold-started in 857.783 ms, and is not measured
+gate bench: prose_end_of_draft, session 1 of 1
+@2625 launch prose_end_of_draft
+@2843 mapped
+@2856 focused
+gate bench: focus is on ours (0x558a0f2a7200), io.github.danielbaldwin47.Quill
+gate bench: typing 150 keys at 90 ms, after 25 of warm-up
+@4374 injector ready
+@6634 warm-up typed
+@7137 warm-up settled
+@20701 keys typed
+@20925 injector closed
+@21427 capture settled
+@21428 killed
+@21516 result written
+gate bench: wrote dev/shots/latency/bench-prose_end_of_draft-20260923T181628.json
+gate bench: bursts_and_pauses, session 1 of 1
+@21519 launch bursts_and_pauses
+@21737 mapped
+@21750 focused
+gate bench: focus is on ours (0x558a0f2a7200), io.github.danielbaldwin47.Quill
+gate bench: typing 150 keys at 90 ms, after 25 of warm-up
+@23267 injector ready
+@25526 warm-up typed
+@26028 warm-up settled
+@49243 keys typed
+@49457 injector closed
+@49959 capture settled
+@49960 killed
+@50038 result written
+gate bench: wrote dev/shots/latency/bench-bursts_and_pauses-20260923T181657.json
+gate bench: preview, session 1 of 1
+@50042 launch preview
+@50259 mapped
+@50271 focused
+gate bench: focus is on ours (0x558a0f2a7200), io.github.danielbaldwin47.Quill
+gate bench: typing 150 keys at 90 ms, after 25 of warm-up
+@51788 injector ready
+@54049 warm-up typed
+@54552 warm-up settled
+@68124 keys typed
+@68339 injector closed
+@68843 capture settled
+@68843 killed
+@68925 result written
+gate bench: wrote dev/shots/latency/bench-preview-20260923T181716.json
+gate bench: annotators, session 1 of 1
+@68930 launch annotators
+@69147 mapped
+@69161 focused
+gate bench: focus is on ours (0x558a0f2a7200), io.github.danielbaldwin47.Quill
+gate bench: typing 150 keys at 90 ms, after 25 of warm-up
+@70676 injector ready
+@72935 warm-up typed
+@73437 warm-up settled
+@87008 keys typed
+@87220 injector closed
+@87723 capture settled
+@87724 killed
+@87801 result written
+gate bench: wrote dev/shots/latency/bench-annotators-20260923T181734.json
+@87820 stage closed
+gate bench: wrote dev/shots/latency/summary-20260923T181734.json

@@ -456,6 +456,7 @@ async function runSession(root, stage, { regime, keys, index, injector }) {
       throw new Error('keyboard focus would not stay on ours, so nothing was typed');
     }
     mark('focused');
+    if (process.env.BENCH_LAUNCH_WAIT) await sleep(Number(process.env.BENCH_LAUNCH_WAIT));
     say(`gate bench: focus is on ours (${ours.address}), ${APP_ID}`);
 
     // The warm-up, thrown away: the keyboard that types the measured keys types it first, and at
