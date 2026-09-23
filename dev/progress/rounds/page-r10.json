@@ -1,0 +1,112 @@
+{
+  "piece": "page",
+  "round": 10,
+  "winner": "theirs",
+  "margin": "slight",
+  "gap": "The top ~60px of the frame is taken by standing chrome: a mid-grey 'sample' title centred at y≈30 plus a sidebar icon at x≈47 and an outline menu icon at x≈1858. That's three grey marks that stay on the page above the text. A has none, so its top edge is empty #F7F7F7.",
+  "gapTheirs": "The paper doesn't fill the window. Its top corners are rounded to a radius of about 20px, and something that isn't the page shows through behind them: a warm beige at top-left (rgb 239,236,214) and a teal-grey at top-right (rgb 182,204,205), against a page of #F7F7F7. The paper looks chipped at both corners, where B's #F7F7F7 runs all the way to the edge.",
+  "verdict": "The two pages are almost the same. Both use the same #F7F7F7 paper, the line pitch is almost the same (63px in A, 64px in B), and the measure is about the same (~1452px against ~1430px, both around 64–65 monospace characters). B puts a filename and two icons above the text, so there's always something on the page besides the words. A drops all of that, but its rounded corners show a sliver of another colour at both top corners, which looks sloppy once you notice it. I'd still rather write in the empty frame and live with the corner flaw than have a title bar in view the whole time.",
+  "oursShot": "dev/shots/page/r10-narrow-ours-crop.png",
+  "theirsShot": "dev/shots/page/r10-narrow-theirs-crop.png",
+  "refSource": "dev/shots/oracle/page/ — the Parity oracle frozen by tools/gate oracle page from dev/legacy/app 738f48c969965ac3 with dev/legacy/tools/shoot.mjs 239bd27db3974b27; dev/ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in dev/ref/ia/mac-native/ (ADR 0015), cropped per state: narrow from mac-native-22-light-narrow-w0960-step05-plain.png",
+  "builderNote": "the window's width now picks the size class: page/narrow at 960 px lays out on the middle ladder's 11.3265 px cell and 32 px pitch, against the mac-native 960 pt capture",
+  "secondary": [
+    "Side margins: A's body runs 233→1685, leaving 233px left and ~235px right, so it's centred. B's body runs 236→1666, leaving 236px left and ~254px right, so it sits ~9px left of centre.",
+    "Both hang the '# ' marker in the left margin: at x≈186 in A and x≈192 in B.",
+    "The paragraph gap is one blank line in both: 126px in A and 128px in B.",
+    "Average darkness of a body line: A ≈224.8 and B ≈230.4 on a 0–255 scale, so A's text looks a little denser and darker. The darkest ink is 25 in both.",
+    "A's last line sits ~47px above the bottom edge and B's ~75px. That follows from where each page opens, which isn't this Piece's row.",
+    "B's title uses a sans typeface that clashes with the monospace text, and it's the only other typeface in the frame."
+  ],
+  "opponent": "mixed",
+  "build": {
+    "git": "61e2636",
+    "binary": "438a8a79ccd19ed5",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "light",
+      "ours": "dev/shots/page/r10-light-ours.png",
+      "theirs": "dev/shots/oracle/page/light.png",
+      "blind": "dev/shots/blind/page/light",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "B's lines are slightly more cramped and its paper slightly darker. Body lines are 74 device px apart against A's 76 (about 1.80× against 1.85× the ~41 px glyph height, a 2.6% tighter leading), and the paper is #F7F7F7 against A's #F9F9F9. On a long screen the text block reads a little denser and greyer.",
+      "gapTheirs": "A puts the heading hashes inside the text column instead of hanging them in the margin. The body's left edge is at x≈622 device px, but A's H1 words start at ≈672 px and its H2 words at ≈698 px, 50 and 76 px to the right of it. So the one vertical line the page is built on breaks at every heading. B hangs '#' and '##' to the left, starting at ≈545 px, so its heading words sit exactly on the 622 px body edge.",
+      "verdict": "The two pages measure almost the same: body text starts at 622 px and wraps at about 2245 px on both, both are near-white, and both have generous side margins. That leaves the left edge as the deciding difference. A lets its heading markers push the headings out of line with the body, so the column wobbles at every section break. B hangs the markers in the gutter, and its left edge runs straight from top to bottom. A's extra 2 px of leading and slightly brighter paper don't make up for that.",
+      "secondary": [
+        "Both screenshots are 2880x1800 device px, displayed at 1.44x.",
+        "The text column is the same width on both: left edge ≈622 px, right edge ≈2245–2260 px, roughly 62–64 monospace characters per line.",
+        "Paper: A #F9F9F9, B #F7F7F7. The difference is barely visible, and neither is tinted.",
+        "Line spacing: A 76 px, B 74 px, measured top to top across consecutive body lines.",
+        "B fits one more block (the list item) into the window, mostly because its page starts higher, which is out of scope under the Page top row.",
+        "The status bar and title bar are the same on both, with a hairline rule above the footer."
+      ]
+    },
+    {
+      "name": "narrow",
+      "ours": "dev/shots/page/r10-narrow-ours-crop.png",
+      "theirs": "dev/shots/page/r10-narrow-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-22-light-narrow-w0960-step05-plain.png",
+        "crop": [
+          0,
+          0,
+          1920,
+          1000
+        ],
+        "ours": [
+          0,
+          0,
+          1920,
+          1000
+        ]
+      },
+      "oursWhole": "dev/shots/page/r10-narrow-ours.png",
+      "blind": "dev/shots/blind/page/narrow",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "The top ~60px of the frame is taken by standing chrome: a mid-grey 'sample' title centred at y≈30 plus a sidebar icon at x≈47 and an outline menu icon at x≈1858. That's three grey marks that stay on the page above the text. A has none, so its top edge is empty #F7F7F7.",
+      "gapTheirs": "The paper doesn't fill the window. Its top corners are rounded to a radius of about 20px, and something that isn't the page shows through behind them: a warm beige at top-left (rgb 239,236,214) and a teal-grey at top-right (rgb 182,204,205), against a page of #F7F7F7. The paper looks chipped at both corners, where B's #F7F7F7 runs all the way to the edge.",
+      "verdict": "The two pages are almost the same. Both use the same #F7F7F7 paper, the line pitch is almost the same (63px in A, 64px in B), and the measure is about the same (~1452px against ~1430px, both around 64–65 monospace characters). B puts a filename and two icons above the text, so there's always something on the page besides the words. A drops all of that, but its rounded corners show a sliver of another colour at both top corners, which looks sloppy once you notice it. I'd still rather write in the empty frame and live with the corner flaw than have a title bar in view the whole time.",
+      "secondary": [
+        "Side margins: A's body runs 233→1685, leaving 233px left and ~235px right, so it's centred. B's body runs 236→1666, leaving 236px left and ~254px right, so it sits ~9px left of centre.",
+        "Both hang the '# ' marker in the left margin: at x≈186 in A and x≈192 in B.",
+        "The paragraph gap is one blank line in both: 126px in A and 128px in B.",
+        "Average darkness of a body line: A ≈224.8 and B ≈230.4 on a 0–255 scale, so A's text looks a little denser and darker. The darkest ink is 25 in both.",
+        "A's last line sits ~47px above the bottom edge and B's ~75px. That follows from where each page opens, which isn't this Piece's row.",
+        "B's title uses a sans typeface that clashes with the monospace text, and it's the only other typeface in the frame."
+      ]
+    },
+    {
+      "name": "short",
+      "ours": "dev/shots/page/r10-short-ours.png",
+      "theirs": "dev/shots/oracle/page/short.png",
+      "blind": "dev/shots/blind/page/short",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "The measure is a little tighter and the lines sit a little closer. Glyph advance is ≈26.8 vs 26.4 device px per character (1134 vs 1118 display px over the same 61-character line), so a paragraph line wraps one word sooner ('empty,' / 'and'). Line pitch is ≈74 vs 76 device px, which makes the paragraphs look slightly more packed.",
+      "gapTheirs": "The heading marker isn't hung in the margin. '# ' starts at x≈622 device px, on the same edge as the body text, so the heading words start about 51 px to the right of the body's left edge (≈673 vs 622). The text column's left edge breaks at every heading, and the left margin reads as 622 px for the body but 673 px for heading words.",
+      "verdict": "Both pages use the same near-white paper and a centred column of about 1630 px with roughly 625 px of margin on each side. The real difference is the left edge. B hangs the '#' out in the margin, so heading and body share one straight edge at x=622. A pushes the heading words in by a marker's width, so the column's left edge jogs at every heading, and you notice it every time your eye goes back to the start of a line. B pays for that with slightly tighter lines and a wider advance that wraps a word early, but a crooked left edge is harder to ignore than 2 px of leading.",
+      "secondary": [
+        "Paper: A #F9F9F9 vs B #F7F7F7, too close to matter",
+        "Right margin about 625 px on both; both columns are centred",
+        "Paragraph gap is 3 line pitches on both (A 159 vs B 154 display px from one paragraph's first line to the next)",
+        "Where the page opens (B higher up the window) is excluded by the Page top row",
+        "B's heading marker is full ink and A's is grey; excluded by the Markers row",
+        "About 64–65 characters per line on both, a comfortable measure for monospace"
+      ]
+    }
+  ],
+  "at": "2026-09-13T15:06:58.844Z"
+}

@@ -7,7 +7,7 @@ the prompt, not the plumbing: the owner can read what the judge was asked withou
 can change it without touching the command. It came out of `tools/gauntlet.workflow.js`, which
 judged the JavaScript app against iA Writer with a hard-coded root that no longer exists; the words
 are that critic's, because a verdict is only comparable to the rounds already in
-`progress/rounds/` if the question was the same question.
+`dev/progress/rounds/` if the question was the same question.
 
 The critic runs with its working directory set to a scratch directory outside the checkout holding
 nothing but `A.png` and `B.png`, with customizations off, and is allowed `Read` and `magick` and

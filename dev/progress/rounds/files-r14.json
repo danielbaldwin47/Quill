@@ -1,0 +1,114 @@
+{
+  "piece": "files",
+  "round": 14,
+  "winner": "theirs",
+  "margin": "slight",
+  "gap": "The date reads 'Mar 14, 25' in a column about 145 px wide, against A's 'Mar…'-free '3:16 AM' at about 95 px. That pushes the excerpt to wrap a word early ('The gale came / up the coast' where A fits 'came up' on one line). The two-digit year '25' also looks like a day of the month sitting next to a day of the month.",
+  "gapTheirs": "Long names get cut in the middle ('Writing T...riters.txt', 'This is a...lection.txt') because the date column takes the room. B's names all fit whole in the same 340–690 px column, so in A you can't tell what a draft is called at a glance.",
+  "verdict": "The two panes are nearly identical: the same grounds (#EAEBEB Organizer, #FCFCFC List), the same 136 px row pitch, the same #191919 names and #999999 excerpts and dates, and the same blue bar with no fill. A is the more settled of the two. Its dates stay short, its file icons look like paper, and its window divider is a single hairline. B's divider is twice as heavy, its Recents section holds one item also called 'Recents', and its line-art page icon looks like a system placeholder more than a manuscript. A writer would trust either one, but B still feels like a copy that hasn't been fitted to its own fonts.",
+  "oursShot": "dev/shots/files/r14-library-ours-crop.png",
+  "theirsShot": "dev/shots/files/r14-library-theirs-crop.png",
+  "refSource": "dev/ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in dev/ref/ia/mac-native/ (ADR 0015), cropped per state: library from mac-native-28-light-library-l1-rest.png, search from mac-native-28-light-library-l2-search.png",
+  "builderNote": "",
+  "secondary": [
+    "The images differ in size: A is 720x1898, B is 720x1800",
+    "The Organizer/List divider is 1 px #CBCCCC in A (x=259) and 2 px #CBCCCC in B (x=258–259)",
+    "The accent bar is the same in both: 6 device px wide (≈3 pt). It runs y=665–792 (128 px) in A and y=216–341 (126 px) in B, 2 px shorter",
+    "The accent blue differs a little: A #36BFFA / #38C3FA, B #00BFFF / #0DC3FF, so B is more saturated",
+    "In B the header is 'Recents', and the only row under it is also 'Recents' with a clock icon, so the label says the same thing twice",
+    "B's file icon is a 1 px outline page glyph; A uses a filled grey page thumbnail that is easier to see as a document",
+    "In B the Sort pill and the List title sit about 38–44 px higher because it has no back/forward bar (the chrome difference is excused)",
+    "The Filter field is at the foot in both, with the same 2 px #DBDBDB rule above it. B's search icon is a magnifier and A's is a filter glyph",
+    "B's Location icon is a solid #00BFFF folder, heavier than A's outline cloud next to a bold name"
+  ],
+  "opponent": "mac-native",
+  "build": {
+    "git": "ff9bc6a",
+    "binary": "521e750d38d386db",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "library",
+      "ours": "dev/shots/files/r14-library-ours-crop.png",
+      "theirs": "dev/shots/files/r14-library-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-28-light-library-l1-rest.png",
+        "crop": [
+          0,
+          0,
+          720,
+          1898
+        ],
+        "ours": [
+          0,
+          0,
+          720,
+          1800
+        ]
+      },
+      "oursWhole": "dev/shots/files/r14-library-ours.png",
+      "blind": "dev/shots/blind/files/library",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": false,
+      "gap": "The date reads 'Mar 14, 25' in a column about 145 px wide, against A's 'Mar…'-free '3:16 AM' at about 95 px. That pushes the excerpt to wrap a word early ('The gale came / up the coast' where A fits 'came up' on one line). The two-digit year '25' also looks like a day of the month sitting next to a day of the month.",
+      "gapTheirs": "Long names get cut in the middle ('Writing T...riters.txt', 'This is a...lection.txt') because the date column takes the room. B's names all fit whole in the same 340–690 px column, so in A you can't tell what a draft is called at a glance.",
+      "verdict": "The two panes are nearly identical: the same grounds (#EAEBEB Organizer, #FCFCFC List), the same 136 px row pitch, the same #191919 names and #999999 excerpts and dates, and the same blue bar with no fill. A is the more settled of the two. Its dates stay short, its file icons look like paper, and its window divider is a single hairline. B's divider is twice as heavy, its Recents section holds one item also called 'Recents', and its line-art page icon looks like a system placeholder more than a manuscript. A writer would trust either one, but B still feels like a copy that hasn't been fitted to its own fonts.",
+      "secondary": [
+        "The images differ in size: A is 720x1898, B is 720x1800",
+        "The Organizer/List divider is 1 px #CBCCCC in A (x=259) and 2 px #CBCCCC in B (x=258–259)",
+        "The accent bar is the same in both: 6 device px wide (≈3 pt). It runs y=665–792 (128 px) in A and y=216–341 (126 px) in B, 2 px shorter",
+        "The accent blue differs a little: A #36BFFA / #38C3FA, B #00BFFF / #0DC3FF, so B is more saturated",
+        "In B the header is 'Recents', and the only row under it is also 'Recents' with a clock icon, so the label says the same thing twice",
+        "B's file icon is a 1 px outline page glyph; A uses a filled grey page thumbnail that is easier to see as a document",
+        "In B the Sort pill and the List title sit about 38–44 px higher because it has no back/forward bar (the chrome difference is excused)",
+        "The Filter field is at the foot in both, with the same 2 px #DBDBDB rule above it. B's search icon is a magnifier and A's is a filter glyph",
+        "B's Location icon is a solid #00BFFF folder, heavier than A's outline cloud next to a bold name"
+      ]
+    },
+    {
+      "name": "search",
+      "ours": "dev/shots/files/r14-search-ours-crop.png",
+      "theirs": "dev/shots/files/r14-search-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-28-light-library-l2-search.png",
+        "crop": [
+          0,
+          0,
+          720,
+          1898
+        ],
+        "ours": [
+          0,
+          0,
+          720,
+          1800
+        ]
+      },
+      "oursWhole": "dev/shots/files/r14-search-ours.png",
+      "blind": "dev/shots/blind/files/search",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": false,
+      "gap": "The list's last row has no closing rule. Under harbour-lights the list just stops: nothing at y≈410–440, where the other side draws a 2 px #EDEDED hairline under every row, the last one included (y≈597). The 2-row result set ends in empty space with no clear end.",
+      "gapTheirs": "Its pane is 1898 px tall where the other is 1800. It stacks 170 px of chrome (traffic lights, a circular back button, a split +/⌄ pill, the Sort pill) above the first row, against 131 px, so the first result name sits at y≈222 instead of y≈182. That leaves 40 px less list on screen before the Filter field.",
+      "verdict": "Both lists are almost the same: rows on a 136 px pitch, names in near-black, excerpts in the same ~#9F grey, a ~127 px cyan bar on the open row and no fill, a #EAEBEB Organizer against a #FCFCFC List with a #CBCCCC divider. A is the finished one. Every row is closed off, the Filter field has its funnel glyph, and the header controls look like buttons. B's list ends without a rule, and its bare sidebar toggle and lone '+' look like placeholders beside a bold centred 'library' title. A writer would trust either with a manuscript, but B looks a pass short of done.",
+      "secondary": [
+        "Image sizes differ: A 720x1898, B 720x1800",
+        "A lists 3 results (The Lighthouse.txt ranked first) where B lists 2. Nothing visible in A's Lighthouse excerpt contains 'sea', so this may be one of the Mac copy's extra documents rather than a missing match.",
+        "B's Filter field uses a magnifier where A uses a filter/funnel glyph. B's clear button sits about 2 px further right, at the same ~#A1 grey as A's.",
+        "B's row icons are thin outline page glyphs (~22 px) where A's are shaded paper thumbnails. B's icons read lighter than the name text beside them.",
+        "B's date column's right edge sits at x≈696 against A's x≈686, a 10 px tighter right margin on B",
+        "B's accent bar starts at y=152, ~30 px above the name's cap height; A's starts at y=330, ~28 px above. That is within 2 px.",
+        "B's header '+' is a bare 24 px glyph with no button shape; A's is in a bordered pill with a menu chevron",
+        "B's empty-section hint ('Pin a document or folder from its row menu') runs 3 lines in the same grey as A's hint; the sizes match"
+      ]
+    }
+  ],
+  "at": "2026-09-14T21:50:53.786Z"
+}

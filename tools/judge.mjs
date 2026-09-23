@@ -6,7 +6,7 @@
 //
 // An agent closing a ticket that names a Piece runs this and pastes its lines; the owner can rerun
 // it when a verdict looks wrong, because everything it decides is on disk: the pair the critic saw
-// (`shots/blind/<piece>/<state>/`), the shot it took of ours, the frozen opponent it was paired
+// (`dev/shots/blind/<piece>/<state>/`), the shot it took of ours, the frozen opponent it was paired
 // with, and the round it wrote.
 //
 // THE LINE AND THE EXIT CODE. `gate judge <piece>: ours|theirs, round <N>`, and:
@@ -46,7 +46,7 @@
 // holding only `A.png` and `B.png`, with customizations off, allowed `Read` and `magick` and no
 // other tool. What that buys, exactly: it has no `Bash` it could run `tools/blind.mjs reveal` with,
 // no `Grep` or `Glob` to find the repository with, and — customizations off — no `CLAUDE.md` to
-// learn from that Quill is being judged against a JavaScript app in `legacy/`, or that a directory
+// learn from that Quill is being judged against a JavaScript app in `dev/legacy/`, or that a directory
 // of frozen opponents exists to compare against. `Read` itself is not jailed to that directory, so
 // the last step is still asked for rather than enforced: a critic that guessed the checkout's path
 // could read it. That is the blindness the gauntlet had, and no less.
@@ -55,10 +55,10 @@
 // app that won its gauntlet is a loss, and that is the point of having the pipeline before the
 // Pieces rather than after.
 //
-// WHICH OPPONENT. The Parity oracle — `legacy/` frozen by `tools/gate oracle` — unless the state
-// names one. A state carrying `opponent` in `shots/oracle/states.json` is judged against a crop of
-// the Design oracle instead, because `docs/design.md` has taken that behaviour away from `legacy/`
-// (ADR 0015): the pair is then the rectangle it names in a `ref/ia/shots/mac-native/` capture
+// WHICH OPPONENT. The Parity oracle — `dev/legacy/` frozen by `tools/gate oracle` — unless the state
+// names one. A state carrying `opponent` in `dev/shots/oracle/states.json` is judged against a crop of
+// the Design oracle instead, because `docs/design.md` has taken that behaviour away from `dev/legacy/`
+// (ADR 0015): the pair is then the rectangle it names in a `dev/ref/ia/shots/mac-native/` capture
 // against the matching rectangle of ours, shot in Mono at the `defaults`' type so the two grids
 // compare cell for cell. `tools/crop.mjs` is where that geometry and the cutting live.
 import { execFileSync, spawn } from 'node:child_process';
@@ -77,7 +77,7 @@ import { fingerprint, freezeReason, readStates, resolveStates, unservable } from
 import { regimes } from './regimes.mjs';
 import { nextRound, opponentName, round, rounds, wonBefore } from './rounds.mjs';
 
-// The opponent this command judges against while `legacy/` exists, and the word the round records
+// The opponent this command judges against while `dev/legacy/` exists, and the word the round records
 // it under. The switch to the iA reference belongs to the retirement ticket
 // (`docs/architecture.md`, "Repo migration"), not here.
 const OPPONENT = 'oracle';
@@ -89,7 +89,7 @@ const OPPONENT = 'oracle';
 // What the word does is caption the round — `opponentName` in `tools/rounds.mjs`, which is what
 // the progress page prints and what the line above a lost Piece says it was won against. What it
 // does *not* do is scope "a Piece once won is never lost": `wonBefore` asks only whether a round
-// carrying any `opponent` was won, so a Piece won over `legacy/` is still held to that win when its
+// carrying any `opponent` was won, so a Piece won over `dev/legacy/` is still held to that win when its
 // first row moves to a crop. That is the rule as `docs/agents/gate.md` states it, and narrowing it
 // to the opponent would weaken the guard exactly as the re-judges begin (#165–#168).
 // A state carrying `assert` is judged against nobody at all (ADR 0017), so it is read first: a
@@ -140,8 +140,8 @@ export function oursArgv(root, flags, settingsFile) {
 // The flag ours refused, read out of what it said when it would not start, or null when it stopped
 // for some other reason and the whole command line is the thing to report.
 //
-// There are two flag vocabularies here and they come apart on purpose. `shots/oracle/states.json`
-// learns a flag the moment a tool under legacy/ can serve it, so the opponent can be frozen at a
+// There are two flag vocabularies here and they come apart on purpose. `dev/shots/oracle/states.json`
+// learns a flag the moment a tool under dev/legacy/ can serve it, so the opponent can be frozen at a
 // state; the app learns to parse it a whole spec later, when the feature lands. Between the two,
 // the state is servable and unshootable at once, and only ours can say so.
 export function refusedFlag(said) {
@@ -198,7 +198,7 @@ export function criticAnswer(text) {
 // `A.png` and `B.png` and nothing else, and the two tools it is allowed are the two the prompt asks
 // it to use. `--safe-mode` is the load-bearing one: it turns off this repository's own
 // instructions, and a critic that has read `CLAUDE.md` knows there is a JavaScript app in
-// `legacy/` it is probably being asked about, which is not a blind critic. The header above says
+// `dev/legacy/` it is probably being asked about, which is not a blind critic. The header above says
 // where that stops being enforcement and starts being instruction.
 //
 // `effort` is the critic's reasoning effort, `high` for a round and whatever `tools/critic-replay`
@@ -251,7 +251,7 @@ function usage(where = process.stderr) {
   where.write(`usage: tools/gate judge <piece> [--note <text>] [--summary <file>] [--settings <path>] [--fresh]
 
   The Pieces with judged states are the keys of "pieces" in
-  shots/oracle/states.json. What the command does: tools/gate --help
+  dev/shots/oracle/states.json. What the command does: tools/gate --help
 
   --fresh asks a critic about every state, including one whose pixels are,
   on both sides, what the latest round that judged it saw; without it such a
@@ -262,7 +262,7 @@ function usage(where = process.stderr) {
   starts. The round records the path under "build".
 
   latency is judged on numbers rather than by a critic: it reads the newest
-  shots/latency/summary-*.json that tools/gate bench --all wrote, or the one
+  dev/shots/latency/summary-*.json that tools/gate bench --all wrote, or the one
   --summary names, and answers with arithmetic.
 `);
 }
@@ -351,8 +351,8 @@ async function main(argv) {
 }
 
 // Where `tools/gate bench --all` leaves what this reads, and the oracle's own report beside it.
-const SUMMARIES = 'shots/latency';
-const ORACLE_REPORT = 'progress/latency-report.md';
+const SUMMARIES = 'dev/shots/latency';
+const ORACLE_REPORT = 'dev/progress/latency-report.md';
 
 // The newest summary a bench run wrote, by the stamp in its name — which sorts by time because it
 // is `YYYYMMDDTHHMMSS`, and is the run's own idea of when it happened rather than the file
@@ -426,7 +426,7 @@ async function judgeLatency(root, note, named) {
   const recorded = rounds(root, 'latency');
   const number = nextRound(recorded);
   const oracle = `${ORACLE_REPORT} — the Parity oracle's own numbers, measured by `
-    + `legacy/tools/latency.mjs on the JavaScript app as it won its gauntlet: ${ORACLE.mean_ms} ms mean, `
+    + `dev/legacy/tools/latency.mjs on the JavaScript app as it won its gauntlet: ${ORACLE.mean_ms} ms mean, `
     + `${ORACLE.worst_ms} ms worst, ${ORACLE.uinput_to_presented_ms} ms uinput → presented, `
     + `${ORACLE.cold_ms} ms cold. Not a screenshot piece — the pair is a run against a report.`;
 
@@ -470,7 +470,7 @@ async function judgeLatency(root, note, named) {
   // file's winner is every state's — an informational regime in there would be a verdict.
   if (said.informational.length) written.informational = said.informational;
 
-  const out = path.join(root, 'progress/rounds', `latency-r${number}.json`);
+  const out = path.join(root, 'dev/progress/rounds', `latency-r${number}.json`);
   fs.mkdirSync(path.dirname(out), { recursive: true });
   fs.writeFileSync(out, `${JSON.stringify(written, null, 2)}\n`);
   say(`gate judge latency: wrote ${path.relative(root, out)}`);
@@ -535,12 +535,12 @@ export function checkStates(root, piece, settingsFile, { command = 'judge' } = {
   const blocked = resolved.map((s) => ({ ...s, cannot: unservable(states.defaults, s.flags) })).filter((s) => s.cannot.length);
   if (blocked.length) {
     for (const s of blocked) say(`gate ${command} ${piece}: state ${s.name} names ${s.cannot.join(', ')}`);
-    say(`gate ${command}: the app has no such flag yet; a state may name only the flags the defaults name (shots/oracle/states.json)`);
+    say(`gate ${command}: the app has no such flag yet; a state may name only the flags the defaults name (dev/shots/oracle/states.json)`);
     throw new Refused(`${blocked.length} of ${resolved.length} states name flags the app has not got`);
   }
 
   // A state carrying `opponent` is judged against a crop of the Design oracle, which is committed
-  // under `ref/ia/shots/mac-native/` rather than frozen by `tools/gate oracle` — so the Parity
+  // under `dev/ref/ia/shots/mac-native/` rather than frozen by `tools/gate oracle` — so the Parity
   // oracle is asked about the other states only, and a Piece with none of those wants no frozen
   // shot and no fingerprint at all (ADR 0015).
   // A state carrying `assert` has no opponent of either kind: it is answered by arithmetic off
@@ -592,7 +592,7 @@ export function checkStates(root, piece, settingsFile, { command = 'judge' } = {
 
   // The opponent is a directory of shots and the fingerprint of what took them. Half of that is not
   // an opponent: shots with no fingerprint beside them are shots nobody can say the provenance of.
-  const oracleDir = path.join(root, 'shots/oracle', piece);
+  const oracleDir = path.join(root, 'dev/shots/oracle', piece);
   const fingerprintFile = path.join(oracleDir, 'fingerprint.json');
   const unfrozen = parity.filter((s) => !fs.existsSync(path.join(oracleDir, `${s.name}.png`))).map((s) => s.name);
   if (parity.length && (unfrozen.length || !fs.existsSync(fingerprintFile))) {
@@ -605,9 +605,9 @@ export function checkStates(root, piece, settingsFile, { command = 'judge' } = {
 
   // Judging against shots the oracle would no longer take is judging against the wrong opponent, and
   // it is invisible in the round afterwards. Checked here because it is four file reads, and skipped
-  // once `legacy/` is gone, which is the retirement ticket's business rather than this command's.
+  // once `dev/legacy/` is gone, which is the retirement ticket's business rather than this command's.
   const frozen = parity.length ? JSON.parse(fs.readFileSync(fingerprintFile, 'utf8')) : null;
-  if (parity.length && fs.existsSync(path.join(root, 'legacy/app'))) {
+  if (parity.length && fs.existsSync(path.join(root, 'dev/legacy/app'))) {
     const stale = freezeReason(frozen, fingerprint(root, parity), parity.map((s) => s.name));
     if (stale) {
       say(`gate ${command} ${piece}: the frozen opponent is out of date (${stale}); run tools/gate oracle ${piece}`);
@@ -662,14 +662,14 @@ export function opensAt(root, piece, resolved, settingsFile, { command = 'judge'
 }
 
 // Where a judged shot of ours goes, and its crop when the state is judged on one: the round's
-// files under `shots/<piece>/`, which are the evidence a round is read from.
+// files under `dev/shots/<piece>/`, which are the evidence a round is read from.
 export function shotPaths(piece, number, state, cut) {
-  const stem = path.join('shots', piece, `r${number}-${state}`);
+  const stem = path.join('dev', 'shots', piece, `r${number}-${state}`);
   return {
     shot: `${stem}-ours.png`,
     lit: `${stem}-ours-lit.png`,
     ours: cut ? `${stem}-ours-crop.png` : `${stem}-ours.png`,
-    theirs: cut ? `${stem}-theirs-crop.png` : path.join('shots/oracle', piece, `${state}.png`),
+    theirs: cut ? `${stem}-theirs-crop.png` : path.join('dev/shots/oracle', piece, `${state}.png`),
   };
 }
 
@@ -747,9 +747,9 @@ async function judge(root, piece, note, summaryFile, settingsFile, fresh) {
   // do not say which it was.
   const ours = { ...build(root), settings: settingsFile ?? null };
   const template = fs.readFileSync(path.join(root, 'tools/critic.md'), 'utf8');
-  const brief = JSON.parse(fs.readFileSync(path.join(root, 'progress/state.json'), 'utf8')).pieces.find((p) => p.id === piece);
+  const brief = JSON.parse(fs.readFileSync(path.join(root, 'dev/progress/state.json'), 'utf8')).pieces.find((p) => p.id === piece);
   if (!brief?.judge) {
-    say(`gate judge ${piece}: progress/state.json says nothing about what a critic judges this Piece on`);
+    say(`gate judge ${piece}: dev/progress/state.json says nothing about what a critic judges this Piece on`);
     return refuse(piece, 'the Piece has no judging brief');
   }
 
@@ -794,7 +794,7 @@ async function judge(root, piece, note, summaryFile, settingsFile, fresh) {
           margin: 'asserted',
           sameViewport: true,
           gap: answer.why,
-          gapTheirs: 'no opponent: neither iA Writer for Mac nor legacy/ holds this state (ADR 0017)',
+          gapTheirs: 'no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)',
           verdict: answer.why,
           secondary: answer.secondary,
         });
@@ -869,12 +869,12 @@ async function judge(root, piece, note, summaryFile, settingsFile, fresh) {
 
   // Where the other side of every pair came from, in one sentence per opponent the round used.
   const sources = [];
-  if (parity.length) sources.push(`shots/oracle/${piece}/ — the Parity oracle frozen by tools/gate oracle ${piece} from legacy/app ${frozen.app?.sha256} with legacy/tools/shoot.mjs ${frozen.shoot}`);
-  if (crops.length) sources.push(`${CAPTURES}/ — the Design oracle, iA Writer for Mac as captured and measured in ref/ia/mac-native/ (ADR 0015), cropped per state: ${crops.map((s) => `${s.name} from ${path.basename(cropping.get(s.name).capture)}`).join(', ')}`);
+  if (parity.length) sources.push(`dev/shots/oracle/${piece}/ — the Parity oracle frozen by tools/gate oracle ${piece} from dev/legacy/app ${frozen.app?.sha256} with dev/legacy/tools/shoot.mjs ${frozen.shoot}`);
+  if (crops.length) sources.push(`${CAPTURES}/ — the Design oracle, iA Writer for Mac as captured and measured in dev/ref/ia/mac-native/ (ADR 0015), cropped per state: ${crops.map((s) => `${s.name} from ${path.basename(cropping.get(s.name).capture)}`).join(', ')}`);
   if (asserted.length) sources.push(`no opponent for ${asserted.map((s) => `${s.name} (${s.assert.kind})`).join(', ')} — measured off ours' own pixels by tools/assert-state.mjs, because neither oracle holds the state (ADR 0017)`);
   const oracle = sources.join('; ');
   const written = round({ piece, number, judged, opponent: opponentOf(resolved), build: ours, oracle, note, at: new Date().toISOString() });
-  const file = path.join(root, 'progress/rounds', `${piece}-r${number}.json`);
+  const file = path.join(root, 'dev/progress/rounds', `${piece}-r${number}.json`);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, `${JSON.stringify(written, null, 2)}\n`);
   say(`gate judge ${piece}: wrote ${path.relative(root, file)}`);

@@ -11,7 +11,7 @@
 # that same 1.711 em: one pitch of air, the Editor's blank line, so a paragraph
 # advances by the two pitches iA's Manuscript measures (ADR 0019).
 #
-# `ref/ia/mac-native/NOTES.md` § State 23 has since read that em off ink and
+# `dev/ref/ia/mac-native/NOTES.md` § State 23 has since read that em off ink and
 # found iA's Manuscript on it exactly, 42.667 px over a 73 px pitch at backing
 # scale 2 — so the two numbers below are the baseline as well as the ladder's,
 # and `classic.toml` derives its own `base` from this one.

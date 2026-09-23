@@ -1,7 +1,7 @@
 //! Typewriter: where the caret's row is held down the window, and how the
 //! page travels to keep it there.
 //!
-//! The rules are the Parity oracle's, `legacy/app/js/focus.js` lines 200-260,
+//! The rules are the Parity oracle's, `dev/legacy/app/js/focus.js` lines 200-260,
 //! ported case for case and kept free of any widget (#115). Three things are
 //! decided here and the Editor applies the numbers to its vertical adjustment:
 //!

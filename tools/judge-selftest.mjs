@@ -108,7 +108,7 @@ ok('a state becomes the native flags that state means', () => {
   // The caret Piece is judged bare (#139), so its states override the defaults' chrome; that
   // override reaching the command line is the half of this case the defaults cannot show.
   assert.equal(flag('--chrome'), 'off');
-  assert.equal(flag('--text'), path.join(ROOT, 'ref/sample.md'));
+  assert.equal(flag('--text'), path.join(ROOT, 'dev/ref/sample.md'));
   // Bytes on the way in and bytes on the way out: the native flags take the form states.json
   // writes, which is what the oracle has to convert away from and this does not.
   assert.equal(flag('--caret'), '36');
@@ -216,7 +216,7 @@ ok('every launch reads a fresh copy of the fixture dictionary, never the machine
     assert.ok(first.startsWith(tmp + path.sep), 'the copy lives under the run\'s temporary directory');
     for (const file of ['en_US.aff', 'en_US.dic']) {
       assert.deepEqual(fs.readFileSync(path.join(first, 'hunspell', file)),
-        fs.readFileSync(path.join(ROOT, 'ref/spell/hunspell', file)), file);
+        fs.readFileSync(path.join(ROOT, 'dev/ref/spell/hunspell', file)), file);
     }
     const env = launchEnv({ PATH: '/usr/bin', ENCHANT_CONFIG_DIR: '/home/writer/.config/enchant' }, first);
     assert.equal(env.ENCHANT_CONFIG_DIR, first, 'the writer\'s own enchant directory is not the one read');
@@ -319,11 +319,11 @@ ok('ours is the toplevel that appeared, not the one that matches', () => {
 
 // ---------- the shot's own size ----------
 ok('a PNG says how big it is, and something that is not one says so', () => {
-  const png = fs.readFileSync(path.join(ROOT, 'shots/oracle/type/duo.png'));
+  const png = fs.readFileSync(path.join(ROOT, 'dev/shots/oracle/type/duo.png'));
   assert.deepEqual(pngSize(png), { w: 2880, h: 1800 }, '1440x900 at scale 2 is what every judged state is');
   // And a shot of another size reads as that size: the crop `page/narrow` is judged against since
   // #420, which is a region of a 960 pt window rather than a whole 1440 x 900 one.
-  const crop = 'ref/ia/shots/mac-native/mac-native-22-light-narrow-w0960-step05-plain.png';
+  const crop = 'dev/ref/ia/shots/mac-native/mac-native-22-light-narrow-w0960-step05-plain.png';
   assert.deepEqual(pngSize(fs.readFileSync(path.join(ROOT, crop))), { w: 1920, h: 1000 });
   assert.throws(() => pngSize(Buffer.alloc(64)), /not a PNG/);
 });
@@ -348,9 +348,9 @@ ok('a pair is two letters and nothing else, and the key is not in the repository
     fs.writeFileSync(path.join(dir, 'ours.png'), 'OURS');
     fs.writeFileSync(path.join(dir, 'theirs.png'), 'THEIRS');
     const made = pair('type', 'duo', 'ours.png', 'theirs.png');
-    assert.equal(made.dir, path.join('shots/blind', 'type', 'duo'));
+    assert.equal(made.dir, path.join('dev/shots/blind', 'type', 'duo'));
     assert.deepEqual(fs.readdirSync(made.dir).sort(), ['A.png', 'B.png']);
-    assert.ok(!fs.existsSync(path.join(dir, 'shots/blind/type/duo/key.json')));
+    assert.ok(!fs.existsSync(path.join(dir, 'dev/shots/blind/type/duo/key.json')));
     const key = reveal('type', 'duo');
     assert.equal(fs.readFileSync(path.join(made.dir, `${key.ours}.png`), 'utf8'), 'OURS');
     assert.equal(fs.readFileSync(path.join(made.dir, key.ours === 'A' ? 'B.png' : 'A.png'), 'utf8'), 'THEIRS');
@@ -416,25 +416,25 @@ ok('the critic\'s answer is the last one it wrote, and a spoilt one is refused',
 
 // ---------- the round ----------
 const JUDGED = [
-  { name: 'duo', ours: 'shots/type/r2-duo-ours.png', theirs: 'shots/oracle/type/duo.png', winner: 'ours', margin: 'clear', gap: 'ours-gap-1', gapTheirs: 'theirs-gap-1', verdict: 'v1', secondary: ['one'] },
-  { name: 'quattro', ours: 'shots/type/r2-quattro-ours.png', theirs: 'shots/oracle/type/quattro.png', winner: 'theirs', margin: 'slight', gap: 'ours-gap-2', gapTheirs: 'theirs-gap-2', verdict: 'v2', secondary: ['two'] },
-  { name: 'mono', ours: 'shots/type/r2-mono-ours.png', theirs: 'shots/oracle/type/mono.png', winner: 'theirs', margin: 'clear', gap: 'ours-gap-3', gapTheirs: 'theirs-gap-3', verdict: 'v3', secondary: [] },
+  { name: 'duo', ours: 'dev/shots/type/r2-duo-ours.png', theirs: 'dev/shots/oracle/type/duo.png', winner: 'ours', margin: 'clear', gap: 'ours-gap-1', gapTheirs: 'theirs-gap-1', verdict: 'v1', secondary: ['one'] },
+  { name: 'quattro', ours: 'dev/shots/type/r2-quattro-ours.png', theirs: 'dev/shots/oracle/type/quattro.png', winner: 'theirs', margin: 'slight', gap: 'ours-gap-2', gapTheirs: 'theirs-gap-2', verdict: 'v2', secondary: ['two'] },
+  { name: 'mono', ours: 'dev/shots/type/r2-mono-ours.png', theirs: 'dev/shots/oracle/type/mono.png', winner: 'theirs', margin: 'clear', gap: 'ours-gap-3', gapTheirs: 'theirs-gap-3', verdict: 'v3', secondary: [] },
 ];
 
 ok('a Piece is ours only when every state is, and the round speaks for the state that decided it', () => {
   assert.equal(decisive(JUDGED).name, 'quattro', 'the first one lost');
   assert.equal(decisive(JUDGED.map((s) => ({ ...s, winner: 'ours' }))).name, 'duo', 'and the first of all when none was');
 
-  const lost = round({ piece: 'type', number: 2, judged: JUDGED, opponent: 'oracle', build: { git: 'abc', binary: 'def' }, oracle: 'shots/oracle/type/', note: 'n', at: 'T' });
+  const lost = round({ piece: 'type', number: 2, judged: JUDGED, opponent: 'oracle', build: { git: 'abc', binary: 'def' }, oracle: 'dev/shots/oracle/type/', note: 'n', at: 'T' });
   assert.equal(lost.winner, 'theirs');
   assert.equal(lost.gap, 'ours-gap-2');
   assert.equal(lost.gapTheirs, 'theirs-gap-2');
   assert.equal(lost.verdict, 'v2');
-  assert.equal(lost.oursShot, 'shots/type/r2-quattro-ours.png');
+  assert.equal(lost.oursShot, 'dev/shots/type/r2-quattro-ours.png');
   assert.equal(lost.builderNote, 'n');
   assert.equal(lost.opponent, 'oracle');
   assert.deepEqual(lost.build, { git: 'abc', binary: 'def' });
-  const judged = JSON.parse(fs.readFileSync(path.join(ROOT, 'shots/oracle/states.json'), 'utf8')).pieces.type;
+  const judged = JSON.parse(fs.readFileSync(path.join(ROOT, 'dev/shots/oracle/states.json'), 'utf8')).pieces.type;
   assert.deepEqual(lost.states.map((s) => s.name), Object.keys(judged));
   // tools/progress.mjs reads a round by these names and has to go on doing so.
   for (const key of ['piece', 'round', 'winner', 'gap', 'verdict', 'oursShot', 'theirsShot', 'builderNote', 'at']) {
@@ -458,7 +458,7 @@ ok('every recorded round names an opponent the progress page can caption', () =>
   // has to be a name `tools/rounds.mjs` has words for, or the page prints the key.
   assert.equal(opponentName({ round: 1, winner: 'ours' }), 'iA Writer');
   assert.equal(opponentName({ opponent: 'oracle' }), 'Parity oracle');
-  const dir = path.join(ROOT, 'progress/rounds');
+  const dir = path.join(ROOT, 'dev/progress/rounds');
   for (const file of fs.readdirSync(dir).filter((f) => f.endsWith('.json'))) {
     const r = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'));
     if (r.opponent) assert.ok(OPPONENTS[r.opponent], `${file} was judged against "${r.opponent}", which tools/rounds.mjs has no caption for`);
@@ -703,8 +703,8 @@ ok('all five Syntax states hold on real captures and the companion pins only mas
 // to pair, so none is read here.
 const SPELL_ROUND = 'r7';
 const spellPair = (name) => ({
-  dim: fs.readFileSync(path.join(ROOT, 'shots/spell', `${SPELL_ROUND}-${name}-ours.png`)),
-  lit: fs.readFileSync(path.join(ROOT, 'shots/spell', `${SPELL_ROUND}-${name}-ours-lit.png`)),
+  dim: fs.readFileSync(path.join(ROOT, 'dev/shots/spell', `${SPELL_ROUND}-${name}-ours.png`)),
+  lit: fs.readFileSync(path.join(ROOT, 'dev/shots/spell', `${SPELL_ROUND}-${name}-ours-lit.png`)),
 });
 const spellRule = (name) => states.pieces.spell[name].assert;
 
@@ -726,7 +726,7 @@ ok('eight Spell states are judged on #400’s frames and the two it shot none of
   assert.deepEqual(Object.keys(states.pieces.spell), ['on-light', 'on-dark', 'focus-light', 'focus-dark', 'syntax-light',
     'syntax-dark', 'select-light', 'select-dark', 'caret-light', 'missing-light']);
   for (const state of resolveStates(states, 'spell')) {
-    assert.equal(state.flags.text, 'ref/spell.md');
+    assert.equal(state.flags.text, 'dev/ref/spell.md');
     const frame = SPELL_FRAMES[state.name];
     if (frame) {
       assert.ok(!state.assert, `${state.name} is answered one way`);
@@ -903,7 +903,7 @@ ok('the nine style states are judged against mac-native crops of the capture in 
     // The passage is the one the engine's fixture test and the capture use, so the three cannot
     // drift, and every state is answered by a crop of the frame the capture shot for it rather
     // than by arithmetic over ours: the mark has a Design oracle now (#367, ADR 0015).
-    assert.equal(state.flags.text, 'ref/style.md', state.name);
+    assert.equal(state.flags.text, 'dev/ref/style.md', state.name);
     assert.equal(state.assert ?? null, null, `${state.name} is judged, not asserted`);
     assert.match(state.opponent.capture, /^mac-native-24-(light|dark)-style-/, state.name);
     assert.equal(state.opponent.capture.includes(state.flags.theme), true,
@@ -1775,11 +1775,11 @@ function pinnedShot({ row = true, pin = true, stray = false, pinSize = [20, 25] 
 
 ok('a pin changes the Organizer\'s column and one icon cell of the File List, and nothing else', () => {
   const spec = { kind: 'pinned', organizer: 100, icon: [24, 30] };
-  const second = secondShot(spec, { flags: { library: 'shots/oracle/library:pinned=sea-storm.md', caret: 0 } });
-  assert.equal(second.state.flags.library, 'shots/oracle/library', 'the reference pins nothing');
+  const second = secondShot(spec, { flags: { library: 'dev/shots/oracle/library:pinned=sea-storm.md', caret: 0 } });
+  assert.equal(second.state.flags.library, 'dev/shots/oracle/library', 'the reference pins nothing');
   assert.equal(second.state.flags.caret, 0, 'the reference keeps every unrelated flag');
-  assert.equal(unpinned('shots/oracle/library:mark=pen,pinned=a.md'), 'shots/oracle/library:mark=pen');
-  assert.equal(unpinned('shots/oracle/library'), 'shots/oracle/library');
+  assert.equal(unpinned('dev/shots/oracle/library:mark=pen,pinned=a.md'), 'dev/shots/oracle/library:mark=pen');
+  assert.equal(unpinned('dev/shots/oracle/library'), 'dev/shots/oracle/library');
   const bare = pinnedShot({ row: false, pin: false });
 
   const held = assertState(spec, { dim: pinnedShot(), lit: bare });
@@ -1962,7 +1962,7 @@ ok('an opponent is resolved against the capture on disk, and the centre rule car
 ok('a crop that cannot be cut says which state and why, and cuts nothing', () => {
   const ours = { w: 2880, h: 1800 };
   const bad = [
-    [{ capture: 'ref/ia/shots/mac-native/nope.png', crop: [0, 0, 8, 8], ours: 'centre' }, /a file name under/],
+    [{ capture: 'dev/ref/ia/shots/mac-native/nope.png', crop: [0, 0, 8, 8], ours: 'centre' }, /a file name under/],
     [{ capture: 'mac-native-99-nothing.png', crop: [0, 0, 8, 8], ours: 'centre' }, /not a capture on disk/],
     [{ capture: CAPTURE, crop: [2900, 0, 100, 8], ours: 'centre' }, /past the capture/],
     [{ capture: CAPTURE, crop: [0, 0, 8], ours: 'centre' }, /is not \[x, y, w, h\]/],
@@ -2022,29 +2022,29 @@ ok('a state with an opponent pairs the named crop, and both sides are the same r
 
 // ---------- the same pixels are not judged twice ----------
 
-ok('a round names its shots under shots/<piece>/, whole for a Parity state and cut for a Design oracle one', () => {
+ok('a round names its shots under dev/shots/<piece>/, whole for a Parity state and cut for a Design oracle one', () => {
   const whole = shotPaths('focus', 4, 'sentence', null);
-  assert.equal(whole.shot, 'shots/focus/r4-sentence-ours.png');
+  assert.equal(whole.shot, 'dev/shots/focus/r4-sentence-ours.png');
   assert.equal(whole.ours, whole.shot);
-  assert.equal(whole.theirs, 'shots/oracle/focus/sentence.png');
-  assert.equal(whole.lit, 'shots/focus/r4-sentence-ours-lit.png');
+  assert.equal(whole.theirs, 'dev/shots/oracle/focus/sentence.png');
+  assert.equal(whole.lit, 'dev/shots/focus/r4-sentence-ours-lit.png');
   const cut = shotPaths('focus', 4, 'sentence', { crop: [0, 0, 1, 1] });
   assert.equal(cut.shot, whole.shot, 'the whole shot stays beside its crop');
-  assert.equal(cut.ours, 'shots/focus/r4-sentence-ours-crop.png');
-  assert.equal(cut.theirs, 'shots/focus/r4-sentence-theirs-crop.png');
+  assert.equal(cut.ours, 'dev/shots/focus/r4-sentence-ours-crop.png');
+  assert.equal(cut.theirs, 'dev/shots/focus/r4-sentence-theirs-crop.png');
 });
 
 ok('a state carries the latest verdict on the same bytes, both sides, and nothing else', () => {
   inTemp((root) => {
     const write = (file, bytes) => { fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true }); fs.writeFileSync(path.join(root, file), bytes); return file; };
-    const ours3 = write('shots/focus/r3-sentence-ours.png', 'ours-a');
-    const ours4 = write('shots/focus/r4-sentence-ours.png', 'ours-a');
-    const ours5 = write('shots/focus/r5-sentence-ours.png', 'ours-b');
-    const theirs = write('shots/oracle/focus/sentence.png', 'theirs-a');
-    const now = write('shots/focus/r6-sentence-ours.png', 'ours-a');
+    const ours3 = write('dev/shots/focus/r3-sentence-ours.png', 'ours-a');
+    const ours4 = write('dev/shots/focus/r4-sentence-ours.png', 'ours-a');
+    const ours5 = write('dev/shots/focus/r5-sentence-ours.png', 'ours-b');
+    const theirs = write('dev/shots/oracle/focus/sentence.png', 'theirs-a');
+    const now = write('dev/shots/focus/r6-sentence-ours.png', 'ours-a');
     const verdict = (n, ours, extra = {}) => ({
       piece: 'focus', round: n, opponent: 'oracle', winner: 'ours',
-      states: [{ name: 'sentence', ours, theirs, blind: 'shots/blind/focus/sentence', oursWas: 'A', pick: 'A', winner: 'ours', margin: n === 3 ? 'clear' : 'slight', sameViewport: true, gap: `g${n}`, gapTheirs: `t${n}`, verdict: `v${n}`, secondary: [], ...extra }],
+      states: [{ name: 'sentence', ours, theirs, blind: 'dev/shots/blind/focus/sentence', oursWas: 'A', pick: 'A', winner: 'ours', margin: n === 3 ? 'clear' : 'slight', sameViewport: true, gap: `g${n}`, gapTheirs: `t${n}`, verdict: `v${n}`, secondary: [], ...extra }],
     });
     const r3 = verdict(3, ours3);
     // Round 4 carried round 3: its state is round 3's verdict under round 4's own shot.
@@ -2059,11 +2059,11 @@ ok('a state carries the latest verdict on the same bytes, both sides, and nothin
     assert.equal(carriedFrom(root, [r3, r4, r5], 'sentence', now, theirs).round, 3, 'pixels that moved and moved back are the pixels round 3 judged, whatever round 5 saw');
     assert.equal(carriedFrom(root, [r3, r4, r5], 'sentence', ours5, theirs).round, 5, 'and the latest round to have judged these bytes is the one carried');
     assert.equal(carriedFrom(root, [r3], 'sentence', ours5, theirs), null, 'ours moved');
-    assert.equal(carriedFrom(root, [r3], 'sentence', now, write('shots/oracle/focus/other.png', 'theirs-b')), null, 'the opponent moved');
+    assert.equal(carriedFrom(root, [r3], 'sentence', now, write('dev/shots/oracle/focus/other.png', 'theirs-b')), null, 'the opponent moved');
     assert.equal(carriedFrom(root, [r3], 'paragraph', now, theirs), null, 'another state');
     assert.equal(carriedFrom(root, [{ ...r3, states: [{ ...r3.states[0], pick: undefined, margin: 'asserted' }] }], 'sentence', now, theirs), null, 'an assertion is arithmetic and is run again');
     assert.equal(carriedFrom(root, [{ piece: 'focus', round: 1, winner: 'ours' }], 'sentence', now, theirs), null, 'a gauntlet round has no states to carry');
-    assert.equal(carriedFrom(root, [r3], 'sentence', 'shots/focus/nosuch.png', theirs), null, 'a file that is not there is not the same bytes');
+    assert.equal(carriedFrom(root, [r3], 'sentence', 'dev/shots/focus/nosuch.png', theirs), null, 'a file that is not there is not the same bytes');
   });
 });
 
@@ -2086,9 +2086,9 @@ const lastLine = (r) => r.out.trim().split('\n').pop();
 // which runs it will not take a verdict from. A run it *would* take one from is not exercised,
 // because writing a round into the ledger is not something a test may do.
 ok('the latency Piece is judged on a whole bench run, and refuses anything less', () => {
-  const missing = gate('judge', 'latency', '--summary', 'shots/latency/summary-nosuchrun.json');
+  const missing = gate('judge', 'latency', '--summary', 'dev/shots/latency/summary-nosuchrun.json');
   assert.equal(missing.code, 3, missing.out);
-  assert.match(lastLine(missing), /^gate judge latency: refused \(shots\/latency\/summary-nosuchrun\.json is not a file to read\)/);
+  assert.match(lastLine(missing), /^gate judge latency: refused \(dev\/shots\/latency\/summary-nosuchrun\.json is not a file to read\)/);
 
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'quill-judge-latency-'));
   const subset = path.join(tmp, 'summary-20260828T000000.json');
@@ -2192,7 +2192,7 @@ ok('a --panel run is informational, and the latency Piece is never judged from o
 // through QUILL_STATES, which is also what keeps this case off whichever Piece is waiting on a spec
 // this month. The refusal is `checkStates`'s, before the build and before a window.
 function unservableStates(file) {
-  const states = JSON.parse(fs.readFileSync(path.join(ROOT, 'shots/oracle/states.json'), 'utf8'));
+  const states = JSON.parse(fs.readFileSync(path.join(ROOT, 'dev/shots/oracle/states.json'), 'utf8'));
   states.pieces.type = { duo: { chrome: 'off', sepia: true }, quattro: { chrome: 'off', grain: 3 } };
   fs.writeFileSync(file, JSON.stringify(states));
   return { QUILL_STATES: file };
@@ -2227,7 +2227,7 @@ ok('a refused run is one line on stdout, and what it said is on stderr and in it
 
 // ---------- the flags ours has not got yet ----------
 // A judged state can be servable and unshootable at once: states.json learns a flag when a tool
-// under legacy/ can serve it, and the app learns to parse it a spec later. The judge asks the built
+// under dev/legacy/ can serve it, and the app learns to parse it a spec later. The judge asks the built
 // binary which it is, so only the reading of the answer is pinned here.
 ok('the flag ours refused is read out of what ours said, and nothing else is', () => {
   assert.equal(refusedFlag('quill: --typing: not a flag Quill knows\n'), '--typing');
@@ -2277,7 +2277,7 @@ ok('a crop that cannot be cut is refused before a window opens, and never as a v
   // critics. It is checked before the frozen opponent is, so a Piece whose crops are wrong says so
   // rather than sending an agent to run `tools/gate oracle` first.
   const file = path.join(os.tmpdir(), `quill-judge-selftest-${process.pid}.json`);
-  const states = JSON.parse(fs.readFileSync(path.join(ROOT, 'shots/oracle/states.json'), 'utf8'));
+  const states = JSON.parse(fs.readFileSync(path.join(ROOT, 'dev/shots/oracle/states.json'), 'utf8'));
   states.pieces.type = {
     off: { opponent: { capture: 'mac-native-01-light-caret-midword.png', crop: [2900, 0, 100, 40], ours: 'centre' } },
     gone: { opponent: { capture: 'mac-native-99-nothing.png', crop: [0, 0, 8, 8], ours: 'centre' } },
@@ -2287,7 +2287,7 @@ ok('a crop that cannot be cut is refused before a window opens, and never as a v
     const r = gate('judge', 'type', { QUILL_STATES: file });
     assert.equal(r.code, 3, `${r.out}${r.err}`);
     assert.match(r.err, /state off's opponent's crop runs to 3000 x 40, past the capture/);
-    assert.match(r.err, /state gone's opponent names ref\/ia\/shots\/mac-native\/mac-native-99-nothing\.png, which is not a capture on disk/);
+    assert.match(r.err, /state gone's opponent names dev\/ref\/ia\/shots\/mac-native\/mac-native-99-nothing\.png, which is not a capture on disk/);
     assert.match(lastLine(r), /^gate judge type: refused \(2 of 2 states name a mac-native crop that cannot be cut\)/);
   } finally {
     fs.rmSync(file, { force: true });

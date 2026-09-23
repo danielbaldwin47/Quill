@@ -2,7 +2,7 @@
   "name": "quill-gate-tools",
   "version": "0.0.0",
   "private": true,
-  "description": "What the Gate's Node tools at the repo root need. The JavaScript app has its own manifest in legacy/; this one exists because tools/{thumb,progress,mirror-metrics}.mjs drive a browser and Node resolves their imports from here.",
+  "description": "What the Gate's Node tools at the repo root need. The JavaScript app has its own manifest in dev/legacy/; this one exists because tools/{thumb,progress,mirror-metrics}.mjs drive a browser and Node resolves their imports from here.",
   "license": "GPL-3.0-or-later",
   "dependencies": {
     "playwright-core": "^1.62.1"

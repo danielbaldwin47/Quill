@@ -1227,7 +1227,7 @@ mod tests {
     }
 
     /// The shared test passage, which is what a reader is asked to read.
-    const SAMPLE: &str = "../ref/sample.md";
+    const SAMPLE: &str = "../dev/ref/sample.md";
 
     /// The shared test passage tripled, which is what runs over enough pages
     /// for a third one to be asked about.

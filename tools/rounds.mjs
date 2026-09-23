@@ -2,7 +2,7 @@
 //
 //   import { OPPONENTS, nextRound, round, rounds, wonBefore } from './rounds.mjs'
 //
-// `progress/rounds/<piece>-r<N>.json` is the Gate's ledger, and two things read it: `tools/gate
+// `dev/progress/rounds/<piece>-r<N>.json` is the Gate's ledger, and two things read it: `tools/gate
 // judge`, which writes one and has to know whether this Piece had been won before, and
 // `tools/progress.mjs`, which draws them all. What a round means lives here so that neither owns
 // it — the page would otherwise be importing the whole judging command for a caption, and the two
@@ -18,7 +18,7 @@ import path from 'node:path';
 //
 // A round with no `opponent` at all is one of the gauntlet's, judged against iA Writer — see
 // [`opponentName`], which is where that default lives.
-// `mac-native` is the Design oracle — iA Writer for Mac, captured in `ref/ia/shots/mac-native/` and
+// `mac-native` is the Design oracle — iA Writer for Mac, captured in `dev/ref/ia/shots/mac-native/` and
 // paired as a crop (ADR 0015) — `asserted` is a Piece with no opponent at all, every state of it
 // measured off ours' own pixels (ADR 0017), and `mixed` is a Piece part-way through, holding more
 // than one of the three.
@@ -38,7 +38,7 @@ export function opponentName(r) {
 
 // Every round recorded for a Piece, oldest first.
 export function rounds(root, piece) {
-  const dir = path.join(root, 'progress/rounds');
+  const dir = path.join(root, 'dev/progress/rounds');
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir)
     .filter((f) => f.startsWith(`${piece}-r`) && f.endsWith('.json'))

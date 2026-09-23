@@ -5,7 +5,7 @@ freezes every glyph's advance across the `wght` axis as well, five of the six Fa
 one, so that setting a run bold leaves it the width it was. The decision — renamed derivatives, built
 by one committed script, loaded privately — stands.*
 
-Quill ships six font files built from the iA Writer variable fonts in `ref/ia/fonts` by one committed
+Quill ships six font files built from the iA Writer variable fonts in `dev/ref/ia/fonts` by one committed
 script, renamed inside their `name` tables to **Quill Duo**, **Quill Quattro** and **Quill Mono**, each
 Italic a family of its own (**Quill Duo Italic** and so on), and loads them into the process's own
 fontconfig at startup rather than installing them. Settled in
@@ -30,7 +30,7 @@ Italic file carries, and the Editor selects Faces from its own table by name any
 ## Consequences
 
 **The rename is written into the files.** `tools/fontbuild.py` (`python-fonttools`, a tool-time
-dependency only) reads the six `*V*.ttf` files from `ref/ia/fonts`, rewrites family, subfamily, full,
+dependency only) reads the six `*V*.ttf` files from `dev/ref/ia/fonts`, rewrites family, subfamily, full,
 PostScript and `fvar` instance names with the prefix `Quill` held in one constant, and applies the
 Quattro Italic patch that `tools/fontgrid.py` made for the web app: the space (glyph 1) advance 600 →
 450 units to match the Roman, with its `gvar` entry frozen. It then freezes every glyph's advance

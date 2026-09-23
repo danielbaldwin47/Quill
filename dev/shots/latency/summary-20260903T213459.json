@@ -1,0 +1,120 @@
+{
+  "ran": "--regimes prose_end_of_draft,preview,live_end_of_draft",
+  "at": "2026-09-03T21:34:59.558Z",
+  "budget": {
+    "mean_ms": 5,
+    "worst_ms": 16,
+    "cold_ms": 250
+  },
+  "oracle": {
+    "mean_ms": 2.43,
+    "worst_ms": 15.61,
+    "uinput_to_presented_ms": 12.17,
+    "cold_ms": 370
+  },
+  "headline": "prose_end_of_draft",
+  "regimes": [
+    {
+      "regime": "prose_end_of_draft",
+      "file": "dev/shots/latency/bench-prose_end_of_draft-20260903T213354.json",
+      "mean_ms": 1.95,
+      "worst_ms": 5.55,
+      "p50_ms": 1.83,
+      "p99_ms": 3.2,
+      "cold_ms": 146.71,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "preview",
+      "file": "dev/shots/latency/bench-preview-20260903T213427.json",
+      "mean_ms": 2.05,
+      "worst_ms": 3.4,
+      "p50_ms": 1.94,
+      "p99_ms": 3.22,
+      "cold_ms": 174.94,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    },
+    {
+      "regime": "live_end_of_draft",
+      "file": "dev/shots/latency/bench-live_end_of_draft-20260903T213459.json",
+      "mean_ms": 2.01,
+      "worst_ms": 3.42,
+      "p50_ms": 1.93,
+      "p99_ms": 3.16,
+      "cold_ms": 170.67,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true
+    }
+  ],
+  "regimes_not_run": [],
+  "regimes_unaccounted_for": [],
+  "regimes_not_scored": [],
+  "stage_first_client_ms": 781.194,
+  "pass": true,
+  "lines": [
+    "gate bench prose_end_of_draft: pass — mean 1.95 ms, worst 5.55 ms, p50 1.83 ms, p99 3.2 ms, cold 146.71 ms",
+    "gate bench preview: pass — mean 2.05 ms, worst 3.4 ms, p50 1.94 ms, p99 3.22 ms, cold 174.94 ms",
+    "gate bench live_end_of_draft: pass — mean 2.01 ms, worst 3.42 ms, p50 1.93 ms, p99 3.16 ms, cold 170.67 ms",
+    "gate bench --regimes prose_end_of_draft,preview,live_end_of_draft: pass — 3 of 3 regimes clear the budget (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)"
+  ],
+  "build": {
+    "git": "41c7297",
+    "binary": "a165f2215f655c8e"
+  },
+  "fingerprint": {
+    "at": "2026-09-03T21:33:54.492Z",
+    "app": {
+      "binary": "target/release/quill",
+      "sha256": "a165f2215f655c8e",
+      "git_head": "41c7297",
+      "tree_was_dirty": false,
+      "renderer": "gl"
+    },
+    "display": {
+      "output": "quill-gate-2852632",
+      "mode": "3200x2000",
+      "refresh_hz": 60,
+      "scale": 2,
+      "vrr": false
+    },
+    "machine": {
+      "node": "v26.7.0",
+      "kernel": "Linux 7.1.9-arch1-2",
+      "cpu": "13th Gen Intel(R) Core(TM) i5-13600K",
+      "cpus": 20,
+      "load1": 0.82,
+      "busiest_processes": [
+        "2.4 Hyprland",
+        "1.3 quill <defunct>",
+        "1.2 hermes",
+        "1.2 claude",
+        "1.0 claude"
+      ],
+      "mem_gb": 31
+    },
+    "document": {
+      "path": "dev/shots/latency/doc10k.md",
+      "words": 9953,
+      "chars": 53031,
+      "lines": 432
+    },
+    "window": {
+      "w": 1440,
+      "h": 900
+    }
+  }
+}

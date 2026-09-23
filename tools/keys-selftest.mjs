@@ -331,8 +331,8 @@ ok('a burst asserting selection-rows without saying how many rows is refused, no
 // From the Parity oracle, not from ours, and deliberately: ours has no `Selection` readout until
 // #393 builds one, so there is no shot of ours that could pin what the rule has to catch. The
 // legacy app has had it all along and is what ours is judged against, so it is the right thing to
-// measure. Both were shot by `legacy/tools/shoot.mjs` at the judged `defaults` — 1440x900 at scale
-// 2, light, Duo, step 5's size 20, `ref/sample.md`, chrome on — one with `--caret 403` and the
+// measure. Both were shot by `dev/legacy/tools/shoot.mjs` at the judged `defaults` — 1440x900 at scale
+// 2, light, Duo, step 5's size 20, `dev/ref/sample.md`, chrome on — one with `--caret 403` and the
 // other with `--select 18,403 --caret 403`, and each cut to the bar's band by `cropPng` in
 // `tools/crop.mjs` at the rectangle `readStatsBand` itself found: [0, 1748, 2880, 52] in both.
 // So the two crops differ in the bar and in nothing else, which is what `stats-bar-changed` is.
@@ -348,7 +348,7 @@ ok('a burst asserting selection-rows without saying how many rows is refused, no
 ok('the band is the rows the chrome reserves at the foot, on a whole judged page', () => {
   // Ours and the oracle reserve the bar the same 26 logical pixels, which is what makes one finder
   // serve both sides of a judged pair.
-  for (const rel of ['shots/chrome/r10-bars-ours.png', 'shots/oracle/chrome/bars.png']) {
+  for (const rel of ['dev/shots/chrome/r10-bars-ours.png', 'dev/shots/oracle/chrome/bars.png']) {
     const png = committed(rel);
     assert.deepEqual(readStatsBand(png, { scale: 2 }), { top: 1748, bottom: 1799 }, rel);
   }
@@ -357,9 +357,9 @@ ok('the band is the rows the chrome reserves at the foot, on a whole judged page
 ok('the band is found on a page that does not scroll, where there is no separator to find', () => {
   // The case #391 could not see and `tools/gate keys chrome` ran straight into. The full-width
   // `#dfdfdf` rule it took the band from is the *scroll* separator: `bars` is the long sample and
-  // has it, `selection` is `ref/short.md` and has none — in ours and in the oracle's alike. A
+  // has it, `selection` is `dev/ref/short.md` and has none — in ours and in the oracle's alike. A
   // finder that needs it answers `null` on every shot the keys script actually takes.
-  for (const rel of ['shots/chrome/r11-selection-ours.png', 'shots/oracle/chrome/selection.png']) {
+  for (const rel of ['dev/shots/chrome/r11-selection-ours.png', 'dev/shots/oracle/chrome/selection.png']) {
     const png = committed(rel);
     let fullWidth = null;
     for (let y = png.h - 1; y >= 0 && fullWidth === null; y -= 1) {
@@ -377,12 +377,12 @@ ok('the band is found on a page that does not scroll, where there is no separato
 ok('the band is read off a shot of ours, and the Selection label in it is the accent', () => {
   // Every fixture #391 pinned was cut from the Parity oracle, so nothing held the rules to our own
   // window. These two are ours, from the round the chrome Piece was last judged at.
-  const under = judgeStatsBarAccent(committed('shots/chrome/r11-selection-ours.png'), {
+  const under = judgeStatsBarAccent(committed('dev/shots/chrome/r11-selection-ours.png'), {
     accent: true, scale: 2,
   });
   assert.equal(under.pass, true, under.said);
   assert.equal(under.pixels, 672);
-  const plain = judgeStatsBarAccent(committed('shots/chrome/r11-bars-ours.png'), {
+  const plain = judgeStatsBarAccent(committed('dev/shots/chrome/r11-bars-ours.png'), {
     accent: false, scale: 2,
   });
   assert.equal(plain.pass, true, plain.said);
@@ -392,7 +392,7 @@ ok('the band is read off a shot of ours, and the Selection label in it is the ac
 ok('the band is the same rows at another window width, the height being what sets it', () => {
   // 1920 px wide rather than 2880, the same 1800 tall: the bar is the foot of the window, so its
   // band follows the height and nothing else.
-  const png = committed('shots/page/r8-narrow-ours.png');
+  const png = committed('dev/shots/page/r8-narrow-ours.png');
   assert.equal(png.w, 1920);
   assert.deepEqual(readStatsBand(png, { scale: 2 }), { top: 1748, bottom: 1799 });
 });
@@ -400,7 +400,7 @@ ok('the band is the same rows at another window width, the height being what set
 ok('the band stops above the page, which is what keeps the selection out of it', () => {
   // The lowest ink the Document puts on the glass in this shot is y 1738 — ten rows above the
   // band. A band reaching it would answer `stats-bar-accent` with the selection's own fill.
-  const png = committed('shots/chrome/r10-bars-ours.png');
+  const png = committed('dev/shots/chrome/r10-bars-ours.png');
   const { top } = readStatsBand(png, { scale: 2 });
   let lowest = null;
   for (let y = top - 1; y >= 0 && lowest === null; y -= 1) {
@@ -474,7 +474,7 @@ ok('a page with no bar on it says so rather than reading the page as one', () =>
   // from the foot is the thing being asserted and a synthetic page would only assert what this
   // file already believes. The two shapes it comes in are both here: a Document clipped by the
   // window edge, which the bar never is, and one that stops short and leaves the band bare.
-  const clipped = committed('shots/caret/r9-caret-ours.png');
+  const clipped = committed('dev/shots/caret/r9-caret-ours.png');
   const short = committed('tools/keys-fixture/fill-select-all.png');
   for (const [what, png] of [['clipped', clipped], ['short', short]]) {
     assert.equal(readStatsBand(png, { scale: 2 }), null, what);
@@ -498,7 +498,7 @@ ok('the band changed between the two crops, and did not between a crop and itsel
 });
 
 ok('a band that moved is a change by that alone, with no pixels compared across two shapes', () => {
-  const v = judgeStatsBarChanged(shot('stats-bar-document'), committed('shots/chrome/r10-bars-ours.png'));
+  const v = judgeStatsBarChanged(shot('stats-bar-document'), committed('dev/shots/chrome/r10-bars-ours.png'));
   assert.equal(v.pass, true, v.said);
   assert.match(v.said, /the band itself moved: 2880x52 px at y 0\.\.51, then 2880x1800 px at y 1748\.\.1799/);
 });
@@ -584,7 +584,7 @@ ok('too few characters to measure an advance from is said, not guessed at', () =
 
 // ---------- the scripts ----------
 
-const states = JSON.parse(fs.readFileSync(path.join(ROOT, 'shots/oracle/states.json'), 'utf8'));
+const states = JSON.parse(fs.readFileSync(path.join(ROOT, 'dev/shots/oracle/states.json'), 'utf8'));
 
 ok("the caret's script is the four bursts the fixtures were taken with", () => {
   const script = resolveScript(states, 'caret');
@@ -711,7 +711,7 @@ ok('the spell script types the misspelling as characters, then the space that re
   const passage = fs.readFileSync(path.join(ROOT, script.flags.text), 'utf8');
   assert.equal(script.flags.caret, Buffer.byteLength(passage.trimEnd()));
   // The fixture dictionary every launch reads is what makes `comittee` a misspelling.
-  const words = fs.readFileSync(path.join(ROOT, 'ref/spell/hunspell/en_US.dic'), 'utf8').split('\n');
+  const words = fs.readFileSync(path.join(ROOT, 'dev/ref/spell/hunspell/en_US.dic'), 'utf8').split('\n');
   assert.ok(words.includes('committee'));
   assert.ok(!words.includes('comittee'));
 });
@@ -725,7 +725,7 @@ ok('the spell script types the misspelling as characters, then the space that re
 
 ok('chrome carries two scripts, the Palette one on a copy of a committed settings file', () => {
   const [bars, palette] = resolveScripts(states, 'chrome');
-  assert.equal(bars.flags.text, 'ref/short.md');
+  assert.equal(bars.flags.text, 'dev/ref/short.md');
   assert.equal(palette.flags.menu, 'palette');
   assert.equal(palette.flags.chrome, 'off');
   assert.equal(palette.flags.text, null);
@@ -736,7 +736,7 @@ ok('chrome carries two scripts, the Palette one on a copy of a committed setting
   assert.equal(BETWEEN_BURSTS['switch-flipped'].reads, 'page');
   assert.match(fs.readFileSync(path.join(ROOT, palette.flags.settings), 'utf8'), /ask_where_to_save/);
   // The single-script form still answers for the Piece's first.
-  assert.equal(resolveScript(states, 'chrome').flags.text, 'ref/short.md');
+  assert.equal(resolveScript(states, 'chrome').flags.text, 'dev/ref/short.md');
 });
 
 ok('the Palette stands on the page before and after Enter', () => {

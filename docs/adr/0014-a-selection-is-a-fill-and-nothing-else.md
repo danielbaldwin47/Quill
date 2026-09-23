@@ -1,7 +1,7 @@
 # A selection is a fill and nothing else
 
 *Confirmed against iA Writer for Mac running, on evidence independent of the four captures it was
-decided from — [`ref/ia/mac-native/VERDICTS.md`](../../ref/ia/mac-native/VERDICTS.md) § ADR 0014.
+decided from — [`dev/ref/ia/mac-native/VERDICTS.md`](../../dev/ref/ia/mac-native/VERDICTS.md) § ADR 0014.
 Fill-only selections at four shapes in both themes, no bar or handle at either end, the caret out
 for as long as a selection stands, `#113d52` and `#00bfff` exact. One row is contradicted in colour:
 0014.9's "paler band" for a window that has lost focus is a neutral grey — `#464646` on dark,
@@ -40,7 +40,7 @@ fill: round touch grab-handles. A caret bar at that capture's type size is 7–9
 0012 read them as the Mac app's selection anyway. macOS has never drawn those handles.
 
 The owner captured the app running, on 2026-08-30. The four frames are
-`ref/ia/shots/owner-mac-0{1..4}`, and they are unanimous:
+`dev/ref/ia/shots/owner-mac-0{1..4}`, and they are unanimous:
 
 | capture | measured |
 |---|---|
@@ -87,7 +87,7 @@ supply. Recorded here so that a lost round on this Piece reads as the decision i
 
 **The idle swap is the fill's alone.** `selection_paint` becomes `selection_fill`, `Role::Accent`
 leaves the selection's paint, and `IDLE_ENDS` (0.22 of the ink, from
-`#caret-layer.idle .sel-edge` in `legacy/app/css/caret.css`) is deleted. A window that loses focus
+`#caret-layer.idle .sel-edge` in `dev/legacy/app/css/caret.css`) is deleted. A window that loses focus
 now says what is held with the paler band and nothing else.
 
 **One walk per frame, not two.** ADR 0013 split the paint across two layers and paid a second
@@ -99,7 +99,7 @@ there is no head or tail to track through the walk, and an end clipped out of th
 needs a rule of its own, because a clipped end and an unclipped one draw the same thing.
 
 **The wider question is open, not answered here.** iA Writer for Mac being the design reference
-where `legacy/` is the porting reference is the owner's framing and it reaches much further than the
-caret — `ref/ia/REFERENCE.md` is built almost entirely on marketing stills. #154 collects the
+where `dev/legacy/` is the porting reference is the owner's framing and it reaches much further than the
+caret — `dev/ref/ia/REFERENCE.md` is built almost entirely on marketing stills. #154 collects the
 evidence for that sweep and is `needs-triage`. This ADR decides one Piece from four captures and
 claims nothing beyond it.

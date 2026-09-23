@@ -4,7 +4,7 @@
 //   node tools/regimes.mjs prose_end_of_draft --keys 300    the regime and every step it types
 //   node tools/regimes.mjs revision --uinput                the plan line tools/uinput-keys.py reads
 //
-// `tools/gate bench` measures the native app and `legacy/tools/latency.mjs` measures the Parity
+// `tools/gate bench` measures the native app and `dev/legacy/tools/latency.mjs` measures the Parity
 // oracle, and their numbers can only be compared if both type the same keys in the same order. So
 // the regime definitions, the passages, the mixes, the shift table and the labels live here and
 // both import them; neither owns a copy. The streams are seeded per regime name, so every session
@@ -172,7 +172,7 @@ export function regimes(pace = DEFAULT_PACE) {
     // Unpaced: two keys land in every 16.7 ms frame and queue behind each other, so a per-keystroke
     // uinput → presented figure grows by construction and can never clear a 5 ms mean. Run and
     // recorded like the rest, never scored — the oracle scored the eleven paced regimes and kept
-    // this one out of its table (progress/latency-report.md, #41).
+    // this one out of its table (dev/progress/latency-report.md, #41).
     { name: 'saturation_stress',     mix: 'prose',    where: 'end',    pace: 0,    focus: 'off', scored: false },
     // The headline regime's own typing with Live on, so the two lines are read against each other:
     // the fold runs on the keystroke lane beside the Markup Annotator, over the block the caret is

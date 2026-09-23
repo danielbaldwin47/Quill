@@ -84,12 +84,12 @@ fn main() {
 /// makes the first keystroke as flat as the thousandth — so its cost is part
 /// of the ≤ 250 ms the Gate holds cold start to, and this is the number to
 /// read when that budget moves. The Document is `tools/gate bench`'s own,
-/// `shots/latency/doc10k.md`, so that the figure is the one the harness pays;
+/// `dev/shots/latency/doc10k.md`, so that the figure is the one the harness pays;
 /// a checkout without it prints so rather than measuring something else.
 fn cold_parse() {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../shots/latency/doc10k.md");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../dev/shots/latency/doc10k.md");
     let Ok(text) = std::fs::read_to_string(&path) else {
-        println!("cold parse: shots/latency/doc10k.md is not in this checkout");
+        println!("cold parse: dev/shots/latency/doc10k.md is not in this checkout");
         return;
     };
     let words = text.split_whitespace().count();
@@ -106,7 +106,7 @@ fn cold_parse() {
     }
     each.sort_unstable();
 
-    println!("cold parse: Document::open on shots/latency/doc10k.md, before the first frame");
+    println!("cold parse: Document::open on dev/shots/latency/doc10k.md, before the first frame");
     println!(
         "  {words:>6} words ({bytes:>7} bytes), whole Document       : \
          median {:>7.1} µs, worst {:>7.1} µs, mean {:>7.1} µs",

@@ -1,0 +1,1214 @@
+# iA Writer for Mac, running — the capture notes
+
+Every number in `dev/ref/ia/REFERENCE.md` was read off a marketing still until now, and three of those
+readings were wrong ([ADR 0013](../../../../docs/adr/0013-caret-on-the-advance-boundary.md),
+[ADR 0014](../../../../docs/adr/0014-a-selection-is-a-fill-and-nothing-else.md)). These captures are the
+app itself, driven and measured, for
+[#154](https://github.com/danielbaldwin47/Quill/issues/154). The verdicts they carry are in
+[VERDICTS.md](VERDICTS.md); this file is how each one was taken and what it measured.
+
+Nothing here changes the spec. The evidence is put where a spec change can be argued from.
+
+## The rig
+
+**Follow-up rig, 2026-09-09:** [CAPTURE-2026-09-09.md](CAPTURE-2026-09-09.md) records the Mac halves of #231, #241, #261, #308 and #328, with per-frame metadata and untouched originals. It uses the same iA version but macOS 26.6.1 and a different display; its chromatic and page-top controls are qualified there. The table below describes the earlier run.
+
+**Later runs on the original rig:** [CAPTURE-ORIGINAL-MBP.md](CAPTURE-ORIGINAL-MBP.md) re-shoots #231 and #308 on the built-in display, [CAPTURE-2026-09-10.md](CAPTURE-2026-09-10.md) shoots #344 (state 22) and #343 (state 23) there, [CAPTURE-2026-09-10-STYLE.md](CAPTURE-2026-09-10-STYLE.md) shoots #354 (state 24), the one run that has Style Check **on**, and [CAPTURE-2026-09-13.md](CAPTURE-2026-09-13.md) and [CAPTURE-2026-09-13-SPELL.md](CAPTURE-2026-09-13-SPELL.md) shoot #419 (state 25) and #400 (state 26), the one run that has spell check **on**. Both use the same iA version on the same machine and carry their own rig tables; #344's window width is the variable of its states, so the fixed window in the table below is not theirs.
+
+| | |
+|---|---|
+| iA Writer | 8.0.6 (build 80046), `pro.writer.mac` |
+| macOS | 27.0 (26A5406e) |
+| Display | built-in Liquid Retina XDR, 3024 × 1964 device px, 1512 × 982 logical pt |
+| Backing scale | **2.0**, verified: `screencapture -R` of a 200 pt region returns 400 px |
+| Window | set to logical `{0, 33, 1512, 982}` for every state — 3024 × 1898 device px |
+| Typeface | **Mono** throughout, so the grid can be fitted (Duo is duospaced and no cell pitch fits it) |
+| Typography | System — Default |
+| Line length limit | 64 characters (the app's default; the menu offers 64 / 72 / 80) |
+| Style Check | **off** for every state except state 24, which is the state of it |
+| Spell check | **off** for every state except state 26, which is the state of it; it is `Edit > Spelling and Grammar > Check Spelling While Typing`, and `dev/ref/sample.md` holds no misspelling in any case |
+| Syntax highlight | **off** except states 21 and 24, which name it |
+| Authors | **hidden** for every state |
+| Focus Mode | **off** except states 13, 15 and 24, which name it |
+| Passage | `dev/ref/sample.md`, except where a state needs a block `sample.md` has not got |
+
+**Every number below is in device pixels at scale 2.0.** Divide by two for logical points.
+
+Three states need markup `dev/ref/sample.md` does not contain, so they use passages kept beside this
+file: [`passage-blocks.md`](passage-blocks.md) (heading, blockquote, list, emphasis) for states 9
+and 14, [`passage-markers.md`](passage-markers.md) (all six heading levels) for the gutter ladder,
+and [`passage-markup.md`](passage-markup.md) (every mark kind at once) for state 17.
+State 23 needs two shapes as well: [`dev/ref/short.md`](../../short.md), whose second paragraph follows
+a body paragraph, and [`passage-template-em.md`](passage-template-em.md), whose paragraphs are
+runs of one glyph at three lengths.
+State 24 needs a passage every Style Check list matches: [`dev/ref/style.md`](../../style.md), which is
+also the `style` Piece's judged state and the engine test's fixture, so the three cannot drift.
+
+On the Linux box a capture is measured with `magick` or with node and `pngjs` (`tools/ink-coverage.mjs`
+is the template); `rig/`'s Python imports Quartz and runs only on the Mac.
+
+### How things were measured
+
+The Linux rig's vocabulary is kept so the two evidence sets compare
+(`dev/shots/caret/ia/wine/measure.py`): *band*, *bar*, *fill*, *ink*, `gap<`/`gap>`, *solid*, *cut*.
+
+- **Boundaries come off a selection fill, never off a character count.** A selection of *n* cells is
+  laid down and its fill measured; the cell advance is the difference between two such fills, which
+  needs no assumption about the face.
+- **The caret blinks, so a still is a coin toss.** Every caret frame is the brightest of a burst of
+  14 (`pickbright.py`'s idea, ported), scored by accent-strength pixel count.
+- **States 6 and 7 need the window deactivated but not covered**, so Finder's windows are closed
+  first and Finder is then activated: focus moves, nothing is drawn over the frame. (`screencapture
+  -l <windowid>` returns a black frame for an occluded window on this macOS, so it cannot be used.)
+- The blink series were sampled through Quartz at ~103 Hz, not `screencapture`, which is far too
+  slow per frame to time a blink.
+- **A capture carries the display's profile, so a later capture is converted into the earlier one's**
+  (`rig/colour.py`). States 1–16 were shot while the built-in display carried its stock profile;
+  it now carries a calibration profile (DisplayCAL, `Display #1 2025-12-15 …`) and the same pixels
+  come back as `#252525` paper and `#d1d1d1` ink. The stock profile is kept as `rig/display.icc`,
+  taken out of `mac-native-14-dark-markup.png`, and every state-17 frame was converted into it
+  before it was measured or committed. The conversion is checked rather than assumed: it lands the
+  paper on `#1a1a1a` and the body ink on `#cccccc` exactly, which is what the § 4.2 rows already
+  hold, and `colour.check()` fails if it stops doing so. Calibrating the display is the writer's,
+  so the rig converts rather than asking for it back.
+
+## The grid at the default text size
+
+Measured off selection fills of 5, 10, 20 and 40 cells, all four starting at the same x
+(`mac-native-08-dark-selection-cells-05.png` … `-40.png`):
+
+| n cells | fill x | width | implied advance |
+|---|---|---|---|
+| 5 | 690 … 819 | 130 | — |
+| 10 | 690 … 947 | 258 | (258−130)/5 = **25.6** |
+| 20 | 690 … 1203 | 514 | (514−258)/10 = **25.6** |
+| 40 | 690 … 1715 | 1026 | (1026−514)/20 = **25.6** |
+
+**Cell advance = 25.6 px exactly.** The fill runs 1 px proud of the cell on each side (width is
+`25.6n + 2` every time), so the true leading boundary of the first cell is **x = 691.0**.
+
+iA Writer Mono's own tables (from the app bundle) give `unitsPerEm` 1000 and an advance of 600, i.e.
+**0.6 em per cell**, so at this size **1 em = 42.67 px = 21.33 pt**, and the hhea line height is
+1.30 em. That is the first point value this repo has for the app's default text size.
+
+### The text container
+
+Select-all (`mac-native-09-dark-selection-select-all.png`) fills one unbroken block from
+**x = 512 to x = 2511**, 2000 px wide. Its centre is x = 1512.0, exactly half the 3024 px window:
+**the container is centred in the window**.
+
+- 64-cell measure: 691.0 … 2329.4
+- gutter left: 691 − 512 = 179 px = **6.99 cells**
+- gutter right: 2512 − 2329.4 = 182.6 px = **7.13 cells**
+
+So the container is the 64-cell measure plus a **7-cell hanging-marker gutter on each side**, and the
+gutter is exactly the width `###### ` needs — see the ladder under state 14.
+
+### The page top
+
+**Settled on the original rig (#231).** [The re-capture](CAPTURE-ORIGINAL-MBP.md#231--the-page-top)
+ran on the built-in screen of the 14-inch M1 MacBook Pro and reproduces the control to the pixel,
+so both questions below are now answered:
+
+- **The band does not scale with the pitch.** The empty document's caret box top is **164 px at
+  every step** — pitches 49, 73 and 172 at steps 0, 5 and 13 — and holds at 164 when the default is
+  re-shot after the excursion. It is a constant, not `k × pitch`.
+- **The title bar is 104 px of it.** With Title Bar → Always Show the bar is an opaque `#222222`
+  band over rows 2 … 103, a `#292929` separator at 104, and paper from 105; AX reports the toolbar
+  bottom at 52 pt = **104 px** below the window's top edge, agreeing to the pixel. The text does not
+  move when the bar is shown. So the editor's own page top, the part a window with opaque chrome has
+  a counterpart to, is **164 − 104 = 60 px = 30 pt**.
+
+The 2026-09-09 follow-up read box tops 126 / 132 / 112 at those steps, 32 px above the old control,
+and did not reproduce it. That run was a different machine driving an external monitor; the
+original rig moved nothing, so those figures describe that rig alone.
+
+How far the first line stands below the top of the editor at scroll 0, at the default text size —
+the second figure #227 asks for.
+
+**The editor's top edge is the window's top edge.** `mac-native-00-dark-window-chrome.png` is the
+whole window, and its very first row already carries body ink cut off mid-glyph: the text view runs
+to the frame, and the title bar over it is transparent and draws nothing of its own. The window was
+set to logical `{0, 33, 1512, 982}` for every state, so a capture taken from logical y = 48 begins
+**30 device px** below that edge and one taken from y = 90 begins 114 px below it.
+
+| capture | region y | in-capture | below the window's top edge |
+|---|---|---|---|
+| `mac-native-01-dark-caret-midword.png` | 48 | first ink 155 | ink **185** |
+| `mac-native-01-light-caret-midword.png` | 48 | first ink 155 | ink **185** |
+| `mac-native-08-dark-selection-inline.png` | 48 | first ink 155 | ink **185** |
+| `mac-native-14-dark-markup.png` | 48 | first ink 155 | ink **185** |
+| `mac-native-17-dark-marks.png` | 90 | first ink 71 | ink **185** |
+| `mac-native-03-dark-caret-empty-document.png` | 48 | caret box 134 … 206 | box **164** |
+
+Four region origins and both grounds agree on the ink. The two figures are two things, read off two
+documents: **185 px** is where a *heading's* ink begins, `dev/ref/sample.md` opening on
+`# The Lighthouse`, and **164 px** is where the *line box* begins, given by the empty document,
+whose caret is the pitch tall (134 … 206) and has no glyph to be read instead. The box is the
+figure another app can hold to; the ink is what a shot shows. **The page top is 164 device px
+(82 pt)**, at the default step and at scale 2.
+
+Two things *these* captures cannot say, both answered by the re-capture at the head of this
+section:
+
+- **How much of the band is the title bar's.** The text runs to the frame, so the 164 px is measured
+  from there; how much of it is room left for the invisible title bar over the text cannot be read
+  out of a capture that never draws one. Shown, the bar is an opaque band **104 px** deep, leaving
+  **60 px = 30 pt** of the editor's own page top.
+- **Whether it scales with the pitch.** 164 px is 2.25 × the 73 px pitch, which one point cannot tell
+  from a constant. No committed capture at another step is at the document top: every one of the
+  fourteen `11-*` frames opens its first line near y 900, some 750 px below where four captures at
+  the same step and the same region origin put it, so the sweep was not shot at the top of the
+  document. (Its origin was never recorded either — `dev/shots/oracle/states.json` § `opponent` says so,
+  from #165.) Shot at steps 0, 5 and 13 at verified document top, the box holds at **164 at all
+  three**: a constant.
+
+The numbers are measured, and **#231's own second half ported them**: `docs/design.md` row Page top
+and `typography::page_top` now open Quill's page on the editor's own **60 device px at scale 2 —
+30 logical px**, a constant at every step, in place of the two pitches the Parity oracle held.
+
+---
+
+## State 1 — caret mid-word, light and dark
+
+`mac-native-01-dark-caret-midword.png`, `mac-native-01-light-caret-midword.png`
+Caret at offset 5 of `The lamp had been lit …`, inside the word `lamp`.
+
+| | dark | light |
+|---|---|---|
+| bar | x 816 … 821, **w 6** | x 816 … 821, **w 6** |
+| height | y 281 … 352, **h 72** | y 280 … 353, h 74 |
+| colour | **#00bfff** | **#00bfff** |
+| centre | **819.0** | **819.0** |
+| advance boundary at offset 5 | 691.0 + 5 × 25.6 = **819.0** | same |
+
+**The bar is centred on the advance boundary**, 3 px each side of it — not set to one side of it and
+not offset from it. The core is 220 px of flat `#00bfff` in both themes with one blended column at
+each edge; the light frame's h 74 against dark's h 72 is the accent threshold catching two more
+antialiased rows over a pale ground, not a taller bar.
+
+Against the glyphs either side, with the bar's own columns excluded from the ink:
+
+- `gap<` = **1 px**, `gap>` = **0 px**, ink under the bar: **none**.
+
+The bar covers the whole left side bearing of the glyph that follows and stops exactly where its ink
+starts. Because the two abut and never overlap, **iA's paint order still cannot be read** — which is
+what ADR 0013 said of the Windows build and is equally true here.
+
+### The ends are capped, not square
+
+Read row by row through the reader `tools/keys-assert.mjs` uses (`decodePng` and `readBar`, which
+take the bar as x 816 … 822, y 280 … 353 on its blue lean). Each row below is the six columns
+x 816 … 821 the table above calls the bar, left to right, and **full** counts the columns that are
+exactly `#00bfff` — which the core row itself holds five of, its left column carrying the bar's own
+antialiased edge:
+
+| row | dark | light | full of 6 |
+|---|---|---|---|
+| y 280, the end row | `#1b1b1a #144353 #0d7091 #0b7ba0 #115870 #1a1b1b` | `#f7f7f7 #bbe9f9 #77dafc #66d6fc #9be2f9 #f7f7f7` | **0** — x 816 and x 821 are the paper, and the four between them are blends |
+| y 281 | `#13495c #059dcf #00bfff #00bfff #01b7f3 #0d6f90` | `#b0e7f9 #34cbfd #00bfff #00bfff #0dc2ff #79dbfb` | **2** — no paper left, and four blends around them |
+| y 282 | `#0a80a7 #00bfff #00bfff #00bfff #00bfff #00bdfb` | `#5fd5fc #00bfff #00bfff #00bfff #00bfff #04c0ff` | **4** — only the two outer columns short |
+| y 283, and the core row at y 317 | `#0793c1` / `#059ed2`, then `#00bfff` ×5 | `#43cefd` / `#31cafe`, then `#00bfff` ×5 | **5** — the core's own reading |
+
+The bottom end mirrors it exactly in both themes: y 353 is y 280's row, y 352 is y 281's, y 351 is
+y 282's. So the bar narrows over three rows at each end, holding four columns at the last of them
+and none of the core's five — an antialiased **semicircular cap of radius 3 px on a 6 px bar**, a
+stadium and not a rectangle.
+
+The caps are the bar's own ends and not ink added past them: the flat core runs y 284 … 349 and the
+taper rows lie between it and the extent the table above records, y 280 … 353. Dark's h 72 against
+light's h 74 is the outermost cap row at each end, which the accent threshold catches over a pale
+ground and not over a dark one — which is what the note above already says of those two rows. So
+the column, width and centre rows are unchanged by this reading.
+
+This re-reads `VERDICTS.md` 3.5.7, which took the same rows as "1 px of corner antialiasing" and a
+square end; at 3 px of radius on a 72 px bar the claim it confirms — no rounding *visible* at these
+sizes — still holds, and the row stays as written. `docs/design.md` row **Caret ends** is what the
+port takes from this measurement.
+
+## State 2 — caret at the end of a line
+
+`mac-native-02-dark-caret-line-end.png`, `mac-native-02-light-caret-line-end.png`
+Caret at ⌘→ on `if about little else.`, the paragraph's last line — a **hard** line end. (A wrapped
+line will not answer this: its last display cell is a trailing space, and the caret then sits a
+whole cell past the last glyph for a reason that has nothing to do with bearings.)
+
+| | measured |
+|---|---|
+| bar | x 1226 … 1231, w 6, centre **1229.0** |
+| the line is 21 characters | boundary after cell 21 = 691.0 + 21 × 25.6 = **1228.6** |
+| last glyph ink (the `.`) ends at | x **1218** |
+| clear paper between ink and bar | **7 px** = 0.27 cell |
+
+**The caret stands on the advance boundary, not against the ink.** `REFERENCE.md` § 4.1's "sits
+flush after the last glyph" is measured wrong: what looks flush in a still is the last glyph's right
+side bearing, which is exactly the misreading ADR 0013 named.
+
+## State 3 — caret in an empty document
+
+`mac-native-03-dark-caret-empty-document.png`, `mac-native-03-light-caret-empty-document.png`
+
+| | measured |
+|---|---|
+| bar | x 688 … 693, w 6, centre **691.0**, h **73** |
+| colour | #00bfff |
+| anything else drawn | **nothing** |
+
+The left edge of the measure is **the same x = 691.0** as in a document full of text, so an empty
+document is not a special case. **A caret alone has no band**: the frame holds the bar and the paper
+and nothing between.
+
+## State 4 — caret blink
+
+`mac-native-04-dark-caret-blink-f00.png` … `-f12.png` (13 frames, **0.10 s apart**, tight crop on the
+bar), and [`blink-idle.tsv`](blink-idle.tsv) — 1240 samples over 12 s at 103 Hz, `t<TAB>accent px`.
+
+Reading the series at two thresholds:
+
+| threshold | on | off | period | duty |
+|---|---|---|---|---|
+| full strength (426 px) | 0.516 s | 0.484 s | **1.000 s** | **51.6 %** |
+| any accent pixel at all | 0.691 s | 0.305 s | 0.996 s | 69.4 % |
+
+**Period 1.000 s, half on and half off** — the macOS platform blink, which § 3.5 presumed but could
+not see. The gap between the two rows is a **fade of about 0.09 s at each edge**: the waveform is
+426 → 356 → 0 and back, so the bar is not hard-switched. The frame set shows it directly: the 356
+frames are the fade, the 426 frames the bar at full strength.
+
+## State 5 — typing
+
+`mac-native-05-dark-typing-*.png` (8 frames, named in the order they were taken), and
+[`blink-typing.tsv`](blink-typing.tsv), whose marks are `type-start` 2.508 s and `type-end` 5.432 s
+for ten characters typed at ~0.18 s intervals.
+
+| | measured |
+|---|---|
+| before typing | blinking normally |
+| first keystroke | bar goes on and **stays on** |
+| through the typing window | **solid on for 3.448 s** — no blink at all |
+| blink resumes | **0.633 s after the last keystroke** |
+
+**The blink is suppressed while a hand types** and the caret is held on for one full on-phase after
+the last key before the cadence starts again.
+
+## State 6 — window deactivated, caret only
+
+`mac-native-06-dark-deactivated-caret.png`, `mac-native-06-light-deactivated-caret.png`
+Caret set, then Finder activated with no Finder window open, so the editor stays visible.
+
+**The caret goes. Entirely.** A burst of 14 frames scored **0 accent pixels in every frame**, in both
+themes, with the editor's own ground (`#1a1a1a` / `#f7f7f7`) filling the frame — so the window was
+visible and simply had no bar in it.
+
+This is what the Windows build does under Wine, and it is what **neither Quill nor the Parity oracle
+does**.
+
+## State 7 — window deactivated, selection standing
+
+`mac-native-07-dark-deactivated-selection.png`, `mac-native-07-light-deactivated-selection.png`
+
+| | active | idle |
+|---|---|---|
+| dark | `#113d52` | **`#464646`** |
+| light | `#ccedf8` | **`#dcdcdc`** |
+| geometry (dark, 18 cells) | x 690 … 1151, w 462, y 282 … 351, h 70 | **identical** |
+
+Only the colour moves; the band does not. And the idle colour is **not a paler accent** — it is a
+neutral grey with no blue in it at all.
+
+## State 8 — selection inside one row
+
+`mac-native-08-dark-selection-inline.png`, `mac-native-08-light-selection-inline.png`
+18 cells held from the start of a body line.
+
+| | measured |
+|---|---|
+| fill | x 690 … 1151, **w 462** = 25.6 × 18 + 2 |
+| band | y 282 … 351, **h 70**, against a line pitch of **73** |
+| colour | dark **#113d52**, light **#ccedf8** |
+| accent pixels in the frame | **none** |
+
+`#113d52` is the owner's own reading of `owner-mac-03` to the digit. `REFERENCE.md` § 4.2's
+`≈ #003e4c` is a marketing-frame value and is not this.
+
+## State 9 — selection across rows, over a heading and a quote block
+
+`mac-native-09-dark-selection-multirow.png`, `mac-native-09-light-selection-multirow.png`
+Uses [`passage-blocks.md`](passage-blocks.md). Row bands are taken from the *unselected* frame, where
+glyph ink still separates the lines, then read back out of the selected one.
+
+| row | fill |
+|---|---|
+| `The lamp had been…` (first held row) | x **920** … 2511 — from the anchor to the container's right edge |
+| `## What the sea keeps` (interior row) | x **512** … 2511 — **the whole container**, gutter and all |
+| `> There are things…` (last held row) | x **512** … 921 — container's left edge to the focus |
+
+- **The band is continuous between rows.** Sampled down a column in the right gutter, where no glyph
+  can interrupt it, the fill runs y 282 … 573 with **no internal gap** — 292 px, exactly four
+  73 px pitches. A single held row draws 70 px; held rows in a run abut into one unbroken band.
+- **Markers in the gutter are simply inside the band.** The heading's hanging `##` sits at x 615 and
+  the fill starts at 512, so the marker is covered like any other glyph; nothing is done specially
+  for it.
+- The apparent gaps in the fill at columns that carry text are **the glyphs themselves**: the ink is
+  painted over the band, so the fill is under the ink.
+- **No accent pixel in the frame.**
+
+## State 10 — selection running through a trailing newline
+
+`mac-native-10-dark-selection-newline-only.png` (the newline alone),
+`mac-native-10-dark-selection-trailing-newline.png`, `mac-native-10-light-selection-trailing-newline.png`
+
+Held at the hard end of `if about little else.` (21 cells, boundary 1228.6):
+
+| held | fill |
+|---|---|
+| the newline alone | x **1228** … 2511, **w 1284** |
+| the last six glyphs and the newline | x 1074 … 2511, w 1438 |
+
+**A held newline does not draw a stub.** It fills from the boundary after the last glyph to the
+**right edge of the text container** — 2511, the same edge select-all reaches, seven cells past the
+64-cell measure. The width is a property of the container, not of the newline.
+
+## State 11 — every text size the app offers
+
+`mac-native-11-dark-text-size-00.png` … `-13.png`. The Text Size menu steps rather than names a
+value, so the range was walked from the bottom until the geometry stopped moving: **14 distinct
+sizes**. Per size the advance is measured off a 20-cell fill, the pitch off the line tops, and the
+caret from a burst.
+
+`em` is derived from the advance at Mono's own 0.6 em per cell; `pt` is `em / 2` at this scale.
+
+| step | cell px | em px | em pt | pitch px | pitch / em | band px | caret w | caret h | caret w / em |
+|---|---|---|---|---|---|---|---|---|---|
+| 0 | 17.4 | 29.00 | 14.50 | 49 | 1.690 | 46 | 5 | 49 | 0.172 |
+| 1 | 18.3 | 30.50 | 15.25 | 52 | 1.705 | 50 | 5 | 53 | 0.164 |
+| 2 | 19.4 | 32.33 | 16.17 | 56 | 1.732 | 54 | 6 | 56 | 0.186 |
+| 3 | 20.6 | 34.33 | 17.17 | 59 | 1.718 | 58 | 6 | 59 | 0.175 |
+| 4 | 23.1 | 38.50 | 19.25 | 66 | 1.714 | 64 | 6 | 67 | 0.156 |
+| **5 — Default** | **25.6** | **42.67** | **21.33** | **73** | **1.711** | **70** | **6** | **72** | **0.141** |
+| 6 | 30.7 | 51.17 | 25.58 | 86 | 1.681 | 84 | 8 | 86 | 0.156 |
+| 7 | 35.7 | 59.50 | 29.75 | 98 | 1.647 | 94 | 8 | 98 | 0.134 |
+| 8 | 40.7 | 67.83 | 33.92 | 109 | 1.607 | 108 | 8 | 109 | 0.118 |
+| 9 | 45.7 | 76.17 | 38.08 | 120 | 1.575 | 118 | 10 | 120 | 0.131 |
+| 10 | 53.1 | 88.50 | 44.25 | 135 | 1.525 | 134 | 10 | 135 | 0.113 |
+| 11 | 60.4 | 100.67 | 50.33 | 149 | 1.480 | 146 | 10 | 148 | 0.099 |
+| 12 | 67.8 | 113.00 | 56.50 | 161 | 1.425 | 158 | 10 | 161 | 0.088 |
+| 13 | 75.1 | 125.17 | 62.58 | 172 | 1.374 | 170 | 10 | 172 | 0.080 |
+
+Three things come out of it.
+
+**The "liquid" line height is real and it is a falling curve.** `pitch / em` goes from about **1.73
+at the small end to 1.374 at the large**, monotonically from step 2 down. Line spacing is not a
+constant multiple: the bigger the type, the tighter the leading, proportionally. The wobble across
+steps 0–3 is whole-pixel quantisation on a 29 px em.
+
+**The caret's height is the line pitch at every size**, within the 1 px the two roundings can
+differ (49/49, 53/52, 72/73, 148/149, 172/172).
+
+**The caret's width is not a constant fraction of the em.** It quantises to 5, 6, 8, 10 px and stops
+there, so `caret w / em` falls from **0.172 to 0.080** across the range. § 3.5's "≈ 0.12–0.17 em"
+holds around the default and fails at both ends.
+
+*Caveat, and it matters for the last six rows:* 64 cells plus two 7-cell gutters is 78 cells, which
+needs 78 × cell px of window. Past step 7 that exceeds this window's 3024 px, so from step 8 on the
+column is limited by the window, not by the app's line-length setting. Pitch, advance and caret are
+unaffected; the measure's own width is not the app's from step 8 up.
+
+## State 12 — paper, ink, selection band and accent, both themes
+
+`mac-native-12-dark-palette.png`, `mac-native-12-light-palette.png`, and the state frames each colour
+was sampled from.
+
+| Role | Light | Dark |
+|---|---|---|
+| Paper (editor background) | **#f7f7f7** | **#1a1a1a** |
+| Body ink | **#191919** | **#cccccc** |
+| Heading ink | #191919 | **#cccccc** — identical to body |
+| Selection band, active | **#ccedf8** | **#113d52** |
+| Selection band, idle | **#dcdcdc** | **#464646** |
+| Caret / accent | **#00bfff** | **#00bfff** |
+| Dimmed (Focus Mode) | **#c6c4c2** | **#707070** |
+
+The accent is **the same `#00bfff` in both themes** — not the `#00b5ff` and `#00c3ff` that § 4.2
+carries from two different stills.
+
+## State 13 — Focus mode, sentence and paragraph, both themes
+
+`mac-native-13-{dark,light}-focus-{sentence,paragraph}.png`
+
+There is **one dim tier, not several**: `#707070` on dark and `#c6c4c2` on light, and the focused run
+is left at the ordinary body ink. Sentence and Paragraph differ only in how much stays lit — the two
+colours are the same in both. Focus also scrolls the focused line toward the middle of the window.
+
+In the app's own Settings, **Typewriter is a third value of the same "Focus scope" popup** as
+Sentence and Paragraph, not an independent toggle.
+
+## State 14 — markup rendering
+
+**Wrapped continuation capture (#241, 2026-09-09):** [four new frames](CAPTURE-2026-09-09.md#241--wrapped-markers) show bullet/quote continuations retaining two cells of indentation and `123.` continuations retaining five, on both grounds and under H6. A wrapped quote does not repeat `>`. The earlier single-row measurements follow.
+
+`mac-native-14-dark-markup.png` (blocks, from [`passage-blocks.md`](passage-blocks.md)),
+`mac-native-14-dark-markup-gutters.png` and `-blocks.png` (all six heading levels, from
+[`passage-markers.md`](passage-markers.md)), plus `-lower.png` and `-deep.png`.
+
+The hanging-marker ladder, measured as the distance from the body column (691.0) to the row's first
+ink, in cells of 25.6 px:
+
+| marker | measured | cells |
+|---|---|---|
+| `# ` | 641 | **1.95 → 2** |
+| `## ` | 615 | **2.97 → 3** |
+| `### ` | 589 | **3.98 → 4** |
+| `#### ` | 564 | **4.96 → 5** |
+| `##### ` | 538 | **5.98 → 6** |
+| `###### ` | 513 | **6.95 → 7** |
+| `> ` | 695 | **none — no hang at all** |
+| `- ` | 697 | **none** |
+| `1. ` | 693 | **none** |
+
+**Headings hang by (level + 1) cells** — the marker and its space — so the heading's text lands on
+the body column. `###### ` hangs 7 cells to x 513, which is the container's own left edge at 512:
+**the gutter is 7 cells wide because that is what the deepest heading needs.**
+
+**Blockquote and list markers do not hang.** They sit on the body column and push their text inward.
+`REFERENCE.md` § 4.1's "`>` = 2" is not what this app draws.
+
+Heading ink is 40 px tall against body's 38 at the default size, the same for every level, and the
+same `#cccccc`: **bold, and the same size and colour as body**, as § 4.1 says.
+
+Paragraph spacing: a blank Markdown line is exactly one empty line. Body-to-body pitch is 73 px and
+a paragraph break measures 145–146 px = 2 × 73, with **no extra paragraph margin**. Heading-to-heading
+pitch is 74 px, the one pixel being the heading's taller line box.
+
+**A heading and the paragraph under it are the same two pitches**, which is the figure #227 asks
+for as one number. Heading ink to the first paragraph's ink across a blank line is **146 px** here
+(ink tops 155 and 301) and **146 px** again in a second passage
+(`mac-native-17-dark-marks.png`, 71 and 217). The other way round, a body paragraph to the heading
+under it, is **147 px** (301 → 448) — the extra pixel is the same taller line box as the
+heading-to-heading 74. So a heading carries **no margin of its own above or below it**: it stands on
+the body grid, and a blank line costs one pitch wherever it falls.
+
+## State 15 — Typewriter mode
+
+`mac-native-15-dark-typewriter.png`, captured as the whole window (3024 × 1898).
+
+With Typewriter on and the caret driven to the end of a line deep in the document, the bar sits at
+y 912 … 984, **mid-point y = 948.0 of a 1898 px window — 49.9 %**.
+
+**The caret line is held at the vertical centre of the window.**
+
+## State 16 — Preview: the rendered Markdown, and the split
+
+**Follow-up (#261, 2026-09-09):** [light paper, Template switches, editor-size controls and scroll pairs](CAPTURE-2026-09-09.md#261--preview) measure light Modern at `#fcfcfc` / `#1a1a1a`, confirm centred Classic and Manuscript headings, show Web scaling with editor size and establish two-way scrolling on the longer fixture. The original three dark frames follow.
+
+`mac-native-16-dark-preview-full.png`, `mac-native-16-dark-preview-split.png`,
+`mac-native-16-dark-preview-pdf-full.png`
+
+Not one of the ticket's fifteen states. The owner asked for them afterwards, as reference for what
+the app makes of the Markdown it has been showing as source all through the states above. All three
+are **the owner's own captures** — the window plus macOS's drop shadow, at the same 2× scale, so the
+window content sits at x 111 … 3136, y 75 … 1987 (3026 × 1913) and its centre is x 1624.0. The
+document is the same sample passage; the template is the app's own **Modern (Sans)**; Dark Mode is
+**on** for all three.
+
+### Web preview, Full
+
+| | measured |
+|---|---|
+| preview paper | **#101010** |
+| toolbar | #181818 |
+| footer | #101010 |
+| heading `The Lighthouse` ink | x 1452 … 1802, centre **1627.0** against a window centre of **1624.0** |
+
+Two things the editor does not do:
+
+- **The preview's paper is `#101010`, not the editor's `#1a1a1a`.** The rendered page is a distinctly
+  darker ground than the pane the source is typed into.
+- **Headings are centred.** In the editor a heading is left-aligned on the body column with its
+  marker hanging into the gutter; rendered, it is centred in the measure — 3 px off the window's own
+  centre, which is the glyph rounding.
+
+The markers themselves are gone: `#`, `##`, `**` and `*` do not appear, the emphasis is carried by
+weight and slope, and the `-` list becomes real bullets. The face is proportional, not Mono.
+
+### Web preview, Split
+
+| | measured |
+|---|---|
+| divider | x **1621** — **49.9 %** across the window, an even split |
+| left (editor) pane ground | **#1a1a1a** |
+| right (preview) pane ground | **#101010** |
+| editor pane ink span | x 145 … 1501 (w 1357) |
+| preview pane ink span | x 1769 … 2977 (w 1209) |
+
+The split is the clearest single frame in this whole set for what the editor is and is not: the same
+paragraph in Mono with its markers showing on the left, proportional and rendered on the right, and
+**the two panes carry different papers** — `#1a1a1a` against `#101010` — side by side in one window.
+
+### PDF preview, Full
+
+| | measured |
+|---|---|
+| toolbar | **#ffffff** |
+| surround | **#f7f7f7** |
+| page | white, x 962 … 2284, **width 1323**, centre **1623.0** |
+
+**The whole window goes light, with Dark Mode still on.** Web preview honours the dark appearance
+and PDF preview does not: it renders paper as paper, and takes the toolbar, the surround and the
+footer with it. The page is centred in the window and paginated — the page number `1` sits at its
+foot.
+
+The page's *height* cannot be read from this capture: its top edge is flush against the toolbar, so
+the sheet is clipped by the viewport and no paper size can be fitted to it. Only its width and its
+centring are measured here.
+
+## State 17 — marker ink at rest
+
+`mac-native-17-dark-marks.png` and `-light-marks.png`, from
+[`passage-markup.md`](passage-markup.md), which puts every mark kind
+[#198](https://github.com/danielbaldwin47/Quill/issues/198) asks about in one screenful: `#` and
+`##`, inline code, `**bold**`, `*italic*`, a bare URL, a `[named](url)` link, `>`, `-`, `1.`, both
+task boxes, `---`, and a fenced block with a `rust` info string. Region `(0, 90, 1470, 800)` in
+logical points, shot by `rig/run_markup.py`.
+
+**The caret is driven to the end of the document before each frame.** The caret's own line could
+lift a marker, and *resting* ink is what this state measures. `-caret-on-heading.png`, both grounds,
+is the control that says whether it does.
+
+`rig/inks.py` reads the frames: it groups a line's glyph runs by the ink each carries, so a line
+drawn in one colour prints one row and a line that changes ink prints one row per ink. A run's ink
+is the colour furthest from the paper that the run holds at least six times, so a stem's covered
+pixels answer and its antialiasing does not.
+
+### Every mark kind, both grounds
+
+| line | mark | dark | light |
+|---|---|---|---|
+| `# Heading one` | `#`, hung at cell −2.0 | `#cccccc` | `#191919` |
+| `## Heading two` | `##`, hung at cell −3.0 | `#cccccc` | `#191919` |
+| *(state 14)* | `###` … `######`, dark only | `#cccccc` | not shot |
+| body | `` ` `` inline-code marks | `#cccccc` | `#191919` |
+| body | `**` and `*` | `#cccccc` | `#191919` |
+| body | bare URL `https://example.com/plain` | `#cccccc` | `#191919` |
+| body | link text inside `[…]` | `#cccccc` | `#191919` |
+| body | link `[`, `]`, `(`, `)` and the destination URL | **`#7a7a78`** | **`#b5b3b0`** |
+| `> Quoted line one.` | `>` | `#cccccc` | `#191919` |
+| `- bullet item` | `-` | `#cccccc` | `#191919` |
+| `1. ordered item` | `1.` | `#cccccc` | `#191919` |
+| `- [ ] task not done` | `-`, `[`, `]` and the text | `#cccccc` | `#191919` |
+| `- [x] task done` | the whole row, marker and text | **`#7a7a78`** | **`#b5b3b0`** |
+| `---` | all three hyphens | `#cccccc` | `#191919` |
+| ` ```rust ` | the three backticks **and** the info string | `#cccccc` | `#191919` |
+| ` ``` ` | the closing backticks | `#cccccc` | `#191919` |
+
+**Every Markdown marker rests at the body ink, on both grounds.** `#cccccc` on `#1a1a1a` is
+10.84:1 and `#191919` on `#f7f7f7` is 16.41:1 — the body's own contrast, to the unit, at every
+mark kind. There is no resting marker grey, no quiet tier and no hair tier: `---` is drawn at the
+same ink as a heading's `#`, and a fence's info string at the same ink as its backticks.
+
+The two rows that are not body ink are not markers quieted. `- [x] task done` is **Settings →
+Editor → Completed tasks → Fade**, which was on, and it fades the item's text with its marker; the
+link value is the destination and its punctuation, not the syntax of a block. Both grounds put that
+one value just above the focus dim tier — `#7a7a78` at 4.05:1 against dim's 3.51:1, `#b5b3b0` at
+1.95:1 against dim's 1.62:1 — so it is its own ink, not the dim role reused.
+
+### The control: the caret lifts nothing
+
+`-caret-on-heading.png` is the same frame with the caret back on the H1's line, and it reads
+identically, ink for ink, on both grounds. The only difference is the bar standing at the `#`'s
+left edge, which takes the run's measured x0 from 641 to 643. **A marker's ink does not depend on
+where the caret is.**
+
+### Found here: the link's ink and the code ground
+
+Three values fall out of the same two frames.
+
+| | dark | light |
+|---|---|---|
+| link punctuation and destination URL | `#7a7a78` (4.05:1) | `#b5b3b0` (1.95:1) |
+| link underline, 4 px tall | `#545452` (2.29:1) | `#d5d3d1` (1.39:1) |
+| code ground, inline and fenced alike | `#252525` (1.14:1) | `#eeeeee` (1.08:1) |
+
+The underline is the same colour under a full-ink bare URL as under the quieted destination, so it
+is its own ink rather than a tint of the text above it.
+
+**What it runs under is the URL and nothing else**, read off `17-dark-marks` a row at a time
+(#198 phase 2, from this repo). The dark frame carries exactly two rules, each 4 px tall and each
+`#545452` to the pixel:
+
+| rule | rows | x | what is above it |
+|---|---|---|---|
+| the bare URL, first half | 402–405 | 1844 … 2045 | `https://`, where the row wraps |
+| the bare URL, second half | 476–479 | 692 … 1123 | `example.com/plain` |
+| the link's destination | 476–479 | 1639 … 2275 | `https://example.com/named` |
+
+The link's own row reads `[` at x 1315, its **words** in body ink at 1336 … 1575, then `](`, the
+destination and `)` in the link grey out to 2293. The rule starts at 1639 — after the `](` — and
+stops at 2275, before the `)`. So the words carry no rule, the brackets carry no rule, and a bare
+URL carries one over its whole length, wrap and all. This is the row `VERDICTS.md` 4.2.13 states,
+and it corrects the phrase "link text is body ink and underlined" this section first carried.
+
+The fenced block's ground runs x 680 … 2341, 11 px left of the body column at 691.0 and 12 px past
+the measure's end at 2329.4 — about 0.43 cells of bleed each side — and 222 px tall over three
+lines. An inline run's ground is the run's own cells plus about 3 px each side (x 944 … 1282 for
+13 cells starting at cell 10) and 64 px tall against the 73 px pitch.
+
+## Window chrome
+
+From `mac-native-00-dark-window-chrome.png`, the whole window with its alpha kept: all four corners
+are fully transparent and the first opaque pixel on the top row is at x = 35, on the left column at
+y = 35 — a **corner radius of about 35 px (17.5 pt)**. Rounded window corners are present, as § 4.1
+says.
+
+## The three offset frames
+
+`mac-native-01-dark-caret-offset-00.png`, `-10.png`, `-20.png` — the caret at offsets 0, 10 and 20 of
+the same line, which is what says the bar tracks the grid rather than happening to land on it once:
+
+| offset | bar | centre | boundary 691.0 + 25.6 n |
+|---|---|---|---|
+| 0 | x 688 … 693 | 691.0 | 691.0 |
+| 10 | x 944 … 949 | 947.0 | 947.0 |
+| 20 | x 1200 … 1205 | 1203.0 | 1203.0 |
+
+Steps of **exactly 256 px** between them, which is 10 cells to the pixel.
+
+## State 18 — default-size narrow windows
+
+[#328’s matched 960- and 1040-point captures](CAPTURE-2026-09-09.md#328--matched-narrow-windows) retain full Editor boundaries and selection edges. Default L adapts to width: about 22.7 px per cell and 63 px pitch at both requested widths, against 25.6 and 73–74 at 1512. The report records the geometry contradiction and a proposed full-width crop; no Gate opponent is changed.
+
+## State 21 — Syntax categories and token boundaries
+
+[#308’s ten frames](CAPTURE-2026-09-09.md#308--syntax) cover all five categories on both grounds, light isolation, Sentence dimming and contractions. The report and JSON manifest give the ten measured colours in both the original and reference profiles. Dim replaces category colour; contractions can split into differently coloured tokens. Chromatic portability is qualified by the caret control.
+
+**Anchored on the original rig.** [The re-capture](CAPTURE-ORIGINAL-MBP.md#308--syntax) shoots the
+same four states on the built-in screen of the 14-inch M1 MacBook Pro and lands **within 1 unit per
+channel of all ten colours**, of both dim greys, and on the same five token splits. The caret
+control the qualification rested on misses for a reason that reaches nothing else: it is the only
+oracle colour on the panel's gamut edge, so `colour.normalise()` clamps it, while every Category
+colour round-trips exactly. The caret's colour is **Display P3 `#00bfff`**. The ten values stand.
+
+## State 22 — the window's width picks the type, and the measure follows
+
+[#344's seventeen configurations](CAPTURE-2026-09-10.md#344--the-window-narrows) re-shoot #328's
+finding on the original rig and separate the two hypotheses it left. **The type gives first, on the
+window's width alone.** There are three size classes, breaking at **440/441 pt** and **1250/1251 pt**,
+in the same two places at text-size steps 5 and 8 and at line-length limits 64 and 80, with no
+hysteresis. At 1200 pt a full 78-cell container of the wide type needs 1997 px of a 2400 px window
+and the type shrinks anyway, so container overflow is not the trigger.
+
+**The measure gives second, and only when the limit no longer fits.** Above 440 pt the container is
+`min((limit + 14) cells, window − 20 px)` on every configuration. Where the first term wins the
+gutter is 7.00 cells and the measure is the limit exactly — 64 characters on a 22.657 px cell at 960,
+1040, 1200 and 1250 pt. Where the window wins the gutter falls to about 6 cells and the measure takes
+what is left. At 440 pt the container is 828 px where the window allows 860 and the gutter collapses
+to one cell; the narrowest class is not described by the rule.
+
+| Class | Window | Step 5 cell / pitch | Step 8 cell / pitch |
+|---|---|---|---|
+| narrowest | ≤ 440 pt | 19.920 / 53 | — / 76 |
+| middle | 441 … 1250 pt | 22.657 / 63 | 35.200 / 92 |
+| wide | ≥ 1251 pt | 25.600 / 73 | 40.714 / 109 |
+
+Each class is a ladder of its own, not a step of the wide one in § State 11: 22.657 falls between
+that ladder's steps 3 and 4 and 35.200 between its 6 and 7, `pitch / em` is tighter than the wide
+ladder's at the same em, and the wide-to-middle scale is 0.885 at step 5 against 0.865 at step 8.
+
+## State 23 — the Templates' first line and em, read off ink
+
+[#343's ten frames](CAPTURE-2026-09-10.md#343--the-templates-indent-and-em) shoot `dev/ref/short.md`,
+whose second paragraph follows a body paragraph, and
+[`passage-template-em.md`](passage-template-em.md), whose paragraphs are runs of one glyph at three
+lengths, in Preview → Web → Full in all four Templates, each with an Editor control frame.
+
+**No Template indents a first line.** Modern, Classic and both Manuscripts start every line on the
+same column and separate paragraphs by a gap — 1.94 pitches in Classic, 1.97 in Modern, 1.99 in
+Manuscript. Quill's Classic is `indented` with no gap; iA's is the other arrangement.
+
+**Manuscript is the Editor's own grid.** Its `H` runs are pixel-identical to the Editor control's, so
+Duo and Mono both render at **em 42.667 px = 21.333 pt** with a **73 px** pitch — `base × line_height`
+= 1.711, the Editor's own. #261's 72 px Duo pitch was one pixel out.
+
+| Template | H advance | n advance | n / H | H outline | Pitch | Paragraph step |
+|---|---:|---:|---:|---:|---:|---:|
+| Modern (Sans) | 28.300 | 22.700 | 0.8021 | 29.75 | 69.0 | 136.0 |
+| Classic (Serif) | 31.450 | 25.500 | 0.8108 | 29.80 | 69.3 | 134.5 |
+| Manuscript (Duo) | 25.600 | 25.600 | 1.0000 | 29.78 | 73.3 | 145.5 |
+| Manuscript (Mono) | 25.600 | 25.600 | 1.0000 | 29.78 | 73.3 | 145.5 |
+
+`H outline` is the ink height plus the 1.29 px the Editor control shows the ink sits inside the
+outline at a known em. **All four Templates set the same cap height**, a 0.05 px spread across three
+faces; only the advance differs.
+
+**Classic's face is not Source Serif 4** — its `n`/`H` advance ratio is 0.8108 against IBM Plex
+Serif's 0.8119 and Source Serif 4's 0.7690 — so no single em puts Quill's Classic where iA's is.
+Matching the cap height needs **22.24 pt** and matching the H advance **19.96 pt**, 11 % apart. That
+choice is the Templates ticket's.
+
+## State 24 — the Style Check mark
+
+`mac-native-24-{dark,light}-style-*.png` and the `-nostyle` controls beside them, from
+[`dev/ref/style.md`](../../style.md), shot by `rig/run_style.py` and read by
+`rig/measure_style_354.py`. Region `[0, 33, 1512, 949]` — the whole window. The full report is
+[CAPTURE-2026-09-10-STYLE.md](CAPTURE-2026-09-10-STYLE.md); this is the part the rest of the file
+needs.
+
+**Every state was shot twice**, once with Style Check on and once with it off and nothing else
+changed, so every number is a difference between two frames. The mark is read in the **gap
+columns** — the columns a row's control frame leaves blank between two glyphs — where the only
+thing drawn is the mark.
+
+### The mark itself
+
+| | dark | light |
+|---|---|---|
+| Struck ink — **the glyphs and the rule alike** | **`#7a7a78`** | **`#b5b3b0`** |
+| Rule thickness | **2 px** = 1 pt = 0.047 em | the same |
+| Rule, above the baseline | bottom edge **9–10 px**, top edge **11–12 px**; centre 10–11 | the same |
+
+**Style Check does not draw a line over body ink; it re-inks the run and rules it.** A struck run's
+glyph stems, sampled with the rule's rows excluded, carry the same value as the rule sampled between
+two glyphs, on every struck phrase in both grounds.
+
+**The value is the quiet marker tier already measured in state 17** — the ink a link's `[`, `]`,
+`(`, `)` and destination URL carry (§ Found here, and VERDICTS 4.2.13). It is not a tint of the body
+ink: the alpha that would flatten `#cccccc` onto it is 0.53 on dark and 0.30 on light, and the
+selection state below shows it opaque.
+
+**The rule is centred on the x-height, not set by the face.** `iAWriterMonoS-Regular.ttf` asks for
+`yStrikeoutSize` 60/1000 em (2.56 px here) and `yStrikeoutPosition` 309/1000 em (13.18 px); the rule
+is 2 px with its centre 10–11 px above the baseline, which is half the face's x-height (516/1000 em
+= 22.02 px) to within a pixel; the row-to-row pixel of difference is the 73 px pitch not landing on
+whole rows.
+
+**The rule covers the matched phrase's own cells and stops at the space either side** — `Basically,`
+9.92 cells of 10, comma included; `get down to brass tacks` 22.93 of 23 — and a phrase broken by a
+wrap is ruled on each row over its own cells only.
+
+**One mark for all three lists.** Fillers, Clichés and Redundancies draw the same colour, thickness
+and rows.
+
+### What each list owns, and which word of a redundancy is struck
+
+| List | struck in this passage |
+|---|---|
+| Fillers | `Basically,` · `pretty much` · `sort of` · `very` · `a little` · `only` · `too` |
+| Clichés | `get down to brass tacks` · `Against all odds` · `long and short of it` · `past history` |
+| Redundancies | `together` · `basic` · `down` · `past` |
+
+**iA strikes the word that can be deleted**, not a fixed one of the pair: `basic` and `past` are the
+first word of their redundancy, `together` and `down` the second. **iA's own marketing page bolds
+`fundamentals`; the app strikes `basic`.**
+
+Where two lists overlap the **longer match wins**: `past history` is a cliché to the whole phrase
+and a redundancy to `past` alone, and with both lists on the rule runs the cliché's 12 cells. Where
+two struck spans abut across a single space — `down` a redundancy, `only` a filler — **the rule is
+continuous across that space**, so the mark is drawn per contiguous struck range, not per word.
+
+### Under Focus, under Syntax, over a selection
+
+| | dark | light |
+|---|---|---|
+| Focus Sentence, **inside** the sentence, struck | `#7a7a78` | `#b5b3b0` |
+| Focus Sentence, **outside**, struck | **`#707070`** | **`#c6c4c2`** |
+| Focus Sentence, **outside**, unstruck | `#707070` | `#c6c4c2` |
+
+A struck word outside the focused sentence is drawn at exactly the state 13 dim, the same value as
+every unstruck word beside it: **the two dims do not compound, and there is still one dim tier**
+(VERDICTS 4.2.12 holds). Only the rule survives out there, drawn in the dim too. On both grounds the
+Focus dim is the further of the two from the body ink, so this run cannot separate "Focus replaces"
+from "the dimmer wins".
+
+Under **Syntax highlight** a struck word **loses its Category colour outright** and is drawn at the
+struck ink — `basic` from `#ba9659`/`#9d6722`, `history` from `#ce896d`/`#bb512a`, `very` from
+`#b490b0`/`#a6559f`, all to `#7a7a78`/`#b5b3b0`. The control is `long`: the bare adverb `long.` keeps
+its colour while the same word inside `long and short of it` is grey. Unstruck words keep their
+Category colour, and the ten values reproduce #308's table.
+
+Over a **selection** the fill is unchanged (`#143c52` / `#cbedf7`), the struck ink and its rule are
+drawn over it, and the rule's value over the fill is the same as over paper — which is what shows
+the struck ink opaque rather than a tint, since flattening `#cccccc` at 0.53 over `#143c52` would
+give `#778a94`.
+
+### The menu will not say which lists are on
+
+The four list items carry **no `AXMenuItemMarkChar` in either state**, and the menu drawn open shows
+no check beside them. Their parents are verbs and can be read: `Enable`/`Disable Style Check`,
+`Enable`/`Disable Focus Mode`, `Show`/`Hide Syntax`, `Show`/`Hide Authors`. `run_style.py` therefore
+measures a list's state — it clicks, shoots, and keeps the click only if the frame moved the way the
+click should move it. **Custom is empty**: it moves nothing either way, which is the one state that
+method cannot name, and it is recorded as left-as-found.
+
+## State 25 — the two narrower ladders, and what the narrowest class's margins follow
+
+`mac-native-25-light-narrow-*.png`, from [`dev/ref/sample.md`](../../sample.md), shot by
+`rig/run_narrow_419.py` and read by `rig/measure_419.py`. Region `[0, 33, W, 500]`, light, Mono,
+limit 64; W and the text size are the variables. The full report is
+[CAPTURE-2026-09-13.md](CAPTURE-2026-09-13.md); this is the part the rest of the file needs.
+
+[§ State 22](#state-22--the-windows-width-picks-the-type-and-the-measure-follows) found the three
+size classes and measured the two narrower ones at steps 5 and 8 only. Both are now walked in full —
+**960 pt and 400 pt at every step 0 … 13** — with the margins read at 240, 320, 400 and 440 pt as
+well.
+
+### Each class is fourteen sizes, and neither narrow one is the wide one scaled
+
+`rig/ladder_419.py` walks the Text Size menu one click at a time, and its readings are kept as
+[`narrow-419-ladder-960.json`](narrow-419-ladder-960.json) and
+[`narrow-419-ladder-400.json`](narrow-419-ladder-400.json); its frames are scratch. Both narrow
+classes run out of ladder after **five Smaller clicks and eight Bigger ones**, so each holds the
+wide class's fourteen sizes with Default sixth.
+
+| step | 0 | 1 | 2 | 3 | 4 | **5** | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| wide cell (§ 11) | 17.4 | 18.3 | 19.4 | 20.6 | 23.1 | **25.6** | 30.7 | 35.7 | 40.7 | 45.7 | 53.1 | 60.4 | 67.8 | 75.1 |
+| middle cell | 16.000 | 17.112 | 18.117 | 19.117 | 20.265 | **22.653** | 25.209 | 30.235 | 35.215 | 40.080 | 45.000 | 52.230 | 59.500 | 66.750 |
+| middle pitch | 43 | 46 | 49 | 53 | 56 | **63** | 69 | 81 | 92 | 103 | 113 | 126 | 139 | 150 |
+| narrowest cell | 13.623 | 14.908 | 16.080 | 17.367 | 18.633 | **19.863** | 22.500 | 25.000 | 29.770 | 34.679 | 39.500 | 44.250 | 51.500 | 58.500 |
+| narrowest pitch | 37 | 40 | 44 | 47 | 50 | **53** | 59 | 65 | 76 | 86 | 96 | 105 | 118 | 129 |
+
+**The scale against the wide ladder wanders and has no trend.** 0.9195 … 0.8888 across the middle
+class with a dip to 0.8211 at step 6, and 0.7829 … 0.7790 across the narrowest with a dip to 0.7003
+at step 7. § State 22's two readings — 0.885 and 0.865 — sit inside that wander, so **no step
+between them was derivable and each class has to be carried as its own ladder.**
+
+`pitch / em` runs 1.61 → 1.35 in the middle class and 1.63 → 1.32 in the narrowest, against the wide
+class's 1.73 → 1.374: the same falling curve, tighter the narrower the class.
+
+### The narrowest class's margin is a rule, and it hides a fourth break
+
+The side margin of the narrowest class, in points, at every width and step measured:
+
+**`margin = max(5 pt, round(K − advance_pt))`**, with **K = 17.5 pt** in a window of 240 … 390 pt and
+**K = 22.5 pt** in one of 391 … 440 pt.
+
+**Every term of that is in points**, this file's one departure from device pixels and the reason the
+advance is written `advance_pt`: it is the class's cell at that step halved, 6.81 pt at step 0 and
+9.93 pt at step 5. Read in device pixels the rule collapses to a flat 5 pt and says nothing.
+
+It fits all 56 rows — 240, 320, 400 and 440 pt across fourteen steps — exactly, and
+`rig/measure_419.py` refits it on every run rather than quoting this. The break at **390/391 pt** was
+bisected at steps 0, 5 and 8 and falls between the same two widths each time, so like the class
+breaks it is the window's width alone. **240 pt is the narrowest window the app allows** — asked for
+150, 180, 200 or 220 it hands back 240, which `sweep_narrow.py` assumed for #344 and this run records
+from the bounds the app answers with.
+
+So the container rule of § State 22 holds everywhere once the margin is the class's own:
+
+**container = `min((limit + 14) cells, window − 2 × margin)`**, the margin **5 pt** in the middle and
+the wide class and `max(5 pt, round(K − advance_pt))` in the narrowest.
+
+In the narrowest class the first term never wins — 78 cells of even the smallest type wants 1062 px
+of the 880 px the class's widest window, 440 pt, has at all — so the whole class is the window term.
+That is why
+§ State 22 read a container 32 px inside what it expected at 440 pt: it was applying a 5 pt margin
+where the app keeps 13.
+
+**The container is centred to the point, not to the pixel.** Both margins are whole points, and
+where the leftover is an odd number of points the extra **point** — two device pixels — falls on the
+right: 20 px left against 22 right at step 1 in a 480 px window, where the leftover is 42 px = 21 pt,
+and 74 against 76 at step 5 in a 1920 px one, where it is 150 px = 75 pt. Where the leftover is an
+even number of points the margins are equal.
+
+### What the run could not settle
+
+**Whether the class breaks are points or device pixels.** #419 asked for 1250 and 1251 pt at step 5
+on a display at backing scale 1. No external display was connected and this Mac's built-in display
+offers no scale-1 mode, so the breaks stay recorded in points, the unit the window is set in.
+
+### The driver dropped clicks twice, and a control caught both
+
+Reaching a step out from Make Text Normal Size landed step 1 on step 2's size at both widths;
+walking up from the floor with eight Smaller clicks is not enough to reach the floor of a
+fourteen-step ladder from its top, and put steps 10 to 12 of the 400 pt run one and two rungs high.
+`rig/ladder_419.py`'s continuous walk fixes each width's ladder independently, and
+`rig/measure_419.py` now refuses to print a table unless every frame's pitch sits on its width's
+rung. **A state runner that reaches a menu step by counting clicks needs a control that does not.**
+
+## State 26 — the misspelling mark
+
+`mac-native-26-{light,dark}-spell-*.png` and the `-nospell` controls beside them, from
+[`dev/ref/spell.md`](../../spell.md), shot by `rig/run_spell_400.py` and read by
+`rig/measure_spell_400.py`. Region `[0, 33, 1512, 949]` — the whole window. The full report is
+[CAPTURE-2026-09-13-SPELL.md](CAPTURE-2026-09-13-SPELL.md); this is the part the rest of the file
+needs.
+
+No state before this one showed a misspelling — every one was shot on `dev/ref/sample.md`, which has
+none. The mark is **macOS's own**, drawn by the text system rather than by iA.
+
+**The four measured states were shot as pairs on both grounds** — eight pairs — each once with
+*Check Spelling While Typing* on and once with it off and nothing else changed, so every colour,
+row and dot below is a difference between two frames — § State 24's method, for § State 24's
+reason. **S5, S6 and the autocorrect run carry no control and none is possible**: each of them
+changes the text, so there is no second frame of the same page to difference against. They are
+read as behaviour, and no measurement rests on them. Setting the switch does not re-check a document already on the screen, and
+*Check Document Now* finds the **next** misspelling rather than marking them all, so the passage is
+pasted again under each setting.
+
+### The mark itself
+
+| | light | dark |
+|---|---|---|
+| Ink on the paper | **`#ed766b`** | **`#cf807e`** |
+| Shape | **dots** — 6 px lit, 2 px paper, an 8 px period | the same |
+| Thickness | **6 px** = 3 pt | the same |
+| Below the baseline | **12 … 17 px** = 6 … 8.5 pt | the same |
+| Extent | the word's own cells — 9.92 of 10 for `definately`, 3.05 of 3 for `Teh` | the same |
+
+**It is a row of round dots, not a wave and not a line**: six columns lit, two of paper, six rows
+deep, identical on every mark of every state.
+
+**It is not the face's underline.** `iAWriterMonoS-Regular.ttf` asks for `underlineThickness`
+60/1000 em — 2.56 px here — at `underlinePosition` −110/1000 em, 4.69 px down. The mark is 6 px thick
+12 px down. macOS draws its own at its own size.
+
+**The two grounds do not share one ink.** No coverage flattens `#ed766b` onto the dark paper to give
+`#cf807e`: it is a dynamic system colour with a value per appearance, and a port carries two values
+rather than one with an alpha.
+
+### Under Focus the word dims and the mark does not
+
+The caret stood in the second sentence. `definately`, `recieved`, `comittee` and `accomodate` fell
+to the dim tier § 4.2 holds — **`#c6c4c2`** light, **`#707070`** dark (4.2.5, 4.2.6) — while
+`Teh`, `seperate` and `mispelled` kept the body ink. **Every mark stayed at full strength**, same
+hex, same rows, same dots.
+
+### Under Syntax the Category stays and the mark is unchanged
+
+The marked words carry their Category colours — `#a6559f`, `#4675b5`, `#bb512a`, `#9d6722` on light —
+and the mark is exactly what it is at rest.
+
+### Over a selection the fill is under it, and shows through
+
+| ground | mark |
+|---|---|
+| light paper `#f7f7f7` | `#ed766b` |
+| light fill `#cbedf7` | **`#e2726b`** |
+| dark paper `#1a1a1a` | `#cf807e` |
+| dark fill `#143c52` | **`#cd8486`** |
+
+The fill is unbroken under the dots in the control frame, so it is beneath the mark; the mark is
+**not opaque**, and the composite that accounts for it is about 0.7 coverage on light and 0.85 on
+dark — it does not close to one number, so the dots are antialiased rather than painted flat.
+
+### What is marked
+
+Seven words: `definately`, `recieved`, `comittee`, `Teh`, `seperate`, `mispelled`, `accomodate`.
+
+**`DRAFFT` is not marked** — an all-caps word the dictionary does not hold is left alone. **`2b` and
+`Q3` are not marked** — a token carrying a digit is left alone.
+
+### The word being typed is not marked; a boundary brings the mark up
+
+Typed with no space, `comittee` carries a pale blue pending-correction fill and a rounded pill
+reading `Comittee ×`, and **no dots**. A space ends the word and the dots appear at once, with the
+caret still beside it — so it is the boundary and not the caret leaving that marks it.
+
+**Escape and ⌘↑ do not end it**: while the pill is up it takes both, and this state was shot twice
+with the caret still in the word before a mouse click was used instead.
+
+### Autocorrect, for the map's fog entry
+
+`teh ` becomes **`Teh`** — capitalised, not corrected — and `recieve ` becomes **`Receive`**,
+corrected and capitalised. **The replacement carries a solid pale-blue rule**, which is a different
+mark from the red dots and tells the two apart at a glance. One Backspace after the replacement
+deletes the space and re-opens the pending-correction state, the pill then offering `recieve ↺` —
+the revert is offered, not taken.
+
+### The correction menu
+
+A right-click on `definately` selects the word, which **keeps its dots over the fill**, and opens
+two suggestions — `definitely`, `defiantly` — then `Report a Concern`, then `Ignore Spelling` and
+`Learn Spelling`, then macOS's own Look Up / Translate, Cut / Copy / Paste, Paste As, Paste Edits
+From, Mark As and Writing Tools. The menu is chrome and Quill's own; it is on record rather than to
+be copied.
+
+## State 27 — the bar at the foot of the window, and the counts on it
+
+`mac-native-27-{light,dark}-stats-*.png` and the `-nobar` controls beside them, from
+`dev/ref/sample.md`, shot by `rig/run_stats_381.py` and read by `rig/measure_stats_381.py`. Region
+`[0, 33, 1512, 949]` — the whole window. The full report is
+[CAPTURE-2026-09-13-STATS.md](CAPTURE-2026-09-13-STATS.md); this is the part the rest of the file
+needs.
+
+**iA has no stats bar.** What stands at the foot of the window is the **Toolbar**, a format bar of
+twelve labels — `Body`, `Heading 1 ⌃`, `List ⌃`, `Blockquote`, `Bold`, `Italic`, `Strikethrough`,
+`Link`, `Wikilink`, `Footnote`, `Table`, `TOC` — with the counts as a **thirteenth group at its
+right end**, a popup rather than a label. And on this machine it was not on the screen at all:
+`View > Toolbar` was found on **Fade In/Out** when the rig first read it, and under that setting,
+with the pointer away from the foot of the window, there is paper to the window's edge, at rest and
+while the keys move alike. Whether that is what the app ships on or what this Mac had been left
+on, one machine cannot say.
+
+Every state was shot with the bar and again with `View > Toolbar > Hide`, because the gutter above
+the bar cannot be read off one frame: there is no way to say where the page's last row would have
+fallen with no bar under it.
+
+### The bar
+
+| | light | dark |
+|---|---|---|
+| Height, rule to the window's foot | **80 px = 40 pt** — rule at row 1818, window's last row 1897 | the same |
+| Ground | **the paper itself**, `#f7f7f7` | **`#1a1a1a`** |
+| Rule above it | **2 px = 1 pt**, `#dbdbdb` | `#2e2e2e` |
+| Counts' ink at rest | **`#191919`** | **`#cccccc`** |
+| Counts on hover | **the accent** — `#36bffa` off the glyph | not shot |
+
+**The ground is the paper, not a tint**: the band's median is the § 4.2 paper exactly, and only the
+hairline separates the bar from the page. **The counts are body ink** (4.2.3, 4.2.4), not a quieter
+tier — iA lets the fade carry the quietness instead. **Hover lifts them to the accent** rather than
+darkening them.
+
+### There is no gutter above it
+
+At the document top the last visible row's ink ends **one device pixel** above the hairline, and the
+control frame puts that same row in the same place with no bar under it. The bar does not push the
+text up, does not mask it and leaves no padding: **the page runs to the rule and scrolls under it.**
+
+### The end of a draft keeps 460 pt of air
+
+Scrolled to the end, the last row's ink is at row 898 and the rule at 1818: **920 px = 460 pt**, or
+**48.5 % of the 949 pt window**. The rule stands in the document-top frame and the document-end
+frame alike, so it is the bar's own edge rather than a "more below" signal.
+
+### The counts' menu is a choice of one
+
+A click opens ten counts, each showing its value, with a single ✓ against the one displayed:
+`941 Characters`, `752 Without Spaces`, **`188 Words`**, `16 Sentences`, `00:00:56 Reading Time`,
+`00:01:26 Speaking Time`, `0 of 0 Tasks`, `0% Human`, `0% AI`, `0% Reference`. The bar shows one
+count and the menu picks which.
+
+### Typewriter moves the caret line and nothing at the foot
+
+C7 is a pair, because the question is where the last row rests against the bar with the caret at
+the window's centre. **It rests where it does at rest: one device pixel above the rule.** The bar
+is unchanged.
+
+### An empty document still carries a count, in body ink
+
+C3's empty page reads `0 Words` in the same `#191919` as a full one: the counts do not go quiet
+when there is nothing to count. Quill's own `0` is `#4A4A4A`, the heaviest ink on that screen.
+
+### A selection is counted, and marked as counted
+
+With the first sentence held the counts read **`13 Words`** — the selection's own — and the figure
+carries the **selection fill** `#cbedf7` behind it.
+
+### While the keys move
+
+Under the app's own **Fade In/Out** there is no bar to watch. Pinned with **Always Show** the bar
+**does not dim**: a frame taken mid-burst holds the same thirteen labels and the same `#191919`
+counts as at rest. **The counts update after a pause of about 1.2 s** — typing took 0.165 s and the
+counts' strip, sampled through Quartz at 10 Hz, first moved **1.174 s after the last key** — so they
+do not tick per keystroke. Every later sample differs from the one before the keys too, which says
+the count moved and stayed moved; the four-second window ended before it could say anything about
+settling.
+
+### What could not be shot
+
+**`View > Toolbar > Stats Only`.** Four ways of pressing it — `click menu item` with the menu
+closed, the same with the menu walked open, `perform action "AXPress"`, and an arrow-key walk of the
+open menu — all report success, leave `Default` checked and **change no pixel** of the bar. #354's
+Style Check lists at least moved the frame when clicked; this one gives nothing to read. It is the
+one state #381 named that this run does not hold.
+
+## State 28 — the Library pane
+
+`mac-native-28-{light,dark}-library-*.png`, shot by `rig/run_library_379.py` and its two
+follow-on passes and read by `rig/measure_library_379.py`. Region `[0, 33, 1512, 949]` — the whole
+window. The full report is [CAPTURE-2026-09-13-LIBRARY.md](CAPTURE-2026-09-13-LIBRARY.md); this is
+the part the rest of the file needs.
+
+No state before this one showed the Library: § The rig reads *Library hidden* for every one, and
+`VERDICTS.md` 4.2.13 has the library list down as **still unknown**. The Library held a copy of
+`dev/shots/oracle/library/` without its `manifest.json`, **added** to what it already had rather than
+swapped in, with `sea-storm.md` open; the four documents already there are in every frame.
+
+### The pane is two columns and three grounds
+
+| | light | dark |
+|---|---|---|
+| Pane, total | **360 pt** — device columns 0 … 719 | the same |
+| **Organizer**, the left column | **129.5 pt**, ground **`#eaebeb`** | ground **`#1a1c1b`** |
+| **File List**, the right column | **230.5 pt**, ground **`#fcfcfc`** | ground **`#151515`** |
+| The page beside it | `#f7f7f7` | `#1a1a1a` |
+| The divider | **2 px**, and it is a **change of ground**, not a drawn rule | the same |
+
+**Three grounds, not one.** On light the Organizer is *darker* than the paper and the File List
+*lighter*; on dark the Organizer sits at the paper and the List goes darker. Quill draws the whole
+pane on one paper.
+
+**The pane drags.** From the column the pane's own ground gives way at — 360 pt — it goes to **500 pt**
+and comes back. Two earlier passes aimed 8 pt and 915 pt off the divider and reported that it does
+not; a drag that misses says nothing.
+
+### A file row
+
+| | measured |
+|---|---|
+| Pitch, excerpts on | **136 px = 68 pt** |
+| Pitch, excerpts off | **64 px = 32 pt** |
+| Name ink | **`#191919`** light, **`#b9b9b9`** dark — the body ink |
+| Date ink | **`#999999`** light, **`#757575`** dark |
+| Excerpt ink | **the same as the date**: `#999999` / `#757575` |
+| Separator | **`#ededed`** light, **`#212121`** dark; x 340 … 691, **inset 74 px left and 19 px right** within the list |
+| Excerpt | **two lines**, the file's title run into its first words |
+
+**The date and the excerpt share one grey**, and it is **darker** than the editor's own dim tier
+(`#c6c4c2` light, `#707070` dark, 4.2.5 and 4.2.6) rather than paler. The `files` round-6 critic
+preferred a paler pane to the editor's chrome; the oracle goes the other way.
+
+### The selected row is a bar, not a fill
+
+**A 6 px = 3 pt accent bar at the File List's left edge**, `#36bffa`, running the row's full height
+— 128 px with excerpts on, 56 px without. No fill, no tint: the row's ground is the list's.
+
+### The Organizer
+
+Four sections, headed **`Locations`**, **`Favorites`**, **`Smart Folders`** and **`Hashtags`** in
+**`#7f8080`** light, **`#393b3a`** dark. Under Locations the current one — `☁ iCloud` — stands on a rounded grey pill. An
+empty section carries prose rather than nothing: *Drag folders and files here for quick access*
+under Favorites, *Write #tags to group files* under Hashtags. Smart Folders holds `Recents`.
+
+### The search field is at the **foot**, and its prompt is `#7e7e7e`
+
+The field sits under the list, not over it, reads **`Filter`** beside a magnifier, and is reached
+by `Edit > Find > Filter Library...`. **Its prompt is `#7e7e7e`** light and **`#757575`** dark, on a field whose ground is the list's own.
+Quill's lands at `#BCBCBC` — the question that filed #379 — so the oracle's prompt is far darker
+than Quill's, not paler.
+
+### A hovered row draws nothing, and what the search matches
+
+With the pointer on a row the row is **unchanged**; the pane differs from its resting frame only at
+the search field, which lifts to `#a1d5f5` with its prompt at `#777777`. Selection is a bar and
+hover is nothing.
+
+`sea` leaves **three rows of twelve** — one matched by name, two by contents — and `the`, which no
+name holds, leaves **eleven**: the field searches **names and contents together**. The sort pill
+becomes **`Sort by Search Relevance`** while a query stands. A result row is an ordinary row: no
+snippet around the match and **no mark on the match**.
+
+### A file could not be made a Favorite
+
+So the Favorites row — the half of L4 #379 asked for — is **unmeasured**, and the section is only
+ever seen carrying its empty-state prose. A Favorite is made from a row's context menu, and that
+menu is **not in the accessibility tree**: with it open the process reports zero menus, a click and
+an `AXPress` both fail, and an arrow-key walk left the Organizer's ink unchanged to the pixel.
+
+### A folder expands in place
+
+Under `Navigation: Tree` a click on `Drafts` turns its `›` into `⌄` and puts its two files
+**indented** below it, in the same row shape. There is no stepping-in and no way back to find.
+
+### The Sort control's menu carries the settings
+
+The pill under the title bar — `Sort by Date Modified ⌄` — opens ✓`Date Modified`, `Date Created`,
+`Name`, `Extension`; `Oldest on Top`, ✓`Newest on Top`; `Pin Folders to Top`; `Show Date ›`,
+✓`Show Text Excerpts`, `Navigation ›`. It is the Library pane of Settings, on the pane.
+
+### A row's own menu is where a Favorite is made
+
+A right-click outlines the row with a **focus ring** rather than filling it, and opens `Open in New
+Tab`, `Open in New Window` | `Get Info`, **`Favorite`**, `Duplicate`, `Rename`, `Move to Trash` |
+`Show in Finder` | `Share ›`, `Export…`, `Print ›` | `Copy ›` | `New File`, `New Folder` |
+`Sort By ›`, `View Options ›`.

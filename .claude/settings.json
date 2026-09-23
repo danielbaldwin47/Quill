@@ -3,7 +3,7 @@
     "rust-analyzer-lsp@claude-plugins-official": true
   },
   "worktree": {
-    "symlinkDirectories": ["node_modules", "legacy/node_modules"]
+    "symlinkDirectories": ["node_modules", "dev/legacy/node_modules"]
   },
   "permissions": {
     "allow": [

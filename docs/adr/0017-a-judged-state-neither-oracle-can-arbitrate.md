@@ -2,22 +2,22 @@
 
 A judged state whose subject neither the Design oracle nor the Parity oracle holds is answered by
 arithmetic off ours' own pixels, and the Piece takes that answer exactly as it takes a critic's.
-`shots/oracle/states.json` says so with `assert` where such a state would have carried `opponent`,
+`dev/shots/oracle/states.json` says so with `assert` where such a state would have carried `opponent`,
 and `tools/assert-state.mjs` holds the rules. Decided 2026-08-31 with the owner, from
 [#147](https://github.com/danielbaldwin47/Quill/issues/147) and the round it could not win.
 
 ## Context
 
 A blind round asks a fresh critic which of two images does a thing better. The question presumes
-two images that both do the thing. Until now that presumption held: `legacy/` is the app the port
+two images that both do the thing. Until now that presumption held: `dev/legacy/` is the app the port
 is porting, so it has every state the port has, and
 [ADR 0015](0015-the-design-oracle-outranks-the-parity-oracle.md) added a second opponent for the
-rows where iA Writer for Mac and `legacy/` disagree.
+rows where iA Writer for Mac and `dev/legacy/` disagree.
 
 `caret/unfocused` is the first state where it fails, and it fails from both ends at once.
 
 **The Design oracle has not got the state.** iA Writer for Mac draws no caret at all when its window
-deactivates — `ref/ia/mac-native/VERDICTS.md` 0013.8, zero accent pixels across a 14-frame burst in
+deactivates — `dev/ref/ia/mac-native/VERDICTS.md` 0013.8, zero accent pixels across a 14-frame burst in
 both themes. `docs/design.md` row *Caret on window deactivation* departs from it on purpose and
 keeps the Parity oracle's 30 % ghost, because a tiling desktop shows the active window less plainly
 than macOS does and the ghost says where the writer was. There is no capture to crop, and there
@@ -25,9 +25,9 @@ never will be.
 
 **The Parity oracle has the state, but not the design.** `docs/design.md` row *Caret column* moved
 the bar to the centre of the advance boundary, which is the Design oracle's own geometry
-(VERDICTS 0013.1–0013.3) and which #147 built. `legacy/` still puts the bar's left edge there. So
-the pair put in front of a critic is our ghost at the new column against `legacy/`'s ghost at the
-column that row overruled — and in `progress/rounds/caret-r8.json` the critic picked `legacy/`, on
+(VERDICTS 0013.1–0013.3) and which #147 built. `dev/legacy/` still puts the bar's left edge there. So
+the pair put in front of a critic is our ghost at the new column against `dev/legacy/`'s ghost at the
+column that row overruled — and in `dev/progress/rounds/caret-r8.json` the critic picked `dev/legacy/`, on
 the five device pixels of paper between the preceding glyph and the bar that the centring gives up.
 That reading is not wrong about the pixels. It is answering a question the Gate had already decided
 elsewhere, and answering it the other way.
@@ -76,7 +76,7 @@ gate.md as written, and it blocks #147, #168, #169 and every later caret ticket 
 says nothing about whether ours got better. Rejected: the Gate exists to catch regressions the owner
 would see, and this catches a decision the owner already made.
 
-**Re-freeze the Parity oracle from a patched `legacy/`.** Then the pair would compare like with
+**Re-freeze the Parity oracle from a patched `dev/legacy/`.** Then the pair would compare like with
 like. Rejected outright: the Parity oracle is what the port is judged against precisely because
 nobody edits it, and a patched oracle is not an oracle.
 

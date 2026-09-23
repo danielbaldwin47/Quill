@@ -15,7 +15,7 @@
 // THE LINE AND THE EXIT CODE. One line per state, then `critic replay <piece>: N of M agree
 // (rounds r4–r6)`, exit 0 whatever N is — agreement is a number to read, not a Gate condition —
 // and `critic replay <piece>: refused (<why>)`, exit 3, when there was nothing to replay. Nothing
-// is written under progress/ or shots/: every pair is made in a scratch directory with its own coin
+// is written under dev/progress/ or dev/shots/: every pair is made in a scratch directory with its own coin
 // flip, and the critics run at once the way a round's do.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -92,8 +92,8 @@ async function main(argv) {
   }
   if (piece === null) { usage(); return 3; }
 
-  const brief = JSON.parse(fs.readFileSync(path.join(root, 'progress/state.json'), 'utf8')).pieces.find((p) => p.id === piece);
-  if (!brief?.judge) return refuse(piece, 'the Piece has no judging brief in progress/state.json');
+  const brief = JSON.parse(fs.readFileSync(path.join(root, 'dev/progress/state.json'), 'utf8')).pieces.find((p) => p.id === piece);
+  if (!brief?.judge) return refuse(piece, 'the Piece has no judging brief in dev/progress/state.json');
   if (!fs.existsSync(path.resolve(root, promptFile))) return refuse(piece, `${promptFile} is not a file to read`);
   const prompt = criticPrompt(fs.readFileSync(path.resolve(root, promptFile), 'utf8'), { title: brief.title, judge: brief.judge });
 

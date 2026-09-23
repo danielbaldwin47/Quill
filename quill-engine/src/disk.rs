@@ -33,12 +33,12 @@ const DEFAULT_EXTENSION: &str = "md";
 
 /// How much of the first line a derived name keeps, in characters.
 ///
-/// The oracle's cap: `legacy/app/js/files.js` `deriveTitle` slices at 80.
+/// The oracle's cap: `dev/legacy/app/js/files.js` `deriveTitle` slices at 80.
 const TITLE_CHARS: usize = 80;
 
 /// How many suffixed names a collision tries before it gives up.
 ///
-/// The oracle's cap: `legacy/app/js/files.js` `uniqueName` counts to 999.
+/// The oracle's cap: `dev/legacy/app/js/files.js` `uniqueName` counts to 999.
 const SUFFIXES: usize = 999;
 
 /// Where a Document stands with the file behind it.
@@ -476,7 +476,7 @@ fn within(text: &str, caret: usize) -> usize {
 
 /// The file name an untitled Document's first save gives it.
 ///
-/// The oracle's rule (`legacy/app/js/files.js` `deriveTitle`, `safeName` and
+/// The oracle's rule (`dev/legacy/app/js/files.js` `deriveTitle`, `safeName` and
 /// `dispName`): the first non-empty line without its heading hashes, list or
 /// quote marker and inline Markup, whitespace collapsed, cut to
 /// [`TITLE_CHARS`]; then [`named`] makes a file name of what is left.
@@ -506,7 +506,7 @@ pub fn named(typed: &str) -> String {
 
 /// `name` in `folder`, suffixed until nothing there has it.
 ///
-/// The oracle's suffix (`legacy/app/js/files.js` `uniqueName`): `The Lamp.md`,
+/// The oracle's suffix (`dev/legacy/app/js/files.js` `uniqueName`): `The Lamp.md`,
 /// then `The Lamp 2.md`, and on to [`SUFFIXES`], compared without case as the
 /// oracle compares. Reads the folder once, so the walk is its entries plus at
 /// most [`SUFFIXES`] lookups; a folder that cannot be read is an empty one,

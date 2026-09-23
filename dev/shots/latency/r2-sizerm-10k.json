@@ -1,0 +1,1497 @@
+{
+  "env": {
+    "at": "2026-08-27T01:04:00.022Z",
+    "chromium": "151.0.7922.173",
+    "headless": true,
+    "cpu_throttle_x": 1,
+    "reduced_motion": "reduce",
+    "node": "v26.7.0",
+    "os": "Linux 7.1.9-arch1-2",
+    "cpu": "13th Gen Intel(R) Core(TM) i5-13600K (20 threads)",
+    "load1": 1.12,
+    "busiest_processes": [
+      "110 chromium",
+      "80.0 chromium",
+      "77.7 node-MainThread",
+      "45.1 helium",
+      "25.0 chromium"
+    ],
+    "mem_gb": 31,
+    "display": null,
+    "viewport": "1440x900",
+    "app": {
+      "files": 16,
+      "sha256": "19b86f97e10b203d",
+      "git_head": "33b4e48",
+      "served_from": "/tmp/qsnap-r2"
+    },
+    "document": {
+      "path": "dev/shots/latency/doc10k.md",
+      "words": 10062,
+      "chars": 53031,
+      "lines": 432
+    }
+  },
+  "startup": {},
+  "typing": [
+    {
+      "regime": "prose_end_of_draft",
+      "mix": "prose",
+      "where": "end",
+      "focus": "off",
+      "pace_ms": 90,
+      "pause_every_keys": null,
+      "wall_ms": 14029,
+      "cpu_throttle_x": 1,
+      "reduced_motion": "reduce",
+      "display_clock": "off (frames produced on demand — application cost only, faster than any real display)",
+      "document_in_editor": {
+        "chars": 53031,
+        "lines": 432
+      },
+      "document_after": {
+        "chars": 53198,
+        "lines": 432
+      },
+      "warmup_keys": 25,
+      "steps_pressed": 150,
+      "keydowns_expected": 150,
+      "keys_seen_in_trace": 150,
+      "keys_seen_by_page": 150,
+      "every_keystroke_accounted_for": true,
+      "keys_unresolved_in_page_probe": 0,
+      "keys_missing_commit_time": 0,
+      "keys_missing_present_time": 0,
+      "keys_sharing_a_frame": 0,
+      "shifted_keydowns": 0,
+      "keys_pressed_by_name": {
+        "T": 2,
+        "h": 3,
+        "e": 18,
+        " ": 24,
+        "l": 4,
+        "t": 8,
+        "r": 9,
+        "a": 11,
+        "i": 7,
+        "v": 1,
+        "d": 11,
+        "o": 6,
+        "n": 9,
+        "u": 6,
+        "s": 6,
+        "y": 2,
+        ",": 4,
+        "g": 3,
+        "Backspace": 4,
+        "f": 2,
+        "w": 3,
+        "c": 1,
+        "p": 2,
+        "b": 1,
+        "k": 1,
+        ".": 1,
+        "M": 1
+      },
+      "keystroke_kinds": {
+        "capital": 3,
+        "letter": 114,
+        "space": 24,
+        "punct": 5,
+        "backspace": 4
+      },
+      "frames": {
+        "STATE_NO_UPDATE_DESIRED": 171,
+        "STATE_PRESENTED_ALL": 303,
+        "STATE_DROPPED_affecting_smoothness": 158,
+        "STATE_DROPPED": 4
+      },
+      "frames_per_second": 45.33,
+      "dropped_frames_per_second": 11.55,
+      "presented_within_one_60hz_frame_pct": 98,
+      "presented_within_two_60hz_frames_pct": 100,
+      "ms": {
+        "to_present": {
+          "n": 150,
+          "min": 2.43,
+          "p50": 4.85,
+          "p90": 11.87,
+          "p95": 13.08,
+          "p99": 19.38,
+          "max": 24.33,
+          "mean": 6.4,
+          "sd": 3.99
+        },
+        "to_present_ci95": {
+          "p50": {
+            "lo95": 4.18,
+            "hi95": 6
+          },
+          "p99": {
+            "lo95": 13.52,
+            "hi95": 24.33
+          }
+        },
+        "to_commit": {
+          "n": 150,
+          "min": 2.02,
+          "p50": 3.9,
+          "p90": 10.78,
+          "p95": 11.68,
+          "p99": 12.82,
+          "max": 13.12,
+          "mean": 5.41,
+          "sd": 3.37
+        },
+        "to_present_every_keydown": {
+          "n": 150,
+          "min": 2.43,
+          "p50": 4.85,
+          "p90": 11.87,
+          "p95": 13.08,
+          "p99": 19.38,
+          "max": 24.33,
+          "mean": 6.4,
+          "sd": 3.99
+        },
+        "input_delay": {
+          "n": 150,
+          "min": 0.08,
+          "p50": 0.14,
+          "p90": 0.21,
+          "p95": 0.23,
+          "p99": 0.31,
+          "max": 3.18,
+          "mean": 0.17,
+          "sd": 0.25
+        },
+        "js_per_key": {
+          "n": 150,
+          "min": 1.77,
+          "p50": 2.02,
+          "p90": 2.53,
+          "p95": 3.04,
+          "p99": 3.4,
+          "max": 3.41,
+          "mean": 2.14,
+          "sd": 0.35
+        },
+        "inpage_keydown_to_frame_task": {
+          "n": 150,
+          "min": 2.3,
+          "p50": 4.2,
+          "p90": 11.2,
+          "p95": 12.6,
+          "p99": 13.5,
+          "max": 17.4,
+          "mean": 5.83,
+          "sd": 3.49
+        },
+        "inpage_keydown_to_raf": {
+          "n": 150,
+          "min": -11.63,
+          "p50": 2.93,
+          "p90": 9.67,
+          "p95": 10.63,
+          "p99": 11.72,
+          "max": 12.2,
+          "mean": 3.08,
+          "sd": 4.91
+        },
+        "browser_event_timing_ge16ms_only": {
+          "n": 14,
+          "min": 16,
+          "p50": 16,
+          "p90": 16,
+          "p95": 24,
+          "p99": 24,
+          "max": 24,
+          "mean": 16.57,
+          "sd": 2.06
+        }
+      },
+      "by_key_type_to_present": {
+        "capital": {
+          "n": 3,
+          "min": 2.64,
+          "p50": 3.54,
+          "p90": 6,
+          "p95": 6,
+          "p99": 6,
+          "max": 6,
+          "mean": 4.06,
+          "sd": 1.42
+        },
+        "letter": {
+          "n": 114,
+          "min": 2.43,
+          "p50": 5.16,
+          "p90": 12.05,
+          "p95": 13.34,
+          "p99": 19.38,
+          "max": 24.33,
+          "mean": 6.61,
+          "sd": 4.15
+        },
+        "space": {
+          "n": 24,
+          "min": 2.61,
+          "p50": 4.42,
+          "p90": 10.91,
+          "p95": 11.58,
+          "p99": 12.79,
+          "max": 12.79,
+          "mean": 5.59,
+          "sd": 3.04
+        },
+        "punct": {
+          "n": 5,
+          "min": 4.11,
+          "p50": 7.12,
+          "p90": 13.64,
+          "p95": 13.64,
+          "p99": 13.64,
+          "max": 13.64,
+          "mean": 8.32,
+          "sd": 3.8
+        },
+        "backspace": {
+          "n": 4,
+          "min": 2.77,
+          "p50": 2.79,
+          "p90": 11.34,
+          "p95": 11.34,
+          "p99": 11.34,
+          "max": 11.34,
+          "mean": 4.96,
+          "sd": 3.69
+        }
+      },
+      "autosave": {
+        "note": "files.js flushes the whole document to localStorage 400 ms after the last change; a run that never pauses never triggers it.",
+        "writes": 8,
+        "bytes_written": 267357,
+        "ms": {
+          "n": 8,
+          "min": 0,
+          "p50": 0,
+          "p90": 0.3,
+          "p95": 0.3,
+          "p99": 0.3,
+          "max": 0.3,
+          "mean": 0.06,
+          "sd": 0.1
+        },
+        "total_ms": 0.5
+      },
+      "js_heap_kb_after": 6889,
+      "main_thread": {
+        "busy_ms_per_key": 4.85,
+        "busy_percent_of_wall": 5.18,
+        "gc_us_per_key": 50,
+        "chrome_text_insertion_us_per_key": 1288,
+        "quill_input_handler_us_per_key": 730,
+        "style_layout_paint_us_per_key": 2142,
+        "top": [
+          {
+            "what": "ProxyMain::BeginMainFrame",
+            "us_per_key": 2057
+          },
+          {
+            "what": "FunctionCall",
+            "us_per_key": 2015
+          },
+          {
+            "what": "LatencyInfo.Flow",
+            "us_per_key": 1465
+          },
+          {
+            "what": "WidgetBaseInputHandler::OnHandleInputEvent",
+            "us_per_key": 1463
+          },
+          {
+            "what": "EventDispatch:keypress",
+            "us_per_key": 1297
+          },
+          {
+            "what": "EventDispatch:textInput",
+            "us_per_key": 1288
+          },
+          {
+            "what": "FireIdleCallback",
+            "us_per_key": 1069
+          },
+          {
+            "what": "LocalFrameView::layout",
+            "us_per_key": 742
+          },
+          {
+            "what": "Layout",
+            "us_per_key": 735
+          },
+          {
+            "what": "EventDispatch:input",
+            "us_per_key": 730
+          },
+          {
+            "what": "LocalFrameView::RunPaintLifecyclePhase",
+            "us_per_key": 698
+          },
+          {
+            "what": "Paint",
+            "us_per_key": 672
+          }
+        ]
+      },
+      "samples_to_present_ms": [
+        6,
+        3.74,
+        10.4,
+        2.61,
+        8.41,
+        2.43,
+        5.16,
+        12.99,
+        3.9,
+        10.77,
+        3.78,
+        5.92,
+        13.08,
+        19.15,
+        10.11,
+        2.62,
+        7.53,
+        2.53,
+        4.43,
+        11.72,
+        2.74,
+        9.12,
+        2.78,
+        6.67,
+        2.64,
+        3.82,
+        10.69,
+        2.7,
+        8.11,
+        2.55,
+        5.48,
+        13.64,
+        5.03,
+        12.32,
+        2.63,
+        9.06,
+        2.67,
+        7.09,
+        13.8,
+        19.38,
+        24.33,
+        2.79,
+        4.11,
+        10.91,
+        2.68,
+        7.41,
+        3.33,
+        2.9,
+        9.02,
+        2.78,
+        5.22,
+        12.08,
+        2.64,
+        8.53,
+        2.77,
+        4.44,
+        11.87,
+        2.95,
+        7.83,
+        2.74,
+        5.47,
+        12.79,
+        3.89,
+        11.38,
+        2.95,
+        6.98,
+        13.52,
+        3.33,
+        9.13,
+        2.88,
+        4.48,
+        10.99,
+        2.86,
+        7,
+        2.94,
+        3.34,
+        9.05,
+        2.94,
+        5.79,
+        12.27,
+        3.09,
+        8.26,
+        2.87,
+        4.42,
+        11.34,
+        2.93,
+        7.51,
+        3.18,
+        5.16,
+        11.35,
+        2.8,
+        7.4,
+        4.57,
+        3.88,
+        7.25,
+        13.34,
+        3,
+        9.87,
+        4.41,
+        3.94,
+        7.75,
+        4.55,
+        5.21,
+        4.18,
+        12.05,
+        2.97,
+        7.61,
+        3.36,
+        4.37,
+        7.12,
+        2.78,
+        3.54,
+        9.73,
+        2.99,
+        6.99,
+        2.94,
+        3.35,
+        9.05,
+        3.03,
+        5.15,
+        11.78,
+        3.13,
+        8.82,
+        2.88,
+        4.49,
+        10.64,
+        2.97,
+        6.65,
+        2.98,
+        2.77,
+        8.94,
+        2.84,
+        5.89,
+        11.99,
+        2.76,
+        7.97,
+        2.85,
+        4.36,
+        10.84,
+        3.08,
+        8.31,
+        3.2,
+        4.85,
+        11.58,
+        3.22,
+        7.86,
+        2.94,
+        3.54,
+        8.72,
+        3.13
+      ]
+    },
+    {
+      "regime": "paragraph_breaks",
+      "mix": "newlines",
+      "where": "middle",
+      "focus": "off",
+      "pace_ms": 90,
+      "pause_every_keys": null,
+      "wall_ms": 14002,
+      "cpu_throttle_x": 1,
+      "reduced_motion": "reduce",
+      "display_clock": "off (frames produced on demand — application cost only, faster than any real display)",
+      "document_in_editor": {
+        "chars": 53031,
+        "lines": 432
+      },
+      "document_after": {
+        "chars": 53206,
+        "lines": 451
+      },
+      "warmup_keys": 25,
+      "steps_pressed": 150,
+      "keydowns_expected": 150,
+      "keys_seen_in_trace": 150,
+      "keys_seen_by_page": 150,
+      "every_keystroke_accounted_for": true,
+      "keys_unresolved_in_page_probe": 0,
+      "keys_missing_commit_time": 0,
+      "keys_missing_present_time": 0,
+      "keys_sharing_a_frame": 0,
+      "shifted_keydowns": 0,
+      "keys_pressed_by_name": {
+        "T": 2,
+        "h": 3,
+        "e": 18,
+        " ": 21,
+        "l": 2,
+        "t": 7,
+        "Enter": 19,
+        "r": 9,
+        "a": 11,
+        "i": 5,
+        "v": 1,
+        "d": 10,
+        "o": 6,
+        "n": 8,
+        "u": 5,
+        "s": 5,
+        "y": 2,
+        ",": 3,
+        "g": 2,
+        "f": 2,
+        "w": 3,
+        "c": 1,
+        "p": 1,
+        "b": 1,
+        "k": 1,
+        ".": 1,
+        "M": 1
+      },
+      "keystroke_kinds": {
+        "capital": 3,
+        "letter": 103,
+        "space": 21,
+        "enter": 19,
+        "punct": 4
+      },
+      "frames": {
+        "STATE_NO_UPDATE_DESIRED": 172,
+        "STATE_PRESENTED_ALL": 289,
+        "STATE_DROPPED_affecting_smoothness": 145,
+        "STATE_DROPPED": 6
+      },
+      "frames_per_second": 43.71,
+      "dropped_frames_per_second": 10.78,
+      "presented_within_one_60hz_frame_pct": 100,
+      "presented_within_two_60hz_frames_pct": 100,
+      "ms": {
+        "to_present": {
+          "n": 150,
+          "min": 2.65,
+          "p50": 4.31,
+          "p90": 12.29,
+          "p95": 13.85,
+          "p99": 15.57,
+          "max": 15.84,
+          "mean": 6.11,
+          "sd": 3.71
+        },
+        "to_present_ci95": {
+          "p50": {
+            "lo95": 3.49,
+            "hi95": 5.7
+          },
+          "p99": {
+            "lo95": 14.38,
+            "hi95": 15.84
+          }
+        },
+        "to_commit": {
+          "n": 150,
+          "min": 2.18,
+          "p50": 3.53,
+          "p90": 11.46,
+          "p95": 12.46,
+          "p99": 13.93,
+          "max": 13.99,
+          "mean": 5.39,
+          "sd": 3.54
+        },
+        "to_present_every_keydown": {
+          "n": 150,
+          "min": 2.65,
+          "p50": 4.31,
+          "p90": 12.29,
+          "p95": 13.85,
+          "p99": 15.57,
+          "max": 15.84,
+          "mean": 6.11,
+          "sd": 3.71
+        },
+        "input_delay": {
+          "n": 150,
+          "min": 0.08,
+          "p50": 0.13,
+          "p90": 0.2,
+          "p95": 0.23,
+          "p99": 0.37,
+          "max": 0.37,
+          "mean": 0.14,
+          "sd": 0.05
+        },
+        "js_per_key": {
+          "n": 150,
+          "min": 1.76,
+          "p50": 2.07,
+          "p90": 2.31,
+          "p95": 2.41,
+          "p99": 3.22,
+          "max": 3.23,
+          "mean": 2.11,
+          "sd": 0.2
+        },
+        "inpage_keydown_to_frame_task": {
+          "n": 150,
+          "min": 2.5,
+          "p50": 3.9,
+          "p90": 12,
+          "p95": 12.9,
+          "p99": 14.3,
+          "max": 14.6,
+          "mean": 5.69,
+          "sd": 3.52
+        },
+        "inpage_keydown_to_raf": {
+          "n": 150,
+          "min": -14.94,
+          "p50": 2.33,
+          "p90": 9.99,
+          "p95": 11.16,
+          "p99": 11.84,
+          "max": 12.9,
+          "mean": 1.96,
+          "sd": 6.28
+        },
+        "browser_event_timing_ge16ms_only": {
+          "n": 16,
+          "min": 16,
+          "p50": 16,
+          "p90": 16,
+          "p95": 16,
+          "p99": 16,
+          "max": 16,
+          "mean": 16,
+          "sd": 0
+        }
+      },
+      "by_key_type_to_present": {
+        "capital": {
+          "n": 3,
+          "min": 2.75,
+          "p50": 2.81,
+          "p90": 3.95,
+          "p95": 3.95,
+          "p99": 3.95,
+          "max": 3.95,
+          "mean": 3.17,
+          "sd": 0.56
+        },
+        "letter": {
+          "n": 103,
+          "min": 2.65,
+          "p50": 3.75,
+          "p90": 10.05,
+          "p95": 11.9,
+          "p99": 13.85,
+          "max": 14.38,
+          "mean": 5.44,
+          "sd": 3.11
+        },
+        "space": {
+          "n": 21,
+          "min": 2.69,
+          "p50": 5.98,
+          "p90": 11.55,
+          "p95": 12.29,
+          "p99": 13.02,
+          "max": 13.02,
+          "mean": 6.65,
+          "sd": 3.81
+        },
+        "enter": {
+          "n": 19,
+          "min": 4.72,
+          "p50": 7.41,
+          "p90": 15.57,
+          "p95": 15.84,
+          "p99": 15.84,
+          "max": 15.84,
+          "mean": 10.07,
+          "sd": 4.36
+        },
+        "punct": {
+          "n": 4,
+          "min": 2.83,
+          "p50": 3.07,
+          "p90": 7.2,
+          "p95": 7.2,
+          "p99": 7.2,
+          "max": 7.2,
+          "mean": 4.15,
+          "sd": 1.78
+        }
+      },
+      "autosave": {
+        "note": "files.js flushes the whole document to localStorage 400 ms after the last change; a run that never pauses never triggers it.",
+        "writes": 4,
+        "bytes_written": 107102,
+        "ms": {
+          "n": 4,
+          "min": 0,
+          "p50": 0,
+          "p90": 0.1,
+          "p95": 0.1,
+          "p99": 0.1,
+          "max": 0.1,
+          "mean": 0.02,
+          "sd": 0.04
+        },
+        "total_ms": 0.1
+      },
+      "js_heap_kb_after": 3627,
+      "main_thread": {
+        "busy_ms_per_key": 4.81,
+        "busy_percent_of_wall": 5.15,
+        "gc_us_per_key": 82,
+        "chrome_text_insertion_us_per_key": 1320,
+        "quill_input_handler_us_per_key": 710,
+        "style_layout_paint_us_per_key": 2216,
+        "top": [
+          {
+            "what": "ProxyMain::BeginMainFrame",
+            "us_per_key": 2046
+          },
+          {
+            "what": "FunctionCall",
+            "us_per_key": 1949
+          },
+          {
+            "what": "LatencyInfo.Flow",
+            "us_per_key": 1453
+          },
+          {
+            "what": "WidgetBaseInputHandler::OnHandleInputEvent",
+            "us_per_key": 1452
+          },
+          {
+            "what": "EventDispatch:keypress",
+            "us_per_key": 1329
+          },
+          {
+            "what": "EventDispatch:textInput",
+            "us_per_key": 1320
+          },
+          {
+            "what": "FireIdleCallback",
+            "us_per_key": 1060
+          },
+          {
+            "what": "Paint",
+            "us_per_key": 731
+          },
+          {
+            "what": "LocalFrameView::layout",
+            "us_per_key": 729
+          },
+          {
+            "what": "Layout",
+            "us_per_key": 723
+          },
+          {
+            "what": "EventDispatch:input",
+            "us_per_key": 710
+          },
+          {
+            "what": "LocalFrameView::RunPaintLifecyclePhase",
+            "us_per_key": 689
+          }
+        ]
+      },
+      "samples_to_present_ms": [
+        3.95,
+        3.48,
+        7.48,
+        3.43,
+        3.71,
+        9.72,
+        4.27,
+        7.57,
+        13.85,
+        5.7,
+        3.33,
+        3.27,
+        3.71,
+        10.05,
+        2.97,
+        6.98,
+        5.38,
+        3.38,
+        7.7,
+        3.28,
+        3.34,
+        9.65,
+        2.77,
+        6.5,
+        15.18,
+        3.17,
+        9.65,
+        2.81,
+        5.5,
+        12.3,
+        2.94,
+        8.9,
+        2.82,
+        7.41,
+        2.87,
+        2.83,
+        8.5,
+        3.12,
+        3.49,
+        10.44,
+        2.87,
+        7.36,
+        3.11,
+        6.19,
+        2.99,
+        2.97,
+        3.48,
+        10.56,
+        2.84,
+        7.39,
+        3.04,
+        3.28,
+        9.94,
+        5.06,
+        3.09,
+        11.49,
+        3,
+        7.47,
+        2.65,
+        4,
+        14.18,
+        3.2,
+        7.2,
+        2.69,
+        4.6,
+        15.84,
+        3.17,
+        9.26,
+        2.91,
+        5.44,
+        13.14,
+        6.52,
+        3.18,
+        3.07,
+        6.65,
+        3.03,
+        3,
+        8.38,
+        3,
+        4.52,
+        11.29,
+        6.33,
+        2.95,
+        11.55,
+        2.78,
+        8.99,
+        6.49,
+        3.34,
+        11.08,
+        2.94,
+        6.57,
+        2.85,
+        4.87,
+        12.29,
+        6.37,
+        3.52,
+        2.89,
+        4.05,
+        10.59,
+        2.89,
+        7.57,
+        3.03,
+        4.31,
+        13.3,
+        3.37,
+        7.98,
+        2.89,
+        4.39,
+        11.9,
+        2.86,
+        10.03,
+        4.72,
+        2.74,
+        3.03,
+        2.87,
+        9.82,
+        2.99,
+        6.75,
+        2.94,
+        3.75,
+        15.05,
+        3.07,
+        8.87,
+        2.75,
+        5.96,
+        14.38,
+        5.17,
+        12.51,
+        3.95,
+        13.57,
+        3.06,
+        8.02,
+        2.75,
+        5.52,
+        13.02,
+        3.86,
+        15.11,
+        2.91,
+        8.15,
+        2.71,
+        5.98,
+        15.57,
+        3.16,
+        10.12,
+        2.82,
+        7.02,
+        2.76,
+        4.11,
+        13.42,
+        2.94
+      ]
+    },
+    {
+      "regime": "fence_flip",
+      "mix": "fences",
+      "where": "middle",
+      "focus": "off",
+      "pace_ms": 90,
+      "pause_every_keys": null,
+      "wall_ms": 13985,
+      "cpu_throttle_x": 1,
+      "reduced_motion": "reduce",
+      "display_clock": "off (frames produced on demand — application cost only, faster than any real display)",
+      "document_in_editor": {
+        "chars": 53031,
+        "lines": 432
+      },
+      "document_after": {
+        "chars": 53056,
+        "lines": 432
+      },
+      "warmup_keys": 25,
+      "steps_pressed": 150,
+      "keydowns_expected": 150,
+      "keys_seen_in_trace": 150,
+      "keys_seen_by_page": 150,
+      "every_keystroke_accounted_for": true,
+      "keys_unresolved_in_page_probe": 0,
+      "keys_missing_commit_time": 0,
+      "keys_missing_present_time": 0,
+      "keys_sharing_a_frame": 0,
+      "shifted_keydowns": 0,
+      "keys_pressed_by_name": {
+        "`": 75,
+        "Backspace": 75
+      },
+      "keystroke_kinds": {
+        "markdown": 75,
+        "backspace": 75
+      },
+      "frames": {
+        "STATE_NO_UPDATE_DESIRED": 172,
+        "STATE_PRESENTED_ALL": 305,
+        "STATE_DROPPED_affecting_smoothness": 151,
+        "STATE_DROPPED": 2
+      },
+      "frames_per_second": 45.05,
+      "dropped_frames_per_second": 10.94,
+      "presented_within_one_60hz_frame_pct": 100,
+      "presented_within_two_60hz_frames_pct": 100,
+      "ms": {
+        "to_present": {
+          "n": 150,
+          "min": 3.14,
+          "p50": 5.32,
+          "p90": 12.73,
+          "p95": 13.57,
+          "p99": 14.14,
+          "max": 14.78,
+          "mean": 6.96,
+          "sd": 3.57
+        },
+        "to_present_ci95": {
+          "p50": {
+            "lo95": 4.63,
+            "hi95": 6.8
+          },
+          "p99": {
+            "lo95": 13.69,
+            "hi95": 14.78
+          }
+        },
+        "to_commit": {
+          "n": 150,
+          "min": 2.29,
+          "p50": 3.81,
+          "p90": 11.21,
+          "p95": 12.08,
+          "p99": 13.17,
+          "max": 13.3,
+          "mean": 5.65,
+          "sd": 3.47
+        },
+        "to_present_every_keydown": {
+          "n": 150,
+          "min": 3.14,
+          "p50": 5.32,
+          "p90": 12.73,
+          "p95": 13.57,
+          "p99": 14.14,
+          "max": 14.78,
+          "mean": 6.96,
+          "sd": 3.57
+        },
+        "input_delay": {
+          "n": 150,
+          "min": 0.07,
+          "p50": 0.11,
+          "p90": 0.17,
+          "p95": 0.19,
+          "p99": 0.22,
+          "max": 0.32,
+          "mean": 0.12,
+          "sd": 0.03
+        },
+        "js_per_key": {
+          "n": 150,
+          "min": 1.99,
+          "p50": 2.18,
+          "p90": 2.33,
+          "p95": 2.59,
+          "p99": 3.39,
+          "max": 3.47,
+          "mean": 2.22,
+          "sd": 0.22
+        },
+        "inpage_keydown_to_frame_task": {
+          "n": 150,
+          "min": 2.6,
+          "p50": 4,
+          "p90": 11.5,
+          "p95": 12.4,
+          "p99": 13.4,
+          "max": 13.6,
+          "mean": 5.91,
+          "sd": 3.44
+        },
+        "inpage_keydown_to_raf": {
+          "n": 150,
+          "min": -5.52,
+          "p50": 2.9,
+          "p90": 10.07,
+          "p95": 11,
+          "p99": 12.1,
+          "max": 12.3,
+          "mean": 3.47,
+          "sd": 4.77
+        },
+        "browser_event_timing_ge16ms_only": {
+          "n": 21,
+          "min": 16,
+          "p50": 16,
+          "p90": 16,
+          "p95": 16,
+          "p99": 16,
+          "max": 16,
+          "mean": 16,
+          "sd": 0
+        }
+      },
+      "by_key_type_to_present": {
+        "markdown": {
+          "n": 75,
+          "min": 3.14,
+          "p50": 4.91,
+          "p90": 12.73,
+          "p95": 13.57,
+          "p99": 14.78,
+          "max": 14.78,
+          "mean": 6.96,
+          "sd": 3.64
+        },
+        "backspace": {
+          "n": 75,
+          "min": 3.17,
+          "p50": 6.08,
+          "p90": 12.74,
+          "p95": 13.57,
+          "p99": 14.14,
+          "max": 14.14,
+          "mean": 6.96,
+          "sd": 3.5
+        }
+      },
+      "autosave": {
+        "note": "files.js flushes the whole document to localStorage 400 ms after the last change; a run that never pauses never triggers it.",
+        "writes": 4,
+        "bytes_written": 106783,
+        "ms": {
+          "n": 4,
+          "min": 0,
+          "p50": 0,
+          "p90": 0.2,
+          "p95": 0.2,
+          "p99": 0.2,
+          "max": 0.2,
+          "mean": 0.1,
+          "sd": 0.1
+        },
+        "total_ms": 0.4
+      },
+      "js_heap_kb_after": 4504,
+      "main_thread": {
+        "busy_ms_per_key": 4.79,
+        "busy_percent_of_wall": 5.14,
+        "gc_us_per_key": 47,
+        "chrome_text_insertion_us_per_key": 677,
+        "quill_input_handler_us_per_key": 758,
+        "style_layout_paint_us_per_key": 2181,
+        "top": [
+          {
+            "what": "FunctionCall",
+            "us_per_key": 2003
+          },
+          {
+            "what": "ProxyMain::BeginMainFrame",
+            "us_per_key": 2000
+          },
+          {
+            "what": "LatencyInfo.Flow",
+            "us_per_key": 1512
+          },
+          {
+            "what": "WidgetBaseInputHandler::OnHandleInputEvent",
+            "us_per_key": 1510
+          },
+          {
+            "what": "FireIdleCallback",
+            "us_per_key": 1063
+          },
+          {
+            "what": "LocalFrameView::layout",
+            "us_per_key": 780
+          },
+          {
+            "what": "Layout",
+            "us_per_key": 774
+          },
+          {
+            "what": "EventDispatch:input",
+            "us_per_key": 758
+          },
+          {
+            "what": "EventDispatch:keydown",
+            "us_per_key": 756
+          },
+          {
+            "what": "Paint",
+            "us_per_key": 688
+          },
+          {
+            "what": "EventDispatch:keypress",
+            "us_per_key": 681
+          },
+          {
+            "what": "EventDispatch:textInput",
+            "us_per_key": 677
+          }
+        ]
+      },
+      "samples_to_present_ms": [
+        3.81,
+        3.42,
+        8.64,
+        4.22,
+        6.32,
+        13.57,
+        4.28,
+        11.48,
+        4.07,
+        8.3,
+        13.56,
+        4.49,
+        11.03,
+        3.3,
+        7.99,
+        3.77,
+        4.68,
+        11.74,
+        3.61,
+        8.6,
+        3.14,
+        5.97,
+        12.97,
+        3.7,
+        10.68,
+        3.62,
+        8.22,
+        3.71,
+        6.18,
+        14.14,
+        3.61,
+        9.32,
+        3.17,
+        6.8,
+        13.69,
+        4.89,
+        8.84,
+        3.25,
+        6.51,
+        12.78,
+        3.88,
+        11.18,
+        3.24,
+        9.41,
+        3.28,
+        6.63,
+        12.74,
+        4.32,
+        11.73,
+        3.28,
+        8.88,
+        3.32,
+        6.6,
+        14.14,
+        4.64,
+        12.48,
+        3.16,
+        9.96,
+        3.4,
+        7.1,
+        3.42,
+        3.69,
+        11.27,
+        3.17,
+        8.07,
+        3.2,
+        4.58,
+        11.98,
+        3.34,
+        9.42,
+        3.24,
+        6.66,
+        14.05,
+        4.18,
+        12.73,
+        4.93,
+        8.79,
+        4.3,
+        4.09,
+        9.62,
+        5.27,
+        5.32,
+        11.61,
+        4.39,
+        7.69,
+        14.78,
+        4.58,
+        10.18,
+        4.26,
+        6.08,
+        12.87,
+        4.15,
+        8.96,
+        4.16,
+        4.78,
+        10.51,
+        4.37,
+        6.21,
+        13.57,
+        3.48,
+        9.49,
+        3.33,
+        6.5,
+        13.8,
+        4.86,
+        12.03,
+        4.21,
+        9.5,
+        4.02,
+        5.02,
+        13.13,
+        3.33,
+        9.12,
+        3.27,
+        6.81,
+        13.34,
+        4.1,
+        11.51,
+        3.38,
+        7.75,
+        3.38,
+        4.81,
+        12.04,
+        4.05,
+        7.97,
+        3.39,
+        3.93,
+        9.34,
+        3.19,
+        5.36,
+        12.09,
+        3.81,
+        8.59,
+        3.91,
+        4.91,
+        12.18,
+        3.48,
+        8.45,
+        3.3,
+        4.73,
+        11.64,
+        3.51,
+        7.67,
+        3.3,
+        4.63,
+        11.76,
+        4.08,
+        7.25,
+        3.46,
+        3.72
+      ]
+    }
+  ],
+  "sessions": {
+    "prose_end_of_draft": {
+      "sessions": 1,
+      "keys_per_session": 150,
+      "every_keystroke_accounted_for": true,
+      "per_session_p50": [
+        4.85
+      ],
+      "per_session_p99": [
+        19.38
+      ],
+      "per_session_max": [
+        24.33
+      ],
+      "pooled": {
+        "n": 150,
+        "min": 2.43,
+        "p50": 4.85,
+        "p90": 11.87,
+        "p95": 13.08,
+        "p99": 19.38,
+        "max": 24.33,
+        "mean": 6.41,
+        "sd": 3.99
+      },
+      "pooled_p50_ci95": {
+        "lo95": 4.18,
+        "hi95": 6
+      },
+      "pooled_p99_ci95": {
+        "lo95": 13.52,
+        "hi95": 24.33
+      },
+      "main_thread_ms_per_key": [
+        4.85
+      ]
+    },
+    "paragraph_breaks": {
+      "sessions": 1,
+      "keys_per_session": 150,
+      "every_keystroke_accounted_for": true,
+      "per_session_p50": [
+        4.31
+      ],
+      "per_session_p99": [
+        15.57
+      ],
+      "per_session_max": [
+        15.84
+      ],
+      "pooled": {
+        "n": 150,
+        "min": 2.65,
+        "p50": 4.31,
+        "p90": 12.29,
+        "p95": 13.85,
+        "p99": 15.57,
+        "max": 15.84,
+        "mean": 6.12,
+        "sd": 3.71
+      },
+      "pooled_p50_ci95": {
+        "lo95": 3.49,
+        "hi95": 5.7
+      },
+      "pooled_p99_ci95": {
+        "lo95": 14.38,
+        "hi95": 15.84
+      },
+      "main_thread_ms_per_key": [
+        4.81
+      ]
+    },
+    "fence_flip": {
+      "sessions": 1,
+      "keys_per_session": 150,
+      "every_keystroke_accounted_for": true,
+      "per_session_p50": [
+        5.32
+      ],
+      "per_session_p99": [
+        14.14
+      ],
+      "per_session_max": [
+        14.78
+      ],
+      "pooled": {
+        "n": 150,
+        "min": 3.14,
+        "p50": 5.32,
+        "p90": 12.73,
+        "p95": 13.57,
+        "p99": 14.14,
+        "max": 14.78,
+        "mean": 6.96,
+        "sd": 3.57
+      },
+      "pooled_p50_ci95": {
+        "lo95": 4.63,
+        "hi95": 6.8
+      },
+      "pooled_p99_ci95": {
+        "lo95": 13.69,
+        "hi95": 14.78
+      },
+      "main_thread_ms_per_key": [
+        4.79
+      ]
+    }
+  },
+  "frame_control": [
+    {
+      "what": "idle page, no keystrokes at all, display clock on",
+      "seconds": 4.02,
+      "frames": {
+        "STATE_DROPPED": 1,
+        "STATE_NO_UPDATE_DESIRED": 230,
+        "STATE_PRESENTED_ALL": 18
+      },
+      "frames_per_second": 61.94,
+      "dropped_frames_per_second": 0.25
+    },
+    {
+      "what": "idle page, no keystrokes at all, display clock off",
+      "seconds": 4.01,
+      "frames": {
+        "STATE_DROPPED": 2,
+        "STATE_NO_UPDATE_DESIRED": 219,
+        "STATE_PRESENTED_ALL": 18
+      },
+      "frames_per_second": 59.66,
+      "dropped_frames_per_second": 0.5
+    }
+  ]
+}

@@ -35,7 +35,7 @@ export function keyDir() {
 // Where a Piece's state is paired. One directory per judged state, because one Piece is several
 // pairs and a critic is shown one of them.
 export function pairDir(piece, state) {
-  return path.join('shots/blind', piece, state);
+  return path.join('dev/shots/blind', piece, state);
 }
 
 function keyFile(piece, state) {
@@ -75,7 +75,7 @@ function usage(where = process.stderr) {
   where.write(`usage: node tools/blind.mjs pair <piece> <state> <ours.png> <theirs.png>
        node tools/blind.mjs reveal <piece> <state>
 
-  Pairs land in shots/blind/<piece>/<state>/ as A.png and B.png; the key is kept
+  Pairs land in dev/shots/blind/<piece>/<state>/ as A.png and B.png; the key is kept
   outside the repository, under $XDG_STATE_HOME/quill/blind-keys/.
 `);
 }

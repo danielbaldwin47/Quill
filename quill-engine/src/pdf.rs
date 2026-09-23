@@ -126,8 +126,8 @@ mod tests {
     use std::process::Command;
 
     /// The shared test passages, which are what a reader is asked to read.
-    const SAMPLE: &str = "../ref/sample.md";
-    const SHORT: &str = "../ref/short.md";
+    const SAMPLE: &str = "../dev/ref/sample.md";
+    const SHORT: &str = "../dev/ref/short.md";
 
     /// The resolution a raster is read at: two device pixels to the point, so
     /// a hairline is a whole pixel and a half-pixel error is visible.
@@ -158,7 +158,7 @@ mod tests {
     /// The grey a bare margin of a Modern page rasterises to.
     ///
     /// Read off the Template rather than written down: the light paper is a
-    /// measurement (`ref/ia/mac-native/CAPTURE-2026-09-09.md` § "#261 —
+    /// measurement (`dev/ref/ia/mac-native/CAPTURE-2026-09-09.md` § "#261 —
     /// Preview" reads #fcfcfc, not the white this used to assert), and a
     /// second measurement should move these tests' threshold by editing the
     /// TOML alone.

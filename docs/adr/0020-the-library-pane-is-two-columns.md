@@ -3,7 +3,7 @@
 The Library pane is an **Organizer** beside a **File List**: the Organizer names the Locations, the
 Pinned Documents and folders, and the Recents; the File List shows one Location's tree at a time.
 It replaces the one-column pane that stacked every Location's full tree in one scroll. The pane's
-paint is iA Writer for Mac's as measured (`ref/ia/mac-native/NOTES.md` § State 28), cited value by
+paint is iA Writer for Mac's as measured (`dev/ref/ia/mac-native/NOTES.md` § State 28), cited value by
 value by the Library makeover spec rather than bound by a `docs/design.md` row, because the Library
 stays outside the Design oracle's reach ([ADR 0015](0015-the-design-oracle-outranks-the-parity-oracle.md)).
 Decided 2026-09-14 with the owner, from
@@ -17,7 +17,7 @@ sidebar: one column on the paper, every Location a spaced section carrying its w
 above them, search at the top, a sort-and-count line, a saved-status line at the foot. It won its
 Piece, and the round-11 critic's gap named what it still lacked — "the pane has no tonal step from
 the page … B's library reads as part of the page, not a pane beside it"
-(`progress/rounds/files-r11.json`). With more than one Location the owner's description was "one
+(`dev/progress/rounds/files-r11.json`). With more than one Location the owner's description was "one
 massive filing cabinet drawer that's not separated out very well": the writer collapses Locations
 and scrolls to find a thing.
 

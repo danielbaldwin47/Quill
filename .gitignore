@@ -1,12 +1,12 @@
-# Unanchored: the root install and legacy/'s. Never `git add -f` one — a worktree's link to
+# Unanchored: the root install and dev/legacy/'s. Never `git add -f` one — a worktree's link to
 # the main checkout's install went in that way once and became a symlink to itself (#210).
 node_modules
-shots/_*
+dev/shots/_*
 # A blind pair is two copies of shots that are already committed — ours at
-# shots/<piece>/r<N>-<state>-ours.png and the opponent's under shots/oracle/ —
+# dev/shots/<piece>/r<N>-<state>-ours.png and the opponent's under dev/shots/oracle/ —
 # laid out under letters a critic is shown. The round says which letter was ours,
 # so the pair can be laid out again; committing it would only double the bytes.
-shots/blind/
+dev/shots/blind/
 # Claude Code's project settings and hooks are the repo's (a worktree needs the
 # hook script too); its worktrees and local overrides are not.
 .claude/*
@@ -26,11 +26,11 @@ __pycache__/
 # `library_fixture_379.py`'s own note of what it put in the writer's
 # Library and what that Library held first — a run artefact, and it
 # names their documents, so it stays out of the history.
-ref/ia/mac-native/library-379-added.json
+dev/ref/ia/mac-native/library-379-added.json
 
-# Quick Export writes a PDF beside its document, so exporting `ref/sample.md`
-# drops `ref/sample.pdf` next to the shared test passage; the exports stay out.
-ref/*.pdf
+# Quick Export writes a PDF beside its document, so exporting `dev/ref/sample.md`
+# drops `dev/ref/sample.pdf` next to the shared test passage; the exports stay out.
+dev/ref/*.pdf
 # Generated image candidates (the app icon's, 2026-09-12) land here; the repo
 # keeps only what `packaging/` renders from them.
 /output/

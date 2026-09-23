@@ -21,11 +21,11 @@
 
 [[passage]]
 name = "TRIM"
-still = "ref/ia/shots/ianet-mac-light-syntax-highlight.png"
+still = "dev/ref/ia/shots/ianet-mac-light-syntax-highlight.png"
 # ia.net's lossless syntax-highlight still, light ground. Nouns off: `Syntax`,
 # `Highlight`, `verbs`, `repetitions`, `clutter`, `Style`, `Check` and `writer`
 # are all body ink. The word-by-word reading agrees with the one
-# `ref/ia/REFERENCE.md` already carried for this still.
+# `dev/ref/ia/REFERENCE.md` already carried for this still.
 shows = ["Verbs", "Adjectives", "Adverbs", "Conjunctions"]
 text = "Trim and tighten: You can employ Syntax Highlight, which helps you spot weak verbs, unwanted repetitions, and eliminate clutter. Together with Style Check, it'll make you a more persuasive writer."
 coloured = [
@@ -49,9 +49,9 @@ coloured = [
 
 [[passage]]
 name = "ALICE-FALL"
-still = "ref/ia/shots/appstore-mac-03-dark-syntax-highlight.png"
+still = "dev/ref/ia/shots/appstore-mac-03-dark-syntax-highlight.png"
 # The App Store's third Mac slide, dark ground: the ALICE-FALL passage
-# `ref/ia/REFERENCE.md` names, transcribed here from the pixels rather than
+# `dev/ref/ia/REFERENCE.md` names, transcribed here from the pixels rather than
 # taken from that file's line, so the colours and the text are read together.
 #
 # Nouns off again: `fall`, `end`, `centre` and `earth` are all body ink.
@@ -66,7 +66,7 @@ still = "ref/ia/shots/appstore-mac-03-dark-syntax-highlight.png"
 # `so-called` is `unscored`, and it is the only word in either passage that is.
 # The still paints all nine of its glyphs brown, the hyphen with them — read
 # again in pixels for #319, so the transcription is not the doubt. What is
-# overruled is the still: `ref/ia/mac-native/CAPTURE-ORIGINAL-MBP.md` § A
+# overruled is the still: `dev/ref/ia/mac-native/CAPTURE-ORIGINAL-MBP.md` § A
 # contraction splits shoots the running app at 8.0.6 and reads `well-known` as
 # a purple `well`, a **plain** hyphen and a blue `known`. Both are iA and they
 # cannot both be this app's answer, so ADR 0015 decides it: the Design oracle

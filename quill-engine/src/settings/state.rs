@@ -74,7 +74,7 @@ pub fn window_sizes() -> RangeInclusive<u32> {
 
 /// The width the Library pane stands at until a writer drags the divider:
 /// `quill::sidebar::WIDTH`, the pane as the Design oracle measures it
-/// (`ref/ia/mac-native/NOTES.md` § State 28, *Pane, total*), and the narrowest
+/// (`dev/ref/ia/mac-native/NOTES.md` § State 28, *Pane, total*), and the narrowest
 /// a saved width is read back at.
 const LIBRARY: u32 = 360;
 

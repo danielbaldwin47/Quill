@@ -1,0 +1,75 @@
+{
+  "piece": "markup",
+  "round": 6,
+  "winner": "ours",
+  "margin": "clear",
+  "gap": "No blockquote rule. A draws a 3px #BFBFBF vertical bar at x=644 spanning the whole quote; B carries the quote on a single grey '>' on line one, so the wrapped second line is typographically indistinguishable from a plain indented paragraph. B's markers are also darker than A's heading hashes — grey 122 (~#7A, ~4.6:1 on #F9F9F9) vs A's 158 (~#A5, ~2.6:1) — so the ## reads as content rather than scaffolding.",
+  "gapTheirs": "Markers are inline, so the text column moves between block types: body starts at x=682, H1 text 729, H2 text 747, bullet text 729, ordered text 747 — five left edges spanning 65px (~2.7 characters). Worse, the blockquote's second line starts at 676 while its first line starts at 730: a 54px leftward jog inside one quote, i.e. no hanging indent at all. B holds every block's text at 675–682 (7px spread, sub-glyph sidebearing) with markers outdented into a 602–631 gutter.",
+  "verdict": "A's syntax is quieter per-glyph but it pays for that by shoving your prose around: every time you type '## ' the sentence you're writing slides 65px right, and a quote that wraps snaps back under its own '>'. That's the thing you feel at 2am — the left edge won't hold still, so nothing scans as a column and you re-find your place after every block. B outdents the markers into a gutter and keeps one text edge for headings, quotes, bullets and numbers alike, which is the entire reason to render markup inline instead of hiding it; it just forgot to keep the quote bar, and its markers at #7A are about 40% too present. B wins on the axis that actually costs writing time.",
+  "oursShot": "dev/shots/markup/r6-light-ours.png",
+  "theirsShot": "dev/shots/oracle/markup/light.png",
+  "refSource": "dev/shots/oracle/markup/ — the Parity oracle frozen by tools/gate oracle markup from dev/legacy/app 738f48c969965ac3 with dev/legacy/tools/shoot.mjs adf473b575198cc3",
+  "builderNote": "",
+  "secondary": [
+    "Both: H1/H2 cap height is 28px, identical to body — hierarchy is weight-only, no size step, so '# The Lighthouse' and a paragraph read at the same scale from a metre away",
+    "A's caret is 6px of saturated #00B5FF, the loudest object on an otherwise black-on-#F9F9F9 page, and it overlaps the following comma; B's is ~4px in text ink",
+    "A's two lists disagree with each other: '- ' text at 729 vs '1. ' text at 747, one character apart on the same page",
+    "Emphasis is identical in both: grey asterisks kept visible, italic/bold applied to the span — neither hides delimiters, neither reflows on cursor entry",
+    "Inline code `NNE 22°` renders the same in both: grey #EDEDED chip with backticks retained",
+    "Fenced block at the bottom is cut off at the viewport in both; can't judge the code block treatment"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "38a09f5",
+    "binary": "bc5714f989ba28be"
+  },
+  "states": [
+    {
+      "name": "light",
+      "ours": "dev/shots/markup/r6-light-ours.png",
+      "theirs": "dev/shots/oracle/markup/light.png",
+      "blind": "dev/shots/blind/markup/light",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "No blockquote rule. A draws a 3px #BFBFBF vertical bar at x=644 spanning the whole quote; B carries the quote on a single grey '>' on line one, so the wrapped second line is typographically indistinguishable from a plain indented paragraph. B's markers are also darker than A's heading hashes — grey 122 (~#7A, ~4.6:1 on #F9F9F9) vs A's 158 (~#A5, ~2.6:1) — so the ## reads as content rather than scaffolding.",
+      "gapTheirs": "Markers are inline, so the text column moves between block types: body starts at x=682, H1 text 729, H2 text 747, bullet text 729, ordered text 747 — five left edges spanning 65px (~2.7 characters). Worse, the blockquote's second line starts at 676 while its first line starts at 730: a 54px leftward jog inside one quote, i.e. no hanging indent at all. B holds every block's text at 675–682 (7px spread, sub-glyph sidebearing) with markers outdented into a 602–631 gutter.",
+      "verdict": "A's syntax is quieter per-glyph but it pays for that by shoving your prose around: every time you type '## ' the sentence you're writing slides 65px right, and a quote that wraps snaps back under its own '>'. That's the thing you feel at 2am — the left edge won't hold still, so nothing scans as a column and you re-find your place after every block. B outdents the markers into a gutter and keeps one text edge for headings, quotes, bullets and numbers alike, which is the entire reason to render markup inline instead of hiding it; it just forgot to keep the quote bar, and its markers at #7A are about 40% too present. B wins on the axis that actually costs writing time.",
+      "secondary": [
+        "Both: H1/H2 cap height is 28px, identical to body — hierarchy is weight-only, no size step, so '# The Lighthouse' and a paragraph read at the same scale from a metre away",
+        "A's caret is 6px of saturated #00B5FF, the loudest object on an otherwise black-on-#F9F9F9 page, and it overlaps the following comma; B's is ~4px in text ink",
+        "A's two lists disagree with each other: '- ' text at 729 vs '1. ' text at 747, one character apart on the same page",
+        "Emphasis is identical in both: grey asterisks kept visible, italic/bold applied to the span — neither hides delimiters, neither reflows on cursor entry",
+        "Inline code `NNE 22°` renders the same in both: grey #EDEDED chip with backticks retained",
+        "Fenced block at the bottom is cut off at the viewport in both; can't judge the code block treatment"
+      ]
+    },
+    {
+      "name": "dark",
+      "ours": "dev/shots/markup/r6-dark-ours.png",
+      "theirs": "dev/shots/oracle/markup/dark.png",
+      "blind": "dev/shots/blind/markup/dark",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "The blockquote gets no treatment beyond a grey '>' — no rule, no indent, no tint, no italic: B draws a 2px × 72px (CSS) rule in #404040 sitting 23px left of the quote text, while A's quote body is pixel-identical in colour, size and left edge (x=673) to an ordinary paragraph. A's caret is also #1C1C1C, the exact hex of body text, at 2px wide and 27px tall, versus B's 3px cyan bar at full 36px line-height.",
+      "gapTheirs": "Markers sit inline instead of hanging, so the text's left edge jitters: paragraph text starts at x=673, H1 text at 721, H2 text at 747, bullet items at 722, quote line 1 at 721 — and that quote's own wrapped second line snaps back to 675, a 23px (CSS) step inside a single block. A holds every line — heading, body, quote, bullet, number, wrap — on one edge at 673–675, with all markers hung out into a 601–630 gutter.",
+      "verdict": "A hangs '#', '##', '>', '-' and '1.' into the margin so the prose column never moves; B lets each marker shove its own line right by one to three characters, so the page has a ragged left edge that shifts every time you change block type, and the blockquote visibly breaks alignment with its own wrap. That is the thing you feel at the third hour: in B your eye has to re-find the start of the line, in A it lands in the same place every time. B buys back a hairline quote rule and a cyan 3px caret that A badly needs, but a caret you can find does not compensate for a column that will not stand still — and B's caret butts the following comma with 0px clearance, half-occluding it. Neither app scales a heading by a single pixel, so the outline is carried entirely by bold weight in both; A at least makes the markers do structural work.",
+      "secondary": [
+        "Heading hierarchy is absent in both: H1, H2 and body all measure 14px cap-height (28-29 device px at 2x) — bold weight is the only signal",
+        "Marker greys: A #7A7A7A on #F9F9F9 = 4.0:1; B #636363 on #1A1A1A = 2.9:1, below the 3:1 non-text floor",
+        "Body contrast A 15.8:1 (#1C1C1C on #F9F9F9) vs B 11:1 (#CCCCCC on #1A1A1A)",
+        "Both dim emphasis delimiters to marker grey (A ** at 122 vs text 28; B ** at 128 vs text 204) — parity here, no winner",
+        "B's caret is 3px × 36px (full line box) and abuts the next glyph with 0px gap; A leaves 6 device px before the comma",
+        "In B the paragraph wraps so '**not moving**' lands at the start of line 3, meaning the paragraph's optical left edge on that line is two grey asterisks",
+        "Line-height identical in both at 36px CSS on ~14px cap-height; block spacing rows match to the pixel (h2 top at y=670 in both)",
+        "Identical 2880x1800 viewport, so all measurements compare directly"
+      ]
+    }
+  ],
+  "at": "2026-08-29T01:41:07.575Z"
+}

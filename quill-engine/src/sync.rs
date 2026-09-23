@@ -18,7 +18,7 @@
 //!   the eye already is.
 //!
 //! Two-way and scroll-position-driven is measured, not assumed:
-//! `ref/ia/mac-native/CAPTURE-2026-09-09.md` § "#261 — Preview" scrolled each
+//! `dev/ref/ia/mac-native/CAPTURE-2026-09-09.md` § "#261 — Preview" scrolled each
 //! pane of a Split in turn with the caret held at document start, and the
 //! other pane followed in both directions
 //! (`mac-native-20-dark-preview-long-sync-*`; the Editor's AX scrollbar ran
