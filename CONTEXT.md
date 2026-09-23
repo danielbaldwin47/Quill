@@ -139,7 +139,7 @@ _Avoid_: code background, block highlight
 One of the nine judged facets of the app: page, type, cursor and caret, focus and typewriter, dark and light, markup rendering, chrome and menus, file handling, latency.
 
 **Parity oracle**:
-The original JavaScript app, kept in `dev/legacy/` until the native app wins every Piece against it blind. What the port ports; where it and the Design oracle disagree, `docs/design.md` says which Quill follows.
+The original JavaScript app, retired from the tree once every Piece was ported (`dev/README.md` § The Parity oracle); its frozen shots under `dev/shots/oracle/` stay the opponent for the states still paired with it. What the port ported; where it and the Design oracle disagree, `docs/design.md` says which Quill follows.
 _Avoid_: the reference
 
 **Design oracle**:
