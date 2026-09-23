@@ -282,7 +282,7 @@
     "gate bench --all: fail — 13 of 14 scored regimes clear the budget, not revision; saturation_stress informational (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)"
   ],
   "build": {
-    "git": "81d64d1",
+    "git": "c58bbce",
     "binary": "33f3f75dc03b1dd3"
   },
   "fingerprint": {
@@ -290,7 +290,7 @@
     "app": {
       "binary": "target/release/quill",
       "sha256": "33f3f75dc03b1dd3",
-      "git_head": "81d64d1",
+      "git_head": "c58bbce",
       "tree_was_dirty": true,
       "renderer": "gl"
     },

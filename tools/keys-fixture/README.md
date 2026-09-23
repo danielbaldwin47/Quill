@@ -6,7 +6,7 @@ invisible to every judged state, which is why both are held by pixels here rathe
 
 ## The caret following the writing
 
-Two shots of the native build **with** `45d1434` ("caret: the bar follows the writing, not only
+Two shots of the native build **with** `4ee72e5` ("caret: the bar follows the writing, not only
 the mark that was moved") applied, taken on the Gate's stage (`tools/harness.mjs`, 1440×900 at
 scale 2) with real keys through `tools/uinput-keys.py`, Live mode, an empty document:
 
@@ -14,7 +14,7 @@ scale 2) with real keys through `tools/uinput-keys.py`, Live mode, an empty docu
 - `fixed-typing-38.png` — after `fefefefefefsfesfesfesf` on top of it (38 characters).
 
 In both, the caret's bar stands just right of the last glyph's ink, and between the two it has
-moved right. Before `45d1434` the bar was placed from `mark-set`, which GTK does not emit for the
+moved right. Before `4ee72e5` the bar was placed from `mark-set`, which GTK does not emit for the
 insert mark carried along by an insertion, so both shots had the bar at **x=0**; every judged state
 was a still, so the Piece won three states with that defect in it (#108, #138).
 
@@ -25,16 +25,16 @@ opens — which is why there is a matched pair below as well.
 ### The red fixture
 
 - `broken-typing-16.png`, `broken-typing-38.png` — the same two bursts, on the build *without*
-  `45d1434`.
+  `4ee72e5`.
 
-Taken by #138 with `tools/gate keys caret --shots`, on the app as `dba7b74` left it (`b3dc404`, the
+Taken by #138 with `tools/gate keys caret --shots`, on the app as `e9f4019` left it (`539f8d5`, the
 tip of main when the condition landed, changes nothing under `quill/` — #141 added this folder and
 nothing else). The bar is at **x=675..680 in both of them**, which is the defect entire: 16
 characters of ink end at x=1053 and 38 end at x=1581, and the bar has not moved between the two.
 
 ### The matched pair
 
-- `fixed-size20-typing-16.png`, `fixed-size20-typing-38.png` — the build *with* `45d1434`, at the
+- `fixed-size20-typing-16.png`, `fixed-size20-typing-38.png` — the build *with* `4ee72e5`, at the
   judged default size 20 the script actually opens.
 
 Taken the same way, in the same run of the same command, so that the red pair and this one differ in
@@ -42,7 +42,7 @@ the build and in nothing else. Side by side they are the whole ticket in four nu
 
 | | ink | bar after 16 | bar after 38 |
 |---|---|---|---|
-| with `45d1434` | 674..1053, 674..1581 | 1059 | 1587 |
+| with `4ee72e5` | 674..1053, 674..1581 | 1059 | 1587 |
 | without it | 674..1053, 674..1581 | 675 | 675 |
 
 Same ink, same derived advance (25.3 and 24.5 device pixels); the bar is the only thing that moves,
@@ -54,7 +54,7 @@ advance from each shot rather than carrying a measured constant — see `glyphAd
 
 ## The selection reaching the foot of a Document
 
-- `fixed-select-all.png` — the build **with** `27f5a21` ("caret: the last row of a Document is a
+- `fixed-select-all.png` — the build **with** `658fbfe` ("caret: the last row of a Document is a
   row the selection reaches").
 - `broken-select-all.png` — the same build with that one commit reverted and nothing else changed.
 
@@ -62,13 +62,13 @@ Both are the third burst of the caret's keys script: on top of the two typing bu
 Enter, types `ffff`, presses Enter, types `ssssssssss` and then `Control+a`, leaving a Document of
 three rows — 38, 4 and 10 characters — with all of it selected and the caret out (ADR 0014).
 
-Taken by #150, in one worktree at `7113df0`, with `tools/gate keys caret --shots`: the green shot
+Taken by #150, in one worktree at `a2ba210`, with `tools/gate keys caret --shots`: the green shot
 first, then the revert applied with `git apply -R`, then the red shot, then the revert undone. Same
 window, same type, same keys, one commit apart.
 
 | | row 1 | row 2 | row 3 |
 |---|---|---|---|
-| with `27f5a21` | y 150..223, x 622..1616 | y 224..297, x 622..744 | y 298..371, x 622..877 |
+| with `658fbfe` | y 150..223, x 622..1616 | y 224..297, x 622..744 | y 298..371, x 622..877 |
 | without it | y 150..223, x 622..1616 | y 224..297, x 622..744 | — |
 
 The bottom row is the whole difference, and it is the whole defect: `Editor::selection` read GTK's

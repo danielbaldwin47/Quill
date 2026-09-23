@@ -1,7 +1,7 @@
 # #327, round 2: two over-budget keys captured and split, 2026-09-10 UTC
 
 Fourteen instrumented `tools/gate bench syntax` attempts on the merged spec
-branch (`b9e6ba3`, which carries `main` at `28fc661`): eleven accounted for all
+branch (`5627ac0`, which carries `main` at `1b852e0`): eleven accounted for all
 300 keys, three were refused on focus loss, and two of the eleven went over the
 16 ms worst-key budget with every key accounted for — 38.82 ms and 17.97 ms.
 Both are captured across the whole handler-to-presentation interval, on the

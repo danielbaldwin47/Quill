@@ -76,7 +76,7 @@
     "gate bench --regimes spell,annotators,prose_end_of_draft: pass — 3 of 3 regimes clear the budget (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)"
   ],
   "build": {
-    "git": "c48a681",
+    "git": "14d2bea",
     "binary": "498d2043ced93487"
   },
   "fingerprint": {
@@ -84,7 +84,7 @@
     "app": {
       "binary": "target/release/quill",
       "sha256": "498d2043ced93487",
-      "git_head": "c48a681",
+      "git_head": "14d2bea",
       "tree_was_dirty": false,
       "renderer": "gl"
     },

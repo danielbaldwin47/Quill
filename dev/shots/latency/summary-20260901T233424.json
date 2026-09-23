@@ -218,7 +218,7 @@
     "gate bench --all: pass — 11 of 11 scored regimes clear the budget; saturation_stress informational (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)"
   ],
   "build": {
-    "git": "a2d0cae",
+    "git": "0eb0a89",
     "binary": "26882028bcfa8e23"
   },
   "fingerprint": {
@@ -226,7 +226,7 @@
     "app": {
       "binary": "target/release/quill",
       "sha256": "26882028bcfa8e23",
-      "git_head": "a2d0cae",
+      "git_head": "0eb0a89",
       "tree_was_dirty": true,
       "renderer": "gl"
     },

@@ -22,7 +22,7 @@
   ],
   "opponent": "mac-native",
   "build": {
-    "git": "ff9bc6a",
+    "git": "20f3fcc",
     "binary": "e7b65f52f88679fa",
     "settings": null
   },

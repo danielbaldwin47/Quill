@@ -9,14 +9,14 @@
   "oursShot": "dev/shots/syntax/r3-all-light-ours.png",
   "theirsShot": null,
   "refSource": "no opponent for all-light (syntax), all-dark (syntax), adjectives-adverbs (syntax), focus-sentence (syntax), live (syntax) — measured off ours' own pixels by tools/assert-state.mjs, because neither oracle holds the state (ADR 0017)",
-  "builderNote": "after merging main 28fc661 (page top #231) into spec-310-syntax",
+  "builderNote": "after merging main 1b852e0 (page top #231) into spec-310-syntax",
   "secondary": [
     "same-state syntax-off pixels supply the text column, glyph coverage and bright rows",
     "provisional Role values: quill-engine/src/theme.rs Colours::LIGHT and Colours::DARK; no critic (ADR 0017)"
   ],
   "opponent": "asserted",
   "build": {
-    "git": "b2238d8",
+    "git": "ec960ac",
     "binary": "26095a11dd35cdba",
     "settings": null
   },

@@ -1,6 +1,6 @@
 //! The Settings window's stylesheet: Quill's own CSS for every control the window holds, per scheme.
 //!
-//! Copied from the stub on `prototype/settings-stub` (`f7118af`), whose README
+//! Copied from the stub on `prototype/settings-stub` (`ae9c61d`), whose README
 //! measured each value against the canvas on the real toolkit at scale 2. The
 //! colours are per-scheme literals, as the menus' are ([`crate::chrome::menu_ink`]),
 //! not theme Roles, so a palette file does not reach them. [`stylesheet`] is

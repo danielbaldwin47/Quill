@@ -3,8 +3,8 @@
 //   node tools/usage-selftest.mjs
 //
 // CLAUDE.md § Repo map promises that the help names every subcommand and what
-// each ends in, and five review passes (0cd10a1, a2db4c0, c703b17, e439bb6,
-// 90f8b8d) found it behind. So it is read here, on every commit, against the
+// each ends in, and five review passes (99803a8, 563bfe8, c8025f0, b47d514,
+// 6ad1cdc) found it behind. So it is read here, on every commit, against the
 // two things it describes: the `case` arm in tools/gate that dispatches each
 // subcommand, and the `gate <command> ${...}: <ending>` lines the subcommand's
 // script prints. docs/agents/gate.md is held to naming each subcommand too.

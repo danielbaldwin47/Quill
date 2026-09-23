@@ -22,7 +22,7 @@
   ],
   "opponent": "mixed",
   "build": {
-    "git": "40950a2",
+    "git": "578098a",
     "binary": "fecf342bae30592f",
     "settings": null
   },

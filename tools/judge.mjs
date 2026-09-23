@@ -436,7 +436,7 @@ async function judgeLatency(root, note, named) {
     judged: said.states,
     opponent: OPPONENT,
     // The commit is not the build when the tree was dirty, and a round that quotes only the commit
-    // invites a later reader to check out `5f1311a` and wonder why the numbers will not come back.
+    // invites a later reader to check out `dfe461d` and wonder why the numbers will not come back.
     // Taken from the fingerprint, which is where the fact is recorded, rather than from the
     // summary's `build`, which is the short form for a human reading the run.
     build: { ...summary.build, dirty: summary.fingerprint?.app?.tree_was_dirty ?? null },

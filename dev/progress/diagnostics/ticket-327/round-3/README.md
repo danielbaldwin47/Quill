@@ -28,9 +28,9 @@ now **split** — [§ revision's 37.77 ms key](#revisions-3777-ms-key-a-3531-ms-
 
 ## Build, environment and instrumentation
 
-`ticket-327` at `7ed9c7f`, with round 2's
+`ticket-327` at `172ce1f`, with round 2's
 [instrumentation.patch](../round-2/instrumentation.patch) applied through
-`git apply -3` (it predates `26005af`'s pointer-leave controller, so it needs the
+`git apply -3` (it predates `eab02ee`'s pointer-leave controller, so it needs the
 three-way apply) and one probe added: a `tail` line whenever `Capture::drain`
 asks for a frame, which is what makes the harness's own `TAIL` frame observable
 rather than assumed. The whole of it is
@@ -292,7 +292,7 @@ is the owner's.
 
 Probes reverted (`git checkout HEAD -- quill tools`), the wrapper and shim
 deleted, the release binary rebuilt by the bench itself
-(`app.sha256 33f3f75dc03b1dd3`, `git_head 7ed9c7f`). The fingerprints say
+(`app.sha256 33f3f75dc03b1dd3`, `git_head 172ce1f`). The fingerprints say
 `tree_was_dirty: true`: at the time of these runs the only modifications in the
 worktree were the untracked files of this directory, and `git status` showed no
 tracked file changed.

@@ -709,7 +709,7 @@
     "app": {
       "binary": "target/release/quill",
       "sha256": "33f3f75dc03b1dd3",
-      "git_head": "7ed9c7f",
+      "git_head": "172ce1f",
       "tree_was_dirty": true,
       "renderer": "gl"
     },

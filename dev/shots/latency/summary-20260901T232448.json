@@ -42,7 +42,7 @@
     "gate bench --regimes saturation_stress: pass — 0 of 0 scored regimes clear the budget; saturation_stress informational (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)"
   ],
   "build": {
-    "git": "ab4cb07",
+    "git": "57470f1",
     "binary": "ce978741bb1fd553"
   },
   "fingerprint": {
@@ -50,7 +50,7 @@
     "app": {
       "binary": "target/release/quill",
       "sha256": "ce978741bb1fd553",
-      "git_head": "ab4cb07",
+      "git_head": "57470f1",
       "tree_was_dirty": true,
       "renderer": "gl"
     },

@@ -203,7 +203,7 @@
     "gate bench --all: fail — 9 of 12 regimes clear the budget, not markdown_syntax, bursts_and_pauses, saturation_stress (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)"
   ],
   "build": {
-    "git": "5f1311a",
+    "git": "dfe461d",
     "binary": "454ec469f4a1d3c4"
   },
   "fingerprint": {
@@ -211,7 +211,7 @@
     "app": {
       "binary": "target/release/quill",
       "sha256": "454ec469f4a1d3c4",
-      "git_head": "5f1311a",
+      "git_head": "dfe461d",
       "tree_was_dirty": true
     },
     "display": {

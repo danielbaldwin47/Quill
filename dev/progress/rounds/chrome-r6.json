@@ -22,7 +22,7 @@
   ],
   "opponent": "oracle",
   "build": {
-    "git": "a36156b",
+    "git": "3760df6",
     "binary": "d2e40c0cc433548b",
     "settings": "quill/tests/fixtures/rebind.toml"
   },

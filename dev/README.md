@@ -51,7 +51,7 @@ was.
 - `makepkg -f` rewrites the tracked `pkgver=` line. `--packagelist` reads that line, which is why the
   restore comes last; left in place, it blocks the next `git pull`.
 - The version carries the commit it was built from — `quill-writer 0.1.0.r126.g92d3c1e` is
-  `92d3c1e` — so `pacman -Q quill-writer` says which build is installed. Build from the checkout you
+  `b9da704` — so `pacman -Q quill-writer` says which build is installed. Build from the checkout you
   mean to test: a branch's work is not in a package built from `main`.
 
 `makepkg` needs the network only to fetch crates. Runtime needs `gtk4`, `enchant` and

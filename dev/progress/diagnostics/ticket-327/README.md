@@ -11,7 +11,7 @@ testing. No production fix or acceptance change is justified by this pass, and
 
 ## Build and environment
 
-The worktree starts at PR #325 head `d295ed941633d835a03e47da18ccdb305f1718ce`
+The worktree starts at PR #325 head `6087b33cd20b4f0ee4bbd6c389862d5fd08a3022`
 (`spec-310-syntax`). The uninstrumented baseline binary hash prefix was
 `e494c8369057d7c1`. The diagnostic binary SHA-256 was
 `43fbaa1c5ba8539fae80f85649038139e7058936d247cfdeb6c513bb914347b1`.
@@ -89,7 +89,7 @@ node dev/progress/diagnostics/ticket-327/analyze.mjs /path/to/extracted-records
 ```
 
 The output reproduces `observations.json` using the production `align`, `latencyMs`,
-and `handlerMs` functions. To repeat capture, use an isolated checkout of `d295ed9`,
+and `handlerMs` functions. To repeat capture, use an isolated checkout of `6087b33`,
 apply `instrumentation.patch`, create an absolute archive directory, and run:
 
 ```sh

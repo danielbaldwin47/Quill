@@ -42,7 +42,7 @@ They are regression fixtures, not a sixth judged state. Protection rectangles ar
 measured in those captures and recorded beside the selftest that consumes them.
 
 `protection-shifted.png` preserves the broken Syntax-on capture from commit
-`63552b4abc772a49bfdf9133a0838d5a6d86edf4`, binary SHA-256
+`af57a3766fdb9f86216417915503b5191013d606`, binary SHA-256
 `2783e0a0857139322fa973bbfa5642ed29429f1fc7aeea95c5e90d233d5fa8d9`.
 Its flags are the protection-on capture's. Full retagging after a worker result
 moved the indented code and following prose. It is kept as the record of that defect

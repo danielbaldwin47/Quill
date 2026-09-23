@@ -61,7 +61,7 @@
     "gate bench --regimes prose_end_of_draft,revision --panel: informational — 2 regimes measured (on DP-3 at 3840x2160 scale 1.5; the physical panel is informational and never a Gate condition, and these are not the headless output's numbers)"
   ],
   "build": {
-    "git": "4703488",
+    "git": "ffc46ea",
     "binary": "454ec469f4a1d3c4"
   },
   "fingerprint": {
@@ -69,7 +69,7 @@
     "app": {
       "binary": "target/release/quill",
       "sha256": "454ec469f4a1d3c4",
-      "git_head": "4703488",
+      "git_head": "ffc46ea",
       "tree_was_dirty": true
     },
     "display": {

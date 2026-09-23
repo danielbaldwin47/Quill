@@ -9,7 +9,7 @@
   "oursShot": "dev/shots/page/r9-light-ours.png",
   "theirsShot": "dev/shots/oracle/page/light.png",
   "refSource": "dev/shots/oracle/page/ — the Parity oracle frozen by tools/gate oracle page from dev/legacy/app 738f48c969965ac3 with dev/legacy/tools/shoot.mjs 239bd27db3974b27",
-  "builderNote": "spec-310-syntax after merging main 28fc661; pixels unchanged since round 8",
+  "builderNote": "spec-310-syntax after merging main 1b852e0; pixels unchanged since round 8",
   "secondary": [
     "A's ink block is asymmetric in the window on heading lines only: leftmost ink 545 vs right gutter 639, a 47 logical px imbalance — the price of the hang, and cheap at the price",
     "Body measure ~62ch (A) / 63ch (B) at 810 logical px — both at the roomy end of comfortable, neither wrong",
@@ -19,7 +19,7 @@
   ],
   "opponent": "oracle",
   "build": {
-    "git": "b2238d8",
+    "git": "ec960ac",
     "binary": "26095a11dd35cdba",
     "settings": null
   },

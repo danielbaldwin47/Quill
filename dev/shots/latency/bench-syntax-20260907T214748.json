@@ -406,7 +406,7 @@
     "app": {
       "binary": "target/release/quill",
       "sha256": "552266f69467a473",
-      "git_head": "d1b2cd3",
+      "git_head": "e9c233b",
       "tree_was_dirty": true,
       "renderer": "gl"
     },

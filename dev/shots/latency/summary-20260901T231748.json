@@ -40,7 +40,7 @@
     "gate bench --regimes revision: pass — 1 of 1 regimes clear the budget (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)"
   ],
   "build": {
-    "git": "c66a6f6",
+    "git": "64777ff",
     "binary": "5804fc30cd21f431"
   },
   "fingerprint": {
@@ -48,7 +48,7 @@
     "app": {
       "binary": "target/release/quill",
       "sha256": "5804fc30cd21f431",
-      "git_head": "c66a6f6",
+      "git_head": "64777ff",
       "tree_was_dirty": false,
       "renderer": "gl"
     },

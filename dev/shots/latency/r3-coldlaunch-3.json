@@ -32,7 +32,7 @@
     "app": {
       "files": 16,
       "sha256": "6c61caa21c576e13",
-      "git_head": "f354306",
+      "git_head": "d84498f",
       "served_from": "/tmp/quill-r3-snap"
     },
     "document": {

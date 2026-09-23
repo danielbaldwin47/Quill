@@ -19,7 +19,7 @@
   ],
   "opponent": "mixed",
   "build": {
-    "git": "61e2636",
+    "git": "4dd65cb",
     "binary": "56020d51d8055806",
     "settings": null
   },

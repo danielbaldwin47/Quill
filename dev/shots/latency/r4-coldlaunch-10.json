@@ -32,7 +32,7 @@
     "app": {
       "files": 16,
       "sha256": "fc252a330ccb7b80",
-      "git_head": "74d8142",
+      "git_head": "0dfab78",
       "served_from": "app/"
     },
     "document": {

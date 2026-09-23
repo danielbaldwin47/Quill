@@ -22,7 +22,7 @@
     "app": {
       "files": 16,
       "sha256": "8db68b1053814519",
-      "git_head": "8987890",
+      "git_head": "ba6049f",
       "served_from": "/tmp/qsnap-after"
     },
     "document": {

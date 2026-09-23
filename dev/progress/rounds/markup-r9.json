@@ -20,7 +20,7 @@
   ],
   "opponent": "oracle",
   "build": {
-    "git": "08d6af5",
+    "git": "56edc3b",
     "binary": "904dc58cd1f6dfc9"
   },
   "states": [

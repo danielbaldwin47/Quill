@@ -8,7 +8,7 @@
 // `tools/gate keys` is the condition that exists because six critics and three judged states missed
 // #108, so the question "does it actually go red on that defect?" cannot be left to the day it
 // matters. The builds it is asked of are committed as pixels — `tools/keys-fixture/fixed-typing-
-// {16,38}.png` from the build with `45d1434` and `broken-typing-{16,38}.png` from the one without
+// {16,38}.png` from the build with `4ee72e5` and `broken-typing-{16,38}.png` from the one without
 // it for #108's caret, `fixed-select-all.png` and `broken-select-all.png` for #146's selection, and
 // `fill-select-all.png` and `fill-newline-held.png` from the build that fills the container for
 // #168's, against `fixed-select-all.png` as the build that filled each row to its ink, and
@@ -99,7 +99,7 @@ ok('something that is not a PNG says so rather than being measured', () => {
   assert.throws(() => decodePng(Buffer.alloc(64)), /not a PNG/);
 });
 
-// ---------- the green fixture: the build with 45d1434 ----------
+// ---------- the green fixture: the build with 4ee72e5 ----------
 
 ok('the fixed build puts the bar just right of the ink after 16 characters', () => {
   const v = judgeBurst(shot('fixed-typing-16'), { chars: 16 });
@@ -174,7 +174,7 @@ ok('matched, the fixed build moves the bar and the broken one does not', () => {
 //
 // The pair here is one build against itself: `fixed-select-all.png` is `tools/gate keys caret
 // --shots` on the tip, `broken-select-all.png` is the same command in the same worktree with
-// `27f5a21` reverted and nothing else changed. So the three rows are typed the same, the type is
+// `658fbfe` reverted and nothing else changed. So the three rows are typed the same, the type is
 // the same and the window is the same, and the bottom row is the only thing that differs.
 
 ok('the fixed build paints every row of a selection that reaches the foot', () => {
