@@ -96,6 +96,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const trail = [];
 let logFile = null;
+const T0 = performance.now();
+export function mark(what) { say(`@${(performance.now() - T0).toFixed(0)} ${what}`); }
 function say(line) {
   trail.push(line);
   if (!logFile) return;
@@ -249,6 +251,7 @@ export async function typeKeys(root, plan, held, { between = {} } = {}) {
   try {
     py.stdin.write(`${JSON.stringify(plan)}\n`);
     const ready = JSON.parse(await out.next());
+    mark('injector ready');
     if (!ready.ready) throw new Error(`the injector would not start: ${JSON.stringify(ready)}`);
 
     const stops = Object.keys(between).map(Number).sort((a, b) => a - b);
@@ -262,6 +265,7 @@ export async function typeKeys(root, plan, held, { between = {} } = {}) {
       if (!ack.typed) throw new Error(`the injector typed none of the ${ready.keys - typed} keys left`);
       typed += ack.typed;
     }
+    mark('keys typed');
     py.stdin.write('end\n');
   } catch (e) {
     try { py.kill('SIGTERM'); } catch { /* already gone */ }
@@ -271,6 +275,7 @@ export async function typeKeys(root, plan, held, { between = {} } = {}) {
   }
 
   await new Promise((resolve) => py.on('close', resolve));
+  mark('injector closed');
   const tail = out.rest().trim();
   if (!tail) throw new Error(`the injector said nothing about what it wrote${stderr.trim() ? `\n${stderr.trim()}` : ''}`);
   const wrote = JSON.parse(tail);
@@ -393,12 +398,15 @@ async function runSession(root, stage, { regime, keys, index }) {
 
   // `$QUILL_T0_NS` is stamped inside `launch`, immediately before the exec — see there for why it
   // cannot be stamped from here.
+  mark(`launch ${regime.name}`);
   const ours = await stage.launch(path.join(root, BINARY), launchArgv(root, out, regime));
+  mark('mapped');
 
   try {
     if (!(await stage.focused(ours.address))) {
       throw new Error('keyboard focus would not stay on ours, so nothing was typed');
     }
+    mark('focused');
     say(`gate bench: focus is on ours (${ours.address}), ${APP_ID}`);
 
     // The warm-up, thrown away: the keyboard that types the measured keys types it first, and at
@@ -414,9 +422,10 @@ async function runSession(root, stage, { regime, keys, index }) {
     let before = null;
     const wrote = await typeKeys(root, { ...planned.plan, keys: [...warm.plan.keys, ...planned.plan.keys] },
       () => stage.holds(ours.address),
-      { between: { [warm.keys]: async () => { await settled(out); before = capture(out).length; } } });
+      { between: { [warm.keys]: async () => { mark('warm-up typed'); await settled(out); before = capture(out).length; mark('warm-up settled'); } } });
 
     await settled(out);
+    mark('capture settled');
     // The warm-up's events lead, in order; a run that lost focus inside the warm-up sent nothing.
     const sent = wrote.events.slice(warm.keys).map((e, i) => ({ ...e, i }));
     const seen = before === null ? [] : capture(out).slice(before);
@@ -435,6 +444,7 @@ async function runSession(root, stage, { regime, keys, index }) {
     };
   } finally {
     stage.kill(ours.child);
+    mark('killed');
   }
 }
 
@@ -508,6 +518,7 @@ async function benchOne(root, stage, { regime, keys, sessions, warmup, panel }) 
   const file = path.join(RESULTS, `bench-${panel ? 'panel-' : ''}${regime.name}-${stamp()}.json`);
   fs.mkdirSync(path.join(root, RESULTS), { recursive: true });
   fs.writeFileSync(path.join(root, file), `${JSON.stringify(result, null, 2)}\n`);
+  mark('result written');
   say(`gate bench: wrote ${file}`);
   // A refused run keeps what it was refused on: the keys as written and the stamps as the app wrote
   // them, which otherwise go with the stage's tmp directory. The result file carries counts and
@@ -554,6 +565,7 @@ async function bench(root, { ran, chosen, keys, sessions, wantsPanel, idle }) {
     return refuse('there is no compositor to type on');
   }
 
+  mark('start');
   say(`gate bench: building ${BINARY}`);
   try {
     execFileSync('cargo', ['build', '--release'], {
@@ -565,6 +577,7 @@ async function bench(root, { ran, chosen, keys, sessions, wantsPanel, idle }) {
     return refuse('the binary would not build');
   }
 
+  mark('built');
   const stage = wantsPanel
     ? await openPanelStage({ root, workspace: PANEL_WORKSPACE, idle })
     : await openStage({ root });
@@ -586,8 +599,10 @@ async function bench(root, { ran, chosen, keys, sessions, wantsPanel, idle }) {
   const done = [];
   let warmup = null;
   try {
+    mark('stage open');
     stage.rules({ w: WINDOW.w, h: WINDOW.h, initialFocus: true });
     warmup = await warmStage(root, stage, chosen[0]);
+    mark('stage warmed');
     say(`gate bench: the stage's first client cold-started in ${warmup} ms, and is not measured`);
     for (const regime of chosen) {
       const one = await benchOne(root, stage, { regime, keys, sessions, warmup, panel });
@@ -607,6 +622,7 @@ async function bench(root, { ran, chosen, keys, sessions, wantsPanel, idle }) {
     return refuse(e.message.split('\n')[0]);
   } finally {
     stage.close();
+    mark('stage closed');
   }
 
   // What was asked for decides how it is said: a bare `gate bench [regime]` is one regime and the
