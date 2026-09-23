@@ -229,9 +229,8 @@ function syntax(spec, { lit, dim }) {
   for (let y = 0; y < source.h; y += 1) {
     for (let x = 0; x < source.w; x += 1) {
       const i = (y * source.w + x) * source.ch;
-      if (sd[i] === ink[0] && sd[i + 1] === ink[1] && sd[i + 2] === ink[2]) bright[y] += 1;
-      if (Math.abs(sd[i] - paper[0]) < PANE_INK && Math.abs(sd[i + 1] - paper[1]) < PANE_INK
-          && Math.abs(sd[i + 2] - paper[2]) < PANE_INK) continue;
+      if (sameAt(sd, i, ink, 0)) bright[y] += 1;
+      if (!inkedAt(sd, i, paper)) continue;
       column.left = Math.min(column.left, x);
       column.right = Math.max(column.right, x);
       column.top = Math.min(column.top, y);
@@ -267,15 +266,10 @@ function syntax(spec, { lit, dim }) {
       // The common pixel, unchanged and no Category's colour, is read without allocating.
       const pi = (y * page.w + x) * page.ch;
       const si = (y * source.w + x) * source.ch;
-      const r = pd[pi];
-      const g = pd[pi + 1];
-      const b = pd[pi + 2];
-      if (r === sd[si] && g === sd[si + 1] && b === sd[si + 2]) {
-        let role = false;
-        for (let k = 0; k < roleRgb.length; k += 3) {
-          if (roleRgb[k] === r && roleRgb[k + 1] === g && roleRgb[k + 2] === b) role = true;
-        }
-        if (!role) continue;
+      if (sameAt(pd, pi, sd, si)) {
+        let pigmented = false;
+        for (let k = 0; k < roleRgb.length && !pigmented; k += 3) pigmented = sameAt(pd, pi, roleRgb, k);
+        if (!pigmented) continue;
       }
       const rgb = [0, 1, 2].map((c) => at(page, x, y, c));
       const baseline = [0, 1, 2].map((c) => at(source, x, y, c));
@@ -406,8 +400,7 @@ function spell(spec, { lit, dim }) {
     for (let x = 0; x <= page.w; x += 1) {
       const pi = (y * page.w + x) * page.ch;
       const si = (y * source.w + x) * source.ch;
-      const hit = x < page.w && !(page.data[pi] === source.data[si] && page.data[pi + 1] === source.data[si + 1]
-        && page.data[pi + 2] === source.data[si + 2]);
+      const hit = x < page.w && !sameAt(page.data, pi, source.data, si);
       if (hit) {
         changed += 1;
         if (isSpellInk(page, x, y, role, MARK_HUED)) hued += 1;
@@ -2134,16 +2127,25 @@ function firstInk(png, x0, x1, paper) {
 }
 
 function is(png, x, y, rgb) {
-  return at(png, x, y, 0) === rgb[0] && at(png, x, y, 1) === rgb[1] && at(png, x, y, 2) === rgb[2];
+  return sameAt(png.data, (y * png.w + x) * png.ch, rgb, 0);
 }
 
 function inked(png, x, y, paper) {
-  for (let c = 0; c < 3; c += 1) if (Math.abs(at(png, x, y, c) - paper[c]) >= PANE_INK) return true;
-  return false;
+  return inkedAt(png.data, (y * png.w + x) * png.ch, paper);
 }
 
 function sameRgb(a, b) {
-  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
+  return sameAt(a, 0, b, 0);
+}
+
+// The two per-pixel questions, asked of a byte offset so a whole-shot loop allocates nothing.
+function sameAt(a, i, b, j) {
+  return a[i] === b[j] && a[i + 1] === b[j + 1] && a[i + 2] === b[j + 2];
+}
+
+function inkedAt(data, i, paper) {
+  for (let c = 0; c < 3; c += 1) if (Math.abs(data[i + c] - paper[c]) >= PANE_INK) return true;
+  return false;
 }
 
 function hex(rgb) {
