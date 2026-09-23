@@ -38,6 +38,7 @@ mod menus;
 mod palette;
 mod portal;
 mod preview;
+mod probe;
 mod print;
 mod session;
 mod settings;

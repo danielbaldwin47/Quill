@@ -129,6 +129,7 @@ pub fn capture(out: &Path) {
 /// only once it is realized.
 pub fn watch(window: &impl IsA<gtk::Widget>) {
     let widget: gtk::Widget = window.as_ref().clone();
+    crate::probe::start(&widget);
 
     let keys = gtk::EventControllerKey::new();
     keys.set_propagation_phase(gtk::PropagationPhase::Capture);

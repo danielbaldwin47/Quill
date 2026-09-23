@@ -954,7 +954,10 @@ impl Window {
                     let Some(window) = weak.upgrade() else {
                         return glib::ControlFlow::Break;
                     };
-                    if window.imp().editor.drain_syntax(&window.document()) {
+                    crate::probe::line("drain+");
+                    let more = window.imp().editor.drain_syntax(&window.document());
+                    crate::probe::line("drain-");
+                    if more {
                         glib::ControlFlow::Continue
                     } else {
                         window.imp().syntax_drain.take();
@@ -2855,6 +2858,11 @@ impl Window {
     fn settle(&self) {
         let now = Self::now();
         let mut typing = self.imp().typing.get();
+        crate::probe::line(&format!(
+            "settle title {:.2} stats {:.2}",
+            typing.title_alpha(now),
+            typing.stats_alpha(now)
+        ));
         self.imp()
             .bars
             .set_fade(typing.title_alpha(now), typing.stats_alpha(now));
@@ -2888,8 +2896,10 @@ impl Window {
 
     /// Counts the Document into the stats bar, on idle.
     fn recount(&self) {
+        crate::probe::line("recount+");
         let document = self.document();
         self.imp().bars.set_count(document.text());
+        crate::probe::line("recount-");
     }
 
     /// Asks for the held run to be counted on the next frame, once however

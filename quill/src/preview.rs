@@ -224,6 +224,7 @@ impl Sheet {
             // Not on the compositor yet: the first allocation asks again.
             return;
         }
+        crate::probe::line("lay_out");
         let template = template::named(settings.template.name.as_str());
         // The three toggles an open HTML dialog is showing, and `[template]`'s
         // own whenever no dialog stands over the pane.

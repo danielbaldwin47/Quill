@@ -448,6 +448,7 @@ async function runSession(root, stage, { regime, keys, index, injector }) {
   // `$QUILL_T0_NS` is stamped inside `launch`, immediately before the exec — see there for why it
   // cannot be stamped from here.
   mark(`launch ${regime.name}`);
+  if (process.env.BENCH_PROBE_DIR) process.env.QUILL_PROBE = path.join(process.env.BENCH_PROBE_DIR, `probe-${regime.name}.txt`);
   const ours = await stage.launch(path.join(root, BINARY), launchArgv(root, out, regime));
   mark('mapped');
 
@@ -495,6 +496,7 @@ async function runSession(root, stage, { regime, keys, index, injector }) {
     };
   } finally {
     stage.kill(ours.child);
+    if (process.env.BENCH_PROBE_DIR) fs.copyFileSync(out, path.join(process.env.BENCH_PROBE_DIR, `capture-${regime.name}.jsonl`));
     mark('killed');
   }
 }
