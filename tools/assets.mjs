@@ -105,7 +105,7 @@ export function replaceFile(file, data) {
 
 // The evidence the worktree wrote itself, sorted into what the main checkout lacks
 // (`fresh`) and what it holds with other bytes (`clashes`).
-export function compare(worktree) {
+export function unsynced(worktree) {
   const main = mainCheckout(worktree);
   if (path.resolve(main) === path.resolve(worktree)) return { main, fresh: [], clashes: [], here: true };
   const fresh = [];
@@ -121,7 +121,7 @@ export function compare(worktree) {
 }
 
 export function sync(worktree) {
-  const r = compare(worktree);
+  const r = unsynced(worktree);
   for (const rel of r.fresh) {
     const to = path.join(r.main, rel);
     fs.mkdirSync(path.dirname(to), { recursive: true });
@@ -130,19 +130,19 @@ export function sync(worktree) {
   return r;
 }
 
-const HERE = 'the main checkout holds the evidence itself';
+const IN_MAIN = 'the main checkout holds the evidence itself';
 
 function main(argv) {
   const [cmd, dir] = argv;
   if (cmd === 'link') {
     const r = link(path.resolve(dir ?? process.cwd()));
-    console.log(r.here ? `assets link: ${HERE}` : `assets link: ${r.linked} linked from ${r.main}`);
+    console.log(r.here ? `assets link: ${IN_MAIN}` : `assets link: ${r.linked} linked from ${r.main}`);
     return 0;
   }
   if (cmd === 'sync' && dir) {
     const r = sync(path.resolve(dir));
     const left = r.clashes.length ? `; ${r.clashes.length} left, the main checkout holding other bytes: ${r.clashes.join(', ')}` : '';
-    console.log(r.here ? `assets sync: ${HERE}` : `assets sync: ${r.fresh.length} copied into ${r.main}${left}`);
+    console.log(r.here ? `assets sync: ${IN_MAIN}` : `assets sync: ${r.fresh.length} copied into ${r.main}${left}`);
     return 0;
   }
   console.error('usage: node tools/assets.mjs link [<worktree>] | sync <worktree>');

@@ -178,9 +178,11 @@ else
     # line is printed, not trailed: a shot the main checkout holds with other bytes
     # stays the main checkout's, and the owner sees which went with the worktree.
     if [ "$DRY" = 1 ]; then
-        printf 'would: %s\n' "node ${MAIN}/tools/assets.mjs sync ${WT}"
+        run node "$MAIN/tools/assets.mjs" sync "$WT"
     else
-        SYNC=$(node "$MAIN/tools/assets.mjs" sync "$WT") || fail worktree
+        mkdir -p "$(dirname "$TRAIL")"
+        SYNC=$(node "$MAIN/tools/assets.mjs" sync "$WT" 2>>"$TRAIL") || fail worktree
+        printf '%s\n' "$SYNC" >>"$TRAIL"
         say worktree "${SYNC#assets }"
     fi
     if ! run git -C "$MAIN" worktree remove --force "$WT"; then fail worktree; fi

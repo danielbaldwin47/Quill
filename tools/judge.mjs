@@ -34,8 +34,8 @@
 // minutes) and takes one critic's worth this way; it also means a rebuild of the binary can only
 // corrupt a run during the minute the shots take, not the quarter-hour after.
 //
-// THE SAME PIXELS ARE NOT JUDGED TWICE. A state whose shot of ours and whose opponent are, byte for
-// byte, what an earlier round's critic was shown carries that round's verdict forward — the latest
+// THE SAME PIXELS ARE NOT JUDGED TWICE. A state whose shot of ours and whose opponent hash to what
+// an earlier round's critic was shown (`carriedFrom`) carries that round's verdict forward — the latest
 // such round, whatever was judged in between — marked `carried`. Forty-three of the hundred-odd blind verdicts on disk by 2026-09-01 were on pixels
 // identical to the round before — every focus round from r3 to r5, most of markup r4 to r9 — and
 // one of them (caret r10) turned a won state into a lost one on no new evidence. `--fresh` asks
@@ -124,8 +124,11 @@ const BUILD_OUTPUT_MAX = 32 * 1024 * 1024;
 // `fingerprint.mjs`, which is where "which build is this?" is answered for the shots on the other
 // side of the pair too.
 export function build(root) {
-  return { git: gitHead(root), binary: sha256(fs.readFileSync(path.join(root, BINARY))).slice(0, 16) };
+  return { git: gitHead(root), binary: shortHash(fs.readFileSync(path.join(root, BINARY))) };
 }
+
+// Bytes as a round file records them: the first 16 hex of their sha256.
+const shortHash = (bytes) => sha256(bytes).slice(0, 16);
 
 // ---------- the command line ours is opened with ----------
 
@@ -698,11 +701,10 @@ export async function shootState(stage, root, s, settingsFile, cut, paths, { act
 // copies from the round it carries, everything but the paths that name this round's own files.
 export const VERDICT_KEYS = ['blind', 'oursWas', 'pick', 'winner', 'margin', 'sameViewport', 'gap', 'gapTheirs', 'verdict', 'secondary'];
 
-// A shot's bytes as the round file records them: the first 16 hex of their sha256, as `build`
-// records the binary's.
+// A shot's `shortHash`, or null when the file is not there.
 export function shotHash(root, file) {
   try {
-    return sha256(fs.readFileSync(path.join(root, file))).slice(0, 16);
+    return shortHash(fs.readFileSync(path.join(root, file)));
   } catch {
     return null;
   }
@@ -719,11 +721,11 @@ export function shotHash(root, file) {
 export function carriedFrom(root, recorded, name, oursFile, theirsFile) {
   const now = { ours: shotHash(root, oursFile), theirs: shotHash(root, theirsFile) };
   if (!now.ours || !now.theirs) return null;
-  const same = (hash, file, side) => (hash ? hash === now[side] : shotHash(root, file) === now[side]);
+  const same = (hash, file, want) => (hash ?? shotHash(root, file)) === want;
   for (const r of [...recorded].reverse()) {
     const s = (r.states || []).find((x) => x.name === name);
     if (!s || !s.pick || !s.ours || !s.theirs) continue;
-    if (!same(s.oursHash, s.ours, 'ours') || !same(s.theirsHash, s.theirs, 'theirs')) continue;
+    if (!same(s.oursHash, s.ours, now.ours) || !same(s.theirsHash, s.theirs, now.theirs)) continue;
     return { round: s.carried ?? r.round, state: s };
   }
   return null;

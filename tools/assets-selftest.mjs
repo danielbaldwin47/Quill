@@ -19,7 +19,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { compare, isEvidence, link, replaceFile, sync } from './assets.mjs';
+import { isEvidence, link, replaceFile, sync, unsynced } from './assets.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -119,14 +119,24 @@ try {
     assert.deepEqual(fs.readdirSync(dir).filter((f) => f.endsWith('.tmp')), [], 'no temporary file is left');
   });
 
+  ok('a replaceFile that fails leaves no temporary file behind', () => {
+    const dir = path.join(wt, 'dev/shots/chrome/a-directory.png');
+    fs.mkdirSync(path.join(dir, 'inside'), { recursive: true });
+    assert.throws(() => replaceFile(dir, 'bytes'), 'renaming a file over a directory that is not empty fails');
+    assert.deepEqual(fs.readdirSync(path.dirname(dir)).filter((f) => f.endsWith('.tmp')), []);
+    assert.ok(!isEvidence(`${path.relative(wt, dir)}.${process.pid}.tmp`), 'and one a crash left would not be evidence');
+    fs.rmSync(dir, { recursive: true });
+  });
+
   ok('sync copies only what is new, and names a clash on its line', () => {
     put(wt, 'dev/shots/chrome/r2-bars-ours.png', 'round two');
     const clash = 'dev/shots/chrome/r1-bars-ours.png';
-    assert.deepEqual(compare(wt).clashes, [clash]);
-    assert.deepEqual(compare(wt).fresh, ['dev/shots/chrome/r2-bars-ours.png']);
+    const { fresh, clashes } = unsynced(wt);
+    assert.deepEqual(clashes, [clash]);
+    assert.deepEqual(fresh, ['dev/shots/chrome/r2-bars-ours.png']);
     const run = spawnSync('node', [path.join(ROOT, 'tools/assets.mjs'), 'sync', wt], { encoding: 'utf8' });
     assert.equal(run.status, 0);
-    assert.ok(run.stdout.startsWith('assets sync: 1 copied'), run.stdout);
+    assert.ok(run.stdout.startsWith(`assets sync: ${fresh.length} copied`), run.stdout);
     assert.ok(run.stdout.trimEnd().endsWith(clash), `the line does not name the clash: ${run.stdout}`);
     assert.equal(fs.readFileSync(path.join(main, 'dev/shots/chrome/r2-bars-ours.png'), 'utf8'), 'round two');
     assert.equal(fs.readFileSync(path.join(main, clash), 'utf8'), 'round one', 'the main checkout keeps its own');
