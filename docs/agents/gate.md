@@ -103,6 +103,17 @@ workspace 5 for the run and puts back what was there, refuses before it shows an
 rather than a Gate condition — the panel is fractional-scale, so every line it prints says so, its
 results are marked informational inside and named `bench-panel-<regime>-<stamp>.json`, a run of
 several also writes `panel-summary-<stamp>.json`, and `judge latency` refuses one it is handed.
+A launch paints frames of its own for about 2.7 s after `exec`, and a key inside the same refresh as
+one waits a whole refresh (16.25 ms on an unchanged build, #489), so `--measure` says on stdout when
+that work is over, in two lines ([#495](https://github.com/danielbaldwin47/Quill/issues/495)).
+`launch settled` is the window's own launch work done (`Window::launching`: the caret's reveal, the
+Annotators' first pass, the Preview's first layout); the warm-up starts there, because a key typed
+during the Annotators' first pass throws the pass away and it is redone on key 0. `launch quiet` is
+GTK's overlay scrollbar indicator hidden too; the warm-up is topped up with letter-and-Backspace
+pairs until it, and a regime whose first measured key still went before it is refused. Work a
+change arms at launch that paints — a timer, a pass, a first render — goes into `launching`, or it
+reads as a spike in the first measured keys and nowhere else. One uinput keyboard types the whole
+run, made while the stage warms.
 Results land in `dev/shots/latency/` with the environment fingerprint `tools/fingerprint.mjs` records, and the run prints the summary lines that go on the ticket and nothing else. The bench runs
 ours `--deterministic` (`tools/bench.mjs`), so the caret's blink and glide never run in a latency
 measurement, and no animation is a bench number's cause (#345 was filed on the blink and falsified
