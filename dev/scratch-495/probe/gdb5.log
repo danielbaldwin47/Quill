@@ -1,0 +1,5 @@
+Function "gtk_widget_set_opacity" not defined.
+Breakpoint 1 (gtk_widget_set_opacity) pending.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/usr/lib/libthread_db.so.1".
+=== set_opacity at 0.214 s: GtkDrawingArea (parent -) -> 0.00

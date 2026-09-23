@@ -1,0 +1,2854 @@
+246913565351 exec_us 246913400241
+246913585687 f 0
+246913585701 frame 0 total 246913585.69 update -1.00 layout 9.52 paint 0.01
+246913585709 stall 20.34
+246913588434 f 1
+246913588445 frame 1 total 2.56 update 2.55 layout 1.71 paint 0.00
+246913604556 f 2
+246913619750 f 3
+246913631029 settle title 0.00 stats 0.38
+246913636591 f 4
+246913652416 f 5
+246913675951 settle title 0.00 stats 0.38
+246913676355 f 6
+246913721455 settle title 0.00 stats 0.38
+246913722037 f 7
+246913766646 settle title 0.00 stats 0.38
+246913767130 f 8
+246913811726 settle title 0.00 stats 0.38
+246913812330 f 9
+246913857229 settle title 0.00 stats 0.38
+246913857580 f 10
+246913902310 settle title 0.00 stats 0.38
+246913902615 f 11
+246913947486 settle title 0.00 stats 0.38
+246913948290 f 12
+246913992627 settle title 0.00 stats 0.38
+246913992975 f 13
+246914037748 settle title 0.00 stats 0.38
+246914038090 f 14
+246914082889 settle title 0.00 stats 0.38
+246914083126 f 15
+246914128058 settle title 0.00 stats 0.38
+246914128324 f 16
+246914173278 settle title 0.00 stats 0.38
+246914173652 f 17
+246914218272 settle title 0.00 stats 0.38
+246914218576 f 18
+246914263483 settle title 0.00 stats 0.38
+246914263866 f 19
+246914308579 settle title 0.00 stats 0.38
+246914308836 f 20
+246914353954 settle title 0.00 stats 0.38
+246914354291 f 21
+246914399108 settle title 0.00 stats 0.38
+246914399401 f 22
+246914444280 settle title 0.00 stats 0.38
+246914444673 f 23
+246914489288 settle title 0.00 stats 0.38
+246914489626 f 24
+246914534411 settle title 0.00 stats 0.38
+246914534803 f 25
+246914579660 settle title 0.00 stats 0.38
+246914580055 f 26
+246914624744 settle title 0.00 stats 0.38
+246914624994 f 27
+246914669960 settle title 0.00 stats 0.38
+246914670293 f 28
+246914714889 settle title 0.00 stats 0.38
+246914715148 f 29
+246915214953 settle title 0.00 stats 1.00
+246915215374 f 30
+246915215384 recount+
+246915215896 recount-
+246915216294 f 31
+246915368804 settle title 0.00 stats 0.38
+246915369614 f 32
+246915370031 f 33
+246915385734 f 34
+246915401842 f 35
+246915458479 settle title 0.00 stats 0.38
+246915459092 f 36
+246915548646 settle title 0.00 stats 0.38
+246915549236 f 37
+246915638836 settle title 0.00 stats 0.38
+246915639367 f 38
+246915729062 settle title 0.00 stats 0.38
+246915729594 f 39
+246915819566 settle title 0.00 stats 0.38
+246915820110 f 40
+246915909890 settle title 0.00 stats 0.38
+246915910471 f 41
+246915999973 settle title 0.00 stats 0.38
+246916000560 f 42
+246916077195 opacity GtkScrollbar vertical.right.overlay-indicator (parent GtkScrolledWindow, GtkOverlay) -> 0.00
+246916077254 f 43
+246916090106 settle title 0.00 stats 0.38
+246916102395 f 44
+246916180588 settle title 0.00 stats 0.38
+246916181158 f 45
+246916270614 settle title 0.00 stats 0.38
+246916271202 f 46
+246916360787 settle title 0.00 stats 0.38
+246916361345 f 47
+246916450946 settle title 0.00 stats 0.38
+246916451527 f 48
+246916540881 settle title 0.00 stats 0.38
+246916541280 f 49
+246916631109 settle title 0.00 stats 0.38
+246916631521 f 50
+246916721254 settle title 0.00 stats 0.38
+246916721628 f 51
+246916811489 settle title 0.00 stats 0.38
+246916811966 f 52
+246916901636 settle title 0.00 stats 0.38
+246916902061 f 53
+246916991818 settle title 0.00 stats 0.38
+246916992247 f 54
+246917082034 settle title 0.00 stats 0.38
+246917082589 f 55
+246917172236 settle title 0.00 stats 0.38
+246917172806 f 56
+246917262292 settle title 0.00 stats 0.38
+246917262706 f 57
+246917352355 settle title 0.00 stats 0.38
+246917352693 f 58
+246917442547 settle title 0.00 stats 0.38
+246917442937 f 59
+246917532752 settle title 0.00 stats 0.38
+246917533155 f 60
+246918032808 settle title 0.00 stats 1.00
+246918033233 f 61
+246918033243 recount+
+246918033756 recount-
+246918034251 f 62
+246918931928 settle title 0.00 stats 1.00
+246918932012 settle title 0.00 stats 1.00
+246918932017 settle title 0.00 stats 1.00
+246918932021 settle title 0.00 stats 1.00
+246918932025 settle title 0.00 stats 1.00
+246918932029 settle title 0.00 stats 1.00
+246918932033 settle title 0.00 stats 1.00
+246918932038 settle title 0.00 stats 1.00
+246918932042 settle title 0.00 stats 1.00
+246918932046 settle title 0.00 stats 1.00
+246918932062 settle title 0.00 stats 1.00
+246918932067 settle title 0.00 stats 1.00
+246918932071 settle title 0.00 stats 1.00
+246918932075 settle title 0.00 stats 1.00
+246918932079 settle title 0.00 stats 1.00
+246918932084 settle title 0.00 stats 1.00
+246918932089 settle title 0.00 stats 1.00
+246918932093 settle title 0.00 stats 1.00
+246918932097 settle title 0.00 stats 1.00
+246918932101 settle title 0.00 stats 1.00
+246918932106 settle title 0.00 stats 1.00
+246918932110 settle title 0.00 stats 1.00
+246918932114 settle title 0.00 stats 1.00
+246918932118 settle title 0.00 stats 1.00
+246918932123 settle title 0.00 stats 1.00
+246918932127 settle title 0.00 stats 1.00
+246918932131 settle title 0.00 stats 1.00
+246918932135 settle title 0.00 stats 1.00
+246918932140 settle title 0.00 stats 1.00
+246918932144 settle title 0.00 stats 1.00
+246918932148 settle title 0.00 stats 1.00
+246918932153 settle title 0.00 stats 1.00
+246918932157 settle title 0.00 stats 1.00
+246918932161 settle title 0.00 stats 1.00
+246918932165 settle title 0.00 stats 1.00
+246918932170 settle title 0.00 stats 1.00
+246918932174 settle title 0.00 stats 1.00
+246918932178 settle title 0.00 stats 1.00
+246918932182 settle title 0.00 stats 1.00
+246918932187 settle title 0.00 stats 1.00
+246918932191 settle title 0.00 stats 1.00
+246918932195 settle title 0.00 stats 1.00
+246918932200 settle title 0.00 stats 1.00
+246918932204 settle title 0.00 stats 1.00
+246918932208 settle title 0.00 stats 1.00
+246918932212 settle title 0.00 stats 1.00
+246918932217 settle title 0.00 stats 1.00
+246918932221 settle title 0.00 stats 1.00
+246918932225 settle title 0.00 stats 1.00
+246918932229 settle title 0.00 stats 1.00
+246918932234 settle title 0.00 stats 1.00
+246918932238 settle title 0.00 stats 1.00
+246918932242 settle title 0.00 stats 1.00
+246918932246 settle title 0.00 stats 1.00
+246918932251 settle title 0.00 stats 1.00
+246918932255 settle title 0.00 stats 1.00
+246918932259 settle title 0.00 stats 1.00
+246918932263 settle title 0.00 stats 1.00
+246918932268 settle title 0.00 stats 1.00
+246918932272 settle title 0.00 stats 1.00
+246918932276 settle title 0.00 stats 1.00
+246918932280 settle title 0.00 stats 1.00
+246918932284 settle title 0.00 stats 1.00
+246918932289 settle title 0.00 stats 1.00
+246918932293 settle title 0.00 stats 1.00
+246918932297 settle title 0.00 stats 1.00
+246918932301 settle title 0.00 stats 1.00
+246918932306 settle title 0.00 stats 1.00
+246918932310 settle title 0.00 stats 1.00
+246918932314 settle title 0.00 stats 1.00
+246918932318 settle title 0.00 stats 1.00
+246918932322 settle title 0.00 stats 1.00
+246918932327 settle title 0.00 stats 1.00
+246918932331 settle title 0.00 stats 1.00
+246918932335 settle title 0.00 stats 1.00
+246918932339 settle title 0.00 stats 1.00
+246918932343 settle title 0.00 stats 1.00
+246918932348 settle title 0.00 stats 1.00
+246918932352 settle title 0.00 stats 1.00
+246918932356 settle title 0.00 stats 1.00
+246918932360 settle title 0.00 stats 1.00
+246918932365 settle title 0.00 stats 1.00
+246918932369 settle title 0.00 stats 1.00
+246918932373 settle title 0.00 stats 1.00
+246918932377 settle title 0.00 stats 1.00
+246918932381 settle title 0.00 stats 1.00
+246918932386 settle title 0.00 stats 1.00
+246918932390 settle title 0.00 stats 1.00
+246918932394 settle title 0.00 stats 1.00
+246918932398 settle title 0.00 stats 1.00
+246918932402 settle title 0.00 stats 1.00
+246918932410 settle title 0.00 stats 1.00
+246918932415 settle title 0.00 stats 1.00
+246918932420 settle title 0.00 stats 1.00
+246918932424 settle title 0.00 stats 1.00
+246918932428 settle title 0.00 stats 1.00
+246918932432 settle title 0.00 stats 1.00
+246918932436 settle title 0.00 stats 1.00
+246918932441 settle title 0.00 stats 1.00
+246918932445 settle title 0.00 stats 1.00
+246918932449 settle title 0.00 stats 1.00
+246918932453 settle title 0.00 stats 1.00
+246918932458 settle title 0.00 stats 1.00
+246918932462 settle title 0.00 stats 1.00
+246918932466 settle title 0.00 stats 1.00
+246918932470 settle title 0.00 stats 1.00
+246918932475 settle title 0.00 stats 1.00
+246918932482 settle title 0.00 stats 1.00
+246918932486 settle title 0.00 stats 1.00
+246918932490 settle title 0.00 stats 1.00
+246918932494 settle title 0.00 stats 1.00
+246918932498 settle title 0.00 stats 1.00
+246918932503 settle title 0.00 stats 1.00
+246918932507 settle title 0.00 stats 1.00
+246918932511 settle title 0.00 stats 1.00
+246918932515 settle title 0.00 stats 1.00
+246918932519 settle title 0.00 stats 1.00
+246918932523 settle title 0.00 stats 1.00
+246918932528 settle title 0.00 stats 1.00
+246918932532 settle title 0.00 stats 1.00
+246918932536 settle title 0.00 stats 1.00
+246918932540 settle title 0.00 stats 1.00
+246918932544 settle title 0.00 stats 1.00
+246918932549 settle title 0.00 stats 1.00
+246918932553 settle title 0.00 stats 1.00
+246918932557 settle title 0.00 stats 1.00
+246918932561 settle title 0.00 stats 1.00
+246918932565 settle title 0.00 stats 1.00
+246918932570 settle title 0.00 stats 1.00
+246918932574 settle title 0.00 stats 1.00
+246918932578 settle title 0.00 stats 1.00
+246918932582 settle title 0.00 stats 1.00
+246918932586 settle title 0.00 stats 1.00
+246918932591 settle title 0.00 stats 1.00
+246918932595 settle title 0.00 stats 1.00
+246918932599 settle title 0.00 stats 1.00
+246918932603 settle title 0.00 stats 1.00
+246918932607 settle title 0.00 stats 1.00
+246918932612 settle title 0.00 stats 1.00
+246918932616 settle title 0.00 stats 1.00
+246918932620 settle title 0.00 stats 1.00
+246918932624 settle title 0.00 stats 1.00
+246918932628 settle title 0.00 stats 1.00
+246918932632 settle title 0.00 stats 1.00
+246918932637 settle title 0.00 stats 1.00
+246918932641 settle title 0.00 stats 1.00
+246918932645 settle title 0.00 stats 1.00
+246918932649 settle title 0.00 stats 1.00
+246918932653 settle title 0.00 stats 1.00
+246918932658 settle title 0.00 stats 1.00
+246918932662 settle title 0.00 stats 1.00
+246918932666 settle title 0.00 stats 1.00
+246918932670 settle title 0.00 stats 1.00
+246918932674 settle title 0.00 stats 1.00
+246918932679 settle title 0.00 stats 1.00
+246918932683 settle title 0.00 stats 1.00
+246918932687 settle title 0.00 stats 1.00
+246918932691 settle title 0.00 stats 1.00
+246918932695 settle title 0.00 stats 1.00
+246918932699 settle title 0.00 stats 1.00
+246918932704 settle title 0.00 stats 1.00
+246918932708 settle title 0.00 stats 1.00
+246918932712 settle title 0.00 stats 1.00
+246918932716 settle title 0.00 stats 1.00
+246918932720 settle title 0.00 stats 1.00
+246918932725 settle title 0.00 stats 1.00
+246918932729 settle title 0.00 stats 1.00
+246918932733 settle title 0.00 stats 1.00
+246918932737 settle title 0.00 stats 1.00
+246918932741 settle title 0.00 stats 1.00
+246918932745 settle title 0.00 stats 1.00
+246918932750 settle title 0.00 stats 1.00
+246918932754 settle title 1.00 stats 1.00
+246918933550 f 63
+246918934861 f 64
+246919237916 settle title 0.00 stats 0.38
+246919238911 f 65
+246919240288 f 66
+246919328375 settle title 0.00 stats 0.38
+246919329077 f 67
+246919418464 settle title 0.00 stats 0.38
+246919419197 f 68
+246919508791 settle title 0.00 stats 0.38
+246919509352 f 69
+246919599064 settle title 0.00 stats 0.38
+246919599496 f 70
+246919689292 settle title 0.00 stats 0.38
+246919689857 f 71
+246919779676 settle title 0.00 stats 0.38
+246919780244 f 72
+246919869818 settle title 0.00 stats 0.38
+246919870437 f 73
+246919959944 settle title 0.00 stats 0.38
+246919960389 f 74
+246920050412 settle title 0.00 stats 0.38
+246920050983 f 75
+246920140494 settle title 0.00 stats 0.38
+246920141087 f 76
+246920230641 settle title 0.00 stats 0.38
+246920231244 f 77
+246920232894 f 78
+246920254691 f 79
+246920320745 settle title 0.00 stats 0.38
+246920321243 f 80
+246920411043 settle title 0.00 stats 0.38
+246920411431 f 81
+246920501541 settle title 0.00 stats 0.38
+246920502108 f 82
+246920504348 f 83
+246920521430 f 84
+246920591562 settle title 0.00 stats 0.38
+246920592204 f 85
+246920594995 f 86
+246920611648 f 87
+246920681700 settle title 0.00 stats 0.38
+246920682157 f 88
+246920771891 settle title 0.00 stats 0.38
+246920772380 f 89
+246920862279 settle title 0.00 stats 0.38
+246920862900 f 90
+246920952328 settle title 0.00 stats 0.38
+246920952824 f 91
+246921042529 settle title 0.00 stats 0.38
+246921042973 f 92
+246921132728 settle title 0.00 stats 0.38
+246921133106 f 93
+246921223144 settle title 0.00 stats 0.38
+246921223586 f 94
+246921313597 settle title 0.00 stats 0.38
+246921314025 f 95
+246921404003 settle title 0.00 stats 0.38
+246921404445 f 96
+246921904078 settle title 0.00 stats 1.00
+246921904656 f 97
+246921904671 recount+
+246921905401 recount-
+246921906645 f 98
+246922803190 settle title 0.00 stats 1.00
+246922803220 settle title 0.00 stats 1.00
+246922803229 settle title 0.00 stats 1.00
+246922803238 settle title 0.00 stats 1.00
+246922803246 settle title 0.00 stats 1.00
+246922803254 settle title 0.00 stats 1.00
+246922803262 settle title 0.00 stats 1.00
+246922803270 settle title 0.00 stats 1.00
+246922803278 settle title 0.00 stats 1.00
+246922803286 settle title 0.00 stats 1.00
+246922803294 settle title 0.00 stats 1.00
+246922803303 settle title 0.00 stats 1.00
+246922803311 settle title 0.00 stats 1.00
+246922803319 settle title 0.00 stats 1.00
+246922803327 settle title 0.00 stats 1.00
+246922803335 settle title 0.00 stats 1.00
+246922803343 settle title 0.00 stats 1.00
+246922803351 settle title 0.00 stats 1.00
+246922803359 settle title 0.00 stats 1.00
+246922803367 settle title 0.00 stats 1.00
+246922803375 settle title 0.00 stats 1.00
+246922803382 settle title 0.00 stats 1.00
+246922803390 settle title 0.00 stats 1.00
+246922803399 settle title 0.00 stats 1.00
+246922803406 settle title 0.00 stats 1.00
+246922803415 settle title 0.00 stats 1.00
+246922803423 settle title 0.00 stats 1.00
+246922803431 settle title 0.00 stats 1.00
+246922803439 settle title 0.00 stats 1.00
+246922803446 settle title 0.00 stats 1.00
+246922803454 settle title 0.00 stats 1.00
+246922803462 settle title 0.00 stats 1.00
+246922803470 settle title 0.00 stats 1.00
+246922803478 settle title 0.00 stats 1.00
+246922803486 settle title 0.00 stats 1.00
+246922803494 settle title 0.00 stats 1.00
+246922803502 settle title 0.00 stats 1.00
+246922803510 settle title 0.00 stats 1.00
+246922803518 settle title 0.00 stats 1.00
+246922803526 settle title 0.00 stats 1.00
+246922803534 settle title 0.00 stats 1.00
+246922803542 settle title 0.00 stats 1.00
+246922803549 settle title 0.00 stats 1.00
+246922803557 settle title 0.00 stats 1.00
+246922803565 settle title 0.00 stats 1.00
+246922803573 settle title 0.00 stats 1.00
+246922803581 settle title 0.00 stats 1.00
+246922803589 settle title 0.00 stats 1.00
+246922803597 settle title 0.00 stats 1.00
+246922803604 settle title 0.00 stats 1.00
+246922803612 settle title 0.00 stats 1.00
+246922803620 settle title 0.00 stats 1.00
+246922803628 settle title 0.00 stats 1.00
+246922803636 settle title 0.00 stats 1.00
+246922803644 settle title 0.00 stats 1.00
+246922803651 settle title 0.00 stats 1.00
+246922803659 settle title 0.00 stats 1.00
+246922803667 settle title 0.00 stats 1.00
+246922803675 settle title 0.00 stats 1.00
+246922803683 settle title 0.00 stats 1.00
+246922803691 settle title 0.00 stats 1.00
+246922803699 settle title 0.00 stats 1.00
+246922803706 settle title 0.00 stats 1.00
+246922803714 settle title 0.00 stats 1.00
+246922803722 settle title 0.00 stats 1.00
+246922803730 settle title 0.00 stats 1.00
+246922803738 settle title 0.00 stats 1.00
+246922803746 settle title 0.00 stats 1.00
+246922803754 settle title 0.00 stats 1.00
+246922803761 settle title 0.00 stats 1.00
+246922803769 settle title 0.00 stats 1.00
+246922803777 settle title 0.00 stats 1.00
+246922803785 settle title 0.00 stats 1.00
+246922803793 settle title 0.00 stats 1.00
+246922803801 settle title 0.00 stats 1.00
+246922803809 settle title 0.00 stats 1.00
+246922803816 settle title 0.00 stats 1.00
+246922803824 settle title 0.00 stats 1.00
+246922803832 settle title 0.00 stats 1.00
+246922803840 settle title 0.00 stats 1.00
+246922803849 settle title 0.00 stats 1.00
+246922803857 settle title 0.00 stats 1.00
+246922803865 settle title 0.00 stats 1.00
+246922803873 settle title 0.00 stats 1.00
+246922803880 settle title 0.00 stats 1.00
+246922803888 settle title 0.00 stats 1.00
+246922803896 settle title 0.00 stats 1.00
+246922803919 settle title 0.00 stats 1.00
+246922803927 settle title 0.00 stats 1.00
+246922803935 settle title 0.00 stats 1.00
+246922803943 settle title 0.00 stats 1.00
+246922803950 settle title 0.00 stats 1.00
+246922803958 settle title 0.00 stats 1.00
+246922803966 settle title 0.00 stats 1.00
+246922803974 settle title 0.00 stats 1.00
+246922803982 settle title 0.00 stats 1.00
+246922803990 settle title 0.00 stats 1.00
+246922803997 settle title 0.00 stats 1.00
+246922804010 settle title 1.00 stats 1.00
+246922804804 f 99
+246922806466 f 100
+246923109763 settle title 0.00 stats 0.38
+246923110766 f 101
+246923112250 f 102
+246923199596 settle title 0.00 stats 0.38
+246923200175 f 103
+246923289803 settle title 0.00 stats 0.38
+246923290322 f 104
+246923380057 settle title 0.00 stats 0.38
+246923380487 f 105
+246923470386 settle title 0.00 stats 0.38
+246923471015 f 106
+246923560507 settle title 0.00 stats 0.38
+246923561160 f 107
+246923650687 settle title 0.00 stats 0.38
+246923651143 f 108
+246923740737 settle title 0.00 stats 0.38
+246923741264 f 109
+246923830933 settle title 0.00 stats 0.38
+246923831448 f 110
+246923921315 settle title 0.00 stats 0.38
+246923921938 f 111
+246924011490 settle title 0.00 stats 0.38
+246924012181 f 112
+246924101400 settle title 0.00 stats 0.38
+246924102012 f 113
+246924191432 settle title 0.00 stats 0.38
+246924191855 f 114
+246924281609 settle title 0.00 stats 0.38
+246924282046 f 115
+246924371700 settle title 0.00 stats 0.38
+246924372104 f 116
+246924461923 settle title 0.00 stats 0.38
+246924462384 f 117
+246924552031 settle title 0.00 stats 0.38
+246924552497 f 118
+246924642256 settle title 0.00 stats 0.38
+246924642707 f 119
+246924732229 settle title 0.00 stats 0.38
+246924732616 f 120
+246924822467 settle title 0.00 stats 0.38
+246924822936 f 121
+246924912652 settle title 0.00 stats 0.38
+246924913087 f 122
+246925002924 settle title 0.00 stats 0.38
+246925003421 f 123
+246925093046 settle title 0.00 stats 0.38
+246925093523 f 124
+246925183259 settle title 0.00 stats 0.38
+246925183750 f 125
+246925273391 settle title 0.00 stats 0.38
+246925273853 f 126
+246925773466 settle title 0.00 stats 1.00
+246925773914 f 127
+246925773923 recount+
+246925774444 recount-
+246925775540 f 128
+246926672550 settle title 0.00 stats 1.00
+246926672571 settle title 0.00 stats 1.00
+246926672576 settle title 0.00 stats 1.00
+246926672580 settle title 0.00 stats 1.00
+246926672585 settle title 0.00 stats 1.00
+246926672590 settle title 0.00 stats 1.00
+246926672594 settle title 0.00 stats 1.00
+246926672598 settle title 0.00 stats 1.00
+246926672603 settle title 0.00 stats 1.00
+246926672607 settle title 0.00 stats 1.00
+246926672611 settle title 0.00 stats 1.00
+246926672615 settle title 0.00 stats 1.00
+246926672619 settle title 0.00 stats 1.00
+246926672624 settle title 0.00 stats 1.00
+246926672629 settle title 0.00 stats 1.00
+246926672633 settle title 0.00 stats 1.00
+246926672638 settle title 0.00 stats 1.00
+246926672642 settle title 0.00 stats 1.00
+246926672646 settle title 0.00 stats 1.00
+246926672650 settle title 0.00 stats 1.00
+246926672654 settle title 0.00 stats 1.00
+246926672659 settle title 0.00 stats 1.00
+246926672663 settle title 0.00 stats 1.00
+246926672667 settle title 0.00 stats 1.00
+246926672671 settle title 0.00 stats 1.00
+246926672676 settle title 0.00 stats 1.00
+246926672680 settle title 0.00 stats 1.00
+246926672684 settle title 0.00 stats 1.00
+246926672688 settle title 0.00 stats 1.00
+246926672692 settle title 0.00 stats 1.00
+246926672697 settle title 0.00 stats 1.00
+246926672701 settle title 0.00 stats 1.00
+246926672705 settle title 0.00 stats 1.00
+246926672709 settle title 0.00 stats 1.00
+246926672718 settle title 0.00 stats 1.00
+246926672722 settle title 0.00 stats 1.00
+246926672726 settle title 0.00 stats 1.00
+246926672730 settle title 0.00 stats 1.00
+246926672735 settle title 0.00 stats 1.00
+246926672739 settle title 0.00 stats 1.00
+246926672743 settle title 0.00 stats 1.00
+246926672747 settle title 0.00 stats 1.00
+246926672751 settle title 0.00 stats 1.00
+246926672756 settle title 0.00 stats 1.00
+246926672760 settle title 0.00 stats 1.00
+246926672772 settle title 0.00 stats 1.00
+246926672777 settle title 0.00 stats 1.00
+246926672781 settle title 0.00 stats 1.00
+246926672785 settle title 0.00 stats 1.00
+246926672789 settle title 0.00 stats 1.00
+246926672793 settle title 0.00 stats 1.00
+246926672798 settle title 0.00 stats 1.00
+246926672802 settle title 0.00 stats 1.00
+246926672806 settle title 0.00 stats 1.00
+246926672810 settle title 0.00 stats 1.00
+246926672814 settle title 0.00 stats 1.00
+246926672819 settle title 0.00 stats 1.00
+246926672824 settle title 0.00 stats 1.00
+246926672828 settle title 0.00 stats 1.00
+246926672832 settle title 0.00 stats 1.00
+246926672836 settle title 0.00 stats 1.00
+246926672840 settle title 0.00 stats 1.00
+246926672845 settle title 0.00 stats 1.00
+246926672849 settle title 0.00 stats 1.00
+246926672853 settle title 0.00 stats 1.00
+246926672857 settle title 0.00 stats 1.00
+246926672861 settle title 0.00 stats 1.00
+246926672865 settle title 0.00 stats 1.00
+246926672870 settle title 0.00 stats 1.00
+246926672874 settle title 0.00 stats 1.00
+246926672878 settle title 0.00 stats 1.00
+246926672882 settle title 0.00 stats 1.00
+246926672886 settle title 0.00 stats 1.00
+246926672890 settle title 0.00 stats 1.00
+246926672895 settle title 0.00 stats 1.00
+246926672899 settle title 0.00 stats 1.00
+246926672903 settle title 0.00 stats 1.00
+246926672907 settle title 0.00 stats 1.00
+246926672911 settle title 0.00 stats 1.00
+246926672916 settle title 0.00 stats 1.00
+246926672920 settle title 0.00 stats 1.00
+246926672924 settle title 0.00 stats 1.00
+246926672928 settle title 0.00 stats 1.00
+246926672932 settle title 0.00 stats 1.00
+246926672936 settle title 0.00 stats 1.00
+246926672941 settle title 0.00 stats 1.00
+246926672945 settle title 0.00 stats 1.00
+246926672949 settle title 0.00 stats 1.00
+246926672953 settle title 0.00 stats 1.00
+246926672957 settle title 0.00 stats 1.00
+246926672962 settle title 0.00 stats 1.00
+246926672966 settle title 0.00 stats 1.00
+246926672970 settle title 0.00 stats 1.00
+246926672974 settle title 0.00 stats 1.00
+246926672979 settle title 0.00 stats 1.00
+246926672983 settle title 0.00 stats 1.00
+246926672987 settle title 0.00 stats 1.00
+246926672991 settle title 0.00 stats 1.00
+246926672995 settle title 0.00 stats 1.00
+246926672999 settle title 0.00 stats 1.00
+246926673006 settle title 0.00 stats 1.00
+246926673011 settle title 0.00 stats 1.00
+246926673015 settle title 0.00 stats 1.00
+246926673019 settle title 0.00 stats 1.00
+246926673023 settle title 0.00 stats 1.00
+246926673027 settle title 0.00 stats 1.00
+246926673031 settle title 0.00 stats 1.00
+246926673036 settle title 0.00 stats 1.00
+246926673040 settle title 0.00 stats 1.00
+246926673044 settle title 0.00 stats 1.00
+246926673048 settle title 0.00 stats 1.00
+246926673052 settle title 0.00 stats 1.00
+246926673057 settle title 0.00 stats 1.00
+246926673061 settle title 0.00 stats 1.00
+246926673065 settle title 0.00 stats 1.00
+246926673069 settle title 0.00 stats 1.00
+246926673073 settle title 0.00 stats 1.00
+246926673078 settle title 0.00 stats 1.00
+246926673082 settle title 0.00 stats 1.00
+246926673086 settle title 0.00 stats 1.00
+246926673090 settle title 0.00 stats 1.00
+246926673094 settle title 0.00 stats 1.00
+246926673099 settle title 0.00 stats 1.00
+246926673103 settle title 0.00 stats 1.00
+246926673107 settle title 0.00 stats 1.00
+246926673111 settle title 0.00 stats 1.00
+246926673115 settle title 0.00 stats 1.00
+246926673120 settle title 0.00 stats 1.00
+246926673124 settle title 0.00 stats 1.00
+246926673128 settle title 0.00 stats 1.00
+246926673132 settle title 0.00 stats 1.00
+246926673136 settle title 0.00 stats 1.00
+246926673141 settle title 0.00 stats 1.00
+246926673145 settle title 0.00 stats 1.00
+246926673149 settle title 0.00 stats 1.00
+246926673153 settle title 0.00 stats 1.00
+246926673157 settle title 0.00 stats 1.00
+246926673162 settle title 0.00 stats 1.00
+246926673166 settle title 0.00 stats 1.00
+246926673170 settle title 0.00 stats 1.00
+246926673174 settle title 0.00 stats 1.00
+246926673178 settle title 0.00 stats 1.00
+246926673184 settle title 0.00 stats 1.00
+246926673189 settle title 0.00 stats 1.00
+246926673193 settle title 0.00 stats 1.00
+246926673197 settle title 0.00 stats 1.00
+246926673201 settle title 0.00 stats 1.00
+246926673205 settle title 0.00 stats 1.00
+246926673210 settle title 0.00 stats 1.00
+246926673214 settle title 0.00 stats 1.00
+246926673218 settle title 0.00 stats 1.00
+246926673222 settle title 0.00 stats 1.00
+246926673226 settle title 0.00 stats 1.00
+246926673231 settle title 0.00 stats 1.00
+246926673235 settle title 0.00 stats 1.00
+246926673239 settle title 0.00 stats 1.00
+246926673243 settle title 0.00 stats 1.00
+246926673247 settle title 0.00 stats 1.00
+246926673252 settle title 0.00 stats 1.00
+246926673256 settle title 0.00 stats 1.00
+246926673260 settle title 0.00 stats 1.00
+246926673264 settle title 0.00 stats 1.00
+246926673268 settle title 0.00 stats 1.00
+246926673272 settle title 0.00 stats 1.00
+246926673277 settle title 0.00 stats 1.00
+246926673281 settle title 0.00 stats 1.00
+246926673285 settle title 0.00 stats 1.00
+246926673289 settle title 0.00 stats 1.00
+246926673293 settle title 0.00 stats 1.00
+246926673298 settle title 0.00 stats 1.00
+246926673302 settle title 0.00 stats 1.00
+246926673306 settle title 0.00 stats 1.00
+246926673310 settle title 0.00 stats 1.00
+246926673314 settle title 0.00 stats 1.00
+246926673319 settle title 0.00 stats 1.00
+246926673323 settle title 0.00 stats 1.00
+246926673327 settle title 0.00 stats 1.00
+246926673331 settle title 0.00 stats 1.00
+246926673335 settle title 0.00 stats 1.00
+246926673340 settle title 0.00 stats 1.00
+246926673344 settle title 0.00 stats 1.00
+246926673348 settle title 0.00 stats 1.00
+246926673352 settle title 0.00 stats 1.00
+246926673356 settle title 0.00 stats 1.00
+246926673360 settle title 0.00 stats 1.00
+246926673365 settle title 0.00 stats 1.00
+246926673369 settle title 0.00 stats 1.00
+246926673373 settle title 0.00 stats 1.00
+246926673377 settle title 0.00 stats 1.00
+246926673381 settle title 0.00 stats 1.00
+246926673385 settle title 0.00 stats 1.00
+246926673390 settle title 1.00 stats 1.00
+246926673895 f 129
+246926675579 f 130
+246926978083 settle title 0.00 stats 0.38
+246926978777 f 131
+246926979735 f 132
+246927068334 settle title 0.00 stats 0.38
+246927069072 f 133
+246927158448 settle title 0.00 stats 0.38
+246927159145 f 134
+246927248567 settle title 0.00 stats 0.38
+246927249162 f 135
+246927338799 settle title 0.00 stats 0.38
+246927339362 f 136
+246927428999 settle title 0.00 stats 0.38
+246927429604 f 137
+246927519248 settle title 0.00 stats 0.38
+246927519832 f 138
+246927609439 settle title 0.00 stats 0.38
+246927610056 f 139
+246927699566 settle title 0.00 stats 0.38
+246927700120 f 140
+246927789873 settle title 0.00 stats 0.38
+246927790480 f 141
+246927879951 settle title 0.00 stats 0.38
+246927880466 f 142
+246927970065 settle title 0.00 stats 0.38
+246927970549 f 143
+246928060318 settle title 0.00 stats 0.38
+246928060797 f 144
+246928150359 settle title 0.00 stats 0.38
+246928150840 f 145
+246928240501 settle title 0.00 stats 0.38
+246928240940 f 146
+246928330817 settle title 0.00 stats 0.38
+246928331466 f 147
+246928421111 settle title 0.00 stats 0.38
+246928421604 f 148
+246928511111 settle title 0.00 stats 0.38
+246928511762 f 149
+246928601233 settle title 0.00 stats 0.38
+246928601880 f 150
+246928691285 settle title 0.00 stats 0.38
+246928691776 f 151
+246928781786 settle title 0.00 stats 0.38
+246928782398 f 152
+246928871628 settle title 0.00 stats 0.38
+246928872120 f 153
+246928962083 settle title 0.00 stats 0.38
+246928962759 f 154
+246929052122 settle title 0.00 stats 0.38
+246929052580 f 155
+246929142248 settle title 0.00 stats 0.38
+246929142870 f 156
+246929642325 settle title 0.00 stats 1.00
+246929642756 f 157
+246929642767 recount+
+246929643282 recount-
+246929644338 f 158
+246930541409 settle title 0.00 stats 1.00
+246930541430 settle title 0.00 stats 1.00
+246930541435 settle title 0.00 stats 1.00
+246930541439 settle title 0.00 stats 1.00
+246930541443 settle title 0.00 stats 1.00
+246930541448 settle title 0.00 stats 1.00
+246930541452 settle title 0.00 stats 1.00
+246930541465 settle title 0.00 stats 1.00
+246930541469 settle title 0.00 stats 1.00
+246930541475 settle title 0.00 stats 1.00
+246930541479 settle title 0.00 stats 1.00
+246930541483 settle title 0.00 stats 1.00
+246930541487 settle title 0.00 stats 1.00
+246930541492 settle title 0.00 stats 1.00
+246930541496 settle title 0.00 stats 1.00
+246930541500 settle title 0.00 stats 1.00
+246930541504 settle title 0.00 stats 1.00
+246930541509 settle title 0.00 stats 1.00
+246930541513 settle title 0.00 stats 1.00
+246930541517 settle title 0.00 stats 1.00
+246930541522 settle title 0.00 stats 1.00
+246930541526 settle title 0.00 stats 1.00
+246930541530 settle title 0.00 stats 1.00
+246930541534 settle title 0.00 stats 1.00
+246930541538 settle title 0.00 stats 1.00
+246930541543 settle title 0.00 stats 1.00
+246930541547 settle title 0.00 stats 1.00
+246930541551 settle title 0.00 stats 1.00
+246930541556 settle title 0.00 stats 1.00
+246930541560 settle title 0.00 stats 1.00
+246930541564 settle title 0.00 stats 1.00
+246930541568 settle title 0.00 stats 1.00
+246930541573 settle title 0.00 stats 1.00
+246930541577 settle title 0.00 stats 1.00
+246930541581 settle title 0.00 stats 1.00
+246930541585 settle title 0.00 stats 1.00
+246930541589 settle title 0.00 stats 1.00
+246930541594 settle title 0.00 stats 1.00
+246930541598 settle title 0.00 stats 1.00
+246930541602 settle title 0.00 stats 1.00
+246930541606 settle title 0.00 stats 1.00
+246930541611 settle title 0.00 stats 1.00
+246930541615 settle title 0.00 stats 1.00
+246930541619 settle title 0.00 stats 1.00
+246930541623 settle title 0.00 stats 1.00
+246930541627 settle title 0.00 stats 1.00
+246930541632 settle title 0.00 stats 1.00
+246930541636 settle title 0.00 stats 1.00
+246930541640 settle title 0.00 stats 1.00
+246930541644 settle title 0.00 stats 1.00
+246930541648 settle title 0.00 stats 1.00
+246930541652 settle title 0.00 stats 1.00
+246930541657 settle title 0.00 stats 1.00
+246930541661 settle title 0.00 stats 1.00
+246930541665 settle title 0.00 stats 1.00
+246930541669 settle title 0.00 stats 1.00
+246930541673 settle title 0.00 stats 1.00
+246930541678 settle title 0.00 stats 1.00
+246930541682 settle title 0.00 stats 1.00
+246930541686 settle title 0.00 stats 1.00
+246930541690 settle title 0.00 stats 1.00
+246930541694 settle title 0.00 stats 1.00
+246930541699 settle title 0.00 stats 1.00
+246930541703 settle title 0.00 stats 1.00
+246930541707 settle title 0.00 stats 1.00
+246930541711 settle title 0.00 stats 1.00
+246930541716 settle title 0.00 stats 1.00
+246930541720 settle title 0.00 stats 1.00
+246930541724 settle title 0.00 stats 1.00
+246930541728 settle title 0.00 stats 1.00
+246930541732 settle title 0.00 stats 1.00
+246930541737 settle title 0.00 stats 1.00
+246930541741 settle title 0.00 stats 1.00
+246930541745 settle title 0.00 stats 1.00
+246930541749 settle title 0.00 stats 1.00
+246930541753 settle title 0.00 stats 1.00
+246930541758 settle title 0.00 stats 1.00
+246930541762 settle title 0.00 stats 1.00
+246930541766 settle title 0.00 stats 1.00
+246930541770 settle title 0.00 stats 1.00
+246930541774 settle title 0.00 stats 1.00
+246930541779 settle title 0.00 stats 1.00
+246930541783 settle title 0.00 stats 1.00
+246930541787 settle title 0.00 stats 1.00
+246930541791 settle title 0.00 stats 1.00
+246930541796 settle title 0.00 stats 1.00
+246930541800 settle title 0.00 stats 1.00
+246930541804 settle title 0.00 stats 1.00
+246930541808 settle title 0.00 stats 1.00
+246930541812 settle title 0.00 stats 1.00
+246930541817 settle title 0.00 stats 1.00
+246930541821 settle title 0.00 stats 1.00
+246930541825 settle title 0.00 stats 1.00
+246930541829 settle title 0.00 stats 1.00
+246930541834 settle title 0.00 stats 1.00
+246930541838 settle title 0.00 stats 1.00
+246930541842 settle title 0.00 stats 1.00
+246930541846 settle title 0.00 stats 1.00
+246930541850 settle title 0.00 stats 1.00
+246930541855 settle title 0.00 stats 1.00
+246930541859 settle title 0.00 stats 1.00
+246930541863 settle title 0.00 stats 1.00
+246930541867 settle title 0.00 stats 1.00
+246930541871 settle title 0.00 stats 1.00
+246930541876 settle title 0.00 stats 1.00
+246930541882 settle title 0.00 stats 1.00
+246930541886 settle title 0.00 stats 1.00
+246930541891 settle title 0.00 stats 1.00
+246930541895 settle title 0.00 stats 1.00
+246930541899 settle title 0.00 stats 1.00
+246930541903 settle title 0.00 stats 1.00
+246930541907 settle title 0.00 stats 1.00
+246930541912 settle title 0.00 stats 1.00
+246930541916 settle title 0.00 stats 1.00
+246930541920 settle title 0.00 stats 1.00
+246930541924 settle title 0.00 stats 1.00
+246930541928 settle title 0.00 stats 1.00
+246930541933 settle title 0.00 stats 1.00
+246930541937 settle title 0.00 stats 1.00
+246930541941 settle title 0.00 stats 1.00
+246930541945 settle title 0.00 stats 1.00
+246930541949 settle title 0.00 stats 1.00
+246930541954 settle title 0.00 stats 1.00
+246930541958 settle title 0.00 stats 1.00
+246930541962 settle title 0.00 stats 1.00
+246930541967 settle title 0.00 stats 1.00
+246930541971 settle title 0.00 stats 1.00
+246930541975 settle title 0.00 stats 1.00
+246930541980 settle title 0.00 stats 1.00
+246930541984 settle title 0.00 stats 1.00
+246930541988 settle title 0.00 stats 1.00
+246930541992 settle title 0.00 stats 1.00
+246930541996 settle title 0.00 stats 1.00
+246930542004 settle title 0.00 stats 1.00
+246930542009 settle title 0.00 stats 1.00
+246930542013 settle title 0.00 stats 1.00
+246930542017 settle title 0.00 stats 1.00
+246930542021 settle title 0.00 stats 1.00
+246930542026 settle title 0.00 stats 1.00
+246930542030 settle title 0.00 stats 1.00
+246930542034 settle title 0.00 stats 1.00
+246930542038 settle title 0.00 stats 1.00
+246930542042 settle title 0.00 stats 1.00
+246930542047 settle title 0.00 stats 1.00
+246930542051 settle title 0.00 stats 1.00
+246930542055 settle title 0.00 stats 1.00
+246930542059 settle title 0.00 stats 1.00
+246930542063 settle title 0.00 stats 1.00
+246930542067 settle title 0.00 stats 1.00
+246930542072 settle title 0.00 stats 1.00
+246930542076 settle title 0.00 stats 1.00
+246930542080 settle title 0.00 stats 1.00
+246930542084 settle title 0.00 stats 1.00
+246930542088 settle title 0.00 stats 1.00
+246930542092 settle title 0.00 stats 1.00
+246930542097 settle title 0.00 stats 1.00
+246930542101 settle title 0.00 stats 1.00
+246930542105 settle title 0.00 stats 1.00
+246930542109 settle title 0.00 stats 1.00
+246930542113 settle title 0.00 stats 1.00
+246930542118 settle title 0.00 stats 1.00
+246930542122 settle title 0.00 stats 1.00
+246930542126 settle title 0.00 stats 1.00
+246930542130 settle title 0.00 stats 1.00
+246930542134 settle title 0.00 stats 1.00
+246930542139 settle title 0.00 stats 1.00
+246930542143 settle title 0.00 stats 1.00
+246930542147 settle title 0.00 stats 1.00
+246930542151 settle title 0.00 stats 1.00
+246930542155 settle title 0.00 stats 1.00
+246930542160 settle title 0.00 stats 1.00
+246930542164 settle title 0.00 stats 1.00
+246930542168 settle title 0.00 stats 1.00
+246930542172 settle title 0.00 stats 1.00
+246930542176 settle title 0.00 stats 1.00
+246930542181 settle title 0.00 stats 1.00
+246930542185 settle title 0.00 stats 1.00
+246930542189 settle title 0.00 stats 1.00
+246930542193 settle title 0.00 stats 1.00
+246930542197 settle title 0.00 stats 1.00
+246930542201 settle title 0.00 stats 1.00
+246930542206 settle title 0.00 stats 1.00
+246930542210 settle title 0.00 stats 1.00
+246930542214 settle title 0.00 stats 1.00
+246930542218 settle title 0.00 stats 1.00
+246930542222 settle title 0.00 stats 1.00
+246930542226 settle title 0.00 stats 1.00
+246930542231 settle title 0.00 stats 1.00
+246930542235 settle title 0.00 stats 1.00
+246930542239 settle title 0.00 stats 1.00
+246930542243 settle title 0.00 stats 1.00
+246930542248 settle title 1.00 stats 1.00
+246930542760 f 159
+246930544307 f 160
+246930847629 settle title 0.00 stats 0.38
+246930848602 f 161
+246930849949 f 162
+246930937765 settle title 0.00 stats 0.38
+246930938318 f 163
+246931028288 settle title 0.00 stats 0.38
+246931028833 f 164
+246931030444 f 165
+246931048298 f 166
+246931118677 settle title 0.00 stats 0.38
+246931119069 f 167
+246931208814 settle title 0.00 stats 0.38
+246931209295 f 168
+246931299003 settle title 0.00 stats 0.38
+246931299471 f 169
+246931389179 settle title 0.00 stats 0.38
+246931389629 f 170
+246931479307 settle title 0.00 stats 0.38
+246931479771 f 171
+246931569767 settle title 0.00 stats 0.38
+246931570423 f 172
+246931659748 settle title 0.00 stats 0.38
+246931660426 f 173
+246931749821 settle title 0.00 stats 0.38
+246931750471 f 174
+246931839948 settle title 0.00 stats 0.38
+246931840463 f 175
+246931930207 settle title 0.00 stats 0.38
+246931930666 f 176
+246932020260 settle title 0.00 stats 0.38
+246932020716 f 177
+246932110355 settle title 0.00 stats 0.38
+246932110826 f 178
+246932200507 settle title 0.00 stats 0.38
+246932200971 f 179
+246932290663 settle title 0.00 stats 0.38
+246932291169 f 180
+246932380844 settle title 0.00 stats 0.38
+246932381305 f 181
+246932470978 settle title 0.00 stats 0.38
+246932471454 f 182
+246932561237 settle title 0.00 stats 0.38
+246932561730 f 183
+246932651360 settle title 0.00 stats 0.38
+246932651818 f 184
+246932741479 settle title 0.00 stats 0.38
+246932741988 f 185
+246932831584 settle title 0.00 stats 0.38
+246932832105 f 186
+246932921968 settle title 0.00 stats 0.38
+246932922683 f 187
+246933012064 settle title 0.00 stats 0.38
+246933012755 f 188
+246933512144 settle title 0.00 stats 1.00
+246933512581 f 189
+246933512592 recount+
+246933513111 recount-
+246933514125 f 190
+246934411233 settle title 0.00 stats 1.00
+246934411254 settle title 0.00 stats 1.00
+246934411259 settle title 0.00 stats 1.00
+246934411264 settle title 0.00 stats 1.00
+246934411268 settle title 0.00 stats 1.00
+246934411273 settle title 0.00 stats 1.00
+246934411277 settle title 0.00 stats 1.00
+246934411281 settle title 0.00 stats 1.00
+246934411285 settle title 0.00 stats 1.00
+246934411289 settle title 0.00 stats 1.00
+246934411294 settle title 0.00 stats 1.00
+246934411298 settle title 0.00 stats 1.00
+246934411302 settle title 0.00 stats 1.00
+246934411306 settle title 0.00 stats 1.00
+246934411310 settle title 0.00 stats 1.00
+246934411315 settle title 0.00 stats 1.00
+246934411320 settle title 0.00 stats 1.00
+246934411324 settle title 0.00 stats 1.00
+246934411328 settle title 0.00 stats 1.00
+246934411332 settle title 0.00 stats 1.00
+246934411336 settle title 0.00 stats 1.00
+246934411341 settle title 0.00 stats 1.00
+246934411345 settle title 0.00 stats 1.00
+246934411349 settle title 0.00 stats 1.00
+246934411354 settle title 0.00 stats 1.00
+246934411358 settle title 0.00 stats 1.00
+246934411362 settle title 0.00 stats 1.00
+246934411366 settle title 0.00 stats 1.00
+246934411371 settle title 0.00 stats 1.00
+246934411375 settle title 0.00 stats 1.00
+246934411379 settle title 0.00 stats 1.00
+246934411383 settle title 0.00 stats 1.00
+246934411388 settle title 0.00 stats 1.00
+246934411392 settle title 0.00 stats 1.00
+246934411396 settle title 0.00 stats 1.00
+246934411400 settle title 0.00 stats 1.00
+246934411405 settle title 0.00 stats 1.00
+246934411409 settle title 0.00 stats 1.00
+246934411413 settle title 0.00 stats 1.00
+246934411417 settle title 0.00 stats 1.00
+246934411421 settle title 0.00 stats 1.00
+246934411426 settle title 0.00 stats 1.00
+246934411430 settle title 0.00 stats 1.00
+246934411434 settle title 0.00 stats 1.00
+246934411438 settle title 0.00 stats 1.00
+246934411442 settle title 0.00 stats 1.00
+246934411447 settle title 0.00 stats 1.00
+246934411451 settle title 0.00 stats 1.00
+246934411455 settle title 0.00 stats 1.00
+246934411459 settle title 0.00 stats 1.00
+246934411464 settle title 0.00 stats 1.00
+246934411468 settle title 0.00 stats 1.00
+246934411472 settle title 0.00 stats 1.00
+246934411476 settle title 0.00 stats 1.00
+246934411480 settle title 0.00 stats 1.00
+246934411485 settle title 0.00 stats 1.00
+246934411489 settle title 0.00 stats 1.00
+246934411493 settle title 0.00 stats 1.00
+246934411497 settle title 0.00 stats 1.00
+246934411501 settle title 0.00 stats 1.00
+246934411505 settle title 0.00 stats 1.00
+246934411510 settle title 0.00 stats 1.00
+246934411514 settle title 0.00 stats 1.00
+246934411518 settle title 0.00 stats 1.00
+246934411522 settle title 0.00 stats 1.00
+246934411526 settle title 0.00 stats 1.00
+246934411540 settle title 0.00 stats 1.00
+246934411544 settle title 0.00 stats 1.00
+246934411549 settle title 0.00 stats 1.00
+246934411553 settle title 0.00 stats 1.00
+246934411557 settle title 0.00 stats 1.00
+246934411566 settle title 0.00 stats 1.00
+246934411571 settle title 0.00 stats 1.00
+246934411575 settle title 0.00 stats 1.00
+246934411579 settle title 0.00 stats 1.00
+246934411583 settle title 0.00 stats 1.00
+246934411587 settle title 0.00 stats 1.00
+246934411592 settle title 0.00 stats 1.00
+246934411596 settle title 0.00 stats 1.00
+246934411600 settle title 0.00 stats 1.00
+246934411604 settle title 0.00 stats 1.00
+246934411608 settle title 0.00 stats 1.00
+246934411613 settle title 0.00 stats 1.00
+246934411617 settle title 0.00 stats 1.00
+246934411621 settle title 0.00 stats 1.00
+246934411625 settle title 0.00 stats 1.00
+246934411629 settle title 0.00 stats 1.00
+246934411633 settle title 0.00 stats 1.00
+246934411638 settle title 0.00 stats 1.00
+246934411642 settle title 0.00 stats 1.00
+246934411646 settle title 0.00 stats 1.00
+246934411650 settle title 0.00 stats 1.00
+246934411654 settle title 0.00 stats 1.00
+246934411659 settle title 0.00 stats 1.00
+246934411663 settle title 0.00 stats 1.00
+246934411667 settle title 0.00 stats 1.00
+246934411671 settle title 0.00 stats 1.00
+246934411675 settle title 0.00 stats 1.00
+246934411679 settle title 0.00 stats 1.00
+246934411684 settle title 0.00 stats 1.00
+246934411688 settle title 0.00 stats 1.00
+246934411692 settle title 0.00 stats 1.00
+246934411696 settle title 0.00 stats 1.00
+246934411700 settle title 0.00 stats 1.00
+246934411705 settle title 0.00 stats 1.00
+246934411709 settle title 0.00 stats 1.00
+246934411713 settle title 0.00 stats 1.00
+246934411717 settle title 0.00 stats 1.00
+246934411721 settle title 0.00 stats 1.00
+246934411726 settle title 0.00 stats 1.00
+246934411730 settle title 0.00 stats 1.00
+246934411734 settle title 0.00 stats 1.00
+246934411738 settle title 0.00 stats 1.00
+246934411742 settle title 0.00 stats 1.00
+246934411746 settle title 0.00 stats 1.00
+246934411751 settle title 0.00 stats 1.00
+246934411755 settle title 0.00 stats 1.00
+246934411759 settle title 0.00 stats 1.00
+246934411763 settle title 0.00 stats 1.00
+246934411767 settle title 0.00 stats 1.00
+246934411772 settle title 0.00 stats 1.00
+246934411776 settle title 0.00 stats 1.00
+246934411780 settle title 0.00 stats 1.00
+246934411784 settle title 0.00 stats 1.00
+246934411788 settle title 0.00 stats 1.00
+246934411792 settle title 0.00 stats 1.00
+246934411797 settle title 0.00 stats 1.00
+246934411801 settle title 0.00 stats 1.00
+246934411805 settle title 0.00 stats 1.00
+246934411809 settle title 0.00 stats 1.00
+246934411813 settle title 0.00 stats 1.00
+246934411817 settle title 0.00 stats 1.00
+246934411822 settle title 0.00 stats 1.00
+246934411826 settle title 0.00 stats 1.00
+246934411830 settle title 0.00 stats 1.00
+246934411834 settle title 0.00 stats 1.00
+246934411838 settle title 0.00 stats 1.00
+246934411842 settle title 0.00 stats 1.00
+246934411847 settle title 0.00 stats 1.00
+246934411851 settle title 0.00 stats 1.00
+246934411855 settle title 0.00 stats 1.00
+246934411859 settle title 0.00 stats 1.00
+246934411863 settle title 0.00 stats 1.00
+246934411868 settle title 0.00 stats 1.00
+246934411872 settle title 0.00 stats 1.00
+246934411876 settle title 0.00 stats 1.00
+246934411880 settle title 0.00 stats 1.00
+246934411884 settle title 0.00 stats 1.00
+246934411889 settle title 0.00 stats 1.00
+246934411893 settle title 0.00 stats 1.00
+246934411897 settle title 0.00 stats 1.00
+246934411901 settle title 0.00 stats 1.00
+246934411905 settle title 0.00 stats 1.00
+246934411909 settle title 0.00 stats 1.00
+246934411914 settle title 0.00 stats 1.00
+246934411918 settle title 0.00 stats 1.00
+246934411922 settle title 0.00 stats 1.00
+246934411926 settle title 0.00 stats 1.00
+246934411930 settle title 0.00 stats 1.00
+246934411935 settle title 0.00 stats 1.00
+246934411939 settle title 0.00 stats 1.00
+246934411943 settle title 0.00 stats 1.00
+246934411947 settle title 0.00 stats 1.00
+246934411951 settle title 0.00 stats 1.00
+246934411958 settle title 0.00 stats 1.00
+246934411963 settle title 0.00 stats 1.00
+246934411967 settle title 0.00 stats 1.00
+246934411971 settle title 0.00 stats 1.00
+246934411975 settle title 0.00 stats 1.00
+246934411979 settle title 0.00 stats 1.00
+246934411983 settle title 0.00 stats 1.00
+246934411988 settle title 0.00 stats 1.00
+246934411992 settle title 0.00 stats 1.00
+246934411996 settle title 0.00 stats 1.00
+246934412004 settle title 0.00 stats 1.00
+246934412010 settle title 0.00 stats 1.00
+246934412016 settle title 0.00 stats 1.00
+246934412021 settle title 0.00 stats 1.00
+246934412025 settle title 0.00 stats 1.00
+246934412029 settle title 0.00 stats 1.00
+246934412033 settle title 0.00 stats 1.00
+246934412037 settle title 0.00 stats 1.00
+246934412042 settle title 0.00 stats 1.00
+246934412046 settle title 0.00 stats 1.00
+246934412050 settle title 0.00 stats 1.00
+246934412054 settle title 0.00 stats 1.00
+246934412058 settle title 0.00 stats 1.00
+246934412063 settle title 1.00 stats 1.00
+246934412572 f 191
+246934414152 f 192
+246934717043 settle title 0.00 stats 0.38
+246934717809 f 193
+246934719160 f 194
+246934807167 settle title 0.00 stats 0.38
+246934807737 f 195
+246934897611 settle title 0.00 stats 0.38
+246934898208 f 196
+246934987901 settle title 0.00 stats 0.38
+246934988396 f 197
+246935078507 settle title 0.00 stats 0.38
+246935079209 f 198
+246935168692 settle title 0.00 stats 0.38
+246935169360 f 199
+246935258707 settle title 0.00 stats 0.38
+246935259193 f 200
+246935348750 settle title 0.00 stats 0.38
+246935349193 f 201
+246935439074 settle title 0.00 stats 0.38
+246935439780 f 202
+246935529301 settle title 0.00 stats 0.38
+246935529793 f 203
+246935619233 settle title 0.00 stats 0.38
+246935619739 f 204
+246935709366 settle title 0.00 stats 0.38
+246935709839 f 205
+246935799785 settle title 0.00 stats 0.38
+246935800483 f 206
+246935889824 settle title 0.00 stats 0.38
+246935890498 f 207
+246935979915 settle title 0.00 stats 0.38
+246935980444 f 208
+246936070152 settle title 0.00 stats 0.38
+246936070876 f 209
+246936160221 settle title 0.00 stats 0.38
+246936160880 f 210
+246936250556 settle title 0.00 stats 0.38
+246936251252 f 211
+246936340545 settle title 0.00 stats 0.38
+246936341235 f 212
+246936430697 settle title 0.00 stats 0.38
+246936431227 f 213
+246936520949 settle title 0.00 stats 0.38
+246936521711 f 214
+246936611263 settle title 0.00 stats 0.38
+246936611984 f 215
+246936701236 settle title 0.00 stats 0.38
+246936701954 f 216
+246936791661 settle title 0.00 stats 0.38
+246936792408 f 217
+246936881753 settle title 0.00 stats 0.38
+246936882480 f 218
+246937381830 settle title 0.00 stats 1.00
+246937382240 f 219
+246937382250 recount+
+246937382766 recount-
+246937384104 f 220
+246938280914 settle title 0.00 stats 1.00
+246938280935 settle title 0.00 stats 1.00
+246938280944 settle title 0.00 stats 1.00
+246938280948 settle title 0.00 stats 1.00
+246938280952 settle title 0.00 stats 1.00
+246938280957 settle title 0.00 stats 1.00
+246938280961 settle title 0.00 stats 1.00
+246938280965 settle title 0.00 stats 1.00
+246938280970 settle title 0.00 stats 1.00
+246938280975 settle title 0.00 stats 1.00
+246938280979 settle title 0.00 stats 1.00
+246938280983 settle title 0.00 stats 1.00
+246938280987 settle title 0.00 stats 1.00
+246938280992 settle title 0.00 stats 1.00
+246938280996 settle title 0.00 stats 1.00
+246938281003 settle title 0.00 stats 1.00
+246938281007 settle title 0.00 stats 1.00
+246938281011 settle title 0.00 stats 1.00
+246938281016 settle title 0.00 stats 1.00
+246938281020 settle title 0.00 stats 1.00
+246938281024 settle title 0.00 stats 1.00
+246938281028 settle title 0.00 stats 1.00
+246938281033 settle title 0.00 stats 1.00
+246938281037 settle title 0.00 stats 1.00
+246938281041 settle title 0.00 stats 1.00
+246938281045 settle title 0.00 stats 1.00
+246938281049 settle title 0.00 stats 1.00
+246938281054 settle title 0.00 stats 1.00
+246938281058 settle title 0.00 stats 1.00
+246938281062 settle title 0.00 stats 1.00
+246938281067 settle title 0.00 stats 1.00
+246938281071 settle title 0.00 stats 1.00
+246938281075 settle title 0.00 stats 1.00
+246938281089 settle title 0.00 stats 1.00
+246938281093 settle title 0.00 stats 1.00
+246938281097 settle title 0.00 stats 1.00
+246938281102 settle title 0.00 stats 1.00
+246938281106 settle title 0.00 stats 1.00
+246938281110 settle title 0.00 stats 1.00
+246938281114 settle title 0.00 stats 1.00
+246938281118 settle title 0.00 stats 1.00
+246938281123 settle title 0.00 stats 1.00
+246938281127 settle title 0.00 stats 1.00
+246938281131 settle title 0.00 stats 1.00
+246938281135 settle title 0.00 stats 1.00
+246938281139 settle title 0.00 stats 1.00
+246938281144 settle title 0.00 stats 1.00
+246938281148 settle title 0.00 stats 1.00
+246938281152 settle title 0.00 stats 1.00
+246938281156 settle title 0.00 stats 1.00
+246938281160 settle title 0.00 stats 1.00
+246938281165 settle title 0.00 stats 1.00
+246938281169 settle title 0.00 stats 1.00
+246938281173 settle title 0.00 stats 1.00
+246938281177 settle title 0.00 stats 1.00
+246938281181 settle title 0.00 stats 1.00
+246938281185 settle title 0.00 stats 1.00
+246938281190 settle title 0.00 stats 1.00
+246938281194 settle title 0.00 stats 1.00
+246938281198 settle title 0.00 stats 1.00
+246938281202 settle title 0.00 stats 1.00
+246938281206 settle title 0.00 stats 1.00
+246938281211 settle title 0.00 stats 1.00
+246938281215 settle title 0.00 stats 1.00
+246938281219 settle title 0.00 stats 1.00
+246938281223 settle title 0.00 stats 1.00
+246938281227 settle title 0.00 stats 1.00
+246938281232 settle title 0.00 stats 1.00
+246938281236 settle title 0.00 stats 1.00
+246938281240 settle title 0.00 stats 1.00
+246938281244 settle title 0.00 stats 1.00
+246938281248 settle title 0.00 stats 1.00
+246938281253 settle title 0.00 stats 1.00
+246938281257 settle title 0.00 stats 1.00
+246938281261 settle title 0.00 stats 1.00
+246938281265 settle title 0.00 stats 1.00
+246938281269 settle title 0.00 stats 1.00
+246938281273 settle title 0.00 stats 1.00
+246938281278 settle title 0.00 stats 1.00
+246938281282 settle title 0.00 stats 1.00
+246938281286 settle title 0.00 stats 1.00
+246938281290 settle title 0.00 stats 1.00
+246938281295 settle title 0.00 stats 1.00
+246938281299 settle title 0.00 stats 1.00
+246938281303 settle title 0.00 stats 1.00
+246938281307 settle title 0.00 stats 1.00
+246938281311 settle title 0.00 stats 1.00
+246938281315 settle title 0.00 stats 1.00
+246938281320 settle title 0.00 stats 1.00
+246938281324 settle title 0.00 stats 1.00
+246938281328 settle title 0.00 stats 1.00
+246938281332 settle title 0.00 stats 1.00
+246938281336 settle title 0.00 stats 1.00
+246938281340 settle title 0.00 stats 1.00
+246938281345 settle title 0.00 stats 1.00
+246938281349 settle title 0.00 stats 1.00
+246938281353 settle title 0.00 stats 1.00
+246938281357 settle title 0.00 stats 1.00
+246938281361 settle title 0.00 stats 1.00
+246938281365 settle title 0.00 stats 1.00
+246938281370 settle title 0.00 stats 1.00
+246938281378 settle title 0.00 stats 1.00
+246938281382 settle title 0.00 stats 1.00
+246938281387 settle title 0.00 stats 1.00
+246938281391 settle title 0.00 stats 1.00
+246938281395 settle title 0.00 stats 1.00
+246938281399 settle title 0.00 stats 1.00
+246938281403 settle title 0.00 stats 1.00
+246938281407 settle title 0.00 stats 1.00
+246938281412 settle title 0.00 stats 1.00
+246938281416 settle title 0.00 stats 1.00
+246938281420 settle title 0.00 stats 1.00
+246938281424 settle title 0.00 stats 1.00
+246938281428 settle title 0.00 stats 1.00
+246938281433 settle title 0.00 stats 1.00
+246938281437 settle title 0.00 stats 1.00
+246938281441 settle title 0.00 stats 1.00
+246938281445 settle title 0.00 stats 1.00
+246938281449 settle title 0.00 stats 1.00
+246938281454 settle title 0.00 stats 1.00
+246938281458 settle title 0.00 stats 1.00
+246938281462 settle title 0.00 stats 1.00
+246938281466 settle title 0.00 stats 1.00
+246938281470 settle title 0.00 stats 1.00
+246938281474 settle title 0.00 stats 1.00
+246938281479 settle title 0.00 stats 1.00
+246938281483 settle title 0.00 stats 1.00
+246938281487 settle title 0.00 stats 1.00
+246938281491 settle title 0.00 stats 1.00
+246938281495 settle title 0.00 stats 1.00
+246938281502 settle title 0.00 stats 1.00
+246938281506 settle title 0.00 stats 1.00
+246938281510 settle title 0.00 stats 1.00
+246938281514 settle title 0.00 stats 1.00
+246938281518 settle title 0.00 stats 1.00
+246938281523 settle title 0.00 stats 1.00
+246938281527 settle title 0.00 stats 1.00
+246938281531 settle title 0.00 stats 1.00
+246938281535 settle title 0.00 stats 1.00
+246938281539 settle title 0.00 stats 1.00
+246938281544 settle title 0.00 stats 1.00
+246938281548 settle title 0.00 stats 1.00
+246938281552 settle title 0.00 stats 1.00
+246938281556 settle title 0.00 stats 1.00
+246938281560 settle title 0.00 stats 1.00
+246938281564 settle title 0.00 stats 1.00
+246938281569 settle title 0.00 stats 1.00
+246938281573 settle title 0.00 stats 1.00
+246938281577 settle title 0.00 stats 1.00
+246938281581 settle title 0.00 stats 1.00
+246938281585 settle title 0.00 stats 1.00
+246938281589 settle title 0.00 stats 1.00
+246938281594 settle title 0.00 stats 1.00
+246938281598 settle title 0.00 stats 1.00
+246938281602 settle title 0.00 stats 1.00
+246938281606 settle title 0.00 stats 1.00
+246938281610 settle title 0.00 stats 1.00
+246938281615 settle title 0.00 stats 1.00
+246938281619 settle title 0.00 stats 1.00
+246938281623 settle title 0.00 stats 1.00
+246938281627 settle title 0.00 stats 1.00
+246938281631 settle title 0.00 stats 1.00
+246938281635 settle title 0.00 stats 1.00
+246938281640 settle title 0.00 stats 1.00
+246938281644 settle title 0.00 stats 1.00
+246938281648 settle title 0.00 stats 1.00
+246938281652 settle title 0.00 stats 1.00
+246938281656 settle title 0.00 stats 1.00
+246938281661 settle title 0.00 stats 1.00
+246938281665 settle title 0.00 stats 1.00
+246938281669 settle title 0.00 stats 1.00
+246938281673 settle title 0.00 stats 1.00
+246938281677 settle title 0.00 stats 1.00
+246938281682 settle title 0.00 stats 1.00
+246938281686 settle title 0.00 stats 1.00
+246938281690 settle title 0.00 stats 1.00
+246938281694 settle title 0.00 stats 1.00
+246938281698 settle title 0.00 stats 1.00
+246938281702 settle title 0.00 stats 1.00
+246938281707 settle title 0.00 stats 1.00
+246938281711 settle title 0.00 stats 1.00
+246938281715 settle title 0.00 stats 1.00
+246938281719 settle title 0.00 stats 1.00
+246938281723 settle title 0.00 stats 1.00
+246938281728 settle title 0.00 stats 1.00
+246938281732 settle title 0.00 stats 1.00
+246938281736 settle title 0.00 stats 1.00
+246938281740 settle title 0.00 stats 1.00
+246938281744 settle title 0.00 stats 1.00
+246938281749 settle title 0.00 stats 1.00
+246938281754 settle title 1.00 stats 1.00
+246938282271 f 221
+246938284087 f 222
+246938586771 settle title 0.00 stats 0.38
+246938587892 f 223
+246938589413 f 224
+246938676909 settle title 0.00 stats 0.38
+246938677613 f 225
+246938767307 settle title 0.00 stats 0.38
+246938768130 f 226
+246938857590 settle title 0.00 stats 0.38
+246938858306 f 227
+246938947604 settle title 0.00 stats 0.38
+246938948094 f 228
+246939037741 settle title 0.00 stats 0.38
+246939038265 f 229
+246939127989 settle title 0.00 stats 0.38
+246939128428 f 230
+246939218252 settle title 0.00 stats 0.38
+246939218755 f 231
+246939308368 settle title 0.00 stats 0.38
+246939308869 f 232
+246939398684 settle title 0.00 stats 0.38
+246939399355 f 233
+246939488878 settle title 0.00 stats 0.38
+246939489616 f 234
+246939578950 settle title 0.00 stats 0.38
+246939579450 f 235
+246939669172 settle title 0.00 stats 0.38
+246939669691 f 236
+246939759275 settle title 0.00 stats 0.38
+246939759735 f 237
+246939849382 settle title 0.00 stats 0.38
+246939849930 f 238
+246939939562 settle title 0.00 stats 0.38
+246939940104 f 239
+246940029738 settle title 0.00 stats 0.38
+246940030289 f 240
+246940119842 settle title 0.00 stats 0.38
+246940120343 f 241
+246940210044 settle title 0.00 stats 0.38
+246940210570 f 242
+246940300209 settle title 0.00 stats 0.38
+246940300681 f 243
+246940390391 settle title 0.00 stats 0.38
+246940391175 f 244
+246940480529 settle title 0.00 stats 0.38
+246940481222 f 245
+246940570817 settle title 0.00 stats 0.38
+246940571572 f 246
+246940660773 settle title 0.00 stats 0.38
+246940661506 f 247
+246940751073 settle title 0.00 stats 0.38
+246940751570 f 248
+246940753060 f 249
+246940770978 f 250
+246941251147 settle title 0.00 stats 1.00
+246941251727 f 251
+246941251743 recount+
+246941252386 recount-
+246941253620 f 252
+246942150243 settle title 0.00 stats 1.00
+246942150267 settle title 0.00 stats 1.00
+246942150277 settle title 0.00 stats 1.00
+246942150285 settle title 0.00 stats 1.00
+246942150292 settle title 0.00 stats 1.00
+246942150300 settle title 0.00 stats 1.00
+246942150308 settle title 0.00 stats 1.00
+246942150316 settle title 0.00 stats 1.00
+246942150324 settle title 0.00 stats 1.00
+246942150332 settle title 0.00 stats 1.00
+246942150339 settle title 0.00 stats 1.00
+246942150347 settle title 0.00 stats 1.00
+246942150356 settle title 0.00 stats 1.00
+246942150364 settle title 0.00 stats 1.00
+246942150372 settle title 0.00 stats 1.00
+246942150379 settle title 0.00 stats 1.00
+246942150387 settle title 0.00 stats 1.00
+246942150395 settle title 0.00 stats 1.00
+246942150403 settle title 0.00 stats 1.00
+246942150410 settle title 0.00 stats 1.00
+246942150418 settle title 0.00 stats 1.00
+246942150426 settle title 0.00 stats 1.00
+246942150434 settle title 0.00 stats 1.00
+246942150441 settle title 0.00 stats 1.00
+246942150449 settle title 0.00 stats 1.00
+246942150457 settle title 0.00 stats 1.00
+246942150465 settle title 0.00 stats 1.00
+246942150472 settle title 0.00 stats 1.00
+246942150480 settle title 0.00 stats 1.00
+246942150488 settle title 0.00 stats 1.00
+246942150496 settle title 0.00 stats 1.00
+246942150503 settle title 0.00 stats 1.00
+246942150511 settle title 0.00 stats 1.00
+246942150519 settle title 0.00 stats 1.00
+246942150526 settle title 0.00 stats 1.00
+246942150534 settle title 0.00 stats 1.00
+246942150542 settle title 0.00 stats 1.00
+246942150550 settle title 0.00 stats 1.00
+246942150557 settle title 0.00 stats 1.00
+246942150565 settle title 0.00 stats 1.00
+246942150573 settle title 0.00 stats 1.00
+246942150580 settle title 0.00 stats 1.00
+246942150588 settle title 0.00 stats 1.00
+246942150596 settle title 0.00 stats 1.00
+246942150604 settle title 0.00 stats 1.00
+246942150611 settle title 0.00 stats 1.00
+246942150619 settle title 0.00 stats 1.00
+246942150627 settle title 0.00 stats 1.00
+246942150634 settle title 0.00 stats 1.00
+246942150642 settle title 0.00 stats 1.00
+246942150650 settle title 0.00 stats 1.00
+246942150658 settle title 0.00 stats 1.00
+246942150665 settle title 0.00 stats 1.00
+246942150673 settle title 0.00 stats 1.00
+246942150681 settle title 0.00 stats 1.00
+246942150689 settle title 0.00 stats 1.00
+246942150696 settle title 0.00 stats 1.00
+246942150704 settle title 0.00 stats 1.00
+246942150712 settle title 0.00 stats 1.00
+246942150719 settle title 0.00 stats 1.00
+246942150727 settle title 0.00 stats 1.00
+246942150735 settle title 0.00 stats 1.00
+246942150743 settle title 0.00 stats 1.00
+246942150750 settle title 0.00 stats 1.00
+246942150758 settle title 0.00 stats 1.00
+246942150766 settle title 0.00 stats 1.00
+246942150774 settle title 0.00 stats 1.00
+246942150781 settle title 0.00 stats 1.00
+246942150789 settle title 0.00 stats 1.00
+246942150797 settle title 0.00 stats 1.00
+246942150805 settle title 0.00 stats 1.00
+246942150812 settle title 0.00 stats 1.00
+246942150820 settle title 0.00 stats 1.00
+246942150828 settle title 0.00 stats 1.00
+246942150836 settle title 0.00 stats 1.00
+246942150843 settle title 0.00 stats 1.00
+246942150851 settle title 0.00 stats 1.00
+246942150859 settle title 0.00 stats 1.00
+246942150867 settle title 0.00 stats 1.00
+246942150874 settle title 0.00 stats 1.00
+246942150882 settle title 0.00 stats 1.00
+246942150890 settle title 0.00 stats 1.00
+246942150898 settle title 0.00 stats 1.00
+246942150905 settle title 0.00 stats 1.00
+246942150913 settle title 0.00 stats 1.00
+246942150921 settle title 0.00 stats 1.00
+246942150928 settle title 0.00 stats 1.00
+246942150936 settle title 0.00 stats 1.00
+246942150944 settle title 0.00 stats 1.00
+246942150952 settle title 0.00 stats 1.00
+246942150959 settle title 0.00 stats 1.00
+246942150967 settle title 0.00 stats 1.00
+246942150975 settle title 0.00 stats 1.00
+246942150996 settle title 0.00 stats 1.00
+246942151008 settle title 0.00 stats 1.00
+246942151017 settle title 0.00 stats 1.00
+246942151024 settle title 0.00 stats 1.00
+246942151032 settle title 0.00 stats 1.00
+246942151040 settle title 0.00 stats 1.00
+246942151048 settle title 0.00 stats 1.00
+246942151055 settle title 0.00 stats 1.00
+246942151063 settle title 0.00 stats 1.00
+246942151071 settle title 1.00 stats 1.00
+246942151867 f 253
+246942153533 f 254
+246942454656 settle title 0.00 stats 0.38
+246942455436 f 255
+246942457427 f 256
+246942544812 settle title 0.00 stats 0.38
+246942545449 f 257
+246942634964 settle title 0.00 stats 0.38
+246942635588 f 258
+246942724983 settle title 0.00 stats 0.38
+246942726046 f 259
+246942815164 settle title 0.00 stats 0.38
+246942815715 f 260
+246942905446 settle title 0.00 stats 0.38
+246942905995 f 261
+246942995550 settle title 0.00 stats 0.38
+246942996092 f 262
+246943085701 settle title 0.00 stats 0.38
+246943086233 f 263
+246943175770 settle title 0.00 stats 0.38
+246943176287 f 264
+246943266065 settle title 0.00 stats 0.38
+246943266624 f 265
+246943356273 settle title 0.00 stats 0.38
+246943356829 f 266
+246943446491 settle title 0.00 stats 0.38
+246943447037 f 267
+246943536676 settle title 0.00 stats 0.38
+246943537199 f 268
+246943626768 settle title 0.00 stats 0.38
+246943627289 f 269
+246943716910 settle title 0.00 stats 0.38
+246943717470 f 270
+246943807134 settle title 0.00 stats 0.38
+246943807682 f 271
+246943897268 settle title 0.00 stats 0.38
+246943897837 f 272
+246943987418 settle title 0.00 stats 0.38
+246943987988 f 273
+246944077551 settle title 0.00 stats 0.38
+246944078109 f 274
+246944167619 settle title 0.00 stats 0.38
+246944168138 f 275
+246944257846 settle title 0.00 stats 0.38
+246944258393 f 276
+246944348015 settle title 0.00 stats 0.38
+246944348513 f 277
+246944438208 settle title 0.00 stats 0.38
+246944438786 f 278
+246944528266 settle title 0.00 stats 0.38
+246944528788 f 279
+246944618480 settle title 0.00 stats 0.38
+246944619048 f 280
+246945118553 settle title 0.00 stats 1.00
+246945119123 f 281
+246945119138 recount+
+246945119826 recount-
+246945120992 f 282
+246946017645 settle title 0.00 stats 1.00
+246946017667 settle title 0.00 stats 1.00
+246946017672 settle title 0.00 stats 1.00
+246946017676 settle title 0.00 stats 1.00
+246946017680 settle title 0.00 stats 1.00
+246946017684 settle title 0.00 stats 1.00
+246946017688 settle title 0.00 stats 1.00
+246946017692 settle title 0.00 stats 1.00
+246946017697 settle title 0.00 stats 1.00
+246946017701 settle title 0.00 stats 1.00
+246946017705 settle title 0.00 stats 1.00
+246946017709 settle title 0.00 stats 1.00
+246946017713 settle title 0.00 stats 1.00
+246946017717 settle title 0.00 stats 1.00
+246946017721 settle title 0.00 stats 1.00
+246946017725 settle title 0.00 stats 1.00
+246946017730 settle title 0.00 stats 1.00
+246946017734 settle title 0.00 stats 1.00
+246946017738 settle title 0.00 stats 1.00
+246946017743 settle title 0.00 stats 1.00
+246946017747 settle title 0.00 stats 1.00
+246946017751 settle title 0.00 stats 1.00
+246946017755 settle title 0.00 stats 1.00
+246946017759 settle title 0.00 stats 1.00
+246946017764 settle title 0.00 stats 1.00
+246946017768 settle title 0.00 stats 1.00
+246946017772 settle title 0.00 stats 1.00
+246946017776 settle title 0.00 stats 1.00
+246946017780 settle title 0.00 stats 1.00
+246946017784 settle title 0.00 stats 1.00
+246946017788 settle title 0.00 stats 1.00
+246946017793 settle title 0.00 stats 1.00
+246946017797 settle title 0.00 stats 1.00
+246946017801 settle title 0.00 stats 1.00
+246946017805 settle title 0.00 stats 1.00
+246946017809 settle title 0.00 stats 1.00
+246946017813 settle title 0.00 stats 1.00
+246946017817 settle title 0.00 stats 1.00
+246946017822 settle title 0.00 stats 1.00
+246946017826 settle title 0.00 stats 1.00
+246946017830 settle title 0.00 stats 1.00
+246946017834 settle title 0.00 stats 1.00
+246946017838 settle title 0.00 stats 1.00
+246946017842 settle title 0.00 stats 1.00
+246946017846 settle title 0.00 stats 1.00
+246946017851 settle title 0.00 stats 1.00
+246946017855 settle title 0.00 stats 1.00
+246946017867 settle title 0.00 stats 1.00
+246946017871 settle title 0.00 stats 1.00
+246946017875 settle title 0.00 stats 1.00
+246946017880 settle title 0.00 stats 1.00
+246946017884 settle title 0.00 stats 1.00
+246946017888 settle title 0.00 stats 1.00
+246946017892 settle title 0.00 stats 1.00
+246946017896 settle title 0.00 stats 1.00
+246946017900 settle title 0.00 stats 1.00
+246946017905 settle title 0.00 stats 1.00
+246946017909 settle title 0.00 stats 1.00
+246946017913 settle title 0.00 stats 1.00
+246946017917 settle title 0.00 stats 1.00
+246946017921 settle title 0.00 stats 1.00
+246946017925 settle title 0.00 stats 1.00
+246946017929 settle title 0.00 stats 1.00
+246946017933 settle title 0.00 stats 1.00
+246946017938 settle title 0.00 stats 1.00
+246946017942 settle title 0.00 stats 1.00
+246946017946 settle title 0.00 stats 1.00
+246946017950 settle title 0.00 stats 1.00
+246946017954 settle title 0.00 stats 1.00
+246946017958 settle title 0.00 stats 1.00
+246946017962 settle title 0.00 stats 1.00
+246946017966 settle title 0.00 stats 1.00
+246946017970 settle title 0.00 stats 1.00
+246946017975 settle title 0.00 stats 1.00
+246946017979 settle title 0.00 stats 1.00
+246946017983 settle title 0.00 stats 1.00
+246946017987 settle title 0.00 stats 1.00
+246946017991 settle title 0.00 stats 1.00
+246946017995 settle title 0.00 stats 1.00
+246946017999 settle title 0.00 stats 1.00
+246946018006 settle title 0.00 stats 1.00
+246946018010 settle title 0.00 stats 1.00
+246946018014 settle title 0.00 stats 1.00
+246946018018 settle title 0.00 stats 1.00
+246946018022 settle title 0.00 stats 1.00
+246946018027 settle title 0.00 stats 1.00
+246946018031 settle title 0.00 stats 1.00
+246946018035 settle title 0.00 stats 1.00
+246946018039 settle title 0.00 stats 1.00
+246946018043 settle title 0.00 stats 1.00
+246946018047 settle title 0.00 stats 1.00
+246946018051 settle title 0.00 stats 1.00
+246946018055 settle title 0.00 stats 1.00
+246946018059 settle title 0.00 stats 1.00
+246946018064 settle title 0.00 stats 1.00
+246946018068 settle title 0.00 stats 1.00
+246946018072 settle title 0.00 stats 1.00
+246946018076 settle title 0.00 stats 1.00
+246946018080 settle title 0.00 stats 1.00
+246946018084 settle title 0.00 stats 1.00
+246946018088 settle title 0.00 stats 1.00
+246946018092 settle title 0.00 stats 1.00
+246946018096 settle title 0.00 stats 1.00
+246946018101 settle title 0.00 stats 1.00
+246946018105 settle title 0.00 stats 1.00
+246946018109 settle title 0.00 stats 1.00
+246946018113 settle title 0.00 stats 1.00
+246946018117 settle title 0.00 stats 1.00
+246946018121 settle title 0.00 stats 1.00
+246946018125 settle title 0.00 stats 1.00
+246946018129 settle title 0.00 stats 1.00
+246946018133 settle title 0.00 stats 1.00
+246946018138 settle title 0.00 stats 1.00
+246946018142 settle title 0.00 stats 1.00
+246946018146 settle title 0.00 stats 1.00
+246946018150 settle title 0.00 stats 1.00
+246946018154 settle title 0.00 stats 1.00
+246946018158 settle title 0.00 stats 1.00
+246946018162 settle title 0.00 stats 1.00
+246946018166 settle title 0.00 stats 1.00
+246946018170 settle title 0.00 stats 1.00
+246946018174 settle title 0.00 stats 1.00
+246946018178 settle title 0.00 stats 1.00
+246946018183 settle title 0.00 stats 1.00
+246946018187 settle title 0.00 stats 1.00
+246946018191 settle title 0.00 stats 1.00
+246946018195 settle title 0.00 stats 1.00
+246946018199 settle title 0.00 stats 1.00
+246946018203 settle title 0.00 stats 1.00
+246946018207 settle title 0.00 stats 1.00
+246946018211 settle title 0.00 stats 1.00
+246946018215 settle title 0.00 stats 1.00
+246946018219 settle title 0.00 stats 1.00
+246946018223 settle title 0.00 stats 1.00
+246946018228 settle title 0.00 stats 1.00
+246946018232 settle title 0.00 stats 1.00
+246946018236 settle title 0.00 stats 1.00
+246946018240 settle title 0.00 stats 1.00
+246946018244 settle title 0.00 stats 1.00
+246946018248 settle title 0.00 stats 1.00
+246946018252 settle title 0.00 stats 1.00
+246946018256 settle title 0.00 stats 1.00
+246946018260 settle title 0.00 stats 1.00
+246946018264 settle title 0.00 stats 1.00
+246946018271 settle title 0.00 stats 1.00
+246946018275 settle title 0.00 stats 1.00
+246946018280 settle title 0.00 stats 1.00
+246946018284 settle title 0.00 stats 1.00
+246946018288 settle title 0.00 stats 1.00
+246946018292 settle title 0.00 stats 1.00
+246946018296 settle title 0.00 stats 1.00
+246946018300 settle title 0.00 stats 1.00
+246946018304 settle title 0.00 stats 1.00
+246946018308 settle title 0.00 stats 1.00
+246946018313 settle title 0.00 stats 1.00
+246946018317 settle title 0.00 stats 1.00
+246946018321 settle title 0.00 stats 1.00
+246946018325 settle title 0.00 stats 1.00
+246946018329 settle title 0.00 stats 1.00
+246946018333 settle title 0.00 stats 1.00
+246946018337 settle title 0.00 stats 1.00
+246946018341 settle title 0.00 stats 1.00
+246946018345 settle title 0.00 stats 1.00
+246946018350 settle title 0.00 stats 1.00
+246946018354 settle title 0.00 stats 1.00
+246946018358 settle title 0.00 stats 1.00
+246946018362 settle title 0.00 stats 1.00
+246946018366 settle title 0.00 stats 1.00
+246946018370 settle title 0.00 stats 1.00
+246946018374 settle title 0.00 stats 1.00
+246946018378 settle title 0.00 stats 1.00
+246946018382 settle title 0.00 stats 1.00
+246946018386 settle title 0.00 stats 1.00
+246946018392 settle title 0.00 stats 1.00
+246946018396 settle title 0.00 stats 1.00
+246946018400 settle title 0.00 stats 1.00
+246946018404 settle title 0.00 stats 1.00
+246946018408 settle title 0.00 stats 1.00
+246946018412 settle title 0.00 stats 1.00
+246946018416 settle title 0.00 stats 1.00
+246946018420 settle title 0.00 stats 1.00
+246946018424 settle title 0.00 stats 1.00
+246946018429 settle title 0.00 stats 1.00
+246946018433 settle title 0.00 stats 1.00
+246946018437 settle title 0.00 stats 1.00
+246946018441 settle title 0.00 stats 1.00
+246946018445 settle title 0.00 stats 1.00
+246946018449 settle title 0.00 stats 1.00
+246946018453 settle title 0.00 stats 1.00
+246946018457 settle title 0.00 stats 1.00
+246946018461 settle title 0.00 stats 1.00
+246946018465 settle title 0.00 stats 1.00
+246946018469 settle title 0.00 stats 1.00
+246946018473 settle title 0.00 stats 1.00
+246946018478 settle title 0.00 stats 1.00
+246946018482 settle title 1.00 stats 1.00
+246946019017 f 283
+246946020558 f 284
+246946322829 settle title 0.00 stats 0.38
+246946323650 f 285
+246946325072 f 286
+246946413064 settle title 0.00 stats 0.38
+246946414028 f 287
+246946503067 settle title 0.00 stats 0.38
+246946503886 f 288
+246946593205 settle title 0.00 stats 0.38
+246946593764 f 289
+246946683571 settle title 0.00 stats 0.38
+246946684302 f 290
+246946773699 settle title 0.00 stats 0.38
+246946774199 f 291
+246946863883 settle title 0.00 stats 0.38
+246946864475 f 292
+246946954104 settle title 0.00 stats 0.38
+246946954680 f 293
+246947044169 settle title 0.00 stats 0.38
+246947044704 f 294
+246947134281 settle title 0.00 stats 0.38
+246947134820 f 295
+246947224542 settle title 0.00 stats 0.38
+246947225087 f 296
+246947314806 settle title 0.00 stats 0.38
+246947315349 f 297
+246947404867 settle title 0.00 stats 0.38
+246947405424 f 298
+246947495014 settle title 0.00 stats 0.38
+246947495562 f 299
+246947585250 settle title 0.00 stats 0.38
+246947585788 f 300
+246947675381 settle title 0.00 stats 0.38
+246947675886 f 301
+246947765613 settle title 0.00 stats 0.38
+246947766148 f 302
+246947855794 settle title 0.00 stats 0.38
+246947856353 f 303
+246947945991 settle title 0.00 stats 0.38
+246947946533 f 304
+246948036113 settle title 0.00 stats 0.38
+246948036660 f 305
+246948126363 settle title 0.00 stats 0.38
+246948126916 f 306
+246948216487 settle title 0.00 stats 0.38
+246948217059 f 307
+246948306733 settle title 0.00 stats 0.38
+246948307294 f 308
+246948396836 settle title 0.00 stats 0.38
+246948397372 f 309
+246948487121 settle title 0.00 stats 0.38
+246948487665 f 310
+246948987221 settle title 0.00 stats 1.00
+246948987830 f 311
+246948987845 recount+
+246948988436 recount-
+246948989775 f 312
+246949886320 settle title 0.00 stats 1.00
+246949886340 settle title 0.00 stats 1.00
+246949886344 settle title 0.00 stats 1.00
+246949886348 settle title 0.00 stats 1.00
+246949886353 settle title 0.00 stats 1.00
+246949886365 settle title 0.00 stats 1.00
+246949886369 settle title 0.00 stats 1.00
+246949886373 settle title 0.00 stats 1.00
+246949886377 settle title 0.00 stats 1.00
+246949886381 settle title 0.00 stats 1.00
+246949886385 settle title 0.00 stats 1.00
+246949886389 settle title 0.00 stats 1.00
+246949886394 settle title 0.00 stats 1.00
+246949886399 settle title 0.00 stats 1.00
+246949886403 settle title 0.00 stats 1.00
+246949886407 settle title 0.00 stats 1.00
+246949886411 settle title 0.00 stats 1.00
+246949886415 settle title 0.00 stats 1.00
+246949886419 settle title 0.00 stats 1.00
+246949886423 settle title 0.00 stats 1.00
+246949886428 settle title 0.00 stats 1.00
+246949886432 settle title 0.00 stats 1.00
+246949886436 settle title 0.00 stats 1.00
+246949886440 settle title 0.00 stats 1.00
+246949886444 settle title 0.00 stats 1.00
+246949886448 settle title 0.00 stats 1.00
+246949886453 settle title 0.00 stats 1.00
+246949886457 settle title 0.00 stats 1.00
+246949886461 settle title 0.00 stats 1.00
+246949886465 settle title 0.00 stats 1.00
+246949886469 settle title 0.00 stats 1.00
+246949886473 settle title 0.00 stats 1.00
+246949886477 settle title 0.00 stats 1.00
+246949886482 settle title 0.00 stats 1.00
+246949886486 settle title 0.00 stats 1.00
+246949886490 settle title 0.00 stats 1.00
+246949886494 settle title 0.00 stats 1.00
+246949886498 settle title 0.00 stats 1.00
+246949886502 settle title 0.00 stats 1.00
+246949886506 settle title 0.00 stats 1.00
+246949886510 settle title 0.00 stats 1.00
+246949886515 settle title 0.00 stats 1.00
+246949886519 settle title 0.00 stats 1.00
+246949886523 settle title 0.00 stats 1.00
+246949886527 settle title 0.00 stats 1.00
+246949886531 settle title 0.00 stats 1.00
+246949886535 settle title 0.00 stats 1.00
+246949886539 settle title 0.00 stats 1.00
+246949886543 settle title 0.00 stats 1.00
+246949886547 settle title 0.00 stats 1.00
+246949886552 settle title 0.00 stats 1.00
+246949886556 settle title 0.00 stats 1.00
+246949886560 settle title 0.00 stats 1.00
+246949886564 settle title 0.00 stats 1.00
+246949886568 settle title 0.00 stats 1.00
+246949886572 settle title 0.00 stats 1.00
+246949886576 settle title 0.00 stats 1.00
+246949886580 settle title 0.00 stats 1.00
+246949886584 settle title 0.00 stats 1.00
+246949886588 settle title 0.00 stats 1.00
+246949886593 settle title 0.00 stats 1.00
+246949886597 settle title 0.00 stats 1.00
+246949886601 settle title 0.00 stats 1.00
+246949886605 settle title 0.00 stats 1.00
+246949886609 settle title 0.00 stats 1.00
+246949886613 settle title 0.00 stats 1.00
+246949886617 settle title 0.00 stats 1.00
+246949886621 settle title 0.00 stats 1.00
+246949886625 settle title 0.00 stats 1.00
+246949886629 settle title 0.00 stats 1.00
+246949886634 settle title 0.00 stats 1.00
+246949886638 settle title 0.00 stats 1.00
+246949886642 settle title 0.00 stats 1.00
+246949886646 settle title 0.00 stats 1.00
+246949886650 settle title 0.00 stats 1.00
+246949886658 settle title 0.00 stats 1.00
+246949886662 settle title 0.00 stats 1.00
+246949886667 settle title 0.00 stats 1.00
+246949886671 settle title 0.00 stats 1.00
+246949886675 settle title 0.00 stats 1.00
+246949886679 settle title 0.00 stats 1.00
+246949886683 settle title 0.00 stats 1.00
+246949886687 settle title 0.00 stats 1.00
+246949886691 settle title 0.00 stats 1.00
+246949886695 settle title 0.00 stats 1.00
+246949886699 settle title 0.00 stats 1.00
+246949886704 settle title 0.00 stats 1.00
+246949886708 settle title 0.00 stats 1.00
+246949886712 settle title 0.00 stats 1.00
+246949886716 settle title 0.00 stats 1.00
+246949886720 settle title 0.00 stats 1.00
+246949886724 settle title 0.00 stats 1.00
+246949886728 settle title 0.00 stats 1.00
+246949886732 settle title 0.00 stats 1.00
+246949886736 settle title 0.00 stats 1.00
+246949886740 settle title 0.00 stats 1.00
+246949886744 settle title 0.00 stats 1.00
+246949886749 settle title 0.00 stats 1.00
+246949886753 settle title 0.00 stats 1.00
+246949886757 settle title 0.00 stats 1.00
+246949886761 settle title 0.00 stats 1.00
+246949886765 settle title 0.00 stats 1.00
+246949886770 settle title 0.00 stats 1.00
+246949886775 settle title 0.00 stats 1.00
+246949886779 settle title 0.00 stats 1.00
+246949886784 settle title 0.00 stats 1.00
+246949886788 settle title 0.00 stats 1.00
+246949886792 settle title 0.00 stats 1.00
+246949886796 settle title 0.00 stats 1.00
+246949886800 settle title 0.00 stats 1.00
+246949886805 settle title 0.00 stats 1.00
+246949886809 settle title 0.00 stats 1.00
+246949886813 settle title 0.00 stats 1.00
+246949886817 settle title 0.00 stats 1.00
+246949886822 settle title 0.00 stats 1.00
+246949886826 settle title 0.00 stats 1.00
+246949886830 settle title 0.00 stats 1.00
+246949886834 settle title 0.00 stats 1.00
+246949886838 settle title 0.00 stats 1.00
+246949886843 settle title 0.00 stats 1.00
+246949886847 settle title 0.00 stats 1.00
+246949886851 settle title 0.00 stats 1.00
+246949886855 settle title 0.00 stats 1.00
+246949886859 settle title 0.00 stats 1.00
+246949886864 settle title 0.00 stats 1.00
+246949886868 settle title 0.00 stats 1.00
+246949886872 settle title 0.00 stats 1.00
+246949886876 settle title 0.00 stats 1.00
+246949886880 settle title 0.00 stats 1.00
+246949886884 settle title 0.00 stats 1.00
+246949886889 settle title 0.00 stats 1.00
+246949886893 settle title 0.00 stats 1.00
+246949886897 settle title 0.00 stats 1.00
+246949886901 settle title 0.00 stats 1.00
+246949886905 settle title 0.00 stats 1.00
+246949886909 settle title 0.00 stats 1.00
+246949886914 settle title 0.00 stats 1.00
+246949886918 settle title 0.00 stats 1.00
+246949886922 settle title 0.00 stats 1.00
+246949886926 settle title 0.00 stats 1.00
+246949886930 settle title 0.00 stats 1.00
+246949886935 settle title 0.00 stats 1.00
+246949886939 settle title 0.00 stats 1.00
+246949886943 settle title 0.00 stats 1.00
+246949886947 settle title 0.00 stats 1.00
+246949886951 settle title 0.00 stats 1.00
+246949886956 settle title 0.00 stats 1.00
+246949886960 settle title 0.00 stats 1.00
+246949886964 settle title 0.00 stats 1.00
+246949886968 settle title 0.00 stats 1.00
+246949886972 settle title 0.00 stats 1.00
+246949886977 settle title 0.00 stats 1.00
+246949886981 settle title 0.00 stats 1.00
+246949886985 settle title 0.00 stats 1.00
+246949886989 settle title 0.00 stats 1.00
+246949886993 settle title 0.00 stats 1.00
+246949886997 settle title 0.00 stats 1.00
+246949887005 settle title 0.00 stats 1.00
+246949887010 settle title 0.00 stats 1.00
+246949887014 settle title 0.00 stats 1.00
+246949887019 settle title 0.00 stats 1.00
+246949887023 settle title 0.00 stats 1.00
+246949887027 settle title 0.00 stats 1.00
+246949887031 settle title 0.00 stats 1.00
+246949887035 settle title 0.00 stats 1.00
+246949887040 settle title 0.00 stats 1.00
+246949887044 settle title 0.00 stats 1.00
+246949887048 settle title 0.00 stats 1.00
+246949887052 settle title 0.00 stats 1.00
+246949887056 settle title 0.00 stats 1.00
+246949887061 settle title 0.00 stats 1.00
+246949887065 settle title 0.00 stats 1.00
+246949887069 settle title 0.00 stats 1.00
+246949887073 settle title 0.00 stats 1.00
+246949887077 settle title 0.00 stats 1.00
+246949887082 settle title 0.00 stats 1.00
+246949887086 settle title 0.00 stats 1.00
+246949887090 settle title 0.00 stats 1.00
+246949887094 settle title 0.00 stats 1.00
+246949887098 settle title 0.00 stats 1.00
+246949887102 settle title 0.00 stats 1.00
+246949887107 settle title 0.00 stats 1.00
+246949887111 settle title 0.00 stats 1.00
+246949887115 settle title 0.00 stats 1.00
+246949887120 settle title 1.00 stats 1.00
+246949887645 f 313
+246949888887 f 314
+246950191820 settle title 0.00 stats 0.38
+246950192656 f 315
+246950193646 f 316
+246950282060 settle title 0.00 stats 0.38
+246950282988 f 317
+246950372127 settle title 0.00 stats 0.38
+246950372902 f 318
+246950462381 settle title 0.00 stats 0.38
+246950463145 f 319
+246950552443 settle title 0.00 stats 0.38
+246950553205 f 320
+246950642554 settle title 0.00 stats 0.38
+246950643277 f 321
+246950732841 settle title 0.00 stats 0.38
+246950733533 f 322
+246950822985 settle title 0.00 stats 0.38
+246950823615 f 323
+246950913050 settle title 0.00 stats 0.38
+246950913884 f 324
+246951003278 settle title 0.00 stats 0.38
+246951004124 f 325
+246951093413 settle title 0.00 stats 0.38
+246951094182 f 326
+246951183602 settle title 0.00 stats 0.38
+246951184451 f 327
+246951185433 f 328
+246951208501 f 329
+246951273656 settle title 0.00 stats 0.38
+246951274395 f 330
+246951363999 settle title 0.00 stats 0.38
+246951364794 f 331
+246951453977 settle title 0.00 stats 0.38
+246951454659 f 332
+246951544257 settle title 0.00 stats 0.38
+246951545101 f 333
+246951634326 settle title 0.00 stats 0.38
+246951634910 f 334
+246951724409 settle title 0.00 stats 0.38
+246951724907 f 335
+246951814498 settle title 0.00 stats 0.38
+246951815067 f 336
+246951904753 settle title 0.00 stats 0.38
+246951905335 f 337
+246951995099 settle title 0.00 stats 0.38
+246951995703 f 338
+246952085063 settle title 0.00 stats 0.38
+246952085628 f 339
+246952175263 settle title 0.00 stats 0.38
+246952175821 f 340
+246952265577 settle title 0.00 stats 0.38
+246952266159 f 341
+246952355865 settle title 0.00 stats 0.38
+246952356713 f 342
+246952855981 settle title 0.00 stats 1.00
+246952856507 f 343
+246952856520 recount+
+246952857037 recount-
+246952858087 f 344
+246953755174 settle title 0.00 stats 1.00
+246953755201 settle title 0.00 stats 1.00
+246953755205 settle title 0.00 stats 1.00
+246953755209 settle title 0.00 stats 1.00
+246953755213 settle title 0.00 stats 1.00
+246953755217 settle title 0.00 stats 1.00
+246953755221 settle title 0.00 stats 1.00
+246953755225 settle title 0.00 stats 1.00
+246953755229 settle title 0.00 stats 1.00
+246953755233 settle title 0.00 stats 1.00
+246953755237 settle title 0.00 stats 1.00
+246953755241 settle title 0.00 stats 1.00
+246953755245 settle title 0.00 stats 1.00
+246953755249 settle title 0.00 stats 1.00
+246953755253 settle title 0.00 stats 1.00
+246953755257 settle title 0.00 stats 1.00
+246953755261 settle title 0.00 stats 1.00
+246953755265 settle title 0.00 stats 1.00
+246953755269 settle title 0.00 stats 1.00
+246953755273 settle title 0.00 stats 1.00
+246953755277 settle title 0.00 stats 1.00
+246953755281 settle title 0.00 stats 1.00
+246953755285 settle title 0.00 stats 1.00
+246953755290 settle title 0.00 stats 1.00
+246953755294 settle title 0.00 stats 1.00
+246953755298 settle title 0.00 stats 1.00
+246953755302 settle title 0.00 stats 1.00
+246953755306 settle title 0.00 stats 1.00
+246953755310 settle title 0.00 stats 1.00
+246953755314 settle title 0.00 stats 1.00
+246953755319 settle title 0.00 stats 1.00
+246953755323 settle title 0.00 stats 1.00
+246953755327 settle title 0.00 stats 1.00
+246953755331 settle title 0.00 stats 1.00
+246953755335 settle title 0.00 stats 1.00
+246953755338 settle title 0.00 stats 1.00
+246953755343 settle title 0.00 stats 1.00
+246953755347 settle title 0.00 stats 1.00
+246953755351 settle title 0.00 stats 1.00
+246953755355 settle title 0.00 stats 1.00
+246953755359 settle title 0.00 stats 1.00
+246953755363 settle title 0.00 stats 1.00
+246953755367 settle title 0.00 stats 1.00
+246953755371 settle title 0.00 stats 1.00
+246953755375 settle title 0.00 stats 1.00
+246953755379 settle title 0.00 stats 1.00
+246953755383 settle title 0.00 stats 1.00
+246953755387 settle title 0.00 stats 1.00
+246953755391 settle title 0.00 stats 1.00
+246953755395 settle title 0.00 stats 1.00
+246953755399 settle title 0.00 stats 1.00
+246953755403 settle title 0.00 stats 1.00
+246953755407 settle title 0.00 stats 1.00
+246953755411 settle title 0.00 stats 1.00
+246953755415 settle title 0.00 stats 1.00
+246953755419 settle title 0.00 stats 1.00
+246953755423 settle title 0.00 stats 1.00
+246953755427 settle title 0.00 stats 1.00
+246953755431 settle title 0.00 stats 1.00
+246953755435 settle title 0.00 stats 1.00
+246953755439 settle title 0.00 stats 1.00
+246953755443 settle title 0.00 stats 1.00
+246953755447 settle title 0.00 stats 1.00
+246953755451 settle title 0.00 stats 1.00
+246953755455 settle title 0.00 stats 1.00
+246953755459 settle title 0.00 stats 1.00
+246953755463 settle title 0.00 stats 1.00
+246953755467 settle title 0.00 stats 1.00
+246953755471 settle title 0.00 stats 1.00
+246953755475 settle title 0.00 stats 1.00
+246953755479 settle title 0.00 stats 1.00
+246953755492 settle title 0.00 stats 1.00
+246953755496 settle title 0.00 stats 1.00
+246953755500 settle title 0.00 stats 1.00
+246953755505 settle title 0.00 stats 1.00
+246953755509 settle title 0.00 stats 1.00
+246953755513 settle title 0.00 stats 1.00
+246953755517 settle title 0.00 stats 1.00
+246953755521 settle title 0.00 stats 1.00
+246953755525 settle title 0.00 stats 1.00
+246953755529 settle title 0.00 stats 1.00
+246953755533 settle title 0.00 stats 1.00
+246953755542 settle title 0.00 stats 1.00
+246953755546 settle title 0.00 stats 1.00
+246953755550 settle title 0.00 stats 1.00
+246953755554 settle title 0.00 stats 1.00
+246953755558 settle title 0.00 stats 1.00
+246953755562 settle title 0.00 stats 1.00
+246953755566 settle title 0.00 stats 1.00
+246953755570 settle title 0.00 stats 1.00
+246953755575 settle title 0.00 stats 1.00
+246953755579 settle title 0.00 stats 1.00
+246953755583 settle title 0.00 stats 1.00
+246953755587 settle title 0.00 stats 1.00
+246953755591 settle title 0.00 stats 1.00
+246953755595 settle title 0.00 stats 1.00
+246953755599 settle title 0.00 stats 1.00
+246953755603 settle title 0.00 stats 1.00
+246953755607 settle title 0.00 stats 1.00
+246953755612 settle title 0.00 stats 1.00
+246953755616 settle title 0.00 stats 1.00
+246953755620 settle title 0.00 stats 1.00
+246953755624 settle title 0.00 stats 1.00
+246953755628 settle title 0.00 stats 1.00
+246953755632 settle title 0.00 stats 1.00
+246953755636 settle title 0.00 stats 1.00
+246953755640 settle title 0.00 stats 1.00
+246953755644 settle title 0.00 stats 1.00
+246953755648 settle title 0.00 stats 1.00
+246953755653 settle title 0.00 stats 1.00
+246953755657 settle title 0.00 stats 1.00
+246953755661 settle title 0.00 stats 1.00
+246953755665 settle title 0.00 stats 1.00
+246953755669 settle title 0.00 stats 1.00
+246953755673 settle title 0.00 stats 1.00
+246953755677 settle title 0.00 stats 1.00
+246953755681 settle title 0.00 stats 1.00
+246953755685 settle title 0.00 stats 1.00
+246953755689 settle title 0.00 stats 1.00
+246953755694 settle title 0.00 stats 1.00
+246953755698 settle title 0.00 stats 1.00
+246953755702 settle title 0.00 stats 1.00
+246953755706 settle title 0.00 stats 1.00
+246953755710 settle title 0.00 stats 1.00
+246953755714 settle title 0.00 stats 1.00
+246953755718 settle title 0.00 stats 1.00
+246953755722 settle title 0.00 stats 1.00
+246953755726 settle title 0.00 stats 1.00
+246953755730 settle title 0.00 stats 1.00
+246953755735 settle title 0.00 stats 1.00
+246953755739 settle title 0.00 stats 1.00
+246953755743 settle title 0.00 stats 1.00
+246953755747 settle title 0.00 stats 1.00
+246953755751 settle title 0.00 stats 1.00
+246953755755 settle title 0.00 stats 1.00
+246953755759 settle title 0.00 stats 1.00
+246953755763 settle title 0.00 stats 1.00
+246953755767 settle title 0.00 stats 1.00
+246953755771 settle title 0.00 stats 1.00
+246953755775 settle title 0.00 stats 1.00
+246953755780 settle title 0.00 stats 1.00
+246953755784 settle title 0.00 stats 1.00
+246953755788 settle title 0.00 stats 1.00
+246953755792 settle title 0.00 stats 1.00
+246953755796 settle title 0.00 stats 1.00
+246953755800 settle title 0.00 stats 1.00
+246953755804 settle title 0.00 stats 1.00
+246953755808 settle title 0.00 stats 1.00
+246953755813 settle title 0.00 stats 1.00
+246953755817 settle title 0.00 stats 1.00
+246953755821 settle title 0.00 stats 1.00
+246953755825 settle title 0.00 stats 1.00
+246953755829 settle title 0.00 stats 1.00
+246953755833 settle title 0.00 stats 1.00
+246953755837 settle title 0.00 stats 1.00
+246953755841 settle title 0.00 stats 1.00
+246953755845 settle title 0.00 stats 1.00
+246953755850 settle title 0.00 stats 1.00
+246953755854 settle title 0.00 stats 1.00
+246953755858 settle title 0.00 stats 1.00
+246953755862 settle title 0.00 stats 1.00
+246953755866 settle title 1.00 stats 1.00
+246953757163 f 345
+246953758437 f 346
+246954060682 settle title 0.00 stats 0.38
+246954061702 f 347
+246954062916 f 348
+246954150645 settle title 0.00 stats 0.38
+246954151296 f 349
+246954240756 settle title 0.00 stats 0.38
+246954241400 f 350
+246954330802 settle title 0.00 stats 0.38
+246954331388 f 351
+246954421008 settle title 0.00 stats 0.38
+246954421551 f 352
+246954511335 settle title 0.00 stats 0.38
+246954512148 f 353
+246954601425 settle title 0.00 stats 0.38
+246954602303 f 354
+246954691527 settle title 0.00 stats 0.38
+246954692304 f 355
+246954781810 settle title 0.00 stats 0.38
+246954782681 f 356
+246954871908 settle title 0.00 stats 0.38
+246954872590 f 357
+246954962168 settle title 0.00 stats 0.38
+246954965723 f 358
+246954965735 frame 358 total 3.05 update -1.00 layout -1.00 paint 0.01
+246955052433 settle title 0.00 stats 0.38
+246955053223 f 359
+246955142451 settle title 0.00 stats 0.38
+246955143253 f 360
+246955232536 settle title 0.00 stats 0.38
+246955233169 f 361
+246955322886 settle title 0.00 stats 0.38
+246955323461 f 362
+246955412975 settle title 0.00 stats 0.38
+246955413551 f 363
+246955503143 settle title 0.00 stats 0.38
+246955503686 f 364
+246955593484 settle title 0.00 stats 0.38
+246955594060 f 365
+246955683578 settle title 0.00 stats 0.38
+246955684139 f 366
+246955773789 settle title 0.00 stats 0.38
+246955774320 f 367
+246955863945 settle title 0.00 stats 0.38
+246955864534 f 368
+246955954077 settle title 0.00 stats 0.38
+246955954684 f 369
+246956044231 settle title 0.00 stats 0.38
+246956044791 f 370
+246956134432 settle title 0.00 stats 0.38
+246956134984 f 371
+246956224561 settle title 0.00 stats 0.38
+246956225145 f 372
+246956724630 settle title 0.00 stats 1.00
+246956725039 f 373
+246956725052 recount+
+246956725571 recount-
+246956727219 f 374
+246957623713 settle title 0.00 stats 1.00
+246957623733 settle title 0.00 stats 1.00
+246957623737 settle title 0.00 stats 1.00
+246957623741 settle title 0.00 stats 1.00
+246957623746 settle title 0.00 stats 1.00
+246957623750 settle title 0.00 stats 1.00
+246957623754 settle title 0.00 stats 1.00
+246957623758 settle title 0.00 stats 1.00
+246957623762 settle title 0.00 stats 1.00
+246957623766 settle title 0.00 stats 1.00
+246957623770 settle title 0.00 stats 1.00
+246957623775 settle title 0.00 stats 1.00
+246957623779 settle title 0.00 stats 1.00
+246957623784 settle title 0.00 stats 1.00
+246957623788 settle title 0.00 stats 1.00
+246957623792 settle title 0.00 stats 1.00
+246957623796 settle title 0.00 stats 1.00
+246957623800 settle title 0.00 stats 1.00
+246957623805 settle title 0.00 stats 1.00
+246957623809 settle title 0.00 stats 1.00
+246957623813 settle title 0.00 stats 1.00
+246957623817 settle title 0.00 stats 1.00
+246957623821 settle title 0.00 stats 1.00
+246957623826 settle title 0.00 stats 1.00
+246957623830 settle title 0.00 stats 1.00
+246957623834 settle title 0.00 stats 1.00
+246957623838 settle title 0.00 stats 1.00
+246957623842 settle title 0.00 stats 1.00
+246957623846 settle title 0.00 stats 1.00
+246957623851 settle title 0.00 stats 1.00
+246957623855 settle title 0.00 stats 1.00
+246957623859 settle title 0.00 stats 1.00
+246957623863 settle title 0.00 stats 1.00
+246957623867 settle title 0.00 stats 1.00
+246957623871 settle title 0.00 stats 1.00
+246957623876 settle title 0.00 stats 1.00
+246957623880 settle title 0.00 stats 1.00
+246957623884 settle title 0.00 stats 1.00
+246957623888 settle title 0.00 stats 1.00
+246957623892 settle title 0.00 stats 1.00
+246957623896 settle title 0.00 stats 1.00
+246957623901 settle title 0.00 stats 1.00
+246957623905 settle title 0.00 stats 1.00
+246957623909 settle title 0.00 stats 1.00
+246957623913 settle title 0.00 stats 1.00
+246957623917 settle title 0.00 stats 1.00
+246957623921 settle title 0.00 stats 1.00
+246957623925 settle title 0.00 stats 1.00
+246957623929 settle title 0.00 stats 1.00
+246957623934 settle title 0.00 stats 1.00
+246957623938 settle title 0.00 stats 1.00
+246957623942 settle title 0.00 stats 1.00
+246957623946 settle title 0.00 stats 1.00
+246957623950 settle title 0.00 stats 1.00
+246957623954 settle title 0.00 stats 1.00
+246957623958 settle title 0.00 stats 1.00
+246957623962 settle title 0.00 stats 1.00
+246957623967 settle title 0.00 stats 1.00
+246957623971 settle title 0.00 stats 1.00
+246957623975 settle title 0.00 stats 1.00
+246957623979 settle title 0.00 stats 1.00
+246957623983 settle title 0.00 stats 1.00
+246957623997 settle title 0.00 stats 1.00
+246957624004 settle title 0.00 stats 1.00
+246957624008 settle title 0.00 stats 1.00
+246957624012 settle title 0.00 stats 1.00
+246957624016 settle title 0.00 stats 1.00
+246957624020 settle title 0.00 stats 1.00
+246957624024 settle title 0.00 stats 1.00
+246957624028 settle title 0.00 stats 1.00
+246957624032 settle title 0.00 stats 1.00
+246957624037 settle title 0.00 stats 1.00
+246957624041 settle title 0.00 stats 1.00
+246957624045 settle title 0.00 stats 1.00
+246957624049 settle title 0.00 stats 1.00
+246957624053 settle title 0.00 stats 1.00
+246957624057 settle title 0.00 stats 1.00
+246957624061 settle title 0.00 stats 1.00
+246957624065 settle title 0.00 stats 1.00
+246957624069 settle title 0.00 stats 1.00
+246957624074 settle title 0.00 stats 1.00
+246957624078 settle title 0.00 stats 1.00
+246957624082 settle title 0.00 stats 1.00
+246957624086 settle title 0.00 stats 1.00
+246957624090 settle title 0.00 stats 1.00
+246957624094 settle title 0.00 stats 1.00
+246957624098 settle title 0.00 stats 1.00
+246957624102 settle title 0.00 stats 1.00
+246957624106 settle title 0.00 stats 1.00
+246957624110 settle title 0.00 stats 1.00
+246957624115 settle title 0.00 stats 1.00
+246957624119 settle title 0.00 stats 1.00
+246957624123 settle title 0.00 stats 1.00
+246957624127 settle title 0.00 stats 1.00
+246957624131 settle title 0.00 stats 1.00
+246957624135 settle title 0.00 stats 1.00
+246957624139 settle title 0.00 stats 1.00
+246957624143 settle title 0.00 stats 1.00
+246957624147 settle title 0.00 stats 1.00
+246957624151 settle title 0.00 stats 1.00
+246957624156 settle title 0.00 stats 1.00
+246957624160 settle title 0.00 stats 1.00
+246957624164 settle title 0.00 stats 1.00
+246957624168 settle title 0.00 stats 1.00
+246957624172 settle title 0.00 stats 1.00
+246957624176 settle title 0.00 stats 1.00
+246957624180 settle title 0.00 stats 1.00
+246957624184 settle title 0.00 stats 1.00
+246957624188 settle title 0.00 stats 1.00
+246957624193 settle title 0.00 stats 1.00
+246957624197 settle title 0.00 stats 1.00
+246957624201 settle title 0.00 stats 1.00
+246957624205 settle title 0.00 stats 1.00
+246957624209 settle title 0.00 stats 1.00
+246957624213 settle title 0.00 stats 1.00
+246957624217 settle title 0.00 stats 1.00
+246957624221 settle title 0.00 stats 1.00
+246957624225 settle title 0.00 stats 1.00
+246957624229 settle title 0.00 stats 1.00
+246957624233 settle title 0.00 stats 1.00
+246957624238 settle title 0.00 stats 1.00
+246957624242 settle title 0.00 stats 1.00
+246957624246 settle title 0.00 stats 1.00
+246957624250 settle title 0.00 stats 1.00
+246957624254 settle title 0.00 stats 1.00
+246957624258 settle title 0.00 stats 1.00
+246957624262 settle title 0.00 stats 1.00
+246957624266 settle title 0.00 stats 1.00
+246957624270 settle title 0.00 stats 1.00
+246957624275 settle title 0.00 stats 1.00
+246957624279 settle title 0.00 stats 1.00
+246957624283 settle title 0.00 stats 1.00
+246957624287 settle title 0.00 stats 1.00
+246957624291 settle title 0.00 stats 1.00
+246957624295 settle title 0.00 stats 1.00
+246957624299 settle title 0.00 stats 1.00
+246957624303 settle title 0.00 stats 1.00
+246957624307 settle title 0.00 stats 1.00
+246957624311 settle title 0.00 stats 1.00
+246957624315 settle title 0.00 stats 1.00
+246957624320 settle title 0.00 stats 1.00
+246957624324 settle title 0.00 stats 1.00
+246957624328 settle title 0.00 stats 1.00
+246957624332 settle title 0.00 stats 1.00
+246957624336 settle title 0.00 stats 1.00
+246957624340 settle title 0.00 stats 1.00
+246957624344 settle title 0.00 stats 1.00
+246957624348 settle title 0.00 stats 1.00
+246957624352 settle title 0.00 stats 1.00
+246957624356 settle title 0.00 stats 1.00
+246957624360 settle title 0.00 stats 1.00
+246957624365 settle title 0.00 stats 1.00
+246957624369 settle title 0.00 stats 1.00
+246957624373 settle title 0.00 stats 1.00
+246957624377 settle title 0.00 stats 1.00
+246957624381 settle title 0.00 stats 1.00
+246957624385 settle title 0.00 stats 1.00
+246957624389 settle title 0.00 stats 1.00
+246957624393 settle title 0.00 stats 1.00
+246957624400 settle title 0.00 stats 1.00
+246957624404 settle title 0.00 stats 1.00
+246957624408 settle title 0.00 stats 1.00
+246957624412 settle title 0.00 stats 1.00
+246957624416 settle title 0.00 stats 1.00
+246957624420 settle title 0.00 stats 1.00
+246957624425 settle title 0.00 stats 1.00
+246957624429 settle title 0.00 stats 1.00
+246957624433 settle title 0.00 stats 1.00
+246957624437 settle title 0.00 stats 1.00
+246957624441 settle title 0.00 stats 1.00
+246957624445 settle title 0.00 stats 1.00
+246957624449 settle title 0.00 stats 1.00
+246957624453 settle title 0.00 stats 1.00
+246957624457 settle title 0.00 stats 1.00
+246957624461 settle title 0.00 stats 1.00
+246957624465 settle title 0.00 stats 1.00
+246957624469 settle title 0.00 stats 1.00
+246957624474 settle title 0.00 stats 1.00
+246957624478 settle title 0.00 stats 1.00
+246957624482 settle title 0.00 stats 1.00
+246957624486 settle title 0.00 stats 1.00
+246957624490 settle title 0.00 stats 1.00
+246957624494 settle title 0.00 stats 1.00
+246957624498 settle title 0.00 stats 1.00
+246957624502 settle title 0.00 stats 1.00
+246957624506 settle title 0.00 stats 1.00
+246957624510 settle title 0.00 stats 1.00
+246957624514 settle title 0.00 stats 1.00
+246957624518 settle title 0.00 stats 1.00
+246957624522 settle title 0.00 stats 1.00
+246957624526 settle title 0.00 stats 1.00
+246957624531 settle title 0.00 stats 1.00
+246957624535 settle title 0.00 stats 1.00
+246957624539 settle title 0.00 stats 1.00
+246957624543 settle title 0.00 stats 1.00
+246957624547 settle title 0.00 stats 1.00
+246957624551 settle title 0.00 stats 1.00
+246957624555 settle title 0.00 stats 1.00
+246957624559 settle title 0.00 stats 1.00
+246957624564 settle title 1.00 stats 1.00
+246957625082 f 375
+246957627255 f 376
+246957928400 settle title 0.00 stats 0.38
+246957929270 f 377
+246957930532 f 378
+246958018555 settle title 0.00 stats 0.38
+246958019239 f 379
+246958108848 settle title 0.00 stats 0.38
+246958109498 f 380
+246958198906 settle title 0.00 stats 0.38
+246958199518 f 381
+246958289223 settle title 0.00 stats 0.38
+246958289815 f 382
+246958379479 settle title 0.00 stats 0.38
+246958380072 f 383
+246958469442 settle title 0.00 stats 0.38
+246958470056 f 384
+246958559849 settle title 0.00 stats 0.38
+246958560571 f 385
+246958649886 settle title 0.00 stats 0.38
+246958650765 f 386
+246958740054 settle title 0.00 stats 0.38
+246958740846 f 387
+246958830060 settle title 0.00 stats 0.38
+246958830711 f 388
+246958920247 settle title 0.00 stats 0.38
+246958920871 f 389
+246959010383 settle title 0.00 stats 0.38
+246959011038 f 390
+246959100440 settle title 0.00 stats 0.38
+246959100993 f 391
+246959190773 settle title 0.00 stats 0.38
+246959191378 f 392
+246959280837 settle title 0.00 stats 0.38
+246959281428 f 393
+246959371164 settle title 0.00 stats 0.38
+246959371774 f 394
+246959461499 settle title 0.00 stats 0.38
+246959462103 f 395
+246959551676 settle title 0.00 stats 0.38
+246959552285 f 396
+246959641930 settle title 0.00 stats 0.38
+246959642549 f 397
+246959732015 settle title 0.00 stats 0.38
+246959732609 f 398
+246959822265 settle title 0.00 stats 0.38
+246959822889 f 399
+246959912434 settle title 0.00 stats 0.38
+246959913091 f 400
+246960002609 settle title 0.00 stats 0.38
+246960003254 f 401
+246960092934 settle title 0.00 stats 0.38
+246960093704 f 402
+246960593005 settle title 0.00 stats 1.00
+246960593430 f 403
+246960593440 recount+
+246960593951 recount-
+246960595065 f 404
+246961492087 settle title 0.00 stats 1.00
+246961492106 settle title 0.00 stats 1.00
+246961492110 settle title 0.00 stats 1.00
+246961492115 settle title 0.00 stats 1.00
+246961492119 settle title 0.00 stats 1.00
+246961492124 settle title 0.00 stats 1.00
+246961492128 settle title 0.00 stats 1.00
+246961492133 settle title 0.00 stats 1.00
+246961492137 settle title 0.00 stats 1.00
+246961492141 settle title 0.00 stats 1.00
+246961492145 settle title 0.00 stats 1.00
+246961492150 settle title 0.00 stats 1.00
+246961492154 settle title 0.00 stats 1.00
+246961492158 settle title 0.00 stats 1.00
+246961492163 settle title 0.00 stats 1.00
+246961492167 settle title 0.00 stats 1.00
+246961492181 settle title 0.00 stats 1.00
+246961492185 settle title 0.00 stats 1.00
+246961492190 settle title 0.00 stats 1.00
+246961492194 settle title 0.00 stats 1.00
+246961492198 settle title 0.00 stats 1.00
+246961492202 settle title 0.00 stats 1.00
+246961492206 settle title 0.00 stats 1.00
+246961492211 settle title 0.00 stats 1.00
+246961492215 settle title 0.00 stats 1.00
+246961492219 settle title 0.00 stats 1.00
+246961492224 settle title 0.00 stats 1.00
+246961492228 settle title 0.00 stats 1.00
+246961492232 settle title 0.00 stats 1.00
+246961492236 settle title 0.00 stats 1.00
+246961492241 settle title 0.00 stats 1.00
+246961492245 settle title 0.00 stats 1.00
+246961492251 settle title 0.00 stats 1.00
+246961492255 settle title 0.00 stats 1.00
+246961492259 settle title 0.00 stats 1.00
+246961492263 settle title 0.00 stats 1.00
+246961492268 settle title 0.00 stats 1.00
+246961492272 settle title 0.00 stats 1.00
+246961492276 settle title 0.00 stats 1.00
+246961492280 settle title 0.00 stats 1.00
+246961492285 settle title 0.00 stats 1.00
+246961492289 settle title 0.00 stats 1.00
+246961492293 settle title 0.00 stats 1.00
+246961492297 settle title 0.00 stats 1.00
+246961492301 settle title 0.00 stats 1.00
+246961492306 settle title 0.00 stats 1.00
+246961492310 settle title 0.00 stats 1.00
+246961492314 settle title 0.00 stats 1.00
+246961492318 settle title 0.00 stats 1.00
+246961492323 settle title 0.00 stats 1.00
+246961492327 settle title 0.00 stats 1.00
+246961492331 settle title 0.00 stats 1.00
+246961492335 settle title 0.00 stats 1.00
+246961492339 settle title 0.00 stats 1.00
+246961492343 settle title 0.00 stats 1.00
+246961492348 settle title 0.00 stats 1.00
+246961492352 settle title 0.00 stats 1.00
+246961492356 settle title 0.00 stats 1.00
+246961492360 settle title 0.00 stats 1.00
+246961492365 settle title 0.00 stats 1.00
+246961492369 settle title 0.00 stats 1.00
+246961492373 settle title 0.00 stats 1.00
+246961492377 settle title 0.00 stats 1.00
+246961492381 settle title 0.00 stats 1.00
+246961492386 settle title 0.00 stats 1.00
+246961492390 settle title 0.00 stats 1.00
+246961492394 settle title 0.00 stats 1.00
+246961492398 settle title 0.00 stats 1.00
+246961492402 settle title 0.00 stats 1.00
+246961492407 settle title 0.00 stats 1.00
+246961492411 settle title 0.00 stats 1.00
+246961492415 settle title 0.00 stats 1.00
+246961492419 settle title 0.00 stats 1.00
+246961492423 settle title 0.00 stats 1.00
+246961492428 settle title 0.00 stats 1.00
+246961492432 settle title 0.00 stats 1.00
+246961492436 settle title 0.00 stats 1.00
+246961492440 settle title 0.00 stats 1.00
+246961492444 settle title 0.00 stats 1.00
+246961492449 settle title 0.00 stats 1.00
+246961492453 settle title 0.00 stats 1.00
+246961492457 settle title 0.00 stats 1.00
+246961492461 settle title 0.00 stats 1.00
+246961492465 settle title 0.00 stats 1.00
+246961492470 settle title 0.00 stats 1.00
+246961492474 settle title 0.00 stats 1.00
+246961492478 settle title 0.00 stats 1.00
+246961492482 settle title 0.00 stats 1.00
+246961492486 settle title 0.00 stats 1.00
+246961492491 settle title 0.00 stats 1.00
+246961492495 settle title 0.00 stats 1.00
+246961492499 settle title 0.00 stats 1.00
+246961492503 settle title 0.00 stats 1.00
+246961492507 settle title 0.00 stats 1.00
+246961492511 settle title 0.00 stats 1.00
+246961492516 settle title 0.00 stats 1.00
+246961492520 settle title 0.00 stats 1.00
+246961492524 settle title 0.00 stats 1.00
+246961492528 settle title 0.00 stats 1.00
+246961492532 settle title 0.00 stats 1.00
+246961492537 settle title 0.00 stats 1.00
+246961492541 settle title 0.00 stats 1.00
+246961492545 settle title 0.00 stats 1.00
+246961492549 settle title 0.00 stats 1.00
+246961492553 settle title 0.00 stats 1.00
+246961492558 settle title 0.00 stats 1.00
+246961492562 settle title 0.00 stats 1.00
+246961492566 settle title 0.00 stats 1.00
+246961492570 settle title 0.00 stats 1.00
+246961492574 settle title 0.00 stats 1.00
+246961492579 settle title 0.00 stats 1.00
+246961492583 settle title 0.00 stats 1.00
+246961492587 settle title 0.00 stats 1.00
+246961492591 settle title 0.00 stats 1.00
+246961492597 settle title 0.00 stats 1.00
+246961492601 settle title 0.00 stats 1.00
+246961492605 settle title 0.00 stats 1.00
+246961492610 settle title 0.00 stats 1.00
+246961492614 settle title 0.00 stats 1.00
+246961492618 settle title 0.00 stats 1.00
+246961492622 settle title 0.00 stats 1.00
+246961492626 settle title 0.00 stats 1.00
+246961492631 settle title 0.00 stats 1.00
+246961492635 settle title 0.00 stats 1.00
+246961492639 settle title 0.00 stats 1.00
+246961492643 settle title 0.00 stats 1.00
+246961492647 settle title 0.00 stats 1.00
+246961492652 settle title 0.00 stats 1.00
+246961492656 settle title 0.00 stats 1.00
+246961492660 settle title 0.00 stats 1.00
+246961492664 settle title 0.00 stats 1.00
+246961492668 settle title 0.00 stats 1.00
+246961492673 settle title 0.00 stats 1.00
+246961492677 settle title 0.00 stats 1.00
+246961492681 settle title 0.00 stats 1.00
+246961492685 settle title 0.00 stats 1.00
+246961492689 settle title 0.00 stats 1.00
+246961492693 settle title 0.00 stats 1.00
+246961492698 settle title 0.00 stats 1.00
+246961492702 settle title 0.00 stats 1.00
+246961492706 settle title 0.00 stats 1.00
+246961492710 settle title 0.00 stats 1.00
+246961492714 settle title 0.00 stats 1.00
+246961492719 settle title 0.00 stats 1.00
+246961492723 settle title 0.00 stats 1.00
+246961492727 settle title 0.00 stats 1.00
+246961492731 settle title 0.00 stats 1.00
+246961492735 settle title 0.00 stats 1.00
+246961492740 settle title 0.00 stats 1.00
+246961492744 settle title 0.00 stats 1.00
+246961492748 settle title 0.00 stats 1.00
+246961492752 settle title 0.00 stats 1.00
+246961492756 settle title 0.00 stats 1.00
+246961492761 settle title 0.00 stats 1.00
+246961492765 settle title 0.00 stats 1.00
+246961492769 settle title 0.00 stats 1.00
+246961492773 settle title 0.00 stats 1.00
+246961492777 settle title 0.00 stats 1.00
+246961492782 settle title 0.00 stats 1.00
+246961492786 settle title 0.00 stats 1.00
+246961492790 settle title 0.00 stats 1.00
+246961492794 settle title 0.00 stats 1.00
+246961492798 settle title 0.00 stats 1.00
+246961492803 settle title 0.00 stats 1.00
+246961492807 settle title 0.00 stats 1.00
+246961492811 settle title 0.00 stats 1.00
+246961492815 settle title 0.00 stats 1.00
+246961492819 settle title 0.00 stats 1.00
+246961492823 settle title 0.00 stats 1.00
+246961492828 settle title 0.00 stats 1.00
+246961492832 settle title 0.00 stats 1.00
+246961492836 settle title 0.00 stats 1.00
+246961492840 settle title 0.00 stats 1.00
+246961492844 settle title 0.00 stats 1.00
+246961492849 settle title 0.00 stats 1.00
+246961492853 settle title 0.00 stats 1.00
+246961492857 settle title 0.00 stats 1.00
+246961492861 settle title 0.00 stats 1.00
+246961492865 settle title 0.00 stats 1.00
+246961492870 settle title 0.00 stats 1.00
+246961492874 settle title 0.00 stats 1.00
+246961492878 settle title 0.00 stats 1.00
+246961492882 settle title 0.00 stats 1.00
+246961492886 settle title 0.00 stats 1.00
+246961492890 settle title 0.00 stats 1.00
+246961492895 settle title 0.00 stats 1.00
+246961492899 settle title 0.00 stats 1.00
+246961492903 settle title 0.00 stats 1.00
+246961492907 settle title 0.00 stats 1.00
+246961492911 settle title 0.00 stats 1.00
+246961492916 settle title 0.00 stats 1.00
+246961492920 settle title 0.00 stats 1.00
+246961492924 settle title 0.00 stats 1.00
+246961492928 settle title 0.00 stats 1.00
+246961492932 settle title 0.00 stats 1.00
+246961492937 settle title 1.00 stats 1.00
+246961493448 f 405
+246961495046 f 406

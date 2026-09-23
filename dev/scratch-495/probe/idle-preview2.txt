@@ -1,0 +1,20 @@
+246806407944 exec_us 246805603409
+246806440800 f 0
+246806440822 frame 0 total 246806440.80 update -1.00 layout 17.25 paint 0.01
+246806440836 stall 32.87
+246806446375 f 1
+246806446394 frame 1 total 5.25 update 5.22 layout 3.90 paint 0.01
+246806446407 stall 5.57
+246806463103 f 2
+246806470833 lay_out
+246806510325 stall 40.43
+246806516456 f 3
+246806516477 frame 3 total 5.90 update 5.90 layout 5.68 paint 0.01
+246806516491 stall 6.17
+246806516522 opacity GtkScrollbar vertical.right.overlay-indicator (parent GtkScrolledWindow, GtkOverlay) -> 1.00
+246806530419 f 4
+246806546502 f 5
+246808516769 opacity GtkScrollbar vertical.right.overlay-indicator (parent GtkScrolledWindow, GtkOverlay) -> 0.00
+246808517369 f 6
+246808925666 opacity GtkScrollbar vertical.right.overlay-indicator (parent GtkScrolledWindow, GtkOverlay) -> 0.00
+246808925717 f 7

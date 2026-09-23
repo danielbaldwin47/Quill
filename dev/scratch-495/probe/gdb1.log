@@ -1,0 +1,7 @@
+Attaching to process 2637946
+❌️ ptrace: Operation not permitted.
+❌️ No symbol table is loaded.  Use the "file" command.
+Breakpoint 1 (gdk_frame_clock_request_phase) pending.
+❌️ /home/diggle/.claude/jobs/1a4897df/tmp/frames.gdb:11: Error in sourced command file:
+The program is not being run.
+(gdb) 

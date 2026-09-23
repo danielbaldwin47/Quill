@@ -1,0 +1,2 @@
+gate bench annotators: fail — mean 2.37 ms, worst 16.32 ms, p50 2.22 ms, p99 4.22 ms, cold 162.47 ms
+gate bench --regimes annotators: fail — 0 of 1 regimes clear the budget, not annotators (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)

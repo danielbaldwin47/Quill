@@ -1,0 +1,8 @@
+gate bench — 2026-09-23T19:40:15.170Z
+gate bench: building target/release/quill
+gate bench: the stage's first client cold-started in 884.902 ms, and is not measured
+gate bench: annotators, session 1 of 1
+gate bench: focus is on ours (0x558a0f8019c0), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up and 2 of top-up
+gate bench: wrote dev/shots/latency/bench-annotators-20260923T194048.json
+gate bench: wrote dev/shots/latency/summary-20260923T194049.json

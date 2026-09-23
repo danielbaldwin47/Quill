@@ -1,0 +1,41 @@
+gate bench — 2026-09-23T19:07:52.454Z
+@6 start
+gate bench: building target/release/quill
+@162 built
+@200 stage open
+@1733 injector settled
+@2657 injector open
+@2657 stage warmed
+gate bench: the stage's first client cold-started in 927.627 ms, and is not measured
+gate bench: prose_end_of_draft, session 1 of 1
+@2660 launch prose_end_of_draft
+@2877 mapped
+@2885 focused
+gate bench: focus is on ours (0x558a14149860), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up
+@2886 injector ready
+@4021 warm-up typed
+@4524 warm-up settled
+@31646 keys typed
+@31646 injector closed
+@32150 capture settled
+@32150 killed
+@32301 result written
+gate bench: wrote dev/shots/latency/bench-prose_end_of_draft-20260923T190824.json
+gate bench: preview, session 1 of 1
+@32305 launch preview
+@32524 mapped
+@32537 focused
+gate bench: focus is on ours (0x558a14149860), io.github.danielbaldwin47.Quill
+gate bench: typing 300 keys at 90 ms, after 25 of warm-up
+@32537 injector ready
+@33671 warm-up typed
+@34275 warm-up settled
+@61398 keys typed
+@61398 injector closed
+@61902 capture settled
+@61902 killed
+@62063 result written
+gate bench: wrote dev/shots/latency/bench-preview-20260923T190854.json
+@62306 stage closed
+gate bench: wrote dev/shots/latency/summary-20260923T190854.json

@@ -1,0 +1,3057 @@
+247092017091 exec_us 247091851366
+247092039746 f 0
+247092039765 frame 0 total 247092039.74 update -1.00 layout 11.61 paint 0.01
+247092039778 stall 22.66
+247092043025 f 1
+247092043039 frame 1 total 3.03 update 2.99 layout 2.38 paint 0.00
+247092058252 f 2
+247092073381 f 3
+247092089615 f 4
+247092106684 f 5
+247093597521 settle title 0.00 stats 0.38
+247093599593 f 6
+247093613564 f 7
+247093633419 f 8
+247093686455 settle title 0.00 stats 0.38
+247093687088 f 9
+247093776529 settle title 0.00 stats 0.38
+247093777153 f 10
+247093866800 settle title 0.00 stats 0.38
+247093867210 f 11
+247093957103 settle title 0.00 stats 0.38
+247093957547 f 12
+247094047658 settle title 0.00 stats 0.38
+247094048090 f 13
+247094138120 settle title 0.00 stats 0.38
+247094138502 f 14
+247094228416 settle title 0.00 stats 0.38
+247094229351 f 15
+247094318879 settle title 0.00 stats 0.38
+247094319445 f 16
+247094409279 settle title 0.00 stats 0.38
+247094409729 f 17
+247094499817 settle title 0.00 stats 0.38
+247094500315 f 18
+247094529179 opacity GtkScrollbar vertical.right.overlay-indicator (parent GtkScrolledWindow, GtkOverlay) -> 0.00
+247094529224 f 19
+247094590168 settle title 0.00 stats 0.38
+247094590678 f 20
+247094680371 settle title 0.00 stats 0.38
+247094680752 f 21
+247094770752 settle title 0.00 stats 0.38
+247094771077 f 22
+247094861325 settle title 0.00 stats 0.38
+247094861877 f 23
+247094951518 settle title 0.00 stats 0.38
+247094952119 f 24
+247095041632 settle title 0.00 stats 0.38
+247095042138 f 25
+247095131853 settle title 0.00 stats 0.38
+247095132240 f 26
+247095222101 settle title 0.00 stats 0.38
+247095222838 f 27
+247095312300 settle title 0.00 stats 0.38
+247095312906 f 28
+247095402201 settle title 0.00 stats 0.38
+247095402719 f 29
+247095492425 settle title 0.00 stats 0.38
+247095492876 f 30
+247095582605 settle title 0.00 stats 0.38
+247095583038 f 31
+247095672721 settle title 0.00 stats 0.38
+247095673131 f 32
+247095762829 settle title 0.00 stats 0.38
+247095763191 f 33
+247096262897 settle title 0.00 stats 1.00
+247096263324 f 34
+247096263335 recount+
+247096263847 recount-
+247096265212 f 35
+247096361412 settle title 0.00 stats 0.38
+247096362212 f 36
+247096363255 f 37
+247096380396 f 38
+247096396467 f 39
+247096451128 settle title 0.00 stats 0.38
+247096451762 f 40
+247096541281 settle title 0.00 stats 0.38
+247096541903 f 41
+247096631479 settle title 0.00 stats 0.38
+247096631950 f 42
+247096721933 settle title 0.00 stats 0.38
+247096722479 f 43
+247096812119 settle title 0.00 stats 0.38
+247096812700 f 44
+247096902159 settle title 0.00 stats 0.38
+247096902715 f 45
+247096992350 settle title 0.00 stats 0.38
+247096992927 f 46
+247097082427 settle title 0.00 stats 0.38
+247097082936 f 47
+247097172591 settle title 0.00 stats 0.38
+247097173131 f 48
+247097262858 settle title 0.00 stats 0.38
+247097263346 f 49
+247097353011 settle title 0.00 stats 0.38
+247097353490 f 50
+247097443307 settle title 0.00 stats 0.38
+247097443869 f 51
+247097533649 settle title 0.00 stats 0.38
+247097534237 f 52
+247097623754 settle title 0.00 stats 0.38
+247097624302 f 53
+247097713888 settle title 0.00 stats 0.38
+247097714394 f 54
+247097804313 settle title 0.00 stats 0.38
+247097804852 f 55
+247097894375 settle title 0.00 stats 0.38
+247097894880 f 56
+247097984685 settle title 0.00 stats 0.38
+247097985102 f 57
+247098074853 settle title 0.00 stats 0.38
+247098075260 f 58
+247098165165 settle title 0.00 stats 0.38
+247098165557 f 59
+247098255511 settle title 0.00 stats 0.38
+247098256088 f 60
+247098345692 settle title 0.00 stats 0.38
+247098346290 f 61
+247098435708 settle title 0.00 stats 0.38
+247098436286 f 62
+247098525994 settle title 0.00 stats 0.38
+247098526556 f 63
+247099026081 settle title 0.00 stats 1.00
+247099026677 f 64
+247099026692 recount+
+247099027317 recount-
+247099028682 f 65
+247099925172 settle title 0.00 stats 1.00
+247099925193 settle title 0.00 stats 1.00
+247099925197 settle title 0.00 stats 1.00
+247099925201 settle title 0.00 stats 1.00
+247099925206 settle title 0.00 stats 1.00
+247099925210 settle title 0.00 stats 1.00
+247099925215 settle title 0.00 stats 1.00
+247099925219 settle title 0.00 stats 1.00
+247099925234 settle title 0.00 stats 1.00
+247099925239 settle title 0.00 stats 1.00
+247099925243 settle title 0.00 stats 1.00
+247099925247 settle title 0.00 stats 1.00
+247099925251 settle title 0.00 stats 1.00
+247099925256 settle title 0.00 stats 1.00
+247099925260 settle title 0.00 stats 1.00
+247099925264 settle title 0.00 stats 1.00
+247099925268 settle title 0.00 stats 1.00
+247099925273 settle title 0.00 stats 1.00
+247099925277 settle title 0.00 stats 1.00
+247099925281 settle title 0.00 stats 1.00
+247099925285 settle title 0.00 stats 1.00
+247099925289 settle title 0.00 stats 1.00
+247099925294 settle title 0.00 stats 1.00
+247099925298 settle title 0.00 stats 1.00
+247099925302 settle title 0.00 stats 1.00
+247099925306 settle title 0.00 stats 1.00
+247099925311 settle title 0.00 stats 1.00
+247099925315 settle title 0.00 stats 1.00
+247099925319 settle title 0.00 stats 1.00
+247099925323 settle title 0.00 stats 1.00
+247099925327 settle title 0.00 stats 1.00
+247099925332 settle title 0.00 stats 1.00
+247099925336 settle title 0.00 stats 1.00
+247099925340 settle title 0.00 stats 1.00
+247099925344 settle title 0.00 stats 1.00
+247099925349 settle title 0.00 stats 1.00
+247099925353 settle title 0.00 stats 1.00
+247099925357 settle title 0.00 stats 1.00
+247099925361 settle title 0.00 stats 1.00
+247099925365 settle title 0.00 stats 1.00
+247099925370 settle title 0.00 stats 1.00
+247099925374 settle title 0.00 stats 1.00
+247099925378 settle title 0.00 stats 1.00
+247099925382 settle title 0.00 stats 1.00
+247099925386 settle title 0.00 stats 1.00
+247099925391 settle title 0.00 stats 1.00
+247099925395 settle title 0.00 stats 1.00
+247099925399 settle title 0.00 stats 1.00
+247099925403 settle title 0.00 stats 1.00
+247099925407 settle title 0.00 stats 1.00
+247099925411 settle title 0.00 stats 1.00
+247099925415 settle title 0.00 stats 1.00
+247099925420 settle title 0.00 stats 1.00
+247099925424 settle title 0.00 stats 1.00
+247099925428 settle title 0.00 stats 1.00
+247099925432 settle title 0.00 stats 1.00
+247099925436 settle title 0.00 stats 1.00
+247099925440 settle title 0.00 stats 1.00
+247099925445 settle title 0.00 stats 1.00
+247099925449 settle title 0.00 stats 1.00
+247099925453 settle title 0.00 stats 1.00
+247099925457 settle title 0.00 stats 1.00
+247099925461 settle title 0.00 stats 1.00
+247099925465 settle title 0.00 stats 1.00
+247099925469 settle title 0.00 stats 1.00
+247099925473 settle title 0.00 stats 1.00
+247099925478 settle title 0.00 stats 1.00
+247099925482 settle title 0.00 stats 1.00
+247099925486 settle title 0.00 stats 1.00
+247099925490 settle title 0.00 stats 1.00
+247099925494 settle title 0.00 stats 1.00
+247099925498 settle title 0.00 stats 1.00
+247099925502 settle title 0.00 stats 1.00
+247099925507 settle title 0.00 stats 1.00
+247099925511 settle title 0.00 stats 1.00
+247099925515 settle title 0.00 stats 1.00
+247099925519 settle title 0.00 stats 1.00
+247099925523 settle title 0.00 stats 1.00
+247099925527 settle title 0.00 stats 1.00
+247099925532 settle title 0.00 stats 1.00
+247099925536 settle title 0.00 stats 1.00
+247099925540 settle title 0.00 stats 1.00
+247099925544 settle title 0.00 stats 1.00
+247099925548 settle title 0.00 stats 1.00
+247099925552 settle title 0.00 stats 1.00
+247099925556 settle title 0.00 stats 1.00
+247099925560 settle title 0.00 stats 1.00
+247099925564 settle title 0.00 stats 1.00
+247099925569 settle title 0.00 stats 1.00
+247099925573 settle title 0.00 stats 1.00
+247099925577 settle title 0.00 stats 1.00
+247099925581 settle title 0.00 stats 1.00
+247099925585 settle title 0.00 stats 1.00
+247099925589 settle title 0.00 stats 1.00
+247099925593 settle title 0.00 stats 1.00
+247099925598 settle title 0.00 stats 1.00
+247099925602 settle title 0.00 stats 1.00
+247099925606 settle title 0.00 stats 1.00
+247099925610 settle title 0.00 stats 1.00
+247099925614 settle title 0.00 stats 1.00
+247099925618 settle title 0.00 stats 1.00
+247099925622 settle title 0.00 stats 1.00
+247099925626 settle title 0.00 stats 1.00
+247099925631 settle title 0.00 stats 1.00
+247099925635 settle title 0.00 stats 1.00
+247099925639 settle title 0.00 stats 1.00
+247099925646 settle title 0.00 stats 1.00
+247099925650 settle title 0.00 stats 1.00
+247099925654 settle title 0.00 stats 1.00
+247099925658 settle title 0.00 stats 1.00
+247099925662 settle title 0.00 stats 1.00
+247099925666 settle title 0.00 stats 1.00
+247099925670 settle title 0.00 stats 1.00
+247099925674 settle title 0.00 stats 1.00
+247099925678 settle title 0.00 stats 1.00
+247099925682 settle title 0.00 stats 1.00
+247099925686 settle title 0.00 stats 1.00
+247099925690 settle title 0.00 stats 1.00
+247099925694 settle title 0.00 stats 1.00
+247099925698 settle title 0.00 stats 1.00
+247099925702 settle title 0.00 stats 1.00
+247099925706 settle title 0.00 stats 1.00
+247099925711 settle title 0.00 stats 1.00
+247099925715 settle title 0.00 stats 1.00
+247099925719 settle title 0.00 stats 1.00
+247099925723 settle title 0.00 stats 1.00
+247099925727 settle title 0.00 stats 1.00
+247099925731 settle title 0.00 stats 1.00
+247099925735 settle title 0.00 stats 1.00
+247099925739 settle title 0.00 stats 1.00
+247099925743 settle title 0.00 stats 1.00
+247099925747 settle title 0.00 stats 1.00
+247099925751 settle title 0.00 stats 1.00
+247099925755 settle title 0.00 stats 1.00
+247099925759 settle title 0.00 stats 1.00
+247099925763 settle title 0.00 stats 1.00
+247099925767 settle title 0.00 stats 1.00
+247099925771 settle title 0.00 stats 1.00
+247099925775 settle title 0.00 stats 1.00
+247099925779 settle title 0.00 stats 1.00
+247099925784 settle title 0.00 stats 1.00
+247099925788 settle title 0.00 stats 1.00
+247099925792 settle title 0.00 stats 1.00
+247099925796 settle title 0.00 stats 1.00
+247099925800 settle title 0.00 stats 1.00
+247099925804 settle title 0.00 stats 1.00
+247099925808 settle title 0.00 stats 1.00
+247099925812 settle title 0.00 stats 1.00
+247099925816 settle title 0.00 stats 1.00
+247099925820 settle title 0.00 stats 1.00
+247099925824 settle title 0.00 stats 1.00
+247099925828 settle title 0.00 stats 1.00
+247099925832 settle title 0.00 stats 1.00
+247099925836 settle title 0.00 stats 1.00
+247099925840 settle title 0.00 stats 1.00
+247099925844 settle title 0.00 stats 1.00
+247099925848 settle title 0.00 stats 1.00
+247099925852 settle title 0.00 stats 1.00
+247099925856 settle title 0.00 stats 1.00
+247099925861 settle title 0.00 stats 1.00
+247099925865 settle title 0.00 stats 1.00
+247099925869 settle title 0.00 stats 1.00
+247099925873 settle title 0.00 stats 1.00
+247099925877 settle title 0.00 stats 1.00
+247099925881 settle title 0.00 stats 1.00
+247099925885 settle title 0.00 stats 1.00
+247099925889 settle title 0.00 stats 1.00
+247099925893 settle title 0.00 stats 1.00
+247099925897 settle title 0.00 stats 1.00
+247099925901 settle title 0.00 stats 1.00
+247099925905 settle title 0.00 stats 1.00
+247099925909 settle title 0.00 stats 1.00
+247099925913 settle title 0.00 stats 1.00
+247099925917 settle title 0.00 stats 1.00
+247099925921 settle title 0.00 stats 1.00
+247099925925 settle title 0.00 stats 1.00
+247099925929 settle title 0.00 stats 1.00
+247099925933 settle title 0.00 stats 1.00
+247099925937 settle title 0.00 stats 1.00
+247099925942 settle title 0.00 stats 1.00
+247099925946 settle title 0.00 stats 1.00
+247099925950 settle title 0.00 stats 1.00
+247099925954 settle title 0.00 stats 1.00
+247099925958 settle title 0.00 stats 1.00
+247099925962 settle title 0.00 stats 1.00
+247099925966 settle title 0.00 stats 1.00
+247099925970 settle title 0.00 stats 1.00
+247099925974 settle title 0.00 stats 1.00
+247099925978 settle title 0.00 stats 1.00
+247099925982 settle title 0.00 stats 1.00
+247099925986 settle title 0.00 stats 1.00
+247099925990 settle title 0.00 stats 1.00
+247099925995 settle title 1.00 stats 1.00
+247099926862 f 66
+247099928358 f 67
+247100231507 settle title 0.00 stats 0.38
+247100232509 f 68
+247100233820 f 69
+247100321608 settle title 0.00 stats 0.38
+247100322307 f 70
+247100411855 settle title 0.00 stats 0.38
+247100412351 f 71
+247100502231 settle title 0.00 stats 0.38
+247100502678 f 72
+247100592699 settle title 0.00 stats 0.38
+247100593127 f 73
+247100682975 settle title 0.00 stats 0.38
+247100683318 f 74
+247100773371 settle title 0.00 stats 0.38
+247100773780 f 75
+247100863510 settle title 0.00 stats 0.38
+247100863937 f 76
+247100953729 settle title 0.00 stats 0.38
+247100954130 f 77
+247101044292 settle title 0.00 stats 0.38
+247101044886 f 78
+247101134432 settle title 0.00 stats 0.38
+247101134888 f 79
+247101224772 settle title 0.00 stats 0.38
+247101225416 f 80
+247101226753 f 81
+247101248729 f 82
+247101314871 settle title 0.00 stats 0.38
+247101315434 f 83
+247101405271 settle title 0.00 stats 0.38
+247101405796 f 84
+247101495599 settle title 0.00 stats 0.38
+247101496174 f 85
+247101498461 f 86
+247101515396 f 87
+247101585583 settle title 0.00 stats 0.38
+247101586044 f 88
+247101588674 f 89
+247101605584 f 90
+247101675919 settle title 0.00 stats 0.38
+247101676325 f 91
+247101766258 settle title 0.00 stats 0.38
+247101766647 f 92
+247101856655 settle title 0.00 stats 0.38
+247101857061 f 93
+247101947083 settle title 0.00 stats 0.38
+247101947537 f 94
+247102037356 settle title 0.00 stats 0.38
+247102037789 f 95
+247102127729 settle title 0.00 stats 0.38
+247102128094 f 96
+247102218025 settle title 0.00 stats 0.38
+247102218443 f 97
+247102308397 settle title 0.00 stats 0.38
+247102308846 f 98
+247102398595 settle title 0.00 stats 0.38
+247102399026 f 99
+247102898670 settle title 0.00 stats 1.00
+247102899078 f 100
+247102899089 recount+
+247102899608 recount-
+247102900650 f 101
+247103797755 settle title 0.00 stats 1.00
+247103797775 settle title 0.00 stats 1.00
+247103797779 settle title 0.00 stats 1.00
+247103797783 settle title 0.00 stats 1.00
+247103797788 settle title 0.00 stats 1.00
+247103797792 settle title 0.00 stats 1.00
+247103797796 settle title 0.00 stats 1.00
+247103797801 settle title 0.00 stats 1.00
+247103797804 settle title 0.00 stats 1.00
+247103797808 settle title 0.00 stats 1.00
+247103797812 settle title 0.00 stats 1.00
+247103797816 settle title 0.00 stats 1.00
+247103797820 settle title 0.00 stats 1.00
+247103797824 settle title 0.00 stats 1.00
+247103797828 settle title 0.00 stats 1.00
+247103797832 settle title 0.00 stats 1.00
+247103797836 settle title 0.00 stats 1.00
+247103797841 settle title 0.00 stats 1.00
+247103797845 settle title 0.00 stats 1.00
+247103797849 settle title 0.00 stats 1.00
+247103797852 settle title 0.00 stats 1.00
+247103797856 settle title 0.00 stats 1.00
+247103797860 settle title 0.00 stats 1.00
+247103797865 settle title 0.00 stats 1.00
+247103797869 settle title 0.00 stats 1.00
+247103797873 settle title 0.00 stats 1.00
+247103797877 settle title 0.00 stats 1.00
+247103797880 settle title 0.00 stats 1.00
+247103797884 settle title 0.00 stats 1.00
+247103797888 settle title 0.00 stats 1.00
+247103797892 settle title 0.00 stats 1.00
+247103797896 settle title 0.00 stats 1.00
+247103797900 settle title 0.00 stats 1.00
+247103797904 settle title 0.00 stats 1.00
+247103797908 settle title 0.00 stats 1.00
+247103797912 settle title 0.00 stats 1.00
+247103797916 settle title 0.00 stats 1.00
+247103797920 settle title 0.00 stats 1.00
+247103797924 settle title 0.00 stats 1.00
+247103797928 settle title 0.00 stats 1.00
+247103797932 settle title 0.00 stats 1.00
+247103797936 settle title 0.00 stats 1.00
+247103797940 settle title 0.00 stats 1.00
+247103797944 settle title 0.00 stats 1.00
+247103797948 settle title 0.00 stats 1.00
+247103797952 settle title 0.00 stats 1.00
+247103797956 settle title 0.00 stats 1.00
+247103797960 settle title 0.00 stats 1.00
+247103797963 settle title 0.00 stats 1.00
+247103797967 settle title 0.00 stats 1.00
+247103797971 settle title 0.00 stats 1.00
+247103797975 settle title 0.00 stats 1.00
+247103797979 settle title 0.00 stats 1.00
+247103797983 settle title 0.00 stats 1.00
+247103797987 settle title 0.00 stats 1.00
+247103797991 settle title 0.00 stats 1.00
+247103797995 settle title 0.00 stats 1.00
+247103797999 settle title 0.00 stats 1.00
+247103798006 settle title 0.00 stats 1.00
+247103798010 settle title 0.00 stats 1.00
+247103798014 settle title 0.00 stats 1.00
+247103798018 settle title 0.00 stats 1.00
+247103798022 settle title 0.00 stats 1.00
+247103798026 settle title 0.00 stats 1.00
+247103798030 settle title 0.00 stats 1.00
+247103798043 settle title 0.00 stats 1.00
+247103798047 settle title 0.00 stats 1.00
+247103798051 settle title 0.00 stats 1.00
+247103798055 settle title 0.00 stats 1.00
+247103798059 settle title 0.00 stats 1.00
+247103798063 settle title 0.00 stats 1.00
+247103798067 settle title 0.00 stats 1.00
+247103798070 settle title 0.00 stats 1.00
+247103798074 settle title 0.00 stats 1.00
+247103798078 settle title 0.00 stats 1.00
+247103798082 settle title 0.00 stats 1.00
+247103798086 settle title 0.00 stats 1.00
+247103798090 settle title 0.00 stats 1.00
+247103798094 settle title 0.00 stats 1.00
+247103798098 settle title 0.00 stats 1.00
+247103798102 settle title 0.00 stats 1.00
+247103798106 settle title 0.00 stats 1.00
+247103798110 settle title 0.00 stats 1.00
+247103798114 settle title 0.00 stats 1.00
+247103798118 settle title 0.00 stats 1.00
+247103798121 settle title 0.00 stats 1.00
+247103798125 settle title 0.00 stats 1.00
+247103798129 settle title 0.00 stats 1.00
+247103798133 settle title 0.00 stats 1.00
+247103798137 settle title 0.00 stats 1.00
+247103798141 settle title 0.00 stats 1.00
+247103798145 settle title 0.00 stats 1.00
+247103798149 settle title 0.00 stats 1.00
+247103798153 settle title 0.00 stats 1.00
+247103798157 settle title 0.00 stats 1.00
+247103798161 settle title 0.00 stats 1.00
+247103798165 settle title 0.00 stats 1.00
+247103798169 settle title 0.00 stats 1.00
+247103798173 settle title 0.00 stats 1.00
+247103798177 settle title 0.00 stats 1.00
+247103798181 settle title 0.00 stats 1.00
+247103798185 settle title 0.00 stats 1.00
+247103798189 settle title 0.00 stats 1.00
+247103798193 settle title 0.00 stats 1.00
+247103798196 settle title 0.00 stats 1.00
+247103798200 settle title 0.00 stats 1.00
+247103798204 settle title 0.00 stats 1.00
+247103798208 settle title 0.00 stats 1.00
+247103798212 settle title 0.00 stats 1.00
+247103798216 settle title 0.00 stats 1.00
+247103798220 settle title 0.00 stats 1.00
+247103798224 settle title 0.00 stats 1.00
+247103798228 settle title 0.00 stats 1.00
+247103798232 settle title 0.00 stats 1.00
+247103798236 settle title 0.00 stats 1.00
+247103798240 settle title 0.00 stats 1.00
+247103798244 settle title 0.00 stats 1.00
+247103798248 settle title 0.00 stats 1.00
+247103798251 settle title 0.00 stats 1.00
+247103798255 settle title 0.00 stats 1.00
+247103798259 settle title 0.00 stats 1.00
+247103798263 settle title 0.00 stats 1.00
+247103798267 settle title 0.00 stats 1.00
+247103798271 settle title 0.00 stats 1.00
+247103798275 settle title 0.00 stats 1.00
+247103798279 settle title 0.00 stats 1.00
+247103798283 settle title 0.00 stats 1.00
+247103798287 settle title 0.00 stats 1.00
+247103798291 settle title 0.00 stats 1.00
+247103798295 settle title 0.00 stats 1.00
+247103798299 settle title 0.00 stats 1.00
+247103798302 settle title 0.00 stats 1.00
+247103798306 settle title 0.00 stats 1.00
+247103798310 settle title 0.00 stats 1.00
+247103798314 settle title 0.00 stats 1.00
+247103798318 settle title 0.00 stats 1.00
+247103798322 settle title 0.00 stats 1.00
+247103798326 settle title 0.00 stats 1.00
+247103798330 settle title 0.00 stats 1.00
+247103798334 settle title 0.00 stats 1.00
+247103798338 settle title 0.00 stats 1.00
+247103798342 settle title 0.00 stats 1.00
+247103798346 settle title 0.00 stats 1.00
+247103798350 settle title 0.00 stats 1.00
+247103798353 settle title 0.00 stats 1.00
+247103798357 settle title 0.00 stats 1.00
+247103798361 settle title 0.00 stats 1.00
+247103798365 settle title 0.00 stats 1.00
+247103798369 settle title 0.00 stats 1.00
+247103798373 settle title 0.00 stats 1.00
+247103798377 settle title 0.00 stats 1.00
+247103798381 settle title 0.00 stats 1.00
+247103798385 settle title 0.00 stats 1.00
+247103798389 settle title 0.00 stats 1.00
+247103798393 settle title 0.00 stats 1.00
+247103798397 settle title 0.00 stats 1.00
+247103798401 settle title 0.00 stats 1.00
+247103798405 settle title 0.00 stats 1.00
+247103798409 settle title 0.00 stats 1.00
+247103798412 settle title 0.00 stats 1.00
+247103798417 settle title 0.00 stats 1.00
+247103798420 settle title 0.00 stats 1.00
+247103798424 settle title 0.00 stats 1.00
+247103798431 settle title 0.00 stats 1.00
+247103798435 settle title 0.00 stats 1.00
+247103798439 settle title 0.00 stats 1.00
+247103798443 settle title 0.00 stats 1.00
+247103798447 settle title 0.00 stats 1.00
+247103798451 settle title 0.00 stats 1.00
+247103798454 settle title 0.00 stats 1.00
+247103798458 settle title 0.00 stats 1.00
+247103798462 settle title 0.00 stats 1.00
+247103798466 settle title 0.00 stats 1.00
+247103798470 settle title 0.00 stats 1.00
+247103798474 settle title 0.00 stats 1.00
+247103798478 settle title 0.00 stats 1.00
+247103798482 settle title 0.00 stats 1.00
+247103798486 settle title 0.00 stats 1.00
+247103798490 settle title 0.00 stats 1.00
+247103798494 settle title 0.00 stats 1.00
+247103798498 settle title 0.00 stats 1.00
+247103798502 settle title 0.00 stats 1.00
+247103798506 settle title 0.00 stats 1.00
+247103798509 settle title 0.00 stats 1.00
+247103798513 settle title 0.00 stats 1.00
+247103798517 settle title 0.00 stats 1.00
+247103798521 settle title 0.00 stats 1.00
+247103798525 settle title 0.00 stats 1.00
+247103798529 settle title 0.00 stats 1.00
+247103798533 settle title 0.00 stats 1.00
+247103798537 settle title 0.00 stats 1.00
+247103798541 settle title 0.00 stats 1.00
+247103798545 settle title 0.00 stats 1.00
+247103798549 settle title 0.00 stats 1.00
+247103798553 settle title 0.00 stats 1.00
+247103798557 settle title 0.00 stats 1.00
+247103798561 settle title 0.00 stats 1.00
+247103798564 settle title 0.00 stats 1.00
+247103798568 settle title 0.00 stats 1.00
+247103798572 settle title 0.00 stats 1.00
+247103798576 settle title 0.00 stats 1.00
+247103798580 settle title 0.00 stats 1.00
+247103798584 settle title 0.00 stats 1.00
+247103798588 settle title 0.00 stats 1.00
+247103798592 settle title 0.00 stats 1.00
+247103798596 settle title 1.00 stats 1.00
+247103799164 f 102
+247103800717 f 103
+247104104312 settle title 0.00 stats 0.38
+247104105327 f 104
+247104106608 f 105
+247104194375 settle title 0.00 stats 0.38
+247104194849 f 106
+247104284930 settle title 0.00 stats 0.38
+247104285660 f 107
+247104374948 settle title 0.00 stats 0.38
+247104375573 f 108
+247104465234 settle title 0.00 stats 0.38
+247104465626 f 109
+247104555492 settle title 0.00 stats 0.38
+247104555900 f 110
+247104645702 settle title 0.00 stats 0.38
+247104646132 f 111
+247104736209 settle title 0.00 stats 0.38
+247104736653 f 112
+247104826363 settle title 0.00 stats 0.38
+247104826948 f 113
+247104916447 settle title 0.00 stats 0.38
+247104917050 f 114
+247105006813 settle title 0.00 stats 0.38
+247105007462 f 115
+247105096722 settle title 0.00 stats 0.38
+247105097206 f 116
+247105187137 settle title 0.00 stats 0.38
+247105187735 f 117
+247105277608 settle title 0.00 stats 0.38
+247105278244 f 118
+247105367736 settle title 0.00 stats 0.38
+247105368353 f 119
+247105457847 settle title 0.00 stats 0.38
+247105458288 f 120
+247105548178 settle title 0.00 stats 0.38
+247105548643 f 121
+247105638732 settle title 0.00 stats 0.38
+247105639331 f 122
+247105728852 settle title 0.00 stats 0.38
+247105729298 f 123
+247105819026 settle title 0.00 stats 0.38
+247105819461 f 124
+247105909570 settle title 0.00 stats 0.38
+247105910289 f 125
+247105999597 settle title 0.00 stats 0.38
+247106000129 f 126
+247106089921 settle title 0.00 stats 0.38
+247106090344 f 127
+247106180336 settle title 0.00 stats 0.38
+247106180747 f 128
+247106270607 settle title 0.00 stats 0.38
+247106271076 f 129
+247106770678 settle title 0.00 stats 1.00
+247106771131 f 130
+247106771144 recount+
+247106771661 recount-
+247106772859 f 131
+247107669768 settle title 0.00 stats 1.00
+247107669788 settle title 0.00 stats 1.00
+247107669792 settle title 0.00 stats 1.00
+247107669797 settle title 0.00 stats 1.00
+247107669801 settle title 0.00 stats 1.00
+247107669805 settle title 0.00 stats 1.00
+247107669809 settle title 0.00 stats 1.00
+247107669813 settle title 0.00 stats 1.00
+247107669818 settle title 0.00 stats 1.00
+247107669822 settle title 0.00 stats 1.00
+247107669827 settle title 0.00 stats 1.00
+247107669831 settle title 0.00 stats 1.00
+247107669835 settle title 0.00 stats 1.00
+247107669839 settle title 0.00 stats 1.00
+247107669853 settle title 0.00 stats 1.00
+247107669857 settle title 0.00 stats 1.00
+247107669861 settle title 0.00 stats 1.00
+247107669866 settle title 0.00 stats 1.00
+247107669870 settle title 0.00 stats 1.00
+247107669874 settle title 0.00 stats 1.00
+247107669878 settle title 0.00 stats 1.00
+247107669882 settle title 0.00 stats 1.00
+247107669887 settle title 0.00 stats 1.00
+247107669891 settle title 0.00 stats 1.00
+247107669895 settle title 0.00 stats 1.00
+247107669899 settle title 0.00 stats 1.00
+247107669904 settle title 0.00 stats 1.00
+247107669908 settle title 0.00 stats 1.00
+247107669912 settle title 0.00 stats 1.00
+247107669916 settle title 0.00 stats 1.00
+247107669920 settle title 0.00 stats 1.00
+247107669924 settle title 0.00 stats 1.00
+247107669929 settle title 0.00 stats 1.00
+247107669933 settle title 0.00 stats 1.00
+247107669937 settle title 0.00 stats 1.00
+247107669941 settle title 0.00 stats 1.00
+247107669945 settle title 0.00 stats 1.00
+247107669949 settle title 0.00 stats 1.00
+247107669954 settle title 0.00 stats 1.00
+247107669958 settle title 0.00 stats 1.00
+247107669962 settle title 0.00 stats 1.00
+247107669966 settle title 0.00 stats 1.00
+247107669970 settle title 0.00 stats 1.00
+247107669975 settle title 0.00 stats 1.00
+247107669979 settle title 0.00 stats 1.00
+247107669983 settle title 0.00 stats 1.00
+247107669987 settle title 0.00 stats 1.00
+247107669995 settle title 0.00 stats 1.00
+247107670002 settle title 0.00 stats 1.00
+247107670007 settle title 0.00 stats 1.00
+247107670011 settle title 0.00 stats 1.00
+247107670015 settle title 0.00 stats 1.00
+247107670019 settle title 0.00 stats 1.00
+247107670023 settle title 0.00 stats 1.00
+247107670027 settle title 0.00 stats 1.00
+247107670032 settle title 0.00 stats 1.00
+247107670036 settle title 0.00 stats 1.00
+247107670040 settle title 0.00 stats 1.00
+247107670044 settle title 0.00 stats 1.00
+247107670048 settle title 0.00 stats 1.00
+247107670052 settle title 0.00 stats 1.00
+247107670056 settle title 0.00 stats 1.00
+247107670061 settle title 0.00 stats 1.00
+247107670065 settle title 0.00 stats 1.00
+247107670069 settle title 0.00 stats 1.00
+247107670073 settle title 0.00 stats 1.00
+247107670077 settle title 0.00 stats 1.00
+247107670081 settle title 0.00 stats 1.00
+247107670085 settle title 0.00 stats 1.00
+247107670090 settle title 0.00 stats 1.00
+247107670094 settle title 0.00 stats 1.00
+247107670098 settle title 0.00 stats 1.00
+247107670102 settle title 0.00 stats 1.00
+247107670106 settle title 0.00 stats 1.00
+247107670110 settle title 0.00 stats 1.00
+247107670115 settle title 0.00 stats 1.00
+247107670119 settle title 0.00 stats 1.00
+247107670123 settle title 0.00 stats 1.00
+247107670127 settle title 0.00 stats 1.00
+247107670131 settle title 0.00 stats 1.00
+247107670135 settle title 0.00 stats 1.00
+247107670139 settle title 0.00 stats 1.00
+247107670144 settle title 0.00 stats 1.00
+247107670148 settle title 0.00 stats 1.00
+247107670152 settle title 0.00 stats 1.00
+247107670156 settle title 0.00 stats 1.00
+247107670160 settle title 0.00 stats 1.00
+247107670164 settle title 0.00 stats 1.00
+247107670169 settle title 0.00 stats 1.00
+247107670173 settle title 0.00 stats 1.00
+247107670177 settle title 0.00 stats 1.00
+247107670181 settle title 0.00 stats 1.00
+247107670185 settle title 0.00 stats 1.00
+247107670189 settle title 0.00 stats 1.00
+247107670194 settle title 0.00 stats 1.00
+247107670198 settle title 0.00 stats 1.00
+247107670202 settle title 0.00 stats 1.00
+247107670206 settle title 0.00 stats 1.00
+247107670210 settle title 0.00 stats 1.00
+247107670214 settle title 0.00 stats 1.00
+247107670218 settle title 0.00 stats 1.00
+247107670223 settle title 0.00 stats 1.00
+247107670227 settle title 0.00 stats 1.00
+247107670231 settle title 0.00 stats 1.00
+247107670235 settle title 0.00 stats 1.00
+247107670239 settle title 0.00 stats 1.00
+247107670243 settle title 0.00 stats 1.00
+247107670248 settle title 0.00 stats 1.00
+247107670252 settle title 0.00 stats 1.00
+247107670256 settle title 0.00 stats 1.00
+247107670260 settle title 0.00 stats 1.00
+247107670267 settle title 0.00 stats 1.00
+247107670272 settle title 0.00 stats 1.00
+247107670276 settle title 0.00 stats 1.00
+247107670280 settle title 0.00 stats 1.00
+247107670284 settle title 0.00 stats 1.00
+247107670288 settle title 0.00 stats 1.00
+247107670292 settle title 0.00 stats 1.00
+247107670296 settle title 0.00 stats 1.00
+247107670301 settle title 0.00 stats 1.00
+247107670305 settle title 0.00 stats 1.00
+247107670309 settle title 0.00 stats 1.00
+247107670313 settle title 0.00 stats 1.00
+247107670317 settle title 0.00 stats 1.00
+247107670321 settle title 0.00 stats 1.00
+247107670325 settle title 0.00 stats 1.00
+247107670330 settle title 0.00 stats 1.00
+247107670334 settle title 0.00 stats 1.00
+247107670338 settle title 0.00 stats 1.00
+247107670342 settle title 0.00 stats 1.00
+247107670348 settle title 0.00 stats 1.00
+247107670354 settle title 0.00 stats 1.00
+247107670359 settle title 0.00 stats 1.00
+247107670364 settle title 0.00 stats 1.00
+247107670368 settle title 0.00 stats 1.00
+247107670372 settle title 0.00 stats 1.00
+247107670376 settle title 0.00 stats 1.00
+247107670380 settle title 0.00 stats 1.00
+247107670384 settle title 0.00 stats 1.00
+247107670388 settle title 0.00 stats 1.00
+247107670393 settle title 0.00 stats 1.00
+247107670397 settle title 0.00 stats 1.00
+247107670401 settle title 0.00 stats 1.00
+247107670405 settle title 0.00 stats 1.00
+247107670409 settle title 0.00 stats 1.00
+247107670413 settle title 0.00 stats 1.00
+247107670418 settle title 0.00 stats 1.00
+247107670422 settle title 0.00 stats 1.00
+247107670426 settle title 0.00 stats 1.00
+247107670430 settle title 0.00 stats 1.00
+247107670434 settle title 0.00 stats 1.00
+247107670438 settle title 0.00 stats 1.00
+247107670442 settle title 0.00 stats 1.00
+247107670447 settle title 0.00 stats 1.00
+247107670451 settle title 0.00 stats 1.00
+247107670455 settle title 0.00 stats 1.00
+247107670459 settle title 0.00 stats 1.00
+247107670463 settle title 0.00 stats 1.00
+247107670467 settle title 0.00 stats 1.00
+247107670471 settle title 0.00 stats 1.00
+247107670475 settle title 0.00 stats 1.00
+247107670480 settle title 0.00 stats 1.00
+247107670484 settle title 0.00 stats 1.00
+247107670488 settle title 0.00 stats 1.00
+247107670492 settle title 0.00 stats 1.00
+247107670496 settle title 0.00 stats 1.00
+247107670500 settle title 0.00 stats 1.00
+247107670505 settle title 0.00 stats 1.00
+247107670509 settle title 0.00 stats 1.00
+247107670513 settle title 0.00 stats 1.00
+247107670517 settle title 0.00 stats 1.00
+247107670521 settle title 0.00 stats 1.00
+247107670525 settle title 0.00 stats 1.00
+247107670529 settle title 0.00 stats 1.00
+247107670534 settle title 0.00 stats 1.00
+247107670538 settle title 0.00 stats 1.00
+247107670542 settle title 0.00 stats 1.00
+247107670546 settle title 0.00 stats 1.00
+247107670550 settle title 0.00 stats 1.00
+247107670554 settle title 0.00 stats 1.00
+247107670558 settle title 0.00 stats 1.00
+247107670562 settle title 0.00 stats 1.00
+247107670567 settle title 0.00 stats 1.00
+247107670571 settle title 0.00 stats 1.00
+247107670575 settle title 0.00 stats 1.00
+247107670579 settle title 0.00 stats 1.00
+247107670583 settle title 0.00 stats 1.00
+247107670587 settle title 0.00 stats 1.00
+247107670592 settle title 0.00 stats 1.00
+247107670596 settle title 0.00 stats 1.00
+247107670600 settle title 0.00 stats 1.00
+247107670604 settle title 0.00 stats 1.00
+247107670608 settle title 1.00 stats 1.00
+247107671146 f 132
+247107672302 f 133
+247107975145 settle title 0.00 stats 0.38
+247107975840 f 134
+247107976946 f 135
+247108065186 settle title 0.00 stats 0.38
+247108065695 f 136
+247108155327 settle title 0.00 stats 0.38
+247108155859 f 137
+247108245487 settle title 0.00 stats 0.38
+247108245936 f 138
+247108335646 settle title 0.00 stats 0.38
+247108336130 f 139
+247108425791 settle title 0.00 stats 0.38
+247108426247 f 140
+247108515932 settle title 0.00 stats 0.38
+247108516423 f 141
+247108606302 settle title 0.00 stats 0.38
+247108606968 f 142
+247108696281 settle title 0.00 stats 0.38
+247108696762 f 143
+247108786422 settle title 0.00 stats 0.38
+247108786844 f 144
+247108876617 settle title 0.00 stats 0.38
+247108877077 f 145
+247108966687 settle title 0.00 stats 0.38
+247108967160 f 146
+247109056868 settle title 0.00 stats 0.38
+247109057316 f 147
+247109147070 settle title 0.00 stats 0.38
+247109147491 f 148
+247109237136 settle title 0.00 stats 0.38
+247109237596 f 149
+247109327287 settle title 0.00 stats 0.38
+247109327768 f 150
+247109417509 settle title 0.00 stats 0.38
+247109417944 f 151
+247109507640 settle title 0.00 stats 0.38
+247109508139 f 152
+247109597743 settle title 0.00 stats 0.38
+247109598218 f 153
+247109687940 settle title 0.00 stats 0.38
+247109688414 f 154
+247109778023 settle title 0.00 stats 0.38
+247109778473 f 155
+247109868228 settle title 0.00 stats 0.38
+247109868677 f 156
+247109958436 settle title 0.00 stats 0.38
+247109958906 f 157
+247110048483 settle title 0.00 stats 0.38
+247110048951 f 158
+247110138693 settle title 0.00 stats 0.38
+247110139128 f 159
+247110638762 settle title 0.00 stats 1.00
+247110639193 f 160
+247110639204 recount+
+247110639713 recount-
+247110640934 f 161
+247111537848 settle title 0.00 stats 1.00
+247111537869 settle title 0.00 stats 1.00
+247111537873 settle title 0.00 stats 1.00
+247111537877 settle title 0.00 stats 1.00
+247111537881 settle title 0.00 stats 1.00
+247111537889 settle title 0.00 stats 1.00
+247111537893 settle title 0.00 stats 1.00
+247111537897 settle title 0.00 stats 1.00
+247111537901 settle title 0.00 stats 1.00
+247111537905 settle title 0.00 stats 1.00
+247111537909 settle title 0.00 stats 1.00
+247111537913 settle title 0.00 stats 1.00
+247111537917 settle title 0.00 stats 1.00
+247111537921 settle title 0.00 stats 1.00
+247111537925 settle title 0.00 stats 1.00
+247111537929 settle title 0.00 stats 1.00
+247111537933 settle title 0.00 stats 1.00
+247111537937 settle title 0.00 stats 1.00
+247111537941 settle title 0.00 stats 1.00
+247111537945 settle title 0.00 stats 1.00
+247111537949 settle title 0.00 stats 1.00
+247111537953 settle title 0.00 stats 1.00
+247111537957 settle title 0.00 stats 1.00
+247111537961 settle title 0.00 stats 1.00
+247111537966 settle title 0.00 stats 1.00
+247111537970 settle title 0.00 stats 1.00
+247111537974 settle title 0.00 stats 1.00
+247111537978 settle title 0.00 stats 1.00
+247111537982 settle title 0.00 stats 1.00
+247111537985 settle title 0.00 stats 1.00
+247111537990 settle title 0.00 stats 1.00
+247111537994 settle title 0.00 stats 1.00
+247111537998 settle title 0.00 stats 1.00
+247111538004 settle title 0.00 stats 1.00
+247111538008 settle title 0.00 stats 1.00
+247111538012 settle title 0.00 stats 1.00
+247111538016 settle title 0.00 stats 1.00
+247111538020 settle title 0.00 stats 1.00
+247111538024 settle title 0.00 stats 1.00
+247111538028 settle title 0.00 stats 1.00
+247111538032 settle title 0.00 stats 1.00
+247111538036 settle title 0.00 stats 1.00
+247111538040 settle title 0.00 stats 1.00
+247111538044 settle title 0.00 stats 1.00
+247111538048 settle title 0.00 stats 1.00
+247111538052 settle title 0.00 stats 1.00
+247111538056 settle title 0.00 stats 1.00
+247111538060 settle title 0.00 stats 1.00
+247111538064 settle title 0.00 stats 1.00
+247111538068 settle title 0.00 stats 1.00
+247111538072 settle title 0.00 stats 1.00
+247111538076 settle title 0.00 stats 1.00
+247111538080 settle title 0.00 stats 1.00
+247111538084 settle title 0.00 stats 1.00
+247111538088 settle title 0.00 stats 1.00
+247111538092 settle title 0.00 stats 1.00
+247111538096 settle title 0.00 stats 1.00
+247111538100 settle title 0.00 stats 1.00
+247111538104 settle title 0.00 stats 1.00
+247111538107 settle title 0.00 stats 1.00
+247111538112 settle title 0.00 stats 1.00
+247111538116 settle title 0.00 stats 1.00
+247111538119 settle title 0.00 stats 1.00
+247111538123 settle title 0.00 stats 1.00
+247111538127 settle title 0.00 stats 1.00
+247111538131 settle title 0.00 stats 1.00
+247111538135 settle title 0.00 stats 1.00
+247111538139 settle title 0.00 stats 1.00
+247111538143 settle title 0.00 stats 1.00
+247111538147 settle title 0.00 stats 1.00
+247111538151 settle title 0.00 stats 1.00
+247111538155 settle title 0.00 stats 1.00
+247111538159 settle title 0.00 stats 1.00
+247111538175 settle title 0.00 stats 1.00
+247111538179 settle title 0.00 stats 1.00
+247111538183 settle title 0.00 stats 1.00
+247111538187 settle title 0.00 stats 1.00
+247111538191 settle title 0.00 stats 1.00
+247111538195 settle title 0.00 stats 1.00
+247111538199 settle title 0.00 stats 1.00
+247111538203 settle title 0.00 stats 1.00
+247111538207 settle title 0.00 stats 1.00
+247111538211 settle title 0.00 stats 1.00
+247111538215 settle title 0.00 stats 1.00
+247111538219 settle title 0.00 stats 1.00
+247111538223 settle title 0.00 stats 1.00
+247111538227 settle title 0.00 stats 1.00
+247111538231 settle title 0.00 stats 1.00
+247111538235 settle title 0.00 stats 1.00
+247111538239 settle title 0.00 stats 1.00
+247111538243 settle title 0.00 stats 1.00
+247111538246 settle title 0.00 stats 1.00
+247111538250 settle title 0.00 stats 1.00
+247111538254 settle title 0.00 stats 1.00
+247111538258 settle title 0.00 stats 1.00
+247111538262 settle title 0.00 stats 1.00
+247111538266 settle title 0.00 stats 1.00
+247111538270 settle title 0.00 stats 1.00
+247111538274 settle title 0.00 stats 1.00
+247111538278 settle title 0.00 stats 1.00
+247111538282 settle title 0.00 stats 1.00
+247111538286 settle title 0.00 stats 1.00
+247111538290 settle title 0.00 stats 1.00
+247111538294 settle title 0.00 stats 1.00
+247111538298 settle title 0.00 stats 1.00
+247111538302 settle title 0.00 stats 1.00
+247111538305 settle title 0.00 stats 1.00
+247111538309 settle title 0.00 stats 1.00
+247111538318 settle title 0.00 stats 1.00
+247111538322 settle title 0.00 stats 1.00
+247111538326 settle title 0.00 stats 1.00
+247111538329 settle title 0.00 stats 1.00
+247111538333 settle title 0.00 stats 1.00
+247111538337 settle title 0.00 stats 1.00
+247111538341 settle title 0.00 stats 1.00
+247111538345 settle title 0.00 stats 1.00
+247111538349 settle title 0.00 stats 1.00
+247111538353 settle title 0.00 stats 1.00
+247111538357 settle title 0.00 stats 1.00
+247111538361 settle title 0.00 stats 1.00
+247111538365 settle title 0.00 stats 1.00
+247111538369 settle title 0.00 stats 1.00
+247111538373 settle title 0.00 stats 1.00
+247111538377 settle title 0.00 stats 1.00
+247111538381 settle title 0.00 stats 1.00
+247111538385 settle title 0.00 stats 1.00
+247111538388 settle title 0.00 stats 1.00
+247111538392 settle title 0.00 stats 1.00
+247111538396 settle title 0.00 stats 1.00
+247111538400 settle title 0.00 stats 1.00
+247111538404 settle title 0.00 stats 1.00
+247111538408 settle title 0.00 stats 1.00
+247111538412 settle title 0.00 stats 1.00
+247111538416 settle title 0.00 stats 1.00
+247111538420 settle title 0.00 stats 1.00
+247111538424 settle title 0.00 stats 1.00
+247111538428 settle title 0.00 stats 1.00
+247111538432 settle title 0.00 stats 1.00
+247111538436 settle title 0.00 stats 1.00
+247111538439 settle title 0.00 stats 1.00
+247111538443 settle title 0.00 stats 1.00
+247111538447 settle title 0.00 stats 1.00
+247111538451 settle title 0.00 stats 1.00
+247111538455 settle title 0.00 stats 1.00
+247111538459 settle title 0.00 stats 1.00
+247111538463 settle title 0.00 stats 1.00
+247111538467 settle title 0.00 stats 1.00
+247111538471 settle title 0.00 stats 1.00
+247111538475 settle title 0.00 stats 1.00
+247111538479 settle title 0.00 stats 1.00
+247111538482 settle title 0.00 stats 1.00
+247111538486 settle title 0.00 stats 1.00
+247111538490 settle title 0.00 stats 1.00
+247111538494 settle title 0.00 stats 1.00
+247111538498 settle title 0.00 stats 1.00
+247111538502 settle title 0.00 stats 1.00
+247111538506 settle title 0.00 stats 1.00
+247111538510 settle title 0.00 stats 1.00
+247111538514 settle title 0.00 stats 1.00
+247111538518 settle title 0.00 stats 1.00
+247111538522 settle title 0.00 stats 1.00
+247111538526 settle title 0.00 stats 1.00
+247111538530 settle title 0.00 stats 1.00
+247111538533 settle title 0.00 stats 1.00
+247111538537 settle title 0.00 stats 1.00
+247111538541 settle title 0.00 stats 1.00
+247111538545 settle title 0.00 stats 1.00
+247111538549 settle title 0.00 stats 1.00
+247111538553 settle title 0.00 stats 1.00
+247111538557 settle title 0.00 stats 1.00
+247111538564 settle title 0.00 stats 1.00
+247111538568 settle title 0.00 stats 1.00
+247111538572 settle title 0.00 stats 1.00
+247111538576 settle title 0.00 stats 1.00
+247111538580 settle title 0.00 stats 1.00
+247111538584 settle title 0.00 stats 1.00
+247111538587 settle title 0.00 stats 1.00
+247111538591 settle title 0.00 stats 1.00
+247111538595 settle title 0.00 stats 1.00
+247111538599 settle title 0.00 stats 1.00
+247111538603 settle title 0.00 stats 1.00
+247111538607 settle title 0.00 stats 1.00
+247111538611 settle title 0.00 stats 1.00
+247111538615 settle title 0.00 stats 1.00
+247111538619 settle title 0.00 stats 1.00
+247111538623 settle title 0.00 stats 1.00
+247111538627 settle title 0.00 stats 1.00
+247111538631 settle title 0.00 stats 1.00
+247111538634 settle title 0.00 stats 1.00
+247111538638 settle title 0.00 stats 1.00
+247111538642 settle title 0.00 stats 1.00
+247111538646 settle title 0.00 stats 1.00
+247111538650 settle title 0.00 stats 1.00
+247111538654 settle title 0.00 stats 1.00
+247111538658 settle title 0.00 stats 1.00
+247111538662 settle title 0.00 stats 1.00
+247111538666 settle title 0.00 stats 1.00
+247111538670 settle title 0.00 stats 1.00
+247111538674 settle title 0.00 stats 1.00
+247111538677 settle title 0.00 stats 1.00
+247111538681 settle title 0.00 stats 1.00
+247111538685 settle title 0.00 stats 1.00
+247111538689 settle title 0.00 stats 1.00
+247111538693 settle title 1.00 stats 1.00
+247111539228 f 162
+247111540799 f 163
+247111842617 settle title 0.00 stats 0.38
+247111843380 f 164
+247111844565 f 165
+247111933061 settle title 0.00 stats 0.38
+247111933586 f 166
+247112023497 settle title 0.00 stats 0.38
+247112024103 f 167
+247112025533 f 168
+247112042597 f 169
+247112113717 settle title 0.00 stats 0.38
+247112114194 f 170
+247112204049 settle title 0.00 stats 0.38
+247112204508 f 171
+247112294309 settle title 0.00 stats 0.38
+247112294793 f 172
+247112384562 settle title 0.00 stats 0.38
+247112385054 f 173
+247112474866 settle title 0.00 stats 0.38
+247112475554 f 174
+247112565244 settle title 0.00 stats 0.38
+247112565939 f 175
+247112655435 settle title 0.00 stats 0.38
+247112656118 f 176
+247112745661 settle title 0.00 stats 0.38
+247112746308 f 177
+247112835802 settle title 0.00 stats 0.38
+247112836433 f 178
+247112926216 settle title 0.00 stats 0.38
+247112926672 f 179
+247113016019 settle title 0.00 stats 0.38
+247113016506 f 180
+247113106247 settle title 0.00 stats 0.38
+247113106659 f 181
+247113196322 settle title 0.00 stats 0.38
+247113196792 f 182
+247113286487 settle title 0.00 stats 0.38
+247113286939 f 183
+247113376716 settle title 0.00 stats 0.38
+247113377218 f 184
+247113466781 settle title 0.00 stats 0.38
+247113467252 f 185
+247113557054 settle title 0.00 stats 0.38
+247113557569 f 186
+247113647187 settle title 0.00 stats 0.38
+247113647680 f 187
+247113737347 settle title 0.00 stats 0.38
+247113737845 f 188
+247113827439 settle title 0.00 stats 0.38
+247113827889 f 189
+247113917759 settle title 0.00 stats 0.38
+247113918224 f 190
+247114008113 settle title 0.00 stats 0.38
+247114008595 f 191
+247114508188 settle title 0.00 stats 1.00
+247114508581 f 192
+247114508592 recount+
+247114509118 recount-
+247114510103 f 193
+247115407272 settle title 0.00 stats 1.00
+247115407294 settle title 0.00 stats 1.00
+247115407298 settle title 0.00 stats 1.00
+247115407302 settle title 0.00 stats 1.00
+247115407306 settle title 0.00 stats 1.00
+247115407310 settle title 0.00 stats 1.00
+247115407314 settle title 0.00 stats 1.00
+247115407318 settle title 0.00 stats 1.00
+247115407322 settle title 0.00 stats 1.00
+247115407326 settle title 0.00 stats 1.00
+247115407330 settle title 0.00 stats 1.00
+247115407334 settle title 0.00 stats 1.00
+247115407338 settle title 0.00 stats 1.00
+247115407342 settle title 0.00 stats 1.00
+247115407346 settle title 0.00 stats 1.00
+247115407350 settle title 0.00 stats 1.00
+247115407354 settle title 0.00 stats 1.00
+247115407359 settle title 0.00 stats 1.00
+247115407363 settle title 0.00 stats 1.00
+247115407367 settle title 0.00 stats 1.00
+247115407371 settle title 0.00 stats 1.00
+247115407375 settle title 0.00 stats 1.00
+247115407389 settle title 0.00 stats 1.00
+247115407393 settle title 0.00 stats 1.00
+247115407397 settle title 0.00 stats 1.00
+247115407401 settle title 0.00 stats 1.00
+247115407405 settle title 0.00 stats 1.00
+247115407409 settle title 0.00 stats 1.00
+247115407413 settle title 0.00 stats 1.00
+247115407417 settle title 0.00 stats 1.00
+247115407421 settle title 0.00 stats 1.00
+247115407425 settle title 0.00 stats 1.00
+247115407429 settle title 0.00 stats 1.00
+247115407433 settle title 0.00 stats 1.00
+247115407437 settle title 0.00 stats 1.00
+247115407441 settle title 0.00 stats 1.00
+247115407445 settle title 0.00 stats 1.00
+247115407448 settle title 0.00 stats 1.00
+247115407452 settle title 0.00 stats 1.00
+247115407456 settle title 0.00 stats 1.00
+247115407460 settle title 0.00 stats 1.00
+247115407464 settle title 0.00 stats 1.00
+247115407468 settle title 0.00 stats 1.00
+247115407472 settle title 0.00 stats 1.00
+247115407476 settle title 0.00 stats 1.00
+247115407480 settle title 0.00 stats 1.00
+247115407484 settle title 0.00 stats 1.00
+247115407488 settle title 0.00 stats 1.00
+247115407492 settle title 0.00 stats 1.00
+247115407496 settle title 0.00 stats 1.00
+247115407500 settle title 0.00 stats 1.00
+247115407504 settle title 0.00 stats 1.00
+247115407508 settle title 0.00 stats 1.00
+247115407512 settle title 0.00 stats 1.00
+247115407516 settle title 0.00 stats 1.00
+247115407520 settle title 0.00 stats 1.00
+247115407524 settle title 0.00 stats 1.00
+247115407528 settle title 0.00 stats 1.00
+247115407532 settle title 0.00 stats 1.00
+247115407536 settle title 0.00 stats 1.00
+247115407540 settle title 0.00 stats 1.00
+247115407544 settle title 0.00 stats 1.00
+247115407548 settle title 0.00 stats 1.00
+247115407551 settle title 0.00 stats 1.00
+247115407555 settle title 0.00 stats 1.00
+247115407559 settle title 0.00 stats 1.00
+247115407563 settle title 0.00 stats 1.00
+247115407567 settle title 0.00 stats 1.00
+247115407571 settle title 0.00 stats 1.00
+247115407575 settle title 0.00 stats 1.00
+247115407579 settle title 0.00 stats 1.00
+247115407583 settle title 0.00 stats 1.00
+247115407587 settle title 0.00 stats 1.00
+247115407591 settle title 0.00 stats 1.00
+247115407595 settle title 0.00 stats 1.00
+247115407599 settle title 0.00 stats 1.00
+247115407603 settle title 0.00 stats 1.00
+247115407607 settle title 0.00 stats 1.00
+247115407611 settle title 0.00 stats 1.00
+247115407615 settle title 0.00 stats 1.00
+247115407619 settle title 0.00 stats 1.00
+247115407623 settle title 0.00 stats 1.00
+247115407627 settle title 0.00 stats 1.00
+247115407631 settle title 0.00 stats 1.00
+247115407634 settle title 0.00 stats 1.00
+247115407644 settle title 0.00 stats 1.00
+247115407648 settle title 0.00 stats 1.00
+247115407652 settle title 0.00 stats 1.00
+247115407656 settle title 0.00 stats 1.00
+247115407660 settle title 0.00 stats 1.00
+247115407664 settle title 0.00 stats 1.00
+247115407668 settle title 0.00 stats 1.00
+247115407672 settle title 0.00 stats 1.00
+247115407676 settle title 0.00 stats 1.00
+247115407680 settle title 0.00 stats 1.00
+247115407684 settle title 0.00 stats 1.00
+247115407688 settle title 0.00 stats 1.00
+247115407691 settle title 0.00 stats 1.00
+247115407695 settle title 0.00 stats 1.00
+247115407700 settle title 0.00 stats 1.00
+247115407703 settle title 0.00 stats 1.00
+247115407707 settle title 0.00 stats 1.00
+247115407711 settle title 0.00 stats 1.00
+247115407715 settle title 0.00 stats 1.00
+247115407719 settle title 0.00 stats 1.00
+247115407723 settle title 0.00 stats 1.00
+247115407727 settle title 0.00 stats 1.00
+247115407731 settle title 0.00 stats 1.00
+247115407735 settle title 0.00 stats 1.00
+247115407739 settle title 0.00 stats 1.00
+247115407743 settle title 0.00 stats 1.00
+247115407747 settle title 0.00 stats 1.00
+247115407751 settle title 0.00 stats 1.00
+247115407755 settle title 0.00 stats 1.00
+247115407759 settle title 0.00 stats 1.00
+247115407763 settle title 0.00 stats 1.00
+247115407766 settle title 0.00 stats 1.00
+247115407770 settle title 0.00 stats 1.00
+247115407774 settle title 0.00 stats 1.00
+247115407778 settle title 0.00 stats 1.00
+247115407784 settle title 0.00 stats 1.00
+247115407788 settle title 0.00 stats 1.00
+247115407792 settle title 0.00 stats 1.00
+247115407796 settle title 0.00 stats 1.00
+247115407800 settle title 0.00 stats 1.00
+247115407804 settle title 0.00 stats 1.00
+247115407808 settle title 0.00 stats 1.00
+247115407811 settle title 0.00 stats 1.00
+247115407815 settle title 0.00 stats 1.00
+247115407819 settle title 0.00 stats 1.00
+247115407823 settle title 0.00 stats 1.00
+247115407827 settle title 0.00 stats 1.00
+247115407831 settle title 0.00 stats 1.00
+247115407835 settle title 0.00 stats 1.00
+247115407839 settle title 0.00 stats 1.00
+247115407843 settle title 0.00 stats 1.00
+247115407847 settle title 0.00 stats 1.00
+247115407851 settle title 0.00 stats 1.00
+247115407855 settle title 0.00 stats 1.00
+247115407859 settle title 0.00 stats 1.00
+247115407863 settle title 0.00 stats 1.00
+247115407867 settle title 0.00 stats 1.00
+247115407871 settle title 0.00 stats 1.00
+247115407875 settle title 0.00 stats 1.00
+247115407878 settle title 0.00 stats 1.00
+247115407882 settle title 0.00 stats 1.00
+247115407886 settle title 0.00 stats 1.00
+247115407890 settle title 0.00 stats 1.00
+247115407894 settle title 0.00 stats 1.00
+247115407898 settle title 0.00 stats 1.00
+247115407902 settle title 0.00 stats 1.00
+247115407906 settle title 0.00 stats 1.00
+247115407910 settle title 0.00 stats 1.00
+247115407914 settle title 0.00 stats 1.00
+247115407918 settle title 0.00 stats 1.00
+247115407922 settle title 0.00 stats 1.00
+247115407926 settle title 0.00 stats 1.00
+247115407930 settle title 0.00 stats 1.00
+247115407934 settle title 0.00 stats 1.00
+247115407937 settle title 0.00 stats 1.00
+247115407941 settle title 0.00 stats 1.00
+247115407945 settle title 0.00 stats 1.00
+247115407949 settle title 0.00 stats 1.00
+247115407953 settle title 0.00 stats 1.00
+247115407957 settle title 0.00 stats 1.00
+247115407961 settle title 0.00 stats 1.00
+247115407965 settle title 0.00 stats 1.00
+247115407969 settle title 0.00 stats 1.00
+247115407973 settle title 0.00 stats 1.00
+247115407977 settle title 0.00 stats 1.00
+247115407981 settle title 0.00 stats 1.00
+247115407985 settle title 0.00 stats 1.00
+247115407989 settle title 0.00 stats 1.00
+247115407992 settle title 0.00 stats 1.00
+247115407996 settle title 0.00 stats 1.00
+247115408003 settle title 0.00 stats 1.00
+247115408008 settle title 0.00 stats 1.00
+247115408012 settle title 0.00 stats 1.00
+247115408016 settle title 0.00 stats 1.00
+247115408020 settle title 0.00 stats 1.00
+247115408024 settle title 0.00 stats 1.00
+247115408028 settle title 0.00 stats 1.00
+247115408032 settle title 0.00 stats 1.00
+247115408036 settle title 0.00 stats 1.00
+247115408040 settle title 0.00 stats 1.00
+247115408043 settle title 0.00 stats 1.00
+247115408047 settle title 0.00 stats 1.00
+247115408051 settle title 0.00 stats 1.00
+247115408055 settle title 0.00 stats 1.00
+247115408059 settle title 0.00 stats 1.00
+247115408063 settle title 0.00 stats 1.00
+247115408067 settle title 0.00 stats 1.00
+247115408071 settle title 0.00 stats 1.00
+247115408075 settle title 0.00 stats 1.00
+247115408079 settle title 0.00 stats 1.00
+247115408083 settle title 0.00 stats 1.00
+247115408087 settle title 0.00 stats 1.00
+247115408091 settle title 0.00 stats 1.00
+247115408095 settle title 0.00 stats 1.00
+247115408099 settle title 0.00 stats 1.00
+247115408103 settle title 0.00 stats 1.00
+247115408107 settle title 0.00 stats 1.00
+247115408110 settle title 0.00 stats 1.00
+247115408115 settle title 1.00 stats 1.00
+247115408624 f 194
+247115410223 f 195
+247115713987 settle title 0.00 stats 0.38
+247115715093 f 196
+247115716530 f 197
+247115803993 settle title 0.00 stats 0.38
+247115804772 f 198
+247115894616 settle title 0.00 stats 0.38
+247115895462 f 199
+247115984662 settle title 0.00 stats 0.38
+247115985375 f 200
+247116074873 settle title 0.00 stats 0.38
+247116075536 f 201
+247116164913 settle title 0.00 stats 0.38
+247116165543 f 202
+247116255200 settle title 0.00 stats 0.38
+247116255863 f 203
+247116345263 settle title 0.00 stats 0.38
+247116345949 f 204
+247116435347 settle title 0.00 stats 0.38
+247116435970 f 205
+247116525611 settle title 0.00 stats 0.38
+247116526334 f 206
+247116615699 settle title 0.00 stats 0.38
+247116616372 f 207
+247116705718 settle title 0.00 stats 0.38
+247116706225 f 208
+247116795916 settle title 0.00 stats 0.38
+247116796353 f 209
+247116886202 settle title 0.00 stats 0.38
+247116886693 f 210
+247116976404 settle title 0.00 stats 0.38
+247116976901 f 211
+247117066564 settle title 0.00 stats 0.38
+247117067042 f 212
+247117156719 settle title 0.00 stats 0.38
+247117157229 f 213
+247117246843 settle title 0.00 stats 0.38
+247117247341 f 214
+247117337082 settle title 0.00 stats 0.38
+247117337581 f 215
+247117427248 settle title 0.00 stats 0.38
+247117427982 f 216
+247117517401 settle title 0.00 stats 0.38
+247117518158 f 217
+247117607624 settle title 0.00 stats 0.38
+247117608331 f 218
+247117697890 settle title 0.00 stats 0.38
+247117698555 f 219
+247117787954 settle title 0.00 stats 0.38
+247117788651 f 220
+247117878339 settle title 0.00 stats 0.38
+247117879070 f 221
+247118378418 settle title 0.00 stats 1.00
+247118379019 f 222
+247118379035 recount+
+247118379736 recount-
+247118380868 f 223
+247119277515 settle title 0.00 stats 1.00
+247119277544 settle title 0.00 stats 1.00
+247119277554 settle title 0.00 stats 1.00
+247119277562 settle title 0.00 stats 1.00
+247119277570 settle title 0.00 stats 1.00
+247119277577 settle title 0.00 stats 1.00
+247119277585 settle title 0.00 stats 1.00
+247119277593 settle title 0.00 stats 1.00
+247119277600 settle title 0.00 stats 1.00
+247119277609 settle title 0.00 stats 1.00
+247119277617 settle title 0.00 stats 1.00
+247119277624 settle title 0.00 stats 1.00
+247119277632 settle title 0.00 stats 1.00
+247119277640 settle title 0.00 stats 1.00
+247119277648 settle title 0.00 stats 1.00
+247119277656 settle title 0.00 stats 1.00
+247119277664 settle title 0.00 stats 1.00
+247119277672 settle title 0.00 stats 1.00
+247119277680 settle title 0.00 stats 1.00
+247119277687 settle title 0.00 stats 1.00
+247119277695 settle title 0.00 stats 1.00
+247119277703 settle title 0.00 stats 1.00
+247119277711 settle title 0.00 stats 1.00
+247119277719 settle title 0.00 stats 1.00
+247119277727 settle title 0.00 stats 1.00
+247119277734 settle title 0.00 stats 1.00
+247119277742 settle title 0.00 stats 1.00
+247119277750 settle title 0.00 stats 1.00
+247119277758 settle title 0.00 stats 1.00
+247119277766 settle title 0.00 stats 1.00
+247119277774 settle title 0.00 stats 1.00
+247119277782 settle title 0.00 stats 1.00
+247119277789 settle title 0.00 stats 1.00
+247119277797 settle title 0.00 stats 1.00
+247119277805 settle title 0.00 stats 1.00
+247119277813 settle title 0.00 stats 1.00
+247119277821 settle title 0.00 stats 1.00
+247119277829 settle title 0.00 stats 1.00
+247119277837 settle title 0.00 stats 1.00
+247119277844 settle title 0.00 stats 1.00
+247119277852 settle title 0.00 stats 1.00
+247119277860 settle title 0.00 stats 1.00
+247119277868 settle title 0.00 stats 1.00
+247119277876 settle title 0.00 stats 1.00
+247119277883 settle title 0.00 stats 1.00
+247119277891 settle title 0.00 stats 1.00
+247119277899 settle title 0.00 stats 1.00
+247119277908 settle title 0.00 stats 1.00
+247119277916 settle title 0.00 stats 1.00
+247119277924 settle title 0.00 stats 1.00
+247119277932 settle title 0.00 stats 1.00
+247119277940 settle title 0.00 stats 1.00
+247119277947 settle title 0.00 stats 1.00
+247119277955 settle title 0.00 stats 1.00
+247119277963 settle title 0.00 stats 1.00
+247119277971 settle title 0.00 stats 1.00
+247119277979 settle title 0.00 stats 1.00
+247119277987 settle title 0.00 stats 1.00
+247119277994 settle title 0.00 stats 1.00
+247119278006 settle title 0.00 stats 1.00
+247119278014 settle title 0.00 stats 1.00
+247119278022 settle title 0.00 stats 1.00
+247119278030 settle title 0.00 stats 1.00
+247119278038 settle title 0.00 stats 1.00
+247119278046 settle title 0.00 stats 1.00
+247119278054 settle title 0.00 stats 1.00
+247119278061 settle title 0.00 stats 1.00
+247119278069 settle title 0.00 stats 1.00
+247119278077 settle title 0.00 stats 1.00
+247119278085 settle title 0.00 stats 1.00
+247119278108 settle title 0.00 stats 1.00
+247119278117 settle title 0.00 stats 1.00
+247119278125 settle title 0.00 stats 1.00
+247119278132 settle title 0.00 stats 1.00
+247119278140 settle title 0.00 stats 1.00
+247119278148 settle title 0.00 stats 1.00
+247119278156 settle title 0.00 stats 1.00
+247119278164 settle title 0.00 stats 1.00
+247119278171 settle title 0.00 stats 1.00
+247119278179 settle title 0.00 stats 1.00
+247119278187 settle title 0.00 stats 1.00
+247119278195 settle title 0.00 stats 1.00
+247119278203 settle title 0.00 stats 1.00
+247119278210 settle title 0.00 stats 1.00
+247119278218 settle title 0.00 stats 1.00
+247119278226 settle title 0.00 stats 1.00
+247119278234 settle title 0.00 stats 1.00
+247119278242 settle title 0.00 stats 1.00
+247119278249 settle title 0.00 stats 1.00
+247119278257 settle title 0.00 stats 1.00
+247119278265 settle title 0.00 stats 1.00
+247119278273 settle title 0.00 stats 1.00
+247119278281 settle title 0.00 stats 1.00
+247119278289 settle title 0.00 stats 1.00
+247119278296 settle title 0.00 stats 1.00
+247119278304 settle title 0.00 stats 1.00
+247119278312 settle title 0.00 stats 1.00
+247119278320 settle title 0.00 stats 1.00
+247119278328 settle title 0.00 stats 1.00
+247119278336 settle title 0.00 stats 1.00
+247119278344 settle title 1.00 stats 1.00
+247119279132 f 224
+247119280770 f 225
+247119583660 settle title 0.00 stats 0.38
+247119584843 f 226
+247119586019 f 227
+247119673715 settle title 0.00 stats 0.38
+247119674497 f 228
+247119763939 settle title 0.00 stats 0.38
+247119764702 f 229
+247119854288 settle title 0.00 stats 0.38
+247119854998 f 230
+247119944463 settle title 0.00 stats 0.38
+247119945111 f 231
+247120034829 settle title 0.00 stats 0.38
+247120035550 f 232
+247120125159 settle title 0.00 stats 0.38
+247120125894 f 233
+247120215265 settle title 0.00 stats 0.38
+247120216015 f 234
+247120305458 settle title 0.00 stats 0.38
+247120306196 f 235
+247120395577 settle title 0.00 stats 0.38
+247120396108 f 236
+247120485879 settle title 0.00 stats 0.38
+247120486515 f 237
+247120575919 settle title 0.00 stats 0.38
+247120576432 f 238
+247120666168 settle title 0.00 stats 0.38
+247120666712 f 239
+247120756379 settle title 0.00 stats 0.38
+247120757096 f 240
+247120846485 settle title 0.00 stats 0.38
+247120847160 f 241
+247120936854 settle title 0.00 stats 0.38
+247120937577 f 242
+247121026880 settle title 0.00 stats 0.38
+247121027649 f 243
+247121116866 settle title 0.00 stats 0.38
+247121117507 f 244
+247121207206 settle title 0.00 stats 0.38
+247121207879 f 245
+247121297313 settle title 0.00 stats 0.38
+247121297948 f 246
+247121387549 settle title 0.00 stats 0.38
+247121388209 f 247
+247121477774 settle title 0.00 stats 0.38
+247121478541 f 248
+247121568005 settle title 0.00 stats 0.38
+247121568742 f 249
+247121658012 settle title 0.00 stats 0.38
+247121658697 f 250
+247121748327 settle title 0.00 stats 0.38
+247121749102 f 251
+247121750686 f 252
+247121767234 f 253
+247122248406 settle title 0.00 stats 1.00
+247122249106 f 254
+247122249122 recount+
+247122249641 recount-
+247122250288 f 255
+247123147496 settle title 0.00 stats 1.00
+247123147517 settle title 0.00 stats 1.00
+247123147521 settle title 0.00 stats 1.00
+247123147525 settle title 0.00 stats 1.00
+247123147530 settle title 0.00 stats 1.00
+247123147534 settle title 0.00 stats 1.00
+247123147538 settle title 0.00 stats 1.00
+247123147542 settle title 0.00 stats 1.00
+247123147546 settle title 0.00 stats 1.00
+247123147550 settle title 0.00 stats 1.00
+247123147554 settle title 0.00 stats 1.00
+247123147558 settle title 0.00 stats 1.00
+247123147562 settle title 0.00 stats 1.00
+247123147567 settle title 0.00 stats 1.00
+247123147571 settle title 0.00 stats 1.00
+247123147575 settle title 0.00 stats 1.00
+247123147579 settle title 0.00 stats 1.00
+247123147583 settle title 0.00 stats 1.00
+247123147587 settle title 0.00 stats 1.00
+247123147591 settle title 0.00 stats 1.00
+247123147595 settle title 0.00 stats 1.00
+247123147600 settle title 0.00 stats 1.00
+247123147604 settle title 0.00 stats 1.00
+247123147608 settle title 0.00 stats 1.00
+247123147617 settle title 0.00 stats 1.00
+247123147630 settle title 0.00 stats 1.00
+247123147635 settle title 0.00 stats 1.00
+247123147639 settle title 0.00 stats 1.00
+247123147643 settle title 0.00 stats 1.00
+247123147647 settle title 0.00 stats 1.00
+247123147651 settle title 0.00 stats 1.00
+247123147655 settle title 0.00 stats 1.00
+247123147659 settle title 0.00 stats 1.00
+247123147663 settle title 0.00 stats 1.00
+247123147667 settle title 0.00 stats 1.00
+247123147671 settle title 0.00 stats 1.00
+247123147675 settle title 0.00 stats 1.00
+247123147680 settle title 0.00 stats 1.00
+247123147684 settle title 0.00 stats 1.00
+247123147688 settle title 0.00 stats 1.00
+247123147692 settle title 0.00 stats 1.00
+247123147696 settle title 0.00 stats 1.00
+247123147700 settle title 0.00 stats 1.00
+247123147704 settle title 0.00 stats 1.00
+247123147708 settle title 0.00 stats 1.00
+247123147712 settle title 0.00 stats 1.00
+247123147716 settle title 0.00 stats 1.00
+247123147720 settle title 0.00 stats 1.00
+247123147724 settle title 0.00 stats 1.00
+247123147728 settle title 0.00 stats 1.00
+247123147733 settle title 0.00 stats 1.00
+247123147737 settle title 0.00 stats 1.00
+247123147741 settle title 0.00 stats 1.00
+247123147745 settle title 0.00 stats 1.00
+247123147749 settle title 0.00 stats 1.00
+247123147753 settle title 0.00 stats 1.00
+247123147757 settle title 0.00 stats 1.00
+247123147761 settle title 0.00 stats 1.00
+247123147765 settle title 0.00 stats 1.00
+247123147769 settle title 0.00 stats 1.00
+247123147773 settle title 0.00 stats 1.00
+247123147777 settle title 0.00 stats 1.00
+247123147781 settle title 0.00 stats 1.00
+247123147785 settle title 0.00 stats 1.00
+247123147789 settle title 0.00 stats 1.00
+247123147793 settle title 0.00 stats 1.00
+247123147797 settle title 0.00 stats 1.00
+247123147801 settle title 0.00 stats 1.00
+247123147805 settle title 0.00 stats 1.00
+247123147809 settle title 0.00 stats 1.00
+247123147813 settle title 0.00 stats 1.00
+247123147818 settle title 0.00 stats 1.00
+247123147822 settle title 0.00 stats 1.00
+247123147826 settle title 0.00 stats 1.00
+247123147830 settle title 0.00 stats 1.00
+247123147834 settle title 0.00 stats 1.00
+247123147838 settle title 0.00 stats 1.00
+247123147842 settle title 0.00 stats 1.00
+247123147846 settle title 0.00 stats 1.00
+247123147850 settle title 0.00 stats 1.00
+247123147854 settle title 0.00 stats 1.00
+247123147858 settle title 0.00 stats 1.00
+247123147862 settle title 0.00 stats 1.00
+247123147866 settle title 0.00 stats 1.00
+247123147870 settle title 0.00 stats 1.00
+247123147874 settle title 0.00 stats 1.00
+247123147878 settle title 0.00 stats 1.00
+247123147882 settle title 0.00 stats 1.00
+247123147886 settle title 0.00 stats 1.00
+247123147890 settle title 0.00 stats 1.00
+247123147894 settle title 0.00 stats 1.00
+247123147898 settle title 0.00 stats 1.00
+247123147902 settle title 0.00 stats 1.00
+247123147906 settle title 0.00 stats 1.00
+247123147910 settle title 0.00 stats 1.00
+247123147914 settle title 0.00 stats 1.00
+247123147918 settle title 0.00 stats 1.00
+247123147923 settle title 0.00 stats 1.00
+247123147927 settle title 0.00 stats 1.00
+247123147931 settle title 0.00 stats 1.00
+247123147935 settle title 0.00 stats 1.00
+247123147939 settle title 0.00 stats 1.00
+247123147943 settle title 0.00 stats 1.00
+247123147947 settle title 0.00 stats 1.00
+247123147951 settle title 0.00 stats 1.00
+247123147955 settle title 0.00 stats 1.00
+247123147959 settle title 0.00 stats 1.00
+247123147963 settle title 0.00 stats 1.00
+247123147967 settle title 0.00 stats 1.00
+247123147971 settle title 0.00 stats 1.00
+247123147975 settle title 0.00 stats 1.00
+247123147979 settle title 0.00 stats 1.00
+247123147983 settle title 0.00 stats 1.00
+247123147987 settle title 0.00 stats 1.00
+247123147991 settle title 0.00 stats 1.00
+247123147995 settle title 0.00 stats 1.00
+247123147999 settle title 0.00 stats 1.00
+247123148007 settle title 0.00 stats 1.00
+247123148011 settle title 0.00 stats 1.00
+247123148015 settle title 0.00 stats 1.00
+247123148019 settle title 0.00 stats 1.00
+247123148023 settle title 0.00 stats 1.00
+247123148027 settle title 0.00 stats 1.00
+247123148034 settle title 0.00 stats 1.00
+247123148038 settle title 0.00 stats 1.00
+247123148042 settle title 0.00 stats 1.00
+247123148046 settle title 0.00 stats 1.00
+247123148050 settle title 0.00 stats 1.00
+247123148054 settle title 0.00 stats 1.00
+247123148058 settle title 0.00 stats 1.00
+247123148062 settle title 0.00 stats 1.00
+247123148066 settle title 0.00 stats 1.00
+247123148070 settle title 0.00 stats 1.00
+247123148074 settle title 0.00 stats 1.00
+247123148078 settle title 0.00 stats 1.00
+247123148082 settle title 0.00 stats 1.00
+247123148086 settle title 0.00 stats 1.00
+247123148090 settle title 0.00 stats 1.00
+247123148094 settle title 0.00 stats 1.00
+247123148098 settle title 0.00 stats 1.00
+247123148102 settle title 0.00 stats 1.00
+247123148106 settle title 0.00 stats 1.00
+247123148110 settle title 0.00 stats 1.00
+247123148114 settle title 0.00 stats 1.00
+247123148118 settle title 0.00 stats 1.00
+247123148122 settle title 0.00 stats 1.00
+247123148126 settle title 0.00 stats 1.00
+247123148130 settle title 0.00 stats 1.00
+247123148134 settle title 0.00 stats 1.00
+247123148139 settle title 0.00 stats 1.00
+247123148143 settle title 0.00 stats 1.00
+247123148147 settle title 0.00 stats 1.00
+247123148151 settle title 0.00 stats 1.00
+247123148155 settle title 0.00 stats 1.00
+247123148159 settle title 0.00 stats 1.00
+247123148163 settle title 0.00 stats 1.00
+247123148167 settle title 0.00 stats 1.00
+247123148171 settle title 0.00 stats 1.00
+247123148175 settle title 0.00 stats 1.00
+247123148179 settle title 0.00 stats 1.00
+247123148183 settle title 0.00 stats 1.00
+247123148187 settle title 0.00 stats 1.00
+247123148191 settle title 0.00 stats 1.00
+247123148195 settle title 0.00 stats 1.00
+247123148199 settle title 0.00 stats 1.00
+247123148203 settle title 0.00 stats 1.00
+247123148207 settle title 0.00 stats 1.00
+247123148211 settle title 0.00 stats 1.00
+247123148215 settle title 0.00 stats 1.00
+247123148219 settle title 0.00 stats 1.00
+247123148223 settle title 0.00 stats 1.00
+247123148227 settle title 0.00 stats 1.00
+247123148231 settle title 0.00 stats 1.00
+247123148235 settle title 0.00 stats 1.00
+247123148239 settle title 0.00 stats 1.00
+247123148243 settle title 0.00 stats 1.00
+247123148247 settle title 0.00 stats 1.00
+247123148251 settle title 0.00 stats 1.00
+247123148255 settle title 0.00 stats 1.00
+247123148259 settle title 0.00 stats 1.00
+247123148263 settle title 0.00 stats 1.00
+247123148267 settle title 0.00 stats 1.00
+247123148271 settle title 0.00 stats 1.00
+247123148275 settle title 0.00 stats 1.00
+247123148280 settle title 0.00 stats 1.00
+247123148284 settle title 0.00 stats 1.00
+247123148288 settle title 0.00 stats 1.00
+247123148292 settle title 0.00 stats 1.00
+247123148296 settle title 0.00 stats 1.00
+247123148300 settle title 0.00 stats 1.00
+247123148304 settle title 0.00 stats 1.00
+247123148308 settle title 0.00 stats 1.00
+247123148312 settle title 0.00 stats 1.00
+247123148316 settle title 0.00 stats 1.00
+247123148320 settle title 0.00 stats 1.00
+247123148324 settle title 0.00 stats 1.00
+247123148328 settle title 1.00 stats 1.00
+247123148845 f 256
+247123150382 f 257
+247123451678 settle title 0.00 stats 0.38
+247123452486 f 258
+247123455128 f 259
+247123542010 settle title 0.00 stats 0.38
+247123542713 f 260
+247123632280 settle title 0.00 stats 0.38
+247123632933 f 261
+247123722520 settle title 0.00 stats 0.38
+247123723872 f 262
+247123812591 settle title 0.00 stats 0.38
+247123813341 f 263
+247123902872 settle title 0.00 stats 0.38
+247123903609 f 264
+247123993157 settle title 0.00 stats 0.38
+247123993895 f 265
+247124083403 settle title 0.00 stats 0.38
+247124084195 f 266
+247124173683 settle title 0.00 stats 0.38
+247124174470 f 267
+247124263702 settle title 0.00 stats 0.38
+247124264506 f 268
+247124353847 settle title 0.00 stats 0.38
+247124354636 f 269
+247124443735 settle title 0.00 stats 0.38
+247124444384 f 270
+247124534307 settle title 0.00 stats 0.38
+247124535126 f 271
+247124624190 settle title 0.00 stats 0.38
+247124624716 f 272
+247124714626 settle title 0.00 stats 0.38
+247124715416 f 273
+247124804598 settle title 0.00 stats 0.38
+247124805396 f 274
+247124894682 settle title 0.00 stats 0.38
+247124895189 f 275
+247124984878 settle title 0.00 stats 0.38
+247124985416 f 276
+247125075076 settle title 0.00 stats 0.38
+247125075861 f 277
+247125165276 settle title 0.00 stats 0.38
+247125165815 f 278
+247125255664 settle title 0.00 stats 0.38
+247125256442 f 279
+247125345664 settle title 0.00 stats 0.38
+247125346212 f 280
+247125435573 settle title 0.00 stats 0.38
+247125436099 f 281
+247125526018 settle title 0.00 stats 0.38
+247125526856 f 282
+247125616099 settle title 0.00 stats 0.38
+247125616799 f 283
+247126116172 settle title 0.00 stats 1.00
+247126116602 f 284
+247126116612 recount+
+247126117131 recount-
+247126118157 f 285
+247127015257 settle title 0.00 stats 1.00
+247127015278 settle title 0.00 stats 1.00
+247127015282 settle title 0.00 stats 1.00
+247127015286 settle title 0.00 stats 1.00
+247127015291 settle title 0.00 stats 1.00
+247127015295 settle title 0.00 stats 1.00
+247127015299 settle title 0.00 stats 1.00
+247127015303 settle title 0.00 stats 1.00
+247127015309 settle title 0.00 stats 1.00
+247127015313 settle title 0.00 stats 1.00
+247127015317 settle title 0.00 stats 1.00
+247127015321 settle title 0.00 stats 1.00
+247127015325 settle title 0.00 stats 1.00
+247127015330 settle title 0.00 stats 1.00
+247127015334 settle title 0.00 stats 1.00
+247127015338 settle title 0.00 stats 1.00
+247127015342 settle title 0.00 stats 1.00
+247127015347 settle title 0.00 stats 1.00
+247127015351 settle title 0.00 stats 1.00
+247127015355 settle title 0.00 stats 1.00
+247127015359 settle title 0.00 stats 1.00
+247127015364 settle title 0.00 stats 1.00
+247127015368 settle title 0.00 stats 1.00
+247127015372 settle title 0.00 stats 1.00
+247127015376 settle title 0.00 stats 1.00
+247127015380 settle title 0.00 stats 1.00
+247127015385 settle title 0.00 stats 1.00
+247127015389 settle title 0.00 stats 1.00
+247127015393 settle title 0.00 stats 1.00
+247127015397 settle title 0.00 stats 1.00
+247127015401 settle title 0.00 stats 1.00
+247127015406 settle title 0.00 stats 1.00
+247127015410 settle title 0.00 stats 1.00
+247127015414 settle title 0.00 stats 1.00
+247127015418 settle title 0.00 stats 1.00
+247127015422 settle title 0.00 stats 1.00
+247127015427 settle title 0.00 stats 1.00
+247127015431 settle title 0.00 stats 1.00
+247127015435 settle title 0.00 stats 1.00
+247127015439 settle title 0.00 stats 1.00
+247127015443 settle title 0.00 stats 1.00
+247127015447 settle title 0.00 stats 1.00
+247127015452 settle title 0.00 stats 1.00
+247127015456 settle title 0.00 stats 1.00
+247127015460 settle title 0.00 stats 1.00
+247127015464 settle title 0.00 stats 1.00
+247127015468 settle title 0.00 stats 1.00
+247127015473 settle title 0.00 stats 1.00
+247127015477 settle title 0.00 stats 1.00
+247127015481 settle title 0.00 stats 1.00
+247127015485 settle title 0.00 stats 1.00
+247127015489 settle title 0.00 stats 1.00
+247127015494 settle title 0.00 stats 1.00
+247127015498 settle title 0.00 stats 1.00
+247127015502 settle title 0.00 stats 1.00
+247127015506 settle title 0.00 stats 1.00
+247127015510 settle title 0.00 stats 1.00
+247127015514 settle title 0.00 stats 1.00
+247127015519 settle title 0.00 stats 1.00
+247127015523 settle title 0.00 stats 1.00
+247127015527 settle title 0.00 stats 1.00
+247127015531 settle title 0.00 stats 1.00
+247127015535 settle title 0.00 stats 1.00
+247127015540 settle title 0.00 stats 1.00
+247127015544 settle title 0.00 stats 1.00
+247127015548 settle title 0.00 stats 1.00
+247127015552 settle title 0.00 stats 1.00
+247127015556 settle title 0.00 stats 1.00
+247127015561 settle title 0.00 stats 1.00
+247127015565 settle title 0.00 stats 1.00
+247127015569 settle title 0.00 stats 1.00
+247127015573 settle title 0.00 stats 1.00
+247127015578 settle title 0.00 stats 1.00
+247127015582 settle title 0.00 stats 1.00
+247127015586 settle title 0.00 stats 1.00
+247127015590 settle title 0.00 stats 1.00
+247127015594 settle title 0.00 stats 1.00
+247127015598 settle title 0.00 stats 1.00
+247127015603 settle title 0.00 stats 1.00
+247127015607 settle title 0.00 stats 1.00
+247127015622 settle title 0.00 stats 1.00
+247127015627 settle title 0.00 stats 1.00
+247127015631 settle title 0.00 stats 1.00
+247127015635 settle title 0.00 stats 1.00
+247127015639 settle title 0.00 stats 1.00
+247127015644 settle title 0.00 stats 1.00
+247127015648 settle title 0.00 stats 1.00
+247127015652 settle title 0.00 stats 1.00
+247127015656 settle title 0.00 stats 1.00
+247127015660 settle title 0.00 stats 1.00
+247127015665 settle title 0.00 stats 1.00
+247127015669 settle title 0.00 stats 1.00
+247127015673 settle title 0.00 stats 1.00
+247127015677 settle title 0.00 stats 1.00
+247127015681 settle title 0.00 stats 1.00
+247127015685 settle title 0.00 stats 1.00
+247127015690 settle title 0.00 stats 1.00
+247127015694 settle title 0.00 stats 1.00
+247127015698 settle title 0.00 stats 1.00
+247127015702 settle title 0.00 stats 1.00
+247127015707 settle title 0.00 stats 1.00
+247127015711 settle title 0.00 stats 1.00
+247127015715 settle title 0.00 stats 1.00
+247127015719 settle title 0.00 stats 1.00
+247127015723 settle title 0.00 stats 1.00
+247127015727 settle title 0.00 stats 1.00
+247127015732 settle title 0.00 stats 1.00
+247127015736 settle title 0.00 stats 1.00
+247127015740 settle title 0.00 stats 1.00
+247127015744 settle title 0.00 stats 1.00
+247127015748 settle title 0.00 stats 1.00
+247127015752 settle title 0.00 stats 1.00
+247127015757 settle title 0.00 stats 1.00
+247127015761 settle title 0.00 stats 1.00
+247127015765 settle title 0.00 stats 1.00
+247127015769 settle title 0.00 stats 1.00
+247127015773 settle title 0.00 stats 1.00
+247127015777 settle title 0.00 stats 1.00
+247127015781 settle title 0.00 stats 1.00
+247127015786 settle title 0.00 stats 1.00
+247127015790 settle title 0.00 stats 1.00
+247127015794 settle title 0.00 stats 1.00
+247127015798 settle title 0.00 stats 1.00
+247127015802 settle title 0.00 stats 1.00
+247127015806 settle title 0.00 stats 1.00
+247127015811 settle title 0.00 stats 1.00
+247127015815 settle title 0.00 stats 1.00
+247127015819 settle title 0.00 stats 1.00
+247127015823 settle title 0.00 stats 1.00
+247127015827 settle title 0.00 stats 1.00
+247127015831 settle title 0.00 stats 1.00
+247127015836 settle title 0.00 stats 1.00
+247127015840 settle title 0.00 stats 1.00
+247127015844 settle title 0.00 stats 1.00
+247127015848 settle title 0.00 stats 1.00
+247127015852 settle title 0.00 stats 1.00
+247127015856 settle title 0.00 stats 1.00
+247127015861 settle title 0.00 stats 1.00
+247127015865 settle title 0.00 stats 1.00
+247127015869 settle title 0.00 stats 1.00
+247127015873 settle title 0.00 stats 1.00
+247127015877 settle title 0.00 stats 1.00
+247127015881 settle title 0.00 stats 1.00
+247127015885 settle title 0.00 stats 1.00
+247127015890 settle title 0.00 stats 1.00
+247127015894 settle title 0.00 stats 1.00
+247127015898 settle title 0.00 stats 1.00
+247127015902 settle title 0.00 stats 1.00
+247127015906 settle title 0.00 stats 1.00
+247127015910 settle title 0.00 stats 1.00
+247127015915 settle title 0.00 stats 1.00
+247127015919 settle title 0.00 stats 1.00
+247127015923 settle title 0.00 stats 1.00
+247127015927 settle title 0.00 stats 1.00
+247127015931 settle title 0.00 stats 1.00
+247127015935 settle title 0.00 stats 1.00
+247127015939 settle title 0.00 stats 1.00
+247127015943 settle title 0.00 stats 1.00
+247127015948 settle title 0.00 stats 1.00
+247127015952 settle title 0.00 stats 1.00
+247127015956 settle title 0.00 stats 1.00
+247127015960 settle title 0.00 stats 1.00
+247127015964 settle title 0.00 stats 1.00
+247127015968 settle title 0.00 stats 1.00
+247127015973 settle title 0.00 stats 1.00
+247127015977 settle title 0.00 stats 1.00
+247127015981 settle title 0.00 stats 1.00
+247127015985 settle title 0.00 stats 1.00
+247127015989 settle title 0.00 stats 1.00
+247127015993 settle title 0.00 stats 1.00
+247127015997 settle title 0.00 stats 1.00
+247127016004 settle title 0.00 stats 1.00
+247127016008 settle title 0.00 stats 1.00
+247127016013 settle title 0.00 stats 1.00
+247127016017 settle title 0.00 stats 1.00
+247127016021 settle title 0.00 stats 1.00
+247127016025 settle title 0.00 stats 1.00
+247127016029 settle title 0.00 stats 1.00
+247127016035 settle title 0.00 stats 1.00
+247127016040 settle title 0.00 stats 1.00
+247127016044 settle title 0.00 stats 1.00
+247127016048 settle title 0.00 stats 1.00
+247127016052 settle title 0.00 stats 1.00
+247127016056 settle title 0.00 stats 1.00
+247127016060 settle title 0.00 stats 1.00
+247127016064 settle title 0.00 stats 1.00
+247127016068 settle title 0.00 stats 1.00
+247127016072 settle title 0.00 stats 1.00
+247127016076 settle title 0.00 stats 1.00
+247127016080 settle title 0.00 stats 1.00
+247127016084 settle title 0.00 stats 1.00
+247127016088 settle title 0.00 stats 1.00
+247127016092 settle title 0.00 stats 1.00
+247127016096 settle title 0.00 stats 1.00
+247127016101 settle title 1.00 stats 1.00
+247127016617 f 286
+247127018316 f 287
+247127320017 settle title 0.00 stats 0.38
+247127321214 f 288
+247127322686 f 289
+247127410073 settle title 0.00 stats 0.38
+247127410995 f 290
+247127500367 settle title 0.00 stats 0.38
+247127501304 f 291
+247127590360 settle title 0.00 stats 0.38
+247127591191 f 292
+247127680502 settle title 0.00 stats 0.38
+247127681165 f 293
+247127770570 settle title 0.00 stats 0.38
+247127771291 f 294
+247127860812 settle title 0.00 stats 0.38
+247127861394 f 295
+247127951131 settle title 0.00 stats 0.38
+247127951915 f 296
+247128041033 settle title 0.00 stats 0.38
+247128041632 f 297
+247128131207 settle title 0.00 stats 0.38
+247128131719 f 298
+247128221598 settle title 0.00 stats 0.38
+247128222116 f 299
+247128311685 settle title 0.00 stats 0.38
+247128312208 f 300
+247128401788 settle title 0.00 stats 0.38
+247128402327 f 301
+247128491985 settle title 0.00 stats 0.38
+247128492563 f 302
+247128582064 settle title 0.00 stats 0.38
+247128582629 f 303
+247128672354 settle title 0.00 stats 0.38
+247128672860 f 304
+247128762456 settle title 0.00 stats 0.38
+247128762974 f 305
+247128852884 settle title 0.00 stats 0.38
+247128853413 f 306
+247128942793 settle title 0.00 stats 0.38
+247128943323 f 307
+247129032955 settle title 0.00 stats 0.38
+247129033504 f 308
+247129123082 settle title 0.00 stats 0.38
+247129123540 f 309
+247129213346 settle title 0.00 stats 0.38
+247129213882 f 310
+247129303709 settle title 0.00 stats 0.38
+247129304535 f 311
+247129393759 settle title 0.00 stats 0.38
+247129394324 f 312
+247129484056 settle title 0.00 stats 0.38
+247129484889 f 313
+247129984137 settle title 0.00 stats 1.00
+247129984766 f 314
+247129984780 recount+
+247129985440 recount-
+247129986556 f 315
+247130883235 settle title 0.00 stats 1.00
+247130883255 settle title 0.00 stats 1.00
+247130883259 settle title 0.00 stats 1.00
+247130883263 settle title 0.00 stats 1.00
+247130883267 settle title 0.00 stats 1.00
+247130883271 settle title 0.00 stats 1.00
+247130883275 settle title 0.00 stats 1.00
+247130883280 settle title 0.00 stats 1.00
+247130883284 settle title 0.00 stats 1.00
+247130883288 settle title 0.00 stats 1.00
+247130883292 settle title 0.00 stats 1.00
+247130883296 settle title 0.00 stats 1.00
+247130883300 settle title 0.00 stats 1.00
+247130883304 settle title 0.00 stats 1.00
+247130883308 settle title 0.00 stats 1.00
+247130883312 settle title 0.00 stats 1.00
+247130883316 settle title 0.00 stats 1.00
+247130883321 settle title 0.00 stats 1.00
+247130883325 settle title 0.00 stats 1.00
+247130883329 settle title 0.00 stats 1.00
+247130883334 settle title 0.00 stats 1.00
+247130883338 settle title 0.00 stats 1.00
+247130883342 settle title 0.00 stats 1.00
+247130883346 settle title 0.00 stats 1.00
+247130883350 settle title 0.00 stats 1.00
+247130883354 settle title 0.00 stats 1.00
+247130883359 settle title 0.00 stats 1.00
+247130883363 settle title 0.00 stats 1.00
+247130883367 settle title 0.00 stats 1.00
+247130883371 settle title 0.00 stats 1.00
+247130883375 settle title 0.00 stats 1.00
+247130883379 settle title 0.00 stats 1.00
+247130883383 settle title 0.00 stats 1.00
+247130883387 settle title 0.00 stats 1.00
+247130883391 settle title 0.00 stats 1.00
+247130883395 settle title 0.00 stats 1.00
+247130883400 settle title 0.00 stats 1.00
+247130883404 settle title 0.00 stats 1.00
+247130883408 settle title 0.00 stats 1.00
+247130883412 settle title 0.00 stats 1.00
+247130883426 settle title 0.00 stats 1.00
+247130883430 settle title 0.00 stats 1.00
+247130883434 settle title 0.00 stats 1.00
+247130883439 settle title 0.00 stats 1.00
+247130883443 settle title 0.00 stats 1.00
+247130883447 settle title 0.00 stats 1.00
+247130883451 settle title 0.00 stats 1.00
+247130883455 settle title 0.00 stats 1.00
+247130883459 settle title 0.00 stats 1.00
+247130883464 settle title 0.00 stats 1.00
+247130883468 settle title 0.00 stats 1.00
+247130883472 settle title 0.00 stats 1.00
+247130883476 settle title 0.00 stats 1.00
+247130883480 settle title 0.00 stats 1.00
+247130883485 settle title 0.00 stats 1.00
+247130883489 settle title 0.00 stats 1.00
+247130883493 settle title 0.00 stats 1.00
+247130883497 settle title 0.00 stats 1.00
+247130883501 settle title 0.00 stats 1.00
+247130883505 settle title 0.00 stats 1.00
+247130883510 settle title 0.00 stats 1.00
+247130883514 settle title 0.00 stats 1.00
+247130883518 settle title 0.00 stats 1.00
+247130883522 settle title 0.00 stats 1.00
+247130883526 settle title 0.00 stats 1.00
+247130883530 settle title 0.00 stats 1.00
+247130883534 settle title 0.00 stats 1.00
+247130883539 settle title 0.00 stats 1.00
+247130883543 settle title 0.00 stats 1.00
+247130883547 settle title 0.00 stats 1.00
+247130883551 settle title 0.00 stats 1.00
+247130883555 settle title 0.00 stats 1.00
+247130883559 settle title 0.00 stats 1.00
+247130883564 settle title 0.00 stats 1.00
+247130883568 settle title 0.00 stats 1.00
+247130883572 settle title 0.00 stats 1.00
+247130883576 settle title 0.00 stats 1.00
+247130883580 settle title 0.00 stats 1.00
+247130883584 settle title 0.00 stats 1.00
+247130883589 settle title 0.00 stats 1.00
+247130883593 settle title 0.00 stats 1.00
+247130883597 settle title 0.00 stats 1.00
+247130883601 settle title 0.00 stats 1.00
+247130883605 settle title 0.00 stats 1.00
+247130883609 settle title 0.00 stats 1.00
+247130883613 settle title 0.00 stats 1.00
+247130883618 settle title 0.00 stats 1.00
+247130883622 settle title 0.00 stats 1.00
+247130883626 settle title 0.00 stats 1.00
+247130883630 settle title 0.00 stats 1.00
+247130883634 settle title 0.00 stats 1.00
+247130883638 settle title 0.00 stats 1.00
+247130883643 settle title 0.00 stats 1.00
+247130883647 settle title 0.00 stats 1.00
+247130883651 settle title 0.00 stats 1.00
+247130883655 settle title 0.00 stats 1.00
+247130883659 settle title 0.00 stats 1.00
+247130883663 settle title 0.00 stats 1.00
+247130883667 settle title 0.00 stats 1.00
+247130883672 settle title 0.00 stats 1.00
+247130883676 settle title 0.00 stats 1.00
+247130883680 settle title 0.00 stats 1.00
+247130883684 settle title 0.00 stats 1.00
+247130883688 settle title 0.00 stats 1.00
+247130883692 settle title 0.00 stats 1.00
+247130883696 settle title 0.00 stats 1.00
+247130883700 settle title 0.00 stats 1.00
+247130883705 settle title 0.00 stats 1.00
+247130883709 settle title 0.00 stats 1.00
+247130883713 settle title 0.00 stats 1.00
+247130883717 settle title 0.00 stats 1.00
+247130883721 settle title 0.00 stats 1.00
+247130883725 settle title 0.00 stats 1.00
+247130883730 settle title 0.00 stats 1.00
+247130883734 settle title 0.00 stats 1.00
+247130883738 settle title 0.00 stats 1.00
+247130883742 settle title 0.00 stats 1.00
+247130883746 settle title 0.00 stats 1.00
+247130883750 settle title 0.00 stats 1.00
+247130883754 settle title 0.00 stats 1.00
+247130883759 settle title 0.00 stats 1.00
+247130883763 settle title 0.00 stats 1.00
+247130883767 settle title 0.00 stats 1.00
+247130883771 settle title 0.00 stats 1.00
+247130883775 settle title 0.00 stats 1.00
+247130883779 settle title 0.00 stats 1.00
+247130883783 settle title 0.00 stats 1.00
+247130883788 settle title 0.00 stats 1.00
+247130883792 settle title 0.00 stats 1.00
+247130883796 settle title 0.00 stats 1.00
+247130883800 settle title 0.00 stats 1.00
+247130883804 settle title 0.00 stats 1.00
+247130883808 settle title 0.00 stats 1.00
+247130883812 settle title 0.00 stats 1.00
+247130883817 settle title 0.00 stats 1.00
+247130883821 settle title 0.00 stats 1.00
+247130883825 settle title 0.00 stats 1.00
+247130883831 settle title 0.00 stats 1.00
+247130883835 settle title 0.00 stats 1.00
+247130883839 settle title 0.00 stats 1.00
+247130883843 settle title 0.00 stats 1.00
+247130883848 settle title 0.00 stats 1.00
+247130883852 settle title 0.00 stats 1.00
+247130883856 settle title 0.00 stats 1.00
+247130883860 settle title 0.00 stats 1.00
+247130883864 settle title 0.00 stats 1.00
+247130883868 settle title 0.00 stats 1.00
+247130883873 settle title 0.00 stats 1.00
+247130883877 settle title 0.00 stats 1.00
+247130883881 settle title 0.00 stats 1.00
+247130883885 settle title 0.00 stats 1.00
+247130883889 settle title 0.00 stats 1.00
+247130883893 settle title 0.00 stats 1.00
+247130883897 settle title 0.00 stats 1.00
+247130883902 settle title 0.00 stats 1.00
+247130883906 settle title 0.00 stats 1.00
+247130883910 settle title 0.00 stats 1.00
+247130883915 settle title 0.00 stats 1.00
+247130883919 settle title 0.00 stats 1.00
+247130883923 settle title 0.00 stats 1.00
+247130883927 settle title 0.00 stats 1.00
+247130883931 settle title 0.00 stats 1.00
+247130883935 settle title 0.00 stats 1.00
+247130883940 settle title 0.00 stats 1.00
+247130883944 settle title 0.00 stats 1.00
+247130883948 settle title 0.00 stats 1.00
+247130883952 settle title 0.00 stats 1.00
+247130883956 settle title 0.00 stats 1.00
+247130883960 settle title 0.00 stats 1.00
+247130883965 settle title 0.00 stats 1.00
+247130883969 settle title 0.00 stats 1.00
+247130883973 settle title 0.00 stats 1.00
+247130883977 settle title 0.00 stats 1.00
+247130883981 settle title 0.00 stats 1.00
+247130883985 settle title 0.00 stats 1.00
+247130883989 settle title 0.00 stats 1.00
+247130883994 settle title 0.00 stats 1.00
+247130883998 settle title 0.00 stats 1.00
+247130884005 settle title 0.00 stats 1.00
+247130884009 settle title 0.00 stats 1.00
+247130884013 settle title 0.00 stats 1.00
+247130884018 settle title 0.00 stats 1.00
+247130884022 settle title 0.00 stats 1.00
+247130884026 settle title 0.00 stats 1.00
+247130884030 settle title 0.00 stats 1.00
+247130884034 settle title 0.00 stats 1.00
+247130884038 settle title 0.00 stats 1.00
+247130884042 settle title 0.00 stats 1.00
+247130884047 settle title 0.00 stats 1.00
+247130884051 settle title 0.00 stats 1.00
+247130884055 settle title 1.00 stats 1.00
+247130884583 f 316
+247130886670 f 317
+247131187995 settle title 0.00 stats 0.38
+247131188933 f 318
+247131190297 f 319
+247131278038 settle title 0.00 stats 0.38
+247131278953 f 320
+247131368104 settle title 0.00 stats 0.38
+247131368972 f 321
+247131458192 settle title 0.00 stats 0.38
+247131458712 f 322
+247131548536 settle title 0.00 stats 0.38
+247131549410 f 323
+247131638669 settle title 0.00 stats 0.38
+247131639389 f 324
+247131728741 settle title 0.00 stats 0.38
+247131729507 f 325
+247131818871 settle title 0.00 stats 0.38
+247131819560 f 326
+247131909212 settle title 0.00 stats 0.38
+247131909991 f 327
+247131999485 settle title 0.00 stats 0.38
+247132000317 f 328
+247132089302 settle title 0.00 stats 0.38
+247132089913 f 329
+247132179542 settle title 0.00 stats 0.38
+247132180135 f 330
+247132181402 f 331
+247132198416 f 332
+247132269655 settle title 0.00 stats 0.38
+247132270241 f 333
+247132359681 settle title 0.00 stats 0.38
+247132360281 f 334
+247132449918 settle title 0.00 stats 0.38
+247132450522 f 335
+247132540089 settle title 0.00 stats 0.38
+247132540686 f 336
+247132630238 settle title 0.00 stats 0.38
+247132630847 f 337
+247132720500 settle title 0.00 stats 0.38
+247132721320 f 338
+247132810607 settle title 0.00 stats 0.38
+247132811390 f 339
+247132900942 settle title 0.00 stats 0.38
+247132901748 f 340
+247132990871 settle title 0.00 stats 0.38
+247132991532 f 341
+247133081064 settle title 0.00 stats 0.38
+247133081643 f 342
+247133171335 settle title 0.00 stats 0.38
+247133172165 f 343
+247133261350 settle title 0.00 stats 0.38
+247133261916 f 344
+247133351615 settle title 0.00 stats 0.38
+247133352175 f 345
+247133851687 settle title 0.00 stats 1.00
+247133852153 f 346
+247133852165 recount+
+247133852680 recount-
+247133853809 f 347
+247134750774 settle title 0.00 stats 1.00
+247134750797 settle title 0.00 stats 1.00
+247134750811 settle title 0.00 stats 1.00
+247134750815 settle title 0.00 stats 1.00
+247134750819 settle title 0.00 stats 1.00
+247134750825 settle title 0.00 stats 1.00
+247134750829 settle title 0.00 stats 1.00
+247134750833 settle title 0.00 stats 1.00
+247134750837 settle title 0.00 stats 1.00
+247134750841 settle title 0.00 stats 1.00
+247134750845 settle title 0.00 stats 1.00
+247134750849 settle title 0.00 stats 1.00
+247134750853 settle title 0.00 stats 1.00
+247134750857 settle title 0.00 stats 1.00
+247134750861 settle title 0.00 stats 1.00
+247134750865 settle title 0.00 stats 1.00
+247134750869 settle title 0.00 stats 1.00
+247134750873 settle title 0.00 stats 1.00
+247134750877 settle title 0.00 stats 1.00
+247134750881 settle title 0.00 stats 1.00
+247134750885 settle title 0.00 stats 1.00
+247134750889 settle title 0.00 stats 1.00
+247134750893 settle title 0.00 stats 1.00
+247134750897 settle title 0.00 stats 1.00
+247134750901 settle title 0.00 stats 1.00
+247134750905 settle title 0.00 stats 1.00
+247134750909 settle title 0.00 stats 1.00
+247134750913 settle title 0.00 stats 1.00
+247134750917 settle title 0.00 stats 1.00
+247134750921 settle title 0.00 stats 1.00
+247134750925 settle title 0.00 stats 1.00
+247134750929 settle title 0.00 stats 1.00
+247134750933 settle title 0.00 stats 1.00
+247134750937 settle title 0.00 stats 1.00
+247134750941 settle title 0.00 stats 1.00
+247134750945 settle title 0.00 stats 1.00
+247134750949 settle title 0.00 stats 1.00
+247134750953 settle title 0.00 stats 1.00
+247134750957 settle title 0.00 stats 1.00
+247134750961 settle title 0.00 stats 1.00
+247134750965 settle title 0.00 stats 1.00
+247134750969 settle title 0.00 stats 1.00
+247134750973 settle title 0.00 stats 1.00
+247134750977 settle title 0.00 stats 1.00
+247134750981 settle title 0.00 stats 1.00
+247134750985 settle title 0.00 stats 1.00
+247134750989 settle title 0.00 stats 1.00
+247134750993 settle title 0.00 stats 1.00
+247134750997 settle title 0.00 stats 1.00
+247134751004 settle title 0.00 stats 1.00
+247134751008 settle title 0.00 stats 1.00
+247134751013 settle title 0.00 stats 1.00
+247134751017 settle title 0.00 stats 1.00
+247134751021 settle title 0.00 stats 1.00
+247134751025 settle title 0.00 stats 1.00
+247134751029 settle title 0.00 stats 1.00
+247134751033 settle title 0.00 stats 1.00
+247134751037 settle title 0.00 stats 1.00
+247134751041 settle title 0.00 stats 1.00
+247134751045 settle title 0.00 stats 1.00
+247134751049 settle title 0.00 stats 1.00
+247134751053 settle title 0.00 stats 1.00
+247134751057 settle title 0.00 stats 1.00
+247134751061 settle title 0.00 stats 1.00
+247134751065 settle title 0.00 stats 1.00
+247134751070 settle title 0.00 stats 1.00
+247134751074 settle title 0.00 stats 1.00
+247134751078 settle title 0.00 stats 1.00
+247134751082 settle title 0.00 stats 1.00
+247134751086 settle title 0.00 stats 1.00
+247134751090 settle title 0.00 stats 1.00
+247134751094 settle title 0.00 stats 1.00
+247134751098 settle title 0.00 stats 1.00
+247134751102 settle title 0.00 stats 1.00
+247134751106 settle title 0.00 stats 1.00
+247134751110 settle title 0.00 stats 1.00
+247134751114 settle title 0.00 stats 1.00
+247134751118 settle title 0.00 stats 1.00
+247134751122 settle title 0.00 stats 1.00
+247134751126 settle title 0.00 stats 1.00
+247134751130 settle title 0.00 stats 1.00
+247134751134 settle title 0.00 stats 1.00
+247134751138 settle title 0.00 stats 1.00
+247134751142 settle title 0.00 stats 1.00
+247134751146 settle title 0.00 stats 1.00
+247134751154 settle title 0.00 stats 1.00
+247134751158 settle title 0.00 stats 1.00
+247134751162 settle title 0.00 stats 1.00
+247134751166 settle title 0.00 stats 1.00
+247134751170 settle title 0.00 stats 1.00
+247134751174 settle title 0.00 stats 1.00
+247134751178 settle title 0.00 stats 1.00
+247134751182 settle title 0.00 stats 1.00
+247134751186 settle title 0.00 stats 1.00
+247134751190 settle title 0.00 stats 1.00
+247134751194 settle title 0.00 stats 1.00
+247134751198 settle title 0.00 stats 1.00
+247134751202 settle title 0.00 stats 1.00
+247134751206 settle title 0.00 stats 1.00
+247134751210 settle title 0.00 stats 1.00
+247134751217 settle title 0.00 stats 1.00
+247134751221 settle title 0.00 stats 1.00
+247134751225 settle title 0.00 stats 1.00
+247134751229 settle title 0.00 stats 1.00
+247134751233 settle title 0.00 stats 1.00
+247134751237 settle title 0.00 stats 1.00
+247134751242 settle title 0.00 stats 1.00
+247134751246 settle title 0.00 stats 1.00
+247134751250 settle title 0.00 stats 1.00
+247134751254 settle title 0.00 stats 1.00
+247134751258 settle title 0.00 stats 1.00
+247134751262 settle title 0.00 stats 1.00
+247134751266 settle title 0.00 stats 1.00
+247134751270 settle title 0.00 stats 1.00
+247134751274 settle title 0.00 stats 1.00
+247134751278 settle title 0.00 stats 1.00
+247134751282 settle title 0.00 stats 1.00
+247134751286 settle title 0.00 stats 1.00
+247134751290 settle title 0.00 stats 1.00
+247134751294 settle title 0.00 stats 1.00
+247134751299 settle title 0.00 stats 1.00
+247134751303 settle title 0.00 stats 1.00
+247134751307 settle title 0.00 stats 1.00
+247134751311 settle title 0.00 stats 1.00
+247134751315 settle title 0.00 stats 1.00
+247134751319 settle title 0.00 stats 1.00
+247134751323 settle title 0.00 stats 1.00
+247134751327 settle title 0.00 stats 1.00
+247134751331 settle title 0.00 stats 1.00
+247134751335 settle title 0.00 stats 1.00
+247134751340 settle title 0.00 stats 1.00
+247134751344 settle title 0.00 stats 1.00
+247134751348 settle title 0.00 stats 1.00
+247134751352 settle title 0.00 stats 1.00
+247134751356 settle title 0.00 stats 1.00
+247134751360 settle title 0.00 stats 1.00
+247134751364 settle title 0.00 stats 1.00
+247134751368 settle title 0.00 stats 1.00
+247134751372 settle title 0.00 stats 1.00
+247134751376 settle title 0.00 stats 1.00
+247134751380 settle title 0.00 stats 1.00
+247134751384 settle title 0.00 stats 1.00
+247134751389 settle title 0.00 stats 1.00
+247134751393 settle title 0.00 stats 1.00
+247134751397 settle title 0.00 stats 1.00
+247134751401 settle title 0.00 stats 1.00
+247134751405 settle title 0.00 stats 1.00
+247134751409 settle title 0.00 stats 1.00
+247134751413 settle title 0.00 stats 1.00
+247134751417 settle title 0.00 stats 1.00
+247134751421 settle title 0.00 stats 1.00
+247134751425 settle title 0.00 stats 1.00
+247134751429 settle title 0.00 stats 1.00
+247134751434 settle title 0.00 stats 1.00
+247134751438 settle title 0.00 stats 1.00
+247134751442 settle title 0.00 stats 1.00
+247134751446 settle title 0.00 stats 1.00
+247134751450 settle title 0.00 stats 1.00
+247134751454 settle title 0.00 stats 1.00
+247134751458 settle title 0.00 stats 1.00
+247134751462 settle title 0.00 stats 1.00
+247134751466 settle title 0.00 stats 1.00
+247134751470 settle title 0.00 stats 1.00
+247134751474 settle title 0.00 stats 1.00
+247134751478 settle title 0.00 stats 1.00
+247134751482 settle title 0.00 stats 1.00
+247134751486 settle title 0.00 stats 1.00
+247134751490 settle title 0.00 stats 1.00
+247134751495 settle title 0.00 stats 1.00
+247134751499 settle title 0.00 stats 1.00
+247134751503 settle title 0.00 stats 1.00
+247134751507 settle title 0.00 stats 1.00
+247134751511 settle title 0.00 stats 1.00
+247134751515 settle title 0.00 stats 1.00
+247134751519 settle title 0.00 stats 1.00
+247134751523 settle title 0.00 stats 1.00
+247134751527 settle title 0.00 stats 1.00
+247134751531 settle title 0.00 stats 1.00
+247134751535 settle title 0.00 stats 1.00
+247134751539 settle title 0.00 stats 1.00
+247134751543 settle title 0.00 stats 1.00
+247134751547 settle title 0.00 stats 1.00
+247134751551 settle title 0.00 stats 1.00
+247134751556 settle title 0.00 stats 1.00
+247134751560 settle title 0.00 stats 1.00
+247134751564 settle title 0.00 stats 1.00
+247134751568 settle title 0.00 stats 1.00
+247134751572 settle title 0.00 stats 1.00
+247134751576 settle title 0.00 stats 1.00
+247134751580 settle title 0.00 stats 1.00
+247134751584 settle title 0.00 stats 1.00
+247134751588 settle title 0.00 stats 1.00
+247134751592 settle title 0.00 stats 1.00
+247134751596 settle title 0.00 stats 1.00
+247134751600 settle title 0.00 stats 1.00
+247134751604 settle title 0.00 stats 1.00
+247134751608 settle title 0.00 stats 1.00
+247134751615 settle title 1.00 stats 1.00
+247134752741 f 348
+247134754063 f 349
+247135055337 settle title 0.00 stats 0.38
+247135056201 f 350
+247135057421 f 351
+247135145590 settle title 0.00 stats 0.38
+247135146494 f 352
+247135235722 settle title 0.00 stats 0.38
+247135236630 f 353
+247135325927 settle title 0.00 stats 0.38
+247135326585 f 354
+247135416205 settle title 0.00 stats 0.38
+247135417107 f 355
+247135506264 settle title 0.00 stats 0.38
+247135507137 f 356
+247135596240 settle title 0.00 stats 0.38
+247135596811 f 357
+247135686704 settle title 0.00 stats 0.38
+247135687530 f 358
+247135776625 settle title 0.00 stats 0.38
+247135777451 f 359
+247135866846 settle title 0.00 stats 0.38
+247135867570 f 360
+247135956844 settle title 0.00 stats 0.38
+247135959687 f 361
+247135959695 frame 361 total 2.53 update -1.00 layout -1.00 paint 0.00
+247136047110 settle title 0.00 stats 0.38
+247136047688 f 362
+247136137214 settle title 0.00 stats 0.38
+247136137767 f 363
+247136227409 settle title 0.00 stats 0.38
+247136227964 f 364
+247136317647 settle title 0.00 stats 0.38
+247136318247 f 365
+247136407619 settle title 0.00 stats 0.38
+247136408157 f 366
+247136497856 settle title 0.00 stats 0.38
+247136498469 f 367
+247136587992 settle title 0.00 stats 0.38
+247136588582 f 368
+247136678386 settle title 0.00 stats 0.38
+247136679207 f 369
+247136768501 settle title 0.00 stats 0.38
+247136769319 f 370
+247136858579 settle title 0.00 stats 0.38
+247136859366 f 371
+247136948709 settle title 0.00 stats 0.38
+247136949522 f 372
+247137038903 settle title 0.00 stats 0.38
+247137039785 f 373
+247137129294 settle title 0.00 stats 0.38
+247137130187 f 374
+247137219284 settle title 0.00 stats 0.38
+247137219923 f 375
+247137719360 settle title 0.00 stats 1.00
+247137719937 f 376
+247137719953 recount+
+247137720654 recount-
+247137721629 f 377
+247138618452 settle title 0.00 stats 1.00
+247138618476 settle title 0.00 stats 1.00
+247138618480 settle title 0.00 stats 1.00
+247138618485 settle title 0.00 stats 1.00
+247138618489 settle title 0.00 stats 1.00
+247138618493 settle title 0.00 stats 1.00
+247138618497 settle title 0.00 stats 1.00
+247138618501 settle title 0.00 stats 1.00
+247138618505 settle title 0.00 stats 1.00
+247138618510 settle title 0.00 stats 1.00
+247138618514 settle title 0.00 stats 1.00
+247138618519 settle title 0.00 stats 1.00
+247138618523 settle title 0.00 stats 1.00
+247138618527 settle title 0.00 stats 1.00
+247138618531 settle title 0.00 stats 1.00
+247138618535 settle title 0.00 stats 1.00
+247138618539 settle title 0.00 stats 1.00
+247138618543 settle title 0.00 stats 1.00
+247138618547 settle title 0.00 stats 1.00
+247138618551 settle title 0.00 stats 1.00
+247138618556 settle title 0.00 stats 1.00
+247138618560 settle title 0.00 stats 1.00
+247138618564 settle title 0.00 stats 1.00
+247138618568 settle title 0.00 stats 1.00
+247138618572 settle title 0.00 stats 1.00
+247138618576 settle title 0.00 stats 1.00
+247138618580 settle title 0.00 stats 1.00
+247138618584 settle title 0.00 stats 1.00
+247138618589 settle title 0.00 stats 1.00
+247138618593 settle title 0.00 stats 1.00
+247138618597 settle title 0.00 stats 1.00
+247138618601 settle title 0.00 stats 1.00
+247138618605 settle title 0.00 stats 1.00
+247138618609 settle title 0.00 stats 1.00
+247138618613 settle title 0.00 stats 1.00
+247138618617 settle title 0.00 stats 1.00
+247138618622 settle title 0.00 stats 1.00
+247138618626 settle title 0.00 stats 1.00
+247138618630 settle title 0.00 stats 1.00
+247138618634 settle title 0.00 stats 1.00
+247138618638 settle title 0.00 stats 1.00
+247138618642 settle title 0.00 stats 1.00
+247138618646 settle title 0.00 stats 1.00
+247138618650 settle title 0.00 stats 1.00
+247138618654 settle title 0.00 stats 1.00
+247138618658 settle title 0.00 stats 1.00
+247138618662 settle title 0.00 stats 1.00
+247138618666 settle title 0.00 stats 1.00
+247138618671 settle title 0.00 stats 1.00
+247138618675 settle title 0.00 stats 1.00
+247138618679 settle title 0.00 stats 1.00
+247138618683 settle title 0.00 stats 1.00
+247138618687 settle title 0.00 stats 1.00
+247138618691 settle title 0.00 stats 1.00
+247138618706 settle title 0.00 stats 1.00
+247138618710 settle title 0.00 stats 1.00
+247138618714 settle title 0.00 stats 1.00
+247138618718 settle title 0.00 stats 1.00
+247138618722 settle title 0.00 stats 1.00
+247138618726 settle title 0.00 stats 1.00
+247138618730 settle title 0.00 stats 1.00
+247138618734 settle title 0.00 stats 1.00
+247138618738 settle title 0.00 stats 1.00
+247138618743 settle title 0.00 stats 1.00
+247138618747 settle title 0.00 stats 1.00
+247138618751 settle title 0.00 stats 1.00
+247138618755 settle title 0.00 stats 1.00
+247138618759 settle title 0.00 stats 1.00
+247138618763 settle title 0.00 stats 1.00
+247138618767 settle title 0.00 stats 1.00
+247138618771 settle title 0.00 stats 1.00
+247138618775 settle title 0.00 stats 1.00
+247138618779 settle title 0.00 stats 1.00
+247138618783 settle title 0.00 stats 1.00
+247138618787 settle title 0.00 stats 1.00
+247138618791 settle title 0.00 stats 1.00
+247138618795 settle title 0.00 stats 1.00
+247138618800 settle title 0.00 stats 1.00
+247138618808 settle title 0.00 stats 1.00
+247138618812 settle title 0.00 stats 1.00
+247138618816 settle title 0.00 stats 1.00
+247138618821 settle title 0.00 stats 1.00
+247138618825 settle title 0.00 stats 1.00
+247138618829 settle title 0.00 stats 1.00
+247138618834 settle title 0.00 stats 1.00
+247138618838 settle title 0.00 stats 1.00
+247138618842 settle title 0.00 stats 1.00
+247138618846 settle title 0.00 stats 1.00
+247138618850 settle title 0.00 stats 1.00
+247138618854 settle title 0.00 stats 1.00
+247138618858 settle title 0.00 stats 1.00
+247138618862 settle title 0.00 stats 1.00
+247138618866 settle title 0.00 stats 1.00
+247138618870 settle title 0.00 stats 1.00
+247138618874 settle title 0.00 stats 1.00
+247138618878 settle title 0.00 stats 1.00
+247138618882 settle title 0.00 stats 1.00
+247138618887 settle title 0.00 stats 1.00
+247138618891 settle title 0.00 stats 1.00
+247138618895 settle title 0.00 stats 1.00
+247138618899 settle title 0.00 stats 1.00
+247138618903 settle title 0.00 stats 1.00
+247138618907 settle title 0.00 stats 1.00
+247138618911 settle title 0.00 stats 1.00
+247138618915 settle title 0.00 stats 1.00
+247138618919 settle title 0.00 stats 1.00
+247138618923 settle title 0.00 stats 1.00
+247138618927 settle title 0.00 stats 1.00
+247138618931 settle title 0.00 stats 1.00
+247138618935 settle title 0.00 stats 1.00
+247138618939 settle title 0.00 stats 1.00
+247138618944 settle title 0.00 stats 1.00
+247138618948 settle title 0.00 stats 1.00
+247138618952 settle title 0.00 stats 1.00
+247138618956 settle title 0.00 stats 1.00
+247138618960 settle title 0.00 stats 1.00
+247138618964 settle title 0.00 stats 1.00
+247138618968 settle title 0.00 stats 1.00
+247138618972 settle title 0.00 stats 1.00
+247138618976 settle title 0.00 stats 1.00
+247138618980 settle title 0.00 stats 1.00
+247138618984 settle title 0.00 stats 1.00
+247138618988 settle title 0.00 stats 1.00
+247138618992 settle title 0.00 stats 1.00
+247138618996 settle title 0.00 stats 1.00
+247138619003 settle title 0.00 stats 1.00
+247138619007 settle title 0.00 stats 1.00
+247138619011 settle title 0.00 stats 1.00
+247138619015 settle title 0.00 stats 1.00
+247138619019 settle title 0.00 stats 1.00
+247138619024 settle title 0.00 stats 1.00
+247138619028 settle title 0.00 stats 1.00
+247138619032 settle title 0.00 stats 1.00
+247138619036 settle title 0.00 stats 1.00
+247138619040 settle title 0.00 stats 1.00
+247138619044 settle title 0.00 stats 1.00
+247138619048 settle title 0.00 stats 1.00
+247138619052 settle title 0.00 stats 1.00
+247138619056 settle title 0.00 stats 1.00
+247138619060 settle title 0.00 stats 1.00
+247138619064 settle title 0.00 stats 1.00
+247138619068 settle title 0.00 stats 1.00
+247138619073 settle title 0.00 stats 1.00
+247138619077 settle title 0.00 stats 1.00
+247138619081 settle title 0.00 stats 1.00
+247138619085 settle title 0.00 stats 1.00
+247138619089 settle title 0.00 stats 1.00
+247138619093 settle title 0.00 stats 1.00
+247138619097 settle title 0.00 stats 1.00
+247138619101 settle title 0.00 stats 1.00
+247138619105 settle title 0.00 stats 1.00
+247138619109 settle title 0.00 stats 1.00
+247138619116 settle title 0.00 stats 1.00
+247138619120 settle title 0.00 stats 1.00
+247138619124 settle title 0.00 stats 1.00
+247138619128 settle title 0.00 stats 1.00
+247138619132 settle title 0.00 stats 1.00
+247138619136 settle title 0.00 stats 1.00
+247138619140 settle title 0.00 stats 1.00
+247138619144 settle title 0.00 stats 1.00
+247138619148 settle title 0.00 stats 1.00
+247138619152 settle title 0.00 stats 1.00
+247138619156 settle title 0.00 stats 1.00
+247138619160 settle title 0.00 stats 1.00
+247138619165 settle title 0.00 stats 1.00
+247138619170 settle title 0.00 stats 1.00
+247138619174 settle title 0.00 stats 1.00
+247138619178 settle title 0.00 stats 1.00
+247138619182 settle title 0.00 stats 1.00
+247138619186 settle title 0.00 stats 1.00
+247138619190 settle title 0.00 stats 1.00
+247138619194 settle title 0.00 stats 1.00
+247138619198 settle title 0.00 stats 1.00
+247138619202 settle title 0.00 stats 1.00
+247138619206 settle title 0.00 stats 1.00
+247138619211 settle title 0.00 stats 1.00
+247138619215 settle title 0.00 stats 1.00
+247138619219 settle title 0.00 stats 1.00
+247138619223 settle title 0.00 stats 1.00
+247138619227 settle title 0.00 stats 1.00
+247138619231 settle title 0.00 stats 1.00
+247138619235 settle title 0.00 stats 1.00
+247138619239 settle title 0.00 stats 1.00
+247138619243 settle title 0.00 stats 1.00
+247138619247 settle title 0.00 stats 1.00
+247138619251 settle title 0.00 stats 1.00
+247138619255 settle title 0.00 stats 1.00
+247138619259 settle title 0.00 stats 1.00
+247138619263 settle title 0.00 stats 1.00
+247138619267 settle title 0.00 stats 1.00
+247138619272 settle title 0.00 stats 1.00
+247138619276 settle title 0.00 stats 1.00
+247138619280 settle title 0.00 stats 1.00
+247138619284 settle title 1.00 stats 1.00
+247138619795 f 378
+247138621434 f 379
+247138922684 settle title 0.00 stats 0.38
+247138923548 f 380
+247138924927 f 381
+247139012814 settle title 0.00 stats 0.38
+247139013486 f 382
+247139102963 settle title 0.00 stats 0.38
+247139103544 f 383
+247139193147 settle title 0.00 stats 0.38
+247139193724 f 384
+247139283438 settle title 0.00 stats 0.38
+247139284044 f 385
+247139373508 settle title 0.00 stats 0.38
+247139374105 f 386
+247139463609 settle title 0.00 stats 0.38
+247139464223 f 387
+247139553798 settle title 0.00 stats 0.38
+247139554414 f 388
+247139643955 settle title 0.00 stats 0.38
+247139644566 f 389
+247139734265 settle title 0.00 stats 0.38
+247139734856 f 390
+247139824298 settle title 0.00 stats 0.38
+247139824860 f 391
+247139914558 settle title 0.00 stats 0.38
+247139915171 f 392
+247140004641 settle title 0.00 stats 0.38
+247140005280 f 393
+247140094799 settle title 0.00 stats 0.38
+247140095382 f 394
+247140185055 settle title 0.00 stats 0.38
+247140185616 f 395
+247140275139 settle title 0.00 stats 0.38
+247140275718 f 396
+247140365332 settle title 0.00 stats 0.38
+247140365937 f 397
+247140455389 settle title 0.00 stats 0.38
+247140455967 f 398
+247140545600 settle title 0.00 stats 0.38
+247140546217 f 399
+247140635852 settle title 0.00 stats 0.38
+247140636457 f 400
+247140725930 settle title 0.00 stats 0.38
+247140726555 f 401
+247140816068 settle title 0.00 stats 0.38
+247140816739 f 402
+247140906403 settle title 0.00 stats 0.38
+247140907319 f 403
+247140996375 settle title 0.00 stats 0.38
+247140997031 f 404
+247141086677 settle title 0.00 stats 0.38
+247141087477 f 405
+247141586754 settle title 0.00 stats 1.00
+247141587172 f 406
+247141587186 recount+
+247141587703 recount-
+247141588827 f 407
+247142485838 settle title 0.00 stats 1.00
+247142485860 settle title 0.00 stats 1.00
+247142485865 settle title 0.00 stats 1.00
+247142485870 settle title 0.00 stats 1.00
+247142485874 settle title 0.00 stats 1.00
+247142485878 settle title 0.00 stats 1.00
+247142485882 settle title 0.00 stats 1.00
+247142485886 settle title 0.00 stats 1.00
+247142485890 settle title 0.00 stats 1.00
+247142485894 settle title 0.00 stats 1.00
+247142485898 settle title 0.00 stats 1.00
+247142485902 settle title 0.00 stats 1.00
+247142485906 settle title 0.00 stats 1.00
+247142485910 settle title 0.00 stats 1.00
+247142485914 settle title 0.00 stats 1.00
+247142485927 settle title 0.00 stats 1.00
+247142485931 settle title 0.00 stats 1.00
+247142485935 settle title 0.00 stats 1.00
+247142485939 settle title 0.00 stats 1.00
+247142485947 settle title 0.00 stats 1.00
+247142485951 settle title 0.00 stats 1.00
+247142485955 settle title 0.00 stats 1.00
+247142485959 settle title 0.00 stats 1.00
+247142485963 settle title 0.00 stats 1.00
+247142485967 settle title 0.00 stats 1.00
+247142485971 settle title 0.00 stats 1.00
+247142485975 settle title 0.00 stats 1.00
+247142485979 settle title 0.00 stats 1.00
+247142485983 settle title 0.00 stats 1.00
+247142485987 settle title 0.00 stats 1.00
+247142485991 settle title 0.00 stats 1.00
+247142485995 settle title 0.00 stats 1.00
+247142485999 settle title 0.00 stats 1.00
+247142486005 settle title 0.00 stats 1.00
+247142486009 settle title 0.00 stats 1.00
+247142486013 settle title 0.00 stats 1.00
+247142486017 settle title 0.00 stats 1.00
+247142486021 settle title 0.00 stats 1.00
+247142486025 settle title 0.00 stats 1.00
+247142486030 settle title 0.00 stats 1.00
+247142486034 settle title 0.00 stats 1.00
+247142486037 settle title 0.00 stats 1.00
+247142486041 settle title 0.00 stats 1.00
+247142486046 settle title 0.00 stats 1.00
+247142486050 settle title 0.00 stats 1.00
+247142486053 settle title 0.00 stats 1.00
+247142486057 settle title 0.00 stats 1.00
+247142486061 settle title 0.00 stats 1.00
+247142486065 settle title 0.00 stats 1.00
+247142486069 settle title 0.00 stats 1.00
+247142486073 settle title 0.00 stats 1.00
+247142486077 settle title 0.00 stats 1.00
+247142486081 settle title 0.00 stats 1.00
+247142486085 settle title 0.00 stats 1.00
+247142486089 settle title 0.00 stats 1.00
+247142486093 settle title 0.00 stats 1.00
+247142486097 settle title 0.00 stats 1.00
+247142486101 settle title 0.00 stats 1.00
+247142486105 settle title 0.00 stats 1.00
+247142486109 settle title 0.00 stats 1.00
+247142486113 settle title 0.00 stats 1.00
+247142486117 settle title 0.00 stats 1.00
+247142486121 settle title 0.00 stats 1.00
+247142486125 settle title 0.00 stats 1.00
+247142486129 settle title 0.00 stats 1.00
+247142486133 settle title 0.00 stats 1.00
+247142486137 settle title 0.00 stats 1.00
+247142486141 settle title 0.00 stats 1.00
+247142486145 settle title 0.00 stats 1.00
+247142486149 settle title 0.00 stats 1.00
+247142486153 settle title 0.00 stats 1.00
+247142486157 settle title 0.00 stats 1.00
+247142486161 settle title 0.00 stats 1.00
+247142486165 settle title 0.00 stats 1.00
+247142486169 settle title 0.00 stats 1.00
+247142486173 settle title 0.00 stats 1.00
+247142486177 settle title 0.00 stats 1.00
+247142486181 settle title 0.00 stats 1.00
+247142486185 settle title 0.00 stats 1.00
+247142486189 settle title 0.00 stats 1.00
+247142486193 settle title 0.00 stats 1.00
+247142486197 settle title 0.00 stats 1.00
+247142486201 settle title 0.00 stats 1.00
+247142486205 settle title 0.00 stats 1.00
+247142486209 settle title 0.00 stats 1.00
+247142486213 settle title 0.00 stats 1.00
+247142486217 settle title 0.00 stats 1.00
+247142486221 settle title 0.00 stats 1.00
+247142486225 settle title 0.00 stats 1.00
+247142486229 settle title 0.00 stats 1.00
+247142486233 settle title 0.00 stats 1.00
+247142486237 settle title 0.00 stats 1.00
+247142486241 settle title 0.00 stats 1.00
+247142486245 settle title 0.00 stats 1.00
+247142486249 settle title 0.00 stats 1.00
+247142486253 settle title 0.00 stats 1.00
+247142486257 settle title 0.00 stats 1.00
+247142486261 settle title 0.00 stats 1.00
+247142486264 settle title 0.00 stats 1.00
+247142486268 settle title 0.00 stats 1.00
+247142486272 settle title 0.00 stats 1.00
+247142486276 settle title 0.00 stats 1.00
+247142486280 settle title 0.00 stats 1.00
+247142486284 settle title 0.00 stats 1.00
+247142486288 settle title 0.00 stats 1.00
+247142486292 settle title 0.00 stats 1.00
+247142486296 settle title 0.00 stats 1.00
+247142486300 settle title 0.00 stats 1.00
+247142486304 settle title 0.00 stats 1.00
+247142486308 settle title 0.00 stats 1.00
+247142486312 settle title 0.00 stats 1.00
+247142486316 settle title 0.00 stats 1.00
+247142486322 settle title 0.00 stats 1.00
+247142486326 settle title 0.00 stats 1.00
+247142486330 settle title 0.00 stats 1.00
+247142486334 settle title 0.00 stats 1.00
+247142486338 settle title 0.00 stats 1.00
+247142486342 settle title 0.00 stats 1.00
+247142486346 settle title 0.00 stats 1.00
+247142486350 settle title 0.00 stats 1.00
+247142486354 settle title 0.00 stats 1.00
+247142486358 settle title 0.00 stats 1.00
+247142486362 settle title 0.00 stats 1.00
+247142486366 settle title 0.00 stats 1.00
+247142486370 settle title 0.00 stats 1.00
+247142486374 settle title 0.00 stats 1.00
+247142486382 settle title 0.00 stats 1.00
+247142486386 settle title 0.00 stats 1.00
+247142486390 settle title 0.00 stats 1.00
+247142486394 settle title 0.00 stats 1.00
+247142486398 settle title 0.00 stats 1.00
+247142486402 settle title 0.00 stats 1.00
+247142486406 settle title 0.00 stats 1.00
+247142486410 settle title 0.00 stats 1.00
+247142486414 settle title 0.00 stats 1.00
+247142486418 settle title 0.00 stats 1.00
+247142486422 settle title 0.00 stats 1.00
+247142486426 settle title 0.00 stats 1.00
+247142486430 settle title 0.00 stats 1.00
+247142486434 settle title 0.00 stats 1.00
+247142486438 settle title 0.00 stats 1.00
+247142486441 settle title 0.00 stats 1.00
+247142486445 settle title 0.00 stats 1.00
+247142486449 settle title 0.00 stats 1.00
+247142486453 settle title 0.00 stats 1.00
+247142486457 settle title 0.00 stats 1.00
+247142486461 settle title 0.00 stats 1.00
+247142486465 settle title 0.00 stats 1.00
+247142486469 settle title 0.00 stats 1.00
+247142486473 settle title 0.00 stats 1.00
+247142486477 settle title 0.00 stats 1.00
+247142486481 settle title 0.00 stats 1.00
+247142486485 settle title 0.00 stats 1.00
+247142486489 settle title 0.00 stats 1.00
+247142486493 settle title 0.00 stats 1.00
+247142486497 settle title 0.00 stats 1.00
+247142486501 settle title 0.00 stats 1.00
+247142486505 settle title 0.00 stats 1.00
+247142486509 settle title 0.00 stats 1.00
+247142486513 settle title 0.00 stats 1.00
+247142486517 settle title 0.00 stats 1.00
+247142486521 settle title 0.00 stats 1.00
+247142486525 settle title 0.00 stats 1.00
+247142486529 settle title 0.00 stats 1.00
+247142486533 settle title 0.00 stats 1.00
+247142486537 settle title 0.00 stats 1.00
+247142486541 settle title 0.00 stats 1.00
+247142486545 settle title 0.00 stats 1.00
+247142486549 settle title 0.00 stats 1.00
+247142486553 settle title 0.00 stats 1.00
+247142486556 settle title 0.00 stats 1.00
+247142486560 settle title 0.00 stats 1.00
+247142486564 settle title 0.00 stats 1.00
+247142486568 settle title 0.00 stats 1.00
+247142486572 settle title 0.00 stats 1.00
+247142486576 settle title 0.00 stats 1.00
+247142486580 settle title 0.00 stats 1.00
+247142486584 settle title 0.00 stats 1.00
+247142486588 settle title 0.00 stats 1.00
+247142486592 settle title 0.00 stats 1.00
+247142486596 settle title 0.00 stats 1.00
+247142486600 settle title 0.00 stats 1.00
+247142486604 settle title 0.00 stats 1.00
+247142486609 settle title 0.00 stats 1.00
+247142486613 settle title 0.00 stats 1.00
+247142486617 settle title 0.00 stats 1.00
+247142486621 settle title 0.00 stats 1.00
+247142486625 settle title 0.00 stats 1.00
+247142486629 settle title 0.00 stats 1.00
+247142486633 settle title 0.00 stats 1.00
+247142486637 settle title 0.00 stats 1.00
+247142486641 settle title 0.00 stats 1.00
+247142486644 settle title 0.00 stats 1.00
+247142486648 settle title 0.00 stats 1.00
+247142486652 settle title 0.00 stats 1.00
+247142486656 settle title 0.00 stats 1.00
+247142486660 settle title 0.00 stats 1.00
+247142486664 settle title 0.00 stats 1.00
+247142486668 settle title 0.00 stats 1.00
+247142486672 settle title 0.00 stats 1.00
+247142486676 settle title 1.00 stats 1.00
+247142487193 f 408
+247142488745 f 409

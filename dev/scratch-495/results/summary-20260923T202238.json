@@ -1,0 +1,90 @@
+{
+  "ran": "--regimes fast_typist",
+  "at": "2026-09-23T20:22:38.242Z",
+  "budget": {
+    "mean_ms": 5,
+    "worst_ms": 16,
+    "cold_ms": 250
+  },
+  "oracle": {
+    "mean_ms": 2.43,
+    "worst_ms": 15.61,
+    "uinput_to_presented_ms": 12.17,
+    "cold_ms": 370
+  },
+  "headline": "prose_end_of_draft",
+  "regimes": [
+    {
+      "regime": "fast_typist",
+      "file": "dev/shots/latency/bench-fast_typist-20260923T202238.json",
+      "mean_ms": 2.53,
+      "worst_ms": 7.2,
+      "p50_ms": 2.42,
+      "p99_ms": 4.38,
+      "cold_ms": 167,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true,
+      "the_pointer_left_the_window": false
+    }
+  ],
+  "regimes_not_run": [],
+  "regimes_unaccounted_for": [],
+  "regimes_the_pointer_left": [],
+  "regimes_not_scored": [],
+  "stage_first_client_ms": 880.715,
+  "pass": true,
+  "lines": [
+    "gate bench fast_typist: pass — mean 2.53 ms, worst 7.2 ms, p50 2.42 ms, p99 4.38 ms, cold 167 ms",
+    "gate bench --regimes fast_typist: pass — 1 of 1 regimes clear the budget (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)"
+  ],
+  "build": {
+    "git": "f8b7efe",
+    "binary": "d801f518f3460974"
+  },
+  "fingerprint": {
+    "at": "2026-09-23T20:22:37.995Z",
+    "app": {
+      "binary": "target/release/quill",
+      "sha256": "d801f518f3460974",
+      "git_head": "f8b7efe",
+      "tree_was_dirty": true,
+      "renderer": "gl"
+    },
+    "display": {
+      "output": "quill-gate-2789514",
+      "mode": "3200x2000",
+      "refresh_hz": 60,
+      "scale": 2,
+      "vrr": false
+    },
+    "machine": {
+      "node": "v26.7.0",
+      "kernel": "Linux 7.2.3-arch1-3",
+      "cpu": "13th Gen Intel(R) Core(TM) i5-13600K",
+      "cpus": 20,
+      "load1": 1.77,
+      "busiest_processes": [
+        "3.9 quill <defunct>",
+        "3.0 helium",
+        "2.2 claude",
+        "2.0 spotify",
+        "1.6 herdr"
+      ],
+      "mem_gb": 31
+    },
+    "document": {
+      "path": "dev/shots/latency/doc10k.md",
+      "words": 9953,
+      "chars": 53031,
+      "lines": 432
+    },
+    "window": {
+      "w": 1440,
+      "h": 900
+    }
+  }
+}

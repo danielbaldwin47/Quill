@@ -1,0 +1,1079 @@
+
+This GDB supports auto-downloading debuginfo from the following URLs:
+  <https://debuginfod.archlinux.org>
+Enable debuginfod for this session? (y or [n]) [answered N; input not from terminal]
+Debuginfod has been disabled.
+To make this setting permanent, add 'set debuginfod enabled off' to .gdbinit.
+Function "gdk_frame_clock_request_phase" not defined.
+Breakpoint 1 (gdk_frame_clock_request_phase) pending.
+Downloading separate debug info for /lib64/ld-linux-x86-64.so.2...
+Downloading 2.90 M separate debug info for /usr/lib/libfontconfig.so.1...
+Downloading 326.08 K separate debug info for /usr/lib/libenchant-2.so.2...
+Downloading 260.74 K separate debug info for /usr/lib/libpangocairo-1.0.so.0...
+Downloading 1.49 M separate debug info for /usr/lib/libpango-1.0.so.0...
+Downloading 5.82 M separate debug info for /usr/lib/libcairo.so.2...
+Downloading 1.97 M separate debug info for /usr/lib/libgobject-2.0.so.0...
+Downloading 5.64 M separate debug info for /usr/lib/libglib-2.0.so.0...
+Downloading 455.29 K separate debug info for /usr/lib/libgraphene-1.0.so.0...
+Downloading 11.96 M separate debug info for /usr/lib/libgio-2.0.so.0...
+Downloading 784.63 K separate debug info for /usr/lib/libgcc_s.so.1...
+Downloading 10.81 M separate debug info for /usr/lib/libc.so.6...
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/usr/lib/libthread_db.so.1".
+Downloading 3.34 M separate debug info for /usr/lib/libfreetype.so.6...
+Downloading 288.67 K separate debug info for /usr/lib/libgmodule-2.0.so.0...
+Downloading 468.85 K separate debug info for /usr/lib/libpangoft2-1.0.so.0...
+Downloading 4.02 M separate debug info for /usr/lib/libm.so.6...
+Downloading 95.42 K separate debug info for /usr/lib/libfribidi.so.0...
+Downloading 93.37 K separate debug info for /usr/lib/libthai.so.0...
+Downloading 229.68 K separate debug info for /usr/lib/libz.so.1...
+Downloading 857.20 K separate debug info for /usr/lib/libpng16.so.16...
+Downloading 10.92 M separate debug info for /usr/lib/libX11.so.6...
+Downloading 536.45 K separate debug info for /usr/lib/libXext.so.6...
+Downloading 403.49 K separate debug info for /usr/lib/libXrender.so.1...
+Downloading 500.05 K separate debug info for /usr/lib/libxcb.so.1...
+Downloading 131.02 K separate debug info for /usr/lib/libxcb-render.so.0...
+Downloading 24.12 K separate debug info for /usr/lib/libxcb-shm.so.0...
+Downloading 5.10 M separate debug info for /usr/lib/libpixman-1.so.0...
+Downloading 170.48 K separate debug info for /usr/lib/libffi.so.8...
+Downloading 2.08 M separate debug info for /usr/lib/libpcre2-8.so.0...
+Downloading 38.09 K separate debug info for /usr/lib/libcairo-gobject.so.2...
+Downloading 879.64 K separate debug info for /usr/lib/libgdk_pixbuf-2.0.so.0...
+Downloading 3.18 M separate debug info for /usr/lib/libepoxy.so.0...
+Downloading 466.45 K separate debug info for /usr/lib/libgstplay-1.0.so.0...
+Downloading 132.87 K separate debug info for /usr/lib/libgstallocators-1.0.so.0...
+Downloading 1.47 M separate debug info for /usr/lib/libXi.so.6...
+Downloading 347.43 K separate debug info for /usr/lib/libcloudproviders.so.0...
+Downloading 3.52 M separate debug info for /usr/lib/libtinysparql-3.0.so.0...
+Downloading 4.51 M separate debug info for /usr/lib/libvulkan.so.1...
+Downloading 1.73 M separate debug info for /usr/lib/libtiff.so.6...
+Downloading 2.30 M separate debug info for /usr/lib/libjpeg.so.8...
+Downloading 1.23 M separate debug info for /usr/lib/libxkbcommon.so.0...
+Downloading 184.33 K separate debug info for /usr/lib/libwayland-client.so.0...
+Downloading 19.59 K separate debug info for /usr/lib/libwayland-egl.so.1...
+Downloading 178.98 K separate debug info for /usr/lib/libXcursor.so.1...
+Downloading 44.49 K separate debug info for /usr/lib/libXdamage.so.1...
+Downloading 185.57 K separate debug info for /usr/lib/libXfixes.so.3...
+Downloading 352.03 K separate debug info for /usr/lib/libXrandr.so.2...
+Downloading 44.37 K separate debug info for /usr/lib/libXinerama.so.1...
+Downloading 569.46 K separate debug info for /usr/lib/libcairo-script-interpreter.so.2...
+Downloading 147.91 K separate debug info for /usr/lib/libcups.so.2...
+Downloading 1.21 M separate debug info for /usr/lib/libcolord.so.2...
+Downloading 156.17 K separate debug info for /usr/lib/libbz2.so.1.0...
+Downloading 224.80 K separate debug info for /usr/lib/libbrotlidec.so.1...
+Downloading 1.47 M separate debug info for /usr/lib/libgraphite2.so.3...
+Downloading 100.77 K separate debug info for /usr/lib/libdatrie.so.1...
+Downloading 29.59 K separate debug info for /usr/lib/libXau.so.6...
+Downloading 62.46 K separate debug info for /usr/lib/libXdmcp.so.6...
+Downloading 71.10 M separate debug info for /usr/lib/libglycin-2.so.0...
+Downloading 865.04 K separate debug info for /usr/lib/libgsttag-1.0.so.0...
+Downloading 482.30 K separate debug info for /usr/lib/libunwind.so.8...
+Downloading 4.27 M separate debug info for /usr/lib/libdw.so.1...
+Downloading 251.74 K separate debug info for /usr/lib/libEGL.so.1...
+Downloading 515.52 K separate debug info for /usr/lib/libGLX.so.0...
+Downloading 67.24 K separate debug info for /usr/lib/libwayland-cursor.so.0...
+Downloading 35.13 K separate debug info for /usr/lib/libX11-xcb.so.1...
+Downloading 116.81 K separate debug info for /usr/lib/libgudev-1.0.so.0...
+Downloading 281.23 K separate debug info for /usr/lib/libdrm.so.2...
+Downloading 537.60 K separate debug info for /usr/lib/libjson-glib-1.0.so.0...
+Downloading 4.03 M separate debug info for /usr/lib/libxml2.so.16...
+Downloading 6.23 M separate debug info for /usr/lib/libsqlite3.so.0...
+Downloading 529.15 K separate debug info for /usr/lib/libdeflate.so.0...
+Downloading 78.90 K separate debug info for /usr/lib/libjbig.so.2.1...
+Downloading 5.92 M separate debug info for /usr/lib/libzstd.so.1...
+Downloading 2.99 M separate debug info for /usr/lib/libwebp.so.7...
+Downloading 444.72 K separate debug info for /usr/lib/liblzo2.so.2...
+Downloading 158.34 K separate debug info for /usr/lib/libavahi-common.so.3...
+Downloading 234.27 K separate debug info for /usr/lib/libavahi-client.so.3...
+Downloading 1.44 M separate debug info for /usr/lib/liblcms2.so.2...
+Downloading 22.68 K separate debug info for /usr/lib/libbrotlicommon.so.1...
+Downloading 338.91 K separate debug info for /usr/lib/libseccomp.so.2...
+Downloading 989.44 K separate debug info for /usr/lib/libelf.so.1...
+Downloading 369.80 K separate debug info for /usr/lib/libGLdispatch.so.0...
+Downloading 10.56 M separate debug info for /usr/lib/libicuuc.so.78...
+Downloading 86.03 K separate debug info for /usr/lib/libsharpyuv.so.0...
+Downloading 1.01 M separate debug info for /usr/lib/libdbus-1.so.3...
+Downloading 7.97 M separate debug info for /usr/lib/libp11-kit.so.0...
+Downloading 108.49 K separate debug info for /usr/lib/libidn2.so.0...
+Downloading 3.16 M separate debug info for /usr/lib/libunistring.so.5...
+Downloading 239.07 K separate debug info for /usr/lib/libtasn1.so.6...
+Downloading 928.19 K separate debug info for /usr/lib/libhogweed.so.7...
+Downloading 1.35 M separate debug info for /usr/lib/libnettle.so.9...
+Downloading 2.23 M separate debug info for /usr/lib/libgmp.so.10...
+Downloading 31.58 M separate debug info for /usr/lib/libicudata.so.78...
+Downloading 23.50 M separate debug info for /usr/lib/libstdc++.so.6...
+Downloading 20.27 K separate debug info for /usr/lib/libpthread.so.0...
+Downloading 19.52 K separate debug info for /usr/lib/libdl.so.2...
+Downloading 26.15 K separate debug info for /usr/lib/librt.so.1...
+Downloading 1.58 M separate debug info for /usr/lib/gtk-4.0/4.0.0/immodules/libim-fcitx5.so...
+Downloading 136.38 K separate debug info for /usr/lib/libFcitx5GClient.so.2...
+Downloading 859.31 K separate debug info for /usr/lib/gio/modules/libgvfsdbus.so...
+Downloading 857.77 K separate debug info for /usr/lib/gvfs/libgvfscommon.so...
+Downloading 363.02 K separate debug info for /usr/lib/libnvidia-egl-wayland2.so.1...
+Downloading 325.00 K separate debug info for /usr/lib/libnvidia-egl-wayland.so.1...
+Downloading 267.60 K separate debug info for /usr/lib/libwayland-server.so.0...
+Downloading 94.43 K separate debug info for /usr/lib/libnvidia-egl-gbm.so.1...
+Downloading 316.89 K separate debug info for /usr/lib/libnvidia-egl-xcb.so.1...
+Downloading 25.20 K separate debug info for /usr/lib/libxcb-present.so.0...
+Downloading 39.01 K separate debug info for /usr/lib/libxcb-dri3.so.0...
+Downloading 362.21 K separate debug info for /usr/lib/libnvidia-egl-xlib.so.1...
+Downloading 159.27 K separate debug info for /usr/lib/libxcb-randr.so.0...
+Downloading 72.90 K separate debug info for /usr/lib/libxcb-xfixes.so.0...
+Downloading 579.67 M separate debug info for /usr/lib/libLLVM.so.22.1...
+Downloading 47.04 M separate debug info for /usr/lib/libSPIRV-Tools.so...
+Downloading 137.61 K separate debug info for /usr/lib/libsensors.so.5...
+Downloading 57.62 K separate debug info for /usr/lib/libxcb-sync.so.1...
+Downloading 11.27 K separate debug info for /usr/lib/libxshmfence.so.1...
+Downloading 193.23 K separate debug info for /usr/lib/libdrm_amdgpu.so.1...
+Downloading 396.30 K separate debug info for /usr/lib/libdrm_intel.so.1...
+Downloading 720.95 K separate debug info for /usr/lib/libedit.so.0...
+Downloading 126.12 K separate debug info for /usr/lib/libpciaccess.so.0...
+Downloading 1.81 M separate debug info for /usr/lib/libncursesw.so.6...
+Downloading 37.36 K separate debug info for /usr/lib/libGLESv2.so.2...
+=== request_phase at 47.311 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff71f0a44 in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff72f8c89 in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff70af5a7 in ?? () from /usr/lib/libgtk-4.so.1
+#4  0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555555d55700, return_value=0x0, instance=0x555555f119e0, args=0x7fffffff9ca0, n_params=0, param_types=0x0) at ../glib/gobject/gclosure.c:980
+#5  signal_emit_valist_unlocked (instance=instance@entry=0x555555f119e0, signal_id=signal_id@entry=63, detail=detail@entry=0, var_args=var_args@entry=0x7fffffff9ca0) at ../glib/gobject/gsignal.c:3465
+#6  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555f119e0, signal_id=63, detail=0, var_args=var_args@entry=0x7fffffff9ca0) at ../glib/gobject/gsignal.c:3304
+#7  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#8  0x00007ffff72da9ca in gtk_widget_realize () from /usr/lib/libgtk-4.so.1
+#9  0x00007ffff72fa61c in ?? () from /usr/lib/libgtk-4.so.1
+#10 0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555555d8cf70, return_value=0x0, instance=0x555555f119e0, args=0x7fffffffa040, n_params=0, param_types=0x0) at ../glib/gobject/gclosure.c:980
+#11 signal_emit_valist_unlocked (instance=instance@entry=0x555555f119e0, signal_id=signal_id@entry=59, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffa040) at ../glib/gobject/gsignal.c:3465
+#12 0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555f119e0, signal_id=59, detail=0, var_args=var_args@entry=0x7fffffffa040) at ../glib/gobject/gsignal.c:3304
+#13 0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#14 0x00007ffff72dbbfd in gtk_widget_show () from /usr/lib/libgtk-4.so.1
+#15 0x00007ffff72fb039 in ?? () from /usr/lib/libgtk-4.so.1
+#16 0x0000555555822c55 in quill::window::present ()
+#17 0x0000555555820718 in quill::window::present_launch ()
+#18 0x00005555557c30cd in gio::auto::application::ApplicationExt::connect_activate::activate_trampoline::<gtk4::auto::application::Application, quill::main::{closure#3}> ()
+#19 0x00007ffff7ce6bcc in g_closure_invoke (closure=0x555555cc6de0, return_value=0x0, n_param_values=1, param_values=0x7fffffffac50, invocation_hint=0x7fffffffaba0) at ../glib/gobject/gclosure.c:916
+#20 0x00007ffff7d0684b in signal_emit_unlocked_R (node=node@entry=0x7fffffffad70, detail=detail@entry=0, instance=instance@entry=0x555555cbf330, emission_return=emission_return@entry=0x0, instance_and_params=instance_and_params@entry=0x7fffffffac50) at ../glib/gobject/gsignal.c:3929
+#21 0x00007ffff7d08a34 in signal_emit_valist_unlocked (instance=instance@entry=0x555555cbf330, signal_id=signal_id@entry=15, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffaed0) at ../glib/gobject/gsignal.c:3561
+#22 0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555cbf330, signal_id=15, detail=0, var_args=var_args@entry=0x7fffffffaed0) at ../glib/gobject/gsignal.c:3304
+#23 0x00007ffff7d08d94 in g_signal_emit (instance=instance@entry=0x555555cbf330, signal_id=<optimized out>, detail=detail@entry=0) at ../glib/gobject/gsignal.c:3624
+#24 0x00007ffff6f0148e in g_application_activate (application=0x555555cbf330) at ../glib/gio/gapplication.c:2471
+#25 g_application_activate (application=0x555555cbf330) at ../glib/gio/gapplication.c:2457
+#26 0x00007ffff6f03e91 in g_application_real_local_command_line (application=0x555555cbf330, arguments=0x7fffffffb068, exit_status=0x7fffffffb064) at ../glib/gio/gapplication.c:1201
+#27 0x00007ffff6f04099 in g_application_run (application=0x555555cbf330, argc=<optimized out>, argv=<optimized out>) at ../glib/gio/gapplication.c:2711
+#28 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#29 0x00005555557ee5db in quill::main ()
+#30 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#31 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#32 0x00005555559ee237 in std::rt::lang_start_internal ()
+#33 0x00005555557fbe15 in main ()
+=== request_phase at 47.654 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff72f8c89 in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff70af5a7 in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555555d55700, return_value=0x0, instance=0x555555f119e0, args=0x7fffffff9ca0, n_params=0, param_types=0x0) at ../glib/gobject/gclosure.c:980
+#4  signal_emit_valist_unlocked (instance=instance@entry=0x555555f119e0, signal_id=signal_id@entry=63, detail=detail@entry=0, var_args=var_args@entry=0x7fffffff9ca0) at ../glib/gobject/gsignal.c:3465
+#5  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555f119e0, signal_id=63, detail=0, var_args=var_args@entry=0x7fffffff9ca0) at ../glib/gobject/gsignal.c:3304
+#6  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#7  0x00007ffff72da9ca in gtk_widget_realize () from /usr/lib/libgtk-4.so.1
+#8  0x00007ffff72fa61c in ?? () from /usr/lib/libgtk-4.so.1
+#9  0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555555d8cf70, return_value=0x0, instance=0x555555f119e0, args=0x7fffffffa040, n_params=0, param_types=0x0) at ../glib/gobject/gclosure.c:980
+#10 signal_emit_valist_unlocked (instance=instance@entry=0x555555f119e0, signal_id=signal_id@entry=59, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffa040) at ../glib/gobject/gsignal.c:3465
+#11 0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555f119e0, signal_id=59, detail=0, var_args=var_args@entry=0x7fffffffa040) at ../glib/gobject/gsignal.c:3304
+#12 0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#13 0x00007ffff72dbbfd in gtk_widget_show () from /usr/lib/libgtk-4.so.1
+#14 0x00007ffff72fb039 in ?? () from /usr/lib/libgtk-4.so.1
+#15 0x0000555555822c55 in quill::window::present ()
+#16 0x0000555555820718 in quill::window::present_launch ()
+#17 0x00005555557c30cd in gio::auto::application::ApplicationExt::connect_activate::activate_trampoline::<gtk4::auto::application::Application, quill::main::{closure#3}> ()
+#18 0x00007ffff7ce6bcc in g_closure_invoke (closure=0x555555cc6de0, return_value=0x0, n_param_values=1, param_values=0x7fffffffac50, invocation_hint=0x7fffffffaba0) at ../glib/gobject/gclosure.c:916
+#19 0x00007ffff7d0684b in signal_emit_unlocked_R (node=node@entry=0x7fffffffad70, detail=detail@entry=0, instance=instance@entry=0x555555cbf330, emission_return=emission_return@entry=0x0, instance_and_params=instance_and_params@entry=0x7fffffffac50) at ../glib/gobject/gsignal.c:3929
+#20 0x00007ffff7d08a34 in signal_emit_valist_unlocked (instance=instance@entry=0x555555cbf330, signal_id=signal_id@entry=15, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffaed0) at ../glib/gobject/gsignal.c:3561
+#21 0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555cbf330, signal_id=15, detail=0, var_args=var_args@entry=0x7fffffffaed0) at ../glib/gobject/gsignal.c:3304
+#22 0x00007ffff7d08d94 in g_signal_emit (instance=instance@entry=0x555555cbf330, signal_id=<optimized out>, detail=detail@entry=0) at ../glib/gobject/gsignal.c:3624
+#23 0x00007ffff6f0148e in g_application_activate (application=0x555555cbf330) at ../glib/gio/gapplication.c:2471
+#24 g_application_activate (application=0x555555cbf330) at ../glib/gio/gapplication.c:2457
+#25 0x00007ffff6f03e91 in g_application_real_local_command_line (application=0x555555cbf330, arguments=0x7fffffffb068, exit_status=0x7fffffffb064) at ../glib/gio/gapplication.c:1201
+#26 0x00007ffff6f04099 in g_application_run (application=0x555555cbf330, argc=<optimized out>, argv=<optimized out>) at ../glib/gio/gapplication.c:2711
+#27 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#28 0x00005555557ee5db in quill::main ()
+#29 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#30 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#31 0x00005555559ee237 in std::rt::lang_start_internal ()
+#32 0x00005555557fbe15 in main ()
+=== request_phase at 47.663 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff72f783b in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff72fa640 in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555555d8cf70, return_value=0x0, instance=0x555555f119e0, args=0x7fffffffa040, n_params=0, param_types=0x0) at ../glib/gobject/gclosure.c:980
+#4  signal_emit_valist_unlocked (instance=instance@entry=0x555555f119e0, signal_id=signal_id@entry=59, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffa040) at ../glib/gobject/gsignal.c:3465
+#5  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555f119e0, signal_id=59, detail=0, var_args=var_args@entry=0x7fffffffa040) at ../glib/gobject/gsignal.c:3304
+#6  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#7  0x00007ffff72dbbfd in gtk_widget_show () from /usr/lib/libgtk-4.so.1
+#8  0x00007ffff72fb039 in ?? () from /usr/lib/libgtk-4.so.1
+#9  0x0000555555822c55 in quill::window::present ()
+#10 0x0000555555820718 in quill::window::present_launch ()
+#11 0x00005555557c30cd in gio::auto::application::ApplicationExt::connect_activate::activate_trampoline::<gtk4::auto::application::Application, quill::main::{closure#3}> ()
+#12 0x00007ffff7ce6bcc in g_closure_invoke (closure=0x555555cc6de0, return_value=0x0, n_param_values=1, param_values=0x7fffffffac50, invocation_hint=0x7fffffffaba0) at ../glib/gobject/gclosure.c:916
+#13 0x00007ffff7d0684b in signal_emit_unlocked_R (node=node@entry=0x7fffffffad70, detail=detail@entry=0, instance=instance@entry=0x555555cbf330, emission_return=emission_return@entry=0x0, instance_and_params=instance_and_params@entry=0x7fffffffac50) at ../glib/gobject/gsignal.c:3929
+#14 0x00007ffff7d08a34 in signal_emit_valist_unlocked (instance=instance@entry=0x555555cbf330, signal_id=signal_id@entry=15, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffaed0) at ../glib/gobject/gsignal.c:3561
+#15 0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555cbf330, signal_id=15, detail=0, var_args=var_args@entry=0x7fffffffaed0) at ../glib/gobject/gsignal.c:3304
+#16 0x00007ffff7d08d94 in g_signal_emit (instance=instance@entry=0x555555cbf330, signal_id=<optimized out>, detail=detail@entry=0) at ../glib/gobject/gsignal.c:3624
+#17 0x00007ffff6f0148e in g_application_activate (application=0x555555cbf330) at ../glib/gio/gapplication.c:2471
+#18 g_application_activate (application=0x555555cbf330) at ../glib/gio/gapplication.c:2457
+#19 0x00007ffff6f03e91 in g_application_real_local_command_line (application=0x555555cbf330, arguments=0x7fffffffb068, exit_status=0x7fffffffb064) at ../glib/gio/gapplication.c:1201
+#20 0x00007ffff6f04099 in g_application_run (application=0x555555cbf330, argc=<optimized out>, argv=<optimized out>) at ../glib/gio/gapplication.c:2711
+#21 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#22 0x00005555557ee5db in quill::main ()
+#23 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#24 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#25 0x00005555559ee237 in std::rt::lang_start_internal ()
+#26 0x00005555557fbe15 in main ()
+=== request_phase at 47.668 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff72f783b in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff72fc0c4 in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555555d89f20, return_value=0x0, instance=0x555555f119e0, args=0x7fffffff9ca0, n_params=0, param_types=0x0) at ../glib/gobject/gclosure.c:980
+#4  signal_emit_valist_unlocked (instance=instance@entry=0x555555f119e0, signal_id=signal_id@entry=61, detail=detail@entry=0, var_args=var_args@entry=0x7fffffff9ca0) at ../glib/gobject/gsignal.c:3465
+#5  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555f119e0, signal_id=61, detail=0, var_args=var_args@entry=0x7fffffff9ca0) at ../glib/gobject/gsignal.c:3304
+#6  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#7  0x00007ffff72dac25 in gtk_widget_map () from /usr/lib/libgtk-4.so.1
+#8  0x00007ffff72fa649 in ?? () from /usr/lib/libgtk-4.so.1
+#9  0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555555d8cf70, return_value=0x0, instance=0x555555f119e0, args=0x7fffffffa040, n_params=0, param_types=0x0) at ../glib/gobject/gclosure.c:980
+#10 signal_emit_valist_unlocked (instance=instance@entry=0x555555f119e0, signal_id=signal_id@entry=59, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffa040) at ../glib/gobject/gsignal.c:3465
+#11 0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555f119e0, signal_id=59, detail=0, var_args=var_args@entry=0x7fffffffa040) at ../glib/gobject/gsignal.c:3304
+#12 0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#13 0x00007ffff72dbbfd in gtk_widget_show () from /usr/lib/libgtk-4.so.1
+#14 0x00007ffff72fb039 in ?? () from /usr/lib/libgtk-4.so.1
+#15 0x0000555555822c55 in quill::window::present ()
+#16 0x0000555555820718 in quill::window::present_launch ()
+#17 0x00005555557c30cd in gio::auto::application::ApplicationExt::connect_activate::activate_trampoline::<gtk4::auto::application::Application, quill::main::{closure#3}> ()
+#18 0x00007ffff7ce6bcc in g_closure_invoke (closure=0x555555cc6de0, return_value=0x0, n_param_values=1, param_values=0x7fffffffac50, invocation_hint=0x7fffffffaba0) at ../glib/gobject/gclosure.c:916
+#19 0x00007ffff7d0684b in signal_emit_unlocked_R (node=node@entry=0x7fffffffad70, detail=detail@entry=0, instance=instance@entry=0x555555cbf330, emission_return=emission_return@entry=0x0, instance_and_params=instance_and_params@entry=0x7fffffffac50) at ../glib/gobject/gsignal.c:3929
+#20 0x00007ffff7d08a34 in signal_emit_valist_unlocked (instance=instance@entry=0x555555cbf330, signal_id=signal_id@entry=15, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffaed0) at ../glib/gobject/gsignal.c:3561
+#21 0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555cbf330, signal_id=15, detail=0, var_args=var_args@entry=0x7fffffffaed0) at ../glib/gobject/gsignal.c:3304
+#22 0x00007ffff7d08d94 in g_signal_emit (instance=instance@entry=0x555555cbf330, signal_id=<optimized out>, detail=detail@entry=0) at ../glib/gobject/gsignal.c:3624
+#23 0x00007ffff6f0148e in g_application_activate (application=0x555555cbf330) at ../glib/gio/gapplication.c:2471
+#24 g_application_activate (application=0x555555cbf330) at ../glib/gio/gapplication.c:2457
+#25 0x00007ffff6f03e91 in g_application_real_local_command_line (application=0x555555cbf330, arguments=0x7fffffffb068, exit_status=0x7fffffffb064) at ../glib/gio/gapplication.c:1201
+#26 0x00007ffff6f04099 in g_application_run (application=0x555555cbf330, argc=<optimized out>, argv=<optimized out>) at ../glib/gio/gapplication.c:2711
+#27 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#28 0x00005555557ee5db in quill::main ()
+#29 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#30 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#31 0x00005555559ee237 in std::rt::lang_start_internal ()
+#32 0x00005555557fbe15 in main ()
+=== request_phase at 47.672 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff755d2e5 in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff755d3e5 in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff74d1058 in ?? () from /usr/lib/libgtk-4.so.1
+#4  0x00007ffff6557db6 in ffi_call_unix64 () at ../src/x86/unix64.S:105
+#5  0x00007ffff6553a6d in ffi_call_int (cif=<optimized out>, fn=<optimized out>, rvalue=<optimized out>, avalue=<optimized out>, closure=closure@entry=0x0) at ../src/x86/ffi64.c:772
+#6  0x00007ffff6556e32 in ffi_call (cif=cif@entry=0x7fffffffac10, fn=<optimized out>, rvalue=rvalue@entry=0x0, avalue=<optimized out>, avalue@entry=0x7ffffffface0) at ../src/x86/ffi64.c:1165
+#7  0x00007ffff5baa7cd in wl_closure_invoke (closure=closure@entry=0x55555630dd80, target=<optimized out>, target@entry=0x555556a652b0, opcode=opcode@entry=0, data=<optimized out>, flags=1) at ../wayland-1.26.0/src/connection.c:1243
+#8  0x00007ffff5bab6b9 in dispatch_event (display=display@entry=0x7fffd80039f0, queue=queue@entry=0x555555d17530) at ../wayland-1.26.0/src/wayland-client.c:1732
+#9  0x00007ffff5babaeb in dispatch_queue (display=0x7fffd80039f0, queue=0x555555d17530) at ../wayland-1.26.0/src/wayland-client.c:1878
+#10 wl_display_dispatch_queue_pending (display=0x7fffd80039f0, queue=0x555555d17530) at ../wayland-1.26.0/src/wayland-client.c:2243
+#11 0x00007ffff74ba1c1 in ?? () from /usr/lib/libgtk-4.so.1
+#12 0x00007ffff74b6723 in ?? () from /usr/lib/libgtk-4.so.1
+#13 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#14 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#15 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#16 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#17 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#18 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#19 0x00005555557ee5db in quill::main ()
+#20 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#21 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#22 0x00005555559ee237 in std::rt::lang_start_internal ()
+#23 0x00005555557fbe15 in main ()
+=== request_phase at 47.724 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff74d8858 in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff74d0ffc in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff6557db6 in ffi_call_unix64 () at ../src/x86/unix64.S:105
+#4  0x00007ffff6553a6d in ffi_call_int (cif=<optimized out>, fn=<optimized out>, rvalue=<optimized out>, avalue=<optimized out>, closure=closure@entry=0x0) at ../src/x86/ffi64.c:772
+#5  0x00007ffff6556e32 in ffi_call (cif=cif@entry=0x7fffffffac10, fn=<optimized out>, rvalue=rvalue@entry=0x0, avalue=<optimized out>, avalue@entry=0x7ffffffface0) at ../src/x86/ffi64.c:1165
+#6  0x00007ffff5baa7cd in wl_closure_invoke (closure=closure@entry=0x55555630dd80, target=<optimized out>, target@entry=0x555556a652b0, opcode=opcode@entry=0, data=<optimized out>, flags=1) at ../wayland-1.26.0/src/connection.c:1243
+#7  0x00007ffff5bab6b9 in dispatch_event (display=display@entry=0x7fffd80039f0, queue=queue@entry=0x555555d17530) at ../wayland-1.26.0/src/wayland-client.c:1732
+#8  0x00007ffff5babaeb in dispatch_queue (display=0x7fffd80039f0, queue=0x555555d17530) at ../wayland-1.26.0/src/wayland-client.c:1878
+#9  wl_display_dispatch_queue_pending (display=0x7fffd80039f0, queue=0x555555d17530) at ../wayland-1.26.0/src/wayland-client.c:2243
+#10 0x00007ffff74ba1c1 in ?? () from /usr/lib/libgtk-4.so.1
+#11 0x00007ffff74b6723 in ?? () from /usr/lib/libgtk-4.so.1
+#12 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#13 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#14 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#15 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#16 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#17 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#18 0x00005555557ee5db in quill::main ()
+#19 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#20 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#21 0x00005555559ee237 in std::rt::lang_start_internal ()
+#22 0x00005555557fbe15 in main ()
+=== request_phase at 47.727 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff737497e in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff72dbff5 in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff7ce6bcc in g_closure_invoke (closure=0x5555569ed3a0, return_value=0x0, n_param_values=1, param_values=0x7fffffffaad0, invocation_hint=0x7fffffffaa20) at ../glib/gobject/gclosure.c:916
+#4  0x00007ffff7d0684b in signal_emit_unlocked_R (node=node@entry=0x7fffffffabf0, detail=detail@entry=0, instance=instance@entry=0x555555b35030, emission_return=emission_return@entry=0x0, instance_and_params=instance_and_params@entry=0x7fffffffaad0) at ../glib/gobject/gsignal.c:3929
+#5  0x00007ffff7d08a34 in signal_emit_valist_unlocked (instance=instance@entry=0x555555b35030, signal_id=signal_id@entry=230, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffad50) at ../glib/gobject/gsignal.c:3561
+#6  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555b35030, signal_id=230, detail=0, var_args=var_args@entry=0x7fffffffad50) at ../glib/gobject/gsignal.c:3304
+#7  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#8  0x00007ffff752e27e in ?? () from /usr/lib/libgtk-4.so.1
+#9  0x00007ffff7bd2f64 in g_timeout_dispatch (source=0x555556a633f0, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5324
+#10 g_timeout_dispatch (source=0x555556a633f0, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5302
+#11 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#12 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#13 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#14 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#15 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#16 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#17 0x00005555557ee5db in quill::main ()
+#18 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#19 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#20 0x00005555559ee237 in std::rt::lang_start_internal ()
+#21 0x00005555557fbe15 in main ()
+=== request_phase at 47.729 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff7374987 in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff72dbff5 in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff7ce6bcc in g_closure_invoke (closure=0x5555569ed3a0, return_value=0x0, n_param_values=1, param_values=0x7fffffffaad0, invocation_hint=0x7fffffffaa20) at ../glib/gobject/gclosure.c:916
+#4  0x00007ffff7d0684b in signal_emit_unlocked_R (node=node@entry=0x7fffffffabf0, detail=detail@entry=0, instance=instance@entry=0x555555b35030, emission_return=emission_return@entry=0x0, instance_and_params=instance_and_params@entry=0x7fffffffaad0) at ../glib/gobject/gsignal.c:3929
+#5  0x00007ffff7d08a34 in signal_emit_valist_unlocked (instance=instance@entry=0x555555b35030, signal_id=signal_id@entry=230, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffad50) at ../glib/gobject/gsignal.c:3561
+#6  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555b35030, signal_id=230, detail=0, var_args=var_args@entry=0x7fffffffad50) at ../glib/gobject/gsignal.c:3304
+#7  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#8  0x00007ffff752e27e in ?? () from /usr/lib/libgtk-4.so.1
+#9  0x00007ffff7bd2f64 in g_timeout_dispatch (source=0x555556a633f0, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5324
+#10 g_timeout_dispatch (source=0x555556a633f0, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5302
+#11 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#12 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#13 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#14 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#15 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#16 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#17 0x00005555557ee5db in quill::main ()
+#18 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#19 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#20 0x00005555559ee237 in std::rt::lang_start_internal ()
+#21 0x00005555557fbe15 in main ()
+=== request_phase at 47.739 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff71f0a44 in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff72db2a0 in gtk_widget_queue_resize () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff72dbd50 in gtk_widget_hide () from /usr/lib/libgtk-4.so.1
+#4  0x00007ffff7ce6bcc in g_closure_invoke (closure=0x555555fd60d0, return_value=0x0, n_param_values=1, param_values=0x7fffffff9130, invocation_hint=0x7fffffff9080) at ../glib/gobject/gclosure.c:916
+#5  0x00007ffff7d0684b in signal_emit_unlocked_R (node=node@entry=0x7fffffff9250, detail=detail@entry=0, instance=instance@entry=0x555555fd3bd0, emission_return=emission_return@entry=0x0, instance_and_params=instance_and_params@entry=0x7fffffff9130) at ../glib/gobject/gsignal.c:3929
+#6  0x00007ffff7d08a34 in signal_emit_valist_unlocked (instance=instance@entry=0x555555fd3bd0, signal_id=signal_id@entry=136, detail=detail@entry=0, var_args=var_args@entry=0x7fffffff93b0) at ../glib/gobject/gsignal.c:3561
+#7  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555fd3bd0, signal_id=136, detail=0, var_args=var_args@entry=0x7fffffff93b0) at ../glib/gobject/gsignal.c:3304
+#8  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#9  0x00007ffff7ceef18 in g_object_notify_queue_thaw (object=0x555555fd3bd0, take_ref=0) at ../glib/gobject/gobject.c:761
+#10 0x00007ffff7cfcafe in g_object_set_valist (object=0x0, first_property_name=<optimized out>, var_args=0x7fffffff95b0) at ../glib/gobject/gobject.c:3224
+#11 g_object_set_valist (object=object@entry=0x555555fd3bd0, first_property_name=first_property_name@entry=0x7ffff767a33e "lower", var_args=var_args@entry=0x7fffffff95b0) at ../glib/gobject/gobject.c:3170
+#12 0x00007ffff7cfcc3d in g_object_set (_object=0x555555fd3bd0, first_property_name=0x7ffff767a33e "lower") at ../glib/gobject/gobject.c:3388
+#13 0x00007ffff72c690c in ?? () from /usr/lib/libgtk-4.so.1
+#14 0x00007ffff72bccf7 in ?? () from /usr/lib/libgtk-4.so.1
+#15 0x000055555582467e in <quill::editor::imp::Editor as gtk4::subclass::widget::WidgetImpl>::size_allocate ()
+#16 0x00005555557388a4 in gtk4::subclass::widget::widget_size_allocate::<quill::editor::imp::Editor> ()
+#17 0x00007ffff72e6ae7 in gtk_widget_allocate () from /usr/lib/libgtk-4.so.1
+#18 0x00007ffff71f6b43 in ?? () from /usr/lib/libgtk-4.so.1
+#19 0x00007ffff71fc378 in ?? () from /usr/lib/libgtk-4.so.1
+#20 0x00007ffff72e6ae7 in gtk_widget_allocate () from /usr/lib/libgtk-4.so.1
+#21 0x00007ffff71c370b in ?? () from /usr/lib/libgtk-4.so.1
+#22 0x00007ffff72e69a7 in gtk_widget_allocate () from /usr/lib/libgtk-4.so.1
+#23 0x00007ffff70cd3cf in ?? () from /usr/lib/libgtk-4.so.1
+#24 0x00007ffff72e69a7 in gtk_widget_allocate () from /usr/lib/libgtk-4.so.1
+#25 0x00007ffff70cd3cf in ?? () from /usr/lib/libgtk-4.so.1
+#26 0x00007ffff72e69a7 in gtk_widget_allocate () from /usr/lib/libgtk-4.so.1
+#27 0x00007ffff70cd3cf in ?? () from /usr/lib/libgtk-4.so.1
+#28 0x00007ffff72e69a7 in gtk_widget_allocate () from /usr/lib/libgtk-4.so.1
+#29 0x00007ffff71c370b in ?? () from /usr/lib/libgtk-4.so.1
+#30 0x00007ffff72e69a7 in gtk_widget_allocate () from /usr/lib/libgtk-4.so.1
+#31 0x00007ffff72f9442 in ?? () from /usr/lib/libgtk-4.so.1
+#32 0x00007ffff72e6ae7 in gtk_widget_allocate () from /usr/lib/libgtk-4.so.1
+#33 0x00007ffff72f5e5c in ?? () from /usr/lib/libgtk-4.so.1
+#34 0x00007ffff71f0a96 in ?? () from /usr/lib/libgtk-4.so.1
+#35 0x00007ffff708f7a5 in ?? () from /usr/lib/libgtk-4.so.1
+#36 0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555556a650b0, return_value=0x0, instance=0x555555ffc510, args=0x7fffffffaa00, n_params=2, param_types=0x5555561ee370) at ../glib/gobject/gclosure.c:980
+#37 signal_emit_valist_unlocked (instance=instance@entry=0x555555ffc510, signal_id=signal_id@entry=222, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffaa00) at ../glib/gobject/gsignal.c:3465
+#38 0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555ffc510, signal_id=222, detail=0, var_args=var_args@entry=0x7fffffffaa00) at ../glib/gobject/gsignal.c:3304
+#39 0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+=== request_phase at 47.767 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff72db2a0 in gtk_widget_queue_resize () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff72dbd50 in gtk_widget_hide () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff7ce6bcc in g_closure_invoke (closure=0x555555fd60d0, return_value=0x0, n_param_values=1, param_values=0x7fffffff9130, invocation_hint=0x7fffffff9080) at ../glib/gobject/gclosure.c:916
+#4  0x00007ffff7d0684b in signal_emit_unlocked_R (node=node@entry=0x7fffffff9250, detail=detail@entry=0, instance=instance@entry=0x555555fd3bd0, emission_return=emission_return@entry=0x0, instance_and_params=instance_and_params@entry=0x7fffffff9130) at ../glib/gobject/gsignal.c:3929
+#5  0x00007ffff7d08a34 in signal_emit_valist_unlocked (instance=instance@entry=0x555555fd3bd0, signal_id=signal_id@entry=136, detail=detail@entry=0, var_args=var_args@entry=0x7fffffff93b0) at ../glib/gobject/gsignal.c:3561
+#6  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555fd3bd0, signal_id=136, detail=0, var_args=var_args@entry=0x7fffffff93b0) at ../glib/gobject/gsignal.c:3304
+#7  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#8  0x00007ffff7ceef18 in g_object_notify_queue_thaw (object=0x555555fd3bd0, take_ref=0) at ../glib/gobject/gobject.c:761
+#9  0x00007ffff7cfcafe in g_object_set_valist (object=0x0, first_property_name=<optimized out>, var_args=0x7fffffff95b0) at ../glib/gobject/gobject.c:3224
+#10 g_object_set_valist (object=object@entry=0x555555fd3bd0, first_property_name=first_property_name@entry=0x7ffff767a33e "lower", var_args=var_args@entry=0x7fffffff95b0) at ../glib/gobject/gobject.c:3170
+#11 0x00007ffff7cfcc3d in g_object_set (_object=0x555555fd3bd0, first_property_name=0x7ffff767a33e "lower") at ../glib/gobject/gobject.c:3388
+#12 0x00007ffff72c690c in ?? () from /usr/lib/libgtk-4.so.1
+#13 0x00007ffff72bccf7 in ?? () from /usr/lib/libgtk-4.so.1
+#14 0x000055555582467e in <quill::editor::imp::Editor as gtk4::subclass::widget::WidgetImpl>::size_allocate ()
+#15 0x00005555557388a4 in gtk4::subclass::widget::widget_size_allocate::<quill::editor::imp::Editor> ()
+#16 0x00007ffff72e6ae7 in gtk_widget_allocate () from /usr/lib/libgtk-4.so.1
+#17 0x00007ffff71f6b43 in ?? () from /usr/lib/libgtk-4.so.1
+#18 0x00007ffff71fc378 in ?? () from /usr/lib/libgtk-4.so.1
+#19 0x00007ffff72e6ae7 in gtk_widget_allocate () from /usr/lib/libgtk-4.so.1
+#20 0x00007ffff71c370b in ?? () from /usr/lib/libgtk-4.so.1
+#21 0x00007ffff72e69a7 in gtk_widget_allocate () from /usr/lib/libgtk-4.so.1
+#22 0x00007ffff70cd3cf in ?? () from /usr/lib/libgtk-4.so.1
+#23 0x00007ffff72e69a7 in gtk_widget_allocate () from /usr/lib/libgtk-4.so.1
+#24 0x00007ffff70cd3cf in ?? () from /usr/lib/libgtk-4.so.1
+#25 0x00007ffff72e69a7 in gtk_widget_allocate () from /usr/lib/libgtk-4.so.1
+#26 0x00007ffff70cd3cf in ?? () from /usr/lib/libgtk-4.so.1
+#27 0x00007ffff72e69a7 in gtk_widget_allocate () from /usr/lib/libgtk-4.so.1
+#28 0x00007ffff71c370b in ?? () from /usr/lib/libgtk-4.so.1
+#29 0x00007ffff72e69a7 in gtk_widget_allocate () from /usr/lib/libgtk-4.so.1
+#30 0x00007ffff72f9442 in ?? () from /usr/lib/libgtk-4.so.1
+#31 0x00007ffff72e6ae7 in gtk_widget_allocate () from /usr/lib/libgtk-4.so.1
+#32 0x00007ffff72f5e5c in ?? () from /usr/lib/libgtk-4.so.1
+#33 0x00007ffff71f0a96 in ?? () from /usr/lib/libgtk-4.so.1
+#34 0x00007ffff708f7a5 in ?? () from /usr/lib/libgtk-4.so.1
+#35 0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555556a650b0, return_value=0x0, instance=0x555555ffc510, args=0x7fffffffaa00, n_params=2, param_types=0x5555561ee370) at ../glib/gobject/gclosure.c:980
+#36 signal_emit_valist_unlocked (instance=instance@entry=0x555555ffc510, signal_id=signal_id@entry=222, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffaa00) at ../glib/gobject/gsignal.c:3465
+#37 0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555ffc510, signal_id=222, detail=0, var_args=var_args@entry=0x7fffffffaa00) at ../glib/gobject/gsignal.c:3304
+#38 0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#39 0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555555d17340, return_value=0x0, instance=0x555555b35030, args=0x7fffffffad50, n_params=0, param_types=0x0) at ../glib/gobject/gclosure.c:980
+=== request_phase at 47.773 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff71f0a44 in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff708f7a5 in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555556a650b0, return_value=0x0, instance=0x555555ffc510, args=0x7fffffffaa00, n_params=2, param_types=0x5555561ee370) at ../glib/gobject/gclosure.c:980
+#4  signal_emit_valist_unlocked (instance=instance@entry=0x555555ffc510, signal_id=signal_id@entry=222, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffaa00) at ../glib/gobject/gsignal.c:3465
+#5  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555ffc510, signal_id=222, detail=0, var_args=var_args@entry=0x7fffffffaa00) at ../glib/gobject/gsignal.c:3304
+#6  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#7  0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555555d17340, return_value=0x0, instance=0x555555b35030, args=0x7fffffffad50, n_params=0, param_types=0x0) at ../glib/gobject/gclosure.c:980
+#8  signal_emit_valist_unlocked (instance=instance@entry=0x555555b35030, signal_id=signal_id@entry=231, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffad50) at ../glib/gobject/gsignal.c:3465
+#9  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555b35030, signal_id=231, detail=0, var_args=var_args@entry=0x7fffffffad50) at ../glib/gobject/gsignal.c:3304
+#10 0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#11 0x00007ffff752e4b6 in ?? () from /usr/lib/libgtk-4.so.1
+#12 0x00007ffff7bd2f64 in g_timeout_dispatch (source=0x555556a633f0, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5324
+#13 g_timeout_dispatch (source=0x555556a633f0, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5302
+#14 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#15 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#16 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#17 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#18 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#19 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#20 0x00005555557ee5db in quill::main ()
+#21 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#22 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#23 0x00005555559ee237 in std::rt::lang_start_internal ()
+#24 0x00005555557fbe15 in main ()
+=== request_phase at 47.775 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff708f7a5 in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555556a650b0, return_value=0x0, instance=0x555555ffc510, args=0x7fffffffaa00, n_params=2, param_types=0x5555561ee370) at ../glib/gobject/gclosure.c:980
+#3  signal_emit_valist_unlocked (instance=instance@entry=0x555555ffc510, signal_id=signal_id@entry=222, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffaa00) at ../glib/gobject/gsignal.c:3465
+#4  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555ffc510, signal_id=222, detail=0, var_args=var_args@entry=0x7fffffffaa00) at ../glib/gobject/gsignal.c:3304
+#5  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#6  0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555555d17340, return_value=0x0, instance=0x555555b35030, args=0x7fffffffad50, n_params=0, param_types=0x0) at ../glib/gobject/gclosure.c:980
+#7  signal_emit_valist_unlocked (instance=instance@entry=0x555555b35030, signal_id=signal_id@entry=231, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffad50) at ../glib/gobject/gsignal.c:3465
+#8  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555b35030, signal_id=231, detail=0, var_args=var_args@entry=0x7fffffffad50) at ../glib/gobject/gsignal.c:3304
+#9  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#10 0x00007ffff752e4b6 in ?? () from /usr/lib/libgtk-4.so.1
+#11 0x00007ffff7bd2f64 in g_timeout_dispatch (source=0x555556a633f0, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5324
+#12 g_timeout_dispatch (source=0x555556a633f0, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5302
+#13 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#14 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#15 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#16 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#17 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#18 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#19 0x00005555557ee5db in quill::main ()
+#20 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#21 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#22 0x00005555559ee237 in std::rt::lang_start_internal ()
+#23 0x00005555557fbe15 in main ()
+=== request_phase at 47.779 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff71f0a44 in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff72db2a0 in gtk_widget_queue_resize () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff72bcef3 in ?? () from /usr/lib/libgtk-4.so.1
+#4  0x00007ffff708f891 in ?? () from /usr/lib/libgtk-4.so.1
+#5  0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555555f27fd0, return_value=0x0, instance=0x555555f27dd0, args=0x7fffffff8df0, n_params=3, param_types=0x555555f17470) at ../glib/gobject/gclosure.c:980
+#6  signal_emit_valist_unlocked (instance=instance@entry=0x555555f27dd0, signal_id=signal_id@entry=139, detail=detail@entry=0, var_args=var_args@entry=0x7fffffff8df0) at ../glib/gobject/gsignal.c:3465
+#7  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555f27dd0, signal_id=139, detail=0, var_args=var_args@entry=0x7fffffff8df0) at ../glib/gobject/gsignal.c:3304
+#8  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#9  0x00007ffff72bab2e in ?? () from /usr/lib/libgtk-4.so.1
+#10 0x00007ffff72bac56 in ?? () from /usr/lib/libgtk-4.so.1
+#11 0x00007ffff72bfab8 in ?? () from /usr/lib/libgtk-4.so.1
+#12 0x00007ffff72bfd60 in ?? () from /usr/lib/libgtk-4.so.1
+#13 0x00007ffff72f045d in ?? () from /usr/lib/libgtk-4.so.1
+#14 0x00007ffff72f0898 in ?? () from /usr/lib/libgtk-4.so.1
+#15 0x00007ffff72f0fee in gtk_widget_snapshot_child () from /usr/lib/libgtk-4.so.1
+#16 0x00007ffff72d8b5f in ?? () from /usr/lib/libgtk-4.so.1
+#17 0x00007ffff71fbd8c in ?? () from /usr/lib/libgtk-4.so.1
+#18 0x00007ffff72efab8 in ?? () from /usr/lib/libgtk-4.so.1
+#19 0x00007ffff72f0898 in ?? () from /usr/lib/libgtk-4.so.1
+#20 0x00007ffff72f0fee in gtk_widget_snapshot_child () from /usr/lib/libgtk-4.so.1
+#21 0x00007ffff71c2245 in ?? () from /usr/lib/libgtk-4.so.1
+#22 0x00007ffff72efab8 in ?? () from /usr/lib/libgtk-4.so.1
+#23 0x00007ffff72f0898 in ?? () from /usr/lib/libgtk-4.so.1
+#24 0x00007ffff72f0fee in gtk_widget_snapshot_child () from /usr/lib/libgtk-4.so.1
+#25 0x00007ffff72d8b5f in ?? () from /usr/lib/libgtk-4.so.1
+#26 0x00007ffff72efab8 in ?? () from /usr/lib/libgtk-4.so.1
+#27 0x00007ffff72f0898 in ?? () from /usr/lib/libgtk-4.so.1
+#28 0x00007ffff72f0fee in gtk_widget_snapshot_child () from /usr/lib/libgtk-4.so.1
+#29 0x00007ffff72d8b5f in ?? () from /usr/lib/libgtk-4.so.1
+#30 0x00007ffff72efab8 in ?? () from /usr/lib/libgtk-4.so.1
+#31 0x00007ffff72f0898 in ?? () from /usr/lib/libgtk-4.so.1
+#32 0x00007ffff72f0fee in gtk_widget_snapshot_child () from /usr/lib/libgtk-4.so.1
+#33 0x00007ffff72d8b5f in ?? () from /usr/lib/libgtk-4.so.1
+#34 0x00007ffff72efab8 in ?? () from /usr/lib/libgtk-4.so.1
+#35 0x00007ffff72f0898 in ?? () from /usr/lib/libgtk-4.so.1
+#36 0x00007ffff72f0fee in gtk_widget_snapshot_child () from /usr/lib/libgtk-4.so.1
+#37 0x00007ffff71c2245 in ?? () from /usr/lib/libgtk-4.so.1
+#38 0x00007ffff72efab8 in ?? () from /usr/lib/libgtk-4.so.1
+#39 0x00007ffff72f0898 in ?? () from /usr/lib/libgtk-4.so.1
+=== request_phase at 47.782 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff72db2a0 in gtk_widget_queue_resize () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff72bcef3 in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff708f891 in ?? () from /usr/lib/libgtk-4.so.1
+#4  0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555555f27fd0, return_value=0x0, instance=0x555555f27dd0, args=0x7fffffff8df0, n_params=3, param_types=0x555555f17470) at ../glib/gobject/gclosure.c:980
+#5  signal_emit_valist_unlocked (instance=instance@entry=0x555555f27dd0, signal_id=signal_id@entry=139, detail=detail@entry=0, var_args=var_args@entry=0x7fffffff8df0) at ../glib/gobject/gsignal.c:3465
+#6  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555f27dd0, signal_id=139, detail=0, var_args=var_args@entry=0x7fffffff8df0) at ../glib/gobject/gsignal.c:3304
+#7  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#8  0x00007ffff72bab2e in ?? () from /usr/lib/libgtk-4.so.1
+#9  0x00007ffff72bac56 in ?? () from /usr/lib/libgtk-4.so.1
+#10 0x00007ffff72bfab8 in ?? () from /usr/lib/libgtk-4.so.1
+#11 0x00007ffff72bfd60 in ?? () from /usr/lib/libgtk-4.so.1
+#12 0x00007ffff72f045d in ?? () from /usr/lib/libgtk-4.so.1
+#13 0x00007ffff72f0898 in ?? () from /usr/lib/libgtk-4.so.1
+#14 0x00007ffff72f0fee in gtk_widget_snapshot_child () from /usr/lib/libgtk-4.so.1
+#15 0x00007ffff72d8b5f in ?? () from /usr/lib/libgtk-4.so.1
+#16 0x00007ffff71fbd8c in ?? () from /usr/lib/libgtk-4.so.1
+#17 0x00007ffff72efab8 in ?? () from /usr/lib/libgtk-4.so.1
+#18 0x00007ffff72f0898 in ?? () from /usr/lib/libgtk-4.so.1
+#19 0x00007ffff72f0fee in gtk_widget_snapshot_child () from /usr/lib/libgtk-4.so.1
+#20 0x00007ffff71c2245 in ?? () from /usr/lib/libgtk-4.so.1
+#21 0x00007ffff72efab8 in ?? () from /usr/lib/libgtk-4.so.1
+#22 0x00007ffff72f0898 in ?? () from /usr/lib/libgtk-4.so.1
+#23 0x00007ffff72f0fee in gtk_widget_snapshot_child () from /usr/lib/libgtk-4.so.1
+#24 0x00007ffff72d8b5f in ?? () from /usr/lib/libgtk-4.so.1
+#25 0x00007ffff72efab8 in ?? () from /usr/lib/libgtk-4.so.1
+#26 0x00007ffff72f0898 in ?? () from /usr/lib/libgtk-4.so.1
+#27 0x00007ffff72f0fee in gtk_widget_snapshot_child () from /usr/lib/libgtk-4.so.1
+#28 0x00007ffff72d8b5f in ?? () from /usr/lib/libgtk-4.so.1
+#29 0x00007ffff72efab8 in ?? () from /usr/lib/libgtk-4.so.1
+#30 0x00007ffff72f0898 in ?? () from /usr/lib/libgtk-4.so.1
+#31 0x00007ffff72f0fee in gtk_widget_snapshot_child () from /usr/lib/libgtk-4.so.1
+#32 0x00007ffff72d8b5f in ?? () from /usr/lib/libgtk-4.so.1
+#33 0x00007ffff72efab8 in ?? () from /usr/lib/libgtk-4.so.1
+#34 0x00007ffff72f0898 in ?? () from /usr/lib/libgtk-4.so.1
+#35 0x00007ffff72f0fee in gtk_widget_snapshot_child () from /usr/lib/libgtk-4.so.1
+#36 0x00007ffff71c2245 in ?? () from /usr/lib/libgtk-4.so.1
+#37 0x00007ffff72efab8 in ?? () from /usr/lib/libgtk-4.so.1
+#38 0x00007ffff72f0898 in ?? () from /usr/lib/libgtk-4.so.1
+#39 0x00007ffff72f0fee in gtk_widget_snapshot_child () from /usr/lib/libgtk-4.so.1
+
+(quill:2650917): Gtk-WARNING **: 15:13:13.389: Trying to snapshot GtkGizmo 0x555555fd49b0 without a current allocation
+=== request_phase at 47.795 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff755eda6 in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff74d2b82 in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff6557db6 in ffi_call_unix64 () at ../src/x86/unix64.S:105
+#4  0x00007ffff6553a6d in ffi_call_int (cif=<optimized out>, fn=<optimized out>, rvalue=<optimized out>, avalue=<optimized out>, closure=closure@entry=0x0) at ../src/x86/ffi64.c:772
+#5  0x00007ffff6556e32 in ffi_call (cif=cif@entry=0x7fffffffac10, fn=<optimized out>, rvalue=rvalue@entry=0x0, avalue=<optimized out>, avalue@entry=0x7ffffffface0) at ../src/x86/ffi64.c:1165
+#6  0x00007ffff5baa7cd in wl_closure_invoke (closure=closure@entry=0x555556c00910, target=<optimized out>, target@entry=0x555556cdbc70, opcode=opcode@entry=0, data=<optimized out>, flags=1) at ../wayland-1.26.0/src/connection.c:1243
+#7  0x00007ffff5bab6b9 in dispatch_event (display=display@entry=0x7fffd80039f0, queue=queue@entry=0x7fffd8003ae8) at ../wayland-1.26.0/src/wayland-client.c:1732
+#8  0x00007ffff5babaeb in dispatch_queue (display=0x7fffd80039f0, queue=0x7fffd8003ae8) at ../wayland-1.26.0/src/wayland-client.c:1878
+#9  wl_display_dispatch_queue_pending (display=0x7fffd80039f0, queue=0x7fffd8003ae8) at ../wayland-1.26.0/src/wayland-client.c:2243
+#10 0x00007ffff74ba19b in ?? () from /usr/lib/libgtk-4.so.1
+#11 0x00007ffff74b6723 in ?? () from /usr/lib/libgtk-4.so.1
+#12 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#13 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#14 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#15 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#16 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#17 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#18 0x00005555557ee5db in quill::main ()
+#19 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#20 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#21 0x00005555559ee237 in std::rt::lang_start_internal ()
+#22 0x00005555557fbe15 in main ()
+=== request_phase at 47.798 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff6557db6 in ffi_call_unix64 () at ../src/x86/unix64.S:105
+#2  0x00007ffff6553a6d in ffi_call_int (cif=<optimized out>, fn=<optimized out>, rvalue=<optimized out>, avalue=<optimized out>, closure=closure@entry=0x0) at ../src/x86/ffi64.c:772
+#3  0x00007ffff6556e32 in ffi_call (cif=cif@entry=0x7fffffffac10, fn=<optimized out>, rvalue=rvalue@entry=0x0, avalue=<optimized out>, avalue@entry=0x7ffffffface0) at ../src/x86/ffi64.c:1165
+#4  0x00007ffff5baa7cd in wl_closure_invoke (closure=closure@entry=0x555556cf6d60, target=<optimized out>, target@entry=0x555555cfc8c0, opcode=opcode@entry=1, data=<optimized out>, flags=1) at ../wayland-1.26.0/src/connection.c:1243
+#5  0x00007ffff5bab6b9 in dispatch_event (display=display@entry=0x7fffd80039f0, queue=queue@entry=0x7fffd8003ae8) at ../wayland-1.26.0/src/wayland-client.c:1732
+#6  0x00007ffff5babaeb in dispatch_queue (display=0x7fffd80039f0, queue=0x7fffd8003ae8) at ../wayland-1.26.0/src/wayland-client.c:1878
+#7  wl_display_dispatch_queue_pending (display=0x7fffd80039f0, queue=0x7fffd8003ae8) at ../wayland-1.26.0/src/wayland-client.c:2243
+#8  0x00007ffff74ba19b in ?? () from /usr/lib/libgtk-4.so.1
+#9  0x00007ffff74b6723 in ?? () from /usr/lib/libgtk-4.so.1
+#10 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#11 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#12 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#13 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#14 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#15 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#16 0x00005555557ee5db in quill::main ()
+#17 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#18 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#19 0x00005555559ee237 in std::rt::lang_start_internal ()
+#20 0x00005555557fbe15 in main ()
+=== request_phase at 47.800 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff74d8858 in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff74d0ffc in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff6557db6 in ffi_call_unix64 () at ../src/x86/unix64.S:105
+#4  0x00007ffff6553a6d in ffi_call_int (cif=<optimized out>, fn=<optimized out>, rvalue=<optimized out>, avalue=<optimized out>, closure=closure@entry=0x0) at ../src/x86/ffi64.c:772
+#5  0x00007ffff6556e32 in ffi_call (cif=cif@entry=0x7fffffffac10, fn=<optimized out>, rvalue=rvalue@entry=0x0, avalue=<optimized out>, avalue@entry=0x7ffffffface0) at ../src/x86/ffi64.c:1165
+#6  0x00007ffff5baa7cd in wl_closure_invoke (closure=closure@entry=0x555556d3c270, target=<optimized out>, target@entry=0x555556a652b0, opcode=opcode@entry=0, data=<optimized out>, flags=1) at ../wayland-1.26.0/src/connection.c:1243
+#7  0x00007ffff5bab6b9 in dispatch_event (display=display@entry=0x7fffd80039f0, queue=queue@entry=0x555555d17530) at ../wayland-1.26.0/src/wayland-client.c:1732
+#8  0x00007ffff5babaeb in dispatch_queue (display=0x7fffd80039f0, queue=0x555555d17530) at ../wayland-1.26.0/src/wayland-client.c:1878
+#9  wl_display_dispatch_queue_pending (display=0x7fffd80039f0, queue=0x555555d17530) at ../wayland-1.26.0/src/wayland-client.c:2243
+#10 0x00007ffff74ba1c1 in ?? () from /usr/lib/libgtk-4.so.1
+#11 0x00007ffff74b6723 in ?? () from /usr/lib/libgtk-4.so.1
+#12 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#13 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#14 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#15 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#16 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#17 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#18 0x00005555557ee5db in quill::main ()
+#19 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#20 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#21 0x00005555559ee237 in std::rt::lang_start_internal ()
+#22 0x00005555557fbe15 in main ()
+=== request_phase at 47.803 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff7560c7f in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555555d29a90, return_value=0x0, instance=0x555555b35030, args=0x7fffffffada0, n_params=0, param_types=0x0) at ../glib/gobject/gclosure.c:980
+#3  signal_emit_valist_unlocked (instance=instance@entry=0x555555b35030, signal_id=signal_id@entry=228, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffada0) at ../glib/gobject/gsignal.c:3465
+#4  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555b35030, signal_id=228, detail=0, var_args=var_args@entry=0x7fffffffada0) at ../glib/gobject/gsignal.c:3304
+#5  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#6  0x00007ffff752e7bb in ?? () from /usr/lib/libgtk-4.so.1
+#7  0x00007ffff7bd2f64 in g_timeout_dispatch (source=0x555556cf5f50, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5324
+#8  g_timeout_dispatch (source=0x555556cf5f50, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5302
+#9  0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#10 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#11 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#12 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#13 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#14 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#15 0x00005555557ee5db in quill::main ()
+#16 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#17 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#18 0x00005555559ee237 in std::rt::lang_start_internal ()
+#19 0x00005555557fbe15 in main ()
+=== request_phase at 47.805 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff737497e in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff72dbff5 in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff7ce6bcc in g_closure_invoke (closure=0x5555569ed3a0, return_value=0x0, n_param_values=1, param_values=0x7fffffffaad0, invocation_hint=0x7fffffffaa20) at ../glib/gobject/gclosure.c:916
+#4  0x00007ffff7d0684b in signal_emit_unlocked_R (node=node@entry=0x7fffffffabf0, detail=detail@entry=0, instance=instance@entry=0x555555b35030, emission_return=emission_return@entry=0x0, instance_and_params=instance_and_params@entry=0x7fffffffaad0) at ../glib/gobject/gsignal.c:3929
+#5  0x00007ffff7d08a34 in signal_emit_valist_unlocked (instance=instance@entry=0x555555b35030, signal_id=signal_id@entry=230, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffad50) at ../glib/gobject/gsignal.c:3561
+#6  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555b35030, signal_id=230, detail=0, var_args=var_args@entry=0x7fffffffad50) at ../glib/gobject/gsignal.c:3304
+#7  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#8  0x00007ffff752e27e in ?? () from /usr/lib/libgtk-4.so.1
+#9  0x00007ffff7bd2f64 in g_timeout_dispatch (source=0x555556cf5f50, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5324
+#10 g_timeout_dispatch (source=0x555556cf5f50, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5302
+#11 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#12 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#13 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#14 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#15 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#16 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#17 0x00005555557ee5db in quill::main ()
+#18 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#19 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#20 0x00005555559ee237 in std::rt::lang_start_internal ()
+#21 0x00005555557fbe15 in main ()
+=== request_phase at 47.808 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff7374987 in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff72dbff5 in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff7ce6bcc in g_closure_invoke (closure=0x5555569ed3a0, return_value=0x0, n_param_values=1, param_values=0x7fffffffaad0, invocation_hint=0x7fffffffaa20) at ../glib/gobject/gclosure.c:916
+#4  0x00007ffff7d0684b in signal_emit_unlocked_R (node=node@entry=0x7fffffffabf0, detail=detail@entry=0, instance=instance@entry=0x555555b35030, emission_return=emission_return@entry=0x0, instance_and_params=instance_and_params@entry=0x7fffffffaad0) at ../glib/gobject/gsignal.c:3929
+#5  0x00007ffff7d08a34 in signal_emit_valist_unlocked (instance=instance@entry=0x555555b35030, signal_id=signal_id@entry=230, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffad50) at ../glib/gobject/gsignal.c:3561
+#6  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555b35030, signal_id=230, detail=0, var_args=var_args@entry=0x7fffffffad50) at ../glib/gobject/gsignal.c:3304
+#7  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#8  0x00007ffff752e27e in ?? () from /usr/lib/libgtk-4.so.1
+#9  0x00007ffff7bd2f64 in g_timeout_dispatch (source=0x555556cf5f50, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5324
+#10 g_timeout_dispatch (source=0x555556cf5f50, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5302
+#11 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#12 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#13 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#14 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#15 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#16 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#17 0x00005555557ee5db in quill::main ()
+#18 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#19 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#20 0x00005555559ee237 in std::rt::lang_start_internal ()
+#21 0x00005555557fbe15 in main ()
+cold start: 47901.284 ms
+=== request_phase at 47.817 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff71f0a44 in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff7ce6bcc in g_closure_invoke (closure=0x555555fd59e0, return_value=0x0, n_param_values=1, param_values=0x7fffffffa680, invocation_hint=0x7fffffffa5d0) at ../glib/gobject/gclosure.c:916
+#3  0x00007ffff7d0684b in signal_emit_unlocked_R (node=node@entry=0x7fffffffa7a0, detail=detail@entry=0, instance=instance@entry=0x555555fd3bd0, emission_return=emission_return@entry=0x0, instance_and_params=instance_and_params@entry=0x7fffffffa680) at ../glib/gobject/gsignal.c:3929
+#4  0x00007ffff7d08a34 in signal_emit_valist_unlocked (instance=instance@entry=0x555555fd3bd0, signal_id=signal_id@entry=137, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffa900) at ../glib/gobject/gsignal.c:3561
+#5  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555fd3bd0, signal_id=137, detail=0, var_args=var_args@entry=0x7fffffffa900) at ../glib/gobject/gsignal.c:3304
+#6  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#7  0x00007ffff70a78b1 in ?? () from /usr/lib/libgtk-4.so.1
+#8  0x00007ffff72bceb1 in ?? () from /usr/lib/libgtk-4.so.1
+#9  0x00007ffff708f891 in ?? () from /usr/lib/libgtk-4.so.1
+#10 0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555555f27fd0, return_value=0x0, instance=0x555555f27dd0, args=0x7fffffffad60, n_params=3, param_types=0x555555f17470) at ../glib/gobject/gclosure.c:980
+#11 signal_emit_valist_unlocked (instance=instance@entry=0x555555f27dd0, signal_id=signal_id@entry=139, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffad60) at ../glib/gobject/gsignal.c:3465
+#12 0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555f27dd0, signal_id=139, detail=0, var_args=var_args@entry=0x7fffffffad60) at ../glib/gobject/gsignal.c:3304
+#13 0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#14 0x00007ffff72a5d32 in ?? () from /usr/lib/libgtk-4.so.1
+#15 0x00007ffff72b3351 in ?? () from /usr/lib/libgtk-4.so.1
+#16 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#17 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#18 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#19 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#20 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#21 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#22 0x00005555557ee5db in quill::main ()
+#23 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#24 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#25 0x00005555559ee237 in std::rt::lang_start_internal ()
+#26 0x00005555557fbe15 in main ()
+=== request_phase at 47.820 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff7ce6bcc in g_closure_invoke (closure=0x555555fd59e0, return_value=0x0, n_param_values=1, param_values=0x7fffffffa680, invocation_hint=0x7fffffffa5d0) at ../glib/gobject/gclosure.c:916
+#2  0x00007ffff7d0684b in signal_emit_unlocked_R (node=node@entry=0x7fffffffa7a0, detail=detail@entry=0, instance=instance@entry=0x555555fd3bd0, emission_return=emission_return@entry=0x0, instance_and_params=instance_and_params@entry=0x7fffffffa680) at ../glib/gobject/gsignal.c:3929
+#3  0x00007ffff7d08a34 in signal_emit_valist_unlocked (instance=instance@entry=0x555555fd3bd0, signal_id=signal_id@entry=137, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffa900) at ../glib/gobject/gsignal.c:3561
+#4  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555fd3bd0, signal_id=137, detail=0, var_args=var_args@entry=0x7fffffffa900) at ../glib/gobject/gsignal.c:3304
+#5  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#6  0x00007ffff70a78b1 in ?? () from /usr/lib/libgtk-4.so.1
+#7  0x00007ffff72bceb1 in ?? () from /usr/lib/libgtk-4.so.1
+#8  0x00007ffff708f891 in ?? () from /usr/lib/libgtk-4.so.1
+#9  0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555555f27fd0, return_value=0x0, instance=0x555555f27dd0, args=0x7fffffffad60, n_params=3, param_types=0x555555f17470) at ../glib/gobject/gclosure.c:980
+#10 signal_emit_valist_unlocked (instance=instance@entry=0x555555f27dd0, signal_id=signal_id@entry=139, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffad60) at ../glib/gobject/gsignal.c:3465
+#11 0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555f27dd0, signal_id=139, detail=0, var_args=var_args@entry=0x7fffffffad60) at ../glib/gobject/gsignal.c:3304
+#12 0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#13 0x00007ffff72a5d32 in ?? () from /usr/lib/libgtk-4.so.1
+#14 0x00007ffff72b3351 in ?? () from /usr/lib/libgtk-4.so.1
+#15 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#16 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#17 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#18 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#19 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#20 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#21 0x00005555557ee5db in quill::main ()
+#22 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#23 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#24 0x00005555559ee237 in std::rt::lang_start_internal ()
+#25 0x00005555557fbe15 in main ()
+=== request_phase at 47.828 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff755eda6 in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff74d2b82 in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff6557db6 in ffi_call_unix64 () at ../src/x86/unix64.S:105
+#4  0x00007ffff6553a6d in ffi_call_int (cif=<optimized out>, fn=<optimized out>, rvalue=<optimized out>, avalue=<optimized out>, closure=closure@entry=0x0) at ../src/x86/ffi64.c:772
+#5  0x00007ffff6556e32 in ffi_call (cif=cif@entry=0x7fffffffac10, fn=<optimized out>, rvalue=rvalue@entry=0x0, avalue=<optimized out>, avalue@entry=0x7ffffffface0) at ../src/x86/ffi64.c:1165
+#6  0x00007ffff5baa7cd in wl_closure_invoke (closure=closure@entry=0x555556b809c0, target=<optimized out>, target@entry=0x555556cf6620, opcode=opcode@entry=0, data=<optimized out>, flags=1) at ../wayland-1.26.0/src/connection.c:1243
+#7  0x00007ffff5bab6b9 in dispatch_event (display=display@entry=0x7fffd80039f0, queue=queue@entry=0x7fffd8003ae8) at ../wayland-1.26.0/src/wayland-client.c:1732
+#8  0x00007ffff5babaeb in dispatch_queue (display=0x7fffd80039f0, queue=0x7fffd8003ae8) at ../wayland-1.26.0/src/wayland-client.c:1878
+#9  wl_display_dispatch_queue_pending (display=0x7fffd80039f0, queue=0x7fffd8003ae8) at ../wayland-1.26.0/src/wayland-client.c:2243
+#10 0x00007ffff74ba19b in ?? () from /usr/lib/libgtk-4.so.1
+#11 0x00007ffff74b6723 in ?? () from /usr/lib/libgtk-4.so.1
+#12 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#13 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#14 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#15 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#16 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#17 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#18 0x00005555557ee5db in quill::main ()
+#19 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#20 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#21 0x00005555559ee237 in std::rt::lang_start_internal ()
+#22 0x00005555557fbe15 in main ()
+=== request_phase at 47.831 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff737497e in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff72dbff5 in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff7ce6bcc in g_closure_invoke (closure=0x555556c6d5c0, return_value=0x0, n_param_values=1, param_values=0x7fffffffaad0, invocation_hint=0x7fffffffaa20) at ../glib/gobject/gclosure.c:916
+#4  0x00007ffff7d0684b in signal_emit_unlocked_R (node=node@entry=0x7fffffffabf0, detail=detail@entry=0, instance=instance@entry=0x555555b35030, emission_return=emission_return@entry=0x0, instance_and_params=instance_and_params@entry=0x7fffffffaad0) at ../glib/gobject/gsignal.c:3929
+#5  0x00007ffff7d08a34 in signal_emit_valist_unlocked (instance=instance@entry=0x555555b35030, signal_id=signal_id@entry=230, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffad50) at ../glib/gobject/gsignal.c:3561
+#6  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555b35030, signal_id=230, detail=0, var_args=var_args@entry=0x7fffffffad50) at ../glib/gobject/gsignal.c:3304
+#7  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#8  0x00007ffff752e27e in ?? () from /usr/lib/libgtk-4.so.1
+#9  0x00007ffff7bd2f64 in g_timeout_dispatch (source=0x555556bdb710, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5324
+#10 g_timeout_dispatch (source=0x555556bdb710, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5302
+#11 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#12 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#13 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#14 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#15 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#16 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#17 0x00005555557ee5db in quill::main ()
+#18 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#19 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#20 0x00005555559ee237 in std::rt::lang_start_internal ()
+#21 0x00005555557fbe15 in main ()
+=== request_phase at 47.833 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff7374987 in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff72dbff5 in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff7ce6bcc in g_closure_invoke (closure=0x555556c6d5c0, return_value=0x0, n_param_values=1, param_values=0x7fffffffaad0, invocation_hint=0x7fffffffaa20) at ../glib/gobject/gclosure.c:916
+#4  0x00007ffff7d0684b in signal_emit_unlocked_R (node=node@entry=0x7fffffffabf0, detail=detail@entry=0, instance=instance@entry=0x555555b35030, emission_return=emission_return@entry=0x0, instance_and_params=instance_and_params@entry=0x7fffffffaad0) at ../glib/gobject/gsignal.c:3929
+#5  0x00007ffff7d08a34 in signal_emit_valist_unlocked (instance=instance@entry=0x555555b35030, signal_id=signal_id@entry=230, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffad50) at ../glib/gobject/gsignal.c:3561
+#6  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555b35030, signal_id=230, detail=0, var_args=var_args@entry=0x7fffffffad50) at ../glib/gobject/gsignal.c:3304
+#7  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#8  0x00007ffff752e27e in ?? () from /usr/lib/libgtk-4.so.1
+#9  0x00007ffff7bd2f64 in g_timeout_dispatch (source=0x555556bdb710, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5324
+#10 g_timeout_dispatch (source=0x555556bdb710, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5302
+#11 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#12 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#13 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#14 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#15 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#16 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#17 0x00005555557ee5db in quill::main ()
+#18 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#19 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#20 0x00005555559ee237 in std::rt::lang_start_internal ()
+#21 0x00005555557fbe15 in main ()
+=== request_phase at 47.838 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff71f0a44 in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff72db2a0 in gtk_widget_queue_resize () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff72bcef3 in ?? () from /usr/lib/libgtk-4.so.1
+#4  0x00007ffff708f891 in ?? () from /usr/lib/libgtk-4.so.1
+#5  0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555555f27fd0, return_value=0x0, instance=0x555555f27dd0, args=0x7fffffffad60, n_params=3, param_types=0x555555f17470) at ../glib/gobject/gclosure.c:980
+#6  signal_emit_valist_unlocked (instance=instance@entry=0x555555f27dd0, signal_id=signal_id@entry=139, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffad60) at ../glib/gobject/gsignal.c:3465
+#7  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555f27dd0, signal_id=139, detail=0, var_args=var_args@entry=0x7fffffffad60) at ../glib/gobject/gsignal.c:3304
+#8  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#9  0x00007ffff72a5d32 in ?? () from /usr/lib/libgtk-4.so.1
+#10 0x00007ffff72b3351 in ?? () from /usr/lib/libgtk-4.so.1
+#11 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#12 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#13 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#14 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#15 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#16 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#17 0x00005555557ee5db in quill::main ()
+#18 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#19 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#20 0x00005555559ee237 in std::rt::lang_start_internal ()
+#21 0x00005555557fbe15 in main ()
+=== request_phase at 47.840 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff72db2a0 in gtk_widget_queue_resize () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff72bcef3 in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff708f891 in ?? () from /usr/lib/libgtk-4.so.1
+#4  0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555555f27fd0, return_value=0x0, instance=0x555555f27dd0, args=0x7fffffffad60, n_params=3, param_types=0x555555f17470) at ../glib/gobject/gclosure.c:980
+#5  signal_emit_valist_unlocked (instance=instance@entry=0x555555f27dd0, signal_id=signal_id@entry=139, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffad60) at ../glib/gobject/gsignal.c:3465
+#6  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555f27dd0, signal_id=139, detail=0, var_args=var_args@entry=0x7fffffffad60) at ../glib/gobject/gsignal.c:3304
+#7  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#8  0x00007ffff72a5d32 in ?? () from /usr/lib/libgtk-4.so.1
+#9  0x00007ffff72b3351 in ?? () from /usr/lib/libgtk-4.so.1
+#10 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#11 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#12 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#13 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#14 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#15 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#16 0x00005555557ee5db in quill::main ()
+#17 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#18 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#19 0x00005555559ee237 in std::rt::lang_start_internal ()
+#20 0x00005555557fbe15 in main ()
+=== request_phase at 47.845 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff755eda6 in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff74d2b82 in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff6557db6 in ffi_call_unix64 () at ../src/x86/unix64.S:105
+#4  0x00007ffff6553a6d in ffi_call_int (cif=<optimized out>, fn=<optimized out>, rvalue=<optimized out>, avalue=<optimized out>, closure=closure@entry=0x0) at ../src/x86/ffi64.c:772
+#5  0x00007ffff6556e32 in ffi_call (cif=cif@entry=0x7fffffffac10, fn=<optimized out>, rvalue=rvalue@entry=0x0, avalue=<optimized out>, avalue@entry=0x7ffffffface0) at ../src/x86/ffi64.c:1165
+#6  0x00007ffff5baa7cd in wl_closure_invoke (closure=closure@entry=0x555555d0b880, target=<optimized out>, target@entry=0x555556cf6620, opcode=opcode@entry=0, data=<optimized out>, flags=1) at ../wayland-1.26.0/src/connection.c:1243
+#7  0x00007ffff5bab6b9 in dispatch_event (display=display@entry=0x7fffd80039f0, queue=queue@entry=0x7fffd8003ae8) at ../wayland-1.26.0/src/wayland-client.c:1732
+#8  0x00007ffff5babaeb in dispatch_queue (display=0x7fffd80039f0, queue=0x7fffd8003ae8) at ../wayland-1.26.0/src/wayland-client.c:1878
+#9  wl_display_dispatch_queue_pending (display=0x7fffd80039f0, queue=0x7fffd8003ae8) at ../wayland-1.26.0/src/wayland-client.c:2243
+#10 0x00007ffff74ba19b in ?? () from /usr/lib/libgtk-4.so.1
+#11 0x00007ffff74b6723 in ?? () from /usr/lib/libgtk-4.so.1
+#12 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#13 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#14 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#15 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#16 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#17 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#18 0x00005555557ee5db in quill::main ()
+#19 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#20 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#21 0x00005555559ee237 in std::rt::lang_start_internal ()
+#22 0x00005555557fbe15 in main ()
+=== request_phase at 47.848 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff71f0a44 in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff72db2a0 in gtk_widget_queue_resize () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff72bcef3 in ?? () from /usr/lib/libgtk-4.so.1
+#4  0x00007ffff708f891 in ?? () from /usr/lib/libgtk-4.so.1
+#5  0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555555f27fd0, return_value=0x0, instance=0x555555f27dd0, args=0x7fffffffad60, n_params=3, param_types=0x555555f17470) at ../glib/gobject/gclosure.c:980
+#6  signal_emit_valist_unlocked (instance=instance@entry=0x555555f27dd0, signal_id=signal_id@entry=139, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffad60) at ../glib/gobject/gsignal.c:3465
+#7  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555f27dd0, signal_id=139, detail=0, var_args=var_args@entry=0x7fffffffad60) at ../glib/gobject/gsignal.c:3304
+#8  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#9  0x00007ffff72a5d32 in ?? () from /usr/lib/libgtk-4.so.1
+#10 0x00007ffff72b3351 in ?? () from /usr/lib/libgtk-4.so.1
+#11 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#12 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#13 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#14 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#15 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#16 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#17 0x00005555557ee5db in quill::main ()
+#18 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#19 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#20 0x00005555559ee237 in std::rt::lang_start_internal ()
+#21 0x00005555557fbe15 in main ()
+=== request_phase at 47.850 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff72db2a0 in gtk_widget_queue_resize () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff72bcef3 in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff708f891 in ?? () from /usr/lib/libgtk-4.so.1
+#4  0x00007ffff7d08b7a in _g_closure_invoke_va (closure=0x555555f27fd0, return_value=0x0, instance=0x555555f27dd0, args=0x7fffffffad60, n_params=3, param_types=0x555555f17470) at ../glib/gobject/gclosure.c:980
+#5  signal_emit_valist_unlocked (instance=instance@entry=0x555555f27dd0, signal_id=signal_id@entry=139, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffad60) at ../glib/gobject/gsignal.c:3465
+#6  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555f27dd0, signal_id=139, detail=0, var_args=var_args@entry=0x7fffffffad60) at ../glib/gobject/gsignal.c:3304
+#7  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#8  0x00007ffff72a5d32 in ?? () from /usr/lib/libgtk-4.so.1
+#9  0x00007ffff72b3351 in ?? () from /usr/lib/libgtk-4.so.1
+#10 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#11 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#12 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#13 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#14 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#15 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#16 0x00005555557ee5db in quill::main ()
+#17 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#18 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#19 0x00005555559ee237 in std::rt::lang_start_internal ()
+#20 0x00005555557fbe15 in main ()
+=== request_phase at 47.898 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff755eda6 in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff74d2b82 in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff6557db6 in ffi_call_unix64 () at ../src/x86/unix64.S:105
+#4  0x00007ffff6553a6d in ffi_call_int (cif=<optimized out>, fn=<optimized out>, rvalue=<optimized out>, avalue=<optimized out>, closure=closure@entry=0x0) at ../src/x86/ffi64.c:772
+#5  0x00007ffff6556e32 in ffi_call (cif=cif@entry=0x7fffffffac10, fn=<optimized out>, rvalue=rvalue@entry=0x0, avalue=<optimized out>, avalue@entry=0x7ffffffface0) at ../src/x86/ffi64.c:1165
+#6  0x00007ffff5baa7cd in wl_closure_invoke (closure=closure@entry=0x5555570841c0, target=<optimized out>, target@entry=0x555556c6af30, opcode=opcode@entry=0, data=<optimized out>, flags=1) at ../wayland-1.26.0/src/connection.c:1243
+#7  0x00007ffff5bab6b9 in dispatch_event (display=display@entry=0x7fffd80039f0, queue=queue@entry=0x7fffd8003ae8) at ../wayland-1.26.0/src/wayland-client.c:1732
+#8  0x00007ffff5babaeb in dispatch_queue (display=0x7fffd80039f0, queue=0x7fffd8003ae8) at ../wayland-1.26.0/src/wayland-client.c:1878
+#9  wl_display_dispatch_queue_pending (display=0x7fffd80039f0, queue=0x7fffd8003ae8) at ../wayland-1.26.0/src/wayland-client.c:2243
+#10 0x00007ffff74ba19b in ?? () from /usr/lib/libgtk-4.so.1
+#11 0x00007ffff74b6723 in ?? () from /usr/lib/libgtk-4.so.1
+#12 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#13 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#14 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#15 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#16 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#17 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#18 0x00005555557ee5db in quill::main ()
+#19 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#20 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#21 0x00005555559ee237 in std::rt::lang_start_internal ()
+#22 0x00005555557fbe15 in main ()
+=== request_phase at 47.907 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff71f0a44 in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff7ce6bcc in g_closure_invoke (closure=0x555555f15070, return_value=0x0, n_param_values=1, param_values=0x7fffffffaae0, invocation_hint=0x7fffffffaa30) at ../glib/gobject/gclosure.c:916
+#3  0x00007ffff7d0684b in signal_emit_unlocked_R (node=node@entry=0x7fffffffac00, detail=detail@entry=0, instance=instance@entry=0x555555e26220, emission_return=emission_return@entry=0x0, instance_and_params=instance_and_params@entry=0x7fffffffaae0) at ../glib/gobject/gsignal.c:3929
+#4  0x00007ffff7d08a34 in signal_emit_valist_unlocked (instance=instance@entry=0x555555e26220, signal_id=signal_id@entry=137, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffad60) at ../glib/gobject/gsignal.c:3561
+#5  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555e26220, signal_id=137, detail=0, var_args=var_args@entry=0x7fffffffad60) at ../glib/gobject/gsignal.c:3304
+#6  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#7  0x00007ffff70a78b1 in ?? () from /usr/lib/libgtk-4.so.1
+#8  0x0000555555730fb6 in glib::source::trampoline_local::<glib::source::fnmut_callback_wrapper_local<<quill::window::Window>::follow_preview::{closure#0}>::{closure#0}> ()
+#9  0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#10 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#11 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#12 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#13 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#14 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#15 0x00005555557ee5db in quill::main ()
+#16 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#17 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#18 0x00005555559ee237 in std::rt::lang_start_internal ()
+#19 0x00005555557fbe15 in main ()
+=== request_phase at 47.909 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff7ce6bcc in g_closure_invoke (closure=0x555555f15070, return_value=0x0, n_param_values=1, param_values=0x7fffffffaae0, invocation_hint=0x7fffffffaa30) at ../glib/gobject/gclosure.c:916
+#2  0x00007ffff7d0684b in signal_emit_unlocked_R (node=node@entry=0x7fffffffac00, detail=detail@entry=0, instance=instance@entry=0x555555e26220, emission_return=emission_return@entry=0x0, instance_and_params=instance_and_params@entry=0x7fffffffaae0) at ../glib/gobject/gsignal.c:3929
+#3  0x00007ffff7d08a34 in signal_emit_valist_unlocked (instance=instance@entry=0x555555e26220, signal_id=signal_id@entry=137, detail=detail@entry=0, var_args=var_args@entry=0x7fffffffad60) at ../glib/gobject/gsignal.c:3561
+#4  0x00007ffff7d08cd9 in g_signal_emit_valist (instance=0x555555e26220, signal_id=137, detail=0, var_args=var_args@entry=0x7fffffffad60) at ../glib/gobject/gsignal.c:3304
+#5  0x00007ffff7d08d94 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../glib/gobject/gsignal.c:3624
+#6  0x00007ffff70a78b1 in ?? () from /usr/lib/libgtk-4.so.1
+#7  0x0000555555730fb6 in glib::source::trampoline_local::<glib::source::fnmut_callback_wrapper_local<<quill::window::Window>::follow_preview::{closure#0}>::{closure#0}> ()
+#8  0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#9  0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#10 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#11 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#12 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#13 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#14 0x00005555557ee5db in quill::main ()
+#15 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#16 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#17 0x00005555559ee237 in std::rt::lang_start_internal ()
+#18 0x00005555557fbe15 in main ()
+=== request_phase at 47.911 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff755eda6 in ?? () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff74d2b82 in ?? () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff6557db6 in ffi_call_unix64 () at ../src/x86/unix64.S:105
+#4  0x00007ffff6553a6d in ffi_call_int (cif=<optimized out>, fn=<optimized out>, rvalue=<optimized out>, avalue=<optimized out>, closure=closure@entry=0x0) at ../src/x86/ffi64.c:772
+#5  0x00007ffff6556e32 in ffi_call (cif=cif@entry=0x7fffffffac10, fn=<optimized out>, rvalue=rvalue@entry=0x0, avalue=<optimized out>, avalue@entry=0x7ffffffface0) at ../src/x86/ffi64.c:1165
+#6  0x00007ffff5baa7cd in wl_closure_invoke (closure=closure@entry=0x5555572de400, target=<optimized out>, target@entry=0x555556c5f470, opcode=opcode@entry=0, data=<optimized out>, flags=1) at ../wayland-1.26.0/src/connection.c:1243
+#7  0x00007ffff5bab6b9 in dispatch_event (display=display@entry=0x7fffd80039f0, queue=queue@entry=0x7fffd8003ae8) at ../wayland-1.26.0/src/wayland-client.c:1732
+#8  0x00007ffff5babaeb in dispatch_queue (display=0x7fffd80039f0, queue=0x7fffd8003ae8) at ../wayland-1.26.0/src/wayland-client.c:1878
+#9  wl_display_dispatch_queue_pending (display=0x7fffd80039f0, queue=0x7fffd8003ae8) at ../wayland-1.26.0/src/wayland-client.c:2243
+#10 0x00007ffff74ba19b in ?? () from /usr/lib/libgtk-4.so.1
+#11 0x00007ffff74b6723 in ?? () from /usr/lib/libgtk-4.so.1
+#12 0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#13 0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#14 g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#15 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#16 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#17 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#18 0x00005555557ee5db in quill::main ()
+#19 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#20 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#21 0x00005555559ee237 in std::rt::lang_start_internal ()
+#22 0x00005555557fbe15 in main ()
+=== request_phase at 49.912 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff755d4a5 in gdk_surface_queue_render () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff72dab0c in gtk_widget_queue_draw () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff72e7f10 in gtk_widget_set_opacity () from /usr/lib/libgtk-4.so.1
+#4  0x00007ffff71fdf84 in ?? () from /usr/lib/libgtk-4.so.1
+#5  0x00007ffff7bd2f64 in g_timeout_dispatch (source=0x555557320a40, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5324
+#6  g_timeout_dispatch (source=0x555557320a40, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5302
+#7  0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#8  0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#9  g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#10 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#11 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#12 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#13 0x00005555557ee5db in quill::main ()
+#14 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#15 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#16 0x00005555559ee237 in std::rt::lang_start_internal ()
+#17 0x00005555557fbe15 in main ()
+=== request_phase at 50.287 s
+#0  0x00007ffff752d7f1 in gdk_frame_clock_request_phase () from /usr/lib/libgtk-4.so.1
+#1  0x00007ffff755d4a5 in gdk_surface_queue_render () from /usr/lib/libgtk-4.so.1
+#2  0x00007ffff72dab0c in gtk_widget_queue_draw () from /usr/lib/libgtk-4.so.1
+#3  0x00007ffff72e7f10 in gtk_widget_set_opacity () from /usr/lib/libgtk-4.so.1
+#4  0x00007ffff71fdf84 in ?? () from /usr/lib/libgtk-4.so.1
+#5  0x00007ffff7bd2f64 in g_timeout_dispatch (source=0x555556c0dad0, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5324
+#6  g_timeout_dispatch (source=0x555556c0dad0, callback=<optimized out>, user_data=<optimized out>) at ../glib/glib/gmain.c:5302
+#7  0x00007ffff7bd1c76 in g_main_dispatch (context=0x555555bac980) at ../glib/glib/gmain.c:3591
+#8  0x00007ffff7bd3ed7 in g_main_context_dispatch_unlocked (context=0x555555bac980) at ../glib/glib/gmain.c:4451
+#9  g_main_context_iterate_unlocked (context=context@entry=0x555555bac980, block=block@entry=1, dispatch=dispatch@entry=1, self=<optimized out>) at ../glib/glib/gmain.c:4516
+#10 0x00007ffff7bd4055 in g_main_context_iteration (context=context@entry=0x555555bac980, may_block=may_block@entry=1) at ../glib/glib/gmain.c:4582
+#11 0x00007ffff6f04186 in g_application_run (application=0x555555cbf330, argc=1, argv=<optimized out>) at ../glib/gio/gapplication.c:2742
+#12 0x000055555580b2e8 in <gtk4::auto::application::Application as gio::application::ApplicationExtManual>::run_with_args::<&str> ()
+#13 0x00005555557ee5db in quill::main ()
+#14 0x00005555557379a3 in std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> glib::exit_code::ExitCode, glib::exit_code::ExitCode> ()
+#15 0x00005555557ed7e9 in std::rt::lang_start::<glib::exit_code::ExitCode>::{closure#0} ()
+#16 0x00005555559ee237 in std::rt::lang_start_internal ()
+#17 0x00005555557fbe15 in main ()

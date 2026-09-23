@@ -1,0 +1,141 @@
+{
+  "ran": "--regimes prose_end_of_draft,bursts_and_pauses,preview,annotators",
+  "at": "2026-09-23T19:38:27.612Z",
+  "budget": {
+    "mean_ms": 5,
+    "worst_ms": 16,
+    "cold_ms": 250
+  },
+  "oracle": {
+    "mean_ms": 2.43,
+    "worst_ms": 15.61,
+    "uinput_to_presented_ms": 12.17,
+    "cold_ms": 370
+  },
+  "headline": "prose_end_of_draft",
+  "regimes": [
+    {
+      "regime": "prose_end_of_draft",
+      "file": "dev/shots/latency/bench-prose_end_of_draft-20260923T193634.json",
+      "mean_ms": 2.33,
+      "worst_ms": 4.27,
+      "p50_ms": 2.22,
+      "p99_ms": 3.87,
+      "cold_ms": 164.34,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true,
+      "the_pointer_left_the_window": false
+    },
+    {
+      "regime": "bursts_and_pauses",
+      "file": "dev/shots/latency/bench-bursts_and_pauses-20260923T193724.json",
+      "mean_ms": 2.24,
+      "worst_ms": 4.4,
+      "p50_ms": 2.1,
+      "p99_ms": 3.86,
+      "cold_ms": 184.81,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true,
+      "the_pointer_left_the_window": false
+    },
+    {
+      "regime": "preview",
+      "file": "dev/shots/latency/bench-preview-20260923T193756.json",
+      "mean_ms": 2.36,
+      "worst_ms": 3.83,
+      "p50_ms": 2.27,
+      "p99_ms": 3.51,
+      "cold_ms": 186.34,
+      "clears_mean": true,
+      "clears_worst": true,
+      "clears_cold": true,
+      "scored": true,
+      "pass": true,
+      "every_keystroke_accounted_for": true,
+      "the_pointer_left_the_window": false
+    },
+    {
+      "regime": "annotators",
+      "file": "dev/shots/latency/bench-annotators-20260923T193827.json",
+      "mean_ms": 2.64,
+      "worst_ms": 17.41,
+      "p50_ms": 2.53,
+      "p99_ms": 4.53,
+      "cold_ms": 183.99,
+      "clears_mean": true,
+      "clears_worst": false,
+      "clears_cold": true,
+      "scored": true,
+      "pass": false,
+      "every_keystroke_accounted_for": true,
+      "the_pointer_left_the_window": false
+    }
+  ],
+  "regimes_not_run": [],
+  "regimes_unaccounted_for": [],
+  "regimes_the_pointer_left": [],
+  "regimes_not_scored": [],
+  "stage_first_client_ms": 861.162,
+  "pass": false,
+  "lines": [
+    "gate bench prose_end_of_draft: pass — mean 2.33 ms, worst 4.27 ms, p50 2.22 ms, p99 3.87 ms, cold 164.34 ms",
+    "gate bench bursts_and_pauses: pass — mean 2.24 ms, worst 4.4 ms, p50 2.1 ms, p99 3.86 ms, cold 184.81 ms",
+    "gate bench preview: pass — mean 2.36 ms, worst 3.83 ms, p50 2.27 ms, p99 3.51 ms, cold 186.34 ms",
+    "gate bench annotators: fail — mean 2.64 ms, worst 17.41 ms, p50 2.53 ms, p99 4.53 ms, cold 183.99 ms",
+    "gate bench --regimes prose_end_of_draft,bursts_and_pauses,preview,annotators: fail — 3 of 4 regimes clear the budget, not annotators (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)"
+  ],
+  "build": {
+    "git": "082a319",
+    "binary": "c29b77b2d53b81b8"
+  },
+  "fingerprint": {
+    "at": "2026-09-23T19:36:34.512Z",
+    "app": {
+      "binary": "target/release/quill",
+      "sha256": "c29b77b2d53b81b8",
+      "git_head": "082a319",
+      "tree_was_dirty": true,
+      "renderer": "gl"
+    },
+    "display": {
+      "output": "quill-gate-2696936",
+      "mode": "3200x2000",
+      "refresh_hz": 60,
+      "scale": 2,
+      "vrr": false
+    },
+    "machine": {
+      "node": "v26.7.0",
+      "kernel": "Linux 7.2.3-arch1-3",
+      "cpu": "13th Gen Intel(R) Core(TM) i5-13600K",
+      "cpus": 20,
+      "load1": 0.37,
+      "busiest_processes": [
+        "3.1 helium",
+        "2.1 claude",
+        "2.0 spotify",
+        "1.7 quill <defunct>",
+        "1.5 herdr"
+      ],
+      "mem_gb": 31
+    },
+    "document": {
+      "path": "dev/shots/latency/doc10k.md",
+      "words": 9953,
+      "chars": 53031,
+      "lines": 432
+    },
+    "window": {
+      "w": 1440,
+      "h": 900
+    }
+  }
+}
