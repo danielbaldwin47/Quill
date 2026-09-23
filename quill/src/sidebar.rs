@@ -673,10 +673,11 @@ struct Grab {
 /// The Library beside the page.
 #[derive(Clone)]
 pub struct Sidebar {
-    /// The pane and the divider over its right edge: what stands beside the
-    /// page ([`Sidebar::widget`]) and what is shown and hidden, since an
+    /// What stands beside the page ([`Sidebar::widget`]): the pane with the
+    /// divider over its right edge, slid in from the window's left edge and
+    /// out again (#485). It is the whole overlay that slides, since an
     /// overlay whose pane is away would still take the divider's room.
-    frame: gtk::Overlay,
+    frame: gtk::Revealer,
     root: gtk::Box,
     /// The Organizer's column, whose width [`Sidebar::set_width`] keeps at
     /// [`organizer_width`] of the pane's.
@@ -898,13 +899,25 @@ impl Sidebar {
         divider.set_width_request(GRAB);
         divider.set_halign(gtk::Align::End);
         divider.set_cursor_from_name(Some(RESIZE_CURSOR));
-        let frame = gtk::Overlay::new();
-        frame.set_child(Some(&root));
-        frame.add_overlay(&divider);
-        frame.set_hexpand(false);
-        // Hidden on the frame and not on the pane: a hidden pane inside a
-        // shown overlay would still leave the divider's strip beside the page.
-        frame.set_visible(false);
+        let overlay = gtk::Overlay::new();
+        overlay.set_child(Some(&root));
+        overlay.add_overlay(&divider);
+        // The oracle's `#library` slide, `translateX(-100%)` to `none`, with
+        // `#app`'s `padding-left` in step: the Revealer gives the pane its full
+        // width and shows the part of it that has come in, while its own width
+        // grows with that part, so the page is given a narrower window, and
+        // recentres, on every frame of the slide. It eases out cubic over
+        // [`MOTION_MS`], turns back from where it stands, and does not move
+        // while the window is unmapped or GTK's animations are off
+        // ([`animated`]), so a window opening with the pane, a harness shot
+        // and a desktop asking for no motion all have it at rest.
+        let frame = gtk::Revealer::builder()
+            .transition_type(gtk::RevealerTransitionType::SlideRight)
+            .transition_duration(u32::try_from(MOTION_MS).unwrap_or(0))
+            .reveal_child(false)
+            .child(&overlay)
+            .hexpand(false)
+            .build();
         let sidebar = Self {
             frame,
             divider,
@@ -1217,16 +1230,26 @@ impl Sidebar {
         }
     }
 
-    /// Whether the pane is showing.
+    /// Whether the pane is open: the state last asked for, so a pane still
+    /// sliding out answers no and one still sliding in answers yes.
     #[must_use]
     pub fn is_shown(&self) -> bool {
-        self.frame.is_visible()
+        self.frame.reveals_child()
     }
 
-    /// Shows or hides the pane. The page keeps its own centring and is simply
-    /// given a narrower window, as the oracle's is.
+    /// Slides the pane in or out (#485). The page keeps its own centring and
+    /// is simply given a narrower window, as the oracle's is.
     pub fn set_shown(&self, shown: bool) {
-        self.frame.set_visible(shown);
+        self.frame.set_reveal_child(shown);
+    }
+
+    /// Whether the keyboard is somewhere in the pane.
+    #[must_use]
+    pub fn holds_focus(&self) -> bool {
+        self.frame
+            .root()
+            .and_then(|root| root.focus())
+            .is_some_and(|focus| focus.is_ancestor(&self.frame))
     }
 
     /// Stands the pane at `width` logical pixels.
@@ -2600,7 +2623,7 @@ impl Sidebar {
     }
 
     /// Runs the pin of every page drawn for `path` in along `along`, or back
-    /// out of it, over [`PIN_MS`] eased out, the Organizer's Pinned row for
+    /// out of it, over [`MOTION_MS`] eased out, the Organizer's Pinned row for
     /// `path` fading with it; `done` runs on the last frame.
     ///
     /// The pages are looked for at every frame rather than once: the File
@@ -4296,9 +4319,11 @@ fn document_icon(area: &gtk::DrawingArea, cr: &cairo::Context) {
     let _ = cr.stroke();
 }
 
-/// How long a pin takes to go in or come out (#441 § The pinned icon and its
-/// animation).
-const PIN_MS: i64 = 240;
+/// How long the pane takes to slide in or out (#485), and a pin to go in or
+/// come out (#441 § The pinned icon and its animation): the oracle's `.24s`
+/// (`files.css` at `37c186a`, `#library` and `#app`: `transition: .24s
+/// cubic-bezier(.22, .61, .36, 1)`), eased out as [`eased`] is.
+const MOTION_MS: i64 = 240;
 /// How far back along its path a pin starts from, in the page icon's own
 /// units: far enough that it comes in from outside the icon's cell.
 const PIN_TRAVEL: f64 = 6.0;
@@ -4356,10 +4381,13 @@ fn approach(gesture: Gesture) -> (f64, f64) {
     (x * unit, y * unit)
 }
 
-/// How far along its [`PIN_MS`] a pin is `elapsed` microseconds in, eased out
-/// (cubic): 0 at the start, and 1 from the end on.
+/// How far along its [`MOTION_MS`] a pin is `elapsed` microseconds in, eased
+/// out (cubic): 0 at the start, and 1 from the end on. The oracle's curve,
+/// `cubic-bezier(.22, .61, .36, 1)`, is an ease-out close to this one, and
+/// the pane's slide takes this same curve from GTK's Revealer, whose slide
+/// eases out cubic.
 fn eased(elapsed: i64) -> f64 {
-    let t = (elapsed as f64 / (PIN_MS * 1000) as f64).clamp(0.0, 1.0);
+    let t = (elapsed as f64 / (MOTION_MS * 1000) as f64).clamp(0.0, 1.0);
     1.0 - (1.0 - t).powi(3)
 }
 
@@ -5067,8 +5095,8 @@ mod tests {
         );
         assert!(eased(0).abs() < f64::EPSILON);
         assert!(eased(60_000) > 0.25, "eased out: most of the way early");
-        assert!((eased(PIN_MS * 1000) - 1.0).abs() < f64::EPSILON);
-        assert!((eased(PIN_MS * 2000) - 1.0).abs() < f64::EPSILON);
+        assert!((eased(MOTION_MS * 1000) - 1.0).abs() < f64::EPSILON);
+        assert!((eased(MOTION_MS * 2000) - 1.0).abs() < f64::EPSILON);
     }
 
     /// What the File List shows holds while the Library holds it, and falls
