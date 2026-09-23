@@ -557,13 +557,14 @@ so the move finds Rust already at the root rather than clearing the ground for i
 - `README.md` and `CLAUDE.md` are rewritten for the new layout; `BRIEF.md` and `NOTES.md` move to
   `dev/legacy/` with the app they describe.
 
-`dev/legacy/` is the Parity oracle: `dev/shots/oracle/<piece>/<state>.png` is generated from it with
-`dev/legacy/tools/shoot.mjs` and regenerated only when `dev/legacy/` changes. **Retirement** is its own
-ticket, opened when every Piece's latest verdict in `dev/progress/rounds/` is ours and all nine ported
-Pieces' Hand tests have passed; the owner's `hand test: pass` on that ticket is the declaration. That
-ticket deletes `dev/legacy/` and gives every judged state a `mac-native` crop as its opponent
-([ADR 0015](adr/0015-the-design-oracle-outranks-the-parity-oracle.md)); a state that follows a
-`docs/design.md` row takes one as soon as the Gate has the per-state key (#161).
+`dev/legacy/` was the Parity oracle: `dev/shots/oracle/<piece>/<state>.png` was generated from it with
+`dev/legacy/tools/shoot.mjs`. **Retirement** came at the owner's word once every Piece was ported:
+`dev/legacy/` left the tree, and `37c186a` is the last commit holding it. The frozen shots stay the
+opponent for the states still paired with them, and `tools/gate oracle` and `tools/gate judge` check
+them against the states, passages and fixtures alone, the app's own hashes having nothing left to
+hash. A state that moves under its shot, or follows a `docs/design.md` row, takes a `mac-native` crop
+([ADR 0015](adr/0015-the-design-oracle-outranks-the-parity-oracle.md)) or an `assert`
+([ADR 0017](adr/0017-a-judged-state-neither-oracle-can-arbitrate.md)).
 
 ## Port order
 

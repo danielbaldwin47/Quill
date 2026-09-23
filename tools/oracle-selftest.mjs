@@ -211,6 +211,10 @@ ok('a freeze is stale when the app, the shooter, the passage, the fixture or the
   assert.match(freezeReason(was, { ...same, libraries: { 'dev/shots/oracle/library': '2222' } }, ['duo']), /library fixture/);
   assert.match(freezeReason(was, { ...same, states: { duo: { font: 'mono' } } }, ['duo']), /judged states/);
   assert.match(freezeReason(was, same, []), /shot is missing/);
+  // A retired dev/legacy/ has nothing to hash, so only what ours is shot from can move.
+  const retired = { ...same, app: null, shoot: null };
+  assert.equal(freezeReason(was, retired, ['duo']), null);
+  assert.match(freezeReason(was, { ...retired, states: { duo: { font: 'mono' } } }, ['duo']), /judged states/);
 });
 
 // ---------- the frozen shots are reproducible ----------

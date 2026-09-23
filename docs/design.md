@@ -1,7 +1,7 @@
 # Quill's writing surface: what it takes from the Design oracle
 
-iA Writer for Mac running natively is the **Design oracle**; `dev/legacy/` is the **Parity oracle**, what
-the port ports. Where the two disagree on the writing surface, the row here decides, and a row may
+iA Writer for Mac running natively is the **Design oracle**; the JavaScript app, retired from the tree, is
+the **Parity oracle**, what the port ported. Where the two disagree on the writing surface, the row here decides, and a row may
 decide a third thing. The evidence behind every row is `dev/ref/ia/mac-native/VERDICTS.md` (cited by
 row number; "found-here" is its closing table) and the captures under `dev/ref/ia/shots/mac-native/`.
 The principle, its reach, and how a state that follows a row is judged are
@@ -97,7 +97,7 @@ the states to shoot, at the rig `dev/ref/ia/mac-native/NOTES.md` § The rig desc
 settles. It carries `ready-for-human` while the owner shoots and `ready-for-agent` once the
 captures are pushed, for the measuring half: the numbers into `NOTES.md`, the verdict rows into
 `VERDICTS.md`, and the row here. Until it lands no row is written, the state names no `opponent`
-in `states.json`, and it stays a Parity pair against `dev/legacy/`.
+in `states.json`, and it stays a Parity pair against its frozen shot.
 
 A capture ticket serves a row inside [ADR 0015](adr/0015-the-design-oracle-outranks-the-parity-oracle.md)'s
 reach, the writing surface. A spec wanting Design-oracle evidence outside it — the Library, Preview,

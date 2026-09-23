@@ -103,8 +103,7 @@ workspace 5 for the run and puts back what was there, refuses before it shows an
 rather than a Gate condition — the panel is fractional-scale, so every line it prints says so, its
 results are marked informational inside and named `bench-panel-<regime>-<stamp>.json`, a run of
 several also writes `panel-summary-<stamp>.json`, and `judge latency` refuses one it is handed.
-Results land in `dev/shots/latency/` with the environment fingerprint `dev/legacy/tools/latency.mjs` records
-today, and the run prints the summary lines that go on the ticket and nothing else. The bench runs
+Results land in `dev/shots/latency/` with the environment fingerprint `tools/fingerprint.mjs` records, and the run prints the summary lines that go on the ticket and nothing else. The bench runs
 ours `--deterministic` (`tools/bench.mjs`), so the caret's blink and glide never run in a latency
 measurement, and no animation is a bench number's cause (#345 was filed on the blink and falsified
 by this line).
@@ -157,9 +156,11 @@ JSON. The judged states are `dev/shots/oracle/states.json`: `defaults`, then `pi
 overrides, a state carrying `opponent` (a `mac-native` crop) or `assert` instead of the Parity pair,
 and `keys.<piece>` the typed scripts; the Pieces' briefs and verdicts are `dev/progress/state.json`,
 `pieces` a list of `{ id, title, what, judge }` — latency carries no `judge` — and `log` a list of
-`{ at, msg }`. The opponent is the **Parity oracle** while `dev/legacy/` exists: the frozen shots under
-`dev/shots/oracle/<piece>/<state>.png` that `tools/gate oracle <piece>` takes of `dev/legacy/` at that
-Piece's judged states, and re-takes only when the `dev/legacy/` build or the states themselves move. A
+`{ at, msg }`. The opponent is the **Parity oracle**: the frozen shots under
+`dev/shots/oracle/<piece>/<state>.png`, taken of the JavaScript app at that Piece's judged states. The
+app is retired (`docs/architecture.md` § Repo migration), so the shots stand for good: `tools/gate
+oracle <piece>` reads them `unchanged` while the states, passages and fixtures under them hold, and
+fails a state that moves, which then takes a `mac-native` crop or an `assert`. A
 state that follows a `docs/design.md` row has left the Parity oracle behind and names its own
 opponent instead: `opponent` in `states.json` gives a capture under `dev/ref/ia/shots/mac-native/` — the
 **Design oracle**, iA Writer for Mac as measured in `dev/ref/ia/mac-native/`
@@ -167,8 +168,7 @@ opponent instead: `opponent` in `states.json` gives a capture under `dev/ref/ia/
 the matching rectangle in ours, and the pair is those two crops rather than the two whole windows.
 Ours is shot in Mono at the type the `defaults` name for such a state, so the two grids compare cell
 for cell, and `tools/gate oracle` passes it over: its opponent is committed under `dev/ref/ia/`, not
-frozen from `dev/legacy/`. Once all nine Pieces are won and `dev/legacy/` is deleted, every state's opponent
-is a `mac-native` crop named that way. Ours wins at any margin. A state that **neither** oracle can
+frozen. Ours wins at any margin. A state that **neither** oracle can
 arbitrate names `assert` in `states.json` instead of an opponent, and is measured rather than shown
 to anybody ([ADR 0017](../adr/0017-a-judged-state-neither-oracle-can-arbitrate.md)):
 `tools/assert-state.mjs` reads the rule off ours' own pixels, the round records what it measured
@@ -177,8 +177,8 @@ rules are that file's `ASSERTIONS` — ghost, folded, split, full, pdf-split, pd
 outline, spell, pinned, menu, settings and palette-control, as `tools/gate --help` lists them — and `states.json`'s `assert` note says what
 each reads. The
 bar for it is that neither oracle holds the subject — `caret/unfocused`, because iA draws no caret
-on a deactivated window and `dev/legacy/` draws one at a column `docs/design.md` has overruled, and the
-two `preview` states, because `dev/legacy/` has no rendered page at all and iA Writer for Mac's own
+on a deactivated window and the Parity oracle draws one at a column `docs/design.md` has overruled, and the
+two `preview` states, because the Parity oracle has no rendered page at all and iA Writer for Mac's own
 preview is that app's design rather than this one's
 ([#263](https://github.com/danielbaldwin47/Quill/issues/263) § Out of Scope puts Preview outside ADR
 0015's reach) — and not that a round was lost. Four Pieces are asserted-only, every state naming

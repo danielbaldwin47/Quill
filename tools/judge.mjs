@@ -604,10 +604,10 @@ export function checkStates(root, piece, settingsFile, { command = 'judge' } = {
   }
 
   // Judging against shots the oracle would no longer take is judging against the wrong opponent, and
-  // it is invisible in the round afterwards. Checked here because it is four file reads, and skipped
-  // once `dev/legacy/` is gone, which is the retirement ticket's business rather than this command's.
+  // it is invisible in the round afterwards. Checked here because it is four file reads; with
+  // `dev/legacy/` retired it checks what ours is shot from: the passages, fixtures and states.
   const frozen = parity.length ? JSON.parse(fs.readFileSync(fingerprintFile, 'utf8')) : null;
-  if (parity.length && fs.existsSync(path.join(root, 'dev/legacy/app'))) {
+  if (parity.length) {
     const stale = freezeReason(frozen, fingerprint(root, parity), parity.map((s) => s.name));
     if (stale) {
       say(`gate ${command} ${piece}: the frozen opponent is out of date (${stale}); run tools/gate oracle ${piece}`);

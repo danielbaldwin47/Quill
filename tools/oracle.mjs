@@ -184,12 +184,21 @@ function hashLibrary(root, dir) {
   return sha256(Buffer.from(`${lines.join('\n')}\n`)).slice(0, 16);
 }
 
+// Whether `dev/legacy/` has left the checkout. It was retired from the repo once every Piece was
+// ported; a checkout that still holds a copy, ignored by git, freezes and checks as before.
+export function legacyRetired(root) {
+  return !fs.existsSync(path.join(root, 'dev/legacy/app'));
+}
+
+// A retired `dev/legacy/` has no app or shooter to hash, and `null` stands for both: the frozen
+// shots are the opponent for good, and only what ours is shot from can still move under them.
 export function fingerprint(root, resolved) {
   const git = gitHead(root);
+  const retired = legacyRetired(root);
   return {
     _about: 'What produced the shots beside this file. `tools/gate oracle <piece>` re-shoots when any of it moves; git_head only says where it was taken and is not compared.',
-    app: hashApp(root),
-    shoot: sha256(fs.readFileSync(path.join(root, 'dev/legacy/tools/shoot.mjs'))).slice(0, 16),
+    app: retired ? null : hashApp(root),
+    shoot: retired ? null : sha256(fs.readFileSync(path.join(root, 'dev/legacy/tools/shoot.mjs'))).slice(0, 16),
     git_head: git,
     passages: Object.fromEntries([...new Set(resolved.map((s) => s.flags.text).filter(Boolean))].sort()
       .map((p) => [p, sha256(fs.readFileSync(path.join(root, p))).slice(0, 16)])),
@@ -230,8 +239,10 @@ export function installRefusal(root) {
 // states whose png is actually on disk.
 export function freezeReason(was, now, have) {
   if (!was) return 'nothing frozen here yet';
-  if (was.app?.sha256 !== now.app.sha256 || was.app?.files !== now.app.files) return 'dev/legacy/app changed';
-  if (was.shoot !== now.shoot) return 'dev/legacy/tools/shoot.mjs changed';
+  if (now.app !== null) {
+    if (was.app?.sha256 !== now.app.sha256 || was.app?.files !== now.app.files) return 'dev/legacy/app changed';
+    if (was.shoot !== now.shoot) return 'dev/legacy/tools/shoot.mjs changed';
+  }
   if (JSON.stringify(was.passages) !== JSON.stringify(now.passages)) return 'the passage changed';
   if (JSON.stringify(was.libraries) !== JSON.stringify(now.libraries)) return 'the library fixture changed';
   if (JSON.stringify(was.states) !== JSON.stringify(now.states)) return 'the judged states changed';
@@ -404,19 +415,27 @@ async function freeze(root, piece, force) {
     return 1;
   }
 
-  const refusal = installRefusal(root);
-  if (refusal !== null) {
-    process.stderr.write(`${refusal}\n`);
-    console.log(`gate oracle ${piece}: fail (dev/legacy/ is not installed)`);
-    return 1;
-  }
-
   const now = fingerprint(root, parity);
   const have = parity.filter((s) => fs.existsSync(path.join(dir, `${s.name}.png`))).map((s) => s.name);
   const why = freezeReason(was, now, have);
   if (why === null && !force) {
     console.log(`gate oracle ${piece}: unchanged (${parity.length} states already frozen)`);
     return 0;
+  }
+
+  // Nothing can re-shoot a retired oracle, so a state that moved under its frozen shot has to
+  // leave it: for a `mac-native` crop, or for `assert` (ADR 0015, ADR 0017).
+  if (legacyRetired(root)) {
+    process.stderr.write(`gate oracle ${piece}: dev/legacy/ is retired, and nothing can re-shoot it; move the state to a mac-native crop or an assert, or restore dev/legacy/ from git history (dev/README.md)\n`);
+    console.log(`gate oracle ${piece}: fail (the frozen shots are stale: ${why})`);
+    return 1;
+  }
+
+  const refusal = installRefusal(root);
+  if (refusal !== null) {
+    process.stderr.write(`${refusal}\n`);
+    console.log(`gate oracle ${piece}: fail (dev/legacy/ is not installed)`);
+    return 1;
   }
 
   const server = await documentServer(root, now.app.sha256);
