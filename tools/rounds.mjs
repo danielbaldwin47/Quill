@@ -62,23 +62,26 @@ export function wonBefore(recorded) {
   return recorded.filter((r) => r.opponent && r.winner === 'ours').pop() || null;
 }
 
-// The latest round in which a critic gave this one state to ours against the same kind of
-// opponent — `cropped` says whether the state names a `mac-native` crop now, and a win against the
-// Parity oracle's whole window does not vouch for the state once it does. `null` when no critic
-// ever gave it to ours: an asserted state has no critic, and a gauntlet round has no states.
-//
-// This is what makes a state's loss a second critic's question (`tools/judge.mjs` § A WON STATE IS
-// LOST ON TWO CRITICS' SAY): of the thirty-nine losses on once-won states in the hundred rounds
-// #490 counted, thirty-four were flips or gaps the brief names, and the five defects were losses
-// the next critic repeated.
-export function wonState(recorded, name, cropped) {
+// The latest recorded verdict a critic gave on one state that `keep` accepts, as `{ round, state }`
+// — `round` being the round whose critic looked, which a carried verdict names under `carried`.
+// `null` when there is none: an asserted state has no pick, and a gauntlet round has no states.
+// The one walk both `wonState` and `tools/judge.mjs`'s `carriedFrom` take.
+export function latestState(recorded, name, keep) {
   for (const r of [...recorded].reverse()) {
     const s = (r.states || []).find((x) => x.name === name);
-    if (!s || !s.pick || s.winner !== 'ours') continue;
-    if (Boolean(s.opponent) !== Boolean(cropped)) continue;
+    if (!s || !s.pick || !keep(s)) continue;
     return { round: s.carried ?? r.round, state: s };
   }
   return null;
+}
+
+// The latest round in which a critic gave this one state to ours against the same kind of
+// opponent — `cropped` says whether the state names a `mac-native` crop now, and a win against the
+// Parity oracle's whole window does not vouch for the state once it does. This is what makes a
+// state's loss a second critic's question: `docs/agents/gate.md` § Blind judging has the rule and
+// the count behind it.
+export function wonState(recorded, name, cropped) {
+  return latestState(recorded, name, (s) => s.winner === 'ours' && Boolean(s.opponent) === Boolean(cropped));
 }
 
 // The state whose verdict the round's single-pair keys are filled from: the first one lost, and the

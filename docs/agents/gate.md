@@ -153,7 +153,9 @@ ours against the same kind of opponent goes to a second fresh critic on the same
 first says theirs, and is theirs only when both do — ours at margin `split` when they disagree,
 the second answer kept under `second` either way (#490: of thirty-nine such losses in the hundred
 rounds since ADR 0015, twelve were the same pixels a neighbouring round gave to ours and twenty-two
-gaps the brief names; the five defects among them were losses the next critic repeated). `tools/gate shoot <piece>` takes the same shots with no critic, into
+gaps the brief names; the five defects among them were losses the next critic repeated). A state
+never won stays one critic's call. A loss carried from a round before this rule stays the one
+critic's until `--fresh` re-asks it. `tools/gate shoot <piece>` takes the same shots with no critic, into
 `target/gate/shoot/<piece>/`, and says per state whether the pixels moved — for looking before a
 judge, and never evidence. A change to `tools/critic.md` or the critic's effort is tried first with
 `node tools/critic-replay.mjs <piece>`, which puts the last rounds' committed pairs to the candidate
@@ -165,9 +167,9 @@ app has not got, an opponent that is not frozen, a state naming an assertion thi
 a shot of an active caret-drawing state whose capture came back with no accent pixel in it — ours
 had not painted itself active by the shutter, and the frame carries the ghost caret rather than the
 bar — or a run that broke. That line, with the line above it that names the round which won a Piece
-now lost, ends stdout; above them, one line per state names the winner, the margin and the round it
-was carried from, and one the winner's gap, so a round is read from the output rather than from the
-letters in its JSON. The trail to them is `target/gate/judge-<piece>.log`, said on stderr as well
+now lost, ends stdout; above them, one line per state names the winner, the margin, whether both
+critics or one of two said so, and the round it was carried from, and one the winner's gap, so a
+round is read from the output rather than from the letters in its JSON. The trail to them is `target/gate/judge-<piece>.log`, said on stderr as well
 only when the run refuses, because a round that reached a verdict has every state's detail in its
 JSON. The judged states are `dev/shots/oracle/states.json`: `defaults`, then `pieces.<piece>.<state>` as
 overrides, a state carrying `opponent` (a `mac-native` crop) or `assert` instead of the Parity pair,

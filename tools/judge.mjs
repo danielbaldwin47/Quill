@@ -44,15 +44,12 @@
 // A WON STATE IS LOST ON TWO CRITICS' SAY. A paired state a critic once gave to ours against this
 // kind of opponent (`wonState`) is not lost on one critic's `theirs`: the same pair goes to a
 // second fresh critic, and the state is theirs only when both say so. When they split, the state
-// is ours at margin `split`, and the round keeps the second answer under `second` either way.
-// #490 read the hundred rounds since ADR 0015 (2026-09-23): of the thirty-nine losses on states a
-// critic had already given to ours, twelve were the same pixels a neighbouring round gave to ours,
-// twenty-two were gaps the brief already names (the stage's hinted cell, the tagger's word), and
-// the five real ones were losses the next critic repeated on the same pixels — a second critic
-// clears a flip and confirms a defect. Twenty-two of the twenty-seven defects the critics found
-// were on a state no critic had yet given to ours, and those stay one critic's call. The second
-// critic costs one more session per loss, about a quarter of a dollar and a minute in parallel
-// with the others; the flips cost re-roll rounds, fourteen of those hundred on an unchanged build.
+// is ours at margin `split`, and the round keeps the second answer under `second` either way. A
+// second critic clears a flip and confirms a defect: `docs/agents/gate.md` § Blind judging carries
+// the count from the hundred rounds #490 read, and a state that was never won stays one critic's
+// call, because that is where the defects the critics found were. The second critic costs one more
+// session per loss, in parallel with the others; a loss carried from before this rule is re-asked
+// by `--fresh`.
 //
 // WHAT THE CRITIC IS AND IS NOT. One fresh `claude -p` session per pair, Opus at high effort, with
 // `tools/critic.md`'s prompt and nothing else: it runs in a scratch directory outside the checkout
@@ -89,7 +86,7 @@ import { gitHead, sha256 } from './fingerprint.mjs';
 import { APP_ID, compositorAvailable, openStage, quillArgv } from './harness.mjs';
 import { fingerprint, freezeReason, readStates, resolveStates, unservable } from './oracle.mjs';
 import { regimes } from './regimes.mjs';
-import { nextRound, opponentName, round, rounds, wonBefore, wonState } from './rounds.mjs';
+import { latestState, nextRound, opponentName, round, rounds, wonBefore, wonState } from './rounds.mjs';
 
 // The opponent this command judges against while `dev/legacy/` exists, and the word the round records
 // it under. The switch to the iA reference belongs to the retirement ticket
@@ -722,7 +719,7 @@ export function carriedVerdict(state) {
 
 // One critic's answer on one pair, read through the pair's key: `winner` is whose side the pick
 // was, `gap` is ours' shortfall and `gapTheirs` the opponent's, whichever letter each was shown as.
-export function read(answer, key) {
+export function readAnswer(answer, key) {
   return {
     pick: answer.pick,
     winner: answer.pick === key.ours ? 'ours' : 'theirs',
@@ -735,16 +732,18 @@ export function read(answer, key) {
   };
 }
 
-// Whether a paired state's loss is a second critic's question: the first critic said theirs, and a
-// critic once gave the state to ours against this kind of opponent (the header says why that loss
-// is not taken on one say).
+// The win that makes a paired state's loss a second critic's question — the first critic said
+// theirs, and a critic once gave the state to ours against this kind of opponent (the header says
+// why that loss is not taken on one say) — or `null` when the loss stands on one say.
 export function owedSecond(recorded, slot) {
-  return slot.winner === 'theirs' && wonState(recorded, slot.name, Boolean(slot.opponent)) !== null;
+  return slot.winner === 'theirs' ? wonState(recorded, slot.name, Boolean(slot.opponent)) : null;
 }
 
 // A once-won state's loss settled by the second critic's answer on the same pair: theirs when both
 // said so, at the first critic's margin; ours at margin `split` when they disagree. The first
-// critic's reading stays in the verdict's own keys, the second's under `second`.
+// critic's reading stays in the verdict's own keys — `pick` included, so a split state's letter is
+// the losing one beside `winner: 'ours'`; a round is read from its output, not its letters — and
+// the second's under `second`.
 export function settle(slot, second) {
   const agreed = second.winner === 'theirs';
   return { ...slot, winner: agreed ? 'theirs' : 'ours', margin: agreed ? slot.margin : 'split', second };
@@ -776,13 +775,8 @@ export function judgedHash(root, file, recorded) {
 export function carriedFrom(root, recorded, name, oursFile, theirsFile) {
   const now = { ours: shotHash(root, oursFile), theirs: shotHash(root, theirsFile) };
   if (!now.ours || !now.theirs) return null;
-  for (const r of [...recorded].reverse()) {
-    const s = (r.states || []).find((x) => x.name === name);
-    if (!s || !s.pick || !s.ours || !s.theirs) continue;
-    if (judgedHash(root, s.ours, s.oursHash) !== now.ours || judgedHash(root, s.theirs, s.theirsHash) !== now.theirs) continue;
-    return { round: s.carried ?? r.round, state: s };
-  }
-  return null;
+  return latestState(recorded, name, (s) => Boolean(s.ours && s.theirs)
+    && judgedHash(root, s.ours, s.oursHash) === now.ours && judgedHash(root, s.theirs, s.theirsHash) === now.theirs);
 }
 
 async function judge(root, piece, note, summaryFile, settingsFile, fresh) {
@@ -910,20 +904,26 @@ async function judge(root, piece, note, summaryFile, settingsFile, fresh) {
   // Every critic at once, after the stage has closed (the header says why). A critic that gave no
   // answer names itself, and the run refuses rather than write a round with a hole in it — after
   // the others have finished, so no session is left running unowned in the background.
-  if (pairs.length) say(`gate judge ${piece}: asking ${pairs.length} critic${pairs.length === 1 ? '' : 's'} at once about ${pairs.map((p) => p.slot.name).join(', ')}`);
   const prompt = criticPrompt(template, { title: brief.title, judge: brief.judge });
-  const answers = await Promise.allSettled(pairs.map((p) => runCritic(prompt, p.A, p.B)));
-  const unanswered = pairs.filter((_, i) => answers[i].status === 'rejected');
-  if (unanswered.length) {
-    for (const [i, p] of pairs.entries()) if (answers[i].status === 'rejected') say(`gate judge ${piece}: ${p.slot.name}: ${answers[i].reason.message}`);
-    return refuse(piece, `${unanswered.length} of ${pairs.length} critics gave no answer`);
-  }
+  // Every pair to its own critic at once; the answers in the pairs' order, or the refusal when one
+  // gave none — `who` names the pass in that refusal.
+  const askAll = async (asked, who) => {
+    const answers = await Promise.allSettled(asked.map((p) => runCritic(prompt, p.A, p.B)));
+    const silent = asked.filter((_, i) => answers[i].status === 'rejected');
+    if (!silent.length) return answers.map((a) => a.value);
+    for (const [i, p] of asked.entries()) if (answers[i].status === 'rejected') say(`gate judge ${piece}: ${p.slot.name}: ${who}: ${answers[i].reason.message}`);
+    return refuse(piece, `${silent.length} of ${asked.length} ${who}s gave no answer`);
+  };
+
+  if (pairs.length) say(`gate judge ${piece}: asking ${pairs.length} critic${pairs.length === 1 ? '' : 's'} at once about ${pairs.map((p) => p.slot.name).join(', ')}`);
+  const answers = await askAll(pairs, 'critic');
+  if (!Array.isArray(answers)) return answers;
   const keys = new Map();
   for (const [i, { slot }] of pairs.entries()) {
     // Revealed here, after the critic has answered and from a file the critic could not reach.
     const key = reveal(piece, slot.name);
     keys.set(slot.name, key);
-    const first = read(answers[i].value, key);
+    const first = readAnswer(answers[i], key);
     say(`gate judge ${piece}: ${slot.name}: ${first.winner} (${first.margin})`);
     Object.assign(slot, { oursWas: key.ours, ...first });
   }
@@ -931,17 +931,13 @@ async function judge(root, piece, note, summaryFile, settingsFile, fresh) {
   // A once-won state's loss goes to a second critic on the same pair, all of them at once as the
   // first were (the header's A WON STATE IS LOST ON TWO CRITICS' SAY). Refused the same way when
   // one gives no answer: a round with a loss settled by nobody is a round with a hole in it.
-  const owed = pairs.filter((p) => owedSecond(recorded, p.slot));
+  const owed = pairs.map((p) => ({ ...p, won: owedSecond(recorded, p.slot) })).filter((p) => p.won);
   if (owed.length) {
-    say(`gate judge ${piece}: asking a second critic about ${owed.map((p) => `${p.slot.name} (ours in round ${wonState(recorded, p.slot.name, Boolean(p.slot.opponent)).round})`).join(', ')}`);
-    const seconds = await Promise.allSettled(owed.map((p) => runCritic(prompt, p.A, p.B)));
-    const silent = owed.filter((_, i) => seconds[i].status === 'rejected');
-    if (silent.length) {
-      for (const [i, p] of owed.entries()) if (seconds[i].status === 'rejected') say(`gate judge ${piece}: ${p.slot.name}: second critic: ${seconds[i].reason.message}`);
-      return refuse(piece, `${silent.length} of ${owed.length} second critics gave no answer`);
-    }
+    say(`gate judge ${piece}: asking a second critic about ${owed.map((p) => `${p.slot.name} (ours in round ${p.won.round})`).join(', ')}`);
+    const seconds = await askAll(owed, 'second critic');
+    if (!Array.isArray(seconds)) return seconds;
     for (const [i, { slot }] of owed.entries()) {
-      const second = read(seconds[i].value, keys.get(slot.name));
+      const second = readAnswer(seconds[i], keys.get(slot.name));
       Object.assign(slot, settle(slot, second));
       say(`gate judge ${piece}: ${slot.name}: ${slot.winner} (${slot.margin}: the second critic said ${second.winner}, ${second.margin})`);
     }
