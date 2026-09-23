@@ -640,8 +640,8 @@ function alteredSyntax(pair, change) {
     for (let x = 0; x < page.w; x += 1) {
       const i = (y * page.w + x) * page.ch;
       const j = (y * source.w + x) * source.ch;
-      const rgb = [...page.data.subarray(i, i + 3)];
-      const off = [...source.data.subarray(j, j + 3)];
+      const rgb = [page.data[i], page.data[i + 1], page.data[i + 2]];
+      const off = [source.data[j], source.data[j + 1], source.data[j + 2]];
       const replacement = change({ x, y, rgb, off });
       if (replacement) page.data.set(replacement, i);
     }

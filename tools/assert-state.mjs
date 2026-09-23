@@ -225,10 +225,13 @@ function syntax(spec, { lit, dim }) {
   }
   const bright = new Uint32Array(source.h);
   const column = { left: source.w, right: -1, top: source.h, bottom: -1 };
+  const sd = source.data;
   for (let y = 0; y < source.h; y += 1) {
     for (let x = 0; x < source.w; x += 1) {
-      if (is(source, x, y, ink)) bright[y] += 1;
-      if (!inked(source, x, y, paper)) continue;
+      const i = (y * source.w + x) * source.ch;
+      if (sd[i] === ink[0] && sd[i + 1] === ink[1] && sd[i + 2] === ink[2]) bright[y] += 1;
+      if (Math.abs(sd[i] - paper[0]) < PANE_INK && Math.abs(sd[i + 1] - paper[1]) < PANE_INK
+          && Math.abs(sd[i + 2] - paper[2]) < PANE_INK) continue;
       column.left = Math.min(column.left, x);
       column.right = Math.max(column.right, x);
       column.top = Math.min(column.top, y);
@@ -257,8 +260,23 @@ function syntax(spec, { lit, dim }) {
   const counts = Object.fromEntries(entries.map(([name]) => [name, 0]));
   let headingPixels = 0;
   let changed = 0;
+  const roleRgb = entries.flatMap(([, colour]) => colour);
+  const pd = page.data;
   for (let y = 0; y < page.h; y += 1) {
     for (let x = 0; x < page.w; x += 1) {
+      // The common pixel, unchanged and no Category's colour, is read without allocating.
+      const pi = (y * page.w + x) * page.ch;
+      const si = (y * source.w + x) * source.ch;
+      const r = pd[pi];
+      const g = pd[pi + 1];
+      const b = pd[pi + 2];
+      if (r === sd[si] && g === sd[si + 1] && b === sd[si + 2]) {
+        let role = false;
+        for (let k = 0; k < roleRgb.length; k += 3) {
+          if (roleRgb[k] === r && roleRgb[k + 1] === g && roleRgb[k + 2] === b) role = true;
+        }
+        if (!role) continue;
+      }
       const rgb = [0, 1, 2].map((c) => at(page, x, y, c));
       const baseline = [0, 1, 2].map((c) => at(source, x, y, c));
       const role = entries.find(([, colour]) => sameRgb(rgb, colour));
@@ -386,7 +404,10 @@ function spell(spec, { lit, dim }) {
     let start = -1;
     let last = -1;
     for (let x = 0; x <= page.w; x += 1) {
-      const hit = x < page.w && !sameRgb([0, 1, 2].map((c) => at(page, x, y, c)), [0, 1, 2].map((c) => at(source, x, y, c)));
+      const pi = (y * page.w + x) * page.ch;
+      const si = (y * source.w + x) * source.ch;
+      const hit = x < page.w && !(page.data[pi] === source.data[si] && page.data[pi + 1] === source.data[si + 1]
+        && page.data[pi + 2] === source.data[si + 2]);
       if (hit) {
         changed += 1;
         if (isSpellInk(page, x, y, role, MARK_HUED)) hued += 1;
