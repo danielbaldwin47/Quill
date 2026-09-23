@@ -698,21 +698,32 @@ export async function shootState(stage, root, s, settingsFile, cut, paths, { act
 // copies from the round it carries, everything but the paths that name this round's own files.
 export const VERDICT_KEYS = ['blind', 'oursWas', 'pick', 'winner', 'margin', 'sameViewport', 'gap', 'gapTheirs', 'verdict', 'secondary'];
 
+// A shot's bytes as the round file records them: the first 16 hex of their sha256, as `build`
+// records the binary's.
+export function shotHash(root, file) {
+  try {
+    return sha256(fs.readFileSync(path.join(root, file))).slice(0, 16);
+  } catch {
+    return null;
+  }
+}
+
 // The latest round whose verdict on this state still stands, or null: the one that put a critic on
-// the same bytes, ours and the opponent's both, that are about to be paired now. Read off the files
-// the round names rather than a hash it recorded, because the shots are committed and a hash would
-// be one more thing to keep true. A state a round answered by assertion carries no `pick` and is
-// never carried: an assertion is arithmetic and costs nothing to run again. A verdict that was
-// itself carried names the round it came from, so a chain of identical rounds points at the one
-// critic who looked.
+// the same bytes, ours and the opponent's both, that are about to be paired now. Read off the
+// hashes the round recorded (`oursHash`, `theirsHash`), because the shots are evidence outside git
+// (dev/README.md § Judging evidence): the file at a round's path can be another worktree's shot of
+// the same name, or absent from a clone. A round from before the hashes is read off the files it
+// names. A state a round answered by assertion carries no `pick` and is never carried: an
+// assertion is arithmetic and costs nothing to run again. A verdict that was itself carried names
+// the round it came from, so a chain of identical rounds points at the one critic who looked.
 export function carriedFrom(root, recorded, name, oursFile, theirsFile) {
-  const same = (a, b) => {
-    try { return fs.readFileSync(path.join(root, a)).equals(fs.readFileSync(path.join(root, b))); } catch { return false; }
-  };
+  const now = { ours: shotHash(root, oursFile), theirs: shotHash(root, theirsFile) };
+  if (!now.ours || !now.theirs) return null;
+  const same = (hash, file, side) => (hash ? hash === now[side] : shotHash(root, file) === now[side]);
   for (const r of [...recorded].reverse()) {
     const s = (r.states || []).find((x) => x.name === name);
     if (!s || !s.pick || !s.ours || !s.theirs) continue;
-    if (!same(s.ours, oursFile) || !same(s.theirs, theirsFile)) continue;
+    if (!same(s.oursHash, s.ours, 'ours') || !same(s.theirsHash, s.theirs, 'theirs')) continue;
     return { round: s.carried ?? r.round, state: s };
   }
   return null;
@@ -811,6 +822,9 @@ async function judge(root, piece, note, summaryFile, settingsFile, fresh) {
         name: s.name,
         ours,
         theirs,
+        // What a later round carries this verdict on (`carriedFrom`).
+        oursHash: shotHash(root, ours),
+        theirsHash: shotHash(root, theirs),
         // Which capture the crop came out of and both rectangles, so a round says what a critic
         // was shown without anyone having to re-derive it from states.json as it reads today.
         ...(cut ? { opponent: { capture: cut.capture, crop: cut.crop, ours: cut.ours }, oursWhole: paths.shot } : {}),

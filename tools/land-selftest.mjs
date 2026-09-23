@@ -12,11 +12,10 @@
 // the scenario that produced it — the branch name out of the `gh pr view` row,
 // the discarded files out of the `git status` rows — rather than written twice.
 //
-// The cases are the landing sequence's own history (docs/agents/context.md
+// The five cases are the landing sequence's own history (docs/agents/context.md
 // § What the steps cost when skipped): a green PR, a PR that is not this tool's
 // to land, the worktree with untracked bench files that refused `git worktree
-// remove` at every landing, the worktree whose shot clashes with the main
-// checkout's (tools/assets.mjs), the remote branch `--delete-branch` had already
+// remove` at every landing, the remote branch `--delete-branch` had already
 // deleted, and the ticket `tools/context-report` can find no session for.
 
 import assert from 'node:assert/strict';
@@ -81,13 +80,6 @@ exit 0
 if [ ! -s "$LAND_FAKE/report.txt" ]; then exit 1; fi
 cat "$LAND_FAKE/report.txt"
 `);
-  // `node tools/assets.mjs check <worktree>`: the clash line and exit 1 when the
-  // scenario has one, the clean line otherwise.
-  write(path.join(main, 'tools/assets.mjs'), `import fs from 'node:fs';
-const clash = fs.readFileSync(process.env.LAND_FAKE + '/clash.txt', 'utf8').trim();
-console.log(clash ? 'assets check: ' + clash : 'assets check: no clash, 0 new to copy');
-process.exit(clash ? 1 : 0);
-`);
   return { dir, main };
 }
 
@@ -123,7 +115,6 @@ function base(extra = {}) {
     'local.txt': `  ${head(GREEN)}\n`,
     'remote.txt': `3333333333333333333333333333333333333333\trefs/heads/${head(GREEN)}\n`,
     'report.txt': `${REPORT}\n`,
-    'clash.txt': '',
     'worktrees.txt': '',
     ...extra,
   };
@@ -164,14 +155,6 @@ ok('a worktree with untracked files is removed with --force, its line naming eac
   assert.ok(line.endsWith(`discarding ${dirty.map((d) => d.slice(3)).join(', ')}`), line);
   assert.ok(woulds(out).some((l) => l === `would: git -C ${sc.main} worktree remove --force ${path.join(sc.dir, 'wt')}`));
   assert.equal(out.lines[out.lines.length - 1], 'land 401: done');
-});
-
-ok('a worktree shot that clashes with the main checkout\'s is refused before the merge, naming it', () => {
-  const clash = '1 differ from the main checkout\'s copy: dev/shots/chrome/r12-bars-ours.png';
-  const out = land(base({ 'clash.txt': `${clash}\n` }), 401, 402);
-  assert.equal(out.lines[out.lines.length - 1], `land 401: refused (${clash})`);
-  assert.equal(out.status, 3);
-  assert.deepEqual(woulds(out), []);
 });
 
 ok('a remote branch already deleted is not pushed at, and the land still ends done', () => {

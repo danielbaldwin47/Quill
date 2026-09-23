@@ -36,9 +36,11 @@ rounds, and `tools/land` copies the shots a worktree wrote back into the main ch
 removes the worktree (`node tools/assets.mjs sync <worktree>`); a worktree removed any other way
 runs that `sync` first. A shot the worktree wrote under a name the main checkout already holds
 with other bytes is a **clash** — two worktrees judging one Piece both wrote `r12`, say — and
-since a carried verdict is keyed on a shot's bytes, neither copy wins by default: `tools/land`
-refuses before the merge and names the paths, and `sync` exits 1 without copying them. Settle a
-clash by renumbering or deleting one side's shots and the round file that cites them.
+`sync` names it on its line and keeps the main checkout's copy. A clash costs a picture, never a
+verdict: each round records the hashes of the two shots its critic saw (`oursHash`,
+`theirsHash`), and a later round carries that verdict only onto those bytes, whichever file now
+sits at the path. A round from before 2026-09-23 has no hashes and is carried off its files, so
+it carries only where they are.
 
 `dev/shots/oracle/library/manifest.json` still names `ref/…` and `shots/…` at the root, from before
 these folders moved under `dev/`: every frozen oracle's fingerprint hashes it, so it was left as it
