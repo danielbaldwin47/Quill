@@ -67,7 +67,9 @@ usage: tools/gate <command> [arguments]
                 at every state dev/shots/oracle/states.json lists for it, into
                 dev/shots/oracle/<piece>/<state>.png with the fingerprint of what
                 produced them beside. Shoots nothing when those shots are
-                already the ones it would take; --force shoots them anyway. A
+                already the ones it would take; --force shoots them anyway.
+                dev/legacy/ is retired from the tree: without a copy it shoots
+                nothing, and fails a state that moved under its frozen shot. A
                 state with no Parity opponent is not this command's to freeze
                 and is passed over: one naming a mac-native crop, and one
                 carrying `assert`, which is measured off ours' own pixels. A

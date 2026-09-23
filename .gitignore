@@ -1,4 +1,4 @@
-# Unanchored: the root install and dev/legacy/'s. Never `git add -f` one — a worktree's link to
+# Unanchored, for any install below the root. Never `git add -f` one — a worktree's link to
 # the main checkout's install went in that way once and became a symlink to itself (#210).
 node_modules
 dev/shots/_*

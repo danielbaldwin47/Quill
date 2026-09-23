@@ -535,7 +535,7 @@ function focusMonitor(name) {
 // Hyprland 0.56 dropped the old string dispatcher: `hyprctl dispatch workspace N` is now parsed as
 // Lua, fails, and changes nothing — which would leave a window measuring on a workspace nobody is
 // looking at, the one thing the panel mode exists to avoid. `hl.dsp.focus{workspace=N}` is the form
-// that works (`dev/legacy/bin/quill:168-185` records the search that found it), and every caller reads
+// that works (`dev/legacy/bin/quill:168-185` at 37c186a records the search that found it), and every caller reads
 // the switch back rather than trusting this return.
 function gotoWorkspace(id) {
   return lua(`return hl.dispatch(hl.dsp.focus{workspace=${id}})`);
@@ -806,7 +806,7 @@ export async function openStage({ root, appId = APP_ID, say = stderr } = {}) {
 // Opens the stage on the physical panel: the one measurement a headless output cannot give.
 //
 // A Wayland surface on a workspace nobody is displaying gets no frame callbacks, so a number about
-// scan-out can only be taken with the window genuinely on screen — and `dev/legacy/BRIEF.md` forbids
+// scan-out can only be taken with the window genuinely on screen — and `CLAUDE.md` forbids
 // doing that to somebody who is working. So this refuses on every count it can before it changes
 // anything: no compositor, no panel awake, the owner's own workspace, the workspace they have up on
 // the panel, and finally a machine whose keyboard and pointer have not been silent. Nothing is
