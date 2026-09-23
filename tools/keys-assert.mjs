@@ -133,6 +133,19 @@ export function decodePng(buf) {
     p += stride;
     const cur = out.subarray(y * stride, y * stride + stride);
     const prev = y ? out.subarray((y - 1) * stride, y * stride) : zero;
+    // The three filters a row of a flat shot mostly wears, each in a loop of its own.
+    if (filter === 0) {
+      line.copy(cur);
+      continue;
+    }
+    if (filter === 1) {
+      for (let x = 0; x < stride; x += 1) cur[x] = (line[x] + (x >= ch ? cur[x - ch] : 0)) & 0xff;
+      continue;
+    }
+    if (filter === 2) {
+      for (let x = 0; x < stride; x += 1) cur[x] = (line[x] + prev[x]) & 0xff;
+      continue;
+    }
     for (let x = 0; x < stride; x += 1) {
       const a = x >= ch ? cur[x - ch] : 0;
       const b = prev[x];
