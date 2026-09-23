@@ -148,7 +148,12 @@ and whose opponent hash to what an earlier round's critic was shown (a round fro
 is compared with its files) carries that round's verdict
 forward — the latest such round — marked `carried` with the round it came from, and spends no
 critic; `--fresh` asks a critic about every state anyway, which is how the owner re-rolls a verdict
-that looks wrong. `tools/gate shoot <piece>` takes the same shots with no critic, into
+that looks wrong. **A won state is lost on two critics' say**: a paired state a critic once gave to
+ours against the same kind of opponent goes to a second fresh critic on the same pair when the
+first says theirs, and is theirs only when both do — ours at margin `split` when they disagree,
+the second answer kept under `second` either way (#490: of thirty-nine such losses in the hundred
+rounds since ADR 0015, twelve were the same pixels a neighbouring round gave to ours and twenty-two
+gaps the brief names; the five defects among them were losses the next critic repeated). `tools/gate shoot <piece>` takes the same shots with no critic, into
 `target/gate/shoot/<piece>/`, and says per state whether the pixels moved — for looking before a
 judge, and never evidence. A change to `tools/critic.md` or the critic's effort is tried first with
 `node tools/critic-replay.mjs <piece>`, which puts the last rounds' committed pairs to the candidate
