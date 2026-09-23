@@ -208,7 +208,9 @@ usage: tools/gate <command> [arguments]
                 read, a crop that cannot be cut, or an assert this build
                 cannot run, included, since 2 is
                 spoken for. Above it, one line per state naming the winner,
-                the margin and the round it was carried from, and one with the
+                the margin, whether both critics or one of two said so (a
+                once-won state is lost only on two critics' say), and the
+                round it was carried from, and one with the
                 winner's gap, so a round is read from the output rather than
                 from the letters in the JSON; the trail is
                 target/gate/judge-<piece>.log, printed when the run refuses.

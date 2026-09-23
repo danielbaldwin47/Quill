@@ -25,11 +25,11 @@ import {
   ACCENT, ACCENT_HEX, APP_ID, DIALOG_APP_ID, accentPixels, appeared, carriesAccent, classPattern, launchEnv, spellFixture,
   opensSecondWindow, parseToplevels, pngSize, quillArgv, rulesLua, wantsLitCaret,
 } from './harness.mjs';
-import { VERDICT_KEYS, carriedFrom, criticAnswer, criticPrompt, opponentOf, oursArgv, refusedFlag, shotHash, shotPaths } from './judge.mjs';
+import { VERDICT_KEYS, carriedFrom, carriedVerdict, criticAnswer, criticPrompt, opponentOf, oursArgv, owedSecond, readAnswer, refusedFlag, settle, shotHash, shotPaths } from './judge.mjs';
 import { decodePng } from './keys-assert.mjs';
 import { readStates, resolveStates, unservable } from './oracle.mjs';
 import { regimes } from './regimes.mjs';
-import { OPPONENTS, decisive, nextRound, opponentName, round, wonBefore } from './rounds.mjs';
+import { OPPONENTS, decisive, nextRound, opponentName, round, wonBefore, wonState } from './rounds.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const GATE = path.join(ROOT, 'tools', 'gate');
@@ -2065,6 +2065,79 @@ ok('a state carries the latest verdict on the same bytes, both sides, and nothin
     assert.equal(carriedFrom(root, [{ piece: 'focus', round: 1, winner: 'ours' }], 'sentence', now, theirs), null, 'a gauntlet round has no states to carry');
     assert.equal(carriedFrom(root, [r3], 'sentence', 'dev/shots/focus/nosuch.png', theirs), null, 'a file that is not there is not the same bytes');
   });
+});
+
+// ---------- a won state is lost on two critics' say ----------
+
+// A recorded round with one paired state, written through `round` as the judge writes it: `cropped`
+// gives the state a `mac-native` opponent, `carried` makes it a carried verdict, and no `pick` makes
+// it an assertion.
+function recordedRound(n, name, winner, { cropped = false, carried = null, pick = 'A' } = {}) {
+  const state = {
+    name, ours: `dev/shots/x/r${n}-${name}-ours.png`, theirs: 'dev/shots/oracle/x/a.png',
+    oursWas: 'A', pick, winner, margin: 'slight', sameViewport: true, gap: 'g', gapTheirs: 't', verdict: 'v', secondary: [],
+    ...(cropped ? { opponent: { capture: CAPTURE, crop: [0, 0, 8, 8], ours: [0, 0, 8, 8] } } : {}),
+    ...(carried ? { carried } : {}),
+  };
+  return round({ piece: 'x', number: n, judged: [state], opponent: cropped ? 'mac-native' : 'oracle', build: {}, oracle: '', note: '', at: 'now' });
+}
+
+ok('a state was won when a critic once gave it to ours against the same kind of opponent', () => {
+  const r3 = recordedRound(3, 'sentence', 'ours');
+  const r4 = recordedRound(4, 'sentence', 'theirs');
+  assert.equal(wonState([r3, r4], 'sentence', false).round, 3, 'the latest round a critic gave the state to ours, not the latest round');
+  assert.equal(wonState([r4], 'sentence', false), null, 'a state never won is not one');
+  assert.equal(wonState([r3, r4], 'paragraph', false), null, 'another state\'s win is not this one\'s');
+  // A win against the Parity oracle's whole window does not vouch for the state once it names a
+  // mac-native crop: the pair is a different question (ADR 0015), and the caret's selection went
+  // from won against dev/legacy/ to judged against iA the day #168 gave it a crop.
+  assert.equal(wonState([r3], 'sentence', true), null);
+  assert.equal(wonState([recordedRound(5, 'sentence', 'ours', { cropped: true })], 'sentence', true).round, 5);
+  assert.equal(wonState([recordedRound(5, 'sentence', 'ours', { cropped: true })], 'sentence', false), null);
+  // A carried win was a critic's, and points at the round whose critic looked.
+  assert.equal(wonState([recordedRound(6, 'sentence', 'ours', { carried: 3 })], 'sentence', false).round, 3);
+  // An assertion has no critic and no pick, so it never makes a state once-won; nor does a gauntlet
+  // round with no states.
+  assert.equal(wonState([recordedRound(7, 'sentence', 'ours', { pick: null })], 'sentence', false), null);
+  assert.equal(wonState([{ piece: 'x', round: 1, winner: 'ours' }], 'sentence', false), null);
+});
+
+ok('a once-won state\'s loss is a second critic\'s question, and is settled on both answers', () => {
+  const recorded = [recordedRound(3, 'sentence', 'ours'), recordedRound(4, 'paragraph', 'ours', { cropped: true })];
+  const lost = { name: 'sentence', winner: 'theirs', margin: 'slight', gap: 'first g', gapTheirs: 'first t' };
+  assert.equal(owedSecond(recorded, lost).round, 3, 'a loss on a state a critic once gave to ours, and the round that gave it');
+  assert.equal(owedSecond(recorded, { ...lost, winner: 'ours' }), null, 'a win owes nobody a second look');
+  assert.equal(owedSecond(recorded, { ...lost, name: 'typewriter' }), null, 'a state never won is one critic\'s call');
+  assert.equal(owedSecond(recorded, { ...lost, name: 'paragraph' }), null, 'won against a crop, lost against the whole window: a different question');
+  assert.equal(owedSecond(recorded, { ...lost, name: 'paragraph', opponent: { capture: CAPTURE } }).round, 4);
+
+  // The second answer is read through the same key as the first: `gap` is ours' shortfall
+  // whichever letter ours was shown as.
+  const key = { ours: 'B', theirs: 'A' };
+  const second = readAnswer({ pick: 'A', margin: 'clear', sameViewport: true, gapA: 'A lacks', gapB: 'B lacks', verdict: 'v2', secondary: ['s'] }, key);
+  assert.equal(second.winner, 'theirs');
+  assert.equal(second.gap, 'B lacks', 'ours was B, so ours\' gap is gapB');
+  assert.equal(second.gapTheirs, 'A lacks');
+  const agreed = settle(lost, second);
+  assert.equal(agreed.winner, 'theirs', 'both said theirs: lost');
+  assert.equal(agreed.margin, 'slight', 'at the first critic\'s margin');
+  assert.equal(agreed.gap, 'first g', 'the first critic\'s reading stays in the verdict\'s own keys');
+  assert.deepEqual(agreed.second, second, 'and the second\'s is kept whole');
+
+  const split = settle(lost, readAnswer({ pick: 'B', margin: 'slight', sameViewport: true, gapA: 'a', gapB: 'b', verdict: 'v3', secondary: [] }, key));
+  assert.equal(split.winner, 'ours', 'the critics disagree: a won state stays won');
+  assert.equal(split.margin, 'split');
+  assert.equal(split.second.winner, 'ours');
+  assert.equal(split.gap, 'first g', 'the loss the first critic read is still on record');
+
+  // A round settled that way is still one every reader can take: the Piece is ours when every
+  // state is, and a state carried later copies the second answer with the rest of the verdict.
+  const written = round({ piece: 'x', number: 5, judged: [split], opponent: 'oracle', build: {}, oracle: '', note: '', at: 'now' });
+  assert.equal(written.winner, 'ours');
+  assert.equal(written.states[0].second.winner, 'ours');
+  assert.deepEqual(carriedVerdict(split).second, split.second, 'a carried verdict carries the second critic\'s answer too');
+  assert.ok(!('second' in carriedVerdict(lost)), 'and a verdict one critic gave carries no empty one');
+  assert.deepEqual(Object.keys(carriedVerdict(lost)).sort(), [...VERDICT_KEYS].sort());
 });
 
 ok('a round that recorded its hashes is carried on them, not on the file at its path', () => {
