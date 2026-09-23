@@ -44,7 +44,7 @@ import {
   openPanelStage, openStage, panelBlocked,
 } from './harness.mjs';
 import {
-  DEFAULT_KEYS, PASTE_TEXT, PAUSE_MS, WARMUP_KEYS, hash32, regimes, scoredRegime, script, uinputPlan,
+  DEFAULT_KEYS, PASTE_TEXT, PAUSE_MS, UINPUT_PLAN, WARMUP_KEYS, hash32, regimes, scoredRegime, script, uinputPlan,
 } from './regimes.mjs';
 
 // The binary a bench is of. Release rather than debug, for the reason a judged shot is: the Gate
@@ -238,15 +238,63 @@ function reader(stream) {
 /// `between` maps a key index to a function awaited before the chunk starting at that key is
 /// asked for, and no chunk crosses one: the bench's boundary between its warm-up and its measured
 /// keys falls on a `go`, so one device types both.
-export async function typeKeys(root, plan, held, { between = {} } = {}) {
+export function spawnInjector(root) {
   const py = spawn('python3', [path.join(root, 'tools/uinput-keys.py')], {
     cwd: root, stdio: ['pipe', 'pipe', 'pipe'],
   });
-  let stderr = '';
-  py.stderr.on('data', (b) => { stderr += b; });
-  const out = reader(py.stdout);
+  const said = { stderr: '' };
+  py.stderr.on('data', (b) => { said.stderr += b; });
+  return { py, out: reader(py.stdout), said };
+}
+
+/// One device for a whole run: created and settled once, then handed plan after plan.
+export async function openInjector(root) {
+  const inj = spawnInjector(root);
+  inj.py.stdin.write(`${JSON.stringify({ ...UINPUT_PLAN, reuse: true, keys: [] })}\n`);
+  const ready = JSON.parse(await inj.out.next());
+  if (!ready.ready) throw new Error(`the injector would not start: ${JSON.stringify(ready)}`);
+  JSON.parse(await inj.out.next());
+  mark('injector settled');
+  return {
+    ...inj,
+    reused: true,
+    close: async () => { inj.py.stdin.end(); await new Promise((resolve) => inj.py.on('close', resolve)); },
+  };
+}
+
+export async function typeKeys(root, plan, held, { between = {}, injector = null } = {}) {
+  const { py, out, said } = injector ?? spawnInjector(root);
   let lost = false;
   let rechecks = 0;
+  const stderr = () => said.stderr;
+
+  if (injector) {
+    try {
+      py.stdin.write(`${JSON.stringify(plan)}\n`);
+      const ready = JSON.parse(await out.next());
+      if (!ready.ready) throw new Error(`the injector would not start: ${JSON.stringify(ready)}`);
+      mark('injector ready');
+      const stops = Object.keys(between).map(Number).sort((a, b) => a - b);
+      let typed = 0;
+      while (typed < ready.keys) {
+        if (between[typed]) await between[typed]();
+        rechecks += 1;
+        if (!held()) { lost = true; py.stdin.write('end\n'); break; }
+        const stop = stops.find((s) => s > typed) ?? ready.keys;
+        py.stdin.write(`go ${Math.min(ready.chunk, stop - typed)}\n`);
+        const ack = JSON.parse(await out.next());
+        if (!ack.typed) throw new Error(`the injector typed none of the ${ready.keys - typed} keys left`);
+        typed += ack.typed;
+      }
+      mark('keys typed');
+      const wrote = JSON.parse(await out.next());
+      mark('injector closed');
+      return { events: wrote.events || [], device: wrote.device, lost, rechecks };
+    } catch (e) {
+      try { py.kill('SIGTERM'); } catch { /* already gone */ }
+      throw new Error(`${e.message}${stderr().trim() ? `\n${stderr().trim()}` : ''}`);
+    }
+  }
 
   try {
     py.stdin.write(`${JSON.stringify(plan)}\n`);
@@ -269,7 +317,7 @@ export async function typeKeys(root, plan, held, { between = {} } = {}) {
     py.stdin.write('end\n');
   } catch (e) {
     try { py.kill('SIGTERM'); } catch { /* already gone */ }
-    throw new Error(`${e.message}${stderr.trim() ? `\n${stderr.trim()}` : ''}`);
+    throw new Error(`${e.message}${stderr().trim() ? `\n${stderr().trim()}` : ''}`);
   } finally {
     py.stdin.end();
   }
@@ -277,7 +325,7 @@ export async function typeKeys(root, plan, held, { between = {} } = {}) {
   await new Promise((resolve) => py.on('close', resolve));
   mark('injector closed');
   const tail = out.rest().trim();
-  if (!tail) throw new Error(`the injector said nothing about what it wrote${stderr.trim() ? `\n${stderr.trim()}` : ''}`);
+  if (!tail) throw new Error(`the injector said nothing about what it wrote${stderr().trim() ? `\n${stderr().trim()}` : ''}`);
   const wrote = JSON.parse(tail);
   return { events: wrote.events || [], device: wrote.device, lost, rechecks };
 }
@@ -391,7 +439,8 @@ async function warmStage(root, stage, regime) {
 }
 
 /// Launches ours, warms it, types the regime and answers with the two sides of the join.
-async function runSession(root, stage, { regime, keys, index }) {
+const WARMUP_PACE_MS = 45;
+async function runSession(root, stage, { regime, keys, index, injector }) {
   const out = path.join(stage.tmp, `capture-${index}.jsonl`);
 
   stage.rules({ w: WINDOW.w, h: WINDOW.h, initialFocus: true });
@@ -412,6 +461,7 @@ async function runSession(root, stage, { regime, keys, index }) {
     // The warm-up, thrown away: the keyboard that types the measured keys types it first, and at
     // the boundary the capture is measured so the join never sees it.
     const warm = uinputPlan(script('letters', WARMUP_KEYS, hash32('warmup')), regime.pace);
+    if (process.env.BENCH_FAST_WARMUP) warm.plan.keys = warm.plan.keys.map((k) => ({ ...k, pause_ms: Math.min(warm.plan.pace_ms, WARMUP_PACE_MS) }));
     const planned = uinputPlan(script(regime.mix, keys, hash32(regime.name)), regime.pace,
       { pauseEvery: regime.pauseEvery, pauseMs: regime.pauseMs });
     if (planned.first_unexpressible) {
@@ -422,7 +472,7 @@ async function runSession(root, stage, { regime, keys, index }) {
     let before = null;
     const wrote = await typeKeys(root, { ...planned.plan, keys: [...warm.plan.keys, ...planned.plan.keys] },
       () => stage.holds(ours.address),
-      { between: { [warm.keys]: async () => { mark('warm-up typed'); await settled(out); before = capture(out).length; mark('warm-up settled'); } } });
+      { injector, between: { [warm.keys]: async () => { mark('warm-up typed'); await settled(out); before = capture(out).length; mark('warm-up settled'); } } });
 
     await settled(out);
     mark('capture settled');
@@ -456,7 +506,7 @@ async function runSession(root, stage, { regime, keys, index }) {
 /// of a release run share it. The launch is not shared: every regime gets its own, so the caret it
 /// types at, the Focus it runs under and the cold start it reports are its own and not the last
 /// regime's.
-async function benchOne(root, stage, { regime, keys, sessions, warmup, panel }) {
+async function benchOne(root, stage, { regime, keys, sessions, warmup, panel, injector }) {
   // Loaded before the first launch rather than once for the whole run, so that a regime which
   // pastes is pasting its own passage even when the owner used the clipboard between regimes.
   if (regime.mix === 'paste') loadClipboard(PASTE_TEXT);
@@ -464,7 +514,7 @@ async function benchOne(root, stage, { regime, keys, sessions, warmup, panel }) 
   const runs = [];
   for (let index = 0; index < sessions; index += 1) {
     say(`gate bench: ${regime.name}, session ${index + 1} of ${sessions}`);
-    runs.push(await runSession(root, stage, { regime, keys, index }));
+    runs.push(await runSession(root, stage, { regime, keys, index, injector }));
   }
 
   // Pooled across sessions: the budget is a property of the app, not of one launch of it.
@@ -598,14 +648,18 @@ async function bench(root, { ran, chosen, keys, sessions, wantsPanel, idle }) {
 
   const done = [];
   let warmup = null;
+  let injector = null;
   try {
     mark('stage open');
     stage.rules({ w: WINDOW.w, h: WINDOW.h, initialFocus: true });
+    const opening = process.env.BENCH_REUSE ? openInjector(root) : null;
     warmup = await warmStage(root, stage, chosen[0]);
+    injector = opening ? await opening : null;
+    mark('injector open');
     mark('stage warmed');
     say(`gate bench: the stage's first client cold-started in ${warmup} ms, and is not measured`);
     for (const regime of chosen) {
-      const one = await benchOne(root, stage, { regime, keys, sessions, warmup, panel });
+      const one = await benchOne(root, stage, { regime, keys, sessions, warmup, panel, injector });
       done.push(one);
       // Two things stop the rest of a run. Focus going somewhere else: the keys after it would be
       // typed into whatever took the focus, and no later regime's number would be of this app. And,
@@ -621,6 +675,7 @@ async function bench(root, { ran, chosen, keys, sessions, wantsPanel, idle }) {
     say(String(e.stack || e.message));
     return refuse(e.message.split('\n')[0]);
   } finally {
+    if (injector) await injector.close();
     stage.close();
     mark('stage closed');
   }

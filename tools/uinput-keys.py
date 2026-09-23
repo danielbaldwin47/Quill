@@ -96,8 +96,8 @@ def press_for(press):
     if c[1]: mods.append(KEY_LEFTSHIFT)
     return (c[0], list(dict.fromkeys(mods)))
 
-def main():
-    plan = json.loads(sys.stdin.readline())   # ONE line: stdin stays open for the chunk commands
+def resolve(plan):
+    """A plan's keys as codes and modifiers, or the press this keyboard cannot say."""
     asked = plan.get('keys')
     if asked is None:
         asked = [{'press': ch} for ch in plan.get('text', '')]
@@ -105,11 +105,21 @@ def main():
     for k in asked:
         if 'press' in k:
             r = press_for(k['press'])
-            if r is None: json.dump({'ok': False, 'error': 'no key for %r' % k['press']}, sys.stdout); return 2
+            if r is None: return None, k['press']
             code, mods = r
         else:                                 # the older form: a resolved code and a Shift flag
             code, mods = k['code'], ([KEY_LEFTSHIFT] if k.get('shift') else [])
         keys.append({'code': code, 'mods': mods, 'pause_ms': k.get('pause_ms')})
+    return keys, None
+
+def main():
+    plan = json.loads(sys.stdin.readline())   # ONE line: stdin stays open for the chunk commands
+    keys, bad = resolve(plan)
+    if bad is not None: json.dump({'ok': False, 'error': 'no key for %r' % bad}, sys.stdout); return 2
+    # A reused device types plan after plan: each ends in a newline-framed summary, and the next
+    # line is either the next plan or the end of stdin. So it declares every key it could be asked
+    # for rather than the first plan's, and settles once for the whole run.
+    reuse = bool(plan.get('reuse'))
     pace = plan.get('pace_ms', 90) / 1000.0
     hold = plan.get('hold_ms', 12) / 1000.0
     settle = plan.get('settle_ms', 1500) / 1000.0
@@ -120,6 +130,9 @@ def main():
     # Every code the plan will press, its modifiers among them: a key the device never declared is
     # a key the kernel drops, and a chord whose Control was never declared types a bare letter.
     wanted = sorted({k['code'] for k in keys} | {m for k in keys for m in k['mods']} | {KEY_LEFTSHIFT})
+    if reuse:
+        wanted = sorted(set(ROW.values()) | set(LETTERS.values()) | set(NAMED.values())
+                        | set(MODIFIERS.values()))
     for c in wanted: fcntl.ioctl(fd, UI_SET_KEYBIT, c)
     # struct uinput_user_dev: char name[80]; struct input_id id; __u32 ff_effects_max; 4 x __s32[64]
     dev = struct.pack('=80sHHHHi' + '64i' * 4, b'quill-latency-bench',
@@ -139,9 +152,36 @@ def main():
     def ev(t, c, v):                         # time 0 -> the kernel stamps it itself
         return EVENT.pack(0, 0, t, c, v)
 
+    def summary(out, keys):
+        return {'ok': True, 'n': len(out), 'requested': len(keys), 'clock': 'CLOCK_MONOTONIC',
+                'device': 'quill-latency-bench (uinput, bus USB)', 'events': out}
+
+    try:
+        while True:
+            out = type_plan(fd, ev, keys, pace, hold, chunk)
+            if not reuse: break
+            print(json.dumps(summary(out, keys)), flush=True)
+            line = sys.stdin.readline()
+            if not line.strip(): return 0
+            plan = json.loads(line)
+            keys, bad = resolve(plan)
+            if bad is not None: print(json.dumps({'ok': False, 'error': 'no key for %r' % bad}), flush=True); return 2
+            pace = plan.get('pace_ms', 90) / 1000.0
+            hold = plan.get('hold_ms', 12) / 1000.0
+            chunk = int(plan.get('chunk', 0)) or len(keys)
+    finally:
+        time.sleep(0.2)
+        fcntl.ioctl(fd, UI_DEV_DESTROY)
+        os.close(fd)
+    json.dump(summary(out, keys), sys.stdout)
+    sys.stdout.flush()
+    return 0
+
+def type_plan(fd, ev, keys, pace, hold, chunk):
+    """Types one plan chunk by chunk, as the caller asks, and answers with what it wrote."""
     out = []
     print(json.dumps({'ready': True, 'keys': len(keys), 'chunk': chunk}), flush=True)
-    try:
+    if True:
         i = 0
         while i < len(keys):
             cmd = sys.stdin.readline().split()
@@ -171,14 +211,7 @@ def main():
                 if rest > 0: time.sleep(rest)
                 i += 1
             print(json.dumps({'chunk': first, 'typed': i - first}), flush=True)
-    finally:
-        time.sleep(0.2)
-        fcntl.ioctl(fd, UI_DEV_DESTROY)
-        os.close(fd)
-    json.dump({'ok': True, 'n': len(out), 'requested': len(keys), 'clock': 'CLOCK_MONOTONIC',
-               'device': 'quill-latency-bench (uinput, bus USB)', 'events': out}, sys.stdout)
-    sys.stdout.flush()
-    return 0
+    return out
 
 if __name__ == '__main__':
     sys.exit(main())
