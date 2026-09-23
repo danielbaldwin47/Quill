@@ -512,6 +512,9 @@ mod imp {
         /// waiting rather than leaving it to be paid against a page it was
         /// never asked for. See [`Editor::reveal_caret`].
         pub reveal_owed: Cell<bool>,
+        /// Whether the reveal is still asked again on every frame, until the
+        /// caret's row holds still or [`REVEAL_FRAMES`] run out.
+        pub revealing: Cell<bool>,
         /// The one-shot that brings the blink back when the quiet after a
         /// move or an edit runs out: no frame is asked for inside it, so
         /// something outside the frame clock has to ask for the one that ends
@@ -1175,6 +1178,13 @@ impl Editor {
     /// with Syntax highlight off is work to schedule just the same (#356).
     pub(crate) fn annotating(&self) -> bool {
         self.imp().syntax.borrow().working()
+    }
+
+    /// Whether the Annotators still owe a paragraph its answer: one waiting
+    /// to be asked about, or asked about and not yet answered.
+    pub(crate) fn annotations_owed(&self) -> bool {
+        let syntax = self.imp().syntax.borrow();
+        syntax.asking() || syntax.pending()
     }
 
     /// Captures dirty prose after the debounce, with the laid-out viewport first.
@@ -3901,7 +3911,20 @@ impl Editor {
         self.imp().reveal_owed.set(false);
         self.ask_reveal();
         let landing = Cell::new(Landing::default());
-        self.over_frames(REVEAL_FRAMES, move |editor| editor.reveal_settled(&landing));
+        let left = Cell::new(REVEAL_FRAMES);
+        self.imp().revealing.set(true);
+        self.over_frames(REVEAL_FRAMES, move |editor| {
+            left.set(left.get().saturating_sub(1));
+            let over = editor.reveal_settled(&landing) || left.get() == 0;
+            editor.imp().revealing.set(!over);
+            over
+        });
+    }
+
+    /// Whether the caret is still owed its reveal, or is still being
+    /// revealed: the launch's own scroll, which `--measure` waits out (#495).
+    pub fn revealing(&self) -> bool {
+        self.imp().reveal_owed.get() || self.imp().revealing.get()
     }
 
     /// Asks GTK for the scroll that shows the caret's row.

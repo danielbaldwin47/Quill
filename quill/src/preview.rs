@@ -198,6 +198,11 @@ impl Sheet {
         glib::Object::builder().build()
     }
 
+    /// Whether a layout is armed on the main loop and has not run yet.
+    fn laying_out(&self) -> bool {
+        self.imp().pending.get()
+    }
+
     /// The window whose Document this sheet draws.
     fn owner(&self) -> Option<Window> {
         self.imp()
@@ -597,6 +602,14 @@ impl Preview {
             PreviewMode::Web => None,
             PreviewMode::Pdf => self.column.page_words(self.vadjustment().value()),
         }
+    }
+
+    /// Whether either page owes a layout it has armed and not yet run: the
+    /// one the pane's first allocation asks for is a launch's own work, and
+    /// `--measure` waits it out (#495).
+    #[must_use]
+    pub fn laying_out(&self) -> bool {
+        self.sheet.laying_out() || self.column.laying_out()
     }
 
     /// What the pane scrolls by: what a wheel or a scrollbar over it moves,

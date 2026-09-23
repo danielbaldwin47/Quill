@@ -506,6 +506,11 @@ impl Column {
         self.queue_draw();
     }
 
+    /// Whether a layout is armed on the main loop and has not run yet.
+    pub fn laying_out(&self) -> bool {
+        self.imp().pending.get()
+    }
+
     /// Arms one fresh layout on the main loop.
     fn lay_out_soon(&self) {
         if self.imp().pending.replace(true) {

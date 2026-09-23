@@ -51,6 +51,21 @@ export function pointerLeft(said) {
   return /^pointer left the window at \d+ us$/m.test(said || '');
 }
 
+/// When the app said, on its stdout, that its launch reached `moment`: `{ at_us, from_exec_ms }`, or
+/// `null` while it has not said so.
+///
+/// The lines are `quill/src/harness.rs`'s `launch_line`, and there are two moments (#495).
+/// `settled` is the app's own launch work over; a key typed before it throws the Annotators' first
+/// pass away and has it done again on the first measured keys. `quiet` is, after that, GTK's
+/// scrollbar indicator hidden too; until then the app paints frames of its own, and a key inside
+/// the same refresh as one waits for the next. `at_us` is monotonic microseconds, the clock the
+/// injector stamps its writes in, so it goes beside a key's `t_ns`; `from_exec_ms` is `null` when
+/// the launch had no `$QUILL_T0_NS` to count from.
+export function launchSaid(said, moment) {
+  const m = new RegExp(`^launch ${moment} at (\\d+) us(?:, ([\\d.]+) ms from exec)?$`, 'm').exec(said || '');
+  return m ? { at_us: Number(m[1]), from_exec_ms: m[2] === undefined ? null : Number(m[2]) } : null;
+}
+
 // ---------- statistics, as `dev/legacy/tools/latency.mjs` computes them ----------
 //
 // Deliberately the same shapes as the legacy bench's, down to the rounding and the bootstrap's

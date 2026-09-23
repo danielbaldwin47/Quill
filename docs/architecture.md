@@ -478,7 +478,8 @@ and the determinism settings, this document names the flags:
   off unless `--typewriter` is given, and its anchor at the default under either, so the writer's
   `settings.toml` reaches no judged shot),
   `--measure <out.jsonl>` (key capture in the capture phase, `GdkFrameTimings` presentation times,
-  cold start against `QUILL_T0_NS`), `--settings <path>` (read and write settings in `<path>`, so a
+  cold start against `QUILL_T0_NS`, and `launch settled` / `launch quiet` on stdout once the
+  launch's own frames are over, #495), `--settings <path>` (read and write settings in `<path>`, so a
   run drives a fixture — a `[shortcuts]` table, a theme — without touching the writer's file),
   `--palette <path>` (paint the grounds from the palette file at `<path>` for this launch, over the
   `palette` setting; with `--theme`, a palette previewed on a pinned ground).

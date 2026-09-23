@@ -20,10 +20,12 @@ import { fileURLToPath } from 'node:url';
 
 import {
   BUDGET, KEYCODE_OFFSET, against, align, allSummary, clears, latencyMs, latencyVerdict, measure,
-  pointerLeft, regimeLine, summary, verdict, writeGaps,
+  launchSaid, pointerLeft, regimeLine, summary, verdict, writeGaps,
 } from './bench-join.mjs';
 import { PANEL_WORKSPACE, panelRefusal, physicalMonitors } from './harness.mjs';
-import { DEFAULT_KEYS, PAUSE_MS, REFRESH_MS, hash32, regimes, scoredRegime, script, uinputPlan } from './regimes.mjs';
+import {
+  DEFAULT_KEYS, PAUSE_MS, REFRESH_MS, hash32, pressChar, regimes, scoredRegime, script, topUp, uinputPlan,
+} from './regimes.mjs';
 
 // The checkout, for the two cases that ask the app and the injector rather than a table copied here.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -181,6 +183,46 @@ ok('the pointer leaving the window is read from the line the app prints, and onl
   assert.equal(pointerLeft('the pointer left the window at some point'), false);
   assert.equal(pointerLeft(''), false);
   assert.equal(pointerLeft(undefined), false);
+});
+
+ok('the launch settling and going quiet are read from the lines the app prints, as it prints them', () => {
+  // Every line is made from `launch_line`'s own words and format strings in `quill/src/harness.rs`,
+  // so a reworded line fails here rather than in a bench that waits for words the app never says.
+  const source = readFileSync(path.join(root, 'quill/src/harness.rs'), 'utf8');
+  const fn = source.match(/fn launch_line\([^)]*\) -> String \{([\s\S]*?)\n\}/);
+  assert.ok(fn, 'launch_line is no longer in quill/src/harness.rs');
+  const words = Object.fromEntries([...fn[1].matchAll(/Launch::(\w+) => "(\w+)"/g)].map((m) => [m[1], m[2]]));
+  assert.deepEqual([words.Settled, words.Quiet], ['settled', 'quiet'], 'the two moments the bench waits for');
+  const formats = [...fn[1].matchAll(/format!\("([^"]*)"\)/g)].map((m) => m[1]);
+  assert.equal(formats.length, 2, 'launch_line prints two shapes, with and without the exec time');
+  const line = (f, what, at, ms) => f.replace('{what}', what).replace('{at_us}', at).replace('{ms:.3}', ms);
+  const said = `cold start: 167.061 ms\n${line(formats[0], 'settled', '247768660108', '1040.500')}\n`
+    + `${line(formats[0], 'quiet', '247769660108', '2040.500')}\n`;
+  assert.deepEqual(launchSaid(said, 'settled'), { at_us: 247768660108, from_exec_ms: 1040.5 });
+  assert.deepEqual(launchSaid(said, 'quiet'), { at_us: 247769660108, from_exec_ms: 2040.5 });
+  assert.deepEqual(launchSaid(`${line(formats[1], 'quiet', '247769660108')}\n`, 'quiet'),
+    { at_us: 247769660108, from_exec_ms: null });
+  // Settled is not quiet; not said yet, or said in words that are not the line, is neither.
+  assert.equal(launchSaid(said.split('\n').slice(0, 2).join('\n'), 'quiet'), null);
+  assert.equal(launchSaid('cold start: 167.061 ms\n', 'settled'), null);
+  assert.equal(launchSaid('the launch settled at some point', 'settled'), null);
+  assert.equal(launchSaid(undefined, 'quiet'), null);
+});
+
+ok('a top-up arms keystrokes without growing the text, so it cannot scroll the Editor', () => {
+  // Letters alone at the end of the draft wrap its last line, and the wrap scrolls the Editor,
+  // which shows the scrollbar indicator the bench is waiting for GTK to hide (#495).
+  const steps = topUp(40);
+  assert.equal(steps.length, 80);
+  let text = '';
+  let longest = 0;
+  for (const step of steps) {
+    const ch = pressChar(step);
+    text = ch === '\b' ? text.slice(0, -1) : text + ch;
+    longest = Math.max(longest, text.length);
+  }
+  assert.equal(text, '');
+  assert.equal(longest, 1);
 });
 
 ok('a run that lost focus part-way is short against the plan, not whole against itself', () => {
@@ -557,6 +599,7 @@ ok('the injector can say every press the nineteen ask for', () => {
   for (const r of regimes()) {
     for (const k of uinputPlan(script(r.mix, DEFAULT_KEYS, hash32(r.name)), r.pace).plan.keys) wanted.add(k.press);
   }
+  for (const k of uinputPlan(topUp(20), 90).plan.keys) wanted.add(k.press);
   // Asked of `tools/uinput-keys.py` itself rather than of a table copied over here: the two are in
   // different languages and the only thing that makes them one keyboard is that this asks the one
   // that does the pressing. A spelling it answers None to is a regime that would stop the bench

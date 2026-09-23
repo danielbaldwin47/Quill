@@ -938,6 +938,22 @@ impl Window {
             )));
     }
 
+    /// Whether work this launch armed for itself is still under way: the
+    /// caret's reveal, the Annotators' first pass over the whole Document,
+    /// and the Preview's layout at its first width. Each ends in frames no
+    /// key asked for, which is why `--measure` says when they are over
+    /// ([`harness::settle`], #495).
+    ///
+    /// Read once typing may have begun it says more than that — the paragraph
+    /// being typed is owed its Annotators too — which is why the harness asks
+    /// it only until the first time it is false.
+    fn launching(&self) -> bool {
+        let imp = self.imp();
+        imp.editor.revealing()
+            || (imp.editor.annotating() && imp.editor.annotations_owed())
+            || imp.preview.laying_out()
+    }
+
     fn arm_syntax_drain(&self) {
         if self.imp().syntax_drain.borrow().is_some() {
             return;
@@ -3838,6 +3854,10 @@ pub fn present_launch(app: &gtk::Application, session: &Rc<Session>) {
     {
         harness::cold_start(&window);
         harness::watch(&window);
+        let launched = window.downgrade();
+        harness::settle(&window, move || {
+            launched.upgrade().is_some_and(|window| window.launching())
+        });
     }
 }
 

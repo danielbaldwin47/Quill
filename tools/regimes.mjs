@@ -135,6 +135,20 @@ export const DEFAULT_KEYS = 300;
 // Keys typed into a freshly loaded page before the trace starts: the first keystrokes pay for lazy
 // compilation and first touch of the editing machinery, and no writer types only 300 keys.
 export const WARMUP_KEYS = 25;
+// The most the bench tops a warm-up up by while the app's launch work is still under way (#495),
+// in milliseconds of typing at the regime's pace. The launch said `quiet` 2.65–2.68 s after `exec` in
+// every run of #495's series, and a
+// 25-key warm-up at 90 ms has typed until about 2.5 s; a launch still busy after this long is one
+// whose first measured keys would carry it, and the bench refuses it rather than wait for ever.
+export const TOP_UP_MS = 8_000;
+// Keys that top a warm-up up (`TOP_UP_MS`): a letter and the Backspace that takes it out again, so
+// a pair arms everything a keystroke arms and leaves the text as it found it. Letters alone would
+// grow the draft's last line until it wrapped, and a wrap scrolls the Editor, and a scroll shows
+// the very scrollbar indicator whose hiding the bench is waiting for — at the saturation regime's
+// 8 ms, for ever.
+export function topUp(pairs) {
+  return script('letters', pairs, hash32('top-up')).flatMap((step) => [step, BACKSPACE]);
+}
 // One refresh interval on the 60 Hz output the bench measures on. GDK will not begin a frame until
 // this long after the last presentation, so a frame presented inside this window of a keystroke
 // takes the slot that keystroke's own frame needed.
@@ -235,7 +249,8 @@ export function formatPlan(r, keys) {
   out.push(`  preview      ${r.preview ? `open in ${r.preview}: the rendered page beside the Editor` : 'closed'}`);
   out.push(`  pauses       ${r.pauseEvery ? `every ${r.pauseEvery} keys, ${r.pauseMs || PAUSE_MS} ms` : 'none'}`);
   out.push(`  seed         ${hash32(r.name)}`);
-  out.push(`  warm-up      ${WARMUP_KEYS} letter keys, outside the measurement`);
+  out.push(`  warm-up      ${WARMUP_KEYS} letter keys from when the app says its launch is settled, then`);
+  out.push('               letter-and-Backspace pairs until it says quiet, outside the measurement');
   out.push(`  keys         ${steps.length} steps, ${steps.reduce((a, s) => a + s.keydowns, 0)} keydowns`);
   out.push('');
   for (let i = 0; i < steps.length; i++) {
