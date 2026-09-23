@@ -151,9 +151,7 @@ export function decodePng(buf) {
       const b = prev[x];
       const c = x >= ch ? prev[x - ch] : 0;
       let v = line[x];
-      if (filter === 1) v += a;
-      else if (filter === 2) v += b;
-      else if (filter === 3) v += (a + b) >> 1;
+      if (filter === 3) v += (a + b) >> 1;
       else if (filter === 4) {
         const guess = a + b - c;
         const da = Math.abs(guess - a);
