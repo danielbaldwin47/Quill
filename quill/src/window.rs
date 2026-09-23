@@ -234,9 +234,6 @@ mod imp {
         pub syntax_wake: RefCell<Option<glib::SourceId>>,
         /// Sleeps between result drains, so an empty worker cannot spin GTK.
         pub syntax_drain: RefCell<Option<glib::SourceId>>,
-        /// Whether a drain has run dry since the window opened: the
-        /// Annotators' first pass over the whole Document is over.
-        pub annotated: Cell<bool>,
         /// What the edit now going through the buffer changed, left here by
         /// the handler that spliced the Document for the one that retags.
         pub pending: RefCell<Option<Edit>>,
@@ -946,10 +943,14 @@ impl Window {
     /// and the Preview's layout at its first width. Each ends in frames no
     /// key asked for, which is why `--measure` says when they are over
     /// ([`harness::settle`], #495).
+    ///
+    /// Read once typing may have begun it says more than that — the paragraph
+    /// being typed is owed its Annotators too — which is why the harness asks
+    /// it only until the first time it is false.
     fn launching(&self) -> bool {
         let imp = self.imp();
         imp.editor.revealing()
-            || (imp.editor.annotating() && !imp.annotated.get())
+            || (imp.editor.annotating() && imp.editor.annotations_owed())
             || imp.preview.laying_out()
     }
 
@@ -973,7 +974,6 @@ impl Window {
                         glib::ControlFlow::Continue
                     } else {
                         window.imp().syntax_drain.take();
-                        window.imp().annotated.set(true);
                         glib::ControlFlow::Break
                     }
                 },

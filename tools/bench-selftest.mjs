@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   BUDGET, KEYCODE_OFFSET, against, align, allSummary, clears, latencyMs, latencyVerdict, measure,
-  launchSettled, pointerLeft, regimeLine, summary, verdict, writeGaps,
+  launchSaid, pointerLeft, regimeLine, summary, verdict, writeGaps,
 } from './bench-join.mjs';
 import { PANEL_WORKSPACE, panelRefusal, physicalMonitors } from './harness.mjs';
 import {
@@ -185,24 +185,28 @@ ok('the pointer leaving the window is read from the line the app prints, and onl
   assert.equal(pointerLeft(undefined), false);
 });
 
-ok('the launch settling is read from the line the app prints, in the shapes the app prints it', () => {
-  // Both shapes are made from `launch_settled_line`'s own format strings in `quill/src/harness.rs`,
+ok('the launch settling and going quiet are read from the lines the app prints, as it prints them', () => {
+  // Every line is made from `launch_line`'s own words and format strings in `quill/src/harness.rs`,
   // so a reworded line fails here rather than in a bench that waits for words the app never says.
   const source = readFileSync(path.join(root, 'quill/src/harness.rs'), 'utf8');
-  const fn = source.match(/fn launch_settled_line\([^)]*\) -> String \{([\s\S]*?)\n\}/);
-  assert.ok(fn, 'launch_settled_line is no longer in quill/src/harness.rs');
+  const fn = source.match(/fn launch_line\([^)]*\) -> String \{([\s\S]*?)\n\}/);
+  assert.ok(fn, 'launch_line is no longer in quill/src/harness.rs');
+  const words = Object.fromEntries([...fn[1].matchAll(/Launch::(\w+) => "(\w+)"/g)].map((m) => [m[1], m[2]]));
+  assert.deepEqual([words.Settled, words.Quiet], ['settled', 'quiet'], 'the two moments the bench waits for');
   const formats = [...fn[1].matchAll(/format!\("([^"]*)"\)/g)].map((m) => m[1]);
-  assert.equal(formats.length, 2, 'launch_settled_line prints two shapes, with and without the exec time');
-  const fill = (f) => f.replace('{at_us}', '247769660108').replace('{ms:.3}', '3343.260');
-  const said = formats.map((f) => launchSettled(`cold start: 167.061 ms\n${fill(f)}\n`));
-  assert.deepEqual(said, [
-    { at_us: 247769660108, from_exec_ms: 3343.26 },
-    { at_us: 247769660108, from_exec_ms: null },
-  ]);
-  // Not said yet, or said in words that are not the line, is not settled.
-  assert.equal(launchSettled('cold start: 167.061 ms\n'), null);
-  assert.equal(launchSettled('the launch settled at some point'), null);
-  assert.equal(launchSettled(undefined), null);
+  assert.equal(formats.length, 2, 'launch_line prints two shapes, with and without the exec time');
+  const line = (f, what, at, ms) => f.replace('{what}', what).replace('{at_us}', at).replace('{ms:.3}', ms);
+  const said = `cold start: 167.061 ms\n${line(formats[0], 'settled', '247768660108', '1040.500')}\n`
+    + `${line(formats[0], 'quiet', '247769660108', '2040.500')}\n`;
+  assert.deepEqual(launchSaid(said, 'settled'), { at_us: 247768660108, from_exec_ms: 1040.5 });
+  assert.deepEqual(launchSaid(said, 'quiet'), { at_us: 247769660108, from_exec_ms: 2040.5 });
+  assert.deepEqual(launchSaid(`${line(formats[1], 'quiet', '247769660108')}\n`, 'quiet'),
+    { at_us: 247769660108, from_exec_ms: null });
+  // Settled is not quiet; not said yet, or said in words that are not the line, is neither.
+  assert.equal(launchSaid(said.split('\n').slice(0, 2).join('\n'), 'quiet'), null);
+  assert.equal(launchSaid('cold start: 167.061 ms\n', 'settled'), null);
+  assert.equal(launchSaid('the launch settled at some point', 'settled'), null);
+  assert.equal(launchSaid(undefined, 'quiet'), null);
 });
 
 ok('a top-up arms keystrokes without growing the text, so it cannot scroll the Editor', () => {

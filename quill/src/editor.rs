@@ -1180,6 +1180,13 @@ impl Editor {
         self.imp().syntax.borrow().working()
     }
 
+    /// Whether the Annotators still owe a paragraph its answer: one waiting
+    /// to be asked about, or asked about and not yet answered.
+    pub(crate) fn annotations_owed(&self) -> bool {
+        let syntax = self.imp().syntax.borrow();
+        syntax.asking() || syntax.pending()
+    }
+
     /// Captures dirty prose after the debounce, with the laid-out viewport first.
     pub(crate) fn submit_syntax(&self, document: &Document) {
         let viewport = self.viewport(document);

@@ -27,13 +27,13 @@
 // against a warm theirs would flatter neither honestly. Both go through one keyboard, as the
 // oracle's went through one page, and the join is given only the lines written after the warm-up.
 //
-// **The first measured key waits for the app to say its launch is over.** For seconds after its
-// first frame a launch paints frames no key asked for — GTK hiding the scrollbar the launch's own
-// scroll showed, the Annotators' first pass — and a key inside the same refresh as one waits for
-// the next: 16.25 ms on an unchanged build, once key 0 came earlier (#489). Fixed waits used to
-// outlast that work by about 0.8 s, which nothing checked. Now `--measure` prints `launch settled`
-// and the warm-up is topped up until it has, and a run whose first measured key still went first
-// is refused (#495).
+// **Typing waits for the app to say its launch is over.** For seconds after its first frame a
+// launch paints frames no key asked for — the Annotators' first pass, GTK hiding the scrollbar the
+// launch's own scroll showed — and a key inside the same refresh as one waits for the next: 16.25
+// ms on an unchanged build, once key 0 came earlier (#489). Fixed waits used to outlast that work
+// by about 0.8 s, which nothing checked. Now `--measure` prints `launch settled` and then `launch
+// quiet`; the warm-up starts at the one, is topped up until the other, and a run whose first
+// measured key still went first is refused (#495).
 
 import { execFileSync, spawn } from 'node:child_process';
 import crypto from 'node:crypto';
@@ -43,7 +43,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
-  BUDGET, NOT_SCORED, ORACLE, allSummary, launchSettled, measure, pointerLeft, regimeLine, scoredRow, summary,
+  BUDGET, NOT_SCORED, ORACLE, allSummary, launchSaid, measure, pointerLeft, regimeLine, scoredRow, summary,
   verdict, writeGaps,
 } from './bench-join.mjs';
 import { gitHead } from './fingerprint.mjs';
@@ -91,6 +91,11 @@ const DRAIN_POLL_MS = 100;
 // How long one chunk of keys has to come back before the injector is called hung. A chunk is 25
 // keys at 90 ms, so this is many times what it takes.
 const CHUNK_TIMEOUT_MS = 30_000;
+
+// How long a launch is given to say it is `settled` before the regime is refused untyped. It says
+// so 0.3–1.4 s after `exec` (#495), the Annotators' first pass being the long end.
+const LAUNCH_WAIT_MS = 10_000;
+const SAID_POLL_MS = 10;
 
 // How much of a failing build's output is kept; Node's own 1 MB default can be passed by a
 // workspace-wide error set.
@@ -337,6 +342,16 @@ async function settled(file) {
   }
 }
 
+/// Waits up to `ms` for a launch to say it reached `moment` on its stdout (`launchSaid`), and
+/// answers with when it did, or `null`.
+async function saidBy(ours, moment, ms) {
+  for (let waited = 0; ; waited += SAID_POLL_MS) {
+    const said = launchSaid(ours.said(), moment);
+    if (said || waited >= ms) return said;
+    await sleep(SAID_POLL_MS);
+  }
+}
+
 /// Where the regime says the writer is, in the flag the app takes.
 ///
 /// `end` is the flag's own word. `middle` is the first line break past half the document — the
@@ -437,13 +452,19 @@ async function runSession(root, stage, { regime, keys, index, injector }) {
     // The warm-up, thrown away: the keyboard that types the measured keys types it first, and at
     // the boundary the capture is measured so the join never sees it.
     //
-    // It ends only once the app has said its launch is over (`launchSettled`): until then the app
-    // paints frames of its own — the scrollbar GTK hides two seconds after the launch's scroll, the
-    // Annotators' first pass — and a measured key inside the same refresh as one of them waits a
-    // whole refresh, 16.25 ms on an unchanged build (#489, #495). The warm-up's 25 keys at the
-    // regime's pace stay, because they are first touch; when the launch is still going after them,
-    // pairs of a letter and its Backspace top them up until it is not. So the last warm-up key is
+    // It is fitted to the app's two launch lines (`launchSaid`, #495). It starts at `settled`: a key
+    // typed while the Annotators' first pass is out throws the pass away, and the whole Document is
+    // done again at the warm-up's end, on key 0 (17.41 ms). And it ends only after `quiet`: until
+    // then GTK has the scrollbar the launch's scroll showed still to hide, in a frame of its own,
+    // and a measured key inside the same refresh waits a whole one (16.25 ms in #489). The 25 keys
+    // at the regime's pace stay, because they are first touch; when the launch is not quiet after
+    // them, pairs of a letter and its Backspace top them up until it is. So the last warm-up key is
     // always the regime's pace and one capture settle before key 0, as it was before the wait.
+    const settledAt = await saidBy(ours, 'settled', LAUNCH_WAIT_MS);
+    if (!settledAt) {
+      throw new Error(`the app did not say its launch was settled within ${LAUNCH_WAIT_MS / 1000} s, `
+        + 'so nothing was typed');
+    }
     const first = uinputPlan(script('letters', WARMUP_KEYS, hash32('warmup')), regime.pace);
     const pairs = Math.ceil(TOP_UP_MS / first.plan.pace_ms / 2);
     const warm = { ...first.plan, keys: [...first.plan.keys, ...uinputPlan(topUp(pairs), regime.pace).plan.keys] };
@@ -455,9 +476,9 @@ async function runSession(root, stage, { regime, keys, index, injector }) {
     }
     const held = () => stage.holds(ours.address);
     const warming = await typeKeys(injector, warm, held,
-      { enough: { from: first.keys, step: 2, met: () => launchSettled(ours.said()) !== null } });
+      { enough: { from: first.keys, step: 2, met: () => launchSaid(ours.said(), 'quiet') !== null } });
     if (!warming.lost && !warming.met) {
-      throw new Error(`the app's launch was still under way after ${first.keys} warm-up keys and `
+      throw new Error(`the app's launch was not quiet after ${first.keys} warm-up keys and `
         + `${TOP_UP_MS / 1000} s of top-ups, so its first measured keys would have carried it`);
     }
     const topped = warming.events.length - first.keys;
@@ -479,12 +500,12 @@ async function runSession(root, stage, { regime, keys, index, injector }) {
     const seen = before === null ? [] : capture(out).slice(before);
     const cold = /^cold start: ([\d.]+) ms$/m.exec(ours.said());
     // The refusal the wait exists for, asked of what happened rather than of what was meant to: a
-    // first measured key written before the app said its launch was over measured the launch.
-    const launch = launchSettled(ours.said());
-    const lead = sent.length && launch ? sent[0].t_ns / 1e6 - launch.at_us / 1e3 : null;
+    // first measured key written before the app said its launch was quiet measured the launch.
+    const quietAt = launchSaid(ours.said(), 'quiet');
+    const lead = sent.length && quietAt ? sent[0].t_ns / 1e6 - quietAt.at_us / 1e3 : null;
     if (lead !== null && lead <= 0) {
       throw new Error(`the first measured key went ${(-lead).toFixed(1)} ms before the app said its `
-        + 'launch was over, so it measured the launch');
+        + 'launch was quiet, so it measured the launch');
     }
 
     return {
@@ -493,8 +514,9 @@ async function runSession(root, stage, { regime, keys, index, injector }) {
       planned: planned.keys,
       cold: cold ? Number(cold[1]) : null,
       launch: {
-        settled_ms: launch?.from_exec_ms ?? null,
-        settled_before_first_key_ms: lead === null ? null : Number(lead.toFixed(1)),
+        settled_ms: settledAt.from_exec_ms,
+        quiet_ms: quietAt?.from_exec_ms ?? null,
+        quiet_before_first_key_ms: lead === null ? null : Number(lead.toFixed(1)),
         top_up_keys: topped,
       },
       device: warming.device,
