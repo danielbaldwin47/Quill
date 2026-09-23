@@ -10,7 +10,7 @@
 //! decide: animation, the caret's blink, and the whole of font rendering, which
 //! is the one thing that would make two machines disagree about a glyph.
 //!
-//! `--measure` is three things, and they are three functions because they
+//! `--measure` is four things, and they are four functions because they
 //! answer to different moments. [`capture`] opens the file the per-key capture
 //! is written into, at startup, so that a bench can count on the file whatever
 //! the launch goes on to do — a Document that cannot be read must not take the
@@ -20,7 +20,8 @@
 //! refuses (#327).
 //! [`cold_start`] answers the Gate's cold-start question, `exec` to the first
 //! complete frame the compositor says it presented, and needs a window to hang
-//! off.
+//! off. [`settle`] says on stdout when the launch's own work is over, so a
+//! bench can hold its first measured key until after it (#495).
 //!
 //! The per-key capture is the left-hand side of `tools/gate bench`'s join: the
 //! bench knows when it wrote each key to `/dev/uinput`, this knows when the
@@ -39,10 +40,11 @@
 //!   long after the pace a bench types at, so it costs nothing during a run and
 //!   closes the file's tail once typing stops.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::fs::File;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use gtk::gdk;
@@ -213,6 +215,112 @@ pub fn cold_start(window: &impl IsA<gtk::Widget>) {
 /// The line `--measure` prints, once, at the first presented frame.
 fn cold_start_line(milliseconds: f64) -> String {
     format!("cold start: {milliseconds:.3} ms")
+}
+
+/// Prints one line on stdout once the launch's own work is over, and never
+/// again.
+///
+/// A launch goes on painting for seconds after its first frame, and those
+/// frames carry no key: a key that lands inside the same refresh as one waits
+/// for the next, which on an unchanged build read 16.25 ms in #489. Over is
+/// two things read together:
+///
+/// - `launching` says the window has nothing of its own still under way
+///   ([`crate::window::Window`]'s reveal, Annotators and Preview).
+/// - No overlay scrollbar is showing its indicator. GTK shows one when its
+///   scrolled window scrolls, and hides it on a timer of its own two seconds
+///   or so after the last scroll, in a frame of its own. The launch's scroll
+///   to its caret is a scroll, so every launch of a long Document has one to
+///   wait out, and with the Preview open it has two.
+///
+/// Read at every frame painted once the compositor has presented one, and on
+/// [`DRAIN_EVERY`] as well, because the last of the work need not paint: the
+/// Annotators' last drain can find nothing left to tag.
+pub fn settle(window: &impl IsA<gtk::Widget>, launching: impl Fn() -> bool + 'static) {
+    let t0 = std::env::var(T0)
+        .ok()
+        .and_then(|written| written.trim().parse().ok());
+    let clocks = Clocks::now();
+    let launching = Rc::new(launching);
+    window.add_tick_callback(move |widget, clock| {
+        if presented(clock).is_none() {
+            return glib::ControlFlow::Continue;
+        }
+        let said = Rc::new(Cell::new(false));
+        let check = {
+            let widget = widget.downgrade();
+            let launching = launching.clone();
+            let said = said.clone();
+            Rc::new(move || {
+                if said.get() {
+                    return;
+                }
+                let Some(widget) = widget.upgrade() else {
+                    return;
+                };
+                if launching() || indicating(widget.upcast_ref()) {
+                    return;
+                }
+                said.set(true);
+                let at = glib::monotonic_time();
+                let from_exec = t0.map(|t0| clocks.milliseconds(t0, at));
+                println!("{}", launch_settled_line(at, from_exec));
+            })
+        };
+        // Let go of once it has spoken, so a run's every frame after it pays
+        // nothing for a line that is already out.
+        let handler: Rc<RefCell<Option<glib::SignalHandlerId>>> = Rc::default();
+        let (painted, on_paint, done) = (handler.clone(), check.clone(), said.clone());
+        handler.replace(Some(clock.connect_after_paint(move |clock| {
+            on_paint();
+            if done.get()
+                && let Some(id) = painted.take()
+            {
+                clock.disconnect(id);
+            }
+        })));
+        glib::timeout_add_local(DRAIN_EVERY, move || {
+            check();
+            if said.get() {
+                glib::ControlFlow::Break
+            } else {
+                glib::ControlFlow::Continue
+            }
+        });
+        glib::ControlFlow::Break
+    });
+}
+
+/// Whether any scrollbar under `widget` is an overlay indicator on the glass:
+/// GTK fades one in and out by its opacity, and marks it with the
+/// `overlay-indicator` style class, which a scrollbar that is always shown
+/// (overlay scrolling turned off on the desktop) never has.
+fn indicating(widget: &gtk::Widget) -> bool {
+    if let Some(bar) = widget.downcast_ref::<gtk::Scrollbar>()
+        && bar.has_css_class("overlay-indicator")
+        && bar.is_mapped()
+        && bar.opacity() > 0.0
+    {
+        return true;
+    }
+    let mut child = widget.first_child();
+    while let Some(widget) = child {
+        if indicating(&widget) {
+            return true;
+        }
+        child = widget.next_sibling();
+    }
+    false
+}
+
+/// The line `--measure` prints once the launch's own work is over: when, in
+/// monotonic microseconds, so a bench can put it beside the keys it wrote, and
+/// how long after `exec` when the harness stamped `$QUILL_T0_NS`.
+fn launch_settled_line(at_us: i64, from_exec_ms: Option<f64>) -> String {
+    match from_exec_ms {
+        Some(ms) => format!("launch settled at {at_us} us, {ms:.3} ms from exec"),
+        None => format!("launch settled at {at_us} us"),
+    }
 }
 
 /// The line `--measure` prints each time the pointer leaves the window, in
@@ -510,6 +618,19 @@ mod tests {
             "pointer left the window at 6516887400 us"
         );
         assert!(!pointer_left_line(0).contains('\n'));
+    }
+
+    #[test]
+    fn a_settled_launch_is_one_line_with_its_monotonic_time_and_its_time_from_exec() {
+        assert_eq!(
+            launch_settled_line(6_516_887_400, Some(2_680.5)),
+            "launch settled at 6516887400 us, 2680.500 ms from exec"
+        );
+        assert_eq!(
+            launch_settled_line(6_516_887_400, None),
+            "launch settled at 6516887400 us"
+        );
+        assert!(!launch_settled_line(0, Some(0.0)).contains('\n'));
     }
 
     /// A stamp with everything the join needs, as a presented key.

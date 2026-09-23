@@ -51,6 +51,19 @@ export function pointerLeft(said) {
   return /^pointer left the window at \d+ us$/m.test(said || '');
 }
 
+/// When the app said, on its stdout, that its launch's own work was over: `{ at_us, from_exec_ms }`,
+/// or `null` while it has not said so.
+///
+/// The line is `quill/src/harness.rs`'s `launch_settled_line`. `at_us` is monotonic microseconds,
+/// the clock the injector stamps its writes in, so it goes beside the first measured key's `t_ns`;
+/// `from_exec_ms` is `null` when the launch had no `$QUILL_T0_NS` to count from. Until the line,
+/// the app is still painting frames of its own, and a key that lands inside the same refresh as one
+/// of them waits for the next (#495).
+export function launchSettled(said) {
+  const m = /^launch settled at (\d+) us(?:, ([\d.]+) ms from exec)?$/m.exec(said || '');
+  return m ? { at_us: Number(m[1]), from_exec_ms: m[2] === undefined ? null : Number(m[2]) } : null;
+}
+
 // ---------- statistics, as `dev/legacy/tools/latency.mjs` computes them ----------
 //
 // Deliberately the same shapes as the legacy bench's, down to the rounding and the bootstrap's

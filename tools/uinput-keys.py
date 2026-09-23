@@ -23,6 +23,14 @@ stdin  : line 1, the plan:
          Then one line per chunk: "go" types the next `chunk` keys, "go N" the next N, "end" stops.
 stdout : line 1 {"ready":true,...}; one {"chunk":i,"typed":n} per "go"; then the summary
          {"ok":true,"n":300,"clock":"CLOCK_MONOTONIC","events":[{"i","code","shift","t_ns"},...]}.
+         With "reuse":true in the first plan the summary is a line too, the line after it is the
+         next plan (the same form, and its own ready, chunks and summary), and the end of stdin
+         ends the run.
+
+REUSED. A new device costs its `settle_ms` before the compositor types with it, and a bench of
+nineteen regimes would pay that nineteen times. A reused one is made and settled once, while the
+bench is still opening its stage, and declares every key this file knows rather than the first
+plan's, because the plans after it are not read yet. Its first plan may have no keys at all.
 
 WHY IT IS CHUNKED. Real keys go wherever the compositor thinks focus is, and this machine has
 terminals on it. The caller re-verifies, between every chunk, that the window still reports keyboard
@@ -96,8 +104,8 @@ def press_for(press):
     if c[1]: mods.append(KEY_LEFTSHIFT)
     return (c[0], list(dict.fromkeys(mods)))
 
-def main():
-    plan = json.loads(sys.stdin.readline())   # ONE line: stdin stays open for the chunk commands
+def resolve(plan):
+    """A plan's keys as codes and modifiers, or the first press this keyboard cannot say."""
     asked = plan.get('keys')
     if asked is None:
         asked = [{'press': ch} for ch in plan.get('text', '')]
@@ -105,21 +113,30 @@ def main():
     for k in asked:
         if 'press' in k:
             r = press_for(k['press'])
-            if r is None: json.dump({'ok': False, 'error': 'no key for %r' % k['press']}, sys.stdout); return 2
+            if r is None: return None, k['press']
             code, mods = r
         else:                                 # the older form: a resolved code and a Shift flag
             code, mods = k['code'], ([KEY_LEFTSHIFT] if k.get('shift') else [])
         keys.append({'code': code, 'mods': mods, 'pause_ms': k.get('pause_ms')})
-    pace = plan.get('pace_ms', 90) / 1000.0
-    hold = plan.get('hold_ms', 12) / 1000.0
+    return keys, None
+
+def main():
+    plan = json.loads(sys.stdin.readline())   # ONE line: stdin stays open for the chunk commands
+    keys, bad = resolve(plan)
+    if bad is not None: json.dump({'ok': False, 'error': 'no key for %r' % bad}, sys.stdout); return 2
+    # A reused device is made and settled once and then types plan after plan: see REUSED above.
+    reuse = bool(plan.get('reuse'))
     settle = plan.get('settle_ms', 1500) / 1000.0
-    chunk = int(plan.get('chunk', 0)) or len(keys)
 
     fd = os.open(UINPUT, os.O_WRONLY | os.O_NONBLOCK)
     for bit in (EV_KEY, EV_SYN): fcntl.ioctl(fd, UI_SET_EVBIT, bit)
     # Every code the plan will press, its modifiers among them: a key the device never declared is
-    # a key the kernel drops, and a chord whose Control was never declared types a bare letter.
+    # a key the kernel drops, and a chord whose Control was never declared types a bare letter. A
+    # reused device declares every key it knows, since the plans it will be handed are not read yet.
     wanted = sorted({k['code'] for k in keys} | {m for k in keys for m in k['mods']} | {KEY_LEFTSHIFT})
+    if reuse:
+        wanted = sorted(set(ROW.values()) | set(LETTERS.values()) | set(NAMED.values())
+                        | set(MODIFIERS.values()))
     for c in wanted: fcntl.ioctl(fd, UI_SET_KEYBIT, c)
     # struct uinput_user_dev: char name[80]; struct input_id id; __u32 ff_effects_max; 4 x __s32[64]
     dev = struct.pack('=80sHHHHi' + '64i' * 4, b'quill-latency-bench',
@@ -140,45 +157,66 @@ def main():
         return EVENT.pack(0, 0, t, c, v)
 
     out = []
-    print(json.dumps({'ready': True, 'keys': len(keys), 'chunk': chunk}), flush=True)
     try:
-        i = 0
-        while i < len(keys):
-            cmd = sys.stdin.readline().split()
-            if not cmd or cmd[0] != 'go':         # "end", EOF, or anything unexpected: stop typing
-                break
-            # "go N" types N rather than a chunk: the bench's warm-up ends on one, so the measured
-            # keys go through the same device without a second settle.
-            asked_now = int(cmd[1]) if len(cmd) > 1 else chunk
-            first = i
-            for _ in range(min(asked_now, len(keys) - i)):
-                k = keys[i]
-                pkt = b''
-                for m in k['mods']: pkt += ev(EV_KEY, m, 1)
-                pkt += ev(EV_KEY, k['code'], 1) + ev(EV_SYN, SYN_REPORT, 0)
-                t = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
-                os.write(fd, pkt)
-                out.append({'i': i, 'code': k['code'], 'shift': int(KEY_LEFTSHIFT in k['mods']), 't_ns': t})
-                time.sleep(hold)
-                up = ev(EV_KEY, k['code'], 0)
-                for m in reversed(k['mods']): up += ev(EV_KEY, m, 0)
-                os.write(fd, up + ev(EV_SYN, SYN_REPORT, 0))
-                # A regime with pauses waits here instead of at the pace: a burst is 25 keys and
-                # then the writer thinking, and the first key after the thinking is the one the
-                # regime exists to time.
-                wait = k['pause_ms'] / 1000.0 if k['pause_ms'] is not None else pace
-                rest = wait - hold
-                if rest > 0: time.sleep(rest)
-                i += 1
-            print(json.dumps({'chunk': first, 'typed': i - first}), flush=True)
+        while True:
+            out = type_plan(fd, ev, plan, keys)
+            if not reuse: break
+            print(json.dumps(summary(out, keys)), flush=True)
+            line = sys.stdin.readline()
+            if not line.strip(): return 0         # the end of stdin is the end of the run
+            plan = json.loads(line)
+            keys, bad = resolve(plan)
+            if bad is not None:
+                print(json.dumps({'ok': False, 'error': 'no key for %r' % bad}), flush=True)
+                return 2
     finally:
         time.sleep(0.2)
         fcntl.ioctl(fd, UI_DEV_DESTROY)
         os.close(fd)
-    json.dump({'ok': True, 'n': len(out), 'requested': len(keys), 'clock': 'CLOCK_MONOTONIC',
-               'device': 'quill-latency-bench (uinput, bus USB)', 'events': out}, sys.stdout)
+    json.dump(summary(out, keys), sys.stdout)
     sys.stdout.flush()
     return 0
+
+def summary(out, keys):
+    return {'ok': True, 'n': len(out), 'requested': len(keys), 'clock': 'CLOCK_MONOTONIC',
+            'device': 'quill-latency-bench (uinput, bus USB)', 'events': out}
+
+def type_plan(fd, ev, plan, keys):
+    """Types one plan chunk by chunk, as the caller asks, and answers with what it wrote."""
+    pace = plan.get('pace_ms', 90) / 1000.0
+    hold = plan.get('hold_ms', 12) / 1000.0
+    chunk = int(plan.get('chunk', 0)) or len(keys)
+    out = []
+    print(json.dumps({'ready': True, 'keys': len(keys), 'chunk': chunk}), flush=True)
+    i = 0
+    while i < len(keys):
+        cmd = sys.stdin.readline().split()
+        if not cmd or cmd[0] != 'go':             # "end", EOF, or anything unexpected: stop typing
+            break
+        # "go N" types N rather than a chunk: the bench tops its warm-up up a pair at a time.
+        asked_now = int(cmd[1]) if len(cmd) > 1 else chunk
+        first = i
+        for _ in range(min(asked_now, len(keys) - i)):
+            k = keys[i]
+            pkt = b''
+            for m in k['mods']: pkt += ev(EV_KEY, m, 1)
+            pkt += ev(EV_KEY, k['code'], 1) + ev(EV_SYN, SYN_REPORT, 0)
+            t = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
+            os.write(fd, pkt)
+            out.append({'i': i, 'code': k['code'], 'shift': int(KEY_LEFTSHIFT in k['mods']), 't_ns': t})
+            time.sleep(hold)
+            up = ev(EV_KEY, k['code'], 0)
+            for m in reversed(k['mods']): up += ev(EV_KEY, m, 0)
+            os.write(fd, up + ev(EV_SYN, SYN_REPORT, 0))
+            # A regime with pauses waits here instead of at the pace: a burst is 25 keys and
+            # then the writer thinking, and the first key after the thinking is the one the
+            # regime exists to time.
+            wait = k['pause_ms'] / 1000.0 if k['pause_ms'] is not None else pace
+            rest = wait - hold
+            if rest > 0: time.sleep(rest)
+            i += 1
+        print(json.dumps({'chunk': first, 'typed': i - first}), flush=True)
+    return out
 
 if __name__ == '__main__':
     sys.exit(main())

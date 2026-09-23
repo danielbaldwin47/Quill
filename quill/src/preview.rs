@@ -599,6 +599,14 @@ impl Preview {
         }
     }
 
+    /// Whether either page owes a layout it has armed and not yet run: the
+    /// one the pane's first allocation asks for is a launch's own work, and
+    /// `--measure` waits it out (#495).
+    #[must_use]
+    pub fn laying_out(&self) -> bool {
+        self.sheet.imp().pending.get() || self.column.laying_out()
+    }
+
     /// What the pane scrolls by: what a wheel or a scrollbar over it moves,
     /// and what a sync applies its answer to (#270).
     #[must_use]

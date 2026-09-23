@@ -234,6 +234,9 @@ mod imp {
         pub syntax_wake: RefCell<Option<glib::SourceId>>,
         /// Sleeps between result drains, so an empty worker cannot spin GTK.
         pub syntax_drain: RefCell<Option<glib::SourceId>>,
+        /// Whether a drain has run dry since the window opened: the
+        /// Annotators' first pass over the whole Document is over.
+        pub annotated: Cell<bool>,
         /// What the edit now going through the buffer changed, left here by
         /// the handler that spliced the Document for the one that retags.
         pub pending: RefCell<Option<Edit>>,
@@ -938,6 +941,18 @@ impl Window {
             )));
     }
 
+    /// Whether work this launch armed for itself is still under way: the
+    /// caret's reveal, the Annotators' first pass over the whole Document,
+    /// and the Preview's layout at its first width. Each ends in frames no
+    /// key asked for, which is why `--measure` says when they are over
+    /// ([`harness::settle`], #495).
+    fn launching(&self) -> bool {
+        let imp = self.imp();
+        imp.editor.revealing()
+            || (imp.editor.annotating() && !imp.annotated.get())
+            || imp.preview.laying_out()
+    }
+
     fn arm_syntax_drain(&self) {
         if self.imp().syntax_drain.borrow().is_some() {
             return;
@@ -958,6 +973,7 @@ impl Window {
                         glib::ControlFlow::Continue
                     } else {
                         window.imp().syntax_drain.take();
+                        window.imp().annotated.set(true);
                         glib::ControlFlow::Break
                     }
                 },
@@ -3838,6 +3854,10 @@ pub fn present_launch(app: &gtk::Application, session: &Rc<Session>) {
     {
         harness::cold_start(&window);
         harness::watch(&window);
+        let launched = window.downgrade();
+        harness::settle(&window, move || {
+            launched.upgrade().is_some_and(|window| window.launching())
+        });
     }
 }
 

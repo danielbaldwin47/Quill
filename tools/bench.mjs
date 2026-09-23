@@ -9,7 +9,7 @@
 // It ends in the line the owner reads — mean, worst, p50, p99, cold start, and pass or fail against
 // the Gate's budget with the Parity oracle's own numbers beside it.
 //
-// Three things here are not obvious and all three are deliberate.
+// Four things here are not obvious and all four are deliberate.
 //
 // **It refuses rather than types.** Both injection paths go to whatever the compositor thinks has
 // keyboard focus, and in the research's own session focus silently reverted to the owner's browser
@@ -26,6 +26,14 @@
 // of the editing machinery, which is how the oracle's numbers were measured; comparing a cold ours
 // against a warm theirs would flatter neither honestly. Both go through one keyboard, as the
 // oracle's went through one page, and the join is given only the lines written after the warm-up.
+//
+// **The first measured key waits for the app to say its launch is over.** For seconds after its
+// first frame a launch paints frames no key asked for — GTK hiding the scrollbar the launch's own
+// scroll showed, the Annotators' first pass — and a key inside the same refresh as one waits for
+// the next: 16.25 ms on an unchanged build, once key 0 came earlier (#489). Fixed waits used to
+// outlast that work by about 0.8 s, which nothing checked. Now `--measure` prints `launch settled`
+// and the warm-up is topped up until it has, and a run whose first measured key still went first
+// is refused (#495).
 
 import { execFileSync, spawn } from 'node:child_process';
 import crypto from 'node:crypto';
@@ -35,8 +43,8 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
-  BUDGET, NOT_SCORED, ORACLE, allSummary, measure, pointerLeft, regimeLine, scoredRow, summary, verdict,
-  writeGaps,
+  BUDGET, NOT_SCORED, ORACLE, allSummary, launchSettled, measure, pointerLeft, regimeLine, scoredRow, summary,
+  verdict, writeGaps,
 } from './bench-join.mjs';
 import { gitHead } from './fingerprint.mjs';
 import {
@@ -44,7 +52,8 @@ import {
   openPanelStage, openStage, panelBlocked,
 } from './harness.mjs';
 import {
-  DEFAULT_KEYS, PASTE_TEXT, PAUSE_MS, WARMUP_KEYS, hash32, regimes, scoredRegime, script, uinputPlan,
+  DEFAULT_KEYS, PASTE_TEXT, PAUSE_MS, TOP_UP_MS, UINPUT_PLAN, WARMUP_KEYS, hash32, regimes, scoredRegime, script,
+  topUp, uinputPlan,
 } from './regimes.mjs';
 
 // The binary a bench is of. Release rather than debug, for the reason a judged shot is: the Gate
@@ -226,55 +235,79 @@ function reader(stream) {
   };
 }
 
-/// Types one plan, re-verifying focus between every chunk, and answers with what it wrote.
+/// Makes the run's one keyboard and waits out its settle, and answers with it.
+///
+/// Once a run rather than once a regime: a new device costs `UINPUT_PLAN.settle_ms` before the
+/// compositor types with it, and the bench opens this one while the stage warms, so no regime
+/// waits for it (#495). `close` ends the injector's stdin, which removes the device.
+export async function openInjector(root) {
+  const py = spawn('python3', [path.join(root, 'tools/uinput-keys.py')], {
+    cwd: root, stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  const said = { stderr: '' };
+  py.stderr.on('data', (b) => { said.stderr += b; });
+  const closed = new Promise((resolve) => py.on('close', resolve));
+  const injector = {
+    py, out: reader(py.stdout), said,
+    close: async () => { py.stdin.end(); await closed; },
+  };
+  try {
+    py.stdin.write(`${JSON.stringify({ ...UINPUT_PLAN, reuse: true, keys: [] })}\n`);
+    // Its settle is inside this first answer, so the wait is the settle's and not a chunk's.
+    const ready = JSON.parse(await injector.out.next(CHUNK_TIMEOUT_MS + UINPUT_PLAN.settle_ms));
+    if (!ready.ready) throw new Error(`the injector would not start: ${JSON.stringify(ready)}`);
+    JSON.parse(await injector.out.next());
+  } catch (e) {
+    try { py.kill('SIGTERM'); } catch { /* already gone */ }
+    throw new Error(`${e.message}${said.stderr.trim() ? `\n${said.stderr.trim()}` : ''}`);
+  }
+  return injector;
+}
+
+/// Types one plan through the run's keyboard, re-verifying focus between every chunk, and answers
+/// with what it wrote.
 ///
 /// The chunk protocol is the whole defence: the injector types `chunk` keys and waits to be told to
 /// type the next lot, so focus is a question asked every 25 keys rather than once at the start. A
 /// run that loses focus stops at the chunk boundary and says so, rather than typing the rest of a
 /// draft into whatever took it.
 ///
-/// `between` maps a key index to a function awaited before the chunk starting at that key is
-/// asked for, and no chunk crosses one: the bench's boundary between its warm-up and its measured
-/// keys falls on a `go`, so one device types both.
-export async function typeKeys(root, plan, held, { between = {} } = {}) {
-  const py = spawn('python3', [path.join(root, 'tools/uinput-keys.py')], {
-    cwd: root, stdio: ['pipe', 'pipe', 'pipe'],
-  });
-  let stderr = '';
-  py.stderr.on('data', (b) => { stderr += b; });
-  const out = reader(py.stdout);
+/// `enough`, when given, makes the plan's keys from `enough.from` on a top-up rather than a
+/// script: they go `enough.step` at a time, and the plan ends at the first boundary where
+/// `enough.met()` says so. A plan whose every key went without it being met answers `met: false`.
+export async function typeKeys(injector, plan, held, { enough = null } = {}) {
+  const { py, out, said } = injector;
   let lost = false;
+  let met = enough === null;
   let rechecks = 0;
+  const stderr = () => (said.stderr.trim() ? `\n${said.stderr.trim()}` : '');
 
   try {
     py.stdin.write(`${JSON.stringify(plan)}\n`);
     const ready = JSON.parse(await out.next());
     if (!ready.ready) throw new Error(`the injector would not start: ${JSON.stringify(ready)}`);
 
-    const stops = Object.keys(between).map(Number).sort((a, b) => a - b);
-    for (let typed = 0; typed < ready.keys;) {
-      if (between[typed]) await between[typed]();
+    let typed = 0;
+    while (typed < ready.keys) {
+      if (enough && typed >= enough.from && enough.met()) { met = true; break; }
       rechecks += 1;
       if (!held()) { lost = true; break; }
-      const stop = stops.find((s) => s > typed) ?? ready.keys;
-      py.stdin.write(`go ${Math.min(ready.chunk, stop - typed)}\n`);
+      const n = enough && typed >= enough.from ? enough.step : Math.min(ready.chunk, (enough?.from ?? ready.keys) - typed);
+      py.stdin.write(`go ${n}\n`);
       const ack = JSON.parse(await out.next());
       if (!ack.typed) throw new Error(`the injector typed none of the ${ready.keys - typed} keys left`);
       typed += ack.typed;
     }
-    py.stdin.write('end\n');
+    // A plan stopped short is ended; one typed to its last key has ended itself.
+    if (typed < ready.keys) py.stdin.write('end\n');
+    if (enough && !met && !lost) met = enough.met();
+    const wrote = JSON.parse(await out.next());
+    if (!wrote.ok) throw new Error(`the injector could not type the plan: ${JSON.stringify(wrote)}`);
+    return { events: wrote.events || [], device: wrote.device, lost, met, rechecks };
   } catch (e) {
     try { py.kill('SIGTERM'); } catch { /* already gone */ }
-    throw new Error(`${e.message}${stderr.trim() ? `\n${stderr.trim()}` : ''}`);
-  } finally {
-    py.stdin.end();
+    throw new Error(`${e.message}${stderr()}`);
   }
-
-  await new Promise((resolve) => py.on('close', resolve));
-  const tail = out.rest().trim();
-  if (!tail) throw new Error(`the injector said nothing about what it wrote${stderr.trim() ? `\n${stderr.trim()}` : ''}`);
-  const wrote = JSON.parse(tail);
-  return { events: wrote.events || [], device: wrote.device, lost, rechecks };
 }
 
 // ---------- one session ----------
@@ -386,7 +419,7 @@ async function warmStage(root, stage, regime) {
 }
 
 /// Launches ours, warms it, types the regime and answers with the two sides of the join.
-async function runSession(root, stage, { regime, keys, index }) {
+async function runSession(root, stage, { regime, keys, index, injector }) {
   const out = path.join(stage.tmp, `capture-${index}.jsonl`);
 
   stage.rules({ w: WINDOW.w, h: WINDOW.h, initialFocus: true });
@@ -403,31 +436,68 @@ async function runSession(root, stage, { regime, keys, index }) {
 
     // The warm-up, thrown away: the keyboard that types the measured keys types it first, and at
     // the boundary the capture is measured so the join never sees it.
-    const warm = uinputPlan(script('letters', WARMUP_KEYS, hash32('warmup')), regime.pace);
+    //
+    // It ends only once the app has said its launch is over (`launchSettled`): until then the app
+    // paints frames of its own — the scrollbar GTK hides two seconds after the launch's scroll, the
+    // Annotators' first pass — and a measured key inside the same refresh as one of them waits a
+    // whole refresh, 16.25 ms on an unchanged build (#489, #495). The warm-up's 25 keys at the
+    // regime's pace stay, because they are first touch; when the launch is still going after them,
+    // pairs of a letter and its Backspace top them up until it is not. So the last warm-up key is
+    // always the regime's pace and one capture settle before key 0, as it was before the wait.
+    const first = uinputPlan(script('letters', WARMUP_KEYS, hash32('warmup')), regime.pace);
+    const pairs = Math.ceil(TOP_UP_MS / first.plan.pace_ms / 2);
+    const warm = { ...first.plan, keys: [...first.plan.keys, ...uinputPlan(topUp(pairs), regime.pace).plan.keys] };
     const planned = uinputPlan(script(regime.mix, keys, hash32(regime.name)), regime.pace,
       { pauseEvery: regime.pauseEvery, pauseMs: regime.pauseMs });
     if (planned.first_unexpressible) {
       throw new Error(`${regime.name} reaches ${planned.first_unexpressible.press} at step `
         + `${planned.first_unexpressible.at}, which the injector cannot type`);
     }
-    say(`gate bench: typing ${planned.keys} keys at ${planned.plan.pace_ms} ms, after ${warm.keys} of warm-up`);
+    const held = () => stage.holds(ours.address);
+    const warming = await typeKeys(injector, warm, held,
+      { enough: { from: first.keys, step: 2, met: () => launchSettled(ours.said()) !== null } });
+    if (!warming.lost && !warming.met) {
+      throw new Error(`the app's launch was still under way after ${first.keys} warm-up keys and `
+        + `${TOP_UP_MS / 1000} s of top-ups, so its first measured keys would have carried it`);
+    }
+    const topped = warming.events.length - first.keys;
+    say(`gate bench: typing ${planned.keys} keys at ${planned.plan.pace_ms} ms, after ${first.keys} of warm-up`
+      + `${topped > 0 ? ` and ${topped} of top-up` : ''}`);
+
+    // A run that lost focus inside the warm-up sends nothing more.
+    let wrote = { events: [], lost: true, rechecks: warming.rechecks };
     let before = null;
-    const wrote = await typeKeys(root, { ...planned.plan, keys: [...warm.plan.keys, ...planned.plan.keys] },
-      () => stage.holds(ours.address),
-      { between: { [warm.keys]: async () => { await settled(out); before = capture(out).length; } } });
+    if (!warming.lost) {
+      await settled(out);
+      before = capture(out).length;
+      wrote = await typeKeys(injector, planned.plan, held);
+      wrote.rechecks += warming.rechecks;
+    }
 
     await settled(out);
-    // The warm-up's events lead, in order; a run that lost focus inside the warm-up sent nothing.
-    const sent = wrote.events.slice(warm.keys).map((e, i) => ({ ...e, i }));
+    const sent = wrote.events.map((e, i) => ({ ...e, i }));
     const seen = before === null ? [] : capture(out).slice(before);
     const cold = /^cold start: ([\d.]+) ms$/m.exec(ours.said());
+    // The refusal the wait exists for, asked of what happened rather than of what was meant to: a
+    // first measured key written before the app said its launch was over measured the launch.
+    const launch = launchSettled(ours.said());
+    const lead = sent.length && launch ? sent[0].t_ns / 1e6 - launch.at_us / 1e3 : null;
+    if (lead !== null && lead <= 0) {
+      throw new Error(`the first measured key went ${(-lead).toFixed(1)} ms before the app said its `
+        + 'launch was over, so it measured the launch');
+    }
 
     return {
       sent,
       seen,
       planned: planned.keys,
       cold: cold ? Number(cold[1]) : null,
-      device: wrote.device,
+      launch: {
+        settled_ms: launch?.from_exec_ms ?? null,
+        settled_before_first_key_ms: lead === null ? null : Number(lead.toFixed(1)),
+        top_up_keys: topped,
+      },
+      device: warming.device,
       focus_rechecks: wrote.rechecks,
       stopped_because_focus_was_lost: wrote.lost,
       // Read after the keys, before the kill: the leave the kill itself causes is never in `said`.
@@ -446,7 +516,7 @@ async function runSession(root, stage, { regime, keys, index }) {
 /// of a release run share it. The launch is not shared: every regime gets its own, so the caret it
 /// types at, the Focus it runs under and the cold start it reports are its own and not the last
 /// regime's.
-async function benchOne(root, stage, { regime, keys, sessions, warmup, panel }) {
+async function benchOne(root, stage, { regime, keys, sessions, warmup, panel, injector }) {
   // Loaded before the first launch rather than once for the whole run, so that a regime which
   // pastes is pasting its own passage even when the owner used the clipboard between regimes.
   if (regime.mix === 'paste') loadClipboard(PASTE_TEXT);
@@ -454,7 +524,7 @@ async function benchOne(root, stage, { regime, keys, sessions, warmup, panel }) 
   const runs = [];
   for (let index = 0; index < sessions; index += 1) {
     say(`gate bench: ${regime.name}, session ${index + 1} of ${sessions}`);
-    runs.push(await runSession(root, stage, { regime, keys, index }));
+    runs.push(await runSession(root, stage, { regime, keys, index, injector }));
   }
 
   // Pooled across sessions: the budget is a property of the app, not of one launch of it.
@@ -480,7 +550,7 @@ async function benchOne(root, stage, { regime, keys, sessions, warmup, panel }) 
       mix: regime.mix, where: regime.where, pace_ms: regime.pace, focus: regime.focus,
       caret: caretFor(root, regime.where),
       pause_every_keys: regime.pauseEvery ?? null, pause_ms: regime.pauseEvery ? (regime.pauseMs || PAUSE_MS) : null,
-      keys_per_session: keys, sessions, warmup_keys: WARMUP_KEYS,
+      keys_per_session: keys, sessions, warmup_keys: WARMUP_KEYS, warmup_top_up_ms: TOP_UP_MS,
     },
     budget: BUDGET,
     verdict: said,
@@ -499,6 +569,9 @@ async function benchOne(root, stage, { regime, keys, sessions, warmup, panel }) 
       // Kept, and not judged: the graphics stack coming up on a brand-new output. See `warmStage`.
       stage_first_client: warmup,
     },
+    // Per session: when the app said its launch's own work was over, how long before the first
+    // measured key that was, and how many top-up keys the warm-up needed to get there (#495).
+    launch: runs.map((r) => r.launch),
     sessions_mean_ms: runs.map((r) => measure(r.sent, r.seen).uinput_write_to_presented_ms?.mean ?? null),
     // What the injector did between keys, against what `definition` said it would.
     write_gaps_ms: writeGaps(runs.map((r) => r.sent)),
@@ -585,12 +658,18 @@ async function bench(root, { ran, chosen, keys, sessions, wantsPanel, idle }) {
 
   const done = [];
   let warmup = null;
+  let injector = null;
+  // The run's one keyboard is made while the stage warms, so its settle is paid inside a wait the
+  // run has anyway rather than before a regime's first key.
+  const opening = openInjector(root);
+  opening.catch(() => {});
   try {
     stage.rules({ w: WINDOW.w, h: WINDOW.h, initialFocus: true });
     warmup = await warmStage(root, stage, chosen[0]);
+    injector = await opening;
     say(`gate bench: the stage's first client cold-started in ${warmup} ms, and is not measured`);
     for (const regime of chosen) {
-      const one = await benchOne(root, stage, { regime, keys, sessions, warmup, panel });
+      const one = await benchOne(root, stage, { regime, keys, sessions, warmup, panel, injector });
       done.push(one);
       // Two things stop the rest of a run. Focus going somewhere else: the keys after it would be
       // typed into whatever took the focus, and no later regime's number would be of this app. And,
@@ -606,6 +685,7 @@ async function bench(root, { ran, chosen, keys, sessions, wantsPanel, idle }) {
     say(String(e.stack || e.message));
     return refuse(e.message.split('\n')[0]);
   } finally {
+    await (injector ?? await opening.catch(() => null))?.close();
     stage.close();
   }
 
