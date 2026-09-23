@@ -161,13 +161,13 @@ const RESIZE_CURSOR: &str = "col-resize";
 const HEAD_HEIGHT: i32 = chrome::TOP_HEIGHT;
 /// The head's insets and the air between its buttons (`.lib-head { padding: 0
 /// 6px 0 8px; gap: 2px }`).
-const HEAD_LEFT: i32 = 8;
+pub(crate) const HEAD_LEFT: i32 = 8;
 /// What the head keeps clear of the right edge.
 const HEAD_RIGHT: i32 = 6;
 /// Between one thing in the head and the next.
 const HEAD_GAP: i32 = 2;
 /// A head button's side (`#library .lib-btn { width: 26px; height: 26px }`).
-const BUTTON: i32 = 26;
+pub(crate) const BUTTON: i32 = 26;
 /// A head button's corner (`border-radius: 5px`).
 const BUTTON_RADIUS: i32 = 5;
 /// The panel and plus marks in the head (`I.panel`, `I.plus`, fifteen by
