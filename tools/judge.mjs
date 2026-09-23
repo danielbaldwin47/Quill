@@ -710,6 +710,12 @@ export function shotHash(root, file) {
   }
 }
 
+// The hash of the bytes a round's critic was shown on one side: the one the round recorded, or
+// for a round from before the hashes, the file it names as it is now (null when not there).
+export function judgedHash(root, file, recorded) {
+  return recorded ?? shotHash(root, file);
+}
+
 // The latest round whose verdict on this state still stands, or null: the one that put a critic on
 // the same bytes, ours and the opponent's both, that are about to be paired now. Read off the
 // hashes the round recorded (`oursHash`, `theirsHash`), because the shots are evidence outside git
@@ -721,11 +727,10 @@ export function shotHash(root, file) {
 export function carriedFrom(root, recorded, name, oursFile, theirsFile) {
   const now = { ours: shotHash(root, oursFile), theirs: shotHash(root, theirsFile) };
   if (!now.ours || !now.theirs) return null;
-  const same = (hash, file, want) => (hash ?? shotHash(root, file)) === want;
   for (const r of [...recorded].reverse()) {
     const s = (r.states || []).find((x) => x.name === name);
     if (!s || !s.pick || !s.ours || !s.theirs) continue;
-    if (!same(s.oursHash, s.ours, now.ours) || !same(s.theirsHash, s.theirs, now.theirs)) continue;
+    if (judgedHash(root, s.ours, s.oursHash) !== now.ours || judgedHash(root, s.theirs, s.theirsHash) !== now.theirs) continue;
     return { round: s.carried ?? r.round, state: s };
   }
   return null;

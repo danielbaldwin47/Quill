@@ -23,7 +23,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { criticPrompt, runCritic } from './judge.mjs';
+import { criticPrompt, judgedHash, runCritic, shotHash } from './judge.mjs';
 import { rounds } from './rounds.mjs';
 
 // A pair in a scratch directory: the two files under fresh letters, and which letter is ours.
@@ -36,17 +36,24 @@ export function scratchPair(root, ours, theirs) {
 }
 
 // The states a replay can put to a critic: those a critic judged (an assertion has no pair) whose
-// two files are still on disk. A carried state is the same pair as the round it carries, and is
-// replayed once, at the round that judged it — so the last N rounds are the last N in which a
-// critic looked at something, and a round of nothing but carried verdicts is not one of them.
+// two files can be read and still hold the bytes it was shown (judge.mjs `judgedHash`) — the shots
+// are evidence outside git, and another worktree's shot of the same name can sit at the path
+// (dev/README.md § Judging evidence). A path that exists but cannot be read is skipped too, where
+// it used to fail the whole replay at the copy. A carried state is the same pair as the round it
+// carries, and is replayed once, at the round that judged it — so the last N rounds are the last N
+// in which a critic looked at something, and a round of nothing but carried verdicts is not one.
 export function replayable(root, recorded, count) {
   const looked = (r) => r.opponent && Array.isArray(r.states) && r.states.some((s) => s.pick && !s.carried);
   const chosen = recorded.filter(looked).slice(-count);
+  const shown = (file, recorded) => {
+    const now = shotHash(root, file);
+    return now !== null && now === judgedHash(root, file, recorded);
+  };
   const tasks = [];
   for (const r of chosen) {
     for (const s of r.states) {
       if (!s.pick || !s.ours || !s.theirs || s.carried) continue;
-      if (!fs.existsSync(path.join(root, s.ours)) || !fs.existsSync(path.join(root, s.theirs))) continue;
+      if (!shown(s.ours, s.oursHash) || !shown(s.theirs, s.theirsHash)) continue;
       tasks.push({ round: r.round, state: s });
     }
   }
@@ -98,7 +105,7 @@ async function main(argv) {
   const prompt = criticPrompt(fs.readFileSync(path.resolve(root, promptFile), 'utf8'), { title: brief.title, judge: brief.judge });
 
   const { rounds: chosen, tasks } = replayable(root, rounds(root, piece), count);
-  if (!tasks.length) return refuse(piece, chosen.length ? 'the rounds chosen hold no pair a critic judged that is still on disk' : 'no native round has been recorded for this Piece');
+  if (!tasks.length) return refuse(piece, chosen.length ? 'the rounds chosen hold no pair a critic judged that is still on disk as it was judged' : 'no native round has been recorded for this Piece');
 
   const pairs = tasks.map((t) => scratchPair(root, t.state.ours, t.state.theirs));
   let answers;
