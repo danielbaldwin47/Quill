@@ -1501,10 +1501,10 @@ impl Bars {
 
     /// Shows or hides the title bar's Library toggle.
     ///
-    /// Hidden while the sidebar stands beside the page, because the pane's own
-    /// head carries the toggle that shuts it and two of them in one frame is
-    /// one too many; shown again the moment the pane goes, which is the
-    /// oracle's arrangement (`files.js`, `.lib-head`).
+    /// Hidden while any of the sidebar is on screen, because the pane's head
+    /// has the toggle that shuts it and two of them in one frame is one too
+    /// many; shown again once the pane has slid away, which is the oracle's
+    /// arrangement (`files.js`, `.lib-head`).
     pub fn set_library_toggle_shown(&self, shown: bool) {
         self.library.set_visible(shown);
     }
