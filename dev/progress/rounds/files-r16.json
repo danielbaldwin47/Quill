@@ -1,0 +1,137 @@
+{
+  "piece": "files",
+  "round": 16,
+  "winner": "ours",
+  "margin": "slight",
+  "gap": "The Sort pill is the weakest control in the pane. Its label is regular weight and lighter grey, where A's is semibold and darker, and its fill is #F6F6F6 against A's #F9F9F9. Against the #FCFCFC List it looks disabled rather than like a control you can click.",
+  "gapTheirs": "The List header band is not the List's ground. Down the column at x=700 it goes from #FCFCFC to #F6F6F6 and #FAFAFA, with hairlines at y≈31 and y≈72, where the rows sit on flat #FCFCFC. Each row's file icon is a shaded paper sheet about 30 px tall, drawn in blurred #DDD lines. Both add grey-on-grey texture that the file list gains nothing from.",
+  "verdict": "Measured, the two panes are nearly the same: both Organizers are #EAEBEB, both Lists #FCFCFC, the divider #CBCCCC on both, names #191919 and excerpts #999999 on both, rows 136 device px apart, and a 6 px accent bar at x=276–281 with no row fill (#36BFFA on A, #00BFFF on B). B's List is one flat sheet with plain outline icons, so a writer's eye goes straight to the names and first lines. A lays shaded headers and shaded paper icons over the same grid, which is fussier without being clearer. B's Sort pill is too faint to read as a button, and that is the only thing holding the margin to slight.",
+  "oursShot": "dev/shots/files/r16-library-ours-crop.png",
+  "theirsShot": "dev/shots/files/r16-library-theirs-crop.png",
+  "refSource": "dev/ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in dev/ref/ia/mac-native/ (ADR 0015), cropped per state: library from mac-native-28-light-library-l1-rest.png, search from mac-native-28-light-library-l2-search.png; no opponent for pinned (pinned) — measured off ours' own pixels by tools/assert-state.mjs, because neither oracle holds the state (ADR 0017)",
+  "builderNote": "",
+  "secondary": [
+    "A is 720x1898 and B is 720x1800, so the heights differ by 98 px",
+    "Accent bar hue differs slightly: A #36BFFA, B #00BFFF (pure DeepSkyBlue, a little more saturated)",
+    "B's Location, Drafts and Recents icons are flat single-colour glyphs; A's folder is shaded and its Recents icon is a tinted smart folder, which doesn't match the flat grey file icons",
+    "The Filter field's glyph is a magnifier on B and a filter-lines circle on A; both fields sit on #FCFCFC",
+    "B's List title 'library' is a heavy bold centred about 32 px from the top; A's title sits in the toolbar next to a cloud glyph",
+    "The Sort pill is wider on B (about 322 px against 290), but that follows from the typeface; its height is about the same on both",
+    "Row separators are #EDEDED on both and start at x=340 under the name column on both"
+  ],
+  "opponent": "mixed",
+  "build": {
+    "git": "b74c61b",
+    "binary": "df08df35aafa1550",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "library",
+      "ours": "dev/shots/files/r16-library-ours-crop.png",
+      "theirs": "dev/shots/files/r16-library-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-28-light-library-l1-rest.png",
+        "crop": [
+          0,
+          0,
+          720,
+          1898
+        ],
+        "ours": [
+          0,
+          0,
+          720,
+          1800
+        ]
+      },
+      "oursWhole": "dev/shots/files/r16-library-ours.png",
+      "blind": "dev/shots/blind/files/library",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": false,
+      "gap": "The Sort pill is the weakest control in the pane. Its label is regular weight and lighter grey, where A's is semibold and darker, and its fill is #F6F6F6 against A's #F9F9F9. Against the #FCFCFC List it looks disabled rather than like a control you can click.",
+      "gapTheirs": "The List header band is not the List's ground. Down the column at x=700 it goes from #FCFCFC to #F6F6F6 and #FAFAFA, with hairlines at y≈31 and y≈72, where the rows sit on flat #FCFCFC. Each row's file icon is a shaded paper sheet about 30 px tall, drawn in blurred #DDD lines. Both add grey-on-grey texture that the file list gains nothing from.",
+      "verdict": "Measured, the two panes are nearly the same: both Organizers are #EAEBEB, both Lists #FCFCFC, the divider #CBCCCC on both, names #191919 and excerpts #999999 on both, rows 136 device px apart, and a 6 px accent bar at x=276–281 with no row fill (#36BFFA on A, #00BFFF on B). B's List is one flat sheet with plain outline icons, so a writer's eye goes straight to the names and first lines. A lays shaded headers and shaded paper icons over the same grid, which is fussier without being clearer. B's Sort pill is too faint to read as a button, and that is the only thing holding the margin to slight.",
+      "secondary": [
+        "A is 720x1898 and B is 720x1800, so the heights differ by 98 px",
+        "Accent bar hue differs slightly: A #36BFFA, B #00BFFF (pure DeepSkyBlue, a little more saturated)",
+        "B's Location, Drafts and Recents icons are flat single-colour glyphs; A's folder is shaded and its Recents icon is a tinted smart folder, which doesn't match the flat grey file icons",
+        "The Filter field's glyph is a magnifier on B and a filter-lines circle on A; both fields sit on #FCFCFC",
+        "B's List title 'library' is a heavy bold centred about 32 px from the top; A's title sits in the toolbar next to a cloud glyph",
+        "The Sort pill is wider on B (about 322 px against 290), but that follows from the typeface; its height is about the same on both",
+        "Row separators are #EDEDED on both and start at x=340 under the name column on both"
+      ],
+      "carried": 15
+    },
+    {
+      "name": "search",
+      "ours": "dev/shots/files/r16-search-ours-crop.png",
+      "theirs": "dev/shots/files/r16-search-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-28-light-library-l2-search.png",
+        "crop": [
+          0,
+          0,
+          720,
+          1898
+        ],
+        "ours": [
+          0,
+          0,
+          720,
+          1800
+        ]
+      },
+      "oursWhole": "dev/shots/files/r16-search-ours.png",
+      "blind": "dev/shots/blind/files/search",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": false,
+      "gap": "B's row rules run from x=340 to about x=700, and A's stop at about x=692. The rules overshoot the right edge of the date column, which ends at about x=696 in B and x=686 in A. That leaves a right gutter of about 20 px against A's 28 px, so the list looks jammed against the window edge. The field's icon is also a magnifier where A uses a filter glyph.",
+      "gapTheirs": "The first file row starts 190 px down A's list, against 150 px in B. That is 40 device px of toolbar (a back button, a location title with a cloud icon, and a +/chevron button cluster of about 160×70 px) sitting above the documents before the Sort pill. A also shows a '.txt' row whose excerpt has no visible 'sea' in it, which adds a result that means nothing at a glance.",
+      "verdict": "The two panes are almost the same measured list: rows 136 px apart, a 6 px accent bar at #00BFFF against A's #36BFFA, grounds of #EAEBEB and #FCFCFC, and excerpts and dates both at grey 153. A spends an extra 40 px of toolbar before any document shows, and its list includes a hit you can't see matching. B trims its right margin too tight, so rules and dates crowd the edge by 8–10 px. A writer scanning search results would get to the manuscript faster in B, but only just.",
+      "secondary": [
+        "The images differ in size: A is 720×1898 and B is 720×1800.",
+        "The Organizer ground is srgb(234,235,235) on both sides, and the File List ground is srgb(252,252,252) on both.",
+        "Excerpt and date greys both reach a minimum of 153/255 on both sides, so the excerpt and the date share one grey.",
+        "The Sort pill's darkest text is 117 in A and 118 in B, which is identical in practice.",
+        "The list title's darkest pixel is 84 in A and 74 in B. B's 'library' is set bold and larger, centred with no icon.",
+        "The Filter field sits at the foot in both, with the same blue focus ring and clear button. A uses a filter glyph and B a magnifier.",
+        "B's file icon is a flat outline page. A's is a greyed thumbnail-style page.",
+        "B's Organizer empty-state text for Pinned wraps to 3 lines at about 34 px pitch, a match for A's Favorites text."
+      ],
+      "carried": 15
+    },
+    {
+      "name": "pinned",
+      "ours": "dev/shots/files/r16-pinned-ours.png",
+      "theirs": null,
+      "lit": "dev/shots/files/r16-pinned-ours-lit.png",
+      "assert": {
+        "kind": "pinned",
+        "organizer": 260,
+        "icon": [
+          24,
+          30
+        ],
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "the Organizer's column, x 0..259, changed at x 33..238, y 245..459; the File List changed at x 313..327, y 232..246",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+      "verdict": "the Organizer's column, x 0..259, changed at x 33..238, y 245..459; the File List changed at x 313..327, y 232..246",
+      "secondary": [
+        "the Organizer's column, x 0..259, changed at x 33..238, y 245..459; the File List changed at x 313..327, y 232..246",
+        "the pair differ by the pin alone: a Pinned row in the Organizer's column and a pin inside one 24x30 icon cell of the File List"
+      ]
+    }
+  ],
+  "at": "2026-09-14T22:12:36.852Z"
+}

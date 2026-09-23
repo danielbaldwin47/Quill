@@ -60,7 +60,7 @@ use crate::settings::{Choice, choice};
 
 /// The file names the Library lists, without their dot.
 ///
-/// The Library spec's four. `legacy/app/js/files.js` also allowed `mdown`,
+/// The Library spec's four. `dev/legacy/app/js/files.js` also allowed `mdown`,
 /// which the spec drops; the comparison is case-insensitive there and here.
 const EXTENSIONS: [&str; 4] = ["md", "markdown", "txt", "text"];
 
@@ -880,7 +880,7 @@ impl Library {
     ///
     /// `typed` is made a file name by [`crate::disk::named`] and suffixed by
     /// [`crate::disk::unique_in`] where the folder already holds that name,
-    /// which is the oracle's rule (`legacy/app/js/files.js` `startRename`);
+    /// which is the oracle's rule (`dev/legacy/app/js/files.js` `startRename`);
     /// typing the name the file already has is no rename at all.
     ///
     /// A name that differs from the one the file has only in its case is a
@@ -924,7 +924,7 @@ impl Library {
 
     /// Copies the file at `path` beside itself, and answers where the copy is.
     ///
-    /// The oracle's naming (`legacy/app/js/files.js` `duplicate`): the stem,
+    /// The oracle's naming (`dev/legacy/app/js/files.js` `duplicate`): the stem,
     /// ` copy`, then the extension, suffixed where that is taken — so `X.md`
     /// duplicated twice is `X copy.md` and `X copy 2.md`. The disk moves first
     /// and the tree follows, as [`Library::rename`] does.
@@ -1297,7 +1297,7 @@ fn fuzzy(query: &str, name: &str) -> Option<i32> {
 /// The file's text as a row shows it: a heading's `#` markers and the
 /// emphasis marks `*_`, a backtick and `~` dropped, every run of whitespace
 /// one space. A hit is then always something the writer can see in the
-/// snippet, which is what `legacy/app/js/files.js`'s `excerpt` flattened the
+/// snippet, which is what `dev/legacy/app/js/files.js`'s `excerpt` flattened the
 /// text for.
 fn flatten(text: &str) -> String {
     let mut flat = String::with_capacity(text.len());
@@ -1375,7 +1375,7 @@ const WINDOW: usize = 160;
 ///
 /// The window opens up to [`LEAD`] characters before the match, moved forward
 /// to the next word so it does not open mid-word, and runs [`WINDOW`]
-/// characters — the shape `legacy/app/js/files.js`'s `snippet` drew — with `…`
+/// characters — the shape `dev/legacy/app/js/files.js`'s `snippet` drew — with `…`
 /// at whichever end was cut into. `text` is flattened, so a space is the only
 /// whitespace a word ends at.
 fn windowed(text: &str, at: &Range<usize>) -> Snippet {

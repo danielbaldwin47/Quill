@@ -6,7 +6,7 @@ centred in the window. Headings hang their markers into the left gutter at level
 about, which is why the gutter is seven cells and not six; blockquote and list markers do not hang
 out into it and sit on the body column instead. A selection's rows fill this container: a held hard newline runs to its right edge, and
 the interior rows of a multi-row selection span it whole. Measured on the Design oracle
-(`ref/ia/mac-native/VERDICTS.md` rows 4.1.8–4.1.13 and the found-here table; captures
+(`dev/ref/ia/mac-native/VERDICTS.md` rows 4.1.8–4.1.13 and the found-here table; captures
 `09-select-all`, `14-gutters`, `14-blocks`, `10-newline-only`). Decided 2026-08-30 with the owner
 under [ADR 0015](0015-the-design-oracle-outranks-the-parity-oracle.md).
 
@@ -22,7 +22,7 @@ Nothing else here moves.*
 hang **out**. Four `mac-native-19-*-wrapped-markers` captures show that a wrapped list item's and a
 wrapped quote's continuation rows hang **in**, under the item's own first word, by that paragraph's
 own marker run — `- ` and `> ` two cells past the body column, `123. ` five — and that a wrapped
-quote carries no second `>` (`ref/ia/mac-native/CAPTURE-2026-09-09.md` § #241, `NOTES.md` § State
+quote carries no second `>` (`dev/ref/ia/mac-native/CAPTURE-2026-09-09.md` § #241, `NOTES.md` § State
 14, `docs/design.md` row What hangs). No first row moves: every marker still sits where this ADR
 put it, the gutter is still seven cells and still sized by `###### `, no quote rule is drawn, and
 the measured-not-counted rule below now covers a marker run as well as a heading's. Nothing else

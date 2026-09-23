@@ -1,0 +1,165 @@
+{
+  "piece": "syntax",
+  "round": 3,
+  "winner": "ours",
+  "margin": "asserted",
+  "gap": "nouns 26526, verbs 18696, adjectives 6916, adverbs 5029, conjunctions 5175 opaque pixels; 117935 changed pixels keep source glyph coverage",
+  "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+  "verdict": "nouns 26526, verbs 18696, adjectives 6916, adverbs 5029, conjunctions 5175 opaque pixels; 117935 changed pixels keep source glyph coverage",
+  "oursShot": "dev/shots/syntax/r3-all-light-ours.png",
+  "theirsShot": null,
+  "refSource": "no opponent for all-light (syntax), all-dark (syntax), adjectives-adverbs (syntax), focus-sentence (syntax), live (syntax) — measured off ours' own pixels by tools/assert-state.mjs, because neither oracle holds the state (ADR 0017)",
+  "builderNote": "after merging main 28fc661 (page top #231) into spec-310-syntax",
+  "secondary": [
+    "same-state syntax-off pixels supply the text column, glyph coverage and bright rows",
+    "provisional Role values: quill-engine/src/theme.rs Colours::LIGHT and Colours::DARK; no critic (ADR 0017)"
+  ],
+  "opponent": "asserted",
+  "build": {
+    "git": "b2238d8",
+    "binary": "26095a11dd35cdba",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "all-light",
+      "ours": "dev/shots/syntax/r3-all-light-ours.png",
+      "theirs": null,
+      "lit": "dev/shots/syntax/r3-all-light-ours-lit.png",
+      "assert": {
+        "kind": "syntax",
+        "theme": "light",
+        "expected": [
+          "nouns",
+          "verbs",
+          "adjectives",
+          "adverbs",
+          "conjunctions"
+        ],
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "nouns 26526, verbs 18696, adjectives 6916, adverbs 5029, conjunctions 5175 opaque pixels; 117935 changed pixels keep source glyph coverage",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+      "verdict": "nouns 26526, verbs 18696, adjectives 6916, adverbs 5029, conjunctions 5175 opaque pixels; 117935 changed pixels keep source glyph coverage",
+      "secondary": [
+        "same-state syntax-off pixels supply the text column, glyph coverage and bright rows",
+        "provisional Role values: quill-engine/src/theme.rs Colours::LIGHT and Colours::DARK; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "all-dark",
+      "ours": "dev/shots/syntax/r3-all-dark-ours.png",
+      "theirs": null,
+      "lit": "dev/shots/syntax/r3-all-dark-ours-lit.png",
+      "assert": {
+        "kind": "syntax",
+        "theme": "dark",
+        "expected": [
+          "nouns",
+          "verbs",
+          "adjectives",
+          "adverbs",
+          "conjunctions"
+        ],
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "nouns 26526, verbs 18696, adjectives 6916, adverbs 5029, conjunctions 5175 opaque pixels; 117918 changed pixels keep source glyph coverage",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+      "verdict": "nouns 26526, verbs 18696, adjectives 6916, adverbs 5029, conjunctions 5175 opaque pixels; 117918 changed pixels keep source glyph coverage",
+      "secondary": [
+        "same-state syntax-off pixels supply the text column, glyph coverage and bright rows",
+        "provisional Role values: quill-engine/src/theme.rs Colours::LIGHT and Colours::DARK; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "adjectives-adverbs",
+      "ours": "dev/shots/syntax/r3-adjectives-adverbs-ours.png",
+      "theirs": null,
+      "lit": "dev/shots/syntax/r3-adjectives-adverbs-ours-lit.png",
+      "assert": {
+        "kind": "syntax",
+        "theme": "light",
+        "expected": [
+          "adjectives",
+          "adverbs"
+        ],
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "nouns 0, verbs 0, adjectives 6916, adverbs 5029, conjunctions 0 opaque pixels; 22719 changed pixels keep source glyph coverage",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+      "verdict": "nouns 0, verbs 0, adjectives 6916, adverbs 5029, conjunctions 0 opaque pixels; 22719 changed pixels keep source glyph coverage",
+      "secondary": [
+        "same-state syntax-off pixels supply the text column, glyph coverage and bright rows",
+        "provisional Role values: quill-engine/src/theme.rs Colours::LIGHT and Colours::DARK; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "focus-sentence",
+      "ours": "dev/shots/syntax/r3-focus-sentence-ours.png",
+      "theirs": null,
+      "lit": "dev/shots/syntax/r3-focus-sentence-ours-lit.png",
+      "assert": {
+        "kind": "syntax",
+        "theme": "light",
+        "expected": [
+          "nouns",
+          "verbs",
+          "adjectives",
+          "adverbs",
+          "conjunctions"
+        ],
+        "focus": true,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "nouns 3794, verbs 2767, adjectives 883, adverbs 1404, conjunctions 790 opaque pixels; 18603 changed pixels keep source glyph coverage; colour stays in 3 bright rows",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+      "verdict": "nouns 3794, verbs 2767, adjectives 883, adverbs 1404, conjunctions 790 opaque pixels; 18603 changed pixels keep source glyph coverage; colour stays in 3 bright rows",
+      "secondary": [
+        "same-state syntax-off pixels supply the text column, glyph coverage and bright rows",
+        "provisional Role values: quill-engine/src/theme.rs Colours::LIGHT and Colours::DARK; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "live",
+      "ours": "dev/shots/syntax/r3-live-ours.png",
+      "theirs": null,
+      "lit": "dev/shots/syntax/r3-live-ours-lit.png",
+      "assert": {
+        "kind": "syntax",
+        "theme": "light",
+        "expected": [
+          "nouns",
+          "verbs",
+          "adjectives",
+          "adverbs",
+          "conjunctions"
+        ],
+        "live": true,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "nouns 31532, verbs 20164, adjectives 6880, adverbs 5029, conjunctions 5175 opaque pixels; 125392 changed pixels keep source glyph coverage; scaled heading holds 7177 Category pixels",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+      "verdict": "nouns 31532, verbs 20164, adjectives 6880, adverbs 5029, conjunctions 5175 opaque pixels; 125392 changed pixels keep source glyph coverage; scaled heading holds 7177 Category pixels",
+      "secondary": [
+        "same-state syntax-off pixels supply the text column, glyph coverage and bright rows",
+        "provisional Role values: quill-engine/src/theme.rs Colours::LIGHT and Colours::DARK; no critic (ADR 0017)"
+      ]
+    }
+  ],
+  "at": "2026-09-10T01:35:51.918Z"
+}

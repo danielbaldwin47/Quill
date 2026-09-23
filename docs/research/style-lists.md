@@ -26,7 +26,7 @@ separates cleanly from the code that reads it:
 **1,491 phrases in total** (MEASURED — the counts are what `data/style/*.txt` holds after
 de-duplication, the cross-list ownership pass and the false-fire pruning below). Attribution and
 licence texts are in `data/style/SOURCES.md` beside them; the fixture passage the spec fixes is
-`ref/style.md`.
+`dev/ref/style.md`.
 
 One caveat needs the owner's eye and is set out in § Provenance caveats: the 500-entry redundancy
 block comes to us under proselint's BSD-3-Clause but originates in After the Deadline, whose server
@@ -239,8 +239,8 @@ third one: a short opinionated list plus a user-editable Custom Patterns escape 
 puts out of scope as fog.
 
 **What Quill did instead: measure, then cut.** The lists were run over 12,518 words of the
-repository's own English prose — `ref/sample.md`, `README.md`, `docs/architecture.md`,
-`docs/design.md`, `legacy/BRIEF.md` and `CLAUDE.md`, none of it written with a style checker in
+repository's own English prose — `dev/ref/sample.md`, `README.md`, `docs/architecture.md`,
+`docs/design.md`, `dev/legacy/BRIEF.md` and `CLAUDE.md`, none of it written with a style checker in
 mind — with the same leftmost-longest, whole-word matcher #29 specifies. First pass: **91 strikes,
 7.3 per 1,000 words** (MEASURED), and they were not spread out. Seven entries produced 74 of them:
 
@@ -294,7 +294,7 @@ budget. The constraint is editorial, not computational.
 
 ## Verification
 
-The fixture passage `ref/style.md` was matched with a leftmost-longest, whole-word, case-insensitive
+The fixture passage `dev/ref/style.md` was matched with a leftmost-longest, whole-word, case-insensitive
 matcher written to #29's rules. All thirteen required phrases match, each tagged by the list the
 spec assigns it (MEASURED):
 

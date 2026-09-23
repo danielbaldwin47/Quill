@@ -1,0 +1,209 @@
+{
+  "piece": "latency",
+  "round": 8,
+  "winner": "ours",
+  "margin": "clear",
+  "gap": "syntax is the closest to a bar: cold start 187.04 ms against the budget's 250 ms, 75% of it.",
+  "gapTheirs": "The Parity oracle is 12.17 ms uinput → presented and 370 ms cold; ours at prose_end_of_draft is 2.27 ms and 154.37 ms.",
+  "verdict": "gate bench prose_end_of_draft: pass — mean 2.27 ms, worst 4.49 ms, p50 2.15 ms, p99 3.91 ms, cold 154.37 ms\ngate bench prose_middle_of_draft: pass — mean 2.67 ms, worst 10.89 ms, p50 2.58 ms, p99 4.03 ms, cold 177.86 ms\ngate bench prose_focus_sentence: pass — mean 3.1 ms, worst 5.88 ms, p50 2.97 ms, p99 4.58 ms, cold 175.85 ms\ngate bench paragraph_breaks: pass — mean 2.94 ms, worst 6.31 ms, p50 2.74 ms, p99 4.92 ms, cold 173.98 ms\ngate bench revision: pass — mean 2.93 ms, worst 4.8 ms, p50 2.85 ms, p99 4.52 ms, cold 180.74 ms\ngate bench markdown_syntax: pass — mean 3.3 ms, worst 8.31 ms, p50 2.71 ms, p99 6.64 ms, cold 185.16 ms\ngate bench fence_flip: pass — mean 2.59 ms, worst 11.67 ms, p50 2.48 ms, p99 3.47 ms, cold 179.59 ms\ngate bench paste_blocks: pass — mean 2.31 ms, worst 5.91 ms, p50 2.09 ms, p99 5.27 ms, cold 169.2 ms\ngate bench letters_only_r1: pass — mean 2.81 ms, worst 4.68 ms, p50 2.71 ms, p99 4.58 ms, cold 177.6 ms\ngate bench bursts_and_pauses: pass — mean 2.29 ms, worst 4.13 ms, p50 2.19 ms, p99 3.81 ms, cold 170.48 ms\ngate bench fast_typist: pass — mean 2.49 ms, worst 6.97 ms, p50 2.35 ms, p99 4.04 ms, cold 180.1 ms\ngate bench saturation_stress: informational — mean 24.84 ms, worst 33.76 ms, p50 24.93 ms, p99 33.53 ms, cold 181.22 ms (not scored: keys share frames at this pace, so a per-keystroke latency grows by construction)\ngate bench live_end_of_draft: pass — mean 2.3 ms, worst 4.24 ms, p50 2.2 ms, p99 4 ms, cold 186.62 ms\ngate bench preview: pass — mean 2.28 ms, worst 4.05 ms, p50 2.2 ms, p99 3.06 ms, cold 178.22 ms\ngate bench syntax: pass — mean 2.25 ms, worst 4 ms, p50 2.14 ms, p99 3.67 ms, cold 187.04 ms\ngate bench --all: pass — 14 of 14 scored regimes clear the budget; saturation_stress informational (mean <= 5, worst <= 16, cold <= 250 ms; oracle 12.17, 15.61, 370 ms)",
+  "oursShot": "dev/shots/latency/summary-20260910T214302.json",
+  "theirsShot": "dev/progress/latency-report.md",
+  "refSource": "dev/progress/latency-report.md — the Parity oracle's own numbers, measured by dev/legacy/tools/latency.mjs on the JavaScript app as it won its gauntlet: 2.43 ms mean, 15.61 ms worst, 12.17 ms uinput → presented, 370 ms cold. Not a screenshot piece — the pair is a run against a report.",
+  "builderNote": "",
+  "secondary": [
+    "budget: mean <= 5 ms, worst <= 16 ms, cold <= 250 ms",
+    "won by beating the oracle at prose_end_of_draft, not by clearing the budget",
+    "bench run: --all at 2026-09-10T21:43:02.391Z",
+    "saturation_stress recorded, not scored: mean 24.84 ms, worst 33.76 ms, p50 24.93 ms, p99 33.53 ms, cold 181.22 ms (keys share frames at this pace, so a per-keystroke latency grows by construction)"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "df4cc6a",
+    "binary": "46ac3742bd581966",
+    "dirty": false
+  },
+  "states": [
+    {
+      "name": "prose_end_of_draft",
+      "result": "dev/shots/latency/bench-prose_end_of_draft-20260910T213547.json",
+      "winner": "ours",
+      "mean_ms": 2.27,
+      "worst_ms": 4.49,
+      "p50_ms": 2.15,
+      "p99_ms": 3.91,
+      "cold_ms": 154.37,
+      "closest_bar": "cold start 154.37 ms against the budget's 250 ms",
+      "at": "62% of it"
+    },
+    {
+      "name": "prose_middle_of_draft",
+      "result": "dev/shots/latency/bench-prose_middle_of_draft-20260910T213620.json",
+      "winner": "ours",
+      "mean_ms": 2.67,
+      "worst_ms": 10.89,
+      "p50_ms": 2.58,
+      "p99_ms": 4.03,
+      "cold_ms": 177.86,
+      "closest_bar": "cold start 177.86 ms against the budget's 250 ms",
+      "at": "71% of it"
+    },
+    {
+      "name": "prose_focus_sentence",
+      "result": "dev/shots/latency/bench-prose_focus_sentence-20260910T213652.json",
+      "winner": "ours",
+      "mean_ms": 3.1,
+      "worst_ms": 5.88,
+      "p50_ms": 2.97,
+      "p99_ms": 4.58,
+      "cold_ms": 175.85,
+      "closest_bar": "cold start 175.85 ms against the budget's 250 ms",
+      "at": "70% of it"
+    },
+    {
+      "name": "paragraph_breaks",
+      "result": "dev/shots/latency/bench-paragraph_breaks-20260910T213725.json",
+      "winner": "ours",
+      "mean_ms": 2.94,
+      "worst_ms": 6.31,
+      "p50_ms": 2.74,
+      "p99_ms": 4.92,
+      "cold_ms": 173.98,
+      "closest_bar": "cold start 173.98 ms against the budget's 250 ms",
+      "at": "70% of it"
+    },
+    {
+      "name": "revision",
+      "result": "dev/shots/latency/bench-revision-20260910T213757.json",
+      "winner": "ours",
+      "mean_ms": 2.93,
+      "worst_ms": 4.8,
+      "p50_ms": 2.85,
+      "p99_ms": 4.52,
+      "cold_ms": 180.74,
+      "closest_bar": "cold start 180.74 ms against the budget's 250 ms",
+      "at": "72% of it"
+    },
+    {
+      "name": "markdown_syntax",
+      "result": "dev/shots/latency/bench-markdown_syntax-20260910T213830.json",
+      "winner": "ours",
+      "mean_ms": 3.3,
+      "worst_ms": 8.31,
+      "p50_ms": 2.71,
+      "p99_ms": 6.64,
+      "cold_ms": 185.16,
+      "closest_bar": "cold start 185.16 ms against the budget's 250 ms",
+      "at": "74% of it"
+    },
+    {
+      "name": "fence_flip",
+      "result": "dev/shots/latency/bench-fence_flip-20260910T213902.json",
+      "winner": "ours",
+      "mean_ms": 2.59,
+      "worst_ms": 11.67,
+      "p50_ms": 2.48,
+      "p99_ms": 3.47,
+      "cold_ms": 179.59,
+      "closest_bar": "worst 11.67 ms against the budget's 16 ms",
+      "at": "73% of it"
+    },
+    {
+      "name": "paste_blocks",
+      "result": "dev/shots/latency/bench-paste_blocks-20260910T213935.json",
+      "winner": "ours",
+      "mean_ms": 2.31,
+      "worst_ms": 5.91,
+      "p50_ms": 2.09,
+      "p99_ms": 5.27,
+      "cold_ms": 169.2,
+      "closest_bar": "cold start 169.2 ms against the budget's 250 ms",
+      "at": "68% of it"
+    },
+    {
+      "name": "letters_only_r1",
+      "result": "dev/shots/latency/bench-letters_only_r1-20260910T214007.json",
+      "winner": "ours",
+      "mean_ms": 2.81,
+      "worst_ms": 4.68,
+      "p50_ms": 2.71,
+      "p99_ms": 4.58,
+      "cold_ms": 177.6,
+      "closest_bar": "cold start 177.6 ms against the budget's 250 ms",
+      "at": "71% of it"
+    },
+    {
+      "name": "bursts_and_pauses",
+      "result": "dev/shots/latency/bench-bursts_and_pauses-20260910T214059.json",
+      "winner": "ours",
+      "mean_ms": 2.29,
+      "worst_ms": 4.13,
+      "p50_ms": 2.19,
+      "p99_ms": 3.81,
+      "cold_ms": 170.48,
+      "closest_bar": "cold start 170.48 ms against the budget's 250 ms",
+      "at": "68% of it"
+    },
+    {
+      "name": "fast_typist",
+      "result": "dev/shots/latency/bench-fast_typist-20260910T214117.json",
+      "winner": "ours",
+      "mean_ms": 2.49,
+      "worst_ms": 6.97,
+      "p50_ms": 2.35,
+      "p99_ms": 4.04,
+      "cold_ms": 180.1,
+      "closest_bar": "cold start 180.1 ms against the budget's 250 ms",
+      "at": "72% of it"
+    },
+    {
+      "name": "live_end_of_draft",
+      "result": "dev/shots/latency/bench-live_end_of_draft-20260910T214157.json",
+      "winner": "ours",
+      "mean_ms": 2.3,
+      "worst_ms": 4.24,
+      "p50_ms": 2.2,
+      "p99_ms": 4,
+      "cold_ms": 186.62,
+      "closest_bar": "cold start 186.62 ms against the budget's 250 ms",
+      "at": "75% of it"
+    },
+    {
+      "name": "preview",
+      "result": "dev/shots/latency/bench-preview-20260910T214229.json",
+      "winner": "ours",
+      "mean_ms": 2.28,
+      "worst_ms": 4.05,
+      "p50_ms": 2.2,
+      "p99_ms": 3.06,
+      "cold_ms": 178.22,
+      "closest_bar": "cold start 178.22 ms against the budget's 250 ms",
+      "at": "71% of it"
+    },
+    {
+      "name": "syntax",
+      "result": "dev/shots/latency/bench-syntax-20260910T214302.json",
+      "winner": "ours",
+      "mean_ms": 2.25,
+      "worst_ms": 4,
+      "p50_ms": 2.14,
+      "p99_ms": 3.67,
+      "cold_ms": 187.04,
+      "closest_bar": "cold start 187.04 ms against the budget's 250 ms",
+      "at": "75% of it"
+    }
+  ],
+  "at": "2026-09-10T21:43:10.472Z",
+  "informational": [
+    {
+      "name": "saturation_stress",
+      "result": "dev/shots/latency/bench-saturation_stress-20260910T214124.json",
+      "scored": false,
+      "why": "keys share frames at this pace, so a per-keystroke latency grows by construction",
+      "mean_ms": 24.84,
+      "worst_ms": 33.76,
+      "p50_ms": 24.93,
+      "p99_ms": 33.53,
+      "cold_ms": 181.22
+    }
+  ]
+}

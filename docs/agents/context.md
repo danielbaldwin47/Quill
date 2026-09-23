@@ -32,10 +32,10 @@ Measured over eighteen sessions on 2026-09-10 and 2026-09-11, in a retrospective
 - **A file changed through Bash after Edit.** One session paid 60 KB of diff snippets; over the
   eight sessions, 52 python3 or node rewrites of files the session had already opened with Edit, 27
   of them in #319.
-- **Section reads of unwrapped files.** A two-hit `grep` over `progress/state.json` returned 25k
+- **Section reads of unwrapped files.** A two-hit `grep` over `dev/progress/state.json` returned 25k
   characters; `docs/design.md` row listings 11–16k; eleven lines of `docs/agents/gate.md` § Latency
   9k. `tools/gate brief <piece>` and `tools/design-rows` are the readers.
 - **The landing sequence by hand.** Six to nine calls per ticket, run five times in two days, with
-  the same two steps failing each time (an untracked `shots/latency/bench-*.json` blocking
+  the same two steps failing each time (an untracked `dev/shots/latency/bench-*.json` blocking
   `git worktree remove`; a branch already deleted by `--delete-branch`). `tools/land` is that
   sequence.

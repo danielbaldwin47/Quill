@@ -4,7 +4,7 @@
 // would disagree with what you see. Owner: markup piece.
 //   node tools/mirror-metrics.mjs [file.md ...]
 import { chromium } from 'playwright-core'; import fs from 'node:fs';
-const files = process.argv.slice(2).length ? process.argv.slice(2) : ['shots/markup/kitchen.md','shots/markup/writing.md'];
+const files = process.argv.slice(2).length ? process.argv.slice(2) : ['dev/shots/markup/kitchen.md','dev/shots/markup/writing.md'];
 const text = files.map(f => fs.readFileSync(f,'utf8')).join('\n');
 const b = await chromium.launch({ executablePath:'/usr/bin/chromium', headless:true, args:['--font-render-hinting=none','--disable-lcd-text'] });
 for (const font of ['duo','quattro','mono']) {

@@ -1,0 +1,75 @@
+{
+  "piece": "files",
+  "round": 9,
+  "winner": "theirs",
+  "margin": "slight",
+  "gap": "Every secondary run in the pane is heavier. The snippets, dates, sort control, count and status line all measure #8c8c8c in A against #999999 in B. A also sets its column on #f7f7f7, exactly the editor's paper, where B's column is #fdfdfd beside a #f9f9f9 page. So in A the list reads as a grey block glued to the page, and only the #dfdfdf hairline divides them.",
+  "gapTheirs": "The rows are looser and the grey is fainter. Rules between rows fall every ~155.5 device px in B against 150 px in A, so B loses about one row in thirty of vertical space. B's #999999 dates and snippets on #fdfdfd come to only about 2.8:1 contrast, against about 3.2:1 for A's #8c8c8c on #f7f7f7, so a date is harder to scan at a glance.",
+  "verdict": "A's library is a grey slab. Its two-line previews are set almost as dark as the names, and the column has the same grey paper as the page, so the eye can't let the list go while writing. B pushes the list back where it belongs: a lighter column, lighter secondary ink and the page left to itself. B pays for that with fainter dates and slightly roomier rows, but a novelist would rather squint at a date than have eight manuscript previews muttering beside the paragraph.",
+  "oursShot": "dev/shots/files/r9-library-ours.png",
+  "theirsShot": "dev/shots/oracle/files/library.png",
+  "refSource": "dev/shots/oracle/files/ — the Parity oracle frozen by tools/gate oracle files from dev/legacy/app 738f48c969965ac3 with dev/legacy/tools/shoot.mjs 239bd27db3974b27",
+  "builderNote": "the Library search prompt takes chrome_fg at opacity 1, so the prompt and the magnifier beside it are one grey (#429)",
+  "secondary": [
+    "Primary ink (names, folder name) is #191919 in A vs #1c1c1c in B, effectively equal",
+    "Selected-row fill is 5 levels below the column paper on both sides (A #f2f2f2 on #f7f7f7, B #f8f8f8 on #fdfdfd)",
+    "Hairline on the pane's right edge is #dfdfdf in A vs #e7e7e7 in B, so A's edge is harder",
+    "Folder row height: A ~78 device px vs B ~75 px",
+    "Extensions, folder-first order, collapsed Drafts, section naming and UI face all set aside as decisions already taken",
+    "Search is unbuilt this round and was not judged"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "61e2636",
+    "binary": "c5191110ab95bd0a",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "library",
+      "ours": "dev/shots/files/r9-library-ours.png",
+      "theirs": "dev/shots/oracle/files/library.png",
+      "blind": "dev/shots/blind/files/library",
+      "oursWas": "A",
+      "pick": "B",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Every secondary run in the pane is heavier. The snippets, dates, sort control, count and status line all measure #8c8c8c in A against #999999 in B. A also sets its column on #f7f7f7, exactly the editor's paper, where B's column is #fdfdfd beside a #f9f9f9 page. So in A the list reads as a grey block glued to the page, and only the #dfdfdf hairline divides them.",
+      "gapTheirs": "The rows are looser and the grey is fainter. Rules between rows fall every ~155.5 device px in B against 150 px in A, so B loses about one row in thirty of vertical space. B's #999999 dates and snippets on #fdfdfd come to only about 2.8:1 contrast, against about 3.2:1 for A's #8c8c8c on #f7f7f7, so a date is harder to scan at a glance.",
+      "verdict": "A's library is a grey slab. Its two-line previews are set almost as dark as the names, and the column has the same grey paper as the page, so the eye can't let the list go while writing. B pushes the list back where it belongs: a lighter column, lighter secondary ink and the page left to itself. B pays for that with fainter dates and slightly roomier rows, but a novelist would rather squint at a date than have eight manuscript previews muttering beside the paragraph.",
+      "secondary": [
+        "Primary ink (names, folder name) is #191919 in A vs #1c1c1c in B, effectively equal",
+        "Selected-row fill is 5 levels below the column paper on both sides (A #f2f2f2 on #f7f7f7, B #f8f8f8 on #fdfdfd)",
+        "Hairline on the pane's right edge is #dfdfdf in A vs #e7e7e7 in B, so A's edge is harder",
+        "Folder row height: A ~78 device px vs B ~75 px",
+        "Extensions, folder-first order, collapsed Drafts, section naming and UI face all set aside as decisions already taken",
+        "Search is unbuilt this round and was not judged"
+      ]
+    },
+    {
+      "name": "search",
+      "ours": "dev/shots/files/r9-search-ours.png",
+      "theirs": "dev/shots/oracle/files/search.png",
+      "blind": "dev/shots/blind/files/search",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "The location header has no disclosure chevron. It shows a bare lowercase 'library' and a folder glyph, where A shows 'Library ⌄', so nothing in B tells a writer the header can be clicked to switch or manage where the manuscripts live. B's secondary text is also darker: sort control, count, dates and snippets bottom out at #8C8C8C against A's #999999, so the metadata competes more with the names.",
+      "gapTheirs": "The pane is not on the page's paper. The sidebar fill is #FDFDFD and the editor is #F9F9F9, so the library reads as a separate whiter slab bolted onto the page. B uses #F7F7F7 on both sides and lets the #DFDFDF hairline do the separating. A's hairline is also fainter, #E7E7E7 against B's #DFDFDF, so the edge between the two whites is harder to see.",
+      "verdict": "Both panes are close enough that the choice comes down to a chevron and a few grey levels. A offers a visible handle on the library header; B's header is a flat label that gives no sign it does anything. A pays for it by laying its list on a whiter paper than the page, so the sidebar looks like a pasted-in panel rather than part of the same sheet. I'd still trust A's header more with a manuscript folder, but not by much.",
+      "secondary": [
+        "Row pitch from one name to the next: A 156 device px, B 150 device px",
+        "Selected-row tint is 5 levels below the pane in both: A #F8F8F8 on #FDFDFD, B #F2F2F2 on #F7F7F7",
+        "Snippet lines in B hold more of the text in the same width ('…the boath…' against A's '…roof off…'), which is the two faces and not a gap",
+        "Footer origin label: A 'In this browser', B 'On this device'. Both put the status dot and 'All changes saved' at the foot",
+        "Both narrow the list to '2 of 8 documents' and highlight 'sea' in a snippet, so the search state is the same on both sides",
+        "Extensions shown in A and hidden in B is the show_extensions setting, not scored",
+        "B's header 'library' is medium weight and lowercase; A's is bolder and capitalised"
+      ]
+    }
+  ],
+  "at": "2026-09-13T14:47:54.083Z"
+}

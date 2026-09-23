@@ -190,7 +190,7 @@ pub fn flipped(held: &mut BTreeSet<PathBuf>, path: &Path) -> bool {
 /// the extension, in characters, which is what a GTK field's positions count
 /// in.
 ///
-/// The oracle's rule (`legacy/app/js/files.js` `startRename`, which selects
+/// The oracle's rule (`dev/legacy/app/js/files.js` `startRename`, which selects
 /// `value.replace(EXT, '').length`): a writer renaming a Document is renaming
 /// the name and not the `.md`, and typing over the selection keeps it. A name
 /// with no dot in it is selected whole.
@@ -768,7 +768,7 @@ mod tests {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .expect("the crate sits inside the workspace")
-            .join("shots/oracle/library")
+            .join("dev/shots/oracle/library")
             .join(MANIFEST);
         fs::read_to_string(&path).unwrap_or_else(|err| panic!("{}: {err}", path.display()))
     }

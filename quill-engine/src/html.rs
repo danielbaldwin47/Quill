@@ -310,7 +310,7 @@ mod tests {
 
     /// The shared test passage, as the Document a writer has open.
     fn sample() -> Document {
-        Document::open(Path::new("../ref/sample.md")).expect("the shared test passage is here")
+        Document::open(Path::new("../dev/ref/sample.md")).expect("the shared test passage is here")
     }
 
     /// An untitled Document holding `text`.
@@ -495,7 +495,7 @@ mod tests {
 
     #[test]
     fn an_indented_template_indents_with_the_toggle_off() {
-        // No built-in is indented since `ref/ia/mac-native/NOTES.md` § State
+        // No built-in is indented since `dev/ref/ia/mac-native/NOTES.md` § State
         // 23 read the setting off ink and found none of iA's four indenting;
         // the file format keeps the shape, so a Template declaring it is what
         // this asserts.

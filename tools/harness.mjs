@@ -164,7 +164,7 @@ const SWITCH_TIMEOUT_MS = 1_500;
 // The native app's arguments for one resolved judged state.
 //
 // Offsets need no conversion here: `--caret` and `--select` take UTF-8 bytes from the start of the
-// Document, which is the form `shots/oracle/states.json` writes them in. (`tools/gate oracle` has
+// Document, which is the form `dev/shots/oracle/states.json` writes them in. (`tools/gate oracle` has
 // to convert, because the browser shooter counts characters.)
 //
 // `scale` and `active` are not here and never will be: the first is the output's, and the second
@@ -271,11 +271,11 @@ export function launchEnv(env = process.env, spell = null) {
   return out;
 }
 
-// A fresh copy of `ref/spell/` under `tmp`, one per launch, so a word one launch added is not in
+// A fresh copy of `dev/ref/spell/` under `tmp`, one per launch, so a word one launch added is not in
 // the dictionary the next launch reads.
 export function spellFixture(root, tmp) {
   const copy = fs.mkdtempSync(path.join(tmp, 'spell-'));
-  fs.cpSync(path.join(root, 'ref/spell'), copy, { recursive: true });
+  fs.cpSync(path.join(root, 'dev/ref/spell'), copy, { recursive: true });
   return copy;
 }
 
@@ -535,7 +535,7 @@ function focusMonitor(name) {
 // Hyprland 0.56 dropped the old string dispatcher: `hyprctl dispatch workspace N` is now parsed as
 // Lua, fails, and changes nothing — which would leave a window measuring on a workspace nobody is
 // looking at, the one thing the panel mode exists to avoid. `hl.dsp.focus{workspace=N}` is the form
-// that works (`legacy/bin/quill:168-185` records the search that found it), and every caller reads
+// that works (`dev/legacy/bin/quill:168-185` records the search that found it), and every caller reads
 // the switch back rather than trusting this return.
 function gotoWorkspace(id) {
   return lua(`return hl.dispatch(hl.dsp.focus{workspace=${id}})`);
@@ -806,7 +806,7 @@ export async function openStage({ root, appId = APP_ID, say = stderr } = {}) {
 // Opens the stage on the physical panel: the one measurement a headless output cannot give.
 //
 // A Wayland surface on a workspace nobody is displaying gets no frame callbacks, so a number about
-// scan-out can only be taken with the window genuinely on screen — and `legacy/BRIEF.md` forbids
+// scan-out can only be taken with the window genuinely on screen — and `dev/legacy/BRIEF.md` forbids
 // doing that to somebody who is working. So this refuses on every count it can before it changes
 // anything: no compositor, no panel awake, the owner's own workspace, the workspace they have up on
 // the panel, and finally a machine whose keyboard and pointer have not been silent. Nothing is

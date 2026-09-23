@@ -1,6 +1,6 @@
 //! The shipped lists have to strike the passage the whole feature is judged on.
 //!
-//! `ref/style.md` is one passage carrying a filler, a redundancy and a cliché
+//! `dev/ref/style.md` is one passage carrying a filler, a redundancy and a cliché
 //! of every shape the spec names, and it is the same file three ways: the
 //! engine's fixture here, the `style` Piece's Document, and the capture's own
 //! state (#354). So this test is what keeps the three from drifting — a list
@@ -22,7 +22,7 @@ use quill_engine::style::{List, Lists, struck};
 /// the file, the text struck, and the List that struck it.
 ///
 /// **This table is the Design oracle's own marks**, read off iA Writer striking
-/// this passage (#354, `ref/ia/mac-native/style-354-read.json`), so a list edit
+/// this passage (#354, `dev/ref/ia/mac-native/style-354-read.json`), so a list edit
 /// that drifts from what iA draws fails here. It says four things the lists
 /// alone would not:
 ///
@@ -74,7 +74,7 @@ fn the_shipped_lists_strike_every_phrase_of_the_fixture_passage_and_nothing_else
         .collect();
     assert_eq!(
         marks, STRUCK,
-        "the passage strikes exactly what `ref/style.md` was written to strike"
+        "the passage strikes exactly what `dev/ref/style.md` was written to strike"
     );
 
     // The ranges address the passage itself, ascending and never overlapping,
@@ -83,7 +83,7 @@ fn the_shipped_lists_strike_every_phrase_of_the_fixture_passage_and_nothing_else
     for (range, _) in &spans {
         assert!(
             range.start >= taken.end,
-            "{range:?} overlaps {taken:?} in `ref/style.md`"
+            "{range:?} overlaps {taken:?} in `dev/ref/style.md`"
         );
         assert!(
             range.end <= passage.len(),
@@ -112,6 +112,6 @@ fn the_heading_and_the_ordinary_words_of_the_passage_are_left_alone() {
 
 /// The fixture passage, read from the checkout the way the Piece reads it.
 fn passage() -> String {
-    let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../ref/style.md"));
+    let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../dev/ref/style.md"));
     fs::read_to_string(&path).unwrap_or_else(|err| panic!("{} is readable: {err}", path.display()))
 }

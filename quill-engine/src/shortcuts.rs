@@ -239,7 +239,7 @@ pub fn read(table: &toml::Table) -> Shortcuts {
 ///
 /// Entries are read in the file's order, because the duplicate rule is
 /// first-wins: a chord an earlier entry took refuses the later one, which is
-/// what `legacy/app/js/core.js` `buildKeymap` does over the whole keymap. The
+/// what `dev/legacy/app/js/core.js` `buildKeymap` does over the whole keymap. The
 /// check is against the chords this file took, not against the defaults an
 /// untouched Command still has, so the rule a writer can see in their own file
 /// is the whole of it.

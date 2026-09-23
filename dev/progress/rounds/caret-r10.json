@@ -1,0 +1,113 @@
+{
+  "piece": "caret",
+  "round": 10,
+  "winner": "theirs",
+  "margin": "slight",
+  "gap": "B's caret is a raw square-ended rectangle: rows 93 and 166 are full-width 6px at 100%, versus A's 3px semicircular caps tapering over three rows. It is hard-snapped to integers, implying a caret that hops in whole-pixel jumps rather than easing between columns — and at 74px tall (100% of the 74px line pitch, ~2.4x the ~30px ascender height) those two square corners park a blunt 6px blue brick 21px above the ascenders, in empty leading.",
+  "gapTheirs": "A's caret is 0.2px off the pixel grid and blurred on both flanks: outer columns render at 80% coverage (x=357) and 20% (x=363) instead of B's uniform 100% across all six columns, so only 4px of the 6px bar is full-strength. Worse, that 20% cyan fringe lands on x=363 — the first ink column of the 'a' — tinting the letterform, where B holds a clean 0-bleed boundary against grid-snapped glyphs.",
+  "verdict": "These are the same caret — 6px wide, 74px tall, #00BFFF, same 357-362 slot — and the only real decision either app made is what happens at the ends. A drew its caret: 3px caps, subpixel placement, the signature of a bar that can ease between positions instead of teleporting. B took the free rectangle, and pays for it with two hard corners floating in the leading above every line. Both of you shipped a caret 2.4x the ascender height and 24% of the character cell in unmodified CSS DeepSkyBlue, flush against the 'a' with zero right clearance — that is the defect a writer actually sees at 1x, and neither of you fixed it.",
+  "oursShot": "dev/shots/caret/r10-caret-ours-crop.png",
+  "theirsShot": "dev/shots/caret/r10-caret-theirs-crop.png",
+  "refSource": "dev/shots/oracle/caret/ — the Parity oracle frozen by tools/gate oracle caret from dev/legacy/app 738f48c969965ac3 with dev/legacy/tools/shoot.mjs b2362316db135d06; dev/ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in dev/ref/ia/mac-native/ (ADR 0015), cropped per state: caret from mac-native-01-light-caret-midword.png; no opponent for unfocused (ghost) — measured off ours' own pixels by tools/assert-state.mjs, because neither oracle holds the state (ADR 0017)",
+  "builderNote": "#147: the bar centred on the advance boundary; caret/unfocused asserted rather than paired (ADR 0017), with the ground read from a clear run either side of the bar",
+  "secondary": [
+    "Identical caret colour in both: #00BFFF, the unmodified CSS named colour DeepSkyBlue — not a considered accent, and over-saturated against the #F7F7F7 page",
+    "Caret height identical at 74px = exactly the 74px line pitch, ~2.4x the ~30px ascender height; overshoots the ascender top by ~21px and the baseline by ~23px in both",
+    "Caret width identical at 6px nominal, ~2x the ~3px mono stem weight and ~24% of the 25px character advance — heavy for a mono cell in both",
+    "Caret is flush against the 'a' in both (0px clearance right, 1px left) rather than centred in the 7px inter-glyph gap; A's antialiasing makes this contact worse, not better",
+    "Neither screenshot contains a selection, so selection colour and selection-vs-caret contrast are unjudgeable from these frames",
+    "Neither shows blink phase or a second frame; motion is inferable only from the rendering path (fractional vs snapped), not observed",
+    "Body text rendering is not identical between the two — A's line-1 ascenders start at y=114 vs B's y=111 on a shared ~142 baseline — but that sits outside this piece"
+  ],
+  "opponent": "mixed",
+  "build": {
+    "git": "0c402e7",
+    "binary": "6f40e73af969d0e5",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "caret",
+      "ours": "dev/shots/caret/r10-caret-ours-crop.png",
+      "theirs": "dev/shots/caret/r10-caret-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-01-light-caret-midword.png",
+        "crop": [
+          459,
+          187,
+          720,
+          260
+        ],
+        "ours": [
+          392,
+          205,
+          720,
+          260
+        ]
+      },
+      "oursWhole": "dev/shots/caret/r10-caret-ours.png",
+      "blind": "dev/shots/blind/caret/caret",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "B's caret is a raw square-ended rectangle: rows 93 and 166 are full-width 6px at 100%, versus A's 3px semicircular caps tapering over three rows. It is hard-snapped to integers, implying a caret that hops in whole-pixel jumps rather than easing between columns — and at 74px tall (100% of the 74px line pitch, ~2.4x the ~30px ascender height) those two square corners park a blunt 6px blue brick 21px above the ascenders, in empty leading.",
+      "gapTheirs": "A's caret is 0.2px off the pixel grid and blurred on both flanks: outer columns render at 80% coverage (x=357) and 20% (x=363) instead of B's uniform 100% across all six columns, so only 4px of the 6px bar is full-strength. Worse, that 20% cyan fringe lands on x=363 — the first ink column of the 'a' — tinting the letterform, where B holds a clean 0-bleed boundary against grid-snapped glyphs.",
+      "verdict": "These are the same caret — 6px wide, 74px tall, #00BFFF, same 357-362 slot — and the only real decision either app made is what happens at the ends. A drew its caret: 3px caps, subpixel placement, the signature of a bar that can ease between positions instead of teleporting. B took the free rectangle, and pays for it with two hard corners floating in the leading above every line. Both of you shipped a caret 2.4x the ascender height and 24% of the character cell in unmodified CSS DeepSkyBlue, flush against the 'a' with zero right clearance — that is the defect a writer actually sees at 1x, and neither of you fixed it.",
+      "secondary": [
+        "Identical caret colour in both: #00BFFF, the unmodified CSS named colour DeepSkyBlue — not a considered accent, and over-saturated against the #F7F7F7 page",
+        "Caret height identical at 74px = exactly the 74px line pitch, ~2.4x the ~30px ascender height; overshoots the ascender top by ~21px and the baseline by ~23px in both",
+        "Caret width identical at 6px nominal, ~2x the ~3px mono stem weight and ~24% of the 25px character advance — heavy for a mono cell in both",
+        "Caret is flush against the 'a' in both (0px clearance right, 1px left) rather than centred in the 7px inter-glyph gap; A's antialiasing makes this contact worse, not better",
+        "Neither screenshot contains a selection, so selection colour and selection-vs-caret contrast are unjudgeable from these frames",
+        "Neither shows blink phase or a second frame; motion is inferable only from the rendering path (fractional vs snapped), not observed",
+        "Body text rendering is not identical between the two — A's line-1 ascenders start at y=114 vs B's y=111 on a shared ~142 baseline — but that sits outside this piece"
+      ]
+    },
+    {
+      "name": "selection",
+      "ours": "dev/shots/caret/r10-selection-ours.png",
+      "theirs": "dev/shots/oracle/caret/selection.png",
+      "blind": "dev/shots/blind/caret/selection",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "No caret at all: a full-image column scan for any vertical dark run ≥55px returns empty, versus A's two 76px bars — zero caret pixels in 2880×1800, so there is no insertion point, no width, no colour, no height to judge; the writer is left with a #CCEDF8 block and no idea where typing would land",
+      "gapTheirs": "Draws TWO carets — identical 6px×76px #00B5FF bars at x=910 and x=1404, bracketing the selection — so nothing indicates which end is live; and #00B5FF is the only saturated pixel in an otherwise pure-greyscale document (text #1C1C1C, markers #9E9F9F, bg #F9F9F9), at 3 CSS px wide and 2.45× cap-height (76px caret vs 31px cap) it is a fence post, not a nib",
+      "verdict": "A's caret is loud and doubled — a 3px electric-cyan slab at each end of the selection, the brightest thing on a page that is otherwise pure grey, and it tells you nothing about direction because both ends look identical. But it exists, it is exactly co-extensive with the selection band (both y458–533, zero px mismatch), and you can find it from across the room. B hands you a pale block of highlight and no cursor whatsoever; a writing surface where the insertion point can vanish entirely is not a precise instrument, it is a guess. Present-and-vulgar beats absent.",
+      "secondary": [
+        "A caret width 6px @2x = 3 CSS px; a native caret at this size is 1–2px, so A's reads as a block cursor rather than a hairline",
+        "A's right caret abuts the 'e' of 'move' with ~0px optical gap — reads as a closing bracket, not an insertion point",
+        "Selection fills: A #C2EAFA on #F9F9F9 vs B #CCEDF8 on #F7F7F7 — B's is ~4% lighter and lower-chroma, gentler on the eye, but anchors nothing",
+        "Both selections span the full line box with hard square ends: A 76px band vs 75.6px line advance; B 74px vs 73.9px — no vertical padding, no rounding in either",
+        "Neither still can prove blink behaviour, but B's frame demonstrates the caret can be wholly invisible while a selection is active — the worst moment to lose it",
+        "A's caret sits in the inter-word space before 'the', 6px clear of the highlight edge at x=916 — the one piece of genuine alignment craft in either image"
+      ]
+    },
+    {
+      "name": "unfocused",
+      "ours": "dev/shots/caret/r10-unfocused-ours.png",
+      "theirs": null,
+      "lit": "dev/shots/caret/r10-unfocused-ours-lit.png",
+      "assert": {
+        "kind": "ghost",
+        "alpha": 0.3,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "the ghost is the lit bar at alpha 0.302 over the paper, against the 0.3 docs/design.md row Caret on window deactivation names; the bar is x 1943..1948, y 816..889 lit and ghosted alike — deactivating the window moves it by nothing",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+      "verdict": "the ghost is the lit bar at alpha 0.302 over the paper, against the 0.3 docs/design.md row Caret on window deactivation names; the bar is x 1943..1948, y 816..889 lit and ghosted alike — deactivating the window moves it by nothing",
+      "secondary": [
+        "the bar is x 1943..1948, y 816..889 lit and ghosted alike — deactivating the window moves it by nothing",
+        "alpha solved per channel from the two shots, not from a hex written down here"
+      ]
+    }
+  ],
+  "at": "2026-08-31T19:51:01.159Z"
+}

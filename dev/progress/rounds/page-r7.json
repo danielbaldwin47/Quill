@@ -1,0 +1,99 @@
+{
+  "piece": "page",
+  "round": 7,
+  "winner": "ours",
+  "margin": "clear",
+  "gap": "The page is optically off-centre: hanging markers push ink to x=545 on the left while the right gutter stays 638px wide — a 93px left/right asymmetry that puts the ink block's centre at 1393 against a window centre of 1440. Nothing on the right balances the hanging '##', and the bottom has no gutter at all: the next line is sliced to a 4px sliver of ascender tops at y=1796–1799, hard against the window edge.",
+  "gapTheirs": "The left margin is not a straight line. Markers sit inside the column, so body text starts at x=622 but heading text starts at 673 (h1) and ~700 (h2) — the page edge steps in 26px and 52px at exactly the two places the eye anchors. A's hanging markers keep all 18 rows flush at 622.",
+  "verdict": "These are the same page — same 62ch measure, same 622px left edge, paper two greys apart out of 255 — so the argument is decided on smaller things, and B loses them. B buys 2px of extra leading (76 vs 74) and then spends 160px of vertical on a filename bar and a hairline-ruled '188 words 961 characters' counter, showing 16 text rows where A shows 18; a live word count parked under the last line is the first thing a drafting writer turns off. And B's headings step 26 and 52px right of the body edge, so the left margin ripples exactly where the page should feel most solid. A's failing is real but quieter: the hanging markers drag the ink 47px left of window centre with nothing to answer them on the right.",
+  "oursShot": "dev/shots/page/r7-light-ours.png",
+  "theirsShot": "dev/shots/oracle/page/light.png",
+  "refSource": "dev/shots/oracle/page/ — the Parity oracle frozen by tools/gate oracle page from dev/legacy/app 738f48c969965ac3 with dev/legacy/tools/shoot.mjs b2362316db135d06",
+  "builderNote": "#198 phase 2: markers at the body ink; the briefs now say the marker row is the Design oracle's",
+  "secondary": [
+    "Paper: A rgb(247,247,247), B rgb(249,249,249) — 2/255, indistinguishable at arm's length",
+    "Measure identical: A 1620px, B 1621px; ~62.3ch vs ~63.3ch at 26.0/25.6px advance",
+    "Leading A 74px on ~43.4px em (~1.70), B 76px on ~42.7px em (~1.78) — B 4% airier per line",
+    "Both set paragraph spacing at exactly 2x leading (148px / 152px) — same rhythm, no gap",
+    "Both text columns sit ~8px left of true window centre; neither is truly optically centred",
+    "B's body dead-ends 35px above a 1px hairline at y=1748; A has zero bottom padding",
+    "A's first heading sits 168px from a bare window top; B's 238px, but 200px of that is below chrome"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "10e5632",
+    "binary": "39c215a61d5f8574",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "light",
+      "ours": "dev/shots/page/r7-light-ours.png",
+      "theirs": "dev/shots/oracle/page/light.png",
+      "blind": "dev/shots/blind/page/light",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "The page is optically off-centre: hanging markers push ink to x=545 on the left while the right gutter stays 638px wide — a 93px left/right asymmetry that puts the ink block's centre at 1393 against a window centre of 1440. Nothing on the right balances the hanging '##', and the bottom has no gutter at all: the next line is sliced to a 4px sliver of ascender tops at y=1796–1799, hard against the window edge.",
+      "gapTheirs": "The left margin is not a straight line. Markers sit inside the column, so body text starts at x=622 but heading text starts at 673 (h1) and ~700 (h2) — the page edge steps in 26px and 52px at exactly the two places the eye anchors. A's hanging markers keep all 18 rows flush at 622.",
+      "verdict": "These are the same page — same 62ch measure, same 622px left edge, paper two greys apart out of 255 — so the argument is decided on smaller things, and B loses them. B buys 2px of extra leading (76 vs 74) and then spends 160px of vertical on a filename bar and a hairline-ruled '188 words 961 characters' counter, showing 16 text rows where A shows 18; a live word count parked under the last line is the first thing a drafting writer turns off. And B's headings step 26 and 52px right of the body edge, so the left margin ripples exactly where the page should feel most solid. A's failing is real but quieter: the hanging markers drag the ink 47px left of window centre with nothing to answer them on the right.",
+      "secondary": [
+        "Paper: A rgb(247,247,247), B rgb(249,249,249) — 2/255, indistinguishable at arm's length",
+        "Measure identical: A 1620px, B 1621px; ~62.3ch vs ~63.3ch at 26.0/25.6px advance",
+        "Leading A 74px on ~43.4px em (~1.70), B 76px on ~42.7px em (~1.78) — B 4% airier per line",
+        "Both set paragraph spacing at exactly 2x leading (148px / 152px) — same rhythm, no gap",
+        "Both text columns sit ~8px left of true window centre; neither is truly optically centred",
+        "B's body dead-ends 35px above a 1px hairline at y=1748; A has zero bottom padding",
+        "A's first heading sits 168px from a bare window top; B's 238px, but 200px of that is below chrome"
+      ]
+    },
+    {
+      "name": "narrow",
+      "ours": "dev/shots/page/r7-narrow-ours.png",
+      "theirs": "dev/shots/oracle/page/narrow.png",
+      "blind": "dev/shots/blind/page/narrow",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "Zero bottom gutter: the text column runs to the pixel edge of the window — the last list line is guillotined at y=1799 with only 4px of glyph tops showing and 0px padding below it, where B keeps 50px (25 CSS px) of clear paper above its divider. Type at the end of the file in A and your caret line sits flush against the window edge with nothing beneath it.",
+      "gapTheirs": "The left margin is not a straight line: B sets the `#`/`##` inside the column, so H1 text starts 52px (26 CSS px) and H2 text 78px (39 CSS px) right of the body's left edge at x=142, while A hangs the markers into the margin and lands every heading and every body line on one ruled edge at x=181. Two visible steps in the margin per screen.",
+      "verdict": "A is a page; B is a document window with a page inside it. B spends a 60px title bar and a footer band on chrome, then narrows the margins to 71/78 CSS px against A's 90/99 and stretches the measure to 63 characters against A's 57 — the column is closer to both edges, the lines are longer, and the left edge stutters right at every heading. A's one real sin is that it forgot the bottom: the column has no closing gutter and slices a line in half at the window edge, which is exactly what you'd feel typing the last paragraph of a chapter. Still A — a straight left margin, a 57ch measure and no live character counter in the eyeline beat a tidy footer.",
+      "secondary": [
+        "Paper is the same cold screen grey in both — #F7F7F7 (A) vs #F9F9F9 (B); neither has been given any warmth, the 2-point difference is invisible",
+        "Line pitch 74px (A) vs 76px (B) device, i.e. ~1.72 vs ~1.77 leading on a ~21.5px face — B is a hair airier and pays a line of visible text for it",
+        "Same 1800px viewport: A shows 2 more lines of the passage because it spends nothing on chrome",
+        "B's footer runs a live '961 characters' count — the wrong instrument to leave permanently in a prose writer's peripheral vision",
+        "Paragraph and heading rhythm are identical in both: +28 CSS px between paragraphs, exactly 2 line-pitches before an H2 — neither app has a rhythm problem",
+        "Neither column is truly centred: A sits 181px left / ~198px right, B 142/~156 — a 9-14px device lean that goes uncorrected in both",
+        "A's H1 sits only 84 CSS px from the window top with nothing above it; B's clears its header by 89 CSS px"
+      ]
+    },
+    {
+      "name": "short",
+      "ours": "dev/shots/page/r7-short-ours.png",
+      "theirs": "dev/shots/oracle/page/short.png",
+      "blind": "dev/shots/blind/page/short",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Line pitch 74px vs A's 76px (37 vs 38 CSS px, ~1.63 vs ~1.70 leading) on identical ~22.5px type, and the measure wraps three characters earlier (58–59 chars vs A's 62) — a marginally tighter, more crowded column.",
+      "gapTheirs": "The heading's words start at x=673 while every body line starts at x=623 — the '#' occupies a cell inside the column instead of hanging, so the title is kicked 51px (~25 CSS px, two character cells) right of the prose and the page has no single flush-left axis; with an H2/H3 present that indent stair-steps further.",
+      "verdict": "Two near-identical pages, and the whole decision is one vertical line: B holds a single left edge at x=623 for title and body alike, A lets the '#' eat a cell and shoves the title 51px inboard, so the eye trips on the one edge an empty page has nothing to hide. A buys back 2px of leading and three characters of measure — real, but you need a ruler to see it, whereas A's broken axis is visible from across the desk. Neither page does anything with the bottom 55% of the window: text is nailed to the top, first baseline at 75–77 CSS px, no vertical centering and no hint of typewriter scrolling, so both will feel like writing at the ceiling. B, on the axis alone.",
+      "secondary": [
+        "Paper: A #F9F9F9 vs B #F7F7F7 — 2/255 apart, indistinguishable; both flat, no warmth",
+        "Measure ~816 CSS px / 59-62 chars in both — inside the acceptable 60-75 band, neither generous nor cramped",
+        "Paragraph gap is exactly 2x line pitch in both (A 152px, B 148px) — a blank line, not a considered space",
+        "B's hanging '#' puts the block's optical left edge at x=570 vs a 626px right margin: the page reads ~28px off-centre, the standard price of hanging markers",
+        "Both dump ~1000px of dead window below the text with no scroll affordance implied — the page ends, the window doesn't",
+        "Caret 6px (3 CSS px) in both, height tracking line box (76 vs 74) — not this piece's row"
+      ]
+    }
+  ],
+  "at": "2026-09-01T00:40:10.288Z"
+}

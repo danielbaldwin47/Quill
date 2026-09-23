@@ -4,7 +4,7 @@
 //! One sidebar per window, all of them showing the one Library the session
 //! holds (`docs/architecture.md` § Library, § Windows). It stands left of the
 //! page and pushes it right rather than covering it, at the 360 points the
-//! Design oracle's pane measures (`ref/ia/mac-native/NOTES.md` § State 28).
+//! Design oracle's pane measures (`dev/ref/ia/mac-native/NOTES.md` § State 28).
 //!
 //! Two columns, as ADR 0020 has them: the Organizer at [`ORGANIZER`] points
 //! in the narrowest pane and half of any width dragged past it (#459), and the
@@ -81,7 +81,7 @@ use crate::ground::Ground;
 use crate::tags::pixels;
 use crate::window::Window;
 
-/// The pane's width until a writer drags the divider (`ref/ia/mac-native/NOTES.md`
+/// The pane's width until a writer drags the divider (`dev/ref/ia/mac-native/NOTES.md`
 /// § State 28, *Pane, total*), and the width a double-click on the divider puts back.
 pub const WIDTH: i32 = 360;
 /// The Organizer's width at the pane's [`WIDTH`]: State 28's 129.5 points, at
@@ -306,7 +306,7 @@ struct Bar {
 /// What marks the row of a Document whose file changed under unsaved edits.
 ///
 /// The oracle's warning colour, which it puts on the status dot
-/// (`legacy/app/css/files.css` line 212: `.lib-status[data-k="dirty"] .dot {
+/// (`dev/legacy/app/css/files.css` line 212: `.lib-status[data-k="dirty"] .dot {
 /// background: #e0a030 }`); the spec puts it on the row as well, so that a
 /// writer scanning the pane can see which Document is waiting on them.
 const WARN: &str = "#e0a030";
@@ -974,7 +974,7 @@ impl Sidebar {
     /// Typing narrows the list once the keystrokes stop, Enter opens the
     /// highlighted hit, Esc clears the query and hands the keyboard back to
     /// the page, and Down steps into the list, where the arrows walk the rows
-    /// (`legacy/app/js/files.js`, the field's `keydown`).
+    /// (`dev/legacy/app/js/files.js`, the field's `keydown`).
     fn wire(&self) {
         self.list.set_factory(Some(&self.slots_factory()));
         let typed = self.clone();
@@ -2301,7 +2301,7 @@ impl Sidebar {
     /// Puts a field in the place of the name of the row at `at`, and answers
     /// whether it took: a file's row, and one in view.
     ///
-    /// The oracle's field (`legacy/app/js/files.js` `startRename`): the name
+    /// The oracle's field (`dev/legacy/app/js/files.js` `startRename`): the name
     /// as it stands with everything before the extension selected, Enter
     /// renaming, Esc leaving it, and clicking away renaming — because a writer
     /// who typed a name and looked elsewhere meant the name.
@@ -2884,7 +2884,7 @@ fn menu_popover(over: &impl IsA<gtk::Widget>) -> gtk::PopoverMenu {
 
 /// What a row's context menu offers.
 ///
-/// The oracle's order (`legacy/app/js/files.js` `rowMenu`: Open, Rename…,
+/// The oracle's order (`dev/legacy/app/js/files.js` `rowMenu`: Open, Rename…,
 /// Duplicate, then Delete under a rule), with Pin or Unpin — whichever the row
 /// is not — between them, and the oracle's Download dropped: a file already on
 /// disk has nothing to download. A folder is opened by clicking it and has
@@ -4924,7 +4924,7 @@ mod tests {
 
     #[test]
     fn the_fixtures_mtimes_are_the_dates_the_oracles_shot_shows() {
-        // `shots/oracle/library/manifest.json` stamps sea-storm.md at
+        // `dev/shots/oracle/library/manifest.json` stamps sea-storm.md at
         // 1741942800, which the frozen shot dates `Mar 14, 25`.
         let stamped = SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1_741_942_800);
         assert_eq!(stamp(stamped, &at(2026, 9, 3, 12)), "Mar 14, 25");

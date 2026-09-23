@@ -1,0 +1,18 @@
+[
+ {
+  "out": "dev/shots/caret/mac/ours-caret.png",
+  "sha": "206f1de03d1900e0f1f1be95ff53e2020b0e743685e1a286f260e0fd70f4e62a"
+ },
+ {
+  "out": "dev/shots/caret/mac/ours-selection.png",
+  "sha": "252cf96f778ff874c5cf9324fe2eec48c47cf2c6def3a4a373174d589c49fa89"
+ },
+ {
+  "out": "dev/shots/caret/mac/ours-unfocused.png",
+  "sha": "52eaade66173ca7f0b5b1e72383d7f2c812ef9bd9403577943e43eb285fafa62"
+ },
+ {
+  "out": "dev/shots/caret/mac/ours-idle-band.png",
+  "sha": "5420465b926e3107dac170a718de35363a1c5fce61b71bf21a362e3891a5e953"
+ }
+]

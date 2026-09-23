@@ -1494,7 +1494,7 @@ mod tests {
 
     #[test]
     fn the_em_dash_in_the_sample_passage_shifts_bytes_without_shifting_lines() {
-        let doc = Document::open(Path::new("../ref/sample.md"))
+        let doc = Document::open(Path::new("../dev/ref/sample.md"))
             .expect("the shared test passage is in the repo");
         let text = doc.text();
         let dash = text.find('—').expect("the sample passage has an em dash");
@@ -1530,7 +1530,7 @@ mod tests {
 
     #[test]
     fn a_heading_span_reaches_the_line_and_index_the_app_sets_an_iter_from() {
-        let doc = Document::open(Path::new("../shots/oracle/markup.md"))
+        let doc = Document::open(Path::new("../dev/shots/oracle/markup.md"))
             .expect("the judged Markup passage is in the repo");
         let spans = doc.spans();
         let first = spans.first().expect("the passage opens with a heading");
@@ -1554,7 +1554,7 @@ mod tests {
 
     #[test]
     fn the_judged_passage_indexes_as_the_blocks_it_is_written_in() {
-        let doc = Document::open(Path::new("../shots/oracle/markup.md"))
+        let doc = Document::open(Path::new("../dev/shots/oracle/markup.md"))
             .expect("the judged Markup passage is in the repo");
         assert_eq!(
             shape(&doc),
@@ -1581,7 +1581,7 @@ mod tests {
 
     #[test]
     fn the_index_tiles_the_document_so_binary_search_finds_every_byte() {
-        let doc = Document::open(Path::new("../shots/oracle/markup.md"))
+        let doc = Document::open(Path::new("../dev/shots/oracle/markup.md"))
             .expect("the judged Markup passage is in the repo");
         for offset in 0..=doc.text().len() {
             let found = doc
@@ -1636,7 +1636,7 @@ mod tests {
 
     #[test]
     fn an_insert_and_a_delete_keep_the_text_and_the_line_table_together() {
-        let mut doc = Document::open(Path::new("../ref/sample.md"))
+        let mut doc = Document::open(Path::new("../dev/ref/sample.md"))
             .expect("the shared test passage is in the repo");
         let dash = doc
             .text()
@@ -1993,7 +1993,7 @@ mod tests {
 
     #[test]
     fn the_runs_and_spans_of_a_line_are_found_without_reading_the_document() {
-        let doc = Document::open(Path::new("../shots/oracle/markup.md"))
+        let doc = Document::open(Path::new("../dev/shots/oracle/markup.md"))
             .expect("the judged Markup passage is in the repo");
         for line in 0..doc.lines.len() {
             let at = doc.line_bytes(line);
@@ -2223,7 +2223,7 @@ mod tests {
 
     #[test]
     fn every_byte_of_the_judged_passage_survives_an_edit_at_it() {
-        let source = std::fs::read_to_string("../shots/oracle/markup.md")
+        let source = std::fs::read_to_string("../dev/shots/oracle/markup.md")
             .expect("the judged Markup passage is in the repo");
         for offset in 0..=source.len() {
             if !source.is_char_boundary(offset) {
@@ -2254,8 +2254,8 @@ mod tests {
     fn the_shared_passage_survives_a_multi_byte_character_written_at_every_byte() {
         // The em dash again, but written *in* rather than read: three bytes at
         // a time, at every boundary of a passage that already has one.
-        let source =
-            std::fs::read_to_string("../ref/sample.md").expect("the shared test passage is here");
+        let source = std::fs::read_to_string("../dev/ref/sample.md")
+            .expect("the shared test passage is here");
         for offset in 0..=source.len() {
             if !source.is_char_boundary(offset) {
                 continue;
@@ -2276,7 +2276,7 @@ mod tests {
         // a keystroke in a long Document does not cost what one in a short
         // Document costs — which is the whole of what this Piece owes.
         for name in ["doc10k.md", "doc52k.md"] {
-            let mut doc = Document::open(&Path::new("../shots/latency").join(name))
+            let mut doc = Document::open(&Path::new("../dev/shots/latency").join(name))
                 .expect("the bench's documents are in the repo");
             let last = doc.blocks().len() - 1;
             for written in ["T", "h", "e", " ", "l", "a", "m", "p"] {

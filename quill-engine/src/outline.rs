@@ -273,8 +273,8 @@ mod tests {
     /// Hand test names, each at the byte its words start at.
     #[test]
     fn the_sample_has_two_headings_where_their_words_start() {
-        let document =
-            Document::open(std::path::Path::new("../ref/sample.md")).expect("ref/sample.md opens");
+        let document = Document::open(std::path::Path::new("../dev/ref/sample.md"))
+            .expect("dev/ref/sample.md opens");
         let found = of_blocks(&document);
         let text = document.text();
         assert_eq!(

@@ -1,0 +1,58 @@
+PANEL: busy at 22:38:03, retrying
+PANEL: busy at 22:38:48, retrying
+PANEL: busy at 22:39:33, retrying
+PANEL: busy at 22:40:18, retrying
+PANEL: busy at 22:41:03, retrying
+PANEL: busy at 22:41:48, retrying
+PANEL: busy at 22:42:33, retrying
+PANEL: busy at 22:43:18, retrying
+PANEL: busy at 22:44:03, retrying
+PANEL: busy at 22:44:49, retrying
+PANEL: busy at 22:45:34, retrying
+PANEL: busy at 22:46:19, retrying
+PANEL: busy at 22:47:04, retrying
+PANEL: busy at 22:47:49, retrying
+PANEL: busy at 22:48:34, retrying
+PANEL: busy at 22:49:19, retrying
+PANEL: busy at 22:50:04, retrying
+PANEL: busy at 22:50:49, retrying
+PANEL: busy at 22:51:34, retrying
+PANEL: busy at 22:52:19, retrying
+PANEL: busy at 22:53:04, retrying
+PANEL: machine idle at 2026-08-26T22:54:09-04:00 — running
+quill: measuring on the PHYSICAL panel, workspace 3 (was 5); it goes back afterwards
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+browserType.connectOverCDP: connect ECONNREFUSED 127.0.0.1:9617
+Call log:
+[2m  - <ws preparing> retrieving websocket url from http://127.0.0.1:9617[22m
+
+    at [90m/home/diggle/Work/wisprflowcopy/[39mtools/latency.mjs:866:28
+    at async node:internal/modules/esm/loader:650:26 {
+  log: [
+    [32m'  - <ws preparing> retrieving websocket url from http://127.0.0.1:9617'[39m
+  ],
+  name: [32m'Error'[39m
+}
+
+Node.js v26.7.0
+quill: wrote dev/shots/latency/r3-panel-1.json
+PANEL: cdp run done
+quill: measuring on the PHYSICAL panel, workspace 3 (was 5); it goes back afterwards
+quill: real keys would go to 'chrome-localhost__-Default', not to Quill — refusing to inject
+PANEL_DONE
+PANEL: batch2 still running
+PANEL: batch2 still running
+PANEL: batch2 still running
+PANEL: batch2 still running
+PANEL: batch2 still running
+PANEL: batch2 still running
+PANEL: batch2 still running
+PANEL: batch2 still running
+PANEL: batch2 still running
+PANEL: panel present and machine idle at 2026-08-26T23:02:21-04:00 — running
+quill: could not bring workspace 3 up on the panel — refusing to measure a window nobody is looking at
+quill: could not bring workspace 3 up on the panel — refusing to measure a window nobody is looking at
+PANEL_DONE

@@ -1,7 +1,7 @@
 //! The caret's blink and its glide, with no widget in it.
 //!
-//! The Parity oracle keeps the two in `legacy/app/js/caret.js` and
-//! `legacy/app/css/caret.css`, as a CSS animation, a CSS transition and a
+//! The Parity oracle keeps the two in `dev/legacy/app/js/caret.js` and
+//! `dev/legacy/app/css/caret.css`, as a CSS animation, a CSS transition and a
 //! `setTimeout` for the quiet before the blink comes back. None of the three
 //! survives the port: the Editor paints the bar itself, below the text, and
 //! the frame clock hands it a time rather than firing a callback. So all of it
@@ -72,7 +72,7 @@ const GLIDE_DROP: f64 = 1.2;
 /// ([`Caret::alpha`]), so a hand typing at any pace quicker than this never
 /// sees the bar leave full strength, and a hand that stops sees it fade one
 /// ramp after this runs out. That is the machine
-/// `ref/ia/mac-native/NOTES.md` § State 5 describes — "the caret is held on
+/// `dev/ref/ia/mac-native/NOTES.md` § State 5 describes — "the caret is held on
 /// for one full on-phase after the last key before the cadence starts again"
 /// — and it is why there is no suppression constant beside this one.
 ///
@@ -85,7 +85,7 @@ const GLIDE_DROP: f64 = 1.2;
 const ON: i64 = 516 * MS;
 
 /// The fade down, one of the two ~0.09 s ramps between the two thresholds
-/// `ref/ia/mac-native/NOTES.md` § State 4 reads the trace at.
+/// `dev/ref/ia/mac-native/NOTES.md` § State 4 reads the trace at.
 const FADE_OUT: i64 = 90 * MS;
 
 /// The dark half of the cycle: 0.305 s measured, rounded to keep the turn
@@ -97,9 +97,9 @@ const FADE_IN: i64 = 90 * MS;
 
 /// One turn of the blink: 1.000 s.
 ///
-/// The Design oracle's, measured under a hand. `ref/ia/mac-native/blink-idle.tsv`
+/// The Design oracle's, measured under a hand. `dev/ref/ia/mac-native/blink-idle.tsv`
 /// samples the bar's accent pixels at 103 Hz over twelve seconds of a window
-/// nobody is touching, and `ref/ia/mac-native/NOTES.md` § State 4 reads it at
+/// nobody is touching, and `dev/ref/ia/mac-native/NOTES.md` § State 4 reads it at
 /// two thresholds: at **full strength** the bar is on 0.516 s and off 0.484 s
 /// to a 1.000 s period, and at **any accent pixel at all** it is on 0.691 s
 /// and off 0.305 s. Those two rows are what fix all four phases. The gap
@@ -123,8 +123,8 @@ const CYCLE: i64 = ON + FADE_OUT + OFF + FADE_IN;
 /// The share of the pitch the band carries above the baseline: 11/16, leaving
 /// 31.25 % below it.
 ///
-/// `ABOVE` in `legacy/app/js/caret.js`, which is where this number is of
-/// record: its header takes the caret's geometry from `ref/ia/REFERENCE.md`
+/// `ABOVE` in `dev/legacy/app/js/caret.js`, which is where this number is of
+/// record: its header takes the caret's geometry from `dev/ref/ia/REFERENCE.md`
 /// § 4.1 plus a re-measurement of its own on `appstore-mac-01` and
 /// `msstore-win-01`, and the share is one of the numbers that re-measurement
 /// added — § 4.1 itself records only the width, the height and that the bar
@@ -168,7 +168,7 @@ pub enum Move {
     /// be beside it in the same frame; gliding there put the one mark the eye
     /// is fixated on four frames behind the letter, which the oracle measured
     /// as the largest perceptible latency in the product
-    /// (`progress/latency-report.md` §5). So this one never glides.
+    /// (`dev/progress/latency-report.md` §5). So this one never glides.
     FollowsEdit,
 }
 
@@ -289,7 +289,7 @@ pub struct Caret {
     /// While it does there is no caret at all: the two bars at the selection's
     /// ends are the instrument, and a third bar blinking somewhere inside the
     /// held cells would read as a second cursor. `place()` in
-    /// `legacy/app/js/caret.js` hides it outright for the same reason.
+    /// `dev/legacy/app/js/caret.js` hides it outright for the same reason.
     selected: bool,
     /// Where the bar is going, or already is; its x is snapped.
     to: Bar,
@@ -630,7 +630,7 @@ pub fn band_top(baseline: f64, pitch: f64) -> f64 {
 ///
 /// The bar is **centred** on the boundary. iA Writer for Mac puts 3 px of its
 /// 6 px bar each side of it, at three offsets and in both themes
-/// (`ref/ia/mac-native/VERDICTS.md` 0013.1–0013.3), and `docs/design.md` row
+/// (`dev/ref/ia/mac-native/VERDICTS.md` 0013.1–0013.3), and `docs/design.md` row
 /// Caret column takes that over the Parity oracle, whose left edge sits on the
 /// boundary and whose bar therefore reads as standing on the glyph that
 /// follows — which is what
@@ -893,9 +893,9 @@ mod tests {
     /// which the bar is at full strength for 0.516 s and truly dark for
     /// 0.305 s, with a fade of about 0.09 s between them each way.
     ///
-    /// `ref/ia/mac-native/blink-idle.tsv` is the trace it is read off — the
+    /// `dev/ref/ia/mac-native/blink-idle.tsv` is the trace it is read off — the
     /// bar's accent pixels at 103 Hz over twelve seconds of a window nobody
-    /// is touching — and `ref/ia/mac-native/NOTES.md` § State 4 is the reading
+    /// is touching — and `dev/ref/ia/mac-native/NOTES.md` § State 4 is the reading
     /// of it, at the two thresholds that fix all four phases. The cadence is a
     /// pure function of the time since the cycle began, so this is the whole
     /// of it: no widget, no clock and no caret.
@@ -924,7 +924,7 @@ mod tests {
     /// The bar is held solid while a hand is typing, and dark 0.633 s after
     /// the last key.
     ///
-    /// `ref/ia/mac-native/NOTES.md` § State 5 is the reading of
+    /// `dev/ref/ia/mac-native/NOTES.md` § State 5 is the reading of
     /// `blink-typing.tsv`: through the typing window the bar is "solid on for
     /// 3.448 s — no blink at all", and after the last key it is "held on for
     /// one full on-phase before the cadence starts again". So the hold is not

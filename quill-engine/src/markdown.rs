@@ -273,7 +273,7 @@ mod tests {
 
     /// The passage the Markup Piece is judged on.
     fn oracle() -> String {
-        std::fs::read_to_string("../shots/oracle/markup.md")
+        std::fs::read_to_string("../dev/shots/oracle/markup.md")
             .expect("the judged Markup passage is in the repo")
     }
 

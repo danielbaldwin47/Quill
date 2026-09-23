@@ -1,0 +1,73 @@
+{
+  "piece": "markup",
+  "round": 9,
+  "winner": "ours",
+  "margin": "clear",
+  "gap": "Markers are all one mid-grey #7a7a7a (value 122 on a 249 bg) — B fades '#', '##' and '>' to #9e9e9e (158), ~36 levels lighter — and A gives a quote no block-level signal at all: one '>' in the gutter, no rule, where B draws a 2 CSS-px #bfbfbf bar down both lines.",
+  "gapTheirs": "Inline markers staircase the left edge into four positions — body/quote-wrap 673–676, heading/list/quote text 721, H2 744, ordered-list 747: 74 device px (37 CSS px) of rag — and the blockquote's own wrapped line lands 45 device px (22.5 CSS px) left of its first line, so a quote is left-ragged against itself.",
+  "verdict": "A puts the hashes, dashes and '>' in a gutter and keeps one dead-straight text column at x≈674 for every block type; B leaves them inline, so the H1 title sits 24 CSS px in, the H2 35.5, the list 24, and the body flush — the page never gives you one edge to read down, and deleting a '#' slides the title sideways. B's blockquote is the tell: it draws a rule but the second line breaks back past the first by 22.5 CSS px, which is the exact thing a writer sees before they see anything else. Then B parks a 3×36 CSS-px fully saturated #00B5FF caret that fills the whole line box, touches the lines above and below, and sits on top of the following comma — the loudest object on an otherwise grey page, against A's 2×27 px caret in text colour #1c1c1c.",
+  "oursShot": "dev/shots/markup/r9-light-ours.png",
+  "theirsShot": "dev/shots/oracle/markup/light.png",
+  "refSource": "dev/shots/oracle/markup/ — the Parity oracle frozen by tools/gate oracle markup from dev/legacy/app 738f48c969965ac3 with dev/legacy/tools/shoot.mjs adf473b575198cc3",
+  "builderNote": "",
+  "secondary": [
+    "Neither app scales headings: H1, H2 and body all render at the same size (band heights 37–39 device px), hierarchy carried only by marker count and bold",
+    "B's marker greys are internally inconsistent: '#'/'##'/'>' at 158 but '-' and '1.' at 122",
+    "A shows a persistent ~5 CSS-px scrollbar thumb (#959595) at the right edge; B shows no chrome",
+    "A's gutter markers are right-aligned to a common edge (x≈645), so '#' and '##' don't shift the text column",
+    "Identical in both: 36 CSS px line-height on ~20px mono (~1.8), ~745 CSS px measure, inline '*'/'**' left visible in grey, inline-code and fence tint #eeeeee at x644",
+    "B's caret overlaps the glyph to its right; A's clears it"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "08d6af5",
+    "binary": "904dc58cd1f6dfc9"
+  },
+  "states": [
+    {
+      "name": "light",
+      "ours": "dev/shots/markup/r9-light-ours.png",
+      "theirs": "dev/shots/oracle/markup/light.png",
+      "blind": "dev/shots/blind/markup/light",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "Markers are all one mid-grey #7a7a7a (value 122 on a 249 bg) — B fades '#', '##' and '>' to #9e9e9e (158), ~36 levels lighter — and A gives a quote no block-level signal at all: one '>' in the gutter, no rule, where B draws a 2 CSS-px #bfbfbf bar down both lines.",
+      "gapTheirs": "Inline markers staircase the left edge into four positions — body/quote-wrap 673–676, heading/list/quote text 721, H2 744, ordered-list 747: 74 device px (37 CSS px) of rag — and the blockquote's own wrapped line lands 45 device px (22.5 CSS px) left of its first line, so a quote is left-ragged against itself.",
+      "verdict": "A puts the hashes, dashes and '>' in a gutter and keeps one dead-straight text column at x≈674 for every block type; B leaves them inline, so the H1 title sits 24 CSS px in, the H2 35.5, the list 24, and the body flush — the page never gives you one edge to read down, and deleting a '#' slides the title sideways. B's blockquote is the tell: it draws a rule but the second line breaks back past the first by 22.5 CSS px, which is the exact thing a writer sees before they see anything else. Then B parks a 3×36 CSS-px fully saturated #00B5FF caret that fills the whole line box, touches the lines above and below, and sits on top of the following comma — the loudest object on an otherwise grey page, against A's 2×27 px caret in text colour #1c1c1c.",
+      "secondary": [
+        "Neither app scales headings: H1, H2 and body all render at the same size (band heights 37–39 device px), hierarchy carried only by marker count and bold",
+        "B's marker greys are internally inconsistent: '#'/'##'/'>' at 158 but '-' and '1.' at 122",
+        "A shows a persistent ~5 CSS-px scrollbar thumb (#959595) at the right edge; B shows no chrome",
+        "A's gutter markers are right-aligned to a common edge (x≈645), so '#' and '##' don't shift the text column",
+        "Identical in both: 36 CSS px line-height on ~20px mono (~1.8), ~745 CSS px measure, inline '*'/'**' left visible in grey, inline-code and fence tint #eeeeee at x644",
+        "B's caret overlaps the glyph to its right; A's clears it"
+      ]
+    },
+    {
+      "name": "dark",
+      "ours": "dev/shots/markup/r9-dark-ours.png",
+      "theirs": "dev/shots/oracle/markup/dark.png",
+      "blind": "dev/shots/blind/markup/dark",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "No block-level indicator for the blockquote at all: A marks a two-line quote with a single 17px-wide '>' glyph at #7A7A7A (contrast 4.08:1 on #F9F9F9) and nothing else, where B draws a 4px #494949 rule running the full 144px of the quote. A's inline code chip is also nearly invisible — flat #EEEEEE on #F9F9F9 is a delta of 11 grey levels (1.09:1), versus B's #272727 on #1A1A1A at 1.31:1 — and A's caret is #1C1C1C, the exact same ink value as body text, so in a monospace wall it reads as another l/|/I stem instead of a cursor.",
+      "gapTheirs": "B does not hang its markers, so the prose left edge staircases: body paragraph starts at x=673, bullet text at 721, blockquote text at 721, ordered-list text at 747 — 74px (three full 24.5px monospace cells) of raggedness on one screen. Worse, inside a single wrapped blockquote sentence line 1 starts at 721 and line 2 at 676: the text steps 45px LEFT mid-sentence. A puts every block's first character at x=673±2 and right-aligns all six marker types into a gutter ending at x≈647.",
+      "verdict": "A gives you one prose column and puts the syntax outside it; B leaves the syntax in the column and lets it shove the sentences around. You notice B the moment you write a list under a paragraph — the words jog two characters right for no reason a reader will ever see, and a wrapped quote line drops back left mid-thought, which reads as a rendering fault rather than a design. B buys you a findable caret and a quote rule and pays for it with a document that never holds a straight left edge; A buys the straight edge and pays with a code chip you have to hunt for and a caret the same colour as the text. For a long passage, the stable margin wins and it isn't close.",
+      "secondary": [
+        "B uses two different marker greys: #636363 (2.90:1) for #/##/> but #808080 (4.41:1) for - and 1. — the least meaningful markers are 52% louder than the heading markers. A holds #7A7A7A (4.08:1) across all six marker types.",
+        "B's inline code chip is two-tone: #272727 body with two 8px-wide #343434 stripes at x1596-1603 and x1756-1763, i.e. an extra background layer painted behind each backtick delimiter. A's chip is one flat #EEEEEE rect from x1572 to x1788 with no seams.",
+        "Caret geometry: A 4px x 54px #1C1C1C, sitting clear in the gap (x1906-1909, comma begins x1916). B 6px x 68px #00B5FF — 94% of the 72px line box, 25% of a 24.5px character cell, and butted directly against the following comma at x1918 so the comma is clipped.",
+        "B double-marks the blockquote: 4px rule at x644-647 AND the literal '>' glyph at x675-692. Redundant, and the '>' is what pushes the first line out of alignment with the second.",
+        "Fenced code block is identical in both: x644-2236, top edge y1728, chip fill #EEEEEE / #272727 respectively.",
+        "Inline emphasis is a wash — both render *small thing* and **not moving** with dimmed asterisks and styled text, same weights, same positions."
+      ]
+    }
+  ],
+  "at": "2026-08-29T03:59:30.312Z"
+}

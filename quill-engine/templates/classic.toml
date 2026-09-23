@@ -1,13 +1,13 @@
 # Classic: the Serif, on Source Serif 4.
 #
 # The dark page has been captured beside State 16's:
-# `ref/ia/mac-native/CAPTURE-2026-09-09.md` § "#261 — Preview", off
+# `dev/ref/ia/mac-native/CAPTURE-2026-09-09.md` § "#261 — Preview", off
 # `mac-native-20-dark-preview-classic-full`, reads #101010 paper on #cccccc
 # ink, which is what [dark] already held. The light page was captured in
 # neither scheme, so the #ffffff below is still iA's own description of the
 # template rather than a measurement, and stays until one lands.
 #
-# The rhythm and the em below are `ref/ia/mac-native/NOTES.md` § State 23,
+# The rhythm and the em below are `dev/ref/ia/mac-native/NOTES.md` § State 23,
 # read off ink rather than off a rendered still (`VERDICTS.md` § 4.3.5b and
 # § 4.3.8 … 4.3.10). Its figures are device pixels at backing scale 2, and its
 # points are the Mac's, one to a CSS pixel; `base` here is a CSS point, so

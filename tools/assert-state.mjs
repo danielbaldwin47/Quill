@@ -5,8 +5,8 @@
 // A blind pair asks a critic which of two apps did a thing better. That question needs two apps
 // that both do the thing. `caret/unfocused` has not had two since the caret's column left the
 // Parity oracle: iA drops the caret entirely when the window deactivates
-// (`ref/ia/mac-native/VERDICTS.md` 0013.8), so the Design oracle cannot hold the state either, and
-// `legacy/` holds it with the column `docs/design.md` row Caret column overruled. A critic put in
+// (`dev/ref/ia/mac-native/VERDICTS.md` 0013.8), so the Design oracle cannot hold the state either, and
+// `dev/legacy/` holds it with the column `docs/design.md` row Caret column overruled. A critic put in
 // front of that pair is choosing between our design and the one it replaced, and it chose the old
 // one in round 8 — on the 5 device px of paper the centring gave up, which is
 // [#147](https://github.com/danielbaldwin47/Quill/issues/147).
@@ -17,7 +17,7 @@
 // measured rather than preferred.
 //
 // The Preview pane is the second subject, and it is outside both oracles for a plainer reason than
-// the caret's. `legacy/` has no rendered page at all — it shows Markdown as source and nothing
+// the caret's. `dev/legacy/` has no rendered page at all — it shows Markdown as source and nothing
 // else — and iA Writer for Mac's own preview is that app's design rather than this one's:
 // [#263](https://github.com/danielbaldwin47/Quill/issues/263) § Out of Scope puts Preview outside
 // ADR 0015's reach and makes its look the spec's own. There is no pair to put in front of anybody,
@@ -97,7 +97,7 @@ export const SECOND = {
 };
 
 // A `--library` value with its `pinned=` overrides taken out and every other override left standing:
-// `shots/oracle/library:mark=pen,pinned=sea-storm.md` is `shots/oracle/library:mark=pen`.
+// `dev/shots/oracle/library:mark=pen,pinned=sea-storm.md` is `dev/shots/oracle/library:mark=pen`.
 export function unpinned(library) {
   const colon = library.indexOf(':');
   if (colon < 0) return library;
@@ -115,7 +115,7 @@ export function secondShot(spec, s) {
 //
 // `shots` is `{ dim, lit }`, both raw PNG buffers: `dim` is the state's own shot and `lit` the
 // second one [`SECOND`] asked for — the same state with the window active for `ghost`, and the same
-// state with Live off for `folded`. `spec` is the `assert` entry from `shots/oracle/states.json`. Throws when the state names an
+// state with Live off for `folded`. `spec` is the `assert` entry from `dev/shots/oracle/states.json`. Throws when the state names an
 // assertion this file has not got, which `tools/gate judge` turns into a refusal before it shoots.
 export function assertState(spec, shots) {
   validate(spec);
@@ -312,7 +312,7 @@ function syntax(spec, { lit, dim }) {
 //
 // Three facts a still can hold:
 //
-//   * how many marks there are — seven on `ref/spell.md`, with the caret parked at the end of
+//   * how many marks there are — seven on `dev/ref/spell.md`, with the caret parked at the end of
 //     `comittee` too, because a parked caret keeps its word's mark and only a word being typed
 //     withholds it (that case is `tools/gate keys spell`'s) — which is the tokeniser and the dictionary's
 //     answer arriving on the page, the count `quill-engine/tests/spell_checker.rs` names word by
@@ -869,7 +869,7 @@ function same(a, one, b, other) {
 
 // How far a column read off the glass may sit from where the geometry puts it, in device pixels.
 //
-// Three, and they are the oracle's own: `ref/ia/mac-native/NOTES.md` § State 16 measures a rendered
+// Three, and they are the oracle's own: `dev/ref/ia/mac-native/NOTES.md` § State 16 measures a rendered
 // heading 3 px off the window centre it is centred on, and calls that the glyph rounding. The same
 // rounding is here twice over — a pane's half is a whole pixel only when the window's width is
 // even, and a run of ink is bounded by the antialiased edge of its first and last glyph rather than
@@ -891,7 +891,7 @@ const PANE_INK = 40;
 // Three facts, and a still holds all three. The divider stands at half the window, because Split
 // opens at an even divide and the drag that moves it is the writer's rather than a judged state's.
 // The two halves carry two papers, the Editor's and the Template's, which is what makes the
-// rendered page a page and not more of the Editor — `ref/ia/mac-native/NOTES.md` § State 16
+// rendered page a page and not more of the Editor — `dev/ref/ia/mac-native/NOTES.md` § State 16
 // measures the same two grounds side by side in one window. And the heading at the top of the
 // rendered page is centred in the pane it is drawn in, which is the fact that catches a page laid
 // out against the window rather than against the half it was put in.
@@ -957,7 +957,7 @@ function split(_spec, { dim }) {
 // Two facts. One paper across the whole window — Full hides the Editor's scroller rather than
 // shrinking it, so a second ground anywhere is a pane that did not go away. And the heading at the
 // top of the page centred on the window's own centre, which is what the pane's centre is when the
-// pane is the window: `ref/ia/mac-native/NOTES.md` § State 16 measures its own rendered heading the
+// pane is the window: `dev/ref/ia/mac-native/NOTES.md` § State 16 measures its own rendered heading the
 // same way, 3 px off the centre it is centred on.
 //
 // The one frame the state names, for the reason [`split`] reads it: this is not about activation.
@@ -1087,7 +1087,7 @@ function pdfSplit(_spec, { dim }) {
 // one is the gap between pages one and two.
 //
 // Both pages are in the shot because the state is shot for it: `preview/pdf-full` names a narrower
-// window and `zoom: 75` (shots/oracle/states.json), which stands the second page's top edge below
+// window and `zoom: 75` (dev/shots/oracle/states.json), which stands the second page's top edge below
 // the first's foot with the air between them, the page still the ground most of the window is made
 // of. At the judged 1440 px width and fit width a page is some 1900 px tall against a 900 px
 // window, and no second page would reach the glass — so the count is asserted here rather than
@@ -1232,7 +1232,7 @@ const DIALOG_EDGE = 6;
 
 // The Export dialog over the page, its Options expander open.
 //
-// Neither oracle holds this one either: `legacy/` has no Export dialog at all, and iA Writer for
+// Neither oracle holds this one either: `dev/legacy/` has no Export dialog at all, and iA Writer for
 // Mac's own is that app's dialog rather than this one's, so it is measured instead of shown to
 // anybody (ADR 0017).
 //
@@ -1424,7 +1424,7 @@ const OUTLINE_RULE = 4;
 // the window — found as where the Outline shot differs from the bare page, which is the second
 // shot [`SECOND`] asks for, so no colour written down here says what a panel is. And under its
 // field the panel carries at least two bands of ink, the second's starting to the right of the
-// first's: ref/sample.md's two headings are a level 1 and a level 2, and the step is the indent.
+// first's: dev/ref/sample.md's two headings are a level 1 and a level 2, and the step is the indent.
 // Each band's ink is read against the band's own ground, because the selected row is drawn on the
 // accent with its words in white: against the panel's ground the highlight would be the ink and
 // its left edge the row's margin rather than its words.

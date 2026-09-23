@@ -268,7 +268,7 @@ mod imp {
             // right of the Editor and hidden until it is asked for, with the
             // bars spanning both: the split is inside the column and not
             // beside it, so the title bar and the stats bar are the window's
-            // and not one pane's (`ref/ia/mac-native/NOTES.md` § State 16).
+            // and not one pane's (`dev/ref/ia/mac-native/NOTES.md` § State 16).
             let pair = gtk::Box::new(gtk::Orientation::Horizontal, 0);
             let editor_frame = gtk::Overlay::new();
             editor_frame.set_child(Some(&scroller));
@@ -1061,7 +1061,7 @@ impl Window {
 
     /// Whether this window may put its Document on disk at all.
     ///
-    /// A launch of the harness's may not: a bench types into `ref/sample.md`,
+    /// A launch of the harness's may not: a bench types into `dev/ref/sample.md`,
     /// and the passage every Piece is judged on has to be the same bytes when
     /// it has finished. The same rule the settings file is defended by
     /// ([`Session::is_harness`]), for the same reason.
@@ -1551,7 +1551,7 @@ impl Window {
     /// the Library.
     ///
     /// No prompt: the desktop's trash is the undo that the oracle's twelve
-    /// second banner was (`legacy/app/js/files.js` `del`). GIO's trash rather
+    /// second banner was (`dev/legacy/app/js/files.js` `del`). GIO's trash rather
     /// than a delete, because a writer looking for it will look there — and
     /// GIO is the app's, not the engine's (ADR 0008), so the engine is told
     /// once the file has gone ([`quill_engine::library::Library::trashed`]).
@@ -2879,7 +2879,7 @@ impl Window {
     /// A drag moves the selection bound on every motion event, and the count
     /// walks the run; coalescing to the frame clock is what keeps dragging
     /// across a long Document free, as the oracle's `requestAnimationFrame`
-    /// does (`legacy/app/js/chrome.js`). Adding the callback queues the frame,
+    /// does (`dev/legacy/app/js/chrome.js`). Adding the callback queues the frame,
     /// so a selection that moves and then stands still is still counted.
     fn arm_selection_count(&self) {
         if self.imp().selecting.replace(true) {

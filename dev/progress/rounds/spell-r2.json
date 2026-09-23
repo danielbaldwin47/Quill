@@ -1,0 +1,247 @@
+{
+  "piece": "spell",
+  "round": 2,
+  "winner": "ours",
+  "margin": "asserted",
+  "gap": "8 waves under their lines of prose, 6923 of 8097 changed pixels in the spell Role, none outside the text column",
+  "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+  "verdict": "8 waves under their lines of prose, 6923 of 8097 changed pixels in the spell Role, none outside the text column",
+  "oursShot": "dev/shots/spell/r2-on-light-ours.png",
+  "theirsShot": null,
+  "refSource": "no opponent for on-light (spell), on-dark (spell), focus-light (spell), focus-dark (spell), syntax-light (spell), syntax-dark (spell), select-light (spell), select-dark (spell), caret-light (spell), missing-light (spell) — measured off ours' own pixels by tools/assert-state.mjs, because neither oracle holds the state (ADR 0017)",
+  "builderNote": "caret-light expects 8 waves: #409's fix withholds only a word being typed, so a parked caret keeps its wave (Hand test step 4)",
+  "secondary": [
+    "same-state --spell off pixels supply the text column and the lines of prose",
+    "the mark is provisional until the capture in #400 lands; no critic (ADR 0017)"
+  ],
+  "opponent": "asserted",
+  "build": {
+    "git": "b6932ec",
+    "binary": "0d117c899b5320a3",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "on-light",
+      "ours": "dev/shots/spell/r2-on-light-ours.png",
+      "theirs": null,
+      "lit": "dev/shots/spell/r2-on-light-ours-lit.png",
+      "assert": {
+        "kind": "spell",
+        "theme": "light",
+        "words": 8,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "8 waves under their lines of prose, 6923 of 8097 changed pixels in the spell Role, none outside the text column",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+      "verdict": "8 waves under their lines of prose, 6923 of 8097 changed pixels in the spell Role, none outside the text column",
+      "secondary": [
+        "same-state --spell off pixels supply the text column and the lines of prose",
+        "the mark is provisional until the capture in #400 lands; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "on-dark",
+      "ours": "dev/shots/spell/r2-on-dark-ours.png",
+      "theirs": null,
+      "lit": "dev/shots/spell/r2-on-dark-ours-lit.png",
+      "assert": {
+        "kind": "spell",
+        "theme": "dark",
+        "words": 8,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "8 waves under their lines of prose, 6756 of 8097 changed pixels in the spell Role, none outside the text column",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+      "verdict": "8 waves under their lines of prose, 6756 of 8097 changed pixels in the spell Role, none outside the text column",
+      "secondary": [
+        "same-state --spell off pixels supply the text column and the lines of prose",
+        "the mark is provisional until the capture in #400 lands; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "focus-light",
+      "ours": "dev/shots/spell/r2-focus-light-ours.png",
+      "theirs": null,
+      "lit": "dev/shots/spell/r2-focus-light-ours-lit.png",
+      "assert": {
+        "kind": "spell",
+        "theme": "light",
+        "words": 8,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "8 waves under their lines of prose, 5863 of 7927 changed pixels in the spell Role, none outside the text column",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+      "verdict": "8 waves under their lines of prose, 5863 of 7927 changed pixels in the spell Role, none outside the text column",
+      "secondary": [
+        "same-state --spell off pixels supply the text column and the lines of prose",
+        "the mark is provisional until the capture in #400 lands; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "focus-dark",
+      "ours": "dev/shots/spell/r2-focus-dark-ours.png",
+      "theirs": null,
+      "lit": "dev/shots/spell/r2-focus-dark-ours-lit.png",
+      "assert": {
+        "kind": "spell",
+        "theme": "dark",
+        "words": 8,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "8 waves under their lines of prose, 6233 of 8001 changed pixels in the spell Role, none outside the text column",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+      "verdict": "8 waves under their lines of prose, 6233 of 8001 changed pixels in the spell Role, none outside the text column",
+      "secondary": [
+        "same-state --spell off pixels supply the text column and the lines of prose",
+        "the mark is provisional until the capture in #400 lands; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "syntax-light",
+      "ours": "dev/shots/spell/r2-syntax-light-ours.png",
+      "theirs": null,
+      "lit": "dev/shots/spell/r2-syntax-light-ours-lit.png",
+      "assert": {
+        "kind": "spell",
+        "theme": "light",
+        "words": 8,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "8 waves under their lines of prose, 6914 of 8097 changed pixels in the spell Role, none outside the text column",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+      "verdict": "8 waves under their lines of prose, 6914 of 8097 changed pixels in the spell Role, none outside the text column",
+      "secondary": [
+        "same-state --spell off pixels supply the text column and the lines of prose",
+        "the mark is provisional until the capture in #400 lands; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "syntax-dark",
+      "ours": "dev/shots/spell/r2-syntax-dark-ours.png",
+      "theirs": null,
+      "lit": "dev/shots/spell/r2-syntax-dark-ours-lit.png",
+      "assert": {
+        "kind": "spell",
+        "theme": "dark",
+        "words": 8,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "8 waves under their lines of prose, 6747 of 8097 changed pixels in the spell Role, none outside the text column",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+      "verdict": "8 waves under their lines of prose, 6747 of 8097 changed pixels in the spell Role, none outside the text column",
+      "secondary": [
+        "same-state --spell off pixels supply the text column and the lines of prose",
+        "the mark is provisional until the capture in #400 lands; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "select-light",
+      "ours": "dev/shots/spell/r2-select-light-ours.png",
+      "theirs": null,
+      "lit": "dev/shots/spell/r2-select-light-ours-lit.png",
+      "assert": {
+        "kind": "spell",
+        "theme": "light",
+        "words": 8,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "8 waves under their lines of prose, 6794 of 8097 changed pixels in the spell Role, none outside the text column",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+      "verdict": "8 waves under their lines of prose, 6794 of 8097 changed pixels in the spell Role, none outside the text column",
+      "secondary": [
+        "same-state --spell off pixels supply the text column and the lines of prose",
+        "the mark is provisional until the capture in #400 lands; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "select-dark",
+      "ours": "dev/shots/spell/r2-select-dark-ours.png",
+      "theirs": null,
+      "lit": "dev/shots/spell/r2-select-dark-ours-lit.png",
+      "assert": {
+        "kind": "spell",
+        "theme": "dark",
+        "words": 8,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "8 waves under their lines of prose, 6555 of 8097 changed pixels in the spell Role, none outside the text column",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+      "verdict": "8 waves under their lines of prose, 6555 of 8097 changed pixels in the spell Role, none outside the text column",
+      "secondary": [
+        "same-state --spell off pixels supply the text column and the lines of prose",
+        "the mark is provisional until the capture in #400 lands; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "caret-light",
+      "ours": "dev/shots/spell/r2-caret-light-ours.png",
+      "theirs": null,
+      "lit": "dev/shots/spell/r2-caret-light-ours-lit.png",
+      "assert": {
+        "kind": "spell",
+        "theme": "light",
+        "words": 8,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "8 waves under their lines of prose, 6923 of 8097 changed pixels in the spell Role, none outside the text column",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+      "verdict": "8 waves under their lines of prose, 6923 of 8097 changed pixels in the spell Role, none outside the text column",
+      "secondary": [
+        "same-state --spell off pixels supply the text column and the lines of prose",
+        "the mark is provisional until the capture in #400 lands; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "missing-light",
+      "ours": "dev/shots/spell/r2-missing-light-ours.png",
+      "theirs": null,
+      "lit": "dev/shots/spell/r2-missing-light-ours-lit.png",
+      "assert": {
+        "kind": "spell",
+        "theme": "light",
+        "words": 0,
+        "status": true,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "no wave; the status line's 4025 changed pixels in one band at x 50..532, y 1766..1788",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+      "verdict": "no wave; the status line's 4025 changed pixels in one band at x 50..532, y 1766..1788",
+      "secondary": [
+        "same-state --spell off pixels supply the page without the status line",
+        "no critic (ADR 0017)"
+      ]
+    }
+  ],
+  "at": "2026-09-12T22:31:01.415Z"
+}

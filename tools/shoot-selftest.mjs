@@ -1,11 +1,11 @@
-// Does `tools/gate shoot` refuse what it should, before it builds, and keep out of shots/? — the
+// Does `tools/gate shoot` refuse what it should, before it builds, and keep out of dev/shots/? — the
 // looked-at shot's own test.
 //
 //   node tools/shoot-selftest.mjs
 //
 // The command's real work — the build, the stage, the shot — is the judge's, shared through
 // `preflight` and `shootState` and held by tools/judge-selftest.mjs. What is this command's own is
-// checked here: where its files go (never under shots/, which is a round's), what it says beside a
+// checked here: where its files go (never under dev/shots/, which is a round's), what it says beside a
 // shot, and the refusals it gives before a window opens. No window, no build.
 
 import assert from 'node:assert/strict';
@@ -47,11 +47,11 @@ ok('a looked-at shot lives under target/, and a crop state cuts both sides besid
   const whole = shotPaths('focus', 'sentence', null);
   assert.equal(whole.shot, 'target/gate/shoot/focus/sentence-ours.png');
   assert.equal(whole.ours, whole.shot, 'a Parity state is paired whole');
-  assert.equal(whole.theirs, 'shots/oracle/focus/sentence.png', 'against the frozen oracle, which is read and never written');
+  assert.equal(whole.theirs, 'dev/shots/oracle/focus/sentence.png', 'against the frozen oracle, which is read and never written');
   const cut = shotPaths('focus', 'sentence', { crop: [0, 0, 1, 1] });
   assert.equal(cut.ours, 'target/gate/shoot/focus/sentence-ours-crop.png');
   assert.equal(cut.theirs, 'target/gate/shoot/focus/sentence-theirs-crop.png');
-  for (const p of [whole.shot, whole.lit, cut.ours, cut.theirs]) assert.ok(!p.startsWith('shots/'), `${p} would land among a round's evidence`);
+  for (const p of [whole.shot, whole.lit, cut.ours, cut.theirs]) assert.ok(!p.startsWith('dev/shots/'), `${p} would land among a round's evidence`);
 });
 
 ok('the line beside a shot says what a judge would do with it', () => {

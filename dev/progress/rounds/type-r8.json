@@ -1,0 +1,118 @@
+{
+  "piece": "type",
+  "round": 8,
+  "winner": "theirs",
+  "margin": "slight",
+  "gap": "A tracks the monospace out: character advance 25.97 device px (0.609em) against B's 25.59 (0.600em, the font's native cell) at the same glyph size — mean glyph ink width is 19.66px on both sides, only the gaps grew — so A's 62-char line runs 24 device px longer while its pitch is 74 device px (37 CSS) against B's 76 (38) at that same size step; loose across, cramped down, and one of those two pitches misses the step's published value.",
+  "gapTheirs": "B leaves the heading marks in the column, so heading words start 51 device px (2 cells) and 77 px (3 cells) right of the body's left edge — 'The Lighthouse' begins at x=672, 'What the sea keeps' at x=698, body at x=622 — three different left edges for black text down one page, where A hangs the marks and sets every word flush at x=623.",
+  "verdict": "The body block is B's: it keeps the mono at its designed 0.600em cell and spends the spare pixel on leading (38 vs 37), where A does the reverse — pads the letters by 0.009em and shaves the line pitch, which is exactly backwards for a grid typeface and costs A four characters of measure on the second paragraph. A's compensation is real: it hangs '#' and '##' into the margin so the words you actually read share one left edge, while B's headings step in twice and don't even line up with each other. But a heading indent is two lines out of seventeen; the advance and the pitch are every line you type, and A gets both slightly wrong. Neither is bad type — A is the one that has been nudged by hand off its own ladder.",
+  "oursShot": "dev/shots/type/r8-duo-ours.png",
+  "theirsShot": "dev/shots/oracle/type/duo.png",
+  "refSource": "dev/shots/oracle/type/ — the Parity oracle frozen by tools/gate oracle type from dev/legacy/app 738f48c969965ac3 with dev/legacy/tools/shoot.mjs b2362316db135d06; dev/ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in dev/ref/ia/mac-native/ (ADR 0015), cropped per state: mono from mac-native-11-dark-text-size-05.png",
+  "builderNote": "#198 phase 2: markers at the body ink; the briefs now say the marker row is the Design oracle's",
+  "secondary": [
+    "Identical size step both sides: cap 30px, x-height 24px, glyph ink rows 13–35, mean glyph ink width 19.66px — headings are body-size bold in both, no size step for H1/H2",
+    "Blank line is exactly one pitch on both: A 148 = 2×74, B 152 = 2×76; no half-leading or drift anywhere in 17 lines",
+    "Caret identical in treatment: 6×74 device px in A (3×37 CSS), 6×76 in B — full line pitch, 3 CSS px wide, #00BFFF vs #00B5FF",
+    "Ink and paper effectively equal: A #191919 on #F7F7F7, B #1C1C1C on #F9F9F9, both ~16.5:1 — the 3/255 difference is invisible",
+    "Italic is a true cut in both (same vertical extent as roman, no synthetic slant); bold 'bottle' sits on the same baseline and cell in both",
+    "A's wider cell shows in the wrap: para 2 line 1 breaks after 'the way' (57 chars) in A where B fits 'she' (61 chars) at the same column",
+    "Marker colour (A body-ink, B grey #8C8C8C) excluded per the brief and not scored — but B's grey marks are what let its heading words sit indented without looking broken"
+  ],
+  "opponent": "mixed",
+  "build": {
+    "git": "10e5632",
+    "binary": "39c215a61d5f8574",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "duo",
+      "ours": "dev/shots/type/r8-duo-ours.png",
+      "theirs": "dev/shots/oracle/type/duo.png",
+      "blind": "dev/shots/blind/type/duo",
+      "oursWas": "A",
+      "pick": "B",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "A tracks the monospace out: character advance 25.97 device px (0.609em) against B's 25.59 (0.600em, the font's native cell) at the same glyph size — mean glyph ink width is 19.66px on both sides, only the gaps grew — so A's 62-char line runs 24 device px longer while its pitch is 74 device px (37 CSS) against B's 76 (38) at that same size step; loose across, cramped down, and one of those two pitches misses the step's published value.",
+      "gapTheirs": "B leaves the heading marks in the column, so heading words start 51 device px (2 cells) and 77 px (3 cells) right of the body's left edge — 'The Lighthouse' begins at x=672, 'What the sea keeps' at x=698, body at x=622 — three different left edges for black text down one page, where A hangs the marks and sets every word flush at x=623.",
+      "verdict": "The body block is B's: it keeps the mono at its designed 0.600em cell and spends the spare pixel on leading (38 vs 37), where A does the reverse — pads the letters by 0.009em and shaves the line pitch, which is exactly backwards for a grid typeface and costs A four characters of measure on the second paragraph. A's compensation is real: it hangs '#' and '##' into the margin so the words you actually read share one left edge, while B's headings step in twice and don't even line up with each other. But a heading indent is two lines out of seventeen; the advance and the pitch are every line you type, and A gets both slightly wrong. Neither is bad type — A is the one that has been nudged by hand off its own ladder.",
+      "secondary": [
+        "Identical size step both sides: cap 30px, x-height 24px, glyph ink rows 13–35, mean glyph ink width 19.66px — headings are body-size bold in both, no size step for H1/H2",
+        "Blank line is exactly one pitch on both: A 148 = 2×74, B 152 = 2×76; no half-leading or drift anywhere in 17 lines",
+        "Caret identical in treatment: 6×74 device px in A (3×37 CSS), 6×76 in B — full line pitch, 3 CSS px wide, #00BFFF vs #00B5FF",
+        "Ink and paper effectively equal: A #191919 on #F7F7F7, B #1C1C1C on #F9F9F9, both ~16.5:1 — the 3/255 difference is invisible",
+        "Italic is a true cut in both (same vertical extent as roman, no synthetic slant); bold 'bottle' sits on the same baseline and cell in both",
+        "A's wider cell shows in the wrap: para 2 line 1 breaks after 'the way' (57 chars) in A where B fits 'she' (61 chars) at the same column",
+        "Marker colour (A body-ink, B grey #8C8C8C) excluded per the brief and not scored — but B's grey marks are what let its heading words sit indented without looking broken"
+      ]
+    },
+    {
+      "name": "quattro",
+      "ours": "dev/shots/type/r8-quattro-ours.png",
+      "theirs": "dev/shots/oracle/type/quattro.png",
+      "blind": "dev/shots/blind/type/quattro",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "clear",
+      "sameViewport": true,
+      "gap": "A applies its hanging rule to only half the syntax: '#' hangs to x=576 and '##' to x=550 so heading words land on the body axis at x=623, but the list dash sits flush at x=628, pushing list content to ~x=675 — 52px@2x (~26 CSS px) right of the very axis A built for headings. The page's left ink edge therefore steps across three positions (550 / 576 / 623) instead of one.",
+      "gapTheirs": "Heading text never reaches the body's left axis: body starts at x=623, but 'The Lighthouse' starts at x=667 and 'What the sea keeps' at x=691 — a 44px@2x (~22 CSS px) and 68px@2x (~34 CSS px) jog, and the jog grows with heading depth, so section titles drift further right the deeper you nest. Nothing hangs; every marker eats into the text column.",
+      "verdict": "These are the same typeface at the same size in the same ink, so the whole argument is one vertical line: where a line of text begins. A hangs the hashes into the margin and lands every heading word on the body's 623px axis, so your eye drops down one edge; B lets the markers occupy the column and shunts each heading 22px, then 34px, to the right, and by the third heading level the titles are visibly wandering. A's own list items betray the same rule it just enforced for headings — the dash doesn't hang and the item text sits 26px inside the axis — but B commits that error everywhere, so A only loses points it can't lose to B. Neither gives a heading any size step at all: H1, H2 and body all measure 32px@2x cap height, weight is the only signal, which means at a glance the document has no scale hierarchy in either app.",
+      "secondary": [
+        "Line pitch A 74px@2x (37 CSS) vs B 76px@2x (38 CSS) at effectively identical glyph size — a one-step difference; both read loose (~1.9) for a mono",
+        "Paragraph and heading gaps are exactly 2× line pitch in both (A 148px, B 152px), so headings sit equidistant above and below and never bind to the section they open — same fault in both",
+        "H1, H2 and body all share a 32px@2x cap height in both images; hierarchy is carried by weight alone",
+        "Caret is identical: 6px@2x (3 CSS px) wide, height exactly one line pitch (A 74px, B 76px)",
+        "Measure: A wraps at ~69 characters, B at ~71-72; A is marginally closer to a comfortable prose measure",
+        "B's extra 2px pitch plus a 6px lower start clips the third list item at the 1800px bottom edge (band 1770-1799); A clears it with 38px to spare",
+        "Body ink and paper: A #191919 on #F7F7F7, B #1C1C1C on #F9F9F9 — a 3-value difference either way, no practical contrast gap",
+        "Per-line left edge wobbles 623-628 in both, which is normal mono left-side bearing, not a defect"
+      ]
+    },
+    {
+      "name": "mono",
+      "ours": "dev/shots/type/r8-mono-ours-crop.png",
+      "theirs": "dev/shots/type/r8-mono-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-11-dark-text-size-05.png",
+        "crop": [
+          630,
+          870,
+          1760,
+          520
+        ],
+        "ours": [
+          560,
+          135,
+          1760,
+          520
+        ]
+      },
+      "oursWhole": "dev/shots/type/r8-mono-ours.png",
+      "blind": "dev/shots/blind/type/mono",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "A's ink is the thinner of the two: stem coverage measures 3.58px per vertical stem (h/l at y=200: 188,204,204,146) versus B's 3.80px (129,204,204,204,65), and against A's larger em that is ~0.083em of stem vs B's ~0.089em — about 7% less weight relative to size on an identical #CCCCCC-on-#1A1A1A ground, so A's regular reads greyer and wispier in the dark. A also grid-fits verticals hard, snapping cap height to a flat 30.0px and pushing cap-to-advance to 0.867 against B's truer 0.898 — a ~3% hinting stretch in the capitals.",
+      "gapTheirs": "B's line pitch is fractional and does not resolve to one value: ascender tops fall at y=188, 262, 335, 408, 481, i.e. gaps of 74/73/73/73px (mean 73.25px), where A repeats an exact 74px four times over. B's type is also the smaller of the two — advance 25.59px vs 26.0px, cap 28.5px vs 30.0px, x-height ~22px vs ~23px, ascender-to-descender ink 39-40px vs 41-42px — so B is running roughly 1.6-4% under A at essentially the same ~1.71 line-height ratio.",
+      "verdict": "These are the same typeface at the same ink colour on the same paper, and anyone claiming a large difference is selling something — the whole argument is a pixel wide. A wins on rhythm: its leading is one repeated 74px, while B's measures 74, then 73, then 73, then 73, so B's block breathes unevenly down the page and its pitch is not a single published value at all. B pays for its slightly heavier stem with a half-pixel-low grid position — every cap and ascender top renders a ~50%-grey partial row (T top = 120 against 27/204) where A's snap clean from background to full ink — and it lays a ±1 RGB chroma dither over the paper, 12 colours in a blank 1700×50 band against A's single flat #1A1A1A. A's own sin is thinness: 7% less stem relative to em is the wrong direction on a dark ground, where you want more weight, not less.",
+      "secondary": [
+        "Body ink identical in both: #CCCCCC on #1A1A1A (204 on 26)",
+        "H1 is set at body size in both (heading advance 26.0px A / 25.5px B, same as body) — bold-only differentiation, identical decision",
+        "Heading-to-paragraph gap is exactly 2 pitches in both (A 147px baseline delta / 74; B 145.5 / 73.25) — one clean blank line each",
+        "Measure: A 62-63 chars per line, B 64-65 — both inside a sane 60-70 range",
+        "Line-height ratio is effectively equal: A 74/43.3em ≈ 1.71, B 73.25/42.7em ≈ 1.72",
+        "B's paper dither is chroma, not luminance (26,27,26 / 27,26,27 etc.) — 0.4% in brightness but non-neutral on a grey page",
+        "Italic run *Nothing out there is ever in a hurry,* is true italic in both, same slope and same ink weight as roman",
+        "No caret visible in either crop, so caret width/blink could not be judged"
+      ]
+    }
+  ],
+  "at": "2026-09-01T01:01:29.852Z"
+}

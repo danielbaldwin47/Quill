@@ -1,7 +1,7 @@
 //! The chrome that gets out of the way while a hand is typing, with no widget
 //! in it.
 //!
-//! The Parity oracle keeps this in `legacy/app/js/chrome.js` as two
+//! The Parity oracle keeps this in `dev/legacy/app/js/chrome.js` as two
 //! `setTimeout`s and two `data-` attributes: a keystroke puts the title bar
 //! at nothing and the stats bar at a dim, 500 ms later the stats bar is back
 //! and the count is taken again, 1,400 ms later the title bar is back, and a

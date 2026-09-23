@@ -1,0 +1,98 @@
+{
+  "piece": "caret",
+  "round": 3,
+  "winner": "theirs",
+  "margin": "slight",
+  "gap": "The caret is optically top-heavy: it hangs 19 device px (~9.5 CSS px @2x) above the 'h' ascender but only 15 px (~7.5) below the 'p' descender — a ~2 CSS px imbalance — so its centre (y=828.5) sits 2.5 px above the ink centre of its own line (831). B's is 17.5 above / 16 below, centre off by 1 px. A also runs a smaller face in the identical 72px line box (x-height 21 vs 22, ascender 29 vs 30), so the same 72px bar is 3.43x the x-height instead of 3.27x — a taller stripe over shorter letters.",
+  "gapTheirs": "Horizontally the caret sits 1 device px further right than A's — 7 px of white between the 's' terminal and the bar vs A's 6 px — and like A it lands ~4-5 device px right of the true 23px character-cell seam, so the insertion point reads as pinned to the leading edge of the following space rather than to the boundary it actually marks. In a monospace grid that misregistration is visible when you scrub the arrow keys.",
+  "verdict": "This is not a real contest: the caret is byte-for-byte the same object in both — 6 x 72 device px, #00B5FF, 432 solid pixels, zero antialiasing, no sub-pixel placement — and neither frame shows a selection at all, so half the brief is untested in both. B wins only because its caret is optically centred on the type it marks while A's floats 2.5 px high, top-heavy over a slightly smaller face. Both give you a 72px bar in a 72px line box, meaning carets on adjacent lines would tile edge to edge with no air, and both make a saturated cyan stripe 1.7x the weight of your letterforms the loudest thing on a #F9F9F9 page. That is a blunt instrument in both apps; B's is merely hung straighter.",
+  "oursShot": "dev/shots/caret/r3-caret-ours.png",
+  "theirsShot": "dev/shots/oracle/caret/caret.png",
+  "refSource": "dev/shots/oracle/caret/ — the Parity oracle frozen by tools/gate oracle caret from dev/legacy/app 738f48c969965ac3 with dev/legacy/tools/shoot.mjs b2362316db135d06",
+  "builderNote": "the band hung from the baseline at iA's 11/16 share, and y snapped with x",
+  "secondary": [
+    "Caret geometry, colour, and rendering are identical: 6 device px wide (3 CSS px @2x), 72 px tall, #00B5FF, exactly 432 pure-colour pixels, no edge antialiasing in either",
+    "Neither screenshot contains a single selection-tinted pixel — selection colour, opacity, and edge treatment are unjudgeable in both",
+    "Caret height equals the full 72px line pitch in both, so stacked carets would touch with zero gap",
+    "Caret is ~1.7x the 3-4 px glyph stem weight in both: reads as a bar, not a nib",
+    "Static frames only — no blink phase, opacity ramp, or motion smear observable either way",
+    "Both carets are hard pixel-snapped, which rules out sub-pixel horizontal positioning in either",
+    "Background #F9F9F9 and body ink #1C1C1C are identical in both, so the cyan's contrast context is a wash"
+  ],
+  "opponent": "oracle",
+  "build": {
+    "git": "daa4380",
+    "binary": "8470f9104d56a988",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "caret",
+      "ours": "dev/shots/caret/r3-caret-ours.png",
+      "theirs": "dev/shots/oracle/caret/caret.png",
+      "blind": "dev/shots/blind/caret/caret",
+      "oursWas": "A",
+      "pick": "B",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "The caret is optically top-heavy: it hangs 19 device px (~9.5 CSS px @2x) above the 'h' ascender but only 15 px (~7.5) below the 'p' descender — a ~2 CSS px imbalance — so its centre (y=828.5) sits 2.5 px above the ink centre of its own line (831). B's is 17.5 above / 16 below, centre off by 1 px. A also runs a smaller face in the identical 72px line box (x-height 21 vs 22, ascender 29 vs 30), so the same 72px bar is 3.43x the x-height instead of 3.27x — a taller stripe over shorter letters.",
+      "gapTheirs": "Horizontally the caret sits 1 device px further right than A's — 7 px of white between the 's' terminal and the bar vs A's 6 px — and like A it lands ~4-5 device px right of the true 23px character-cell seam, so the insertion point reads as pinned to the leading edge of the following space rather than to the boundary it actually marks. In a monospace grid that misregistration is visible when you scrub the arrow keys.",
+      "verdict": "This is not a real contest: the caret is byte-for-byte the same object in both — 6 x 72 device px, #00B5FF, 432 solid pixels, zero antialiasing, no sub-pixel placement — and neither frame shows a selection at all, so half the brief is untested in both. B wins only because its caret is optically centred on the type it marks while A's floats 2.5 px high, top-heavy over a slightly smaller face. Both give you a 72px bar in a 72px line box, meaning carets on adjacent lines would tile edge to edge with no air, and both make a saturated cyan stripe 1.7x the weight of your letterforms the loudest thing on a #F9F9F9 page. That is a blunt instrument in both apps; B's is merely hung straighter.",
+      "secondary": [
+        "Caret geometry, colour, and rendering are identical: 6 device px wide (3 CSS px @2x), 72 px tall, #00B5FF, exactly 432 pure-colour pixels, no edge antialiasing in either",
+        "Neither screenshot contains a single selection-tinted pixel — selection colour, opacity, and edge treatment are unjudgeable in both",
+        "Caret height equals the full 72px line pitch in both, so stacked carets would touch with zero gap",
+        "Caret is ~1.7x the 3-4 px glyph stem weight in both: reads as a bar, not a nib",
+        "Static frames only — no blink phase, opacity ramp, or motion smear observable either way",
+        "Both carets are hard pixel-snapped, which rules out sub-pixel horizontal positioning in either",
+        "Background #F9F9F9 and body ink #1C1C1C are identical in both, so the cyan's contrast context is a wash"
+      ]
+    },
+    {
+      "name": "selection",
+      "ours": "dev/shots/caret/r3-selection-ours.png",
+      "theirs": "dev/shots/oracle/caret/selection.png",
+      "blind": "dev/shots/blind/caret/selection",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Caret is out of register with its own selection band by 1 device px (0.5 CSS px): band spans rows 432-503, caret spans 433-504, so there is a visible notch at the top-left corner and a matching overhang at the bottom. It also floats 3 device px right of the true insertion boundary (selection edge 1403, caret start 1407, vs A's 1404), landing neither on the boundary nor centred in the ~25px space cell.",
+      "gapTheirs": "Zero-px gutter: A's caret starts at x=1404, the exact pixel the selection band ends (1403), so 3px of #00B5FF butts straight onto #C2EAFA with no background between them — with a selection live the caret reads as the highlight's right border, not a free-standing insertion mark. B leaves a 3 device px (1.5 CSS px) strip of #F9F9F9 there, which keeps the caret a discrete object.",
+      "verdict": "These are the same caret — same #00B5FF, same 3px stem, same 36px full-line-box height, same square ends — so this comes down to whether it lands where it says it lands. A's caret sits on the insertion boundary to the pixel and shares top and bottom edges with the selection exactly; B's is half a CSS pixel low and a pixel and a half adrift, which shows as a notch above and a fang below the highlight. That half-pixel is the difference between a caret that feels welded to the text grid and one that feels approximately placed. A pays for it by touching the selection edge with no gutter, which blurs the caret into the highlight, but a smudged boundary is cheaper than a caret that misses its own boundary.",
+      "secondary": [
+        "Both carets span the full 72 device px line box — ~2.6x the 28px cap height — overshooting the ascender by ~19px and the descender by ~16px; a tall bar in both, not a differentiator",
+        "Neither caret is anti-aliased at any edge: clean 249->0 transitions, no rounded caps in either",
+        "Selection #C2EAFA over #F9F9F9 in both: a 55-unit luminance step, pale enough that glyphs inside the band stay full #1C1C1C",
+        "Selection band height is 72 device px in both, identical to the caret height — neither shrinks the band to the text box",
+        "Static screenshots: no blink phase, trail, or easing is observable in either, so motion cannot be judged"
+      ]
+    },
+    {
+      "name": "unfocused",
+      "ours": "dev/shots/caret/r3-unfocused-ours.png",
+      "theirs": "dev/shots/oracle/caret/unfocused.png",
+      "blind": "dev/shots/blind/caret/unfocused",
+      "oursWas": "A",
+      "pick": "A",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Caret box sits 1 device px high in the line: 16 px of clearance to the previous line's ink bottom vs 21 px to the next line's ink top (B splits it 17/20), so A's caret carries a ~2.5 device px upward bias inside a 72 px line box that it already fills edge to edge.",
+      "gapTheirs": "Caret's left edge lands at x=1900, ~3.6 device px (1.8 CSS px) right of the true character-cell boundary at ~1896.4, vs A's ~2.6 px — B's caret drifts further into the word space, away from the insertion point it is supposed to mark; it also leaves only 16 px before the 't' of 'the' while sitting behind an opaque status bar that guillotines the bottom text line mid-glyph at y≈1741.",
+      "verdict": "These are the same caret with a 1-pixel argument between them: 6 device px wide, exactly 72 px tall — the full line box, so stacked carets would touch with zero gap — hard square ends, no antialiasing, no subpixel placement, #AEE5FB in both. That colour is the problem neither solved: against #F9F9F9 it runs about 1.3:1 while the text it edits runs 16:1, making the one mark you must never lose the palest thing on the page, a sky-blue smear you will hunt for every time you look up from the keyboard. A takes it only because its caret lands half a CSS pixel closer to the actual character cell and its field has no chrome that can clip it; B's caret drifts deeper into the space and its bottom line is cut mid-glyph by an opaque bar. Nobody here made the caret feel alive — it's a static 3px slab of pale blue, and at this scale I'm scoring rounding error.",
+      "secondary": [
+        "Neither screenshot shows a selection — selection colour is unjudgeable from these frames",
+        "Caret 3 CSS px wide is fat for a 20-21px mono; reads as a slab, not a hairline",
+        "Caret height = 100% of line-height in both: no gap between the caret and the line above/below",
+        "Caret hex differs by one unit of red (#AFE5FB vs #AEE5FB) — visually identical, likely a compositing rounding difference",
+        "Both place the caret right of the cell boundary, crowding the trailing sidebearing of the preceding 's' (6 px and 7 px clearance)",
+        "No blink phase, easing or motion is observable in stills; both must be assumed default",
+        "B's chrome (title bar top, opaque status bar bottom with hairline) shifts the text block down 64 px and hard-clips the last list line; A is chromeless"
+      ]
+    }
+  ],
+  "at": "2026-08-29T14:04:53.701Z"
+}

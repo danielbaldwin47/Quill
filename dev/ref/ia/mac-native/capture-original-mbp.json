@@ -1,0 +1,1281 @@
+{
+ "run": "2026-09-09, original 14-inch M1 MacBook Pro, built-in screen",
+ "tickets": [
+  231,
+  308
+ ],
+ "rig": {
+  "machine": "MacBook Pro 14-inch, MacBookPro18,3, Apple M1 Pro",
+  "display": "built-in Color LCD, Liquid Retina XDR, internal",
+  "display_px": "3024 x 1964",
+  "display_pt": "1512 x 982",
+  "backing_scale": 2.0,
+  "display_profile": "Display #1 2025-12-15 13-06 2.4 F-S 1xCurve+MTX (DisplayCAL)",
+  "display_profile_sha256": "67b552091a3321163bc9599b6782c598bf354e6e74b121e0a8444940b9496042",
+  "display_profile_file": "dev/ref/ia/mac-native/rig/display-calibrated-2025-12-15.icc",
+  "normalised_into": "dev/ref/ia/mac-native/rig/display.icc",
+  "normalised_into_sha256": "a0b31a47075bdf160987ef7bd1370885713348290017d592a0f8850ec946f97e",
+  "macos": "27.0 (26A5425a)",
+  "ia_writer": "8.0.6 (80046)",
+  "show_scroll_bars": "Automatic",
+  "window_bounds": "{0,33,1512,982}",
+  "editor": "Mono; System - Default typography; 64-character limit; Default text size (step 5)",
+  "modes": "Library and Preview hidden; Style Check off; Authors off"
+ },
+ "captures": {
+  "mac-native-231-original-mbp-dark-page-top-empty-step-00": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-231-original-mbp-dark-page-top-empty-step-00.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-231-original-mbp-dark-page-top-empty-step-00.png",
+   "sha256": "34fc871af65cecf6186074005364adb3dc8f46fd3128220581a69ca0449d216d",
+   "raw_sha256": "61338d4c79dd153bee7c1a40a0bd2d3dbb5e3565414884427dfde38b59ac34f8",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "paper-only (no body ink in an empty document)",
+   "caret_box": {
+    "x0": 953,
+    "x1": 957,
+    "y0": 164,
+    "y1": 212,
+    "w": 5,
+    "h": 49,
+    "centre": 955.5,
+    "npx": 241
+   }
+  },
+  "mac-native-231-original-mbp-dark-page-top-empty-step-05-after": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-231-original-mbp-dark-page-top-empty-step-05-after.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-231-original-mbp-dark-page-top-empty-step-05-after.png",
+   "sha256": "8c89078136349548603cfc32f3d5ea852ce4253e54fb3ba9c9b925e8522be5db",
+   "raw_sha256": "4671d7eccbf12c8134c4171c0b37408a306ac4bc6f8d62b86732cf0334fc1593",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "paper-only (no body ink in an empty document)",
+   "caret_box": {
+    "x0": 688,
+    "x1": 693,
+    "y0": 164,
+    "y1": 236,
+    "w": 6,
+    "h": 73,
+    "centre": 691.0,
+    "npx": 429
+   }
+  },
+  "mac-native-231-original-mbp-dark-page-top-empty-step-05": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-231-original-mbp-dark-page-top-empty-step-05.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-231-original-mbp-dark-page-top-empty-step-05.png",
+   "sha256": "8c89078136349548603cfc32f3d5ea852ce4253e54fb3ba9c9b925e8522be5db",
+   "raw_sha256": "420ac2312f1bba47af0197cc75f00a8837698c721ce0657a13152725a977577b",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "paper-only (no body ink in an empty document)",
+   "caret_box": {
+    "x0": 688,
+    "x1": 693,
+    "y0": 164,
+    "y1": 236,
+    "w": 6,
+    "h": 73,
+    "centre": 691.0,
+    "npx": 429
+   }
+  },
+  "mac-native-231-original-mbp-dark-page-top-empty-step-13": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-231-original-mbp-dark-page-top-empty-step-13.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-231-original-mbp-dark-page-top-empty-step-13.png",
+   "sha256": "65da694d775078cd56258a6dcabb66ff9f44b6de6e095c102149f23f3caead7a",
+   "raw_sha256": "d7f320f89b70c0503a38411bda3007dd9791fbae18650a6246c108919ffc6831",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "paper-only (no body ink in an empty document)",
+   "caret_box": {
+    "x0": 306,
+    "x1": 314,
+    "y0": 164,
+    "y1": 334,
+    "w": 9,
+    "h": 171,
+    "centre": 310.5,
+    "npx": 1525
+   }
+  },
+  "mac-native-231-original-mbp-dark-page-top-step-00": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-231-original-mbp-dark-page-top-step-00.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-231-original-mbp-dark-page-top-step-00.png",
+   "sha256": "efed6b953f112047ae9d3675ace4428a7be8a2bc63520973511267ccdd8b70e0",
+   "raw_sha256": "9481f9bb377912a794137176c5b8d791a5a50b0e8a6f2090953a4a1991e7c461",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "pass",
+   "caret_box": {
+    "x0": 1040,
+    "x1": 1045,
+    "y0": 262,
+    "y1": 310,
+    "w": 6,
+    "h": 49,
+    "centre": 1043.0,
+    "npx": 250
+   },
+   "first_ink_y": 178,
+   "ink_rows": [
+    {
+     "y0": 178,
+     "y1": 203,
+     "h": 26,
+     "x0": 921,
+     "x1": 1196
+    },
+    {
+     "y0": 276,
+     "y1": 300,
+     "h": 25,
+     "x0": 957,
+     "x1": 2025
+    },
+    {
+     "y0": 326,
+     "y1": 350,
+     "h": 25,
+     "x0": 958,
+     "x1": 2064
+    },
+    {
+     "y0": 375,
+     "y1": 400,
+     "h": 26,
+     "x0": 957,
+     "x1": 1960
+    },
+    {
+     "y0": 424,
+     "y1": 449,
+     "h": 26,
+     "x0": 957,
+     "x1": 1977
+    },
+    {
+     "y0": 473,
+     "y1": 498,
+     "h": 26,
+     "x0": 957,
+     "x1": 2064
+    }
+   ]
+  },
+  "mac-native-231-original-mbp-dark-page-top-step-05-after": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-231-original-mbp-dark-page-top-step-05-after.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-231-original-mbp-dark-page-top-step-05-after.png",
+   "sha256": "b2fd7ba4d4e7a5856976a64f2ba87ad42f628641d1efea9b183609a970889db3",
+   "raw_sha256": "43aff47443b3ce280de356b76faad8cc447ec3bf86fc71cf98426cb10ec2afe3",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "pass",
+   "caret_box": {
+    "x0": 816,
+    "x1": 821,
+    "y0": 311,
+    "y1": 382,
+    "w": 6,
+    "h": 72,
+    "centre": 819.0,
+    "npx": 426
+   },
+   "first_ink_y": 184,
+   "ink_rows": [
+    {
+     "y0": 184,
+     "y1": 223,
+     "h": 40,
+     "x0": 641,
+     "x1": 1046
+    },
+    {
+     "y0": 331,
+     "y1": 368,
+     "h": 38,
+     "x0": 692,
+     "x1": 2267
+    },
+    {
+     "y0": 405,
+     "y1": 442,
+     "h": 38,
+     "x0": 695,
+     "x1": 2324
+    },
+    {
+     "y0": 478,
+     "y1": 516,
+     "h": 39,
+     "x0": 693,
+     "x1": 2172
+    },
+    {
+     "y0": 551,
+     "y1": 589,
+     "h": 39,
+     "x0": 693,
+     "x1": 2197
+    },
+    {
+     "y0": 624,
+     "y1": 662,
+     "h": 39,
+     "x0": 694,
+     "x1": 2324
+    }
+   ]
+  },
+  "mac-native-231-original-mbp-dark-page-top-step-05": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-231-original-mbp-dark-page-top-step-05.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-231-original-mbp-dark-page-top-step-05.png",
+   "sha256": "b2fd7ba4d4e7a5856976a64f2ba87ad42f628641d1efea9b183609a970889db3",
+   "raw_sha256": "2b964115117bc0cb6c9e21973273350323c37f56552f5435ae7023d2c3e6b02c",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "pass",
+   "caret_box": {
+    "x0": 816,
+    "x1": 821,
+    "y0": 311,
+    "y1": 382,
+    "w": 6,
+    "h": 72,
+    "centre": 819.0,
+    "npx": 426
+   },
+   "first_ink_y": 184,
+   "ink_rows": [
+    {
+     "y0": 184,
+     "y1": 223,
+     "h": 40,
+     "x0": 641,
+     "x1": 1046
+    },
+    {
+     "y0": 331,
+     "y1": 368,
+     "h": 38,
+     "x0": 692,
+     "x1": 2267
+    },
+    {
+     "y0": 405,
+     "y1": 442,
+     "h": 38,
+     "x0": 695,
+     "x1": 2324
+    },
+    {
+     "y0": 478,
+     "y1": 516,
+     "h": 39,
+     "x0": 693,
+     "x1": 2172
+    },
+    {
+     "y0": 551,
+     "y1": 589,
+     "h": 39,
+     "x0": 693,
+     "x1": 2197
+    },
+    {
+     "y0": 624,
+     "y1": 662,
+     "h": 39,
+     "x0": 694,
+     "x1": 2324
+    }
+   ]
+  },
+  "mac-native-231-original-mbp-dark-page-top-step-13": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-231-original-mbp-dark-page-top-step-13.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-231-original-mbp-dark-page-top-step-13.png",
+   "sha256": "9fe43f649c4c2ebb41d8f29f700aab8f1e2bb06d1e0b4a997dc6fdb6de083c50",
+   "raw_sha256": "4991d7f9cd206d9741523209f81df3c5b65d7649076ac7a4e075d5a2efe82fa3",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "pass",
+   "caret_box": {
+    "x0": 681,
+    "x1": 690,
+    "y0": 507,
+    "y1": 678,
+    "w": 10,
+    "h": 172,
+    "centre": 686.0,
+    "npx": 1690
+   },
+   "first_ink_y": 202,
+   "ink_rows": [
+    {
+     "y0": 202,
+     "y1": 317,
+     "h": 116,
+     "x0": 162,
+     "x1": 1354
+    },
+    {
+     "y0": 545,
+     "y1": 658,
+     "h": 114,
+     "x0": 314,
+     "x1": 2400
+    },
+    {
+     "y0": 717,
+     "y1": 808,
+     "h": 92,
+     "x0": 323,
+     "x1": 2328
+    },
+    {
+     "y0": 889,
+     "y1": 1004,
+     "h": 116,
+     "x0": 322,
+     "x1": 2480
+    },
+    {
+     "y0": 1060,
+     "y1": 1166,
+     "h": 107,
+     "x0": 318,
+     "x1": 2475
+    },
+    {
+     "y0": 1232,
+     "y1": 1347,
+     "h": 116,
+     "x0": 322,
+     "x1": 2628
+    }
+   ]
+  },
+  "mac-native-231-original-mbp-dark-titlebar-always-empty": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-231-original-mbp-dark-titlebar-always-empty.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-231-original-mbp-dark-titlebar-always-empty.png",
+   "sha256": "e65faeb2d2fff7001e057780db62200b450a54740f44953859b559b7a09a670e",
+   "raw_sha256": "ce67d1852a3466add8e9155158e1a44d3d6ff59f86e4a82b79745a6b65c49ea8",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "pass",
+   "caret_box": {
+    "x0": 688,
+    "x1": 693,
+    "y0": 164,
+    "y1": 236,
+    "w": 6,
+    "h": 73,
+    "centre": 691.0,
+    "npx": 429
+   },
+   "first_ink_y": 32,
+   "ink_rows": [
+    {
+     "y0": 32,
+     "y1": 71,
+     "h": 40,
+     "x0": 0,
+     "x1": 3023
+    },
+    {
+     "y0": 84,
+     "y1": 87,
+     "h": 4,
+     "x0": 210,
+     "x1": 2985
+    }
+   ]
+  },
+  "mac-native-231-original-mbp-dark-titlebar-always": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-231-original-mbp-dark-titlebar-always.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-231-original-mbp-dark-titlebar-always.png",
+   "sha256": "81631d47e5c8aaf9402171c38814ecb3f8dd83e4500df8783a00870aa5878706",
+   "raw_sha256": "c18d4c5a356567b6c33b640734ee23593b58a8828e50bbe5e981f71cd5d3ffaa",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "pass",
+   "caret_box": {
+    "x0": 816,
+    "x1": 821,
+    "y0": 311,
+    "y1": 382,
+    "w": 6,
+    "h": 72,
+    "centre": 819.0,
+    "npx": 426
+   },
+   "first_ink_y": 32,
+   "ink_rows": [
+    {
+     "y0": 32,
+     "y1": 71,
+     "h": 40,
+     "x0": 0,
+     "x1": 3023
+    },
+    {
+     "y0": 84,
+     "y1": 87,
+     "h": 4,
+     "x0": 210,
+     "x1": 2985
+    },
+    {
+     "y0": 184,
+     "y1": 223,
+     "h": 40,
+     "x0": 641,
+     "x1": 1046
+    },
+    {
+     "y0": 331,
+     "y1": 368,
+     "h": 38,
+     "x0": 692,
+     "x1": 2267
+    },
+    {
+     "y0": 405,
+     "y1": 442,
+     "h": 38,
+     "x0": 695,
+     "x1": 2324
+    },
+    {
+     "y0": 478,
+     "y1": 516,
+     "h": 39,
+     "x0": 693,
+     "x1": 2172
+    }
+   ]
+  },
+  "mac-native-231-original-mbp-dark-titlebar-fade": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-231-original-mbp-dark-titlebar-fade.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-231-original-mbp-dark-titlebar-fade.png",
+   "sha256": "b2fd7ba4d4e7a5856976a64f2ba87ad42f628641d1efea9b183609a970889db3",
+   "raw_sha256": "6f339f67fc2cc97840d2cfb08430771d838237f39683981e91d47a73a1427025",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "pass",
+   "caret_box": {
+    "x0": 816,
+    "x1": 821,
+    "y0": 311,
+    "y1": 382,
+    "w": 6,
+    "h": 72,
+    "centre": 819.0,
+    "npx": 426
+   },
+   "first_ink_y": 184,
+   "ink_rows": [
+    {
+     "y0": 184,
+     "y1": 223,
+     "h": 40,
+     "x0": 641,
+     "x1": 1046
+    },
+    {
+     "y0": 331,
+     "y1": 368,
+     "h": 38,
+     "x0": 692,
+     "x1": 2267
+    },
+    {
+     "y0": 405,
+     "y1": 442,
+     "h": 38,
+     "x0": 695,
+     "x1": 2324
+    },
+    {
+     "y0": 478,
+     "y1": 516,
+     "h": 39,
+     "x0": 693,
+     "x1": 2172
+    },
+    {
+     "y0": 551,
+     "y1": 589,
+     "h": 39,
+     "x0": 693,
+     "x1": 2197
+    },
+    {
+     "y0": 624,
+     "y1": 662,
+     "h": 39,
+     "x0": 694,
+     "x1": 2324
+    }
+   ]
+  },
+  "mac-native-308-original-mbp-control-dark-caret-midword": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-308-original-mbp-control-dark-caret-midword.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-308-original-mbp-control-dark-caret-midword.png",
+   "sha256": "8be91670475f7ac45613415b3c73746bdd62e0b17b88aa072ad8beeafc8698ad",
+   "raw_sha256": "bd99b3841f2d3e1b40d72de044af745584e3a61ed814fbc0401a7014a3e223d6",
+   "size_px": [
+    2940,
+    760
+   ],
+   "region_pt": [
+    0,
+    48,
+    1470,
+    380
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "pass",
+   "caret_box": {
+    "x0": 816,
+    "x1": 821,
+    "y0": 281,
+    "y1": 352,
+    "w": 6,
+    "h": 72,
+    "centre": 819.0,
+    "npx": 426
+   },
+   "first_ink_y": 154,
+   "ink_rows": [
+    {
+     "y0": 154,
+     "y1": 193,
+     "h": 40,
+     "x0": 641,
+     "x1": 1046
+    },
+    {
+     "y0": 301,
+     "y1": 338,
+     "h": 38,
+     "x0": 692,
+     "x1": 2267
+    },
+    {
+     "y0": 375,
+     "y1": 412,
+     "h": 38,
+     "x0": 695,
+     "x1": 2324
+    },
+    {
+     "y0": 448,
+     "y1": 486,
+     "h": 39,
+     "x0": 693,
+     "x1": 2172
+    },
+    {
+     "y0": 521,
+     "y1": 559,
+     "h": 39,
+     "x0": 693,
+     "x1": 2197
+    },
+    {
+     "y0": 594,
+     "y1": 632,
+     "h": 39,
+     "x0": 694,
+     "x1": 2324
+    }
+   ]
+  },
+  "mac-native-308-original-mbp-control-dark-selection-inline": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-308-original-mbp-control-dark-selection-inline.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-308-original-mbp-control-dark-selection-inline.png",
+   "sha256": "aa0fdc2d2f4885c1c89abf95d5d287bd450f9b71b5211a1c70f4b33a09a78c6a",
+   "raw_sha256": "53607c0e43e410dd0d5a46cc322e298fcde2c5aea5219feeb74c0b6a48d09bf7",
+   "size_px": [
+    2940,
+    760
+   ],
+   "region_pt": [
+    0,
+    48,
+    1470,
+    380
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "pass",
+   "first_ink_y": 154,
+   "ink_rows": [
+    {
+     "y0": 154,
+     "y1": 193,
+     "h": 40,
+     "x0": 641,
+     "x1": 1046
+    },
+    {
+     "y0": 300,
+     "y1": 338,
+     "h": 39,
+     "x0": 692,
+     "x1": 2267
+    },
+    {
+     "y0": 375,
+     "y1": 412,
+     "h": 38,
+     "x0": 695,
+     "x1": 2324
+    },
+    {
+     "y0": 448,
+     "y1": 486,
+     "h": 39,
+     "x0": 693,
+     "x1": 2172
+    },
+    {
+     "y0": 521,
+     "y1": 559,
+     "h": 39,
+     "x0": 693,
+     "x1": 2197
+    },
+    {
+     "y0": 594,
+     "y1": 632,
+     "h": 39,
+     "x0": 694,
+     "x1": 2324
+    }
+   ]
+  },
+  "mac-native-308-original-mbp-control-light-selection-inline": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-308-original-mbp-control-light-selection-inline.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-308-original-mbp-control-light-selection-inline.png",
+   "sha256": "2fa3eb74fad6e4398c1e2538b40e55e105e70c67d870785ad59ac525ca06f8d8",
+   "raw_sha256": "670c801620524e08eaf831df61eb65d081adec2bc01b99d3e2de1d3374f965e2",
+   "size_px": [
+    2940,
+    760
+   ],
+   "region_pt": [
+    0,
+    48,
+    1470,
+    380
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "pass",
+   "first_ink_y": 154,
+   "ink_rows": [
+    {
+     "y0": 154,
+     "y1": 193,
+     "h": 40,
+     "x0": 641,
+     "x1": 1046
+    },
+    {
+     "y0": 301,
+     "y1": 338,
+     "h": 38,
+     "x0": 692,
+     "x1": 2267
+    },
+    {
+     "y0": 375,
+     "y1": 413,
+     "h": 39,
+     "x0": 695,
+     "x1": 2324
+    },
+    {
+     "y0": 448,
+     "y1": 486,
+     "h": 39,
+     "x0": 693,
+     "x1": 2172
+    },
+    {
+     "y0": 521,
+     "y1": 559,
+     "h": 39,
+     "x0": 693,
+     "x1": 2197
+    },
+    {
+     "y0": 594,
+     "y1": 632,
+     "h": 39,
+     "x0": 694,
+     "x1": 2324
+    }
+   ]
+  },
+  "mac-native-308-original-mbp-dark-syntax-all": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-308-original-mbp-dark-syntax-all.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-308-original-mbp-dark-syntax-all.png",
+   "sha256": "b93fa0f727bae3ccde5b25d7908b86ef9e89f4838625c592768ae43cac8a9a0b",
+   "raw_sha256": "4a8c69842b408a7b9c712fec5e1a98e5d463dd549bdea79cdebca7583fe82c23",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "pass",
+   "categories_normalised": {
+    "adjective": {
+     "hex": "#ba9659",
+     "solid_px": 3306
+    },
+    "adverb": {
+     "hex": "#b490b0",
+     "solid_px": 1845
+    },
+    "conjunction": {
+     "hex": "#89a474",
+     "solid_px": 962
+    },
+    "noun": {
+     "hex": "#ce896d",
+     "solid_px": 8095
+    },
+    "verb": {
+     "hex": "#829ebf",
+     "solid_px": 6725
+    }
+   },
+   "categories_display": {
+    "adjective": {
+     "hex": "#c39c5d",
+     "solid_px": 3306
+    },
+    "adverb": {
+     "hex": "#bc96b8",
+     "solid_px": 1845
+    },
+    "conjunction": {
+     "hex": "#90ac79",
+     "solid_px": 962
+    },
+    "noun": {
+     "hex": "#d68e72",
+     "solid_px": 8095
+    },
+    "verb": {
+     "hex": "#87a6c7",
+     "solid_px": 6725
+    }
+   }
+  },
+  "mac-native-308-original-mbp-dark-syntax-focus": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-308-original-mbp-dark-syntax-focus.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-308-original-mbp-dark-syntax-focus.png",
+   "sha256": "02d4d9c6141e055aee6903947e36fb5a34da327f4e47b35c1c30cc460981b21a",
+   "raw_sha256": "ab12942bf831977655aca6f7e17fcdb0c4d6759231dba3a2e212a832129de008",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "dark",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "pass",
+   "categories_normalised": {
+    "adjective": {
+     "hex": "#ba9659",
+     "solid_px": 1434
+    },
+    "adverb": {
+     "hex": "#b490b0",
+     "solid_px": 1845
+    },
+    "noun": {
+     "hex": "#ce896d",
+     "solid_px": 2407
+    },
+    "verb": {
+     "hex": "#829ebf",
+     "solid_px": 989
+    }
+   },
+   "categories_display": {
+    "adjective": {
+     "hex": "#c39c5d",
+     "solid_px": 1434
+    },
+    "adverb": {
+     "hex": "#bc96b8",
+     "solid_px": 1845
+    },
+    "noun": {
+     "hex": "#d68e72",
+     "solid_px": 2407
+    },
+    "verb": {
+     "hex": "#87a6c7",
+     "solid_px": 989
+    }
+   }
+  },
+  "mac-native-308-original-mbp-light-syntax-adjective-only": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-308-original-mbp-light-syntax-adjective-only.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-308-original-mbp-light-syntax-adjective-only.png",
+   "sha256": "5975363ca74a2a3e1feb521c600865e7084099387f1af51fc4e64e478d1bcc5e",
+   "raw_sha256": "36be42d293ec018c71b361bbf7df34bccae889b063d7bc95b9594a8e29c1ec50",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "pass",
+   "categories_normalised": {
+    "adjective": {
+     "hex": "#9d6722",
+     "solid_px": 3433
+    }
+   },
+   "categories_display": {
+    "adjective": {
+     "hex": "#a76d24",
+     "solid_px": 3433
+    }
+   }
+  },
+  "mac-native-308-original-mbp-light-syntax-adverb-only": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-308-original-mbp-light-syntax-adverb-only.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-308-original-mbp-light-syntax-adverb-only.png",
+   "sha256": "23a0a3ce4f6ef04dd11f5ea88f678f040855223c56702a0a3de0951f7ad90656",
+   "raw_sha256": "9f094206eb7389ac3de81b9dc47d8e3437ddeabd8db636846480f14944638065",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "pass",
+   "categories_normalised": {
+    "adverb": {
+     "hex": "#a6559f",
+     "solid_px": 1925
+    }
+   },
+   "categories_display": {
+    "adverb": {
+     "hex": "#af5aa8",
+     "solid_px": 1925
+    }
+   }
+  },
+  "mac-native-308-original-mbp-light-syntax-all": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-308-original-mbp-light-syntax-all.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-308-original-mbp-light-syntax-all.png",
+   "sha256": "7b3c6da4130dfae24b3608fbb0aacd9a69a87d1a5fd41bdab77873c04dd301fe",
+   "raw_sha256": "d2ccd0d68c512e77895e1881f31a3a788bfd94d991b8533f812e2e9cc54c9223",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "pass",
+   "categories_normalised": {
+    "adjective": {
+     "hex": "#9d6722",
+     "solid_px": 3433
+    },
+    "adverb": {
+     "hex": "#a6559f",
+     "solid_px": 1925
+    },
+    "conjunction": {
+     "hex": "#51812f",
+     "solid_px": 990
+    },
+    "noun": {
+     "hex": "#bb512a",
+     "solid_px": 8318
+    },
+    "verb": {
+     "hex": "#4675b5",
+     "solid_px": 6977
+    }
+   },
+   "categories_display": {
+    "adjective": {
+     "hex": "#a76d24",
+     "solid_px": 3433
+    },
+    "adverb": {
+     "hex": "#af5aa8",
+     "solid_px": 1925
+    },
+    "conjunction": {
+     "hex": "#588a33",
+     "solid_px": 990
+    },
+    "noun": {
+     "hex": "#c6542f",
+     "solid_px": 8318
+    },
+    "verb": {
+     "hex": "#487ebe",
+     "solid_px": 6941
+    }
+   }
+  },
+  "mac-native-308-original-mbp-light-syntax-conjunction-only": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-308-original-mbp-light-syntax-conjunction-only.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-308-original-mbp-light-syntax-conjunction-only.png",
+   "sha256": "d7d324ad5d9d28d4f4e4a902a960d82350672ab45b9eadbb1bc1ed72b7829ca6",
+   "raw_sha256": "460f5d663489e122ee768149ee4d3836e80d9a492a6fdc6add2d5c7020341dab",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "pass",
+   "categories_normalised": {
+    "conjunction": {
+     "hex": "#51812f",
+     "solid_px": 990
+    }
+   },
+   "categories_display": {
+    "conjunction": {
+     "hex": "#588a33",
+     "solid_px": 990
+    }
+   }
+  },
+  "mac-native-308-original-mbp-light-syntax-focus": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-308-original-mbp-light-syntax-focus.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-308-original-mbp-light-syntax-focus.png",
+   "sha256": "3720d00685b5b6202b087e93a4b64b70ce6595f778ee30cec2e876ea304ac080",
+   "raw_sha256": "75e43b81a23cf1e298154f852dbf1a246b6d6d5097e41f0b05ffba981b663b52",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "pass",
+   "categories_normalised": {
+    "adjective": {
+     "hex": "#9d6722",
+     "solid_px": 1489
+    },
+    "adverb": {
+     "hex": "#a6559f",
+     "solid_px": 1925
+    },
+    "noun": {
+     "hex": "#bb512a",
+     "solid_px": 2474
+    },
+    "verb": {
+     "hex": "#4675b5",
+     "solid_px": 1022
+    }
+   },
+   "categories_display": {
+    "adjective": {
+     "hex": "#a76d24",
+     "solid_px": 1489
+    },
+    "adverb": {
+     "hex": "#af5aa8",
+     "solid_px": 1925
+    },
+    "noun": {
+     "hex": "#c6542f",
+     "solid_px": 2474
+    },
+    "verb": {
+     "hex": "#487ebe",
+     "solid_px": 1019
+    }
+   }
+  },
+  "mac-native-308-original-mbp-light-syntax-noun-only": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-308-original-mbp-light-syntax-noun-only.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-308-original-mbp-light-syntax-noun-only.png",
+   "sha256": "f7933207a5ddcbf2ec9b0403aa3279b0c9584a2ac76d231f9954d9c31adab9d1",
+   "raw_sha256": "8955ae76d5263d37833429a0f8d389c19695a419d644b26271f930a23322a97d",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "pass",
+   "categories_normalised": {
+    "noun": {
+     "hex": "#bb512a",
+     "solid_px": 8318
+    }
+   },
+   "categories_display": {
+    "noun": {
+     "hex": "#c6542f",
+     "solid_px": 8318
+    }
+   }
+  },
+  "mac-native-308-original-mbp-light-syntax-tokens": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-308-original-mbp-light-syntax-tokens.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-308-original-mbp-light-syntax-tokens.png",
+   "sha256": "4d68c4bf94b3a429564908b3a059a50e0bb942844e5e2e0993e0020d48f538ed",
+   "raw_sha256": "b283f08f8c6771d31c8b9968f47cc19b86631c0c685851554fc2d16141880f90",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "pass",
+   "categories_normalised": {
+    "adverb": {
+     "hex": "#a6559f",
+     "solid_px": 969
+    },
+    "conjunction": {
+     "hex": "#51812f",
+     "solid_px": 480
+    },
+    "noun": {
+     "hex": "#bb512a",
+     "solid_px": 1587
+    },
+    "verb": {
+     "hex": "#4675b5",
+     "solid_px": 3009
+    }
+   },
+   "categories_display": {
+    "adverb": {
+     "hex": "#af5aa8",
+     "solid_px": 969
+    },
+    "conjunction": {
+     "hex": "#588a33",
+     "solid_px": 480
+    },
+    "noun": {
+     "hex": "#c6542f",
+     "solid_px": 1587
+    },
+    "verb": {
+     "hex": "#487ebe",
+     "solid_px": 2994
+    }
+   }
+  },
+  "mac-native-308-original-mbp-light-syntax-verb-only": {
+   "normalised_file": "dev/ref/ia/shots/mac-native/mac-native-308-original-mbp-light-syntax-verb-only.png",
+   "raw_file": "dev/ref/ia/shots/mac-native/raw-original-mbp/mac-native-308-original-mbp-light-syntax-verb-only.png",
+   "sha256": "ee84d0762e09b1f7daab8dc18d67c3f69a9d46bafd73aba30a76619cc920cdc3",
+   "raw_sha256": "878a1630658171c8632012142b4049f46953f343f0b2a6f0291289f4b2716493",
+   "size_px": [
+    3024,
+    1898
+   ],
+   "region_pt": [
+    0,
+    33,
+    1512,
+    949
+   ],
+   "ground": "light",
+   "icc": "a0b31a47075bdf16",
+   "colour_check": "pass",
+   "categories_normalised": {
+    "verb": {
+     "hex": "#4675b5",
+     "solid_px": 6977
+    }
+   },
+   "categories_display": {
+    "verb": {
+     "hex": "#487ebe",
+     "solid_px": 6941
+    }
+   }
+  }
+ }
+}

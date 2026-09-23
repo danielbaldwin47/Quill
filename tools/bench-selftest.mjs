@@ -295,7 +295,7 @@ ok('every line starts with `gate bench` and is one line', () => {
 // One regime's row as `bench --all` records it in its summary file.
 const row = (regime, mean, worst, cold, pass = true, extra = {}) => ({
   regime,
-  file: `shots/latency/bench-${regime}-20260828T000000.json`,
+  file: `dev/shots/latency/bench-${regime}-20260828T000000.json`,
   mean_ms: mean,
   worst_ms: worst,
   p50_ms: mean,

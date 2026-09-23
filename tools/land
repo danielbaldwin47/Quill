@@ -9,7 +9,7 @@
 # By hand the sequence is six to nine calls, and two of them failed at every one
 # of five landings in two days (docs/agents/context.md § What the steps cost
 # when skipped): `git worktree remove` refuses while an untracked
-# shots/latency/bench-*.json sits in the worktree, and `git push origin --delete`
+# dev/shots/latency/bench-*.json sits in the worktree, and `git push origin --delete`
 # fails because `gh pr merge --delete-branch` has already deleted the branch.
 # Neither can fail here, because both are decided by looking first — the removal
 # passes --force after its line has named every file that discards, and the push
@@ -163,7 +163,7 @@ else
 fi
 
 # worktree — the one holding the PR's branch, if the landing session made one.
-# --force is the point: a bench run leaves untracked shots/latency/bench-*.json
+# --force is the point: a bench run leaves untracked dev/shots/latency/bench-*.json
 # behind and a plain remove refuses on them, so the line names what goes.
 WT=$(git -C "$MAIN" worktree list --porcelain |
     awk -v b="branch refs/heads/${HEAD}" '/^worktree /{p=$2} $0==b{print p; exit}')

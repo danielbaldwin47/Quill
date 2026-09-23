@@ -1,0 +1,381 @@
+{
+  "piece": "spell",
+  "round": 7,
+  "winner": "theirs",
+  "margin": "slight",
+  "gap": "The mark stops 4 px before the end of 'definately'. The glyphs run 367–620 but the last dot ends at 616, so the tail of the final 'y' has no mark under it. A's run there is 359–610 against glyphs 360–610, so every letter is covered. B puts 32 dots under a word about 1.6% wider than A's, so it runs out before the word does.",
+  "gapTheirs": "The dot runs don't sit centred under their words. They stick out 5–6 px past the last glyph but only 2–3 px before the first: 'comittee' has glyphs at 489–685 and dots at 486–691, 'Teh' 1050–1119 against 1048–1125, 'recieved' 1359–1555 against 1357–1560. B's runs end within 1 px of the last glyph on three of the four words.",
+  "verdict": "Both draw the same mark: round dots 6 px across on an 8 px pitch, six rows tall (y 121–126), about 12 px under the baseline, in flat #ed766b with the same anti-aliased edge (#ed7d74 / #f1aca6). Both mark the same four words and leave DRAFFT alone. A writer switching between them would not see a difference in weight or ink, only in how the mark lines up with the word. A's marks run a few pixels long on the right, while B's leaves the end of 'definately' uncovered, and a mark that stops short of the typo it flags is the worse of the two.",
+  "oursShot": "dev/shots/spell/r7-on-light-ours-crop.png",
+  "theirsShot": "dev/shots/spell/r7-on-light-theirs-crop.png",
+  "refSource": "dev/ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in dev/ref/ia/mac-native/ (ADR 0015), cropped per state: on-light from mac-native-26-light-spell-s1-rest.png, on-dark from mac-native-26-dark-spell-s1-rest.png, focus-light from mac-native-26-light-spell-s2-focus.png, focus-dark from mac-native-26-dark-spell-s2-focus.png, syntax-light from mac-native-26-light-spell-s3-syntax.png, syntax-dark from mac-native-26-dark-spell-s3-syntax.png, select-light from mac-native-26-light-spell-s4-selection.png, select-dark from mac-native-26-dark-spell-s4-selection.png; no opponent for caret-light (spell), missing-light (spell) — measured off ours' own pixels by tools/assert-state.mjs, because neither oracle holds the state (ADR 0017)",
+  "builderNote": "round 7: the last roll of the budget, on the same build — round 6's critics read the mark as matched on every state ('practically nothing', 'not a mark gap', ink one unit apart) and picked on the cell advance and the Category colours, which the brief now says are the page Piece's and the syntax Piece's",
+  "secondary": [
+    "Viewports differ: A is 1638×130, B is 1664×130 (26 px wider, the cell-advance difference; the page Piece's, not this one's)",
+    "Dot counts per word are identical in both: definately 32, recieved 26, comittee 26, Teh 10",
+    "Dot pitch is exactly 8 px (4 px solid core per row-123 run) and the same in both; no drift over 32 dots",
+    "Dot top/bottom rows are the same in both (121 and 126, 6 rows); the text's bottom ink row is 109 in both, so the gap from baseline to mark matches",
+    "The ink histograms under 'comittee' match: 416 px of #ED766B and 208 px of #ED7D74/#EE7D73 in each",
+    "B's body text is marginally lighter (mean grey 0.828 vs 0.820 over the same band); a type/page matter, not the mark",
+    "Only the at-rest light state is visible here; Focus dimming, Syntax and the selection composite can't be judged from these crops"
+  ],
+  "opponent": "mixed",
+  "build": {
+    "git": "61e2636",
+    "binary": "a94f52da4b76322d",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "on-light",
+      "ours": "dev/shots/spell/r7-on-light-ours-crop.png",
+      "theirs": "dev/shots/spell/r7-on-light-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-26-light-spell-s1-rest.png",
+        "crop": [
+          692,
+          325,
+          1638,
+          130
+        ],
+        "ours": [
+          622,
+          224,
+          1664,
+          130
+        ]
+      },
+      "oursWhole": "dev/shots/spell/r7-on-light-ours.png",
+      "blind": "dev/shots/blind/spell/on-light",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": false,
+      "gap": "The mark stops 4 px before the end of 'definately'. The glyphs run 367–620 but the last dot ends at 616, so the tail of the final 'y' has no mark under it. A's run there is 359–610 against glyphs 360–610, so every letter is covered. B puts 32 dots under a word about 1.6% wider than A's, so it runs out before the word does.",
+      "gapTheirs": "The dot runs don't sit centred under their words. They stick out 5–6 px past the last glyph but only 2–3 px before the first: 'comittee' has glyphs at 489–685 and dots at 486–691, 'Teh' 1050–1119 against 1048–1125, 'recieved' 1359–1555 against 1357–1560. B's runs end within 1 px of the last glyph on three of the four words.",
+      "verdict": "Both draw the same mark: round dots 6 px across on an 8 px pitch, six rows tall (y 121–126), about 12 px under the baseline, in flat #ed766b with the same anti-aliased edge (#ed7d74 / #f1aca6). Both mark the same four words and leave DRAFFT alone. A writer switching between them would not see a difference in weight or ink, only in how the mark lines up with the word. A's marks run a few pixels long on the right, while B's leaves the end of 'definately' uncovered, and a mark that stops short of the typo it flags is the worse of the two.",
+      "secondary": [
+        "Viewports differ: A is 1638×130, B is 1664×130 (26 px wider, the cell-advance difference; the page Piece's, not this one's)",
+        "Dot counts per word are identical in both: definately 32, recieved 26, comittee 26, Teh 10",
+        "Dot pitch is exactly 8 px (4 px solid core per row-123 run) and the same in both; no drift over 32 dots",
+        "Dot top/bottom rows are the same in both (121 and 126, 6 rows); the text's bottom ink row is 109 in both, so the gap from baseline to mark matches",
+        "The ink histograms under 'comittee' match: 416 px of #ED766B and 208 px of #ED7D74/#EE7D73 in each",
+        "B's body text is marginally lighter (mean grey 0.828 vs 0.820 over the same band); a type/page matter, not the mark",
+        "Only the at-rest light state is visible here; Focus dimming, Syntax and the selection composite can't be judged from these crops"
+      ]
+    },
+    {
+      "name": "on-dark",
+      "ours": "dev/shots/spell/r7-on-dark-ours-crop.png",
+      "theirs": "dev/shots/spell/r7-on-dark-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-26-dark-spell-s1-rest.png",
+        "crop": [
+          692,
+          325,
+          1638,
+          130
+        ],
+        "ours": [
+          622,
+          224,
+          1664,
+          130
+        ]
+      },
+      "oursWhole": "dev/shots/spell/r7-on-dark-ours.png",
+      "blind": "dev/shots/blind/spell/on-dark",
+      "oursWas": "A",
+      "pick": "B",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": false,
+      "gap": "The dot rows are the same width in both images: 254 px under 'definately', 206 under 'recieved' and 'comittee', 78 under 'Teh'. A sets the words about 1.5% wider (26.0 px per cell against 25.6, 1664 px against 1638), so its mark stops short of each word. Under 'definately' the row covers about 97.7% of a roughly 260 px word, and the tail of the 'y' hangs past the last dot. The gap between the lowest ink of the 'y' and the top dot row is also 1 px tighter: 2 blank rows (y=45–46) against 3 (y=44–46).",
+      "gapTheirs": "B has no mark gap of its own. Ink (#CF807E core, #7F5352/#805452 edges), 8 px pitch, 6 rows (y=47–52), dot shape and marked words match A pixel for pixel. B's only difference is that its dot edge pixels sit about 2% darker (#7F5352 against #845655) and a few blend toward #1E1C1C, so each dot looks very slightly harder.",
+      "verdict": "The mark itself is the same in both. They share the same salmon dots on the same 8 px pitch, 6 rows deep and 12 px under the baseline, and they mark the same four words while leaving DRAFFT alone. What decides it is the fit: B's dots cover their words from end to end, while A's stop a few pixels short, so the tail of the 'y' in 'definately' hangs past the mark. A writer won't consciously notice this, but A's squiggle looks slightly undersized and sits slightly closer to the descenders.",
+      "secondary": [
+        "Image sizes differ: A 1664x130, B 1638x130. The cause is the cell advance (26.0 vs 25.6), which belongs to the page Piece, not this one.",
+        "Dots start at the same x-offset relative to each word, about 4–6 px in from the first glyph's cell edge, in both.",
+        "Both mark definately, recieved, comittee and Teh, and neither marks DRAFFT.",
+        "Neither crop shows Focus, Syntax or selection, so the no-dimming and selection-composite behaviours can't be judged here.",
+        "Dot count under 'definately' is 32 in both (512 core px ÷ 16 px per dot)."
+      ]
+    },
+    {
+      "name": "focus-light",
+      "ours": "dev/shots/spell/r7-focus-light-ours-crop.png",
+      "theirs": "dev/shots/spell/r7-focus-light-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-26-light-spell-s2-focus.png",
+        "crop": [
+          692,
+          781,
+          1638,
+          130
+        ],
+        "ours": [
+          622,
+          224,
+          1664,
+          130
+        ]
+      },
+      "oursWhole": "dev/shots/spell/r7-focus-light-ours.png",
+      "blind": "dev/shots/blind/spell/focus-light",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": false,
+      "gap": "B's dots fall short of their words. Every run has the same length as A's (254, 206, 206 and 78 px at 6 px dots, 8 px pitch) but sits under wider type (26.0 against 25.6 px cells), so the run under 'definately' stops about 6 px before the 'y' ends (254 of 260 px, about 2.3 % short) and the run under 'recieved' stops about 5 px short. The mark reads as slightly too short for its word.",
+      "gapTheirs": "Hardly any gap in the mark. A's dots cover 254 of the 256 px of 'definately' (10 cells × 25.6); B's cover 254 of 260. The gap is hinting in A's glyphs, not the mark: the top body row's ink spans y 6–43 against B's 4–44, so the letters sit about 1–2 px shorter over dots at the same depth.",
+      "verdict": "On the mark itself these two are the same: identical #ed766b dots, 6 px across on an 8 px pitch, in rows 47–52 and 121–126, under the same four words, with 'DRAFFT' left alone. Both keep the dots at full ink under the dimmed out-of-focus words (#c6c4c2), so neither lets a typo fade into the grey. The one thing a writer might catch is that B's dotted rule stops a few pixels before the last letter of long words, like a correction that ran out of ink. A's dots end almost at the edge of each word, so A wins, narrowly.",
+      "secondary": [
+        "Image sizes differ: A is 1638×130 and B is 1664×130. The 26 px difference is exactly the cell-advance difference over 64 cells.",
+        "Dot ink is identical: the core pixel is (237,118,107) = #ed766b in both, with 1504 px of it in each image; the anti-aliased edge counts match to within rounding.",
+        "The dot shape is identical: 4-px chord in rows 121 and 126, 6 px in rows 122–125.",
+        "The dots start in the same rows in both, 47 and 121, so the mark sits at the same depth under the baseline.",
+        "Both mark the same four words ('definately', 'recieved', 'comittee', 'Teh') and leave 'DRAFFT' unmarked.",
+        "Both keep the mark at full ink under the dimmed text, so the mark does not dim under Focus in either.",
+        "Background #f7f7f7 and the dim text tier (198,196,194) are identical in both.",
+        "The 'Teh' run is 78 px in both, which fits a 3-cell word in either advance. Only words of 8 or more letters show the shortfall in B."
+      ]
+    },
+    {
+      "name": "focus-dark",
+      "ours": "dev/shots/spell/r7-focus-dark-ours-crop.png",
+      "theirs": "dev/shots/spell/r7-focus-dark-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-26-dark-spell-s2-focus.png",
+        "crop": [
+          692,
+          781,
+          1638,
+          130
+        ],
+        "ours": [
+          622,
+          224,
+          1664,
+          130
+        ]
+      },
+      "oursWhole": "dev/shots/spell/r7-focus-dark-ours.png",
+      "blind": "dev/shots/blind/spell/focus-dark",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": false,
+      "gap": "The mark on 'definately' stops before the word does. The dots end at x=617 but the tail of the 'y' reaches 620, so the last 3 px of the word have no mark under them. In A, every dotted run covers its word's full width (for example 358–611 under glyphs at 360–610).",
+      "gapTheirs": "The dots run past the end of some words. They overshoot 'recieved' by 6 px (dots end at x=1561, glyphs at 1555) and 'comittee' by 6 px (691 vs 685), so the right end of the mark reaches into the space after the word, while its left end sits only 1–3 px outside the word.",
+      "verdict": "On what this piece covers, the two marks are nearly identical. Both use the same #CF807E dots, 6 px wide at an 8 px pitch, in the same six rows (y 47–52 and 121–126). Both have the same counts (32, 26, 26 and 10 dots), leave DRAFFT unmarked, and keep full ink under the dimmed sentence. The one difference is how each run lines up with its word. A's dots always reach the last letter, sometimes 6 px past it. B's dots stop 3 px short of the tail of 'definately', so the mark looks like it missed the last letter.",
+      "secondary": [
+        "The images are different sizes: A is 1638×130 and B is 1664×130. That comes from the cell advance (25.6 vs 26.0), which belongs to the page piece.",
+        "Mark ink matches exactly: #CF807E, 1504 px in both images, with matching edge tones (#C27A78/#7F5352 in A, #C67B79/#845655 in B).",
+        "Each mark sits in the same rows in both: 47–52 under row 1 and 121–126 under row 2. The dot shape is the same 6-row diamond profile of 116/232/348/348/232/116 px across the rows.",
+        "The dots do not dim out of focus in either image. They stay #CF807E under text that is #707070, and the focused 'Teh plan is' is #CCCCCC.",
+        "Both images mark the same four words (definately, recieved, comittee, Teh) and leave DRAFFT unmarked.",
+        "Every mark in B starts 3–4 px left of its word, against 1–3 px in A. Neither app centres the dot grid on the word."
+      ]
+    },
+    {
+      "name": "syntax-light",
+      "ours": "dev/shots/spell/r7-syntax-light-ours-crop.png",
+      "theirs": "dev/shots/spell/r7-syntax-light-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-26-light-spell-s3-syntax.png",
+        "crop": [
+          692,
+          325,
+          1638,
+          130
+        ],
+        "ours": [
+          622,
+          224,
+          1664,
+          130
+        ]
+      },
+      "oursWhole": "dev/shots/spell/r7-syntax-light-ours.png",
+      "blind": "dev/shots/blind/spell/syntax-light",
+      "oursWas": "A",
+      "pick": "B",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": false,
+      "gap": "A's dot runs don't match the word widths as well as B's do. Under 'definately' the dots run x=364–617 and the glyphs x≈366–620, so the row starts 2 px early and stops 3 px short of the final 'y'. Under 'Teh' the dots run 1066–1143 and the glyphs 1067–1139, so the row sticks out 4 px past the 'h'. In B the runs are 358–611 against glyphs 360–610 and 1048–1125 against 1049–1120. A drifts by about 3–4 px per word, which fits a mark built on a 26.0 px cell sitting under glyphs set at a different advance.",
+      "gapTheirs": "In B the mark itself has nothing worse than A's. The ink is #ED7D74, one step off A's #EE7D73, which no eye can see. Dot size, pitch, row placement and word count all match A to the pixel. The only gap left is the same 1–5 px overhang past each word's end (up to 5 px after 'Teh'), so the dot row still reads as a fixed grid rather than one tailored to each word.",
+      "verdict": "The two marks are the same drawing: round 6 px dots on an 8 px pitch across the same six rows (47–52 on line one, 121–126 on line two), in the same coral, under the same four words. Both leave 'DRAFFT' unmarked. The two differ only in how each dot run lines up with its word, and B's runs sit closer to the word ends while A's pull short at the right and stick out under short words. A writer would never see this at reading distance, and any vote here comes down to a few pixels at the ends of each word.",
+      "secondary": [
+        "Images differ in size: A is 1664x130, B is 1638x130 (the type's advance belongs to the page Piece)",
+        "Dot rows match exactly: 58 dots on line one, 36 on line two, a 2/4/6/6/4/2 px profile per dot",
+        "Dot top sits 12 px under the baseline on both lines in both images",
+        "Same words marked in both crops: definately, recieved, comittee, Teh; DRAFFT unmarked in both",
+        "Category colours differ (A: comittee/Teh/DRAFFT uncoloured, 'before' green; B: comittee/Teh orange, DRAFFT ochre, 'before' uncoloured). That belongs to the syntax Piece and wasn't judged",
+        "Focus dimming and the selection composite aren't in these crops, so neither was checked"
+      ]
+    },
+    {
+      "name": "syntax-dark",
+      "ours": "dev/shots/spell/r7-syntax-dark-ours-crop.png",
+      "theirs": "dev/shots/spell/r7-syntax-dark-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-26-dark-spell-s3-syntax.png",
+        "crop": [
+          692,
+          325,
+          1638,
+          130
+        ],
+        "ours": [
+          622,
+          224,
+          1664,
+          130
+        ]
+      },
+      "oursWhole": "dev/shots/spell/r7-syntax-dark-ours.png",
+      "blind": "dev/shots/blind/spell/syntax-dark",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": false,
+      "gap": "B's dot is not symmetric. Its top and bottom edge rows fall to #845655 (about 45% coverage) while its left and right edge columns stay at #C67B79 (about 95%). Each dot is therefore about 6 px wide but only about 5 px tall. The row of dots looks slightly flattened and a shade lighter than A's full round 6×6 dot, against the same 8 px pitch.",
+      "gapTheirs": "A has no gap in the mark worth a round. Both use the same #CF807E ink on #1A1A1A, the same 6 px dot on an 8 px pitch, the same rows (y 47–52 on the first line, y 121–126 on the second) and the same four marked words, with DRAFFT unmarked. A's only weakness is its dot edge pixels: #C27A78 (about 92% coverage) at the left, right, top and bottom alike. That makes each dot a nearly solid 6×6 blob, a little squarer than a truly round dot, visible at 6× zoom.",
+      "verdict": "For a writer the mark is the same in both: a quiet row of salmon dots 12 px below the baseline, under the same four typos, leaving the all-caps DRAFFT alone. Neither one looks like a squiggle that nags you while you type. The whole difference is sub-pixel: B shades the top and bottom of each dot to half strength, so its dots read as squashed, fainter beads next to A's even round ones. It's a tiny gap, but A's dot is the one that holds its shape.",
+      "secondary": [
+        "Image widths differ: A is 1638×130 and B is 1664×130. This follows from the 25.6 vs 26.0 px cell advance, which belongs to the page Piece.",
+        "Dot ink is identical: #CF807E fill in both. No dimming or alpha difference was measured.",
+        "Pitch is identical: 8 px period with a 6 px dot and a 2 px gap in both.",
+        "Vertical position is identical: dots sit on y 47–52 (row 1) and y 121–126 (row 2) in both.",
+        "Marked words: definately, recieved, comittee and Teh in both. DRAFFT is unmarked in both.",
+        "Each run of dots spans its word to within about 2 px in both, e.g. 'definately' covers x≈358–612 in A and x≈365–620 in B.",
+        "Excluded, not this Piece: B leaves comittee, Teh and DRAFFT uncoloured while A colours them with a Category, and 'before' is coloured in B but not in A. That belongs to the syntax Piece."
+      ]
+    },
+    {
+      "name": "select-light",
+      "ours": "dev/shots/spell/r7-select-light-ours-crop.png",
+      "theirs": "dev/shots/spell/r7-select-light-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-26-light-spell-s4-selection.png",
+        "crop": [
+          692,
+          325,
+          1638,
+          130
+        ],
+        "ours": [
+          622,
+          224,
+          1664,
+          130
+        ]
+      },
+      "oursWhole": "dev/shots/spell/r7-select-light-ours.png",
+      "blind": "dev/shots/blind/spell/select-light",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": false,
+      "gap": "Over the selected 'recieved' the dots in B stay at the full unselected ink, #ED766B (416 px), with #EB7C73 edges. A blends them with the fill to #E2726B (416 px), with #E07A75 edges. That is a hotter, more saturated red on the blue fill in B, and the only place its mark differs from A's by a visible hex.",
+      "gapTheirs": "Almost nothing separates them. The mark is identical in both: rows y47–52 and y121–126, 6 px dots on an 8 px period, core ink #ED766B with #ED7D74/#F1ACA6 anti-aliasing, the same seven words marked and DRAFFT left alone. A's only measurable cost is that its type sets 1638 px wide against B's 1664. That comes from the cell advance, which isn't this piece's, so each run of dots is proportionally the same length as in B.",
+      "verdict": "At rest these are the same mark: round dots, 8 px pitch, 12 px under the baseline, the same misspellings flagged. The difference only shows when you select a flagged word. B's dots keep their unselected red on the blue fill and jump off the highlight. A's dots settle into it at #E2726B while still reading as spell-check red. Select 'recieved the notes' to cut it and B's dots glare a little. A doesn't.",
+      "secondary": [
+        "Images differ in width: A is 1638x130, B is 1664x130; the wider B comes from the type advance, which belongs to the page piece",
+        "Dot shape is identical: 6 rows of 116/232/348/348/232/116 pixels on line 1, the same profile on line 2",
+        "The mark's vertical position is identical in both (baseline row 1 to dots at y47–52)",
+        "The selection band in B looks about 1 px taller below the dots than in A (seen at 4x)",
+        "Both leave DRAFFT unmarked and mark 'Teh' with 13 dots of #ED766B"
+      ]
+    },
+    {
+      "name": "select-dark",
+      "ours": "dev/shots/spell/r7-select-dark-ours-crop.png",
+      "theirs": "dev/shots/spell/r7-select-dark-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-26-dark-spell-s4-selection.png",
+        "crop": [
+          692,
+          325,
+          1638,
+          130
+        ],
+        "ours": [
+          622,
+          224,
+          1664,
+          130
+        ]
+      },
+      "oursWhole": "dev/shots/spell/r7-select-dark-ours.png",
+      "blind": "dev/shots/blind/spell/select-dark",
+      "oursWas": "A",
+      "pick": "B",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": false,
+      "gap": "Over the dark selection fill, A paints the dots under 'recieved' in the same flat #CF807E it uses on the bare page, with #80646C anti-aliased edges. B shifts the mark to #CD8486 with #796570 edges, so it sits in the fill instead of on top of it. The difference is only 2–8 per channel, but it is the one place where the two marks are not the same pixels.",
+      "gapTheirs": "B's selection band on row 1 stops short of row 2's band. It leaves a strip of #1A1A1A about 1–2 px tall under the dots beneath 'recieved', so the dotted row sits right against a seam. A's band is continuous. Also, 'recieved' carries 24 dots in B and 26 in A, because the word runs about 26 px narrower across the full line.",
+      "verdict": "As a mark, these are the same drawing. Both use round 6 px dots on an 8 px pitch, ink rows at y 47–52 with the same falloff (0.24/0.39/0.44), the same #CF807E on the page, the same seven words marked and DRAFFT left alone. You would not know which one you were typing in until you selected a misspelled word. There, B tints the dots into the blue fill and A leaves them looking pasted on, so B edges it on a difference you feel more than see.",
+      "secondary": [
+        "Sizes differ: A is 1664x130 and B is 1638x130; the width follows the cell advance, which belongs to the page Piece",
+        "Dot shape matches pixel for pixel at 16x zoom: 6x6 with chamfered corners, #CF807E core, #845655/#7F5352 corner pixels",
+        "Selection fill differs: A #113D52 vs B #143C52",
+        "Marked words are the same in both: definately, recieved, comittee, Teh; DRAFFT is unmarked in both",
+        "No Focus or Syntax behaviour can be judged from this state; both crops are the at-rest state with a selection"
+      ]
+    },
+    {
+      "name": "caret-light",
+      "ours": "dev/shots/spell/r7-caret-light-ours.png",
+      "theirs": null,
+      "lit": "dev/shots/spell/r7-caret-light-ours-lit.png",
+      "assert": {
+        "kind": "spell",
+        "theme": "light",
+        "words": 7,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "7 marks under their lines of prose, 5952 of 5952 changed pixels in the spell Role, none outside the text column",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+      "verdict": "7 marks under their lines of prose, 5952 of 5952 changed pixels in the spell Role, none outside the text column",
+      "secondary": [
+        "same-state --spell off pixels supply the text column and the lines of prose",
+        "the state the Design oracle shot no frame of; no critic (ADR 0017)"
+      ]
+    },
+    {
+      "name": "missing-light",
+      "ours": "dev/shots/spell/r7-missing-light-ours.png",
+      "theirs": null,
+      "lit": "dev/shots/spell/r7-missing-light-ours-lit.png",
+      "assert": {
+        "kind": "spell",
+        "theme": "light",
+        "words": 0,
+        "status": true,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "no mark; the status line's 4025 changed pixels in one band at x 50..532, y 1766..1788",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+      "verdict": "no mark; the status line's 4025 changed pixels in one band at x 50..532, y 1766..1788",
+      "secondary": [
+        "same-state --spell off pixels supply the page without the status line",
+        "no critic (ADR 0017)"
+      ]
+    }
+  ],
+  "at": "2026-09-13T15:29:09.357Z"
+}

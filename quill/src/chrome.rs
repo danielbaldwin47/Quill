@@ -14,7 +14,7 @@
 //! caret-kind controller (#107).
 //!
 //! The two bars are [`Bars`] (#120): a title bar above the page and a stats
-//! bar below it, in the Parity oracle's proportions (`legacy/app/css/chrome.css`),
+//! bar below it, in the Parity oracle's proportions (`dev/legacy/app/css/chrome.css`),
 //! shown or hidden by the `chrome` setting, `--chrome` and `chrome.toggle`.
 //! Their colours are the engine's table; their geometry is the constants
 //! below, because a bar's height is widget geometry and not a colour. Their
@@ -761,7 +761,7 @@ struct Tick {
     /// Its inset from the row's edge (`.tick { left: 4px }`).
     left: i32,
     /// How wide its ink stands: the width of the Parity oracle's own tick,
-    /// which `legacy/app/js/chrome.js` draws as an `svg(10, 8, …)`, and the
+    /// which `dev/legacy/app/js/chrome.js` draws as an `svg(10, 8, …)`, and the
     /// width [`Tick::glyph`] is sized for.
     width: i32,
     /// The icon size GTK draws [`TICK_GLYPH`] at to lay that much ink down.
@@ -770,7 +770,7 @@ struct Tick {
     /// `min-width`, and at its default of 16 px the check came out wider and
     /// heavier than the oracle's — twice its ink, and darker than any label in
     /// the menu, which is what round 5's critic gave the View menu away for
-    /// (`progress/rounds/chrome-r5.json`). The glyph's ink is a fixed share of
+    /// (`dev/progress/rounds/chrome-r5.json`). The glyph's ink is a fixed share of
     /// its icon, so 13 px is the icon size at which it stands [`Tick::width`]
     /// wide.
     glyph: i32,
@@ -983,7 +983,7 @@ pub fn stylesheet(ground: Ground) -> String {
     let strong = colours.colour(Role::ChromeFgStrong).to_hex();
     // The counts are the body's own ink and lift to the accent under the
     // pointer, where the rest of the bars are the chrome's greys: the Design
-    // oracle's foot, `ref/ia/mac-native/NOTES.md` § State 27.
+    // oracle's foot, `dev/ref/ia/mac-native/NOTES.md` § State 27.
     let ink = colours.colour(Role::Ink).to_hex();
     let accent = colours.colour(Role::Accent).to_hex();
     let rule = colours.colour(Role::Rule).to_css();
@@ -1571,7 +1571,7 @@ impl Bars {
 /// The two things a stylesheet cannot say about half a label, and nothing
 /// else: the ink is `.chrome label.chrome-stat`'s ([`stylesheet`]). The fill
 /// is the Design oracle's mark that a count is the held run's rather than the
-/// Document's (`ref/ia/mac-native/NOTES.md` § State 27), and it sits behind
+/// Document's (`dev/ref/ia/mac-native/NOTES.md` § State 27), and it sits behind
 /// the figure alone, not its name.
 fn cell_markup(number: &str, name: &str, fill: Option<&str>) -> String {
     let number = glib::markup_escape_text(number);
@@ -2528,7 +2528,7 @@ mod tests {
 
     /// The counts are the body's own ink, they lift to the accent under the
     /// pointer, and a held run's figure carries the selection fill behind it
-    /// — the Design oracle's foot, `ref/ia/mac-native/NOTES.md` § State 27.
+    /// — the Design oracle's foot, `dev/ref/ia/mac-native/NOTES.md` § State 27.
     ///
     /// The ink and the hover are read off the sheet and the fill off the
     /// markup, because that is where each is written: a cell's colour is the
@@ -2565,7 +2565,7 @@ mod tests {
         );
     }
 
-    /// The stats bar's three cells for `ref/sample.md`, and for nothing.
+    /// The stats bar's three cells for `dev/ref/sample.md`, and for nothing.
     ///
     /// The counting and the formatting are both `quill_engine::stats`' tests;
     /// this one holds the three cells the bar picks out of them, in the
@@ -2575,8 +2575,8 @@ mod tests {
     #[test]
     fn the_bars_three_cells_are_the_oracles_fields_for_the_sample_and_for_nothing() {
         let sample =
-            std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../ref/sample.md"))
-                .expect("ref/sample.md");
+            std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../dev/ref/sample.md"))
+                .expect("dev/ref/sample.md");
         let counts = stats::count(&sample);
         assert_eq!(
             [
@@ -2624,8 +2624,8 @@ mod tests {
     #[test]
     fn the_bar_shows_a_cell_for_each_checked_statistic_and_none_for_none() {
         let sample =
-            std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../ref/sample.md"))
-                .expect("ref/sample.md");
+            std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../dev/ref/sample.md"))
+                .expect("dev/ref/sample.md");
         let counts = stats::count(&sample);
         assert_eq!(cells(counts, checked_set(&[])), []);
         assert_eq!(

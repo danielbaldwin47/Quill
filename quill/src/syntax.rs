@@ -570,7 +570,7 @@ impl Syntax {
     /// The merge is the Design oracle's: two struck phrases either side of one
     /// space are ruled straight through, `down only` in the capture's passage,
     /// and a rule per span would draw two with a gap (#354,
-    /// `ref/ia/mac-native/VERDICTS.md` § The Style Check mark, rule extent).
+    /// `dev/ref/ia/mac-native/VERDICTS.md` § The Style Check mark, rule extent).
     /// The merged range keeps the earlier span's List, so switching that List
     /// off takes the joined rule with it and leaves the later span its own.
     pub(crate) fn struck_in(&self, document: &Document, at: &Range<usize>) -> Struck {
@@ -1175,7 +1175,7 @@ mod tests {
     #[test]
     fn the_language_resolves_to_the_fixture_s_tag_or_to_no_dictionary_with_the_wanted_tag_kept() {
         let document = document("Teh cat.\n\nA dgo.");
-        // The fixture's listing: `ref/spell/hunspell/` serves `en_US` alone.
+        // The fixture's listing: `dev/ref/spell/hunspell/` serves `en_US` alone.
         let installed = ["en_US".to_owned()];
         let locale = |name: &str| (name == "LANG").then(|| "en_US.UTF-8".to_owned());
         let mut syntax = spelling(&document);

@@ -76,7 +76,7 @@ const CARET_LINE: f64 = 0.5;
 const BASELINE_DRIFT: f64 = 0.5;
 
 /// The most rows of selection painted in one frame: `MAX_ROWS` in
-/// `legacy/app/js/caret.js`.
+/// `dev/legacy/app/js/caret.js`.
 ///
 /// A backstop and not the thing that keeps the paint bounded — the viewport
 /// clip in [`Editor::selection`] does that, as it does in the oracle, which
@@ -125,7 +125,7 @@ const CHECKBOX: f64 = 0.58;
 
 /// How wide one dot of a Spell check mark is drawn, as a share of the em.
 ///
-/// The Design oracle's mark, measured: `ref/ia/mac-native/NOTES.md` § State 26
+/// The Design oracle's mark, measured: `dev/ref/ia/mac-native/NOTES.md` § State 26
 /// § The mark itself reads 6 device px of ink, 6 rows deep — round to the
 /// pixel — at the capture's 42.67 device px em, which is the ladder's own step
 /// 5 ([`typography`]). 6/42.67 is this, and it is written as a share of the em
@@ -147,7 +147,7 @@ const SPELL_PITCH: f64 = 0.187_5;
 const SPELL_DROP: f64 = 0.281_25;
 
 /// The weight ink is set at on paper: `--ink-weight: 415` in
-/// `legacy/app/css/type.css`, a little heavier than Regular because a light
+/// `dev/legacy/app/css/type.css`, a little heavier than Regular because a light
 /// ground eats stems. The Faces are variable, and none of the three moves a
 /// glyph's advance across the weight axis (`spike/gtk4-editor/RESULTS.txt`).
 pub(crate) const INK_WEIGHT: u32 = 415;
@@ -167,8 +167,8 @@ const SCROLL_FRAMES: u32 = 8;
 /// the layout it is resolved against ([`Editor::reveal_caret`]). A bound, not
 /// a duration: the hold ends the frame the row stops moving and is on the
 /// glass. Measured Live on the scale-2 headless output, that is the third
-/// frame on `ref/short.md` and `ref/sample.md`, and the thirteenth on the
-/// 10,062-word `shots/latency/doc10k.md` at `--caret 26000` — the layout had
+/// frame on `dev/ref/short.md` and `dev/ref/sample.md`, and the thirteenth on the
+/// 10,062-word `dev/shots/latency/doc10k.md` at `--caret 26000` — the layout had
 /// its real height by the third, and the rest is the scroll GTK animates
 /// into place over 200 ms, which the hold leaves to finish once the row is
 /// on the glass.
@@ -589,7 +589,7 @@ mod imp {
         /// rasterised straight through the bar and the two read as one mark,
         /// which is what #147 reported as the caret "sitting on" the glyph.
         /// Both the Parity oracle and iA Writer paint theirs over the ink —
-        /// `legacy/app/css/caret.css` puts `#caret-layer` above `#mirror`.
+        /// `dev/legacy/app/css/caret.css` puts `#caret-layer` above `#mirror`.
         ///
         /// This costs the layer above the text, where a future Annotator's
         /// marks were going to go; they will have to sort against the caret
@@ -1758,7 +1758,7 @@ impl Editor {
         // The window's width and not this widget's: with the Library shown the
         // Editor is the window less a [`crate::sidebar::WIDTH`] pane, which would drop a 1440 px
         // window a whole class on a pane the oracle's own class does not read
-        // (`ref/ia/mac-native/NOTES.md` § State 22). The centring and the
+        // (`dev/ref/ia/mac-native/NOTES.md` § State 22). The centring and the
         // measure below stay on the room the Editor actually got.
         let size = typography::Size::new(
             typography::size_class(unsigned(self.window_width(width))),
@@ -2609,7 +2609,7 @@ impl Editor {
             return None;
         }
         // The fill and nothing else. Where the oracle sets a bar at each end
-        // (`setEdge` in `legacy/app/js/caret.js`) and the port inherited both,
+        // (`setEdge` in `dev/legacy/app/js/caret.js`) and the port inherited both,
         // iA Writer for Mac — measured off the owner's captures of the running
         // app — draws no bar at either end of a selection and no caret while
         // one stands. ADR 0014 carries the measurements and what they cost.
@@ -2652,7 +2652,7 @@ impl Editor {
     /// ([`typewriter::hold`]): Typewriter's anchor, the pointer band for a
     /// moment after the button comes up, the edge band with Focus on and
     /// Typewriter off, and with both off the caret ticket's band —
-    /// `scroll-padding: 10vh 0 28vh` in `legacy/app/css/page.css`, which
+    /// `scroll-padding: 10vh 0 28vh` in `dev/legacy/app/css/page.css`, which
     /// [`Editor::keep_in_margins`] applies.
     ///
     /// [`caret::Source::App`] is out under every rule: a launch flag, a
@@ -2735,7 +2735,7 @@ impl Editor {
     /// clamped against it would pin the view at the top. The hold is asked
     /// for again on the frames after, for as long as `--scroll` holds its own
     /// ([`SCROLL_FRAMES`]), and taken on the first of them the layout has
-    /// been validated by; measured on `ref/sample.md` that is the frame after
+    /// been validated by; measured on `dev/ref/sample.md` that is the frame after
     /// the first, and [`Editor::reveal_caret`] has the first.
     fn hold_row(&self) {
         let Typewriter::On(anchor) = self.imp().typewriter.get() else {
@@ -2808,7 +2808,7 @@ impl Editor {
     /// adjustment counts logical pixels from the top of the page, which is
     /// the page's top margin above the buffer's first row
     /// ([`typography::page_top`]). Measured with `--typewriter` on
-    /// `ref/sample.md`: the bar the machine held stood the page's whole top
+    /// `dev/ref/sample.md`: the bar the machine held stood the page's whole top
     /// margin above where the shot drew it — 148 device pixels at scale 2,
     /// back when that margin was two pitches of a 37 pixel pitch. The page top
     /// is the constant #231 measured now, and the arithmetic does not care
@@ -3879,7 +3879,7 @@ impl Editor {
     /// `size_allocate` asks again the moment there is one. Measured on a
     /// Document of three paragraphs, `--caret 0`, `--caret 10` and
     /// `--caret end` each leave the window on the same ink `--scroll 0`
-    /// leaves it on, and `ref/sample.md` does not move.
+    /// leaves it on, and `dev/ref/sample.md` does not move.
     ///
     /// One request is not enough on a long Document, though (#221). GTK
     /// resolves it against the layout it has, and on 10,062 words the
@@ -4388,7 +4388,7 @@ fn channel(value: f64) -> f32 {
 /// selection's paint since ADR 0014 took the end bars off it.
 ///
 /// A window that is not active keeps saying what is held, in the paler of the
-/// two bands `legacy/app/css/theme.css` sets — the fill is the only mark left
+/// two bands `dev/legacy/app/css/theme.css` sets — the fill is the only mark left
 /// to say it with, now that the free caret is out for as long as a selection
 /// stands and no bar brackets either end.
 ///

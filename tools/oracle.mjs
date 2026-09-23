@@ -1,17 +1,17 @@
-// The Parity oracle, frozen: the JavaScript app in legacy/ shot at a Piece's judged states.
+// The Parity oracle, frozen: the JavaScript app in dev/legacy/ shot at a Piece's judged states.
 //
 //   tools/gate oracle <piece>            freeze the Piece's judged states, or say it is unchanged
 //   tools/gate oracle <piece> --force    shoot them again whatever the fingerprint says
 //
 // An agent judging a Piece finds its opponent already on disk. The judged states are
-// `shots/oracle/states.json` (the `defaults` plus each state's overrides, decided in issue #24);
-// the shots land at `shots/oracle/<piece>/<state>.png` and are committed, so a judging session
+// `dev/shots/oracle/states.json` (the `defaults` plus each state's overrides, decided in issue #24);
+// the shots land at `dev/shots/oracle/<piece>/<state>.png` and are committed, so a judging session
 // never has to run a browser to have something to judge against, and the owner can see that the
 // frozen shot is the one this command would still produce.
 //
-// WHEN IT SHOOTS AGAIN. Beside the shots is `fingerprint.json`: what produced them — legacy/app's
-// js, css and html hashed the way `legacy/tools/latency.mjs` fingerprints the same build, plus
-// `legacy/tools/shoot.mjs` itself, plus the passages, plus the resolved flags of every state. A
+// WHEN IT SHOOTS AGAIN. Beside the shots is `fingerprint.json`: what produced them — dev/legacy/app's
+// js, css and html hashed the way `dev/legacy/tools/latency.mjs` fingerprints the same build, plus
+// `dev/legacy/tools/shoot.mjs` itself, plus the passages, plus the resolved flags of every state. A
 // re-run with the same fingerprint shoots nothing and says so; anything different re-shoots and
 // says which of the four moved. The last two are there because a shot taken at 1440x900 of the
 // passage as it read last month is no longer the judged state once the state says 960 or the
@@ -22,10 +22,10 @@
 // that reaches past them is reported by name and fails — that Piece only — before a browser is
 // launched, so a half-frozen opponent never sits on disk waiting to be judged as if it were whole.
 // Every Piece's states are servable today; the next flag a spec invents is refused here until
-// `legacy/tools/shoot.mjs` and this file can serve it, as `library`, `sidebar` and `search` were.
+// `dev/legacy/tools/shoot.mjs` and this file can serve it, as `library`, `sidebar` and `search` were.
 //
 // WHAT IS NOT FROZEN HERE. A state carrying `opponent` is judged against a crop of the Design
-// oracle — iA Writer for Mac, captured under `ref/ia/shots/mac-native/` (ADR 0015) — and `legacy/`
+// oracle — iA Writer for Mac, captured under `dev/ref/ia/shots/mac-native/` (ADR 0015) — and `dev/legacy/`
 // has nothing to say about it. Such a state is passed over: it is not shot, not fingerprinted, and
 // not counted in the line this command ends in, and a Piece with no other kind of state is
 // unchanged by definition.
@@ -39,11 +39,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-// The one hash of a legacy/ build, shared with the bench that stamps its numbers with it, and the
+// The one hash of a dev/legacy/ build, shared with the bench that stamps its numbers with it, and the
 // two smaller stamps that live beside it.
 import { appFiles, gitHead, hashApp, sha256 } from './fingerprint.mjs';
 
-// The port legacy/bin/quill opens the app on, and the same way of moving it.
+// The port dev/legacy/bin/quill opens the app on, and the same way of moving it.
 const PORT = +(process.env.QUILL_PORT || 4173);
 
 // The flag that says how big the type is: `step`, since #164 put the ladder where the pixels were.
@@ -56,7 +56,7 @@ const TYPE_KEYS = ['step'];
 // `QUILL_STATES` is for a selftest that has to put a state in front of a whole command without
 // editing the judged states of the nine Pieces, and for nothing else.
 export function readStates(root) {
-  return JSON.parse(fs.readFileSync(process.env.QUILL_STATES || path.join(root, 'shots/oracle/states.json'), 'utf8'));
+  return JSON.parse(fs.readFileSync(process.env.QUILL_STATES || path.join(root, 'dev/shots/oracle/states.json'), 'utf8'));
 }
 
 // The Piece's states, each one the defaults with its own overrides on top, in the order the file
@@ -75,7 +75,7 @@ export function readStates(root) {
 export function resolveStates(states, piece) {
   const pieces = states.pieces || {};
   if (!Object.prototype.hasOwnProperty.call(pieces, piece)) {
-    throw new Error(`${piece}: no Piece by that name has judged states (shots/oracle/states.json names ${Object.keys(pieces).join(', ')})`);
+    throw new Error(`${piece}: no Piece by that name has judged states (dev/shots/oracle/states.json names ${Object.keys(pieces).join(', ')})`);
   }
   return Object.entries(pieces[piece]).map(([name, overrides]) => {
     const { opponent = null, assert: asserted = null, ...rest } = overrides;
@@ -122,7 +122,7 @@ export function byteToChar(text, byte) {
 }
 
 // ---------- the ladder, on the oracle's side ----------
-// A judged state names a step of the type ladder. `legacy/tools/shoot.mjs` predates the ladder and
+// A judged state names a step of the type ladder. `dev/legacy/tools/shoot.mjs` predates the ladder and
 // counts in pixels, so the oracle's command line is the one place left that turns a step back into
 // a size: the em in logical pixels, fractional, which is what the legacy app's `fontSize` takes.
 // The numbers are `WIDE` in `quill-engine/src/typography.rs` — the wide size class's ladder, which
@@ -189,7 +189,7 @@ export function fingerprint(root, resolved) {
   return {
     _about: 'What produced the shots beside this file. `tools/gate oracle <piece>` re-shoots when any of it moves; git_head only says where it was taken and is not compared.',
     app: hashApp(root),
-    shoot: sha256(fs.readFileSync(path.join(root, 'legacy/tools/shoot.mjs'))).slice(0, 16),
+    shoot: sha256(fs.readFileSync(path.join(root, 'dev/legacy/tools/shoot.mjs'))).slice(0, 16),
     git_head: git,
     passages: Object.fromEntries([...new Set(resolved.map((s) => s.flags.text).filter(Boolean))].sort()
       .map((p) => [p, sha256(fs.readFileSync(path.join(root, p))).slice(0, 16)])),
@@ -199,7 +199,7 @@ export function fingerprint(root, resolved) {
   };
 }
 
-// Why legacy/ cannot be shot from `root` — or null when it holds playwright-core. legacy/ has its
+// Why dev/legacy/ cannot be shot from `root` — or null when it holds playwright-core. dev/legacy/ has its
 // own manifest, and the root `npm i` does not fill it. Said here, in one or two lines, rather than
 // as shoot.mjs's module-not-found under a failed shot.
 //
@@ -209,9 +209,9 @@ export function fingerprint(root, resolved) {
 // file naming the main checkout's `.git/worktrees/<name>` — is offered a link to the main
 // checkout's install when that one would resolve, so the install is paid once per machine.
 export function installRefusal(root) {
-  const installed = (dir) => fs.existsSync(path.join(dir, 'legacy/node_modules/playwright-core'));
+  const installed = (dir) => fs.existsSync(path.join(dir, 'dev/legacy/node_modules/playwright-core'));
   if (installed(root)) return null;
-  let line = 'gate oracle: legacy/ has no playwright-core to shoot with; run `npm i` inside legacy/ (its manifest is its own, and the root one is not enough)';
+  let line = 'gate oracle: dev/legacy/ has no playwright-core to shoot with; run `npm i` inside dev/legacy/ (its manifest is its own, and the root one is not enough)';
   // `git worktree add` writes `gitdir: <main>/.git/worktrees/<name>`, so the main checkout is
   // three levels up. Any other layout (a submodule's `.git/modules/<name>`) lands somewhere with
   // no install and offers nothing, rather than a link to the wrong place.
@@ -221,7 +221,7 @@ export function installRefusal(root) {
     if (gitdir) mainCheckout = path.resolve(root, gitdir[1], '..', '..', '..');
   } catch { /* a directory, or no .git at all: not a worktree */ }
   if (mainCheckout !== null && installed(mainCheckout)) {
-    line += `,\n  or link the main checkout's: \`ln -s ${path.join(mainCheckout, 'legacy/node_modules')} legacy/node_modules\` (from ${root})`;
+    line += `,\n  or link the main checkout's: \`ln -s ${path.join(mainCheckout, 'dev/legacy/node_modules')} dev/legacy/node_modules\` (from ${root})`;
   }
   return line;
 }
@@ -230,8 +230,8 @@ export function installRefusal(root) {
 // states whose png is actually on disk.
 export function freezeReason(was, now, have) {
   if (!was) return 'nothing frozen here yet';
-  if (was.app?.sha256 !== now.app.sha256 || was.app?.files !== now.app.files) return 'legacy/app changed';
-  if (was.shoot !== now.shoot) return 'legacy/tools/shoot.mjs changed';
+  if (was.app?.sha256 !== now.app.sha256 || was.app?.files !== now.app.files) return 'dev/legacy/app changed';
+  if (was.shoot !== now.shoot) return 'dev/legacy/tools/shoot.mjs changed';
   if (JSON.stringify(was.passages) !== JSON.stringify(now.passages)) return 'the passage changed';
   if (JSON.stringify(was.libraries) !== JSON.stringify(now.libraries)) return 'the library fixture changed';
   if (JSON.stringify(was.states) !== JSON.stringify(now.states)) return 'the judged states changed';
@@ -241,7 +241,7 @@ export function freezeReason(was, now, have) {
 }
 
 // ---------- the document server ----------
-// Something answering on the port is not proof that it is Quill, as legacy/bin/quill says — and
+// Something answering on the port is not proof that it is Quill, as dev/legacy/bin/quill says — and
 // for the oracle, being Quill is not proof either. Sibling worktrees run their own servers, and a
 // shot taken from one of those would sit under a fingerprint naming this checkout's app. So the
 // app on the port is hashed exactly as the fingerprint hashes it and must be the same app, file
@@ -250,7 +250,7 @@ async function servesThisApp(port, root, want) {
   try {
     const h = crypto.createHash('sha256');
     for (const f of appFiles(root)) {
-      const r = await fetch(`http://localhost:${port}/${f.replace(/^legacy\/app\//, '')}`, { signal: AbortSignal.timeout(1000) });
+      const r = await fetch(`http://localhost:${port}/${f.replace(/^dev\/legacy\/app\//, '')}`, { signal: AbortSignal.timeout(1000) });
       if (!r.ok) return false;
       h.update(`${f}:${sha256(Buffer.from(await r.arrayBuffer()))}\n`);
     }
@@ -273,7 +273,7 @@ async function documentServer(root, appSha) {
   // below, somebody else's server can take it, and then the port answers, this child is dead, and
   // the shots would come from a stranger. So the child is watched, and what finally answers is
   // put through the same check as a server that was already there.
-  const child = spawn('node', [path.join(root, 'legacy/tools/serve.mjs'), String(port)], { cwd: root, stdio: 'ignore' });
+  const child = spawn('node', [path.join(root, 'dev/legacy/tools/serve.mjs'), String(port)], { cwd: root, stdio: 'ignore' });
   let died = null;
   child.on('error', (e) => { died = e.message; });
   child.on('exit', (code, signal) => { died = `it exited (${signal || `code ${code}`})`; });
@@ -295,7 +295,7 @@ function usage(where = process.stderr) {
   where.write(`usage: tools/gate oracle <piece> [--force]
 
   The Pieces with judged states are the keys of "pieces" in
-  shots/oracle/states.json. What the command does: tools/gate --help
+  dev/shots/oracle/states.json. What the command does: tools/gate --help
 `);
 }
 
@@ -341,13 +341,13 @@ async function freeze(root, piece, force) {
   }
 
   // A state judged against a Design oracle crop has its opponent committed under
-  // `ref/ia/shots/mac-native/` already, and no browser can take it: `legacy/` is not the app it is
+  // `dev/ref/ia/shots/mac-native/` already, and no browser can take it: `dev/legacy/` is not the app it is
   // a capture of. So it is not frozen here, and a Piece whose states are all of that kind is
   // finished before it starts rather than failing for an opponent it does not want (ADR 0015).
   // A state carrying `assert` has no opponent at all — it is measured against itself — so it is
   // passed over here for the same reason and by the same rule (ADR 0017).
   const parity = resolved.filter((s) => !s.opponent && !s.assert);
-  const dir = path.join(root, 'shots/oracle', piece);
+  const dir = path.join(root, 'dev/shots/oracle', piece);
   const fpFile = path.join(dir, 'fingerprint.json');
   const was = fs.existsSync(fpFile) ? JSON.parse(fs.readFileSync(fpFile, 'utf8')) : null;
 
@@ -365,10 +365,10 @@ async function freeze(root, piece, force) {
       const why = resolved.some((s) => s.name === name)
         ? 'is judged against a mac-native crop now'
         : 'is no longer a judged state';
-      process.stderr.write(`gate oracle ${piece}: ${name} ${why}; shots/oracle/${piece}/${name}.png is the opponent it had, and nothing reads it any more\n`);
+      process.stderr.write(`gate oracle ${piece}: ${name} ${why}; dev/shots/oracle/${piece}/${name}.png is the opponent it had, and nothing reads it any more\n`);
     }
     // Which kind of elsewhere, because there are two and they want different things looked at: a
-    // crop is committed under `ref/ia/` for somebody to compare against, and an assertion is
+    // crop is committed under `dev/ref/ia/` for somebody to compare against, and an assertion is
     // measured off ours alone and has no opponent anywhere (ADR 0017).
     const how = [
       resolved.some((s) => s.opponent) && 'judged against a mac-native crop',
@@ -388,7 +388,7 @@ async function freeze(root, piece, force) {
       const fixtures = s.cannot.map((f) => s.flags[f]).filter((v) => typeof v === 'string' && v.includes('/'));
       process.stderr.write(`gate oracle ${piece}: state ${s.name} names ${s.cannot.join(', ')}${fixtures.length ? `, and the fixture ${fixtures.join(', ')}` : ''}\n`);
     }
-    process.stderr.write('gate oracle: no tool under legacy/ serves those yet; a state may name only the flags the defaults name (shots/oracle/states.json)\n');
+    process.stderr.write('gate oracle: no tool under dev/legacy/ serves those yet; a state may name only the flags the defaults name (dev/shots/oracle/states.json)\n');
     console.log(`gate oracle ${piece}: fail (${blocked.length} of ${parity.length} states name flags this tool cannot serve yet)`);
     return 1;
   }
@@ -396,7 +396,7 @@ async function freeze(root, piece, force) {
   // The other half of freezing whole: every state's passage is read and every offset converted
   // now, so a caret that lands inside a character is found here rather than after three of the
   // Piece's four shots are already on disk.
-  const shot = (s) => path.join('shots/oracle', piece, `${s.name}.png`);
+  const shot = (s) => path.join('dev/shots/oracle', piece, `${s.name}.png`);
   try { for (const s of parity) shootArgv(root, s.flags, shot(s), 'http://localhost/'); }
   catch (e) {
     process.stderr.write(`gate oracle ${piece}: ${e.message}\n`);
@@ -407,7 +407,7 @@ async function freeze(root, piece, force) {
   const refusal = installRefusal(root);
   if (refusal !== null) {
     process.stderr.write(`${refusal}\n`);
-    console.log(`gate oracle ${piece}: fail (legacy/ is not installed)`);
+    console.log(`gate oracle ${piece}: fail (dev/legacy/ is not installed)`);
     return 1;
   }
 
@@ -430,7 +430,7 @@ async function freeze(root, piece, force) {
       process.stderr.write(`gate oracle ${piece}: shooting ${s.name}\n`);
       // shoot.mjs's own "wrote ..." line would drown the one line the owner reads; what it says
       // when it fails is on stderr, above that line, for the agent who has to fix it.
-      execFileSync('node', [path.join(root, 'legacy/tools/shoot.mjs'), ...shootArgv(root, s.flags, shot(s), server.url)], { cwd: root, stdio: ['ignore', 'ignore', 'inherit'] });
+      execFileSync('node', [path.join(root, 'dev/legacy/tools/shoot.mjs'), ...shootArgv(root, s.flags, shot(s), server.url)], { cwd: root, stdio: ['ignore', 'ignore', 'inherit'] });
     }
     // A state that has been renamed, dropped, or moved to a Design oracle crop leaves its shot
     // behind, and a judging session would pick up an opponent no judged state asks for any more.

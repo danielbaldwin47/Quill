@@ -148,7 +148,7 @@ const THEMES: [(&str, Scheme); 2] = [("light", Scheme::Light), ("dark", Scheme::
 const CHROMES: [(&str, Chrome); 2] = [("on", Chrome::Shown), ("off", Chrome::Hidden)];
 
 /// What `--menu` takes: the three menus, the Palette and the Palette on the
-/// Outline, by the names `shots/oracle/states.json` uses for them.
+/// Outline, by the names `dev/shots/oracle/states.json` uses for them.
 const MENUS: [(&str, Menu); 5] = [
     ("view", Menu::Bar(commands::Menu::View)),
     ("document", Menu::Bar(commands::Menu::Document)),
@@ -997,7 +997,7 @@ mod tests {
     /// Every flag `docs/architecture.md` names, with a value it takes and —
     /// where it has a domain — one it does not.
     const FLAGS: [(&str, &str, Option<&str>); 32] = [
-        ("--text", "ref/sample.md", None),
+        ("--text", "dev/ref/sample.md", None),
         ("--theme", "dark", Some("purple")),
         ("--font", "mono", Some("comic")),
         ("--step", "6", Some("14")),
@@ -1016,7 +1016,7 @@ mod tests {
         ("--nocaret", "", None),
         ("--typing", "", None),
         ("--menu", "view", Some("file")),
-        ("--library", "shots/oracle/library", None),
+        ("--library", "dev/shots/oracle/library", None),
         ("--sidebar", "", None),
         // With the flag it wants beside it: a query and no pane to type it
         // into is refused ([`Flags::parse`]).
@@ -1074,13 +1074,13 @@ mod tests {
         writers.library.show_date = ShowDate::None;
         writers.library.pin_folders = false;
         let flags = parse(
-            "--library shots/oracle/library:mark=feather,show_excerpts=false,\
+            "--library dev/shots/oracle/library:mark=feather,show_excerpts=false,\
              pinned=sea-storm.md,pinned=notes/list.md",
         )
         .expect("the override form");
         assert_eq!(
             flags.library.as_deref(),
-            Some(Path::new("shots/oracle/library"))
+            Some(Path::new("dev/shots/oracle/library"))
         );
         let shot = flags.over(writers);
         let defaults = Library::default();
@@ -1089,8 +1089,8 @@ mod tests {
         assert_eq!(
             shot.library.pinned,
             [
-                PathBuf::from("shots/oracle/library/sea-storm.md"),
-                PathBuf::from("shots/oracle/library/notes/list.md"),
+                PathBuf::from("dev/shots/oracle/library/sea-storm.md"),
+                PathBuf::from("dev/shots/oracle/library/notes/list.md"),
             ]
         );
         assert_eq!(
@@ -1108,7 +1108,7 @@ mod tests {
             ),
             "the keys the form did not name stay at their defaults, not the writer's"
         );
-        let pen = parse("--library shots/oracle/library:mark=pen,sort=name,order=oldest")
+        let pen = parse("--library dev/shots/oracle/library:mark=pen,sort=name,order=oldest")
             .expect("choices by the names the file writes")
             .over(Settings::default());
         assert_eq!(
@@ -1116,12 +1116,12 @@ mod tests {
             (Mark::Pen, Sort::Name, Order::Oldest)
         );
         for bad in [
-            "shots/oracle/library:",
-            "shots/oracle/library:mark",
-            "shots/oracle/library:mark=quill",
-            "shots/oracle/library:colour=red",
-            "shots/oracle/library:show_excerpts=no",
-            "shots/oracle/library:pinned=",
+            "dev/shots/oracle/library:",
+            "dev/shots/oracle/library:mark",
+            "dev/shots/oracle/library:mark=quill",
+            "dev/shots/oracle/library:colour=red",
+            "dev/shots/oracle/library:show_excerpts=no",
+            "dev/shots/oracle/library:pinned=",
         ] {
             let said = parse(&format!("--library {bad}"))
                 .expect_err(bad)
@@ -1133,7 +1133,7 @@ mod tests {
 
     #[test]
     fn a_query_with_no_sidebar_to_type_it_into_is_refused() {
-        let err = parse("--library shots/oracle/library --search sea")
+        let err = parse("--library dev/shots/oracle/library --search sea")
             .expect_err("a query with the Library away");
         let said = err.to_string();
         assert_eq!(
@@ -1192,9 +1192,9 @@ mod tests {
     #[test]
     fn the_whole_judged_state_and_the_harness_parse_together() {
         let flags = parse(
-            "--text ref/sample.md --theme dark --font mono --step 6 --focus paragraph \
+            "--text dev/ref/sample.md --theme dark --font mono --step 6 --focus paragraph \
              --typewriter --live --chrome off --caret end --select 10,20 --scroll 0.25 --nocaret \
-             --typing --menu palette --library shots/oracle/library --sidebar --search sea \
+             --typing --menu palette --library dev/shots/oracle/library --sidebar --search sea \
              --preview full --template classic --export-dialog pdf --pane export --query sea \
              --w 1440 --h 900 --deterministic --measure out.jsonl \
              --palette quill.toml",
@@ -1202,7 +1202,7 @@ mod tests {
         .expect("every flag at once");
         assert_eq!(
             flags.library.as_deref(),
-            Some(Path::new("shots/oracle/library"))
+            Some(Path::new("dev/shots/oracle/library"))
         );
         assert!(flags.sidebar);
         assert_eq!(flags.search.as_deref(), Some("sea"));
@@ -1213,7 +1213,7 @@ mod tests {
         assert_eq!(flags.query.as_deref(), Some("sea"));
         assert!(flags.typing);
         assert_eq!(flags.menu, Some(Menu::Palette));
-        assert_eq!(flags.text.as_deref(), Some(Path::new("ref/sample.md")));
+        assert_eq!(flags.text.as_deref(), Some(Path::new("dev/ref/sample.md")));
         assert_eq!(flags.theme, Some(Scheme::Dark));
         assert_eq!(flags.face, Some(Face::Mono));
         assert_eq!(flags.step, Some(6));
@@ -1234,7 +1234,7 @@ mod tests {
 
     #[test]
     fn the_step_the_gates_harness_writes_is_the_ladders_default() {
-        // `shots/oracle/states.json` says `"step": 5`, and every judged state
+        // `dev/shots/oracle/states.json` says `"step": 5`, and every judged state
         // is launched with it.
         let flags = parse("--step 5").expect("the harness's own step");
         assert_eq!(flags.step, Some(quill_engine::settings::default_step()));
@@ -1317,10 +1317,10 @@ mod tests {
 
     #[test]
     fn the_text_flag_is_the_first_document() {
-        let flags = parse("--text ref/sample.md other.md").expect("a flag and a file");
+        let flags = parse("--text dev/ref/sample.md other.md").expect("a flag and a file");
         assert_eq!(
             flags.documents(),
-            [Path::new("ref/sample.md"), Path::new("other.md")]
+            [Path::new("dev/ref/sample.md"), Path::new("other.md")]
         );
         assert!(flags.is_harness());
     }
@@ -1584,12 +1584,12 @@ mod tests {
         writers.library.show_date = quill_engine::settings::ShowDate::None;
         writers.library.show_excerpts = false;
         writers.library.mark = quill_engine::settings::Mark::Feather;
-        let judged = parse("--library shots/oracle/library")
+        let judged = parse("--library dev/shots/oracle/library")
             .expect("one flag")
             .over(writers.clone());
         assert_eq!(
             judged.library.locations,
-            vec![PathBuf::from("shots/oracle/library")],
+            vec![PathBuf::from("dev/shots/oracle/library")],
             "the fixture, and no folder of the writer's"
         );
         assert!(judged.library.pinned.is_empty());

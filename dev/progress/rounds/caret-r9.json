@@ -1,0 +1,111 @@
+{
+  "piece": "caret",
+  "round": 9,
+  "winner": "theirs",
+  "margin": "slight",
+  "gap": "B renders no caret at all: the only non-grey pixels in the entire 2880x1800 frame are the selection rect itself (492x74+920+446), and a 1x45 vertical erode finds no dark bar anywhere. There is no insertion point, so there is nothing to judge for width, colour, height ratio or blink — A at least puts a 6x76px bar on the page.",
+  "gapTheirs": "A draws two identical #00B5FF bars, 6x76 device px (3 x 38 CSS px) each, at BOTH ends of the selection (x910-915 and x1404-1409, flanking a fill that runs 916-1404) — the active end is unreadable, and each bar is 1.7x the ~22px font-size and 2.45x the 31px-device cap height, in the highest-chroma colour on a #F9F9F9/#1C1C1C page; a caret that wide and that loud is a marker pen, not a nib.",
+  "verdict": "A's caret is a 3px neon slab stamped at both ends of the selection, which reads as an IDE bracket-match rather than a manuscript — you can see it from across the room and still not know which end shift-arrow is moving. But B shows you nothing: no bar, no anchor, no evidence a caret exists in this state at all, and a writer extending a selection with the keyboard is left inferring their position from which edge shifted. An overweight instrument beats an invisible one, so A takes it, but only just, and A should halve that bar to 1.5px, cut its height from 38px to about 26px, and kill the second one.",
+  "oursShot": "dev/shots/caret/r9-selection-ours.png",
+  "theirsShot": "dev/shots/oracle/caret/selection.png",
+  "refSource": "dev/shots/oracle/caret/ — the Parity oracle frozen by tools/gate oracle caret from dev/legacy/app 738f48c969965ac3 with dev/legacy/tools/shoot.mjs b2362316db135d06; dev/ref/ia/shots/mac-native/ — the Design oracle, iA Writer for Mac as captured and measured in dev/ref/ia/mac-native/ (ADR 0015), cropped per state: caret from mac-native-01-light-caret-midword.png; no opponent for unfocused (ghost) — measured off ours' own pixels by tools/assert-state.mjs, because neither oracle holds the state (ADR 0017)",
+  "builderNote": "#147: the bar centred on the advance boundary; caret/unfocused asserted rather than paired (ADR 0017)",
+  "secondary": [
+    "Selection fill: A #C2EAFA on #F9F9F9 bg; B #CCEDF8 on #F7F7F7 — A is ~10 units more saturated and reads marginally more definite",
+    "Selection band centring: B's ink sits 18px top / 16px bottom inside its 74px rect (1.13); A's sits 21/16 (1.31), so A's band rides ~2.5 CSS px low against the glyphs",
+    "Both selections fill the full line box (A 76 device px vs 76px line pitch; B 74 vs 74), so stacked selected lines would butt with no gutter in either",
+    "Neither screenshot can evidence blink or motion — the 'alive' half of this criterion is untestable from a still, and B forfeits the static half too",
+    "A's bars sit outside the fill rect, making the selection read 12 device px wider than the text it actually covers",
+    "Body text is #1C1C1C on both and stays fully legible through both selection fills — no contrast failure either way"
+  ],
+  "opponent": "mixed",
+  "build": {
+    "git": "f3936b6",
+    "binary": "6f40e73af969d0e5",
+    "settings": null
+  },
+  "states": [
+    {
+      "name": "caret",
+      "ours": "dev/shots/caret/r9-caret-ours-crop.png",
+      "theirs": "dev/shots/caret/r9-caret-theirs-crop.png",
+      "opponent": {
+        "capture": "dev/ref/ia/shots/mac-native/mac-native-01-light-caret-midword.png",
+        "crop": [
+          459,
+          187,
+          720,
+          260
+        ],
+        "ours": [
+          392,
+          205,
+          720,
+          260
+        ]
+      },
+      "oursWhole": "dev/shots/caret/r9-caret-ours.png",
+      "blind": "dev/shots/blind/caret/caret",
+      "oursWas": "B",
+      "pick": "B",
+      "winner": "ours",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "Zero end-cap treatment — 0px corner radius, square butt ends at full strength on both tips, versus A's ~1px radius with tapered 59%-alpha caps. Since the caret is 74px in a 74px line box (100% of line-height, 2.5x the 30px cap height) with no leading clearance, B's flat slab will visually fuse top-to-bottom with anything on the adjacent line; A's tapered tips at least breathe.",
+      "gapTheirs": "The caret is off the pixel grid: at x=357 it renders at 80% alpha (49,202,253), solid only across x=358-362, then bleeds a 19%-alpha wash (199,236,248) into x=363 — the exact column where the 'a' stem begins. Its tips are also 59%-alpha (102,214,252) at y=93 and y=166. Net: a 3px caret with ~0.4px of blur on all four sides, so at 1x it reads soft and faintly doubled instead of hairline-sharp. B is snapped: x357-362 pure (0,191,255), x356 and x363 pure background, full strength to the last row.",
+      "verdict": "This is a rasterization argument, not a design argument — the two apps shipped the identical caret and only one of them bothered to snap it to the device pixel. A's caret is a smeared 3px bar leaking cyan onto the 'a' it's supposed to sit before; B's is a clean rectangle you can trust the position of, which is the entire job of a caret. But neither earned anything: 3 CSS px is a fat wedge for a monospace body face, #00BFFF is the stock 'deep sky blue' nobody chose, the bar runs floor-to-ceiling of the line box with zero leading gap, and in a screenshot billed as caret-and-selection there is no selection colour to judge at all.",
+      "secondary": [
+        "Caret geometry byte-identical in both: x357-362, y93-166, 6x74px, #00BFFF",
+        "Neither image shows any selection highlight — half the brief is unevidenced in both",
+        "Caret height = 100% of the 74px line box = 2.5x cap height; it overshoots the ascender by 21px and drops 15px below baseline in both",
+        "A's whole canvas carries a +/-1 grain overlay (bg 246-248, text 25-26 dispersed); B is flat 247,247,247 with text a clean 25,25,25. The caret core is pure in both, so grain doesn't cost contrast — but it explains A's general softness.",
+        "B's glyphs render 3px taller (cap-height 33px vs A's 30px, same 143 baseline) and heavier, so B's caret is proportionally slightly less dominant (0.18 vs 0.20 of cap height)",
+        "B's text block sits ~3px left and ~3px high of A's; a third line is clipped at y=259 in B, absent in A",
+        "Blink and motion are unjudgeable from stills — neither image evidences a rhythm, easing, or a smooth caret transit"
+      ]
+    },
+    {
+      "name": "selection",
+      "ours": "dev/shots/caret/r9-selection-ours.png",
+      "theirs": "dev/shots/oracle/caret/selection.png",
+      "blind": "dev/shots/blind/caret/selection",
+      "oursWas": "B",
+      "pick": "A",
+      "winner": "theirs",
+      "margin": "slight",
+      "sameViewport": true,
+      "gap": "B renders no caret at all: the only non-grey pixels in the entire 2880x1800 frame are the selection rect itself (492x74+920+446), and a 1x45 vertical erode finds no dark bar anywhere. There is no insertion point, so there is nothing to judge for width, colour, height ratio or blink — A at least puts a 6x76px bar on the page.",
+      "gapTheirs": "A draws two identical #00B5FF bars, 6x76 device px (3 x 38 CSS px) each, at BOTH ends of the selection (x910-915 and x1404-1409, flanking a fill that runs 916-1404) — the active end is unreadable, and each bar is 1.7x the ~22px font-size and 2.45x the 31px-device cap height, in the highest-chroma colour on a #F9F9F9/#1C1C1C page; a caret that wide and that loud is a marker pen, not a nib.",
+      "verdict": "A's caret is a 3px neon slab stamped at both ends of the selection, which reads as an IDE bracket-match rather than a manuscript — you can see it from across the room and still not know which end shift-arrow is moving. But B shows you nothing: no bar, no anchor, no evidence a caret exists in this state at all, and a writer extending a selection with the keyboard is left inferring their position from which edge shifted. An overweight instrument beats an invisible one, so A takes it, but only just, and A should halve that bar to 1.5px, cut its height from 38px to about 26px, and kill the second one.",
+      "secondary": [
+        "Selection fill: A #C2EAFA on #F9F9F9 bg; B #CCEDF8 on #F7F7F7 — A is ~10 units more saturated and reads marginally more definite",
+        "Selection band centring: B's ink sits 18px top / 16px bottom inside its 74px rect (1.13); A's sits 21/16 (1.31), so A's band rides ~2.5 CSS px low against the glyphs",
+        "Both selections fill the full line box (A 76 device px vs 76px line pitch; B 74 vs 74), so stacked selected lines would butt with no gutter in either",
+        "Neither screenshot can evidence blink or motion — the 'alive' half of this criterion is untestable from a still, and B forfeits the static half too",
+        "A's bars sit outside the fill rect, making the selection read 12 device px wider than the text it actually covers",
+        "Body text is #1C1C1C on both and stays fully legible through both selection fills — no contrast failure either way"
+      ]
+    },
+    {
+      "name": "unfocused",
+      "ours": "dev/shots/caret/r9-unfocused-ours.png",
+      "theirs": "dev/shots/caret/r9-unfocused-ours-lit.png",
+      "assert": {
+        "kind": "ghost",
+        "alpha": 0.3,
+        "held": true
+      },
+      "winner": "ours",
+      "margin": "asserted",
+      "sameViewport": true,
+      "gap": "the ghost is the lit bar at alpha 0.302 over the paper, against the 0.3 docs/design.md row Caret on window deactivation names; the bar is x 1943..1948, y 816..889 lit and ghosted alike — deactivating the window moves it by nothing",
+      "gapTheirs": "no opponent: neither iA Writer for Mac nor dev/legacy/ holds this state (ADR 0017)",
+      "verdict": "the ghost is the lit bar at alpha 0.302 over the paper, against the 0.3 docs/design.md row Caret on window deactivation names; the bar is x 1943..1948, y 816..889 lit and ghosted alike — deactivating the window moves it by nothing",
+      "secondary": [
+        "the bar is x 1943..1948, y 816..889 lit and ghosted alike — deactivating the window moves it by nothing",
+        "alpha solved per channel from the two shots, not from a hex written down here"
+      ]
+    }
+  ],
+  "at": "2026-08-31T19:32:43.066Z"
+}

@@ -3,7 +3,7 @@
 
     python3 tools/fontbuild.py
 
-Reads the six `*V*.ttf` variable files from `ref/ia/fonts` and writes `fonts/`
+Reads the six `*V*.ttf` variable files from `dev/ref/ia/fonts` and writes `fonts/`
 at the repo root: six renamed TTFs and the `OFL.txt` that carries their
 attribution. Needs `python-fonttools`, which is a tool-time dependency only —
 the fonts are committed, so neither the workspace build nor the package runs
@@ -35,14 +35,14 @@ from pathlib import Path
 from fontTools.ttLib import TTFont
 
 ROOT = Path(__file__).resolve().parent.parent
-SOURCE = ROOT / "ref" / "ia" / "fonts"
+SOURCE = ROOT / "dev" / "ref" / "ia" / "fonts"
 FONTS = ROOT / "fonts"
 
 # The prefix ADR 0007 keeps in one place: renaming every Face is an edit here
 # and a rebuild.
 PREFIX = "Quill"
 
-# (directory under ref/ia/fonts, source file, name of the Face, italic?)
+# (directory under dev/ref/ia/fonts, source file, name of the Face, italic?)
 FACES = [
     ("Duo", "iAWriterDuoV.ttf", "Duo", False),
     ("Duo", "iAWriterDuoV-Italic.ttf", "Duo", True),
@@ -106,7 +106,7 @@ Quill Duo, Quill Quattro and Quill Mono
 =======================================
 
 Quill's Faces are Modified Versions of the iA Writer typefaces, built from the
-variable fonts under `ref/ia/fonts` by `tools/fontbuild.py`. As section 3 of
+variable fonts under `dev/ref/ia/fonts` by `tools/fontbuild.py`. As section 3 of
 the licence below requires, no Reserved Font Name appears in them.
 
 What was modified:
@@ -123,9 +123,9 @@ What was modified:
 
 Outlines, kerning, hinting and the variation axes are iA's, unchanged apart from
 the two advance edits named above. The originals are in this repository under
-`ref/ia/fonts`.
+`dev/ref/ia/fonts`.
 
-The licence below is iA's own, copied verbatim from `ref/ia/fonts/*/LICENSE.md`.
+The licence below is iA's own, copied verbatim from `dev/ref/ia/fonts/*/LICENSE.md`.
 
 
 """
@@ -223,7 +223,7 @@ def pin_advance(font):
 #
 # iA's own files ask for a 60-unit rule 309 above the baseline, and neither
 # number is what the Design oracle draws: it rules **2 device px centred on the
-# x-height** at the default size (#354, `ref/ia/mac-native/VERDICTS.md` § The
+# x-height** at the default size (#354, `dev/ref/ia/mac-native/VERDICTS.md` § The
 # Style Check mark; `docs/design.md` § Rows, Style check mark). macOS ignores
 # the metric and draws its own rule; Pango obeys the metric and has no API to
 # override it, so the oracle's rule is written into the Faces here — the one

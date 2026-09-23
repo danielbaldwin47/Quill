@@ -2,7 +2,7 @@ Quill Duo, Quill Quattro and Quill Mono
 =======================================
 
 Quill's Faces are Modified Versions of the iA Writer typefaces, built from the
-variable fonts under `ref/ia/fonts` by `tools/fontbuild.py`. As section 3 of
+variable fonts under `dev/ref/ia/fonts` by `tools/fontbuild.py`. As section 3 of
 the licence below requires, no Reserved Font Name appears in them.
 
 What was modified:
@@ -19,9 +19,9 @@ What was modified:
 
 Outlines, kerning, hinting and the variation axes are iA's, unchanged apart from
 the two advance edits named above. The originals are in this repository under
-`ref/ia/fonts`.
+`dev/ref/ia/fonts`.
 
-The licence below is iA's own, copied verbatim from `ref/ia/fonts/*/LICENSE.md`.
+The licence below is iA's own, copied verbatim from `dev/ref/ia/fonts/*/LICENSE.md`.
 
 
 # iA Writer Typeface
